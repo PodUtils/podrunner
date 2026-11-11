@@ -34,15 +34,21 @@ is done.
 - M-D: T-045 (the mitigations of DR-4) and T-031 (the remote mint,
   `crates/podrunner-remote`, `podrunner mint-serve`, a source kind
   `remote`) are done. T-033 waits for DR-7 and M-B.
-- L2, on the fake path: `crates/podrunner-broker-fake` runs the official
-  runner offline (`level2.yml`): canned jobs, the results routes, the
-  corpus of podcrates jobs (`corpus/podcrates.json`, `scripts/corpus.py`)
-  and a `container:` job through the hooks of T-035 (the relay, the
-  socket, the checks, the fake unit), with the canary of a registry
-  password. T-034 measured U21 (`scripts/measure-hook-path.sh`); U19
-  needs podvm. T-034, T-035, T-036 and T-038 are blocked on podvm: the
-  runner on podvm (T-026), the container verbs, the mapping of unix
-  socket paths (T-050, fixed on podvm `main`).
+- L2: `crates/podrunner-broker-fake` runs the official runner offline
+  (`level2.yml`, also each Monday): canned jobs, the results routes, the
+  corpus of podcrates jobs and a `container:` job through the hooks. On
+  podvm (`runner-image.yml`, x86_64, no root): the runner takes a canned
+  job and a `container:` job (T-026, T-035), and the unit conformance
+  suite runs on the podvm driver. T-034, T-035 and T-038 are done; T-039
+  waits for T-036 (a real guest) and T-037 (DR-5).
+- The conformance suites follow the design numbers (T-053): the tables in
+  `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md`.
+  Only the design unit test 11 (a real guest) is open.
+- The tree kill (T-063): the fake unit runs each tree under a shim with
+  `PR_SET_CHILD_SUBREAPER` (`crates/podrunner-unit/src/shim.rs`); the
+  podvm driver kills the tree under each tagged process (the supervisor
+  of podvm is a subreaper). Tests 25 and 26 hold it. T-063 closes on a
+  green `runner-image.yml` run.
 - podnet answered COORD-001 (PodUtils/podnet#425): the runner pin
   `actions/runner` v2.338.2 and the object `hold` of `pod doctor --json`
   (T-044).
