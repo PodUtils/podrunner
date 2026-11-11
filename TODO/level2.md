@@ -400,7 +400,7 @@ T-067 gives the driver the tree that `podvm inspect` names. With the next beta: 
 
 ## Done
 
-2026-11-11, `baab86e`; runner-image run 43100514216 and gate run 43100514057 of `baab86e` are green. podvm `v0.2.0-beta.4` is pinned (`images/podvm.toml`, `probe::LOWEST`). The two tests of `crates/podrunner-broker-fake/tests/podvm.rs` and the unit conformance suite pass on it. Test 26 found a defect, fixed in place: a killed launcher now ends the payload, so `destroy` counts the processes as unknown when podvm says `dead`, and the escape payloads write the pid before the kill.
+2026-11-11, `baab86e`; runner-image run 43100514216 and gate run 43100514057 of `baab86e` are green. podvm `v0.2.0-beta.4` is pinned (`images/podvm.toml`, `probe::LOWEST`). The two tests of `crates/podrunner-broker-fake/tests/podvm.rs` and the unit conformance suite pass on it. Test 26 found a defect, fixed in place: a killed launcher now ends the payload, so `destroy` counts the processes as unknown when podvm says `dead`, and the escape payloads write the pid before the kill. Run 43103328827 once failed test 26 with `podvm run: exit 125` at the start of a unit; it did not come again (run 43105916054), and a failed podvm call now names the last line of its error (`44df9bf`).
 
 # T-067: The podvm driver takes the root of a unit from podvm inspect
 

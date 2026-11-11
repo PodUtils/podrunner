@@ -476,7 +476,7 @@ Done: steps 1 to 3. Measured with podvm `v0.2.0-beta.3` and podnet `v0.4.0-beta.
 
 ## Done
 
-2026-11-11; step 4: `crates/podrunner-broker-fake/tests/held.rs`, the official runner in a held podvm unit with the egress module on its socket. The allowed step gets the body through the upstream; the denied step fails and its name never reaches the upstream. It passes on H0 and runs in `runner-image.yml`. It found T-077 (podnet, GitHub #64), and `destroy` no longer takes the `podnet pod` of the hold for a process of the payload.
+2026-11-11, `e39526d`; runner-image run 43105916054 and gate run 43105916088 of `44df9bf` are green. Step 4: `crates/podrunner-broker-fake/tests/held.rs`, the official runner in a held podvm unit with the egress module on its socket. The allowed step gets the body through the upstream; the denied step fails and its name never reaches the upstream. It passes on H0 and runs in `runner-image.yml`. It found T-077 (podnet, GitHub #64), and `destroy` no longer takes the `podnet pod` of the hold for a process of the payload.
 
 # T-066: slots sets ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1 in the start environment
 
