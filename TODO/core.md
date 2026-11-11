@@ -748,7 +748,7 @@ A table in each of `docs/contracts/unit-driver.md` and `docs/contracts/source-dr
 **Milestone:** M-D
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -765,6 +765,10 @@ A non-blocking `flock` on `STATE/serve.lock` (mode 0600, `O_CLOEXEC`, never remo
 ## Prove
 
 `cargo test -p podrunner serve_lock`, and the acceptance tests of GitHub #54
+
+## Done
+
+2026-11-11, `1f1d389`. `crates/podrunner/src/lock.rs`: `serve` takes `flock` on `STATE/serve.lock` (mode 0600, `O_NOFOLLOW`, close on exec, never removed) before it reads the configuration and the journal; a held lock and each other lock error give exit 69. `control::bind` replaces only a stale socket; a live socket is 69, a path that is not a socket is 64. `podrunner stop --wait --state DIR [--timeout S]` polls the lock; a timeout is 75. Tests: `crates/podrunner/tests/serve.rs` (a second `serve` exits 69 with the journal, the socket inode and the job of the first unchanged; after SIGKILL of the holder the next `serve` starts; `stop --wait` returns after `serve` ends, `--timeout 1` gives 75); a planted removal of the lock fails the test. `docs/cli.md`; residual R6 (a network filesystem). The lock of `pod-supervise` can replace `lock.rs` later.
 
 
 # T-055: journal: write and sync the claimed line before source.claim (GitHub #55)
@@ -800,7 +804,7 @@ Write `claimed`, `sync_data`, then call `source.claim`; on an error, write `rele
 **Milestone:** M-D
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -817,6 +821,10 @@ The socket I/O in its own threads, at most 8 clients at a time (a ninth gets `bu
 ## Prove
 
 `cargo test -p podrunner control`
+
+## Done
+
+2026-11-11, `1f1d389`. `control::spawn`: the socket has an accept thread and one thread for each client, at most 8 (a ninth gets `busy`), an absolute deadline of 5 s for each exchange; the supervisor gets whole requests through a channel (`answer_waiting`). Tests in `crates/podrunner/src/control.rs`: with seven silent clients a `status` answers in under 1 s and a ninth client is `busy`; a client that sends one byte each 500 ms is cut at the deadline.
 
 
 # T-057: source wire: a reply deadline for each call; restart a silent sidecar (GitHub #57)
@@ -904,7 +912,7 @@ Read on 2026-11-11.
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -922,3 +930,6 @@ SIGTERM and SIGINT start the drain of `podrunner stop`. With `NOTIFY_SOCKET` (pa
 
 `cargo test -p podrunner signal`
 
+## Done
+
+2026-11-11, `1f1d389`. `crates/podrunner/src/notify.rs`: SIGTERM and SIGINT set a flag that starts the drain of `stop`; with `NOTIFY_SOCKET` (a path or `@NAME`) `serve` sends `READY=1` after the socket answers, `STOPPING=1` once at the drain, and `WATCHDOG=1` at half of `WATCHDOG_USEC`. `print-unit` writes `Type=notify`, `KillMode=mixed`, `TimeoutStopSec=infinity`, and `WatchdogSec` only with `--watchdog`. Test `sigterm_drains_and_notify_says_ready_and_stopping`: SIGTERM ends `serve` with exit 0 only when the job is reported, with no `lost` line; a planted removal of the handler fails it. `systemd-analyze verify` is not run here (not on this host).

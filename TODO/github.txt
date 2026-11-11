@@ -57,10 +57,10 @@
 51 issue open
 52 issue open
 53 issue open
-54 issue open
+54 issue closed
 55 issue open
-56 issue open
+56 issue closed
 57 issue open
 58 issue open
 59 issue open
-60 issue open
+60 issue closed

@@ -57,12 +57,12 @@ numbers. `TODO/RULES.md` gives the rules.
 | #51 | COORD-004: the supervise rung does not map the path of connect() for a unix socket (to podvm) | open | T-050 |
 | #52 | COORD-005: podvm-aarch64 v0.2.0-beta.2 declines an arm64 payload on the supervise rung: its glibc object is x86_64 (to podvm) | open | T-051 |
 | #53 | COORD-006: please cut a podvm beta from main for podrunner, when your release order allows (to podvm) | open | T-052 |
-| #54 | serve: an exclusive lock on the state directory before the journal replay; stop --wait | open | T-054 |
+| #54 | serve: an exclusive lock on the state directory before the journal replay; stop --wait | closed (`1f1d389`) | T-054 |
 | #55 | journal: write and sync the claimed line before source.claim | open | T-055 |
-| #56 | control socket: an idle client stalls the tick of the supervisor | open | T-056 |
+| #56 | control socket: an idle client stalls the tick of the supervisor | closed (`1f1d389`) | T-056 |
 | #57 | source wire: a reply deadline for each call; restart a silent sidecar | open | T-057 |
 | #58 | podrunner check: validate a configuration and start nothing | open | T-058 |
 | #59 | audit.jsonl: chain each line to the one before; podrunner audit verify | open | T-059 |
-| #60 | serve: SIGTERM and SIGINT start a drain; sd_notify | open | T-060 |
+| #60 | serve: SIGTERM and SIGINT start a drain; sd_notify | closed (`1f1d389`) | T-060 |
 
 #44 and #45 are pull requests.
