@@ -9,6 +9,6 @@ publish.workspace = true
 
 [dependencies]
 pod-broker.workspace = true
-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.21.0", features = ["async"] }
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.21.0" }
+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", features = ["async"] }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
 tokio.workspace = true
