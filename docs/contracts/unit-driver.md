@@ -104,6 +104,8 @@ with a grandchild, a marker file in the working directory.
 | 20 | `destroy-reaches-a-grandchild-in-a-container` | With `container: hooks`: after `destroy`, no process of a container with a `setsid` grandchild lives, the count is 0, and `destroy` ends within the time limit. |
 | 21 | `a-host-scan-finds-no-credential` | After `destroy`, no file of the state directory holds the credential (the scan finds it before `destroy`: a positive control). |
 | 22 | `no-credential-in-the-outputs` | The probe record (with `boundary_proof`), the observation and the residue hold no credential. |
+| 23 | `probe-starts-no-process` | Two probes leave no child process (run alone: it sees each child of the test process). |
+| 24 | `a-proc-dump-of-a-step-holds-no-credential` | With `container: hooks`: a step that dumps `/proc/*/cmdline` and `/proc/*/environ` finds a blob of its own environment (a positive control) and no credential (run alone). |
 
 The numbers of the tests follow this page. The spec of the design review
 (T-014) can give other numbers; T-014 makes them agree.
@@ -119,13 +121,13 @@ each design test, the tests here that cover it, and what is open (T-053).
 
 | Design | Covered by | Open |
 | --- | --- | --- |
-| 1 probe | UC `probe-is-idempotent`, `probe-writes-no-file` | no process appears |
+| 1 probe | UC `probe-is-idempotent`, `probe-writes-no-file`, `probe-starts-no-process` | none |
 | 2 two roots | UC `a-fresh-root-for-each-unit`, `etc-hosts-of-one-unit` | none |
 | 3 tree kill | UC `destroy-reaches-a-setsid-grandchild`, `a-verified-tree-kill-is-proven`, `destroy-reaches-a-grandchild-in-a-container` (also the time limit) | none |
 | 4 limits | SG `a_required_limit_that_no_kind_enforces_is_refused` (placement refuses before `start`), `a_limit_refusal_names_the_limit` (the audit line names the limit) | none |
 | 5 tag, platform | UC `prepare-refuses-a-tag`, `prepare-refuses-a-foreign-platform` | none |
 | 6 credential gone | UC `destroy-removes-each-file`, `a-host-scan-finds-no-credential` | none |
-| 7 /proc dump | UC `no-credential-in-argv-or-environment` | a dump of `/proc/*` from a step |
+| 7 /proc dump | UC `no-credential-in-argv-or-environment`, `a-proc-dump-of-a-step-holds-no-credential` | none |
 | 8 exec env, workdir | UC `container-lifecycle` (an exec with an environment and `/tmp`) | none |
 | 9 another unit's container | HU `the_socket_of_one_unit_reaches_no_container_of_another`: no call names a container id | none |
 | 10 proof canary | UC `no-credential-in-the-outputs` | none |

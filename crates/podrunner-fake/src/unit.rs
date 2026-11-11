@@ -72,6 +72,10 @@ pub enum UnitPlant {
     CredentialCopy,
     /// 22: probe gives the credential of the last unit in `boundary_proof`.
     ProofCanary,
+    /// 23: probe leaves a process.
+    ProbeSpawns,
+    /// 24: the credential goes into the environment of each container.
+    CredentialInContainers,
 }
 
 struct Running {
@@ -95,7 +99,7 @@ pub struct FakeUnit {
     containers: AtomicU64,
     /// Each tag that this driver gave: the drop kills what is left of them.
     tags: Mutex<Vec<String>>,
-    /// The first credential file of the last start (plant 22 only).
+    /// The first credential file of the last start (plants 22 and 24).
     seen: Mutex<Option<String>>,
 }
 
@@ -184,7 +188,7 @@ impl FakeUnit {
 }
 
 impl FakeUnit {
-    /// The plants 19, 21 and 22 at start.
+    /// The plants 19, 21, 22 and 24 at start.
     fn plant_start(&self, spec: &StartSpec, root: &Path) -> Result<(), UnitError> {
         let first = spec.credential.files.first().map(|f| f.content.expose().to_string());
         if self.planted(UnitPlant::SharedHosts) {
@@ -196,7 +200,7 @@ impl FakeUnit {
         {
             fs::write(self.state_dir.join(format!("copy-{}", spec.unit)), text).map_err(|e| host(e, "a copy"))?;
         }
-        if self.planted(UnitPlant::ProofCanary) {
+        if self.planted(UnitPlant::ProofCanary) || self.planted(UnitPlant::CredentialInContainers) {
             *self.seen.lock().expect("the credential seen") = first;
         }
         Ok(())
@@ -231,6 +235,11 @@ impl UnitDriver for FakeUnit {
         }
         if self.planted(UnitPlant::ProofCanary) {
             c.boundary_proof = self.seen.lock().expect("the credential seen").clone();
+        }
+        if self.planted(UnitPlant::ProbeSpawns) {
+            let tag = procs::tag_of(&self.state_dir, "probe");
+            self.tags.lock().expect("the tags").push(tag.clone());
+            self.spawn(&["sleep".into(), "30".into()], &self.state_dir, &[(TAG_VAR.into(), tag)], None)?;
         }
         Ok(c)
     }
@@ -402,6 +411,11 @@ impl UnitDriver for FakeUnit {
             tag
         };
         env.push((TAG_VAR.into(), tag));
+        if self.planted(UnitPlant::CredentialInContainers)
+            && let Some(c) = self.seen.lock().expect("the credential seen").clone()
+        {
+            env.push(("PODRUNNER_PLANTED_CREDENTIAL".into(), c));
+        }
         let argv: Vec<String> = spec.argv.iter().map(|a| mounts.map(a)).collect();
         let cwd = mounts.workdir(spec.workdir.as_deref(), &dir);
         let child = self.spawn(&argv, &cwd, &env, Some(&dir.join("log")))?;

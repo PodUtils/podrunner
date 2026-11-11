@@ -1,6 +1,8 @@
-//! The tests 18 to 22 of the unit seam: the parts of the design contract
-//! (`docs/design/contracts/unit-driver.md`, tests 1, 2, 3, 6 and 10) that
-//! the tests 1 to 17 do not cover.
+//! The tests 18 to 24 of the unit seam: the parts of the design contract
+//! (`docs/design/contracts/unit-driver.md`, tests 1, 2, 3, 6, 7 and 10)
+//! that the tests 1 to 17 do not cover. The tests 23 and 24 see each
+//! process of the uid: run them in a test binary of their own, with no
+//! other test in parallel ([`ALONE`]).
 
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -11,14 +13,19 @@ use podrunner_schema::ContainerRoute;
 
 use super::cases::{Case, LIMIT, Unit, begin, err, root, until};
 use super::{Behaviour, CANARY, Fixture, Outcome, alive};
-use crate::ContainerSpec;
+use crate::{ContainerSpec, ExecSpec, Exit};
 
-pub(super) const CASES: [Case; 5] = [
+/// The tests that need a process of their own (no parallel test).
+pub const ALONE: [u32; 2] = [23, 24];
+
+pub(super) const CASES: [Case; 7] = [
     Case { number: 18, name: "probe-writes-no-file", run: probe_writes_no_file },
     Case { number: 19, name: "etc-hosts-of-one-unit", run: etc_hosts_of_one_unit },
     Case { number: 20, name: "destroy-reaches-a-grandchild-in-a-container", run: grandchild_in_a_container },
     Case { number: 21, name: "a-host-scan-finds-no-credential", run: a_host_scan_finds_no_credential },
     Case { number: 22, name: "no-credential-in-the-outputs", run: no_credential_in_the_outputs },
+    Case { number: 23, name: "probe-starts-no-process", run: probe_starts_no_process },
+    Case { number: 24, name: "a-proc-dump-of-a-step-holds-no-credential", run: a_proc_dump_holds_no_credential },
 ];
 
 /// Each file under `dir`, with its size. A symlink is listed, not followed.
@@ -165,4 +172,77 @@ fn no_credential_in_the_outputs(fx: &dyn Fixture) -> Result<Outcome, String> {
         Some((what, _)) => Err(format!("{what} gives the credential")),
         None => Ok(Outcome::Pass),
     }
+}
+
+/// The processes whose parent is this process.
+fn children() -> Vec<u32> {
+    let me = std::process::id().to_string();
+    let mut out: Vec<u32> = std::fs::read_dir("/proc")
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|e| e.file_name().to_str()?.parse::<u32>().ok())
+        .filter(|p| {
+            std::fs::read_to_string(format!("/proc/{p}/stat")).is_ok_and(|stat| {
+                // The parent is the second field after the name in parentheses.
+                stat.rsplit_once(')').and_then(|(_, rest)| rest.split_whitespace().nth(1)) == Some(me.as_str())
+            })
+        })
+        .filter(|p| alive(*p))
+        .collect();
+    out.sort();
+    out
+}
+
+/// Design test 1, the process part: `probe` leaves no process behind.
+fn probe_starts_no_process(fx: &dyn Fixture) -> Result<Outcome, String> {
+    let d = fx.driver();
+    let before = children();
+    d.probe().map_err(|e| err("probe", e))?;
+    d.probe().map_err(|e| err("probe", e))?;
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    let new: Vec<u32> = children().into_iter().filter(|p| !before.contains(p)).collect();
+    if !new.is_empty() {
+        return Err(format!("probe leaves the processes {new:?}"));
+    }
+    Ok(Outcome::Pass)
+}
+
+/// Design test 7: a step that dumps `/proc/*/cmdline` and `/proc/*/environ`
+/// finds no byte of the credential. The positive control: the dump finds a
+/// blob planted in the environment of the step.
+fn a_proc_dump_holds_no_credential(fx: &dyn Fixture) -> Result<Outcome, String> {
+    let d = fx.driver();
+    let cap = d.probe().map_err(|e| err("probe", e))?;
+    if cap.container != ContainerRoute::Hooks {
+        return Ok(Outcome::Skip(format!("the kind has the container route {:?}", cap.container)));
+    }
+    let u = begin(fx, Behaviour::Sleep)?;
+    let spec = ContainerSpec { image: fx.image(), argv: fx.payload(Behaviour::Sleep), ..Default::default() };
+    let c = d.container_start(&u.id, &spec).map_err(|e| err("container_start", e))?;
+    let log = std::env::temp_dir().join(format!("podrunner-dump-{}-{}", std::process::id(), u.id));
+    let blob = "podrunner-planted-blob-7e1d";
+    let dump = ExecSpec {
+        argv: ["sh", "-c", "cat /proc/[0-9]*/cmdline /proc/[0-9]*/environ 2>/dev/null; true"]
+            .map(String::from)
+            .to_vec(),
+        env: [("PODRUNNER_PLANTED".to_string(), blob.to_string())].into(),
+        log: Some(log.clone()),
+        ..Default::default()
+    };
+    let got = d.container_exec(&u.id, &c, &dump).map_err(|e| err("container_exec", e));
+    let text = std::fs::read(&log).unwrap_or_default();
+    let _ = std::fs::remove_file(&log);
+    match got? {
+        Exit::Code(0) => {}
+        other => return Err(format!("the dump gives {other:?}")),
+    }
+    let holds = |t: &str| text.windows(t.len()).any(|w| w == t.as_bytes());
+    if !holds(blob) {
+        return Err("the dump does not find the blob planted in its own environment".into());
+    }
+    if holds(CANARY) {
+        return Err("a dump of /proc from a step finds the credential".into());
+    }
+    Ok(Outcome::Pass)
 }

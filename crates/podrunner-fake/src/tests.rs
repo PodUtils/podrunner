@@ -112,7 +112,9 @@ fn the_fake_unit_passes_each_test() {
     assert!(need_setsid(), "the tests need setsid on the host");
     for (route, skipped) in [(ContainerRoute::None, &[14, 20][..]), (ContainerRoute::Hooks, &[13][..])] {
         let fx = UnitFixture::new(route, None);
-        for r in uc::run(&fx, &[]) {
+        // The tests that see each process run in `tests/alone.rs`.
+        let parallel: Vec<u32> = uc::tests().into_iter().map(|t| t.0).filter(|n| !uc::ALONE.contains(n)).collect();
+        for r in uc::run(&fx, &parallel) {
             if skipped.contains(&r.number) {
                 assert!(matches!(r.outcome, Outcome::Skip(_)), "{r}");
             } else {
@@ -149,7 +151,7 @@ fn each_unit_plant_fails_its_test() {
         (21, CredentialCopy),
         (22, ProofCanary),
     ];
-    assert_eq!(plants.len(), uc::tests().len());
+    assert_eq!(plants.len() + uc::ALONE.len(), uc::tests().len());
     for (n, plant) in plants {
         let route = if n == 14 || n == 20 { ContainerRoute::Hooks } else { ContainerRoute::None };
         let fx = UnitFixture::new(route, Some(plant));

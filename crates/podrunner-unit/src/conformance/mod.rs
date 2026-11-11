@@ -1,4 +1,4 @@
-//! The conformance suite of the unit seam: the tests 1 to 22 of
+//! The conformance suite of the unit seam: the tests 1 to 24 of
 //! `docs/contracts/unit-driver.md`. A driver passes when each test that
 //! applies to it passes. Each test has a planted defect that fails it (the
 //! drivers of the fakes, GitHub #20) and a correct input that passes it.
@@ -17,6 +17,7 @@ use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
 
 use crate::UnitDriver;
 
+pub use design::ALONE;
 pub use procs::{alive, holds_text};
 
 /// The canary of the credential files: a made-up value that no output, argv
