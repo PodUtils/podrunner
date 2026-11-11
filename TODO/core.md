@@ -498,7 +498,14 @@ Read the text of GitHub #24 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A module over `pod-broker` with one listener for each unit, bound to one job, and no token in the unit. It needs PodUtils/podcrates@T-160 and PodUtils/podcrates@T-161; use the tag that podcrates releases. The hold of a podvm unit is `podnet pod` (T-044, Done): `advisory` with the seccomp backend; read the level from `hold.seccomp` of `pod doctor --json`.
+A module over `pod-broker` with one listener for each unit, bound to one job, and no token in the unit. It needs PodUtils/podcrates@T-160 and PodUtils/podcrates@T-161; use the tag that podcrates releases. The hold of a podvm unit is `podnet pod` (T-044, Done): `advisory` with the seccomp backend; read the level from `hold.seccomp` of `pod doctor --json`. podcrates `v0.16.0` (PodUtils/podcrates#57, COORD-032) holds
+`pod-broker` with `Broker::serve_unix_job(job, listener)` (a listener of
+one job, no token in the unit; a `Proxy-Authorization` of another job
+gets 407), `Broker::load(Load { job, token, ttl, policy })`,
+`Broker::drop_job`, `Policy::from_json`, and an async API on tokio: the
+module runs the broker on a runtime of its own and needs a resolver
+(`Resolve` of `pod-core`, for example the resolver of `pod-dns`) and a
+dialer (`pod_broker::upstream`).
 
 ## Prove
 

@@ -18,8 +18,8 @@ publish = false
 # needs it. One tag for each crate of podcrates.
 [workspace.dependencies]
 # No default feature: the failure classes and their exit codes, with no tokio.
-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0", default-features = false }
-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0" }
+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.16.0", default-features = false }
+pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.16.0" }
 podrunner-clock = { path = "crates/podrunner-clock" }
 podrunner-fake = { path = "crates/podrunner-fake" }
 podrunner-mint = { path = "crates/podrunner-mint" }

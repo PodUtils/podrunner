@@ -143,8 +143,8 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "pod-core"
-version = "0.15.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.15.0#27a4ccd9ec65e5fd1149228ad346c54a9f8f86d9"
+version = "0.16.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.16.0#60a675ca9eb0a44dd2e2adc16d8947e2ee12bc2f"
 dependencies = [
  "libc",
  "rand",

@@ -6,7 +6,8 @@ force until a later ruling supersedes it. Then move it to the table
 "Superseded", with the ruling that replaced it. `AGENTS.md` has the short
 form of the rulings that apply to each session. The rows from podcrates
 are copies of the rows of `PodUtils/podcrates:docs/decisions.md` at
-podcrates commit `eacb916d118f`.
+podcrates commit `eacb916d118f`. podrunner takes the crates of podcrates
+at the tag `v0.16.0`.
 
 ## In force
 
