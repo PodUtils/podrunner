@@ -206,6 +206,14 @@ pub struct Config {
     /// sidecars): each one must be in it (GitHub #36).
     #[serde(default)]
     pub driver_dir: Option<String>,
+    /// The CONNECT proxy of the way out of the egress module (`http://host:port`);
+    /// absent: direct.
+    #[serde(default)]
+    pub upstream_proxy: Option<String>,
+    /// The upstream proxy takes names only: the broker sends it the checked
+    /// name, and checks at the start that it refuses a non-public one.
+    #[serde(default)]
+    pub upstream_names_only: bool,
     /// The one repository (`owner/repo`) that the host serves; an offer of
     /// another repository is `repo-scope-refused`. `trusted` at
     /// `redirect` needs it (DR-4).
@@ -295,6 +303,9 @@ impl Config {
                     lowest_floor(t)
                 ));
             }
+        }
+        if self.upstream_names_only && self.upstream_proxy.is_none() {
+            return Err("upstream_names_only needs upstream_proxy".into());
         }
         if self.floor(Tier::Trusted) < Boundary::Confined {
             self.check_redirect()?;

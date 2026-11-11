@@ -11,6 +11,9 @@ terminal_suppress_s = 3600   # a terminal refusal suppresses its job id
 same_principal_ok = false    # more than one unit at a time on a shared principal
 payload_from_offer = false   # take the payload of an offer when it is pinned
 repository = "owner/repo"    # the one repository of the host (DR-4); other offers: repo-scope-refused
+upstream_proxy = "http://proxy:3128"  # the way out of the egress module (absent: direct)
+upstream_names_only = false  # the proxy takes names only; at the start a canary checks that it refuses
+                             # a non-public name, else each hold is advisory and no untrusted job runs
 guest_kinds = ["microvm"]    # the kinds whose claim of guest may hold, after the self-test
 driver_dir = "/opt/podrunner/drivers"  # each binary and sidecar is in it; absolute paths only
 

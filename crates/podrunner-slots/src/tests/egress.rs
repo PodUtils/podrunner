@@ -20,9 +20,9 @@ struct Seen {
 }
 
 impl EgressPort for Seen {
-    fn open(&self, unit: &str, policy: &str, _socket: &std::path::Path) -> Result<(), String> {
+    fn open(&self, unit: &str, policy: &str, _socket: &std::path::Path) -> Result<usize, String> {
         self.opened.lock().unwrap().push((unit.into(), policy.into()));
-        Ok(())
+        Ok(usize::from(policy.contains("github.io")))
     }
     fn close(&self, unit: &str) {
         self.closed.lock().unwrap().push(unit.into());
@@ -52,6 +52,26 @@ fn each_unit_gets_a_listener_and_the_unit_sees_its_way_out() {
     assert_eq!(opened.len(), 1);
     assert!(opened[0].1.contains("github.com"), "the policy of the offer: {}", opened[0].1);
     assert_eq!(*seen.closed.lock().unwrap(), [opened[0].0.clone()]);
+    assert!(!bed.slots.audit_lines().iter().any(|l| l.audit == crate::audit::Kind::EgressFlagged));
+}
+
+/// T-048: a policy that allows a host under an open suffix is an audit
+/// line, with the count of the rules and no rule.
+#[test]
+fn a_flagged_allow_rule_is_an_audit_line() {
+    let seen = Seen::default();
+    let policy = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "*.github.io" }] } });
+    let bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", policy)])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }],
+    );
+    let mut bed = Bed { slots: bed.slots.with_egress(Box::new(seen)), ..bed };
+    bed.until(30, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    let lines: Vec<_> =
+        bed.slots.audit_lines().iter().filter(|l| l.audit == crate::audit::Kind::EgressFlagged).collect();
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].detail.as_deref(), Some("1 rules"));
 }
 
 #[test]

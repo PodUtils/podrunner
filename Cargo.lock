@@ -662,6 +662,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "pod-core",
+ "pod-proxy",
  "pod-services",
  "pod-tls",
  "podrunner-clock",

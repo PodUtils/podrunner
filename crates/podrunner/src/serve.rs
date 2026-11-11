@@ -259,7 +259,25 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
         kinds.push(UnitKind { name: name.clone(), cfg: u.clone(), driver, capability });
     }
     let ttl = Duration::from_secs(cfg.deadlines.running_s + cfg.deadlines.grace_s + cfg.deadlines.destroy_s);
-    let egress = podrunner_egress::Egress::host(None).map_err(|e| fail(Class::Unavailable, e.to_string()))?;
+    let proxy = match &cfg.upstream_proxy {
+        Some(url) => {
+            Some(pod_proxy::Proxy::parse(url).map_err(|e| fail(Class::Config, format!("upstream_proxy: {e}")))?)
+        }
+        None => None,
+    };
+    let egress = podrunner_egress::Egress::host(proxy, cfg.upstream_names_only)
+        .map_err(|e| fail(Class::Unavailable, e.to_string()))?;
+    // An upstream that takes names resolves them again: unless it refuses a
+    // non-public name, no hold through it is enforced (podcrates call C51).
+    if cfg.upstream_names_only {
+        let check = egress.check_upstream();
+        if check != "refuses-non-public" {
+            eprintln!("podrunner: the upstream proxy: {check}: each hold is advisory at most, no untrusted job");
+            for k in &mut kinds {
+                k.capability.egress_hold = cap_hold(k.capability.egress_hold);
+            }
+        }
+    }
     let mut slots = Slots::start(cfg, state, clock, Box::new(now_unix), sources, kinds)
         .map_err(|e| fail(Class::Unavailable, format!("the state directory: {}", e.kind())))?;
     for (i, r) in retests {
@@ -270,6 +288,15 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     Ok(slots.with_egress(Box::new(EgressOf { egress, ttl })))
 }
 
+/// The hold of a kind behind an upstream that does not refuse a
+/// non-public name: `advisory` at most.
+pub(crate) fn cap_hold(h: podrunner_schema::EgressHold) -> podrunner_schema::EgressHold {
+    match h {
+        podrunner_schema::EgressHold::Enforced => podrunner_schema::EgressHold::Advisory,
+        other => other,
+    }
+}
+
 /// The egress module behind slots.
 struct EgressOf {
     egress: podrunner_egress::Egress,
@@ -277,7 +304,7 @@ struct EgressOf {
 }
 
 impl podrunner_slots::EgressPort for EgressOf {
-    fn open(&self, unit: &str, policy: &str, socket: &Path) -> Result<(), String> {
+    fn open(&self, unit: &str, policy: &str, socket: &Path) -> Result<usize, String> {
         self.egress.open(unit, policy, socket, self.ttl).map_err(|e| e.to_string())
     }
     fn close(&self, unit: &str) {
@@ -353,5 +380,26 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
             return Ok(());
         }
         std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use podrunner_schema::EgressHold;
+
+    #[test]
+    fn an_upstream_of_names_caps_the_hold_at_advisory() {
+        assert_eq!(super::cap_hold(EgressHold::Enforced), EgressHold::Advisory);
+        assert_eq!(super::cap_hold(EgressHold::Advisory), EgressHold::Advisory);
+        assert_eq!(super::cap_hold(EgressHold::None), EgressHold::None);
+        let e =
+            podrunner_slots::config::Config::parse("host = \"h\"\nupstream_names_only = true\n[pin]\n").unwrap_err();
+        assert!(e.contains("needs upstream_proxy"), "{e}");
+        assert!(
+            podrunner_slots::config::Config::parse(
+                "host = \"h\"\nupstream_proxy = \"http://127.0.0.1:3128\"\nupstream_names_only = true\n[pin]\n"
+            )
+            .is_ok()
+        );
     }
 }

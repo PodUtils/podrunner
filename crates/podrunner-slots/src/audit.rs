@@ -24,6 +24,8 @@ pub enum Kind {
     HookRefuse,
     JobMismatch,
     PayloadIgnored,
+    /// The egress policy of the job allows a host under an open suffix.
+    EgressFlagged,
     Destroy,
 }
 

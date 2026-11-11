@@ -636,7 +636,7 @@ podvm answered in PodUtils/podvm#246 (COORD-028): the case did not reproduce on 
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -652,5 +652,9 @@ At the start of `serve`, run `check_upstream` on the egress module; when it is n
 
 ## Prove
 
-`cargo test -p podrunner-egress upstream`
+`cargo test -p podrunner-egress upstream`, `cargo test -p podrunner-egress open_suffix`, `cargo test -p podrunner-slots flagged`, `cargo test -p podrunner upstream`
+
+## Done
+
+2026-11-11: `upstream_proxy` and `upstream_names_only` in `podrunner.toml` (names only needs a proxy); `Egress::host` passes `names_upstream` to `pod-broker`, and `Egress::check_upstream` sends the canary. `serve` runs the check when the proxy takes names only; any answer but `refuses-non-public` caps each hold at `advisory`, so placement serves no `untrusted` job. `Egress::open` counts the allow rules under an open suffix, and slots writes an audit line `egress-flagged` with the count only. The upstream check is tested against two fake CONNECT proxies (200 and 403). Each command of the Prove passes.
 

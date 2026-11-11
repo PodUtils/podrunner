@@ -148,3 +148,45 @@ fn a_bad_policy_is_refused_and_named_without_its_text() {
     assert!(!err.0.contains("secret-host-77"), "{err}");
     let _ = std::fs::remove_dir_all(d);
 }
+
+/// A CONNECT proxy on the loopback that answers each request with `status`.
+fn proxy_that_answers(status: &'static str) -> String {
+    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = l.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for conn in l.incoming().flatten() {
+            let mut r = BufReader::new(conn.try_clone().unwrap());
+            let mut line = String::new();
+            while r.read_line(&mut line).is_ok_and(|n| n > 0) && line != "\r\n" {
+                line.clear();
+            }
+            let mut w = conn;
+            let _ = w.write_all(format!("HTTP/1.1 {status}\r\nContent-Length: 0\r\n\r\n").as_bytes());
+            std::thread::sleep(Duration::from_millis(200));
+        }
+    });
+    format!("http://127.0.0.1:{port}")
+}
+
+/// T-048: an upstream that takes names is asked with the canary; one that
+/// connects to it, and one that refuses it, are told apart.
+#[test]
+fn the_upstream_check_tells_a_proxy_that_refuses_non_public_names() {
+    let takes = pod_proxy::Proxy::parse(&proxy_that_answers("200 Connection established")).unwrap();
+    let e = Egress::host(Some(takes), true).unwrap();
+    assert_eq!(e.check_upstream(), "takes-non-public");
+    let refuses = pod_proxy::Proxy::parse(&proxy_that_answers("403 Forbidden")).unwrap();
+    let e = Egress::host(Some(refuses), true).unwrap();
+    assert_eq!(e.check_upstream(), "refuses-non-public");
+}
+
+/// T-048: the load of a policy counts its allow rules under an open suffix.
+#[test]
+fn an_open_suffix_rule_is_counted() {
+    let e = Egress::host(None, false).unwrap();
+    let d = dir();
+    let open = r#"{"schema":1,"mode":"allow","allow":[{"host":"*.github.io"},{"host":"github.com"}]}"#;
+    assert_eq!(e.open("u-1", open, &d.join("u-1.sock"), Duration::from_secs(60)).unwrap(), 1);
+    assert_eq!(e.open("u-2", ONLY_A, &d.join("u-2.sock"), Duration::from_secs(60)).unwrap(), 0);
+    e.kill();
+}

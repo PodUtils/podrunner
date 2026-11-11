@@ -102,9 +102,13 @@ impl Slots {
                 .and_then(|()| std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)))
                 .map_err(|e| format!("the egress directory: {}", e.kind()))
                 .and_then(|()| e.open(unit.as_str(), &policy, &socket));
-            if let Err(why) = opened {
-                self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("egress: {why}")));
-                return self.give_up(key, RefusalCode::UnitStartFailed, now);
+            match opened {
+                Err(why) => {
+                    self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("egress: {why}")));
+                    return self.give_up(key, RefusalCode::UnitStartFailed, now);
+                }
+                Ok(0) => {}
+                Ok(n) => self.audit(audit::Kind::EgressFlagged, key.0, &key.1, None, Some(format!("{n} rules"))),
             }
             // The way out of the unit: a socket of its job alone. No token.
             env.insert("PODRUNNER_EGRESS".into(), format!("http://unix:{}", socket.display()));

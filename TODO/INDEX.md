@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**49 entries: 3 open, 5 partial, 13 blocked, 28 done.**
+**49 entries: 2 open, 5 partial, 13 blocked, 29 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 16 | 17 |
-| P2 | 3 | 4 | 8 | 11 | 26 |
+| P2 | 2 | 4 | 8 | 12 | 26 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 3 | 5 | 13 | 28 | 49 |
+| **All** | 2 | 5 | 13 | 29 | 49 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -95,5 +95,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-045](live.md) | P1 | M | M-D | feature | done | The mitigations of DR-4 for trusted jobs at redirect (GitHub #47) |
 | [T-046](later.md) | P3 | L | later | feature | blocked | Local mode: podrunner run workflow.yml (GitHub #48) |
 | [T-047](core.md) | P2 | S | M-A | defect | blocked | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (GitHub #49) |
-| [T-048](core.md) | P2 | S | M-D | feature | open | Egress: check the upstream of the broker; the names mode of pod-broker |
+| [T-048](core.md) | P2 | S | M-D | feature | done | Egress: check the upstream of the broker; the names mode of pod-broker |
 | [T-049](level2.md) | P2 | S | L2 | chore | done | COORD-003: the stand-in broker of the official runner for podvm (GitHub #50) |

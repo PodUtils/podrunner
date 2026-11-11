@@ -62,7 +62,9 @@ pub struct Job {
 pub trait EgressPort: Send {
     /// Serve `policy` (JSON of `broker-policy.v1`) for the unit `unit` on
     /// the socket `socket`.
-    fn open(&self, unit: &str, policy: &str, socket: &std::path::Path) -> Result<(), String>;
+    /// The count of allow rules of the policy under an open suffix (a
+    /// host that anyone can publish under), for an audit line.
+    fn open(&self, unit: &str, policy: &str, socket: &std::path::Path) -> Result<usize, String>;
     fn close(&self, unit: &str);
     /// False when the module ended: slots gives no capacity and ends the
     /// running units.

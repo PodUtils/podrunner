@@ -95,28 +95,42 @@ impl Egress {
     }
 
     /// The module of a host: the system resolver, and a direct way out (or
-    /// through `proxy`).
-    pub fn host(proxy: Option<pod_proxy::Proxy>) -> Result<Egress, EgressError> {
+    /// through `proxy`). With `names_only`, the broker sends the checked name
+    /// to `proxy`, which takes names only.
+    pub fn host(proxy: Option<pod_proxy::Proxy>, names_only: bool) -> Result<Egress, EgressError> {
         let resolve: Arc<dyn Resolve> = Arc::new(SystemResolve);
         let dial = pod_broker::upstream("podrunner", proxy, resolve.clone());
-        Egress::new(Broker::new(pod_broker::Settings::default(), resolve, dial))
+        let settings = pod_broker::Settings { names_upstream: names_only, ..Default::default() };
+        Egress::new(Broker::new(settings, resolve, dial))
+    }
+
+    /// Ask the way out whether it refuses a name of a non-public address
+    /// (the canary of `pod-broker`): `refuses-non-public`,
+    /// `takes-non-public` or `unknown`. Only `refuses-non-public` keeps an
+    /// `enforced` hold when the broker sends names (T-048).
+    pub fn check_upstream(&self) -> &'static str {
+        self.rt.block_on(self.broker.check_upstream()).word()
     }
 
     /// Load the policy of `job` (JSON of `broker-policy.v1`) and serve it
     /// alone on a new unix socket at `socket` (mode 0600). A job that is
     /// open already is loaded again with the new policy and keeps its
     /// listener.
-    pub fn open(&self, job: &str, policy: &str, socket: &Path, ttl: Duration) -> Result<(), EgressError> {
+    /// It gives the count of allow rules under an open suffix
+    /// (`JobInfo::flagged` of `pod-broker`).
+    pub fn open(&self, job: &str, policy: &str, socket: &Path, ttl: Duration) -> Result<usize, EgressError> {
         if !self.alive() {
             return Err(EgressError("egress is down".into()));
         }
         let policy = Policy::from_json(policy).map_err(|e| EgressError(format!("the policy of {job}: {}", e.class)))?;
-        self.broker
+        let info = self
+            .broker
             .load(Load { job: job.into(), token: token(), ttl, policy })
             .map_err(|e| EgressError(format!("the load of {job}: {}", e.class)))?;
+        let flagged = info.flagged.len();
         let mut open = self.open.lock().expect("the listeners");
         if open.contains_key(job) {
-            return Ok(());
+            return Ok(flagged);
         }
         let _ = std::fs::remove_file(socket);
         let std_listener =
@@ -129,7 +143,7 @@ impl Egress {
             .map_err(|e| EgressError(format!("the socket: {}", e.kind())))?;
         let task = self.rt.spawn(self.broker.clone().serve_unix_job(job.to_string(), listener));
         open.insert(job.to_string(), (socket.to_path_buf(), task));
-        Ok(())
+        Ok(flagged)
     }
 
     /// Drop the job: its listener and each of its connections end, and the
