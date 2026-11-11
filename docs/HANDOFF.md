@@ -27,32 +27,32 @@ is done.
   supervise rung of podvm, with the image of `scripts/stand-in-image.py`.
   T-047 (GitHub #49) records a defect of `podvm wait` there and the
   workaround of the driver.
-- M-C: done T-027, T-028, T-029. T-030 is partial: the pin fields, the
-  age check at the start, runner exit 7, `images/runner/` (the reviewed
-  pin, the Dockerfile), `.github/workflows/runner-image.yml` and
-  `podrunner image verify` are in; the first green image build and its
-  pin are open.
+- M-C: done T-027, T-028, T-029. T-030 is blocked on T-051: the image
+  builds for both architectures and imports into a podvm store with no
+  root (`runner-image.yml`, podvm of `images/podvm.toml`); on aarch64
+  podvm `v0.2.0-beta.2` runs no arm64 payload (GitHub #52).
 - M-D: T-045 (the mitigations of DR-4) and T-031 (the remote mint,
   `crates/podrunner-remote`, `podrunner mint-serve`, a source kind
   `remote`) are done. T-033 waits for DR-7 and M-B.
-- L2: T-035 (the container hooks, `crates/podrunner-hook`) is partial:
-  the checks, the socket, the relay, the mapping onto the driver and the
-  seam `HookPort` of slots are in; a `container:` job runs on the official
-  runner through them (fake unit), with the canary of a registry
-  password; T-035 is blocked on the podvm driver (T-034, T-026). T-036 is blocked: the rest needs a real guest (T-037,
-  PodUtils/podvm@T-1656). T-038 is blocked on T-026: `crates/podrunner-broker-fake` runs
-  the official runner offline (`.github/workflows/level2.yml`) with the
-  results routes and the corpus of podcrates jobs; the run in a podvm unit
-  (T-026, blocked) is open. T-034
-  needs the runner on podvm.
+- L2, on the fake path: `crates/podrunner-broker-fake` runs the official
+  runner offline (`level2.yml`): canned jobs, the results routes, the
+  corpus of podcrates jobs (`corpus/podcrates.json`, `scripts/corpus.py`)
+  and a `container:` job through the hooks of T-035 (the relay, the
+  socket, the checks, the fake unit), with the canary of a registry
+  password. T-034 measured U21 (`scripts/measure-hook-path.sh`); U19
+  needs podvm. T-034, T-035, T-036 and T-038 are blocked on podvm: the
+  runner on podvm (T-026), the container verbs, the mapping of unix
+  socket paths (T-050, fixed on podvm `main`).
 - podnet answered COORD-001 (PodUtils/podnet#425): the runner pin
   `actions/runner` v2.338.2 and the object `hold` of `pod doctor --json`
   (T-044).
 
 ## In flight
 
-- The work order of `TODO/PROGRESS.md`: T-030 and T-035 are
-  partial; their entries name the open steps.
+- Each entry of the work order is done or blocked on podvm or on a
+  ruling. A podvm release unblocks T-026, T-047, T-050 and T-051 first:
+  pin it in `images/podvm.toml`, then run `scripts/measure-hook-path.sh`
+  and the H0 profile again.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The spec of the design review (T-014): the owner holds it as a zip. The
