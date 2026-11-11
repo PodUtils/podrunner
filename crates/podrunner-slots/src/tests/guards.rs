@@ -115,6 +115,22 @@ fn an_offer_with_a_tier_is_refused() {
     assert_eq!(bed.slots.reports[0].refusal_code, Some(RefusalCode::EventNotAllowed));
 }
 
+/// The design test 4 of the unit contract: a required limit that no kind
+/// enforces is refused, and the audit line names the limit.
+#[test]
+fn a_limit_refusal_names_the_limit() {
+    let need = json!({ "limits": { "wall": 60, "memory": 1024 }, "limits_required": ["wall", "memory"] });
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", need)])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }],
+    );
+    bed.until(10, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.reports[0].refusal_code, Some(RefusalCode::LimitNotEnforceable));
+    let refuse = bed.slots.audit_lines().iter().find(|a| a.audit == crate::audit::Kind::Refuse).unwrap();
+    assert_eq!(refuse.detail.as_deref(), Some("memory"));
+}
+
 /// The design test 2 of the source contract: an offer that comes twice
 /// is one job, with one offer line in the audit.
 #[test]

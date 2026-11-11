@@ -122,7 +122,7 @@ each design test, the tests here that cover it, and what is open (T-053).
 | 1 probe | UC `probe-is-idempotent`, `probe-writes-no-file` | no process appears |
 | 2 two roots | UC `a-fresh-root-for-each-unit`, `etc-hosts-of-one-unit` | none |
 | 3 tree kill | UC `destroy-reaches-a-setsid-grandchild`, `a-verified-tree-kill-is-proven`, `destroy-reaches-a-grandchild-in-a-container` (also the time limit) | none |
-| 4 limits | SG `a_required_limit_that_no_kind_enforces_is_refused` (placement refuses before `start`) | the refusal code names no limit |
+| 4 limits | SG `a_required_limit_that_no_kind_enforces_is_refused` (placement refuses before `start`), `a_limit_refusal_names_the_limit` (the audit line names the limit) | none |
 | 5 tag, platform | UC `prepare-refuses-a-tag`, `prepare-refuses-a-foreign-platform` | none |
 | 6 credential gone | UC `destroy-removes-each-file`, `a-host-scan-finds-no-credential` | none |
 | 7 /proc dump | UC `no-credential-in-argv-or-environment` | a dump of `/proc/*` from a step |

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use podrunner_clock::Clock;
-use podrunner_schema::{Capability, ExitReason, JobId, JobOffer, RefusalCode, Tier, UnitIds};
+use podrunner_schema::{Capability, ExitReason, JobId, JobOffer, LimitMode, RefusalCode, Tier, UnitIds};
 use podrunner_source::{Event, JobSource, Offer, SourceCode};
 use podrunner_unit::UnitDriver;
 use serde_json::Value;
@@ -370,13 +370,32 @@ impl Slots {
                 self.claim(key, now);
             }
             Err(code) if code.is_wait() => {}
-            Err(code) => self.refuse(key, code, now),
+            Err(code) => {
+                // A limit refusal names the limits that no kind enforces.
+                let detail = (code == RefusalCode::LimitNotEnforceable).then(|| {
+                    let views = self.kind_views();
+                    let missing: Vec<&str> = offer
+                        .limits_required
+                        .iter()
+                        .filter(|l| !views.iter().any(|k| k.capability.limit(l) == LimitMode::Enforced))
+                        .map(String::as_str)
+                        .collect();
+                    // Each limit has a kind, but no kind has each one.
+                    if missing.is_empty() { offer.limits_required.join(",") } else { missing.join(",") }
+                });
+                self.refuse_naming(key, code, detail, now)
+            }
         }
     }
 
     /// A terminal refusal: withdraw the offer, report it, and suppress the
     /// job id.
     pub(crate) fn refuse(&mut self, key: &(usize, JobId), code: RefusalCode, now: u64) {
+        self.refuse_naming(key, code, None, now)
+    }
+
+    /// `refuse`, with a detail for the audit line.
+    fn refuse_naming(&mut self, key: &(usize, JobId), code: RefusalCode, detail: Option<String>, now: u64) {
         let s = key.0;
         let _ = self.sources[s].source.withdraw(&key.1, code.as_str());
         if let Some(j) = self.jobs.get_mut(key) {
@@ -385,7 +404,7 @@ impl Slots {
             j.unit = None;
             j.placement = None;
         }
-        self.audit(audit::Kind::Refuse, s, &key.1, Some(code), None);
+        self.audit(audit::Kind::Refuse, s, &key.1, Some(code), detail);
         self.suppressed.insert(key.1.clone(), now + self.cfg.terminal_suppress_s * 1000);
         self.report(key);
         self.set(key, State::Refused, now);
