@@ -481,6 +481,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
+name = "linux-raw-sys"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
+
+[[package]]
 name = "log"
 version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -566,6 +572,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-confine"
+version = "0.24.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.24.0#228e2e33f675b8c008354fbae816fdac324fa017"
+dependencies = [
+ "pod-core",
+ "pod-hostprobe",
+]
+
+[[package]]
 name = "pod-core"
 version = "0.24.0"
 source = "git+https://github.com/PodUtils/podcrates?tag=v0.24.0#228e2e33f675b8c008354fbae816fdac324fa017"
@@ -574,6 +589,16 @@ dependencies = [
  "rand",
  "tokio",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "pod-hostprobe"
+version = "0.24.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.24.0#228e2e33f675b8c008354fbae816fdac324fa017"
+dependencies = [
+ "linux-raw-sys",
+ "pod-core",
+ "syscalls",
 ]
 
 [[package]]
@@ -829,6 +854,7 @@ name = "podrunner-unit"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "pod-confine",
  "podrunner-schema",
  "serde",
 ]
@@ -1231,6 +1257,12 @@ dependencies = [
  "quote",
  "unicode-ident",
 ]
+
+[[package]]
+name = "syscalls"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81c645a4de0d803ced6ef0388a2646aa1ef8467173b5d59a2c33c88de4ab76e7"
 
 [[package]]
 name = "tokio"

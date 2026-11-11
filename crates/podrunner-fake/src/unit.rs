@@ -83,6 +83,8 @@ pub enum UnitPlant {
     TagOnly,
     /// 26: destroy counts 0 processes after its shim was killed.
     ShimDeathIgnored,
+    /// 27: the record claims `confined`, and no rule applies.
+    ClaimsConfined,
 }
 
 struct Running {
@@ -108,6 +110,8 @@ pub struct FakeUnit {
     tags: Mutex<Vec<String>>,
     /// The first credential file of the last start (plants 22 and 24).
     seen: Mutex<Option<String>>,
+    /// The Landlock ABI of a `confined` fake (T-042).
+    confined: Option<u32>,
 }
 
 impl Drop for FakeUnit {
@@ -148,12 +152,27 @@ impl FakeUnit {
             containers: AtomicU64::new(0),
             tags: Mutex::new(Vec::new()),
             seen: Mutex::new(None),
+            confined: None,
         }
+    }
+
+    /// A `confined` fake (T-042): each process of a unit runs under the
+    /// rules of `podrunner_unit::confine`, and the record says
+    /// `boundary: confined` with its proof. Refused with no Landlock.
+    pub fn confined(mut self) -> Result<FakeUnit, String> {
+        let abi = podrunner_unit::confine::check()?;
+        self.capability.boundary = podrunner_schema::Boundary::Confined;
+        self.capability.boundary_proof = Some(podrunner_unit::confine::proof(abi));
+        self.confined = Some(abi);
+        Ok(self)
     }
 
     pub fn with_plant(mut self, plant: UnitPlant) -> FakeUnit {
         if plant == UnitPlant::FalseTreeKill {
             self.capability.tree_kill = TreeKill::Verified;
+        }
+        if plant == UnitPlant::ClaimsConfined {
+            self.capability.boundary = podrunner_schema::Boundary::Confined;
         }
         self.plant = Some(plant);
         self
@@ -186,6 +205,7 @@ impl FakeUnit {
         env: &[(String, String)],
         log: Option<&Path>,
         shimmed: bool,
+        root: Option<&Path>,
     ) -> Result<Child, UnitError> {
         let (prog, args) =
             argv.split_first().ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "an empty argv"))?;
@@ -204,8 +224,16 @@ impl FakeUnit {
                 cmd.stdout(Stdio::null()).stderr(Stdio::null());
             }
         }
+        // A confined fake confines each process of a unit to its root.
+        let confine = match (self.confined, root) {
+            (Some(abi), Some(root)) => Some(
+                podrunner_unit::confine::for_unit(root, abi)
+                    .map_err(|e| UnitError::new(UnitCode::UnitStartFailed, e))?,
+            ),
+            _ => None,
+        };
         if shimmed {
-            shim::under_shim(&mut cmd, Mode::EndWithPayload);
+            shim::under_shim_confined(&mut cmd, Mode::EndWithPayload, confine);
         }
         cmd.spawn().map_err(|e| UnitError::new(UnitCode::UnitStartFailed, format!("spawn: {}", e.kind())))
     }
@@ -263,7 +291,7 @@ impl UnitDriver for FakeUnit {
         if self.planted(UnitPlant::ProbeSpawns) {
             let tag = procs::tag_of(&self.state_dir, "probe");
             self.tags.lock().expect("the tags").push(tag.clone());
-            self.spawn(&["sleep".into(), "30".into()], &self.state_dir, &[(TAG_VAR.into(), tag)], None, false)?;
+            self.spawn(&["sleep".into(), "30".into()], &self.state_dir, &[(TAG_VAR.into(), tag)], None, false, None)?;
         }
         Ok(c)
     }
@@ -310,7 +338,7 @@ impl UnitDriver for FakeUnit {
         {
             env.push(("PODRUNNER_PLANTED_CREDENTIAL".into(), f.content.expose().to_string()));
         }
-        let child = self.spawn(&spec.argv, &root, &env, None, self.shimmed())?;
+        let child = self.spawn(&spec.argv, &root, &env, None, self.shimmed(), Some(&root))?;
         let run = Running { root, runner_root, tag, child, exit: None, containers: HashMap::new() };
         units.insert(spec.unit.clone(), run);
         Ok(())

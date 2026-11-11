@@ -110,7 +110,7 @@ fn need_setsid() -> bool {
 #[test]
 fn the_fake_unit_passes_each_test() {
     assert!(need_setsid(), "the tests need setsid on the host");
-    for (route, skipped) in [(ContainerRoute::None, &[14, 20][..]), (ContainerRoute::Hooks, &[13][..])] {
+    for (route, skipped) in [(ContainerRoute::None, &[14, 20, 27][..]), (ContainerRoute::Hooks, &[13, 27][..])] {
         let fx = UnitFixture::new(route, None);
         // The tests that see each process run in `tests/alone.rs`.
         let parallel: Vec<u32> = uc::tests().into_iter().map(|t| t.0).filter(|n| !uc::ALONE.contains(n)).collect();
@@ -120,6 +120,29 @@ fn the_fake_unit_passes_each_test() {
             } else {
                 assert_eq!(r.outcome, Outcome::Pass, "{route:?}: {r}");
             }
+        }
+    }
+}
+
+/// T-042: a confined fake passes each test, the test 27 of the `confined`
+/// boundary included. With no Landlock on the host, `confined` is refused.
+#[test]
+fn a_confined_fake_unit_passes_each_test() {
+    let mut fx = UnitFixture::new(ContainerRoute::Hooks, None);
+    let unit = std::mem::replace(&mut fx.unit, FakeUnit::new(&fx._dir.0, capability(ContainerRoute::None), "x"));
+    fx.unit = match unit.confined() {
+        Ok(u) => u,
+        Err(why) => {
+            assert!(podrunner_unit::confine::check().is_err(), "{why}");
+            return;
+        }
+    };
+    let parallel: Vec<u32> = uc::tests().into_iter().map(|t| t.0).filter(|n| !uc::ALONE.contains(n)).collect();
+    for r in uc::run(&fx, &parallel) {
+        if r.number == 13 {
+            assert!(matches!(r.outcome, Outcome::Skip(_)), "{r}");
+        } else {
+            assert_eq!(r.outcome, Outcome::Pass, "confined: {r}");
         }
     }
 }
@@ -152,6 +175,7 @@ fn each_unit_plant_fails_its_test() {
         (22, ProofCanary),
         (25, TagOnly),
         (26, ShimDeathIgnored),
+        (27, ClaimsConfined),
     ];
     assert_eq!(plants.len() + uc::ALONE.len(), uc::tests().len());
     for (n, plant) in plants {

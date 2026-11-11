@@ -27,6 +27,9 @@ pod-broker = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0" }
 pod-job = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0" }
 # The Ed25519 key that signs the pin list (DR-4).
 pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0" }
+# Landlock, a seccomp deny filter and no_new_privs for a `confined` unit
+# (T-042).
+pod-confine = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0" }
 podrunner-clock = { path = "crates/podrunner-clock" }
 podrunner-egress = { path = "crates/podrunner-egress" }
 podrunner-hook = { path = "crates/podrunner-hook" }

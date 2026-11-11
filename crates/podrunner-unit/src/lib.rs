@@ -6,6 +6,7 @@
 //! code that knows its tool (its argv, its files). [`conformance`] holds the
 //! tests that each driver must pass.
 
+pub mod confine;
 pub mod conformance;
 pub mod procs;
 pub mod shim;

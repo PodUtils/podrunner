@@ -1,4 +1,4 @@
-//! The conformance suite of the unit seam: the tests 1 to 26 of
+//! The conformance suite of the unit seam: the tests 1 to 27 of
 //! `docs/contracts/unit-driver.md`. A driver passes when each test that
 //! applies to it passes. Each test has a planted defect that fails it (the
 //! drivers of the fakes, GitHub #20) and a correct input that passes it.
@@ -44,7 +44,19 @@ pub enum Behaviour {
     /// with SIGKILL (the shim of the driver, when it has one) before the
     /// pid file is written.
     KillParent,
+    /// Copy each [`MARKER`] of the directories next to the working
+    /// directory (`../*/MARKER`) to [`SEEN`], write and read back [`OWN`],
+    /// then sleep.
+    ReadOthers,
 }
+
+/// The file of [`Behaviour::ReadOthers`]: what the payload read of the
+/// roots next to its own.
+pub const SEEN: &str = "podrunner-seen";
+
+/// The file of [`Behaviour::ReadOthers`]: what the payload wrote and read
+/// back in its own root (a positive control).
+pub const OWN: &str = "podrunner-own";
 
 /// The file that [`Behaviour::Escape`] writes.
 pub const ESCAPED: &str = "podrunner-escaped";

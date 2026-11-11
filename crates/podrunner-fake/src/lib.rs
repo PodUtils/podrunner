@@ -26,6 +26,7 @@ pub fn payload(behaviour: Behaviour) -> Vec<String> {
         Behaviour::Marker => sh(&format!("echo x > {}; exec sleep 300", podrunner_unit::conformance::MARKER)),
         Behaviour::Escape => sh(&escape("")),
         Behaviour::KillParent => sh(&escape("kill -9 $PPID; ")),
+        Behaviour::ReadOthers => sh(&read_others()),
     }
 }
 
@@ -35,6 +36,12 @@ pub fn escape(then: &str) -> String {
     // builtins only: a small image has no `mv`.
     let f = podrunner_unit::conformance::ESCAPED;
     format!("(setsid env -i sleep 300 & echo $! > {f}.part); {then}read p < {f}.part; echo $p > {f}; exec sleep 300")
+}
+
+/// The script of [`Behaviour::ReadOthers`].
+pub fn read_others() -> String {
+    use podrunner_unit::conformance::{MARKER, OWN, SEEN};
+    format!("cat ../*/{MARKER} > {SEEN} 2>/dev/null; echo own > {OWN}.part; cat {OWN}.part > {OWN}; exec sleep 300")
 }
 
 #[cfg(test)]

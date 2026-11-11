@@ -1,4 +1,4 @@
-//! The tests 18 to 26 of the unit seam: the parts of the design contract
+//! The tests 18 to 27 of the unit seam: the parts of the design contract
 //! (`docs/design/contracts/unit-driver.md`, tests 1, 2, 3, 6, 7, 10 and 15)
 //! that the tests 1 to 17 do not cover. The tests 23 and 24 see each
 //! process of the uid: run them in a test binary of their own, with no
@@ -12,13 +12,13 @@ use std::time::Instant;
 use podrunner_schema::ContainerRoute;
 
 use super::cases::{Case, LIMIT, Unit, begin, err, root, until};
-use super::{Behaviour, CANARY, ESCAPED, Fixture, Outcome, alive};
+use super::{Behaviour, CANARY, ESCAPED, Fixture, MARKER, OWN, Outcome, SEEN, alive};
 use crate::{ContainerSpec, ExecSpec, Exit};
 
 /// The tests that need a process of their own (no parallel test).
 pub const ALONE: [u32; 2] = [23, 24];
 
-pub(super) const CASES: [Case; 9] = [
+pub(super) const CASES: [Case; 10] = [
     Case { number: 18, name: "probe-writes-no-file", run: probe_writes_no_file },
     Case { number: 19, name: "etc-hosts-of-one-unit", run: etc_hosts_of_one_unit },
     Case { number: 20, name: "destroy-reaches-a-grandchild-in-a-container", run: grandchild_in_a_container },
@@ -28,6 +28,7 @@ pub(super) const CASES: [Case; 9] = [
     Case { number: 24, name: "a-proc-dump-of-a-step-holds-no-credential", run: a_proc_dump_holds_no_credential },
     Case { number: 25, name: "destroy-reaches-an-orphan-with-no-tag", run: an_orphan_with_no_tag },
     Case { number: 26, name: "a-killed-shim-is-not-clean", run: a_killed_shim_is_not_clean },
+    Case { number: 27, name: "a-confined-unit-reads-no-other-root", run: a_confined_unit_reads_no_other_root },
 ];
 
 /// Each regular file under `dir`, with its size. A symlink is not followed.
@@ -313,6 +314,30 @@ fn a_killed_shim_is_not_clean(fx: &dyn Fixture) -> Result<Outcome, String> {
         return Err(format!("destroy counts 0 processes, but the orphan {orphan} lives"));
     }
     Ok(Outcome::Pass)
+}
+
+/// The `confined` boundary (T-042): a unit reads no root next to its
+/// own. Unit A writes its marker; unit B copies each marker of the roots
+/// next to its own. The positive control: B writes and reads its own root.
+fn a_confined_unit_reads_no_other_root(fx: &dyn Fixture) -> Result<Outcome, String> {
+    let cap = fx.driver().probe().map_err(|e| err("probe", e))?;
+    if cap.boundary < podrunner_schema::Boundary::Confined {
+        return Ok(Outcome::Skip(format!("the kind claims the boundary {:?}", cap.boundary)));
+    }
+    let a = begin(fx, Behaviour::Marker)?;
+    let ra = root(&a.observe()?)?.to_path_buf();
+    if !until(|| ra.join(MARKER).exists()) {
+        return Err("the first unit wrote no marker".into());
+    }
+    let b = begin(fx, Behaviour::ReadOthers)?;
+    let rb = root(&b.observe()?)?.to_path_buf();
+    if !until(|| std::fs::read_to_string(rb.join(OWN)).is_ok_and(|t| t.trim() == "own")) {
+        return Err("the second unit does not write and read its own root".into());
+    }
+    match std::fs::read_to_string(rb.join(SEEN)) {
+        Ok(t) if !t.trim().is_empty() => Err("a confined unit reads the root of another unit".into()),
+        _ => Ok(Outcome::Pass),
+    }
 }
 
 #[cfg(test)]

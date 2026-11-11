@@ -47,6 +47,12 @@ impl Fixture for Real {
             Behaviour::Marker => sh(&format!("echo x > {}; exec sleep 300", conformance::MARKER)),
             Behaviour::Escape => sh(&podrunner_fake_escape("")),
             Behaviour::KillParent => sh(&podrunner_fake_escape("kill -9 $PPID; ")),
+            Behaviour::ReadOthers => sh(&format!(
+                "cat ../*/{m} > {s} 2>/dev/null; echo own > {o}.part; cat {o}.part > {o}; exec sleep 300",
+                m = conformance::MARKER,
+                s = conformance::SEEN,
+                o = conformance::OWN
+            )),
         }
     }
     fn unit(&self) -> UnitId {

@@ -11,6 +11,7 @@
 
 use std::collections::HashMap;
 use std::process::Command;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::procs::{kill, tagged};
@@ -30,17 +31,25 @@ pub enum Mode {
 /// is the pid of the shim; its exit code is the code of the payload
 /// (128 + the signal when a signal ended it).
 pub fn under_shim(cmd: &mut Command, mode: Mode) {
+    under_shim_confined(cmd, mode, None);
+}
+
+/// [`under_shim`], and the payload applies the rules `confine` (Landlock,
+/// seccomp, `no_new_privs`) before its exec (T-042). A refusal of the
+/// kernel fails the spawn: no payload runs unconfined.
+pub fn under_shim_confined(cmd: &mut Command, mode: Mode, confine: Option<Arc<pod_confine::Compiled>>) {
     use std::os::unix::process::CommandExt;
     // SAFETY: the closure runs in the child between fork and exec. It
     // calls only functions that are safe there: prctl, fork, close_range,
-    // close, waitpid, open, read, kill and _exit. It allocates nothing.
+    // close, waitpid, open, read, kill, the Landlock and seccomp calls of
+    // `pod_confine::apply`, and _exit. It allocates nothing.
     unsafe {
-        cmd.pre_exec(move || shim(mode));
+        cmd.pre_exec(move || shim(mode, confine.as_deref()));
     }
 }
 
 /// The body of the shim. It returns only in the payload, which then execs.
-unsafe fn shim(mode: Mode) -> std::io::Result<()> {
+unsafe fn shim(mode: Mode, confine: Option<&pod_confine::Compiled>) -> std::io::Result<()> {
     // SAFETY: plain system calls on integers and on buffers of this frame.
     unsafe {
         if libc::prctl(libc::PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) != 0 {
@@ -51,6 +60,9 @@ unsafe fn shim(mode: Mode) -> std::io::Result<()> {
             return Err(std::io::Error::last_os_error());
         }
         if payload == 0 {
+            if let Some(c) = confine {
+                pod_confine::apply(c).map_err(|r| std::io::Error::from_raw_os_error(r.errno.0))?;
+            }
             return Ok(());
         }
         // The shim never execs: it closes each descriptor above 2, so that

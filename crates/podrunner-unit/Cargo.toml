@@ -9,5 +9,6 @@ publish.workspace = true
 
 [dependencies]
 libc.workspace = true
+pod-confine.workspace = true
 podrunner-schema.workspace = true
 serde.workspace = true

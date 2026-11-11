@@ -81,13 +81,15 @@ A unit kind with `boundary: confined` and the proof of `pod-confine`.
 
 pmask (the owner's note to DR-6, not adopted now) is no boundary and does not give `confined`. As a later launcher option behind `UnitDriver` it can hide the command line and the environment of a job from the other jobs of a shared uid, and make the runner not dumpable. Measure `pmask probe` on the host first: it needs ptrace.
 
+Step 1, 2026-11-11, with podcrates `v0.24.0`: `crates/podrunner-unit/src/confine.rs` builds the rules of a unit (read and execute the system directories, read `/proc`, read and write the unit root, a few devices; the default deny list of `pod-confine`), and the shim applies them in the payload between the fork and the exec (`shim::under_shim_confined`); a refusal of the kernel fails the spawn. `FakeUnit::confined` gives a fake of `boundary: confined` with the proof `pod-confine: landlock abi N`. The new conformance test 27 (`a-confined-unit-reads-no-other-root`) passes on the confined fake, and its plant (the record claims `confined`, no rule applies) fails it. As a user with no privilege, a confined payload does not read the environment of a process outside its domain; root keeps `CAP_SYS_PTRACE`, which passes Landlock. Open: a unit kind for real jobs. The podvm driver says `confined` when podvm applies `pod-confine` in its units (PodUtils/podvm#259) and test 27 passes on it.
+
 ## Prove
 
 `cargo test -p podrunner-unit confined`
 
 ## Blocker
 
-podcrates releases `pod-confine` (PodUtils/podcrates@T-108).
+podvm applies `pod-confine` in its units (PodUtils/podvm#259), for a unit kind of real jobs at `confined`.
 
 # T-043: Later crates: service unit, release index, acceptance registry (GitHub #43)
 

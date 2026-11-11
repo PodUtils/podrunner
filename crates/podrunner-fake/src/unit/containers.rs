@@ -53,7 +53,7 @@ impl FakeUnit {
         let argv: Vec<String> = spec.argv.iter().map(|a| mounts.map(a)).collect();
         let cwd = mounts.workdir(spec.workdir.as_deref(), &dir);
         let shimmed = !self.planted(UnitPlant::UntaggedContainer);
-        let child = self.spawn(&argv, &cwd, &env, Some(&dir.join("log")), shimmed)?;
+        let child = self.spawn(&argv, &cwd, &env, Some(&dir.join("log")), shimmed, Some(&root))?;
         self.with_unit(unit, |r| {
             r.containers.insert(id.clone(), (child, dir, mounts));
             Ok(id)
@@ -69,18 +69,18 @@ impl FakeUnit {
         if spec.stdin && !self.planted(UnitPlant::AcceptStdin) {
             return Err(UnitError::new(UnitCode::ContainerOptionRefused, "stdin"));
         }
-        let (dir, mounts, tag) = self.with_unit(unit, |r| {
+        let (dir, mounts, tag, root) = self.with_unit(unit, |r| {
             let (_, dir, mounts) = r
                 .containers
                 .get(container)
                 .ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, container.0.clone()))?;
-            Ok((dir.clone(), mounts.clone(), r.tag.clone()))
+            Ok((dir.clone(), mounts.clone(), r.tag.clone(), r.root.clone()))
         })?;
         let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), mounts.map(v))).collect();
         env.push((TAG_VAR.into(), tag));
         let argv: Vec<String> = spec.argv.iter().map(|a| mounts.map(a)).collect();
         let cwd = mounts.workdir(spec.workdir.as_deref(), &dir);
-        let mut child = self.spawn(&argv, &cwd, &env, spec.log.as_deref(), true)?;
+        let mut child = self.spawn(&argv, &cwd, &env, spec.log.as_deref(), true, Some(&root))?;
         child.wait().map(procs::exit_of).map_err(|e| host(e, "exec"))
     }
 

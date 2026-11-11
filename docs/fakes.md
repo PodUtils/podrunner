@@ -38,7 +38,10 @@ of the unit, also one that drops the tag (`setsid env -i`). `destroy`
 kills the tree under the shim and each tagged process. A shim that a
 signal ended makes the count `unknown`. With `container: hooks`, a
 container is a process tree under a shim of its own, in a directory of
-the unit. The fake applies no
+the unit. `FakeUnit::confined` gives a `confined` fake (T-042): each process
+of a unit runs under the Landlock rules and the seccomp filter of
+`podrunner_unit::confine` (`pod-confine`), and reads and writes only its
+root and reads the system directories. The fake applies no
 mount and no create option; it writes them to the file `spec` of the
 container directory, one on each line, for the tests of the hooks.
 
@@ -76,6 +79,7 @@ gives other behaviours as argv of its own.
 | 24 | the credential goes into the environment of each container (`tests/alone.rs`) |
 | 25 | no shim: destroy finds the processes by their tag only |
 | 26 | destroy counts 0 processes after its shim was killed |
+| 27 | the record claims `confined`, and no rule applies |
 
 | Source test | Plant |
 | --- | --- |
