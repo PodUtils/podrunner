@@ -315,3 +315,29 @@ A live acceptance suite against GitHub with a test organization.
 ## Blocker
 
 The ruling "Test accounts" (Q-A9): not now (DR-7, T-007).
+
+# T-049: COORD-003: the stand-in broker of the official runner for podvm (GitHub #50)
+
+**Source:** GitHub #50
+**Category:** chore
+**Milestone:** L2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm asked in PodUtils/podvm#248 (COORD-030, PodUtils/podvm@T-1706) for the stand-in of the broker that podrunner measured (T-038, step 1): the requests of the official runner up to the long poll, the shape of its three files, and its environment. Its session cannot read this repository. With it, podvm proves `run.sh` on its userland rung (the M-B path of T-026).
+
+## Premise
+
+The answer comes from the measure of T-038 on 2026-11-11 with runner v2.338.2 and `crates/podrunner-broker-fake`.
+
+## Approach
+
+GitHub #50 (COORD-003, to podvm) gives the requests in order with their answers, the three files with made-up values, and the environment. Close it when podvm reads it; take the result of PodUtils/podvm@T-1706 into T-026.
+
+## Prove
+
+`cargo todo check`
+
