@@ -1,0 +1,30 @@
+# Dependabot: each week, the crates of Cargo.lock, the actions of the
+# workflows and the pinned images. Each update is applied as an own commit
+# on main (no pull request is merged; docs/maintenance.md, "Dependabot").
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directories:
+      - /images/trufflehog
+    schedule:
+      interval: weekly

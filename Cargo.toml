@@ -1,0 +1,26 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+# The stable Rust of the day (docs/decisions.md, Toolchain). Raise it with
+# rust-toolchain.toml when a new stable comes out.
+rust-version = "1.99"
+license = "0BSD"
+repository = "https://github.com/PodUtils/podrunner"
+homepage = "https://github.com/PodUtils/podrunner"
+publish = false
+
+# The crates of podcrates come by a git tag, never by a branch
+# (docs/decisions.md, Delivery). A member crate names one only when it
+# needs it. One tag for each crate of podcrates.
+[workspace.dependencies]
+pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0" }
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

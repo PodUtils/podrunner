@@ -1,0 +1,12 @@
+[package]
+name = "podrunner"
+description = "A static launcher that runs CI jobs in one fresh unit for each job"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "podrunner"
+path = "src/main.rs"

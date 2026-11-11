@@ -1,0 +1,191 @@
+name: gate
+
+# The checks of each push to main and each pull request
+# (PodUtils/podrunner#12, docs/development.md):
+#
+# * lint: format, clippy with -D warnings, docs, the size of each Rust
+#   file (at most 500 lines), no agent attribution line in a new commit.
+# * test: the tests of the workspace.
+# * record: the tests of the checker, and `cargo todo check`.
+# * static: the release build of each binary for x86_64 and aarch64 musl,
+#   with zig as the C compiler; no PT_INTERP and no NEEDED entry
+#   (scripts/check-static.sh), and a planted dynamic binary must fail.
+# * deny: cargo-deny over Cargo.lock; a denied license must fail.
+# * all: the one status to require. It fails when a job failed or was
+#   skipped.
+#
+# Each action is pinned by its commit. No job may write to the repository.
+# The toolchain and the musl targets come from rust-toolchain.toml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # An advisory can come while the tree does not change.
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: 4
+  ZIG_VERSION: 0.16.0
+  ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+  ZIGBUILD_VERSION: 0.23.4
+  DENY_VERSION: "0.20.2"
+  DENY_SHA256: "9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f"
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The commits of the push, for the check of the messages.
+          fetch-depth: 50
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+      - name: Docs
+        run: RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --workspace --all-features
+      - name: The size of the Rust files
+        run: |
+          python3 -I scripts/check-size.py
+          python3 -I scripts/check-size.py --self-test
+      - name: No agent attribution line in a commit
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -eu
+          sh scripts/check-commit-msg.sh --self-test
+          if [ "${{ github.event_name }}" = push ] && git cat-file -e "$BEFORE^{commit}" 2> /dev/null; then
+            revs=$(git rev-list "$BEFORE..HEAD")
+          else
+            revs=$(git rev-list -1 HEAD)
+          fi
+          sh scripts/check-commit-msg.sh --rev $revs
+
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: Test
+        run: cargo test --locked --workspace --all-features
+
+  record:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The parent of the commit: a citation that a change left behind.
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: The record agrees
+        run: cargo run --locked -q -p podrunner-todo -- check
+      - name: No citation left behind by the last commit
+        if: github.event_name == 'push'
+        run: cargo run --locked -q -p podrunner-todo -- check --base HEAD~1
+
+  static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-unknown-linux-musl, aarch64-unknown-linux-musl]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: zig and cargo-zigbuild
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/zig"
+          sh scripts/fetch-zig.sh "$ZIG_VERSION" "$ZIG_SHA256" "$RUNNER_TEMP/zig.tar.xz"
+          tar -xJf "$RUNNER_TEMP/zig.tar.xz" -C "$RUNNER_TEMP/zig"
+          echo "$RUNNER_TEMP/zig/zig-x86_64-linux-$ZIG_VERSION" >> "$GITHUB_PATH"
+          sh scripts/retry.sh cargo install --locked --quiet cargo-zigbuild --version "$ZIGBUILD_VERSION"
+      - name: Build
+        run: PODRUNNER_COMMIT=$(git rev-parse --short=12 HEAD) cargo zigbuild --locked --release --target ${{ matrix.target }} -p podrunner
+      - name: The binary is static
+        run: |
+          set -eu
+          exe=target/${{ matrix.target }}/release/podrunner
+          sh scripts/check-static.sh "$exe"
+          file "$exe"
+          echo "| ${{ matrix.target }} podrunner | $(wc -c < "$exe") bytes |" >> "$GITHUB_STEP_SUMMARY"
+      - name: The binary runs
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: target/${{ matrix.target }}/release/podrunner --version | grep -F "($(git rev-parse --short=12 HEAD))"
+      - name: A dynamic binary fails the check
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          set -u
+          if sh scripts/check-static.sh /bin/ls; then
+            echo "check-static.sh passed a dynamic binary"
+            exit 1
+          fi
+
+  deny:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: cargo-deny, from its release, checked by its SHA-256
+        run: |
+          set -eu
+          name="cargo-deny-$DENY_VERSION-x86_64-unknown-linux-musl"
+          sh scripts/retry.sh curl -qfsSL -o "$RUNNER_TEMP/deny.tgz" \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/$DENY_VERSION/$name.tar.gz"
+          echo "$DENY_SHA256  $RUNNER_TEMP/deny.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/deny.tgz" -C "$RUNNER_TEMP"
+          install -m 0755 "$RUNNER_TEMP/$name/cargo-deny" "$HOME/.cargo/bin/cargo-deny"
+          cargo deny --version
+      - name: Advisories, licenses, bans and sources
+        run: cargo deny --locked check advisories licenses bans sources
+      - name: A denied license fails
+        run: |
+          set -u
+          sed "/\"0BSD\",/d" deny.toml > "$RUNNER_TEMP/deny.toml"
+          if cargo deny --locked --config "$RUNNER_TEMP/deny.toml" check licenses > "$RUNNER_TEMP/plant.log" 2>&1; then
+            echo "the check passed with 0BSD denied"
+            exit 1
+          fi
+          grep -m1 'failed to satisfy license requirements' "$RUNNER_TEMP/plant.log"
+
+  all:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: always()
+    needs: [lint, test, record, static, deny]
+    steps:
+      - name: Each job passed
+        run: |
+          set -eu
+          for r in "${{ needs.lint.result }}" "${{ needs.test.result }}" "${{ needs.record.result }}" "${{ needs.static.result }}" "${{ needs.deny.result }}"; do
+            [ "$r" = success ] || { echo "a job ended: $r"; exit 1; }
+          done

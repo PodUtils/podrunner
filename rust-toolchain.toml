@@ -1,0 +1,7 @@
+# The toolchain of podrunner: the same channel as podcrates
+# (docs/decisions.md, Toolchain). Raise it with rust-version in Cargo.toml.
+[toolchain]
+channel = "1.99"
+components = ["rustfmt", "clippy"]
+targets = ["x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl"]
+profile = "minimal"

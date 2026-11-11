@@ -1,0 +1,7 @@
+#!/bin/sh
+# Refuse a commit message with an agent attribution line (AGENTS.md, Git):
+# Co-Authored-By, Claude-Session, or "Generated with". The check is also in
+# CI (scripts/check-commit-msg.sh over each new commit).
+#
+#   .githooks/commit-msg MESSAGE_FILE
+exec sh "$(git rev-parse --show-toplevel)/scripts/check-commit-msg.sh" "$1"
