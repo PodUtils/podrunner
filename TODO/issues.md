@@ -39,7 +39,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #31 | WP-05b: remote mint (only if DR-4 is yes) | closed (`4e6d029`, gate run 42957378324) | T-031 |
 | #32 | Milestone M-C: live gates G-H2 to G-H4 on a `fake` unit | open | T-032 |
 | #33 | Milestone M-D: one live trusted job on a no-root host | open | T-033 |
-| #34 | WP-13: measure U19 and U21 on the podvm rung | open | T-034 |
+| #34 | WP-13: measure U19 and U21 on the podvm rung | closed (T-034, podvm `v0.2.0-beta.3`) | T-034 |
 | #35 | WP-09: hook relay and the per-unit control socket server (`ctl`) | closed (`fda577d`, gate run 42991333922) | T-035 |
 | #36 | Guest floor self-test | open | T-036 |
 | #37 | WP-11: `microvm` unit driver (form set by DR-5) | open | T-037 |

@@ -263,7 +263,7 @@ Read so far (2026-11-11, `actions/runner` v2.338.2): the JIT files of a scale se
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -288,6 +288,11 @@ Close L2 when T-034 to T-038 are done and the level 2 suite is green.
 ## Prove
 
 `cargo test --workspace -- --include-ignored level2`, and the gate run of the closing commit.
+
+## Blocker
+
+T-036 (the guest floor self-test needs a real guest kind) and T-037 (the microvm driver waits for DR-5). The other parts hold: T-034 and T-035 are done (a canned `container:` job passes the hook path of the podvm driver in `runner-image.yml`), T-038 is done, and level 2 runs on a schedule (`level2.yml`, each Monday).
+
 
 # T-040: Level 3: the live acceptance suite (GitHub #40)
 

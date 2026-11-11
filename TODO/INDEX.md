@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**63 entries: 1 open, 4 partial, 14 blocked, 44 done.**
+**63 entries: 0 open, 4 partial, 15 blocked, 44 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 21 | 23 |
-| P2 | 1 | 2 | 9 | 22 | 34 |
+| P2 | 0 | 2 | 10 | 22 | 34 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 1 | 4 | 14 | 44 | 63 |
+| **All** | 0 | 4 | 15 | 44 | 63 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -86,7 +86,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-036](level2.md) | P2 | S | L2 | feature | blocked | The guest floor self-test (GitHub #36) |
 | [T-037](level2.md) | P2 | M | L2 | feature | blocked | WP-11: the microvm unit driver (form set by DR-5) (GitHub #37) |
 | [T-038](level2.md) | P2 | S | L2 | feature | done | WP-12: the canned-message fake broker (level 2) (GitHub #38) |
-| [T-039](level2.md) | P2 | S | L2 | chore | open | Milestone L2: level 2 green, the hook path measured (GitHub #39) |
+| [T-039](level2.md) | P2 | S | L2 | chore | blocked | Milestone L2: level 2 green, the hook path measured (GitHub #39) |
 | [T-040](level2.md) | P3 | M | L3 | chore | blocked | Level 3: the live acceptance suite (GitHub #40) |
 | [T-041](later.md) | P3 | S | later | feature | blocked | Hold enforced on podvm units (pod-hold or pod-sud) (GitHub #41) |
 | [T-042](later.md) | P3 | S | later | feature | blocked | The confined boundary (pod-confine) (GitHub #42) |

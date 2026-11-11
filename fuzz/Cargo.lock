@@ -577,8 +577,8 @@ dependencies = [
 
 [[package]]
 name = "pod-broker"
-version = "0.19.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.19.0#9a11bbdd2339c8194e91ae3e9739701f00466c6c"
+version = "0.21.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.21.0#ada3699ba5331516a93a56d8d42fbc94e7508280"
 dependencies = [
  "base64 0.23.1",
  "libc",
@@ -595,8 +595,8 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.19.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.19.0#9a11bbdd2339c8194e91ae3e9739701f00466c6c"
+version = "0.21.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.21.0#ada3699ba5331516a93a56d8d42fbc94e7508280"
 dependencies = [
  "libc",
  "rand",
@@ -606,8 +606,8 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.19.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.19.0#9a11bbdd2339c8194e91ae3e9739701f00466c6c"
+version = "0.21.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.21.0#ada3699ba5331516a93a56d8d42fbc94e7508280"
 dependencies = [
  "base64 0.23.1",
  "ed25519-dalek",
@@ -621,8 +621,8 @@ dependencies = [
 
 [[package]]
 name = "pod-job"
-version = "0.19.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.19.0#9a11bbdd2339c8194e91ae3e9739701f00466c6c"
+version = "0.21.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.21.0#ada3699ba5331516a93a56d8d42fbc94e7508280"
 dependencies = [
  "serde",
  "serde_json",
@@ -630,8 +630,8 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.19.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.19.0#9a11bbdd2339c8194e91ae3e9739701f00466c6c"
+version = "0.21.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.21.0#ada3699ba5331516a93a56d8d42fbc94e7508280"
 dependencies = [
  "base64 0.23.1",
  "libc",
@@ -646,8 +646,8 @@ dependencies = [
 
 [[package]]
 name = "pod-tls"
-version = "0.19.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.19.0#9a11bbdd2339c8194e91ae3e9739701f00466c6c"
+version = "0.21.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.21.0#ada3699ba5331516a93a56d8d42fbc94e7508280"
 dependencies = [
  "base64 0.23.1",
  "p256",
