@@ -27,6 +27,7 @@ use podrunner_unit::{
 use crate::Podvm;
 
 mod containers;
+mod hold;
 
 /// The working directory of the payload in the rootfs.
 const WORKDIR: &str = "/podrunner";
@@ -43,6 +44,8 @@ struct Running {
     /// `podvm wait` of the unit: its end is the end of the payload.
     waiter: Child,
     exit: Option<Exit>,
+    /// The egress socket of the unit, when `podnet pod` holds it (T-065).
+    egress: Option<PathBuf>,
 }
 
 /// The podvm unit driver.
@@ -59,6 +62,8 @@ pub struct PodvmUnit {
     runner_dir: String,
     /// The number of the next container.
     containers: std::sync::atomic::AtomicU64,
+    /// The `podnet` binary of the hold (T-065), else no hold.
+    podnet: Option<PathBuf>,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -80,6 +85,7 @@ impl PodvmUnit {
             units: Mutex::new(HashMap::new()),
             runner_dir: "/home/runner".into(),
             containers: std::sync::atomic::AtomicU64::new(0),
+            podnet: None,
         })
     }
 
@@ -104,7 +110,19 @@ impl PodvmUnit {
 
     /// `podvm ARGS` with the store `store`; the output, or a named failure.
     fn podvm(&self, store: &Path, args: &[&str], tag: Option<&str>) -> Result<String, UnitError> {
-        let mut cmd = Command::new(&self.podvm.binary);
+        self.podvm_held(store, args, tag, None)
+    }
+
+    /// `podvm ARGS`, under `podnet pod` of the egress socket `egress` when
+    /// the driver has a hold.
+    fn podvm_held(
+        &self,
+        store: &Path,
+        args: &[&str],
+        tag: Option<&str>,
+        egress: Option<&Path>,
+    ) -> Result<String, UnitError> {
+        let mut cmd = self.command(egress);
         cmd.args(args).env("PODVM_STORE", store).stdin(Stdio::null());
         if let Some(t) = tag {
             cmd.env(TAG_VAR, t);
@@ -221,9 +239,10 @@ impl UnitDriver for PodvmUnit {
         // (PodUtils/podvm@T-1720), so the payload runs as it is.
         args.extend(spec.argv.iter().cloned());
         let argv: Vec<&str> = args.iter().map(String::as_str).collect();
-        self.podvm(&store, &argv, Some(&tag))?;
+        let egress = self.egress_of(spec)?;
+        self.podvm_held(&store, &argv, Some(&tag), egress.as_deref())?;
         let waiter = self.waiter(&store, &spec.unit, &tag)?;
-        units.insert(spec.unit.clone(), Running { dir, rootfs, tag, waiter, exit: None });
+        units.insert(spec.unit.clone(), Running { dir, rootfs, tag, waiter, exit: None, egress });
         Ok(())
     }
 

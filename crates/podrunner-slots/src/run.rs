@@ -41,10 +41,7 @@ impl Slots {
     }
 }
 
-/// The name of the egress socket in the socket directory of a unit.
-pub(crate) const EGRESS_SOCKET: &str = "egress.sock";
-/// The name of the control socket in the socket directory of a unit.
-pub(crate) const CONTROL_SOCKET: &str = "ctl.sock";
+pub(crate) use podrunner_unit::{CONTROL_SOCKET, EGRESS_SOCKET};
 
 /// The socket directory of `unit`: its egress socket, its control socket
 /// and the hook relay, and nothing of another unit.

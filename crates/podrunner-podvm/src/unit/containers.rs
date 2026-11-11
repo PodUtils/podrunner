@@ -7,7 +7,7 @@
 //! so the tree kill of `destroy` reaches it.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 use podrunner_schema::UnitId;
 use podrunner_unit::procs::TAG_VAR;
@@ -26,16 +26,25 @@ fn refused(why: &str) -> UnitError {
 impl PodvmUnit {
     /// The store and the tag of `unit`, and the host path of its runner
     /// directory: a relative mount source is under it.
-    fn container_base(&self, unit: &UnitId) -> Result<(PathBuf, String, PathBuf), UnitError> {
+    fn container_base(&self, unit: &UnitId) -> Result<(PathBuf, String, PathBuf, Option<PathBuf>), UnitError> {
         let units = self.units.lock().expect("the units");
         let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;
         let runner = r.rootfs.join(self.runner_dir.trim_start_matches('/'));
-        Ok((r.dir.join("store"), r.tag.clone(), runner))
+        Ok((r.dir.join("store"), r.tag.clone(), runner, r.egress.clone()))
     }
 
     /// `podvm ARGS` in the store `store`, with its status and its output.
-    fn podvm_in(&self, store: &Path, args: &[String], tag: &str) -> Result<(Option<i32>, Vec<u8>), UnitError> {
-        let out = Command::new(&self.podvm.binary)
+    /// `podvm ARGS` in the store `store`, under the hold of `egress` when
+    /// it is given (T-065), with its status and its output.
+    fn podvm_in(
+        &self,
+        store: &Path,
+        args: &[String],
+        tag: &str,
+        egress: Option<&Path>,
+    ) -> Result<(Option<i32>, Vec<u8>), UnitError> {
+        let out = self
+            .command(egress)
             .args(args)
             .env("PODVM_STORE", store)
             .env(TAG_VAR, tag)
@@ -54,9 +63,10 @@ impl PodvmUnit {
             return Err(refused("the podvm unit applies no create option"));
         }
         let prepared = podrunner_unit::UnitDriver::prepare(self, &spec.image, &self.platform.clone(), false)?;
-        let (store, tag, runner) = self.container_base(unit)?;
+        let (store, tag, runner, egress) = self.container_base(unit)?;
         let tar = self.tar_of(&prepared.digest);
-        let (code, out) = self.podvm_in(&store, &["load".into(), "-i".into(), tar.display().to_string()], &tag)?;
+        let (code, out) =
+            self.podvm_in(&store, &["load".into(), "-i".into(), tar.display().to_string()], &tag, None)?;
         if code != Some(0) {
             return Err(UnitError::new(UnitCode::UnitStartFailed, format!("podvm load: {}", last_line(&out))));
         }
@@ -83,7 +93,7 @@ impl PodvmUnit {
         }
         args.push(spec.image.clone());
         args.extend(spec.argv.iter().cloned());
-        let (code, out) = self.podvm_in(&store, &args, &tag)?;
+        let (code, out) = self.podvm_in(&store, &args, &tag, egress.as_deref())?;
         if code != Some(0) {
             return Err(UnitError::new(UnitCode::UnitStartFailed, format!("podvm run: {}", last_line(&out))));
         }
@@ -94,7 +104,7 @@ impl PodvmUnit {
         if spec.stdin {
             return Err(refused("stdin"));
         }
-        let (store, tag, _) = self.container_base(unit)?;
+        let (store, tag, _, egress) = self.container_base(unit)?;
         let mut args: Vec<String> = vec!["exec".into()];
         if let Some(w) = &spec.workdir {
             args.extend(["-w".into(), w.clone()]);
@@ -104,7 +114,7 @@ impl PodvmUnit {
         }
         args.push(c.0.clone());
         args.extend(spec.argv.iter().cloned());
-        let (code, out) = self.podvm_in(&store, &args, &tag)?;
+        let (code, out) = self.podvm_in(&store, &args, &tag, egress.as_deref())?;
         if let Some(log) = &spec.log {
             std::fs::write(log, &out).map_err(|e| host("the log of a step", e))?;
         }
@@ -112,8 +122,8 @@ impl PodvmUnit {
     }
 
     pub(super) fn logs_container(&self, unit: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {
-        let (store, tag, _) = self.container_base(unit)?;
-        let (code, out) = self.podvm_in(&store, &["logs".into(), c.0.clone()], &tag)?;
+        let (store, tag, _, _) = self.container_base(unit)?;
+        let (code, out) = self.podvm_in(&store, &["logs".into(), c.0.clone()], &tag, None)?;
         if code != Some(0) {
             return Err(UnitError::new(UnitCode::UnknownUnit, c.0.clone()));
         }
@@ -121,8 +131,8 @@ impl PodvmUnit {
     }
 
     pub(super) fn inspect_container(&self, unit: &UnitId, c: &ContainerId) -> Result<ContainerState, UnitError> {
-        let (store, tag, _) = self.container_base(unit)?;
-        let (code, out) = self.podvm_in(&store, &["inspect".into(), c.0.clone()], &tag)?;
+        let (store, tag, _, _) = self.container_base(unit)?;
+        let (code, out) = self.podvm_in(&store, &["inspect".into(), c.0.clone()], &tag, None)?;
         if code != Some(0) {
             return Err(UnitError::new(UnitCode::UnknownUnit, c.0.clone()));
         }
@@ -130,8 +140,8 @@ impl PodvmUnit {
     }
 
     pub(super) fn stop_container(&self, unit: &UnitId, c: &ContainerId) -> Result<(), UnitError> {
-        let (store, tag, _) = self.container_base(unit)?;
-        self.podvm_in(&store, &["rm".into(), "-f".into(), c.0.clone()], &tag).map(drop)
+        let (store, tag, _, _) = self.container_base(unit)?;
+        self.podvm_in(&store, &["rm".into(), "-f".into(), c.0.clone()], &tag, None).map(drop)
     }
 }
 

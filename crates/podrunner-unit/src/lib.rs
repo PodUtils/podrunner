@@ -14,6 +14,12 @@ mod stub;
 mod types;
 
 pub use podrunner_schema::{Capability, Credential, UnitId};
+
+/// The name of the egress socket in the socket directory of a unit
+/// (`StartSpec::sockets`).
+pub const EGRESS_SOCKET: &str = "egress.sock";
+/// The name of the control socket in the socket directory of a unit.
+pub const CONTROL_SOCKET: &str = "ctl.sock";
 pub use stub::Stub;
 pub use types::{
     ContainerId, ContainerMount, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue,

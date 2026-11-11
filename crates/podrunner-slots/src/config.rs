@@ -88,6 +88,10 @@ pub struct UnitConfig {
     /// path that the driver observes (the fake unit).
     #[serde(default)]
     pub runner_dir: Option<String>,
+    /// `podvm`: the `podnet` binary that holds the egress of each unit
+    /// (`podnet pod`, T-065); absent: no hold (`egress_hold: unknown`).
+    #[serde(default)]
+    pub podnet: Option<String>,
 }
 
 fn run_sh() -> Vec<String> {

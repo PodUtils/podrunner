@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**76 entries: 12 open, 2 partial, 16 blocked, 46 done.**
+**76 entries: 11 open, 3 partial, 16 blocked, 46 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 5 | 1 | 1 | 22 | 29 |
+| P1 | 4 | 2 | 1 | 22 | 29 |
 | P2 | 5 | 1 | 10 | 23 | 39 |
 | P3 | 2 | 0 | 5 | 1 | 8 |
-| **All** | 12 | 2 | 16 | 46 | 76 |
+| **All** | 11 | 3 | 16 | 46 | 76 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -112,7 +112,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-062](core.md) | P2 | S | L2 | defect | blocked | COORD-008: on the supervise rung a volume given as :ro is writable (GitHub #62) |
 | [T-063](core.md) | P1 | M | L2 | defect | done | The tree kill finds a unit by an environment tag, and a process can drop it |
 | [T-064](level2.md) | P1 | S | L2 | feature | blocked | The podvm driver follows the tree of each container (PodUtils/podvm@T-1709) |
-| [T-065](live.md) | P1 | M | M-D | feature | open | The podvm unit runs under podnet pod: an advisory hold for trusted jobs |
+| [T-065](live.md) | P1 | M | M-D | feature | partial | The podvm unit runs under podnet pod: an advisory hold for trusted jobs |
 | [T-066](live.md) | P1 | S | M-C | defect | open | slots sets ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1 in the start environment |
 | [T-067](level2.md) | P1 | S | L2 | feature | open | The podvm driver takes the root of a unit from podvm inspect |
 | [T-068](core.md) | P1 | M | M-D | defect | open | serve keeps each job, report and journal line forever |

@@ -34,6 +34,7 @@ binary = "/usr/local/bin/podvm"       # podvm: the released podvm binary
 images = "/var/lib/podrunner/images"  # podvm: a podvm store with the pinned images
 registries = ["ghcr.io"]     # container: hooks: the registry hosts of job containers; none: each is refused
 runner_dir = "/home/runner"  # the runner directory in the unit; absent: the path that the driver observes
+podnet = "/usr/local/bin/podnet"      # podvm: hold the egress of each unit with podnet pod (egress_hold: advisory); absent: unknown
 
 [tier.trusted]               # a floor at or above the lowest floor
 min_boundary = "confined"

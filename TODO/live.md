@@ -449,7 +449,7 @@ Done: the configuration check of `podrunner_slots::config` (`check_redirect`) re
 **Milestone:** M-D
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -465,6 +465,8 @@ Read the code and SPEC §9 on 2026-11-11. podnet measured `podnet pod --backend 
 2. Pin podnet in a new file images/podnet.toml (the version and the SHA-256 of the x86_64 binary), as `images/podvm.toml` does.
 3. `[unit.podvm] podnet = "PATH"` (in `driver_dir` when it is set). The driver starts `podvm run -d` under `podnet pod -x http://unix:EGRESS_SOCKET` of the unit, and reports `egress_hold: advisory` with the proof of `pod doctor --json` (`hold.seccomp`). With no `podnet`, the hold stays `unknown`.
 4. Add a case to `crates/podrunner-broker-fake/tests/podvm.rs`: a step of the canned job runs `curl` to an allowed and a denied host of the policy; the audit of the broker shows both, and the denied one fails.
+
+Done: steps 1 to 3. Measured with podvm `v0.2.0-beta.3` and podnet `v0.4.0-beta.3` on the supervise rung, as a uid with no user namespace (`scripts/measure-podnet-pod.sh`, `scripts/connect-stand-in.py`): under `podnet pod --backend seccomp`, `podvm run -d` starts, the payload connect reaches the egress socket also after `podnet pod` returns, a plain `podvm exec` is not held, an `exec` under a `podnet pod` of its own is held, a loopback connect passes (`advisory`), and `inspect` and `rm -f` work; no podnet process is left. `images/podnet.toml` pins podnet. `[unit.podvm] podnet = "PATH"` gives `PodvmUnit::with_podnet` (`crates/podrunner-podvm/src/unit/hold.rs`): `egress_hold: advisory` from `podnet pod doctor --json`, and the unit, each container `run -d` and each `exec` run under `podnet pod -x http://unix:EGRESS`; a held driver refuses a unit with no socket directory. `crates/podrunner-podvm/tests/hold.rs` passes on H0. Open: step 4, and the CI run in `runner-image.yml`.
 
 ## Prove
 
