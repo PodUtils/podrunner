@@ -1,0 +1,7 @@
+# The podvm release that the image pipeline imports the runner image with
+# (T-030), and the SHA-256 of each binary, from its release (`.sha256`).
+version = "0.2.0-beta.2"
+
+[sha256]
+x86_64 = "0af41a96233c7f9f3ed48b80ebb3271fe9eaa1295616ea0375625f8035baf6a9"
+aarch64 = "011885447c36080565f808edc3712d921e9ca25748f1754ae05689dca9725895"
