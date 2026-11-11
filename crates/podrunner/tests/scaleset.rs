@@ -1,6 +1,9 @@
 //! slots, mint, sign and the scale-set sidecar on the fake scale-set
 //! service: a fork pull request on the trusted set is withdrawn with
 //! `tier-mismatch` and never acquired; a member job runs to its report.
+//! Design source test 3 for the sidecar: the credential (the fake service
+//! plants a canary in the JIT configuration) reaches the unit, and is in no
+//! stderr of the sidecar, no file of the state and no report.
 //! Ignored by default: it needs the Go binaries.
 //!
 //!   PODRUNNER_FAKE_SCALESET=PATH PODRUNNER_SCALESET_SIDECAR=PATH \
@@ -24,6 +27,9 @@ use podrunner_slots::config::{Config, SourceConfig, UnitConfig};
 use podrunner_slots::{Slots, Source, UnitKind};
 
 const NOW: u64 = 1_800_000_000;
+/// The fake scale-set service plants it in the `.credentials` of each JIT
+/// configuration.
+const CANARY: &str = "fake-scaleset-canary";
 const PIN: &str = "runner@sha256:1111111111111111111111111111111111111111111111111111111111111111";
 const SCRIPT: &str = r#"{"scaleSetName":"podrunner","jobs":[
  {"requestId":11,"jobId":"a","owner":"example-org","repo":"app","workflowRunId":101,"event":"push","actor":"alice","actorIsMember":true,"visibility":"private","labels":["podrunner"]},
@@ -78,7 +84,20 @@ fn a_fork_is_withdrawn_and_a_member_job_runs() {
     ]
     .map(String::from)
     .to_vec();
-    let sidecar = SidecarSource::new(&env("PODRUNNER_SCALESET_SIDECAR"), args, signer.clone(), "sidecar:org-trusted");
+    // A wrapper keeps the stderr of the sidecar for the scan; descriptor 3
+    // (sign) passes through exec.
+    let wrapper = dir.join("sidecar.sh");
+    let stderr = dir.join("sidecar.err");
+    std::fs::write(
+        &wrapper,
+        format!("#!/bin/sh\nexec '{}' \"$@\" 2>>'{}'\n", env("PODRUNNER_SCALESET_SIDECAR"), stderr.display()),
+    )
+    .unwrap();
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    let sidecar = SidecarSource::new(wrapper.to_str().unwrap(), args, signer.clone(), "sidecar:org-trusted");
     let source_cfg: SourceConfig = serde_json::from_value(serde_json::json!({
         "name": "org-trusted", "kind": "github-scaleset", "tier": "trusted", "arch": "x86_64", "operator_controlled": true
     }))
@@ -107,7 +126,7 @@ fn a_fork_is_withdrawn_and_a_member_job_runs() {
         kvm: Fact::No,
     };
     let unit_cfg: UnitConfig = serde_json::from_value(
-        serde_json::json!({ "slots": 2, "command": ["sh", "-c", "test -f .runner-root/.runner && sleep 1"] }),
+        serde_json::json!({ "slots": 2, "command": ["sh", "-c", &format!("grep -q {CANARY} .runner-root/.credentials && sleep 1")] }),
     )
     .unwrap();
     cfg.unit.insert("fake".into(), unit_cfg.clone());
@@ -150,5 +169,14 @@ fn a_fork_is_withdrawn_and_a_member_job_runs() {
         .collect();
     assert_eq!(acquired.len(), 1, "one acquire: {acquired:?}");
     assert!(signer.lock().unwrap().audit.iter().all(|a| a.outcome == "signed"));
+    // The member job succeeded, so its unit saw the canary: the positive
+    // control. The stderr file exists, so the scan reads it.
+    let err = std::fs::read_to_string(&stderr).expect("the stderr of the sidecar");
+    assert!(!err.contains(CANARY), "the stderr of the sidecar holds the credential");
+    assert!(!serde_json::to_string(&slots.reports).unwrap().contains(CANARY), "a report holds the credential");
+    for f in ["state/journal.jsonl", "state/audit.jsonl"] {
+        let text = std::fs::read_to_string(dir.join(f)).unwrap();
+        assert!(!text.is_empty() && !text.contains(CANARY), "{f} holds the credential");
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }

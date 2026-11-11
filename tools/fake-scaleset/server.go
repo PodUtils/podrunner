@@ -170,7 +170,7 @@ func (s *server) scaleSets(w http.ResponseWriter, r *http.Request, rest string) 
 		}
 		_ = json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&setting)
 		s.runners = append(s.runners, setting.Name)
-		files := map[string]string{".runner": `{"agentName":"` + setting.Name + `"}`, ".credentials": `{"scheme":"OAuth"}`, ".credentials_rsaparams": `{}`}
+		files := map[string]string{".runner": `{"agentName":"` + setting.Name + `"}`, ".credentials": `{"scheme":"OAuth","data":{"clientId":"fake-scaleset-canary"}}`, ".credentials_rsaparams": `{}`}
 		raw, _ := json.Marshal(files)
 		reply(w, http.StatusOK, map[string]any{
 			"runner":           map[string]any{"id": len(s.runners), "name": setting.Name, "runnerScaleSetId": 1},
