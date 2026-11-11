@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**44 entries: 14 open, 6 partial, 14 blocked, 10 done.**
+**44 entries: 11 open, 6 partial, 14 blocked, 13 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 2 | 5 | 1 | 8 | 16 |
-| P2 | 11 | 1 | 9 | 2 | 23 |
-| P3 | 1 | 0 | 4 | 0 | 5 |
-| **All** | 14 | 6 | 14 | 10 | 44 |
+| P1 | 2 | 3 | 1 | 10 | 16 |
+| P2 | 9 | 3 | 9 | 2 | 23 |
+| P3 | 0 | 0 | 4 | 1 | 5 |
+| **All** | 11 | 6 | 14 | 13 | 44 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -56,20 +56,20 @@ acceptance, later The crate dependencies later than v1.
 | [T-006](plan.md) | P2 | S | M0 | research | blocked | DR-6: githome and cfb accept the restated G-02, G-03 and G-09 (GitHub #6) |
 | [T-007](plan.md) | P2 | S | M0 | research | blocked | DR-7: a throwaway GitHub organization and App for live tests (GitHub #7) |
 | [T-008](plan.md) | P2 | S | M0 | docs | partial | The defaulted decisions DR-3 and DR-8 to DR-17 (GitHub #8) |
-| [T-009](plan.md) | P2 | M | M0 | research | open | The register of the unknowns U1 to U25 (GitHub #9) |
-| [T-010](plan.md) | P3 | S | M0 | docs | open | The non-goals of v1 and the trigger of each (GitHub #10) |
+| [T-009](plan.md) | P2 | M | M0 | research | partial | The register of the unknowns U1 to U25 (GitHub #9) |
+| [T-010](plan.md) | P3 | S | M0 | docs | done | The non-goals of v1 and the trigger of each (GitHub #10) |
 | [T-011](bootstrap.md) | P1 | S | M0 | chore | done | The Cargo workspace, the pinned toolchain and the static musl build (GitHub #11) |
 | [T-012](bootstrap.md) | P1 | S | M0 | chore | done | The CI gate: format, lint, tests, static probe, deny, file size (GitHub #12) |
 | [T-013](bootstrap.md) | P1 | M | M0 | chore | done | The agent workflow, the decisions and the record (GitHub #13) |
 | [T-014](bootstrap.md) | P2 | S | M0 | docs | blocked | The cleaned design spec in docs/ (GitHub #14) |
-| [T-015](bootstrap.md) | P2 | S | M-A | release | open | The beta release workflow (GitHub #15) |
+| [T-015](bootstrap.md) | P2 | S | M-A | release | partial | The beta release workflow (GitHub #15) |
 | [T-016](core.md) | P1 | S | M-A | feature | done | WP-01: the seam traits, the contracts v1 and the conformance harness (GitHub #16) |
 | [T-017](core.md) | P1 | S | M-A | feature | partial | Schemas v1: job offer, unit capability, run report, public report (GitHub #17) |
 | [T-018](core.md) | P1 | S | M-A | feature | done | The tier rule: Rust implementation and the case table (GitHub #18) |
 | [T-019](core.md) | P2 | S | M-A | docs | done | Security documents: threat model, accepted residuals, leak runbook (GitHub #19) |
 | [T-020](core.md) | P1 | S | M-A | feature | done | WP-02: the fake source and the fake unit, scripted, with a manual clock (GitHub #20) |
-| [T-021](core.md) | P1 | M | M-A | feature | partial | WP-03: the slots core: states, journal, placement, status, drain, codes, config, audit (GitHub #21) |
-| [T-022](core.md) | P1 | M | M-A | feature | partial | CLI and control socket: serve, status, drain, stop, doctor, print-unit (GitHub #22) |
+| [T-021](core.md) | P1 | M | M-A | feature | done | WP-03: the slots core: states, journal, placement, status, drain, codes, config, audit (GitHub #21) |
+| [T-022](core.md) | P1 | M | M-A | feature | done | CLI and control socket: serve, status, drain, stop, doctor, print-unit (GitHub #22) |
 | [T-023](core.md) | P1 | M | M-A | feature | partial | WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23) |
 | [T-024](core.md) | P1 | M | M-A | feature | open | WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24) |
 | [T-025](core.md) | P1 | S | M-A | chore | open | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload (GitHub #25) |

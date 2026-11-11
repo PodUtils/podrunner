@@ -217,7 +217,7 @@ The owner holds the design review as a zip. The podcrates session asks the owner
 **Milestone:** M-A
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -243,7 +243,7 @@ Read the text of GitHub #15 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A workflow release.yml on a dispatch: the static build of both targets, the check of `scripts/check-static.sh`, a beta tag `vX.Y.Z-beta.N` and the release with the SHA-256 of each file and an attestation. No crates.io (ruling "Releases").
+A workflow release.yml on a dispatch: the static build of both targets, the check of `scripts/check-static.sh`, a beta tag `vX.Y.Z-beta.N` and the release with the SHA-256 of each file and an attestation. No crates.io (ruling "Releases"). Done so far (2026-11-11): `.github/workflows/release.yml`: with no input, a dry run (the conditions, and the build and the static check of both binaries); with `X.Y.Z-beta.N`, the tag, a pre-release with the binaries, their SHA-256 and a build provenance attestation (`actions/attest-build-provenance` v4.2.2 by its commit). The gate must be green at the commit. Open: a dry run on GitHub, then the first beta.
 
 ## Prove
 

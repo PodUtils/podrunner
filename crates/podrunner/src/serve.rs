@@ -97,8 +97,21 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                 };
                 let podvm = podrunner_podvm::Podvm { binary: need(&u.binary, "binary")?.into() };
                 let images = PathBuf::from(need(&u.images, "images")?);
-                let unit = podrunner_podvm::PodvmUnit::new(podvm, &state.join("podvm"), &images)
+                let mut unit = podrunner_podvm::PodvmUnit::new(podvm, &state.join("podvm"), &images)
                     .map_err(|e| fail(Class::Unsupported, format!("[unit.podvm]: {e}")))?;
+                // The tree kill is verified on this host, with the pinned
+                // payload, before a wall limit counts as enforced.
+                let arch = std::env::consts::ARCH;
+                if let Some(pin) = cfg.pin.payload.iter().find(|p| p.arch == arch) {
+                    let id = podrunner_schema::UnitId::parse("u-999999999").expect("a unit id");
+                    match unit.verify_tree_kill(&pin.reference, id) {
+                        Ok(true) => {}
+                        Ok(false) => eprintln!(
+                            "podrunner: [unit.podvm]: the tree kill is not proven: tree_kill stays unverified"
+                        ),
+                        Err(e) => eprintln!("podrunner: [unit.podvm]: the self-test of the tree kill: {e}"),
+                    }
+                }
                 let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
                 (Box::new(unit), cap)
             }

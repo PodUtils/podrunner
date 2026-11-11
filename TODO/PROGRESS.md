@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 44 entries: 14 open, 6 partial, 14 blocked, 10 done.
+`TODO/INDEX.md` holds 44 entries: 11 open, 6 partial, 14 blocked, 13 done.
 
 ## State
 
@@ -22,11 +22,10 @@ then take the next one. Continue a `partial` entry first.
 
 1. **The plan:** T-001 and T-008 close when their issues close.
 2. **M-A** (GitHub #25): T-017 (partial: the authoritative schemas come
-   from podcrates, PodUtils/podcrates@T-163), T-021 (slots core), T-022
-   (CLI and control socket), T-023 (podvm driver, on the released podvm
+   from podcrates, PodUtils/podcrates@T-163), T-023 (podvm driver, on the released podvm
    binary), T-024 (egress, after PodUtils/podcrates@T-160 and
    PodUtils/podcrates@T-161), T-015 (beta release), then T-025.
-3. **The registers:** T-009, T-010.
+3. **The registers:** T-009 (partial: the open rows wait for their entries).
 4. **M-C, L2:** T-027, T-028, T-029, T-030; T-034, T-035, T-036, T-038.
 5. **Blocked:** T-004, T-005, T-006 (questions Q1 to Q3), T-007, T-014
    (the spec), T-026 (podvm), T-031 to T-033, T-037, T-040 to T-043.

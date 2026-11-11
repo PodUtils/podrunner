@@ -65,8 +65,12 @@ fn the_podvm_unit_passes_its_tests() {
         N.fetch_add(1, Ordering::Relaxed)
     ));
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
-    let unit = PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
-    let fx = Real { unit, image: env("PODRUNNER_PODVM_IMAGE"), ids: UnitIds::default() };
+    let mut unit = PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
+    let image = env("PODRUNNER_PODVM_IMAGE");
+    // The self-test of the tree kill; test 17 then holds the claim to test 3.
+    assert!(unit.verify_tree_kill(&image, UnitId::parse("u-999").unwrap()).unwrap(), "the tree kill is not proven");
+    assert_eq!(unit.probe().unwrap().tree_kill, podrunner_schema::TreeKill::Verified);
+    let fx = Real { unit, image, ids: UnitIds::default() };
     let results = conformance::run(&fx, &[]);
     for r in &results {
         println!("{r}");

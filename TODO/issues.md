@@ -15,19 +15,19 @@ numbers. `TODO/RULES.md` gives the rules.
 | #7 | DR-7: a throwaway GitHub organization and App for live tests | open | T-007 |
 | #8 | Defaulted decisions DR-3 and DR-8 to DR-17: confirm in one reply | open | T-008 |
 | #9 | Unknowns U1 to U25: register, owners and what settles each | open | T-009 |
-| #10 | v1 non-goals: deferred items and the trigger of each | open | T-010 |
+| #10 | v1 non-goals: deferred items and the trigger of each | closed (`docs/non-goals.md`) | T-010 |
 | #11 | Bootstrap: Cargo workspace, pinned toolchain, static musl build | closed (`9d2e4dd`, gate run 42934750114) | T-011 |
 | #12 | Bootstrap: CI gate (format, lint, tests, static probe, deny, file size) | closed (`9d2e4dd`, gate run 42934750114) | T-012 |
 | #13 | Bootstrap: agent workflow, decisions and record | closed (`9d2e4dd`, gate run 42934750114) | T-013 |
 | #14 | Bootstrap: carry the cleaned design spec into `docs/` | open | T-014 |
 | #15 | Bootstrap: beta release workflow | open | T-015 |
-| #16 | WP-01: seam traits, contracts v1 and the conformance harness | open | T-016 |
+| #16 | WP-01: seam traits, contracts v1 and the conformance harness | closed (`229d29f`, gate run 42936703374) | T-016 |
 | #17 | Schemas v1: job offer, unit capability, run report, public report | open | T-017 |
-| #18 | Tier rule: Rust implementation and the case table | open | T-018 |
-| #19 | Security documents: threat model, accepted residuals, leak runbook | open | T-019 |
-| #20 | WP-02: fake source and fake unit, scripted, with a manual clock | open | T-020 |
-| #21 | WP-03: `slots` core: states, journal, placement, status, drain, codes, config, audit | open | T-021 |
-| #22 | CLI and control socket: `serve`, `status`, `drain`, `stop`, `doctor`, `print-unit` | open | T-022 |
+| #18 | Tier rule: Rust implementation and the case table | closed (`33e6779`, gate run 42938706745) | T-018 |
+| #19 | Security documents: threat model, accepted residuals, leak runbook | closed (`fe35f58`) | T-019 |
+| #20 | WP-02: fake source and fake unit, scripted, with a manual clock | closed (`e8f4c0d`, gate run 42938706745) | T-020 |
+| #21 | WP-03: `slots` core: states, journal, placement, status, drain, codes, config, audit | closed (`644bab7`, gate run 42940434305) | T-021 |
+| #22 | CLI and control socket: `serve`, `status`, `drain`, `stop`, `doctor`, `print-unit` | closed (`644bab7`, gate run 42940434305) | T-022 |
 | #23 | WP-04: podvm unit driver with a per-unit store and a subreaper shim | open | T-023 |
 | #24 | WP-08: egress module over `pod-broker` v1, one listener for each unit | open | T-024 |
 | #25 | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload | open | T-025 |

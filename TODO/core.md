@@ -261,7 +261,7 @@ A `fake` source and a `fake` unit that read scripts of timed events and behaviou
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -308,6 +308,11 @@ Done so far (2026-11-11): `crates/podrunner-slots` holds the configuration (`doc
 
 `cargo test -p podrunner-slots`, and `cd fuzz && cargo test --lib`
 
+## Done
+
+2026-11-11, commits `f72f679` and `644bab7`; the gate run 42940434305 of `223c009` is green. `cargo test -p podrunner-slots`: 17 passed (10 loops of the first 14, each green): G-01 (no source holds more than its 2 slots; 20 jobs end `success`), G-02 (a `guest` job waits while its slot is busy and runs when it frees), G-05 (an arm64 job is not claimed), G-08 (one withdraw for each job past `wait_deadline_s`; no start after a withdraw; no claim after `drain`), G-12 (a job past its wall time ends `timeout`, its unit gone with 0 processes); the guards: `untrusted` below `guest`, a fork on the trusted set, a stale image, a digest off the pin list, an unenforceable required limit, a shared principal, a foreign runner name, a restart that ends the units of the journal (with no replay, the processes outlive podrunner), no credential canary in the journal, the audit or a report; the status. `cd fuzz && cargo test --lib`: the targets `slots_config` and `slots_journal` survive their seeds and 5000 mutations.
+
+
 # T-022: CLI and control socket: serve, status, drain, stop, doctor, print-unit (GitHub #22)
 
 **Source:** GitHub #22
@@ -315,7 +320,7 @@ Done so far (2026-11-11): `crates/podrunner-slots` holds the configuration (`doc
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -358,6 +363,11 @@ Done so far (2026-11-11): `crates/podrunner/src/control.rs` (the socket of mode 
 ## Prove
 
 `cargo test -p podrunner`
+
+## Done
+
+2026-11-11, commit `644bab7`; the gate run 42940434305 of `223c009` is green. `cargo test -p podrunner`: 11 passed: a display name with an ANSI escape prints as `\x1b[2J` and a value is cut at 200 bytes; the socket has mode 0600 and answers one request; bad lines are `bad-request`; usage errors exit 64, a socket that does not answer 69, a bad configuration 78; `print-unit` holds no credential canary. `status --json` follows `schemas/status.v1.json` (generated from the type; a test fails on a difference). The fuzz target `control_line`. The module sits behind the trait `Handler`. A run by hand: `serve`, `status`, `status --json`, `stop` (exit 0), on the fake kind and on the podvm kind.
+
 
 # T-023: WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23)
 
@@ -427,9 +437,13 @@ kills each tagged process, removes the container and the store, and
 counts. `serve` builds it from `[unit.podvm]` (`binary`, `images`). The
 unit tests 1 to 17 on this host with busybox as the stand-in payload: 16
 pass, test 14 skips (no container route); 5 runs, each green, no process
-left. Open: the same run on an H0 host (chroot and mount denied: the
-userland rung), `tree_kill: verified` from a self-test of test 3 at the
-start, and U25.
+left. `verify_tree_kill` runs test 3 with the pinned
+payload at the start of `serve`; only then does the record say
+`tree_kill: verified` and `wall: enforced` (3 runs, each green). A job of
+a local fake source ran through `serve` on a podvm unit: offered,
+claimed, minted, started, ended `success` (the payload found
+`.runner/.credentials`), destroyed, reported. Open: the same run on an H0
+host (chroot and mount denied: the userland rung), and U25.
 
 ## Prove
 
