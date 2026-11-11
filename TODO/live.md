@@ -481,7 +481,7 @@ Done: steps 1 to 3. Measured with podvm `v0.2.0-beta.3` and podnet `v0.4.0-beta.
 **Milestone:** M-C
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -498,6 +498,10 @@ slots puts `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` into the envir
 ## Prove
 
 `cargo test -p podrunner-slots start_env`, and `cargo test -p podrunner-broker-fake --test runner -- --ignored version_too_old` in `level2.yml`.
+
+## Done
+
+2026-11-11, `61d3c6d`; gate run 43071088850 of `9fb9d17` is green. slots puts `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` in the start environment; the broker fake answers 403 `RunnerVersionTooOld`. `start_env_lets_a_stale_runner_exit_7` and `version_too_old_gives_exit_7_with_the_variable` pass.
 
 # T-071: The live gate harness of G-H2 to G-H4, offline on the fake scale set
 

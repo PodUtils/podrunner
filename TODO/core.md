@@ -971,7 +971,7 @@ A shim for each unit with no root (`crates/podrunner-unit/src/shim.rs`): it sets
 **Milestone:** M-D
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -992,6 +992,10 @@ Read the code on 2026-11-11: `grep -rn "jobs.remove\|jobs.retain\|reports" crate
 
 `cargo test -p podrunner-slots bounded`, `cargo test -p podrunner-remote ledger_compact`
 
+## Done
+
+2026-11-11, `94d831d`; gate run 43071088850 of `9fb9d17` is green. A final job leaves memory after one hour, with a suppression of one more hour; the reports keep the last 256; the journal and the ledger of the mint are compacted at start. The tests `bounded_*` and `ledger_compact_*` pass.
+
 # T-069: A report that the source refuses is retried, then spooled
 
 **Source:** T-014
@@ -999,7 +1003,7 @@ Read the code on 2026-11-11: `grep -rn "jobs.remove\|jobs.retain\|reports" crate
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1016,6 +1020,10 @@ A failed `report` keeps the job in a `reporting` set with a backoff, up to `repo
 ## Prove
 
 `cargo test -p podrunner-slots report_spool`
+
+## Done
+
+2026-11-11, `5d2ca12`; gate run 43071088850 of `9fb9d17` is green. A refused report goes to `STATE/spool/` (mode 0600) with an audit line `report-spooled`, and goes again every 30 s; `status` shows `spooled_reports`. `tests/spool.rs` passes.
 
 # T-070: podrunner doctor reads the configuration and the probes of each kind
 
@@ -1051,7 +1059,7 @@ Done: `--config` and `--json`; the capability record of each kind through its dr
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1068,6 +1076,10 @@ A loopback test of `crates/podrunner-egress`: a fake upstream CONNECT proxy that
 ## Prove
 
 `cargo test -p podrunner-egress ip_literal`
+
+## Done
+
+2026-11-11, `9fb9d17`; gate run 43071088850 of `9fb9d17` is green. `ip_literal_reset_and_the_names_mode`: an upstream that resets a CONNECT to an IP literal fails a unit with addresses and passes it in the names mode. U10 is settled in `docs/unknowns.md`.
 
 # T-074: The disk limit of a unit
 
@@ -1126,7 +1138,7 @@ Ask podcrates (a direct message) for the two optional fields in `RunReport` of `
 **Milestone:** M-D
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1143,3 +1155,7 @@ One `pod_dns::Resolver` for each process, from a `[dns]` table of the configurat
 ## Prove
 
 `cargo test -p podrunner-egress dns` (a name that the system cannot resolve answers from its pin) and `cargo test -p podrunner-remote a_pinned_host` (the mint dial by a name that only the lookup knows). DNS over HTTPS itself is a test of `pod-dns`.
+
+## Done
+
+2026-11-11, `03d3aac`; gate run 43071088850 of `9fb9d17` is green. The egress and the HTTPS transport of the remote mint resolve through `pod-dns` (system resolver, cache, DNS over HTTPS by address) with the pins of `[dns]`. The tests of `podrunner-egress` and `podrunner-remote` pass.
