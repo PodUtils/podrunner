@@ -1,0 +1,294 @@
+{
+ "config": {
+  "organizations": [
+   {
+    "login": "example-org",
+    "id": 11
+   }
+  ],
+  "trusted_public": [
+   {
+    "owner": "example-org",
+    "repo": "open-tool",
+    "id": 33
+   }
+  ]
+ },
+ "base": {
+  "event": "push",
+  "head_is_fork": "no",
+  "actor_class": "member",
+  "repo_visibility": "private",
+  "owner": "example-org",
+  "repo": "app",
+  "run_id": 1,
+  "ref": "refs/heads/main",
+  "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+ },
+ "cases": [
+  {
+   "name": "member push, private",
+   "set": "trusted",
+   "with": {},
+   "expect": "trusted"
+  },
+  {
+   "name": "member push, internal",
+   "set": "trusted",
+   "with": {
+    "repo_visibility": "internal"
+   },
+   "expect": "trusted"
+  },
+  {
+   "name": "member pull_request",
+   "set": "trusted",
+   "with": {
+    "event": "pull_request"
+   },
+   "expect": "trusted"
+  },
+  {
+   "name": "member workflow_dispatch",
+   "set": "trusted",
+   "with": {
+    "event": "workflow_dispatch"
+   },
+   "expect": "trusted"
+  },
+  {
+   "name": "member schedule",
+   "set": "trusted",
+   "with": {
+    "event": "schedule"
+   },
+   "expect": "trusted"
+  },
+  {
+   "name": "member merge_group",
+   "set": "trusted",
+   "with": {
+    "event": "merge_group"
+   },
+   "expect": "trusted"
+  },
+  {
+   "name": "listed public repository",
+   "set": "trusted",
+   "with": {
+    "repo_visibility": "public",
+    "repo": "open-tool"
+   },
+   "expect": "trusted"
+  },
+  {
+   "name": "listed public repository, other repo id",
+   "set": "trusted",
+   "with": {
+    "repo_visibility": "public",
+    "repo": "open-tool",
+    "repo_id": 34
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "public repository, not listed",
+   "set": "trusted",
+   "with": {
+    "repo_visibility": "public"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "owner name in other case",
+   "set": "trusted",
+   "with": {
+    "owner": "Example-Org"
+   },
+   "expect": "trusted"
+  },
+  {
+   "name": "owner not configured",
+   "set": "trusted",
+   "with": {
+    "owner": "other-org"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "owner id differs",
+   "set": "trusted",
+   "with": {
+    "owner_id": 12
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "owner id equal",
+   "set": "trusted",
+   "with": {
+    "owner_id": 11
+   },
+   "expect": "trusted"
+  },
+  {
+   "name": "fork pull request",
+   "set": "untrusted",
+   "with": {
+    "event": "pull_request",
+    "head_is_fork": "yes",
+    "actor_class": "outside",
+    "repo_visibility": "public"
+   },
+   "expect": "untrusted"
+  },
+  {
+   "name": "fork pull request by a member",
+   "set": "untrusted",
+   "with": {
+    "event": "pull_request",
+    "head_is_fork": "yes"
+   },
+   "expect": "untrusted"
+  },
+  {
+   "name": "fork pull request on the trusted set",
+   "set": "trusted",
+   "with": {
+    "event": "pull_request",
+    "head_is_fork": "yes",
+    "actor_class": "outside",
+    "repo_visibility": "public"
+   },
+   "expect": "tier-mismatch"
+  },
+  {
+   "name": "trusted job on the untrusted set runs untrusted",
+   "set": "untrusted",
+   "with": {},
+   "expect": "untrusted"
+  },
+  {
+   "name": "same-repository pull request by an outsider",
+   "set": "trusted",
+   "with": {
+    "event": "pull_request",
+    "actor_class": "outside"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "pull_request_target from a member",
+   "set": "trusted",
+   "with": {
+    "event": "pull_request_target"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "pull_request_target from a fork",
+   "set": "untrusted",
+   "with": {
+    "event": "pull_request_target",
+    "head_is_fork": "yes"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "event workflow_run",
+   "set": "trusted",
+   "with": {
+    "event": "workflow_run"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "event issue_comment",
+   "set": "trusted",
+   "with": {
+    "event": "issue_comment"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "event release",
+   "set": "trusted",
+   "with": {
+    "event": "release"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "event repository_dispatch",
+   "set": "trusted",
+   "with": {
+    "event": "repository_dispatch"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "event other",
+   "set": "trusted",
+   "with": {
+    "event": "other"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "event unknown",
+   "set": "trusted",
+   "with": {
+    "event": "unknown"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "fork unknown",
+   "set": "trusted",
+   "with": {
+    "head_is_fork": "unknown"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "fork unknown on a pull request",
+   "set": "untrusted",
+   "with": {
+    "event": "pull_request",
+    "head_is_fork": "unknown"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "actor unknown",
+   "set": "trusted",
+   "with": {
+    "actor_class": "unknown"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "visibility unknown",
+   "set": "trusted",
+   "with": {
+    "repo_visibility": "unknown"
+   },
+   "expect": "event-not-allowed"
+  },
+  {
+   "name": "a trusted job on a local set",
+   "set": "local",
+   "with": {},
+   "expect": "tier-mismatch"
+  },
+  {
+   "name": "a fork job on a local set",
+   "set": "local",
+   "with": {
+    "event": "pull_request",
+    "head_is_fork": "yes"
+   },
+   "expect": "tier-mismatch"
+  }
+ ]
+}

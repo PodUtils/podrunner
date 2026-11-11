@@ -145,7 +145,7 @@ A pure function from the trust inputs of an offer and the configuration to a tie
 
 ## Prove
 
-`cargo test -p podrunner-slots tier`
+`cargo test -p podrunner-tier`
 
 # T-019: Security documents: threat model, accepted residuals, leak runbook (GitHub #19)
 
@@ -435,7 +435,7 @@ Read the text of GitHub #24 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A module over `pod-broker` with one listener for each unit, bound to one job, and no token in the unit. It needs PodUtils/podcrates@T-160 and PodUtils/podcrates@T-161; use the tag that podcrates releases.
+A module over `pod-broker` with one listener for each unit, bound to one job, and no token in the unit. It needs PodUtils/podcrates@T-160 and PodUtils/podcrates@T-161; use the tag that podcrates releases. The hold of a podvm unit is `podnet pod` (T-044, Done): `advisory` with the seccomp backend; read the level from `hold.seccomp` of `pod doctor --json`.
 
 ## Prove
 

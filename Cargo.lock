@@ -71,6 +71,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "podrunner-tier"
+version = "0.1.0"
+dependencies = [
+ "podrunner-schema",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "podrunner-todo"
 version = "0.1.0"
 dependencies = [

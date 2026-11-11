@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**44 entries: 21 open, 3 partial, 14 blocked, 6 done.**
+**44 entries: 20 open, 3 partial, 14 blocked, 7 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 7 | 2 | 1 | 6 | 16 |
-| P2 | 13 | 1 | 9 | 0 | 23 |
+| P2 | 12 | 1 | 9 | 1 | 23 |
 | P3 | 1 | 0 | 4 | 0 | 5 |
-| **All** | 21 | 3 | 14 | 6 | 44 |
+| **All** | 20 | 3 | 14 | 7 | 44 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -91,4 +91,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-041](later.md) | P3 | S | later | feature | blocked | Hold enforced on podvm units (pod-hold or pod-sud) (GitHub #41) |
 | [T-042](later.md) | P3 | S | later | feature | blocked | The confined boundary (pod-confine) (GitHub #42) |
 | [T-043](later.md) | P3 | S | later | feature | blocked | Later crates: service unit, release index, acceptance registry (GitHub #43) |
-| [T-044](plan.md) | P2 | S | M-A | chore | open | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |
+| [T-044](plan.md) | P2 | S | M-A | chore | done | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |

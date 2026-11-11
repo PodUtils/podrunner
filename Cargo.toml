@@ -22,6 +22,7 @@ podrunner-clock = { path = "crates/podrunner-clock" }
 podrunner-fake = { path = "crates/podrunner-fake" }
 podrunner-schema = { path = "crates/podrunner-schema" }
 podrunner-source = { path = "crates/podrunner-source" }
+podrunner-tier = { path = "crates/podrunner-tier" }
 podrunner-unit = { path = "crates/podrunner-unit" }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }

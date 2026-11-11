@@ -49,6 +49,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #41 | Hold `enforced` on podvm units (`pod-hold` or `pod-sud`) | open | T-041 |
 | #42 | `confined` boundary (`pod-confine`) | open | T-042 |
 | #43 | Later crates: service unit, release index, acceptance registry | open | T-043 |
-| #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | open | T-044 |
+| #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | closed (answered in PodUtils/podnet#425) | T-044 |
 
 #44 and #45 are pull requests.

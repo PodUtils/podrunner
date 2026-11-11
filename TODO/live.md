@@ -218,7 +218,7 @@ Read the text of GitHub #30 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Pins of the runner payload by digest with an age limit, and `podrunner image build` on a build host (call C7, DR-14). It uses the Actions hosts of `pod-services` (PodUtils/podcrates@T-164).
+Pins of the runner payload by digest with an age limit, and `podrunner image build` on a build host (call C7, DR-14). It uses the Actions hosts of `pod-services` (PodUtils/podcrates@T-164). The first pin of the runner is the one that podnet measured (T-044, Done): `actions/runner` v2.338.2.
 
 ## Prove
 

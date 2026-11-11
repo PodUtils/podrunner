@@ -1,0 +1,15 @@
+[package]
+name = "podrunner-tier"
+description = "The tier rule of podrunner: trust from job metadata, never from a label"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+podrunner-schema.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

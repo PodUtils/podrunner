@@ -576,7 +576,7 @@ Write docs/non-goals.md: each deferred item with the trigger that brings it back
 **Milestone:** M-A
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -601,3 +601,20 @@ GitHub #46 when podnet has read it.
 ## Prove
 
 `cargo todo check`, and the answer of podnet named in the Done section.
+
+## Done
+
+2026-11-11: podnet answered in PodUtils/podnet#425 (COORD-016).
+PodUtils/podnet@T-229 is done (podnet `bb9dd91`): `podnet pod --backend
+seccomp --default-action reject` passes six payloads of `actions/runner`
+v2.338.2 (asset `actions-runner-linux-x64-2.338.2.tar.gz`, SHA-256
+`baebf204307bac6193480852732f0aba2ae97b6c5597c244f4d5558390147c40`),
+`actions/checkout` v4.2.2 and `actions/setup-node` v4.4.0; each CONNECT
+has an allowed flow. Not held by seccomp: DNS to the resolver of the pod,
+netlink, unix sockets, the diagnostic listener of .NET, loopback TCP. A
+`run.sh` to a long poll is not measured. A defect (an IPv4-mapped fake
+address) is fixed in podnet `17da8c3`. PodUtils/podnet@T-230 is done
+(podnet `ae5d1e3`): `pod doctor --json` has `hold.netns` (`enforced`) and
+`hold.seccomp` (`advisory`), each with `level` and `not_held`, pinned by a
+podnet test. T-023, T-024 and T-030 use these facts. GitHub #46 is
+closed.
