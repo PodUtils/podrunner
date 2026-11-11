@@ -4,8 +4,8 @@ version = 4
 
 [[package]]
 name = "pod-todo"
-version = "0.15.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.15.0#27a4ccd9ec65e5fd1149228ad346c54a9f8f86d9"
+version = "0.6.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.6.0#4aa2ee043fda8166dc92ce8422bac45ec82f8868"
 
 [[package]]
 name = "podrunner"
