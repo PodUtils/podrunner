@@ -334,3 +334,20 @@ fn one_key_for_two_tiers_is_refused() {
     assert!(parse(remote("a", "trusted", "k") + &remote("b", "untrusted", "l")).is_ok());
     assert!(parse(remote("a", "trusted", "k") + &remote("b", "trusted", "k")).is_ok());
 }
+
+/// T-066: the start environment sets the variable that makes the runner
+/// exit 7 on a "version too old" answer; slots then stops new jobs. The
+/// unit stands in for the runner: it exits 7 only when the variable is the
+/// string "1", as `run.sh` does.
+#[test]
+fn start_env_lets_a_stale_runner_exit_7() {
+    let script = r#"test "$ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE" = 1 && exit 7; exit 1"#;
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh(script) }],
+    );
+    bed.until(20, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.reports[0].exit_code, Some(7), "{:?}", bed.slots.reports[0]);
+    assert!(bed.slots.degraded().is_some_and(|d| d.contains("too old")));
+}

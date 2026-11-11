@@ -125,7 +125,12 @@ impl Slots {
         let (p, unit) = (j.placement.clone().expect("a placed job"), j.unit.clone().expect("a unit id"));
         let kind = &self.kinds[p.kind];
         let arch = if kind.capability.arch == "aarch64" { "arm64" } else { "amd64" };
-        let mut env = BTreeMap::from([("PODRUNNER_UNIT".to_string(), unit.to_string())]);
+        let mut env = BTreeMap::from([
+            ("PODRUNNER_UNIT".to_string(), unit.to_string()),
+            // The runner exits 7 on a "version too old" answer only with the
+            // string "1" here (SPEC §11.3); slots then marks the pin stale.
+            ("ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE".to_string(), "1".to_string()),
+        ]);
         // One socket directory for each unit: its egress socket, its
         // control socket and the relay. A driver that mounts it into the
         // unit gets it as `sockets`, and the unit sees the guest paths.

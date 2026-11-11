@@ -42,3 +42,18 @@ fn the_official_runner_runs_a_canned_job_offline() {
     assert_eq!(done[0].conclusion, "failed", "{done:?}");
     assert!(!dir.join("_work/app/app/second.txt").exists());
 }
+
+/// T-066: a "version too old" answer of the broker gives exit 7 with the
+/// variable of the start environment of slots, and another code with no
+/// variable (the plant).
+#[test]
+#[ignore]
+fn version_too_old_gives_exit_7_with_the_variable() {
+    let dir = std::path::PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let broker = Broker::start().unwrap();
+    broker.refuse_the_version();
+    let with = run_once(&dir, &broker, &[("ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE", "1".into())]);
+    assert_eq!(with.code(), Some(7), "{:?}", broker.seen());
+    let without = run_once(&dir, &broker, &[]);
+    assert_ne!(without.code(), Some(7));
+}

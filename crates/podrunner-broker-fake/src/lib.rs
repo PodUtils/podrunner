@@ -43,6 +43,8 @@ struct State {
     /// Each request line, for a test that looks at the routes.
     seen: Vec<String>,
     next: u64,
+    /// Each long poll answers "version too old" (T-066).
+    too_old: bool,
 }
 
 /// A fake broker on the loopback.
@@ -77,6 +79,13 @@ impl Broker {
         let id = st.next;
         st.queue.push_back((id, job));
         id
+    }
+
+    /// Answer each long poll of `/message` with the error of the broker
+    /// for a runner whose version is too old: the runner then exits 7 when
+    /// `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE` is `1`.
+    pub fn refuse_the_version(&self) {
+        self.state.lock().expect("the broker").too_old = true;
     }
 
     /// The jobs that ended.
@@ -124,6 +133,15 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
             reply(&session)
         }
         ("DELETE", "/session") => (200, Vec::new()),
+        ("GET", "/message") if state.lock().expect("the broker").too_old => (
+            403,
+            json!({
+                "source": "actions-broker-listener", "errorKind": "RunnerVersionTooOld", "statusCode": 403,
+                "errorMessage": "the runner version is too old",
+            })
+            .to_string()
+            .into_bytes(),
+        ),
         ("GET", "/message") => {
             let end = Instant::now() + POLL;
             loop {
