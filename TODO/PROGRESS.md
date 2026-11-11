@@ -1,14 +1,14 @@
 # Progress
 
-`TODO/INDEX.md` holds 43 entries: 22 open, 5 partial, 14 blocked, 2 done.
+`TODO/INDEX.md` holds 43 entries: 22 open, 2 partial, 14 blocked, 5 done.
 
 ## State
 
 - The rulings of 2026-11-11 ("podrunner online", "The sessions of
   2026-11-11") give podrunner a lead session; DR-1 and DR-2 are yes
   (T-002, T-003). The plan is GitHub #1; one entry for each issue.
-- The frame (T-011, T-012, T-013) is on `main`; each entry closes with
-  the run of the gate.
+- The frame is on `main` at `9d2e4dd` (gate run 42934750114, secrets run
+  42934749863, both green).
 - podcrates is on direct messages; podnet answers COORD issues; podvm and
   podssh are on break. An entry that needs a change of podvm or podssh is
   `blocked`, and the session takes the next entry.
@@ -20,8 +20,7 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one. Continue a `partial` entry first.
 
-1. **The frame:** T-011, T-012, T-013 (close with the run of the gate),
-   then T-001 and T-008 when their issues close.
+1. **The plan:** T-001 and T-008 close when their issues close.
 2. **M-A** (GitHub #25): T-016 (seams, contracts, harness), T-017
    (schemas v1; the authoritative schemas come from podcrates,
    PodUtils/podcrates@T-163), T-020 (fakes), T-021 (slots core), T-022

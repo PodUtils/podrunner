@@ -7,7 +7,7 @@ The bootstrap of the repository: the workspace, the CI gate, the agent workflow,
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -53,6 +53,11 @@ cargo zigbuild --release --target aarch64-unknown-linux-musl -p podrunner
 sh scripts/check-static.sh target/aarch64-unknown-linux-musl/release/podrunner
 ```
 
+## Done
+
+2026-11-11, commit `9d2e4dd`. `cargo build --release` gives `target/x86_64-unknown-linux-musl/release/podrunner` (389816 bytes, static-pie); `sh scripts/check-static.sh` passes it; `podrunner --version` prints `podrunner 0.1.0 (COMMIT)`. `cargo zigbuild --release --target aarch64-unknown-linux-musl -p podrunner` gives a static binary (309224 bytes). The podcrates crate `pod-todo` is pinned by `tag = "v0.15.0"`. The gate run 42934750114 builds both targets and checks them.
+
+
 # T-012: The CI gate: format, lint, tests, static probe, deny, file size (GitHub #12)
 
 **Source:** GitHub #12
@@ -60,7 +65,7 @@ sh scripts/check-static.sh target/aarch64-unknown-linux-musl/release/podrunner
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -98,6 +103,11 @@ Read the text of GitHub #12 on 2026-11-11. Nothing measured.
 
 The run of `.github/workflows/gate.yml` and `.github/workflows/secrets.yml` on the commit is green; by hand: `sh scripts/agent/check.sh`.
 
+## Done
+
+2026-11-11, commit `9d2e4dd`. The gate run 42934750114 is green: lint (fmt, clippy, docs, size with its self-test, the commit messages with 6 plants), test, record, static (x86_64 and aarch64 musl, no `PT_INTERP`, a planted dynamic `/bin/ls` fails), deny (a planted denied license fails). The secrets run 42934749863 is green (a planted key is found).
+
+
 # T-013: The agent workflow, the decisions and the record (GitHub #13)
 
 **Source:** GitHub #13
@@ -105,7 +115,7 @@ The run of `.github/workflows/gate.yml` and `.github/workflows/secrets.yml` on t
 **Milestone:** M0
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -145,6 +155,11 @@ Copy the frame of podcrates and adapt it: `AGENTS.md`, `CLAUDE.md`, `.claude/set
 sh scripts/check-commit-msg.sh --self-test
 cargo todo check
 ```
+
+## Done
+
+2026-11-11, commit `9d2e4dd`. `.claude/session-start.sh` sets the identity and `core.hooksPath` (run by hand: `git config core.hooksPath` gives `.githooks`). `sh scripts/check-commit-msg.sh --self-test`: 6 of 6 (a `Co-Authored-By`, a `Claude-Session` and a "Generated with" line are refused). Each of the 43 issues maps to an entry; `cargo todo check` agrees; the gate run 42934750114 runs it.
+
 
 # T-014: The cleaned design spec in docs/ (GitHub #14)
 

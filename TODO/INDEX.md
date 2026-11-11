@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**43 entries: 22 open, 5 partial, 14 blocked, 2 done.**
+**43 entries: 22 open, 2 partial, 14 blocked, 5 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 9 | 4 | 1 | 2 | 16 |
+| P1 | 9 | 1 | 1 | 5 | 16 |
 | P2 | 12 | 1 | 9 | 0 | 22 |
 | P3 | 1 | 0 | 4 | 0 | 5 |
-| **All** | 22 | 5 | 14 | 2 | 43 |
+| **All** | 22 | 2 | 14 | 5 | 43 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -58,9 +58,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-008](plan.md) | P2 | S | M0 | docs | partial | The defaulted decisions DR-3 and DR-8 to DR-17 (GitHub #8) |
 | [T-009](plan.md) | P2 | M | M0 | research | open | The register of the unknowns U1 to U25 (GitHub #9) |
 | [T-010](plan.md) | P3 | S | M0 | docs | open | The non-goals of v1 and the trigger of each (GitHub #10) |
-| [T-011](bootstrap.md) | P1 | S | M0 | chore | partial | The Cargo workspace, the pinned toolchain and the static musl build (GitHub #11) |
-| [T-012](bootstrap.md) | P1 | S | M0 | chore | partial | The CI gate: format, lint, tests, static probe, deny, file size (GitHub #12) |
-| [T-013](bootstrap.md) | P1 | M | M0 | chore | partial | The agent workflow, the decisions and the record (GitHub #13) |
+| [T-011](bootstrap.md) | P1 | S | M0 | chore | done | The Cargo workspace, the pinned toolchain and the static musl build (GitHub #11) |
+| [T-012](bootstrap.md) | P1 | S | M0 | chore | done | The CI gate: format, lint, tests, static probe, deny, file size (GitHub #12) |
+| [T-013](bootstrap.md) | P1 | M | M0 | chore | done | The agent workflow, the decisions and the record (GitHub #13) |
 | [T-014](bootstrap.md) | P2 | S | M0 | docs | blocked | The cleaned design spec in docs/ (GitHub #14) |
 | [T-015](bootstrap.md) | P2 | S | M-A | release | open | The beta release workflow (GitHub #15) |
 | [T-016](core.md) | P1 | S | M-A | feature | open | WP-01: the seam traits, the contracts v1 and the conformance harness (GitHub #16) |
