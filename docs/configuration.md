@@ -4,6 +4,8 @@
 refused. A file that lowers the floor of a tier, or that names a `fake`
 source or unit with no `allow_fake = true`, is refused.
 
+`docs/examples/podrunner.toml` is a working example (a fake source and fake units); `podrunner check --config FILE` checks a file with no side effect. A test reads each block below and refuses a key that does not exist.
+
 ```toml
 host = "host-a"              # the name of the host in the full report
 allow_fake = false           # a fake source or unit only with true

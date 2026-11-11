@@ -156,6 +156,47 @@ pub(crate) fn source_of(
     Ok(Box::new(podrunner_mint::Mint::new(&s.name, source)))
 }
 
+/// Check each part of `cfg` that has no side effect (GitHub #58): each
+/// source is built and not called, and each unit kind has its driver
+/// file. No state directory, no unit, no network. `serve` runs it before
+/// `build`, so `check` and `serve` refuse a file with the same text.
+pub fn plan(cfg: &Config) -> Result<(), Failure> {
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
+    for s in &cfg.source {
+        drop(source_of(s, clock.clone())?);
+    }
+    for (name, u) in &cfg.unit {
+        match name.as_str() {
+            "fake" => {}
+            "podvm" => {
+                let binary = u.binary.clone().ok_or_else(|| fail(Class::Config, "[unit.podvm] needs binary"))?;
+                podrunner_slots::config::check_driver(Path::new(&binary))
+                    .map_err(|e| fail(Class::Config, format!("[unit.podvm] binary: {e}")))?;
+                if !Path::new(&binary).is_file() {
+                    return Err(fail(Class::Config, "[unit.podvm] binary: not a file"));
+                }
+                let images = u.images.clone().ok_or_else(|| fail(Class::Config, "[unit.podvm] needs images"))?;
+                if !Path::new(&images).is_dir() {
+                    return Err(fail(Class::Config, "[unit.podvm] images: not a directory"));
+                }
+            }
+            other => {
+                return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Read and check the configuration at `path`: what `check` prints.
+pub fn check(path: &Path) -> Result<Config, Failure> {
+    let text =
+        std::fs::read_to_string(path).map_err(|e| fail(Class::Config, format!("the configuration: {}", e.kind())))?;
+    let cfg = Config::parse(&text).map_err(|e| fail(Class::Config, e))?;
+    plan(&cfg)?;
+    Ok(cfg)
+}
+
 /// Build the supervisor of a configuration.
 pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
@@ -362,9 +403,7 @@ pub fn socket_of(state: &Path) -> PathBuf {
 /// beside a live `serve`.
 pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     let _lock = crate::lock::StateLock::take(state)?;
-    let text =
-        std::fs::read_to_string(config).map_err(|e| fail(Class::Config, format!("the configuration: {}", e.kind())))?;
-    let cfg = Config::parse(&text).map_err(|e| fail(Class::Config, e))?;
+    let cfg = check(config)?;
     let slots = build(cfg, state)?;
     if slots.no_tier_served() {
         eprintln!("podrunner: no-tier-served: no unit kind meets the floor of a source");

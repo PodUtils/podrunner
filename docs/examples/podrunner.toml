@@ -1,0 +1,27 @@
+# An example configuration of podrunner (docs/configuration.md). It runs
+# the jobs of a fake source in fake units: a first run on a new host, with
+# no forge. The gate runs `podrunner check --config` on this file.
+host = "host-a"
+allow_fake = true
+
+[[source]]
+name = "local"
+kind = "fake"
+tier = "local"
+arch = "x86_64"
+operator_controlled = true
+slots = 1
+
+[unit.fake]
+slots = 1
+command = ["sh", "-c", "echo the unit runs; sleep 1"]
+
+[trust]
+organizations = [{ login = "example-org" }]
+
+[pin]
+max_age_s = 2592000
+[[pin.payload]]
+arch = "x86_64"
+reference = "runner@sha256:1111111111111111111111111111111111111111111111111111111111111111"
+built_at_s = 1800000000

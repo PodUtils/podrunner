@@ -10,6 +10,7 @@ has not.
 | Command | What it does |
 | --- | --- |
 | `podrunner serve --config FILE --state DIR [--socket PATH]` | Run the slots: one tick each second, and the control socket (`DIR/ctl.sock` by default, mode 0600). It first takes the lock `DIR/serve.lock` (a `flock`; the file stays): a second `serve` on one state directory exits 69 before it reads the journal. A live socket at the path is never replaced. SIGTERM and SIGINT start the drain of `stop`. With `NOTIFY_SOCKET` it sends `READY=1` when the socket answers, `STOPPING=1` at the drain, and `WATCHDOG=1` at half of `WATCHDOG_USEC`. |
+| `podrunner check --config FILE` | Check a configuration as `serve` does before it starts, with no side effect: each table and key (an unknown key or a wrong type exits 78 and names it), each source built and not called (key files, certificates, the sidecar file), each unit kind with its driver file. No state directory, no unit, no network. `serve` refuses a bad file with the same text. `docs/examples/podrunner.toml` passes it in the gate. |
 | `podrunner status [--json] (--state DIR \| --socket PATH)` | The status (`schemas/status.v1.json`): each source with its jobs and refusals, each kind with its record, each pin with its age, `degraded`, `no-tier-served`. Text from a file or a forge prints with each control character as an escape, cut at 200 bytes. |
 | `podrunner drain ...` | Take no new job; the jobs in flight go on. |
 | `podrunner stop ...` | Drain, then end when each job is final. |

@@ -18,6 +18,7 @@ pub fn version() -> String {
 pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
 
   serve --config FILE --state DIR [--socket PATH]   run the slots
+  check --config FILE                               check a configuration; start nothing
   status [--json] (--state DIR | --socket PATH)     the state of the slots
   drain (--state DIR | --socket PATH)               take no new job
   stop (--state DIR | --socket PATH)                drain, then end
@@ -115,6 +116,12 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             let socket = o.get("--socket").unwrap_or_else(|| crate::serve::socket_of(&state));
             crate::serve::run(&o.need("--config")?, &state, &socket).map_err(|f| err(f.class, f.detail))?;
             Ok(ok(String::new()))
+        }
+        "check" => {
+            let o = opts(rest)?;
+            o.only(&["--config"])?;
+            crate::serve::check(&o.need("--config")?).map_err(|f| err(f.class, f.detail))?;
+            Ok(ok("the configuration is usable\n".into()))
         }
         "stop" if rest.iter().any(|a| a == "--wait") => stop_wait(rest),
         "status" | "drain" | "stop" | "clear-degraded" => {
