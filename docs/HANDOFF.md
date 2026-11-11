@@ -52,8 +52,8 @@ is done.
 - podvm `v0.2.0-beta.3` is pinned (`images/podvm.toml`); the driver needs
   it (`probe::LOWEST`). Milestone M-B holds: the official runner in a podvm
   unit runs a canned job on a host with no root (T-026, `runner-image.yml`).
-  Next: the podvm driver of the hooks (T-035 step 4), with the control
-  socket in the rootfs of the unit (T-050).
+  The container route of the podvm driver works on the supervise rung
+  (T-035): a `container:` job runs through the hooks of a podvm unit.
 - podcrates `v0.21.0` (pod-incus; in pod-broker the control socket has its
   mode from the first instant, and its listener keeps the name of its bind
   in a stage directory: read the path you passed, not `local_addr`): take

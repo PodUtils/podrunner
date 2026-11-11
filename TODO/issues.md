@@ -40,7 +40,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #32 | Milestone M-C: live gates G-H2 to G-H4 on a `fake` unit | open | T-032 |
 | #33 | Milestone M-D: one live trusted job on a no-root host | open | T-033 |
 | #34 | WP-13: measure U19 and U21 on the podvm rung | open | T-034 |
-| #35 | WP-09: hook relay and the per-unit control socket server (`ctl`) | open | T-035 |
+| #35 | WP-09: hook relay and the per-unit control socket server (`ctl`) | closed (`fda577d`, gate run 42991333922) | T-035 |
 | #36 | Guest floor self-test | open | T-036 |
 | #37 | WP-11: `microvm` unit driver (form set by DR-5) | open | T-037 |
 | #38 | WP-12: canned-message fake broker (level 2) | closed (T-026, runner-image run 42987612426) | T-038 |
@@ -52,9 +52,9 @@ numbers. `TODO/RULES.md` gives the rules.
 | #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | closed (answered in PodUtils/podnet#425) | T-044 |
 | #47 | The mitigations of DR-4: trusted jobs at boundary redirect | closed (`7d1f203`, gate run 42957378324) | T-045 |
 | #48 | Local mode: podrunner run workflow.yml | open | T-046 |
-| #49 | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (to podvm) | open | T-047 |
+| #49 | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (to podvm) | closed (`016a78f`, gate run 42991333922) | T-047 |
 | #50 | COORD-003: the answer to PodUtils/podvm#248: the stand-in broker of the official runner, up to the long poll (to podvm) | closed (read by podvm, PodUtils/podvm#248) | T-049 |
-| #51 | COORD-004: the supervise rung does not map the path of connect() for a unix socket (to podvm) | open | T-050 |
+| #51 | COORD-004: the supervise rung does not map the path of connect() for a unix socket (to podvm) | closed (`016a78f`, gate run 42991333922) | T-050 |
 | #52 | COORD-005: podvm-aarch64 v0.2.0-beta.2 declines an arm64 payload on the supervise rung: its glibc object is x86_64 (to podvm) | open | T-051 |
 | #53 | COORD-006: please cut a podvm beta from main for podrunner, when your release order allows (to podvm) | closed (podvm `v0.2.0-beta.3` pinned; T-026 green) | T-052 |
 | #54 | serve: an exclusive lock on the state directory before the journal replay; stop --wait | closed (`1f1d389`, gate run 42979592980) | T-054 |

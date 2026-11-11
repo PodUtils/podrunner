@@ -53,7 +53,7 @@ U21 done (2026-11-11, podvm `v0.2.0-beta.2`, `scripts/measure-hook-path.sh` with
 **Milestone:** L2
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -98,6 +98,10 @@ The crate `podrunner-hook`, in steps.
 ## Prove
 
 `cargo test -p podrunner-hook`
+
+## Done
+
+2026-11-11, `fda577d`, gate run 42991333922, `runner-image.yml` run 42991333919. Step 4, the podvm driver: on the supervise rung of podvm `v0.2.0-beta.3` the driver has the container route (`crates/podrunner-podvm/src/unit/containers.rs`: `run -d -v`, `exec -e -w`, `logs`, `inspect`, `rm -f`; each container carries the tag of its unit; a relative volume source is under the runner directory of the unit, and a missing one is made there); each unit has a socket directory of its own (egress, control, relay) that the driver mounts at `/run/podrunner`, and the environment names the guest paths. On a GitHub-hosted runner with no root, the official runner in a podvm unit runs a `container:` job through the relay, the control socket, the checks and the podvm containers: the step runs in the job container, the job succeeds, no refusal, `destroy` counts 0 processes and 0 files (`crates/podrunner-broker-fake/tests/podvm.rs`). The unit test 14 passes on the podvm driver. Found on the way: the podvm record said `net: "host"`, outside the schema, so the checks did not take the unit as the host network (fixed: `shared-host`); `HookUnit` took the credential directory of a podvm unit for its runner directory (fixed: a driver with a root of its own resolves relative sources). Open elsewhere: `:ro` on the supervise rung (T-062), absolute links (T-061), the design numbers of the conformance tests (T-053).
 
 
 # T-036: The guest floor self-test (GitHub #36)

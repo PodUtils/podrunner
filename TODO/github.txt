@@ -38,7 +38,7 @@
 32 issue open
 33 issue open
 34 issue open
-35 issue open
+35 issue closed
 36 issue open
 37 issue open
 38 issue closed
@@ -52,9 +52,9 @@
 46 issue closed
 47 issue closed
 48 issue open
-49 issue open
+49 issue closed
 50 issue closed
-51 issue open
+51 issue closed
 52 issue open
 53 issue closed
 54 issue closed
