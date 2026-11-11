@@ -135,6 +135,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "podrunner-podvm"
+version = "0.1.0"
+dependencies = [
+ "podrunner-schema",
+ "podrunner-unit",
+ "serde_json",
+]
+
+[[package]]
 name = "podrunner-schema"
 version = "0.1.0"
 dependencies = [

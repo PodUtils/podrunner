@@ -366,7 +366,7 @@ Done so far (2026-11-11): `crates/podrunner/src/control.rs` (the socket of mode 
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -405,6 +405,21 @@ Read the text of GitHub #23 on 2026-11-11. Nothing measured.
 ## Approach
 
 A driver over the released podvm binary: a store for each unit, a subreaper shim for the tree kill, the probe record from `podvm probe`. It runs the unit conformance tests with a stand-in payload. A fix that needs podvm goes to a COORD issue `(to podvm)`, and its work waits (podvm is on break).
+
+Done so far (2026-11-11): `crates/podrunner-podvm`: the version range of
+podvm (`0.2.0-beta.2` up to `0.3.0`, each pre-release of `0.3.0`
+outside; a podvm outside it fails `probe` by name) and the map of
+`podvm probe --json` to the capability record (each rung `redirect`,
+`boundary_proof` names the rung, `tree_kill: unverified`, `egress_hold:
+unknown`), with three recorded probes in `crates/podrunner-podvm/tests/probe/`.
+Measured on the session host with the released podvm `v0.2.0-beta.2`
+(SHA-256 of `podvm-x86_64`
+`0af41a96233c7f9f3ed48b80ebb3271fe9eaa1295616ea0375625f8035baf6a9`): the
+rung is `namespace` (the host has root: it is not H0); `podvm run` gives
+the exit code of the payload; a `setsid` grandchild outlives `podvm stop`
+and `rm -f`, as GitHub #23 says. Open: start, signal, wait, destroy with a
+store for each unit and the tag scan, the conformance run with a stand-in
+payload, and U25.
 
 ## Prove
 

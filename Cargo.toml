@@ -22,6 +22,7 @@ pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0", def
 pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0" }
 podrunner-clock = { path = "crates/podrunner-clock" }
 podrunner-fake = { path = "crates/podrunner-fake" }
+podrunner-podvm = { path = "crates/podrunner-podvm" }
 podrunner-schema = { path = "crates/podrunner-schema" }
 podrunner-slots = { path = "crates/podrunner-slots" }
 podrunner-source = { path = "crates/podrunner-source" }

@@ -1,0 +1,14 @@
+{
+ "podvm": "0.2.0-beta.2",
+ "rung": "namespace",
+ "rung_must_never_claim": "user, pid or network isolation, or a /proc filesystem",
+ "strict_ok": true,
+ "mounts": {
+  "create": "ok",
+  "configure": "ok",
+  "attach": "ok",
+  "use": "ok",
+  "summary": "full",
+  "capability_note": null
+ }
+}
