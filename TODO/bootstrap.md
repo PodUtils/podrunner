@@ -168,7 +168,7 @@ cargo todo check
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -205,6 +205,11 @@ Put a cleaned copy of the spec (draft 5) into docs/spec/, with each id of the sp
 ## Prove
 
 `cargo todo check`
+
+## Done
+
+2026-11-11, `d88b5d9`, gate run 42976461463. `docs/design/` holds the cleaned copy of the design review: `SPEC.md`, the appendices the design needs, `contracts/`, `schemas/` (with the broker policy schema of podcrates in `docs/design/schemas/external/`), `examples/`, `recon/` (R1 to R4, R6), `measurements/` and `tools/`. Left out: `inputs/`, `review/`, `process/`, the proposed body of PodUtils/podcrates#47 with its edit trail and disposition table, R5 (the private archive) and the manifest. Removed: the host name of the measurement machine (three M1 logs; a podvm term in R1 and R6), the statement about an account (SPEC.md twice, R3 once), the default clone path of `00-build.sh` (now a required `PODVM_REPO`). `docs/design/verify.sh` (schemas, contracts, fields, codes, tiers, docs, and 64 planted defects) passes after the checks on the left-out files were taken out; `scripts/check-design.sh` (with `--self-test`) finds a host name, a home or root path and an account statement. Both run in the `record` job of the gate. `docs/design-issues.md` maps each issue of the plan to its sections (call C17). The design numbers of the conformance tests differ from ours: T-053.
+
 
 # T-015: The beta release workflow (GitHub #15)
 

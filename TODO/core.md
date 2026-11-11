@@ -778,7 +778,7 @@ A non-blocking `flock` on `STATE/serve.lock` (mode 0600, `O_CLOEXEC`, never remo
 **Milestone:** M-D
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -795,6 +795,10 @@ Write `claimed`, `sync_data`, then call `source.claim`; on an error, write `rele
 ## Prove
 
 `cargo test -p podrunner-slots claim_is_journaled_first`
+
+## Done
+
+2026-11-11, `a464cea`. `crates/podrunner-slots/src/run.rs`: `claim` writes the `claimed` line and syncs the journal (`Journal::sync`, `sync_data`) before it calls `source.claim`; a line that cannot be written or synced makes the host `degraded`, releases the placement and claims nothing. Tests `crates/podrunner-slots/src/tests/journal.rs`: a source that reads the journal during `claim` finds the `claimed` line (a planted old order fails it); a journal on `/dev/full` gives `degraded` and no claim at the source; a replayed `claimed` line is reported `lost` (and released), a replayed `matched` line writes `lost` with no release, because the claim never went out. `docs/contracts/source-driver.md` names the open point: `release` names no runner, so a source frees only a runner that it registered (the scale-set sidecar does).
 
 
 # T-056: control socket: an idle client stalls the tick of the supervisor (GitHub #56)

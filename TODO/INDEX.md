@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**60 entries: 7 open, 2 partial, 19 blocked, 32 done.**
+**60 entries: 5 open, 2 partial, 19 blocked, 34 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 2 | 1 | 1 | 18 | 22 |
-| P2 | 5 | 1 | 13 | 13 | 32 |
+| P1 | 1 | 1 | 1 | 19 | 22 |
+| P2 | 4 | 1 | 13 | 14 | 32 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 7 | 2 | 19 | 32 | 60 |
+| **All** | 5 | 2 | 19 | 34 | 60 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -61,7 +61,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-011](bootstrap.md) | P1 | S | M0 | chore | done | The Cargo workspace, the pinned toolchain and the static musl build (GitHub #11) |
 | [T-012](bootstrap.md) | P1 | S | M0 | chore | done | The CI gate: format, lint, tests, static probe, deny, file size (GitHub #12) |
 | [T-013](bootstrap.md) | P1 | M | M0 | chore | done | The agent workflow, the decisions and the record (GitHub #13) |
-| [T-014](bootstrap.md) | P2 | S | M0 | docs | open | The cleaned design spec in docs/ (GitHub #14) |
+| [T-014](bootstrap.md) | P2 | S | M0 | docs | done | The cleaned design spec in docs/ (GitHub #14) |
 | [T-015](bootstrap.md) | P2 | S | M-A | release | done | The beta release workflow (GitHub #15) |
 | [T-016](core.md) | P1 | S | M-A | feature | done | WP-01: the seam traits, the contracts v1 and the conformance harness (GitHub #16) |
 | [T-017](core.md) | P1 | S | M-A | feature | done | Schemas v1: job offer, unit capability, run report, public report (GitHub #17) |
@@ -102,7 +102,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-052](core.md) | P1 | S | M-C | chore | blocked | COORD-006: a podvm beta from main for podrunner (GitHub #53) |
 | [T-053](core.md) | P2 | M | L2 | defect | open | The conformance suites follow the numbers of the design contracts |
 | [T-054](core.md) | P1 | M | M-D | defect | done | serve: an exclusive lock on the state directory before the journal replay; stop --wait (GitHub #54) |
-| [T-055](core.md) | P1 | S | M-D | defect | open | journal: write and sync the claimed line before source.claim (GitHub #55) |
+| [T-055](core.md) | P1 | S | M-D | defect | done | journal: write and sync the claimed line before source.claim (GitHub #55) |
 | [T-056](core.md) | P1 | S | M-D | defect | done | control socket: an idle client stalls the tick of the supervisor (GitHub #56) |
 | [T-057](core.md) | P1 | S | M-D | defect | open | source wire: a reply deadline for each call; restart a silent sidecar (GitHub #57) |
 | [T-058](core.md) | P2 | S | M-D | feature | open | podrunner check: validate a configuration and start nothing (GitHub #58) |

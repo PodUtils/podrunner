@@ -19,7 +19,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #11 | Bootstrap: Cargo workspace, pinned toolchain, static musl build | closed (`9d2e4dd`, gate run 42934750114) | T-011 |
 | #12 | Bootstrap: CI gate (format, lint, tests, static probe, deny, file size) | closed (`9d2e4dd`, gate run 42934750114) | T-012 |
 | #13 | Bootstrap: agent workflow, decisions and record | closed (`9d2e4dd`, gate run 42934750114) | T-013 |
-| #14 | Bootstrap: carry the cleaned design spec into `docs/` | open | T-014 |
+| #14 | Bootstrap: carry the cleaned design spec into `docs/` | closed (`d88b5d9`, gate run 42976461463) | T-014 |
 | #15 | Bootstrap: beta release workflow | closed (`v0.1.0-beta.1`, release run 42942338772) | T-015 |
 | #16 | WP-01: seam traits, contracts v1 and the conformance harness | closed (`229d29f`, gate run 42936703374) | T-016 |
 | #17 | Schemas v1: job offer, unit capability, run report, public report | closed (`pod-job` of podcrates v0.17.0, `0457ed0`, gate run 42953651407) | T-017 |
@@ -58,7 +58,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #52 | COORD-005: podvm-aarch64 v0.2.0-beta.2 declines an arm64 payload on the supervise rung: its glibc object is x86_64 (to podvm) | open | T-051 |
 | #53 | COORD-006: please cut a podvm beta from main for podrunner, when your release order allows (to podvm) | open | T-052 |
 | #54 | serve: an exclusive lock on the state directory before the journal replay; stop --wait | closed (`1f1d389`) | T-054 |
-| #55 | journal: write and sync the claimed line before source.claim | open | T-055 |
+| #55 | journal: write and sync the claimed line before source.claim | closed (`a464cea`) | T-055 |
 | #56 | control socket: an idle client stalls the tick of the supervisor | closed (`1f1d389`) | T-056 |
 | #57 | source wire: a reply deadline for each call; restart a silent sidecar | open | T-057 |
 | #58 | podrunner check: validate a configuration and start nothing | open | T-058 |

@@ -17,7 +17,7 @@
 11 issue closed
 12 issue closed
 13 issue closed
-14 issue open
+14 issue closed
 15 issue closed
 16 issue closed
 17 issue closed
@@ -58,7 +58,7 @@
 52 issue open
 53 issue open
 54 issue closed
-55 issue open
+55 issue closed
 56 issue closed
 57 issue open
 58 issue open
