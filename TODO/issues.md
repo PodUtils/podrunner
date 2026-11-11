@@ -34,7 +34,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #26 | Milestone M-B: the official runner starts under the podvm driver, no GitHub | open | T-026 |
 | #27 | WP-05a: `mint` with an in-process `sign` module, source conformance | closed (`9d48ab8`, gate run 42946099969) | T-027 |
 | #28 | WP-06: fake scale-set service (Go, test only) | closed (`ece89cd`, gate run 42946099969) | T-028 |
-| #29 | WP-07: `github-scaleset` source sidecar (static Go) | open | T-029 |
+| #29 | WP-07: `github-scaleset` source sidecar (static Go) | closed (`5d740e8`, gate run 42947195332) | T-029 |
 | #30 | WP-10: image pipeline: pins, age limit, `podrunner image build` | open | T-030 |
 | #31 | WP-05b: remote mint (only if DR-4 is yes) | open | T-031 |
 | #32 | Milestone M-C: live gates G-H2 to G-H4 on a `fake` unit | open | T-032 |

@@ -19,25 +19,26 @@ is done.
   defaults of GitHub #8 are calls C1 to C12; C13 and C14 are calls of
   this session.
 - podrunner takes the crates of podcrates at `v0.16.0` (`pod-core`,
-  `pod-todo`). Next takes: `pod-broker` (T-024: `serve_unix_job`, an
-  async API on tokio; the facts are in T-024) and `pod-supervise` (T-023
-  can drop its tag scan).
-- Milestone M-A: done: T-015 (`v0.1.0-beta.1`), T-016, T-018 to T-022.
-  Partial: T-017 (the authoritative schemas come from
-  PodUtils/podcrates@T-163), T-023 (an H0 run is open). Open: T-024, then
-  T-025.
-- M-C: T-027 (mint, sign, the sidecar as a source with a backoff) and
-  T-028 (the fake scale set) wait for their closing gate run; T-029 (the
-  sidecar) is partial: `ended_without_completion` and the counts of the
-  trust lookup in `status` are open. The gate job `go` runs the source
-  tests and a run of slots against the sidecar on the fake.
+  `pod-todo`, `pod-broker`, `pod-proxy`). `pod-supervise` can replace the
+  tag scan of the podvm driver (T-023); it is not on the M-A path.
+- Milestone M-A: done: T-015 (`v0.1.0-beta.1`), T-016, T-018 to T-022,
+  T-024. Partial: T-017 (the authoritative schemas come from
+  PodUtils/podcrates@T-163) and T-023 (an H0 run is open). T-025 closes
+  when both are done.
+- M-C: done T-027, T-028, T-029. T-030 (the
+  image pipeline) waits for the Actions hosts of `pod-services`
+  (PodUtils/podcrates@T-164).
+- L2: T-036 is partial (the guest self-test; the rest of its checks are
+  in the entry). T-034, T-035, T-038 need podvm fixes or the runner on
+  podvm (T-026, blocked).
 - podnet answered COORD-001 (PodUtils/podnet#425): the runner pin
   `actions/runner` v2.338.2 and the object `hold` of `pod doctor --json`
   (T-044).
 
 ## In flight
 
-- T-024, the egress module over `pod-broker` `v0.16.0`.
+- T-036 (the rest of the guest checks) and T-035 (the hook relay and
+  the control socket of each unit, on the fake unit first).
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The spec of the design review (T-014): the owner holds it as a zip. The

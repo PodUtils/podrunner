@@ -32,7 +32,7 @@
 26 issue open
 27 issue closed
 28 issue closed
-29 issue open
+29 issue closed
 30 issue open
 31 issue open
 32 issue open

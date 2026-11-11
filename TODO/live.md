@@ -240,6 +240,19 @@ throttled ones. A personal account is refused at the start of the sidecar
 
 `cargo test -p podrunner-source --test conformance -- --ignored scaleset`, with the sidecar and the fake service of T-028.
 
+## Done
+
+2026-11-11, commits `0930dad`, `9d48ab8` and `5d740e8`; the gate run
+42947195332 is green. Its job `go`: `go test` of `tools/scaleset-sidecar`
+(the map of 401, 403, 404, 422, 429 and 500 to the codes of the wire,
+with a planted secret in the URL and the body that no detail shows; a
+personal account refused; the trust budget; the JIT files), the static
+build with no `INTERP`, the source tests 1 to 12 against the sidecar on
+the fake service, and a run of slots in which a fork pull request on the
+trusted set is withdrawn with `tier-mismatch` and never acquired.
+`THIRD_PARTY.md` lists `actions/scaleset`.
+
+
 # T-030: WP-10: the image pipeline: pins, age limit, podrunner image build (GitHub #30)
 
 **Source:** GitHub #30
