@@ -159,7 +159,7 @@ A pure function from the trust inputs of an offer and the configuration to a tie
 **Milestone:** M-A
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -193,6 +193,16 @@ Write docs/security/threat-model.md, docs/security/residuals.md and docs/securit
 ## Prove
 
 `cargo todo check`
+
+## Done
+
+2026-11-11. `docs/security/threat-model.md` (the credentials, the
+process rule, the twelve actors, each with its capability, its controls
+with the entry that builds each, and its verdict; the rule for text of a
+job), `docs/security/residuals.md` (R1 to R5, each with the decision that
+accepts it and what removes it) and `docs/security/leak-runbook.md`;
+`SECURITY.md` links them. GitHub #4 links the residual list (a comment).
+`cargo todo check` agrees.
 
 # T-020: WP-02: the fake source and the fake unit, scripted, with a manual clock (GitHub #20)
 

@@ -1,8 +1,9 @@
 # Security
 
-podrunner runs code of CI jobs, which can be hostile. The threat model,
-the accepted residuals and the runbook for a leaked credential come with
-T-019.
+podrunner runs code of CI jobs, which can be hostile.
+`docs/security/threat-model.md` gives the actors and the controls,
+`docs/security/residuals.md` the risks that the design accepts, and
+`docs/security/leak-runbook.md` the steps after a leaked credential.
 
 ## Report a vulnerability
 
