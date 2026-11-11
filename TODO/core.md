@@ -868,7 +868,7 @@ A reply deadline for each call of the wire (`REPLY_LIMIT`). When it passes, kill
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -885,6 +885,10 @@ Read on 2026-11-11.
 ## Prove
 
 `cargo test -p podrunner check`
+
+## Done
+
+2026-11-11, `4f09320`. `podrunner check --config FILE` (`serve::check`, `serve::plan`): the TOML with each unknown key and type refused, each source built and not called, each unit kind with its driver file (`podvm`: a file binary and a directory of images); no state directory, no unit, no network. `serve` runs the same `check` after its lock and before `build`, so both refuse a bad file with one text. `docs/examples/podrunner.toml`. Tests `crates/podrunner/tests/check.rs`: the example passes with an unusable `HTTPS_PROXY` and leaves the working directory as it was; `[[sources]]`, a string for `claim_s`, a key file at 0640 and a podvm binary that is a directory each exit 78 with the same text from `check` and `serve`, and `serve` writes no journal; each TOML block of `docs/configuration.md` names only known keys, and a misspelled key fails.
 
 
 # T-059: audit.jsonl: chain each line to the one before; podrunner audit verify (GitHub #59)
