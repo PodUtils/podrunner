@@ -12,6 +12,7 @@ name: gate
 #   with zig as the C compiler; no PT_INTERP and no NEEDED entry
 #   (scripts/check-static.sh), and a planted dynamic binary must fail.
 # * deny: cargo-deny over Cargo.lock; a denied license must fail.
+# * go: the Go parts: format, vet, tests, a static build.
 # * all: the one status to require. It fails when a job failed or was
 #   skipped.
 #
@@ -189,15 +190,38 @@ jobs:
           fi
           grep -m1 'failed to satisfy license requirements' "$RUNNER_TEMP/plant.log"
 
+  # The Go parts (tools/fake-scaleset; the scale-set sidecar later): vet,
+  # format, tests, and a static build with no cgo. The go.mod names the
+  # toolchain; the go command fetches it.
+  go:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: auto
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The fake scale-set service
+        working-directory: tools/fake-scaleset
+        run: |
+          set -eu
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go vet ./...
+          go test ./...
+          go build -o "$RUNNER_TEMP/fake-scaleset" .
+          sh "$GITHUB_WORKSPACE/scripts/check-static.sh" "$RUNNER_TEMP/fake-scaleset"
+
   all:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     if: always()
-    needs: [lint, test, record, static, deny]
+    needs: [lint, test, record, static, deny, go]
     steps:
       - name: Each job passed
         run: |
           set -eu
-          for r in "${{ needs.lint.result }}" "${{ needs.test.result }}" "${{ needs.record.result }}" "${{ needs.static.result }}" "${{ needs.deny.result }}"; do
+          for r in "${{ needs.lint.result }}" "${{ needs.test.result }}" "${{ needs.record.result }}" "${{ needs.static.result }}" "${{ needs.deny.result }}" "${{ needs.go.result }}"; do
             [ "$r" = success ] || { echo "a job ended: $r"; exit 1; }
           done

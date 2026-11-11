@@ -101,7 +101,7 @@ A `mint` step that makes the JIT runner configuration with an in-process `sign` 
 **Milestone:** M-C
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -134,7 +134,18 @@ a message and `AcquireJobs`; the messages are `JobAvailable`,
 `JobAssigned`, `JobStarted` and `JobCompleted`; `GenerateJitRunnerConfig`
 gives the JIT configuration. The module holds a test server in
 `internal/testserver` (a Go internal package: not importable; MIT allows a
-copy with its notice in `THIRD_PARTY.md`).
+copy with its notice in `THIRD_PARTY.md`). Done so far (2026-11-11): `tools/fake-scaleset` (Go, no dependency
+but the tests): the authentication of a GitHub App, the scale set, the
+message session, the queue with a short long poll and the capacity
+header, `acquirejobs`, `generatejitconfig`, `JobAvailable`,
+`JobAssigned`, `JobStarted` with the runner name, `JobCompleted`, a
+redelivery of a message that was not deleted, a re-queue of an assigned
+job (at most three times), a cancel, the run object and the membership
+for the trust lookup, and a record of each request. `go test ./...`
+drives it with the real client of `actions/scaleset` v0.5.0: a fork pull
+request, a redelivery, a cancel, a job from available to completed. The
+gate has a job `go` (format, vet, tests, a static build with no cgo).
+Open: the conformance run of the sidecar (T-029) on it.
 
 ## Prove
 
