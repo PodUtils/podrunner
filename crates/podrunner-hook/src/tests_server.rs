@@ -126,3 +126,30 @@ fn the_relay_reaches_the_socket() {
     assert_eq!(unit.lock().unwrap().calls, [Command::PrepareJob, Command::RunScriptStep, Command::RunContainerStep]);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn a_socket_path_longer_than_sun_path_binds() {
+    // The rootfs of a podvm unit can be deeper than the 108 bytes of
+    // `sun_path`.
+    let mut dir = std::env::temp_dir().join(format!("podrunner-hook-long-{}", std::process::id()));
+    while dir.as_os_str().len() < 140 {
+        dir = dir.join("deep-directory-name");
+    }
+    std::fs::create_dir_all(&dir).unwrap();
+    let sock = dir.join("u.ctl");
+    let listener = bind(&sock).unwrap();
+    use std::os::unix::fs::{FileTypeExt, PermissionsExt};
+    let meta = std::fs::metadata(&sock).unwrap();
+    assert!(meta.file_type().is_socket());
+    assert_eq!(meta.permissions().mode() & 0o777, 0o600);
+    let unit: Arc<Mutex<Recorder>> = Arc::default();
+    let shared: Arc<Mutex<dyn Unit>> = unit.clone();
+    std::thread::spawn(move || serve(listener, shared));
+    use std::io::{Read, Write};
+    let mut c = crate::server::connect(&sock).unwrap();
+    c.write_all(b"POST /v1/job_state HTTP/1.1\r\nContent-Length: 27\r\n\r\n{\"event\":\"job-started\"}    ").unwrap();
+    let mut out = String::new();
+    c.read_to_string(&mut out).unwrap();
+    assert!(out.starts_with("HTTP/1.1 "), "{out}");
+    let _ = std::fs::remove_dir_all(std::env::temp_dir().join(format!("podrunner-hook-long-{}", std::process::id())));
+}

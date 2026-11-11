@@ -64,7 +64,7 @@ impl Hooks {
         let Some(o) = self.open.lock().expect("the sockets").remove(unit.as_str()) else { return };
         o.stop.store(true, Ordering::SeqCst);
         // A connection wakes the accept, and the loop sees the stop.
-        let _ = std::os::unix::net::UnixStream::connect(&o.socket);
+        let _ = crate::server::connect(&o.socket);
         let _ = o.thread.join();
         let _ = std::fs::remove_file(&o.socket);
     }

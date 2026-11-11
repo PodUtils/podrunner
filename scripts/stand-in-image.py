@@ -3,12 +3,13 @@
 # glibc and needs libdl and libgcc_s in /lib or /lib64; busybox has none).
 # It copies host binaries and their libraries into one layer and writes an
 # OCI layout tarball; `podvm load -i FILE` reads it. The digest of the
-# manifest goes to stdout.
+# manifest goes to stdout. Each extra BIN (an absolute path of the host)
+# goes into /bin of the image with its libraries.
 #
-#   python3 -I scripts/stand-in-image.py OUT.tar
+#   python3 -I scripts/stand-in-image.py OUT.tar [BIN...]
 import gzip, hashlib, io, json, os, subprocess, sys, tarfile
 out = sys.argv[1]
-bins = ["/bin/sh", "/bin/dash", "/bin/sleep", "/usr/bin/setsid", "/bin/cat", "/bin/ls", "/bin/grep", "/usr/bin/env", "/usr/bin/id", "/bin/echo", "/usr/bin/test", "/usr/bin/tr", "/bin/mkdir", "/bin/rm"]
+bins = ["/bin/sh", "/bin/dash", "/bin/sleep", "/usr/bin/setsid", "/bin/cat", "/bin/ls", "/bin/grep", "/usr/bin/env", "/usr/bin/id", "/bin/echo", "/usr/bin/test", "/usr/bin/tr", "/bin/mkdir", "/bin/rm"] + sys.argv[2:]
 libs = set(["/lib/x86_64-linux-gnu/libgcc_s.so.1", "/lib/x86_64-linux-gnu/libdl.so.2", "/lib/x86_64-linux-gnu/libpthread.so.0", "/lib/x86_64-linux-gnu/librt.so.1", "/lib/x86_64-linux-gnu/libm.so.6"])
 for b in bins:
     r = subprocess.run(["ldd", os.path.realpath(b)], capture_output=True, text=True)

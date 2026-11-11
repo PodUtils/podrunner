@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 49 entries: 2 open, 3 partial, 15 blocked, 29 done.
+`TODO/INDEX.md` holds 50 entries: 1 open, 3 partial, 17 blocked, 29 done.
 
 ## State
 
@@ -31,10 +31,9 @@ then take the next one. Continue a `partial` entry first.
 
 1. **The plan:** T-001 closes when its issue closes.
 2. **The registers:** T-009 (partial: the open rows wait for their entries).
-3. **M-C, L2:** T-030 (partial: the import into a podvm store); T-034
-   (the facts that the released podvm can answer).
+3. **M-C, L2:** T-030 (partial: the import into a podvm store).
 4. **Blocked:** T-007 (DR-7: not now), T-014 (the spec), T-026 (podvm),
-   T-035 (the podvm driver: T-034, T-026), T-036 (a real guest), T-038 (the run in a podvm unit: T-026), T-047 (podvm),
+   T-034 (U19: podvm), T-035 (the podvm driver: T-034, T-026), T-036 (a real guest), T-038 (the run in a podvm unit: T-026), T-047, T-050 (podvm),
    T-032, T-033, T-037 (podvm), T-040
    to T-043, T-046.
 

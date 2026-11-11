@@ -7,7 +7,7 @@ Milestones L2 and L3: the hook path, the guest self-test, the microVM unit, the 
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -33,11 +33,17 @@ Read the text of GitHub #34 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Measure the hook path facts U19 and U21 on the userland rung of the released podvm binary, and write the result into docs/unknowns.md.
+Measure the hook path facts U19 and U21 on the released podvm binary, and write the result into docs/unknowns.md.
+
+U21 done (2026-11-11, podvm `v0.2.0-beta.2`, `scripts/measure-hook-path.sh` with an image of curl and bash from `scripts/stand-in-image.py`): on the namespace rung (root) curl and bash run, `-v` is refused, a socket that the host binds in `RootfsPath` of the unit is reachable (`rootfs-socket yes`), the host path is not. On the supervise rung (no root, no user namespace) curl and bash run, a socket through a volume or in the rootfs is not reachable (`connect` is not mapped: T-050, GitHub #51), the host path is (`host-path-socket yes`). The relay uses the plain mode of #35 (the body of the answer and the header `X-Podrunner-Exit`), so no frame decoding in bash is necessary. Fixed on the way: `podrunner-hook` binds and connects a socket path longer than the 108 bytes of `sun_path` (a deep rootfs) through its directory. Open: U19 (a job container of another image and a Docker action on a podvm unit) needs the container verbs of podvm (PodUtils/podvm#236), not in the release.
 
 ## Prove
 
-A script of `scripts/` that runs the measurement, and its output in the Done section.
+`sh scripts/measure-hook-path.sh PODVM DIR`, as root and as a uid with no user namespace.
+
+## Blocker
+
+U19 needs the container verbs of podvm (PodUtils/podvm#236), which are not in a release. podvm is on break.
 
 # T-035: WP-09: the hook relay and the control socket server of each unit (ctl) (GitHub #35)
 
@@ -352,4 +358,33 @@ GitHub #50 (COORD-003, to podvm) gives the requests in order with their answers,
 ## Done
 
 2026-11-11: podvm read GitHub #50 and closed PodUtils/podvm#248: its `experiments/runner-standin.py` follows the stand-in (token, session, a 202 long poll), and PodUtils/podvm@T-1706 is done at podvm `cd2c691`: the official runner v2.338.2 runs `run.sh` up to the long poll on the userland rung (podvm `main`, not released). GitHub #50 is closed.
+
+# T-050: COORD-004: the supervise rung does not map the path of connect() for a unix socket (GitHub #51)
+
+**Source:** GitHub #51
+**Category:** defect
+**Milestone:** L2
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+On the supervise rung of the released podvm `v0.2.0-beta.2`, a payload cannot connect to a unix socket by the path that it sees (a volume target or a path of its rootfs): the interposer maps `stat` and `open`, not the `sun_path` of `connect`. A `connect` to the host path works, though the unit cannot `stat` it. The relay of the container hooks (T-035) connects to the control socket of its unit. GitHub #51 (COORD-004, to podvm) records it; podvm is on break.
+
+## Premise
+
+Measured on 2026-11-11 with `scripts/measure-hook-path.sh` (T-034), as `nobody` with a seccomp filter that refuses `CLONE_NEWUSER`: `volume-socket no`, `rootfs-socket no`, `host-path-socket yes`.
+
+## Approach
+
+The workaround goes into the podvm driver of T-035 (step 4): on the supervise rung, `PODRUNNER_CTL` names the host path of the socket; on the namespace rung, a socket in the rootfs of the unit (its guest path). When podvm maps the path of `connect`, use the guest path on each rung.
+
+## Prove
+
+`sh scripts/measure-hook-path.sh PODVM DIR` as a uid with no user namespace gives `volume-socket yes` and `rootfs-socket yes`.
+
+## Blocker
+
+A podvm release that maps the `sun_path` of `connect` on the supervise rung (GitHub #51). podvm is on break.
 

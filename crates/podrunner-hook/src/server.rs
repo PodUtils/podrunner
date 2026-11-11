@@ -98,12 +98,40 @@ pub fn answer(req: &Request, unit: &mut dyn Unit) -> (u16, Vec<(&'static str, St
     }
 }
 
-/// Bind the socket of a unit at mode 0600.
+/// The bytes of `sun_path` on Linux, with its final NUL.
+const SUN_PATH: usize = 108;
+
+/// `path`, or a short name of it through an open directory when `path` is
+/// too long for `sun_path` (the rootfs of a podvm unit can be): the
+/// directory stays open while the name is in use.
+fn short(path: &Path) -> std::io::Result<(Option<std::fs::File>, std::path::PathBuf)> {
+    if path.as_os_str().len() < SUN_PATH {
+        return Ok((None, path.to_path_buf()));
+    }
+    let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "a socket path with no name"));
+    };
+    let d = std::fs::File::open(dir)?;
+    use std::os::fd::AsRawFd;
+    let link = Path::new("/proc/self/fd").join(d.as_raw_fd().to_string()).join(name);
+    Ok((Some(d), link))
+}
+
+/// Bind the socket of a unit at mode 0600. A path longer than `sun_path`
+/// is bound through its directory.
 pub fn bind(path: &Path) -> std::io::Result<UnixListener> {
     let _ = std::fs::remove_file(path);
-    let l = UnixListener::bind(path)?;
+    let (_dir, name) = short(path)?;
+    let l = UnixListener::bind(&name)?;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
     Ok(l)
+}
+
+/// Connect to the socket at `path`, also when it is longer than
+/// `sun_path`.
+pub fn connect(path: &Path) -> std::io::Result<std::os::unix::net::UnixStream> {
+    let (_dir, name) = short(path)?;
+    std::os::unix::net::UnixStream::connect(name)
 }
 
 /// Serve the socket until the listener fails: one request for each
