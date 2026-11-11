@@ -59,7 +59,10 @@ impl Fixture for Real {
 
 /// The script of the payloads with an orphan (as `podrunner_fake::escape`).
 fn podrunner_fake_escape(then: &str) -> String {
-    format!("(setsid env -i sleep 300 & echo $! > {}); {then}exec sleep 300", conformance::ESCAPED)
+    // The pid file comes last: when it is there, `then` is done. Shell
+    // builtins only: a small image has no `mv`.
+    let f = conformance::ESCAPED;
+    format!("(setsid env -i sleep 300 & echo $! > {f}.part); {then}read p < {f}.part; echo $p > {f}; exec sleep 300")
 }
 
 fn env(name: &str) -> String {

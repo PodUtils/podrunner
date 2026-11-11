@@ -31,7 +31,10 @@ pub fn payload(behaviour: Behaviour) -> Vec<String> {
 
 /// The script of [`Behaviour::Escape`], with `then` before the last sleep.
 pub fn escape(then: &str) -> String {
-    format!("(setsid env -i sleep 300 & echo $! > {}); {then}exec sleep 300", podrunner_unit::conformance::ESCAPED)
+    // The pid file comes last: when it is there, `then` is done. Shell
+    // builtins only: a small image has no `mv`.
+    let f = podrunner_unit::conformance::ESCAPED;
+    format!("(setsid env -i sleep 300 & echo $! > {f}.part); {then}read p < {f}.part; echo $p > {f}; exec sleep 300")
 }
 
 #[cfg(test)]

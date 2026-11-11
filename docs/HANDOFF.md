@@ -18,7 +18,7 @@ is done.
   `trusted` at `redirect` is a choice of the operator with the mitigations
   of T-045; `microvm` is an adapter over podvm's machine tier (T-037);
   DR-7 is not now. C1 to C12 are rulings; C13 to C16 are calls.
-- podrunner takes the crates of podcrates at `v0.19.0` (`pod-core`,
+- podrunner takes the crates of podcrates at `v0.21.0` (`pod-core`,
   `pod-todo`, `pod-broker`, `pod-proxy`, `pod-identity`, `pod-job`).
   `pod-supervise` can replace the tag scan of the podvm driver (T-023);
   it is not on the M-A path.
@@ -54,11 +54,6 @@ is done.
   unit runs a canned job on a host with no root (T-026, `runner-image.yml`).
   The container route of the podvm driver works on the supervise rung
   (T-035): a `container:` job runs through the hooks of a podvm unit.
-- podcrates `v0.21.0` (pod-incus; in pod-broker the control socket has its
-  mode from the first instant, and its listener keeps the name of its bind
-  in a stage directory: read the path you passed, not `local_addr`): take
-  it at the next pod-* bump. No code of podrunner reads `local_addr` of a
-  pod-broker listener now.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The design copy is in `docs/design/` (T-014): the spec, the appendices,

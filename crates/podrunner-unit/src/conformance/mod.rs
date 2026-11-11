@@ -37,11 +37,12 @@ pub enum Behaviour {
     /// Write the file [`MARKER`] in the working directory, then sleep.
     Marker,
     /// Leave an orphan with no environment and a session of its own
-    /// (`setsid env -i sleep`), write its pid to [`ESCAPED`] in the
+    /// (`setsid env -i sleep`), then write its pid to [`ESCAPED`] in the
     /// working directory, then sleep.
     Escape,
-    /// As [`Behaviour::Escape`], then kill the parent of the top process
-    /// with SIGKILL (the shim of the driver, when it has one).
+    /// As [`Behaviour::Escape`], but kill the parent of the top process
+    /// with SIGKILL (the shim of the driver, when it has one) before the
+    /// pid file is written.
     KillParent,
 }
 
