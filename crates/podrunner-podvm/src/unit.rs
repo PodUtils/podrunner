@@ -306,9 +306,10 @@ impl UnitDriver for PodvmUnit {
         // orphans went to init: no count is true then (design test 15).
         let tree = shim::tree_of_tagged(&tag);
         let waiter = removed.as_ref().map(|r| r.waiter.id());
-        let lost = !tree.is_empty()
-            && !tree.iter().any(|p| Some(*p) != waiter && procs_comm_is_podvm(*p))
-            && tree.iter().any(|p| Some(*p) != waiter);
+        // The `podnet pod` of the hold carries the tag and can outlive the
+        // payload: it is no process of the payload.
+        let lost = !tree.iter().any(|p| Some(*p) != waiter && procs_comm_is_podvm(*p))
+            && tree.iter().any(|p| Some(*p) != waiter && !procs_comm_is(*p, "podnet"));
         // From beta.4 the payload ends with a killed launcher, so no tagged
         // process is left; podvm names the state `dead` then. Read it before
         // the kill, which also ends the launcher.
@@ -358,7 +359,11 @@ impl UnitDriver for PodvmUnit {
 
 /// True when the process is podvm itself (its name).
 fn procs_comm_is_podvm(pid: u32) -> bool {
-    fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|c| c.trim().starts_with("podvm"))
+    procs_comm_is(pid, "podvm")
+}
+
+fn procs_comm_is(pid: u32, name: &str) -> bool {
+    fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|c| c.trim().starts_with(name))
 }
 
 impl PodvmUnit {

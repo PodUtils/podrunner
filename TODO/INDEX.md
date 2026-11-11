@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**76 entries: 0 open, 4 partial, 15 blocked, 57 done.**
+**77 entries: 0 open, 3 partial, 13 blocked, 61 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 0 | 2 | 1 | 26 | 29 |
-| P2 | 0 | 1 | 10 | 28 | 39 |
-| P3 | 0 | 1 | 4 | 3 | 8 |
-| **All** | 0 | 4 | 15 | 57 | 76 |
+| P1 | 0 | 1 | 0 | 28 | 29 |
+| P2 | 0 | 1 | 8 | 30 | 39 |
+| P3 | 0 | 1 | 5 | 3 | 9 |
+| **All** | 0 | 3 | 13 | 61 | 77 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -108,11 +108,11 @@ acceptance, later The crate dependencies later than v1.
 | [T-058](core.md) | P2 | S | M-D | feature | done | podrunner check: validate a configuration and start nothing (GitHub #58) |
 | [T-059](core.md) | P2 | S | M-D | feature | done | audit.jsonl: chain each line to the one before; podrunner audit verify (GitHub #59) |
 | [T-060](core.md) | P2 | S | M-D | feature | done | serve: SIGTERM and SIGINT start a drain; sd_notify (GitHub #60) |
-| [T-061](core.md) | P2 | S | L2 | defect | blocked | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (GitHub #61) |
-| [T-062](core.md) | P2 | S | L2 | defect | blocked | COORD-008: on the supervise rung a volume given as :ro is writable (GitHub #62) |
+| [T-061](core.md) | P2 | S | L2 | defect | done | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (GitHub #61) |
+| [T-062](core.md) | P2 | S | L2 | defect | done | COORD-008: on the supervise rung a volume given as :ro is writable (GitHub #62) |
 | [T-063](core.md) | P1 | M | L2 | defect | done | The tree kill finds a unit by an environment tag, and a process can drop it |
-| [T-064](level2.md) | P1 | S | L2 | feature | blocked | The podvm driver follows the tree of each container (PodUtils/podvm@T-1709) |
-| [T-065](live.md) | P1 | M | M-D | feature | partial | The podvm unit runs under podnet pod: an advisory hold for trusted jobs |
+| [T-064](level2.md) | P1 | S | L2 | feature | done | The podvm driver follows the tree of each container (PodUtils/podvm@T-1709) |
+| [T-065](live.md) | P1 | M | M-D | feature | done | The podvm unit runs under podnet pod: an advisory hold for trusted jobs |
 | [T-066](live.md) | P1 | S | M-C | defect | done | slots sets ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1 in the start environment |
 | [T-067](level2.md) | P1 | S | L2 | feature | done | The podvm driver takes the root of a unit from podvm inspect |
 | [T-068](core.md) | P1 | M | M-D | defect | done | serve keeps each job, report and journal line forever |
@@ -124,3 +124,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-074](core.md) | P2 | M | M-D | feature | done | The disk limit of a unit |
 | [T-075](core.md) | P3 | S | M-D | feature | partial | The report and status fields of SPEC §11.4 and §11.5 |
 | [T-076](core.md) | P1 | M | M-D | feature | done | podrunner resolves names with pod-dns: no single resolver of the host |
+| [T-077](core.md) | P3 | S | later | defect | blocked | COORD-009: the seccomp hold of podnet pod does not take ::ffff:127.0.0.1 as loopback (GitHub #64) |

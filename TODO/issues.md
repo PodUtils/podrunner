@@ -64,7 +64,8 @@ numbers. `TODO/RULES.md` gives the rules.
 | #58 | podrunner check: validate a configuration and start nothing | closed (`4f09320`, gate run 42979592980) | T-058 |
 | #59 | audit.jsonl: chain each line to the one before; podrunner audit verify | closed (`1773096`, gate run 42979592980) | T-059 |
 | #60 | serve: SIGTERM and SIGINT start a drain; sd_notify | closed (`1f1d389`, gate run 42979592980) | T-060 |
-| #61 | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (to podvm) | open (blocked: PodUtils/podvm@T-1725) | T-061 |
-| #62 | COORD-008: on the supervise rung a volume given as :ro is writable (to podvm) | open (blocked: PodUtils/podvm@T-1726) | T-062 |
+| #61 | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (to podvm) | open (podvm `v0.2.0-beta.4` pinned, `baab86e`; closes now) | T-061 |
+| #62 | COORD-008: on the supervise rung a volume given as :ro is writable (to podvm) | open (podvm `v0.2.0-beta.4` pinned, `baab86e`; closes now) | T-062 |
+| #64 | COORD-009: the seccomp hold of podnet pod does not take ::ffff:127.0.0.1 as loopback (to podnet) | open (blocked: podnet) | T-077 |
 
 #44, #45 and #63 are pull requests (#63: Dependabot, base64 0.23, applied on `main`).

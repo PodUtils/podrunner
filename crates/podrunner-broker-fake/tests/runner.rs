@@ -5,6 +5,7 @@
 //!
 //!   PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-broker-fake --test runner -- --ignored
 
+use std::sync::Mutex;
 use std::time::Duration;
 
 use podrunner_broker_fake::{Broker, Job};
@@ -13,9 +14,14 @@ mod common;
 
 use common::run_once;
 
+/// The tests share one runner directory and its configuration: one at a
+/// time.
+static DIR: Mutex<()> = Mutex::new(());
+
 #[test]
 #[ignore]
 fn the_official_runner_runs_a_canned_job_offline() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
     let dir = std::path::PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
     let broker = Broker::start().unwrap();
     // A computed marker: the echo of the script cannot match it.
@@ -49,6 +55,7 @@ fn the_official_runner_runs_a_canned_job_offline() {
 #[test]
 #[ignore]
 fn version_too_old_gives_exit_7_with_the_variable() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
     let dir = std::path::PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
     let broker = Broker::start().unwrap();
     broker.refuse_the_version();

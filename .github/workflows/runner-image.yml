@@ -153,6 +153,8 @@ jobs:
           # T-065: the egress hold of a unit under podnet pod.
           sh scripts/measure-podnet-pod.sh "$PODRUNNER_PODNET" "$PODRUNNER_PODVM" "$RUNNER_TEMP/podnet-measure"
           timeout 300 cargo test -p podrunner-podvm --test hold -- --ignored --nocapture
+          # T-065 step 4: a held runner reaches an allowed host and not a denied one.
+          timeout 600 cargo test -p podrunner-broker-fake --test held -- --ignored --nocapture
           # T-061: an absolute link resolves in the rootfs of the unit.
           timeout 300 cargo test -p podrunner-podvm --test links -- --ignored --nocapture
           # T-062: a step through exec cannot write the externals (:ro).

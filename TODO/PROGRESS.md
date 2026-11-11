@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 76 entries: 0 open, 4 partial, 15 blocked, 57 done.
+`TODO/INDEX.md` holds 77 entries: 0 open, 3 partial, 13 blocked, 61 done.
 
 ## State
 
@@ -26,12 +26,11 @@ release or a live account.
 
 The queue for tonight, most valuable first:
 
-1. T-065 (M): the podvm unit runs under `podnet pod`; without a hold, a podvm unit gets no `trusted` job, so M-D cannot pass. Start the measure in `runner-image.yml`.
-2. T-075 (S): the report and status fields of SPEC §11.4 and §11.5; needs a small ask to podcrates.
+1. T-075 (S): the report and status fields of SPEC §11.4 and §11.5; needs a small ask to podcrates.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
-Blocked: T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-042 (PodUtils/podvm#259), T-043, T-046 (crates of podcrates).
+Blocked: T-077 (podnet, GitHub #64), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-042 (PodUtils/podvm#259), T-043, T-046 (crates of podcrates).
 
 ## Questions for the owner
 

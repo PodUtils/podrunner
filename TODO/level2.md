@@ -380,7 +380,7 @@ The podvm driver of T-035 puts the control socket in the rootfs of the unit, wit
 **Milestone:** L2
 **Priority:** P1
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -398,9 +398,9 @@ T-067 gives the driver the tree that `podvm inspect` names. With the next beta: 
 
 `runner-image.yml` with the new beta: the two tests of `crates/podrunner-broker-fake/tests/podvm.rs` and the unit conformance suite on podvm pass.
 
-## Blocker
+## Done
 
-A podvm release with PodUtils/podvm@T-1709 (the next beta). Pin that beta only in the commit that does this entry: with the old driver, the container route breaks on it.
+2026-11-11, `baab86e`; runner-image run 43100514216 and gate run 43100514057 of `baab86e` are green. podvm `v0.2.0-beta.4` is pinned (`images/podvm.toml`, `probe::LOWEST`). The two tests of `crates/podrunner-broker-fake/tests/podvm.rs` and the unit conformance suite pass on it. Test 26 found a defect, fixed in place: a killed launcher now ends the payload, so `destroy` counts the processes as unknown when podvm says `dead`, and the escape payloads write the pid before the kill.
 
 # T-067: The podvm driver takes the root of a unit from podvm inspect
 

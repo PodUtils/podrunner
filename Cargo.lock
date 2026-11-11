@@ -783,6 +783,8 @@ name = "podrunner-broker-fake"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "pod-proxy",
+ "podrunner-egress",
  "podrunner-fake",
  "podrunner-hook",
  "podrunner-podvm",

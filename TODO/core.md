@@ -884,7 +884,7 @@ SIGTERM and SIGINT start the drain of `podrunner stop`. With `NOTIFY_SOCKET` (pa
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -902,9 +902,9 @@ No fix in podrunner: the path view is the interposer of podvm. The runner image 
 
 `cargo test -p podrunner-podvm --test conformance -- --ignored` as a uid with no user namespace, with a case where a unit reads a file through an absolute link inside its rootfs.
 
-## Blocker
+## Done
 
-podvm confirmed it in PodUtils/podvm#255 (COORD-036): the interposer rewrites the path string, and the kernel follows an absolute target from the host root; the exec routes resolve links in guest names already. PodUtils/podvm@T-1725 (P1) resolves each path call inside the rootfs, and comes with the next beta; the relative links of the image stay until then.
+2026-11-11, `baab86e`; runner-image run 43100514216 and gate run 43100514057 of `baab86e` are green. `crates/podrunner-podvm/tests/links.rs`: a payload reads a file through an absolute link in its rootfs, as a uid with no user namespace and as root.
 
 # T-062: COORD-008: on the supervise rung a volume given as :ro is writable (GitHub #62)
 
@@ -913,7 +913,7 @@ podvm confirmed it in PodUtils/podvm#255 (COORD-036): the interposer rewrites th
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -931,9 +931,9 @@ The hook checks refuse a request for a writable `/__e`, and the podvm driver pas
 
 `sh scripts/measure-container-verbs.sh PODVM DIR` as a uid with no user namespace prints `externals-read-only ok`.
 
-## Blocker
+## Done
 
-A podvm release with PodUtils/podvm@T-1726 (`:ro` on `exec`; PodUtils/podvm#256, COORD-037: confirmed for `exec` only). podvm is on break; the fix is first in its work order.
+2026-11-11, `baab86e`; runner-image run 43100514216 and gate run 43100514057 of `baab86e` are green. `scripts/measure-container-verbs.sh` gives `externals-read-only ok` on the supervise rung, and `runner-image.yml` checks it.
 
 # T-063: The tree kill finds a unit by an environment tag, and a process can drop it
 
@@ -1169,3 +1169,32 @@ One `pod_dns::Resolver` for each process, from a `[dns]` table of the configurat
 ## Done
 
 2026-11-11, `03d3aac`; gate run 43071088850 of `9fb9d17` is green. The egress and the HTTPS transport of the remote mint resolve through `pod-dns` (system resolver, cache, DNS over HTTPS by address) with the pins of `[dns]`. The tests of `podrunner-egress` and `podrunner-remote` pass.
+
+# T-077: COORD-009: the seccomp hold of podnet pod does not take ::ffff:127.0.0.1 as loopback (GitHub #64)
+
+**Source:** GitHub #64
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+Under `podnet pod --backend seccomp`, a connect to `[::ffff:127.0.0.1]:PORT` goes to the `-x` chain (rule `default`); `127.0.0.1` and `[::1]` go direct (rule `loopback`). .NET connects with dual-stack sockets, so the official runner in a held unit sends a loopback connect to the egress module, which refuses a non-public address. Production does not hit it (the broker of GitHub is public), but the held test of the fake broker does.
+
+## Premise
+
+Measured on 2026-11-11 on H0 with podnet `v0.4.0-beta.3`, podvm `v0.2.0-beta.4` and `--flow-log` (GitHub #64 has the table).
+
+## Approach
+
+podnet takes an IPv4-mapped address by its IPv4 address in the rules of the seccomp backend. Until then, `crates/podrunner-broker-fake/tests/held.rs` gives the runner `DOTNET_SYSTEM_NET_DISABLEIPV6=1`. With the fix: pin the podnet release, remove the variable, and run the held test.
+
+## Prove
+
+`cargo test -p podrunner-broker-fake --test held -- --ignored` with no `DOTNET_SYSTEM_NET_DISABLEIPV6`, in `runner-image.yml`.
+
+## Blocker
+
+A podnet release that takes `::ffff:127.0.0.0/104` as loopback (GitHub #64, to podnet).
