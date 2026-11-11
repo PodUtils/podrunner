@@ -206,7 +206,7 @@ Copy the ruling of the owner into `docs/decisions.md` ("podrunner online", "The 
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -244,15 +244,19 @@ Read the text of GitHub #4 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Keep the question Q1 in `TODO/PROGRESS.md` with the recommendation of the issue. Until the owner rules, `trusted` needs `confined` or more, and the configuration refuses `redirect` for `trusted` (T-021). M-D (T-031, T-033) and the mutual TLS of `pod-tls` (PodUtils/podcrates@T-165) wait.
+Copy the ruling into `docs/decisions.md`. Allow `[tier.trusted] min_boundary = "redirect"` in the configuration check of T-021, with the mitigations that the file can state (one job at a time on a shared uid, a slot cap on each `trusted` source). T-045 (GitHub #47) holds the other mitigations. T-031 and T-033 open.
+
+## Decision
+
+The owner, 2026-11-11 (through podcrates, rows at podcrates commit `9a3bce7`): yes, for all trusted repositories, not only private and internal ones, with the mitigations of GitHub #4.
 
 ## Prove
 
-`cargo todo check`
+`cargo test -p podrunner-slots trusted_at_redirect`, `cargo todo check`
 
-## Blocker
+## Done
 
-The owner answers Q1 (DR-4). The ruling goes into `docs/decisions.md`.
+2026-11-11: the ruling is in `docs/decisions.md` (row "DR-4"). `podrunner_slots::config` allows `redirect` for `trusted` only when the file sets it, refuses it with `same_principal_ok = true` or a `trusted` source with no `slots`; the default floor stays `confined`. `cargo test -p podrunner-slots trusted_at_redirect`: 1 passed. The residuals (`docs/security/residuals.md`, R1) and the threat model name the ruling. GitHub #4 is closed; GitHub #47 (T-045) holds the rest of the mitigations.
 
 # T-005: DR-5: the microVM unit for untrusted jobs (GitHub #5)
 
@@ -261,7 +265,7 @@ The owner answers Q1 (DR-4). The ruling goes into `docs/decisions.md`.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -293,15 +297,19 @@ Read the text of GitHub #5 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Keep the question Q2 in `TODO/PROGRESS.md` with the recommendation of the issue. T-037 waits for the answer.
+Copy the ruling into `docs/decisions.md`. T-037 states its form: an adapter over the machine tier of podvm, blocked on PodUtils/podvm@T-1656.
+
+## Decision
+
+The owner, 2026-11-11 (through podcrates): wait for PodUtils/podvm@T-1656; the `microvm` kind is an adapter over it. podvm must also support incus, or have an adapter for it; podcrates writes that to podvm.
 
 ## Prove
 
 `cargo todo check`
 
-## Blocker
+## Done
 
-The owner answers Q2 (DR-5). The ruling goes into `docs/decisions.md`.
+2026-11-11: the ruling is in `docs/decisions.md` (row "DR-5"). T-037 states the adapter form and its blocker. `cargo todo check` exits 0. GitHub #5 is closed.
 
 # T-006: DR-6: githome and cfb accept the restated G-02, G-03 and G-09 (GitHub #6)
 
@@ -310,7 +318,7 @@ The owner answers Q2 (DR-5). The ruling goes into `docs/decisions.md`.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -338,15 +346,19 @@ Read the text of GitHub #6 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Keep the question Q3 in `TODO/PROGRESS.md` with the recommendation of the issue. The level 1 tests of T-021 use the restated asks.
+Copy the ruling into `docs/decisions.md`, with pmask as the later path for G-03 (not adopted). The tests of T-021 and the claims of T-040 use the restated texts.
+
+## Decision
+
+The owner, 2026-11-11 (through podcrates): yes to the restated G-02, G-03 and G-09. pmask (a ptrace supervisor that hides the command line and the environment of a process tree, and gives secrets on sealed memfds) is the later path for G-03 and for the same-uid residual at `redirect`; it is not a boundary, and it is not adopted now. Its limits: it needs ptrace, it builds static only for x86_64 and aarch64, and it must run as a separate process.
 
 ## Prove
 
 `cargo todo check`
 
-## Blocker
+## Done
 
-The owner answers Q3 (DR-6). The ruling goes into `docs/decisions.md`.
+2026-11-11: the ruling is in `docs/decisions.md` (row "DR-6 and pmask"); T-042 names pmask as a later option. `cargo todo check` exits 0. GitHub #6 is closed.
 
 # T-007: DR-7: a throwaway GitHub organization and App for live tests (GitHub #7)
 
@@ -394,7 +406,7 @@ The ruling "Test accounts" (Q-A9, 2026-11-09) answers it: not now. Each live gat
 
 ## Blocker
 
-The owner changes the ruling "Test accounts" of `docs/decisions.md`. Until then no test organization and no App exist.
+The owner said not now on 2026-11-11 (DR-7, through podcrates). The owner must change the ruling "Test accounts" of `docs/decisions.md`. Until then no test organization and no App exist.
 
 # T-008: The defaulted decisions DR-3 and DR-8 to DR-17 (GitHub #8)
 
@@ -403,7 +415,7 @@ The owner changes the ruling "Test accounts" of `docs/decisions.md`. Until then 
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -442,11 +454,19 @@ Read the text of GitHub #8 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Record each default as a call made without a ruling in `docs/decisions.md` (C1 to C12), and work on it. Close GitHub #8 when the owner confirms or changes the defaults; a changed default reopens the entries that it names.
+Record each default as a call in `docs/decisions.md` (C1 to C12). The owner confirmed all: they are rulings now. Comment on GitHub #1 with the crates and the repositories that podrunner needs, so that the local agent of the owner can register them, and send the list to podcrates for PodUtils/podcrates#1.
+
+## Decision
+
+The owner, 2026-11-11 (through podcrates): confirm all, `--deny-self-hosted-runners` kept, and each seam stays pluggable and swappable.
 
 ## Prove
 
 `cargo todo check`
+
+## Done
+
+2026-11-11: the ruling is in `docs/decisions.md` (row "DR-3, DR-8 to DR-17"); the calls C1 to C12 are rulings. GitHub #1 has the list of crates and repositories, and podcrates has it by direct message. `cargo todo check` exits 0. GitHub #8 is closed.
 
 # T-009: The register of the unknowns U1 to U25 (GitHub #9)
 

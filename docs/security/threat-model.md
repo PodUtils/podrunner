@@ -23,16 +23,16 @@ split of `mint` into its own process is deferred (T-010).
 | # | Actor | Capability | Controls | Verdict |
 | --- | --- | --- | --- | --- |
 | 1 | The author of a pull request from a fork | Any code in the job; any `runs-on` label | The tier comes from job metadata, never from a label (T-018); `untrusted` needs `guest` and an `enforced` hold (T-021); a fork offer on a trusted set is `tier-mismatch` | Held, when a `guest` kind exists (T-037); else refused (`tier-needs-guest`). |
-| 2 | A compromised dependency in a trusted job | Any code in the unit of a trusted job | `trusted` needs `confined` or more (call C13, DR-4); the egress broker allows the Actions hosts only (T-024); a fresh root for each unit (unit test 5); destroy removes each process and file (tests 3, 10, 11) | Accepted at `redirect` only if DR-4 is yes (`residuals.md`, R1). |
+| 2 | A compromised dependency in a trusted job | Any code in the unit of a trusted job | `trusted` needs `confined` unless the operator sets `redirect` (DR-4, T-045); the egress broker allows the Actions hosts only (T-024); a fresh root for each unit (unit test 5); destroy removes each process and file (tests 3, 10, 11) | Accepted at `redirect` (DR-4, yes), with the mitigations of T-045 (`residuals.md`, R1). |
 | 3 | A co-tenant job on one uid | Signals, `/proc`, the files of the uid | A shared principal runs one unit at a time, of one repository (T-021) | Accepted for `trusted` (`residuals.md`, R2). |
 | 4 | A holder of a leaked source credential | Registers runners, edits runner groups | `leak-runbook.md`; the App is installed on named repositories | Detected by the runbook, not prevented. |
 | 5 | A hostile container request | Options, mounts, images | The hook contract refuses a build, an image off the pin list and options that the kind refuses (`docs/contracts/hook.md`, T-035) | Held. |
 | 6 | Hostile hook input | Bytes on the hook path and the control socket | Parsers with a line limit and fuzz targets (`fuzz/`); a refusal writes `hook-refuse` (T-035) | Held. |
 | 7 | A hostile proxy or DNS | Answers of the network | TLS to each host of the Actions service; pins of the runner payload by digest (T-030) | Held. |
-| 8 | A holder of a stolen host token | Calls `mint` as the host | Mutual TLS with pinned keys for a remote `mint` (T-031, PodUtils/podcrates@T-165); revocation at `mint` | Waits for DR-4. |
+| 8 | A holder of a stolen host token | Calls `mint` as the host | Mutual TLS with pinned keys for a remote `mint` (T-031, PodUtils/podcrates@T-165); revocation at `mint` | DR-4 is yes: T-031 waits for PodUtils/podcrates@T-165. |
 | 9 | A compromised `mint` host or sidecar | Each credential of its source | The process rule; the runbook | Accepted (`residuals.md`, R4). |
 | 10 | A job with secrets, or an author that nobody vetted | Secrets of the repository in a trusted unit | Trust comes from the organization and the event (T-018), not from the author; secrets reach the unit as the runner gets them | Accepted (`residuals.md`, R3). |
-| 11 | An observer on the path to a remote `mint` | Reads and changes traffic | Mutual TLS (T-031) | Waits for DR-4. |
+| 11 | An observer on the path to a remote `mint` | Reads and changes traffic | Mutual TLS (T-031) | DR-4 is yes: T-031 waits for PodUtils/podcrates@T-165. |
 | 12 | A trusted job that kills its shim | Ends the subreaper of its unit | A dead shim gives `residual_processes: unknown`, which makes the host `degraded` (T-021, T-023) | Held: the host stops taking jobs. |
 
 ## Text from a job

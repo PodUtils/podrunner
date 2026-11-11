@@ -36,26 +36,26 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**44 entries: 6 open, 6 partial, 14 blocked, 18 done.**
+**46 entries: 6 open, 6 partial, 12 blocked, 22 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 1 | 3 | 1 | 11 | 16 |
-| P2 | 5 | 3 | 9 | 6 | 23 |
-| P3 | 0 | 0 | 4 | 1 | 5 |
-| **All** | 6 | 6 | 14 | 18 | 44 |
+| P1 | 1 | 4 | 0 | 12 | 17 |
+| P2 | 5 | 2 | 7 | 9 | 23 |
+| P3 | 0 | 0 | 5 | 1 | 6 |
+| **All** | 6 | 6 | 12 | 22 | 46 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
 | [T-001](plan.md) | P1 | S | M0 | docs | partial | The plan of podrunner v1 and the issue map (GitHub #1) |
 | [T-002](plan.md) | P1 | S | M0 | docs | done | DR-1: the plan of GitHub #1 is the plan (GitHub #2) |
 | [T-003](plan.md) | P1 | S | M0 | docs | done | DR-2: PodUtils/podrunner holds code (GitHub #3) |
-| [T-004](plan.md) | P1 | S | M0 | research | blocked | DR-4: trusted jobs at boundary redirect on no-root hosts (GitHub #4) |
-| [T-005](plan.md) | P2 | S | M0 | research | blocked | DR-5: the microVM unit for untrusted jobs (GitHub #5) |
-| [T-006](plan.md) | P2 | S | M0 | research | blocked | DR-6: githome and cfb accept the restated G-02, G-03 and G-09 (GitHub #6) |
+| [T-004](plan.md) | P1 | S | M0 | research | done | DR-4: trusted jobs at boundary redirect on no-root hosts (GitHub #4) |
+| [T-005](plan.md) | P2 | S | M0 | research | done | DR-5: the microVM unit for untrusted jobs (GitHub #5) |
+| [T-006](plan.md) | P2 | S | M0 | research | done | DR-6: githome and cfb accept the restated G-02, G-03 and G-09 (GitHub #6) |
 | [T-007](plan.md) | P2 | S | M0 | research | blocked | DR-7: a throwaway GitHub organization and App for live tests (GitHub #7) |
-| [T-008](plan.md) | P2 | S | M0 | docs | partial | The defaulted decisions DR-3 and DR-8 to DR-17 (GitHub #8) |
+| [T-008](plan.md) | P2 | S | M0 | docs | done | The defaulted decisions DR-3 and DR-8 to DR-17 (GitHub #8) |
 | [T-009](plan.md) | P2 | M | M0 | research | partial | The register of the unknowns U1 to U25 (GitHub #9) |
 | [T-010](plan.md) | P3 | S | M0 | docs | done | The non-goals of v1 and the trigger of each (GitHub #10) |
 | [T-011](bootstrap.md) | P1 | S | M0 | chore | done | The Cargo workspace, the pinned toolchain and the static musl build (GitHub #11) |
@@ -92,3 +92,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-042](later.md) | P3 | S | later | feature | blocked | The confined boundary (pod-confine) (GitHub #42) |
 | [T-043](later.md) | P3 | S | later | feature | blocked | Later crates: service unit, release index, acceptance registry (GitHub #43) |
 | [T-044](plan.md) | P2 | S | M-A | chore | done | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |
+| [T-045](live.md) | P1 | M | M-D | feature | partial | The mitigations of DR-4 for trusted jobs at redirect (GitHub #47) |
+| [T-046](later.md) | P3 | L | later | feature | blocked | Local mode: podrunner run workflow.yml (GitHub #48) |

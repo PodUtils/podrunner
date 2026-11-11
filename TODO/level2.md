@@ -174,7 +174,7 @@ Read the text of GitHub #37 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A `microvm` driver in the form that DR-5 sets.
+An adapter over the machine tier of podvm (DR-5, 2026-11-11): the `microvm` kind starts a podvm unit with `--podvm-tier=machine`, and slots accepts its `guest` claim only after the self-test of T-036. Keep it behind `UnitDriver`, so that an incus adapter (the owner's note to podvm) can be a second kind.
 
 ## Prove
 
@@ -182,7 +182,7 @@ A `microvm` driver in the form that DR-5 sets.
 
 ## Blocker
 
-The owner answers Q2 (DR-5).
+podvm (on break) lands its machine tier (PodUtils/podvm@T-1656).
 
 # T-038: WP-12: the canned-message fake broker (level 2) (GitHub #38)
 

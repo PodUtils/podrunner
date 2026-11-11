@@ -58,7 +58,7 @@ podcrates names the crate of the hold and its proof (PodUtils/podcrates@T-109); 
 
 The text of GitHub #42 ("`confined` boundary (`pod-confine`)"), cleaned:
 
-**What and why.** The boundary order is `none` < `redirect` < `confined` < `guest`. `redirect` rewrites file paths and is not isolation against hostile code; every podvm rung is `redirect`. `confined` is a kernel-enforced boundary with no root (Landlock, seccomp, rlimits). With it, `trusted` jobs run on a no-root host without the owner's yes to DR-4 (#4).
+**What and why.** The boundary order is `none` < `redirect` < `confined` < `guest`. `redirect` rewrites file paths and is not isolation against hostile code; every podvm rung is `redirect`. `confined` is a kernel-enforced boundary with no root (Landlock, seccomp, rlimits). With it, `trusted` jobs run on a no-root host above `redirect` (DR-4, #4).
 
 **Dependencies in other repositories.** PodUtils/podcrates@T-108 (`pod-confine`) gives a capability record with `boundary: confined` and a proof string. podcrates ask: PodUtils/podvm#227, section 2.7.
 
@@ -67,7 +67,7 @@ The text of GitHub #42 ("`confined` boundary (`pod-confine`)"), cleaned:
 **Acceptance.**
 
 - A unit reports `confined` only with a proof from `pod-confine`, and a planted false claim fails.
-- With DR-4 answered no, a `trusted` job runs on a `confined` unit.
+- A `trusted` job runs on a `confined` unit when the operator keeps the default floor (DR-4 allows `redirect` only as a choice).
 
 Later than v1: no milestone. Dependencies: PodUtils/podvm#227 section 2.7 (PodUtils/podcrates@T-108). Estimate (mine): -.
 
@@ -78,6 +78,8 @@ Read the text of GitHub #42 on 2026-11-11. Nothing measured.
 ## Approach
 
 A unit kind with `boundary: confined` and the proof of `pod-confine`.
+
+pmask (the owner's note to DR-6, not adopted now) is no boundary and does not give `confined`. As a later launcher option behind `UnitDriver` it can hide the command line and the environment of a job from the other jobs of a shared uid, and make the runner not dumpable. Measure `pmask probe` on the host first: it needs ptrace.
 
 ## Prove
 
@@ -127,3 +129,46 @@ Take each crate when podcrates releases it.
 ## Blocker
 
 podcrates builds the crates (PodUtils/podvm#227, section 2.7); none is planned for v1.
+
+# T-046: Local mode: podrunner run workflow.yml (GitHub #48)
+
+**Source:** GitHub #48
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** L
+**Status:** blocked
+
+## Problem
+
+The text of GitHub #48 ("Local mode: podrunner run workflow.yml"), cleaned:
+
+The owner answered podcrates Q11 yes on 2026-11-11: "yes plan it". A local mode runs a workflow file on the host, as nektos/act does, with no forge.
+
+**Shape** (from the study of the owner's archive `ghactions-local`, PodUtils/podcrates:docs/research/ci/ghactions-local.md):
+
+- A `local` job source compiles the workflow (`pod-actions-workflow`, `pod-actions-expr`) into job offers.
+- The official runner takes each job offline through the fake broker of #38, in a podvm unit (M-B, #26).
+- `pod-actions-exec` comes later, for targets with no official runner.
+- An artifacts and cache service is necessary (a crate or a module: to decide).
+- runner.server (MIT, .NET, not static) fits only as a payload in a unit, on loopback only.
+
+**Defects of the archive's conformance suite to fix before use:** w6 needs an `app.js` that is missing; markers can match the echoed script (w4, w5, w7): print computed markers and match output lines only; `docker rm -f $(docker ps -aq)` removes each container of the host; images and actions are pinned by tags that move (pin by digest and by commit); the scripts carry no licence (ask the owner before a copy).
+
+**Acceptance.** `podrunner run workflow.yml` runs a pinned workflow suite to green on a podvm unit, with no network other than the egress module.
+
+## Premise
+
+Read GitHub #48 and the podcrates study note of 2026-11-11. Nothing built, nothing measured.
+
+## Approach
+
+A third source kind, `local`, behind `JobSource` (the source conformance suite applies), that reads one workflow file and offers its jobs at tier `local` (call C14). The unit is the podvm unit of T-026 with the fake broker of T-038 as the Actions service. Fix the suite defects above before a copy.
+
+## Prove
+
+`cargo test -p podrunner-source local`
+
+## Blocker
+
+T-026 (the runner under podvm; podvm on break) and T-038; the crates `pod-actions-workflow` and `pod-actions-expr` of podcrates do not exist yet.

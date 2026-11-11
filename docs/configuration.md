@@ -58,5 +58,5 @@ built_at_s = 1800000000      # the time of the build, Unix seconds
 | Tier | Lowest floor | Why |
 | --- | --- | --- |
 | `untrusted` | `guest` | A fork job is hostile code. |
-| `trusted` | `confined` | DR-4 (Q1) is open: `redirect` for `trusted` needs a ruling of the owner. |
+| `trusted` | `redirect` (default `confined`) | DR-4: `redirect` is a choice of the operator. The file must then keep `same_principal_ok = false` and set `slots` on each `trusted` source (T-045 has the other mitigations). |
 | `local` | `none` | Only the configuration marks a set `local`; its jobs run at `local` with no tier rule, and only a `fake` source can be `local` (call C14). |

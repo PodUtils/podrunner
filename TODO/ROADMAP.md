@@ -7,10 +7,8 @@ under another milestone, and a `- [ ]` item.
 
 ## M0: Decisions and bootstrap
 
-The rulings DR-1 and DR-2 are yes (T-002, T-003). The questions DR-4,
-DR-5 and DR-6 are with the owner (T-004, T-005, T-006); DR-7 waits for
-the ruling "Test accounts" (T-007); the defaults of DR-3 and DR-8 to
-DR-17 are calls (T-008). The registers: T-009, T-010. The bootstrap:
+The rulings DR-1, DR-2, DR-4, DR-5 and DR-6 are in (T-002 to T-006); DR-7
+is "not now" (T-007); DR-3 and DR-8 to DR-17 are confirmed (T-008). The registers: T-009, T-010. The bootstrap:
 T-011 (workspace), T-012 (gate), T-013 (frame), T-014 (spec). Exit: the
 gate is green on each push. T-001 tracks the plan.
 
@@ -35,8 +33,8 @@ unit. It needs DR-7.
 
 ## M-D: One live trusted job
 
-T-031 (remote mint). Exit (T-033): one live trusted job on an H0 host.
-It needs DR-4 and M-B.
+T-031 (remote mint), T-045 (the mitigations of DR-4). Exit (T-033): one
+live trusted job on an H0 host. It needs M-B and DR-7.
 
 ## L2: Level 2
 
@@ -49,4 +47,5 @@ T-040. It needs DR-7.
 
 ## later: The crate dependencies later than v1
 
-T-041 (hold `enforced`), T-042 (`confined`), T-043 (later crates).
+T-041 (hold `enforced`), T-042 (`confined`), T-043 (later crates), T-046
+(local mode).

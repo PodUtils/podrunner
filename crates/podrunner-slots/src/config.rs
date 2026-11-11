@@ -181,13 +181,22 @@ pub struct Config {
     pub egress: Map<String, Value>,
 }
 
-/// The lowest floor of each tier that the configuration may set. A ruling
-/// of the owner changes the floor of `trusted` (DR-4, Q1).
+/// The lowest floor of each tier that the configuration may set. `trusted`
+/// may go to `redirect` with the mitigations of DR-4.
 pub fn lowest_floor(t: Tier) -> Boundary {
     match t {
         Tier::Untrusted => Boundary::Guest,
-        Tier::Trusted => Boundary::Confined,
+        Tier::Trusted => Boundary::Redirect,
         Tier::Local => Boundary::None,
+    }
+}
+
+/// The floor of a tier that the configuration does not set: `redirect`
+/// for `trusted` is a choice of the operator, never a default.
+pub fn default_floor(t: Tier) -> Boundary {
+    match t {
+        Tier::Trusted => Boundary::Confined,
+        t => lowest_floor(t),
     }
 }
 
@@ -218,6 +227,9 @@ impl Config {
                     lowest_floor(t)
                 ));
             }
+        }
+        if self.floor(Tier::Trusted) < Boundary::Confined {
+            self.check_redirect()?;
         }
         let mut names = std::collections::BTreeSet::new();
         for s in &self.source {
@@ -256,8 +268,23 @@ impl Config {
         Ok(())
     }
 
-    /// The boundary floor of a tier: the configured one, or the lowest.
+    /// The mitigations of DR-4 that the file must state when `trusted`
+    /// runs at `redirect` (GitHub #4, T-045).
+    fn check_redirect(&self) -> Result<(), String> {
+        if self.same_principal_ok {
+            return Err(
+                "[tier.trusted] redirect needs one job at a time on a shared uid: same_principal_ok = false (DR-4)"
+                    .into(),
+            );
+        }
+        if let Some(s) = self.source.iter().find(|s| s.tier == Tier::Trusted && s.slots.is_none()) {
+            return Err(format!("[[source]] {:?}: a trusted source at redirect needs slots (DR-4)", s.name));
+        }
+        Ok(())
+    }
+
+    /// The boundary floor of a tier: the configured one, or the default.
     pub fn floor(&self, t: Tier) -> Boundary {
-        self.tier.get(tier_name(t)).map(|f| f.min_boundary).unwrap_or(lowest_floor(t))
+        self.tier.get(tier_name(t)).map(|f| f.min_boundary).unwrap_or(default_floor(t))
     }
 }

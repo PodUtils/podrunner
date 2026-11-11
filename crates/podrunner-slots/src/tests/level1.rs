@@ -6,7 +6,7 @@ use serde_json::json;
 use super::*;
 
 fn redirect() -> podrunner_schema::Capability {
-    // `trusted` needs `confined` (DR-4 is open): the fake declares it.
+    // The default floor of `trusted` is `confined`: the fake declares it.
     capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory)
 }
 

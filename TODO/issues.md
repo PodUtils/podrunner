@@ -9,11 +9,11 @@ numbers. `TODO/RULES.md` gives the rules.
 | #1 | Index: podrunner v1 plan, milestones and issue map | open | T-001 |
 | #2 | DR-1: name the podrunner plan and lift "leave podcrates#47 alone" for it | closed (`docs/decisions.md`, "podrunner online") | T-002 |
 | #3 | DR-2: let PodUtils/podrunner hold code | closed (`docs/decisions.md`, "podrunner online") | T-003 |
-| #4 | DR-4: allow trusted jobs at boundary `redirect` on no-root hosts | open | T-004 |
-| #5 | DR-5: microVM unit for untrusted jobs: own driver now, or PodUtils/podvm@T-1656 | open | T-005 |
-| #6 | DR-6: githome and cfb accept the restated G-02, G-03 and G-09 | open | T-006 |
+| #4 | DR-4: allow trusted jobs at boundary `redirect` on no-root hosts | closed (`docs/decisions.md`, 2026-11-11) | T-004 |
+| #5 | DR-5: microVM unit for untrusted jobs: own driver now, or PodUtils/podvm@T-1656 | closed (`docs/decisions.md`, 2026-11-11) | T-005 |
+| #6 | DR-6: githome and cfb accept the restated G-02, G-03 and G-09 | closed (`docs/decisions.md`, 2026-11-11) | T-006 |
 | #7 | DR-7: a throwaway GitHub organization and App for live tests | open | T-007 |
-| #8 | Defaulted decisions DR-3 and DR-8 to DR-17: confirm in one reply | open | T-008 |
+| #8 | Defaulted decisions DR-3 and DR-8 to DR-17: confirm in one reply | closed (`docs/decisions.md`, 2026-11-11) | T-008 |
 | #9 | Unknowns U1 to U25: register, owners and what settles each | open | T-009 |
 | #10 | v1 non-goals: deferred items and the trigger of each | closed (`docs/non-goals.md`) | T-010 |
 | #11 | Bootstrap: Cargo workspace, pinned toolchain, static musl build | closed (`9d2e4dd`, gate run 42934750114) | T-011 |
@@ -50,5 +50,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #42 | `confined` boundary (`pod-confine`) | open | T-042 |
 | #43 | Later crates: service unit, release index, acceptance registry | open | T-043 |
 | #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | closed (answered in PodUtils/podnet#425) | T-044 |
+| #47 | The mitigations of DR-4: trusted jobs at boundary redirect | open | T-045 |
+| #48 | Local mode: podrunner run workflow.yml | open | T-046 |
 
 #44 and #45 are pull requests.

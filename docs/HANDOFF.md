@@ -14,10 +14,10 @@ is done.
   Done section names the green run of a later commit that holds the work.
 - The plan is GitHub #1. Each issue has one entry: GitHub #N is T-00N up
   to #43; later issues take the next free id (#46 is T-044).
-- DR-1 and DR-2 are yes (`docs/decisions.md`). DR-4, DR-5 and DR-6 are
-  questions Q1 to Q3. DR-7 waits for the ruling "Test accounts". The
-  defaults of GitHub #8 are calls C1 to C12; C13 and C14 are calls of
-  this session.
+- The owner answered DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`):
+  `trusted` at `redirect` is a choice of the operator with the mitigations
+  of T-045; `microvm` is an adapter over podvm's machine tier (T-037);
+  DR-7 is not now. C1 to C12 are rulings; C13 to C15 are calls.
 - podrunner takes the crates of podcrates at `v0.16.0` (`pod-core`,
   `pod-todo`, `pod-broker`, `pod-proxy`). `pod-supervise` can replace the
   tag scan of the podvm driver (T-023); it is not on the M-A path.

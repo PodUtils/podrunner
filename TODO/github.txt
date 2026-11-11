@@ -7,11 +7,11 @@
 1 issue open
 2 issue closed
 3 issue closed
-4 issue open
-5 issue open
-6 issue open
+4 issue closed
+5 issue closed
+6 issue closed
 7 issue open
-8 issue open
+8 issue closed
 9 issue open
 10 issue closed
 11 issue closed
@@ -50,3 +50,5 @@
 44 pull closed
 45 pull closed
 46 issue closed
+47 issue open
+48 issue open

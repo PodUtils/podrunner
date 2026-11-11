@@ -41,6 +41,11 @@ Read the text of GitHub #26 on 2026-11-11. Nothing measured.
 
 When podvm makes the official runner start on its userland rung (PodUtils/podvm#229 to PodUtils/podvm#231), prove it through the driver of T-023 with no GitHub.
 
+Findings of the study of the owner's local-mode archive (PodUtils/podcrates:docs/research/ci/ghactions-local.md) to check here:
+
+- With W^X on, .NET truncates a file to 2 TiB at start, so an `RLIMIT_FSIZE` below that kills it with SIGXFSZ (exit 153). The archive sets `DOTNET_EnableWriteXorExecute=0`. Set no file size limit on the runner, or set that variable, and measure whether it reaches each job step.
+- A rerun failed with EACCES: a runner container wrote files as uid 1001 that the host uid 1000 cannot remove. `destroy` must remove the files of each uid that the unit can use (unit test 10), or the unit must map one uid.
+
 ## Prove
 
 `cargo test -p podrunner-podvm -- --ignored runner_starts`
@@ -291,7 +296,7 @@ Read the text of GitHub #30 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Pins of the runner payload by digest with an age limit, and `podrunner image build` on a build host (call C7, DR-14). It uses the Actions hosts of `pod-services` (PodUtils/podcrates@T-164). The first pin of the runner is the one that podnet measured (T-044, Done): `actions/runner` v2.338.2.
+Pins of the runner payload by digest with an age limit, and `podrunner image build` on a build host (DR-14, call C8). It uses the Actions hosts of `pod-services` (PodUtils/podcrates@T-164). That list must hold the hosts of the results service and of the artifact blobs: the study of the owner's local-mode archive found a job that failed on a 403 of the action download behind a blocked egress. The first pin of the runner is the one that podnet measured (T-044, Done): `actions/runner` v2.338.2.
 
 ## Prove
 
@@ -338,7 +343,7 @@ Read the text of GitHub #31 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A remote `mint` over mutual TLS (`pod-tls`, PodUtils/podcrates@T-165) when DR-4 is yes.
+A remote `mint` over mutual TLS (`pod-tls`, PodUtils/podcrates@T-165). DR-4 is yes (2026-11-11). The offer ledger, the host token and the signed pin list can start on the fakes before the TLS; the transport waits for PodUtils/podcrates@T-165.
 
 ## Prove
 
@@ -346,7 +351,7 @@ A remote `mint` over mutual TLS (`pod-tls`, PodUtils/podcrates@T-165) when DR-4 
 
 ## Blocker
 
-The owner answers Q1 (DR-4) yes; then PodUtils/podcrates@T-165 releases the mutual TLS.
+podcrates releases the mutual TLS of `pod-tls` (PodUtils/podcrates@T-165). podrunner told podcrates that T-031 needs it.
 
 # T-032: Milestone M-C: the live gates G-H2 to G-H4 on a fake unit (GitHub #32)
 
@@ -428,4 +433,41 @@ Run one live trusted job on an H0 host through the podvm driver.
 
 ## Blocker
 
-Q1 (DR-4), the ruling "Test accounts" (DR-7) and milestone M-B (T-026).
+The ruling "Test accounts" (DR-7: not now, 2026-11-11), T-031 (remote mint) and milestone M-B (T-026, podvm on break).
+
+# T-045: The mitigations of DR-4 for trusted jobs at redirect (GitHub #47)
+
+**Source:** GitHub #47
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P1
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+The text of GitHub #47 ("The mitigations of DR-4: trusted jobs at boundary redirect"), cleaned:
+
+The owner answered DR-4 (#4) yes on 2026-11-11, for all trusted repositories, with the mitigations of #4. When `[tier.trusted] min_boundary = "redirect"`:
+
+- One job at a time on a shared uid: the configuration refuses `same_principal_ok = true`.
+- Outstanding offers capped at the slot count: each `trusted` source sets `slots`.
+- One repository for each host (`affinity = "repository"`): a host takes jobs of one repository only, and refuses an offer of another repository.
+- A host key with a rotation interval, and short tokens (with #31).
+- A signed pin list (`pod-identity`, Ed25519).
+- `status` and each report name the boundary and the hold.
+- `untrusted` stays fixed at `guest`.
+
+**Acceptance.** The configuration check refuses `redirect` for `trusted` without the first two items (tests). The affinity, the key rotation and the signed pin list have tests on the fakes.
+
+## Premise
+
+Read GitHub #4 and the ruling of 2026-11-11. The configuration part is measured by its test; the rest is not built.
+
+## Approach
+
+The configuration check of `podrunner_slots::config` (`check_redirect`) refuses `redirect` for `trusted` with `same_principal_ok = true` or a `trusted` source with no `slots`. Next: the repository affinity in placement (a refusal code for another repository), then the signed pin list, then the host key and the token life with T-031. The report already names the boundary and the hold (`UnitFields`); a test must prove it for a `redirect` unit.
+
+## Prove
+
+`cargo test -p podrunner-slots trusted_at_redirect`

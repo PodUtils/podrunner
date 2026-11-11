@@ -40,7 +40,7 @@ fn untrusted_never_runs_below_guest() {
             Config::parse(&format!("host = \"h\"\n[tier.untrusted]\nmin_boundary = \"{floor}\"\n[pin]\n")).unwrap_err();
         assert!(e.contains("below the floor"), "{e}");
     }
-    let e = Config::parse("host = \"h\"\n[tier.trusted]\nmin_boundary = \"redirect\"\n[pin]\n").unwrap_err();
+    let e = Config::parse("host = \"h\"\n[tier.trusted]\nmin_boundary = \"none\"\n[pin]\n").unwrap_err();
     assert!(e.contains("below the floor"), "{e}");
     // A control: a guest kind with an enforced hold takes the job.
     let guest = capability(Boundary::Guest, Principal::Distinct, EgressHold::Enforced);
@@ -48,6 +48,27 @@ fn untrusted_never_runs_below_guest() {
         place(&job(fork()), Tier::Untrusted, &[kind(guest)], &cfg, NOW_UNIX).map(|p| p.tier),
         Ok(Tier::Untrusted)
     );
+}
+
+/// DR-4: `trusted` at `redirect` only when the file sets it, and only with
+/// one job at a time on a shared uid and a slot cap on each trusted source.
+#[test]
+fn trusted_at_redirect_needs_the_mitigations_of_dr4() {
+    let redirect = capability(Boundary::Redirect, Principal::Shared, EgressHold::Advisory);
+    let member = job(json!({}));
+    // The default floor stays `confined`.
+    assert_eq!(config("").floor(Tier::Trusted), Boundary::Confined);
+    assert!(place(&member, Tier::Trusted, &[kind(redirect.clone())], &config(""), NOW_UNIX).is_err());
+    let floor = "[tier.trusted]\nmin_boundary = \"redirect\"";
+    let cfg = config(floor);
+    assert_eq!(place(&member, Tier::Trusted, &[kind(redirect)], &cfg, NOW_UNIX).map(|p| p.tier), Ok(Tier::Trusted));
+    let parse = |extra: &str| Config::parse(&format!("host = \"h\"\nallow_fake = true\n{extra}\n{floor}\n[pin]\n"));
+    let e = parse("same_principal_ok = true").unwrap_err();
+    assert!(e.contains("same_principal_ok = false"), "{e}");
+    let source = "[[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"trusted\"\narch = \"x86_64\"";
+    let e = parse(source).unwrap_err();
+    assert!(e.contains("needs slots"), "{e}");
+    assert!(parse(&format!("{source}\nslots = 1")).is_ok());
 }
 
 #[test]
