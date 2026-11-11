@@ -981,5 +981,5 @@ No fix in podrunner: the path view is the interposer of podvm. The runner image 
 
 ## Blocker
 
-The answer of podvm to GitHub #61.
+podvm confirmed it in PodUtils/podvm#255 (COORD-036): the interposer rewrites the path string, and the kernel follows an absolute target from the host root; the exec routes resolve links in guest names already. PodUtils/podvm@T-1725 (P1) resolves each path call inside the rootfs, and comes with the next beta; the relative links of the image stay until then.
 
