@@ -2,6 +2,7 @@
 //! clock. The fake unit runs real processes; each tick moves the clock by
 //! one second and waits a few milliseconds of real time for them.
 
+mod bounded;
 mod egress;
 mod guards;
 mod guest;

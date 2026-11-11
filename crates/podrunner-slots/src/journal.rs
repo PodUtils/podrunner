@@ -59,6 +59,9 @@ pub struct Replay {
     pub next_unit: u64,
     /// The lines that could not be read (a torn last line after a kill).
     pub bad_lines: u64,
+    /// The line with the highest unit number: a compacted journal keeps
+    /// it, so that unit ids go on from it.
+    pub highest: Option<Line>,
 }
 
 /// Read a journal. A missing file is an empty journal.
@@ -74,10 +77,21 @@ pub fn replay(state_dir: &Path) -> std::io::Result<Replay> {
             r.bad_lines += 1;
             continue;
         };
-        if let Some(n) = line.unit_id.as_ref().and_then(|u| u.as_str()[2..].parse::<u64>().ok()) {
-            r.next_unit = r.next_unit.max(n + 1);
+        if let Some(n) = line.unit_id.as_ref().and_then(|u| u.as_str()[2..].parse::<u64>().ok())
+            && n + 1 > r.next_unit
+        {
+            r.next_unit = n + 1;
+            r.highest = Some(line.clone());
         }
         let key = (line.source.clone(), line.job_id.clone());
+        // The job of the highest unit: its line follows the job to its last
+        // state, and keeps the unit.
+        if let Some(h) = r.highest.as_mut()
+            && (h.source.as_str(), &h.job_id) == (key.0.as_str(), &key.1)
+        {
+            h.state = line.state;
+            h.t_ms = line.t_ms;
+        }
         if line.state.is_final() {
             r.open.remove(&key);
         } else {
@@ -88,4 +102,26 @@ pub fn replay(state_dir: &Path) -> std::io::Result<Replay> {
         }
     }
     Ok(r)
+}
+
+/// Write the journal again with what a later start needs (T-068): the
+/// last line of each open job, and the line with the highest unit number.
+/// The new file is written beside the old one, synced, and renamed over
+/// it: a kill leaves the old journal or the new one.
+pub fn compact(state_dir: &Path, r: &Replay) -> std::io::Result<()> {
+    let path = state_dir.join("journal.jsonl");
+    if !path.exists() {
+        return Ok(());
+    }
+    let part = state_dir.join("journal.jsonl.part");
+    let mut f = File::create(&part)?;
+    let lines = r.highest.iter().filter(|h| !r.open.values().any(|l| l == *h)).chain(r.open.values());
+    for line in lines {
+        let mut text = serde_json::to_string(line).map_err(std::io::Error::other)?;
+        text.push('\n');
+        f.write_all(text.as_bytes())?;
+    }
+    f.sync_all()?;
+    std::fs::rename(&part, &path)?;
+    File::open(state_dir)?.sync_all()
 }

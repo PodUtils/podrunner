@@ -89,7 +89,7 @@ pub struct Slots {
     /// until an operator clears it.
     pub(crate) degraded: Option<String>,
     /// Each report of this process, for `status` and the tests.
-    pub reports: Vec<podrunner_schema::RunReport>,
+    pub reports: std::collections::VecDeque<podrunner_schema::RunReport>,
     pub(crate) state_dir: std::path::PathBuf,
     pub(crate) egress: Option<Box<dyn EgressPort>>,
     /// The egress module ended: fail closed.
@@ -122,6 +122,7 @@ impl Slots {
             self.poll(s, now);
         }
         self.retry_waiting(now);
+        self.forget(now);
     }
 
     /// Test the claim of `guest` of kind `kind` again each day and on a

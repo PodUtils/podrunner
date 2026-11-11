@@ -7,6 +7,7 @@
 pub mod audit;
 pub mod config;
 mod engine;
+pub mod forget;
 pub mod guest;
 pub mod hooks;
 pub mod journal;
@@ -39,6 +40,8 @@ impl Slots {
         kinds: Vec<UnitKind>,
     ) -> std::io::Result<Slots> {
         let replay = journal::replay(state_dir)?;
+        // The lock of serve is held: no other writer (T-068).
+        journal::compact(state_dir, &replay)?;
         let journal = journal::Journal::open(state_dir)?;
         let audit = audit::Audit::open(state_dir)?;
         let mut s = Slots {
@@ -54,7 +57,7 @@ impl Slots {
             ids: UnitIds::starting_at(replay.next_unit),
             draining: false,
             degraded: None,
-            reports: Vec::new(),
+            reports: Default::default(),
             state_dir: state_dir.to_path_buf(),
             egress: None,
             egress_down: false,
@@ -107,7 +110,7 @@ impl Slots {
                 if let Ok(serde_json::Value::Object(m)) = value {
                     let _ = self.sources[s].source.report(&job_id, &m);
                 }
-                self.reports.push(report);
+                forget::keep(&mut self.reports, report);
             }
             let lost = Line { t_ms: now, state: State::Lost, reason: Some(ExitReason::Lost), ..line };
             if self.journal.write(&lost).is_err() {

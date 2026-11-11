@@ -426,6 +426,6 @@ impl Slots {
         if let Ok(serde_json::Value::Object(m)) = value {
             let _ = self.sources[key.0].source.report(&key.1, &m);
         }
-        self.reports.push(r);
+        crate::forget::keep(&mut self.reports, r);
     }
 }
