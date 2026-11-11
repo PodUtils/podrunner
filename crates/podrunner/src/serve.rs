@@ -160,6 +160,28 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }
         };
+        // A claim of guest holds only on the allowlist and after the
+        // self-test of GitHub #36.
+        let capability = if capability.boundary == podrunner_schema::Boundary::Guest {
+            let allowed = cfg.guest_kinds.contains(name);
+            let pin = cfg.pin.payload.iter().find(|p| p.arch == capability.arch);
+            let verdict = match (allowed, pin) {
+                (true, Some(p)) => {
+                    let id = podrunner_schema::UnitId::parse("u-999999998").expect("a unit id");
+                    let platform = if capability.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" };
+                    podrunner_slots::guest::self_test(driver.as_ref(), &p.reference, platform, id, state)
+                }
+                (true, None) => Err("no pinned payload for the self-test".into()),
+                (false, _) => Err("not on guest_kinds".into()),
+            };
+            let (cap, note) = podrunner_slots::guest::settle(capability, allowed, verdict);
+            if let Some(why) = note {
+                eprintln!("podrunner: [unit.{name}]: the claim of guest drops to none: {why}");
+            }
+            cap
+        } else {
+            capability
+        };
         kinds.push(UnitKind { name: name.clone(), cfg: u.clone(), driver, capability });
     }
     let ttl = Duration::from_secs(cfg.deadlines.running_s + cfg.deadlines.grace_s + cfg.deadlines.destroy_s);

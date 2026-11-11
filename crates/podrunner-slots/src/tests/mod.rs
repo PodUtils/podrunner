@@ -4,6 +4,7 @@
 
 mod egress;
 mod guards;
+mod guest;
 mod level1;
 mod status;
 

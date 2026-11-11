@@ -91,7 +91,7 @@ The relay of the container hooks and a control socket for each unit, as the cont
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -119,7 +119,18 @@ Read the text of GitHub #36 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A self-test inside a unit that proves the floor of a `guest` boundary; a fake that claims `guest` fails it.
+A self-test inside a unit that proves the floor of a `guest` boundary; a fake that claims `guest` fails it. Done so far (2026-11-11): `crates/podrunner-slots/src/guest.rs`: a
+test unit writes the boot id of its kernel, its interfaces other than
+`lo`, whether a canary file of the host is visible, and whether the
+process of podrunner is visible; the boot id must differ from the
+host's, and each other check must find nothing. `serve` accepts a claim
+of `guest` only from a kind on `guest_kinds` (default `microvm`) and
+after this test; else the claim drops to `none` (`boundary_proof:
+guest-self-test-failed`). A fake unit that claims `guest` fails it (same
+boot id). Open: a loopback listener that slots plants, a second unit that
+must not see the first, the read-only mounts, the test each day and on a
+driver change, the directory of driver executables with owner and mode
+checks, and a pass on a real guest (T-037).
 
 ## Prove
 

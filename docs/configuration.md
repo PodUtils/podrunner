@@ -10,6 +10,7 @@ allow_fake = false           # a fake source or unit only with true
 terminal_suppress_s = 3600   # a terminal refusal suppresses its job id
 same_principal_ok = false    # more than one unit at a time on a shared principal
 payload_from_offer = false   # take the payload of an offer when it is pinned
+guest_kinds = ["microvm"]    # the kinds whose claim of guest may hold, after the self-test
 
 [[source]]                   # one set: one tier, one architecture, this host
 name = "org-trusted"

@@ -7,6 +7,7 @@
 pub mod audit;
 pub mod config;
 mod engine;
+pub mod guest;
 pub mod journal;
 pub mod placement;
 mod run;

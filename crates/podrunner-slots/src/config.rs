@@ -136,6 +136,10 @@ fn thirty_days() -> u64 {
     30 * 24 * 3600
 }
 
+fn microvm() -> Vec<String> {
+    vec!["microvm".into()]
+}
+
 fn hour() -> u64 {
     3600
 }
@@ -168,6 +172,10 @@ pub struct Config {
     #[serde(default)]
     pub deadlines: Deadlines,
     pub pin: Pins,
+    /// The unit kinds whose claim of `guest` slots may accept, after the
+    /// guest self-test (GitHub #36).
+    #[serde(default = "microvm")]
+    pub guest_kinds: Vec<String>,
     /// The egress policy ceiling of each tier (T-024).
     #[serde(default)]
     pub egress: Map<String, Value>,
