@@ -42,7 +42,7 @@ pub fn fake_capability() -> Capability {
         boundary_proof: None,
         principal: Principal::Shared,
         container: ContainerRoute::None,
-        net: "host".into(),
+        net: "shared-host".into(),
         secret_delivery: vec![SecretDelivery::Files],
         credential_store: CredentialStore::PrivateDir,
         mount_modes: vec!["rw".into()],
