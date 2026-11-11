@@ -210,7 +210,7 @@ Read the text of GitHub #20 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A `fake` source and a `fake` unit that read scripts of timed events and behaviours; a clock trait with a manual clock; `fake` refused in production unless `allow_fake = true`. Each passes its conformance tests through the harness of T-016.
+A `fake` source and a `fake` unit that read scripts of timed events and behaviours; a clock trait with a manual clock; `fake` refused in production unless `allow_fake = true`. Each passes its conformance tests through the harness of T-016. The fakes are also the correct inputs and the planted defects of the harness of T-016: for each unit test 1 to 17 and each source test 1 to 12, a fake with one planted defect fails that test, and the correct fake passes it (a test of the crate podrunner-fake).
 
 ## Prove
 

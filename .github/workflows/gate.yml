@@ -3,8 +3,9 @@ name: gate
 # The checks of each push to main and each pull request
 # (PodUtils/podrunner#12, docs/development.md):
 #
-# * lint: format, clippy with -D warnings, docs, the size of each Rust
-#   file (at most 500 lines), no agent attribution line in a new commit.
+# * lint: format, clippy with -D warnings, docs, the fuzz targets, the size
+#   of each Rust file (at most 500 lines), no agent attribution line in a
+#   new commit.
 # * test: the tests of the workspace.
 # * record: the tests of the checker, and `cargo todo check`.
 # * static: the release build of each binary for x86_64 and aarch64 musl,
@@ -60,6 +61,17 @@ jobs:
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
       - name: Docs
         run: RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --workspace --all-features
+      # The fuzz targets (fuzz/, a workspace of its own) build on stable
+      # Rust; the build script of libFuzzer needs the C++ compiler of the
+      # runner. The stable test runs each target on its seeds and their
+      # mutations.
+      - name: The fuzz targets build and survive their seeds
+        working-directory: fuzz
+        run: |
+          set -eu
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked --lib
       - name: The size of the Rust files
         run: |
           python3 -I scripts/check-size.py

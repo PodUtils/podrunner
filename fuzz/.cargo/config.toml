@@ -1,0 +1,4 @@
+# libFuzzer is C++ for the host: the fuzz targets build for glibc, not for
+# the static musl target of the root (.cargo/config.toml).
+[build]
+target = "x86_64-unknown-linux-gnu"

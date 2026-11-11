@@ -18,6 +18,11 @@ publish = false
 # needs it. One tag for each crate of podcrates.
 [workspace.dependencies]
 pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0" }
+podrunner-schema = { path = "crates/podrunner-schema" }
+podrunner-source = { path = "crates/podrunner-source" }
+podrunner-unit = { path = "crates/podrunner-unit" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [profile.release]
 lto = true

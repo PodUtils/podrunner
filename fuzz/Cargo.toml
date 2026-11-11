@@ -1,0 +1,34 @@
+# The fuzz targets of the parsers of podrunner (cargo-fuzz, libFuzzer).
+# A workspace of its own, so that the crates of podrunner do not build the
+# C++ of libFuzzer. A run needs a nightly Rust and glibc:
+#
+#   cd fuzz && cargo +nightly fuzz run source_wire
+#
+# A check needs stable Rust and a C++ compiler:
+#
+#   cd fuzz && cargo check --bins && cargo test --lib
+
+[package]
+name = "podrunner-fuzz"
+description = "The fuzz targets of the parsers of podrunner"
+version = "0.0.0"
+edition = "2024"
+license = "0BSD"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+members = ["."]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+podrunner-source = { path = "../crates/podrunner-source" }
+
+[[bin]]
+name = "source_wire"
+path = "fuzz_targets/source_wire.rs"
+test = false
+doc = false
+bench = false

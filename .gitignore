@@ -12,3 +12,6 @@ __pycache__/
 # machine. .claude/settings.json is shared and committed.
 /.claude/worktrees/
 /.claude/settings.local.json
+/fuzz/target
+/fuzz/artifacts
+/fuzz/corpus

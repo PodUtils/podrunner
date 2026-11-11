@@ -1,0 +1,1 @@
+{"schema":1,"reply":"events","events":[{"event":"offer","offer":{"job_id":"j-1","labels":["x"]}},{"event":"started","job_id":"j-1","runner_name":"r"}]}
