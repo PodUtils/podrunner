@@ -229,8 +229,12 @@ withdrawn with `tier-mismatch` and never acquired (one acquire in the
 record of the fake), the member job runs to `success`, each JWT comes
 from `sign` (3 runs, each green; the gate runs it). A finding of the
 first run: `sign` refuses a JWT whose `iat` is not within a minute of
-its clock; the test now gives `sign` the clock of the host. Open:
-`ended_without_completion` and the trust lookup counts in `status`.
+its clock; the test now gives `sign` the clock of the host. `status`
+counts, for each source, the offers whose trust inputs hold `unknown`
+(failed or throttled lookups) and `ended_without_completion`; the sidecar
+keeps an hourly budget of lookups (`-trust-budget`, 1000) and counts the
+throttled ones. A personal account is refused at the start of the sidecar
+(`repo-scope-refused`, exit 78; a Go test).
 
 ## Prove
 

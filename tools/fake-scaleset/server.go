@@ -97,6 +97,9 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.workflowRun(w, p)
 	case strings.Contains(p, "/members/"):
 		s.member(w, p)
+	case strings.Contains(p, "/orgs/") && !strings.Contains(strings.SplitN(p, "/orgs/", 2)[1], "/"):
+		// Each owner of the script is an organization.
+		reply(w, http.StatusOK, map[string]any{"login": p[strings.LastIndex(p, "/")+1:], "type": "Organization"})
 	case strings.HasPrefix(p, "/tenant/1/_apis/runtime/runnergroups"):
 		reply(w, http.StatusOK, map[string]any{"count": 1, "value": []map[string]any{{"id": 1, "name": "default", "isDefaultGroup": true}}})
 	case strings.HasPrefix(p, "/tenant/1/_apis/runtime/runnerscalesets"):

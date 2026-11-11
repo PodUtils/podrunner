@@ -45,6 +45,12 @@ type trust struct {
 	expires      time.Time
 	cache        map[int64]trustInputs
 	http         http.Client
+	// The lookups of the hour that runs, and its start: a lookup past the
+	// budget is not made, and its inputs are "unknown" (throttled).
+	budget    int
+	used      int
+	hourStart time.Time
+	Throttled int
 }
 
 func (t *trust) installationToken() (string, error) {
@@ -104,6 +110,14 @@ func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trus
 		return v, true
 	}
 	unknown := trustInputs{event: eventWord(messageEvent), headIsFork: "unknown", actorClass: "unknown", visibility: "unknown"}
+	if time.Since(t.hourStart) >= time.Hour {
+		t.hourStart, t.used = time.Now(), 0
+	}
+	if t.budget > 0 && t.used >= t.budget {
+		t.Throttled++
+		return unknown, false
+	}
+	t.used++
 	status, r := t.get(fmt.Sprintf("/repos/%s/%s/actions/runs/%d", owner, repo, run))
 	if status != http.StatusOK || r == nil {
 		return unknown, false
@@ -140,4 +154,19 @@ func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trus
 		t.cache[run] = out
 	}
 	return out, whole
+}
+
+// organization checks that the owner of the scale set is an organization
+// (call C3): a personal account is refused (repo-scope-refused).
+func (t *trust) organization(owner string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	switch code, v := t.get("/orgs/" + owner); {
+	case code == http.StatusOK && v != nil:
+		return nil
+	case code == http.StatusNotFound:
+		return fmt.Errorf("repo-scope-refused: %s is not an organization (a personal account needs Administration: write)", owner)
+	default:
+		return fmt.Errorf("the organization %s: HTTP %d", owner, code)
+	}
 }

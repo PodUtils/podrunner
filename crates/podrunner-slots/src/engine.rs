@@ -53,6 +53,8 @@ pub struct Job {
     pub exit_code: Option<i32>,
     pub refusal: Option<RefusalCode>,
     pub residue: Option<podrunner_unit::Residue>,
+    /// The source sent `completed` for the job.
+    pub completed: bool,
 }
 
 /// The egress module as slots sees it (`podrunner-egress` behind it): one
@@ -198,7 +200,11 @@ impl Slots {
                 Event::Offer { offer } => self.intake(s, offer, now),
                 Event::Started { job_id, runner_name } => self.on_started(s, &job_id, &runner_name, now),
                 Event::Cancel { job_id } => self.on_cancel(s, &job_id, now),
-                Event::Completed { .. } => {}
+                Event::Completed { job_id, .. } => {
+                    if let Some(j) = self.jobs.get_mut(&(s, job_id)) {
+                        j.completed = true;
+                    }
+                }
             }
         }
     }
@@ -275,6 +281,7 @@ impl Slots {
             exit_code: None,
             refusal: None,
             residue: None,
+            completed: false,
         };
         let valid = job.offer.is_some();
         self.jobs.insert(key.clone(), job);

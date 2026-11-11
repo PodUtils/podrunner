@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/actions/scaleset"
@@ -64,7 +65,12 @@ func newSidecar(ctx context.Context, o options, signer *signer) (*sidecar, error
 	if err != nil {
 		return nil, fmt.Errorf("the message session: %s", statusOf(err))
 	}
-	t := &trust{api: o.apiURL, installation: o.installationID, signer: signer, cache: map[int64]trustInputs{}}
+	t := &trust{api: o.apiURL, installation: o.installationID, signer: signer, cache: map[int64]trustInputs{}, budget: o.trustBudget}
+	owner := strings.TrimSuffix(o.configURL, "/")
+	owner = owner[strings.LastIndex(owner, "/")+1:]
+	if err := t.organization(owner); err != nil {
+		return nil, err
+	}
 	return &sidecar{o: o, ctx: ctx, client: client, session: session, trust: t, jobs: map[string]*job{}}, nil
 }
 

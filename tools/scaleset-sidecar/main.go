@@ -29,7 +29,7 @@ type options struct {
 	configURL, apiURL, scaleSet, source, arch, appID string
 	installationID                                   int64
 	operatorControlled                               bool
-	waitDeadlineS                                    int
+	waitDeadlineS, trustBudget                       int
 }
 
 func main() {
@@ -43,6 +43,7 @@ func main() {
 	flag.StringVar(&o.appID, "app-id", "", "the id of the GitHub App: the iss of each JWT")
 	flag.BoolVar(&o.operatorControlled, "operator-controlled", false, "the operator controls the source")
 	flag.IntVar(&o.waitDeadlineS, "wait-deadline-s", 600, "the wait deadline of each offer")
+	flag.IntVar(&o.trustBudget, "trust-budget", 1000, "the most trust lookups of one hour")
 	flag.Parse()
 	if o.configURL == "" || o.installationID == 0 || o.scaleSet == "" || o.source == "" {
 		fmt.Fprintln(os.Stderr, "podrunner-source-github-scaleset: -config-url, -installation-id, -scale-set and -source are necessary")
@@ -52,6 +53,11 @@ func main() {
 	s, err := newSidecar(context.Background(), o, signer)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "podrunner-source-github-scaleset:", err)
+		// A scope that cannot be served is a configuration: 78, no restart
+		// helps (the table of pod-core).
+		if strings.HasPrefix(err.Error(), "repo-scope-refused") {
+			os.Exit(78)
+		}
 		os.Exit(69)
 	}
 	os.Exit(serve(s, os.Stdin, os.Stdout))

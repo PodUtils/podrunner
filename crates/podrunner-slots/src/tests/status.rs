@@ -54,3 +54,29 @@ fn a_host_with_no_kind_at_a_floor_serves_no_tier() {
     );
     assert!(bed.slots.status().no_tier_served);
 }
+
+#[test]
+fn the_status_counts_unknown_trust_and_ends_without_completion() {
+    let cap = capability(
+        podrunner_schema::Boundary::Guest,
+        podrunner_schema::Principal::Distinct,
+        podrunner_schema::EgressHold::Enforced,
+    );
+    let lines = vec![
+        offer(0, "known", json!({})),
+        offer(0, "unknown", json!({ "trust_inputs": { "actor_class": "unknown" } })),
+        offer(0, "done", json!({})),
+        r#"{"at_s":2,"completed":{"job_id":"done","result":"succeeded"}}"#.to_string(),
+    ];
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, lines)],
+        vec![KindSpec { name: "fake", slots: 3, capability: cap, command: sh("sleep 0.2") }],
+    );
+    bed.until(200, |s| s.jobs().count() == 3 && Bed::all_final(s));
+    let st = bed.slots.status();
+    assert_eq!(st.sources[0].trust_unknown, 1);
+    assert_eq!(st.sources[0].refused.get("event-not-allowed"), Some(&1));
+    // "known" ran with no completed event; "done" got one.
+    assert_eq!(st.ended_without_completion, 1);
+}

@@ -59,3 +59,6 @@ func (s *signer) token(int64) (string, error) {
 	s.cached, s.until = rep.Token, time.Unix(now+540, 0)
 	return s.cached, nil
 }
+
+// farFuture keeps a test token valid.
+var farFuture = time.Now().Add(24 * time.Hour)

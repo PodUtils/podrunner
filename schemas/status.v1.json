@@ -355,6 +355,12 @@
         },
         "tier": {
           "$ref": "#/$defs/Tier"
+        },
+        "trust_unknown": {
+          "description": "The offers whose trust inputs hold `unknown`: the source could not\nread the run or the membership.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
         }
       },
       "required": [
@@ -363,7 +369,8 @@
         "arch",
         "revoked",
         "jobs",
-        "refused"
+        "refused",
+        "trust_unknown"
       ]
     },
     "Tier": {

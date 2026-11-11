@@ -21,6 +21,9 @@ pub struct SourceStatus {
     pub jobs: BTreeMap<String, u64>,
     /// The refusals of the source, by code.
     pub refused: BTreeMap<String, u64>,
+    /// The offers whose trust inputs hold `unknown`: the source could not
+    /// read the run or the membership.
+    pub trust_unknown: u64,
 }
 
 /// One unit kind in the status.
@@ -75,7 +78,15 @@ impl Slots {
             .map(|(i, s)| {
                 let mut jobs = BTreeMap::new();
                 let mut refused = BTreeMap::new();
+                let mut trust_unknown = 0;
                 for j in self.jobs.values().filter(|j| j.source == i) {
+                    if j.offer.as_ref().is_some_and(|o| {
+                        let t = &o.trust_inputs;
+                        serde_json::to_value(t)
+                            .is_ok_and(|v| v.as_object().is_some_and(|m| m.values().any(|x| x == "unknown")))
+                    }) {
+                        trust_unknown += 1;
+                    }
                     if !j.state.is_final() {
                         *jobs.entry(state_name(j.state)).or_insert(0) += 1;
                     }
@@ -90,6 +101,7 @@ impl Slots {
                     revoked: s.revoked,
                     jobs,
                     refused,
+                    trust_unknown,
                 }
             })
             .collect();
@@ -125,7 +137,13 @@ impl Slots {
             sources,
             kinds,
             pins,
-            ended_without_completion: 0,
+            // A unit ended and was reported, and the source never said
+            // that the job completed (no retry of a lost job).
+            ended_without_completion: self
+                .jobs
+                .values()
+                .filter(|j| j.state == State::Reported && j.unit.is_some() && !j.completed)
+                .count() as u64,
         }
     }
 
