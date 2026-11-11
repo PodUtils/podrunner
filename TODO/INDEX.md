@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**50 entries: 1 open, 3 partial, 17 blocked, 29 done.**
+**51 entries: 1 open, 2 partial, 19 blocked, 29 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 16 | 17 |
-| P2 | 1 | 2 | 12 | 12 | 27 |
+| P2 | 1 | 1 | 14 | 12 | 28 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 1 | 3 | 17 | 29 | 50 |
+| **All** | 1 | 2 | 19 | 29 | 51 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -77,7 +77,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-027](live.md) | P2 | M | M-C | feature | done | WP-05a: mint with an in-process sign module, source conformance (GitHub #27) |
 | [T-028](live.md) | P2 | S | M-C | feature | done | WP-06: the fake scale-set service (Go, test only) (GitHub #28) |
 | [T-029](live.md) | P2 | M | M-C | feature | done | WP-07: the github-scaleset source sidecar (static Go) (GitHub #29) |
-| [T-030](live.md) | P2 | M | M-C | feature | partial | WP-10: the image pipeline: pins, age limit, podrunner image build (GitHub #30) |
+| [T-030](live.md) | P2 | M | M-C | feature | blocked | WP-10: the image pipeline: pins, age limit, podrunner image build (GitHub #30) |
 | [T-031](live.md) | P2 | M | M-D | feature | done | WP-05b: remote mint (only if DR-4 is yes) (GitHub #31) |
 | [T-032](live.md) | P2 | S | M-C | chore | blocked | Milestone M-C: the live gates G-H2 to G-H4 on a fake unit (GitHub #32) |
 | [T-033](live.md) | P2 | S | M-D | chore | blocked | Milestone M-D: one live trusted job on a no-root host (GitHub #33) |
@@ -98,3 +98,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-048](core.md) | P2 | S | M-D | feature | done | Egress: check the upstream of the broker; the names mode of pod-broker |
 | [T-049](level2.md) | P2 | S | L2 | chore | done | COORD-003: the stand-in broker of the official runner for podvm (GitHub #50) |
 | [T-050](level2.md) | P2 | S | L2 | defect | blocked | COORD-004: the supervise rung does not map the path of connect() for a unix socket (GitHub #51) |
+| [T-051](core.md) | P2 | S | M-C | defect | blocked | COORD-005: podvm-aarch64 declines an arm64 payload on the supervise rung (GitHub #52) |

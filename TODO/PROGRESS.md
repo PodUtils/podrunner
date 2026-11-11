@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 50 entries: 1 open, 3 partial, 17 blocked, 29 done.
+`TODO/INDEX.md` holds 51 entries: 1 open, 2 partial, 19 blocked, 29 done.
 
 ## State
 
@@ -13,7 +13,7 @@
   as a choice of the operator (T-045).
 - M-A is done (T-015 to T-025; the H0 run of T-023 on a profile with no
   root, no user namespace, no mounts and no KVM). T-047 waits for podvm.
-  M-C: done T-027 to T-029; partial T-030. M-D: done T-031, T-045; T-033 waits for DR-7 and M-B.
+  M-C: done T-027 to T-029; T-030 waits for T-051 (podvm). M-D: done T-031, T-045; T-033 waits for DR-7 and M-B.
   L2: on the fake path, the official runner runs canned jobs, the corpus
   and a `container:` job through the hooks (T-035, T-038); the podvm unit
   waits for T-026;
@@ -31,9 +31,8 @@ then take the next one. Continue a `partial` entry first.
 
 1. **The plan:** T-001 closes when its issue closes.
 2. **The registers:** T-009 (partial: the open rows wait for their entries).
-3. **M-C, L2:** T-030 (partial: the import into a podvm store).
-4. **Blocked:** T-007 (DR-7: not now), T-014 (the spec), T-026 (podvm),
-   T-034 (U19: podvm), T-035 (the podvm driver: T-034, T-026), T-036 (a real guest), T-038 (the run in a podvm unit: T-026), T-047, T-050 (podvm),
+3. **Blocked:** T-007 (DR-7: not now), T-030 (aarch64: T-051), T-014 (the spec), T-026 (podvm),
+   T-034 (U19: podvm), T-035 (the podvm driver: T-034, T-026), T-036 (a real guest), T-038 (the run in a podvm unit: T-026), T-047, T-050, T-051 (podvm),
    T-032, T-033, T-037 (podvm), T-040
    to T-043, T-046.
 

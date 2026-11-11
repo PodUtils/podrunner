@@ -55,5 +55,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #49 | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (to podvm) | open | T-047 |
 | #50 | COORD-003: the answer to PodUtils/podvm#248: the stand-in broker of the official runner, up to the long poll (to podvm) | closed (read by podvm, PodUtils/podvm#248) | T-049 |
 | #51 | COORD-004: the supervise rung does not map the path of connect() for a unix socket (to podvm) | open | T-050 |
+| #52 | COORD-005: podvm-aarch64 v0.2.0-beta.2 declines an arm64 payload on the supervise rung: its glibc object is x86_64 (to podvm) | open | T-051 |
 
 #44 and #45 are pull requests.

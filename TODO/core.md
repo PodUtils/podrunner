@@ -658,3 +658,32 @@ At the start of `serve`, run `check_upstream` on the egress module; when it is n
 
 2026-11-11: `upstream_proxy` and `upstream_names_only` in `podrunner.toml` (names only needs a proxy); `Egress::host` passes `names_upstream` to `pod-broker`, and `Egress::check_upstream` sends the canary. `serve` runs the check when the proxy takes names only; any answer but `refuses-non-public` caps each hold at `advisory`, so placement serves no `untrusted` job. `Egress::open` counts the allow rules under an open suffix, and slots writes an audit line `egress-flagged` with the count only. The upstream check is tested against two fake CONNECT proxies (200 and 403). Each command of the Prove passes.
 
+# T-051: COORD-005: podvm-aarch64 declines an arm64 payload on the supervise rung (GitHub #52)
+
+**Source:** GitHub #52
+**Category:** defect
+**Milestone:** M-C
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+On a GitHub-hosted `ubuntu-24.04-arm` runner (the supervise rung), `podvm-aarch64` of `v0.2.0-beta.2` loads the runner image, but `run` refuses each payload: "/bin/sh is ELF machine 0xb7 and the glibc object is 0x3e, so the tier cannot serve it". The glibc object of its loader is x86_64. So no unit of podrunner runs on an arm64 host with no user namespace. GitHub #52 (COORD-005, to podvm) records it; podvm is on break.
+
+## Premise
+
+Measured on 2026-11-11 in `runner-image.yml` run 42973869342 (`9c03931`), job aarch64, with the binary checked against its SHA-256.
+
+## Approach
+
+No workaround in podrunner: the loader is part of podvm. The aarch64 run of `runner-image.yml` is a measure until a podvm release; then pin that release in `images/podvm.toml` and make the aarch64 start a check again.
+
+## Prove
+
+The aarch64 job of `.github/workflows/runner-image.yml` starts `/bin/sh` of the image as a check, and it is green.
+
+## Blocker
+
+A podvm release whose aarch64 binary runs an arm64 payload on the supervise rung (GitHub #52). podvm is on break.
+
