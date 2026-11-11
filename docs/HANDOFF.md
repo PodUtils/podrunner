@@ -30,7 +30,7 @@ is done.
 - M-C: done T-027, T-028, T-029. T-030 is blocked on T-051: the image
   builds for both architectures and imports into a podvm store with no
   root (`runner-image.yml`, podvm of `images/podvm.toml`); on aarch64
-  podvm `v0.2.0-beta.2` runs no arm64 payload (GitHub #52).
+  podvm has no aarch64 interposer yet (GitHub #52, PodUtils/podvm@T-1721).
 - M-D: T-045 (the mitigations of DR-4) and T-031 (the remote mint,
   `crates/podrunner-remote`, `podrunner mint-serve`, a source kind
   `remote`) are done. T-033 waits for DR-7 and M-B.
@@ -49,10 +49,9 @@ is done.
 
 ## In flight
 
-- Each entry of the work order is done or blocked on podvm or on a
-  ruling. A podvm release unblocks T-026, T-047, T-050 and T-051 first:
-  pin it in `images/podvm.toml`, then run `scripts/measure-hook-path.sh`
-  and the H0 profile again.
+- podvm `v0.2.0-beta.3` is pinned (`images/podvm.toml`); the driver needs
+  it (`probe::LOWEST`). T-047, T-050 and T-052 are done with it. Next:
+  T-026, the runner image in a podvm unit against the fake broker.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The design copy is in `docs/design/` (T-014): the spec, the appendices,

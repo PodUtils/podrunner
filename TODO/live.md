@@ -7,7 +7,7 @@ Milestones M-B, M-C and M-D: the official runner under podvm, the mint, the scal
 **Milestone:** M-B
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -46,13 +46,11 @@ Findings of the study of the owner's local-mode archive (PodUtils/podcrates:docs
 - With W^X on, .NET truncates a file to 2 TiB at start, so an `RLIMIT_FSIZE` below that kills it with SIGXFSZ (exit 153). The archive sets `DOTNET_EnableWriteXorExecute=0`. Set no file size limit on the runner, or set that variable, and measure whether it reaches each job step.
 - A rerun failed with EACCES: a runner container wrote files as uid 1001 that the host uid 1000 cannot remove. `destroy` must remove the files of each uid that the unit can use (unit test 10), or the unit must map one uid.
 
+Unblocked on 2026-11-11: podvm `v0.2.0-beta.3` carries PodUtils/podvm@T-1703, PodUtils/podvm@T-1706, PodUtils/podvm@T-1707, PodUtils/podvm@T-1710 and PodUtils/podvm@T-1719 (PodUtils/podvm#254), pinned in `images/podvm.toml`. Next: the image of `images/runner/` in a podvm unit with the fake broker of T-038, up to the long poll, then one canned job.
+
 ## Prove
 
 `cargo test -p podrunner-podvm -- --ignored runner_starts`
-
-## Blocker
-
-podvm releases a binary with its fixes for the runner on the userland rung (PodUtils/podvm@T-1703 to PodUtils/podvm@T-1707 and PodUtils/podvm@T-1710, on podvm `main` at `cd2c691`: `run.sh` reaches the long poll of the stand-in of GitHub #50). Then run T-026 with that release, the image of `images/runner/` and the fake broker of T-038.
 
 # T-027: WP-05a: mint with an in-process sign module, source conformance (GitHub #27)
 

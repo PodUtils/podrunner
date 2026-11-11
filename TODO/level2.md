@@ -366,7 +366,7 @@ GitHub #50 (COORD-003, to podvm) gives the requests in order with their answers,
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -384,7 +384,6 @@ The podvm driver of T-035 (step 4) uses a volume and the guest path of the socke
 
 `sh scripts/measure-hook-path.sh PODVM DIR` as a uid with no user namespace gives `volume-socket yes` and `rootfs-socket yes`.
 
-## Blocker
+## Done
 
-podvm answered in PodUtils/podvm#250 (COORD-032): PodUtils/podvm@T-1710 (`a703a6c`, on podvm `main`) maps the `sun_path` of `bind`, `connect`, `sendto` and `sendmsg` through the table of `open` (the rootfs and each `-v` target), and a host path longer than `sun_path` through a directory descriptor. The host path that worked on `v0.2.0-beta.2` is not intended and stops working there. Wait for the podvm release that carries it; then the podvm driver of T-035 uses `-v DIR:/ctl` and the guest path `/ctl/u.ctl` on each rung, with no host path, and `scripts/measure-hook-path.sh` must give `volume-socket yes`.
-
+2026-11-11, podvm `v0.2.0-beta.3` (PodUtils/podvm@T-1710). `scripts/measure-hook-path.sh` on the H0 profile (supervise): `volume-socket yes`, `rootfs-socket yes`, `host-path-socket no` (as podvm said: the host path is not a guest path). On the root rung (namespace, a chroot rung): `rootfs-socket yes`, and `-v` stays refused there by design (PodUtils/podvm@T-1653). So a socket that the host binds in the rootfs of the unit is reachable on both rungs: the podvm driver of T-035 puts the control socket there, with its guest path in `PODRUNNER_CTL`, and needs no host path.

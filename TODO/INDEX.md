@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**60 entries: 1 open, 3 partial, 19 blocked, 37 done.**
+**60 entries: 2 open, 3 partial, 15 blocked, 40 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 0 | 1 | 1 | 20 | 22 |
-| P2 | 1 | 2 | 13 | 16 | 32 |
+| P1 | 0 | 1 | 0 | 21 | 22 |
+| P2 | 2 | 2 | 10 | 18 | 32 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 1 | 3 | 19 | 37 | 60 |
+| **All** | 2 | 3 | 15 | 40 | 60 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -73,7 +73,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-023](core.md) | P1 | M | M-A | feature | done | WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23) |
 | [T-024](core.md) | P1 | M | M-A | feature | done | WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24) |
 | [T-025](core.md) | P1 | S | M-A | chore | done | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload (GitHub #25) |
-| [T-026](live.md) | P2 | M | M-B | chore | blocked | Milestone M-B: the official runner starts under the podvm driver, no GitHub (GitHub #26) |
+| [T-026](live.md) | P2 | M | M-B | chore | open | Milestone M-B: the official runner starts under the podvm driver, no GitHub (GitHub #26) |
 | [T-027](live.md) | P2 | M | M-C | feature | done | WP-05a: mint with an in-process sign module, source conformance (GitHub #27) |
 | [T-028](live.md) | P2 | S | M-C | feature | done | WP-06: the fake scale-set service (Go, test only) (GitHub #28) |
 | [T-029](live.md) | P2 | M | M-C | feature | done | WP-07: the github-scaleset source sidecar (static Go) (GitHub #29) |
@@ -94,12 +94,12 @@ acceptance, later The crate dependencies later than v1.
 | [T-044](plan.md) | P2 | S | M-A | chore | done | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |
 | [T-045](live.md) | P1 | M | M-D | feature | done | The mitigations of DR-4 for trusted jobs at redirect (GitHub #47) |
 | [T-046](later.md) | P3 | L | later | feature | blocked | Local mode: podrunner run workflow.yml (GitHub #48) |
-| [T-047](core.md) | P2 | S | M-A | defect | blocked | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (GitHub #49) |
+| [T-047](core.md) | P2 | S | M-A | defect | done | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (GitHub #49) |
 | [T-048](core.md) | P2 | S | M-D | feature | done | Egress: check the upstream of the broker; the names mode of pod-broker |
 | [T-049](level2.md) | P2 | S | L2 | chore | done | COORD-003: the stand-in broker of the official runner for podvm (GitHub #50) |
-| [T-050](level2.md) | P2 | S | L2 | defect | blocked | COORD-004: the supervise rung does not map the path of connect() for a unix socket (GitHub #51) |
+| [T-050](level2.md) | P2 | S | L2 | defect | done | COORD-004: the supervise rung does not map the path of connect() for a unix socket (GitHub #51) |
 | [T-051](core.md) | P2 | S | M-C | defect | blocked | COORD-005: podvm-aarch64 declines an arm64 payload on the supervise rung (GitHub #52) |
-| [T-052](core.md) | P1 | S | M-C | chore | blocked | COORD-006: a podvm beta from main for podrunner (GitHub #53) |
+| [T-052](core.md) | P1 | S | M-C | chore | done | COORD-006: a podvm beta from main for podrunner (GitHub #53) |
 | [T-053](core.md) | P2 | M | L2 | defect | partial | The conformance suites follow the numbers of the design contracts |
 | [T-054](core.md) | P1 | M | M-D | defect | done | serve: an exclusive lock on the state directory before the journal replay; stop --wait (GitHub #54) |
 | [T-055](core.md) | P1 | S | M-D | defect | done | journal: write and sync the claimed line before source.claim (GitHub #55) |

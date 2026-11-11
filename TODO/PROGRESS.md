@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 60 entries: 1 open, 3 partial, 19 blocked, 37 done.
+`TODO/INDEX.md` holds 60 entries: 2 open, 3 partial, 15 blocked, 40 done.
 
 ## State
 
@@ -31,9 +31,8 @@ then take the next one. Continue a `partial` entry first.
 
 1. **The plan:** T-001 closes when its issue closes.
 2. **The registers:** T-009 (partial: the open rows wait for their entries).
-3. **L2:** T-053 (the design numbers of the conformance tests).
-4. **Blocked:** T-007 (DR-7: not now), T-030 (aarch64: T-051), T-026 (podvm),
-   T-034 (U19: podvm), T-035 (the podvm driver: T-034, T-026), T-036 (a real guest), T-038 (the run in a podvm unit: T-026), T-047, T-050, T-051, T-052 (podvm),
+3. **L2, with podvm beta.3:** T-026 (the runner in a podvm unit, up to the long poll), then T-035 (the podvm driver of the hooks), T-038 (the run in a unit), T-034 (U19); T-053 (the design numbers of the conformance tests).
+4. **Blocked:** T-007 (DR-7: not now), T-030 (aarch64: T-051), T-034 (U19: the container verbs of podvm), T-035 and T-038 (T-026), T-036 (a real guest), T-051 (podvm: the aarch64 interposer),
    T-032, T-033, T-037 (podvm), T-040
    to T-043, T-046.
 

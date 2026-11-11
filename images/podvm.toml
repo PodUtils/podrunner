@@ -1,7 +1,9 @@
 # The podvm release that the image pipeline imports the runner image with
 # (T-030), and the SHA-256 of each binary, from its release (`.sha256`).
-version = "0.2.0-beta.2"
+# The podvm driver needs v0.2.0-beta.3 or later: `podvm wait` gives each
+# exit code (T-047), and a unix socket path takes the table (T-050).
+version = "0.2.0-beta.3"
 
 [sha256]
-x86_64 = "0af41a96233c7f9f3ed48b80ebb3271fe9eaa1295616ea0375625f8035baf6a9"
-aarch64 = "011885447c36080565f808edc3712d921e9ca25748f1754ae05689dca9725895"
+x86_64 = "bc3b33121ae156cedfe578be2b2c1925bbfcf4ad070c62fd6eb1a582b94a931b"
+aarch64 = "bb9cf13eb09e855761b063a69fbc47f868b767bbccd84dbb97bd66891bd0b32f"

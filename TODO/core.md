@@ -607,7 +607,7 @@ Close M-A when T-016 to T-024 are done, the level 1 suite is green in the gate, 
 **Milestone:** M-A
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -625,9 +625,10 @@ The workaround is in the driver (T-023): the payload runs under `/bin/sh` of the
 
 `cargo test -p podrunner-podvm --test conformance -- --ignored`, as a uid with no user namespace, with the image of `scripts/stand-in-image.py`
 
-## Blocker
+## Done
 
-podvm answered in PodUtils/podvm#246 (COORD-028): the case did not reproduce on its host (another rung), and PodUtils/podvm@T-1720 (`6968315`) makes `wait` read the record again for up to 10 s. It goes into the next podvm release. Then run the H0 profile again (the supervise rung), report on GitHub #49, and remove the workaround of T-023 if `podvm wait` gives each code.
+2026-11-11, podvm `v0.2.0-beta.3` (PodUtils/podvm#254; PodUtils/podvm@T-1720). On the H0 profile (as `nobody`, with a seccomp filter that refuses `CLONE_NEWUSER`), `podvm wait` of a detached `sh -c 'exit N'` gave the exit code in 10 of 10 runs (before: 1 of 5). The workaround of T-023 is gone: the payload runs as it is, with no shell around it and no `.podrunner-exit` (`crates/podrunner-podvm/src/unit.rs`); the waiter still starts again while a process of the unit lives. The driver needs beta.3 or later (`probe::LOWEST`). The unit suite passes without the workaround on both rungs: H0 (supervise) and root (namespace), with the image of `scripts/stand-in-image.py`; test 14 skips (no container route).
+
 
 # T-048: Egress: check the upstream of the broker; the names mode of pod-broker
 
@@ -694,7 +695,7 @@ podvm answered in PodUtils/podvm#252 (COORD-033): the interposer of the supervis
 **Milestone:** M-C
 **Priority:** P1
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -712,9 +713,10 @@ When the beta comes: pin it in `images/podvm.toml` (the version and the SHA-256 
 
 `runner-image.yml` and `level2.yml` are green with the new pin, and `scripts/measure-hook-path.sh` gives `volume-socket yes` on both rungs.
 
-## Blocker
+## Done
 
-A podvm beta from `main` (GitHub #53). podvm is on break.
+2026-11-11. podvm released `v0.2.0-beta.3` from `c62643d` (PodUtils/podvm#254). `images/podvm.toml` pins it (the SHA-256 of each binary equals its `.sha256`). Results: T-047 done (each exit code), T-050 done (the socket path), the unit suite of the podvm driver passes on both rungs; T-026 (the runner in a unit) is the next step; the aarch64 interposer is not in the beta (T-051).
+
 
 # T-053: The conformance suites follow the numbers of the design contracts
 

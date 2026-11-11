@@ -1,5 +1,5 @@
 {
- "podvm": "0.2.0-beta.2",
+ "podvm": "0.2.0-beta.3",
  "rung": "userland",
  "rung_must_never_claim": "user, pid or network isolation, or a /proc filesystem",
  "strict_ok": true,

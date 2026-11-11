@@ -25,10 +25,6 @@ use crate::Podvm;
 
 /// The working directory of the payload in the rootfs.
 const WORKDIR: &str = "/podrunner";
-/// The file of the exit code of the payload, in the working directory.
-/// `podvm wait` on the supervise rung can give no code for a payload that
-/// ends fast ("it is Up"); the shell around the payload writes it here.
-const EXIT_FILE: &str = ".podrunner-exit";
 
 /// The runner root, under the working directory.
 const RUNNER_ROOT: &str = ".runner";
@@ -193,10 +189,8 @@ impl UnitDriver for PodvmUnit {
             args.push(format!("{k}={v}"));
         }
         args.push(reference.clone());
-        // The payload runs under the shell of the image, which writes its
-        // exit code: `podvm wait` does not always give it.
-        let wrap = format!("\"$@\"; c=$?; echo $c > {WORKDIR}/{EXIT_FILE}; exit $c");
-        args.extend(["/bin/sh".to_string(), "-c".into(), wrap, "podrunner".into()]);
+        // podvm v0.2.0-beta.3 and later give each exit code in `podvm wait`
+        // (PodUtils/podvm@T-1720), so the payload runs as it is.
         args.extend(spec.argv.iter().cloned());
         let argv: Vec<&str> = args.iter().map(String::as_str).collect();
         self.podvm(&store, &argv, Some(&tag))?;
@@ -231,14 +225,8 @@ impl UnitDriver for PodvmUnit {
                     if let Some(mut o) = r.waiter.stdout.take() {
                         let _ = o.read_to_string(&mut out);
                     }
-                    // `podvm wait` prints the exit code of the payload; else
-                    // the shell around the payload wrote it.
-                    let file = r.rootfs.join(WORKDIR.trim_start_matches('/')).join(EXIT_FILE);
-                    let code = out
-                        .lines()
-                        .rev()
-                        .find_map(|l| l.trim().parse::<i32>().ok())
-                        .or_else(|| fs::read_to_string(&file).ok().and_then(|t| t.trim().parse().ok()));
+                    // `podvm wait` prints the exit code of the payload.
+                    let code = out.lines().rev().find_map(|l| l.trim().parse::<i32>().ok());
                     // No code, and the payload lives: wait again.
                     let waiter = r.waiter.id();
                     let alive = procs::tagged(&r.tag).into_iter().any(|p| p != waiter);
