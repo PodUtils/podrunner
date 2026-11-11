@@ -100,6 +100,43 @@ fn a_fork_offer_on_the_trusted_set_is_refused() {
     );
 }
 
+/// The design test 2 of the source contract: an offer that comes twice
+/// is one job, with one offer line in the audit.
+#[test]
+fn a_redelivered_offer_is_one_job() {
+    let lines = vec![offer(0, "j-1", json!({})), offer(1, "j-1", json!({}))];
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, lines)],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("sleep 3") }],
+    );
+    bed.until(5, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.tick();
+    bed.tick();
+    assert_eq!(bed.slots.jobs().count(), 1);
+    let offers = bed.slots.audit_lines().iter().filter(|a| a.audit == crate::audit::Kind::Offer).count();
+    assert_eq!(offers, 1);
+    bed.until(400, Bed::all_final);
+}
+
+/// The design test 11 of the source contract: a payload in an offer of a
+/// `github-scaleset` source fails the offer check (refused at intake), and
+/// a payload that a set does not take is ignored with an audit line.
+#[test]
+fn a_payload_of_a_scaleset_is_refused_and_an_ignored_one_is_audited() {
+    let other = format!("sha256:{}", "2".repeat(64));
+    let with_payload = job(json!({ "payload": other }));
+    assert!(with_payload.check(true).is_err());
+    assert!(with_payload.check(false).is_ok());
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", json!({ "payload": other }))])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }],
+    );
+    bed.until(40, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert!(bed.slots.audit_lines().iter().any(|a| a.audit == crate::audit::Kind::PayloadIgnored));
+}
+
 #[test]
 fn a_stale_image_and_a_digest_off_the_pin_list_are_refused() {
     let cfg = config("");
@@ -158,6 +195,25 @@ fn a_foreign_runner_name_ends_the_unit() {
     let r = &bed.slots.reports[0];
     assert_eq!(r.exit_reason, ExitReason::JobMismatch);
     assert!(r.unit.as_ref().unwrap().residual_processes == podrunner_schema::Residual::Count(0));
+    assert!(bed.slots.audit_lines().iter().any(|a| a.audit == crate::audit::Kind::JobMismatch));
+}
+
+/// The design test 10 of the source contract: a `started` that names the
+/// runner of this unit with another job id ends the unit.
+#[test]
+fn a_started_with_another_job_id_ends_the_unit() {
+    let lines = vec![
+        offer(0, "j-1", json!({})),
+        r#"{"at_s":3,"started":{"job_id":"j-9","runner_name":"podrunner-host-a-u-0"}}"#.to_string(),
+    ];
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, lines)],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("sleep 300") }],
+    );
+    bed.until(40, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    let r = &bed.slots.reports[0];
+    assert_eq!(r.exit_reason, ExitReason::JobMismatch);
     assert!(bed.slots.audit_lines().iter().any(|a| a.audit == crate::audit::Kind::JobMismatch));
 }
 

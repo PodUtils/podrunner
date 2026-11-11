@@ -109,14 +109,14 @@ and what is open (T-053). `SC` is `crates/podrunner-source/src/conformance.rs`,
 | Design | Covered by | Open |
 | --- | --- | --- |
 | 1 unknown trust | the tier rule (`crates/podrunner-tier`) | a source sends no tier |
-| 2 one claim | SC `a-job-is-claimed-once` | a redelivered `next` gives one offer |
+| 2 one claim | SC `a-job-is-claimed-once`, SG `a_redelivered_offer_is_one_job` | none |
 | 3 credential canary | SG `no_credential_reaches_the_journal_the_audit_or_a_report`, the sign tests | stderr; a positive control; each role |
-| 4 revoked | MI `a_revocation_is_final_and_names_no_secret` | the exit code of the class `Revoked` |
+| 4 revoked | MI `a_revocation_is_final_and_names_no_secret`, `tools/scaleset-sidecar` `TestARevocationEndsTheSidecarWith78` | none |
 | 5 `../x` | SC `the-wire-refuses-a-long-line-a-path-and-a-schema` | none |
 | 6 untrusted host token | none | the whole test (over TLS) |
 | 7 not received, issued twice | RT `each_host_holds_its_own_offers_up_to_its_slots` | none |
-| 8 tier-mismatch | RT `the_mint_computes_the_tier_and_withdraws_a_fork_on_the_trusted_set` | `claim` refused with `tier-mismatch` |
+| 8 tier-mismatch | RT `the_mint_computes_the_tier_and_withdraws_a_fork_on_the_trusted_set`: the mint withdraws the offer, so a later claim is `unknown-job` (call C18) | none |
 | 9 capacity | RT `each_host_holds_its_own_offers_up_to_its_slots` | none |
-| 10 started mismatch | SG `a_foreign_runner_name_ends_the_unit` | another `job_id`; the report is `failed` |
-| 11 payload | SG `a_stale_image_and_a_digest_off_the_pin_list_are_refused` | the schema refuses a payload of `github-scaleset`; the audit line |
-| 12 restart of mint | RT `each_host_holds_its_own_offers_up_to_its_slots` | `credential-already-issued` after a restart |
+| 10 started mismatch | SG `a_foreign_runner_name_ends_the_unit`, `a_started_with_another_job_id_ends_the_unit` (the report is `job-mismatch`) | none |
+| 11 payload | SG `a_stale_image_and_a_digest_off_the_pin_list_are_refused`, `a_payload_of_a_scaleset_is_refused_and_an_ignored_one_is_audited` | none |
+| 12 restart of mint | RT `each_host_holds_its_own_offers_up_to_its_slots`: after a restart the ledger refuses the second mint, and the gate answers `unknown-job` (call C18) | none |

@@ -185,6 +185,18 @@ impl Slots {
 
     pub(crate) fn on_started(&mut self, s: usize, job: &JobId, runner: &str, now: u64) {
         let key = (s, job.clone());
+        // A runner of this host that runs a job other than its claim: the
+        // unit must not go on (the design test 10 of the source contract).
+        let mine = self
+            .jobs
+            .iter()
+            .find(|(k, j)| k.0 == s && k.1 != *job && j.runner_name.as_deref() == Some(runner) && !j.state.is_final());
+        if let Some((k, _)) = mine {
+            let k = k.clone();
+            self.audit(audit::Kind::JobMismatch, s, &k.1, None, Some("started names another job".into()));
+            self.end(&k, ExitReason::JobMismatch, Signal::Kill, now);
+            return;
+        }
         let Some(j) = self.jobs.get(&key) else { return };
         if j.state != State::Started {
             return;

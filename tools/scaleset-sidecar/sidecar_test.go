@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"net/http"
@@ -88,5 +89,29 @@ func TestAPersonalAccountIsRefused(t *testing.T) {
 	}
 	if err := tr.organization("alice"); err == nil || !strings.HasPrefix(err.Error(), "repo-scope-refused") {
 		t.Fatalf("%v", err)
+	}
+}
+
+// The design test 4 of the source contract: after a revocation the
+// sidecar ends with 78 (the class Revoked) and names no secret.
+func TestARevocationEndsTheSidecarWith78(t *testing.T) {
+	calls := 0
+	handle := func(line []byte) map[string]any {
+		calls++
+		if calls == 2 {
+			return errorReply("source-revoked", "the installation token was refused")
+		}
+		return map[string]any{"reply": "done"}
+	}
+	in := strings.NewReader("{\"schema\":1,\"op\":\"ack\",\"job_id\":\"j-1\"}\n{\"schema\":1,\"op\":\"ack\",\"job_id\":\"j-2\"}\n{\"schema\":1,\"op\":\"ack\",\"job_id\":\"j-3\"}\n")
+	var out bytes.Buffer
+	if code := serve(handle, in, &out); code != 78 {
+		t.Fatalf("exit %d, want 78", code)
+	}
+	if calls != 2 {
+		t.Fatalf("%d calls, want 2: the third line must not be read", calls)
+	}
+	if !strings.Contains(out.String(), "source-revoked") {
+		t.Fatalf("no revoked reply: %q", out.String())
 	}
 }

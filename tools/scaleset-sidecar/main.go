@@ -60,11 +60,13 @@ func main() {
 		}
 		os.Exit(69)
 	}
-	os.Exit(serve(s, os.Stdin, os.Stdout))
+	os.Exit(serve(s.handle, os.Stdin, os.Stdout))
 }
 
 // serve answers each request line of `in` with one reply line on `out`.
-func serve(s *sidecar, in io.Reader, out io.Writer) int {
+// After a `source-revoked` reply it ends with 78, the class Revoked of
+// pod-core: no restart helps, and the operator must act.
+func serve(handle func([]byte) map[string]any, in io.Reader, out io.Writer) int {
 	r := bufio.NewReaderSize(in, 64*1024)
 	w := bufio.NewWriter(out)
 	for {
@@ -76,13 +78,16 @@ func serve(s *sidecar, in io.Reader, out io.Writer) int {
 		if err != nil {
 			rep = errorReply("bad-request", err.Error())
 		} else {
-			rep = s.handle(line)
+			rep = handle(line)
 		}
 		rep["schema"] = 1
 		b, _ := json.Marshal(rep)
 		_, _ = w.Write(append(b, '\n'))
 		if err := w.Flush(); err != nil {
 			return 74
+		}
+		if rep["code"] == "source-revoked" {
+			return 78
 		}
 	}
 }
