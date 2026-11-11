@@ -22,7 +22,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #14 | Bootstrap: carry the cleaned design spec into `docs/` | open | T-014 |
 | #15 | Bootstrap: beta release workflow | closed (`v0.1.0-beta.1`, release run 42942338772) | T-015 |
 | #16 | WP-01: seam traits, contracts v1 and the conformance harness | closed (`229d29f`, gate run 42936703374) | T-016 |
-| #17 | Schemas v1: job offer, unit capability, run report, public report | open | T-017 |
+| #17 | Schemas v1: job offer, unit capability, run report, public report | closed (`pod-job` of podcrates v0.17.0, `0457ed0`, gate run 42953651407) | T-017 |
 | #18 | Tier rule: Rust implementation and the case table | closed (`33e6779`, gate run 42938706745) | T-018 |
 | #19 | Security documents: threat model, accepted residuals, leak runbook | closed (`fe35f58`) | T-019 |
 | #20 | WP-02: fake source and fake unit, scripted, with a manual clock | closed (`e8f4c0d`, gate run 42938706745) | T-020 |

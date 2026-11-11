@@ -106,7 +106,7 @@ podrunner drafted the types and the schemas; podcrates released them as `pod-job
 
 ## Done
 
-2026-11-11: podrunner takes `pod-job` at podcrates v0.17.0; the draft types, the four schemas and the examples are removed. `cargo test --workspace --all-features`: each test passes; `schemas/status.v1.json` is generated again from the types (`PODRUNNER_WRITE_SCHEMAS=1`). The gate run of this commit is in `TODO/issues.md`.
+2026-11-11: podrunner takes `pod-job` at podcrates v0.17.0; the draft types, the four schemas and the examples are removed. `cargo test --workspace --all-features`: each test passes; `schemas/status.v1.json` is generated again from the types (`PODRUNNER_WRITE_SCHEMAS=1`). Gate run 42953651407 (`0457ed0`) is green.
 
 # T-018: The tier rule: Rust implementation and the case table (GitHub #18)
 

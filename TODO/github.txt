@@ -20,7 +20,7 @@
 14 issue open
 15 issue closed
 16 issue closed
-17 issue open
+17 issue closed
 18 issue closed
 19 issue closed
 20 issue closed
