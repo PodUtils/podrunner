@@ -190,3 +190,98 @@ fn an_open_suffix_rule_is_counted() {
     assert_eq!(e.open("u-2", ONLY_A, &d.join("u-2.sock"), Duration::from_secs(60)).unwrap(), 0);
     e.kill();
 }
+
+/// An upstream CONNECT proxy on the loopback that resets each CONNECT to
+/// an IP literal, and tunnels each CONNECT to a name to an echo.
+fn proxy_that_takes_names_only() -> String {
+    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = l.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for conn in l.incoming().flatten() {
+            std::thread::spawn(move || {
+                let mut r = BufReader::new(conn.try_clone().unwrap());
+                let mut first = String::new();
+                if r.read_line(&mut first).is_err() {
+                    return;
+                }
+                let mut line = String::new();
+                while r.read_line(&mut line).is_ok_and(|n| n > 0) && line != "\r\n" {
+                    line.clear();
+                }
+                let target = first.split(' ').nth(1).unwrap_or("");
+                let host = target.rsplit_once(':').map_or(target, |(h, _)| h).trim_matches(['[', ']']);
+                if host.parse::<std::net::IpAddr>().is_ok() {
+                    // A reset: the socket goes with nothing sent.
+                    let _ = conn.shutdown(std::net::Shutdown::Both);
+                    return;
+                }
+                let mut w = conn;
+                let _ = w.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n");
+                let mut buf = [0u8; 4096];
+                while let Ok(n) = r.read(&mut buf) {
+                    if n == 0 || w.write_all(&buf[..n]).is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+    });
+    format!("http://127.0.0.1:{port}")
+}
+
+/// A resolver that keeps an IP literal (the host of the upstream proxy)
+/// and gives a public address for each name.
+struct PublicNames;
+
+impl Resolve for PublicNames {
+    fn label(&self) -> String {
+        "public-names".into()
+    }
+    fn resolve_from<'a>(
+        &'a self,
+        host: &'a str,
+        port: u16,
+        deadline: tokio::time::Instant,
+        after: Option<Source>,
+    ) -> BoxFuture<'a, Result<Found, Failure>> {
+        match host.parse::<std::net::IpAddr>() {
+            Ok(ip) => Box::pin(async move {
+                Ok(Found {
+                    addrs: vec![SocketAddr::new(ip, port)],
+                    source: Source { rank: 0, name: "literal" },
+                    more: false,
+                })
+            }),
+            Err(_) => Public.resolve_from(host, port, deadline, after),
+        }
+    }
+}
+
+/// T-072, U10: through an upstream that resets a CONNECT to an IP literal,
+/// a unit gets no tunnel when the broker sends addresses, and gets one when
+/// it sends the checked name (`upstream_names_only`).
+#[test]
+fn ip_literal_reset_and_the_names_mode() {
+    let d = dir();
+    let upstream = proxy_that_takes_names_only();
+    for (names_only, works) in [(false, false), (true, true)] {
+        let proxy = pod_proxy::Proxy::parse(&upstream).unwrap();
+        let e = Egress::host(Some(proxy), names_only, Arc::new(PublicNames)).unwrap();
+        let socket = d.join(format!("names-{names_only}.sock"));
+        e.open("u-1", ONLY_A, &socket, Duration::from_secs(60)).unwrap();
+        let (status, mut tunnel) = ask(&socket, &connect("a.example:443"));
+        if works {
+            assert_eq!(status, 200, "names mode");
+            tunnel.get_mut().write_all(b"ping").unwrap();
+            let mut got = [0u8; 4];
+            tunnel.read_exact(&mut got).unwrap();
+            assert_eq!(&got, b"ping");
+            // This upstream takes any name: the canary says so.
+            assert_eq!(e.check_upstream(), "takes-non-public");
+        } else {
+            assert_ne!(status, 200, "an address through an upstream that resets it");
+        }
+        e.kill();
+    }
+    let _ = std::fs::remove_dir_all(d);
+}
