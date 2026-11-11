@@ -16,3 +16,4 @@ base64.workspace = true
 podrunner-fake.workspace = true
 podrunner-schema.workspace = true
 podrunner-unit.workspace = true
+podrunner-podvm.workspace = true

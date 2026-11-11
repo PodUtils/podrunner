@@ -1,4 +1,6 @@
 //! The helpers of the tests that run the official runner.
+// Each test file uses a part of the helpers.
+#![allow(dead_code)]
 
 use std::path::Path;
 use std::process::Command;
@@ -8,7 +10,7 @@ use base64::engine::general_purpose::STANDARD;
 use podrunner_broker_fake::{Broker, files::runner_files};
 
 /// An RSA key of the test, in the form of `.credentials_rsaparams`.
-fn rsaparams() -> String {
+pub fn rsaparams() -> String {
     let pem = Command::new("openssl").args(["genrsa", "-traditional", "2048"]).output().unwrap().stdout;
     let mut child = Command::new("openssl")
         .args(["rsa", "-text", "-noout"])

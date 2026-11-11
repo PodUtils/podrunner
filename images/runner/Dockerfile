@@ -30,5 +30,10 @@ RUN arch=x64; [ "$TARGETARCH" = arm64 ] && arch=arm64; \
 
 # The relay of the container hooks (GitHub #35).
 COPY --chmod=0755 crates/podrunner-hook/relay/podrunner-hook.sh /home/runner/hooks/podrunner-hook.sh
+# The podvm driver writes the credential files of the runner into
+# /podrunner/.runner (mode 0600); the runner reads them from its own
+# directory. Relative links: on the supervise rung of podvm an absolute
+# link resolves on the host, out of the rootfs.
+RUN for f in .runner .credentials .credentials_rsaparams; do ln -s "../../podrunner/.runner/$f" "/home/runner/$f"; done
 
 USER runner

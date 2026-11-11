@@ -690,6 +690,7 @@ dependencies = [
  "base64 0.22.1",
  "podrunner-fake",
  "podrunner-hook",
+ "podrunner-podvm",
  "podrunner-schema",
  "podrunner-unit",
  "serde_json",

@@ -14,6 +14,8 @@ on:
       - images/podvm.toml
       - images/runner/**
       - crates/podrunner-hook/relay/**
+      - crates/podrunner-podvm/**
+      - crates/podrunner-broker-fake/**
       - .github/workflows/runner-image.yml
 
 permissions:
@@ -109,8 +111,17 @@ jobs:
             exit 0
           fi
           "$RUNNER_TEMP/podvm" run --rm "$image" /bin/sh -c "$check"
-          # A measure, not a check: the runner on the rung of this host.
-          "$RUNNER_TEMP/podvm" run --rm "$image" /home/runner/bin/Runner.Listener --version 2>&1 | tail -3 || true
+          echo "PODRUNNER_PODVM=$RUNNER_TEMP/podvm" >> "$GITHUB_ENV"
+          echo "PODRUNNER_PODVM_IMAGES=$PODVM_STORE" >> "$GITHUB_ENV"
+          echo "PODRUNNER_RUNNER_IMAGE=$image" >> "$GITHUB_ENV"
+      # T-026: the podvm driver runs the image with the JIT files of the
+      # fake broker; the runner takes one canned job and completes it.
+      - name: The runner in a podvm unit runs a canned job
+        if: matrix.arch == 'x86_64'
+        run: |
+          set -eu
+          sh scripts/retry.sh rustup toolchain install
+          cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runner-${{ matrix.arch }}

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**60 entries: 2 open, 3 partial, 15 blocked, 40 done.**
+**60 entries: 1 open, 4 partial, 15 blocked, 40 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 21 | 22 |
-| P2 | 2 | 2 | 10 | 18 | 32 |
+| P2 | 1 | 3 | 10 | 18 | 32 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 2 | 3 | 15 | 40 | 60 |
+| **All** | 1 | 4 | 15 | 40 | 60 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -73,7 +73,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-023](core.md) | P1 | M | M-A | feature | done | WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23) |
 | [T-024](core.md) | P1 | M | M-A | feature | done | WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24) |
 | [T-025](core.md) | P1 | S | M-A | chore | done | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload (GitHub #25) |
-| [T-026](live.md) | P2 | M | M-B | chore | open | Milestone M-B: the official runner starts under the podvm driver, no GitHub (GitHub #26) |
+| [T-026](live.md) | P2 | M | M-B | chore | partial | Milestone M-B: the official runner starts under the podvm driver, no GitHub (GitHub #26) |
 | [T-027](live.md) | P2 | M | M-C | feature | done | WP-05a: mint with an in-process sign module, source conformance (GitHub #27) |
 | [T-028](live.md) | P2 | S | M-C | feature | done | WP-06: the fake scale-set service (Go, test only) (GitHub #28) |
 | [T-029](live.md) | P2 | M | M-C | feature | done | WP-07: the github-scaleset source sidecar (static Go) (GitHub #29) |
