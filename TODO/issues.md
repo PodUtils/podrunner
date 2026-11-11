@@ -67,4 +67,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #61 | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (to podvm) | open | T-061 |
 | #62 | COORD-008: on the supervise rung a volume given as :ro is writable (to podvm) | open | T-062 |
 
-#44 and #45 are pull requests.
+#44, #45 and #63 are pull requests (#63: Dependabot, base64 0.23, applied on `main`).
