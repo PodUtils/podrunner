@@ -60,6 +60,7 @@ GitHub #8 (C1 to C12) are rulings since 2026-11-11 (DR-3, DR-8 to DR-17).
 | 2026-11-11 | C12 (GitHub #8, R-C18) | The flag `--deny-self-hosted-runners` of the release proofs of podvm, podnet and podssh stays. podrunner builds no release of another project. |
 | 2026-11-11 | C13 (T-021) | podrunner gives a credential to a unit as files only. A kind whose record has no `files` in `secret_delivery` is no candidate; when no kind is left at that step, the code is `boundary-not-available`. A `trusted` set needs `confined` or more unless the configuration sets `redirect` (DR-4). |
 | 2026-11-11 | C14 (T-018, T-021) | A `local` set runs each job at tier `local`, with no tier rule. Only a source of the operator (now: `fake`) can be `local`; the configuration refuses a forge source on a `local` set. |
+| 2026-11-11 | C16 (T-031, T-045) | The host token of the remote mint is the pinned key of the host (mutual TLS, `pod_tls::mutual`): no bearer token exists to steal from a file. Its life is `not_after_s` of its `[[host]]`; a rotation pins the new key beside the old one, then removes the old one. The certificate dates are not read: the pin names the key. |
 | 2026-11-11 | C15 (T-029) | The scale-set sidecar asks `sign` for each App JWT over an inherited descriptor (3): one JSON line out, one line back. The key never reaches the sidecar. GitHub 401 and 403 map to `source-revoked`, 404 to `unknown-job`, 422 to `bad-request`, 429 and each other status to `unavailable`. The job id of an offer is the runner request id of the scale set. |
 
 ## Questions for the owner

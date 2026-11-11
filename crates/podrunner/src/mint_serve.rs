@@ -14,7 +14,7 @@ use pod_tls::server::{Served, certified};
 use podrunner_clock::{Clock, SystemClock};
 use podrunner_remote::gate::Gate;
 use podrunner_remote::ledger::Ledger;
-use podrunner_remote::transport::{ALPN, Server, provider};
+use podrunner_remote::transport::{ALPN, HostKey, Server, provider};
 use podrunner_slots::config::{SourceConfig, SourceKind};
 use podrunner_tier::TierConfig;
 use serde::Deserialize;
@@ -29,6 +29,11 @@ pub struct HostConfig {
     pub name: String,
     pub pin: String,
     pub slots: u32,
+    /// The end of the life of this key, in seconds of the Unix epoch. A
+    /// rotation gives the host a second `[[host]]` with the new pin, then
+    /// removes the old one.
+    #[serde(default)]
+    pub not_after_s: Option<u64>,
 }
 
 /// The file of `mint-serve`.
@@ -76,11 +81,15 @@ impl MintConfig {
         if c.host.is_empty() {
             return Err("no [[host]]: no unit host can reach the mint".into());
         }
-        let mut names = std::collections::BTreeSet::new();
+        let mut pins = std::collections::BTreeSet::new();
         for h in &c.host {
-            Pin::parse(&h.pin).map_err(|e| format!("[[host]] {:?}: {e}", h.name))?;
-            if !names.insert(h.name.as_str()) || h.slots == 0 {
-                return Err(format!("[[host]] {:?}: a name two times, or no slot", h.name));
+            let pin = Pin::parse(&h.pin).map_err(|e| format!("[[host]] {:?}: {e}", h.name))?;
+            if !pins.insert(pin.to_string()) || h.slots == 0 {
+                return Err(format!("[[host]] {:?}: a pin two times, or no slot", h.name));
+            }
+            // The keys of one host in a rotation: one slot count.
+            if c.host.iter().any(|o| o.name == h.name && o.slots != h.slots) {
+                return Err(format!("[[host]] {:?}: two slot counts", h.name));
             }
         }
         Ok(c)
@@ -108,16 +117,21 @@ pub fn run(config: &Path) -> Result<(), Failure> {
     let now = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
     let gate = Gate::new(source, c.source.tier, c.trust.clone(), ledger, hosts, audit)
         .with_reconcile(Box::new(now), reconcile);
-    let pins: Vec<(Pin, String)> =
-        c.host.iter().filter_map(|h| Pin::parse(&h.pin).ok().map(|p| (p, h.name.clone()))).collect();
+    let keys: Vec<HostKey> = c
+        .host
+        .iter()
+        .filter_map(|h| {
+            Pin::parse(&h.pin).ok().map(|pin| HostKey { pin, host: h.name.clone(), not_after_s: h.not_after_s })
+        })
+        .collect();
     let key = private_file("the key file of the mint", &c.key_file)?;
     let cert =
         std::fs::read(&c.cert_file).map_err(|e| fail(Class::Config, format!("the certificate: {}", e.kind())))?;
     let served = Served::new(Some(certified(&cert, &key).map_err(|e| fail(Class::Config, e.to_string()))?));
-    let tls = server_config(provider(), served, Pins::new(pins.iter().map(|(p, _)| *p)), &[ALPN])
+    let tls = server_config(provider(), served, Pins::new(keys.iter().map(|k| k.pin)), &[ALPN])
         .map_err(|e| fail(Class::Config, e.to_string()))?;
     let listener = TcpListener::bind(&c.listen).map_err(|e| io("the listen address", e))?;
-    Server::new(Arc::new(Mutex::new(gate)), pins, tls).serve(listener, Arc::new(AtomicBool::new(false)));
+    Server::new(Arc::new(Mutex::new(gate)), keys, tls).serve(listener, Arc::new(AtomicBool::new(false)));
     Ok(())
 }
 
@@ -145,6 +159,12 @@ mod tests {
         assert!(MintConfig::parse(&file("allow_fake = true", &bad)).is_err());
         let twice = format!("{host}{host}");
         assert!(MintConfig::parse(&file("allow_fake = true", &twice)).unwrap_err().contains("two times"));
+        // A rotation: a second key of one host, with the same slots.
+        let other = "sha256/AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+        let rotation = format!("{host}not_after_s = 1800000000\n{}", host.replace(PIN, other));
+        assert!(MintConfig::parse(&file("allow_fake = true", &rotation)).is_ok());
+        let slots = format!("{host}{}", host.replace(PIN, other).replace("slots = 2", "slots = 3"));
+        assert!(MintConfig::parse(&file("allow_fake = true", &slots)).unwrap_err().contains("two slot counts"));
         let remote = file("allow_fake = true", &host).replace("kind = \"fake\"", "kind = \"remote\"");
         assert!(MintConfig::parse(&remote).unwrap_err().contains("unit host"));
     }

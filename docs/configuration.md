@@ -111,6 +111,8 @@ organizations = [{ login = "example-org" }]
 name = "host-a"
 pin = "sha256/BASE64"        # the pin of the key of the host
 slots = 2                    # its offers are capped at this count
+not_after_s = 1800000000     # the end of the life of this key (optional); a rotation adds a
+                             # second [[host]] of the same name with the new pin, then removes this one
 ```
 
 The pin of a key is the SHA-256 of its SubjectPublicKeyInfo, in base64,

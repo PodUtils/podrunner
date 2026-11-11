@@ -351,7 +351,8 @@ Steps, in the crate `podrunner-remote`:
 2. Done: the transport (`transport.rs`): `POST /v1/source` with one request line, over `pod_tls::mutual` (TLS 1.3, no resumption, ALPN `podrunner-mint/1`, the provider of ring), one request on each connection, a body of at most 1 MiB, 120 calls of a host in 10 s; the key of the client names its host. The client is `Wire` over the `Exchange` `Https`. A test on the loopback: a pinned host reaches the gate; a key with no pin, and a client that pins another key, fail. Limit: the source wire to the sidecar is serial (one request at a time on its stdio), so a long poll of one host holds each other call to that source, on the mint as on a single host; the gate adds no other wait.
 3. Done: `podrunner mint-serve --config FILE` (`crates/podrunner/src/mint_serve.rs`: the source, the tier rule, the hosts with their pins and slots, the ledger and the audit in a state directory) and a source kind `remote` on the unit host (`mint`, `mint_pin`, `cert_file`, `key_file`). A host that cannot reach the mint gets no offer: the source is `unavailable`.
 4. Done: the reconciliation. The ledger keeps the time of each credential and the `started` event of its runner; a credential with no start after `reconcile_after_s` (300) is an audit alert `credential-with-no-start`, and `revoke_after` (3) alerts of one host revoke it (`source-revoked` for each call, an alert `host-revoked`).
-5. Open: the removal of the runners of a revoked host at the forge (an operation of the sidecar), the host key with a rotation interval (T-045) and the source conformance tests 6 to 9 and 12 over HTTPS in CI.
+5. Done: the host key and its rotation (call C16): each `[[host]]` pin has an optional `not_after_s`; a host can have two keys during a rotation; a key past its life gets HTTP 403. Tested on the loopback.
+6. Open: the removal of the runners of a revoked host at the forge (an operation of the sidecar), and the source conformance tests 6 to 9 and 12 over HTTPS in CI.
 
 ## Prove
 
@@ -446,7 +447,7 @@ The ruling "Test accounts" (DR-7: not now, 2026-11-11), T-031 (remote mint) and 
 **Milestone:** M-D
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -470,8 +471,12 @@ Read GitHub #4 and the ruling of 2026-11-11. The configuration part is measured 
 
 ## Approach
 
-Done: the configuration check of `podrunner_slots::config` (`check_redirect`) refuses `redirect` for `trusted` with no `repository`, with `same_principal_ok = true`, or with a `trusted` source with no `slots`. Placement refuses an offer of another repository than `repository` with `repo-scope-refused` (terminal). A trusted job at `redirect` runs, and its report and the status name `redirect`, `shared` and the hold. The pin list is signed with an Ed25519 key of `pod-identity` (`podrunner pin-sign`); `redirect` needs a signer, and a changed pin list fails the check at each read of the file. Next: the host key and the token life, with T-031.
+Done: the configuration check of `podrunner_slots::config` (`check_redirect`) refuses `redirect` for `trusted` with no `repository`, with `same_principal_ok = true`, or with a `trusted` source with no `slots`. Placement refuses an offer of another repository than `repository` with `repo-scope-refused` (terminal). A trusted job at `redirect` runs, and its report and the status name `redirect`, `shared` and the hold. The pin list is signed with an Ed25519 key of `pod-identity` (`podrunner pin-sign`); `redirect` needs a signer, and a changed pin list fails the check at each read of the file. The host key and its life are the pinned key of the remote mint and its `not_after_s` (T-031, call C16).
 
 ## Prove
 
-`cargo test -p podrunner-slots trusted_at_redirect`, `cargo test -p podrunner-slots one_repository`, `cargo test -p podrunner-slots a_job_at_redirect`, `cargo test -p podrunner-slots signed_list`, `cargo test -p podrunner pin_sign`
+`cargo test -p podrunner-slots trusted_at_redirect`, `cargo test -p podrunner-slots one_repository`, `cargo test -p podrunner-slots a_job_at_redirect`, `cargo test -p podrunner-slots signed_list`, `cargo test -p podrunner pin_sign`, `cargo test -p podrunner-remote` (the slot cap of the mint, the key life)
+
+## Done
+
+2026-11-11: each mitigation of GitHub #4 has its test. One job at a time on a shared uid, a slot count on each `trusted` source, one repository for the host (`repo-scope-refused`) and a signed pin list are checks of the configuration at `redirect`; the remote mint caps the offers of each host at its slots (T-031); the host key is the pinned key of the remote mint, with its life and its rotation (call C16); the report and `status` name the boundary, the principal and the hold; `untrusted` stays at `guest`. Each command of the Prove passes (`podrunner-slots`: 35 tests, `podrunner-remote`: 5, `podrunner`: 13).

@@ -32,16 +32,26 @@ pub fn provider() -> Arc<rustls::crypto::CryptoProvider> {
     Arc::new(rustls::crypto::ring::default_provider())
 }
 
+/// A pinned key of a host: its host, and the end of its life in seconds of
+/// the Unix epoch (none: no end). A rotation pins the new key beside the
+/// old one, then removes the old one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostKey {
+    pub pin: Pin,
+    pub host: String,
+    pub not_after_s: Option<u64>,
+}
+
 /// The mint side: the gate, and the host of each pinned key.
 pub struct Server {
     pub gate: Arc<Mutex<Gate>>,
-    pub hosts: Vec<(Pin, String)>,
+    pub hosts: Vec<HostKey>,
     pub config: Arc<rustls::ServerConfig>,
     calls: Mutex<HashMap<String, (Instant, u32)>>,
 }
 
 impl Server {
-    pub fn new(gate: Arc<Mutex<Gate>>, hosts: Vec<(Pin, String)>, config: Arc<rustls::ServerConfig>) -> Arc<Server> {
+    pub fn new(gate: Arc<Mutex<Gate>>, hosts: Vec<HostKey>, config: Arc<rustls::ServerConfig>) -> Arc<Server> {
         Arc::new(Server { gate, hosts, config, calls: Mutex::default() })
     }
 
@@ -83,8 +93,12 @@ impl Server {
             }
         };
         let pin = peer_pin(tls.conn.peer_certificates());
-        let host = pin.and_then(|p| self.hosts.iter().find(|(k, _)| *k == p)).map(|(_, h)| h.clone());
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+        let key = pin.and_then(|p| self.hosts.iter().find(|k| k.pin == p));
+        let live = key.filter(|k| k.not_after_s.is_none_or(|t| now < t));
+        let host = live.map(|k| k.host.clone());
         let (status, body) = match (host, req.method.as_str(), req.path.as_str()) {
+            (None, _, _) if key.is_some() => (403, "the key of the host is past its life\n".to_string()),
             (None, _, _) => (403, "no host of this key\n".to_string()),
             (Some(_), m, p) if m != "POST" || p != "/v1/source" => (404, "no such route\n".to_string()),
             (Some(h), _, _) if !self.admit(&h) => (429, "too many calls\n".to_string()),

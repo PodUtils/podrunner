@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 46 entries: 5 open, 6 partial, 12 blocked, 23 done.
+`TODO/INDEX.md` holds 46 entries: 5 open, 5 partial, 12 blocked, 24 done.
 
 ## State
 
@@ -29,8 +29,8 @@ then take the next one. Continue a `partial` entry first.
 2. **M-A** (GitHub #25): T-023 (podvm driver, on the released podvm
    binary), then T-025.
 3. **The registers:** T-009 (partial: the open rows wait for their entries).
-4. **M-D:** T-045 (partial: the host key and the token life, with T-031),
-   T-031 (remote mint over `pod_tls::mutual`).
+4. **M-D:** T-031 (partial: the removal of the runners of a revoked host,
+   the source tests over HTTPS in CI).
 5. **M-C, L2:** T-035, T-030; T-034, T-038.
 6. **Blocked:** T-007 (DR-7: not now), T-014 (the spec), T-026 (podvm),
    T-036 (a real guest),

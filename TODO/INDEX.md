@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**46 entries: 5 open, 6 partial, 12 blocked, 23 done.**
+**46 entries: 5 open, 5 partial, 12 blocked, 24 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 1 | 3 | 0 | 13 | 17 |
+| P1 | 1 | 2 | 0 | 14 | 17 |
 | P2 | 4 | 3 | 7 | 9 | 23 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 5 | 6 | 12 | 23 | 46 |
+| **All** | 5 | 5 | 12 | 24 | 46 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -92,5 +92,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-042](later.md) | P3 | S | later | feature | blocked | The confined boundary (pod-confine) (GitHub #42) |
 | [T-043](later.md) | P3 | S | later | feature | blocked | Later crates: service unit, release index, acceptance registry (GitHub #43) |
 | [T-044](plan.md) | P2 | S | M-A | chore | done | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |
-| [T-045](live.md) | P1 | M | M-D | feature | partial | The mitigations of DR-4 for trusted jobs at redirect (GitHub #47) |
+| [T-045](live.md) | P1 | M | M-D | feature | done | The mitigations of DR-4 for trusted jobs at redirect (GitHub #47) |
 | [T-046](later.md) | P3 | L | later | feature | blocked | Local mode: podrunner run workflow.yml (GitHub #48) |

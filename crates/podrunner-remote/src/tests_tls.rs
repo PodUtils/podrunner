@@ -13,7 +13,7 @@ use podrunner_schema::JobId;
 use podrunner_source::{Event, JobSource, SourceCode, Wire};
 
 use crate::tests::{dir, gate, offer};
-use crate::transport::{ALPN, Https, Server, provider};
+use crate::transport::{ALPN, HostKey, Https, Server, provider};
 
 /// A P-256 key and a certificate of it, from openssl; its pin.
 fn key(at: &Path, name: &str) -> Option<(Vec<u8>, Vec<u8>, Pin)> {
@@ -37,13 +37,19 @@ fn key(at: &Path, name: &str) -> Option<(Vec<u8>, Vec<u8>, Pin)> {
 #[test]
 fn a_pinned_host_reaches_the_gate_and_another_key_does_not() {
     let d = dir();
-    let (Some(mint), Some(host), Some(stranger)) = (key(&d, "mint"), key(&d, "host"), key(&d, "stranger")) else {
+    let keys = (key(&d, "mint"), key(&d, "host"), key(&d, "stranger"), key(&d, "old"));
+    let (Some(mint), Some(host), Some(stranger), Some(old)) = keys else {
         return; // No openssl on this host.
     };
     let g = Arc::new(Mutex::new(gate(&[offer("j-1", false), offer("j-2", false)], &[("h1", 1)], &d)));
     let served = Served::new(Some(certified(&mint.1, &mint.0).unwrap()));
-    let config = server_config(provider(), served, Pins::new([host.2]), &[ALPN]).unwrap();
-    let server = Server::new(g, vec![(host.2, "h1".into())], config);
+    let config = server_config(provider(), served, Pins::new([host.2, old.2]), &[ALPN]).unwrap();
+    let keys = vec![
+        HostKey { pin: host.2, host: "h1".into(), not_after_s: None },
+        // The old key of a rotation, past its life.
+        HostKey { pin: old.2, host: "h1".into(), not_after_s: Some(1) },
+    ];
+    let server = Server::new(g, keys, config);
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap().to_string();
     std::thread::spawn(move || server.serve(listener, Arc::new(AtomicBool::new(false))));
@@ -62,6 +68,8 @@ fn a_pinned_host_reaches_the_gate_and_another_key_does_not() {
     h1.mint(&j, "r").unwrap();
     assert_eq!(h1.mint(&j, "r").unwrap_err().code, SourceCode::CredentialAlreadyIssued);
 
+    // The old key of the host is past its life.
+    assert_eq!(client(&old, mint.2).hello("podrunner", "0").unwrap_err().detail, "the mint: HTTP 403");
     // A key that the mint does not pin fails the handshake.
     let e = client(&stranger, mint.2).hello("podrunner", "0").unwrap_err();
     assert_eq!(e.code, SourceCode::Unavailable);
