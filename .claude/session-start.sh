@@ -9,6 +9,10 @@ cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 git rev-parse --is-inside-work-tree > /dev/null 2>&1 || exit 0
 git config user.name Azathothas
 git config user.email ajamx101@gmail.com
+# The signing key of a cloud session is registered to another identity,
+# so GitHub shows each signed commit of this identity as Unverified, and
+# the stop hook of the session asks to rewrite it. No signature: no badge.
+git config commit.gpgsign false
 # .githooks/commit-msg refuses agent attribution lines (AGENTS.md, Git).
 git config core.hooksPath .githooks
 git fetch -q origin main 2> /dev/null
