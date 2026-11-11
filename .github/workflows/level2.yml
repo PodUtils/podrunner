@@ -1,0 +1,43 @@
+name: level2
+
+# Level 2 (GitHub #38): the official runner of images/runner/runner.toml
+# runs canned jobs offline against the fake broker of
+# crates/podrunner-broker-fake. The tarball is checked against its pin
+# before it runs.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - crates/podrunner-broker-fake/**
+      - crates/podrunner-hook/**
+      - images/runner/runner.toml
+      - .github/workflows/level2.yml
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: 4
+
+jobs:
+  runner:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: The runner of the pin
+        run: |
+          set -eu
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' images/runner/runner.toml)
+          curl -fsSLo runner.tgz "https://github.com/actions/runner/releases/download/v$version/actions-runner-linux-x64-$version.tar.gz"
+          cargo run -q -p podrunner -- image verify --tarball runner.tgz --arch x86_64
+          mkdir "$RUNNER_TEMP/runner" && tar -xzf runner.tgz -C "$RUNNER_TEMP/runner" && rm runner.tgz
+      - name: Canned jobs on the official runner
+        run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner-broker-fake --test runner -- --ignored

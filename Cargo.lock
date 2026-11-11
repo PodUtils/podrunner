@@ -683,6 +683,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "podrunner-broker-fake"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "podrunner-hook",
+ "serde_json",
+]
+
+[[package]]
 name = "podrunner-clock"
 version = "0.1.0"
 

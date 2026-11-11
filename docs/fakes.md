@@ -77,3 +77,15 @@ gives other behaviours as argv of its own.
 | 9 | withdraw keeps the offer |
 | 10 | release keeps the claim |
 | 11, 12 | a wire that answers each line with `done` |
+
+## The fake broker (level 2)
+
+`crates/podrunner-broker-fake` serves the routes that the official
+runner v2.338.2 calls with the JIT files of a scale set
+(`files::runner_files`): the token of its OAuth client, the broker
+session and messages, and the run service (`acquirejob`, `renewjob`,
+`completejob`). A test queues a `Job` (a name and the script of each
+`run:` step) and reads each `Completion`. It checks no credential and
+listens on the loopback only. `.github/workflows/level2.yml` runs the
+official runner against it.
+
