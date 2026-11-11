@@ -233,6 +233,8 @@ Read the text of GitHub #38 on 2026-11-11. Nothing measured.
 
 A fake broker of GitHub Actions that serves canned messages to the official runner, for level 2.
 
+Read so far (2026-11-11, `actions/runner` v2.338.2): the JIT files of a scale set (`.runner` with `ServerUrlV2` and `UseV2Flow`, `.credentials` with the OAuth client, `.credentials_rsaparams`) send the listener to the broker (`src/Runner.Common/BrokerServer.cs`: create and delete a session, get a message, acknowledge a request, an optional long-poll WebSocket probe) and the run service (`src/Runner.Common/RunServer.cs`: get the job message, renew, complete); `src/Runner.Listener/Configuration/OAuthCredential.cs` gets a token with a client assertion signed by the RSA key. The HTTP clients of these routes are under `src/Sdk/`. The release tarball of v2.338.2 unpacks and its dependencies (ICU) are on this host, so the broker can start against the runner as a process of a fake unit before T-026. Steps: (1) the token endpoint and the session, until the listener asks for a message; (2) one canned job message of one `run:` step and its completion; (3) the results routes of the Worker (step updates and logs); (4) the corpus of podcrates jobs.
+
 ## Prove
 
 `cargo test -p podrunner-fake broker`
