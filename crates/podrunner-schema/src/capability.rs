@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// The boundary between a job and the host, weakest first. `redirect`
 /// rewrites file paths and is no isolation against hostile code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum Boundary {
     None,
@@ -21,7 +21,7 @@ pub enum Boundary {
 
 /// Units and the control plane run as one uid (`shared`) or not.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum Principal {
     Shared,
@@ -31,7 +31,7 @@ pub enum Principal {
 
 /// How a unit runs the containers of a job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum ContainerRoute {
     /// No container: a job that needs one is refused
@@ -45,7 +45,7 @@ pub enum ContainerRoute {
 /// How a credential reaches the unit. There is no `env`: a credential never
 /// goes into the environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum SecretDelivery {
     Files,
@@ -54,7 +54,7 @@ pub enum SecretDelivery {
 
 /// Where the credential files live while the unit runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum CredentialStore {
     /// A directory of mode 0700 on the disk of the host.
@@ -66,7 +66,7 @@ pub enum CredentialStore {
 
 /// The kill of the whole process tree of a unit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeKill {
     /// Conformance test 3 passed on this host.
@@ -84,7 +84,7 @@ impl TreeKill {
 
 /// How the network traffic of a unit reaches the egress broker.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum EgressHold {
     None,
@@ -104,7 +104,7 @@ impl EgressHold {
 
 /// How the unit applies one limit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum LimitMode {
     Enforced,
@@ -115,7 +115,7 @@ pub enum LimitMode {
 
 /// A fact that is true, false or not known. `unknown` is read as false.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum Fact {
     Yes,
@@ -131,7 +131,7 @@ impl Fact {
 
 /// The capability record of one unit kind (`unit-capability.v1`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Capability {
     pub schema: u32,

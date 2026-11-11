@@ -146,7 +146,12 @@ impl Slots {
         if self.draining || self.degraded.is_some() || src.revoked {
             return 0;
         }
-        let free: u32 = self.kind_views().iter().filter(|k| k.capability.arch == src.cfg.arch).map(|k| k.free).sum();
+        let free: u32 = self
+            .kind_views()
+            .iter()
+            .filter(|k| k.capability.arch == src.cfg.arch && k.capability.boundary >= self.cfg.floor(src.cfg.tier))
+            .map(|k| k.free)
+            .sum();
         let mine =
             |pred: fn(State) -> bool| self.jobs.values().filter(|j| j.source == s && pred(j.state)).count() as u32;
         let held = mine(|st| !st.is_final() && st != State::Offered);

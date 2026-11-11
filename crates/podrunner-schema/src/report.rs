@@ -8,7 +8,7 @@ use crate::{Boundary, EgressHold, JobId, Principal, RefusalCode, SCHEMA, Tier, U
 
 /// How a job ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum ExitReason {
     Success,
@@ -28,7 +28,7 @@ pub enum ExitReason {
 
 /// The unit of a job that ran.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct UnitFields {
     pub unit_id: UnitId,
@@ -46,7 +46,7 @@ pub struct UnitFields {
 
 /// A count of `destroy`, or `unknown`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum Residual {
     Count(u64),
@@ -55,7 +55,7 @@ pub enum Residual {
 
 /// The word `unknown`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum Unknown {
     Unknown,
@@ -63,7 +63,7 @@ pub enum Unknown {
 
 /// The full report (`run-report.v1`), for the operator.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct RunReport {
     pub schema: u32,
@@ -87,7 +87,7 @@ pub struct RunReport {
 
 /// The public report (`run-report-public.v1`). It never names the host.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct PublicReport {
     pub schema: u32,

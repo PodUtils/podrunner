@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 /// The trust tier of a job. It comes from the trust inputs of an offer,
 /// never from a label; `local` comes only from the configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum Tier {
     /// A pull request from a fork.
@@ -19,7 +19,7 @@ pub enum Tier {
 
 /// Why podrunner refuses a job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum RefusalCode {
     NoSlotOfKind,

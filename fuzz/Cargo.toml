@@ -24,6 +24,7 @@ members = ["."]
 
 [dependencies]
 libfuzzer-sys = "0.4"
+podrunner = { path = "../crates/podrunner" }
 podrunner-slots = { path = "../crates/podrunner-slots" }
 podrunner-source = { path = "../crates/podrunner-source" }
 serde_json = "1"
@@ -45,6 +46,13 @@ bench = false
 [[bin]]
 name = "slots_journal"
 path = "fuzz_targets/slots_journal.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "control_line"
+path = "fuzz_targets/control_line.rs"
 test = false
 doc = false
 bench = false

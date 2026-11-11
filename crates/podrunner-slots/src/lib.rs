@@ -11,6 +11,7 @@ pub mod journal;
 pub mod placement;
 mod run;
 pub mod state;
+pub mod status;
 
 use std::path::Path;
 use std::sync::Arc;

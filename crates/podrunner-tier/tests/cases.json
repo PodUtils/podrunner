@@ -276,19 +276,19 @@
    "expect": "event-not-allowed"
   },
   {
-   "name": "a trusted job on a local set",
+   "name": "a job of a local set runs local",
    "set": "local",
    "with": {},
-   "expect": "tier-mismatch"
+   "expect": "local"
   },
   {
-   "name": "a fork job on a local set",
+   "name": "a fork job of a local set runs local",
    "set": "local",
    "with": {
     "event": "pull_request",
     "head_is_fork": "yes"
    },
-   "expect": "tier-mismatch"
+   "expect": "local"
   }
  ]
 }

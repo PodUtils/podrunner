@@ -17,6 +17,8 @@ publish = false
 # (docs/decisions.md, Delivery). A member crate names one only when it
 # needs it. One tag for each crate of podcrates.
 [workspace.dependencies]
+# No default feature: the failure classes and their exit codes, with no tokio.
+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0", default-features = false }
 pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0" }
 podrunner-clock = { path = "crates/podrunner-clock" }
 podrunner-fake = { path = "crates/podrunner-fake" }

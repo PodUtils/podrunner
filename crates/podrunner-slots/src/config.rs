@@ -193,6 +193,9 @@ impl Config {
             if !names.insert(s.name.as_str()) {
                 return Err(format!("[[source]] {:?} is there two times", s.name));
             }
+            if s.tier == Tier::Local && s.kind != SourceKind::Fake {
+                return Err(format!("[[source]] {:?}: a forge source is never local (call C14)", s.name));
+            }
             if s.kind == SourceKind::Fake && !self.allow_fake {
                 return Err(format!("[[source]] {:?} is fake: set allow_fake = true", s.name));
             }

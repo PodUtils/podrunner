@@ -111,9 +111,13 @@ fn rank(t: Tier) -> u8 {
 }
 
 /// The tier that a job of a set with the tier `set` runs under, or the
-/// refusal. A set marked `local` takes no computed job: it serves only a
-/// source that the configuration marks local.
+/// refusal. A set marked `local` runs each job at `local`, with no rule.
 pub fn intake(t: &TrustInputs, cfg: &TierConfig, set: Tier) -> Result<Tier, RefusalCode> {
+    // A local set serves a source of the operator, never a forge: the
+    // configuration refuses a forge source on a local set (call C14).
+    if set == Tier::Local {
+        return Ok(Tier::Local);
+    }
     let computed = compute(t, cfg)?;
     if rank(computed) < rank(set) {
         return Err(RefusalCode::TierMismatch);

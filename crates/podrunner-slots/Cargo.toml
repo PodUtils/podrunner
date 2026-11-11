@@ -19,3 +19,5 @@ toml.workspace = true
 
 [dev-dependencies]
 podrunner-fake.workspace = true
+podrunner-schema = { workspace = true, features = ["schema"] }
+schemars = "1"

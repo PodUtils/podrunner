@@ -56,4 +56,4 @@ built_at_s = 1800000000      # the time of the build, Unix seconds
 | --- | --- | --- |
 | `untrusted` | `guest` | A fork job is hostile code. |
 | `trusted` | `confined` | DR-4 (Q1) is open: `redirect` for `trusted` needs a ruling of the owner. |
-| `local` | `none` | Only the configuration marks a set `local`. |
+| `local` | `none` | Only the configuration marks a set `local`; its jobs run at `local` with no tier rule, and only a `fake` source can be `local` (call C14). |

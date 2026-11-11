@@ -111,7 +111,7 @@ Done so far (2026-11-11): the types are in `crates/podrunner-schema` (`offer.rs`
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -146,6 +146,11 @@ A pure function from the trust inputs of an offer and the configuration to a tie
 ## Prove
 
 `cargo test -p podrunner-tier`
+
+## Done
+
+2026-11-11, commit `33e6779`; the gate run 42938706745 of `f72f679` is green. `crates/podrunner-tier`: `compute` and `intake`. `cargo test -p podrunner-tier`: 4 passed: each of the 32 rows of `crates/podrunner-tier/tests/cases.json` passes; over 1296 inputs, no input with an `unknown` field is `trusted` and none is `local`; the three planted rules (an `unknown` read as good, no intake check, `pull_request_target` from a member) each fail rows. A `local` set runs its jobs at `local` with no rule (call C14).
+
 
 # T-019: Security documents: threat model, accepted residuals, leak runbook (GitHub #19)
 
@@ -196,7 +201,7 @@ Write docs/security/threat-model.md, docs/security/residuals.md and docs/securit
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -233,6 +238,11 @@ A `fake` source and a `fake` unit that read scripts of timed events and behaviou
 ## Prove
 
 `cargo test -p podrunner-fake`
+
+## Done
+
+2026-11-11, commit `e8f4c0d`; the gate run 42938706745 of `f72f679` is green. `crates/podrunner-fake` and `crates/podrunner-clock`, `docs/fakes.md`. `cargo test -p podrunner-fake`: 7 passed: the fake unit passes the unit tests 1 to 17 (13 or 14 skip by the container route), the fake source passes the source tests 1 to 12, each of 17 unit plants and 12 source plants fails the test of its number, the script follows the manual clock. `fake` is refused unless `allow_fake = true` (`crates/podrunner-slots/src/config.rs`), and a report of a fake unit names the kind `fake`. A fake that claims `guest` fails the guest self-test once T-036 exists.
+
 
 # T-021: WP-03: the slots core: states, journal, placement, status, drain, codes, config, audit (GitHub #21)
 
@@ -282,7 +292,7 @@ Read the text of GitHub #21 on 2026-11-11. Nothing measured.
 
 The state machine with a deadline for each transition, the placement steps, the 19 refusal codes, the journal and the reconcile on start, the `degraded` state, `podrunner.toml`, the audit lines and the exit codes of `pod-core`. The level 1 tests G-01, G-02, G-05, G-08 and G-12 run on the fakes of T-020 with a manual clock.
 
-Done so far (2026-11-11): `crates/podrunner-slots` holds the configuration (`docs/configuration.md`), placement, the states, the journal with the reconcile at start, the audit lines (forwarded to the source), the reports (full or public), the engine, and 14 tests: G-01, G-02, G-05, G-08, G-12, and the guards (untrusted below guest, a fork on the trusted set, a stale image, a digest off the pin list, an unenforceable limit, a shared principal, a foreign runner name, a restart that ends the units of the journal, no credential in the journal, the audit or a report). The fuzz targets `slots_config` and `slots_journal` exist. Open: `status`, the clear of `degraded` and the exit codes come with the CLI (T-022); the state `no-tier-served`.
+Done so far (2026-11-11): `crates/podrunner-slots` holds the configuration (`docs/configuration.md`), placement, the states, the journal with the reconcile at start, the audit lines (forwarded to the source), the reports (full or public), the engine, and 14 tests: G-01, G-02, G-05, G-08, G-12, and the guards (untrusted below guest, a fork on the trusted set, a stale image, a digest off the pin list, an unenforceable limit, a shared principal, a foreign runner name, a restart that ends the units of the journal, no credential in the journal, the audit or a report). The fuzz targets `slots_config` and `slots_journal` exist. With T-022 (2026-11-11): `status` (`crates/podrunner-slots/src/status.rs`, `schemas/status.v1.json`), `no-tier-served` (a source of a tier that no kind meets gets no capacity), the clear of `degraded` by the control socket, and the exit codes of `pod-core` in the CLI.
 
 ## Prove
 
@@ -295,7 +305,7 @@ Done so far (2026-11-11): `crates/podrunner-slots` holds the configuration (`doc
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -332,6 +342,8 @@ Read the text of GitHub #22 on 2026-11-11. Nothing measured.
 ## Approach
 
 The control socket (JSON lines on a unix socket, mode 0600, peer uid checked, `"v": 1` first) behind a trait that `pod-control` can replace; `status --json` with a schema in `docs/`; `doctor` as a thin reader; `print-unit` with no credential.
+
+Done so far (2026-11-11): `crates/podrunner/src/control.rs` (the socket of mode 0600, the peer uid, `"v": 1`, the trait `Handler`), `cli.rs` (`serve`, `status [--json]`, `drain`, `stop`, `clear-degraded`, `doctor`, `print-unit`; the exit codes of `pod-core`), `text.rs` (an escape prints as `\x1b`, a value is cut at 200 bytes), `doctor.rs` (a thin reader that names each missing input), `serve.rs` (the `fake` source and unit; another kind is refused with code 80 until its entry). `docs/cli.md`. The fuzz target `control_line`. A run by hand: `serve` with a fake script, `status`, `status --json`, `stop`.
 
 ## Prove
 

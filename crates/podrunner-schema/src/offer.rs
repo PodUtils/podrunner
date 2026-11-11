@@ -11,7 +11,7 @@ use crate::{Boundary, Fact, JobId, SCHEMA};
 /// The event that started the workflow. Each value that the tier rule does
 /// not name is `other`; a value that the source cannot read is `unknown`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum Event {
     Push,
@@ -30,7 +30,7 @@ pub enum Event {
 
 /// The relation of the actor to the organization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum ActorClass {
     Member,
@@ -40,7 +40,7 @@ pub enum ActorClass {
 
 /// The visibility of the repository.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum Visibility {
     Private,
@@ -51,7 +51,7 @@ pub enum Visibility {
 
 /// The job metadata that the tier rule reads.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct TrustInputs {
     pub event: Event,
@@ -75,7 +75,7 @@ pub struct TrustInputs {
 
 /// What the job needs of a unit, beyond its tier.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct UnitNeed {
     /// A boundary above the minimum of the tier.
@@ -89,7 +89,7 @@ pub struct UnitNeed {
 
 /// A job offer (`job-offer.v1`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct JobOffer {
     pub schema: u32,

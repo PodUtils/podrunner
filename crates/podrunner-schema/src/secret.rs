@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// A secret text. `Debug` and `Display` print no byte of it.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(transparent)]
 pub struct Secret(String);
 
@@ -32,7 +32,7 @@ impl fmt::Debug for Secret {
 /// One file of a credential. The name is a plain file name: no `/`, no
 /// `..`, and not empty.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 pub struct CredentialFile {
     pub name: String,
     pub content: Secret,
@@ -48,7 +48,7 @@ impl CredentialFile {
 
 /// The files that the runner needs for one job.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 pub struct Credential {
     pub files: Vec<CredentialFile>,
 }

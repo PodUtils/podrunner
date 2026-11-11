@@ -4,6 +4,7 @@
 
 mod guards;
 mod level1;
+mod status;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;

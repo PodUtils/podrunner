@@ -6,14 +6,22 @@
 pub type Target = fn(&[u8]);
 
 /// Each target, by name.
-pub const TARGETS: [(&str, Target); 3] = [
+pub const TARGETS: [(&str, Target); 4] = [
+    ("control_line", targets::control_line),
     ("slots_config", targets::slots_config),
     ("slots_journal", targets::slots_journal),
     ("source_wire", targets::source_wire),
 ];
 
 pub mod targets {
+    use podrunner::control;
     use podrunner_slots::config::Config;
+
+    /// The reader of a line of the control socket: no panic on any line.
+    pub fn control_line(data: &[u8]) {
+        let _ = control::parse(data);
+    }
+
     use podrunner_slots::state::Line;
     use podrunner_source::wire;
 

@@ -1,21 +1,207 @@
-//! The command line. Exit 64 is a usage error (the exit codes of
-//! `pod-core`).
+//! The command line (GitHub #22). The exit codes are the table of
+//! `pod-core` (64 to 80): 64 usage, 69 a socket that does not answer, 78 a
+//! configuration that cannot be used, 80 a kind that this build has not.
+
+use std::path::{Path, PathBuf};
+
+use pod_core::failure::Class;
+use serde_json::Value;
+
+use crate::control::{self, Reply, Request};
+use crate::text::display;
 
 /// The version line: the version of the crate and the commit of the tree.
 pub fn version() -> String {
     format!("podrunner {} ({})\n", env!("CARGO_PKG_VERSION"), env!("PODRUNNER_COMMIT"))
 }
 
-const USAGE: &str = "usage: podrunner [--version | --help]\n";
+pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
 
-/// Run the command line `args` (without the program name). Return the exit
-/// code and the text for stdout (code 0) or stderr.
-pub fn run(args: &[String]) -> (u8, String) {
-    match args.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
-        ["--version"] | ["-V"] => (0, version()),
-        ["--help"] | ["-h"] => (0, USAGE.into()),
-        _ => (64, USAGE.into()),
+  serve --config FILE --state DIR [--socket PATH]   run the slots
+  status [--json] (--state DIR | --socket PATH)     the state of the slots
+  drain (--state DIR | --socket PATH)               take no new job
+  stop (--state DIR | --socket PATH)                drain, then end
+  clear-degraded (--state DIR | --socket PATH)      start jobs again after a residue
+  doctor                                            the inputs of a host check
+  print-unit --config FILE --state DIR [--binary PATH]
+                                                    a service unit, with no credential
+  --version | --help
+";
+
+/// The result of a command: the exit code, stdout, stderr.
+pub struct Out {
+    pub code: u8,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+fn ok(stdout: String) -> Out {
+    Out { code: 0, stdout, stderr: String::new() }
+}
+
+fn err(class: Class, msg: impl Into<String>) -> Out {
+    Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
+}
+
+/// The options of a command: `--name VALUE` pairs and `--flag` words.
+struct Opts {
+    values: Vec<(String, String)>,
+    flags: Vec<String>,
+}
+
+const FLAGS: [&str; 1] = ["--json"];
+
+fn opts(args: &[String]) -> Result<Opts, Out> {
+    let mut o = Opts { values: Vec::new(), flags: Vec::new() };
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        if FLAGS.contains(&a.as_str()) {
+            o.flags.push(a.clone());
+        } else if a.starts_with("--") {
+            let v = it.next().ok_or_else(|| err(Class::Usage, format!("{a} needs a value\n{USAGE}")))?;
+            o.values.push((a.clone(), v.clone()));
+        } else {
+            return Err(err(Class::Usage, format!("an unknown argument {:?}\n{USAGE}", display(a))));
+        }
     }
+    Ok(o)
+}
+
+impl Opts {
+    fn get(&self, name: &str) -> Option<PathBuf> {
+        self.values.iter().find(|(k, _)| k == name).map(|(_, v)| PathBuf::from(v))
+    }
+
+    fn need(&self, name: &str) -> Result<PathBuf, Out> {
+        self.get(name).ok_or_else(|| err(Class::Usage, format!("{name} is necessary\n{USAGE}")))
+    }
+
+    fn only(&self, allowed: &[&str]) -> Result<(), Out> {
+        match self.values.iter().find(|(k, _)| !allowed.contains(&k.as_str())) {
+            Some((k, _)) => Err(err(Class::Usage, format!("an unknown option {}\n{USAGE}", display(k)))),
+            None => Ok(()),
+        }
+    }
+
+    fn socket(&self) -> Result<PathBuf, Out> {
+        match (self.get("--socket"), self.get("--state")) {
+            (Some(s), _) => Ok(s),
+            (None, Some(d)) => Ok(crate::serve::socket_of(&d)),
+            (None, None) => Err(err(Class::Usage, format!("--state or --socket is necessary\n{USAGE}"))),
+        }
+    }
+}
+
+/// Run the command line `args` (without the program name).
+pub fn run(args: &[String]) -> Out {
+    match run_inner(args) {
+        Ok(o) | Err(o) => o,
+    }
+}
+
+fn run_inner(args: &[String]) -> Result<Out, Out> {
+    let Some((cmd, rest)) = args.split_first() else { return Err(err(Class::Usage, USAGE)) };
+    match cmd.as_str() {
+        "--version" | "-V" => Ok(ok(version())),
+        "--help" | "-h" => Ok(ok(USAGE.into())),
+        "serve" => {
+            let o = opts(rest)?;
+            o.only(&["--config", "--state", "--socket"])?;
+            let state = o.need("--state")?;
+            let socket = o.get("--socket").unwrap_or_else(|| crate::serve::socket_of(&state));
+            crate::serve::run(&o.need("--config")?, &state, &socket).map_err(|f| err(f.class, f.detail))?;
+            Ok(ok(String::new()))
+        }
+        "status" | "drain" | "stop" | "clear-degraded" => {
+            let o = opts(rest)?;
+            o.only(&["--state", "--socket"])?;
+            let req = match cmd.as_str() {
+                "status" => Request::Status,
+                "drain" => Request::Drain,
+                "stop" => Request::Stop,
+                _ => Request::ClearDegraded,
+            };
+            let reply = control::call(&o.socket()?, &req)
+                .map_err(|e| err(Class::Unavailable, format!("the control socket: {}", e.kind())))?;
+            match reply {
+                Reply::Ok { value } if req == Request::Status && !o.flags.contains(&"--json".into()) => {
+                    Ok(ok(human(&value)))
+                }
+                Reply::Ok { value } => Ok(ok(format!("{value}\n"))),
+                Reply::Error { code, detail } => {
+                    Err(err(Class::Refused, format!("{}: {}", display(&code), display(&detail))))
+                }
+            }
+        }
+        "doctor" => Ok(ok(crate::doctor::report())),
+        "print-unit" => {
+            let o = opts(rest)?;
+            o.only(&["--config", "--state", "--binary"])?;
+            let binary = o.get("--binary").unwrap_or_else(|| PathBuf::from("/usr/local/bin/podrunner"));
+            Ok(ok(print_unit(&binary, &o.need("--config")?, &o.need("--state")?)))
+        }
+        other => Err(err(Class::Usage, format!("an unknown command {:?}\n{USAGE}", display(other)))),
+    }
+}
+
+/// The status for a person. Each value from a file or a forge goes through
+/// `display`.
+fn human(v: &Value) -> String {
+    let s = |v: &Value| display(&v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string()));
+    let mut out = format!("host {}  draining {}  degraded {}\n", s(&v["host"]), v["draining"], s(&v["degraded"]));
+    if v["no_tier_served"] == Value::Bool(true) {
+        out.push_str("no-tier-served: no unit kind meets the floor of a source\n");
+    }
+    for src in v["sources"].as_array().into_iter().flatten() {
+        out.push_str(&format!(
+            "source {} tier {} arch {}  jobs {}  refused {}\n",
+            s(&src["name"]),
+            s(&src["tier"]),
+            s(&src["arch"]),
+            src["jobs"],
+            src["refused"]
+        ));
+    }
+    for k in v["kinds"].as_array().into_iter().flatten() {
+        let p = &k["probe"];
+        out.push_str(&format!(
+            "kind {} slots {} busy {}  boundary {} principal {} hold {}\n",
+            s(&k["name"]),
+            k["slots"],
+            k["busy"],
+            s(&p["boundary"]),
+            s(&p["principal"]),
+            s(&p["egress_hold"])
+        ));
+    }
+    for p in v["pins"].as_array().into_iter().flatten() {
+        out.push_str(&format!("pin {} {} age {} s\n", s(&p["arch"]), s(&p["reference"]), p["age_s"]));
+    }
+    out
+}
+
+/// A systemd unit for `serve`. It names paths only: no token, no key.
+pub fn print_unit(binary: &Path, config: &Path, state: &Path) -> String {
+    format!(
+        "[Unit]
+Description=podrunner: CI jobs in one fresh unit for each job
+After=network-online.target
+
+[Service]
+ExecStart={} serve --config {} --state {}
+Restart=on-failure
+# 78: a configuration or a credential that cannot be used; a restart does
+# not help (pod-core).
+RestartPreventExitStatus=78
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target
+",
+        binary.display(),
+        config.display(),
+        state.display()
+    )
 }
 
 #[cfg(test)]
@@ -28,20 +214,57 @@ mod tests {
 
     #[test]
     fn version_names_the_version_and_a_commit() {
-        let (code, out) = run(&args(&["--version"]));
-        assert_eq!(code, 0);
-        assert!(out.starts_with(&format!("podrunner {} (", env!("CARGO_PKG_VERSION"))), "{out}");
-        assert!(out.trim_end().ends_with(')'), "{out}");
+        let o = run(&args(&["--version"]));
+        assert_eq!(o.code, 0);
+        assert!(o.stdout.starts_with(&format!("podrunner {} (", env!("CARGO_PKG_VERSION"))), "{}", o.stdout);
     }
 
     #[test]
-    fn no_argument_is_a_usage_error() {
-        assert_eq!(run(&[]).0, 64);
-        assert_eq!(run(&args(&["serve"])).0, 64);
+    fn usage_errors_exit_64() {
+        for a in [&[][..], &["nope"], &["serve"], &["status"], &["status", "--bogus", "x"], &["print-unit", "--config"]]
+        {
+            assert_eq!(run(&args(a)).code, 64, "{a:?}");
+        }
+        assert_eq!(run(&args(&["--help"])).code, 0);
     }
 
     #[test]
-    fn help_exits_0() {
-        assert_eq!(run(&args(&["--help"])), (0, USAGE.to_string()));
+    fn a_socket_that_does_not_answer_is_69() {
+        let o = run(&args(&["status", "--socket", "/nonexistent/podrunner.sock"]));
+        assert_eq!(o.code, 69, "{}", o.stderr);
+    }
+
+    #[test]
+    fn a_bad_configuration_is_78() {
+        let dir = std::env::temp_dir().join(format!("podrunner-cli-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let cfg = dir.join("podrunner.toml");
+        std::fs::write(&cfg, "host = \"h\"\n[tier.untrusted]\nmin_boundary = \"none\"\n[pin]\n").unwrap();
+        let o = run(&args(&["serve", "--config", cfg.to_str().unwrap(), "--state", dir.join("s").to_str().unwrap()]));
+        assert_eq!(o.code, 78, "{}", o.stderr);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn print_unit_holds_no_credential() {
+        let canary = "podrunner-canary-0f9c2d71";
+        let unit = print_unit(
+            Path::new("/usr/local/bin/podrunner"),
+            Path::new("/etc/podrunner.toml"),
+            Path::new("/var/lib/podrunner"),
+        );
+        assert!(unit.contains(
+            "ExecStart=/usr/local/bin/podrunner serve --config /etc/podrunner.toml --state /var/lib/podrunner"
+        ));
+        assert!(!unit.contains(canary) && !unit.to_lowercase().contains("token"));
+    }
+
+    #[test]
+    fn status_for_a_person_escapes_forge_text() {
+        let v = serde_json::json!({ "host": "h", "draining": false, "degraded": null, "no_tier_served": false,
+            "sources": [{ "name": "a\u{1b}[2J", "tier": "trusted", "arch": "x86_64", "jobs": {}, "refused": {} }],
+            "kinds": [], "pins": [] });
+        let text = human(&v);
+        assert!(text.contains("a\\x1b[2J") && !text.contains('\u{1b}'), "{text}");
     }
 }

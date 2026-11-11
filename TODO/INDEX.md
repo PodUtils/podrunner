@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**44 entries: 19 open, 4 partial, 14 blocked, 7 done.**
+**44 entries: 16 open, 5 partial, 14 blocked, 9 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 6 | 3 | 1 | 6 | 16 |
+| P1 | 3 | 4 | 1 | 8 | 16 |
 | P2 | 12 | 1 | 9 | 1 | 23 |
 | P3 | 1 | 0 | 4 | 0 | 5 |
-| **All** | 19 | 4 | 14 | 7 | 44 |
+| **All** | 16 | 5 | 14 | 9 | 44 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -65,11 +65,11 @@ acceptance, later The crate dependencies later than v1.
 | [T-015](bootstrap.md) | P2 | S | M-A | release | open | The beta release workflow (GitHub #15) |
 | [T-016](core.md) | P1 | S | M-A | feature | done | WP-01: the seam traits, the contracts v1 and the conformance harness (GitHub #16) |
 | [T-017](core.md) | P1 | S | M-A | feature | partial | Schemas v1: job offer, unit capability, run report, public report (GitHub #17) |
-| [T-018](core.md) | P1 | S | M-A | feature | open | The tier rule: Rust implementation and the case table (GitHub #18) |
+| [T-018](core.md) | P1 | S | M-A | feature | done | The tier rule: Rust implementation and the case table (GitHub #18) |
 | [T-019](core.md) | P2 | S | M-A | docs | open | Security documents: threat model, accepted residuals, leak runbook (GitHub #19) |
-| [T-020](core.md) | P1 | S | M-A | feature | open | WP-02: the fake source and the fake unit, scripted, with a manual clock (GitHub #20) |
+| [T-020](core.md) | P1 | S | M-A | feature | done | WP-02: the fake source and the fake unit, scripted, with a manual clock (GitHub #20) |
 | [T-021](core.md) | P1 | M | M-A | feature | partial | WP-03: the slots core: states, journal, placement, status, drain, codes, config, audit (GitHub #21) |
-| [T-022](core.md) | P1 | M | M-A | feature | open | CLI and control socket: serve, status, drain, stop, doctor, print-unit (GitHub #22) |
+| [T-022](core.md) | P1 | M | M-A | feature | partial | CLI and control socket: serve, status, drain, stop, doctor, print-unit (GitHub #22) |
 | [T-023](core.md) | P1 | M | M-A | feature | open | WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23) |
 | [T-024](core.md) | P1 | M | M-A | feature | open | WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24) |
 | [T-025](core.md) | P1 | S | M-A | chore | open | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload (GitHub #25) |

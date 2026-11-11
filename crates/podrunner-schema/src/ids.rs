@@ -108,7 +108,7 @@ impl UnitIds {
 }
 
 /// The JSON Schema of the ids, with their patterns.
-#[cfg(test)]
+#[cfg(any(test, feature = "schema"))]
 mod schema {
     use std::borrow::Cow;
 
