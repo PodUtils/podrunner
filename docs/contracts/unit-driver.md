@@ -99,6 +99,11 @@ with a grandchild, a marker file in the working directory.
 | 15 | `destroy-is-idempotent` | A second `destroy` succeeds and counts 0. |
 | 16 | `a-unit-id-in-use-is-refused` | A second `start` of one unit id is `unit-in-use`. |
 | 17 | `a-verified-tree-kill-is-proven` | A record that claims `tree_kill: verified` passes test 3 on this host. |
+| 18 | `probe-writes-no-file` | Two probes change no file of the state directory of the driver (the fixture names it; else `skip`). |
+| 19 | `etc-hosts-of-one-unit` | A name written to `/etc/hosts` of one unit is not in `/etc/hosts` of another. |
+| 20 | `destroy-reaches-a-grandchild-in-a-container` | With `container: hooks`: after `destroy`, no process of a container with a `setsid` grandchild lives, the count is 0, and `destroy` ends within the time limit. |
+| 21 | `a-host-scan-finds-no-credential` | After `destroy`, no file of the state directory holds the credential (the scan finds it before `destroy`: a positive control). |
+| 22 | `no-credential-in-the-outputs` | The probe record (with `boundary_proof`), the observation and the residue hold no credential. |
 
 The numbers of the tests follow this page. The spec of the design review
 (T-014) can give other numbers; T-014 makes them agree.
@@ -108,24 +113,24 @@ The numbers of the tests follow this page. The spec of the design review
 `docs/design/contracts/unit-driver.md` numbers its suite in another
 order, and the issues name those numbers (GitHub #35). This table gives
 each design test, the tests here that cover it, and what is open (T-053).
-`UC` is `crates/podrunner-unit/src/conformance/cases.rs`, `HK`, `HU` and
+`UC` is `crates/podrunner-unit/src/conformance/` (`cases.rs`, `design.rs`), `HK`, `HU` and
 `HS` are the tests of `crates/podrunner-hook/src/`, `SG` is
 `crates/podrunner-slots/src/tests/`.
 
 | Design | Covered by | Open |
 | --- | --- | --- |
-| 1 probe | UC `probe-is-idempotent` | no process or file appears |
-| 2 two roots | UC `a-fresh-root-for-each-unit` | `/etc/hosts` of one unit |
-| 3 tree kill | UC `destroy-reaches-a-setsid-grandchild`, `a-verified-tree-kill-is-proven` | the deadline; a grandchild in a job or service container |
-| 4 limits | SG `a_required_limit_that_no_kind_enforces_is_refused` | a refusal at `start` that names the limit |
+| 1 probe | UC `probe-is-idempotent`, `probe-writes-no-file` | no process appears |
+| 2 two roots | UC `a-fresh-root-for-each-unit`, `etc-hosts-of-one-unit` | none |
+| 3 tree kill | UC `destroy-reaches-a-setsid-grandchild`, `a-verified-tree-kill-is-proven`, `destroy-reaches-a-grandchild-in-a-container` (also the time limit) | none |
+| 4 limits | SG `a_required_limit_that_no_kind_enforces_is_refused` (placement refuses before `start`) | the refusal code names no limit |
 | 5 tag, platform | UC `prepare-refuses-a-tag`, `prepare-refuses-a-foreign-platform` | none |
-| 6 credential gone | UC `destroy-removes-each-file` | a host scan with a positive control |
+| 6 credential gone | UC `destroy-removes-each-file`, `a-host-scan-finds-no-credential` | none |
 | 7 /proc dump | UC `no-credential-in-argv-or-environment` | a dump of `/proc/*` from a step |
 | 8 exec env, workdir | UC `container-lifecycle` (an exec with an environment and `/tmp`) | none |
 | 9 another unit's container | HU `the_socket_of_one_unit_reaches_no_container_of_another`: no call names a container id | none |
-| 10 proof canary | none | the whole test |
+| 10 proof canary | UC `no-credential-in-the-outputs` | none |
 | 11 guest self-test | SG `a_fake_that_claims_guest_fails_the_self_test` | a real guest passes (T-036, T-037) |
-| 12 `../x` | the source wire refuses it | no path component (it never parses) |
+| 12 `../x` | `crates/podrunner-schema/src/lib.rs` `an_id_that_climbs_never_parses` (pod-job ids) | none |
 | 13 container options | HK `each_rule_refuses_its_input`, `a_job_container_of_the_runner_passes_with_its_mounts` (the seven entries), `the_mount_tables_and_the_order_of_the_design` | none on the fake path |
 | 14 job_state | HU `each_command_reaches_the_fake_unit` (a second `job-started` is ignored and goes to the audit), SG `job_started_in_running_is_ignored_and_job_completed_moves_no_state` | none |
 | 15 shim killed | none | the whole test (podvm driver) |

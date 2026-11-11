@@ -1,4 +1,4 @@
-//! The tests 1 to 17 of the unit seam. Each starts its own units and
+//! The tests 1 to 17 of the unit seam (`design.rs` has 18 to 22). Each starts its own units and
 //! destroys them, also when it fails.
 
 use std::collections::BTreeMap;
@@ -39,14 +39,14 @@ pub(super) const CASES: [Case; 17] = [
 ];
 
 /// The time limit of each wait for an event.
-const LIMIT: Duration = Duration::from_secs(10);
+pub(super) const LIMIT: Duration = Duration::from_secs(10);
 
-fn err(what: &str, e: UnitError) -> String {
+pub(super) fn err(what: &str, e: UnitError) -> String {
     format!("{what}: {e}")
 }
 
 /// Poll `f` each 20 ms until it is true or the limit ends.
-fn until(mut f: impl FnMut() -> bool) -> bool {
+pub(super) fn until(mut f: impl FnMut() -> bool) -> bool {
     let end = Instant::now() + LIMIT;
     loop {
         if f() {
@@ -60,9 +60,9 @@ fn until(mut f: impl FnMut() -> bool) -> bool {
 }
 
 /// A started unit. The drop destroys it.
-struct Unit<'a> {
-    fx: &'a dyn Fixture,
-    id: UnitId,
+pub(super) struct Unit<'a> {
+    pub fx: &'a dyn Fixture,
+    pub id: UnitId,
 }
 
 impl Drop for Unit<'_> {
@@ -72,7 +72,7 @@ impl Drop for Unit<'_> {
 }
 
 impl Unit<'_> {
-    fn observe(&self) -> Result<Observation, String> {
+    pub fn observe(&self) -> Result<Observation, String> {
         self.fx.driver().observe(&self.id).map_err(|e| err("observe", e))
     }
 }
@@ -83,14 +83,14 @@ fn spec(fx: &dyn Fixture, id: UnitId, behaviour: Behaviour) -> Result<StartSpec,
     Ok(StartSpec { unit: id, image, argv: fx.payload(behaviour), env, credential: canary_credential(), sockets: None })
 }
 
-fn begin(fx: &dyn Fixture, behaviour: Behaviour) -> Result<Unit<'_>, String> {
+pub(super) fn begin(fx: &dyn Fixture, behaviour: Behaviour) -> Result<Unit<'_>, String> {
     let s = spec(fx, fx.unit(), behaviour)?;
     let unit = Unit { fx, id: s.unit.clone() };
     fx.driver().start(&s).map_err(|e| err("start", e))?;
     Ok(unit)
 }
 
-fn root(o: &Observation) -> Result<&Path, String> {
+pub(super) fn root(o: &Observation) -> Result<&Path, String> {
     o.unit_root.as_deref().ok_or_else(|| "observe gives no unit root".to_string())
 }
 

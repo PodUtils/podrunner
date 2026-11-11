@@ -62,6 +62,16 @@ pub enum UnitPlant {
     /// 17: probe claims a verified tree kill, and destroy kills the top
     /// process only.
     FalseTreeKill,
+    /// 18: probe writes a file in the state directory.
+    ProbeWritesFile,
+    /// 19: each unit gets one shared `/etc/hosts`.
+    SharedHosts,
+    /// 20: the processes of a container do not carry the tag of the unit.
+    UntaggedContainer,
+    /// 21: start keeps a copy of the credential outside the unit root.
+    CredentialCopy,
+    /// 22: probe gives the credential of the last unit in `boundary_proof`.
+    ProofCanary,
 }
 
 struct Running {
@@ -85,6 +95,8 @@ pub struct FakeUnit {
     containers: AtomicU64,
     /// Each tag that this driver gave: the drop kills what is left of them.
     tags: Mutex<Vec<String>>,
+    /// The first credential file of the last start (plant 22 only).
+    seen: Mutex<Option<String>>,
 }
 
 impl Drop for FakeUnit {
@@ -117,6 +129,7 @@ impl FakeUnit {
             probes: AtomicU64::new(0),
             containers: AtomicU64::new(0),
             tags: Mutex::new(Vec::new()),
+            seen: Mutex::new(None),
         }
     }
 
@@ -170,6 +183,26 @@ impl FakeUnit {
     }
 }
 
+impl FakeUnit {
+    /// The plants 19, 21 and 22 at start.
+    fn plant_start(&self, spec: &StartSpec, root: &Path) -> Result<(), UnitError> {
+        let first = spec.credential.files.first().map(|f| f.content.expose().to_string());
+        if self.planted(UnitPlant::SharedHosts) {
+            fs::create_dir_all(root.join("etc")).map_err(|e| host(e, "etc"))?;
+            let _ = std::os::unix::fs::symlink(self.state_dir.join("hosts"), root.join("etc/hosts"));
+        }
+        if self.planted(UnitPlant::CredentialCopy)
+            && let Some(text) = &first
+        {
+            fs::write(self.state_dir.join(format!("copy-{}", spec.unit)), text).map_err(|e| host(e, "a copy"))?;
+        }
+        if self.planted(UnitPlant::ProofCanary) {
+            *self.seen.lock().expect("the credential seen") = first;
+        }
+        Ok(())
+    }
+}
+
 fn write_private(path: &Path, text: &str, mode: u32) -> Result<(), UnitError> {
     let mut f = fs::OpenOptions::new()
         .write(true)
@@ -191,6 +224,13 @@ impl UnitDriver for FakeUnit {
         let mut c = self.capability.clone();
         if self.planted(UnitPlant::ProbeDrifts) {
             c.boundary_proof = Some(format!("probe-{}", self.probes.fetch_add(1, Ordering::Relaxed)));
+        }
+        if self.planted(UnitPlant::ProbeWritesFile) {
+            let n = self.probes.fetch_add(1, Ordering::Relaxed);
+            fs::write(self.state_dir.join(format!("probe-{n}")), "").map_err(|e| host(e, "probe"))?;
+        }
+        if self.planted(UnitPlant::ProofCanary) {
+            c.boundary_proof = self.seen.lock().expect("the credential seen").clone();
         }
         Ok(c)
     }
@@ -226,6 +266,7 @@ impl UnitDriver for FakeUnit {
             }
             write_private(&runner_root.join(&f.name), f.content.expose(), mode)?;
         }
+        self.plant_start(spec, &root)?;
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
         self.tags.lock().expect("the tags").push(tag.clone());
         let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
@@ -353,6 +394,13 @@ impl UnitDriver for FakeUnit {
         fs::write(dir.join("spec"), record).map_err(|e| host(e, "the record of a container"))?;
         let mounts = Mounts::of(&spec.mounts, &runner_root);
         let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), mounts.map(v))).collect();
+        let tag = if self.planted(UnitPlant::UntaggedContainer) {
+            let other = format!("{tag}-untagged");
+            self.tags.lock().expect("the tags").push(other.clone());
+            other
+        } else {
+            tag
+        };
         env.push((TAG_VAR.into(), tag));
         let argv: Vec<String> = spec.argv.iter().map(|a| mounts.map(a)).collect();
         let cwd = mounts.workdir(spec.workdir.as_deref(), &dir);

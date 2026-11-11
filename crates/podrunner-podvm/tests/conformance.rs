@@ -75,7 +75,8 @@ fn the_podvm_unit_passes_its_tests() {
     for r in &results {
         println!("{r}");
     }
-    // Test 14 skips: the podvm unit has no container route in v1.
+    // The container tests (13 or 14, and 20) skip by the container route of
+    // the rung; the tests 18 and 21 skip: the fixture names no state directory.
     let failed: Vec<_> = results.iter().filter(|r| matches!(r.outcome, Outcome::Fail(_))).map(|r| r.number).collect();
     let _ = std::fs::remove_dir_all(&state);
     assert!(failed.is_empty(), "failed: {failed:?}");

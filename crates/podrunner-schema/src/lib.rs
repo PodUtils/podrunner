@@ -13,3 +13,21 @@ pub use pod_job::{
 mod secret;
 
 pub use secret::{Credential, CredentialFile, Secret};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Design unit test 12: a job id or a unit id that could climb out of a
+    /// directory never parses, so it never becomes a path component.
+    #[test]
+    fn an_id_that_climbs_never_parses() {
+        for bad in ["../x", "..", "a/b", "x/../y"] {
+            assert!(JobId::new(bad).is_err(), "job id {bad:?}");
+            assert!(UnitId::parse(bad).is_err(), "unit id {bad:?}");
+            assert!(UnitId::parse(&format!("u-{bad}")).is_err(), "unit id u-{bad:?}");
+        }
+        assert!(JobId::new("1234.x_y-z").is_ok());
+        assert!(UnitId::parse("u-12").is_ok());
+    }
+}

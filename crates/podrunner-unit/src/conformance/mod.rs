@@ -1,4 +1,4 @@
-//! The conformance suite of the unit seam: the tests 1 to 17 of
+//! The conformance suite of the unit seam: the tests 1 to 22 of
 //! `docs/contracts/unit-driver.md`. A driver passes when each test that
 //! applies to it passes. Each test has a planted defect that fails it (the
 //! drivers of the fakes, GitHub #20) and a correct input that passes it.
@@ -7,9 +7,11 @@
 //! they read `/proc` to see the processes of a unit.
 
 mod cases;
+mod design;
 mod procs;
 
 use std::fmt;
+use std::path::PathBuf;
 
 use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
 
@@ -51,6 +53,11 @@ pub trait Fixture {
     fn payload(&self, behaviour: Behaviour) -> Vec<String>;
     /// A fresh unit id.
     fn unit(&self) -> UnitId;
+    /// The directory of the host where the driver keeps its state, when
+    /// the fixture knows it: the scans of the tests 18 and 21 read it.
+    fn state_dir(&self) -> Option<PathBuf> {
+        None
+    }
 }
 
 /// The result of one test.
@@ -81,15 +88,18 @@ impl fmt::Display for Report {
     }
 }
 
+fn all() -> impl Iterator<Item = &'static cases::Case> {
+    cases::CASES.iter().chain(design::CASES.iter())
+}
+
 /// The number and the name of each test, in order.
 pub fn tests() -> Vec<(u32, &'static str)> {
-    cases::CASES.iter().map(|c| (c.number, c.name)).collect()
+    all().map(|c| (c.number, c.name)).collect()
 }
 
 /// Run the tests with the numbers in `only` (all when empty), in order.
 pub fn run(fixture: &dyn Fixture, only: &[u32]) -> Vec<Report> {
-    cases::CASES
-        .iter()
+    all()
         .filter(|c| only.is_empty() || only.contains(&c.number))
         .map(|c| {
             let outcome = match (c.run)(fixture) {

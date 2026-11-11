@@ -98,6 +98,9 @@ impl uc::Fixture for UnitFixture {
     fn unit(&self) -> UnitId {
         self.ids.next()
     }
+    fn state_dir(&self) -> Option<PathBuf> {
+        Some(self._dir.0.clone())
+    }
 }
 
 fn need_setsid() -> bool {
@@ -107,10 +110,10 @@ fn need_setsid() -> bool {
 #[test]
 fn the_fake_unit_passes_each_test() {
     assert!(need_setsid(), "the tests need setsid on the host");
-    for (route, skipped) in [(ContainerRoute::None, 14), (ContainerRoute::Hooks, 13)] {
+    for (route, skipped) in [(ContainerRoute::None, &[14, 20][..]), (ContainerRoute::Hooks, &[13][..])] {
         let fx = UnitFixture::new(route, None);
         for r in uc::run(&fx, &[]) {
-            if r.number == skipped {
+            if skipped.contains(&r.number) {
                 assert!(matches!(r.outcome, Outcome::Skip(_)), "{r}");
             } else {
                 assert_eq!(r.outcome, Outcome::Pass, "{route:?}: {r}");
@@ -140,10 +143,15 @@ fn each_unit_plant_fails_its_test() {
         (15, DestroyOnce),
         (16, StartTwice),
         (17, FalseTreeKill),
+        (18, ProbeWritesFile),
+        (19, SharedHosts),
+        (20, UntaggedContainer),
+        (21, CredentialCopy),
+        (22, ProofCanary),
     ];
     assert_eq!(plants.len(), uc::tests().len());
     for (n, plant) in plants {
-        let route = if n == 14 { ContainerRoute::Hooks } else { ContainerRoute::None };
+        let route = if n == 14 || n == 20 { ContainerRoute::Hooks } else { ContainerRoute::None };
         let fx = UnitFixture::new(route, Some(plant));
         let r = uc::run(&fx, &[n]).remove(0);
         assert!(matches!(r.outcome, Outcome::Fail(_)), "{plant:?} passes test {n}: {r}");
