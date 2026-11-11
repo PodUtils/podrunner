@@ -6,6 +6,7 @@
 //! listens on the loopback only, for tests. The fakes of GitHub stay in
 //! podrunner (PodUtils/podcrates@T-106).
 
+pub mod corpus;
 pub mod files;
 pub mod message;
 
@@ -18,7 +19,7 @@ use std::time::{Duration, Instant};
 use podrunner_hook::http::{read_request, write_response};
 use serde_json::{Value, json};
 
-pub use message::Job;
+pub use message::{Job, Step};
 
 /// The end of a job, as the runner reports it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -163,7 +164,7 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
         }
         ("POST", "/twirp/github.actions.results.api.v1.WorkflowStepUpdateService/WorkflowStepsUpdate") => {
             state.lock().expect("the broker").step_updates.push(body);
-            reply(&json!({}))
+            reply(&json!({ "ok": true }))
         }
         ("PUT", p) if p.starts_with("/blobs/") => {
             let name = p.trim_start_matches("/blobs/").to_string();

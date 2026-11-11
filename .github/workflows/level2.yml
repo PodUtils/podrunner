@@ -3,16 +3,25 @@ name: level2
 # Level 2 (GitHub #38): the official runner of images/runner/runner.toml
 # runs canned jobs offline against the fake broker of
 # crates/podrunner-broker-fake. The tarball is checked against its pin
-# before it runs.
+# before it runs. The corpus job runs real podcrates jobs of
+# crates/podrunner-broker-fake/corpus/podcrates.json (scripts/corpus.py):
+# two on each push, each job of the corpus each week or on request.
 
 on:
   workflow_dispatch:
+    inputs:
+      jobs:
+        description: "The ids of the corpus jobs (comma list), or all"
+        default: all
+  schedule:
+    - cron: "17 4 * * 1"
   push:
     branches: [main]
     paths:
       - crates/podrunner-broker-fake/**
       - crates/podrunner-hook/**
       - images/runner/runner.toml
+      - scripts/corpus.py
       - .github/workflows/level2.yml
 
 permissions:
@@ -41,3 +50,35 @@ jobs:
           mkdir "$RUNNER_TEMP/runner" && tar -xzf runner.tgz -C "$RUNNER_TEMP/runner" && rm runner.tgz
       - name: Canned jobs on the official runner
         run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner-broker-fake --test runner -- --ignored
+
+  corpus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      # A push runs two short jobs; a schedule or a request runs more.
+      JOBS: ${{ inputs.jobs || (github.event_name == 'schedule' && 'all') || 'ci.yml/record,upstream.yml/mirrors' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: The runner of the pin
+        run: |
+          set -eu
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' images/runner/runner.toml)
+          curl -fsSLo runner.tgz "https://github.com/actions/runner/releases/download/v$version/actions-runner-linux-x64-$version.tar.gz"
+          cargo run -q -p podrunner -- image verify --tarball runner.tgz --arch x86_64
+          mkdir "$RUNNER_TEMP/runner" && tar -xzf runner.tgz -C "$RUNNER_TEMP/runner" && rm runner.tgz
+      - name: The source of the corpus at its commit
+        run: |
+          set -eu
+          commit=$(python3 -I -c 'import json; print(json.load(open("crates/podrunner-broker-fake/corpus/podcrates.json"))["commit"])')
+          sh scripts/retry.sh git clone -q https://github.com/PodUtils/podcrates "$RUNNER_TEMP/podcrates"
+          git -C "$RUNNER_TEMP/podcrates" checkout -q --detach "$commit"
+      - name: The corpus agrees with its workflows
+        run: python3 -I scripts/corpus.py "$RUNNER_TEMP/podcrates" | diff -u crates/podrunner-broker-fake/corpus/podcrates.json -
+      - name: The jobs of the corpus on the official runner
+        run: |
+          PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" PODRUNNER_CORPUS_SRC="$RUNNER_TEMP/podcrates" PODRUNNER_CORPUS_JOBS="$JOBS" \
+            cargo test -p podrunner-broker-fake --test corpus -- --ignored --nocapture

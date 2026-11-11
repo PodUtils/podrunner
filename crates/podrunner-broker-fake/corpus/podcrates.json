@@ -1,0 +1,446 @@
+{
+ "source": "PodUtils/podcrates",
+ "commit": "59bca1f5898eaf3cf362d4765381c993831abaa2",
+ "jobs": [
+  {
+   "id": "ci.yml/lint",
+   "env": [
+    [
+     "CARGO_TERM_COLOR",
+     "never"
+    ],
+    [
+     "ZIG_VERSION",
+     "0.16.0"
+    ],
+    [
+     "ZIG_SHA256",
+     "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"
+    ],
+    [
+     "ZIGBUILD_VERSION",
+     "0.23.4"
+    ]
+   ],
+   "steps": [
+    {
+     "checkout": {
+      "fetch_depth": 1
+     }
+    },
+    {
+     "name": "Toolchain",
+     "run": "sh scripts/retry.sh rustup toolchain install",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "Format",
+     "run": "cargo fmt --all --check",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "Clippy",
+     "run": "cargo clippy --locked --workspace --all-targets --all-features -- -D warnings",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "Docs",
+     "run": "RUSTDOCFLAGS=\"-D warnings\" cargo doc --locked --no-deps --workspace --all-features",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "The crates with no tokio",
+     "run": "cargo clippy --locked -p pod-core -p pod-tls --no-default-features --features pod-tls/pure,pod-tls/rsa -- -D warnings",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "The fuzz targets build",
+     "run": "set -eu\ncargo fmt --manifest-path fuzz/Cargo.toml --check\ncargo check --manifest-path fuzz/Cargo.toml --bins\ncargo clippy --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings\n",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "The size of the Rust files",
+     "run": "python3 -I scripts/check-size.py\npython3 -I scripts/check-size.py --self-test\n",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "The rules of the workflows",
+     "run": "python3 scripts/check-workflows.py",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "The repository table and the table of crates match the tree",
+     "run": "python3 -I scripts/check-design-paths.py",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "cargo publish --workspace can order the crates",
+     "run": "python3 -I scripts/check-publish-order.py\npython3 -I scripts/check-publish-order.py --self-test\n",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "The static probes cover each feature",
+     "run": "python3 -I scripts/check-probe.py",
+     "if": "",
+     "env": []
+    }
+   ]
+  },
+  {
+   "id": "ci.yml/test",
+   "env": [
+    [
+     "CARGO_TERM_COLOR",
+     "never"
+    ],
+    [
+     "ZIG_VERSION",
+     "0.16.0"
+    ],
+    [
+     "ZIG_SHA256",
+     "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"
+    ],
+    [
+     "ZIGBUILD_VERSION",
+     "0.23.4"
+    ]
+   ],
+   "steps": [
+    {
+     "checkout": {
+      "fetch_depth": 1
+     }
+    },
+    {
+     "name": "Toolchain",
+     "run": "sh scripts/retry.sh rustup toolchain install",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "Test",
+     "run": "cargo test --locked --workspace --all-features",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "The stable test of the fuzz targets",
+     "run": "cargo test --manifest-path fuzz/Cargo.toml --lib",
+     "if": "",
+     "env": []
+    }
+   ]
+  },
+  {
+   "id": "ci.yml/record",
+   "env": [
+    [
+     "CARGO_TERM_COLOR",
+     "never"
+    ],
+    [
+     "ZIG_VERSION",
+     "0.16.0"
+    ],
+    [
+     "ZIG_SHA256",
+     "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"
+    ],
+    [
+     "ZIGBUILD_VERSION",
+     "0.23.4"
+    ]
+   ],
+   "steps": [
+    {
+     "checkout": {
+      "fetch_depth": 2
+     }
+    },
+    {
+     "name": "Toolchain",
+     "run": "sh scripts/retry.sh rustup toolchain install",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "The tests of the checker",
+     "run": "cargo test --locked -p pod-todo",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "The record agrees",
+     "run": "cargo run --locked -q -p pod-todo -- check",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "No citation left behind by the last commit",
+     "run": "cargo run --locked -q -p pod-todo -- check --base HEAD~1",
+     "if": "github.event_name == 'push'",
+     "env": []
+    }
+   ]
+  },
+  {
+   "id": "deny.yml/deny",
+   "env": [
+    [
+     "DENY_VERSION",
+     "0.20.2"
+    ],
+    [
+     "DENY_SHA256",
+     "9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f"
+    ]
+   ],
+   "steps": [
+    {
+     "checkout": {
+      "fetch_depth": 1
+     }
+    },
+    {
+     "name": "cargo-deny, from its release, checked by its SHA-256",
+     "run": "set -eu\nname=\"cargo-deny-$DENY_VERSION-x86_64-unknown-linux-musl\"\nsh scripts/retry.sh curl -qfsSL -o \"$RUNNER_TEMP/deny.tgz\" \\\n  \"https://github.com/EmbarkStudios/cargo-deny/releases/download/$DENY_VERSION/$name.tar.gz\"\necho \"$DENY_SHA256  $RUNNER_TEMP/deny.tgz\" | sha256sum -c -\ntar -xzf \"$RUNNER_TEMP/deny.tgz\" -C \"$RUNNER_TEMP\"\ninstall -m 0755 \"$RUNNER_TEMP/$name/cargo-deny\" \"$HOME/.cargo/bin/cargo-deny\"\ncargo deny --version\n",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "Advisories, licenses, bans and sources",
+     "run": "cargo deny --locked check advisories licenses bans sources",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "Licenses and sources with all features",
+     "run": "cargo deny --locked --all-features check licenses sources",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "A denied license fails",
+     "run": "set -u\nsed \"/\\\"0BSD\\\",/d\" deny.toml > \"$RUNNER_TEMP/deny.toml\"\nif cargo deny --locked --config \"$RUNNER_TEMP/deny.toml\" check licenses > \"$RUNNER_TEMP/plant.log\" 2>&1; then\n  echo \"the check passed with 0BSD denied\"\n  exit 1\nfi\ngrep -m1 'failed to satisfy license requirements' \"$RUNNER_TEMP/plant.log\"\n",
+     "if": "",
+     "env": []
+    }
+   ]
+  },
+  {
+   "id": "live.yml/live",
+   "env": [
+    [
+     "CARGO_TERM_COLOR",
+     "never"
+    ]
+   ],
+   "steps": [
+    {
+     "checkout": {
+      "fetch_depth": 1
+     }
+    },
+    {
+     "name": "Toolchain",
+     "run": "sh scripts/retry.sh rustup toolchain install",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "pod-tls, the handshake with the live relay",
+     "run": "cargo test --locked -p pod-tls --all-features --test live_handshake -- --ignored --nocapture",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "pod-dns, DoH with the public resolvers",
+     "run": "set -eu\npython3 -I scripts/names-proxy.py --listen 127.0.0.1:3129 > \"$RUNNER_TEMP/names-proxy.log\" 2>&1 &\nproxy=$!\ntrap 'kill \"$proxy\" 2> /dev/null || true' EXIT\nfor _ in 1 2 3 4 5 6 7 8 9 10; do\n  grep -q '^listening' \"$RUNNER_TEMP/names-proxy.log\" && break\n  sleep 1\ndone\ngrep -q '^listening' \"$RUNNER_TEMP/names-proxy.log\"\nPOD_DNS_NAMES_PROXY=http://127.0.0.1:3129 \\\n  cargo test --locked -p pod-dns --test live_doh -- --ignored --nocapture\ncat \"$RUNNER_TEMP/names-proxy.log\"\n",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "pod-proxy, Multipath TCP to the relay's edge",
+     "run": "cargo test --locked -p pod-proxy --test mptcp -- --ignored --nocapture",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "pod-oci, a pull of the pinned guest userland from ECR Public",
+     "run": "cargo test --locked -p pod-oci --test live -- --ignored --nocapture",
+     "if": "",
+     "env": []
+    }
+   ]
+  },
+  {
+   "id": "plants.yml/plants",
+   "env": [],
+   "steps": [
+    {
+     "checkout": {
+      "fetch_depth": 1
+     }
+    },
+    {
+     "name": "Toolchain",
+     "run": "sh scripts/retry.sh rustup toolchain install",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "Each plant is caught",
+     "run": "sh scripts/plant-each.sh",
+     "if": "",
+     "env": []
+    }
+   ]
+  },
+  {
+   "id": "secrets.yml/secrets",
+   "env": [],
+   "steps": [
+    {
+     "checkout": {
+      "fetch_depth": 0
+     }
+    },
+    {
+     "name": "The scanner",
+     "run": "set -eu\nref=$(tr -d '\\r' < images/trufflehog/Dockerfile | sed -n 's/^FROM[[:space:]]\\{1,\\}\\([^[:space:]]\\{1,\\}\\).*/\\1/p')\ncase \"$ref\" in\n  *@sha256:*) ;;\n  *) echo \"images/trufflehog/Dockerfile names no image pinned to a digest\" >&2; exit 1 ;;\nesac\nscanner=$(sh scripts/pull-image.sh \"$ref\")\necho \"SCANNER=$scanner\" >> \"$GITHUB_ENV\"\n",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "A planted key is found",
+     "run": "set -u\nplant=\"$RUNNER_TEMP/plant\"\nmkdir -p \"$plant\"\ngit -C \"$plant\" init -q\ngit -C \"$plant\" -c user.name=plant -c user.email=plant@example.invalid commit -q --allow-empty -m start\nssh-keygen -q -t ed25519 -N '' -C plant -f \"$plant/key\"\ngit -C \"$plant\" add key\ngit -C \"$plant\" -c user.name=plant -c user.email=plant@example.invalid commit -q -m plant\nrc=0\ndocker run --rm -v \"$plant:/repo:ro\" \"$SCANNER\" git file:///repo --json --no-update \\\n  --no-verification --results=unverified --fail > \"$RUNNER_TEMP/plant.jsonl\" 2> \"$RUNNER_TEMP/plant.err\" || rc=$?\nrm -rf \"$plant\"\nif [ \"$rc\" -ne 183 ]; then\n  echo \"the scanner exited $rc on a planted key, not 183 (results found):\"\n  tail -20 \"$RUNNER_TEMP/plant.err\"\n  exit 1\nfi\npython3 scripts/secrets-report.py --expect PrivateKey \"$RUNNER_TEMP/plant.jsonl\"\n",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "TruffleHog over the history",
+     "run": "set -u\nrc=0\ndocker run --rm -v \"$GITHUB_WORKSPACE:/repo:ro\" \"$SCANNER\" git file:///repo --json --no-update \\\n  --results=verified,unknown,unverified > \"$RUNNER_TEMP/found.jsonl\" 2> \"$RUNNER_TEMP/scan.err\" || rc=$?\nif [ \"$rc\" -ne 0 ]; then\n  echo \"the scan did not run (exit $rc):\"\n  tail -20 \"$RUNNER_TEMP/scan.err\"\n  exit 1\nfi\npython3 scripts/secrets-report.py --allow .github/secrets-allow.txt \"$RUNNER_TEMP/found.jsonl\"\n",
+     "if": "",
+     "env": []
+    }
+   ]
+  },
+  {
+   "id": "upstream.yml/sources",
+   "env": [],
+   "steps": [
+    {
+     "checkout": {
+      "fetch_depth": 1
+     }
+    },
+    {
+     "name": "The clones of the sources",
+     "run": "set -eu\nfor repo in $(sed -n 's/^repo \\([^ ]*\\) .*/\\1/p' crates/*/SOURCES | sort -u); do\n  dir=\"$RUNNER_TEMP/src/$repo\"\n  sh scripts/retry.sh git clone -q --filter=blob:none --no-checkout \"https://github.com/$repo\" \"$dir\"\n  echo \"--clone $repo=$dir\" >> \"$RUNNER_TEMP/clones\"\ndone\n",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "Each source against its default branch",
+     "run": "python3 -I scripts/check-sources.py $(cat \"$RUNNER_TEMP/clones\")",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "A planted change fails the check",
+     "run": "set -u\nrc=0\npython3 -I scripts/check-sources.py --plant-change $(cat \"$RUNNER_TEMP/clones\") > plant.log 2>&1 || rc=$?\ncat plant.log\ntest \"$rc\" -eq 1 || { echo \"the check exited $rc on a planted change, not 1\"; exit 1; }\ngrep -q ': changed ' plant.log\n",
+     "if": "",
+     "env": []
+    }
+   ]
+  },
+  {
+   "id": "upstream.yml/mirrors",
+   "env": [],
+   "steps": [
+    {
+     "checkout": {
+      "fetch_depth": 1
+     }
+    },
+    {
+     "name": "The mirrors of zig against ziglang.org's list",
+     "run": "sh scripts/retry.sh python3 -I scripts/check-zig-mirrors.py",
+     "if": "",
+     "env": []
+    },
+    {
+     "name": "A planted mirror fails the check",
+     "run": "set -u\nrc=0\npython3 -I scripts/check-zig-mirrors.py --plant-mirror || rc=$?\n[ \"$rc\" -eq 1 ] || { echo \"the planted mirror gave exit $rc, not 1\"; exit 1; }\n",
+     "if": "",
+     "env": []
+    }
+   ]
+  }
+ ],
+ "excluded": [
+  {
+   "id": "adoption.yml/adoption",
+   "reason": "the job has strategy"
+  },
+  {
+   "id": "ci.yml/static",
+   "reason": "runs-on is not ubuntu-24.04"
+  },
+  {
+   "id": "ci.yml/all",
+   "reason": "the job has needs"
+  },
+  {
+   "id": "fuzz.yml/fuzz",
+   "reason": "a step has timeout-minutes"
+  },
+  {
+   "id": "guest.yml/guest",
+   "reason": "a step runs sudo"
+  },
+  {
+   "id": "nightly.yml/test",
+   "reason": "runs-on is not ubuntu-24.04"
+  },
+  {
+   "id": "nightly.yml/cross",
+   "reason": "the job has strategy"
+  },
+  {
+   "id": "publish.yml/dry-run",
+   "reason": "a step holds an expression"
+  },
+  {
+   "id": "publish.yml/publish",
+   "reason": "the job has needs"
+  },
+  {
+   "id": "record-issues.yml/numbers",
+   "reason": "an env holds an expression"
+  },
+  {
+   "id": "release.yml/release",
+   "reason": "an env holds an expression"
+  },
+  {
+   "id": "services.yml/watch",
+   "reason": "the job has if"
+  },
+  {
+   "id": "services.yml/measure",
+   "reason": "the job has if"
+  }
+ ]
+}

@@ -84,8 +84,18 @@ gives other behaviours as argv of its own.
 runner v2.338.2 calls with the JIT files of a scale set
 (`files::runner_files`): the token of its OAuth client, the broker
 session and messages, and the run service (`acquirejob`, `renewjob`,
-`completejob`). A test queues a `Job` (a name and the script of each
-`run:` step) and reads each `Completion`. It checks no credential and
-listens on the loopback only. `.github/workflows/level2.yml` runs the
-official runner against it.
+`completejob`), and the results service of the Worker (the logs and the
+step updates). A test queues a `Job` (a name, an environment, and the
+`run:` steps with their `if:` and `env:`) and reads each `Completion`
+and the logs. It checks no credential and listens on the loopback only.
+`.github/workflows/level2.yml` runs the official runner against it.
+
+The corpus `corpus/podcrates.json` holds the `ubuntu-24.04` jobs of the
+podcrates workflows that the fake can run, at one commit of podcrates.
+`scripts/corpus.py` writes it from a checkout and lists each other job
+with the reason (an expression, an action other than the checkout,
+`sudo`, `needs`, a matrix). The checkout step becomes a clone of the
+local source that `PODRUNNER_CORPUS_SRC` names. To move the corpus to a
+newer commit, run the script on a checkout of that commit. The corpus
+job of `level2.yml` checks that the file agrees with its workflows.
 

@@ -7,11 +7,43 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde_json::{Value, json};
 
-/// A job: its name and the script of each `run:` step.
+/// One `run:` step of a job.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Step {
+    pub name: String,
+    pub script: String,
+    /// The `if:` of the step, or empty. The runner evaluates it.
+    pub condition: String,
+    /// The `env:` of the step.
+    pub env: Vec<(String, String)>,
+}
+
+/// A job: its name, its environment and its `run:` steps.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Job {
     pub name: String,
-    pub scripts: Vec<String>,
+    /// The `env:` of the workflow and of the job.
+    pub env: Vec<(String, String)>,
+    pub steps: Vec<Step>,
+}
+
+impl Job {
+    /// A job of plain scripts, one step for each.
+    pub fn scripts(name: &str, scripts: &[&str]) -> Job {
+        let steps = scripts.iter().enumerate().map(|(i, s)| Step {
+            name: format!("Run step {}", i + 1),
+            script: s.to_string(),
+            condition: String::new(),
+            env: Vec::new(),
+        });
+        Job { name: name.into(), env: Vec::new(), steps: steps.collect() }
+    }
+}
+
+/// A mapping token of the runner (`TemplateToken` type 2).
+fn mapping(pairs: &[(String, String)]) -> Value {
+    let map: Vec<Value> = pairs.iter().map(|(k, v)| json!({ "Key": k, "Value": v })).collect();
+    json!({ "type": 2, "map": map })
 }
 
 fn b64(v: &Value) -> String {
@@ -47,16 +79,24 @@ pub fn job_request(base: &str, request: u64) -> Value {
 /// The job message of job `request`.
 pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
     let steps: Vec<Value> = job
-        .scripts
+        .steps
         .iter()
         .enumerate()
-        .map(|(i, script)| {
-            json!({
+        .map(|(i, step)| {
+            let condition = match step.condition.as_str() {
+                "" => "success()".to_string(),
+                c => format!("success() && ({c})"),
+            };
+            let mut v = json!({
                 "type": "action", "reference": { "type": "script" },
                 "id": guid(0x100 + i as u64), "name": format!("__run_{i}"), "contextName": format!("__run_{i}"),
-                "displayName": format!("Run step {}", i + 1), "condition": "success()",
-                "inputs": { "type": 2, "map": [{ "Key": "script", "Value": script }] },
-            })
+                "displayName": step.name, "condition": condition,
+                "inputs": mapping(&[("script".into(), step.script.clone())]),
+            });
+            if !step.env.is_empty() {
+                v["environment"] = mapping(&step.env);
+            }
+            v
         })
         .collect();
     let s = |k: &str, v: &str| json!({ "k": k, "v": v });
@@ -76,6 +116,7 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
             "repositories": [],
         },
         "workspace": {},
+        "environmentVariables": if job.env.is_empty() { json!([]) } else { json!([mapping(&job.env)]) },
         // The results service of the Worker (logs, step updates): this broker.
         "variables": {
             "system.github.job": { "value": job.name },
@@ -101,12 +142,17 @@ mod tests {
         assert_eq!(r["messageType"], "RunnerJobRequest");
         let body: Value = serde_json::from_str(r["body"].as_str().unwrap()).unwrap();
         assert_eq!(body["runner_request_id"], "3");
-        let job = Job { name: "j".into(), scripts: vec!["true".into(), "false".into()] };
+        let mut job = Job::scripts("j", &["true", "false"]);
+        job.env.push(("A".into(), "1".into()));
+        job.steps[1].condition = "github.event_name == 'push'".into();
         let m = job_message("http://127.0.0.1:1/", 3, &job);
         // The run service path of the runner needs this type (MessageUtil).
         assert_eq!(m["messageType"], "RunnerJobRequest");
         assert_eq!(m["steps"].as_array().unwrap().len(), 2);
         assert_eq!(m["steps"][1]["inputs"]["map"][0]["Value"], "false");
+        assert_eq!(m["steps"][0]["condition"], "success()");
+        assert_eq!(m["steps"][1]["condition"], "success() && (github.event_name == 'push')");
+        assert_eq!(m["environmentVariables"][0]["map"][0]["Key"], "A");
         // The job token is a JWT with three parts and an expiry.
         let token = job_token();
         let parts: Vec<&str> = token.split('.').collect();
