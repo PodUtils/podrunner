@@ -26,7 +26,7 @@ pub struct Failure {
     pub detail: String,
 }
 
-fn fail(class: Class, detail: impl Into<String>) -> Failure {
+pub(crate) fn fail(class: Class, detail: impl Into<String>) -> Failure {
     Failure { class, detail: detail.into() }
 }
 
@@ -58,8 +58,37 @@ fn now_unix() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
+/// A file of a key: the group and the others cannot read it.
+pub(crate) fn private_file(name: &str, path: &str) -> Result<Vec<u8>, Failure> {
+    use std::os::unix::fs::PermissionsExt;
+    let meta = std::fs::metadata(path).map_err(|e| fail(Class::Config, format!("{name}: {}", e.kind())))?;
+    if meta.permissions().mode() & 0o077 != 0 {
+        return Err(fail(Class::Config, format!("{name} is open to the group or to others: set mode 0600")));
+    }
+    std::fs::read(path).map_err(|e| fail(Class::Config, format!("{name}: {}", e.kind())))
+}
+
+/// The wire to a remote mint (GitHub #31): this host presents its key, and
+/// trusts only the pinned key of the mint.
+fn remote(
+    s: &podrunner_slots::config::SourceConfig,
+) -> Result<podrunner_source::Wire<podrunner_remote::transport::Https>, Failure> {
+    use podrunner_remote::transport::{ALPN, Https, provider};
+    let get = |v: &Option<String>| v.clone().unwrap_or_default();
+    let key = private_file(&format!("{}: the key file", s.name), &get(&s.key_file))?;
+    let cert = std::fs::read(get(&s.cert_file))
+        .map_err(|e| fail(Class::Config, format!("{}: the certificate: {}", s.name, e.kind())))?;
+    let certified =
+        pod_tls::server::certified(&cert, &key).map_err(|e| fail(Class::Config, format!("{}: {e}", s.name)))?;
+    let pin =
+        pod_tls::mutual::Pin::parse(&get(&s.mint_pin)).map_err(|e| fail(Class::Config, format!("{}: {e}", s.name)))?;
+    let config = pod_tls::mutual::client_config(provider(), certified, pod_tls::mutual::Pins::new([pin]), &[ALPN])
+        .map_err(|e| fail(Class::Config, format!("{}: {e}", s.name)))?;
+    Ok(podrunner_source::Wire(Https { address: get(&s.mint), config }))
+}
+
 /// The scale-set sidecar of a source, with `sign` over the key of the App.
-fn scaleset(
+pub(crate) fn scaleset(
     s: &podrunner_slots::config::SourceConfig,
     clock: Arc<dyn Clock>,
 ) -> Result<podrunner_mint::SidecarSource, Failure> {
@@ -104,27 +133,35 @@ fn scaleset(
     Ok(podrunner_mint::SidecarSource::new(&get(&s.sidecar), args, Arc::new(std::sync::Mutex::new(signer)), &caller))
 }
 
+/// The source of a `[[source]]` table, behind `mint` (GitHub #27): mint
+/// stops a source for good after a revocation.
+pub(crate) fn source_of(
+    s: &podrunner_slots::config::SourceConfig,
+    clock: Arc<dyn Clock>,
+) -> Result<Box<dyn podrunner_source::JobSource>, Failure> {
+    let source: Box<dyn podrunner_source::JobSource> = match s.kind {
+        SourceKind::Fake => {
+            let text = match &s.script {
+                Some(p) => std::fs::read_to_string(p)
+                    .map_err(|e| fail(Class::Config, format!("the script of {}: {}", s.name, e.kind())))?,
+                None => String::new(),
+            };
+            let script =
+                parse_script(&text).map_err(|e| fail(Class::Config, format!("the script of {}: {e}", s.name)))?;
+            Box::new(FakeSource::new(&s.name, clock, script))
+        }
+        SourceKind::GithubScaleset => Box::new(scaleset(s, clock)?),
+        SourceKind::Remote => Box::new(remote(s)?),
+    };
+    Ok(Box::new(podrunner_mint::Mint::new(&s.name, source)))
+}
+
 /// Build the supervisor of a configuration.
 pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
     let mut sources = Vec::new();
     for s in &cfg.source {
-        let source: Box<dyn podrunner_source::JobSource> = match s.kind {
-            SourceKind::Fake => {
-                let text = match &s.script {
-                    Some(p) => std::fs::read_to_string(p)
-                        .map_err(|e| fail(Class::Config, format!("the script of {}: {}", s.name, e.kind())))?,
-                    None => String::new(),
-                };
-                let script =
-                    parse_script(&text).map_err(|e| fail(Class::Config, format!("the script of {}: {e}", s.name)))?;
-                Box::new(FakeSource::new(&s.name, clock.clone(), script))
-            }
-            SourceKind::GithubScaleset => Box::new(scaleset(s, clock.clone())?),
-        };
-        // mint stands between slots and each source (GitHub #27).
-        let source: Box<dyn podrunner_source::JobSource> = Box::new(podrunner_mint::Mint::new(&s.name, source));
-        sources.push(Source { cfg: s.clone(), source, revoked: false });
+        sources.push(Source { cfg: s.clone(), source: source_of(s, clock.clone())?, revoked: false });
     }
     let mut kinds = Vec::new();
     let mut retests = Vec::new();

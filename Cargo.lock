@@ -653,18 +653,22 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "pod-core",
+ "pod-tls",
  "podrunner-clock",
  "podrunner-egress",
  "podrunner-fake",
  "podrunner-hook",
  "podrunner-mint",
  "podrunner-podvm",
+ "podrunner-remote",
  "podrunner-schema",
  "podrunner-slots",
  "podrunner-source",
+ "podrunner-tier",
  "podrunner-unit",
  "serde",
  "serde_json",
+ "toml",
 ]
 
 [[package]]

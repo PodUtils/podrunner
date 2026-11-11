@@ -669,18 +669,22 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "pod-core",
+ "pod-tls",
  "podrunner-clock",
  "podrunner-egress",
  "podrunner-fake",
  "podrunner-hook",
  "podrunner-mint",
  "podrunner-podvm",
+ "podrunner-remote",
  "podrunner-schema",
  "podrunner-slots",
  "podrunner-source",
+ "podrunner-tier",
  "podrunner-unit",
  "serde",
  "serde_json",
+ "toml",
 ]
 
 [[package]]
@@ -754,6 +758,20 @@ dependencies = [
  "libc",
  "podrunner-schema",
  "podrunner-unit",
+ "serde_json",
+]
+
+[[package]]
+name = "podrunner-remote"
+version = "0.1.0"
+dependencies = [
+ "pod-tls",
+ "podrunner-hook",
+ "podrunner-schema",
+ "podrunner-source",
+ "podrunner-tier",
+ "rustls",
+ "serde",
  "serde_json",
 ]
 
@@ -924,6 +942,7 @@ checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "log",
  "once_cell",
+ "ring",
  "rustls-pki-types",
  "rustls-webpki",
  "subtle",

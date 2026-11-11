@@ -17,6 +17,10 @@ pod-core.workspace = true
 podrunner-clock.workspace = true
 podrunner-egress.workspace = true
 podrunner-hook.workspace = true
+podrunner-remote.workspace = true
+podrunner-tier.workspace = true
+toml.workspace = true
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.17.0", default-features = false }
 podrunner-fake.workspace = true
 podrunner-mint.workspace = true
 podrunner-podvm.workspace = true

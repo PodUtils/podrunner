@@ -16,7 +16,7 @@ driver_dir = "/opt/podrunner/drivers"  # each binary and sidecar is in it; absol
 
 [[source]]                   # one set: one tier, one architecture, this host
 name = "org-trusted"
-kind = "github-scaleset"     # or "fake"
+kind = "github-scaleset"     # or "fake", or "remote" (the remote mint, below)
 tier = "trusted"             # "untrusted", "trusted" or "local"
 arch = "x86_64"              # or "aarch64"
 operator_controlled = true   # the full report; else the public report
@@ -66,3 +66,51 @@ built_at_s = 1800000000      # the time of the build, Unix seconds
 | `untrusted` | `guest` | A fork job is hostile code. |
 | `trusted` | `redirect` (default `confined`) | DR-4: `redirect` is a choice of the operator. The file must then have a signed pin list (`podrunner pin-sign`), set `repository`, keep `same_principal_ok = false` and set `slots` on each `trusted` source (T-045 has the other mitigations). |
 | `local` | `none` | Only the configuration marks a set `local`; its jobs run at `local` with no tier rule, and only a `fake` source can be `local` (call C14). |
+
+## The remote mint
+
+On a host with no root, a step can read each file of the uid of podrunner
+(DR-4). The source and its credentials then live on another machine:
+`podrunner mint-serve --config mint.toml` (GitHub #31). The unit host
+names it with a source of kind `remote`:
+
+```toml
+[[source]]
+name = "org-trusted"
+kind = "remote"
+tier = "trusted"
+arch = "x86_64"
+slots = 2
+mint = "mint.example.org:8443"     # host:port of the mint
+mint_pin = "sha256/BASE64"          # the pin of the key of the mint
+cert_file = "/etc/podrunner/host.pem"
+key_file = "/etc/podrunner/host.key" # a P-256 key, mode 0600
+```
+
+The file of the mint:
+
+```toml
+listen = "0.0.0.0:8443"
+cert_file = "/etc/podrunner-mint/mint.pem"
+key_file = "/etc/podrunner-mint/mint.key"   # a P-256 key, mode 0600
+state = "/var/lib/podrunner-mint"           # ledger.jsonl and audit.jsonl
+
+[source]                     # the source that the mint holds: github-scaleset, or fake
+name = "org-trusted"
+kind = "github-scaleset"
+tier = "trusted"
+arch = "x86_64"
+# ... the keys of a github-scaleset source
+
+[trust]                      # the tier rule of the mint: it withdraws an offer that the set may not run
+organizations = [{ login = "example-org" }]
+
+[[host]]                     # one for each unit host
+name = "host-a"
+pin = "sha256/BASE64"        # the pin of the key of the host
+slots = 2                    # its offers are capped at this count
+```
+
+The pin of a key is the SHA-256 of its SubjectPublicKeyInfo, in base64,
+as curl's `--pinnedpubkey` writes it:
+`openssl x509 -in host.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64`.

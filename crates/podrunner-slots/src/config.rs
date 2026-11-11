@@ -15,6 +15,9 @@ use serde_json::{Map, Value};
 pub enum SourceKind {
     Fake,
     GithubScaleset,
+    /// A remote mint over mutual TLS (GitHub #31): the source and its
+    /// credentials live on another machine.
+    Remote,
 }
 
 /// One source instance: one set of one tier, one architecture, one host.
@@ -52,6 +55,15 @@ pub struct SourceConfig {
     pub scale_set: Option<String>,
     #[serde(default)]
     pub key_file: Option<String>,
+    /// `remote`: the address of the mint (`host:port`), the pin of its key
+    /// (`sha256/BASE64`), and the certificate of this host (its key is
+    /// `key_file`, a P-256 key at mode 0600).
+    #[serde(default)]
+    pub mint: Option<String>,
+    #[serde(default)]
+    pub mint_pin: Option<String>,
+    #[serde(default)]
+    pub cert_file: Option<String>,
 }
 
 /// The slots of one unit kind.
@@ -299,6 +311,17 @@ impl Config {
                 ];
                 if let Some((key, _)) = missing.iter().find(|(_, m)| *m) {
                     return Err(format!("[[source]] {:?}: a github-scaleset source needs {key}", s.name));
+                }
+            }
+            if s.kind == SourceKind::Remote {
+                let missing = [
+                    ("mint", &s.mint),
+                    ("mint_pin", &s.mint_pin),
+                    ("cert_file", &s.cert_file),
+                    ("key_file", &s.key_file),
+                ];
+                if let Some((key, _)) = missing.iter().find(|(_, v)| v.is_none()) {
+                    return Err(format!("[[source]] {:?}: a remote source needs {key}", s.name));
                 }
             }
             if !matches!(s.arch.as_str(), "x86_64" | "aarch64") {

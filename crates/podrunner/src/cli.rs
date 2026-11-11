@@ -26,6 +26,7 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   print-unit --config FILE --state DIR [--binary PATH]
                                                     a service unit, with no credential
   pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
+  mint-serve --config FILE                          the remote mint (on a machine with no unit)
   --version | --help
 ";
 
@@ -140,6 +141,12 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             o.only(&["--config", "--state", "--binary"])?;
             let binary = o.get("--binary").unwrap_or_else(|| PathBuf::from("/usr/local/bin/podrunner"));
             Ok(ok(print_unit(&binary, &o.need("--config")?, &o.need("--state")?)))
+        }
+        "mint-serve" => {
+            let o = opts(rest)?;
+            o.only(&["--config"])?;
+            crate::mint_serve::run(&o.need("--config")?).map_err(|f| err(f.class, f.detail))?;
+            Ok(ok(String::new()))
         }
         "pin-sign" => {
             let o = opts(rest)?;
