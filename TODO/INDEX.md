@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**63 entries: 0 open, 4 partial, 15 blocked, 44 done.**
+**64 entries: 0 open, 4 partial, 16 blocked, 44 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 0 | 2 | 0 | 21 | 23 |
+| P1 | 0 | 2 | 1 | 21 | 24 |
 | P2 | 0 | 2 | 10 | 22 | 34 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 0 | 4 | 15 | 44 | 63 |
+| **All** | 0 | 4 | 16 | 44 | 64 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -111,3 +111,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-061](core.md) | P2 | S | L2 | defect | blocked | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (GitHub #61) |
 | [T-062](core.md) | P2 | S | L2 | defect | blocked | COORD-008: on the supervise rung a volume given as :ro is writable (GitHub #62) |
 | [T-063](core.md) | P1 | M | L2 | defect | partial | The tree kill finds a unit by an environment tag, and a process can drop it |
+| [T-064](level2.md) | P1 | S | L2 | feature | blocked | The podvm driver follows the tree of each container (PodUtils/podvm@T-1709) |

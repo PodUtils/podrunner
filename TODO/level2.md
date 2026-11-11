@@ -395,3 +395,32 @@ The podvm driver of T-035 (step 4) uses a volume and the guest path of the socke
 ## Done
 
 2026-11-11, podvm `v0.2.0-beta.3` (PodUtils/podvm@T-1710). `scripts/measure-hook-path.sh` on the H0 profile (supervise): `volume-socket yes`, `rootfs-socket yes`, `host-path-socket no` (as podvm said: the host path is not a guest path). On the root rung (namespace, a chroot rung): `rootfs-socket yes`, and `-v` stays refused there by design (PodUtils/podvm@T-1653). So a socket that the host binds in the rootfs of the unit is reachable on both rungs: the podvm driver of T-035 puts the control socket there, with its guest path in `PODRUNNER_CTL`, and needs no host path.
+
+# T-064: The podvm driver follows the tree of each container (PodUtils/podvm@T-1709)
+
+**Source:** PodUtils/podvm#258
+**Category:** feature
+**Milestone:** L2
+**Priority:** P1
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+podvm `main` (`cbb9134`, PodUtils/podvm@T-1709) copies the image into `<store>/trees/<id>/` at each `run` and `create`; each container writes only in its copy. The podvm driver takes the rootfs from `podvm extract` (`crates/podrunner-podvm/src/unit.rs`): it writes the credential files there before `run` (the copy takes them), but `observe` (the unit root, the runner root) and the volume sources of the hooks (`unit/containers.rs`, relative to the runner directory) name the extracted rootfs, not the tree of the container. With such a podvm, the runner writes `_work` in its tree, and a job container mounts the extracted copy: the container route of T-035 breaks.
+
+## Premise
+
+Read on 2026-11-11 in PodUtils/podvm#258. Not in a podvm release yet; the next beta takes it. Not measured here.
+
+## Approach
+
+After `run -d`, take the tree of the unit from `podvm inspect --format '{{.RootfsPath}}' UNIT`, and use it for `observe` and for the runner directory of the volumes. Keep the credential files written before `run` (the copy takes them, mode 0600), and check the mode in the tree. Raise `probe::LOWEST` to the beta with PodUtils/podvm@T-1709, and pin it in `images/podvm.toml`.
+
+## Prove
+
+`runner-image.yml` with the new beta: the two tests of `crates/podrunner-broker-fake/tests/podvm.rs` and the unit conformance suite on podvm pass.
+
+## Blocker
+
+A podvm release with PodUtils/podvm@T-1709 (the next beta). Do not take that beta before this entry is done.
