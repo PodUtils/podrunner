@@ -525,7 +525,7 @@ Read the text of GitHub #9 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Write docs/unknowns.md: one row for each unknown, with its owner, the entry that settles it and its state. Done so far (2026-11-11): `docs/unknowns.md` holds the 25 rows with their state: U1 to U5, U9 and U24 are settled, each with its evidence; the live rows wait for T-040 (DR-7). The entry stays open while a row is open; each open row names the entry that settles it. Each measurement is an entry of the milestone that needs it.
+Write docs/unknowns.md: one row for each unknown, with its owner, the entry that settles it and its state. Done so far (2026-11-11): `docs/unknowns.md` holds the 25 rows with their state: U1 to U5, U9, U13, U19, U21, U24 and U25 are settled, each with its evidence; the live rows wait for T-040 (DR-7). The entry stays open while a row is open; each open row names the entry that settles it. Each measurement is an entry of the milestone that needs it.
 
 ## Prove
 

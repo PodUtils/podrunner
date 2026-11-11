@@ -8,7 +8,7 @@ the live acceptance suite (GitHub #40, T-040), which waits for the ruling
 
 | Id | Unknown | Settles it | Blocker | State |
 | --- | --- | --- | --- | --- |
-| U1 | The official runner runs on the podvm userland rung | podvm PodUtils/podvm#229 to PodUtils/podvm#232 | podvm (on break; T-026) | Settled: no (exit 154, then 137), in the design review. |
+| U1 | The official runner runs on the podvm userland rung | podvm PodUtils/podvm#229 to PodUtils/podvm#232 | none | Settled: no on the userland rung of the design review (exit 154, then 137); yes on the supervise rung of podvm `v0.2.0-beta.3` with no root and `DOTNET_EnableWriteXorExecute=0`: the runner takes a canned job and a `container:` job (T-026, T-035; `runner-image.yml`). On the namespace rung CoreCLR fails at start (no `/proc`). |
 | U2 | `RLIMIT_FSIZE` kills the runner at start | A measure | none | Settled: yes, with the default W^X. The podvm driver sets `DOTNET_EnableWriteXorExecute=0` and applies no `fsize` limit (T-023). |
 | U3 | The runner starts from pre-staged files, with nothing in argv or the environment | A measure | none | Settled: yes. The environment route leaks for the whole life of the job. Unit test 7 holds it (`docs/contracts/unit-driver.md`). |
 | U4 | Grandchildren survive `podvm stop` | A measure | none | Settled: yes, 6 of 6 in the design review; again with podvm `v0.2.0-beta.2` on the session host (T-023). The driver kills by the tag of the unit and the tree under each tagged process: the supervisor of podvm is a subreaper, so an orphan that drops the tag (`setsid env -i`) has it as its parent, and `podvm rm -f` ends it (T-063, measured with `v0.2.0-beta.3` with no root). |
@@ -20,7 +20,7 @@ the live acceptance suite (GitHub #40, T-040), which waits for the ruling
 | U10 | The broker fails on a proxy that resets CONNECT to IP literals | A test of `pod-broker` | podcrates | Open (T-024). |
 | U11 | A stolen credential of one job affects only its job | A live job | DR-7 | Open (T-040). |
 | U12 | The run object needs only "Actions: read"; the member check needs "Members: read"; a runner group can refuse public repositories | A live job | DR-7 | Open (T-040). |
-| U13 | `DOTNET_EnableWriteXorExecute=0` has a measurable cost | A bench on a unit | the runner on podvm (T-026) | Open. |
+| U13 | `DOTNET_EnableWriteXorExecute=0` has a measurable cost | A bench on a unit | none | Settled for the start: no measurable cost. `Runner.Listener --version` of runner 2.338.2, 20 runs for each value, three times: 124 to 140 ms with W^X, 125 to 131 ms with no W^X (the spread of the host is larger than the difference). Not measured: a long job. |
 | U14 | The runner with the hooks variable set and the job variable false | A live job | DR-7 | Open (T-040). |
 | U15 | The treatment of a third-party runner version string by github.com | The owner reads the terms (call C10, DR-16) | the owner | Open. No alternate payload ships before it. |
 | U16 | `dookoid` on a host that denies ptrace | A run on such a host | none | Deferred with the Docker API (`docs/non-goals.md`). |
