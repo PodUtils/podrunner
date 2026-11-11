@@ -30,7 +30,7 @@ pub(super) const CASES: [Case; 9] = [
     Case { number: 26, name: "a-killed-shim-is-not-clean", run: a_killed_shim_is_not_clean },
 ];
 
-/// Each file under `dir`, with its size. A symlink is listed, not followed.
+/// Each regular file under `dir`, with its size. A symlink is not followed.
 fn files(dir: &Path) -> Vec<(PathBuf, u64)> {
     let mut out = Vec::new();
     let mut todo = vec![dir.to_path_buf()];
@@ -40,7 +40,8 @@ fn files(dir: &Path) -> Vec<(PathBuf, u64)> {
             let Ok(m) = e.path().symlink_metadata() else { continue };
             if m.is_dir() {
                 todo.push(e.path());
-            } else {
+            } else if m.is_file() {
+                // Not a pipe or a socket: a read of a pipe blocks.
                 out.push((e.path(), m.len()));
             }
         }
@@ -312,4 +313,23 @@ fn a_killed_shim_is_not_clean(fx: &dyn Fixture) -> Result<Outcome, String> {
         return Err(format!("destroy counts 0 processes, but the orphan {orphan} lives"));
     }
     Ok(Outcome::Pass)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A store of podvm holds named pipes: the scan lists them as no file,
+    /// so it never opens one (a read of a pipe blocks).
+    #[test]
+    fn the_scan_skips_a_pipe() {
+        let dir = std::env::temp_dir().join(format!("podrunner-scan-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("d")).unwrap();
+        std::fs::write(dir.join("d/f"), CANARY).unwrap();
+        let fifo = std::ffi::CString::new(dir.join("d/p").as_os_str().as_encoded_bytes()).unwrap();
+        // SAFETY: mkfifo(3) takes a path that this test owns.
+        assert_eq!(unsafe { libc::mkfifo(fifo.as_ptr(), 0o600) }, 0);
+        assert_eq!(holding(&dir, CANARY), vec![dir.join("d/f")]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
