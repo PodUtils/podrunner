@@ -82,12 +82,24 @@ fn line_of<T: Serialize>(body: &T) -> String {
     s
 }
 
-/// Bind the socket at `path` with mode 0600. An old socket file goes first.
+/// Bind the socket at `path` with mode 0600 (GitHub #54). A stale socket
+/// (no one answers) goes first; a live socket is `AddrInUse`, and a path
+/// that is not a socket is `AlreadyExists`: neither is removed.
 pub fn bind(path: &Path) -> std::io::Result<UnixListener> {
-    let _ = std::fs::remove_file(path);
+    use std::os::unix::fs::FileTypeExt;
+    match std::fs::symlink_metadata(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e),
+        Ok(m) if m.file_type().is_socket() => {
+            if UnixStream::connect(path).is_ok() {
+                return Err(std::io::Error::new(std::io::ErrorKind::AddrInUse, "a live socket"));
+            }
+            std::fs::remove_file(path)?;
+        }
+        Ok(_) => return Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, "not a socket")),
+    }
     let l = UnixListener::bind(path)?;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
-    l.set_nonblocking(true)?;
     Ok(l)
 }
 
@@ -114,27 +126,94 @@ fn my_uid() -> u32 {
     unsafe { libc::getuid() }
 }
 
-/// Answer each connection that waits now, one request each.
-pub fn serve_waiting(l: &UnixListener, h: &mut dyn Handler) {
-    while let Ok((stream, _)) = l.accept() {
-        let _ = answer(stream, h);
-    }
+/// The clients served at one time; one more gets `busy`.
+pub const CLIENTS: usize = 8;
+
+/// The absolute deadline of one exchange: the request line, and the reply
+/// of the supervisor.
+pub const EXCHANGE: Duration = Duration::from_secs(5);
+
+/// A request for the supervisor, and where its reply goes.
+pub struct Call {
+    pub req: Request,
+    pub reply: std::sync::mpsc::Sender<Reply>,
 }
 
-fn answer(stream: UnixStream, h: &mut dyn Handler) -> std::io::Result<()> {
-    stream.set_nonblocking(false)?;
-    stream.set_read_timeout(Some(Duration::from_secs(5)))?;
-    let mut writer = stream.try_clone()?;
+/// Serve `l` in threads of its own (GitHub #56): the supervisor gets whole
+/// requests from the channel, so a slow or silent peer delays no tick.
+pub fn spawn(l: UnixListener) -> std::sync::mpsc::Receiver<Call> {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let (tx, rx) = std::sync::mpsc::channel();
+    let active = Arc::new(AtomicUsize::new(0));
+    std::thread::spawn(move || {
+        for stream in l.incoming() {
+            let Ok(stream) = stream else { continue };
+            if active.load(Ordering::SeqCst) >= CLIENTS {
+                let _ = stream.set_write_timeout(Some(Duration::from_secs(1)));
+                let _ = (&stream).write_all(line_of(&Reply::error("busy", "too many clients")).as_bytes());
+                continue;
+            }
+            active.fetch_add(1, Ordering::SeqCst);
+            let (tx, active) = (tx.clone(), active.clone());
+            std::thread::spawn(move || {
+                let _ = exchange(stream, &tx);
+                active.fetch_sub(1, Ordering::SeqCst);
+            });
+        }
+    });
+    rx
+}
+
+/// Read one line before `deadline`, at most `LINE_MAX` bytes and a newline.
+fn read_line(mut s: &UnixStream, deadline: std::time::Instant) -> std::io::Result<Vec<u8>> {
+    let mut line = Vec::new();
+    let mut buf = [0u8; 4096];
+    while !line.contains(&b'\n') && line.len() <= LINE_MAX + 1 {
+        let left = deadline.saturating_duration_since(std::time::Instant::now());
+        if left.is_zero() {
+            return Err(std::io::ErrorKind::TimedOut.into());
+        }
+        s.set_read_timeout(Some(left))?;
+        match s.read(&mut buf)? {
+            0 => break,
+            n => line.extend_from_slice(&buf[..n]),
+        }
+    }
+    Ok(line)
+}
+
+fn exchange(stream: UnixStream, tx: &std::sync::mpsc::Sender<Call>) -> std::io::Result<()> {
+    let deadline = std::time::Instant::now() + EXCHANGE;
+    stream.set_write_timeout(Some(EXCHANGE))?;
+    let mut writer = &stream;
     if peer_uid(&stream) != Some(my_uid()) {
         return writer.write_all(line_of(&Reply::error("refused", "the peer has another uid")).as_bytes());
     }
-    let mut line = Vec::new();
-    BufReader::new(stream).take(LINE_MAX as u64 + 2).read_until(b'\n', &mut line)?;
+    let line = read_line(&stream, deadline)?;
     let reply = match parse(&line) {
-        Ok(req) => h.handle(&req),
         Err(r) => r,
+        Ok(req) => {
+            let (rtx, rrx) = std::sync::mpsc::channel();
+            if tx.send(Call { req, reply: rtx }).is_err() {
+                return Ok(());
+            }
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            rrx.recv_timeout(left.max(Duration::from_secs(1)))
+                .unwrap_or_else(|_| Reply::error("busy", "the supervisor did not answer in time"))
+        }
     };
     writer.write_all(line_of(&reply).as_bytes())
+}
+
+/// Answer each call that waits now, with `h`.
+pub fn answer_waiting(rx: &std::sync::mpsc::Receiver<Call>, h: &mut dyn Handler, wait: Duration) {
+    let Ok(first) = rx.recv_timeout(wait) else { return };
+    let mut next = Some(first);
+    while let Some(call) = next {
+        let _ = call.reply.send(h.handle(&call.req));
+        next = rx.try_recv().ok();
+    }
 }
 
 /// Send one request to the socket at `path`.
@@ -171,22 +250,90 @@ mod tests {
         assert!(parse(&long).is_err());
     }
 
+    fn dir(name: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("podrunner-ctl-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
     #[test]
     fn the_socket_has_mode_0600_and_answers_one_request() {
-        let dir = std::env::temp_dir().join(format!("podrunner-ctl-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = dir("one");
         let path = dir.join("ctl.sock");
-        let l = bind(&path).unwrap();
+        let rx = spawn(bind(&path).unwrap());
         assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
         let p = path.clone();
         let client = std::thread::spawn(move || call(&p, &Request::Status).unwrap());
         let mut h = Echo(Vec::new());
         while h.0.is_empty() {
-            serve_waiting(&l, &mut h);
-            std::thread::sleep(Duration::from_millis(5));
+            answer_waiting(&rx, &mut h, Duration::from_millis(50));
         }
         assert_eq!(client.join().unwrap(), Reply::Ok { value: Value::from("done") });
         assert_eq!(h.0, [Request::Status]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn silent_clients_delay_no_answer_and_a_ninth_is_busy() {
+        let dir = dir("idle");
+        let path = dir.join("ctl.sock");
+        let rx = spawn(bind(&path).unwrap());
+        // Seven silent clients hold seven of the eight places.
+        let idle: Vec<UnixStream> = (0..CLIENTS - 1).map(|_| UnixStream::connect(&path).unwrap()).collect();
+        std::thread::sleep(Duration::from_millis(100));
+        let p = path.clone();
+        let started = std::time::Instant::now();
+        let client = std::thread::spawn(move || call(&p, &Request::Status).unwrap());
+        let mut h = Echo(Vec::new());
+        while h.0.is_empty() && started.elapsed() < Duration::from_secs(3) {
+            answer_waiting(&rx, &mut h, Duration::from_millis(50));
+        }
+        assert_eq!(client.join().unwrap(), Reply::Ok { value: Value::from("done") });
+        assert!(started.elapsed() < Duration::from_secs(1), "{:?}", started.elapsed());
+        // Eight silent clients now: a ninth gets busy.
+        let _eighth = UnixStream::connect(&path).unwrap();
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(matches!(call(&path, &Request::Status).unwrap(), Reply::Error { code, .. } if code == "busy"));
+        drop(idle);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_slow_client_is_cut_at_the_deadline() {
+        let dir = dir("slow");
+        let path = dir.join("ctl.sock");
+        let _rx = spawn(bind(&path).unwrap());
+        let mut s = UnixStream::connect(&path).unwrap();
+        let started = std::time::Instant::now();
+        // One byte each 500 ms, never a newline: the server ends the
+        // exchange at its absolute deadline.
+        let mut closed = false;
+        while started.elapsed() < EXCHANGE + Duration::from_secs(3) {
+            if s.write_all(b" ").is_err() {
+                closed = true;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(500));
+        }
+        assert!(closed, "the exchange was not cut");
+        assert!(started.elapsed() >= EXCHANGE, "{:?}", started.elapsed());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn bind_keeps_a_live_socket_and_a_file_and_replaces_a_stale_socket() {
+        let dir = dir("bind");
+        let path = dir.join("ctl.sock");
+        let live = bind(&path).unwrap();
+        assert_eq!(bind(&path).unwrap_err().kind(), std::io::ErrorKind::AddrInUse);
+        drop(live);
+        // The file of a dead listener is stale: it is replaced.
+        assert!(bind(&path).is_ok());
+        let file = dir.join("file");
+        std::fs::write(&file, "x").unwrap();
+        assert_eq!(bind(&file).unwrap_err().kind(), std::io::ErrorKind::AlreadyExists);
+        assert_eq!(std::fs::read(&file).unwrap(), b"x");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

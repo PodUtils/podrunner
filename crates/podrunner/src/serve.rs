@@ -356,8 +356,12 @@ pub fn socket_of(state: &Path) -> PathBuf {
     state.join("ctl.sock")
 }
 
-/// Run until `stop`, and until each job is final after it.
+/// Run until `stop` or a stop signal, and until each job is final after
+/// it. The lock of the state directory comes first (GitHub #54): the
+/// replay of the journal destroys the open units, so it must never run
+/// beside a live `serve`.
 pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
+    let _lock = crate::lock::StateLock::take(state)?;
     let text =
         std::fs::read_to_string(config).map_err(|e| fail(Class::Config, format!("the configuration: {}", e.kind())))?;
     let cfg = Config::parse(&text).map_err(|e| fail(Class::Config, e))?;
@@ -365,21 +369,39 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     if slots.no_tier_served() {
         eprintln!("podrunner: no-tier-served: no unit kind meets the floor of a source");
     }
-    let listener =
-        control::bind(socket).map_err(|e| fail(Class::Unavailable, format!("the control socket: {}", e.kind())))?;
+    let listener = control::bind(socket).map_err(|e| {
+        let class = if e.kind() == std::io::ErrorKind::AlreadyExists { Class::Usage } else { Class::Unavailable };
+        fail(class, format!("the control socket: {e}"))
+    })?;
+    let calls = control::spawn(listener);
+    crate::notify::install();
+    crate::notify::send("READY=1");
+    let watchdog = crate::notify::watchdog();
     let mut sup = Supervisor { slots, stop: false };
-    let mut next = Instant::now();
+    let (mut next, mut ping, mut stopping) = (Instant::now(), Instant::now(), false);
     loop {
+        if crate::notify::take_signal() && !sup.stop {
+            sup.handle(&Request::Stop);
+        }
+        if sup.stop && !stopping {
+            crate::notify::send("STOPPING=1");
+            stopping = true;
+        }
         if Instant::now() >= next {
             sup.slots.tick();
             next += Duration::from_secs(1);
         }
-        control::serve_waiting(&listener, &mut sup);
+        if let Some(w) = watchdog
+            && ping.elapsed() >= w
+        {
+            crate::notify::send("WATCHDOG=1");
+            ping = Instant::now();
+        }
+        control::answer_waiting(&calls, &mut sup, Duration::from_millis(50));
         if sup.stop && sup.slots.jobs().all(|j| j.state.is_final()) {
             let _ = std::fs::remove_file(socket);
             return Ok(());
         }
-        std::thread::sleep(Duration::from_millis(50));
     }
 }
 

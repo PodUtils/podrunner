@@ -21,9 +21,10 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   status [--json] (--state DIR | --socket PATH)     the state of the slots
   drain (--state DIR | --socket PATH)               take no new job
   stop (--state DIR | --socket PATH)                drain, then end
+  stop --wait --state DIR [--timeout SECONDS]       ... and wait until serve ends
   clear-degraded (--state DIR | --socket PATH)      start jobs again after a residue
   doctor                                            the inputs of a host check
-  print-unit --config FILE --state DIR [--binary PATH]
+  print-unit --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]
                                                     a service unit, with no credential
   pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
   mint-serve --config FILE                          the remote mint (on a machine with no unit)
@@ -52,7 +53,7 @@ struct Opts {
     flags: Vec<String>,
 }
 
-const FLAGS: [&str; 1] = ["--json"];
+const FLAGS: [&str; 2] = ["--json", "--wait"];
 
 fn opts(args: &[String]) -> Result<Opts, Out> {
     let mut o = Opts { values: Vec::new(), flags: Vec::new() };
@@ -115,6 +116,7 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             crate::serve::run(&o.need("--config")?, &state, &socket).map_err(|f| err(f.class, f.detail))?;
             Ok(ok(String::new()))
         }
+        "stop" if rest.iter().any(|a| a == "--wait") => stop_wait(rest),
         "status" | "drain" | "stop" | "clear-degraded" => {
             let o = opts(rest)?;
             o.only(&["--state", "--socket"])?;
@@ -139,9 +141,18 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
         "doctor" => Ok(ok(crate::doctor::report())),
         "print-unit" => {
             let o = opts(rest)?;
-            o.only(&["--config", "--state", "--binary"])?;
+            o.only(&["--config", "--state", "--binary", "--watchdog"])?;
             let binary = o.get("--binary").unwrap_or_else(|| PathBuf::from("/usr/local/bin/podrunner"));
-            Ok(ok(print_unit(&binary, &o.need("--config")?, &o.need("--state")?)))
+            let watchdog = match o.get("--watchdog") {
+                None => None,
+                Some(w) => Some(
+                    w.to_str()
+                        .and_then(|w| w.parse::<u32>().ok())
+                        .filter(|w| *w > 0)
+                        .ok_or_else(|| err(Class::Usage, "--watchdog needs a number of seconds"))?,
+                ),
+            };
+            Ok(ok(print_unit(&binary, &o.need("--config")?, &o.need("--state")?, watchdog)))
         }
         "image" => match rest.split_first() {
             Some((sub, rest)) if sub == "verify" => {
@@ -169,6 +180,42 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             Ok(ok(format!("signer = \"{signer}\"\nsignature = \"{signature}\"\n")))
         }
         other => Err(err(Class::Usage, format!("an unknown command {:?}\n{USAGE}", display(other)))),
+    }
+}
+
+/// `stop --wait`: ask for the stop, then wait until no `serve` holds the
+/// lock of the state directory (GitHub #54). A timeout is exit 75.
+fn stop_wait(rest: &[String]) -> Result<Out, Out> {
+    let o = opts(rest)?;
+    o.only(&["--state", "--timeout"])?;
+    let state = o.get("--state").ok_or_else(|| err(Class::Usage, format!("stop --wait needs --state\n{USAGE}")))?;
+    let timeout = match o.get("--timeout") {
+        None => None,
+        Some(t) => Some(std::time::Duration::from_secs(
+            t.to_str()
+                .and_then(|t| t.parse::<u64>().ok())
+                .ok_or_else(|| err(Class::Usage, "--timeout needs a number of seconds"))?,
+        )),
+    };
+    match control::call(&crate::serve::socket_of(&state), &Request::Stop) {
+        Ok(Reply::Ok { .. }) => {}
+        Ok(Reply::Error { code, detail }) => {
+            return Err(err(Class::Refused, format!("{}: {}", display(&code), display(&detail))));
+        }
+        // No socket: serve may be gone already; the lock says.
+        Err(_) => {}
+    }
+    let started = std::time::Instant::now();
+    loop {
+        match crate::lock::is_free(&state) {
+            Ok(true) => return Ok(ok("stopped\n".into())),
+            Ok(false) => {}
+            Err(e) => return Err(err(Class::Unavailable, format!("the lock of the state directory: {}", e.kind()))),
+        }
+        if timeout.is_some_and(|t| started.elapsed() >= t) {
+            return Err(err(Class::Timeout, "serve did not end in time: a job is not final"));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 }
 
@@ -209,15 +256,22 @@ fn human(v: &Value) -> String {
 }
 
 /// A systemd unit for `serve`. It names paths only: no token, no key.
-pub fn print_unit(binary: &Path, config: &Path, state: &Path) -> String {
+pub fn print_unit(binary: &Path, config: &Path, state: &Path, watchdog: Option<u32>) -> String {
+    let watchdog = watchdog.map(|w| format!("WatchdogSec={w}\n")).unwrap_or_default();
     format!(
         "[Unit]
 Description=podrunner: CI jobs in one fresh unit for each job
 After=network-online.target
 
 [Service]
+# serve says READY after its control socket answers, and STOPPING when a
+# stop signal starts the drain (sd_notify).
+Type=notify
 ExecStart={} serve --config {} --state {}
-Restart=on-failure
+# SIGTERM starts a drain: serve ends when each job is final.
+KillMode=mixed
+TimeoutStopSec=infinity
+{watchdog}Restart=on-failure
 # 78: a configuration or a credential that cannot be used; a restart does
 # not help (pod-core).
 RestartPreventExitStatus=78
@@ -308,11 +362,22 @@ mod tests {
             Path::new("/usr/local/bin/podrunner"),
             Path::new("/etc/podrunner.toml"),
             Path::new("/var/lib/podrunner"),
+            None,
         );
+        assert!(unit.contains("Type=notify") && !unit.contains("WatchdogSec"));
         assert!(unit.contains(
             "ExecStart=/usr/local/bin/podrunner serve --config /etc/podrunner.toml --state /var/lib/podrunner"
         ));
         assert!(!unit.contains(canary) && !unit.to_lowercase().contains("token"));
+        let unit = print_unit(Path::new("/b"), Path::new("/c"), Path::new("/s"), Some(30));
+        assert!(unit.contains("WatchdogSec=30\n"), "{unit}");
+    }
+
+    #[test]
+    fn stop_wait_needs_the_state_and_a_number() {
+        assert_eq!(run(&args(&["stop", "--wait", "--socket", "/x"])).code, 64);
+        assert_eq!(run(&args(&["stop", "--wait", "--state", "/x", "--timeout", "soon"])).code, 64);
+        assert_eq!(run(&args(&["print-unit", "--config", "c", "--state", "s", "--watchdog", "0"])).code, 64);
     }
 
     #[test]
