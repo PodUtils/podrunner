@@ -48,6 +48,7 @@ fn the_runner_in_a_podvm_unit_runs_a_canned_job() {
         argv: vec!["/home/runner/run.sh".into()],
         env: Default::default(),
         credential: Credential { files },
+        sockets: None,
     };
     unit.start(&spec).unwrap();
     let exit = unit.wait(&id, Duration::from_secs(300)).unwrap();

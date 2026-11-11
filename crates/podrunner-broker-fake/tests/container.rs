@@ -62,8 +62,15 @@ fn a_container_job_runs_through_the_hooks() {
     let id = UnitId::parse("u-1").unwrap();
     let image = fake.prepare(IMAGE, "linux/amd64", false).unwrap();
     let argv = vec!["sleep".into(), "600".into()];
-    fake.start(&StartSpec { unit: id.clone(), image, argv, env: Default::default(), credential: Default::default() })
-        .unwrap();
+    fake.start(&StartSpec {
+        unit: id.clone(),
+        image,
+        argv,
+        env: Default::default(),
+        credential: Default::default(),
+        sockets: None,
+    })
+    .unwrap();
     let work_root = dir.display().to_string();
     let policy = Policy {
         container: ContainerRoute::Hooks,

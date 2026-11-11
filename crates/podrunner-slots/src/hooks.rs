@@ -24,12 +24,16 @@ pub enum HookEvent {
 pub trait HookPort: Send {
     /// Serve the socket of `unit` (a unit of kind `kind`) at `socket`, before
     /// the start; give the environment that the unit needs.
+    /// `guest`: where the unit sees the directory of `socket`, when the
+    /// driver mounts it (`UnitDriver::socket_mount`); the environment then
+    /// names the guest paths.
     fn open(
         &self,
         kind: &str,
         driver: Arc<dyn UnitDriver>,
         unit: &UnitId,
         socket: &Path,
+        guest: Option<&str>,
     ) -> Result<BTreeMap<String, String>, String>;
     fn close(&self, unit: &UnitId);
     /// The refusals and the job hooks of `unit` since the last call.
@@ -44,14 +48,19 @@ impl Slots {
 
     /// Open the socket of the unit of `key` when its kind has the container
     /// route; the environment of the unit, or why it failed.
-    pub(crate) fn open_hooks(&self, kind: usize, unit: &UnitId) -> Result<BTreeMap<String, String>, String> {
+    pub(crate) fn open_hooks(
+        &self,
+        kind: usize,
+        unit: &UnitId,
+        dir: &std::path::Path,
+        guest: Option<&str>,
+    ) -> Result<BTreeMap<String, String>, String> {
         let k = &self.kinds[kind];
         let Some(h) = &self.hooks else { return Ok(BTreeMap::new()) };
         if k.capability.container != ContainerRoute::Hooks {
             return Ok(BTreeMap::new());
         }
-        let socket = crate::run::egress_dir(&self.state_dir).join(format!("{unit}.ctl"));
-        h.open(&k.name, k.driver.clone(), unit, &socket)
+        h.open(&k.name, k.driver.clone(), unit, &dir.join(crate::run::CONTROL_SOCKET), guest)
     }
 
     pub(crate) fn close_hooks(&self, unit: &UnitId) {

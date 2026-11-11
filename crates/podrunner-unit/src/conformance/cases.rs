@@ -80,7 +80,7 @@ impl Unit<'_> {
 fn spec(fx: &dyn Fixture, id: UnitId, behaviour: Behaviour) -> Result<StartSpec, String> {
     let image = fx.driver().prepare(&fx.image(), &fx.platform(), false).map_err(|e| err("prepare", e))?;
     let env = BTreeMap::from([("PODRUNNER_UNIT".to_string(), id.to_string())]);
-    Ok(StartSpec { unit: id, image, argv: fx.payload(behaviour), env, credential: canary_credential() })
+    Ok(StartSpec { unit: id, image, argv: fx.payload(behaviour), env, credential: canary_credential(), sockets: None })
 }
 
 fn begin(fx: &dyn Fixture, behaviour: Behaviour) -> Result<Unit<'_>, String> {

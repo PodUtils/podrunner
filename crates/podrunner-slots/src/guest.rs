@@ -51,7 +51,14 @@ pub(crate) fn observe(
     let mark = format!("{}", std::process::id());
     let image = driver.prepare(payload, platform, false).map_err(|e| format!("prepare: {e}"))?;
     let argv = vec!["sh".into(), "-c".into(), format!(": > podrunner-first-{mark}; sleep 60; :")];
-    let spec = StartSpec { unit: first.clone(), image, argv, env: Default::default(), credential: Default::default() };
+    let spec = StartSpec {
+        unit: first.clone(),
+        image,
+        argv,
+        env: Default::default(),
+        credential: Default::default(),
+        sockets: None,
+    };
     driver.start(&spec).map_err(|e| format!("start the first unit: {e}"))?;
     let first_root = driver.observe(&first).ok().and_then(|o| o.unit_root);
     let verdict = second(driver, payload, platform, unit, scratch, &mark, first_root.as_deref());
@@ -101,7 +108,14 @@ fn second(
 fn run(driver: &dyn UnitDriver, payload: &str, platform: &str, unit: UnitId, script: &str) -> Result<String, String> {
     let image = driver.prepare(payload, platform, false).map_err(|e| format!("prepare: {e}"))?;
     let argv = vec!["sh".into(), "-c".into(), script.into()];
-    let spec = StartSpec { unit: unit.clone(), image, argv, env: Default::default(), credential: Default::default() };
+    let spec = StartSpec {
+        unit: unit.clone(),
+        image,
+        argv,
+        env: Default::default(),
+        credential: Default::default(),
+        sockets: None,
+    };
     driver.start(&spec).map_err(|e| format!("start: {e}"))?;
     let root = driver.observe(&unit).ok().and_then(|o| o.unit_root);
     let ended = driver.wait(&unit, Duration::from_secs(60)).map_err(|e| format!("wait: {e}"));

@@ -30,6 +30,7 @@ impl HookPort for Seen {
         _driver: Arc<dyn podrunner_unit::UnitDriver>,
         unit: &UnitId,
         socket: &std::path::Path,
+        _guest: Option<&str>,
     ) -> Result<std::collections::BTreeMap<String, String>, String> {
         self.opened.lock().unwrap().push(format!("{kind} {unit}"));
         Ok([("PODRUNNER_CTL".to_string(), socket.display().to_string())].into())

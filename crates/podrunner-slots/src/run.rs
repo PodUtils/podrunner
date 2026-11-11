@@ -29,12 +29,35 @@ fn residual(c: Count) -> Residual {
 /// `sun_path` has 108 bytes with its end).
 const SOCKET_PATH_MAX: usize = 100;
 
-/// The directory of the egress sockets: `STATE/egress`, or, when a socket
-/// path there would be too long, a short directory of this state directory
-/// under the temporary directory.
+impl Slots {
+    /// End the sockets of `unit` (control, egress) and remove its socket
+    /// directory.
+    pub(crate) fn close_sockets(&self, unit: &podrunner_schema::UnitId) {
+        self.close_hooks(unit);
+        if let Some(e) = &self.egress {
+            e.close(unit.as_str());
+        }
+        let _ = std::fs::remove_dir_all(socket_dir(&self.state_dir, unit));
+    }
+}
+
+/// The name of the egress socket in the socket directory of a unit.
+pub(crate) const EGRESS_SOCKET: &str = "egress.sock";
+/// The name of the control socket in the socket directory of a unit.
+pub(crate) const CONTROL_SOCKET: &str = "ctl.sock";
+
+/// The socket directory of `unit`: its egress socket, its control socket
+/// and the hook relay, and nothing of another unit.
+pub(crate) fn socket_dir(state: &std::path::Path, unit: &podrunner_schema::UnitId) -> std::path::PathBuf {
+    egress_dir(state).join(unit.as_str())
+}
+
+/// The directory of the socket directories: `STATE/egress`, or, when a
+/// socket path there would be too long, a short directory of this state
+/// directory under the temporary directory.
 pub(crate) fn egress_dir(state: &std::path::Path) -> std::path::PathBuf {
     let dir = state.join("egress");
-    if dir.as_os_str().len() + "/u-18446744073709551615.sock".len() <= SOCKET_PATH_MAX {
+    if dir.as_os_str().len() + "/u-18446744073709551615/egress.sock".len() <= SOCKET_PATH_MAX {
         return dir;
     }
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
@@ -106,14 +129,25 @@ impl Slots {
         let kind = &self.kinds[p.kind];
         let arch = if kind.capability.arch == "aarch64" { "arm64" } else { "amd64" };
         let mut env = BTreeMap::from([("PODRUNNER_UNIT".to_string(), unit.to_string())]);
+        // One socket directory for each unit: its egress socket, its
+        // control socket and the relay. A driver that mounts it into the
+        // unit gets it as `sockets`, and the unit sees the guest paths.
+        let dir = socket_dir(&self.state_dir, &unit);
+        let guest = kind.driver.socket_mount().map(str::to_string);
+        let seen = |name: &str| match &guest {
+            Some(g) => format!("{}/{name}", g.trim_end_matches('/')),
+            None => dir.join(name).display().to_string(),
+        };
+        let made = std::fs::create_dir_all(&dir)
+            .and_then(|()| std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)));
+        if let Err(e) = made {
+            self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("the socket directory: {}", e.kind())));
+            return self.give_up(key, RefusalCode::UnitStartFailed, now);
+        }
         if let Some(e) = &self.egress {
             let policy = self.policy_of(key);
-            let dir = egress_dir(&self.state_dir);
-            let socket = dir.join(format!("{unit}.sock"));
-            let opened = std::fs::create_dir_all(&dir)
-                .and_then(|()| std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)))
-                .map_err(|e| format!("the egress directory: {}", e.kind()))
-                .and_then(|()| e.open(unit.as_str(), &policy, &socket));
+            let socket = dir.join(EGRESS_SOCKET);
+            let opened = e.open(unit.as_str(), &policy, &socket);
             match opened {
                 Err(why) => {
                     self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("egress: {why}")));
@@ -123,7 +157,7 @@ impl Slots {
                 Ok(n) => self.audit(audit::Kind::EgressFlagged, key.0, &key.1, None, Some(format!("{n} rules"))),
             }
             // The way out of the unit: a socket of its job alone. No token.
-            env.insert("PODRUNNER_EGRESS".into(), format!("http://unix:{}", socket.display()));
+            env.insert("PODRUNNER_EGRESS".into(), format!("http://unix:{}", seen(EGRESS_SOCKET)));
         }
         // The age of the payload again at the start (GitHub #30): a claim
         // can wait long enough for a pin to pass its limit.
@@ -132,24 +166,27 @@ impl Slots {
             x.reference == p.payload || podrunner_unit::parse_pinned(&x.reference).is_ok_and(|(_, d)| d == p.payload)
         };
         if self.cfg.pin.payload.iter().any(|x| pinned(x) && x.stale(&self.cfg.pin, now_s)) {
-            if let Some(e) = &self.egress {
-                e.close(unit.as_str());
-            }
+            self.close_sockets(&unit);
             return self.give_up(key, RefusalCode::ImageStale, now);
         }
-        match self.open_hooks(p.kind, &unit) {
+        match self.open_hooks(p.kind, &unit, &dir, guest.as_deref()) {
             Ok(vars) => env.extend(vars),
             Err(why) => {
                 self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("hooks: {why}")));
-                if let Some(e) = &self.egress {
-                    e.close(unit.as_str());
-                }
+                self.close_sockets(&unit);
                 return self.give_up(key, RefusalCode::UnitStartFailed, now);
             }
         }
         let kind = &self.kinds[p.kind];
         let started = kind.driver.prepare(&p.payload, &format!("linux/{arch}"), false).and_then(|image| {
-            kind.driver.start(&StartSpec { unit: unit.clone(), image, argv: kind.cfg.command.clone(), env, credential })
+            kind.driver.start(&StartSpec {
+                unit: unit.clone(),
+                image,
+                argv: kind.cfg.command.clone(),
+                env,
+                credential,
+                sockets: guest.as_ref().map(|_| dir.clone()),
+            })
         });
         match started {
             Ok(()) => {
@@ -160,10 +197,7 @@ impl Slots {
             }
             Err(_) => {
                 let _ = kind.driver.destroy(&unit);
-                self.close_hooks(&unit);
-                if let Some(e) = &self.egress {
-                    e.close(unit.as_str());
-                }
+                self.close_sockets(&unit);
                 self.give_up(key, RefusalCode::UnitStartFailed, now);
             }
         }
@@ -312,10 +346,7 @@ impl Slots {
                 job.residue = Some(residue);
             }
             self.audit(audit::Kind::Destroy, key.0, &key.1, None, None);
-            self.close_hooks(u);
-            if let Some(e) = &self.egress {
-                e.close(u.as_str());
-            }
+            self.close_sockets(u);
         }
         self.set(key, State::Destroyed, now);
         self.report(key);

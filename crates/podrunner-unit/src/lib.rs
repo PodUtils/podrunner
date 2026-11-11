@@ -47,6 +47,13 @@ pub trait UnitDriver: Send + Sync {
     /// same record. A field that the driver cannot prove is `unknown`.
     fn probe(&self) -> Result<Capability, UnitError>;
 
+    /// Where the unit sees its socket directory (`StartSpec::sockets`):
+    /// the egress socket, the control socket and the hook relay. `None`:
+    /// the unit reaches the host paths of the sockets.
+    fn socket_mount(&self) -> Option<&str> {
+        None
+    }
+
     /// Make an image ready. `reference` names a digest (`NAME@sha256:HEX`);
     /// a tag is refused (`payload-not-pinned`). A `platform` other than the
     /// host's is refused (`arch-mismatch`) unless `emulation` is true and

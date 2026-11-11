@@ -306,8 +306,14 @@ impl PodvmUnit {
     pub fn verify_tree_kill(&mut self, reference: &str, unit: UnitId) -> Result<bool, UnitError> {
         let image = self.prepare(reference, &self.platform.clone(), false)?;
         let argv = ["sh", "-c", "setsid sh -c 'sleep 300 & wait' & wait"].map(String::from).to_vec();
-        let spec =
-            StartSpec { unit: unit.clone(), image, argv, env: Default::default(), credential: Default::default() };
+        let spec = StartSpec {
+            unit: unit.clone(),
+            image,
+            argv,
+            env: Default::default(),
+            credential: Default::default(),
+            sockets: None,
+        };
         self.start(&spec)?;
         let tag = procs::tag_of(&self.state_dir, unit.as_str());
         let end = Instant::now() + Duration::from_secs(10);

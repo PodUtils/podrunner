@@ -49,8 +49,15 @@ fn a_unit_reaches_its_socket_through_the_relay() {
     let id = UnitId::parse("u-1").unwrap();
     let image = fake.prepare(IMAGE, "linux/amd64", false).unwrap();
     let argv = vec!["sleep".into(), "30".into()];
-    fake.start(&StartSpec { unit: id.clone(), image, argv, env: Default::default(), credential: Default::default() })
-        .unwrap();
+    fake.start(&StartSpec {
+        unit: id.clone(),
+        image,
+        argv,
+        env: Default::default(),
+        credential: Default::default(),
+        sockets: None,
+    })
+    .unwrap();
     let policy = podrunner_hook::policy::Policy {
         container: ContainerRoute::Hooks,
         shared_host_net: false,
@@ -59,7 +66,7 @@ fn a_unit_reaches_its_socket_through_the_relay() {
     };
     let hooks = HooksOf::new([("fake".to_string(), policy)].into());
     let socket = dir.join("ctl").join("u-1.ctl");
-    let env = hooks.open("fake", fake.clone(), &id, &socket).unwrap();
+    let env = hooks.open("fake", fake.clone(), &id, &socket, None).unwrap();
     assert!(env["ACTIONS_RUNNER_CONTAINER_HOOKS"].ends_with("podrunner-hook.sh"));
 
     // A container action that builds is refused, and the refusal comes back.
@@ -86,6 +93,12 @@ fn a_unit_reaches_its_socket_through_the_relay() {
     assert_eq!(hooks.take(&id).0, []);
     hooks.close(&id);
     assert!(!socket.exists());
+    // A unit that sees its socket directory at a guest path gets the guest
+    // paths in its environment (a podvm unit: the directory is a volume).
+    let guest = hooks.open("fake", fake.clone(), &id, &socket, Some("/run/podrunner")).unwrap();
+    assert_eq!(guest["PODRUNNER_CTL"], format!("/run/podrunner/{}", socket.file_name().unwrap().to_string_lossy()));
+    assert_eq!(guest["ACTIONS_RUNNER_CONTAINER_HOOKS"], "/run/podrunner/podrunner-hook.sh");
+    hooks.close(&id);
     let _ = fake.destroy(&id);
     let _ = std::fs::remove_dir_all(&dir);
 }

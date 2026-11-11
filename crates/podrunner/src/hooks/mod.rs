@@ -18,6 +18,7 @@ impl podrunner_slots::hooks::HookPort for HooksOf {
         driver: Arc<dyn podrunner_unit::UnitDriver>,
         unit: &podrunner_schema::UnitId,
         socket: &Path,
+        guest: Option<&str>,
     ) -> Result<std::collections::BTreeMap<String, String>, String> {
         use std::os::unix::fs::PermissionsExt;
         let policy = self.policies.get(kind).cloned().ok_or("no hook policy of this kind")?;
@@ -27,11 +28,18 @@ impl podrunner_slots::hooks::HookPort for HooksOf {
         std::fs::create_dir_all(dir).map_err(|e| io("the socket directory", e))?;
         std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| io("the relay", e))?;
         std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755)).map_err(|e| io("the relay", e))?;
-        let logs = dir.join(format!("{unit}.logs"));
+        // The output of the steps stays out of the directory that the unit
+        // sees.
+        let logs = dir.with_extension("logs");
         self.hooks.open(driver, unit, policy, socket, &logs).map_err(|e| io("the control socket", e))?;
+        // A unit that sees the directory at `guest` gets the guest paths.
+        let seen = |p: &Path| match (guest, p.file_name()) {
+            (Some(g), Some(name)) => format!("{}/{}", g.trim_end_matches('/'), name.to_string_lossy()),
+            _ => p.display().to_string(),
+        };
         Ok(std::collections::BTreeMap::from([
-            ("ACTIONS_RUNNER_CONTAINER_HOOKS".into(), relay.display().to_string()),
-            ("PODRUNNER_CTL".into(), socket.display().to_string()),
+            ("ACTIONS_RUNNER_CONTAINER_HOOKS".into(), seen(&relay)),
+            ("PODRUNNER_CTL".into(), seen(socket)),
         ]))
     }
 

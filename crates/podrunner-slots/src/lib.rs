@@ -80,6 +80,7 @@ impl Slots {
                 if !clean {
                     self.degraded = Some(format!("the restart could not end {unit}"));
                 }
+                let _ = std::fs::remove_dir_all(run::socket_dir(&self.state_dir, unit));
             }
             let s = self.sources.iter().position(|x| x.cfg.name == source);
             if let Some(s) = s
