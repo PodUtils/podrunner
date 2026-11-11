@@ -114,7 +114,7 @@ fn a_fork_is_withdrawn_and_a_member_job_runs() {
     let kinds = vec![UnitKind {
         name: "fake".into(),
         cfg: unit_cfg,
-        driver: Box::new(FakeUnit::new(&dir.join("fake"), cap.clone(), "linux/amd64")),
+        driver: Arc::new(FakeUnit::new(&dir.join("fake"), cap.clone(), "linux/amd64")),
         capability: cap,
     }];
     let sources =

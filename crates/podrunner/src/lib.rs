@@ -5,5 +5,6 @@
 pub mod cli;
 pub mod control;
 pub mod doctor;
+pub mod hooks;
 pub mod serve;
 pub mod text;

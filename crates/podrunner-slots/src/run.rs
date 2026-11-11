@@ -106,6 +106,16 @@ impl Slots {
             // The way out of the unit: a socket of its job alone. No token.
             env.insert("PODRUNNER_EGRESS".into(), format!("http://unix:{}", socket.display()));
         }
+        match self.open_hooks(p.kind, &unit) {
+            Ok(vars) => env.extend(vars),
+            Err(why) => {
+                self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("hooks: {why}")));
+                if let Some(e) = &self.egress {
+                    e.close(unit.as_str());
+                }
+                return self.give_up(key, RefusalCode::UnitStartFailed, now);
+            }
+        }
         let kind = &self.kinds[p.kind];
         let started = kind.driver.prepare(&p.payload, &format!("linux/{arch}"), false).and_then(|image| {
             kind.driver.start(&StartSpec { unit: unit.clone(), image, argv: kind.cfg.command.clone(), env, credential })
@@ -119,6 +129,7 @@ impl Slots {
             }
             Err(_) => {
                 let _ = kind.driver.destroy(&unit);
+                self.close_hooks(&unit);
                 if let Some(e) = &self.egress {
                     e.close(unit.as_str());
                 }
@@ -251,6 +262,7 @@ impl Slots {
                 job.residue = Some(residue);
             }
             self.audit(audit::Kind::Destroy, key.0, &key.1, None, None);
+            self.close_hooks(u);
             if let Some(e) = &self.egress {
                 e.close(u.as_str());
             }

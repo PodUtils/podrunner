@@ -645,6 +645,7 @@ dependencies = [
  "podrunner-clock",
  "podrunner-egress",
  "podrunner-fake",
+ "podrunner-hook",
  "podrunner-mint",
  "podrunner-podvm",
  "podrunner-schema",

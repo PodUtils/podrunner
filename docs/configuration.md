@@ -27,6 +27,8 @@ slots = 2
 command = ["./run.sh"]       # the top process of a unit
 binary = "/usr/local/bin/podvm"       # podvm: the released podvm binary
 images = "/var/lib/podrunner/images"  # podvm: a podvm store with the pinned images
+registries = ["ghcr.io"]     # container: hooks: the registry hosts of job containers; none: each is refused
+runner_dir = "/home/runner"  # the runner directory in the unit; absent: the path that the driver observes
 
 [tier.trusted]               # a floor at or above the lowest floor
 min_boundary = "confined"

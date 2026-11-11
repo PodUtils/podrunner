@@ -22,8 +22,9 @@ pub struct HookUnit {
     unit: podrunner_unit::UnitId,
     policy: Policy,
     /// The runner directory of the unit on the host: `policy.work_root` in
-    /// the unit.
-    host_root: PathBuf,
+    /// the unit. When it is not given, the driver tells it at the first
+    /// call (`observe`), and an empty `work_root` is the same path.
+    host_root: Option<PathBuf>,
     /// A host directory for the output of each step.
     logs: PathBuf,
     gate: Gate,
@@ -41,7 +42,7 @@ impl HookUnit {
         driver: Arc<dyn UnitDriver>,
         unit: podrunner_unit::UnitId,
         policy: Policy,
-        host_root: PathBuf,
+        host_root: Option<PathBuf>,
         logs: PathBuf,
     ) -> HookUnit {
         let gate = Gate::default();
@@ -65,7 +66,7 @@ impl HookUnit {
             .mounts
             .iter()
             .map(|m| ContainerMount {
-                source: self.host_root.join(&m.source),
+                source: self.host_root.clone().unwrap_or_default().join(&m.source),
                 target: m.target.clone(),
                 read_only: m.read_only,
             })
@@ -174,6 +175,16 @@ fn refusal(e: &UnitError) -> Refusal {
 
 impl Unit for HookUnit {
     fn hook(&mut self, input: HookInput) -> Result<Answer, Refusal> {
+        if self.host_root.is_none() {
+            self.host_root = self.driver.observe(&self.unit).ok().and_then(|o| o.runner_root);
+            if self.policy.work_root.is_empty() {
+                self.policy.work_root = self.host_root.as_ref().map(|r| r.display().to_string()).unwrap_or_default();
+            }
+        }
+        if self.host_root.is_none() || self.policy.work_root.is_empty() {
+            self.refusals.push(RefusalCode::ContainerNotSupported);
+            return Err(Refusal { code: RefusalCode::ContainerNotSupported, why: "the unit has no runner directory" });
+        }
         let result = self.gate.check(&input, &self.policy).and_then(|plan| self.run(plan).map_err(|e| refusal(&e)));
         if let Err(r) = &result {
             self.refusals.push(r.code);

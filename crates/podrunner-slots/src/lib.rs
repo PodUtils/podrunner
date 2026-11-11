@@ -8,6 +8,7 @@ pub mod audit;
 pub mod config;
 mod engine;
 pub mod guest;
+pub mod hooks;
 pub mod journal;
 pub mod pins;
 pub mod placement;
@@ -58,6 +59,7 @@ impl Slots {
             egress: None,
             egress_down: false,
             guest: Default::default(),
+            hooks: None,
         };
         s.reconcile(replay.open);
         Ok(s)

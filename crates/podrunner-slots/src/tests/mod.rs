@@ -5,6 +5,7 @@
 mod egress;
 mod guards;
 mod guest;
+mod hooks;
 mod level1;
 mod status;
 
@@ -180,7 +181,7 @@ impl Bed {
             ks.push(UnitKind {
                 name: k.name.into(),
                 cfg: unit_cfg,
-                driver: Box::new(driver),
+                driver: Arc::new(driver),
                 capability: k.capability,
             });
         }

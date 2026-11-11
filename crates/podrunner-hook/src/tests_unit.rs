@@ -66,7 +66,7 @@ fn each_command_reaches_the_fake_unit() {
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
     };
-    let mut u = HookUnit::new(fake.clone(), id.clone(), policy, dir.join("runner"), dir.clone());
+    let mut u = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.clone());
     let mut hook = |cmd: Command, body: Vec<u8>| u.hook(parse(cmd, &body).unwrap());
 
     // A step before prepare_job reaches no driver.

@@ -7,6 +7,7 @@ use std::io::BufReader;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixListener;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::Deserialize;
@@ -108,7 +109,15 @@ pub fn bind(path: &Path) -> std::io::Result<UnixListener> {
 /// Serve the socket until the listener fails: one request for each
 /// connection, one connection at a time, so the calls keep their order.
 pub fn serve(listener: UnixListener, unit: Arc<Mutex<dyn Unit>>) {
+    serve_until(listener, unit, Arc::default());
+}
+
+/// Serve until `stop` is set: a connection after it ends the loop.
+pub fn serve_until(listener: UnixListener, unit: Arc<Mutex<dyn Unit>>, stop: Arc<AtomicBool>) {
     for conn in listener.incoming() {
+        if stop.load(Ordering::SeqCst) {
+            return;
+        }
         let Ok(stream) = conn else { return };
         let Ok(mut w) = stream.try_clone() else { continue };
         let (status, headers, body) = match read_request(&mut BufReader::new(stream)) {

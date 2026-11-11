@@ -68,6 +68,14 @@ pub struct UnitConfig {
     /// The store of the pinned images (`podvm`: a podvm store).
     #[serde(default)]
     pub images: Option<String>,
+    /// The registry hosts of the container images of a job (`ghcr.io`),
+    /// for `container: hooks`. None: each container is refused.
+    #[serde(default)]
+    pub registries: Vec<String>,
+    /// The runner directory in a unit, as the runner names it; absent: the
+    /// path that the driver observes (the fake unit).
+    #[serde(default)]
+    pub runner_dir: Option<String>,
 }
 
 fn run_sh() -> Vec<String> {

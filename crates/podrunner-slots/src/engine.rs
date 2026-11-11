@@ -30,7 +30,7 @@ pub struct Source {
 pub struct UnitKind {
     pub name: String,
     pub cfg: UnitConfig,
-    pub driver: Box<dyn UnitDriver>,
+    pub driver: std::sync::Arc<dyn UnitDriver>,
     pub capability: Capability,
 }
 
@@ -94,6 +94,8 @@ pub struct Slots {
     pub(crate) egress_down: bool,
     /// The kinds that claim `guest`, by index: the self-test runs again.
     pub(crate) guest: BTreeMap<usize, crate::guest::Retest>,
+    /// The control sockets of the units with `container: hooks`.
+    pub(crate) hooks: Option<Box<dyn crate::hooks::HookPort>>,
 }
 
 impl Slots {
@@ -112,6 +114,7 @@ impl Slots {
         let now = self.now();
         self.check_egress(now);
         self.retest_guests(now);
+        self.hook_events(now);
         self.progress(now);
         for s in 0..self.sources.len() {
             self.poll(s, now);

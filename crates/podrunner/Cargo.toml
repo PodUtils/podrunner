@@ -16,6 +16,7 @@ libc.workspace = true
 pod-core.workspace = true
 podrunner-clock.workspace = true
 podrunner-egress.workspace = true
+podrunner-hook.workspace = true
 podrunner-fake.workspace = true
 podrunner-mint.workspace = true
 podrunner-podvm.workspace = true

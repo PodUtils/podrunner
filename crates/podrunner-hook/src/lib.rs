@@ -3,6 +3,7 @@
 //! the script relays the call to the control socket of its unit, and this
 //! crate checks it and maps it to the operations of the unit driver.
 
+pub mod hooks;
 pub mod http;
 pub mod input;
 pub mod policy;

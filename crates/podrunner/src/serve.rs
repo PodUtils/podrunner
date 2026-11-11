@@ -128,12 +128,13 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     }
     let mut kinds = Vec::new();
     let mut retests = Vec::new();
+    let mut policies = std::collections::BTreeMap::new();
     for (name, u) in &cfg.unit {
-        let (driver, capability): (Box<dyn podrunner_unit::UnitDriver>, Capability) = match name.as_str() {
+        let (driver, capability): (Arc<dyn podrunner_unit::UnitDriver>, Capability) = match name.as_str() {
             "fake" => {
                 let cap = fake_capability();
                 let platform = if cap.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" };
-                (Box::new(FakeUnit::new(&state.join("fake"), cap.clone(), platform)), cap)
+                (Arc::new(FakeUnit::new(&state.join("fake"), cap.clone(), platform)), cap)
             }
             "podvm" => {
                 let need = |v: &Option<String>, key: &str| {
@@ -160,7 +161,7 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                     }
                 }
                 let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
-                (Box::new(unit), cap)
+                (Arc::new(unit), cap)
             }
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
@@ -209,6 +210,15 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
         } else {
             capability
         };
+        policies.insert(
+            name.clone(),
+            podrunner_hook::policy::Policy {
+                container: capability.container,
+                shared_host_net: capability.net == "shared-host",
+                registries: u.registries.clone(),
+                work_root: u.runner_dir.clone().unwrap_or_default(),
+            },
+        );
         kinds.push(UnitKind { name: name.clone(), cfg: u.clone(), driver, capability });
     }
     let ttl = Duration::from_secs(cfg.deadlines.running_s + cfg.deadlines.grace_s + cfg.deadlines.destroy_s);
@@ -218,6 +228,8 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     for (i, r) in retests {
         slots.retest_guest(i, r);
     }
+    let hooks = crate::hooks::HooksOf::new(policies);
+    slots.set_hooks(Box::new(hooks));
     Ok(slots.with_egress(Box::new(EgressOf { egress, ttl })))
 }
 
