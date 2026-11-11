@@ -1,5 +1,5 @@
-//! The tests 18 to 24 of the unit seam: the parts of the design contract
-//! (`docs/design/contracts/unit-driver.md`, tests 1, 2, 3, 6, 7 and 10)
+//! The tests 18 to 26 of the unit seam: the parts of the design contract
+//! (`docs/design/contracts/unit-driver.md`, tests 1, 2, 3, 6, 7, 10 and 15)
 //! that the tests 1 to 17 do not cover. The tests 23 and 24 see each
 //! process of the uid: run them in a test binary of their own, with no
 //! other test in parallel ([`ALONE`]).
@@ -12,13 +12,13 @@ use std::time::Instant;
 use podrunner_schema::ContainerRoute;
 
 use super::cases::{Case, LIMIT, Unit, begin, err, root, until};
-use super::{Behaviour, CANARY, Fixture, Outcome, alive};
+use super::{Behaviour, CANARY, ESCAPED, Fixture, Outcome, alive};
 use crate::{ContainerSpec, ExecSpec, Exit};
 
 /// The tests that need a process of their own (no parallel test).
 pub const ALONE: [u32; 2] = [23, 24];
 
-pub(super) const CASES: [Case; 7] = [
+pub(super) const CASES: [Case; 9] = [
     Case { number: 18, name: "probe-writes-no-file", run: probe_writes_no_file },
     Case { number: 19, name: "etc-hosts-of-one-unit", run: etc_hosts_of_one_unit },
     Case { number: 20, name: "destroy-reaches-a-grandchild-in-a-container", run: grandchild_in_a_container },
@@ -26,6 +26,8 @@ pub(super) const CASES: [Case; 7] = [
     Case { number: 22, name: "no-credential-in-the-outputs", run: no_credential_in_the_outputs },
     Case { number: 23, name: "probe-starts-no-process", run: probe_starts_no_process },
     Case { number: 24, name: "a-proc-dump-of-a-step-holds-no-credential", run: a_proc_dump_holds_no_credential },
+    Case { number: 25, name: "destroy-reaches-an-orphan-with-no-tag", run: an_orphan_with_no_tag },
+    Case { number: 26, name: "a-killed-shim-is-not-clean", run: a_killed_shim_is_not_clean },
 ];
 
 /// Each file under `dir`, with its size. A symlink is listed, not followed.
@@ -243,6 +245,70 @@ fn a_proc_dump_holds_no_credential(fx: &dyn Fixture) -> Result<Outcome, String> 
     }
     if holds(CANARY) {
         return Err("a dump of /proc from a step finds the credential".into());
+    }
+    Ok(Outcome::Pass)
+}
+
+/// The pid that [`Behaviour::Escape`] wrote in the root of the unit.
+fn escaped(u: &Unit) -> Result<u32, String> {
+    let file = root(&u.observe()?)?.join(ESCAPED);
+    let mut pid = None;
+    if !until(|| {
+        pid = std::fs::read_to_string(&file).ok().and_then(|t| t.trim().parse::<u32>().ok());
+        pid.is_some()
+    }) {
+        return Err("the payload wrote no pid of its orphan".into());
+    }
+    pid.ok_or_else(|| "no pid".into())
+}
+
+/// Design test 3, an orphan that drops the tag of its unit (`env -i`) and
+/// leaves its session (`setsid`): `destroy` ends it and counts 0 (T-063).
+fn an_orphan_with_no_tag(fx: &dyn Fixture) -> Result<Outcome, String> {
+    let u = begin(fx, Behaviour::Escape)?;
+    let orphan = escaped(&u)?;
+    // A positive control: the orphan lives and has no environment.
+    // The pid file can come before the exec of `env -i`: wait for it.
+    if !until(|| alive(orphan) && std::fs::read(format!("/proc/{orphan}/environ")).is_ok_and(|e| e.is_empty())) {
+        return Ok(Outcome::Skip("the orphan is not seen on the host (a pid namespace)".into()));
+    }
+    let seen = until(|| u.observe().is_ok_and(|o| o.pids.contains(&orphan)));
+    let residue = fx.driver().destroy(&u.id).map_err(|e| err("destroy", e));
+    let lives = alive(orphan);
+    if lives {
+        crate::procs::kill(orphan, libc::SIGKILL);
+    }
+    let residue = residue?;
+    if lives {
+        return Err(format!("the orphan {orphan} lives after destroy; destroy counts {:?}", residue.processes));
+    }
+    if !seen {
+        return Err(format!("observe does not show the orphan {orphan}"));
+    }
+    if !residue.processes.is_zero() {
+        return Err(format!("destroy counts {:?} processes, not 0", residue.processes));
+    }
+    Ok(Outcome::Pass)
+}
+
+/// Design test 15: the payload kills the parent of its top process (the
+/// shim), then `destroy`: it does not count 0 while the orphan lives.
+fn a_killed_shim_is_not_clean(fx: &dyn Fixture) -> Result<Outcome, String> {
+    let u = begin(fx, Behaviour::KillParent)?;
+    let orphan = escaped(&u)?;
+    if !alive(orphan) {
+        return Ok(Outcome::Skip("the orphan is not seen on the host (a pid namespace)".into()));
+    }
+    // Time for the kill of the parent.
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    let residue = fx.driver().destroy(&u.id).map_err(|e| err("destroy", e));
+    let lives = alive(orphan);
+    if lives {
+        crate::procs::kill(orphan, libc::SIGKILL);
+    }
+    let residue = residue?;
+    if lives && residue.processes.is_zero() {
+        return Err(format!("destroy counts 0 processes, but the orphan {orphan} lives"));
     }
     Ok(Outcome::Pass)
 }

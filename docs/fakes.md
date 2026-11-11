@@ -31,10 +31,14 @@ the due events, and the due offers up to its capacity.
 The fake unit declares the capability record that it is given, and runs
 the payload as real processes on the host, in a directory of its own
 under the state directory. Each process carries `PODRUNNER_UNIT` and the
-tag of its unit (`PODRUNNER_UNIT_TAG`) in its environment; `signal` and
-`destroy` find the processes of a unit by a scan of `/proc`, also a
-`setsid` grandchild whose parent is gone. With `container: hooks`, a
-container is a process in a directory of the unit. The fake applies no
+tag of its unit (`PODRUNNER_UNIT_TAG`) in its environment; `signal`
+finds the processes of a unit by a scan of `/proc`. The top process runs
+under a shim (`podrunner_unit::shim`): a subreaper that holds each orphan
+of the unit, also one that drops the tag (`setsid env -i`). `destroy`
+kills the tree under the shim and each tagged process. A shim that a
+signal ended makes the count `unknown`. With `container: hooks`, a
+container is a process tree under a shim of its own, in a directory of
+the unit. The fake applies no
 mount and no create option; it writes them to the file `spec` of the
 container directory, one on each line, for the tests of the hooks.
 
@@ -63,6 +67,15 @@ gives other behaviours as argv of its own.
 | 15 | a second destroy fails |
 | 16 | a unit id in use starts again |
 | 17 | probe claims a verified tree kill, and destroy kills the top process only |
+| 18 | probe writes a file in the state directory |
+| 19 | each unit gets one shared `/etc/hosts` |
+| 20 | the processes of a container do not carry the tag, and have no shim |
+| 21 | start keeps a copy of the credential outside the unit root |
+| 22 | probe gives the credential of the last unit in `boundary_proof` |
+| 23 | probe leaves a process (`tests/alone.rs`) |
+| 24 | the credential goes into the environment of each container (`tests/alone.rs`) |
+| 25 | no shim: destroy finds the processes by their tag only |
+| 26 | destroy counts 0 processes after its shim was killed |
 
 | Source test | Plant |
 | --- | --- |

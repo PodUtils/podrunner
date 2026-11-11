@@ -150,6 +150,8 @@ fn each_unit_plant_fails_its_test() {
         (20, UntaggedContainer),
         (21, CredentialCopy),
         (22, ProofCanary),
+        (25, TagOnly),
+        (26, ShimDeathIgnored),
     ];
     assert_eq!(plants.len() + uc::ALONE.len(), uc::tests().len());
     for (n, plant) in plants {

@@ -8,6 +8,7 @@
 
 pub mod conformance;
 pub mod procs;
+pub mod shim;
 mod stub;
 mod types;
 

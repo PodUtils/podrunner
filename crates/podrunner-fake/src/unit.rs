@@ -13,15 +13,18 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use podrunner_schema::{Capability, ContainerRoute, TreeKill, UnitId};
+use podrunner_schema::{Capability, TreeKill, UnitId};
 use podrunner_unit::{
     ContainerId, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue, Signal,
     StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
 
 use podrunner_unit::procs::{self, TAG_VAR};
+use podrunner_unit::shim::{self, Mode};
 
 use crate::mounts::Mounts;
+
+mod containers;
 
 /// The planted defects of the fake unit: each one fails the unit
 /// conformance test of its number.
@@ -76,6 +79,10 @@ pub enum UnitPlant {
     ProbeSpawns,
     /// 24: the credential goes into the environment of each container.
     CredentialInContainers,
+    /// 25: no shim: destroy finds the processes by their tag only.
+    TagOnly,
+    /// 26: destroy counts 0 processes after its shim was killed.
+    ShimDeathIgnored,
 }
 
 struct Running {
@@ -106,6 +113,13 @@ pub struct FakeUnit {
 impl Drop for FakeUnit {
     /// The plants leave processes behind; a fake leaves none on the host.
     fn drop(&mut self) {
+        if let Ok(units) = self.units.get_mut() {
+            for r in units.values_mut() {
+                shim::kill_unit(r.child.id(), Some(&r.tag), KILL_LIMIT);
+                let _ = r.child.kill();
+                let _ = r.child.wait();
+            }
+        }
         for tag in self.tags.lock().map(|t| t.clone()).unwrap_or_default() {
             procs::kill_tagged(&tag, KILL_LIMIT);
         }
@@ -149,6 +163,12 @@ impl FakeUnit {
         self.plant == Some(p)
     }
 
+    /// The top process of a unit runs under a shim (T-063), but for the
+    /// plants that kill by the tag or the top process only.
+    fn shimmed(&self) -> bool {
+        !matches!(self.plant, Some(UnitPlant::KillTopOnly | UnitPlant::FalseTreeKill | UnitPlant::TagOnly))
+    }
+
     fn with_unit<T>(
         &self,
         unit: &UnitId,
@@ -165,6 +185,7 @@ impl FakeUnit {
         dir: &Path,
         env: &[(String, String)],
         log: Option<&Path>,
+        shimmed: bool,
     ) -> Result<Child, UnitError> {
         let (prog, args) =
             argv.split_first().ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "an empty argv"))?;
@@ -182,6 +203,9 @@ impl FakeUnit {
             None => {
                 cmd.stdout(Stdio::null()).stderr(Stdio::null());
             }
+        }
+        if shimmed {
+            shim::under_shim(&mut cmd, Mode::EndWithPayload);
         }
         cmd.spawn().map_err(|e| UnitError::new(UnitCode::UnitStartFailed, format!("spawn: {}", e.kind())))
     }
@@ -239,7 +263,7 @@ impl UnitDriver for FakeUnit {
         if self.planted(UnitPlant::ProbeSpawns) {
             let tag = procs::tag_of(&self.state_dir, "probe");
             self.tags.lock().expect("the tags").push(tag.clone());
-            self.spawn(&["sleep".into(), "30".into()], &self.state_dir, &[(TAG_VAR.into(), tag)], None)?;
+            self.spawn(&["sleep".into(), "30".into()], &self.state_dir, &[(TAG_VAR.into(), tag)], None, false)?;
         }
         Ok(c)
     }
@@ -286,7 +310,7 @@ impl UnitDriver for FakeUnit {
         {
             env.push(("PODRUNNER_PLANTED_CREDENTIAL".into(), f.content.expose().to_string()));
         }
-        let child = self.spawn(&spec.argv, &root, &env, None)?;
+        let child = self.spawn(&spec.argv, &root, &env, None, self.shimmed())?;
         let run = Running { root, runner_root, tag, child, exit: None, containers: HashMap::new() };
         units.insert(spec.unit.clone(), run);
         Ok(())
@@ -339,18 +363,30 @@ impl UnitDriver for FakeUnit {
             return Ok(Residue { processes: Count::Known(left), files });
         };
         let top_only = self.planted(UnitPlant::KillTopOnly) || self.planted(UnitPlant::FalseTreeKill);
+        // A shim that a signal ended before destroy lost its orphans to
+        // init: no count is true then (design test 15).
+        let shim_lost = self.shimmed()
+            && !self.planted(UnitPlant::ShimDeathIgnored)
+            && r.child
+                .try_wait()
+                .ok()
+                .flatten()
+                .is_some_and(|s| std::os::unix::process::ExitStatusExt::signal(&s).is_some());
         for (_, (mut c, _, _)) in r.containers.drain() {
+            shim::kill_unit(c.id(), None, KILL_LIMIT);
             let _ = c.kill();
             let _ = c.wait();
         }
         let left = if self.planted(UnitPlant::NoKill) {
-            procs::tagged(&r.tag).len() as u64
-        } else if top_only {
-            let _ = r.child.kill();
-            let _ = r.child.wait();
-            procs::tagged(&r.tag).len() as u64
+            shim::unit_pids(r.child.id(), Some(&r.tag)).len() as u64
+        } else if top_only || self.planted(UnitPlant::TagOnly) {
+            if top_only {
+                let _ = r.child.kill();
+                let _ = r.child.wait();
+            }
+            procs::kill_tagged(&r.tag, if top_only { Duration::ZERO } else { KILL_LIMIT })
         } else {
-            procs::kill_tagged(&r.tag, KILL_LIMIT)
+            shim::kill_unit(r.child.id(), Some(&r.tag), KILL_LIMIT)
         };
         if !self.planted(UnitPlant::NoKill) {
             let _ = r.child.kill();
@@ -365,15 +401,22 @@ impl UnitDriver for FakeUnit {
         if self.planted(UnitPlant::UnknownResidue) {
             return Ok(Residue { processes: Count::Unknown, files: Count::Unknown });
         }
+        if shim_lost {
+            return Ok(Residue { processes: Count::Unknown, files });
+        }
         Ok(Residue { processes: Count::Known(left), files })
     }
 
     fn observe(&self, unit: &UnitId) -> Result<Observation, UnitError> {
         self.with_unit(unit, |r| {
-            let top = r.child.id();
-            let mut pids = procs::tagged(&r.tag);
-            // The top process first.
-            if let Some(i) = pids.iter().position(|p| *p == top) {
+            let mut pids =
+                if self.shimmed() { shim::unit_pids(r.child.id(), Some(&r.tag)) } else { procs::tagged(&r.tag) };
+            for (c, _, _) in r.containers.values() {
+                pids.extend(shim::unit_pids(c.id(), None));
+            }
+            // The top process first: the child of the shim, or the child.
+            let top = if self.shimmed() { shim::children(r.child.id()).first().copied() } else { Some(r.child.id()) };
+            if let Some(i) = pids.iter().position(|p| Some(*p) == top) {
                 pids.swap(0, i);
             }
             Ok(Observation { unit_root: Some(r.root.clone()), runner_root: Some(r.runner_root.clone()), pids })
@@ -381,98 +424,18 @@ impl UnitDriver for FakeUnit {
     }
 
     fn container_start(&self, unit: &UnitId, spec: &ContainerSpec) -> Result<ContainerId, UnitError> {
-        if self.capability.container != ContainerRoute::Hooks && !self.planted(UnitPlant::ContainerWithNoRoute) {
-            return Err(UnitError::new(UnitCode::ContainerNotSupported, "the fake unit has no container route"));
-        }
-        parse_pinned(&spec.image)?;
-        let n = self.containers.fetch_add(1, Ordering::Relaxed);
-        let id = ContainerId(format!("c-{n}"));
-        let (root, runner_root, tag) =
-            self.with_unit(unit, |r| Ok((r.root.clone(), r.runner_root.clone(), r.tag.clone())))?;
-        let dir = root.join("containers").join(&id.0);
-        fs::create_dir_all(&dir).map_err(|e| host(e, "a container directory"))?;
-        // The fake applies no option and no mount: it records them, one on
-        // each line, for the tests of the hooks, and maps each mount target
-        // to its source in the argv, the environment and the workdir.
-        let record: String = spec
-            .mounts
-            .iter()
-            .map(|m| format!("mount {} {} {}\n", m.source.display(), m.target, if m.read_only { "ro" } else { "rw" }))
-            .chain(spec.options.iter().map(|(k, v)| format!("option {k} {v}\n")))
-            .collect();
-        fs::write(dir.join("spec"), record).map_err(|e| host(e, "the record of a container"))?;
-        let mounts = Mounts::of(&spec.mounts, &runner_root);
-        let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), mounts.map(v))).collect();
-        let tag = if self.planted(UnitPlant::UntaggedContainer) {
-            let other = format!("{tag}-untagged");
-            self.tags.lock().expect("the tags").push(other.clone());
-            other
-        } else {
-            tag
-        };
-        env.push((TAG_VAR.into(), tag));
-        if self.planted(UnitPlant::CredentialInContainers)
-            && let Some(c) = self.seen.lock().expect("the credential seen").clone()
-        {
-            env.push(("PODRUNNER_PLANTED_CREDENTIAL".into(), c));
-        }
-        let argv: Vec<String> = spec.argv.iter().map(|a| mounts.map(a)).collect();
-        let cwd = mounts.workdir(spec.workdir.as_deref(), &dir);
-        let child = self.spawn(&argv, &cwd, &env, Some(&dir.join("log")))?;
-        self.with_unit(unit, |r| {
-            r.containers.insert(id.clone(), (child, dir, mounts));
-            Ok(id)
-        })
+        self.start_container(unit, spec)
     }
-
-    fn container_exec(&self, unit: &UnitId, container: &ContainerId, spec: &ExecSpec) -> Result<Exit, UnitError> {
-        if spec.stdin && !self.planted(UnitPlant::AcceptStdin) {
-            return Err(UnitError::new(UnitCode::ContainerOptionRefused, "stdin"));
-        }
-        let (dir, mounts, tag) = self.with_unit(unit, |r| {
-            let (_, dir, mounts) = r
-                .containers
-                .get(container)
-                .ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, container.0.clone()))?;
-            Ok((dir.clone(), mounts.clone(), r.tag.clone()))
-        })?;
-        let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), mounts.map(v))).collect();
-        env.push((TAG_VAR.into(), tag));
-        let argv: Vec<String> = spec.argv.iter().map(|a| mounts.map(a)).collect();
-        let cwd = mounts.workdir(spec.workdir.as_deref(), &dir);
-        let mut child = self.spawn(&argv, &cwd, &env, spec.log.as_deref())?;
-        child.wait().map(procs::exit_of).map_err(|e| host(e, "exec"))
+    fn container_exec(&self, unit: &UnitId, c: &ContainerId, spec: &ExecSpec) -> Result<Exit, UnitError> {
+        self.exec_container(unit, c, spec)
     }
-
-    fn container_logs(&self, unit: &UnitId, container: &ContainerId) -> Result<Vec<u8>, UnitError> {
-        self.with_unit(unit, |r| {
-            let (_, dir, _) = r
-                .containers
-                .get(container)
-                .ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, container.0.clone()))?;
-            fs::read(dir.join("log")).map_err(|e| host(e, "the log"))
-        })
+    fn container_logs(&self, unit: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {
+        self.logs_container(unit, c)
     }
-
-    fn container_inspect(&self, unit: &UnitId, container: &ContainerId) -> Result<ContainerState, UnitError> {
-        self.with_unit(unit, |r| {
-            let (c, _, _) = r
-                .containers
-                .get_mut(container)
-                .ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, container.0.clone()))?;
-            let exit = c.try_wait().map_err(|e| host(e, "inspect"))?.map(procs::exit_of);
-            Ok(ContainerState { running: exit.is_none(), exit })
-        })
+    fn container_inspect(&self, unit: &UnitId, c: &ContainerId) -> Result<ContainerState, UnitError> {
+        self.inspect_container(unit, c)
     }
-
-    fn container_stop(&self, unit: &UnitId, container: &ContainerId) -> Result<(), UnitError> {
-        self.with_unit(unit, |r| {
-            let (mut c, _, _) = r
-                .containers
-                .remove(container)
-                .ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, container.0.clone()))?;
-            let _ = c.kill();
-            c.wait().map(|_| ()).map_err(|e| host(e, "stop"))
-        })
+    fn container_stop(&self, unit: &UnitId, c: &ContainerId) -> Result<(), UnitError> {
+        self.stop_container(unit, c)
     }
 }

@@ -24,7 +24,14 @@ pub fn payload(behaviour: Behaviour) -> Vec<String> {
         Behaviour::Sleep => vec!["sleep".into(), "300".into()],
         Behaviour::Grandchild => sh("setsid sh -c 'sleep 300 & wait' & wait"),
         Behaviour::Marker => sh(&format!("echo x > {}; exec sleep 300", podrunner_unit::conformance::MARKER)),
+        Behaviour::Escape => sh(&escape("")),
+        Behaviour::KillParent => sh(&escape("kill -9 $PPID; ")),
     }
+}
+
+/// The script of [`Behaviour::Escape`], with `then` before the last sleep.
+pub fn escape(then: &str) -> String {
+    format!("(setsid env -i sleep 300 & echo $! > {}); {then}exec sleep 300", podrunner_unit::conformance::ESCAPED)
 }
 
 #[cfg(test)]

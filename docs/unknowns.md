@@ -11,7 +11,7 @@ the live acceptance suite (GitHub #40, T-040), which waits for the ruling
 | U1 | The official runner runs on the podvm userland rung | podvm PodUtils/podvm#229 to PodUtils/podvm#232 | podvm (on break; T-026) | Settled: no (exit 154, then 137), in the design review. |
 | U2 | `RLIMIT_FSIZE` kills the runner at start | A measure | none | Settled: yes, with the default W^X. The podvm driver sets `DOTNET_EnableWriteXorExecute=0` and applies no `fsize` limit (T-023). |
 | U3 | The runner starts from pre-staged files, with nothing in argv or the environment | A measure | none | Settled: yes. The environment route leaks for the whole life of the job. Unit test 7 holds it (`docs/contracts/unit-driver.md`). |
-| U4 | Grandchildren survive `podvm stop` | A measure | none | Settled: yes, 6 of 6 in the design review; again with podvm `v0.2.0-beta.2` on the session host (T-023). The driver kills by the tag of the unit. |
+| U4 | Grandchildren survive `podvm stop` | A measure | none | Settled: yes, 6 of 6 in the design review; again with podvm `v0.2.0-beta.2` on the session host (T-023). The driver kills by the tag of the unit and the tree under each tagged process: the supervisor of podvm is a subreaper, so an orphan that drops the tag (`setsid env -i`) has it as its parent, and `podvm rm -f` ends it (T-063, measured with `v0.2.0-beta.3` with no root). |
 | U5 | Two containers of one image share a root | A measure | none | Settled: yes. The driver gives each unit a store of its own (T-023). |
 | U6 | github.com sends `AllowRunnerContainerHooks` | A live job | DR-7 | Open (T-040). |
 | U7 | Several labels for each scale set | A live job | DR-7 | Open (T-040). |

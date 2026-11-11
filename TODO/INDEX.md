@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**63 entries: 2 open, 3 partial, 14 blocked, 44 done.**
+**63 entries: 1 open, 4 partial, 14 blocked, 44 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 1 | 1 | 0 | 21 | 23 |
+| P1 | 0 | 2 | 0 | 21 | 23 |
 | P2 | 1 | 2 | 9 | 22 | 34 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 2 | 3 | 14 | 44 | 63 |
+| **All** | 1 | 4 | 14 | 44 | 63 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -110,4 +110,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-060](core.md) | P2 | S | M-D | feature | done | serve: SIGTERM and SIGINT start a drain; sd_notify (GitHub #60) |
 | [T-061](core.md) | P2 | S | L2 | defect | blocked | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (GitHub #61) |
 | [T-062](core.md) | P2 | S | L2 | defect | blocked | COORD-008: on the supervise rung a volume given as :ro is writable (GitHub #62) |
-| [T-063](core.md) | P1 | M | L2 | defect | open | The tree kill finds a unit by an environment tag, and a process can drop it |
+| [T-063](core.md) | P1 | M | L2 | defect | partial | The tree kill finds a unit by an environment tag, and a process can drop it |

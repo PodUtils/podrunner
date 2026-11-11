@@ -106,6 +106,8 @@ with a grandchild, a marker file in the working directory.
 | 22 | `no-credential-in-the-outputs` | The probe record (with `boundary_proof`), the observation and the residue hold no credential. |
 | 23 | `probe-starts-no-process` | Two probes leave no child process (run alone: it sees each child of the test process). |
 | 24 | `a-proc-dump-of-a-step-holds-no-credential` | With `container: hooks`: a step that dumps `/proc/*/cmdline` and `/proc/*/environ` finds a blob of its own environment (a positive control) and no credential (run alone). |
+| 25 | `destroy-reaches-an-orphan-with-no-tag` | An orphan with `setsid env -i` (no tag, a session of its own) is in `observe`, ends at `destroy`, and the count is 0. |
+| 26 | `a-killed-shim-is-not-clean` | The payload kills the parent of its top process with SIGKILL: `destroy` does not count 0 while the orphan lives. |
 
 The numbers of the tests follow this page. The spec of the design review
 (T-014) can give other numbers; T-014 makes them agree.
@@ -123,7 +125,7 @@ each design test, the tests here that cover it, and what is open (T-053).
 | --- | --- | --- |
 | 1 probe | UC `probe-is-idempotent`, `probe-writes-no-file`, `probe-starts-no-process` | none |
 | 2 two roots | UC `a-fresh-root-for-each-unit`, `etc-hosts-of-one-unit` | none |
-| 3 tree kill | UC `destroy-reaches-a-setsid-grandchild`, `a-verified-tree-kill-is-proven`, `destroy-reaches-a-grandchild-in-a-container` (also the time limit) | none |
+| 3 tree kill | UC `destroy-reaches-a-setsid-grandchild`, `a-verified-tree-kill-is-proven`, `destroy-reaches-a-grandchild-in-a-container` (also the time limit), `destroy-reaches-an-orphan-with-no-tag` (`setsid env -i`) | none |
 | 4 limits | SG `a_required_limit_that_no_kind_enforces_is_refused` (placement refuses before `start`), `a_limit_refusal_names_the_limit` (the audit line names the limit) | none |
 | 5 tag, platform | UC `prepare-refuses-a-tag`, `prepare-refuses-a-foreign-platform` | none |
 | 6 credential gone | UC `destroy-removes-each-file`, `a-host-scan-finds-no-credential` | none |
@@ -135,6 +137,6 @@ each design test, the tests here that cover it, and what is open (T-053).
 | 12 `../x` | `crates/podrunner-schema/src/lib.rs` `an_id_that_climbs_never_parses` (pod-job ids) | none |
 | 13 container options | HK `each_rule_refuses_its_input`, `a_job_container_of_the_runner_passes_with_its_mounts` (the seven entries), `the_mount_tables_and_the_order_of_the_design` | none on the fake path |
 | 14 job_state | HU `each_command_reaches_the_fake_unit` (a second `job-started` is ignored and goes to the audit), SG `job_started_in_running_is_ignored_and_job_completed_moves_no_state` | none |
-| 15 shim killed | none | the whole test (podvm driver) |
+| 15 shim killed | UC `a-killed-shim-is-not-clean` (the fake and the podvm driver) | none |
 | 16 the order | HK `each_call_before_prepare_job_is_refused`, `the_mount_tables_and_the_order_of_the_design` | none |
 | 17 action table | HK `the_mount_tables_and_the_order_of_the_design` | none |

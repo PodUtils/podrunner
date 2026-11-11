@@ -3,7 +3,9 @@
 //! files written into the rootfs that `podvm extract` names, and the
 //! payload started detached. Each process carries the tag of the unit; a
 //! scan of `/proc` ends the whole tree, because a grandchild outlives
-//! `podvm stop` and `rm -f`.
+//! `podvm stop` and `rm -f`. The supervisor of podvm is a subreaper: an
+//! orphan that drops the tag (`setsid env -i`) has it as its parent, so
+//! the scan also takes the tree under each tagged process (T-063).
 
 use std::collections::HashMap;
 use std::fs;
@@ -16,6 +18,7 @@ use std::time::{Duration, Instant};
 
 use podrunner_schema::{Capability, UnitId};
 use podrunner_unit::procs::{self, TAG_VAR};
+use podrunner_unit::shim;
 use podrunner_unit::{
     ContainerId, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue, Signal,
     StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
@@ -275,7 +278,14 @@ impl UnitDriver for PodvmUnit {
         let removed = self.units.lock().expect("the units").remove(unit);
         let dir = self.unit_dir(unit);
         let tag = procs::tag_of(&self.state_dir, unit.as_str());
-        let left = procs::kill_tagged(&tag, KILL_LIMIT);
+        // With no live supervisor of podvm, but processes of the unit, the
+        // orphans went to init: no count is true then (design test 15).
+        let tree = shim::tree_of_tagged(&tag);
+        let waiter = removed.as_ref().map(|r| r.waiter.id());
+        let lost = !tree.is_empty()
+            && !tree.iter().any(|p| Some(*p) != waiter && procs_comm_is_podvm(*p))
+            && tree.iter().any(|p| Some(*p) != waiter);
+        let left = shim::kill_tree_of_tagged(&tag, KILL_LIMIT);
         if let Some(mut r) = removed {
             let _ = r.waiter.kill();
             let _ = r.waiter.wait();
@@ -286,7 +296,8 @@ impl UnitDriver for PodvmUnit {
             let _ = Command::new("chmod").args(["-R", "u+rwX"]).arg(&dir).status();
             fs::remove_dir_all(&dir).map_err(|e| host("remove the unit", e))?;
         }
-        Ok(Residue { processes: Count::Known(left), files: Count::Known(u64::from(dir.exists())) })
+        let processes = if lost { Count::Unknown } else { Count::Known(left) };
+        Ok(Residue { processes, files: Count::Known(u64::from(dir.exists())) })
     }
 
     fn observe(&self, unit: &UnitId) -> Result<Observation, UnitError> {
@@ -295,7 +306,7 @@ impl UnitDriver for PodvmUnit {
         let waiter = r.waiter.id();
         let work = r.rootfs.join(WORKDIR.trim_start_matches('/'));
         // The payload first: the processes of podvm carry the tag too.
-        let mut pids: Vec<u32> = procs::tagged(&r.tag).into_iter().filter(|p| *p != waiter).collect();
+        let mut pids: Vec<u32> = shim::tree_of_tagged(&r.tag).into_iter().filter(|p| *p != waiter).collect();
         pids.sort_by_key(|p| procs_comm_is_podvm(*p));
         Ok(Observation { unit_root: Some(work.clone()), runner_root: Some(work.join(RUNNER_ROOT)), pids })
     }

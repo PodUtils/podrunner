@@ -19,6 +19,7 @@ struct Real {
     unit: PodvmUnit,
     image: String,
     ids: UnitIds,
+    state: PathBuf,
 }
 
 fn sh(s: &str) -> Vec<String> {
@@ -44,11 +45,21 @@ impl Fixture for Real {
             Behaviour::Sleep => vec!["sleep".into(), "300".into()],
             Behaviour::Grandchild => sh("setsid sh -c 'sleep 300 & wait' & wait"),
             Behaviour::Marker => sh(&format!("echo x > {}; exec sleep 300", conformance::MARKER)),
+            Behaviour::Escape => sh(&podrunner_fake_escape("")),
+            Behaviour::KillParent => sh(&podrunner_fake_escape("kill -9 $PPID; ")),
         }
     }
     fn unit(&self) -> UnitId {
         self.ids.next()
     }
+    fn state_dir(&self) -> Option<PathBuf> {
+        Some(self.state.join("units"))
+    }
+}
+
+/// The script of the payloads with an orphan (as `podrunner_fake::escape`).
+fn podrunner_fake_escape(then: &str) -> String {
+    format!("(setsid env -i sleep 300 & echo $! > {}); {then}exec sleep 300", conformance::ESCAPED)
 }
 
 fn env(name: &str) -> String {
@@ -70,13 +81,13 @@ fn the_podvm_unit_passes_its_tests() {
     // The self-test of the tree kill; test 17 then holds the claim to test 3.
     assert!(unit.verify_tree_kill(&image, UnitId::parse("u-999").unwrap()).unwrap(), "the tree kill is not proven");
     assert_eq!(unit.probe().unwrap().tree_kill, podrunner_schema::TreeKill::Verified);
-    let fx = Real { unit, image, ids: UnitIds::default() };
+    let fx = Real { unit, image, ids: UnitIds::default(), state: state.clone() };
     let results = conformance::run(&fx, &[]);
     for r in &results {
         println!("{r}");
     }
-    // The container tests (13 or 14, and 20) skip by the container route of
-    // the rung; the tests 18 and 21 skip: the fixture names no state directory.
+    // The container tests (13 or 14, 20 and 24) skip by the container route
+    // of the rung.
     let failed: Vec<_> = results.iter().filter(|r| matches!(r.outcome, Outcome::Fail(_))).map(|r| r.number).collect();
     let _ = std::fs::remove_dir_all(&state);
     assert!(failed.is_empty(), "failed: {failed:?}");

@@ -1,4 +1,4 @@
-//! The conformance suite of the unit seam: the tests 1 to 24 of
+//! The conformance suite of the unit seam: the tests 1 to 26 of
 //! `docs/contracts/unit-driver.md`. A driver passes when each test that
 //! applies to it passes. Each test has a planted defect that fails it (the
 //! drivers of the fakes, GitHub #20) and a correct input that passes it.
@@ -36,7 +36,17 @@ pub enum Behaviour {
     Grandchild,
     /// Write the file [`MARKER`] in the working directory, then sleep.
     Marker,
+    /// Leave an orphan with no environment and a session of its own
+    /// (`setsid env -i sleep`), write its pid to [`ESCAPED`] in the
+    /// working directory, then sleep.
+    Escape,
+    /// As [`Behaviour::Escape`], then kill the parent of the top process
+    /// with SIGKILL (the shim of the driver, when it has one).
+    KillParent,
 }
+
+/// The file that [`Behaviour::Escape`] writes.
+pub const ESCAPED: &str = "podrunner-escaped";
 
 /// The file that [`Behaviour::Marker`] writes.
 pub const MARKER: &str = "podrunner-marker";
