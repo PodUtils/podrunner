@@ -24,6 +24,13 @@ pub struct SourceStatus {
     /// The offers whose trust inputs hold `unknown`: the source could not
     /// read the run or the membership.
     pub trust_unknown: u64,
+    /// The age of the credential of each job that is not final, in
+    /// seconds, oldest first (SPEC §11.5).
+    pub credential_ages_s: Vec<u64>,
+    /// The age of the key file of the source (the App key of
+    /// `github-scaleset`, the key of `remote`), from its time of change.
+    /// No value of the key is read.
+    pub key_age_s: Option<u64>,
 }
 
 /// One unit kind in the status.
@@ -66,6 +73,12 @@ pub struct Status {
     pub spooled_reports: usize,
 }
 
+/// The age of the file `path` from its time of change, in seconds.
+pub(crate) fn key_age_s(path: &str, now_unix: u64) -> Option<u64> {
+    let changed = std::fs::metadata(path).ok()?.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?;
+    Some(now_unix.saturating_sub(changed.as_secs()))
+}
+
 fn state_name(s: State) -> String {
     serde_json::to_value(s).ok().and_then(|v| v.as_str().map(str::to_string)).unwrap_or_default()
 }
@@ -81,6 +94,7 @@ impl Slots {
                 let mut jobs = BTreeMap::new();
                 let mut refused = BTreeMap::new();
                 let mut trust_unknown = 0;
+                let mut credential_ages_s = Vec::new();
                 for j in self.jobs.values().filter(|j| j.source == i) {
                     if j.offer.as_ref().is_some_and(|o| {
                         let t = &o.trust_inputs;
@@ -89,6 +103,9 @@ impl Slots {
                     }) {
                         trust_unknown += 1;
                     }
+                    if let (false, Some(m)) = (j.state.is_final(), j.minted_ms) {
+                        credential_ages_s.push(self.clock.now_ms().saturating_sub(m) / 1000);
+                    }
                     if !j.state.is_final() {
                         *jobs.entry(state_name(j.state)).or_insert(0) += 1;
                     }
@@ -96,7 +113,10 @@ impl Slots {
                         *refused.entry(c.as_str().to_string()).or_insert(0) += 1;
                     }
                 }
+                credential_ages_s.sort_unstable_by(|a, b| b.cmp(a));
                 SourceStatus {
+                    key_age_s: s.cfg.key_file.as_deref().and_then(|k| key_age_s(k, (self.now_unix)())),
+                    credential_ages_s,
                     name: s.cfg.name.clone(),
                     tier: s.cfg.tier,
                     arch: s.cfg.arch.clone(),

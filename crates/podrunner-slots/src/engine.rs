@@ -48,6 +48,8 @@ pub struct Job {
     pub unit: Option<podrunner_schema::UnitId>,
     pub runner_name: Option<String>,
     pub started_ms: Option<u64>,
+    /// The time of the mint of its credential: `status` shows its age.
+    pub minted_ms: Option<u64>,
     pub term_ms: Option<u64>,
     pub reason: Option<ExitReason>,
     pub exit_code: Option<i32>,
@@ -328,6 +330,7 @@ impl Slots {
             unit: None,
             runner_name: None,
             started_ms: None,
+            minted_ms: None,
             term_ms: None,
             reason: None,
             exit_code: None,

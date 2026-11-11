@@ -1113,7 +1113,7 @@ Read SPEC §10.4 and `crates/podrunner-slots/src` on 2026-11-11: `disk` appears 
 **Milestone:** M-D
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1126,6 +1126,8 @@ Read SPEC §11.4, §11.5, `pod-job` (`report.rs`) at `v0.24.0` and `crates/podru
 ## Approach
 
 Ask podcrates (a direct message) for the two optional fields in `RunReport` of `pod-job`; fill them in slots from the `started` time and the images of the hook calls. Add to `status` the age of each credential of a running job and the age of the key file of each `github-scaleset` source (from its time of change), with no value of the key. Regenerate `schemas/status.v1.json`.
+
+Done: `status` shows `credential_ages_s` (the age of the credential of each job that is not final, from its mint) and `key_age_s` (the age of the key file of a source, from its time of change) for each source; `schemas/status.v1.json` is regenerated (`the_status_shows_the_age_of_each_credential_and_of_the_key`). Open: the report fields and the exit reason `limit`, asked of podcrates by a direct message.
 
 ## Prove
 

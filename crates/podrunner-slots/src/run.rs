@@ -121,6 +121,7 @@ impl Slots {
         };
         self.audit(audit::Kind::Mint, key.0, &key.1, None, None);
         self.set(key, State::Minted, now);
+        self.jobs.get_mut(key).expect("a minted job").minted_ms = Some(now);
         let j = &self.jobs[key];
         let (p, unit) = (j.placement.clone().expect("a placed job"), j.unit.clone().expect("a unit id"));
         let kind = &self.kinds[p.kind];

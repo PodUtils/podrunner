@@ -340,6 +340,15 @@
         "arch": {
           "type": "string"
         },
+        "credential_ages_s": {
+          "description": "The age of the credential of each job that is not final, in\nseconds, oldest first (SPEC §11.5).",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
         "jobs": {
           "description": "The jobs of the source in each state that is not final.",
           "type": "object",
@@ -348,6 +357,15 @@
             "format": "uint64",
             "minimum": 0
           }
+        },
+        "key_age_s": {
+          "description": "The age of the key file of the source (the App key of\n`github-scaleset`, the key of `remote`), from its time of change.\nNo value of the key is read.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
         },
         "name": {
           "type": "string"
@@ -381,7 +399,8 @@
         "revoked",
         "jobs",
         "refused",
-        "trust_unknown"
+        "trust_unknown",
+        "credential_ages_s"
       ]
     },
     "Tier": {

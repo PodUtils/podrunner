@@ -194,3 +194,33 @@ impl podrunner_source::JobSource for LateMint {
         self.inner.release(j)
     }
 }
+
+#[test]
+fn the_status_shows_the_age_of_each_credential_and_of_the_key() {
+    let cap = capability(
+        podrunner_schema::Boundary::Guest,
+        podrunner_schema::Principal::Distinct,
+        podrunner_schema::EgressHold::Enforced,
+    );
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, vec![offer(0, "slow", json!({}))])],
+        vec![KindSpec { name: "fake", slots: 1, capability: cap, command: sh("sleep 30") }],
+    );
+    bed.until(20, |s| s.jobs().any(|j| j.minted_ms.is_some()));
+    for _ in 0..5 {
+        bed.tick();
+    }
+    let st = bed.slots.status();
+    assert_eq!(st.sources[0].credential_ages_s.len(), 1, "{:?}", st.sources[0]);
+    assert!(st.sources[0].credential_ages_s[0] >= 5, "{:?}", st.sources[0].credential_ages_s);
+    assert_eq!(st.sources[0].key_age_s, None);
+    // The age of a key file comes from its time of change, not its bytes.
+    let file = bed.dir.0.join("key.pem");
+    std::fs::write(&file, "not a key").unwrap();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let age = crate::status::key_age_s(file.to_str().unwrap(), now + 60).unwrap();
+    // A second can pass between the write and `now`.
+    assert!((60..=61).contains(&age), "{age}");
+    assert_eq!(crate::status::key_age_s("/nonexistent/key", now), None);
+}
