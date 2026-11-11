@@ -739,7 +739,7 @@ Read on 2026-11-11: no number of `docs/contracts/` agrees with a number of `docs
 
 A table in each of `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md`: each design test, the test here that covers it, or "missing". Then write each missing test with a planted defect and a correct input, on the fake unit or the fake source. Keep the names of the suites; the table carries the design numbers. Then close the fake-path acceptance of T-035 in the design numbers.
 
-Step 1, 2026-11-11: the tables are in `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md` ("The tests of the design contract"), from a read of each test body. Step 2: the unit design tests 8, 9, 13, 14, 16 and 17 pass on the fake path (`crates/podrunner-unit/src/conformance/cases.rs`, `crates/podrunner-hook/src/tests.rs`, `crates/podrunner-hook/src/tests_unit.rs`, `crates/podrunner-slots/src/tests/hooks.rs`). Step 3: the source design tests 2, 4, 8, 10, 11 and 12 (8 and 12 by call C18); found on the way: a `started` that named this runner with another job id was ignored (fixed: it ends the unit), and the sidecar went on after a revocation (fixed: it ends with 78). Step 4: the unit design tests 1 (files), 2, 3 (a container grandchild, the time limit), 6, 10 and 12 pass on the fake path: the suite has the tests 18 to 22 (`crates/podrunner-unit/src/conformance/design.rs`), each with a plant of the fake unit, and a schema test for `../x`. Step 5: the source design test 3 passes for each role: the host role and the mint role as processes (`crates/podrunner/tests/serve.rs`, `crates/podrunner/tests/mint.rs`), the sidecar in `crates/podrunner/tests/scaleset.rs` (the fake service plants a canary in the JIT configuration). Found on the way: the record of the `fake` kind said `net: "host"`, outside the schema (fixed: `shared-host`). Open, as the tables say: unit 11 and 15 with podvm (T-036, T-026). Step 6: the source design test 6: the key of a host is its token at a mint, and the configuration refuses one `key_file` for two remote sources of two tiers (`one_key_for_two_tiers_is_refused`). Step 7: the unit design test 4: the audit line of a limit refusal names the limits that no kind enforces (`a_limit_refusal_names_the_limit`). Step 8: the unit design tests 1 (no process appears) and 7 (a dump of `/proc/*` from a step, with a planted blob as the positive control) are the tests 23 and 24; they see each process of the uid, so the fake runs them in a test binary of their own (`crates/podrunner-fake/tests/alone.rs`).
+Step 1, 2026-11-11: the tables are in `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md` ("The tests of the design contract"), from a read of each test body. Step 2: the unit design tests 8, 9, 13, 14, 16 and 17 pass on the fake path (`crates/podrunner-unit/src/conformance/cases.rs`, `crates/podrunner-hook/src/tests.rs`, `crates/podrunner-hook/src/tests_unit.rs`, `crates/podrunner-slots/src/tests/hooks.rs`). Step 3: the source design tests 2, 4, 8, 10, 11 and 12 (8 and 12 by call C18); found on the way: a `started` that named this runner with another job id was ignored (fixed: it ends the unit), and the sidecar went on after a revocation (fixed: it ends with 78). Step 4: the unit design tests 1 (files), 2, 3 (a container grandchild, the time limit), 6, 10 and 12 pass on the fake path: the suite has the tests 18 to 22 (`crates/podrunner-unit/src/conformance/design.rs`), each with a plant of the fake unit, and a schema test for `../x`. Step 5: the source design test 3 passes for each role: the host role and the mint role as processes (`crates/podrunner/tests/serve.rs`, `crates/podrunner/tests/mint.rs`), the sidecar in `crates/podrunner/tests/scaleset.rs` (the fake service plants a canary in the JIT configuration). Found on the way: the record of the `fake` kind said `net: "host"`, outside the schema (fixed: `shared-host`). Step 6: the source design test 6: the key of a host is its token at a mint, and the configuration refuses one `key_file` for two remote sources of two tiers (`one_key_for_two_tiers_is_refused`). Step 7: the unit design test 4: the audit line of a limit refusal names the limits that no kind enforces (`a_limit_refusal_names_the_limit`). Step 8: the unit design tests 1 (no process appears) and 7 (a dump of `/proc/*` from a step, with a planted blob as the positive control) are the tests 23 and 24; they see each process of the uid, so the fake runs them in a test binary of their own (`crates/podrunner-fake/tests/alone.rs`). Open, as the tables say: unit 11 and 15 with podvm (T-036, T-026; unit 15 also T-063).
 
 ## Prove
 
@@ -1012,3 +1012,28 @@ The podvm driver of the hooks (T-035 step 4) mounts `/__e` read-only and checks 
 
 A podvm release that applies `:ro` on the supervise rung, or refuses it by name (GitHub #62).
 
+
+# T-063: The tree kill finds a unit by an environment tag, and a process can drop it
+
+**Source:** T-053
+**Category:** defect
+**Milestone:** L2
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The `fake` and `podvm` drivers find the processes of a unit by the variable `PODRUNNER_UNIT_TAG` in `/proc/PID/environ` (`crates/podrunner-unit/src/procs.rs`). A step that runs `setsid env -i sleep 1d &` starts a process with an empty environment: no scan finds it, `destroy` does not kill it and counts 0 processes, and the probe claims `tree_kill: verified`. A job can leave a process on the host after its unit is gone.
+
+## Premise
+
+Read on 2026-11-11: `sh -c 'setsid env -i sleep 30 &'` with the tag set gives a `sleep` whose `environ` is empty. The test 3 of the suite uses a grandchild that keeps its environment, so it passes.
+
+## Approach
+
+A shim of each unit with no root: it sets `PR_SET_CHILD_SUBREAPER`, starts the payload, and keeps it as its child. Each orphan of the unit then has the shim as its parent, also after `setsid` and a double fork. `destroy` kills each descendant of the shim (a walk of the parent links of `/proc`), then the shim. The tag stays as a second check. A new conformance test: a grandchild with `setsid env -i` ends at `destroy`, with a plant (the scan by tag only) that fails it. The design test 15 (the shim killed: `destroy` answers `unknown`) follows from the same shim. For podvm: ask if podvm keeps the processes of a container in its own subreaper or cgroup (a COORD issue to podvm if not).
+
+## Prove
+
+The new test passes on the fake and podvm drivers, its plant fails it, and `destroy` of a unit with a `setsid env -i` grandchild counts 0 with no process left.
