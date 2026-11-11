@@ -130,7 +130,8 @@ jobs:
           set -eu
           sh scripts/retry.sh rustup toolchain install
           cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture
-          cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
+          cargo test -p podrunner-podvm --test conformance --no-run
+          timeout 600 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runner-${{ matrix.arch }}

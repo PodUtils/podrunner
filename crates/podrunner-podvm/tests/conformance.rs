@@ -85,9 +85,13 @@ fn the_podvm_unit_passes_its_tests() {
     assert!(unit.verify_tree_kill(&image, UnitId::parse("u-999").unwrap()).unwrap(), "the tree kill is not proven");
     assert_eq!(unit.probe().unwrap().tree_kill, podrunner_schema::TreeKill::Verified);
     let fx = Real { unit, image, ids: UnitIds::default(), state: state.clone() };
-    let results = conformance::run(&fx, &[]);
-    for r in &results {
+    // One test at a time, each printed when it ends: a hang names its test.
+    let mut results = Vec::new();
+    for (n, name) in conformance::tests() {
+        println!("unit {n:2} {name}: running");
+        let r = conformance::run(&fx, &[n]).remove(0);
         println!("{r}");
+        results.push(r);
     }
     // The container tests (13 or 14, 20 and 24) skip by the container route
     // of the rung.
