@@ -11,9 +11,9 @@
 - The owner answered DR-4 to DR-7, GitHub #8, and podcrates Q10 and Q11
   on 2026-11-11 (`docs/decisions.md`). `trusted` can run at `redirect`
   as a choice of the operator (T-045).
-- M-A: done T-015, T-016, T-018 to T-022, T-024; T-017 (`pod-job` of podcrates
-  v0.17.0); partial T-023
-  (an H0 run is open). M-C: done T-027, T-028, T-029. L2: T-036 blocked (the rest needs a real guest, T-037).
+- M-A: done T-015 to T-022, T-024; partial T-023 (an H0 run is open).
+  M-C: done T-027 to T-029; partial T-030. M-D: done T-045; partial T-031.
+  L2: partial T-035; T-036 blocked (the rest needs a real guest, T-037).
 - podcrates is on direct messages; podnet answers COORD issues; podvm and
   podssh are on break. An entry that needs a change of podvm or podssh is
   `blocked`, and the session takes the next entry.
@@ -31,7 +31,8 @@ then take the next one. Continue a `partial` entry first.
 3. **The registers:** T-009 (partial: the open rows wait for their entries).
 4. **M-D:** T-031 (partial: the removal of the runners of a revoked host,
    the source tests over HTTPS in CI).
-5. **M-C, L2:** T-035, T-030; T-034, T-038.
+5. **M-C, L2:** T-030 (partial: the first image build and its pin), T-035
+   (partial: the tests with a real runner); T-034, T-038.
 6. **Blocked:** T-007 (DR-7: not now), T-014 (the spec), T-026 (podvm),
    T-036 (a real guest),
    T-032, T-033, T-037 (podvm), T-040

@@ -17,31 +17,36 @@ is done.
 - The owner answered DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`):
   `trusted` at `redirect` is a choice of the operator with the mitigations
   of T-045; `microvm` is an adapter over podvm's machine tier (T-037);
-  DR-7 is not now. C1 to C12 are rulings; C13 to C15 are calls.
+  DR-7 is not now. C1 to C12 are rulings; C13 to C16 are calls.
 - podrunner takes the crates of podcrates at `v0.17.0` (`pod-core`,
   `pod-todo`, `pod-broker`, `pod-proxy`, `pod-identity`, `pod-job`).
   `pod-supervise` can replace the tag scan of the podvm driver (T-023);
   it is not on the M-A path.
 - Milestone M-A: done: T-015 (`v0.1.0-beta.1`), T-016 to T-022, T-024.
   Partial: T-023 (an H0 run is open). T-025 closes when it is done.
-- M-C: done T-027, T-028, T-029. T-030 (the image pipeline) can take the
-  Actions hosts and the runner pin of `pod-services` (v0.17.0).
-- M-D: T-031 (remote mint) can take `pod_tls::mutual` (v0.17.0).
-- L2: T-036 is blocked: the self-test, the second unit, the daily and
-  driver-change retest and the driver checks are in; the read-only mounts
-  and a real guest need T-037 (PodUtils/podvm@T-1656). T-034, T-038 need the
-  runner on podvm (T-026, blocked); T-035 starts on the fake unit.
-- M-D: T-045 (the mitigations of DR-4) is partial: the configuration
-  check, the repository of the host and the signed pin list are in; the
-  host key and the token life come with T-031 (PodUtils/podcrates@T-165).
+- M-C: done T-027, T-028, T-029. T-030 is partial: the pin fields, the
+  age check at the start, runner exit 7, `images/runner/` (the reviewed
+  pin, the Dockerfile), `.github/workflows/runner-image.yml` and
+  `podrunner image verify` are in; the first green image build and its
+  pin are open.
+- M-D: T-045 is done (the mitigations of DR-4). T-031 (the remote mint,
+  `crates/podrunner-remote`, `podrunner mint-serve`, a source kind
+  `remote`) is partial: the removal of the runners of a revoked host and
+  the source tests over HTTPS in CI are open.
+- L2: T-035 (the container hooks, `crates/podrunner-hook`) is partial:
+  the checks, the socket, the relay, the mapping onto the driver and the
+  seam `HookPort` of slots are in; the tests with a real runner wait for
+  T-038 and T-026. T-036 is blocked: the rest needs a real guest (T-037,
+  PodUtils/podvm@T-1656). T-034, T-038 need the runner on podvm (T-026,
+  blocked).
 - podnet answered COORD-001 (PodUtils/podnet#425): the runner pin
   `actions/runner` v2.338.2 and the object `hold` of `pod doctor --json`
   (T-044).
 
 ## In flight
 
-- T-035 (the hook relay and the control socket of each unit, on the fake
-  unit first).
+- The work order of `TODO/PROGRESS.md`: T-031, T-030 and T-035 are
+  partial; their entries name the open steps.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The spec of the design review (T-014): the owner holds it as a zip. The
