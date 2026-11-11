@@ -7,7 +7,7 @@ Milestone M-A: the seams, the schemas, the tier rule, the security documents, th
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -40,6 +40,22 @@ The crates `podrunner-unit` and `podrunner-source` with the traits and the types
 ## Prove
 
 `cargo test -p podrunner-unit -p podrunner-source`
+
+## Done
+
+2026-11-11, commit `229d29f` (and the gate run 42936703374 of `51ffb40`,
+green, which holds it). `crates/podrunner-unit` (the trait, the tests 1
+to 17, the stub) and `crates/podrunner-source` (the wire, the trait,
+`WireSource`, `serve_line`, the tests 1 to 12). On the stub and on a
+refuser, each test fails and is reported by its number. The wire refuses a
+line over 1 MiB, an unknown `op` and a `job_id` of `../x`
+(`bad-request`); the fuzz target `source_wire` builds and survives its
+seeds and 5000 mutations. `docs/contracts/` holds `unit-driver.md`,
+`source-driver.md` and `hook.md`, version 1; two tests compare the
+operations and the tests with them. `cargo test -p podrunner-unit -p
+podrunner-source`: 12 passed. The fakes of T-020 are the correct inputs
+and the plants of each test.
+
 
 # T-017: Schemas v1: job offer, unit capability, run report, public report (GitHub #17)
 

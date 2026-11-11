@@ -1,0 +1,8 @@
+[package]
+name = "podrunner-clock"
+description = "The clock of podrunner: the system clock, and a manual clock for tests"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
