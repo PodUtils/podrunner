@@ -28,6 +28,7 @@ use crate::Podvm;
 
 mod containers;
 mod hold;
+mod root;
 
 /// The working directory of the payload in the rootfs.
 const WORKDIR: &str = "/podrunner";
@@ -241,6 +242,9 @@ impl UnitDriver for PodvmUnit {
         let argv: Vec<&str> = args.iter().map(String::as_str).collect();
         let egress = self.egress_of(spec)?;
         self.podvm_held(&store, &argv, Some(&tag), egress.as_deref())?;
+        // The tree of the running unit (T-067): the copy of a later podvm.
+        let names: Vec<&str> = spec.credential.files.iter().map(|f| f.name.as_str()).collect();
+        let rootfs = root::root_of_unit(&rootfs, self.inspected_root(&store, spec.unit.as_str()), &names)?;
         let waiter = self.waiter(&store, &spec.unit, &tag)?;
         units.insert(spec.unit.clone(), Running { dir, rootfs, tag, waiter, exit: None, egress });
         Ok(())

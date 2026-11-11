@@ -392,7 +392,7 @@ Read on 2026-11-11 in PodUtils/podvm#258. Not in a podvm release yet; the next b
 
 ## Approach
 
-T-067 does the driver change on the current beta. After `run -d`, take the tree of the unit from `podvm inspect --format '{{.RootfsPath}}' UNIT`, and use it for `observe` and for the runner directory of the volumes. Keep the credential files written before `run` (the copy takes them, mode 0600), and check the mode in the tree. Raise `probe::LOWEST` to the beta with PodUtils/podvm@T-1709, and pin it in `images/podvm.toml`. That beta also ends a detached payload with its launcher (PodUtils/podvm#262): run the unit tests 25 and 26 on it and give the result to the session of podcrates.
+T-067 gives the driver the tree that `podvm inspect` names. With the next beta: raise `probe::LOWEST`, pin it in `images/podvm.toml`, and run the unit tests (25 and 26 also) in `runner-image.yml`; give the result of 25 and 26 to the session of podcrates (PodUtils/podvm#262).
 
 ## Prove
 
