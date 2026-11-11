@@ -32,6 +32,10 @@ pub struct Completion {
 
 #[derive(Default)]
 struct State {
+    /// The uploaded logs, by blob name (`job` or `step-ID`).
+    blobs: std::collections::BTreeMap<String, Vec<u8>>,
+    /// The bodies of `WorkflowStepsUpdate`, in order.
+    step_updates: Vec<Value>,
     queue: VecDeque<(u64, Job)>,
     acquired: Vec<(u64, Job)>,
     done: Vec<Completion>,
@@ -79,6 +83,18 @@ impl Broker {
         self.state.lock().expect("the broker").done.clone()
     }
 
+    /// The logs that the Worker uploaded: the job log and each step log,
+    /// as text.
+    pub fn logs(&self) -> String {
+        let st = self.state.lock().expect("the broker");
+        st.blobs.values().map(|b| String::from_utf8_lossy(b).into_owned()).collect::<Vec<_>>().join("\n")
+    }
+
+    /// The step updates of the Worker.
+    pub fn step_updates(&self) -> Vec<Value> {
+        self.state.lock().expect("the broker").step_updates.clone()
+    }
+
     /// The request line of each call.
     pub fn seen(&self) -> Vec<String> {
         self.state.lock().expect("the broker").seen.clone()
@@ -95,6 +111,8 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
     let path = req.path.split('?').next().unwrap_or("").to_string();
     state.lock().expect("the broker").seen.push(format!("{} {path}", req.method));
     let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
+    let base = base.trim_end_matches('/');
+    let base = &format!("{base}/");
     let (status, out) = match (req.method.as_str(), path.as_str()) {
         ("POST", "/_apis/oauth2/token") => {
             reply(&json!({ "access_token": message::job_token(), "token_type": "bearer", "expires_in": 3600 }))
@@ -126,6 +144,31 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
                 Some((i, job)) => reply(&message::job_message(base, *i, job)),
                 None => (404, Vec::new()),
             }
+        }
+        // The results service: a signed URL is a blob of this broker; each
+        // upload appends; each metadata call is `ok`.
+        ("POST", p) if p.starts_with("/twirp/results.services.receiver.Receiver/Get") => {
+            let name = match body["step_backend_id"].as_str() {
+                Some(step) => format!("step-{step}"),
+                None => p.rsplit('/').next().unwrap_or("blob").to_string(),
+            };
+            let url = format!("{base}blobs/{name}?sig=fake");
+            reply(&json!({
+                "logs_url": url, "summary_url": url, "blob_storage_type": "BLOB_STORAGE_TYPE_UNSPECIFIED",
+                "soft_size_limit": 1u64 << 30,
+            }))
+        }
+        ("POST", p) if p.starts_with("/twirp/results.services.receiver.Receiver/Create") => {
+            reply(&json!({ "ok": true }))
+        }
+        ("POST", "/twirp/github.actions.results.api.v1.WorkflowStepUpdateService/WorkflowStepsUpdate") => {
+            state.lock().expect("the broker").step_updates.push(body);
+            reply(&json!({}))
+        }
+        ("PUT", p) if p.starts_with("/blobs/") => {
+            let name = p.trim_start_matches("/blobs/").to_string();
+            state.lock().expect("the broker").blobs.entry(name).or_default().extend_from_slice(&req.body);
+            (201, Vec::new())
         }
         ("POST", "/renewjob") => reply(&json!({ "lockedUntil": "2099-01-01T00:00:00Z" })),
         ("POST", "/completejob") => {

@@ -76,7 +76,11 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
             "repositories": [],
         },
         "workspace": {},
-        "variables": { "system.github.job": { "value": job.name } },
+        // The results service of the Worker (logs, step updates): this broker.
+        "variables": {
+            "system.github.job": { "value": job.name },
+            "system.github.results_endpoint": { "value": base },
+        },
         "contextData": { "github": { "t": 2, "d": [
             s("repository", "example-org/app"), s("workflow", "podrunner"), s("job", &job.name),
             s("run_id", &request.to_string()), s("event_name", "push"),

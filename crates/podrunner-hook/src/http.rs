@@ -78,6 +78,8 @@ pub fn read_request(r: &mut impl BufRead) -> Result<Request, HttpError> {
 pub fn write_response(w: &mut impl Write, status: u16, headers: &[(&str, String)], body: &[u8]) -> std::io::Result<()> {
     let reason = match status {
         200 => "OK",
+        201 => "Created",
+        202 => "Accepted",
         400 => "Bad Request",
         403 => "Forbidden",
         404 => "Not Found",
