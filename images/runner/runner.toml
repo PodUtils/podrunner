@@ -1,0 +1,9 @@
+# The official runner of the unit image (GitHub #30). A change of this file
+# is a reviewed commit: `podrunner image verify` and the Dockerfile check
+# the release tarball against these digests. The digests are the ones of
+# the release notes of actions/runner.
+version = "2.338.2"
+
+[sha256]
+x86_64 = "baebf204307bac6193480852732f0aba2ae97b6c5597c244f4d5558390147c40"
+aarch64 = "670adb2f268fe21dcbb58b3db0e0aa9d5b3bddfe2c651481336e561ff86de945"

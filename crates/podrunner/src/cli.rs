@@ -27,6 +27,7 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
                                                     a service unit, with no credential
   pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
   mint-serve --config FILE                          the remote mint (on a machine with no unit)
+  image verify --tarball FILE --arch ARCH           check a runner tarball against its pin
   --version | --help
 ";
 
@@ -142,6 +143,15 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             let binary = o.get("--binary").unwrap_or_else(|| PathBuf::from("/usr/local/bin/podrunner"));
             Ok(ok(print_unit(&binary, &o.need("--config")?, &o.need("--state")?)))
         }
+        "image" => match rest.split_first() {
+            Some((sub, rest)) if sub == "verify" => {
+                let o = opts(rest)?;
+                o.only(&["--tarball", "--arch"])?;
+                let arch = o.need("--arch")?.display().to_string();
+                crate::image::verify(&o.need("--tarball")?, &arch).map(ok).map_err(|e| err(Class::Config, e))
+            }
+            _ => Err(err(Class::Usage, format!("image needs verify\n{USAGE}"))),
+        },
         "mint-serve" => {
             let o = opts(rest)?;
             o.only(&["--config"])?;

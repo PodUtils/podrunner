@@ -624,6 +624,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-services"
+version = "0.17.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.17.0#4da8fb341567436d00803ba1f821185d17b6891a"
+dependencies = [
+ "pod-core",
+ "toml",
+]
+
+[[package]]
 name = "pod-tls"
 version = "0.17.0"
 source = "git+https://github.com/PodUtils/podcrates?tag=v0.17.0#4da8fb341567436d00803ba1f821185d17b6891a"
@@ -653,6 +662,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "pod-core",
+ "pod-services",
  "pod-tls",
  "podrunner-clock",
  "podrunner-egress",
@@ -666,6 +676,7 @@ dependencies = [
  "podrunner-source",
  "podrunner-tier",
  "podrunner-unit",
+ "ring",
  "serde",
  "serde_json",
  "toml",
