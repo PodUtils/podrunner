@@ -165,22 +165,41 @@ pub struct Observation {
 #[serde(transparent)]
 pub struct ContainerId(pub String);
 
-/// A container of a job.
+/// A directory of the unit in a container. The hook checks (GitHub #35)
+/// give only sources under the runner directory of the unit.
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContainerMount {
+    /// A path in the unit root.
+    pub source: std::path::PathBuf,
+    /// A path in the container.
+    pub target: String,
+    pub read_only: bool,
+}
+
+/// A container of a job.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ContainerSpec {
     /// A pinned reference (`NAME@sha256:HEX`).
     pub image: String,
     pub argv: Vec<String>,
     pub env: BTreeMap<String, String>,
+    pub workdir: Option<String>,
+    pub mounts: Vec<ContainerMount>,
+    /// The checked `createOptions` (`--cpus 2`); a driver applies each or
+    /// refuses the start with `container-option-refused`.
+    pub options: Vec<(String, String)>,
 }
 
 /// A command in a container.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ExecSpec {
     pub argv: Vec<String>,
     pub env: BTreeMap<String, String>,
     pub workdir: Option<String>,
     pub stdin: bool,
+    /// A host file for the output (stdout and stderr) of the command: the
+    /// hook relay gives it to the runner as the output of a step.
+    pub log: Option<std::path::PathBuf>,
 }
 
 /// The state of a container.

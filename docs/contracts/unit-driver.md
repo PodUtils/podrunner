@@ -33,7 +33,10 @@ its test, not podrunner at run time.
   conformance tests and for `status`.
 - The container operations exist when the record says `container: hooks`.
   With `container: none`, each is refused (`container-not-supported`).
-  `container_exec` refuses `stdin` (`container-option-refused`).
+  `container_exec` refuses `stdin` (`container-option-refused`). A driver
+  applies each mount and each create option of `container_start`, or
+  refuses the start (`container-option-refused`); the hook checks of
+  `docs/contracts/hook.md` come before it.
 
 ## Operations
 
@@ -46,8 +49,8 @@ its test, not podrunner at run time.
 | `wait` | the unit id, a time limit | the exit, or none |
 | `destroy` | the unit id | the residue counts |
 | `observe` | the unit id | the unit root, the runner root, the process ids |
-| `container_start` | the unit id, a pinned image, argv, environment | a container id |
-| `container_exec` | the unit id, the container id, argv, environment, workdir | the exit |
+| `container_start` | the unit id, a pinned image, argv, environment, workdir, mounts (a path of the unit root, a target, read-only), checked create options | a container id |
+| `container_exec` | the unit id, the container id, argv, environment, workdir, a host file for the output | the exit |
 | `container_logs` | the unit id, the container id | the output so far |
 | `container_inspect` | the unit id, the container id | running, the exit |
 | `container_stop` | the unit id, the container id | none |

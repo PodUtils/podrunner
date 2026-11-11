@@ -14,8 +14,8 @@ mod types;
 pub use podrunner_schema::{Capability, Credential, UnitId};
 pub use stub::Stub;
 pub use types::{
-    ContainerId, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue, Signal,
-    StartSpec, UnitCode, UnitError, parse_pinned,
+    ContainerId, ContainerMount, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue,
+    Signal, StartSpec, UnitCode, UnitError, parse_pinned,
 };
 
 use std::time::Duration;

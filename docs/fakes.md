@@ -34,7 +34,9 @@ under the state directory. Each process carries `PODRUNNER_UNIT` and the
 tag of its unit (`PODRUNNER_UNIT_TAG`) in its environment; `signal` and
 `destroy` find the processes of a unit by a scan of `/proc`, also a
 `setsid` grandchild whose parent is gone. With `container: hooks`, a
-container is a process in a directory of the unit.
+container is a process in a directory of the unit. The fake applies no
+mount and no create option; it writes them to the file `spec` of the
+container directory, one on each line, for the tests of the hooks.
 
 The behaviours of a payload are argv (`payload` of the crate): exit with a
 code, sleep, a `setsid` child with a grandchild, a marker file. A test

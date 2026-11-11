@@ -7,6 +7,7 @@ pub mod http;
 pub mod input;
 pub mod policy;
 pub mod server;
+pub mod unit;
 
 /// The relay script of the unit image: `ACTIONS_RUNNER_CONTAINER_HOOKS`
 /// names it.
@@ -16,3 +17,5 @@ pub const RELAY: &str = include_str!("../relay/podrunner-hook.sh");
 mod tests;
 #[cfg(test)]
 mod tests_server;
+#[cfg(test)]
+mod tests_unit;

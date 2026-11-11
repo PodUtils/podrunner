@@ -337,6 +337,15 @@ impl UnitDriver for FakeUnit {
         let (root, tag) = self.with_unit(unit, |r| Ok((r.root.clone(), r.tag.clone())))?;
         let dir = root.join("containers").join(&id.0);
         fs::create_dir_all(&dir).map_err(|e| host(e, "a container directory"))?;
+        // The fake applies no mount and no option: it records them, one on
+        // each line, for the tests of the hooks.
+        let record: String = spec
+            .mounts
+            .iter()
+            .map(|m| format!("mount {} {} {}\n", m.source.display(), m.target, if m.read_only { "ro" } else { "rw" }))
+            .chain(spec.options.iter().map(|(k, v)| format!("option {k} {v}\n")))
+            .collect();
+        fs::write(dir.join("spec"), record).map_err(|e| host(e, "the record of a container"))?;
         let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         env.push((TAG_VAR.into(), tag));
         let child = self.spawn(&spec.argv, &dir, &env, Some(&dir.join("log")))?;
@@ -359,7 +368,7 @@ impl UnitDriver for FakeUnit {
         })?;
         let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         env.push((TAG_VAR.into(), tag));
-        let mut child = self.spawn(&spec.argv, &dir, &env, None)?;
+        let mut child = self.spawn(&spec.argv, &dir, &env, spec.log.as_deref())?;
         child.wait().map(procs::exit_of).map_err(|e| host(e, "exec"))
     }
 

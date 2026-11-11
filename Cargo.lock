@@ -686,6 +686,7 @@ dependencies = [
 name = "podrunner-hook"
 version = "0.1.0"
 dependencies = [
+ "podrunner-fake",
  "podrunner-schema",
  "podrunner-unit",
  "serde",

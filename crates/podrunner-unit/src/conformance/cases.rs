@@ -264,7 +264,7 @@ fn container_refused_with_no_route(fx: &dyn Fixture) -> Result<Outcome, String> 
         return Ok(Outcome::Skip(format!("the kind has the container route {:?}", cap.container)));
     }
     let u = begin(fx, Behaviour::Sleep)?;
-    let c = ContainerSpec { image: fx.image(), argv: vec![], env: BTreeMap::new() };
+    let c = ContainerSpec { image: fx.image(), ..Default::default() };
     refused("container_start", fx.driver().container_start(&u.id, &c), UnitCode::ContainerNotSupported)
 }
 
@@ -275,12 +275,12 @@ fn container_lifecycle(fx: &dyn Fixture) -> Result<Outcome, String> {
         return Ok(Outcome::Skip(format!("the kind has the container route {:?}", cap.container)));
     }
     let u = begin(fx, Behaviour::Sleep)?;
-    let spec = ContainerSpec { image: fx.image(), argv: fx.payload(Behaviour::Sleep), env: BTreeMap::new() };
+    let spec = ContainerSpec { image: fx.image(), argv: fx.payload(Behaviour::Sleep), ..Default::default() };
     let c = d.container_start(&u.id, &spec).map_err(|e| err("container_start", e))?;
     if !d.container_inspect(&u.id, &c).map_err(|e| err("container_inspect", e))?.running {
         return Err("the container does not run after container_start".into());
     }
-    let exec = ExecSpec { argv: fx.payload(Behaviour::Exit(0)), env: BTreeMap::new(), workdir: None, stdin: false };
+    let exec = ExecSpec { argv: fx.payload(Behaviour::Exit(0)), ..Default::default() };
     match d.container_exec(&u.id, &c, &exec).map_err(|e| err("container_exec", e))? {
         Exit::Code(0) => {}
         other => return Err(format!("container_exec gives {other:?}, not exit code 0")),
