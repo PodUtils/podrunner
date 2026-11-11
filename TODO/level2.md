@@ -392,7 +392,7 @@ Read on 2026-11-11 in PodUtils/podvm#258. Not in a podvm release yet; the next b
 
 ## Approach
 
-After `run -d`, take the tree of the unit from `podvm inspect --format '{{.RootfsPath}}' UNIT`, and use it for `observe` and for the runner directory of the volumes. Keep the credential files written before `run` (the copy takes them, mode 0600), and check the mode in the tree. Raise `probe::LOWEST` to the beta with PodUtils/podvm@T-1709, and pin it in `images/podvm.toml`. That beta also ends a detached payload with its launcher (PodUtils/podvm#262): run the unit tests 25 and 26 on it and give the result to the session of podcrates.
+T-067 does the driver change on the current beta. After `run -d`, take the tree of the unit from `podvm inspect --format '{{.RootfsPath}}' UNIT`, and use it for `observe` and for the runner directory of the volumes. Keep the credential files written before `run` (the copy takes them, mode 0600), and check the mode in the tree. Raise `probe::LOWEST` to the beta with PodUtils/podvm@T-1709, and pin it in `images/podvm.toml`. That beta also ends a detached payload with its launcher (PodUtils/podvm#262): run the unit tests 25 and 26 on it and give the result to the session of podcrates.
 
 ## Prove
 
@@ -401,3 +401,28 @@ After `run -d`, take the tree of the unit from `podvm inspect --format '{{.Rootf
 ## Blocker
 
 A podvm release with PodUtils/podvm@T-1709 (the next beta). Pin that beta only in the commit that does this entry: with the old driver, the container route breaks on it.
+
+# T-067: The podvm driver takes the root of a unit from podvm inspect
+
+**Source:** T-064
+**Category:** feature
+**Milestone:** L2
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The podvm driver takes the rootfs of a unit from `podvm extract` (`crates/podrunner-podvm/src/unit.rs`), and uses it for `observe` and for the volume sources of the hooks (`crates/podrunner-podvm/src/unit/containers.rs`). podvm `main` (PodUtils/podvm#258, PodUtils/podvm@T-1709) copies the image into `<store>/trees/<id>/` at each `run`; `podvm inspect --format '{{.RootfsPath}}' NAME` names that tree. With the next beta, the runner writes `_work` in its tree and a job container mounts the extracted copy: the container route breaks (T-064).
+
+## Premise
+
+Read PodUtils/podvm#258 and the driver on 2026-11-11. `podvm inspect NAME` of `v0.2.0-beta.3` gives JSON with `RootfsPath` (`scripts/measure-hook-path.sh` reads it). Not measured: whether `RootfsPath` of beta.3 equals the path of `extract`.
+
+## Approach
+
+After `run -d`, read `RootfsPath` of the unit container from `podvm inspect` and keep it as the root of the unit: `observe`, the runner directory, the relative volume sources. Keep the credential files written before `run` (the copy of the next beta takes them); after `run`, check their mode 0600 under the new root, and fail the start (`unit-start-failed`) if one is missing. A test with a stand-in `podvm` script whose `inspect` names another directory than `extract` holds the logic with no new podvm. Run the unit suite on beta.3 in `runner-image.yml`. Then T-064 is only the pin of the new beta.
+
+## Prove
+
+`cargo test -p podrunner-podvm rootfs`, and the unit conformance suite and `crates/podrunner-broker-fake/tests/podvm.rs` in `runner-image.yml` on podvm `v0.2.0-beta.3`.

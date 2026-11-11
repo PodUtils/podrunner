@@ -41,7 +41,7 @@ Read the text of GitHub #26 on 2026-11-11. Nothing measured.
 
 Prove through the driver of T-023, with no GitHub, that the official runner starts in a podvm unit with no root. podvm `v0.2.0-beta.3` carries the fixes (PodUtils/podvm@T-1703, PodUtils/podvm@T-1706, PodUtils/podvm@T-1707, PodUtils/podvm@T-1710, PodUtils/podvm@T-1719; PodUtils/podvm#254). The unit gets the JIT files of the fake broker of T-038 as its credential files (`crates/podrunner-broker-fake/tests/podvm.rs`). The runner reads its files from `/home/runner`, and the driver writes them to `/podrunner/.runner`: the image links them with relative links, because an absolute link resolves on the host on the supervise rung (`images/runner/Dockerfile`, T-061). The driver sets `DOTNET_EnableWriteXorExecute=0` and no file size limit (U2, U13).
 
-Open from the acceptance of GitHub #26: exit 7 on a "version too old" answer needs `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` in the start environment, which slots does not set.
+Open from the acceptance of GitHub #26: exit 7 on a "version too old" answer needs `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` in the start environment, which slots does not set (T-066).
 
 ## Prove
 
@@ -399,7 +399,7 @@ Run one live trusted job on an H0 host through the podvm driver.
 
 ## Blocker
 
-The ruling "Test accounts" (DR-7: not now). Also, a podvm unit reports `egress_hold: unknown`, so placement gives it no `trusted` job: the hold of `podnet pod` must be wired into the podvm driver first.
+The ruling "Test accounts" (DR-7: not now). Also, a podvm unit reports `egress_hold: unknown`, so placement gives it no `trusted` job: the hold of `podnet pod` must be wired into the podvm driver first (T-065).
 
 # T-045: The mitigations of DR-4 for trusted jobs at redirect (GitHub #47)
 
@@ -441,3 +441,81 @@ Done: the configuration check of `podrunner_slots::config` (`check_redirect`) re
 ## Done
 
 2026-11-11: each mitigation of GitHub #4 has its test. One job at a time on a shared uid, a slot count on each `trusted` source, one repository for the host (`repo-scope-refused`) and a signed pin list are checks of the configuration at `redirect`; the remote mint caps the offers of each host at its slots (T-031); the host key is the pinned key of the remote mint, with its life and its rotation (call C16); the report and `status` name the boundary, the principal and the hold; `untrusted` stays at `guest`. Each command of the Prove passes (`podrunner-slots`: 35 tests, `podrunner-remote`: 5, `podrunner`: 13).
+
+# T-065: The podvm unit runs under podnet pod: an advisory hold for trusted jobs
+
+**Source:** T-033
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The podvm driver reports `egress_hold: unknown` (`crates/podrunner-podvm/src/probe.rs`: "The hold of `podnet pod` is not wired into this driver"). Placement reads `unknown` as absent, and a `trusted` job needs at least `advisory` (`crates/podrunner-slots/src/placement.rs`, `needed_hold`). So a podvm unit gets no `trusted` job (`hold-not-available`), and milestone M-D (T-033) cannot pass on an H0 host, also when DR-7 is yes. The unit gets `PODRUNNER_EGRESS=http://unix:PATH`, but nothing sends its traffic there: the official runner ignores that variable, and Node and many tools ignore `HTTPS_PROXY`. SPEC §9.1 and §9.5: the podvm driver composes the redirect with `podnet pod -x http://unix:PATH` and reports the hold from what it set up, else `none`.
+
+## Premise
+
+Read the code and SPEC §9 on 2026-11-11. podnet measured `podnet pod --backend seccomp` with the official runner v2.338.2 (T-044, Done): `advisory`, each CONNECT has a flow; `pod doctor --json` gives `hold.seccomp.level`. podnet `v0.4.0-beta.3` is the latest release. Not measured: `podnet pod` around `podvm run -d` on the supervise rung. Both use seccomp: the supervise rung of podvm and the seccomp backend of podnet can each install a filter that returns `SECCOMP_RET_USER_NOTIF`, and which supervisor gets a socket call is not known.
+
+## Approach
+
+1. Measure first (`scripts/measure-podnet-pod.sh PODNET PODVM DIR`, in `runner-image.yml` on x86_64 with no root): `podnet pod --backend seccomp -x http://unix:SOCK -- podvm run -d IMAGE sh -c 'curl ...'` against a loopback CONNECT stand-in on SOCK. Record: does the CONNECT reach SOCK; does a direct connect to a host loopback port pass (it must, at `advisory`); does `podvm wait`, `exec` and `rm -f` still work. A COORD issue `(to podnet)` names each conflict.
+2. Pin podnet in a new file images/podnet.toml (the version and the SHA-256 of the x86_64 binary), as `images/podvm.toml` does.
+3. `[unit.podvm] podnet = "PATH"` (in `driver_dir` when it is set). The driver starts `podvm run -d` under `podnet pod -x http://unix:EGRESS_SOCKET` of the unit, and reports `egress_hold: advisory` with the proof of `pod doctor --json` (`hold.seccomp`). With no `podnet`, the hold stays `unknown`.
+4. Add a case to `crates/podrunner-broker-fake/tests/podvm.rs`: a step of the canned job runs `curl` to an allowed and a denied host of the policy; the audit of the broker shows both, and the denied one fails.
+
+## Prove
+
+`sh scripts/measure-podnet-pod.sh PODNET PODVM DIR` as a uid with no user namespace, `cargo test -p podrunner-podvm hold`, and the podvm tests of `crates/podrunner-broker-fake/tests/podvm.rs` in `runner-image.yml`.
+
+# T-066: slots sets ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1 in the start environment
+
+**Source:** GitHub #26
+**Category:** defect
+**Milestone:** M-C
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+slots makes the host `degraded` when the runner exits 7 ("version too old", `RUNNER_TOO_OLD` in `crates/podrunner-slots/src/run.rs`). The runner returns 7 only when `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE` is the string `1` (SPEC §11.3, measured in M1). No code and no image sets it (`grep -rn RETURN_VERSION crates images` finds nothing). So a stale runner never exits 7, and the check of T-030 does not run. SPEC §10.3 puts the variable in `start.env`, so that a pin cannot drop it. The acceptance of GitHub #26 names it: "`ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` gives exit 7 on a 'version too old' answer of the fake server".
+
+## Premise
+
+Read `crates/podrunner-slots/src/run.rs`, `crates/podrunner-podvm/src/unit.rs` and SPEC §10.3, §11.3 on 2026-11-11. Not measured: the answer of the broker that makes runner v2.338.2 exit 7.
+
+## Approach
+
+slots puts `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` into the environment of each unit, beside `PODRUNNER_UNIT`. The fake broker gets a job kind "version too old" (the answer of `GET /message` that M1 recorded, `docs/design/APPENDIX-MEASUREMENTS.md`). A level 2 test runs the official runner against it and expects exit 7, and slots `degraded`. Plant: no variable; the runner then exits with another code.
+
+## Prove
+
+`cargo test -p podrunner-slots start_env`, and `cargo test -p podrunner-broker-fake --test runner -- --ignored version_too_old` in `level2.yml`.
+
+# T-071: The live gate harness of G-H2 to G-H4, offline on the fake scale set
+
+**Source:** GitHub #32
+**Category:** chore
+**Milestone:** M-C
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The Prove of T-032 names `cargo test -p podrunner-slots --test live -- --ignored gates` in a live workflow; neither the test nor the workflow exists. When the owner allows a test organization (DR-7), the gates G-H2 (labels of a scale set), G-H3 (the minimum App permissions) and G-H4 (a fork job on the trusted set is refused and never acquired) need code first. G-H4 runs on the fake scale set already (`crates/podrunner/tests/scaleset.rs`).
+
+## Premise
+
+Read T-032, T-029 and `tools/fake-scaleset` on 2026-11-11. Nothing measured on github.com (DR-7: not now).
+
+## Approach
+
+A new test target, crates/podrunner/tests/live.rs, with one test for each gate, run against a target that a variable names: the fake scale set (the default, in the gate job `go`) or github.com (secrets of a live workflow). The fake records labels and permissions, so G-H2 and G-H3 have an offline form with a plant each. A new workflow .github/workflows/live.yml, on dispatch only: it ends with "skipped: no secrets" when the secrets do not exist, and starts no runner on another repository. No secret goes into the repository.
+
+## Prove
+
+`cargo test -p podrunner --test live -- --ignored` with `PODRUNNER_FAKE_SCALESET` and `PODRUNNER_SCALESET_SIDECAR` (the gate job `go`).

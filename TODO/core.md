@@ -963,3 +963,156 @@ A shim for each unit with no root (`crates/podrunner-unit/src/shim.rs`): it sets
 ## Done
 
 2026-11-11, `30b9366`; gate run 43018641175, `runner-image.yml` run 43018641300. The unit conformance suite passes on the podvm driver in CI (no root, the runner image as the payload): 25 tests pass and test 13 skips (container route); tests 25 and 26 included. They pass on the fake unit, and each plant fails its test. The host scan of test 21 reads regular files only (a named pipe of the podvm store blocked it; a test holds it).
+
+# T-068: serve keeps each job, report and journal line forever
+
+**Source:** T-033
+**Category:** defect
+**Milestone:** M-D
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A `serve` that runs for weeks grows with no bound. In `crates/podrunner-slots/src/engine.rs` the maps `jobs` and `suppressed` and the list `reports` only grow: no code removes a final job, an expired suppression or a sent report. `progress` walks each job at each tick. The journal (`crates/podrunner-slots/src/journal.rs`) only appends, and `replay` reads the whole file at each start. The ledger of the remote mint (`crates/podrunner-remote/src/ledger.rs`) reads each line at open, too. Memory, the time of a tick and the time of a start grow with the count of jobs since the first start.
+
+## Premise
+
+Read the code on 2026-11-11: `grep -rn "jobs.remove\|jobs.retain\|reports" crates/podrunner-slots/src` finds no removal. Not measured: the memory of one job, and the time of a replay of a long journal.
+
+## Approach
+
+- Forget a job when it is `reported` and its report went out (T-069): remove it from `jobs`; keep a bounded ring of the last reports for `status` (for example 256).
+- Remove a suppression when its time passes.
+- Compact the journal at start, after the reconcile: write the open jobs only to a new file, sync it, and rename it over the old one (the lock of `serve` is held). The same for the ledger of the mint: keep the lines that a later call can need (the jobs whose credential still lives, the alert counts of each host).
+- A level 1 test: 10 000 jobs on the fake source and the manual clock; the count of `jobs` and the size of the journal after a restart stay under a bound. Plant: no removal.
+
+## Prove
+
+`cargo test -p podrunner-slots bounded`, `cargo test -p podrunner-remote ledger_compact`
+
+# T-069: A report that the source refuses is retried, then spooled
+
+**Source:** T-014
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+SPEC §11.1: from `destroyed` to `reported`, on a failure: "Retry, then spool in the state directory". `crates/podrunner-slots/src/run.rs` (`report`) sends the report once and drops the error (`let _ = ... .report(...)`). A sidecar that restarts or a remote mint that a host cannot reach loses the report of each job that ends in that time.
+
+## Premise
+
+Read `crates/podrunner-slots/src/run.rs` and SPEC §11.1 on 2026-11-11. Nothing measured.
+
+## Approach
+
+A failed `report` keeps the job in a `reporting` set with a backoff, up to `report_s`. After `report_s`, write the report to `STATE/spool/JOB.json` (mode 0600, no credential) and an audit line `report-spooled`. At start and when the source answers again, send each spooled report and remove its file. `status` counts the spooled reports. Tests on the fake source with a planted refusal of `report`: the report reaches the source after the refusal ends, and after a restart.
+
+## Prove
+
+`cargo test -p podrunner-slots report_spool`
+
+# T-070: podrunner doctor reads the configuration and the probes of each kind
+
+**Source:** GitHub #22
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner doctor` (`crates/podrunner/src/doctor.rs`) runs `pod` and `podvm` from `PATH`, prints the count of the keys of `podvm probe --json`, and always prints "missing: the guest self-test". It reads no configuration, so it does not use the binaries of `[unit.podvm]` and `driver_dir` (T-036 refuses a driver from `PATH`), does not show the capability record that placement reads, and gives no JSON. SPEC §11.5 and call C9: `doctor` is a thin reader of `podvm probe`, `pod-hostprobe` and the self-test. `pod-hostprobe` is in podcrates `v0.24.0`, and `pod-confine` gives the Landlock ABI.
+
+## Premise
+
+Read `crates/podrunner/src/doctor.rs`, `docs/cli.md` and the README of `pod-hostprobe` at `v0.24.0` on 2026-11-11. Nothing measured.
+
+## Approach
+
+`podrunner doctor [--config FILE] [--json]`. With a configuration: for each unit kind, the driver binary of the file, the capability record of its `probe` through the driver (the record that placement reads), and the tiers that the host can serve with it (`no-tier-served`). Always: the findings of `pod-hostprobe` that the drivers need (user namespaces, mount, chroot, KVM), the Landlock ABI of `pod-confine`, and the hold of `pod doctor --json` when the `pod` binary is given. Each missing input is named; `doctor` decides nothing and changes no file. A test with a fake configuration and a stand-in `podvm` checks the text and the JSON; `docs/cli.md`.
+
+## Prove
+
+`cargo test -p podrunner doctor`
+
+# T-072: U10: the egress module against a proxy that resets CONNECT to an IP literal
+
+**Source:** GitHub #9
+**Category:** measurement
+**Milestone:** M-D
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+U10 of `docs/unknowns.md`: "The broker fails on a proxy that resets CONNECT to IP literals". `pod-broker` has a names mode (`upstream_names_only`, T-048), but no test sends a job through the egress module to an upstream that resets a CONNECT to an IP literal and accepts a name. U10 stays open, and T-009 with it.
+
+## Premise
+
+Read `docs/unknowns.md` and T-048 on 2026-11-11. T-048 tests the canary against two fake proxies (200 and 403). Nothing else measured.
+
+## Approach
+
+A loopback test of `crates/podrunner-egress`: a fake upstream CONNECT proxy that resets each CONNECT to an IP literal and tunnels a CONNECT to a name to a loopback server; a fake resolver. With `upstream_names_only = false` the request of the unit fails; with `true` it reaches the server, and the canary check answers as the proxy says. Write the result into U10.
+
+## Prove
+
+`cargo test -p podrunner-egress ip_literal`
+
+# T-074: The disk limit of a unit
+
+**Source:** T-014
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+SPEC §10.4: H0 has no mount, so no sized tmpfs and no quota. "`slots` watches the unit's workspace with `du` on an interval and ends the job with `limit`. `limits.disk` is `reported`. A job whose `limits_required` names `disk` on a unit that reports nothing for it is `limit-not-enforceable`." No code of slots or of a driver watches the disk of a unit: a job can fill the disk of the host.
+
+## Premise
+
+Read SPEC §10.4 and `crates/podrunner-slots/src` on 2026-11-11: `disk` appears only in the journal code. `limits` of the capability record of `pod-job` names `disk`. Nothing measured.
+
+## Approach
+
+`observe` gives the unit root. slots sums the bytes under it (no symlink followed, one file system) every `disk_check_s` (default 30), and ends a job over its limit (the `limits` of the offer, else `[unit.X] disk_max_bytes`) with the reason `limit` and an audit line. The fake and podvm kinds report `disk: reported` only when the operator sets a bound. Test on the fake unit with a payload that writes past the bound; plant: no check.
+
+## Prove
+
+`cargo test -p podrunner-slots disk_limit`
+
+# T-075: The report and status fields of SPEC §11.4 and §11.5
+
+**Source:** T-014
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+SPEC §11.4 names `claim_to_first_step_s` (from the claim to the job-started hook) and `job_images` (the digests of the job images) in the run report; SPEC §11.5 names credential ages and the App id and key age in `status`. `RunReport` of `pod-job` at `v0.24.0` has neither report field, and `crates/podrunner-slots/src/status.rs` shows no age of a credential or of the App key.
+
+## Premise
+
+Read SPEC §11.4, §11.5, `pod-job` (`report.rs`) at `v0.24.0` and `crates/podrunner-slots/src/status.rs` on 2026-11-11. Nothing measured.
+
+## Approach
+
+Ask podcrates (a direct message) for the two optional fields in `RunReport` of `pod-job`; fill them in slots from the `started` time and the images of the hook calls. Add to `status` the age of each credential of a running job and the age of the key file of each `github-scaleset` source (from its time of change), with no value of the key. Regenerate `schemas/status.v1.json`.
+
+## Prove
+
+`cargo test -p podrunner-slots status_schema`, `cargo test -p podrunner-slots report_fields`

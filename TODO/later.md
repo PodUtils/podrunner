@@ -7,7 +7,7 @@ The crate dependencies later than v1 (GitHub #41 to #43).
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -35,15 +35,15 @@ Read the text of GitHub #41 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-The podvm driver reports `egress_hold: enforced` with its proof when the crate gives one; a test plants a false claim.
+`pod-hold` is in podcrates `v0.24.0`: the seccomp hold (`advisory`) and the netns hold (`enforced`: a new network namespace in a new user namespace, its only route a TUN that the supervisor holds). The netns hold needs unprivileged user namespaces and `/dev/net/tun`, so H0 gets `advisory` at most; a host with user namespaces (the namespace rung of podvm) can get `enforced`. Measure `podnet pod --backend netns` around `podvm run -d` on such a host; when it holds, the podvm driver reports `egress_hold: enforced` with the proof of `pod doctor --json` (`hold.netns`), and a test plants a false claim that fails.
 
 ## Prove
 
 `cargo test -p podrunner-podvm hold`
 
-## Blocker
+## Start condition
 
-podcrates names the crate of the hold and its proof (PodUtils/podcrates@T-109); podvm (on break) takes it.
+T-065 is done: the podvm driver runs its units under `podnet pod` with the `advisory` hold.
 
 # T-042: The confined boundary (pod-confine) (GitHub #42)
 
@@ -176,3 +176,32 @@ A third source kind, `local`, behind `JobSource` (the source conformance suite a
 ## Blocker
 
 The crates `pod-actions-workflow` and `pod-actions-expr` of podcrates do not exist at `v0.24.0`. The unit (T-026) and the fake broker (T-038) are done.
+
+# T-073: Take the podcrates tag after v0.24.0: pod-confine drops each capability
+
+**Source:** PodUtils/podcrates@T-221
+**Category:** chore
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+Root keeps `CAP_SYS_ADMIN` and `CAP_PERFMON`, which pass Landlock for an unconfined ancestor, so the confine test of `crates/podrunner-unit/src/confine.rs` has a root guard. The next tag of podcrates changes `pod-confine`: `apply` drops each capability, and `Spec` gets new fields (scope, udp; podrunner uses the builders).
+
+## Premise
+
+Read the answer of podcrates (PodUtils/podcrates@T-221) on 2026-11-11. Not in `v0.24.0`.
+
+## Approach
+
+Move each `pod-*` dependency of `Cargo.toml` to the new tag, build, remove the root guard of the confine test, and run conformance test 27 as root and as a user.
+
+## Prove
+
+`cargo test -p podrunner-unit confined`, as root and as a user.
+
+## Blocker
+
+podcrates releases the tag after `v0.24.0` with PodUtils/podcrates@T-221.

@@ -38,7 +38,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #30 | WP-10: image pipeline: pins, age limit, `podrunner image build` | open (blocked: the aarch64 interposer of podvm, T-051) | T-030 |
 | #31 | WP-05b: remote mint (only if DR-4 is yes) | closed (`4e6d029`, gate run 42957378324) | T-031 |
 | #32 | Milestone M-C: live gates G-H2 to G-H4 on a `fake` unit | open (blocked: DR-7) | T-032 |
-| #33 | Milestone M-D: one live trusted job on a no-root host | open (blocked: DR-7, the hold of a podvm unit) | T-033 |
+| #33 | Milestone M-D: one live trusted job on a no-root host | open (blocked: DR-7, the hold of a podvm unit, T-065) | T-033 |
 | #34 | WP-13: measure U19 and U21 on the podvm rung | closed (T-034, podvm `v0.2.0-beta.3`) | T-034 |
 | #35 | WP-09: hook relay and the per-unit control socket server (`ctl`) | closed (`fda577d`, gate run 42991333922) | T-035 |
 | #36 | Guest floor self-test | open (blocked: a real guest, T-037) | T-036 |
@@ -46,7 +46,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #38 | WP-12: canned-message fake broker (level 2) | closed (T-026, runner-image run 42987612426) | T-038 |
 | #39 | Milestone L2: level 2 green, hook path measured | open (blocked: T-036, T-037) | T-039 |
 | #40 | Level 3: live acceptance suite | open (blocked: DR-7) | T-040 |
-| #41 | Hold `enforced` on podvm units (`pod-hold` or `pod-sud`) | open (later than v1) | T-041 |
+| #41 | Hold `enforced` on podvm units (`pod-hold` or `pod-sud`) | open (later than v1; starts after T-065) | T-041 |
 | #42 | `confined` boundary (`pod-confine`) | open (blocked: PodUtils/podvm#259) | T-042 |
 | #43 | Later crates: service unit, release index, acceptance registry | open (blocked: `pod-unit`, `pod-release` of podcrates) | T-043 |
 | #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | closed (answered in PodUtils/podnet#425) | T-044 |

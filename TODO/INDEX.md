@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**64 entries: 0 open, 2 partial, 16 blocked, 46 done.**
+**75 entries: 11 open, 2 partial, 16 blocked, 46 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 0 | 1 | 1 | 22 | 24 |
-| P2 | 0 | 1 | 10 | 23 | 34 |
-| P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 0 | 2 | 16 | 46 | 64 |
+| P1 | 4 | 1 | 1 | 22 | 28 |
+| P2 | 5 | 1 | 10 | 23 | 39 |
+| P3 | 2 | 0 | 5 | 1 | 8 |
+| **All** | 11 | 2 | 16 | 46 | 75 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -88,7 +88,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-038](level2.md) | P2 | S | L2 | feature | done | WP-12: the canned-message fake broker (level 2) (GitHub #38) |
 | [T-039](level2.md) | P2 | S | L2 | chore | blocked | Milestone L2: level 2 green, the hook path measured (GitHub #39) |
 | [T-040](level2.md) | P3 | M | L3 | chore | blocked | Level 3: the live acceptance suite (GitHub #40) |
-| [T-041](later.md) | P3 | S | later | feature | blocked | Hold enforced on podvm units (pod-hold or pod-sud) (GitHub #41) |
+| [T-041](later.md) | P3 | S | later | feature | open | Hold enforced on podvm units (pod-hold or pod-sud) (GitHub #41) |
 | [T-042](later.md) | P3 | S | later | feature | blocked | The confined boundary (pod-confine) (GitHub #42) |
 | [T-043](later.md) | P3 | S | later | feature | blocked | Later crates: service unit, release index, acceptance registry (GitHub #43) |
 | [T-044](plan.md) | P2 | S | M-A | chore | done | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |
@@ -112,3 +112,14 @@ acceptance, later The crate dependencies later than v1.
 | [T-062](core.md) | P2 | S | L2 | defect | blocked | COORD-008: on the supervise rung a volume given as :ro is writable (GitHub #62) |
 | [T-063](core.md) | P1 | M | L2 | defect | done | The tree kill finds a unit by an environment tag, and a process can drop it |
 | [T-064](level2.md) | P1 | S | L2 | feature | blocked | The podvm driver follows the tree of each container (PodUtils/podvm@T-1709) |
+| [T-065](live.md) | P1 | M | M-D | feature | open | The podvm unit runs under podnet pod: an advisory hold for trusted jobs |
+| [T-066](live.md) | P1 | S | M-C | defect | open | slots sets ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1 in the start environment |
+| [T-067](level2.md) | P1 | S | L2 | feature | open | The podvm driver takes the root of a unit from podvm inspect |
+| [T-068](core.md) | P1 | M | M-D | defect | open | serve keeps each job, report and journal line forever |
+| [T-069](core.md) | P2 | S | M-D | feature | open | A report that the source refuses is retried, then spooled |
+| [T-070](core.md) | P2 | S | M-D | feature | open | podrunner doctor reads the configuration and the probes of each kind |
+| [T-071](live.md) | P2 | M | M-C | chore | open | The live gate harness of G-H2 to G-H4, offline on the fake scale set |
+| [T-072](core.md) | P2 | S | M-D | measurement | open | U10: the egress module against a proxy that resets CONNECT to an IP literal |
+| [T-073](later.md) | P3 | S | later | chore | blocked | Take the podcrates tag after v0.24.0: pod-confine drops each capability |
+| [T-074](core.md) | P2 | M | M-D | feature | open | The disk limit of a unit |
+| [T-075](core.md) | P3 | S | M-D | feature | open | The report and status fields of SPEC §11.4 and §11.5 |

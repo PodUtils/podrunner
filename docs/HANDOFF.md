@@ -26,18 +26,16 @@ is done.
   podvm (PodUtils/podvm#259).
 - A podvm unit reports `egress_hold: unknown`: `podnet pod` is not wired
   into the driver, so placement gives a podvm unit no `trusted` job
-  (`hold-not-available`). The record has an entry for this gap
-  (`TODO/PROGRESS.md`, work order).
+  (`hold-not-available`). T-065 wires it.
 
 ## In flight
 
 - T-064: the next podvm beta copies the image for each container
-  (PodUtils/podvm#258). Take the root of a unit from `podvm inspect`
-  before that beta is pinned, then pin it and run tests 25 and 26 on it.
+  (PodUtils/podvm#258). T-067 takes the root of a unit from
+  `podvm inspect` first; then pin the beta and run tests 25 and 26 on it.
 - The podcrates tag after `v0.24.0` changes `pod-confine`: new fields of
   `Spec` (podrunner uses the builders), and `apply` drops each capability
-  (PodUtils/podcrates@T-221). Take it, then remove the root guard of the
-  test in `crates/podrunner-unit/src/confine.rs`.
+  (PodUtils/podcrates@T-221): T-073.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work.
@@ -51,7 +49,7 @@ is done.
 | podvm | `pod-confine` in its units (PodUtils/podvm#259) | T-042 |
 | podvm | the aarch64 interposer (PodUtils/podvm@T-1721) | T-051, T-030 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
-| podcrates | the tag after `v0.24.0` (`pod-confine`) | `HANDOFF` only, above |
+| podcrates | the tag after `v0.24.0` (`pod-confine`) | T-073 |
 | podcrates | `pod-actions-workflow`, `pod-actions-expr` | T-046 |
 | podcrates | `pod-unit`, `pod-release` | T-043 |
 
