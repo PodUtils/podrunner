@@ -57,6 +57,7 @@ impl Slots {
             state_dir: state_dir.to_path_buf(),
             egress: None,
             egress_down: false,
+            guest: Default::default(),
         };
         s.reconcile(replay.open);
         Ok(s)

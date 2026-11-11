@@ -167,6 +167,10 @@ pub struct Config {
     /// Take the payload of an offer when it is on the pin list.
     #[serde(default)]
     pub payload_from_offer: bool,
+    /// The directory of the driver executables (the podvm binary, the
+    /// sidecars): each one must be in it (GitHub #36).
+    #[serde(default)]
+    pub driver_dir: Option<String>,
     /// The one repository (`owner/repo`) that the host serves; an offer of
     /// another repository is `repo-scope-refused`. `trusted` at
     /// `redirect` needs it (DR-4).
@@ -190,6 +194,24 @@ pub struct Config {
     /// The egress policy ceiling of each tier (T-024).
     #[serde(default)]
     pub egress: Map<String, Value>,
+}
+
+/// Check a driver file at its use: the file and its directory belong to
+/// root or to this uid, and the group and the others cannot write them.
+pub fn check_driver(path: &std::path::Path) -> Result<(), String> {
+    use std::os::unix::fs::MetadataExt;
+    // SAFETY: getuid has no failure and no side effect.
+    let me = unsafe { libc::getuid() };
+    for p in [Some(path), path.parent()].into_iter().flatten() {
+        let m = std::fs::metadata(p).map_err(|e| format!("{}: {}", p.display(), e.kind()))?;
+        if m.uid() != 0 && m.uid() != me {
+            return Err(format!("{} belongs to another user", p.display()));
+        }
+        if m.mode() & 0o022 != 0 {
+            return Err(format!("{} is writable by the group or the others", p.display()));
+        }
+    }
+    Ok(())
 }
 
 /// The lowest floor of each tier that the configuration may set. `trusted`
@@ -282,6 +304,20 @@ impl Config {
             podrunner_unit::parse_pinned(&p.reference).map_err(|e| format!("[[pin.payload]]: {e}"))?;
         }
         crate::pins::verify(&self.pin)?;
+        let drivers = self.unit.iter().map(|(n, u)| (format!("[unit.{n}] binary"), &u.binary));
+        let sidecars = self.source.iter().map(|s| (format!("[[source]] {:?} sidecar", s.name), &s.sidecar));
+        for (key, path) in drivers.chain(sidecars) {
+            let Some(path) = path else { continue };
+            let p = std::path::Path::new(path);
+            if !p.is_absolute() {
+                return Err(format!("{key} is not an absolute path: a driver never comes from PATH"));
+            }
+            if let Some(dir) = &self.driver_dir
+                && p.parent() != Some(std::path::Path::new(dir))
+            {
+                return Err(format!("{key} is not in driver_dir"));
+            }
+        }
         Ok(())
     }
 

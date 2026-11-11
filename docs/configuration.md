@@ -12,6 +12,7 @@ same_principal_ok = false    # more than one unit at a time on a shared principa
 payload_from_offer = false   # take the payload of an offer when it is pinned
 repository = "owner/repo"    # the one repository of the host (DR-4); other offers: repo-scope-refused
 guest_kinds = ["microvm"]    # the kinds whose claim of guest may hold, after the self-test
+driver_dir = "/opt/podrunner/drivers"  # each binary and sidecar is in it; absolute paths only
 
 [[source]]                   # one set: one tier, one architecture, this host
 name = "org-trusted"

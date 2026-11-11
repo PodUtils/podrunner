@@ -28,17 +28,21 @@ is done.
 - M-C: done T-027, T-028, T-029. T-030 (the
   image pipeline) waits for the Actions hosts of `pod-services`
   (PodUtils/podcrates@T-164).
-- L2: T-036 is partial (the guest self-test; the rest of its checks are
-  in the entry). T-034, T-035, T-038 need podvm fixes or the runner on
-  podvm (T-026, blocked).
+- L2: T-036 is blocked: the self-test, the second unit, the daily and
+  driver-change retest and the driver checks are in; the read-only mounts
+  and a real guest need T-037 (PodUtils/podvm@T-1656). T-034, T-038 need the
+  runner on podvm (T-026, blocked); T-035 starts on the fake unit.
+- M-D: T-045 (the mitigations of DR-4) is partial: the configuration
+  check, the repository of the host and the signed pin list are in; the
+  host key and the token life come with T-031 (PodUtils/podcrates@T-165).
 - podnet answered COORD-001 (PodUtils/podnet#425): the runner pin
   `actions/runner` v2.338.2 and the object `hold` of `pod doctor --json`
   (T-044).
 
 ## In flight
 
-- T-036 (the rest of the guest checks) and T-035 (the hook relay and
-  the control socket of each unit, on the fake unit first).
+- T-035 (the hook relay and the control socket of each unit, on the fake
+  unit first).
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The spec of the design review (T-014): the owner holds it as a zip. The

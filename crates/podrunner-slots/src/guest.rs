@@ -6,8 +6,10 @@
 //!
 //! The test unit writes what it sees into its working directory: the boot
 //! id of its kernel, its network interfaces other than `lo`, whether a
-//! canary file that slots planted on the host is visible, and whether the
-//! process of slots is visible. The host and the unit share no boot id.
+//! canary file that slots planted on the host is visible, whether the
+//! process of slots is visible, and whether the process and the file of a
+//! first unit that still runs are visible. The host and the unit share no
+//! boot id.
 
 use std::path::Path;
 use std::time::Duration;
@@ -23,9 +25,51 @@ pub fn self_test(
     driver: &dyn UnitDriver,
     payload: &str,
     platform: &str,
-    unit: UnitId,
+    units: (UnitId, UnitId),
     scratch: &Path,
 ) -> Result<(), String> {
+    let (text, reached) = observe(driver, payload, platform, units, scratch)?;
+    if reached {
+        return Err("the unit reached a listener on the loopback of the host".into());
+    }
+    let host_boot = std::fs::read_to_string("/proc/sys/kernel/random/boot_id").unwrap_or_default();
+    judge(&text, host_boot.trim())
+}
+
+/// The lines of the test unit, and whether it reached the listener on the
+/// loopback of the host.
+pub(crate) fn observe(
+    driver: &dyn UnitDriver,
+    payload: &str,
+    platform: &str,
+    (first, unit): (UnitId, UnitId),
+    scratch: &Path,
+) -> Result<(String, bool), String> {
+    // A first unit that runs during the test: its marker is in its argv and
+    // in a file of its root. The test unit builds the marker from two parts,
+    // so that the marker is in no argv of the test unit.
+    let mark = format!("{}", std::process::id());
+    let image = driver.prepare(payload, platform, false).map_err(|e| format!("prepare: {e}"))?;
+    let argv = vec!["sh".into(), "-c".into(), format!(": > podrunner-first-{mark}; sleep 60; :")];
+    let spec = StartSpec { unit: first.clone(), image, argv, env: Default::default(), credential: Default::default() };
+    driver.start(&spec).map_err(|e| format!("start the first unit: {e}"))?;
+    let first_root = driver.observe(&first).ok().and_then(|o| o.unit_root);
+    let verdict = second(driver, payload, platform, unit, scratch, &mark, first_root.as_deref());
+    let _ = driver.destroy(&first);
+    verdict
+}
+
+/// The test unit, while the first unit runs.
+fn second(
+    driver: &dyn UnitDriver,
+    payload: &str,
+    platform: &str,
+    unit: UnitId,
+    scratch: &Path,
+    mark: &str,
+    first_root: Option<&Path>,
+) -> Result<(String, bool), String> {
+    let first_file = first_root.map(|r| r.display().to_string()).unwrap_or_else(|| "/nonexistent".into());
     let canary = scratch.join(format!("podrunner-guest-canary-{}", std::process::id()));
     std::fs::write(&canary, "canary").map_err(|e| format!("the canary: {}", e.kind()))?;
     // A listener on the loopback of the host: a unit that reaches it shares
@@ -39,6 +83,9 @@ pub fn self_test(
          echo net=$(ls /sys/class/net 2>/dev/null | grep -vx lo | tr '\\n' ' '); \
          if [ -e '{canary}' ]; then echo canary=visible; else echo canary=absent; fi; \
          if [ -d /proc/{me} ] && grep -q podrunner /proc/{me}/cmdline 2>/dev/null; then echo hostpid=visible; else echo hostpid=absent; fi; \
+         f=podrunner-first; f=$f-{mark}; p=absent; \
+         for c in /proc/[0-9]*/cmdline; do case \"$(tr '\\0' ' ' < $c 2>/dev/null)\" in *\"$f\"*) p=visible;; esac; done; echo firstproc=$p; \
+         if [ -e '{first_file}'/\"$f\" ]; then echo firstfile=visible; else echo firstfile=absent; fi; \
          }} > {RESULT}; \
          (command -v nc >/dev/null && nc -w 1 127.0.0.1 {port} </dev/null) >/dev/null 2>&1; \
          (command -v bash >/dev/null && bash -c 'exec 3<>/dev/tcp/127.0.0.1/{port}') >/dev/null 2>&1; true",
@@ -47,12 +94,7 @@ pub fn self_test(
     let result = run(driver, payload, platform, unit, &script);
     let _ = std::fs::remove_file(&canary);
     let reached = listener.accept().is_ok();
-    let text = result?;
-    if reached {
-        return Err("the unit reached a listener on the loopback of the host".into());
-    }
-    let host_boot = std::fs::read_to_string("/proc/sys/kernel/random/boot_id").unwrap_or_default();
-    judge(&text, host_boot.trim())
+    Ok((result?, reached))
 }
 
 /// Start the test unit, wait for its end, and read its result file.
@@ -88,7 +130,51 @@ pub fn judge(text: &str, host_boot_id: &str) -> Result<(), String> {
     if get("hostpid") != "absent" {
         return Err("the unit sees a process of the host".into());
     }
+    if get("firstproc") != "absent" {
+        return Err("the unit sees a process of another unit".into());
+    }
+    if get("firstfile") != "absent" {
+        return Err("the unit sees a file of another unit".into());
+    }
     Ok(())
+}
+
+/// The test runs again after this time.
+pub const RETEST_MS: u64 = 24 * 3600 * 1000;
+
+/// The identity of a driver file: a new install changes it.
+pub type Stamp = (u64, u64, i64);
+
+/// The inode, the size and the time of change of `path`.
+pub fn stamp(path: &Path) -> Option<Stamp> {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata(path).ok().map(|m| (m.ino(), m.size(), m.ctime()))
+}
+
+/// A kind that claims `guest`: its claim, and when slots tests it again
+/// (each day, and when its driver file changes).
+#[derive(Debug, Clone)]
+pub struct Retest {
+    pub claim: Capability,
+    pub allowed: bool,
+    pub payload: String,
+    pub platform: String,
+    pub last_ms: u64,
+    pub driver: Option<std::path::PathBuf>,
+    pub stamp: Option<Stamp>,
+}
+
+impl Retest {
+    pub fn due(&self, now_ms: u64) -> bool {
+        let changed = self.driver.as_deref().is_some_and(|d| stamp(d) != self.stamp);
+        changed || now_ms.saturating_sub(self.last_ms) >= RETEST_MS
+    }
+}
+
+/// The unit ids of the self-test: above each id that a job gets.
+pub fn test_ids() -> (UnitId, UnitId) {
+    let id = |n: &str| UnitId::parse(n).expect("a unit id");
+    (id("u-999999997"), id("u-999999998"))
 }
 
 /// The record of a kind after the test: a claim of `guest` that is not on
@@ -117,16 +203,20 @@ mod tests {
 
     #[test]
     fn the_verdict_needs_each_line() {
-        let good = "boot_id=b2\nnet=\ncanary=absent\nhostpid=absent\n";
+        let good = "boot_id=b2\nnet=\ncanary=absent\nhostpid=absent\nfirstproc=absent\nfirstfile=absent\n";
         assert_eq!(judge(good, "b1"), Ok(()));
-        for (bad, why) in [
-            ("boot_id=b1\nnet=\ncanary=absent\nhostpid=absent", "same boot id"),
-            ("boot_id=b2\nnet=eth0\ncanary=absent\nhostpid=absent", "network"),
-            ("boot_id=b2\nnet=\ncanary=visible\nhostpid=absent", "file of the host"),
-            ("boot_id=b2\nnet=\ncanary=absent\nhostpid=visible", "process of the host"),
-            ("", "same boot id"),
+        for (from, to, why) in [
+            ("boot_id=b2", "boot_id=b1", "same boot id"),
+            ("net=\n", "net=eth0\n", "network"),
+            ("canary=absent", "canary=visible", "file of the host"),
+            ("hostpid=absent", "hostpid=visible", "process of the host"),
+            ("firstproc=absent", "firstproc=visible", "process of another unit"),
+            ("firstfile=absent", "firstfile=visible", "file of another unit"),
+            ("firstfile=absent\n", "", "file of another unit"),
+            (good, "", "same boot id"),
         ] {
-            assert!(judge(bad, "b1").unwrap_err().contains(why), "{bad}");
+            let bad = good.replace(from, to);
+            assert!(judge(&bad, "b1").unwrap_err().contains(why), "{bad}");
         }
     }
 }

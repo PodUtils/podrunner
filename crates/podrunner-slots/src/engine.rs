@@ -92,6 +92,8 @@ pub struct Slots {
     pub(crate) egress: Option<Box<dyn EgressPort>>,
     /// The egress module ended: fail closed.
     pub(crate) egress_down: bool,
+    /// The kinds that claim `guest`, by index: the self-test runs again.
+    pub(crate) guest: BTreeMap<usize, crate::guest::Retest>,
 }
 
 impl Slots {
@@ -109,11 +111,42 @@ impl Slots {
     pub fn tick(&mut self) {
         let now = self.now();
         self.check_egress(now);
+        self.retest_guests(now);
         self.progress(now);
         for s in 0..self.sources.len() {
             self.poll(s, now);
         }
         self.retry_waiting(now);
+    }
+
+    /// Test the claim of `guest` of kind `kind` again each day and on a
+    /// change of its driver file (GitHub #36).
+    pub fn retest_guest(&mut self, kind: usize, retest: crate::guest::Retest) {
+        self.guest.insert(kind, retest);
+    }
+
+    /// Run each self-test that is due, on a kind with no running unit.
+    fn retest_guests(&mut self, now: u64) {
+        let views = self.kind_views();
+        let due: Vec<usize> =
+            self.guest.iter().filter(|(i, r)| r.due(now) && views[**i].running == 0).map(|(i, _)| *i).collect();
+        for i in due {
+            let r = self.guest.get_mut(&i).expect("a retest");
+            let verdict = if r.allowed {
+                let scratch = self.state_dir.clone();
+                crate::guest::self_test(
+                    self.kinds[i].driver.as_ref(),
+                    &r.payload,
+                    &r.platform,
+                    crate::guest::test_ids(),
+                    &scratch,
+                )
+            } else {
+                Err("not on guest_kinds".into())
+            };
+            (r.last_ms, r.stamp) = (now, r.driver.as_deref().and_then(crate::guest::stamp));
+            self.kinds[i].capability = crate::guest::settle(r.claim.clone(), r.allowed, verdict).0;
+        }
     }
 
     pub fn drain(&mut self) {

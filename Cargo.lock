@@ -720,6 +720,7 @@ dependencies = [
 name = "podrunner-slots"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "pod-identity",
  "podrunner-clock",
  "podrunner-fake",

@@ -98,6 +98,8 @@ fn scaleset(
     if s.operator_controlled {
         args.push("-operator-controlled".into());
     }
+    podrunner_slots::config::check_driver(Path::new(&get(&s.sidecar)))
+        .map_err(|e| fail(Class::Config, format!("[[source]] {} sidecar: {e}", s.name)))?;
     let caller = format!("sidecar:{}", s.name);
     Ok(podrunner_mint::SidecarSource::new(&get(&s.sidecar), args, Arc::new(std::sync::Mutex::new(signer)), &caller))
 }
@@ -125,6 +127,7 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
         sources.push(Source { cfg: s.clone(), source, revoked: false });
     }
     let mut kinds = Vec::new();
+    let mut retests = Vec::new();
     for (name, u) in &cfg.unit {
         let (driver, capability): (Box<dyn podrunner_unit::UnitDriver>, Capability) = match name.as_str() {
             "fake" => {
@@ -136,7 +139,10 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                 let need = |v: &Option<String>, key: &str| {
                     v.clone().ok_or_else(|| fail(Class::Config, format!("[unit.podvm] needs {key}")))
                 };
-                let podvm = podrunner_podvm::Podvm { binary: need(&u.binary, "binary")?.into() };
+                let binary = need(&u.binary, "binary")?;
+                podrunner_slots::config::check_driver(Path::new(&binary))
+                    .map_err(|e| fail(Class::Config, format!("[unit.podvm] binary: {e}")))?;
+                let podvm = podrunner_podvm::Podvm { binary: binary.into() };
                 let images = PathBuf::from(need(&u.images, "images")?);
                 let mut unit = podrunner_podvm::PodvmUnit::new(podvm, &state.join("podvm"), &images)
                     .map_err(|e| fail(Class::Unsupported, format!("[unit.podvm]: {e}")))?;
@@ -161,22 +167,43 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
             }
         };
         // A claim of guest holds only on the allowlist and after the
-        // self-test of GitHub #36.
+        // self-test of GitHub #36; slots tests it again each day and on a
+        // change of the driver file.
         let capability = if capability.boundary == podrunner_schema::Boundary::Guest {
             let allowed = cfg.guest_kinds.contains(name);
             let pin = cfg.pin.payload.iter().find(|p| p.arch == capability.arch);
+            let platform = if capability.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" };
             let verdict = match (allowed, pin) {
-                (true, Some(p)) => {
-                    let id = podrunner_schema::UnitId::parse("u-999999998").expect("a unit id");
-                    let platform = if capability.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" };
-                    podrunner_slots::guest::self_test(driver.as_ref(), &p.reference, platform, id, state)
-                }
+                (true, Some(p)) => podrunner_slots::guest::self_test(
+                    driver.as_ref(),
+                    &p.reference,
+                    platform,
+                    podrunner_slots::guest::test_ids(),
+                    state,
+                ),
                 (true, None) => Err("no pinned payload for the self-test".into()),
                 (false, _) => Err("not on guest_kinds".into()),
             };
+            let claim = capability.clone();
             let (cap, note) = podrunner_slots::guest::settle(capability, allowed, verdict);
             if let Some(why) = note {
                 eprintln!("podrunner: [unit.{name}]: the claim of guest drops to none: {why}");
+            }
+            if let Some(p) = pin {
+                let driver = u.binary.as_ref().map(PathBuf::from);
+                let stamp = driver.as_deref().and_then(podrunner_slots::guest::stamp);
+                retests.push((
+                    kinds.len(),
+                    podrunner_slots::guest::Retest {
+                        claim,
+                        allowed,
+                        payload: p.reference.clone(),
+                        platform: platform.into(),
+                        last_ms: clock.now_ms(),
+                        driver,
+                        stamp,
+                    },
+                ));
             }
             cap
         } else {
@@ -186,8 +213,11 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     }
     let ttl = Duration::from_secs(cfg.deadlines.running_s + cfg.deadlines.grace_s + cfg.deadlines.destroy_s);
     let egress = podrunner_egress::Egress::host(None).map_err(|e| fail(Class::Unavailable, e.to_string()))?;
-    let slots = Slots::start(cfg, state, clock, Box::new(now_unix), sources, kinds)
+    let mut slots = Slots::start(cfg, state, clock, Box::new(now_unix), sources, kinds)
         .map_err(|e| fail(Class::Unavailable, format!("the state directory: {}", e.kind())))?;
+    for (i, r) in retests {
+        slots.retest_guest(i, r);
+    }
     Ok(slots.with_egress(Box::new(EgressOf { egress, ttl })))
 }
 

@@ -91,7 +91,7 @@ The relay of the container hooks and a control socket for each unit, as the cont
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -129,14 +129,23 @@ after this test; else the claim drops to `none` (`boundary_proof:
 guest-self-test-failed`). A fake unit that claims `guest` fails it (same
 boot id). A listener on the loopback of the host, which the test plants
 and the unit tries with `nc` or `bash`, must see no connection; a unit on
-the network of the host reaches it and fails. Open: a second unit that
-must not see the first, the read-only mounts, the test each day and on a
-driver change, the directory of driver executables with owner and mode
-checks, and a pass on a real guest (T-037).
+the network of the host reaches it and fails. A second unit that runs beside a first one must not see
+the process or the file of the first; a second fake unit sees both. Each
+kind that claims `guest` is tested again each day (`RETEST_MS`) and when
+its driver file changes (inode, size, time of change), on a free kind;
+`serve` gives slots the retest. Each driver (the podvm binary, a sidecar)
+is an absolute path, in `driver_dir` when it is set, and `serve` refuses a
+file or a directory that another user owns or that the group or the
+others can write. Open: the read-only mounts on each `guest` start, and a
+pass on a real guest; both need the microvm kind (T-037).
 
 ## Prove
 
-`cargo test -p podrunner-guest`
+`cargo test -p podrunner-slots guest`
+
+## Blocker
+
+The read-only mounts and the pass on a real guest need the `microvm` kind (T-037), which waits for the machine tier of podvm (PodUtils/podvm@T-1656; podvm on break).
 
 # T-037: WP-11: the microvm unit driver (form set by DR-5) (GitHub #37)
 
