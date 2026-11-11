@@ -2,6 +2,7 @@
 //! time, the end, destroy, report, release.
 
 use std::collections::BTreeMap;
+use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 
 use podrunner_schema::{ExitReason, JobId, RefusalCode, Residual, RunReport, UnitFields};
@@ -19,6 +20,26 @@ fn residual(c: Count) -> Residual {
         Count::Known(n) => Residual::Count(n),
         Count::Unknown => Residual::Unknown(podrunner_schema::report::Unknown::Unknown),
     }
+}
+
+/// The longest path of a unix socket that each kernel takes (the field
+/// `sun_path` has 108 bytes with its end).
+const SOCKET_PATH_MAX: usize = 100;
+
+/// The directory of the egress sockets: `STATE/egress`, or, when a socket
+/// path there would be too long, a short directory of this state directory
+/// under the temporary directory.
+pub(crate) fn egress_dir(state: &std::path::Path) -> std::path::PathBuf {
+    let dir = state.join("egress");
+    if dir.as_os_str().len() + "/u-18446744073709551615.sock".len() <= SOCKET_PATH_MAX {
+        return dir;
+    }
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in state.as_os_str().as_encoded_bytes() {
+        h ^= u64::from(*b);
+        h = h.wrapping_mul(0x0100_0000_01b3);
+    }
+    std::env::temp_dir().join(format!("podrunner-{h:016x}"))
 }
 
 impl Slots {
@@ -69,8 +90,24 @@ impl Slots {
         let (p, unit) = (j.placement.clone().expect("a placed job"), j.unit.clone().expect("a unit id"));
         let kind = &self.kinds[p.kind];
         let arch = if kind.capability.arch == "aarch64" { "arm64" } else { "amd64" };
+        let mut env = BTreeMap::from([("PODRUNNER_UNIT".to_string(), unit.to_string())]);
+        if let Some(e) = &self.egress {
+            let policy = self.policy_of(key);
+            let dir = egress_dir(&self.state_dir);
+            let socket = dir.join(format!("{unit}.sock"));
+            let opened = std::fs::create_dir_all(&dir)
+                .and_then(|()| std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)))
+                .map_err(|e| format!("the egress directory: {}", e.kind()))
+                .and_then(|()| e.open(unit.as_str(), &policy, &socket));
+            if let Err(why) = opened {
+                self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("egress: {why}")));
+                return self.give_up(key, RefusalCode::UnitStartFailed, now);
+            }
+            // The way out of the unit: a socket of its job alone. No token.
+            env.insert("PODRUNNER_EGRESS".into(), format!("http://unix:{}", socket.display()));
+        }
+        let kind = &self.kinds[p.kind];
         let started = kind.driver.prepare(&p.payload, &format!("linux/{arch}"), false).and_then(|image| {
-            let env = BTreeMap::from([("PODRUNNER_UNIT".to_string(), unit.to_string())]);
             kind.driver.start(&StartSpec { unit: unit.clone(), image, argv: kind.cfg.command.clone(), env, credential })
         });
         match started {
@@ -82,6 +119,9 @@ impl Slots {
             }
             Err(_) => {
                 let _ = kind.driver.destroy(&unit);
+                if let Some(e) = &self.egress {
+                    e.close(unit.as_str());
+                }
                 self.give_up(key, RefusalCode::UnitStartFailed, now);
             }
         }
@@ -211,11 +251,43 @@ impl Slots {
                 job.residue = Some(residue);
             }
             self.audit(audit::Kind::Destroy, key.0, &key.1, None, None);
+            if let Some(e) = &self.egress {
+                e.close(u.as_str());
+            }
         }
         self.set(key, State::Destroyed, now);
         self.report(key);
         let _ = self.sources[key.0].source.release(&key.1);
         self.set(key, State::Reported, now);
+    }
+
+    /// The egress policy of a job: the policy of its offer, else
+    /// `default_policy` of `[egress]`, else no way out at all.
+    fn policy_of(&self, key: &Key) -> String {
+        let offer = self.jobs[key].offer.as_ref().map(|o| o.policy.clone()).filter(|p| !p.is_empty());
+        let default = self.cfg.egress.get("default_policy").and_then(|v| v.as_object()).cloned();
+        match offer.or(default) {
+            Some(p) => serde_json::Value::Object(p).to_string(),
+            None => r#"{"version":1,"mode":"allow","allow":[]}"#.into(),
+        }
+    }
+
+    /// When the egress module ended: no capacity, and each running unit
+    /// ends (fail closed).
+    pub(crate) fn check_egress(&mut self, now: u64) {
+        if self.egress_down || self.egress.as_ref().is_none_or(|e| e.alive()) {
+            return;
+        }
+        self.egress_down = true;
+        let running: Vec<Key> = self
+            .jobs
+            .iter()
+            .filter(|(_, j)| matches!(j.state, State::Started | State::Running))
+            .map(|(k, _)| k.clone())
+            .collect();
+        for key in running {
+            self.end(&key, ExitReason::UnitFailed, Signal::Kill, now);
+        }
     }
 
     /// Build the report of a job, keep it, and send it to its source: the

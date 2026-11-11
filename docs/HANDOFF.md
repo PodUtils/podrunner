@@ -18,22 +18,26 @@ is done.
   questions Q1 to Q3. DR-7 waits for the ruling "Test accounts". The
   defaults of GitHub #8 are calls C1 to C12; C13 and C14 are calls of
   this session.
-- Milestone M-A: done: T-015 (betas; `v0.1.0-beta.1`), T-016, T-018 to
-  T-022. Partial: T-017 (the authoritative schemas come from
-  PodUtils/podcrates@T-163), T-023 (the podvm driver passes the unit tests
-  on this host with podvm `v0.2.0-beta.2`; a run on an H0 host is open).
-  Open: T-024 (waits for `pod-broker`, PodUtils/podcrates@T-160 and
-  PodUtils/podcrates@T-161), then T-025.
-- M-C: T-027 is partial (`sign` and `Mint`; the restart of the sidecar
-  comes with T-029). T-028 and T-029 are next: `actions/scaleset` v0.5.0
-  needs Go 1.27.3 (the Go tool fetches it); the facts are in T-028.
+- podrunner takes the crates of podcrates at `v0.16.0` (`pod-core`,
+  `pod-todo`). Next takes: `pod-broker` (T-024: `serve_unix_job`, an
+  async API on tokio; the facts are in T-024) and `pod-supervise` (T-023
+  can drop its tag scan).
+- Milestone M-A: done: T-015 (`v0.1.0-beta.1`), T-016, T-018 to T-022.
+  Partial: T-017 (the authoritative schemas come from
+  PodUtils/podcrates@T-163), T-023 (an H0 run is open). Open: T-024, then
+  T-025.
+- M-C: T-027 (mint, sign, the sidecar as a source with a backoff) and
+  T-028 (the fake scale set) wait for their closing gate run; T-029 (the
+  sidecar) is partial: `ended_without_completion` and the counts of the
+  trust lookup in `status` are open. The gate job `go` runs the source
+  tests and a run of slots against the sidecar on the fake.
 - podnet answered COORD-001 (PodUtils/podnet#425): the runner pin
   `actions/runner` v2.338.2 and the object `hold` of `pod doctor --json`
   (T-044).
 
 ## In flight
 
-- T-028 (the fake scale-set service, Go) and T-029 (the sidecar).
+- T-024, the egress module over `pod-broker` `v0.16.0`.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The spec of the design review (T-014): the owner holds it as a zip. The

@@ -31,5 +31,5 @@ the live acceptance suite (GitHub #40, T-040), which waits for the ruling
 | U21 | `curl` runs under the podvm interposer; a host socket is visible in the unit; bash decodes framed output | T-034 | podvm PodUtils/podvm#235 | Open. |
 | U22 | A JIT runner is bound to the job it was minted for | A live job | DR-7 | Open (T-040). |
 | U23 | The trust inputs behave as the tier rule says for re-runs, merge queues and reusable workflows | A live job | DR-7 | Open (T-040). |
-| U24 | `pod-broker` v1 serves one listener for each unit | A read of the crate | podcrates | Settled: no, in the design review (the job comes from `Proxy-Authorization` on each connection). podcrates builds it (PodUtils/podcrates@T-160, PodUtils/podcrates@T-161; T-024). |
+| U24 | `pod-broker` v1 serves one listener for each unit | A read of the crate | none | Settled: yes with podcrates `v0.16.0`: `Broker::serve_unix_job` binds one listener to one job, with no token in the unit, and a token of another job gets 407 (PodUtils/podcrates@T-160; T-024: `crates/podrunner-egress` and its tests). No wrapper. |
 | U25 | `podvm run -v` accepts `/proc/self/fd/N` as a mount source | A run on the userland rung | an H0 host | Open (T-023). On the namespace rung, `podvm run --help` says that `-v` is refused by name; the driver writes the credential files into the rootfs and needs no `-v`. |

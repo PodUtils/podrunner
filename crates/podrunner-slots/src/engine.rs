@@ -55,6 +55,18 @@ pub struct Job {
     pub residue: Option<podrunner_unit::Residue>,
 }
 
+/// The egress module as slots sees it (`podrunner-egress` behind it): one
+/// listener for each unit, bound to its job, and a health.
+pub trait EgressPort: Send {
+    /// Serve `policy` (JSON of `broker-policy.v1`) for the unit `unit` on
+    /// the socket `socket`.
+    fn open(&self, unit: &str, policy: &str, socket: &std::path::Path) -> Result<(), String>;
+    fn close(&self, unit: &str);
+    /// False when the module ended: slots gives no capacity and ends the
+    /// running units.
+    fn alive(&self) -> bool;
+}
+
 /// The supervisor of the slots.
 pub struct Slots {
     pub(crate) cfg: Config,
@@ -74,6 +86,10 @@ pub struct Slots {
     pub(crate) degraded: Option<String>,
     /// Each report of this process, for `status` and the tests.
     pub reports: Vec<podrunner_schema::RunReport>,
+    pub(crate) state_dir: std::path::PathBuf,
+    pub(crate) egress: Option<Box<dyn EgressPort>>,
+    /// The egress module ended: fail closed.
+    pub(crate) egress_down: bool,
 }
 
 impl Slots {
@@ -81,9 +97,16 @@ impl Slots {
         self.clock.now_ms()
     }
 
+    /// Give each unit a listener of the egress module.
+    pub fn with_egress(mut self, egress: Box<dyn EgressPort>) -> Slots {
+        self.egress = Some(egress);
+        self
+    }
+
     /// One step of each job.
     pub fn tick(&mut self) {
         let now = self.now();
+        self.check_egress(now);
         self.progress(now);
         for s in 0..self.sources.len() {
             self.poll(s, now);
@@ -143,7 +166,7 @@ impl Slots {
     /// The offers that a source can take now.
     fn capacity(&self, s: usize) -> u32 {
         let src = &self.sources[s];
-        if self.draining || self.degraded.is_some() || src.revoked {
+        if self.draining || self.degraded.is_some() || src.revoked || self.egress_down {
             return 0;
         }
         let free: u32 = self

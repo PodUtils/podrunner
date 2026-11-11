@@ -456,7 +456,7 @@ host (chroot and mount denied: the userland rung), and U25.
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -506,6 +506,26 @@ gets 407), `Broker::load(Load { job, token, ttl, policy })`,
 module runs the broker on a runtime of its own and needs a resolver
 (`Resolve` of `pod-core`, for example the resolver of `pod-dns`) and a
 dialer (`pod_broker::upstream`).
+
+Done so far (2026-11-11): `crates/podrunner-egress` (`pod-broker` and
+`pod-proxy` of `v0.16.0` on a tokio runtime of their own; the system
+resolver; `open` binds a unix socket of mode 0600 to one job, `close`
+drops the job and its listener, `kill` ends the module). Its tests: two
+units get two listeners with two policies, a request with no token is the
+job of its listener, a token of unit A on the listener of unit B gets
+407, a close and a kill end the listeners, a bad policy is named without
+its text. slots (`EgressPort`): each unit gets a listener of its job with
+the policy of its offer (else `[egress] default_policy`, else no way
+out) and the variable `PODRUNNER_EGRESS=http://unix:PATH`; the end of the
+unit closes it; when egress ends, no source gets capacity and each running
+unit ends (`unit-failed`); a kind with hold `none` gets no `trusted` job.
+U24 is settled (`docs/unknowns.md`). No host of the Actions service is in
+the code: the default policy comes from the configuration. A finding of
+the run by hand: under a long state directory the socket path passed the
+limit of 108 bytes and the job ended `unit-start-failed` with no reason;
+the egress directory is now short when it must be, and the audit line
+names the reason. Open: the unit of podvm reaches a host socket only
+after PodUtils/podvm#235 (U21).
 
 ## Prove
 

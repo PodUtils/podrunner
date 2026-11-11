@@ -162,8 +162,29 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
         };
         kinds.push(UnitKind { name: name.clone(), cfg: u.clone(), driver, capability });
     }
-    Slots::start(cfg, state, clock, Box::new(now_unix), sources, kinds)
-        .map_err(|e| fail(Class::Unavailable, format!("the state directory: {}", e.kind())))
+    let ttl = Duration::from_secs(cfg.deadlines.running_s + cfg.deadlines.grace_s + cfg.deadlines.destroy_s);
+    let egress = podrunner_egress::Egress::host(None).map_err(|e| fail(Class::Unavailable, e.to_string()))?;
+    let slots = Slots::start(cfg, state, clock, Box::new(now_unix), sources, kinds)
+        .map_err(|e| fail(Class::Unavailable, format!("the state directory: {}", e.kind())))?;
+    Ok(slots.with_egress(Box::new(EgressOf { egress, ttl })))
+}
+
+/// The egress module behind slots.
+struct EgressOf {
+    egress: podrunner_egress::Egress,
+    ttl: Duration,
+}
+
+impl podrunner_slots::EgressPort for EgressOf {
+    fn open(&self, unit: &str, policy: &str, socket: &Path) -> Result<(), String> {
+        self.egress.open(unit, policy, socket, self.ttl).map_err(|e| e.to_string())
+    }
+    fn close(&self, unit: &str) {
+        self.egress.close(unit);
+    }
+    fn alive(&self) -> bool {
+        self.egress.alive()
+    }
 }
 
 struct Supervisor {

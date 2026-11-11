@@ -16,7 +16,7 @@ pub mod status;
 use std::path::Path;
 use std::sync::Arc;
 
-pub use engine::{Job, Slots, Source, UnitKind};
+pub use engine::{EgressPort, Job, Slots, Source, UnitKind};
 use podrunner_clock::Clock;
 use podrunner_schema::{ExitReason, UnitIds};
 
@@ -52,6 +52,9 @@ impl Slots {
             draining: false,
             degraded: None,
             reports: Vec::new(),
+            state_dir: state_dir.to_path_buf(),
+            egress: None,
+            egress_down: false,
         };
         s.reconcile(replay.open);
         Ok(s)

@@ -20,7 +20,11 @@ publish = false
 # No default feature: the failure classes and their exit codes, with no tokio.
 pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.16.0", default-features = false }
 pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.16.0" }
+# The egress broker of a job (podrunner-egress), with the async face of
+# pod-core that it needs.
+pod-broker = { git = "https://github.com/PodUtils/podcrates", tag = "v0.16.0" }
 podrunner-clock = { path = "crates/podrunner-clock" }
+podrunner-egress = { path = "crates/podrunner-egress" }
 podrunner-fake = { path = "crates/podrunner-fake" }
 podrunner-mint = { path = "crates/podrunner-mint" }
 podrunner-podvm = { path = "crates/podrunner-podvm" }
@@ -36,6 +40,8 @@ libc = "0.2"
 ring = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# The runtime of the egress broker.
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }
 # podrunner.toml: a table and its values, with no writer.
 toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }
 

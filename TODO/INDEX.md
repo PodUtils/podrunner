@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**44 entries: 8 open, 8 partial, 14 blocked, 14 done.**
+**44 entries: 7 open, 9 partial, 14 blocked, 14 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 2 | 3 | 1 | 10 | 16 |
+| P1 | 1 | 4 | 1 | 10 | 16 |
 | P2 | 6 | 5 | 9 | 3 | 23 |
 | P3 | 0 | 0 | 4 | 1 | 5 |
-| **All** | 8 | 8 | 14 | 14 | 44 |
+| **All** | 7 | 9 | 14 | 14 | 44 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -71,7 +71,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-021](core.md) | P1 | M | M-A | feature | done | WP-03: the slots core: states, journal, placement, status, drain, codes, config, audit (GitHub #21) |
 | [T-022](core.md) | P1 | M | M-A | feature | done | CLI and control socket: serve, status, drain, stop, doctor, print-unit (GitHub #22) |
 | [T-023](core.md) | P1 | M | M-A | feature | partial | WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23) |
-| [T-024](core.md) | P1 | M | M-A | feature | open | WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24) |
+| [T-024](core.md) | P1 | M | M-A | feature | partial | WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24) |
 | [T-025](core.md) | P1 | S | M-A | chore | open | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload (GitHub #25) |
 | [T-026](live.md) | P2 | M | M-B | chore | blocked | Milestone M-B: the official runner starts under the podvm driver, no GitHub (GitHub #26) |
 | [T-027](live.md) | P2 | M | M-C | feature | partial | WP-05a: mint with an in-process sign module, source conformance (GitHub #27) |
