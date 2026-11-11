@@ -380,7 +380,7 @@ Done so far (2026-11-11): `crates/podrunner/src/control.rs` (the socket of mode 
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -446,12 +446,30 @@ payload at the start of `serve`; only then does the record say
 `tree_kill: verified` and `wall: enforced` (3 runs, each green). A job of
 a local fake source ran through `serve` on a podvm unit: offered,
 claimed, minted, started, ended `success` (the payload found
-`.runner/.credentials`), destroyed, reported. Open: the same run on an H0
-host (chroot and mount denied: the userland rung), and U25.
+`.runner/.credentials`), destroyed, reported. The H0 run (2026-11-11): as `nobody`, with a
+seccomp filter that refuses user namespaces, on this host with no KVM
+(`podvm probe`: rung `supervise`, `CLONE_NEWNS`, `CLONE_NEWUSER`, mount
+and chroot denied; `crates/podrunner-podvm/tests/probe/supervise.json`).
+busybox does not run there: the loader of the rung needs glibc, libdl
+and libgcc_s in the image, so `scripts/stand-in-image.py` builds a
+stand-in image from host binaries. The unit tests pass 16 of 17 (test 14
+skips), two runs; a job of a local fake source through `serve` ends
+`success` 10 of 10, and a payload `exit 3` reports 3. On the way: `podvm
+wait` there gives no exit code for a payload that ends at once (T-047,
+GitHub #49); the driver runs the payload under `/bin/sh` of the image,
+which writes the code to `.podrunner-exit`, reads it when `podvm wait`
+gives none, and waits again while a process of the unit lives. U25: on
+the supervise rung `podvm run -v /proc/self/fd/N:/cred` mounts the open
+file (the payload reads it); the driver still writes the files into the
+rootfs. The journal line `ended` now carries the exit code.
 
 ## Prove
 
-`cargo test -p podrunner-podvm`
+`cargo test -p podrunner-podvm`, and `cargo test -p podrunner-podvm --test conformance -- --ignored` with `PODRUNNER_PODVM`, `PODRUNNER_PODVM_IMAGES` and `PODRUNNER_PODVM_IMAGE` (as root: the namespace rung, busybox; as a uid with no user namespace: the supervise rung, the image of `scripts/stand-in-image.py`)
+
+## Done
+
+2026-11-11: the podvm driver passes the unit tests 1 to 17 (14 skips: no container route) on the namespace rung and on the supervise rung of an H0 profile; a job through `serve` ends `success` 10 of 10 there; U25 is settled. `cargo test -p podrunner-podvm`: each test passes.
 
 # T-024: WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24)
 
@@ -547,7 +565,7 @@ after PodUtils/podvm#235 (U21).
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -577,3 +595,37 @@ Close M-A when T-016 to T-024 are done, the level 1 suite is green in the gate, 
 ## Prove
 
 `cargo test --workspace`, and the gate run of the closing commit.
+
+## Done
+
+2026-11-11: T-015 to T-024 are done; the level 1 suite and the unit tests pass in the gate; on an H0 profile (no root, no user namespace, no mounts, no KVM; the probe is `crates/podrunner-podvm/tests/probe/supervise.json`) the podvm driver passes its unit tests with a stand-in payload, the credential files are at 0600 and in no argv or environment (tests 6, 7), and a job of a local source runs through `serve`. No trusted job ran.
+
+# T-047: COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (GitHub #49)
+
+**Source:** GitHub #49
+**Category:** defect
+**Milestone:** M-A
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+With the released podvm `v0.2.0-beta.2` on the supervise rung (a uid with no root, no user namespace, no mounts, no KVM), `podvm wait NAME` of a detached payload that ends at once often exits 125: "NAME has no exit code podvm measured: it is Up (podvm TODO/supervise.md, PodUtils/podvm@T-0604)". The podvm driver then read no exit code and reported -1: 7 of 10 jobs of an H0 run ended `failure`. GitHub #49 (COORD-002, to podvm) records it; podvm is on break.
+
+## Premise
+
+Measured on 2026-11-11 as `nobody` with a seccomp filter that refuses `CLONE_NEWUSER`: `podvm wait` exited 125 in 4 of 5 runs of `sh -c 'exit 0'`.
+
+## Approach
+
+The workaround is in the driver (T-023): the payload runs under `/bin/sh` of the image, which writes the exit code to `.podrunner-exit` in the working directory; when `podvm wait` gives no code, the driver reads that file, and starts `podvm wait` again while a process of the unit lives. When podvm answers, remove the workaround if `podvm wait` gives each code.
+
+## Prove
+
+`cargo test -p podrunner-podvm --test conformance -- --ignored`, as a uid with no user namespace, with the image of `scripts/stand-in-image.py`
+
+## Blocker
+
+podvm (on break) fixes `podvm wait` on the supervise rung (PodUtils/podvm@T-0604). Until then the workaround of T-023 holds.
+

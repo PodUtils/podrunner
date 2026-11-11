@@ -1,0 +1,544 @@
+{
+ "podvm": "0.2.0-beta.2",
+ "rung": "supervise",
+ "rung_must_never_claim": "anything whose arguments it cannot read; on this runtime, exec remapping",
+ "strict_ok": false,
+ "mounts": {
+  "create": "denied",
+  "configure": "skip",
+  "attach": "skip",
+  "use": "skip",
+  "summary": "none",
+  "capability_note": null
+ },
+ "probes": [
+  {
+   "name": "unshare(CLONE_NEWNS)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "unshare(CLONE_NEWUSER)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "unshare(CLONE_NEWPID)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "clone(CLONE_NEWNS)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "clone(CLONE_NEWUTS|NEWNS)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "clone(CLONE_NEWUSER)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "clone(CLONE_NEWUTS)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "sethostname(in NEWUTS)",
+   "verdict": "skip",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": "clone(2) with flags 0x4000000 was refused, so the namespace this probe needs was never entered and the operation was never attempted",
+   "group": "census"
+  },
+  {
+   "name": "mount(tmpfs,/mnt)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "mount(tmpfs,/mnt) in clone(NEWNS)",
+   "verdict": "skip",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": "clone(2) with flags 0x20000 was refused, so the namespace this probe needs was never entered and the operation was never attempted",
+   "group": "census"
+  },
+  {
+   "name": "mount(MS_SLAVE,/) in clone(NEWNS)",
+   "verdict": "skip",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": "clone(2) with flags 0x20000 was refused, so the namespace this probe needs was never entered and the operation was never attempted",
+   "group": "census"
+  },
+  {
+   "name": "pivot_root(/tmp,/tmp)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "ptrace(PTRACE_TRACEME)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "mknod(chr 1:3 /tmp/nodprobe)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "mknod(chr 0:0 = whiteout)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "setuid(1000)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "setuid(0)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "setgid(0)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "setgroups(0,NULL)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "chown(f,0,0)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "chown(f,0,42)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "lchown(f,0,42)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "chown(f,1000,0)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "chroot(/tmp)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "memfd_create",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "memfd_create+exec",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "setsid",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "prctl(PR_SET_PDEATHSIG)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "exec(/tmp/execprobe)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "getrandom",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "write(/etc/probe)",
+   "verdict": "denied",
+   "errno": 13,
+   "errno_name": "EACCES",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "write into uid-1000-owned dir",
+   "verdict": "skip",
+   "errno": 2,
+   "errno_name": "ENOENT",
+   "reason": "no fixture directory owned by an unmapped id: neither /workspace/.fixtures/squash-probe nor /tmp/squash-probe exists. Create one as another uid outside the confinement.",
+   "group": "census"
+  },
+  {
+   "name": "stat(/dev/ptmx)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": "chardev 5:2 mode 666",
+   "group": "census"
+  },
+  {
+   "name": "open(/dev/ptmx, O_RDWR)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "open(/dev/fuse, O_RDWR)",
+   "verdict": "denied",
+   "errno": 13,
+   "errno_name": "EACCES",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "readdir(/)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": "26 entries",
+   "group": "census"
+  },
+  {
+   "name": "open(/bin, O_RDONLY) by name",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "creat(/, O_CREAT|O_EXCL)",
+   "verdict": "denied",
+   "errno": 13,
+   "errno_name": "EACCES",
+   "reason": null,
+   "group": "census"
+  },
+  {
+   "name": "bind(127.0.0.1:0)+listen",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": "loopback TCP bind+listen permitted",
+   "group": "census"
+  },
+  {
+   "name": "mount(2) bogus target",
+   "verdict": "denied",
+   "errno": 2,
+   "errno_name": "ENOENT",
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "umount2(2) bogus target",
+   "verdict": "denied",
+   "errno": 2,
+   "errno_name": "ENOENT",
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "pivot_root(2) bogus paths",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "process_vm_readv(bogus pid)",
+   "verdict": "denied",
+   "errno": 3,
+   "errno_name": "ESRCH",
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "pidfd_getfd(-1,-1) [control]",
+   "verdict": "denied",
+   "errno": 9,
+   "errno_name": "EBADF",
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "kcmp(-1,-1,...) [control]",
+   "verdict": "denied",
+   "errno": 3,
+   "errno_name": "ESRCH",
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "fsopen(tmpfs)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "fsmount(tmpfs)",
+   "verdict": "skip",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": "fsopen(tmpfs) failed with EPERM (1), so this operation was never attempted",
+   "group": "attribution"
+  },
+  {
+   "name": "open_tree(/tmp, CLONE)",
+   "verdict": "denied",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "move_mount(-> bogus dest)",
+   "verdict": "skip",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": "fsopen(tmpfs) failed with EPERM (1), so this operation was never attempted",
+   "group": "attribution"
+  },
+  {
+   "name": "move_mount(-> /tmp/mm-probe)",
+   "verdict": "skip",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": "fsopen(tmpfs) failed with EPERM (1), so this operation was never attempted",
+   "group": "attribution"
+  },
+  {
+   "name": "openat(detached tmpfs, O_DIRECTORY)",
+   "verdict": "skip",
+   "errno": 1,
+   "errno_name": "EPERM",
+   "reason": "fsopen(tmpfs) failed with EPERM (1), so this operation was never attempted",
+   "group": "attribution"
+  },
+  {
+   "name": "seccomp(NEW_LISTENER)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "open /proc/self/mem O_RDONLY",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "open /proc/self/mem O_RDWR",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "attribution"
+  },
+  {
+   "name": "landlock_create_ruleset(VERSION)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": "ABI 7",
+   "group": "attribution"
+  },
+  {
+   "name": "qemu-system-x86_64 --version",
+   "verdict": "skip",
+   "errno": 2,
+   "errno_name": "ENOENT",
+   "reason": "no qemu-system-x86_64 on PATH, so the emulator leg could not run",
+   "group": "machine"
+  },
+  {
+   "name": "open(/dev/kvm, O_RDWR)",
+   "verdict": "denied",
+   "errno": 2,
+   "errno_name": "ENOENT",
+   "reason": null,
+   "group": "machine"
+  },
+  {
+   "name": "prlimit(RLIMIT_FSIZE)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": "RLIMIT_FSIZE cur=infinity max=infinity",
+   "group": "machine"
+  },
+  {
+   "name": "open(/dev/net/tun, O_RDWR)",
+   "verdict": "denied",
+   "errno": 13,
+   "errno_name": "EACCES",
+   "reason": null,
+   "group": "machine"
+  },
+  {
+   "name": "image space (statfs .)",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": "2867957 blocks of 4096 B free, 16426992 inodes free at /tmp/h0",
+   "group": "machine"
+  },
+  {
+   "name": "qemu-system-x86_64 -accel help",
+   "verdict": "skip",
+   "errno": 2,
+   "errno_name": "ENOENT",
+   "reason": "no qemu-system-x86_64 on PATH, so the accelerator list could not be read",
+   "group": "machine"
+  },
+  {
+   "name": "seccomp(NEW_LISTENER) [supervise]",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "supervise"
+  },
+  {
+   "name": "process_vm_readv(own pid) [supervise]",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "supervise"
+  },
+  {
+   "name": "ptrace(PTRACE_TRACEME) [supervise]",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "supervise"
+  },
+  {
+   "name": "pidfd_open(own pid) [supervise]",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "supervise"
+  },
+  {
+   "name": "waitid(P_PIDFD, child) [supervise]",
+   "verdict": "ok",
+   "errno": null,
+   "errno_name": null,
+   "reason": null,
+   "group": "supervise"
+  }
+ ]
+}

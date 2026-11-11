@@ -52,5 +52,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | closed (answered in PodUtils/podnet#425) | T-044 |
 | #47 | The mitigations of DR-4: trusted jobs at boundary redirect | open | T-045 |
 | #48 | Local mode: podrunner run workflow.yml | open | T-046 |
+| #49 | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (to podvm) | open | T-047 |
 
 #44 and #45 are pull requests.

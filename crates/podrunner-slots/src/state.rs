@@ -72,4 +72,7 @@ pub struct Line {
     pub reason: Option<ExitReason>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<RefusalCode>,
+    /// The exit code of the top process of the unit, once it ended.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
 }

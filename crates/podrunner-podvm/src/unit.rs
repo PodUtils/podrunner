@@ -25,6 +25,11 @@ use crate::Podvm;
 
 /// The working directory of the payload in the rootfs.
 const WORKDIR: &str = "/podrunner";
+/// The file of the exit code of the payload, in the working directory.
+/// `podvm wait` on the supervise rung can give no code for a payload that
+/// ends fast ("it is Up"); the shell around the payload writes it here.
+const EXIT_FILE: &str = ".podrunner-exit";
+
 /// The runner root, under the working directory.
 const RUNNER_ROOT: &str = ".runner";
 /// The time that destroy waits for the processes of a unit to end.
@@ -68,6 +73,19 @@ impl PodvmUnit {
             platform,
             units: Mutex::new(HashMap::new()),
         })
+    }
+
+    /// `podvm wait` of `unit`, tagged as the unit.
+    fn waiter(&self, store: &Path, unit: &UnitId, tag: &str) -> Result<Child, UnitError> {
+        Command::new(&self.podvm.binary)
+            .args(["wait", unit.as_str()])
+            .env("PODVM_STORE", store)
+            .env(TAG_VAR, tag)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| host("podvm wait", e))
     }
 
     /// `podvm ARGS` with the store `store`; the output, or a named failure.
@@ -175,18 +193,14 @@ impl UnitDriver for PodvmUnit {
             args.push(format!("{k}={v}"));
         }
         args.push(reference.clone());
+        // The payload runs under the shell of the image, which writes its
+        // exit code: `podvm wait` does not always give it.
+        let wrap = format!("\"$@\"; c=$?; echo $c > {WORKDIR}/{EXIT_FILE}; exit $c");
+        args.extend(["/bin/sh".to_string(), "-c".into(), wrap, "podrunner".into()]);
         args.extend(spec.argv.iter().cloned());
         let argv: Vec<&str> = args.iter().map(String::as_str).collect();
         self.podvm(&store, &argv, Some(&tag))?;
-        let waiter = Command::new(&self.podvm.binary)
-            .args(["wait", spec.unit.as_str()])
-            .env("PODVM_STORE", &store)
-            .env(TAG_VAR, &tag)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|e| host("podvm wait", e))?;
+        let waiter = self.waiter(&store, &spec.unit, &tag)?;
         units.insert(spec.unit.clone(), Running { dir, rootfs, tag, waiter, exit: None });
         Ok(())
     }
@@ -217,9 +231,24 @@ impl UnitDriver for PodvmUnit {
                     if let Some(mut o) = r.waiter.stdout.take() {
                         let _ = o.read_to_string(&mut out);
                     }
-                    // `podvm wait` prints the exit code of the payload.
-                    let code = out.lines().rev().find_map(|l| l.trim().parse::<i32>().ok()).unwrap_or(-1);
-                    r.exit = Some(if code > 128 { Exit::Signal(code - 128) } else { Exit::Code(code) });
+                    // `podvm wait` prints the exit code of the payload; else
+                    // the shell around the payload wrote it.
+                    let file = r.rootfs.join(WORKDIR.trim_start_matches('/')).join(EXIT_FILE);
+                    let code = out
+                        .lines()
+                        .rev()
+                        .find_map(|l| l.trim().parse::<i32>().ok())
+                        .or_else(|| fs::read_to_string(&file).ok().and_then(|t| t.trim().parse().ok()));
+                    // No code, and the payload lives: wait again.
+                    let waiter = r.waiter.id();
+                    let alive = procs::tagged(&r.tag).into_iter().any(|p| p != waiter);
+                    match code {
+                        None if alive => r.waiter = self.waiter(&r.dir.join("store"), unit, &r.tag)?,
+                        _ => {
+                            let code = code.unwrap_or(-1);
+                            r.exit = Some(if code > 128 { Exit::Signal(code - 128) } else { Exit::Code(code) });
+                        }
+                    }
                 }
                 if r.exit.is_some() || Instant::now() >= end {
                     return Ok(r.exit);

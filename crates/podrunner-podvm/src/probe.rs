@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn each_rung_is_redirect_and_unknown_stays_unknown() {
-        for rung in ["namespace", "userland"] {
+        for rung in ["namespace", "userland", "supervise"] {
             let c = capability(&fixture(rung), "x86_64").unwrap();
             assert_eq!(c.boundary, Boundary::Redirect, "{rung}");
             assert_eq!(c.boundary_proof.as_deref(), Some(format!("podvm-probe:{rung}").as_str()));

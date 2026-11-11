@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**46 entries: 4 open, 5 partial, 12 blocked, 25 done.**
+**47 entries: 3 open, 4 partial, 13 blocked, 27 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 1 | 2 | 0 | 14 | 17 |
-| P2 | 3 | 3 | 7 | 10 | 23 |
+| P1 | 0 | 1 | 0 | 16 | 17 |
+| P2 | 3 | 3 | 8 | 10 | 24 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 4 | 5 | 12 | 25 | 46 |
+| **All** | 3 | 4 | 13 | 27 | 47 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -70,9 +70,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-020](core.md) | P1 | S | M-A | feature | done | WP-02: the fake source and the fake unit, scripted, with a manual clock (GitHub #20) |
 | [T-021](core.md) | P1 | M | M-A | feature | done | WP-03: the slots core: states, journal, placement, status, drain, codes, config, audit (GitHub #21) |
 | [T-022](core.md) | P1 | M | M-A | feature | done | CLI and control socket: serve, status, drain, stop, doctor, print-unit (GitHub #22) |
-| [T-023](core.md) | P1 | M | M-A | feature | partial | WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23) |
+| [T-023](core.md) | P1 | M | M-A | feature | done | WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23) |
 | [T-024](core.md) | P1 | M | M-A | feature | done | WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24) |
-| [T-025](core.md) | P1 | S | M-A | chore | open | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload (GitHub #25) |
+| [T-025](core.md) | P1 | S | M-A | chore | done | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload (GitHub #25) |
 | [T-026](live.md) | P2 | M | M-B | chore | blocked | Milestone M-B: the official runner starts under the podvm driver, no GitHub (GitHub #26) |
 | [T-027](live.md) | P2 | M | M-C | feature | done | WP-05a: mint with an in-process sign module, source conformance (GitHub #27) |
 | [T-028](live.md) | P2 | S | M-C | feature | done | WP-06: the fake scale-set service (Go, test only) (GitHub #28) |
@@ -94,3 +94,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-044](plan.md) | P2 | S | M-A | chore | done | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |
 | [T-045](live.md) | P1 | M | M-D | feature | done | The mitigations of DR-4 for trusted jobs at redirect (GitHub #47) |
 | [T-046](later.md) | P3 | L | later | feature | blocked | Local mode: podrunner run workflow.yml (GitHub #48) |
+| [T-047](core.md) | P2 | S | M-A | defect | blocked | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (GitHub #49) |

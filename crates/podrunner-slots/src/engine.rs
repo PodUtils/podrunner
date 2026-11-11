@@ -280,6 +280,7 @@ impl Slots {
             unit_kind: kind,
             reason: j.reason,
             code: j.refusal,
+            exit_code: j.exit_code,
         };
         // A journal that cannot be written makes the host degraded: a
         // restart could not find the units.

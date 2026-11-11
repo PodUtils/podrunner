@@ -22,8 +22,11 @@ is done.
   `pod-todo`, `pod-broker`, `pod-proxy`, `pod-identity`, `pod-job`).
   `pod-supervise` can replace the tag scan of the podvm driver (T-023);
   it is not on the M-A path.
-- Milestone M-A: done: T-015 (`v0.1.0-beta.1`), T-016 to T-022, T-024.
-  Partial: T-023 (an H0 run is open). T-025 closes when it is done.
+- Milestone M-A is done (T-015 to T-025). The H0 run of T-023: as
+  `nobody` with a seccomp filter that refuses user namespaces, on the
+  supervise rung of podvm, with the image of `scripts/stand-in-image.py`.
+  T-047 (GitHub #49) records a defect of `podvm wait` there and the
+  workaround of the driver.
 - M-C: done T-027, T-028, T-029. T-030 is partial: the pin fields, the
   age check at the start, runner exit 7, `images/runner/` (the reviewed
   pin, the Dockerfile), `.github/workflows/runner-image.yml` and
