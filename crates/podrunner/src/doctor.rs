@@ -3,7 +3,9 @@
 //! the capability record of each unit kind through its driver binary (the
 //! record that placement reads), and the tiers that the host can serve
 //! with it. Always: the Landlock ABI (`pod-confine`) and `/dev/kvm`; the
-//! hold of `podnet pod doctor --json` when `[unit.podvm] podnet` names it.
+//! hold of `podnet pod doctor --json` when `[unit.podvm] podnet` names it,
+//! and the rows of `pod-hostprobe` that the drivers need ([`HOST_ROWS`]),
+//! each in a disposable child of this binary.
 //! It names each input that is missing; it decides nothing and changes no
 //! file.
 
@@ -17,6 +19,42 @@ use serde_json::{Value, json};
 
 use crate::serve::{Failure, fail, fake_capability};
 use crate::text::display;
+
+/// The probes of `pod-hostprobe` that the drivers need: user namespaces
+/// and mount (a driver with namespaces), chroot, KVM and Landlock.
+pub const HOST_ROWS: [&str; 5] = [
+    "unshare(CLONE_NEWUSER)",
+    "mount(tmpfs,/mnt) in clone(NEWNS)",
+    "chroot(/tmp)",
+    "open(/dev/kvm, O_RDWR)",
+    "landlock_create_ruleset(VERSION)",
+];
+
+/// The settings of the probe children: `main` reads the flag first.
+pub fn probe_settings() -> pod_hostprobe::Settings {
+    pod_hostprobe::Settings {
+        child_flag: "--podrunner-probe-child".into(),
+        child_name: "podrunner-probe".into(),
+        directory_setting: None,
+    }
+}
+
+/// Run the rows of [`HOST_ROWS`], each in a child of this binary.
+fn host_rows() -> Value {
+    use pod_hostprobe::probes::{Kind, find};
+    let spawner = pod_hostprobe::child::Spawner::new(&probe_settings());
+    let rows: Vec<Value> = HOST_ROWS
+        .iter()
+        .filter_map(|name| {
+            let o = match find(name)?.kind {
+                Kind::Clone(flags) => spawner.clone_accepted(flags),
+                Kind::Child { ns_flags, .. } => spawner.run_probe(name, ns_flags),
+            };
+            Some(json!({ "probe": name, "verdict": o.verdict.word(), "errno": o.errno_name(), "reason": o.reason }))
+        })
+        .collect();
+    json!(rows)
+}
 
 /// Run one tool and read its JSON, or say why there is none.
 fn read(tool: &Path, args: &[&str]) -> Result<Value, String> {
@@ -46,6 +84,12 @@ fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) -> Result<Cap
 
 /// The report as JSON: the findings, and each input that is missing.
 pub fn report(config: Option<&Path>) -> Result<Value, Failure> {
+    report_with(config, host_rows())
+}
+
+/// The report with the rows of the host given (a unit test runs no probe
+/// child: its binary is the test harness).
+fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
     let mut missing: Vec<String> = Vec::new();
     let landlock = match podrunner_unit::confine::check() {
         Ok(abi) => json!(abi),
@@ -97,7 +141,7 @@ pub fn report(config: Option<&Path>) -> Result<Value, Failure> {
         missing.push("--config: no unit kind and no source were read".into());
     }
     Ok(json!({
-        "schema": 1, "landlock_abi": landlock, "kvm": kvm, "hold": hold,
+        "schema": 1, "landlock_abi": landlock, "kvm": kvm, "hold": hold, "host": host,
         "kinds": kinds, "sources": tiers, "missing": missing,
     }))
 }
@@ -111,6 +155,11 @@ pub fn text(v: &Value) -> String {
         None => out.push_str("landlock: none\n"),
     }
     out.push_str(&format!("kvm: {}\n", if v["kvm"] == json!(true) { "yes" } else { "no" }));
+    for r in v["host"].as_array().into_iter().flatten() {
+        let w = |f: &str| display(r[f].as_str().unwrap_or(""));
+        let errno = r["errno"].as_str().map(|e| format!(" ({})", display(e))).unwrap_or_default();
+        out.push_str(&format!("probe {}: {}{errno}\n", w("probe"), w("verdict")));
+    }
     for backend in ["netns", "seccomp"] {
         let level = v["hold"]["hold"][backend]["level"].as_str().or_else(|| v["hold"][backend]["level"].as_str());
         if let Some(level) = level {
@@ -175,7 +224,7 @@ mod tests {
             ),
         )
         .unwrap();
-        let v = report(Some(&file)).unwrap();
+        let v = report_with(Some(&file), json!([])).unwrap();
         // The fake kind is `none`: it serves `local`, never `trusted`.
         assert_eq!(tier_of(&v, "local"), Some((Tier::Local, true)));
         assert_eq!(tier_of(&v, "org"), Some((Tier::Trusted, false)));
@@ -184,7 +233,7 @@ mod tests {
         assert!(t.contains("source org: tier trusted, not served"), "{t}");
         assert!(t.contains("missing: [[source]] org"), "{t}");
         // With no file, doctor says what it did not read.
-        let bare = report(None).unwrap();
+        let bare = report_with(None, json!([])).unwrap();
         assert!(text(&bare).contains("missing: --config"), "{}", text(&bare));
         let _ = std::fs::remove_dir_all(&dir);
     }

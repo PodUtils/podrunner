@@ -756,6 +756,7 @@ dependencies = [
  "libc",
  "pod-core",
  "pod-dns",
+ "pod-hostprobe",
  "pod-proxy",
  "pod-services",
  "pod-tls",
