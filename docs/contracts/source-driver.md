@@ -108,12 +108,12 @@ and what is open (T-053). `SC` is `crates/podrunner-source/src/conformance.rs`,
 
 | Design | Covered by | Open |
 | --- | --- | --- |
-| 1 unknown trust | the tier rule (`crates/podrunner-tier`) | a source sends no tier |
+| 1 unknown trust | the tier rule (`crates/podrunner-tier`), SG `an_offer_with_a_tier_is_refused` | none |
 | 2 one claim | SC `a-job-is-claimed-once`, SG `a_redelivered_offer_is_one_job` | none |
 | 3 credential canary | SG `no_credential_reaches_the_journal_the_audit_or_a_report`, the sign tests | stderr; a positive control; each role |
 | 4 revoked | MI `a_revocation_is_final_and_names_no_secret`, `tools/scaleset-sidecar` `TestARevocationEndsTheSidecarWith78` | none |
 | 5 `../x` | SC `the-wire-refuses-a-long-line-a-path-and-a-schema` | none |
-| 6 untrusted host token | none | the whole test (over TLS) |
+| 6 untrusted host token | RT (TLS) `a_pinned_host_reaches_the_gate_and_another_key_does_not`: a mint serves one source of one tier and pins its hosts, so the key of a host of another tier is not pinned there | a host pinned on two mints of two tiers |
 | 7 not received, issued twice | RT `each_host_holds_its_own_offers_up_to_its_slots` | none |
 | 8 tier-mismatch | RT `the_mint_computes_the_tier_and_withdraws_a_fork_on_the_trusted_set`: the mint withdraws the offer, so a later claim is `unknown-job` (call C18) | none |
 | 9 capacity | RT `each_host_holds_its_own_offers_up_to_its_slots` | none |

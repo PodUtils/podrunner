@@ -100,6 +100,21 @@ fn a_fork_offer_on_the_trusted_set_is_refused() {
     );
 }
 
+/// The design test 1 of the source contract: a source sends no tier; an
+/// offer with a `tier` field is refused at intake, and unknown trust
+/// inputs never place as trusted.
+#[test]
+fn an_offer_with_a_tier_is_refused() {
+    let lines = vec![offer(0, "j-1", json!({ "tier": "trusted" }))];
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, lines)],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }],
+    );
+    bed.until(10, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.reports[0].refusal_code, Some(RefusalCode::EventNotAllowed));
+}
+
 /// The design test 2 of the source contract: an offer that comes twice
 /// is one job, with one offer line in the audit.
 #[test]
