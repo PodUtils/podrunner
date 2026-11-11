@@ -953,3 +953,33 @@ SIGTERM and SIGINT start the drain of `podrunner stop`. With `NOTIFY_SOCKET` (pa
 ## Done
 
 2026-11-11, `1f1d389`. `crates/podrunner/src/notify.rs`: SIGTERM and SIGINT set a flag that starts the drain of `stop`; with `NOTIFY_SOCKET` (a path or `@NAME`) `serve` sends `READY=1` after the socket answers, `STOPPING=1` once at the drain, and `WATCHDOG=1` at half of `WATCHDOG_USEC`. `print-unit` writes `Type=notify`, `KillMode=mixed`, `TimeoutStopSec=infinity`, and `WatchdogSec` only with `--watchdog`. Test `sigterm_drains_and_notify_says_ready_and_stopping`: SIGTERM ends `serve` with exit 0 only when the job is reported, with no `lost` line; a planted removal of the handler fails it. `systemd-analyze verify` is not run here (not on this host).
+
+# T-061: COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (GitHub #61)
+
+**Source:** GitHub #61
+**Category:** defect
+**Milestone:** L2
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+On the supervise rung of podvm `v0.2.0-beta.3`, an absolute symlink inside the rootfs of an image resolves on the host: the official runner could not read `/home/runner/.credentials -> /podrunner/.runner/.credentials`, and a relative link works. On another host the target can be a host file. Many images hold absolute links. GitHub #61 (COORD-007, to podvm) records it.
+
+## Premise
+
+Measured on 2026-11-11 in T-026 (`crates/podrunner-broker-fake/tests/podvm.rs`, `1db8bc3`), as `nobody` with a seccomp filter that refuses `CLONE_NEWUSER`.
+
+## Approach
+
+No fix in podrunner: the path view is the interposer of podvm. The runner image uses relative links (`images/runner/Dockerfile`). When podvm answers, record the rule of the rung, and add a case of an absolute link to the unit tests of the podvm driver if podvm fixes it.
+
+## Prove
+
+`cargo test -p podrunner-podvm --test conformance -- --ignored` as a uid with no user namespace, with a case where a unit reads a file through an absolute link inside its rootfs.
+
+## Blocker
+
+The answer of podvm to GitHub #61.
+

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**60 entries: 1 open, 4 partial, 15 blocked, 40 done.**
+**61 entries: 1 open, 4 partial, 16 blocked, 40 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 21 | 22 |
-| P2 | 1 | 3 | 10 | 18 | 32 |
+| P2 | 1 | 3 | 11 | 18 | 33 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 1 | 4 | 15 | 40 | 60 |
+| **All** | 1 | 4 | 16 | 40 | 61 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -108,3 +108,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-058](core.md) | P2 | S | M-D | feature | done | podrunner check: validate a configuration and start nothing (GitHub #58) |
 | [T-059](core.md) | P2 | S | M-D | feature | done | audit.jsonl: chain each line to the one before; podrunner audit verify (GitHub #59) |
 | [T-060](core.md) | P2 | S | M-D | feature | done | serve: SIGTERM and SIGINT start a drain; sd_notify (GitHub #60) |
+| [T-061](core.md) | P2 | S | L2 | defect | blocked | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (GitHub #61) |
