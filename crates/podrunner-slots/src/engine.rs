@@ -256,6 +256,8 @@ impl Slots {
         detail: Option<String>,
     ) {
         let e = Entry {
+            seq: 0,
+            prev: String::new(),
             t_ms: self.now(),
             audit: kind,
             source: self.sources[s].cfg.name.clone(),
@@ -263,11 +265,11 @@ impl Slots {
             code,
             detail,
         };
+        // The copy at the source carries the chain: the anchor of the tail.
+        let e = self.audit.write(e);
         let _ = self.sources[s].source.audit(&e.to_map());
-        self.audit.write(e);
     }
 
-    /// Move a job to `state`, with a journal line.
     /// Move job `key` to `state` and write the journal line. `false` when
     /// the line was not written.
     pub(crate) fn set(&mut self, key: &(usize, JobId), state: State, now: u64) -> bool {

@@ -3,7 +3,7 @@
 `crates/podrunner/src/cli.rs`. The exit codes are the table of `pod-core`
 of podcrates: 0 success, 64 a usage error, 69 a control socket that does
 not answer or a state directory that another `serve` holds, 75 a
-`stop --wait` that timed out, 77 a refusal of the supervisor, 78 a
+`stop --wait` that timed out, 76 an audit file whose chain breaks, 77 a refusal of the supervisor, 78 a
 configuration that cannot be used, 80 a kind or a source that this build
 has not.
 
@@ -16,6 +16,7 @@ has not.
 | `podrunner stop ...` | Drain, then end when each job is final. |
 | `podrunner stop --wait --state DIR [--timeout SECONDS]` | Also wait until `serve` has ended (the lock of `DIR` is free). A timeout exits 75. |
 | `podrunner clear-degraded ...` | Start jobs again after the operator looked at a residue. |
+| `podrunner audit verify (--state DIR \| --file FILE) [--anchor SEQ:HASH]` | Walk the chain of `audit.jsonl`: each line has `seq` and `prev` (the SHA-256 of the line before). A lost, edited or torn line exits 76 and names the `seq`. A cut tail needs the anchor: the `seq` of a line and the `prev` of the next line in the copy at the source. |
 | `podrunner doctor` | Read `pod doctor --json` (the hold) and `podvm probe --json`, and name each input that is missing (call C9). |
 | `podrunner print-unit --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]` | A systemd unit for `serve` (`Type=notify`, a stop that waits for the drain), with no credential. `WatchdogSec` only with `--watchdog`. |
 | `podrunner image verify --tarball FILE --arch ARCH` | Check a release tarball of the official runner against `images/runner/runner.toml` (the version and the SHA-256 of each architecture). Exit 78 when it differs. |

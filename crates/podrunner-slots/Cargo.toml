@@ -8,6 +8,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+ring.workspace = true
 podrunner-clock.workspace = true
 podrunner-schema.workspace = true
 podrunner-source.workspace = true

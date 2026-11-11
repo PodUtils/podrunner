@@ -25,6 +25,8 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   stop --wait --state DIR [--timeout SECONDS]       ... and wait until serve ends
   clear-degraded (--state DIR | --socket PATH)      start jobs again after a residue
   doctor                                            the inputs of a host check
+  audit verify (--state DIR | --file FILE) [--anchor SEQ:HASH]
+                                                    check the chain of audit.jsonl
   print-unit --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]
                                                     a service unit, with no credential
   pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
@@ -161,6 +163,10 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             };
             Ok(ok(print_unit(&binary, &o.need("--config")?, &o.need("--state")?, watchdog)))
         }
+        "audit" => match rest.split_first() {
+            Some((sub, rest)) if sub == "verify" => audit_verify(rest),
+            _ => Err(err(Class::Usage, format!("audit needs verify\n{USAGE}"))),
+        },
         "image" => match rest.split_first() {
             Some((sub, rest)) if sub == "verify" => {
                 let o = opts(rest)?;
@@ -223,6 +229,31 @@ fn stop_wait(rest: &[String]) -> Result<Out, Out> {
             return Err(err(Class::Timeout, "serve did not end in time: a job is not final"));
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+
+/// `audit verify`: walk the chain of an audit file (GitHub #59). A break
+/// is exit 76; the anchor is `SEQ:HASH` from the copy at the source.
+fn audit_verify(rest: &[String]) -> Result<Out, Out> {
+    let o = opts(rest)?;
+    o.only(&["--state", "--file", "--anchor"])?;
+    let file = match (o.get("--file"), o.get("--state")) {
+        (Some(f), _) => f,
+        (None, Some(d)) => d.join("audit.jsonl"),
+        (None, None) => return Err(err(Class::Usage, format!("--state or --file is necessary\n{USAGE}"))),
+    };
+    let anchor = o.get("--anchor").map(|a| a.display().to_string());
+    let anchor = match anchor.as_deref().map(|a| a.split_once(':')) {
+        None => None,
+        Some(Some((seq, hash))) if seq.parse::<u64>().is_ok() && hash.len() == 64 => {
+            Some((seq.parse::<u64>().expect("a number"), hash.to_string()))
+        }
+        Some(_) => return Err(err(Class::Usage, "--anchor is SEQ:HASH, the hash in 64 hex digits")),
+    };
+    let text = std::fs::read(&file).map_err(|e| err(Class::NotFound, format!("the audit file: {}", e.kind())))?;
+    match podrunner_slots::audit::verify(&text, anchor.as_ref().map(|(s, h)| (*s, h.as_str()))) {
+        Ok(seq) => Ok(ok(format!("the chain holds: {seq} lines\n"))),
+        Err(why) => Err(err(Class::Protocol, why)),
     }
 }
 
@@ -378,6 +409,37 @@ mod tests {
         assert!(!unit.contains(canary) && !unit.to_lowercase().contains("token"));
         let unit = print_unit(Path::new("/b"), Path::new("/c"), Path::new("/s"), Some(30));
         assert!(unit.contains("WatchdogSec=30\n"), "{unit}");
+    }
+
+    #[test]
+    fn audit_verify_exits_0_on_a_chain_and_76_on_a_break() {
+        use podrunner_slots::audit::{Audit, Entry, Kind};
+        let dir = std::env::temp_dir().join(format!("podrunner-cli-audit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut a = Audit::open(&dir).unwrap();
+        for n in 1..=3 {
+            a.write(Entry {
+                seq: 0,
+                prev: String::new(),
+                t_ms: n,
+                audit: Kind::Offer,
+                source: "s".into(),
+                job_id: podrunner_schema::JobId::new("j-1").unwrap(),
+                code: None,
+                detail: None,
+            });
+        }
+        let state = dir.display().to_string();
+        assert_eq!(run(&args(&["audit", "verify", "--state", &state])).code, 0);
+        let file = dir.join("audit.jsonl");
+        let text = std::fs::read_to_string(&file).unwrap().replacen("\"t_ms\":2", "\"t_ms\":9", 1);
+        std::fs::write(&file, text).unwrap();
+        let o = run(&args(&["audit", "verify", "--state", &state]));
+        assert_eq!(o.code, 76, "{}", o.stderr);
+        assert!(o.stderr.contains("broken at seq 3"), "{}", o.stderr);
+        assert_eq!(run(&args(&["audit", "verify", "--state", &state, "--anchor", "x"])).code, 64);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

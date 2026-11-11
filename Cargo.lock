@@ -796,6 +796,7 @@ dependencies = [
  "podrunner-source",
  "podrunner-tier",
  "podrunner-unit",
+ "ring",
  "schemars",
  "serde",
  "serde_json",
