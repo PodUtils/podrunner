@@ -60,6 +60,10 @@ is done.
   unit runs a canned job on a host with no root (T-026, `runner-image.yml`).
   The container route of the podvm driver works on the supervise rung
   (T-035): a `container:` job runs through the hooks of a podvm unit.
+- The next tag of podcrates after `v0.24.0` changes `pod-confine`: new
+  fields of `Spec` (scope, udp; podrunner uses the builders), and `apply`
+  drops each capability (PodUtils/podcrates@T-221). Take it, then remove
+  the root guard of the test in `crates/podrunner-unit/src/confine.rs`.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The design copy is in `docs/design/` (T-014): the spec, the appendices,
