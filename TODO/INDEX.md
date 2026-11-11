@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**44 entries: 6 open, 7 partial, 14 blocked, 17 done.**
+**44 entries: 6 open, 6 partial, 14 blocked, 18 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 1 | 3 | 1 | 11 | 16 |
-| P2 | 5 | 4 | 9 | 5 | 23 |
+| P2 | 5 | 3 | 9 | 6 | 23 |
 | P3 | 0 | 0 | 4 | 1 | 5 |
-| **All** | 6 | 7 | 14 | 17 | 44 |
+| **All** | 6 | 6 | 14 | 18 | 44 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -76,7 +76,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-026](live.md) | P2 | M | M-B | chore | blocked | Milestone M-B: the official runner starts under the podvm driver, no GitHub (GitHub #26) |
 | [T-027](live.md) | P2 | M | M-C | feature | done | WP-05a: mint with an in-process sign module, source conformance (GitHub #27) |
 | [T-028](live.md) | P2 | S | M-C | feature | done | WP-06: the fake scale-set service (Go, test only) (GitHub #28) |
-| [T-029](live.md) | P2 | M | M-C | feature | partial | WP-07: the github-scaleset source sidecar (static Go) (GitHub #29) |
+| [T-029](live.md) | P2 | M | M-C | feature | done | WP-07: the github-scaleset source sidecar (static Go) (GitHub #29) |
 | [T-030](live.md) | P2 | M | M-C | feature | open | WP-10: the image pipeline: pins, age limit, podrunner image build (GitHub #30) |
 | [T-031](live.md) | P2 | M | M-D | feature | blocked | WP-05b: remote mint (only if DR-4 is yes) (GitHub #31) |
 | [T-032](live.md) | P2 | S | M-C | chore | blocked | Milestone M-C: the live gates G-H2 to G-H4 on a fake unit (GitHub #32) |

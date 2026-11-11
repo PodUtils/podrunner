@@ -168,7 +168,7 @@ Open: the conformance run of the sidecar (T-029) on it.
 **Milestone:** M-C
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -238,7 +238,7 @@ throttled ones. A personal account is refused at the start of the sidecar
 
 ## Prove
 
-`cargo test -p podrunner-source --test conformance -- --ignored scaleset`, with the sidecar and the fake service of T-028.
+`cargo test -p podrunner-source --test scaleset -- --ignored` and `cargo test -p podrunner --test scaleset -- --ignored`, with `PODRUNNER_FAKE_SCALESET` and `PODRUNNER_SCALESET_SIDECAR` naming the two Go binaries (the gate job `go`).
 
 ## Done
 
