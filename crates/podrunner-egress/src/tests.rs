@@ -173,17 +173,17 @@ fn proxy_that_answers(status: &'static str) -> String {
 #[test]
 fn the_upstream_check_tells_a_proxy_that_refuses_non_public_names() {
     let takes = pod_proxy::Proxy::parse(&proxy_that_answers("200 Connection established")).unwrap();
-    let e = Egress::host(Some(takes), true).unwrap();
+    let e = Egress::host(Some(takes), true, Arc::new(super::SystemResolve)).unwrap();
     assert_eq!(e.check_upstream(), "takes-non-public");
     let refuses = pod_proxy::Proxy::parse(&proxy_that_answers("403 Forbidden")).unwrap();
-    let e = Egress::host(Some(refuses), true).unwrap();
+    let e = Egress::host(Some(refuses), true, Arc::new(super::SystemResolve)).unwrap();
     assert_eq!(e.check_upstream(), "refuses-non-public");
 }
 
 /// T-048: the load of a policy counts its allow rules under an open suffix.
 #[test]
 fn an_open_suffix_rule_is_counted() {
-    let e = Egress::host(None, false).unwrap();
+    let e = Egress::host(None, false, Arc::new(super::SystemResolve)).unwrap();
     let d = dir();
     let open = r#"{"schema":1,"mode":"allow","allow":[{"host":"*.github.io"},{"host":"github.com"}]}"#;
     assert_eq!(e.open("u-1", open, &d.join("u-1.sock"), Duration::from_secs(60)).unwrap(), 1);

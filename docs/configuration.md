@@ -65,7 +65,16 @@ runner_version = "2.338.2"   # the official runner in the image
 max_age_s = 2419200          # the age limit of this pin; the smaller of it and [pin] max_age_s holds
 
 [egress]                     # the egress ceiling of each tier (T-024)
+
+[dns]                        # the resolver of the egress and of a remote mint (pod-dns, T-076)
+doh = true                   # ask DNS over HTTPS (resolvers by their address) when the system and the cache fail
+pins = ["mint.example.org=192.0.2.10"]  # HOST=IP: a pinned name is not asked of the system
 ```
+
+The resolver asks in this order: an IP literal, the pins, the system
+resolver, the addresses that carried a session, DNS over HTTPS to
+resolvers by their address, then the old addresses of that cache. A host
+whose own resolver fails keeps its egress and its mint.
 
 ## The floors of the tiers
 

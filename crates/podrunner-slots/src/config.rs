@@ -66,6 +66,30 @@ pub struct SourceConfig {
     pub cert_file: Option<String>,
 }
 
+/// `[dns]`: the resolver of podrunner (`pod-dns`): the system, the cache of
+/// addresses that carried a session, DNS over HTTPS to resolvers by their
+/// address. A host whose own resolver fails keeps its egress and its mint.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DnsConfig {
+    /// Ask DNS over HTTPS when the system and the cache give no address.
+    #[serde(default = "yes")]
+    pub doh: bool,
+    /// `HOST=IP` pins: a pinned name is not asked of the system.
+    #[serde(default)]
+    pub pins: Vec<String>,
+}
+
+impl Default for DnsConfig {
+    fn default() -> Self {
+        DnsConfig { doh: true, pins: Vec::new() }
+    }
+}
+
+fn yes() -> bool {
+    true
+}
+
 /// The slots of one unit kind.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -218,6 +242,9 @@ pub struct Config {
     /// name, and checks at the start that it refuses a non-public one.
     #[serde(default)]
     pub upstream_names_only: bool,
+    /// The resolver of the egress and of a remote mint (T-076).
+    #[serde(default)]
+    pub dns: DnsConfig,
     /// The one repository (`owner/repo`) that the host serves; an offer of
     /// another repository is `repo-scope-refused`. `trusted` at
     /// `redirect` needs it (DR-4).

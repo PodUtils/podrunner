@@ -18,6 +18,8 @@ use pod_core::{BoxFuture, Class, Failure, Found, Resolve, Source, Stage};
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 
+pub mod dns;
+
 /// A failure of the egress module, with no byte of a policy or a token.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EgressError(pub String);
@@ -94,11 +96,14 @@ impl Egress {
         })
     }
 
-    /// The module of a host: the system resolver, and a direct way out (or
-    /// through `proxy`). With `names_only`, the broker sends the checked name
-    /// to `proxy`, which takes names only.
-    pub fn host(proxy: Option<pod_proxy::Proxy>, names_only: bool) -> Result<Egress, EgressError> {
-        let resolve: Arc<dyn Resolve> = Arc::new(SystemResolve);
+    /// The module of a host: the resolver `resolve` ([`dns::resolver`]),
+    /// and a direct way out (or through `proxy`). With `names_only`, the
+    /// broker sends the checked name to `proxy`, which takes names only.
+    pub fn host(
+        proxy: Option<pod_proxy::Proxy>,
+        names_only: bool,
+        resolve: Arc<dyn Resolve>,
+    ) -> Result<Egress, EgressError> {
         let dial = pod_broker::upstream("podrunner", proxy, resolve.clone());
         let settings = pod_broker::Settings { names_upstream: names_only, ..Default::default() };
         Egress::new(Broker::new(settings, resolve, dial))

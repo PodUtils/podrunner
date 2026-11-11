@@ -22,6 +22,8 @@ podrunner-tier.workspace = true
 toml.workspace = true
 ring.workspace = true
 pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0" }
+# The pins of `[dns]` (T-076).
+pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0" }
 pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0", default-features = false }
 podrunner-fake.workspace = true
 podrunner-mint.workspace = true

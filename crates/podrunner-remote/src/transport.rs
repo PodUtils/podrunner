@@ -113,10 +113,30 @@ impl Server {
     }
 }
 
+/// A lookup of the addresses of a name and a port (T-076: `pod-dns`).
+pub type Lookup = Arc<dyn Fn(&str, u16) -> Result<Vec<std::net::SocketAddr>, String> + Send + Sync>;
+
 /// The unit host side: the wire to the mint at `address` (`host:port`).
+/// `lookup` resolves the host of `address`; `None`: the system resolver.
 pub struct Https {
     pub address: String,
     pub config: Arc<rustls::ClientConfig>,
+    pub lookup: Option<Lookup>,
+}
+
+impl Https {
+    /// A connection to the mint: an IP address as it is, a name through
+    /// `lookup` (each address in turn).
+    fn connect(&self) -> std::io::Result<TcpStream> {
+        let name = self.address.rsplit_once(':').and_then(|(h, p)| Some((h.trim_matches(['[', ']']), p.parse().ok()?)));
+        match (&self.lookup, name) {
+            (Some(lookup), Some((host, port))) if host.parse::<std::net::IpAddr>().is_err() => {
+                let addrs = lookup(host, port).map_err(std::io::Error::other)?;
+                TcpStream::connect(&addrs[..])
+            }
+            _ => TcpStream::connect(&self.address),
+        }
+    }
 }
 
 fn down(what: &str) -> SourceError {
@@ -126,7 +146,7 @@ fn down(what: &str) -> SourceError {
 impl Exchange for Https {
     fn exchange(&mut self, line: &str) -> Result<Vec<u8>, SourceError> {
         let io = |e: std::io::Error| down(&format!("{}", e.kind()));
-        let tcp = TcpStream::connect(&self.address).map_err(io)?;
+        let tcp = self.connect().map_err(io)?;
         tcp.set_read_timeout(Some(READ_TIMEOUT)).map_err(io)?;
         // The pin names the mint; the name of the connect is not checked.
         let name = ServerName::try_from("podrunner-mint").map_err(|_| down("a server name"))?;

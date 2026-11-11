@@ -122,7 +122,7 @@ fn the_mint_process_gives_a_credential_and_shows_it_nowhere() {
 
     let (hk, hc) = (std::fs::read(&host.0).unwrap(), std::fs::read(&host.1).unwrap());
     let config = client_config(provider(), certified(&hc, &hk).unwrap(), Pins::new([mint.2]), &[ALPN]).unwrap();
-    let mut wire = Wire(Https { address: format!("127.0.0.1:{port}"), config });
+    let mut wire = Wire(Https { address: format!("127.0.0.1:{port}"), config, lookup: None });
     let t = Instant::now();
     while wire.hello("podrunner", "0").is_err() {
         assert!(t.elapsed() < Duration::from_secs(10), "the mint does not answer: {}", end(proc));

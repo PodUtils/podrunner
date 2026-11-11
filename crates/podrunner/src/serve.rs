@@ -72,6 +72,7 @@ pub(crate) fn private_file(name: &str, path: &str) -> Result<Vec<u8>, Failure> {
 /// trusts only the pinned key of the mint.
 fn remote(
     s: &podrunner_slots::config::SourceConfig,
+    lookup: Option<podrunner_remote::transport::Lookup>,
 ) -> Result<podrunner_source::Wire<podrunner_remote::transport::Https>, Failure> {
     use podrunner_remote::transport::{ALPN, Https, provider};
     let get = |v: &Option<String>| v.clone().unwrap_or_default();
@@ -84,7 +85,7 @@ fn remote(
         pod_tls::mutual::Pin::parse(&get(&s.mint_pin)).map_err(|e| fail(Class::Config, format!("{}: {e}", s.name)))?;
     let config = pod_tls::mutual::client_config(provider(), certified, pod_tls::mutual::Pins::new([pin]), &[ALPN])
         .map_err(|e| fail(Class::Config, format!("{}: {e}", s.name)))?;
-    Ok(podrunner_source::Wire(Https { address: get(&s.mint), config }))
+    Ok(podrunner_source::Wire(Https { address: get(&s.mint), config, lookup }))
 }
 
 /// The scale-set sidecar of a source, with `sign` over the key of the App.
@@ -138,6 +139,7 @@ pub(crate) fn scaleset(
 pub(crate) fn source_of(
     s: &podrunner_slots::config::SourceConfig,
     clock: Arc<dyn Clock>,
+    lookup: Option<podrunner_remote::transport::Lookup>,
 ) -> Result<Box<dyn podrunner_source::JobSource>, Failure> {
     let source: Box<dyn podrunner_source::JobSource> = match s.kind {
         SourceKind::Fake => {
@@ -151,7 +153,7 @@ pub(crate) fn source_of(
             Box::new(FakeSource::new(&s.name, clock, script))
         }
         SourceKind::GithubScaleset => Box::new(scaleset(s, clock)?),
-        SourceKind::Remote => Box::new(remote(s)?),
+        SourceKind::Remote => Box::new(remote(s, lookup)?),
     };
     Ok(Box::new(podrunner_mint::Mint::new(&s.name, source)))
 }
@@ -162,8 +164,9 @@ pub(crate) fn source_of(
 /// `build`, so `check` and `serve` refuse a file with the same text.
 pub fn plan(cfg: &Config) -> Result<(), Failure> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
+    resolve(cfg)?;
     for s in &cfg.source {
-        drop(source_of(s, clock.clone())?);
+        drop(source_of(s, clock.clone(), None)?);
     }
     for (name, u) in &cfg.unit {
         match name.as_str() {
@@ -197,12 +200,25 @@ pub fn check(path: &Path) -> Result<Config, Failure> {
     Ok(cfg)
 }
 
+/// The resolver of `[dns]` (T-076): `pod-dns`, with the pins of the file.
+fn resolve(cfg: &Config) -> Result<Arc<dyn pod_core::Resolve>, Failure> {
+    let pins =
+        pod_dns::parse_pins(&cfg.dns.pins.join(",")).map_err(|e| fail(Class::Config, format!("[dns] pins: {e}")))?;
+    Ok(podrunner_egress::dns::resolver(cfg.dns.doh, pins))
+}
+
 /// Build the supervisor of a configuration.
 pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
+    let resolve = resolve(&cfg)?;
+    let lookup: podrunner_remote::transport::Lookup = Arc::new(podrunner_egress::dns::lookup(resolve.clone()));
     let mut sources = Vec::new();
     for s in &cfg.source {
-        sources.push(Source { cfg: s.clone(), source: source_of(s, clock.clone())?, revoked: false });
+        sources.push(Source {
+            cfg: s.clone(),
+            source: source_of(s, clock.clone(), Some(lookup.clone()))?,
+            revoked: false,
+        });
     }
     let mut kinds = Vec::new();
     let mut retests = Vec::new();
@@ -314,7 +330,7 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
         }
         None => None,
     };
-    let egress = podrunner_egress::Egress::host(proxy, cfg.upstream_names_only)
+    let egress = podrunner_egress::Egress::host(proxy, cfg.upstream_names_only, resolve)
         .map_err(|e| fail(Class::Unavailable, e.to_string()))?;
     // An upstream that takes names resolves them again: unless it refuses a
     // non-public name, no hold through it is enforced (podcrates call C51).

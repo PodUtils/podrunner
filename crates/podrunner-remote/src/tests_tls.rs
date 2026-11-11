@@ -56,10 +56,21 @@ fn a_pinned_host_reaches_the_gate_and_another_key_does_not() {
 
     let client = |k: &(Vec<u8>, Vec<u8>, Pin), mint_pin: Pin| {
         let config = client_config(provider(), certified(&k.1, &k.0).unwrap(), Pins::new([mint_pin]), &[ALPN]).unwrap();
-        Wire(Https { address: address.clone(), config })
+        Wire(Https { address: address.clone(), config, lookup: None })
     };
     let mut h1 = client(&host, mint.2);
     assert_eq!(h1.hello("podrunner", "0").unwrap().source, "src");
+    // T-076: a name of the mint that only the lookup knows (`pod-dns`
+    // with a pin, in `serve`) reaches the mint.
+    let port: u16 = address.rsplit_once(':').unwrap().1.parse().unwrap();
+    let lookup: crate::transport::Lookup = Arc::new(|host: &str, port: u16| match host {
+        "mint.podrunner.invalid" => Ok(vec![std::net::SocketAddr::from(([127, 0, 0, 1], port))]),
+        other => Err(format!("{other}: no pin")),
+    });
+    let named = client_config(provider(), certified(&host.1, &host.0).unwrap(), Pins::new([mint.2]), &[ALPN]).unwrap();
+    let mut by_name =
+        Wire(Https { address: format!("mint.podrunner.invalid:{port}"), config: named, lookup: Some(lookup) });
+    assert_eq!(by_name.hello("podrunner", "0").unwrap().source, "src");
     let events = h1.next(5, Duration::ZERO).unwrap();
     assert!(matches!(&events[..], [Event::Offer { offer }] if offer.job_id.as_str() == "j-1"), "{events:?}");
     let j = JobId::new("j-1").unwrap();
@@ -98,7 +109,7 @@ impl podrunner_source::conformance::Fixture for OverTls {
         std::thread::spawn(move || server.serve(listener, Arc::new(AtomicBool::new(false))));
         let key = certified(&self.host.1, &self.host.0).unwrap();
         let config = client_config(provider(), key, Pins::new([self.mint.2]), &[ALPN]).unwrap();
-        Box::new(Wire(Https { address, config }))
+        Box::new(Wire(Https { address, config, lookup: None }))
     }
 }
 

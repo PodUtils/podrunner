@@ -102,7 +102,8 @@ pub fn run(config: &Path) -> Result<(), Failure> {
         std::fs::read_to_string(config).map_err(|e| fail(Class::Config, format!("the configuration: {}", e.kind())))?;
     let c = MintConfig::parse(&text).map_err(|e| fail(Class::Config, e))?;
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
-    let source = source_of(&c.source, clock)?;
+    // A mint holds no remote source: no lookup.
+    let source = source_of(&c.source, clock, None)?;
     let state = Path::new(&c.state);
     let io = |what: &str, e: std::io::Error| fail(Class::Unavailable, format!("{what}: {}", e.kind()));
     std::fs::create_dir_all(state).map_err(|e| io("the state directory", e))?;

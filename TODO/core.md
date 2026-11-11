@@ -1140,4 +1140,4 @@ One `pod_dns::Resolver` for each process, from a `[dns]` table of the configurat
 
 ## Prove
 
-`cargo test -p podrunner-egress dns` and `cargo test -p podrunner-remote dns`: with a system resolver that fails and a fake DNS over HTTPS resolver that answers, the egress of a unit and the dial of a remote mint reach their loopback servers; the plain tests with the system resolver still pass.
+`cargo test -p podrunner-egress dns` (a name that the system cannot resolve answers from its pin) and `cargo test -p podrunner-remote a_pinned_host` (the mint dial by a name that only the lookup knows). DNS over HTTPS itself is a test of `pod-dns`.
