@@ -8,7 +8,10 @@
 //!   cargo test -p podrunner-broker-fake --test podvm -- --ignored
 //!
 //! The image is the one of `images/runner/`, or for a test on a host with
-//! no docker the stand-in of `scripts/runner-stand-in.py`.
+//! no docker the stand-in of `scripts/runner-stand-in.py`. The second test
+//! (T-035) runs a `container:` job through the hooks: it needs
+//! `PODRUNNER_JOB_IMAGE` (NAME@sha256:HEX, an image with `sh` in the same
+//! store) and podvm on the supervise rung.
 
 mod common;
 
@@ -72,5 +75,86 @@ fn the_runner_in_a_podvm_unit_runs_a_canned_job() {
     assert_eq!(done.len(), 1, "{:?}\n{logs}", broker.seen());
     assert_eq!(done[0].conclusion, "succeeded", "{logs}");
     assert!(logs.contains("podrunner-podvm-42"), "{logs}");
+    assert!(residue.is_clean(), "{residue:?}");
+}
+
+/// A `container:` job on the official runner in a podvm unit, through the
+/// relay, the control socket in the socket directory of the unit and the
+/// container verbs of the podvm driver (T-035, step 4).
+#[test]
+#[ignore]
+fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
+    use std::sync::atomic::AtomicBool;
+    use std::sync::{Arc, Mutex};
+
+    use podrunner_hook::policy::Policy;
+    use podrunner_hook::server::{Unit, bind, serve_until};
+    use podrunner_hook::unit::HookUnit;
+
+    let state = std::env::temp_dir().join(format!("podrunner-podvm-hooks-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&state);
+    let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
+    let unit: Arc<dyn UnitDriver> =
+        Arc::new(PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap());
+    let guest = unit.socket_mount().expect("podvm on the supervise rung").to_string();
+    let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
+    let prepared = unit.prepare(&env("PODRUNNER_RUNNER_IMAGE"), platform, false).unwrap();
+
+    // The socket directory: the control socket and the relay.
+    let id = UnitId::parse("u-1").unwrap();
+    let sockets = state.join("sockets");
+    std::fs::create_dir_all(&sockets).unwrap();
+    let relay = sockets.join("podrunner-hook.sh");
+    std::fs::write(&relay, podrunner_hook::RELAY).unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let policy = Policy {
+        container: podrunner_schema::ContainerRoute::Hooks,
+        shared_host_net: true,
+        registries: vec!["docker.io".into()],
+        work_root: "/home/runner".into(),
+    };
+    let hook = Arc::new(Mutex::new(HookUnit::new(unit.clone(), id.clone(), policy, None, state.join("logs"))));
+    std::fs::create_dir_all(state.join("logs")).unwrap();
+    let listener = bind(&sockets.join("ctl.sock")).unwrap();
+    let u: Arc<Mutex<dyn Unit>> = hook.clone();
+    std::thread::spawn(move || serve_until(listener, u, Arc::new(AtomicBool::new(false))));
+
+    let broker = Broker::start().unwrap();
+    let mut job =
+        Job::scripts("in-container", &["echo podrunner-podvm-container-$((6*7)) > marker.txt; cat marker.txt"]);
+    job.container = Some(env("PODRUNNER_JOB_IMAGE"));
+    broker.queue(job);
+    let files = runner_files(&broker.base, "runner-u-1", &common::rsaparams())
+        .into_iter()
+        .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
+        .collect();
+    let env_of = std::collections::BTreeMap::from([
+        ("ACTIONS_RUNNER_CONTAINER_HOOKS".to_string(), format!("{guest}/podrunner-hook.sh")),
+        ("PODRUNNER_CTL".to_string(), format!("{guest}/ctl.sock")),
+    ]);
+    let spec = StartSpec {
+        unit: id.clone(),
+        image: prepared,
+        argv: vec!["/home/runner/run.sh".into()],
+        env: env_of,
+        credential: Credential { files },
+        sockets: Some(sockets.clone()),
+    };
+    unit.start(&spec).unwrap();
+    let exit = unit.wait(&id, Duration::from_secs(300)).unwrap();
+    let t = Instant::now();
+    while broker.completions().is_empty() && t.elapsed() < Duration::from_secs(5) {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let (done, logs) = (broker.completions(), broker.logs());
+    let refusals = hook.lock().unwrap().refusals.clone();
+    let residue = unit.destroy(&id).unwrap();
+    let _ = std::fs::remove_dir_all(&state);
+    println!("exit {exit:?}, residue {residue:?}, refusals {refusals:?}\n{logs}");
+    assert_eq!(done.len(), 1, "{:?}", broker.seen());
+    assert_eq!(done[0].conclusion, "succeeded", "{refusals:?}\n{logs}");
+    assert!(logs.contains("podrunner-podvm-container-42"), "{logs}");
+    assert!(refusals.is_empty(), "{refusals:?}");
     assert!(residue.is_clean(), "{residue:?}");
 }

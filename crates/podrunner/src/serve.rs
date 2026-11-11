@@ -224,7 +224,8 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                 let podvm = podrunner_podvm::Podvm { binary: binary.into() };
                 let images = PathBuf::from(need(&u.images, "images")?);
                 let mut unit = podrunner_podvm::PodvmUnit::new(podvm, &state.join("podvm"), &images)
-                    .map_err(|e| fail(Class::Unsupported, format!("[unit.podvm]: {e}")))?;
+                    .map_err(|e| fail(Class::Unsupported, format!("[unit.podvm]: {e}")))?
+                    .with_runner_dir(u.runner_dir.as_deref().unwrap_or("/home/runner"));
                 // The tree kill is verified on this host, with the pinned
                 // payload, before a wall limit counts as enforced.
                 let arch = std::env::consts::ARCH;

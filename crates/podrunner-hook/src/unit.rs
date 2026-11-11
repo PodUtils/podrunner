@@ -181,13 +181,18 @@ fn refusal(e: &UnitError) -> Refusal {
 
 impl Unit for HookUnit {
     fn hook(&mut self, input: HookInput) -> Result<Answer, Refusal> {
-        if self.host_root.is_none() {
+        // A driver that mounts the socket directory into its unit runs the
+        // unit in a root of its own (podvm): it resolves a relative mount
+        // source under the runner directory in that root, so the sources
+        // stay relative. Another driver shares the paths of the host.
+        let own_root = self.driver.socket_mount().is_some();
+        if self.host_root.is_none() && !own_root {
             self.host_root = self.driver.observe(&self.unit).ok().and_then(|o| o.runner_root);
             if self.policy.work_root.is_empty() {
                 self.policy.work_root = self.host_root.as_ref().map(|r| r.display().to_string()).unwrap_or_default();
             }
         }
-        if self.host_root.is_none() || self.policy.work_root.is_empty() {
+        if (self.host_root.is_none() && !own_root) || self.policy.work_root.is_empty() {
             self.refusals.push(RefusalCode::ContainerNotSupported);
             return Err(Refusal { code: RefusalCode::ContainerNotSupported, why: "the unit has no runner directory" });
         }

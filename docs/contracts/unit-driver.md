@@ -55,6 +55,15 @@ its test, not podrunner at run time.
 | `container_inspect` | the unit id, the container id | running, the exit |
 | `container_stop` | the unit id, the container id | none |
 
+The socket directory. Each unit has a directory of its own on the host
+with its egress socket (`egress.sock`), its control socket (`ctl.sock`)
+and the hook relay. A driver whose unit has a root of its own names, in
+`socket_mount`, where the unit sees that directory; `start` gets it as
+`sockets` and mounts it there, and the environment of the unit names the
+guest paths. The podvm driver mounts it at `/run/podrunner` on the
+supervise rung, the rung that has volumes and so the container route.
+A driver with no `socket_mount` shares the paths of the host (`fake`).
+
 ## Errors
 
 Each error has a code and a detail with no credential:

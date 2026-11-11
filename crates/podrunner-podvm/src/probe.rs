@@ -83,8 +83,10 @@ pub fn capability(probe: &Value, arch: &str) -> Result<Capability, UnitError> {
         boundary_proof: Some(format!("podvm-probe:{rung}")),
         // The units run as the uid of podrunner.
         principal: Principal::Shared,
-        container: ContainerRoute::None,
-        net: "host".into(),
+        // Containers need volumes, and podvm gives volumes on the supervise
+        // rung only (U19, T-034).
+        container: if matches!(rung, "supervise" | "userland") { ContainerRoute::Hooks } else { ContainerRoute::None },
+        net: "shared-host".into(),
         secret_delivery: vec![SecretDelivery::Files],
         // No tmpfs on a host with no mounts: a directory of mode 0700.
         credential_store: CredentialStore::PrivateDir,

@@ -12,7 +12,8 @@ import glob, io, os, subprocess, sys, tarfile
 runner, out = sys.argv[1], sys.argv[2]
 tools = ["sh", "bash", "dash", "cat", "cp", "mkdir", "rm", "sleep", "ls", "grep", "sed", "readlink", "dirname",
          "basename", "uname", "env", "id", "tr", "head", "tail", "printf", "echo", "test", "true", "false", "mv",
-         "chmod", "ln", "date", "cut", "touch", "wc", "find", "xargs", "sort", "awk", "ps", "kill", "tee", "realpath"]
+         "chmod", "ln", "date", "cut", "touch", "wc", "find", "xargs", "sort", "awk", "ps", "kill", "tee", "realpath",
+         "curl", "mktemp"]
 bins = [b for b in (subprocess.run(["sh", "-c", f"command -v {t}"], capture_output=True, text=True).stdout.strip()
                     for t in tools) if b.startswith("/")]
 libdir = "/lib/x86_64-linux-gnu"

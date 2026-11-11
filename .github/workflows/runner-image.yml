@@ -114,9 +114,12 @@ jobs:
           echo "PODRUNNER_PODVM=$RUNNER_TEMP/podvm" >> "$GITHUB_ENV"
           echo "PODRUNNER_PODVM_IMAGES=$PODVM_STORE" >> "$GITHUB_ENV"
           echo "PODRUNNER_RUNNER_IMAGE=$image" >> "$GITHUB_ENV"
+          # The job container of the hook test: the same image (it has tail).
+          echo "PODRUNNER_JOB_IMAGE=$image" >> "$GITHUB_ENV"
       # T-026: the podvm driver runs the image with the JIT files of the
       # fake broker; the runner takes one canned job and completes it.
-      - name: The runner in a podvm unit runs a canned job
+      # T-035: a container job through the hooks of the podvm unit.
+      - name: The runner in a podvm unit runs a canned job and a container job
         if: matrix.arch == 'x86_64'
         run: |
           set -eu

@@ -23,6 +23,8 @@ use podrunner_unit::{
 
 use crate::Podvm;
 
+mod containers;
+
 /// The working directory of the payload in the rootfs.
 const WORKDIR: &str = "/podrunner";
 
@@ -49,6 +51,11 @@ pub struct PodvmUnit {
     capability: Capability,
     platform: String,
     units: Mutex<HashMap<UnitId, Running>>,
+    /// The runner directory in the image: a relative mount source of a
+    /// container is under it.
+    runner_dir: String,
+    /// The number of the next container.
+    containers: std::sync::atomic::AtomicU64,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -68,7 +75,15 @@ impl PodvmUnit {
             capability,
             platform,
             units: Mutex::new(HashMap::new()),
+            runner_dir: "/home/runner".into(),
+            containers: std::sync::atomic::AtomicU64::new(0),
         })
+    }
+
+    /// The runner directory of the image (`[unit.podvm] runner_dir`).
+    pub fn with_runner_dir(mut self, dir: &str) -> PodvmUnit {
+        self.runner_dir = dir.into();
+        self
     }
 
     /// `podvm wait` of `unit`, tagged as the unit.
@@ -131,6 +146,12 @@ impl UnitDriver for PodvmUnit {
         Ok(self.capability.clone())
     }
 
+    /// The socket directory of a unit is a volume where volumes work: on
+    /// the supervise rung (T-050), the same rung that has containers.
+    fn socket_mount(&self) -> Option<&str> {
+        (self.capability.container == podrunner_schema::ContainerRoute::Hooks).then_some(containers::SOCKET_MOUNT)
+    }
+
     fn prepare(&self, reference: &str, platform: &str, _emulation: bool) -> Result<Prepared, UnitError> {
         let (_, digest) = parse_pinned(reference)?;
         if platform != self.platform {
@@ -187,6 +208,10 @@ impl UnitDriver for PodvmUnit {
         for (k, v) in &env {
             args.push("-e".into());
             args.push(format!("{k}={v}"));
+        }
+        if let (Some(dir), Some(guest)) = (&spec.sockets, self.socket_mount()) {
+            args.push("-v".into());
+            args.push(format!("{}:{guest}", dir.display()));
         }
         args.push(reference.clone());
         // podvm v0.2.0-beta.3 and later give each exit code in `podvm wait`
@@ -275,20 +300,20 @@ impl UnitDriver for PodvmUnit {
         Ok(Observation { unit_root: Some(work.clone()), runner_root: Some(work.join(RUNNER_ROOT)), pids })
     }
 
-    fn container_start(&self, _: &UnitId, _: &ContainerSpec) -> Result<ContainerId, UnitError> {
-        Err(UnitError::new(UnitCode::ContainerNotSupported, "the podvm unit has no container route in v1"))
+    fn container_start(&self, unit: &UnitId, spec: &ContainerSpec) -> Result<ContainerId, UnitError> {
+        self.start_container(unit, spec)
     }
-    fn container_exec(&self, _: &UnitId, _: &ContainerId, _: &ExecSpec) -> Result<Exit, UnitError> {
-        Err(UnitError::new(UnitCode::ContainerNotSupported, "no container route"))
+    fn container_exec(&self, unit: &UnitId, c: &ContainerId, spec: &ExecSpec) -> Result<Exit, UnitError> {
+        self.exec_container(unit, c, spec)
     }
-    fn container_logs(&self, _: &UnitId, _: &ContainerId) -> Result<Vec<u8>, UnitError> {
-        Err(UnitError::new(UnitCode::ContainerNotSupported, "no container route"))
+    fn container_logs(&self, unit: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {
+        self.logs_container(unit, c)
     }
-    fn container_inspect(&self, _: &UnitId, _: &ContainerId) -> Result<ContainerState, UnitError> {
-        Err(UnitError::new(UnitCode::ContainerNotSupported, "no container route"))
+    fn container_inspect(&self, unit: &UnitId, c: &ContainerId) -> Result<ContainerState, UnitError> {
+        self.inspect_container(unit, c)
     }
-    fn container_stop(&self, _: &UnitId, _: &ContainerId) -> Result<(), UnitError> {
-        Err(UnitError::new(UnitCode::ContainerNotSupported, "no container route"))
+    fn container_stop(&self, unit: &UnitId, c: &ContainerId) -> Result<(), UnitError> {
+        self.stop_container(unit, c)
     }
 }
 
