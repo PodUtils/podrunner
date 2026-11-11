@@ -99,7 +99,8 @@ mod tests {
         assert_ne!(code, Some(0));
         assert!(!other.join("written").exists());
         // The environment of a process outside the domain: this test. Root
-        // keeps CAP_SYS_PTRACE, which passes Landlock; podrunner runs as a
+        // keeps CAP_SYS_ADMIN and CAP_PERFMON, which pass Landlock for an
+        // ancestor (PodUtils/podcrates@T-221); podrunner runs as a
         // user with no privilege.
         // SAFETY: geteuid(2) has no argument and no failure.
         if unsafe { libc::geteuid() } != 0 {
