@@ -627,5 +627,5 @@ The workaround is in the driver (T-023): the payload runs under `/bin/sh` of the
 
 ## Blocker
 
-podvm (on break) fixes `podvm wait` on the supervise rung (PodUtils/podvm@T-0604). Until then the workaround of T-023 holds.
+podvm answered in PodUtils/podvm#246 (COORD-028): the case did not reproduce on its host (another rung), and PodUtils/podvm@T-1720 (`6968315`) makes `wait` read the record again for up to 10 s. It goes into the next podvm release. Then run the H0 profile again (the supervise rung), report on GitHub #49, and remove the workaround of T-023 if `podvm wait` gives each code.
 
