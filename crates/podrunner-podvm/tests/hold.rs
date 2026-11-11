@@ -2,7 +2,10 @@
 //! podvm and podnet. A CONNECT stand-in on the egress socket of the unit
 //! logs each target and tunnels it to a loopback server. The payload and a
 //! step through `exec` connect to 10.255.0.1, which no host serves: an
-//! answer comes only through the socket. Ignored by default. Run:
+//! answer comes only through the socket. The claim of the level is
+//! checked: a direct connect of the payload to the loopback of the host
+//! reaches it under `advisory` and fails under `enforced` (T-041).
+//! Ignored by default. Run:
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
 //!   PODRUNNER_PODVM_IMAGE=NAME@sha256:HEX PODRUNNER_PODNET=PATH \
@@ -103,11 +106,15 @@ fn a_held_podvm_unit_sends_each_connect_to_its_egress_socket() {
         .with_podnet(Path::new(&env("PODRUNNER_PODNET")))
         .unwrap();
     let cap = unit.probe().unwrap();
-    assert_eq!(cap.egress_hold, EgressHold::Advisory, "{cap:?}");
+    assert!(matches!(cap.egress_hold, EgressHold::Advisory | EgressHold::Enforced), "{cap:?}");
     let image = unit.prepare(&env("PODRUNNER_PODVM_IMAGE"), "linux/amd64", false).unwrap();
     let id = UnitId::parse("u-1").unwrap();
     let url = format!("http://10.255.0.1:{port}/");
-    let script = format!("curl -s --max-time 10 {url} > podrunner-hold.txt 2>&1; exec sleep 120");
+    let script = format!(
+        "curl -s --max-time 10 {url} > podrunner-hold.txt 2>&1; \
+         curl -s --max-time 5 http://127.0.0.1:{port}/ > podrunner-direct.txt 2>&1; \
+         echo done >> podrunner-direct.txt; exec sleep 120"
+    );
     let spec = StartSpec {
         unit: id.clone(),
         image: image.clone(),
@@ -119,6 +126,9 @@ fn a_held_podvm_unit_sends_each_connect_to_its_egress_socket() {
     unit.start(&spec).unwrap();
     let root = unit.observe(&id).unwrap().unit_root.unwrap();
     let held = until(|| std::fs::read_to_string(root.join("podrunner-hold.txt")).is_ok_and(|t| t.contains(BODY)));
+    let direct = root.join("podrunner-direct.txt");
+    until(|| std::fs::read_to_string(&direct).is_ok_and(|t| t.contains("done")));
+    let reached = std::fs::read_to_string(&direct).is_ok_and(|t| t.contains(BODY));
 
     // A step in a job container: an exec under a podnet pod of its own.
     let stepped = if cap.container == ContainerRoute::Hooks {
@@ -150,4 +160,11 @@ fn a_held_podvm_unit_sends_each_connect_to_its_egress_socket() {
     assert!(lines.iter().any(|l| l.starts_with(&format!("CONNECT 10.255.0.1:{port}"))), "{lines:?}");
     assert_ne!(stepped, Some(false), "the connect of an exec step did not come through the egress socket");
     assert!(residue.is_clean(), "{residue:?}");
+    // The claim: `enforced` keeps the payload off the loopback of the host.
+    assert_eq!(
+        reached,
+        cap.egress_hold == EgressHold::Advisory,
+        "{:?}: direct loopback reached {reached}",
+        cap.egress_hold
+    );
 }

@@ -64,7 +64,8 @@ pub struct PodvmUnit {
     /// The number of the next container.
     containers: std::sync::atomic::AtomicU64,
     /// The `podnet` binary of the hold (T-065), else no hold.
-    podnet: Option<PathBuf>,
+    /// With the backend of `podnet pod` (`netns` or `seccomp`).
+    podnet: Option<(PathBuf, &'static str)>,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {

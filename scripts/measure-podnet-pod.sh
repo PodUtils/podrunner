@@ -3,12 +3,14 @@
 # seccomp -x http://unix:SOCK -- podvm run -d`, with a CONNECT stand-in on
 # SOCK that tunnels each target to a loopback server. The payload connects
 # to 10.255.0.1, which no host serves, so an answer comes only through the
-# stand-in. Run it as a uid with no user namespace.
+# stand-in. Run it as a uid with no user namespace (BACKEND=seccomp, the
+# default), or with user namespaces and /dev/net/tun (BACKEND=netns).
 #
-#   sh scripts/measure-podnet-pod.sh PODNET PODVM WORKDIR
+#   [BACKEND=netns] sh scripts/measure-podnet-pod.sh PODNET PODVM WORKDIR
 #
 # It prints one line for each check: "CHECK ok" or "CHECK no: why".
 set -u
+backend=${BACKEND:-seccomp}
 podnet=$1
 podvm=$2
 work=$3
@@ -43,23 +45,23 @@ image="glibc-mini:1"
 # The unit: a connect at once, then a long sleep for exec.
 "$podvm" rm -f hold > /dev/null 2>&1
 start=$(date +%s)
-"$podnet" pod --backend seccomp -x "http://unix:$sock" -- \
+"$podnet" pod --backend "$backend" -x "http://unix:$sock" -- \
   "$podvm" run -d --name hold "$image" /bin/sh -c \
-  "curl -s --max-time 10 http://10.255.0.1:$port/ > /tmp/run.txt 2>&1; echo \$? >> /tmp/run.txt; sleep 6; curl -s --max-time 10 http://10.255.0.1:$port/ > /tmp/late.txt 2>&1; echo \$? >> /tmp/late.txt; exec sleep 120" \
+  "curl -s --max-time 10 http://10.255.0.1:$port/ > /run.txt 2>&1; echo \$? >> /run.txt; sleep 6; curl -s --max-time 10 http://10.255.0.1:$port/ > /late.txt 2>&1; echo \$? >> /late.txt; curl -s --max-time 5 http://127.0.0.1:$port/ > /direct.txt 2>&1; echo \$? >> /direct.txt; exec sleep 120" \
   > "$work/out" 2>&1
 rc=$?
 say run-d-under-podnet-pod "$rc" "exit $rc: $(tail -1 "$work/out")"
 echo "podnet pod returned after $(( $(date +%s) - start )) s"
 sleep 12
 
-"$podvm" exec hold /bin/cat /tmp/run.txt > "$work/out" 2>&1
+"$podvm" exec hold /bin/cat /run.txt > "$work/out" 2>&1
 grep -q podrunner-through-the-hold "$work/out"
 say connect-of-the-payload-reaches-the-socket $? "$(tr '\n' ' ' < "$work/out" | cut -c1-200)"
 grep -q "CONNECT 10.255.0.1:$port" "$log"
 say the-socket-logs-the-target $? "log: $(tr '\n' ' ' < "$log" | cut -c1-200)"
 
 # A connect of the payload 6 s later, after podnet pod returned.
-"$podvm" exec hold /bin/cat /tmp/late.txt > "$work/out" 2>&1
+"$podvm" exec hold /bin/cat /late.txt > "$work/out" 2>&1
 grep -q podrunner-through-the-hold "$work/out"
 say late-connect-of-the-payload $? "$(tr '\n' ' ' < "$work/out" | cut -c1-200)"
 
@@ -69,7 +71,7 @@ grep -q podrunner-through-the-hold "$work/out"
 say connect-of-an-exec-step $? "$(tail -1 "$work/out" | cut -c1-200)"
 
 # A step through exec under a podnet pod of its own.
-"$podnet" pod --backend seccomp -x "http://unix:$sock" -- \
+"$podnet" pod --backend "$backend" -x "http://unix:$sock" -- \
   "$podvm" exec hold /bin/sh -c "curl -s --max-time 10 http://10.255.0.1:$port/" > "$work/out" 2>&1
 grep -q podrunner-through-the-hold "$work/out"
 say connect-of-an-exec-step-under-podnet-pod $? "$(tail -1 "$work/out" | cut -c1-200)"
@@ -78,6 +80,17 @@ say connect-of-an-exec-step-under-podnet-pod $? "$(tail -1 "$work/out" | cut -c1
 "$podvm" exec hold /bin/sh -c "curl -s --max-time 5 http://127.0.0.1:$port/" > "$work/out" 2>&1
 grep -q podrunner-through-the-hold "$work/out"
 say direct-loopback-connect "$?" "$(tail -1 "$work/out" | cut -c1-200)"
+
+# The checks of an enforced hold: a direct loopback connect of the
+# payload, and of an exec under podnet pod. Advisory: both reach the
+# server ("reached ok"). Enforced: neither does ("reached no").
+"$podvm" exec hold /bin/cat /direct.txt > "$work/out" 2>&1
+grep -q podrunner-through-the-hold "$work/out"
+say direct-loopback-of-the-payload-reached $? "$(tr '\n' ' ' < "$work/out" | cut -c1-200)"
+"$podnet" pod --backend "$backend" -x "http://unix:$sock" -- \
+  "$podvm" exec hold /bin/sh -c "curl -s --max-time 5 http://127.0.0.1:$port/" > "$work/out" 2>&1
+grep -q podrunner-through-the-hold "$work/out"
+say direct-loopback-of-a-held-exec-reached $? "$(tail -1 "$work/out" | cut -c1-200)"
 
 "$podvm" inspect hold > "$work/out" 2>&1
 say inspect $? "$(tail -1 "$work/out")"

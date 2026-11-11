@@ -7,7 +7,7 @@ The crate dependencies later than v1 (GitHub #41 to #43).
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -31,7 +31,7 @@ Later than v1: no milestone. Dependencies: PodUtils/podvm#227 section 2.7 (PodUt
 
 ## Premise
 
-Read the text of GitHub #41 on 2026-11-11. Nothing measured.
+Read the text of GitHub #41 on 2026-11-11. Measured on 2026-11-11 with `scripts/measure-podnet-pod.sh` (podvm `v0.2.0-beta.3`, podnet `v0.4.0-beta.3`): as root (the namespace rung, `hold.netns` `enforced`), `BACKEND=netns` holds the payload after `podnet pod` returns, and a direct connect of the payload or of a held exec to the loopback of the host fails (curl exit 7); as uid 65534 with no user namespace, `seccomp` lets both through.
 
 ## Approach
 
@@ -39,11 +39,15 @@ Read the text of GitHub #41 on 2026-11-11. Nothing measured.
 
 ## Prove
 
-`cargo test -p podrunner-podvm hold`
+`cargo test -p podrunner-podvm hold`, and `cargo test -p podrunner-podvm --test hold -- --ignored` as root and as a uid with no user namespace
 
 ## Start condition
 
 T-065 is done: the podvm driver runs its units under `podnet pod` with the `advisory` hold.
+
+## Done
+
+2026-11-11: `with_podnet` takes the backend `netns` (`egress_hold: enforced`) when `podnet pod doctor --json` says `hold.netns` `enforced`, else `seccomp` (`advisory` at most, also when it claims more: the plant of `the_hold_comes_from_pod_doctor`). The hold test checks the claim: a direct loopback connect of the payload reaches the host only under `advisory`. It passes as root (netns) and as uid 65534 under `nouserns` (seccomp).
 
 # T-042: The confined boundary (pod-confine) (GitHub #42)
 
