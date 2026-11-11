@@ -40,7 +40,7 @@ podrunner-slots = { path = "crates/podrunner-slots" }
 podrunner-source = { path = "crates/podrunner-source" }
 podrunner-tier = { path = "crates/podrunner-tier" }
 podrunner-unit = { path = "crates/podrunner-unit" }
-base64 = "0.22"
+base64 = "0.23"
 libc = "0.2"
 # The RS256 signer of the GitHub App JWT (podrunner-mint): not the
 # private-key path of rsa 0.9 (RUSTSEC-2023-0071).
