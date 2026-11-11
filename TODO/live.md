@@ -39,14 +39,9 @@ Read the text of GitHub #26 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-When podvm makes the official runner start on its userland rung (PodUtils/podvm#229 to PodUtils/podvm#231), prove it through the driver of T-023 with no GitHub.
+Prove through the driver of T-023, with no GitHub, that the official runner starts in a podvm unit with no root. podvm `v0.2.0-beta.3` carries the fixes (PodUtils/podvm@T-1703, PodUtils/podvm@T-1706, PodUtils/podvm@T-1707, PodUtils/podvm@T-1710, PodUtils/podvm@T-1719; PodUtils/podvm#254). The unit gets the JIT files of the fake broker of T-038 as its credential files (`crates/podrunner-broker-fake/tests/podvm.rs`). The runner reads its files from `/home/runner`, and the driver writes them to `/podrunner/.runner`: the image links them with relative links, because an absolute link resolves on the host on the supervise rung (`images/runner/Dockerfile`, T-061). The driver sets `DOTNET_EnableWriteXorExecute=0` and no file size limit (U2, U13).
 
-Findings of the study of the owner's local-mode archive (PodUtils/podcrates:docs/research/ci/ghactions-local.md) to check here:
-
-- With W^X on, .NET truncates a file to 2 TiB at start, so an `RLIMIT_FSIZE` below that kills it with SIGXFSZ (exit 153). The archive sets `DOTNET_EnableWriteXorExecute=0`. Set no file size limit on the runner, or set that variable, and measure whether it reaches each job step.
-- A rerun failed with EACCES: a runner container wrote files as uid 1001 that the host uid 1000 cannot remove. `destroy` must remove the files of each uid that the unit can use (unit test 10), or the unit must map one uid.
-
-Unblocked on 2026-11-11: podvm `v0.2.0-beta.3` carries PodUtils/podvm@T-1703, PodUtils/podvm@T-1706, PodUtils/podvm@T-1707, PodUtils/podvm@T-1710 and PodUtils/podvm@T-1719 (PodUtils/podvm#254), pinned in `images/podvm.toml`. Measured on 2026-11-11, on the H0 profile (as `nobody`, user namespaces refused by seccomp, the supervise rung): the podvm driver starts a stand-in of the runner image (`scripts/runner-stand-in.py`: the unpacked runner v2.338.2 and the host libraries) with the JIT files of the fake broker as its credential files; the official runner connects, takes the canned job, runs its step and completes it `Succeeded`, and `destroy` counts 0 processes and 0 files (`crates/podrunner-broker-fake/tests/podvm.rs`). Found on the way: the runner reads its credential files from `/home/runner`, and the driver writes them to `/podrunner/.runner`; the image links them, with relative links, because on the supervise rung an absolute link resolves on the host, out of the rootfs (`images/runner/Dockerfile`; reported to podvm).
+Open from the acceptance of GitHub #26: exit 7 on a "version too old" answer needs `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` in the start environment, which slots does not set.
 
 ## Prove
 
@@ -96,7 +91,7 @@ Read the text of GitHub #27 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A `mint` step that makes the JIT runner configuration with an in-process `sign` module (RS256 of the App key), and the source conformance of the mint operations. Done so far (2026-11-11): `crates/podrunner-mint`: `sign` (RS256 with `ring`; one claim shape; one signature a minute; an audit line for each request; a PKCS#1 PEM key, made by `openssl` for each test run, so that no key is in the repository) and `Mint` (it forwards the nine operations; a revocation is final and names the credential, never its value). `serve` puts `Mint` before each source. The restart of the sidecar with a backoff is in `SidecarSource` (T-029).
+`crates/podrunner-mint`: `sign` (RS256 with `ring`; one claim shape; one signature a minute; an audit line for each request; a PKCS#1 PEM key that `openssl` makes for each test run, so that no key is in the repository) and `Mint` (it forwards the nine operations; a revocation is final and names the credential, never its value). `serve` puts `Mint` before each source. The restart of the sidecar with a backoff is in `SidecarSource` (T-029).
 
 ## Prove
 
@@ -139,26 +134,7 @@ Read the text of GitHub #28 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A Go service for tests only that speaks the six endpoints of the scale set, with scripted answers. Read on 2026-11-11 (`actions/scaleset` v0.5.0, MIT, `go 1.27.3` in its
-`go.mod`, through the Go module proxy): the endpoints live under
-`_apis/runtime/runnerscalesets`; the message session has create, refresh,
-delete, `GetMessage(lastMessageID, maxCapacity)` (a long poll), delete of
-a message and `AcquireJobs`; the messages are `JobAvailable`,
-`JobAssigned`, `JobStarted` and `JobCompleted`; `GenerateJitRunnerConfig`
-gives the JIT configuration. The module holds a test server in
-`internal/testserver` (a Go internal package: not importable; MIT allows a
-copy with its notice in `THIRD_PARTY.md`). Done so far (2026-11-11): `tools/fake-scaleset` (Go, no dependency
-but the tests): the authentication of a GitHub App, the scale set, the
-message session, the queue with a short long poll and the capacity
-header, `acquirejobs`, `generatejitconfig`, `JobAvailable`,
-`JobAssigned`, `JobStarted` with the runner name, `JobCompleted`, a
-redelivery of a message that was not deleted, a re-queue of an assigned
-job (at most three times), a cancel, the run object and the membership
-for the trust lookup, and a record of each request. `go test ./...`
-drives it with the real client of `actions/scaleset` v0.5.0: a fork pull
-request, a redelivery, a cancel, a job from available to completed. The
-gate has a job `go` (format, vet, tests, a static build with no cgo).
-Open: the conformance run of the sidecar (T-029) on it.
+`tools/fake-scaleset` (Go, test only, no dependency but the tests) speaks the endpoints of `actions/scaleset` v0.5.0 (MIT) under `_apis/runtime/runnerscalesets`: the authentication of a GitHub App, the scale set, the message session with a short long poll and the capacity header, `acquirejobs`, `generatejitconfig`, the messages `JobAvailable`, `JobAssigned`, `JobStarted` (with the runner name) and `JobCompleted`, a redelivery of a message that was not deleted, a re-queue of an assigned job (at most three times), a cancel, the run object and the membership for the trust lookup, and a record of each request. `go test ./...` drives it with the real client of `actions/scaleset`. The gate job `go` runs format, vet, the tests and a static build with no cgo.
 
 ## Prove
 
@@ -211,38 +187,7 @@ Read the text of GitHub #29 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A static Go sidecar (`CGO_ENABLED=0`) over `actions/scaleset` (MIT) that speaks the source wire of T-016; `THIRD_PARTY.md` lists it. Call C1 (DR-3). Done so far (2026-11-11): `tools/scaleset-sidecar` (Go): the source
-wire on stdio (a line limit of 1 MiB, `bad-request` for an unknown op or
-field, a bad `job_id`, another schema); the scale set and its message
-session; `next` turns `JobAvailable` into offers with no payload and no
-tier (the job id is the runner request id), with the trust inputs of the
-run object and the membership (`unknown` when a lookup fails; counted),
-`JobStarted` into `started` with the runner name, `JobCompleted` into
-`completed`, or `cancel` for a cancelled job; `claim` acquires the job,
-`mint` gives the files of the JIT configuration. Each App JWT comes from
-`sign` over the descriptor 3; the key never reaches the sidecar (call
-C15). The statuses 401 and 403 map to `source-revoked`, 404 to
-`unknown-job`, 422 to `bad-request`, 429 and others to `unavailable`; a
-detail names the status only. Go tests: the map of the statuses, the JIT
-files, the events. The source tests 1 to 12 pass against the sidecar on
-the fake service (`crates/podrunner-source/tests/scaleset.rs`; the gate
-runs them). The static build has no `INTERP`. `SidecarSource`
-(`crates/podrunner-mint/src/sidecar.rs`) starts the sidecar with a `sign`
-channel on its descriptor 3 and starts it again with a backoff (1 s to 60
-s), never after a revocation; `serve` builds it from a `github-scaleset`
-source (the key file must have no bit for the group or others).
-`crates/podrunner/tests/scaleset.rs`: slots, `Mint`, `sign` and the
-sidecar on the fake service: the fork pull request on the trusted set is
-withdrawn with `tier-mismatch` and never acquired (one acquire in the
-record of the fake), the member job runs to `success`, each JWT comes
-from `sign` (3 runs, each green; the gate runs it). A finding of the
-first run: `sign` refuses a JWT whose `iat` is not within a minute of
-its clock; the test now gives `sign` the clock of the host. `status`
-counts, for each source, the offers whose trust inputs hold `unknown`
-(failed or throttled lookups) and `ended_without_completion`; the sidecar
-keeps an hourly budget of lookups (`-trust-budget`, 1000) and counts the
-throttled ones. A personal account is refused at the start of the sidecar
-(`repo-scope-refused`, exit 78; a Go test).
+`tools/scaleset-sidecar` (Go, `CGO_ENABLED=0`) over `actions/scaleset` (MIT, `THIRD_PARTY.md`; call C1). It speaks the source wire on stdio (a line limit of 1 MiB; `bad-request` for an unknown op or field, a bad `job_id`, another schema). `next` turns `JobAvailable` into offers with no payload and no tier (the job id is the runner request id), with the trust inputs of the run object and the membership (`unknown` when a lookup fails; counted; an hourly budget, `-trust-budget`, 1000). `JobStarted` becomes `started` with the runner name, `JobCompleted` becomes `completed`, a cancelled job becomes `cancel`. `claim` acquires the job; `mint` gives the files of the JIT configuration. Each App JWT comes from `sign` over descriptor 3 (call C15). The statuses map as call C15 says; a detail names the status only. A personal account is refused at start (`repo-scope-refused`, exit 78). `SidecarSource` (`crates/podrunner-mint/src/sidecar.rs`) starts the sidecar with the `sign` channel and starts it again with a backoff (1 s to 60 s), never after a revocation. `serve` builds it from a `github-scaleset` source; the key file must have no bit for the group or others. `status` counts the offers with `unknown` trust inputs and `ended_without_completion` for each source.
 
 ## Prove
 
@@ -299,9 +244,15 @@ Read the text of GitHub #30 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Pins of the runner payload by digest with an age limit, and `podrunner image build` on a build host (DR-14, call C8). It uses the Actions hosts of `pod-services` (PodUtils/podcrates@T-164). That list must hold the hosts of the results service and of the artifact blobs: the study of the owner's local-mode archive found a job that failed on a 403 of the action download behind a blocked egress. The first pin of the runner is the one that podnet measured (T-044, Done): `actions/runner` v2.338.2.
+Done:
 
-Done so far: a pin has `runner_version` and its own `max_age_s` (the smaller of it and `[pin] max_age_s` holds), both in the signed pin message; the age is checked at `matched` (placement) and again at the start, so a claim that waits for its credential past the limit is `image-stale`; exit code 7 of the runner (its version is too old for the forge) makes slots `degraded`: no new start until the operator pins a new payload and clears it. The image: `images/runner/runner.toml` (reviewed) holds the version and the SHA-256 of each release tarball (from the release notes; the x86_64 one measured here); a test holds its version equal to the runner pin of `pod-services` (`github-actions-runner`). `images/runner/Dockerfile` builds the unit image on Ubuntu 24.04, pinned by digest through ECR Public (Docker Hub refused with HTTP 429), checks the tarball against the digest, adds the hook relay, and runs as uid 1001. `.github/workflows/runner-image.yml` builds an OCI archive for each architecture on a GitHub-hosted runner and names the digest of its manifest. `podrunner image verify --tarball FILE --arch ARCH` checks a tarball against the pin. The first run (42955939418, commit `a3b079c`) is green for both architectures; the x86_64 image is `runner@sha256:6325c2af55db31836062a77e501f25bff8f859870f70f3b303a787fc3873e168` (runner 2.338.2), and the tarball passed its digest check in the build. A build is not bit for bit the same twice, so a host pins the digest of the archive that it imports. The import: `runner-image.yml` takes the podvm release of `images/podvm.toml` (each binary checked by its SHA-256), and as the user of the runner (no root) loads the archive into a podvm store (`podvm load` needs a ref name in the index and the files of the layout with no directory entry; the build has no attestations, so the archive holds one image manifest) and starts `/bin/sh` of the image by its digest. Run 42973869342 (`9c03931`), x86_64: the rung of the GitHub runner is supervise; the image loads, and the runner files and the hook relay are in it; `Runner.Listener --version` gives ".NET: The application to execute does not exist" (the runner on that rung waits for PodUtils/podvm@T-1706, T-026). aarch64: the image loads, but podvm `v0.2.0-beta.2` runs no arm64 payload (its loader carries an x86_64 glibc: GitHub #52, T-051); the workflow keeps that run as a measure. The watch of the runner releases: podcrates watches `actions/runner` (`pod-services-watch`) and pins it in `pod-services`; a test of podrunner holds `images/runner/runner.toml` equal to that pin, so a new pin reaches podrunner with the podcrates tag. Open: a green import on aarch64 (T-051).
+- A pin has `runner_version` and its own `max_age_s` (the smaller of it and `[pin] max_age_s` holds), both in the signed pin message. The age is checked at `matched` and again at the start (`image-stale`).
+- Exit code 7 of the runner makes slots `degraded` until the operator pins a new payload and clears it.
+- `images/runner/runner.toml` (reviewed) holds the version and the SHA-256 of each release tarball; a test holds its version equal to the runner pin of `pod-services`, so a new pin of podcrates reaches podrunner with its tag. `podrunner image verify --tarball FILE --arch ARCH` checks a tarball against it.
+- `images/runner/Dockerfile` builds the unit image on Ubuntu 24.04 (pinned by digest, through ECR Public), checks the tarball, adds the hook relay, and runs as uid 1001. A build is not bit for bit the same twice, so a host pins the digest of the archive that it imports.
+- `.github/workflows/runner-image.yml` builds an OCI archive for each architecture on a GitHub-hosted runner, imports it into a podvm store with no root (podvm of `images/podvm.toml`, each binary checked by its SHA-256), and starts it. x86_64 is green (T-026).
+
+Open: a green import on aarch64 (T-051). The aarch64 run stays a measure.
 
 ## Prove
 
@@ -352,17 +303,13 @@ Read the text of GitHub #31 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A remote `mint` over mutual TLS (`pod_tls::mutual` of podcrates v0.17.0, PodUtils/podcrates@T-165: pinned keys on both sides, TLS 1.3, no resumption). DR-4 is yes (2026-11-11). The offer ledger, the host token and the signed pin list (T-045) come first, on the fakes; then the transport.
+`crates/podrunner-remote`, on `pod_tls::mutual` (TLS 1.3, no resumption, ALPN `podrunner-mint/1`, pinned keys on both sides; PodUtils/podcrates@T-165):
 
-Steps, in the crate `podrunner-remote`:
-
-1. Done: the gate of the mint side (`gate.rs`) and the ledger (`ledger.rs`). Each host (the name of its pinned key) holds its own offers, at most its slot count whatever `capacity` says; the mint computes the tier of each offer (`podrunner_tier::intake`) and withdraws one that the set may not run; a host cannot touch the offer of another host (`unknown-job`); one credential for each job id (`credential-already-issued`, a new code of the source wire), written and synced to the ledger before the answer; each call is an audit line with the host, the peer and the job id. The source conformance suite passes through the gate. `WireSource` is now `Wire` over a transport (`Exchange`).
-2. Done: the transport (`transport.rs`): `POST /v1/source` with one request line, over `pod_tls::mutual` (TLS 1.3, no resumption, ALPN `podrunner-mint/1`, the provider of ring), one request on each connection, a body of at most 1 MiB, 120 calls of a host in 10 s; the key of the client names its host. The client is `Wire` over the `Exchange` `Https`. A test on the loopback: a pinned host reaches the gate; a key with no pin, and a client that pins another key, fail. Limit: the source wire to the sidecar is serial (one request at a time on its stdio), so a long poll of one host holds each other call to that source, on the mint as on a single host; the gate adds no other wait.
-3. Done: `podrunner mint-serve --config FILE` (`crates/podrunner/src/mint_serve.rs`: the source, the tier rule, the hosts with their pins and slots, the ledger and the audit in a state directory) and a source kind `remote` on the unit host (`mint`, `mint_pin`, `cert_file`, `key_file`). A host that cannot reach the mint gets no offer: the source is `unavailable`.
-4. Done: the reconciliation. The ledger keeps the time of each credential and the `started` event of its runner; a credential with no start after `reconcile_after_s` (300) is an audit alert `credential-with-no-start`, and `revoke_after` (3) alerts of one host revoke it (`source-revoked` for each call, an alert `host-revoked`).
-5. Done: the host key and its rotation (call C16): each `[[host]]` pin has an optional `not_after_s`; a host can have two keys during a rotation; a key past its life gets HTTP 403. Tested on the loopback.
-6. Done: the source conformance suite (tests 1 to 12) passes over mutual TLS on the loopback: each fresh source is a new gate behind a new mint (`the_source_tests_pass_over_tls`; the gate runs it, with openssl).
-7. Done: a revoked host gives back each of its offers (`release`), and the sidecar removes the runner of each minted job at a release (`RemoveRunner` of `actions/scaleset`); the fake scale-set service records each removal (`/fake/removed`).
+- The gate and the ledger of the mint side (`gate.rs`, `ledger.rs`). Each host (the name of its pinned key) holds its own offers, at most its slot count. The mint computes the tier of each offer (`podrunner_tier::intake`) and withdraws one that the set may not run. A host cannot touch the offer of another host (`unknown-job`). One credential for each job id (`credential-already-issued`), synced to the ledger before the answer. Each call is an audit line with the host, the peer and the job id.
+- The transport (`transport.rs`): `POST /v1/source` with one request line, one request on each connection, a body of at most 1 MiB, 120 calls of a host in 10 s. The client is `Wire` over the `Exchange` `Https`. The source wire to a sidecar is serial, so a long poll of one host holds each other call to that source.
+- `podrunner mint-serve --config FILE` (`crates/podrunner/src/mint_serve.rs`) and a source kind `remote` on the unit host. A host that cannot reach the mint gets no offer.
+- The reconciliation: a credential with no start after `reconcile_after_s` is an alert `credential-with-no-start`; `revoke_after` alerts of one host revoke it (`source-revoked`, an alert `host-revoked`). A revoked host gives back each of its offers, and the sidecar removes the runner of each minted job at a release (`RemoveRunner`).
+- The host key and its rotation (call C16): `not_after_s` on each `[[host]]` pin; two keys of one host during a rotation; a key past its life gets HTTP 403.
 
 ## Prove
 
@@ -452,7 +399,7 @@ Run one live trusted job on an H0 host through the podvm driver.
 
 ## Blocker
 
-The ruling "Test accounts" (DR-7: not now, 2026-11-11), T-031 (remote mint) and milestone M-B (T-026, podvm on break).
+The ruling "Test accounts" (DR-7: not now). Also, a podvm unit reports `egress_hold: unknown`, so placement gives it no `trusted` job: the hold of `podnet pod` must be wired into the podvm driver first.
 
 # T-045: The mitigations of DR-4 for trusted jobs at redirect (GitHub #47)
 

@@ -1,23 +1,17 @@
 # Progress
 
-`TODO/INDEX.md` holds 64 entries: 0 open, 3 partial, 16 blocked, 45 done.
+`TODO/INDEX.md` holds 64 entries: 0 open, 2 partial, 16 blocked, 46 done.
 
 ## State
 
-- The rulings of 2026-11-11 ("podrunner online", "The sessions of
-  2026-11-11") give podrunner a lead session; DR-1 and DR-2 are yes
-  (T-002, T-003). The plan is GitHub #1; one entry for each issue.
-- Last beta: `v0.1.0-beta.1` at `6df0826` (release run 42942338772).
-- The owner answered DR-4 to DR-7, GitHub #8, and podcrates Q10 and Q11
-  on 2026-11-11 (`docs/decisions.md`). `trusted` can run at `redirect`
-  as a choice of the operator (T-045).
-- M-A is done (T-015 to T-025; the H0 run of T-023 on a profile with no
-  root, no user namespace, no mounts and no KVM). T-047 waits for podvm.
-  M-C: done T-027 to T-029; T-030 waits for T-051 (podvm). M-D: done T-031, T-045; T-033 waits for DR-7 and M-B.
-  L2: on the fake path, the official runner runs canned jobs, the corpus
-  and a `container:` job through the hooks (T-035, T-038); the podvm unit
-  waits for T-026;
-  T-036 blocked (the rest needs a real guest, T-037).
+- The plan is GitHub #1; one entry for each issue. The owner answered
+  DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
+- Pins: podcrates `v0.24.0`, podvm `v0.2.0-beta.3`, runner v2.338.2.
+  Last beta: `v0.1.0-beta.1` (release run 42942338772).
+- M-A and M-B hold. M-C: T-027 to T-029 done; T-030 waits for T-051
+  (podvm aarch64); the gate T-032 waits for DR-7. M-D: T-031 and T-045
+  done; the gate T-033 waits for DR-7. L2: T-034, T-035, T-038 done; the
+  gate T-039 waits for a real guest (T-036, T-037).
 - podcrates is on direct messages; podnet answers COORD issues; podvm and
   podssh are on break. An entry that needs a change of podvm or podssh is
   `blocked`, and the session takes the next entry.
@@ -31,8 +25,7 @@ then take the next one. Continue a `partial` entry first.
 
 1. **The plan:** T-001 closes when its issue closes.
 2. **The registers:** T-009 (partial: the open rows wait for their entries).
-3. **L2:** T-053 (the design numbers of the conformance tests: only podvm rows are open).
-4. **Blocked:** T-064 (the next podvm beta: the tree of each container; do it before that beta is pinned), T-039 (milestone L2: T-036, T-037), T-007 (DR-7: not now), T-030 (aarch64: T-051), T-036 (a real guest), T-051 (podvm: the aarch64 interposer), T-061 (podvm: absolute links), T-062 (podvm: :ro),
+3. **Blocked:** T-064 (the next podvm beta: the tree of each container; do it before that beta is pinned), T-039 (milestone L2: T-036, T-037), T-007 (DR-7: not now), T-030 (aarch64: T-051), T-036 (a real guest), T-051 (podvm: the aarch64 interposer), T-061 (podvm: absolute links), T-062 (podvm: :ro),
    T-032, T-033, T-037 (podvm), T-040
    to T-043, T-046.
 

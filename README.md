@@ -6,9 +6,11 @@ official `actions/runner` once inside it, reports, and destroys the unit.
 It needs no root, no namespaces and no docker daemon; a proxy is the only
 way out of a unit.
 
-Status: not usable. The plan and its milestones are in
+Status: beta, not for production. No live job ran on github.com
+(DR-7, T-033). The plan and its milestones are in
 [GitHub #1](https://github.com/PodUtils/podrunner/issues/1); the work is in
-`TODO/` (milestone M-A, T-025).
+`TODO/` (`TODO/PROGRESS.md`). `docs/cli.md` gives the commands and
+`docs/configuration.md` the configuration file.
 
 ## Build
 

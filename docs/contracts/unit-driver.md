@@ -110,8 +110,8 @@ with a grandchild, a marker file in the working directory.
 | 26 | `a-killed-shim-is-not-clean` | The payload kills the parent of its top process with SIGKILL: `destroy` does not count 0 while the orphan lives. |
 | 27 | `a-confined-unit-reads-no-other-root` | With `boundary: confined` or more: a unit reads no marker of a root next to its own, and writes and reads its own root (a positive control). A kind that claims less skips it. |
 
-The numbers of the tests follow this page. The spec of the design review
-(T-014) can give other numbers; T-014 makes them agree.
+The numbers of the tests follow this page. The design contract numbers its
+tests in another order; the next table maps them (T-053).
 
 ## The tests of the design contract
 

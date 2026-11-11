@@ -95,8 +95,8 @@ and a correct input that passes it.
 | 11 | `an-unknown-op-is-bad-request` | An unknown `op` is `bad-request`. |
 | 12 | `the-wire-refuses-a-long-line-a-path-and-a-schema` | A line over 1 MiB, a `job_id` of `../x`, schema 2 and no schema are each `bad-request`. |
 
-The numbers of the tests follow this page. The spec of the design review
-(T-014) can give other numbers; T-014 makes them agree.
+The numbers of the tests follow this page. The design contract numbers its
+tests in another order; the next table maps them (T-053).
 
 ## The tests of the design contract
 

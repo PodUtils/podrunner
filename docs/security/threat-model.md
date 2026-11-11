@@ -29,10 +29,10 @@ split of `mint` into its own process is deferred (T-010).
 | 5 | A hostile container request | Options, mounts, images | The hook contract refuses a build, an image off the pin list and options that the kind refuses (`docs/contracts/hook.md`, T-035) | Held. |
 | 6 | Hostile hook input | Bytes on the hook path and the control socket | Parsers with a line limit and fuzz targets (`fuzz/`); a refusal writes `hook-refuse` (T-035) | Held. |
 | 7 | A hostile proxy or DNS | Answers of the network | TLS to each host of the Actions service; pins of the runner payload by digest (T-030) | Held. |
-| 8 | A holder of a stolen host token | Calls `mint` as the host | Mutual TLS with pinned keys for a remote `mint` (T-031, PodUtils/podcrates@T-165); revocation at `mint` | DR-4 is yes: T-031 waits for PodUtils/podcrates@T-165. |
+| 8 | A holder of a stolen host token | Calls `mint` as the host | Mutual TLS with pinned keys for a remote `mint` (T-031, `pod_tls::mutual`); a key life and a rotation (call C16); revocation at `mint` after `revoke_after` alerts | Held: a token is the pinned key of the host, and the mint revokes it. A step that reads the key file of its own host can call the mint until the revocation (`residuals.md`, R1). |
 | 9 | A compromised `mint` host or sidecar | Each credential of its source | The process rule; the runbook | Accepted (`residuals.md`, R4). |
 | 10 | A job with secrets, or an author that nobody vetted | Secrets of the repository in a trusted unit | Trust comes from the organization and the event (T-018), not from the author; secrets reach the unit as the runner gets them | Accepted (`residuals.md`, R3). |
-| 11 | An observer on the path to a remote `mint` | Reads and changes traffic | Mutual TLS (T-031) | DR-4 is yes: T-031 waits for PodUtils/podcrates@T-165. |
+| 11 | An observer on the path to a remote `mint` | Reads and changes traffic | Mutual TLS with pinned keys on both sides, TLS 1.3 (T-031) | Held. |
 | 12 | A trusted job that kills its shim | Ends the subreaper of its unit | A dead shim gives `residual_processes: unknown`, which makes the host `degraded` (T-021, T-023) | Held: the host stops taking jobs. |
 
 ## Text from a job

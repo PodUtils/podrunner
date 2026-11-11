@@ -525,7 +525,7 @@ Read the text of GitHub #9 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Write docs/unknowns.md: one row for each unknown, with its owner, the entry that settles it and its state. Done so far (2026-11-11): `docs/unknowns.md` holds the 25 rows with their state: U1 to U5, U9, U13, U19, U21, U24 and U25 are settled, each with its evidence; the live rows wait for T-040 (DR-7). The entry stays open while a row is open; each open row names the entry that settles it. Each measurement is an entry of the milestone that needs it.
+`docs/unknowns.md` holds the 25 rows, each with what settles it, its blocker and its state. Settled, each with its evidence: U1 to U5, U9, U13, U19, U21, U24, U25. Open: the live rows (U6 to U8, U11, U12, U14, U17, U18, U20, U22, U23) wait for T-040 (DR-7); U10 needs a test against a proxy that resets CONNECT to an IP literal; U15 waits for the owner (call C10); U16 is deferred with the Docker API (`docs/non-goals.md`). The entry stays open while a row is open with no entry that settles it.
 
 ## Prove
 

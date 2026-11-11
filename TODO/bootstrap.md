@@ -200,7 +200,7 @@ Read the text of GitHub #14 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Put a cleaned copy of the spec (draft 5) into docs/spec/, with each id of the spec (DR-n, WP-n, Un, G-n, A-X-n) kept. The owner attached the zip on 2026-11-11 (`podrunner-spec/`: `SPEC.md`, the appendices, `schemas/`, `examples/`, the review rounds); the cleaning and the copy follow the list of the Problem.
+Put a cleaned copy of the design review (draft 5, the zip that the owner attached) into `docs/design/`, with each id of the spec (DR-n, WP-n, Un, G-n, A-X-n) kept. The cleaning follows the list of the Problem. Call C17: the copy keeps the words of the review; `docs/design-issues.md` maps each issue to its sections.
 
 ## Prove
 
@@ -244,7 +244,7 @@ Read the text of GitHub #15 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A workflow release.yml on a dispatch: the static build of both targets, the check of `scripts/check-static.sh`, a beta tag `vX.Y.Z-beta.N` and the release with the SHA-256 of each file and an attestation. No crates.io (ruling "Releases"). Done so far (2026-11-11): `.github/workflows/release.yml`: with no input, a dry run (the conditions, and the build and the static check of both binaries); with `X.Y.Z-beta.N`, the tag, a pre-release with the binaries, their SHA-256 and a build provenance attestation (`actions/attest-build-provenance` v4.2.2 by its commit). The gate must be green at the commit. Open: a dry run on GitHub, then the first beta.
+`.github/workflows/release.yml` on a dispatch: with no input, a dry run (the conditions, the build and the static check of both targets); with `X.Y.Z-beta.N`, the tag and a pre-release with the static binaries of both targets, their SHA-256 and a build provenance attestation (`actions/attest-build-provenance` by its commit). The gate must be green at the commit. No crates.io (ruling "Releases").
 
 ## Prove
 

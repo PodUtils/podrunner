@@ -43,19 +43,7 @@ The crates `podrunner-unit` and `podrunner-source` with the traits and the types
 
 ## Done
 
-2026-11-11, commit `229d29f` (and the gate run 42936703374 of `51ffb40`,
-green, which holds it). `crates/podrunner-unit` (the trait, the tests 1
-to 17, the stub) and `crates/podrunner-source` (the wire, the trait,
-`WireSource`, `serve_line`, the tests 1 to 12). On the stub and on a
-refuser, each test fails and is reported by its number. The wire refuses a
-line over 1 MiB, an unknown `op` and a `job_id` of `../x`
-(`bad-request`); the fuzz target `source_wire` builds and survives its
-seeds and 5000 mutations. `docs/contracts/` holds `unit-driver.md`,
-`source-driver.md` and `hook.md`, version 1; two tests compare the
-operations and the tests with them. `cargo test -p podrunner-unit -p
-podrunner-source`: 12 passed. The fakes of T-020 are the correct inputs
-and the plants of each test.
-
+2026-11-11, `229d29f`; gate run 42936703374 of `51ffb40` is green. `crates/podrunner-unit` (the trait, tests 1 to 17, the stub) and `crates/podrunner-source` (the wire, the trait, `WireSource`, `serve_line`, tests 1 to 12). On the stub and on a refuser, each test fails and is reported by its number. The wire refuses a line over 1 MiB, an unknown `op` and a `job_id` of `../x` (`bad-request`). The fuzz target `source_wire` survives its seeds and 5000 mutations. Two tests compare `docs/contracts/` with the operations and the tests. `cargo test -p podrunner-unit -p podrunner-source`: 12 passed.
 
 # T-017: Schemas v1: job offer, unit capability, run report, public report (GitHub #17)
 
@@ -96,9 +84,7 @@ Read the text of GitHub #17 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Rust types with serde for the four records, the four JSON Schemas, 11 valid and 19 invalid examples with the expected reason, and a test that validates each. Ruling Q-A8: the schemas live in podcrates; ask podcrates for them (PodUtils/podcrates@T-163) and use the released types when they come.
-
-podrunner drafted the types and the schemas; podcrates released them as `pod-job` in v0.17.0 (PodUtils/podcrates#58). `crates/podrunner-schema` now re-exports `pod_job` and keeps the credential (`secret.rs`) only; the four schemas, the examples and their test are in podcrates. `schemas/status.v1.json` stays here: it embeds the capability record of `pod-job`. `docs/contracts/codes.md` points to the table of `pod-job` and lists the uses of podrunner beyond it.
+Draft the four records and their schemas, then use the released types of podcrates (ruling Q-A8, PodUtils/podcrates@T-163). podcrates released them as `pod-job` in v0.17.0 (PodUtils/podcrates#58). `crates/podrunner-schema` re-exports `pod_job` and keeps only the credential (`secret.rs`). The four schemas, the examples and their test are in podcrates. `schemas/status.v1.json` stays here: it embeds the capability record of `pod-job`. `docs/contracts/codes.md` points to the code table of `pod-job` and lists the uses of podrunner beyond it.
 
 ## Prove
 
@@ -255,8 +241,7 @@ A `fake` source and a `fake` unit that read scripts of timed events and behaviou
 
 ## Done
 
-2026-11-11, commit `e8f4c0d`; the gate run 42938706745 of `f72f679` is green. `crates/podrunner-fake` and `crates/podrunner-clock`, `docs/fakes.md`. `cargo test -p podrunner-fake`: 7 passed: the fake unit passes the unit tests 1 to 17 (13 or 14 skip by the container route), the fake source passes the source tests 1 to 12, each of 17 unit plants and 12 source plants fails the test of its number, the script follows the manual clock. `fake` is refused unless `allow_fake = true` (`crates/podrunner-slots/src/config.rs`), and a report of a fake unit names the kind `fake`. A fake that claims `guest` fails the guest self-test once T-036 exists.
-
+2026-11-11, `e8f4c0d`; gate run 42938706745 of `f72f679` is green. `crates/podrunner-fake`, `crates/podrunner-clock`, `docs/fakes.md`. `cargo test -p podrunner-fake`: 7 passed: the fake unit passes unit tests 1 to 17 (13 or 14 skip by the container route), the fake source passes source tests 1 to 12, each of 17 unit plants and 12 source plants fails the test of its number, the script follows the manual clock. `fake` is refused unless `allow_fake = true` (`crates/podrunner-slots/src/config.rs`); a report of a fake unit names the kind `fake`. A fake that claims `guest` fails the guest self-test (T-036, `a_fake_that_claims_guest_fails_the_self_test`).
 
 # T-021: WP-03: the slots core: states, journal, placement, status, drain, codes, config, audit (GitHub #21)
 
@@ -304,9 +289,7 @@ Read the text of GitHub #21 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-The state machine with a deadline for each transition, the placement steps, the 19 refusal codes, the journal and the reconcile on start, the `degraded` state, `podrunner.toml`, the audit lines and the exit codes of `pod-core`. The level 1 tests G-01, G-02, G-05, G-08 and G-12 run on the fakes of T-020 with a manual clock.
-
-Done so far (2026-11-11): `crates/podrunner-slots` holds the configuration (`docs/configuration.md`), placement, the states, the journal with the reconcile at start, the audit lines (forwarded to the source), the reports (full or public), the engine, and 14 tests: G-01, G-02, G-05, G-08, G-12, and the guards (untrusted below guest, a fork on the trusted set, a stale image, a digest off the pin list, an unenforceable limit, a shared principal, a foreign runner name, a restart that ends the units of the journal, no credential in the journal, the audit or a report). The fuzz targets `slots_config` and `slots_journal` exist. With T-022 (2026-11-11): `status` (`crates/podrunner-slots/src/status.rs`, `schemas/status.v1.json`), `no-tier-served` (a source of a tier that no kind meets gets no capacity), the clear of `degraded` by the control socket, and the exit codes of `pod-core` in the CLI.
+The state machine with a deadline for each transition, the placement steps, the 19 refusal codes, the journal and the reconcile at start, the `degraded` state, `podrunner.toml` (`docs/configuration.md`), the audit lines (forwarded to the source), the full and the public reports, `status` (`crates/podrunner-slots/src/status.rs`, `schemas/status.v1.json`), `no-tier-served`, and the exit codes of `pod-core`. The level 1 tests G-01, G-02, G-05, G-08 and G-12 and the guards run on the fakes of T-020 with a manual clock. The fuzz targets `slots_config` and `slots_journal`.
 
 ## Prove
 
@@ -314,8 +297,7 @@ Done so far (2026-11-11): `crates/podrunner-slots` holds the configuration (`doc
 
 ## Done
 
-2026-11-11, commits `f72f679` and `644bab7`; the gate run 42940434305 of `223c009` is green. `cargo test -p podrunner-slots`: 17 passed (10 loops of the first 14, each green): G-01 (no source holds more than its 2 slots; 20 jobs end `success`), G-02 (a `guest` job waits while its slot is busy and runs when it frees), G-05 (an arm64 job is not claimed), G-08 (one withdraw for each job past `wait_deadline_s`; no start after a withdraw; no claim after `drain`), G-12 (a job past its wall time ends `timeout`, its unit gone with 0 processes); the guards: `untrusted` below `guest`, a fork on the trusted set, a stale image, a digest off the pin list, an unenforceable required limit, a shared principal, a foreign runner name, a restart that ends the units of the journal (with no replay, the processes outlive podrunner), no credential canary in the journal, the audit or a report; the status. `cd fuzz && cargo test --lib`: the targets `slots_config` and `slots_journal` survive their seeds and 5000 mutations.
-
+2026-11-11, `f72f679` and `644bab7`; gate run 42940434305 of `223c009` is green. `cargo test -p podrunner-slots`: 17 passed (10 loops of the first 14, each green): G-01, G-02, G-05, G-08, G-12, the guards (`untrusted` below `guest`, a fork on the trusted set, a stale image, a digest off the pin list, an unenforceable required limit, a shared principal, a foreign runner name, a restart that ends the units of the journal, no credential canary in the journal, the audit or a report), and the status. A planted skip of the replay leaves the processes alive. `cd fuzz && cargo test --lib`: `slots_config` and `slots_journal` survive their seeds and 5000 mutations.
 
 # T-022: CLI and control socket: serve, status, drain, stop, doctor, print-unit (GitHub #22)
 
@@ -360,9 +342,7 @@ Read the text of GitHub #22 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-The control socket (JSON lines on a unix socket, mode 0600, peer uid checked, `"v": 1` first) behind a trait that `pod-control` can replace; `status --json` with a schema in `docs/`; `doctor` as a thin reader; `print-unit` with no credential.
-
-Done so far (2026-11-11): `crates/podrunner/src/control.rs` (the socket of mode 0600, the peer uid, `"v": 1`, the trait `Handler`), `cli.rs` (`serve`, `status [--json]`, `drain`, `stop`, `clear-degraded`, `doctor`, `print-unit`; the exit codes of `pod-core`), `text.rs` (an escape prints as `\x1b`, a value is cut at 200 bytes), `doctor.rs` (a thin reader that names each missing input), `serve.rs` (the `fake` source and unit; another kind is refused with code 80 until its entry). `docs/cli.md`. The fuzz target `control_line`. A run by hand: `serve` with a fake script, `status`, `status --json`, `stop`.
+The control socket (JSON lines on a unix socket, mode 0600, peer uid checked, `"v": 1` first) behind the trait `Handler` that `pod-control` can replace (`crates/podrunner/src/control.rs`); the commands of `cli.rs` with the exit codes of `pod-core`; `text.rs` (an escape prints as `\x1b`, a value is cut at 200 bytes); `doctor.rs` (a thin reader that names each missing input); `print-unit` with no credential; `docs/cli.md`; the fuzz target `control_line`.
 
 ## Prove
 
@@ -370,8 +350,7 @@ Done so far (2026-11-11): `crates/podrunner/src/control.rs` (the socket of mode 
 
 ## Done
 
-2026-11-11, commit `644bab7`; the gate run 42940434305 of `223c009` is green. `cargo test -p podrunner`: 11 passed: a display name with an ANSI escape prints as `\x1b[2J` and a value is cut at 200 bytes; the socket has mode 0600 and answers one request; bad lines are `bad-request`; usage errors exit 64, a socket that does not answer 69, a bad configuration 78; `print-unit` holds no credential canary. `status --json` follows `schemas/status.v1.json` (generated from the type; a test fails on a difference). The fuzz target `control_line`. The module sits behind the trait `Handler`. A run by hand: `serve`, `status`, `status --json`, `stop` (exit 0), on the fake kind and on the podvm kind.
-
+2026-11-11, `644bab7`; gate run 42940434305 of `223c009` is green. `cargo test -p podrunner`: 11 passed: an ANSI escape prints as `\x1b[2J` and a value is cut at 200 bytes; the socket has mode 0600 and answers one request; bad lines are `bad-request`; a usage error exits 64, a silent socket 69, a bad configuration 78; `print-unit` holds no credential canary. `status --json` follows `schemas/status.v1.json` (generated from the type; a test fails on a difference). A run by hand of `serve`, `status`, `status --json` and `stop` exits 0 on the fake kind and on the podvm kind.
 
 # T-023: WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23)
 
@@ -418,50 +397,14 @@ Read the text of GitHub #23 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A driver over the released podvm binary: a store for each unit, a subreaper shim for the tree kill, the probe record from `podvm probe`. It runs the unit conformance tests with a stand-in payload. A fix that needs podvm goes to a COORD issue `(to podvm)`, and its work waits (podvm is on break).
+A driver over the released podvm binary (`crates/podrunner-podvm`), the only code that knows the argv of podvm. A fix that needs podvm goes to a COORD issue `(to podvm)`.
 
-Done so far (2026-11-11): `crates/podrunner-podvm`: the version range of
-podvm (`0.2.0-beta.2` up to `0.3.0`, each pre-release of `0.3.0`
-outside; a podvm outside it fails `probe` by name) and the map of
-`podvm probe --json` to the capability record (each rung `redirect`,
-`boundary_proof` names the rung, `tree_kill: unverified`, `egress_hold:
-unknown`), with three recorded probes in `crates/podrunner-podvm/tests/probe/`.
-Measured on the session host with the released podvm `v0.2.0-beta.2`
-(SHA-256 of `podvm-x86_64`
-`0af41a96233c7f9f3ed48b80ebb3271fe9eaa1295616ea0375625f8035baf6a9`): the
-rung is `namespace` (the host has root: it is not H0); `podvm run` gives
-the exit code of the payload; a `setsid` grandchild outlives `podvm stop`
-and `rm -f`, as GitHub #23 says. The driver `PodvmUnit`
-(`crates/podrunner-podvm/src/unit.rs`): `prepare` saves the pinned image
-from the store of the operator into a tar; `start` loads it into a store
-of the unit, writes the credential files (mode 0600) into the rootfs that
-`podvm extract` names, and runs the payload detached with the tag of the
-unit, `PODRUNNER_UNIT` and `DOTNET_EnableWriteXorExecute=0`; `destroy`
-kills each tagged process, removes the container and the store, and
-counts. `serve` builds it from `[unit.podvm]` (`binary`, `images`). The
-unit tests 1 to 17 on this host with busybox as the stand-in payload: 16
-pass, test 14 skips (no container route); 5 runs, each green, no process
-left. `verify_tree_kill` runs test 3 with the pinned
-payload at the start of `serve`; only then does the record say
-`tree_kill: verified` and `wall: enforced` (3 runs, each green). A job of
-a local fake source ran through `serve` on a podvm unit: offered,
-claimed, minted, started, ended `success` (the payload found
-`.runner/.credentials`), destroyed, reported. The H0 run (2026-11-11): as `nobody`, with a
-seccomp filter that refuses user namespaces, on this host with no KVM
-(`podvm probe`: rung `supervise`, `CLONE_NEWNS`, `CLONE_NEWUSER`, mount
-and chroot denied; `crates/podrunner-podvm/tests/probe/supervise.json`).
-busybox does not run there: the loader of the rung needs glibc, libdl
-and libgcc_s in the image, so `scripts/stand-in-image.py` builds a
-stand-in image from host binaries. The unit tests pass 16 of 17 (test 14
-skips), two runs; a job of a local fake source through `serve` ends
-`success` 10 of 10, and a payload `exit 3` reports 3. On the way: `podvm
-wait` there gives no exit code for a payload that ends at once (T-047,
-GitHub #49); the driver runs the payload under `/bin/sh` of the image,
-which writes the code to `.podrunner-exit`, reads it when `podvm wait`
-gives none, and waits again while a process of the unit lives. U25: on
-the supervise rung `podvm run -v /proc/self/fd/N:/cred` mounts the open
-file (the payload reads it); the driver still writes the files into the
-rootfs. The journal line `ended` now carries the exit code.
+- The version range of podvm (`probe::LOWEST` up to `probe::BEYOND`, exclusive): a podvm outside it fails `probe` by name.
+- The map of `podvm probe --json` to the capability record: each rung `redirect`, `boundary_proof` names the rung, `egress_hold: unknown`. Recorded probes: `crates/podrunner-podvm/tests/probe/`.
+- `prepare` saves the pinned image from the store of the operator into a tar. `start` loads it into a store of the unit, writes the credential files (mode 0600) into the rootfs that `podvm extract` names, and runs the payload detached with the tag of the unit, `PODRUNNER_UNIT` and `DOTNET_EnableWriteXorExecute=0`. `destroy` kills each tagged process and its tree, removes the container and the store, and counts.
+- `verify_tree_kill` runs test 3 with the pinned payload at the start of `serve`; only then does the record say `tree_kill: verified` and `wall: enforced`.
+- The H0 profile: a uid with no root and a seccomp filter that refuses user namespaces, no KVM: the supervise rung (`crates/podrunner-podvm/tests/probe/supervise.json`). The loader of that rung needs glibc in the image, so `scripts/stand-in-image.py` builds a stand-in image from host binaries.
+- U25: on the supervise rung `podvm run -v /proc/self/fd/N:/cred` mounts the open file. The driver writes the files into the rootfs and needs no `-v`.
 
 ## Prove
 
@@ -469,7 +412,7 @@ rootfs. The journal line `ended` now carries the exit code.
 
 ## Done
 
-2026-11-11: the podvm driver passes the unit tests 1 to 17 (14 skips: no container route) on the namespace rung and on the supervise rung of an H0 profile; a job through `serve` ends `success` 10 of 10 there; U25 is settled. `cargo test -p podrunner-podvm`: each test passes.
+2026-11-11, `b5ff350`; gate run 42957378324 is green. The podvm driver passes unit tests 1 to 17 (14 skips: no container route) on the namespace rung (root, busybox) and on the supervise rung of the H0 profile (the stand-in image); 5 runs each, no process left. A job of a local fake source through `serve` ends `success` 10 of 10 on the H0 profile, and a payload `exit 3` reports 3. U25 is settled. `cargo test -p podrunner-podvm`: each test passes.
 
 # T-024: WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24)
 
@@ -520,34 +463,7 @@ Read the text of GitHub #24 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A module over `pod-broker` with one listener for each unit, bound to one job, and no token in the unit. It needs PodUtils/podcrates@T-160 and PodUtils/podcrates@T-161; use the tag that podcrates releases. The hold of a podvm unit is `podnet pod` (T-044, Done): `advisory` with the seccomp backend; read the level from `hold.seccomp` of `pod doctor --json`. podcrates `v0.16.0` (PodUtils/podcrates#57, COORD-032) holds
-`pod-broker` with `Broker::serve_unix_job(job, listener)` (a listener of
-one job, no token in the unit; a `Proxy-Authorization` of another job
-gets 407), `Broker::load(Load { job, token, ttl, policy })`,
-`Broker::drop_job`, `Policy::from_json`, and an async API on tokio: the
-module runs the broker on a runtime of its own and needs a resolver
-(`Resolve` of `pod-core`, for example the resolver of `pod-dns`) and a
-dialer (`pod_broker::upstream`).
-
-Done so far (2026-11-11): `crates/podrunner-egress` (`pod-broker` and
-`pod-proxy` of `v0.16.0` on a tokio runtime of their own; the system
-resolver; `open` binds a unix socket of mode 0600 to one job, `close`
-drops the job and its listener, `kill` ends the module). Its tests: two
-units get two listeners with two policies, a request with no token is the
-job of its listener, a token of unit A on the listener of unit B gets
-407, a close and a kill end the listeners, a bad policy is named without
-its text. slots (`EgressPort`): each unit gets a listener of its job with
-the policy of its offer (else `[egress] default_policy`, else no way
-out) and the variable `PODRUNNER_EGRESS=http://unix:PATH`; the end of the
-unit closes it; when egress ends, no source gets capacity and each running
-unit ends (`unit-failed`); a kind with hold `none` gets no `trusted` job.
-U24 is settled (`docs/unknowns.md`). No host of the Actions service is in
-the code: the default policy comes from the configuration. A finding of
-the run by hand: under a long state directory the socket path passed the
-limit of 108 bytes and the job ended `unit-start-failed` with no reason;
-the egress directory is now short when it must be, and the audit line
-names the reason. Open: the unit of podvm reaches a host socket only
-after PodUtils/podvm#235 (U21).
+`crates/podrunner-egress`: `pod-broker` and `pod-proxy` on a tokio runtime of their own, with the system resolver. `open` binds a unix socket of mode 0600 to one job (`Broker::serve_unix_job`: no token in the unit; a `Proxy-Authorization` of another job gets 407), `close` drops the job and its listener, `kill` ends the module. In slots (`EgressPort`), each unit gets a listener of its job with the policy of its offer (else `[egress] default_policy`, else no way out) and the variable `PODRUNNER_EGRESS=http://unix:PATH` (the form of `podnet pod -x`). The end of a unit closes it. When egress ends, no source gets capacity and each running unit ends (`unit-failed`). A kind with hold `none` gets no `trusted` job. No host of the Actions service is in the code: the default policy comes from the configuration. A socket path over the 108 bytes of `sun_path` gets a short directory, and the audit line names the reason of a failed open.
 
 ## Prove
 
@@ -627,8 +543,7 @@ The workaround is in the driver (T-023): the payload runs under `/bin/sh` of the
 
 ## Done
 
-2026-11-11, podvm `v0.2.0-beta.3` (PodUtils/podvm#254; PodUtils/podvm@T-1720). On the H0 profile (as `nobody`, with a seccomp filter that refuses `CLONE_NEWUSER`), `podvm wait` of a detached `sh -c 'exit N'` gave the exit code in 10 of 10 runs (before: 1 of 5). The workaround of T-023 is gone: the payload runs as it is, with no shell around it and no `.podrunner-exit` (`crates/podrunner-podvm/src/unit.rs`); the waiter still starts again while a process of the unit lives. The driver needs beta.3 or later (`probe::LOWEST`). The unit suite passes without the workaround on both rungs: H0 (supervise) and root (namespace), with the image of `scripts/stand-in-image.py`; test 14 skips (no container route).
-
+2026-11-11, `016a78f`, podvm `v0.2.0-beta.3` (PodUtils/podvm#254, PodUtils/podvm@T-1720). On the H0 profile, `podvm wait` of a detached `sh -c 'exit N'` gives the exit code in 10 of 10 runs (beta.2: 1 of 5). The workaround is gone: the payload runs with no shell around it and no `.podrunner-exit` (`crates/podrunner-podvm/src/unit.rs`); the waiter starts again while a process of the unit lives. The driver needs beta.3 or later (`probe::LOWEST`). The unit suite passes on both rungs with the image of `scripts/stand-in-image.py`; test 14 skips (no container route).
 
 # T-048: Egress: check the upstream of the broker; the names mode of pod-broker
 
@@ -715,8 +630,7 @@ When the beta comes: pin it in `images/podvm.toml` (the version and the SHA-256 
 
 ## Done
 
-2026-11-11. podvm released `v0.2.0-beta.3` from `c62643d` (PodUtils/podvm#254). `images/podvm.toml` pins it (the SHA-256 of each binary equals its `.sha256`). Results: T-047 done (each exit code), T-050 done (the socket path), the unit suite of the podvm driver passes on both rungs; T-026 (the runner in a unit) is the next step; the aarch64 interposer is not in the beta (T-051).
-
+2026-11-11. podvm released `v0.2.0-beta.3` from `c62643d` (PodUtils/podvm#254). `images/podvm.toml` pins it (the SHA-256 of each binary equals its `.sha256`). T-047 and T-050 are done on it, the unit suite of the podvm driver passes on both rungs, and T-026 is done on it. The aarch64 interposer is not in the beta (T-051).
 
 # T-053: The conformance suites follow the numbers of the design contracts
 
@@ -725,7 +639,7 @@ When the beta comes: pin it in `images/podvm.toml` (the version and the SHA-256 
 **Milestone:** L2
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -737,13 +651,22 @@ Read on 2026-11-11: no number of `docs/contracts/` agrees with a number of `docs
 
 ## Approach
 
-A table in each of `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md`: each design test, the test here that covers it, or "missing". Then write each missing test with a planted defect and a correct input, on the fake unit or the fake source. Keep the names of the suites; the table carries the design numbers. Then close the fake-path acceptance of T-035 in the design numbers.
+A table in each of `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md` ("The tests of the design contract"): each design test and the tests here that cover it. Keep the names of the suites; the table carries the design numbers. Each missing test is written with a planted defect and a correct input, on the fake unit or the fake source:
 
-Step 1, 2026-11-11: the tables are in `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md` ("The tests of the design contract"), from a read of each test body. Step 2: the unit design tests 8, 9, 13, 14, 16 and 17 pass on the fake path (`crates/podrunner-unit/src/conformance/cases.rs`, `crates/podrunner-hook/src/tests.rs`, `crates/podrunner-hook/src/tests_unit.rs`, `crates/podrunner-slots/src/tests/hooks.rs`). Step 3: the source design tests 2, 4, 8, 10, 11 and 12 (8 and 12 by call C18); found on the way: a `started` that named this runner with another job id was ignored (fixed: it ends the unit), and the sidecar went on after a revocation (fixed: it ends with 78). Step 4: the unit design tests 1 (files), 2, 3 (a container grandchild, the time limit), 6, 10 and 12 pass on the fake path: the suite has the tests 18 to 22 (`crates/podrunner-unit/src/conformance/design.rs`), each with a plant of the fake unit, and a schema test for `../x`. Step 5: the source design test 3 passes for each role: the host role and the mint role as processes (`crates/podrunner/tests/serve.rs`, `crates/podrunner/tests/mint.rs`), the sidecar in `crates/podrunner/tests/scaleset.rs` (the fake service plants a canary in the JIT configuration). Found on the way: the record of the `fake` kind said `net: "host"`, outside the schema (fixed: `shared-host`). Step 6: the source design test 6: the key of a host is its token at a mint, and the configuration refuses one `key_file` for two remote sources of two tiers (`one_key_for_two_tiers_is_refused`). Step 7: the unit design test 4: the audit line of a limit refusal names the limits that no kind enforces (`a_limit_refusal_names_the_limit`). Step 8: the unit design tests 1 (no process appears) and 7 (a dump of `/proc/*` from a step, with a planted blob as the positive control) are the tests 23 and 24; they see each process of the uid, so the fake runs them in a test binary of their own (`crates/podrunner-fake/tests/alone.rs`). Step 9: the unit design tests 3 (an orphan with no tag) and 15 (a killed shim) are the tests 25 and 26 (T-063); the podvm fixture names its state directory, so the tests 18 and 21 run on podvm too, and `runner-image.yml` runs the suite on the podvm driver. Open, as the tables say: unit 11, a real guest passes the self-test (T-036).
+- Unit design tests 8, 9, 13, 14, 16, 17: `crates/podrunner-unit/src/conformance/cases.rs`, `crates/podrunner-hook/src/tests.rs`, `crates/podrunner-hook/src/tests_unit.rs`, `crates/podrunner-slots/src/tests/hooks.rs`.
+- Unit design tests 1, 2, 3, 6, 10, 12: suite tests 18 to 22 (`crates/podrunner-unit/src/conformance/design.rs`), and a schema test for `../x`. Tests 23 and 24 (no process at probe; a dump of `/proc/*` from a step) see each process of the uid, so the fake runs them in a test binary of its own (`crates/podrunner-fake/tests/alone.rs`). Tests 25 and 26 (an orphan with no tag, a killed shim) come from T-063.
+- Unit design test 4: `a_limit_refusal_names_the_limit`.
+- Source design tests 2, 4, 8, 10, 11, 12 (8 and 12 by call C18); test 3 for each role (`crates/podrunner/tests/serve.rs`, `crates/podrunner/tests/mint.rs`, `crates/podrunner/tests/scaleset.rs`); test 6 (`one_key_for_two_tiers_is_refused`).
+
+The one open row, unit design test 11 (a real guest passes the self-test), is the acceptance of T-036 and T-037.
 
 ## Prove
 
 `cargo test -p podrunner-fake`, `cargo test -p podrunner-hook`, and the two tables have no row "missing".
+
+## Done
+
+2026-11-11, `30b9366` (tests 25, 26) and `d764700` (test 27); gate run 43018641175, `runner-image.yml` run 43018641300. Both tables in `docs/contracts/` have no row "missing": each design test of the unit and the source contracts has a test here with a plant, on the fake path, and the unit suite runs on the podvm driver in CI. Unit design test 11 on a real guest is the acceptance of T-036. A `started` with another job id now ends the unit; the sidecar ends with 78 after a revocation; the record of the `fake` kind says `net: shared-host`.
 
 # T-054: serve: an exclusive lock on the state directory before the journal replay; stop --wait (GitHub #54)
 
@@ -1002,7 +925,7 @@ Measured on 2026-11-11 with `scripts/measure-container-verbs.sh`, as `nobody` wi
 
 ## Approach
 
-The podvm driver of the hooks (T-035 step 4) mounts `/__e` read-only and checks it at the start of the job container (a write to `/__e` must fail); until podvm applies `:ro`, a podvm kind on the supervise rung refuses `container: hooks` jobs whose externals it cannot protect, or copies `/__e` for each job container so that a write reaches no later step.
+The hook checks refuse a request for a writable `/__e`, and the podvm driver passes `/__e` with `:ro`. `run` applies `:ro`; `exec` does not, so a step can write `/__e` of its own unit, and a later step of the same job runs it. The unit is destroyed after its one job, so no other job sees the change. When podvm releases PodUtils/podvm@T-1726: pin it, run `scripts/measure-container-verbs.sh` on the supervise rung, and add a check to the unit tests of the podvm driver that a step cannot write `/__e`.
 
 ## Prove
 
@@ -1010,9 +933,7 @@ The podvm driver of the hooks (T-035 step 4) mounts `/__e` read-only and checks 
 
 ## Blocker
 
-A podvm release that applies `:ro` on the supervise rung, or refuses it by name (GitHub #62).
-
-podvm answered on 2026-11-11 (PodUtils/podvm#256, COORD-037): confirmed for `exec` only; `run` applies `:ro`. The fix is PodUtils/podvm@T-1726 (P1, first in the order of podvm). Until a release with it, a step through `exec` can write `/__e` of its own unit; the unit is destroyed after its one job.
+A podvm release with PodUtils/podvm@T-1726 (`:ro` on `exec`; PodUtils/podvm#256, COORD-037: confirmed for `exec` only). podvm is on break; the fix is first in its work order.
 
 # T-063: The tree kill finds a unit by an environment tag, and a process can drop it
 
@@ -1033,14 +954,12 @@ Read on 2026-11-11: `sh -c 'setsid env -i sleep 30 &'` with the tag set gives a 
 
 ## Approach
 
-A shim of each unit with no root: it sets `PR_SET_CHILD_SUBREAPER`, starts the payload, and keeps it as its child. Each orphan of the unit then has the shim as its parent, also after `setsid` and a double fork. `destroy` kills each descendant of the shim (a walk of the parent links of `/proc`), then the shim. The tag stays as a second check. A new conformance test: a grandchild with `setsid env -i` ends at `destroy`, with a plant (the scan by tag only) that fails it. The design test 15 (the shim killed: `destroy` answers `unknown`) follows from the same shim. For podvm: ask if podvm keeps the processes of a container in its own subreaper or cgroup (a COORD issue to podvm if not).
+A shim for each unit with no root (`crates/podrunner-unit/src/shim.rs`): it sets `PR_SET_CHILD_SUBREAPER`, starts the payload, and keeps it as its child. Each orphan of the unit then has the shim as its parent, also after `setsid` and a double fork. `destroy` kills each descendant of the shim (a walk of the parent links of `/proc`), then the shim. The tag stays as a second check. The fake unit runs its top process and each container under a shim; the count is `unknown` when a signal ended the shim. The podvm driver needs no shim: the supervisor of podvm `v0.2.0-beta.3` is a subreaper, an orphan with `setsid env -i` has it as its parent, and `podvm rm -f` ends it. The driver kills the tree under each tagged process, and gives `unknown` when no supervisor lives but processes of the unit do. New conformance tests 25 (an orphan with no tag) and 26 (a killed shim), each with a plant.
 
 ## Prove
 
-The new test passes on the fake and podvm drivers, its plant fails it, and `destroy` of a unit with a `setsid env -i` grandchild counts 0 with no process left.
-
-Step 1, 2026-11-11: `crates/podrunner-unit/src/shim.rs`: the shim (`PR_SET_CHILD_SUBREAPER`, a fork, the reap; mode `EndWithPayload` kills what is left when the payload ends), `descendants`, `unit_pids`, `kill_unit`, `tree_of_tagged`. The fake unit runs its top process and each container and step under a shim; the count is `unknown` when a signal ended the shim. The podvm driver needs no shim: measured with `v0.2.0-beta.3` with no root, the supervisor of podvm is a subreaper, an orphan with `setsid env -i` has it as its parent, and `podvm rm -f` ends it; the driver kills the tree under each tagged process, and gives `unknown` when no supervisor lives but processes of the unit do. The conformance tests 25 (an orphan with no tag) and 26 (a killed shim) pass on the fake unit (with a plant each) and on the podvm driver (H0, all 26 tests).
+`cargo test -p podrunner-fake`, and the unit conformance suite on the podvm driver in `.github/workflows/runner-image.yml`: tests 25 and 26 pass on both drivers, and their plants fail them.
 
 ## Done
 
-2026-11-11, `30b9366`, gate run 43018641175, `runner-image.yml` run 43018641300: the unit conformance suite passes on the podvm driver in CI (no root, the runner image as the payload): 25 tests pass and test 13 skips by the container route; the tests 25 and 26 included. Found on the way: the host scan of test 21 read a named pipe of the podvm store and blocked (fixed: regular files only, with a test). A process that drops the tag and leaves its session no longer outlives `destroy`, and a killed shim gives the count `unknown`.
+2026-11-11, `30b9366`; gate run 43018641175, `runner-image.yml` run 43018641300. The unit conformance suite passes on the podvm driver in CI (no root, the runner image as the payload): 25 tests pass and test 13 skips (container route); tests 25 and 26 included. They pass on the fake unit, and each plant fails its test. The host scan of test 21 reads regular files only (a named pipe of the podvm store blocked it; a test holds it).

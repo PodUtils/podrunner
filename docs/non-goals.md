@@ -22,4 +22,4 @@ opens its own issue.
 | The split of `sign`, `egress` and `ctl` into processes of their own uids | A host with distinct uids is the first target. |
 | A hosted runner provider with an airlock | The owner uses a hosted provider and no own hosts. |
 | A wire of JSON lines for the unit seam | The first driver outside the tree exists. |
-| A local mode `podrunner run workflow.yml` | An ask names it. |
+| A local mode `podrunner run workflow.yml` | The owner asked for it (podcrates Q11, "yes plan it"). T-046 plans it after v1. |

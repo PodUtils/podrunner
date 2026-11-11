@@ -7,7 +7,7 @@ the tools.
 
 ## Start of a session
 
-1. Read `AGENTS.md`, `docs/HANDOFF.md` and this document.
+1. Read `docs/HANDOFF.md`, `AGENTS.md` and this document.
 2. Make sure that the branch is `main` and that the tree is clean:
    `git status`, `git log --oneline -5`.
 3. Make the session ready for the static builds:
@@ -85,14 +85,9 @@ the tools.
 ## Talk between sessions
 
 * **podcrates**: direct messages (`send_message`) to its session. Each ask
-  for a crate goes there (for example: one listener of `pod-broker` for
-  each unit, PodUtils/podcrates@T-160 and PodUtils/podcrates@T-161; the
-  tree kill of `pod-supervise`, PodUtils/podcrates@T-162; the schemas,
-  PodUtils/podcrates@T-163; the Actions hosts of `pod-services`,
-  PodUtils/podcrates@T-164; the mutual TLS of `pod-tls`,
-  PodUtils/podcrates@T-165, after DR-4). podcrates writes each ask as an
-  entry, answers with its id, and releases a tag. podrunner takes the
-  crate by that tag.
+  for a crate goes there. podcrates writes each ask as an entry, answers
+  with its id, and releases a tag. podrunner takes the crate by that tag
+  (`Cargo.toml`, one tag for each crate of podcrates).
 * **podnet, podvm, podssh**: a COORD issue of this repository titled
   `COORD-NNN: subject (to OTHER)`, with NNN the next free number of this
   repository. To add to a message, amend its body (not a comment), with a
