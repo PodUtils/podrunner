@@ -1012,6 +1012,7 @@ The podvm driver of the hooks (T-035 step 4) mounts `/__e` read-only and checks 
 
 A podvm release that applies `:ro` on the supervise rung, or refuses it by name (GitHub #62).
 
+podvm answered on 2026-11-11 (PodUtils/podvm#256, COORD-037): confirmed for `exec` only; `run` applies `:ro`. The fix is PodUtils/podvm@T-1726 (P1, first in the order of podvm). Until a release with it, a step through `exec` can write `/__e` of its own unit; the unit is destroyed after its one job.
 
 # T-063: The tree kill finds a unit by an environment tag, and a process can drop it
 
