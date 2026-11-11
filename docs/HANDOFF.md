@@ -54,6 +54,11 @@ is done.
   unit runs a canned job on a host with no root (T-026, `runner-image.yml`).
   Next: the podvm driver of the hooks (T-035 step 4), with the control
   socket in the rootfs of the unit (T-050).
+- podcrates `v0.21.0` (pod-incus; in pod-broker the control socket has its
+  mode from the first instant, and its listener keeps the name of its bind
+  in a stage directory: read the path you passed, not `local_addr`): take
+  it at the next pod-* bump. No code of podrunner reads `local_addr` of a
+  pod-broker listener now.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The design copy is in `docs/design/` (T-014): the spec, the appendices,
