@@ -47,8 +47,8 @@ is done.
 - The tree kill (T-063): the fake unit runs each tree under a shim with
   `PR_SET_CHILD_SUBREAPER` (`crates/podrunner-unit/src/shim.rs`); the
   podvm driver kills the tree under each tagged process (the supervisor
-  of podvm is a subreaper). Tests 25 and 26 hold it. T-063 closes on a
-  green `runner-image.yml` run.
+  of podvm is a subreaper). Tests 25 and 26 hold it; the suite
+  passes on podvm in CI (`runner-image.yml`).
 - podnet answered COORD-001 (PodUtils/podnet#425): the runner pin
   `actions/runner` v2.338.2 and the object `hold` of `pod doctor --json`
   (T-044).

@@ -1021,7 +1021,7 @@ podvm answered on 2026-11-11 (PodUtils/podvm#256, COORD-037): confirmed for `exe
 **Milestone:** L2
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1039,4 +1039,8 @@ A shim of each unit with no root: it sets `PR_SET_CHILD_SUBREAPER`, starts the p
 
 The new test passes on the fake and podvm drivers, its plant fails it, and `destroy` of a unit with a `setsid env -i` grandchild counts 0 with no process left.
 
-Step 1, 2026-11-11: `crates/podrunner-unit/src/shim.rs`: the shim (`PR_SET_CHILD_SUBREAPER`, a fork, the reap; mode `EndWithPayload` kills what is left when the payload ends), `descendants`, `unit_pids`, `kill_unit`, `tree_of_tagged`. The fake unit runs its top process and each container and step under a shim; the count is `unknown` when a signal ended the shim. The podvm driver needs no shim: measured with `v0.2.0-beta.3` with no root, the supervisor of podvm is a subreaper, an orphan with `setsid env -i` has it as its parent, and `podvm rm -f` ends it; the driver kills the tree under each tagged process, and gives `unknown` when no supervisor lives but processes of the unit do. The conformance tests 25 (an orphan with no tag) and 26 (a killed shim) pass on the fake unit (with a plant each) and on the podvm driver (H0, all 26 tests). Open: the CI run of the suite on podvm (`runner-image.yml`).
+Step 1, 2026-11-11: `crates/podrunner-unit/src/shim.rs`: the shim (`PR_SET_CHILD_SUBREAPER`, a fork, the reap; mode `EndWithPayload` kills what is left when the payload ends), `descendants`, `unit_pids`, `kill_unit`, `tree_of_tagged`. The fake unit runs its top process and each container and step under a shim; the count is `unknown` when a signal ended the shim. The podvm driver needs no shim: measured with `v0.2.0-beta.3` with no root, the supervisor of podvm is a subreaper, an orphan with `setsid env -i` has it as its parent, and `podvm rm -f` ends it; the driver kills the tree under each tagged process, and gives `unknown` when no supervisor lives but processes of the unit do. The conformance tests 25 (an orphan with no tag) and 26 (a killed shim) pass on the fake unit (with a plant each) and on the podvm driver (H0, all 26 tests).
+
+## Done
+
+2026-11-11, `30b9366`, gate run 43018641175, `runner-image.yml` run 43018641300: the unit conformance suite passes on the podvm driver in CI (no root, the runner image as the payload): 25 tests pass and test 13 skips by the container route; the tests 25 and 26 included. Found on the way: the host scan of test 21 read a named pipe of the podvm store and blocked (fixed: regular files only, with a test). A process that drops the tag and leaves its session no longer outlives `destroy`, and a killed shim gives the count `unknown`.
