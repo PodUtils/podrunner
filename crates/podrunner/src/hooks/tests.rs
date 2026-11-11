@@ -65,12 +65,22 @@ fn a_unit_reaches_its_socket_through_the_relay() {
     // A container action that builds is refused, and the refusal comes back.
     let build = r#"{"command":"run_container_step","responseFile":null,"args":{"dockerfile":"D"},"state":null}"#;
     assert_eq!(relay(&env, build).status.code(), Some(4));
+    // A credential for another host is refused; the password is in no
+    // output of the relay (the runner puts its stderr in the step log).
+    let canary = "podrunner-canary-registry-a41d";
+    let registry = json!({ "username": "u", "password": canary, "serverUrl": "ghcr.io" });
+    let args = json!({ "services": [], "container": { "image": IMAGE, "registry": registry } });
+    // The order of the runner: `command` first.
+    let foreign = format!(r#"{{"command":"prepare_job","responseFile":null,"args":{args},"state":{{}}}}"#);
+    let o = relay(&env, &foreign);
+    assert_eq!(o.status.code(), Some(4));
+    assert!(![o.stdout, o.stderr].concat().windows(canary.len()).any(|w| w == canary.as_bytes()));
     // prepare_job with no container and no service passes.
     let prep = r#"{"command":"prepare_job","responseFile":null,"args":{"container":null,"services":[]},"state":{}}"#;
     let o = relay(&env, prep);
     assert_eq!(o.status.code(), Some(0), "{}", String::from_utf8_lossy(&o.stderr));
     let (refusals, events): (Vec<RefusalCode>, Vec<HookEvent>) = hooks.take(&id);
-    assert_eq!(refusals, [RefusalCode::ContainerNotSupported]);
+    assert_eq!(refusals, [RefusalCode::ContainerNotSupported, RefusalCode::ContainerOptionRefused]);
     assert!(events.is_empty());
     // A second take is empty; close removes the socket.
     assert_eq!(hooks.take(&id).0, []);

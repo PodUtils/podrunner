@@ -156,7 +156,9 @@ fn plan(c: &Container, table: &[&str], policy: &Policy) -> Result<Planned, Refus
         return refuse(RefusalCode::ContainerOptionRefused, "an image of a registry that the kind does not allow");
     }
     if let Some(r) = &c.registry {
-        let server = r.server_url.as_deref().unwrap_or("docker.io");
+        // Runner v2.338.2 sends an empty server for a Docker Hub image
+        // (`DockerUtil.ParseRegistryHostnameFromImageName`).
+        let server = r.server_url.as_deref().filter(|s| !s.is_empty()).unwrap_or("docker.io");
         let server = server.trim_start_matches("https://").trim_end_matches('/');
         if server != host {
             return refuse(RefusalCode::ContainerOptionRefused, "a registry credential for another host");

@@ -139,6 +139,10 @@ fn each_rule_refuses_its_input() {
         assert_eq!(refusal.code, want, "{c}");
         assert!(!refusal.why.contains(CANARY));
     }
+    // The runner sends an empty server for a Docker Hub image: it is
+    // docker.io, the host of the image.
+    let hub = with("registry", json!({ "username": "u", "password": CANARY, "serverUrl": "" }));
+    assert!(check(&mut Gate::default(), &p, Command::PrepareJob, &prepare(hub)).is_ok());
     // Ports and services on a unit of the host network.
     p.shared_host_net = true;
     let ports = prepare(with("portMappings", json!(["8080:80"])));

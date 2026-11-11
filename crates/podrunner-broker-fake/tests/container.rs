@@ -21,6 +21,8 @@ use podrunner_schema::{Capability, ContainerRoute};
 use podrunner_unit::{StartSpec, UnitDriver, UnitId};
 use serde_json::json;
 
+/// A made-up registry password: it must reach no log and no file.
+const CANARY: &str = "podrunner-canary-registry-5c1e";
 const IMAGE: &str = "busybox@sha256:0000000000000000000000000000000000000000000000000000000000000000";
 
 fn capability() -> Capability {
@@ -31,6 +33,21 @@ fn capability() -> Capability {
         "egress_hold": "advisory", "kvm": "no"
     }))
     .unwrap()
+}
+
+/// The files under `dir` that hold `text`.
+fn files_with(dir: &std::path::Path, text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else { return found };
+    for e in entries.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            found.extend(files_with(&p, text));
+        } else if std::fs::read(&p).is_ok_and(|b| b.windows(text.len()).any(|w| w == text.as_bytes())) {
+            found.push(p.display().to_string());
+        }
+    }
+    found
 }
 
 #[test]
@@ -73,6 +90,7 @@ fn a_container_job_runs_through_the_hooks() {
         &["echo podrunner-container-$((6*7)) > marker.txt; echo \"workspace $GITHUB_WORKSPACE\"; pwd"],
     );
     job.container = Some(IMAGE.into());
+    job.registry = Some(("podrunner".into(), CANARY.into()));
     broker.queue(job);
     let _ = std::fs::remove_dir_all(dir.join("_work"));
     let env = [
@@ -83,8 +101,17 @@ fn a_container_job_runs_through_the_hooks() {
     let done = broker.completions();
     let logs = broker.logs();
     let refusals = hook.lock().unwrap().refusals.clone();
+    let left = files_with(&tmp, CANARY);
     let _ = fake.destroy(&id);
     let _ = std::fs::remove_dir_all(&tmp);
+    // The canary: the password reached the checks of the host (a
+    // credential for the host of the image), and no log or file.
+    assert!(!logs.contains(CANARY), "{logs}");
+    assert!(left.is_empty(), "{left:?}");
+    // The runner masks it (the `mask` of the job message), also in its own
+    // diagnostic logs.
+    let runner_files = [files_with(&dir.join("_diag"), CANARY), files_with(&dir.join("_work"), CANARY)].concat();
+    assert!(runner_files.is_empty(), "{runner_files:?}");
     assert_eq!(done.len(), 1, "{:?}\n{logs}", broker.seen());
     assert_eq!(done[0].conclusion, "succeeded", "{refusals:?}\n{logs}");
     assert!(refusals.is_empty(), "{refusals:?}");

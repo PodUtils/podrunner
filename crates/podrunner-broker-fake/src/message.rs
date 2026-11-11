@@ -28,6 +28,8 @@ pub struct Job {
     /// The image of `container:`, or none: the runner then runs the job
     /// through its container hooks.
     pub container: Option<String>,
+    /// The `credentials` of `container:` (a user name and a password).
+    pub registry: Option<(String, String)>,
 }
 
 impl Job {
@@ -39,8 +41,20 @@ impl Job {
             condition: String::new(),
             env: Vec::new(),
         });
-        Job { name: name.into(), env: Vec::new(), steps: steps.collect(), container: None }
+        Job { name: name.into(), env: Vec::new(), steps: steps.collect(), container: None, registry: None }
     }
+}
+
+/// The `jobContainer` token: the image alone, or a mapping with the
+/// credentials of the registry.
+fn container(job: &Job) -> Value {
+    let Some(image) = &job.container else { return Value::Null };
+    let Some((user, password)) = &job.registry else { return json!(image) };
+    let credentials = mapping(&[("username".into(), user.clone()), ("password".into(), password.clone())]);
+    json!({ "type": 2, "map": [
+        { "Key": "image", "Value": image },
+        { "Key": "credentials", "Value": credentials },
+    ] })
 }
 
 /// A mapping token of the runner (`TemplateToken` type 2).
@@ -119,7 +133,7 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
             "repositories": [],
         },
         "workspace": {},
-        "jobContainer": job.container,
+        "jobContainer": container(job),
         "environmentVariables": if job.env.is_empty() { json!([]) } else { json!([mapping(&job.env)]) },
         // The results service of the Worker (logs, step updates): this broker.
         "variables": {
@@ -136,7 +150,9 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
             s("server_url", "https://github.com"), s("api_url", base),
         ] } },
         "steps": steps,
-        "fileTable": [], "mask": [],
+        // GitHub masks each secret of a job; the password of the registry
+        // comes from a secret.
+        "fileTable": [], "mask": job.registry.iter().map(|(_, p)| json!({ "type": "regex", "value": p })).collect::<Vec<_>>(),
     })
 }
 
