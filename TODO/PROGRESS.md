@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 76 entries: 2 open, 5 partial, 15 blocked, 54 done.
+`TODO/INDEX.md` holds 76 entries: 0 open, 4 partial, 15 blocked, 57 done.
 
 ## State
 
@@ -27,10 +27,7 @@ release or a live account.
 The queue for tonight, most valuable first:
 
 1. T-065 (M): the podvm unit runs under `podnet pod`; without a hold, a podvm unit gets no `trusted` job, so M-D cannot pass. Start the measure in `runner-image.yml`.
-2. T-070 (S): `doctor` reads the configuration, the driver records, `pod-hostprobe` and the Landlock ABI; the operator sees what placement sees.
-3. T-071 (M): the live gate harness on the fake scale set; when DR-7 is yes, only the secrets are missing.
-4. T-074 (M): the disk limit of a unit (SPEC §10.4); a job can fill the disk of the host now.
-5. T-075 (S): the report and status fields of SPEC §11.4 and §11.5; needs a small ask to podcrates.
+2. T-075 (S): the report and status fields of SPEC §11.4 and §11.5; needs a small ask to podcrates.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

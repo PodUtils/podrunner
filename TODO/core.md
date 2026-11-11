@@ -1032,7 +1032,7 @@ A failed `report` keeps the job in a `reporting` set with a backoff, up to `repo
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1051,6 +1051,10 @@ Done: `--config` and `--json`; the capability record of each kind through its dr
 ## Prove
 
 `cargo test -p podrunner doctor`
+
+## Done
+
+2026-11-11, `5ef2e2a` and `fdcfe51`; gate run 43073532205 of `296bfd0` is green. `podrunner doctor [--config FILE] [--json]` shows the capability record of each kind through its driver, the hold, the tiers that the host serves, the Landlock ABI, `/dev/kvm` and the rows of `pod-hostprobe` (run in children of the binary). `cargo test -p podrunner doctor` passes.
 
 # T-072: U10: the egress module against a proxy that resets CONNECT to an IP literal
 
@@ -1088,7 +1092,7 @@ A loopback test of `crates/podrunner-egress`: a fake upstream CONNECT proxy that
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1105,6 +1109,10 @@ Read SPEC §10.4 and `crates/podrunner-slots/src` on 2026-11-11: `disk` appears 
 ## Prove
 
 `cargo test -p podrunner-slots disk_limit`
+
+## Done
+
+2026-11-11, `2f58ecb`; gate run 43073532205 of `296bfd0` is green. Every 30 s slots sums the bytes under the root of each running unit with a bound (the `disk` limit of the offer, else `[unit.X] disk_max_bytes`) and ends a unit over it with an audit line `limit` (`disk`). `disk_limit_ends_a_unit_over_its_bound` passes.
 
 # T-075: The report and status fields of SPEC §11.4 and §11.5
 
