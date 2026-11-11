@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**76 entries: 11 open, 3 partial, 16 blocked, 46 done.**
+**76 entries: 9 open, 4 partial, 16 blocked, 47 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 4 | 2 | 1 | 22 | 29 |
-| P2 | 5 | 1 | 10 | 23 | 39 |
+| P1 | 3 | 2 | 1 | 23 | 29 |
+| P2 | 4 | 2 | 10 | 23 | 39 |
 | P3 | 2 | 0 | 5 | 1 | 8 |
-| **All** | 11 | 3 | 16 | 46 | 76 |
+| **All** | 9 | 4 | 16 | 47 | 76 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -114,10 +114,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-064](level2.md) | P1 | S | L2 | feature | blocked | The podvm driver follows the tree of each container (PodUtils/podvm@T-1709) |
 | [T-065](live.md) | P1 | M | M-D | feature | partial | The podvm unit runs under podnet pod: an advisory hold for trusted jobs |
 | [T-066](live.md) | P1 | S | M-C | defect | open | slots sets ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1 in the start environment |
-| [T-067](level2.md) | P1 | S | L2 | feature | open | The podvm driver takes the root of a unit from podvm inspect |
+| [T-067](level2.md) | P1 | S | L2 | feature | done | The podvm driver takes the root of a unit from podvm inspect |
 | [T-068](core.md) | P1 | M | M-D | defect | open | serve keeps each job, report and journal line forever |
 | [T-069](core.md) | P2 | S | M-D | feature | open | A report that the source refuses is retried, then spooled |
-| [T-070](core.md) | P2 | S | M-D | feature | open | podrunner doctor reads the configuration and the probes of each kind |
+| [T-070](core.md) | P2 | S | M-D | feature | partial | podrunner doctor reads the configuration and the probes of each kind |
 | [T-071](live.md) | P2 | M | M-C | chore | open | The live gate harness of G-H2 to G-H4, offline on the fake scale set |
 | [T-072](core.md) | P2 | S | M-D | measurement | open | U10: the egress module against a proxy that resets CONNECT to an IP literal |
 | [T-073](later.md) | P3 | S | later | chore | blocked | Take the podcrates tag after v0.24.0: pod-confine drops each capability |

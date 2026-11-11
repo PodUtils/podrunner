@@ -409,7 +409,7 @@ A podvm release with PodUtils/podvm@T-1709 (the next beta). Pin that beta only i
 **Milestone:** L2
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -426,3 +426,7 @@ After `run -d`, read `RootfsPath` of the unit container from `podvm inspect` and
 ## Prove
 
 `cargo test -p podrunner-podvm rootfs`, and the unit conformance suite and `crates/podrunner-broker-fake/tests/podvm.rs` in `runner-image.yml` on podvm `v0.2.0-beta.3`.
+
+## Done
+
+2026-11-11, `aa1d2b8`, `runner-image.yml` run 43067388243: after `run -d` the driver takes `RootfsPath` of `podvm inspect` (`crates/podrunner-podvm/src/unit/root.rs`) and checks each credential file there at mode 0600; on beta.3 it is the extracted rootfs, and the unit suite, the hold test and the broker-fake tests pass on podvm in CI.

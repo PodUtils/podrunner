@@ -1024,7 +1024,7 @@ A failed `report` keeps the job in a `reporting` set with a backoff, up to `repo
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1037,6 +1037,8 @@ Read `crates/podrunner/src/doctor.rs`, `docs/cli.md` and the README of `pod-host
 ## Approach
 
 `podrunner doctor [--config FILE] [--json]`. With a configuration: for each unit kind, the driver binary of the file, the capability record of its `probe` through the driver (the record that placement reads), and the tiers that the host can serve with it (`no-tier-served`). Always: the findings of `pod-hostprobe` that the drivers need (user namespaces, mount, chroot, KVM), the Landlock ABI of `pod-confine`, and the hold of `pod doctor --json` when the `pod` binary is given. Each missing input is named; `doctor` decides nothing and changes no file. A test with a fake configuration and a stand-in `podvm` checks the text and the JSON; `docs/cli.md`.
+
+Done: `--config` and `--json`; the capability record of each kind through its driver, the hold of `[unit.podvm] podnet`, the tiers that the host serves (floor and hold), the Landlock ABI and `/dev/kvm` (`crates/podrunner/src/doctor.rs`). Open: the rows of `pod-hostprobe` (user namespaces, mount, chroot); its probes run in a child that executes the binary again, so `main` must dispatch the child flag first.
 
 ## Prove
 

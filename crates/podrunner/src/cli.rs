@@ -24,7 +24,7 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   stop (--state DIR | --socket PATH)                drain, then end
   stop --wait --state DIR [--timeout SECONDS]       ... and wait until serve ends
   clear-degraded (--state DIR | --socket PATH)      start jobs again after a residue
-  doctor                                            the inputs of a host check
+  doctor [--config FILE] [--json]                   the inputs of a host check
   audit verify (--state DIR | --file FILE) [--anchor SEQ:HASH]
                                                     check the chain of audit.jsonl
   print-unit --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]
@@ -147,7 +147,12 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
                 }
             }
         }
-        "doctor" => Ok(ok(crate::doctor::report())),
+        "doctor" => {
+            let o = opts(rest)?;
+            o.only(&["--config"])?;
+            let v = crate::doctor::report(o.get("--config").as_deref()).map_err(|f| err(f.class, f.detail))?;
+            if o.flags.contains(&"--json".into()) { Ok(ok(format!("{v}\n"))) } else { Ok(ok(crate::doctor::text(&v))) }
+        }
         "print-unit" => {
             let o = opts(rest)?;
             o.only(&["--config", "--state", "--binary", "--watchdog"])?;

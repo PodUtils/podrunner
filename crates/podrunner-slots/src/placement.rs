@@ -35,7 +35,7 @@ pub struct Placement {
 }
 
 /// The hold that a tier needs.
-fn needed_hold(t: Tier) -> EgressHold {
+pub fn needed_hold(t: Tier) -> EgressHold {
     match t {
         Tier::Untrusted => EgressHold::Enforced,
         Tier::Trusted => EgressHold::Advisory,
