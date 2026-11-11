@@ -39,7 +39,7 @@ fn confined() -> podrunner_schema::Capability {
 #[test]
 fn each_unit_gets_a_listener_and_the_unit_sees_its_way_out() {
     let seen = Seen::default();
-    let policy = json!({ "policy": { "version": 1, "mode": "allow", "allow": [{ "host": "github.com" }] } });
+    let policy = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "github.com" }] } });
     let bed = Bed::new(
         config(""),
         vec![("a", "trusted", None, vec![offer(0, "j-1", policy)])],

@@ -16,8 +16,8 @@ use pod_core::{BoxFuture, Connected, Dial, Failure, Found, Resolve, Source, Targ
 
 use super::Egress;
 
-const ONLY_A: &str = r#"{"version":1,"mode":"allow","allow":[{"host":"a.example"}]}"#;
-const ONLY_B: &str = r#"{"version":1,"mode":"allow","allow":[{"host":"b.example"}]}"#;
+const ONLY_A: &str = r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example"}]}"#;
+const ONLY_B: &str = r#"{"schema":1,"mode":"allow","allow":[{"host":"b.example"}]}"#;
 
 struct Public;
 
@@ -140,7 +140,7 @@ fn a_bad_policy_is_refused_and_named_without_its_text() {
     let err = e
         .open(
             "u-1",
-            r#"{"version":1,"mode":"allow","allow":[{"host":"secret-host-77"}],"extra":1}"#,
+            r#"{"schema":1,"mode":"allow","allow":[{"host":"secret-host-77"}],"extra":1}"#,
             &d.join("x.sock"),
             Duration::from_secs(60),
         )

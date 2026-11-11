@@ -301,7 +301,7 @@ impl Slots {
         let default = self.cfg.egress.get("default_policy").and_then(|v| v.as_object()).cloned();
         match offer.or(default) {
             Some(p) => serde_json::Value::Object(p).to_string(),
-            None => r#"{"version":1,"mode":"allow","allow":[]}"#.into(),
+            None => r#"{"schema":1,"mode":"allow","allow":[]}"#.into(),
         }
     }
 

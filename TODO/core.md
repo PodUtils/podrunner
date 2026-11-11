@@ -629,3 +629,28 @@ The workaround is in the driver (T-023): the payload runs under `/bin/sh` of the
 
 podvm answered in PodUtils/podvm#246 (COORD-028): the case did not reproduce on its host (another rung), and PodUtils/podvm@T-1720 (`6968315`) makes `wait` read the record again for up to 10 s. It goes into the next podvm release. Then run the H0 profile again (the supervise rung), report on GitHub #49, and remove the workaround of T-023 if `podvm wait` gives each code.
 
+# T-048: Egress: check the upstream of the broker; the names mode of pod-broker
+
+**Source:** PodUtils/podcrates#60 (COORD-035)
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podcrates v0.18.0 gives `pod-broker` two parts for the egress module of GitHub #24 (PodUtils/podcrates@T-161, its call C51): `Broker::check_upstream()` sends the canary `localhost` through the way out and gives `UpstreamCheck::{RefusesNonPublic, TakesNonPublic, Unknown}`; `Settings::names_upstream` sends the checked name, once, to an upstream CONNECT proxy that takes names only (a host with a proxy only). The podcrates call: hold a job `advisory` and serve no `untrusted` job when the check is not `RefusesNonPublic`. The load also flags an allow rule under an open suffix (`JobInfo::flagged`).
+
+## Premise
+
+Read PodUtils/podcrates#60 on 2026-11-11. podrunner takes v0.18.0; nothing measured.
+
+## Approach
+
+At the start of `serve`, run `check_upstream` on the egress module; when it is not `RefusesNonPublic`, the egress hold of each kind is at most `advisory`, so placement serves no `untrusted` job (`hold-not-available`). A configuration key turns on `names_upstream` for a host whose proxy takes names only. Write a flagged allow rule of a job as an audit line.
+
+## Prove
+
+`cargo test -p podrunner-egress upstream`
+

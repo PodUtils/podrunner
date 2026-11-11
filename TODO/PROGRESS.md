@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 47 entries: 2 open, 5 partial, 13 blocked, 27 done.
+`TODO/INDEX.md` holds 48 entries: 3 open, 5 partial, 13 blocked, 27 done.
 
 ## State
 
@@ -29,10 +29,11 @@ then take the next one. Continue a `partial` entry first.
 
 1. **The plan:** T-001 closes when its issue closes.
 2. **The registers:** T-009 (partial: the open rows wait for their entries).
-3. **M-C, L2:** T-038 (partial: the results routes, the corpus), T-035
+3. **M-D:** T-048 (the upstream check of `pod-broker`).
+4. **M-C, L2:** T-038 (partial: the results routes, the corpus), T-035
    (partial: a container job on the real runner, with T-038), T-030
    (partial: the import into a podvm store); T-034.
-4. **Blocked:** T-007 (DR-7: not now), T-014 (the spec), T-026 (podvm),
+5. **Blocked:** T-007 (DR-7: not now), T-014 (the spec), T-026 (podvm),
    T-036 (a real guest), T-047 (podvm),
    T-032, T-033, T-037 (podvm), T-040
    to T-043, T-046.
