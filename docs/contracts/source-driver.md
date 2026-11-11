@@ -110,7 +110,7 @@ and what is open (T-053). `SC` is `crates/podrunner-source/src/conformance.rs`,
 | --- | --- | --- |
 | 1 unknown trust | the tier rule (`crates/podrunner-tier`), SG `an_offer_with_a_tier_is_refused` | none |
 | 2 one claim | SC `a-job-is-claimed-once`, SG `a_redelivered_offer_is_one_job` | none |
-| 3 credential canary | SG `no_credential_reaches_the_journal_the_audit_or_a_report`, the sign tests | stderr; a positive control; each role |
+| 3 credential canary | SG `no_credential_reaches_the_journal_the_audit_or_a_report`, the sign tests; the host role as a process: `crates/podrunner/tests/serve.rs` `no_credential_reaches_stderr_or_a_file_of_the_state` (stderr, each file of the state, `status`; a positive control) | the mint role (`mint-serve`) and the scale-set sidecar as processes |
 | 4 revoked | MI `a_revocation_is_final_and_names_no_secret`, `tools/scaleset-sidecar` `TestARevocationEndsTheSidecarWith78` | none |
 | 5 `../x` | SC `the-wire-refuses-a-long-line-a-path-and-a-schema` | none |
 | 6 untrusted host token | RT (TLS) `a_pinned_host_reaches_the_gate_and_another_key_does_not`: a mint serves one source of one tier and pins its hosts, so the key of a host of another tier is not pinned there | a host pinned on two mints of two tiers |

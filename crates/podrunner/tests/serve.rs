@@ -158,3 +158,53 @@ fn stop_wait_returns_after_serve_ends_and_times_out_with_75() {
     assert!(t.elapsed() >= Duration::from_secs(1));
     let _ = serve.wait();
 }
+
+/// Each file under `dir` that holds `text`.
+fn files_holding(dir: &Path, text: &str) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut todo = vec![dir.to_path_buf()];
+    while let Some(d) = todo.pop() {
+        for e in std::fs::read_dir(&d).into_iter().flatten().flatten() {
+            let p = e.path();
+            match p.symlink_metadata() {
+                Ok(m) if m.is_dir() => todo.push(p),
+                Ok(m)
+                    if m.is_file()
+                        && std::fs::read(&p).is_ok_and(|b| b.windows(text.len()).any(|w| w == text.as_bytes())) =>
+                {
+                    out.push(p)
+                }
+                _ => {}
+            }
+        }
+    }
+    out
+}
+
+/// Design source test 3, the host role: the credential of a job is in no
+/// stderr, no file of the state directory after the job, no status and no
+/// report. The positive control: the scan finds it in the credential files
+/// of the running unit.
+#[test]
+fn no_credential_reaches_stderr_or_a_file_of_the_state() {
+    // The canned credential of the fake source holds this client id.
+    let canary = "fake-client";
+    let bed = Bed::new("canary", 2);
+    let mut serve = bed.serve(None);
+    bed.wait_started();
+    assert!(!files_holding(&bed.state(), canary).is_empty(), "the scan does not find the credential of the unit");
+    let t = Instant::now();
+    while !bed.journal().contains("\"reported\"") {
+        assert!(t.elapsed() < Duration::from_secs(30), "no report: {}", bed.journal());
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let status = bed.cli(&["status", "--json"]);
+    // SAFETY: kill(2) sends SIGTERM to the child that this test started.
+    unsafe { libc::kill(serve.id() as libc::pid_t, libc::SIGTERM) };
+    assert!(wait_exit(&mut serve, Duration::from_secs(30)).is_some(), "serve did not end");
+    let mut stderr = String::new();
+    std::io::Read::read_to_string(&mut serve.stderr.take().unwrap(), &mut stderr).unwrap();
+    assert!(!stderr.contains(canary), "stderr holds the credential");
+    assert!(!String::from_utf8_lossy(&status.stdout).contains(canary), "status holds the credential");
+    assert_eq!(files_holding(&bed.state(), canary), Vec::<PathBuf>::new());
+}
