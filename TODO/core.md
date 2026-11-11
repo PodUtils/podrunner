@@ -983,3 +983,32 @@ No fix in podrunner: the path view is the interposer of podvm. The runner image 
 
 podvm confirmed it in PodUtils/podvm#255 (COORD-036): the interposer rewrites the path string, and the kernel follows an absolute target from the host root; the exec routes resolve links in guest names already. PodUtils/podvm@T-1725 (P1) resolves each path call inside the rootfs, and comes with the next beta; the relative links of the image stay until then.
 
+# T-062: COORD-008: on the supervise rung a volume given as :ro is writable (GitHub #62)
+
+**Source:** GitHub #62
+**Category:** defect
+**Milestone:** L2
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+On the supervise rung of podvm `v0.2.0-beta.3`, `-v SRC:/__e:ro` stays writable from the container: a step can change the externals of the runner (node, the hook relay), which the next step runs. GitHub #62 (COORD-008, to podvm) records it.
+
+## Premise
+
+Measured on 2026-11-11 with `scripts/measure-container-verbs.sh`, as `nobody` with a seccomp filter that refuses `CLONE_NEWUSER`.
+
+## Approach
+
+The podvm driver of the hooks (T-035 step 4) mounts `/__e` read-only and checks it at the start of the job container (a write to `/__e` must fail); until podvm applies `:ro`, a podvm kind on the supervise rung refuses `container: hooks` jobs whose externals it cannot protect, or copies `/__e` for each job container so that a write reaches no later step.
+
+## Prove
+
+`sh scripts/measure-container-verbs.sh PODVM DIR` as a uid with no user namespace prints `externals-read-only ok`.
+
+## Blocker
+
+A podvm release that applies `:ro` on the supervise rung, or refuses it by name (GitHub #62).
+

@@ -7,7 +7,7 @@ Milestones L2 and L3: the hook path, the guest self-test, the microVM unit, the 
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -41,9 +41,10 @@ U21 done (2026-11-11, podvm `v0.2.0-beta.2`, `scripts/measure-hook-path.sh` with
 
 `sh scripts/measure-hook-path.sh PODVM DIR`, as root and as a uid with no user namespace.
 
-## Blocker
+## Done
 
-U19 needs the container verbs of podvm (PodUtils/podvm#236), which are not in a release. podvm is on break.
+2026-11-11, podvm `v0.2.0-beta.3`. U21: see the Approach (again with beta.3: a socket in the rootfs works on both rungs). U19, `scripts/measure-container-verbs.sh`: on the supervise rung (H0) a job container of an image other than the runner image runs with the seven job-container volumes (`run -d -v`), `exec -e -w` sees its environment, its working directory and the volumes (47 ms for each exec over 20), an action runs with the five action volumes and gives its exit code, its output and its logs, and `rm -f` ends both; `:ro` is not applied (GitHub #62, T-062). On the namespace rung `-v` is refused (PodUtils/podvm@T-1653), so the container route of a podvm unit needs the supervise rung. The relay uses the plain mode, so no frame decoding is necessary.
+
 
 # T-035: WP-09: the hook relay and the control socket server of each unit (ctl) (GitHub #35)
 

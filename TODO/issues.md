@@ -65,5 +65,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #59 | audit.jsonl: chain each line to the one before; podrunner audit verify | closed (`1773096`, gate run 42979592980) | T-059 |
 | #60 | serve: SIGTERM and SIGINT start a drain; sd_notify | closed (`1f1d389`, gate run 42979592980) | T-060 |
 | #61 | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (to podvm) | open | T-061 |
+| #62 | COORD-008: on the supervise rung a volume given as :ro is writable (to podvm) | open | T-062 |
 
 #44 and #45 are pull requests.
