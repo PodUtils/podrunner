@@ -323,7 +323,7 @@ The ruling "Test accounts" (Q-A9): not now (DR-7, T-007).
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -340,4 +340,8 @@ GitHub #50 (COORD-003, to podvm) gives the requests in order with their answers,
 ## Prove
 
 `cargo todo check`
+
+## Done
+
+2026-11-11: podvm read GitHub #50 and closed PodUtils/podvm#248: its `experiments/runner-standin.py` follows the stand-in (token, session, a 202 long poll), and PodUtils/podvm@T-1706 is done at podvm `cd2c691`: the official runner v2.338.2 runs `run.sh` up to the long poll on the userland rung (podvm `main`, not released). GitHub #50 is closed.
 

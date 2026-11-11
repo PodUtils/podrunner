@@ -53,4 +53,4 @@
 47 issue closed
 48 issue open
 49 issue open
-50 issue open
+50 issue closed

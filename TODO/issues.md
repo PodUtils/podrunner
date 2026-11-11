@@ -53,6 +53,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #47 | The mitigations of DR-4: trusted jobs at boundary redirect | closed (`7d1f203`, gate run 42957378324) | T-045 |
 | #48 | Local mode: podrunner run workflow.yml | open | T-046 |
 | #49 | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (to podvm) | open | T-047 |
-| #50 | COORD-003: the answer to PodUtils/podvm#248: the stand-in broker of the official runner, up to the long poll (to podvm) | open | T-049 |
+| #50 | COORD-003: the answer to PodUtils/podvm#248: the stand-in broker of the official runner, up to the long poll (to podvm) | closed (read by podvm, PodUtils/podvm#248) | T-049 |
 
 #44 and #45 are pull requests.
