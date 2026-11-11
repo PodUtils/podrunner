@@ -190,12 +190,13 @@ jobs:
           fi
           grep -m1 'failed to satisfy license requirements' "$RUNNER_TEMP/plant.log"
 
-  # The Go parts (tools/fake-scaleset; the scale-set sidecar later): vet,
-  # format, tests, and a static build with no cgo. The go.mod names the
+  # The Go parts (tools/fake-scaleset, tools/scaleset-sidecar): format,
+  # vet, tests, a static build with no cgo, and the source tests of the
+  # sidecar on the fake. The go.mod names the
   # toolchain; the go command fetches it.
   go:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       GOTOOLCHAIN: auto
       CGO_ENABLED: "0"
@@ -212,6 +213,22 @@ jobs:
           go test ./...
           go build -o "$RUNNER_TEMP/fake-scaleset" .
           sh "$GITHUB_WORKSPACE/scripts/check-static.sh" "$RUNNER_TEMP/fake-scaleset"
+      - name: The scale-set sidecar
+        working-directory: tools/scaleset-sidecar
+        run: |
+          set -eu
+          test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+          go vet ./...
+          go test ./...
+          go build -o "$RUNNER_TEMP/scaleset-sidecar" .
+          sh "$GITHUB_WORKSPACE/scripts/check-static.sh" "$RUNNER_TEMP/scaleset-sidecar"
+      - name: Toolchain
+        run: sh scripts/retry.sh rustup toolchain install
+      - name: The source tests against the sidecar on the fake
+        env:
+          PODRUNNER_FAKE_SCALESET: ${{ runner.temp }}/fake-scaleset
+          PODRUNNER_SCALESET_SIDECAR: ${{ runner.temp }}/scaleset-sidecar
+        run: cargo test --locked -p podrunner-source --test scaleset -- --ignored
 
   all:
     runs-on: ubuntu-24.04

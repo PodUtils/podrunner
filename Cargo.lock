@@ -222,6 +222,7 @@ dependencies = [
 name = "podrunner-source"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "podrunner-schema",
  "serde",
  "serde_json",

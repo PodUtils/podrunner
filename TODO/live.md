@@ -158,7 +158,7 @@ Open: the conformance run of the sidecar (T-029) on it.
 **Milestone:** M-C
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -193,7 +193,25 @@ Read the text of GitHub #29 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A static Go sidecar (`CGO_ENABLED=0`) over `actions/scaleset` (MIT) that speaks the source wire of T-016; `THIRD_PARTY.md` lists it. Call C1 (DR-3).
+A static Go sidecar (`CGO_ENABLED=0`) over `actions/scaleset` (MIT) that speaks the source wire of T-016; `THIRD_PARTY.md` lists it. Call C1 (DR-3). Done so far (2026-11-11): `tools/scaleset-sidecar` (Go): the source
+wire on stdio (a line limit of 1 MiB, `bad-request` for an unknown op or
+field, a bad `job_id`, another schema); the scale set and its message
+session; `next` turns `JobAvailable` into offers with no payload and no
+tier (the job id is the runner request id), with the trust inputs of the
+run object and the membership (`unknown` when a lookup fails; counted),
+`JobStarted` into `started` with the runner name, `JobCompleted` into
+`completed`, or `cancel` for a cancelled job; `claim` acquires the job,
+`mint` gives the files of the JIT configuration. Each App JWT comes from
+`sign` over the descriptor 3; the key never reaches the sidecar (call
+C15). The statuses 401 and 403 map to `source-revoked`, 404 to
+`unknown-job`, 422 to `bad-request`, 429 and others to `unavailable`; a
+detail names the status only. Go tests: the map of the statuses, the JIT
+files, the events. The source tests 1 to 12 pass against the sidecar on
+the fake service (`crates/podrunner-source/tests/scaleset.rs`; the gate
+runs them). The static build has no `INTERP`. Open: `serve` starts the
+sidecar with a `sign` channel and restarts it with a backoff (with
+T-027), and the test of a fork pull request on the trusted set
+(`tier-mismatch`, never acquired).
 
 ## Prove
 
