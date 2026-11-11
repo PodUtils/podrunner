@@ -415,7 +415,7 @@ Read on 2026-11-11 in PodUtils/podvm#258. Not in a podvm release yet; the next b
 
 ## Approach
 
-After `run -d`, take the tree of the unit from `podvm inspect --format '{{.RootfsPath}}' UNIT`, and use it for `observe` and for the runner directory of the volumes. Keep the credential files written before `run` (the copy takes them, mode 0600), and check the mode in the tree. Raise `probe::LOWEST` to the beta with PodUtils/podvm@T-1709, and pin it in `images/podvm.toml`.
+After `run -d`, take the tree of the unit from `podvm inspect --format '{{.RootfsPath}}' UNIT`, and use it for `observe` and for the runner directory of the volumes. Keep the credential files written before `run` (the copy takes them, mode 0600), and check the mode in the tree. Raise `probe::LOWEST` to the beta with PodUtils/podvm@T-1709, and pin it in `images/podvm.toml`. That beta also ends a detached payload with its launcher (PodUtils/podvm#262): run the unit tests 25 and 26 on it and give the result to the session of podcrates.
 
 ## Prove
 
