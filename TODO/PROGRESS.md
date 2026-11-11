@@ -14,7 +14,8 @@
 - M-A is done (T-015 to T-025; the H0 run of T-023 on a profile with no
   root, no user namespace, no mounts and no KVM). T-047 waits for podvm.
   M-C: done T-027 to T-029; partial T-030. M-D: done T-031, T-045; T-033 waits for DR-7 and M-B.
-  L2: partial T-035; T-036 blocked (the rest needs a real guest, T-037).
+  L2: partial T-035, T-038 (the official runner runs canned jobs offline);
+  T-036 blocked (the rest needs a real guest, T-037).
 - podcrates is on direct messages; podnet answers COORD issues; podvm and
   podssh are on break. An entry that needs a change of podvm or podssh is
   `blocked`, and the session takes the next entry.
@@ -28,8 +29,9 @@ then take the next one. Continue a `partial` entry first.
 
 1. **The plan:** T-001 closes when its issue closes.
 2. **The registers:** T-009 (partial: the open rows wait for their entries).
-3. **M-C, L2:** T-030 (partial: the import into a podvm store), T-035
-   (partial: the tests with a real runner); T-034, T-038.
+3. **M-C, L2:** T-038 (partial: the results routes, the corpus), T-035
+   (partial: a container job on the real runner, with T-038), T-030
+   (partial: the import into a podvm store); T-034.
 4. **Blocked:** T-007 (DR-7: not now), T-014 (the spec), T-026 (podvm),
    T-036 (a real guest), T-047 (podvm),
    T-032, T-033, T-037 (podvm), T-040

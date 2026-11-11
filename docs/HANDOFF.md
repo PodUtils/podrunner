@@ -39,8 +39,10 @@ is done.
   the checks, the socket, the relay, the mapping onto the driver and the
   seam `HookPort` of slots are in; the tests with a real runner wait for
   T-038 and T-026. T-036 is blocked: the rest needs a real guest (T-037,
-  PodUtils/podvm@T-1656). T-034, T-038 need the runner on podvm (T-026,
-  blocked).
+  PodUtils/podvm@T-1656). T-038 is partial: `crates/podrunner-broker-fake` runs
+  the official runner offline (`.github/workflows/level2.yml`); the results
+  routes and the run in a podvm unit (T-026, blocked) are open. T-034
+  needs the runner on podvm.
 - podnet answered COORD-001 (PodUtils/podnet#425): the runner pin
   `actions/runner` v2.338.2 and the object `hold` of `pod doctor --json`
   (T-044).
