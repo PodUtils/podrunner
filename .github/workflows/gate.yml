@@ -245,6 +245,8 @@ jobs:
           # slots, mint, sign and the sidecar: a fork pull request on the
           # trusted set is withdrawn and never acquired; a member job runs.
           cargo test --locked -p podrunner --test scaleset -- --ignored
+          # The gates G-H2 and G-H3 in their offline form (T-071).
+          cargo test --locked -p podrunner --test live -- --include-ignored
 
   all:
     runs-on: ubuntu-24.04

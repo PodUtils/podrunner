@@ -352,6 +352,8 @@ Read the text of GitHub #32 on 2026-11-11. Nothing measured.
 
 Run the live gates with a test organization and App on a `fake` unit.
 
+The offline form of G-H2 to G-H4 runs in the gate (T-071: `crates/podrunner/tests/live.rs`, `crates/podrunner/tests/scaleset.rs`). For the live form: a new workflow `live.yml` on dispatch only, which ends with "skipped: no secrets" when the secrets of the test organization do not exist, and the same checks against github.com.
+
 ## Prove
 
 `cargo test -p podrunner-slots --test live -- --ignored gates`, in a live workflow with the gates G-H2 to G-H4.
@@ -516,7 +518,7 @@ Read T-032, T-029 and `tools/fake-scaleset` on 2026-11-11. Nothing measured on g
 
 ## Approach
 
-A new test target, crates/podrunner/tests/live.rs, with one test for each gate, run against a target that a variable names: the fake scale set (the default, in the gate job `go`) or github.com (secrets of a live workflow). The fake records labels and permissions, so G-H2 and G-H3 have an offline form with a plant each. A new workflow .github/workflows/live.yml, on dispatch only: it ends with "skipped: no secrets" when the secrets do not exist, and starts no runner on another repository. No secret goes into the repository.
+A new test target, crates/podrunner/tests/live.rs, on the fake scale set with the real sidecar. The fake records each request with its body. G-H2: the record has one creation of the scale set, with one label, its name. G-H3: each path of the record is a route of the minimum permissions of SPEC §6.2; a unit test plants a route beyond them. G-H4 stays in `tests/scaleset.rs`. The gate job `go` runs the target. The live form against github.com (a workflow on dispatch only) is part of T-032.
 
 ## Prove
 

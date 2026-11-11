@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -81,10 +82,22 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.record != nil {
-		line, _ := json.Marshal(map[string]any{
+		rec := map[string]any{
 			"method": r.Method, "path": r.URL.Path, "query": r.URL.RawQuery,
 			"capacity": r.Header.Get("X-ScaleSetMaxCapacity"),
-		})
+		}
+		// The body of the creation of a scale set (its labels) and of a
+		// token request (its permissions), for the gates G-H2 and G-H3.
+		// Neither holds a secret: the App JWT is in a header.
+		if r.Method == http.MethodPost && (strings.HasSuffix(r.URL.Path, "/runnerscalesets") || strings.HasSuffix(r.URL.Path, "/access_tokens")) {
+			body, _ := io.ReadAll(io.LimitReader(r.Body, 1<<16))
+			r.Body = io.NopCloser(bytes.NewReader(body))
+			var v any
+			if json.Unmarshal(body, &v) == nil {
+				rec["body"] = v
+			}
+		}
+		line, _ := json.Marshal(rec)
 		_, _ = s.record.Write(append(line, '\n'))
 	}
 	p := r.URL.Path
