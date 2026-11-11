@@ -80,3 +80,26 @@ fn the_status_counts_unknown_trust_and_ends_without_completion() {
     // "known" ran with no completed event; "done" got one.
     assert_eq!(st.ended_without_completion, 1);
 }
+
+/// DR-4: a trusted job at `redirect` runs, and its report and the status
+/// name the boundary, the principal and the hold (GitHub #47).
+#[test]
+fn a_job_at_redirect_names_the_boundary_and_the_hold() {
+    use podrunner_schema::{Boundary, EgressHold, Principal};
+    let cap = capability(Boundary::Redirect, Principal::Shared, EgressHold::Advisory);
+    let mut bed = Bed::new(
+        config("repository = \"example-org/app\"\n[tier.trusted]\nmin_boundary = \"redirect\""),
+        vec![("a", "trusted", Some(1), vec![offer(0, "j-1", json!({}))])],
+        vec![KindSpec { name: "fake", slots: 1, capability: cap, command: sh("exit 0") }],
+    );
+    bed.until(50, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    let unit = bed.slots.reports[0].unit.clone().expect("the unit fields");
+    assert_eq!(
+        (unit.boundary, unit.principal, unit.egress_hold),
+        (Boundary::Redirect, Principal::Shared, EgressHold::Advisory)
+    );
+    let st = bed.slots.status();
+    assert!(!st.no_tier_served);
+    assert_eq!(st.kinds[0].probe.boundary, Boundary::Redirect);
+    assert_eq!(st.kinds[0].probe.egress_hold, EgressHold::Advisory);
+}

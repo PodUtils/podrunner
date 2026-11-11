@@ -466,8 +466,8 @@ Read GitHub #4 and the ruling of 2026-11-11. The configuration part is measured 
 
 ## Approach
 
-The configuration check of `podrunner_slots::config` (`check_redirect`) refuses `redirect` for `trusted` with `same_principal_ok = true` or a `trusted` source with no `slots`. Next: the repository affinity in placement (a refusal code for another repository), then the signed pin list, then the host key and the token life with T-031. The report already names the boundary and the hold (`UnitFields`); a test must prove it for a `redirect` unit.
+Done: the configuration check of `podrunner_slots::config` (`check_redirect`) refuses `redirect` for `trusted` with no `repository`, with `same_principal_ok = true`, or with a `trusted` source with no `slots`. Placement refuses an offer of another repository than `repository` with `repo-scope-refused` (terminal). A trusted job at `redirect` runs, and its report and the status name `redirect`, `shared` and the hold. Next: the signed pin list (`pod-identity`), then the host key and the token life with T-031.
 
 ## Prove
 
-`cargo test -p podrunner-slots trusted_at_redirect`
+`cargo test -p podrunner-slots trusted_at_redirect`, `cargo test -p podrunner-slots one_repository`, `cargo test -p podrunner-slots a_job_at_redirect`

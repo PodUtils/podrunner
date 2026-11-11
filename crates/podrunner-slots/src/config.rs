@@ -161,6 +161,11 @@ pub struct Config {
     /// Take the payload of an offer when it is on the pin list.
     #[serde(default)]
     pub payload_from_offer: bool,
+    /// The one repository (`owner/repo`) that the host serves; an offer of
+    /// another repository is `repo-scope-refused`. `trusted` at
+    /// `redirect` needs it (DR-4).
+    #[serde(default)]
+    pub repository: Option<String>,
     #[serde(default)]
     pub source: Vec<SourceConfig>,
     #[serde(default)]
@@ -231,6 +236,11 @@ impl Config {
         if self.floor(Tier::Trusted) < Boundary::Confined {
             self.check_redirect()?;
         }
+        if let Some(r) = &self.repository
+            && !r.split_once('/').is_some_and(|(o, n)| !o.is_empty() && !n.is_empty() && !n.contains('/'))
+        {
+            return Err(format!("repository {r:?} is not owner/repo"));
+        }
         let mut names = std::collections::BTreeSet::new();
         for s in &self.source {
             if !names.insert(s.name.as_str()) {
@@ -275,6 +285,11 @@ impl Config {
             return Err(
                 "[tier.trusted] redirect needs one job at a time on a shared uid: same_principal_ok = false (DR-4)"
                     .into(),
+            );
+        }
+        if self.repository.is_none() {
+            return Err(
+                "[tier.trusted] redirect needs one repository for the host: repository = \"owner/repo\" (DR-4)".into(),
             );
         }
         if let Some(s) = self.source.iter().find(|s| s.tier == Tier::Trusted && s.slots.is_none()) {

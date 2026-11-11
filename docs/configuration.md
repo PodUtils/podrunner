@@ -10,6 +10,7 @@ allow_fake = false           # a fake source or unit only with true
 terminal_suppress_s = 3600   # a terminal refusal suppresses its job id
 same_principal_ok = false    # more than one unit at a time on a shared principal
 payload_from_offer = false   # take the payload of an offer when it is pinned
+repository = "owner/repo"    # the one repository of the host (DR-4); other offers: repo-scope-refused
 guest_kinds = ["microvm"]    # the kinds whose claim of guest may hold, after the self-test
 
 [[source]]                   # one set: one tier, one architecture, this host
@@ -58,5 +59,5 @@ built_at_s = 1800000000      # the time of the build, Unix seconds
 | Tier | Lowest floor | Why |
 | --- | --- | --- |
 | `untrusted` | `guest` | A fork job is hostile code. |
-| `trusted` | `redirect` (default `confined`) | DR-4: `redirect` is a choice of the operator. The file must then keep `same_principal_ok = false` and set `slots` on each `trusted` source (T-045 has the other mitigations). |
+| `trusted` | `redirect` (default `confined`) | DR-4: `redirect` is a choice of the operator. The file must then set `repository`, keep `same_principal_ok = false` and set `slots` on each `trusted` source (T-045 has the other mitigations). |
 | `local` | `none` | Only the configuration marks a set `local`; its jobs run at `local` with no tier rule, and only a `fake` source can be `local` (call C14). |

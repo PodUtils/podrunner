@@ -22,7 +22,7 @@ them.
 | `egress-policy-unsupported` | terminal | The policy of the offer cannot be applied under the tier ceiling. |
 | `arch-mismatch` | terminal | No kind of the host runs the architecture of the job. |
 | `payload-not-pinned` | terminal | The payload is not a digest of the pin list. |
-| `repo-scope-refused` | terminal | A repository of a personal account (call C3). |
+| `repo-scope-refused` | terminal | A repository of a personal account (call C3), or a repository other than the `repository` of the host (DR-4). |
 | `container-not-supported` | terminal | The job needs a container, and no kind has the container route. |
 | `container-option-refused` | terminal | A container option that the kind refuses. |
 | `build-not-supported` | terminal | A `docker build` or a Dockerfile action (call C2). |

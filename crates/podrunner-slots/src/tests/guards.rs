@@ -60,15 +60,32 @@ fn trusted_at_redirect_needs_the_mitigations_of_dr4() {
     assert_eq!(config("").floor(Tier::Trusted), Boundary::Confined);
     assert!(place(&member, Tier::Trusted, &[kind(redirect.clone())], &config(""), NOW_UNIX).is_err());
     let floor = "[tier.trusted]\nmin_boundary = \"redirect\"";
-    let cfg = config(floor);
+    let cfg = config(&format!("repository = \"example-org/app\"\n{floor}"));
     assert_eq!(place(&member, Tier::Trusted, &[kind(redirect)], &cfg, NOW_UNIX).map(|p| p.tier), Ok(Tier::Trusted));
     let parse = |extra: &str| Config::parse(&format!("host = \"h\"\nallow_fake = true\n{extra}\n{floor}\n[pin]\n"));
-    let e = parse("same_principal_ok = true").unwrap_err();
+    let repo = "repository = \"example-org/app\"";
+    let e = parse("").unwrap_err();
+    assert!(e.contains("one repository"), "{e}");
+    let e = parse(&format!("{repo}\nsame_principal_ok = true")).unwrap_err();
     assert!(e.contains("same_principal_ok = false"), "{e}");
     let source = "[[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"trusted\"\narch = \"x86_64\"";
-    let e = parse(source).unwrap_err();
+    let e = parse(&format!("{repo}\n{source}")).unwrap_err();
     assert!(e.contains("needs slots"), "{e}");
-    assert!(parse(&format!("{source}\nslots = 1")).is_ok());
+    assert!(parse(&format!("{repo}\n{source}\nslots = 1")).is_ok());
+    assert!(parse("repository = \"no-slash\"").unwrap_err().contains("owner/repo"));
+}
+
+/// DR-4: a host with `repository` refuses an offer of another repository,
+/// terminal, before any other step.
+#[test]
+fn a_host_of_one_repository_refuses_another() {
+    let cfg = config("repository = \"example-org/other\"");
+    let other = place(&job(json!({})), Tier::Trusted, &[kind(confined())], &cfg, NOW_UNIX);
+    assert_eq!(other, Err(RefusalCode::RepoScopeRefused));
+    assert!(!RefusalCode::RepoScopeRefused.is_wait());
+    // A control: the same offer on a host of its repository runs.
+    let cfg = config("repository = \"Example-Org/App\"");
+    assert!(place(&job(json!({})), Tier::Trusted, &[kind(confined())], &cfg, NOW_UNIX).is_ok());
 }
 
 #[test]
