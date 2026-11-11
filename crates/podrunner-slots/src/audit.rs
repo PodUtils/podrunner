@@ -28,6 +28,8 @@ pub enum Kind {
     Sign,
     Control,
     HookRefuse,
+    /// The runner said that the job completed: the time, no state change.
+    JobCompleted,
     JobMismatch,
     PayloadIgnored,
     /// The egress policy of the job allows a host under an open suffix.

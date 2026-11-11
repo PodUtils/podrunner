@@ -285,6 +285,18 @@ fn container_lifecycle(fx: &dyn Fixture) -> Result<Outcome, String> {
         Exit::Code(0) => {}
         other => return Err(format!("container_exec gives {other:?}, not exit code 0")),
     }
+    // The design test 8: the command sees its environment and its
+    // working directory.
+    let probe = ExecSpec {
+        argv: ["sh", "-c", "test \"$PODRUNNER_PROBE\" = seen && test \"$(pwd)\" = /tmp"].map(String::from).to_vec(),
+        env: [("PODRUNNER_PROBE".to_string(), "seen".to_string())].into(),
+        workdir: Some("/tmp".into()),
+        ..Default::default()
+    };
+    match d.container_exec(&u.id, &c, &probe).map_err(|e| err("container_exec", e))? {
+        Exit::Code(0) => {}
+        other => return Err(format!("container_exec with an environment and a workdir gives {other:?}")),
+    }
     refused(
         "container_exec with stdin",
         d.container_exec(&u.id, &c, &ExecSpec { stdin: true, ..exec }),

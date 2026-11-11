@@ -723,7 +723,7 @@ A podvm beta from `main` (GitHub #53). podvm is on break.
 **Milestone:** L2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -736,6 +736,8 @@ Read on 2026-11-11: no number of `docs/contracts/` agrees with a number of `docs
 ## Approach
 
 A table in each of `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md`: each design test, the test here that covers it, or "missing". Then write each missing test with a planted defect and a correct input, on the fake unit or the fake source. Keep the names of the suites; the table carries the design numbers. Then close the fake-path acceptance of T-035 in the design numbers.
+
+Step 1, 2026-11-11: the tables are in `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md` ("The tests of the design contract"), from a read of each test body. Step 2: the unit design tests 8, 9, 13, 14, 16 and 17 pass on the fake path (`crates/podrunner-unit/src/conformance/cases.rs`, `crates/podrunner-hook/src/tests.rs`, `crates/podrunner-hook/src/tests_unit.rs`, `crates/podrunner-slots/src/tests/hooks.rs`). Open, as the tables say: unit 1, 2, 3, 4, 6, 7, 10, 12 on the fake path, unit 11 and 15 with podvm (T-036, T-026); source 1, 2, 3, 4, 6, 8, 10, 11, 12.
 
 ## Prove
 

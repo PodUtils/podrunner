@@ -104,10 +104,55 @@ fn each_command_reaches_the_fake_unit() {
     assert_eq!(r.code, RefusalCode::BuildNotSupported);
 
     assert_eq!(hook(Command::CleanupJob, call("cleanup_job", json!({}))).unwrap().exit, 0);
-    assert_eq!(u.refusals, [RefusalCode::ContainerNotSupported, RefusalCode::BuildNotSupported]);
+    assert_eq!(u.refusals[..2], [RefusalCode::ContainerNotSupported, RefusalCode::BuildNotSupported]);
     assert!(u.job_state(JobEvent::JobStarted).is_ok());
-    assert!(u.job_state(JobEvent::JobStarted).is_err());
+    // A second job-started is ignored and goes to the audit as a refusal.
+    assert!(u.job_state(JobEvent::JobStarted).is_ok());
+    assert_eq!(u.events.iter().filter(|e| **e == JobEvent::JobStarted).count(), 1);
     assert!(u.job_state(JobEvent::JobCompleted).is_ok());
     let _ = fake.destroy(&id);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The design test 9 of the unit contract (T-053): no call names a
+/// container id, so the socket of unit B reaches no container of unit A.
+#[test]
+fn the_socket_of_one_unit_reaches_no_container_of_another() {
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-two-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir.join("fake"), capability(), "linux/amd64"));
+    let policy = || Policy {
+        container: ContainerRoute::Hooks,
+        shared_host_net: false,
+        registries: vec!["docker.io".into()],
+        work_root: "/home/runner".into(),
+    };
+    let mut units = Vec::new();
+    for name in ["u-1", "u-2"] {
+        let id = UnitId::parse(name).unwrap();
+        let image = fake.prepare(IMAGE, "linux/amd64", false).unwrap();
+        let argv = vec!["sleep".into(), "30".into()];
+        fake.start(&StartSpec {
+            unit: id.clone(),
+            image,
+            argv,
+            env: Default::default(),
+            credential: Default::default(),
+        })
+        .unwrap();
+        units.push((id.clone(), HookUnit::new(fake.clone(), id, policy(), Some(dir.join("runner")), dir.clone())));
+    }
+    let job = call("prepare_job", json!({ "container": container("", &[], "/__w"), "services": [] }));
+    units[0].1.hook(parse(Command::PrepareJob, &job).unwrap()).unwrap();
+    // The step of unit B finds no job container: it never sees the one of A.
+    let step = call("run_script_step", json!({ "entryPoint": "sh", "entryPointArgs": ["-c", "true"] }));
+    let r = units[1].1.hook(parse(Command::RunScriptStep, &step).unwrap()).unwrap_err();
+    assert_eq!(r.code, RefusalCode::ContainerNotSupported);
+    // The containers of A are under the root of A only.
+    let root_b = fake.observe(&units[1].0).unwrap().unit_root.unwrap();
+    assert!(!root_b.join("containers").exists());
+    for (id, _) in &units {
+        let _ = fake.destroy(id);
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }

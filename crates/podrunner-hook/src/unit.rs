@@ -199,8 +199,11 @@ impl Unit for HookUnit {
     }
 
     fn job_state(&mut self, event: JobEvent) -> Result<(), Refusal> {
+        // A second job-started is ignored, and slots audits it as a
+        // refusal; the step of the runner goes on.
         if event == JobEvent::JobStarted && self.events.contains(&JobEvent::JobStarted) {
-            return Err(Refusal { code: RefusalCode::ContainerOptionRefused, why: "job-started comes once" });
+            self.refusals.push(RefusalCode::ContainerOptionRefused);
+            return Ok(());
         }
         self.events.push(event);
         Ok(())

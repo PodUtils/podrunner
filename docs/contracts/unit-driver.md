@@ -93,3 +93,32 @@ with a grandchild, a marker file in the working directory.
 
 The numbers of the tests follow this page. The spec of the design review
 (T-014) can give other numbers; T-014 makes them agree.
+
+## The tests of the design contract
+
+`docs/design/contracts/unit-driver.md` numbers its suite in another
+order, and the issues name those numbers (GitHub #35). This table gives
+each design test, the tests here that cover it, and what is open (T-053).
+`UC` is `crates/podrunner-unit/src/conformance/cases.rs`, `HK`, `HU` and
+`HS` are the tests of `crates/podrunner-hook/src/`, `SG` is
+`crates/podrunner-slots/src/tests/`.
+
+| Design | Covered by | Open |
+| --- | --- | --- |
+| 1 probe | UC `probe-is-idempotent` | no process or file appears |
+| 2 two roots | UC `a-fresh-root-for-each-unit` | `/etc/hosts` of one unit |
+| 3 tree kill | UC `destroy-reaches-a-setsid-grandchild`, `a-verified-tree-kill-is-proven` | the deadline; a grandchild in a job or service container |
+| 4 limits | SG `a_required_limit_that_no_kind_enforces_is_refused` | a refusal at `start` that names the limit |
+| 5 tag, platform | UC `prepare-refuses-a-tag`, `prepare-refuses-a-foreign-platform` | none |
+| 6 credential gone | UC `destroy-removes-each-file` | a host scan with a positive control |
+| 7 /proc dump | UC `no-credential-in-argv-or-environment` | a dump of `/proc/*` from a step |
+| 8 exec env, workdir | UC `container-lifecycle` (an exec with an environment and `/tmp`) | none |
+| 9 another unit's container | HU `the_socket_of_one_unit_reaches_no_container_of_another`: no call names a container id | none |
+| 10 proof canary | none | the whole test |
+| 11 guest self-test | SG `a_fake_that_claims_guest_fails_the_self_test` | a real guest passes (T-036, T-037) |
+| 12 `../x` | the source wire refuses it | no path component (it never parses) |
+| 13 container options | HK `each_rule_refuses_its_input`, `a_job_container_of_the_runner_passes_with_its_mounts` (the seven entries), `the_mount_tables_and_the_order_of_the_design` | none on the fake path |
+| 14 job_state | HU `each_command_reaches_the_fake_unit` (a second `job-started` is ignored and goes to the audit), SG `job_started_in_running_is_ignored_and_job_completed_moves_no_state` | none |
+| 15 shim killed | none | the whole test (podvm driver) |
+| 16 the order | HK `each_call_before_prepare_job_is_refused`, `the_mount_tables_and_the_order_of_the_design` | none |
+| 17 action table | HK `the_mount_tables_and_the_order_of_the_design` | none |

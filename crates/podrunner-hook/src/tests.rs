@@ -23,6 +23,12 @@ fn mount(src: &str, dst: &str) -> Value {
     json!({ "userProvidedValue": null, "sourceVolumePath": src, "targetVolumePath": dst, "readOnly": false })
 }
 
+fn read_only(src: &str, dst: &str) -> Value {
+    let mut m = mount(src, dst);
+    m["readOnly"] = json!(true);
+    m
+}
+
 /// A job container as the runner writes it (null for unset fields).
 fn container() -> Value {
     json!({
@@ -33,7 +39,12 @@ fn container() -> Value {
         "systemMountVolumes": [
             mount("/var/run/docker.sock", "/var/run/docker.sock"),
             mount("/home/runner/_work", "/__w"),
-            mount("/home/runner/externals", "/__e"),
+            mount("/home/runner/_work/_temp", "/__w/_temp"),
+            mount("/home/runner/_work/_actions", "/__w/_actions"),
+            mount("/home/runner/_work/_tool", "/__w/_tool"),
+            read_only("/home/runner/externals", "/__e"),
+            mount("/home/runner/_work/_temp/_github_home", "/github/home"),
+            mount("/home/runner/_work/_temp/_github_workflow", "/github/workflow"),
         ],
         "userMountVolumes": [],
     })
@@ -66,8 +77,8 @@ fn a_job_container_of_the_runner_passes_with_its_mounts() {
     assert!(services.is_empty());
     assert_eq!(job.argv, ["tail", "-f", "/dev/null"]);
     assert_eq!(job.options, [("--cpus".to_string(), "2".to_string())]);
-    // The docker socket is dropped; /__e is read-only.
-    assert_eq!(job.mounts.len(), 2);
+    // The seven entries of the table pass; the docker socket is dropped.
+    assert_eq!(job.mounts.len(), 7);
     assert!(job.mounts.iter().any(|m| m.target == "/__e" && m.read_only && m.source == "externals"));
     // The password is in no Debug text.
     assert!(!format!("{job:?}").contains(CANARY));
@@ -187,4 +198,83 @@ fn with_field(k: &str, v: Value) -> Value {
     let mut c = container();
     c[k] = v;
     c
+}
+
+/// The design tests 13, 16 and 17 of the unit contract (T-053): the two
+/// mount tables, the docker socket, `/__e`, and the order of the calls.
+#[test]
+fn the_mount_tables_and_the_order_of_the_design() {
+    let mut p = policy();
+    p.work_root = "/home/runner".into();
+    let with_mounts = |mounts: Vec<Value>| {
+        let mut c = container();
+        c["systemMountVolumes"] = json!(mounts);
+        c
+    };
+    let refused = |r: Result<Plan, Refusal>| r.map(drop).map_err(|e| e.code);
+    let job = |c: Value| refused(check(&mut Gate::default(), &p, Command::PrepareJob, &prepare(c)));
+    let w = mount("/home/runner/_work", "/__w");
+    // 13: the docker socket path as source only, a writable /__e, /__t.
+    assert_eq!(job(with_mounts(vec![mount("/var/run/docker.sock", "/__w")])), Err(RefusalCode::ContainerOptionRefused));
+    assert_eq!(
+        job(with_mounts(vec![mount("/home/runner/externals", "/__e")])),
+        Err(RefusalCode::ContainerOptionRefused)
+    );
+    assert_eq!(
+        job(with_mounts(vec![mount("/home/runner/_work/_tool", "/__t")])),
+        Err(RefusalCode::ContainerOptionRefused)
+    );
+    assert_eq!(job(with_mounts(vec![w.clone(), mount("/home/runner/_work/_tool", "/__w/_tool")])), Ok(()));
+    // 17: an action target in prepare_job; a mount on a service.
+    assert_eq!(
+        job(with_mounts(vec![mount("/home/runner/_work/app", "/github/workspace")])),
+        Err(RefusalCode::ContainerOptionRefused)
+    );
+    let mut service = container();
+    service["systemMountVolumes"] = json!([w.clone()]);
+    let services = call("prepare_job", json!({ "container": null, "services": [service] }));
+    assert_eq!(
+        refused(check(&mut Gate::default(), &p, Command::PrepareJob, &services)),
+        Err(RefusalCode::ContainerOptionRefused)
+    );
+    // 16: a container step before prepare_job.
+    let action = |mounts: Vec<Value>| {
+        let mut c = container();
+        c["systemMountVolumes"] = json!(mounts);
+        call("run_container_step", c)
+    };
+    let table = vec![
+        mount("/var/run/docker.sock", "/var/run/docker.sock"),
+        mount("/home/runner/_work/_temp", "/github/runner_temp"),
+        mount("/home/runner/_work/_temp/_github_home", "/github/home"),
+        mount("/home/runner/_work/_temp/_github_workflow", "/github/workflow"),
+        mount("/home/runner/_work/_temp/_runner_file_commands", "/github/file_commands"),
+        mount("/home/runner/_work/app/app", "/github/workspace"),
+    ];
+    let mut g = Gate::default();
+    assert_eq!(
+        refused(check(&mut g, &p, Command::RunContainerStep, &action(table.clone()))),
+        Err(RefusalCode::ContainerNotSupported)
+    );
+    // 17: the five entries and the docker socket pass after prepare_job;
+    // a job target, or a source outside the unit, in a step is refused.
+    check(&mut g, &p, Command::PrepareJob, &prepare(container())).unwrap();
+    let Ok(Plan::ContainerStep(step)) = check(&mut g, &p, Command::RunContainerStep, &action(table)) else { panic!() };
+    assert_eq!(step.mounts.len(), 5);
+    assert_eq!(
+        refused(check(&mut g, &p, Command::RunContainerStep, &action(vec![w]))),
+        Err(RefusalCode::ContainerOptionRefused)
+    );
+    let outside = mount("/etc", "/github/workspace");
+    assert_eq!(
+        refused(check(&mut g, &p, Command::RunContainerStep, &action(vec![outside]))),
+        Err(RefusalCode::ContainerOptionRefused)
+    );
+    // 16: a second prepare_job, with a new image, is refused.
+    let mut other = container();
+    other["image"] = json!(format!("other@sha256:{}", "2".repeat(64)));
+    assert_eq!(
+        refused(check(&mut g, &p, Command::PrepareJob, &prepare(other))),
+        Err(RefusalCode::ContainerOptionRefused)
+    );
 }

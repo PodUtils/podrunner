@@ -80,6 +80,11 @@ impl Slots {
             if events.contains(&HookEvent::JobStarted) && self.jobs[&key].state == State::Started {
                 self.set(&key, State::Running, now);
             }
+            // The time of job-completed goes to the audit; the state moves
+            // on the exit of the unit only.
+            if events.contains(&HookEvent::JobCompleted) {
+                self.audit(audit::Kind::JobCompleted, key.0, &key.1, None, None);
+            }
         }
     }
 }

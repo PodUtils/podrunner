@@ -10,7 +10,7 @@ use podrunner_schema::{ContainerRoute, RefusalCode};
 
 use crate::input::{Args, Container, HookInput, MountVolume, Registry, ScriptStep};
 
-/// The mounts of a job container, by target. `/__e` is read-only.
+/// The mounts of a job container, by target. `/__e` must be read-only.
 pub const JOB_MOUNTS: [&str; 7] =
     ["/__w", "/__w/_temp", "/__w/_actions", "/__w/_tool", "/__e", "/github/home", "/github/workflow"];
 
@@ -207,7 +207,12 @@ fn mount(m: &MountVolume, table: &[&str], policy: &Policy) -> Result<Option<Moun
     let Some(rel) = rel.filter(|r| !r.ends_with(".sock")) else {
         return refuse(RefusalCode::ContainerOptionRefused, "a mount source outside the unit");
     };
-    Ok(Some(Mount { source: rel.into(), target: target.into(), read_only: m.read_only || target == "/__e" }))
+    // The externals of the runner (node, the hook relay) are code that each
+    // step runs: a writable `/__e` would let one step change the next.
+    if target == "/__e" && !m.read_only {
+        return refuse(RefusalCode::ContainerOptionRefused, "/__e is read-only");
+    }
+    Ok(Some(Mount { source: rel.into(), target: target.into(), read_only: m.read_only }))
 }
 
 /// The options of `createOptions` that the unit applies; any other is

@@ -78,6 +78,25 @@ fn a_unit_with_hooks_gets_a_socket_and_its_events() {
     assert_eq!(b.slots.reports[0].exit_reason, podrunner_schema::ExitReason::Success);
 }
 
+/// The design test 14 of the unit contract (T-053): `job-started` in
+/// `running` is ignored, and `job-completed` goes to the audit with its
+/// time and moves no state.
+#[test]
+fn job_started_in_running_is_ignored_and_job_completed_moves_no_state() {
+    let (mut b, seen) = bed(ContainerRoute::Hooks, "sleep 2");
+    b.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    seen.queued.lock().unwrap().push((vec![], vec![HookEvent::JobStarted]));
+    b.tick();
+    assert!(b.slots.jobs().all(|j| j.state == State::Running));
+    seen.queued.lock().unwrap().push((vec![], vec![HookEvent::JobStarted, HookEvent::JobCompleted]));
+    b.tick();
+    assert!(b.slots.jobs().all(|j| j.state == State::Running));
+    let done: Vec<_> = b.slots.audit_lines().iter().filter(|l| l.audit == audit::Kind::JobCompleted).collect();
+    assert_eq!(done.len(), 1);
+    assert!(done[0].t_ms > 0);
+    b.until(400, Bed::all_final);
+}
+
 #[test]
 fn a_unit_with_no_container_route_gets_no_socket() {
     let (mut b, seen) = bed(ContainerRoute::None, "test -z \"$PODRUNNER_CTL\"");
