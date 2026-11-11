@@ -10,3 +10,8 @@ publish.workspace = true
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+# The JSON Schemas of schemas/ are generated from the types, in a test only:
+# the binaries carry no schemars.
+schemars = "1"

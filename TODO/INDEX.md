@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**44 entries: 23 open, 2 partial, 14 blocked, 5 done.**
+**44 entries: 22 open, 3 partial, 14 blocked, 5 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 9 | 1 | 1 | 5 | 16 |
+| P1 | 8 | 2 | 1 | 5 | 16 |
 | P2 | 13 | 1 | 9 | 0 | 23 |
 | P3 | 1 | 0 | 4 | 0 | 5 |
-| **All** | 23 | 2 | 14 | 5 | 44 |
+| **All** | 22 | 3 | 14 | 5 | 44 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -64,7 +64,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-014](bootstrap.md) | P2 | S | M0 | docs | blocked | The cleaned design spec in docs/ (GitHub #14) |
 | [T-015](bootstrap.md) | P2 | S | M-A | release | open | The beta release workflow (GitHub #15) |
 | [T-016](core.md) | P1 | S | M-A | feature | open | WP-01: the seam traits, the contracts v1 and the conformance harness (GitHub #16) |
-| [T-017](core.md) | P1 | S | M-A | feature | open | Schemas v1: job offer, unit capability, run report, public report (GitHub #17) |
+| [T-017](core.md) | P1 | S | M-A | feature | partial | Schemas v1: job offer, unit capability, run report, public report (GitHub #17) |
 | [T-018](core.md) | P1 | S | M-A | feature | open | The tier rule: Rust implementation and the case table (GitHub #18) |
 | [T-019](core.md) | P2 | S | M-A | docs | open | Security documents: threat model, accepted residuals, leak runbook (GitHub #19) |
 | [T-020](core.md) | P1 | S | M-A | feature | open | WP-02: the fake source and the fake unit, scripted, with a manual clock (GitHub #20) |

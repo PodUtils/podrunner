@@ -48,7 +48,7 @@ The crates `podrunner-unit` and `podrunner-source` with the traits and the types
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -82,9 +82,11 @@ Read the text of GitHub #17 on 2026-11-11. Nothing measured.
 
 Rust types with serde for the four records, the four JSON Schemas, 11 valid and 19 invalid examples with the expected reason, and a test that validates each. Ruling Q-A8: the schemas live in podcrates; ask podcrates for them (PodUtils/podcrates@T-163) and use the released types when they come.
 
+Done so far (2026-11-11): the types are in `crates/podrunner-schema` (`offer.rs`, `capability.rs`, `report.rs`, `codes.rs`); `schemas/` holds the four schemas, generated from the types by a test that fails on a difference; `schemas/examples/` holds 11 valid and 19 invalid examples with `expect.json`; the code table of `docs/contracts/codes.md` equals the enum (a test). The podcrates session has the ask (a direct message of 2026-11-11). Open: the take of the podcrates types at their tag, and the removal of the copies here.
+
 ## Prove
 
-`cargo test -p podrunner-schema`
+`cargo test -p podrunner-schema schemas`
 
 # T-018: The tier rule: Rust implementation and the case table (GitHub #18)
 

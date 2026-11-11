@@ -13,7 +13,7 @@ roadmap = "TODO/ROADMAP.md"
 questions = "Questions for the owner"
 
 # A code span that starts with one of these is a path of this repository.
-top_dirs = ["crates", "scripts", "docs", ".github", ".githooks", ".claude", "TODO", "images"]
+top_dirs = ["crates", "scripts", "docs", ".github", ".githooks", ".claude", "TODO", "images", "schemas", "fuzz"]
 root_files = [
   "Cargo.toml", "Cargo.lock", "README.md", "AGENTS.md", "CLAUDE.md", "SECURITY.md", "THIRD_PARTY.md", "LICENSE",
   "deny.toml", "rustfmt.toml", "rust-toolchain.toml",

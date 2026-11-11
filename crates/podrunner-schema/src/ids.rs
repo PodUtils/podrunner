@@ -107,6 +107,32 @@ impl UnitIds {
     }
 }
 
+/// The JSON Schema of the ids, with their patterns.
+#[cfg(test)]
+mod schema {
+    use std::borrow::Cow;
+
+    use schemars::{JsonSchema, Schema, SchemaGenerator, json_schema};
+
+    impl JsonSchema for super::JobId {
+        fn schema_name() -> Cow<'static, str> {
+            "JobId".into()
+        }
+        fn json_schema(_: &mut SchemaGenerator) -> Schema {
+            json_schema!({ "type": "string", "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9._-]{1,128}$" })
+        }
+    }
+
+    impl JsonSchema for super::UnitId {
+        fn schema_name() -> Cow<'static, str> {
+            "UnitId".into()
+        }
+        fn json_schema(_: &mut SchemaGenerator) -> Schema {
+            json_schema!({ "type": "string", "pattern": "^u-[0-9]{1,20}$" })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
