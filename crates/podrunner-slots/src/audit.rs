@@ -216,7 +216,7 @@ mod tests {
     }
 
     fn join(l: &[Vec<u8>]) -> Vec<u8> {
-        l.iter().flat_map(|x| x.iter().copied().chain([b'\n'])).collect()
+        l.iter().flat_map(|x| x.iter().copied().chain(*b"\n")).collect()
     }
 
     #[test]
@@ -230,7 +230,7 @@ mod tests {
         lost.remove(2);
         assert_eq!(verify(&join(&lost), None), Err("broken at seq 4".into()));
         // One edited byte in a detail.
-        let edited = join(&l).iter().map(|b| *b).collect::<Vec<u8>>();
+        let edited = join(&l);
         let s = String::from_utf8(edited).unwrap().replacen("\"d2\"", "\"x2\"", 1);
         assert_eq!(verify(s.as_bytes(), None), Err("broken at seq 3".into()));
         // A cut tail: only the anchor of the source finds it.
