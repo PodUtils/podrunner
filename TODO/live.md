@@ -309,7 +309,7 @@ Pins of the runner payload by digest with an age limit, and `podrunner image bui
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -344,6 +344,12 @@ Read the text of GitHub #31 on 2026-11-11. Nothing measured.
 ## Approach
 
 A remote `mint` over mutual TLS (`pod_tls::mutual` of podcrates v0.17.0, PodUtils/podcrates@T-165: pinned keys on both sides, TLS 1.3, no resumption). DR-4 is yes (2026-11-11). The offer ledger, the host token and the signed pin list (T-045) come first, on the fakes; then the transport.
+
+Steps, in the crate `podrunner-remote`:
+
+1. Done: the gate of the mint side (`gate.rs`) and the ledger (`ledger.rs`). Each host (the name of its pinned key) holds its own offers, at most its slot count whatever `capacity` says; the mint computes the tier of each offer (`podrunner_tier::intake`) and withdraws one that the set may not run; a host cannot touch the offer of another host (`unknown-job`); one credential for each job id (`credential-already-issued`, a new code of the source wire), written and synced to the ledger before the answer; each call is an audit line with the host, the peer and the job id. The source conformance suite passes through the gate. `WireSource` is now `Wire` over a transport (`Exchange`).
+2. The transport: `POST /v1/source` with one request line, over `pod_tls::mutual`, a 1 MiB limit, a rate limit for each host; the client is `Wire` over an HTTPS `Exchange`.
+3. `podrunner mint-serve` and a source kind `remote`; a host that cannot reach the mint serves no `trusted` job; the reconciliation of a credential with no start.
 
 ## Prove
 

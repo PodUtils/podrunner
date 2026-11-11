@@ -58,7 +58,8 @@ runner name of the unit (`job-mismatch` else).
 
 `bad-request`, `unknown-job` (never offered, withdrawn or released),
 `already-claimed`, `not-claimed`, `source-revoked`,
-`credential-unavailable`, `unavailable`.
+`credential-unavailable`, `credential-already-issued` (the remote mint
+gives one credential for each job id, T-031), `unavailable`.
 
 ## Tests
 

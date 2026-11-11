@@ -38,27 +38,50 @@ fn answer(s: &mut dyn JobSource, req: Request) -> Result<Reply, SourceError> {
     })
 }
 
-/// A source in another process: one request line out, one reply line in.
-pub struct WireSource<R, W> {
+/// The transport of the wire: one request line out, one reply line in.
+pub trait Exchange: Send {
+    /// Send `line` (with its end of line) and give the reply line. A
+    /// broken transport is `unavailable` with a detail that starts with
+    /// "the ".
+    fn exchange(&mut self, line: &str) -> Result<Vec<u8>, SourceError>;
+}
+
+/// The wire on a stream: the stdio of a process.
+pub struct Stream<R, W> {
     reader: R,
     writer: W,
 }
 
-impl<R: BufRead + Send, W: Write + Send> WireSource<R, W> {
-    pub fn new(reader: R, writer: W) -> Self {
-        WireSource { reader, writer }
-    }
-
-    fn call(&mut self, req: &Request) -> Result<Reply, SourceError> {
+impl<R: BufRead + Send, W: Write + Send> Exchange for Stream<R, W> {
+    fn exchange(&mut self, line: &str) -> Result<Vec<u8>, SourceError> {
         let down = |e: std::io::Error| SourceError::new(SourceCode::Unavailable, format!("the wire: {}", e.kind()));
-        self.writer.write_all(wire::request_line(req).as_bytes()).map_err(down)?;
+        self.writer.write_all(line.as_bytes()).map_err(down)?;
         self.writer.flush().map_err(down)?;
-        let mut line = Vec::new();
+        let mut reply = Vec::new();
         // One byte over the limit tells a long line from a full one.
-        let n = (&mut self.reader).take(LINE_MAX as u64 + 2).read_until(b'\n', &mut line).map_err(down)?;
+        let n = (&mut self.reader).take(LINE_MAX as u64 + 2).read_until(b'\n', &mut reply).map_err(down)?;
         if n == 0 {
             return Err(SourceError::new(SourceCode::Unavailable, "the source closed the wire"));
         }
+        Ok(reply)
+    }
+}
+
+/// A source behind a transport of the wire.
+pub struct Wire<E>(pub E);
+
+/// A source in another process: one request line out, one reply line in.
+pub type WireSource<R, W> = Wire<Stream<R, W>>;
+
+impl<R: BufRead + Send, W: Write + Send> Wire<Stream<R, W>> {
+    pub fn new(reader: R, writer: W) -> Self {
+        Wire(Stream { reader, writer })
+    }
+}
+
+impl<E: Exchange> Wire<E> {
+    fn call(&mut self, req: &Request) -> Result<Reply, SourceError> {
+        let line = self.0.exchange(&wire::request_line(req))?;
         match wire::parse_reply(&line)? {
             Reply::Error { code, detail } => Err(SourceError::new(code, detail)),
             other => Ok(other),
@@ -85,7 +108,7 @@ fn unexpected(op: &str, r: &Reply) -> SourceError {
     SourceError::new(SourceCode::BadRequest, format!("the reply to {op} is {kind}"))
 }
 
-impl<R: BufRead + Send, W: Write + Send> JobSource for WireSource<R, W> {
+impl<E: Exchange> JobSource for Wire<E> {
     fn hello(&mut self, client: &str, version: &str) -> Result<Hello, SourceError> {
         match self.call(&Request::Hello { client: client.into(), version: version.into() })? {
             Reply::Hello { source, operator_controlled } => Ok(Hello { source, operator_controlled }),

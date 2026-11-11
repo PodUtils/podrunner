@@ -16,7 +16,7 @@ use std::fmt;
 use std::time::Duration;
 
 pub use event::{Event, Offer};
-pub use pipe::{WireSource, serve_line};
+pub use pipe::{Exchange, Stream, Wire, WireSource, serve_line};
 use podrunner_schema::{Credential, JobId};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -38,6 +38,9 @@ pub enum SourceCode {
     SourceRevoked,
     /// The source cannot give a credential now (`credential-unavailable`).
     CredentialUnavailable,
+    /// The remote mint gave a credential for this job before: one for each
+    /// job id (GitHub #31).
+    CredentialAlreadyIssued,
     /// The source is not reachable.
     Unavailable,
 }
@@ -51,6 +54,7 @@ impl SourceCode {
             SourceCode::NotClaimed => "not-claimed",
             SourceCode::SourceRevoked => "source-revoked",
             SourceCode::CredentialUnavailable => "credential-unavailable",
+            SourceCode::CredentialAlreadyIssued => "credential-already-issued",
             SourceCode::Unavailable => "unavailable",
         }
     }

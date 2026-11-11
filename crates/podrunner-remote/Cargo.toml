@@ -1,0 +1,19 @@
+[package]
+name = "podrunner-remote"
+description = "The remote mint of podrunner: the source wire over mutual TLS, an offer ledger, one credential for each job"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+podrunner-schema.workspace = true
+podrunner-source.workspace = true
+podrunner-tier.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+podrunner-clock.workspace = true
+podrunner-fake.workspace = true

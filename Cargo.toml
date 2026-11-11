@@ -30,6 +30,7 @@ pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.17.0" 
 podrunner-clock = { path = "crates/podrunner-clock" }
 podrunner-egress = { path = "crates/podrunner-egress" }
 podrunner-hook = { path = "crates/podrunner-hook" }
+podrunner-remote = { path = "crates/podrunner-remote" }
 podrunner-fake = { path = "crates/podrunner-fake" }
 podrunner-mint = { path = "crates/podrunner-mint" }
 podrunner-podvm = { path = "crates/podrunner-podvm" }
