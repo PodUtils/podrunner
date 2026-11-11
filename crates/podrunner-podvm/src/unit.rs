@@ -134,7 +134,11 @@ impl PodvmUnit {
             let verb = args.first().copied().unwrap_or("");
             return Err(UnitError::new(
                 UnitCode::UnitStartFailed,
-                format!("podvm {verb}: exit {}", out.status.code().unwrap_or(-1)),
+                format!(
+                    "podvm {verb}: exit {}: {}",
+                    out.status.code().unwrap_or(-1),
+                    containers::last_line(&out.stderr)
+                ),
             ));
         }
         Ok(String::from_utf8_lossy(&out.stdout).into_owned())

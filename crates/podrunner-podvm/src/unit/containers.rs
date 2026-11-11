@@ -145,7 +145,9 @@ impl PodvmUnit {
     }
 }
 
-fn last_line(out: &[u8]) -> String {
+/// The last line of an output, cut to 200 characters (no credential is
+/// in the output of podvm: the credential goes in files).
+pub(super) fn last_line(out: &[u8]) -> String {
     String::from_utf8_lossy(out).lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").chars().take(200).collect()
 }
 
