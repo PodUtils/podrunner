@@ -50,8 +50,10 @@ is done.
 ## In flight
 
 - podvm `v0.2.0-beta.3` is pinned (`images/podvm.toml`); the driver needs
-  it (`probe::LOWEST`). T-047, T-050 and T-052 are done with it. Next:
-  T-026, the runner image in a podvm unit against the fake broker.
+  it (`probe::LOWEST`). Milestone M-B holds: the official runner in a podvm
+  unit runs a canned job on a host with no root (T-026, `runner-image.yml`).
+  Next: the podvm driver of the hooks (T-035 step 4), with the control
+  socket in the rootfs of the unit (T-050).
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The design copy is in `docs/design/` (T-014): the spec, the appendices,

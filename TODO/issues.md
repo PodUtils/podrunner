@@ -31,7 +31,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #23 | WP-04: podvm unit driver with a per-unit store and a subreaper shim | closed (`b5ff350`, gate run 42957378324) | T-023 |
 | #24 | WP-08: egress module over `pod-broker` v1, one listener for each unit | closed (`d69e791`, gate run 42946099969) | T-024 |
 | #25 | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload | closed (`b5ff350`, gate run 42957378324) | T-025 |
-| #26 | Milestone M-B: the official runner starts under the podvm driver, no GitHub | open | T-026 |
+| #26 | Milestone M-B: the official runner starts under the podvm driver, no GitHub | closed (`1db8bc3`, runner-image run 42987612426) | T-026 |
 | #27 | WP-05a: `mint` with an in-process `sign` module, source conformance | closed (`9d48ab8`, gate run 42946099969) | T-027 |
 | #28 | WP-06: fake scale-set service (Go, test only) | closed (`ece89cd`, gate run 42946099969) | T-028 |
 | #29 | WP-07: `github-scaleset` source sidecar (static Go) | closed (`5d740e8`, gate run 42947195332) | T-029 |
@@ -43,7 +43,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #35 | WP-09: hook relay and the per-unit control socket server (`ctl`) | open | T-035 |
 | #36 | Guest floor self-test | open | T-036 |
 | #37 | WP-11: `microvm` unit driver (form set by DR-5) | open | T-037 |
-| #38 | WP-12: canned-message fake broker (level 2) | open | T-038 |
+| #38 | WP-12: canned-message fake broker (level 2) | closed (T-026, runner-image run 42987612426) | T-038 |
 | #39 | Milestone L2: level 2 green, hook path measured | open | T-039 |
 | #40 | Level 3: live acceptance suite | open | T-040 |
 | #41 | Hold `enforced` on podvm units (`pod-hold` or `pod-sud`) | open | T-041 |
@@ -56,7 +56,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #50 | COORD-003: the answer to PodUtils/podvm#248: the stand-in broker of the official runner, up to the long poll (to podvm) | closed (read by podvm, PodUtils/podvm#248) | T-049 |
 | #51 | COORD-004: the supervise rung does not map the path of connect() for a unix socket (to podvm) | open | T-050 |
 | #52 | COORD-005: podvm-aarch64 v0.2.0-beta.2 declines an arm64 payload on the supervise rung: its glibc object is x86_64 (to podvm) | open | T-051 |
-| #53 | COORD-006: please cut a podvm beta from main for podrunner, when your release order allows (to podvm) | open | T-052 |
+| #53 | COORD-006: please cut a podvm beta from main for podrunner, when your release order allows (to podvm) | closed (podvm `v0.2.0-beta.3` pinned; T-026 green) | T-052 |
 | #54 | serve: an exclusive lock on the state directory before the journal replay; stop --wait | closed (`1f1d389`, gate run 42979592980) | T-054 |
 | #55 | journal: write and sync the claimed line before source.claim | closed (`a464cea`, gate run 42979592980) | T-055 |
 | #56 | control socket: an idle client stalls the tick of the supervisor | closed (`1f1d389`, gate run 42979592980) | T-056 |

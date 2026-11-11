@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**61 entries: 1 open, 4 partial, 16 blocked, 40 done.**
+**61 entries: 1 open, 4 partial, 14 blocked, 42 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 21 | 22 |
-| P2 | 1 | 3 | 11 | 18 | 33 |
+| P2 | 1 | 3 | 9 | 20 | 33 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 1 | 4 | 16 | 40 | 61 |
+| **All** | 1 | 4 | 14 | 42 | 61 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -73,7 +73,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-023](core.md) | P1 | M | M-A | feature | done | WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23) |
 | [T-024](core.md) | P1 | M | M-A | feature | done | WP-08: the egress module over pod-broker v1, one listener for each unit (GitHub #24) |
 | [T-025](core.md) | P1 | S | M-A | chore | done | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload (GitHub #25) |
-| [T-026](live.md) | P2 | M | M-B | chore | partial | Milestone M-B: the official runner starts under the podvm driver, no GitHub (GitHub #26) |
+| [T-026](live.md) | P2 | M | M-B | chore | done | Milestone M-B: the official runner starts under the podvm driver, no GitHub (GitHub #26) |
 | [T-027](live.md) | P2 | M | M-C | feature | done | WP-05a: mint with an in-process sign module, source conformance (GitHub #27) |
 | [T-028](live.md) | P2 | S | M-C | feature | done | WP-06: the fake scale-set service (Go, test only) (GitHub #28) |
 | [T-029](live.md) | P2 | M | M-C | feature | done | WP-07: the github-scaleset source sidecar (static Go) (GitHub #29) |
@@ -82,10 +82,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-032](live.md) | P2 | S | M-C | chore | blocked | Milestone M-C: the live gates G-H2 to G-H4 on a fake unit (GitHub #32) |
 | [T-033](live.md) | P2 | S | M-D | chore | blocked | Milestone M-D: one live trusted job on a no-root host (GitHub #33) |
 | [T-034](level2.md) | P2 | S | L2 | measurement | blocked | WP-13: measure U19 and U21 on the podvm rung (GitHub #34) |
-| [T-035](level2.md) | P2 | M | L2 | feature | blocked | WP-09: the hook relay and the control socket server of each unit (ctl) (GitHub #35) |
+| [T-035](level2.md) | P2 | M | L2 | feature | partial | WP-09: the hook relay and the control socket server of each unit (ctl) (GitHub #35) |
 | [T-036](level2.md) | P2 | S | L2 | feature | blocked | The guest floor self-test (GitHub #36) |
 | [T-037](level2.md) | P2 | M | L2 | feature | blocked | WP-11: the microvm unit driver (form set by DR-5) (GitHub #37) |
-| [T-038](level2.md) | P2 | S | L2 | feature | blocked | WP-12: the canned-message fake broker (level 2) (GitHub #38) |
+| [T-038](level2.md) | P2 | S | L2 | feature | done | WP-12: the canned-message fake broker (level 2) (GitHub #38) |
 | [T-039](level2.md) | P2 | S | L2 | chore | open | Milestone L2: level 2 green, the hook path measured (GitHub #39) |
 | [T-040](level2.md) | P3 | M | L3 | chore | blocked | Level 3: the live acceptance suite (GitHub #40) |
 | [T-041](later.md) | P3 | S | later | feature | blocked | Hold enforced on podvm units (pod-hold or pod-sud) (GitHub #41) |

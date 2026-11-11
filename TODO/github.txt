@@ -29,7 +29,7 @@
 23 issue closed
 24 issue closed
 25 issue closed
-26 issue open
+26 issue closed
 27 issue closed
 28 issue closed
 29 issue closed
@@ -41,7 +41,7 @@
 35 issue open
 36 issue open
 37 issue open
-38 issue open
+38 issue closed
 39 issue open
 40 issue open
 41 issue open
@@ -56,7 +56,7 @@
 50 issue closed
 51 issue open
 52 issue open
-53 issue open
+53 issue closed
 54 issue closed
 55 issue closed
 56 issue closed

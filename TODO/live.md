@@ -7,7 +7,7 @@ Milestones M-B, M-C and M-D: the official runner under podvm, the mint, the scal
 **Milestone:** M-B
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -46,11 +46,16 @@ Findings of the study of the owner's local-mode archive (PodUtils/podcrates:docs
 - With W^X on, .NET truncates a file to 2 TiB at start, so an `RLIMIT_FSIZE` below that kills it with SIGXFSZ (exit 153). The archive sets `DOTNET_EnableWriteXorExecute=0`. Set no file size limit on the runner, or set that variable, and measure whether it reaches each job step.
 - A rerun failed with EACCES: a runner container wrote files as uid 1001 that the host uid 1000 cannot remove. `destroy` must remove the files of each uid that the unit can use (unit test 10), or the unit must map one uid.
 
-Unblocked on 2026-11-11: podvm `v0.2.0-beta.3` carries PodUtils/podvm@T-1703, PodUtils/podvm@T-1706, PodUtils/podvm@T-1707, PodUtils/podvm@T-1710 and PodUtils/podvm@T-1719 (PodUtils/podvm#254), pinned in `images/podvm.toml`. Measured on 2026-11-11, on the H0 profile (as `nobody`, user namespaces refused by seccomp, the supervise rung): the podvm driver starts a stand-in of the runner image (`scripts/runner-stand-in.py`: the unpacked runner v2.338.2 and the host libraries) with the JIT files of the fake broker as its credential files; the official runner connects, takes the canned job, runs its step and completes it `Succeeded`, and `destroy` counts 0 processes and 0 files (`crates/podrunner-broker-fake/tests/podvm.rs`). Found on the way: the runner reads its credential files from `/home/runner`, and the driver writes them to `/podrunner/.runner`; the image links them, with relative links, because on the supervise rung an absolute link resolves on the host, out of the rootfs (`images/runner/Dockerfile`; reported to podvm). Open: the same test with the real image in `runner-image.yml` (x86_64) on GitHub.
+Unblocked on 2026-11-11: podvm `v0.2.0-beta.3` carries PodUtils/podvm@T-1703, PodUtils/podvm@T-1706, PodUtils/podvm@T-1707, PodUtils/podvm@T-1710 and PodUtils/podvm@T-1719 (PodUtils/podvm#254), pinned in `images/podvm.toml`. Measured on 2026-11-11, on the H0 profile (as `nobody`, user namespaces refused by seccomp, the supervise rung): the podvm driver starts a stand-in of the runner image (`scripts/runner-stand-in.py`: the unpacked runner v2.338.2 and the host libraries) with the JIT files of the fake broker as its credential files; the official runner connects, takes the canned job, runs its step and completes it `Succeeded`, and `destroy` counts 0 processes and 0 files (`crates/podrunner-broker-fake/tests/podvm.rs`). Found on the way: the runner reads its credential files from `/home/runner`, and the driver writes them to `/podrunner/.runner`; the image links them, with relative links, because on the supervise rung an absolute link resolves on the host, out of the rootfs (`images/runner/Dockerfile`; reported to podvm).
 
 ## Prove
 
 `cargo test -p podrunner-podvm -- --ignored runner_starts`
+
+## Done
+
+2026-11-11, `1db8bc3`, `runner-image.yml` run 42987612426 (x86_64, green). On a GitHub-hosted runner with no root (the supervise rung of podvm `v0.2.0-beta.3`), the podvm driver starts the real image of `images/runner/` (`runner@sha256:7f4385a56b0a19a005b6d5707adcbedeb1abfd9bf8207ef58c8bbdabfdbe687c`, runner 2.338.2) with the JIT files of the fake broker; the official runner connects, takes the canned job, runs its step, uploads the logs and step updates, completes the job `Succeeded` and deletes its session; `destroy` counts 0 processes and 0 files. The same passes on the H0 profile of this host with the stand-in image. Milestone M-B holds.
+
 
 # T-027: WP-05a: mint with an in-process sign module, source conformance (GitHub #27)
 

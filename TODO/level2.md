@@ -52,7 +52,7 @@ U19 needs the container verbs of podvm (PodUtils/podvm#236), which are not in a 
 **Milestone:** L2
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -91,16 +91,13 @@ The crate `podrunner-hook`, in steps.
 3. Done: the plan of each call on `UnitDriver` (`unit.rs`): `prepare_job` starts the job container and each service and answers `isAlpine` and `context.services` as a list; `run_script_step` is a `container_exec` whose output (a new host file of `ExecSpec`) and exit code go to the relay; `run_container_step` starts, waits, reads the logs and stops; `cleanup_job` stops each container. `ContainerSpec` has a workdir, mounts of the unit root and the checked options. The fake unit records the mounts and the options. Tested on the fake unit, with a refusal that reaches no driver.
 3b. Done: the seam `HookPort` of slots (`crates/podrunner-slots/src/hooks.rs`); `serve` puts `podrunner-hook` behind it (`crates/podrunner/src/hooks/mod.rs`). A unit of a kind with `container: hooks` gets a control socket before its start and the variables `ACTIONS_RUNNER_CONTAINER_HOOKS` (the relay beside the sockets) and `PODRUNNER_CTL`; each refusal is an audit line `hook-refuse` with its code; `job-started` moves `started` to `running` once; destroy closes the socket. `[unit.X]` has `registries` and `runner_dir`. Unit drivers are shared (`Arc`), so the thread of a socket calls the driver. Tested with a recording seam in slots, and with the real relay and the fake unit.
 
-3c. Done: a job with `container:` runs on the official runner v2.338.2 against the fake broker of T-038 through the real relay, the control socket, the checks of the host and the fake unit (`crates/podrunner-broker-fake/tests/container.rs`, in `level2.yml`). Found on the way: the runner takes the hooks only with the job variable `DistributedTask.AllowRunnerContainerHooks` (the fake broker sends it; `docs/contracts/hook.md`), and it sends the job container with no entry point, which the driver refused as an empty argv (fixed: the host starts it with `tail -f /dev/null`). The fake unit now maps each mount target to its source in the argv, the environment and the working directory of a container (`crates/podrunner-fake/src/mounts.rs`), so a step finds its script under `/__w`. 3d. Partly done: the acceptance on the fake path. The unit conformance tests 1 to 17 of `docs/contracts/unit-driver.md` pass on the fake unit (`crates/podrunner-fake/src/tests.rs`), but the acceptance names the tests of the design contract (`docs/design/contracts/unit-driver.md`): 8 (`container_exec` sees its environment and working directory), 9 (the socket of unit A refuses a container id of unit B), 13 (the socket refusals), 14 (`job_state`), 16 (the order of `prepare_job`), 17 (the container action table) and 3. The numbers differ: `docs/contracts/unit-driver.md` maps them (T-053). On the fake path the design tests 8, 9, 13, 14, 16 and 17 pass now; test 3 passes for a process tree, and its container parts need the podvm driver. Found on the way: a writable `/__e` was made read-only, and the design refuses it (fixed: refused; the official runner mounts it read-only). The canary: the container job of 3c carries a registry password (`jobContainer.credentials`, masked as GitHub masks a secret); the password reaches the checks of the host and no log of the broker, no file of the runner (`_diag`, `_work`) and no file of the unit or of the hooks. A refused credential is in no output of the relay (`crates/podrunner/src/hooks/tests.rs`). The seam `HookPort` gives slots refusal codes and job events only, so no text of a call reaches an audit line, a report or `status`. Found on the way: runner v2.338.2 sends an empty `serverUrl` for a Docker Hub image, which the check refused as another host (fixed: empty is `docker.io`). Open: the podvm driver (step 4).
+3c. Done: a job with `container:` runs on the official runner v2.338.2 against the fake broker of T-038 through the real relay, the control socket, the checks of the host and the fake unit (`crates/podrunner-broker-fake/tests/container.rs`, in `level2.yml`). Found on the way: the runner takes the hooks only with the job variable `DistributedTask.AllowRunnerContainerHooks` (the fake broker sends it; `docs/contracts/hook.md`), and it sends the job container with no entry point, which the driver refused as an empty argv (fixed: the host starts it with `tail -f /dev/null`). The fake unit now maps each mount target to its source in the argv, the environment and the working directory of a container (`crates/podrunner-fake/src/mounts.rs`), so a step finds its script under `/__w`. 3d. Partly done: the acceptance on the fake path. The unit conformance tests 1 to 17 of `docs/contracts/unit-driver.md` pass on the fake unit (`crates/podrunner-fake/src/tests.rs`), but the acceptance names the tests of the design contract (`docs/design/contracts/unit-driver.md`): 8 (`container_exec` sees its environment and working directory), 9 (the socket of unit A refuses a container id of unit B), 13 (the socket refusals), 14 (`job_state`), 16 (the order of `prepare_job`), 17 (the container action table) and 3. The numbers differ: `docs/contracts/unit-driver.md` maps them (T-053). On the fake path the design tests 8, 9, 13, 14, 16 and 17 pass now; test 3 passes for a process tree, and its container parts need the podvm driver. Found on the way: a writable `/__e` was made read-only, and the design refuses it (fixed: refused; the official runner mounts it read-only). The canary: the container job of 3c carries a registry password (`jobContainer.credentials`, masked as GitHub masks a secret); the password reaches the checks of the host and no log of the broker, no file of the runner (`_diag`, `_work`) and no file of the unit or of the hooks. A refused credential is in no output of the relay (`crates/podrunner/src/hooks/tests.rs`). The seam `HookPort` gives slots refusal codes and job events only, so no text of a call reaches an audit line, a report or `status`. Found on the way: runner v2.338.2 sends an empty `serverUrl` for a Docker Hub image, which the check refused as another host (fixed: empty is `docker.io`). Open: the podvm driver (step 4): podvm `v0.2.0-beta.3` runs the runner in a unit (T-026), and the control socket in the rootfs of the unit is reachable on both rungs (T-050).
 4. The podvm driver, after T-034.
 
 ## Prove
 
 `cargo test -p podrunner-hook`
 
-## Blocker
-
-Step 4, the podvm driver, needs the measurements of T-034 and a podvm unit of T-026; T-026 waits for a podvm release with the fixes of PodUtils/podvm#246 and PodUtils/podvm#248.
 
 # T-036: The guest floor self-test (GitHub #36)
 
@@ -218,7 +215,7 @@ podvm (on break) lands its machine tier (PodUtils/podvm@T-1656).
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -249,9 +246,10 @@ Read so far (2026-11-11, `actions/runner` v2.338.2): the JIT files of a scale se
 
 `cargo test -p podrunner-broker-fake`
 
-## Blocker
+## Done
 
-The run in a podvm unit needs T-026, which waits for a podvm release with the fixes of PodUtils/podvm#246 and PodUtils/podvm#248.
+2026-11-11. Both parts of the acceptance hold: the runner in a podvm unit takes one canned `run:` job and completes it (T-026, `1db8bc3`, `runner-image.yml` run 42987612426, `crates/podrunner-broker-fake/tests/podvm.rs`), and the corpus holds the `ubuntu-24.04` jobs of the podcrates workflows that need no `sudo` (`corpus/podcrates.json`, the corpus job of `level2.yml`).
+
 
 # T-039: Milestone L2: level 2 green, the hook path measured (GitHub #39)
 
