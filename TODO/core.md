@@ -241,7 +241,7 @@ A `fake` source and a `fake` unit that read scripts of timed events and behaviou
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -282,9 +282,11 @@ Read the text of GitHub #21 on 2026-11-11. Nothing measured.
 
 The state machine with a deadline for each transition, the placement steps, the 19 refusal codes, the journal and the reconcile on start, the `degraded` state, `podrunner.toml`, the audit lines and the exit codes of `pod-core`. The level 1 tests G-01, G-02, G-05, G-08 and G-12 run on the fakes of T-020 with a manual clock.
 
+Done so far (2026-11-11): `crates/podrunner-slots` holds the configuration (`docs/configuration.md`), placement, the states, the journal with the reconcile at start, the audit lines (forwarded to the source), the reports (full or public), the engine, and 14 tests: G-01, G-02, G-05, G-08, G-12, and the guards (untrusted below guest, a fork on the trusted set, a stale image, a digest off the pin list, an unenforceable limit, a shared principal, a foreign runner name, a restart that ends the units of the journal, no credential in the journal, the audit or a report). The fuzz targets `slots_config` and `slots_journal` exist. Open: `status`, the clear of `degraded` and the exit codes come with the CLI (T-022); the state `no-tier-served`.
+
 ## Prove
 
-`cargo test -p podrunner-slots`
+`cargo test -p podrunner-slots`, and `cd fuzz && cargo test --lib`
 
 # T-022: CLI and control socket: serve, status, drain, stop, doctor, print-unit (GitHub #22)
 

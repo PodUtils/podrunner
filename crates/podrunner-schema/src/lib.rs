@@ -20,7 +20,7 @@ pub use capability::{
 pub use codes::{RefusalCode, Tier};
 pub use ids::{IdError, JobId, UnitId, UnitIds};
 pub use offer::JobOffer;
-pub use report::{PublicReport, RunReport};
+pub use report::{ExitReason, PublicReport, Residual, RunReport, UnitFields};
 pub use secret::{Credential, CredentialFile, Secret};
 
 /// The version of each record and of each wire. A reader refuses another

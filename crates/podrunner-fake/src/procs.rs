@@ -59,9 +59,16 @@ pub fn exit_of(status: ExitStatus) -> Exit {
     }
 }
 
-/// A tag that no other unit of this host has: the process id, the time
-/// and the unit id.
-pub fn new_tag(unit: &str) -> String {
-    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
-    format!("{}-{nanos}-{unit}", std::process::id())
+/// The tag of a unit: a hash of the state directory of the driver and the
+/// unit id. A driver that starts again on the same directory finds the
+/// processes of a unit that an earlier process started (the restart of
+/// podrunner).
+pub fn tag_of(state_dir: &std::path::Path, unit: &str) -> String {
+    // FNV-1a: stable across processes and versions.
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in state_dir.as_os_str().as_encoded_bytes() {
+        h ^= u64::from(*b);
+        h = h.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("{h:016x}-{unit}")
 }

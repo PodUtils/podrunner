@@ -6,10 +6,32 @@
 pub type Target = fn(&[u8]);
 
 /// Each target, by name.
-pub const TARGETS: [(&str, Target); 1] = [("source_wire", targets::source_wire)];
+pub const TARGETS: [(&str, Target); 3] = [
+    ("slots_config", targets::slots_config),
+    ("slots_journal", targets::slots_journal),
+    ("source_wire", targets::source_wire),
+];
 
 pub mod targets {
+    use podrunner_slots::config::Config;
+    use podrunner_slots::state::Line;
     use podrunner_source::wire;
+
+    /// The reader of `podrunner.toml`: no panic on any text.
+    pub fn slots_config(data: &[u8]) {
+        if let Ok(text) = std::str::from_utf8(data) {
+            let _ = Config::parse(text);
+        }
+    }
+
+    /// The reader of a journal line: no panic; a line that it reads writes
+    /// back to a line that reads the same.
+    pub fn slots_journal(data: &[u8]) {
+        if let Ok(line) = serde_json::from_slice::<Line>(data) {
+            let text = serde_json::to_string(&line).expect("a line is JSON");
+            assert_eq!(serde_json::from_str::<Line>(&text).ok(), Some(line));
+        }
+    }
 
     /// The parser of the source wire: no panic on any line; a line that it
     /// accepts writes back to a line that reads the same.

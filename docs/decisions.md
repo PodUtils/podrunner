@@ -50,6 +50,7 @@ them (T-008).
 | 2026-11-11 | C10 (DR-16) | The owner reads the GitHub terms for a third-party runner version string before any alternate payload ships (U15). No alternate payload ships before that. |
 | 2026-11-11 | C11 (DR-17) | `pod-dockerapi` and any new crate name are reserved only after a census of the verbs. podrunner asks podcrates for no crate name before that. |
 | 2026-11-11 | C12 (GitHub #8, R-C18) | The flag `--deny-self-hosted-runners` of the release proofs of podvm, podnet and podssh stays. podrunner builds no release of another project. |
+| 2026-11-11 | C13 (T-021) | podrunner gives a credential to a unit as files only. A kind whose record has no `files` in `secret_delivery` is no candidate; when no kind is left at that step, the code is `boundary-not-available`. A `trusted` set needs `confined` or more until DR-4 is answered. |
 
 ## Questions for the owner
 

@@ -1,0 +1,30 @@
+host = "host-a"
+allow_fake = true
+same_principal_ok = false
+
+[[source]]
+name = "fake-1"
+kind = "fake"
+tier = "trusted"
+arch = "x86_64"
+slots = 2
+
+[unit.fake]
+slots = 2
+command = ["./run.sh"]
+
+[tier.untrusted]
+min_boundary = "guest"
+
+[trust]
+organizations = [{ login = "example-org", id = 11 }]
+
+[deadlines]
+running_s = 3600
+
+[pin]
+max_age_s = 86400
+[[pin.payload]]
+arch = "x86_64"
+reference = "runner@sha256:1111111111111111111111111111111111111111111111111111111111111111"
+built_at_s = 1800000000

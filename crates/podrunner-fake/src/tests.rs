@@ -148,7 +148,6 @@ fn each_unit_plant_fails_its_test() {
         let r = uc::run(&fx, &[n]).remove(0);
         assert!(matches!(r.outcome, Outcome::Fail(_)), "{plant:?} passes test {n}: {r}");
     }
-    kill_leftovers();
 }
 
 fn offer_line(at: u64, job: &str) -> String {

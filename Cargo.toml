@@ -21,12 +21,15 @@ pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0" }
 podrunner-clock = { path = "crates/podrunner-clock" }
 podrunner-fake = { path = "crates/podrunner-fake" }
 podrunner-schema = { path = "crates/podrunner-schema" }
+podrunner-slots = { path = "crates/podrunner-slots" }
 podrunner-source = { path = "crates/podrunner-source" }
 podrunner-tier = { path = "crates/podrunner-tier" }
 podrunner-unit = { path = "crates/podrunner-unit" }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# podrunner.toml: a table and its values, with no writer.
+toml = { version = "1", default-features = false, features = ["std", "parse", "serde"] }
 
 [profile.release]
 lto = true

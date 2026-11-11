@@ -80,6 +80,17 @@ pub struct FakeUnit {
     units: Mutex<HashMap<UnitId, Running>>,
     probes: AtomicU64,
     containers: AtomicU64,
+    /// Each tag that this driver gave: the drop kills what is left of them.
+    tags: Mutex<Vec<String>>,
+}
+
+impl Drop for FakeUnit {
+    /// The plants leave processes behind; a fake leaves none on the host.
+    fn drop(&mut self) {
+        for tag in self.tags.lock().map(|t| t.clone()).unwrap_or_default() {
+            procs::kill_tagged(&tag, KILL_LIMIT);
+        }
+    }
 }
 
 /// The time that destroy waits for the processes of a unit to end.
@@ -102,6 +113,7 @@ impl FakeUnit {
             units: Mutex::new(HashMap::new()),
             probes: AtomicU64::new(0),
             containers: AtomicU64::new(0),
+            tags: Mutex::new(Vec::new()),
         }
     }
 
@@ -211,7 +223,8 @@ impl UnitDriver for FakeUnit {
             }
             write_private(&runner_root.join(&f.name), f.content.expose(), mode)?;
         }
-        let tag = procs::new_tag(spec.unit.as_str());
+        let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
+        self.tags.lock().expect("the tags").push(tag.clone());
         let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         env.push(("PODRUNNER_UNIT".into(), spec.unit.to_string()));
         env.push((TAG_VAR.into(), tag.clone()));
@@ -264,7 +277,13 @@ impl UnitDriver for FakeUnit {
             if self.planted(UnitPlant::DestroyOnce) {
                 return Err(UnitError::new(UnitCode::UnknownUnit, unit.to_string()));
             }
-            return Ok(Residue::NONE);
+            // A unit of an earlier process, or one that is gone: find what
+            // is left by its tag and its directory.
+            let left = procs::kill_tagged(&procs::tag_of(&self.state_dir, unit.as_str()), KILL_LIMIT);
+            let root = self.state_dir.join("units").join(unit.as_str());
+            let _ = fs::remove_dir_all(&root);
+            let files = Count::Known(u64::from(root.exists()));
+            return Ok(Residue { processes: Count::Known(left), files });
         };
         let top_only = self.planted(UnitPlant::KillTopOnly) || self.planted(UnitPlant::FalseTreeKill);
         for (_, (mut c, _)) in r.containers.drain() {
