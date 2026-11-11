@@ -18,7 +18,7 @@ is done.
   `trusted` at `redirect` is a choice of the operator with the mitigations
   of T-045; `microvm` is an adapter over podvm's machine tier (T-037);
   DR-7 is not now. C1 to C12 are rulings; C13 to C16 are calls.
-- podrunner takes the crates of podcrates at `v0.18.0` (`pod-core`,
+- podrunner takes the crates of podcrates at `v0.19.0` (`pod-core`,
   `pod-todo`, `pod-broker`, `pod-proxy`, `pod-identity`, `pod-job`).
   `pod-supervise` can replace the tag scan of the podvm driver (T-023);
   it is not on the M-A path.
@@ -51,8 +51,6 @@ is done.
 
 - The work order of `TODO/PROGRESS.md`: T-030 and T-035 are
   partial; their entries name the open steps.
-- podcrates v0.19.0 follows v0.18.0 with a fix of `normal_path` of
-  `pod-broker` (PodUtils/podcrates@T-183): take it when it comes.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The spec of the design review (T-014): the owner holds it as a zip. The
