@@ -28,18 +28,29 @@ pub fn self_test(
 ) -> Result<(), String> {
     let canary = scratch.join(format!("podrunner-guest-canary-{}", std::process::id()));
     std::fs::write(&canary, "canary").map_err(|e| format!("the canary: {}", e.kind()))?;
+    // A listener on the loopback of the host: a unit that reaches it shares
+    // the network of the host. The unit tries with the tool it has.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").map_err(|e| format!("the listener: {}", e.kind()))?;
+    listener.set_nonblocking(true).map_err(|e| format!("the listener: {}", e.kind()))?;
+    let port = listener.local_addr().map_err(|e| format!("the listener: {}", e.kind()))?.port();
     let me = std::process::id();
     let script = format!(
         "{{ echo boot_id=$(cat /proc/sys/kernel/random/boot_id); \
          echo net=$(ls /sys/class/net 2>/dev/null | grep -vx lo | tr '\\n' ' '); \
          if [ -e '{canary}' ]; then echo canary=visible; else echo canary=absent; fi; \
          if [ -d /proc/{me} ] && grep -q podrunner /proc/{me}/cmdline 2>/dev/null; then echo hostpid=visible; else echo hostpid=absent; fi; \
-         }} > {RESULT}",
+         }} > {RESULT}; \
+         (command -v nc >/dev/null && nc -w 1 127.0.0.1 {port} </dev/null) >/dev/null 2>&1; \
+         (command -v bash >/dev/null && bash -c 'exec 3<>/dev/tcp/127.0.0.1/{port}') >/dev/null 2>&1; true",
         canary = canary.display()
     );
     let result = run(driver, payload, platform, unit, &script);
     let _ = std::fs::remove_file(&canary);
+    let reached = listener.accept().is_ok();
     let text = result?;
+    if reached {
+        return Err("the unit reached a listener on the loopback of the host".into());
+    }
     let host_boot = std::fs::read_to_string("/proc/sys/kernel/random/boot_id").unwrap_or_default();
     judge(&text, host_boot.trim())
 }

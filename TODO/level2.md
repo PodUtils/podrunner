@@ -127,7 +127,9 @@ host's, and each other check must find nothing. `serve` accepts a claim
 of `guest` only from a kind on `guest_kinds` (default `microvm`) and
 after this test; else the claim drops to `none` (`boundary_proof:
 guest-self-test-failed`). A fake unit that claims `guest` fails it (same
-boot id). Open: a loopback listener that slots plants, a second unit that
+boot id). A listener on the loopback of the host, which the test plants
+and the unit tries with `nc` or `bash`, must see no connection; a unit on
+the network of the host reaches it and fails. Open: a second unit that
 must not see the first, the read-only mounts, the test each day and on a
 driver change, the directory of driver executables with owner and mode
 checks, and a pass on a real guest (T-037).
