@@ -111,6 +111,12 @@ impl Gate {
             if count >= self.reconcile.revoke_after && self.revoked.insert(host.clone()) {
                 let line = serde_json::json!({ "t_s": now, "alert": "host-revoked", "host": host });
                 let _ = writeln!(self.audit, "{line}");
+                // Each offer of the host goes back; the source removes the
+                // runner of each one that it minted (the sidecar does).
+                for job in self.ledger.offers_of(&host) {
+                    let _ = self.source.release(&job);
+                    let _ = self.ledger.end(&host, &job);
+                }
             }
         }
     }

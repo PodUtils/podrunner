@@ -101,6 +101,11 @@ impl Ledger {
         self.offers.iter().find(|(_, o)| o.contains(job)).map(|(h, _)| h.as_str())
     }
 
+    /// The open offers of `host`, by job id.
+    pub fn offers_of(&self, host: &str) -> Vec<JobId> {
+        self.offers.get(host).map(|o| o.iter().cloned().collect()).unwrap_or_default()
+    }
+
     /// The open offers of `host`.
     pub fn outstanding(&self, host: &str) -> usize {
         self.offers.get(host).map_or(0, BTreeSet::len)

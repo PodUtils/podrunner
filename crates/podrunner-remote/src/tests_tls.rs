@@ -77,3 +77,38 @@ fn a_pinned_host_reaches_the_gate_and_another_key_does_not() {
     let e = client(&host, stranger.2).hello("podrunner", "0").unwrap_err();
     assert_eq!(e.code, SourceCode::Unavailable);
 }
+
+/// Each fresh source of the suite is a new gate behind a new mint on the
+/// loopback, reached over mutual TLS.
+struct OverTls {
+    mint: (Vec<u8>, Vec<u8>, Pin),
+    host: (Vec<u8>, Vec<u8>, Pin),
+}
+
+impl podrunner_source::conformance::Fixture for OverTls {
+    fn fresh(&self) -> Box<dyn JobSource> {
+        let d = dir();
+        let lines = [offer("j-1", false), offer("j-2", false), offer("j-3", false)];
+        let g = Arc::new(Mutex::new(gate(&lines, &[("h1", 10)], &d)));
+        let served = Served::new(Some(certified(&self.mint.1, &self.mint.0).unwrap()));
+        let config = server_config(provider(), served, Pins::new([self.host.2]), &[ALPN]).unwrap();
+        let server = Server::new(g, vec![HostKey { pin: self.host.2, host: "h1".into(), not_after_s: None }], config);
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap().to_string();
+        std::thread::spawn(move || server.serve(listener, Arc::new(AtomicBool::new(false))));
+        let key = certified(&self.host.1, &self.host.0).unwrap();
+        let config = client_config(provider(), key, Pins::new([self.mint.2]), &[ALPN]).unwrap();
+        Box::new(Wire(Https { address, config }))
+    }
+}
+
+#[test]
+fn the_source_tests_pass_over_tls() {
+    let d = dir();
+    let (Some(mint), Some(host)) = (key(&d, "mint"), key(&d, "host")) else {
+        return; // No openssl on this host.
+    };
+    let results = podrunner_source::conformance::run(&OverTls { mint, host }, &[]);
+    let failed = podrunner_source::conformance::not_passed(&results);
+    assert!(failed.is_empty(), "{results:#?}");
+}

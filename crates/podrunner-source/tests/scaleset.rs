@@ -23,6 +23,8 @@ const SCRIPT: &str = r#"{"scaleSetName":"podrunner","jobs":[
 struct Pair {
     fake: Child,
     sidecar: Child,
+    /// The base URL of the fake service.
+    url: String,
 }
 
 impl Drop for Pair {
@@ -77,7 +79,7 @@ fn pair() -> (Pair, ChildStdin, ChildStdout) {
     let mut sidecar = cmd.spawn().unwrap();
     drop(theirs);
     let (stdin, stdout) = (sidecar.stdin.take().unwrap(), sidecar.stdout.take().unwrap());
-    (Pair { fake, sidecar }, stdin, stdout)
+    (Pair { fake, sidecar, url }, stdin, stdout)
 }
 
 /// A JobSource that keeps its processes alive while it lives.
@@ -132,4 +134,39 @@ fn the_sidecar_passes_the_source_tests_on_the_fake() {
         println!("{r}");
     }
     assert!(conformance::not_passed(&results).is_empty());
+}
+
+/// A plain GET of the fake service.
+fn get(url: &str, path: &str) -> String {
+    let address = url.trim_start_matches("http://");
+    let mut tcp = std::net::TcpStream::connect(address).unwrap();
+    write!(tcp, "GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n").unwrap();
+    let mut text = String::new();
+    tcp.read_to_string(&mut text).unwrap();
+    text
+}
+
+/// A release of a minted job removes its runner at the forge: a runner of a
+/// revoked host never takes a job (GitHub #31).
+#[test]
+#[ignore]
+fn a_release_removes_the_runner_of_a_minted_job() {
+    let (p, stdin, stdout) = pair();
+    let mut s = WireSource::new(BufReader::new(stdout), stdin);
+    s.hello("podrunner", "0").unwrap();
+    let mut offer = None;
+    for _ in 0..50 {
+        let events = s.next(1, std::time::Duration::from_secs(1)).unwrap();
+        if let Some(podrunner_source::Event::Offer { offer: o }) = events.into_iter().next() {
+            offer = Some(o.job_id);
+            break;
+        }
+    }
+    let job = offer.expect("an offer");
+    s.ack(&job).unwrap();
+    s.claim(&job, "runner-u-1").unwrap();
+    s.mint(&job, "runner-u-1").unwrap();
+    assert!(!get(&p.url, "/fake/removed").contains("[1]"), "a mint removes no runner");
+    s.release(&job).unwrap();
+    assert!(get(&p.url, "/fake/removed").contains(r#""removed":[1]"#), "{}", get(&p.url, "/fake/removed"));
 }

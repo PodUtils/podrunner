@@ -311,7 +311,7 @@ Done so far: a pin has `runner_version` and its own `max_age_s` (the smaller of 
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -354,11 +354,16 @@ Steps, in the crate `podrunner-remote`:
 3. Done: `podrunner mint-serve --config FILE` (`crates/podrunner/src/mint_serve.rs`: the source, the tier rule, the hosts with their pins and slots, the ledger and the audit in a state directory) and a source kind `remote` on the unit host (`mint`, `mint_pin`, `cert_file`, `key_file`). A host that cannot reach the mint gets no offer: the source is `unavailable`.
 4. Done: the reconciliation. The ledger keeps the time of each credential and the `started` event of its runner; a credential with no start after `reconcile_after_s` (300) is an audit alert `credential-with-no-start`, and `revoke_after` (3) alerts of one host revoke it (`source-revoked` for each call, an alert `host-revoked`).
 5. Done: the host key and its rotation (call C16): each `[[host]]` pin has an optional `not_after_s`; a host can have two keys during a rotation; a key past its life gets HTTP 403. Tested on the loopback.
-6. Open: the removal of the runners of a revoked host at the forge (an operation of the sidecar), and the source conformance tests 6 to 9 and 12 over HTTPS in CI.
+6. Done: the source conformance suite (tests 1 to 12) passes over mutual TLS on the loopback: each fresh source is a new gate behind a new mint (`the_source_tests_pass_over_tls`; the gate runs it, with openssl).
+7. Done: a revoked host gives back each of its offers (`release`), and the sidecar removes the runner of each minted job at a release (`RemoveRunner` of `actions/scaleset`); the fake scale-set service records each removal (`/fake/removed`).
 
 ## Prove
 
-`cargo test -p podrunner-mint remote`
+`cargo test -p podrunner-remote` (the gate, the reconciliation, the key life, the source tests over mutual TLS), `cargo test -p podrunner mint_serve`, and with the Go binaries `cargo test -p podrunner-source --test scaleset -- --ignored` (the removal of a runner at a release)
+
+## Done
+
+2026-11-11: the remote mint is in `crates/podrunner-remote` and `podrunner mint-serve`; a unit host names it with a source of kind `remote`. The acceptance of GitHub #31 holds: the source tests 1 to 12 pass over mutual TLS; a host that cannot reach the mint gets no offer; a pin list changed on disk fails the check of the next start (T-045). `cargo test -p podrunner-remote`: 6 passed; `cargo test -p podrunner`: each test passes; the ignored scale-set tests pass with the Go binaries (2 and 1).
 
 # T-032: Milestone M-C: the live gates G-H2 to G-H4 on a fake unit (GitHub #32)
 

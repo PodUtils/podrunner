@@ -30,9 +30,11 @@ type server struct {
 	created bool
 	session string
 	// The message that was delivered and not deleted: it comes again.
-	pending   map[string]any
-	nextMsg   int
-	runners   []string
+	pending map[string]any
+	nextMsg int
+	runners []string
+	// The ids of the runners that a client removed.
+	removed   []int64
 	record    *os.File
 	pollDelay time.Duration
 }
@@ -105,7 +107,9 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(p, "/tenant/1/_apis/runtime/runnerscalesets"):
 		s.scaleSets(w, r, strings.TrimPrefix(p, "/tenant/1/_apis/runtime/runnerscalesets"))
 	case strings.HasPrefix(p, "/tenant/1/_apis/distributedtask/pools/0/agents"):
-		s.agents(w, r)
+		s.agents(w, r, strings.TrimPrefix(p, "/tenant/1/_apis/distributedtask/pools/0/agents"))
+	case p == "/fake/removed":
+		reply(w, http.StatusOK, map[string]any{"removed": s.removed})
 	case strings.HasPrefix(p, "/queue/1"):
 		s.queue(w, r, strings.TrimPrefix(p, "/queue/1"))
 	case strings.HasPrefix(p, "/fake/complete/"):
@@ -177,8 +181,11 @@ func (s *server) scaleSets(w http.ResponseWriter, r *http.Request, rest string) 
 	}
 }
 
-func (s *server) agents(w http.ResponseWriter, r *http.Request) {
+func (s *server) agents(w http.ResponseWriter, r *http.Request, rest string) {
 	if r.Method == http.MethodDelete {
+		if id, err := strconv.ParseInt(strings.TrimPrefix(rest, "/"), 10, 64); err == nil {
+			s.removed = append(s.removed, id)
+		}
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}

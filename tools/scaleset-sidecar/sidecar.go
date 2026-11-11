@@ -28,6 +28,8 @@ const (
 type job struct {
 	request int64
 	state   jobState
+	// The runner of the JIT configuration: a release removes it.
+	runner int64
 }
 
 type sidecar struct {
@@ -172,8 +174,14 @@ func (s *sidecar) handle(line []byte) map[string]any {
 		delete(s.jobs, jobID)
 		return map[string]any{"reply": "done"}
 	case "release":
-		if s.jobs[jobID] == nil {
+		j := s.jobs[jobID]
+		if j == nil {
 			return errorReply("unknown-job", "no offer of this job")
+		}
+		// A runner that never ran must not take another job (a revoked
+		// host, GitHub #31). A runner that ran is gone: GitHub answers 404.
+		if j.runner != 0 {
+			_ = s.client.RemoveRunner(s.ctx, j.runner)
 		}
 		delete(s.jobs, jobID)
 		return map[string]any{"reply": "done"}
@@ -224,6 +232,9 @@ func (s *sidecar) mint(id, runner string) map[string]any {
 	jit, err := s.client.GenerateJitRunnerConfig(s.ctx, &scaleset.RunnerScaleSetJitRunnerSetting{Name: runner, WorkFolder: "_work"}, 1)
 	if err != nil {
 		return errorReply(codeOf(err), statusOf(err))
+	}
+	if jit.Runner != nil {
+		j.runner = int64(jit.Runner.ID)
 	}
 	files, err := decodeJIT(jit.EncodedJITConfig)
 	if err != nil {

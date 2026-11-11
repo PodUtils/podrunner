@@ -29,10 +29,9 @@ is done.
   pin, the Dockerfile), `.github/workflows/runner-image.yml` and
   `podrunner image verify` are in; the first green image build and its
   pin are open.
-- M-D: T-045 is done (the mitigations of DR-4). T-031 (the remote mint,
+- M-D: T-045 (the mitigations of DR-4) and T-031 (the remote mint,
   `crates/podrunner-remote`, `podrunner mint-serve`, a source kind
-  `remote`) is partial: the removal of the runners of a revoked host and
-  the source tests over HTTPS in CI are open.
+  `remote`) are done. T-033 waits for DR-7 and M-B.
 - L2: T-035 (the container hooks, `crates/podrunner-hook`) is partial:
   the checks, the socket, the relay, the mapping onto the driver and the
   seam `HookPort` of slots are in; the tests with a real runner wait for
@@ -45,7 +44,7 @@ is done.
 
 ## In flight
 
-- The work order of `TODO/PROGRESS.md`: T-031, T-030 and T-035 are
+- The work order of `TODO/PROGRESS.md`: T-030 and T-035 are
   partial; their entries name the open steps.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.

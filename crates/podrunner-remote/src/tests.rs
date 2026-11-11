@@ -178,4 +178,7 @@ fn credentials_with_no_start_revoke_the_host() {
     assert_eq!(alerts.len(), 3, "{audit}");
     assert!(!alerts.iter().any(|l| l.contains("\"j-1\"")));
     assert!(audit.contains("host-revoked"));
+    // Each offer of the revoked host went back to the source.
+    let ledger = Ledger::open(&d.join("ledger.jsonl")).unwrap();
+    assert_eq!(ledger.outstanding("h1"), 0);
 }
