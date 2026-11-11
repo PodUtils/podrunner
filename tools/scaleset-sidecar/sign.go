@@ -21,8 +21,8 @@ type signer struct {
 	until  time.Time
 }
 
-func newSigner(f *os.File) *signer {
-	s := &signer{f: f, iss: os.Getenv("PODRUNNER_APP_ID")}
+func newSigner(f *os.File, iss string) *signer {
+	s := &signer{f: f, iss: iss}
 	if f != nil {
 		s.r = bufio.NewReader(f)
 	}

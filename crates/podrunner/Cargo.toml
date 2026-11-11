@@ -24,3 +24,6 @@ podrunner-source.workspace = true
 podrunner-unit.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

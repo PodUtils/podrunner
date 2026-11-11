@@ -224,11 +224,16 @@ jobs:
           sh "$GITHUB_WORKSPACE/scripts/check-static.sh" "$RUNNER_TEMP/scaleset-sidecar"
       - name: Toolchain
         run: sh scripts/retry.sh rustup toolchain install
-      - name: The source tests against the sidecar on the fake
+      - name: The source tests and a run of slots against the sidecar on the fake
         env:
           PODRUNNER_FAKE_SCALESET: ${{ runner.temp }}/fake-scaleset
           PODRUNNER_SCALESET_SIDECAR: ${{ runner.temp }}/scaleset-sidecar
-        run: cargo test --locked -p podrunner-source --test scaleset -- --ignored
+        run: |
+          set -eu
+          cargo test --locked -p podrunner-source --test scaleset -- --ignored
+          # slots, mint, sign and the sidecar: a fork pull request on the
+          # trusted set is withdrawn and never acquired; a member job runs.
+          cargo test --locked -p podrunner --test scaleset -- --ignored
 
   all:
     runs-on: ubuntu-24.04

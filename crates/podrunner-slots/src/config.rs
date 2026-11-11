@@ -35,6 +35,23 @@ pub struct SourceConfig {
     /// The most units of this source at one time (no limit when absent).
     #[serde(default)]
     pub slots: Option<u32>,
+    /// `github-scaleset`: the sidecar, the organization URL, the REST API,
+    /// the installation and the App, the scale set, and the file of the
+    /// private key of the App (mode 0400 or 0600).
+    #[serde(default)]
+    pub sidecar: Option<String>,
+    #[serde(default)]
+    pub config_url: Option<String>,
+    #[serde(default)]
+    pub api_url: Option<String>,
+    #[serde(default)]
+    pub installation_id: Option<u64>,
+    #[serde(default)]
+    pub app_id: Option<String>,
+    #[serde(default)]
+    pub scale_set: Option<String>,
+    #[serde(default)]
+    pub key_file: Option<String>,
 }
 
 /// The slots of one unit kind.
@@ -204,6 +221,19 @@ impl Config {
             }
             if s.kind == SourceKind::Fake && !self.allow_fake {
                 return Err(format!("[[source]] {:?} is fake: set allow_fake = true", s.name));
+            }
+            if s.kind == SourceKind::GithubScaleset {
+                let missing = [
+                    ("sidecar", s.sidecar.is_none()),
+                    ("config_url", s.config_url.is_none()),
+                    ("installation_id", s.installation_id.is_none()),
+                    ("app_id", s.app_id.is_none()),
+                    ("scale_set", s.scale_set.is_none()),
+                    ("key_file", s.key_file.is_none()),
+                ];
+                if let Some((key, _)) = missing.iter().find(|(_, m)| *m) {
+                    return Err(format!("[[source]] {:?}: a github-scaleset source needs {key}", s.name));
+                }
             }
             if !matches!(s.arch.as_str(), "x86_64" | "aarch64") {
                 return Err(format!("[[source]] {:?}: arch is not x86_64 or aarch64", s.name));

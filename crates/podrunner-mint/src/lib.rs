@@ -4,6 +4,8 @@
 //! and never holds the key.
 
 mod mint;
+mod sidecar;
 pub mod sign;
 
 pub use mint::Mint;
+pub use sidecar::SidecarSource;

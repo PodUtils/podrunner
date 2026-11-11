@@ -8,7 +8,7 @@
 //
 //	podrunner-source-github-scaleset -config-url URL -api-url URL
 //	    -installation-id N -scale-set NAME -source NAME -arch x86_64
-//	    [-operator-controlled] [-wait-deadline-s 600]
+//	    -app-id ID [-operator-controlled] [-wait-deadline-s 600]
 package main
 
 import (
@@ -26,10 +26,10 @@ import (
 const lineMax = 1 << 20
 
 type options struct {
-	configURL, apiURL, scaleSet, source, arch string
-	installationID                            int64
-	operatorControlled                        bool
-	waitDeadlineS                             int
+	configURL, apiURL, scaleSet, source, arch, appID string
+	installationID                                   int64
+	operatorControlled                               bool
+	waitDeadlineS                                    int
 }
 
 func main() {
@@ -40,6 +40,7 @@ func main() {
 	flag.StringVar(&o.scaleSet, "scale-set", "", "the name of the scale set")
 	flag.StringVar(&o.source, "source", "", "the name of the source in podrunner.toml")
 	flag.StringVar(&o.arch, "arch", "x86_64", "the architecture of the set")
+	flag.StringVar(&o.appID, "app-id", "", "the id of the GitHub App: the iss of each JWT")
 	flag.BoolVar(&o.operatorControlled, "operator-controlled", false, "the operator controls the source")
 	flag.IntVar(&o.waitDeadlineS, "wait-deadline-s", 600, "the wait deadline of each offer")
 	flag.Parse()
@@ -47,7 +48,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "podrunner-source-github-scaleset: -config-url, -installation-id, -scale-set and -source are necessary")
 		os.Exit(64)
 	}
-	signer := newSigner(os.NewFile(3, "sign"))
+	signer := newSigner(os.NewFile(3, "sign"), o.appID)
 	s, err := newSidecar(context.Background(), o, signer)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "podrunner-source-github-scaleset:", err)

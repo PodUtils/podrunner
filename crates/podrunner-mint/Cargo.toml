@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 base64.workspace = true
+libc.workspace = true
 podrunner-clock.workspace = true
 podrunner-schema.workspace = true
 podrunner-source.workspace = true

@@ -88,7 +88,7 @@ Read the text of GitHub #27 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A `mint` step that makes the JIT runner configuration with an in-process `sign` module (RS256 of the App key), and the source conformance of the mint operations. Done so far (2026-11-11): `crates/podrunner-mint`: `sign` (RS256 with `ring`; one claim shape; one signature a minute; an audit line for each request; a PKCS#1 PEM key, made by `openssl` for each test run, so that no key is in the repository) and `Mint` (it forwards the nine operations; a revocation is final and names the credential, never its value). `serve` puts `Mint` before each source. Open: the restart of the sidecar with a backoff (with T-029).
+A `mint` step that makes the JIT runner configuration with an in-process `sign` module (RS256 of the App key), and the source conformance of the mint operations. Done so far (2026-11-11): `crates/podrunner-mint`: `sign` (RS256 with `ring`; one claim shape; one signature a minute; an audit line for each request; a PKCS#1 PEM key, made by `openssl` for each test run, so that no key is in the repository) and `Mint` (it forwards the nine operations; a revocation is final and names the credential, never its value). `serve` puts `Mint` before each source. The restart of the sidecar with a backoff is in `SidecarSource` (T-029).
 
 ## Prove
 
@@ -208,10 +208,19 @@ C15). The statuses 401 and 403 map to `source-revoked`, 404 to
 detail names the status only. Go tests: the map of the statuses, the JIT
 files, the events. The source tests 1 to 12 pass against the sidecar on
 the fake service (`crates/podrunner-source/tests/scaleset.rs`; the gate
-runs them). The static build has no `INTERP`. Open: `serve` starts the
-sidecar with a `sign` channel and restarts it with a backoff (with
-T-027), and the test of a fork pull request on the trusted set
-(`tier-mismatch`, never acquired).
+runs them). The static build has no `INTERP`. `SidecarSource`
+(`crates/podrunner-mint/src/sidecar.rs`) starts the sidecar with a `sign`
+channel on its descriptor 3 and starts it again with a backoff (1 s to 60
+s), never after a revocation; `serve` builds it from a `github-scaleset`
+source (the key file must have no bit for the group or others).
+`crates/podrunner/tests/scaleset.rs`: slots, `Mint`, `sign` and the
+sidecar on the fake service: the fork pull request on the trusted set is
+withdrawn with `tier-mismatch` and never acquired (one acquire in the
+record of the fake), the member job runs to `success`, each JWT comes
+from `sign` (3 runs, each green; the gate runs it). A finding of the
+first run: `sign` refuses a JWT whose `iat` is not within a minute of
+its clock; the test now gives `sign` the clock of the host. Open:
+`ended_without_completion` and the trust lookup counts in `status`.
 
 ## Prove
 

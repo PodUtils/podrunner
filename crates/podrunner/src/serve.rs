@@ -58,6 +58,50 @@ fn now_unix() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
+/// The scale-set sidecar of a source, with `sign` over the key of the App.
+fn scaleset(
+    s: &podrunner_slots::config::SourceConfig,
+    clock: Arc<dyn Clock>,
+) -> Result<podrunner_mint::SidecarSource, Failure> {
+    use std::os::unix::fs::PermissionsExt;
+    let get = |v: &Option<String>| v.clone().unwrap_or_default();
+    let key_file = get(&s.key_file);
+    let meta = std::fs::metadata(&key_file)
+        .map_err(|e| fail(Class::Config, format!("{}: the key file: {}", s.name, e.kind())))?;
+    if meta.permissions().mode() & 0o077 != 0 {
+        return Err(fail(
+            Class::Config,
+            format!("{}: the key file is open to the group or to others: set mode 0400", s.name),
+        ));
+    }
+    let pem = std::fs::read_to_string(&key_file)
+        .map_err(|e| fail(Class::Config, format!("{}: the key file: {}", s.name, e.kind())))?;
+    let key = podrunner_mint::sign::key_from_pem(&pem)
+        .map_err(|_| fail(Class::Config, format!("{}: the key file holds no PKCS#1 key", s.name)))?;
+    let signer = podrunner_mint::sign::Signer::new(key, &get(&s.app_id), clock, Box::new(now_unix));
+    let mut args = vec![
+        "-config-url".to_string(),
+        get(&s.config_url),
+        "-api-url".into(),
+        s.api_url.clone().unwrap_or_else(|| "https://api.github.com".into()),
+        "-installation-id".into(),
+        s.installation_id.unwrap_or(0).to_string(),
+        "-scale-set".into(),
+        get(&s.scale_set),
+        "-source".into(),
+        s.name.clone(),
+        "-arch".into(),
+        s.arch.clone(),
+        "-app-id".into(),
+        get(&s.app_id),
+    ];
+    if s.operator_controlled {
+        args.push("-operator-controlled".into());
+    }
+    let caller = format!("sidecar:{}", s.name);
+    Ok(podrunner_mint::SidecarSource::new(&get(&s.sidecar), args, Arc::new(std::sync::Mutex::new(signer)), &caller))
+}
+
 /// Build the supervisor of a configuration.
 pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
@@ -74,12 +118,7 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                     parse_script(&text).map_err(|e| fail(Class::Config, format!("the script of {}: {e}", s.name)))?;
                 Box::new(FakeSource::new(&s.name, clock.clone(), script))
             }
-            SourceKind::GithubScaleset => {
-                return Err(fail(
-                    Class::Unsupported,
-                    format!("{}: the github-scaleset source comes with GitHub #29", s.name),
-                ));
-            }
+            SourceKind::GithubScaleset => Box::new(scaleset(s, clock.clone())?),
         };
         // mint stands between slots and each source (GitHub #27).
         let source: Box<dyn podrunner_source::JobSource> = Box::new(podrunner_mint::Mint::new(&s.name, source));
