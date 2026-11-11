@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 75 entries: 11 open, 2 partial, 16 blocked, 46 done.
+`TODO/INDEX.md` holds 76 entries: 12 open, 2 partial, 16 blocked, 46 done.
 
 ## State
 
@@ -27,16 +27,17 @@ release or a live account.
 The queue for tonight, most valuable first:
 
 1. T-065 (M): the podvm unit runs under `podnet pod`; without a hold, a podvm unit gets no `trusted` job, so M-D cannot pass. Start the measure in `runner-image.yml`, and take T-066 while it runs.
-2. T-066 (S): set `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1`; without it the stale-runner check of T-030 never fires (an acceptance item of GitHub #26).
-3. T-067 (S): take the root of a unit from `podvm inspect`, so that the next podvm beta does not break the container route (T-064 is then only the pin).
-4. T-068 (M): bound the jobs, the reports and the journal of a long `serve`; an unattended host grows with no bound now.
-5. T-069 (S): retry and spool a report that the source refuses; a sidecar restart loses reports now.
-6. T-070 (S): `doctor` reads the configuration, the driver records, `pod-hostprobe` and the Landlock ABI; the operator sees what placement sees.
-7. T-072 (S): a loopback test settles U10, the last open row of T-009 that has no entry.
-8. T-071 (M): the live gate harness on the fake scale set; when DR-7 is yes, only the secrets are missing.
-9. T-074 (M): the disk limit of a unit (SPEC §10.4); a job can fill the disk of the host now.
-10. T-041 (S): the `enforced` hold with `podnet pod --backend netns` on a host with user namespaces; start when T-065 is done.
-11. T-075 (S): the report and status fields of SPEC §11.4 and §11.5; needs a small ask to podcrates.
+2. T-076 (M): resolve names with `pod-dns` (system, cache, DNS over HTTPS by address); a host whose resolver fails loses each egress and its mint now (the owner, 2026-11-11).
+3. T-066 (S): set `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1`; without it the stale-runner check of T-030 never fires (an acceptance item of GitHub #26).
+4. T-067 (S): take the root of a unit from `podvm inspect`, so that the next podvm beta does not break the container route (T-064 is then only the pin).
+5. T-068 (M): bound the jobs, the reports and the journal of a long `serve`; an unattended host grows with no bound now.
+6. T-069 (S): retry and spool a report that the source refuses; a sidecar restart loses reports now.
+7. T-070 (S): `doctor` reads the configuration, the driver records, `pod-hostprobe` and the Landlock ABI; the operator sees what placement sees.
+8. T-072 (S): a loopback test settles U10, the last open row of T-009 that has no entry.
+9. T-071 (M): the live gate harness on the fake scale set; when DR-7 is yes, only the secrets are missing.
+10. T-074 (M): the disk limit of a unit (SPEC §10.4); a job can fill the disk of the host now.
+11. T-041 (S): the `enforced` hold with `podnet pod --backend netns` on a host with user namespaces; start when T-065 is done.
+12. T-075 (S): the report and status fields of SPEC §11.4 and §11.5; needs a small ask to podcrates.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

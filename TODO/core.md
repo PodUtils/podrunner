@@ -1116,3 +1116,28 @@ Ask podcrates (a direct message) for the two optional fields in `RunReport` of `
 ## Prove
 
 `cargo test -p podrunner-slots status_schema`, `cargo test -p podrunner-slots report_fields`
+
+# T-076: podrunner resolves names with pod-dns: no single resolver of the host
+
+**Source:** the owner, 2026-11-11
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podrunner uses only the system resolver of the host. The egress module resolves each CONNECT target with `tokio::net::lookup_host` (`crates/podrunner-egress/src/lib.rs`), and the client of a remote mint dials its `host:port` the same way (`crates/podrunner-remote/src/transport.rs`). On a host whose resolver fails, each job loses its egress and each unit host loses its mint. A runner of GitHub Actions showed such a failure: the build container of `runner-image.yml` resolved no Ubuntu mirror (fixed in the workflow: the host network and retries).
+
+## Premise
+
+Read on 2026-11-11: `pod-dns` of podcrates `v0.24.0` resolves in the order IP literal, pins, system resolver, the cache of addresses that carried a session, DNS over HTTPS to resolvers by their address, the old cache. It plugs into `pod_proxy::Dialer` as `Arc<dyn pod_core::Resolve>`. No crate ask is needed.
+
+## Approach
+
+One `pod_dns::Resolver` for each process, from a `[dns]` table of the configuration (pins, DNS over HTTPS on or off, the resolvers; the default list of `pod-services`). The egress module dials through `pod_proxy::Dialer` with it, and the transport of the remote mint resolves its host with it. A refusal names each source that was tried (`Stage::Dns`). `podrunner doctor` (T-070) prints the source that answered for the hosts of the configuration. The audit line of a failed dial names the source.
+
+## Prove
+
+`cargo test -p podrunner-egress dns` and `cargo test -p podrunner-remote dns`: with a system resolver that fails and a fake DNS over HTTPS resolver that answers, the egress of a unit and the dial of a remote mint reach their loopback servers; the plain tests with the system resolver still pass.

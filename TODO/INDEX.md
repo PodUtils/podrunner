@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**75 entries: 11 open, 2 partial, 16 blocked, 46 done.**
+**76 entries: 12 open, 2 partial, 16 blocked, 46 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 4 | 1 | 1 | 22 | 28 |
+| P1 | 5 | 1 | 1 | 22 | 29 |
 | P2 | 5 | 1 | 10 | 23 | 39 |
 | P3 | 2 | 0 | 5 | 1 | 8 |
-| **All** | 11 | 2 | 16 | 46 | 75 |
+| **All** | 12 | 2 | 16 | 46 | 76 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -123,3 +123,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-073](later.md) | P3 | S | later | chore | blocked | Take the podcrates tag after v0.24.0: pod-confine drops each capability |
 | [T-074](core.md) | P2 | M | M-D | feature | open | The disk limit of a unit |
 | [T-075](core.md) | P3 | S | M-D | feature | open | The report and status fields of SPEC §11.4 and §11.5 |
+| [T-076](core.md) | P1 | M | M-D | feature | open | podrunner resolves names with pod-dns: no single resolver of the host |
