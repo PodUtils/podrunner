@@ -98,6 +98,8 @@ pub struct Slots {
     pub(crate) guest: BTreeMap<usize, crate::guest::Retest>,
     /// The control sockets of the units with `container: hooks`.
     pub(crate) hooks: Option<Box<dyn crate::hooks::HookPort>>,
+    /// The time of the next send of the spooled reports (T-069).
+    pub(crate) spool_next_ms: u64,
 }
 
 impl Slots {
@@ -122,6 +124,7 @@ impl Slots {
             self.poll(s, now);
         }
         self.retry_waiting(now);
+        self.retry_spool(now);
         self.forget(now);
     }
 

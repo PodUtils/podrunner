@@ -62,6 +62,8 @@ pub struct Status {
     pub pins: Vec<PinStatus>,
     /// The jobs that ended without a `completed` event of their source.
     pub ended_without_completion: u64,
+    /// The reports that a source refused, in the spool (T-069).
+    pub spooled_reports: usize,
 }
 
 fn state_name(s: State) -> String {
@@ -134,6 +136,7 @@ impl Slots {
             draining: self.draining,
             degraded: self.degraded.clone(),
             no_tier_served: self.no_tier_served(),
+            spooled_reports: self.spooled(),
             sources,
             kinds,
             pins,

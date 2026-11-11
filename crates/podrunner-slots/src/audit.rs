@@ -35,6 +35,8 @@ pub enum Kind {
     /// The egress policy of the job allows a host under an open suffix.
     EgressFlagged,
     Destroy,
+    /// The source refused a report: it is in the spool (T-069).
+    ReportSpooled,
 }
 
 /// One audit line.

@@ -14,6 +14,7 @@ pub mod journal;
 pub mod pins;
 pub mod placement;
 mod run;
+mod spool;
 pub mod state;
 pub mod status;
 
@@ -63,6 +64,7 @@ impl Slots {
             egress_down: false,
             guest: Default::default(),
             hooks: None,
+            spool_next_ms: 0,
         };
         s.reconcile(replay.open);
         Ok(s)
@@ -108,7 +110,7 @@ impl Slots {
                     serde_json::to_value(report.public())
                 };
                 if let Ok(serde_json::Value::Object(m)) = value {
-                    let _ = self.sources[s].source.report(&job_id, &m);
+                    self.send_report(s, &job_id, m);
                 }
                 forget::keep(&mut self.reports, report);
             }

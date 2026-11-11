@@ -9,6 +9,7 @@ mod guest;
 mod hooks;
 mod journal;
 mod level1;
+mod spool;
 mod status;
 
 use std::collections::BTreeMap;

@@ -424,7 +424,7 @@ impl Slots {
             serde_json::to_value(r.public())
         };
         if let Ok(serde_json::Value::Object(m)) = value {
-            let _ = self.sources[key.0].source.report(&key.1, &m);
+            self.send_report(key.0, &key.1, m);
         }
         crate::forget::keep(&mut self.reports, r);
     }

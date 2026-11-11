@@ -50,6 +50,12 @@
       "items": {
         "$ref": "#/$defs/SourceStatus"
       }
+    },
+    "spooled_reports": {
+      "description": "The reports that a source refused, in the spool (T-069).",
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
     }
   },
   "required": [
@@ -60,7 +66,8 @@
     "sources",
     "kinds",
     "pins",
-    "ended_without_completion"
+    "ended_without_completion",
+    "spooled_reports"
   ],
   "$defs": {
     "Boundary": {
