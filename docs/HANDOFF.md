@@ -37,9 +37,10 @@ is done.
   `remote`) are done. T-033 waits for DR-7 and M-B.
 - L2: T-035 (the container hooks, `crates/podrunner-hook`) is partial:
   the checks, the socket, the relay, the mapping onto the driver and the
-  seam `HookPort` of slots are in; the tests with a real runner wait for
-  T-038 and T-026. T-036 is blocked: the rest needs a real guest (T-037,
-  PodUtils/podvm@T-1656). T-038 is partial: `crates/podrunner-broker-fake` runs
+  seam `HookPort` of slots are in; a `container:` job runs on the official
+  runner through them (fake unit); the conformance tests on the fake path
+  and the podvm driver (T-026) are open. T-036 is blocked: the rest needs a real guest (T-037,
+  PodUtils/podvm@T-1656). T-038 is blocked on T-026: `crates/podrunner-broker-fake` runs
   the official runner offline (`.github/workflows/level2.yml`) with the
   results routes and the corpus of podcrates jobs; the run in a podvm unit
   (T-026, blocked) is open. T-034

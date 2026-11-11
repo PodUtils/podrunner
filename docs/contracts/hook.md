@@ -7,6 +7,11 @@ each hook call to the control socket of the unit (`ctl`, GitHub #35), and
 the unit driver does the container operations of
 `docs/contracts/unit-driver.md`.
 
+The runner takes the hooks only when the job message also has the
+variable `DistributedTask.AllowRunnerContainerHooks` set to `true`
+(`FeatureManager.IsContainerHooksEnabled`); else it runs the job
+container with docker. The fake broker of level 2 sends it.
+
 The fields below are the interface of the runner's `HookInput.cs` and
 `HookResponse.cs` of `actions/runner` v2.338.2, in camel case. The
 runner writes `null` for an unset field. `crates/podrunner-hook/src/input.rs`
@@ -35,6 +40,10 @@ The exit code of the script is the result of the call: 0 is success.
 | `cleanup_job` | none | `container_stop` for each container of the job |
 | `run_script_step` | `entryPoint`, `entryPointArgs`, `environmentVariables`, `prependPath`, `workingDirectory` | `container_exec` in the job container |
 | `run_container_step` | `image` or `dockerfile`, `entryPoint`, `entryPointArgs`, `workingDirectory`, `createOptions`, `environmentVariables`, `prependPath`, `userMountVolumes`, `systemMountVolumes`, `registry` | `container_start`, `container_logs`, `container_inspect`, `container_stop` |
+
+The runner sends the job container of `prepare_job` with no entry point.
+The host then starts it with `tail -f /dev/null`: the container only has
+to live while the steps run in it.
 
 ## The response of `prepare_job`
 

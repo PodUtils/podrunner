@@ -92,7 +92,13 @@ impl HookUnit {
             Plan::Prepare { job, services } => {
                 let mut ctx_job = Value::Null;
                 let mut alpine = false;
-                if let Some(p) = job {
+                if let Some(mut p) = job {
+                    // Runner v2.338.2 sends the job container with no entry
+                    // point: the container only has to live while the steps
+                    // run in it, as with the docker hooks of `actions`.
+                    if p.argv.is_empty() {
+                        p.argv = ["tail", "-f", "/dev/null"].map(String::from).to_vec();
+                    }
                     let id = d.container_start(&self.unit, &self.spec(&p))?;
                     let probe = ExecSpec {
                         argv: vec!["test".into(), "-f".into(), "/etc/alpine-release".into()],

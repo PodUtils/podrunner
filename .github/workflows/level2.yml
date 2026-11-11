@@ -20,6 +20,7 @@ on:
     paths:
       - crates/podrunner-broker-fake/**
       - crates/podrunner-hook/**
+      - crates/podrunner-fake/**
       - images/runner/runner.toml
       - scripts/corpus.py
       - .github/workflows/level2.yml
@@ -48,8 +49,8 @@ jobs:
           curl -fsSLo runner.tgz "https://github.com/actions/runner/releases/download/v$version/actions-runner-linux-x64-$version.tar.gz"
           cargo run -q -p podrunner -- image verify --tarball runner.tgz --arch x86_64
           mkdir "$RUNNER_TEMP/runner" && tar -xzf runner.tgz -C "$RUNNER_TEMP/runner" && rm runner.tgz
-      - name: Canned jobs on the official runner
-        run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner-broker-fake --test runner -- --ignored
+      - name: Canned jobs on the official runner, and a container job through the hooks
+        run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner-broker-fake --test runner --test container -- --ignored
 
   corpus:
     runs-on: ubuntu-24.04

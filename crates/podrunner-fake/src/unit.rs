@@ -21,6 +21,8 @@ use podrunner_unit::{
 
 use podrunner_unit::procs::{self, TAG_VAR};
 
+use crate::mounts::Mounts;
+
 /// The planted defects of the fake unit: each one fails the unit
 /// conformance test of its number.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,7 +70,8 @@ struct Running {
     tag: String,
     child: Child,
     exit: Option<Exit>,
-    containers: HashMap<ContainerId, (Child, PathBuf)>,
+    /// Each container: its process, its directory and its mounts.
+    containers: HashMap<ContainerId, (Child, PathBuf, Mounts)>,
 }
 
 /// The `fake` unit driver.
@@ -286,7 +289,7 @@ impl UnitDriver for FakeUnit {
             return Ok(Residue { processes: Count::Known(left), files });
         };
         let top_only = self.planted(UnitPlant::KillTopOnly) || self.planted(UnitPlant::FalseTreeKill);
-        for (_, (mut c, _)) in r.containers.drain() {
+        for (_, (mut c, _, _)) in r.containers.drain() {
             let _ = c.kill();
             let _ = c.wait();
         }
@@ -334,11 +337,13 @@ impl UnitDriver for FakeUnit {
         parse_pinned(&spec.image)?;
         let n = self.containers.fetch_add(1, Ordering::Relaxed);
         let id = ContainerId(format!("c-{n}"));
-        let (root, tag) = self.with_unit(unit, |r| Ok((r.root.clone(), r.tag.clone())))?;
+        let (root, runner_root, tag) =
+            self.with_unit(unit, |r| Ok((r.root.clone(), r.runner_root.clone(), r.tag.clone())))?;
         let dir = root.join("containers").join(&id.0);
         fs::create_dir_all(&dir).map_err(|e| host(e, "a container directory"))?;
-        // The fake applies no mount and no option: it records them, one on
-        // each line, for the tests of the hooks.
+        // The fake applies no option and no mount: it records them, one on
+        // each line, for the tests of the hooks, and maps each mount target
+        // to its source in the argv, the environment and the workdir.
         let record: String = spec
             .mounts
             .iter()
@@ -346,11 +351,14 @@ impl UnitDriver for FakeUnit {
             .chain(spec.options.iter().map(|(k, v)| format!("option {k} {v}\n")))
             .collect();
         fs::write(dir.join("spec"), record).map_err(|e| host(e, "the record of a container"))?;
-        let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+        let mounts = Mounts::of(&spec.mounts, &runner_root);
+        let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), mounts.map(v))).collect();
         env.push((TAG_VAR.into(), tag));
-        let child = self.spawn(&spec.argv, &dir, &env, Some(&dir.join("log")))?;
+        let argv: Vec<String> = spec.argv.iter().map(|a| mounts.map(a)).collect();
+        let cwd = mounts.workdir(spec.workdir.as_deref(), &dir);
+        let child = self.spawn(&argv, &cwd, &env, Some(&dir.join("log")))?;
         self.with_unit(unit, |r| {
-            r.containers.insert(id.clone(), (child, dir));
+            r.containers.insert(id.clone(), (child, dir, mounts));
             Ok(id)
         })
     }
@@ -359,22 +367,24 @@ impl UnitDriver for FakeUnit {
         if spec.stdin && !self.planted(UnitPlant::AcceptStdin) {
             return Err(UnitError::new(UnitCode::ContainerOptionRefused, "stdin"));
         }
-        let (dir, tag) = self.with_unit(unit, |r| {
-            let (_, dir) = r
+        let (dir, mounts, tag) = self.with_unit(unit, |r| {
+            let (_, dir, mounts) = r
                 .containers
                 .get(container)
                 .ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, container.0.clone()))?;
-            Ok((dir.clone(), r.tag.clone()))
+            Ok((dir.clone(), mounts.clone(), r.tag.clone()))
         })?;
-        let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+        let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), mounts.map(v))).collect();
         env.push((TAG_VAR.into(), tag));
-        let mut child = self.spawn(&spec.argv, &dir, &env, spec.log.as_deref())?;
+        let argv: Vec<String> = spec.argv.iter().map(|a| mounts.map(a)).collect();
+        let cwd = mounts.workdir(spec.workdir.as_deref(), &dir);
+        let mut child = self.spawn(&argv, &cwd, &env, spec.log.as_deref())?;
         child.wait().map(procs::exit_of).map_err(|e| host(e, "exec"))
     }
 
     fn container_logs(&self, unit: &UnitId, container: &ContainerId) -> Result<Vec<u8>, UnitError> {
         self.with_unit(unit, |r| {
-            let (_, dir) = r
+            let (_, dir, _) = r
                 .containers
                 .get(container)
                 .ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, container.0.clone()))?;
@@ -384,7 +394,7 @@ impl UnitDriver for FakeUnit {
 
     fn container_inspect(&self, unit: &UnitId, container: &ContainerId) -> Result<ContainerState, UnitError> {
         self.with_unit(unit, |r| {
-            let (c, _) = r
+            let (c, _, _) = r
                 .containers
                 .get_mut(container)
                 .ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, container.0.clone()))?;
@@ -395,7 +405,7 @@ impl UnitDriver for FakeUnit {
 
     fn container_stop(&self, unit: &UnitId, container: &ContainerId) -> Result<(), UnitError> {
         self.with_unit(unit, |r| {
-            let (mut c, _) = r
+            let (mut c, _, _) = r
                 .containers
                 .remove(container)
                 .ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, container.0.clone()))?;

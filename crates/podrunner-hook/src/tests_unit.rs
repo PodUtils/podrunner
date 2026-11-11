@@ -75,7 +75,7 @@ fn each_command_reaches_the_fake_unit() {
 
     let prepared = hook(
         Command::PrepareJob,
-        call("prepare_job", json!({ "container": container("sleep", &["30"], "/__w"), "services": [] })),
+        call("prepare_job", json!({ "container": container("", &[], "/__w"), "services": [] })),
     )
     .unwrap();
     let response: Value = serde_json::from_slice(&prepared.output).unwrap();
@@ -85,6 +85,9 @@ fn each_command_reaches_the_fake_unit() {
     assert!(!String::from_utf8_lossy(&prepared.output).contains(CANARY));
     // The mount source is the runner directory of the unit on the host.
     let cid = response["context"]["container"]["id"].as_str().unwrap().to_string();
+    // The runner gives the job container no entry point: it still lives.
+    let state = fake.container_inspect(&id, &podrunner_unit::ContainerId(cid.clone())).unwrap();
+    assert!(state.running, "{state:?}");
     let root = fake.observe(&id).unwrap().unit_root.unwrap();
     let record = std::fs::read_to_string(root.join("containers").join(&cid).join("spec")).unwrap();
     assert_eq!(record, format!("mount {} /__w rw\n", dir.join("runner/_work").display()));

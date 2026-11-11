@@ -25,6 +25,9 @@ pub struct Job {
     /// The `env:` of the workflow and of the job.
     pub env: Vec<(String, String)>,
     pub steps: Vec<Step>,
+    /// The image of `container:`, or none: the runner then runs the job
+    /// through its container hooks.
+    pub container: Option<String>,
 }
 
 impl Job {
@@ -36,7 +39,7 @@ impl Job {
             condition: String::new(),
             env: Vec::new(),
         });
-        Job { name: name.into(), env: Vec::new(), steps: steps.collect() }
+        Job { name: name.into(), env: Vec::new(), steps: steps.collect(), container: None }
     }
 }
 
@@ -116,11 +119,16 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
             "repositories": [],
         },
         "workspace": {},
+        "jobContainer": job.container,
         "environmentVariables": if job.env.is_empty() { json!([]) } else { json!([mapping(&job.env)]) },
         // The results service of the Worker (logs, step updates): this broker.
         "variables": {
             "system.github.job": { "value": job.name },
             "system.github.results_endpoint": { "value": base },
+            // The runner takes the container hooks only with this flag
+            // (`FeatureManager.IsContainerHooksEnabled`), and the variable
+            // `ACTIONS_RUNNER_CONTAINER_HOOKS`.
+            "DistributedTask.AllowRunnerContainerHooks": { "value": "true" },
         },
         "contextData": { "github": { "t": 2, "d": [
             s("repository", "example-org/app"), s("workflow", "podrunner"), s("job", &job.name),
@@ -153,6 +161,7 @@ mod tests {
         assert_eq!(m["steps"][0]["condition"], "success()");
         assert_eq!(m["steps"][1]["condition"], "success() && (github.event_name == 'push')");
         assert_eq!(m["environmentVariables"][0]["map"][0]["Key"], "A");
+        assert!(m["jobContainer"].is_null());
         // The job token is a JWT with three parts and an expiry.
         let token = job_token();
         let parts: Vec<&str> = token.split('.').collect();

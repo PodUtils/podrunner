@@ -31,7 +31,7 @@ then take the next one. Continue a `partial` entry first.
 1. **The plan:** T-001 closes when its issue closes.
 2. **The registers:** T-009 (partial: the open rows wait for their entries).
 3. **M-C, L2:** T-035
-   (partial: a container job on the real runner, with T-038), T-030
+   (partial: the conformance tests on the fake path, the canary), T-030
    (partial: the import into a podvm store); T-034.
 4. **Blocked:** T-007 (DR-7: not now), T-014 (the spec), T-026 (podvm),
    T-036 (a real guest), T-038 (the run in a podvm unit: T-026), T-047 (podvm),
