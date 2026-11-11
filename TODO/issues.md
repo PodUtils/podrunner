@@ -29,11 +29,11 @@ numbers. `TODO/RULES.md` gives the rules.
 | #21 | WP-03: `slots` core: states, journal, placement, status, drain, codes, config, audit | closed (`644bab7`, gate run 42940434305) | T-021 |
 | #22 | CLI and control socket: `serve`, `status`, `drain`, `stop`, `doctor`, `print-unit` | closed (`644bab7`, gate run 42940434305) | T-022 |
 | #23 | WP-04: podvm unit driver with a per-unit store and a subreaper shim | open | T-023 |
-| #24 | WP-08: egress module over `pod-broker` v1, one listener for each unit | open | T-024 |
+| #24 | WP-08: egress module over `pod-broker` v1, one listener for each unit | closed (`d69e791`, gate run 42946099969) | T-024 |
 | #25 | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload | open | T-025 |
 | #26 | Milestone M-B: the official runner starts under the podvm driver, no GitHub | open | T-026 |
-| #27 | WP-05a: `mint` with an in-process `sign` module, source conformance | open | T-027 |
-| #28 | WP-06: fake scale-set service (Go, test only) | open | T-028 |
+| #27 | WP-05a: `mint` with an in-process `sign` module, source conformance | closed (`9d48ab8`, gate run 42946099969) | T-027 |
+| #28 | WP-06: fake scale-set service (Go, test only) | closed (`ece89cd`, gate run 42946099969) | T-028 |
 | #29 | WP-07: `github-scaleset` source sidecar (static Go) | open | T-029 |
 | #30 | WP-10: image pipeline: pins, age limit, `podrunner image build` | open | T-030 |
 | #31 | WP-05b: remote mint (only if DR-4 is yes) | open | T-031 |

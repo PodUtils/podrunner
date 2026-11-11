@@ -456,7 +456,7 @@ host (chroot and mount denied: the userland rung), and U25.
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -530,6 +530,11 @@ after PodUtils/podvm#235 (U21).
 ## Prove
 
 `cargo test -p podrunner-egress`
+
+## Done
+
+2026-11-11, commit `d69e791`; the gate run 42946099969 is green. `cargo test -p podrunner-egress`: 3 passed (two units, two listeners; a token of unit A gets 407 on the listener of unit B; a close and a kill end the listeners). `cargo test -p podrunner-slots`: 21 passed, with a kind at hold `none` that gets no `trusted` job (`hold-not-available`) and a dead egress that stops the offers and ends the running units. U24 is settled in `docs/unknowns.md`: `serve_unix_job` of podcrates `v0.16.0`, no wrapper. No host of the Actions service is in the code.
+
 
 # T-025: Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload (GitHub #25)
 

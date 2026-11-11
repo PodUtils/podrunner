@@ -56,7 +56,7 @@ podvm (on break) fixes PodUtils/podvm#229, PodUtils/podvm#230 and PodUtils/podvm
 **Milestone:** M-C
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -94,6 +94,11 @@ A `mint` step that makes the JIT runner configuration with an in-process `sign` 
 
 `cargo test -p podrunner-mint`
 
+## Done
+
+2026-11-11, commits `6df0826` and `9d48ab8`; the gate run 42946099969 is green. `cargo test -p podrunner-mint`: 9 passed: source tests 1 to 5, 10 and 11 through `Mint` over the fake source; the key and the token reach no output (a positive control: the token holds the claims); a second claim shape is refused and audited; a JWT of a PKCS#1 PEM test key (made by `openssl` in each run) verifies with the public key; a revocation is final and names no secret; the sidecar restarts with a backoff. `ring` signs; no `rsa` crate is in `Cargo.lock`.
+
+
 # T-028: WP-06: the fake scale-set service (Go, test only) (GitHub #28)
 
 **Source:** GitHub #28
@@ -101,7 +106,7 @@ A `mint` step that makes the JIT runner configuration with an in-process `sign` 
 **Milestone:** M-C
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -150,6 +155,11 @@ Open: the conformance run of the sidecar (T-029) on it.
 ## Prove
 
 `go test ./...` in the directory of the fake service.
+
+## Done
+
+2026-11-11, commit `ece89cd`; the gate run 42946099969 is green: its job `go` runs `go test ./...` of `tools/fake-scaleset` (the client of `actions/scaleset` v0.5.0 against the fake: a fork pull request, a redelivery, a cancel, a job from available to completed) and the source tests of the sidecar on the fake (`crates/podrunner-source/tests/scaleset.rs`: 12 of 12).
+
 
 # T-029: WP-07: the github-scaleset source sidecar (static Go) (GitHub #29)
 
