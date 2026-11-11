@@ -37,6 +37,8 @@ pub enum Kind {
     Destroy,
     /// The source refused a report: it is in the spool (T-069).
     ReportSpooled,
+    /// A unit went over a limit that slots measures (`disk`, T-074).
+    Limit,
 }
 
 /// One audit line.

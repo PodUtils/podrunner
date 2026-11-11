@@ -1105,7 +1105,7 @@ Read SPEC §10.4 and `crates/podrunner-slots/src` on 2026-11-11: `disk` appears 
 
 ## Problem
 
-SPEC §11.4 names `claim_to_first_step_s` (from the claim to the job-started hook) and `job_images` (the digests of the job images) in the run report; SPEC §11.5 names credential ages and the App id and key age in `status`. `RunReport` of `pod-job` at `v0.24.0` has neither report field, and `crates/podrunner-slots/src/status.rs` shows no age of a credential or of the App key.
+SPEC §11.4 names `claim_to_first_step_s` (from the claim to the job-started hook) and `job_images` (the digests of the job images) in the run report; SPEC §11.5 names credential ages and the App id and key age in `status`. `RunReport` of `pod-job` at `v0.24.0` has neither report field, nor the exit reason `limit` of SPEC §10.4 (a unit over its disk bound ends as `failure` with an audit line `limit`, T-074), and `crates/podrunner-slots/src/status.rs` shows no age of a credential or of the App key.
 
 ## Premise
 

@@ -6,6 +6,7 @@
 
 pub mod audit;
 pub mod config;
+pub mod disk;
 mod engine;
 pub mod forget;
 pub mod guest;
@@ -65,6 +66,7 @@ impl Slots {
             guest: Default::default(),
             hooks: None,
             spool_next_ms: 0,
+            disk_next_ms: 0,
         };
         s.reconcile(replay.open);
         Ok(s)

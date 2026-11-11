@@ -116,6 +116,11 @@ pub struct UnitConfig {
     /// (`podnet pod`, T-065); absent: no hold (`egress_hold: unknown`).
     #[serde(default)]
     pub podnet: Option<String>,
+    /// The bytes that a unit may write under its root, measured every
+    /// 30 s (T-074); a `disk` limit of the offer comes first. Absent: no
+    /// measure.
+    #[serde(default)]
+    pub disk_max_bytes: Option<u64>,
 }
 
 fn run_sh() -> Vec<String> {

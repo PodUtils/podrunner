@@ -351,3 +351,31 @@ fn start_env_lets_a_stale_runner_exit_7() {
     assert_eq!(bed.slots.reports[0].exit_code, Some(7), "{:?}", bed.slots.reports[0]);
     assert!(bed.slots.degraded().is_some_and(|d| d.contains("too old")));
 }
+
+/// T-074: a unit that writes past `disk_max_bytes` ends with an audit line
+/// `limit`; one under its bound runs to its end.
+#[test]
+fn disk_limit_ends_a_unit_over_its_bound() {
+    let big = "head -c 300000 /dev/zero > big.bin; exec sleep 300";
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh(big) }],
+    );
+    bed.slots.kinds[0].cfg.disk_max_bytes = Some(100_000);
+    bed.until(120, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Failure);
+    let limit = bed.slots.audit_lines().iter().find(|a| a.audit == crate::audit::Kind::Limit).expect("a limit line");
+    assert_eq!(limit.detail.as_deref(), Some("disk"));
+
+    // Under the bound: the unit ends by itself.
+    let small = "head -c 1000 /dev/zero > small.bin; exit 0";
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh(small) }],
+    );
+    bed.slots.kinds[0].cfg.disk_max_bytes = Some(100_000);
+    bed.until(60, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
+}

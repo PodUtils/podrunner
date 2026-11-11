@@ -264,7 +264,7 @@ impl Slots {
 
     /// Signal the unit and record the reason; the next ticks wait for the
     /// end, then destroy.
-    fn end(&mut self, key: &Key, reason: ExitReason, signal: Signal, now: u64) {
+    pub(crate) fn end(&mut self, key: &Key, reason: ExitReason, signal: Signal, now: u64) {
         let (unit, kind) = {
             let j = &self.jobs[key];
             (j.unit.clone(), j.placement.as_ref().map(|p| p.kind))

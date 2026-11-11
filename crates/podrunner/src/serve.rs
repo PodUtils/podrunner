@@ -321,6 +321,11 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                 work_root: u.runner_dir.clone().unwrap_or_default(),
             },
         );
+        // slots measures the disk of a kind with a bound (T-074).
+        let mut capability = capability;
+        if u.disk_max_bytes.is_some() {
+            capability.limits.insert("disk".into(), podrunner_schema::LimitMode::Reported);
+        }
         kinds.push(UnitKind { name: name.clone(), cfg: u.clone(), driver, capability });
     }
     let ttl = Duration::from_secs(cfg.deadlines.running_s + cfg.deadlines.grace_s + cfg.deadlines.destroy_s);

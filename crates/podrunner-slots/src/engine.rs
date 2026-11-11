@@ -100,6 +100,8 @@ pub struct Slots {
     pub(crate) hooks: Option<Box<dyn crate::hooks::HookPort>>,
     /// The time of the next send of the spooled reports (T-069).
     pub(crate) spool_next_ms: u64,
+    /// The time of the next measure of the disk of the units (T-074).
+    pub(crate) disk_next_ms: u64,
 }
 
 impl Slots {
@@ -119,6 +121,7 @@ impl Slots {
         self.check_egress(now);
         self.retest_guests(now);
         self.hook_events(now);
+        self.check_disks(now);
         self.progress(now);
         for s in 0..self.sources.len() {
             self.poll(s, now);
