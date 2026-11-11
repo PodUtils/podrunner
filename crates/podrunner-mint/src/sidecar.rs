@@ -1,7 +1,10 @@
 //! A source in a child process: the scale-set sidecar (GitHub #29). `mint`
 //! starts it with the source wire on its stdio and a channel to `sign` on
 //! its descriptor 3 (call C15), and starts it again with a backoff when it
-//! ends, except after a revocation.
+//! ends, except after a revocation. Each call has a reply deadline
+//! (GitHub #57): a sidecar that lives and says nothing is killed and starts
+//! again after the backoff, so the supervisor never waits for ever, and no
+//! late reply is read as the answer to the next request.
 
 use std::io::{BufRead, BufReader, Write};
 use std::os::fd::AsRawFd;
@@ -12,7 +15,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use podrunner_schema::{Credential, JobId};
-use podrunner_source::{Event, Hello, JobSource, SourceCode, SourceError, WireSource};
+use podrunner_source::wire::LINE_MAX;
+use podrunner_source::{Event, Exchange, Hello, JobSource, SourceCode, SourceError, Wire};
 use serde_json::{Map, Value};
 
 use crate::sign::{Refusal, Signer};
@@ -21,9 +25,60 @@ use crate::sign::{Refusal, Signer};
 const BACKOFF_FIRST: Duration = Duration::from_secs(1);
 const BACKOFF_MAX: Duration = Duration::from_secs(60);
 
+/// The longest wait for one reply of the sidecar, after the long poll of
+/// `next`. A call to GitHub inside the sidecar fits in it.
+pub const REPLY_LIMIT: Duration = Duration::from_secs(15);
+
+/// The stdio of the sidecar, with a deadline on each reply.
+struct Pipe {
+    reader: BufReader<ChildStdout>,
+    writer: ChildStdin,
+    /// The deadline of the next exchange.
+    limit: Duration,
+}
+
+impl Exchange for Pipe {
+    fn exchange(&mut self, line: &str) -> Result<Vec<u8>, SourceError> {
+        let down = |e: std::io::Error| SourceError::new(SourceCode::Unavailable, format!("the wire: {}", e.kind()));
+        self.writer.write_all(line.as_bytes()).map_err(down)?;
+        self.writer.flush().map_err(down)?;
+        let deadline = Instant::now() + self.limit;
+        let mut reply = Vec::new();
+        loop {
+            let buf = self.reader.buffer();
+            if let Some(i) = buf.iter().position(|b| *b == b'\n') {
+                reply.extend_from_slice(&buf[..=i]);
+                self.reader.consume(i + 1);
+                return Ok(reply);
+            }
+            let n = buf.len();
+            reply.extend_from_slice(buf);
+            self.reader.consume(n);
+            // One byte over the limit tells a long line from a full one.
+            if reply.len() > LINE_MAX + 1 {
+                return Ok(reply);
+            }
+            let left = deadline.saturating_duration_since(Instant::now());
+            let mut fd = libc::pollfd { fd: self.reader.get_ref().as_raw_fd(), events: libc::POLLIN, revents: 0 };
+            let ms = left.as_millis().min(i32::MAX as u128) as i32;
+            // SAFETY: poll(2) on one pollfd that lives on this stack.
+            let rc = unsafe { libc::poll(&mut fd, 1, ms) };
+            if rc < 0 {
+                return Err(down(std::io::Error::last_os_error()));
+            }
+            if rc == 0 {
+                return Err(SourceError::new(SourceCode::Unavailable, "the sidecar did not answer in time"));
+            }
+            if self.reader.fill_buf().map_err(down)?.is_empty() {
+                return Err(SourceError::new(SourceCode::Unavailable, "the source closed the wire"));
+            }
+        }
+    }
+}
+
 struct Running {
     child: Child,
-    wire: WireSource<BufReader<ChildStdout>, ChildStdin>,
+    wire: Wire<Pipe>,
 }
 
 impl Drop for Running {
@@ -45,6 +100,8 @@ pub struct SidecarSource {
     revoked: bool,
     /// The starts of the sidecar, for `status`.
     pub starts: u64,
+    /// The reply deadline of each call (`REPLY_LIMIT`).
+    limit: Duration,
 }
 
 /// Answer the sign requests of one sidecar until its channel closes.
@@ -78,6 +135,7 @@ impl SidecarSource {
             not_before: None,
             revoked: false,
             starts: 0,
+            limit: REPLY_LIMIT,
         }
     }
 
@@ -101,19 +159,28 @@ impl SidecarSource {
         let (signer, caller) = (self.signer.clone(), self.caller.clone());
         std::thread::spawn(move || serve_sign(ours, signer, caller));
         let (stdin, stdout) = (child.stdin.take().expect("stdin"), child.stdout.take().expect("stdout"));
-        self.running = Some(Running { child, wire: WireSource::new(BufReader::new(stdout), stdin) });
+        let pipe = Pipe { reader: BufReader::new(stdout), writer: stdin, limit: REPLY_LIMIT };
+        self.running = Some(Running { child, wire: Wire(pipe) });
         self.starts += 1;
         Ok(())
     }
 
-    fn call<T>(&mut self, f: impl FnOnce(&mut dyn JobSource) -> Result<T, SourceError>) -> Result<T, SourceError> {
+    /// One call of the wire, with `wait` (the long poll of `next`) added to
+    /// the reply deadline. A timeout is a broken wire: the child goes.
+    fn call<T>(
+        &mut self,
+        wait: Duration,
+        f: impl FnOnce(&mut dyn JobSource) -> Result<T, SourceError>,
+    ) -> Result<T, SourceError> {
         if self.revoked {
             return Err(SourceError::new(SourceCode::SourceRevoked, "the source is revoked"));
         }
         if self.running.is_none() {
             self.start()?;
         }
-        let got = f(&mut self.running.as_mut().expect("running").wire);
+        let running = self.running.as_mut().expect("running");
+        running.wire.0.limit = self.limit + wait;
+        let got = f(&mut running.wire);
         match &got {
             Err(e) if e.code == SourceCode::SourceRevoked => {
                 self.revoked = true;
@@ -134,31 +201,31 @@ impl SidecarSource {
 
 impl JobSource for SidecarSource {
     fn hello(&mut self, client: &str, version: &str) -> Result<Hello, SourceError> {
-        self.call(|s| s.hello(client, version))
+        self.call(Duration::ZERO, |s| s.hello(client, version))
     }
     fn next(&mut self, capacity: u32, wait: Duration) -> Result<Vec<Event>, SourceError> {
-        self.call(|s| s.next(capacity, wait))
+        self.call(wait, |s| s.next(capacity, wait))
     }
     fn ack(&mut self, job: &JobId) -> Result<(), SourceError> {
-        self.call(|s| s.ack(job))
+        self.call(Duration::ZERO, |s| s.ack(job))
     }
     fn claim(&mut self, job: &JobId, runner: &str) -> Result<(), SourceError> {
-        self.call(|s| s.claim(job, runner))
+        self.call(Duration::ZERO, |s| s.claim(job, runner))
     }
     fn mint(&mut self, job: &JobId, runner: &str) -> Result<Credential, SourceError> {
-        self.call(|s| s.mint(job, runner))
+        self.call(Duration::ZERO, |s| s.mint(job, runner))
     }
     fn report(&mut self, job: &JobId, report: &Map<String, Value>) -> Result<(), SourceError> {
-        self.call(|s| s.report(job, report))
+        self.call(Duration::ZERO, |s| s.report(job, report))
     }
     fn audit(&mut self, line: &Map<String, Value>) -> Result<(), SourceError> {
-        self.call(|s| s.audit(line))
+        self.call(Duration::ZERO, |s| s.audit(line))
     }
     fn withdraw(&mut self, job: &JobId, reason: &str) -> Result<(), SourceError> {
-        self.call(|s| s.withdraw(job, reason))
+        self.call(Duration::ZERO, |s| s.withdraw(job, reason))
     }
     fn release(&mut self, job: &JobId) -> Result<(), SourceError> {
-        self.call(|s| s.release(job))
+        self.call(Duration::ZERO, |s| s.release(job))
     }
 }
 
@@ -187,6 +254,51 @@ mod tests {
         assert!(s.hello("p", "0").unwrap_err().detail.contains("waits for its restart"));
         assert_eq!(s.starts, 1);
         assert_eq!(s.backoff, BACKOFF_FIRST * 2);
+    }
+
+    /// A script sidecar: answers `hello`, then `sh` runs `then`.
+    fn script(then: &str) -> SidecarSource {
+        let hello = r#"{"schema":1,"reply":"hello","source":"s","operator_controlled":true}"#;
+        let body = format!("read l; echo '{hello}'; read l; {then}");
+        SidecarSource::new("sh", vec!["-c".into(), body], signer(), "test")
+    }
+
+    #[test]
+    fn a_silent_sidecar_is_killed_at_the_deadline_and_starts_again() {
+        let mut s = script("sleep 30");
+        s.limit = Duration::from_millis(500);
+        s.hello("p", "0").unwrap();
+        let t = Instant::now();
+        let e = s.ack(&JobId::new("j-1").unwrap()).unwrap_err();
+        assert_eq!(e.code, SourceCode::Unavailable);
+        assert!(e.detail.contains("did not answer in time"), "{}", e.detail);
+        assert!(t.elapsed() < Duration::from_secs(3), "{:?}", t.elapsed());
+        assert!(s.running.is_none());
+        // After the backoff, the next call starts a new sidecar.
+        s.not_before = None;
+        s.hello("p", "0").unwrap();
+        assert_eq!(s.starts, 2);
+    }
+
+    #[test]
+    fn a_late_reply_is_never_the_answer_to_the_next_call() {
+        let late = r#"{"schema":1,"reply":"done"}"#;
+        let mut s = script(&format!("sleep 1; echo '{late}'; sleep 30"));
+        s.limit = Duration::from_millis(300);
+        s.hello("p", "0").unwrap();
+        assert!(s.ack(&JobId::new("j-1").unwrap()).is_err());
+        std::thread::sleep(Duration::from_millis(1200));
+        // The killed child cannot answer; a new child starts with hello.
+        s.not_before = None;
+        assert!(s.ack(&JobId::new("j-2").unwrap()).is_err());
+    }
+
+    #[test]
+    fn a_child_that_ends_in_a_call_is_unavailable() {
+        let mut s = script("exit 0");
+        s.hello("p", "0").unwrap();
+        let e = s.ack(&JobId::new("j-1").unwrap()).unwrap_err();
+        assert_eq!(e.code, SourceCode::Unavailable, "{e:?}");
     }
 
     #[test]

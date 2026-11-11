@@ -47,6 +47,12 @@ sends `release` for a job that it may not hold. `release` names no
 runner, so a source must not free the claim of another runner on it: the
 scale-set sidecar releases only a runner that it registered itself.
 
+A source in a child process (the scale-set sidecar) answers each request
+within 15 s after the long poll of `next` (`REPLY_LIMIT`,
+`crates/podrunner-mint/src/sidecar.rs`). A child that passes it is killed
+and starts again after the backoff (GitHub #57): on a lock-step wire, a
+late reply would be read as the answer to the next request.
+
 ## Events
 
 | Event | Fields | Meaning |
