@@ -1198,3 +1198,32 @@ podnet takes an IPv4-mapped address by its IPv4 address in the rules of the secc
 ## Blocker
 
 A podnet release that takes `::ffff:127.0.0.0/104` as loopback (GitHub #64, to podnet).
+
+# T-078: The podvm driver labels each unit and reads the run report of podvm
+
+**Source:** PodUtils/podvm#268
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+The podvm driver finds the processes of a unit by a tag in their environment, which a payload can drop (`env -i`, design test 3), and it learns nothing of a run from podvm but the exit code. podvm on `main` after `v0.2.0-beta.4` keeps `run --label KEY=VALUE` (`ps --filter label=`, `inspect --format '{{.Labels}}'`) and writes `run --report PATH`: one JSON document for each run with `image_digest`, `exit_code`, `signal`, `wall_ms`, `max_rss_kib`, `timed_out`, `refused` and `degradations`.
+
+## Premise
+
+Read PodUtils/podvm#268 (COORD-049) on 2026-11-11. Not in a podvm release yet. Nothing measured.
+
+## Approach
+
+With the next beta: give `run -d` and each container `--label podrunner.unit=ID` and `--report` in the unit directory; `destroy` also lists `ps -a -q --filter label=podrunner.unit=ID` and removes each. The image digests of the reports fill `job_images` of the run report (T-075); a `refused` or `timed_out` value goes to the audit. Pin the beta and raise `probe::LOWEST`.
+
+## Prove
+
+`cargo test -p podrunner-podvm --test conformance -- --ignored` on the new beta, and a test that the run report of a unit names the digest of its image.
+
+## Blocker
+
+A podvm release with PodUtils/podvm@T-1695 (the beta after `v0.2.0-beta.4`).
