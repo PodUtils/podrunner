@@ -1,5 +1,5 @@
 {
- "podvm": "0.2.0-beta.3",
+ "podvm": "0.2.0-beta.4",
  "rung": "supervise",
  "rung_must_never_claim": "anything whose arguments it cannot read; on this runtime, exec remapping",
  "strict_ok": false,

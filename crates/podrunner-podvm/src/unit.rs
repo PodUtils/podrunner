@@ -309,6 +309,10 @@ impl UnitDriver for PodvmUnit {
         let lost = !tree.is_empty()
             && !tree.iter().any(|p| Some(*p) != waiter && procs_comm_is_podvm(*p))
             && tree.iter().any(|p| Some(*p) != waiter);
+        // From beta.4 the payload ends with a killed launcher, so no tagged
+        // process is left; podvm names the state `dead` then. Read it before
+        // the kill, which also ends the launcher.
+        let lost = lost || removed.as_ref().is_some_and(|r| self.launcher_died(&r.dir.join("store"), unit.as_str()));
         let left = shim::kill_tree_of_tagged(&tag, KILL_LIMIT);
         if let Some(mut r) = removed {
             let _ = r.waiter.kill();

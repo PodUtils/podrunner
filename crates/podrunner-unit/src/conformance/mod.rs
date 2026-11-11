@@ -41,8 +41,9 @@ pub enum Behaviour {
     /// working directory, then sleep.
     Escape,
     /// As [`Behaviour::Escape`], but kill the parent of the top process
-    /// with SIGKILL (the shim of the driver, when it has one) before the
-    /// pid file is written.
+    /// with SIGKILL (the shim of the driver, when it has one) after the pid
+    /// file is written: a parent with a death signal ends the shell with
+    /// it.
     KillParent,
     /// Copy each [`MARKER`] of the directories next to the working
     /// directory (`../*/MARKER`) to [`SEEN`], write and read back [`OWN`],

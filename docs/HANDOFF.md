@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.25.0` (`Cargo.toml`); podvm `v0.2.0-beta.3`
+- Pins: podcrates `v0.25.0` (`Cargo.toml`); podvm `v0.2.0-beta.4`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); the
   official runner v2.338.2 (`images/runner/runner.toml`). Last beta of
   podrunner: `v0.1.0-beta.1`.
@@ -24,15 +24,12 @@ is done.
   `pod-confine` (`crates/podrunner-unit/src/confine.rs`); conformance test
   27 passes on it. A unit kind of real jobs at `confined` waits for
   podvm (PodUtils/podvm#259).
-- A podvm unit reports `egress_hold: unknown`: `podnet pod` is not wired
-  into the driver, so placement gives a podvm unit no `trusted` job
-  (`hold-not-available`). T-065 wires it.
+- With `[unit.podvm] podnet`, a podvm unit runs under `podnet pod`: the
+  netns hold (`enforced`) where user namespaces and `/dev/net/tun` exist,
+  else the seccomp hold (`advisory`) (T-065, T-041).
 
 ## In flight
 
-- T-064: the next podvm beta copies the image for each container
-  (PodUtils/podvm#258). T-067 takes the root of a unit from
-  `podvm inspect` first; then pin the beta and run tests 25 and 26 on it.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work.
@@ -42,7 +39,6 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | The owner | DR-7: a test organization and App ("not now") | T-007, T-032, T-033, T-040 |
-| podvm (on break) | the next beta: a tree for each container (PodUtils/podvm@T-1709), absolute links (PodUtils/podvm@T-1725), `:ro` on `exec` (PodUtils/podvm@T-1726) | T-064, T-061, T-062 |
 | podvm | `pod-confine` in its units (PodUtils/podvm#259) | T-042 |
 | podvm | the aarch64 interposer (PodUtils/podvm@T-1721) | T-051, T-030 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |

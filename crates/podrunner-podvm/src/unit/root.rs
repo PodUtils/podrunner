@@ -1,5 +1,5 @@
-//! The root of a running podvm unit (T-067). podvm `v0.2.0-beta.3` runs a
-//! unit in the rootfs that `podvm extract` names. Later podvm copies the
+//! The root of a running podvm unit (T-067). podvm `v0.2.0-beta.3` ran a
+//! unit in the rootfs that `podvm extract` names. From beta.4 podvm copies the
 //! image into a tree for each container at `run` (PodUtils/podvm@T-1709)
 //! and names it in `podvm inspect --format '{{.RootfsPath}}'`; the runner
 //! then writes in that tree. The driver takes the tree that `inspect`
@@ -15,6 +15,24 @@ use podrunner_unit::{UnitCode, UnitError};
 use super::{PodvmUnit, RUNNER_ROOT, WORKDIR};
 
 impl PodvmUnit {
+    /// True when podvm says that the launcher of the container `name` was
+    /// killed (`State` `dead`): its orphans went to init, out of reach of
+    /// podvm and of the driver (design test 15).
+    pub(super) fn launcher_died(&self, store: &Path, name: &str) -> bool {
+        let Ok(out) = Command::new(&self.podvm.binary)
+            .args(["inspect", name])
+            .env("PODVM_STORE", store)
+            .stdin(Stdio::null())
+            .stderr(Stdio::null())
+            .output()
+        else {
+            return false;
+        };
+        let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap_or_default();
+        let one = if v.is_array() { &v[0] } else { &v };
+        one["State"] == "dead" || one["State"]["Status"] == "dead"
+    }
+
     /// `RootfsPath` of the container `name` in `store`, when podvm names
     /// a directory.
     pub(super) fn inspected_root(&self, store: &Path, name: &str) -> Option<PathBuf> {

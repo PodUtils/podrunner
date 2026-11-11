@@ -13,6 +13,9 @@ on:
     paths:
       - images/podvm.toml
       - images/podnet.toml
+      - scripts/measure-podnet-pod.sh
+      - scripts/measure-container-verbs.sh
+      - crates/podrunner-fake/**
       - images/runner/**
       - crates/podrunner-hook/relay/**
       - crates/podrunner-podvm/**
@@ -150,6 +153,11 @@ jobs:
           # T-065: the egress hold of a unit under podnet pod.
           sh scripts/measure-podnet-pod.sh "$PODRUNNER_PODNET" "$PODRUNNER_PODVM" "$RUNNER_TEMP/podnet-measure"
           timeout 300 cargo test -p podrunner-podvm --test hold -- --ignored --nocapture
+          # T-061: an absolute link resolves in the rootfs of the unit.
+          timeout 300 cargo test -p podrunner-podvm --test links -- --ignored --nocapture
+          # T-062: a step through exec cannot write the externals (:ro).
+          sh scripts/measure-container-verbs.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/verbs" | tee "$RUNNER_TEMP/verbs.txt"
+          grep -qx 'externals-read-only ok' "$RUNNER_TEMP/verbs.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runner-${{ matrix.arch }}

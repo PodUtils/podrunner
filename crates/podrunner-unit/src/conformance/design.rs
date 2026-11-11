@@ -301,9 +301,10 @@ fn a_killed_shim_is_not_clean(fx: &dyn Fixture) -> Result<Outcome, String> {
     if !alive(orphan) {
         return Ok(Outcome::Skip("the orphan is not seen on the host (a pid namespace)".into()));
     }
-    // The pid file comes after the kill of the parent; give the kernel time
-    // to reparent the orphans.
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    // The kill of the parent can come just after the pid file (a parent
+    // with a death signal ends its child with it); give the payload and the
+    // kernel time to reparent the orphans.
+    std::thread::sleep(std::time::Duration::from_millis(300));
     let residue = fx.driver().destroy(&u.id).map_err(|e| err("destroy", e));
     let lives = alive(orphan);
     if lives {

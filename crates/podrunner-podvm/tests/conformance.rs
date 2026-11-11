@@ -46,6 +46,8 @@ impl Fixture for Real {
             Behaviour::Grandchild => sh("setsid sh -c 'sleep 300 & wait' & wait"),
             Behaviour::Marker => sh(&format!("echo x > {}; exec sleep 300", conformance::MARKER)),
             Behaviour::Escape => sh(&podrunner_fake_escape("")),
+            // The pid file comes before the kill: from podvm beta.4 the launcher
+            // of `run -d` sets a death signal, so the shell ends with it.
             Behaviour::KillParent => sh(&podrunner_fake_escape("kill -9 $PPID; ")),
             Behaviour::ReadOthers => sh(&format!(
                 "cat ../*/{m} > {s} 2>/dev/null; echo own > {o}.part; cat {o}.part > {o}; exec sleep 300",
@@ -64,11 +66,11 @@ impl Fixture for Real {
 }
 
 /// The script of the payloads with an orphan (as `podrunner_fake::escape`).
-fn podrunner_fake_escape(then: &str) -> String {
-    // The pid file comes last: when it is there, `then` is done. Shell
-    // builtins only: a small image has no `mv`.
+fn podrunner_fake_escape(after: &str) -> String {
+    // The pid file comes first; `after` comes after it.
+    // Shell builtins only: a small image has no `mv`.
     let f = conformance::ESCAPED;
-    format!("(setsid env -i sleep 300 & echo $! > {f}.part); {then}read p < {f}.part; echo $p > {f}; exec sleep 300")
+    format!("(setsid env -i sleep 300 & echo $! > {f}.part); read p < {f}.part; echo $p > {f}; {after}exec sleep 300")
 }
 
 fn env(name: &str) -> String {

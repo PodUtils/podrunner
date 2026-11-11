@@ -17,9 +17,10 @@ use serde_json::Value;
 /// first core version that it does not (exclusive, with each of its
 /// pre-releases). A beta of podvm can rename a
 /// flag: a version outside the range fails `probe` by name, not a job at
-/// run time. beta.3 gives each exit code in `podvm wait` (T-047) and maps
-/// the path of a unix socket (T-050).
-pub const LOWEST: &str = "0.2.0-beta.3";
+/// run time. beta.4 gives a tree for each container (T-064), resolves an
+/// absolute link in the rootfs (T-061) and applies `:ro` on `exec`
+/// (T-062).
+pub const LOWEST: &str = "0.2.0-beta.4";
 pub const BEYOND: &str = "0.3.0";
 
 /// A version `MAJOR.MINOR.PATCH[-PRE.N]`, ordered as semver orders it.
@@ -118,8 +119,8 @@ mod tests {
         assert!(v("0.2.0") < v("0.3.0-beta.1"));
         assert_eq!(v("podvm 0.2.0-beta.2"), v("v0.2.0-beta.2"));
         assert!(Version::parse("0.2").is_none() && Version::parse("x.y.z").is_none());
-        assert!(in_range(&v("0.2.0-beta.3")) && in_range(&v("0.2.9")));
-        assert!(!in_range(&v("0.2.0-beta.2")) && !in_range(&v("0.3.0-beta.1")) && !in_range(&v("0.1.0-beta.12")));
+        assert!(in_range(&v("0.2.0-beta.4")) && in_range(&v("0.2.9")));
+        assert!(!in_range(&v("0.2.0-beta.3")) && !in_range(&v("0.3.0-beta.1")) && !in_range(&v("0.1.0-beta.12")));
     }
 
     #[test]
