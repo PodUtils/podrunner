@@ -6,8 +6,9 @@
 pub type Target = fn(&[u8]);
 
 /// Each target, by name.
-pub const TARGETS: [(&str, Target); 4] = [
+pub const TARGETS: [(&str, Target); 5] = [
     ("control_line", targets::control_line),
+    ("hook_input", targets::hook_input),
     ("slots_config", targets::slots_config),
     ("slots_journal", targets::slots_journal),
     ("source_wire", targets::source_wire),
@@ -15,6 +16,25 @@ pub const TARGETS: [(&str, Target); 4] = [
 
 pub mod targets {
     use podrunner::control;
+    use podrunner_hook::input::{Command, parse};
+    use podrunner_hook::policy::{Gate, Policy};
+
+    /// The reader of a hook call and the checks of the host: no panic on any
+    /// body, for each command; a gate refuses or plans.
+    pub fn hook_input(data: &[u8]) {
+        let policy = Policy {
+            container: podrunner_schema::ContainerRoute::Hooks,
+            shared_host_net: data.len() % 2 == 1,
+            registries: vec!["docker.io".into()],
+            work_root: "/home/runner".into(),
+        };
+        let mut gate = Gate::default();
+        for command in [Command::PrepareJob, Command::RunScriptStep, Command::RunContainerStep, Command::CleanupJob] {
+            if let Ok(input) = parse(command, data) {
+                let _ = gate.check(&input, &policy);
+            }
+        }
+    }
     use podrunner_slots::config::Config;
 
     /// The reader of a line of the control socket: no panic on any line.

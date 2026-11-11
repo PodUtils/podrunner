@@ -683,6 +683,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "podrunner-hook"
+version = "0.1.0"
+dependencies = [
+ "podrunner-schema",
+ "podrunner-unit",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "podrunner-mint"
 version = "0.1.0"
 dependencies = [

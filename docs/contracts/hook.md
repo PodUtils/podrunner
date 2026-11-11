@@ -8,8 +8,10 @@ the unit driver does the container operations of
 `docs/contracts/unit-driver.md`.
 
 The fields below are the interface of the runner's `HookInput.cs` and
-`HookResponse.cs`. T-035 checks them against the source of the pinned
-runner version, and a test of T-035 pins them.
+`HookResponse.cs` of `actions/runner` v2.338.2, in camel case. The
+runner writes `null` for an unset field. `crates/podrunner-hook/src/input.rs`
+reads them as a closed set: an unknown field is refused, and its tests
+pin the shape.
 
 ## The call
 
@@ -49,13 +51,33 @@ The exit code of the script is the result of the call: 0 is success.
 
 ## Refusals
 
-- A `dockerfile` (a container action that builds its image) is refused
-  by name: `build-not-supported` (call C2).
-- An `image` that is not pinned to a digest by the pin list is refused:
-  `payload-not-pinned`.
-- `createOptions` that the unit kind cannot apply are refused:
-  `container-option-refused`.
+The host checks each call (`crates/podrunner-hook/src/policy.rs`): a step
+of the job can skip the hook script, so the script checks nothing.
+
 - A hook call of a unit whose kind has `container: none` is refused:
   `container-not-supported`.
+- Each call before `prepare_job` is refused: `container-not-supported`.
+  A second `prepare_job` is `container-option-refused`.
+- A `dockerfile` (a container action that builds its image) is refused
+  by name: `build-not-supported` (call C2).
+- An `image` that is not `NAME@sha256:HEX` is refused:
+  `payload-not-pinned`. An image of a registry host that the kind does
+  not list in its registries, or a registry credential for another host,
+  is `container-option-refused`.
+- Mounts: a job container takes only the targets `/__w`, `/__w/_temp`,
+  `/__w/_actions`, `/__w/_tool`, `/__e` (read-only), `/github/home` and
+  `/github/workflow`; a container action takes only
+  `/github/runner_temp`, `/github/home`, `/github/workflow`,
+  `/github/file_commands` and `/github/workspace`. Each source is under
+  the runner directory of the unit, with no `..` and no socket. The pair
+  `/var/run/docker.sock` to `/var/run/docker.sock` is accepted and
+  dropped. A volume of the workflow (`userMountVolumes`) is a host path,
+  and is refused.
+- `createOptions`: only `--user`, `--cpus`, `--memory`, `--shm-size`,
+  `--hostname`, `--workdir` and `--init`. Each other option (a device, a
+  privilege, a network mode, a host path) is
+  `container-option-refused`.
+- On a unit of the host network: `services:` is
+  `container-not-supported`, and ports are `container-option-refused`.
 - Each refusal writes one audit line `hook-refuse` with the code, and no
   path, argument or credential.

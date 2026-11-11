@@ -46,7 +46,7 @@ A script of `scripts/` that runs the measurement, and its output in the Done sec
 **Milestone:** L2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -74,11 +74,16 @@ Dependencies: #23, #38 (fake path), #34 and podvm PodUtils/podvm#229 (N1) to Pod
 
 ## Premise
 
-Read the text of GitHub #35 on 2026-11-11. Nothing measured.
+Read the text of GitHub #35, `HookInput.cs`, `HookResponse.cs`, `ContainerHookManager.cs` and `ContainerInfo.cs` of `actions/runner` v2.338.2 on 2026-11-11. The hook input of the tests follows those files; no runner ran a hook here.
 
 ## Approach
 
-The relay of the container hooks and a control socket for each unit, as the contract of T-016 states.
+The crate `podrunner-hook`, in steps.
+
+1. Done: the input of a hook call as a closed set, pinned to `HookInput.cs` of `actions/runner` v2.338.2 (`input.rs`), and the checks of the host (`policy.rs`): the order (`prepare_job` first and once), the two mount tables by exact target with each source under the runner directory, the docker socket pair dropped, no volume of the workflow, the `createOptions` allowlist, registries by host and a credential only for the host of its image, no Dockerfile, no ports and no services on the host network. A password is in no `Debug` text and in no refusal. The fuzz target `hook_input`.
+2. The control socket of each unit: a small HTTP/1.1 server on a unix socket, `POST /v1/hook/COMMAND` and `POST /v1/job_state`, with a fuzz target, and the relay script (`.sh`, `curl --unix-socket`).
+3. The plan of each call on `UnitDriver` (`container_start` with mounts and a working directory, `container_exec`, `container_logs`, `container_stop`), the response of `prepare_job` (`isAlpine`, `context.services` as a list), `ACTIONS_RUNNER_CONTAINER_HOOKS` for each unit with `container: hooks`, and the audit line `hook-refuse`, on the fake unit.
+4. The podvm driver, after T-034.
 
 ## Prove
 

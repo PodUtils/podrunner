@@ -1,0 +1,1 @@
+{"command": "run_script_step", "responseFile": null, "args": {"entryPoint": "sh", "entryPointArgs": ["-e", "/__w/_temp/x.sh"], "environmentVariables": {}, "prependPath": [], "workingDirectory": "/__w/a/a"}, "state": {}}
