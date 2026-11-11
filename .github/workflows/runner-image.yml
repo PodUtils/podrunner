@@ -59,10 +59,12 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           set -eu
-          docker buildx create --use --name podrunner > /dev/null
+          # The host network for the build: the resolver of the build
+          # container failed for the Ubuntu mirrors.
+          docker buildx create --use --name podrunner --driver-opt network=host > /dev/null
           # No attestation: the archive holds one image manifest, which
           # podvm load takes.
-          docker buildx build -f images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
+          sh scripts/retry.sh docker buildx build -f images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
             --build-arg "RUNNER_VERSION=$VERSION" --build-arg "RUNNER_SHA256=$SHA256" \
             --output "type=oci,dest=runner-$ARCH.tar" .
           sha256sum "runner-$ARCH.tar" | tee "runner-$ARCH.tar.sha256"
