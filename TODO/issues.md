@@ -20,7 +20,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #12 | Bootstrap: CI gate (format, lint, tests, static probe, deny, file size) | closed (`9d2e4dd`, gate run 42934750114) | T-012 |
 | #13 | Bootstrap: agent workflow, decisions and record | closed (`9d2e4dd`, gate run 42934750114) | T-013 |
 | #14 | Bootstrap: carry the cleaned design spec into `docs/` | open | T-014 |
-| #15 | Bootstrap: beta release workflow | open | T-015 |
+| #15 | Bootstrap: beta release workflow | closed (`v0.1.0-beta.1`, release run 42942338772) | T-015 |
 | #16 | WP-01: seam traits, contracts v1 and the conformance harness | closed (`229d29f`, gate run 42936703374) | T-016 |
 | #17 | Schemas v1: job offer, unit capability, run report, public report | open | T-017 |
 | #18 | Tier rule: Rust implementation and the case table | closed (`33e6779`, gate run 42938706745) | T-018 |

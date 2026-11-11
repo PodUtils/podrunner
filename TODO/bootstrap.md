@@ -217,7 +217,7 @@ The owner holds the design review as a zip. The podcrates session asks the owner
 **Milestone:** M-A
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -248,3 +248,14 @@ A workflow release.yml on a dispatch: the static build of both targets, the chec
 ## Prove
 
 The run of the release workflow on a beta tag, and `sh scripts/check-static.sh` on each downloaded file.
+
+## Done
+
+2026-11-11. The dry run 42941366880 of `9ab7fd3` is green (the build
+and the static check of both targets). The release run 42942338772 of
+`6df0826` is green: the tag `v0.1.0-beta.1`, a pre-release with
+`podrunner-x86_64-unknown-linux-musl` and
+`podrunner-aarch64-unknown-linux-musl`, the SHA-256 of each, and a build
+provenance attestation. The downloaded x86_64 file matches its SHA-256,
+`sh scripts/check-static.sh` passes it (1361752 bytes), and `--version`
+prints `podrunner 0.1.0 (6df082637281)`.

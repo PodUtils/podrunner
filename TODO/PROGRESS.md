@@ -1,14 +1,17 @@
 # Progress
 
-`TODO/INDEX.md` holds 44 entries: 10 open, 7 partial, 14 blocked, 13 done.
+`TODO/INDEX.md` holds 44 entries: 10 open, 6 partial, 14 blocked, 14 done.
 
 ## State
 
 - The rulings of 2026-11-11 ("podrunner online", "The sessions of
   2026-11-11") give podrunner a lead session; DR-1 and DR-2 are yes
   (T-002, T-003). The plan is GitHub #1; one entry for each issue.
-- The frame is on `main` at `9d2e4dd` (gate run 42934750114, secrets run
-  42934749863, both green).
+- Last beta: `v0.1.0-beta.1` at `6df0826` (release run 42942338772).
+- M-A: done T-016, T-018 to T-022; partial T-017 (PodUtils/podcrates@T-163 gives
+  the authoritative schemas), T-023 (an H0 run is open); open T-024
+  (waits for `pod-broker`, PodUtils/podcrates@T-160 and
+  PodUtils/podcrates@T-161).
 - podcrates is on direct messages; podnet answers COORD issues; podvm and
   podssh are on break. An entry that needs a change of podvm or podssh is
   `blocked`, and the session takes the next entry.
@@ -24,7 +27,7 @@ then take the next one. Continue a `partial` entry first.
 2. **M-A** (GitHub #25): T-017 (partial: the authoritative schemas come
    from podcrates, PodUtils/podcrates@T-163), T-023 (podvm driver, on the released podvm
    binary), T-024 (egress, after PodUtils/podcrates@T-160 and
-   PodUtils/podcrates@T-161), T-015 (beta release), then T-025.
+   PodUtils/podcrates@T-161), then T-025.
 3. **The registers:** T-009 (partial: the open rows wait for their entries).
 4. **M-C, L2:** T-027, T-028, T-029, T-030; T-034, T-035, T-036, T-038.
 5. **Blocked:** T-004, T-005, T-006 (questions Q1 to Q3), T-007, T-014

@@ -126,7 +126,15 @@ Read the text of GitHub #28 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A Go service for tests only that speaks the six endpoints of the scale set, with scripted answers.
+A Go service for tests only that speaks the six endpoints of the scale set, with scripted answers. Read on 2026-11-11 (`actions/scaleset` v0.5.0, MIT, `go 1.27.3` in its
+`go.mod`, through the Go module proxy): the endpoints live under
+`_apis/runtime/runnerscalesets`; the message session has create, refresh,
+delete, `GetMessage(lastMessageID, maxCapacity)` (a long poll), delete of
+a message and `AcquireJobs`; the messages are `JobAvailable`,
+`JobAssigned`, `JobStarted` and `JobCompleted`; `GenerateJitRunnerConfig`
+gives the JIT configuration. The module holds a test server in
+`internal/testserver` (a Go internal package: not importable; MIT allows a
+copy with its notice in `THIRD_PARTY.md`).
 
 ## Prove
 

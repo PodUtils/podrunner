@@ -18,21 +18,24 @@ is done.
   questions Q1 to Q3. DR-7 waits for the ruling "Test accounts". The
   defaults of GitHub #8 are calls C1 to C12; C13 and C14 are calls of
   this session.
-- Milestone M-A: done: T-016 (seams, contracts, harness), T-018 (tier
-  rule), T-019 (security documents), T-020 (fakes). Partial: T-017 (the
-  types and schemas are here; the authoritative ones come from podcrates
-  PodUtils/podcrates@T-163), T-021 (slots core; it closes with the gate run that holds
-  `644bab7`), T-022 (CLI and control socket; the same). Open: T-023
-  (the podvm driver: the released binary is podvm `v0.2.0-beta.2`), T-024
-  (waits for `pod-broker` PodUtils/podcrates@T-160 and PodUtils/podcrates@T-161), T-015, T-025.
+- Milestone M-A: done: T-015 (betas; `v0.1.0-beta.1`), T-016, T-018 to
+  T-022. Partial: T-017 (the authoritative schemas come from
+  PodUtils/podcrates@T-163), T-023 (the podvm driver passes the unit tests
+  on this host with podvm `v0.2.0-beta.2`; a run on an H0 host is open).
+  Open: T-024 (waits for `pod-broker`, PodUtils/podcrates@T-160 and
+  PodUtils/podcrates@T-161), then T-025.
+- M-C: T-027 is partial (`sign` and `Mint`; the restart of the sidecar
+  comes with T-029). T-028 and T-029 are next: `actions/scaleset` v0.5.0
+  needs Go 1.27.3 (the Go tool fetches it); the facts are in T-028.
 - podnet answered COORD-001 (PodUtils/podnet#425): the runner pin
   `actions/runner` v2.338.2 and the object `hold` of `pod doctor --json`
   (T-044).
 
 ## In flight
 
-- T-023, the podvm driver: `crates/podrunner-podvm`, a store for each
-  unit, the subreaper shim, the probe record from `podvm probe --json`.
+- T-028 (the fake scale-set service, Go) and T-029 (the sidecar).
+- The gate queues for many minutes; a newer push cancels the queued run.
+  Push less often, and close an entry on the green run of a later commit.
 - The spec of the design review (T-014): the owner holds it as a zip. The
   podcrates session asks the owner for it. Until it comes, work from the
   texts of the issues (each entry keeps the text in its Problem).

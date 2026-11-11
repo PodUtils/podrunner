@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**44 entries: 10 open, 7 partial, 14 blocked, 13 done.**
+**44 entries: 10 open, 6 partial, 14 blocked, 14 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 2 | 3 | 1 | 10 | 16 |
-| P2 | 8 | 4 | 9 | 2 | 23 |
+| P2 | 8 | 3 | 9 | 3 | 23 |
 | P3 | 0 | 0 | 4 | 1 | 5 |
-| **All** | 10 | 7 | 14 | 13 | 44 |
+| **All** | 10 | 6 | 14 | 14 | 44 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -62,7 +62,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-012](bootstrap.md) | P1 | S | M0 | chore | done | The CI gate: format, lint, tests, static probe, deny, file size (GitHub #12) |
 | [T-013](bootstrap.md) | P1 | M | M0 | chore | done | The agent workflow, the decisions and the record (GitHub #13) |
 | [T-014](bootstrap.md) | P2 | S | M0 | docs | blocked | The cleaned design spec in docs/ (GitHub #14) |
-| [T-015](bootstrap.md) | P2 | S | M-A | release | partial | The beta release workflow (GitHub #15) |
+| [T-015](bootstrap.md) | P2 | S | M-A | release | done | The beta release workflow (GitHub #15) |
 | [T-016](core.md) | P1 | S | M-A | feature | done | WP-01: the seam traits, the contracts v1 and the conformance harness (GitHub #16) |
 | [T-017](core.md) | P1 | S | M-A | feature | partial | Schemas v1: job offer, unit capability, run report, public report (GitHub #17) |
 | [T-018](core.md) | P1 | S | M-A | feature | done | The tier rule: Rust implementation and the case table (GitHub #18) |
