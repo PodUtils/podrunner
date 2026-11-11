@@ -28,15 +28,15 @@ numbers. `TODO/RULES.md` gives the rules.
 | #20 | WP-02: fake source and fake unit, scripted, with a manual clock | closed (`e8f4c0d`, gate run 42938706745) | T-020 |
 | #21 | WP-03: `slots` core: states, journal, placement, status, drain, codes, config, audit | closed (`644bab7`, gate run 42940434305) | T-021 |
 | #22 | CLI and control socket: `serve`, `status`, `drain`, `stop`, `doctor`, `print-unit` | closed (`644bab7`, gate run 42940434305) | T-022 |
-| #23 | WP-04: podvm unit driver with a per-unit store and a subreaper shim | open | T-023 |
+| #23 | WP-04: podvm unit driver with a per-unit store and a subreaper shim | closed (`b5ff350`, gate run 42957378324) | T-023 |
 | #24 | WP-08: egress module over `pod-broker` v1, one listener for each unit | closed (`d69e791`, gate run 42946099969) | T-024 |
-| #25 | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload | open | T-025 |
+| #25 | Milestone M-A: level 1 green, podvm unit conformance with a stand-in payload | closed (`b5ff350`, gate run 42957378324) | T-025 |
 | #26 | Milestone M-B: the official runner starts under the podvm driver, no GitHub | open | T-026 |
 | #27 | WP-05a: `mint` with an in-process `sign` module, source conformance | closed (`9d48ab8`, gate run 42946099969) | T-027 |
 | #28 | WP-06: fake scale-set service (Go, test only) | closed (`ece89cd`, gate run 42946099969) | T-028 |
 | #29 | WP-07: `github-scaleset` source sidecar (static Go) | closed (`5d740e8`, gate run 42947195332) | T-029 |
 | #30 | WP-10: image pipeline: pins, age limit, `podrunner image build` | open | T-030 |
-| #31 | WP-05b: remote mint (only if DR-4 is yes) | open | T-031 |
+| #31 | WP-05b: remote mint (only if DR-4 is yes) | closed (`4e6d029`, gate run 42957378324) | T-031 |
 | #32 | Milestone M-C: live gates G-H2 to G-H4 on a `fake` unit | open | T-032 |
 | #33 | Milestone M-D: one live trusted job on a no-root host | open | T-033 |
 | #34 | WP-13: measure U19 and U21 on the podvm rung | open | T-034 |
@@ -50,7 +50,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #42 | `confined` boundary (`pod-confine`) | open | T-042 |
 | #43 | Later crates: service unit, release index, acceptance registry | open | T-043 |
 | #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | closed (answered in PodUtils/podnet#425) | T-044 |
-| #47 | The mitigations of DR-4: trusted jobs at boundary redirect | open | T-045 |
+| #47 | The mitigations of DR-4: trusted jobs at boundary redirect | closed (`7d1f203`, gate run 42957378324) | T-045 |
 | #48 | Local mode: podrunner run workflow.yml | open | T-046 |
 | #49 | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (to podvm) | open | T-047 |
 
