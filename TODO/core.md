@@ -838,7 +838,7 @@ The socket I/O in its own threads, at most 8 clients at a time (a ninth gets `bu
 **Milestone:** M-D
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -855,6 +855,10 @@ A reply deadline for each call of the wire (`REPLY_LIMIT`). When it passes, kill
 ## Prove
 
 `cargo test -p podrunner-source reply_deadline`
+
+## Done
+
+2026-11-11, `1ddd4c4`. `crates/podrunner-mint/src/sidecar.rs`: the stdio of the sidecar is a `Pipe` that polls before each read; each call has a deadline of `REPLY_LIMIT` (15 s) plus the long poll of `next`. A timeout is a broken wire: the child is killed, and it starts again after the backoff. Tests: a sidecar that answers `hello` and then sleeps fails the next call in under 3 s (limit 0.5 s) and starts again; a reply that comes after the deadline never answers a later call; a child that ends during a call gives `unavailable`. `docs/contracts/source-driver.md`.
 
 
 # T-058: podrunner check: validate a configuration and start nothing (GitHub #58)
