@@ -130,6 +130,12 @@ pub struct Pins {
     pub max_age_s: u64,
     #[serde(default)]
     pub payload: Vec<Payload>,
+    /// The Ed25519 key (64 hex digits) that signs the pin list, and its
+    /// signature (128 hex digits): `podrunner pin-sign` (DR-4).
+    #[serde(default)]
+    pub signer: Option<String>,
+    #[serde(default)]
+    pub signature: Option<String>,
 }
 
 fn thirty_days() -> u64 {
@@ -275,6 +281,7 @@ impl Config {
         for p in &self.pin.payload {
             podrunner_unit::parse_pinned(&p.reference).map_err(|e| format!("[[pin.payload]]: {e}"))?;
         }
+        crate::pins::verify(&self.pin)?;
         Ok(())
     }
 
@@ -286,6 +293,9 @@ impl Config {
                 "[tier.trusted] redirect needs one job at a time on a shared uid: same_principal_ok = false (DR-4)"
                     .into(),
             );
+        }
+        if self.pin.signer.is_none() {
+            return Err("[tier.trusted] redirect needs a signed pin list: [pin] signer and signature (DR-4)".into());
         }
         if self.repository.is_none() {
             return Err(

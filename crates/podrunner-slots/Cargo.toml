@@ -13,6 +13,7 @@ podrunner-schema.workspace = true
 podrunner-source.workspace = true
 podrunner-tier.workspace = true
 podrunner-unit.workspace = true
+pod-identity.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true

@@ -60,9 +60,13 @@ fn trusted_at_redirect_needs_the_mitigations_of_dr4() {
     assert_eq!(config("").floor(Tier::Trusted), Boundary::Confined);
     assert!(place(&member, Tier::Trusted, &[kind(redirect.clone())], &config(""), NOW_UNIX).is_err());
     let floor = "[tier.trusted]\nmin_boundary = \"redirect\"";
-    let cfg = config(&format!("repository = \"example-org/app\"\n{floor}"));
+    let cfg = config_signed(&format!("repository = \"example-org/app\"\n{floor}"));
     assert_eq!(place(&member, Tier::Trusted, &[kind(redirect)], &cfg, NOW_UNIX).map(|p| p.tier), Ok(Tier::Trusted));
-    let parse = |extra: &str| Config::parse(&format!("host = \"h\"\nallow_fake = true\n{extra}\n{floor}\n[pin]\n"));
+    let (k, s) = crate::pins::sign(&Config::parse("host = \"h\"\n[pin]\n").unwrap().pin, &[1; 32]);
+    let signed = format!("[pin]\nsigner = \"{k}\"\nsignature = \"{s}\"");
+    let unsigned = Config::parse(&format!("host = \"h\"\nrepository = \"o/r\"\n{floor}\n[pin]\n")).unwrap_err();
+    assert!(unsigned.contains("signed pin list"), "{unsigned}");
+    let parse = |extra: &str| Config::parse(&format!("host = \"h\"\nallow_fake = true\n{extra}\n{floor}\n{signed}\n"));
     let repo = "repository = \"example-org/app\"";
     let e = parse("").unwrap_err();
     assert!(e.contains("one repository"), "{e}");

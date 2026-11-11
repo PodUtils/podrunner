@@ -46,6 +46,8 @@ report_s = 60
 
 [pin]
 max_age_s = 2592000          # an older payload is image-stale
+signer = "HEX64"             # the Ed25519 key of the pin list (podrunner pin-sign)
+signature = "HEX128"         # its signature; a changed pin list is refused
 [[pin.payload]]
 arch = "x86_64"
 reference = "runner@sha256:HEX"
@@ -59,5 +61,5 @@ built_at_s = 1800000000      # the time of the build, Unix seconds
 | Tier | Lowest floor | Why |
 | --- | --- | --- |
 | `untrusted` | `guest` | A fork job is hostile code. |
-| `trusted` | `redirect` (default `confined`) | DR-4: `redirect` is a choice of the operator. The file must then set `repository`, keep `same_principal_ok = false` and set `slots` on each `trusted` source (T-045 has the other mitigations). |
+| `trusted` | `redirect` (default `confined`) | DR-4: `redirect` is a choice of the operator. The file must then have a signed pin list (`podrunner pin-sign`), set `repository`, keep `same_principal_ok = false` and set `slots` on each `trusted` source (T-045 has the other mitigations). |
 | `local` | `none` | Only the configuration marks a set `local`; its jobs run at `local` with no tier rule, and only a `fake` source can be `local` (call C14). |

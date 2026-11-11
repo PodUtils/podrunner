@@ -25,6 +25,7 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   doctor                                            the inputs of a host check
   print-unit --config FILE --state DIR [--binary PATH]
                                                     a service unit, with no credential
+  pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
   --version | --help
 ";
 
@@ -140,6 +141,16 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             let binary = o.get("--binary").unwrap_or_else(|| PathBuf::from("/usr/local/bin/podrunner"));
             Ok(ok(print_unit(&binary, &o.need("--config")?, &o.need("--state")?)))
         }
+        "pin-sign" => {
+            let o = opts(rest)?;
+            o.only(&["--config", "--seed-file"])?;
+            let text = std::fs::read_to_string(o.need("--config")?)
+                .map_err(|e| err(Class::Config, format!("the configuration: {}", e.kind())))?;
+            let pins = podrunner_slots::pins::of_file(&text).map_err(|e| err(Class::Config, e))?;
+            let seed = podrunner_slots::pins::read_seed(&o.need("--seed-file")?).map_err(|e| err(Class::Config, e))?;
+            let (signer, signature) = podrunner_slots::pins::sign(&pins, &seed);
+            Ok(ok(format!("signer = \"{signer}\"\nsignature = \"{signature}\"\n")))
+        }
         other => Err(err(Class::Usage, format!("an unknown command {:?}\n{USAGE}", display(other)))),
     }
 }
@@ -242,6 +253,34 @@ mod tests {
         std::fs::write(&cfg, "host = \"h\"\n[tier.untrusted]\nmin_boundary = \"none\"\n[pin]\n").unwrap();
         let o = run(&args(&["serve", "--config", cfg.to_str().unwrap(), "--state", dir.join("s").to_str().unwrap()]));
         assert_eq!(o.code, 78, "{}", o.stderr);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The lines of `pin-sign` make the file pass the check; a seed file
+    /// that the group can read is refused.
+    #[test]
+    fn pin_sign_signs_the_pin_list_of_a_file() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("podrunner-pin-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (cfg, seed) = (dir.join("podrunner.toml"), dir.join("seed"));
+        let body = format!(
+            "[[pin.payload]]\narch = \"x86_64\"\nreference = \"r@sha256:{}\"\nbuilt_at_s = 1\n",
+            "0".repeat(64)
+        );
+        std::fs::write(&cfg, format!("host = \"h\"\n[pin]\n{body}")).unwrap();
+        std::fs::write(&seed, "07".repeat(32)).unwrap();
+        std::fs::set_permissions(&seed, std::fs::Permissions::from_mode(0o640)).unwrap();
+        let a = |c: &Path, s: &Path| {
+            args(&["pin-sign", "--config", c.to_str().unwrap(), "--seed-file", s.to_str().unwrap()])
+        };
+        assert_eq!(run(&a(&cfg, &seed)).code, 78);
+        std::fs::set_permissions(&seed, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let o = run(&a(&cfg, &seed));
+        assert_eq!(o.code, 0, "{}", o.stderr);
+        let signed = format!("host = \"h\"\n[pin]\n{}{body}", o.stdout);
+        podrunner_slots::config::Config::parse(&signed).unwrap();
+        assert!(podrunner_slots::config::Config::parse(&signed.replace("built_at_s = 1", "built_at_s = 2")).is_err());
         let _ = std::fs::remove_dir_all(&dir);
     }
 

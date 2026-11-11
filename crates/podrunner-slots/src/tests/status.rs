@@ -88,7 +88,7 @@ fn a_job_at_redirect_names_the_boundary_and_the_hold() {
     use podrunner_schema::{Boundary, EgressHold, Principal};
     let cap = capability(Boundary::Redirect, Principal::Shared, EgressHold::Advisory);
     let mut bed = Bed::new(
-        config("repository = \"example-org/app\"\n[tier.trusted]\nmin_boundary = \"redirect\""),
+        config_signed("repository = \"example-org/app\"\n[tier.trusted]\nmin_boundary = \"redirect\""),
         vec![("a", "trusted", Some(1), vec![offer(0, "j-1", json!({}))])],
         vec![KindSpec { name: "fake", slots: 1, capability: cap, command: sh("exit 0") }],
     );

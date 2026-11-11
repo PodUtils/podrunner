@@ -97,6 +97,16 @@ pub(crate) fn offer(at_s: u64, job: &str, with: Value) -> String {
 /// The configuration of the tests: the floors of the tiers come from the
 /// file (`trusted` at `confined`).
 pub(crate) fn config(extra: &str) -> Config {
+    config_pin(extra, "")
+}
+
+/// A configuration whose pin list a test key signs (DR-4).
+pub(crate) fn config_signed(extra: &str) -> Config {
+    let (k, s) = crate::pins::sign(&config("").pin, &[1; 32]);
+    config_pin(extra, &format!("signer = \"{k}\"\nsignature = \"{s}\""))
+}
+
+fn config_pin(extra: &str, pin: &str) -> Config {
     Config::parse(&format!(
         r#"
 host = "host-a"
@@ -105,6 +115,7 @@ allow_fake = true
 [trust]
 organizations = [{{ login = "example-org" }}]
 [pin]
+{pin}
 [[pin.payload]]
 arch = "x86_64"
 reference = "{PIN}"

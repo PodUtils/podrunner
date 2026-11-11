@@ -14,6 +14,7 @@ be used, 80 a kind or a source that this build has not.
 | `podrunner clear-degraded ...` | Start jobs again after the operator looked at a residue. |
 | `podrunner doctor` | Read `pod doctor --json` (the hold) and `podvm probe --json`, and name each input that is missing (call C9). |
 | `podrunner print-unit --config FILE --state DIR [--binary PATH]` | A systemd unit for `serve`, with no credential. |
+| `podrunner pin-sign --config FILE --seed-file FILE` | The `signer` and `signature` lines of `[pin]`. The seed file holds 64 hex digits (`openssl rand -hex 32`), mode 0600; keep it off the unit host. |
 
 ## The control socket
 
