@@ -300,3 +300,21 @@ fn until_ms(f: impl Fn() -> bool) -> bool {
         false
     })
 }
+
+/// Design source test 6: the key of a host is its token at a mint, so one
+/// key never serves two tiers.
+#[test]
+fn one_key_for_two_tiers_is_refused() {
+    let remote = |name: &str, tier: &str, key: &str| {
+        format!(
+            "[[source]]\nname = \"{name}\"\nkind = \"remote\"\ntier = \"{tier}\"\narch = \"x86_64\"\n\
+             mint = \"127.0.0.1:1\"\nmint_pin = \"sha256/x\"\ncert_file = \"{key}.pem\"\nkey_file = \"{key}.key\"\n"
+        )
+    };
+    let parse = |sources: String| Config::parse(&format!("host = \"h\"\n{sources}[pin]\n"));
+    let e = parse(remote("a", "trusted", "k") + &remote("b", "untrusted", "k")).unwrap_err();
+    assert!(e.contains("one key_file for two tiers"), "{e}");
+    // A control: two keys for two tiers, and one key for two sources of one tier.
+    assert!(parse(remote("a", "trusted", "k") + &remote("b", "untrusted", "l")).is_ok());
+    assert!(parse(remote("a", "trusted", "k") + &remote("b", "trusted", "k")).is_ok());
+}

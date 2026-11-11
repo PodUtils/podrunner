@@ -354,6 +354,15 @@ impl Config {
                 return Err(format!("[[source]] {:?}: arch is not x86_64 or aarch64", s.name));
             }
         }
+        // The key of a host is its token at a mint. A key of two tiers lets
+        // the host of the lower tier reach the mint of the higher one
+        // (design source test 6).
+        let remote: Vec<&SourceConfig> = self.source.iter().filter(|s| s.kind == SourceKind::Remote).collect();
+        for (i, a) in remote.iter().enumerate() {
+            if let Some(b) = remote[i + 1..].iter().find(|b| b.tier != a.tier && b.key_file == a.key_file) {
+                return Err(format!("[[source]] {:?} and {:?}: one key_file for two tiers", a.name, b.name));
+            }
+        }
         if self.unit.contains_key("fake") && !self.allow_fake {
             return Err("[unit.fake] needs allow_fake = true".into());
         }

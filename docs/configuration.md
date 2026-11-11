@@ -94,6 +94,10 @@ cert_file = "/etc/podrunner/host.pem"
 key_file = "/etc/podrunner/host.key" # a P-256 key, mode 0600
 ```
 
+The key of a host is its token at a mint, and each mint serves one tier.
+Give each tier its own key: the configuration refuses one `key_file` for
+two remote sources of two tiers.
+
 The file of the mint:
 
 ```toml

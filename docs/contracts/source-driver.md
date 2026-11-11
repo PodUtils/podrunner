@@ -113,7 +113,7 @@ and what is open (T-053). `SC` is `crates/podrunner-source/src/conformance.rs`,
 | 3 credential canary | SG `no_credential_reaches_the_journal_the_audit_or_a_report`, the sign tests; the host role as a process: `crates/podrunner/tests/serve.rs` `no_credential_reaches_stderr_or_a_file_of_the_state` (stderr, each file of the state, `status`; a positive control); the mint role as a process: `crates/podrunner/tests/mint.rs` (stderr and each file of the mint state; a positive control); the sidecar: `crates/podrunner/tests/scaleset.rs` (its stderr, the journal, the audit and the reports; the fake service plants a canary that the unit must see) | none |
 | 4 revoked | MI `a_revocation_is_final_and_names_no_secret`, `tools/scaleset-sidecar` `TestARevocationEndsTheSidecarWith78` | none |
 | 5 `../x` | SC `the-wire-refuses-a-long-line-a-path-and-a-schema` | none |
-| 6 untrusted host token | RT (TLS) `a_pinned_host_reaches_the_gate_and_another_key_does_not`: a mint serves one source of one tier and pins its hosts, so the key of a host of another tier is not pinned there | a host pinned on two mints of two tiers |
+| 6 untrusted host token | RT (TLS) `a_pinned_host_reaches_the_gate_and_another_key_does_not`: a mint serves one source of one tier and pins its hosts, so the key of a host of another tier is not pinned there; SG `one_key_for_two_tiers_is_refused`: a host has one key for each tier | none |
 | 7 not received, issued twice | RT `each_host_holds_its_own_offers_up_to_its_slots` | none |
 | 8 tier-mismatch | RT `the_mint_computes_the_tier_and_withdraws_a_fork_on_the_trusted_set`: the mint withdraws the offer, so a later claim is `unknown-job` (call C18) | none |
 | 9 capacity | RT `each_host_holds_its_own_offers_up_to_its_slots` | none |
