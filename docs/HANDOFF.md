@@ -51,6 +51,12 @@ is done.
 
 - The work order of `TODO/PROGRESS.md`: T-030 and T-035 are
   partial; their entries name the open steps.
+- podcrates v0.18.0 (its next tag) breaks the broker policy: `version`
+  becomes `schema`; an offer policy must be a `broker-policy.v1` policy
+  (PodUtils/podcrates@T-177, PodUtils/podcrates@T-178). At its take, change each policy of the tests
+  and docs. It also brings `Settings::names_upstream` and
+  `Broker::check_upstream()` of `pod-broker` (PodUtils/podcrates@T-161, its call C51)
+  for GitHub #24.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
 - The spec of the design review (T-014): the owner holds it as a zip. The
