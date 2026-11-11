@@ -22,13 +22,18 @@ pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0", def
 pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.15.0" }
 podrunner-clock = { path = "crates/podrunner-clock" }
 podrunner-fake = { path = "crates/podrunner-fake" }
+podrunner-mint = { path = "crates/podrunner-mint" }
 podrunner-podvm = { path = "crates/podrunner-podvm" }
 podrunner-schema = { path = "crates/podrunner-schema" }
 podrunner-slots = { path = "crates/podrunner-slots" }
 podrunner-source = { path = "crates/podrunner-source" }
 podrunner-tier = { path = "crates/podrunner-tier" }
 podrunner-unit = { path = "crates/podrunner-unit" }
+base64 = "0.22"
 libc = "0.2"
+# The RS256 signer of the GitHub App JWT (podrunner-mint): not the
+# private-key path of rsa 0.9 (RUSTSEC-2023-0071).
+ring = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # podrunner.toml: a table and its values, with no writer.

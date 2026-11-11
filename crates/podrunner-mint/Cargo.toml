@@ -1,0 +1,20 @@
+[package]
+name = "podrunner-mint"
+description = "mint and sign of podrunner: the source credentials, and the RS256 signer of the GitHub App JWT"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64.workspace = true
+podrunner-clock.workspace = true
+podrunner-schema.workspace = true
+podrunner-source.workspace = true
+ring.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+podrunner-fake.workspace = true

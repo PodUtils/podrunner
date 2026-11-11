@@ -56,7 +56,7 @@ podvm (on break) fixes PodUtils/podvm#229, PodUtils/podvm#230 and PodUtils/podvm
 **Milestone:** M-C
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -88,7 +88,7 @@ Read the text of GitHub #27 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A `mint` step that makes the JIT runner configuration with an in-process `sign` module (RS256 of the App key), and the source conformance of the mint operations.
+A `mint` step that makes the JIT runner configuration with an in-process `sign` module (RS256 of the App key), and the source conformance of the mint operations. Done so far (2026-11-11): `crates/podrunner-mint`: `sign` (RS256 with `ring`; one claim shape; one signature a minute; an audit line for each request; a PKCS#1 PEM key, made by `openssl` for each test run, so that no key is in the repository) and `Mint` (it forwards the nine operations; a revocation is final and names the credential, never its value). `serve` puts `Mint` before each source. Open: the restart of the sidecar with a backoff (with T-029).
 
 ## Prove
 

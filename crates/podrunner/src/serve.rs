@@ -81,6 +81,8 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                 ));
             }
         };
+        // mint stands between slots and each source (GitHub #27).
+        let source: Box<dyn podrunner_source::JobSource> = Box::new(podrunner_mint::Mint::new(&s.name, source));
         sources.push(Source { cfg: s.clone(), source, revoked: false });
     }
     let mut kinds = Vec::new();

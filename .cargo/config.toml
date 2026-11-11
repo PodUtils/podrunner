@@ -12,6 +12,12 @@ todo = "run -q -p podrunner-todo --"
 [build]
 target = "x86_64-unknown-linux-musl"
 
+# The C code of a dependency (ring) for the default musl target, in a
+# build with plain cargo: the C compiler of the host. The release builds
+# with cargo zigbuild, where zig is the C compiler of each target.
+[env]
+CC_x86_64_unknown_linux_musl = "cc"
+
 [target.x86_64-unknown-linux-musl]
 rustflags = ["-C", "target-feature=+crt-static"]
 
