@@ -898,7 +898,7 @@ Read on 2026-11-11.
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -915,6 +915,10 @@ Read on 2026-11-11.
 ## Prove
 
 `cargo test -p podrunner-slots audit_chain`
+
+## Done
+
+2026-11-11, `1773096`. `crates/podrunner-slots/src/audit.rs`: each line has `seq` (from 1) and `prev` (the SHA-256 of the exact bytes of the line before; 64 zeros for the first); a failed write moves no `seq`; the file is at mode 0600; a torn last line gets a newline and a `resume` line at open; at most 1000 lines stay in memory. The line is written first and its copy with `seq` and `prev` goes to the source (the anchor). `audit::verify` and `podrunner audit verify (--state DIR | --file FILE) [--anchor SEQ:HASH]` (exit 76 on a break). Tests: five lines verify; a lost line 3 is "broken at seq 4"; an edited detail of line 2 is "broken at seq 3"; a cut tail passes with no anchor and fails with the anchor of the source; a torn end fails until the `resume` line; a write to `/dev/full` leaves no gap; `x|y` and `x||y` give two `prev` values; the CLI exits 0, 76 and 64.
 
 
 # T-060: serve: SIGTERM and SIGINT start a drain; sd_notify (GitHub #60)

@@ -62,7 +62,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #56 | control socket: an idle client stalls the tick of the supervisor | closed (`1f1d389`) | T-056 |
 | #57 | source wire: a reply deadline for each call; restart a silent sidecar | closed (`1ddd4c4`) | T-057 |
 | #58 | podrunner check: validate a configuration and start nothing | closed (`4f09320`) | T-058 |
-| #59 | audit.jsonl: chain each line to the one before; podrunner audit verify | open | T-059 |
+| #59 | audit.jsonl: chain each line to the one before; podrunner audit verify | closed (`1773096`) | T-059 |
 | #60 | serve: SIGTERM and SIGINT start a drain; sd_notify | closed (`1f1d389`) | T-060 |
 
 #44 and #45 are pull requests.

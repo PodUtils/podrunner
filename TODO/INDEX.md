@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**60 entries: 3 open, 2 partial, 19 blocked, 36 done.**
+**60 entries: 2 open, 2 partial, 19 blocked, 37 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 1 | 20 | 22 |
-| P2 | 3 | 1 | 13 | 15 | 32 |
+| P2 | 2 | 1 | 13 | 16 | 32 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 3 | 2 | 19 | 36 | 60 |
+| **All** | 2 | 2 | 19 | 37 | 60 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -106,5 +106,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-056](core.md) | P1 | S | M-D | defect | done | control socket: an idle client stalls the tick of the supervisor (GitHub #56) |
 | [T-057](core.md) | P1 | S | M-D | defect | done | source wire: a reply deadline for each call; restart a silent sidecar (GitHub #57) |
 | [T-058](core.md) | P2 | S | M-D | feature | done | podrunner check: validate a configuration and start nothing (GitHub #58) |
-| [T-059](core.md) | P2 | S | M-D | feature | open | audit.jsonl: chain each line to the one before; podrunner audit verify (GitHub #59) |
+| [T-059](core.md) | P2 | S | M-D | feature | done | audit.jsonl: chain each line to the one before; podrunner audit verify (GitHub #59) |
 | [T-060](core.md) | P2 | S | M-D | feature | done | serve: SIGTERM and SIGINT start a drain; sd_notify (GitHub #60) |

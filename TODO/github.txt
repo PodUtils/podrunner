@@ -62,5 +62,5 @@
 56 issue closed
 57 issue closed
 58 issue closed
-59 issue open
+59 issue closed
 60 issue closed
