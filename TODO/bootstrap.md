@@ -168,7 +168,7 @@ cargo todo check
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -200,15 +200,11 @@ Read the text of GitHub #14 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Put a cleaned copy of the spec (draft 5) into docs/spec/, with each id of the spec (DR-n, WP-n, Un, G-n, A-X-n) kept. Until the spec comes, work from the texts of the issues.
+Put a cleaned copy of the spec (draft 5) into docs/spec/, with each id of the spec (DR-n, WP-n, Un, G-n, A-X-n) kept. The owner attached the zip on 2026-11-11 (`podrunner-spec/`: `SPEC.md`, the appendices, `schemas/`, `examples/`, the review rounds); the cleaning and the copy follow the list of the Problem.
 
 ## Prove
 
 `cargo todo check`
-
-## Blocker
-
-The owner holds the design review as a zip. The podcrates session asks the owner for it (asked 2026-11-11). Unblocks when the zip is in this session.
 
 # T-015: The beta release workflow (GitHub #15)
 

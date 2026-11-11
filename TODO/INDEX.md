@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**51 entries: 1 open, 2 partial, 19 blocked, 29 done.**
+**52 entries: 2 open, 2 partial, 19 blocked, 29 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 0 | 1 | 0 | 16 | 17 |
-| P2 | 1 | 1 | 14 | 12 | 28 |
+| P1 | 0 | 1 | 1 | 16 | 18 |
+| P2 | 2 | 1 | 13 | 12 | 28 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 1 | 2 | 19 | 29 | 51 |
+| **All** | 2 | 2 | 19 | 29 | 52 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -61,7 +61,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-011](bootstrap.md) | P1 | S | M0 | chore | done | The Cargo workspace, the pinned toolchain and the static musl build (GitHub #11) |
 | [T-012](bootstrap.md) | P1 | S | M0 | chore | done | The CI gate: format, lint, tests, static probe, deny, file size (GitHub #12) |
 | [T-013](bootstrap.md) | P1 | M | M0 | chore | done | The agent workflow, the decisions and the record (GitHub #13) |
-| [T-014](bootstrap.md) | P2 | S | M0 | docs | blocked | The cleaned design spec in docs/ (GitHub #14) |
+| [T-014](bootstrap.md) | P2 | S | M0 | docs | open | The cleaned design spec in docs/ (GitHub #14) |
 | [T-015](bootstrap.md) | P2 | S | M-A | release | done | The beta release workflow (GitHub #15) |
 | [T-016](core.md) | P1 | S | M-A | feature | done | WP-01: the seam traits, the contracts v1 and the conformance harness (GitHub #16) |
 | [T-017](core.md) | P1 | S | M-A | feature | done | Schemas v1: job offer, unit capability, run report, public report (GitHub #17) |
@@ -99,3 +99,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-049](level2.md) | P2 | S | L2 | chore | done | COORD-003: the stand-in broker of the official runner for podvm (GitHub #50) |
 | [T-050](level2.md) | P2 | S | L2 | defect | blocked | COORD-004: the supervise rung does not map the path of connect() for a unix socket (GitHub #51) |
 | [T-051](core.md) | P2 | S | M-C | defect | blocked | COORD-005: podvm-aarch64 declines an arm64 payload on the supervise rung (GitHub #52) |
+| [T-052](core.md) | P1 | S | M-C | chore | blocked | COORD-006: a podvm beta from main for podrunner (GitHub #53) |

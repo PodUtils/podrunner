@@ -685,5 +685,34 @@ The aarch64 job of `.github/workflows/runner-image.yml` starts `/bin/sh` of the 
 
 ## Blocker
 
-A podvm release whose aarch64 binary runs an arm64 payload on the supervise rung (GitHub #52). podvm is on break.
+podvm answered in PodUtils/podvm#252 (COORD-033): the interposer of the supervise rung is x86_64 only by design; `main` now embeds no object of another machine, so `podvm-aarch64` names the missing object. The aarch64 port is PodUtils/podvm@T-1721 (P2, after the current work order of podvm). Until it is released, an arm64 host of podrunner needs the namespace rung (a user namespace) or another unit kind. The aarch64 job of `runner-image.yml` stays a measure; when the release carries the port, pin it and make the start a check.
+
+# T-052: COORD-006: a podvm beta from main for podrunner (GitHub #53)
+
+**Source:** GitHub #53
+**Category:** chore
+**Milestone:** M-C
+**Priority:** P1
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+The owner ruled "Ask podvm for a beta" (2026-11-11, `docs/decisions.md`). T-026, T-047, T-050 and T-030 wait only for fixes on podvm `main` (PodUtils/podvm@T-1706, PodUtils/podvm@T-1710, PodUtils/podvm@T-1720 and others); podrunner pins podvm by release (`images/podvm.toml`, `v0.2.0-beta.2`). GitHub #53 (COORD-006, to podvm) asks for a beta.
+
+## Premise
+
+The answers of podvm in PodUtils/podvm#250 and PodUtils/podvm#252 name these fixes on `main` and say that a release follows the release order of podvm.
+
+## Approach
+
+When the beta comes: pin it in `images/podvm.toml` (the version and the SHA-256 of each binary); run `scripts/measure-hook-path.sh` on both rungs; run the H0 profile again (T-047); run the runner image in a unit up to the long poll against the fake broker (T-026); report each result on its issue, and close GitHub #53.
+
+## Prove
+
+`runner-image.yml` and `level2.yml` are green with the new pin, and `scripts/measure-hook-path.sh` gives `volume-socket yes` on both rungs.
+
+## Blocker
+
+A podvm beta from `main` (GitHub #53). podvm is on break.
 

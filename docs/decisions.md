@@ -38,11 +38,16 @@ at the tag `v0.19.0`.
 | 2026-11-11 | Q10 of podcrates | A Docker Engine API socket for each job: decide at phase 3 of the plan. |
 | 2026-11-11 | Q11 of podcrates | A local mode (`podrunner run workflow.yml`, as nektos/act): "yes plan it". T-046 (GitHub #48) plans it. The native runner crates (`pod-actions-*`) come forward as its later phase. |
 | 2026-11-11 | Credential files (PodUtils/podvm#241) | podvm builds no `--secret` flag and no read-once mode. podrunner stages the three credential files of the official runner itself: mode 0600, not in argv, not in the environment, removed at destroy. A-V-11 belongs to podrunner. |
+| 2026-11-11 | C13 to C16 (podrunner) | "Confirm, keep swappable": the calls C13 (credentials as files only), C14 (the `local` set), C15 (the sidecar asks `sign` for each App JWT over fd 3) and C16 (the host token of the remote mint is the pinned key) are rulings. Each stays behind its trait or wire with its conformance tests, so a later refactor can replace it. |
+| 2026-11-11 | A podvm beta | "Ask podvm for a beta": podrunner asks podvm by a COORD issue to cut a beta from `main` when its release order allows (PodUtils/podvm@T-1706, PodUtils/podvm@T-1710, PodUtils/podvm@T-1720; GitHub #53, T-052). podrunner pins it in `images/podvm.toml`. Until then the entries that wait for podvm stay `blocked`. |
+| 2026-11-11 | The spec (T-014) | The owner attached the zip of the design review (`podrunner-spec/`: `SPEC.md`, the appendices, the schemas, the examples, the review rounds). T-014 starts. The zip stays out of the repository; T-014 brings in what the code needs. |
+| 2026-11-11 | DR-7 again | Still not now. The live gates (T-032, T-040) keep their offline tests and wait. |
 
 ## Calls made without a ruling
 
 Each call stays in force until the owner rules otherwise. The defaults of
-GitHub #8 (C1 to C12) are rulings since 2026-11-11 (DR-3, DR-8 to DR-17).
+GitHub #8 (C1 to C12) are rulings since 2026-11-11 (DR-3, DR-8 to DR-17);
+C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 
 | Date | Call | What |
 | --- | --- | --- |
