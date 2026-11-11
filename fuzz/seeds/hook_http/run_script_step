@@ -1,0 +1,4 @@
+POST /v1/hook/run_script_step HTTP/1.1
+Content-Length: 219
+
+{"command": "run_script_step", "responseFile": null, "args": {"entryPoint": "sh", "entryPointArgs": ["-e", "/__w/_temp/x.sh"], "environmentVariables": {}, "prependPath": [], "workingDirectory": "/__w/a/a"}, "state": {}}

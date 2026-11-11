@@ -6,8 +6,9 @@
 pub type Target = fn(&[u8]);
 
 /// Each target, by name.
-pub const TARGETS: [(&str, Target); 5] = [
+pub const TARGETS: [(&str, Target); 6] = [
     ("control_line", targets::control_line),
+    ("hook_http", targets::hook_http),
     ("hook_input", targets::hook_input),
     ("slots_config", targets::slots_config),
     ("slots_journal", targets::slots_journal),
@@ -18,6 +19,32 @@ pub mod targets {
     use podrunner::control;
     use podrunner_hook::input::{Command, parse};
     use podrunner_hook::policy::{Gate, Policy};
+
+    /// The control socket of a unit: the HTTP reader and the routes, behind
+    /// a unit that refuses each call. No panic on any bytes.
+    pub fn hook_http(data: &[u8]) {
+        struct No;
+        impl podrunner_hook::server::Unit for No {
+            fn hook(
+                &mut self,
+                _: podrunner_hook::input::HookInput,
+            ) -> Result<podrunner_hook::server::Answer, podrunner_hook::policy::Refusal> {
+                Err(podrunner_hook::policy::Refusal {
+                    code: podrunner_schema::RefusalCode::BuildNotSupported,
+                    why: "no",
+                })
+            }
+            fn job_state(
+                &mut self,
+                _: podrunner_hook::server::JobEvent,
+            ) -> Result<(), podrunner_hook::policy::Refusal> {
+                Ok(())
+            }
+        }
+        if let Ok(req) = podrunner_hook::http::read_request(&mut std::io::Cursor::new(data)) {
+            let _ = podrunner_hook::server::answer(&req, &mut No);
+        }
+    }
 
     /// The reader of a hook call and the checks of the host: no panic on any
     /// body, for each command; a gate refuses or plans.

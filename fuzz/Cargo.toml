@@ -65,3 +65,10 @@ path = "fuzz_targets/hook_input.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "hook_http"
+path = "fuzz_targets/hook_http.rs"
+test = false
+doc = false
+bench = false

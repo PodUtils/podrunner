@@ -16,7 +16,7 @@ pin the shape.
 ## The call
 
 The runner starts the script once for each call, with one JSON object on
-stdin:
+stdin, compact, first `command`, then `responseFile`, `args` and `state`:
 
 | Field | Meaning |
 | --- | --- |
@@ -48,6 +48,18 @@ The exit code of the script is the result of the call: 0 is success.
   "isAlpine": false
 }
 ```
+
+## The relay and the control socket
+
+The relay script (`crates/podrunner-hook/relay/podrunner-hook.sh`) posts
+stdin to `POST /v1/hook/COMMAND` on the control socket of its unit
+(`PODRUNNER_CTL`, a unix socket at mode 0600 in the unit). The answer of
+`prepare_job` goes to the response file; the output of a step goes to
+stdout. The header `X-Podrunner-Exit` gives the exit code of the script. A
+refusal is HTTP 403 with `{"code": ..., "why": ...}`, and the script
+exits 4. A job hook of the runner posts `POST /v1/job_state` with
+`{"event": "job-started"}` or `{"event": "job-completed"}`. One request
+for each connection; a body of at most 1 MiB; no chunked body.
 
 ## Refusals
 
