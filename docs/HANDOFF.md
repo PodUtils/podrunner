@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.24.0` (`Cargo.toml`); podvm `v0.2.0-beta.3`
+- Pins: podcrates `v0.25.0` (`Cargo.toml`); podvm `v0.2.0-beta.3`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); the
   official runner v2.338.2 (`images/runner/runner.toml`). Last beta of
   podrunner: `v0.1.0-beta.1`.
@@ -33,9 +33,6 @@ is done.
 - T-064: the next podvm beta copies the image for each container
   (PodUtils/podvm#258). T-067 takes the root of a unit from
   `podvm inspect` first; then pin the beta and run tests 25 and 26 on it.
-- The podcrates tag after `v0.24.0` changes `pod-confine`: new fields of
-  `Spec` (podrunner uses the builders), and `apply` drops each capability
-  (PodUtils/podcrates@T-221): T-073.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work.
@@ -49,8 +46,8 @@ is done.
 | podvm | `pod-confine` in its units (PodUtils/podvm#259) | T-042 |
 | podvm | the aarch64 interposer (PodUtils/podvm@T-1721) | T-051, T-030 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
-| podcrates | the tag after `v0.24.0` (`pod-confine`) | T-073 |
 | podcrates | `pod-actions-workflow`, `pod-actions-expr` | T-046 |
+| podcrates | `RunReport` fields and the exit reason `limit` (a direct message) | T-075 |
 | podcrates | `pod-unit`, `pod-release` | T-043 |
 
 ## Talk between sessions

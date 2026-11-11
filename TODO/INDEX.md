@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**76 entries: 3 open, 5 partial, 16 blocked, 52 done.**
+**76 entries: 3 open, 5 partial, 15 blocked, 53 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 1 | 26 | 29 |
 | P2 | 2 | 2 | 10 | 25 | 39 |
-| P3 | 1 | 1 | 5 | 1 | 8 |
-| **All** | 3 | 5 | 16 | 52 | 76 |
+| P3 | 1 | 1 | 4 | 2 | 8 |
+| **All** | 3 | 5 | 15 | 53 | 76 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -120,7 +120,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-070](core.md) | P2 | S | M-D | feature | partial | podrunner doctor reads the configuration and the probes of each kind |
 | [T-071](live.md) | P2 | M | M-C | chore | open | The live gate harness of G-H2 to G-H4, offline on the fake scale set |
 | [T-072](core.md) | P2 | S | M-D | measurement | done | U10: the egress module against a proxy that resets CONNECT to an IP literal |
-| [T-073](later.md) | P3 | S | later | chore | blocked | Take the podcrates tag after v0.24.0: pod-confine drops each capability |
+| [T-073](later.md) | P3 | S | later | chore | done | Take the podcrates tag after v0.24.0: pod-confine drops each capability |
 | [T-074](core.md) | P2 | M | M-D | feature | open | The disk limit of a unit |
 | [T-075](core.md) | P3 | S | M-D | feature | partial | The report and status fields of SPEC §11.4 and §11.5 |
 | [T-076](core.md) | P1 | M | M-D | feature | done | podrunner resolves names with pod-dns: no single resolver of the host |

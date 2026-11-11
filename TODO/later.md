@@ -184,7 +184,7 @@ The crates `pod-actions-workflow` and `pod-actions-expr` of podcrates do not exi
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -202,6 +202,6 @@ Move each `pod-*` dependency of `Cargo.toml` to the new tag, build, remove the r
 
 `cargo test -p podrunner-unit confined`, as root and as a user.
 
-## Blocker
+## Done
 
-podcrates releases the tag after `v0.24.0` with PodUtils/podcrates@T-221.
+2026-11-11: each `pod-*` dependency is at podcrates `v0.25.0` (COORD-051, PodUtils/podcrates#76); the build needs no change of code. The root guard of the confine test is gone: `cargo test -p podrunner-unit confined` passes as root and as uid 65534.
