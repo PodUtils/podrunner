@@ -10,10 +10,13 @@
 //! tree kill, because a grandchild outlives `podvm stop` and `rm -f`;
 //! `DOTNET_EnableWriteXorExecute=0` and no `fsize` limit; the rung read
 //! from the run banner, not from a request; no `--unsafe-host-paths`.
-//! `probe` maps `podvm probe --json` ([`probe`]); the start of a unit comes
-//! next (T-023).
+//! `probe` maps `podvm probe --json` ([`probe`]); [`PodvmUnit`] is the
+//! driver.
 
 pub mod probe;
+mod unit;
+
+pub use unit::PodvmUnit;
 
 use std::path::PathBuf;
 use std::process::Command;

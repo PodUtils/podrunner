@@ -45,6 +45,12 @@ pub struct UnitConfig {
     /// The top process of a unit: the runner in the payload.
     #[serde(default = "run_sh")]
     pub command: Vec<String>,
+    /// The tool of the kind (`podvm`: the path of the podvm binary).
+    #[serde(default)]
+    pub binary: Option<String>,
+    /// The store of the pinned images (`podvm`: a podvm store).
+    #[serde(default)]
+    pub images: Option<String>,
 }
 
 fn run_sh() -> Vec<String> {

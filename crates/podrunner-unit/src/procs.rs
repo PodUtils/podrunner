@@ -1,12 +1,13 @@
-//! The processes of a unit on the host. Each process of a unit carries the
-//! tag of the unit in its environment (`PODRUNNER_UNIT_TAG`); a scan of
+//! The processes of a unit on the host, for the drivers whose units are
+//! processes of this host (`fake`, `podvm`). Each process of a unit carries
+//! the tag of the unit in its environment (`PODRUNNER_UNIT_TAG`); a scan of
 //! `/proc` finds them, also a `setsid` grandchild whose parent is gone.
 
 use std::fs;
 use std::process::ExitStatus;
 use std::time::{Duration, Instant};
 
-use podrunner_unit::Exit;
+use crate::Exit;
 
 /// The variable that holds the tag of a unit.
 pub const TAG_VAR: &str = "PODRUNNER_UNIT_TAG";
@@ -21,7 +22,7 @@ pub fn tagged(tag: &str) -> Vec<u32> {
             fs::read(format!("/proc/{pid}/environ"))
                 .is_ok_and(|env| env.split(|b| *b == 0).any(|entry| entry == needle.as_bytes()))
         })
-        .filter(|pid| podrunner_unit::conformance::alive(*pid))
+        .filter(|pid| crate::conformance::alive(*pid))
         .collect();
     pids.sort_unstable();
     pids

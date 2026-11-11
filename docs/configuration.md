@@ -19,9 +19,11 @@ arch = "x86_64"              # or "aarch64"
 operator_controlled = true   # the full report; else the public report
 slots = 4                    # the most units of this source at one time
 
-[unit.podvm]                 # one table for each unit kind
+[unit.podvm]                 # one table for each unit kind: fake, podvm
 slots = 2
 command = ["./run.sh"]       # the top process of a unit
+binary = "/usr/local/bin/podvm"       # podvm: the released podvm binary
+images = "/var/lib/podrunner/images"  # podvm: a podvm store with the pinned images
 
 [tier.trusted]               # a floor at or above the lowest floor
 min_boundary = "confined"

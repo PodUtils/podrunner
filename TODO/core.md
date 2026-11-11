@@ -417,9 +417,19 @@ Measured on the session host with the released podvm `v0.2.0-beta.2`
 `0af41a96233c7f9f3ed48b80ebb3271fe9eaa1295616ea0375625f8035baf6a9`): the
 rung is `namespace` (the host has root: it is not H0); `podvm run` gives
 the exit code of the payload; a `setsid` grandchild outlives `podvm stop`
-and `rm -f`, as GitHub #23 says. Open: start, signal, wait, destroy with a
-store for each unit and the tag scan, the conformance run with a stand-in
-payload, and U25.
+and `rm -f`, as GitHub #23 says. The driver `PodvmUnit`
+(`crates/podrunner-podvm/src/unit.rs`): `prepare` saves the pinned image
+from the store of the operator into a tar; `start` loads it into a store
+of the unit, writes the credential files (mode 0600) into the rootfs that
+`podvm extract` names, and runs the payload detached with the tag of the
+unit, `PODRUNNER_UNIT` and `DOTNET_EnableWriteXorExecute=0`; `destroy`
+kills each tagged process, removes the container and the store, and
+counts. `serve` builds it from `[unit.podvm]` (`binary`, `images`). The
+unit tests 1 to 17 on this host with busybox as the stand-in payload: 16
+pass, test 14 skips (no container route); 5 runs, each green, no process
+left. Open: the same run on an H0 host (chroot and mount denied: the
+userland rung), `tree_kill: verified` from a self-test of test 3 at the
+start, and U25.
 
 ## Prove
 

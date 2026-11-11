@@ -14,6 +14,7 @@ use podrunner_schema::{
 };
 use podrunner_slots::config::{Config, SourceKind};
 use podrunner_slots::{Slots, Source, UnitKind};
+use podrunner_unit::UnitDriver;
 use serde_json::Value;
 
 use crate::control::{self, Handler, Reply, Request};
@@ -89,6 +90,17 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                 let cap = fake_capability();
                 let platform = if cap.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" };
                 (Box::new(FakeUnit::new(&state.join("fake"), cap.clone(), platform)), cap)
+            }
+            "podvm" => {
+                let need = |v: &Option<String>, key: &str| {
+                    v.clone().ok_or_else(|| fail(Class::Config, format!("[unit.podvm] needs {key}")))
+                };
+                let podvm = podrunner_podvm::Podvm { binary: need(&u.binary, "binary")?.into() };
+                let images = PathBuf::from(need(&u.images, "images")?);
+                let unit = podrunner_podvm::PodvmUnit::new(podvm, &state.join("podvm"), &images)
+                    .map_err(|e| fail(Class::Unsupported, format!("[unit.podvm]: {e}")))?;
+                let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
+                (Box::new(unit), cap)
             }
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));

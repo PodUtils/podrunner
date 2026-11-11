@@ -7,6 +7,7 @@
 //! tests that each driver must pass.
 
 pub mod conformance;
+pub mod procs;
 mod stub;
 mod types;
 

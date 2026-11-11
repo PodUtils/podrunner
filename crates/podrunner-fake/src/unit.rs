@@ -19,7 +19,7 @@ use podrunner_unit::{
     StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
 
-use crate::procs::{self, TAG_VAR};
+use podrunner_unit::procs::{self, TAG_VAR};
 
 /// The planted defects of the fake unit: each one fails the unit
 /// conformance test of its number.

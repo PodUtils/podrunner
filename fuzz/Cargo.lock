@@ -142,6 +142,7 @@ dependencies = [
  "pod-core",
  "podrunner-clock",
  "podrunner-fake",
+ "podrunner-podvm",
  "podrunner-schema",
  "podrunner-slots",
  "podrunner-source",
@@ -175,6 +176,16 @@ dependencies = [
  "podrunner",
  "podrunner-slots",
  "podrunner-source",
+ "serde_json",
+]
+
+[[package]]
+name = "podrunner-podvm"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "podrunner-schema",
+ "podrunner-unit",
  "serde_json",
 ]
 
@@ -221,6 +232,7 @@ dependencies = [
 name = "podrunner-unit"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "podrunner-schema",
  "serde",
 ]

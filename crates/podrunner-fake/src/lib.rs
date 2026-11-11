@@ -5,11 +5,10 @@
 //! `podrunner-unit` and `podrunner-source`. `docs/fakes.md` gives the
 //! formats.
 
-mod procs;
 mod source;
 mod unit;
 
-pub use procs::{TAG_VAR, tag_of, tagged};
+pub use podrunner_unit::procs::{TAG_VAR, tag_of, tagged};
 pub use source::{FakeSource, SourcePlant, Step, What, canned_credential, parse_script};
 pub use unit::{FakeUnit, UnitPlant};
 
