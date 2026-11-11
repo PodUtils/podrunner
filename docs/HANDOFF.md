@@ -18,7 +18,7 @@ is done.
   `trusted` at `redirect` is a choice of the operator with the mitigations
   of T-045; `microvm` is an adapter over podvm's machine tier (T-037);
   DR-7 is not now. C1 to C12 are rulings; C13 to C16 are calls.
-- podrunner takes the crates of podcrates at `v0.22.0` (`pod-core`,
+- podrunner takes the crates of podcrates at `v0.24.0` (`pod-core`,
   `pod-todo`, `pod-broker`, `pod-proxy`, `pod-identity`, `pod-job`).
   `pod-supervise` can replace the tag scan of the podvm driver (T-023);
   it is not on the M-A path.

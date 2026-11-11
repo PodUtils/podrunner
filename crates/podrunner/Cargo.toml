@@ -21,8 +21,8 @@ podrunner-remote.workspace = true
 podrunner-tier.workspace = true
 toml.workspace = true
 ring.workspace = true
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0", default-features = false }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0" }
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0", default-features = false }
 podrunner-fake.workspace = true
 podrunner-mint.workspace = true
 podrunner-podvm.workspace = true
@@ -35,5 +35,5 @@ serde_json.workspace = true
 
 [dev-dependencies]
 # The runner pin of the image agrees with the one of pod-services (a test).
-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.22.0" }
+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.24.0" }
 serde_json.workspace = true
