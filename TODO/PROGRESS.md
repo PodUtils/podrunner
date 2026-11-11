@@ -26,7 +26,7 @@ release or a live account.
 
 The queue for tonight, most valuable first:
 
-1. T-075 (S): the report and status fields of SPEC §11.4 and §11.5; needs a small ask to podcrates.
+1. T-075 (S): the status part is done; the report fields and the exit reason `limit` wait for podcrates `v0.26.0` (PodUtils/podcrates@T-226, on its main).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
