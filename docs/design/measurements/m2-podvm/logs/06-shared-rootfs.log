@@ -1,0 +1,44 @@
+date=2026-11-10T11:01:56Z kernel=6.12.113+deb13-amd64 cpus=8 virt=lxc podvm=podvm 0.1.0-beta.13
+######## T1 (A:--rm B:--rm C:--rm)
+B exit=0 stdout=B-wrote
+C (started while A still runs) exit=0 stdout=from-B|C-end|
+A exit=0
+   A: A saw /etc/marker at t=5: from-B
+   A: A saw /etc/marker at t=6: from-B
+   A: A saw /etc/marker at t=7: from-B
+   A: A saw /etc/marker at t=8: from-B
+   A: ... (6 lines with the marker)
+D (after all ended, flags C:--rm): from-B
+######## T2 (A:none B:none C:none)
+B exit=0 stdout=B-wrote
+C (started while A still runs) exit=0 stdout=from-B|C-end|
+A exit=0
+   A: A saw /etc/marker at t=4: from-B
+   A: A saw /etc/marker at t=5: from-B
+   A: A saw /etc/marker at t=6: from-B
+   A: A saw /etc/marker at t=7: from-B
+   A: ... (7 lines with the marker)
+D (after all ended, flags C:none): from-B
+######## T3 (A:none B:none C:--rm)
+B exit=0 stdout=B-wrote
+C (started while A still runs) exit=0 stdout=from-B|C-end|
+A exit=0
+   A: A saw /etc/marker at t=4: from-B
+   A: A saw /etc/marker at t=5: from-B
+   A: A saw /etc/marker at t=6: from-B
+   A: A saw /etc/marker at t=7: from-B
+   A: ... (7 lines with the marker)
+D (after all ended, flags C:--rm): from-B
+######## sequential controls (no concurrency)
+records-cleared-before-B=no (container records at B start: 14) B:none exit=0 ; later C:none reads: from-B
+records-cleared-before-B=no (container records at B start: 18) B:none exit=0 ; later C:--rm reads: from-B
+records-cleared-before-B=no (container records at B start: 21) B:--rm exit=0 ; later C:none reads: from-B
+records-cleared-before-B=no (container records at B start: 24) B:--rm exit=0 ; later C:--rm reads: from-B
+records-cleared-before-B=yes (container records at B start: 0) B:none exit=0 ; later C:none reads: from-B
+records-cleared-before-B=yes (container records at B start: 0) B:none exit=0 ; later C:--rm reads: from-B
+records-cleared-before-B=yes (container records at B start: 0) B:--rm exit=0 ; later C:none reads: cat: can't open '/etc/marker': No such file or directory
+records-cleared-before-B=yes (container records at B start: 0) B:--rm exit=0 ; later C:--rm reads: cat: can't open '/etc/marker': No such file or directory
+######## /etc/hosts collision: two concurrent runs add the same name with different IPs
+run2 exit=0 sees: 10.0.0.2	svc|
+run1 (started first, read after run2 started) sees: 10.0.0.2	svc|
+exit=0

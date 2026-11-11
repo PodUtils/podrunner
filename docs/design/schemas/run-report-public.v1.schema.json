@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run-report-public.v1.schema.json",
+  "title": "podrunner public run report, version 1",
+  "description": "The subset of a run report that goes to a source that is not marked operator_controlled. The full report (run-report.v1.schema.json) stays on the operator's side. No field names the host, the image, the boundary proof or the byte counts. A refused job has no unit_kind and no boundary. The refusal codes are the same list as the full report.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "job_id",
+    "source",
+    "tier",
+    "wall_s",
+    "exit_reason"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{1,128}$"
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*/[A-Za-z0-9._-]{1,64}$"
+    },
+    "tier": {
+      "enum": [
+        "untrusted",
+        "trusted",
+        "local"
+      ]
+    },
+    "unit_kind": {
+      "enum": [
+        "podvm",
+        "docker",
+        "microvm",
+        "host",
+        "incus",
+        "fake"
+      ]
+    },
+    "boundary": {
+      "enum": [
+        "none",
+        "redirect",
+        "confined",
+        "guest"
+      ]
+    },
+    "wall_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "exit_reason": {
+      "enum": [
+        "done",
+        "cancelled",
+        "timeout",
+        "limit",
+        "lost",
+        "refused",
+        "failed"
+      ]
+    },
+    "refusal_code": {
+      "$ref": "#/$defs/refusal_code"
+    },
+    "hook_refusals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/refusal_code"
+      }
+    }
+  },
+  "$defs": {
+    "refusal_code": {
+      "enum": [
+        "no-slot-of-kind",
+        "port-claimed",
+        "image-stale",
+        "event-not-allowed",
+        "tier-mismatch",
+        "tier-needs-guest",
+        "boundary-not-available",
+        "limit-not-enforceable",
+        "hold-not-available",
+        "egress-policy-unsupported",
+        "arch-mismatch",
+        "payload-not-pinned",
+        "repo-scope-refused",
+        "container-not-supported",
+        "container-option-refused",
+        "build-not-supported",
+        "source-revoked",
+        "credential-unavailable",
+        "unit-start-failed"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "exit_reason": {
+            "const": "refused"
+          }
+        },
+        "required": [
+          "exit_reason"
+        ]
+      },
+      "then": {
+        "required": [
+          "refusal_code"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "unit_kind"
+              ]
+            },
+            {
+              "required": [
+                "boundary"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "exit_reason": {
+            "enum": [
+              "done",
+              "cancelled",
+              "timeout",
+              "limit",
+              "lost"
+            ]
+          }
+        },
+        "required": [
+          "exit_reason"
+        ]
+      },
+      "then": {
+        "required": [
+          "unit_kind",
+          "boundary"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "job-offer.age-zero.json": "image_max_age_days",
+  "job-offer.credential-env.json": "credential_delivery",
+  "job-offer.event-typo.json": "event",
+  "job-offer.image-by-tag.json": "payload/image",
+  "job-offer.job-id-path.json": "job_id",
+  "job-offer.payload-on-scaleset.json": "should not be valid under {'required': ['payload']}",
+  "job-offer.policy-no-version.json": "broker:version",
+  "job-offer.tier-from-source.json": "tier",
+  "job-offer.trust-maybe.json": "head_is_fork",
+  "run-report-public.refused-with-boundary.json": "boundary",
+  "run-report-public.with-host.json": "host",
+  "run-report.done-no-principal.json": "same_principal_ok",
+  "run-report.refused-no-code.json": "refusal_code",
+  "run-report.refused-with-unit.json": "unit_kind",
+  "run-report.unknown-code.json": "refusal_code",
+  "unit-capability.boundary-isolated.json": "boundary",
+  "unit-capability.delivery-env.json": "secret_delivery",
+  "unit-capability.empty-proof.json": "boundary_proof",
+  "unit-capability.hold-redirect.json": "egress_hold"
+}

@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "run-report.v1.schema.json",
+  "title": "podrunner run report, version 1",
+  "description": "One report for each job, sent to its source when the job ends (G-06). A field a driver cannot supply is the string unknown. A refused job has no unit: unit_kind and boundary are absent. A failed job (a unit that did not start, or a credential that could not be minted) may carry them. The unit fields are required for the exit reasons done, cancelled, timeout, limit and lost. No field carries free text except boundary_proof, a driver-supplied string that the conformance suite scans for credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "job_id",
+    "source",
+    "tier",
+    "host",
+    "arch",
+    "wall_s",
+    "exit_reason",
+    "exit_code"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{1,128}$"
+    },
+    "source": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*/[A-Za-z0-9._-]{1,64}$"
+    },
+    "tier": {
+      "enum": [
+        "untrusted",
+        "trusted",
+        "local"
+      ]
+    },
+    "unit_kind": {
+      "enum": [
+        "podvm",
+        "docker",
+        "microvm",
+        "host",
+        "incus",
+        "fake"
+      ]
+    },
+    "boundary": {
+      "enum": [
+        "none",
+        "redirect",
+        "confined",
+        "guest"
+      ]
+    },
+    "boundary_proof": {
+      "type": "string",
+      "minLength": 1
+    },
+    "same_principal_ok": {
+      "type": "boolean",
+      "description": "True when the source's configuration allowed co-tenant jobs on one principal for this job."
+    },
+    "credential_store": {
+      "enum": [
+        "tmpfs",
+        "private-dir"
+      ]
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "arch": {
+      "enum": [
+        "x86_64",
+        "aarch64",
+        "armv7",
+        "riscv64",
+        "i686",
+        "loongarch64",
+        "ppc64le"
+      ]
+    },
+    "image_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "image_age_days": {
+      "type": "number",
+      "minimum": 0
+    },
+    "job_images": {
+      "type": "array",
+      "description": "Images of services and job containers as resolved at pull time.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ref",
+          "digest"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "claim_to_first_step_s": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "const": "unknown"
+        }
+      ],
+      "description": "Seconds from claim to the ACTIONS_RUNNER_HOOK_JOB_STARTED hook."
+    },
+    "wall_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "cpu_s": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "const": "unknown"
+        }
+      ]
+    },
+    "peak_rss_mib": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "const": "unknown"
+        }
+      ]
+    },
+    "bytes_in": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "const": "unknown"
+        }
+      ]
+    },
+    "bytes_out": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "const": "unknown"
+        }
+      ]
+    },
+    "egress_hold": {
+      "enum": [
+        "none",
+        "advisory",
+        "enforced"
+      ]
+    },
+    "limits_applied": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "cpu",
+          "memory",
+          "disk",
+          "pids",
+          "wall"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "exit_reason": {
+      "enum": [
+        "done",
+        "cancelled",
+        "timeout",
+        "limit",
+        "lost",
+        "refused",
+        "failed"
+      ]
+    },
+    "exit_code": {
+      "oneOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "const": "unknown"
+        }
+      ]
+    },
+    "refusal_code": {
+      "$ref": "#/$defs/refusal_code"
+    },
+    "hook_refusals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/refusal_code"
+      },
+      "description": "Refusals made at hook time. Each failed one step by name."
+    }
+  },
+  "$defs": {
+    "refusal_code": {
+      "enum": [
+        "no-slot-of-kind",
+        "port-claimed",
+        "image-stale",
+        "event-not-allowed",
+        "tier-mismatch",
+        "tier-needs-guest",
+        "boundary-not-available",
+        "limit-not-enforceable",
+        "hold-not-available",
+        "egress-policy-unsupported",
+        "arch-mismatch",
+        "payload-not-pinned",
+        "repo-scope-refused",
+        "container-not-supported",
+        "container-option-refused",
+        "build-not-supported",
+        "source-revoked",
+        "credential-unavailable",
+        "unit-start-failed"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "exit_reason": {
+            "const": "refused"
+          }
+        },
+        "required": [
+          "exit_reason"
+        ]
+      },
+      "then": {
+        "required": [
+          "refusal_code"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "unit_kind"
+              ]
+            },
+            {
+              "required": [
+                "boundary"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "exit_reason": {
+            "enum": [
+              "done",
+              "cancelled",
+              "timeout",
+              "limit",
+              "lost"
+            ]
+          }
+        },
+        "required": [
+          "exit_reason"
+        ]
+      },
+      "then": {
+        "required": [
+          "unit_kind",
+          "boundary",
+          "boundary_proof",
+          "same_principal_ok",
+          "credential_store",
+          "image_digest",
+          "image_age_days",
+          "egress_hold",
+          "limits_applied"
+        ]
+      }
+    }
+  ]
+}

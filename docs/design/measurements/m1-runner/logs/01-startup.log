@@ -1,0 +1,69 @@
+date: 2026-11-10T10:33:16Z
+kernel: 6.12.113+deb13-amd64  cpus: 8  virt: lxc  uid: 1000
+os: Debian GNU/Linux 13 (trixie)  glibc: ldd (Debian GLIBC 2.41-12+deb13u4) 2.41
+fsize limit (soft/hard, bytes): 21474836480/21474836480
+=== A. default environment (W^X on): listener --version
+--- [A] run 1 exit=153
+
+--- [A] run 2 exit=153
+
+=== B. DOTNET_EnableWriteXorExecute=0: listener --version
+--- [B] run 1 exit=0
+2.338.2
+--- [B] run 2 exit=0
+2.338.2
+=== C. W^X off: config.sh --help (first lines), run.sh --help (first lines)
+--- [C1] run 1 exit=0
+
+Commands:
+ ./config.sh         Configures the runner
+ ./config.sh remove  Unconfigures the runner
+--- [C1] run 2 exit=0
+
+Commands:
+ ./config.sh         Configures the runner
+ ./config.sh remove  Unconfigures the runner
+--- [C2] run 1 exit=0
+
+Commands:
+ ./config.sh         Configures the runner
+ ./config.sh remove  Unconfigures the runner
+--- [C2] run 2 exit=0
+
+Commands:
+ ./config.sh         Configures the runner
+ ./config.sh remove  Unconfigures the runner
+=== D. W^X off + DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+--- [D] run 1 exit=0
+2.338.2
+--- [D] run 2 exit=0
+2.338.2
+=== E. ICU hidden (empty files bind-mounted over every libicu*.so.* in a private mount namespace; unshare -rm)
+--- [E no-ICU, invariant unset] run 1 exit=134
+Process terminated. Couldn't find a valid ICU package installed on the system. Please install libicu (or icu-libs) using your package manager and try again. Alternatively you can set the configuration flag System.Globalization.Invariant to true if you want to run with no globalization support. Please see https://aka.ms/dotnet-missing-libicu for more information.
+   at System.Environment.FailFast(System.String)
+   at System.Globalization.GlobalizationMode+Settings..cctor()
+--- [E no-ICU, invariant unset] run 2 exit=134
+Process terminated. Couldn't find a valid ICU package installed on the system. Please install libicu (or icu-libs) using your package manager and try again. Alternatively you can set the configuration flag System.Globalization.Invariant to true if you want to run with no globalization support. Please see https://aka.ms/dotnet-missing-libicu for more information.
+   at System.Environment.FailFast(System.String)
+   at System.Globalization.GlobalizationMode+Settings..cctor()
+--- [E no-ICU, invariant=1] run 1 exit=0
+2.338.2
+--- [E no-ICU, invariant=1] run 2 exit=0
+2.338.2
+=== F. what the runner's own dependency script would install on Debian-family (bin/installdependencies.sh, read only, not run: needs root)
+69:        $apt_get update && $apt_get install -y libkrb5-3 zlib1g
+78:            $apt_get install -y $1
+134:                dnf install -y lttng-ust openssl-libs krb5-libs zlib libicu
+150:                yum install -y lttng-ust openssl-libs krb5-libs zlib libicu
+205:            yum install -y openssl krb5-libs zlib
+=== G. runtime config (self-contained, includedFrameworks)
+3:    "tfm": "net8.0",
+7:        "version": "8.0.33"
+=== H. installed libs on this host: ICU, OpenSSL
+libcrypto.so.3
+libgssapi_krb5.so.2
+libicuuc.so.76
+libssl.so.3
+libz.so.1
+exit=0

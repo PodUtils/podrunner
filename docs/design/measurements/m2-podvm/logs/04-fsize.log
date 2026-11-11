@@ -1,0 +1,77 @@
+date=2026-11-10T10:49:46Z kernel=6.12.113+deb13-amd64 cpus=8 virt=lxc
+## host default from /proc/self/limits
+Max file size             21474836480          21474836480          bytes     
+Max core file size        0                    unlimited            bytes     
+## podvm's own limit flags (parity rows)
+ulimit-flag exit=125 wall=0.00s
+  stderr: podvm run: --ulimit is in the parity table with status None: per-container rlimits are not applied; the payload inherits this process's limits
+memory-flag exit=125 wall=0.00s
+  stderr: podvm run: -m, --memory is in the parity table with status None: resource limits need a cgroup this runtime does not grant
+podvm-mem exit=125 wall=0.00s
+  stderr: podvm run: --podvm-mem needs --podvm-tier=machine
+## control: prlimit reaches an alpine payload through podvm (dd 3 MiB under --fsize=1 MiB)
+scripts/lib.sh: line 17: 167541 File size limit exceeded"$@" > "$WORK/o.txt" 2> "$WORK/e.txt"
+alpine-dd-1MiB exit=153 wall=0.27s
+scripts/lib.sh: line 17: 167620 File size limit exceeded"$@" > "$WORK/o.txt" 2> "$WORK/e.txt"
+alpine-dd-1MiB-rep exit=153 wall=0.27s
+## native control, no podvm (host default limit = hard limit, cannot be raised here)
+scripts/04-fsize.sh: line 25: 167699 File size limit exceededDOTNET_EnableWriteXorExecute=$w $pre ./bin/Runner.Listener --version > "$WORK/o.txt" 2> "$WORK/e.txt"
+native fsize=default W^X=1 rep=1 exit=153 out=
+scripts/04-fsize.sh: line 25: 167703 File size limit exceededDOTNET_EnableWriteXorExecute=$w $pre ./bin/Runner.Listener --version > "$WORK/o.txt" 2> "$WORK/e.txt"
+native fsize=default W^X=1 rep=2 exit=153 out=
+native fsize=default W^X=0 rep=1 exit=0 out=2.338.2
+native fsize=default W^X=0 rep=2 exit=0 out=2.338.2
+scripts/04-fsize.sh: line 25: 167727 File size limit exceededDOTNET_EnableWriteXorExecute=$w $pre ./bin/Runner.Listener --version > "$WORK/o.txt" 2> "$WORK/e.txt"
+native fsize=1073741824 W^X=1 rep=1 exit=153 out=
+scripts/04-fsize.sh: line 25: 167731 File size limit exceededDOTNET_EnableWriteXorExecute=$w $pre ./bin/Runner.Listener --version > "$WORK/o.txt" 2> "$WORK/e.txt"
+native fsize=1073741824 W^X=1 rep=2 exit=153 out=
+native fsize=1073741824 W^X=0 rep=1 exit=0 out=2.338.2
+native fsize=1073741824 W^X=0 rep=2 exit=0 out=2.338.2
+scripts/04-fsize.sh: line 25: 167755 File size limit exceededDOTNET_EnableWriteXorExecute=$w $pre ./bin/Runner.Listener --version > "$WORK/o.txt" 2> "$WORK/e.txt"
+native fsize=67108864 W^X=1 rep=1 exit=153 out=
+scripts/04-fsize.sh: line 25: 167759 File size limit exceededDOTNET_EnableWriteXorExecute=$w $pre ./bin/Runner.Listener --version > "$WORK/o.txt" 2> "$WORK/e.txt"
+native fsize=67108864 W^X=1 rep=2 exit=153 out=
+native fsize=67108864 W^X=0 rep=1 exit=0 out=2.338.2
+native fsize=67108864 W^X=0 rep=2 exit=0 out=2.338.2
+scripts/04-fsize.sh: line 25: 167783 File size limit exceededDOTNET_EnableWriteXorExecute=$w $pre ./bin/Runner.Listener --version > "$WORK/o.txt" 2> "$WORK/e.txt"
+native fsize=1048576 W^X=1 rep=1 exit=153 out=
+scripts/04-fsize.sh: line 25: 167787 File size limit exceededDOTNET_EnableWriteXorExecute=$w $pre ./bin/Runner.Listener --version > "$WORK/o.txt" 2> "$WORK/e.txt"
+native fsize=1048576 W^X=1 rep=2 exit=153 out=
+native fsize=1048576 W^X=0 rep=1 exit=0 out=2.338.2
+native fsize=1048576 W^X=0 rep=2 exit=0 out=2.338.2
+## mechanism (native, strace): what does W^X do that FSIZE stops?
+scripts/04-fsize.sh: line 31: 167811 File size limit exceededstrace -f -e trace=ftruncate,memfd_create -o "$WORK/st.txt" ./bin/Runner.Listener --version > /dev/null 2>&1
+strace run exit=153
+167814 memfd_create("doublemapper", MFD_CLOEXEC) = 8
+167814 ftruncate(8, 2199023255552)      = -1 EFBIG (File too large)
+167814 --- SIGXFSZ {si_signo=SIGXFSZ, si_code=SI_USER, si_pid=167814, si_uid=1000} ---
+167815 +++ killed by SIGXFSZ +++
+## can the limit be raised above the host hard limit? (sudo prlimit)
+prlimit: failed to set the FSIZE resource limit: Operation not permitted
+sudo prlimit unlimited exit=1
+## inside podvm
+Loaded image: docker.io/library/podrunner-hack:t
+podvm host-default W^X=1 rep1 exit=153 wall=5.66s
+  stderr: the payload died on signal 25: exit 153
+podvm host-default W^X=0 rep1 exit=0 wall=5.53s
+  stdout: 2.338.2
+podvm prlimit-1GiB W^X=1 rep1 exit=153 wall=5.38s
+  stderr: the payload died on signal 25: exit 153
+podvm prlimit-1GiB W^X=0 rep1 exit=0 wall=5.69s
+  stdout: 2.338.2
+scripts/lib.sh: line 17: 169320 File size limit exceeded"$@" > "$WORK/o.txt" 2> "$WORK/e.txt"
+podvm prlimit-1MiB W^X=0 rep1 exit=153 wall=1.87s
+podvm host-default W^X=1 rep2 exit=153 wall=5.13s
+  stderr: the payload died on signal 25: exit 153
+podvm host-default W^X=0 rep2 exit=0 wall=5.65s
+  stdout: 2.338.2
+podvm prlimit-1GiB W^X=1 rep2 exit=153 wall=5.42s
+  stderr: the payload died on signal 25: exit 153
+podvm prlimit-1GiB W^X=0 rep2 exit=0 wall=5.55s
+  stdout: 2.338.2
+scripts/lib.sh: line 17: 169752 File size limit exceeded"$@" > "$WORK/o.txt" 2> "$WORK/e.txt"
+podvm prlimit-1MiB W^X=0 rep2 exit=153 wall=1.75s
+## same cases on the default (anchored) rung: blocked before the limit matters
+podvm anchored W^X=0 exit=137 wall=5.50s
+  stderr: Failed to create CoreCLR, HRESULT: 0x8007045A
+exit=0

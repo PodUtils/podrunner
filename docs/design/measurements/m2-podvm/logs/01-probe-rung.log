@@ -1,0 +1,61 @@
+date=2026-11-10T10:45:59Z kernel=6.12.113+deb13-amd64 cpus=8 virt=lxc uid=1000
+podvm=podvm 0.1.0-beta.13
+## doctor
+ok qemu-system-x86_64 --version: qemu-system-x86_64 --version=ok
+ok open(/dev/kvm, O_RDWR): open(/dev/kvm, O_RDWR)=ok
+ok prlimit(RLIMIT_FSIZE): prlimit(RLIMIT_FSIZE)=ok
+ok open(/dev/net/tun, O_RDWR): open(/dev/net/tun, O_RDWR)=ok
+ok image space (statfs .): image space (statfs .)=ok
+ok qemu-system-x86_64 -accel help: qemu-system-x86_64 -accel help=ok
+fail disk free against the file-size ceiling: free 15.77 GiB at $WORK/xdg/podvm is below the 20.00 GiB file-size ceiling
+ok memfd_exec: a memfd executes through execveat(AT_EMPTY_PATH) (vm.memfd_noexec=0)
+fix: free disk space at $WORK/xdg/podvm or point PODVM_STORE at a roomier filesystem
+profile: full
+doctor exit=1
+## probe (text, head)
+supervise
+podvm 0.1.0-beta.13: mode=supervise (namespaces: none; mounts: none; devices: shimmed;
+ownership: virtualized+sidecar; network: host-shared; pids: host-shared)
+probes: clone(NEWNS)=EPERM mount=EPERM fsmount=skip(EPERM) move_mount=skip(EPERM)
+        clone(NEWUTS)=EPERM sethostname=skip(EPERM) chroot=EPERM ptrace=ok
+this mode does NOT provide: anything whose arguments it cannot read; on this runtime, exec remapping
+
+identity
+probe exit=0
+## probe --json (selected fields)
+probe --json exit=0
+rung= supervise
+rung_must_never_claim= anything whose arguments it cannot read; on this runtime, exec remapping
+rejected= [{"rung": "namespace", "requirement": "namespace creation and mounts and ID maps for what was asked", "evidence": "unshare(CLONE_NEWNS)=EPERM clone(CLONE_NEWNS)=EPERM mount(tmpfs,/mnt)=EPERM mount(tmpfs,/mnt) in clone(NEWNS)=skip"}]
+probe unshare(CLONE_NEWNS) denied EPERM
+probe unshare(CLONE_NEWUSER) ok None
+probe clone(CLONE_NEWUSER) ok None
+probe mount(tmpfs,/mnt) denied EPERM
+probe mknod(chr 1:3 /tmp/nodprobe) denied EPERM
+probe chroot(/tmp) denied EPERM
+probe memfd_create+exec ok None
+probe open(/dev/fuse, O_RDWR) ok None
+tiers.supervise.refusal= None
+## system info .Rung|.EnteredRung
+supervise|chroot
+exit=0
+## pull alpine
+pull exit=0
+## default run banner (--verbose)
+podvm 0.1.0-beta.13: mode=userland (namespaces: none; mounts: none; devices: shimmed;
+note: this machine would permit `supervise`; podvm's entry sequence is `userland` and creates no namespace and mounts nothing
+entering without chroot on the loader family: $WORK/xdg/podvm/rootfs/sha256_0f49f331d9212aff11b932863be4eb01cdf962969aa86dab7d1ee21ac6f5f52b/rootfs/lib/ld-musl-x86_64.so.1 runs $WORK/xdg/podvm/rootfs/sha256_0f49f331d9212aff11b932863be4e
+default-run exit=0
+## forcing attempts
+PODVM_MODE=memfd exit=125 :: podvm run: PODVM_MODE=memfd was forced but dynamically linked against /lib/ld-musl-x86_64.so.1: a memfd exec never puts its libraries on disk, so the loader would fail on the first one it cannot find: without chroot(2) only a static payload enters, through the unforced loader family where the tier reaches it: run without PODVM_M
+PODVM_MODE=rundir exit=125 :: podvm run: PODVM_MODE=rundir was forced but chroot(2) is denied on this machine, and only the memfd rung enters without it (TODO/enter.md T-1317)
+PODVM_MODE=cache exit=125 :: podvm run: PODVM_MODE=cache was forced but chroot(2) is denied on this machine, and only the memfd rung enters without it (TODO/enter.md T-1317)
+PODVM_MODE=fuse exit=125 :: podvm run: PODVM_MODE=fuse was forced but chroot(2) is denied on this machine, and only the memfd rung enters without it (TODO/enter.md T-1317)
+PODVM_MODE=tmpfs exit=125 :: podvm run: PODVM_MODE=tmpfs was forced but chroot(2) is denied on this machine, and only the memfd rung enters without it (TODO/enter.md T-1317)
+PODVM_MODE=chroot exit=125 :: podvm run: PODVM_MODE="chroot" names no launch rung. The rungs are: memfd, fuse, tmpfs, rundir, cache
+PODVM_MODE=userland exit=125 :: podvm run: PODVM_MODE="userland" names no launch rung. The rungs are: memfd, fuse, tmpfs, rundir, cache
+podvm 0.1.0-beta.13: mode=userland (namespaces: none; mounts: none; devices: shimmed;
+--podvm-tier=chroot exit=0
+podvm run: the machine tier holds on this machine; running a guest arrives with TODO/machine.md T-1303 and T-1304
+--podvm-tier=machine exit=125
+exit=0

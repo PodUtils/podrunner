@@ -716,3 +716,28 @@ When the beta comes: pin it in `images/podvm.toml` (the version and the SHA-256 
 
 A podvm beta from `main` (GitHub #53). podvm is on break.
 
+# T-053: The conformance suites follow the numbers of the design contracts
+
+**Source:** T-014
+**Category:** defect
+**Milestone:** L2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The conformance suites of podrunner (`docs/contracts/unit-driver.md` tests 1 to 17, `docs/contracts/source-driver.md` tests 1 to 12) have their own numbers and names. The design contracts (`docs/design/contracts/unit-driver.md`, `docs/design/contracts/source-driver.md`) number other tests, and the issues name those numbers: GitHub #35 asks for the design tests 3, 8, 9, 13, 14, 16 and 17 on the fake path. Some design tests have no test here (for example unit test 9, the socket of unit A refuses a container id of unit B; unit test 8, `container_exec` sees its environment and working directory).
+
+## Premise
+
+Read on 2026-11-11: no number of `docs/contracts/` agrees with a number of `docs/design/contracts/` for the same test, apart from a few by chance.
+
+## Approach
+
+A table in each of `docs/contracts/unit-driver.md` and `docs/contracts/source-driver.md`: each design test, the test here that covers it, or "missing". Then write each missing test with a planted defect and a correct input, on the fake unit or the fake source. Keep the names of the suites; the table carries the design numbers. Then close the fake-path acceptance of T-035 in the design numbers.
+
+## Prove
+
+`cargo test -p podrunner-fake`, `cargo test -p podrunner-hook`, and the two tables have no row "missing".
+

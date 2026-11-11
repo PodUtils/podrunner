@@ -118,6 +118,17 @@ jobs:
       - name: No citation left behind by the last commit
         if: github.event_name == 'push'
         run: cargo run --locked -q -p podrunner-todo -- check --base HEAD~1
+      # The design copy (GitHub #14): its own checks and their planted
+      # defects (docs/design/verify.sh), and no detail of a machine or an
+      # account of the owner.
+      - name: The design copy
+        run: |
+          set -eu
+          python3 -m venv "$RUNNER_TEMP/venv"
+          sh scripts/retry.sh "$RUNNER_TEMP/venv/bin/pip" install --quiet jsonschema==4.26.0
+          PATH="$RUNNER_TEMP/venv/bin:$PATH" bash docs/design/verify.sh
+          sh scripts/check-design.sh --self-test
+          sh scripts/check-design.sh
 
   static:
     runs-on: ubuntu-24.04

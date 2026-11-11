@@ -1,0 +1,420 @@
+date: 2026-11-10T10:35:55Z
+kernel: 6.12.113+deb13-amd64  cpus: 8  virt: lxc  uid: 1000
+os: Debian GNU/Linux 13 (trixie)  glibc: ldd (Debian GLIBC 2.41-12+deb13u4) 2.41
+fsize limit (soft/hard, bytes): 21474836480/21474836480
+
+################ scenario 04-l-unset-1: form=arg-listener server=tooold
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=31   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 1
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:35:56Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 138948)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103555-utc.log 
+
+################ scenario 04-l-true-1: form=arg-listener server=tooold
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=28   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 7
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:36:02Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 139143)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103602-utc.log 
+
+################ scenario 04-l-1-1: form=arg-listener server=tooold
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=29   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 7
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:36:09Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 139465)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103609-utc.log 
+
+################ scenario 04-r-unset-1: form=arg-runsh server=tooold
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=33   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run.sh           argv0=bash               samples=1    argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=32   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=32   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 0
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:36:16Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+Runner listener exit with terminated error, stop the service, no retry needed.
+Exiting runner...
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 139685)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103615-utc.log 
+
+################ scenario 04-r-true-1: form=arg-runsh server=tooold
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=27   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=27   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=26   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 0
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:36:22Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+Exiting with unknown error code: 7
+Exiting runner...
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 139927)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103622-utc.log 
+
+################ scenario 04-r-1-1: form=arg-runsh server=tooold
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=37   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=37   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=36   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 7
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:36:29Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+Runner listener exit with deprecated version exit code: 7.
+Exiting runner...
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 140093)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103629-utc.log 
+
+################ scenario 04-l-unset-2: form=arg-listener server=tooold
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=27   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 1
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:36:36Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 140251)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103635-utc.log 
+
+################ scenario 04-l-true-2: form=arg-listener server=tooold
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=24   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 7
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:36:42Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 140512)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103642-utc.log 
+
+################ scenario 04-l-1-2: form=arg-listener server=tooold
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=23   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 7
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:36:49Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 140715)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103648-utc.log 
+
+################ scenario 04-r-unset-2: form=arg-runsh server=tooold
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=25   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=25   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=1    argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=24   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 0
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:36:55Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+Runner listener exit with terminated error, stop the service, no retry needed.
+Exiting runner...
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 141051)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103655-utc.log 
+
+################ scenario 04-r-true-2: form=arg-runsh server=tooold
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=25   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=25   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=25   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 0
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:37:02Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+Exiting with unknown error code: 7
+Exiting runner...
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 141334)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103702-utc.log 
+
+################ scenario 04-r-1-2: form=arg-runsh server=tooold
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=28   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=28   argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=26   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 7
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:37:09Z: Listening for Jobs
+An error occurred: synthetic: runner version too old
+Runner listener exit with deprecated version exit code: 7.
+Exiting runner...
+requests seen by fake server (4):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+1x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 400 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 141425)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103708-utc.log 
+
+################ scenario 04-session403: form=arg-listener server=session403
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=22   argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+EXIT CODE of started command: 1
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Failed to create session. Error: Forbidden
+requests seen by fake server (2):
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 403 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 141503)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103715-utc.log 
+
+=== SUMMARY exit codes (listener direct = l, run.sh = r)
+l-1-1 7
+l-1-2 7
+l-true-1 7
+l-true-2 7
+l-unset-1 1
+l-unset-2 1
+r-1-1 7
+r-1-2 7
+r-true-1 0
+r-true-2 0
+r-unset-1 0
+r-unset-2 0
+session403 1
+pristine runner tree: 0 entries newer than the tarball (expected 0)
+exit=0

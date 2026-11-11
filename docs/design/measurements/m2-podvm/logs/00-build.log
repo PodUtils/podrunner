@@ -1,0 +1,248 @@
+date=2026-11-10T10:29:37Z kernel=6.12.113+deb13-amd64 cpus=8 virt=lxc
+commit=36b15ec034f5
+pinned channel=1.99
+zig=0.17.0
+info: syncing channel updates for 1.99-x86_64-unknown-linux-gnu
+info: latest update on 2026-10-15 for version 1.99.1 (58cf8f9c3 2026-10-13)
+info: downloading 4 components
+
+  1.99-x86_64-unknown-linux-gnu installed - rustc 1.99.1 (58cf8f9c3 2026-10-13)
+
+info: default toolchain set to 1.99-x86_64-unknown-linux-gnu
+info: syncing channel updates for 1.99-x86_64-unknown-linux-gnu
+info: latest update on 2026-10-15 for version 1.99.1 (58cf8f9c3 2026-10-13)
+info: component rust-std for target x86_64-unknown-linux-musl is up to date
+info: downloading 2 components
+    Updating crates.io index
+    Updating git repository `https://github.com/PodUtils/podcrates`
+   Compiling podvm-gate v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-gate)
+    Finished `release` profile [optimized] target(s) in 11.36s
+   Compiling podvm-gate v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-gate)
+    Finished `release` profile [optimized] target(s) in 4.25s
+== x86_64-unknown-linux-musl
+   linker: scripts/zig-cc.sh (zig 0.17.0)
+   Compiling podvm-interpose v0.1.0 ($WORK/podvm-src/crates/podvm-interpose)
+    Finished `release` profile [optimized] target(s) in 3.98s
+   382776 $WORK/podvm-src/target/x86_64-unknown-linux-musl/release/../../../crates/podvm-interpose/target/x86_64-unknown-linux-musl/release/libpodvm_interpose.so
+   DT_NEEDED: libc.so
+   ok: it names libc.so, so it is musl-linked
+   ok: no versioned needs
+   ok: gettid is not dynamically exported
+   ok: exports 119 names, exactly what interpose.map declares
+   ok: rust_eh_personality is not exported
+   ok: 382776 bytes, under the interpose ceiling of 500000
+== x86_64-unknown-linux-gnu
+   stub: $WORK/podvm-src/target/x86_64-unknown-linux-musl/release/../../../crates/podvm-interpose/target/dl-stub/libdl-stub.so (SONAME libdl.so.2)
+   Compiling podvm-interpose v0.1.0 ($WORK/podvm-src/crates/podvm-interpose)
+    Finished `release` profile [optimized] target(s) in 3.95s
+   363136 $WORK/podvm-src/target/x86_64-unknown-linux-musl/release/../../../crates/podvm-interpose/target/x86_64-unknown-linux-gnu/release/libpodvm_interpose.so
+   DT_NEEDED: libdl.so.2 libgcc_s.so.1 libc.so.6 ld-linux-x86-64.so.2
+   ok: it names libc.so.6, so it is glibc-linked
+   ok: newest need GLIBC_2.14, within GLIBC_2.27
+   ok: gettid is not dynamically exported
+   ok: libdl.so.2 is needed
+   ok: exports 119 names, exactly what interpose.map declares
+   ok: rust_eh_personality is not exported
+   ok: 363136 bytes, under the interpose ceiling of 500000
+== B. struct stat offsets, by offsetof and under both libcs
+  glibc  sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32|statx sizeof=256 mask=0 uid=20 gid=24 ino=32 devmaj=136 devmin=140|
+  musl   sizeof=144 dev=0 ino=8 mode=24 uid=28 gid=32|statx sizeof=256 mask=0 uid=20 gid=24 ino=32 devmaj=136 devmin=140|
+  B: both libcs agree on BOTH structs, and with the offsets src/lib.rs carries
+ Downloading crates ...
+  Downloaded getrandom v0.2.17
+  Downloaded base64 v0.23.1
+  Downloaded chacha20 v0.10.2
+  Downloaded cpubits v0.1.1
+  Downloaded errno v0.3.14
+  Downloaded filetime v0.2.29
+  Downloaded cpufeatures v0.3.1
+  Downloaded ff v0.14.0
+  Downloaded flate2 v1.1.10
+  Downloaded adler2 v2.0.1
+  Downloaded find-msvc-tools v0.1.12
+  Downloaded group v0.14.0
+  Downloaded primeorder v0.14.0
+  Downloaded primefield v0.14.0
+  Downloaded rustls-pki-types v1.15.1
+  Downloaded log v0.4.34
+  Downloaded proc-macro2 v1.0.107
+  Downloaded getrandom v0.4.3
+  Downloaded hybrid-array v0.4.15
+  Downloaded pin-project-lite v0.2.17
+  Downloaded signature v3.0.0
+  Downloaded block-buffer v0.12.1
+  Downloaded p256 v0.14.0
+  Downloaded rfc6979 v0.6.0
+  Downloaded wnaf v0.14.1
+  Downloaded zeroize v1.9.0
+  Downloaded crypto-bigint v0.7.10
+  Downloaded mio v1.2.4
+  Downloaded serde v1.0.229
+  Downloaded subtle v2.6.1
+  Downloaded tokio-rustls v0.26.6
+  Downloaded crc32fast v1.5.1
+  Downloaded itoa v1.0.18
+  Downloaded sec1 v0.8.1
+  Downloaded shlex v2.0.1
+  Downloaded base16ct v1.0.0
+  Downloaded crypto-common v0.2.2
+  Downloaded sha2 v0.11.1
+  Downloaded untrusted v0.9.0
+  Downloaded tokio-macros v2.7.2
+  Downloaded cfg-if v1.0.4
+  Downloaded simd-adler32 v0.3.10
+  Downloaded autocfg v1.5.1
+  Downloaded cmov v0.5.4
+  Downloaded ecdsa v0.17.0
+  Downloaded rand_core v0.10.1
+  Downloaded hmac v0.13.0
+  Downloaded serde_core v1.0.229
+  Downloaded zmij v1.0.23
+  Downloaded digest v0.11.3
+  Downloaded twox-hash v2.1.4
+  Downloaded ctutils v0.4.8
+  Downloaded once_cell v1.21.4
+  Downloaded signal-hook-registry v1.4.8
+  Downloaded socket2 v0.6.5
+  Downloaded bytes v1.12.1
+  Downloaded elliptic-curve v0.14.3
+  Downloaded quote v1.0.47
+  Downloaded tracing-core v0.1.36
+  Downloaded unicode-ident v1.0.24
+  Downloaded num-traits v0.2.19
+  Downloaded serde_derive v1.0.229
+  Downloaded tar v0.4.46
+  Downloaded const-oid v0.10.2
+  Downloaded memchr v2.8.3
+  Downloaded miniz_oxide v0.9.1
+  Downloaded rustls-webpki v0.103.15
+  Downloaded typenum v1.20.1
+  Downloaded cc v1.4.5
+  Downloaded ruzstd v0.9.1
+  Downloaded syscalls v0.8.1
+  Downloaded rand v0.10.3
+  Downloaded serde_json v1.0.154
+  Downloaded der v0.8.3
+  Downloaded unicode-width v0.2.3
+  Downloaded webpki-roots v1.0.11
+  Downloaded syn v3.0.5
+  Downloaded rustls v0.23.46
+  Downloaded tracing v0.1.44
+  Downloaded libc v0.2.189
+  Downloaded tokio v1.54.1
+  Downloaded ring v0.17.14
+  Downloaded linux-raw-sys v0.12.1
+   Compiling rand_core v0.10.1
+   Compiling zeroize v1.9.0
+   Compiling libc v0.2.189
+   Compiling subtle v2.6.1
+   Compiling cfg-if v1.0.4
+   Compiling typenum v1.20.1
+   Compiling proc-macro2 v1.0.107
+   Compiling cmov v0.5.4
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling const-oid v0.10.2
+   Compiling cpufeatures v0.3.1
+   Compiling getrandom v0.4.3
+   Compiling pin-project-lite v0.2.17
+   Compiling ctutils v0.4.8
+   Compiling bytes v1.12.1
+   Compiling chacha20 v0.10.2
+   Compiling autocfg v1.5.1
+   Compiling cpubits v0.1.1
+   Compiling find-msvc-tools v0.1.12
+   Compiling syscalls v0.8.1
+   Compiling shlex v2.0.1
+   Compiling ff v0.14.0
+   Compiling cc v1.4.5
+   Compiling num-traits v0.2.19
+   Compiling linux-raw-sys v0.12.1
+   Compiling hybrid-array v0.4.15
+   Compiling group v0.14.0
+   Compiling syn v3.0.5
+   Compiling der v0.8.3
+   Compiling base16ct v1.0.0
+   Compiling rustls-pki-types v1.15.1
+   Compiling errno v0.3.14
+   Compiling mio v1.2.4
+   Compiling crypto-common v0.2.2
+   Compiling block-buffer v0.12.1
+   Compiling signal-hook-registry v1.4.8
+   Compiling socket2 v0.6.5
+   Compiling sec1 v0.8.1
+   Compiling digest v0.11.3
+   Compiling rand v0.10.3
+   Compiling crypto-bigint v0.7.10
+   Compiling ring v0.17.14
+   Compiling sha2 v0.11.1
+   Compiling getrandom v0.2.17
+   Compiling untrusted v0.9.0
+   Compiling once_cell v1.21.4
+   Compiling hmac v0.13.0
+   Compiling serde_core v1.0.229
+   Compiling rustls v0.23.46
+   Compiling signature v3.0.0
+   Compiling zmij v1.0.23
+   Compiling log v0.4.34
+   Compiling tracing-core v0.1.36
+   Compiling serde_json v1.0.154
+   Compiling webpki-roots v1.0.11
+   Compiling itoa v1.0.18
+   Compiling tracing v0.1.44
+   Compiling memchr v2.8.3
+   Compiling base64 v0.23.1
+   Compiling serde v1.0.229
+   Compiling filetime v0.2.29
+   Compiling crc32fast v1.5.1
+   Compiling tar v0.4.46
+   Compiling simd-adler32 v0.3.10
+   Compiling adler2 v2.0.1
+   Compiling miniz_oxide v0.9.1
+   Compiling primefield v0.14.0
+   Compiling elliptic-curve v0.14.3
+   Compiling wnaf v0.14.1
+   Compiling rfc6979 v0.6.0
+   Compiling primeorder v0.14.0
+   Compiling ecdsa v0.17.0
+   Compiling tokio-macros v2.7.2
+   Compiling serde_derive v1.0.229
+   Compiling p256 v0.14.0
+   Compiling unicode-width v0.2.3
+   Compiling twox-hash v2.1.4
+   Compiling pod-term v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling tokio v1.54.1
+   Compiling ruzstd v0.9.1
+   Compiling flate2 v1.1.10
+   Compiling podvm-release v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-release)
+   Compiling podvm v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm)
+   Compiling podvm-measure v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-measure)
+   Compiling podvm-gate v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-gate)
+   Compiling podvm-buildstate v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-buildstate)
+   Compiling pod-core v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling pod-hostprobe v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling rustls-webpki v0.103.15
+   Compiling podvm-probe v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-probe)
+   Compiling pod-supervise v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling pod-extract v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling pod-enter v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling pod-guest v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling pod-rootfs v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling podvm-enter v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-enter)
+   Compiling podvm-windows v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-windows)
+   Compiling tokio-rustls v0.26.6
+   Compiling pod-tls v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling pod-proxy v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling pod-oci v0.11.0 (https://github.com/PodUtils/podcrates?tag=v0.11.0#c660aca0)
+   Compiling podvm-ssh v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-ssh)
+   Compiling podvm-image v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-image)
+   Compiling podvm-extract v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-extract)
+   Compiling podvm-complete v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-complete)
+   Compiling podvm-supervise v0.1.0-beta.13 ($WORK/podvm-src/crates/podvm-supervise)
+    Finished `release` profile [optimized] target(s) in 59.14s
+podvm-dev: $WORK/podvm-src/target/x86_64-unknown-linux-musl/release/podvm
+wall toolchain-install=13.0s gate-tools=16.7s podvm-dev-build=68.9s total=98.6s (1 run, cold CARGO_HOME)
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+-rwxr-xr-x 2 agent agent 4166872 Nov 10 10:31 $WORK/podvm-src/target/x86_64-unknown-linux-musl/release/podvm
+podvm 0.1.0-beta.13
+exit=0

@@ -1,0 +1,281 @@
+date: 2026-11-10T10:33:27Z
+kernel: 6.12.113+deb13-amd64  cpus: 8  virt: lxc  uid: 1000
+os: Debian GNU/Linux 13 (trixie)  glibc: ldd (Debian GLIBC 2.41-12+deb13u4) 2.41
+fsize limit (soft/hard, bytes): 21474836480/21474836480
+
+################ scenario 03-arg-runsh-1: form=arg-runsh server=ok
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=331  argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=331  argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=330  argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+(sent SIGTERM to the session after 7s; SIGINT is ignored by background jobs of a non-interactive shell)
+EXIT CODE of started command: 143
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:33:27Z: Listening for Jobs
+requests seen by fake server (6):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+3x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 202 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 130285)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103327-utc.log 
+
+################ scenario 03-env-runsh-1: form=env-runsh server=ok
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=330  argv_blob=False env_name=True env_blob=True sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=330  argv_blob=False env_name=True env_blob=True sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=330  argv_blob=False env_name=True env_blob=True sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+(sent SIGTERM to the session after 7s; SIGINT is ignored by background jobs of a non-interactive shell)
+EXIT CODE of started command: 143
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:33:37Z: Listening for Jobs
+requests seen by fake server (6):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+3x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 202 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 130389)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103337-utc.log 
+
+################ scenario 03-arg-listener-1: form=arg-listener server=ok
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=337  argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+(sent SIGTERM to the session after 7s; SIGINT is ignored by background jobs of a non-interactive shell)
+EXIT CODE of started command: 143
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:33:47Z: Listening for Jobs
+requests seen by fake server (6):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+3x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 202 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 130485)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103346-utc.log 
+
+################ scenario 03-env-listener-1: form=env-listener server=ok
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=337  argv_blob=False env_name=True env_blob=True sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+(sent SIGTERM to the session after 7s; SIGINT is ignored by background jobs of a non-interactive shell)
+EXIT CODE of started command: 143
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:33:56Z: Listening for Jobs
+requests seen by fake server (6):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+3x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 202 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 130582)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103356-utc.log 
+
+################ scenario 03-arg-runsh-2: form=arg-runsh server=ok
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=333  argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=332  argv_blob=True env_name=False env_blob=False sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=332  argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+(sent SIGTERM to the session after 7s; SIGINT is ignored by background jobs of a non-interactive shell)
+EXIT CODE of started command: 143
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:34:06Z: Listening for Jobs
+requests seen by fake server (6):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+3x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 202 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 130728)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103406-utc.log 
+
+################ scenario 03-env-runsh-2: form=env-runsh server=ok
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=329  argv_blob=False env_name=True env_blob=True sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=329  argv_blob=False env_name=True env_blob=True sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=329  argv_blob=False env_name=True env_blob=True sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+(sent SIGTERM to the session after 7s; SIGINT is ignored by background jobs of a non-interactive shell)
+EXIT CODE of started command: 143
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:34:16Z: Listening for Jobs
+requests seen by fake server (6):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+3x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 202 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 131006)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103415-utc.log 
+
+################ scenario 03-arg-listener-2: form=arg-listener server=ok
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=333  argv_blob=True env_name=False env_blob=False sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+(sent SIGTERM to the session after 7s; SIGINT is ignored by background jobs of a non-interactive shell)
+EXIT CODE of started command: 143
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:34:26Z: Listening for Jobs
+requests seen by fake server (6):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+3x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 202 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 133820)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103425-utc.log 
+
+################ scenario 03-env-listener-2: form=env-listener server=ok
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=331  argv_blob=False env_name=True env_blob=True sentinel=False
+files while running:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+(sent SIGTERM to the session after 7s; SIGINT is ignored by background jobs of a non-interactive shell)
+EXIT CODE of started command: 143
+files after exit:
+.runner mode=644 owner=agent:agent size=301
+.credentials mode=644 owner=agent:agent size=179
+.credentials_rsaparams mode=644 owner=agent:agent size=1646
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:34:35Z: Listening for Jobs
+requests seen by fake server (6):
+1x  DELETE /session               q=sessionId -> 204 | auth=Bearer <redacted len=25> | body=
+3x  GET    /message               q=architecture,disableUpdate,os,runnerVersion,sessionId,status -> 202 | auth=Bearer <redacted len=25> | body=
+1x  POST   /oauth/token           q=- -> 200 | auth=none | body=grant_type=client_credentials&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer&cli
+1x  POST   /session               q=- -> 200 | auth=Bearer <redacted len=25> | body={"sessionId":"00000000-0000-0000-0000-000000000000","ownerName":"<hostname> (PID: 134068)","agent":{"
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103435-utc.log 
+
+################ controls
+
+################ scenario 03-ctl-garbage: form=garbage-listener server=ok
+files before start:
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=8    argv_blob=False env_name=False env_blob=False sentinel=False
+files while running:
+EXIT CODE of started command: 1
+files after exit:
+processes left over in session 2 s after exit: 0
+runner stdout/stderr (first 12 lines):
+The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.
+requests seen by fake server (0):
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103444-utc.log 
+
+################ scenario 03-ctl-bare: form=bare-runsh server=ok
+files before start:
+pid_seen comm=run.sh           argv0=bash               samples=11   argv_blob=False env_name=False env_blob=False sentinel=False
+pid_seen comm=run-helper.sh    argv0=bash               samples=11   argv_blob=False env_name=False env_blob=False sentinel=False
+pid_seen comm=Runner.Listener  argv0=Runner.Listener    samples=10   argv_blob=False env_name=False env_blob=False sentinel=False
+files while running:
+EXIT CODE of started command: 0
+files after exit:
+processes left over in session 2 s after exit: 0
+config files byte-identical before/after
+runner stdout/stderr (first 12 lines):
+An error occurred: Not configured. Run config.(sh/cmd) to configure the runner.
+Runner listener exit with terminated error, stop the service, no retry needed.
+Exiting runner...
+requests seen by fake server (0):
+leak grep inside runner root (blob prefix, key prefix, sentinels; names only, excluding the 3 JIT files):
+  (none)
+_diag files: Runner_20261110-103450-utc.log 
+pristine runner tree: 0 entries newer than the tarball (expected 0)
+exit=0

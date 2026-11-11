@@ -1,0 +1,83 @@
+date: 2026-11-10T10:33:19Z
+kernel: 6.12.113+deb13-amd64  cpus: 8  virt: lxc  uid: 1000
+os: Debian GNU/Linux 13 (trixie)  glibc: ldd (Debian GLIBC 2.41-12+deb13u4) 2.41
+fsize limit (soft/hard, bytes): 21474836480/21474836480
+=== 0. can this process raise the fsize limit above its hard limit?
+prlimit: failed to set the FSIZE resource limit: Operation not permitted
+prlimit --fsize=unlimited (unprivileged) exit=1
+prlimit: failed to set the FSIZE resource limit: Operation not permitted
+sudo prlimit --fsize=unlimited exit=1 (container has no CAP_SYS_RESOURCE if this is non-zero)
+CapEff:	0000000000000000
+=== 1. matrix
+--- limit as seen by the child: Max file size             21474836480          21474836480          bytes     
+fsize=21474836480 mode=wx-default   target=listener run=1 exit=153 signal 25 (XFSZ) first-line=""
+fsize=21474836480 mode=wx-default   target=listener run=2 exit=153 signal 25 (XFSZ) first-line=""
+fsize=21474836480 mode=wx-default   target=worker   run=1 exit=153 signal 25 (XFSZ) first-line=""
+fsize=21474836480 mode=wx-default   target=worker   run=2 exit=153 signal 25 (XFSZ) first-line=""
+fsize=21474836480 mode=wx-off       target=listener run=1 exit=0   no signal first-line="2.338.2"
+fsize=21474836480 mode=wx-off       target=listener run=2 exit=0   no signal first-line="2.338.2"
+fsize=21474836480 mode=wx-off       target=worker   run=1 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=21474836480 mode=wx-off       target=worker   run=2 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=21474836480 mode=xfsz-ignored target=listener run=1 exit=0   no signal first-line="2.338.2"
+fsize=21474836480 mode=xfsz-ignored target=listener run=2 exit=0   no signal first-line="2.338.2"
+fsize=21474836480 mode=xfsz-ignored target=worker   run=1 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=21474836480 mode=xfsz-ignored target=worker   run=2 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+--- limit as seen by the child: Max file size             1073741824           1073741824           bytes     
+fsize=1073741824  mode=wx-default   target=listener run=1 exit=153 signal 25 (XFSZ) first-line=""
+fsize=1073741824  mode=wx-default   target=listener run=2 exit=153 signal 25 (XFSZ) first-line=""
+fsize=1073741824  mode=wx-default   target=worker   run=1 exit=153 signal 25 (XFSZ) first-line=""
+fsize=1073741824  mode=wx-default   target=worker   run=2 exit=153 signal 25 (XFSZ) first-line=""
+fsize=1073741824  mode=wx-off       target=listener run=1 exit=0   no signal first-line="2.338.2"
+fsize=1073741824  mode=wx-off       target=listener run=2 exit=0   no signal first-line="2.338.2"
+fsize=1073741824  mode=wx-off       target=worker   run=1 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=1073741824  mode=wx-off       target=worker   run=2 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=1073741824  mode=xfsz-ignored target=listener run=1 exit=0   no signal first-line="2.338.2"
+fsize=1073741824  mode=xfsz-ignored target=listener run=2 exit=0   no signal first-line="2.338.2"
+fsize=1073741824  mode=xfsz-ignored target=worker   run=1 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=1073741824  mode=xfsz-ignored target=worker   run=2 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+--- limit as seen by the child: Max file size             134217728            134217728            bytes     
+fsize=134217728   mode=wx-default   target=listener run=1 exit=153 signal 25 (XFSZ) first-line=""
+fsize=134217728   mode=wx-default   target=listener run=2 exit=153 signal 25 (XFSZ) first-line=""
+fsize=134217728   mode=wx-default   target=worker   run=1 exit=153 signal 25 (XFSZ) first-line=""
+fsize=134217728   mode=wx-default   target=worker   run=2 exit=153 signal 25 (XFSZ) first-line=""
+fsize=134217728   mode=wx-off       target=listener run=1 exit=0   no signal first-line="2.338.2"
+fsize=134217728   mode=wx-off       target=listener run=2 exit=0   no signal first-line="2.338.2"
+fsize=134217728   mode=wx-off       target=worker   run=1 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=134217728   mode=wx-off       target=worker   run=2 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=134217728   mode=xfsz-ignored target=listener run=1 exit=0   no signal first-line="2.338.2"
+fsize=134217728   mode=xfsz-ignored target=listener run=2 exit=0   no signal first-line="2.338.2"
+fsize=134217728   mode=xfsz-ignored target=worker   run=1 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=134217728   mode=xfsz-ignored target=worker   run=2 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+--- limit as seen by the child: Max file size             1048576              1048576              bytes     
+fsize=1048576     mode=wx-default   target=listener run=1 exit=153 signal 25 (XFSZ) first-line=""
+fsize=1048576     mode=wx-default   target=listener run=2 exit=153 signal 25 (XFSZ) first-line=""
+fsize=1048576     mode=wx-default   target=worker   run=1 exit=153 signal 25 (XFSZ) first-line=""
+fsize=1048576     mode=wx-default   target=worker   run=2 exit=153 signal 25 (XFSZ) first-line=""
+fsize=1048576     mode=wx-off       target=listener run=1 exit=0   no signal first-line="2.338.2"
+fsize=1048576     mode=wx-off       target=listener run=2 exit=0   no signal first-line="2.338.2"
+fsize=1048576     mode=wx-off       target=worker   run=1 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=1048576     mode=wx-off       target=worker   run=2 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=1048576     mode=xfsz-ignored target=listener run=1 exit=0   no signal first-line="2.338.2"
+fsize=1048576     mode=xfsz-ignored target=listener run=2 exit=0   no signal first-line="2.338.2"
+fsize=1048576     mode=xfsz-ignored target=worker   run=1 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+fsize=1048576     mode=xfsz-ignored target=worker   run=2 exit=1   no signal first-line="System.IO.IOException: Invalid pipe handle."
+=== 2. strace of the W^X-default run at the 20 GiB host limit (ftruncate, memfd_create, fallocate)
+./02-fsize.sh: line 40: 130209 File size limit exceededstrace -f -e trace=ftruncate,memfd_create,fallocate -o "$M1/st.txt" ./bin/Runner.Listener --version
+listener exit=153
+130212 memfd_create("doublemapper", MFD_CLOEXEC) = 8
+130212 ftruncate(8, 2199023255552)      = -1 EFBIG (File too large)
+130212 --- SIGXFSZ {si_signo=SIGXFSZ, si_code=SI_USER, si_pid=130212, si_uid=1000} ---
+130213 +++ killed by SIGXFSZ +++
+130212 +++ killed by SIGXFSZ +++
+2199023255552 = 2 TiB exactly
+=== 3. same, W^X off
+2.338.2
+listener exit=0
+130219 ftruncate(63, 0)                 = 0
+=== 4. same, SIGXFSZ ignored, 1 MiB limit
+2.338.2
+listener exit=0
+130233 memfd_create("doublemapper", MFD_CLOEXEC) = 8
+130233 ftruncate(8, 2199023255552)      = -1 EFBIG (File too large)
+130233 --- SIGXFSZ {si_signo=SIGXFSZ, si_code=SI_USER, si_pid=130233, si_uid=1000} ---
+exit=0

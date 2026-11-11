@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "job-offer.v1.schema.json",
+  "title": "podrunner job offer, version 1",
+  "description": "What a source driver sends when a job is available. Trust is derived from trust_inputs, never from labels and never from the tier of the set that delivered the job. A field the source cannot state is the string unknown, and an unknown input never gives the tier trusted: the job is untrusted only if it is a fork pull_request, and is refused with event-not-allowed otherwise (SPEC section 6.3). payload is optional. unit_need is optional: only a source that knows the container or port needs of a job states them. For GitHub they are discovered at hook time.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "job_id", "source", "trust_inputs", "labels", "arch", "limits", "limits_required", "policy", "wait_deadline_s"],
+  "if": { "properties": { "source": { "pattern": "^github-scaleset/" } } },
+  "then": { "not": { "required": ["payload"] }, "description": "A scale-set message carries no payload data, so a github-scaleset source never states a payload. slots takes it from the pin list entry of the set." },
+  "properties": {
+    "schema": { "const": 1 },
+    "job_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$", "description": "Data from the source. Never a path component." },
+    "source": { "type": "string", "pattern": "^[a-z][a-z0-9-]*/[A-Za-z0-9._-]{1,64}$", "description": "KIND/INSTANCE. INSTANCE is the key of a [[source]] table of the configuration." },
+    "trust_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event", "head_is_fork", "actor_class", "repo_visibility", "owner", "repo", "run_id", "ref", "workflow_ref"],
+      "properties": {
+        "event": { "enum": ["push", "pull_request", "pull_request_target", "workflow_run", "workflow_dispatch", "schedule", "merge_group", "issue_comment", "release", "repository_dispatch", "other", "unknown"] },
+        "head_is_fork": { "enum": [true, false, "unknown"] },
+        "actor_class": { "enum": ["member", "external", "bot", "agent", "unknown"], "description": "member: the actor is a member of the organization named by owner. Resolved by the source." },
+        "repo_visibility": { "enum": ["public", "private", "internal", "unknown"] },
+        "owner": { "type": "string", "minLength": 1 },
+        "repo": { "type": "string", "minLength": 1 },
+        "owner_id": { "type": "string", "pattern": "^[0-9]+$", "description": "Optional numeric id of the owner. When present the rule compares ids as well as names." },
+        "repo_id": { "type": "string", "pattern": "^[0-9]+$", "description": "Optional numeric id of the repository." },
+        "run_id": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string" },
+        "workflow_ref": { "type": "string" }
+      }
+    },
+    "labels": { "type": "array", "items": { "type": "string" }, "description": "Kept for the log and for the source's own set matching. Never an input of the tier rule." },
+    "arch": { "enum": ["x86_64", "aarch64", "armv7", "riscv64", "i686", "loongarch64", "ppc64le"] },
+    "unit_need": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional. min_boundary can only raise the minimum of the tier, never lower it.",
+      "properties": {
+        "min_boundary": { "enum": ["none", "redirect", "confined", "guest"] },
+        "container": { "type": "boolean" },
+        "ports": { "type": "array", "items": { "type": "integer", "minimum": 1, "maximum": 65535 }, "uniqueItems": true }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "description": "Optional. Present only when the source is marked payload_from_offer, and never in an offer of a github-scaleset source. Otherwise slots takes the payload from the pin list entry of the set, and a payload in the offer is ignored and audited.",
+      "additionalProperties": false,
+      "required": ["image", "image_max_age_days", "argv", "credential_delivery"],
+      "properties": {
+        "image": { "type": "string", "pattern": "@sha256:[0-9a-f]{64}$", "description": "An image reference pinned by digest. Must match an entry of the pin list unless the source is marked payload_from_offer." },
+        "image_max_age_days": { "type": "integer", "minimum": 1, "description": "The age limit is the smaller of this value and the max_age_days of the pin." },
+        "argv": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "credential_delivery": { "enum": ["files", "socket"] }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The limits the set declares.",
+      "required": ["wall_s"],
+      "properties": {
+        "cpu_s": { "type": "integer", "minimum": 1 },
+        "memory_mib": { "type": "integer", "minimum": 1 },
+        "disk_mib": { "type": "integer", "minimum": 1 },
+        "pids": { "type": "integer", "minimum": 1 },
+        "wall_s": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "limits_required": { "type": "array", "items": { "enum": ["cpu", "memory", "disk", "pids", "wall"] }, "uniqueItems": true },
+    "policy": {
+      "type": "object",
+      "description": "The egress policy of the job. The full form is validated by tools/check_schemas.py against inputs/broker-policy.v1.schema.json, the copy of the pod-broker policy schema. version is required there.",
+      "required": ["version", "mode"],
+      "properties": { "version": { "const": 1 }, "mode": { "enum": ["allow", "open"] } }
+    },
+    "wait_deadline_s": { "type": "integer", "minimum": 1 }
+  }
+}

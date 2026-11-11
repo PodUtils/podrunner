@@ -1,0 +1,651 @@
+[
+ {
+  "name": "member push, private repo, org configured",
+  "offer": "job-offer.trusted-push.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "same, delivered by the untrusted set",
+  "offer": "job-offer.trusted-push.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "fork pull_request, delivered by the trusted set (label race)",
+  "offer": "job-offer.fork-pr.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": "untrusted",
+  "intake": "tier-mismatch"
+ },
+ {
+  "name": "fork pull_request, untrusted set",
+  "offer": "job-offer.fork-pr.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": "untrusted",
+  "intake": "accept"
+ },
+ {
+  "name": "member push to a public repo not listed: refused",
+  "offer": "job-offer.public-member-push.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "member push to a public repo not listed, untrusted set: refused",
+  "offer": "job-offer.public-member-push.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "member push to a public repo listed as trusted_public",
+  "offer": "job-offer.public-member-push.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": [
+    "org-a/repo"
+   ]
+  },
+  "set_tier": "trusted",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "push, org not configured: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "owner": "org-b"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "internal repo",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "repo_visibility": "internal"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "unknown visibility: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "repo_visibility": "unknown"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "unknown fork flag: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "head_is_fork": "unknown"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "external actor push: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "actor_class": "external"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "agent actor push: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "actor_class": "agent"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "bot actor push: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "actor_class": "bot"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "unknown actor push: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "actor_class": "unknown"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "pull_request_target",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "pull_request_target"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "workflow_run",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "workflow_run"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "issue_comment",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "issue_comment"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "event other",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "other"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "event unknown",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "unknown"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "event release by a member on a private repo",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "release"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "event repository_dispatch by a member on a private repo",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "repository_dispatch"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "release by an external actor on a private repo, untrusted set",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "release",
+   "actor_class": "external"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "schedule",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "schedule"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "workflow_dispatch",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "workflow_dispatch"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "merge_group",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "merge_group"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "tag push by a member",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "ref": "refs/tags/v1"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "trusted job in a local set",
+  "offer": "job-offer.trusted-push.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "local",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "fork job in a local set",
+  "offer": "job-offer.fork-pr.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "local",
+  "tier": "untrusted",
+  "intake": "tier-mismatch"
+ },
+ {
+  "name": "pull_request_target by a member actor (refused too)",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "pull_request_target"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "pull_request_target by an external fork actor, untrusted set",
+  "offer": "job-offer.fork-pr.json",
+  "override": {
+   "event": "pull_request_target"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "issue_comment by an external actor, trusted set",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "issue_comment",
+   "actor_class": "external"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "private repo, fork flag set, push: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "head_is_fork": true
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "private repo, external actor, fork flag set, push: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "head_is_fork": true,
+   "actor_class": "external"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "same-repository pull_request by an external actor: refused",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "pull_request",
+   "actor_class": "external"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "same-repository pull_request by a member: trusted",
+  "offer": "job-offer.trusted-push.json",
+  "override": {
+   "event": "pull_request"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "trusted",
+  "tier": "trusted",
+  "intake": "accept"
+ },
+ {
+  "name": "fork pull_request by a member actor: untrusted",
+  "offer": "job-offer.fork-pr.json",
+  "override": {
+   "actor_class": "member"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": "untrusted",
+  "intake": "accept"
+ },
+ {
+  "name": "fork pull_request, fork flag unknown: refused",
+  "offer": "job-offer.fork-pr.json",
+  "override": {
+   "head_is_fork": "unknown"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "fork pull_request, unknown actor and visibility: untrusted",
+  "offer": "job-offer.fork-pr.json",
+  "override": {
+   "actor_class": "unknown",
+   "repo_visibility": "unknown"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": "untrusted",
+  "intake": "accept"
+ },
+ {
+  "name": "fork pull_request on a private repo: untrusted",
+  "offer": "job-offer.fork-pr.json",
+  "override": {
+   "repo_visibility": "private"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": "untrusted",
+  "intake": "accept"
+ },
+ {
+  "name": "fork push (not a pull_request): refused",
+  "offer": "job-offer.fork-pr.json",
+  "override": {
+   "event": "push"
+  },
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": null,
+  "intake": "event-not-allowed"
+ },
+ {
+  "name": "fake source container need, untrusted set (fork pull_request)",
+  "offer": "job-offer.fake-container.json",
+  "config": {
+   "organizations": [
+    "org-a"
+   ],
+   "trusted_public": []
+  },
+  "set_tier": "untrusted",
+  "tier": "untrusted",
+  "intake": "accept"
+ }
+]

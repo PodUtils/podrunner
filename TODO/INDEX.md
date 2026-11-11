@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**52 entries: 2 open, 2 partial, 19 blocked, 29 done.**
+**53 entries: 3 open, 2 partial, 19 blocked, 29 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 1 | 16 | 18 |
-| P2 | 2 | 1 | 13 | 12 | 28 |
+| P2 | 3 | 1 | 13 | 12 | 29 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 2 | 2 | 19 | 29 | 52 |
+| **All** | 3 | 2 | 19 | 29 | 53 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -100,3 +100,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-050](level2.md) | P2 | S | L2 | defect | blocked | COORD-004: the supervise rung does not map the path of connect() for a unix socket (GitHub #51) |
 | [T-051](core.md) | P2 | S | M-C | defect | blocked | COORD-005: podvm-aarch64 declines an arm64 payload on the supervise rung (GitHub #52) |
 | [T-052](core.md) | P1 | S | M-C | chore | blocked | COORD-006: a podvm beta from main for podrunner (GitHub #53) |
+| [T-053](core.md) | P2 | M | L2 | defect | open | The conformance suites follow the numbers of the design contracts |

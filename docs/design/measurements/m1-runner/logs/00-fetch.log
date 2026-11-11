@@ -1,0 +1,16 @@
+date: 2026-11-10T10:39:06Z
+kernel: 6.12.113+deb13-amd64  cpus: 8  virt: lxc  uid: 1000
+os: Debian GNU/Linux 13 (trixie)  glibc: ldd (Debian GLIBC 2.41-12+deb13u4) 2.41
+fsize limit (soft/hard, bytes): 21474836480/21474836480
+runner.tgz: OK
+source archive sha256: 3b7549b6cd109cd534de3e904cb257cd8447c1d00dd96d2242b7747b3473ce1f
+releaseVersion file: 2.338.2
+bin
+config.sh
+env.sh
+externals
+run-helper.cmd.template
+run-helper.sh.template
+run.sh
+safe_sleep.sh
+exit=0

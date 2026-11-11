@@ -1,0 +1,26 @@
+date: 2026-11-10T10:38:47Z
+kernel: 6.12.113+deb13-amd64  cpus: 8  virt: lxc  uid: 1000
+os: Debian GNU/Linux 13 (trixie)  glibc: ldd (Debian GLIBC 2.41-12+deb13u4) 2.41
+fsize limit (soft/hard, bytes): 21474836480/21474836480
+--- [control] run 1 exit=124 (124 = still running at timeout)
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:38:48Z: Listening for Jobs
+requests:       1 DELETE /session 204;      2 GET /message 202;      1 POST /oauth/token 200;      1 POST /session 200;
+--- [control] run 2 exit=124 (124 = still running at timeout)
+
+√ Connected to GitHub
+
+Current runner version: '2.338.2'
+2026-11-10 10:38:54Z: Listening for Jobs
+requests:       1 DELETE /session 204;      2 GET /message 202;      1 POST /oauth/token 200;      1 POST /session 200;
+--- [hidden] run 1 exit=2 (124 = still running at timeout)
+An error occurred: OpenSSL is required for algorithm 'RSAOpenSsl' but could not be found or loaded.
+requests: 
+--- [hidden] run 2 exit=2 (124 = still running at timeout)
+An error occurred: OpenSSL is required for algorithm 'RSAOpenSsl' but could not be found or loaded.
+requests: 
+pristine runner tree: 0 entries newer than the tarball (expected 0)
+exit=0

@@ -1,0 +1,47 @@
+date=2026-11-10T10:32:21Z kernel=6.12.113+deb13-amd64 cpus=8 virt=lxc
+Digest: sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+Digest: sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0
+Digest: sha256:5adad64f9a1fca2d51972caa65983634c8a774eb300d72b20f7f2a0f60368072
+## default rung
+alpine-true exit=0 wall=0.29s
+alpine-sh-echo exit=0 wall=0.31s
+  stdout: ok
+debian-bash-echo exit=0 wall=2.32s
+  stdout: ok
+node-log1 exit=0 wall=4.62s
+  stdout: 1
+node-fetch-port1 exit=0 wall=4.85s
+  stdout: undefined
+node-fetch-port2 exit=0 wall=4.52s
+  stdout: undefined ECONNREFUSED
+control (host node v20.19.2, no podvm):
+port1 undefined Error: bad port
+port2 undefined ECONNREFUSED
+node-version exit=0 wall=4.56s
+  stdout: v26.13.0
+## default-rung banner, glibc image
+podvm 0.1.0-beta.13: mode=userland (namespaces: none; mounts: none; devices: shimmed;
+podvm: interpose: /.podvm/interpose.so (glibc object) is preloaded for this payload. refused: podvm WROTE that file into the image's own rootfs and the payload can see it
+podvm: complete: 14 fixup(s) applied to this image's rootfs, 5 degraded, 0 failed, 0 step(s) to run inside it; libc=glibc. refused: These are edits podvm made inside somebody else's image and the payl
+## memfd family (PODVM_MODE=memfd)
+memfd-alpine-true exit=125 wall=0.29s
+  stderr: podvm run: entering on the memfd rung at PODVM_MODE's request (TODO/packaging.md T-1003)
+  stderr: podvm run: PODVM_MODE=memfd was forced but dynamically linked against /lib/ld-musl-x86_64.so.1: a memfd exec never puts its libraries on disk, so the loader would fail on the first one it cannot find: without chroot(2) only a static payload enters, through the unforced loader family where the tier reaches it: run without PODVM_MODE (TODO/enter.md T-1317)
+memfd-debian-bash exit=125 wall=1.80s
+  stderr: podvm run: entering on the memfd rung at PODVM_MODE's request (TODO/packaging.md T-1003)
+  stderr: podvm run: PODVM_MODE=memfd was forced but dynamically linked against /lib64/ld-linux-x86-64.so.2: a memfd exec never puts its libraries on disk, so the loader would fail on the first one it cannot find: without chroot(2) only a static payload enters, through the unforced loader family where the tier reaches it: run without PODVM_MODE (TODO/enter.md T-1317)
+memfd-node exit=125 wall=4.46s
+  stderr: podvm run: entering on the memfd rung at PODVM_MODE's request (TODO/packaging.md T-1003)
+  stderr: podvm run: PODVM_MODE=memfd was forced but a #! script routes past fd-exec and is exec'd by path: without chroot(2) only a static payload enters, through the unforced loader family where the tier reaches it: run without PODVM_MODE (TODO/enter.md T-1317)
+## static payload (zig cc -static hello), the only payload the memfd family takes
+Loaded image: docker.io/library/static-hello:t
+static-default exit=125 wall=0.09s
+  stderr: podvm run: chroot(2) is denied on this machine, and no no-chroot family runs this payload: the payload is statically linked, so it makes raw syscalls past the interposer and podvm rewrites no path: its absolute paths would resolve on the host, and a write would land on the host tree. podvm refuses before the exec. Use a host where chroot(2) is permitted, or `--unsafe-host-paths` to accept this hos
+static-default-unsafe exit=0 wall=0.10s
+  stdout: static-ok
+static-memfd exit=125 wall=0.09s
+  stderr: podvm run: chroot(2) is denied on this machine, and no no-chroot family runs this payload: the payload is statically linked, so it makes raw syscalls past the interposer and podvm rewrites no path: its absolute paths would resolve on the host, and a write would land on the host tree. podvm refuses before the exec. Use a host where chroot(2) is permitted, or `--unsafe-host-paths` to accept this hos
+static-memfd-unsafe exit=0 wall=0.11s
+  stdout: static-ok
+  stderr: podvm run: entering on the memfd rung at PODVM_MODE's request (TODO/packaging.md T-1003)
+exit=0

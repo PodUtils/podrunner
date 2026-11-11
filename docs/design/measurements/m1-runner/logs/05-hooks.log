@@ -1,0 +1,130 @@
+date: 2026-11-10T10:32:35Z
+kernel: 6.12.113+deb13-amd64  cpus: 8  virt: lxc  uid: 1000
+os: Debian GNU/Linux 13 (trixie)  glibc: ldd (Debian GLIBC 2.41-12+deb13u4) 2.41
+fsize limit (soft/hard, bytes): 21474836480/21474836480
+=== (a) source lines that decide the behaviour
+--- Runner.Worker/FeatureManager.cs:8-12
+8	        public static bool IsContainerHooksEnabled(Variables variables)
+9	        {
+10	            var isContainerHookFeatureFlagSet = variables?.GetBoolean(Constants.Runner.Features.AllowRunnerContainerHooks) ?? false;
+11	            var isContainerHooksPathSet = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(Constants.Hooks.ContainerHooksPath));
+12	            return isContainerHookFeatureFlagSet && isContainerHooksPathSet;
+--- Runner.Common/Constants.cs:170-170
+170	                public static readonly string AllowRunnerContainerHooks = "DistributedTask.AllowRunnerContainerHooks";
+--- Runner.Common/Constants.cs:280-280
+280	            public static readonly string ContainerHooksPath = "ACTIONS_RUNNER_CONTAINER_HOOKS";
+--- Runner.Worker/ContainerOperationProvider.cs:34-44
+34	        {
+35	            base.Initialize(hostContext);
+36	            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(Constants.Hooks.ContainerHooksPath)))
+37	            {
+38	                _dockerManager = HostContext.GetService<IDockerCommandManager>();
+39	            }
+40	            else
+41	            {
+42	                _containerHookManager = HostContext.GetService<IContainerHookManager>();
+43	            }
+44	        }
+--- Runner.Worker/ContainerOperationProvider.cs:64-74
+64	            if (FeatureManager.IsContainerHooksEnabled(executionContext.Global.Variables))
+65	            {
+66	                // Initialize the containers
+67	                containers.ForEach(container => UpdateRegistryAuthForGitHubToken(executionContext, container));
+68	                containers.Where(container => container.IsJobContainer).ForEach(container => MountWellKnownDirectories(executionContext, container));
+69	                await _containerHookManager.PrepareJobAsync(executionContext, containers);
+70	                return;
+71	            }
+72	            await AssertCompatibleOS(executionContext);
+73	
+74	            // Clean up containers left by previous runs
+--- Runner.Worker/Container/ContainerHooks/ContainerHookManager.cs:33-36
+33	        {
+34	            base.Initialize(hostContext);
+35	            HookScriptPath = $"{Environment.GetEnvironmentVariable(Constants.Hooks.ContainerHooksPath)}";
+36	        }
+--- Runner.Worker/Container/ContainerHooks/ContainerHookManager.cs:183-197
+183	        private static string GetPrependPath(IExecutionContext context) => string.Join(Path.PathSeparator.ToString(), context.Global.PrependPath.Reverse<string>());
+184	
+185	        private void ValidateHookExecutable()
+186	        {
+187	            if (!string.IsNullOrEmpty(HookScriptPath) && !File.Exists(HookScriptPath))
+188	            {
+189	                throw new FileNotFoundException($"File not found at '{HookScriptPath}'. Set {Constants.Hooks.ContainerHooksPath} to the path of an existing file.");
+190	            }
+191	
+192	            var supportedHookExtensions = new string[] { ".js", ".sh", ".ps1" };
+193	            if (!supportedHookExtensions.Any(extension => HookScriptPath.EndsWith(extension)))
+194	            {
+195	                throw new ArgumentOutOfRangeException($"Invalid file extension at '{HookScriptPath}'. {Constants.Hooks.ContainerHooksPath} must be a path to a file with one of the following extensions
+196	            }
+197	        }
+--- Runner.Worker/Container/ContainerHooks/ContainerHookManager.cs:136-142
+136	        }
+137	
+138	        private async Task<T> ExecuteHookScript<T>(IExecutionContext context, HookInput input, ActionRunStage stage, string prependPath) where T : HookResponse
+139	        {
+140	            try
+141	            {
+142	                ValidateHookExecutable();
+--- Runner.Worker/Container/ContainerHooks/HookResponse.cs:14-25
+14	        public ResponseContext Context { get; set; }
+15	        public bool? IsAlpine { get; set; }
+16	
+17	        public override void Validate(HookInput input)
+18	        {
+19	            bool hasJobContainer = ((PrepareJobArgs)input.Args).Container != null;
+20	            if (hasJobContainer && IsAlpine == null)
+21	            {
+22	                throw new Exception("The property 'isAlpine' is required but was not found in the response file.");
+23	            }
+24	        }
+25	    }
+=== (a2) env var read by the Listener process? the hook path is read in the WORKER (ContainerHookManager.Initialize), grep for other readers:
+Runner.Common/Constants.cs:280:            public static readonly string ContainerHooksPath = "ACTIONS_RUNNER_CONTAINER_HOOKS";
+Runner.Worker/ContainerOperationProvider.cs:36:            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(Constants.Hooks.ContainerHooksPath)))
+Runner.Worker/Container/ContainerHooks/ContainerHookManager.cs:35:            HookScriptPath = $"{Environment.GetEnvironmentVariable(Constants.Hooks.ContainerHooksPath)}";
+Runner.Worker/Container/ContainerHooks/ContainerHookManager.cs:189:                throw new FileNotFoundException($"File not found at '{HookScriptPath}'. Set {Constants.Hooks.ContainerHooksPath} to the path of an existing file.");
+Runner.Worker/Container/ContainerHooks/ContainerHookManager.cs:195:                throw new ArgumentOutOfRangeException($"Invalid file extension at '{HookScriptPath}'. {Constants.Hooks.ContainerHooksPath} must be a path to a file with one of the following extensions: {string.Join(", ", supportedHookExtensions)}");
+Runner.Worker/FeatureManager.cs:11:            var isContainerHooksPathSet = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(Constants.Hooks.ContainerHooksPath));
+Runner.Worker/FeatureManager.cs:12:            return isContainerHookFeatureFlagSet && isContainerHooksPathSet;
+=== (b) drive the example hook (synthetic stdin; shape from HookInput.cs)
+hook command=prepare_job exit=0 response={"state":{"example":"1"},"context":{"container":{"id":"c1","network":"n1"},"services":[]},"isAlpine":false}
+OK
+hook command=run_script_step exit=0 response=
+OK (empty response)
+hook command=run_container_step exit=0 response=
+OK (empty response)
+hook command=cleanup_job exit=0 response=
+OK (empty response)
+stdin lines logged: 4
+--- control: hooklib-style response (alpine / services as map) is rejected by the mirror check
+ERROR: The property 'isAlpine' is required but was not found in the response file.
+ERROR: context.services must be a JSON array (IList<ResponseContainer>), got dict
+=== (c) hooklib TypeScript schema at the pinned commit (hooklib/src/interfaces.ts, lines containing the response types)
+77:export interface PrepareJobResponse {
+78-  state?: object
+79-  context?: ContainerContext
+80-  services?: { [key: string]: ContainerContext }
+81-  alpine: boolean
+82-}
+--- what the official docker hook actually writes (packages/docker/src/hooks/prepare-job.ts:141-178 key names):
+5:  servicesMetadata?: ContainerMetadata[],
+6:  isAlpine = false
+9:    state: { network: networkName },
+10:    context: {},
+11:    isAlpine
+14:    response.state['container'] = containerMetadata.id
+15:    const contextMeta = JSON.parse(JSON.stringify(containerMetadata))
+17:      contextMeta.ports = transformDockerPortsToContextPorts(containerMetadata)
+19:    response.context['container'] = contextMeta
+22:      response.context['container'].ports =
+26:  if (servicesMetadata && servicesMetadata.length > 0) {
+27:    response.state['services'] = []
+28:    response.context['services'] = []
+29:    for (const meta of servicesMetadata) {
+30:      response.state['services'].push(meta.id)
+31:      const contextMeta = JSON.parse(JSON.stringify(meta))
+32:      if (contextMeta.ports) {
+33:        contextMeta.ports = transformDockerPortsToContextPorts(contextMeta)
+35:      response.context['services'].push(contextMeta)
+exit=0

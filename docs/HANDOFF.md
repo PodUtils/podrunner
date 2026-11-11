@@ -55,14 +55,11 @@ is done.
   and the H0 profile again.
 - The gate queues for many minutes; a newer push cancels the queued run.
   Push less often, and close an entry on the green run of a later commit.
-- The spec of the design review (T-014): the owner holds it as a zip. The
-  podcrates session asks the owner for it. Until it comes, work from the
-  texts of the issues (each entry keeps the text in its Problem).
-- The test numbers of the contracts follow `docs/contracts/`; T-014 makes
-  them agree with the spec.
-
-## Channels
-
+- The design copy is in `docs/design/` (T-014): the spec, the appendices,
+  the contracts, the schemas, the examples, the recon and the
+  measurements of the design review, cleaned. `docs/design-issues.md`
+  maps each issue of the plan to its sections. The gate runs its checks
+  (`docs/design/verify.sh`) and `scripts/check-design.sh`.
 - podcrates: direct messages (`send_message`) to the session of podcrates
   (`list_sessions`, title with `(podcrates)`). Each ask for a crate goes
   there; podcrates answers with the id of its entry and releases a tag.

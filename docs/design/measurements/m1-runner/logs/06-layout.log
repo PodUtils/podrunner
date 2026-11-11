@@ -1,0 +1,120 @@
+date: 2026-11-10T10:31:10Z
+kernel: 6.12.113+deb13-amd64  cpus: 8  virt: lxc  uid: 1000
+os: Debian GNU/Linux 13 (trixie)  glibc: ldd (Debian GLIBC 2.41-12+deb13u4) 2.41
+fsize limit (soft/hard, bytes): 21474836480/21474836480
+tarball bytes: 228071396
+extracted bytes (du -sb, apparent): 684215501
+extracted blocks (du -sk, on-disk KiB): 698660
+files: 9394  dirs: 2156  symlinks: 6
+--- size by top-level entry (bytes, apparent)
+bin 84786095
+externals 599417976
+externals/node20 160074931
+externals/node20_alpine 104851671
+externals/node24 201757541
+externals/node24_alpine 132733833
+dlls in bin: 213; localisation dirs in bin: 15
+--- ELF files (magic 7f454c46), type, interpreter, static?
+./bin/Runner.Listener                                      type=DYN   interp=/lib64/ld-linux-x86-64.so.2        needed=6  dynamic
+./bin/Runner.PluginHost                                    type=DYN   interp=/lib64/ld-linux-x86-64.so.2        needed=6  dynamic
+./bin/Runner.Worker                                        type=DYN   interp=/lib64/ld-linux-x86-64.so.2        needed=6  dynamic
+./bin/createdump                                           type=DYN   interp=/lib64/ld-linux-x86-64.so.2        needed=5  dynamic
+./bin/libSystem.Globalization.Native.so                    type=DYN   interp=none                               needed=2  dynamic
+./bin/libSystem.IO.Compression.Native.so                   type=DYN   interp=none                               needed=3  dynamic
+./bin/libSystem.Native.so                                  type=DYN   interp=none                               needed=2  dynamic
+./bin/libSystem.Net.Security.Native.so                     type=DYN   interp=none                               needed=2  dynamic
+./bin/libSystem.Security.Cryptography.Native.OpenSsl.so    type=DYN   interp=none                               needed=3  dynamic
+./bin/libclrgc.so                                          type=DYN   interp=none                               needed=4  dynamic
+./bin/libclrjit.so                                         type=DYN   interp=none                               needed=8  dynamic
+./bin/libcoreclr.so                                        type=DYN   interp=none                               needed=8  dynamic
+./bin/libcoreclrtraceptprovider.so                         type=DYN   interp=none                               needed=5  dynamic
+./bin/libhostfxr.so                                        type=DYN   interp=none                               needed=6  dynamic
+./bin/libhostpolicy.so                                     type=DYN   interp=none                               needed=7  dynamic
+./bin/libmscordaccore.so                                   type=DYN   interp=none                               needed=8  dynamic
+./bin/libmscordbi.so                                       type=DYN   interp=none                               needed=6  dynamic
+./externals/node20/bin/node                                type=EXEC  interp=/lib64/ld-linux-x86-64.so.2        needed=7  dynamic
+./externals/node20_alpine/bin/node                         type=DYN   interp=/lib/ld-musl-x86_64.so.1           needed=1  dynamic
+./externals/node24/bin/node                                type=EXEC  interp=/lib64/ld-linux-x86-64.so.2        needed=7  dynamic
+./externals/node24_alpine/bin/node                         type=DYN   interp=/lib/ld-musl-x86_64.so.1           needed=1  dynamic
+--- statically linked executables (ELF with no interpreter, no NEEDED, type EXEC or DYN with entry): see kind column above
+--- ldd bin/Runner.Listener
+	linux-vdso.so.1 (0x00007f3a86949000)
+	libpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007f3a86921000)
+	libdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007f3a8691c000)
+	libstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007f3a86600000)
+	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f3a86510000)
+	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f3a868ed000)
+	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f3a8631c000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f3a8694b000)
+--- NEEDED (soname) per native lib
+bin/libSystem.Globalization.Native.so: libdl.so.2 libc.so.6 
+bin/libSystem.IO.Compression.Native.so: libz.so.1 libm.so.6 libc.so.6 
+bin/libSystem.Native.so: librt.so.1 libc.so.6 
+bin/libSystem.Net.Security.Native.so: libdl.so.2 libc.so.6 
+bin/libSystem.Security.Cryptography.Native.OpenSsl.so: libdl.so.2 libpthread.so.0 libc.so.6 
+bin/libclrgc.so: libstdc++.so.6 libm.so.6 libgcc_s.so.1 libc.so.6 
+bin/libclrjit.so: libgcc_s.so.1 libpthread.so.0 librt.so.1 libdl.so.2 libstdc++.so.6 libm.so.6 libc.so.6 ld-linux-x86-64.so.2 
+bin/libcoreclr.so: libgcc_s.so.1 libpthread.so.0 librt.so.1 libdl.so.2 libstdc++.so.6 libm.so.6 libc.so.6 ld-linux-x86-64.so.2 
+bin/libcoreclrtraceptprovider.so: liblttng-ust.so.0 libstdc++.so.6 libm.so.6 libgcc_s.so.1 libc.so.6 
+bin/libhostfxr.so: libdl.so.2 libstdc++.so.6 libm.so.6 libgcc_s.so.1 libc.so.6 ld-linux-x86-64.so.2 
+bin/libhostpolicy.so: libdl.so.2 libpthread.so.0 libstdc++.so.6 libm.so.6 libgcc_s.so.1 libc.so.6 ld-linux-x86-64.so.2 
+bin/libmscordaccore.so: libgcc_s.so.1 libpthread.so.0 librt.so.1 libdl.so.2 libstdc++.so.6 libm.so.6 libc.so.6 ld-linux-x86-64.so.2 
+bin/libmscordbi.so: libmscordaccore.so libstdc++.so.6 libm.so.6 libgcc_s.so.1 libc.so.6 ld-linux-x86-64.so.2 
+bin/Runner.Listener: libpthread.so.0 libdl.so.2 libstdc++.so.6 libm.so.6 libgcc_s.so.1 libc.so.6 
+bin/Runner.Worker: libpthread.so.0 libdl.so.2 libstdc++.so.6 libm.so.6 libgcc_s.so.1 libc.so.6 
+bin/Runner.PluginHost: libpthread.so.0 libdl.so.2 libstdc++.so.6 libm.so.6 libgcc_s.so.1 libc.so.6 
+bin/createdump: libdl.so.2 libstdc++.so.6 libm.so.6 libgcc_s.so.1 libc.so.6 
+externals/node24/bin/node: libdl.so.2 libstdc++.so.6 libm.so.6 libgcc_s.so.1 libpthread.so.0 libc.so.6 ld-linux-x86-64.so.2 
+externals/node20/bin/node: libdl.so.2 libstdc++.so.6 libm.so.6 libgcc_s.so.1 libpthread.so.0 libc.so.6 ld-linux-x86-64.so.2 
+--- ldd for libs with unresolved entries
+bin/libcoreclrtraceptprovider.so: 	liblttng-ust.so.0 => not found 
+--- highest GLIBC_ symbol version required, per ELF (objdump -T | grep GLIBC_ | sort -V | tail -1)
+./bin/Runner.Listener GLIBC_2.16
+./bin/Runner.PluginHost GLIBC_2.16
+./bin/Runner.Worker GLIBC_2.16
+./bin/createdump GLIBC_2.17
+./bin/libSystem.Globalization.Native.so GLIBC_2.4
+./bin/libSystem.IO.Compression.Native.so GLIBC_2.14
+./bin/libSystem.Native.so GLIBC_2.16
+./bin/libSystem.Net.Security.Native.so GLIBC_2.14
+./bin/libSystem.Security.Cryptography.Native.OpenSsl.so GLIBC_2.14
+./bin/libclrgc.so GLIBC_2.17
+./bin/libclrjit.so GLIBC_2.16
+./bin/libcoreclr.so GLIBC_2.16
+./bin/libcoreclrtraceptprovider.so GLIBC_2.4
+./bin/libhostfxr.so GLIBC_2.16
+./bin/libhostpolicy.so GLIBC_2.16
+./bin/libmscordaccore.so GLIBC_2.16
+./bin/libmscordbi.so GLIBC_2.14
+./externals/node20/bin/node GLIBC_2.28
+./externals/node20_alpine/bin/node 
+./externals/node24/bin/node GLIBC_2.28
+./externals/node24_alpine/bin/node 
+--- overall maximum GLIBC_ across all ELF files:
+GLIBC_2.28
+--- highest GLIBCXX_ / CXXABI_ required (libstdc++ needed by coreclr libs)
+bin/libclrgc.so GLIBCXX_3.4 CXXABI_1.3
+bin/libclrjit.so GLIBCXX_3.4 CXXABI_1.3
+bin/libcoreclr.so GLIBCXX_3.4 CXXABI_1.3.7
+bin/libhostfxr.so GLIBCXX_3.4.21 CXXABI_1.3.5
+bin/libhostpolicy.so GLIBCXX_3.4.21 CXXABI_1.3.5
+bin/libmscordaccore.so GLIBCXX_3.4.21 CXXABI_1.3
+bin/libmscordbi.so GLIBCXX_3.4 CXXABI_1.3
+bin/Runner.Listener GLIBCXX_3.4.21 CXXABI_1.3
+--- shared libraries opened at run time by name (dlopen strings in the shim libs)
+libssl.so.
+libssl.so.1.0.0
+libssl.so.1.0.2
+libssl.so.1.1
+libssl.so.10
+libssl.so.11
+libssl.so.111
+libssl.so.3
+libicui18n.so
+libicuuc.so
+Cannot get symbol gss_mech_krb5 from %s 
+gss_mech_krb5
+libgssapi_krb5.so.2
+liblttng-ust-tracepoint.so.0
+liblttng-ust.so.0
+exit=0

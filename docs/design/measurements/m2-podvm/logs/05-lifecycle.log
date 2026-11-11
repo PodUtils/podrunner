@@ -1,0 +1,89 @@
+date=2026-11-10T10:43:48Z kernel=6.12.113+deb13-amd64 cpus=8 virt=lxc podvm=podvm 0.1.0-beta.13
+[debian:stable-slim rep1] id=f8cbea06b1eb before stop:
+   pid=155471 ppid=1 state=S argv_tail=...ep 8492 & sleep 8492.5 & wait 
+   pid=155472 ppid=155471 state=S argv_tail=...ep 8492 & sleep 8492.5 & wait 
+   pid=155473 ppid=155472 state=S argv_tail=...980/rootfs/usr/bin/sleep 8492 
+   pid=155474 ppid=155472 state=S argv_tail=...0/rootfs/usr/bin/sleep 8492.5 
+[debian:stable-slim rep1] stop exit=0 wall=0.00s; after stop:
+   pid=155473 ppid=1 state=S argv_tail=...980/rootfs/usr/bin/sleep 8492 
+   pid=155474 ppid=1 state=S argv_tail=...0/rootfs/usr/bin/sleep 8492.5 
+[debian:stable-slim rep1] rm -f exit=0; after rm:
+   pid=155473 ppid=1 state=S argv_tail=...980/rootfs/usr/bin/sleep 8492 
+   pid=155474 ppid=1 state=S argv_tail=...0/rootfs/usr/bin/sleep 8492.5 
+[debian:stable-slim rep1] summary: processes with marker before=4 after_stop=2 after_rm=2
+[debian:stable-slim rep2] id=a8496f7a93a2 before stop:
+   pid=155743 ppid=1 state=S argv_tail=...ep 9150 & sleep 9150.5 & wait 
+   pid=155744 ppid=155743 state=S argv_tail=...ep 9150 & sleep 9150.5 & wait 
+   pid=155745 ppid=155744 state=S argv_tail=...980/rootfs/usr/bin/sleep 9150 
+   pid=155746 ppid=155744 state=S argv_tail=...0/rootfs/usr/bin/sleep 9150.5 
+[debian:stable-slim rep2] stop exit=0 wall=0.00s; after stop:
+   pid=155745 ppid=1 state=S argv_tail=...980/rootfs/usr/bin/sleep 9150 
+   pid=155746 ppid=1 state=S argv_tail=...0/rootfs/usr/bin/sleep 9150.5 
+[debian:stable-slim rep2] rm -f exit=0; after rm:
+   pid=155745 ppid=1 state=S argv_tail=...980/rootfs/usr/bin/sleep 9150 
+   pid=155746 ppid=1 state=S argv_tail=...0/rootfs/usr/bin/sleep 9150.5 
+[debian:stable-slim rep2] summary: processes with marker before=4 after_stop=2 after_rm=2
+[debian:stable-slim rep3] id=b2390caec38c before stop:
+   pid=156015 ppid=1 state=S argv_tail=... 10790 & sleep 10790.5 & wait 
+   pid=156016 ppid=156015 state=S argv_tail=... 10790 & sleep 10790.5 & wait 
+   pid=156017 ppid=156016 state=S argv_tail=...80/rootfs/usr/bin/sleep 10790 
+   pid=156018 ppid=156016 state=S argv_tail=.../rootfs/usr/bin/sleep 10790.5 
+[debian:stable-slim rep3] stop exit=0 wall=0.00s; after stop:
+   pid=156017 ppid=1 state=S argv_tail=...80/rootfs/usr/bin/sleep 10790 
+   pid=156018 ppid=1 state=S argv_tail=.../rootfs/usr/bin/sleep 10790.5 
+[debian:stable-slim rep3] rm -f exit=0; after rm:
+   pid=156017 ppid=1 state=S argv_tail=...80/rootfs/usr/bin/sleep 10790 
+   pid=156018 ppid=1 state=S argv_tail=.../rootfs/usr/bin/sleep 10790.5 
+[debian:stable-slim rep3] summary: processes with marker before=4 after_stop=2 after_rm=2
+[alpine rep1] id=80eb8931f2aa before stop:
+   pid=156301 ppid=1 state=S argv_tail=...ep 8546 & sleep 8546.5 & wait 
+   pid=156302 ppid=156301 state=S argv_tail=...ep 8546 & sleep 8546.5 & wait 
+   pid=156303 ppid=156302 state=S argv_tail=...5f52b/rootfs/bin/busybox 8546 
+   pid=156304 ppid=156302 state=S argv_tail=...52b/rootfs/bin/busybox 8546.5 
+[alpine rep1] stop exit=0 wall=0.00s; after stop:
+   pid=156303 ppid=1 state=S argv_tail=...5f52b/rootfs/bin/busybox 8546 
+   pid=156304 ppid=1 state=S argv_tail=...52b/rootfs/bin/busybox 8546.5 
+[alpine rep1] rm -f exit=0; after rm:
+   pid=156303 ppid=1 state=S argv_tail=...5f52b/rootfs/bin/busybox 8546 
+   pid=156304 ppid=1 state=S argv_tail=...52b/rootfs/bin/busybox 8546.5 
+[alpine rep1] summary: processes with marker before=4 after_stop=2 after_rm=2
+[alpine rep2] id=11c4bfcaf796 before stop:
+   pid=156574 ppid=1 state=S argv_tail=...ep 9831 & sleep 9831.5 & wait 
+   pid=156575 ppid=156574 state=S argv_tail=...ep 9831 & sleep 9831.5 & wait 
+   pid=156576 ppid=156575 state=S argv_tail=...5f52b/rootfs/bin/busybox 9831 
+   pid=156577 ppid=156575 state=S argv_tail=...52b/rootfs/bin/busybox 9831.5 
+[alpine rep2] stop exit=0 wall=0.00s; after stop:
+   pid=156576 ppid=1 state=S argv_tail=...5f52b/rootfs/bin/busybox 9831 
+   pid=156577 ppid=1 state=S argv_tail=...52b/rootfs/bin/busybox 9831.5 
+[alpine rep2] rm -f exit=0; after rm:
+   pid=156576 ppid=1 state=S argv_tail=...5f52b/rootfs/bin/busybox 9831 
+   pid=156577 ppid=1 state=S argv_tail=...52b/rootfs/bin/busybox 9831.5 
+[alpine rep2] summary: processes with marker before=4 after_stop=2 after_rm=2
+[alpine rep3] id=695f75d1124f before stop:
+   pid=156842 ppid=1 state=S argv_tail=... 10616 & sleep 10616.5 & wait 
+   pid=156843 ppid=156842 state=S argv_tail=... 10616 & sleep 10616.5 & wait 
+   pid=156844 ppid=156843 state=S argv_tail=...f52b/rootfs/bin/busybox 10616 
+   pid=156845 ppid=156843 state=S argv_tail=...2b/rootfs/bin/busybox 10616.5 
+[alpine rep3] stop exit=0 wall=0.00s; after stop:
+   pid=156844 ppid=1 state=S argv_tail=...f52b/rootfs/bin/busybox 10616 
+   pid=156845 ppid=1 state=S argv_tail=...2b/rootfs/bin/busybox 10616.5 
+[alpine rep3] rm -f exit=0; after rm:
+   pid=156844 ppid=1 state=S argv_tail=...f52b/rootfs/bin/busybox 10616 
+   pid=156845 ppid=1 state=S argv_tail=...2b/rootfs/bin/busybox 10616.5 
+[alpine rep3] summary: processes with marker before=4 after_stop=2 after_rm=2
+## control: a payload with no grandchild leaves nothing (marker in the payload's own argv)
+control rep1: before=2 after_stop=0
+control rep2: before=2 after_stop=0
+## start cost: podvm run --rm alpine true
+cold = empty store (rmi alpine, includes pull through this host's proxy and extraction); warm = image in store
+cold rep1 exit=0 wall=5.36s
+cold rep2 exit=0 wall=4.85s
+cold rep3 exit=0 wall=4.83s
+warm rep1 exit=0 wall=0.26s
+warm rep2 exit=0 wall=0.26s
+warm rep3 exit=0 wall=0.26s
+warm, no --rm (rootfs already extracted):
+warm-norm rep1 exit=0 wall=0.26s
+warm-norm rep2 exit=0 wall=0.09s
+warm-norm rep3 exit=0 wall=0.10s
+exit=1

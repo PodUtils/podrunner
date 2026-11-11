@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "unit-capability.v1.schema.json",
+  "title": "podrunner unit driver capability record, version 1",
+  "description": "The answer of a unit driver to probe. A capability that is not proven is the string unknown, and a consumer treats unknown as absent. enforced: the runtime stops the job at the limit. reported: the driver measures it and slots acts on the measurement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "kind", "arch", "boundary", "boundary_proof", "principal", "container", "net", "secret_delivery", "credential_store", "mount_modes", "rootfs_fresh", "tree_kill", "limits", "egress_hold", "kvm"],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "enum": ["podvm", "docker", "microvm", "host", "incus", "fake"] },
+    "arch": { "enum": ["x86_64", "aarch64", "armv7", "riscv64", "i686", "loongarch64", "ppc64le"] },
+    "boundary": {
+      "description": "none: the host itself. redirect: path or syscall redirection that is not a boundary against hostile code. confined: kernel enforced confinement of one unit. guest: a separate kernel. Order: none < redirect < confined < guest.",
+      "enum": ["none", "redirect", "confined", "guest", "unknown"]
+    },
+    "boundary_proof": { "type": "string", "minLength": 1, "description": "How the boundary was verified on this host. Never empty. For guest it holds the result of the start-up self-test. A driver-supplied string: the conformance suite scans it for credentials." },
+    "principal": { "enum": ["shared", "distinct", "unknown"], "description": "shared: units and the control plane run as one uid on this host. distinct: each unit has its own uid or its own guest." },
+    "container": { "enum": ["none", "hook", "api", "native", "unknown"] },
+    "net": { "enum": ["shared-host", "private", "none", "unknown"] },
+    "secret_delivery": {
+      "type": "array",
+      "items": { "enum": ["files", "socket"] },
+      "uniqueItems": true
+    },
+    "credential_store": { "enum": ["tmpfs", "private-dir", "unknown"], "description": "tmpfs: the guest's tmpfs or a mounted tmpfs. private-dir: a mode 0700 directory on an ordinary filesystem, removed by destroy. Residue on disk is a stated limit." },
+    "mount_modes": { "type": "array", "items": { "enum": ["ro", "rw"] }, "uniqueItems": true, "description": "The modes the driver enforces for a mount. A driver that cannot enforce ro lists only rw." },
+    "rootfs_fresh": { "enum": ["verified", "unverified", "none"], "description": "Whether two units of one image share no filesystem state." },
+    "tree_kill": { "enum": ["verified", "unverified", "none"] },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu", "memory", "disk", "pids", "wall"],
+      "properties": {
+        "cpu": { "enum": ["enforced", "reported", "none", "unknown"] },
+        "memory": { "enum": ["enforced", "reported", "none", "unknown"] },
+        "disk": { "enum": ["enforced", "reported", "none", "unknown"] },
+        "pids": { "enum": ["enforced", "reported", "none", "unknown"] },
+        "wall": { "enum": ["enforced", "reported", "none", "unknown"] }
+      }
+    },
+    "egress_hold": { "enum": ["none", "advisory", "enforced", "unknown"], "description": "none: no hold. advisory: traffic is redirected, and hostile code can bypass it, so fixed denies and allow lists are not enforced. enforced: the unit has no other channel." },
+    "kvm": { "enum": ["usable", "absent", "unknown"] }
+  }
+}

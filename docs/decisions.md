@@ -67,6 +67,7 @@ C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 | 2026-11-11 | C14 (T-018, T-021) | A `local` set runs each job at tier `local`, with no tier rule. Only a source of the operator (now: `fake`) can be `local`; the configuration refuses a forge source on a `local` set. |
 | 2026-11-11 | C16 (T-031, T-045) | The host token of the remote mint is the pinned key of the host (mutual TLS, `pod_tls::mutual`): no bearer token exists to steal from a file. Its life is `not_after_s` of its `[[host]]`; a rotation pins the new key beside the old one, then removes the old one. The certificate dates are not read: the pin names the key. |
 | 2026-11-11 | C15 (T-029) | The scale-set sidecar asks `sign` for each App JWT over an inherited descriptor (3): one JSON line out, one line back. The key never reaches the sidecar. GitHub 401 and 403 map to `source-revoked`, 404 to `unknown-job`, 422 to `bad-request`, 429 and each other status to `unavailable`. The job id of an offer is the runner request id of the scale set. |
+| 2026-11-11 | C17 (T-014) | The design copy `docs/design/` keeps the words of the design review as written: it is a record of a time (`TODO/todo.toml`, `readings`), and the ASD-STE100 rule applies to new text. Its own checks run as written (`docs/design/verify.sh`). Each issue of the plan links its sections through one map, `docs/design-issues.md`, not through an edit of each issue body. |
 
 ## Questions for the owner
 
