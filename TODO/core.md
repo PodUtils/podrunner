@@ -741,3 +741,184 @@ A table in each of `docs/contracts/unit-driver.md` and `docs/contracts/source-dr
 
 `cargo test -p podrunner-fake`, `cargo test -p podrunner-hook`, and the two tables have no row "missing".
 
+# T-054: serve: an exclusive lock on the state directory before the journal replay; stop --wait (GitHub #54)
+
+**Source:** GitHub #54
+**Category:** defect
+**Milestone:** M-D
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podrunner serve` takes no lock. A second `serve` on the same `--state` directory replays the journal, destroys the units of the first, live instance, and takes over the control socket path (observed by podnet at `9d48ab8`). GitHub #54, from PodUtils/podnet#439 (block "airhand 1").
+
+## Premise
+
+podnet measured it at `9d48ab8` (PodUtils/podnet#439, Evidence). Not measured here yet.
+
+## Approach
+
+A non-blocking `flock` on `STATE/serve.lock` (mode 0600, `O_CLOEXEC`, never removed) before the configuration is built and the journal is read; a held lock gives exit 69, another lock error refuses the start. `control::bind` removes only a stale socket. `podrunner stop --wait [--timeout S]` polls the lock; a timeout gives exit 75 (add 75 to `docs/cli.md`). The lock of `pod-supervise` (podcrates) can replace the few lines of `flock`.
+
+## Prove
+
+`cargo test -p podrunner serve_lock`, and the acceptance tests of GitHub #54
+
+
+# T-055: journal: write and sync the claimed line before source.claim (GitHub #55)
+
+**Source:** GitHub #55
+**Category:** defect
+**Milestone:** M-D
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/podrunner-slots/src/run.rs` calls `source.claim` before it writes the `claimed` journal line, and `Journal::write` never syncs. A death in that window leaves a job that the source holds and the journal does not list as claimed; the restart neither releases nor reports it. GitHub #55, from PodUtils/podnet#439 (block "airhand 2").
+
+## Premise
+
+podnet measured it with a planted abort at `9d48ab8` (PodUtils/podnet#439, Evidence).
+
+## Approach
+
+Write `claimed`, `sync_data`, then call `source.claim`; on an error, write `released`. Sync only the lines before an external effect that a restart must undo. A sync failure makes the host `degraded`. Record the open question of the source contract: `release` names no runner.
+
+## Prove
+
+`cargo test -p podrunner-slots claim_is_journaled_first`
+
+
+# T-056: control socket: an idle client stalls the tick of the supervisor (GitHub #56)
+
+**Source:** GitHub #56
+**Category:** defect
+**Milestone:** M-D
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`serve` answers its control socket in the thread that ticks the supervisor. A silent same-uid client holds that thread for the read timeout of 5 s, and each further idle client adds 5 s. GitHub #56, from PodUtils/podnet#439 (block "airhand 14").
+
+## Premise
+
+podnet read it at `9d48ab8` (PodUtils/podnet#439, Evidence).
+
+## Approach
+
+The socket I/O in its own threads, at most 8 clients at a time (a ninth gets `busy`), an absolute deadline for each exchange; whole requests reach the supervisor through a channel.
+
+## Prove
+
+`cargo test -p podrunner control`
+
+
+# T-057: source wire: a reply deadline for each call; restart a silent sidecar (GitHub #57)
+
+**Source:** GitHub #57
+**Category:** defect
+**Milestone:** M-D
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`serve` calls the scale-set sidecar over a lock-step JSON-line wire with a blocking read and no deadline. A sidecar that lives and says nothing blocks the supervisor thread. GitHub #57, from PodUtils/podnet#439 (block "agentanycast 1").
+
+## Premise
+
+podnet read it at `9d48ab8` (PodUtils/podnet#439, Evidence).
+
+## Approach
+
+A reply deadline for each call of the wire (`REPLY_LIMIT`). When it passes, kill the child and use the backoff restart, so that no late reply is read as the answer to the next request. A child that exits during a call gives `Unavailable`.
+
+## Prove
+
+`cargo test -p podrunner-source reply_deadline`
+
+
+# T-058: podrunner check: validate a configuration and start nothing (GitHub #58)
+
+**Source:** GitHub #58
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The only way to know whether a `podrunner.toml` works is `podrunner serve`, which replays the journal, destroys open units and runs a self-test before it binds the socket. GitHub #58, from PodUtils/podnet#440 (block "tailsplit 8").
+
+## Premise
+
+Read on 2026-11-11.
+
+## Approach
+
+`podrunner check --config FILE`: each part that has no side effect, with the text and the exit of `serve` for the same file; no `--state`, no file of a state directory, no network. A shipped example configuration that CI checks; unknown keys and wrong types exit 78 and name the key.
+
+## Prove
+
+`cargo test -p podrunner check`
+
+
+# T-059: audit.jsonl: chain each line to the one before; podrunner audit verify (GitHub #59)
+
+**Source:** GitHub #59
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`serve` appends one line for each decision to `STATE/audit.jsonl`. Nothing shows that the file lost a line or that a line was edited. GitHub #59, from PodUtils/podnet#440 (block "tunnet 3").
+
+## Premise
+
+Read on 2026-11-11.
+
+## Approach
+
+`seq` and `prev` (the SHA-256 of the bytes of the line before) on each line; `podrunner audit verify [--anchor SEQ:HASH]` (exit 76 on a break or a torn line); a `resume` line at start after a torn line; the file at mode 0600; at most 1000 lines in memory.
+
+## Prove
+
+`cargo test -p podrunner-slots audit_chain`
+
+
+# T-060: serve: SIGTERM and SIGINT start a drain; sd_notify (GitHub #60)
+
+**Source:** GitHub #60
+**Category:** feature
+**Milestone:** M-D
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`serve` installs no signal handler. SIGTERM ends it at once, and the next start destroys each open unit, so each running job is lost. The unit of `print-unit` has no readiness, stop or watchdog contract. GitHub #60, from PodUtils/podnet#440 (block "tunnet 5").
+
+## Premise
+
+Read on 2026-11-11.
+
+## Approach
+
+SIGTERM and SIGINT start the drain of `podrunner stop`. With `NOTIFY_SOCKET` (path and `@` forms): `READY=1` after the control socket answers, `STOPPING=1` at the signal, `WATCHDOG=1` when enabled. `print-unit` writes `Type=notify`, and `WatchdogSec` only with a flag.
+
+## Prove
+
+`cargo test -p podrunner signal`
+
