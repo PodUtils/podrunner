@@ -268,8 +268,10 @@ impl Slots {
     }
 
     /// Move a job to `state`, with a journal line.
-    pub(crate) fn set(&mut self, key: &(usize, JobId), state: State, now: u64) {
-        let Some(j) = self.jobs.get_mut(key) else { return };
+    /// Move job `key` to `state` and write the journal line. `false` when
+    /// the line was not written.
+    pub(crate) fn set(&mut self, key: &(usize, JobId), state: State, now: u64) -> bool {
+        let Some(j) = self.jobs.get_mut(key) else { return false };
         j.state = state;
         j.since_ms = now;
         let kind = j.placement.as_ref().map(|p| self.kinds[p.kind].name.clone());
@@ -288,7 +290,9 @@ impl Slots {
         // restart could not find the units.
         if self.journal.write(&line).is_err() {
             self.degraded = Some("the journal cannot be written".into());
+            return false;
         }
+        true
     }
 
     fn intake(&mut self, s: usize, offer: Offer, now: u64) {
@@ -330,7 +334,8 @@ impl Slots {
             return self.refuse(&key, RefusalCode::EventNotAllowed, now);
         }
         if self.sources[s].source.ack(&id).is_err() {
-            return self.set(&key, State::Released, now);
+            self.set(&key, State::Released, now);
+            return;
         }
         self.try_place(&key, now);
     }

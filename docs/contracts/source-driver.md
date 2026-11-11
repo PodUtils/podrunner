@@ -41,6 +41,12 @@ The order of one job: `offer` (an event of `next`), `ack`, `claim`,
 `mint`, then `report` and `release`. `withdraw` ends an offer that
 podrunner does not claim (a `wait` refusal at `wait_deadline_s`).
 
+podrunner writes and syncs the `claimed` line of its journal before it
+sends `claim` (GitHub #55). After a death between the two, the restart
+sends `release` for a job that it may not hold. `release` names no
+runner, so a source must not free the claim of another runner on it: the
+scale-set sidecar releases only a runner that it registered itself.
+
 ## Events
 
 | Event | Fields | Meaning |

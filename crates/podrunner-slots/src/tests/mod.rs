@@ -6,6 +6,7 @@ mod egress;
 mod guards;
 mod guest;
 mod hooks;
+mod journal;
 mod level1;
 mod status;
 

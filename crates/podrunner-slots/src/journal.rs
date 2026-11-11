@@ -36,6 +36,18 @@ impl Journal {
         self.file.write_all(text.as_bytes())?;
         self.file.flush()
     }
+
+    /// Put the lines on the disk (GitHub #55): only before an effect
+    /// outside that a restart must undo, as the claim at the source.
+    pub fn sync(&mut self) -> std::io::Result<()> {
+        self.file.sync_data()
+    }
+
+    /// A journal whose writes fail (a full disk), for a test.
+    #[cfg(test)]
+    pub(crate) fn break_for_test(&mut self) {
+        self.file = OpenOptions::new().write(true).open("/dev/full").expect("/dev/full");
+    }
 }
 
 /// What the journal says at start.

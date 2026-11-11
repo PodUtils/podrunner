@@ -30,8 +30,9 @@ impl State {
         matches!(self, State::Reported | State::Refused | State::Released | State::Failed | State::Lost)
     }
 
-    /// From `claimed` on, the source holds the job for podrunner: a restart
-    /// releases it and reports `lost`.
+    /// From `claimed` on, the source holds the job for podrunner, or may
+    /// hold it: the line is written before the claim at the source
+    /// (GitHub #55). A restart releases it and reports `lost`.
     pub fn is_claimed(self) -> bool {
         matches!(
             self,

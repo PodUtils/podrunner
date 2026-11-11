@@ -48,10 +48,22 @@ pub(crate) fn egress_dir(state: &std::path::Path) -> std::path::PathBuf {
 impl Slots {
     pub(crate) fn claim(&mut self, key: &Key, now: u64) {
         let runner = self.jobs[key].runner_name.clone().unwrap_or_default();
+        // The intent goes to the disk first (GitHub #55): after a death of
+        // the process or the host, the replay releases and reports a job
+        // that the source may hold. A journal that cannot take it claims
+        // nothing.
+        if !self.set(key, State::Claimed, now) || self.journal.sync().is_err() {
+            self.degraded = Some("the journal cannot be written".into());
+            if let Some(j) = self.jobs.get_mut(key) {
+                j.unit = None;
+                j.placement = None;
+            }
+            self.set(key, State::Released, now);
+            return;
+        }
         match self.sources[key.0].source.claim(&key.1, &runner) {
             Ok(()) => {
                 self.audit(audit::Kind::Claim, key.0, &key.1, None, None);
-                self.set(key, State::Claimed, now);
                 self.mint(key, now);
             }
             // Another runner has the job, or the source gave it up.
@@ -178,7 +190,8 @@ impl Slots {
             return;
         }
         if j.runner_name.as_deref() == Some(runner) {
-            return self.set(&key, State::Running, now);
+            self.set(&key, State::Running, now);
+            return;
         }
         // The forge gave the job to another runner: this unit must not run.
         self.audit(audit::Kind::JobMismatch, s, job, None, None);
