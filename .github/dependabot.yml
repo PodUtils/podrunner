@@ -8,6 +8,11 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # The crates of podcrates come by a git tag that a session takes by
+    # hand at each release (docs/decisions.md, Delivery). Dependabot sorts
+    # the tags of a git source as text and proposes older tags.
+    ignore:
+      - dependency-name: "pod-*"
     groups:
       minor-and-patch:
         update-types:

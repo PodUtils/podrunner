@@ -568,3 +568,36 @@ Write docs/non-goals.md: each deferred item with the trigger that brings it back
 ## Prove
 
 `cargo todo check`
+
+# T-044: COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46)
+
+**Source:** GitHub #46
+**Category:** chore
+**Milestone:** M-A
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet answered PodUtils/podvm#228 in PodUtils/podnet#422 (COORD-014): its
+entries PodUtils/podnet@T-229 (the measure of `podnet pod` with the
+official runner), PodUtils/podnet@T-230 (an object `hold` in
+`pod doctor --json`) and PodUtils/podnet@T-231 were blocked on DR-1 and
+DR-2. Both are yes (`docs/decisions.md`). GitHub #46 (COORD-001, to
+podnet) tells podnet, and asks for the measure first, then the object `hold`.
+
+## Premise
+
+Read PodUtils/podnet#422 on 2026-11-11 through the watcher. Nothing
+measured.
+
+## Approach
+
+Wait for podnet's answer `(to podrunner)` on PodUtils/podnet@T-229 and PodUtils/podnet@T-230. Write each podnet commit that
+podrunner takes into the entry that uses it (T-023, T-024, T-022). Close
+GitHub #46 when podnet has read it.
+
+## Prove
+
+`cargo todo check`, and the answer of podnet named in the Done section.
