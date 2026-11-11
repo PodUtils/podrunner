@@ -114,7 +114,7 @@ fn pick_payload(offer: &JobOffer, cfg: &Config, now_s: u64) -> Result<(String, b
         Some(digest) => pinned(digest).ok_or(RefusalCode::PayloadNotPinned)?,
         None => cfg.pin.payload.iter().find(|p| p.arch == offer.arch).ok_or(RefusalCode::PayloadNotPinned)?,
     };
-    if now_s.saturating_sub(chosen.built_at_s) > cfg.pin.max_age_s {
+    if chosen.stale(&cfg.pin, now_s) {
         return Err(RefusalCode::ImageStale);
     }
     Ok((chosen.reference.clone(), offer.payload.is_some() && from_offer.is_none()))

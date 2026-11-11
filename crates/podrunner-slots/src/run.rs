@@ -15,6 +15,9 @@ use crate::state::State;
 
 type Key = (usize, JobId);
 
+/// The exit code of the official runner when the forge refuses its version.
+const RUNNER_TOO_OLD: i32 = 7;
+
 fn residual(c: Count) -> Residual {
     match c {
         Count::Known(n) => Residual::Count(n),
@@ -105,6 +108,18 @@ impl Slots {
             }
             // The way out of the unit: a socket of its job alone. No token.
             env.insert("PODRUNNER_EGRESS".into(), format!("http://unix:{}", socket.display()));
+        }
+        // The age of the payload again at the start (GitHub #30): a claim
+        // can wait long enough for a pin to pass its limit.
+        let now_s = (self.now_unix)();
+        let pinned = |x: &crate::config::Payload| {
+            x.reference == p.payload || podrunner_unit::parse_pinned(&x.reference).is_ok_and(|(_, d)| d == p.payload)
+        };
+        if self.cfg.pin.payload.iter().any(|x| pinned(x) && x.stale(&self.cfg.pin, now_s)) {
+            if let Some(e) = &self.egress {
+                e.close(unit.as_str());
+            }
+            return self.give_up(key, RefusalCode::ImageStale, now);
         }
         match self.open_hooks(p.kind, &unit) {
             Ok(vars) => env.extend(vars),
@@ -214,6 +229,12 @@ impl Slots {
                             Exit::Signal(_) => None,
                         };
                         let reason = if code == Some(0) { ExitReason::Success } else { ExitReason::Failure };
+                        // Exit code 7 of the runner: its version is too old
+                        // for the forge. No new job starts until the
+                        // operator pins a new payload (GitHub #30).
+                        if code == Some(RUNNER_TOO_OLD) {
+                            self.degraded = Some(format!("the runner of {} is too old: pin a new payload", p.payload));
+                        }
                         if let Some(job) = self.jobs.get_mut(&key) {
                             job.exit_code = code;
                             job.reason.get_or_insert(reason);

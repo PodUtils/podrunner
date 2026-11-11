@@ -107,7 +107,7 @@ pub(crate) fn config_signed(extra: &str) -> Config {
     config_pin(extra, &format!("signer = \"{k}\"\nsignature = \"{s}\""))
 }
 
-fn config_pin(extra: &str, pin: &str) -> Config {
+pub(crate) fn config_pin(extra: &str, pin: &str) -> Config {
     Config::parse(&format!(
         r#"
 host = "host-a"
@@ -185,8 +185,10 @@ impl Bed {
                 capability: k.capability,
             });
         }
-        let slots =
-            Slots::start(cfg, &dir.0.join("state"), Arc::new(clock.clone()), Box::new(|| NOW_UNIX), srcs, ks).unwrap();
+        // The Unix time moves with the manual clock.
+        let c = clock.clone();
+        let unix = Box::new(move || NOW_UNIX + podrunner_clock::Clock::now_ms(&c) / 1000);
+        let slots = Slots::start(cfg, &dir.0.join("state"), Arc::new(clock.clone()), unix, srcs, ks).unwrap();
         Bed { slots, clock, dir }
     }
 

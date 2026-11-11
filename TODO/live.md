@@ -265,7 +265,7 @@ trusted set is withdrawn with `tier-mismatch` and never acquired.
 **Milestone:** M-C
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -297,6 +297,8 @@ Read the text of GitHub #30 on 2026-11-11. Nothing measured.
 ## Approach
 
 Pins of the runner payload by digest with an age limit, and `podrunner image build` on a build host (DR-14, call C8). It uses the Actions hosts of `pod-services` (PodUtils/podcrates@T-164). That list must hold the hosts of the results service and of the artifact blobs: the study of the owner's local-mode archive found a job that failed on a 403 of the action download behind a blocked egress. The first pin of the runner is the one that podnet measured (T-044, Done): `actions/runner` v2.338.2.
+
+Done so far: a pin has `runner_version` and its own `max_age_s` (the smaller of it and `[pin] max_age_s` holds), both in the signed pin message; the age is checked at `matched` (placement) and again at the start, so a claim that waits for its credential past the limit is `image-stale`; exit code 7 of the runner (its version is too old for the forge) makes slots `degraded`: no new start until the operator pins a new payload and clears it. Open: `podrunner image build` (the release asset by version, its checksum in a reviewed file of this repository, the unit image, the pin), the watch of the runner releases of `pod-services-watch`, and the build workflow.
 
 ## Prove
 

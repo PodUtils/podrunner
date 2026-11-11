@@ -139,6 +139,21 @@ pub struct Payload {
     pub reference: String,
     /// The time of the build, in seconds of the Unix epoch.
     pub built_at_s: u64,
+    /// The version of the official runner in the image (`2.338.2`).
+    #[serde(default)]
+    pub runner_version: Option<String>,
+    /// The age limit of this pin; the smaller of it and `max_age_s` of
+    /// `[pin]` holds.
+    #[serde(default)]
+    pub max_age_s: Option<u64>,
+}
+
+impl Payload {
+    /// True when the image is older than its limit at `now_s`.
+    pub fn stale(&self, pins: &Pins, now_s: u64) -> bool {
+        let limit = self.max_age_s.map_or(pins.max_age_s, |m| m.min(pins.max_age_s));
+        now_s.saturating_sub(self.built_at_s) > limit
+    }
 }
 
 /// The pin list.

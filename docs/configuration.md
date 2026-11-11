@@ -55,6 +55,8 @@ signature = "HEX128"         # its signature; a changed pin list is refused
 arch = "x86_64"
 reference = "runner@sha256:HEX"
 built_at_s = 1800000000      # the time of the build, Unix seconds
+runner_version = "2.338.2"   # the official runner in the image
+max_age_s = 2419200          # the age limit of this pin; the smaller of it and [pin] max_age_s holds
 
 [egress]                     # the egress ceiling of each tier (T-024)
 ```

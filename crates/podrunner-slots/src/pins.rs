@@ -18,7 +18,10 @@ pub fn message(pins: &Pins) -> Vec<u8> {
     let mut m = LABEL.to_vec();
     m.extend_from_slice(format!("max_age_s {}\n", pins.max_age_s).as_bytes());
     for p in &pins.payload {
-        m.extend_from_slice(format!("payload {} {} {}\n", p.arch, p.reference, p.built_at_s).as_bytes());
+        let version = p.runner_version.as_deref().unwrap_or("-");
+        let age = p.max_age_s.map_or("-".to_string(), |a| a.to_string());
+        let line = format!("payload {} {} {} {version} {age}\n", p.arch, p.reference, p.built_at_s);
+        m.extend_from_slice(line.as_bytes());
     }
     m
 }
@@ -94,7 +97,13 @@ mod tests {
     fn pins() -> Pins {
         Pins {
             max_age_s: 100,
-            payload: vec![Payload { arch: "x86_64".into(), reference: "r@sha256:00".into(), built_at_s: 7 }],
+            payload: vec![Payload {
+                arch: "x86_64".into(),
+                reference: "r@sha256:00".into(),
+                built_at_s: 7,
+                runner_version: None,
+                max_age_s: None,
+            }],
             signer: None,
             signature: None,
         }
@@ -107,8 +116,10 @@ mod tests {
         let (k, s) = sign(&p, &[7; 32]);
         (p.signer, p.signature) = (Some(k.clone()), Some(s.clone()));
         assert_eq!(verify(&p), Ok(()));
-        let changes: [fn(&mut Pins); 4] = [
+        let changes: [fn(&mut Pins); 6] = [
             |p| p.max_age_s += 1,
+            |p| p.payload[0].max_age_s = Some(1),
+            |p| p.payload[0].runner_version = Some("2.338.2".into()),
             |p| p.payload[0].built_at_s += 1,
             |p| p.payload[0].reference.push('1'),
             |p| p.payload.push(p.payload[0].clone()),
