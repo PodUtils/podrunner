@@ -6,6 +6,9 @@
 
 pub mod gate;
 pub mod ledger;
+pub mod transport;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_tls;

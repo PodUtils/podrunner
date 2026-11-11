@@ -16,7 +16,7 @@ use serde_json::json;
 use crate::gate::Gate;
 use crate::ledger::Ledger;
 
-fn offer(job: &str, fork: bool) -> String {
+pub(crate) fn offer(job: &str, fork: bool) -> String {
     let (event, head, actor) = if fork { ("pull_request", "yes", "outside") } else { ("push", "no", "member") };
     json!({ "at_s": 0, "offer": {
         "schema": 1, "job_id": job, "source": "src", "labels": ["podrunner"], "arch": "x86_64", "wait_deadline_s": 600,
@@ -29,7 +29,7 @@ fn offer(job: &str, fork: bool) -> String {
     .to_string()
 }
 
-fn dir() -> PathBuf {
+pub(crate) fn dir() -> PathBuf {
     use std::sync::atomic::{AtomicU32, Ordering};
     static N: AtomicU32 = AtomicU32::new(0);
     let d = std::env::temp_dir().join(format!(
@@ -41,7 +41,7 @@ fn dir() -> PathBuf {
     d
 }
 
-fn gate(lines: &[String], slots: &[(&str, u32)], at: &std::path::Path) -> Gate {
+pub(crate) fn gate(lines: &[String], slots: &[(&str, u32)], at: &std::path::Path) -> Gate {
     let source = FakeSource::new("src", Arc::new(ManualClock::default()), parse_script(&lines.join("\n")).unwrap());
     let trust = serde_json::from_value(json!({ "organizations": [{ "login": "example-org" }] })).unwrap();
     let hosts: BTreeMap<String, u32> = slots.iter().map(|(h, n)| (h.to_string(), *n)).collect();
