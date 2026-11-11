@@ -94,6 +94,8 @@ listen = "0.0.0.0:8443"
 cert_file = "/etc/podrunner-mint/mint.pem"
 key_file = "/etc/podrunner-mint/mint.key"   # a P-256 key, mode 0600
 state = "/var/lib/podrunner-mint"           # ledger.jsonl and audit.jsonl
+reconcile_after_s = 300      # a credential with no start after this time is an alert
+revoke_after = 3             # this many alerts of a host revoke it (source-revoked)
 
 [source]                     # the source that the mint holds: github-scaleset, or fake
 name = "org-trusted"

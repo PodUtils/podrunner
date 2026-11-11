@@ -5,7 +5,7 @@
 //! gives one credential for each job id; each call is an audit line with
 //! the host, the peer and the job id.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Write;
 use std::time::Duration;
@@ -29,6 +29,33 @@ pub struct Gate {
     /// The events of the offers of a host, kept for its next `next`.
     queued: BTreeMap<String, Vec<Event>>,
     audit: File,
+    /// The time in seconds of the Unix epoch.
+    now: Box<dyn Fn() -> u64 + Send>,
+    reconcile: Reconcile,
+    /// The credentials with an alert, once each.
+    alerted: BTreeSet<JobId>,
+    /// The hosts that the reconciliation revoked: each call is
+    /// `source-revoked` until the operator starts the mint again.
+    revoked: BTreeSet<String>,
+}
+
+/// A credential with no start after `after_s` is an alert; `revoke_after`
+/// alerts of one host revoke it (GitHub #31).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Reconcile {
+    pub after_s: u64,
+    pub revoke_after: usize,
+}
+
+impl Default for Reconcile {
+    fn default() -> Self {
+        // `start_s` of slots (120 s) and a margin.
+        Reconcile { after_s: 300, revoke_after: 3 }
+    }
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }
 
 fn err(code: SourceCode, detail: &str) -> SourceError {
@@ -44,7 +71,48 @@ impl Gate {
         hosts: BTreeMap<String, u32>,
         audit: File,
     ) -> Gate {
-        Gate { source, set, trust, ledger, hosts, queued: BTreeMap::new(), audit }
+        Gate {
+            source,
+            set,
+            trust,
+            ledger,
+            hosts,
+            queued: BTreeMap::new(),
+            audit,
+            now: Box::new(unix_now),
+            reconcile: Reconcile::default(),
+            alerted: BTreeSet::new(),
+            revoked: BTreeSet::new(),
+        }
+    }
+
+    /// Another clock and other limits of the reconciliation.
+    pub fn with_reconcile(mut self, now: Box<dyn Fn() -> u64 + Send>, r: Reconcile) -> Gate {
+        (self.now, self.reconcile) = (now, r);
+        self
+    }
+
+    /// An alert for each credential with no start in time; a host with
+    /// `revoke_after` alerts is revoked.
+    fn check_starts(&mut self) {
+        let now = (self.now)();
+        let late: Vec<(JobId, String)> = self
+            .ledger
+            .pending()
+            .filter(|(j, _, t)| now.saturating_sub(*t) >= self.reconcile.after_s && !self.alerted.contains(*j))
+            .map(|(j, h, _)| (j.clone(), h.to_string()))
+            .collect();
+        for (job, host) in late {
+            self.alerted.insert(job.clone());
+            let line =
+                serde_json::json!({ "t_s": now, "alert": "credential-with-no-start", "host": host, "job_id": job });
+            let _ = writeln!(self.audit, "{line}");
+            let count = self.ledger.pending().filter(|(j, h, _)| *h == host && self.alerted.contains(*j)).count();
+            if count >= self.reconcile.revoke_after && self.revoked.insert(host.clone()) {
+                let line = serde_json::json!({ "t_s": now, "alert": "host-revoked", "host": host });
+                let _ = writeln!(self.audit, "{line}");
+            }
+        }
     }
 
     /// Answer one request line of `host` (the name of its pinned key) from
@@ -62,7 +130,7 @@ impl Gate {
     }
 
     fn write_audit(&mut self, host: &str, peer: &str, op: &str, job: Option<&JobId>) {
-        let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+        let t = (self.now)();
         let line = serde_json::json!({ "t_s": t, "host": host, "peer": peer, "op": op, "job_id": job });
         // The ledger holds the state; a lost audit line stops no job.
         let _ = writeln!(self.audit, "{line}");
@@ -80,6 +148,10 @@ impl Gate {
     }
 
     fn answer(&mut self, host: &str, req: Request) -> Result<Reply, SourceError> {
+        self.check_starts();
+        if self.revoked.contains(host) {
+            return Err(err(SourceCode::SourceRevoked, "the host is revoked: credentials with no start"));
+        }
         let slots = *self.hosts.get(host).ok_or_else(|| err(SourceCode::SourceRevoked, "the host is not known"))?;
         if let Some(job) = job_of(&req) {
             self.mine(host, &job)?;
@@ -110,7 +182,7 @@ impl Gate {
                 // On disk before the answer: a crash after it cannot mint
                 // the job again. A credential that the ledger cannot hold
                 // is not given.
-                self.ledger.mint(host, &job_id).map_err(Self::disk)?;
+                self.ledger.mint(host, &job_id, (self.now)()).map_err(Self::disk)?;
                 Reply::Credential { credential }
             }
             Request::Report { job_id, report } => self.source.report(&job_id, &report).map(|()| Reply::Done)?,
@@ -145,8 +217,13 @@ impl Gate {
                 self.ledger.offer(host, &offer.job_id).map_err(Self::disk)?;
                 host.to_string()
             }
-            other => match self.ledger.holder(other.job_id()) {
-                Some(h) => h.to_string(),
+            other => match self.ledger.holder(other.job_id()).map(str::to_string) {
+                Some(h) => {
+                    if matches!(other, Event::Started { .. }) {
+                        self.ledger.start(&h, other.job_id()).map_err(Self::disk)?;
+                    }
+                    h
+                }
                 None => return Ok(()),
             },
         };

@@ -48,6 +48,20 @@ pub struct MintConfig {
     pub trust: TierConfig,
     #[serde(default)]
     pub host: Vec<HostConfig>,
+    /// A credential with no start after `after_s` is an alert; at
+    /// `revoke_after` alerts a host is revoked.
+    #[serde(default = "after_s")]
+    pub reconcile_after_s: u64,
+    #[serde(default = "revoke_after")]
+    pub revoke_after: usize,
+}
+
+fn after_s() -> u64 {
+    podrunner_remote::gate::Reconcile::default().after_s
+}
+
+fn revoke_after() -> usize {
+    podrunner_remote::gate::Reconcile::default().revoke_after
 }
 
 impl MintConfig {
@@ -90,7 +104,10 @@ pub fn run(config: &Path) -> Result<(), Failure> {
     }
     .map_err(|e| io("the audit file", e))?;
     let hosts: BTreeMap<String, u32> = c.host.iter().map(|h| (h.name.clone(), h.slots)).collect();
-    let gate = Gate::new(source, c.source.tier, c.trust.clone(), ledger, hosts, audit);
+    let reconcile = podrunner_remote::gate::Reconcile { after_s: c.reconcile_after_s, revoke_after: c.revoke_after };
+    let now = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    let gate = Gate::new(source, c.source.tier, c.trust.clone(), ledger, hosts, audit)
+        .with_reconcile(Box::new(now), reconcile);
     let pins: Vec<(Pin, String)> =
         c.host.iter().filter_map(|h| Pin::parse(&h.pin).ok().map(|p| (p, h.name.clone()))).collect();
     let key = private_file("the key file of the mint", &c.key_file)?;

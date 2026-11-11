@@ -42,7 +42,11 @@ pub(crate) fn dir() -> PathBuf {
 }
 
 pub(crate) fn gate(lines: &[String], slots: &[(&str, u32)], at: &std::path::Path) -> Gate {
-    let source = FakeSource::new("src", Arc::new(ManualClock::default()), parse_script(&lines.join("\n")).unwrap());
+    gate_at(lines, slots, at, ManualClock::default())
+}
+
+fn gate_at(lines: &[String], slots: &[(&str, u32)], at: &std::path::Path, clock: ManualClock) -> Gate {
+    let source = FakeSource::new("src", Arc::new(clock), parse_script(&lines.join("\n")).unwrap());
     let trust = serde_json::from_value(json!({ "organizations": [{ "login": "example-org" }] })).unwrap();
     let hosts: BTreeMap<String, u32> = slots.iter().map(|(h, n)| (h.to_string(), *n)).collect();
     let ledger = Ledger::open(&at.join("ledger.jsonl")).unwrap();
@@ -120,7 +124,7 @@ fn each_host_holds_its_own_offers_up_to_its_slots() {
     drop(again);
     let mut ledger = Ledger::open(&d.join("ledger.jsonl")).unwrap();
     assert_eq!(ledger.holder(&job("j-4")), Some("h1"));
-    assert!(!ledger.mint("h1", &job("j-1")).unwrap());
+    assert!(!ledger.mint("h1", &job("j-1"), 0).unwrap());
     // Each call is an audit line with the host, the peer and the job id.
     let audit = std::fs::read_to_string(d.join("audit.jsonl")).unwrap_or_default();
     assert!(audit.is_empty() || audit.lines().all(|l| l.contains("\"peer\":\"192.0.2.1:4000\"")));
@@ -135,4 +139,43 @@ fn the_mint_computes_the_tier_and_withdraws_a_fork_on_the_trusted_set() {
     assert_eq!(h1.claim(&job("fork"), "r").unwrap_err().code, SourceCode::UnknownJob);
     let audit = std::fs::read_to_string(d.join("audit.jsonl")).unwrap();
     assert!(audit.lines().any(|l| l.contains("\"op\":\"next\"") && l.contains("\"host\":\"h1\"")), "{audit}");
+}
+
+/// A credential with no start in time is an alert; a third one revokes the
+/// host. A credential whose runner started is no alert.
+#[test]
+fn credentials_with_no_start_revoke_the_host() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    let d = dir();
+    let clock = ManualClock::default();
+    let mut lines: Vec<String> = (1..=4).map(|i| offer(&format!("j-{i}"), false)).collect();
+    lines.push(r#"{"at_s":10,"started":{"job_id":"j-1","runner_name":"r"}}"#.into());
+    let now = Arc::new(AtomicU64::new(1_000));
+    let n = now.clone();
+    let reconcile = crate::gate::Reconcile { after_s: 300, revoke_after: 3 };
+    let g = gate_at(&lines, &[("h1", 4)], &d, clock.clone())
+        .with_reconcile(Box::new(move || n.load(Ordering::SeqCst)), reconcile);
+    let g = Arc::new(std::sync::Mutex::new(g));
+    let mut h1 = host(&g, "h1");
+    assert_eq!(offers(&h1.next(4, Duration::ZERO).unwrap()).len(), 4);
+    for i in 1..=4 {
+        let j = job(&format!("j-{i}"));
+        h1.ack(&j).unwrap();
+        h1.claim(&j, "r").unwrap();
+        h1.mint(&j, "r").unwrap();
+    }
+    // The runner of j-1 starts.
+    clock.advance(Duration::from_secs(10));
+    h1.next(0, Duration::ZERO).unwrap();
+    // Before the limit: no alert.
+    now.store(1_299, Ordering::SeqCst);
+    h1.hello("p", "0").unwrap();
+    // After it: three alerts (j-2 to j-4), and the host is revoked.
+    now.store(1_300, Ordering::SeqCst);
+    assert_eq!(h1.hello("p", "0").unwrap_err().code, SourceCode::SourceRevoked);
+    let audit = std::fs::read_to_string(d.join("audit.jsonl")).unwrap();
+    let alerts: Vec<&str> = audit.lines().filter(|l| l.contains("credential-with-no-start")).collect();
+    assert_eq!(alerts.len(), 3, "{audit}");
+    assert!(!alerts.iter().any(|l| l.contains("\"j-1\"")));
+    assert!(audit.contains("host-revoked"));
 }
