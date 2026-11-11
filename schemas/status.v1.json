@@ -79,7 +79,11 @@
       "properties": {
         "arch": {
           "description": "`x86_64` or `aarch64`.",
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "x86_64",
+            "aarch64"
+          ]
         },
         "boundary": {
           "$ref": "#/$defs/Boundary"
@@ -133,9 +137,9 @@
           "$ref": "#/$defs/Fact"
         },
         "schema": {
+          "description": "The version of the record: `SCHEMA`, 1.",
           "type": "integer",
-          "format": "uint32",
-          "minimum": 0
+          "const": 1
         },
         "secret_delivery": {
           "type": "array",
@@ -180,7 +184,7 @@
           "const": "none"
         },
         {
-          "description": "The container hooks of the runner (call C2).",
+          "description": "The container hooks of the runner (podrunner's call C2).",
           "type": "string",
           "const": "hooks"
         }
@@ -404,7 +408,7 @@
           ]
         },
         {
-          "description": "Conformance test 3 passed on this host.",
+          "description": "The conformance test of the tree kill (podrunner's test 3) passed\non this host.",
           "type": "string",
           "const": "verified"
         }

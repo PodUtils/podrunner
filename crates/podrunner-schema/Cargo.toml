@@ -8,15 +8,16 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+pod-job.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
-# The JSON Schemas of schemas/ are generated from the types, in tests only:
-# the binaries carry no schemars.
+# The JsonSchema of the credential, in tests only: the binaries carry no
+# schemars.
 schemars = { version = "1", optional = true }
 
 [features]
-schema = ["dep:schemars"]
+schema = ["dep:schemars", "pod-job/schema"]
 
 [dev-dependencies]
 schemars = "1"

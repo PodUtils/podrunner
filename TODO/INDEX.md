@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**46 entries: 5 open, 6 partial, 13 blocked, 22 done.**
+**46 entries: 6 open, 5 partial, 12 blocked, 23 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 1 | 4 | 0 | 12 | 17 |
-| P2 | 4 | 2 | 8 | 9 | 23 |
+| P1 | 1 | 3 | 0 | 13 | 17 |
+| P2 | 5 | 2 | 7 | 9 | 23 |
 | P3 | 0 | 0 | 5 | 1 | 6 |
-| **All** | 5 | 6 | 13 | 22 | 46 |
+| **All** | 6 | 5 | 12 | 23 | 46 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -64,7 +64,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-014](bootstrap.md) | P2 | S | M0 | docs | blocked | The cleaned design spec in docs/ (GitHub #14) |
 | [T-015](bootstrap.md) | P2 | S | M-A | release | done | The beta release workflow (GitHub #15) |
 | [T-016](core.md) | P1 | S | M-A | feature | done | WP-01: the seam traits, the contracts v1 and the conformance harness (GitHub #16) |
-| [T-017](core.md) | P1 | S | M-A | feature | partial | Schemas v1: job offer, unit capability, run report, public report (GitHub #17) |
+| [T-017](core.md) | P1 | S | M-A | feature | done | Schemas v1: job offer, unit capability, run report, public report (GitHub #17) |
 | [T-018](core.md) | P1 | S | M-A | feature | done | The tier rule: Rust implementation and the case table (GitHub #18) |
 | [T-019](core.md) | P2 | S | M-A | docs | done | Security documents: threat model, accepted residuals, leak runbook (GitHub #19) |
 | [T-020](core.md) | P1 | S | M-A | feature | done | WP-02: the fake source and the fake unit, scripted, with a manual clock (GitHub #20) |
@@ -78,7 +78,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-028](live.md) | P2 | S | M-C | feature | done | WP-06: the fake scale-set service (Go, test only) (GitHub #28) |
 | [T-029](live.md) | P2 | M | M-C | feature | done | WP-07: the github-scaleset source sidecar (static Go) (GitHub #29) |
 | [T-030](live.md) | P2 | M | M-C | feature | open | WP-10: the image pipeline: pins, age limit, podrunner image build (GitHub #30) |
-| [T-031](live.md) | P2 | M | M-D | feature | blocked | WP-05b: remote mint (only if DR-4 is yes) (GitHub #31) |
+| [T-031](live.md) | P2 | M | M-D | feature | open | WP-05b: remote mint (only if DR-4 is yes) (GitHub #31) |
 | [T-032](live.md) | P2 | S | M-C | chore | blocked | Milestone M-C: the live gates G-H2 to G-H4 on a fake unit (GitHub #32) |
 | [T-033](live.md) | P2 | S | M-D | chore | blocked | Milestone M-D: one live trusted job on a no-root host (GitHub #33) |
 | [T-034](level2.md) | P2 | S | L2 | measurement | open | WP-13: measure U19 and U21 on the podvm rung (GitHub #34) |

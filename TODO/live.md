@@ -309,7 +309,7 @@ Pins of the runner payload by digest with an age limit, and `podrunner image bui
 **Milestone:** M-D
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -343,15 +343,11 @@ Read the text of GitHub #31 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-A remote `mint` over mutual TLS (`pod-tls`, PodUtils/podcrates@T-165). DR-4 is yes (2026-11-11). The offer ledger, the host token and the signed pin list can start on the fakes before the TLS; the transport waits for PodUtils/podcrates@T-165.
+A remote `mint` over mutual TLS (`pod_tls::mutual` of podcrates v0.17.0, PodUtils/podcrates@T-165: pinned keys on both sides, TLS 1.3, no resumption). DR-4 is yes (2026-11-11). The offer ledger, the host token and the signed pin list (T-045) come first, on the fakes; then the transport.
 
 ## Prove
 
 `cargo test -p podrunner-mint remote`
-
-## Blocker
-
-podcrates releases the mutual TLS of `pod-tls` (PodUtils/podcrates@T-165). podrunner told podcrates that T-031 needs it.
 
 # T-032: Milestone M-C: the live gates G-H2 to G-H4 on a fake unit (GitHub #32)
 

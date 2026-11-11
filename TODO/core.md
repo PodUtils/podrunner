@@ -64,7 +64,7 @@ and the plants of each test.
 **Milestone:** M-A
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -98,11 +98,15 @@ Read the text of GitHub #17 on 2026-11-11. Nothing measured.
 
 Rust types with serde for the four records, the four JSON Schemas, 11 valid and 19 invalid examples with the expected reason, and a test that validates each. Ruling Q-A8: the schemas live in podcrates; ask podcrates for them (PodUtils/podcrates@T-163) and use the released types when they come.
 
-Done so far (2026-11-11): the types are in `crates/podrunner-schema` (`offer.rs`, `capability.rs`, `report.rs`, `codes.rs`); `schemas/` holds the four schemas, generated from the types by a test that fails on a difference; `schemas/examples/` holds 11 valid and 19 invalid examples with `expect.json`; the code table of `docs/contracts/codes.md` equals the enum (a test). The podcrates session has the ask (a direct message of 2026-11-11). Open: the take of the podcrates types at their tag, and the removal of the copies here.
+podrunner drafted the types and the schemas; podcrates released them as `pod-job` in v0.17.0 (PodUtils/podcrates#58). `crates/podrunner-schema` now re-exports `pod_job` and keeps the credential (`secret.rs`) only; the four schemas, the examples and their test are in podcrates. `schemas/status.v1.json` stays here: it embeds the capability record of `pod-job`. `docs/contracts/codes.md` points to the table of `pod-job` and lists the uses of podrunner beyond it.
 
 ## Prove
 
-`cargo test -p podrunner-schema schemas`
+`cargo test -p podrunner-slots status_schema`, `cargo test --workspace` (the schemas and their examples: the tests of `pod-job` in podcrates, at the tag)
+
+## Done
+
+2026-11-11: podrunner takes `pod-job` at podcrates v0.17.0; the draft types, the four schemas and the examples are removed. `cargo test --workspace --all-features`: each test passes; `schemas/status.v1.json` is generated again from the types (`PODRUNNER_WRITE_SCHEMAS=1`). The gate run of this commit is in `TODO/issues.md`.
 
 # T-018: The tier rule: Rust implementation and the case table (GitHub #18)
 

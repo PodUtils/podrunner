@@ -18,16 +18,15 @@ is done.
   `trusted` at `redirect` is a choice of the operator with the mitigations
   of T-045; `microvm` is an adapter over podvm's machine tier (T-037);
   DR-7 is not now. C1 to C12 are rulings; C13 to C15 are calls.
-- podrunner takes the crates of podcrates at `v0.16.0` (`pod-core`,
-  `pod-todo`, `pod-broker`, `pod-proxy`). `pod-supervise` can replace the
-  tag scan of the podvm driver (T-023); it is not on the M-A path.
-- Milestone M-A: done: T-015 (`v0.1.0-beta.1`), T-016, T-018 to T-022,
-  T-024. Partial: T-017 (the authoritative schemas come from
-  PodUtils/podcrates@T-163) and T-023 (an H0 run is open). T-025 closes
-  when both are done.
-- M-C: done T-027, T-028, T-029. T-030 (the
-  image pipeline) waits for the Actions hosts of `pod-services`
-  (PodUtils/podcrates@T-164).
+- podrunner takes the crates of podcrates at `v0.17.0` (`pod-core`,
+  `pod-todo`, `pod-broker`, `pod-proxy`, `pod-identity`, `pod-job`).
+  `pod-supervise` can replace the tag scan of the podvm driver (T-023);
+  it is not on the M-A path.
+- Milestone M-A: done: T-015 (`v0.1.0-beta.1`), T-016 to T-022, T-024.
+  Partial: T-023 (an H0 run is open). T-025 closes when it is done.
+- M-C: done T-027, T-028, T-029. T-030 (the image pipeline) can take the
+  Actions hosts and the runner pin of `pod-services` (v0.17.0).
+- M-D: T-031 (remote mint) can take `pod_tls::mutual` (v0.17.0).
 - L2: T-036 is blocked: the self-test, the second unit, the daily and
   driver-change retest and the driver checks are in; the read-only mounts
   and a real guest need T-037 (PodUtils/podvm@T-1656). T-034, T-038 need the
