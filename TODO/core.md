@@ -1496,3 +1496,28 @@ Move each `tag = "v0.29.0"` to `v0.30.0`, update `Cargo.lock` and the pins in `d
 ## Done
 
 2026-11-12, `528a918`; gate run 43204208180 of `4215a13` (which holds the take) is green, with cargo-deny and the static builds. The commit went to the podcrates session for PodUtils/podcrates#89.
+
+# T-096: GNU tar -C DIR fails in a podvm unit after mkdir -p DIR
+
+**Source:** T-093
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+In runner-image run 43205758271 (podvm `v0.2.0-beta.5`, the supervise host of GitHub, x86_64, the runner image of Ubuntu 24.04), a step ran `mkdir -p "$GITHUB_WORKSPACE"` and then `curl ... | tar -xz -C "$GITHUB_WORKSPACE"`. tar failed: "tar: /home/runner/_work/app/app: Cannot open: No such file or directory". The same step passes on a runner directory of the host. podrunner avoids it (T-093: `cd`, then `gzip -dc | tar -xf -`), but a workflow that runs `tar -C` in a podvm unit fails.
+
+## Premise
+
+Seen once on 2026-11-12. Not reduced: whether `-C` alone fails (GNU tar opens the directory with `openat` and `O_DIRECTORY`, maybe `O_PATH`), or `-z` (tar runs `gzip` as a child). A local podvm on a supervise host here failed earlier at `busybox tar -z`, with the `libc.so` of the host ("invalid ELF header"), so the same image is needed.
+
+## Approach
+
+A measure in `runner-image.yml` (added 2026-11-12), in the runner image: `tar -cf x.tar f; mkdir -p d; tar -xf x.tar -C d`, then the same with `-z`, and `gzip -dc | tar -xf -` in `d`. Write the result; if podvm is at fault, a COORD issue `(to podvm)` with the smallest case.
+
+## Prove
+
+The measure lines of `runner-image.yml` name which form fails; the COORD issue cites them.

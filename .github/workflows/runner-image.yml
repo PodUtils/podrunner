@@ -184,6 +184,16 @@ jobs:
           timeout 1200 cargo run -q -p podrunner -- run "$RUNNER_TEMP/containers.yml" \
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/containers.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/containers.txt")" = 2
+          # T-096: a measure of tar in a unit of the runner image; each
+          # form prints one line.
+          PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" /bin/bash -c '
+            cd /tmp && echo x > f && tar -cf x.tar f && gzip -c x.tar > x.tgz
+            m() { rm -rf d && mkdir -p d && if ( eval "$2" ) > /dev/null 2>&1 && test -f d/f; then echo "tar $1 ok"; else echo "tar $1 failed"; fi; }
+            m -C "tar -xf x.tar -C d"
+            m -C-z "tar -xzf x.tgz -C d"
+            m cd "cd d && tar -xf ../x.tar"
+            m cd-gzip "cd d && gzip -dc ../x.tgz | tar -xf -"
+            m cd-z "cd d && tar -xzf ../x.tgz"' 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || true
           cargo test -p podrunner-podvm --test conformance --no-run
           timeout 600 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
           # T-065: the egress hold of a unit under podnet pod.
