@@ -95,7 +95,7 @@ pmask (the owner's note to DR-6, not adopted) is no boundary and gives no `confi
 
 ## Blocker
 
-podvm applies `pod-confine` in its units (PodUtils/podvm#259), for a unit kind of real jobs at `confined`.
+podvm applies `pod-confine` in its units (PodUtils/podvm#259), for a unit kind of real jobs at `confined`. podvm `v0.2.0-beta.5` has `run --podvm-confine`; T-079 measures it.
 
 # T-043: Later crates: service unit, release index, acceptance registry (GitHub #43)
 

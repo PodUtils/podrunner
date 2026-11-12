@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**78 entries: 0 open, 2 partial, 13 blocked, 63 done.**
+**79 entries: 1 open, 2 partial, 13 blocked, 63 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 28 | 29 |
 | P2 | 0 | 1 | 8 | 30 | 39 |
-| P3 | 0 | 0 | 5 | 5 | 10 |
-| **All** | 0 | 2 | 13 | 63 | 78 |
+| P3 | 1 | 0 | 5 | 5 | 11 |
+| **All** | 1 | 2 | 13 | 63 | 79 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -126,3 +126,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-076](core.md) | P1 | M | M-D | feature | done | podrunner resolves names with pod-dns: no single resolver of the host |
 | [T-077](core.md) | P3 | S | later | defect | blocked | COORD-009: the seccomp hold of podnet pod does not take ::ffff:127.0.0.1 as loopback (GitHub #64) |
 | [T-078](core.md) | P3 | S | later | feature | done | The podvm driver labels each unit and reads the run report of podvm |
+| [T-079](core.md) | P3 | M | later | measurement | open | Measure podvm --podvm-confine on the supervise rung, for a confined podvm unit |

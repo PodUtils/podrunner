@@ -1231,3 +1231,46 @@ With the next beta: give `run -d` and each container `--label podrunner.unit=ID`
 ## Done
 
 2026-11-12, `e42d60c`; gate run 43143954799 and runner-image run 43143954813 are green. podvm `v0.2.0-beta.5` is pinned (`images/podvm.toml`, `probe::LOWEST`; PodUtils/podvm#273). The `run -d` of a unit and of each container carries `--label podrunner.unit=ID`, and `destroy` removes each container with the label (`crates/podrunner-podvm/src/unit/labels.rs`). The `run -d` of a unit writes `--report` to its directory; `PodvmUnit::run_report` reads it. Measured: for `run -d` the report ends with the start (`detached: true`, `exit_code: null`), so the exit stays with `podvm wait`, and a refusal of podvm fails the start already. `job_images` comes from the hooks (T-075), so the report adds no field to the run report of podrunner. `crates/podrunner-podvm/tests/report.rs` passes as root and as a uid with no user namespace; the conformance, hold, links, held-runner and canned-job tests pass on beta.5 on H0.
+
+# T-079: Measure podvm --podvm-confine on the supervise rung, for a confined podvm unit
+
+**Source:** T-042
+**Category:** measurement
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-042 waits for podvm to apply `pod-confine` in its units. podvm `v0.2.0-beta.5` has `run --podvm-confine read=P;write=P;exec=P;connect=PORT`. Its help says that only a rung with a chroot and the loader family of the userland rung take it, and each other rung refuses by name. On H0 the supervise rung takes it with no refusal, so the help and the binary do not agree, and no proof shows that the rules hold there. On the namespace rung (root) a spec path is a guest path, and `write=/tmp` is denied over the private tmpfs of `/tmp`.
+
+## Premise
+
+Measured on 2026-11-12 on H0 with podvm `v0.2.0-beta.5` and the image `glibc-mini:1`:
+
+- As uid 65534 with no user namespace (supervise rung), `--podvm-confine 'read=/;write=/tmp'` runs. A write to `/tmp` passes, a write to `/etc` fails (EACCES), and a read of `/proc/1/environ` fails. An unconfined run already shows `NoNewPrivs: 1` and `Seccomp: 2` (the supervisor of podvm), so the status lines prove nothing.
+- A spec path is checked on the host: `write=/podrunner` fails with ENOENT for `<store>/trees/<id>/rootfs/podrunner` when the image has no such directory.
+- As root (namespace rung), `write=/tmp` is denied, and the unconfined payload has no `/proc`.
+
+## Approach
+
+1. Write a measure script (`scripts/measure-podvm-confine.sh`): a positive control (write in the allowed path), a read of a sibling unit's tree by its host path, a read of a host file by its host path, with and without `--podvm-confine`, on the supervise rung and as root. A path that the redirect of the interposer hides already proves nothing: each check must pass unconfined and fail confined.
+2. If a check passes unconfined and fails confined, give the podvm driver an option `[unit.podvm] confine = true`: `run -d` and each container `run -d` take `--podvm-confine` with read and execute on the system directories of the image and read and write on the working directory and the socket directory, and the record says `boundary: confined` with the proof `podvm --podvm-confine`. Run unit conformance test 27 on it, and its plant (the record claims `confined`, no spec is given) must fail.
+3. If the help is right and the supervise rung must refuse, write a COORD issue `(to podvm)`.
+
+Step 1 measured on 2026-11-12 (`scripts/measure-podvm-confine.sh`, spec `read=/;write=/tmp`):
+
+| Check | supervise, uid 65534: unconfined / confined | namespace, root: unconfined / confined |
+| --- | --- | --- |
+| control (write and read `/tmp`) | reached / reached | reached / denied |
+| host file by its host path | denied / denied | denied / denied |
+| `/proc/PID/environ` of a host process of the uid | reached / denied | denied / denied |
+| `/proc/PID/root/PATH` of a host process | reached / denied | denied / denied |
+| `/proc/PID/cwd/FILE` of a host process | reached / denied | denied / denied |
+
+On the supervise rung the confine layer closes the three paths of R2 (`docs/security/residuals.md`) and keeps the control. On the namespace rung the payload has no `/proc`, and the spec denies its own `/tmp`. Open: step 2.
+
+## Prove
+
+`sh scripts/measure-podvm-confine.sh PODVM DIR` as uid 65534 with no user namespace and as root; `cargo test -p podrunner-podvm --test conformance -- --ignored` with `confine = true`.
