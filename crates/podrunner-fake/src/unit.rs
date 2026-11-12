@@ -95,6 +95,8 @@ struct Running {
     exit: Option<Exit>,
     /// Each container: its process, its directory and its mounts.
     containers: HashMap<ContainerId, (Child, PathBuf, Mounts)>,
+    /// The socket directory of the unit: a confined container reaches it.
+    sockets: Option<PathBuf>,
 }
 
 /// The `fake` unit driver.
@@ -205,7 +207,9 @@ impl FakeUnit {
         env: &[(String, String)],
         log: Option<&Path>,
         shimmed: bool,
-        root: Option<&Path>,
+        // The root of the unit and its socket directory, for the confined
+        // fake.
+        within: Option<(&Path, Option<&Path>)>,
     ) -> Result<Child, UnitError> {
         let (prog, args) =
             argv.split_first().ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "an empty argv"))?;
@@ -225,9 +229,9 @@ impl FakeUnit {
             }
         }
         // A confined fake confines each process of a unit to its root.
-        let confine = match (self.confined, root) {
-            (Some(abi), Some(root)) => Some(
-                podrunner_unit::confine::for_unit(root, abi)
+        let confine = match (self.confined, within) {
+            (Some(abi), Some((root, sockets))) => Some(
+                podrunner_unit::confine::for_unit(root, sockets, abi)
                     .map_err(|e| UnitError::new(UnitCode::UnitStartFailed, e))?,
             ),
             _ => None,
@@ -338,8 +342,17 @@ impl UnitDriver for FakeUnit {
         {
             env.push(("PODRUNNER_PLANTED_CREDENTIAL".into(), f.content.expose().to_string()));
         }
-        let child = self.spawn(&spec.argv, &root, &env, None, self.shimmed(), Some(&root))?;
-        let run = Running { root, runner_root, tag, child, exit: None, containers: HashMap::new() };
+        let child =
+            self.spawn(&spec.argv, &root, &env, None, self.shimmed(), Some((&root, spec.sockets.as_deref())))?;
+        let run = Running {
+            root,
+            runner_root,
+            tag,
+            child,
+            exit: None,
+            containers: HashMap::new(),
+            sockets: spec.sockets.clone(),
+        };
         units.insert(spec.unit.clone(), run);
         Ok(())
     }

@@ -36,8 +36,10 @@ pub fn proof(abi: u32) -> String {
 }
 
 /// The rules of a unit whose root is `root`, compiled for the ABI `abi`.
-/// `root` must exist.
-pub fn for_unit(root: &Path, abi: u32) -> Result<Arc<Compiled>, String> {
+/// `root` must exist. `sockets`: the socket directory of the unit (its
+/// egress and control sockets). From Landlock ABI 9 a connect to a Unix
+/// socket that was made outside the domain needs a write rule on its path.
+pub fn for_unit(root: &Path, sockets: Option<&Path>, abi: u32) -> Result<Arc<Compiled>, String> {
     let mut spec = Spec::new();
     for dir in SYSTEM.iter().filter(|d| Path::new(d).exists()) {
         spec = spec.allow(*dir, Access::READ | Access::EXECUTE);
@@ -52,6 +54,10 @@ pub fn for_unit(root: &Path, abi: u32) -> Result<Arc<Compiled>, String> {
     }
     let root = root.to_str().ok_or("the root of a unit is not UTF-8")?;
     spec = spec.allow(root, Access::READ | Access::WRITE | Access::EXECUTE);
+    if let Some(dir) = sockets {
+        let dir = dir.to_str().ok_or("the socket directory of a unit is not UTF-8")?;
+        spec = spec.allow(dir, Access::READ | Access::WRITE);
+    }
     let mut compiled = spec.compile(abi).map_err(|f| f.to_string())?;
     // The child duplicates its standard streams onto 0, 1 and 2.
     compiled.keep_clear_of(&[0, 1, 2]).map_err(|f| f.to_string())?;
@@ -73,10 +79,14 @@ mod tests {
     }
 
     fn run(root: &Path, script: &str) -> (Option<i32>, String) {
+        run_with(root, None, script)
+    }
+
+    fn run_with(root: &Path, sockets: Option<&Path>, script: &str) -> (Option<i32>, String) {
         let abi = check().expect("Landlock on this host");
         let mut c = Command::new("sh");
         c.args(["-c", script]).current_dir(root);
-        under_shim_confined(&mut c, Mode::EndWithPayload, Some(for_unit(root, abi).unwrap()));
+        under_shim_confined(&mut c, Mode::EndWithPayload, Some(for_unit(root, sockets, abi).unwrap()));
         let out = c.output().unwrap();
         (out.status.code(), String::from_utf8_lossy(&out.stdout).into_owned())
     }
@@ -105,5 +115,28 @@ mod tests {
         assert!(out.is_empty(), "the environment of a process outside the domain is readable");
         let _ = std::fs::remove_dir_all(&mine);
         let _ = std::fs::remove_dir_all(&other);
+    }
+
+    /// The socket directory of a unit is outside its root: a confined
+    /// payload connects to a socket there (Landlock ABI 9 needs the write
+    /// rule of `for_unit`).
+    #[test]
+    fn a_confined_payload_reaches_the_sockets_of_its_unit() {
+        if check().is_err() || !Path::new("/usr/bin/python3").exists() {
+            return; // No Landlock or no python3 for the connect.
+        }
+        let (mine, sockets) = (dir("sock-root"), dir("sock-dir"));
+        let path = sockets.join("egress.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
+        let accept = std::thread::spawn(move || listener.accept().is_ok());
+        let connect = format!(
+            "/usr/bin/python3 -I -c 'import socket; s=socket.socket(socket.AF_UNIX); s.connect(\"{}\"); print(\"connected\")'",
+            path.display()
+        );
+        let (code, out) = run_with(&mine, Some(&sockets), &connect);
+        assert_eq!((code, out.trim()), (Some(0), "connected"));
+        assert!(accept.join().unwrap());
+        let _ = std::fs::remove_dir_all(&mine);
+        let _ = std::fs::remove_dir_all(&sockets);
     }
 }
