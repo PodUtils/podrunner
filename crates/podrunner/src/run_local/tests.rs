@@ -19,6 +19,8 @@ fn the_options_of_run() {
     assert_eq!(a.inputs, [("x".into(), "y=z".into())]);
     assert_eq!(a.event, "pull_request");
     assert_eq!(parse(&args(&["w.yml", "--runner-dir", "/r"])).unwrap().event, "push");
+    let with = parse(&args(&["w.yml", "--runner-dir", "/r", "--actions", "/a"])).unwrap();
+    assert_eq!(with.actions, Some(PathBuf::from("/a")));
     let p = parse(&args(&["w.yml", "--podvm", "/p", "--images", "/s", "--image", "r@sha256:00"])).unwrap();
     assert_eq!((p.podvm.as_deref(), p.image.as_deref()), (Some(std::path::Path::new("/p")), Some("r@sha256:00")));
     // One executor: a runner directory, or the three options of podvm.

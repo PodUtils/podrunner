@@ -6,6 +6,7 @@
 //! listens on the loopback only, for tests. The fakes of GitHub stay in
 //! podrunner (PodUtils/podcrates@T-106).
 
+pub mod actions;
 pub mod corpus;
 pub mod files;
 pub mod message;
@@ -48,6 +49,8 @@ struct State {
     next: u64,
     /// Each long poll answers "version too old" (T-066).
     too_old: bool,
+    /// The archives of the actions (T-091).
+    actions: Option<std::path::PathBuf>,
 }
 
 /// A fake broker on the loopback.
@@ -91,6 +94,11 @@ impl Broker {
         self.state.lock().expect("the broker").too_old = true;
     }
 
+    /// Serve the tarball of each action from `dir` (`actions`, T-091).
+    pub fn serve_actions(&self, dir: &std::path::Path) {
+        self.state.lock().expect("the broker").actions = Some(dir.to_path_buf());
+    }
+
     /// The jobs that ended.
     pub fn completions(&self) -> Vec<Completion> {
         self.state.lock().expect("the broker").done.clone()
@@ -126,7 +134,10 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
     let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
     let base = base.trim_end_matches('/');
     let base = &format!("{base}/");
+    let dir = state.lock().expect("the broker").actions.clone();
+    let actions = actions::route(&req.method, &path, &body, base, dir.as_deref());
     let (status, out) = match (req.method.as_str(), path.as_str()) {
+        _ if actions.is_some() => actions.expect("an answer"),
         ("POST", "/_apis/oauth2/token") => {
             reply(&json!({ "access_token": message::job_token(), "token_type": "bearer", "expires_in": 3600 }))
         }

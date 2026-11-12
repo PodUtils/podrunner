@@ -16,7 +16,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--actions DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -30,6 +30,7 @@ struct Args {
     podvm: Option<PathBuf>,
     images: Option<PathBuf>,
     image: Option<String>,
+    actions: Option<PathBuf>,
     event: String,
     vars: Vec<(String, String)>,
     inputs: Vec<(String, String)>,
@@ -54,6 +55,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--podvm" => a.podvm = Some(PathBuf::from(value()?)),
             "--images" => a.images = Some(PathBuf::from(value()?)),
             "--image" => a.image = Some(value()?),
+            "--actions" => a.actions = Some(PathBuf::from(value()?)),
             "--event" => a.event = value()?,
             "--var" => a.vars.push(pair(&value()?)?),
             "--input" => a.inputs.push(pair(&value()?)?),
@@ -143,6 +145,7 @@ pub fn run(args: &[String]) -> Out {
             Ok(x) => x,
             Err(e) => return fail(Class::Config, e),
         };
+        exec.actions = a.actions.clone();
         (drive(&mut source, &mut exec, &mut each), exec.logs)
     } else {
         let state = std::env::temp_dir().join(format!("podrunner-run-{}", std::process::id()));
@@ -150,6 +153,7 @@ pub fn run(args: &[String]) -> Out {
             Ok(x) => x,
             Err(o) => return o,
         };
+        exec.actions = a.actions.clone();
         let r = drive(&mut source, &mut exec, &mut each);
         let _ = std::fs::remove_dir_all(&state);
         (r, exec.logs)

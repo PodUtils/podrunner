@@ -161,6 +161,8 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
         "variables": {
             "system.github.job": { "value": job.name },
             "system.github.results_endpoint": { "value": base },
+            // The launch service that resolves the actions of the job (T-091).
+            "system.github.launch_endpoint": { "value": base },
             // The runner takes the container hooks only with this flag
             // (`FeatureManager.IsContainerHooksEnabled`), and the variable
             // `ACTIONS_RUNNER_CONTAINER_HOOKS`.

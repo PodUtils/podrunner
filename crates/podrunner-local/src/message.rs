@@ -6,6 +6,8 @@
 //! job level that the runner cannot know (`matrix`, `strategy`, `needs`,
 //! `vars`, `inputs`) go into `contextData`.
 
+use std::collections::BTreeMap;
+
 use pod_actions_expr::{Template, Value as XValue};
 use pod_actions_workflow::{Job as WorkflowJob, Kind, Node, Step as WorkflowStep};
 use podrunner_broker_fake::Job;
@@ -155,29 +157,78 @@ struct RunDefaults<'a> {
 }
 
 /// One step as the runner reads it: a script action.
-fn step(index: usize, s: &WorkflowStep, d: &RunDefaults, unnamed: &mut usize) -> Result<Value, String> {
-    if let Some(uses) = &s.uses {
-        return Err(format!("line {}: `uses: {uses}`: an action is not supported yet (T-089)", s.mark.line));
+/// The reference of `uses:`, its base context name and its display name.
+/// An action of a repository must be pinned by a full commit id: the local
+/// mode has no forge to resolve a tag.
+fn action(uses: &str, line: u32) -> Result<(Value, String), String> {
+    if uses.starts_with("docker://") {
+        return Err(format!("line {line}: `uses: {uses}`: a Docker action is not supported yet"));
     }
-    let script = s.run.as_deref().ok_or_else(|| format!("line {}: a step has no `run`", s.mark.line))?;
-    // GitHub names a step with no id `__run`, then `__run_2`, ...
+    if let Some(path) = uses.strip_prefix("./") {
+        let reference = json!({ "type": "repository", "repositoryType": "self", "path": format!("./{path}") });
+        return Ok((reference, "__self".into()));
+    }
+    let (target, r) = uses.rsplit_once('@').ok_or_else(|| format!("line {line}: `uses: {uses}` has no @REF"))?;
+    if r.len() != 40 || !r.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(format!("line {line}: `uses: {uses}`: pin an action by a full commit id"));
+    }
+    let mut parts = target.splitn(3, '/');
+    let (Some(owner), Some(repo)) = (parts.next(), parts.next()) else {
+        return Err(format!("line {line}: `uses: {uses}` is not OWNER/REPO@SHA"));
+    };
+    let mut reference =
+        json!({ "type": "repository", "repositoryType": "GitHub", "name": format!("{owner}/{repo}"), "ref": r });
+    if let Some(path) = parts.next().filter(|p| !p.is_empty()) {
+        reference["path"] = json!(path);
+    }
+    Ok((reference, format!("__{owner}_{repo}")))
+}
+
+fn step(
+    index: usize,
+    s: &WorkflowStep,
+    d: &RunDefaults,
+    unnamed: &mut BTreeMap<String, usize>,
+) -> Result<Value, String> {
+    let line = s.mark.line;
+    let (reference, base, display, inputs) = match (&s.uses, &s.run) {
+        (Some(uses), None) => {
+            let (reference, base) = action(uses, line)?;
+            let with = match s.with.as_ref().map(|n| &n.kind) {
+                None => Vec::new(),
+                Some(Kind::Map(entries)) => {
+                    entries.iter().map(|(k, v)| Ok((k.name.clone(), scalar(v)?))).collect::<Result<_, String>>()?
+                }
+                Some(_) => return Err(format!("line {line}: `with` must be a mapping")),
+            };
+            (reference, base, format!("Run {uses}"), with)
+        }
+        (None, Some(script)) => {
+            let mut inputs = vec![("script".to_string(), token(script)?)];
+            if let Some(shell) = s.shell.as_deref().or(d.shell) {
+                inputs.push(("shell".into(), token(shell)?));
+            }
+            if let Some(dir) = s.working_directory.as_deref().or(d.working_directory) {
+                inputs.push(("workingDirectory".into(), token(dir)?));
+            }
+            let display = format!("Run {}", script.lines().next().unwrap_or("").trim());
+            (json!({ "type": "script" }), "__run".to_string(), display, inputs)
+        }
+        _ => return Err(format!("line {line}: a step needs one of `run` and `uses`")),
+    };
+    // GitHub names a step with no id from its kind: `__run`, then
+    // `__run_2`; `__actions_checkout`, then `__actions_checkout_2`.
     let context = match &s.id {
         Some(id) => id.clone(),
         None => {
-            *unnamed += 1;
-            if *unnamed == 1 { "__run".into() } else { format!("__run_{unnamed}") }
+            let n = unnamed.entry(base.clone()).or_default();
+            *n += 1;
+            if *n == 1 { base } else { format!("{base}_{n}") }
         }
     };
-    let display = s.name.clone().unwrap_or_else(|| format!("Run {}", script.lines().next().unwrap_or("").trim()));
-    let mut inputs = vec![("script".to_string(), token(script)?)];
-    if let Some(shell) = s.shell.as_deref().or(d.shell) {
-        inputs.push(("shell".into(), token(shell)?));
-    }
-    if let Some(dir) = s.working_directory.as_deref().or(d.working_directory) {
-        inputs.push(("workingDirectory".into(), token(dir)?));
-    }
+    let display = s.name.clone().unwrap_or(display);
     let mut v = json!({
-        "type": "action", "reference": { "type": "script" },
+        "type": "action", "reference": reference,
         "id": guid(0x100 + index as u64), "name": context, "contextName": context,
         "displayName": display, "condition": step_condition(s.condition.as_deref().unwrap_or("")),
         "inputs": mapping(inputs),
@@ -218,7 +269,7 @@ pub fn broker_job(
             .and_then(|d| d.working_directory.as_deref())
             .or(wd.and_then(|d| d.working_directory.as_deref())),
     };
-    let mut unnamed = 0;
+    let mut unnamed = BTreeMap::new();
     let steps: Vec<Value> =
         job.steps.iter().enumerate().map(|(i, s)| step(i, s, &defaults, &mut unnamed)).collect::<Result<_, _>>()?;
     // The runner merges the mappings in order: the job's env over the

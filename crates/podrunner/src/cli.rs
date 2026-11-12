@@ -32,8 +32,9 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
   mint-serve --config FILE                          the remote mint (on a machine with no unit)
   image verify --tarball FILE --arch ARCH           check a runner tarball against its pin
-  run FILE (--runner-dir DIR | --podvm PATH --images STORE --image REF) [--event NAME]
-      [--var NAME=VALUE]... [--input NAME=VALUE]...   run the jobs of a workflow, here or in podvm units
+  run FILE (--runner-dir DIR | --podvm PATH --images STORE --image REF) [--actions DIR]
+      [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...
+                                                    run the jobs of a workflow, here or in podvm units
   --version | --help
 ";
 

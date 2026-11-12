@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**91 entries: 2 open, 4 partial, 12 blocked, 73 done.**
+**92 entries: 2 open, 4 partial, 12 blocked, 74 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
 | P2 | 1 | 1 | 9 | 32 | 43 |
-| P3 | 1 | 2 | 3 | 12 | 18 |
-| **All** | 2 | 4 | 12 | 73 | 91 |
+| P3 | 1 | 2 | 3 | 13 | 19 |
+| **All** | 2 | 4 | 12 | 74 | 92 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -138,4 +138,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-088](later.md) | P3 | M | later | feature | done | A workflow job into the job message of the fake broker |
 | [T-089](later.md) | P3 | M | later | feature | done | podrunner run workflow.yml: the local mode end to end |
 | [T-090](later.md) | P3 | M | later | feature | partial | podrunner run: each job of the local mode in a fresh podvm unit |
-| [T-091](later.md) | P3 | M | later | feature | open | Actions (uses:) in the local mode |
+| [T-091](later.md) | P3 | M | later | feature | done | Actions (uses:) in the local mode |
+| [T-092](later.md) | P3 | M | later | feature | open | The checkout of the local tree and ./ actions in the local mode |

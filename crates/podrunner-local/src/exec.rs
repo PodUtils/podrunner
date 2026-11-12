@@ -18,6 +18,8 @@ pub struct RunnerDir {
     pub dir: PathBuf,
     /// The log of each job, for the caller.
     pub logs: Vec<(JobId, String)>,
+    /// The archives of the actions (`OWNER_REPO/SHA.tar.gz`, T-091).
+    pub actions: Option<PathBuf>,
 }
 
 impl RunnerDir {
@@ -25,7 +27,7 @@ impl RunnerDir {
         if !dir.join("run.sh").is_file() || !dir.join("bin/Runner.Listener").is_file() {
             return Err(format!("{}: no unpacked runner (run.sh, bin/Runner.Listener)", dir.display()));
         }
-        Ok(RunnerDir { dir, logs: Vec::new() })
+        Ok(RunnerDir { dir, logs: Vec::new(), actions: None })
     }
 }
 
@@ -45,6 +47,8 @@ pub struct InUnit {
     /// How long the broker may take to record `completejob` after the
     /// end of the unit.
     pub grace: Duration,
+    /// The archives of the actions (`OWNER_REPO/SHA.tar.gz`, T-091).
+    pub actions: Option<PathBuf>,
     next: u64,
     pub logs: Vec<(JobId, String)>,
 }
@@ -56,6 +60,7 @@ impl InUnit {
             image,
             run_sh: "/home/runner/run.sh".into(),
             grace: Duration::from_secs(5),
+            actions: None,
             next: 0,
             logs: Vec::new(),
         }
@@ -66,6 +71,9 @@ impl Executor for InUnit {
     fn run(&mut self, job: &JobId, message: Job) -> Result<End, String> {
         use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
+        if let Some(dir) = &self.actions {
+            broker.serve_actions(dir);
+        }
         broker.queue(message);
         self.next += 1;
         let id = UnitId::parse(&format!("u-{}", self.next)).map_err(|e| format!("unit id: {e:?}"))?;
@@ -109,6 +117,9 @@ impl Executor for InUnit {
 impl Executor for RunnerDir {
     fn run(&mut self, job: &JobId, message: Job) -> Result<End, String> {
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
+        if let Some(dir) = &self.actions {
+            broker.serve_actions(dir);
+        }
         broker.queue(message);
         // Each job starts in a fresh work directory.
         let _ = std::fs::remove_dir_all(self.dir.join("_work"));

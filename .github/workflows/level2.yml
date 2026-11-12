@@ -59,7 +59,7 @@ jobs:
       # T-088: the jobs of a workflow of the local source, with their
       # matrix, env, step and job outputs, and needs.
       - name: A workflow of the local source on the official runner
-        run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner-local --test runner -- --ignored --nocapture
+        run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner-local --test runner --test actions -- --ignored --nocapture
       # T-089: podrunner run runs the suite of the local mode to green.
       - name: podrunner run, the suite of the local mode
         run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner --test local -- --ignored --nocapture
