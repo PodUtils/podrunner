@@ -14,7 +14,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #6 | DR-6: githome and cfb accept the restated G-02, G-03 and G-09 | closed (`docs/decisions.md`, 2026-11-11) | T-006 |
 | #7 | DR-7: a throwaway GitHub organization and App for live tests | open (DR-7: not now) | T-007 |
 | #8 | Defaulted decisions DR-3 and DR-8 to DR-17: confirm in one reply | closed (`docs/decisions.md`, 2026-11-11) | T-008 |
-| #9 | Unknowns U1 to U25: register, owners and what settles each | open (U10, U15, U16 and the live rows are open) | T-009 |
+| #9 | Unknowns U1 to U25: register, owners and what settles each | open (U15, U16 and the live rows are open) | T-009 |
 | #10 | v1 non-goals: deferred items and the trigger of each | closed (`docs/non-goals.md`) | T-010 |
 | #11 | Bootstrap: Cargo workspace, pinned toolchain, static musl build | closed (`9d2e4dd`, gate run 42934750114) | T-011 |
 | #12 | Bootstrap: CI gate (format, lint, tests, static probe, deny, file size) | closed (`9d2e4dd`, gate run 42934750114) | T-012 |
@@ -38,7 +38,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #30 | WP-10: image pipeline: pins, age limit, `podrunner image build` | open (blocked: the aarch64 interposer of podvm, T-051) | T-030 |
 | #31 | WP-05b: remote mint (only if DR-4 is yes) | closed (`4e6d029`, gate run 42957378324) | T-031 |
 | #32 | Milestone M-C: live gates G-H2 to G-H4 on a `fake` unit | open (blocked: DR-7) | T-032 |
-| #33 | Milestone M-D: one live trusted job on a no-root host | open (blocked: DR-7, the hold of a podvm unit, T-065) | T-033 |
+| #33 | Milestone M-D: one live trusted job on a no-root host | open (blocked: DR-7) | T-033 |
 | #34 | WP-13: measure U19 and U21 on the podvm rung | closed (T-034, podvm `v0.2.0-beta.3`) | T-034 |
 | #35 | WP-09: hook relay and the per-unit control socket server (`ctl`) | closed (`fda577d`, gate run 42991333922) | T-035 |
 | #36 | Guest floor self-test | open (blocked: a real guest, T-037) | T-036 |

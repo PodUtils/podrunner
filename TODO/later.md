@@ -47,7 +47,7 @@ T-065 is done: the podvm driver runs its units under `podnet pod` with the `advi
 
 ## Done
 
-2026-11-11, `349f0ba`: `with_podnet` takes the backend `netns` (`egress_hold: enforced`) when `podnet pod doctor --json` says `hold.netns` `enforced`, else `seccomp` (`advisory` at most, also when it claims more: the plant of `the_hold_comes_from_pod_doctor`). The hold test checks the claim: a direct loopback connect of the payload reaches the host only under `advisory`. It passes as root (netns) and as uid 65534 under `nouserns` (seccomp).
+2026-11-11, `349f0ba`: `with_podnet` takes the backend `netns` (`egress_hold: enforced`) when `podnet pod doctor --json` says `hold.netns` `enforced`, else `seccomp` (`advisory` at most, also when it claims more: the plant of `the_hold_comes_from_pod_doctor`). The hold test checks the claim: a direct loopback connect of the payload reaches the host only under `advisory`. It passes as root (netns) and as uid 65534 under `nouserns` (seccomp). Gate run 43076066364 and runner-image run 43076066444 (the hold test) of `e5bdddb` are green.
 
 # T-042: The confined boundary (pod-confine) (GitHub #42)
 
@@ -179,7 +179,7 @@ A third source kind, `local`, behind `JobSource` (the source conformance suite a
 
 ## Blocker
 
-The crates `pod-actions-workflow` and `pod-actions-expr` of podcrates do not exist at `v0.24.0`. The unit (T-026) and the fake broker (T-038) are done.
+The crates `pod-actions-workflow` and `pod-actions-expr` of podcrates do not exist at `v0.26.0`. The unit (T-026) and the fake broker (T-038) are done.
 
 # T-073: Take the podcrates tag after v0.24.0: pod-confine drops each capability
 

@@ -151,7 +151,7 @@ Copy the ruling of the owner into `docs/decisions.md` ("podrunner online" and po
 
 ## Done
 
-2026-11-11: the ruling is in `docs/decisions.md` (rows "podrunner online" and "The sessions of 2026-11-11", and the answers of DR-1 and DR-2). GitHub #2 is closed with a link to the rows. `cargo todo check` exits 0.
+2026-11-11, `9d2e4dd`: the ruling is in `docs/decisions.md` (rows "podrunner online" and "The sessions of 2026-11-11", and the answers of DR-1 and DR-2). GitHub #2 is closed with a link to the rows. `cargo todo check` exits 0.
 
 # T-003: DR-2: PodUtils/podrunner holds code (GitHub #3)
 
@@ -197,7 +197,7 @@ Copy the ruling of the owner into `docs/decisions.md` ("podrunner online", "The 
 
 ## Done
 
-2026-11-11: the ruling is in `docs/decisions.md` (rows "podrunner online" and "The sessions of 2026-11-11", and the answers of DR-1 and DR-2). GitHub #3 is closed with a link to the rows. `cargo todo check` exits 0.
+2026-11-11, `9d2e4dd`: the ruling is in `docs/decisions.md` (rows "podrunner online" and "The sessions of 2026-11-11", and the answers of DR-1 and DR-2). GitHub #3 is closed with a link to the rows. `cargo todo check` exits 0.
 
 # T-004: DR-4: trusted jobs at boundary redirect on no-root hosts (GitHub #4)
 
@@ -256,7 +256,7 @@ The owner, 2026-11-11 (through podcrates, rows at podcrates commit `9a3bce7`): y
 
 ## Done
 
-2026-11-11: the ruling is in `docs/decisions.md` (row "DR-4"). `podrunner_slots::config` allows `redirect` for `trusted` only when the file sets it, refuses it with `same_principal_ok = true` or a `trusted` source with no `slots`; the default floor stays `confined`. `cargo test -p podrunner-slots trusted_at_redirect`: 1 passed. The residuals (`docs/security/residuals.md`, R1) and the threat model name the ruling. GitHub #4 is closed; GitHub #47 (T-045) holds the rest of the mitigations.
+2026-11-11, `3d7996f`: the ruling is in `docs/decisions.md` (row "DR-4"). `podrunner_slots::config` allows `redirect` for `trusted` only when the file sets it, refuses it with `same_principal_ok = true` or a `trusted` source with no `slots`; the default floor stays `confined`. `cargo test -p podrunner-slots trusted_at_redirect`: 1 passed. The residuals (`docs/security/residuals.md`, R1) and the threat model name the ruling. GitHub #4 is closed; GitHub #47 (T-045) holds the rest of the mitigations.
 
 # T-005: DR-5: the microVM unit for untrusted jobs (GitHub #5)
 
@@ -309,7 +309,7 @@ The owner, 2026-11-11 (through podcrates): wait for PodUtils/podvm@T-1656; the `
 
 ## Done
 
-2026-11-11: the ruling is in `docs/decisions.md` (row "DR-5"). T-037 states the adapter form and its blocker. `cargo todo check` exits 0. GitHub #5 is closed.
+2026-11-11, `3d7996f`: the ruling is in `docs/decisions.md` (row "DR-5"). T-037 states the adapter form and its blocker. `cargo todo check` exits 0. GitHub #5 is closed.
 
 # T-006: DR-6: githome and cfb accept the restated G-02, G-03 and G-09 (GitHub #6)
 
@@ -358,7 +358,7 @@ The owner, 2026-11-11 (through podcrates): yes to the restated G-02, G-03 and G-
 
 ## Done
 
-2026-11-11: the ruling is in `docs/decisions.md` (row "DR-6 and pmask"); T-042 names pmask as a later option. `cargo todo check` exits 0. GitHub #6 is closed.
+2026-11-11, `3d7996f`: the ruling is in `docs/decisions.md` (row "DR-6 and pmask"); T-042 names pmask as a later option. `cargo todo check` exits 0. GitHub #6 is closed.
 
 # T-007: DR-7: a throwaway GitHub organization and App for live tests (GitHub #7)
 
@@ -466,7 +466,7 @@ The owner, 2026-11-11 (through podcrates): confirm all, `--deny-self-hosted-runn
 
 ## Done
 
-2026-11-11: the ruling is in `docs/decisions.md` (row "DR-3, DR-8 to DR-17"); the calls C1 to C12 are rulings. GitHub #1 has the list of crates and repositories, and podcrates has it by direct message. `cargo todo check` exits 0. GitHub #8 is closed.
+2026-11-11, `3d7996f`: the ruling is in `docs/decisions.md` (row "DR-3, DR-8 to DR-17"); the calls C1 to C12 are rulings. GitHub #1 has the list of crates and repositories, and podcrates has it by direct message. `cargo todo check` exits 0. GitHub #8 is closed.
 
 # T-009: The register of the unknowns U1 to U25 (GitHub #9)
 
@@ -525,7 +525,7 @@ Read the text of GitHub #9 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-`docs/unknowns.md` holds the 25 rows, each with what settles it, its blocker and its state. Settled, each with its evidence: U1 to U5, U9, U13, U19, U21, U24, U25. Open: the live rows (U6 to U8, U11, U12, U14, U17, U18, U20, U22, U23) wait for T-040 (DR-7); U10 needs a test against a proxy that resets CONNECT to an IP literal (T-072); U15 waits for the owner (call C10); U16 is deferred with the Docker API (`docs/non-goals.md`). The entry stays open while a row is open with no entry that settles it.
+`docs/unknowns.md` holds the 25 rows, each with what settles it, its blocker and its state. Settled, each with its evidence: U1 to U5, U9, U10, U13, U19, U21, U24, U25. Open: the live rows (U6 to U8, U11, U12, U14, U17, U18, U20, U22, U23) wait for T-040 (DR-7); U10 is settled by a test against a proxy that resets CONNECT to an IP literal (T-072); U15 waits for the owner (call C10); U16 is deferred with the Docker API (`docs/non-goals.md`). The entry stays open while a row is open with no entry that settles it.
 
 ## Prove
 
@@ -591,7 +591,7 @@ Write docs/non-goals.md: each deferred item with the trigger that brings it back
 
 ## Done
 
-2026-11-11. `docs/non-goals.md` holds the 17 items of GitHub #10, each with its trigger; no open entry of v1 depends on a row (the `local` tier serves only a `fake` source, call C14). `cargo todo check` agrees.
+2026-11-11, `9ab7fd3`. `docs/non-goals.md` holds the 17 items of GitHub #10, each with its trigger; no open entry of v1 depends on a row (the `local` tier serves only a `fake` source, call C14). `cargo todo check` agrees.
 
 
 # T-044: COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46)

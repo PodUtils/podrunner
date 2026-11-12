@@ -317,7 +317,7 @@ Read the text of GitHub #31 on 2026-11-11. Nothing measured.
 
 ## Done
 
-2026-11-11: the remote mint is in `crates/podrunner-remote` and `podrunner mint-serve`; a unit host names it with a source of kind `remote`. The acceptance of GitHub #31 holds: the source tests 1 to 12 pass over mutual TLS; a host that cannot reach the mint gets no offer; a pin list changed on disk fails the check of the next start (T-045). `cargo test -p podrunner-remote`: 6 passed; `cargo test -p podrunner`: each test passes; the ignored scale-set tests pass with the Go binaries (2 and 1).
+2026-11-11, `4e6d029`: the remote mint is in `crates/podrunner-remote` and `podrunner mint-serve`; a unit host names it with a source of kind `remote`. The acceptance of GitHub #31 holds: the source tests 1 to 12 pass over mutual TLS; a host that cannot reach the mint gets no offer; a pin list changed on disk fails the check of the next start (T-045). `cargo test -p podrunner-remote`: 6 passed; `cargo test -p podrunner`: each test passes; the ignored scale-set tests pass with the Go binaries (2 and 1).
 
 # T-032: Milestone M-C: the live gates G-H2 to G-H4 on a fake unit (GitHub #32)
 
@@ -401,7 +401,7 @@ Run one live trusted job on an H0 host through the podvm driver.
 
 ## Blocker
 
-The ruling "Test accounts" (DR-7: not now). Also, a podvm unit reports `egress_hold: unknown`, so placement gives it no `trusted` job: the hold of `podnet pod` must be wired into the podvm driver first (T-065).
+The ruling "Test accounts" (DR-7: not now). The hold of a podvm unit is done (T-065, T-041).
 
 # T-045: The mitigations of DR-4 for trusted jobs at redirect (GitHub #47)
 
@@ -442,7 +442,7 @@ Done: the configuration check of `podrunner_slots::config` (`check_redirect`) re
 
 ## Done
 
-2026-11-11: each mitigation of GitHub #4 has its test. One job at a time on a shared uid, a slot count on each `trusted` source, one repository for the host (`repo-scope-refused`) and a signed pin list are checks of the configuration at `redirect`; the remote mint caps the offers of each host at its slots (T-031); the host key is the pinned key of the remote mint, with its life and its rotation (call C16); the report and `status` name the boundary, the principal and the hold; `untrusted` stays at `guest`. Each command of the Prove passes (`podrunner-slots`: 35 tests, `podrunner-remote`: 5, `podrunner`: 13).
+2026-11-11, `7d1f203`: each mitigation of GitHub #4 has its test. One job at a time on a shared uid, a slot count on each `trusted` source, one repository for the host (`repo-scope-refused`) and a signed pin list are checks of the configuration at `redirect`; the remote mint caps the offers of each host at its slots (T-031); the host key is the pinned key of the remote mint, with its life and its rotation (call C16); the report and `status` name the boundary, the principal and the hold; `untrusted` stays at `guest`. Each command of the Prove passes (`podrunner-slots`: 35 tests, `podrunner-remote`: 5, `podrunner`: 13).
 
 # T-065: The podvm unit runs under podnet pod: an advisory hold for trusted jobs
 

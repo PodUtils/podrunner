@@ -41,7 +41,7 @@ Measure the hook path facts U19 and U21 on the released podvm binary with `scrip
 
 ## Done
 
-2026-11-11, podvm `v0.2.0-beta.3`. U21: curl and bash run on both rungs; a socket that the host binds in the rootfs of the unit is reachable on both rungs. U19: on the supervise rung (H0) a job container of another image runs with the seven job-container volumes (`run -d -v`); `exec -e -w` sees its environment, its working directory and the volumes (47 ms for each exec over 20); an action runs with the five action volumes and gives its exit code, its output and its logs; `rm -f` ends both. `:ro` is not applied on `exec` (T-062). On the namespace rung `-v` is refused (PodUtils/podvm@T-1653), so the container route of a podvm unit needs the supervise rung.
+2026-11-11, `2741daa` and `5e8e0c0`, podvm `v0.2.0-beta.3`. U21: curl and bash run on both rungs; a socket that the host binds in the rootfs of the unit is reachable on both rungs. U19: on the supervise rung (H0) a job container of another image runs with the seven job-container volumes (`run -d -v`); `exec -e -w` sees its environment, its working directory and the volumes (47 ms for each exec over 20); an action runs with the five action volumes and gives its exit code, its output and its logs; `rm -f` ends both. `:ro` is not applied on `exec` (T-062). On the namespace rung `-v` is refused (PodUtils/podvm@T-1653), so the container route of a podvm unit needs the supervise rung.
 
 # T-035: WP-09: the hook relay and the control socket server of each unit (ctl) (GitHub #35)
 
@@ -371,7 +371,7 @@ The podvm driver of T-035 puts the control socket in the rootfs of the unit, wit
 
 ## Done
 
-2026-11-11, podvm `v0.2.0-beta.3` (PodUtils/podvm@T-1710). `scripts/measure-hook-path.sh` on the H0 profile (supervise): `volume-socket yes`, `rootfs-socket yes`, `host-path-socket no` (as podvm said: the host path is not a guest path). On the root rung (namespace, a chroot rung): `rootfs-socket yes`, and `-v` stays refused there by design (PodUtils/podvm@T-1653). So a socket that the host binds in the rootfs of the unit is reachable on both rungs: the podvm driver of T-035 puts the control socket there, with its guest path in `PODRUNNER_CTL`, and needs no host path.
+2026-11-11, `016a78f`, podvm `v0.2.0-beta.3` (PodUtils/podvm@T-1710). `scripts/measure-hook-path.sh` on the H0 profile (supervise): `volume-socket yes`, `rootfs-socket yes`, `host-path-socket no` (as podvm said: the host path is not a guest path). On the root rung (namespace, a chroot rung): `rootfs-socket yes`, and `-v` stays refused there by design (PodUtils/podvm@T-1653). So a socket that the host binds in the rootfs of the unit is reachable on both rungs: the podvm driver of T-035 puts the control socket there, with its guest path in `PODRUNNER_CTL`, and needs no host path.
 
 # T-064: The podvm driver follows the tree of each container (PodUtils/podvm@T-1709)
 

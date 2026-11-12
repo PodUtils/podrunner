@@ -186,7 +186,7 @@ Write docs/security/threat-model.md, docs/security/residuals.md and docs/securit
 
 ## Done
 
-2026-11-11. `docs/security/threat-model.md` (the credentials, the
+2026-11-11, `fe35f58`. `docs/security/threat-model.md` (the credentials, the
 process rule, the twelve actors, each with its capability, its controls
 with the entry that builds each, and its verdict; the rule for text of a
 job), `docs/security/residuals.md` (R1 to R5, each with the decision that
@@ -514,7 +514,7 @@ Close M-A when T-016 to T-024 are done, the level 1 suite is green in the gate, 
 
 ## Done
 
-2026-11-11: T-015 to T-024 are done; the level 1 suite and the unit tests pass in the gate; on an H0 profile (no root, no user namespace, no mounts, no KVM; the probe is `crates/podrunner-podvm/tests/probe/supervise.json`) the podvm driver passes its unit tests with a stand-in payload, the credential files are at 0600 and in no argv or environment (tests 6, 7), and a job of a local source runs through `serve`. No trusted job ran.
+2026-11-11, `b5ff350`: T-015 to T-024 are done; the level 1 suite and the unit tests pass in the gate; on an H0 profile (no root, no user namespace, no mounts, no KVM; the probe is `crates/podrunner-podvm/tests/probe/supervise.json`) the podvm driver passes its unit tests with a stand-in payload, the credential files are at 0600 and in no argv or environment (tests 6, 7), and a job of a local source runs through `serve`. No trusted job ran.
 
 # T-047: COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (GitHub #49)
 
@@ -572,7 +572,7 @@ At the start of `serve`, run `check_upstream` on the egress module; when it is n
 
 ## Done
 
-2026-11-11: `upstream_proxy` and `upstream_names_only` in `podrunner.toml` (names only needs a proxy); `Egress::host` passes `names_upstream` to `pod-broker`, and `Egress::check_upstream` sends the canary. `serve` runs the check when the proxy takes names only; any answer but `refuses-non-public` caps each hold at `advisory`, so placement serves no `untrusted` job. `Egress::open` counts the allow rules under an open suffix, and slots writes an audit line `egress-flagged` with the count only. The upstream check is tested against two fake CONNECT proxies (200 and 403). Each command of the Prove passes.
+2026-11-11, `6f24681`: `upstream_proxy` and `upstream_names_only` in `podrunner.toml` (names only needs a proxy); `Egress::host` passes `names_upstream` to `pod-broker`, and `Egress::check_upstream` sends the canary. `serve` runs the check when the proxy takes names only; any answer but `refuses-non-public` caps each hold at `advisory`, so placement serves no `untrusted` job. `Egress::open` counts the allow rules under an open suffix, and slots writes an audit line `egress-flagged` with the count only. The upstream check is tested against two fake CONNECT proxies (200 and 403). Each command of the Prove passes.
 
 # T-051: COORD-005: podvm-aarch64 declines an arm64 payload on the supervise rung (GitHub #52)
 
