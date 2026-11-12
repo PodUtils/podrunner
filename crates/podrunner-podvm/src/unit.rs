@@ -28,6 +28,7 @@ use crate::Podvm;
 
 mod containers;
 mod hold;
+mod labels;
 mod root;
 
 /// The working directory of the payload in the rootfs.
@@ -227,6 +228,8 @@ impl UnitDriver for PodvmUnit {
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
         let mut args: Vec<String> =
             ["run", "-d", "--name", spec.unit.as_str(), "-w", WORKDIR].map(String::from).to_vec();
+        args.extend(labels::label_args(spec.unit.as_str()));
+        args.extend(["--report".into(), dir.join(labels::REPORT).display().to_string()]);
         let mut env = spec.env.clone();
         env.insert("PODRUNNER_UNIT".into(), spec.unit.to_string());
         env.insert(TAG_VAR.into(), tag.clone());
@@ -322,7 +325,10 @@ impl UnitDriver for PodvmUnit {
         if let Some(mut r) = removed {
             let _ = r.waiter.kill();
             let _ = r.waiter.wait();
-            let _ = self.podvm(&r.dir.join("store"), &["rm", "-f", unit.as_str()], None);
+            let store = r.dir.join("store");
+            // Each container of the unit by its label, then the unit.
+            self.remove_labeled(&store, unit.as_str());
+            let _ = self.podvm(&store, &["rm", "-f", unit.as_str()], None);
         }
         if dir.exists() {
             // A file that the payload made read-only is still removed.

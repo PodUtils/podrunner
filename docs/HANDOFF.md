@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.26.0` (`Cargo.toml`); podvm `v0.2.0-beta.4`
+- Pins: podcrates `v0.26.0` (`Cargo.toml`); podvm `v0.2.0-beta.5`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of
@@ -46,7 +46,6 @@ is done.
 | podcrates | `pod-actions-workflow`, `pod-actions-expr` | T-046 |
 | podcrates | `pod-unit`, `pod-release` | T-043 |
 | podnet | `::ffff:127.0.0.1` as loopback in the seccomp hold (GitHub #64) | T-077 |
-| podvm | the beta after `v0.2.0-beta.4`: unit labels and the run report (PodUtils/podvm#268) | T-078 |
 
 ## Talk between sessions
 

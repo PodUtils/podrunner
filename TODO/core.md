@@ -1210,7 +1210,7 @@ A podnet release that takes `::ffff:127.0.0.0/104` as loopback (GitHub #64, to p
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -1228,6 +1228,6 @@ With the next beta: give `run -d` and each container `--label podrunner.unit=ID`
 
 `cargo test -p podrunner-podvm --test conformance -- --ignored` on the new beta, and a test that the run report of a unit names the digest of its image.
 
-## Blocker
+## Done
 
-A podvm release with PodUtils/podvm@T-1695 (the beta after `v0.2.0-beta.4`).
+2026-11-12: podvm `v0.2.0-beta.5` is pinned (`images/podvm.toml`, `probe::LOWEST`; PodUtils/podvm#273). The `run -d` of a unit and of each container carries `--label podrunner.unit=ID`, and `destroy` removes each container with the label (`crates/podrunner-podvm/src/unit/labels.rs`). The `run -d` of a unit writes `--report` to its directory; `PodvmUnit::run_report` reads it. Measured: for `run -d` the report ends with the start (`detached: true`, `exit_code: null`), so the exit stays with `podvm wait`, and a refusal of podvm fails the start already. `job_images` comes from the hooks (T-075), so the report adds no field to the run report of podrunner. `crates/podrunner-podvm/tests/report.rs` passes as root and as a uid with no user namespace; the conformance, hold, links, held-runner and canned-job tests pass on beta.5 on H0.

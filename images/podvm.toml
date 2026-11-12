@@ -1,9 +1,10 @@
 # The podvm release that the image pipeline imports the runner image with
 # (T-030), and the SHA-256 of each binary, from its release (`.sha256`).
-# The podvm driver needs v0.2.0-beta.4 or later: a tree for each container
-# (T-064), absolute links in the rootfs (T-061), `:ro` on `exec` (T-062).
-version = "0.2.0-beta.4"
+# The podvm driver needs v0.2.0-beta.5 or later: a tree for each container
+# (T-064), absolute links in the rootfs (T-061), `:ro` on `exec` (T-062),
+# labels and the run report (T-078).
+version = "0.2.0-beta.5"
 
 [sha256]
-x86_64 = "e2aa9530ac46e258ea292b083da5048d5a15930dd9060c473f3dbd960a221921"
-aarch64 = "c334f7e9a9b9c2a0a34549abda459ebd4f46a26ab6e9d438e1d8037c12321bee"
+x86_64 = "7cec41ad28637ce00d2dd8c38291d3eabd36e780de410ac2978d7a5963169483"
+aarch64 = "a0f1b543de3b34bd219524072607fe3a944ecc3027970f29c713713a52b3499d"

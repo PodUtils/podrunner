@@ -73,6 +73,7 @@ impl PodvmUnit {
         let n = self.containers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let name = format!("{unit}-c{n}");
         let mut args: Vec<String> = ["run", "-d", "--name", &name].map(String::from).to_vec();
+        args.extend(super::labels::label_args(unit.as_str()));
         if let Some(w) = &spec.workdir {
             args.extend(["-w".into(), w.clone()]);
         }
