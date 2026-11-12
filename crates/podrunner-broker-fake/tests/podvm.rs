@@ -1,7 +1,7 @@
 //! The official runner in a podvm unit against the fake broker (T-026):
 //! the podvm driver starts the runner image with the JIT files of the
 //! broker, and the runner takes one canned job and completes it. Ignored
-//! by default: it needs podvm, a store with the runner image, and openssl.
+//! by default: it needs podvm and a store with the runner image.
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
 //!   PODRUNNER_RUNNER_IMAGE=NAME@sha256:HEX \

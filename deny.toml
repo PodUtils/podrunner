@@ -16,7 +16,13 @@ targets = [
 version = 2
 yanked = "deny"
 # Each ignored advisory has its reason and the date it was read.
-ignore = []
+ignore = [
+  # The Marvin attack: a timing leak of the private-key operations of the
+  # rsa crate. podrunner uses rsa only to make the key of a runner against
+  # the fake broker on the loopback; the runner (.NET) signs. No fixed
+  # version exists. Read 2026-11-12.
+  { id = "RUSTSEC-2023-0071", reason = "key generation only; the runner signs" },
+]
 
 [licenses]
 version = 2

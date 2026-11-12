@@ -9,6 +9,8 @@ publish.workspace = true
 
 [dependencies]
 pod-actions-expr.workspace = true
+rand_core.workspace = true
+rsa.workspace = true
 podrunner-hook.workspace = true
 serde_json.workspace = true
 base64.workspace = true

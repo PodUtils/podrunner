@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**89 entries: 2 open, 3 partial, 12 blocked, 72 done.**
+**89 entries: 1 open, 4 partial, 12 blocked, 72 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
 | P2 | 1 | 1 | 9 | 32 | 43 |
-| P3 | 1 | 1 | 3 | 11 | 16 |
-| **All** | 2 | 3 | 12 | 72 | 89 |
+| P3 | 0 | 2 | 3 | 11 | 16 |
+| **All** | 1 | 4 | 12 | 72 | 89 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -136,4 +136,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-086](core.md) | P2 | S | later | chore | open | Take podcrates v0.30.0 (PodUtils/podcrates#89, COORD-057) |
 | [T-087](later.md) | P3 | M | later | feature | done | The local source: a workflow file into job offers and job results |
 | [T-088](later.md) | P3 | M | later | feature | done | A workflow job into the job message of the fake broker |
-| [T-089](later.md) | P3 | M | later | feature | open | podrunner run workflow.yml: the local mode end to end |
+| [T-089](later.md) | P3 | M | later | feature | partial | podrunner run workflow.yml: the local mode end to end |

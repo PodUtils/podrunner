@@ -1,7 +1,6 @@
 //! The official runner runs the jobs of a workflow from the local source,
 //! offline, against the fake broker (T-088). Ignored by default: it needs
-//! an unpacked release of `actions/runner` in a directory it may change,
-//! and openssl for the key of the test.
+//! an unpacked release of `actions/runner` in a directory it may change.
 //!
 //!   PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test runner -- --ignored
 

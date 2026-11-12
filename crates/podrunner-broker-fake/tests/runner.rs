@@ -1,7 +1,6 @@
 //! The official runner runs canned jobs against the fake broker, offline.
 //! Ignored by default: it needs an unpacked release of `actions/runner`
-//! (v2.338.2, `images/runner/runner.toml`) in a directory it may change,
-//! and openssl for the key of the test.
+//! (v2.338.2, `images/runner/runner.toml`) in a directory it may change.
 //!
 //!   PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-broker-fake --test runner -- --ignored
 

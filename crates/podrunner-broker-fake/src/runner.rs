@@ -1,6 +1,5 @@
-//! Run the official runner once against the fake broker: the RSA key of a
-//! test and the start of `run.sh` (T-026, T-088). It needs `openssl` on the
-//! PATH for the key.
+//! Run the official runner once against the fake broker: a new RSA key and
+//! the start of `run.sh` (T-026, T-088).
 
 use std::path::Path;
 use std::process::Command;
@@ -9,44 +8,26 @@ use crate::{Broker, files::runner_files};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 
-/// An RSA key of the test, in the form of `.credentials_rsaparams`.
+/// A new RSA key, in the form of `.credentials_rsaparams`. .NET takes each
+/// number big-endian with no sign byte, `d` as long as the modulus, and the
+/// five numbers of the CRT half as long: each is padded with zero bytes.
 pub fn rsaparams() -> String {
-    let pem = Command::new("openssl").args(["genrsa", "-traditional", "2048"]).output().unwrap().stdout;
-    let mut child = Command::new("openssl")
-        .args(["rsa", "-text", "-noout"])
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .spawn()
-        .unwrap();
-    use std::io::Write;
-    child.stdin.take().unwrap().write_all(&pem).unwrap();
-    let text = String::from_utf8(child.wait_with_output().unwrap().stdout).unwrap();
-    // Each field is hex bytes with colons over many lines; the exponent is
-    // one decimal line.
-    let mut fields = std::collections::BTreeMap::new();
-    let mut name = String::new();
-    for line in text.lines() {
-        if let Some(e) = line.strip_prefix("publicExponent: ") {
-            let n: u64 = e.split_whitespace().next().unwrap().parse().unwrap();
-            let bytes: Vec<u8> = n.to_be_bytes().into_iter().skip_while(|b| *b == 0).collect();
-            fields.insert("publicExponent".to_string(), bytes);
-        } else if !line.starts_with(' ') && line.ends_with(':') {
-            name = line.trim_end_matches(':').to_string();
-            fields.insert(name.clone(), Vec::new());
-        } else if line.starts_with(' ') {
-            let bytes = line.trim().trim_end_matches(':').split(':').map(|h| u8::from_str_radix(h, 16).unwrap());
-            fields.get_mut(&name).unwrap().extend(bytes);
-        }
-    }
-    let b = |k: &str| {
-        let v = &fields[k];
-        // DER puts a 0 byte before a high bit; .NET wants the plain number.
-        let v: Vec<u8> = v.iter().copied().skip_while(|x| *x == 0).collect();
+    use rsa::BigUint;
+    use rsa::traits::{PrivateKeyParts, PublicKeyParts};
+    let key = rsa::RsaPrivateKey::new(&mut rand_core::OsRng, 2048).expect("an RSA key");
+    let k = key.size();
+    let b = |n: &BigUint, len: usize| {
+        let raw = n.to_bytes_be();
+        let mut v = vec![0u8; len.saturating_sub(raw.len())];
+        v.extend_from_slice(&raw);
         STANDARD.encode(v)
     };
+    let primes = key.primes();
+    let qinv = key.crt_coefficient().expect("the CRT coefficient");
     serde_json::json!({
-        "d": b("privateExponent"), "dp": b("exponent1"), "dq": b("exponent2"), "exponent": b("publicExponent"),
-        "inverseQ": b("coefficient"), "modulus": b("modulus"), "p": b("prime1"), "q": b("prime2"),
+        "d": b(key.d(), k), "dp": b(key.dp().expect("dp"), k / 2), "dq": b(key.dq().expect("dq"), k / 2),
+        "exponent": STANDARD.encode(key.e().to_bytes_be()), "inverseQ": b(&qinv, k / 2), "modulus": b(key.n(), k),
+        "p": b(&primes[0], k / 2), "q": b(&primes[1], k / 2),
     })
     .to_string()
 }
@@ -67,4 +48,22 @@ pub fn run_once(dir: &Path, broker: &Broker, env: &[(&str, String)]) -> std::pro
         .envs(env.iter().map(|(k, v)| (k, v)))
         .status()
         .unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Each number has the length that .NET takes, with no sign byte.
+    #[test]
+    fn the_key_numbers_have_the_lengths_of_dotnet() {
+        let v: serde_json::Value = serde_json::from_str(&rsaparams()).unwrap();
+        let len = |k: &str| STANDARD.decode(v[k].as_str().unwrap()).unwrap().len();
+        assert_eq!(len("modulus"), 256);
+        assert_eq!(len("d"), 256);
+        for k in ["p", "q", "dp", "dq", "inverseQ"] {
+            assert_eq!(len(k), 128, "{k}");
+        }
+        assert_eq!(STANDARD.decode(v["exponent"].as_str().unwrap()).unwrap(), [1, 0, 1]);
+    }
 }
