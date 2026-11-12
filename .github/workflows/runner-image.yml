@@ -17,6 +17,7 @@ on:
       - scripts/measure-container-verbs.sh
       - crates/podrunner-fake/**
       - images/runner/**
+      - scripts/runner-audit.sh
       - crates/podrunner-hook/relay/**
       - crates/podrunner-podvm/**
       - crates/podrunner-unit/**
@@ -27,6 +28,27 @@ permissions:
   contents: read
 
 jobs:
+  # T-082: the NuGet advisories of the pinned runner against the reviewed
+  # list images/runner/advisories.txt.
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Clone the runner tag
+        run: |
+          set -eu
+          version=$(python3 -I -c 'import tomllib; print(tomllib.load(open("images/runner/runner.toml", "rb"))["version"])')
+          sh scripts/retry.sh git clone -q --depth 1 --branch "v$version" https://github.com/actions/runner.git "$RUNNER_TEMP/runner-src"
+          echo "RUNNER_SRC=$RUNNER_TEMP/runner-src" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: ${{ env.RUNNER_SRC }}/src/global.json
+      - name: The advisories of the runner are the reviewed ones
+        run: sh scripts/runner-audit.sh "$RUNNER_SRC" images/runner/advisories.txt | tee -a "$GITHUB_STEP_SUMMARY"
+
   build:
     strategy:
       fail-fast: false

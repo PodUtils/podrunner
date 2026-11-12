@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 82 entries: 1 open, 3 partial, 12 blocked, 66 done.
+`TODO/INDEX.md` holds 82 entries: 0 open, 4 partial, 12 blocked, 66 done.
 
 ## State
 
@@ -28,9 +28,9 @@ release or a live account.
 The queue, most valuable first:
 
 1. T-081 (M, partial): a musl build of the official runner (P0-4 of GitHub #67). The x64 layout runs the canned jobs in Alpine here; `runner-musl.yml` runs Alpine and a podvm unit on x86_64 and aarch64. A musl runner can need no glibc interposer, which T-051 (podvm aarch64) waits for.
-2. T-082 (S): the pinned runner carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc); add an audit of the payload to `runner-image.yml`.
+2. T-082 (S, partial): the pinned runner carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc). The job `audit` of `runner-image.yml` compares the advisories of the runner with `images/runner/advisories.txt`; then the raise of the pin waits for a runner release with 8.0.34.
 
-Partial: T-081 (above). Closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
+Partial: T-081, T-082 (above). Closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 Blocked: T-077 (podnet, GitHub #64), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043, T-046 (crates of podcrates).
 

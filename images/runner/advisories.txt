@@ -1,0 +1,9 @@
+# The reviewed NuGet advisories of the official runner of runner.toml
+# (T-082). scripts/runner-audit.sh fails when this list and the advisories
+# of the runner differ. Add a line only with the entry that reviews it.
+#
+# PACKAGE VERSION GHSA-ID
+#
+# T-082: a denial of service of ASP.NET Core (CVE-2026-114149), fixed in
+# 8.0.34. The runner is a client of the broker; it serves no HTTP.
+Microsoft.AspNetCore.WebUtilities 8.0.25 GHSA-x33c-w48q-qrgc

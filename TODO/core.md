@@ -1345,7 +1345,7 @@ Partial, 2026-11-12. `scripts/runner-musl.sh` patches the tag (dev.sh, the defin
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1363,4 +1363,8 @@ Seen on 2026-11-12 in the musl build of T-081 (`scripts/runner-musl.sh` turns th
 
 ## Prove
 
-`sh scripts/runner-musl.sh SRC linux-musl-x64` with the audit on fails with NU1903 on v2.338.2; the step of `runner-image.yml` lists GHSA-x33c-w48q-qrgc in its summary.
+`sh scripts/runner-audit.sh SRC images/runner/advisories.txt` with SRC a clone of the runner tag passes, and fails on a list that misses an advisory or names one that is gone. The job `audit` of `runner-image.yml` runs it and writes each advisory to the summary.
+
+## Done
+
+Partial, 2026-11-12. Step 1: GHSA-x33c-w48q-qrgc is CVE-2026-114149, a denial of service of ASP.NET Core, published 2026-11-10, fixed in 8.0.34. The pinned x64 tarball of v2.338.2 holds `bin/Microsoft.AspNetCore.WebUtilities.dll` with product version `8.0.25+ef18546e`. The runner is a client of the broker and serves no HTTP. Step 2: `scripts/runner-audit.sh` compares the advisories of the shipped projects (`dotnet list package --vulnerable --include-transitive`, not `Test.csproj`) with `images/runner/advisories.txt`. In this sandbox: the reviewed list passes (1 advisory); an empty list fails (not in the list); a list with a made-up advisory fails (gone from the runner). Open: the green run of the job `audit`, then step 3 waits for a runner release with 8.0.34 or later.

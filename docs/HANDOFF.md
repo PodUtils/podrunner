@@ -12,7 +12,7 @@ is done.
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 82 entries, 1 open, 3 partial, 12 blocked, 66 done
+- The record: 82 entries, 0 open, 4 partial, 12 blocked, 66 done
   (`cargo todo check`). `main` is green: gate, level2 and runner-image.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
@@ -43,7 +43,9 @@ is done.
 - T-081 (partial): `scripts/runner-musl.sh` builds a musl layout of the
   runner; `.github/workflows/runner-musl.yml` runs it in Alpine and in a
   podvm unit. Read its last run, then close T-081 or write each failure.
-  Next: T-082.
+- T-082 (partial): the job `audit` of `runner-image.yml` holds the
+  advisories of the runner to `images/runner/advisories.txt`. Read its
+  run.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs
