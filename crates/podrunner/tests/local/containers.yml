@@ -20,7 +20,10 @@ jobs:
     container:
       image: IMAGE
     steps:
+      # The runner splits `args` at each space on the hooks path
+      # (ContainerHookManager of runner v2.338.2): one word for each
+      # argument. `test 9 -eq 9` passes; `9 -eq 8` would fail the step.
       - uses: docker://IMAGE
         with:
-          entrypoint: /bin/sh
-          args: -c "test $((3*3)) = 9"
+          entrypoint: /usr/bin/test
+          args: 9 -eq 9
