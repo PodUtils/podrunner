@@ -1516,7 +1516,7 @@ Seen once on 2026-11-12. Not reduced: whether `-C` alone fails (GNU tar opens th
 
 ## Approach
 
-A measure in `runner-image.yml` (added 2026-11-12), in the runner image: `tar -cf x.tar f; mkdir -p d; tar -xf x.tar -C d`, then the same with `-z`, and `gzip -dc | tar -xf -` in `d`. Write the result; if podvm is at fault, a COORD issue `(to podvm)` with the smallest case.
+A measure in `runner-image.yml` (added 2026-11-12), in the runner image: `tar -cf x.tar f; mkdir -p d; tar -xf x.tar -C d`, then the same with `-z`, and `gzip -dc | tar -xf -` in `d`. Write the result. podcrates holds the relay (PodUtils/podcrates@T-328, 2026-11-12): it reduces the case in its path layer (`pod-enter`) first and writes to podvm if the cause is there; send it the smallest failing form.
 
 ## Prove
 

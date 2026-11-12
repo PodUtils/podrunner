@@ -480,3 +480,32 @@ Read `crates/podrunner/src/podvm_kind.rs` and `crates/podrunner-local/src/exec.r
 ## Prove
 
 `runner-image.yml` runs the local suite with `--podnet`, and a job of the suite that reaches a host that is not allowed fails (a check that the hold holds).
+
+# T-097: Build the format() token from Template::parts() (PodUtils/podcrates@T-322)
+
+**Source:** T-088
+**Category:** chore
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/podrunner-local/src/message.rs` keeps its own copy of the scan of `${{ }}` (`split`), because the literal parts of a `pod_actions_expr::Template` are private, and checks it against `Template::parse`. podcrates made the ask (PodUtils/podcrates@T-322): `Template::parts()` and `TemplatePart::{Text, Expr}`.
+
+## Premise
+
+Read the message of the podcrates session on 2026-11-12: on podcrates main after `v0.31.0`; it comes with the next tag.
+
+## Approach
+
+Take the next tag (move each tag, as T-094), build the `format()` token from `Template::parts()`, and remove `split` and its check.
+
+## Prove
+
+`cargo test -p podrunner-local` passes with no `fn split` in `crates/podrunner-local/src/message.rs`.
+
+## Start condition
+
+podcrates releases the tag after `v0.31.0` with PodUtils/podcrates@T-322, and sends its hand-off.

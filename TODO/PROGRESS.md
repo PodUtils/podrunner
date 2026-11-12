@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 96 entries: 1 open, 5 partial, 12 blocked, 78 done.
+`TODO/INDEX.md` holds 97 entries: 2 open, 5 partial, 12 blocked, 78 done.
 
 ## State
 
@@ -31,6 +31,8 @@ The queue, most valuable first:
 2. T-095 (M): the egress of each unit of `podrunner run --podvm` through the egress module; it closes T-046.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
+
+Waits for the next tag of podcrates: T-097.
 
 Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-077 (podnet, GitHub #64), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates).
 
