@@ -1,0 +1,136 @@
+name: runner-musl
+
+# A measure of the official runner on musl (T-081, P0-4 of GitHub #67):
+# scripts/runner-musl.sh builds the layout of the version of
+# images/runner/runner.toml for a musl runtime id. The canned jobs of
+# tests/runner.rs run against it in Alpine (no glibc), then the canned job
+# of tests/podvm.rs runs it in a podvm unit. A musl runner needs no glibc
+# interposer of podvm (T-051).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/runner-musl.sh
+      - images/runner/Dockerfile.musl
+      - .github/workflows/runner-musl.yml
+
+permissions:
+  contents: read
+
+env:
+  ALPINE: public.ecr.aws/docker/library/alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
+
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            rid: linux-musl-x64
+            platform: linux/amd64
+            runs-on: ubuntu-24.04
+          - arch: aarch64
+            rid: linux-musl-arm64
+            platform: linux/arm64
+            runs-on: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 60
+    env:
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the musl layout of the runner
+        run: |
+          set -eu
+          version=$(python3 -I -c 'import tomllib; print(tomllib.load(open("images/runner/runner.toml", "rb"))["version"])')
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          sh scripts/retry.sh git clone -q --depth 1 --branch "v$version" https://github.com/actions/runner.git "$RUNNER_TEMP/runner-src"
+          sh scripts/runner-musl.sh "$RUNNER_TEMP/runner-src" "${{ matrix.rid }}"
+          echo "LAYOUT=$RUNNER_TEMP/runner-src/_layout" >> "$GITHUB_ENV"
+          du -sh "$RUNNER_TEMP/runner-src/_layout" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Build the static test binaries
+        run: |
+          set -eu
+          sh scripts/retry.sh rustup toolchain install
+          target=$ARCH-unknown-linux-musl
+          # The C code of a dependency: the C compiler of the host, as
+          # .cargo/config.toml sets for x86_64.
+          export CC_aarch64_unknown_linux_musl=cc
+          mkdir "$RUNNER_TEMP/t"
+          cargo test --locked --target "$target" -p podrunner-broker-fake --test runner --test podvm --no-run --message-format=json |
+            python3 -I -c '
+          import json, shutil, sys
+          for line in sys.stdin:
+              m = json.loads(line)
+              if m.get("reason") == "compiler-artifact" and m.get("executable") and m["target"]["kind"] == ["test"]:
+                  shutil.copy(m["executable"], sys.argv[1] + "/" + m["target"]["name"])
+          ' "$RUNNER_TEMP/t"
+          sh scripts/check-static.sh "$RUNNER_TEMP/t/runner" "$RUNNER_TEMP/t/podvm"
+      # T-081: the canned jobs of tests/runner.rs on the musl runner, in
+      # Alpine. Alpine has no glibc loader. The tests write credential files
+      # into the runner directory: they run on a copy, and the layout of the
+      # image stays clean.
+      - name: The musl runner runs the canned jobs in Alpine
+        run: |
+          set -eu
+          docker run --rm --network host -v "$LAYOUT:/layout:ro" -v "$RUNNER_TEMP/t:/t:ro" "$ALPINE" sh -euc '
+            for f in /lib/ld-linux* /lib64/ld-linux*; do test ! -e "$f"; done
+            apk add --no-cache -q bash icu-libs krb5-libs libgcc libssl3 libstdc++ zlib openssl git
+            cp -a /layout /runner
+            /runner/externals/node24/bin/node --version
+            PODRUNNER_RUNNER_DIR=/runner /t/runner --ignored --nocapture --test-threads 1'
+          echo "the musl runner $VERSION ($ARCH) runs the canned jobs in Alpine" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Build the OCI archive of the musl image
+        id: build
+        run: |
+          set -eu
+          docker buildx create --use --name podrunner --driver-opt network=host > /dev/null
+          sh scripts/retry.sh docker buildx build -f images/runner/Dockerfile.musl --platform "${{ matrix.platform }}" \
+            --provenance=false --sbom=false --build-context "layout=$LAYOUT" \
+            --output "type=oci,dest=runner-musl.tar" .
+          mkdir oci && tar -xf runner-musl.tar -C oci
+          digest=$(python3 -I -c 'import json; print(json.load(open("oci/index.json"))["manifests"][0]["digest"])')
+          echo "the image: runner-musl@$digest ($(du -h runner-musl.tar | cut -f1))" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      # T-081: the canned job of tests/podvm.rs in a podvm unit, with no
+      # root. On aarch64 a measure: podvm declines the glibc image there
+      # (T-051); the result goes to the summary.
+      - name: The musl runner in a podvm unit runs a canned job
+        continue-on-error: ${{ matrix.arch == 'aarch64' }}
+        run: |
+          set -eu
+          eval "$(python3 -I - "$ARCH" <<'PY'
+          import sys, tomllib
+          pin = tomllib.load(open("images/podvm.toml", "rb"))
+          print(f"podvm_version={pin['version']} podvm_sha256={pin['sha256'][sys.argv[1]]}")
+          PY
+          )"
+          sh scripts/retry.sh curl -qfsSLo "$RUNNER_TEMP/podvm" \
+            "https://github.com/PodUtils/podvm/releases/download/v$podvm_version/podvm-$ARCH"
+          echo "$podvm_sha256  $RUNNER_TEMP/podvm" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/podvm"
+          test "$(id -u)" -ne 0
+          export PODVM_STORE="$RUNNER_TEMP/store"
+          python3 -I - oci "runner-musl:$VERSION" <<'PY'
+          import json, sys
+          p = sys.argv[1] + "/index.json"
+          d = json.load(open(p))
+          d["manifests"][0].setdefault("annotations", {})["org.opencontainers.image.ref.name"] = sys.argv[2]
+          json.dump(d, open(p, "w"))
+          PY
+          (cd oci && find . -type f | sed 's#^\./##' | sort | tar -cf ../load.tar --no-recursion -T -)
+          "$RUNNER_TEMP/podvm" probe 2>&1 | sed -n 2p
+          "$RUNNER_TEMP/podvm" load -i load.tar
+          image="runner-musl@${{ steps.build.outputs.digest }}"
+          if PODRUNNER_PODVM="$RUNNER_TEMP/podvm" PODRUNNER_PODVM_IMAGES="$PODVM_STORE" PODRUNNER_RUNNER_IMAGE="$image" \
+            timeout 600 "$RUNNER_TEMP/t/podvm" --ignored --nocapture --exact the_runner_in_a_podvm_unit_runs_a_canned_job; then
+            echo "the musl runner ($ARCH) runs a canned job in a podvm unit" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "the musl runner ($ARCH) fails in a podvm unit" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

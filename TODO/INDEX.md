@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**81 entries: 1 open, 2 partial, 12 blocked, 66 done.**
+**82 entries: 1 open, 3 partial, 12 blocked, 66 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 28 | 29 |
-| P2 | 0 | 1 | 8 | 30 | 39 |
-| P3 | 1 | 0 | 4 | 8 | 13 |
-| **All** | 1 | 2 | 12 | 66 | 81 |
+| P2 | 1 | 1 | 8 | 30 | 40 |
+| P3 | 0 | 1 | 4 | 8 | 13 |
+| **All** | 1 | 3 | 12 | 66 | 82 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -128,4 +128,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-078](core.md) | P3 | S | later | feature | done | The podvm driver labels each unit and reads the run report of podvm |
 | [T-079](core.md) | P3 | M | later | measurement | done | Measure podvm --podvm-confine on the supervise rung, for a confined podvm unit |
 | [T-080](core.md) | P3 | S | later | defect | done | Tests 25 and 26 skip on a confined podvm unit: the orphan is not seen on the host |
-| [T-081](core.md) | P3 | M | later | measurement | open | Measure a musl build of the official runner (P0-4 of GitHub #67) |
+| [T-081](core.md) | P3 | M | later | measurement | partial | Measure a musl build of the official runner (P0-4 of GitHub #67) |
+| [T-082](core.md) | P2 | S | later | defect | open | The official runner v2.338.2 carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc) |

@@ -1,0 +1,26 @@
+# A unit image of the official runner on musl (T-081, P0-4 of GitHub #67):
+# a measure, not a release image. The layout comes from
+# scripts/runner-musl.sh as the named build context `layout`:
+#
+#   docker buildx build -f images/runner/Dockerfile.musl \
+#     --build-context layout=SRC/_layout .
+#
+# .github/workflows/runner-musl.yml builds it. images/runner/Dockerfile is
+# the image of the units.
+FROM public.ecr.aws/docker/library/alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
+
+# The runtime of the .NET runner (ICU, OpenSSL, the C++ library) and the
+# tools of a step. run.sh is a bash script.
+RUN apk add --no-cache bash ca-certificates curl git icu-libs krb5-libs libgcc libssl3 libstdc++ zlib tar gzip unzip zstd jq
+
+RUN adduser -D -u 1001 runner
+WORKDIR /home/runner
+
+COPY --from=layout --chown=1001:1001 . /home/runner/
+
+# The relay of the container hooks (GitHub #35).
+COPY --chmod=0755 crates/podrunner-hook/relay/podrunner-hook.sh /home/runner/hooks/podrunner-hook.sh
+# The credential files, as in images/runner/Dockerfile: relative links.
+RUN for f in .runner .credentials .credentials_rsaparams; do ln -s "../../podrunner/.runner/$f" "/home/runner/$f"; done
+
+USER runner

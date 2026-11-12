@@ -1316,7 +1316,7 @@ Run the escape payload under `--podvm-confine` by hand and compare the pid of th
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1332,4 +1332,35 @@ Build `actions/runner` v2.338.2 for `linux-musl-x64` in a CI job (its `dev.sh` t
 
 ## Prove
 
-`PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-broker-fake --test runner -- --ignored` with DIR the musl build of the runner, on the host and in a podvm unit; a dispatch-only workflow runs it for each target.
+`sh scripts/runner-musl.sh SRC RID` builds the musl layout of a clone of the runner tag (RID `linux-musl-x64` or `linux-musl-arm64`). `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-broker-fake --test runner -- --ignored` with DIR that layout, in Alpine (no glibc); `PODRUNNER_RUNNER_IMAGE=runner-musl@DIGEST cargo test -p podrunner-broker-fake --test podvm -- --ignored --exact the_runner_in_a_podvm_unit_runs_a_canned_job` with the image of `images/runner/Dockerfile.musl`. `.github/workflows/runner-musl.yml` runs both for each target.
+
+## Done
+
+Partial, 2026-11-12. `scripts/runner-musl.sh` patches the tag (dev.sh, the define of the architecture, the runtime ids of 8 projects, the musl node of the externals) and refuses a tree where a patch finds no match, and a layout whose `Runner.Listener` does not link the musl loader (it refused a glibc layout once). In this sandbox: the x64 layout links `/lib/ld-musl-x86_64.so.1` (684 MB, node 20 and 24 of `actions/alpine_nodejs`); both tests of `tests/runner.rs` pass in an Alpine 3.22 chroot with no glibc loader (2 passed). The arm64 layout cross-builds and links `/lib/ld-musl-aarch64.so.1` (node of unofficial-builds.nodejs.org); not run. The NuGet audit of the tag fails on GHSA-x33c-w48q-qrgc: T-082. Open: the run of `runner-musl.yml` (Alpine and the podvm unit, on x86_64 and aarch64).
+
+# T-082: The official runner v2.338.2 carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc)
+
+**Source:** T-081
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A build of `actions/runner` v2.338.2 from its tag fails its own NuGet audit: `Runner.Worker` takes `Microsoft.AspNetCore.WebUtilities` 8.0.25 by a transitive reference, with a high advisory, GHSA-x33c-w48q-qrgc (NU1903, a warning as an error). The release tarball that `images/runner/runner.toml` pins carries the same package, so each unit image of podrunner carries it. v2.338.2 is the newest release of the runner. No check of podrunner reads the advisories of the payload.
+
+## Premise
+
+Seen on 2026-11-12 in the musl build of T-081 (`scripts/runner-musl.sh` turns the audit off, as the layout is a measure). Not measured: whether the code of the runner reaches the flawed path, and whether the glibc tarball has the same version of the DLL (the restore graph says so).
+
+## Approach
+
+1. Read the advisory and find the fixed version. Read the DLL version in the tarball (`bin/Microsoft.AspNetCore.WebUtilities.dll`).
+2. Add a step to `runner-image.yml` that runs the NuGet audit of the pinned tag (`dotnet restore` with `NuGetAudit`) and writes each advisory to the summary, so that a new advisory is seen.
+3. Raise the pin of `images/runner/runner.toml` when a runner release takes the fixed version, or ask upstream (an issue of `actions/runner`) through the owner when none does.
+
+## Prove
+
+`sh scripts/runner-musl.sh SRC linux-musl-x64` with the audit on fails with NU1903 on v2.338.2; the step of `runner-image.yml` lists GHSA-x33c-w48q-qrgc in its summary.

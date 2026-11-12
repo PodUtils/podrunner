@@ -62,6 +62,8 @@ the tools.
   * `secrets-report.py`, `pull-image.sh`: the steps of `secrets.yml`.
   * `retry.sh COMMAND...`: a command up to 5 times, for the steps of CI
     that read the network.
+  * `runner-musl.sh SRC RID`: the musl layout of the official runner
+    from a clone of its tag (T-081, `runner-musl.yml`).
 * The copies of podcrates scripts (`check-size.py`, `check-static.sh`,
   `cloud-setup.sh`, `fetch-zig.sh`, `pull-image.sh`, `retry.sh`,
   `secrets-report.py`, `check-github-numbers.py`) come from podcrates
