@@ -1143,7 +1143,7 @@ Done: `status` shows `credential_ages_s` (the age of the credential of each job 
 
 ## Done
 
-2026-11-12: podrunner takes podcrates `v0.26.0` (PodUtils/podcrates#77, PodUtils/podcrates@T-226). The report names `claim_to_first_step_s` (from the claim to the `job-started` hook) and `job_images` (the digest of each image of a container of the hooks, once); the public report leaves both out. A unit over its disk bound ends with the exit reason `limit`. `report_fields_name_the_first_step_and_the_job_images`, `each_command_reaches_the_fake_unit` and `disk_limit_ends_a_unit_over_its_bound` pass.
+2026-11-12, `4284967`; gate run 43130712544, level2 run 43130712280 and runner-image run 43130712347 are green. podrunner takes podcrates `v0.26.0` (PodUtils/podcrates#77, PodUtils/podcrates@T-226). The report names `claim_to_first_step_s` (from the claim to the `job-started` hook) and `job_images` (the digest of each image of a container of the hooks, once); the public report leaves both out. A unit over its disk bound ends with the exit reason `limit`. `report_fields_name_the_first_step_and_the_job_images`, `each_command_reaches_the_fake_unit` and `disk_limit_ends_a_unit_over_its_bound` pass.
 
 # T-076: podrunner resolves names with pod-dns: no single resolver of the host
 
