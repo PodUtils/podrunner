@@ -12,7 +12,7 @@ is done.
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 98 entries, 1 open, 6 partial, 13 blocked, 78 done
+- The record: 98 entries, 1 open, 5 partial, 13 blocked, 79 done
   (`cargo todo check`). `main` is green: gate, level2 and runner-image.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
@@ -44,12 +44,12 @@ is done.
 
 ## In flight
 
-- The local mode (T-046, `podrunner run`, `docs/cli.md`): T-087 to T-092
-  and T-090 (`--podvm`, runner-image run 43202857513) are done. T-093
-  (`container:`, Docker steps, `crates/podrunner/tests/local/containers.yml`)
-  waits for its `runner-image.yml` run; in that run the checkout stand-in
-  failed on `tar -C DIR` in a podvm unit, and the stand-in now uses `cd`.
-  Next T-095 (the egress module of each unit), which closes T-046.
+- The local mode (T-046, `podrunner run`, `docs/cli.md`): T-087 to T-094
+  are done (runner-image run 43227187267: the local suite and the
+  containers suite in podvm units). T-095 (`--podnet`) waits for its next
+  `runner-image.yml` run: the held run needs `DOTNET_SYSTEM_NET_DISABLEIPV6=1`
+  (GitHub #64), which `InUnit` now sets. T-096 (`tar -C` in a podvm unit)
+  reads its measure in the same run. Q4 (T-098) waits for the owner.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs

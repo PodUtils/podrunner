@@ -1196,6 +1196,8 @@ Measured on 2026-11-11 on H0 with podnet `v0.4.0-beta.3`, podvm `v0.2.0-beta.4` 
 
 podnet takes an IPv4-mapped address by its IPv4 address in the rules of the seccomp backend. Until then, `crates/podrunner-broker-fake/tests/held.rs` gives the runner `DOTNET_SYSTEM_NET_DISABLEIPV6=1`. With the fix: pin the podnet release, remove the variable, and run the held test.
 
+When podnet fixes it, also remove `DOTNET_SYSTEM_NET_DISABLEIPV6` from the held units of `podrunner run --podnet` (`crates/podrunner-local/src/exec.rs`, T-095).
+
 ## Prove
 
 `cargo test -p podrunner-broker-fake --test held -- --ignored` with no `DOTNET_SYSTEM_NET_DISABLEIPV6`, in `runner-image.yml`.
