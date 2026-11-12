@@ -24,8 +24,8 @@ is done.
 - The `confined` boundary (T-042, T-079): the fake applies `pod-confine`
   through its shim; the podvm kind with `[unit.podvm] confine = true` runs
   each unit under `podvm --podvm-confine` and says `confined` only after
-  its self-test on the host. Tests 25 and 26 skip on a confined podvm unit
-  (T-080).
+  its self-test on the host. The layer denies `env -i`, the escape of
+  tests 25 and 26, so they skip on a confined podvm unit (T-080).
 - With `[unit.podvm] podnet`, a podvm unit runs under `podnet pod`: the
   netns hold (`enforced`) where user namespaces and `/dev/net/tun` exist,
   else the seccomp hold (`advisory`) (T-065, T-041).

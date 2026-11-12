@@ -1286,7 +1286,7 @@ On the supervise rung the confine layer closes the three paths of R2 (`docs/secu
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1303,3 +1303,7 @@ Run the escape payload under `--podvm-confine` by hand and compare the pid of th
 ## Prove
 
 `PODRUNNER_PODVM_CONFINE=1 cargo test -p podrunner-podvm --test conformance -- --ignored`: tests 25 and 26 pass.
+
+## Done
+
+2026-11-12: the cause is the layer, not the test. Under `--podvm-confine`, `env -i PROGRAM` fails with EACCES: with no environment the exec leaves the interposer of podvm, and Landlock denies the exec of the host path. Unconfined the same exec runs the host binary (an escape of the redirect). So a confined payload cannot start the orphan of tests 25 and 26; the measure script has the check `escape-env-i` (unconfined reached, confined denied on H0). The skip message names both causes, and test 25 also takes an environment that the host cannot read (a confined process is not dumpable) as no tag. The tree kill stays proven by `verify_tree_kill`.

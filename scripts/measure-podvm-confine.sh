@@ -54,3 +54,6 @@ check host-environ "tr '\\0' '\\n' < /proc/$victim/environ"
 check host-root "cat /proc/$victim/root$secret"
 # The working directory of a host process, through /proc.
 check host-cwd "cat /proc/$victim/cwd/host-secret.txt"
+# An exec with no environment leaves the interposer of podvm (the escape of
+# unit tests 25 and 26).
+check escape-env-i "env -i /bin/sleep 0 && echo podrunner-escaped"

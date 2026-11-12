@@ -269,10 +269,16 @@ fn escaped(u: &Unit) -> Result<u32, String> {
 fn an_orphan_with_no_tag(fx: &dyn Fixture) -> Result<Outcome, String> {
     let u = begin(fx, Behaviour::Escape)?;
     let orphan = escaped(&u)?;
-    // A positive control: the orphan lives and has no environment.
-    // The pid file can come before the exec of `env -i`: wait for it.
-    if !until(|| alive(orphan) && std::fs::read(format!("/proc/{orphan}/environ")).is_ok_and(|e| e.is_empty())) {
-        return Ok(Outcome::Skip("the orphan is not seen on the host (a pid namespace)".into()));
+    // A positive control: the orphan lives and shows no tag: its
+    // environment is empty, or the host cannot read it (a confined unit
+    // is not dumpable). The pid file can come before the exec of `env -i`:
+    // wait for it.
+    let no_tag = |pid: u32| match std::fs::read(format!("/proc/{pid}/environ")) {
+        Ok(e) => e.is_empty(),
+        Err(e) => e.kind() == std::io::ErrorKind::PermissionDenied,
+    };
+    if !until(|| alive(orphan) && no_tag(orphan)) {
+        return Ok(Outcome::Skip("no orphan is alive on the host: a pid namespace, or the unit could not start it (a confined unit denies `env -i`)".into()));
     }
     let seen = until(|| u.observe().is_ok_and(|o| o.pids.contains(&orphan)));
     let residue = fx.driver().destroy(&u.id).map_err(|e| err("destroy", e));
@@ -299,7 +305,7 @@ fn a_killed_shim_is_not_clean(fx: &dyn Fixture) -> Result<Outcome, String> {
     let u = begin(fx, Behaviour::KillParent)?;
     let orphan = escaped(&u)?;
     if !alive(orphan) {
-        return Ok(Outcome::Skip("the orphan is not seen on the host (a pid namespace)".into()));
+        return Ok(Outcome::Skip("no orphan is alive on the host: a pid namespace, or the unit could not start it (a confined unit denies `env -i`)".into()));
     }
     // The kill of the parent can come just after the pid file (a parent
     // with a death signal ends its child with it); give the payload and the

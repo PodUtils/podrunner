@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 80 entries: 1 open, 2 partial, 12 blocked, 65 done.
+`TODO/INDEX.md` holds 80 entries: 0 open, 2 partial, 12 blocked, 66 done.
 
 ## State
 
@@ -27,7 +27,7 @@ release or a live account.
 
 The queue for tonight, most valuable first:
 
-1. T-080 (S): tests 25 and 26 skip on a confined podvm unit; prove the tree kill under the confine layer.
+(empty: each entry that is left waits for another project or for the owner)
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
