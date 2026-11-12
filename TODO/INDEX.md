@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**98 entries: 1 open, 6 partial, 12 blocked, 79 done.**
+**98 entries: 0 open, 6 partial, 12 blocked, 80 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
 | P2 | 0 | 1 | 9 | 33 | 43 |
-| P3 | 1 | 4 | 3 | 17 | 25 |
-| **All** | 1 | 6 | 12 | 79 | 98 |
+| P3 | 0 | 4 | 3 | 18 | 25 |
+| **All** | 0 | 6 | 12 | 80 | 98 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
