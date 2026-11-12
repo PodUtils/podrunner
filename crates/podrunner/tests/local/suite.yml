@@ -1,0 +1,78 @@
+# The suite of the local mode (T-089): `podrunner run` runs it to green on
+# the official runner, with no forge and no network. Each check computes
+# its marker in the shell (the echo of a script cannot match it), and a
+# check that fails exits non-zero. No action (`uses:`) yet: T-089 names
+# that gap.
+name: podrunner local suite
+on: push
+env:
+  SUITE: local
+defaults:
+  run:
+    shell: bash
+jobs:
+  matrix:
+    name: matrix (${{ matrix.os }}, ${{ matrix.n }})
+    runs-on: local
+    strategy:
+      matrix:
+        os: [alpha, beta]
+        n: [1, 2]
+        exclude:
+          - os: beta
+            n: 2
+        include:
+          - os: gamma
+            n: 3
+    outputs:
+      last: ${{ steps.mark.outputs.cell }}
+    env:
+      CELL: ${{ matrix.os }}-${{ matrix.n }}
+    steps:
+      - id: mark
+        run: echo "cell=$CELL-$((${{ matrix.n }} * 10))" >> "$GITHUB_OUTPUT"
+      - run: test "${{ steps.mark.outputs.cell }}" = "$CELL-$(( ${{ matrix.n }} * 10 ))"
+      - run: test "${{ strategy.job-total }}" = 4 && test "$SUITE" = local
+
+  needs:
+    needs: matrix
+    runs-on: local
+    steps:
+      - run: test "${{ needs.matrix.result }}" = success
+      - run: case "${{ needs.matrix.outputs.last }}" in *-*-*0) ;; *) exit 1 ;; esac
+
+  steps:
+    runs-on: local
+    defaults:
+      run:
+        working-directory: sub
+    steps:
+      - run: mkdir -p sub
+        working-directory: .
+      - run: test "$(basename "$PWD")" = sub
+      - id: flaky
+        continue-on-error: true
+        run: exit 3
+      - if: steps.flaky.outcome == 'failure' && steps.flaky.conclusion == 'success'
+        run: echo ok > ../flaky-seen
+      - run: test -f ../flaky-seen
+      - if: failure()
+        run: exit 1
+      - if: always()
+        run: echo "always=$((2+2))" >> "$GITHUB_OUTPUT"
+      - shell: sh
+        run: test -z "${BASH_VERSION:-}"
+
+  skipped:
+    needs: steps
+    if: github.event_name == 'pull_request'
+    runs-on: local
+    steps:
+      - run: exit 1
+
+  after-skip:
+    needs: [skipped, needs]
+    if: always() && needs.skipped.result == 'skipped' && needs.needs.result == 'success'
+    runs-on: local
+    steps:
+      - run: test "${{ github.event_name }}" = push

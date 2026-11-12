@@ -6,6 +6,8 @@
 //! its end with [`LocalSource::complete`]; the jobs after it then become
 //! ready. A local set runs each job at tier `local` (call C14).
 
+pub mod drive;
+pub mod exec;
 pub mod message;
 
 use std::collections::{BTreeMap, VecDeque};

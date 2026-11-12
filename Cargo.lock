@@ -837,6 +837,8 @@ name = "podrunner"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "pod-actions-expr",
+ "pod-actions-workflow",
  "pod-core",
  "pod-dns",
  "pod-hostprobe",
@@ -847,6 +849,7 @@ dependencies = [
  "podrunner-egress",
  "podrunner-fake",
  "podrunner-hook",
+ "podrunner-local",
  "podrunner-mint",
  "podrunner-podvm",
  "podrunner-remote",

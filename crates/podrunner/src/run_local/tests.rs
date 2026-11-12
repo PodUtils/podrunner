@@ -1,0 +1,70 @@
+use pod_actions_workflow::JobResult;
+use podrunner_local::drive::Line;
+use podrunner_schema::JobId;
+
+use super::*;
+
+fn args(a: &[&str]) -> Vec<String> {
+    a.iter().map(|s| s.to_string()).collect()
+}
+
+#[test]
+fn the_options_of_run() {
+    let a =
+        parse(&args(&["w.yml", "--runner-dir", "/r", "--var", "A=1", "--input", "x=y=z", "--event", "pull_request"]))
+            .unwrap();
+    assert_eq!(a.file, PathBuf::from("w.yml"));
+    assert_eq!(a.runner_dir, Some(PathBuf::from("/r")));
+    assert_eq!(a.vars, [("A".into(), "1".into())]);
+    assert_eq!(a.inputs, [("x".into(), "y=z".into())]);
+    assert_eq!(a.event, "pull_request");
+    assert_eq!(parse(&args(&["w.yml"])).unwrap().event, "push");
+    for bad in [
+        &["--runner-dir"][..],
+        &["a", "b"],
+        &["w", "--var", "1x=2"],
+        &["w", "--var", "novalue"],
+        &["w", "--x", "y"],
+        &[],
+    ] {
+        assert!(parse(&args(bad)).is_err(), "{bad:?}");
+    }
+}
+
+#[test]
+fn run_refuses_a_bad_call_with_the_class_of_its_failure() {
+    assert_eq!(run(&args(&["w.yml"])).code, Class::Usage.exit_code(), "no --runner-dir");
+    let dir = std::env::temp_dir().join(format!("podrunner-run-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let missing = dir.join("missing.yml");
+    let o = run(&args(&[missing.to_str().unwrap(), "--runner-dir", "/nonexistent"]));
+    assert_eq!(o.code, Class::NotFound.exit_code(), "{}", o.stderr);
+    let bad = dir.join("bad.yml");
+    std::fs::write(&bad, "on: push\n").unwrap();
+    let o = run(&args(&[bad.to_str().unwrap(), "--runner-dir", "/nonexistent"]));
+    assert_eq!(o.code, Class::Config.exit_code(), "{}", o.stderr);
+    let good = dir.join("good.yml");
+    std::fs::write(&good, "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: x}]\n").unwrap();
+    let o = run(&args(&[good.to_str().unwrap(), "--runner-dir", dir.to_str().unwrap()]));
+    assert_eq!(o.code, Class::Config.exit_code(), "no runner: {}", o.stderr);
+    assert!(o.stderr.contains("no unpacked runner"), "{}", o.stderr);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn each_line_names_the_job_and_its_result() {
+    let id = JobId::new("a.0").unwrap();
+    let ran = |result| Line::Ran { job: id.clone(), name: "build (x)".into(), result };
+    assert_eq!(line(&ran(JobResult::Success)), "ok      build (x)\n");
+    assert_eq!(line(&ran(JobResult::Failure)), "failure build (x)\n");
+    let refused = Line::Refused { job: id.clone(), name: "b".into(), reason: "an action".into() };
+    assert_eq!(line(&refused), "failure b: an action\n");
+    assert_eq!(line(&Line::Skipped { job: "c".into(), condition: "failure()".into() }), "skipped c: if: failure()\n");
+}
+
+#[test]
+fn the_github_context_names_the_event_and_the_file() {
+    let g = github(std::path::Path::new("/x/ci.yml"), "push");
+    assert_eq!(g.get("event_name").and_then(Value::as_str), Some("push"));
+    assert_eq!(g.get("workflow").and_then(Value::as_str), Some("ci.yml"));
+}

@@ -32,6 +32,8 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
   mint-serve --config FILE                          the remote mint (on a machine with no unit)
   image verify --tarball FILE --arch ARCH           check a runner tarball against its pin
+  run FILE --runner-dir DIR [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...
+                                                    run the jobs of a workflow on this host
   --version | --help
 ";
 
@@ -181,6 +183,7 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             }
             _ => Err(err(Class::Usage, format!("image needs verify\n{USAGE}"))),
         },
+        "run" => Ok(crate::run_local::run(rest)),
         "mint-serve" => {
             let o = opts(rest)?;
             o.only(&["--config"])?;

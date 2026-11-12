@@ -27,7 +27,10 @@ pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0" }
 # The probes of the host that `doctor` shows (T-070).
 pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0" }
 pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0", default-features = false }
+pod-actions-expr.workspace = true
+pod-actions-workflow.workspace = true
 podrunner-fake.workspace = true
+podrunner-local.workspace = true
 podrunner-mint.workspace = true
 podrunner-podvm.workspace = true
 podrunner-schema.workspace = true
