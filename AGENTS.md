@@ -106,8 +106,9 @@ component keeps its own licence and is listed in `THIRD_PARTY.md`.
 * Builds can use all the memory of the machine. Set
   `CARGO_BUILD_JOBS=4` (`.claude/settings.json` sets it). Run one cargo
   build at a time, also with subagents.
-* The disk is limited. Remove `target/debug` when a build fails with
-  "No space left on device".
+* The disk is limited. When a build fails with "No space left on
+  device", remove `target/x86_64-unknown-linux-musl/debug/incremental`
+  (the musl target) or `target/debug`.
 * A token, a key or a device id is a credential. Do not put one in
   output, logs, URLs, argv, commits or issues. A test credential is a
   made-up value; list it in `.github/secrets-allow.txt` with the reason.
