@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**98 entries: 0 open, 6 partial, 12 blocked, 80 done.**
+**98 entries: 0 open, 2 partial, 12 blocked, 84 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
-| P2 | 0 | 2 | 8 | 33 | 43 |
-| P3 | 0 | 3 | 4 | 18 | 25 |
-| **All** | 0 | 6 | 12 | 80 | 98 |
+| P2 | 0 | 1 | 7 | 35 | 43 |
+| P3 | 0 | 0 | 5 | 20 | 25 |
+| **All** | 0 | 2 | 12 | 84 | 98 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -77,7 +77,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-027](live.md) | P2 | M | M-C | feature | done | WP-05a: mint with an in-process sign module, source conformance (GitHub #27) |
 | [T-028](live.md) | P2 | S | M-C | feature | done | WP-06: the fake scale-set service (Go, test only) (GitHub #28) |
 | [T-029](live.md) | P2 | M | M-C | feature | done | WP-07: the github-scaleset source sidecar (static Go) (GitHub #29) |
-| [T-030](live.md) | P2 | M | M-C | feature | blocked | WP-10: the image pipeline: pins, age limit, podrunner image build (GitHub #30) |
+| [T-030](live.md) | P2 | M | M-C | feature | done | WP-10: the image pipeline: pins, age limit, podrunner image build (GitHub #30) |
 | [T-031](live.md) | P2 | M | M-D | feature | done | WP-05b: remote mint (only if DR-4 is yes) (GitHub #31) |
 | [T-032](live.md) | P2 | S | M-C | chore | blocked | Milestone M-C: the live gates G-H2 to G-H4 on a fake unit (GitHub #32) |
 | [T-033](live.md) | P2 | S | M-D | chore | blocked | Milestone M-D: one live trusted job on a no-root host (GitHub #33) |
@@ -93,12 +93,12 @@ acceptance, later The crate dependencies later than v1.
 | [T-043](later.md) | P3 | S | later | feature | blocked | Later crates: service unit, release index, acceptance registry (GitHub #43) |
 | [T-044](plan.md) | P2 | S | M-A | chore | done | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |
 | [T-045](live.md) | P1 | M | M-D | feature | done | The mitigations of DR-4 for trusted jobs at redirect (GitHub #47) |
-| [T-046](later.md) | P3 | L | later | feature | partial | Local mode: podrunner run workflow.yml (GitHub #48) |
+| [T-046](later.md) | P3 | L | later | feature | done | Local mode: podrunner run workflow.yml (GitHub #48) |
 | [T-047](core.md) | P2 | S | M-A | defect | done | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (GitHub #49) |
 | [T-048](core.md) | P2 | S | M-D | feature | done | Egress: check the upstream of the broker; the names mode of pod-broker |
 | [T-049](level2.md) | P2 | S | L2 | chore | done | COORD-003: the stand-in broker of the official runner for podvm (GitHub #50) |
 | [T-050](level2.md) | P2 | S | L2 | defect | done | COORD-004: the supervise rung does not map the path of connect() for a unix socket (GitHub #51) |
-| [T-051](core.md) | P2 | S | M-C | defect | partial | COORD-005: podvm-aarch64 declines an arm64 payload on the supervise rung (GitHub #52) |
+| [T-051](core.md) | P2 | S | M-C | defect | done | COORD-005: podvm-aarch64 declines an arm64 payload on the supervise rung (GitHub #52) |
 | [T-052](core.md) | P1 | S | M-C | chore | done | COORD-006: a podvm beta from main for podrunner (GitHub #53) |
 | [T-053](core.md) | P2 | M | L2 | defect | done | The conformance suites follow the numbers of the design contracts |
 | [T-054](core.md) | P1 | M | M-D | defect | done | serve: an exclusive lock on the state directory before the journal replay; stop --wait (GitHub #54) |
@@ -142,7 +142,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-092](later.md) | P3 | M | later | feature | done | The checkout of the local tree and ./ actions in the local mode |
 | [T-093](later.md) | P3 | M | later | feature | done | Docker actions in the local mode |
 | [T-094](later.md) | P3 | S | later | chore | done | The local source owns its workflow: drop the leak (podcrates v0.31.0) |
-| [T-095](later.md) | P3 | M | later | feature | partial | podrunner run --podvm: the egress of each unit through the egress module |
-| [T-096](core.md) | P3 | S | later | defect | partial | GNU tar -C DIR fails in a podvm unit after mkdir -p DIR |
+| [T-095](later.md) | P3 | M | later | feature | done | podrunner run --podvm: the egress of each unit through the egress module |
+| [T-096](core.md) | P3 | S | later | defect | blocked | GNU tar -C DIR fails in a podvm unit after mkdir -p DIR |
 | [T-097](later.md) | P3 | S | later | chore | done | Build the format() token from Template::parts() (PodUtils/podcrates@T-322) |
 | [T-098](later.md) | P3 | S | later | feature | blocked | Q4: a Docker action in a job with no container (the order rule of the hook server) |

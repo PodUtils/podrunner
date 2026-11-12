@@ -35,7 +35,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #27 | WP-05a: `mint` with an in-process `sign` module, source conformance | closed (`9d48ab8`, gate run 42946099969) | T-027 |
 | #28 | WP-06: fake scale-set service (Go, test only) | closed (`ece89cd`, gate run 42946099969) | T-028 |
 | #29 | WP-07: `github-scaleset` source sidecar (static Go) | closed (`5d740e8`, gate run 42947195332) | T-029 |
-| #30 | WP-10: image pipeline: pins, age limit, `podrunner image build` | open (blocked: the aarch64 interposer of podvm, T-051) | T-030 |
+| #30 | WP-10: image pipeline: pins, age limit, `podrunner image build` | closed (runner-image run 43271963245: aarch64 import green) | T-030 |
 | #31 | WP-05b: remote mint (only if DR-4 is yes) | closed (`4e6d029`, gate run 42957378324) | T-031 |
 | #32 | Milestone M-C: live gates G-H2 to G-H4 on a `fake` unit | open (blocked: DR-7) | T-032 |
 | #33 | Milestone M-D: one live trusted job on a no-root host | open (blocked: DR-7) | T-033 |
@@ -51,11 +51,11 @@ numbers. `TODO/RULES.md` gives the rules.
 | #43 | Later crates: service unit, release index, acceptance registry | open (blocked: `pod-unit`, `pod-release` of podcrates) | T-043 |
 | #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | closed (answered in PodUtils/podnet#425) | T-044 |
 | #47 | The mitigations of DR-4: trusted jobs at boundary redirect | closed (`7d1f203`, gate run 42957378324) | T-045 |
-| #48 | Local mode: podrunner run workflow.yml | open (blocked: `pod-actions-workflow`, `pod-actions-expr` of podcrates) | T-046 |
+| #48 | Local mode: podrunner run workflow.yml | closed (runner-image run 43271963245: the suite held in podvm units) | T-046 |
 | #49 | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (to podvm) | closed (`016a78f`, gate run 42991333922) | T-047 |
 | #50 | COORD-003: the answer to PodUtils/podvm#248: the stand-in broker of the official runner, up to the long poll (to podvm) | closed (read by podvm, PodUtils/podvm#248) | T-049 |
 | #51 | COORD-004: the supervise rung does not map the path of connect() for a unix socket (to podvm) | closed (`016a78f`, gate run 42991333922) | T-050 |
-| #52 | COORD-005: podvm-aarch64 v0.2.0-beta.2 declines an arm64 payload on the supervise rung: its glibc object is x86_64 (to podvm) | open (blocked: PodUtils/podvm@T-1721) | T-051 |
+| #52 | COORD-005: podvm-aarch64 v0.2.0-beta.2 declines an arm64 payload on the supervise rung: its glibc object is x86_64 (to podvm) | closed (podvm `v0.2.0-beta.6` pinned; runner-image run 43271963245) | T-051 |
 | #53 | COORD-006: please cut a podvm beta from main for podrunner, when your release order allows (to podvm) | closed (podvm `v0.2.0-beta.3` pinned; T-026 green) | T-052 |
 | #54 | serve: an exclusive lock on the state directory before the journal replay; stop --wait | closed (`1f1d389`, gate run 42979592980) | T-054 |
 | #55 | journal: write and sync the claimed line before source.claim | closed (`a464cea`, gate run 42979592980) | T-055 |

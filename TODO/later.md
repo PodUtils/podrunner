@@ -145,7 +145,7 @@ podcrates builds the crates (PodUtils/podvm#227, section 2.7); none is planned f
 **Milestone:** later
 **Priority:** P3
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -181,9 +181,9 @@ A third source kind, `local`, behind `JobSource` (the source conformance suite a
 
 `cargo test -p podrunner-source local`
 
-## Start condition
+## Done
 
-Met on 2026-11-12: podcrates `v0.30.0` (T-086) has `pod-actions-workflow` and `pod-actions-expr` (PodUtils/podcrates@T-251, calls C105 to C109 of podcrates). Its PodUtils/podcrates@T-280 (a live run of their vectors against GitHub) is open, so the expansion of a matrix (C107, C108) is not measured against the official runner.
+2026-11-12, `5518055`. `podrunner run workflow.yml` runs the pinned local suite (`crates/podrunner/tests/local/suite.yml`: a matrix, `needs`, outputs, `if:`, a skip, the checkout stand-in and a local action) to green, each job in a fresh podvm unit of the runner image under the egress hold of `--podnet` (runner-image run 43271963245 of `5518055`, T-095). The containers suite (a `container:` job and a Docker step) is green in podvm units (T-093). The work: T-087 to T-095, T-097. Open questions of the owner: Q4 (T-098).
 
 # T-073: Take the podcrates tag after v0.24.0: pod-confine drops each capability
 
@@ -463,7 +463,7 @@ Take `v0.31.0` (move each tag, as T-086). `LocalSource` keeps a `Run<Arc<Workflo
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -483,7 +483,7 @@ Read `crates/podrunner/src/podvm_kind.rs` and `crates/podrunner-local/src/exec.r
 
 ## Done
 
-Partial, 2026-11-12. `podrunner run --podvm ... --podnet PATH [--allow HOST]...` holds each unit under `podnet pod` (`PodvmUnit::with_podnet`) and serves its egress socket from the egress module with the policy of `--allow` (`broker-policy.v1`, mode `allow`); the socket directory of the unit holds the egress socket and the hooks, and goes at the end of the job. The command takes only the seccomp hold (`advisory`) now: the fake broker listens on the loopback of the host, which the netns hold does not reach; it refuses the netns hold by name. `crates/podrunner/tests/local/egress.yml` checks that a step does not reach `example.com`; `runner-image.yml` runs it with the hold (it must pass) and with no hold (it must fail: the plant). In runner-image run 43227187267 of `146e5be` the held run hung to its time limit with no line: the runner had no `DOTNET_SYSTEM_NET_DISABLEIPV6=1`, the workaround of GitHub #64 (T-077) that the held test sets; `InUnit` then set it for a held unit. Run 43230901394 of `1ff9223` (podnet `v0.4.0-beta.3`, the variable set) passed: `ok denied` with the hold, `failure denied` with no hold. Run 43232215654 of `1f1d349` (podnet `v0.4.0-beta.6`, no variable, T-077) hung again to the limit of 600 s with no line. The executor of a unit now ends the unit at the `timeout-minutes` of its job and gives its log; `egress.yml` sets 4 minutes, so the next hang shows the log of the runner. Run 43236725634 of `ed03e05`: the job ended at 240 s, and its broker log was empty: the runner did not reach the fake broker. A job with no result now also gives the end of the output of its unit (`UnitDriver::unit_logs`, `podvm logs` of the payload), so the next run shows where the runner stops. Run 43239962509 of `b90ef12` showed it: the connect to `::ffff:127.0.0.1` is refused under the hold of beta.6 (GitHub #69, T-077). The held units set `DOTNET_SYSTEM_NET_DISABLEIPV6=1` again. Run 43242367198 of `d229b6b` (the variable set) passed: `ok denied` with the hold, `failure denied` with no hold. The local suite now also runs with `--podnet`, as the Prove asks. Open: a green run of the held suite; the cause of the hang with beta.6; the netns hold (the broker behind the egress).
+2026-11-12, `5518055`. `podrunner run --podvm ... --podnet PATH [--allow HOST]...` holds each unit under `podnet pod` (seccomp hold, `advisory`) and serves its egress socket from the egress module with the policy of `--allow`. In runner-image run 43271963245 of `5518055`: the local suite runs held (8 `ok` lines, the checkout and the local action from the fake broker on the loopback); `egress.yml` gives `ok denied` held and `failure denied` with no hold (the plant). A job ends at its `timeout-minutes`, and a job with no result gives the output of its unit. Held units set `DOTNET_SYSTEM_NET_DISABLEIPV6=1` until podnet `v0.4.0-beta.7` (T-077). The netns hold (the broker behind the egress) is not in this entry: the command refuses it by name.
 
 # T-097: Build the format() token from Template::parts() (PodUtils/podcrates@T-322)
 

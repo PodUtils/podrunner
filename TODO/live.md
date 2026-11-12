@@ -213,7 +213,7 @@ trusted set is withdrawn with `tier-mismatch` and never acquired.
 **Milestone:** M-C
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -258,9 +258,13 @@ Open: a green import on aarch64 (T-051). The aarch64 run stays a measure.
 
 `cargo test -p podrunner-image`
 
-## Blocker
+## Correction
 
-A green import on aarch64 needs a podvm release whose aarch64 binary runs an arm64 payload (T-051, GitHub #52).
+The image code is in `crates/podrunner/src/image.rs` (`podrunner image verify`), not in a crate `podrunner-image`. The Prove reads `cargo test -p podrunner image`.
+
+## Done
+
+2026-11-12, `5518055`. The open part was a green import on aarch64. In runner-image run 43271963245 of `5518055` the aarch64 job imports the OCI archive into a podvm store with no root and starts it as a check (T-051, podvm `v0.2.0-beta.6`). x86_64 was green before (T-026). `cargo test -p podrunner image` passes.
 
 # T-031: WP-05b: remote mint (only if DR-4 is yes) (GitHub #31)
 

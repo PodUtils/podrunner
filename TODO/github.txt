@@ -33,7 +33,7 @@
 27 issue closed
 28 issue closed
 29 issue closed
-30 issue open
+30 issue closed
 31 issue closed
 32 issue open
 33 issue open
@@ -51,11 +51,11 @@
 45 pull closed
 46 issue closed
 47 issue closed
-48 issue open
+48 issue closed
 49 issue closed
 50 issue closed
 51 issue closed
-52 issue open
+52 issue closed
 53 issue closed
 54 issue closed
 55 issue closed

@@ -581,7 +581,7 @@ At the start of `serve`, run `check_upstream` on the egress module; when it is n
 **Milestone:** M-C
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -601,7 +601,7 @@ The aarch64 job of `.github/workflows/runner-image.yml` starts `/bin/sh` of the 
 
 ## Done
 
-Partial, 2026-11-12. podvm answered in PodUtils/podvm#252 (COORD-033): the interposer of the supervise rung is x86_64 only by design; `main` now embeds no object of another machine, so `podvm-aarch64` names the missing object. The aarch64 port is PodUtils/podvm@T-1721 (P2, after the current work order of podvm). Until it is released, an arm64 host of podrunner needs the namespace rung (a user namespace) or another unit kind. The aarch64 job of `runner-image.yml` stays a measure; when the release carries the port, pin it and make the start a check. Measured again with podvm `v0.2.0-beta.5` (runner-image run 43159841845, aarch64): `run` of the runner image is declined ("this podvm binary carries no glibc interposer object"). The musl image of T-081 is declined the same way ("no musl interposer object", runner-musl run 43177355600): the port must carry the musl object of aarch64 too. PodUtils/podvm#279 (COORD-058, 2026-11-12): PodUtils/podvm@T-1721 is in work; `struct stat` agrees for glibc and musl on aarch64, and the interposer builds for aarch64; step 3 (`7af63a0d`) builds the two aarch64 objects (glibc and musl) and embeds both in the aarch64 binary, with a check of the machine of each embedded object; next is the proof on a hosted `ubuntu-24.04-arm` runner. At 2026-11-12 11:05 (UTC) PodUtils/podvm@T-1721 is at step 4 (the proof on a hosted arm64 runner), blocked on PodUtils/podvm#281 and PodUtils/podvm#282 (two issues of `pod-enter` of podcrates). At 2026-11-12 13:50 (UTC) PodUtils/podvm@T-1721 is done (podvm `arm.yml` run 43228497851): the next beta of podvm carries the aarch64 objects; podrunner pins it then (recorded on GitHub #52). podvm `v0.2.0-beta.6` carries the port (PodUtils/podvm#286, COORD-065; the SHA-256 of each binary agrees with the digest of its release asset): `images/podvm.toml` pins it, and the aarch64 start of `runner-image.yml` is a check. Open: a green aarch64 job of `runner-image.yml`; then close GitHub #52 and PodUtils/podvm#286.
+2026-11-12, `5518055`. podvm `v0.2.0-beta.6` carries the aarch64 interposer objects (PodUtils/podvm@T-1721, PodUtils/podvm#286). `images/podvm.toml` pins it (the SHA-256 of each binary agrees with the digest of its release asset). In runner-image run 43271963245 of `5518055`, the aarch64 job starts `/bin/sh` of the runner image on the supervise rung of a hosted `ubuntu-24.04-arm` runner as a check: "the runner files are in the image". GitHub #52 is closed.
 
 # T-052: COORD-006: a podvm beta from main for podrunner (GitHub #53)
 
@@ -1506,7 +1506,7 @@ Move each `tag = "v0.29.0"` to `v0.30.0`, update `Cargo.lock` and the pins in `d
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -1527,3 +1527,7 @@ The measure lines of `runner-image.yml` name which form fails; the COORD issue c
 Run 43230901394 (x86_64): in `/tmp` of a plain `podvm run` unit, each of the five forms passed (`-C`, `-C -z`, `cd`, `cd` with `gzip -dc`, `cd -z`). The failure is not in tar alone. The measure now also runs each form under `/home/runner/_work/app`, the path of the failed step, with an absolute `-C`.
 
 Run 43242367198 (x86_64, podvm `v0.2.0-beta.5`): `tar -xzf x.tgz -C /tmp/d` and `tar -xzf x.tgz -C /home/runner/_work/app/d` failed; each relative `-C` and each `cd` form passed, in both directories. So an absolute `-C` fails. The measure now also runs an absolute `-C` with no `-z`. GitHub #70 (COORD-012, to podcrates) sends the smallest failing form.
+
+## Blocker
+
+podvm. In runner-image run 43271963245 of `5518055`: `tar -xf x.tar -C /tmp/d` (absolute, no `-z`) fails too, in `/tmp` and under `/home/runner/_work/app`; each relative `-C` and each `cd` form passes. The absolute directory of `-C` is the trigger. podcrates relayed it to podvm (PodUtils/podcrates#102, COORD-063). podrunner avoids it in its checkout script (`cd`, then `gzip -dc | tar -xf -`). When podvm names a fix: pin it, and the measure of `runner-image.yml` must give `ok` for each form.
