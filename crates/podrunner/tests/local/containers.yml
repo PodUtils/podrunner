@@ -12,8 +12,13 @@ jobs:
     steps:
       - run: echo "podrunner-container-$((6*7))" > marker.txt && test "$(cat marker.txt)" = podrunner-container-42
 
+  # A Docker step needs a job with `container:` or `services:`: the hook
+  # server refuses each container operation before `prepare_job`
+  # (docs/design/contracts/unit-driver.md, Order).
   docker-step:
     runs-on: local
+    container:
+      image: IMAGE
     steps:
       - uses: docker://IMAGE
         with:

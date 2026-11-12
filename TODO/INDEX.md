@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**97 entries: 1 open, 6 partial, 12 blocked, 78 done.**
+**98 entries: 1 open, 6 partial, 13 blocked, 78 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
 | P2 | 0 | 1 | 9 | 33 | 43 |
-| P3 | 1 | 4 | 3 | 16 | 24 |
-| **All** | 1 | 6 | 12 | 78 | 97 |
+| P3 | 1 | 4 | 4 | 16 | 25 |
+| **All** | 1 | 6 | 13 | 78 | 98 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -145,3 +145,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-095](later.md) | P3 | M | later | feature | partial | podrunner run --podvm: the egress of each unit through the egress module |
 | [T-096](core.md) | P3 | S | later | defect | partial | GNU tar -C DIR fails in a podvm unit after mkdir -p DIR |
 | [T-097](later.md) | P3 | S | later | chore | open | Build the format() token from Template::parts() (PodUtils/podcrates@T-322) |
+| [T-098](later.md) | P3 | S | later | feature | blocked | Q4: a Docker action in a job with no container (the order rule of the hook server) |

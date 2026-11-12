@@ -73,7 +73,7 @@ C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 ## Questions for the owner
 
 `TODO/PROGRESS.md`, "Questions for the owner", has each open question
-with its recommendation. None is open.
+with its recommendation. Q4 (T-098) is open.
 
 ## Superseded
 

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 97 entries: 1 open, 6 partial, 12 blocked, 78 done.
+`TODO/INDEX.md` holds 98 entries: 1 open, 6 partial, 13 blocked, 78 done.
 
 ## State
 
@@ -34,9 +34,10 @@ Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live r
 
 Waits for the next tag of podcrates: T-097.
 
-Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-077 (podnet, GitHub #64), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates).
+Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-077 (podnet, GitHub #64), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates).
 
 ## Questions for the owner
 
-None is open. The owner answered Q1 to Q3 (DR-4, DR-5, DR-6) on
-2026-11-11 (`docs/decisions.md`).
+- Q4 (T-098, not urgent): may a Docker action run in a job with no `container:` and no `services:`? The contract of the design (`docs/design/contracts/unit-driver.md`, "Order") refuses each container operation before `prepare_job`, and the runner calls no `prepare_job` for such a job, so a Docker action there fails; on GitHub it runs. Recommendation: yes. Accept `run_container_step` before `prepare_job`, with its mounts from the container action table and its image from the registries of the unit; keep the refusal of `run_script_step` and `cleanup_job` before it. The contract itself names the mount table and the refusal of host paths, devices and privileged flags as the real controls, and those still apply. Until a ruling, the local mode runs a Docker step only in a job with `container:` or `services:`.
+
+The owner answered Q1 to Q3 (DR-4, DR-5, DR-6) on 2026-11-11 (`docs/decisions.md`).
