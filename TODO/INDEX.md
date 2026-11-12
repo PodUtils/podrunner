@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**82 entries: 0 open, 3 partial, 12 blocked, 67 done.**
+**83 entries: 1 open, 3 partial, 12 blocked, 67 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 28 | 29 |
-| P2 | 0 | 2 | 8 | 30 | 40 |
+| P2 | 1 | 2 | 8 | 30 | 41 |
 | P3 | 0 | 0 | 4 | 9 | 13 |
-| **All** | 0 | 3 | 12 | 67 | 82 |
+| **All** | 1 | 3 | 12 | 67 | 83 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -130,3 +130,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-080](core.md) | P3 | S | later | defect | done | Tests 25 and 26 skip on a confined podvm unit: the orphan is not seen on the host |
 | [T-081](core.md) | P3 | M | later | measurement | done | Measure a musl build of the official runner (P0-4 of GitHub #67) |
 | [T-082](core.md) | P2 | S | later | defect | partial | The official runner v2.338.2 carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc) |
+| [T-083](core.md) | P2 | S | later | chore | open | Take podcrates v0.29.0 (PodUtils/podcrates#87, COORD-055) |

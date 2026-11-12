@@ -1374,3 +1374,28 @@ Seen on 2026-11-12 in the musl build of T-081 (`scripts/runner-musl.sh` turns th
 ## Done
 
 Partial, 2026-11-12. Step 1: GHSA-x33c-w48q-qrgc is CVE-2026-114149, a denial of service of ASP.NET Core, published 2026-11-10, fixed in 8.0.34. The pinned x64 tarball of v2.338.2 holds `bin/Microsoft.AspNetCore.WebUtilities.dll` with product version `8.0.25+ef18546e`. The runner is a client of the broker and serves no HTTP. Step 2: `scripts/runner-audit.sh` compares the advisories of the shipped projects (`dotnet list package --vulnerable --include-transitive`, not `Test.csproj`) with `images/runner/advisories.txt`. In this sandbox: the reviewed list passes (1 advisory); an empty list fails (not in the list); a list with a made-up advisory fails (gone from the runner). Open: the green run of the job `audit`, then step 3 waits for a runner release with 8.0.34 or later.
+
+# T-083: Take podcrates v0.29.0 (PodUtils/podcrates#87, COORD-055)
+
+**Source:** PodUtils/podcrates#87
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podcrates released `v0.29.0` (tag at `a4d3630`; ci 43175571035, release 43177712730). The hand-off PodUtils/podcrates#87 (COORD-055) says for podrunner: "Move the tag." It names no change of an API that podrunner uses. The ask of T-046 (PodUtils/podcrates@T-251) is not in this tag. podcrates records the commit of the take on #87.
+
+## Premise
+
+Read PodUtils/podcrates#87 and the message of the podcrates session on 2026-11-12. The tag `v0.29.0` resolves to `a4d3630` (`git ls-remote`). `cargo update` moves 11 `pod-*` crates and no other dependency.
+
+## Approach
+
+Move each `tag = "v0.28.0"` of the manifests to `v0.29.0`, update `Cargo.lock`, change the pins in `docs/decisions.md`, `docs/HANDOFF.md` and `TODO/PROGRESS.md`, run the checks, and send the commit to the podcrates session.
+
+## Prove
+
+`sh scripts/agent/check.sh` passes on the take; the gate of the commit is green.

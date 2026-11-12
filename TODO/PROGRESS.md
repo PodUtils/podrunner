@@ -1,12 +1,12 @@
 # Progress
 
-`TODO/INDEX.md` holds 82 entries: 0 open, 3 partial, 12 blocked, 67 done.
+`TODO/INDEX.md` holds 83 entries: 1 open, 3 partial, 12 blocked, 67 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
-- Pins: podcrates `v0.28.0`, podvm `v0.2.0-beta.5`, podnet
+- Pins: podcrates `v0.29.0`, podvm `v0.2.0-beta.5`, podnet
   `v0.4.0-beta.3`, runner v2.338.2.
   Last beta: `v0.1.0-beta.1` (release run 42942338772).
 - M-A and M-B hold. M-C: T-027 to T-029 done; T-030 waits for T-051
@@ -27,7 +27,8 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-082 (S, partial): the pinned runner carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc). The job `audit` of `runner-image.yml` compares the advisories of the runner with `images/runner/advisories.txt`; then the raise of the pin waits for a runner release with 8.0.34.
+1. T-083 (S): take podcrates `v0.29.0` (PodUtils/podcrates#87); close it on the green gate, and send the commit to podcrates.
+2. T-082 (S, partial): the pinned runner carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc). The job `audit` of `runner-image.yml` compares the advisories of the runner with `images/runner/advisories.txt`; then the raise of the pin waits for a runner release with 8.0.34.
 
 Partial: T-082 (above). Closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
