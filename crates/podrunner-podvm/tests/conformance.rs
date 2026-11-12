@@ -47,8 +47,10 @@ impl Fixture for Real {
             Behaviour::Marker => sh(&format!("echo x > {}; exec sleep 300", conformance::MARKER)),
             Behaviour::Escape => sh(&podrunner_fake_escape("")),
             // The pid file comes before the kill: from podvm beta.4 the launcher
-            // of `run -d` sets a death signal, so the shell ends with it.
-            Behaviour::KillParent => sh(&podrunner_fake_escape("kill -9 $PPID; ")),
+            // of `run -d` sets a death signal, so the shell ends with it. The
+            // kill waits for the go file: a launcher killed before it reports
+            // the start fails `run -d` (exit 125).
+            Behaviour::KillParent => sh(&podrunner_fake_escape(conformance::KILL_PARENT_AFTER_GO)),
             Behaviour::ReadOthers => sh(&format!(
                 "cat ../*/{m} > {s} 2>/dev/null; echo own > {o}.part; cat {o}.part > {o}; exec sleep 300",
                 m = conformance::MARKER,
@@ -103,9 +105,14 @@ fn the_podvm_unit_passes_its_tests() {
     assert!(unit.verify_tree_kill(&image, UnitId::parse("u-999").unwrap()).unwrap(), "the tree kill is not proven");
     assert_eq!(unit.probe().unwrap().tree_kill, podrunner_schema::TreeKill::Verified);
     let fx = Real { unit, image, ids: UnitIds::default(), state: state.clone() };
+    // PODRUNNER_CONFORMANCE_ONLY=26,3 runs only those tests: a loop of one
+    // test finds a race.
+    let only: Vec<u32> = std::env::var("PODRUNNER_CONFORMANCE_ONLY")
+        .map(|v| v.split(',').map(|n| n.trim().parse().expect("PODRUNNER_CONFORMANCE_ONLY: a number")).collect())
+        .unwrap_or_default();
     // One test at a time, each printed when it ends: a hang names its test.
     let mut results = Vec::new();
-    for (n, name) in conformance::tests() {
+    for (n, name) in conformance::tests().into_iter().filter(|(n, _)| only.is_empty() || only.contains(n)) {
         println!("unit {n:2} {name}: running");
         let r = conformance::run(&fx, &[n]).remove(0);
         println!("{r}");

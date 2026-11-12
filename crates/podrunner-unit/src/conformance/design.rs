@@ -12,7 +12,7 @@ use std::time::Instant;
 use podrunner_schema::ContainerRoute;
 
 use super::cases::{Case, LIMIT, Unit, begin, err, root, until};
-use super::{Behaviour, CANARY, ESCAPED, Fixture, MARKER, OWN, Outcome, SEEN, alive};
+use super::{Behaviour, CANARY, ESCAPED, Fixture, GO, MARKER, OWN, Outcome, SEEN, alive};
 use crate::{ContainerSpec, ExecSpec, Exit};
 
 /// The tests that need a process of their own (no parallel test).
@@ -303,6 +303,9 @@ fn an_orphan_with_no_tag(fx: &dyn Fixture) -> Result<Outcome, String> {
 /// shim), then `destroy`: it does not count 0 while the orphan lives.
 fn a_killed_shim_is_not_clean(fx: &dyn Fixture) -> Result<Outcome, String> {
     let u = begin(fx, Behaviour::KillParent)?;
+    // The payload kills its parent only after this file: a kill during
+    // `start` can end a launcher before it reports the start.
+    std::fs::write(root(&u.observe()?)?.join(GO), "").map_err(|e| format!("write {GO}: {e}"))?;
     let orphan = escaped(&u)?;
     if !alive(orphan) {
         return Ok(Outcome::Skip("no orphan is alive on the host: a pid namespace, or the unit could not start it (a confined unit denies `env -i`)".into()));
@@ -363,5 +366,13 @@ mod tests {
         assert_eq!(unsafe { libc::mkfifo(fifo.as_ptr(), 0o600) }, 0);
         assert_eq!(holding(&dir, CANARY), vec![dir.join("d/f")]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The payload of test 26 waits for the file that the test writes.
+    #[test]
+    fn the_kill_of_the_parent_waits_for_the_go_file() {
+        let script = super::super::KILL_PARENT_AFTER_GO;
+        assert!(script.contains(&format!("[ ! -e {GO} ]")), "{script}");
+        assert!(script.find(GO) < script.find("kill -9"), "{script}");
     }
 }

@@ -25,7 +25,7 @@ pub fn payload(behaviour: Behaviour) -> Vec<String> {
         Behaviour::Grandchild => sh("setsid sh -c 'sleep 300 & wait' & wait"),
         Behaviour::Marker => sh(&format!("echo x > {}; exec sleep 300", podrunner_unit::conformance::MARKER)),
         Behaviour::Escape => sh(&escape("")),
-        Behaviour::KillParent => sh(&escape("kill -9 $PPID; ")),
+        Behaviour::KillParent => sh(&escape(podrunner_unit::conformance::KILL_PARENT_AFTER_GO)),
         Behaviour::ReadOthers => sh(&read_others()),
     }
 }

@@ -42,14 +42,24 @@ pub enum Behaviour {
     Escape,
     /// As [`Behaviour::Escape`], but kill the parent of the top process
     /// with SIGKILL (the shim of the driver, when it has one) after the pid
-    /// file is written: a parent with a death signal ends the shell with
-    /// it.
+    /// file is written and the file [`GO`] exists: a parent with a death
+    /// signal ends the shell with it. The test writes [`GO`] when `start`
+    /// returns: a kill before it can end a launcher that has not yet told
+    /// its driver that the payload started.
     KillParent,
     /// Copy each [`MARKER`] of the directories next to the working
     /// directory (`../*/MARKER`) to [`SEEN`], write and read back [`OWN`],
     /// then sleep.
     ReadOthers,
 }
+
+/// The file of [`Behaviour::KillParent`]: the test writes it in the
+/// working directory when `start` returned.
+pub const GO: &str = "podrunner-go";
+
+/// The script of [`Behaviour::KillParent`] after the pid file: wait for
+/// [`GO`], then kill the parent. A fixture puts it after its pid file.
+pub const KILL_PARENT_AFTER_GO: &str = "while [ ! -e podrunner-go ]; do sleep 0.1; done; kill -9 $PPID; ";
 
 /// The file of [`Behaviour::ReadOthers`]: what the payload read of the
 /// roots next to its own.

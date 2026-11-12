@@ -12,7 +12,7 @@ is done.
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 83 entries, 1 open, 3 partial, 12 blocked, 67 done
+- The record: 85 entries, 1 open, 2 partial, 13 blocked, 69 done
   (`cargo todo check`). `main` is green: gate, level2 and runner-image.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
@@ -44,9 +44,6 @@ is done.
 
 ## In flight
 
-- T-082 (partial): the job `audit` of `runner-image.yml` holds the
-  advisories of the runner to `images/runner/advisories.txt`. Read its
-  run.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs
@@ -61,6 +58,7 @@ is done.
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-actions-workflow`, `pod-actions-expr` and the expansion of jobs (asked; PodUtils/podcrates@T-251) | T-046 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
+| actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
 | podnet | `::ffff:127.0.0.1` as loopback in the seccomp hold (GitHub #64, COORD-009) | T-077 |
 
 ## Open issues and asks
@@ -71,10 +69,11 @@ is done.
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.
 - GitHub #52 (COORD-005, to podvm): open, T-051.
-- podcrates: the crate ask of T-046 is PodUtils/podcrates@T-251. A note for podvm, sent
-  through podcrates: `podvm run --help` says that only a rung with a
-  chroot or the loader family takes `--podvm-confine`; the supervise rung
-  takes it too.
+- podcrates: the crate ask of T-046 is PodUtils/podcrates@T-251.
+- GitHub #68 (COORD-010, to podvm): `--podvm-confine` runs on the
+  userland rung (a host of probe mode `supervise`); close it when podvm
+  has read it (T-085). The probe names the mode of the host; the
+  `--report` of a run names its rung.
 
 ## Talk between sessions
 

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**83 entries: 1 open, 3 partial, 12 blocked, 67 done.**
+**85 entries: 1 open, 2 partial, 13 blocked, 69 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 0 | 1 | 0 | 28 | 29 |
-| P2 | 1 | 2 | 8 | 30 | 41 |
+| P1 | 0 | 1 | 0 | 29 | 30 |
+| P2 | 1 | 1 | 9 | 31 | 42 |
 | P3 | 0 | 0 | 4 | 9 | 13 |
-| **All** | 1 | 3 | 12 | 67 | 83 |
+| **All** | 1 | 2 | 13 | 69 | 85 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -129,5 +129,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-079](core.md) | P3 | M | later | measurement | done | Measure podvm --podvm-confine on the supervise rung, for a confined podvm unit |
 | [T-080](core.md) | P3 | S | later | defect | done | Tests 25 and 26 skip on a confined podvm unit: the orphan is not seen on the host |
 | [T-081](core.md) | P3 | M | later | measurement | done | Measure a musl build of the official runner (P0-4 of GitHub #67) |
-| [T-082](core.md) | P2 | S | later | defect | partial | The official runner v2.338.2 carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc) |
+| [T-082](core.md) | P2 | S | later | defect | blocked | The official runner v2.338.2 carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc) |
 | [T-083](core.md) | P2 | S | later | chore | open | Take podcrates v0.29.0 (PodUtils/podcrates#87, COORD-055) |
+| [T-084](core.md) | P1 | S | later | defect | done | Conformance test 26 kills the launcher of podvm before it reports the start |
+| [T-085](core.md) | P2 | S | later | docs | done | COORD-010: --podvm-confine runs on the userland rung; podrunner named the supervise rung (GitHub #68) |

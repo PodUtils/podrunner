@@ -8,18 +8,27 @@
 #
 #   sh scripts/measure-podvm-confine.sh PODVM WORKDIR
 #
-# Run it as a uid with no user namespace (the supervise rung) and as root.
+# Run it as a uid with no user namespace (probe mode supervise) and as
+# root. The probe names the mode of the host; the report of each run names
+# the rung that the run entered (on a supervise host: userland).
 set -u
 podvm=$1
 work=$2
 here=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$work"
 export PODVM_STORE="$work/store"
-"$podvm" probe 2>&1 | sed -n '2s/^/rung: /p' | cut -c1-100
+"$podvm" probe 2>&1 | sed -n '2s/^/probe: /p' | cut -c1-100
 
 python3 -I "$here/stand-in-image.py" "$work/image.tar" > /dev/null
 "$podvm" load -i "$work/image.tar" > /dev/null 2>&1 || { echo "load no"; exit 1; }
 image="glibc-mini:1"
+# The rung that a run enters, unconfined and confined, from its report.
+for c in "" "--podvm-confine read=/;write=/tmp"; do
+  rm -f "$work/report.json"
+  # shellcheck disable=SC2086
+  "$podvm" run --rm --report "$work/report.json" $c "$image" /bin/sh -c true > /dev/null 2>&1
+  echo "entered ${c:+confined }rung: $(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1])).get("rung"))' "$work/report.json" 2> /dev/null || echo none)"
+done
 
 # Host things that a payload must not reach: a file of this uid, and the
 # environment of a process of this uid.

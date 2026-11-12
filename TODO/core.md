@@ -601,7 +601,7 @@ The aarch64 job of `.github/workflows/runner-image.yml` starts `/bin/sh` of the 
 
 ## Blocker
 
-podvm answered in PodUtils/podvm#252 (COORD-033): the interposer of the supervise rung is x86_64 only by design; `main` now embeds no object of another machine, so `podvm-aarch64` names the missing object. The aarch64 port is PodUtils/podvm@T-1721 (P2, after the current work order of podvm). Until it is released, an arm64 host of podrunner needs the namespace rung (a user namespace) or another unit kind. The aarch64 job of `runner-image.yml` stays a measure; when the release carries the port, pin it and make the start a check. Measured again with podvm `v0.2.0-beta.5` (runner-image run 43159841845, aarch64): `run` of the runner image is declined ("this podvm binary carries no glibc interposer object"). The musl image of T-081 is declined the same way ("no musl interposer object", runner-musl run 43177355600): the port must carry the musl object of aarch64 too.
+podvm answered in PodUtils/podvm#252 (COORD-033): the interposer of the supervise rung is x86_64 only by design; `main` now embeds no object of another machine, so `podvm-aarch64` names the missing object. The aarch64 port is PodUtils/podvm@T-1721 (P2, after the current work order of podvm). Until it is released, an arm64 host of podrunner needs the namespace rung (a user namespace) or another unit kind. The aarch64 job of `runner-image.yml` stays a measure; when the release carries the port, pin it and make the start a check. Measured again with podvm `v0.2.0-beta.5` (runner-image run 43159841845, aarch64): `run` of the runner image is declined ("this podvm binary carries no glibc interposer object"). The musl image of T-081 is declined the same way ("no musl interposer object", runner-musl run 43177355600): the port must carry the musl object of aarch64 too. PodUtils/podvm#279 (COORD-058, 2026-11-12): PodUtils/podvm@T-1721 is in work; `struct stat` agrees for glibc and musl on aarch64, and the interposer builds for aarch64; next are the two aarch64 objects, a release check of the machine of each embedded object, and a proof on a hosted arm64 runner.
 
 
 # T-052: COORD-006: a podvm beta from main for podrunner (GitHub #53)
@@ -1276,6 +1276,10 @@ On the supervise rung the confine layer closes the three paths of R2 (`docs/secu
 
 `sh scripts/measure-podvm-confine.sh PODVM DIR` as uid 65534 with no user namespace and as root; `cargo test -p podrunner-podvm --test conformance -- --ignored` with `confine = true`.
 
+## Correction
+
+2026-11-12 (T-085): the problem and the Done name the rung wrong. Line 2 of `podvm probe` names the mode of the host (`supervise`); the report of a run names the rung that it entered. On that host each run enters `userland`, unconfined and confined (`--report`, podvm `v0.2.0-beta.5`), and the help of podvm says that the loader family of that rung takes `--podvm-confine`. So the help and the binary agree, and "the supervise rung takes the spec" is wrong: the userland rung takes it. The measures stay true. PodUtils/podvm#279 asked; GitHub #68 (COORD-010) answers.
+
 ## Done
 
 2026-11-12, `bd07a93` and `660bdf1`; gate run 43155326553, level2 run 43155326441 and runner-image run 43155326439 of `660bdf1` are green. Steps 1 and 2: `[unit.podvm] confine = true` runs each unit and container under `--podvm-confine` (`crates/podrunner-podvm/src/unit/confine.rs`), and `verify_confine` proves it on the host before the kind says `confined`; `confine_is_proven_only_by_a_check_that_sees_and_a_layer_that_holds` holds the plants. On the supervise rung of the GitHub host the measure gives environ and root reached unconfined and denied confined (cwd is denied both ways there); test 27, the canned job and the container job pass under the layer. As root (namespace rung) the self-test refuses the claim: the open run sees no `/proc`. Step 3 is not needed: the supervise rung takes the spec. Tests 25 and 26 skip under the layer: T-080.
@@ -1351,7 +1355,7 @@ The image of the units stays glibc: no ruling asks for a change. The NuGet audit
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -1371,9 +1375,11 @@ Seen on 2026-11-12 in the musl build of T-081 (`scripts/runner-musl.sh` turns th
 
 `sh scripts/runner-audit.sh SRC images/runner/advisories.txt` with SRC a clone of the runner tag passes, and fails on a list that misses an advisory or names one that is gone. The job `audit` of `runner-image.yml` runs it and writes each advisory to the summary.
 
-## Done
+## Blocker
 
-Partial, 2026-11-12. Step 1: GHSA-x33c-w48q-qrgc is CVE-2026-114149, a denial of service of ASP.NET Core, published 2026-11-10, fixed in 8.0.34. The pinned x64 tarball of v2.338.2 holds `bin/Microsoft.AspNetCore.WebUtilities.dll` with product version `8.0.25+ef18546e`. The runner is a client of the broker and serves no HTTP. Step 2: `scripts/runner-audit.sh` compares the advisories of the shipped projects (`dotnet list package --vulnerable --include-transitive`, not `Test.csproj`) with `images/runner/advisories.txt`. In this sandbox: the reviewed list passes (1 advisory); an empty list fails (not in the list); a list with a made-up advisory fails (gone from the runner). Open: the green run of the job `audit`, then step 3 waits for a runner release with 8.0.34 or later.
+actions/runner (upstream): step 3 waits for a runner release that takes `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later. v2.338.2 is the newest release on 2026-11-12. When one exists, raise `images/runner/runner.toml`; the job `audit` then fails on the stale line of `images/runner/advisories.txt`, and the change removes it.
+
+Done on 2026-11-12 (steps 1 and 2): Step 1: GHSA-x33c-w48q-qrgc is CVE-2026-114149, a denial of service of ASP.NET Core, published 2026-11-10, fixed in 8.0.34. The pinned x64 tarball of v2.338.2 holds `bin/Microsoft.AspNetCore.WebUtilities.dll` with product version `8.0.25+ef18546e`. The runner is a client of the broker and serves no HTTP. Step 2: `scripts/runner-audit.sh` compares the advisories of the shipped projects (`dotnet list package --vulnerable --include-transitive`, not `Test.csproj`) with `images/runner/advisories.txt`. In this sandbox: the reviewed list passes (1 advisory); an empty list fails (not in the list); a list with a made-up advisory fails (gone from the runner). The job `audit` passes in runner-image run 43178358913 of `df943e1` ("1 advisories, each one reviewed").
 
 # T-083: Take podcrates v0.29.0 (PodUtils/podcrates#87, COORD-055)
 
@@ -1399,3 +1405,61 @@ Move each `tag = "v0.28.0"` of the manifests to `v0.29.0`, update `Cargo.lock`, 
 ## Prove
 
 `sh scripts/agent/check.sh` passes on the take; the gate of the commit is green.
+
+# T-084: Conformance test 26 kills the launcher of podvm before it reports the start
+
+**Source:** runner-image run 43177355469
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+runner-image run 43177355469 of `a5f4780` failed: test 26 (`a-killed-shim-is-not-clean`) of the podvm unit gave "start: unit-start-failed: podvm run: exit 125: podvm run: the launcher exited and did not say whether the payload started". The payload of `Behaviour::KillParent` kills its parent (the launcher of `podvm run -d`) right after its pid file. When that kill comes before the launcher reports the start, `run -d` fails. The same test passed on `bde47c3`; `a5f4780` changed no code of the unit.
+
+## Premise
+
+Measured on 2026-11-12 with the release podvm `v0.2.0-beta.5` on a supervise host (a uid with no user namespace) and an Alpine image: test 26 alone (`PODRUNNER_CONFORMANCE_ONLY=26`) passes 30 of 30 runs on an idle machine, and fails 11 of 100 runs under CPU load (8 busy loops on 4 cores), each time with the message of CI.
+
+## Approach
+
+The payload kills its parent only after the file `GO` exists in its working directory (`conformance::KILL_PARENT_AFTER_GO`), and the test writes `GO` when `start` returned. A fixture (podvm, fake) uses the same script. The conformance test of podvm takes `PODRUNNER_CONFORMANCE_ONLY` to run one test in a loop.
+
+## Prove
+
+`PODRUNNER_CONFORMANCE_ONLY=26 cargo test -p podrunner-podvm --test conformance -- --ignored` in a loop of 100 under load, with `PODRUNNER_PODVM`, `PODRUNNER_PODVM_IMAGES` and `PODRUNNER_PODVM_IMAGE`; `cargo test -p podrunner-unit -p podrunner-fake`.
+
+## Done
+
+2026-11-12. With the fix, test 26 passes 100 of 100 runs under the same load (no skip); before it, 89 of 100. `the_kill_of_the_parent_waits_for_the_go_file` holds the order of the script; podrunner-unit 11 passed, the conformance suite of the fake unit passes. The runner-image run of the commit runs the whole suite.
+
+# T-085: COORD-010: --podvm-confine runs on the userland rung; podrunner named the supervise rung (GitHub #68)
+
+**Source:** PodUtils/podvm#279
+**Category:** docs
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+PodUtils/podvm#279 (COORD-058) says: the help of `podvm run` (`c99bdd8d`) lists the rungs that take `--podvm-confine` (a rung with a chroot, and each family of the userland rung); the supervise rung and the machine tier refuse it by name. podrunner said that the supervise rung takes the layer. podvm asks for the run that showed it: the host, the podvm version, and the entered rung from `--report`.
+
+## Premise
+
+Measured on 2026-11-12 with podvm `v0.2.0-beta.5` as a uid with no user namespace: `podvm probe` gives `mode=supervise`; the report of `run --report R` gives `"rung": "userland"`, also with `--podvm-confine 'read=/;write=/tmp'`. `scripts/measure-podvm-confine.sh` took the rung from the probe.
+
+## Approach
+
+Answer podvm with a COORD issue (GitHub #68). Make the measure script print the entered rung of each run from its report. Write a Correction in T-079, and remove the wrong note from `docs/HANDOFF.md`.
+
+## Prove
+
+`sh scripts/measure-podvm-confine.sh PODVM DIR` as a uid with no user namespace prints `entered rung: userland` and `entered confined rung: userland`.
+
+## Done
+
+2026-11-12. The script prints both lines on that host, and the checks give the table of T-079 (environ, root and `env -i` reached unconfined and denied confined). GitHub #68 holds the answer; it stays open until podvm has read it.
