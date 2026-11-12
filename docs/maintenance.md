@@ -115,7 +115,8 @@ with the GitHub MCP tool `actions_run_trigger`, and read the run with
 
 * The egress is an HTTPS proxy with an allowlist: GitHub, crates.io, the
   mirrors of zig and a few more. Test a live service in a live workflow.
-* The disk is limited. Remove `target/debug` when a build fails with
-  "No space left on device".
+* The disk is limited. Remove
+  `target/x86_64-unknown-linux-musl/debug/incremental` (then `target/debug`)
+  when a build fails with "No space left on device".
 * A cloud session starts with a shallow clone. Run
   `git fetch --unshallow origin main` before a `git log` over a range.

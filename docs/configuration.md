@@ -35,6 +35,8 @@ images = "/var/lib/podrunner/images"  # podvm: a podvm store with the pinned ima
 registries = ["ghcr.io"]     # container: hooks: the registry hosts of job containers; none: each is refused
 runner_dir = "/home/runner"  # the runner directory in the unit; absent: the path that the driver observes
 podnet = "/usr/local/bin/podnet"      # podvm: hold the egress of each unit with podnet pod (netns: enforced, else seccomp: advisory); absent: unknown
+disk_max_bytes = 10737418240          # the bytes that a unit may write under its root, measured each 30 s; over it the
+                                      # unit ends with the exit reason limit; a disk limit of the offer comes first; absent: no measure
 
 [tier.trusted]               # a floor at or above the lowest floor
 min_boundary = "confined"

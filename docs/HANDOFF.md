@@ -9,8 +9,9 @@ is done.
 ## Where podrunner stands
 
 - Pins: podcrates `v0.26.0` (`Cargo.toml`); podvm `v0.2.0-beta.4`
-  (`images/podvm.toml`, the lowest version of `probe::LOWEST`); the
-  official runner v2.338.2 (`images/runner/runner.toml`). Last beta of
+  (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
+  `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
+  (`images/runner/runner.toml`). Last beta of
   podrunner: `v0.1.0-beta.1`.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
@@ -43,8 +44,9 @@ is done.
 | podvm | the aarch64 interposer (PodUtils/podvm@T-1721) | T-051, T-030 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-actions-workflow`, `pod-actions-expr` | T-046 |
-| podcrates | `RunReport` fields and the exit reason `limit` (a direct message) | T-075 |
 | podcrates | `pod-unit`, `pod-release` | T-043 |
+| podnet | `::ffff:127.0.0.1` as loopback in the seccomp hold (GitHub #64) | T-077 |
+| podvm | the beta after `v0.2.0-beta.4`: unit labels and the run report (PodUtils/podvm#268) | T-078 |
 
 ## Talk between sessions
 
