@@ -19,9 +19,11 @@ pub struct End {
     pub outputs: Vec<(String, String)>,
 }
 
-/// Runs one job message: on the host, or in a unit.
+/// Runs one job message: on the host, or in a unit. `limit` is the
+/// `timeout-minutes` of the job: an executor that can end the job ends it
+/// there.
 pub trait Executor {
-    fn run(&mut self, job: &JobId, message: Job) -> Result<End, String>;
+    fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String>;
 }
 
 /// One line of the result of a run.
@@ -74,6 +76,9 @@ pub fn drive(source: &mut LocalSource, exec: &mut dyn Executor, out: &mut dyn Fn
         }
         for job in offers {
             let name = source.cell(&job).map(|c| c.instance.name.clone()).unwrap_or_default();
+            // `timeout-minutes` of the job: 360 by default, as on GitHub.
+            let minutes = source.cell(&job).map(|c| c.instance.timeout_minutes).unwrap_or(360.0);
+            let limit = Duration::from_secs_f64((minutes.max(0.0) * 60.0).min(360.0 * 60.0 * 24.0));
             source.ack(&job).map_err(|e| e.to_string())?;
             source.claim(&job, RUNNER).map_err(|e| e.to_string())?;
             let (end, line) = match source.broker_job(&job) {
@@ -81,7 +86,7 @@ pub fn drive(source: &mut LocalSource, exec: &mut dyn Executor, out: &mut dyn Fn
                     End { result: JobResult::Failure, outputs: vec![] },
                     Line::Refused { job: job.clone(), name, reason },
                 ),
-                Ok(message) => match exec.run(&job, message) {
+                Ok(message) => match exec.run(&job, message, limit) {
                     Ok(end) => {
                         let line = Line::Ran { job: job.clone(), name, result: end.result };
                         (end, line)

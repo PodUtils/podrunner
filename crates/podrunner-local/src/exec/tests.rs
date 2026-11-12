@@ -32,12 +32,38 @@ fn a_unit_with_no_result_fails_its_job_and_is_destroyed() {
     exec.grace = Duration::ZERO;
     let job = JobId::new("a.0").unwrap();
     for n in 1..=2 {
-        let e = exec.run(&job, Job::scripts("a", &["true"])).unwrap_err();
+        let e = exec.run(&job, Job::scripts("a", &["true"]), Duration::from_secs(60)).unwrap_err();
         assert!(e.contains(&format!("u-{n}")) && e.contains("no result"), "{e}");
     }
     let unit = podrunner_schema::UnitId::parse("u-1").unwrap();
     assert!(driver.destroy(&unit).unwrap().is_clean(), "destroyed before");
     assert_eq!(exec.logs.len(), 2);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A unit that runs past the limit of its job is ended, and its log is kept.
+#[test]
+fn a_unit_past_its_limit_is_ended() {
+    let dir = std::env::temp_dir().join(format!("podrunner-local-limit-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let driver: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir, capability(), "linux/amd64"));
+    let image = driver.prepare(&format!("img@sha256:{}", "a".repeat(64)), "linux/amd64", false).unwrap();
+    let mut exec = InUnit::new(driver.clone(), image);
+    // A runner that hangs.
+    let hang = dir.with_extension("sh");
+    std::fs::write(&hang, "#!/bin/sh\nexec sleep 30\n").unwrap();
+    std::fs::set_permissions(&hang, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    exec.run_sh = hang.to_str().unwrap().into();
+    exec.grace = Duration::ZERO;
+    let t = std::time::Instant::now();
+    let e = exec.run(&JobId::new("a.0").unwrap(), Job::scripts("a", &["true"]), Duration::from_millis(300));
+    let e = e.unwrap_err();
+    assert!(e.contains("timeout-minutes"), "{e}");
+    assert!(t.elapsed() < Duration::from_secs(20), "{:?}", t.elapsed());
+    assert_eq!(exec.logs.len(), 1);
+    let unit = podrunner_schema::UnitId::parse("u-1").unwrap();
+    assert!(driver.destroy(&unit).unwrap().is_clean());
+    let _ = std::fs::remove_file(&hang);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -51,7 +77,7 @@ fn a_runner_directory_refuses_a_job_with_containers() {
     let mut job = Job::scripts("a", &["true"]);
     assert!(!needs_containers(&job));
     job.overrides.insert("jobContainer".into(), serde_json::json!("alpine@sha256:00"));
-    let e = exec.run(&JobId::new("a.0").unwrap(), job).unwrap_err();
+    let e = exec.run(&JobId::new("a.0").unwrap(), job, Duration::from_secs(60)).unwrap_err();
     assert!(e.contains("--podvm"), "{e}");
     let mut docker = Job::scripts("a", &["true"]);
     docker.overrides.insert("steps".into(), serde_json::json!([{ "reference": { "type": "containerRegistry" } }]));

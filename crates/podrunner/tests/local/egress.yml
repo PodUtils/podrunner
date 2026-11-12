@@ -6,6 +6,8 @@ on: push
 jobs:
   denied:
     runs-on: local
+    # A hung step ends here, with its log.
+    timeout-minutes: 4
     steps:
       - run: |
           if curl -s --max-time 15 -o /dev/null https://example.com/; then

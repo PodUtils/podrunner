@@ -33,10 +33,6 @@ impl RunnerDir {
     }
 }
 
-/// The time limit of a job in a unit when the job names none: the 360
-/// minutes of GitHub.
-const UNIT_WAIT: Duration = Duration::from_secs(360 * 60);
-
 /// Each job in a fresh unit of a driver (T-090): the runner image, the
 /// runner files of the fake broker for the job (mode 0600, no argv, no
 /// environment), `run.sh` as the top process, then `destroy`. A unit with
@@ -179,7 +175,7 @@ impl InUnit {
 }
 
 impl Executor for InUnit {
-    fn run(&mut self, job: &JobId, message: Job) -> Result<End, String> {
+    fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
         use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
         if let Some(dir) = &self.actions {
@@ -220,7 +216,7 @@ impl Executor for InUnit {
         };
         if let (Some((egress, policy)), Some(dir)) = (&self.egress, &sockets) {
             let socket = dir.join(podrunner_unit::EGRESS_SOCKET);
-            if let Err(e) = egress.open(id.as_str(), policy, &socket, UNIT_WAIT) {
+            if let Err(e) = egress.open(id.as_str(), policy, &socket, limit) {
                 end_sockets(&sockets);
                 return Err(format!("the egress of {id}: {e}"));
             }
@@ -251,7 +247,9 @@ impl Executor for InUnit {
             end_sockets(&sockets);
             return Err(e);
         }
-        let waited = self.driver.wait(&id, UNIT_WAIT);
+        let waited = self.driver.wait(&id, limit);
+        // Still running at the limit: end the unit (destroy below).
+        let timed_out = matches!(waited, Ok(None));
         let t = Instant::now();
         while broker.completions().is_empty() && t.elapsed() < self.grace {
             std::thread::sleep(Duration::from_millis(50));
@@ -266,6 +264,9 @@ impl Executor for InUnit {
         }
         self.logs.push((job.clone(), log));
         let exit = waited.map_err(|e| format!("wait {id}: {e}"))?;
+        if timed_out {
+            return Err(format!("the job ran past its timeout-minutes ({} s); unit {id} was ended", limit.as_secs()));
+        }
         if !residue.is_clean() {
             return Err(format!("unit {id} left residue: {residue:?}"));
         }
@@ -289,7 +290,7 @@ pub fn needs_containers(message: &Job) -> bool {
 }
 
 impl Executor for RunnerDir {
-    fn run(&mut self, job: &JobId, message: Job) -> Result<End, String> {
+    fn run(&mut self, job: &JobId, message: Job, _limit: Duration) -> Result<End, String> {
         if needs_containers(&message) {
             return Err("the job needs containers: run it in a unit (--podvm), not on a runner directory".into());
         }

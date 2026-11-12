@@ -46,10 +46,12 @@ is done.
 
 - The local mode (T-046, `podrunner run`, `docs/cli.md`): T-087 to T-094
   are done (runner-image run 43227187267: the local suite and the
-  containers suite in podvm units). T-095 (`--podnet`) waits for its next
-  `runner-image.yml` run, with podnet `v0.4.0-beta.6` and no IPv6
-  workaround (T-077). T-096 (`tar -C` in a podvm unit)
-  reads its measure in the same run. Q4 (T-098) waits for the owner.
+  containers suite in podvm units). T-095 (`--podnet`): the held run
+  passed with podnet beta.3 and the IPv6 workaround, and hung with beta.6
+  and no workaround (T-077). A unit now ends at the `timeout-minutes` of
+  its job with its log; read that log in the next `runner-image.yml` run.
+  T-096: each tar form passed in `/tmp`; the next run measures the
+  workspace path. Q4 (T-098) waits for the owner.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs

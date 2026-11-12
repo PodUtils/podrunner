@@ -27,8 +27,8 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-095 (M, partial): `podrunner run --podvm --podnet`, the egress of each unit through the egress module; read the next `runner-image.yml` run; it closes T-046 with the seccomp hold.
-2. T-096 (S, partial): read the `tar` measure of the same run, and send the smallest failing form to podcrates (PodUtils/podcrates@T-328).
+1. T-095 (M, partial): `podrunner run --podvm --podnet`, the egress of each unit through the egress module; with beta.6 the held run hangs; read the log of the job that ends at its `timeout-minutes` in the next `runner-image.yml` run; it closes T-046 with the seccomp hold.
+2. T-096 (S, partial): each form passed in `/tmp`; read the measure under the workspace path in the next run, and send the smallest failing form to podcrates (PodUtils/podcrates@T-328).
 3. T-077 (S, partial): podnet `v0.4.0-beta.6` takes `::ffff:127.0.0.1` as loopback; read the held runs of the same run (no IPv6 workaround).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).

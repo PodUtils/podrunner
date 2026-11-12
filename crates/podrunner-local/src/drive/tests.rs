@@ -16,7 +16,7 @@ struct Scripted {
 }
 
 impl Executor for Scripted {
-    fn run(&mut self, job: &JobId, message: Job) -> Result<End, String> {
+    fn run(&mut self, job: &JobId, message: Job, _limit: std::time::Duration) -> Result<End, String> {
         self.ran.push(job.to_string());
         let steps = message.overrides["steps"].as_array().unwrap().len();
         assert!(steps > 0);

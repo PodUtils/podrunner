@@ -1203,7 +1203,7 @@ When podnet fixes it, also remove `DOTNET_SYSTEM_NET_DISABLEIPV6` from the held 
 
 ## Done
 
-Partial, 2026-11-12. podnet fixed it in `e78bde974` (PodUtils/podnet@T-255: "the seccomp connect takes an IPv4-mapped loopback address (::ffff:127.0.0.1) as loopback"), in its releases `v0.4.0-beta.5` and `v0.4.0-beta.6` (read through podcrates: the title of the commit and the compare to each tag). `images/podnet.toml` pins `v0.4.0-beta.6` (the SHA-256 of each binary agrees with the digest of its release asset); `held.rs` and the held units of `podrunner run --podnet` drop `DOTNET_SYSTEM_NET_DISABLEIPV6`. Open: the held run of `runner-image.yml` with it.
+Partial, 2026-11-12. podnet fixed it in `e78bde974` (PodUtils/podnet@T-255: "the seccomp connect takes an IPv4-mapped loopback address (::ffff:127.0.0.1) as loopback"), in its releases `v0.4.0-beta.5` and `v0.4.0-beta.6` (read through podcrates: the title of the commit and the compare to each tag). `images/podnet.toml` pins `v0.4.0-beta.6` (the SHA-256 of each binary agrees with the digest of its release asset); `held.rs` and the held units of `podrunner run --podnet` drop `DOTNET_SYSTEM_NET_DISABLEIPV6`. Run 43232215654 of `1f1d349`: the held egress run of `podrunner run --podnet` (T-095) hung with no line, so the held test did not run. The same run with beta.3 and the variable passed (run 43230901394). Open: the log of the hung job (T-095 now ends it at its `timeout-minutes`), then the held run of `runner-image.yml` with no variable.
 
 # T-078: The podvm driver labels each unit and reads the run report of podvm
 
@@ -1522,3 +1522,5 @@ A measure in `runner-image.yml` (added 2026-11-12), in the runner image: `tar -c
 ## Prove
 
 The measure lines of `runner-image.yml` name which form fails; the COORD issue cites them.
+
+Run 43230901394 (x86_64): in `/tmp` of a plain `podvm run` unit, each of the five forms passed (`-C`, `-C -z`, `cd`, `cd` with `gzip -dc`, `cd -z`). The failure is not in tar alone. The measure now also runs each form under `/home/runner/_work/app`, the path of the failed step, with an absolute `-C`.
