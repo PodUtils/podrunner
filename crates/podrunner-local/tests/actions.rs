@@ -14,6 +14,9 @@ use podrunner_local::LocalSource;
 use podrunner_local::drive::{Line, drive};
 use podrunner_local::exec::RunnerDir;
 
+/// The tests share one runner directory: one at a time.
+static DIR: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 const HELLO: &str = "1111111111111111111111111111111111111111";
 const JS: &str = "2222222222222222222222222222222222222222";
 
@@ -71,6 +74,7 @@ fs.appendFileSync(process.env.GITHUB_OUTPUT, `js=node-${n * 7}\n`);
 #[test]
 #[ignore]
 fn the_runner_takes_actions_from_the_archive_directory() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
     let runner = PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
     let dir = std::env::temp_dir().join(format!("podrunner-actions-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -109,6 +113,7 @@ runs:
 #[test]
 #[ignore]
 fn the_checkout_stand_in_gives_the_local_tree_and_its_actions() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
     let runner = PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
     let dir = std::env::temp_dir().join(format!("podrunner-checkout-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);

@@ -198,11 +198,13 @@ struct RunDefaults<'a> {
 /// One step as the runner reads it: a script action.
 /// The stand-in of `actions/checkout` in the local mode (T-092): the
 /// tarball of the local tree from the fake broker (`github.api_url` names
-/// it) into the workspace, or into `path` in it.
+/// it) into the workspace, or into `path` in it. No `tar -C` and no
+/// `tar -z`: in a podvm unit GNU `tar -C DIR` failed to open an existing
+/// DIR (T-093).
 fn checkout_script(path: &str) -> String {
     let dest = if path.is_empty() { "$GITHUB_WORKSPACE".to_string() } else { format!("$GITHUB_WORKSPACE/{path}") };
     format!(
-        "set -eu\nmkdir -p \"{dest}\"\ncurl -fsSL \"${{{{ github.api_url }}}}{}\" | tar -xz -C \"{dest}\"",
+        "set -eu\nmkdir -p \"{dest}\"\ncd \"{dest}\"\ncurl -fsSL \"${{{{ github.api_url }}}}{}\" | gzip -dc | tar -xf -",
         podrunner_broker_fake::actions::CHECKOUT
     )
 }

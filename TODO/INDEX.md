@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**93 entries: 0 open, 5 partial, 12 blocked, 76 done.**
+**95 entries: 2 open, 4 partial, 12 blocked, 77 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
 | P2 | 0 | 1 | 9 | 33 | 43 |
-| P3 | 0 | 3 | 3 | 14 | 20 |
-| **All** | 0 | 5 | 12 | 76 | 93 |
+| P3 | 2 | 2 | 3 | 15 | 22 |
+| **All** | 2 | 4 | 12 | 77 | 95 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -137,7 +137,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-087](later.md) | P3 | M | later | feature | done | The local source: a workflow file into job offers and job results |
 | [T-088](later.md) | P3 | M | later | feature | done | A workflow job into the job message of the fake broker |
 | [T-089](later.md) | P3 | M | later | feature | done | podrunner run workflow.yml: the local mode end to end |
-| [T-090](later.md) | P3 | M | later | feature | partial | podrunner run: each job of the local mode in a fresh podvm unit |
+| [T-090](later.md) | P3 | M | later | feature | done | podrunner run: each job of the local mode in a fresh podvm unit |
 | [T-091](later.md) | P3 | M | later | feature | done | Actions (uses:) in the local mode |
 | [T-092](later.md) | P3 | M | later | feature | done | The checkout of the local tree and ./ actions in the local mode |
 | [T-093](later.md) | P3 | M | later | feature | partial | Docker actions in the local mode |
+| [T-094](later.md) | P3 | S | later | chore | open | The local source owns its workflow: drop the leak (podcrates v0.31.0) |
+| [T-095](later.md) | P3 | M | later | feature | open | podrunner run --podvm: the egress of each unit through the egress module |
