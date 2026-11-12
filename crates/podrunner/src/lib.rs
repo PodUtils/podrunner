@@ -10,5 +10,6 @@ pub mod image;
 pub mod lock;
 pub mod mint_serve;
 pub mod notify;
+pub mod podvm_kind;
 pub mod serve;
 pub mod text;

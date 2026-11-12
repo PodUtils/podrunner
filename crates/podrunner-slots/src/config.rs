@@ -121,6 +121,11 @@ pub struct UnitConfig {
     /// measure.
     #[serde(default)]
     pub disk_max_bytes: Option<u64>,
+    /// `podvm`: run each unit and container under the confine layer of
+    /// podvm (`--podvm-confine`, T-079). The kind says `confined` only
+    /// after its self-test on this host.
+    #[serde(default)]
+    pub confine: bool,
 }
 
 fn run_sh() -> Vec<String> {

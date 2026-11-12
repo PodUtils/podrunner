@@ -33,8 +33,17 @@ fn the_runner_in_a_podvm_unit_runs_a_canned_job() {
     let state = std::env::temp_dir().join(format!("podrunner-podvm-runner-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&state);
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
-    let unit = PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
+    let mut unit = PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
     let image = env("PODRUNNER_RUNNER_IMAGE");
+    // T-079: with PODRUNNER_PODVM_CONFINE=1 the runner runs under the
+    // confine layer of podvm, proven first.
+    if std::env::var_os("PODRUNNER_PODVM_CONFINE").is_some() {
+        unit = unit.with_confine();
+        assert!(
+            unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap(),
+            "the confine layer is not proven"
+        );
+    }
     let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let prepared = unit.prepare(&image, platform, false).unwrap();
 
@@ -94,8 +103,14 @@ fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
     let state = std::env::temp_dir().join(format!("podrunner-podvm-hooks-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&state);
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
-    let unit: Arc<dyn UnitDriver> =
-        Arc::new(PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap());
+    let mut podvm_unit = PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
+    // T-079: the unit and each container under the confine layer.
+    if std::env::var_os("PODRUNNER_PODVM_CONFINE").is_some() {
+        podvm_unit = podvm_unit.with_confine();
+        let image = env("PODRUNNER_RUNNER_IMAGE");
+        assert!(podvm_unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap(), "not proven");
+    }
+    let unit: Arc<dyn UnitDriver> = Arc::new(podvm_unit);
     let guest = unit.socket_mount().expect("podvm on the supervise rung").to_string();
     let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let prepared = unit.prepare(&env("PODRUNNER_RUNNER_IMAGE"), platform, false).unwrap();

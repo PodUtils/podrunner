@@ -157,6 +157,10 @@ jobs:
           timeout 600 cargo test -p podrunner-broker-fake --test held -- --ignored --nocapture
           # T-061: an absolute link resolves in the rootfs of the unit.
           timeout 300 cargo test -p podrunner-podvm --test links -- --ignored --nocapture
+          # T-079: the same under the confine layer of podvm, proven first.
+          PODRUNNER_PODVM_CONFINE=1 timeout 600 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
+          PODRUNNER_PODVM_CONFINE=1 cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture
+          sh scripts/measure-podvm-confine.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/confine"
           # T-078: the labels and the run report of podvm.
           timeout 300 cargo test -p podrunner-podvm --test report -- --ignored --nocapture
           # T-062: a step through exec cannot write the externals (:ro).

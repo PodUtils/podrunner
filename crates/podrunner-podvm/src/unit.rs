@@ -26,6 +26,7 @@ use podrunner_unit::{
 
 use crate::Podvm;
 
+mod confine;
 mod containers;
 mod hold;
 mod labels;
@@ -67,6 +68,8 @@ pub struct PodvmUnit {
     /// The `podnet` binary of the hold (T-065), else no hold.
     /// With the backend of `podnet pod` (`netns` or `seccomp`).
     podnet: Option<(PathBuf, &'static str)>,
+    /// The confine layer of podvm on each `run -d` (T-079).
+    confine: bool,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -89,6 +92,7 @@ impl PodvmUnit {
             runner_dir: "/home/runner".into(),
             containers: std::sync::atomic::AtomicU64::new(0),
             podnet: None,
+            confine: false,
         })
     }
 
@@ -230,6 +234,8 @@ impl UnitDriver for PodvmUnit {
             ["run", "-d", "--name", spec.unit.as_str(), "-w", WORKDIR].map(String::from).to_vec();
         args.extend(labels::label_args(spec.unit.as_str()));
         args.extend(["--report".into(), dir.join(labels::REPORT).display().to_string()]);
+        let guest = spec.sockets.as_ref().and(self.socket_mount());
+        args.extend(self.confine_args(&rootfs, guest));
         let mut env = spec.env.clone();
         env.insert("PODRUNNER_UNIT".into(), spec.unit.to_string());
         env.insert(TAG_VAR.into(), tag.clone());

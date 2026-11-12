@@ -92,6 +92,7 @@ impl PodvmUnit {
             let ro = if m.read_only { ":ro" } else { "" };
             args.extend(["-v".into(), format!("{}:{}{ro}", source.display(), m.target)]);
         }
+        args.extend(self.container_confine_args(&spec.mounts));
         args.push(spec.image.clone());
         args.extend(spec.argv.iter().cloned());
         let (code, out) = self.podvm_in(&store, &args, &tag, egress.as_deref())?;

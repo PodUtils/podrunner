@@ -3,7 +3,7 @@
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
 //!   PODRUNNER_PODVM_IMAGE=busybox@sha256:HEX \
-//!   cargo test -p podrunner-podvm --test conformance -- --ignored
+//!   [PODRUNNER_PODVM_CONFINE=1] cargo test -p podrunner-podvm --test conformance -- --ignored
 //!
 //! STORE is a podvm store that holds the image (`podvm pull`).
 
@@ -89,6 +89,16 @@ fn the_podvm_unit_passes_its_tests() {
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
     let mut unit = PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
     let image = env("PODRUNNER_PODVM_IMAGE");
+    // T-079: with PODRUNNER_PODVM_CONFINE=1 each unit runs under the
+    // confine layer of podvm, proven first; test 27 then runs too.
+    if std::env::var_os("PODRUNNER_PODVM_CONFINE").is_some() {
+        unit = unit.with_confine();
+        assert!(
+            unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap(),
+            "the confine layer is not proven"
+        );
+        assert_eq!(unit.probe().unwrap().boundary, podrunner_schema::Boundary::Confined);
+    }
     // The self-test of the tree kill; test 17 then holds the claim to test 3.
     assert!(unit.verify_tree_kill(&image, UnitId::parse("u-999").unwrap()).unwrap(), "the tree kill is not proven");
     assert_eq!(unit.probe().unwrap().tree_kill, podrunner_schema::TreeKill::Verified);
