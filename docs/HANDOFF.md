@@ -12,7 +12,7 @@ is done.
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 82 entries, 0 open, 4 partial, 12 blocked, 66 done
+- The record: 82 entries, 0 open, 3 partial, 12 blocked, 67 done
   (`cargo todo check`). `main` is green: gate, level2 and runner-image.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
@@ -35,14 +35,15 @@ is done.
   after its self-test on the host (T-042, T-079). The layer denies the
   `/proc` paths of residual R2 and `env -i`, so tests 25 and 26 skip on a
   confined podvm unit (T-080).
+- A musl build of the official runner (`scripts/runner-musl.sh`,
+  `runner-musl.yml`) runs the canned jobs in Alpine on x86_64 and
+  aarch64, and in a podvm unit on x86_64 (T-081). podvm-aarch64 beta.5
+  declines it: it has no musl interposer object either (T-051).
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
 ## In flight
 
-- T-081 (partial): `scripts/runner-musl.sh` builds a musl layout of the
-  runner; `.github/workflows/runner-musl.yml` runs it in Alpine and in a
-  podvm unit. Read its last run, then close T-081 or write each failure.
 - T-082 (partial): the job `audit` of `runner-image.yml` holds the
   advisories of the runner to `images/runner/advisories.txt`. Read its
   run.

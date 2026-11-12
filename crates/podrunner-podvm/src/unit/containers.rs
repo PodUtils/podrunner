@@ -147,10 +147,19 @@ impl PodvmUnit {
     }
 }
 
-/// The last line of an output, cut to 200 characters (no credential is
-/// in the output of podvm: the credential goes in files).
+/// The last line of an output, cut to `LINE` characters with a mark (no
+/// credential is in the output of podvm: the credential goes in files).
+/// A refusal of podvm gives its reason at the end of a long line.
 pub(super) fn last_line(out: &[u8]) -> String {
-    String::from_utf8_lossy(out).lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").chars().take(200).collect()
+    const LINE: usize = 600;
+    let text = String::from_utf8_lossy(out);
+    let line = text.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("");
+    if line.chars().count() <= LINE {
+        return line.to_string();
+    }
+    let mut cut: String = line.chars().take(LINE).collect();
+    cut.push_str(" [cut]");
+    cut
 }
 
 /// The state in the output of `podvm inspect`: `State` and `ExitCode`.
@@ -178,5 +187,18 @@ mod tests {
         let done = br#"[{"Name":"u-1-c0","State":"exited","ExitCode":"3"}]"#;
         assert_eq!(state_of(done).unwrap(), ContainerState { running: false, exit: Some(Exit::Code(3)) });
         assert!(state_of(b"no json").is_err());
+    }
+
+    /// A refusal of podvm keeps its reason; a longer line shows its cut.
+    #[test]
+    fn the_last_line_keeps_the_reason_of_podvm() {
+        let refusal = "podvm run: chroot(2) is denied on this machine, and no no-chroot family runs this payload: \
+                       the loader family declines the payload: this podvm binary carries no musl interposer object, \
+                       so the tier is declined; use a podvm build with the musl interposer or a host that allows chroot";
+        let out = format!("Extracted\n{refusal}\n\n");
+        assert_eq!(last_line(out.as_bytes()), refusal);
+        let long = "x".repeat(5000);
+        let cut = last_line(long.as_bytes());
+        assert!(cut.ends_with(" [cut]") && cut.len() < 1000, "{}", cut.len());
     }
 }

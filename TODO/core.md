@@ -601,7 +601,7 @@ The aarch64 job of `.github/workflows/runner-image.yml` starts `/bin/sh` of the 
 
 ## Blocker
 
-podvm answered in PodUtils/podvm#252 (COORD-033): the interposer of the supervise rung is x86_64 only by design; `main` now embeds no object of another machine, so `podvm-aarch64` names the missing object. The aarch64 port is PodUtils/podvm@T-1721 (P2, after the current work order of podvm). Until it is released, an arm64 host of podrunner needs the namespace rung (a user namespace) or another unit kind. The aarch64 job of `runner-image.yml` stays a measure; when the release carries the port, pin it and make the start a check. Measured again with podvm `v0.2.0-beta.5` (runner-image run 43159841845, aarch64): `run` of the runner image is declined ("this podvm binary carries no glibc interposer object").
+podvm answered in PodUtils/podvm#252 (COORD-033): the interposer of the supervise rung is x86_64 only by design; `main` now embeds no object of another machine, so `podvm-aarch64` names the missing object. The aarch64 port is PodUtils/podvm@T-1721 (P2, after the current work order of podvm). Until it is released, an arm64 host of podrunner needs the namespace rung (a user namespace) or another unit kind. The aarch64 job of `runner-image.yml` stays a measure; when the release carries the port, pin it and make the start a check. Measured again with podvm `v0.2.0-beta.5` (runner-image run 43159841845, aarch64): `run` of the runner image is declined ("this podvm binary carries no glibc interposer object"). The musl image of T-081 is declined the same way ("no musl interposer object", runner-musl run 43177355600): the port must carry the musl object of aarch64 too.
 
 
 # T-052: COORD-006: a podvm beta from main for podrunner (GitHub #53)
@@ -1316,7 +1316,7 @@ Run the escape payload under `--podvm-confine` by hand and compare the pid of th
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1336,7 +1336,13 @@ Build `actions/runner` v2.338.2 for `linux-musl-x64` in a CI job (its `dev.sh` t
 
 ## Done
 
-Partial, 2026-11-12. `scripts/runner-musl.sh` patches the tag (dev.sh, the define of the architecture, the runtime ids of 8 projects, the musl node of the externals) and refuses a tree where a patch finds no match, and a layout whose `Runner.Listener` does not link the musl loader (it refused a glibc layout once). In this sandbox: the x64 layout links `/lib/ld-musl-x86_64.so.1` (684 MB, node 20 and 24 of `actions/alpine_nodejs`); both tests of `tests/runner.rs` pass in an Alpine 3.22 chroot with no glibc loader (2 passed). The arm64 layout cross-builds and links `/lib/ld-musl-aarch64.so.1` (node of unofficial-builds.nodejs.org); not run. The NuGet audit of the tag fails on GHSA-x33c-w48q-qrgc: T-082. Open: the run of `runner-musl.yml` (Alpine and the podvm unit, on x86_64 and aarch64).
+2026-11-12, `a5f4780`; runner-musl run 43177355600 is green on both targets. `scripts/runner-musl.sh` patches the tag (dev.sh, the define of the architecture, the runtime ids of 8 projects, the musl node of the externals) and refuses a tree where a patch finds no match and a layout whose `Runner.Listener` does not link the musl loader (it refused a glibc layout once). Results:
+
+- x86_64: the layout links `/lib/ld-musl-x86_64.so.1` (684 MB; node 20 and 24 of `actions/alpine_nodejs`). Both tests of `tests/runner.rs` pass in Alpine 3.22 with no glibc loader (2 passed, also in a chroot of this sandbox). The image of `images/runner/Dockerfile.musl` (137 MB archive) runs the canned job of `tests/podvm.rs` in a podvm `v0.2.0-beta.5` unit on the supervise rung with no root (1 passed).
+- aarch64: the layout links `/lib/ld-musl-aarch64.so.1` (node of unofficial-builds.nodejs.org). Both tests of `tests/runner.rs` pass in Alpine (2 passed). podvm-aarch64 `v0.2.0-beta.5` declines the musl image as it declines the glibc one: "this podvm binary carries no musl interposer object". A musl runner does not free T-051 from PodUtils/podvm@T-1721; the port must carry the musl object of aarch64 too.
+- The cut of the error of podvm at 200 characters hid that reason: `last_line` now keeps 600 characters and marks a cut (`the_last_line_keeps_the_reason_of_podvm`, which fails on the old code).
+
+The image of the units stays glibc: no ruling asks for a change. The NuGet audit of the tag: T-082.
 
 # T-082: The official runner v2.338.2 carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc)
 
