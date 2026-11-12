@@ -1,8 +1,8 @@
-//! The root of a running podvm unit (T-067). podvm `v0.2.0-beta.3` ran a
-//! unit in the rootfs that `podvm extract` names. From beta.4 podvm copies the
-//! image into a tree for each container at `run` (PodUtils/podvm@T-1709)
-//! and names it in `podvm inspect --format '{{.RootfsPath}}'`; the runner
-//! then writes in that tree. The driver takes the tree that `inspect`
+//! The root of a running podvm unit (T-067). podvm copies the image into a
+//! tree for each container at `run` (PodUtils/podvm@T-1709) and names it in
+//! `podvm inspect --format '{{.RootfsPath}}'`; the runner writes in that
+//! tree. When `inspect` names no tree, the root is the rootfs that
+//! `podvm extract` names. The driver takes the tree that `inspect`
 //! names, so `observe` and the volume sources of the hooks follow the
 //! unit. The copy takes the credential files written before `run`.
 
@@ -89,7 +89,7 @@ mod tests {
         let base = std::env::temp_dir().join(format!("podrunner-rootfs-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let extracted = tree(&base, "extracted", Some(0o600));
-        // beta.3: no other tree; the extracted rootfs.
+        // `inspect` names no tree: the extracted rootfs.
         assert_eq!(root_of_unit(&extracted, None, &[".runner"]).unwrap(), extracted);
         // A tree for each container: the driver follows it.
         let copy = tree(&base, "copy", Some(0o600));

@@ -3,8 +3,7 @@
 //! -x http://unix:EGRESS`, so that each TCP connect of the unit goes to its
 //! egress socket. The payload is held for its whole life after `podnet
 //! pod` returns; an `exec` is held only under a `podnet pod` of its own
-//! (`scripts/measure-podnet-pod.sh`, podvm `v0.2.0-beta.3`, podnet
-//! `v0.4.0-beta.3`).
+//! (`scripts/measure-podnet-pod.sh`).
 //!
 //! - `netns` (`enforced`): a new network namespace whose only route is the
 //!   socket. It needs user namespaces and `/dev/net/tun`. A direct connect

@@ -241,8 +241,8 @@ impl UnitDriver for PodvmUnit {
             args.push(format!("{}:{guest}", dir.display()));
         }
         args.push(reference.clone());
-        // podvm v0.2.0-beta.3 and later give each exit code in `podvm wait`
-        // (PodUtils/podvm@T-1720), so the payload runs as it is.
+        // `podvm wait` gives each exit code (PodUtils/podvm@T-1720), so the
+        // payload runs as it is.
         args.extend(spec.argv.iter().cloned());
         let argv: Vec<&str> = args.iter().map(String::as_str).collect();
         let egress = self.egress_of(spec)?;
