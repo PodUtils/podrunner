@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**97 entries: 2 open, 5 partial, 12 blocked, 78 done.**
+**97 entries: 1 open, 6 partial, 12 blocked, 78 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
 | P2 | 0 | 1 | 9 | 33 | 43 |
-| P3 | 2 | 3 | 3 | 16 | 24 |
-| **All** | 2 | 5 | 12 | 78 | 97 |
+| P3 | 1 | 4 | 3 | 16 | 24 |
+| **All** | 1 | 6 | 12 | 78 | 97 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -142,6 +142,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-092](later.md) | P3 | M | later | feature | done | The checkout of the local tree and ./ actions in the local mode |
 | [T-093](later.md) | P3 | M | later | feature | partial | Docker actions in the local mode |
 | [T-094](later.md) | P3 | S | later | chore | done | The local source owns its workflow: drop the leak (podcrates v0.31.0) |
-| [T-095](later.md) | P3 | M | later | feature | open | podrunner run --podvm: the egress of each unit through the egress module |
+| [T-095](later.md) | P3 | M | later | feature | partial | podrunner run --podvm: the egress of each unit through the egress module |
 | [T-096](core.md) | P3 | S | later | defect | partial | GNU tar -C DIR fails in a podvm unit after mkdir -p DIR |
 | [T-097](later.md) | P3 | S | later | chore | open | Build the format() token from Template::parts() (PodUtils/podcrates@T-322) |

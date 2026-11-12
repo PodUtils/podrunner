@@ -184,6 +184,16 @@ jobs:
           timeout 1200 cargo run -q -p podrunner -- run "$RUNNER_TEMP/containers.yml" \
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/containers.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/containers.txt")" = 2
+          # T-095: the egress of a held unit: no host but the ones of --allow.
+          # The plant: with no hold the same step reaches the host and fails.
+          run_egress() {
+            timeout 600 cargo run -q -p podrunner -- run crates/podrunner/tests/local/egress.yml \
+              --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" "$@" || true
+          }
+          run_egress --podnet "$PODRUNNER_PODNET" | tee "$RUNNER_TEMP/egress.txt"
+          grep -qx 'ok      denied' "$RUNNER_TEMP/egress.txt"
+          run_egress | tee "$RUNNER_TEMP/egress-plant.txt"
+          grep -q '^failure denied' "$RUNNER_TEMP/egress-plant.txt"
           # T-096: a measure of tar in a unit of the runner image; each
           # form prints one line.
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" /bin/bash -c '

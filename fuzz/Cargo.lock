@@ -951,6 +951,7 @@ dependencies = [
  "pod-actions-expr",
  "pod-actions-workflow",
  "podrunner-broker-fake",
+ "podrunner-egress",
  "podrunner-hook",
  "podrunner-schema",
  "podrunner-source",

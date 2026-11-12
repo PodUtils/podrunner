@@ -1,0 +1,15 @@
+# The egress of the local mode (T-095): with `podrunner run --podvm
+# --podnet`, a step reaches no host that `--allow` does not name. With no
+# hold the same run fails on a host with a network: the check sees.
+name: podrunner local egress
+on: push
+jobs:
+  denied:
+    runs-on: local
+    steps:
+      - run: |
+          if curl -s --max-time 15 -o /dev/null https://example.com/; then
+            echo "reached example.com"
+            exit 1
+          fi
+          echo "refused-$((6*7))"

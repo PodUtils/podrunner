@@ -53,6 +53,9 @@ pub struct InUnit {
     pub actions: Option<PathBuf>,
     /// The tarball of the local tree for `actions/checkout` (T-092).
     pub checkout: Option<PathBuf>,
+    /// The egress of a held unit (T-095): the egress module and the
+    /// policy of each unit (`broker-policy.v1`).
+    pub egress: Option<(std::sync::Arc<podrunner_egress::Egress>, String)>,
     next: u64,
     pub logs: Vec<(JobId, String)>,
 }
@@ -66,6 +69,7 @@ impl InUnit {
             grace: Duration::from_secs(5),
             actions: None,
             checkout: None,
+            egress: None,
             next: 0,
             logs: Vec::new(),
         }
@@ -89,10 +93,7 @@ impl Hooks {
         // The server checks its flag at each connection: wake it.
         let _ = std::os::unix::net::UnixStream::connect(self.dir.join("ctl.sock"));
         let _ = self.thread.join();
-        let refusals =
-            self.unit.lock().map(|u| u.refusals.iter().map(|r| format!("{r:?}")).collect()).unwrap_or_default();
-        let _ = std::fs::remove_dir_all(&self.dir);
-        refusals
+        self.unit.lock().map(|u| u.refusals.iter().map(|r| format!("{r:?}")).collect()).unwrap_or_default()
     }
 }
 
@@ -139,15 +140,14 @@ fn registries(message: &Job) -> Vec<String> {
 }
 
 impl InUnit {
-    fn hooks(&self, id: &podrunner_schema::UnitId, message: &Job) -> Result<Hooks, String> {
+    fn hooks(&self, dir: &std::path::Path, message: &Job, id: &podrunner_schema::UnitId) -> Result<Hooks, String> {
         use podrunner_hook::policy::Policy;
         use podrunner_hook::server::{Unit, bind, serve_until};
         use std::os::unix::fs::PermissionsExt;
         let Some(guest) = self.driver.socket_mount().map(str::to_string) else {
             return Err("the job needs containers, and this unit kind has no container hooks".into());
         };
-        let dir = std::env::temp_dir().join(format!("podrunner-local-hooks-{}-{id}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        let dir = dir.to_path_buf();
         std::fs::create_dir_all(dir.join("logs")).map_err(|e| format!("{}: {e}", dir.display()))?;
         let relay = dir.join("podrunner-hook.sh");
         std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| format!("the relay: {e}"))?;
@@ -201,20 +201,54 @@ impl Executor for InUnit {
         .into_iter()
         .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
         .collect();
-        let hooks = if needs_containers(&message_copy) { Some(self.hooks(&id, &message_copy)?) } else { None };
+        // One socket directory for each unit: the container hooks and the
+        // egress socket of the hold (T-095).
+        let containers = needs_containers(&message_copy);
+        let sockets = (containers || self.egress.is_some())
+            .then(|| std::env::temp_dir().join(format!("podrunner-local-unit-{}-{id}", std::process::id())));
+        if let Some(dir) = &sockets {
+            let _ = std::fs::remove_dir_all(dir);
+            std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        }
+        let end_sockets = |sockets: &Option<PathBuf>| {
+            if let Some((egress, _)) = &self.egress {
+                egress.close(id.as_str());
+            }
+            if let Some(dir) = sockets {
+                let _ = std::fs::remove_dir_all(dir);
+            }
+        };
+        if let (Some((egress, policy)), Some(dir)) = (&self.egress, &sockets) {
+            let socket = dir.join(podrunner_unit::EGRESS_SOCKET);
+            if let Err(e) = egress.open(id.as_str(), policy, &socket, UNIT_WAIT) {
+                end_sockets(&sockets);
+                return Err(format!("the egress of {id}: {e}"));
+            }
+        }
+        let hooks = match (containers, &sockets) {
+            (true, Some(dir)) => match self.hooks(dir, &message_copy, &id) {
+                Ok(h) => Some(h),
+                Err(e) => {
+                    end_sockets(&sockets);
+                    return Err(e);
+                }
+            },
+            _ => None,
+        };
         let spec = podrunner_unit::StartSpec {
             unit: id.clone(),
             image: self.image.clone(),
             argv: vec![self.run_sh.clone()],
             env: hooks.as_ref().map(|h| h.env.clone()).unwrap_or_default(),
             credential: Credential { files },
-            sockets: hooks.as_ref().map(|h| h.dir.clone()),
+            sockets: sockets.clone(),
         };
         let started = self.driver.start(&spec).map_err(|e| format!("start {id}: {e}"));
         if let Err(e) = started {
             if let Some(h) = hooks {
                 h.stop();
             }
+            end_sockets(&sockets);
             return Err(e);
         }
         let waited = self.driver.wait(&id, UNIT_WAIT);
@@ -223,7 +257,9 @@ impl Executor for InUnit {
             std::thread::sleep(Duration::from_millis(50));
         }
         let refusals = hooks.map(Hooks::stop).unwrap_or_default();
-        let residue = self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"))?;
+        let residue = self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"));
+        end_sockets(&sockets);
+        let residue = residue?;
         let mut log = broker.logs();
         for r in &refusals {
             log.push_str(&format!("\npodrunner: a hook call was refused: {r}"));

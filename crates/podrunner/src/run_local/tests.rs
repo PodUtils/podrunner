@@ -20,6 +20,30 @@ fn the_options_of_run() {
     assert_eq!(a.event, "pull_request");
     assert_eq!(parse(&args(&["w.yml", "--runner-dir", "/r"])).unwrap().event, "push");
     let with = parse(&args(&["w.yml", "--runner-dir", "/r", "--actions", "/a"])).unwrap();
+    let held = parse(&args(&[
+        "w.yml",
+        "--podvm",
+        "/p",
+        "--images",
+        "/s",
+        "--image",
+        "r@sha256:00",
+        "--podnet",
+        "/n",
+        "--allow",
+        "a.example",
+        "--allow",
+        "b.example",
+    ]))
+    .unwrap();
+    assert_eq!((held.podnet.as_deref(), held.allow.len()), (Some(std::path::Path::new("/n")), 2));
+    assert!(parse(&args(&["w.yml", "--runner-dir", "/r", "--podnet", "/n"])).unwrap_err().contains("--podvm"));
+    assert!(
+        parse(&args(&["w.yml", "--podvm", "/p", "--images", "/s", "--image", "r@sha256:00", "--allow", "a"]))
+            .unwrap_err()
+            .contains("--podnet")
+    );
+    assert_eq!(policy(&["a.example".into()]), r#"{"allow":[{"host":"a.example"}],"mode":"allow","schema":1}"#);
     assert_eq!(with.actions, Some(PathBuf::from("/a")));
     let p = parse(&args(&["w.yml", "--podvm", "/p", "--images", "/s", "--image", "r@sha256:00"])).unwrap();
     assert_eq!((p.podvm.as_deref(), p.image.as_deref()), (Some(std::path::Path::new("/p")), Some("r@sha256:00")));
@@ -125,4 +149,23 @@ fn the_containers_suite_gives_its_messages() {
     let mut raw = LocalSource::new("l", &text, Base::default(), "x86_64", Box::new(|_, _| Default::default())).unwrap();
     raw.next(10, std::time::Duration::ZERO).unwrap();
     assert!(raw.broker_job(&JobId::new("in-container.0").unwrap()).unwrap_err().contains("not pinned"));
+}
+
+/// The egress workflow (T-095) gives one script job, with no container.
+#[test]
+fn the_egress_workflow_gives_one_job() {
+    use podrunner_source::{Event, JobSource};
+    let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/local/egress.yml")).unwrap();
+    let mut s = LocalSource::new("l", &text, Base::default(), "x86_64", Box::new(|_, _| Default::default())).unwrap();
+    let offers: Vec<JobId> = s
+        .next(10, std::time::Duration::ZERO)
+        .unwrap()
+        .into_iter()
+        .filter_map(|e| match e {
+            Event::Offer { offer } => Some(offer.job_id),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(offers.len(), 1);
+    assert!(!podrunner_local::exec::needs_containers(&s.broker_job(&offers[0]).unwrap()));
 }

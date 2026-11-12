@@ -16,7 +16,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--actions DIR] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -32,6 +32,8 @@ struct Args {
     image: Option<String>,
     actions: Option<PathBuf>,
     checkout: Option<PathBuf>,
+    podnet: Option<PathBuf>,
+    allow: Vec<String>,
     event: String,
     vars: Vec<(String, String)>,
     inputs: Vec<(String, String)>,
@@ -58,6 +60,8 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--image" => a.image = Some(value()?),
             "--actions" => a.actions = Some(PathBuf::from(value()?)),
             "--checkout" => a.checkout = Some(PathBuf::from(value()?)),
+            "--podnet" => a.podnet = Some(PathBuf::from(value()?)),
+            "--allow" => a.allow.push(value()?),
             "--event" => a.event = value()?,
             "--var" => a.vars.push(pair(&value()?)?),
             "--input" => a.inputs.push(pair(&value()?)?),
@@ -68,6 +72,12 @@ fn parse(args: &[String]) -> Result<Args, String> {
     }
     a.file = file.ok_or("the workflow file is necessary")?;
     let unit = [a.podvm.is_some(), a.images.is_some(), a.image.is_some()];
+    if (a.podnet.is_some() || !a.allow.is_empty()) && a.podvm.is_none() {
+        return Err("--podnet and --allow need --podvm".into());
+    }
+    if !a.allow.is_empty() && a.podnet.is_none() {
+        return Err("--allow needs --podnet".into());
+    }
     match (a.runner_dir.is_some(), unit) {
         (true, [false, false, false]) | (false, [true, true, true]) => Ok(a),
         _ => Err("one of --runner-dir DIR, or --podvm, --images and --image together, is necessary".into()),
@@ -115,6 +125,13 @@ fn tree_tarball(dir: &std::path::Path, scratch: &std::path::Path) -> Result<Path
     }
 }
 
+/// The egress policy of each unit of a held run: only the hosts of
+/// `--allow` (`broker-policy.v1`).
+fn policy(allow: &[String]) -> String {
+    let hosts: Vec<serde_json::Value> = allow.iter().map(|h| serde_json::json!({ "host": h })).collect();
+    serde_json::json!({ "schema": 1, "mode": "allow", "allow": hosts }).to_string()
+}
+
 /// The executor of `--podvm`: each job in a fresh podvm unit of the
 /// runner image (T-090), with the state of the units in `state`.
 fn in_podvm(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
@@ -124,10 +141,28 @@ fn in_podvm(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
         return Err(fail(Class::Usage, USAGE));
     };
     let podvm = Podvm { binary: binary.clone() };
-    let unit = PodvmUnit::new(podvm, state, images).map_err(|e| fail(Class::Config, format!("podvm: {e}")))?;
+    let mut unit = PodvmUnit::new(podvm, state, images).map_err(|e| fail(Class::Config, format!("podvm: {e}")))?;
+    let mut egress = None;
+    if let Some(podnet) = &a.podnet {
+        unit = unit.with_podnet(podnet).map_err(|e| fail(Class::Unsupported, format!("--podnet: {e}")))?;
+        let hold = unit.probe().map_err(|e| fail(Class::Unavailable, format!("probe: {e}")))?.egress_hold;
+        // The fake broker listens on the loopback of the host: the seccomp
+        // hold lets a unit reach it; the netns hold does not (T-095).
+        if hold != podrunner_schema::EgressHold::Advisory {
+            return Err(fail(
+                Class::Unsupported,
+                format!("--podnet: the hold is {hold:?}; the local mode takes only the seccomp hold (advisory) now"),
+            ));
+        }
+        let e = podrunner_egress::Egress::host(None, true, podrunner_egress::dns::resolver(false, Vec::new()))
+            .map_err(|e| fail(Class::Unavailable, format!("the egress module: {e}")))?;
+        egress = Some((std::sync::Arc::new(e), policy(&a.allow)));
+    }
     let platform = if arch() == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let prepared = unit.prepare(image, platform, false).map_err(|e| fail(Class::Config, format!("{image}: {e}")))?;
-    Ok(InUnit::new(std::sync::Arc::new(unit), prepared))
+    let mut exec = InUnit::new(std::sync::Arc::new(unit), prepared);
+    exec.egress = egress;
+    Ok(exec)
 }
 
 /// The line of one job.

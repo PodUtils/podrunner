@@ -463,7 +463,7 @@ Take `v0.31.0` (move each tag, as T-086). `LocalSource` keeps a `Run<Arc<Workflo
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -480,6 +480,10 @@ Read `crates/podrunner/src/podvm_kind.rs` and `crates/podrunner-local/src/exec.r
 ## Prove
 
 `runner-image.yml` runs the local suite with `--podnet`, and a job of the suite that reaches a host that is not allowed fails (a check that the hold holds).
+
+## Done
+
+Partial, 2026-11-12. `podrunner run --podvm ... --podnet PATH [--allow HOST]...` holds each unit under `podnet pod` (`PodvmUnit::with_podnet`) and serves its egress socket from the egress module with the policy of `--allow` (`broker-policy.v1`, mode `allow`); the socket directory of the unit holds the egress socket and the hooks, and goes at the end of the job. The command takes only the seccomp hold (`advisory`) now: the fake broker listens on the loopback of the host, which the netns hold does not reach; it refuses the netns hold by name. `crates/podrunner/tests/local/egress.yml` checks that a step does not reach `example.com`; `runner-image.yml` runs it with the hold (it must pass) and with no hold (it must fail: the plant). Open: that run; the netns hold (the broker behind the egress).
 
 # T-097: Build the format() token from Template::parts() (PodUtils/podcrates@T-322)
 
