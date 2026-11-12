@@ -44,9 +44,8 @@ is done.
 
 ## In flight
 
-- runner-image of `a8347ba` runs the whole podvm conformance suite with
-  the fix of test 26 (T-084). Read it; a failure of test 26 opens T-084
-  again.
+- Nothing. Wait for the hand-offs of the other projects (What waits on
+  whom).
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs

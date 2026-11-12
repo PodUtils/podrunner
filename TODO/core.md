@@ -1437,7 +1437,7 @@ The payload kills its parent only after the file `GO` exists in its working dire
 
 ## Done
 
-2026-11-12. With the fix, test 26 passes 100 of 100 runs under the same load (no skip); before it, 89 of 100. `the_kill_of_the_parent_waits_for_the_go_file` holds the order of the script; podrunner-unit 11 passed, the conformance suite of the fake unit passes. The runner-image run of the commit runs the whole suite.
+2026-11-12. With the fix, test 26 passes 100 of 100 runs under the same load (no skip); before it, 89 of 100. `the_kill_of_the_parent_waits_for_the_go_file` holds the order of the script; podrunner-unit 11 passed, the conformance suite of the fake unit passes. Commit `a8347ba`: runner-image run 43181973155 is green (the whole suite, also under the confine layer) and level2 run 43181973838 is green; gate run 43182205023 of `846c852` holds it.
 
 # T-085: COORD-010: --podvm-confine runs on the userland rung; podrunner named the supervise rung (GitHub #68)
 
