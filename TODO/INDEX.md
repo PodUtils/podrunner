@@ -144,5 +144,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-094](later.md) | P3 | S | later | chore | done | The local source owns its workflow: drop the leak (podcrates v0.31.0) |
 | [T-095](later.md) | P3 | M | later | feature | partial | podrunner run --podvm: the egress of each unit through the egress module |
 | [T-096](core.md) | P3 | S | later | defect | partial | GNU tar -C DIR fails in a podvm unit after mkdir -p DIR |
-| [T-097](later.md) | P3 | S | later | chore | open | Build the format() token from Template::parts() (PodUtils/podcrates@T-322) |
+| [T-097](later.md) | P3 | S | later | chore | done | Build the format() token from Template::parts() (PodUtils/podcrates@T-322) |
 | [T-098](later.md) | P3 | S | later | feature | blocked | Q4: a Docker action in a job with no container (the order rule of the hook server) |

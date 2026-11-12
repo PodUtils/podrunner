@@ -8,62 +8,13 @@
 
 use std::collections::BTreeMap;
 
-use pod_actions_expr::{Template, Value as XValue};
+use pod_actions_expr::{Template, TemplatePart, Value as XValue};
 use pod_actions_workflow::{Job as WorkflowJob, Kind, Node, Step as WorkflowStep};
 use podrunner_broker_fake::Job;
 use podrunner_broker_fake::message::step_condition;
 use serde_json::{Map, Value, json};
 
 use crate::Cell;
-
-/// One part of a text: literal text, or the text of an expression.
-#[derive(Debug, PartialEq)]
-enum Part {
-    Text(String),
-    Expr(String),
-}
-
-/// The parts of `text`, with the scan of `Template::parse`: `}}` in a quoted
-/// string does not end an expression.
-fn split(text: &str) -> Vec<Part> {
-    let chars: Vec<char> = text.chars().collect();
-    let mut parts = Vec::new();
-    let mut literal = String::new();
-    let mut i = 0;
-    while i < chars.len() {
-        if !(chars[i] == '$' && chars.get(i + 1) == Some(&'{') && chars.get(i + 2) == Some(&'{')) {
-            literal.push(chars[i]);
-            i += 1;
-            continue;
-        }
-        let start = i + 3;
-        let mut quoted = false;
-        let mut j = start;
-        let mut end = None;
-        while j < chars.len() {
-            if chars[j] == '\'' {
-                quoted = !quoted;
-            } else if !quoted && chars[j] == '}' && j > start && chars[j - 1] == '}' {
-                end = Some(j - 1);
-                break;
-            }
-            j += 1;
-        }
-        let Some(end) = end else {
-            literal.extend(&chars[i..]);
-            break;
-        };
-        if !literal.is_empty() {
-            parts.push(Part::Text(std::mem::take(&mut literal)));
-        }
-        parts.push(Part::Expr(chars[start..end].iter().collect::<String>().trim().to_string()));
-        i = end + 2;
-    }
-    if !literal.is_empty() {
-        parts.push(Part::Text(literal));
-    }
-    parts
-}
 
 /// A text of the workflow as a template token.
 pub fn token(text: &str) -> Result<Value, String> {
@@ -74,29 +25,19 @@ pub fn token(text: &str) -> Result<Value, String> {
     if let Some(e) = template.as_expression() {
         return Ok(json!({ "type": 3, "expr": e.text().trim() }));
     }
-    let parts = split(text);
-    let exprs: Vec<&String> = parts
-        .iter()
-        .filter_map(|p| match p {
-            Part::Expr(e) => Some(e),
-            Part::Text(_) => None,
-        })
-        .collect();
-    if exprs.len() != template.expressions().count() {
-        return Err(format!("{text:?}: the parts do not agree with the template"));
-    }
     let mut format = String::new();
+    let mut args = String::new();
     let mut n = 0;
-    for p in &parts {
+    for p in template.parts() {
         match p {
-            Part::Text(t) => format.push_str(&t.replace('\'', "''").replace('{', "{{").replace('}', "}}")),
-            Part::Expr(_) => {
+            TemplatePart::Text(t) => format.push_str(&t.replace('\'', "''").replace('{', "{{").replace('}', "}}")),
+            TemplatePart::Expr(e, _) => {
                 format.push_str(&format!("{{{n}}}"));
+                args.push_str(&format!(", ({})", e.text().trim()));
                 n += 1;
             }
         }
     }
-    let args: String = exprs.iter().map(|e| format!(", ({e})")).collect();
     Ok(json!({ "type": 3, "expr": format!("format('{format}'{args})") }))
 }
 

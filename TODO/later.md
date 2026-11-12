@@ -492,7 +492,7 @@ Partial, 2026-11-12. `podrunner run --podvm ... --podnet PATH [--allow HOST]...`
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -510,9 +510,10 @@ Take the next tag (move each tag, as T-094), build the `format()` token from `Te
 
 `cargo test -p podrunner-local` passes with no `fn split` in `crates/podrunner-local/src/message.rs`.
 
-## Start condition
+## Done
 
-podcrates releases the tag after `v0.31.0` with PodUtils/podcrates@T-322, and sends its hand-off.
+2026-11-12, this commit. Each crate of podcrates moves to `v0.32.0` (`032e86f`). `token()` builds the `format()` token from `Template::parts()`; `split` and its check are removed. `sh scripts/agent/check.sh` passes.
+
 
 # T-098: Q4: a Docker action in a job with no container (the order rule of the hook server)
 
