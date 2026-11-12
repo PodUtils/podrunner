@@ -9,6 +9,7 @@
 pub mod corpus;
 pub mod files;
 pub mod message;
+pub mod runner;
 
 use std::collections::VecDeque;
 use std::io::BufReader;
@@ -29,6 +30,8 @@ pub struct Completion {
     pub conclusion: String,
     /// The names of the steps that the runner reports.
     pub steps: Vec<String>,
+    /// The outputs of the job (`jobOutputs`, evaluated by the runner).
+    pub outputs: Vec<(String, String)>,
 }
 
 #[derive(Default)]
@@ -198,7 +201,11 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
             let mut st = state.lock().expect("the broker");
             let request = st.acquired.last().map_or(0, |(i, _)| *i);
             let conclusion = body["conclusion"].as_str().unwrap_or("").to_string();
-            st.done.push(Completion { request, conclusion, steps });
+            let outputs = body["outputs"]
+                .as_object()
+                .map(|o| o.iter().map(|(k, v)| (k.clone(), v["value"].as_str().unwrap_or("").to_string())).collect())
+                .unwrap_or_default();
+            st.done.push(Completion { request, conclusion, steps, outputs });
             (200, Vec::new())
         }
         _ => (404, Vec::new()),

@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 pod-actions-expr.workspace = true
 pod-actions-workflow.workspace = true
+podrunner-broker-fake.workspace = true
 podrunner-schema.workspace = true
 podrunner-source.workspace = true
 serde_json.workspace = true

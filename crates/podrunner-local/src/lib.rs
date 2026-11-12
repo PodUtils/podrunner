@@ -6,9 +6,12 @@
 //! its end with [`LocalSource::complete`]; the jobs after it then become
 //! ready. A local set runs each job at tier `local` (call C14).
 
+pub mod message;
+
 use std::collections::{BTreeMap, VecDeque};
 use std::time::Duration;
 
+use pod_actions_expr::Value as XValue;
 use pod_actions_workflow::{Base, Done, Instance, JobResult, Outcome, Run, Skip, Workflow};
 use podrunner_schema::{Credential, JobId};
 use podrunner_source::{Event, Hello, JobSource, Offer, SourceCode, SourceError};
@@ -50,6 +53,8 @@ pub struct LocalSource {
     /// The end of each cell of each running job.
     ends: BTreeMap<String, Vec<Option<Done>>>,
     skips: Vec<Skip>,
+    vars: XValue,
+    inputs: XValue,
     minter: Minter,
     /// The report and audit lines, for the caller.
     pub reports: Vec<(JobId, Map<String, Value>)>,
@@ -68,6 +73,7 @@ impl LocalSource {
         // `Run` borrows its workflow, and a source owns its run: one
         // workflow for each source lives to the end of the process.
         let workflow: &'static Workflow = Box::leak(Box::new(parsed.workflow));
+        let (vars, inputs) = (base.vars.clone(), base.inputs.clone());
         let run = Run::new(workflow, base).map_err(|e| e.to_string())?;
         let mut source = LocalSource {
             name: name.into(),
@@ -79,6 +85,8 @@ impl LocalSource {
             states: BTreeMap::new(),
             ends: BTreeMap::new(),
             skips: Vec::new(),
+            vars,
+            inputs,
             minter,
             reports: Vec::new(),
             audits: Vec::new(),
@@ -94,6 +102,12 @@ impl LocalSource {
     /// The cell of an offer.
     pub fn cell(&self, job: &JobId) -> Option<&Cell> {
         self.cells.get(job)
+    }
+
+    /// The job of the fake broker for the offer `job` (T-088).
+    pub fn broker_job(&self, job: &JobId) -> Result<podrunner_broker_fake::Job, String> {
+        let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
+        message::broker_job(self.workflow, cell, &self.vars, &self.inputs)
     }
 
     /// The jobs that did not run, with their reasons, in their order.

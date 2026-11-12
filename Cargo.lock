@@ -803,6 +803,7 @@ name = "podrunner-broker-fake"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "pod-actions-expr",
  "pod-proxy",
  "podrunner-egress",
  "podrunner-fake",
@@ -860,6 +861,7 @@ version = "0.1.0"
 dependencies = [
  "pod-actions-expr",
  "pod-actions-workflow",
+ "podrunner-broker-fake",
  "podrunner-schema",
  "podrunner-source",
  "serde_json",

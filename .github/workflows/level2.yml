@@ -21,6 +21,7 @@ on:
       - crates/podrunner-broker-fake/**
       - crates/podrunner-hook/**
       - crates/podrunner-fake/**
+      - crates/podrunner-local/**
       - images/runner/runner.toml
       - scripts/corpus.py
       - .github/workflows/level2.yml
@@ -51,6 +52,10 @@ jobs:
           mkdir "$RUNNER_TEMP/runner" && tar -xzf runner.tgz -C "$RUNNER_TEMP/runner" && rm runner.tgz
       - name: Canned jobs on the official runner, and a container job through the hooks
         run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner-broker-fake --test runner --test container -- --ignored
+      # T-088: the jobs of a workflow of the local source, with their
+      # matrix, env, step and job outputs, and needs.
+      - name: A workflow of the local source on the official runner
+        run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner-local --test runner -- --ignored --nocapture
 
   corpus:
     runs-on: ubuntu-24.04

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**89 entries: 3 open, 3 partial, 12 blocked, 71 done.**
+**89 entries: 2 open, 3 partial, 12 blocked, 72 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
 | P2 | 1 | 1 | 9 | 32 | 43 |
-| P3 | 2 | 1 | 3 | 10 | 16 |
-| **All** | 3 | 3 | 12 | 71 | 89 |
+| P3 | 1 | 1 | 3 | 11 | 16 |
+| **All** | 2 | 3 | 12 | 72 | 89 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -135,5 +135,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-085](core.md) | P2 | S | later | docs | done | COORD-010: --podvm-confine runs on the userland rung; podrunner named the supervise rung (GitHub #68) |
 | [T-086](core.md) | P2 | S | later | chore | open | Take podcrates v0.30.0 (PodUtils/podcrates#89, COORD-057) |
 | [T-087](later.md) | P3 | M | later | feature | done | The local source: a workflow file into job offers and job results |
-| [T-088](later.md) | P3 | M | later | feature | open | A workflow job into the job message of the fake broker |
+| [T-088](later.md) | P3 | M | later | feature | done | A workflow job into the job message of the fake broker |
 | [T-089](later.md) | P3 | M | later | feature | open | podrunner run workflow.yml: the local mode end to end |

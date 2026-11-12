@@ -5,7 +5,8 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use serde_json::{Value, json};
+use pod_actions_expr::Condition;
+use serde_json::{Map, Value, json};
 
 /// One `run:` step of a job.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,6 +31,10 @@ pub struct Job {
     pub container: Option<String>,
     /// The `credentials` of `container:` (a user name and a password).
     pub registry: Option<(String, String)>,
+    /// Keys of the message that replace the canned ones (`steps`,
+    /// `environmentVariables`, `jobOutputs`), and the entries of
+    /// `contextData` that join the canned `github` (T-088).
+    pub overrides: Map<String, Value>,
 }
 
 impl Job {
@@ -41,7 +46,14 @@ impl Job {
             condition: String::new(),
             env: Vec::new(),
         });
-        Job { name: name.into(), env: Vec::new(), steps: steps.collect(), container: None, registry: None }
+        Job {
+            name: name.into(),
+            env: Vec::new(),
+            steps: steps.collect(),
+            container: None,
+            registry: None,
+            overrides: Map::new(),
+        }
     }
 }
 
@@ -93,6 +105,19 @@ pub fn job_request(base: &str, request: u64) -> Value {
     json!({ "messageId": request, "messageType": "RunnerJobRequest", "body": reference.to_string() })
 }
 
+/// The condition of a step as the runner evaluates it: `success()` when
+/// none; GitHub adds `success() &&` only to a condition with no status
+/// function (`always()`, `failure()`, `cancelled()`, `success()`).
+pub fn step_condition(condition: &str) -> String {
+    if condition.trim().is_empty() {
+        return "success()".into();
+    }
+    match Condition::parse(condition) {
+        Ok(c) => c.text().to_string(),
+        Err(_) => format!("success() && ({condition})"),
+    }
+}
+
 /// The job message of job `request`.
 pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
     let steps: Vec<Value> = job
@@ -100,10 +125,7 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
         .iter()
         .enumerate()
         .map(|(i, step)| {
-            let condition = match step.condition.as_str() {
-                "" => "success()".to_string(),
-                c => format!("success() && ({c})"),
-            };
+            let condition = step_condition(&step.condition);
             let mut v = json!({
                 "type": "action", "reference": { "type": "script" },
                 "id": guid(0x100 + i as u64), "name": format!("__run_{i}"), "contextName": format!("__run_{i}"),
@@ -117,7 +139,7 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
         })
         .collect();
     let s = |k: &str, v: &str| json!({ "k": k, "v": v });
-    json!({
+    let mut m = json!({
         "messageType": "RunnerJobRequest",
         "plan": { "scopeIdentifier": guid(1), "planType": "actions", "version": 1, "planId": guid(2 + 0x10 * request) },
         "timeline": { "id": guid(3 + 0x10 * request), "changeId": 1 },
@@ -153,7 +175,19 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
         // GitHub masks each secret of a job; the password of the registry
         // comes from a secret.
         "fileTable": [], "mask": job.registry.iter().map(|(_, p)| json!({ "type": "regex", "value": p })).collect::<Vec<_>>(),
-    })
+    });
+    for (key, value) in &job.overrides {
+        match (key.as_str(), value) {
+            ("contextData", Value::Object(extra)) => {
+                let data = m["contextData"].as_object_mut().expect("the context data");
+                data.extend(extra.clone());
+            }
+            _ => {
+                m[key] = value.clone();
+            }
+        }
+    }
+    m
 }
 
 #[cfg(test)]
@@ -184,5 +218,27 @@ mod tests {
         assert_eq!(parts.len(), 3);
         let claims: Value = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(parts[1]).unwrap()).unwrap();
         assert!(claims["exp"].as_u64().unwrap() > 4_000_000_000);
+    }
+
+    /// A status function keeps its condition: `always()` runs after a
+    /// failure, as on GitHub.
+    #[test]
+    fn a_status_function_gets_no_implicit_success() {
+        assert_eq!(step_condition(""), "success()");
+        assert_eq!(step_condition("github.ref == 'x'"), "success() && (github.ref == 'x')");
+        assert_eq!(step_condition("always()"), "always()");
+        assert_eq!(step_condition("failure() && env.X"), "failure() && env.X");
+    }
+
+    /// The overrides replace a key of the message and join `contextData`.
+    #[test]
+    fn the_overrides_replace_keys_and_join_the_context_data() {
+        let mut job = Job::scripts("j", &["true"]);
+        job.overrides.insert("steps".into(), json!([]));
+        job.overrides.insert("contextData".into(), json!({ "matrix": { "t": 2, "d": [] } }));
+        let m = job_message("http://127.0.0.1:1/", 1, &job);
+        assert_eq!(m["steps"], json!([]));
+        assert_eq!(m["contextData"]["matrix"]["t"], 2);
+        assert_eq!(m["contextData"]["github"]["t"], 2, "the canned github stays");
     }
 }
