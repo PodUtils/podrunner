@@ -179,7 +179,7 @@ A third source kind, `local`, behind `JobSource` (the source conformance suite a
 
 ## Blocker
 
-The crates `pod-actions-workflow` and `pod-actions-expr` of podcrates do not exist at `v0.26.0`. The unit (T-026) and the fake broker (T-038) are done.
+The crates `pod-actions-workflow` and `pod-actions-expr` of podcrates do not exist at `v0.28.0`. The unit (T-026) and the fake broker (T-038) are done. Asked of podcrates by a direct message on 2026-11-12: the workflow model, the expressions at job level (`if`, `strategy.matrix`, `runs-on`, `needs`), and the expansion into concrete jobs; the official runner evaluates the expressions of the steps.
 
 # T-073: Take the podcrates tag after v0.24.0: pod-confine drops each capability
 
