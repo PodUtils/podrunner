@@ -1,12 +1,12 @@
 # Progress
 
-`TODO/INDEX.md` holds 85 entries: 0 open, 2 partial, 13 blocked, 70 done.
+`TODO/INDEX.md` holds 86 entries: 2 open, 2 partial, 12 blocked, 70 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
-- Pins: podcrates `v0.29.0`, podvm `v0.2.0-beta.5`, podnet
+- Pins: podcrates `v0.30.0`, podvm `v0.2.0-beta.5`, podnet
   `v0.4.0-beta.3`, runner v2.338.2.
   Last beta: `v0.1.0-beta.1` (release run 42942338772).
 - M-A and M-B hold. M-C: T-027 to T-029 done; T-030 waits for T-051
@@ -27,11 +27,12 @@ release or a live account.
 
 The queue, most valuable first:
 
-None: each open entry waits for a person, a release or another project (below). Take the next tag of podcrates when its hand-off comes (PodUtils/podcrates@T-251 for T-046).
+1. T-086 (S): take podcrates `v0.30.0` (PodUtils/podcrates#89); close it on the green gate, and send the commit to podcrates.
+2. T-046 (L): the local mode, `podrunner run workflow.yml`, over `pod-actions-workflow` and `pod-actions-expr` of `v0.30.0`.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
-Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-077 (podnet, GitHub #64), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043, T-046 (crates of podcrates).
+Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-077 (podnet, GitHub #64), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates).
 
 ## Questions for the owner
 

@@ -145,7 +145,7 @@ podcrates builds the crates (PodUtils/podvm#227, section 2.7); none is planned f
 **Milestone:** later
 **Priority:** P3
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -177,9 +177,9 @@ A third source kind, `local`, behind `JobSource` (the source conformance suite a
 
 `cargo test -p podrunner-source local`
 
-## Blocker
+## Start condition
 
-The crates `pod-actions-workflow` and `pod-actions-expr` of podcrates do not exist at `v0.28.0`. The unit (T-026) and the fake broker (T-038) are done. Asked of podcrates by a direct message on 2026-11-12: the workflow model, the expressions at job level (`if`, `strategy.matrix`, `runs-on`, `needs`), and the expansion into concrete jobs; the official runner evaluates the expressions of the steps.
+Met on 2026-11-12: podcrates `v0.30.0` (T-086) has `pod-actions-workflow` and `pod-actions-expr` (PodUtils/podcrates@T-251, calls C105 to C109 of podcrates). Its PodUtils/podcrates@T-280 (a live run of their vectors against GitHub) is open, so the expansion of a matrix (C107, C108) is not measured against the official runner.
 
 # T-073: Take the podcrates tag after v0.24.0: pod-confine drops each capability
 

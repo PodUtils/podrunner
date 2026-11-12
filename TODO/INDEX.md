@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**85 entries: 0 open, 2 partial, 13 blocked, 70 done.**
+**86 entries: 2 open, 2 partial, 12 blocked, 70 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
-| P2 | 0 | 1 | 9 | 32 | 42 |
-| P3 | 0 | 0 | 4 | 9 | 13 |
-| **All** | 0 | 2 | 13 | 70 | 85 |
+| P2 | 1 | 1 | 9 | 32 | 43 |
+| P3 | 1 | 0 | 3 | 9 | 13 |
+| **All** | 2 | 2 | 12 | 70 | 86 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -93,7 +93,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-043](later.md) | P3 | S | later | feature | blocked | Later crates: service unit, release index, acceptance registry (GitHub #43) |
 | [T-044](plan.md) | P2 | S | M-A | chore | done | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |
 | [T-045](live.md) | P1 | M | M-D | feature | done | The mitigations of DR-4 for trusted jobs at redirect (GitHub #47) |
-| [T-046](later.md) | P3 | L | later | feature | blocked | Local mode: podrunner run workflow.yml (GitHub #48) |
+| [T-046](later.md) | P3 | L | later | feature | open | Local mode: podrunner run workflow.yml (GitHub #48) |
 | [T-047](core.md) | P2 | S | M-A | defect | done | COORD-002: podvm wait gives no exit code for a short payload on the supervise rung (GitHub #49) |
 | [T-048](core.md) | P2 | S | M-D | feature | done | Egress: check the upstream of the broker; the names mode of pod-broker |
 | [T-049](level2.md) | P2 | S | L2 | chore | done | COORD-003: the stand-in broker of the official runner for podvm (GitHub #50) |
@@ -133,3 +133,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-083](core.md) | P2 | S | later | chore | done | Take podcrates v0.29.0 (PodUtils/podcrates#87, COORD-055) |
 | [T-084](core.md) | P1 | S | later | defect | done | Conformance test 26 kills the launcher of podvm before it reports the start |
 | [T-085](core.md) | P2 | S | later | docs | done | COORD-010: --podvm-confine runs on the userland rung; podrunner named the supervise rung (GitHub #68) |
+| [T-086](core.md) | P2 | S | later | chore | open | Take podcrates v0.30.0 (PodUtils/podcrates#89, COORD-057) |

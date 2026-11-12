@@ -8,11 +8,11 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.29.0` (`Cargo.toml`); podvm `v0.2.0-beta.5`
+- Pins: podcrates `v0.30.0` (`Cargo.toml`); podvm `v0.2.0-beta.5`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 85 entries, 0 open, 2 partial, 13 blocked, 70 done
+- The record: 86 entries, 2 open, 2 partial, 12 blocked, 70 done
   (`cargo todo check`). `main` is green: gate, level2 and runner-image.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
@@ -44,8 +44,8 @@ is done.
 
 ## In flight
 
-- Nothing. Wait for the hand-offs of the other projects (What waits on
-  whom).
+- T-086: the take of podcrates `v0.30.0`; close it on its gate. Then
+  T-046: the local mode over `pod-actions-workflow` and `pod-actions-expr`.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs
@@ -58,7 +58,6 @@ is done.
 | The owner | DR-7: a test organization and App ("not now") | T-007, T-032, T-033, T-040 |
 | podvm | the aarch64 interposer (PodUtils/podvm@T-1721); beta.5 still declines the runner image on aarch64 | T-051, T-030 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
-| podcrates | `pod-actions-workflow`, `pod-actions-expr` and the expansion of jobs (asked; PodUtils/podcrates@T-251) | T-046 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
 | podnet | `::ffff:127.0.0.1` as loopback in the seccomp hold (GitHub #64, COORD-009) | T-077 |
@@ -71,7 +70,6 @@ is done.
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.
 - GitHub #52 (COORD-005, to podvm): open, T-051.
-- podcrates: the crate ask of T-046 is PodUtils/podcrates@T-251.
 - The probe of podvm names the mode of the host; the `--report` of a run
   names its rung (GitHub #68, closed; T-085).
 

@@ -1467,3 +1467,28 @@ Answer podvm with a COORD issue (GitHub #68). Make the measure script print the 
 ## Done
 
 2026-11-12. The script prints both lines on that host, and the checks give the table of T-079 (environ, root and `env -i` reached unconfined and denied confined). GitHub #68 holds the answer; it stays open until podvm has read it.
+
+# T-086: Take podcrates v0.30.0 (PodUtils/podcrates#89, COORD-057)
+
+**Source:** PodUtils/podcrates#89
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podcrates released `v0.30.0` (tag at `613058c`; ci 43191076106, release 43197313787). The hand-off PodUtils/podcrates#89 (COORD-057) carries the ask of T-046 (PodUtils/podcrates@T-251): `pod-actions-expr` and `pod-actions-workflow`. Each consumer moves to `tag = "v0.30.0"`; podcrates records the commit of the take on #89.
+
+## Premise
+
+Read PodUtils/podcrates#89 and the message of the podcrates session on 2026-11-12. The tag resolves to `613058c` (`git ls-remote`). `cargo update` moves 11 `pod-*` crates and no other dependency.
+
+## Approach
+
+Move each `tag = "v0.29.0"` to `v0.30.0`, update `Cargo.lock` and the pins in `docs/decisions.md`, `docs/HANDOFF.md` and `TODO/PROGRESS.md`, run the checks, and send the commit to podcrates. T-046 takes the two new crates.
+
+## Prove
+
+`sh scripts/agent/check.sh` passes on the take; the gate of the commit is green.
