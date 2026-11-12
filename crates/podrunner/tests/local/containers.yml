@@ -1,0 +1,21 @@
+# The containers of the local mode (T-093), for `podrunner run --podvm`:
+# a job in a `container:` and a Docker step, through the container hooks
+# of the podvm unit. IMAGE is a NAME@sha256:HEX of the store: CI writes the
+# digest of the runner image here before the run.
+name: podrunner local containers
+on: push
+jobs:
+  in-container:
+    runs-on: local
+    container:
+      image: IMAGE
+    steps:
+      - run: echo "podrunner-container-$((6*7))" > marker.txt && test "$(cat marker.txt)" = podrunner-container-42
+
+  docker-step:
+    runs-on: local
+    steps:
+      - uses: docker://IMAGE
+        with:
+          entrypoint: /bin/sh
+          args: -c "test $((3*3)) = 9"

@@ -148,3 +148,33 @@ fn actions_checkout_is_the_stand_in_of_the_local_tree() {
     s.next(10, Duration::ZERO).unwrap();
     assert!(s.broker_job(&JobId::new("build.0").unwrap()).unwrap_err().contains("plain relative path"));
 }
+
+#[test]
+fn a_pinned_container_services_and_a_docker_step_go_into_the_message() {
+    let img = format!("alpine@sha256:{}", "c".repeat(64));
+    let text = format!(
+        "on: push\njobs:\n  build:\n    runs-on: x\n    container:\n      image: {img}\n      env:\n        A: ${{{{ matrix.x }}}}\n    \
+         services:\n      cache:\n        image: {img}\n        ports: [6379]\n    steps:\n      - uses: docker://{img}\n        \
+         with:\n          args: echo hi\n"
+    );
+    let job = job_of(&text);
+    let o = &job.overrides;
+    assert_eq!(o["jobContainer"]["map"][0], json!({ "Key": "image", "Value": img }));
+    assert_eq!(o["jobContainer"]["map"][1]["Value"]["map"][0]["Value"]["expr"], "matrix.x");
+    let cache = &o["jobServiceContainers"]["map"][0];
+    assert_eq!(cache["Key"], "cache");
+    assert_eq!(cache["Value"]["map"][1]["Value"], json!({ "type": 1, "seq": [6379.0] }));
+    let step = &o["steps"][0];
+    assert_eq!(step["reference"], json!({ "type": "containerRegistry", "image": img }));
+    assert_eq!(step["contextName"], "__docker");
+    assert_eq!(step["inputs"]["map"][0], json!({ "Key": "args", "Value": "echo hi" }));
+    // A tag, a short digest and no image are refused by name.
+    for bad in ["alpine:3", "alpine@sha256:abc", "@sha256:cccc"] {
+        assert!(pinned(bad).is_err(), "{bad}");
+        assert!(action(&format!("docker://{bad}"), 1).is_err(), "{bad}");
+    }
+    let no_image = "on: push\njobs:\n  build:\n    runs-on: x\n    services:\n      s:\n        ports: [1]\n    steps: [{run: x}]\n";
+    let mut s = LocalSource::new("l", no_image, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    assert!(s.broker_job(&JobId::new("build.0").unwrap()).unwrap_err().contains("service s has no image"));
+}

@@ -98,3 +98,31 @@ fn the_tree_of_the_checkout_is_a_tarball_of_its_files() {
     assert!(tree_tarball(&dir.join("missing"), &dir.join("scratch3")).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// The containers suite (T-093) gives a message for each job once CI
+/// writes a pinned image into it; with no pin it is refused.
+#[test]
+fn the_containers_suite_gives_its_messages() {
+    use podrunner_source::{Event, JobSource};
+    let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/local/containers.yml")).unwrap();
+    let image = format!("runner@sha256:{}", "b".repeat(64));
+    let pinned = text.replace("IMAGE", &image);
+    let mut s = LocalSource::new("l", &pinned, Base::default(), "x86_64", Box::new(|_, _| Default::default())).unwrap();
+    let offers: Vec<JobId> = s
+        .next(10, std::time::Duration::ZERO)
+        .unwrap()
+        .into_iter()
+        .filter_map(|e| match e {
+            Event::Offer { offer } => Some(offer.job_id),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(offers.len(), 2);
+    for job in &offers {
+        let m = s.broker_job(job).unwrap();
+        assert!(podrunner_local::exec::needs_containers(&m), "{job}");
+    }
+    let mut raw = LocalSource::new("l", &text, Base::default(), "x86_64", Box::new(|_, _| Default::default())).unwrap();
+    raw.next(10, std::time::Duration::ZERO).unwrap();
+    assert!(raw.broker_job(&JobId::new("in-container.0").unwrap()).unwrap_err().contains("not pinned"));
+}

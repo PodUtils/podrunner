@@ -1475,7 +1475,7 @@ Answer podvm with a COORD issue (GitHub #68). Make the measure script print the 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1492,3 +1492,7 @@ Move each `tag = "v0.29.0"` to `v0.30.0`, update `Cargo.lock` and the pins in `d
 ## Prove
 
 `sh scripts/agent/check.sh` passes on the take; the gate of the commit is green.
+
+## Done
+
+2026-11-12, `528a918`; gate run 43204208180 of `4215a13` (which holds the take) is green, with cargo-deny and the static builds. The commit went to the podcrates session for PodUtils/podcrates#89.

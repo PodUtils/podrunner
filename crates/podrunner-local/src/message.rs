@@ -112,6 +112,45 @@ fn scalar(node: &Node) -> Result<Value, String> {
     }
 }
 
+/// An image of a unit must be pinned by digest: the unit takes only a
+/// pinned image (`payload-not-pinned`), and a tag can move.
+fn pinned(image: &str) -> Result<(), String> {
+    match image.split_once("@sha256:") {
+        Some((name, hex)) if !name.is_empty() && hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit()) => {
+            Ok(())
+        }
+        _ => Err(format!("the image {image:?} is not pinned by digest (NAME@sha256:HEX)")),
+    }
+}
+
+/// A node of the file as a template token, its strings as templates.
+fn node_token(node: &Node) -> Result<Value, String> {
+    match &node.kind {
+        Kind::Map(entries) => Ok(mapping(
+            entries.iter().map(|(k, v)| Ok((k.name.clone(), node_token(v)?))).collect::<Result<_, String>>()?,
+        )),
+        Kind::Seq(items) => {
+            Ok(json!({ "type": 1, "seq": items.iter().map(node_token).collect::<Result<Vec<_>, _>>()? }))
+        }
+        _ => scalar(node),
+    }
+}
+
+/// The image of a `container:` or of a service: a string, or `image:` of a
+/// mapping; it must be pinned.
+fn container_image(node: &Node, what: &str) -> Result<(), String> {
+    let image = match &node.kind {
+        Kind::String(s) => Some(s.as_str()),
+        Kind::Map(e) => e.iter().find(|(k, _)| k.name == "image").and_then(|(_, v)| match &v.kind {
+            Kind::String(s) => Some(s.as_str()),
+            _ => None,
+        }),
+        _ => None,
+    };
+    let image = image.ok_or_else(|| format!("line {}: {what} has no image", node.mark.line))?;
+    pinned(image).map_err(|e| format!("line {}: {what}: {e}", node.mark.line))
+}
+
 /// A mapping token (`TemplateToken` type 2).
 fn mapping(entries: Vec<(String, Value)>) -> Value {
     let map: Vec<Value> = entries.into_iter().map(|(k, v)| json!({ "Key": k, "Value": v })).collect();
@@ -172,8 +211,9 @@ fn checkout_script(path: &str) -> String {
 /// An action of a repository must be pinned by a full commit id: the local
 /// mode has no forge to resolve a tag.
 fn action(uses: &str, line: u32) -> Result<(Value, String), String> {
-    if uses.starts_with("docker://") {
-        return Err(format!("line {line}: `uses: {uses}`: a Docker action is not supported yet"));
+    if let Some(image) = uses.strip_prefix("docker://") {
+        pinned(image).map_err(|e| format!("line {line}: `uses: {uses}`: {e}"))?;
+        return Ok((json!({ "type": "containerRegistry", "image": image }), "__docker".into()));
     }
     if let Some(path) = uses.strip_prefix("./") {
         let reference = json!({ "type": "repository", "repositoryType": "self", "path": format!("./{path}") });
@@ -289,8 +329,19 @@ pub fn broker_job(
     if let Some(uses) = &job.uses {
         return Err(format!("job {}: a reusable workflow (`uses: {uses}`) is not supported", job.id));
     }
-    if job.container.is_some() || job.services.is_some() {
-        return Err(format!("job {}: `container:` and `services:` are not supported yet (T-089)", job.id));
+    let mut containers = Map::new();
+    if let Some(c) = &job.container {
+        container_image(c, "container")?;
+        containers.insert("jobContainer".into(), node_token(c)?);
+    }
+    if let Some(s) = &job.services {
+        let Kind::Map(entries) = &s.kind else {
+            return Err(format!("line {}: services must be a mapping", s.mark.line));
+        };
+        for (name, service) in entries {
+            container_image(service, &format!("service {}", name.name))?;
+        }
+        containers.insert("jobServiceContainers".into(), node_token(s)?);
     }
     let wd = workflow.defaults.as_ref();
     let jd = job.defaults.as_ref();
@@ -326,6 +377,7 @@ pub fn broker_job(
         b.overrides.insert("jobOutputs".into(), mapping(outputs));
     }
     b.overrides.insert("contextData".into(), Value::Object(context));
+    b.overrides.extend(containers);
     Ok(b)
 }
 

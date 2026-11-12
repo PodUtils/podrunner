@@ -179,6 +179,11 @@ jobs:
           timeout 1200 cargo run -q -p podrunner -- run crates/podrunner/tests/local/suite.yml \
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . | tee "$RUNNER_TEMP/local.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local.txt")" = 8
+          # T-093: a container: job and a Docker step through the hooks.
+          sed "s|IMAGE|$PODRUNNER_RUNNER_IMAGE|" crates/podrunner/tests/local/containers.yml > "$RUNNER_TEMP/containers.yml"
+          timeout 1200 cargo run -q -p podrunner -- run "$RUNNER_TEMP/containers.yml" \
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/containers.txt"
+          test "$(grep -c '^ok ' "$RUNNER_TEMP/containers.txt")" = 2
           cargo test -p podrunner-podvm --test conformance --no-run
           timeout 600 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
           # T-065: the egress hold of a unit under podnet pod.

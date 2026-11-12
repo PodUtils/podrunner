@@ -14,6 +14,7 @@ podrunner-broker-fake.workspace = true
 podrunner-schema.workspace = true
 podrunner-source.workspace = true
 podrunner-unit.workspace = true
+podrunner-hook.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]

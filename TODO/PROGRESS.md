@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 93 entries: 2 open, 4 partial, 12 blocked, 75 done.
+`TODO/INDEX.md` holds 93 entries: 0 open, 5 partial, 12 blocked, 76 done.
 
 ## State
 
@@ -27,9 +27,8 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-086 (S): take podcrates `v0.30.0` (PodUtils/podcrates#89); close it on the green gate, and send the commit to podcrates.
-2. T-090 (M): `podrunner run` with each job in a fresh podvm unit; it closes T-046.
-3. T-093 (M): Docker actions and `container:` jobs in the local mode, through the hooks of a podvm unit.
+1. T-090 (M, partial): `podrunner run --podvm`, each job in a fresh podvm unit; it closes T-046. Read its `runner-image.yml` run.
+2. T-093 (M, partial): `container:` jobs and Docker steps through the hooks of a podvm unit; read the same run.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
