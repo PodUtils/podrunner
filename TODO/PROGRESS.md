@@ -13,8 +13,8 @@
   (podvm aarch64); the gate T-032 waits for DR-7. M-D: T-031 and T-045
   done; the gate T-033 waits for DR-7. L2: T-034, T-035, T-038 done; the
   gate T-039 waits for a real guest (T-036, T-037).
-- podcrates is on direct messages; podnet answers COORD issues; podvm and
-  podssh are on break. An entry that needs a change of podvm or podssh is
+- Each project gets COORD issues only (no direct message, the owner,
+  2026-11-12); podnet answers; podvm and podssh are on break. An entry that needs a change of podvm or podssh is
   `blocked`, and the session takes the next entry.
 - Keep this section short. Write the current state only; git keeps the
   history.
@@ -34,7 +34,7 @@ The queue, most valuable first:
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-030 (podvm aarch64, after T-051), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates), T-077 (podnet, GitHub #69).
+Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-030 (podvm aarch64, after T-051), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates), T-077 (podnet `v0.4.0-beta.7`, GitHub #69).
 
 ## Questions for the owner
 
