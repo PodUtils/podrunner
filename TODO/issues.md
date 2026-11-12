@@ -67,5 +67,8 @@ numbers. `TODO/RULES.md` gives the rules.
 | #61 | COORD-007: on the supervise rung an absolute symlink in the rootfs resolves on the host (to podvm) | closed (podvm `v0.2.0-beta.4` pinned, `baab86e`; runner-image run 43100514216) | T-061 |
 | #62 | COORD-008: on the supervise rung a volume given as :ro is writable (to podvm) | closed (podvm `v0.2.0-beta.4` pinned, `baab86e`; runner-image run 43100514216) | T-062 |
 | #64 | COORD-009: the seccomp hold of podnet pod does not take ::ffff:127.0.0.1 as loopback (to podnet) | open (blocked: podnet) | T-077 |
+| #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
+| #66 | githome asks: tracker for the 10 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001 |
+| #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |
 
 #44, #45 and #63 are pull requests (#63: Dependabot, base64 0.23, applied on `main`).

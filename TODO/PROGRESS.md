@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 80 entries: 0 open, 2 partial, 12 blocked, 66 done.
+`TODO/INDEX.md` holds 81 entries: 1 open, 2 partial, 12 blocked, 66 done.
 
 ## State
 
@@ -25,9 +25,9 @@ Finish each entry, close it in place, change this page in the same commit,
 then take the next one. No entry of the queue waits for a person, a
 release or a live account.
 
-The queue for tonight, most valuable first:
+The queue, most valuable first:
 
-(empty: each entry that is left waits for another project or for the owner)
+1. T-081 (M): measure a musl build of the official runner (P0-4 of GitHub #67); a musl runner can need no glibc interposer, which T-051 (podvm aarch64) waits for.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

@@ -1308,3 +1308,28 @@ Run the escape payload under `--podvm-confine` by hand and compare the pid of th
 ## Done
 
 2026-11-12, `7b9c0b3`; gate run 43159841660, level2 run 43159841801 and runner-image run 43159841845 of `bde47c3` are green. The cause is the layer, not the test. Under `--podvm-confine`, `env -i PROGRAM` fails with EACCES: with no environment the exec leaves the interposer of podvm, and Landlock denies the exec of the host path. Unconfined the same exec runs the host binary (an escape of the redirect). So a confined payload cannot start the orphan of tests 25 and 26; the measure script has the check `escape-env-i` (unconfined reached, confined denied on H0). The skip message names both causes, and test 25 also takes an environment that the host cannot read (a confined process is not dumpable) as no tag. The tree kill stays proven by `verify_tree_kill`.
+
+# T-081: Measure a musl build of the official runner (P0-4 of GitHub #67)
+
+**Source:** GitHub #67
+**Category:** measurement
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+P0-4 of the CI plan (GitHub #67, from PodUtils/podcrates#47) asks for a measure of a musl build of `actions/runner`. The runner image is glibc (`images/runner/Dockerfile`), and the podvm rungs run glibc payloads through the interposer of podvm. A runner on musl (.NET has `linux-musl-x64` and `linux-musl-arm64` runtimes) can need no glibc interposer, which T-051 (podvm aarch64) waits for. No entry tracked the item.
+
+## Premise
+
+Read GitHub #67 on 2026-11-12: P0-4 is "Not started", with no tracking. Nothing measured.
+
+## Approach
+
+Build `actions/runner` v2.338.2 for `linux-musl-x64` in a CI job (its `dev.sh` takes a runtime id), and pack it on an Alpine base like `images/runner/`. Run the canned job of `crates/podrunner-broker-fake/tests/runner.rs` on the host and in a podvm unit on the supervise rung (the test of T-026), and record each failure. If it passes on x86_64, try `linux-musl-arm64` on the aarch64 runner of `runner-image.yml` (T-051).
+
+## Prove
+
+`PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-broker-fake --test runner -- --ignored` with DIR the musl build of the runner, on the host and in a podvm unit; a dispatch-only workflow runs it for each target.
