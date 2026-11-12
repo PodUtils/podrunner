@@ -255,12 +255,20 @@ impl Executor for InUnit {
             std::thread::sleep(Duration::from_millis(50));
         }
         let refusals = hooks.map(Hooks::stop).unwrap_or_default();
+        // No result: keep the end of the output of the unit, before it goes.
+        let output = match broker.completions().is_empty() {
+            true => self.driver.unit_logs(&id).map(|o| tail(&o)).ok(),
+            false => None,
+        };
         let residue = self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"));
         end_sockets(&sockets);
         let residue = residue?;
         let mut log = broker.logs();
         for r in &refusals {
             log.push_str(&format!("\npodrunner: a hook call was refused: {r}"));
+        }
+        if let Some(o) = output {
+            log.push_str(&format!("\npodrunner: the end of the output of unit {id}:\n{o}"));
         }
         self.logs.push((job.clone(), log));
         let exit = waited.map_err(|e| format!("wait {id}: {e}"))?;
@@ -318,6 +326,12 @@ impl Executor for RunnerDir {
         };
         Ok(End { result: result_of(&end.conclusion), outputs: end.outputs.clone() })
     }
+}
+
+/// The last 8 KiB of an output, as text.
+fn tail(out: &[u8]) -> String {
+    let start = out.len().saturating_sub(8 * 1024);
+    String::from_utf8_lossy(&out[start..]).into_owned()
 }
 
 #[cfg(test)]

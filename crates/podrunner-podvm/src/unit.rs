@@ -365,6 +365,9 @@ impl UnitDriver for PodvmUnit {
     fn container_logs(&self, unit: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {
         self.logs_container(unit, c)
     }
+    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+        self.logs_unit(unit)
+    }
     fn container_inspect(&self, unit: &UnitId, c: &ContainerId) -> Result<ContainerState, UnitError> {
         self.inspect_container(unit, c)
     }

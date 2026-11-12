@@ -49,7 +49,7 @@ is done.
   containers suite in podvm units). T-095 (`--podnet`): the held run
   passed with podnet beta.3 and the IPv6 workaround, and hung with beta.6
   and no workaround (T-077). A unit now ends at the `timeout-minutes` of
-  its job with its log; read that log in the next `runner-image.yml` run.
+  its job with its log. The run of `ed03e05` ended the job at 240 s with an empty broker log; a job with no result now also gives the output of its unit; read it in the next `runner-image.yml` run.
   T-096: each tar form passed in `/tmp`; the next run measures the
   workspace path. Q4 (T-098) waits for the owner.
 - The gate queues for many minutes, and a newer push cancels a queued

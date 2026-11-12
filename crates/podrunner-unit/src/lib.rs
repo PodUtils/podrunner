@@ -103,6 +103,12 @@ pub trait UnitDriver: Send + Sync {
 
     /// Stop a container and remove it.
     fn container_stop(&self, unit: &UnitId, container: &ContainerId) -> Result<(), UnitError>;
+
+    /// The output of the payload of a unit so far, before `destroy`: it
+    /// tells why a job gave no result. A driver that keeps none refuses.
+    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+        Err(UnitError::new(UnitCode::Unsupported, format!("{}: no output of {unit}", self.kind())))
+    }
 }
 
 #[cfg(test)]
