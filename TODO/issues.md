@@ -46,7 +46,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #38 | WP-12: canned-message fake broker (level 2) | closed (T-026, runner-image run 42987612426) | T-038 |
 | #39 | Milestone L2: level 2 green, hook path measured | open (blocked: T-036, T-037) | T-039 |
 | #40 | Level 3: live acceptance suite | open (blocked: DR-7) | T-040 |
-| #41 | Hold `enforced` on podvm units (`pod-hold` or `pod-sud`) | open (later than v1; starts after T-065) | T-041 |
+| #41 | Hold `enforced` on podvm units (`pod-hold` or `pod-sud`) | closed (`349f0ba`, gate run 43076066364, runner-image run 43076066444) | T-041 |
 | #42 | `confined` boundary (`pod-confine`) | open (blocked: PodUtils/podvm#259) | T-042 |
 | #43 | Later crates: service unit, release index, acceptance registry | open (blocked: `pod-unit`, `pod-release` of podcrates) | T-043 |
 | #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | closed (answered in PodUtils/podnet#425) | T-044 |
