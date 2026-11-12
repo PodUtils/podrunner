@@ -12,7 +12,7 @@ is done.
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 86 entries, 2 open, 2 partial, 12 blocked, 70 done
+- The record: 89 entries, 3 open, 3 partial, 12 blocked, 71 done
   (`cargo todo check`). `main` is green: gate, level2 and runner-image.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
@@ -45,7 +45,8 @@ is done.
 ## In flight
 
 - T-086: the take of podcrates `v0.30.0`; close it on its gate. Then
-  T-046: the local mode over `pod-actions-workflow` and `pod-actions-expr`.
+  T-046, the local mode: T-087 (the source, `crates/podrunner-local`) is
+  done; next T-088 (the job message), then T-089 (the command).
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs

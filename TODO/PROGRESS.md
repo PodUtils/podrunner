@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 86 entries: 2 open, 2 partial, 12 blocked, 70 done.
+`TODO/INDEX.md` holds 89 entries: 3 open, 3 partial, 12 blocked, 71 done.
 
 ## State
 
@@ -28,7 +28,8 @@ release or a live account.
 The queue, most valuable first:
 
 1. T-086 (S): take podcrates `v0.30.0` (PodUtils/podcrates#89); close it on the green gate, and send the commit to podcrates.
-2. T-046 (L): the local mode, `podrunner run workflow.yml`, over `pod-actions-workflow` and `pod-actions-expr` of `v0.30.0`.
+2. T-088 (M): a workflow job into the job message of the fake broker, the expressions as tokens that the runner evaluates (T-046).
+3. T-089 (M): `podrunner run workflow.yml` end to end; it closes T-046.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "arraydeque"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -607,6 +613,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-actions-expr"
+version = "0.30.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.30.0#613058c722e936d85fb7e0647ac17f19dbfdf073"
+
+[[package]]
+name = "pod-actions-workflow"
+version = "0.30.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.30.0#613058c722e936d85fb7e0647ac17f19dbfdf073"
+dependencies = [
+ "pod-actions-expr",
+ "saphyr-parser",
+]
+
+[[package]]
 name = "pod-broker"
 version = "0.30.0"
 source = "git+https://github.com/PodUtils/podcrates?tag=v0.30.0#613058c722e936d85fb7e0647ac17f19dbfdf073"
@@ -831,6 +851,17 @@ dependencies = [
  "podrunner-schema",
  "podrunner-unit",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "podrunner-local"
+version = "0.1.0"
+dependencies = [
+ "pod-actions-expr",
+ "pod-actions-workflow",
+ "podrunner-schema",
+ "podrunner-source",
  "serde_json",
 ]
 
@@ -1104,6 +1135,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "saphyr-parser"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c98d2738e44a25e6ba2e6d83d91805648df204768abc96f4f1278cb3d5c90bbe"
+dependencies = [
+ "arraydeque",
+ "thiserror",
+]
+
+[[package]]
 name = "schemars"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1350,6 +1391,26 @@ name = "syscalls"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81c645a4de0d803ced6ef0388a2646aa1ef8467173b5d59a2c33c88de4ab76e7"
+
+[[package]]
+name = "thiserror"
+version = "2.0.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09e52cb86a36cede5cb101bf8908837b3e4c6e5e59fe7fd85c23fb56200d189e"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "2.0.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe5197923287db20a58125f0bc85c062f7f2c892de97b18c356f9efb14b28524"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
+]
 
 [[package]]
 name = "tokio"
