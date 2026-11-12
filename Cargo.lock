@@ -930,8 +930,10 @@ dependencies = [
  "pod-actions-expr",
  "pod-actions-workflow",
  "podrunner-broker-fake",
+ "podrunner-fake",
  "podrunner-schema",
  "podrunner-source",
+ "podrunner-unit",
  "serde_json",
 ]
 

@@ -312,7 +312,7 @@ A subcommand that builds a source set of kind `local` from the file, starts one 
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -329,6 +329,10 @@ T-089 gives the loop (`podrunner_local::drive`) and the trait `Executor`. `crate
 ## Prove
 
 `runner-image.yml` runs `podrunner run crates/podrunner/tests/local/suite.yml --podvm ... --image ...` to green on x86_64, each job in its own unit, with no residue.
+
+## Done
+
+Partial, 2026-11-12. `podrunner_local::exec::InUnit`: an executor over a `UnitDriver` (a fresh unit id for each job, the runner files of the broker as the credential files, `run.sh` as the top process, wait, `destroy`; residue fails the job). `podrunner run FILE --podvm PATH --images STORE --image REF` uses it with the podvm driver. `a_unit_with_no_result_fails_its_job_and_is_destroyed` holds the end of a unit with no result on the fake unit. `runner-image.yml` runs the suite in podvm units on x86_64. Open: the green run of that step, and the egress module (`[unit.podvm] podnet`) for "no network other than the egress module".
 
 # T-091: Actions (uses:) in the local mode
 

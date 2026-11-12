@@ -953,6 +953,7 @@ dependencies = [
  "podrunner-broker-fake",
  "podrunner-schema",
  "podrunner-source",
+ "podrunner-unit",
  "serde_json",
 ]
 

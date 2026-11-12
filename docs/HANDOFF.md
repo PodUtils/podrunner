@@ -12,7 +12,7 @@ is done.
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 91 entries, 3 open, 3 partial, 12 blocked, 73 done
+- The record: 91 entries, 2 open, 4 partial, 12 blocked, 73 done
   (`cargo todo check`). `main` is green: gate, level2 and runner-image.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039

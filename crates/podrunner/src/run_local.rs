@@ -12,12 +12,11 @@ use pod_actions_workflow::{Base, JobResult};
 use pod_core::failure::Class;
 use podrunner_local::LocalSource;
 use podrunner_local::drive::{Line, drive};
-use podrunner_local::exec::RunnerDir;
+use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str =
-    "usage: podrunner run FILE --runner-dir DIR [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -28,6 +27,9 @@ fn fail(class: Class, msg: impl Into<String>) -> Out {
 struct Args {
     file: PathBuf,
     runner_dir: Option<PathBuf>,
+    podvm: Option<PathBuf>,
+    images: Option<PathBuf>,
+    image: Option<String>,
     event: String,
     vars: Vec<(String, String)>,
     inputs: Vec<(String, String)>,
@@ -49,6 +51,9 @@ fn parse(args: &[String]) -> Result<Args, String> {
         let mut value = || it.next().cloned().ok_or_else(|| format!("{x} needs a value"));
         match x.as_str() {
             "--runner-dir" => a.runner_dir = Some(PathBuf::from(value()?)),
+            "--podvm" => a.podvm = Some(PathBuf::from(value()?)),
+            "--images" => a.images = Some(PathBuf::from(value()?)),
+            "--image" => a.image = Some(value()?),
             "--event" => a.event = value()?,
             "--var" => a.vars.push(pair(&value()?)?),
             "--input" => a.inputs.push(pair(&value()?)?),
@@ -58,7 +63,11 @@ fn parse(args: &[String]) -> Result<Args, String> {
         }
     }
     a.file = file.ok_or("the workflow file is necessary")?;
-    Ok(a)
+    let unit = [a.podvm.is_some(), a.images.is_some(), a.image.is_some()];
+    match (a.runner_dir.is_some(), unit) {
+        (true, [false, false, false]) | (false, [true, true, true]) => Ok(a),
+        _ => Err("one of --runner-dir DIR, or --podvm, --images and --image together, is necessary".into()),
+    }
 }
 
 fn object(pairs: &[(String, String)]) -> Value {
@@ -82,6 +91,21 @@ fn arch() -> &'static str {
     if cfg!(target_arch = "aarch64") { "aarch64" } else { "x86_64" }
 }
 
+/// The executor of `--podvm`: each job in a fresh podvm unit of the
+/// runner image (T-090), with the state of the units in `state`.
+fn in_podvm(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
+    use podrunner_podvm::{Podvm, PodvmUnit};
+    use podrunner_unit::UnitDriver;
+    let (Some(binary), Some(images), Some(image)) = (&a.podvm, &a.images, &a.image) else {
+        return Err(fail(Class::Usage, USAGE));
+    };
+    let podvm = Podvm { binary: binary.clone() };
+    let unit = PodvmUnit::new(podvm, state, images).map_err(|e| fail(Class::Config, format!("podvm: {e}")))?;
+    let platform = if arch() == "aarch64" { "linux/arm64" } else { "linux/amd64" };
+    let prepared = unit.prepare(image, platform, false).map_err(|e| fail(Class::Config, format!("{image}: {e}")))?;
+    Ok(InUnit::new(std::sync::Arc::new(unit), prepared))
+}
+
 /// The line of one job.
 pub fn line(l: &Line) -> String {
     match l {
@@ -98,9 +122,6 @@ pub fn run(args: &[String]) -> Out {
         Ok(a) => a,
         Err(e) => return fail(Class::Usage, format!("{e}\n{USAGE}")),
     };
-    let Some(dir) = a.runner_dir.clone() else {
-        return fail(Class::Usage, format!("--runner-dir is necessary\n{USAGE}"));
-    };
     let text = match std::fs::read_to_string(&a.file) {
         Ok(t) => t,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -114,17 +135,29 @@ pub fn run(args: &[String]) -> Out {
         Ok(s) => s,
         Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
     };
-    let mut exec = match RunnerDir::new(dir) {
-        Ok(x) => x,
-        Err(e) => return fail(Class::Config, e),
-    };
     let mut stdout = String::new();
     let mut stderr = String::new();
-    let result = drive(&mut source, &mut exec, &mut |l| stdout.push_str(&line(l)));
+    let mut each = |l: &Line| stdout.push_str(&line(l));
+    let (result, logs) = if let Some(dir) = a.runner_dir.clone() {
+        let mut exec = match RunnerDir::new(dir) {
+            Ok(x) => x,
+            Err(e) => return fail(Class::Config, e),
+        };
+        (drive(&mut source, &mut exec, &mut each), exec.logs)
+    } else {
+        let state = std::env::temp_dir().join(format!("podrunner-run-{}", std::process::id()));
+        let mut exec = match in_podvm(&a, &state) {
+            Ok(x) => x,
+            Err(o) => return o,
+        };
+        let r = drive(&mut source, &mut exec, &mut each);
+        let _ = std::fs::remove_dir_all(&state);
+        (r, exec.logs)
+    };
     match result {
         Ok(true) => Out { code: 0, stdout, stderr },
         Ok(false) => {
-            for (job, log) in &exec.logs {
+            for (job, log) in &logs {
                 stderr.push_str(&format!("--- log of {job}\n{log}\n"));
             }
             Out { code: 1, stdout, stderr }
