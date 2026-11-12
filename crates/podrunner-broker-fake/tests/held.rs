@@ -12,8 +12,8 @@
 //!
 //! It needs the seccomp hold: under `enforced` the runner does not reach
 //! the fake broker on the loopback of the host, so the test skips.
-//! The runner gets `DOTNET_SYSTEM_NET_DISABLEIPV6=1`: the seccomp hold
-//! does not take `::ffff:127.0.0.1` as loopback (T-077).
+//! The runner keeps IPv6: podnet `v0.4.0-beta.5` and later take
+//! `::ffff:127.0.0.1` as loopback in the seccomp hold (T-077).
 
 mod common;
 
@@ -127,10 +127,9 @@ fn a_held_runner_reaches_an_allowed_host_and_not_a_denied_one() {
         unit: id.clone(),
         image: prepared,
         argv: vec!["/home/runner/run.sh".into()],
-        // The seccomp hold of podnet `v0.4.0-beta.3` sends a dual-stack
-        // connect to `::ffff:127.0.0.1` to the egress socket, not direct, so
-        // the runner (.NET) would not reach the fake broker on the loopback.
-        env: [("DOTNET_SYSTEM_NET_DISABLEIPV6".to_string(), "1".to_string())].into(),
+        // No DOTNET_SYSTEM_NET_DISABLEIPV6: from podnet v0.4.0-beta.5 the
+        // seccomp hold takes `::ffff:127.0.0.1` as loopback (GitHub #64).
+        env: Default::default(),
         credential: Credential { files },
         sockets: Some(sockets.clone()),
     };

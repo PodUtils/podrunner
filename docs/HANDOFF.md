@@ -10,9 +10,9 @@ is done.
 
 - Pins: podcrates `v0.31.0` (`Cargo.toml`); podvm `v0.2.0-beta.5`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
-  `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
+  `v0.4.0-beta.6` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 98 entries, 1 open, 5 partial, 13 blocked, 79 done
+- The record: 98 entries, 1 open, 6 partial, 12 blocked, 79 done
   (`cargo todo check`). `main` is green: gate, level2 and runner-image.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
@@ -47,8 +47,8 @@ is done.
 - The local mode (T-046, `podrunner run`, `docs/cli.md`): T-087 to T-094
   are done (runner-image run 43227187267: the local suite and the
   containers suite in podvm units). T-095 (`--podnet`) waits for its next
-  `runner-image.yml` run: the held run needs `DOTNET_SYSTEM_NET_DISABLEIPV6=1`
-  (GitHub #64), which `InUnit` now sets. T-096 (`tar -C` in a podvm unit)
+  `runner-image.yml` run, with podnet `v0.4.0-beta.6` and no IPv6
+  workaround (T-077). T-096 (`tar -C` in a podvm unit)
   reads its measure in the same run. Q4 (T-098) waits for the owner.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
@@ -68,8 +68,9 @@ is done.
 
 ## Open issues and asks
 
-- GitHub #64 (COORD-009, to podnet): open. The held test sets
-  `DOTNET_SYSTEM_NET_DISABLEIPV6=1` until a fix.
+- GitHub #64 (COORD-009, to podnet): closed; the fix is in podnet
+  `v0.4.0-beta.5` (`e78bde974`). T-077 closes on a held run with no
+  `DOTNET_SYSTEM_NET_DISABLEIPV6`.
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.

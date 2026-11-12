@@ -1181,7 +1181,7 @@ One `pod_dns::Resolver` for each process, from a `[dns]` table of the configurat
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -1201,9 +1201,9 @@ When podnet fixes it, also remove `DOTNET_SYSTEM_NET_DISABLEIPV6` from the held 
 
 `cargo test -p podrunner-broker-fake --test held -- --ignored` with no `DOTNET_SYSTEM_NET_DISABLEIPV6`, in `runner-image.yml`.
 
-## Blocker
+## Done
 
-A podnet release that takes `::ffff:127.0.0.0/104` as loopback (GitHub #64, to podnet). GitHub #64 was closed (as completed) on 2026-11-12 at 13:48 (UTC), with no comment, no `state:` line and no answer of podnet that names it; no podnet release takes `::ffff:127.0.0.0/104` as loopback yet, so the workaround stays (`held.rs`, the held units of `podrunner run --podnet`). Asked podcrates on 2026-11-12 whether podnet fixed it.
+Partial, 2026-11-12. podnet fixed it in `e78bde974` (PodUtils/podnet@T-255: "the seccomp connect takes an IPv4-mapped loopback address (::ffff:127.0.0.1) as loopback"), in its releases `v0.4.0-beta.5` and `v0.4.0-beta.6` (read through podcrates: the title of the commit and the compare to each tag). `images/podnet.toml` pins `v0.4.0-beta.6` (the SHA-256 of each binary agrees with the digest of its release asset); `held.rs` and the held units of `podrunner run --podnet` drop `DOTNET_SYSTEM_NET_DISABLEIPV6`. Open: the held run of `runner-image.yml` with it.
 
 # T-078: The podvm driver labels each unit and reads the run report of podvm
 
