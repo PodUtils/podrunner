@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 85 entries: 1 open, 2 partial, 13 blocked, 69 done.
+`TODO/INDEX.md` holds 85 entries: 0 open, 2 partial, 13 blocked, 70 done.
 
 ## State
 
@@ -27,7 +27,7 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-083 (S): take podcrates `v0.29.0` (PodUtils/podcrates#87); close it on the green gate, and send the commit to podcrates.
+None: each open entry waits for a person, a release or another project (below). Take the next tag of podcrates when its hand-off comes (PodUtils/podcrates@T-251 for T-046).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

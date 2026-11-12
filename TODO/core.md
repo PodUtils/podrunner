@@ -1388,7 +1388,7 @@ Done on 2026-11-12 (steps 1 and 2): Step 1: GHSA-x33c-w48q-qrgc is CVE-2026-1141
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1405,6 +1405,10 @@ Move each `tag = "v0.28.0"` of the manifests to `v0.29.0`, update `Cargo.lock`, 
 ## Prove
 
 `sh scripts/agent/check.sh` passes on the take; the gate of the commit is green.
+
+## Done
+
+2026-11-12, `7cdd0d5`; gate run 43182205023 of `846c852` (which holds the take) is green, and level2 run 43181973838 of `a8347ba` is green. `sh scripts/agent/check.sh` passed on the take (each step 0). The commit went to the podcrates session for PodUtils/podcrates#87.
 
 # T-084: Conformance test 26 kills the launcher of podvm before it reports the start
 

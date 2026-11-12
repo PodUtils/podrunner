@@ -12,7 +12,7 @@ is done.
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.3` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 85 entries, 1 open, 2 partial, 13 blocked, 69 done
+- The record: 85 entries, 0 open, 2 partial, 13 blocked, 70 done
   (`cargo todo check`). `main` is green: gate, level2 and runner-image.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
@@ -44,6 +44,9 @@ is done.
 
 ## In flight
 
+- runner-image of `a8347ba` runs the whole podvm conformance suite with
+  the fix of test 26 (T-084). Read it; a failure of test 26 opens T-084
+  again.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs
