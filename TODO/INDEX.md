@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**79 entries: 1 open, 2 partial, 13 blocked, 63 done.**
+**80 entries: 1 open, 2 partial, 12 blocked, 65 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 28 | 29 |
 | P2 | 0 | 1 | 8 | 30 | 39 |
-| P3 | 1 | 0 | 5 | 5 | 11 |
-| **All** | 1 | 2 | 13 | 63 | 79 |
+| P3 | 1 | 0 | 4 | 7 | 12 |
+| **All** | 1 | 2 | 12 | 65 | 80 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -89,7 +89,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-039](level2.md) | P2 | S | L2 | chore | blocked | Milestone L2: level 2 green, the hook path measured (GitHub #39) |
 | [T-040](level2.md) | P3 | M | L3 | chore | blocked | Level 3: the live acceptance suite (GitHub #40) |
 | [T-041](later.md) | P3 | S | later | feature | done | Hold enforced on podvm units (pod-hold or pod-sud) (GitHub #41) |
-| [T-042](later.md) | P3 | S | later | feature | blocked | The confined boundary (pod-confine) (GitHub #42) |
+| [T-042](later.md) | P3 | S | later | feature | done | The confined boundary (pod-confine) (GitHub #42) |
 | [T-043](later.md) | P3 | S | later | feature | blocked | Later crates: service unit, release index, acceptance registry (GitHub #43) |
 | [T-044](plan.md) | P2 | S | M-A | chore | done | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (GitHub #46) |
 | [T-045](live.md) | P1 | M | M-D | feature | done | The mitigations of DR-4 for trusted jobs at redirect (GitHub #47) |
@@ -126,4 +126,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-076](core.md) | P1 | M | M-D | feature | done | podrunner resolves names with pod-dns: no single resolver of the host |
 | [T-077](core.md) | P3 | S | later | defect | blocked | COORD-009: the seccomp hold of podnet pod does not take ::ffff:127.0.0.1 as loopback (GitHub #64) |
 | [T-078](core.md) | P3 | S | later | feature | done | The podvm driver labels each unit and reads the run report of podvm |
-| [T-079](core.md) | P3 | M | later | measurement | open | Measure podvm --podvm-confine on the supervise rung, for a confined podvm unit |
+| [T-079](core.md) | P3 | M | later | measurement | done | Measure podvm --podvm-confine on the supervise rung, for a confined podvm unit |
+| [T-080](core.md) | P3 | S | later | defect | open | Tests 25 and 26 skip on a confined podvm unit: the orphan is not seen on the host |

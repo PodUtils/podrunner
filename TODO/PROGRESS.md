@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 79 entries: 1 open, 2 partial, 13 blocked, 63 done.
+`TODO/INDEX.md` holds 80 entries: 1 open, 2 partial, 12 blocked, 65 done.
 
 ## State
 
@@ -27,11 +27,11 @@ release or a live account.
 
 The queue for tonight, most valuable first:
 
-1. T-079 (M): measure `podvm --podvm-confine` of beta.5 on the supervise rung; when it holds, a podvm unit at `confined` (T-042).
+1. T-080 (S): tests 25 and 26 skip on a confined podvm unit; prove the tree kill under the confine layer.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
-Blocked: T-077 (podnet, GitHub #64), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-042 (PodUtils/podvm#259), T-043, T-046 (crates of podcrates).
+Blocked: T-077 (podnet, GitHub #64), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043, T-046 (crates of podcrates).
 
 ## Questions for the owner
 

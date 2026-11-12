@@ -47,7 +47,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #39 | Milestone L2: level 2 green, hook path measured | open (blocked: T-036, T-037) | T-039 |
 | #40 | Level 3: live acceptance suite | open (blocked: DR-7) | T-040 |
 | #41 | Hold `enforced` on podvm units (`pod-hold` or `pod-sud`) | closed (`349f0ba`, gate run 43076066364, runner-image run 43076066444) | T-041 |
-| #42 | `confined` boundary (`pod-confine`) | open (blocked: PodUtils/podvm#259) | T-042 |
+| #42 | `confined` boundary (`pod-confine`) | closed (`660bdf1`, runner-image run 43155326439) | T-042 |
 | #43 | Later crates: service unit, release index, acceptance registry | open (blocked: `pod-unit`, `pod-release` of podcrates) | T-043 |
 | #46 | COORD-001: DR-1 and DR-2 are yes; podnet's podrunner entries can start (to podnet) | closed (answered in PodUtils/podnet#425) | T-044 |
 | #47 | The mitigations of DR-4: trusted jobs at boundary redirect | closed (`7d1f203`, gate run 42957378324) | T-045 |

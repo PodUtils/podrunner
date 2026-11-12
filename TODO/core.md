@@ -1239,7 +1239,7 @@ With the next beta: give `run -d` and each container `--label podrunner.unit=ID`
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1274,3 +1274,32 @@ On the supervise rung the confine layer closes the three paths of R2 (`docs/secu
 ## Prove
 
 `sh scripts/measure-podvm-confine.sh PODVM DIR` as uid 65534 with no user namespace and as root; `cargo test -p podrunner-podvm --test conformance -- --ignored` with `confine = true`.
+
+## Done
+
+2026-11-12, `bd07a93` and `660bdf1`; gate run 43155326553, level2 run 43155326441 and runner-image run 43155326439 of `660bdf1` are green. Steps 1 and 2: `[unit.podvm] confine = true` runs each unit and container under `--podvm-confine` (`crates/podrunner-podvm/src/unit/confine.rs`), and `verify_confine` proves it on the host before the kind says `confined`; `confine_is_proven_only_by_a_check_that_sees_and_a_layer_that_holds` holds the plants. On the supervise rung of the GitHub host the measure gives environ and root reached unconfined and denied confined (cwd is denied both ways there); test 27, the canned job and the container job pass under the layer. As root (namespace rung) the self-test refuses the claim: the open run sees no `/proc`. Step 3 is not needed: the supervise rung takes the spec. Tests 25 and 26 skip under the layer: T-080.
+
+# T-080: Tests 25 and 26 skip on a confined podvm unit: the orphan is not seen on the host
+
+**Source:** T-079
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With `PODRUNNER_PODVM_CONFINE=1`, unit conformance tests 25 (an orphan with no tag) and 26 (a killed shim) skip with "the orphan is not seen on the host (a pid namespace)", on H0 and on the GitHub host. Unconfined they pass. So the tree kill of a confined unit has no proof of its own: `tree_kill: verified` comes from a self-test of an unconfined unit.
+
+## Premise
+
+Seen on 2026-11-12 in runner-image run 43155326439 and on H0 (podvm `v0.2.0-beta.5`, supervise rung). The skip comes from `an_orphan_with_no_tag` of `crates/podrunner-unit/src/conformance/design.rs`: it needs the pid of the orphan alive with an empty `/proc/PID/environ` on the host. Not measured: whether the pid file holds a host pid, or whether the host test cannot read the environ of a process in the Landlock domain.
+
+## Approach
+
+Run the escape payload under `--podvm-confine` by hand and compare the pid of the file with the host pids of the unit (`observe`), and read `/proc/PID/status` of the orphan. If the environ read is the cause, make the check of the test use another proof of an empty environment (the `status` line, or the payload). Then run `verify_tree_kill` on a confined unit too.
+
+## Prove
+
+`PODRUNNER_PODVM_CONFINE=1 cargo test -p podrunner-podvm --test conformance -- --ignored`: tests 25 and 26 pass.

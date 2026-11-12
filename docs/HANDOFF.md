@@ -21,10 +21,11 @@ is done.
   `runner-image.yml` (T-026, T-035). The unit conformance suite passes on
   the fake unit and on the podvm driver; tests 25 and 26 hold the tree
   kill (T-063).
-- The confined fake (T-042, step 1): the shim applies the rules of
-  `pod-confine` (`crates/podrunner-unit/src/confine.rs`); conformance test
-  27 passes on it. A unit kind of real jobs at `confined` waits for
-  podvm (PodUtils/podvm#259).
+- The `confined` boundary (T-042, T-079): the fake applies `pod-confine`
+  through its shim; the podvm kind with `[unit.podvm] confine = true` runs
+  each unit under `podvm --podvm-confine` and says `confined` only after
+  its self-test on the host. Tests 25 and 26 skip on a confined podvm unit
+  (T-080).
 - With `[unit.podvm] podnet`, a podvm unit runs under `podnet pod`: the
   netns hold (`enforced`) where user namespaces and `/dev/net/tun` exist,
   else the seccomp hold (`advisory`) (T-065, T-041).
@@ -40,7 +41,6 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | The owner | DR-7: a test organization and App ("not now") | T-007, T-032, T-033, T-040 |
-| podvm | `pod-confine` in its units (PodUtils/podvm#259) | T-042 |
 | podvm | the aarch64 interposer (PodUtils/podvm@T-1721) | T-051, T-030 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-actions-workflow`, `pod-actions-expr` | T-046 |

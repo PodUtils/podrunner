@@ -56,7 +56,7 @@ T-065 is done: the podvm driver runs its units under `podnet pod` with the `advi
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -93,9 +93,9 @@ pmask (the owner's note to DR-6, not adopted) is no boundary and gives no `confi
 
 `cargo test -p podrunner-unit confined`
 
-## Blocker
+## Done
 
-podvm applies `pod-confine` in its units (PodUtils/podvm#259), for a unit kind of real jobs at `confined`. podvm `v0.2.0-beta.5` has `run --podvm-confine`; T-079 measures it.
+2026-11-12, `660bdf1`; gate run 43155326553, level2 run 43155326441 and runner-image run 43155326439 of `660bdf1` are green. The podvm kind with `confine = true` reports `boundary: confined` only after its self-test (T-079); the confined fake and pod-confine of podcrates `v0.27.0` stay for the fake kind, with the socket directory of the unit (`3ef4db9`). A trusted job runs on the confined podvm unit: the canned job and the container job of `crates/podrunner-broker-fake/tests/podvm.rs` pass under the layer in `runner-image.yml`.
 
 # T-043: Later crates: service unit, release index, acceptance registry (GitHub #43)
 
