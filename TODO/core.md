@@ -1181,7 +1181,7 @@ One `pod_dns::Resolver` for each process, from a `[dns]` table of the configurat
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -1201,9 +1201,10 @@ When podnet fixes it, also remove `DOTNET_SYSTEM_NET_DISABLEIPV6` from the held 
 
 `cargo test -p podrunner-broker-fake --test held -- --ignored` with no `DOTNET_SYSTEM_NET_DISABLEIPV6`, in `runner-image.yml`.
 
-## Done
+## Blocker
 
-Partial, 2026-11-12. podnet fixed it in `e78bde974` (PodUtils/podnet@T-255: "the seccomp connect takes an IPv4-mapped loopback address (::ffff:127.0.0.1) as loopback"), in its releases `v0.4.0-beta.5` and `v0.4.0-beta.6` (read through podcrates: the title of the commit and the compare to each tag). `images/podnet.toml` pins `v0.4.0-beta.6` (the SHA-256 of each binary agrees with the digest of its release asset); `held.rs` and the held units of `podrunner run --podnet` drop `DOTNET_SYSTEM_NET_DISABLEIPV6`. Run 43232215654 of `1f1d349`: the held egress run of `podrunner run --podnet` (T-095) hung with no line, so the held test did not run. The same run with beta.3 and the variable passed (run 43230901394). Open: the log of the hung job (T-095 now ends it at its `timeout-minutes`), then the held run of `runner-image.yml` with no variable.
+podnet (GitHub #69, COORD-011). 2026-11-12: podnet fixed it in `e78bde974` (PodUtils/podnet@T-255: "the seccomp connect takes an IPv4-mapped loopback address (::ffff:127.0.0.1) as loopback"), in its releases `v0.4.0-beta.5` and `v0.4.0-beta.6` (read through podcrates: the title of the commit and the compare to each tag). `images/podnet.toml` pins `v0.4.0-beta.6` (the SHA-256 of each binary agrees with the digest of its release asset); `held.rs` and the held units of `podrunner run --podnet` drop `DOTNET_SYSTEM_NET_DISABLEIPV6`. Run 43232215654 of `1f1d349`: the held egress run of `podrunner run --podnet` (T-095) hung with no line, so the held test did not run. The same run with beta.3 and the variable passed (run 43230901394). Open: the log of the hung job (T-095 now ends it at its `timeout-minutes`), then the held run of `runner-image.yml` with no variable. Run 43239962509 of `b90ef12` gave the output of the unit: "Runner connect error: Connection refused (127.0.0.1:PORT)", then reconnects with no job; the broker log was empty. So `v0.4.0-beta.6` does not take `::ffff:127.0.0.1` as loopback from a podvm unit. `held.rs` and the held units of `podrunner run --podnet` set `DOTNET_SYSTEM_NET_DISABLEIPV6=1` again. When podnet names a release with the fix: pin it, remove the variable, and run the held test.
+
 
 # T-078: The podvm driver labels each unit and reads the run report of podvm
 

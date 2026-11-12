@@ -46,10 +46,12 @@ is done.
 
 - The local mode (T-046, `podrunner run`, `docs/cli.md`): T-087 to T-094
   are done (runner-image run 43227187267: the local suite and the
-  containers suite in podvm units). T-095 (`--podnet`): the held run
-  passed with podnet beta.3 and the IPv6 workaround, and hung with beta.6
-  and no workaround (T-077). A unit now ends at the `timeout-minutes` of
-  its job with its log. The run of `ed03e05` ended the job at 240 s with an empty broker log; a job with no result now also gives the output of its unit; read it in the next `runner-image.yml` run.
+  containers suite in podvm units). T-095 (`--podnet`): with podnet beta.6
+  and no IPv6 workaround the runner's connect to `::ffff:127.0.0.1` is
+  refused (the output of the unit, run 43239962509; GitHub #69, T-077
+  blocked). Held units set `DOTNET_SYSTEM_NET_DISABLEIPV6=1` again; the
+  next `runner-image.yml` run must give `ok denied`. A job ends at its
+  `timeout-minutes`, and a job with no result gives the output of its unit.
   T-096: each tar form passed in `/tmp`; the next run measures the
   workspace path. Q4 (T-098) waits for the owner.
 - The gate queues for many minutes, and a newer push cancels a queued
@@ -66,13 +68,14 @@ is done.
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
-| podnet | `::ffff:127.0.0.1` as loopback in the seccomp hold (GitHub #64, COORD-009) | T-077 |
+| podnet | `::ffff:127.0.0.1` as loopback in the seccomp hold of a podvm unit (GitHub #69, COORD-011) | T-077 |
 
 ## Open issues and asks
 
-- GitHub #64 (COORD-009, to podnet): closed; the fix is in podnet
-  `v0.4.0-beta.5` (`e78bde974`). T-077 closes on a held run with no
-  `DOTNET_SYSTEM_NET_DISABLEIPV6`.
+- GitHub #69 (COORD-011, to podnet): the fix of #64 (podnet
+  `v0.4.0-beta.5`, `e78bde974`) does not hold in a podvm unit with
+  beta.6. T-077 is blocked; it closes on a held run with no
+  `DOTNET_SYSTEM_NET_DISABLEIPV6` on the release that podnet names.
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.

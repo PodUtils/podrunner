@@ -235,7 +235,16 @@ impl Executor for InUnit {
             unit: id.clone(),
             image: self.image.clone(),
             argv: vec![self.run_sh.clone()],
-            env: hooks.as_ref().map(|h| h.env.clone()).unwrap_or_default(),
+            env: {
+                let mut env = hooks.as_ref().map(|h| h.env.clone()).unwrap_or_default();
+                // The seccomp hold of podnet v0.4.0-beta.6 still refuses a
+                // connect to `::ffff:127.0.0.1` from a podvm unit, so .NET
+                // does not reach the fake broker (GitHub #69, T-077).
+                if self.egress.is_some() {
+                    env.insert("DOTNET_SYSTEM_NET_DISABLEIPV6".into(), "1".into());
+                }
+                env
+            },
             credential: Credential { files },
             sockets: sockets.clone(),
         };

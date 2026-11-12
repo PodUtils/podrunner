@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 98 entries: 0 open, 6 partial, 12 blocked, 80 done.
+`TODO/INDEX.md` holds 98 entries: 0 open, 5 partial, 13 blocked, 80 done.
 
 ## State
 
@@ -27,14 +27,13 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-095 (M, partial): `podrunner run --podvm --podnet`, the egress of each unit through the egress module; with beta.6 the held run hangs; read the log of the job that ends at its `timeout-minutes` in the next `runner-image.yml` run; it closes T-046 with the seccomp hold.
+1. T-095 (M, partial): `podrunner run --podvm --podnet`, the egress of each unit through the egress module; held units set `DOTNET_SYSTEM_NET_DISABLEIPV6=1` again (GitHub #69); the next `runner-image.yml` run must give `ok denied`; it closes T-046 with the seccomp hold.
 2. T-096 (S, partial): each form passed in `/tmp`; read the measure under the workspace path in the next run, and send the smallest failing form to podcrates (PodUtils/podcrates@T-328).
-3. T-077 (S, partial): podnet `v0.4.0-beta.6` takes `::ffff:127.0.0.1` as loopback; read the held runs of the same run (no IPv6 workaround).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates).
+Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates), T-077 (podnet, GitHub #69).
 
 ## Questions for the owner
 
