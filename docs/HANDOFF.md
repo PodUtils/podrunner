@@ -70,10 +70,8 @@ is done.
   Their lines map to the entries; T-001 holds them.
 - GitHub #52 (COORD-005, to podvm): open, T-051.
 - podcrates: the crate ask of T-046 is PodUtils/podcrates@T-251.
-- GitHub #68 (COORD-010, to podvm): `--podvm-confine` runs on the
-  userland rung (a host of probe mode `supervise`); close it when podvm
-  has read it (T-085). The probe names the mode of the host; the
-  `--report` of a run names its rung.
+- The probe of podvm names the mode of the host; the `--report` of a run
+  names its rung (GitHub #68, closed; T-085).
 
 ## Talk between sessions
 
