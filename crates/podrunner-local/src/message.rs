@@ -157,6 +157,17 @@ struct RunDefaults<'a> {
 }
 
 /// One step as the runner reads it: a script action.
+/// The stand-in of `actions/checkout` in the local mode (T-092): the
+/// tarball of the local tree from the fake broker (`github.api_url` names
+/// it) into the workspace, or into `path` in it.
+fn checkout_script(path: &str) -> String {
+    let dest = if path.is_empty() { "$GITHUB_WORKSPACE".to_string() } else { format!("$GITHUB_WORKSPACE/{path}") };
+    format!(
+        "set -eu\nmkdir -p \"{dest}\"\ncurl -fsSL \"${{{{ github.api_url }}}}{}\" | tar -xz -C \"{dest}\"",
+        podrunner_broker_fake::actions::CHECKOUT
+    )
+}
+
 /// The reference of `uses:`, its base context name and its display name.
 /// An action of a repository must be pinned by a full commit id: the local
 /// mode has no forge to resolve a tag.
@@ -192,6 +203,26 @@ fn step(
 ) -> Result<Value, String> {
     let line = s.mark.line;
     let (reference, base, display, inputs) = match (&s.uses, &s.run) {
+        (Some(uses), None) if uses.starts_with("actions/checkout@") => {
+            let path = match s.with.as_ref().and_then(|w| match &w.kind {
+                Kind::Map(e) => e.iter().find(|(k, _)| k.name == "path").map(|(_, v)| v),
+                _ => None,
+            }) {
+                None => String::new(),
+                Some(Node { kind: Kind::String(p), .. }) if !p.contains("${{") && !p.split('/').any(|c| c == "..") => {
+                    p.clone()
+                }
+                Some(_) => {
+                    return Err(format!("line {line}: the `path` of the local checkout must be a plain relative path"));
+                }
+            };
+            (
+                json!({ "type": "script" }),
+                "__actions_checkout".to_string(),
+                format!("Run {uses} (the local tree)"),
+                vec![("script".to_string(), token(&checkout_script(&path))?)],
+            )
+        }
         (Some(uses), None) => {
             let (reference, base) = action(uses, line)?;
             let with = match s.with.as_ref().map(|n| &n.kind) {

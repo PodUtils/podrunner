@@ -1,5 +1,6 @@
 //! `podrunner run` runs the suite of the local mode to green on the official
-//! runner (T-089). Ignored by default: it needs an unpacked release of
+//! runner (T-089), with the tree of this repository for `actions/checkout`
+//! (T-092). Ignored by default: it needs an unpacked release of
 //! `actions/runner` in a directory it may change.
 //!
 //!   PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored
@@ -9,7 +10,15 @@
 fn podrunner_run_runs_the_local_suite_to_green() {
     let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
     let suite = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/local/suite.yml");
-    let out = podrunner::cli::run(&["run".into(), suite.into(), "--runner-dir".into(), dir]);
+    let tree = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    let out = podrunner::cli::run(&[
+        "run".into(),
+        suite.into(),
+        "--runner-dir".into(),
+        dir,
+        "--checkout".into(),
+        tree.into(),
+    ]);
     println!("{}{}", out.stdout, out.stderr);
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
     let lines: Vec<&str> = out.stdout.lines().collect();
@@ -20,10 +29,11 @@ fn podrunner_run_runs_the_local_suite_to_green() {
         "ok      matrix (gamma, 3)",
         "ok      needs",
         "ok      steps",
+        "ok      checkout",
         "skipped skipped: if: success() && (github.event_name == 'pull_request')",
         "ok      after-skip",
     ] {
         assert!(lines.contains(&want), "{want:?} in\n{}", out.stdout);
     }
-    assert_eq!(lines.len(), 8, "{}", out.stdout);
+    assert_eq!(lines.len(), 9, "{}", out.stdout);
 }

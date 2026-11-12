@@ -51,6 +51,8 @@ struct State {
     too_old: bool,
     /// The archives of the actions (T-091).
     actions: Option<std::path::PathBuf>,
+    /// The tarball of the local tree (T-092).
+    tree: Option<std::path::PathBuf>,
 }
 
 /// A fake broker on the loopback.
@@ -99,6 +101,12 @@ impl Broker {
         self.state.lock().expect("the broker").actions = Some(dir.to_path_buf());
     }
 
+    /// Serve `tarball` as the tree of the stand-in of `actions/checkout`
+    /// (`actions::CHECKOUT`, T-092).
+    pub fn serve_checkout(&self, tarball: &std::path::Path) {
+        self.state.lock().expect("the broker").tree = Some(tarball.to_path_buf());
+    }
+
     /// The jobs that ended.
     pub fn completions(&self) -> Vec<Completion> {
         self.state.lock().expect("the broker").done.clone()
@@ -134,8 +142,11 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
     let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
     let base = base.trim_end_matches('/');
     let base = &format!("{base}/");
-    let dir = state.lock().expect("the broker").actions.clone();
-    let actions = actions::route(&req.method, &path, &body, base, dir.as_deref());
+    let (dir, tree) = {
+        let st = state.lock().expect("the broker");
+        (st.actions.clone(), st.tree.clone())
+    };
+    let actions = actions::route(&req.method, &path, &body, base, dir.as_deref(), tree.as_deref());
     let (status, out) = match (req.method.as_str(), path.as_str()) {
         _ if actions.is_some() => actions.expect("an answer"),
         ("POST", "/_apis/oauth2/token") => {

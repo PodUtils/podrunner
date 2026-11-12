@@ -20,6 +20,8 @@ pub struct RunnerDir {
     pub logs: Vec<(JobId, String)>,
     /// The archives of the actions (`OWNER_REPO/SHA.tar.gz`, T-091).
     pub actions: Option<PathBuf>,
+    /// The tarball of the local tree for `actions/checkout` (T-092).
+    pub checkout: Option<PathBuf>,
 }
 
 impl RunnerDir {
@@ -27,7 +29,7 @@ impl RunnerDir {
         if !dir.join("run.sh").is_file() || !dir.join("bin/Runner.Listener").is_file() {
             return Err(format!("{}: no unpacked runner (run.sh, bin/Runner.Listener)", dir.display()));
         }
-        Ok(RunnerDir { dir, logs: Vec::new(), actions: None })
+        Ok(RunnerDir { dir, logs: Vec::new(), actions: None, checkout: None })
     }
 }
 
@@ -49,6 +51,8 @@ pub struct InUnit {
     pub grace: Duration,
     /// The archives of the actions (`OWNER_REPO/SHA.tar.gz`, T-091).
     pub actions: Option<PathBuf>,
+    /// The tarball of the local tree for `actions/checkout` (T-092).
+    pub checkout: Option<PathBuf>,
     next: u64,
     pub logs: Vec<(JobId, String)>,
 }
@@ -61,6 +65,7 @@ impl InUnit {
             run_sh: "/home/runner/run.sh".into(),
             grace: Duration::from_secs(5),
             actions: None,
+            checkout: None,
             next: 0,
             logs: Vec::new(),
         }
@@ -73,6 +78,9 @@ impl Executor for InUnit {
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
         if let Some(dir) = &self.actions {
             broker.serve_actions(dir);
+        }
+        if let Some(tree) = &self.checkout {
+            broker.serve_checkout(tree);
         }
         broker.queue(message);
         self.next += 1;
@@ -119,6 +127,9 @@ impl Executor for RunnerDir {
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
         if let Some(dir) = &self.actions {
             broker.serve_actions(dir);
+        }
+        if let Some(tree) = &self.checkout {
+            broker.serve_checkout(tree);
         }
         broker.queue(message);
         // Each job starts in a fresh work directory.

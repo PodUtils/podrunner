@@ -80,3 +80,21 @@ fn the_github_context_names_the_event_and_the_file() {
     assert_eq!(g.get("event_name").and_then(Value::as_str), Some("push"));
     assert_eq!(g.get("workflow").and_then(Value::as_str), Some("ci.yml"));
 }
+
+#[test]
+fn the_tree_of_the_checkout_is_a_tarball_of_its_files() {
+    let dir = std::env::temp_dir().join(format!("podrunner-tree-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("plain/sub")).unwrap();
+    std::fs::write(dir.join("plain/sub/f.txt"), "x").unwrap();
+    let t = tree_tarball(&dir.join("plain"), &dir.join("scratch")).unwrap();
+    let list = std::process::Command::new("tar").arg("-tzf").arg(&t).output().unwrap();
+    assert!(String::from_utf8_lossy(&list.stdout).contains("sub/f.txt"));
+    // A git tree gives its committed files.
+    let repo = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    let t = tree_tarball(std::path::Path::new(repo), &dir.join("scratch2")).unwrap();
+    let list = std::process::Command::new("tar").arg("-tzf").arg(&t).output().unwrap();
+    assert!(String::from_utf8_lossy(&list.stdout).lines().any(|l| l == "Cargo.toml"));
+    assert!(tree_tarball(&dir.join("missing"), &dir.join("scratch3")).is_err());
+    let _ = std::fs::remove_dir_all(&dir);
+}

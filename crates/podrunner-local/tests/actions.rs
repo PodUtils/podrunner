@@ -91,3 +91,45 @@ fn the_runner_takes_actions_from_the_archive_directory() {
     assert!(matches!(&lines[..], [Line::Ran { .. }]), "{lines:?}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+const LOCAL: &str = r#"name: local
+outputs:
+  n:
+    value: ${{ steps.n.outputs.n }}
+runs:
+  using: composite
+  steps:
+    - id: n
+      shell: bash
+      run: echo "n=local-$((8*8))" >> "$GITHUB_OUTPUT"
+"#;
+
+/// T-092: `actions/checkout` takes the tarball of the local tree from the
+/// broker, also into a `path`, and a `./` action of the tree runs.
+#[test]
+#[ignore]
+fn the_checkout_stand_in_gives_the_local_tree_and_its_actions() {
+    let runner = PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let dir = std::env::temp_dir().join(format!("podrunner-checkout-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let tree = dir.join("tree");
+    std::fs::create_dir_all(tree.join("act")).unwrap();
+    std::fs::write(tree.join("hello.txt"), "local-tree\n").unwrap();
+    std::fs::write(tree.join("act/action.yml"), LOCAL).unwrap();
+    let tarball = dir.join("tree.tar.gz");
+    let ok =
+        std::process::Command::new("tar").arg("-czf").arg(&tarball).arg("-C").arg(&tree).arg(".").status().unwrap();
+    assert!(ok.success());
+    let flow = "on: push\njobs:\n  co:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n      \
+                - run: test \"$(cat hello.txt)\" = local-tree\n      - id: l\n        uses: ./act\n      \
+                - run: test \"${{ steps.l.outputs.n }}\" = local-64\n      - uses: actions/checkout@v4\n        \
+                with:\n          path: sub\n      - run: test -f sub/hello.txt && test -f sub/act/action.yml\n";
+    let mut s = LocalSource::new("local", flow, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    let mut exec = RunnerDir::new(runner).unwrap();
+    exec.checkout = Some(tarball);
+    let mut lines = Vec::new();
+    let ok = drive(&mut s, &mut exec, &mut |l| lines.push(l.clone())).unwrap();
+    let logs: String = exec.logs.iter().map(|(_, l)| l.as_str()).collect();
+    assert!(ok, "{lines:?}\n{logs}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

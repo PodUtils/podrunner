@@ -30,7 +30,7 @@ impl Executor for Scripted {
 }
 
 const FLOW: &str = "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: echo a}]\n  \
-                    b:\n    needs: a\n    runs-on: x\n    steps: [{uses: actions/checkout@v4}]\n  \
+                    b:\n    needs: a\n    runs-on: x\n    steps: [{uses: o/act@v4}]\n  \
                     c:\n    needs: b\n    runs-on: x\n    steps: [{run: echo c}]\n  \
                     d:\n    needs: b\n    if: failure()\n    runs-on: x\n    steps: [{run: echo d}]\n";
 
@@ -45,7 +45,7 @@ fn drive_runs_each_job_in_order_and_gives_each_line() {
     // is skipped; `d` (failure()) runs.
     assert_eq!(exec.ran, ["a.0", "d.0"]);
     assert!(matches!(&lines[0], Line::Ran { result: JobResult::Success, .. }), "{lines:?}");
-    assert!(matches!(&lines[1], Line::Refused { reason, .. } if reason.contains("actions/checkout@v4")), "{lines:?}");
+    assert!(matches!(&lines[1], Line::Refused { reason, .. } if reason.contains("o/act@v4")), "{lines:?}");
     assert!(lines.contains(&Line::Skipped { job: "c".into(), condition: "success()".into() }), "{lines:?}");
     assert!(lines.iter().any(|l| matches!(l, Line::Ran { job, .. } if job.to_string() == "d.0")), "{lines:?}");
     assert!(s.is_finished());

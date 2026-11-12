@@ -90,11 +90,11 @@ fn a_job_becomes_steps_env_outputs_and_contexts() {
 
 #[test]
 fn an_action_by_a_tag_and_a_container_are_refused_by_name() {
-    let uses = "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n";
+    let uses = "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: o/act@v4\n";
     let mut s = LocalSource::new("l", uses, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
     s.next(10, Duration::ZERO).unwrap();
     let e = s.broker_job(&JobId::new("build.0").unwrap()).unwrap_err();
-    assert!(e.contains("actions/checkout@v4") && e.contains("full commit id"), "{e}");
+    assert!(e.contains("o/act@v4") && e.contains("full commit id"), "{e}");
     let container = "on: push\njobs:\n  build:\n    runs-on: x\n    container: alpine\n    steps:\n      - run: x\n";
     let mut s = LocalSource::new("l", container, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
     s.next(10, Duration::ZERO).unwrap();
@@ -105,20 +105,20 @@ fn an_action_by_a_tag_and_a_container_are_refused_by_name() {
 fn an_action_pinned_by_commit_is_a_repository_reference_with_its_inputs() {
     let sha = "0123456789abcdef0123456789abcdef01234567";
     let text = format!(
-        "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@{sha}\n        \
-         with:\n          fetch-depth: 0\n          ref: ${{{{ github.sha }}}}\n      - uses: actions/checkout@{sha}\n      \
+        "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: o/act@{sha}\n        \
+         with:\n          fetch-depth: 0\n          ref: ${{{{ github.sha }}}}\n      - uses: o/act@{sha}\n      \
          - uses: o/r/sub/dir@{sha}\n      - uses: ./local\n      - run: echo\n"
     );
     let job = job_of(&text);
     let steps = job.overrides["steps"].as_array().unwrap().clone();
     assert_eq!(
         steps[0]["reference"],
-        json!({ "type": "repository", "repositoryType": "GitHub", "name": "actions/checkout", "ref": sha })
+        json!({ "type": "repository", "repositoryType": "GitHub", "name": "o/act", "ref": sha })
     );
-    assert_eq!(steps[0]["contextName"], "__actions_checkout");
+    assert_eq!(steps[0]["contextName"], "__o_act");
     assert_eq!(steps[0]["inputs"]["map"][0], json!({ "Key": "fetch-depth", "Value": 0.0 }));
     assert_eq!(steps[0]["inputs"]["map"][1]["Value"]["expr"], "github.sha");
-    assert_eq!(steps[1]["contextName"], "__actions_checkout_2");
+    assert_eq!(steps[1]["contextName"], "__o_act_2");
     assert_eq!(steps[2]["reference"]["name"], "o/r");
     assert_eq!(steps[2]["reference"]["path"], "sub/dir");
     assert_eq!(steps[3]["reference"], json!({ "type": "repository", "repositoryType": "self", "path": "./local" }));
@@ -126,4 +126,25 @@ fn an_action_pinned_by_commit_is_a_repository_reference_with_its_inputs() {
     for bad in ["docker://alpine", "o/r", "o@0123456789abcdef0123456789abcdef01234567", "o/r@main"] {
         assert!(action(bad, 1).is_err(), "{bad}");
     }
+}
+
+#[test]
+fn actions_checkout_is_the_stand_in_of_the_local_tree() {
+    let text = "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n      \
+                - uses: actions/checkout@v4\n        with:\n          path: sub/dir\n          fetch-depth: 0\n";
+    let job = job_of(text);
+    let steps = job.overrides["steps"].as_array().unwrap().clone();
+    assert_eq!(steps[0]["reference"]["type"], "script");
+    assert_eq!(steps[0]["contextName"], "__actions_checkout");
+    let script = steps[0]["inputs"]["map"][0]["Value"]["expr"].as_str().unwrap();
+    assert!(script.contains("{0}_checkout.tar.gz") && script.contains("(github.api_url)"), "{script}");
+    assert!(script.contains("tar -xz -C \"$GITHUB_WORKSPACE\""), "{script}");
+    assert_eq!(steps[1]["contextName"], "__actions_checkout_2");
+    let script = steps[1]["inputs"]["map"][0]["Value"]["expr"].as_str().unwrap();
+    assert!(script.contains("$GITHUB_WORKSPACE/sub/dir"), "{script}");
+    let bad = "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        \
+               with:\n          path: ../out\n";
+    let mut s = LocalSource::new("l", bad, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    assert!(s.broker_job(&JobId::new("build.0").unwrap()).unwrap_err().contains("plain relative path"));
 }

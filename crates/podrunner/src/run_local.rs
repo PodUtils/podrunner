@@ -16,7 +16,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--actions DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--actions DIR] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -31,6 +31,7 @@ struct Args {
     images: Option<PathBuf>,
     image: Option<String>,
     actions: Option<PathBuf>,
+    checkout: Option<PathBuf>,
     event: String,
     vars: Vec<(String, String)>,
     inputs: Vec<(String, String)>,
@@ -56,6 +57,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--images" => a.images = Some(PathBuf::from(value()?)),
             "--image" => a.image = Some(value()?),
             "--actions" => a.actions = Some(PathBuf::from(value()?)),
+            "--checkout" => a.checkout = Some(PathBuf::from(value()?)),
             "--event" => a.event = value()?,
             "--var" => a.vars.push(pair(&value()?)?),
             "--input" => a.inputs.push(pair(&value()?)?),
@@ -91,6 +93,26 @@ fn github(file: &std::path::Path, event: &str) -> Value {
 
 fn arch() -> &'static str {
     if cfg!(target_arch = "aarch64") { "aarch64" } else { "x86_64" }
+}
+
+/// The tarball of the tree `dir` for the stand-in of `actions/checkout`
+/// (T-092): `git archive` of HEAD in a git tree (the committed files, as a
+/// checkout gives them), else each file of `dir`.
+fn tree_tarball(dir: &std::path::Path, scratch: &std::path::Path) -> Result<PathBuf, String> {
+    use std::process::Command;
+    std::fs::create_dir_all(scratch).map_err(|e| format!("{}: {e}", scratch.display()))?;
+    let out = scratch.join("tree.tar.gz");
+    let git = Command::new("git").arg("-C").arg(dir).args(["rev-parse", "--is-inside-work-tree"]).output();
+    let status = if git.is_ok_and(|o| o.status.success()) {
+        Command::new("git").arg("-C").arg(dir).args(["archive", "--format=tar.gz", "-o"]).arg(&out).arg("HEAD").status()
+    } else {
+        Command::new("tar").arg("-czf").arg(&out).arg("-C").arg(dir).arg(".").status()
+    };
+    match status {
+        Ok(s) if s.success() => Ok(out),
+        Ok(s) => Err(format!("{}: the tarball of the tree failed ({s})", dir.display())),
+        Err(e) => Err(format!("{}: the tarball of the tree: {e}", dir.display())),
+    }
 }
 
 /// The executor of `--podvm`: each job in a fresh podvm unit of the
@@ -137,6 +159,14 @@ pub fn run(args: &[String]) -> Out {
         Ok(s) => s,
         Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
     };
+    let scratch = std::env::temp_dir().join(format!("podrunner-run-tree-{}", std::process::id()));
+    let tree = match &a.checkout {
+        None => None,
+        Some(dir) => match tree_tarball(dir, &scratch) {
+            Ok(t) => Some(t),
+            Err(e) => return fail(Class::Config, e),
+        },
+    };
     let mut stdout = String::new();
     let mut stderr = String::new();
     let mut each = |l: &Line| stdout.push_str(&line(l));
@@ -146,6 +176,7 @@ pub fn run(args: &[String]) -> Out {
             Err(e) => return fail(Class::Config, e),
         };
         exec.actions = a.actions.clone();
+        exec.checkout = tree.clone();
         (drive(&mut source, &mut exec, &mut each), exec.logs)
     } else {
         let state = std::env::temp_dir().join(format!("podrunner-run-{}", std::process::id()));
@@ -154,10 +185,12 @@ pub fn run(args: &[String]) -> Out {
             Err(o) => return o,
         };
         exec.actions = a.actions.clone();
+        exec.checkout = tree.clone();
         let r = drive(&mut source, &mut exec, &mut each);
         let _ = std::fs::remove_dir_all(&state);
         (r, exec.logs)
     };
+    let _ = std::fs::remove_dir_all(&scratch);
     match result {
         Ok(true) => Out { code: 0, stdout, stderr },
         Ok(false) => {

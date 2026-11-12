@@ -1,8 +1,8 @@
 # The suite of the local mode (T-089): `podrunner run` runs it to green on
 # the official runner, with no forge and no network. Each check computes
 # its marker in the shell (the echo of a script cannot match it), and a
-# check that fails exits non-zero. No action (`uses:`) yet: T-089 names
-# that gap.
+# check that fails exits non-zero. `podrunner run --checkout DIR` gives
+# the tree of the repository to `actions/checkout` (T-092).
 name: podrunner local suite
 on: push
 env:
@@ -69,6 +69,17 @@ jobs:
     runs-on: local
     steps:
       - run: exit 1
+
+  checkout:
+    runs-on: local
+    steps:
+      - uses: actions/checkout@v4
+      - run: test -f crates/podrunner/tests/local/suite.yml
+      - id: sq
+        uses: ./crates/podrunner/tests/local/act
+        with:
+          n: 7
+      - run: test "${{ steps.sq.outputs.square }}" = 49
 
   after-skip:
     needs: [skipped, needs]

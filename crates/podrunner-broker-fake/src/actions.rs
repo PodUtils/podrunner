@@ -41,10 +41,26 @@ fn resolve(base: &str, body: &Value) -> Value {
     json!({ "actions": out })
 }
 
+/// The path of the tarball of the local tree (T-092), on this broker: the
+/// stand-in of `actions/checkout` reads it.
+pub const CHECKOUT: &str = "_checkout.tar.gz";
+
 /// The answer to a request of the actions, or `None` for another route.
-pub fn route(method: &str, path: &str, body: &Value, base: &str, dir: Option<&Path>) -> Option<(u16, Vec<u8>)> {
+/// `tree` is the tarball of the local tree.
+pub fn route(
+    method: &str,
+    path: &str,
+    body: &Value,
+    base: &str,
+    dir: Option<&Path>,
+    tree: Option<&Path>,
+) -> Option<(u16, Vec<u8>)> {
     let json = |v: Value| Some((200, v.to_string().into_bytes()));
     match (method, path) {
+        ("GET", p) if p.strip_prefix('/') == Some(CHECKOUT) => match tree.map(std::fs::read) {
+            Some(Ok(bytes)) => Some((200, bytes)),
+            _ => Some((404, Vec::new())),
+        },
         ("POST", p) if p.starts_with("/actions/build/") && p.ends_with("/runnerresolve/actions") => {
             json(resolve(base, body))
         }
@@ -73,7 +89,7 @@ mod tests {
         std::fs::write(dir.join(archive_name("actions/checkout", &sha)), b"tgz").unwrap();
         let body = json!({ "actions": [{ "action": "actions/checkout", "version": sha }] });
         let path = "/actions/build/p/jobs/j/runnerresolve/actions";
-        let (status, out) = route("POST", path, &body, "http://h/", None).unwrap();
+        let (status, out) = route("POST", path, &body, "http://h/", None, None).unwrap();
         assert_eq!(status, 200);
         let v: Value = serde_json::from_slice(&out).unwrap();
         let info = &v["actions"][format!("actions/checkout@{sha}")];
@@ -81,13 +97,21 @@ mod tests {
         let url = info["tar_url"].as_str().unwrap();
         assert_eq!(url, format!("http://h/_actions/actions_checkout/{sha}.tar.gz"));
         let path = url.trim_start_matches("http://h");
-        assert_eq!(route("GET", path, &Value::Null, "", Some(&dir)).unwrap(), (200, b"tgz".to_vec()));
+        assert_eq!(route("GET", path, &Value::Null, "", Some(&dir), None).unwrap(), (200, b"tgz".to_vec()));
         // No other file of the directory, and no file with no directory.
         for bad in ["/_actions/../x.tar.gz", "/_actions/a/../../x", "/_actions/x.tar.gz", "/_actions/a/b/c"] {
-            assert_eq!(route("GET", bad, &Value::Null, "", Some(&dir)).unwrap().0, 404, "{bad}");
+            assert_eq!(route("GET", bad, &Value::Null, "", Some(&dir), None).unwrap().0, 404, "{bad}");
         }
-        assert_eq!(route("GET", path, &Value::Null, "", None).unwrap().0, 404, "no directory");
-        assert!(route("GET", "/message", &Value::Null, "", None).is_none());
+        assert_eq!(route("GET", path, &Value::Null, "", None, None).unwrap().0, 404, "no directory");
+        assert!(route("GET", "/message", &Value::Null, "", None, None).is_none());
+        // The tree of the checkout, when the run gives one.
+        let tree = dir.join("tree.tar.gz");
+        std::fs::write(&tree, b"tree").unwrap();
+        assert_eq!(
+            route("GET", "/_checkout.tar.gz", &Value::Null, "", None, Some(&tree)).unwrap(),
+            (200, b"tree".to_vec())
+        );
+        assert_eq!(route("GET", "/_checkout.tar.gz", &Value::Null, "", None, None).unwrap().0, 404);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

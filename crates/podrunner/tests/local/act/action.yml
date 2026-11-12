@@ -1,0 +1,15 @@
+# A composite action of the local suite (T-092): `uses: ./` of the
+# checked-out tree runs it.
+name: local suite action
+inputs:
+  n:
+    required: true
+outputs:
+  square:
+    value: ${{ steps.s.outputs.square }}
+runs:
+  using: composite
+  steps:
+    - id: s
+      shell: bash
+      run: echo "square=$((${{ inputs.n }} * ${{ inputs.n }}))" >> "$GITHUB_OUTPUT"

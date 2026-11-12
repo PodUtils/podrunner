@@ -177,8 +177,8 @@ jobs:
           # T-090: podrunner run runs the suite of the local mode, each job
           # in a fresh podvm unit of the runner image.
           timeout 1200 cargo run -q -p podrunner -- run crates/podrunner/tests/local/suite.yml \
-            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/local.txt"
-          test "$(grep -c '^ok ' "$RUNNER_TEMP/local.txt")" = 7
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . | tee "$RUNNER_TEMP/local.txt"
+          test "$(grep -c '^ok ' "$RUNNER_TEMP/local.txt")" = 8
           cargo test -p podrunner-podvm --test conformance --no-run
           timeout 600 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
           # T-065: the egress hold of a unit under podnet pod.
