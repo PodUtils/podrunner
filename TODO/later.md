@@ -434,7 +434,7 @@ Partial, 2026-11-12. The message: `container:` as `jobContainer` and `services:`
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -452,9 +452,9 @@ Take `v0.31.0` (move each tag, as T-086). `LocalSource` keeps a `Run<Arc<Workflo
 
 `cargo test -p podrunner-local` passes with no `Box::leak` in `crates/podrunner-local/src/lib.rs`.
 
-## Start condition
+## Done
 
-podcrates releases `v0.31.0` and sends its hand-off.
+2026-11-12. podcrates `v0.31.0` (tag at `45b145a`, PodUtils/podcrates#90, COORD-058): each `pod-*` dependency moves to it; `Cargo.lock` moves 13 `pod-*` crates and no other dependency. `LocalSource` keeps a `Run<Arc<Workflow>>` and reads the workflow through `Run::workflow()`; `ready()` gives owned ids. No `Box::leak` is left in `crates/podrunner-local/src/lib.rs`; podrunner-local: 21 passed.
 
 # T-095: podrunner run --podvm: the egress of each unit through the egress module
 

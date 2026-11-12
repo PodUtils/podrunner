@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**95 entries: 2 open, 4 partial, 12 blocked, 77 done.**
+**95 entries: 1 open, 4 partial, 12 blocked, 78 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
 | P2 | 0 | 1 | 9 | 33 | 43 |
-| P3 | 2 | 2 | 3 | 15 | 22 |
-| **All** | 2 | 4 | 12 | 77 | 95 |
+| P3 | 1 | 2 | 3 | 16 | 22 |
+| **All** | 1 | 4 | 12 | 78 | 95 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -141,5 +141,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-091](later.md) | P3 | M | later | feature | done | Actions (uses:) in the local mode |
 | [T-092](later.md) | P3 | M | later | feature | done | The checkout of the local tree and ./ actions in the local mode |
 | [T-093](later.md) | P3 | M | later | feature | partial | Docker actions in the local mode |
-| [T-094](later.md) | P3 | S | later | chore | open | The local source owns its workflow: drop the leak (podcrates v0.31.0) |
+| [T-094](later.md) | P3 | S | later | chore | done | The local source owns its workflow: drop the leak (podcrates v0.31.0) |
 | [T-095](later.md) | P3 | M | later | feature | open | podrunner run --podvm: the egress of each unit through the egress module |

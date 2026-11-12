@@ -11,6 +11,7 @@ pub mod exec;
 pub mod message;
 
 use std::collections::{BTreeMap, VecDeque};
+use std::sync::Arc;
 use std::time::Duration;
 
 use pod_actions_expr::Value as XValue;
@@ -47,8 +48,7 @@ enum State {
 pub struct LocalSource {
     name: String,
     arch: String,
-    workflow: &'static Workflow,
-    run: Run<'static>,
+    run: Run<Arc<Workflow>>,
     pending: VecDeque<Offer>,
     cells: BTreeMap<JobId, Cell>,
     states: BTreeMap<JobId, State>,
@@ -72,15 +72,11 @@ impl LocalSource {
     /// `vars` and `inputs`; `arch` is the architecture of each offer.
     pub fn new(name: &str, text: &str, base: Base, arch: &str, minter: Minter) -> Result<LocalSource, String> {
         let parsed = pod_actions_workflow::parse(text).map_err(|e| e.to_string())?;
-        // `Run` borrows its workflow, and a source owns its run: one
-        // workflow for each source lives to the end of the process.
-        let workflow: &'static Workflow = Box::leak(Box::new(parsed.workflow));
         let (vars, inputs) = (base.vars.clone(), base.inputs.clone());
-        let run = Run::new(workflow, base).map_err(|e| e.to_string())?;
+        let run = Run::new(Arc::new(parsed.workflow), base).map_err(|e| e.to_string())?;
         let mut source = LocalSource {
             name: name.into(),
             arch: arch.into(),
-            workflow,
             run,
             pending: VecDeque::new(),
             cells: BTreeMap::new(),
@@ -98,7 +94,7 @@ impl LocalSource {
     }
 
     pub fn workflow(&self) -> &Workflow {
-        self.workflow
+        self.run.workflow()
     }
 
     /// The cell of an offer.
@@ -109,7 +105,7 @@ impl LocalSource {
     /// The job of the fake broker for the offer `job` (T-088).
     pub fn broker_job(&self, job: &JobId) -> Result<podrunner_broker_fake::Job, String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
-        message::broker_job(self.workflow, cell, &self.vars, &self.inputs)
+        message::broker_job(self.run.workflow(), cell, &self.vars, &self.inputs)
     }
 
     /// The jobs that did not run, with their reasons, in their order.
@@ -160,12 +156,12 @@ impl LocalSource {
                 return Ok(());
             }
             for id in ready {
-                match self.run.expand(id).map_err(|e| usage(e.to_string()))? {
+                match self.run.expand(&id).map_err(|e| usage(e.to_string()))? {
                     Outcome::Skipped(skip) => self.skips.push(skip),
                     Outcome::Run(instances) => {
-                        self.ends.insert(id.to_string(), vec![None; instances.len()]);
+                        self.ends.insert(id.clone(), vec![None; instances.len()]);
                         for (index, instance) in instances.into_iter().enumerate() {
-                            self.offer(id, index, instance)?;
+                            self.offer(&id, index, instance)?;
                         }
                     }
                 }

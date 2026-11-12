@@ -18,22 +18,22 @@ publish = false
 # needs it. One tag for each crate of podcrates.
 [workspace.dependencies]
 # No default feature: the failure classes and their exit codes, with no tokio.
-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0", default-features = false }
-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0" }
+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.31.0", default-features = false }
+pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.31.0" }
 # The egress broker of a job (podrunner-egress), with the async face of
 # pod-core that it needs.
-pod-broker = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0" }
+pod-broker = { git = "https://github.com/PodUtils/podcrates", tag = "v0.31.0" }
 # The records of a job: the offer, the capability, the reports (T-017).
-pod-job = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0" }
+pod-job = { git = "https://github.com/PodUtils/podcrates", tag = "v0.31.0" }
 # The Ed25519 key that signs the pin list (DR-4).
-pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0" }
+pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.31.0" }
 # Landlock, a seccomp deny filter and no_new_privs for a `confined` unit
 # (T-042).
-pod-confine = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0" }
+pod-confine = { git = "https://github.com/PodUtils/podcrates", tag = "v0.31.0" }
 # The workflow model, the expansion of jobs and the expressions of GitHub
 # Actions for the local mode (T-046, PodUtils/podcrates@T-251).
-pod-actions-expr = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0" }
-pod-actions-workflow = { git = "https://github.com/PodUtils/podcrates", tag = "v0.30.0" }
+pod-actions-expr = { git = "https://github.com/PodUtils/podcrates", tag = "v0.31.0" }
+pod-actions-workflow = { git = "https://github.com/PodUtils/podcrates", tag = "v0.31.0" }
 podrunner-local = { path = "crates/podrunner-local" }
 # The RSA key of a runner against the fake broker: key generation only
 # (deny.toml, RUSTSEC-2023-0071).
