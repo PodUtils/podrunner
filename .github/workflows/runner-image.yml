@@ -137,12 +137,7 @@ jobs:
           "$RUNNER_TEMP/podvm" images
           image="runner@${{ steps.build.outputs.digest }}"
           check='test -x /home/runner/run.sh && test -x /home/runner/hooks/podrunner-hook.sh && echo the runner files are in the image'
-          if [ "$ARCH" = aarch64 ]; then
-            # A measure until a podvm release: podvm-aarch64 v0.2.0-beta.2
-            # carries an x86_64 glibc for its loader (GitHub #52, T-051).
-            "$RUNNER_TEMP/podvm" run --rm "$image" /bin/sh -c "$check" 2>&1 | tail -1 || true
-            exit 0
-          fi
+          # T-051: on aarch64 too, with the aarch64 interposer of podvm.
           "$RUNNER_TEMP/podvm" run --rm "$image" /bin/sh -c "$check"
           echo "PODRUNNER_PODVM=$RUNNER_TEMP/podvm" >> "$GITHUB_ENV"
           echo "PODRUNNER_PODVM_IMAGES=$PODVM_STORE" >> "$GITHUB_ENV"
@@ -175,9 +170,11 @@ jobs:
           sh scripts/retry.sh rustup toolchain install
           cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture
           # T-090: podrunner run runs the suite of the local mode, each job
-          # in a fresh podvm unit of the runner image.
+          # in a fresh podvm unit of the runner image. T-095: each unit is
+          # held; it reaches only the fake broker on the loopback.
           timeout 1200 cargo run -q -p podrunner -- run crates/podrunner/tests/local/suite.yml \
-            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . | tee "$RUNNER_TEMP/local.txt"
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . \
+            --podnet "$PODRUNNER_PODNET" | tee "$RUNNER_TEMP/local.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local.txt")" = 8
           # T-093: a container: job and a Docker step through the hooks.
           sed "s|IMAGE|$PODRUNNER_RUNNER_IMAGE|" crates/podrunner/tests/local/containers.yml > "$RUNNER_TEMP/containers.yml"
@@ -204,6 +201,7 @@ jobs:
               m -C "tar -xf x.tar -C d"
               m -C-z "tar -xzf x.tgz -C d"
               m -C-abs "tar -xzf x.tgz -C $b/d"
+              m -C-abs-plain "tar -xf x.tar -C $b/d"
               m cd "cd d && tar -xf ../x.tar"
               m cd-gzip "cd d && gzip -dc ../x.tgz | tar -xf -"
               m cd-z "cd d && tar -xzf ../x.tgz"

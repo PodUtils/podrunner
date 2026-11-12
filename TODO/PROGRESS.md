@@ -1,12 +1,12 @@
 # Progress
 
-`TODO/INDEX.md` holds 98 entries: 0 open, 5 partial, 13 blocked, 80 done.
+`TODO/INDEX.md` holds 98 entries: 0 open, 6 partial, 12 blocked, 80 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
-- Pins: podcrates `v0.32.0`, podvm `v0.2.0-beta.5`, podnet
+- Pins: podcrates `v0.32.0`, podvm `v0.2.0-beta.6`, podnet
   `v0.4.0-beta.6`, runner v2.338.2.
   Last beta: `v0.1.0-beta.1` (release run 42942338772).
 - M-A and M-B hold. M-C: T-027 to T-029 done; T-030 waits for T-051
@@ -27,13 +27,14 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-095 (M, partial): `podrunner run --podvm --podnet`, the egress of each unit through the egress module; held units set `DOTNET_SYSTEM_NET_DISABLEIPV6=1` again (GitHub #69); the next `runner-image.yml` run must give `ok denied`; it closes T-046 with the seccomp hold.
-2. T-096 (S, partial): each form passed in `/tmp`; read the measure under the workspace path in the next run, and send the smallest failing form to podcrates (PodUtils/podcrates@T-328).
+1. T-095 (M, partial): `podrunner run --podvm --podnet`, the egress of each unit through the egress module; `ok denied` held and `failure denied` unheld in run 43242367198; the local suite now runs held too; a green run of it closes T-095 and T-046 with the seccomp hold.
+2. T-096 (S, partial): an absolute `-C` fails in a podvm unit (run 43242367198), sent to podcrates by GitHub #70 (COORD-012); read the `-C` with no `-z` in the next run.
+3. T-051 (S, partial): podvm `v0.2.0-beta.6` is pinned; a green aarch64 job of `runner-image.yml` closes it and GitHub #52.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-030 and T-051 (podvm aarch64), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates), T-077 (podnet, GitHub #69).
+Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-030 (podvm aarch64, after T-051), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates), T-077 (podnet, GitHub #69).
 
 ## Questions for the owner
 

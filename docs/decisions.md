@@ -42,6 +42,7 @@ at the tag `v0.32.0`.
 | 2026-11-11 | A podvm beta | "Ask podvm for a beta": podrunner asks podvm by a COORD issue to cut a beta from `main` when its release order allows (PodUtils/podvm@T-1706, PodUtils/podvm@T-1710, PodUtils/podvm@T-1720; GitHub #53, T-052). podrunner pins it in `images/podvm.toml`. Until then the entries that wait for podvm stay `blocked`. |
 | 2026-11-11 | The spec (T-014) | The owner attached the zip of the design review (`podrunner-spec/`: `SPEC.md`, the appendices, the schemas, the examples, the review rounds). T-014 starts. The zip stays out of the repository; T-014 brings in what the code needs. |
 | 2026-11-11 | DR-7 again | Still not now. The live gates (T-032, T-040) keep their offline tests and wait. |
+| 2026-11-12 | COORD only | "remember to use COORD to communicate, do not msg directly". podrunner talks to podcrates, podnet, podvm and podssh only by COORD issues of this repository (`COORD-NNN: subject (to OTHER)`). No direct message (`send_message`) to another session. It supersedes "podcrates and podrunner talk by direct messages" of "podrunner online". |
 
 ## Calls made without a ruling
 

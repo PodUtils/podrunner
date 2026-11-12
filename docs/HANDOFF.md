@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.32.0` (`Cargo.toml`); podvm `v0.2.0-beta.5`
+- Pins: podcrates `v0.32.0` (`Cargo.toml`); podvm `v0.2.0-beta.6`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.6` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
@@ -52,8 +52,9 @@ is done.
   blocked). Held units set `DOTNET_SYSTEM_NET_DISABLEIPV6=1` again; the
   next `runner-image.yml` run must give `ok denied`. A job ends at its
   `timeout-minutes`, and a job with no result gives the output of its unit.
-  T-096: each tar form passed in `/tmp`; the next run measures the
-  workspace path. Q4 (T-098) waits for the owner.
+  The local suite now runs held (`--podnet`); its green run closes T-095
+  and T-046. T-096: an absolute `-C` of tar fails in a podvm unit; sent
+  to podcrates (PodUtils/podcrates@T-328). Q4 (T-098) waits for the owner.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs
@@ -64,7 +65,7 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | The owner | DR-7: a test organization and App ("not now") | T-007, T-032, T-033, T-040 |
-| podvm | the aarch64 interposer (PodUtils/podvm@T-1721); beta.5 still declines the runner image on aarch64 | T-051, T-030 |
+| podvm | none: beta.6 carries the aarch64 interposer; T-051 waits for its green aarch64 run | T-051, T-030 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
@@ -79,18 +80,16 @@ is done.
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.
-- GitHub #52 (COORD-005, to podvm): open, T-051.
+- GitHub #52 (COORD-005, to podvm): open, T-051; podvm `v0.2.0-beta.6` is pinned (PodUtils/podvm#286). Close both on a green aarch64 run.
 - The probe of podvm names the mode of the host; the `--report` of a run
   names its rung (GitHub #68, closed; T-085).
 
 ## Talk between sessions
 
-- podcrates: direct messages (`send_message`) to its session
-  (`list_sessions`, title with `(podcrates)`). Each ask for a crate goes
-  there; podcrates answers with the id of its entry and releases a tag.
-  After each milestone, send a short report: the commit, the gate run,
-  the next step. This session cannot write to the issues of other
-  repositories: podcrates notes each take of a tag on its COORD issue.
+- podcrates: a COORD issue of this repository titled
+  `COORD-NNN: subject (to podcrates)`; no direct message (the owner,
+  2026-11-12, `docs/decisions.md`). Each ask for a crate, each take of a
+  tag and each milestone report goes there.
 - podnet: a COORD issue of this repository titled
   `COORD-NNN: subject (to podnet)`. podnet answers in its repository with
   `(to podrunner)`, and the watcher finds it.

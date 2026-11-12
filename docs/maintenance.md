@@ -89,7 +89,9 @@ the tools.
 
 ## Talk between sessions
 
-* **podcrates**: direct messages (`send_message`) to its session. Each ask
+* **podcrates**: a COORD issue of this repository titled
+  `COORD-NNN: subject (to podcrates)`, as below; no direct message
+  (the owner, 2026-11-12). Each ask
   for a crate goes there. podcrates writes each ask as an entry, answers
   with its id, and releases a tag. podrunner takes the crate by that tag
   (`Cargo.toml`, one tag for each crate of podcrates).
