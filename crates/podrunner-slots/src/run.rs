@@ -418,6 +418,8 @@ impl Slots {
             wall_s: self.now().saturating_sub(j.offered_ms) / 1000,
             refusal_code: j.refusal,
             unit,
+            claim_to_first_step_s: j.claimed_ms.zip(j.first_step_ms).map(|(c, f)| f.saturating_sub(c) / 1000),
+            job_images: j.images.clone(),
         };
         let value = if self.sources[key.0].cfg.operator_controlled {
             serde_json::to_value(&r)

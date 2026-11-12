@@ -21,6 +21,7 @@ struct Seen {
     opened: Arc<Mutex<Vec<String>>>,
     closed: Arc<Mutex<Vec<String>>>,
     queued: Queued,
+    images: Arc<Mutex<Vec<String>>>,
 }
 
 impl HookPort for Seen {
@@ -40,6 +41,9 @@ impl HookPort for Seen {
     }
     fn take(&self, _unit: &UnitId) -> (Vec<RefusalCode>, Vec<HookEvent>) {
         self.queued.lock().unwrap().pop().unwrap_or_default()
+    }
+    fn images(&self, _unit: &UnitId) -> Vec<String> {
+        std::mem::take(&mut self.images.lock().unwrap())
     }
 }
 
@@ -104,4 +108,27 @@ fn a_unit_with_no_container_route_gets_no_socket() {
     b.until(50, |s| s.jobs().count() == 1 && Bed::all_final(s));
     assert!(seen.opened.lock().unwrap().is_empty());
     assert_eq!(b.slots.reports[0].exit_reason, podrunner_schema::ExitReason::Success);
+}
+
+/// T-075: the report names the time from the claim to the first step (the
+/// `job-started` hook) and the digest of each image of a container, once.
+#[test]
+fn report_fields_name_the_first_step_and_the_job_images() {
+    let digest = format!("sha256:{}", "a".repeat(64));
+    let (mut b, seen) = bed(ContainerRoute::Hooks, "sleep 2");
+    b.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    for _ in 0..3 {
+        b.tick();
+    }
+    seen.images.lock().unwrap().extend([digest.clone(), digest.clone()]);
+    seen.queued.lock().unwrap().push((vec![], vec![HookEvent::JobStarted]));
+    b.tick();
+    b.until(400, Bed::all_final);
+    let r = &b.slots.reports[0];
+    assert!(r.claim_to_first_step_s.is_some_and(|s| s >= 3), "{:?}", r.claim_to_first_step_s);
+    assert_eq!(r.job_images, [digest]);
+    assert!(r.check().is_ok(), "{:?}", r.check());
+    // The public report leaves both out.
+    let public = serde_json::to_value(r.public()).unwrap();
+    assert!(public.get("job_images").is_none() && public.get("claim_to_first_step_s").is_none());
 }

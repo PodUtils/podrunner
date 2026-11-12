@@ -38,6 +38,11 @@ pub trait HookPort: Send {
     fn close(&self, unit: &UnitId);
     /// The refusals and the job hooks of `unit` since the last call.
     fn take(&self, unit: &UnitId) -> (Vec<RefusalCode>, Vec<HookEvent>);
+    /// The digests of the images that the containers of `unit` started
+    /// with since the last call.
+    fn images(&self, _unit: &UnitId) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 impl Slots {
@@ -77,12 +82,19 @@ impl Slots {
         for (key, j) in &self.jobs {
             if let (Some(u), State::Started | State::Running) = (&j.unit, j.state) {
                 let (refusals, events) = h.take(u);
-                if !refusals.is_empty() || !events.is_empty() {
-                    seen.push((key.clone(), refusals, events));
+                let images = h.images(u);
+                if !refusals.is_empty() || !events.is_empty() || !images.is_empty() {
+                    seen.push((key.clone(), refusals, events, images));
                 }
             }
         }
-        for (key, refusals, events) in seen {
+        for (key, refusals, events, images) in seen {
+            let j = self.jobs.get_mut(&key).expect("a live job");
+            for i in images {
+                if !j.images.contains(&i) {
+                    j.images.push(i);
+                }
+            }
             for code in refusals {
                 self.audit(audit::Kind::HookRefuse, key.0, &key.1, Some(code), None);
             }

@@ -105,6 +105,8 @@ impl Slots {
                     wall_s: 0,
                     refusal_code: None,
                     unit: None,
+                    claim_to_first_step_s: None,
+                    job_images: Vec::new(),
                 };
                 let value = if self.sources[s].cfg.operator_controlled {
                     serde_json::to_value(&report)

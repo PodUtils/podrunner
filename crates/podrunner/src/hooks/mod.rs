@@ -63,6 +63,10 @@ impl podrunner_slots::hooks::HookPort for HooksOf {
             .collect();
         (refusals, events)
     }
+
+    fn images(&self, unit: &podrunner_schema::UnitId) -> Vec<String> {
+        self.hooks.take_images(unit)
+    }
 }
 
 impl HooksOf {

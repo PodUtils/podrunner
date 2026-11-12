@@ -364,7 +364,7 @@ fn disk_limit_ends_a_unit_over_its_bound() {
     );
     bed.slots.kinds[0].cfg.disk_max_bytes = Some(100_000);
     bed.until(120, |s| s.jobs().count() == 1 && Bed::all_final(s));
-    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Failure);
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Limit);
     let limit = bed.slots.audit_lines().iter().find(|a| a.audit == crate::audit::Kind::Limit).expect("a limit line");
     assert_eq!(limit.detail.as_deref(), Some("disk"));
 

@@ -2,7 +2,7 @@
 //! no sized tmpfs and no quota, so slots measures: every [`CHECK_MS`] it
 //! sums the bytes under the root of each running unit (one file system, no
 //! link followed), and ends a unit over its bound with an audit line
-//! `limit` (`disk`). The bound is the `disk` limit of the offer, else
+//! `limit` (`disk`) and the exit reason `limit`. The bound is the `disk` limit of the offer, else
 //! `[unit.X] disk_max_bytes`; with neither, nothing is measured.
 
 use std::os::unix::fs::MetadataExt;
@@ -63,7 +63,7 @@ impl Slots {
             let Some(root) = kind.driver.observe(&unit).ok().and_then(|o| o.unit_root) else { continue };
             if bytes_under(&root) > bound {
                 self.audit(audit::Kind::Limit, key.0, &key.1, None, Some("disk".into()));
-                self.end(&key, ExitReason::Failure, Signal::Term, now);
+                self.end(&key, ExitReason::Limit, Signal::Term, now);
             }
         }
     }

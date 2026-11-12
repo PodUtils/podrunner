@@ -106,6 +106,8 @@ fn each_command_reaches_the_fake_unit() {
 
     assert_eq!(hook(Command::CleanupJob, call("cleanup_job", json!({}))).unwrap().exit, 0);
     assert_eq!(u.refusals[..2], [RefusalCode::ContainerNotSupported, RefusalCode::BuildNotSupported]);
+    // The job container and the action had one image: its digest, once.
+    assert_eq!(u.images, [IMAGE.rsplit_once('@').unwrap().1]);
     assert!(u.job_state(JobEvent::JobStarted).is_ok());
     // A second job-started is ignored and goes to the audit as a refusal.
     assert!(u.job_state(JobEvent::JobStarted).is_ok());

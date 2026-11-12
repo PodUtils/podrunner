@@ -1,12 +1,12 @@
 # Progress
 
-`TODO/INDEX.md` holds 78 entries: 0 open, 3 partial, 14 blocked, 61 done.
+`TODO/INDEX.md` holds 78 entries: 0 open, 2 partial, 14 blocked, 62 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
-- Pins: podcrates `v0.25.0`, podvm `v0.2.0-beta.4`, runner v2.338.2.
+- Pins: podcrates `v0.26.0`, podvm `v0.2.0-beta.4`, runner v2.338.2.
   Last beta: `v0.1.0-beta.1` (release run 42942338772).
 - M-A and M-B hold. M-C: T-027 to T-029 done; T-030 waits for T-051
   (podvm aarch64); the gate T-032 waits for DR-7. M-D: T-031 and T-045
@@ -26,7 +26,7 @@ release or a live account.
 
 The queue for tonight, most valuable first:
 
-1. T-075 (S): the status part is done; the report fields and the exit reason `limit` wait for podcrates `v0.26.0` (PodUtils/podcrates@T-226, on its main).
+(empty: each entry that is left waits for another project or for the owner)
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

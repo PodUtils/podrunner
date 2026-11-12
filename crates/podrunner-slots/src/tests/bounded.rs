@@ -66,6 +66,8 @@ fn bounded_reports_keep_the_last() {
         wall_s: 0,
         refusal_code: None,
         unit: None,
+        claim_to_first_step_s: None,
+        job_images: Vec::new(),
     };
     for n in 0..REPORTS_KEPT + 10 {
         keep(&mut reports, r(n));

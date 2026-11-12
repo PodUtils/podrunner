@@ -59,6 +59,14 @@ impl Hooks {
         (std::mem::take(&mut u.refusals), std::mem::take(&mut u.events))
     }
 
+    /// The digests of the images that the containers of `unit` started
+    /// with since the last call.
+    pub fn take_images(&self, unit: &UnitId) -> Vec<String> {
+        let open = self.open.lock().expect("the sockets");
+        let Some(o) = open.get(unit.as_str()) else { return Vec::new() };
+        o.unit.lock().map(|mut u| std::mem::take(&mut u.images)).unwrap_or_default()
+    }
+
     /// End the socket of `unit`: its thread ends, and the socket file goes.
     pub fn close(&self, unit: &UnitId) {
         let Some(o) = self.open.lock().expect("the sockets").remove(unit.as_str()) else { return };

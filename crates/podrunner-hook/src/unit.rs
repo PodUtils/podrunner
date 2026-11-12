@@ -35,6 +35,9 @@ pub struct HookUnit {
     pub events: Vec<JobEvent>,
     /// Each refusal, for an audit line `hook-refuse` (the code only).
     pub refusals: Vec<RefusalCode>,
+    /// The digest of each image that a container started with, once
+    /// (`job_images` of the run report).
+    pub images: Vec<String>,
 }
 
 impl HookUnit {
@@ -58,6 +61,16 @@ impl HookUnit {
             steps: 0,
             events: vec![],
             refusals: vec![],
+            images: vec![],
+        }
+    }
+
+    /// Keep the digest of the image of `p` (the checks pinned it).
+    fn note_image(&mut self, p: &Planned) {
+        if let Ok((_, digest)) = podrunner_unit::parse_pinned(&p.image)
+            && !self.images.iter().any(|i| i == digest)
+        {
+            self.images.push(digest.to_string());
         }
     }
 
@@ -100,6 +113,7 @@ impl HookUnit {
                         p.argv = ["tail", "-f", "/dev/null"].map(String::from).to_vec();
                     }
                     let id = d.container_start(&self.unit, &self.spec(&p))?;
+                    self.note_image(&p);
                     let probe = ExecSpec {
                         argv: vec!["test".into(), "-f".into(), "/etc/alpine-release".into()],
                         ..Default::default()
@@ -111,6 +125,7 @@ impl HookUnit {
                 let mut ctx_services = Vec::new();
                 for p in services {
                     let id = d.container_start(&self.unit, &self.spec(&p))?;
+                    self.note_image(&p);
                     ctx_services.push(json!({ "id": id.0, "ports": {} }));
                     self.services.push(id);
                 }
@@ -140,6 +155,7 @@ impl HookUnit {
             }
             Plan::ContainerStep(p) => {
                 let id = d.container_start(&self.unit, &self.spec(&p))?;
+                self.note_image(&p);
                 let exit = loop {
                     if let Some(exit) = d.container_inspect(&self.unit, &id)?.exit {
                         break exit;

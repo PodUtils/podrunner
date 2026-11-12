@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**78 entries: 0 open, 3 partial, 14 blocked, 61 done.**
+**78 entries: 0 open, 2 partial, 14 blocked, 62 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 28 | 29 |
 | P2 | 0 | 1 | 8 | 30 | 39 |
-| P3 | 0 | 1 | 6 | 3 | 10 |
-| **All** | 0 | 3 | 14 | 61 | 78 |
+| P3 | 0 | 0 | 6 | 4 | 10 |
+| **All** | 0 | 2 | 14 | 62 | 78 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -122,7 +122,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-072](core.md) | P2 | S | M-D | measurement | done | U10: the egress module against a proxy that resets CONNECT to an IP literal |
 | [T-073](later.md) | P3 | S | later | chore | done | Take the podcrates tag after v0.24.0: pod-confine drops each capability |
 | [T-074](core.md) | P2 | M | M-D | feature | done | The disk limit of a unit |
-| [T-075](core.md) | P3 | S | M-D | feature | partial | The report and status fields of SPEC §11.4 and §11.5 |
+| [T-075](core.md) | P3 | S | M-D | feature | done | The report and status fields of SPEC §11.4 and §11.5 |
 | [T-076](core.md) | P1 | M | M-D | feature | done | podrunner resolves names with pod-dns: no single resolver of the host |
 | [T-077](core.md) | P3 | S | later | defect | blocked | COORD-009: the seccomp hold of podnet pod does not take ::ffff:127.0.0.1 as loopback (GitHub #64) |
 | [T-078](core.md) | P3 | S | later | feature | blocked | The podvm driver labels each unit and reads the run report of podvm |

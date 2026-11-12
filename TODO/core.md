@@ -1121,7 +1121,7 @@ Read SPEC §10.4 and `crates/podrunner-slots/src` on 2026-11-11: `disk` appears 
 **Milestone:** M-D
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1135,11 +1135,15 @@ Read SPEC §11.4, §11.5, `pod-job` (`report.rs`) at `v0.24.0` and `crates/podru
 
 Ask podcrates (a direct message) for the two optional fields in `RunReport` of `pod-job`; fill them in slots from the `started` time and the images of the hook calls. Add to `status` the age of each credential of a running job and the age of the key file of each `github-scaleset` source (from its time of change), with no value of the key. Regenerate `schemas/status.v1.json`.
 
-Done: `status` shows `credential_ages_s` (the age of the credential of each job that is not final, from its mint) and `key_age_s` (the age of the key file of a source, from its time of change) for each source; `schemas/status.v1.json` is regenerated (`the_status_shows_the_age_of_each_credential_and_of_the_key`). Open: the report fields and the exit reason `limit`, asked of podcrates by a direct message.
+Done: `status` shows `credential_ages_s` (the age of the credential of each job that is not final, from its mint) and `key_age_s` (the age of the key file of a source, from its time of change) for each source; `schemas/status.v1.json` is regenerated (`the_status_shows_the_age_of_each_credential_and_of_the_key`).
 
 ## Prove
 
 `cargo test -p podrunner-slots status_schema`, `cargo test -p podrunner-slots report_fields`
+
+## Done
+
+2026-11-12: podrunner takes podcrates `v0.26.0` (PodUtils/podcrates#77, PodUtils/podcrates@T-226). The report names `claim_to_first_step_s` (from the claim to the `job-started` hook) and `job_images` (the digest of each image of a container of the hooks, once); the public report leaves both out. A unit over its disk bound ends with the exit reason `limit`. `report_fields_name_the_first_step_and_the_job_images`, `each_command_reaches_the_fake_unit` and `disk_limit_ends_a_unit_over_its_bound` pass.
 
 # T-076: podrunner resolves names with pod-dns: no single resolver of the host
 

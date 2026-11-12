@@ -50,6 +50,12 @@ pub struct Job {
     pub started_ms: Option<u64>,
     /// The time of the mint of its credential: `status` shows its age.
     pub minted_ms: Option<u64>,
+    /// The time of the claim, and of the `job-started` hook (the first
+    /// step): `claim_to_first_step_s` of the report.
+    pub claimed_ms: Option<u64>,
+    pub first_step_ms: Option<u64>,
+    /// The digests of the images of its containers (`job_images`).
+    pub images: Vec<String>,
     pub term_ms: Option<u64>,
     pub reason: Option<ExitReason>,
     pub exit_code: Option<i32>,
@@ -285,6 +291,11 @@ impl Slots {
         let Some(j) = self.jobs.get_mut(key) else { return false };
         j.state = state;
         j.since_ms = now;
+        match state {
+            State::Claimed => j.claimed_ms = Some(now),
+            State::Running => j.first_step_ms = j.first_step_ms.or(Some(now)),
+            _ => {}
+        }
         let kind = j.placement.as_ref().map(|p| self.kinds[p.kind].name.clone());
         let line = Line {
             t_ms: now,
@@ -331,6 +342,9 @@ impl Slots {
             runner_name: None,
             started_ms: None,
             minted_ms: None,
+            claimed_ms: None,
+            first_step_ms: None,
+            images: Vec::new(),
             term_ms: None,
             reason: None,
             exit_code: None,
