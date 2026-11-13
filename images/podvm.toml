@@ -8,9 +8,10 @@
 # podvm's QA pass; beta.9 the owners of the image in a guest of the
 # machine tier, `--podvm-net none` and `--podvm-channel` (T-037); beta.10
 # the channel on `pod-link` with its socket in a directory of mode 0700,
-# and stdin for an incus instance that stays (`run -d -i`, T-105).
-version = "0.2.0-beta.10"
+# and stdin for an incus instance that stays (`run -d -i`, T-105); beta.11
+# keeps the proxy variables of a guest with no NIC (PodUtils/podvm#311).
+version = "0.2.0-beta.11"
 
 [sha256]
-x86_64 = "df9ce678919cf43248348d167f8561ffc000fdde40925e5a3612a960a5905dd1"
-aarch64 = "ebf9aa0043820ca18152921c667823c3ef9dd8f4ba2caf17695daadaee19f1be"
+x86_64 = "375997c1cbe6ba9a2e3449a27f81d56bb150fcf04afb2b80dff49430062c1f28"
+aarch64 = "6cb48a76e214a39146f302ee2c6c555ee2e6aa129612f51589148c6706f6b98f"

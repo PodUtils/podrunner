@@ -7,10 +7,9 @@
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is yes
   (2026-11-13): the live gates run on GitHub #74 and #75.
-- Pins: podcrates `v0.39.0`, podvm `v0.2.0-beta.10`, podnet
-  `v0.4.0-beta.8`, runner v2.338.2. Last beta: `v0.1.0-beta.2` (release
-  run 43359637417); the notes of beta.3 are ready, and the lead session
-  releases it. Last green `runner-image.yml`: 43454398354 (`e8795f2`).
+- Pins: podcrates `v0.39.0`, podvm `v0.2.0-beta.11`, podnet
+  `v0.4.0-beta.8`, runner v2.338.2. Last beta: `v0.1.0-beta.3` (release
+  run 43461852923, `e8795f2`). Last green `runner-image.yml`: 43454398354 (`e8795f2`).
 - M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for
   the live gates (GitHub #74, #75). M-D: T-031 and T-045 done; the gate
   T-033 waits for the live gates. L2: T-034, T-035, T-038 done; the gate

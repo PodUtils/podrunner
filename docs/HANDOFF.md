@@ -8,13 +8,13 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.39.0` (`Cargo.toml`); podvm `v0.2.0-beta.10`
+- Pins: podcrates `v0.39.0` (`Cargo.toml`); podvm `v0.2.0-beta.11`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm and incus kinds need beta.10, T-110); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
-  (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.2`
-  (2026-11-13, `afa7508`). The notes of beta.3 are
-  `docs/releases/v0.1.0-beta.3.md`; the lead session releases it.
+  (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.3`
+  (2026-11-13, release run 43461852923, `e8795f2`); githome and the
+  live-gate agents (#74, #75) are told.
 - The record: 111 entries, 3 open, 7 partial, 7 blocked, 94 done
   (`cargo todo check`). The last green `runner-image.yml` run is
   43454398354 (`e8795f2`): the podvm suites, the held tests, the 28 tar
