@@ -55,13 +55,13 @@ is done.
   IPv6 (runner-image run 43337313388).
 - podcrates `v0.38.0` is taken (PodUtils/podcrates#136: `ActorClass`
   `agent` and `bot`, T-106); a COORD issue answers it.
-- T-037 (open): the `microvm` kind (`crates/podrunner-microvm`) over
-  podvm's machine tier. The 11 unit tests pass on real guests, and the
-  official runner in a guest completes a canned job of the fake broker at
-  `10.0.2.2` (runner-image run 43392618033); both are checks. A guest
-  gives `/home/runner` back to `runner` (the machine tier makes each file
-  root's: GitHub #81). Next: `[unit.microvm]` in `serve`, the acceptance
-  of #37 on the fake source, then T-036.
+- T-037 (blocked on podvm, GitHub #83): the `microvm` kind
+  (`crates/podrunner-microvm`, `[unit.microvm]`) passes its 11 unit tests
+  on real guests, and the official runner in a guest completes a canned
+  job (runner-image run 43392618033). But a guest with QEMU's user-mode
+  NIC fails the self-test of T-036 (no interface but `lo`, as the design
+  asks), so no untrusted job runs on it. It needs podvm's guest with no
+  NIC and one host channel (PodUtils/podvm@T-1751).
 - T-096 is done: podvm `v0.2.0-beta.7` is pinned, and the 28 tar forms
   pass (runner-image run 43351590729). #78 tells podvm.
 - T-099: the confined conformance test 27 hangs at times (2 of the last

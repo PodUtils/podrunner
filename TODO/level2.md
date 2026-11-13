@@ -153,7 +153,7 @@ The read-only mounts and the pass on a real guest need the `microvm` kind (T-037
 **Milestone:** L2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -203,7 +203,13 @@ Step 1 is done: in runner-image run 43355069666 of `a3999f1`, with `--podvm-mem 
 
 `cargo test -p podrunner-microvm`
 
+## Blocker
+
+podvm: a run of the machine tier with no NIC and one host channel (GitHub #83, COORD-023; PodUtils/podvm@T-1751). Done before it: the crate and its 11 unit tests on real guests, a canned job of the official runner in a guest, and `[unit.microvm]` in `serve` (steps 1 to 4). When podvm names the release: give the kind `-nic none` and the channel, bridge the channel to the egress socket of the unit, run T-036 on it, then the acceptance of GitHub #37.
+
 ## Correction
+
+2026-11-13 (later): the call of the first form (the user-mode NIC under `podnet pod`) does not hold. The self-test of the guest (T-036, `crates/podrunner-slots/src/guest.rs`) refuses a unit with a network interface but `lo`, as the design of GitHub #37 asks ("no NIC"); a guest with `eth0` never gets the claim `guest`, so no untrusted job runs on it. The kind needs a guest with no NIC and one host channel to the broker (PodUtils/podvm@T-1751, asked in GitHub #83).
 
 2026-11-13: podvm landed its machine tier (PodUtils/podvm@T-1656, done; `v0.2.0-beta.6` adds 9p volumes and `-t`). The guest has a user-mode NIC (`10.0.2.15`, the gateway `10.0.2.2` is the loopback of the host), runs only in the foreground (no `run -d`, no `exec`: PodUtils/podvm@T-1750), and needs `qemu-system-x86_64` on the host. A unix socket does not cross into the guest, so the hooks of the container path cannot reach it.
 

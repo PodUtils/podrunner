@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 106 entries: 3 open, 4 partial, 7 blocked, 92 done.
+`TODO/INDEX.md` holds 106 entries: 2 open, 4 partial, 8 blocked, 92 done.
 
 ## State
 
@@ -28,12 +28,11 @@ release or a live account.
 The queue, most valuable first:
 
 1. T-099 (S, partial): the confined conformance test 27 hangs at times (2 of the last 3 runs); each test has a time limit now; find the call that waits.
-2. T-037 (M, open): the `microvm` kind; steps 1 and 2 are done (the 11 unit tests of the acceptance pass on real guests); next step 3, a canned job in a guest.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-036, T-039 (after T-037), T-043 (crates of podcrates).
+Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-037 (podvm: a guest with no NIC and a host channel, GitHub #83), T-036, T-039 (after T-037), T-043 (crates of podcrates).
 
 ## Questions for the owner
 
