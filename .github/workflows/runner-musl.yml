@@ -4,8 +4,8 @@ name: runner-musl
 # scripts/runner-musl.sh builds the layout of the version of
 # images/runner/runner.toml for a musl runtime id. The canned jobs of
 # tests/runner.rs run against it in Alpine (no glibc), then the canned job
-# of tests/podvm.rs runs it in a podvm unit. A musl runner needs no glibc
-# interposer of podvm (T-051).
+# of tests/podvm.rs runs it in a podvm unit, on x86_64 and aarch64 (podvm
+# v0.2.0-beta.6 has the musl interposer of aarch64, T-051).
 
 on:
   workflow_dispatch:
@@ -14,6 +14,7 @@ on:
     paths:
       - scripts/runner-musl.sh
       - images/runner/Dockerfile.musl
+      - images/podvm.toml
       - .github/workflows/runner-musl.yml
 
 permissions:
@@ -98,10 +99,8 @@ jobs:
           echo "the image: runner-musl@$digest ($(du -h runner-musl.tar | cut -f1))" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
       # T-081: the canned job of tests/podvm.rs in a podvm unit, with no
-      # root. On aarch64 a measure: podvm declines the glibc image there
-      # (T-051); the result goes to the summary.
+      # root, on each architecture.
       - name: The musl runner in a podvm unit runs a canned job
-        continue-on-error: ${{ matrix.arch == 'aarch64' }}
         run: |
           set -eu
           eval "$(python3 -I - "$ARCH" <<'PY'

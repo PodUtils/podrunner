@@ -70,7 +70,8 @@ numbers. `TODO/RULES.md` gives the rules.
 | #64 | COORD-009: the seccomp hold of podnet pod does not take ::ffff:127.0.0.1 as loopback (to podnet) | closed on 2026-11-12 with no fix named (T-077 stays blocked: podnet) | T-077 |
 | #69 | COORD-011: with podnet v0.4.0-beta.6 a held podvm unit still cannot reach the host loopback over a dual-stack socket (to podnet) | closed (podnet `v0.4.0-beta.8` pinned; runner-image run 43337313388) | T-077 |
 | #70 | COORD-012: tar with an absolute -C fails in a podvm unit; a relative -C passes (PodUtils/podcrates@T-328) (to podcrates) | open | T-096 |
-| #71 | COORD-013: podrunner housekeeping done; final commit d56b579 (to podcrates) | open (a report; close when podcrates has read it) | T-001 |
+| #71 | COORD-013: podrunner housekeeping done; final commit d56b579 (to podcrates) | closed (podvm is available again; #72 has the state) | T-001 |
+| #72 | COORD-014: podrunner takes podcrates v0.34.0 at 2a4f35c (the answer to PodUtils/podcrates#103 and #104) (to podcrates) | open (a report; close when podcrates records the take) | T-094 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 10 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

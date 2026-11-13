@@ -1347,7 +1347,7 @@ Build `actions/runner` v2.338.2 for `linux-musl-x64` in a CI job (its `dev.sh` t
 - aarch64: the layout links `/lib/ld-musl-aarch64.so.1` (node of unofficial-builds.nodejs.org). Both tests of `tests/runner.rs` pass in Alpine (2 passed). podvm-aarch64 `v0.2.0-beta.5` declines the musl image as it declines the glibc one: "this podvm binary carries no musl interposer object". A musl runner does not free T-051 from PodUtils/podvm@T-1721; the port must carry the musl object of aarch64 too.
 - The cut of the error of podvm at 200 characters hid that reason: `last_line` now keeps 600 characters and marks a cut (`the_last_line_keeps_the_reason_of_podvm`, which fails on the old code).
 
-The image of the units stays glibc: no ruling asks for a change. The NuGet audit of the tag: T-082.
+The image of the units stays glibc: no ruling asks for a change. The NuGet audit of the tag: T-082. 2026-11-13: podvm `v0.2.0-beta.6` carries the musl interposer of aarch64 (T-051), so the aarch64 podvm step of `runner-musl.yml` is a check (no `continue-on-error`), and a change of `images/podvm.toml` runs the workflow.
 
 # T-082: The official runner v2.338.2 carries Microsoft.AspNetCore.WebUtilities 8.0.25 (GHSA-x33c-w48q-qrgc)
 
