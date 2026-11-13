@@ -147,11 +147,13 @@ out=$(timeout 300 "$podvm" run --rm --podvm-tier=machine --podvm-net none --podv
   --podvm-channel "$ch:127.0.0.1:3128" -v "$work/cred:/mnt/podrunner-cred:ro" -v "$work/chwork:/podrunner-work" \
   -e http_proxy=http://127.0.0.1:3128 "$image" /bin/sh -c "
   setpriv --reuid=runner --regid=runner --init-groups -- curl -s --max-time 20 http://broker.podrunner.test/ || echo 'guest channel-volumes failed'
+  awk '{print \"guest mount\", \$3, \$2, \$4}' /proc/mounts
 " 2>"$work/stderr-chv")
 kill "$server" 2>/dev/null
 case "$out" in *channel-42*) echo "machine channel-volumes ok" ;; *) echo "machine channel-volumes failed: $(printf '%s' "$out" | tr '\n' ' ')" ;; esac
 echo "machine channel-volumes host-side: $(tr '\n' ' ' < "$work/channel.log" 2>/dev/null)"
 tail -c 600 "$work/stderr-chv" | sed 's/^/machine channel-volumes stderr /'
+printf '%s\n' "$out" | grep '^guest mount' | sed 's/^/machine /'
 
 # Two variants that split the three differences of the run above (the
 # volumes, the port 3128, the proxy from the environment).
