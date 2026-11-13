@@ -58,8 +58,8 @@ impl Version {
 /// NIC (T-110).
 pub const LOWEST_GUEST: &str = "0.2.0-beta.10";
 /// The lowest podvm of the `incus` kind: `run -d -i`, and no NIC and one
-/// channel on the incus tier (T-109).
-pub const LOWEST_INCUS: &str = "0.2.0-beta.12";
+/// channel on the incus tier with no proxy device (T-109).
+pub const LOWEST_INCUS: &str = "0.2.0-beta.13";
 
 /// True when `v` comes before the core version of `beyond`: each
 /// pre-release of `beyond` is not before it.

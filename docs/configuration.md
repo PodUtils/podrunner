@@ -120,7 +120,7 @@ own init, root file system and network namespace, and the kernel of the
 host. It claims `confined`, the floor of `trusted`, so it never serves an
 `untrusted` job. It has no container route yet (T-103). The host needs an
 incusd that the user of podrunner can reach (`PODVM_INCUS_SOCKET` or
-`INCUS_DIR` in the environment of `serve`) and podvm `v0.2.0-beta.12` or
+`INCUS_DIR` in the environment of `serve`) and podvm `v0.2.0-beta.13` or
 later: the credential files go into the instance on stdin.
 
 The instance has no NIC (`--podvm-net none`). Its one way out is an

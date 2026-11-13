@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.40.0` (`Cargo.toml`); podvm `v0.2.0-beta.12`
+- Pins: podcrates `v0.40.0` (`Cargo.toml`); podvm `v0.2.0-beta.13`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm and incus kinds need beta.10, T-110); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
@@ -70,7 +70,7 @@ is done.
 - T-108 is done: each report carries `cpu_s` and `peak_rss_mib`
   (podcrates `v0.40.0`).
 - T-105 and T-109 (partial): the incus kind has no NIC and one channel
-  on podvm `v0.2.0-beta.12`. Next: read its egress test and suite in the
+  on podvm `v0.2.0-beta.13`. Next: read its egress test and suite in the
   runner-image run of `6365312`; then close T-105, T-109, GitHub #88, and
   tell podvm on its issue 316 by a COORD issue.
 - T-108 (blocked): podcrates did `cpu_s` and `peak_rss_mib` on its
