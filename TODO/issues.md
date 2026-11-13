@@ -42,7 +42,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #34 | WP-13: measure U19 and U21 on the podvm rung | closed (T-034, podvm `v0.2.0-beta.3`) | T-034 |
 | #35 | WP-09: hook relay and the per-unit control socket server (`ctl`) | closed (`fda577d`, gate run 42991333922) | T-035 |
 | #36 | Guest floor self-test | open (partial: passes on a microvm guest; the mount check is open) | T-036 |
-| #37 | WP-11: `microvm` unit driver (form set by DR-5) | open (partial: passes on real guests; the acceptance on the fake source is open) | T-037 |
+| #37 | WP-11: `microvm` unit driver (form set by DR-5) | closed | T-037 |
 | #38 | WP-12: canned-message fake broker (level 2) | closed (T-026, runner-image run 42987612426) | T-038 |
 | #39 | Milestone L2: level 2 green, hook path measured | open (blocked: T-036, T-037, both partial) | T-039 |
 | #40 | Level 3: live acceptance suite | open (blocked: the live gates #74 and #75) | T-040 |

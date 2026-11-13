@@ -18,6 +18,11 @@ pub const CRED_MOUNT: &str = "/mnt/podrunner-cred";
 /// of the host, and `destroy` removes it.
 pub const WORK_MOUNT: &str = "/podrunner-work";
 
+/// The awk program of the mount check (T-036, GitHub #36): it fails when a
+/// host mount of the guest (9p or virtiofs) is not the credential
+/// directory, read-only, or the work directory of the unit.
+pub const MOUNT_CHECK: &str = r#"$3 == "9p" || $3 == "virtiofs" { if ($2 == "/mnt/podrunner-cred" && ("," $4 ",") ~ /,ro,/) next; if ($2 == "/podrunner-work") next; bad = 1 } END { exit bad }"#;
+
 /// The script of the guest. `$1` is the runner root; the rest is the argv of
 /// the payload. It copies the credential files into the runner root at
 /// mode 0600, gives them to the user of the image (`runner`, when it
@@ -25,6 +30,11 @@ pub const WORK_MOUNT: &str = "/podrunner-work";
 /// work directory.
 const SCRIPT: &str = r#"set -eu
 root=$1; shift
+# Each host mount of the guest is in the table of the unit (T-036).
+if ! awk 'MOUNT_CHECK' /proc/mounts; then
+  echo "podrunner: a host mount of the guest is outside the table of the unit" >&2
+  exit 96
+fi
 # The channel to the egress socket: the proxy of the payload. The script
 # sets the variables in the guest, as podvm rewrites a loopback proxy
 # variable of its own -e to the gateway of a NIC that this guest lacks.
@@ -98,7 +108,8 @@ pub fn run_args(
         a.push(format!("{k}={v}"));
     }
     a.push(reference.into());
-    a.extend(["/bin/sh", "-c", SCRIPT, "podrunner", runner_root].map(String::from));
+    let script = SCRIPT.replace("'MOUNT_CHECK'", &format!("'{MOUNT_CHECK}'"));
+    a.extend(["/bin/sh".to_string(), "-c".into(), script, "podrunner".into(), runner_root.into()]);
     a.extend(argv.iter().cloned());
     a
 }

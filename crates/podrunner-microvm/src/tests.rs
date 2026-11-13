@@ -149,3 +149,25 @@ fn an_egress_socket_is_the_one_channel_and_the_proxy_of_the_payload() {
     );
     assert_eq!(s.matches("--podvm-channel").count(), 1);
 }
+
+#[test]
+fn the_mount_check_takes_only_the_table_of_the_unit() {
+    let d = dir("mounts");
+    let base = "rootfs / rw 0 0\nproc /proc rw 0 0\n";
+    let cred = "podrunner-cred /mnt/podrunner-cred 9p ro,relatime,trans=virtio 0 0\n";
+    let work = "podrunner-work /podrunner-work 9p rw,relatime,trans=virtio 0 0\n";
+    let check = |table: &str| {
+        let f = d.join("mounts");
+        fs::write(&f, table).unwrap();
+        std::process::Command::new("awk").arg(MOUNT_CHECK).arg(&f).status().unwrap().success()
+    };
+    assert!(check(&format!("{base}{cred}{work}")), "the table of the unit");
+    assert!(check(base), "no host mount");
+    assert!(!check(&format!("{base}{}{work}", cred.replace(" ro,", " rw,"))), "a writable credential directory");
+    assert!(!check(&format!("{base}{cred}{work}home /mnt/home 9p rw 0 0\n")), "a host path outside the table");
+    assert!(!check(&format!("{base}{cred}{work}fs /data virtiofs rw 0 0\n")), "a virtiofs mount");
+    let a =
+        run_args(IMAGE, Path::new("/s/u-1"), &Shape { mem: "4G", cpus: 2, egress: None }, "/r", &BTreeMap::new(), &[]);
+    assert!(a.iter().any(|w| w.contains(MOUNT_CHECK)), "the script holds the check");
+    let _ = fs::remove_dir_all(&d);
+}

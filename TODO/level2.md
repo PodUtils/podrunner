@@ -136,7 +136,7 @@ Read the text of GitHub #36 on 2026-11-11. Nothing measured.
 
 Done (`crates/podrunner-slots/src/guest.rs`): a test unit writes the boot id of its kernel, its interfaces other than `lo`, whether a canary file of the host is visible, whether the process of podrunner is visible, and whether a listener that the test plants on the loopback of the host takes a connection. The boot id and the kernel version string (`/proc/version`) must differ from the host's, and each other check must find nothing. The boot id alone is not a proof: LXC and incus give a system container a boot id of its own (the measure of T-105 step 1). A guest that boots the same kernel build as the host fails too: the test fails safe. A second unit beside a first must not see the process or the file of the first. `serve` accepts a claim of `guest` only from a kind on `guest_kinds` (default `microvm`) and after this test; else the claim drops to `none` (`boundary_proof: guest-self-test-failed`). Each kind that claims `guest` is tested again each day (`RETEST_MS`) and when its driver file changes. Each driver is an absolute path, in `driver_dir` when it is set, and `serve` refuses a file or a directory that another user owns or that the group or the others can write. A fake unit that claims `guest` fails the test.
 
-The pass on a real guest holds: in runner-image runs 43417481104 (`a918fac`) and 43437838544 (`50c084f`) a guest of the `microvm` kind with no NIC passes the test (`crates/podrunner-microvm/tests/selftest.rs`, podvm `v0.2.0-beta.10`). Open: the check of the mounts on each `guest` start (each host path of the unit is its credential directory, read-only, or its own work directory). Step 1: `measure-machine.sh` prints the mounts of a guest with the two volumes of the kind, so the check knows which mounts podvm itself makes.
+The pass on a real guest holds: in runner-image runs 43417481104 (`a918fac`) and 43437838544 (`50c084f`) a guest of the `microvm` kind with no NIC passes the test (`crates/podrunner-microvm/tests/selftest.rs`, podvm `v0.2.0-beta.10`). Open: the check of the mounts on each `guest` start (each host path of the unit is its credential directory, read-only, or its own work directory). Step 1: `measure-machine.sh` prints the mounts of a guest with the two volumes of the kind, so the check knows which mounts podvm itself makes. Runner-image run 43467164062 (`92661d2`): the guest has two host mounts, both 9p: `/mnt/podrunner-cred` (`ro`) and `/podrunner-work` (`rw`); podvm makes no other. Step 2, the code: the guest script runs `MOUNT_CHECK` (awk over `/proc/mounts`) before each job and exits 96 when a 9p or virtiofs mount is not the read-only credential directory or the work directory. `the_mount_check_takes_only_the_table_of_the_unit` holds the check; each guest of the suite and of the canned job runs it.
 
 ## Prove
 
@@ -149,7 +149,7 @@ The pass on a real guest holds: in runner-image runs 43417481104 (`a918fac`) and
 **Milestone:** L2
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -206,6 +206,10 @@ Step 5, the code (podvm `v0.2.0-beta.9`, PodUtils/podvm#303): the guest has no N
 2026-11-13 (later): the call of the first form (the user-mode NIC under `podnet pod`) does not hold. The self-test of the guest (T-036, `crates/podrunner-slots/src/guest.rs`) refuses a unit with a network interface but `lo`, as the design of GitHub #37 asks ("no NIC"); a guest with `eth0` never gets the claim `guest`, so no untrusted job runs on it. The kind needs a guest with no NIC and one host channel to the broker (PodUtils/podvm@T-1751, asked in GitHub #83).
 
 2026-11-13: podvm landed its machine tier (PodUtils/podvm@T-1656, done; `v0.2.0-beta.6` adds 9p volumes and `-t`). The guest has a user-mode NIC (`10.0.2.15`, the gateway `10.0.2.2` is the loopback of the host), runs only in the foreground (no `run -d`, no `exec`: PodUtils/podvm@T-1750), and needs `qemu-system-x86_64` on the host. A unix socket does not cross into the guest, so the hooks of the container path cannot reach it.
+
+## Done
+
+2026-11-13, runner-image run 43467164062 (`92661d2`, podvm `v0.2.0-beta.11`). Each point of the acceptance of GitHub #37 holds on a hosted runner with KVM: the self-test of T-036 on a guest, the unit tests 1 to 7, 10, 11, 12 and 15, and through slots a fork pull request in a guest (`untrusted`, `microvm`, `guest`, `success`) and a `container` need refused (`container-not-supported`). GitHub #37 is closed.
 
 # T-038: WP-12: the canned-message fake broker (level 2) (GitHub #38)
 
