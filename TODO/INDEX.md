@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**106 entries: 1 open, 3 partial, 9 blocked, 93 done.**
+**106 entries: 0 open, 3 partial, 10 blocked, 93 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 30 | 32 |
 | P2 | 0 | 1 | 7 | 40 | 48 |
-| P3 | 1 | 0 | 2 | 23 | 26 |
-| **All** | 1 | 3 | 9 | 93 | 106 |
+| P3 | 0 | 0 | 3 | 23 | 26 |
+| **All** | 0 | 3 | 10 | 93 | 106 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -152,5 +152,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-102](later.md) | P2 | S | later | feature | done | G-13: a table of the events of a job in the tier rule |
 | [T-103](later.md) | P2 | L | later | feature | blocked | G-09: a container engine inside the unit, and the census of the verbs (DR-8) |
 | [T-104](later.md) | P2 | S | later | feature | done | G-10: the source conformance tests as a command for another source program |
-| [T-105](later.md) | P3 | M | later | feature | open | G-02: an `incus` unit kind for trusted jobs (a system container) |
+| [T-105](later.md) | P3 | M | later | feature | blocked | G-02: an `incus` unit kind for trusted jobs (a system container) |
 | [T-106](later.md) | P1 | S | later | defect | done | The actor classes of githome (agent, bot, external) in the offer schema |

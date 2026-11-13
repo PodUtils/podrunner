@@ -62,6 +62,13 @@ is done.
   NIC fails the self-test of T-036 (no interface but `lo`, as the design
   asks), so no untrusted job runs on it. It needs podvm's guest with no
   NIC and one host channel (PodUtils/podvm@T-1751).
+- T-105 (blocked on podvm, GitHub #85): the incus tier of podvm runs
+  the runner image as a system container (step 1, the measure, passes at
+  `e8257ad`). The `incus` kind needs `run -d --name` with stdin for the
+  credential files. LXC gives a system container a boot id of its own, so
+  the guest self-test (T-036) now compares `/proc/version` too.
+- The x86_64 job of `runner-image.yml` takes about 30 minutes: it has
+  60 minutes, and each podvm conformance suite 900 s.
 - T-096 is done: podvm `v0.2.0-beta.7` is pinned, and the 28 tar forms
   pass (runner-image run 43351590729). #78 tells podvm.
 - T-099 is done: each conformance test has a time limit; test 27 passed

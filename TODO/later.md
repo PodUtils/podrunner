@@ -681,7 +681,7 @@ Read GitHub #66 (the comment of 2026-11-13) on 2026-11-13. The 12 tests are in `
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -702,6 +702,10 @@ Step 1 result (2026-11-13, the run of `e8257ad`, x86_64, podvm `v0.2.0-beta.8`):
 ## Prove
 
 `cargo test -p podrunner-incus --test conformance -- --ignored` passes on a host with incus.
+
+## Blocker
+
+podvm: an instance that stays and takes stdin (GitHub #85). The kind needs a name that it chooses, so that `destroy` removes the instance when the `podvm` client is gone (the processes of the instance belong to incusd and carry no tag), and the credential files through stdin (`/.podvm/stdin`, mode 0600, owner 0): the root of the instance is a mapped id and cannot read a host directory of mode 0700. `run -d --name` has no stdin; the foreground `run` has stdin but a random name and no label.
 
 # T-106: The actor classes of githome (agent, bot, external) in the offer schema
 
