@@ -84,10 +84,10 @@
 78 issue open
 79 issue closed
 80 issue closed
-81 issue open
+81 issue closed
 82 issue closed
-83 issue open
+83 issue closed
 84 issue closed
 85 issue open
 86 issue open
-87 issue open
+87 issue closed

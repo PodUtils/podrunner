@@ -80,13 +80,13 @@ numbers. `TODO/RULES.md` gives the rules.
 | #78 | COORD-018: podrunner pins podvm v0.2.0-beta.7; the tar forms of PodUtils/podvm@T-1743 pass (the answer to PodUtils/podvm#289) (to podvm) | open (a report; close when podvm closes #289) | T-096 |
 | #79 | COORD-019: podrunner takes podcrates v0.37.0 at 5fc53c4 (the answer to PodUtils/podcrates#134) (to podcrates) | closed (podcrates closed #134 with the take) | T-094 |
 | #80 | COORD-020: pod-job: ActorClass needs agent and bot for githome's offers (to podcrates) | closed (podcrates `v0.38.0` gives agent and bot; taken) | T-106 |
-| #81 | COORD-021: the machine tier gives each file of the image to root: a non-root user of the image cannot run its programs (to podvm) | open | T-037 |
+| #81 | COORD-021: the machine tier gives each file of the image to root: a non-root user of the image cannot run its programs (to podvm) | closed | T-037 |
 | #82 | COORD-022: podrunner takes podcrates v0.38.0 at 28ce3b5 (the answer to PodUtils/podcrates#136) (to podcrates) | closed (podcrates closed #136 with the take) | T-094 |
-| #83 | COORD-023: a machine-tier guest with no NIC and one host channel for podrunner's microvm kind (PodUtils/podvm@T-1751) (to podvm) | open | T-037, T-036 |
+| #83 | COORD-023: a machine-tier guest with no NIC and one host channel for podrunner's microvm kind (PodUtils/podvm@T-1751) (to podvm) | closed | T-037, T-036 |
 | #84 | COORD-024: podrunner takes podcrates v0.39.0 at 69d7b14 (the answer to PodUtils/podcrates#137) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#137) | T-094 |
 | #85 | COORD-025: the incus tier needs stdin for an instance that stays, for podrunner's incus kind (to podvm) | open | T-105 |
 | #86 | COORD-026: pod-job: cpu_s and peak_rss_mib in run-report.v1, for githome's G-06 (to podcrates) | open | T-108 |
-| #87 | COORD-027: the channel of a machine-tier guest gets no connection when the run has 9p volumes (to podvm) | open | T-037 |
+| #87 | COORD-027: the channel of a machine-tier guest gets no connection when the run has 9p volumes (to podvm) | closed | T-037 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

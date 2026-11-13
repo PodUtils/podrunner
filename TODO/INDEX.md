@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**108 entries: 0 open, 5 partial, 9 blocked, 94 done.**
+**108 entries: 0 open, 6 partial, 8 blocked, 94 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 31 | 33 |
-| P2 | 0 | 2 | 7 | 40 | 49 |
+| P2 | 0 | 3 | 6 | 40 | 49 |
 | P3 | 0 | 1 | 2 | 23 | 26 |
-| **All** | 0 | 5 | 9 | 94 | 108 |
+| **All** | 0 | 6 | 8 | 94 | 108 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -83,7 +83,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-033](live.md) | P2 | S | M-D | chore | blocked | Milestone M-D: one live trusted job on a no-root host (GitHub #33) |
 | [T-034](level2.md) | P2 | S | L2 | measurement | done | WP-13: measure U19 and U21 on the podvm rung (GitHub #34) |
 | [T-035](level2.md) | P2 | M | L2 | feature | done | WP-09: the hook relay and the control socket server of each unit (ctl) (GitHub #35) |
-| [T-036](level2.md) | P2 | S | L2 | feature | blocked | The guest floor self-test (GitHub #36) |
+| [T-036](level2.md) | P2 | S | L2 | feature | partial | The guest floor self-test (GitHub #36) |
 | [T-037](level2.md) | P2 | M | L2 | feature | partial | WP-11: the microvm unit driver (form set by DR-5) (GitHub #37) |
 | [T-038](level2.md) | P2 | S | L2 | feature | done | WP-12: the canned-message fake broker (level 2) (GitHub #38) |
 | [T-039](level2.md) | P2 | S | L2 | chore | blocked | Milestone L2: level 2 green, the hook path measured (GitHub #39) |
