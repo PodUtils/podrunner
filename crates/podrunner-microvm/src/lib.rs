@@ -58,7 +58,10 @@ pub struct MicrovmUnit {
     /// The reference of each prepared digest.
     references: Mutex<HashMap<String, String>>,
     units: Mutex<HashMap<UnitId, Running>>,
-    runner_dir: String,
+    /// Where the guest writes the credential files: the runner image links
+    /// `.runner`, `.credentials` and `.credentials_rsaparams` of
+    /// `/home/runner` to it, as for the podvm kind.
+    cred_root: String,
     /// A directory that keeps the log of each guest after `destroy`, for a
     /// test that reads it then.
     kept_logs: Option<PathBuf>,
@@ -82,7 +85,7 @@ impl MicrovmUnit {
             platform: platform.into(),
             references: Mutex::new(HashMap::new()),
             units: Mutex::new(HashMap::new()),
-            runner_dir: "/home/runner".into(),
+            cred_root: "/podrunner/.runner".into(),
             kept_logs: None,
         }
     }
@@ -172,7 +175,7 @@ impl UnitDriver for MicrovmUnit {
             return Err(e);
         }
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
-        let args = run_args(&reference, &dir, &self.mem, self.cpus, &self.runner_dir, &spec.env, &spec.argv);
+        let args = run_args(&reference, &dir, &self.mem, self.cpus, &self.cred_root, &spec.env, &spec.argv);
         // The output of the guest: `unit_logs` reads it before `destroy`.
         let log = fs::File::create(dir.join("guest.log")).map_err(|e| host("the log of the guest", e))?;
         let log2 = log.try_clone().map_err(|e| host("the log of the guest", e))?;
