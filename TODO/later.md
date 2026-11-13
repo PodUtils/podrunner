@@ -782,7 +782,7 @@ Tell githome on GitHub #66 that `pod-broker` names the version `schema`, not `ve
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -800,9 +800,9 @@ Ask podcrates for `cpu_s` and `peak_rss_mib` in `RunReport` and `PublicReport`, 
 
 `cargo test -p podrunner-slots report`: a unit that spins reports a `cpu_s` above 0 and a `peak_rss_mib`; the `incus` kind reports `unknown`.
 
-## Blocker
+## Done
 
-podcrates: the two fields in `pod-job` (GitHub #86, COORD-026). podcrates did the work on its `main` (PodUtils/podcrates@T-527, `ed9b2d9`); the entry waits for the tag `v0.40.0`.
+2026-11-13, this commit. podcrates `v0.40.0` (PodUtils/podcrates#140, PodUtils/podcrates@T-527) gives `cpu_s` and `peak_rss_mib` (`Option<Residual>`); podrunner takes the tag. `crates/podrunner-slots/src/usage.rs` samples the processes of each running unit at each tick (`/proc/PID/stat` and `/proc/PID/status`): the CPU time is the sum of the highest `utime + stime` of each process, the peak is the highest sum of `VmRSS` of one tick. A report of a job whose unit ran carries both; a unit with no process on the host (`incus`) gives `unknown`; a job with no unit gives neither. `the_report_of_a_unit_that_spins_has_its_cpu_time_and_memory` and two tests of `usage.rs` hold it. GitHub #86 is closed.
 
 # T-109: The incus kind has no egress hold, so placement gives it no trusted job
 

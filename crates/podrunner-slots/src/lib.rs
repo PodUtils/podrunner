@@ -19,6 +19,7 @@ mod run;
 mod spool;
 pub mod state;
 pub mod status;
+pub mod usage;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -108,6 +109,8 @@ impl Slots {
                     unit: None,
                     claim_to_first_step_s: None,
                     job_images: Vec::new(),
+                    cpu_s: None,
+                    peak_rss_mib: None,
                 };
                 let value = if self.sources[s].cfg.operator_controlled {
                     serde_json::to_value(&report)

@@ -11,6 +11,7 @@ mod journal;
 mod level1;
 mod spool;
 mod status;
+mod usage;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;

@@ -63,6 +63,8 @@ pub struct Job {
     pub residue: Option<podrunner_unit::Residue>,
     /// The source sent `completed` for the job.
     pub completed: bool,
+    /// The CPU time and the peak memory of its unit (T-108).
+    pub usage: crate::usage::Usage,
 }
 
 /// The egress module as slots sees it (`podrunner-egress` behind it): one
@@ -130,6 +132,7 @@ impl Slots {
         self.retest_guests(now);
         self.hook_events(now);
         self.check_disks(now);
+        self.sample_usage();
         self.progress(now);
         for s in 0..self.sources.len() {
             self.poll(s, now);
@@ -351,6 +354,7 @@ impl Slots {
             refusal: None,
             residue: None,
             completed: false,
+            usage: Default::default(),
         };
         let valid = job.offer.is_some();
         self.jobs.insert(key.clone(), job);

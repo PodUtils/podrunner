@@ -21,12 +21,12 @@ podrunner-remote.workspace = true
 podrunner-tier.workspace = true
 toml.workspace = true
 ring.workspace = true
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.39.0" }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.40.0" }
 # The pins of `[dns]` (T-076).
-pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.39.0" }
+pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.40.0" }
 # The probes of the host that `doctor` shows (T-070).
-pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.39.0" }
-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.39.0", default-features = false }
+pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.40.0" }
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.40.0", default-features = false }
 pod-actions-expr.workspace = true
 pod-actions-workflow.workspace = true
 podrunner-fake.workspace = true
@@ -44,5 +44,5 @@ serde_json.workspace = true
 
 [dev-dependencies]
 # The runner pin of the image agrees with the one of pod-services (a test).
-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.39.0" }
+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.40.0" }
 serde_json.workspace = true

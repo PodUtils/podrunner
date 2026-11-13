@@ -412,6 +412,7 @@ impl Slots {
             }
             _ => None,
         };
+        let unit_ran = unit.is_some();
         let r = RunReport {
             schema: podrunner_schema::SCHEMA,
             job_id: key.1.clone(),
@@ -425,6 +426,9 @@ impl Slots {
             unit,
             claim_to_first_step_s: j.claimed_ms.zip(j.first_step_ms).map(|(c, f)| f.saturating_sub(c) / 1000),
             job_images: j.images.clone(),
+            // The use of the unit, when a unit ran (T-108).
+            cpu_s: unit_ran.then(|| j.usage.report().0),
+            peak_rss_mib: unit_ran.then(|| j.usage.report().1),
         };
         let value = if self.sources[key.0].cfg.operator_controlled {
             serde_json::to_value(&r)
