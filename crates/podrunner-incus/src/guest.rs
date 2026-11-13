@@ -23,6 +23,11 @@ pub const WORK_MOUNT: &str = "/podrunner-work";
 /// instance once the script has it open.
 pub const SCRIPT: &str = r#"set -eu
 root=$1; shift
+# The channel to the egress socket: the proxy of the payload.
+if [ -n "${PODRUNNER_CHANNEL_PORT:-}" ]; then
+  u=http://127.0.0.1:$PODRUNNER_CHANNEL_PORT
+  export http_proxy=$u https_proxy=$u HTTP_PROXY=$u HTTPS_PROXY=$u
+fi
 mkdir -p "$root"
 while read -r n b; do
   case "$n" in ''|.|..|*/*) exit 97 ;; esac
@@ -37,18 +42,34 @@ fi
 exec "$@" </dev/null
 "#;
 
+/// The port in the instance of the channel to the egress socket.
+pub const EGRESS_PORT: u16 = 3128;
+
+/// The variable that gives the script the port of the egress channel; the
+/// script makes the proxy variables of the payload from it.
+pub const CHANNEL_PORT_VAR: &str = "PODRUNNER_CHANNEL_PORT";
+
 /// The argv of `podvm run -d -i` for the instance `name`, with the work
-/// directory `work`. The argv of the payload goes to the script as
-/// positional parameters: no word of it is quoted again.
+/// directory `work`. The instance has no NIC; with an egress socket it has
+/// one channel to it (T-109). The argv of the payload goes to the script
+/// as positional parameters: no word of it is quoted again.
 pub fn run_args(
     name: &str,
     reference: &str,
     work: &Path,
+    egress: Option<&Path>,
     runner_root: &str,
     env: &BTreeMap<String, String>,
     argv: &[String],
 ) -> Vec<String> {
-    let mut a: Vec<String> = ["run", "-d", "-i", "--name", name, "--podvm-tier=incus"].map(String::from).to_vec();
+    let mut a: Vec<String> =
+        ["run", "-d", "-i", "--name", name, "--podvm-tier=incus", "--podvm-net", "none"].map(String::from).to_vec();
+    if let Some(egress) = egress {
+        a.push("--podvm-channel".into());
+        a.push(format!("{}:127.0.0.1:{EGRESS_PORT}", egress.display()));
+        a.push("-e".into());
+        a.push(format!("{CHANNEL_PORT_VAR}={EGRESS_PORT}"));
+    }
     a.push("-v".into());
     a.push(format!("{}:{WORK_MOUNT}", work.display()));
     for (k, v) in env {

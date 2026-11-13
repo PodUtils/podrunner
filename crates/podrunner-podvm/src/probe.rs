@@ -54,9 +54,12 @@ impl Version {
     }
 }
 
-/// The lowest podvm of the `microvm` and `incus` kinds: the channel of a
-/// guest with no NIC, and `run -d -i` of an incus instance (T-110).
+/// The lowest podvm of the `microvm` kind: the channel of a guest with no
+/// NIC (T-110).
 pub const LOWEST_GUEST: &str = "0.2.0-beta.10";
+/// The lowest podvm of the `incus` kind: `run -d -i`, and no NIC and one
+/// channel on the incus tier (T-109).
+pub const LOWEST_INCUS: &str = "0.2.0-beta.12";
 
 /// True when `v` comes before the core version of `beyond`: each
 /// pre-release of `beyond` is not before it.

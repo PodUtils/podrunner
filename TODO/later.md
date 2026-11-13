@@ -833,7 +833,7 @@ Read `crates/podrunner-incus/src/lib.rs` (`probe`), `crates/podrunner/src/incus_
 
 ## Blocker
 
-podvm: `--podvm-net none` and `--podvm-channel` on the incus tier (GitHub #88, COORD-028). The slots side holds already: `a_kind_with_no_hold_gets_no_trusted_job` refuses a `trusted` offer on a kind with no hold, as the record of `incus` has.
+podvm: `--podvm-net none` and `--podvm-channel` on the incus tier (GitHub #88, COORD-028). podvm answered in PodUtils/podvm#316 (COORD-082): both flags on the incus tier (PodUtils/podvm@T-1779), in `v0.2.0-beta.12`. The code is in: the kind passes `--podvm-net none`, and with a socket directory `--podvm-channel SOCKETS/egress.sock:127.0.0.1:3128` and `PODRUNNER_CHANNEL_PORT`; the script sets the proxy variables; `probe` says `net: none` and `enforced`; `serve` needs podvm `LOWEST_INCUS` (`0.2.0-beta.12`). `the_instance_has_no_nic_and_one_channel_to_the_egress_socket` holds the argv. Next: pin beta.12, then the proof on a hosted runner (a payload reaches the socket and nothing else). The slots side holds already: `a_kind_with_no_hold_gets_no_trusted_job` refuses a `trusted` offer on a kind with no hold, as the record of `incus` has.
 
 # T-110: The microvm and incus kinds do not check the version of podvm
 

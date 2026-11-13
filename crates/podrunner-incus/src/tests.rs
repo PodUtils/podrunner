@@ -184,3 +184,23 @@ fn the_name_is_one_incus_takes() {
     assert!(n.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'), "{n}");
     assert_ne!(n, instance_name(Path::new("/srv/other"), "u-123456789"), "two hosts do not meet");
 }
+
+#[test]
+fn the_instance_has_no_nic_and_one_channel_to_the_egress_socket() {
+    let (u, d) = driver("channel", "sleep 30");
+    let mut s = spec("u-9");
+    s.sockets = Some(d.join("sockets"));
+    u.start(&s).unwrap();
+    let argv = fs::read_to_string(d.join("store").join(format!("{}.argv", u.name(&s.unit)))).unwrap();
+    let words: Vec<&str> = argv.lines().collect();
+    let at = |w: &str| words.iter().position(|x| *x == w).unwrap_or_else(|| panic!("{w}: {words:?}"));
+    assert_eq!(words[at("--podvm-net") + 1], "none");
+    let channel = format!("{}:127.0.0.1:{EGRESS_PORT}", d.join("sockets").join("egress.sock").display());
+    assert_eq!(words[at("--podvm-channel") + 1], channel);
+    assert!(words.contains(&format!("{CHANNEL_PORT_VAR}={EGRESS_PORT}").as_str()), "{words:?}");
+    assert!(!argv.contains("-e\nhttp_proxy"), "no proxy variable in argv: {argv}");
+    assert!(u.destroy(&s.unit).unwrap().is_clean());
+    let c = u.probe().unwrap();
+    assert_eq!((c.net.as_str(), c.egress_hold), ("none", EgressHold::Enforced));
+    let _ = fs::remove_dir_all(&d);
+}

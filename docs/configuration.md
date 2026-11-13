@@ -120,13 +120,13 @@ own init, root file system and network namespace, and the kernel of the
 host. It claims `confined`, the floor of `trusted`, so it never serves an
 `untrusted` job. It has no container route yet (T-103). The host needs an
 incusd that the user of podrunner can reach (`PODVM_INCUS_SOCKET` or
-`INCUS_DIR` in the environment of `serve`) and podvm `v0.2.0-beta.10` or
+`INCUS_DIR` in the environment of `serve`) and podvm `v0.2.0-beta.12` or
 later: the credential files go into the instance on stdin.
 
-The instance has the default network of incusd (a bridge with NAT) and
-no egress hold. Placement asks a hold for a `trusted` job, so it gives
-the kind no `trusted` job (`hold-not-available`) until T-109 gives the
-instance a way out through the egress socket only.
+The instance has no NIC (`--podvm-net none`). Its one way out is an
+incus `proxy` device from `127.0.0.1:3128` in the instance to the egress
+socket of the unit, and the job gets `http_proxy` and `https_proxy` of
+that address, as for the microvm kind. So the egress hold is `enforced`.
 
 ```toml
 [unit.incus]

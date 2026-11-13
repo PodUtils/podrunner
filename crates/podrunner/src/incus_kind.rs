@@ -48,7 +48,7 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
     plan(u)?;
     let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
     podvm
-        .require(podrunner_podvm::probe::LOWEST_GUEST)
+        .require(podrunner_podvm::probe::LOWEST_INCUS)
         .map_err(|e| fail(Class::Unsupported, format!("[unit.incus] binary: {e}")))?;
     let images = PathBuf::from(u.images.clone().unwrap_or_default());
     let unit = podrunner_incus::IncusUnit::new(podvm, &state.join("incus"), &images);

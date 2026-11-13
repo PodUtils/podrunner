@@ -11,6 +11,11 @@
 //! argv or the environment. The payload runs in a work directory of the
 //! unit, a `disk` device of the instance.
 //!
+//! The instance has no NIC (`--podvm-net none`). Its one way out is a
+//! channel of podvm from `127.0.0.1:3128` in the instance to the egress
+//! socket of the unit, and the script sets the proxy variables of the
+//! payload from `PODRUNNER_CHANNEL_PORT` (T-109).
+//!
 //! A system container shares the kernel of the host: the kind claims
 //! `confined`, the floor of `trusted`, never `guest`.
 
@@ -33,7 +38,7 @@ use podrunner_unit::{
     StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
 
-pub use guest::{SCRIPT, WORK_MOUNT, credential_stream, instance_name, run_args};
+pub use guest::{CHANNEL_PORT_VAR, EGRESS_PORT, SCRIPT, WORK_MOUNT, credential_stream, instance_name, run_args};
 
 /// The time between two reads of the state of an instance.
 const POLL: Duration = Duration::from_millis(500);
@@ -149,15 +154,16 @@ impl UnitDriver for IncusUnit {
             boundary_proof: Some("incus system container".into()),
             principal: Principal::Distinct,
             container: ContainerRoute::None,
-            // The default network of incusd: a bridge with NAT.
-            net: "nat".into(),
+            // No NIC: the channel to the egress socket is the only way out
+            // (T-109).
+            net: "none".into(),
             secret_delivery: vec![podrunner_schema::SecretDelivery::Files],
             credential_store: CredentialStore::PrivateDir,
             mount_modes: vec!["rw".into()],
             rootfs_fresh: Fact::Yes,
             tree_kill: TreeKill::Unverified,
             limits: Default::default(),
-            egress_hold: EgressHold::None,
+            egress_hold: EgressHold::Enforced,
             kvm: Fact::Unknown,
         })
     }
@@ -196,7 +202,8 @@ impl UnitDriver for IncusUnit {
             let _ = fs::remove_dir_all(&dir);
             UnitError::new(UnitCode::UnitStartFailed, why)
         };
-        let args = run_args(&name, &reference, &work, &self.cred_root, &spec.env, &spec.argv);
+        let egress = spec.sockets.as_ref().map(|s| s.join(podrunner_unit::EGRESS_SOCKET));
+        let args = run_args(&name, &reference, &work, egress.as_deref(), &self.cred_root, &spec.env, &spec.argv);
         let mut child =
             match self.podvm().args(&args).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn() {
                 Ok(c) => c,
