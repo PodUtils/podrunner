@@ -26,6 +26,7 @@ out=$(timeout 600 "$podvm" run --rm --podvm-tier=incus -v "$work/vol:/mnt/vol" "
   if setpriv --reuid=runner --regid=runner --init-groups -- /home/runner/run.sh --version >/dev/null 2>&1; then echo "guest runner-run ok"; else echo "guest runner-run failed"; fi
   echo "guest net $(ls /sys/class/net | tr "\n" " ")"
   echo "guest boot $(cat /proc/sys/kernel/random/boot_id)"
+  echo "guest kernel $(cat /proc/version)"
 ' 2>"$work/stderr")
 code=$?
 end=$(date +%s)
@@ -33,8 +34,10 @@ echo "incus run exit=$code seconds=$((end - start))"
 case "$out" in *"guest files ok"*) echo "incus files ok" ;; *) echo "incus files failed: $(tail -c 400 "$work/stderr" | tr '\n' ' ')" ;; esac
 if [ -f "$work/vol/written" ]; then echo "incus volume ok"; else echo "incus volume failed: no file on the host"; fi
 case "$out" in *"guest runner-run ok"*) echo "incus runner-run ok" ;; *) echo "incus runner-run failed" ;; esac
-host_boot=$(cat /proc/sys/kernel/random/boot_id)
-case "$out" in *"guest boot $host_boot"*) echo "incus kernel shared (a system container)" ;; *) echo "incus kernel own" ;; esac
+# LXC gives a system container a boot id of its own: only the version
+# string of the kernel tells a shared kernel.
+host_kernel=$(cat /proc/version)
+case "$out" in *"guest kernel $host_kernel"*) echo "incus kernel shared (a system container)" ;; *) echo "incus kernel own" ;; esac
 printf '%s\n' "$out" | sed 's/^/incus out /'
 
 # An instance that stays: run -d, exec, rm.

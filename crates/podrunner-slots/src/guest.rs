@@ -9,7 +9,10 @@
 //! canary file that slots planted on the host is visible, whether the
 //! process of slots is visible, and whether the process and the file of a
 //! first unit that still runs are visible. The host and the unit share no
-//! boot id.
+//! boot id and no kernel version string: a system container of LXC or incus
+//! gets a boot id of its own, but it reads the `/proc/version` of the host
+//! kernel. A guest that boots the same kernel build as the host fails too:
+//! the test fails safe.
 
 use std::path::Path;
 use std::time::Duration;
@@ -32,8 +35,8 @@ pub fn self_test(
     if reached {
         return Err("the unit reached a listener on the loopback of the host".into());
     }
-    let host_boot = std::fs::read_to_string("/proc/sys/kernel/random/boot_id").unwrap_or_default();
-    judge(&text, host_boot.trim())
+    let read = |p: &str| std::fs::read_to_string(p).unwrap_or_default().trim().to_string();
+    judge(&text, &Host { boot_id: read("/proc/sys/kernel/random/boot_id"), version: read("/proc/version") })
 }
 
 /// The lines of the test unit, and whether it reached the listener on the
@@ -87,6 +90,7 @@ fn second(
     let me = std::process::id();
     let script = format!(
         "{{ echo boot_id=$(cat /proc/sys/kernel/random/boot_id); \
+         echo kernel=$(cat /proc/version); \
          echo net=$(ls /sys/class/net 2>/dev/null | grep -vx lo | tr '\\n' ' '); \
          if [ -e '{canary}' ]; then echo canary=visible; else echo canary=absent; fi; \
          if [ -d /proc/{me} ] && grep -q podrunner /proc/{me}/cmdline 2>/dev/null; then echo hostpid=visible; else echo hostpid=absent; fi; \
@@ -128,12 +132,24 @@ fn run(driver: &dyn UnitDriver, payload: &str, platform: &str, unit: UnitId, scr
     }
 }
 
+/// What the host reads of its own kernel.
+#[derive(Debug, Clone, Default)]
+pub struct Host {
+    pub boot_id: String,
+    pub version: String,
+}
+
 /// The verdict on the lines of the test unit.
-pub fn judge(text: &str, host_boot_id: &str) -> Result<(), String> {
+pub fn judge(text: &str, host: &Host) -> Result<(), String> {
     let get = |k: &str| text.lines().find_map(|l| l.strip_prefix(&format!("{k}="))).map(str::trim).unwrap_or("");
     let boot = get("boot_id");
-    if boot.is_empty() || boot == host_boot_id {
+    if boot.is_empty() || boot == host.boot_id {
         return Err("the unit runs on the kernel of the host (the same boot id)".into());
+    }
+    // The shell of the unit collapses each run of blanks: compare words.
+    let kernel = get("kernel");
+    if kernel.is_empty() || kernel.split_whitespace().eq(host.version.split_whitespace()) {
+        return Err("the unit runs on the kernel of the host (the same kernel version)".into());
     }
     if !get("net").is_empty() {
         return Err(format!("the unit has network interfaces: {}", get("net")));
@@ -217,10 +233,14 @@ mod tests {
 
     #[test]
     fn the_verdict_needs_each_line() {
-        let good = "boot_id=b2\nnet=\ncanary=absent\nhostpid=absent\nfirstproc=absent\nfirstfile=absent\n";
-        assert_eq!(judge(good, "b1"), Ok(()));
+        let good = "boot_id=b2\nkernel=Linux version 6.1 (b) #2\nnet=\ncanary=absent\nhostpid=absent\nfirstproc=absent\nfirstfile=absent\n";
+        let host = Host { boot_id: "b1".into(), version: "Linux version  6.12 (a) #1".into() };
+        assert_eq!(judge(good, &host), Ok(()));
         for (from, to, why) in [
             ("boot_id=b2", "boot_id=b1", "same boot id"),
+            // A system container: its own boot id, the kernel of the host.
+            ("6.1 (b) #2", "6.12 (a) #1", "same kernel version"),
+            ("kernel=Linux version 6.1 (b) #2\n", "", "same kernel version"),
             ("net=\n", "net=eth0\n", "network"),
             ("canary=absent", "canary=visible", "file of the host"),
             ("hostpid=absent", "hostpid=visible", "process of the host"),
@@ -230,7 +250,7 @@ mod tests {
             (good, "", "same boot id"),
         ] {
             let bad = good.replace(from, to);
-            assert!(judge(&bad, "b1").unwrap_err().contains(why), "{bad}");
+            assert!(judge(&bad, &host).unwrap_err().contains(why), "{bad}");
         }
     }
 }

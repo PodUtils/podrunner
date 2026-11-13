@@ -68,7 +68,9 @@ jobs:
             platform: linux/arm64
             runs-on: ubuntu-24.04-arm
     runs-on: ${{ matrix.runs-on }}
-    timeout-minutes: 30
+    # The x86_64 job runs each podvm suite twice and the guest tests: about
+    # 30 minutes on a hosted runner.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -223,7 +225,7 @@ jobs:
           if grep -E 'failed|written' "$RUNNER_TEMP/tar.txt"; then exit 1; fi
           test "$(grep -c ' ok$' "$RUNNER_TEMP/tar.txt")" = 28
           cargo test -p podrunner-podvm --test conformance --no-run
-          timeout 600 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
+          timeout 900 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
           # T-065: the egress hold of a unit under podnet pod.
           sh scripts/measure-podnet-pod.sh "$PODRUNNER_PODNET" "$PODRUNNER_PODVM" "$RUNNER_TEMP/podnet-measure"
           timeout 300 cargo test -p podrunner-podvm --test hold -- --ignored --nocapture
@@ -232,7 +234,7 @@ jobs:
           # T-061: an absolute link resolves in the rootfs of the unit.
           timeout 300 cargo test -p podrunner-podvm --test links -- --ignored --nocapture
           # T-079: the same under the confine layer of podvm, proven first.
-          PODRUNNER_PODVM_CONFINE=1 timeout 600 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
+          PODRUNNER_PODVM_CONFINE=1 timeout 900 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
           PODRUNNER_PODVM_CONFINE=1 cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture
           sh scripts/measure-podvm-confine.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/confine"
           # T-078: the labels and the run report of podvm.

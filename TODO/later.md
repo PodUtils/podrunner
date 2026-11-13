@@ -697,6 +697,8 @@ An `incus` kind over podvm's incus tier, behind `UnitDriver`, as `microvm` is ov
 
 Step 1 (2026-11-13): `scripts/measure-incus.sh` in `runner-image.yml`, a measure: incus from apt on a hosted runner, then `podvm run --podvm-tier=incus` of the runner image (the files, a volume, a program as `runner`, the network and the kernel) and an instance that stays (`run -d`, `exec`, `rm -f`).
 
+Step 1 result (2026-11-13, the run of `e8257ad`, x86_64, podvm `v0.2.0-beta.8`): each property passes. The run takes 18 s; the files of the image are there and `runner:runner` owns `/home/runner` (no `chown` as in the machine tier); a volume takes a write back to the host; `run.sh` runs as `runner`; `run -d`, `exec` and `rm -f` work. The instance has `eth0` and `lo`. Its boot id differs from the host's though it shares the kernel of the host: the measure now compares `/proc/version`, and so does the guest self-test (T-036).
+
 ## Prove
 
 `cargo test -p podrunner-incus --test conformance -- --ignored` passes on a host with incus.
