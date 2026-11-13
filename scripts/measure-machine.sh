@@ -63,3 +63,52 @@ if [ -f "$work/vol/runner-wrote" ]; then echo "machine 9p-runner ok"; else echo 
 case "$out" in *host-loopback-42*) echo "machine host-loopback ok" ;; *) echo "machine host-loopback failed" ;; esac
 echo "machine kernel $(printf '%s\n' "$out" | tail -1)"
 printf '%s\n' "$out" | sed 's/^/machine out /'
+
+# T-037: a guest with no NIC and one channel (podvm --podvm-net none
+# --podvm-channel). A unix socket of the host answers each connection with
+# one line; the guest connects to 127.0.0.1:8080 twice, with curl and with
+# the shell of the image, as root and as runner.
+ch="$work/channel.sock"
+rm -f "$ch" "$work/channel.log"
+python3 -I - "$ch" "$work/channel.log" <<'PY' &
+import socket, sys, threading
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.bind(sys.argv[1]); s.listen(8); s.settimeout(240)
+log = open(sys.argv[2], "a", buffering=1)
+def one(c):
+    log.write("accept\n")
+    c.settimeout(30)
+    try:
+        data = c.recv(4096)
+        log.write("read %d\n" % len(data))
+        c.sendall(b"HTTP/1.0 200 OK\r\nContent-Length: 11\r\n\r\nchannel-42\n")
+    except Exception as e:
+        log.write("error %s\n" % e)
+    c.close()
+while True:
+    try:
+        c, _ = s.accept()
+    except Exception:
+        break
+    threading.Thread(target=one, args=(c,)).start()
+PY
+server=$!
+i=0
+while [ ! -S "$ch" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+start=$(date +%s)
+out=$(timeout 300 "$podvm" run --rm --podvm-tier=machine --podvm-net none --podvm-channel "$ch:127.0.0.1:8080" \
+  --podvm-mem "$mem" --podvm-cpus 2 "$image" /bin/sh -c "
+  echo \"guest net \$(ls /sys/class/net | tr '\n' ' ')\"
+  curl -s --max-time 20 http://127.0.0.1:8080/ || echo 'guest channel-curl failed'
+  setpriv --reuid=runner --regid=runner --init-groups -- curl -s --max-time 20 -x http://127.0.0.1:8080 http://broker.podrunner.test/ || echo 'guest channel-proxy failed'
+" 2>"$work/stderr-ch")
+code=$?
+end=$(date +%s)
+kill "$server" 2>/dev/null
+echo "machine channel exit=$code seconds=$((end - start))"
+case "$out" in *"guest net lo "*) echo "machine no-nic ok" ;; *) echo "machine no-nic failed: $(printf '%s\n' "$out" | grep 'guest net')" ;; esac
+n=$(printf '%s\n' "$out" | grep -c channel-42)
+if [ "$n" -eq 2 ]; then echo "machine channel ok"; else echo "machine channel failed: $n of 2 answers"; fi
+echo "machine channel host-side: $(tr '\n' ' ' < "$work/channel.log" 2>/dev/null)"
+printf '%s\n' "$out" | sed 's/^/machine channel out /'
+tail -c 600 "$work/stderr-ch" | sed 's/^/machine channel stderr /'

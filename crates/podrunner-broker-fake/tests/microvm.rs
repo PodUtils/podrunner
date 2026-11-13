@@ -41,6 +41,7 @@ fn pipe(mut a: impl Read + Send + 'static, mut b: impl Write + Send + 'static, e
 /// One connection of the proxy: a CONNECT becomes a tunnel to the broker;
 /// a request in absolute form goes to the broker in origin form.
 fn proxy_one(conn: UnixStream, broker: u16, log: &Mutex<Vec<String>>) -> std::io::Result<()> {
+    log.lock().unwrap().push("accept".into());
     let mut r = BufReader::new(conn.try_clone()?);
     let mut first = String::new();
     r.read_line(&mut first)?;
