@@ -55,11 +55,11 @@ is done.
   IPv6 (runner-image run 43337313388).
 - podcrates `v0.37.0` is taken (PodUtils/podcrates#134 has no item for
   podrunner but the tag); a COORD issue answers it.
-- T-037 (open): the `microvm` kind over the machine tier of podvm. Step
-  1 is done (runner-image run 43355069666): with `--podvm-mem 4G` the
-  runner image boots as a guest in 4 s, a 9p volume writes back to the
-  host, and the guest reaches the loopback of the host at `10.0.2.2`.
-  Next: the crate `podrunner-microvm` (step 2).
+- T-037 (open): the `microvm` kind (`crates/podrunner-microvm`) over
+  podvm's machine tier. The 11 unit tests of the acceptance pass on real
+  guests under KVM (runner-image run 43379538641), as a check. Next: step
+  3, a canned job of the fake broker in a guest (the runner reaches the
+  broker at `10.0.2.2`), then T-036 on the kind.
 - T-096 is done: podvm `v0.2.0-beta.7` is pinned, and the 28 tar forms
   pass (runner-image run 43351590729). #78 tells podvm.
 - T-099: the confined conformance test 27 hangs at times (2 of the last

@@ -28,7 +28,7 @@ release or a live account.
 The queue, most valuable first:
 
 1. T-099 (S, partial): the confined conformance test 27 hangs at times (2 of the last 3 runs); each test has a time limit now; find the call that waits.
-2. T-037 (M, open): the `microvm` kind over the machine tier of podvm; step 1 is done, step 2 (`crates/podrunner-microvm`) is in; next: its unit tests on real guests in `runner-image.yml`, then step 3 (a canned job in a guest).
+2. T-037 (M, open): the `microvm` kind; steps 1 and 2 are done (the 11 unit tests of the acceptance pass on real guests); next step 3, a canned job in a guest.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
