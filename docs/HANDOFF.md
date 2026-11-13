@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.40.0` (`Cargo.toml`); podvm `v0.2.0-beta.13`
+- Pins: podcrates `v0.40.0` (`Cargo.toml`); podvm `v0.2.0-beta.14`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm and incus kinds need beta.10, T-110); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
@@ -71,7 +71,7 @@ is done.
 - T-108 is done: each report carries `cpu_s` and `peak_rss_mib`
   (podcrates `v0.40.0`).
 - T-105, T-108 and T-109 are done: the incus kind serves `trusted` jobs
-  through its egress socket (podvm `v0.2.0-beta.13`); each report carries
+  through its egress socket (podvm `v0.2.0-beta.14`); each report carries
   `cpu_s` and `peak_rss_mib` (podcrates `v0.40.0`).
 - T-103 (partial): GitHub #91 asks podcrates for `ContainerRoute::Engine`.
   `scripts/measure-engine.sh` runs static Docker 27.5.1 in a machine-tier

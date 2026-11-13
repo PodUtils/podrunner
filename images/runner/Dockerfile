@@ -13,9 +13,10 @@ ARG RUNNER_VERSION
 ARG RUNNER_SHA256
 ARG TARGETARCH
 
-# The runtime of the .NET runner (ICU, OpenSSL) and the tools of a step.
+# The runtime of the .NET runner (ICU, OpenSSL) and the tools of a step;
+# iptables (nft) for a container engine in a guest (T-103).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends bash ca-certificates curl git jq libicu74 libssl3t64 tar gzip unzip zstd \
+ && apt-get install -y --no-install-recommends bash ca-certificates curl git iptables jq libicu74 libssl3t64 tar gzip unzip zstd \
  && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid 1001 runner

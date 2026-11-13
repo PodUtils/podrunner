@@ -11,9 +11,10 @@
 # and stdin for an incus instance that stays (`run -d -i`, T-105); beta.11
 # keeps the proxy variables of a guest with no NIC (PodUtils/podvm#311);
 # beta.12 no NIC and one channel on the incus tier; beta.13 that channel
-# as a socket file and a relay, with no proxy device (T-109).
-version = "0.2.0-beta.13"
+# as a socket file and a relay, with no proxy device (T-109); beta.14
+# --podvm-engine for a container engine in a guest (T-103).
+version = "0.2.0-beta.14"
 
 [sha256]
-x86_64 = "f16ead18cf03efe281edd674052875ad9898241a5107e83ebebebf13c7c2b850"
-aarch64 = "65f1b560388169faf7116abdfe1a51361ec7415296d90e7b0b7417bd3270e901"
+x86_64 = "7746ed193dc14df5280ff1c93cef3f9c63b84e183578e8c677a1dc4f0d47ee3e"
+aarch64 = "2830c1d2b62a0e2bce06d3b7a71f80e76b2de7c06375970f920788c84cd251c9"

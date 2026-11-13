@@ -1,7 +1,9 @@
 #!/bin/sh
 # Measure a container engine inside a guest of the machine tier of podvm
-# (T-103, step 3): the static Docker binaries start in the guest, and a
-# container from a saved image runs with no network. It prints one line
+# (T-103, step 3), with `--podvm-engine` (podvm v0.2.0-beta.14: the bridge,
+# veth, overlay and netfilter modules): the static Docker binaries start
+# in the guest, a container runs, and a user-defined network of
+# `services:` lets one container reach another by its name. It prints one line
 # for each property: "engine NAME ok" or "engine NAME failed: why".
 #
 #   sh scripts/measure-engine.sh PODVM STORE IMAGE WORKDIR DOCKER_TGZ IMAGE_TAR
@@ -21,23 +23,18 @@ tar -xzf "$tgz" -C "$work/vol"
 cp "$saved" "$work/vol/image.tar"
 export PODVM_STORE="$store"
 
-out=$(timeout 600 "$podvm" run --rm --podvm-tier=machine --podvm-mem "${MACHINE_MEM:-4G}" --podvm-cpus 2 \
+out=$(timeout 600 "$podvm" run --rm --podvm-tier=machine --podvm-engine --podvm-net none --podvm-mem "${MACHINE_MEM:-4G}" --podvm-cpus 2 \
   -v "$work/vol:/mnt/engine" "$image" /bin/sh -c '
   echo "guest kernel $(uname -r)"
   echo "guest cgroup $(stat -fc %T /sys/fs/cgroup 2>&1)"
   for fs in overlay tmpfs; do grep -qw "$fs" /proc/filesystems && echo "guest fs $fs yes" || echo "guest fs $fs no"; done
-  # The guest mounts no cgroup and loads no overlay: the script, as root,
-  # mounts cgroup2 and tries the module.
-  mount -t cgroup2 cgroup2 /sys/fs/cgroup 2>&1 | sed "s/^/guest cgroup-mount /"
-  echo "guest cgroup after $(stat -fc %T /sys/fs/cgroup 2>&1) controllers $(cat /sys/fs/cgroup/cgroup.controllers 2>&1 | tr "\n" " ")"
-  modprobe overlay 2>&1 | sed "s/^/guest modprobe /"
-  grep -qw overlay /proc/filesystems && echo "guest fs overlay after yes" || echo "guest fs overlay after no"
-  ls /lib/modules 2>&1 | sed "s/^/guest modules /"
+  echo "guest controllers $(cat /sys/fs/cgroup/cgroup.controllers 2>&1 | tr "\n" " ")"
+  echo "guest iptables $(iptables --version 2>&1)"
   export PATH=/mnt/engine/docker:$PATH
   mkdir -p /var/lib/docker /run
   # The root of the guest is an initramfs: pivot_root fails there, and
   # DOCKER_RAMDISK makes runc move the root and chroot instead.
-  DOCKER_RAMDISK=true dockerd --iptables=false --ip6tables=false --bridge=none --host=unix:///run/docker.sock > /tmp/dockerd.log 2>&1 &
+  DOCKER_RAMDISK=true dockerd --host=unix:///run/docker.sock > /tmp/dockerd.log 2>&1 &
   i=0; while [ $i -lt 60 ] && ! docker -H unix:///run/docker.sock info >/dev/null 2>&1; do sleep 1; i=$((i+1)); done
   if docker -H unix:///run/docker.sock info >/dev/null 2>&1; then
     echo "guest dockerd up after ${i}s"
