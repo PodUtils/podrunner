@@ -153,7 +153,7 @@ The read-only mounts and the pass on a real guest need the `microvm` kind (T-037
 **Milestone:** L2
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -184,13 +184,24 @@ Read the text of GitHub #37 on 2026-11-11. Nothing measured.
 
 An adapter over the machine tier of podvm (DR-5, 2026-11-11): the `microvm` kind starts a podvm unit with `--podvm-tier=machine`, and slots accepts its `guest` claim only after the self-test of T-036. Keep it behind `UnitDriver`, so that an incus adapter (the owner's note to podvm) can be a second kind.
 
+Steps (2026-11-13, podvm `v0.2.0-beta.6`):
+
+1. A measure on a hosted runner with `/dev/kvm` (the udev rule of podvm's `kvm.yml`): the runner image boots in the machine tier, `/home/runner/run.sh` is there, a `-v` 9p mount takes a write back to the host, and the guest reaches a listener on the loopback of the host at `10.0.2.2`.
+2. The crate `podrunner-microvm`: `MicrovmUnit` behind `UnitDriver`. `start` spawns `podvm run --rm --podvm-tier=machine -v CRED:/home/runner/.cred:ro IMAGE run.sh` as a child process; `wait` waits on it; `destroy` ends it and removes its store. The capability: `container: none`, `credential_store: tmpfs` only if the guest copy is proved, else `private-dir`; `boundary: guest` only after T-036.
+3. A canned job of the fake broker in a guest: the broker listens on the loopback of the host and gives the runner `10.0.2.2:PORT`.
+4. The unit conformance tests 1 to 7, 10, 11, 12 and 15 on the kind; then T-036 on it.
+
+## Decision
+
+2026-11-13 (a call with no ruling): the first form keeps the user-mode NIC of the machine tier (podvm has no form with no NIC), and runs QEMU under `podnet pod`, so each connection of the guest leaves through the egress module. The form with no NIC and one host channel to the broker waits for the host channel of podvm (PodUtils/podvm@T-1750, PodUtils/podvm@T-1751). `docs/decisions.md` records the call.
+
 ## Prove
 
 `cargo test -p podrunner-microvm`
 
-## Blocker
+## Correction
 
-podvm (on break) lands its machine tier (PodUtils/podvm@T-1656).
+2026-11-13: podvm landed its machine tier (PodUtils/podvm@T-1656, done; `v0.2.0-beta.6` adds 9p volumes and `-t`). The guest has a user-mode NIC (`10.0.2.15`, the gateway `10.0.2.2` is the loopback of the host), runs only in the foreground (no `run -d`, no `exec`: PodUtils/podvm@T-1750), and needs `qemu-system-x86_64` on the host. A unix socket does not cross into the guest, so the hooks of the container path cannot reach it.
 
 # T-038: WP-12: the canned-message fake broker (level 2) (GitHub #38)
 

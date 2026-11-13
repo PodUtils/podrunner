@@ -56,9 +56,14 @@ is done.
   IPv6 (runner-image run 43337313388).
 - podcrates `v0.34.0` is taken (PodUtils/podcrates#103, #104 have no
   item for podrunner); the COORD issue of the take answers both.
-- T-096: an absolute `tar -C` fails in a podvm unit, with or with no
-  `-z`; a relative `-C` and each `cd` form pass (run 43271963245). It is
-  with podvm (PodUtils/podcrates#102, GitHub #70).
+- T-037 (open): the `microvm` kind over the machine tier of podvm
+  (PodUtils/podvm@T-1656 is done). The plan and the call (user-mode NIC
+  under `podnet pod` until podvm has a host channel) are in the entry and
+  `docs/decisions.md`. Step 1: `scripts/measure-machine.sh` runs in
+  `runner-image.yml` (KVM through a udev rule, QEMU from apt).
+- T-096: the fix is podvm `655cf941` (PodUtils/podvm#289), in podvm
+  `v0.2.0-beta.7`. The tar measure now also checks that a unit does not
+  write into the host.
 - T-051 and T-030 are done: podvm `v0.2.0-beta.6`, the aarch64 import
   is green.
 - Q4 (T-098) waits for the owner.
@@ -72,7 +77,7 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | The owner | DR-7: a test organization and App ("not now") | T-007, T-032, T-033, T-040 |
-| podvm | an absolute `tar -C` in a unit (PodUtils/podcrates#102) | T-096 |
+| podvm | `v0.2.0-beta.7` with the fortified opens (PodUtils/podvm#289) | T-096 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 98 entries: 0 open, 2 partial, 11 blocked, 85 done.
+`TODO/INDEX.md` holds 98 entries: 1 open, 2 partial, 10 blocked, 85 done.
 
 ## State
 
@@ -27,12 +27,12 @@ release or a live account.
 
 The queue, most valuable first:
 
-None yet; see the open work below.
+1. T-037 (M, open): the `microvm` kind over the machine tier of podvm; step 1 is the measure of `scripts/measure-machine.sh` in `runner-image.yml`. Then T-036 (the guest self-test on it) and T-039 (milestone L2).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates), T-096 (podvm: an absolute `tar -C`, PodUtils/podcrates#102).
+Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-036, T-039 (after T-037), T-043 (crates of podcrates), T-096 (podvm: an absolute `tar -C`, PodUtils/podcrates#102).
 
 ## Questions for the owner
 

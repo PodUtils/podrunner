@@ -75,4 +75,4 @@
 69 issue closed
 70 issue open
 71 issue closed
-72 issue open
+72 issue closed
