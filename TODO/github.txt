@@ -72,6 +72,6 @@
 66 issue open
 67 issue open
 68 issue closed
-69 issue open
+69 issue closed
 70 issue open
 71 issue open

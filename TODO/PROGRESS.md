@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 98 entries: 0 open, 3 partial, 11 blocked, 84 done.
+`TODO/INDEX.md` holds 98 entries: 0 open, 2 partial, 11 blocked, 85 done.
 
 ## State
 
@@ -26,9 +26,7 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-077 (S, partial): podnet `v0.4.0-beta.8` is pinned and the IPv6 workaround is gone; a green `runner-image.yml` run (the held test, the held suite, `egress.yml`) closes it and GitHub #69.
-
-Each other entry waits for the owner, podvm or a live account (below). podvm is not available now: no work that needs podvm.
+None. Each other entry waits for the owner, podvm or a live account (below). podvm is not available now: no work that needs podvm.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

@@ -1181,7 +1181,7 @@ One `pod_dns::Resolver` for each process, from a `[dns]` table of the configurat
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1203,7 +1203,7 @@ When podnet fixes it, also remove `DOTNET_SYSTEM_NET_DISABLEIPV6` from the held 
 
 ## Done
 
-Partial. 2026-11-12: podnet fixed it in `e78bde974` (PodUtils/podnet@T-255: "the seccomp connect takes an IPv4-mapped loopback address (::ffff:127.0.0.1) as loopback"), in its releases `v0.4.0-beta.5` and `v0.4.0-beta.6` (read through podcrates: the title of the commit and the compare to each tag). `images/podnet.toml` pins `v0.4.0-beta.6` (the SHA-256 of each binary agrees with the digest of its release asset); `held.rs` and the held units of `podrunner run --podnet` drop `DOTNET_SYSTEM_NET_DISABLEIPV6`. Run 43232215654 of `1f1d349`: the held egress run of `podrunner run --podnet` (T-095) hung with no line, so the held test did not run. The same run with beta.3 and the variable passed (run 43230901394). Open: the log of the hung job (T-095 now ends it at its `timeout-minutes`), then the held run of `runner-image.yml` with no variable. Run 43239962509 of `b90ef12` gave the output of the unit: "Runner connect error: Connection refused (127.0.0.1:PORT)", then reconnects with no job; the broker log was empty. So `v0.4.0-beta.6` does not take `::ffff:127.0.0.1` as loopback from a podvm unit. `held.rs` and the held units of `podrunner run --podnet` set `DOTNET_SYSTEM_NET_DISABLEIPV6=1` again. podnet answered in PodUtils/podnet#509 (COORD-054, PodUtils/podnet@T-317): the rule check took the mapped address as loopback, but the dial branch tested `is_loopback()`, false for `::ffff:127.0.0.1`, and sent the connect to an empty proxy chain. The fix comes in podnet `v0.4.0-beta.7`. When podnet publishes it: pin it, remove the variable, and run the held test. 2026-11-13: podnet published `v0.4.0-beta.7` and `v0.4.0-beta.8`. `images/podnet.toml` pins `v0.4.0-beta.8` (the SHA-256 of each binary agrees with `SHA256SUMS` and with the digest of its release asset; its breaking changes do not touch `podnet pod`). `held.rs` and the held units of `podrunner run --podnet` drop `DOTNET_SYSTEM_NET_DISABLEIPV6`. Open: a green `runner-image.yml` run with no variable (the held test, the held suite, `egress.yml`); then close GitHub #69.
+2026-11-13, `e2be23f`. podnet fixed the mapped loopback in `v0.4.0-beta.7` (PodUtils/podnet#509, PodUtils/podnet@T-317): the rule check took `::ffff:127.0.0.1` as loopback, but the dial branch tested `is_loopback()` and sent the connect to an empty proxy chain. `images/podnet.toml` pins `v0.4.0-beta.8` (the SHA-256 of each binary agrees with `SHA256SUMS` and with the digest of its release asset). `held.rs` and the held units of `podrunner run --podnet` keep IPv6 (no `DOTNET_SYSTEM_NET_DISABLEIPV6`). In runner-image run 43337313388 (podnet `0.4.0-beta.8`): `a_held_runner_reaches_an_allowed_host_and_not_a_denied_one` passes, the held local suite gives 8 `ok` lines, and `egress.yml` gives `ok denied` held and `failure denied` with no hold. GitHub #69 is closed.
 
 # T-078: The podvm driver labels each unit and reads the run report of podvm
 

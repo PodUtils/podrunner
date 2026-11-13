@@ -12,7 +12,7 @@ is done.
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
-- The record: 98 entries, 0 open, 2 partial, 12 blocked, 84 done
+- The record: 98 entries, 0 open, 2 partial, 11 blocked, 85 done
   (`cargo todo check`). The last green `runner-image.yml` run is
   43271963245 (`5518055`): the held local suite, the egress check, the
   containers suite and the aarch64 start.
@@ -52,10 +52,12 @@ is done.
   work.
 - The local mode (T-046) is done: `podrunner run` runs the pinned suite
   in podvm units under the egress hold (T-087 to T-095, T-097).
-- T-077: podnet `v0.4.0-beta.8` is pinned; it dials `::ffff:127.0.0.1`
-  direct (PodUtils/podnet#509, PodUtils/podnet@T-317). The held units and
-  `held.rs` keep IPv6 (no `DOTNET_SYSTEM_NET_DISABLEIPV6`). A green
-  `runner-image.yml` run closes T-077 and GitHub #69.
+- T-077 is done: podnet `v0.4.0-beta.8` is pinned, and held units keep
+  IPv6 (runner-image run 43337313388).
+- podcrates `v0.33.0` (PodUtils/podcrates#103) and `v0.34.0`
+  (PodUtils/podcrates#104) have no item for podrunner. Take the newest
+  tag when a session starts again with podvm, and answer on each issue
+  by a COORD issue.
 - T-096: an absolute `tar -C` fails in a podvm unit, with or with no
   `-z`; a relative `-C` and each `cd` form pass (run 43271963245). It is
   with podvm (PodUtils/podcrates#102, GitHub #70).
@@ -79,9 +81,6 @@ is done.
 
 ## Open issues and asks
 
-- GitHub #69 (COORD-011, to podnet): podnet fixed it in
-  `v0.4.0-beta.7` (PodUtils/podnet#509); podrunner pins `v0.4.0-beta.8`.
-  Close it on the green held run (T-077).
 - GitHub #70 (COORD-012, to podcrates): an absolute `tar -C` fails in a
   podvm unit (T-096, PodUtils/podcrates@T-328).
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the

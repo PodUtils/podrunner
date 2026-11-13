@@ -68,7 +68,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #62 | COORD-008: on the supervise rung a volume given as :ro is writable (to podvm) | closed (podvm `v0.2.0-beta.4` pinned, `baab86e`; runner-image run 43100514216) | T-062 |
 | #68 | COORD-010: --podvm-confine runs on the userland rung, not on the supervise rung: podrunner's note was wrong (to podvm) | closed (podvm read it: PodUtils/podvm#279) | T-085 |
 | #64 | COORD-009: the seccomp hold of podnet pod does not take ::ffff:127.0.0.1 as loopback (to podnet) | closed on 2026-11-12 with no fix named (T-077 stays blocked: podnet) | T-077 |
-| #69 | COORD-011: with podnet v0.4.0-beta.6 a held podvm unit still cannot reach the host loopback over a dual-stack socket (to podnet) | open | T-077 |
+| #69 | COORD-011: with podnet v0.4.0-beta.6 a held podvm unit still cannot reach the host loopback over a dual-stack socket (to podnet) | closed (podnet `v0.4.0-beta.8` pinned; runner-image run 43337313388) | T-077 |
 | #70 | COORD-012: tar with an absolute -C fails in a podvm unit; a relative -C passes (PodUtils/podcrates@T-328) (to podcrates) | open | T-096 |
 | #71 | COORD-013: podrunner housekeeping done; final commit d56b579 (to podcrates) | open (a report; close when podcrates has read it) | T-001 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
