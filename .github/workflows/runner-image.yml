@@ -277,7 +277,9 @@ jobs:
       # incus from apt, initialized with its defaults, and podvm in the
       # group of its socket.
       - name: The runner image as a system container of incus (a measure)
-        if: matrix.arch == 'x86_64'
+        # It runs after a failed step too: the incus kind does not depend on
+        # the microvm kind.
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
         continue-on-error: true
         run: |
           set -eu
