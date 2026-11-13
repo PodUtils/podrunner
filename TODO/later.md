@@ -839,7 +839,7 @@ Progress: podvm: `--podvm-net none` and `--podvm-channel` on the incus tier (Git
 
 ## Blocker
 
-podvm: the `proxy` device of `--podvm-channel` does not start on incus 6.0.0 of Ubuntu 24.04 ("Failed to safely open namespace file descriptor based on pidfd"), runner-image run 43477657803 (`6365312`); GitHub #90 (COORD-030) asks for a channel with no `proxy` device. The mask of the NIC works: the 13 unit tests pass with `--podvm-net none`. Until the channel runs, `probe` claims no hold.
+podvm: the `proxy` device of `--podvm-channel` does not start on incus 6.0.0 of Ubuntu 24.04 ("Failed to safely open namespace file descriptor based on pidfd"), runner-image run 43477657803 (`6365312`); GitHub #90 (COORD-030) asks for a channel with no `proxy` device. The mask of the NIC works: the 13 unit tests pass with `--podvm-net none`. Until the channel runs, `probe` claims no hold. podvm answered in PodUtils/podvm#319 (COORD-084): the channel of the incus tier is a `disk` device of the socket file and a relay of podvm's init, no `proxy` device, in `v0.2.0-beta.13`. The driver now gives the egress socket mode 0666 before the start (the unit directory of mode 0700 is the guard). Next: pin beta.13, read `tests/egress.rs`, then claim `enforced` again.
 
 # T-110: The microvm and incus kinds do not check the version of podvm
 

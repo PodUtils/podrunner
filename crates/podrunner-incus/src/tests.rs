@@ -190,7 +190,11 @@ fn the_instance_has_no_nic_and_one_channel_to_the_egress_socket() {
     let (u, d) = driver("channel", "sleep 30");
     let mut s = spec("u-9");
     s.sockets = Some(d.join("sockets"));
+    fs::create_dir_all(d.join("sockets")).unwrap();
+    let _listener = std::os::unix::net::UnixListener::bind(d.join("sockets").join("egress.sock")).unwrap();
     u.start(&s).unwrap();
+    let mode = fs::metadata(d.join("sockets").join("egress.sock")).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode, 0o666, "the mapped root of the instance connects to the socket");
     let argv = fs::read_to_string(d.join("store").join(format!("{}.argv", u.name(&s.unit)))).unwrap();
     let words: Vec<&str> = argv.lines().collect();
     let at = |w: &str| words.iter().position(|x| *x == w).unwrap_or_else(|| panic!("{w}: {words:?}"));

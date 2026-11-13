@@ -206,6 +206,16 @@ impl UnitDriver for IncusUnit {
             UnitError::new(UnitCode::UnitStartFailed, why)
         };
         let egress = spec.sockets.as_ref().map(|s| s.join(podrunner_unit::EGRESS_SOCKET));
+        // podvm mounts the socket file into the instance, whose root is a
+        // mapped id: the file must take its connect. The socket directory
+        // of the unit (mode 0700) keeps each other user of the host out.
+        if let Some(e) = egress.as_deref().filter(|e| e.exists()) {
+            use std::os::unix::fs::PermissionsExt;
+            if let Err(why) = fs::set_permissions(e, fs::Permissions::from_mode(0o666)) {
+                let _ = fs::remove_dir_all(&dir);
+                return Err(host("the egress socket", why));
+            }
+        }
         let args = run_args(&name, &reference, &work, egress.as_deref(), &self.cred_root, &spec.env, &spec.argv);
         let mut child =
             match self.podvm().args(&args).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn() {
