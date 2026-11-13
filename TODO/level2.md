@@ -326,7 +326,7 @@ A live acceptance suite against GitHub with a test organization.
 
 ## Blocker
 
-The ruling "Test accounts" (Q-A9): not now (DR-7, T-007).
+2026-11-13: the owner ruled DR-7 yes. The live gates run on constrained hosts by two agents: GitHub #74 (LIVE-1, the remote mint and the App key) and GitHub #75 (LIVE-2, the unit host and the test jobs). This entry waits for their reports. Before: The ruling "Test accounts" (Q-A9): not now (DR-7, T-007).
 
 # T-049: COORD-003: the stand-in broker of the official runner for podvm (GitHub #50)
 

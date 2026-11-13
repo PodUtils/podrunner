@@ -91,6 +91,20 @@ jobs:
           cp "target/${{ matrix.target }}/release/podrunner" "dist/$name"
           sh scripts/check-static.sh "dist/$name"
           (cd dist && sha256sum "$name" > "$name.sha256")
+      # The scale-set sidecar (T-029) that a github-scaleset source runs:
+      # static Go, no cgo. go.mod names the toolchain; the go command
+      # fetches it.
+      - name: The scale-set sidecar, static
+        env:
+          GOTOOLCHAIN: auto
+          CGO_ENABLED: "0"
+        run: |
+          set -eu
+          case "${{ matrix.target }}" in x86_64-*) goarch=amd64 ;; aarch64-*) goarch=arm64 ;; esac
+          name="scaleset-sidecar-${{ matrix.target }}"
+          (cd tools/scaleset-sidecar && GOARCH=$goarch go build -trimpath -o "$GITHUB_WORKSPACE/dist/$name" .)
+          sh scripts/check-static.sh "dist/$name"
+          (cd dist && sha256sum "$name" > "$name.sha256")
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: podrunner-${{ matrix.target }}
@@ -122,14 +136,18 @@ jobs:
           set -eu
           cd dist
           sha256sum -c ./*.sha256
-          for f in podrunner-*-linux-musl; do sh ../scripts/check-static.sh "$f"; done
+          for f in podrunner-*-linux-musl scaleset-sidecar-*-linux-musl; do sh ../scripts/check-static.sh "$f"; done
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: dist/podrunner-*-linux-musl
+          subject-path: |
+            dist/podrunner-*-linux-musl
+            dist/scaleset-sidecar-*-linux-musl
       - name: Tag and publish a pre-release
         run: |
           set -eu
           git -c user.name=Azathothas -c user.email=ajamx101@gmail.com tag -a "v$VERSION" -m "podrunner v$VERSION"
           git push origin "v$VERSION"
+          notes="docs/releases/v$VERSION.md"
+          [ -f "$notes" ] || { echo "no $notes: write the notes of the release first"; exit 1; }
           gh release create "v$VERSION" --verify-tag --prerelease --title "podrunner v$VERSION" \
-            --notes "A beta of podrunner. Not usable for jobs yet: see GitHub #1." dist/*
+            --notes-file "$notes" dist/*

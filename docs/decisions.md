@@ -30,7 +30,6 @@ at the tag `v0.35.0`.
 | 2026-11-11 | The sessions of 2026-11-11 | "for podssh/podnet/podvm, please use COORD issues, but only podnet may respond as others are on break, so focus your effort on podrunner & podnet, and if other projects like `podvm` block some work, keep it deferred and pivot to working on something else". podcrates writes to podssh, podnet and podvm only by COORD issues of podcrates. Only podnet answers. The work for podrunner and podnet comes first. An entry that waits for podssh or podvm stays as it is, and the session takes the next entry. |
 | 2026-11-11 | DR-1 (GitHub #2) | Yes: the plan of GitHub #1 is the plan, and it replaces the plan of PodUtils/podcrates#47. From the rulings "podrunner online" and "The sessions of 2026-11-11", read by podcrates call C49. |
 | 2026-11-11 | DR-2 (GitHub #3) | Yes: PodUtils/podrunner holds code. All issues of GitHub #1 may start, in the order of `TODO/PROGRESS.md`. From the same rulings and call C49. |
-| 2026-11-11 | DR-7 (GitHub #7) | Not now (the owner, also through podcrates; the ruling "Test accounts", Q-A9, stays). No test organization and no App. The live gates (T-032, T-040) keep their offline tests and wait. |
 | 2026-11-11 | DR-4 (GitHub #4) | Yes, for all trusted repositories, not only private and internal ones: a `trusted` job can run at boundary `redirect` on a host with nothing better, with the mitigations of GitHub #4 (T-045). `[tier.trusted] min_boundary = "redirect"` is allowed; the default floor stays `confined`. The remote mint (T-031) opens, and it needs the mutual TLS of `pod-tls` (PodUtils/podcrates@T-165). `untrusted` stays fixed at `guest`. |
 | 2026-11-11 | DR-5 (GitHub #5) | Wait for the machine tier of podvm (PodUtils/podvm@T-1656). The `microvm` kind of podrunner is an adapter over it (T-037). The owner adds: podvm must also support incus, or have an adapter for it; podcrates writes that to podvm. |
 | 2026-11-11 | DR-6 (GitHub #6) and pmask | Yes to the restated G-02, G-03 and G-09. The owner adds: "https://github.com/Azathothas/pmask, this is a project in rapid development and will be used for everything/everywhere we need a trusted confidential execution but hardware doesn't support it, we will use this later for many of our crates". Do not adopt pmask now. It is the later path for G-03 and for the residual of same-uid reads at `redirect` (`docs/security/residuals.md`, R1). It is not a boundary. |
@@ -41,9 +40,11 @@ at the tag `v0.35.0`.
 | 2026-11-11 | C13 to C16 (podrunner) | "Confirm, keep swappable": the calls C13 (credentials as files only), C14 (the `local` set), C15 (the sidecar asks `sign` for each App JWT over fd 3) and C16 (the host token of the remote mint is the pinned key) are rulings. Each stays behind its trait or wire with its conformance tests, so a later refactor can replace it. |
 | 2026-11-11 | A podvm beta | "Ask podvm for a beta": podrunner asks podvm by a COORD issue to cut a beta from `main` when its release order allows (PodUtils/podvm@T-1706, PodUtils/podvm@T-1710, PodUtils/podvm@T-1720; GitHub #53, T-052). podrunner pins it in `images/podvm.toml`. Until then the entries that wait for podvm stay `blocked`. |
 | 2026-11-11 | The spec (T-014) | The owner attached the zip of the design review (`podrunner-spec/`: `SPEC.md`, the appendices, the schemas, the examples, the review rounds). T-014 starts. The zip stays out of the repository; T-014 brings in what the code needs. |
-| 2026-11-11 | DR-7 again | Still not now. The live gates (T-032, T-040) keep their offline tests and wait. |
 | 2026-11-12 | COORD only | "remember to use COORD to communicate, do not msg directly". podrunner talks to podcrates, podnet, podvm and podssh only by COORD issues of this repository (`COORD-NNN: subject (to OTHER)`). No direct message (`send_message`) to another session. It supersedes "podcrates and podrunner talk by direct messages" of "podrunner online". |
 | 2026-11-13 | podvm available | "podvm is available, please do not work on stale assumptions". podvm answers COORD issues; work that needs podvm goes on. It supersedes the message of 2026-11-12 (from podcrates) that podvm was away and podrunner did housekeeping only. podssh stays on break. |
+| 2026-11-13 | DR-7 yes (GitHub #7) | "Yes, change DR-7". One throwaway test organization and one GitHub App, only for the live gates of podrunner (T-032, T-033, T-040). The live gates run on constrained hosts of the kind that PodUtils targets, by two agents on two machines: one for the server (the remote mint that holds the App key) and one for the runner and the user (the unit host, and the pushes that start jobs). Each has a detailed issue. It supersedes "DR-7: not now" and "DR-7 again" of 2026-11-11. |
+| 2026-11-13 | Q4 (T-098) | "the common sense rule is to be github actions compat, so yes allow it". A Docker action runs in a job with no `container:` and no `services:`: the hooks accept `run_container_step` before `prepare_job`. The rule for a choice between two forms: the behaviour of GitHub Actions. |
+| 2026-11-13 | beta.2 | Release `v0.1.0-beta.2` when the gate and `runner-image.yml` of `main` are green. Its notes say that no job of real github.com ran yet. |
 
 ## Calls made without a ruling
 
@@ -76,10 +77,12 @@ C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 ## Questions for the owner
 
 `TODO/PROGRESS.md`, "Questions for the owner", has each open question
-with its recommendation. Q4 (T-098) is open.
+with its recommendation. No question is open.
 
 ## Superseded
 
 | Date | Ruling | Superseded by |
 | --- | --- | --- |
+| 2026-11-11 | DR-7 (GitHub #7): not now; no test organization and no App. | 2026-11-13, DR-7 yes. |
+| 2026-11-11 | DR-7 again: still not now. | 2026-11-13, DR-7 yes. |
 | 2026-11-09 | Priority, for podrunner: the new repositories stay empty and get no session. | 2026-11-11, podrunner online. |

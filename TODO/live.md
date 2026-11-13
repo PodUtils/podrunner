@@ -364,7 +364,7 @@ The offline form of G-H2 to G-H4 runs in the gate (T-071: `crates/podrunner/test
 
 ## Blocker
 
-The ruling "Test accounts" (Q-A9): not now. The owner must allow a test organization and App (DR-7, T-007).
+2026-11-13: the owner ruled DR-7 yes. The live gates run on constrained hosts by two agents: GitHub #74 (LIVE-1, the remote mint and the App key) and GitHub #75 (LIVE-2, the unit host and the test jobs). This entry waits for their reports. Before: The ruling "Test accounts" (Q-A9): not now. The owner must allow a test organization and App (DR-7, T-007).
 
 # T-033: Milestone M-D: one live trusted job on a no-root host (GitHub #33)
 
@@ -405,7 +405,7 @@ Run one live trusted job on an H0 host through the podvm driver.
 
 ## Blocker
 
-The ruling "Test accounts" (DR-7: not now). The hold of a podvm unit is done (T-065, T-041).
+2026-11-13: the owner ruled DR-7 yes. The live gates run on constrained hosts by two agents: GitHub #74 (LIVE-1, the remote mint and the App key) and GitHub #75 (LIVE-2, the unit host and the test jobs). This entry waits for their reports. Before: The ruling "Test accounts" (DR-7: not now). The hold of a podvm unit is done (T-065, T-041).
 
 # T-045: The mitigations of DR-4 for trusted jobs at redirect (GitHub #47)
 

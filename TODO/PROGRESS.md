@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 98 entries: 1 open, 3 partial, 9 blocked, 85 done.
+`TODO/INDEX.md` holds 100 entries: 3 open, 3 partial, 7 blocked, 87 done.
 
 ## State
 
@@ -28,15 +28,18 @@ release or a live account.
 The queue, most valuable first:
 
 1. T-096 (S, partial): podvm `v0.2.0-beta.7` is pinned; the tar forms of `runner-image.yml` are a check; a green run closes it, GitHub #70 and PodUtils/podvm#289.
-2. T-037 (M, open): the `microvm` kind over the machine tier of podvm; step 1 is the measure of `scripts/measure-machine.sh` in `runner-image.yml`. Then T-036 (the guest self-test on it) and T-039 (milestone L2).
+2. Release `v0.1.0-beta.2` (the owner, 2026-11-13) when the gate and `runner-image.yml` of `main` are green.
+3. T-098 (S, open): a Docker action in a job with no container (the ruling Q4: GitHub Actions compatibility).
+4. T-099 (S, open): the confined conformance test 27 that hung.
+5. T-037 (M, open): the `microvm` kind over the machine tier of podvm; step 1 is the measure of `scripts/measure-machine.sh` in `runner-image.yml`. Then T-036 (the guest self-test on it) and T-039 (milestone L2).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-036, T-039 (after T-037), T-043 (crates of podcrates).
+Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-036, T-039 (after T-037), T-043 (crates of podcrates).
 
 ## Questions for the owner
 
-- Q4 (T-098, not urgent): may a Docker action run in a job with no `container:` and no `services:`? The contract of the design (`docs/design/contracts/unit-driver.md`, "Order") refuses each container operation before `prepare_job`, and the runner calls no `prepare_job` for such a job, so a Docker action there fails; on GitHub it runs. Recommendation: yes. Accept `run_container_step` before `prepare_job`, with its mounts from the container action table and its image from the registries of the unit; keep the refusal of `run_script_step` and `cleanup_job` before it. The contract itself names the mount table and the refusal of host paths, devices and privileged flags as the real controls, and those still apply. Until a ruling, the local mode runs a Docker step only in a job with `container:` or `services:`.
+None open.
 
-The owner answered Q1 to Q3 (DR-4, DR-5, DR-6) on 2026-11-11 (`docs/decisions.md`).
+The owner answered Q1 to Q3 (DR-4, DR-5, DR-6) on 2026-11-11, and Q4 and DR-7 on 2026-11-13 (`docs/decisions.md`).

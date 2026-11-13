@@ -1531,3 +1531,57 @@ Run 43242367198 (x86_64, podvm `v0.2.0-beta.5`): `tar -xzf x.tgz -C /tmp/d` and 
 
 Partial. In runner-image run 43271963245 of `5518055`: `tar -xf x.tar -C /tmp/d` (absolute, no `-z`) fails too, in `/tmp` and under `/home/runner/_work/app`; each relative `-C` and each `cd` form passes. The absolute directory of `-C` is the trigger. podcrates relayed it to podvm (PodUtils/podcrates#102, COORD-063). Its likely cause (PodUtils/podcrates#102): the supervisor of the supervise rung joins an absolute path again onto a directory fd that tar opened for `-C` (`openat`, `mkdirat`, `fchdir`); a trace of these calls in a unit names it. podrunner avoids it in its checkout script (`cd`, then `gzip -dc | tar -xf -`). podvm answered in PodUtils/podvm#289 (COORD-067): its interposer did not export the fortified opens of glibc (`__open_2`, `__openat_2` and the 64 forms). GNU tar 1.35 opens the directory of `-C` with `__openat_2`, so the absolute path reached the host with no rewrite: tar failed where the host has no such directory, and opened the host directory where it has one (a write out of the unit on that rung); `mkdir -p /ABS/DIR` failed the same way. The fix is podvm `655cf941` (PodUtils/podvm@T-1743); it ships in podvm `v0.2.0-beta.7`. `runner-image.yml` now also plants an empty host directory at each absolute path of `-C` and prints whether the unit wrote into it. Runner-image run 43345003352 (podvm `v0.2.0-beta.6`): with the host directories planted, each absolute `-C` form passes and both host directories stay empty: tar opens the host directory, but the writes under it land in the unit. So the defect of beta.6 is a failure where the host has no such directory; no write into the host is measured. When beta.7 is out: pin it, make each form and the untouched host directories a check, and close GitHub #70 and PodUtils/podvm#289. 2026-11-13: podvm released `v0.2.0-beta.7` (PodUtils/podvm#289; the SHA-256 of each binary agrees with its `.sha256` file and the digest of its release asset). `images/podvm.toml` pins it. The tar forms of `runner-image.yml` are a check: each of 7 forms in 2 directories passes, once with an empty host directory at each absolute path (it must stay empty) and once with none (the failure of beta.6). Open: the green run; then close GitHub #70 and PodUtils/podvm#289.
 
+# T-099: The confined conformance test 27 hung to its time limit on podvm beta.6
+
+**Source:** runner-image run 43349443961
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In runner-image run 43349443961 of `65a66cf` (podvm `v0.2.0-beta.6`, x86_64), the unit conformance suite under `PODRUNNER_PODVM_CONFINE=1` passed tests 1 to 26, then test 27 (`a-confined-unit-reads-no-other-root`) printed `running` and nothing more until `timeout 600` ended the step (exit 124). The same suite passed under the confine layer in earlier runs of the same podvm. A test that can hang with no line hides its cause and fails the whole step.
+
+## Premise
+
+Read the log of job 131636648666 on 2026-11-13. Seen once. Not reduced.
+
+## Approach
+
+Give test 27 its own time limit in the conformance suite, so a hang fails that test with the name of the call that waits, and the suite goes on. Read the run of the next commits; if it hangs again, trace which podvm call waits, and write podvm a COORD issue when the cause is there.
+
+## Prove
+
+`cargo test -p podrunner-unit` with a test that a hung step of a conformance test fails that test in its time limit; the confined suite of `runner-image.yml` is green on the next runs.
+
+# T-100: The beta release carries the scale-set sidecar and its notes
+
+**Source:** the owner, beta.2 (2026-11-13)
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`release.yml` published only the `podrunner` binary, with the note "Not usable for jobs yet". A host with a `github-scaleset` source also needs the scale-set sidecar, and a tester needs to know what is proven and what is not.
+
+## Premise
+
+Read `.github/workflows/release.yml` and the release `v0.1.0-beta.1` on 2026-11-13.
+
+## Approach
+
+Build `scaleset-sidecar` for each target in `release.yml` (static Go, no cgo), check it, give it a `.sha256` file and a build provenance attestation, and publish it with `podrunner`. Take the notes of a release from `docs/releases/` (one file for each version); a release with no notes file stops.
+
+## Prove
+
+A release run of `release.yml` with no version (the dry run) builds and checks each binary.
+
+## Done
+
+2026-11-13, this commit. `release.yml` builds, checks, hashes and attests `scaleset-sidecar-TARGET` beside `podrunner-TARGET`, and publishes the notes of `docs/releases/` (one file for each version). `docs/releases/v0.1.0-beta.2.md` holds the notes of the next beta.
+

@@ -367,7 +367,7 @@ The owner, 2026-11-11 (through podcrates): yes to the restated G-02, G-03 and G-
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -404,9 +404,9 @@ The ruling "Test accounts" (Q-A9, 2026-11-09) answers it: not now. Each live gat
 
 `cargo todo check`
 
-## Blocker
+## Done
 
-The owner said not now on 2026-11-11 (DR-7, through podcrates). The owner must change the ruling "Test accounts" of `docs/decisions.md`. Until then no test organization and no App exist.
+2026-11-13, this commit. The owner answered yes (`docs/decisions.md`, "DR-7 yes"): one throwaway test organization and one GitHub App, only for the live gates. The live gates run on constrained hosts by two agents on two machines: GitHub #74 (LIVE-1, the server: the remote mint and the App key) and GitHub #75 (LIVE-2, the runner and the user: the unit host and the test jobs). T-032, T-033 and T-040 wait for their reports.
 
 # T-008: The defaulted decisions DR-3 and DR-8 to DR-17 (GitHub #8)
 

@@ -18,8 +18,8 @@ is done.
   held local suite, the egress check, the containers suite and the
   aarch64 start.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
-  milestone gates are T-032 and T-033 (DR-7: no live account), T-039
-  (a real guest: T-036, T-037) and T-040 (DR-7).
+  milestone gates are T-032, T-033 and T-040 (the live gates: GitHub #74
+  and #75) and T-039 (a real guest: T-036, T-037).
 - The podvm driver runs the official runner in a unit with no root: a
   canned job and a `container:` job through the hooks pass in
   `runner-image.yml` (T-026, T-035). The unit conformance suite passes on
@@ -66,7 +66,13 @@ is done.
   closes T-096, GitHub #70 and PodUtils/podvm#289.
 - T-051 and T-030 are done: podvm `v0.2.0-beta.6`, the aarch64 import
   is green.
-- Q4 (T-098) waits for the owner.
+- The owner, 2026-11-13: Q4 yes (T-098: GitHub Actions compatibility),
+  DR-7 yes (a test organization and App), and the release
+  `v0.1.0-beta.2` when `main` is green (`docs/releases/v0.1.0-beta.2.md`).
+- The live gates: two agents on two constrained hosts, GitHub #74
+  (LIVE-1, the remote mint and the App key) and #75 (LIVE-2, the unit
+  host and the test jobs). They need beta.2. Read their comments; fix
+  each defect they find.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs
@@ -76,7 +82,7 @@ is done.
 
 | Who | What | Entries |
 | --- | --- | --- |
-| The owner | DR-7: a test organization and App ("not now") | T-007, T-032, T-033, T-040 |
+| The owner, then LIVE-1 and LIVE-2 | the test organization and App, then the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |

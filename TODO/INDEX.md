@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**98 entries: 1 open, 3 partial, 9 blocked, 85 done.**
+**100 entries: 3 open, 3 partial, 7 blocked, 87 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
-| P2 | 1 | 1 | 6 | 35 | 43 |
-| P3 | 0 | 1 | 3 | 21 | 25 |
-| **All** | 1 | 3 | 9 | 85 | 98 |
+| P2 | 2 | 1 | 5 | 37 | 45 |
+| P3 | 1 | 1 | 2 | 21 | 25 |
+| **All** | 3 | 3 | 7 | 87 | 100 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -54,7 +54,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-004](plan.md) | P1 | S | M0 | research | done | DR-4: trusted jobs at boundary redirect on no-root hosts (GitHub #4) |
 | [T-005](plan.md) | P2 | S | M0 | research | done | DR-5: the microVM unit for untrusted jobs (GitHub #5) |
 | [T-006](plan.md) | P2 | S | M0 | research | done | DR-6: githome and cfb accept the restated G-02, G-03 and G-09 (GitHub #6) |
-| [T-007](plan.md) | P2 | S | M0 | research | blocked | DR-7: a throwaway GitHub organization and App for live tests (GitHub #7) |
+| [T-007](plan.md) | P2 | S | M0 | research | done | DR-7: a throwaway GitHub organization and App for live tests (GitHub #7) |
 | [T-008](plan.md) | P2 | S | M0 | docs | done | The defaulted decisions DR-3 and DR-8 to DR-17 (GitHub #8) |
 | [T-009](plan.md) | P2 | M | M0 | research | partial | The register of the unknowns U1 to U25 (GitHub #9) |
 | [T-010](plan.md) | P3 | S | M0 | docs | done | The non-goals of v1 and the trigger of each (GitHub #10) |
@@ -145,4 +145,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-095](later.md) | P3 | M | later | feature | done | podrunner run --podvm: the egress of each unit through the egress module |
 | [T-096](core.md) | P3 | S | later | defect | partial | GNU tar -C DIR fails in a podvm unit after mkdir -p DIR |
 | [T-097](later.md) | P3 | S | later | chore | done | Build the format() token from Template::parts() (PodUtils/podcrates@T-322) |
-| [T-098](later.md) | P3 | S | later | feature | blocked | Q4: a Docker action in a job with no container (the order rule of the hook server) |
+| [T-098](later.md) | P3 | S | later | feature | open | Q4: a Docker action in a job with no container (the order rule of the hook server) |
+| [T-099](core.md) | P2 | S | later | defect | open | The confined conformance test 27 hung to its time limit on podvm beta.6 |
+| [T-100](core.md) | P2 | S | later | chore | done | The beta release carries the scale-set sidecar and its notes |

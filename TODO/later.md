@@ -522,7 +522,7 @@ Take the next tag (move each tag, as T-094), build the `format()` token from `Te
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -536,10 +536,14 @@ Read the contract and `crates/podrunner-hook/src/policy.rs` on 2026-11-12. The s
 
 If the owner allows it: the gate accepts `run_container_step` before `prepare_job` (its mounts from the action table, its image from the registries of the unit); `run_script_step` and `cleanup_job` stay refused before it. Change the test 16 of `crates/podrunner-hook/src/tests.rs`, and add a Correction to the contract in `docs/decisions.md` (the design copy keeps its words, call C17).
 
+## Decision
+
+2026-11-13, the owner: "the common sense rule is to be github actions compat, so yes allow it" (`docs/decisions.md`, Q4). Accept `run_container_step` before `prepare_job`, with its mounts from the container action table and its image from the registries of the unit; keep the refusal of `run_script_step` and `cleanup_job` before it.
+
 ## Prove
 
 `cargo test -p podrunner-hook` with the changed test 16; the local containers suite with a Docker step in a job with no `container:` runs green in `runner-image.yml`.
 
-## Blocker
+## Correction
 
-The owner: Q4 of `TODO/PROGRESS.md`. The contract of the design makes the rule; a change of it is the owner's.
+The text below was the Blocker before the ruling: The owner: Q4 of `TODO/PROGRESS.md`. The contract of the design makes the rule; a change of it is the owner's.
