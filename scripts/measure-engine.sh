@@ -44,6 +44,15 @@ out=$(timeout 600 "$podvm" run --rm --podvm-tier=machine --podvm-mem "${MACHINE_
     docker -H unix:///run/docker.sock info --format "guest driver {{.Driver}} cgroup {{.CgroupDriver}} v{{.CgroupVersion}}"
     docker -H unix:///run/docker.sock load -i /mnt/engine/image.tar >/dev/null && echo "guest load ok"
     docker -H unix:///run/docker.sock run --rm --network none measure:latest sh -c "echo container-\$((6*7))" 2>&1 | sed "s/^/guest run /"
+    # services: needs a user-defined bridge network (bridge and veth in
+    # the kernel) where one container reaches another by its name.
+    D="docker -H unix:///run/docker.sock"
+    if $D network create measure-net 2>&1 | sed "s/^/guest network /"; then
+      $D run -d --name measure-svc --network measure-net measure:latest sh -c "echo svc-\$((6*7)) > /tmp/i; httpd -f -p 8080 -h /tmp" 2>&1 | sed "s/^/guest svc /"
+      sleep 2
+      $D run --rm --network measure-net measure:latest wget -qO- http://measure-svc:8080/i 2>&1 | sed "s/^/guest reach /"
+      $D rm -f measure-svc >/dev/null 2>&1
+    fi
   else
     echo "guest dockerd down"
     tail -n 15 /tmp/dockerd.log | sed "s/^/guest dockerd-log /"
@@ -53,5 +62,6 @@ code=$?
 echo "engine run exit=$code"
 case "$out" in *"guest dockerd up"*) echo "engine dockerd ok" ;; *) echo "engine dockerd failed" ;; esac
 case "$out" in *"guest run container-42"*) echo "engine container ok" ;; *) echo "engine container failed" ;; esac
+case "$out" in *"guest reach svc-42"*) echo "engine service-network ok" ;; *) echo "engine service-network failed" ;; esac
 printf '%s\n' "$out" | sed 's/^/engine out /'
 tail -c 400 "$work/stderr" | sed 's/^/engine stderr /'
