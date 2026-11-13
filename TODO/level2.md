@@ -205,7 +205,7 @@ Step 1 is done: in runner-image run 43355069666 of `a3999f1`, with `--podvm-mem 
 
 ## Blocker
 
-podvm: a run of the machine tier with no NIC and one host channel (GitHub #83, COORD-023; PodUtils/podvm@T-1751). Done before it: the crate and its 11 unit tests on real guests, a canned job of the official runner in a guest, and `[unit.microvm]` in `serve` (steps 1 to 4). When podvm names the release: give the kind `-nic none` and the channel, bridge the channel to the egress socket of the unit, run T-036 on it, then the acceptance of GitHub #37.
+podvm: a run of the machine tier with no NIC and one host channel (GitHub #83, COORD-023; PodUtils/podvm@T-1751). Done before it: the crate and its 11 unit tests on real guests, a canned job of the official runner in a guest, and `[unit.microvm]` in `serve` (steps 1 to 4). When podvm names the release: give the kind `-nic none` and the channel, bridge the channel to the egress socket of the unit, run T-036 on it, then the acceptance of GitHub #37. podvm answered in PodUtils/podvm#303 (COORD-077, 2026-11-13): `--podvm-net none` (`-nic none`, `lo` only) and `--podvm-channel HOST_SOCKET:127.0.0.1:PORT` (each TCP connection in the guest is a stream of `pod-link` over one `virtio-serial` port, and podvm dials `HOST_SOCKET` for it), as a first part of PodUtils/podvm@T-1751; it names the release there. The owners of the files (GitHub #81) are fixed in PodUtils/podvm@T-1776, in podvm `v0.2.0-beta.9`; the `chown` of the guest script goes with that pin.
 
 ## Correction
 
