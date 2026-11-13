@@ -163,7 +163,10 @@ impl UnitDriver for IncusUnit {
             rootfs_fresh: Fact::Yes,
             tree_kill: TreeKill::Unverified,
             limits: Default::default(),
-            egress_hold: EgressHold::Enforced,
+            // The channel does not start on the packaged incusd 6.0 (GitHub
+            // #90): no hold is claimed until it runs, so placement refuses
+            // a `trusted` job by name, not at the start of each unit.
+            egress_hold: EgressHold::None,
             kvm: Fact::Unknown,
         })
     }

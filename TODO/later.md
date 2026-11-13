@@ -811,7 +811,7 @@ Ask podcrates for `cpu_s` and `peak_rss_mib` in `RunReport` and `PublicReport`, 
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -832,6 +832,10 @@ Progress: podvm: `--podvm-net none` and `--podvm-channel` on the incus tier (Git
 ## Prove
 
 `cargo test -p podrunner-slots placement`, then `cargo test -p podrunner-incus --test conformance -- --ignored` on a host with incus: a payload reaches an allowed host through the egress socket and nothing else.
+
+## Blocker
+
+podvm: the `proxy` device of `--podvm-channel` does not start on incus 6.0.0 of Ubuntu 24.04 ("Failed to safely open namespace file descriptor based on pidfd"), runner-image run 43477657803 (`6365312`); GitHub #90 (COORD-030) asks for a channel with no `proxy` device. The mask of the NIC works: the 13 unit tests pass with `--podvm-net none`. Until the channel runs, `probe` claims no hold.
 
 # T-110: The microvm and incus kinds do not check the version of podvm
 

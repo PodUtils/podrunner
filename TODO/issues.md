@@ -89,6 +89,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #87 | COORD-027: the channel of a machine-tier guest gets no connection when the run has 9p volumes (to podvm) | closed | T-037 |
 | #88 | COORD-028: --podvm-net none and --podvm-channel on the incus tier, for podrunner's incus kind (to podvm) | open | T-109 |
 | #89 | COORD-029: podrunner takes podcrates v0.40.0 at 35595a6 (the answer to PodUtils/podcrates#140) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#140) | T-108 |
+| #90 | COORD-030: the proxy device of --podvm-channel fails to start on incus 6.0.0 of Ubuntu 24.04 (to podvm) | open | T-109 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |
