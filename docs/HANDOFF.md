@@ -60,10 +60,12 @@ is done.
   under `podnet pod` until podvm has a host channel) are in the entry and
   `docs/decisions.md`. Step 1: `scripts/measure-machine.sh` runs in
   `runner-image.yml` (KVM through a udev rule, QEMU from apt).
-- T-096: podvm `v0.2.0-beta.7` is pinned (the fortified opens,
-  PodUtils/podvm#289). The tar forms of `runner-image.yml` are a check,
-  with and without host directories at the absolute paths; a green run
-  closes T-096, GitHub #70 and PodUtils/podvm#289.
+- T-096 is done: podvm `v0.2.0-beta.7` is pinned, and the 28 tar forms
+  pass (runner-image run 43351590729). #78 tells podvm.
+- T-099: the confined conformance test 27 hangs since `0a400b5` (2 of 2
+  runs, podvm beta.6 and beta.7); the code of the confined path did not
+  change. Each test has a time limit now (`3516e5f`). It holds the
+  release of beta.2 while `runner-image.yml` is red.
 - T-051 and T-030 are done: podvm `v0.2.0-beta.6`, the aarch64 import
   is green.
 - The owner, 2026-11-13: Q4 yes (T-098: GitHub Actions compatibility),
