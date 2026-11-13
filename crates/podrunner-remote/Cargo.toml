@@ -13,7 +13,7 @@ podrunner-source.workspace = true
 podrunner-tier.workspace = true
 # The HTTP reader of the control socket: one request on each connection.
 podrunner-hook.workspace = true
-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.37.0", default-features = false }
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.38.0", default-features = false }
 # The provider of the TLS of the remote mint: ring, as `sign` uses.
 rustls = { version = "0.23", default-features = false, features = ["std", "ring"] }
 serde.workspace = true

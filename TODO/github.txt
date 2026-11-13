@@ -83,5 +83,5 @@
 77 issue closed
 78 issue open
 79 issue closed
-80 issue open
+80 issue closed
 81 issue open

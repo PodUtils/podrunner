@@ -196,3 +196,26 @@ fn extra_events_are_trusted_only_when_listed_and_only_those_four() {
     }
     assert!(cfg(EXTRA_EVENTS.to_vec()).check().is_ok());
 }
+
+/// T-106: an agent's job of an allowed event is untrusted (a guest), a
+/// bot's job is never trusted, and a member's job is trusted as before.
+#[test]
+fn an_agent_needs_a_guest_and_a_bot_is_never_trusted() {
+    let cfg = TierConfig {
+        organizations: vec![Organization { login: "o".into(), id: None }],
+        trusted_public: vec![],
+        extra_events: vec![],
+    };
+    let job = |actor: ActorClass, event: Event| {
+        let mut t: TrustInputs = serde_json::from_value(Value::Object(table().base)).unwrap();
+        (t.event, t.head_is_fork, t.actor_class, t.repo_visibility) = (event, Fact::No, actor, Visibility::Private);
+        (t.owner, t.repo, t.owner_id, t.repo_id) = ("o".into(), "r".into(), None, None);
+        t
+    };
+    assert_eq!(compute(&job(ActorClass::Member, Event::Push), &cfg), Ok(Tier::Trusted));
+    assert_eq!(compute(&job(ActorClass::Agent, Event::Push), &cfg), Ok(Tier::Untrusted));
+    assert_eq!(compute(&job(ActorClass::Agent, Event::Other), &cfg), Err(RefusalCode::EventNotAllowed));
+    assert_eq!(compute(&job(ActorClass::Bot, Event::Push), &cfg), Err(RefusalCode::EventNotAllowed));
+    // An agent's job never runs on a trusted set.
+    assert_eq!(intake(&job(ActorClass::Agent, Event::Push), &cfg, Tier::Trusted), Err(RefusalCode::TierMismatch));
+}

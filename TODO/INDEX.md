@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**106 entries: 3 open, 4 partial, 8 blocked, 91 done.**
+**106 entries: 3 open, 4 partial, 7 blocked, 92 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 0 | 2 | 1 | 29 | 32 |
+| P1 | 0 | 2 | 0 | 30 | 32 |
 | P2 | 2 | 2 | 5 | 39 | 48 |
 | P3 | 1 | 0 | 2 | 23 | 26 |
-| **All** | 3 | 4 | 8 | 91 | 106 |
+| **All** | 3 | 4 | 7 | 92 | 106 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -153,4 +153,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-103](later.md) | P2 | L | later | feature | open | G-09: a container engine inside the unit, and the census of the verbs (DR-8) |
 | [T-104](later.md) | P2 | S | later | feature | done | G-10: the source conformance tests as a command for another source program |
 | [T-105](later.md) | P3 | M | later | feature | open | G-02: an `incus` unit kind for trusted jobs (a system container) |
-| [T-106](later.md) | P1 | S | later | defect | blocked | The actor classes of githome (agent, bot, external) in the offer schema |
+| [T-106](later.md) | P1 | S | later | defect | done | The actor classes of githome (agent, bot, external) in the offer schema |

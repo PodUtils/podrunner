@@ -702,7 +702,7 @@ An `incus` kind over podvm's incus tier, behind `UnitDriver`, as `microvm` is ov
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -720,7 +720,6 @@ Ask podcrates (COORD issue, GitHub #80) for `ActorClass::Agent` and `ActorClass:
 
 `cargo test -p podrunner-tier` with an offer of each class: only `member` can be trusted, and `agent` has the floor `guest`.
 
-## Blocker
+## Done
 
-podcrates: `ActorClass::Agent` and `ActorClass::Bot` in `pod-job` (GitHub #80).
-
+2026-11-13, this commit. podcrates `v0.38.0` (PodUtils/podcrates#136, PodUtils/podcrates@T-505) gives `ActorClass::Agent` and `ActorClass::Bot`; podrunner takes the tag. The tier rule makes a job of an `agent` of an allowed event in a configured owner `untrusted` (a guest), and never trusts a `bot`. `an_agent_needs_a_guest_and_a_bot_is_never_trusted` holds it; the case table passes unchanged. GitHub #80 is closed.

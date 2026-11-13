@@ -107,14 +107,21 @@ pub fn compute(t: &TrustInputs, cfg: &TierConfig) -> Result<Tier, RefusalCode> {
         Visibility::Public => listed_public(t, cfg),
         Visibility::Unknown => false,
     };
+    let allowed_event =
+        TRUSTED_EVENTS.contains(&t.event) || (EXTRA_EVENTS.contains(&t.event) && cfg.extra_events.contains(&t.event));
     let trusted = visible
         && configured_owner(t, cfg)
         && t.head_is_fork == Fact::No
         && t.actor_class == ActorClass::Member
-        && (TRUSTED_EVENTS.contains(&t.event)
-            || (EXTRA_EVENTS.contains(&t.event) && cfg.extra_events.contains(&t.event)));
+        && allowed_event;
     if trusted {
         return Ok(Tier::Trusted);
+    }
+    // A change that an agent made runs as untrusted code, in a guest, also
+    // in the repository of a configured owner (T-106). A bot is never
+    // trusted: it falls through to the rules below.
+    if t.actor_class == ActorClass::Agent && visible && configured_owner(t, cfg) && allowed_event {
+        return Ok(Tier::Untrusted);
     }
     if t.event == Event::PullRequest && t.head_is_fork == Fact::Yes {
         return Ok(Tier::Untrusted);

@@ -1,12 +1,12 @@
 # Progress
 
-`TODO/INDEX.md` holds 106 entries: 3 open, 4 partial, 8 blocked, 91 done.
+`TODO/INDEX.md` holds 106 entries: 3 open, 4 partial, 7 blocked, 92 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is yes (2026-11-13): the live gates run on GitHub #74 and #75.
-- Pins: podcrates `v0.37.0`, podvm `v0.2.0-beta.7`, podnet
+- Pins: podcrates `v0.38.0`, podvm `v0.2.0-beta.7`, podnet
   `v0.4.0-beta.8`, runner v2.338.2.
   Last beta: `v0.1.0-beta.2` (release run 43359637417, 2026-11-13).
 - M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for the live gates (GitHub #74, #75). M-D: T-031 and T-045
@@ -33,7 +33,7 @@ The queue, most valuable first:
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-036, T-039 (after T-037), T-043 (crates of podcrates), T-106 (podcrates: `ActorClass` agent and bot, GitHub #80).
+Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-036, T-039 (after T-037), T-043 (crates of podcrates).
 
 ## Questions for the owner
 
