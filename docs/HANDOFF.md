@@ -11,7 +11,7 @@ is done.
 - Pins: podcrates `v0.36.0` (`Cargo.toml`); podvm `v0.2.0-beta.7`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
-  (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
+  (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.2` (2026-11-13, `afa7508`).
 - The record: 98 entries, 0 open, 2 partial, 11 blocked, 85 done
   (`cargo todo check`). The last green `runner-image.yml` run is
   43337313388 (`e2be23f`, podnet beta.8 with IPv6): the held test, the
@@ -67,9 +67,11 @@ is done.
   test by name.
 - T-051 and T-030 are done: podvm `v0.2.0-beta.6`, the aarch64 import
   is green.
-- The owner, 2026-11-13: Q4 yes (T-098: GitHub Actions compatibility),
-  DR-7 yes (a test organization and App), and the release
-  `v0.1.0-beta.2` when `main` is green (`docs/releases/v0.1.0-beta.2.md`).
+- The owner, 2026-11-13: Q4 yes (T-098, done), DR-7 yes (a test
+  organization and App). `v0.1.0-beta.2` is released (release run
+  43359637417 at `afa7508`): `podrunner` and `scaleset-sidecar` for x86_64
+  and aarch64, the notes of `docs/releases/v0.1.0-beta.2.md`. A
+  `runner-image.yml` run on the tag gives the runner image archives.
 - The live gates: two agents on two constrained hosts, GitHub #74
   (LIVE-1, the remote mint and the App key) and #75 (LIVE-2, the unit
   host and the test jobs). They need beta.2. Read their comments; fix
