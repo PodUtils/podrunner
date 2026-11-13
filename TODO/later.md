@@ -842,7 +842,7 @@ podvm: `--podvm-net none` and `--podvm-channel` on the incus tier (GitHub #88, C
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -859,6 +859,10 @@ Give `podrunner-podvm` a check of the version against a lowest version of the ca
 ## Prove
 
 `cargo test -p podrunner-microvm` and `cargo test -p podrunner-incus`
+
+## Done
+
+2026-11-13, this commit. `Podvm::require` reads the version from `podvm probe --json` and refuses one below the lowest of the kind or at `BEYOND` and later. `serve` calls it with `LOWEST_GUEST` (`0.2.0-beta.10`) when it builds `[unit.microvm]` and `[unit.incus]`, not in `probe`: a probe starts no process (unit test 23). `a_kind_refuses_a_podvm_below_its_lowest_version` holds it with a fake podvm.
 
 # T-111: The configuration accepts keys that nothing reads
 

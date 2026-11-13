@@ -54,12 +54,21 @@ impl Version {
     }
 }
 
+/// The lowest podvm of the `microvm` and `incus` kinds: the channel of a
+/// guest with no NIC, and `run -d -i` of an incus instance (T-110).
+pub const LOWEST_GUEST: &str = "0.2.0-beta.10";
+
+/// True when `v` comes before the core version of `beyond`: each
+/// pre-release of `beyond` is not before it.
+pub fn before(v: &Version, beyond: &Version) -> bool {
+    v.core < beyond.core
+}
+
 /// True when `v` is in the range of this driver.
 pub fn in_range(v: &Version) -> bool {
     let low = Version::parse(LOWEST).expect("LOWEST");
     let beyond = Version::parse(BEYOND).expect("BEYOND");
-    // Each pre-release of BEYOND is outside too.
-    *v >= low && v.core < beyond.core
+    *v >= low && before(v, &beyond)
 }
 
 /// The capability record of a podvm unit on this host, from the output of

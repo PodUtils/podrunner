@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**111 entries: 2 open, 7 partial, 8 blocked, 94 done.**
+**111 entries: 1 open, 7 partial, 8 blocked, 95 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 1 | 31 | 34 |
-| P2 | 1 | 4 | 5 | 40 | 50 |
+| P2 | 0 | 4 | 5 | 41 | 50 |
 | P3 | 1 | 1 | 2 | 23 | 27 |
-| **All** | 2 | 7 | 8 | 94 | 111 |
+| **All** | 1 | 7 | 8 | 95 | 111 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -157,5 +157,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-107](later.md) | P1 | S | later | defect | done | The egress policy of an offer: placement, the ceiling of the operator, the socket directory |
 | [T-108](later.md) | P2 | S | later | feature | blocked | G-06: the CPU time and the peak memory of a job in its report |
 | [T-109](later.md) | P1 | M | later | defect | blocked | The incus kind has no egress hold, so placement gives it no trusted job |
-| [T-110](later.md) | P2 | S | later | defect | open | The microvm and incus kinds do not check the version of podvm |
+| [T-110](later.md) | P2 | S | later | defect | done | The microvm and incus kinds do not check the version of podvm |
 | [T-111](later.md) | P3 | S | later | defect | open | The configuration accepts keys that nothing reads |
