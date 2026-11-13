@@ -6,7 +6,7 @@
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is yes (2026-11-13): the live gates run on GitHub #74 and #75.
-- Pins: podcrates `v0.38.0`, podvm `v0.2.0-beta.8`, podnet
+- Pins: podcrates `v0.39.0`, podvm `v0.2.0-beta.8`, podnet
   `v0.4.0-beta.8`, runner v2.338.2.
   Last beta: `v0.1.0-beta.2` (release run 43359637417, 2026-11-13).
 - M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for the live gates (GitHub #74, #75). M-D: T-031 and T-045

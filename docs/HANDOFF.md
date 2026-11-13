@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.38.0` (`Cargo.toml`); podvm `v0.2.0-beta.8`
+- Pins: podcrates `v0.39.0` (`Cargo.toml`); podvm `v0.2.0-beta.8`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.2` (2026-11-13, `afa7508`).
@@ -53,8 +53,8 @@ is done.
   in podvm units under the egress hold (T-087 to T-095, T-097).
 - T-077 is done: podnet `v0.4.0-beta.8` is pinned, and held units keep
   IPv6 (runner-image run 43337313388).
-- podcrates `v0.38.0` is taken (PodUtils/podcrates#136: `ActorClass`
-  `agent` and `bot`, T-106); a COORD issue answers it.
+- podcrates `v0.39.0` is taken (PodUtils/podcrates#137 has no item for
+  podrunner but the tag); a COORD issue answers it.
 - T-037 (blocked on podvm, GitHub #83): the `microvm` kind
   (`crates/podrunner-microvm`, `[unit.microvm]`) passes its 11 unit tests
   on real guests, and the official runner in a guest completes a canned
