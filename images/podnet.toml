@@ -1,8 +1,10 @@
 # The podnet release that holds the egress of a podvm unit (`podnet pod`,
 # T-065). runner-image.yml downloads it and checks the SHA-256 of the
 # binary of its architecture.
-version = "0.4.0-beta.6"
+# v0.4.0-beta.7 and later dial ::ffff:127.0.0.1 direct in the seccomp hold
+# (T-077).
+version = "0.4.0-beta.8"
 
 [sha256]
-x86_64 = "f97b21bc64e6f8dedc3749271f9612678e4b53bbd73b316f16affb1b470c16e7"
-aarch64 = "f1366d432f11ebf587fdf61cf5889dead785ce784f306158c8e19e10678315d5"
+x86_64 = "ce6c18b1f6b1fb76b8af2a810d27c1aece876b57726900a8d81b830b8967f45a"
+aarch64 = "937ed6369c9042985cb367fa7a533faab02a316a34d50961feca200e36d466d7"

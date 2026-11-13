@@ -1,13 +1,13 @@
 # Progress
 
-`TODO/INDEX.md` holds 98 entries: 0 open, 2 partial, 12 blocked, 84 done.
+`TODO/INDEX.md` holds 98 entries: 0 open, 3 partial, 11 blocked, 84 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
 - Pins: podcrates `v0.32.0`, podvm `v0.2.0-beta.6`, podnet
-  `v0.4.0-beta.6`, runner v2.338.2.
+  `v0.4.0-beta.8`, runner v2.338.2.
   Last beta: `v0.1.0-beta.1` (release run 42942338772).
 - M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for DR-7. M-D: T-031 and T-045
   done; the gate T-033 waits for DR-7. L2: T-034, T-035, T-038 done; the
@@ -26,12 +26,14 @@ release or a live account.
 
 The queue, most valuable first:
 
-None. Each other entry waits for the owner, podvm, podnet or a live account (below). podvm is not available now: housekeeping only.
+1. T-077 (S, partial): podnet `v0.4.0-beta.8` is pinned and the IPv6 workaround is gone; a green `runner-image.yml` run (the held test, the held suite, `egress.yml`) closes it and GitHub #69.
+
+Each other entry waits for the owner, podvm or a live account (below). podvm is not available now: no work that needs podvm.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates), T-077 (podnet `v0.4.0-beta.7`, GitHub #69), T-096 (podvm: an absolute `tar -C`, PodUtils/podcrates#102).
+Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-036, T-037, T-039 (the podvm machine tier), T-043 (crates of podcrates), T-096 (podvm: an absolute `tar -C`, PodUtils/podcrates#102).
 
 ## Questions for the owner
 

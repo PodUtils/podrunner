@@ -10,7 +10,7 @@ is done.
 
 - Pins: podcrates `v0.32.0` (`Cargo.toml`); podvm `v0.2.0-beta.6`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
-  `v0.4.0-beta.6` (`images/podnet.toml`); the official runner v2.338.2
+  `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
 - The record: 98 entries, 0 open, 2 partial, 12 blocked, 84 done
   (`cargo todo check`). The last green `runner-image.yml` run is
@@ -52,12 +52,10 @@ is done.
   work.
 - The local mode (T-046) is done: `podrunner run` runs the pinned suite
   in podvm units under the egress hold (T-087 to T-095, T-097).
-- T-077: held units set `DOTNET_SYSTEM_NET_DISABLEIPV6=1`: podnet
-  `v0.4.0-beta.6` refuses a connect to `::ffff:127.0.0.1` from a podvm
-  unit (run 43239962509). podnet fixes it in `v0.4.0-beta.7`
-  (PodUtils/podnet#509, PodUtils/podnet@T-317). When it is out: pin it,
-  remove the variable from `crates/podrunner-local/src/exec.rs` and
-  `held.rs`, and run.
+- T-077: podnet `v0.4.0-beta.8` is pinned; it dials `::ffff:127.0.0.1`
+  direct (PodUtils/podnet#509, PodUtils/podnet@T-317). The held units and
+  `held.rs` keep IPv6 (no `DOTNET_SYSTEM_NET_DISABLEIPV6`). A green
+  `runner-image.yml` run closes T-077 and GitHub #69.
 - T-096: an absolute `tar -C` fails in a podvm unit, with or with no
   `-z`; a relative `-C` and each `cd` form pass (run 43271963245). It is
   with podvm (PodUtils/podcrates#102, GitHub #70).
@@ -78,14 +76,12 @@ is done.
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
-| podnet | `v0.4.0-beta.7`: `::ffff:127.0.0.1` dialed direct in the seccomp hold (GitHub #69, PodUtils/podnet#509) | T-077 |
 
 ## Open issues and asks
 
-- GitHub #69 (COORD-011, to podnet): the fix of #64 did not hold in a
-  podvm unit with beta.6. podnet answered (PodUtils/podnet#509): the fix
-  comes in `v0.4.0-beta.7`. T-077 closes on a held run with no
-  `DOTNET_SYSTEM_NET_DISABLEIPV6` on that release.
+- GitHub #69 (COORD-011, to podnet): podnet fixed it in
+  `v0.4.0-beta.7` (PodUtils/podnet#509); podrunner pins `v0.4.0-beta.8`.
+  Close it on the green held run (T-077).
 - GitHub #70 (COORD-012, to podcrates): an absolute `tar -C` fails in a
   podvm unit (T-096, PodUtils/podcrates@T-328).
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
