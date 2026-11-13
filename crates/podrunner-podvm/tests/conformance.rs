@@ -104,17 +104,19 @@ fn the_podvm_unit_passes_its_tests() {
     // The self-test of the tree kill; test 17 then holds the claim to test 3.
     assert!(unit.verify_tree_kill(&image, UnitId::parse("u-999").unwrap()).unwrap(), "the tree kill is not proven");
     assert_eq!(unit.probe().unwrap().tree_kill, podrunner_schema::TreeKill::Verified);
-    let fx = Real { unit, image, ids: UnitIds::default(), state: state.clone() };
+    let fx: std::sync::Arc<dyn Fixture + Send + Sync> =
+        std::sync::Arc::new(Real { unit, image, ids: UnitIds::default(), state: state.clone() });
     // PODRUNNER_CONFORMANCE_ONLY=26,3 runs only those tests: a loop of one
     // test finds a race.
     let only: Vec<u32> = std::env::var("PODRUNNER_CONFORMANCE_ONLY")
         .map(|v| v.split(',').map(|n| n.trim().parse().expect("PODRUNNER_CONFORMANCE_ONLY: a number")).collect())
         .unwrap_or_default();
-    // One test at a time, each printed when it ends: a hang names its test.
+    // One test at a time, each printed when it ends, each in a time limit:
+    // a hang fails its own test and the suite goes on (T-099).
     let mut results = Vec::new();
     for (n, name) in conformance::tests().into_iter().filter(|(n, _)| only.is_empty() || only.contains(n)) {
         println!("unit {n:2} {name}: running");
-        let r = conformance::run(&fx, &[n]).remove(0);
+        let r = conformance::run_bounded(fx.clone(), n, std::time::Duration::from_secs(300)).expect("a test");
         println!("{r}");
         results.push(r);
     }

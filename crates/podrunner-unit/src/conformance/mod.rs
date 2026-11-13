@@ -12,6 +12,8 @@ mod procs;
 
 use std::fmt;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 
 use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
 
@@ -146,6 +148,30 @@ pub fn run(fixture: &dyn Fixture, only: &[u32]) -> Vec<Report> {
         .collect()
 }
 
+/// Run `f` on a thread of its own and wait up to `limit` for its value.
+/// `None`: it did not end; the thread stays, and the end of the process
+/// ends it.
+pub fn bounded<T: Send + 'static>(limit: Duration, f: impl FnOnce() -> T + Send + 'static) -> Option<T> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(f());
+    });
+    rx.recv_timeout(limit).ok()
+}
+
+/// Run the test `number` with a time limit: a test that hangs fails with
+/// its name, and the suite goes on (T-099).
+pub fn run_bounded(fixture: Arc<dyn Fixture + Send + Sync>, number: u32, limit: Duration) -> Option<Report> {
+    let case = all().find(|c| c.number == number)?;
+    let (name, run) = (case.name, case.run);
+    let outcome = bounded(limit, move || match run(&*fixture) {
+        Ok(o) => o,
+        Err(why) => Outcome::Fail(why),
+    })
+    .unwrap_or_else(|| Outcome::Fail(format!("no end in {} s: the test hangs", limit.as_secs())));
+    Some(Report { number, name, outcome })
+}
+
 /// The numbers of the tests that did not pass (a skip is not a pass).
 pub fn not_passed(results: &[Report]) -> Vec<u32> {
     results.iter().filter(|r| r.outcome != Outcome::Pass).map(|r| r.number).collect()
@@ -158,5 +184,18 @@ pub fn canary_credential() -> Credential {
             CredentialFile { name: ".runner".into(), content: Secret::new(format!("{{\"agentName\":\"{CANARY}\"}}")) },
             CredentialFile { name: ".credentials".into(), content: Secret::new(format!("{{\"token\":\"{CANARY}\"}}")) },
         ],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bounded_gives_the_value_or_none_at_the_limit() {
+        assert_eq!(bounded(Duration::from_secs(5), || 7), Some(7));
+        let t = std::time::Instant::now();
+        assert_eq!(bounded(Duration::from_millis(200), || std::thread::sleep(Duration::from_secs(30))), None);
+        assert!(t.elapsed() < Duration::from_secs(5));
     }
 }

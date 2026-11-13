@@ -1538,7 +1538,7 @@ Partial. In runner-image run 43271963245 of `5518055`: `tar -xf x.tar -C /tmp/d`
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1555,6 +1555,10 @@ Give test 27 its own time limit in the conformance suite, so a hang fails that t
 ## Prove
 
 `cargo test -p podrunner-unit` with a test that a hung step of a conformance test fails that test in its time limit; the confined suite of `runner-image.yml` is green on the next runs.
+
+## Done
+
+Partial, 2026-11-13, this commit. `conformance::bounded` runs a call on a thread of its own and gives `None` at its limit; `conformance::run_bounded` runs one test so, and a test that hangs fails with "no end in N s: the test hangs" while the suite goes on. The podvm harness (`crates/podrunner-podvm/tests/conformance.rs`) gives each test 300 s. `bounded_gives_the_value_or_none_at_the_limit` holds the helper. Open: the cause of the hang of test 27, if it comes again.
 
 # T-100: The beta release carries the scale-set sidecar and its notes
 
