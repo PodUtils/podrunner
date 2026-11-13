@@ -35,7 +35,9 @@ out=$(timeout 600 "$podvm" run --rm --podvm-tier=machine --podvm-mem "${MACHINE_
   ls /lib/modules 2>&1 | sed "s/^/guest modules /"
   export PATH=/mnt/engine/docker:$PATH
   mkdir -p /var/lib/docker /run
-  dockerd --iptables=false --ip6tables=false --bridge=none --host=unix:///run/docker.sock > /tmp/dockerd.log 2>&1 &
+  # The root of the guest is an initramfs: pivot_root fails there, and
+  # DOCKER_RAMDISK makes runc move the root and chroot instead.
+  DOCKER_RAMDISK=true dockerd --iptables=false --ip6tables=false --bridge=none --host=unix:///run/docker.sock > /tmp/dockerd.log 2>&1 &
   i=0; while [ $i -lt 60 ] && ! docker -H unix:///run/docker.sock info >/dev/null 2>&1; do sleep 1; i=$((i+1)); done
   if docker -H unix:///run/docker.sock info >/dev/null 2>&1; then
     echo "guest dockerd up after ${i}s"
