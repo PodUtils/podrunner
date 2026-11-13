@@ -81,6 +81,25 @@ resolver, the addresses that carried a session, DNS over HTTPS to
 resolvers by their address, then the old addresses of that cache. A host
 whose own resolver fails keeps its egress and its mint.
 
+## The microvm kind
+
+A guest of the machine tier of podvm for each job (T-037): its own kernel,
+under KVM where `/dev/kvm` opens. It is the unit of the `untrusted` tier:
+it claims `guest`, and `serve` takes the claim only for a kind on
+`guest_kinds` and after the self-test of the guest (GitHub #36). It has no
+container route. The host needs `qemu-system-x86_64` (or `-aarch64`).
+
+```toml
+guest_kinds = ["microvm"]
+[unit.microvm]
+slots = 1
+command = ["/home/runner/run.sh"]        # an absolute path: the job runs in a work directory
+binary = "/opt/podrunner/drivers/podvm"  # the released podvm binary
+images = "/var/lib/podrunner/images"     # a podvm store with the pinned images
+mem = "4G"                               # the memory of each guest (default 4G)
+cpus = 2                                 # its vCPUs (default 2)
+```
+
 ## The floors of the tiers
 
 | Tier | Lowest floor | Why |

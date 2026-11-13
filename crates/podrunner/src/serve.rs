@@ -183,6 +183,7 @@ pub fn plan(cfg: &Config) -> Result<(), Failure> {
                     return Err(fail(Class::Config, "[unit.podvm] images: not a directory"));
                 }
             }
+            "microvm" => crate::microvm_kind::plan(u)?,
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }
@@ -231,6 +232,7 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                 (Arc::new(FakeUnit::new(&state.join("fake"), cap.clone(), platform)), cap)
             }
             "podvm" => crate::podvm_kind::build(u, &cfg, state)?,
+            "microvm" => crate::microvm_kind::build(u, state)?,
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }

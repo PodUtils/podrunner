@@ -67,6 +67,9 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
         ),
         // A podvm binary that is a directory.
         (format!("{head}[unit.podvm]\nslots = 1\ncommand = [\"x\"]\nbinary = \"/\"\nimages = \"/\"\n{pin}"), "binary"),
+        // The microvm kind (T-037): its podvm binary, and its vCPUs.
+        (format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/\"\nimages = \"/\"\n{pin}"), "[unit.microvm] binary"),
+        (format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ncpus = 0\n{pin}"), "cpus"),
     ];
     for (i, (text, word)) in cases.iter().enumerate() {
         let file = d.join(format!("{i}.toml"));

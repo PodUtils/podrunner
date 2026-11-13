@@ -135,6 +135,13 @@ pub struct UnitConfig {
     /// after its self-test on this host.
     #[serde(default)]
     pub confine: bool,
+    /// `microvm`: the memory of each guest (`--podvm-mem`, default `4G`)
+    /// and its vCPUs (default 2). The image is an initramfs: the memory
+    /// holds it twice.
+    #[serde(default)]
+    pub mem: Option<String>,
+    #[serde(default)]
+    pub cpus: Option<u32>,
 }
 
 fn run_sh() -> Vec<String> {

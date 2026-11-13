@@ -877,6 +877,7 @@ dependencies = [
  "podrunner-fake",
  "podrunner-hook",
  "podrunner-local",
+ "podrunner-microvm",
  "podrunner-mint",
  "podrunner-podvm",
  "podrunner-remote",
@@ -969,6 +970,16 @@ dependencies = [
  "podrunner-source",
  "podrunner-unit",
  "serde_json",
+]
+
+[[package]]
+name = "podrunner-microvm"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "podrunner-podvm",
+ "podrunner-schema",
+ "podrunner-unit",
 ]
 
 [[package]]
