@@ -91,7 +91,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #89 | COORD-029: podrunner takes podcrates v0.40.0 at 35595a6 (the answer to PodUtils/podcrates#140) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#140) | T-108 |
 | #90 | COORD-030: the proxy device of --podvm-channel fails to start on incus 6.0.0 of Ubuntu 24.04 (to podvm) | closed | T-109 |
 | #91 | COORD-031: pod-job: ContainerRoute::Engine, a container engine inside the unit (to podcrates) | open | T-103 |
-| #92 | COORD-032: the kernel of a machine-tier guest for a container engine: bridge, veth, overlay, netfilter, cgroup2 (to podvm) | open | T-103 |
+| #92 | COORD-032: the kernel of a machine-tier guest for a container engine: bridge, veth, overlay, netfilter, cgroup2 (to podvm) | closed | T-103 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |
