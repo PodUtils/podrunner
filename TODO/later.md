@@ -588,7 +588,7 @@ Partial, 2026-11-13, this commit. The `[[source]]` kind `program` (`program`, `p
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -600,11 +600,15 @@ Read GitHub #66 (the comment of 2026-11-13) on 2026-11-13.
 
 ## Approach
 
-A table of event names to the event classes of the tier rule, with the events of GitHub and the events that githome names, and a configuration table that adds a name. An event that the table does not name stays `other` and is refused.
+The offer carries a typed event (`Event` of `pod-job`): githome maps each of its events to it, and sends `other` for the rest, so podrunner needs no table of names. What G-13 needs is that more events may run as a trusted job. The tier rule takes `push`, `pull_request`, `workflow_dispatch`, `schedule` and `merge_group` (the design); `workflow_run`, `issue_comment`, `release` and `repository_dispatch` are refused. A change of that set changes which code runs with trust: Q5 asks the owner.
 
 ## Prove
 
 `cargo test -p podrunner-tier` with each event of the table, and an unknown event refused.
+
+## Blocker
+
+Q5 of the owner (`TODO/PROGRESS.md`): may the operator add events to the trusted set?
 
 # T-103: G-09: a container engine inside the unit, and the census of the verbs (DR-8)
 
