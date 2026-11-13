@@ -6,7 +6,7 @@
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
-- Pins: podcrates `v0.35.0`, podvm `v0.2.0-beta.7`, podnet
+- Pins: podcrates `v0.36.0`, podvm `v0.2.0-beta.7`, podnet
   `v0.4.0-beta.8`, runner v2.338.2.
   Last beta: `v0.1.0-beta.1` (release run 42942338772).
 - M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for DR-7. M-D: T-031 and T-045

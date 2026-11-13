@@ -8,7 +8,7 @@ form of the rulings that apply to each session. The rows from podcrates
 are copies of the rows of `PodUtils/podcrates:docs/decisions.md` at
 podcrates commit `eacb916d118f`; the rows of 2026-11-11 for DR-3 to DR-7,
 Q10 and Q11 are copies of the rows at podcrates commit `9a3bce7`. podrunner takes the crates of podcrates
-at the tag `v0.35.0`.
+at the tag `v0.36.0`.
 
 ## In force
 

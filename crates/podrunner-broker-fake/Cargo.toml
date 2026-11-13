@@ -21,4 +21,4 @@ podrunner-schema.workspace = true
 podrunner-unit.workspace = true
 podrunner-podvm.workspace = true
 podrunner-egress.workspace = true
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0" }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.36.0" }
