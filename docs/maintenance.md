@@ -100,8 +100,8 @@ the tools.
   repository. To add to a message, amend its body (not a comment), with a
   line `state: ... at TIME (UTC)`. Close the issue when its subject is
   done. The other session answers in its own repository with
-  `(to podrunner)`; the watcher finds it. podvm and podssh are on break:
-  expect no answer.
+  `(to podrunner)`; the watcher finds it. podnet and podvm answer;
+  podssh is on break: expect no answer.
 * A COORD issue is an issue of this repository: map it in
   `TODO/issues.md` as any issue.
 

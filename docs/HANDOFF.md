@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.32.0` (`Cargo.toml`); podvm `v0.2.0-beta.6`
+- Pins: podcrates `v0.34.0` (`Cargo.toml`); podvm `v0.2.0-beta.6`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
@@ -48,17 +48,14 @@ is done.
 
 ## In flight
 
-- podvm is not available now (the owner, 2026-11-12, by podcrates): do
-  housekeeping only until a new session starts with podvm. No new feature
-  work.
+- podvm is available (the owner, 2026-11-13): it answers COORD issues
+  `(to podvm)`. podssh is on break.
 - The local mode (T-046) is done: `podrunner run` runs the pinned suite
   in podvm units under the egress hold (T-087 to T-095, T-097).
 - T-077 is done: podnet `v0.4.0-beta.8` is pinned, and held units keep
   IPv6 (runner-image run 43337313388).
-- podcrates `v0.33.0` (PodUtils/podcrates#103) and `v0.34.0`
-  (PodUtils/podcrates#104) have no item for podrunner. Take the newest
-  tag when a session starts again with podvm, and answer on each issue
-  by a COORD issue.
+- podcrates `v0.34.0` is taken (PodUtils/podcrates#103, #104 have no
+  item for podrunner); the COORD issue of the take answers both.
 - T-096: an absolute `tar -C` fails in a podvm unit, with or with no
   `-z`; a relative `-C` and each `cd` form pass (run 43271963245). It is
   with podvm (PodUtils/podcrates#102, GitHub #70).

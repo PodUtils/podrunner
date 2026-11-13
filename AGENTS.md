@@ -177,8 +177,9 @@ component keeps its own licence and is listed in `THIRD_PARTY.md`.
   and Approach. Do not leave a finding only in a report or in the chat,
   and do not use a "suggested task" card (`spawn_task`) for it. Give this
   rule to each subagent in its brief.
-* Work that needs a change of podvm or podssh (both on break): set the
-  entry `blocked` with its Blocker, and take the next entry.
+* Work that needs a change of podvm, podnet or podssh: write a COORD
+  issue to it, set the entry `blocked` with its Blocker, and take the
+  next entry. podssh is on break; podvm and podnet answer.
 * Work unattended: take the next entry of the work order, and continue
   until the owner interrupts. Ask the owner only for a change of a
   ruling.

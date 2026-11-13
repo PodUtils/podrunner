@@ -6,15 +6,16 @@
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
-- Pins: podcrates `v0.32.0`, podvm `v0.2.0-beta.6`, podnet
+- Pins: podcrates `v0.34.0`, podvm `v0.2.0-beta.6`, podnet
   `v0.4.0-beta.8`, runner v2.338.2.
   Last beta: `v0.1.0-beta.1` (release run 42942338772).
 - M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for DR-7. M-D: T-031 and T-045
   done; the gate T-033 waits for DR-7. L2: T-034, T-035, T-038 done; the
   gate T-039 waits for a real guest (T-036, T-037).
 - Each project gets COORD issues only (no direct message, the owner,
-  2026-11-12); podnet answers; podvm and podssh are on break. An entry that needs a change of podvm or podssh is
-  `blocked`, and the session takes the next entry.
+  2026-11-12); podnet and podvm answer; podssh is on break. An entry that needs a
+  change of another project is `blocked`, and the session takes the next
+  entry.
 - Keep this section short. Write the current state only; git keeps the
   history.
 
@@ -26,7 +27,7 @@ release or a live account.
 
 The queue, most valuable first:
 
-None. Each other entry waits for the owner, podvm or a live account (below). podvm is not available now: no work that needs podvm.
+None yet; see the open work below.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

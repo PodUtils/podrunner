@@ -8,7 +8,7 @@ form of the rulings that apply to each session. The rows from podcrates
 are copies of the rows of `PodUtils/podcrates:docs/decisions.md` at
 podcrates commit `eacb916d118f`; the rows of 2026-11-11 for DR-3 to DR-7,
 Q10 and Q11 are copies of the rows at podcrates commit `9a3bce7`. podrunner takes the crates of podcrates
-at the tag `v0.32.0`.
+at the tag `v0.34.0`.
 
 ## In force
 
@@ -43,6 +43,7 @@ at the tag `v0.32.0`.
 | 2026-11-11 | The spec (T-014) | The owner attached the zip of the design review (`podrunner-spec/`: `SPEC.md`, the appendices, the schemas, the examples, the review rounds). T-014 starts. The zip stays out of the repository; T-014 brings in what the code needs. |
 | 2026-11-11 | DR-7 again | Still not now. The live gates (T-032, T-040) keep their offline tests and wait. |
 | 2026-11-12 | COORD only | "remember to use COORD to communicate, do not msg directly". podrunner talks to podcrates, podnet, podvm and podssh only by COORD issues of this repository (`COORD-NNN: subject (to OTHER)`). No direct message (`send_message`) to another session. It supersedes "podcrates and podrunner talk by direct messages" of "podrunner online". |
+| 2026-11-13 | podvm available | "podvm is available, please do not work on stale assumptions". podvm answers COORD issues; work that needs podvm goes on. It supersedes the message of 2026-11-12 (from podcrates) that podvm was away and podrunner did housekeeping only. podssh stays on break. |
 
 ## Calls made without a ruling
 
