@@ -12,9 +12,9 @@ numbers. `TODO/RULES.md` gives the rules.
 | #4 | DR-4: allow trusted jobs at boundary `redirect` on no-root hosts | closed (`docs/decisions.md`, 2026-11-11) | T-004 |
 | #5 | DR-5: microVM unit for untrusted jobs: own driver now, or PodUtils/podvm@T-1656 | closed (`docs/decisions.md`, 2026-11-11) | T-005 |
 | #6 | DR-6: githome and cfb accept the restated G-02, G-03 and G-09 | closed (`docs/decisions.md`, 2026-11-11) | T-006 |
-| #7 | DR-7: a throwaway GitHub organization and App for live tests | open (DR-7: not now) | T-007 |
+| #7 | DR-7: a throwaway GitHub organization and App for live tests | closed (DR-7 yes, `6348aa0`) | T-007 |
 | #8 | Defaulted decisions DR-3 and DR-8 to DR-17: confirm in one reply | closed (`docs/decisions.md`, 2026-11-11) | T-008 |
-| #9 | Unknowns U1 to U25: register, owners and what settles each | open (U15, U16 and the live rows are open) | T-009 |
+| #9 | Unknowns U1 to U25: register, owners and what settles each | open (U15, U16 and the live rows are open; the live rows wait for #74 and #75) | T-009 |
 | #10 | v1 non-goals: deferred items and the trigger of each | closed (`docs/non-goals.md`) | T-010 |
 | #11 | Bootstrap: Cargo workspace, pinned toolchain, static musl build | closed (`9d2e4dd`, gate run 42934750114) | T-011 |
 | #12 | Bootstrap: CI gate (format, lint, tests, static probe, deny, file size) | closed (`9d2e4dd`, gate run 42934750114) | T-012 |
@@ -37,15 +37,15 @@ numbers. `TODO/RULES.md` gives the rules.
 | #29 | WP-07: `github-scaleset` source sidecar (static Go) | closed (`5d740e8`, gate run 42947195332) | T-029 |
 | #30 | WP-10: image pipeline: pins, age limit, `podrunner image build` | closed (runner-image run 43271963245: aarch64 import green) | T-030 |
 | #31 | WP-05b: remote mint (only if DR-4 is yes) | closed (`4e6d029`, gate run 42957378324) | T-031 |
-| #32 | Milestone M-C: live gates G-H2 to G-H4 on a `fake` unit | open (blocked: DR-7) | T-032 |
-| #33 | Milestone M-D: one live trusted job on a no-root host | open (blocked: DR-7) | T-033 |
+| #32 | Milestone M-C: live gates G-H2 to G-H4 on a `fake` unit | open (blocked: the live gates #74 and #75) | T-032 |
+| #33 | Milestone M-D: one live trusted job on a no-root host | open (blocked: the live gates #74 and #75) | T-033 |
 | #34 | WP-13: measure U19 and U21 on the podvm rung | closed (T-034, podvm `v0.2.0-beta.3`) | T-034 |
 | #35 | WP-09: hook relay and the per-unit control socket server (`ctl`) | closed (`fda577d`, gate run 42991333922) | T-035 |
-| #36 | Guest floor self-test | open (blocked: a real guest, T-037) | T-036 |
-| #37 | WP-11: `microvm` unit driver (form set by DR-5) | open (blocked: PodUtils/podvm@T-1656) | T-037 |
+| #36 | Guest floor self-test | open (partial: passes on a microvm guest; the mount check is open) | T-036 |
+| #37 | WP-11: `microvm` unit driver (form set by DR-5) | open (partial: passes on real guests; the acceptance on the fake source is open) | T-037 |
 | #38 | WP-12: canned-message fake broker (level 2) | closed (T-026, runner-image run 42987612426) | T-038 |
-| #39 | Milestone L2: level 2 green, hook path measured | open (blocked: T-036, T-037) | T-039 |
-| #40 | Level 3: live acceptance suite | open (blocked: DR-7) | T-040 |
+| #39 | Milestone L2: level 2 green, hook path measured | open (blocked: T-036, T-037, both partial) | T-039 |
+| #40 | Level 3: live acceptance suite | open (blocked: the live gates #74 and #75) | T-040 |
 | #41 | Hold `enforced` on podvm units (`pod-hold` or `pod-sud`) | closed (`349f0ba`, gate run 43076066364, runner-image run 43076066444) | T-041 |
 | #42 | `confined` boundary (`pod-confine`) | closed (`660bdf1`, runner-image run 43155326439) | T-042 |
 | #43 | Later crates: service unit, release index, acceptance registry | open (blocked: `pod-unit`, `pod-release` of podcrates) | T-043 |
@@ -77,7 +77,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #75 | LIVE-2: the runner/user agent: run the unit host and the test jobs of the live gates (T-032, T-033, T-040) | open | T-032, T-033, T-040 |
 | #76 | COORD-016: podrunner takes podcrates v0.36.0 at f4064f7 (the answer to PodUtils/podcrates#129) (to podcrates) | closed (podcrates closed #129 with the take) | T-094 |
 | #77 | COORD-017: podrunner's Q10 (a Docker Engine API socket for each job) is decided by DR-8: container hooks, no Docker API socket (the answer to PodUtils/podcrates#132) (to podcrates) | closed (podcrates closed #132; T-103 holds G-09) | T-035, T-103 |
-| #78 | COORD-018: podrunner pins podvm v0.2.0-beta.7; the tar forms of PodUtils/podvm@T-1743 pass (the answer to PodUtils/podvm#289) (to podvm) | open (a report; close when podvm closes #289) | T-096 |
+| #78 | COORD-018: podrunner pins podvm v0.2.0-beta.7; the tar forms of PodUtils/podvm@T-1743 pass (the answer to PodUtils/podvm#289) (to podvm) | closed (podvm closed PodUtils/podvm#289; runner-image run 43454398354) | T-096 |
 | #79 | COORD-019: podrunner takes podcrates v0.37.0 at 5fc53c4 (the answer to PodUtils/podcrates#134) (to podcrates) | closed (podcrates closed #134 with the take) | T-094 |
 | #80 | COORD-020: pod-job: ActorClass needs agent and bot for githome's offers (to podcrates) | closed (podcrates `v0.38.0` gives agent and bot; taken) | T-106 |
 | #81 | COORD-021: the machine tier gives each file of the image to root: a non-root user of the image cannot run its programs (to podvm) | closed | T-037 |

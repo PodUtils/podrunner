@@ -51,7 +51,8 @@ change is the value `engine` of `ContainerRoute` (step 3).
 
 1. The census and this design (done).
 2. A guest with no NIC and one host channel from podvm (GitHub #83,
-   PodUtils/podvm@T-1751), shared with T-037.
+   PodUtils/podvm@T-1751), shared with T-037 (done: podvm
+   `v0.2.0-beta.10`).
 3. The runner image with an engine, started by the guest script before
    the runner, and the capability `container: engine` of the `microvm`
    kind. `engine` is a new value of `ContainerRoute` of `pod-job`: ask

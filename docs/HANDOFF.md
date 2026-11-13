@@ -9,21 +9,24 @@ is done.
 ## Where podrunner stands
 
 - Pins: podcrates `v0.39.0` (`Cargo.toml`); podvm `v0.2.0-beta.10`
-  (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
+  (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
+  the microvm and incus kinds need beta.10, T-110); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
-  (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.2` (2026-11-13, `afa7508`).
-- The record: 98 entries, 0 open, 2 partial, 11 blocked, 85 done
+  (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.2`
+  (2026-11-13, `afa7508`). The notes of beta.3 are
+  `docs/releases/v0.1.0-beta.3.md`; the lead session releases it.
+- The record: 111 entries, 3 open, 7 partial, 7 blocked, 94 done
   (`cargo todo check`). The last green `runner-image.yml` run is
-  43337313388 (`e2be23f`, podnet beta.8 with IPv6): the held test, the
-  held local suite, the egress check, the containers suite and the
-  aarch64 start.
+  43454398354 (`e8795f2`): the podvm suites, the held tests, the 28 tar
+  forms, the microvm kind on real guests and the incus suite on real
+  instances.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032, T-033 and T-040 (the live gates: GitHub #74
-  and #75) and T-039 (a real guest: T-036, T-037).
+  and #75) and T-039 (after T-036 and T-037).
 - The podvm driver runs the official runner in a unit with no root: a
   canned job and a `container:` job through the hooks pass in
   `runner-image.yml` (T-026, T-035). The unit conformance suite passes on
-  the fake unit and on the podvm driver.
+  the fake unit, the podvm driver, the microvm kind and the incus kind.
 - Each podvm unit and container carries the label `podrunner.unit=ID`,
   and `destroy` removes each one with it; the `run -d` of a unit writes
   podvm's report (`run_report`) (T-078).
@@ -32,16 +35,28 @@ is done.
   `/dev/net/tun` exist, else the seccomp hold (`advisory`) (T-065, T-041).
   A held runner reaches an allowed host and not a denied one
   (`crates/podrunner-broker-fake/tests/held.rs`).
+- The egress policy of a job: the policy of its offer narrowed by
+  `[egress] default_policy` (T-107). slots gives each driver its socket
+  directory.
 - The `confined` boundary: the fake applies `pod-confine` through its
   shim; the podvm kind with `[unit.podvm] confine = true` runs each unit
   and container under `podvm --podvm-confine`, and says `confined` only
   after its self-test on the host (T-042, T-079). The layer denies the
   `/proc` paths of residual R2 and `env -i`, so tests 25 and 26 skip on a
   confined podvm unit (T-080).
+- The `microvm` kind (`crates/podrunner-microvm`, `[unit.microvm]`): one
+  guest of podvm's machine tier for each job, with no NIC and one channel
+  to the egress socket of the unit (`PODRUNNER_CHANNEL_PORT`; the guest
+  script sets the proxy variables). Its 11 unit tests, the guest self-test
+  (which compares the boot id and `/proc/version` with the host) and a
+  canned job of the official runner pass on real guests (T-037, T-036).
+- The `incus` kind (`crates/podrunner-incus`, `[unit.incus]`): one system
+  container of podvm's incus tier for each job, the credential files on
+  stdin. It claims `confined`. Its suite passes on real instances (T-105).
+  It has no egress hold, so it gets no `trusted` job yet (T-109).
 - A musl build of the official runner (`scripts/runner-musl.sh`,
   `runner-musl.yml`) runs the canned jobs in Alpine on x86_64 and
-  aarch64, and in a podvm unit on x86_64 (T-081). Its aarch64 podvm job
-  is a check since podvm beta.6 (T-081).
+  aarch64, and in a podvm unit on x86_64 (T-081).
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
@@ -49,43 +64,24 @@ is done.
 
 - podvm is available (the owner, 2026-11-13): it answers COORD issues
   `(to podvm)`. podssh is on break.
-- The local mode (T-046) is done: `podrunner run` runs the pinned suite
-  in podvm units under the egress hold (T-087 to T-095, T-097).
-- T-077 is done: podnet `v0.4.0-beta.8` is pinned, and held units keep
-  IPv6 (runner-image run 43337313388).
-- podcrates `v0.39.0` is taken (PodUtils/podcrates#137 has no item for
-  podrunner but the tag); a COORD issue answers it.
-- T-037 (partial): the `microvm` kind (`crates/podrunner-microvm`,
-  `[unit.microvm]`) passes its 11 unit tests on real guests, and the
-  official runner in a guest completes a canned job. On podvm
-  `v0.2.0-beta.9` (PodUtils/podvm#303) the guest has no NIC and one
-  channel to the egress socket of the unit (`127.0.0.1:3128`, the proxy of
-  the job). Next: read the runner-image run of this change (the self-test
-  of T-036 on a real guest, `tests/selftest.rs`, and the canned job through
-  the channel), then the acceptance of GitHub #37. Close #81 and #83, and
-  answer PodUtils/podvm#303 by a COORD issue, when the run is green.
-- T-105 (blocked on podvm, GitHub #85): the incus tier of podvm runs
-  the runner image as a system container (step 1, the measure, passes at
-  `e8257ad`). The `incus` kind needs `run -d --name` with stdin for the
-  credential files. LXC gives a system container a boot id of its own, so
-  the guest self-test (T-036) now compares `/proc/version` too.
-- The x86_64 job of `runner-image.yml` takes about 30 minutes: it has
-  60 minutes, and each podvm conformance suite 900 s.
-- T-096 is done: podvm `v0.2.0-beta.7` is pinned, and the 28 tar forms
-  pass (runner-image run 43351590729). #78 tells podvm.
-- T-099 is done: each conformance test has a time limit; test 27 passed
-  in 12 runs after it.
-- T-051 and T-030 are done: podvm `v0.2.0-beta.6`, the aarch64 import
-  is green.
-- The owner, 2026-11-13: Q4 yes (T-098, done), DR-7 yes (a test
-  organization and App). `v0.1.0-beta.2` is released (release run
-  43359637417 at `afa7508`): `podrunner` and `scaleset-sidecar` for x86_64
-  and aarch64, the notes of `docs/releases/v0.1.0-beta.2.md`. A
-  `runner-image.yml` run on the tag gives the runner image archives.
+- T-037 (partial): next is the acceptance of GitHub #37 on the fake
+  source. T-036 (partial): next is the check of the mounts on each
+  `guest` start. Then T-039 (L2) closes.
+- T-105 (partial): the incus suite passes (run 43454398354). GitHub #85
+  (podvm stdin for incus) is closed by the lead session. T-109 gives the
+  kind an egress hold.
+- T-108 (blocked): podcrates did `cpu_s` and `peak_rss_mib` on its
+  `main` (PodUtils/podcrates@T-527); take the tag `v0.40.0` (GitHub #86).
+- T-103 (partial): steps 1 and 2 are done; next is the runner image with
+  an engine in a guest and the value `engine` of `ContainerRoute`.
+- T-101 (partial): the `program` source kind is in; its pair with GitHub
+  runs on the host of LIVE-2 when githome gives its program (GitHub #66).
 - The live gates: two agents on two constrained hosts, GitHub #74
   (LIVE-1, the remote mint and the App key) and #75 (LIVE-2, the unit
-  host and the test jobs). They need beta.2. Read their comments; fix
-  each defect they find.
+  host and the test jobs). Read their comments; fix each defect they
+  find.
+- The x86_64 job of `runner-image.yml` takes about 30 minutes: it has
+  60 minutes, and each podvm conformance suite 900 s.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs
@@ -95,19 +91,20 @@ is done.
 
 | Who | What | Entries |
 | --- | --- | --- |
-| The owner, then LIVE-1 and LIVE-2 | the test organization and App, then the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
+| LIVE-1 and LIVE-2 | the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
+| podcrates | the tag `v0.40.0` with `cpu_s` and `peak_rss_mib` (GitHub #86) | T-108 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
 
 ## Open issues and asks
 
-- GitHub #70 (COORD-012, to podcrates): an absolute `tar -C` fails in a
-  podvm unit (T-096, PodUtils/podcrates@T-328).
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.
-- The probe of podvm names the mode of the host; the `--report` of a run
-  names its rung (GitHub #68, closed; T-085).
+- GitHub #85 (COORD-025, to podvm): podvm answered in
+  PodUtils/podvm#307; the lead session closes it.
+- GitHub #86 (COORD-026, to podcrates): podcrates answered; it closes with
+  the take of `v0.40.0` (T-108).
 
 ## Talk between sessions
 

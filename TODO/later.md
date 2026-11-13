@@ -621,7 +621,7 @@ The offer carries a typed event (`Event` of `pod-job`): githome maps each of its
 **Milestone:** later
 **Priority:** P2
 **Effort:** L
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -637,13 +637,11 @@ Read GitHub #77 and #66 (the comments of githome of 2026-11-13) on 2026-11-13. T
 2. A design note: an engine inside the unit (a rootless Docker or Podman inside a podvm guest of the machine tier, or inside a system container of incus), with its socket in the unit only. Record the choice in `docs/decisions.md`.
 3. Then the crate ask to podcrates (`pod-dockerapi`, if the census needs it) by a COORD issue.
 
+State (2026-11-13): step 1 is done: the census of the verbs and the design (`docs/container-engine.md`): the runner runs 15 verbs of the `docker` command line, and Docker-in-Docker needs the whole Engine API, so a real engine runs inside a guest with its socket there, and no shim (`pod-dockerapi`) is needed. Step 2 is done: podvm `v0.2.0-beta.10` gives a guest with no NIC and one host channel (GitHub #83 is closed; the microvm kind uses it, T-037). Next: step 3, the runner image with an engine and the value `engine` of `ContainerRoute` (a COORD issue to podcrates).
+
 ## Prove
 
 The census and the design are in `docs/`; a `docker build` job and a `services:` job pass in a unit in `runner-image.yml`.
-
-## Blocker
-
-podvm: the guest with no NIC and one host channel (GitHub #83, PodUtils/podvm@T-1751), shared with T-037. Done before it: step 1, the census of the verbs and the design (`docs/container-engine.md`): the runner runs 15 verbs of the `docker` command line, and Docker-in-Docker needs the whole Engine API, so a real engine runs inside a guest with its socket there, and no shim (`pod-dockerapi`) is needed.
 
 # T-104: G-10: the source conformance tests as a command for another source program
 
@@ -804,4 +802,84 @@ Ask podcrates for `cpu_s` and `peak_rss_mib` in `RunReport` and `PublicReport`, 
 
 ## Blocker
 
-podcrates: the two fields in `pod-job` (GitHub #86, COORD-026).
+podcrates: the two fields in `pod-job` (GitHub #86, COORD-026). podcrates did the work on its `main` (PodUtils/podcrates@T-527, `ed9b2d9`); the entry waits for the tag `v0.40.0`.
+
+# T-109: The incus kind has no egress hold, so placement gives it no trusted job
+
+**Source:** T-105 (a read of `crates/podrunner-incus/src/lib.rs` and `crates/podrunner-slots/src/placement.rs`, 2026-11-13)
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The `incus` kind claims `confined`, the floor of `trusted`, and its `probe` gives `net: nat` and `egress_hold: none`: an instance uses the default bridge of incusd with NAT. Placement asks the hold `advisory` or more for a `trusted` job (`needed_hold`), so it refuses each `trusted` offer on the kind with `hold-not-available`. The kind then serves no job of a forge, and G-02 of githome (GitHub #66) is not met. An instance with NAT also has a way out that does not pass the egress module.
+
+## Premise
+
+Read `crates/podrunner-incus/src/lib.rs` (`probe`), `crates/podrunner/src/incus_kind.rs` and `crates/podrunner-slots/src/placement.rs` (`needed_hold`) on 2026-11-13. Not measured: a `trusted` offer under `serve` with only `[unit.incus]`.
+
+## Approach
+
+- Write a slots test first: a `trusted` offer and only a kind with the record of `incus` is refused with `hold-not-available`.
+- Give the instance no NIC and one way out to the egress socket of the unit, as the `microvm` kind has: an incus `proxy` device from a port on the loopback of the instance to the socket, and the proxy variables set by the script of the instance. Then the kind claims `enforced`.
+- If the incus tier of podvm cannot give that (no `--podvm-net none` and no proxy device), ask podvm by a COORD issue `(to podvm)` and set this entry `blocked`.
+
+## Prove
+
+`cargo test -p podrunner-slots placement`, then `cargo test -p podrunner-incus --test conformance -- --ignored` on a host with incus: a payload reaches an allowed host through the egress socket and nothing else.
+
+# T-110: The microvm and incus kinds do not check the version of podvm
+
+**Source:** A read of `crates/podrunner-microvm/src/lib.rs` and `crates/podrunner-incus/src/lib.rs` (2026-11-13)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The `podvm` kind refuses a podvm binary outside `LOWEST` to `BEYOND` in its `probe` (`crates/podrunner-podvm/src/probe.rs`), so a wrong version fails by name, not a job at run time. The `microvm` and `incus` kinds build their records with no call to podvm. Both need podvm `v0.2.0-beta.10` or later (`docs/configuration.md`): the channel of a guest with no NIC, and `run -d -i` for the credential files of an instance. With an older podvm, `serve` starts, and each job fails at `start`.
+
+## Premise
+
+Read the `probe` of the three kinds on 2026-11-13. Not measured: a run of the two kinds with podvm `v0.2.0-beta.9`.
+
+## Approach
+
+Give `podrunner-podvm` a check of the version against a lowest version of the caller. The `probe` of `microvm` and of `incus` runs `podvm --version` and refuses a version below `0.2.0-beta.10` or at `BEYOND` and later with a `UnitError` that names both versions. A test over a fake podvm that prints `0.2.0-beta.9` holds it.
+
+## Prove
+
+`cargo test -p podrunner-microvm` and `cargo test -p podrunner-incus`
+
+# T-111: The configuration accepts keys that nothing reads
+
+**Source:** A read of `crates/podrunner-slots/src/config.rs` and `docs/configuration.md` (2026-11-13)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`docs/configuration.md` says that an unknown key is refused. Two parts of the file do not hold that:
+
+- `[egress]` is a free map. slots reads only `default_policy` (`crates/podrunner-slots/src/run.rs`). A misspelled `default_policy` gives no ceiling of the operator, and an offer then gets its own policy with no narrowing, with no error.
+- `[unit.microvm]` and `[unit.incus]` accept `podnet`, `confine`, `registries` and `runner_dir`, which their kinds do not read. Only `mem` and `cpus` are refused on `[unit.incus]`.
+
+## Premise
+
+Read `crates/podrunner-slots/src/config.rs`, `crates/podrunner/src/microvm_kind.rs` and `crates/podrunner/src/incus_kind.rs` on 2026-11-13. Not measured.
+
+## Approach
+
+Make `[egress]` a struct with `deny_unknown_fields` and one field `default_policy` (a `broker-policy.v1` object, checked at load: `schema`, `mode`, no `path` rule). In the `plan` of the `microvm` and `incus` kinds, refuse each key of `UnitConfig` that the kind does not read, with the name of the key. Tests: a misspelled key of `[egress]` and `podnet` on `[unit.incus]` exit 78.
+
+## Prove
+
+`cargo test -p podrunner-slots config` and `cargo test -p podrunner --test check`

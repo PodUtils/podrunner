@@ -283,7 +283,7 @@ Close L2 when T-034 to T-038 are done and the level 2 suite is green.
 
 ## Blocker
 
-T-036 (the guest floor self-test needs a real guest kind) and T-037 (the microvm driver waits for DR-5). The other parts hold: T-034 and T-035 are done (a canned `container:` job passes the hook path of the podvm driver in `runner-image.yml`), T-038 is done, and level 2 runs on a schedule (`level2.yml`, each Monday).
+T-036 (partial: the check of the mounts on each `guest` start) and T-037 (partial: the acceptance of GitHub #37 on the fake source). Both pass on real guests of the machine tier of podvm (runner-image run 43454398354 at `e8795f2`). The other parts hold: T-034 and T-035 are done (a canned `container:` job passes the hook path of the podvm driver in `runner-image.yml`), T-038 is done, and level 2 runs on a schedule (`level2.yml`, each Monday).
 
 
 # T-040: Level 3: the live acceptance suite (GitHub #40)

@@ -1,7 +1,8 @@
 # The configuration: podrunner.toml
 
 `crates/podrunner-slots/src/config.rs` reads this file. An unknown key is
-refused. A file that lowers the floor of a tier, or that names a `fake`
+refused, except in `[egress]` and for a key of `[unit.KIND]` that its kind
+does not read (T-111). A file that lowers the floor of a tier, or that names a `fake`
 source or unit with no `allow_fake = true`, is refused.
 
 `docs/examples/podrunner.toml` is a working example (a fake source and fake units); `podrunner check --config FILE` checks a file with no side effect. A test reads each block below and refuses a key that does not exist.
@@ -27,7 +28,7 @@ arch = "x86_64"              # or "aarch64"
 operator_controlled = true   # the full report; else the public report
 slots = 4                    # the most units of this source at one time
 
-[unit.podvm]                 # one table for each unit kind: fake, podvm
+[unit.podvm]                 # one table for each unit kind: fake, podvm, microvm, incus
 slots = 2
 command = ["./run.sh"]       # the top process of a unit
 binary = "/usr/local/bin/podvm"       # podvm: the released podvm binary
@@ -69,7 +70,10 @@ built_at_s = 1800000000      # the time of the build, Unix seconds
 runner_version = "2.338.2"   # the official runner in the image
 max_age_s = 2419200          # the age limit of this pin; the smaller of it and [pin] max_age_s holds
 
-[egress]                     # the egress ceiling of each tier (T-024)
+[egress]                     # the egress policy of the operator (T-024, T-107)
+# broker-policy.v1 of pod-broker: the policy of each job. The policy of an offer
+# can only narrow it; absent: the policy of the offer, else no way out at all.
+default_policy = { schema = 1, mode = "allow", allow = [{ host = "*.github.com", ports = [443] }] }
 
 [dns]                        # the resolver of the egress and of a remote mint (pod-dns, T-076)
 doh = true                   # ask DNS over HTTPS (resolvers by their address) when the system and the cache fail
@@ -91,10 +95,11 @@ container route. The host needs `qemu-system-x86_64` (or `-aarch64`) and
 podvm `v0.2.0-beta.10` or later.
 
 The guest has no NIC. Its one way out is a channel of podvm from
-`127.0.0.1:3128` in the guest to the egress socket of the unit, and the
-job gets `http_proxy` and `https_proxy` of that address. So the egress
-hold is `enforced` with no `podnet`: a program that does not use the
-proxy reaches nothing.
+`127.0.0.1:3128` in the guest to the egress socket of the unit. The
+driver gives the guest the port in `PODRUNNER_CHANNEL_PORT`, and the
+script of the guest sets `http_proxy`, `https_proxy` and their upper-case
+forms to `http://127.0.0.1:PORT`. So the egress hold is `enforced` with
+no `podnet`: a program that does not use the proxy reaches nothing.
 
 ```toml
 guest_kinds = ["microvm"]
@@ -116,6 +121,11 @@ host. It claims `confined`, the floor of `trusted`, so it never serves an
 incusd that the user of podrunner can reach (`PODVM_INCUS_SOCKET` or
 `INCUS_DIR` in the environment of `serve`) and podvm `v0.2.0-beta.10` or
 later: the credential files go into the instance on stdin.
+
+The instance has the default network of incusd (a bridge with NAT) and
+no egress hold. Placement asks a hold for a `trusted` job, so it gives
+the kind no `trusted` job (`hold-not-available`) until T-109 gives the
+instance a way out through the egress socket only.
 
 ```toml
 [unit.incus]

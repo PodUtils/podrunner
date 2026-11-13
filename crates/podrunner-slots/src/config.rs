@@ -291,7 +291,9 @@ pub struct Config {
     /// guest self-test (GitHub #36).
     #[serde(default = "microvm")]
     pub guest_kinds: Vec<String>,
-    /// The egress policy ceiling of each tier (T-024).
+    /// `[egress]`: `default_policy`, the `broker-policy.v1` of the operator,
+    /// which the policy of an offer can only narrow (T-024, T-107). No other
+    /// key is read (T-111).
     #[serde(default)]
     pub egress: Map<String, Value>,
 }

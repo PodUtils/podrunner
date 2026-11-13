@@ -14,8 +14,9 @@
 //!
 //! The guest has no NIC (`--podvm-net none`). With a socket directory, its
 //! one way out is a channel of podvm from `127.0.0.1:3128` in the guest to
-//! the egress socket of the unit, and the payload gets that address as its
-//! proxy: the hold needs no help of the host.
+//! the egress socket of the unit. The guest script sets the proxy
+//! variables of the payload from `PODRUNNER_CHANNEL_PORT`: the hold needs
+//! no help of the host.
 
 mod guest;
 

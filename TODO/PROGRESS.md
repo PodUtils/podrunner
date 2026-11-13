@@ -1,21 +1,24 @@
 # Progress
 
-`TODO/INDEX.md` holds 108 entries: 0 open, 6 partial, 8 blocked, 94 done.
+`TODO/INDEX.md` holds 111 entries: 3 open, 7 partial, 7 blocked, 94 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
-  DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is yes (2026-11-13): the live gates run on GitHub #74 and #75.
+  DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is yes
+  (2026-11-13): the live gates run on GitHub #74 and #75.
 - Pins: podcrates `v0.39.0`, podvm `v0.2.0-beta.10`, podnet
-  `v0.4.0-beta.8`, runner v2.338.2.
-  Last beta: `v0.1.0-beta.2` (release run 43359637417, 2026-11-13).
-- M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for the live gates (GitHub #74, #75). M-D: T-031 and T-045
-  done; the gate T-033 waits for the live gates. L2: T-034, T-035, T-038 done; the
-  gate T-039 waits for a real guest (T-036, T-037).
+  `v0.4.0-beta.8`, runner v2.338.2. Last beta: `v0.1.0-beta.2` (release
+  run 43359637417); the notes of beta.3 are ready, and the lead session
+  releases it. Last green `runner-image.yml`: 43454398354 (`e8795f2`).
+- M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for
+  the live gates (GitHub #74, #75). M-D: T-031 and T-045 done; the gate
+  T-033 waits for the live gates. L2: T-034, T-035, T-038 done; the gate
+  T-039 waits for T-036 and T-037, which pass on real guests.
 - Each project gets COORD issues only (no direct message, the owner,
-  2026-11-12); podnet and podvm answer; podssh is on break. An entry that needs a
-  change of another project is `blocked`, and the session takes the next
-  entry.
+  2026-11-12); podnet and podvm answer; podssh is on break. An entry that
+  needs a change of another project is `blocked`, and the session takes
+  the next entry.
 - Keep this section short. Write the current state only; git keeps the
   history.
 
@@ -27,15 +30,18 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-037 (M, partial): the microvm kind on podvm `v0.2.0-beta.10` passes on real guests with no NIC (the self-test, 11 unit tests, the canned job through the channel; run 43437838544). Next: the acceptance of GitHub #37 on the fake source.
-2. T-036 (S, partial): the check of the mounts on each `guest` start.
-3. T-105 (M, partial): the `incus` kind (`crates/podrunner-incus`) on podvm `v0.2.0-beta.10`. Next: read its conformance run in `runner-image.yml`, then close GitHub #85.
-4. T-101 (M, partial): the `program` source kind is in; its pair with GitHub runs on the host of LIVE-2 (GitHub #75) when githome gives its program.
+1. T-037 (M, partial): the microvm kind passes on real guests with no NIC (run 43454398354). Next: the acceptance of GitHub #37 on the fake source.
+2. T-036 (S, partial): the check of the mounts on each `guest` start. With T-037 it closes T-039 (L2).
+3. T-109 (M, open): the incus kind has no egress hold, so it gets no `trusted` job; give the instance one way out to the egress socket.
+4. T-105 (M, partial): the incus suite passes on real instances (run 43454398354). Close it with T-109; the lead session closes GitHub #85.
+5. T-110 (S, open): the microvm and incus kinds check the version of podvm in `probe`.
+6. T-103 (L, partial): steps 1 and 2 are done. Next: the runner image with an engine in a guest, and `engine` of `ContainerRoute` (a COORD issue to podcrates).
+7. T-111 (S, open): refuse the keys of `[egress]` and of `[unit.KIND]` that nothing reads.
+8. T-101 (M, partial): the `program` source kind is in; its pair with GitHub runs on the host of LIVE-2 (GitHub #75) when githome gives its program.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
-
-Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-103 (the engine in a guest, after T-037), T-108 (podcrates: the use fields of the report, GitHub #86), T-039 (after T-037), T-043 (crates of podcrates).
+Blocked: T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-039 (after T-036 and T-037), T-108 (the tag `v0.40.0` of podcrates, GitHub #86), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
 
 ## Questions for the owner
 

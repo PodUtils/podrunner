@@ -10,7 +10,7 @@
 4 issue closed
 5 issue closed
 6 issue closed
-7 issue open
+7 issue closed
 8 issue closed
 9 issue open
 10 issue closed
@@ -81,7 +81,7 @@
 75 issue open
 76 issue closed
 77 issue closed
-78 issue open
+78 issue closed
 79 issue closed
 80 issue closed
 81 issue closed

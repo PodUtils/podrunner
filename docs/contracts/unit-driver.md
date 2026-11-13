@@ -1,7 +1,8 @@
 # The unit driver contract, version 1
 
 A unit is one isolated environment for one job. A driver makes units of
-one kind (`fake`, `podvm`, `microvm`, `docker`, `host`). In v1 the seam is
+one kind (`fake`, `podvm`, `microvm`, `incus`; `docker` and `host` are
+non-goals of v1, `docs/non-goals.md`). In v1 the seam is
 the Rust trait `UnitDriver` of `crates/podrunner-unit/src/lib.rs`. A wire
 of JSON lines for drivers outside the tree is deferred (GitHub #10).
 
@@ -62,7 +63,9 @@ and the hook relay. A driver whose unit has a root of its own names, in
 `sockets` and mounts it there, and the environment of the unit names the
 guest paths. The podvm driver mounts it at `/run/podrunner` on the
 supervise rung, the rung that has volumes and so the container route.
-A driver with no `socket_mount` shares the paths of the host (`fake`).
+`start` gets the directory also when the driver has no `socket_mount`
+(T-107): the fake shares the paths of the host, and the microvm driver
+connects the channel of its guest to the egress socket of the directory.
 
 ## Errors
 
@@ -134,7 +137,7 @@ each design test, the tests here that cover it, and what is open (T-053).
 | 8 exec env, workdir | UC `container-lifecycle` (an exec with an environment and `/tmp`) | none |
 | 9 another unit's container | HU `the_socket_of_one_unit_reaches_no_container_of_another`: no call names a container id | none |
 | 10 proof canary | UC `no-credential-in-the-outputs` | none |
-| 11 guest self-test | SG `a_fake_that_claims_guest_fails_the_self_test` | a real guest passes (T-036, T-037) |
+| 11 guest self-test | SG `a_fake_that_claims_guest_fails_the_self_test`; a guest of the microvm kind passes (`crates/podrunner-microvm/tests/selftest.rs`, `runner-image.yml`) | the check of the mounts on each `guest` start (T-036) |
 | 12 `../x` | `crates/podrunner-schema/src/lib.rs` `an_id_that_climbs_never_parses` (pod-job ids) | none |
 | 13 container options | HK `each_rule_refuses_its_input`, `a_job_container_of_the_runner_passes_with_its_mounts` (the seven entries), `the_mount_tables_and_the_order_of_the_design` | none on the fake path |
 | 14 job_state | HU `each_command_reaches_the_fake_unit` (a second `job-started` is ignored and goes to the audit), SG `job_started_in_running_is_ignored_and_job_completed_moves_no_state` | none |
