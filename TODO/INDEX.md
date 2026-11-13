@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**111 entries: 0 open, 7 partial, 6 blocked, 98 done.**
+**111 entries: 0 open, 6 partial, 5 blocked, 100 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 3 | 0 | 31 | 34 |
-| P2 | 0 | 3 | 4 | 43 | 50 |
+| P2 | 0 | 2 | 3 | 45 | 50 |
 | P3 | 0 | 1 | 2 | 24 | 27 |
-| **All** | 0 | 7 | 6 | 98 | 111 |
+| **All** | 0 | 6 | 5 | 100 | 111 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -83,10 +83,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-033](live.md) | P2 | S | M-D | chore | blocked | Milestone M-D: one live trusted job on a no-root host (GitHub #33) |
 | [T-034](level2.md) | P2 | S | L2 | measurement | done | WP-13: measure U19 and U21 on the podvm rung (GitHub #34) |
 | [T-035](level2.md) | P2 | M | L2 | feature | done | WP-09: the hook relay and the control socket server of each unit (ctl) (GitHub #35) |
-| [T-036](level2.md) | P2 | S | L2 | feature | partial | The guest floor self-test (GitHub #36) |
+| [T-036](level2.md) | P2 | S | L2 | feature | done | The guest floor self-test (GitHub #36) |
 | [T-037](level2.md) | P2 | M | L2 | feature | done | WP-11: the microvm unit driver (form set by DR-5) (GitHub #37) |
 | [T-038](level2.md) | P2 | S | L2 | feature | done | WP-12: the canned-message fake broker (level 2) (GitHub #38) |
-| [T-039](level2.md) | P2 | S | L2 | chore | blocked | Milestone L2: level 2 green, the hook path measured (GitHub #39) |
+| [T-039](level2.md) | P2 | S | L2 | chore | done | Milestone L2: level 2 green, the hook path measured (GitHub #39) |
 | [T-040](level2.md) | P3 | M | L3 | chore | blocked | Level 3: the live acceptance suite (GitHub #40) |
 | [T-041](later.md) | P3 | S | later | feature | done | Hold enforced on podvm units (pod-hold or pod-sud) (GitHub #41) |
 | [T-042](later.md) | P3 | S | later | feature | done | The confined boundary (pod-confine) (GitHub #42) |

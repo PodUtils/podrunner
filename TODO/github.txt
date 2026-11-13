@@ -39,10 +39,10 @@
 33 issue open
 34 issue closed
 35 issue closed
-36 issue open
+36 issue closed
 37 issue closed
 38 issue closed
-39 issue open
+39 issue closed
 40 issue open
 41 issue closed
 42 issue closed

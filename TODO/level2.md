@@ -106,7 +106,7 @@ The crate `podrunner-hook`:
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -141,6 +141,10 @@ The pass on a real guest holds: in runner-image runs 43417481104 (`a918fac`) and
 ## Prove
 
 `cargo test -p podrunner-slots guest`
+
+## Done
+
+2026-11-13, runner-image run 43472656290 (`67689fa`). The guest script checks `/proc/mounts` before each job (`MOUNT_CHECK`) in each guest of the suite, the canned job and the acceptance of GitHub #37, and each passes. With the self-test on a real guest (run 43454398354), each point of GitHub #36 holds. GitHub #36 is closed.
 
 # T-037: WP-11: the microvm unit driver (form set by DR-5) (GitHub #37)
 
@@ -259,7 +263,7 @@ Read the text of GitHub #38 on 2026-11-11. Nothing measured.
 **Milestone:** L2
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -285,10 +289,9 @@ Close L2 when T-034 to T-038 are done and the level 2 suite is green.
 
 `cargo test --workspace -- --include-ignored level2`, and the gate run of the closing commit.
 
-## Blocker
+## Done
 
-T-036 (partial: the check of the mounts on each `guest` start) and T-037 (partial: the acceptance of GitHub #37 on the fake source). Both pass on real guests of the machine tier of podvm (runner-image run 43454398354 at `e8795f2`). The other parts hold: T-034 and T-035 are done (a canned `container:` job passes the hook path of the podvm driver in `runner-image.yml`), T-038 is done, and level 2 runs on a schedule (`level2.yml`, each Monday).
-
+2026-11-13. T-034 to T-038 are done and GitHub #34 to #38 are closed. Level 2 runs on a schedule (`level2.yml`); its last run is green: 43475568946 (`35595a6`). The hook path of the podvm driver passes in runner-image run 43472656290 (`67689fa`). GitHub #39 is closed.
 
 # T-040: Level 3: the live acceptance suite (GitHub #40)
 
