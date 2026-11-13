@@ -76,6 +76,13 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             format!("{head}[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nmem = \"4G\"\n{pin}"),
             "microvm kind only",
         ),
+        // T-111: a key of the podvm kind that the incus kind does not read.
+        (
+            format!(
+                "{head}[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\npodnet = \"/bin/true\"\n{pin}"
+            ),
+            "[unit.incus] podnet",
+        ),
     ];
     for (i, (text, word)) in cases.iter().enumerate() {
         let file = d.join(format!("{i}.toml"));

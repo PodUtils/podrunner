@@ -364,7 +364,7 @@ impl Slots {
     /// way out at all.
     fn policy_of(&self, key: &Key) -> String {
         let offer = self.jobs[key].offer.as_ref().map(|o| o.policy.clone()).filter(|p| !p.is_empty());
-        let default = self.cfg.egress.get("default_policy").and_then(|v| v.as_object()).cloned();
+        let default = self.cfg.egress.default_policy.clone();
         let (offer, default) = (offer.map(serde_json::Value::Object), default.map(serde_json::Value::Object));
         match (offer, default) {
             (Some(o), Some(d)) => crate::policy::narrow(&d, &o).to_string(),

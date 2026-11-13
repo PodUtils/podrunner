@@ -16,6 +16,17 @@ use crate::serve::{Failure, fail};
 /// Check `[unit.incus]` with no side effect: the podvm binary and the
 /// store of the images. `mem` and `cpus` are of the machine tier only.
 pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
+    // The keys of the podvm kind: this kind reads none of them (T-111).
+    for (key, set) in [
+        ("registries", !u.registries.is_empty()),
+        ("runner_dir", u.runner_dir.is_some()),
+        ("podnet", u.podnet.is_some()),
+        ("confine", u.confine),
+    ] {
+        if set {
+            return Err(fail(Class::Config, format!("[unit.incus] {key}: the incus kind does not read it")));
+        }
+    }
     let binary = u.binary.clone().ok_or_else(|| fail(Class::Config, "[unit.incus] needs binary"))?;
     podrunner_slots::config::check_driver(Path::new(&binary))
         .map_err(|e| fail(Class::Config, format!("[unit.incus] binary: {e}")))?;

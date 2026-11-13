@@ -6,7 +6,8 @@
 //! (`open` or `allow`), `allow` rules (`host`, `path`, `ports`) and extra
 //! `deny` entries. The fixed denies of `pod-broker` hold in each mode.
 
-use serde_json::{Value, json};
+use serde::Deserialize;
+use serde_json::{Map, Value, json};
 
 /// Whether a policy has a rule with a path: podrunner has no TLS end, so it
 /// cannot hold one (`egress-policy-unsupported`).
@@ -98,6 +99,36 @@ pub fn narrow(ceiling: &Value, offer: &Value) -> Value {
         p["deny"] = json!(deny);
     }
     p
+}
+
+/// `[egress]` (T-111): an unknown key is refused, so a misspelled
+/// `default_policy` does not leave the operator with no ceiling.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EgressConfig {
+    /// The `broker-policy.v1` of the operator: the policy of a job with no
+    /// policy of its own, and the ceiling of the policy of an offer (T-024,
+    /// T-107).
+    #[serde(default)]
+    pub default_policy: Option<Map<String, Value>>,
+}
+
+impl EgressConfig {
+    /// The parts of `default_policy` that a host can hold: version 1, a
+    /// known mode, and no path rule (no TLS end).
+    pub(crate) fn check(&self) -> Result<(), String> {
+        let Some(p) = &self.default_policy else { return Ok(()) };
+        if p.get("schema").and_then(Value::as_u64) != Some(1) {
+            return Err("[egress] default_policy: schema must be 1".into());
+        }
+        if !matches!(p.get("mode").and_then(Value::as_str), Some("open" | "allow")) {
+            return Err("[egress] default_policy: mode must be \"open\" or \"allow\"".into());
+        }
+        if has_path_rule(p) {
+            return Err("[egress] default_policy: a path rule needs a TLS end, which podrunner has not".into());
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

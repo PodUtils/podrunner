@@ -871,7 +871,7 @@ Give `podrunner-podvm` a check of the version against a lowest version of the ca
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -891,3 +891,8 @@ Make `[egress]` a struct with `deny_unknown_fields` and one field `default_polic
 ## Prove
 
 `cargo test -p podrunner-slots config` and `cargo test -p podrunner --test check`
+
+## Done
+
+2026-11-13, this commit. `[egress]` is `EgressConfig` with `deny_unknown_fields` and one field, `default_policy`; the load refuses a policy that is not version 1, a mode other than `open` or `allow`, and a path rule. The `plan` of the `microvm` and `incus` kinds refuses `registries`, `runner_dir`, `podnet` and `confine` by name. `egress_refuses_an_unknown_key_and_a_policy_it_cannot_hold` and a case of `check_and_serve_refuse_a_bad_file_with_one_text` hold it.
+

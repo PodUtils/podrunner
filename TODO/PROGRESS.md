@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 111 entries: 1 open, 7 partial, 8 blocked, 95 done.
+`TODO/INDEX.md` holds 111 entries: 0 open, 7 partial, 8 blocked, 96 done.
 
 ## State
 
@@ -33,8 +33,7 @@ The queue, most valuable first:
 2. T-036 (S, partial): the check of the mounts on each `guest` start. With T-037 it closes T-039 (L2).
 3. T-105 (M, partial): the incus suite passes on real instances (run 43454398354); GitHub #85 is closed. It closes with T-109.
 4. T-103 (L, partial): steps 1 and 2 are done. Next: the runner image with an engine in a guest, and `engine` of `ContainerRoute` (a COORD issue to podcrates).
-5. T-111 (S, open): refuse the keys of `[egress]` and of `[unit.KIND]` that nothing reads.
-6. T-101 (M, partial): the `program` source kind is in; its pair with GitHub runs on the host of LIVE-2 (GitHub #75) when githome gives its program.
+5. T-101 (M, partial): the `program` source kind is in; its pair with GitHub runs on the host of LIVE-2 (GitHub #75) when githome gives its program.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

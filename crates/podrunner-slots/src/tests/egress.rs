@@ -159,3 +159,20 @@ fn a_policy_needs_a_hold_and_no_path_rule() {
         Some(RefusalCode::EgressPolicyUnsupported)
     );
 }
+
+/// T-111: `[egress]` refuses an unknown key and a `default_policy` that a
+/// host cannot hold.
+#[test]
+fn egress_refuses_an_unknown_key_and_a_policy_it_cannot_hold() {
+    let parse = |extra: &str| {
+        crate::config::Config::parse(&format!(
+            "host = \"h\"\n[egress]\n{extra}\n[trust]\norganizations = [{{ login = \"o\" }}]\n[pin]\n"
+        ))
+    };
+    assert!(parse("default_polcy = { schema = 1, mode = \"open\" }").unwrap_err().contains("default_polcy"));
+    assert!(parse("default_policy = { schema = 2, mode = \"open\" }").unwrap_err().contains("schema"));
+    assert!(parse("default_policy = { schema = 1, mode = \"closed\" }").unwrap_err().contains("mode"));
+    let path = "default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\", path = \"/x\" }] }";
+    assert!(parse(path).unwrap_err().contains("path rule"));
+    assert!(parse("default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\" }] }").is_ok());
+}

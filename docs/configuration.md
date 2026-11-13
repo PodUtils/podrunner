@@ -1,8 +1,9 @@
 # The configuration: podrunner.toml
 
 `crates/podrunner-slots/src/config.rs` reads this file. An unknown key is
-refused, except in `[egress]` and for a key of `[unit.KIND]` that its kind
-does not read (T-111). A file that lowers the floor of a tier, or that names a `fake`
+refused. The `microvm` and `incus` kinds also refuse a key of the podvm
+kind that they do not read (`registries`, `runner_dir`, `podnet`,
+`confine`). A file that lowers the floor of a tier, or that names a `fake`
 source or unit with no `allow_fake = true`, is refused.
 
 `docs/examples/podrunner.toml` is a working example (a fake source and fake units); `podrunner check --config FILE` checks a file with no side effect. A test reads each block below and refuses a key that does not exist.

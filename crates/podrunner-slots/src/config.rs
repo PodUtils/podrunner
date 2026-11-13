@@ -7,7 +7,9 @@ use std::collections::BTreeMap;
 use podrunner_schema::{Boundary, Tier};
 use podrunner_tier::TierConfig;
 use serde::Deserialize;
-use serde_json::{Map, Value};
+use serde_json::Value;
+
+pub use crate::policy::EgressConfig;
 
 /// The kind of a source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -291,11 +293,8 @@ pub struct Config {
     /// guest self-test (GitHub #36).
     #[serde(default = "microvm")]
     pub guest_kinds: Vec<String>,
-    /// `[egress]`: `default_policy`, the `broker-policy.v1` of the operator,
-    /// which the policy of an offer can only narrow (T-024, T-107). No other
-    /// key is read (T-111).
     #[serde(default)]
-    pub egress: Map<String, Value>,
+    pub egress: EgressConfig,
 }
 
 /// Check a driver file at its use: the file and its directory belong to
@@ -353,6 +352,7 @@ impl Config {
 
     fn check(&self) -> Result<(), String> {
         self.trust.check()?;
+        self.egress.check()?;
         for (name, floor) in &self.tier {
             let t: Tier = serde_json::from_value(Value::String(name.clone()))
                 .map_err(|_| format!("[tier.{name}]: no tier of this name"))?;
