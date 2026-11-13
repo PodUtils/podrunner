@@ -952,6 +952,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "podrunner-microvm"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "podrunner-podvm",
+ "podrunner-schema",
+ "podrunner-unit",
+]
+
+[[package]]
 name = "podrunner-mint"
 version = "0.1.0"
 dependencies = [
