@@ -23,6 +23,8 @@ on:
       - crates/podrunner-hook/relay/**
       - crates/podrunner-podvm/**
       - crates/podrunner-microvm/**
+      - crates/podrunner-incus/**
+      - crates/podrunner-slots/**
       - crates/podrunner-unit/**
       - crates/podrunner-broker-fake/**
       - crates/podrunner-local/**
