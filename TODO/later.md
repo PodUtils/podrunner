@@ -811,7 +811,7 @@ podcrates: the two fields in `pod-job` (GitHub #86, COORD-026). podcrates did th
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -830,6 +830,10 @@ Read `crates/podrunner-incus/src/lib.rs` (`probe`), `crates/podrunner/src/incus_
 ## Prove
 
 `cargo test -p podrunner-slots placement`, then `cargo test -p podrunner-incus --test conformance -- --ignored` on a host with incus: a payload reaches an allowed host through the egress socket and nothing else.
+
+## Blocker
+
+podvm: `--podvm-net none` and `--podvm-channel` on the incus tier (GitHub #88, COORD-028). The slots side holds already: `a_kind_with_no_hold_gets_no_trusted_job` refuses a `trusted` offer on a kind with no hold, as the record of `incus` has.
 
 # T-110: The microvm and incus kinds do not check the version of podvm
 
