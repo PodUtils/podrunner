@@ -64,12 +64,15 @@ is done.
 
 - podvm is available (the owner, 2026-11-13): it answers COORD issues
   `(to podvm)`. podssh is on break.
-- T-037 (partial): next is the acceptance of GitHub #37 on the fake
-  source. T-036 (partial): next is the check of the mounts on each
-  `guest` start. Then T-039 (L2) closes.
-- T-105 (partial): the incus suite passes (run 43454398354). GitHub #85
-  (podvm stdin for incus) is closed by the lead session. T-109 gives the
-  kind an egress hold.
+- L2 holds: T-036, T-037 and T-039 are done (GitHub #36, #37, #39
+  closed). The microvm kind passes the self-test, its unit tests, the
+  acceptance of #37 and the mount check on real guests.
+- T-108 is done: each report carries `cpu_s` and `peak_rss_mib`
+  (podcrates `v0.40.0`).
+- T-105 and T-109 (partial): the incus kind has no NIC and one channel
+  on podvm `v0.2.0-beta.12`. Next: read its egress test and suite in the
+  runner-image run of `6365312`; then close T-105, T-109, GitHub #88, and
+  tell podvm on its issue 316 by a COORD issue.
 - T-108 (blocked): podcrates did `cpu_s` and `peak_rss_mib` on its
   `main` (PodUtils/podcrates@T-527); take the tag `v0.40.0` (GitHub #86).
 - T-103 (partial): steps 1 and 2 are done; next is the runner image with
