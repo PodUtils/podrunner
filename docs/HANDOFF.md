@@ -86,7 +86,6 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | The owner, then LIVE-1 and LIVE-2 | the test organization and App, then the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
-| podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
 

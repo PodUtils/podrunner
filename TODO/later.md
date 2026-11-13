@@ -551,3 +551,131 @@ The text below was the Blocker before the ruling: The owner: Q4 of `TODO/PROGRES
 ## Done
 
 2026-11-13, `a3999f1`. `Gate::check` (`crates/podrunner-hook/src/policy.rs`) takes `run_container_step` before `prepare_job`, with the checks of the action mounts; `cleanup_job` and `run_script_step` before it stay refused. The test `the_mount_tables_and_the_order_of_the_design` holds both. The job `docker-step` of `crates/podrunner/tests/local/containers.yml` has no `container:` now. `docs/contracts/hook.md`, `docs/contracts/codes.md` and `docs/cli.md` say so. In runner-image run 43355069666 of `a3999f1`, the job `docker-step` (a Docker step, no `container:`) gives `ok` with the official runner through the hooks.
+
+# T-101: G-01: a source kind for an external program that speaks the source wire
+
+**Source:** GitHub #66 (G-01)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome (GitHub #66, G-01) ships its own source program, `githome source`, that speaks the source wire of `docs/contracts/source-driver.md` on its stdio. podrunner has the kinds `fake`, `github-scaleset` and `remote` only, so no forge but GitHub can give jobs. The non-goal "the `forge-contract` source" had the trigger "githome has code"; githome has code (its T-075).
+
+## Premise
+
+Read GitHub #66 (comments of 2026-11-12 and 2026-11-13) on 2026-11-13. `WireSource` (`crates/podrunner-source`) already speaks the wire to the scale-set sidecar.
+
+## Approach
+
+A `[[source]]` kind `program`: the absolute path of the program in `driver_dir`, its argv, its credential file (passed by path, mode 0600, never in argv), its slots and its labels. `serve` spawns it and talks the wire over its stdio with `WireSource`, as for the sidecar. `podrunner status --json` groups the jobs by source. Remove the row of the non-goal.
+
+## Prove
+
+The 12 source conformance tests pass against a program of the test that speaks the wire; with a `github-scaleset` fake and a `program` source of 2 slots each, 10 jobs of each run and no source holds more than its slots.
+
+# T-102: G-13: a table of the events of a job in the tier rule
+
+**Source:** GitHub #66 (G-13)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The tier rule (`crates/podrunner-tier`) refuses each event of the class `other`. Most events that githome fires fall in it, so githome's live test uses only `push`, `pull_request` and `workflow_dispatch` (GitHub #66, G-13).
+
+## Premise
+
+Read GitHub #66 (the comment of 2026-11-13) on 2026-11-13.
+
+## Approach
+
+A table of event names to the event classes of the tier rule, with the events of GitHub and the events that githome names, and a configuration table that adds a name. An event that the table does not name stays `other` and is refused.
+
+## Prove
+
+`cargo test -p podrunner-tier` with each event of the table, and an unknown event refused.
+
+# T-103: G-09: a container engine inside the unit, and the census of the verbs (DR-8)
+
+**Source:** GitHub #77, GitHub #66 (G-09)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+DR-8 (call C2) keeps the official container hooks and no Docker API socket, and brings an engine back when "an ask names a client that the hooks do not reach". The owner ruled on 2026-11-13 that githome's G-09 keeps three such clients: `services:` containers, `docker build` (and Dockerfile actions) and Docker-in-Docker. Each works on a GitHub-hosted runner. G-09 refuses a socket of the host.
+
+## Premise
+
+Read GitHub #77 and #66 (the comments of githome of 2026-11-13) on 2026-11-13. The hooks run `container:` jobs and Docker actions (T-093, T-098); `services:` runs only on a unit with its own network; `docker build` is refused (`build-not-supported`).
+
+## Approach
+
+1. The census of the verbs (DR-17): the Docker CLI calls of the three clients (`docker build`, `docker run` and `docker network` of `services:`, the daemon of Docker-in-Docker), from the source of the official runner and of the actions that the asks name.
+2. A design note: an engine inside the unit (a rootless Docker or Podman inside a podvm guest of the machine tier, or inside a system container of incus), with its socket in the unit only. Record the choice in `docs/decisions.md`.
+3. Then the crate ask to podcrates (`pod-dockerapi`, if the census needs it) by a COORD issue.
+
+## Prove
+
+The census and the design are in `docs/`; a `docker build` job and a `services:` job pass in a unit in `runner-image.yml`.
+
+# T-104: G-10: the source conformance tests as a command for another source program
+
+**Source:** GitHub #66 (G-10)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome wants to run the conformance tests of the source wire in its own CI against `githome source` (GitHub #66, G-10; PodUtils/podcrates#83). The tests exist only as a test of this repository.
+
+## Premise
+
+Read GitHub #66 (the comment of 2026-11-13) on 2026-11-13. The 12 tests are in `crates/podrunner-source` (`conformance`).
+
+## Approach
+
+`podrunner source-conformance -- PROGRAM ARGS...`: spawn the program, run the 12 tests over its stdio, print one line for each test, and exit 0 only when each passes. It ships in the release binary.
+
+## Prove
+
+`cargo test -p podrunner` with the fake source program passing and a planted defect failing.
+
+# T-105: G-02: an `incus` unit kind for trusted jobs (a system container)
+
+**Source:** GitHub #66 (G-02)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome's G-02 asks that a trusted job run in a system container with its own init, file system, network and engine, such as a system container of incus, and that the host never falls back to a weaker kind. The non-goal "The `incus` and `host` kinds" had the trigger "an ask names Incus"; G-02 names it.
+
+## Premise
+
+Read GitHub #66 (G-02) on 2026-11-13. podvm `v0.2.0-beta.6` has an incus tier (`--podvm-tier=incus`, with `run -d`, `exec` and volumes).
+
+## Approach
+
+An `incus` kind over podvm's incus tier, behind `UnitDriver`, as `microvm` is over its machine tier (T-037): the same seam, the conformance suite, and a measure on a host with incus. It can also hold the engine of T-103.
+
+## Prove
+
+`cargo test -p podrunner-incus --test conformance -- --ignored` passes on a host with incus.
+

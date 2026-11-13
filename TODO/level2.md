@@ -144,7 +144,7 @@ Open: the read-only mounts on each `guest` start, and a pass on a real guest. Bo
 
 ## Blocker
 
-The read-only mounts and the pass on a real guest need the `microvm` kind (T-037), which waits for the machine tier of podvm (PodUtils/podvm@T-1656; podvm on break).
+The read-only mounts and the pass on a real guest need the `microvm` kind (T-037). podvm landed its machine tier (PodUtils/podvm@T-1656); T-037 is in work (`crates/podrunner-microvm`).
 
 # T-037: WP-11: the microvm unit driver (form set by DR-5) (GitHub #37)
 

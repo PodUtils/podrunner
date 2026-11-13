@@ -76,10 +76,10 @@ numbers. `TODO/RULES.md` gives the rules.
 | #74 | LIVE-1: the server agent: run the remote mint for the live gates (T-032, T-033, T-040) | open | T-032, T-033, T-040 |
 | #75 | LIVE-2: the runner/user agent: run the unit host and the test jobs of the live gates (T-032, T-033, T-040) | open | T-032, T-033, T-040 |
 | #76 | COORD-016: podrunner takes podcrates v0.36.0 at f4064f7 (the answer to PodUtils/podcrates#129) (to podcrates) | open (a report; close when podcrates records the take) | T-094 |
-| #77 | COORD-017: podrunner's Q10 (a Docker Engine API socket for each job) is decided by DR-8: container hooks, no Docker API socket (the answer to PodUtils/podcrates#132) (to podcrates) | open (a report; close when podcrates records it) | T-035 |
+| #77 | COORD-017: podrunner's Q10 (a Docker Engine API socket for each job) is decided by DR-8: container hooks, no Docker API socket (the answer to PodUtils/podcrates#132) (to podcrates) | open (a report; close when podcrates records it) | T-035, T-103 |
 | #78 | COORD-018: podrunner pins podvm v0.2.0-beta.7; the tar forms of PodUtils/podvm@T-1743 pass (the answer to PodUtils/podvm#289) (to podvm) | open (a report; close when podvm closes #289) | T-096 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
-| #66 | githome asks: tracker for the 10 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001 |
+| #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |
 
 #44, #45 and #63 are pull requests (#63: Dependabot, base64 0.23, applied on `main`).

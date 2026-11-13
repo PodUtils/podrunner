@@ -1,16 +1,16 @@
 # Progress
 
-`TODO/INDEX.md` holds 100 entries: 1 open, 3 partial, 7 blocked, 89 done.
+`TODO/INDEX.md` holds 105 entries: 6 open, 3 partial, 7 blocked, 89 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
-  DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
+  DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is yes (2026-11-13): the live gates run on GitHub #74 and #75.
 - Pins: podcrates `v0.36.0`, podvm `v0.2.0-beta.7`, podnet
   `v0.4.0-beta.8`, runner v2.338.2.
   Last beta: `v0.1.0-beta.2` (release run 43359637417, 2026-11-13).
-- M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for DR-7. M-D: T-031 and T-045
-  done; the gate T-033 waits for DR-7. L2: T-034, T-035, T-038 done; the
+- M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for the live gates (GitHub #74, #75). M-D: T-031 and T-045
+  done; the gate T-033 waits for the live gates. L2: T-034, T-035, T-038 done; the
   gate T-039 waits for a real guest (T-036, T-037).
 - Each project gets COORD issues only (no direct message, the owner,
   2026-11-12); podnet and podvm answer; podssh is on break. An entry that needs a
