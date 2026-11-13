@@ -26,6 +26,13 @@ out=$(timeout 600 "$podvm" run --rm --podvm-tier=machine --podvm-mem "${MACHINE_
   echo "guest kernel $(uname -r)"
   echo "guest cgroup $(stat -fc %T /sys/fs/cgroup 2>&1)"
   for fs in overlay tmpfs; do grep -qw "$fs" /proc/filesystems && echo "guest fs $fs yes" || echo "guest fs $fs no"; done
+  # The guest mounts no cgroup and loads no overlay: the script, as root,
+  # mounts cgroup2 and tries the module.
+  mount -t cgroup2 cgroup2 /sys/fs/cgroup 2>&1 | sed "s/^/guest cgroup-mount /"
+  echo "guest cgroup after $(stat -fc %T /sys/fs/cgroup 2>&1) controllers $(cat /sys/fs/cgroup/cgroup.controllers 2>&1 | tr "\n" " ")"
+  modprobe overlay 2>&1 | sed "s/^/guest modprobe /"
+  grep -qw overlay /proc/filesystems && echo "guest fs overlay after yes" || echo "guest fs overlay after no"
+  ls /lib/modules 2>&1 | sed "s/^/guest modules /"
   export PATH=/mnt/engine/docker:$PATH
   mkdir -p /var/lib/docker /run
   dockerd --iptables=false --ip6tables=false --bridge=none --host=unix:///run/docker.sock > /tmp/dockerd.log 2>&1 &
