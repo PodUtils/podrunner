@@ -683,3 +683,32 @@ An `incus` kind over podvm's incus tier, behind `UnitDriver`, as `microvm` is ov
 
 `cargo test -p podrunner-incus --test conformance -- --ignored` passes on a host with incus.
 
+# T-106: The actor classes of githome (agent, bot, external) in the offer schema
+
+**Source:** GitHub #66 (the comment of githome of 2026-11-13, G-02 and G-13)
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+githome states the class of the actor of each job as `agent`, `bot`, `member` or `external` in `trust_inputs.actor_class`. The offer schema (`ActorClass` of `pod-job`, podcrates `v0.37.0`) has `member`, `outside` and `unknown` only, so an offer with `agent`, `bot` or `external` does not parse, and podrunner refuses it. The tier rule (`crates/podrunner-tier`) makes a job trusted only for `member`; it must keep each other class below trusted, and an `agent` job must need `guest` (githome sets `unit_need.min_boundary = guest` for it).
+
+## Premise
+
+Read GitHub #66 (githome, 2026-11-13) and the file `offer.rs` of `pod-job` of podcrates `v0.37.0` on 2026-11-13.
+
+## Approach
+
+Ask podcrates (COORD issue, GitHub #80) for `ActorClass::Agent` and `ActorClass::Bot` in `pod-job`, and tell githome to send `outside` for `external` (the name of the schema). Then take the tag: `agent` and `bot` are never trusted, and `agent` needs `guest` in the tier rule, whatever the offer says.
+
+## Prove
+
+`cargo test -p podrunner-tier` with an offer of each class: only `member` can be trusted, and `agent` has the floor `guest`.
+
+## Blocker
+
+podcrates: `ActorClass::Agent` and `ActorClass::Bot` in `pod-job` (GitHub #80).
+
