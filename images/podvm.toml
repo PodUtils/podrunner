@@ -6,9 +6,11 @@
 # v0.2.0-beta.6 carries the aarch64 interposer objects (T-051); beta.7 the
 # fortified opens of glibc in the interposer (T-096); beta.8 the fixes of
 # podvm's QA pass; beta.9 the owners of the image in a guest of the
-# machine tier, `--podvm-net none` and `--podvm-channel` (T-037).
-version = "0.2.0-beta.9"
+# machine tier, `--podvm-net none` and `--podvm-channel` (T-037); beta.10
+# the channel on `pod-link` with its socket in a directory of mode 0700,
+# and stdin for an incus instance that stays (`run -d -i`, T-105).
+version = "0.2.0-beta.10"
 
 [sha256]
-x86_64 = "f6aed932c245a09f0fe5a60ccf46a3080f09c7d657dace982bc114dc1940dbce"
-aarch64 = "c26a24afc5bd8f6336c377c50d3b154767eae7d28efe40638d5bf64bbeeaa71e"
+x86_64 = "df9ce678919cf43248348d167f8561ffc000fdde40925e5a3612a960a5905dd1"
+aarch64 = "ebf9aa0043820ca18152921c667823c3ef9dd8f4ba2caf17695daadaee19f1be"

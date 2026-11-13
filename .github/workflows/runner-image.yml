@@ -288,6 +288,9 @@ jobs:
           sudo usermod -aG incus-admin "$USER"
           sg incus-admin -c "sh scripts/measure-incus.sh '$PODRUNNER_PODVM' '$PODRUNNER_PODVM_IMAGES' '$PODRUNNER_RUNNER_IMAGE' '$RUNNER_TEMP/incus'" \
             | tee -a "$GITHUB_STEP_SUMMARY"
+          # T-105 step 2: the unit tests of the incus kind on real instances.
+          cargo test -p podrunner-incus --test conformance --no-run
+          sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 1800 cargo test -p podrunner-incus --test conformance -- --ignored --nocapture"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runner-${{ matrix.arch }}

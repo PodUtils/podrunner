@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.39.0` (`Cargo.toml`); podvm `v0.2.0-beta.9`
+- Pins: podcrates `v0.39.0` (`Cargo.toml`); podvm `v0.2.0-beta.10`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.2` (2026-11-13, `afa7508`).

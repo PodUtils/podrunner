@@ -188,8 +188,8 @@ impl UnitDriver for MicrovmUnit {
         let log = fs::File::create(dir.join("guest.log")).map_err(|e| host("the log of the guest", e))?;
         let log2 = log.try_clone().map_err(|e| host("the log of the guest", e))?;
         let mut cmd = Command::new(&self.podvm.binary);
-        // podvm makes the socket of the channel in the temp directory: no
-        // other user of the host may reach it.
+        // No file that podvm or QEMU makes for the unit (the socket of the
+        // channel too) is open to another user of the host.
         // SAFETY: umask is async-signal-safe and changes only the child.
         unsafe {
             use std::os::unix::process::CommandExt;
