@@ -37,7 +37,9 @@ use podrunner_unit::{
     Signal, StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
 
-pub use guest::{CHANNEL_PORT_VAR, CRED_MOUNT, EGRESS_PORT, MOUNT_CHECK, Shape, WORK_MOUNT, run_args};
+pub use guest::{
+    CHANNEL_PORT_VAR, CRED_MOUNT, EGRESS_PORT, ENGINE_MOUNT, ENGINE_SOCKET, MOUNT_CHECK, Shape, WORK_MOUNT, run_args,
+};
 
 /// The time that `destroy` waits for the processes of a unit to end.
 const KILL_LIMIT: Duration = Duration::from_secs(10);
@@ -71,6 +73,9 @@ pub struct MicrovmUnit {
     /// A directory that keeps the log of each guest after `destroy`, for a
     /// test that reads it then.
     kept_logs: Option<PathBuf>,
+    /// The directory of the static Docker binaries of the operator: each
+    /// guest runs an engine of its own (T-103).
+    engine: Option<PathBuf>,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -93,7 +98,16 @@ impl MicrovmUnit {
             units: Mutex::new(HashMap::new()),
             cred_root: "/podrunner/.runner".into(),
             kept_logs: None,
+            engine: None,
         }
+    }
+
+    /// Run a container engine in each guest, from the static Docker
+    /// binaries in `dir` (T-103). The runner of the job gets its socket as
+    /// `DOCKER_HOST`; the socket stays in the guest.
+    pub fn with_engine(mut self, dir: &Path) -> MicrovmUnit {
+        self.engine = Some(dir.to_path_buf());
+        self
     }
 
     /// Keep the log of each guest as `DIR/UNIT.log` at `destroy`.
@@ -183,7 +197,8 @@ impl UnitDriver for MicrovmUnit {
         }
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
         let egress = spec.sockets.as_ref().map(|s| s.join(EGRESS_SOCKET));
-        let shape = Shape { mem: &self.mem, cpus: self.cpus, egress: egress.as_deref() };
+        let shape =
+            Shape { mem: &self.mem, cpus: self.cpus, egress: egress.as_deref(), engine: self.engine.as_deref() };
         let args = run_args(&reference, &dir, &shape, &self.cred_root, &spec.env, &spec.argv);
         // The output of the guest: `unit_logs` reads it before `destroy`.
         let log = fs::File::create(dir.join("guest.log")).map_err(|e| host("the log of the guest", e))?;

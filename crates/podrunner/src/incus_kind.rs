@@ -22,6 +22,7 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         ("runner_dir", u.runner_dir.is_some()),
         ("podnet", u.podnet.is_some()),
         ("confine", u.confine),
+        ("engine", u.engine.is_some()),
     ] {
         if set {
             return Err(fail(Class::Config, format!("[unit.incus] {key}: the incus kind does not read it")));

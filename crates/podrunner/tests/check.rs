@@ -83,6 +83,15 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             ),
             "[unit.incus] podnet",
         ),
+        // T-103: an engine directory with no dockerd, and an engine on incus.
+        (
+            format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nengine = \"/\"\n{pin}"),
+            "no dockerd",
+        ),
+        (
+            format!("{head}[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nengine = \"/\"\n{pin}"),
+            "[unit.incus] engine",
+        ),
     ];
     for (i, (text, word)) in cases.iter().enumerate() {
         let file = d.join(format!("{i}.toml"));

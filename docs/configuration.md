@@ -111,7 +111,16 @@ binary = "/opt/podrunner/drivers/podvm"  # the released podvm binary
 images = "/var/lib/podrunner/images"     # a podvm store with the pinned images
 mem = "4G"                               # the memory of each guest (default 4G)
 cpus = 2                                 # its vCPUs (default 2)
+engine = "/opt/podrunner/docker"         # optional: the static Docker binaries; each guest runs an engine
 ```
+
+With `engine`, each guest loads the modules of an engine
+(`--podvm-engine`, podvm `v0.2.0-beta.14` or later), mounts the directory
+read-only, and starts `dockerd` before the runner. The runner gets its
+socket as `DOCKER_HOST`; the socket stays in the guest, and the engine
+pulls through the egress channel. The runner image needs `iptables`
+(`images/runner/Dockerfile` has it). The kind says `container: none` until
+podcrates gives the value `engine` (T-103, GitHub #91).
 
 ## The incus kind
 

@@ -37,6 +37,11 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     if !Path::new(&images).is_dir() {
         return Err(fail(Class::Config, "[unit.microvm] images: not a directory"));
     }
+    if let Some(e) = &u.engine
+        && !Path::new(e).join("dockerd").is_file()
+    {
+        return Err(fail(Class::Config, "[unit.microvm] engine: no dockerd in the directory"));
+    }
     if u.cpus.is_some_and(|c| c == 0 || c > 64) {
         return Err(fail(Class::Config, "[unit.microvm] cpus: 1 to 64"));
     }
@@ -53,6 +58,10 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
     let images = PathBuf::from(u.images.clone().unwrap_or_default());
     let unit = podrunner_microvm::MicrovmUnit::new(podvm, &state.join("microvm"), &images)
         .with_size(u.mem.as_deref().unwrap_or("4G"), u.cpus.unwrap_or(2));
+    let unit = match &u.engine {
+        Some(e) => unit.with_engine(Path::new(e)),
+        None => unit,
+    };
     let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
     Ok((Arc::new(unit), cap))
 }

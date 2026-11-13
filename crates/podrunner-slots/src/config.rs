@@ -144,6 +144,10 @@ pub struct UnitConfig {
     pub mem: Option<String>,
     #[serde(default)]
     pub cpus: Option<u32>,
+    /// `microvm`: the directory of the static Docker binaries; each guest
+    /// runs an engine of its own (T-103).
+    #[serde(default)]
+    pub engine: Option<String>,
 }
 
 fn run_sh() -> Vec<String> {

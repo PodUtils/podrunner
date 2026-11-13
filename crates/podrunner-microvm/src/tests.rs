@@ -47,7 +47,7 @@ fn spec(unit: &str) -> StartSpec {
 fn the_argv_holds_the_tier_the_size_and_a_read_only_volume_and_no_credential() {
     let env = BTreeMap::from([("A".to_string(), "1".to_string())]);
     let argv = vec!["/home/runner/run.sh".to_string(), "a b".to_string()];
-    let shape = Shape { mem: "4G", cpus: 2, egress: None };
+    let shape = Shape { mem: "4G", cpus: 2, egress: None, engine: None };
     let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", &env, &argv);
     let s = a.join(" ");
     for want in ["run --rm --podvm-tier=machine --podvm-net none", "--podvm-mem 4G", "--podvm-cpus 2", "-e A=1"] {
@@ -138,7 +138,7 @@ fn the_kind_claims_a_guest_and_has_no_container_route() {
 
 #[test]
 fn an_egress_socket_is_the_one_channel_and_the_proxy_of_the_payload() {
-    let shape = Shape { mem: "4G", cpus: 2, egress: Some(Path::new("/s/sockets/egress.sock")) };
+    let shape = Shape { mem: "4G", cpus: 2, egress: Some(Path::new("/s/sockets/egress.sock")), engine: None };
     let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", &BTreeMap::new(), &[]);
     let s = a.join(" ");
     assert!(s.contains(&format!("--podvm-net none --podvm-mem 4G --podvm-cpus 2 --podvm-channel /s/sockets/egress.sock:127.0.0.1:{EGRESS_PORT}")), "{s}");
@@ -166,8 +166,42 @@ fn the_mount_check_takes_only_the_table_of_the_unit() {
     assert!(!check(&format!("{base}{}{work}", cred.replace(" ro,", " rw,"))), "a writable credential directory");
     assert!(!check(&format!("{base}{cred}{work}home /mnt/home 9p rw 0 0\n")), "a host path outside the table");
     assert!(!check(&format!("{base}{cred}{work}fs /data virtiofs rw 0 0\n")), "a virtiofs mount");
-    let a =
-        run_args(IMAGE, Path::new("/s/u-1"), &Shape { mem: "4G", cpus: 2, egress: None }, "/r", &BTreeMap::new(), &[]);
+    let a = run_args(
+        IMAGE,
+        Path::new("/s/u-1"),
+        &Shape { mem: "4G", cpus: 2, egress: None, engine: None },
+        "/r",
+        &BTreeMap::new(),
+        &[],
+    );
     assert!(a.iter().any(|w| w.contains(MOUNT_CHECK)), "the script holds the check");
+    let _ = fs::remove_dir_all(&d);
+}
+
+#[test]
+fn an_engine_is_a_read_only_mount_and_the_flag_of_podvm() {
+    let shape = Shape { mem: "4G", cpus: 2, egress: None, engine: Some(Path::new("/opt/docker")) };
+    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", &BTreeMap::new(), &[]);
+    let s = a.join(" ");
+    assert!(s.contains("--podvm-engine"), "{s}");
+    assert!(a.contains(&format!("/opt/docker:{ENGINE_MOUNT}:ro")), "{s}");
+    assert!(s.contains("dockerd --host=unix:///run/podrunner-docker.sock"), "the script starts the engine");
+    let d = dir("engine-mounts");
+    let f = d.join("mounts");
+    let ok = |table: &str| {
+        fs::write(&f, table).unwrap();
+        std::process::Command::new("awk").arg(MOUNT_CHECK).arg(&f).status().unwrap().success()
+    };
+    assert!(ok("e /podrunner-engine 9p ro,trans=virtio 0 0\n"), "a read-only engine directory");
+    assert!(!ok("e /podrunner-engine 9p rw,trans=virtio 0 0\n"), "a writable engine directory");
+    let none = run_args(
+        IMAGE,
+        Path::new("/s/u-1"),
+        &Shape { mem: "4G", cpus: 2, egress: None, engine: None },
+        "/r",
+        &BTreeMap::new(),
+        &[],
+    );
+    assert!(!none.join(" ").contains("--podvm-engine"));
     let _ = fs::remove_dir_all(&d);
 }

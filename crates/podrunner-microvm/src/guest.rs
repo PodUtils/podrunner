@@ -18,10 +18,19 @@ pub const CRED_MOUNT: &str = "/mnt/podrunner-cred";
 /// of the host, and `destroy` removes it.
 pub const WORK_MOUNT: &str = "/podrunner-work";
 
+/// Where the guest sees the directory of the static Docker binaries of the
+/// operator (a 9p mount, read-only), when the kind has an engine (T-103).
+pub const ENGINE_MOUNT: &str = "/podrunner-engine";
+
+/// The socket of the engine in the guest: the runner gets it as
+/// `DOCKER_HOST`. It is in the guest only (G-09).
+pub const ENGINE_SOCKET: &str = "/run/podrunner-docker.sock";
+
 /// The awk program of the mount check (T-036, GitHub #36): it fails when a
 /// host mount of the guest (9p or virtiofs) is not the credential
-/// directory, read-only, or the work directory of the unit.
-pub const MOUNT_CHECK: &str = r#"$3 == "9p" || $3 == "virtiofs" { if ($2 == "/mnt/podrunner-cred" && ("," $4 ",") ~ /,ro,/) next; if ($2 == "/podrunner-work") next; bad = 1 } END { exit bad }"#;
+/// directory or the engine directory, read-only, or the work directory of
+/// the unit.
+pub const MOUNT_CHECK: &str = r#"$3 == "9p" || $3 == "virtiofs" { if (($2 == "/mnt/podrunner-cred" || $2 == "/podrunner-engine") && ("," $4 ",") ~ /,ro,/) next; if ($2 == "/podrunner-work") next; bad = 1 } END { exit bad }"#;
 
 /// The script of the guest. `$1` is the runner root; the rest is the argv of
 /// the payload. It copies the credential files into the runner root at
@@ -41,6 +50,21 @@ fi
 if [ -n "${PODRUNNER_CHANNEL_PORT:-}" ]; then
   u=http://127.0.0.1:$PODRUNNER_CHANNEL_PORT
   export http_proxy=$u https_proxy=$u HTTP_PROXY=$u HTTPS_PROXY=$u
+fi
+# The engine of the unit (T-103): dockerd as root in the guest, its socket
+# in the guest only, the proxy of the channel for its pulls. The root of
+# the guest is an initramfs: DOCKER_RAMDISK keeps runc off pivot_root.
+if [ -x /podrunner-engine/dockerd ]; then
+  PATH=/podrunner-engine:$PATH DOCKER_RAMDISK=true dockerd --host=unix:///run/podrunner-docker.sock >/tmp/podrunner-dockerd.log 2>&1 &
+  i=0
+  while [ ! -S /run/podrunner-docker.sock ] && [ $i -lt 60 ]; do sleep 1; i=$((i + 1)); done
+  if [ ! -S /run/podrunner-docker.sock ]; then
+    echo "podrunner: the engine did not start" >&2
+    tail -n 20 /tmp/podrunner-dockerd.log >&2
+    exit 95
+  fi
+  if id runner >/dev/null 2>&1; then chown runner /run/podrunner-docker.sock; fi
+  export DOCKER_HOST=unix:///run/podrunner-docker.sock PATH=/podrunner-engine:$PATH
 fi
 mkdir -p "$root"
 for f in /mnt/podrunner-cred/.[!.]* /mnt/podrunner-cred/*; do
@@ -68,6 +92,9 @@ pub struct Shape<'a> {
     /// The egress socket of the unit on the host: the only way out of the
     /// guest, which has no NIC.
     pub egress: Option<&'a Path>,
+    /// The directory of the static Docker binaries: the guest runs an
+    /// engine of its own (`--podvm-engine`, T-103).
+    pub engine: Option<&'a Path>,
 }
 
 /// The variable that gives the guest script the port of the egress
@@ -93,6 +120,11 @@ pub fn run_args(
         .to_vec();
     a.push("--podvm-cpus".into());
     a.push(shape.cpus.to_string());
+    if let Some(engine) = shape.engine {
+        a.push("--podvm-engine".into());
+        a.push("-v".into());
+        a.push(format!("{}:{ENGINE_MOUNT}:ro", engine.display()));
+    }
     if let Some(egress) = shape.egress {
         a.push("--podvm-channel".into());
         a.push(format!("{}:127.0.0.1:{EGRESS_PORT}", egress.display()));

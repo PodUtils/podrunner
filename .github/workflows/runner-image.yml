@@ -295,6 +295,14 @@ jobs:
           docker save measure:latest -o "$RUNNER_TEMP/measure.tar"
           sh scripts/measure-engine.sh "$PODRUNNER_PODVM" "$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_RUNNER_IMAGE" \
             "$RUNNER_TEMP/engine" "$RUNNER_TEMP/docker.tgz" "$RUNNER_TEMP/measure.tar" | tee -a "$GITHUB_STEP_SUMMARY"
+          # T-103: the microvm kind with an engine, through its driver.
+          mkdir -p "$RUNNER_TEMP/engine-dir"
+          tar -xzf "$RUNNER_TEMP/docker.tgz" -C "$RUNNER_TEMP/engine-dir" --strip-components=1
+          cp "$RUNNER_TEMP/measure.tar" "$RUNNER_TEMP/engine-dir/image.tar"
+          chmod -R a+rX "$RUNNER_TEMP/engine-dir"
+          cargo test -p podrunner-microvm --test engine --no-run
+          PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" PODRUNNER_ENGINE_DIR="$RUNNER_TEMP/engine-dir" timeout 900 \
+            cargo test -p podrunner-microvm --test engine -- --ignored --nocapture
       # T-105 step 1: the incus tier of podvm for the incus kind. A measure:
       # incus from apt, initialized with its defaults, and podvm in the
       # group of its socket.
