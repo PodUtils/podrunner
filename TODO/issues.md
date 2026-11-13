@@ -83,7 +83,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #81 | COORD-021: the machine tier gives each file of the image to root: a non-root user of the image cannot run its programs (to podvm) | open | T-037 |
 | #82 | COORD-022: podrunner takes podcrates v0.38.0 at 28ce3b5 (the answer to PodUtils/podcrates#136) (to podcrates) | closed (podcrates closed #136 with the take) | T-094 |
 | #83 | COORD-023: a machine-tier guest with no NIC and one host channel for podrunner's microvm kind (PodUtils/podvm@T-1751) (to podvm) | open | T-037, T-036 |
-| #84 | COORD-024: podrunner takes podcrates v0.39.0 at 69d7b14 (the answer to PodUtils/podcrates#137) (to podcrates) | open (a report; close when podcrates records the take) | T-094 |
+| #84 | COORD-024: podrunner takes podcrates v0.39.0 at 69d7b14 (the answer to PodUtils/podcrates#137) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#137) | T-094 |
 | #85 | COORD-025: the incus tier needs stdin for an instance that stays, for podrunner's incus kind (to podvm) | open | T-105 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106 |
