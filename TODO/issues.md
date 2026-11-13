@@ -81,7 +81,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #79 | COORD-019: podrunner takes podcrates v0.37.0 at 5fc53c4 (the answer to PodUtils/podcrates#134) (to podcrates) | closed (podcrates closed #134 with the take) | T-094 |
 | #80 | COORD-020: pod-job: ActorClass needs agent and bot for githome's offers (to podcrates) | closed (podcrates `v0.38.0` gives agent and bot; taken) | T-106 |
 | #81 | COORD-021: the machine tier gives each file of the image to root: a non-root user of the image cannot run its programs (to podvm) | open | T-037 |
-| #82 | COORD-022: podrunner takes podcrates v0.38.0 at 28ce3b5 (the answer to PodUtils/podcrates#136) (to podcrates) | open (a report; close when podcrates records the take) | T-094 |
+| #82 | COORD-022: podrunner takes podcrates v0.38.0 at 28ce3b5 (the answer to PodUtils/podcrates#136) (to podcrates) | closed (podcrates closed #136 with the take) | T-094 |
 | #83 | COORD-023: a machine-tier guest with no NIC and one host channel for podrunner's microvm kind (PodUtils/podvm@T-1751) (to podvm) | open | T-037, T-036 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106 |
