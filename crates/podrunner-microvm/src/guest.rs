@@ -34,7 +34,9 @@ for f in /mnt/podrunner-cred/.[!.]* /mnt/podrunner-cred/*; do
 done
 cd /podrunner-work
 if id runner >/dev/null 2>&1; then
-  chown -R runner: "$root"
+  # The machine tier gives each file of the image to root: the runner tree
+  # goes back to its user (the guest root is fresh for each run).
+  chown -R runner: "$root" /home/runner
   exec setpriv --reuid=runner --regid=runner --init-groups -- "$@"
 fi
 exec "$@"
