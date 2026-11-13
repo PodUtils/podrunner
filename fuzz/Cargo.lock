@@ -876,6 +876,7 @@ dependencies = [
  "podrunner-egress",
  "podrunner-fake",
  "podrunner-hook",
+ "podrunner-incus",
  "podrunner-local",
  "podrunner-microvm",
  "podrunner-mint",
@@ -955,6 +956,16 @@ dependencies = [
  "podrunner-unit",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "podrunner-incus"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "podrunner-podvm",
+ "podrunner-schema",
+ "podrunner-unit",
 ]
 
 [[package]]

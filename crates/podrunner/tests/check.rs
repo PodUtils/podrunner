@@ -70,6 +70,12 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
         // The microvm kind (T-037): its podvm binary, and its vCPUs.
         (format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/\"\nimages = \"/\"\n{pin}"), "[unit.microvm] binary"),
         (format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ncpus = 0\n{pin}"), "cpus"),
+        // The incus kind (T-105): its podvm binary, and no size of a guest.
+        (format!("{head}[unit.incus]\nslots = 1\nbinary = \"/\"\nimages = \"/\"\n{pin}"), "[unit.incus] binary"),
+        (
+            format!("{head}[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nmem = \"4G\"\n{pin}"),
+            "microvm kind only",
+        ),
     ];
     for (i, (text, word)) in cases.iter().enumerate() {
         let file = d.join(format!("{i}.toml"));

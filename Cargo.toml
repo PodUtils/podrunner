@@ -46,6 +46,7 @@ podrunner-remote = { path = "crates/podrunner-remote" }
 podrunner-broker-fake = { path = "crates/podrunner-broker-fake" }
 podrunner-fake = { path = "crates/podrunner-fake" }
 podrunner-mint = { path = "crates/podrunner-mint" }
+podrunner-incus = { path = "crates/podrunner-incus" }
 podrunner-microvm = { path = "crates/podrunner-microvm" }
 podrunner-podvm = { path = "crates/podrunner-podvm" }
 podrunner-schema = { path = "crates/podrunner-schema" }

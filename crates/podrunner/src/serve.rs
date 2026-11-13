@@ -184,6 +184,7 @@ pub fn plan(cfg: &Config) -> Result<(), Failure> {
                 }
             }
             "microvm" => crate::microvm_kind::plan(u)?,
+            "incus" => crate::incus_kind::plan(u)?,
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }
@@ -233,6 +234,7 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
             }
             "podvm" => crate::podvm_kind::build(u, &cfg, state)?,
             "microvm" => crate::microvm_kind::build(u, state)?,
+            "incus" => crate::incus_kind::build(u, state)?,
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }

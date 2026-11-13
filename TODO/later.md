@@ -707,6 +707,10 @@ Step 1 result (2026-11-13, the run of `e8257ad`, x86_64, podvm `v0.2.0-beta.8`):
 
 podvm: an instance that stays and takes stdin (GitHub #85). The kind needs a name that it chooses, so that `destroy` removes the instance when the `podvm` client is gone (the processes of the instance belong to incusd and carry no tag), and the credential files through stdin (`/.podvm/stdin`, mode 0600, owner 0): the root of the instance is a mapped id and cannot read a host directory of mode 0700. `run -d --name` has no stdin; the foreground `run` has stdin but a random name and no label.
 
+podvm answered in PodUtils/podvm#307 (COORD-079, 2026-11-13): `run -d -i --name NAME --podvm-tier=incus` pushes the piped stdin to `/.podvm/stdin` (owner 0, mode 0600); `guest-hold --run` gives it to the command and removes it (PodUtils/podvm@T-1777). It ships in podvm `v0.2.0-beta.10`. The kind can be written against it now; the proof waits for that pin.
+
+Step 2, the code (2026-11-13, against podvm `main` at `055dd46c`): the crate `podrunner-incus` (`IncusUnit`). `start` spawns `podvm run -d -i --name NAME --podvm-tier=incus -v WORK:/podrunner-work IMAGE /bin/sh -c SCRIPT` and writes the credential files on its stdin, one line `NAME BASE64` each; the script writes them into `/podrunner/.runner` at mode 0600 and runs the payload as `runner`. The name is `podrunner-HASH-UNIT` (FNV-1a of the state directory), so a replay of the journal finds the instance. `wait` reads `podvm inspect --format '{{.Status}} {{.ExitCode}}'`; `signal` is `stop` or `rm -f`; `destroy` is `rm -f` and counts the instance if it stays. `probe` claims `confined`, `net: nat`, no container route, no egress hold. `[unit.incus]` in `serve` and `check` (`crates/podrunner/src/incus_kind.rs`). Eight tests over a fake podvm hold the stdin, the argv, the end, the kill, the replay and the refusals. `tests/conformance.rs` runs 14 unit tests on real instances; it goes into `runner-image.yml` with the pin of beta.10.
+
 # T-106: The actor classes of githome (agent, bot, external) in the offer schema
 
 **Source:** GitHub #66 (the comment of githome of 2026-11-13, G-02 and G-13)

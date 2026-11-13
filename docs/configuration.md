@@ -107,6 +107,24 @@ mem = "4G"                               # the memory of each guest (default 4G)
 cpus = 2                                 # its vCPUs (default 2)
 ```
 
+## The incus kind
+
+A system container of the incus tier of podvm for each job (T-105): its
+own init, root file system and network namespace, and the kernel of the
+host. It claims `confined`, the floor of `trusted`, so it never serves an
+`untrusted` job. It has no container route yet (T-103). The host needs an
+incusd that the user of podrunner can reach (`PODVM_INCUS_SOCKET` or
+`INCUS_DIR` in the environment of `serve`) and podvm `v0.2.0-beta.10` or
+later: the credential files go into the instance on stdin.
+
+```toml
+[unit.incus]
+slots = 2
+command = ["/home/runner/run.sh"]        # an absolute path: the job runs in a work directory
+binary = "/opt/podrunner/drivers/podvm"  # the released podvm binary
+images = "/var/lib/podrunner/images"     # a podvm store with the pinned images
+```
+
 ## The floors of the tiers
 
 | Tier | Lowest floor | Why |
