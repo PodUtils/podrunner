@@ -79,6 +79,6 @@
 73 issue closed
 74 issue open
 75 issue open
-76 issue open
-77 issue open
+76 issue closed
+77 issue closed
 78 issue open
