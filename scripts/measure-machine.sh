@@ -112,3 +112,43 @@ if [ "$n" -eq 2 ]; then echo "machine channel ok"; else echo "machine channel fa
 echo "machine channel host-side: $(tr '\n' ' ' < "$work/channel.log" 2>/dev/null)"
 printf '%s\n' "$out" | sed 's/^/machine channel out /'
 tail -c 600 "$work/stderr-ch" | sed 's/^/machine channel stderr /'
+
+# The same channel beside two 9p volumes, as the microvm kind runs it
+# (a read-only credential directory and a work directory).
+rm -f "$ch" "$work/channel.log"
+mkdir -p "$work/cred" "$work/chwork"
+chmod 0777 "$work/chwork"
+python3 -I - "$ch" "$work/channel.log" <<'PY' &
+import socket, sys, threading
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.bind(sys.argv[1]); s.listen(8); s.settimeout(240)
+log = open(sys.argv[2], "a", buffering=1)
+def one(c):
+    log.write("accept\n")
+    c.settimeout(30)
+    try:
+        data = c.recv(4096)
+        log.write("read %d\n" % len(data))
+        c.sendall(b"HTTP/1.0 200 OK\r\nContent-Length: 11\r\n\r\nchannel-42\n")
+    except Exception as e:
+        log.write("error %s\n" % e)
+    c.close()
+while True:
+    try:
+        c, _ = s.accept()
+    except Exception:
+        break
+    threading.Thread(target=one, args=(c,)).start()
+PY
+server=$!
+i=0
+while [ ! -S "$ch" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+out=$(timeout 300 "$podvm" run --rm --podvm-tier=machine --podvm-net none --podvm-mem "$mem" --podvm-cpus 2 \
+  --podvm-channel "$ch:127.0.0.1:3128" -v "$work/cred:/mnt/podrunner-cred:ro" -v "$work/chwork:/podrunner-work" \
+  -e http_proxy=http://127.0.0.1:3128 "$image" /bin/sh -c "
+  setpriv --reuid=runner --regid=runner --init-groups -- curl -s --max-time 20 http://broker.podrunner.test/ || echo 'guest channel-volumes failed'
+" 2>"$work/stderr-chv")
+kill "$server" 2>/dev/null
+case "$out" in *channel-42*) echo "machine channel-volumes ok" ;; *) echo "machine channel-volumes failed: $(printf '%s' "$out" | tr '\n' ' ')" ;; esac
+echo "machine channel-volumes host-side: $(tr '\n' ' ' < "$work/channel.log" 2>/dev/null)"
+tail -c 600 "$work/stderr-chv" | sed 's/^/machine channel-volumes stderr /'

@@ -776,3 +776,32 @@ Tell githome on GitHub #66 that `pod-broker` names the version `schema`, not `ve
 ## Done
 
 2026-11-13, this commit. `the_ceiling_of_the_operator_narrows_the_policy_of_an_offer` and `a_policy_needs_a_hold_and_no_path_rule` hold the slots side; five tests in `policy.rs` hold `narrow`. The comment on GitHub #66 tells githome about `schema`.
+
+# T-108: G-06: the CPU time and the peak memory of a job in its report
+
+**Source:** GitHub #66 (the comment of githome of 2026-11-13, G-06)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+githome takes `cpu_s` and `peak_rss_mib` from `run-report.v1` for the record of a job and for its quotas. `RunReport` of `pod-job` (podcrates `v0.39.0`) has neither field, and slots measures neither.
+
+## Premise
+
+Read the comment of githome on GitHub #66 (2026-11-13) and the report module of `pod-job` of podcrates `v0.39.0`.
+
+## Approach
+
+Ask podcrates for `cpu_s` and `peak_rss_mib` in `RunReport` and `PublicReport`, each a number or `unknown` (GitHub #86, COORD-026). Then slots samples each unit at each tick: the sum of `utime` and `stime` of each process with the tag of the unit (`/proc/PID/stat`), and the highest sum of their RSS. A kind whose processes are not on the host (`incus`) reports `unknown`.
+
+## Prove
+
+`cargo test -p podrunner-slots report`: a unit that spins reports a `cpu_s` above 0 and a `peak_rss_mib`; the `incus` kind reports `unknown`.
+
+## Blocker
+
+podcrates: the two fields in `pod-job` (GitHub #86, COORD-026).

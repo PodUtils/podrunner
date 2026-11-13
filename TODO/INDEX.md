@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**107 entries: 0 open, 5 partial, 8 blocked, 94 done.**
+**108 entries: 0 open, 5 partial, 9 blocked, 94 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 31 | 33 |
-| P2 | 0 | 2 | 6 | 40 | 48 |
+| P2 | 0 | 2 | 7 | 40 | 49 |
 | P3 | 0 | 1 | 2 | 23 | 26 |
-| **All** | 0 | 5 | 8 | 94 | 107 |
+| **All** | 0 | 5 | 9 | 94 | 108 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -155,3 +155,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-105](later.md) | P3 | M | later | feature | partial | G-02: an `incus` unit kind for trusted jobs (a system container) |
 | [T-106](later.md) | P1 | S | later | defect | done | The actor classes of githome (agent, bot, external) in the offer schema |
 | [T-107](later.md) | P1 | S | later | defect | done | The egress policy of an offer: placement, the ceiling of the operator, the socket directory |
+| [T-108](later.md) | P2 | S | later | feature | blocked | G-06: the CPU time and the peak memory of a job in its report |

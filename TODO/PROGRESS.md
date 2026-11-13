@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 107 entries: 0 open, 5 partial, 8 blocked, 94 done.
+`TODO/INDEX.md` holds 108 entries: 0 open, 5 partial, 9 blocked, 94 done.
 
 ## State
 
@@ -34,7 +34,7 @@ The queue, most valuable first:
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-103 (the engine in a guest, after T-037), T-036, T-039 (after T-037), T-043 (crates of podcrates).
+Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-103 (the engine in a guest, after T-037), T-108 (podcrates: the use fields of the report, GitHub #86), T-036, T-039 (after T-037), T-043 (crates of podcrates).
 
 ## Questions for the owner
 
