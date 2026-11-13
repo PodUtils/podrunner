@@ -152,3 +152,45 @@ kill "$server" 2>/dev/null
 case "$out" in *channel-42*) echo "machine channel-volumes ok" ;; *) echo "machine channel-volumes failed: $(printf '%s' "$out" | tr '\n' ' ')" ;; esac
 echo "machine channel-volumes host-side: $(tr '\n' ' ' < "$work/channel.log" 2>/dev/null)"
 tail -c 600 "$work/stderr-chv" | sed 's/^/machine channel-volumes stderr /'
+
+# Two variants that split the three differences of the run above (the
+# volumes, the port 3128, the proxy from the environment).
+variant() { # NAME PORT CURL_ARGS VOLUMES...
+  vname=$1; vport=$2; vcurl=$3; shift 3
+  rm -f "$ch" "$work/channel.log"
+  python3 -I - "$ch" "$work/channel.log" <<'PY' &
+import socket, sys, threading
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.bind(sys.argv[1]); s.listen(8); s.settimeout(240)
+log = open(sys.argv[2], "a", buffering=1)
+def one(c):
+    log.write("accept\n")
+    c.settimeout(30)
+    try:
+        c.recv(4096)
+        c.sendall(b"HTTP/1.0 200 OK\r\nContent-Length: 11\r\n\r\nchannel-42\n")
+    except Exception as e:
+        log.write("error %s\n" % e)
+    c.close()
+while True:
+    try:
+        c, _ = s.accept()
+    except Exception:
+        break
+    threading.Thread(target=one, args=(c,)).start()
+PY
+  vserver=$!
+  i=0
+  while [ ! -S "$ch" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+  vout=$(timeout 300 "$podvm" run --rm --podvm-tier=machine --podvm-net none --podvm-mem "$mem" --podvm-cpus 2 \
+    --podvm-channel "$ch:127.0.0.1:$vport" -e "http_proxy=http://127.0.0.1:$vport" "$@" "$image" /bin/sh -c "
+    curl -s --max-time 20 $vcurl http://broker.podrunner.test/ || echo 'guest variant failed'
+    echo \"guest env \$(env | grep -c proxy)\"
+  " 2>/dev/null)
+  kill "$vserver" 2>/dev/null
+  case "$vout" in *channel-42*) r=ok ;; *) r=failed ;; esac
+  echo "machine channel-$vname $r: $(printf '%s' "$vout" | tr '\n' ' ') host-side: $(tr '\n' ' ' < "$work/channel.log" 2>/dev/null)"
+}
+variant volumes-x-8080 8080 "-x http://127.0.0.1:8080" -v "$work/cred:/mnt/podrunner-cred:ro" -v "$work/chwork:/podrunner-work"
+variant env-3128 3128 ""
+variant one-volume 8080 "-x http://127.0.0.1:8080" -v "$work/chwork:/podrunner-work"
