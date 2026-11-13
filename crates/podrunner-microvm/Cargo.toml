@@ -12,3 +12,6 @@ libc.workspace = true
 podrunner-podvm.workspace = true
 podrunner-schema.workspace = true
 podrunner-unit.workspace = true
+
+[dev-dependencies]
+podrunner-slots.workspace = true

@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.39.0` (`Cargo.toml`); podvm `v0.2.0-beta.8`
+- Pins: podcrates `v0.39.0` (`Cargo.toml`); podvm `v0.2.0-beta.9`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.2` (2026-11-13, `afa7508`).
@@ -55,13 +55,15 @@ is done.
   IPv6 (runner-image run 43337313388).
 - podcrates `v0.39.0` is taken (PodUtils/podcrates#137 has no item for
   podrunner but the tag); a COORD issue answers it.
-- T-037 (blocked on podvm, GitHub #83): the `microvm` kind
-  (`crates/podrunner-microvm`, `[unit.microvm]`) passes its 11 unit tests
-  on real guests, and the official runner in a guest completes a canned
-  job (runner-image run 43392618033). But a guest with QEMU's user-mode
-  NIC fails the self-test of T-036 (no interface but `lo`, as the design
-  asks), so no untrusted job runs on it. It needs podvm's guest with no
-  NIC and one host channel (PodUtils/podvm@T-1751).
+- T-037 (partial): the `microvm` kind (`crates/podrunner-microvm`,
+  `[unit.microvm]`) passes its 11 unit tests on real guests, and the
+  official runner in a guest completes a canned job. On podvm
+  `v0.2.0-beta.9` (PodUtils/podvm#303) the guest has no NIC and one
+  channel to the egress socket of the unit (`127.0.0.1:3128`, the proxy of
+  the job). Next: read the runner-image run of this change (the self-test
+  of T-036 on a real guest, `tests/selftest.rs`, and the canned job through
+  the channel), then the acceptance of GitHub #37. Close #81 and #83, and
+  answer PodUtils/podvm#303 by a COORD issue, when the run is green.
 - T-105 (blocked on podvm, GitHub #85): the incus tier of podvm runs
   the runner image as a system container (step 1, the measure, passes at
   `e8257ad`). The `incus` kind needs `run -d --name` with stdin for the

@@ -1,7 +1,10 @@
 //! The official runner in a guest of the microvm kind against the fake
-//! broker (T-037, step 3): the guest reaches the broker on the loopback of
-//! the host at its gateway, takes one canned job and completes it. Ignored
-//! by default: it needs podvm, QEMU and a store with the runner image.
+//! broker (T-037, step 3). The guest has no NIC: its one way out is the
+//! channel of podvm to the egress socket of the unit. In this test a small
+//! proxy serves that socket and sends each request to the broker, which the
+//! guest names `broker.podrunner.test`. The runner takes one canned job and
+//! completes it. Ignored by default: it needs podvm, QEMU and a store with
+//! the runner image.
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
 //!   PODRUNNER_RUNNER_IMAGE=NAME@sha256:HEX \
@@ -9,14 +12,86 @@
 
 mod common;
 
-use std::path::PathBuf;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::net::TcpStream;
+use std::os::unix::net::{UnixListener, UnixStream};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use podrunner_broker_fake::{Broker, Job, files::runner_files};
 use podrunner_microvm::MicrovmUnit;
 use podrunner_podvm::Podvm;
 use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
-use podrunner_unit::{StartSpec, UnitDriver};
+use podrunner_unit::{EGRESS_SOCKET, StartSpec, UnitDriver};
+
+/// The name of the broker in the guest: not a loopback name, so the runner
+/// sends each request through its proxy.
+const NAME: &str = "broker.podrunner.test";
+
+/// Copy each byte from `a` to `b` until `a` ends, then end the write side
+/// of `b`.
+fn pipe(mut a: impl Read + Send + 'static, mut b: impl Write + Send + 'static, end: impl FnOnce() + Send + 'static) {
+    std::thread::spawn(move || {
+        let _ = std::io::copy(&mut a, &mut b);
+        end();
+    });
+}
+
+/// One connection of the proxy: a CONNECT becomes a tunnel to the broker;
+/// a request in absolute form goes to the broker in origin form.
+fn proxy_one(conn: UnixStream, broker: u16, log: &Mutex<Vec<String>>) -> std::io::Result<()> {
+    let mut r = BufReader::new(conn.try_clone()?);
+    let mut first = String::new();
+    r.read_line(&mut first)?;
+    let mut head = String::new();
+    loop {
+        let mut l = String::new();
+        if r.read_line(&mut l)? == 0 || l == "\r\n" {
+            head.push_str(&l);
+            break;
+        }
+        head.push_str(&l);
+    }
+    log.lock().unwrap().push(first.trim_end().to_string());
+    let mut up = TcpStream::connect(("127.0.0.1", broker))?;
+    let mut words = first.split_whitespace();
+    let (method, target, version) =
+        (words.next().unwrap_or(""), words.next().unwrap_or(""), words.next().unwrap_or(""));
+    let mut back = conn.try_clone()?;
+    if method == "CONNECT" {
+        back.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")?;
+    } else {
+        let path = target.strip_prefix("http://").and_then(|t| t.find('/').map(|i| &t[i..])).unwrap_or(target);
+        up.write_all(format!("{method} {path} {version}\r\n{head}").as_bytes())?;
+    }
+    up.write_all(r.buffer())?;
+    let (u1, u2) = (up.try_clone()?, up);
+    let c1 = conn.try_clone()?;
+    pipe(u1, back, move || {
+        let _ = c1.shutdown(std::net::Shutdown::Both);
+    });
+    pipe(conn, u2.try_clone()?, move || {
+        let _ = u2.shutdown(std::net::Shutdown::Write);
+    });
+    Ok(())
+}
+
+/// The proxy on the egress socket `path`, and the log of its request lines.
+fn proxy(path: &Path, broker: u16) -> Arc<Mutex<Vec<String>>> {
+    let listener = UnixListener::bind(path).unwrap();
+    let log = Arc::new(Mutex::new(Vec::new()));
+    let l = log.clone();
+    std::thread::spawn(move || {
+        for conn in listener.incoming().flatten() {
+            let l = l.clone();
+            std::thread::spawn(move || {
+                let _ = proxy_one(conn, broker, &l);
+            });
+        }
+    });
+    log
+}
 
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
@@ -32,7 +107,11 @@ fn the_runner_in_a_guest_runs_a_canned_job() {
     let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let prepared = unit.prepare(&env("PODRUNNER_RUNNER_IMAGE"), platform, false).unwrap();
 
-    let broker = Broker::start_seen_at("10.0.2.2").unwrap();
+    let broker = Broker::start_seen_at(NAME).unwrap();
+    let port: u16 = broker.base.trim_end_matches('/').rsplit(':').next().unwrap().parse().unwrap();
+    let sockets = state.join("sockets");
+    std::fs::create_dir_all(&sockets).unwrap();
+    let through = proxy(&sockets.join(EGRESS_SOCKET), port);
     broker.queue(Job::scripts("in-guest", &["echo podrunner-guest-$((6*7)); uname -r"]));
     let files = runner_files(&broker.base, "runner-u-1", &common::rsaparams())
         .into_iter()
@@ -45,7 +124,7 @@ fn the_runner_in_a_guest_runs_a_canned_job() {
         argv: vec!["/home/runner/run.sh".into()],
         env: Default::default(),
         credential: Credential { files },
-        sockets: None,
+        sockets: Some(sockets.clone()),
     };
     unit.start(&spec).unwrap();
     let exit = unit.wait(&id, Duration::from_secs(600)).unwrap();
@@ -57,9 +136,11 @@ fn the_runner_in_a_guest_runs_a_canned_job() {
     println!("{}", String::from_utf8_lossy(&unit.unit_logs(&id).unwrap_or_default()));
     let residue = unit.destroy(&id).unwrap();
     let _ = std::fs::remove_dir_all(&state);
-    println!("exit {exit:?}, residue {residue:?}\n{:?}", broker.seen());
+    let through = through.lock().unwrap().clone();
+    println!("exit {exit:?}, residue {residue:?}\n{:?}\nthrough the channel: {through:?}", broker.seen());
     assert_eq!(done.len(), 1, "{:?}\n{logs}", broker.seen());
     assert_eq!(done[0].conclusion, "succeeded", "{logs}");
     assert!(logs.contains("podrunner-guest-42"), "{logs}");
     assert!(residue.is_clean(), "{residue:?}");
+    assert!(through.iter().any(|l| l.contains(NAME)), "each request goes through the channel: {through:?}");
 }

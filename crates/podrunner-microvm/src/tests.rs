@@ -47,11 +47,13 @@ fn spec(unit: &str) -> StartSpec {
 fn the_argv_holds_the_tier_the_size_and_a_read_only_volume_and_no_credential() {
     let env = BTreeMap::from([("A".to_string(), "1".to_string())]);
     let argv = vec!["/home/runner/run.sh".to_string(), "a b".to_string()];
-    let a = run_args(IMAGE, Path::new("/s/u-1"), "4G", 2, "/home/runner", &env, &argv);
+    let shape = Shape { mem: "4G", cpus: 2, egress: None };
+    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", &env, &argv);
     let s = a.join(" ");
-    for want in ["run --rm --podvm-tier=machine", "--podvm-mem 4G", "--podvm-cpus 2", "-e A=1"] {
+    for want in ["run --rm --podvm-tier=machine --podvm-net none", "--podvm-mem 4G", "--podvm-cpus 2", "-e A=1"] {
         assert!(s.contains(want), "{want}: {s}");
     }
+    assert!(!s.contains("--podvm-channel") && !s.contains("proxy"), "no egress socket, no way out: {s}");
     assert!(a.contains(&format!("/s/u-1/cred:{CRED_MOUNT}:ro")));
     assert!(a.contains(&format!("/s/u-1/work:{WORK_MOUNT}")));
     let i = a.iter().position(|w| w == IMAGE).unwrap();
@@ -129,4 +131,16 @@ fn the_kind_claims_a_guest_and_has_no_container_route() {
     let e = u.container_logs(&id, &ContainerId("c".into())).unwrap_err();
     assert_eq!(e.code, UnitCode::ContainerNotSupported);
     let _ = fs::remove_dir_all(&d);
+}
+
+#[test]
+fn an_egress_socket_is_the_one_channel_and_the_proxy_of_the_payload() {
+    let shape = Shape { mem: "4G", cpus: 2, egress: Some(Path::new("/s/sockets/egress.sock")) };
+    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", &BTreeMap::new(), &[]);
+    let s = a.join(" ");
+    assert!(s.contains(&format!("--podvm-net none --podvm-mem 4G --podvm-cpus 2 --podvm-channel /s/sockets/egress.sock:127.0.0.1:{EGRESS_PORT}")), "{s}");
+    for (k, v) in proxy_env() {
+        assert!(s.contains(&format!("-e {k}={v}")), "{k}: {s}");
+    }
+    assert_eq!(s.matches("--podvm-channel").count(), 1);
 }

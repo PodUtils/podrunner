@@ -5,9 +5,10 @@
 # labels and the run report (T-078).
 # v0.2.0-beta.6 carries the aarch64 interposer objects (T-051); beta.7 the
 # fortified opens of glibc in the interposer (T-096); beta.8 the fixes of
-# podvm's QA pass.
-version = "0.2.0-beta.8"
+# podvm's QA pass; beta.9 the owners of the image in a guest of the
+# machine tier, `--podvm-net none` and `--podvm-channel` (T-037).
+version = "0.2.0-beta.9"
 
 [sha256]
-x86_64 = "b751424fc2856e8408fdc9328ff458a23bfa654ae14ba06805822f030b7e05a2"
-aarch64 = "f3b383bba8552598f4e4fe80831a40772d6261dec7f78e4f0f65b5b0397aeed0"
+x86_64 = "f6aed932c245a09f0fe5a60ccf46a3080f09c7d657dace982bc114dc1940dbce"
+aarch64 = "c26a24afc5bd8f6336c377c50d3b154767eae7d28efe40638d5bf64bbeeaa71e"

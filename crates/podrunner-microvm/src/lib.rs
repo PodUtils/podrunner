@@ -11,6 +11,11 @@
 //! the unit that the guest mounts over 9p. Each process of the unit (podvm, QEMU)
 //! carries the tag of the unit, so `destroy` ends the whole tree. A unix
 //! socket does not cross into a guest: the kind has no container route.
+//!
+//! The guest has no NIC (`--podvm-net none`). With a socket directory, its
+//! one way out is a channel of podvm from `127.0.0.1:3128` in the guest to
+//! the egress socket of the unit, and the payload gets that address as its
+//! proxy: the hold needs no help of the host.
 
 mod guest;
 
@@ -27,11 +32,11 @@ use podrunner_schema::{
 };
 use podrunner_unit::procs::{self, TAG_VAR};
 use podrunner_unit::{
-    ContainerId, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue, Signal,
-    StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
+    ContainerId, ContainerSpec, ContainerState, Count, EGRESS_SOCKET, ExecSpec, Exit, Observation, Prepared, Residue,
+    Signal, StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
 
-pub use guest::{CRED_MOUNT, WORK_MOUNT, run_args};
+pub use guest::{CRED_MOUNT, EGRESS_PORT, Shape, WORK_MOUNT, proxy_env, run_args};
 
 /// The time that `destroy` waits for the processes of a unit to end.
 const KILL_LIMIT: Duration = Duration::from_secs(10);
@@ -131,7 +136,7 @@ impl UnitDriver for MicrovmUnit {
             boundary_proof: None,
             principal: Principal::Distinct,
             container: ContainerRoute::None,
-            net: "user-nat".into(),
+            net: "none".into(),
             secret_delivery: vec![podrunner_schema::SecretDelivery::Files],
             // The files wait on the disk of the host until the guest copies them.
             credential_store: CredentialStore::PrivateDir,
@@ -139,7 +144,8 @@ impl UnitDriver for MicrovmUnit {
             rootfs_fresh: Fact::Yes,
             tree_kill: TreeKill::Unverified,
             limits: Default::default(),
-            egress_hold: EgressHold::None,
+            // No NIC: the channel to the egress socket is the only way out.
+            egress_hold: EgressHold::Enforced,
             kvm: kvm(),
         })
     }
@@ -175,11 +181,24 @@ impl UnitDriver for MicrovmUnit {
             return Err(e);
         }
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
-        let args = run_args(&reference, &dir, &self.mem, self.cpus, &self.cred_root, &spec.env, &spec.argv);
+        let egress = spec.sockets.as_ref().map(|s| s.join(EGRESS_SOCKET));
+        let shape = Shape { mem: &self.mem, cpus: self.cpus, egress: egress.as_deref() };
+        let args = run_args(&reference, &dir, &shape, &self.cred_root, &spec.env, &spec.argv);
         // The output of the guest: `unit_logs` reads it before `destroy`.
         let log = fs::File::create(dir.join("guest.log")).map_err(|e| host("the log of the guest", e))?;
         let log2 = log.try_clone().map_err(|e| host("the log of the guest", e))?;
-        let child = Command::new(&self.podvm.binary)
+        let mut cmd = Command::new(&self.podvm.binary);
+        // podvm makes the socket of the channel in the temp directory: no
+        // other user of the host may reach it.
+        // SAFETY: umask is async-signal-safe and changes only the child.
+        unsafe {
+            use std::os::unix::process::CommandExt;
+            cmd.pre_exec(|| {
+                libc::umask(0o077);
+                Ok(())
+            });
+        }
+        let child = cmd
             .args(&args)
             .env("PODVM_STORE", &self.images)
             .env(TAG_VAR, &tag)

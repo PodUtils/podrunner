@@ -960,6 +960,7 @@ dependencies = [
  "libc",
  "podrunner-podvm",
  "podrunner-schema",
+ "podrunner-slots",
  "podrunner-unit",
 ]
 

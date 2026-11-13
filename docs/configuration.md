@@ -87,7 +87,14 @@ A guest of the machine tier of podvm for each job (T-037): its own kernel,
 under KVM where `/dev/kvm` opens. It is the unit of the `untrusted` tier:
 it claims `guest`, and `serve` takes the claim only for a kind on
 `guest_kinds` and after the self-test of the guest (GitHub #36). It has no
-container route. The host needs `qemu-system-x86_64` (or `-aarch64`).
+container route. The host needs `qemu-system-x86_64` (or `-aarch64`) and
+podvm `v0.2.0-beta.9` or later.
+
+The guest has no NIC. Its one way out is a channel of podvm from
+`127.0.0.1:3128` in the guest to the egress socket of the unit, and the
+job gets `http_proxy` and `https_proxy` of that address. So the egress
+hold is `enforced` with no `podnet`: a program that does not use the
+proxy reaches nothing.
 
 ```toml
 guest_kinds = ["microvm"]
