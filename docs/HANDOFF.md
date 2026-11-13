@@ -77,9 +77,11 @@ is done.
   `scripts/measure-engine.sh` runs static Docker 27.5.1 in a machine-tier
   guest: `dockerd` starts after the script mounts cgroup2 (driver `vfs`:
   the guest has no `overlay` and no modules); a container needs
-  `DOCKER_RAMDISK` (the root is an initramfs). Next: the result of
-  `3037c1c`, then bridge and veth for `services:`, then ask podvm for
-  `overlay` and the network parts of the kernel if the guest lacks them.
+  `DOCKER_RAMDISK` (the root is an initramfs); a container runs
+  (run 43495436619). A bridge network of `services:` fails ("operation
+  not supported"): GitHub #92 asks podvm for bridge, veth, netfilter,
+  overlay and a cgroup2 mount in the guest kernel. T-103 waits for #91
+  and #92.
 - T-101 (partial): the `program` source kind is in; its pair with GitHub
   runs on the host of LIVE-2 when githome gives its program (GitHub #66).
 - The live gates: two agents on two constrained hosts, GitHub #74
