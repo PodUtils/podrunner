@@ -4,9 +4,10 @@
 # (T-064), absolute links in the rootfs (T-061), `:ro` on `exec` (T-062),
 # labels and the run report (T-078).
 # v0.2.0-beta.6 carries the aarch64 interposer objects (T-051); beta.7 the
-# fortified opens of glibc in the interposer (T-096).
-version = "0.2.0-beta.7"
+# fortified opens of glibc in the interposer (T-096); beta.8 the fixes of
+# podvm's QA pass.
+version = "0.2.0-beta.8"
 
 [sha256]
-x86_64 = "5bfc3dedc85956f7c449b37033329bec11ac0aeb3e343230fc3ce5f6618c5846"
-aarch64 = "093cabc51e86e37d76a05bf328be7233046e7000550ce7e424061bf35b928b82"
+x86_64 = "b751424fc2856e8408fdc9328ff458a23bfa654ae14ba06805822f030b7e05a2"
+aarch64 = "f3b383bba8552598f4e4fe80831a40772d6261dec7f78e4f0f65b5b0397aeed0"
