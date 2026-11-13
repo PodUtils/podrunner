@@ -46,8 +46,8 @@ out=$(timeout 300 "$podvm" run --rm --podvm-tier=machine --podvm-mem "$mem" --po
   echo w > /mnt/vol/written && echo 'guest wrote'
   if setpriv --reuid=runner --regid=runner --init-groups -- sh -c 'echo r > /mnt/vol/runner-wrote'; then echo 'guest runner wrote'; else echo 'guest runner write failed'; fi
   ls -ld /mnt/vol; id runner
-  stat -c 'guest stat %n %U:%G %a' /home/runner /home/runner/run.sh /home/runner/bin/Runner.Listener /podrunner 2>&1
-  setpriv --reuid=runner --regid=runner --init-groups -- /home/runner/run.sh --version 2>&1 | sed 's/^/guest runner-version /'; echo "guest runner-version exit \$?"
+  stat -c 'guest stat %n %U:%G %a' /home/runner /home/runner/run.sh /home/runner/bin/Runner.Listener 2>&1
+  setpriv --reuid=runner --regid=runner --init-groups -- /home/runner/run.sh --version 2>&1 | sed 's/^/guest runner-version /'; echo 'guest runner-version exit' \$?
   curl -s --max-time 20 http://10.0.2.2:$port/ || echo 'guest curl failed'
   uname -r
 " 2>"$work/stderr")

@@ -56,10 +56,12 @@ is done.
 - podcrates `v0.38.0` is taken (PodUtils/podcrates#136: `ActorClass`
   `agent` and `bot`, T-106); a COORD issue answers it.
 - T-037 (open): the `microvm` kind (`crates/podrunner-microvm`) over
-  podvm's machine tier. The 11 unit tests of the acceptance pass on real
-  guests under KVM (runner-image run 43379538641), as a check. Next: step
-  3, a canned job of the fake broker in a guest (the runner reaches the
-  broker at `10.0.2.2`), then T-036 on the kind.
+  podvm's machine tier. The 11 unit tests pass on real guests, and the
+  official runner in a guest completes a canned job of the fake broker at
+  `10.0.2.2` (runner-image run 43392618033); both are checks. A guest
+  gives `/home/runner` back to `runner` (the machine tier makes each file
+  root's: GitHub #81). Next: `[unit.microvm]` in `serve`, the acceptance
+  of #37 on the fake source, then T-036.
 - T-096 is done: podvm `v0.2.0-beta.7` is pinned, and the 28 tar forms
   pass (runner-image run 43351590729). #78 tells podvm.
 - T-099: the confined conformance test 27 hangs at times (2 of the last
