@@ -126,9 +126,8 @@ later: the credential files go into the instance on stdin.
 The instance has no NIC (`--podvm-net none`). Its one way out is an
 incus `proxy` device from `127.0.0.1:3128` in the instance to the egress
 socket of the unit, and the job gets `http_proxy` and `https_proxy` of
-that address, as for the microvm kind. The channel does not start on the
-packaged incusd 6.0 (T-109, GitHub #90), so the kind claims no egress hold,
-and placement gives it no `trusted` job (`hold-not-available`).
+that address, as for the microvm kind. So the egress hold is `enforced`,
+and the kind serves `trusted` jobs.
 
 ```toml
 [unit.incus]

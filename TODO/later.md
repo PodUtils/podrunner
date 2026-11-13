@@ -815,7 +815,7 @@ Ask podcrates for `cpu_s` and `peak_rss_mib` in `RunReport` and `PublicReport`, 
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -833,13 +833,15 @@ Read `crates/podrunner-incus/src/lib.rs` (`probe`), `crates/podrunner/src/incus_
 
 Progress: podvm: `--podvm-net none` and `--podvm-channel` on the incus tier (GitHub #88, COORD-028). podvm answered in PodUtils/podvm#316 (COORD-082): both flags on the incus tier (PodUtils/podvm@T-1779), in `v0.2.0-beta.12`. The code is in: the kind passes `--podvm-net none`, and with a socket directory `--podvm-channel SOCKETS/egress.sock:127.0.0.1:3128` and `PODRUNNER_CHANNEL_PORT`; the script sets the proxy variables; `probe` says `net: none` and `enforced`; `serve` needs podvm `LOWEST_INCUS` (`0.2.0-beta.12`). `the_instance_has_no_nic_and_one_channel_to_the_egress_socket` holds the argv. Next: pin beta.12, then the proof on a hosted runner (a payload reaches the socket and nothing else). The slots side holds already: `a_kind_with_no_hold_gets_no_trusted_job` refuses a `trusted` offer on a kind with no hold, as the record of `incus` has. podvm `v0.2.0-beta.12` is pinned; `tests/egress.rs` runs in `runner-image.yml`: the instance has `lo` only, a request through its proxy reaches the egress socket, and a direct connection fails.
 
+History of the work: podvm: the `proxy` device of `--podvm-channel` does not start on incus 6.0.0 of Ubuntu 24.04 ("Failed to safely open namespace file descriptor based on pidfd"), runner-image run 43477657803 (`6365312`); GitHub #90 (COORD-030) asks for a channel with no `proxy` device. The mask of the NIC works: the 13 unit tests pass with `--podvm-net none`. Until the channel runs, `probe` claims no hold. podvm answered in PodUtils/podvm#319 (COORD-084): the channel of the incus tier is a `disk` device of the socket file and a relay of podvm's init, no `proxy` device, in `v0.2.0-beta.13`. The driver now gives the egress socket mode 0666 before the start (the unit directory of mode 0700 is the guard). podvm `v0.2.0-beta.13` is pinned and `serve` needs it for the kind (`LOWEST_INCUS`). Next: read `tests/egress.rs` in the runner-image run of the pin, then claim `enforced` again.
+
 ## Prove
 
 `cargo test -p podrunner-slots placement`, then `cargo test -p podrunner-incus --test conformance -- --ignored` on a host with incus: a payload reaches an allowed host through the egress socket and nothing else.
 
-## Blocker
+## Done
 
-podvm: the `proxy` device of `--podvm-channel` does not start on incus 6.0.0 of Ubuntu 24.04 ("Failed to safely open namespace file descriptor based on pidfd"), runner-image run 43477657803 (`6365312`); GitHub #90 (COORD-030) asks for a channel with no `proxy` device. The mask of the NIC works: the 13 unit tests pass with `--podvm-net none`. Until the channel runs, `probe` claims no hold. podvm answered in PodUtils/podvm#319 (COORD-084): the channel of the incus tier is a `disk` device of the socket file and a relay of podvm's init, no `proxy` device, in `v0.2.0-beta.13`. The driver now gives the egress socket mode 0666 before the start (the unit directory of mode 0700 is the guard). podvm `v0.2.0-beta.13` is pinned and `serve` needs it for the kind (`LOWEST_INCUS`). Next: read `tests/egress.rs` in the runner-image run of the pin, then claim `enforced` again.
+2026-11-13, runner-image run 43492630049 (`39b6d1d`, podvm `v0.2.0-beta.13`, incus 6.0.0 of Ubuntu 24.04). `tests/egress.rs`: the instance has `lo` only, a request through its proxy reaches the egress socket (the socket logs `GET http://egress.podrunner.test/`), and a direct connection to 1.1.1.1 fails; the 13 unit tests pass with no NIC. The kind claims `enforced` again, so placement gives it `trusted` jobs. GitHub #88 and #90 are closed.
 
 # T-110: The microvm and incus kinds do not check the version of podvm
 

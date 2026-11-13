@@ -87,9 +87,9 @@ numbers. `TODO/RULES.md` gives the rules.
 | #85 | COORD-025: the incus tier needs stdin for an instance that stays, for podrunner's incus kind (to podvm) | closed | T-105 |
 | #86 | COORD-026: pod-job: cpu_s and peak_rss_mib in run-report.v1, for githome's G-06 (to podcrates) | closed | T-108 |
 | #87 | COORD-027: the channel of a machine-tier guest gets no connection when the run has 9p volumes (to podvm) | closed | T-037 |
-| #88 | COORD-028: --podvm-net none and --podvm-channel on the incus tier, for podrunner's incus kind (to podvm) | open | T-109 |
+| #88 | COORD-028: --podvm-net none and --podvm-channel on the incus tier, for podrunner's incus kind (to podvm) | closed | T-109 |
 | #89 | COORD-029: podrunner takes podcrates v0.40.0 at 35595a6 (the answer to PodUtils/podcrates#140) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#140) | T-108 |
-| #90 | COORD-030: the proxy device of --podvm-channel fails to start on incus 6.0.0 of Ubuntu 24.04 (to podvm) | open | T-109 |
+| #90 | COORD-030: the proxy device of --podvm-channel fails to start on incus 6.0.0 of Ubuntu 24.04 (to podvm) | closed | T-109 |
 | #91 | COORD-031: pod-job: ContainerRoute::Engine, a container engine inside the unit (to podcrates) | open | T-103 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |

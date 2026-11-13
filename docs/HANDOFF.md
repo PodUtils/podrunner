@@ -53,7 +53,8 @@ is done.
 - The `incus` kind (`crates/podrunner-incus`, `[unit.incus]`): one system
   container of podvm's incus tier for each job, the credential files on
   stdin. It claims `confined`. Its suite passes on real instances (T-105).
-  It has no egress hold, so it gets no `trusted` job yet (T-109).
+  It has no NIC and one channel to the egress socket, so its hold is
+  `enforced` and it serves `trusted` jobs (T-109).
 - A musl build of the official runner (`scripts/runner-musl.sh`,
   `runner-musl.yml`) runs the canned jobs in Alpine on x86_64 and
   aarch64, and in a podvm unit on x86_64 (T-081).
@@ -69,14 +70,16 @@ is done.
   acceptance of #37 and the mount check on real guests.
 - T-108 is done: each report carries `cpu_s` and `peak_rss_mib`
   (podcrates `v0.40.0`).
-- T-105 and T-109 (partial): the incus kind has no NIC and one channel
-  on podvm `v0.2.0-beta.13`. Next: read its egress test and suite in the
-  runner-image run of `6365312`; then close T-105, T-109, GitHub #88, and
-  tell podvm on its issue 316 by a COORD issue.
-- T-108 (blocked): podcrates did `cpu_s` and `peak_rss_mib` on its
-  `main` (PodUtils/podcrates@T-527); take the tag `v0.40.0` (GitHub #86).
-- T-103 (partial): steps 1 and 2 are done; next is the runner image with
-  an engine in a guest and the value `engine` of `ContainerRoute`.
+- T-105, T-108 and T-109 are done: the incus kind serves `trusted` jobs
+  through its egress socket (podvm `v0.2.0-beta.13`); each report carries
+  `cpu_s` and `peak_rss_mib` (podcrates `v0.40.0`).
+- T-103 (partial): GitHub #91 asks podcrates for `ContainerRoute::Engine`.
+  `scripts/measure-engine.sh` runs static Docker 27.5.1 in a machine-tier
+  guest: `dockerd` starts after the script mounts cgroup2 (driver `vfs`:
+  the guest has no `overlay` and no modules); a container needs
+  `DOCKER_RAMDISK` (the root is an initramfs). Next: the result of
+  `3037c1c`, then bridge and veth for `services:`, then ask podvm for
+  `overlay` and the network parts of the kernel if the guest lacks them.
 - T-101 (partial): the `program` source kind is in; its pair with GitHub
   runs on the host of LIVE-2 when githome gives its program (GitHub #66).
 - The live gates: two agents on two constrained hosts, GitHub #74

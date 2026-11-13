@@ -205,6 +205,6 @@ fn the_instance_has_no_nic_and_one_channel_to_the_egress_socket() {
     assert!(!argv.contains("-e\nhttp_proxy"), "no proxy variable in argv: {argv}");
     assert!(u.destroy(&s.unit).unwrap().is_clean());
     let c = u.probe().unwrap();
-    assert_eq!((c.net.as_str(), c.egress_hold), ("none", EgressHold::None), "no claim until GitHub #90");
+    assert_eq!((c.net.as_str(), c.egress_hold), ("none", EgressHold::Enforced));
     let _ = fs::remove_dir_all(&d);
 }
