@@ -188,7 +188,9 @@ impl Slots {
                 argv: kind.cfg.command.clone(),
                 env,
                 credential,
-                sockets: guest.as_ref().map(|_| dir.clone()),
+                // Each driver gets the directory: the microvm kind bridges
+                // its egress socket into the guest (T-107).
+                sockets: Some(dir.clone()),
             })
         });
         match started {
@@ -357,14 +359,17 @@ impl Slots {
         self.set(key, State::Reported, now);
     }
 
-    /// The egress policy of a job: the policy of its offer, else
-    /// `default_policy` of `[egress]`, else no way out at all.
+    /// The egress policy of a job: the policy of its offer narrowed by
+    /// `default_policy` of `[egress]` (T-107), else either one, else no
+    /// way out at all.
     fn policy_of(&self, key: &Key) -> String {
         let offer = self.jobs[key].offer.as_ref().map(|o| o.policy.clone()).filter(|p| !p.is_empty());
         let default = self.cfg.egress.get("default_policy").and_then(|v| v.as_object()).cloned();
-        match offer.or(default) {
-            Some(p) => serde_json::Value::Object(p).to_string(),
-            None => r#"{"schema":1,"mode":"allow","allow":[]}"#.into(),
+        let (offer, default) = (offer.map(serde_json::Value::Object), default.map(serde_json::Value::Object));
+        match (offer, default) {
+            (Some(o), Some(d)) => crate::policy::narrow(&d, &o).to_string(),
+            (Some(p), None) | (None, Some(p)) => p.to_string(),
+            (None, None) => r#"{"schema":1,"mode":"allow","allow":[]}"#.into(),
         }
     }
 

@@ -84,8 +84,15 @@ pub fn place(offer: &JobOffer, set: Tier, kinds: &[Kind], cfg: &Config, now_s: u
     if need.container {
         narrow(&mut c, kinds, RefusalCode::ContainerNotSupported, |k| k.capability.container == ContainerRoute::Hooks)?;
     }
+    // A policy of the offer needs the egress module on the way out of the
+    // unit, and no path rule: podrunner has no TLS end (T-107).
     if !offer.policy.is_empty() {
-        narrow(&mut c, kinds, RefusalCode::EgressPolicyUnsupported, |k| k.capability.net == "broker")?;
+        if crate::policy::has_path_rule(&offer.policy) {
+            return Err(RefusalCode::EgressPolicyUnsupported);
+        }
+        narrow(&mut c, kinds, RefusalCode::EgressPolicyUnsupported, |k| {
+            k.capability.egress_hold.effective() > EgressHold::None
+        })?;
     }
     let (payload, payload_ignored) = pick_payload(offer, cfg, now_s)?;
     // A shared principal runs one unit at a time; with same_principal_ok,

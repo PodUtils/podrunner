@@ -739,3 +739,40 @@ Ask podcrates (COORD issue, GitHub #80) for `ActorClass::Agent` and `ActorClass:
 ## Done
 
 2026-11-13, this commit. podcrates `v0.38.0` (PodUtils/podcrates#136, PodUtils/podcrates@T-505) gives `ActorClass::Agent` and `ActorClass::Bot`; podrunner takes the tag. The tier rule makes a job of an `agent` of an allowed event in a configured owner `untrusted` (a guest), and never trusts a `bot`. `an_agent_needs_a_guest_and_a_bot_is_never_trusted` holds it; the case table passes unchanged. GitHub #80 is closed.
+
+# T-107: The egress policy of an offer: placement, the ceiling of the operator, the socket directory
+
+**Source:** GitHub #66 (the comment of githome of 2026-11-13, G-04)
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+githome sends a `policy` (`broker-policy.v1`) in each offer, `open` by default, and expects a host that cannot apply it not to claim the job. Three defects stop this:
+
+- Placement narrowed an offer with a policy to kinds with `net: broker`. No real kind says so (`podvm`: `shared-host`, `microvm`: `none`), so `serve` refused each offer of githome with `egress-policy-unsupported`.
+- `policy_of` took the policy of the offer in place of `[egress] default_policy`. SPEC §9 asks that an offer can only narrow the policy of the operator.
+- slots gave a unit its socket directory only when the driver mounts it (`socket_mount`). The microvm kind mounts nothing, so under `serve` its guest got no egress channel and had no way out; a held podvm kind with no hook route was refused at the start.
+
+## Premise
+
+Read the comment of githome on GitHub #66 (2026-11-13), `crates/podrunner-slots/src/placement.rs`, `run.rs`, and the policy module of `pod-broker` of podcrates `v0.39.0`.
+
+## Approach
+
+- Placement: a policy needs a kind whose effective egress hold is not `none`, the same way out that `default_policy` already takes; a policy with a `path` rule is `egress-policy-unsupported` (no TLS end, SPEC §9.2).
+- `crates/podrunner-slots/src/policy.rs`: `narrow(ceiling, offer)`. The denies of both hold. An `open` side gives the rules of the other side. With two `allow` sides, an offer rule stays only where a ceiling rule covers its host (the same host, or `*.NAME` over a name below NAME) and its ports.
+- slots gives each driver its socket directory; a driver that mounts it still does.
+
+Tell githome on GitHub #66 that `pod-broker` names the version `schema`, not `version`.
+
+## Prove
+
+`cargo test -p podrunner-slots policy egress`
+
+## Done
+
+2026-11-13, this commit. `the_ceiling_of_the_operator_narrows_the_policy_of_an_offer` and `a_policy_needs_a_hold_and_no_path_rule` hold the slots side; five tests in `policy.rs` hold `narrow`. The comment on GitHub #66 tells githome about `schema`.

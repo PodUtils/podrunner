@@ -101,8 +101,9 @@ pub struct StartSpec {
     pub env: BTreeMap<String, String>,
     /// The files for the runner root, mode 0600.
     pub credential: Credential,
-    /// The socket directory of this unit on the host, for a driver whose
-    /// `socket_mount` names where the unit sees it.
+    /// The socket directory of this unit on the host. A driver whose
+    /// `socket_mount` names a path mounts it there; another driver uses the
+    /// host paths, or bridges a socket into the unit (the microvm kind).
     pub sockets: Option<std::path::PathBuf>,
 }
 

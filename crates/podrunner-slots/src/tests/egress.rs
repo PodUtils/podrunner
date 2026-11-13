@@ -112,3 +112,50 @@ fn a_long_state_directory_gets_a_short_egress_directory() {
     assert!(other.join("u-18446744073709551615.sock").as_os_str().len() < 108, "{}", other.display());
     assert_eq!(other, crate::run::egress_dir(&deep), "the same directory each time");
 }
+
+/// T-107: the policy of an offer is narrowed by the ceiling of the
+/// operator: it takes away, never adds.
+#[test]
+fn the_ceiling_of_the_operator_narrows_the_policy_of_an_offer() {
+    let seen = Seen::default();
+    let policy = json!({ "policy": { "schema": 1, "mode": "allow",
+        "allow": [{ "host": "api.github.com" }, { "host": "evil.example" }] } });
+    let bed = Bed::new(
+        config("[egress]\ndefault_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"*.github.com\" }] }"),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", policy)])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }],
+    );
+    let mut bed = Bed { slots: bed.slots.with_egress(Box::new(seen.clone())), ..bed };
+    bed.until(30, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    let opened = seen.opened.lock().unwrap().clone();
+    assert_eq!(opened.len(), 1);
+    assert!(opened[0].1.contains("api.github.com"), "{}", opened[0].1);
+    assert!(!opened[0].1.contains("evil.example"), "an offer adds no host: {}", opened[0].1);
+}
+
+/// T-107: a policy needs a kind with a hold, and no path rule.
+#[test]
+fn a_policy_needs_a_hold_and_no_path_rule() {
+    let parse = |p: Value| -> podrunner_schema::JobOffer {
+        let line: Value = serde_json::from_str(&offer(0, "j-1", json!({ "policy": p }))).unwrap();
+        serde_json::from_value(line["offer"].clone()).unwrap()
+    };
+    let kind = |hold| Kind {
+        capability: capability(Boundary::Confined, Principal::Distinct, hold),
+        free: 1,
+        running: 0,
+        repos: vec![],
+    };
+    let plain = parse(json!({ "schema": 1, "mode": "open" }));
+    let path = parse(json!({ "schema": 1, "mode": "allow", "allow": [{ "host": "a.example", "path": "/x" }] }));
+    let cfg = config("");
+    assert!(place(&plain, Tier::Trusted, &[kind(EgressHold::Advisory)], &cfg, NOW_UNIX).is_ok());
+    assert_eq!(
+        place(&path, Tier::Trusted, &[kind(EgressHold::Enforced)], &cfg, NOW_UNIX).err(),
+        Some(RefusalCode::EgressPolicyUnsupported)
+    );
+    assert_eq!(
+        place(&plain, Tier::Local, &[kind(EgressHold::None)], &cfg, NOW_UNIX).err(),
+        Some(RefusalCode::EgressPolicyUnsupported)
+    );
+}

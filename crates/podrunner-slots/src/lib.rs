@@ -14,6 +14,7 @@ pub mod hooks;
 pub mod journal;
 pub mod pins;
 pub mod placement;
+pub mod policy;
 mod run;
 mod spool;
 pub mod state;
