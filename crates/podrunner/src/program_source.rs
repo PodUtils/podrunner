@@ -4,10 +4,11 @@
 //! forge: the forge ships its own program.
 //!
 //! `podrunner fake-source --script FILE` is such a program over the fake
-//! source of the tests: a forge checks its own program against podrunner
-//! with it, and the tests of this module use it.
+//! source of the tests, and `podrunner source-conformance -- PROGRAM ARGS`
+//! runs the 12 tests of the source wire against a program (T-104): a forge
+//! runs them in its own CI.
 
-use std::io::{BufRead, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::sync::Arc;
@@ -66,4 +67,71 @@ pub fn fake_source(args: &[String]) -> Result<(), Failure> {
             .map_err(|e| fail(Class::Unavailable, format!("stdout: {}", e.kind())))?;
     }
     Ok(())
+}
+
+/// The time limit of one test of `source-conformance`.
+const TEST_LIMIT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// The program under test of `source-conformance`.
+struct Under {
+    program: String,
+    args: Vec<String>,
+}
+
+impl podrunner_source::conformance::Fixture for Under {
+    fn fresh(&self) -> Box<dyn podrunner_source::JobSource> {
+        Box::new(podrunner_mint::SidecarSource::program(&self.program, self.args.clone(), vec![], "program:test"))
+    }
+
+    fn exchange(&self, line: &[u8]) -> String {
+        let spawned = std::process::Command::new(&self.program)
+            .args(&self.args)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+        let Ok(mut child) = spawned else { return String::new() };
+        let mut reply = String::new();
+        if let (Some(mut i), Some(o)) = (child.stdin.take(), child.stdout.take()) {
+            let _ = i.write_all(line).and_then(|()| i.write_all(b"\n"));
+            let _ = BufReader::new(o).read_line(&mut reply);
+        }
+        let _ = child.kill();
+        let _ = child.wait();
+        reply
+    }
+}
+
+/// `podrunner source-conformance -- PROGRAM ARGS...`: the 12 tests of the
+/// source wire against PROGRAM, one line each; the text and true when each
+/// passes. The program must give two offers or more on its first `next`.
+pub fn source_conformance(args: &[String]) -> Result<(String, bool), Failure> {
+    let rest = match args.split_first() {
+        Some((dash, rest)) if dash == "--" && !rest.is_empty() => rest,
+        _ => return Err(fail(Class::Usage, "usage: podrunner source-conformance -- PROGRAM ARGS...")),
+    };
+    let under = Arc::new(Under { program: rest[0].clone(), args: rest[1..].to_vec() });
+    let (mut text, mut passed) = (String::new(), true);
+    // Each test in a time limit: a program that never answers fails that
+    // test by name, and the run goes on.
+    for (number, name) in podrunner_source::conformance::tests() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let u = under.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(podrunner_source::conformance::run(&*u, &[number]).remove(0));
+        });
+        let line = match rx.recv_timeout(TEST_LIMIT) {
+            Ok(r) => {
+                passed &= r.failure.is_none();
+                r.to_string()
+            }
+            Err(_) => {
+                passed = false;
+                format!("source {number:2} {name}: FAIL: no end in {} s", TEST_LIMIT.as_secs())
+            }
+        };
+        text.push_str(&line);
+        text.push('\n');
+    }
+    Ok((text, passed))
 }

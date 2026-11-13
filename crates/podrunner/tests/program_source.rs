@@ -15,9 +15,13 @@ fn binary() -> std::path::PathBuf {
 /// A script of three offers that are due at once: the source tests need
 /// two or more on the first `next`.
 fn script() -> String {
+    // One file for each call: the tests run at the same time, and a write
+    // of a shared file gives a source a script cut short.
+    static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("podrunner-program-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("script.jsonl");
+    let path = dir.join(format!("script-{n}.jsonl"));
     let line = |job: &str| {
         format!(
             r#"{{"at_s":0,"offer":{{"job_id":"{job}","source":"fake-program","labels":["x"],"arch":"x86_64","wait_deadline_s":60}}}}"#
@@ -80,4 +84,21 @@ fn the_wire_reaches_the_fake_source_of_a_program() {
     assert_eq!(h.source, "fake-program");
     let _ = c.kill();
     let _ = c.wait();
+}
+
+/// `podrunner source-conformance` passes on the fake source, and fails on a
+/// program that ends with no answer (T-104).
+#[test]
+fn source_conformance_passes_a_source_and_fails_an_echo() {
+    let script = script();
+    let run = |args: &[&str]| Command::new(binary()).arg("source-conformance").arg("--").args(args).output().unwrap();
+    let ok = run(&[binary().to_str().unwrap(), "fake-source", "--script", &script]);
+    let text = String::from_utf8_lossy(&ok.stdout);
+    assert_eq!(ok.status.code(), Some(0), "{text}");
+    assert_eq!(text.lines().filter(|l| l.contains(": pass")).count(), 12, "{text}");
+    let none = run(&["/bin/false"]);
+    assert_eq!(none.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&none.stdout).contains("FAIL"));
+    let usage = Command::new(binary()).arg("source-conformance").output().unwrap();
+    assert_eq!(usage.status.code(), Some(64));
 }

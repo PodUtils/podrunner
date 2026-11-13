@@ -640,7 +640,7 @@ The census and the design are in `docs/`; a `docker build` job and a `services:`
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -657,6 +657,10 @@ Read GitHub #66 (the comment of 2026-11-13) on 2026-11-13. The 12 tests are in `
 ## Prove
 
 `cargo test -p podrunner` with the fake source program passing and a planted defect failing.
+
+## Done
+
+2026-11-13, this commit. `podrunner source-conformance -- PROGRAM ARGS...` runs the 12 source tests against a program over its stdio (`SidecarSource::program`, and a fresh process for each line of the wire tests), each test in a limit of 60 s so that a program that never answers fails by name; exit 0 when each passes, else 1. `source_conformance_passes_a_source_and_fails_an_echo` (`crates/podrunner/tests/program_source.rs`): `podrunner fake-source` passes the 12; `/bin/false` fails. It ships in the release binary. `docs/cli.md` says so.
 
 # T-105: G-02: an `incus` unit kind for trusted jobs (a system container)
 
