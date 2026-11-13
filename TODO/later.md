@@ -621,7 +621,7 @@ The offer carries a typed event (`Event` of `pod-job`): githome maps each of its
 **Milestone:** later
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -640,6 +640,10 @@ Read GitHub #77 and #66 (the comments of githome of 2026-11-13) on 2026-11-13. T
 ## Prove
 
 The census and the design are in `docs/`; a `docker build` job and a `services:` job pass in a unit in `runner-image.yml`.
+
+## Blocker
+
+podvm: the guest with no NIC and one host channel (GitHub #83, PodUtils/podvm@T-1751), shared with T-037. Done before it: step 1, the census of the verbs and the design (`docs/container-engine.md`): the runner runs 15 verbs of the `docker` command line, and Docker-in-Docker needs the whole Engine API, so a real engine runs inside a guest with its socket there, and no shim (`pod-dockerapi`) is needed.
 
 # T-104: G-10: the source conformance tests as a command for another source program
 

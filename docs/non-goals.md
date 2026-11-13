@@ -11,7 +11,7 @@ opens its own issue.
 | Bridges for Gitea, Forgejo, GitLab Runner | An ask names one of those forges as a target. |
 | `credential_delivery: socket` (the strong form of G-03) | A forge names a runner that takes its credential from a socket. |
 | Port claims and a lock of a service for the whole host | A workflow of the owner needs `services:` on H0. |
-| `pod-dockerapi` | Its trigger is met: githome's G-09 names `services:`, `docker build` and Docker-in-Docker (the owner, 2026-11-13). T-103 writes the census of the verbs and the design of an engine inside the unit, not a socket of the host. |
+| `pod-dockerapi` | Its trigger is met: githome's G-09 names `services:`, `docker build` and Docker-in-Docker (the owner, 2026-11-13). The census (`docs/container-engine.md`) finds that Docker-in-Docker needs the whole Engine API, so T-103 runs a real engine inside a guest, not a shim and not a socket of the host. |
 | The TLS end of the broker: placeholders, path rules | A policy needs path rules or placeholders. |
 | A schema for `podrunner.toml` | A second reader of the file exists. |
 | Shared caches, warm units, a mirror of actions (G-07 shared form, G-11) | A measure shows that the cost of a start or a fetch matters. |
