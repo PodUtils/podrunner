@@ -72,6 +72,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #70 | COORD-012: tar with an absolute -C fails in a podvm unit; a relative -C passes (PodUtils/podcrates@T-328) (to podcrates) | open | T-096 |
 | #71 | COORD-013: podrunner housekeeping done; final commit d56b579 (to podcrates) | closed (podvm is available again; #72 has the state) | T-001 |
 | #72 | COORD-014: podrunner takes podcrates v0.34.0 at 2a4f35c (the answer to PodUtils/podcrates#103 and #104) (to podcrates) | closed (podcrates closed #103 and #104 with the take) | T-094 |
+| #73 | COORD-015: podrunner takes podcrates v0.35.0 at 0a400b5 (the answer to PodUtils/podcrates#127) (to podcrates) | open (a report; close when podcrates records the take) | T-094 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 10 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |
