@@ -218,11 +218,21 @@ pub fn answer_waiting(rx: &std::sync::mpsc::Receiver<Call>, h: &mut dyn Handler,
 
 /// Send one request to the socket at `path`.
 pub fn call(path: &Path, req: &Request) -> std::io::Result<Reply> {
-    let mut s = UnixStream::connect(path)?;
+    exchange_on(UnixStream::connect(path)?, req)
+}
+
+/// One request and its reply on `s`. The server can answer `busy` and
+/// close before the request is written: the write then fails, but the
+/// reply is still in the socket, so read it before the write error counts.
+fn exchange_on(mut s: UnixStream, req: &Request) -> std::io::Result<Reply> {
     s.set_read_timeout(Some(Duration::from_secs(30)))?;
-    s.write_all(line_of(req).as_bytes())?;
+    let written = s.write_all(line_of(req).as_bytes());
     let mut line = Vec::new();
-    BufReader::new(s).take(16 * 1024 * 1024).read_until(b'\n', &mut line)?;
+    let read = BufReader::new(s).take(16 * 1024 * 1024).read_until(b'\n', &mut line);
+    if line.is_empty() {
+        written?;
+        read?;
+    }
     let v: Envelope<Reply> = serde_json::from_slice(&line).map_err(std::io::Error::other)?;
     Ok(v.body)
 }
@@ -271,6 +281,25 @@ mod tests {
         }
         assert_eq!(client.join().unwrap(), Reply::Ok { value: Value::from("done") });
         assert_eq!(h.0, [Request::Status]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A `busy` reply that comes, with a close, before the request is
+    /// written is still the reply, not a broken pipe.
+    #[test]
+    fn a_reply_before_the_request_is_read() {
+        let dir = dir("early");
+        let path = dir.join("ctl.sock");
+        let l = UnixListener::bind(&path).unwrap();
+        let server = std::thread::spawn(move || {
+            let (s, _) = l.accept().unwrap();
+            (&s).write_all(line_of(&Reply::error("busy", "too many clients")).as_bytes()).unwrap();
+        });
+        let s = UnixStream::connect(&path).unwrap();
+        server.join().unwrap();
+        // The server side is closed now: the write of the request fails.
+        let r = exchange_on(s, &Request::Status).unwrap();
+        assert!(matches!(&r, Reply::Error { code, .. } if code == "busy"), "{r:?}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 
