@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 100 entries: 1 open, 4 partial, 7 blocked, 88 done.
+`TODO/INDEX.md` holds 100 entries: 1 open, 3 partial, 7 blocked, 89 done.
 
 ## State
 
@@ -28,9 +28,8 @@ release or a live account.
 The queue, most valuable first:
 
 1. Release `v0.1.0-beta.2` (the owner, 2026-11-13) when the gate and `runner-image.yml` of `main` are green.
-2. T-098 (S, partial): a Docker action in a job with no container (Q4); the next green `runner-image.yml` run closes it.
-3. T-099 (S, partial): the confined conformance test 27 hangs in 2 of 2 runs since `0a400b5` (podvm beta.6 and beta.7); each test has a time limit now; find the call that waits. It holds the release of beta.2 while `runner-image.yml` is red.
-4. T-037 (M, open): the `microvm` kind over the machine tier of podvm; step 1 is the measure of `scripts/measure-machine.sh` in `runner-image.yml`. Then T-036 (the guest self-test on it) and T-039 (milestone L2).
+2. T-099 (S, partial): the confined conformance test 27 hangs at times (2 of the last 3 runs); each test has a time limit now; find the call that waits.
+3. T-037 (M, open): the `microvm` kind over the machine tier of podvm; step 1 is done (the runner image boots as a guest with 4 GB); next the crate `podrunner-microvm`. Then T-036 (the guest self-test on it) and T-039 (milestone L2).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

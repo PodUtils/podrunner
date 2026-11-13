@@ -193,6 +193,8 @@ Steps (2026-11-13, podvm `v0.2.0-beta.6`):
 
 Step 1, run 43345530725 (`cea9541`): the guest did not boot. QEMU refused the rootfs: "initrd is too large, cannot support (max: 536707071, need 888068384)". The machine tier loads the image as an initramfs, and the runner image packs to 888 MB; the limit of QEMU follows the guest memory. The 9p volume was set up. The measure now gives `--podvm-mem 4G --podvm-cpus 2`. If a large guest still fails, ask podvm for a rootfs on a disk (virtio-blk) by a COORD issue.
 
+Step 1 is done: in runner-image run 43355069666 of `a3999f1`, with `--podvm-mem 4G --podvm-cpus 2`, the guest boots in 4 s (kernel `6.12.110-0-virt`), the runner files are there, a 9p volume takes a write back to the host, and the guest reaches a listener on the loopback of the host at `10.0.2.2`. Next: step 2, the crate `podrunner-microvm`.
+
 ## Decision
 
 2026-11-13 (a call with no ruling): the first form keeps the user-mode NIC of the machine tier (podvm has no form with no NIC), and runs QEMU under `podnet pod`, so each connection of the guest leaves through the egress module. The form with no NIC and one host channel to the broker waits for the host channel of podvm (PodUtils/podvm@T-1750, PodUtils/podvm@T-1751). `docs/decisions.md` records the call.

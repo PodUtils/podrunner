@@ -522,7 +522,7 @@ Take the next tag (move each tag, as T-094), build the `format()` token from `Te
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -550,4 +550,4 @@ The text below was the Blocker before the ruling: The owner: Q4 of `TODO/PROGRES
 
 ## Done
 
-Partial, 2026-11-13, this commit. `Gate::check` (`crates/podrunner-hook/src/policy.rs`) takes `run_container_step` before `prepare_job`, with the checks of the action mounts; `cleanup_job` and `run_script_step` before it stay refused. The test `the_mount_tables_and_the_order_of_the_design` holds both. The job `docker-step` of `crates/podrunner/tests/local/containers.yml` has no `container:` now. `docs/contracts/hook.md`, `docs/contracts/codes.md` and `docs/cli.md` say so. Open: a green `runner-image.yml` run of the containers suite.
+2026-11-13, `a3999f1`. `Gate::check` (`crates/podrunner-hook/src/policy.rs`) takes `run_container_step` before `prepare_job`, with the checks of the action mounts; `cleanup_job` and `run_script_step` before it stay refused. The test `the_mount_tables_and_the_order_of_the_design` holds both. The job `docker-step` of `crates/podrunner/tests/local/containers.yml` has no `container:` now. `docs/contracts/hook.md`, `docs/contracts/codes.md` and `docs/cli.md` say so. In runner-image run 43355069666 of `a3999f1`, the job `docker-step` (a Docker step, no `container:`) gives `ok` with the official runner through the hooks.
