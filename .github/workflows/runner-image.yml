@@ -275,6 +275,9 @@ jobs:
           # T-037 step 3: the official runner in a guest takes a canned job
           # of the fake broker through the one channel of the guest.
           timeout 900 cargo test -p podrunner-broker-fake --test microvm -- --ignored --nocapture
+          # T-037: the acceptance of GitHub #37, a fork pull request through
+          # slots into a guest, and a container need refused.
+          timeout 1200 cargo test -p podrunner-broker-fake --test untrusted -- --ignored --nocapture
       # T-105 step 1: the incus tier of podvm for the incus kind. A measure:
       # incus from apt, initialized with its defaults, and podvm in the
       # group of its socket.

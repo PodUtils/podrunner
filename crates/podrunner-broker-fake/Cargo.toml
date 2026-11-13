@@ -16,6 +16,9 @@ serde_json.workspace = true
 base64.workspace = true
 
 [dev-dependencies]
+podrunner-slots.workspace = true
+podrunner-clock.workspace = true
+podrunner-source.workspace = true
 podrunner-fake.workspace = true
 podrunner-schema.workspace = true
 podrunner-unit.workspace = true
