@@ -1,7 +1,9 @@
 //! The unit conformance tests of T-105 on real system containers of the
 //! incus tier of podvm. The processes of an instance belong to incusd, not
 //! to podrunner, so the tests that count processes of the host (3, 7, 10)
-//! do not apply; 27 proves the claim `confined`. Ignored by default: it
+//! do not apply. The credential files exist only in the instance (the
+//! guest script writes them at mode 0600), so test 6, which reads them on
+//! the host, does not apply either. 27 proves the claim `confined`. Ignored by default: it
 //! needs podvm `v0.2.0-beta.10` or later and an incusd.
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
@@ -21,7 +23,7 @@ use podrunner_unit::UnitDriver;
 use podrunner_unit::conformance::{self, Behaviour, Fixture, Outcome};
 
 /// The tests of the kind.
-const TESTS: [u32; 14] = [1, 2, 4, 5, 6, 8, 9, 11, 12, 13, 15, 16, 22, 27];
+const TESTS: [u32; 13] = [1, 2, 4, 5, 8, 9, 11, 12, 13, 15, 16, 22, 27];
 
 struct Real {
     unit: IncusUnit,
@@ -57,7 +59,12 @@ impl Fixture for Real {
             Behaviour::Marker => sh(&format!("echo x > {}; exec sleep 300", conformance::MARKER)),
             // An orphan stays in the instance: `rm -f` ends it.
             Behaviour::Escape | Behaviour::KillParent => sh("(setsid sleep 300 &); exec sleep 300"),
-            Behaviour::ReadOthers => sh("exec sleep 300"),
+            Behaviour::ReadOthers => sh(&format!(
+                "cat ../*/{m} > {s} 2>/dev/null; echo own > {o}.part; cat {o}.part > {o}; exec sleep 300",
+                m = conformance::MARKER,
+                s = conformance::SEEN,
+                o = conformance::OWN
+            )),
         }
     }
     fn unit(&self) -> UnitId {

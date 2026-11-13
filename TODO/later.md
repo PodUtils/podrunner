@@ -705,7 +705,7 @@ podvm answered in PodUtils/podvm#307 (COORD-079, 2026-11-13): `run -d -i --name 
 
 Step 2, the code (2026-11-13, against podvm `main` at `055dd46c`): the crate `podrunner-incus` (`IncusUnit`). `start` spawns `podvm run -d -i --name NAME --podvm-tier=incus -v WORK:/podrunner-work IMAGE /bin/sh -c SCRIPT` and writes the credential files on its stdin, one line `NAME BASE64` each; the script writes them into `/podrunner/.runner` at mode 0600 and runs the payload as `runner`. The name is `podrunner-HASH-UNIT` (FNV-1a of the state directory), so a replay of the journal finds the instance. `wait` reads `podvm inspect --format '{{.Status}} {{.ExitCode}}'`; `signal` is `stop` or `rm -f`; `destroy` is `rm -f` and counts the instance if it stays. `probe` claims `confined`, `net: nat`, no container route, no egress hold. `[unit.incus]` in `serve` and `check` (`crates/podrunner/src/incus_kind.rs`). Eight tests over a fake podvm hold the stdin, the argv, the end, the kill, the replay and the refusals. `tests/conformance.rs` runs 14 unit tests on real instances; it goes into `runner-image.yml` with the pin of beta.10.
 
-Step 3 (2026-11-13): podvm `v0.2.0-beta.10` (PodUtils/podvm#307) is pinned; `runner-image.yml` runs `tests/conformance.rs` on real instances after the measure.
+Step 3 (2026-11-13): podvm `v0.2.0-beta.10` (PodUtils/podvm#307) is pinned; `runner-image.yml` runs `tests/conformance.rs` on real instances after the measure. Runner-image run 43434618569 (`66654aa`): 12 of 14 pass on real instances. Test 6 reads the credential files on the host, and an instance has them only inside, so it does not apply. Test 27 failed on the fixture: its `ReadOthers` payload only slept; it now does what the podvm suite does.
 
 ## Prove
 
