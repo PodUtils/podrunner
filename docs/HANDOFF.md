@@ -14,8 +14,9 @@ is done.
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
 - The record: 98 entries, 0 open, 2 partial, 11 blocked, 85 done
   (`cargo todo check`). The last green `runner-image.yml` run is
-  43271963245 (`5518055`): the held local suite, the egress check, the
-  containers suite and the aarch64 start.
+  43337313388 (`e2be23f`, podnet beta.8 with IPv6): the held test, the
+  held local suite, the egress check, the containers suite and the
+  aarch64 start.
 - M-A, M-B and the work packages of M-C and M-D are done. The open
   milestone gates are T-032 and T-033 (DR-7: no live account), T-039
   (a real guest: T-036, T-037) and T-040 (DR-7).
