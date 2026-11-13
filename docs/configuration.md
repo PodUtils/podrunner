@@ -45,6 +45,8 @@ min_boundary = "confined"
 [trust]                      # the tier rule (crates/podrunner-tier)
 organizations = [{ login = "example-org", id = 11 }]
 trusted_public = [{ owner = "example-org", repo = "open-tool" }]
+extra_events = ["release"]   # more events of a trusted job: only workflow_run, issue_comment,
+                             # release and repository_dispatch (the owner, Q5); default none
 
 [deadlines]                  # seconds; these are the defaults
 prepare_s = 600

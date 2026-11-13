@@ -588,7 +588,7 @@ Partial, 2026-11-13, this commit. The `[[source]]` kind `program` (`program`, `p
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -602,13 +602,17 @@ Read GitHub #66 (the comment of 2026-11-13) on 2026-11-13.
 
 The offer carries a typed event (`Event` of `pod-job`): githome maps each of its events to it, and sends `other` for the rest, so podrunner needs no table of names. What G-13 needs is that more events may run as a trusted job. The tier rule takes `push`, `pull_request`, `workflow_dispatch`, `schedule` and `merge_group` (the design); `workflow_run`, `issue_comment`, `release` and `repository_dispatch` are refused. A change of that set changes which code runs with trust: Q5 asks the owner.
 
+## Decision
+
+2026-11-13, the owner, Q5: yes, with limits (`docs/decisions.md`).
+
 ## Prove
 
 `cargo test -p podrunner-tier` with each event of the table, and an unknown event refused.
 
-## Blocker
+## Done
 
-Q5 of the owner (`TODO/PROGRESS.md`): may the operator add events to the trusted set?
+2026-11-13, this commit. `[trust] extra_events` (`TierConfig::extra_events`) adds events to the trusted set; the configuration refuses each event but the four of `EXTRA_EVENTS` (`workflow_run`, `issue_comment`, `release`, `repository_dispatch`). A listed event needs the facts of each trusted job. `extra_events_are_trusted_only_when_listed_and_only_those_four` holds it; the case table and the exhaustive test of `unknown` pass unchanged. `docs/configuration.md` names the key.
 
 # T-103: G-09: a container engine inside the unit, and the census of the verbs (DR-8)
 

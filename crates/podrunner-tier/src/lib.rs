@@ -52,11 +52,31 @@ pub struct TierConfig {
     pub organizations: Vec<Organization>,
     #[serde(default)]
     pub trusted_public: Vec<PublicRepo>,
+    /// More events that a trusted job may come from: only those of
+    /// [`EXTRA_EVENTS`] (the owner, Q5).
+    #[serde(default)]
+    pub extra_events: Vec<Event>,
 }
 
 /// The events that a trusted job may come from.
 const TRUSTED_EVENTS: [Event; 5] =
     [Event::Push, Event::PullRequest, Event::WorkflowDispatch, Event::Schedule, Event::MergeGroup];
+
+/// The events that the operator may add (the owner, Q5, 2026-11-13). On
+/// GitHub each runs the code of the default branch, not of a pull request.
+/// `pull_request_target`, `other` and `unknown` are never trusted.
+pub const EXTRA_EVENTS: [Event; 4] =
+    [Event::WorkflowRun, Event::IssueComment, Event::Release, Event::RepositoryDispatch];
+
+impl TierConfig {
+    /// Refuse an extra event that is not in [`EXTRA_EVENTS`].
+    pub fn check(&self) -> Result<(), String> {
+        match self.extra_events.iter().find(|e| !EXTRA_EVENTS.contains(e)) {
+            Some(e) => Err(format!("[trust] extra_events: {e:?} can never be trusted")),
+            None => Ok(()),
+        }
+    }
+}
 
 /// GitHub logins and repository names do not care about case.
 fn same(a: &str, b: &str) -> bool {
@@ -91,7 +111,8 @@ pub fn compute(t: &TrustInputs, cfg: &TierConfig) -> Result<Tier, RefusalCode> {
         && configured_owner(t, cfg)
         && t.head_is_fork == Fact::No
         && t.actor_class == ActorClass::Member
-        && TRUSTED_EVENTS.contains(&t.event);
+        && (TRUSTED_EVENTS.contains(&t.event)
+            || (EXTRA_EVENTS.contains(&t.event) && cfg.extra_events.contains(&t.event)));
     if trusted {
         return Ok(Tier::Trusted);
     }

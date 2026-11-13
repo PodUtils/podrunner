@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 106 entries: 3 open, 4 partial, 9 blocked, 90 done.
+`TODO/INDEX.md` holds 106 entries: 3 open, 4 partial, 8 blocked, 91 done.
 
 ## State
 
@@ -33,10 +33,10 @@ The queue, most valuable first:
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-036, T-039 (after T-037), T-043 (crates of podcrates), T-102 (Q5 of the owner), T-106 (podcrates: `ActorClass` agent and bot, GitHub #80).
+Blocked: T-082 (a runner release with WebUtilities 8.0.34), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-036, T-039 (after T-037), T-043 (crates of podcrates), T-106 (podcrates: `ActorClass` agent and bot, GitHub #80).
 
 ## Questions for the owner
 
-- Q5 (T-102, githome's G-13, not urgent): may the operator add events to the set that can run as a trusted job? Now only `push`, `pull_request`, `workflow_dispatch`, `schedule` and `merge_group` can; `workflow_run`, `issue_comment`, `release` and `repository_dispatch` are refused, and githome fires them. On GitHub these four run the code of the default branch with the secrets of the repository, not the code of a pull request. Recommendation: yes, with limits. A key `[trust] extra_events` takes only those four; each needs the same facts as the others (a configured owner, no fork, an actor `member`); `pull_request_target`, `other` and `unknown` stay refused for good. Until a ruling, githome's live test uses the five events.
+None open.
 
-The owner answered Q1 to Q3 (DR-4, DR-5, DR-6) on 2026-11-11, and Q4 and DR-7 on 2026-11-13 (`docs/decisions.md`).
+The owner answered Q1 to Q3 (DR-4, DR-5, DR-6) on 2026-11-11, and Q4, Q5 and DR-7 on 2026-11-13 (`docs/decisions.md`).

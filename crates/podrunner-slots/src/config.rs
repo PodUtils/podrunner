@@ -343,6 +343,7 @@ impl Config {
     }
 
     fn check(&self) -> Result<(), String> {
+        self.trust.check()?;
         for (name, floor) in &self.tier {
             let t: Tier = serde_json::from_value(Value::String(name.clone()))
                 .map_err(|_| format!("[tier.{name}]: no tier of this name"))?;

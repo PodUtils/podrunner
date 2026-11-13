@@ -46,6 +46,7 @@ at the tag `v0.37.0`.
 | 2026-11-13 | Q4 (T-098) | "the common sense rule is to be github actions compat, so yes allow it". A Docker action runs in a job with no `container:` and no `services:`: the hooks accept `run_container_step` before `prepare_job`. The rule for a choice between two forms: the behaviour of GitHub Actions. |
 | 2026-11-13 | beta.2 | Release `v0.1.0-beta.2` when the gate and `runner-image.yml` of `main` are green. Its notes say that no job of real github.com ran yet. |
 | 2026-11-13 | G-09 and DR-8 (githome, #36 ruling 4) | G-09 keeps `services:`, `docker build` and Docker-in-Docker (the owner, through githome on GitHub #66 and #77). G-09 is the ask that DR-8 names as its condition to bring an engine back. The engine runs inside the unit (a guest of podvm's machine tier, or a system container of incus), never as a socket of the host. T-103 writes the census of the verbs (DR-17) and the design. The hooks stay the route of `container:` jobs and Docker actions. |
+| 2026-11-13 | Q5 (T-102) | "Yes, with limits". The operator may add `workflow_run`, `issue_comment`, `release` and `repository_dispatch` to the events of a trusted job (`[trust] extra_events`). Each needs the facts of a trusted job (a configured owner, no fork, an actor `member`). `pull_request_target`, `other` and `unknown` are never trusted. The default adds none. |
 
 ## Calls made without a ruling
 
@@ -79,7 +80,7 @@ C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 ## Questions for the owner
 
 `TODO/PROGRESS.md`, "Questions for the owner", has each open question
-with its recommendation. Q5 (T-102) is open.
+with its recommendation. No question is open.
 
 ## Superseded
 

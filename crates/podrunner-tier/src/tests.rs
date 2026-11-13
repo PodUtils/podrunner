@@ -7,7 +7,7 @@ use podrunner_schema::{Fact, RefusalCode, Tier};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::{TierConfig, compute, intake};
+use crate::{EXTRA_EVENTS, Organization, TierConfig, compute, intake};
 
 type Rule = fn(&TrustInputs, &TierConfig, Tier) -> Result<Tier, RefusalCode>;
 
@@ -166,4 +166,33 @@ fn the_case_table_finds_each_plant() {
     ] {
         assert!(!wrong_rows(plant).is_empty(), "the case table passes the plant {name}");
     }
+}
+
+/// The owner, Q5: the operator may add only the four events of
+/// `EXTRA_EVENTS`, each with the facts of a trusted job; the rest stay
+/// refused (T-102).
+#[test]
+fn extra_events_are_trusted_only_when_listed_and_only_those_four() {
+    let cfg = |extra: Vec<Event>| TierConfig {
+        organizations: vec![Organization { login: "o".into(), id: None }],
+        trusted_public: vec![],
+        extra_events: extra,
+    };
+    let job = |event: Event, fork: Fact| {
+        let mut t: TrustInputs = serde_json::from_value(Value::Object(table().base)).unwrap();
+        (t.event, t.head_is_fork, t.actor_class, t.repo_visibility) =
+            (event, fork, ActorClass::Member, Visibility::Private);
+        (t.owner, t.repo, t.owner_id, t.repo_id) = ("o".into(), "r".into(), None, None);
+        t
+    };
+    for e in EXTRA_EVENTS {
+        assert_eq!(compute(&job(e, Fact::No), &cfg(vec![])), Err(RefusalCode::EventNotAllowed), "{e:?} unlisted");
+        assert_eq!(compute(&job(e, Fact::No), &cfg(vec![e])), Ok(Tier::Trusted), "{e:?} listed");
+        assert!(compute(&job(e, Fact::Yes), &cfg(vec![e])).is_err(), "{e:?} from a fork");
+    }
+    for e in [Event::PullRequestTarget, Event::Other, Event::Unknown] {
+        assert!(cfg(vec![e]).check().is_err(), "{e:?} can never be listed");
+        assert!(compute(&job(e, Fact::No), &cfg(vec![e])).is_err(), "{e:?}");
+    }
+    assert!(cfg(EXTRA_EVENTS.to_vec()).check().is_ok());
 }
