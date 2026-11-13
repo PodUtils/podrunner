@@ -75,6 +75,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #73 | COORD-015: podrunner takes podcrates v0.35.0 at 0a400b5 (the answer to PodUtils/podcrates#127) (to podcrates) | closed (podcrates closed #127 with the take) | T-094 |
 | #74 | LIVE-1: the server agent: run the remote mint for the live gates (T-032, T-033, T-040) | open | T-032, T-033, T-040 |
 | #75 | LIVE-2: the runner/user agent: run the unit host and the test jobs of the live gates (T-032, T-033, T-040) | open | T-032, T-033, T-040 |
+| #76 | COORD-016: podrunner takes podcrates v0.36.0 at f4064f7 (the answer to PodUtils/podcrates#129) (to podcrates) | open (a report; close when podcrates records the take) | T-094 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 10 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

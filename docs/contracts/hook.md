@@ -77,7 +77,7 @@ of the job can skip the hook script, so the script checks nothing.
 
 - A hook call of a unit whose kind has `container: none` is refused:
   `container-not-supported`.
-- Each call before `prepare_job` is refused: `container-not-supported`.
+- `cleanup_job` and `run_script_step` before `prepare_job` are refused: `container-not-supported`. `run_container_step` (a Docker action) needs no `prepare_job`: in a job with no `container:` and no `services:` the runner sends none, and GitHub runs the action (the owner, Q4). It has the checks of the action mounts.
   A second `prepare_job` is `container-option-refused`.
 - A `dockerfile` (a container action that builds its image) is refused
   by name: `build-not-supported` (call C2).

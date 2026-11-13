@@ -87,7 +87,9 @@ fn a_unit_reaches_its_socket_through_the_relay() {
     let o = relay(&env, prep);
     assert_eq!(o.status.code(), Some(0), "{}", String::from_utf8_lossy(&o.stderr));
     let (refusals, events): (Vec<RefusalCode>, Vec<HookEvent>) = hooks.take(&id);
-    assert_eq!(refusals, [RefusalCode::ContainerNotSupported, RefusalCode::ContainerOptionRefused]);
+    // The build is refused as a build (no order rule for a container step
+    // since Q4), the foreign credential by its registry.
+    assert_eq!(refusals, [RefusalCode::BuildNotSupported, RefusalCode::ContainerOptionRefused]);
     assert!(events.is_empty());
     // A second take is empty; close removes the socket.
     assert_eq!(hooks.take(&id).0, []);

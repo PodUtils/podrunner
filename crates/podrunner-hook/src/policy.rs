@@ -104,6 +104,10 @@ impl Gate {
                 self.prepared = true;
                 Ok(Plan::Prepare { job, services })
             }
+            // A Docker action in a job with no `container:` and no
+            // `services:` gets no `prepare_job` from the runner; it runs as
+            // on GitHub, with the checks of the action mounts (Q4, T-098).
+            Args::RunContainerStep(c) => Ok(Plan::ContainerStep(plan(c, &ACTION_MOUNTS, policy)?)),
             _ if !self.prepared => refuse(RefusalCode::ContainerNotSupported, "a container call before prepare_job"),
             Args::CleanupJob => Ok(Plan::Cleanup),
             Args::RunScriptStep(s) => {
@@ -116,7 +120,6 @@ impl Gate {
                 }
                 Ok(Plan::Script(s.clone()))
             }
-            Args::RunContainerStep(c) => Ok(Plan::ContainerStep(plan(c, &ACTION_MOUNTS, policy)?)),
         }
     }
 }

@@ -12,13 +12,10 @@ jobs:
     steps:
       - run: echo "podrunner-container-$((6*7))" > marker.txt && test "$(cat marker.txt)" = podrunner-container-42
 
-  # A Docker step needs a job with `container:` or `services:`: the hook
-  # server refuses each container operation before `prepare_job`
-  # (docs/design/contracts/unit-driver.md, Order).
+  # A Docker step in a job with no `container:`: the runner sends no
+  # `prepare_job`, and the step runs as on GitHub (Q4, T-098).
   docker-step:
     runs-on: local
-    container:
-      image: IMAGE
     steps:
       # The runner splits `args` at each space on the hooks path
       # (ContainerHookManager of runner v2.338.2): one word for each

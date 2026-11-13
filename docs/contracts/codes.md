@@ -17,6 +17,6 @@ suppresses the job id for `terminal_suppress_s` (3600 by default).
 | Code | Also when |
 | --- | --- |
 | `repo-scope-refused` | The offer is of a repository other than the `repository` of the host (DR-4, T-045). |
-| `container-not-supported` | A hook call comes before `prepare_job`, or `services:` on a unit of the host network (`docs/contracts/hook.md`). |
+| `container-not-supported` | `cleanup_job` or `run_script_step` comes before `prepare_job`, or `services:` on a unit of the host network (`docs/contracts/hook.md`). |
 | `container-option-refused` | A hook call breaks a rule of `docs/contracts/hook.md` (a mount, a create option, a registry). |
 | `payload-not-pinned` | A container image of a hook call is not `NAME@sha256:HEX`. |

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 100 entries: 3 open, 3 partial, 7 blocked, 87 done.
+`TODO/INDEX.md` holds 100 entries: 2 open, 4 partial, 7 blocked, 87 done.
 
 ## State
 
@@ -29,7 +29,7 @@ The queue, most valuable first:
 
 1. T-096 (S, partial): podvm `v0.2.0-beta.7` is pinned; the tar forms of `runner-image.yml` are a check; a green run closes it, GitHub #70 and PodUtils/podvm#289.
 2. Release `v0.1.0-beta.2` (the owner, 2026-11-13) when the gate and `runner-image.yml` of `main` are green.
-3. T-098 (S, open): a Docker action in a job with no container (the ruling Q4: GitHub Actions compatibility).
+3. T-098 (S, partial): a Docker action in a job with no container (Q4); the next green `runner-image.yml` run closes it.
 4. T-099 (S, open): the confined conformance test 27 that hung.
 5. T-037 (M, open): the `microvm` kind over the machine tier of podvm; step 1 is the measure of `scripts/measure-machine.sh` in `runner-image.yml`. Then T-036 (the guest self-test on it) and T-039 (milestone L2).
 

@@ -237,7 +237,8 @@ fn the_mount_tables_and_the_order_of_the_design() {
         refused(check(&mut Gate::default(), &p, Command::PrepareJob, &services)),
         Err(RefusalCode::ContainerOptionRefused)
     );
-    // 16: a container step before prepare_job.
+    // 16: a container step before prepare_job (a Docker action in a job
+    // with no container) runs, with the checks of the action mounts (Q4).
     let action = |mounts: Vec<Value>| {
         let mut c = container();
         c["systemMountVolumes"] = json!(mounts);
@@ -252,9 +253,13 @@ fn the_mount_tables_and_the_order_of_the_design() {
         mount("/home/runner/_work/app/app", "/github/workspace"),
     ];
     let mut g = Gate::default();
+    let Ok(Plan::ContainerStep(early)) = check(&mut g, &p, Command::RunContainerStep, &action(table.clone())) else {
+        panic!()
+    };
+    assert_eq!(early.mounts.len(), 5);
     assert_eq!(
-        refused(check(&mut g, &p, Command::RunContainerStep, &action(table.clone()))),
-        Err(RefusalCode::ContainerNotSupported)
+        refused(check(&mut g, &p, Command::RunContainerStep, &action(vec![mount("/etc", "/github/workspace")]))),
+        Err(RefusalCode::ContainerOptionRefused)
     );
     // 17: the five entries and the docker socket pass after prepare_job;
     // a job target, or a source outside the unit, in a step is refused.

@@ -522,7 +522,7 @@ Take the next tag (move each tag, as T-094), build the `format()` token from `Te
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -547,3 +547,7 @@ If the owner allows it: the gate accepts `run_container_step` before `prepare_jo
 ## Correction
 
 The text below was the Blocker before the ruling: The owner: Q4 of `TODO/PROGRESS.md`. The contract of the design makes the rule; a change of it is the owner's.
+
+## Done
+
+Partial, 2026-11-13, this commit. `Gate::check` (`crates/podrunner-hook/src/policy.rs`) takes `run_container_step` before `prepare_job`, with the checks of the action mounts; `cleanup_job` and `run_script_step` before it stay refused. The test `the_mount_tables_and_the_order_of_the_design` holds both. The job `docker-step` of `crates/podrunner/tests/local/containers.yml` has no `container:` now. `docs/contracts/hook.md`, `docs/contracts/codes.md` and `docs/cli.md` say so. Open: a green `runner-image.yml` run of the containers suite.
