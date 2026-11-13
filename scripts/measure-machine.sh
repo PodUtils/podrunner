@@ -16,7 +16,8 @@ store=$2
 image=$3
 work=$4
 mkdir -p "$work/vol"
-rm -f "$work/vol/written"
+chmod 0777 "$work/vol"
+rm -f "$work/vol/written" "$work/vol/runner-wrote"
 export PODVM_STORE="$store"
 
 # A listener on the loopback of the host. It answers one GET.
@@ -43,6 +44,8 @@ mem=${MACHINE_MEM:-4G}
 out=$(timeout 300 "$podvm" run --rm --podvm-tier=machine --podvm-mem "$mem" --podvm-cpus 2 -v "$work/vol:/mnt/vol" "$image" /bin/sh -c "
   test -x /home/runner/run.sh && echo 'guest files ok'
   echo w > /mnt/vol/written && echo 'guest wrote'
+  if setpriv --reuid=runner --regid=runner --init-groups -- sh -c 'echo r > /mnt/vol/runner-wrote'; then echo 'guest runner wrote'; else echo 'guest runner write failed'; fi
+  ls -ld /mnt/vol; id runner
   curl -s --max-time 20 http://10.0.2.2:$port/ || echo 'guest curl failed'
   uname -r
 " 2>"$work/stderr")
@@ -54,5 +57,6 @@ accel=$(grep -o 'kvm\|tcg' "$work/stderr" | head -1)
 echo "machine boot exit=$code seconds=$((end - start)) accel=${accel:-unknown} mem=$mem"
 case "$out" in *"guest files ok"*) echo "machine files ok" ;; *) echo "machine files failed: $(tail -c 300 "$work/stderr" | tr '\n' ' ')" ;; esac
 if [ -f "$work/vol/written" ]; then echo "machine 9p ok"; else echo "machine 9p failed: no file on the host"; fi
+if [ -f "$work/vol/runner-wrote" ]; then echo "machine 9p-runner ok"; else echo "machine 9p-runner failed: $(printf '%s\n' "$out" | grep -E 'runner|^d' | tr '\n' ' ')"; fi
 case "$out" in *host-loopback-42*) echo "machine host-loopback ok" ;; *) echo "machine host-loopback failed" ;; esac
 echo "machine kernel $(printf '%s\n' "$out" | tail -1)"

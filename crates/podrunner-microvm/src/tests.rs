@@ -96,10 +96,12 @@ fn a_guest_that_runs_is_ended_and_destroyed_with_no_residue() {
 
 #[test]
 fn the_exit_code_of_the_guest_is_the_exit_of_the_unit() {
-    let (u, d) = driver("exit", "exit 7");
+    let (u, d) = driver("exit", "echo the-guest-said-42; exit 7");
     let s = spec("u-2");
     u.start(&s).unwrap();
     assert_eq!(u.wait(&s.unit, Duration::from_secs(10)).unwrap(), Some(Exit::Code(7)));
+    let log = String::from_utf8(u.unit_logs(&s.unit).unwrap()).unwrap();
+    assert!(log.contains("the-guest-said-42"), "{log}");
     assert!(u.destroy(&s.unit).unwrap().is_clean());
     let _ = fs::remove_dir_all(&d);
 }

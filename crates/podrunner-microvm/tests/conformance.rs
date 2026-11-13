@@ -26,6 +26,8 @@ struct Real {
     image: String,
     ids: UnitIds,
     state: PathBuf,
+    /// Each unit that a test made: its log is printed when a test fails.
+    made: std::sync::Mutex<Vec<UnitId>>,
 }
 
 fn sh(s: &str) -> Vec<String> {
@@ -58,7 +60,9 @@ impl Fixture for Real {
         }
     }
     fn unit(&self) -> UnitId {
-        self.ids.next()
+        let id = self.ids.next();
+        self.made.lock().unwrap().push(id.clone());
+        id
     }
     fn state_dir(&self) -> Option<PathBuf> {
         Some(self.state.join("units"))
@@ -74,17 +78,31 @@ fn env(name: &str) -> String {
 fn the_microvm_unit_passes_its_tests() {
     let state = std::env::temp_dir().join(format!("podrunner-microvm-{}", std::process::id()));
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
-    let unit = MicrovmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES")));
-    let fx: Arc<dyn Fixture + Send + Sync> =
-        Arc::new(Real { unit, image: env("PODRUNNER_PODVM_IMAGE"), ids: UnitIds::default(), state: state.clone() });
+    let unit = MicrovmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES")))
+        .with_kept_logs(&state.join("logs"));
+    let real = Arc::new(Real {
+        unit,
+        image: env("PODRUNNER_PODVM_IMAGE"),
+        ids: UnitIds::default(),
+        state: state.clone(),
+        made: Default::default(),
+    });
+    let fx: Arc<dyn Fixture + Send + Sync> = real.clone();
     let mut failed = Vec::new();
     for n in TESTS {
         let name = conformance::tests().into_iter().find(|(m, _)| *m == n).map(|(_, s)| s).unwrap_or("?");
         println!("microvm {n:2} {name}: running");
+        real.made.lock().unwrap().clear();
         let r = conformance::run_bounded(fx.clone(), n, Duration::from_secs(300)).expect("a test");
         println!("{r}");
         if matches!(r.outcome, Outcome::Fail(_)) {
             failed.push(n);
+            // The log of each guest of the test, kept at its destroy.
+            for id in real.made.lock().unwrap().iter() {
+                if let Ok(log) = std::fs::read(state.join("logs").join(format!("{id}.log"))) {
+                    println!("--- the log of {id}:\n{}", String::from_utf8_lossy(&log));
+                }
+            }
         }
     }
     let _ = std::fs::remove_dir_all(&state);

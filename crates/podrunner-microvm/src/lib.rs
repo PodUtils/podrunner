@@ -59,6 +59,9 @@ pub struct MicrovmUnit {
     references: Mutex<HashMap<String, String>>,
     units: Mutex<HashMap<UnitId, Running>>,
     runner_dir: String,
+    /// A directory that keeps the log of each guest after `destroy`, for a
+    /// test that reads it then.
+    kept_logs: Option<PathBuf>,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -80,7 +83,14 @@ impl MicrovmUnit {
             references: Mutex::new(HashMap::new()),
             units: Mutex::new(HashMap::new()),
             runner_dir: "/home/runner".into(),
+            kept_logs: None,
         }
+    }
+
+    /// Keep the log of each guest as `DIR/UNIT.log` at `destroy`.
+    pub fn with_kept_logs(mut self, dir: &Path) -> MicrovmUnit {
+        self.kept_logs = Some(dir.to_path_buf());
+        self
     }
 
     /// The guest memory and vCPUs of each unit.
@@ -163,13 +173,16 @@ impl UnitDriver for MicrovmUnit {
         }
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
         let args = run_args(&reference, &dir, &self.mem, self.cpus, &self.runner_dir, &spec.env, &spec.argv);
+        // The output of the guest: `unit_logs` reads it before `destroy`.
+        let log = fs::File::create(dir.join("guest.log")).map_err(|e| host("the log of the guest", e))?;
+        let log2 = log.try_clone().map_err(|e| host("the log of the guest", e))?;
         let child = Command::new(&self.podvm.binary)
             .args(&args)
             .env("PODVM_STORE", &self.images)
             .env(TAG_VAR, &tag)
             .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stdout(log)
+            .stderr(log2)
             .spawn()
             .map_err(|e| {
                 let _ = fs::remove_dir_all(&dir);
@@ -228,6 +241,10 @@ impl UnitDriver for MicrovmUnit {
         let left = procs::kill_tagged(&r.tag, KILL_LIMIT);
         let _ = r.child.kill();
         let _ = r.child.wait();
+        if let Some(keep) = &self.kept_logs {
+            let _ = fs::create_dir_all(keep);
+            let _ = fs::copy(r.dir.join("guest.log"), keep.join(format!("{unit}.log")));
+        }
         let removed = fs::remove_dir_all(&r.dir).is_ok() || !r.dir.exists();
         Ok(Residue { processes: Count::Known(left), files: Count::Known(u64::from(!removed)) })
     }
@@ -240,6 +257,12 @@ impl UnitDriver for MicrovmUnit {
             runner_root: Some(r.dir.join("cred")),
             pids: procs::tagged(&r.tag),
         })
+    }
+
+    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+        let units = self.units.lock().expect("the units");
+        let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;
+        fs::read(r.dir.join("guest.log")).map_err(|e| host("the log of the guest", e))
     }
 
     fn container_start(&self, _: &UnitId, _: &ContainerSpec) -> Result<ContainerId, UnitError> {
