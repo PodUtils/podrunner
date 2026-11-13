@@ -7,7 +7,8 @@
 //! a private directory of the unit on the host, which the guest mounts
 //! read-only over 9p; the guest copies them into the runner root at mode
 //! 0600 and runs the payload as the user of the image. No credential goes
-//! into argv or the environment. Each process of the unit (podvm, QEMU)
+//! into argv or the environment. The payload runs in a work directory of
+//! the unit that the guest mounts over 9p. Each process of the unit (podvm, QEMU)
 //! carries the tag of the unit, so `destroy` ends the whole tree. A unix
 //! socket does not cross into a guest: the kind has no container route.
 
@@ -30,7 +31,7 @@ use podrunner_unit::{
     StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
 
-pub use guest::{CRED_MOUNT, run_args};
+pub use guest::{CRED_MOUNT, WORK_MOUNT, run_args};
 
 /// The time that `destroy` waits for the processes of a unit to end.
 const KILL_LIMIT: Duration = Duration::from_secs(10);
@@ -155,10 +156,13 @@ impl UnitDriver for MicrovmUnit {
             .get(&spec.image.digest)
             .cloned()
             .ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "the image is not prepared"))?;
-        let cred = dir.join("cred");
-        guest::write_credentials(&cred, &spec.credential)?;
+        let (cred, work) = (dir.join("cred"), dir.join("work"));
+        if let Err(e) = guest::make_work(&dir, &work).and_then(|()| guest::write_credentials(&cred, &spec.credential)) {
+            let _ = fs::remove_dir_all(&dir);
+            return Err(e);
+        }
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
-        let args = run_args(&reference, &cred, &self.mem, self.cpus, &self.runner_dir, &spec.env, &spec.argv);
+        let args = run_args(&reference, &dir, &self.mem, self.cpus, &self.runner_dir, &spec.env, &spec.argv);
         let child = Command::new(&self.podvm.binary)
             .args(&args)
             .env("PODVM_STORE", &self.images)
@@ -231,7 +235,11 @@ impl UnitDriver for MicrovmUnit {
     fn observe(&self, unit: &UnitId) -> Result<Observation, UnitError> {
         let units = self.units.lock().expect("the units");
         let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;
-        Ok(Observation { unit_root: None, runner_root: Some(r.dir.join("cred")), pids: procs::tagged(&r.tag) })
+        Ok(Observation {
+            unit_root: Some(r.dir.join("work")),
+            runner_root: Some(r.dir.join("cred")),
+            pids: procs::tagged(&r.tag),
+        })
     }
 
     fn container_start(&self, _: &UnitId, _: &ContainerSpec) -> Result<ContainerId, UnitError> {
@@ -253,7 +261,7 @@ impl UnitDriver for MicrovmUnit {
 
 fn no_container() -> UnitError {
     UnitError::new(
-        UnitCode::Unsupported,
+        UnitCode::ContainerNotSupported,
         "the microvm kind has no container route: a socket does not cross into a guest",
     )
 }

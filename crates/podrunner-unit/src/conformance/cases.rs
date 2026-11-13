@@ -126,11 +126,22 @@ fn prepare_refuses_a_tag(fx: &dyn Fixture) -> Result<Outcome, String> {
     refused("prepare of a tag", d.prepare(&format!("{name}:latest"), &fx.platform(), false), UnitCode::PayloadNotPinned)
 }
 
+/// The processes of a unit that the host sees: the top, a child and a
+/// grandchild; for a kind that claims a guest, the processes of its
+/// emulator only (the guest kernel holds the rest, and ends with it).
+fn host_pids(fx: &dyn Fixture) -> usize {
+    match fx.driver().probe() {
+        Ok(c) if c.boundary == podrunner_schema::Boundary::Guest => 1,
+        _ => 3,
+    }
+}
+
 fn destroy_reaches_a_setsid_grandchild(fx: &dyn Fixture) -> Result<Outcome, String> {
+    let want = host_pids(fx);
     let u = begin(fx, Behaviour::Grandchild)?;
     let mut pids = Vec::new();
-    if !until(|| u.observe().map(|o| pids = o.pids).is_ok() && pids.len() >= 3) {
-        return Err(format!("the unit shows {} processes, not 3 (top, child, grandchild)", pids.len()));
+    if !until(|| u.observe().map(|o| pids = o.pids).is_ok() && pids.len() >= want) {
+        return Err(format!("the unit shows {} processes, not {want} (top, child, grandchild)", pids.len()));
     }
     let residue = fx.driver().destroy(&u.id).map_err(|e| err("destroy", e))?;
     let left: Vec<u32> = pids.iter().copied().filter(|p| alive(*p)).collect();
@@ -184,10 +195,11 @@ fn credential_files_at_mode_0600(fx: &dyn Fixture) -> Result<Outcome, String> {
 }
 
 fn no_credential_in_argv_or_environment(fx: &dyn Fixture) -> Result<Outcome, String> {
+    let want = host_pids(fx);
     let u = begin(fx, Behaviour::Grandchild)?;
     let mut o = Observation::default();
-    if !until(|| u.observe().map(|x| o = x).is_ok() && o.pids.len() >= 3) {
-        return Err("the unit shows fewer than 3 processes".into());
+    if !until(|| u.observe().map(|x| o = x).is_ok() && o.pids.len() >= want) {
+        return Err(format!("the unit shows fewer than {want} processes"));
     }
     // A positive control: the environment of the top process is readable.
     if !holds_text(o.pids[0], u.id.as_str()) {

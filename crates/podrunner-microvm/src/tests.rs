@@ -47,12 +47,13 @@ fn spec(unit: &str) -> StartSpec {
 fn the_argv_holds_the_tier_the_size_and_a_read_only_volume_and_no_credential() {
     let env = BTreeMap::from([("A".to_string(), "1".to_string())]);
     let argv = vec!["/home/runner/run.sh".to_string(), "a b".to_string()];
-    let a = run_args(IMAGE, Path::new("/s/u-1/cred"), "4G", 2, "/home/runner", &env, &argv);
+    let a = run_args(IMAGE, Path::new("/s/u-1"), "4G", 2, "/home/runner", &env, &argv);
     let s = a.join(" ");
     for want in ["run --rm --podvm-tier=machine", "--podvm-mem 4G", "--podvm-cpus 2", "-e A=1"] {
         assert!(s.contains(want), "{want}: {s}");
     }
     assert!(a.contains(&format!("/s/u-1/cred:{CRED_MOUNT}:ro")));
+    assert!(a.contains(&format!("/s/u-1/work:{WORK_MOUNT}")));
     let i = a.iter().position(|w| w == IMAGE).unwrap();
     assert_eq!(&a[i + 1..i + 3], ["/bin/sh", "-c"]);
     assert_eq!(&a[i + 4..], ["podrunner", "/home/runner", "/home/runner/run.sh", "a b"], "argv as positional words");
@@ -83,6 +84,9 @@ fn a_guest_that_runs_is_ended_and_destroyed_with_no_residue() {
     let seen = u.observe(&s.unit).unwrap();
     assert!(!seen.pids.is_empty(), "the tag reaches the process of podvm");
     assert!(seen.runner_root.unwrap().join(".credentials").exists());
+    let work = seen.unit_root.unwrap();
+    assert_eq!(fs::metadata(&work).unwrap().permissions().mode() & 0o777, 0o777);
+    assert_eq!(fs::metadata(work.parent().unwrap()).unwrap().permissions().mode() & 0o777, 0o700);
     let residue = u.destroy(&s.unit).unwrap();
     assert!(residue.is_clean(), "{residue:?}");
     assert!(!u.unit_dir(&s.unit).exists());
@@ -121,6 +125,6 @@ fn the_kind_claims_a_guest_and_has_no_container_route() {
     assert_eq!(c, u.probe().unwrap(), "two probes give one record");
     let id = UnitId::parse("u-4").unwrap();
     let e = u.container_logs(&id, &ContainerId("c".into())).unwrap_err();
-    assert_eq!(e.code, UnitCode::Unsupported);
+    assert_eq!(e.code, UnitCode::ContainerNotSupported);
     let _ = fs::remove_dir_all(&d);
 }
