@@ -7,7 +7,9 @@
 #   sh scripts/measure-machine.sh PODVM STORE IMAGE WORKDIR
 #
 # STORE holds IMAGE (podvm load). It prints one line for each property:
-# "machine NAME ok" or "machine NAME failed: why".
+# "machine NAME ok" or "machine NAME failed: why". The machine tier loads
+# the image as an initramfs, which must fit in the guest memory twice
+# (packed and unpacked): MACHINE_MEM sets it (default 4G).
 set -u
 podvm=$1
 store=$2
@@ -37,7 +39,8 @@ while [ ! -s "$port_file" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
 port=$(cat "$port_file")
 
 start=$(date +%s)
-out=$(timeout 300 "$podvm" run --rm --podvm-tier=machine -v "$work/vol:/mnt/vol" "$image" /bin/sh -c "
+mem=${MACHINE_MEM:-4G}
+out=$(timeout 300 "$podvm" run --rm --podvm-tier=machine --podvm-mem "$mem" --podvm-cpus 2 -v "$work/vol:/mnt/vol" "$image" /bin/sh -c "
   test -x /home/runner/run.sh && echo 'guest files ok'
   echo w > /mnt/vol/written && echo 'guest wrote'
   curl -s --max-time 20 http://10.0.2.2:$port/ || echo 'guest curl failed'
@@ -48,7 +51,7 @@ end=$(date +%s)
 kill "$listener" 2>/dev/null
 
 accel=$(grep -o 'kvm\|tcg' "$work/stderr" | head -1)
-echo "machine boot exit=$code seconds=$((end - start)) accel=${accel:-unknown}"
+echo "machine boot exit=$code seconds=$((end - start)) accel=${accel:-unknown} mem=$mem"
 case "$out" in *"guest files ok"*) echo "machine files ok" ;; *) echo "machine files failed: $(tail -c 300 "$work/stderr" | tr '\n' ' ')" ;; esac
 if [ -f "$work/vol/written" ]; then echo "machine 9p ok"; else echo "machine 9p failed: no file on the host"; fi
 case "$out" in *host-loopback-42*) echo "machine host-loopback ok" ;; *) echo "machine host-loopback failed" ;; esac
