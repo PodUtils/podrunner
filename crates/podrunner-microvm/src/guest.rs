@@ -25,6 +25,13 @@ pub const WORK_MOUNT: &str = "/podrunner-work";
 /// work directory.
 const SCRIPT: &str = r#"set -eu
 root=$1; shift
+# The channel to the egress socket: the proxy of the payload. The script
+# sets the variables in the guest, as podvm rewrites a loopback proxy
+# variable of its own -e to the gateway of a NIC that this guest lacks.
+if [ -n "${PODRUNNER_CHANNEL_PORT:-}" ]; then
+  u=http://127.0.0.1:$PODRUNNER_CHANNEL_PORT
+  export http_proxy=$u https_proxy=$u HTTP_PROXY=$u HTTPS_PROXY=$u
+fi
 mkdir -p "$root"
 for f in /mnt/podrunner-cred/.[!.]* /mnt/podrunner-cred/*; do
   [ -f "$f" ] || continue
@@ -53,12 +60,10 @@ pub struct Shape<'a> {
     pub egress: Option<&'a Path>,
 }
 
-/// The proxy variables of a payload behind the egress channel: the
-/// official runner and the common tools read them.
-pub fn proxy_env() -> Vec<(String, String)> {
-    let url = format!("http://127.0.0.1:{EGRESS_PORT}");
-    ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"].map(|k| (k.to_string(), url.clone())).to_vec()
-}
+/// The variable that gives the guest script the port of the egress
+/// channel; the script makes the proxy variables of the payload from it
+/// (`http_proxy`, `https_proxy` and their upper-case forms).
+pub const CHANNEL_PORT_VAR: &str = "PODRUNNER_CHANNEL_PORT";
 
 /// The argv of `podvm run` for one guest, with the credential directory
 /// `UNIT_DIR/cred` and the work directory `UNIT_DIR/work`. The guest has no
@@ -81,10 +86,8 @@ pub fn run_args(
     if let Some(egress) = shape.egress {
         a.push("--podvm-channel".into());
         a.push(format!("{}:127.0.0.1:{EGRESS_PORT}", egress.display()));
-        for (k, v) in proxy_env() {
-            a.push("-e".into());
-            a.push(format!("{k}={v}"));
-        }
+        a.push("-e".into());
+        a.push(format!("{CHANNEL_PORT_VAR}={EGRESS_PORT}"));
     }
     a.push("-v".into());
     a.push(format!("{}:{CRED_MOUNT}:ro", unit_dir.join("cred").display()));

@@ -36,7 +36,7 @@ use podrunner_unit::{
     Signal, StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
 
-pub use guest::{CRED_MOUNT, EGRESS_PORT, Shape, WORK_MOUNT, proxy_env, run_args};
+pub use guest::{CHANNEL_PORT_VAR, CRED_MOUNT, EGRESS_PORT, Shape, WORK_MOUNT, run_args};
 
 /// The time that `destroy` waits for the processes of a unit to end.
 const KILL_LIMIT: Duration = Duration::from_secs(10);

@@ -53,7 +53,10 @@ fn the_argv_holds_the_tier_the_size_and_a_read_only_volume_and_no_credential() {
     for want in ["run --rm --podvm-tier=machine --podvm-net none", "--podvm-mem 4G", "--podvm-cpus 2", "-e A=1"] {
         assert!(s.contains(want), "{want}: {s}");
     }
-    assert!(!s.contains("--podvm-channel") && !s.contains("proxy"), "no egress socket, no way out: {s}");
+    assert!(
+        !s.contains("--podvm-channel") && !s.contains(&format!("{CHANNEL_PORT_VAR}=")),
+        "no egress socket, no way out: {s}"
+    );
     assert!(a.contains(&format!("/s/u-1/cred:{CRED_MOUNT}:ro")));
     assert!(a.contains(&format!("/s/u-1/work:{WORK_MOUNT}")));
     let i = a.iter().position(|w| w == IMAGE).unwrap();
@@ -139,8 +142,10 @@ fn an_egress_socket_is_the_one_channel_and_the_proxy_of_the_payload() {
     let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", &BTreeMap::new(), &[]);
     let s = a.join(" ");
     assert!(s.contains(&format!("--podvm-net none --podvm-mem 4G --podvm-cpus 2 --podvm-channel /s/sockets/egress.sock:127.0.0.1:{EGRESS_PORT}")), "{s}");
-    for (k, v) in proxy_env() {
-        assert!(s.contains(&format!("-e {k}={v}")), "{k}: {s}");
-    }
+    assert!(s.contains(&format!("-e {CHANNEL_PORT_VAR}={EGRESS_PORT}")), "{s}");
+    assert!(
+        !s.contains("-e http_proxy") && !s.contains("-e https_proxy"),
+        "no proxy variable that podvm rewrites: {s}"
+    );
     assert_eq!(s.matches("--podvm-channel").count(), 1);
 }
