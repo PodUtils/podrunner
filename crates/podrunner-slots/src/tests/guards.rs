@@ -379,3 +379,23 @@ fn disk_limit_ends_a_unit_over_its_bound() {
     bed.until(60, |s| s.jobs().count() == 1 && Bed::all_final(s));
     assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
 }
+
+/// A `program` source (T-101) needs its program, takes no key of another
+/// kind, and is never local; another kind takes no `program`.
+#[test]
+fn a_program_source_needs_its_program() {
+    let src = |extra: &str| {
+        format!(
+            "host = \"h\"\n[[source]]\nname = \"g\"\nkind = \"program\"\ntier = \"trusted\"\narch = \"x86_64\"\n{extra}\n[pin]\n"
+        )
+    };
+    let ok = Config::parse(&src("program = \"/opt/d/githome-source\"\nprogram_args = [\"--x\"]")).unwrap();
+    assert_eq!(ok.source[0].program_args, ["--x"]);
+    assert!(Config::parse(&src("")).unwrap_err().contains("needs program"));
+    let local = src("program = \"/opt/d/p\"").replace("tier = \"trusted\"", "tier = \"local\"");
+    assert!(Config::parse(&local).unwrap_err().contains("never local"));
+    let fake = src("program = \"/opt/d/p\"")
+        .replace("kind = \"program\"", "kind = \"fake\"")
+        .replace("host = \"h\"", "host = \"h\"\nallow_fake = true");
+    assert!(Config::parse(&fake).unwrap_err().contains("for a program source"));
+}

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**105 entries: 6 open, 3 partial, 7 blocked, 89 done.**
+**105 entries: 5 open, 4 partial, 7 blocked, 89 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 1 | 1 | 0 | 29 | 31 |
+| P1 | 0 | 2 | 0 | 29 | 31 |
 | P2 | 4 | 2 | 5 | 37 | 48 |
 | P3 | 1 | 0 | 2 | 23 | 26 |
-| **All** | 6 | 3 | 7 | 89 | 105 |
+| **All** | 5 | 4 | 7 | 89 | 105 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -148,7 +148,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-098](later.md) | P3 | S | later | feature | done | Q4: a Docker action in a job with no container (the order rule of the hook server) |
 | [T-099](core.md) | P2 | S | later | defect | partial | The confined conformance test 27 hung to its time limit on podvm beta.6 |
 | [T-100](core.md) | P2 | S | later | chore | done | The beta release carries the scale-set sidecar and its notes |
-| [T-101](later.md) | P1 | M | later | feature | open | G-01: a source kind for an external program that speaks the source wire |
+| [T-101](later.md) | P1 | M | later | feature | partial | G-01: a source kind for an external program that speaks the source wire |
 | [T-102](later.md) | P2 | S | later | feature | open | G-13: a table of the events of a job in the tier rule |
 | [T-103](later.md) | P2 | L | later | feature | open | G-09: a container engine inside the unit, and the census of the verbs (DR-8) |
 | [T-104](later.md) | P2 | S | later | feature | open | G-10: the source conformance tests as a command for another source program |

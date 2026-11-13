@@ -1,6 +1,8 @@
-//! A source in a child process: the scale-set sidecar (GitHub #29). `mint`
-//! starts it with the source wire on its stdio and a channel to `sign` on
-//! its descriptor 3 (call C15), and starts it again with a backoff when it
+//! A source in a child process: the scale-set sidecar (GitHub #29), or any
+//! program that speaks the source wire (the `program` kind, T-101). `mint`
+//! starts it with the source wire on its stdio and, for the sidecar, a
+//! channel to `sign` on its descriptor 3 (call C15), and starts it again
+//! with a backoff when it
 //! ends, except after a revocation. Each call has a reply deadline
 //! (GitHub #57): a sidecar that lives and says nothing is killed and starts
 //! again after the backoff, so the supervisor never waits for ever, and no
@@ -92,7 +94,10 @@ impl Drop for Running {
 pub struct SidecarSource {
     program: String,
     args: Vec<String>,
-    signer: Arc<Mutex<Signer>>,
+    /// The environment that the program gets beside the one of podrunner.
+    env: Vec<(String, String)>,
+    /// `sign` on descriptor 3: the sidecar only.
+    signer: Option<Arc<Mutex<Signer>>>,
     caller: String,
     running: Option<Running>,
     backoff: Duration,
@@ -128,7 +133,27 @@ impl SidecarSource {
         SidecarSource {
             program: program.into(),
             args,
-            signer,
+            env: Vec::new(),
+            signer: Some(signer),
+            caller: caller.into(),
+            running: None,
+            backoff: BACKOFF_FIRST,
+            not_before: None,
+            revoked: false,
+            starts: 0,
+            limit: REPLY_LIMIT,
+        }
+    }
+
+    /// A program that speaks the source wire on its stdio, with no `sign`
+    /// channel (T-101). `env` gives it, for example, the path of its
+    /// credential file: never the credential itself.
+    pub fn program(program: &str, args: Vec<String>, env: Vec<(String, String)>, caller: &str) -> SidecarSource {
+        SidecarSource {
+            program: program.into(),
+            args,
+            env,
+            signer: None,
             caller: caller.into(),
             running: None,
             backoff: BACKOFF_FIRST,
@@ -145,19 +170,32 @@ impl SidecarSource {
         }
         let down =
             |what: &str, e: std::io::Error| SourceError::new(SourceCode::Unavailable, format!("{what}: {}", e.kind()));
-        let (ours, theirs) = UnixStream::pair().map_err(|e| down("the sign channel", e))?;
-        let fd = theirs.as_raw_fd();
         let mut cmd = Command::new(&self.program);
-        cmd.args(&self.args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit());
-        // SAFETY: dup2 in the child before exec, with a descriptor that is
-        // open in the parent until the spawn returns.
-        unsafe {
-            cmd.pre_exec(move || if libc::dup2(fd, 3) < 0 { Err(std::io::Error::last_os_error()) } else { Ok(()) });
-        }
+        cmd.args(&self.args).envs(self.env.iter().map(|(k, v)| (k, v)));
+        cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit());
+        let channel = match &self.signer {
+            Some(signer) => {
+                let (ours, theirs) = UnixStream::pair().map_err(|e| down("the sign channel", e))?;
+                let fd = theirs.as_raw_fd();
+                // SAFETY: dup2 in the child before exec, with a descriptor
+                // that is open in the parent until the spawn returns.
+                unsafe {
+                    cmd.pre_exec(
+                        move || {
+                            if libc::dup2(fd, 3) < 0 { Err(std::io::Error::last_os_error()) } else { Ok(()) }
+                        },
+                    );
+                }
+                Some((ours, theirs, signer.clone()))
+            }
+            None => None,
+        };
         let mut child = cmd.spawn().map_err(|e| down("the sidecar", e))?;
-        drop(theirs);
-        let (signer, caller) = (self.signer.clone(), self.caller.clone());
-        std::thread::spawn(move || serve_sign(ours, signer, caller));
+        if let Some((ours, theirs, signer)) = channel {
+            drop(theirs);
+            let caller = self.caller.clone();
+            std::thread::spawn(move || serve_sign(ours, signer, caller));
+        }
         let (stdin, stdout) = (child.stdin.take().expect("stdin"), child.stdout.take().expect("stdout"));
         let pipe = Pipe { reader: BufReader::new(stdout), writer: stdin, limit: REPLY_LIMIT };
         self.running = Some(Running { child, wire: Wire(pipe) });

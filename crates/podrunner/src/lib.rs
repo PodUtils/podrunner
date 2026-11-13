@@ -11,6 +11,7 @@ pub mod lock;
 pub mod mint_serve;
 pub mod notify;
 pub mod podvm_kind;
+pub mod program_source;
 pub mod run_local;
 pub mod serve;
 pub mod text;

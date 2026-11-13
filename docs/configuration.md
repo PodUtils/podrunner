@@ -21,7 +21,7 @@ driver_dir = "/opt/podrunner/drivers"  # each binary and sidecar is in it; absol
 
 [[source]]                   # one set: one tier, one architecture, this host
 name = "org-trusted"
-kind = "github-scaleset"     # or "fake", or "remote" (the remote mint, below)
+kind = "github-scaleset"     # or "fake", "remote" (the remote mint, below), or "program" (below)
 tier = "trusted"             # "untrusted", "trusted" or "local"
 arch = "x86_64"              # or "aarch64"
 operator_controlled = true   # the full report; else the public report
@@ -86,6 +86,30 @@ whose own resolver fails keeps its egress and its mint.
 | `untrusted` | `guest` | A fork job is hostile code. |
 | `trusted` | `redirect` (default `confined`) | DR-4: `redirect` is a choice of the operator. The file must then have a signed pin list (`podrunner pin-sign`), set `repository`, keep `same_principal_ok = false` and set `slots` on each `trusted` source (T-045 has the other mitigations). |
 | `local` | `none` | Only the configuration marks a set `local`; its jobs run at `local` with no tier rule, and only a `fake` source can be `local` (call C14). |
+
+## A program source
+
+A forge other than GitHub gives jobs through a program of its own that
+speaks the source wire (`docs/contracts/source-driver.md`) on its stdio,
+as the scale-set sidecar does for GitHub (T-101). `serve` starts it, and
+starts it again with a backoff when it ends.
+
+```toml
+[[source]]
+name = "githome-trusted"
+kind = "program"
+tier = "trusted"
+arch = "x86_64"
+slots = 2
+program = "/opt/podrunner/drivers/githome-source"  # absolute, in driver_dir
+program_args = ["--deployment", "staging"]
+key_file = "/etc/podrunner/githome.token"         # optional, mode 0400 or 0600
+```
+
+The program gets the path of `key_file` in `PODRUNNER_SOURCE_KEY_FILE`,
+never its content. A program source is never `local`.
+`podrunner fake-source --script FILE` is a program of this kind over the
+fake source: a forge checks its own program against it.
 
 ## The remote mint
 

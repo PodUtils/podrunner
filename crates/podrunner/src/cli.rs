@@ -31,6 +31,7 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
                                                     a service unit, with no credential
   pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
   mint-serve --config FILE                          the remote mint (on a machine with no unit)
+  fake-source [--script FILE]                       a fake source on stdio (for a test of a program source)
   image verify --tarball FILE --arch ARCH           check a runner tarball against its pin
   run FILE (--runner-dir DIR | --podvm PATH --images STORE --image REF [--podnet PATH [--allow HOST]...])
       [--actions DIR] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...
@@ -185,6 +186,10 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             _ => Err(err(Class::Usage, format!("image needs verify\n{USAGE}"))),
         },
         "run" => Ok(crate::run_local::run(rest)),
+        "fake-source" => {
+            crate::program_source::fake_source(rest).map_err(|f| err(f.class, f.detail))?;
+            Ok(ok(String::new()))
+        }
         "mint-serve" => {
             let o = opts(rest)?;
             o.only(&["--config"])?;

@@ -18,6 +18,8 @@ pub enum SourceKind {
     /// A remote mint over mutual TLS (GitHub #31): the source and its
     /// credentials live on another machine.
     Remote,
+    /// A program that speaks the source wire on its stdio (T-101, G-01).
+    Program,
 }
 
 /// One source instance: one set of one tier, one architecture, one host.
@@ -64,6 +66,13 @@ pub struct SourceConfig {
     pub mint_pin: Option<String>,
     #[serde(default)]
     pub cert_file: Option<String>,
+    /// `program`: the program, in `driver_dir`, and its argv. Its credential
+    /// file is `key_file` (optional, mode 0400 or 0600): the program gets
+    /// its path in `PODRUNNER_SOURCE_KEY_FILE`, never its content.
+    #[serde(default)]
+    pub program: Option<String>,
+    #[serde(default)]
+    pub program_args: Vec<String>,
 }
 
 /// `[dns]`: the resolver of podrunner (`pod-dns`): the system, the cache of
@@ -391,6 +400,12 @@ impl Config {
                     return Err(format!("[[source]] {:?}: a remote source needs {key}", s.name));
                 }
             }
+            if s.kind == SourceKind::Program && s.program.is_none() {
+                return Err(format!("[[source]] {:?}: a program source needs program", s.name));
+            }
+            if s.kind != SourceKind::Program && (s.program.is_some() || !s.program_args.is_empty()) {
+                return Err(format!("[[source]] {:?}: program and program_args are for a program source", s.name));
+            }
             if !matches!(s.arch.as_str(), "x86_64" | "aarch64") {
                 return Err(format!("[[source]] {:?}: arch is not x86_64 or aarch64", s.name));
             }
@@ -413,7 +428,8 @@ impl Config {
         crate::pins::verify(&self.pin)?;
         let drivers = self.unit.iter().map(|(n, u)| (format!("[unit.{n}] binary"), &u.binary));
         let sidecars = self.source.iter().map(|s| (format!("[[source]] {:?} sidecar", s.name), &s.sidecar));
-        for (key, path) in drivers.chain(sidecars) {
+        let programs = self.source.iter().map(|s| (format!("[[source]] {:?} program", s.name), &s.program));
+        for (key, path) in drivers.chain(sidecars).chain(programs) {
             let Some(path) = path else { continue };
             let p = std::path::Path::new(path);
             if !p.is_absolute() {

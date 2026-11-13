@@ -559,7 +559,7 @@ The text below was the Blocker before the ruling: The owner: Q4 of `TODO/PROGRES
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -576,6 +576,10 @@ A `[[source]]` kind `program`: the absolute path of the program in `driver_dir`,
 ## Prove
 
 The 12 source conformance tests pass against a program of the test that speaks the wire; with a `github-scaleset` fake and a `program` source of 2 slots each, 10 jobs of each run and no source holds more than its slots.
+
+## Done
+
+Partial, 2026-11-13, this commit. The `[[source]]` kind `program` (`program`, `program_args`, an optional `key_file` whose path the program gets in `PODRUNNER_SOURCE_KEY_FILE`); `serve` runs it through `SidecarSource::program`, the restart and reply deadlines of the sidecar with no `sign` channel. `podrunner fake-source --script FILE` serves the fake source on stdio. `crates/podrunner/tests/program_source.rs`: the 12 source conformance tests pass against `podrunner fake-source` as a program source. `a_program_source_needs_its_program` holds the keys. `docs/configuration.md` ("A program source") and `docs/cli.md` say so. Open: the run of 10 jobs from each of two sources of 2 slots, and `status --json` grouped by source.
 
 # T-102: G-13: a table of the events of a job in the tier rule
 

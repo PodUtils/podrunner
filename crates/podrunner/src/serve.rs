@@ -153,6 +153,7 @@ pub(crate) fn source_of(
         }
         SourceKind::GithubScaleset => Box::new(scaleset(s, clock)?),
         SourceKind::Remote => Box::new(remote(s, lookup)?),
+        SourceKind::Program => Box::new(crate::program_source::program(s)?),
     };
     Ok(Box::new(podrunner_mint::Mint::new(&s.name, source)))
 }
