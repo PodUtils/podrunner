@@ -8,8 +8,8 @@
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is yes
   (2026-11-13): the live gates run on GitHub #74 and #75.
 - Pins: podcrates `v0.40.0`, podvm `v0.2.0-beta.13`, podnet
-  `v0.4.0-beta.8`, runner v2.338.2. Last beta: `v0.1.0-beta.3` (release
-  run 43461852923, `e8795f2`). Last green `runner-image.yml`: 43472656290 (`67689fa`).
+  `v0.4.0-beta.8`, runner v2.338.2. Last beta: `v0.1.0-beta.4` (release
+  run 43506335609, `d796a94`). Last green `runner-image.yml`: 43472656290 (`67689fa`).
 - M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for
   the live gates (GitHub #74, #75). M-D: T-031 and T-045 done; the gate
   T-033 waits for the live gates. L2 holds: T-034 to T-039 done

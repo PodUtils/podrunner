@@ -12,8 +12,8 @@ is done.
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm and incus kinds need beta.10, T-110); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
-  (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.3`
-  (2026-11-13, release run 43461852923, `e8795f2`); githome and the
+  (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.4`
+  (2026-11-13, release run 43506335609, `d796a94`); githome and the
   live-gate agents (#74, #75) are told.
 - The record: 111 entries, 3 open, 7 partial, 7 blocked, 94 done
   (`cargo todo check`). The last green `runner-image.yml` run is
