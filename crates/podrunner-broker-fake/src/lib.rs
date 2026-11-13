@@ -67,8 +67,15 @@ const POLL: Duration = Duration::from_secs(2);
 impl Broker {
     /// Listen on a free port of the loopback.
     pub fn start() -> std::io::Result<Broker> {
+        Broker::start_seen_at("127.0.0.1")
+    }
+
+    /// Listen on a free port of the loopback, and give its clients the
+    /// address `host` in each URL: a guest of the machine tier reaches the
+    /// loopback of the host at its gateway (`10.0.2.2`).
+    pub fn start_seen_at(host: &str) -> std::io::Result<Broker> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
-        let base = format!("http://{}/", listener.local_addr()?);
+        let base = format!("http://{host}:{}/", listener.local_addr()?.port());
         let state: Arc<Mutex<State>> = Arc::default();
         let (s, b) = (state.clone(), base.clone());
         std::thread::spawn(move || {

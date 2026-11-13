@@ -264,6 +264,9 @@ jobs:
           set -eu
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 3600 \
             cargo test -p podrunner-microvm --test conformance -- --ignored --nocapture
+          # T-037 step 3: the official runner in a guest takes a canned job
+          # of the fake broker, which it reaches at 10.0.2.2.
+          timeout 900 cargo test -p podrunner-broker-fake --test microvm -- --ignored --nocapture
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runner-${{ matrix.arch }}
