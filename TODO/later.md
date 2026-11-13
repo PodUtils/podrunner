@@ -695,6 +695,8 @@ Read GitHub #66 (G-02) on 2026-11-13. podvm `v0.2.0-beta.6` has an incus tier (`
 
 An `incus` kind over podvm's incus tier, behind `UnitDriver`, as `microvm` is over its machine tier (T-037): the same seam, the conformance suite, and a measure on a host with incus. It can also hold the engine of T-103.
 
+Step 1 (2026-11-13): `scripts/measure-incus.sh` in `runner-image.yml`, a measure: incus from apt on a hosted runner, then `podvm run --podvm-tier=incus` of the runner image (the files, a volume, a program as `runner`, the network and the kernel) and an instance that stays (`run -d`, `exec`, `rm -f`).
+
 ## Prove
 
 `cargo test -p podrunner-incus --test conformance -- --ignored` passes on a host with incus.
