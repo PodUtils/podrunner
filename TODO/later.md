@@ -679,7 +679,7 @@ Read GitHub #66 (the comment of 2026-11-13) on 2026-11-13. The 12 tests are in `
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -708,6 +708,10 @@ Step 3 (2026-11-13): podvm `v0.2.0-beta.10` (PodUtils/podvm#307) is pinned; `run
 ## Prove
 
 `cargo test -p podrunner-incus --test conformance -- --ignored` passes on a host with incus.
+
+## Done
+
+2026-11-13, runner-image run 43477657803 (`6365312`, podvm `v0.2.0-beta.12`): `cargo test -p podrunner-incus --test conformance -- --ignored` passes on real instances of incus 6.0 on a hosted runner, with no NIC (`--podvm-net none`). GitHub #85 is closed. A `trusted` job on the kind needs its egress hold: T-109.
 
 # T-106: The actor classes of githome (agent, bot, external) in the offer schema
 
