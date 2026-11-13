@@ -277,7 +277,8 @@ jobs:
         run: |
           set -eu
           sh scripts/retry.sh sudo apt-get -qq update
-          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus
+          # incus admin init makes a bridge network, which needs dnsmasq.
+          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus dnsmasq-base
           sudo incus admin init --minimal
           sudo usermod -aG incus-admin "$USER"
           sg incus-admin -c "sh scripts/measure-incus.sh '$PODRUNNER_PODVM' '$PODRUNNER_PODVM_IMAGES' '$PODRUNNER_RUNNER_IMAGE' '$RUNNER_TEMP/incus'" \
