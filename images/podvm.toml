@@ -9,9 +9,10 @@
 # machine tier, `--podvm-net none` and `--podvm-channel` (T-037); beta.10
 # the channel on `pod-link` with its socket in a directory of mode 0700,
 # and stdin for an incus instance that stays (`run -d -i`, T-105); beta.11
-# keeps the proxy variables of a guest with no NIC (PodUtils/podvm#311).
-version = "0.2.0-beta.11"
+# keeps the proxy variables of a guest with no NIC (PodUtils/podvm#311);
+# beta.12 no NIC and one channel on the incus tier (T-109).
+version = "0.2.0-beta.12"
 
 [sha256]
-x86_64 = "375997c1cbe6ba9a2e3449a27f81d56bb150fcf04afb2b80dff49430062c1f28"
-aarch64 = "6cb48a76e214a39146f302ee2c6c555ee2e6aa129612f51589148c6706f6b98f"
+x86_64 = "fefce8f17ff854ee6bca2f6f653ae87b705b479f99f662f9f5031c37d457ae1e"
+aarch64 = "e630a521b2b92a107528e6f05d576206bc372290540002f844f99ef166df3e1b"

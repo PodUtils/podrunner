@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.40.0` (`Cargo.toml`); podvm `v0.2.0-beta.11`
+- Pins: podcrates `v0.40.0` (`Cargo.toml`); podvm `v0.2.0-beta.12`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm and incus kinds need beta.10, T-110); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2

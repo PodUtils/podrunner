@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**111 entries: 0 open, 6 partial, 7 blocked, 98 done.**
+**111 entries: 0 open, 7 partial, 6 blocked, 98 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 0 | 2 | 1 | 31 | 34 |
+| P1 | 0 | 3 | 0 | 31 | 34 |
 | P2 | 0 | 3 | 4 | 43 | 50 |
 | P3 | 0 | 1 | 2 | 24 | 27 |
-| **All** | 0 | 6 | 7 | 98 | 111 |
+| **All** | 0 | 7 | 6 | 98 | 111 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -156,6 +156,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-106](later.md) | P1 | S | later | defect | done | The actor classes of githome (agent, bot, external) in the offer schema |
 | [T-107](later.md) | P1 | S | later | defect | done | The egress policy of an offer: placement, the ceiling of the operator, the socket directory |
 | [T-108](later.md) | P2 | S | later | feature | done | G-06: the CPU time and the peak memory of a job in its report |
-| [T-109](later.md) | P1 | M | later | defect | blocked | The incus kind has no egress hold, so placement gives it no trusted job |
+| [T-109](later.md) | P1 | M | later | defect | partial | The incus kind has no egress hold, so placement gives it no trusted job |
 | [T-110](later.md) | P2 | S | later | defect | done | The microvm and incus kinds do not check the version of podvm |
 | [T-111](later.md) | P3 | S | later | defect | done | The configuration accepts keys that nothing reads |
