@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**98 entries: 1 open, 2 partial, 10 blocked, 85 done.**
+**98 entries: 1 open, 3 partial, 9 blocked, 85 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 1 | 0 | 29 | 30 |
 | P2 | 1 | 1 | 6 | 35 | 43 |
-| P3 | 0 | 0 | 4 | 21 | 25 |
-| **All** | 1 | 2 | 10 | 85 | 98 |
+| P3 | 0 | 1 | 3 | 21 | 25 |
+| **All** | 1 | 3 | 9 | 85 | 98 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -143,6 +143,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-093](later.md) | P3 | M | later | feature | done | Docker actions in the local mode |
 | [T-094](later.md) | P3 | S | later | chore | done | The local source owns its workflow: drop the leak (podcrates v0.31.0) |
 | [T-095](later.md) | P3 | M | later | feature | done | podrunner run --podvm: the egress of each unit through the egress module |
-| [T-096](core.md) | P3 | S | later | defect | blocked | GNU tar -C DIR fails in a podvm unit after mkdir -p DIR |
+| [T-096](core.md) | P3 | S | later | defect | partial | GNU tar -C DIR fails in a podvm unit after mkdir -p DIR |
 | [T-097](later.md) | P3 | S | later | chore | done | Build the format() token from Template::parts() (PodUtils/podcrates@T-322) |
 | [T-098](later.md) | P3 | S | later | feature | blocked | Q4: a Docker action in a job with no container (the order rule of the hook server) |

@@ -1,12 +1,12 @@
 # Progress
 
-`TODO/INDEX.md` holds 98 entries: 1 open, 2 partial, 10 blocked, 85 done.
+`TODO/INDEX.md` holds 98 entries: 1 open, 3 partial, 9 blocked, 85 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is "not now".
-- Pins: podcrates `v0.35.0`, podvm `v0.2.0-beta.6`, podnet
+- Pins: podcrates `v0.35.0`, podvm `v0.2.0-beta.7`, podnet
   `v0.4.0-beta.8`, runner v2.338.2.
   Last beta: `v0.1.0-beta.1` (release run 42942338772).
 - M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for DR-7. M-D: T-031 and T-045
@@ -27,12 +27,13 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-037 (M, open): the `microvm` kind over the machine tier of podvm; step 1 is the measure of `scripts/measure-machine.sh` in `runner-image.yml`. Then T-036 (the guest self-test on it) and T-039 (milestone L2).
+1. T-096 (S, partial): podvm `v0.2.0-beta.7` is pinned; the tar forms of `runner-image.yml` are a check; a green run closes it, GitHub #70 and PodUtils/podvm#289.
+2. T-037 (M, open): the `microvm` kind over the machine tier of podvm; step 1 is the measure of `scripts/measure-machine.sh` in `runner-image.yml`. Then T-036 (the guest self-test on it) and T-039 (milestone L2).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
 
-Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-036, T-039 (after T-037), T-043 (crates of podcrates), T-096 (podvm: an absolute `tar -C`, PodUtils/podcrates#102).
+Blocked: T-098 (Q4 of the owner), T-082 (a runner release with WebUtilities 8.0.34), T-007, T-032, T-033, T-040 (DR-7), T-036, T-039 (after T-037), T-043 (crates of podcrates).
 
 ## Questions for the owner
 

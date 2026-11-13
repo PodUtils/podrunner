@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.35.0` (`Cargo.toml`); podvm `v0.2.0-beta.6`
+- Pins: podcrates `v0.35.0` (`Cargo.toml`); podvm `v0.2.0-beta.7`
   (`images/podvm.toml`, the lowest version of `probe::LOWEST`); podnet
   `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
   (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.1`.
@@ -41,8 +41,7 @@ is done.
 - A musl build of the official runner (`scripts/runner-musl.sh`,
   `runner-musl.yml`) runs the canned jobs in Alpine on x86_64 and
   aarch64, and in a podvm unit on x86_64 (T-081). Its aarch64 podvm job
-  is a measure; podvm beta.6 has the aarch64 musl interposer, so it can
-  become a check (T-081).
+  is a check since podvm beta.6 (T-081).
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
@@ -61,9 +60,10 @@ is done.
   under `podnet pod` until podvm has a host channel) are in the entry and
   `docs/decisions.md`. Step 1: `scripts/measure-machine.sh` runs in
   `runner-image.yml` (KVM through a udev rule, QEMU from apt).
-- T-096: the fix is podvm `655cf941` (PodUtils/podvm#289), in podvm
-  `v0.2.0-beta.7`. The tar measure now also checks that a unit does not
-  write into the host.
+- T-096: podvm `v0.2.0-beta.7` is pinned (the fortified opens,
+  PodUtils/podvm#289). The tar forms of `runner-image.yml` are a check,
+  with and without host directories at the absolute paths; a green run
+  closes T-096, GitHub #70 and PodUtils/podvm#289.
 - T-051 and T-030 are done: podvm `v0.2.0-beta.6`, the aarch64 import
   is green.
 - Q4 (T-098) waits for the owner.
@@ -77,7 +77,6 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | The owner | DR-7: a test organization and App ("not now") | T-007, T-032, T-033, T-040 |
-| podvm | `v0.2.0-beta.7` with the fortified opens (PodUtils/podvm#289) | T-096 |
 | podvm | the machine tier (PodUtils/podvm@T-1656) | T-037, T-036, T-039 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |

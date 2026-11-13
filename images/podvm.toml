@@ -3,9 +3,10 @@
 # The podvm driver needs v0.2.0-beta.5 or later: a tree for each container
 # (T-064), absolute links in the rootfs (T-061), `:ro` on `exec` (T-062),
 # labels and the run report (T-078).
-# v0.2.0-beta.6 carries the aarch64 interposer objects (T-051).
-version = "0.2.0-beta.6"
+# v0.2.0-beta.6 carries the aarch64 interposer objects (T-051); beta.7 the
+# fortified opens of glibc in the interposer (T-096).
+version = "0.2.0-beta.7"
 
 [sha256]
-x86_64 = "a1d583c07fb7edbc5e0141d3f5a98a4e7be46d5b4ee03a157ab1c7ee6e512467"
-aarch64 = "5be990f9050280ede26675255d82e0023a0e8459fe8cbdd1aabad409da4881e0"
+x86_64 = "5bfc3dedc85956f7c449b37033329bec11ac0aeb3e343230fc3ce5f6618c5846"
+aarch64 = "093cabc51e86e37d76a05bf328be7233046e7000550ce7e424061bf35b928b82"

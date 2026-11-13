@@ -192,10 +192,11 @@ jobs:
           grep -qx 'ok      denied' "$RUNNER_TEMP/egress.txt"
           run_egress | tee "$RUNNER_TEMP/egress-plant.txt"
           grep -q '^failure denied' "$RUNNER_TEMP/egress-plant.txt"
-          # T-096: a measure of tar in a unit of the runner image; each
-          # form prints one line. The host gets an empty directory at each
-          # absolute path of -C: a unit must not write into it.
-          for h in /tmp/d /home/runner/_work/app/d; do rm -rf "$h"; mkdir -p "$h"; done
+          # T-096: tar in a unit of the runner image; each form prints one
+          # line and must pass. The host gets an empty directory at each
+          # absolute path of -C: a unit must not write into it. A second
+          # pass has no such host directory (the failure of podvm beta.6).
+          tar_forms() {
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" /bin/bash -c '
             # /tmp, and the workspace path of the failed step (T-096).
             for b in /tmp /home/runner/_work/app; do
@@ -208,12 +209,17 @@ jobs:
               m cd "cd d && tar -xf ../x.tar"
               m cd-gzip "cd d && gzip -dc ../x.tgz | tar -xf -"
               m cd-z "cd d && tar -xzf ../x.tgz"
-            done' 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || true
-          # A measure until podvm v0.2.0-beta.7 (PodUtils/podvm@T-1743): then
-          # a write into the host is a failure.
+            done' 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" "$RUNNER_TEMP/tar.txt"
+          }
+          for h in /tmp/d /home/runner/_work/app/d; do rm -rf "$h"; mkdir -p "$h"; done
+          tar_forms
           for h in /tmp/d /home/runner/_work/app/d; do
             if [ -z "$(ls -A "$h")" ]; then echo "tar host $h untouched"; else echo "tar host $h written: $(ls -A "$h" | tr '\n' ' ')"; fi
-          done | tee -a "$GITHUB_STEP_SUMMARY"
+          done | tee -a "$GITHUB_STEP_SUMMARY" "$RUNNER_TEMP/tar.txt"
+          rm -rf /tmp/d /home/runner/_work/app/d
+          tar_forms
+          if grep -E 'failed|written' "$RUNNER_TEMP/tar.txt"; then exit 1; fi
+          test "$(grep -c ' ok$' "$RUNNER_TEMP/tar.txt")" = 28
           cargo test -p podrunner-podvm --test conformance --no-run
           timeout 600 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
           # T-065: the egress hold of a unit under podnet pod.
