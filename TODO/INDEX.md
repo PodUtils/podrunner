@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**106 entries: 1 open, 4 partial, 9 blocked, 92 done.**
+**106 entries: 1 open, 3 partial, 9 blocked, 93 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 30 | 32 |
-| P2 | 0 | 2 | 7 | 39 | 48 |
+| P2 | 0 | 1 | 7 | 40 | 48 |
 | P3 | 1 | 0 | 2 | 23 | 26 |
-| **All** | 1 | 4 | 9 | 92 | 106 |
+| **All** | 1 | 3 | 9 | 93 | 106 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -146,7 +146,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-096](core.md) | P3 | S | later | defect | done | GNU tar -C DIR fails in a podvm unit after mkdir -p DIR |
 | [T-097](later.md) | P3 | S | later | chore | done | Build the format() token from Template::parts() (PodUtils/podcrates@T-322) |
 | [T-098](later.md) | P3 | S | later | feature | done | Q4: a Docker action in a job with no container (the order rule of the hook server) |
-| [T-099](core.md) | P2 | S | later | defect | partial | The confined conformance test 27 hung to its time limit on podvm beta.6 |
+| [T-099](core.md) | P2 | S | later | defect | done | The confined conformance test 27 hung to its time limit on podvm beta.6 |
 | [T-100](core.md) | P2 | S | later | chore | done | The beta release carries the scale-set sidecar and its notes |
 | [T-101](later.md) | P1 | M | later | feature | partial | G-01: a source kind for an external program that speaks the source wire |
 | [T-102](later.md) | P2 | S | later | feature | done | G-13: a table of the events of a job in the tier rule |

@@ -64,9 +64,8 @@ is done.
   NIC and one host channel (PodUtils/podvm@T-1751).
 - T-096 is done: podvm `v0.2.0-beta.7` is pinned, and the 28 tar forms
   pass (runner-image run 43351590729). #78 tells podvm.
-- T-099: the confined conformance test 27 hangs at times (2 of the last
-  3 runs). Each test has a time limit now (`3516e5f`); a hang fails that
-  test by name.
+- T-099 is done: each conformance test has a time limit; test 27 passed
+  in 12 runs after it.
 - T-051 and T-030 are done: podvm `v0.2.0-beta.6`, the aarch64 import
   is green.
 - The owner, 2026-11-13: Q4 yes (T-098, done), DR-7 yes (a test

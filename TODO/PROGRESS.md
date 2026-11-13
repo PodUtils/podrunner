@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 106 entries: 1 open, 4 partial, 9 blocked, 92 done.
+`TODO/INDEX.md` holds 106 entries: 1 open, 3 partial, 9 blocked, 93 done.
 
 ## State
 
@@ -27,7 +27,8 @@ release or a live account.
 
 The queue, most valuable first:
 
-1. T-099 (S, partial): the confined conformance test 27 hangs at times (2 of the last 3 runs); each test has a time limit now; find the call that waits.
+1. T-105 (M, open): an `incus` kind over podvm's incus tier (githome's G-02, a trusted job in a system container). Step 1: a measure in a workflow on a hosted runner, with incus from apt.
+2. T-101 (M, partial): the `program` source kind is in; its pair with GitHub runs on the host of LIVE-2 (GitHub #75) when githome gives its program.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
