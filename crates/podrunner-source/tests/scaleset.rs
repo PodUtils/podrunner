@@ -43,9 +43,13 @@ fn env(name: &str) -> String {
 /// A sidecar on a fresh fake, its stdio, and a sign that answers each
 /// request with a made-up token.
 fn pair() -> (Pair, ChildStdin, ChildStdout) {
+    // One script file for each pair: the tests run at the same time, and a
+    // write of a shared file gives a fake a script cut short.
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("podrunner-scaleset-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let script = dir.join("script.json");
+    let script = dir.join(format!("script-{n}.json"));
     std::fs::write(&script, SCRIPT).unwrap();
     let mut fake = Command::new(env("PODRUNNER_FAKE_SCALESET"))
         .args(["-listen", "127.0.0.1:0", "-script"])
