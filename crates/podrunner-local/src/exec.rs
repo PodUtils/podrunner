@@ -4,6 +4,7 @@
 //! of podrunner, with no unit (tier `local`, call C14). [`InUnit`] runs
 //! each job in a fresh unit of a driver (T-090).
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -21,6 +22,8 @@ pub struct RunnerDir {
     pub logs: Vec<(JobId, String)>,
     /// The archives of the actions (`OWNER_REPO/SHA.tar.gz`, T-091).
     pub actions: Option<PathBuf>,
+    /// The commit of each `OWNER/REPO@REF` of the run (T-118).
+    pub pins: BTreeMap<String, String>,
     /// The tarball of the local tree for `actions/checkout` (T-092).
     pub checkout: Option<PathBuf>,
 }
@@ -30,7 +33,7 @@ impl RunnerDir {
         if !dir.join("run.sh").is_file() || !dir.join("bin/Runner.Listener").is_file() {
             return Err(format!("{}: no unpacked runner (run.sh, bin/Runner.Listener)", dir.display()));
         }
-        Ok(RunnerDir { dir, logs: Vec::new(), actions: None, checkout: None })
+        Ok(RunnerDir { dir, logs: Vec::new(), actions: None, pins: BTreeMap::new(), checkout: None })
     }
 }
 
@@ -48,6 +51,8 @@ pub struct InUnit {
     pub grace: Duration,
     /// The archives of the actions (`OWNER_REPO/SHA.tar.gz`, T-091).
     pub actions: Option<PathBuf>,
+    /// The commit of each `OWNER/REPO@REF` of the run (T-118).
+    pub pins: BTreeMap<String, String>,
     /// The tarball of the local tree for `actions/checkout` (T-092).
     pub checkout: Option<PathBuf>,
     /// The egress of a held unit (T-095): the egress module and the
@@ -65,6 +70,7 @@ impl InUnit {
             run_sh: "/home/runner/run.sh".into(),
             grace: Duration::from_secs(5),
             actions: None,
+            pins: BTreeMap::new(),
             checkout: None,
             egress: None,
             next: 0,
@@ -180,7 +186,7 @@ impl Executor for InUnit {
         use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
         if let Some(dir) = &self.actions {
-            broker.serve_actions(dir);
+            broker.serve_actions(dir, self.pins.clone());
         }
         if let Some(tree) = &self.checkout {
             broker.serve_checkout(tree);
@@ -305,7 +311,7 @@ impl Executor for RunnerDir {
         }
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
         if let Some(dir) = &self.actions {
-            broker.serve_actions(dir);
+            broker.serve_actions(dir, self.pins.clone());
         }
         if let Some(tree) = &self.checkout {
             broker.serve_checkout(tree);

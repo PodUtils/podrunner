@@ -11,6 +11,8 @@
 //!
 //! PODRUNNER_PARITY_IMAGE is an image with busybox for the workflows with
 //! containers; with no value, those workflows keep the word IMAGE and fail.
+//! The actions come from github.com by the lock of the suite, into the
+//! store of the user.
 
 use std::path::{Path, PathBuf};
 
@@ -28,7 +30,7 @@ const ROWS: [(&str, Gap); 7] = [
     ("03-matrix.yml", None),
     ("04-services.yml", Some(("T-124", &[]))),
     ("05-containers.yml", Some(("T-123", &[]))),
-    ("06-actions.yml", Some(("T-118", &["market"]))),
+    ("06-actions.yml", None),
     ("07-artifacts.yml", Some(("T-119", &[]))),
 ];
 
@@ -53,8 +55,11 @@ fn status(entry: &str) -> String {
     panic!("{entry} is not in the record")
 }
 
-/// A copy of the workflow with IMAGE replaced, in `scratch`.
+/// A copy of the workflow with IMAGE replaced, and of the lock of the
+/// actions of the suite (T-118), in `scratch`.
 fn workflow(name: &str, scratch: &Path) -> PathBuf {
+    let lock = podrunner_local::lock::LOCK_FILE;
+    std::fs::copy(Path::new(SUITE).join(lock), scratch.join(lock)).unwrap();
     let text = std::fs::read_to_string(Path::new(SUITE).join(name)).unwrap();
     let text = match std::env::var("PODRUNNER_PARITY_IMAGE") {
         Ok(image) => text.replace("IMAGE", &image),
@@ -83,6 +88,8 @@ fn verdict(dir: &str, scratch: &Path, name: &str, gap: Gap, extra: &[&str]) -> V
         dir.into(),
         "--checkout".into(),
         ROOT.into(),
+        // The lock of the suite pins each action: a run may not change it.
+        "--frozen".into(),
     ];
     args.extend(extra.iter().map(|s| s.to_string()));
     let out = podrunner::cli::run(&args);

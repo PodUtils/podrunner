@@ -89,12 +89,14 @@ fn a_job_becomes_steps_env_outputs_and_contexts() {
 }
 
 #[test]
-fn an_action_by_a_tag_and_a_container_are_refused_by_name() {
-    let uses = "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: o/act@v4\n";
+fn an_action_by_a_tag_is_a_reference_and_a_container_is_refused_by_name() {
+    let uses = "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: o/act/sub@v4\n";
     let mut s = LocalSource::new("l", uses, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
     s.next(10, Duration::ZERO).unwrap();
-    let e = s.broker_job(&JobId::new("build.0").unwrap()).unwrap_err();
-    assert!(e.contains("o/act@v4") && e.contains("full commit id"), "{e}");
+    let job = s.broker_job(&JobId::new("build.0").unwrap()).unwrap();
+    let m = podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &job);
+    let r = &m["steps"][0]["reference"];
+    assert_eq!((r["name"].as_str(), r["ref"].as_str(), r["path"].as_str()), (Some("o/act"), Some("v4"), Some("sub")));
     let container = "on: push\njobs:\n  build:\n    runs-on: x\n    container: alpine\n    steps:\n      - run: x\n";
     let mut s = LocalSource::new("l", container, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
     s.next(10, Duration::ZERO).unwrap();
@@ -123,7 +125,7 @@ fn an_action_pinned_by_commit_is_a_repository_reference_with_its_inputs() {
     assert_eq!(steps[2]["reference"]["path"], "sub/dir");
     assert_eq!(steps[3]["reference"], json!({ "type": "repository", "repositoryType": "self", "path": "./local" }));
     assert_eq!(steps[4]["contextName"], "__run");
-    for bad in ["docker://alpine", "o/r", "o@0123456789abcdef0123456789abcdef01234567", "o/r@main"] {
+    for bad in ["docker://alpine", "o/r", "o@0123456789abcdef0123456789abcdef01234567", "o/r@", "o/r@a b"] {
         assert!(action(bad, 1).is_err(), "{bad}");
     }
 }

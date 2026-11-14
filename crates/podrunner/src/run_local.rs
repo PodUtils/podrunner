@@ -5,6 +5,8 @@
 //! podvm unit with `--podvm` (T-090). One line for each job; the exit code is 0 when no job failed,
 //! 1 when one failed, and the code of the class of a usage or a file error.
 
+mod actions;
+
 use std::path::PathBuf;
 
 use pod_actions_expr::Value;
@@ -16,7 +18,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--offline | --frozen] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -31,6 +33,8 @@ struct Args {
     images: Option<PathBuf>,
     image: Option<String>,
     actions: Option<PathBuf>,
+    offline: bool,
+    frozen: bool,
     checkout: Option<PathBuf>,
     podnet: Option<PathBuf>,
     allow: Vec<String>,
@@ -59,6 +63,8 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--images" => a.images = Some(PathBuf::from(value()?)),
             "--image" => a.image = Some(value()?),
             "--actions" => a.actions = Some(PathBuf::from(value()?)),
+            "--offline" => a.offline = true,
+            "--frozen" => a.frozen = true,
             "--checkout" => a.checkout = Some(PathBuf::from(value()?)),
             "--podnet" => a.podnet = Some(PathBuf::from(value()?)),
             "--allow" => a.allow.push(value()?),
@@ -71,6 +77,9 @@ fn parse(args: &[String]) -> Result<Args, String> {
         }
     }
     a.file = file.ok_or("the workflow file is necessary")?;
+    if a.offline && a.frozen {
+        return Err("--offline and --frozen exclude each other".into());
+    }
     let unit = [a.podvm.is_some(), a.images.is_some(), a.image.is_some()];
     if (a.podnet.is_some() || !a.allow.is_empty()) && a.podvm.is_none() {
         return Err("--podnet and --allow need --podvm".into());
@@ -194,6 +203,16 @@ pub fn run(args: &[String]) -> Out {
         Ok(s) => s,
         Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
     };
+    let mode = match (a.offline, a.frozen) {
+        (true, _) => podrunner_local::store::Mode::Offline,
+        (_, true) => podrunner_local::store::Mode::Frozen,
+        _ => podrunner_local::store::Mode::Online,
+    };
+    let (store, pins, note) = match actions::pin(&a.file, &text, a.actions.as_deref(), mode) {
+        Ok(Some(p)) => (Some(p.dir), p.commits, p.note),
+        Ok(None) => (a.actions.clone(), Default::default(), String::new()),
+        Err(e) => return fail(Class::Config, format!("{}: the actions: {e}", a.file.display())),
+    };
     let scratch = std::env::temp_dir().join(format!("podrunner-run-tree-{}", std::process::id()));
     let tree = match &a.checkout {
         None => None,
@@ -203,14 +222,15 @@ pub fn run(args: &[String]) -> Out {
         },
     };
     let mut stdout = String::new();
-    let mut stderr = String::new();
+    let mut stderr = note;
     let mut each = |l: &Line| stdout.push_str(&line(l));
     let (result, logs) = if let Some(dir) = a.runner_dir.clone() {
         let mut exec = match RunnerDir::new(dir) {
             Ok(x) => x,
             Err(e) => return fail(Class::Config, e),
         };
-        exec.actions = a.actions.clone();
+        exec.actions = store.clone();
+        exec.pins = pins.clone();
         exec.checkout = tree.clone();
         (drive(&mut source, &mut exec, &mut each), exec.logs)
     } else {
@@ -219,7 +239,8 @@ pub fn run(args: &[String]) -> Out {
             Ok(x) => x,
             Err(o) => return o,
         };
-        exec.actions = a.actions.clone();
+        exec.actions = store.clone();
+        exec.pins = pins.clone();
         exec.checkout = tree.clone();
         let r = drive(&mut source, &mut exec, &mut each);
         let _ = std::fs::remove_dir_all(&state);

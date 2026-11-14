@@ -1092,7 +1092,7 @@ Follow the behaviour of GitHub Actions (the rule of Q4). In `complete`, when a c
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1114,6 +1114,10 @@ Read `crates/podrunner-local/src/message.rs`, `crates/podrunner-broker-fake/src/
 ## Prove
 
 `cargo test -p podrunner-local` (the resolve from a lock, a moved tag, `--offline` with a missing entry) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test actions -- --ignored` (a composite action by tag that names a second action by tag).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner-local/src/lock.rs` reads and writes `podrunner-actions.lock`; `crates/podrunner-local/src/store.rs` collects each remote `uses:` of the workflow and of each composite action, resolves it against the lock, the store and a `Forge` (git: `ls-remote` with the peeled tag, then a shallow fetch and `git archive`), and keeps `OWNER_REPO/SHA.tar.gz`. The digest covers the uncompressed tar, so a version of git or of gzip does not change it. A moved tag, a tarball that differs from the lock, `--offline` with a missing entry and `--frozen` with a change fail by name. `podrunner run` pins before the first job (`--actions DIR` is the store, by default the cache directory of the user), and the launch route of the fake broker answers each `NAME@REF` from the pins. Proven: 7 unit tests of the store and 2 of the lock; `cargo test -p podrunner-local --test store -- --ignored` resolves `actions/upload-pages-artifact@v3` and the `actions/upload-artifact@v4` that it names from github.com, then frozen and offline; the parity row `06-actions.yml` runs `actions/github-script@v7` by tag on runner v2.338.2 and passes. The fetch through the egress module is T-154; the generic crate is COORD-034.
 
 # T-119: Local mode: artifacts v4 (the ArtifactService of the results API), one store for each run
 
@@ -2020,3 +2024,31 @@ Read `docs/cli.md` (the row of `doctor`) on 2026-11-14.
 ## Prove
 
 `cargo test -p podrunner --test doctor`
+
+# T-154: Local mode: the fetch of the actions through the egress module
+
+**Source:** T-118 (its Approach: the host fetches through the egress module with a policy of the forge hosts only)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner run` resolves and fetches each action by tag with `git` on the host (T-118). git takes the proxy of the environment of the host and reaches each host that the host reaches. The fetch has no egress policy of its own: a redirect or a submodule URL could make it reach another host.
+
+## Premise
+
+Read `crates/podrunner-local/src/store.rs` (`Git`) and `crates/podrunner-egress/src/lib.rs` on 2026-11-14: the egress module serves a policy on a unix socket for each job; git cannot take a unix socket as its proxy.
+
+## Approach
+
+- Open one egress grant for the fetch, with a policy of the forge hosts only (`github.com`, `codeload.github.com`), and give git a loopback TCP proxy that relays to its socket (`http.proxy`, `GIT_CONFIG_*` variables, no file of the user).
+- Turn off submodules and other protocols for the fetch (`protocol.allow=never`, `protocol.https.allow=always`).
+- Keep the `Forge` seam: a test forge needs no egress.
+
+## Prove
+
+`cargo test -p podrunner-local` (the git command of the fetch names the loopback proxy and the protocol rules) and `cargo test -p podrunner-local --test store -- --ignored` through the egress module.
+

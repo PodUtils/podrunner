@@ -3,11 +3,13 @@
 //! the job message names the endpoint (`system.github.launch_endpoint`), and
 //! the runner POSTs the list of references to
 //! `/actions/build/PLAN/jobs/JOB/runnerresolve/actions`. This broker answers
-//! each reference with its own ref as the commit (the local mode takes only
-//! actions pinned by a full commit id), and serves the tarball of each one
+//! each reference from the pins of the run (`OWNER/REPO@REF` to a commit,
+//! T-118), or with its own ref when that is a full commit id, and serves the
+//! tarball of each one
 //! from `DIR/OWNER_REPO/SHA.tar.gz`: an archive with one top directory, as
 //! GitHub's tarballs.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde_json::{Map, Value, json};
@@ -24,16 +26,25 @@ pub fn archive_name(name_with_owner: &str, sha: &str) -> String {
 /// A made-up token of the downloads: this broker checks no credential.
 const TOKEN: &str = "podrunner-local-actions";
 
-fn resolve(base: &str, body: &Value) -> Value {
+/// The commit of `NAME@VERSION`: its pin, or the version when it is a full
+/// commit id.
+fn commit<'a>(pins: &'a BTreeMap<String, String>, name: &str, version: &'a str) -> Option<&'a str> {
+    let full = version.len() == 40 && version.bytes().all(|b| b.is_ascii_hexdigit());
+    pins.get(&format!("{name}@{version}")).map(String::as_str).or(full.then_some(version))
+}
+
+fn resolve(base: &str, body: &Value, pins: &BTreeMap<String, String>) -> Value {
     let mut out = Map::new();
     for a in body["actions"].as_array().map(Vec::as_slice).unwrap_or_default() {
         let (Some(name), Some(version)) = (a["action"].as_str(), a["version"].as_str()) else { continue };
+        // A reference with no pin gets no answer: the runner names it.
+        let Some(sha) = commit(pins, name, version) else { continue };
         out.insert(
             format!("{name}@{version}"),
             json!({
-                "name": name, "resolved_name": name, "resolved_sha": version, "version": version,
-                "tar_url": format!("{base}{TARBALLS}{}", archive_name(name, version)),
-                "zip_url": format!("{base}{TARBALLS}{name}/{version}.zip"),
+                "name": name, "resolved_name": name, "resolved_sha": sha, "version": version,
+                "tar_url": format!("{base}{TARBALLS}{}", archive_name(name, sha)),
+                "zip_url": format!("{base}{TARBALLS}{name}/{sha}.zip"),
                 "authentication": { "token": TOKEN, "expires_at": "2099-01-01T00:00:00Z" },
             }),
         );
@@ -53,6 +64,7 @@ pub fn route(
     body: &Value,
     base: &str,
     dir: Option<&Path>,
+    pins: &BTreeMap<String, String>,
     tree: Option<&Path>,
 ) -> Option<(u16, Vec<u8>)> {
     let json = |v: Value| Some((200, v.to_string().into_bytes()));
@@ -62,7 +74,7 @@ pub fn route(
             _ => Some((404, Vec::new())),
         },
         ("POST", p) if p.starts_with("/actions/build/") && p.ends_with("/runnerresolve/actions") => {
-            json(resolve(base, body))
+            json(resolve(base, body, pins))
         }
         ("GET", p) if p.starts_with(&format!("/{TARBALLS}")) => {
             let rel = &p[TARBALLS.len() + 1..];
@@ -89,7 +101,7 @@ mod tests {
         std::fs::write(dir.join(archive_name("actions/checkout", &sha)), b"tgz").unwrap();
         let body = json!({ "actions": [{ "action": "actions/checkout", "version": sha }] });
         let path = "/actions/build/p/jobs/j/runnerresolve/actions";
-        let (status, out) = route("POST", path, &body, "http://h/", None, None).unwrap();
+        let (status, out) = route("POST", path, &body, "http://h/", None, &BTreeMap::new(), None).unwrap();
         assert_eq!(status, 200);
         let v: Value = serde_json::from_slice(&out).unwrap();
         let info = &v["actions"][format!("actions/checkout@{sha}")];
@@ -97,21 +109,48 @@ mod tests {
         let url = info["tar_url"].as_str().unwrap();
         assert_eq!(url, format!("http://h/_actions/actions_checkout/{sha}.tar.gz"));
         let path = url.trim_start_matches("http://h");
-        assert_eq!(route("GET", path, &Value::Null, "", Some(&dir), None).unwrap(), (200, b"tgz".to_vec()));
+        // A tag answers from the pins; a tag with no pin gets no answer.
+        let tag = json!({ "actions": [{ "action": "o/r", "version": "v1" }] });
+        let pins = BTreeMap::from([("o/r@v1".to_string(), sha.clone())]);
+        let (_, out) =
+            route("POST", "/actions/build/p/jobs/j/runnerresolve/actions", &tag, "http://h/", None, &pins, None)
+                .unwrap();
+        let v: Value = serde_json::from_slice(&out).unwrap();
+        assert_eq!(v["actions"]["o/r@v1"]["resolved_sha"], sha.as_str());
+        assert_eq!(v["actions"]["o/r@v1"]["tar_url"], format!("http://h/_actions/o_r/{sha}.tar.gz"));
+        let (_, out) = route(
+            "POST",
+            "/actions/build/p/jobs/j/runnerresolve/actions",
+            &tag,
+            "http://h/",
+            None,
+            &BTreeMap::new(),
+            None,
+        )
+        .unwrap();
+        assert_eq!(serde_json::from_slice::<Value>(&out).unwrap()["actions"], json!({}));
+        assert_eq!(
+            route("GET", path, &Value::Null, "", Some(&dir), &BTreeMap::new(), None).unwrap(),
+            (200, b"tgz".to_vec())
+        );
         // No other file of the directory, and no file with no directory.
         for bad in ["/_actions/../x.tar.gz", "/_actions/a/../../x", "/_actions/x.tar.gz", "/_actions/a/b/c"] {
-            assert_eq!(route("GET", bad, &Value::Null, "", Some(&dir), None).unwrap().0, 404, "{bad}");
+            assert_eq!(
+                route("GET", bad, &Value::Null, "", Some(&dir), &BTreeMap::new(), None).unwrap().0,
+                404,
+                "{bad}"
+            );
         }
-        assert_eq!(route("GET", path, &Value::Null, "", None, None).unwrap().0, 404, "no directory");
-        assert!(route("GET", "/message", &Value::Null, "", None, None).is_none());
+        assert_eq!(route("GET", path, &Value::Null, "", None, &BTreeMap::new(), None).unwrap().0, 404, "no directory");
+        assert!(route("GET", "/message", &Value::Null, "", None, &BTreeMap::new(), None).is_none());
         // The tree of the checkout, when the run gives one.
         let tree = dir.join("tree.tar.gz");
         std::fs::write(&tree, b"tree").unwrap();
         assert_eq!(
-            route("GET", "/_checkout.tar.gz", &Value::Null, "", None, Some(&tree)).unwrap(),
+            route("GET", "/_checkout.tar.gz", &Value::Null, "", None, &BTreeMap::new(), Some(&tree)).unwrap(),
             (200, b"tree".to_vec())
         );
-        assert_eq!(route("GET", "/_checkout.tar.gz", &Value::Null, "", None, None).unwrap().0, 404);
+        assert_eq!(route("GET", "/_checkout.tar.gz", &Value::Null, "", None, &BTreeMap::new(), None).unwrap().0, 404);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

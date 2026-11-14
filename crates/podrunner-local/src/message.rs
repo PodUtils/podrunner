@@ -151,8 +151,9 @@ fn checkout_script(path: &str) -> String {
 }
 
 /// The reference of `uses:`, its base context name and its display name.
-/// An action of a repository must be pinned by a full commit id: the local
-/// mode has no forge to resolve a tag.
+/// The ref of an action of a repository is a tag, a branch or a commit:
+/// `podrunner run` pins each one before the first job (T-118), and the
+/// launch route of the fake broker answers from those pins.
 fn action(uses: &str, line: u32) -> Result<(Value, String), String> {
     if let Some(image) = uses.strip_prefix("docker://") {
         pinned(image).map_err(|e| format!("line {line}: `uses: {uses}`: {e}"))?;
@@ -163,12 +164,12 @@ fn action(uses: &str, line: u32) -> Result<(Value, String), String> {
         return Ok((reference, "__self".into()));
     }
     let (target, r) = uses.rsplit_once('@').ok_or_else(|| format!("line {line}: `uses: {uses}` has no @REF"))?;
-    if r.len() != 40 || !r.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return Err(format!("line {line}: `uses: {uses}`: pin an action by a full commit id"));
+    if r.is_empty() || r.contains(char::is_whitespace) {
+        return Err(format!("line {line}: `uses: {uses}` has no valid @REF"));
     }
     let mut parts = target.splitn(3, '/');
     let (Some(owner), Some(repo)) = (parts.next(), parts.next()) else {
-        return Err(format!("line {line}: `uses: {uses}` is not OWNER/REPO@SHA"));
+        return Err(format!("line {line}: `uses: {uses}` is not OWNER/REPO@REF"));
     };
     let mut reference =
         json!({ "type": "repository", "repositoryType": "GitHub", "name": format!("{owner}/{repo}"), "ref": r });

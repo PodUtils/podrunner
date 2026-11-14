@@ -1,0 +1,5 @@
+# The actions of the workflow beside this file, pinned by commit and by
+# the SHA-256 of the tar of the commit. `podrunner run` writes this file.
+actions/download-artifact@v4 d3f86a106a0bac45b974a628896c90dbdf5c8093 sha256:90d7bf80a09562817fe92f54f2be6f9503e7c8a8b85de0004ae7412a6c88d2c7
+actions/github-script@v7 f28e40c7f34bde8b3046d885e986cb6290c5673b sha256:588ab3893f8154142d86e1dd9a77a665de99167c3c434d92015de42c169fc5c0
+actions/upload-artifact@v4 ea165f8d65b6e75b540449e92b4886f43607fa02 sha256:964e2334d06f4ee865a05f402954312bba1bddcdd5bc4a0d9bc6bc1d1d64f1b2

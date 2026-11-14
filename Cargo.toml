@@ -55,12 +55,15 @@ podrunner-source = { path = "crates/podrunner-source" }
 podrunner-tier = { path = "crates/podrunner-tier" }
 podrunner-unit = { path = "crates/podrunner-unit" }
 base64 = "0.23"
+# The tarballs of the action store of the local mode (T-118).
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 libc = "0.2"
 # The RS256 signer of the GitHub App JWT (podrunner-mint): not the
 # private-key path of rsa 0.9 (RUSTSEC-2023-0071).
 ring = "0.17"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tar = { version = "0.4", default-features = false }
 # The runtime of the egress broker.
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "net", "io-util", "time", "macros"] }
 # podrunner.toml: a table and its values, with no writer.

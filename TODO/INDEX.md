@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**153 entries: 34 open, 3 partial, 6 blocked, 110 done.**
+**154 entries: 34 open, 3 partial, 6 blocked, 111 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 17 | 1 | 4 | 50 | 72 |
-| P3 | 17 | 0 | 2 | 28 | 47 |
-| **All** | 34 | 3 | 6 | 110 | 153 |
+| P2 | 16 | 1 | 4 | 51 | 72 |
+| P3 | 18 | 0 | 2 | 28 | 48 |
+| **All** | 34 | 3 | 6 | 111 | 154 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -165,7 +165,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-115](later.md) | P3 | S | later | defect | done | podrunner run --runner-dir does not end a job at its timeout-minutes, and it panics on an I/O error |
 | [T-116](later.md) | P3 | S | later | defect | done | check and doctor do not read the version of podvm for the microvm and incus kinds |
 | [T-117](later.md) | P3 | S | later | defect | done | The local run ignores fail-fast and the continue-on-error of a job |
-| [T-118](later.md) | P2 | M | later | feature | open | Local mode: actions by tag, fetched through the egress module into a store with a lock file |
+| [T-118](later.md) | P2 | M | later | feature | done | Local mode: actions by tag, fetched through the egress module into a store with a lock file |
 | [T-119](later.md) | P2 | M | later | feature | open | Local mode: artifacts v4 (the ArtifactService of the results API), one store for each run |
 | [T-120](later.md) | P2 | M | later | feature | open | Local mode: the cache service of actions/cache |
 | [T-121](later.md) | P2 | S | later | feature | open | Local mode: secrets from the environment and from a secret file, with the mask |
@@ -201,3 +201,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-151](later.md) | P3 | S | later | measurement | open | Measure: a job of another architecture in the local mode |
 | [T-152](later.md) | P3 | S | later | feature | open | Local mode: an env of one expression is refused |
 | [T-153](later.md) | P3 | S | later | feature | open | podrunner doctor for the local mode |
+| [T-154](later.md) | P3 | S | later | feature | open | Local mode: the fetch of the actions through the egress module |

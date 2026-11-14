@@ -51,6 +51,8 @@ struct State {
     too_old: bool,
     /// The archives of the actions (T-091).
     actions: Option<std::path::PathBuf>,
+    /// The commit of each `OWNER/REPO@REF` of the run (T-118).
+    pins: std::collections::BTreeMap<String, String>,
     /// The tarball of the local tree (T-092).
     tree: Option<std::path::PathBuf>,
 }
@@ -103,9 +105,12 @@ impl Broker {
         self.state.lock().expect("the broker").too_old = true;
     }
 
-    /// Serve the tarball of each action from `dir` (`actions`, T-091).
-    pub fn serve_actions(&self, dir: &std::path::Path) {
-        self.state.lock().expect("the broker").actions = Some(dir.to_path_buf());
+    /// Serve the tarball of each action from `dir` (`actions`, T-091), and
+    /// resolve each `OWNER/REPO@REF` from `pins` (T-118).
+    pub fn serve_actions(&self, dir: &std::path::Path, pins: std::collections::BTreeMap<String, String>) {
+        let mut st = self.state.lock().expect("the broker");
+        st.actions = Some(dir.to_path_buf());
+        st.pins = pins;
     }
 
     /// Serve `tarball` as the tree of the stand-in of `actions/checkout`
@@ -149,11 +154,11 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
     let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
     let base = base.trim_end_matches('/');
     let base = &format!("{base}/");
-    let (dir, tree) = {
+    let (dir, pins, tree) = {
         let st = state.lock().expect("the broker");
-        (st.actions.clone(), st.tree.clone())
+        (st.actions.clone(), st.pins.clone(), st.tree.clone())
     };
-    let actions = actions::route(&req.method, &path, &body, base, dir.as_deref(), tree.as_deref());
+    let actions = actions::route(&req.method, &path, &body, base, dir.as_deref(), &pins, tree.as_deref());
     let (status, out) = match (req.method.as_str(), path.as_str()) {
         _ if actions.is_some() => actions.expect("an answer"),
         ("POST", "/_apis/oauth2/token") => {

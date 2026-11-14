@@ -26,11 +26,11 @@ the entry that closes the gap, or the entry that did the work.
 | --- | --- | --- | --- | --- |
 | `needs`, outputs, `if:`, matrix with `include` and `exclude` | yes | yes | yes | T-087, T-088 |
 | `fail-fast`, job `continue-on-error` | yes | yes | no | T-117 |
-| The `github` context in the steps | yes | yes | the canned context of the broker | T-114 |
+| The `github` context in the steps | yes | yes | yes, the context of the run over the canned one | T-114 |
 | `run:` steps, `defaults.run`, `shell`, `working-directory` | yes | yes | yes | T-088 |
 | Composite and JavaScript actions by commit | yes | yes | yes, from `--actions DIR` | T-091 |
-| Actions by tag or branch, fetched | yes, git clone | yes, tarball of the forge | no: a tag is refused | T-118 |
-| Offline mode, action cache | `--action-offline-mode`, `--action-cache-path` | no | offline by design; a store and a lock file | T-118 |
+| Actions by tag or branch, fetched | yes, git clone | yes, tarball of the forge | yes, pinned by a lock file with a SHA-256; a moved tag fails by name | T-118 |
+| Offline mode, action cache | `--action-offline-mode`, `--action-cache-path` | no | `--offline`, `--frozen`, the store `--actions DIR` | T-118 |
 | `--local-repository`, another forge | yes | yes | no | T-139 |
 | `actions/checkout` of the local tree | copy of the working tree | local checkout of the changes | `git archive` of HEAD in a git tree, no `.git` | T-092, T-133 |
 | Checkout of another repository | real action | `--remote-checkout` | no | T-133 |

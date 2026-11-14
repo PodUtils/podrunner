@@ -64,6 +64,9 @@ jobs:
       # T-089: podrunner run runs the suite of the local mode to green.
       - name: podrunner run, the suite of the local mode
         run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner --test local -- --ignored --nocapture
+      # T-118: a composite action by tag and the action that it names, from github.com.
+      - name: The actions by tag and the lock
+        run: cargo test -p podrunner-local --test store -- --ignored --nocapture
       # T-147: the parity suite, one verdict for each workflow.
       - name: podrunner run, the parity suite
         run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner --test parity -- --ignored --nocapture

@@ -8,7 +8,9 @@
 
 pub mod drive;
 pub mod exec;
+pub mod lock;
 pub mod message;
+pub mod store;
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
