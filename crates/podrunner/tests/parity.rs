@@ -24,7 +24,7 @@ const SUITE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/local/parity");
 type Gap = Option<(&'static str, &'static [&'static str])>;
 
 /// Each workflow and its gap.
-const ROWS: [(&str, Gap); 7] = [
+const ROWS: [(&str, Gap); 8] = [
     ("01-exit.yml", None),
     ("02-expressions.yml", None),
     ("03-matrix.yml", None),
@@ -32,6 +32,7 @@ const ROWS: [(&str, Gap); 7] = [
     ("05-containers.yml", Some(("T-123", &[]))),
     ("06-actions.yml", None),
     ("07-artifacts.yml", None),
+    ("08-cache.yml", None),
 ];
 
 #[derive(Debug, PartialEq)]

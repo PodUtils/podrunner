@@ -35,8 +35,8 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   source-conformance -- PROGRAM ARGS...             the source tests against a source program
   image verify --tarball FILE --arch ARCH           check a runner tarball against its pin
   run FILE (--runner-dir DIR | --podvm PATH --images STORE --image REF [--podnet PATH [--allow HOST]...])
-      [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--checkout DIR] [--event NAME]
-      [--var NAME=VALUE]... [--input NAME=VALUE]...
+      [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache]
+      [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...
                                                     run the jobs of a workflow, here or in podvm units
   --version | --help
 ";

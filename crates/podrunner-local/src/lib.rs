@@ -14,6 +14,8 @@ pub mod store;
 
 /// The artifact store of a run (T-119).
 pub use podrunner_broker_fake::artifacts;
+/// The cache store (T-120).
+pub use podrunner_broker_fake::cache;
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;

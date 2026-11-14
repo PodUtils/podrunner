@@ -1,0 +1,36 @@
+# A cache round trip (T-120): one job saves, the next restores by the exact
+# key and by a restore key, and checks the content. The store stays across
+# runs, so a second run finds the entry; the content is the same each time.
+name: parity cache
+on: push
+defaults:
+  run:
+    shell: bash
+jobs:
+  save:
+    runs-on: local
+    steps:
+      - run: mkdir -p out && seq 1 2000 > out/data
+      - uses: actions/cache@v4
+        with:
+          path: out
+          key: parity-cache-data-1
+  restore:
+    needs: save
+    runs-on: local
+    steps:
+      - uses: actions/cache/restore@v4
+        with:
+          path: out
+          key: parity-cache-data-1
+          fail-on-cache-miss: true
+      - run: test "$(sha256sum < out/data)" = "$(seq 1 2000 | sha256sum)"
+      - run: rm -rf out
+      - id: prefix
+        uses: actions/cache/restore@v4
+        with:
+          path: out
+          key: parity-cache-none
+          restore-keys: parity-cache-data-
+          fail-on-cache-miss: true
+      - run: test "${{ steps.prefix.outputs.cache-matched-key }}" = parity-cache-data-1 && test -s out/data

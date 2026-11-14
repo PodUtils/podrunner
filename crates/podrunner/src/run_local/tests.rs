@@ -61,6 +61,8 @@ fn the_options_of_run() {
         &["w", "--var", "1x=2"],
         &["w", "--var", "novalue"],
         &["w", "--x", "y"],
+        &["w", "--runner-dir", "/r", "--cache", "/c", "--no-cache"],
+        &["w", "--runner-dir", "/r", "--offline", "--frozen"],
         &[],
     ] {
         assert!(parse(&args(bad)).is_err(), "{bad:?}");

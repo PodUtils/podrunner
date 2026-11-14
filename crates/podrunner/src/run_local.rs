@@ -18,7 +18,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -36,6 +36,8 @@ struct Args {
     offline: bool,
     frozen: bool,
     artifacts: Option<PathBuf>,
+    cache: Option<PathBuf>,
+    no_cache: bool,
     checkout: Option<PathBuf>,
     podnet: Option<PathBuf>,
     allow: Vec<String>,
@@ -65,6 +67,8 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--image" => a.image = Some(value()?),
             "--actions" => a.actions = Some(PathBuf::from(value()?)),
             "--artifacts" => a.artifacts = Some(PathBuf::from(value()?)),
+            "--cache" => a.cache = Some(PathBuf::from(value()?)),
+            "--no-cache" => a.no_cache = true,
             "--offline" => a.offline = true,
             "--frozen" => a.frozen = true,
             "--checkout" => a.checkout = Some(PathBuf::from(value()?)),
@@ -79,6 +83,9 @@ fn parse(args: &[String]) -> Result<Args, String> {
         }
     }
     a.file = file.ok_or("the workflow file is necessary")?;
+    if a.cache.is_some() && a.no_cache {
+        return Err("--cache and --no-cache exclude each other".into());
+    }
     if a.offline && a.frozen {
         return Err("--offline and --frozen exclude each other".into());
     }
@@ -99,7 +106,9 @@ fn object(pairs: &[(String, String)]) -> Value {
     Value::object(pairs.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))))
 }
 
-/// The local stand-in of the `github` context of the job level.
+/// The local stand-in of the `github` context of the job level. The ref is
+/// `refs/heads/main` until the ref of the tree is read (T-125): the cache
+/// client skips a push with no ref (T-120).
 fn github(file: &std::path::Path, event: &str) -> Value {
     let workflow = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     Value::object([
@@ -109,6 +118,9 @@ fn github(file: &std::path::Path, event: &str) -> Value {
         ("server_url", Value::String("https://github.com".into())),
         ("run_id", Value::String("1".into())),
         ("run_number", Value::String("1".into())),
+        ("ref", Value::String("refs/heads/main".into())),
+        ("ref_name", Value::String("main".into())),
+        ("ref_type", Value::String("branch".into())),
     ])
 }
 
@@ -228,6 +240,14 @@ pub fn run(args: &[String]) -> Out {
         Ok(s) => std::sync::Arc::new(s),
         Err(e) => return fail(Class::Config, format!("{}: {e}", kept.display())),
     };
+    let cache = match (a.no_cache, a.cache.clone().map(Ok).unwrap_or_else(|| actions::user_cache("cache"))) {
+        (true, _) => None,
+        (false, Err(e)) => return fail(Class::Config, e),
+        (false, Ok(dir)) => match podrunner_local::cache::CacheStore::new(&dir, podrunner_local::cache::LIMIT) {
+            Ok(s) => Some(std::sync::Arc::new(s)),
+            Err(e) => return fail(Class::Config, format!("{}: {e}", dir.display())),
+        },
+    };
     let mut stdout = String::new();
     let mut stderr = note;
     let mut each = |l: &Line| stdout.push_str(&line(l));
@@ -239,6 +259,7 @@ pub fn run(args: &[String]) -> Out {
         exec.actions = store.clone();
         exec.pins = pins.clone();
         exec.artifacts = Some(artifacts.clone());
+        exec.cache = cache.clone();
         exec.checkout = tree.clone();
         (drive(&mut source, &mut exec, &mut each), exec.logs)
     } else {
@@ -250,6 +271,7 @@ pub fn run(args: &[String]) -> Out {
         exec.actions = store.clone();
         exec.pins = pins.clone();
         exec.artifacts = Some(artifacts.clone());
+        exec.cache = cache.clone();
         exec.checkout = tree.clone();
         let r = drive(&mut source, &mut exec, &mut each);
         let _ = std::fs::remove_dir_all(&state);

@@ -1,6 +1,6 @@
 # The parity suite of the local mode (T-147)
 
-Seven workflows of rising scope. `crates/podrunner/tests/parity.rs` runs
+Eight workflows of rising scope. `crates/podrunner/tests/parity.rs` runs
 each one with `podrunner run` and gives one verdict for each:
 
 * PASS: each job of the workflow is `ok`.
@@ -23,3 +23,4 @@ action by commit and by the digest of its tar (T-118); the test runs with
 | `05-containers.yml` | a job container beside a service | T-123 |
 | `06-actions.yml` | a marketplace action by tag, a local composite action with outputs | |
 | `07-artifacts.yml` | an artifact round trip with a check of its content | |
+| `08-cache.yml` | a cache round trip: the exact key and a restore key | |

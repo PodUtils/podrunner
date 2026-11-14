@@ -1160,7 +1160,7 @@ Read the fake broker, the executors, act's artifact server (`artifacts_v4`) and 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1181,6 +1181,11 @@ Read act's cache handler and the runner's handlers in the runner.server tree of 
 ## Prove
 
 `cargo test -p podrunner-broker-fake` (the match order, the scope, the limit) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test actions -- --ignored` (a save in one run and a restore in the next).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner-broker-fake/src/cache.rs` serves `CreateCacheEntry`, `FinalizeCacheEntryUpload` and `GetCacheEntryDownloadURL` of the CacheService (v2), the blob uploads (a whole PUT and blocks) and a download with `Range` (206 with `Content-Range`, 416). The job message sets `actions_uses_cache_service_v2`, so runner v2.338.2 gives `ACTIONS_CACHE_SERVICE_V2` to the steps; the broker reads a body of up to 160 MiB, as the client sends an archive under 128 MiB in one PUT. A lookup takes the exact key, then each restore key as a prefix, newest first, of the same version; an entry is written once; each URL carries a random signature; the oldest entry goes above 10 GB. `podrunner run --cache DIR` (default the cache directory of the user) or `--no-cache`. `actions/cache` skips a push with no `github.ref`, so the local `github` context gives `refs/heads/main` until T-125 reads the ref of the tree; the scope of a ref is in T-125. The legacy routes are not served: the toolkit of `actions/cache@v4` takes v2 when the runner gives the variable. Proven: 5 unit tests of the cache; the parity row `08-cache.yml` saves in one job and restores in the next by the exact key and by a restore key on runner v2.338.2, with the content checked, and again on the same store. The generic crate is in COORD-035.
+
 
 # T-121: Local mode: secrets from the environment and from a secret file, with the mask
 
@@ -1298,7 +1303,7 @@ On the microvm kind with an engine (T-123), give the runner `DOCKER_HOST` of the
 
 ## Problem
 
-act and runner.server give `github.event` from a JSON payload file, and `github.repository`, `github.ref`, `github.sha` and `github.actor` from the local git tree or from flags. act runs only the workflows of a directory whose `on:` names the event. The local mode gives `github.event_name` (`--event`) and stand-ins (`repository` `local/workflow`, no `event`, no `ref`, no `sha`); it runs one file, whatever its `on:` says. T-114 has the defect that the steps do not see even these.
+act and runner.server give `github.event` from a JSON payload file, and `github.repository`, `github.ref`, `github.sha` and `github.actor` from the local git tree or from flags. act runs only the workflows of a directory whose `on:` names the event. The local mode gives `github.event_name` (`--event`) and stand-ins (`repository` `local/workflow`, `ref` `refs/heads/main` since T-120, no `event`, no `sha`); it runs one file, whatever its `on:` says. T-114 has the defect that the steps do not see even these.
 
 ## Premise
 
@@ -1307,6 +1312,7 @@ Read `crates/podrunner/src/run_local.rs` (`github`) and act's command (`cmd/root
 ## Approach
 
 - `--event-path FILE` gives `github.event` (job level and steps, after T-114). With no file, a minimal payload of the event as GitHub sends it (`ref`, `before`, `after`, `repository` for `push`; `pull_request` with `head` and `base` for `pull_request`).
+- The cache of T-120 keeps one scope: when `ref` comes from the tree, keep each entry in the scope of its ref, and let a lookup read the scope of the ref and then that of the default branch, as GitHub does.
 - From the git tree of `--checkout` (or the current directory): `repository` from the URL of the remote (`--remote NAME`, default `origin`), `ref` and `sha` from HEAD, `actor` from the git user; flags `--ref`, `--sha`, `--repository`, `--actor` replace each one.
 - With a directory in place of FILE (default the workflows directory of the tree), run each workflow whose `on:` takes the event, after its filters (`types`, `branches`, `tags`, `paths` with their `-ignore` forms), as GitHub does. With one FILE, refuse an event that its `on:` does not take unless `--force-event`.
 - The filters of `on:` are generic: ask podcrates for them in `pod-actions-workflow` by a COORD issue.

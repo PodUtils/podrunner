@@ -47,11 +47,11 @@ pub struct ArtifactStore {
 /// The default limit of the bytes of one run.
 pub const LIMIT: u64 = 4 << 30;
 
-fn twirp(status: u16, code: &str, msg: String) -> (u16, Vec<u8>) {
+pub(crate) fn twirp(status: u16, code: &str, msg: String) -> (u16, Vec<u8>) {
     (status, json!({ "code": code, "msg": msg }).to_string().into_bytes())
 }
 
-fn ok(v: Value) -> (u16, Vec<u8>) {
+pub(crate) fn ok(v: Value) -> (u16, Vec<u8>) {
     (200, v.to_string().into_bytes())
 }
 
@@ -65,7 +65,7 @@ fn valid(name: &str) -> bool {
         && !name.chars().any(|c| c.is_control() || "\":<>|*?\\/".contains(c))
 }
 
-fn random_hex() -> String {
+pub(crate) fn random_hex() -> String {
     let mut b = [0u8; 16];
     if let Ok(mut f) = fs::File::open("/dev/urandom") {
         let _ = std::io::Read::read_exact(&mut f, &mut b);
@@ -73,13 +73,13 @@ fn random_hex() -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
-fn sha256(bytes: &[u8]) -> String {
+pub(crate) fn sha256(bytes: &[u8]) -> String {
     let d = ring::digest::digest(&ring::digest::SHA256, bytes);
     format!("sha256:{}", d.as_ref().iter().map(|b| format!("{b:02x}")).collect::<String>())
 }
 
 /// RFC 3339 in UTC, from seconds of the Unix epoch.
-fn rfc3339(secs: u64) -> String {
+pub(crate) fn rfc3339(secs: u64) -> String {
     let (days, rest) = ((secs / 86_400) as i64, secs % 86_400);
     // The civil date of a day count (Howard Hinnant's algorithm).
     let z = days + 719_468;
@@ -95,7 +95,7 @@ fn rfc3339(secs: u64) -> String {
 }
 
 /// The value of `key` in a query string, percent-decoded.
-fn query<'a>(q: &'a str, key: &str) -> Option<String> {
+pub(crate) fn query<'a>(q: &'a str, key: &str) -> Option<String> {
     let v: &'a str = q.split('&').find_map(|kv| kv.strip_prefix(key)?.strip_prefix('='))?;
     let mut out = Vec::new();
     let b = v.as_bytes();
@@ -121,7 +121,7 @@ fn query<'a>(q: &'a str, key: &str) -> Option<String> {
 }
 
 /// The block ids of a block list, in order.
-fn block_list(xml: &str) -> Vec<String> {
+pub(crate) fn block_list(xml: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut rest = xml;
     while let Some(at) = rest.find('<') {

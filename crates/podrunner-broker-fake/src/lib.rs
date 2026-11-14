@@ -8,6 +8,7 @@
 
 pub mod actions;
 pub mod artifacts;
+pub mod cache;
 pub mod corpus;
 pub mod files;
 pub mod message;
@@ -58,10 +59,13 @@ struct State {
     tree: Option<std::path::PathBuf>,
     /// The artifact store of the run (T-119).
     artifacts: Option<Arc<artifacts::ArtifactStore>>,
+    /// The cache store (T-120).
+    cache: Option<Arc<cache::CacheStore>>,
 }
 
-/// The largest body of a request: a block of an artifact is 8 MiB.
-const BODY_MAX: usize = 16 << 20;
+/// The largest body of a request: the cache client sends an archive under
+/// 128 MiB in one PUT.
+const BODY_MAX: usize = 160 << 20;
 
 /// A fake broker on the loopback.
 pub struct Broker {
@@ -125,6 +129,11 @@ impl Broker {
         self.state.lock().expect("the broker").artifacts = Some(store);
     }
 
+    /// Serve the CacheService and its blobs over `store` (T-120).
+    pub fn serve_cache(&self, store: Arc<cache::CacheStore>) {
+        self.state.lock().expect("the broker").cache = Some(store);
+    }
+
     /// Serve `tarball` as the tree of the stand-in of `actions/checkout`
     /// (`actions::CHECKOUT`, T-092).
     pub fn serve_checkout(&self, tarball: &std::path::Path) {
@@ -166,10 +175,16 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
     let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
     let base = base.trim_end_matches('/');
     let base = &format!("{base}/");
-    let (dir, pins, tree, store) = {
+    let (dir, pins, tree, store, cache) = {
         let st = state.lock().expect("the broker");
-        (st.actions.clone(), st.pins.clone(), st.tree.clone(), st.artifacts.clone())
+        (st.actions.clone(), st.pins.clone(), st.tree.clone(), st.artifacts.clone(), st.cache.clone())
     };
+    let cached = cache.and_then(|c| c.route(&req.method, &req.path, &req.body, req.range.as_deref(), base));
+    if let Some((status, out, mut headers)) = cached {
+        headers.push(("Content-Type", "application/json".to_string()));
+        let _ = write_response(&mut w, status, &headers, &out);
+        return;
+    }
     let actions = actions::route(&req.method, &path, &body, base, dir.as_deref(), &pins, tree.as_deref())
         .or_else(|| store.and_then(|s| s.route(&req.method, &req.path, &req.body, base)));
     let (status, out) = match (req.method.as_str(), path.as_str()) {

@@ -17,6 +17,9 @@ pub struct Request {
     pub method: String,
     pub path: String,
     pub body: Vec<u8>,
+    /// The `Range` header: the cache of the fake broker serves a part of a
+    /// blob.
+    pub range: Option<String>,
 }
 
 /// Why a request is refused: the status and a short reason.
@@ -51,6 +54,7 @@ pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, Ht
         return Err(HttpError(400, "a bad request line"));
     }
     let mut length: Option<usize> = None;
+    let mut range = None;
     for i in 0.. {
         let h = line(r)?;
         if h.is_empty() {
@@ -68,6 +72,7 @@ pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, Ht
                 length = Some(value.trim().parse().map_err(|_| HttpError(400, "a bad length"))?);
             }
             "transfer-encoding" => return Err(HttpError(501, "no chunked body")),
+            "range" => range = Some(value.trim().to_string()),
             _ => {}
         }
     }
@@ -77,7 +82,7 @@ pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, Ht
     }
     let mut body = vec![0; length];
     r.read_exact(&mut body).map_err(|_| HttpError(400, "the body is short"))?;
-    Ok(Request { method: method.into(), path: path.into(), body })
+    Ok(Request { method: method.into(), path: path.into(), body, range })
 }
 
 /// Write one response, with extra headers, and close.
@@ -86,11 +91,14 @@ pub fn write_response(w: &mut impl Write, status: u16, headers: &[(&str, String)
         200 => "OK",
         201 => "Created",
         202 => "Accepted",
+        206 => "Partial Content",
         400 => "Bad Request",
         403 => "Forbidden",
         404 => "Not Found",
         405 => "Method Not Allowed",
+        409 => "Conflict",
         413 => "Content Too Large",
+        416 => "Range Not Satisfiable",
         431 => "Request Header Fields Too Large",
         501 => "Not Implemented",
         _ => "Error",

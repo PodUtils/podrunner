@@ -168,6 +168,9 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
             // (`FeatureManager.IsContainerHooksEnabled`), and the variable
             // `ACTIONS_RUNNER_CONTAINER_HOOKS`.
             "DistributedTask.AllowRunnerContainerHooks": { "value": "true" },
+            // The runner gives ACTIONS_CACHE_SERVICE_V2 to the steps: the
+            // cache client calls the CacheService of this broker (T-120).
+            "actions_uses_cache_service_v2": { "value": "true" },
         },
         "contextData": { "github": { "t": 2, "d": [
             s("repository", "example-org/app"), s("workflow", "podrunner"), s("job", &job.name),

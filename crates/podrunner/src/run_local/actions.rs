@@ -13,15 +13,15 @@ use podrunner_local::store::{Git, Mode, Store, resolve, workflow_uses};
 /// The forge of the actions.
 const FORGE: &str = "https://github.com/";
 
-/// The store of the user: `$XDG_CACHE_HOME/podrunner/actions`, or
-/// `$HOME/.cache/podrunner/actions`.
-fn default_store() -> Result<PathBuf, String> {
+/// A directory of the cache of the user: `$XDG_CACHE_HOME/podrunner/NAME`,
+/// or `$HOME/.cache/podrunner/NAME`.
+pub(super) fn user_cache(name: &str) -> Result<PathBuf, String> {
     let cache = std::env::var_os("XDG_CACHE_HOME")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").filter(|v| !v.is_empty()).map(|h| PathBuf::from(h).join(".cache")))
-        .ok_or("no XDG_CACHE_HOME and no HOME: give the store with --actions DIR")?;
-    Ok(cache.join("podrunner").join("actions"))
+        .ok_or_else(|| format!("no XDG_CACHE_HOME and no HOME: give the directory with --{name} DIR"))?;
+    Ok(cache.join("podrunner").join(name))
 }
 
 /// The actions of a run.
@@ -44,7 +44,7 @@ pub(super) fn pin(file: &Path, text: &str, store: Option<&Path>, mode: Mode) -> 
     }
     let dir = match store {
         Some(d) => d.to_path_buf(),
-        None => default_store()?,
+        None => user_cache("actions")?,
     };
     let lock_path = file.parent().unwrap_or(Path::new(".")).join(LOCK_FILE);
     let lock = Lock::read(&lock_path)?;

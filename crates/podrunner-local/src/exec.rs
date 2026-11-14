@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use podrunner_broker_fake::artifacts::ArtifactStore;
+use podrunner_broker_fake::cache::CacheStore;
 use podrunner_broker_fake::runner::start_runner;
 use podrunner_broker_fake::{Broker, Job};
 use podrunner_schema::JobId;
@@ -28,6 +29,8 @@ pub struct RunnerDir {
     pub pins: BTreeMap<String, String>,
     /// The artifact store of the run (T-119).
     pub artifacts: Option<Arc<ArtifactStore>>,
+    /// The cache store (T-120).
+    pub cache: Option<Arc<CacheStore>>,
     /// The tarball of the local tree for `actions/checkout` (T-092).
     pub checkout: Option<PathBuf>,
 }
@@ -37,7 +40,15 @@ impl RunnerDir {
         if !dir.join("run.sh").is_file() || !dir.join("bin/Runner.Listener").is_file() {
             return Err(format!("{}: no unpacked runner (run.sh, bin/Runner.Listener)", dir.display()));
         }
-        Ok(RunnerDir { dir, logs: Vec::new(), actions: None, pins: BTreeMap::new(), artifacts: None, checkout: None })
+        Ok(RunnerDir {
+            dir,
+            logs: Vec::new(),
+            actions: None,
+            pins: BTreeMap::new(),
+            artifacts: None,
+            cache: None,
+            checkout: None,
+        })
     }
 }
 
@@ -59,6 +70,8 @@ pub struct InUnit {
     pub pins: BTreeMap<String, String>,
     /// The artifact store of the run (T-119).
     pub artifacts: Option<Arc<ArtifactStore>>,
+    /// The cache store (T-120).
+    pub cache: Option<Arc<CacheStore>>,
     /// The tarball of the local tree for `actions/checkout` (T-092).
     pub checkout: Option<PathBuf>,
     /// The egress of a held unit (T-095): the egress module and the
@@ -78,6 +91,7 @@ impl InUnit {
             actions: None,
             pins: BTreeMap::new(),
             artifacts: None,
+            cache: None,
             checkout: None,
             egress: None,
             next: 0,
@@ -197,6 +211,9 @@ impl Executor for InUnit {
         }
         if let Some(store) = &self.artifacts {
             broker.serve_artifacts(store.clone());
+        }
+        if let Some(store) = &self.cache {
+            broker.serve_cache(store.clone());
         }
         if let Some(tree) = &self.checkout {
             broker.serve_checkout(tree);
@@ -325,6 +342,9 @@ impl Executor for RunnerDir {
         }
         if let Some(store) = &self.artifacts {
             broker.serve_artifacts(store.clone());
+        }
+        if let Some(store) = &self.cache {
+            broker.serve_cache(store.clone());
         }
         if let Some(tree) = &self.checkout {
             broker.serve_checkout(tree);
