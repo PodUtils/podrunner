@@ -60,6 +60,23 @@ impl Executor for Dispatch {
         exec.run(job, message, limit)
     }
 
+    fn set_live(&mut self, live: crate::exec::Live) {
+        for (_, e) in &mut self.routes {
+            e.set_live(live.clone());
+        }
+        if let Some(d) = &mut self.default {
+            d.set_live(live);
+        }
+    }
+
+    fn take_blobs(&mut self) -> Vec<(JobId, Vec<(String, String)>)> {
+        let mut out: Vec<_> = self.routes.iter_mut().flat_map(|(_, e)| e.take_blobs()).collect();
+        if let Some(d) = &mut self.default {
+            out.extend(d.take_blobs());
+        }
+        out
+    }
+
     fn take_logs(&mut self) -> Vec<(JobId, String)> {
         let mut out: Vec<(JobId, String)> = self.routes.iter_mut().flat_map(|(_, e)| e.take_logs()).collect();
         if let Some(d) = &mut self.default {

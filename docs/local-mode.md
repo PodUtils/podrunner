@@ -60,7 +60,7 @@ the entry that closes the gap, or the entry that did the work.
 | One job, a matrix filter | `-j`, `--matrix` | `--job`, `--matrix` | `--job` with its needs, `--matrix`; each other cell `skipped` with its reason | T-127 |
 | List, graph, dry run, validate | yes | `--list` | `--list`, `--graph`, `--validate`; `--dry-run` builds each job message and checks the pins | T-128 |
 | Parallel jobs | `--concurrent-jobs` | `--parallel N` | one at a time | T-132 |
-| Live logs, log files, JSON | yes | web console, `--log-output-dir` | one line for each job; logs of failed jobs at the end | T-134 |
+| Live logs, log files, JSON | yes | web console, `--log-output-dir` | live lines on stderr, `--json`, `--log-dir` with each step log and `summary.md`; secrets masked again | T-134 |
 | Web view | no | yes | no | T-149 |
 | Reruns | no | `rerun --failed`, keep artifacts | no | T-135 |
 | Watch, schedules | `--watch` | `--watch`, schedules | no | T-142 |

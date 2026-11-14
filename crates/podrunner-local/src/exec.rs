@@ -12,46 +12,13 @@ use std::time::{Duration, Instant};
 use pod_actions_workflow::JobResult;
 use podrunner_broker_fake::artifacts::ArtifactStore;
 use podrunner_broker_fake::cache::CacheStore;
-use podrunner_broker_fake::runner::start_runner;
 use podrunner_broker_fake::{Broker, Job};
 use podrunner_schema::JobId;
 
 use crate::drive::{End, Executor, result_of};
 
-/// An unpacked release of the official runner, in a directory that the run
-/// may change.
-pub struct RunnerDir {
-    pub dir: PathBuf,
-    /// The log of each job, for the caller.
-    pub logs: Vec<(JobId, String)>,
-    /// The archives of the actions (`OWNER_REPO/SHA.tar.gz`, T-091).
-    pub actions: Option<PathBuf>,
-    /// The commit of each `OWNER/REPO@REF` of the run (T-118).
-    pub pins: BTreeMap<String, String>,
-    /// The artifact store of the run (T-119).
-    pub artifacts: Option<Arc<ArtifactStore>>,
-    /// The cache store (T-120).
-    pub cache: Option<Arc<CacheStore>>,
-    /// The tarball of the local tree for `actions/checkout` (T-092).
-    pub checkout: Option<PathBuf>,
-}
-
-impl RunnerDir {
-    pub fn new(dir: PathBuf) -> Result<RunnerDir, String> {
-        if !dir.join("run.sh").is_file() || !dir.join("bin/Runner.Listener").is_file() {
-            return Err(format!("{}: no unpacked runner (run.sh, bin/Runner.Listener)", dir.display()));
-        }
-        Ok(RunnerDir {
-            dir,
-            logs: Vec::new(),
-            actions: None,
-            pins: BTreeMap::new(),
-            artifacts: None,
-            cache: None,
-            checkout: None,
-        })
-    }
-}
+mod host;
+pub use host::RunnerDir;
 
 /// Each job in a fresh unit of a driver (T-090): the runner image, the
 /// runner files of the fake broker for the job (mode 0600, no argv, no
@@ -78,6 +45,9 @@ pub struct InUnit {
     /// The egress of a held unit (T-095): the egress module and the
     /// policy of each unit (`broker-policy.v1`).
     pub egress: Option<(std::sync::Arc<podrunner_egress::Egress>, String)>,
+    /// The live sink and the blobs of each job (T-134).
+    pub live: Option<Live>,
+    pub blobs: Vec<(JobId, Vec<(String, String)>)>,
     /// A guest unit (the microvm or the incus kind, T-123): no NIC, and
     /// [`crate::front`] on its egress socket; no container hooks (a guest
     /// runs its containers in its own engine).
@@ -99,6 +69,8 @@ impl InUnit {
             cache: None,
             checkout: None,
             egress: None,
+            live: None,
+            blobs: Vec::new(),
             guest: false,
             next: 0,
             logs: Vec::new(),
@@ -211,6 +183,32 @@ impl InUnit {
 /// The prefix of a line of a job log for a request with no route (T-145).
 pub const NO_ROUTE: &str = "podrunner: the fake broker has no route for ";
 
+/// A sink of the live lines of a run: the job and a part of its log
+/// (T-134).
+pub type Live = Arc<dyn Fn(&JobId, &str) + Send + Sync>;
+
+/// Give the new text of each log blob to the live sink.
+fn pump(live: &Option<Live>, job: &JobId, broker: &Broker) {
+    if let Some(l) = live {
+        for (_, text) in broker.take_new() {
+            l(job, &text);
+        }
+    }
+}
+
+/// The end of a job: the last live lines, the blobs of the job (its step
+/// logs and summaries, T-134), and its log.
+fn record(
+    live: &Option<Live>,
+    blobs: &mut Vec<(JobId, Vec<(String, String)>)>,
+    job: &JobId,
+    broker: &Broker,
+) -> String {
+    pump(live, job, broker);
+    blobs.push((job.clone(), broker.blobs()));
+    job_log(broker)
+}
+
 /// The log of a job: the logs that the runner uploaded, and one line for
 /// each request that the broker had no route for (T-145).
 fn job_log(broker: &Broker) -> String {
@@ -224,6 +222,14 @@ fn job_log(broker: &Broker) -> String {
 impl Executor for InUnit {
     fn take_logs(&mut self) -> Vec<(JobId, String)> {
         std::mem::take(&mut self.logs)
+    }
+
+    fn set_live(&mut self, live: Live) {
+        self.live = Some(live);
+    }
+
+    fn take_blobs(&mut self) -> Vec<(JobId, Vec<(String, String)>)> {
+        std::mem::take(&mut self.blobs)
     }
 
     fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
@@ -328,6 +334,7 @@ impl Executor for InUnit {
         let until = Instant::now() + limit;
         let waited = loop {
             let slice = until.saturating_duration_since(Instant::now()).min(Duration::from_secs(1));
+            pump(&self.live, job, &broker);
             match self.driver.wait(&id, slice) {
                 Ok(None) if !crate::cancel::requested() && Instant::now() < until => continue,
                 other => break other,
@@ -349,7 +356,7 @@ impl Executor for InUnit {
         let residue = self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"));
         end_sockets(&sockets);
         let residue = residue?;
-        let mut log = job_log(&broker);
+        let mut log = record(&self.live, &mut self.blobs, job, &broker);
         for r in &refusals {
             log.push_str(&format!("\npodrunner: a hook call was refused: {r}"));
         }
@@ -384,97 +391,6 @@ pub fn needs_containers(message: &Job) -> bool {
         .and_then(|s| s.as_array())
         .is_some_and(|s| s.iter().any(|s| s["reference"]["type"] == "containerRegistry"));
     o.contains_key("jobContainer") || o.contains_key("jobServiceContainers") || docker
-}
-
-impl Executor for RunnerDir {
-    fn take_logs(&mut self) -> Vec<(JobId, String)> {
-        std::mem::take(&mut self.logs)
-    }
-
-    fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
-        if needs_containers(&message) {
-            return Err("the job needs containers: run it in a unit (--podvm, or --microvm with --engine), not on a runner directory".into());
-        }
-        let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
-        if let Some(dir) = &self.actions {
-            broker.serve_actions(dir, self.pins.clone());
-        }
-        if let Some(store) = &self.artifacts {
-            broker.serve_artifacts(store.clone());
-        }
-        if let Some(store) = &self.cache {
-            broker.serve_cache(store.clone());
-        }
-        if let Some(tree) = &self.checkout {
-            broker.serve_checkout(tree);
-        }
-        broker.queue(message);
-        // Each job starts in a fresh work directory (T-146).
-        crate::work::clear(&self.dir.join("_work"))?;
-        let mut child = start_runner(&self.dir, &broker, &[])?;
-        // The limit of the job (`timeout-minutes`, T-115): at its end, the
-        // whole process group of the runner ends, as the unit of `InUnit`.
-        let end = Instant::now() + limit;
-        let status = loop {
-            if let Some(s) = child.try_wait().map_err(|e| format!("the runner: {}", e.kind()))? {
-                break Some(s);
-            }
-            // A signal ends the job as its limit does (T-141).
-            if Instant::now() >= end || crate::cancel::requested() {
-                break None;
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        };
-        let Some(status) = status else {
-            end_group(child.id());
-            let _ = child.wait();
-            self.logs.push((job.clone(), job_log(&broker)));
-            if crate::cancel::requested() {
-                return Ok(End { result: JobResult::Cancelled, outputs: vec![] });
-            }
-            return Err(format!("the job ran past its limit of {} s", limit.as_secs()));
-        };
-        if let Some(why) = signal_reason(&status) {
-            self.logs.push((job.clone(), job_log(&broker)));
-            return Err(why);
-        }
-        // The runner sends `completejob` before it ends; give the broker
-        // time to record it.
-        let t = Instant::now();
-        while broker.completions().is_empty() && t.elapsed() < Duration::from_secs(5) {
-            std::thread::sleep(Duration::from_millis(50));
-        }
-        self.logs.push((job.clone(), job_log(&broker)));
-        let done = broker.completions();
-        let Some(end) = done.first() else {
-            return Err("the runner ended with no result".into());
-        };
-        Ok(End { result: result_of(&end.conclusion), outputs: end.outputs.clone() })
-    }
-}
-
-/// End the process group of `leader`: TERM, then KILL after 5 s.
-fn end_group(leader: u32) {
-    let Ok(pgid) = i32::try_from(leader) else { return };
-    // SAFETY: kill of a process group that this process made.
-    unsafe { libc::kill(-pgid, libc::SIGTERM) };
-    let t = Instant::now();
-    // SAFETY: a signal 0 checks that the group still has a process.
-    while t.elapsed() < Duration::from_secs(5) && unsafe { libc::kill(-pgid, 0) } == 0 {
-        std::thread::sleep(Duration::from_millis(100));
-    }
-    // SAFETY: as above.
-    unsafe { libc::kill(-pgid, libc::SIGKILL) };
-}
-
-/// The reason of a runner that a signal ended, with a word on SIGXFSZ (a
-/// limit of file size, T-144).
-fn signal_reason(status: &std::process::ExitStatus) -> Option<String> {
-    use std::os::unix::process::ExitStatusExt;
-    match status.signal()? {
-        libc::SIGXFSZ => Some("the runner ended by SIGXFSZ: a limit of file size (ulimit -f) is too small".into()),
-        s => Some(format!("the runner ended by signal {s}")),
-    }
 }
 
 /// The last 8 KiB of an output, as text.

@@ -24,6 +24,10 @@ pub(super) struct Args {
     pub(super) env_file: Option<PathBuf>,
     pub(super) env: Vec<(String, String)>,
     /// `--list`, `--graph`, `--validate`, `--dry-run` (T-128).
+    /// `-q`, `--json`, `--log-dir` (T-134).
+    pub(super) quiet: bool,
+    pub(super) json: bool,
+    pub(super) log_dir: Option<PathBuf>,
     pub(super) list: bool,
     pub(super) graph: bool,
     pub(super) validate: bool,
@@ -77,6 +81,9 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             "--incus" => a.guest = Some((false, PathBuf::from(value()?))),
             "--engine" => a.engine = Some(PathBuf::from(value()?)),
             "--job" => a.jobs.push(value()?),
+            "-q" | "--quiet" => a.quiet = true,
+            "--json" => a.json = true,
+            "--log-dir" => a.log_dir = Some(PathBuf::from(value()?)),
             "--list" => a.list = true,
             "--graph" => a.graph = true,
             "--validate" => a.validate = true,

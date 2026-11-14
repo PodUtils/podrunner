@@ -39,8 +39,10 @@ pub struct Completion {
 
 #[derive(Default)]
 struct State {
-    /// The uploaded logs, by blob name (`job` or `step-ID`).
+    /// The uploaded logs, by blob name (`job`, `step-ID`, `summary-ID`).
     blobs: std::collections::BTreeMap<String, Vec<u8>>,
+    /// How much of each blob [`Broker::take_new`] gave (T-134).
+    read: std::collections::BTreeMap<String, usize>,
     /// The bodies of `WorkflowStepsUpdate`, in order.
     step_updates: Vec<Value>,
     queue: VecDeque<(u64, Job)>,
@@ -164,10 +166,35 @@ impl Broker {
     }
 
     /// The logs that the Worker uploaded: the job log and each step log,
-    /// as text.
+    /// as text, with no summary.
     pub fn logs(&self) -> String {
         let st = self.state.lock().expect("the broker");
-        st.blobs.values().map(|b| String::from_utf8_lossy(b).into_owned()).collect::<Vec<_>>().join("\n")
+        let logs = st.blobs.iter().filter(|(k, _)| !k.starts_with("summary-"));
+        logs.map(|(_, b)| String::from_utf8_lossy(b).into_owned()).collect::<Vec<_>>().join("\n")
+    }
+
+    /// Each blob by its name (`step-ID`, `summary-ID`, the job log), as text
+    /// (T-134).
+    pub fn blobs(&self) -> Vec<(String, String)> {
+        let st = self.state.lock().expect("the broker");
+        st.blobs.iter().map(|(k, b)| (k.clone(), String::from_utf8_lossy(b).into_owned())).collect()
+    }
+
+    /// The text that each log blob got since the last call: the live lines
+    /// of a run (T-134).
+    pub fn take_new(&self) -> Vec<(String, String)> {
+        let mut st = self.state.lock().expect("the broker");
+        let mut out = Vec::new();
+        let names: Vec<String> = st.blobs.keys().filter(|k| !k.starts_with("summary-")).cloned().collect();
+        for name in names {
+            let len = st.blobs[&name].len();
+            let from = st.read.get(&name).copied().unwrap_or(0).min(len);
+            if from < len {
+                out.push((name.clone(), String::from_utf8_lossy(&st.blobs[&name][from..]).into_owned()));
+                st.read.insert(name, len);
+            }
+        }
+        out
     }
 
     /// The step updates of the Worker.
@@ -256,8 +283,10 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
         // The results service: a signed URL is a blob of this broker; each
         // upload appends; each metadata call is `ok`.
         ("POST", p) if p.starts_with("/twirp/results.services.receiver.Receiver/Get") => {
+            // A summary of `GITHUB_STEP_SUMMARY` is a blob of its own (T-134).
+            let kind = if p.contains("Summary") { "summary" } else { "step" };
             let name = match body["step_backend_id"].as_str() {
-                Some(step) => format!("step-{step}"),
+                Some(step) => format!("{kind}-{step}"),
                 None => p.rsplit('/').next().unwrap_or("blob").to_string(),
             };
             let url = format!("{base}blobs/{name}?sig=fake");
@@ -320,6 +349,34 @@ mod tests {
         let mut out = String::new();
         let _ = c.read_to_string(&mut out);
         out
+    }
+
+    fn put(broker: &Broker, path: &str, body: &str) {
+        let addr = broker.base.trim_start_matches("http://").trim_end_matches('/');
+        let mut c = TcpStream::connect(addr).unwrap();
+        c.write_all(
+            format!("PUT {path} HTTP/1.1\r\nHost: b\r\nContent-Length: {}\r\n\r\n{body}", body.len()).as_bytes(),
+        )
+        .unwrap();
+        let mut out = String::new();
+        let _ = c.read_to_string(&mut out);
+    }
+
+    #[test]
+    fn the_blobs_keep_their_kind_and_the_new_text_comes_once() {
+        let broker = Broker::start().unwrap();
+        put(&broker, "/blobs/step-1?sig=x", "line one\n");
+        put(&broker, "/blobs/summary-1?sig=x", "# the summary\n");
+        assert_eq!(
+            broker.take_new(),
+            [("step-1".to_string(), "line one\n".to_string())],
+            "no summary in the live lines"
+        );
+        put(&broker, "/blobs/step-1?sig=x", "line two\n");
+        assert_eq!(broker.take_new(), [("step-1".to_string(), "line two\n".to_string())], "only the new text");
+        assert!(broker.take_new().is_empty());
+        assert!(!broker.logs().contains("summary"), "the logs have no summary");
+        assert!(broker.blobs().iter().any(|(k, v)| k == "summary-1" && v.contains("# the summary")));
     }
 
     #[test]

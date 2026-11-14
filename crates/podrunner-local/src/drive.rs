@@ -35,6 +35,13 @@ pub trait Executor {
     fn take_logs(&mut self) -> Vec<(JobId, String)> {
         Vec::new()
     }
+    /// Give each new part of a log to `live` while its job runs (T-134).
+    fn set_live(&mut self, _live: crate::exec::Live) {}
+    /// The blobs of each job that ran (its step logs and summaries), taken
+    /// once (T-134).
+    fn take_blobs(&mut self) -> Vec<(JobId, Vec<(String, String)>)> {
+        Vec::new()
+    }
 }
 
 /// One line of the result of a run.

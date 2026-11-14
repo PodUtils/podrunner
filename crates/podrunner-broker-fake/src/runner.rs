@@ -54,6 +54,9 @@ pub fn start_runner(dir: &Path, broker: &Broker, env: &[(&str, String)]) -> Resu
         .env("DOTNET_EnableWriteXorExecute", "0")
         .envs(env.iter().map(|(k, v)| (k, v)))
         .process_group(0)
+        // The console of the runner goes to stderr: stdout has the lines of
+        // the jobs, and their JSON with `--json` (T-134).
+        .stdout(std::process::Stdio::from(std::io::stderr()))
         .spawn()
         .map_err(|e| format!("{}: run.sh: {}", dir.display(), e.kind()))
 }

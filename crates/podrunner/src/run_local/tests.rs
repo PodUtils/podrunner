@@ -372,3 +372,37 @@ fn list_graph_validate_and_dry_run_run_no_job() {
     assert!(out.stdout.contains("failure b:") && out.stdout.contains("digest"), "{}", out.stdout);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_log_dir_has_each_step_and_the_summary_with_no_secret() {
+    use pod_actions_workflow::JobResult as R;
+    assert_eq!(logs::mask("a made-up-key b", &["made-up-key".into(), String::new()]), "a *** b");
+    let id = JobId::new("build.0").unwrap();
+    let j = logs::line_json(&Line::Ran { job: id.clone(), name: "build".into(), result: R::Failure });
+    let v: serde_json::Value = serde_json::from_str(&j).unwrap();
+    assert_eq!(
+        (v["event"].as_str(), v["result"].as_str(), v["job"].as_str()),
+        (Some("job"), Some("failure"), Some("build.0"))
+    );
+    let dir = std::env::temp_dir().join(format!("podrunner-logdir-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let blobs = vec![(
+        id,
+        vec![
+            ("step-1".to_string(), "a line with made-up-key\n".to_string()),
+            ("summary-1".to_string(), "# sum\n".to_string()),
+            ("job".to_string(), "the job log\n".to_string()),
+            ("step-../x".to_string(), "not a path\n".to_string()),
+        ],
+    )];
+    logs::write_dir(&dir, &blobs, &["made-up-key".into()]).unwrap();
+    let read = |f: &str| std::fs::read_to_string(dir.join("build.0").join(f)).unwrap();
+    assert_eq!(read("step-1.log"), "a line with ***\n");
+    assert_eq!(read("summary.md"), "# sum\n");
+    assert!(
+        read("job.log").contains("the job log") && read("job.log").contains("not a path"),
+        "a bad name goes into job.log"
+    );
+    assert!(!dir.join("x.log").exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}

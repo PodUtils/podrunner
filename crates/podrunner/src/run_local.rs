@@ -10,6 +10,7 @@ mod args;
 mod context;
 mod guest;
 mod inspect;
+mod logs;
 mod routes;
 
 use std::path::PathBuf;
@@ -25,7 +26,7 @@ use crate::cli::Out;
 
 use args::{Args, parse};
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE]";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE]";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -227,8 +228,14 @@ pub fn run(args: &[String]) -> Out {
     if let Err(e) = source.set_filter(&a.jobs, &a.matrix) {
         return fail(Class::Usage, e);
     }
+    // The values to mask in each line that podrunner writes (T-134).
+    let mut masked: Vec<String> = Vec::new();
     match secrets(&a) {
-        Ok((list, token)) => source.set_secrets(list, token),
+        Ok((list, token)) => {
+            masked.extend(list.iter().map(|(_, v)| v.clone()));
+            masked.extend(token.clone());
+            source.set_secrets(list, token)
+        }
         Err(e) => return fail(Class::Config, e),
     }
     let mode = match (a.offline, a.frozen) {
@@ -285,8 +292,11 @@ pub fn run(args: &[String]) -> Out {
     let mut stdout = String::new();
     let mut stderr = note;
     podrunner_local::cancel::install();
-    let dry = a.dry_run;
+    let (dry, as_json) = (a.dry_run, a.json);
     let mut each = |l: &Line| {
+        if as_json {
+            return stdout.push_str(&logs::line_json(l));
+        }
         let text = line(l);
         // A dry run runs no job: a job that would start is `planned`.
         stdout.push_str(&if dry && text.starts_with("ok ") { text.replacen("ok      ", "planned ", 1) } else { text })
@@ -311,8 +321,17 @@ pub fn run(args: &[String]) -> Out {
             return o;
         }
     };
+    if !a.quiet {
+        exec.set_live(logs::live(masked.clone(), a.json));
+    }
     let result = drive(&mut source, exec.as_mut(), &mut each);
     let logs = exec.take_logs();
+    let blobs = exec.take_blobs();
+    if let Some(dir) = &a.log_dir
+        && let Err(e) = logs::write_dir(dir, &blobs, &masked)
+    {
+        stderr.push_str(&format!("podrunner: --log-dir: {e}\n"));
+    }
     drop(exec);
     let _ = std::fs::remove_dir_all(&state);
     let _ = std::fs::remove_dir_all(kept.join(".pending"));

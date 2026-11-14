@@ -1573,7 +1573,7 @@ Read `crates/podrunner/src/run_local.rs` and `checkout_script` of `crates/podrun
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1590,6 +1590,11 @@ Print each upload of a log as it comes, each line with the job prefix; `-q` prin
 ## Prove
 
 `cargo test -p podrunner-broker-fake` (the blobs by kind) and `cargo test -p podrunner run_local` (`--json` lines, `--log-dir`).
+
+## Done
+
+2026-11-14, this commit. The fake broker keeps a summary of `GITHUB_STEP_SUMMARY` as a blob of its own (`summary-ID`), leaves it out of `logs()`, and gives each blob (`blobs()`) and the text that each log blob got since the last call (`take_new()`). The executors (`exec/host.rs` holds `RunnerDir` now) give each new part to a live sink while the job runs and keep the blobs of each job (`Executor::set_live`, `take_blobs`). `podrunner run` prints each live line on stderr with the job as its prefix (`-q` turns it off), `--json` writes one JSON object for each log line and each end of a job, and `--log-dir DIR` writes `JOB/step-ID.log`, `JOB/job.log` and `JOB/summary.md`; each secret is masked again. The console of the runner goes to stderr, so stdout holds only the lines of the jobs. Tests: the blobs by kind and the new text once, the mask, the JSON line and the files of `--log-dir`; a run here on runner v2.338.2 gives the live line `live-42 the key ***`, a `summary.md` with the summary of the step, and no secret in a file.
+
 
 # T-135: Local mode: a run directory and reruns of failed jobs
 
