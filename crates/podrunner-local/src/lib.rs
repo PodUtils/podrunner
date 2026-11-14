@@ -8,6 +8,7 @@
 
 pub mod drive;
 pub mod exec;
+pub mod front;
 pub mod lock;
 pub mod message;
 pub mod secrets;

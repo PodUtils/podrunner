@@ -171,3 +171,23 @@ fn the_egress_workflow_gives_one_job() {
     assert_eq!(offers.len(), 1);
     assert!(!podrunner_local::exec::needs_containers(&s.broker_job(&offers[0]).unwrap()));
 }
+
+#[test]
+fn the_guest_kinds_of_run() {
+    let unit = ["--images", "/s", "--image", "r@sha256:00"];
+    let with = |extra: &[&str]| {
+        let mut v = vec!["w.yml"];
+        v.extend_from_slice(extra);
+        v.extend_from_slice(&unit);
+        parse(&args(&v))
+    };
+    let m = with(&["--microvm", "/p", "--engine", "/e", "--allow", "github.com"]).unwrap();
+    assert_eq!(m.guest, Some((true, PathBuf::from("/p"))));
+    assert_eq!((m.engine, m.allow.len()), (Some(PathBuf::from("/e")), 1), "a guest takes --allow with no podnet");
+    let i = with(&["--incus", "/p"]).unwrap();
+    assert_eq!(i.guest, Some((false, PathBuf::from("/p"))));
+    assert!(with(&["--incus", "/p", "--engine", "/e"]).unwrap_err().contains("--engine needs --microvm"));
+    assert!(with(&["--microvm", "/p", "--podnet", "/n"]).unwrap_err().contains("--podnet needs --podvm"));
+    assert!(with(&["--microvm", "/p", "--podvm", "/q"]).unwrap_err().contains("one of --podvm"));
+    assert!(parse(&args(&["w.yml", "--microvm", "/p"])).unwrap_err().contains("--images"));
+}

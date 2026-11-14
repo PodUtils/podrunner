@@ -34,7 +34,8 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   fake-source [--script FILE]                       a fake source on stdio (for a test of a program source)
   source-conformance -- PROGRAM ARGS...             the source tests against a source program
   image verify --tarball FILE --arch ARCH           check a runner tarball against its pin
-  run FILE (--runner-dir DIR | --podvm PATH --images STORE --image REF [--podnet PATH [--allow HOST]...])
+  run FILE (--runner-dir DIR | (--podvm PATH [--podnet PATH] | --microvm PATH [--engine DIR] | --incus PATH)
+      --images STORE --image REF) [--allow HOST]...
       [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache]
       [--secret NAME]... [--secret-file FILE] [--github-token-env NAME]
       [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...

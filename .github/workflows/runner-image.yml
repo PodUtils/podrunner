@@ -279,6 +279,22 @@ jobs:
           # T-037: the acceptance of GitHub #37, a fork pull request through
           # slots into a guest, and a container need refused.
           timeout 1200 cargo test -p podrunner-broker-fake --test untrusted -- --ignored --nocapture
+          # T-123: podrunner run, each job in a fresh guest with no NIC; the
+          # front of the egress socket gives the fake broker.
+          timeout 2400 cargo run -q -p podrunner -- run crates/podrunner/tests/local/suite.yml \
+            --microvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . \
+            | tee "$RUNNER_TEMP/local-microvm.txt"
+          test "$(grep -c '^ok ' "$RUNNER_TEMP/local-microvm.txt")" = 8
+          # T-123: a guest reaches no host but the broker; with --allow the
+          # egress module lets the same step reach the host, and it fails.
+          guest_egress() {
+            timeout 900 cargo run -q -p podrunner -- run crates/podrunner/tests/local/egress.yml \
+              --microvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" "$@" || true
+          }
+          guest_egress | tee "$RUNNER_TEMP/egress-microvm.txt"
+          grep -qx 'ok      denied' "$RUNNER_TEMP/egress-microvm.txt"
+          guest_egress --allow example.com | tee "$RUNNER_TEMP/egress-microvm-allow.txt"
+          grep -qx 'failure denied' "$RUNNER_TEMP/egress-microvm-allow.txt"
       # T-103 step 3: a container engine inside a guest of the machine tier
       # (KVM from the machine measure). A measure: the static Docker binaries
       # and a saved image go in by a 9p volume.
@@ -326,6 +342,11 @@ jobs:
           # T-109: no NIC, and the egress socket as the one way out.
           cargo test -p podrunner-incus --test egress --no-run
           sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 600 cargo test -p podrunner-incus --test egress -- --ignored --nocapture"
+          # T-123: podrunner run, each job in a fresh incus instance.
+          cargo build -q -p podrunner
+          sg incus-admin -c "timeout 2400 target/x86_64-unknown-linux-musl/debug/podrunner run crates/podrunner/tests/local/suite.yml --incus '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_IMAGE' --checkout ." \
+            | tee "$RUNNER_TEMP/local-incus.txt"
+          test "$(grep -c '^ok ' "$RUNNER_TEMP/local-incus.txt")" = 8
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runner-${{ matrix.arch }}

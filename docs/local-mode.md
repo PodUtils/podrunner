@@ -13,7 +13,7 @@ says so, and the take goes through `THIRD_PARTY.md`.
 | | act | runner.server | podrunner |
 | --- | --- | --- | --- |
 | Engine of the steps | its own Go engine | the official runner (a fork), with its own server | the official runner, unchanged, pinned |
-| Isolation | a container of the Docker daemon of the host | a container of the host's Docker, or the host | a fresh unit for each job (podvm; microvm and incus with T-123), no root, no daemon |
+| Isolation | a container of the Docker daemon of the host | a container of the host's Docker, or the host | a fresh unit for each job (podvm, microvm, incus), no root, no daemon |
 | Network of a job | the Docker network, open | open | the egress hold: only the hosts of `--allow` |
 | Binary | static Go | .NET, not static | static musl |
 
@@ -108,8 +108,8 @@ writes a new suite of the same scope.
 - **The official runner.** The steps run in the runner of GitHub, pinned
   by version and digest; act reimplements the engine.
 - **Static binaries.** One static `podrunner`; runner.server needs .NET.
-- **Guest kinds.** With T-123 a job runs in a microvm guest with its own
-  kernel and no NIC, or in a system container of incus.
+- **Guest kinds.** With `--microvm` a job runs in a guest with its own
+  kernel and no NIC; with `--incus`, in a system container of incus.
 - **Integrity.** Artifacts and cache entries carry their digest; the cache
   keeps the scope of a ref (T-119, T-120).
 

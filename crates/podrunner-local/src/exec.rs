@@ -77,6 +77,10 @@ pub struct InUnit {
     /// The egress of a held unit (T-095): the egress module and the
     /// policy of each unit (`broker-policy.v1`).
     pub egress: Option<(std::sync::Arc<podrunner_egress::Egress>, String)>,
+    /// A guest unit (the microvm or the incus kind, T-123): no NIC, and
+    /// [`crate::front`] on its egress socket; no container hooks (a guest
+    /// runs its containers in its own engine).
+    pub guest: bool,
     next: u64,
     pub logs: Vec<(JobId, String)>,
 }
@@ -94,6 +98,7 @@ impl InUnit {
             cache: None,
             checkout: None,
             egress: None,
+            guest: false,
             next: 0,
             logs: Vec::new(),
         }
@@ -205,7 +210,8 @@ impl InUnit {
 impl Executor for InUnit {
     fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
         use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
-        let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
+        let broker = if self.guest { Broker::start_seen_at(crate::front::BROKER) } else { Broker::start() };
+        let broker = broker.map_err(|e| format!("the fake broker: {e}"))?;
         if let Some(dir) = &self.actions {
             broker.serve_actions(dir, self.pins.clone());
         }
@@ -233,8 +239,8 @@ impl Executor for InUnit {
         .collect();
         // One socket directory for each unit: the container hooks and the
         // egress socket of the hold (T-095).
-        let containers = needs_containers(&message_copy);
-        let sockets = (containers || self.egress.is_some())
+        let containers = needs_containers(&message_copy) && !self.guest;
+        let sockets = (containers || self.egress.is_some() || self.guest)
             .then(|| std::env::temp_dir().join(format!("podrunner-local-unit-{}-{id}", std::process::id())));
         if let Some(dir) = &sockets {
             let _ = std::fs::remove_dir_all(dir);
@@ -248,13 +254,32 @@ impl Executor for InUnit {
                 let _ = std::fs::remove_dir_all(dir);
             }
         };
-        if let (Some((egress, policy)), Some(dir)) = (&self.egress, &sockets) {
-            let socket = dir.join(podrunner_unit::EGRESS_SOCKET);
-            if let Err(e) = egress.open(id.as_str(), policy, &socket, limit) {
-                end_sockets(&sockets);
-                return Err(format!("the egress of {id}: {e}"));
-            }
+        // A guest: the egress module on an inner socket, behind the front.
+        let egress_socket = |dir: &PathBuf| match self.guest {
+            true => dir.join("egress-inner.sock"),
+            false => dir.join(podrunner_unit::EGRESS_SOCKET),
+        };
+        if let (Some((egress, policy)), Some(dir)) = (&self.egress, &sockets)
+            && let Err(e) = egress.open(id.as_str(), policy, &egress_socket(dir), limit)
+        {
+            end_sockets(&sockets);
+            return Err(format!("the egress of {id}: {e}"));
         }
+        let _front = match (&sockets, self.guest) {
+            (Some(dir), true) => {
+                let port: u16 =
+                    broker.base.trim_end_matches('/').rsplit(':').next().and_then(|p| p.parse().ok()).unwrap_or(0);
+                let inner = self.egress.as_ref().map(|_| egress_socket(dir));
+                match crate::front::serve(&dir.join(podrunner_unit::EGRESS_SOCKET), port, inner) {
+                    Ok(f) => Some(f),
+                    Err(e) => {
+                        end_sockets(&sockets);
+                        return Err(format!("the front of {id}: {e}"));
+                    }
+                }
+            }
+            _ => None,
+        };
         let hooks = match (containers, &sockets) {
             (true, Some(dir)) => match self.hooks(dir, &message_copy, &id) {
                 Ok(h) => Some(h),

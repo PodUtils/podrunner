@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**154 entries: 30 open, 3 partial, 6 blocked, 115 done.**
+**154 entries: 29 open, 4 partial, 6 blocked, 115 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 12 | 1 | 4 | 55 | 72 |
+| P2 | 11 | 2 | 4 | 55 | 72 |
 | P3 | 18 | 0 | 2 | 28 | 48 |
-| **All** | 30 | 3 | 6 | 115 | 154 |
+| **All** | 29 | 4 | 6 | 115 | 154 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -170,7 +170,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-120](later.md) | P2 | M | later | feature | done | Local mode: the cache service of actions/cache |
 | [T-121](later.md) | P2 | S | later | feature | done | Local mode: secrets from the environment and from a secret file, with the mask |
 | [T-122](later.md) | P2 | S | later | feature | done | Local mode: github.token and secrets.GITHUB_TOKEN |
-| [T-123](later.md) | P2 | M | later | feature | open | Local mode: run each job in a unit of the microvm or the incus kind |
+| [T-123](later.md) | P2 | M | later | feature | partial | Local mode: run each job in a unit of the microvm or the incus kind |
 | [T-124](later.md) | P2 | M | later | feature | open | Local mode: services:, docker build and Docker-in-Docker through the engine of the unit |
 | [T-125](later.md) | P2 | M | later | feature | open | Local mode: the event payload, the github context of the local tree, and the filters of on: |
 | [T-126](later.md) | P3 | S | later | feature | open | Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs |

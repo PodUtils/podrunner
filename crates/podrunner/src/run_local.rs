@@ -6,6 +6,7 @@
 //! 1 when one failed, and the code of the class of a usage or a file error.
 
 mod actions;
+mod guest;
 
 use std::path::PathBuf;
 
@@ -18,7 +19,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -30,6 +31,10 @@ struct Args {
     file: PathBuf,
     runner_dir: Option<PathBuf>,
     podvm: Option<PathBuf>,
+    /// `--microvm PATH` (true) or `--incus PATH` (false): a guest kind of
+    /// the podvm binary PATH (T-123).
+    guest: Option<(bool, PathBuf)>,
+    engine: Option<PathBuf>,
     images: Option<PathBuf>,
     image: Option<String>,
     actions: Option<PathBuf>,
@@ -66,6 +71,9 @@ fn parse(args: &[String]) -> Result<Args, String> {
         match x.as_str() {
             "--runner-dir" => a.runner_dir = Some(PathBuf::from(value()?)),
             "--podvm" => a.podvm = Some(PathBuf::from(value()?)),
+            "--microvm" => a.guest = Some((true, PathBuf::from(value()?))),
+            "--incus" => a.guest = Some((false, PathBuf::from(value()?))),
+            "--engine" => a.engine = Some(PathBuf::from(value()?)),
             "--images" => a.images = Some(PathBuf::from(value()?)),
             "--image" => a.image = Some(value()?),
             "--actions" => a.actions = Some(PathBuf::from(value()?)),
@@ -101,16 +109,23 @@ fn parse(args: &[String]) -> Result<Args, String> {
     if a.offline && a.frozen {
         return Err("--offline and --frozen exclude each other".into());
     }
-    let unit = [a.podvm.is_some(), a.images.is_some(), a.image.is_some()];
-    if (a.podnet.is_some() || !a.allow.is_empty()) && a.podvm.is_none() {
-        return Err("--podnet and --allow need --podvm".into());
+    if a.podvm.is_some() && a.guest.is_some() {
+        return Err("one of --podvm, --microvm and --incus".into());
     }
-    if !a.allow.is_empty() && a.podnet.is_none() {
-        return Err("--allow needs --podnet".into());
+    let unit = [a.podvm.is_some() || a.guest.is_some(), a.images.is_some(), a.image.is_some()];
+    if a.podnet.is_some() && a.podvm.is_none() {
+        return Err("--podnet needs --podvm".into());
+    }
+    // A guest has no NIC: the egress module holds --allow with no podnet.
+    if !a.allow.is_empty() && a.podnet.is_none() && a.guest.is_none() {
+        return Err("--allow needs --podnet with --podvm, or --microvm or --incus".into());
+    }
+    if a.engine.is_some() && !matches!(a.guest, Some((true, _))) {
+        return Err("--engine needs --microvm".into());
     }
     match (a.runner_dir.is_some(), unit) {
         (true, [false, false, false]) | (false, [true, true, true]) => Ok(a),
-        _ => Err("one of --runner-dir DIR, or --podvm, --images and --image together, is necessary".into()),
+        _ => Err("one of --runner-dir DIR, or a unit kind (--podvm, --microvm, --incus) with --images and --image, is necessary".into()),
     }
 }
 
@@ -313,7 +328,11 @@ pub fn run(args: &[String]) -> Out {
         (drive(&mut source, &mut exec, &mut each), exec.logs)
     } else {
         let state = std::env::temp_dir().join(format!("podrunner-run-{}", std::process::id()));
-        let mut exec = match in_podvm(&a, &state) {
+        let built = match &a.guest {
+            Some(_) => guest::in_guest(&a, &state),
+            None => in_podvm(&a, &state),
+        };
+        let mut exec = match built {
             Ok(x) => x,
             Err(o) => return o,
         };

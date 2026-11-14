@@ -1257,7 +1257,7 @@ Read the runner's execution context in the runner.server tree of the study and `
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
