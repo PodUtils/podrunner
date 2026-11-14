@@ -13,7 +13,7 @@ use podrunner_local::dispatch::Dispatch;
 use podrunner_local::drive::Executor;
 use podrunner_local::exec::{InUnit, RunnerDir};
 
-use super::{Args, Class, Out, fail, guest, in_podvm};
+use super::{Args, Class, Out, USAGE, arch, fail, guest, policy};
 
 /// The settings that each executor of the run takes.
 pub(super) struct Common {
@@ -91,4 +91,37 @@ pub(super) fn build(a: &Args, c: &Common, state: &Path) -> Result<Box<dyn Execut
         routes.push((label.clone(), e));
     }
     Ok(Box::new(Dispatch::new(routes, default)))
+}
+
+/// The executor of `--podvm`: each job in a fresh podvm unit of the
+/// runner image (T-090), with the state of the units in `state`.
+fn in_podvm(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
+    use podrunner_podvm::{Podvm, PodvmUnit};
+    use podrunner_unit::UnitDriver;
+    let (Some(binary), Some(images), Some(image)) = (&a.podvm, &a.images, &a.image) else {
+        return Err(fail(Class::Usage, USAGE));
+    };
+    let podvm = Podvm { binary: binary.clone() };
+    let mut unit = PodvmUnit::new(podvm, state, images).map_err(|e| fail(Class::Config, format!("podvm: {e}")))?;
+    let mut egress = None;
+    if let Some(podnet) = &a.podnet {
+        unit = unit.with_podnet(podnet).map_err(|e| fail(Class::Unsupported, format!("--podnet: {e}")))?;
+        let hold = unit.probe().map_err(|e| fail(Class::Unavailable, format!("probe: {e}")))?.egress_hold;
+        // The fake broker listens on the loopback of the host: the seccomp
+        // hold lets a unit reach it; the netns hold does not (T-095).
+        if hold != podrunner_schema::EgressHold::Advisory {
+            return Err(fail(
+                Class::Unsupported,
+                format!("--podnet: the hold is {hold:?}; the local mode takes only the seccomp hold (advisory) now"),
+            ));
+        }
+        let e = podrunner_egress::Egress::host(None, true, podrunner_egress::dns::resolver(false, Vec::new()))
+            .map_err(|e| fail(Class::Unavailable, format!("the egress module: {e}")))?;
+        egress = Some((std::sync::Arc::new(e), policy(&a.allow)));
+    }
+    let platform = if arch() == "aarch64" { "linux/arm64" } else { "linux/amd64" };
+    let prepared = unit.prepare(image, platform, false).map_err(|e| fail(Class::Config, format!("{image}: {e}")))?;
+    let mut exec = InUnit::new(std::sync::Arc::new(unit), prepared);
+    exec.egress = egress;
+    Ok(exec)
 }

@@ -2023,7 +2023,7 @@ The note exists and `cargo todo check` passes.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2040,6 +2040,11 @@ Read the README of runner.server in the study on 2026-11-14.
 ## Prove
 
 `cargo test -p podrunner run_local` (the page refuses a request with no token; the job list).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner/src/run_local/web.rs` and `web.html`: `--web IP:PORT` refuses an address that is not of the loopback, binds it, and serves under a random token of 16 bytes: the page (in the binary; no script from another host; it reads `state.json` each second), `state.json` (each job with its state and its live log, masked as on stderr, at most 4 MiB for each job; the names of the artifacts) and `artifacts/NAME` (the zip of a finalized artifact; `ArtifactStore::zip_of` refuses a name with a path part). Each other path, and another token, gets 404. After the run, the view stays until SIGINT (`web::hold`). Tests: `cargo test -p podrunner web` (the loopback rule, the token, the masked log, the state of a job, the decode of a name, no zip for a path). Checked by hand with a dry run.
+
 
 # T-150: Local mode: a pause before a step and a shell in the unit
 

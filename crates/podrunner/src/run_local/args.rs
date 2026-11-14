@@ -41,6 +41,8 @@ pub(super) struct Args {
     /// `--oidc-issuer URL` and `--oidc-keys FILE` (T-140).
     pub(super) oidc_issuer: Option<String>,
     pub(super) oidc_keys: Option<PathBuf>,
+    /// `--web ADDR`: the web view of the run on the loopback (T-149).
+    pub(super) web: Option<std::net::SocketAddr>,
     /// `--state DIR`, `--rerun DIR`, `--failed`, `--refresh` (T-135).
     pub(super) state: Option<PathBuf>,
     pub(super) rerun: Option<PathBuf>,
@@ -117,6 +119,7 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
                 }
             }
             "--oidc-keys" => a.oidc_keys = Some(PathBuf::from(value()?)),
+            "--web" => a.web = Some(super::web::parse_addr(&value()?)?),
             "--approve" => a.approved.push(value()?),
             "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {
                 let v = value()?;

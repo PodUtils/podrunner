@@ -16,6 +16,7 @@ mod logs;
 mod protect;
 mod routes;
 mod watch;
+mod web;
 pub use watch::repeat;
 
 use std::path::PathBuf;
@@ -26,13 +27,12 @@ use pod_actions_workflow::{Base, JobResult};
 use pod_core::failure::Class;
 use podrunner_local::LocalSource;
 use podrunner_local::drive::{Line, drive};
-use podrunner_local::exec::InUnit;
 
 use crate::cli::Out;
 
 use args::{Args, parse};
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--protected NAME]... [--approve NAME]... [--export DIR] [--local-repository OWNER/REPO@REF=DIR]... [--action-server URL] [--oidc-issuer URL] [--oidc-keys FILE] [--watch | --schedule] [--no-config] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--protected NAME]... [--approve NAME]... [--export DIR] [--local-repository OWNER/REPO@REF=DIR]... [--action-server URL] [--oidc-issuer URL] [--oidc-keys FILE] [--watch | --schedule] [--no-config] [--web IP:PORT] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -51,39 +51,6 @@ fn arch() -> &'static str {
 fn policy(allow: &[String]) -> String {
     let hosts: Vec<serde_json::Value> = allow.iter().map(|h| serde_json::json!({ "host": h })).collect();
     serde_json::json!({ "schema": 1, "mode": "allow", "allow": hosts }).to_string()
-}
-
-/// The executor of `--podvm`: each job in a fresh podvm unit of the
-/// runner image (T-090), with the state of the units in `state`.
-fn in_podvm(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
-    use podrunner_podvm::{Podvm, PodvmUnit};
-    use podrunner_unit::UnitDriver;
-    let (Some(binary), Some(images), Some(image)) = (&a.podvm, &a.images, &a.image) else {
-        return Err(fail(Class::Usage, USAGE));
-    };
-    let podvm = Podvm { binary: binary.clone() };
-    let mut unit = PodvmUnit::new(podvm, state, images).map_err(|e| fail(Class::Config, format!("podvm: {e}")))?;
-    let mut egress = None;
-    if let Some(podnet) = &a.podnet {
-        unit = unit.with_podnet(podnet).map_err(|e| fail(Class::Unsupported, format!("--podnet: {e}")))?;
-        let hold = unit.probe().map_err(|e| fail(Class::Unavailable, format!("probe: {e}")))?.egress_hold;
-        // The fake broker listens on the loopback of the host: the seccomp
-        // hold lets a unit reach it; the netns hold does not (T-095).
-        if hold != podrunner_schema::EgressHold::Advisory {
-            return Err(fail(
-                Class::Unsupported,
-                format!("--podnet: the hold is {hold:?}; the local mode takes only the seccomp hold (advisory) now"),
-            ));
-        }
-        let e = podrunner_egress::Egress::host(None, true, podrunner_egress::dns::resolver(false, Vec::new()))
-            .map_err(|e| fail(Class::Unavailable, format!("the egress module: {e}")))?;
-        egress = Some((std::sync::Arc::new(e), policy(&a.allow)));
-    }
-    let platform = if arch() == "aarch64" { "linux/arm64" } else { "linux/amd64" };
-    let prepared = unit.prepare(image, platform, false).map_err(|e| fail(Class::Config, format!("{image}: {e}")))?;
-    let mut exec = InUnit::new(std::sync::Arc::new(unit), prepared);
-    exec.egress = egress;
-    Ok(exec)
 }
 
 /// The line of one job.
@@ -370,7 +337,21 @@ pub fn run(args: &[String]) -> Out {
     let mut stderr = note;
     podrunner_local::cancel::install();
     let (dry, as_json) = (a.dry_run, a.json);
+    let web = match a.web.map(|addr| web::Web::start(addr, artifacts.clone())) {
+        None => None,
+        Some(Ok(w)) => {
+            eprintln!("podrunner: the web view: {}", w.url);
+            Some(w)
+        }
+        Some(Err(e)) => {
+            let _ = std::fs::remove_dir_all(&scratch);
+            return fail(Class::Config, e);
+        }
+    };
     let mut each = |l: &Line| {
+        if let Some(w) = &web {
+            w.line(l);
+        }
         if as_json {
             return stdout.push_str(&logs::line_json(l));
         }
@@ -403,8 +384,11 @@ pub fn run(args: &[String]) -> Out {
             return o;
         }
     };
-    if !a.quiet {
-        exec.set_live(logs::live(masked.clone(), a.json));
+    let to_stderr = (!a.quiet).then(|| logs::live(masked.clone(), a.json));
+    match (&web, to_stderr) {
+        (Some(w), then) => exec.set_live(w.live(masked.clone(), then)),
+        (None, Some(l)) => exec.set_live(l),
+        (None, None) => {}
     }
     let notes_sink: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
     // The groups of the run and of its jobs, held across runs (T-137); a dry
@@ -478,7 +462,7 @@ pub fn run(args: &[String]) -> Out {
         stderr.push_str("podrunner: a signal cancelled the run\n");
         return Out { code: 130, stdout, stderr };
     }
-    match result {
+    let out = match result {
         Ok(true) => Out { code: 0, stdout, stderr },
         Ok(false) => {
             for (job, log) in &logs {
@@ -490,7 +474,8 @@ pub fn run(args: &[String]) -> Out {
             stderr.push_str(&format!("podrunner: {e}\n"));
             Out { code: Class::Protocol.exit_code(), stdout, stderr }
         }
-    }
+    };
+    web::hold(web.as_ref(), out)
 }
 
 #[cfg(test)]

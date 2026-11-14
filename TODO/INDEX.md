@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**156 entries: 4 open, 9 partial, 7 blocked, 136 done.**
+**156 entries: 3 open, 9 partial, 7 blocked, 137 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 6 | 4 | 62 | 72 |
-| P3 | 4 | 1 | 3 | 42 | 50 |
-| **All** | 4 | 9 | 7 | 136 | 156 |
+| P3 | 3 | 1 | 3 | 43 | 50 |
+| **All** | 3 | 9 | 7 | 137 | 156 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -196,7 +196,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-146](later.md) | P2 | S | later | defect | done | A job can leave files that the next run cannot remove |
 | [T-147](later.md) | P2 | M | later | feature | done | Local mode: the parity suite, with checks outside the job log |
 | [T-148](later.md) | P3 | M | later | research | done | Research: Azure Pipelines YAML in the local source |
-| [T-149](later.md) | P3 | M | later | feature | open | Local mode: a web view of a run on the loopback |
+| [T-149](later.md) | P3 | M | later | feature | done | Local mode: a web view of a run on the loopback |
 | [T-150](later.md) | P3 | M | later | feature | open | Local mode: a pause before a step and a shell in the unit |
 | [T-151](later.md) | P3 | S | later | measurement | open | Measure: a job of another architecture in the local mode |
 | [T-152](later.md) | P3 | S | later | feature | done | Local mode: an env of one expression is refused |

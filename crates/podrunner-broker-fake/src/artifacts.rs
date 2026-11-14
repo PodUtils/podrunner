@@ -170,6 +170,16 @@ impl ArtifactStore {
         out
     }
 
+    /// The zip of the artifact `name` once it is finalized (the web view
+    /// of a local run, T-149); a name with a path part gets none.
+    pub fn zip_of(&self, name: &str) -> Option<Vec<u8>> {
+        if name.is_empty() || name.starts_with('.') || name.contains(['/', '\\']) {
+            return None;
+        }
+        self.meta(name)?;
+        fs::read(self.dir.join(name).join("artifact.zip")).ok()
+    }
+
     fn pending_dir(&self, id: u64) -> PathBuf {
         self.dir.join(".pending").join(id.to_string())
     }
