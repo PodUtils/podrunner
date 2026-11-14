@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 113 entries: 0 open, 3 partial, 6 blocked, 104 done.
+`TODO/INDEX.md` holds 117 entries: 4 open, 3 partial, 6 blocked, 104 done.
 
 ## State
 
@@ -9,7 +9,7 @@
   (2026-11-13): the live gates run on GitHub #74 and #75.
 - Pins: podcrates `v0.41.0`, podvm `v0.2.0-beta.14`, podnet
   `v0.4.0-beta.8`, runner v2.338.2. Last beta: `v0.1.0-beta.4` (release
-  run 43506335609, `d796a94`). Last green `runner-image.yml`: 43524984859 (`a5867d9`).
+  run 43506335609, `d796a94`). Last green `runner-image.yml`: 43541714659 (`9f15901`).
 - M-A and M-B hold. M-C: T-027 to T-030 done; the gate T-032 waits for
   the live gates (GitHub #74, #75). M-D: T-031 and T-045 done; the gate
   T-033 waits for the live gates. L2 holds: T-034 to T-039 done
@@ -32,11 +32,15 @@ then take the next one.
 
 The queue, most valuable first:
 
-1. T-101 (M, partial): the `program` source kind is in; its pair with GitHub runs on the host of LIVE-2 (GitHub #75) when githome gives its program.
+1. T-114 (S): the steps of the local mode read the `github` context of the run (`--event`), not the canned one of the fake broker.
+2. T-116 (S): `check` and `doctor` read the version of podvm of the microvm and incus kinds, as `serve` does.
+3. T-101 (M, partial): the `program` source kind is in; its pair with GitHub runs on the host of LIVE-2 (GitHub #75) when githome gives its program.
+4. T-115 (S): the `--runner-dir` executor ends a job at its `timeout-minutes` and fails a job, not the command, on an I/O error.
+5. T-117 (S): the local run follows `fail-fast` and the `continue-on-error` of a job.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
-Blocked: T-103 (podcrates: `ContainerRoute::Engine` in the tag after `v0.41.0`, GitHub #91, PodUtils/podcrates@T-553; steps 1 to 3b are done, `docs/container-engine.md`), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
+Blocked: T-103 (podcrates: `ContainerRoute::Engine` in the tag after `v0.41.0`, GitHub #91, PodUtils/podcrates@T-553, on the `main` of podcrates; steps 1 to 3b are done, `docs/container-engine.md`), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
 
 ## Questions for the owner
 

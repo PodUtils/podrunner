@@ -1,8 +1,8 @@
-//! `podrunner run FILE --runner-dir DIR` (T-089, the local mode of T-046):
-//! run the jobs of one workflow file on this host, with no forge. The
-//! local source (`podrunner-local`) orders and expands the jobs; the
-//! official runner in DIR runs each one against a fake broker on the
-//! loopback. One line for each job; the exit code is 0 when no job failed,
+//! `podrunner run FILE` (T-089, the local mode of T-046): run the jobs of
+//! one workflow file, with no forge. The local source (`podrunner-local`)
+//! orders and expands the jobs; the official runner runs each one against
+//! a fake broker on the loopback: in DIR with `--runner-dir`, or in a fresh
+//! podvm unit with `--podvm` (T-090). One line for each job; the exit code is 0 when no job failed,
 //! 1 when one failed, and the code of the class of a usage or a file error.
 
 use std::path::PathBuf;

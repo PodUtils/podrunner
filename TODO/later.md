@@ -965,3 +965,106 @@ Give `capability` the `microvm` and `incus` kinds through the `plan` and the `pr
 ## Done
 
 2026-11-14, this commit. `capability` of `crates/podrunner/src/doctor.rs` checks `[unit.microvm]` and `[unit.incus]` with the `plan` of their kind and gives the record of their `probe`, which starts no process. `doctor_knows_the_microvm_and_incus_kinds` holds it.
+
+# T-114: The steps of the local mode read the github context of the fake broker, not that of the run
+
+**Source:** A read of `crates/podrunner-local/src/message.rs` and `crates/podrunner-broker-fake/src/message.rs` (2026-11-14)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner run --event NAME` gives `github.event_name` to the job level only: `crates/podrunner/src/run_local.rs` puts it, with `workflow` and `repository`, into the `Base` of the local source, which evaluates `if:`, `name` and the matrix of a job. The job message does not carry that context: `broker_job` of `crates/podrunner-local/src/message.rs` puts only `matrix`, `strategy`, `needs`, `vars` and `inputs` into `contextData`. So the runner evaluates each `${{ github.* }}` of a step, and sets `GITHUB_EVENT_NAME`, `GITHUB_REPOSITORY` and `GITHUB_WORKFLOW`, from the canned context of the fake broker: `event_name` is `push`, `repository` is `example-org/app`, `workflow` is `podrunner`. With `--event pull_request`, a job `if: github.event_name == 'pull_request'` runs, and a step of it reads `push`.
+
+## Premise
+
+Read the two message builders and `crates/podrunner/src/run_local.rs` on 2026-11-14. The suite checks `github.event_name` in a step only with the default event (`crates/podrunner/tests/local/suite.yml`). Not run with another event.
+
+## Approach
+
+Keep the `github` context of the `Base` in `LocalSource` and send it in `contextData` of each job, merged over the canned one: keep `api_url` of the broker (the stand-in of `actions/checkout` reads it), and let the run give `event_name`, `workflow`, `repository`, `run_id`, `run_number` and `server_url`. The override of the broker replaces the whole key, so merge the entries in `message.rs`. A unit test: a message of a run with `--event pull_request` has `event_name` `pull_request` and the `api_url` of the broker.
+
+## Prove
+
+`cargo test -p podrunner-local message`
+
+# T-115: podrunner run --runner-dir does not end a job at its timeout-minutes, and it panics on an I/O error
+
+**Source:** A read of `crates/podrunner-local/src/exec.rs` and `crates/podrunner-broker-fake/src/runner.rs` (2026-11-14)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The `RunnerDir` executor of `crates/podrunner-local/src/exec.rs` ignores its `limit` (the `timeout-minutes` of the job): a hung step holds `podrunner run --runner-dir` for ever. The `InUnit` executor ends its unit at the limit. `RunnerDir` also calls `run_once` of `crates/podrunner-broker-fake/src/runner.rs`, a helper of the tests: it writes the runner files and starts `run.sh` with `unwrap()`. A runner directory that the user cannot write, or a `run.sh` that does not start, panics the command, not a `failure` line with a reason.
+
+## Premise
+
+Read both files on 2026-11-14. Not run with a hung step or a read-only directory.
+
+## Approach
+
+Give the broker crate a function that returns a `Result` and a child (write the files, spawn `run.sh` with the clean environment), and keep `run_once` for the tests over it. `RunnerDir::run` waits for the child up to `limit`, then kills its process group and fails the job with the limit in the reason, as `InUnit` does. A unit test over a stand-in `run.sh` that sleeps: the job fails at a short limit. A unit test with a directory of mode 0500: the job fails with a reason.
+
+## Prove
+
+`cargo test -p podrunner-local exec`
+
+# T-116: check and doctor do not read the version of podvm for the microvm and incus kinds
+
+**Source:** A read of `crates/podrunner/src/serve.rs`, `crates/podrunner/src/microvm_kind.rs` and `crates/podrunner/src/doctor.rs` (2026-11-14)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`serve` requires podvm `LOWEST_GUEST` for `[unit.microvm]` and `[unit.incus]`, and `LOWEST_ENGINE` for a microvm kind with `engine` (T-110, T-112), in `build` of each kind. `podrunner check` and `podrunner doctor` call only `plan` and `probe` of the kinds, which start no podvm. So `check` passes a file whose podvm is too old for `engine`, and `serve` then refuses the same file. `docs/cli.md` says that `serve` refuses a bad file with the same text as `check`.
+
+## Premise
+
+Read `check` of `crates/podrunner/src/serve.rs` (it calls `crate::microvm_kind::plan`), `build` of `crates/podrunner/src/microvm_kind.rs` and `capability` of `crates/podrunner/src/doctor.rs` on 2026-11-14. Not run with an old podvm.
+
+## Approach
+
+Move the version requirement of each kind into a function of the kind (`require_podvm(u)`) that `build`, `check` and `doctor` call. `podvm probe --json` reads no state and starts no unit, so `check` keeps no side effect. A test with a fake podvm of beta.13: `check` of a microvm kind with `engine` exits 78 or 80 with the text of `serve`.
+
+## Prove
+
+`cargo test -p podrunner --test check` and `cargo test -p podrunner doctor`
+
+# T-117: The local run ignores fail-fast and the continue-on-error of a job
+
+**Source:** A read of `crates/podrunner-local/src/lib.rs` and `crates/podrunner-local/src/drive.rs` (2026-11-14)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod-actions-workflow` gives each cell `strategy.fail-fast` (true by default) and `continue_on_error` of its job. The local source and its loop read neither:
+
+- After a failed cell of a matrix with `fail-fast: true`, `drive` runs each other cell of the job. GitHub cancels the cells that did not end.
+- A failed job with `continue-on-error: true` makes `podrunner run` exit 1. On GitHub the run does not fail for that job.
+
+## Premise
+
+Read `LocalSource::complete` and `drive` on 2026-11-14 (no read of `continue_on_error` or of `fail-fast`). Not measured on GitHub: the result that `needs.ID.result` gives after a failed job with `continue-on-error: true`.
+
+## Approach
+
+Follow the behaviour of GitHub Actions (the rule of Q4). In `complete`, when a cell fails and `fail-fast` is true, release the offers of the job that did not start, and end them as `cancelled`. In `drive`, do not count a failed job with `continue-on-error: true` against the exit code. Read the result of `needs` for such a job in the docs of GitHub before the change, and hold it with a unit test of the source.
+
+## Prove
+
+`cargo test -p podrunner-local`

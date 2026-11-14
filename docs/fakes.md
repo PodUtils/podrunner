@@ -102,9 +102,13 @@ runner v2.338.2 calls with the JIT files of a scale set
 (`files::runner_files`): the token of its OAuth client, the broker
 session and messages, and the run service (`acquirejob`, `renewjob`,
 `completejob`), and the results service of the Worker (the logs and the
-step updates). A test queues a `Job` (a name, an environment, and the
-`run:` steps with their `if:` and `env:`) and reads each `Completion`
-and the logs. It checks no credential and listens on the loopback only.
+step updates). A test queues a `Job` (a name, an environment, the
+`run:` steps with their `if:` and `env:`, and overrides of the message:
+the steps, the context data and the containers of the local mode) and
+reads each `Completion` (the conclusion and the job outputs) and the
+logs. For the local mode it also serves the launch route and the tarballs
+of the actions of a directory (`serve_actions`, T-091) and the tarball of
+the local tree (`serve_checkout`, T-092). It checks no credential and listens on the loopback only.
 `.github/workflows/level2.yml` runs the official runner against it.
 
 The corpus `corpus/podcrates.json` holds the `ubuntu-24.04` jobs of the

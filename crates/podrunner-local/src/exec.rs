@@ -1,7 +1,8 @@
 //! The executors of a local run (T-089). [`RunnerDir`] runs each job with
 //! an unpacked release of the official runner on this host, one job at a
 //! time, against a fake broker on the loopback: the jobs run as the user
-//! of podrunner, with no unit (tier `local`, call C14).
+//! of podrunner, with no unit (tier `local`, call C14). [`InUnit`] runs
+//! each job in a fresh unit of a driver (T-090).
 
 use std::path::PathBuf;
 use std::time::{Duration, Instant};

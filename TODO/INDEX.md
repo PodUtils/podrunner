@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**113 entries: 0 open, 3 partial, 6 blocked, 104 done.**
+**117 entries: 4 open, 3 partial, 6 blocked, 104 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 0 | 1 | 4 | 47 | 52 |
-| P3 | 0 | 0 | 2 | 25 | 27 |
-| **All** | 0 | 3 | 6 | 104 | 113 |
+| P2 | 1 | 1 | 4 | 47 | 53 |
+| P3 | 3 | 0 | 2 | 25 | 30 |
+| **All** | 4 | 3 | 6 | 104 | 117 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -161,3 +161,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-111](later.md) | P3 | S | later | defect | done | The configuration accepts keys that nothing reads |
 | [T-112](later.md) | P2 | S | later | defect | done | serve takes a podvm below beta.14 for an engine of the microvm kind |
 | [T-113](later.md) | P2 | S | later | defect | done | doctor names no driver for the microvm and incus kinds |
+| [T-114](later.md) | P2 | S | later | defect | open | The steps of the local mode read the github context of the fake broker, not that of the run |
+| [T-115](later.md) | P3 | S | later | defect | open | podrunner run --runner-dir does not end a job at its timeout-minutes, and it panics on an I/O error |
+| [T-116](later.md) | P3 | S | later | defect | open | check and doctor do not read the version of podvm for the microvm and incus kinds |
+| [T-117](later.md) | P3 | S | later | defect | open | The local run ignores fail-fast and the continue-on-error of a job |

@@ -15,11 +15,12 @@ is done.
   beta.14, T-112); podnet `v0.4.0-beta.8` (`images/podnet.toml`); the
   official runner v2.338.2 (`images/runner/runner.toml`). Last beta of
   podrunner: `v0.1.0-beta.4` (release run 43506335609, `d796a94`).
-- The record: 113 entries, 2 open, 3 partial, 6 blocked, 102 done
+- The record: 117 entries, 4 open, 3 partial, 6 blocked, 104 done
   (`cargo todo check`). The last green `runner-image.yml` run is
-  43524984859 (`a5867d9`): the podvm suites, the held tests, the tar
+  43541714659 (`9f15901`): the podvm suites, the held tests, the tar
   forms, the microvm kind on real guests (with an engine), and the incus
-  suite on real instances.
+  suite on real instances. The last green `level2.yml` run is
+  43541714726 (`9f15901`).
 - M-A, M-B and L2 hold (T-039 is done). The work packages of M-C and M-D
   are done. The open gates are T-032, T-033 and T-040 (the live gates:
   GitHub #74 and #75).
@@ -72,12 +73,16 @@ is done.
 
 - podvm is available (the owner, 2026-11-13): it answers COORD issues
   `(to podvm)`. podssh is on break.
-- T-112 and T-113 (open): `serve` must require podvm beta.14 for an
-  engine, and `doctor` must read the microvm and incus kinds.
+- T-114 to T-117 (open): defects that a read found: the `github` context
+  of the steps of the local mode, the `--runner-dir` executor (no
+  `timeout-minutes`, a panic on an I/O error), the version of podvm in
+  `check` and `doctor`, and `fail-fast` and the `continue-on-error` of a
+  job in the local run.
 - T-103 (blocked): steps 1, 2, 3a and 3b are done
   (`docs/container-engine.md`). Step 3c waits for podcrates:
   `ContainerRoute::Engine` and `UnitNeed::container_engine` (GitHub #91,
-  PodUtils/podcrates@T-553, the tag after `v0.41.0`). Then take the tag,
+  PodUtils/podcrates@T-553: on the `main` of podcrates, in the tag after
+  `v0.41.0`). Then take the tag,
   give the microvm kind with an engine `container: engine` in `probe`, and
   prove a `services:` job, a Dockerfile action and a Docker-in-Docker step
   in `runner-image.yml` (step 4).
