@@ -43,6 +43,14 @@ pub fn reset() {
     COUNT.store(0, Ordering::SeqCst);
 }
 
+/// The stop flag of one job (T-132): `fail-fast` cancels a running cell.
+pub type Stop = std::sync::Arc<AtomicBool>;
+
+/// A signal asked the run to stop, or `stop` asked the job to stop.
+pub fn stopped(stop: &Option<Stop>) -> bool {
+    requested() || stop.as_ref().is_some_and(|s| s.load(Ordering::SeqCst))
+}
+
 /// A signal asked the run to stop.
 pub fn requested() -> bool {
     SIGNALLED.load(Ordering::SeqCst)

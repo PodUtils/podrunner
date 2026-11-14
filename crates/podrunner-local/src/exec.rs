@@ -61,6 +61,8 @@ pub struct InUnit {
     /// [`crate::front`] on its egress socket; no container hooks (a guest
     /// runs its containers in its own engine).
     pub guest: bool,
+    /// The stop flag of the next job (T-132).
+    stop: Option<crate::cancel::Stop>,
     pub logs: Vec<(JobId, String)>,
 }
 
@@ -83,6 +85,7 @@ impl InUnit {
             live: None,
             blobs: Vec::new(),
             guest: false,
+            stop: None,
             logs: Vec::new(),
         }
     }
@@ -245,6 +248,10 @@ impl Executor for InUnit {
         self.live = Some(live);
     }
 
+    fn set_stop(&mut self, stop: crate::cancel::Stop) {
+        self.stop = Some(stop);
+    }
+
     fn environment(&mut self, name: Option<&str>) {
         self.next_environment = name.map(str::to_string);
     }
@@ -364,11 +371,11 @@ impl Executor for InUnit {
             let slice = until.saturating_duration_since(Instant::now()).min(Duration::from_secs(1));
             pump(&self.live, job, &broker);
             match self.driver.wait(&id, slice) {
-                Ok(None) if !crate::cancel::requested() && Instant::now() < until => continue,
+                Ok(None) if !crate::cancel::stopped(&self.stop) && Instant::now() < until => continue,
                 other => break other,
             }
         };
-        let cancelled = crate::cancel::requested() && matches!(waited, Ok(None));
+        let cancelled = crate::cancel::stopped(&self.stop) && matches!(waited, Ok(None));
         // Still running at the limit: end the unit (destroy below).
         let timed_out = matches!(waited, Ok(None));
         let t = Instant::now();

@@ -82,3 +82,43 @@ fn a_failed_cell_cancels_the_cells_that_did_not_start() {
     assert_eq!(cancelled, 5, "{lines:?}");
     assert!(lines.iter().any(|l| matches!(l, Line::Skipped { job, .. } if job == "after")), "{lines:?}");
 }
+
+/// An executor whose cell `m.0` fails at once; each other cell waits for
+/// its stop flag, at most 5 s.
+struct Stoppable {
+    stop: Option<crate::cancel::Stop>,
+}
+
+impl Executor for Stoppable {
+    fn set_stop(&mut self, stop: crate::cancel::Stop) {
+        self.stop = Some(stop);
+    }
+    fn run(&mut self, job: &JobId, _message: Job, _limit: Duration) -> Result<End, String> {
+        if job.as_str() == "m.0" {
+            std::thread::sleep(Duration::from_millis(100));
+            return Ok(End { result: JobResult::Failure, outputs: vec![] });
+        }
+        let t = Instant::now();
+        while t.elapsed() < Duration::from_secs(5) {
+            if crate::cancel::stopped(&self.stop) {
+                return Ok(End { result: JobResult::Cancelled, outputs: vec![] });
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        Ok(End { result: JobResult::Success, outputs: vec![] })
+    }
+}
+
+#[test]
+fn fail_fast_stops_the_running_cells() {
+    let mut s = LocalSource::new("l", MATRIX, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    let slots: Vec<Slot> = (0..3).map(|_| Box::new(Stoppable { stop: None }) as Slot).collect();
+    let mut lines = Vec::new();
+    let t = Instant::now();
+    let (ok, _) = drive_parallel(&mut s, slots, &mut |l| lines.push(l.clone()), &AtomicBool::new(false)).unwrap();
+    assert!(!ok);
+    assert!(t.elapsed() < Duration::from_secs(4), "the running cells stopped: {:?}", t.elapsed());
+    let cancelled = lines.iter().filter(|l| matches!(l, Line::Ran { result: JobResult::Cancelled, .. })).count();
+    assert_eq!(cancelled, 5, "two running cells and three queued ones: {lines:?}");
+    assert!(s.is_finished());
+}

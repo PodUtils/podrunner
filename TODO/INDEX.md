@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**156 entries: 2 open, 10 partial, 7 blocked, 137 done.**
+**156 entries: 2 open, 9 partial, 7 blocked, 138 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 6 | 4 | 62 | 72 |
-| P3 | 2 | 2 | 3 | 43 | 50 |
-| **All** | 2 | 10 | 7 | 137 | 156 |
+| P3 | 2 | 1 | 3 | 44 | 50 |
+| **All** | 2 | 9 | 7 | 138 | 156 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -179,7 +179,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-129](later.md) | P2 | M | later | feature | partial | Local mode: runner images by the labels of runs-on (--platform) |
 | [T-130](later.md) | P2 | M | later | feature | partial | Local mode: container images by tag, resolved to a digest and pulled into the store |
 | [T-131](later.md) | P2 | L | later | feature | blocked | Local mode: reusable workflows (jobs.<id>.uses) |
-| [T-132](later.md) | P3 | M | later | feature | partial | Local mode: jobs in parallel (--jobs N, max-parallel) |
+| [T-132](later.md) | P3 | M | later | feature | done | Local mode: jobs in parallel (--jobs N, max-parallel) |
 | [T-133](later.md) | P2 | M | later | feature | done | Local mode: the checkout with the changes of the tree, the .git directory, and other repositories |
 | [T-134](later.md) | P2 | M | later | feature | done | Local mode: live logs, a log directory, the job summary, and --json |
 | [T-135](later.md) | P3 | M | later | feature | done | Local mode: a run directory and reruns of failed jobs |

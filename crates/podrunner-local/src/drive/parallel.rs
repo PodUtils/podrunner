@@ -52,6 +52,9 @@ pub fn drive_parallel(
     let total = idle.len();
     let (tx, rx) = mpsc::channel::<Done>();
     let mut running: Vec<JobId> = Vec::new();
+    // The stop flag of each running job: `fail-fast` sets those of the
+    // cells that its source cancels.
+    let mut stops: Vec<(JobId, crate::cancel::Stop)> = Vec::new();
     let mut queue: VecDeque<JobId> = VecDeque::new();
     let (mut skips, mut ok) = (0, true);
     loop {
@@ -98,6 +101,9 @@ pub fn drive_parallel(
                     idle.push(exec);
                 }
                 Ok((message, limit)) => {
+                    let stop = crate::cancel::Stop::default();
+                    exec.set_stop(stop.clone());
+                    stops.push((job.clone(), stop));
                     running.push(job.clone());
                     let tx = tx.clone();
                     std::thread::spawn(move || {
@@ -118,7 +124,19 @@ pub fn drive_parallel(
         // Wait for a job to end; then its slot takes the next job.
         let (exec, job, name, end) = rx.recv().map_err(|_| "a thread of a job ended with no result".to_string())?;
         running.retain(|r| r != &job);
-        finish(source, &job, name, end, out, &mut ok)?;
+        stops.retain(|(r, _)| r != &job);
+        if source.is_cancelled(&job) {
+            // `fail-fast` ended this cell in the source: its line says so.
+            out(&Line::Ran { job: job.clone(), name, result: pod_actions_workflow::JobResult::Cancelled });
+            source.release(&job).map_err(|e| e.to_string())?;
+        } else {
+            finish(source, &job, name, end, out, &mut ok)?;
+        }
+        for (r, stop) in &stops {
+            if source.is_cancelled(r) {
+                stop.store(true, Ordering::SeqCst);
+            }
+        }
         idle.push(exec);
         debug_assert!(idle.len() + running.len() == total);
     }

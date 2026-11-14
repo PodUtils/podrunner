@@ -85,6 +85,9 @@ impl Executor for Grouped {
     fn set_live(&mut self, live: Live) {
         self.inner.set_live(live)
     }
+    fn set_stop(&mut self, stop: podrunner_local::cancel::Stop) {
+        self.inner.set_stop(stop)
+    }
     fn take_logs(&mut self) -> Vec<(JobId, String)> {
         self.inner.take_logs()
     }

@@ -45,6 +45,9 @@ pub trait Executor: Send {
     }
     /// Give each new part of a log to `live` while its job runs (T-134).
     fn set_live(&mut self, _live: crate::exec::Live) {}
+    /// The stop flag of the next job (T-132): when it is set, the executor
+    /// ends the job as at a signal, and its result is `cancelled`.
+    fn set_stop(&mut self, _stop: crate::cancel::Stop) {}
     /// The blobs of each job that ran (its step logs and summaries), taken
     /// once (T-134).
     fn take_blobs(&mut self) -> Vec<(JobId, Vec<(String, String)>)> {

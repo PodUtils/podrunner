@@ -39,6 +39,8 @@ pub struct RunnerDir {
     pub checkout: Option<PathBuf>,
     /// `--export DIR`: the workspaces of each job go to `DIR/JOB` (T-138).
     pub export: Option<PathBuf>,
+    /// The stop flag of the next job (T-132).
+    stop: Option<crate::cancel::Stop>,
 }
 
 impl RunnerDir {
@@ -58,6 +60,7 @@ impl RunnerDir {
             blobs: Vec::new(),
             checkout: None,
             export: None,
+            stop: None,
         })
     }
 }
@@ -69,6 +72,10 @@ impl Executor for RunnerDir {
 
     fn set_live(&mut self, live: Live) {
         self.live = Some(live);
+    }
+
+    fn set_stop(&mut self, stop: crate::cancel::Stop) {
+        self.stop = Some(stop);
     }
 
     fn take_blobs(&mut self) -> Vec<(JobId, Vec<(String, String)>)> {
@@ -123,7 +130,7 @@ impl RunnerDir {
                 break Some(s);
             }
             // A signal ends the job as its limit does (T-141).
-            if Instant::now() >= end || crate::cancel::requested() {
+            if Instant::now() >= end || crate::cancel::stopped(&self.stop) {
                 break None;
             }
             pump(&self.live, job, &broker);
@@ -136,7 +143,7 @@ impl RunnerDir {
                 let log = record(&self.live, &mut self.blobs, job, &broker);
                 self.logs.push((job.clone(), log));
             }
-            if crate::cancel::requested() {
+            if crate::cancel::stopped(&self.stop) {
                 return Ok(End { result: JobResult::Cancelled, outputs: vec![] });
             }
             return Err(format!("the job ran past its limit of {} s", limit.as_secs()));
