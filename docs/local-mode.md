@@ -40,7 +40,7 @@ the entry that closes the gap, or the entry that did the work.
 | `container:` | yes | yes | yes, pinned by digest | T-093 |
 | `services:` with health checks | yes | yes | refused on the host network | T-123, T-124 |
 | Images by tag, pull | yes, `--pull` | yes | no: digest in the store only | T-130 |
-| Images by `runs-on` label | `-P LABEL=IMAGE` | `-P LABEL=IMAGE` or the host | one `--image` | T-129 |
+| Images by `runs-on` label | `-P LABEL=IMAGE` | `-P LABEL=IMAGE` or the host | `--platform LABEL=IMAGE` (pinned) or `host`; no fallback to an image the user did not name | T-129 |
 | Another architecture | `--container-architecture` | yes | host only | T-151 |
 | Reusable workflows | local and remote | yes, `secrets: inherit` | refused | T-131 |
 | Event name | argument, `--detect-event` | `--event` | `--event` | T-089 |

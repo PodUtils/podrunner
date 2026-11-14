@@ -55,7 +55,7 @@ fn scalar(node: &Node) -> Result<Value, String> {
 
 /// An image of a unit must be pinned by digest: the unit takes only a
 /// pinned image (`payload-not-pinned`), and a tag can move.
-fn pinned(image: &str) -> Result<(), String> {
+pub fn pinned(image: &str) -> Result<(), String> {
     match image.split_once("@sha256:") {
         Some((name, hex)) if !name.is_empty() && hex.len() == 64 && hex.bytes().all(|b| b.is_ascii_hexdigit()) => {
             Ok(())

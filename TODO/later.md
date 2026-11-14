@@ -1409,7 +1409,7 @@ Read `crates/podrunner/src/run_local.rs` on 2026-11-14. `plan` and `Graph` of `p
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1426,6 +1426,9 @@ Read `crates/podrunner/src/run_local.rs` and `crates/podrunner-local/src/lib.rs`
 ## Prove
 
 `cargo test -p podrunner run_local` (the choice of an image by label, a label with no image).
+
+State (2026-11-14): `--platform LABEL=NAME@sha256:HEX` and `--platform LABEL=host` (repeat it); `podrunner_local::dispatch::Dispatch` gives each job the route of its first label that has one, else the default (`--image`, else `--runner-dir`), through `Executor::select`; a job with no route and no default, or with a label of Windows or macOS that no route names, fails by name before a runner starts. Each route of a unit kind has its own state directory. Tests: the routes of `Dispatch`, the parse of `--platform`, a Windows job refused by `podrunner run`; a run here gives `ok` for `runs-on: [self-hosted, gpu]` with `--platform gpu=host`. Next: the recipe of a larger runner image with the common tools of `ubuntu-latest`, built by the image pipeline (T-030) and pinned by digest.
+
 
 # T-130: Local mode: container images by tag, resolved to a digest and pulled into the store
 

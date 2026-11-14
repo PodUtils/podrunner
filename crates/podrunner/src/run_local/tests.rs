@@ -270,3 +270,39 @@ fn the_guest_kinds_of_run() {
     assert!(with(&["--microvm", "/p", "--podvm", "/q"]).unwrap_err().contains("one of --podvm"));
     assert!(parse(&args(&["w.yml", "--microvm", "/p"])).unwrap_err().contains("--images"));
 }
+
+#[test]
+fn the_platforms_of_run() {
+    let pin = format!("big@sha256:{}", "a".repeat(64));
+    let p = parse(&args(&["w.yml", "--runner-dir", "/r", "--platform", "gpu=host"])).unwrap();
+    assert_eq!(p.platforms, [("gpu".to_string(), "host".to_string())]);
+    let p = parse(&args(&["w.yml", "--podvm", "/p", "--images", "/s", "--platform", &format!("big={pin}")])).unwrap();
+    assert_eq!((p.platforms.len(), p.image), (1, None), "a platform image with no default --image");
+    for (bad, why) in [
+        (vec!["w.yml", "--platform", "gpu=host"], "--runner-dir"),
+        (vec!["w.yml", "--runner-dir", "/r", "--platform", &format!("big={pin}")], "unit kind"),
+        (vec!["w.yml", "--runner-dir", "/r", "--platform", "big=ubuntu:22.04"], "digest"),
+        (vec!["w.yml", "--runner-dir", "/r", "--platform", "nolabel"], "LABEL=TARGET"),
+    ] {
+        let e = parse(&args(&bad)).unwrap_err();
+        assert!(e.contains(why), "{bad:?}: {e}");
+    }
+}
+
+/// A job of Windows fails by name before any runner starts (T-129); a job
+/// of a label that a platform names would take that route.
+#[test]
+fn a_job_of_windows_fails_by_name() {
+    let dir = std::env::temp_dir().join(format!("podrunner-platform-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
+    std::fs::write(dir.join("runner/run.sh"), "exit 9").unwrap();
+    std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  win:\n    runs-on: windows-latest\n    steps: [{run: x}]\n")
+        .unwrap();
+    let (w, r) = (dir.join("w.yml").display().to_string(), dir.join("runner").display().to_string());
+    let out = run(&args(&[&w, "--runner-dir", &r, "--platform", "gpu=host", "--no-cache"]));
+    assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
+    assert!(out.stdout.contains("failure win: runs-on \"windows-latest\": a unit is Linux"), "{}", out.stdout);
+    let _ = std::fs::remove_dir_all(&dir);
+}

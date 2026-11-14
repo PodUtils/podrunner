@@ -26,6 +26,15 @@ pub struct End {
 /// there.
 pub trait Executor {
     fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String>;
+    /// The labels of `runs-on` of the next job: an executor of several
+    /// images takes its route here, or refuses the job (T-129).
+    fn select(&mut self, _labels: &[String]) -> Result<(), String> {
+        Ok(())
+    }
+    /// The log of each job that ran, taken once.
+    fn take_logs(&mut self) -> Vec<(JobId, String)> {
+        Vec::new()
+    }
 }
 
 /// One line of the result of a run.
@@ -119,7 +128,9 @@ pub fn drive_with(
             let limit = Duration::from_secs_f64((minutes.max(0.0) * 60.0).min(360.0 * 60.0 * 24.0));
             source.ack(&job).map_err(|e| e.to_string())?;
             source.claim(&job, RUNNER).map_err(|e| e.to_string())?;
-            let (end, line) = match source.broker_job(&job) {
+            let labels = source.cell(&job).and_then(|c| c.instance.runs_on.as_ref()).map(|r| r.labels.clone());
+            let message = exec.select(&labels.unwrap_or_default()).and_then(|()| source.broker_job(&job));
+            let (end, line) = match message {
                 Err(reason) => (
                     End { result: JobResult::Failure, outputs: vec![] },
                     Line::Refused { job: job.clone(), name, reason },

@@ -222,6 +222,10 @@ fn job_log(broker: &Broker) -> String {
 }
 
 impl Executor for InUnit {
+    fn take_logs(&mut self) -> Vec<(JobId, String)> {
+        std::mem::take(&mut self.logs)
+    }
+
     fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
         use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
         let broker = if self.guest { Broker::start_seen_at(crate::front::BROKER) } else { Broker::start() };
@@ -383,6 +387,10 @@ pub fn needs_containers(message: &Job) -> bool {
 }
 
 impl Executor for RunnerDir {
+    fn take_logs(&mut self) -> Vec<(JobId, String)> {
+        std::mem::take(&mut self.logs)
+    }
+
     fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
         if needs_containers(&message) {
             return Err("the job needs containers: run it in a unit (--podvm, or --microvm with --engine), not on a runner directory".into());

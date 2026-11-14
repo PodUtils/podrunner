@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 155 entries: 24 open, 8 partial, 5 blocked, 118 done.
+`TODO/INDEX.md` holds 155 entries: 23 open, 9 partial, 5 blocked, 118 done.
 
 ## State
 
@@ -40,7 +40,7 @@ The local mode against act and runner.server (`docs/local-mode.md`), the feature
 3. T-124 (M, partial), with T-103: `services:`, `docker build` and a job container through the engine of the unit; then the images from the store, not a pull.
 4. T-146 (S, partial): the files that a job leaves; the unit half runs in `runner-image.yml`.
 5. T-125 (M, partial): the payload and the facts of the tree are in; a directory of workflows with the filters of `on:` waits for COORD-037.
-6. T-130 (M), T-129 (M): images by tag into the store; runner images by `runs-on`.
+6. T-130 (M): images by tag into the store; T-129 (M, partial): the recipe of a larger runner image.
 7. T-131 (L): reusable workflows.
 8. T-127 (S), T-134 (M), T-126 (S), T-128 (S): selection, logs, inputs and files, list and dry run.
 9. T-132 (M), T-135 (M), T-136 (S), T-137 (S): parallel jobs, reruns, environments, concurrency.

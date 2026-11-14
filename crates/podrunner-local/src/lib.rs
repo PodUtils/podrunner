@@ -7,6 +7,7 @@
 //! ready. A local set runs each job at tier `local` (call C14).
 
 pub mod cancel;
+pub mod dispatch;
 pub mod drive;
 pub mod exec;
 pub mod front;
