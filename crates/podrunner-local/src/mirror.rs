@@ -113,8 +113,10 @@ fn podvm(pull: &PodvmPull, args: &[&str]) -> Result<(), String> {
 
 /// Fill `dir` with each image of Docker Hub of the run: each pinned image
 /// of `pins` (`docker://NAME:TAG` → `NAME@sha256:HEX`), and each image of
-/// `digests` (pulled into the store first). Give the pins for the job
-/// messages of a guest: each image of the mirror by its manifest
+/// `digests`. Each image goes through a private store of one platform:
+/// `podvm save` has no `--platform`, and the store of the units can hold
+/// an image of each platform for one index digest. Give the pins for the
+/// job messages of a guest: each image of the mirror by its manifest
 /// (`docker://NAME@sha256:HEX` for an image that a digest names).
 pub fn fill(
     pull: &PodvmPull,
@@ -123,21 +125,22 @@ pub fn fill(
     dir: &Path,
 ) -> Result<BTreeMap<String, String>, String> {
     let mut out = pins.clone();
-    let tagged = pins.iter().filter(|(k, _)| k.starts_with("docker://")).map(|(k, v)| (k.clone(), v.clone(), false));
-    let named = digests.iter().map(|d| (format!("docker://{d}"), d.clone(), true));
-    for (key, pinned, by_digest) in tagged.chain(named).collect::<Vec<_>>() {
+    let tagged = pins.iter().filter(|(k, _)| k.starts_with("docker://")).map(|(k, v)| (k.clone(), v.clone()));
+    let named = digests.iter().map(|d| (format!("docker://{d}"), d.clone()));
+    let one = PodvmPull { binary: pull.binary.clone(), store: dir.join("store"), platform: pull.platform.clone() };
+    for (key, pinned) in tagged.chain(named).collect::<Vec<_>>() {
         let Some((name, _)) = pinned.split_once('@') else { continue };
         if !on_docker_hub(name) {
             continue;
         }
-        if by_digest {
-            podvm(pull, &["pull", "-q", "--platform", &pull.platform, &pinned])?;
-        }
+        let _ = std::fs::remove_dir_all(&one.store);
+        std::fs::create_dir_all(&one.store).map_err(|e| format!("{}: {e}", one.store.display()))?;
         let tar = dir.join("save.tar");
-        std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        podvm(pull, &["save", "--platform", &pull.platform, "-o", &tar.to_string_lossy(), &pinned])?;
-        let manifest = unpack(&tar, dir);
+        let saved = podvm(&one, &["pull", "-q", "--platform", &one.platform, &pinned])
+            .and_then(|()| podvm(&one, &["save", "-o", &tar.to_string_lossy(), &pinned]));
+        let manifest = saved.and_then(|()| unpack(&tar, dir));
         let _ = std::fs::remove_file(&tar);
+        let _ = std::fs::remove_dir_all(&one.store);
         out.insert(key, format!("{name}@{}", manifest?));
     }
     Ok(out)

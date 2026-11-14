@@ -196,9 +196,7 @@ impl UnitDriver for PodvmUnit {
         if !tar.exists() {
             fs::create_dir_all(tar.parent().expect("a directory")).map_err(|e| host("the image cache", e))?;
             let part = tar.with_extension("part");
-            // An index digest can name an image of each platform in the store.
-            let args = ["save", "--platform", platform, "-o", &part.to_string_lossy(), reference];
-            self.podvm(&self.images, &args, None)?;
+            self.podvm(&self.images, &["save", "-o", &part.to_string_lossy(), reference], None)?;
             fs::rename(&part, &tar).map_err(|e| host("the image cache", e))?;
         }
         Ok(Prepared { digest: digest.to_string(), platform: platform.into() })

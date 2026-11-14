@@ -2343,6 +2343,9 @@ State (2026-11-14): the mirror is in (`podrunner-local/src/mirror.rs`, `podrunne
 
 State (2026-11-14, later): runner-image runs 43614533662 (`0750948`) and 43615355943 (`3ce59bc`): the fill of the mirror failed, so the guest pulled from Docker Hub and the egress policy denied it. `podvm save` of an index digest refused to choose: the store had an image of two platforms for it. The mirror and the podvm driver now give `podvm save` the platform of the unit. The other steps of both runs passed, also "A tool cache in a podvm unit" (T-138).
 
+State (2026-11-14, later): runner-image run 43621400822 (`dcbc53f`): `podvm save` has no `--platform` (exit 125), although its message names it; the podvm driver failed each unit start with it. The driver has `save` with no platform again. The mirror pulls each image into a private store of one platform and saves it from there. COORD-044 (GitHub #104) asks podvm for `save --platform`. Next: the green run.
+
+
 # T-158: Local mode: a static image as a container of a podvm unit
 
 **Source:** T-156 (the second case of GitHub #100)
