@@ -1194,7 +1194,7 @@ Read act's cache handler and the runner's handlers in the runner.server tree of 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1215,6 +1215,10 @@ Read `crates/podrunner-local/src/message.rs` and the runner.server tree of the s
 
 `cargo test -p podrunner-local message` (the secret variables and the mask) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test runner -- --ignored` (a step reads a secret, and the log has `***`).
 
+## Done
+
+2026-11-14, this commit. `crates/podrunner-local/src/secrets.rs` reads a secret file (`NAME=VALUE`, `NAME<<DELIM`; mode 0600 or less; no name with `GITHUB_` at the start) and a secret of the environment. `podrunner run` takes `.secrets` of the `--checkout` tree, `--secret-file FILE` and each `--secret NAME`, and refuses `--secret NAME=VALUE`. `LocalSource::set_secrets` gives each job the secrets as secret variables of the message (`isSecret`); runner v2.338.2 builds `secrets` from them and masks each value. Proven: the unit tests of the file and of the variables, and `cargo test -p podrunner-local --test runner -- --ignored`: a step reads `secrets.API_KEY`, an unset secret is empty, and the log has `the secret is ***` and not the value. The mask of the logs that podrunner keeps is T-134.
+
 # T-122: Local mode: github.token and secrets.GITHUB_TOKEN
 
 **Source:** The owner's ghactions-local study (act: the token of `gh auth token` as `GITHUB_TOKEN`; runner.server: `GITHUB_TOKEN`, `GITHUB_TOKEN_READ_ONLY` and `GITHUB_TOKEN_NONE` of the server)
@@ -1222,7 +1226,7 @@ Read `crates/podrunner-local/src/message.rs` and the runner.server tree of the s
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1241,6 +1245,10 @@ Read the runner's execution context in the runner.server tree of the study and `
 ## Prove
 
 `cargo test -p podrunner-local message` (the default token, the token of `--github-token-env`, `permissions: {}`).
+
+## Done
+
+2026-11-14, this commit. The job message gives `system.github.token` and the secret variable `GITHUB_TOKEN`: the runner does not derive `secrets.GITHUB_TOKEN` from `system.github.token`. Both are the made-up token `podrunner-local-made-up-token` by default; `--github-token-env NAME` gives the token of the environment to each job whose `permissions` (of the job, or else of the workflow) are not `{}`. Proven: the unit test of the variables with no token, a real token and `permissions: {}`, and the runner test above: `github.token` is the made-up token and `secrets.GITHUB_TOKEN` equals it. The hold of a real token to the hosts of the forge is in T-123 (the egress of a unit).
 
 # T-123: Local mode: run each job in a unit of the microvm or the incus kind
 

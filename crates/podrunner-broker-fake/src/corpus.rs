@@ -75,7 +75,16 @@ impl Corpus {
             });
         }
         let name = id.rsplit('/').next().unwrap_or(id).to_string();
-        Some(Job { name, env: pairs(&j["env"]), steps, container: None, registry: None, overrides: Default::default() })
+        Some(Job {
+            name,
+            env: pairs(&j["env"]),
+            steps,
+            container: None,
+            registry: None,
+            overrides: Default::default(),
+            secrets: Vec::new(),
+            token: None,
+        })
     }
 }
 

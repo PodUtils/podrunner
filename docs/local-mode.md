@@ -47,8 +47,8 @@ the entry that closes the gap, or the entry that did the work.
 | Event payload | `-e FILE` | `--payload` | no `github.event` | T-125 |
 | `github` facts from the git tree | yes | yes | stand-ins | T-125 |
 | Filters of `on:`, a directory of workflows | event names, `-W DIR` | yes | one file, no filter | T-125 |
-| Secrets | `-s`, `.secrets`, mask | `--secret`, `--secret-file`, mask | none | T-121 |
-| `GITHUB_TOKEN` | the token of the GitHub CLI of the user | configured | none | T-122 |
+| Secrets | `-s`, `.secrets`, mask | `--secret`, `--secret-file`, mask | `--secret NAME` from the environment, `--secret-file` at mode 0600, `.secrets` of the checkout, mask; no value in argv | T-121 |
+| `GITHUB_TOKEN` | the token of the GitHub CLI of the user | configured | a made-up token; a real one only by `--github-token-env NAME`, never to `permissions: {}` | T-122 |
 | Vars | `--var`, `.vars` | `--var`, `--var-file` | `--var` | T-089, T-126 |
 | Inputs, defaults of `workflow_dispatch` | `--input`, `.input` | `--input`, `--input-file` | `--input`, no default, no type | T-126 |
 | Extra environment | `--env`, `.env` | `--env`, `--env-file` | no | T-126 |

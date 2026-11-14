@@ -10,6 +10,7 @@ pub mod drive;
 pub mod exec;
 pub mod lock;
 pub mod message;
+pub mod secrets;
 pub mod store;
 
 /// The artifact store of a run (T-119).
@@ -68,6 +69,10 @@ pub struct LocalSource {
     cancelled: std::collections::BTreeSet<JobId>,
     vars: XValue,
     inputs: XValue,
+    /// The secrets of the run (T-121) and the token of `github.token`
+    /// (T-122).
+    secrets: Vec<(String, String)>,
+    token: Option<String>,
     minter: Minter,
     /// The report and audit lines, for the caller.
     pub reports: Vec<(JobId, Map<String, Value>)>,
@@ -98,12 +103,21 @@ impl LocalSource {
             cancelled: Default::default(),
             vars,
             inputs,
+            secrets: Vec::new(),
+            token: None,
             minter,
             reports: Vec::new(),
             audits: Vec::new(),
         };
         source.advance().map_err(|e| e.detail)?;
         Ok(source)
+    }
+
+    /// Give each job the secrets of the run (T-121), and `token` as
+    /// `github.token` to each job whose `permissions` are not `{}` (T-122).
+    pub fn set_secrets(&mut self, secrets: Vec<(String, String)>, token: Option<String>) {
+        self.secrets = secrets;
+        self.token = token;
     }
 
     /// `fail-fast` cancelled the cell `job` before it ran (T-117).
@@ -129,7 +143,13 @@ impl LocalSource {
     /// The job of the fake broker for the offer `job` (T-088).
     pub fn broker_job(&self, job: &JobId) -> Result<podrunner_broker_fake::Job, String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
-        message::broker_job(self.run.workflow(), cell, &self.github, &self.vars, &self.inputs)
+        let mut b = message::broker_job(self.run.workflow(), cell, &self.github, &self.vars, &self.inputs)?;
+        b.secrets = self.secrets.clone();
+        let none = |p: Option<&pod_actions_workflow::Node>| matches!(p.map(|n| &n.kind), Some(pod_actions_workflow::Kind::Map(e)) if e.is_empty());
+        let w = self.run.workflow();
+        let permissions = w.job(&cell.job).and_then(|j| j.permissions.as_ref()).or(w.permissions.as_ref());
+        b.token = if none(permissions) { None } else { self.token.clone() };
+        Ok(b)
     }
 
     /// The jobs that did not run, with their reasons, in their order.

@@ -1,6 +1,6 @@
 # A marketplace action by tag and a local composite action with outputs
-# (T-147, T-118). The token is made up: the script calls no API, and the
-# token of the job is T-122.
+# (T-147, T-118). github-script takes the made-up `github.token` of the
+# run (T-122); the script calls no API.
 name: parity actions
 on: push
 defaults:
@@ -22,7 +22,6 @@ jobs:
       - id: script
         uses: actions/github-script@v7
         with:
-          github-token: made-up-for-a-script-with-no-api-call
           result-encoding: string
           script: return String(6 * 7)
       - run: test "${{ steps.script.outputs.result }}" = 42

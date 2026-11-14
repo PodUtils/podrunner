@@ -35,7 +35,17 @@ pub struct Job {
     /// `environmentVariables`, `jobOutputs`), and the entries of
     /// `contextData` that join the canned `github` (T-088).
     pub overrides: Map<String, Value>,
+    /// The secrets of the job: secret variables of the message, which the
+    /// runner gives as `secrets` and masks (T-121).
+    pub secrets: Vec<(String, String)>,
+    /// `github.token` and `secrets.GITHUB_TOKEN`; [`TOKEN`] when none
+    /// (T-122).
+    pub token: Option<String>,
 }
+
+/// The made-up token of `github.token` (T-122): a call with it to a real
+/// forge fails.
+pub const TOKEN: &str = "podrunner-local-made-up-token";
 
 impl Job {
     /// A job of plain scripts, one step for each.
@@ -53,6 +63,8 @@ impl Job {
             container: None,
             registry: None,
             overrides: Map::new(),
+            secrets: Vec::new(),
+            token: None,
         }
     }
 }
@@ -171,6 +183,10 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
             // The runner gives ACTIONS_CACHE_SERVICE_V2 to the steps: the
             // cache client calls the CacheService of this broker (T-120).
             "actions_uses_cache_service_v2": { "value": "true" },
+            "system.github.token": { "value": job.token.as_deref().unwrap_or(TOKEN), "isSecret": true },
+            // The runner does not derive `secrets.GITHUB_TOKEN` from the
+            // token above: it is a secret variable of its own.
+            "GITHUB_TOKEN": { "value": job.token.as_deref().unwrap_or(TOKEN), "isSecret": true },
         },
         "contextData": { "github": { "t": 2, "d": [
             s("repository", "example-org/app"), s("workflow", "podrunner"), s("job", &job.name),
@@ -202,6 +218,9 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
                 m[key] = value.clone();
             }
         }
+    }
+    for (name, value) in &job.secrets {
+        m["variables"][name] = json!({ "value": value, "isSecret": true });
     }
     m
 }

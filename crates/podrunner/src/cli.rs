@@ -36,6 +36,7 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   image verify --tarball FILE --arch ARCH           check a runner tarball against its pin
   run FILE (--runner-dir DIR | --podvm PATH --images STORE --image REF [--podnet PATH [--allow HOST]...])
       [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache]
+      [--secret NAME]... [--secret-file FILE] [--github-token-env NAME]
       [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...
                                                     run the jobs of a workflow, here or in podvm units
   --version | --help

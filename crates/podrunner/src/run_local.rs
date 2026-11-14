@@ -18,7 +18,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -38,6 +38,9 @@ struct Args {
     artifacts: Option<PathBuf>,
     cache: Option<PathBuf>,
     no_cache: bool,
+    secrets: Vec<String>,
+    secret_file: Option<PathBuf>,
+    token_env: Option<String>,
     checkout: Option<PathBuf>,
     podnet: Option<PathBuf>,
     allow: Vec<String>,
@@ -67,6 +70,15 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--image" => a.image = Some(value()?),
             "--actions" => a.actions = Some(PathBuf::from(value()?)),
             "--artifacts" => a.artifacts = Some(PathBuf::from(value()?)),
+            "--secret" => {
+                let name = value()?;
+                if name.contains('=') {
+                    return Err("--secret takes a NAME of the environment, never a value in argv".into());
+                }
+                a.secrets.push(name);
+            }
+            "--secret-file" => a.secret_file = Some(PathBuf::from(value()?)),
+            "--github-token-env" => a.token_env = Some(value()?),
             "--cache" => a.cache = Some(PathBuf::from(value()?)),
             "--no-cache" => a.no_cache = true,
             "--offline" => a.offline = true,
@@ -198,6 +210,39 @@ pub fn line(l: &Line) -> String {
     }
 }
 
+/// The secrets of the run (T-121) and the token of `github.token` (T-122):
+/// `.secrets` of the checkout when it exists, then `--secret-file`, then
+/// each `--secret`.
+/// The secrets of a run and its token.
+type Secrets = (Vec<(String, String)>, Option<String>);
+
+fn secrets(a: &Args) -> Result<Secrets, String> {
+    use podrunner_local::secrets::{from_env, read_file};
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut add = |more: Vec<(String, String)>| {
+        for (k, v) in more {
+            out.retain(|(o, _)| !o.eq_ignore_ascii_case(&k));
+            out.push((k, v));
+        }
+    };
+    if let Some(file) = a.checkout.as_ref().map(|d| d.join(".secrets")).filter(|f| f.is_file()) {
+        add(read_file(&file)?);
+    }
+    if let Some(file) = &a.secret_file {
+        add(read_file(file)?);
+    }
+    for name in &a.secrets {
+        add(vec![from_env(name)?]);
+    }
+    let token = match &a.token_env {
+        Some(name) => {
+            Some(std::env::var(name).map_err(|_| format!("--github-token-env {name}: the environment has no {name}"))?)
+        }
+        None => None,
+    };
+    Ok((out, token))
+}
+
 /// Run `podrunner run ARGS`.
 pub fn run(args: &[String]) -> Out {
     let a = match parse(args) {
@@ -217,6 +262,10 @@ pub fn run(args: &[String]) -> Out {
         Ok(s) => s,
         Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
     };
+    match secrets(&a) {
+        Ok((list, token)) => source.set_secrets(list, token),
+        Err(e) => return fail(Class::Config, e),
+    }
     let mode = match (a.offline, a.frozen) {
         (true, _) => podrunner_local::store::Mode::Offline,
         (_, true) => podrunner_local::store::Mode::Frozen,

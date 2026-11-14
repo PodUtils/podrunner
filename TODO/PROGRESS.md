@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 154 entries: 32 open, 3 partial, 6 blocked, 113 done.
+`TODO/INDEX.md` holds 154 entries: 30 open, 3 partial, 6 blocked, 115 done.
 
 ## State
 
@@ -36,18 +36,16 @@ The queue, most valuable first:
 
 The local mode against act and runner.server (`docs/local-mode.md`), the features that most workflows need first:
 
-2. T-121 (S): secrets from the environment and a secret file, with the mask.
-3. T-122 (S): `github.token` and `secrets.GITHUB_TOKEN`.
-4. T-123 (M): the local mode on the microvm and incus kinds.
-5. T-124 (M): `services:`, `docker build` and Docker-in-Docker through the engine of the unit.
-6. T-145 (S), T-146 (S), T-141 (S): the defects of a missing route, of files that a job leaves, and of Ctrl-C.
-7. T-125 (M): the event payload, the `github` context of the tree, the filters of `on:`.
-8. T-133 (M): the checkout with the changes of the tree, `.git`, other repositories.
-9. T-130 (M), T-129 (M): images by tag into the store; runner images by `runs-on`.
-10. T-131 (L): reusable workflows.
-11. T-127 (S), T-134 (M), T-126 (S), T-128 (S): selection, logs, inputs and files, list and dry run.
-12. T-132 (M), T-135 (M), T-136 (S), T-137 (S): parallel jobs, reruns, environments, concurrency.
-13. T-138, T-139, T-140, T-142, T-143, T-152, T-153, T-154 (S each), T-150 (M), T-149 (M), T-151 (S), T-148 (M).
+2. T-123 (M): the local mode on the microvm and incus kinds.
+3. T-124 (M): `services:`, `docker build` and Docker-in-Docker through the engine of the unit.
+4. T-145 (S), T-146 (S), T-141 (S): the defects of a missing route, of files that a job leaves, and of Ctrl-C.
+5. T-125 (M): the event payload, the `github` context of the tree, the filters of `on:`.
+6. T-133 (M): the checkout with the changes of the tree, `.git`, other repositories.
+7. T-130 (M), T-129 (M): images by tag into the store; runner images by `runs-on`.
+8. T-131 (L): reusable workflows.
+9. T-127 (S), T-134 (M), T-126 (S), T-128 (S): selection, logs, inputs and files, list and dry run.
+10. T-132 (M), T-135 (M), T-136 (S), T-137 (S): parallel jobs, reruns, environments, concurrency.
+11. T-138, T-139, T-140, T-142, T-143, T-152, T-153, T-154 (S each), T-150 (M), T-149 (M), T-151 (S), T-148 (M).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

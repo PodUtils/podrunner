@@ -57,8 +57,12 @@ fn offers(s: &mut LocalSource) -> Vec<JobId> {
         .collect()
 }
 
+/// The tests of this file share one runner directory: one runs at a time.
+static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Run one offer in the runner of `dir`; give its result and outputs.
 fn run(dir: &std::path::Path, s: &mut LocalSource, job: &JobId) -> (JobResult, Vec<(String, String)>, String) {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
     let broker = Broker::start().unwrap();
     broker.queue(s.broker_job(job).unwrap());
     let _ = std::fs::remove_dir_all(dir.join("_work"));
@@ -95,4 +99,35 @@ fn the_official_runner_runs_a_workflow_of_the_local_source() {
     assert!(logs.contains(&"podrunner-needs-linux-linux-wf-42-success".chars().rev().collect::<String>()), "{logs}");
     s.complete(&next[0], result, vec![]).unwrap();
     assert!(s.is_finished());
+}
+
+/// A step reads a secret and the token (T-121, T-122); the log masks the
+/// secret.
+const SECRETS: &str = r#"on: push
+jobs:
+  s:
+    runs-on: x
+    steps:
+      - env:
+          K: ${{ secrets.API_KEY }}
+          T: ${{ github.token }}
+        run: |
+          test "$K" = made-up-secret-value-42
+          test "$T" = podrunner-local-made-up-token
+          echo "the secret is $K"
+      - run: test "${{ secrets.GITHUB_TOKEN }}" = "${{ github.token }}"
+      - run: test -z "${{ secrets.NOT_SET }}"
+"#;
+
+#[test]
+#[ignore]
+fn a_step_reads_a_secret_and_the_token_and_the_log_masks_the_secret() {
+    let dir = PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let mut s = LocalSource::new("local", SECRETS, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.set_secrets(vec![("API_KEY".into(), "made-up-secret-value-42".into())], None);
+    let job = offers(&mut s);
+    let (result, _, logs) = run(&dir, &mut s, &job[0]);
+    assert_eq!(result, JobResult::Success, "{logs}");
+    assert!(logs.contains("the secret is ***"), "{logs}");
+    assert!(!logs.contains("made-up-secret-value-42"), "the log has the secret: {logs}");
 }

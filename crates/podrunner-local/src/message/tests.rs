@@ -202,3 +202,25 @@ fn the_steps_read_the_github_context_of_the_run() {
     assert_eq!(get("repository"), Some(json!("local/workflow")));
     assert_eq!(get("api_url"), Some(json!("http://127.0.0.1:1/")), "the broker keeps its api_url");
 }
+
+#[test]
+fn the_secrets_and_the_token_are_secret_variables_and_permissions_none_gets_no_real_token() {
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: x}]\n  \
+                b:\n    runs-on: x\n    permissions: {}\n    steps: [{run: x}]\n";
+    let mut s = LocalSource::new("l", text, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    let vars = |s: &LocalSource, job: &str| {
+        let job = s.broker_job(&JobId::new(job).unwrap()).unwrap();
+        podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &job)["variables"].clone()
+    };
+    let v = vars(&s, "a.0");
+    assert_eq!(v["system.github.token"], json!({ "value": podrunner_broker_fake::message::TOKEN, "isSecret": true }));
+    s.set_secrets(vec![("API_KEY".into(), "made-up-value".into())], Some("made-up-real".into()));
+    let v = vars(&s, "a.0");
+    assert_eq!(v["API_KEY"], json!({ "value": "made-up-value", "isSecret": true }));
+    assert_eq!(v["system.github.token"]["value"], "made-up-real");
+    assert_eq!(v["GITHUB_TOKEN"], json!({ "value": "made-up-real", "isSecret": true }));
+    let v = vars(&s, "b.0");
+    assert_eq!(v["system.github.token"]["value"], podrunner_broker_fake::message::TOKEN, "permissions: {{}}");
+    assert_eq!(v["API_KEY"]["isSecret"], true);
+}
