@@ -61,6 +61,24 @@ struct State {
     artifacts: Option<Arc<artifacts::ArtifactStore>>,
     /// The cache store (T-120).
     cache: Option<Arc<cache::CacheStore>>,
+    /// Each request with no route, with its service (T-145).
+    missing: Vec<String>,
+}
+
+/// The service of a route that this broker does not serve, and the entry
+/// that gives it, when it is known (T-145).
+pub fn service_of(path: &str) -> Option<&'static str> {
+    let known: [(&str, &str); 5] = [
+        ("ArtifactService", "the ArtifactService of the results API (T-119)"),
+        ("CacheService", "the CacheService of the results API (T-120)"),
+        (
+            "_apis/artifactcache",
+            "the legacy cache routes, which GitHub turned off; actions/cache@v4 takes the CacheService (T-120)",
+        ),
+        ("_apis/pipelines/workflows", "the legacy artifact routes of v3, which GitHub turned off (T-119)"),
+        ("idtoken", "the OIDC id-token of the job (T-140)"),
+    ];
+    known.iter().find(|(k, _)| path.contains(k)).map(|(_, s)| *s)
 }
 
 /// The largest body of a request: the cache client sends an archive under
@@ -155,6 +173,12 @@ impl Broker {
     /// The step updates of the Worker.
     pub fn step_updates(&self) -> Vec<Value> {
         self.state.lock().expect("the broker").step_updates.clone()
+    }
+
+    /// Each request with no route: the method, the path with no query, and
+    /// its service when it is known (T-145).
+    pub fn missing(&self) -> Vec<String> {
+        self.state.lock().expect("the broker").missing.clone()
     }
 
     /// The request line of each call.
@@ -270,8 +294,43 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
             st.done.push(Completion { request, conclusion, steps, outputs });
             (200, Vec::new())
         }
-        _ => (404, Vec::new()),
+        (method, p) => {
+            let line = match service_of(p) {
+                Some(s) => format!("{method} {p} ({s})"),
+                None => format!("{method} {p}"),
+            };
+            state.lock().expect("the broker").missing.push(line);
+            (404, Vec::new())
+        }
     };
     let headers = [("Content-Type", "application/json".to_string())];
     let _ = write_response(&mut w, status, &headers, &out);
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::{Read, Write};
+
+    use super::*;
+
+    fn ask(broker: &Broker, line: &str) -> String {
+        let addr = broker.base.trim_start_matches("http://").trim_end_matches('/');
+        let mut c = TcpStream::connect(addr).unwrap();
+        c.write_all(format!("{line} HTTP/1.1\r\nHost: b\r\nContent-Length: 0\r\n\r\n").as_bytes()).unwrap();
+        let mut out = String::new();
+        let _ = c.read_to_string(&mut out);
+        out
+    }
+
+    #[test]
+    fn a_request_with_no_route_is_kept_with_its_service() {
+        let broker = Broker::start().unwrap();
+        assert!(ask(&broker, "POST /_apis/artifactcache/caches?x=1").starts_with("HTTP/1.1 404"));
+        assert!(ask(&broker, "GET /no/such/route").starts_with("HTTP/1.1 404"));
+        let missing = broker.missing();
+        assert_eq!(missing.len(), 2, "{missing:?}");
+        assert!(missing[0].starts_with("POST /_apis/artifactcache/caches (the legacy cache routes"), "{missing:?}");
+        assert_eq!(missing[1], "GET /no/such/route");
+        assert_eq!(service_of("/twirp/x.OIDC/idtoken"), Some("the OIDC id-token of the job (T-140)"));
+    }
 }

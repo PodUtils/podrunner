@@ -1713,7 +1713,7 @@ The broker gives `GenerateIdTokenUrl` to a job with that permission, and signs a
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1730,6 +1730,10 @@ At the first SIGINT or SIGTERM, cancel the running job (the cancel message of th
 ## Prove
 
 `cargo test -p podrunner run_local` (a signal during a job on the fake unit).
+
+## Done
+
+2026-11-14, this commit. `podrunner_local::cancel` installs a handler of SIGINT and SIGTERM that sets a flag; a third signal ends the process. `RunnerDir` ends the process group of its runner at the flag; `InUnit` waits in slices of one second and destroys its unit at once. `drive_with` prints the skips that are not printed and a `cancelled` line for each job with no result, and runs no more; `podrunner run` removes its scratch directories and exits 130. The runner gets no cancel message of the broker: the TERM of its process group makes it end its job as `Canceled`. Proven: the unit test of the drive loop (a stop during the first of three jobs), and a run here on runner v2.338.2: SIGINT during a `sleep` step gives `cancelled long`, exit 130, no runner process and no scratch directory.
 
 # T-142: Local mode: --watch and the cron times of on.schedule
 
@@ -1817,7 +1821,7 @@ Set `DOTNET_EnableWriteXorExecute=0` in the environment of the runner of the `--
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1835,6 +1839,10 @@ Keep each request with no route, and add one line for each to the log of its job
 
 `cargo test -p podrunner-broker-fake` (a request to an unknown route is in the job log).
 
+## Done
+
+2026-11-14, this commit. The fake broker keeps each request that it has no route for (`Broker::missing`), with the service and the entry when the path names one (`service_of`: the ArtifactService and the CacheService, the legacy cache and artifact routes that GitHub turned off, the OIDC id-token of T-140). The log of each job gets one line for each; `podrunner run` names each on stderr with its job, whatever the result, and prints the count. Proven: the unit test of the broker (a legacy cache route and an unknown route).
+
 # T-146: A job can leave files that the next run cannot remove
 
 **Source:** The owner's ghactions-local study (the reproduction of a rerun EACCES of another local runner: files of a container uid that the host user cannot remove)
@@ -1842,7 +1850,7 @@ Keep each request with no route, and add one line for each to the log of its job
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1859,6 +1867,8 @@ Read `crates/podrunner-local/src/exec.rs` on 2026-11-14. Not measured: the resid
 ## Prove
 
 `cargo test -p podrunner-local exec` (a `_work` with a directory of mode 0500 is removed, or the job fails with its path) and the double run in `runner-image.yml`.
+
+State (2026-11-14): `podrunner_local::work::clear` gives each directory of `_work` the bits `u+rwx` again before the removal, and a failure fails the job with the path (unit test: a tree with modes 0000 and 0500). The unit half is in `runner-image.yml`: `crates/podrunner/tests/local/rerun.yml` (a container job as root that leaves a directory of mode 0500) runs twice with `--podvm`; a residue fails the job.
 
 # T-147: Local mode: the parity suite, with checks outside the job log
 

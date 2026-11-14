@@ -1,0 +1,17 @@
+# A container job as root leaves a directory of mode 0500 and a file of
+# root in the workspace (T-146). Two runs in a row both pass, and destroy
+# reports no residue. IMAGE is the runner image of the store; the test puts
+# it in.
+name: podrunner local rerun
+on: push
+jobs:
+  root:
+    runs-on: local
+    container:
+      image: IMAGE
+      options: --user 0
+    steps:
+      - run: |
+          mkdir -p locked/deep && echo x > locked/deep/f && chmod 0500 locked/deep locked
+          echo "left-$(id -u)-$((6*7))"
+        shell: sh

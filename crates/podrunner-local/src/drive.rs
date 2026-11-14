@@ -4,6 +4,7 @@
 //! of one expression, an action or an image that is not pinned) fails with
 //! its reason, as a job of GitHub fails at its setup.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use pod_actions_workflow::JobResult;
@@ -51,8 +52,34 @@ pub fn result_of(conclusion: &str) -> JobResult {
 const RUNNER: &str = "podrunner-local";
 
 /// Run each job of `source` with `exec`; give each line to `out` when it is
-/// known. The result is true when no job failed.
+/// known. The result is true when no job failed. A signal stops the run
+/// ([`crate::cancel`]).
 pub fn drive(source: &mut LocalSource, exec: &mut dyn Executor, out: &mut dyn FnMut(&Line)) -> Result<bool, String> {
+    drive_with(source, exec, out, &crate::cancel::SIGNALLED)
+}
+
+/// The skips that are not printed, then each job of the workflow with no
+/// result as a `cancelled` line (T-141).
+fn cancel_the_rest(source: &LocalSource, skips: usize, out: &mut dyn FnMut(&Line)) {
+    for s in &source.skips()[skips..] {
+        out(&Line::Skipped { job: s.job.clone(), condition: s.condition.clone() });
+    }
+    for j in &source.workflow().jobs {
+        if source.result(&j.id).is_none() {
+            let job = JobId::new(&format!("{}.0", j.id)).unwrap_or_else(|_| JobId::new("job.0").expect("a job id"));
+            out(&Line::Ran { job, name: j.name.clone().unwrap_or_else(|| j.id.clone()), result: JobResult::Cancelled });
+        }
+    }
+}
+
+/// [`drive`] that stops when `stop` is set: the job that runs ends as its
+/// executor ends it, and each job with no result is `cancelled`.
+pub fn drive_with(
+    source: &mut LocalSource,
+    exec: &mut dyn Executor,
+    out: &mut dyn FnMut(&Line),
+    stop: &AtomicBool,
+) -> Result<bool, String> {
     let mut skips = 0;
     let mut ok = true;
     loop {
@@ -76,6 +103,10 @@ pub fn drive(source: &mut LocalSource, exec: &mut dyn Executor, out: &mut dyn Fn
             return Err("no job is ready, and the run is not finished".into());
         }
         for job in offers {
+            if stop.load(Ordering::SeqCst) {
+                cancel_the_rest(source, skips, out);
+                return Ok(false);
+            }
             let name = source.cell(&job).map(|c| c.instance.name.clone()).unwrap_or_default();
             // A cell that `fail-fast` cancelled runs no unit (T-117).
             if source.is_cancelled(&job) {
@@ -109,6 +140,10 @@ pub fn drive(source: &mut LocalSource, exec: &mut dyn Executor, out: &mut dyn Fn
             out(&line);
             source.complete(&job, end.result, end.outputs)?;
             source.release(&job).map_err(|e| e.to_string())?;
+        }
+        if stop.load(Ordering::SeqCst) {
+            cancel_the_rest(source, skips, out);
+            return Ok(false);
         }
     }
 }

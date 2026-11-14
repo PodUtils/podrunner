@@ -6,6 +6,7 @@
 //! its end with [`LocalSource::complete`]; the jobs after it then become
 //! ready. A local set runs each job at tier `local` (call C14).
 
+pub mod cancel;
 pub mod drive;
 pub mod exec;
 pub mod front;
@@ -13,6 +14,7 @@ pub mod lock;
 pub mod message;
 pub mod secrets;
 pub mod store;
+pub mod work;
 
 /// The artifact store of a run (T-119).
 pub use podrunner_broker_fake::artifacts;

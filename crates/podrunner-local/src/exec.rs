@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use pod_actions_workflow::JobResult;
 use podrunner_broker_fake::artifacts::ArtifactStore;
 use podrunner_broker_fake::cache::CacheStore;
 use podrunner_broker_fake::runner::start_runner;
@@ -207,6 +208,19 @@ impl InUnit {
     }
 }
 
+/// The prefix of a line of a job log for a request with no route (T-145).
+pub const NO_ROUTE: &str = "podrunner: the fake broker has no route for ";
+
+/// The log of a job: the logs that the runner uploaded, and one line for
+/// each request that the broker had no route for (T-145).
+fn job_log(broker: &Broker) -> String {
+    let mut log = broker.logs();
+    for m in broker.missing() {
+        log.push_str(&format!("\n{NO_ROUTE}{m}"));
+    }
+    log
+}
+
 impl Executor for InUnit {
     fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
         use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
@@ -306,7 +320,16 @@ impl Executor for InUnit {
             end_sockets(&sockets);
             return Err(e);
         }
-        let waited = self.driver.wait(&id, limit);
+        // Wait in slices: a signal destroys the unit at once (T-141).
+        let until = Instant::now() + limit;
+        let waited = loop {
+            let slice = until.saturating_duration_since(Instant::now()).min(Duration::from_secs(1));
+            match self.driver.wait(&id, slice) {
+                Ok(None) if !crate::cancel::requested() && Instant::now() < until => continue,
+                other => break other,
+            }
+        };
+        let cancelled = crate::cancel::requested() && matches!(waited, Ok(None));
         // Still running at the limit: end the unit (destroy below).
         let timed_out = matches!(waited, Ok(None));
         let t = Instant::now();
@@ -322,7 +345,7 @@ impl Executor for InUnit {
         let residue = self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"));
         end_sockets(&sockets);
         let residue = residue?;
-        let mut log = broker.logs();
+        let mut log = job_log(&broker);
         for r in &refusals {
             log.push_str(&format!("\npodrunner: a hook call was refused: {r}"));
         }
@@ -331,6 +354,9 @@ impl Executor for InUnit {
         }
         self.logs.push((job.clone(), log));
         let exit = waited.map_err(|e| format!("wait {id}: {e}"))?;
+        if cancelled {
+            return Ok(End { result: JobResult::Cancelled, outputs: vec![] });
+        }
         if timed_out {
             return Err(format!("the job ran past its timeout-minutes ({} s); unit {id} was ended", limit.as_secs()));
         }
@@ -359,7 +385,7 @@ pub fn needs_containers(message: &Job) -> bool {
 impl Executor for RunnerDir {
     fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
         if needs_containers(&message) {
-            return Err("the job needs containers: run it in a unit (--podvm), not on a runner directory".into());
+            return Err("the job needs containers: run it in a unit (--podvm, or --microvm with --engine), not on a runner directory".into());
         }
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
         if let Some(dir) = &self.actions {
@@ -375,8 +401,8 @@ impl Executor for RunnerDir {
             broker.serve_checkout(tree);
         }
         broker.queue(message);
-        // Each job starts in a fresh work directory.
-        let _ = std::fs::remove_dir_all(self.dir.join("_work"));
+        // Each job starts in a fresh work directory (T-146).
+        crate::work::clear(&self.dir.join("_work"))?;
         let mut child = start_runner(&self.dir, &broker, &[])?;
         // The limit of the job (`timeout-minutes`, T-115): at its end, the
         // whole process group of the runner ends, as the unit of `InUnit`.
@@ -385,7 +411,8 @@ impl Executor for RunnerDir {
             if let Some(s) = child.try_wait().map_err(|e| format!("the runner: {}", e.kind()))? {
                 break Some(s);
             }
-            if Instant::now() >= end {
+            // A signal ends the job as its limit does (T-141).
+            if Instant::now() >= end || crate::cancel::requested() {
                 break None;
             }
             std::thread::sleep(Duration::from_millis(100));
@@ -393,11 +420,14 @@ impl Executor for RunnerDir {
         let Some(status) = status else {
             end_group(child.id());
             let _ = child.wait();
-            self.logs.push((job.clone(), broker.logs()));
+            self.logs.push((job.clone(), job_log(&broker)));
+            if crate::cancel::requested() {
+                return Ok(End { result: JobResult::Cancelled, outputs: vec![] });
+            }
             return Err(format!("the job ran past its limit of {} s", limit.as_secs()));
         };
         if let Some(why) = signal_reason(&status) {
-            self.logs.push((job.clone(), broker.logs()));
+            self.logs.push((job.clone(), job_log(&broker)));
             return Err(why);
         }
         // The runner sends `completejob` before it ends; give the broker
@@ -406,7 +436,7 @@ impl Executor for RunnerDir {
         while broker.completions().is_empty() && t.elapsed() < Duration::from_secs(5) {
             std::thread::sleep(Duration::from_millis(50));
         }
-        self.logs.push((job.clone(), broker.logs()));
+        self.logs.push((job.clone(), job_log(&broker)));
         let done = broker.completions();
         let Some(end) = done.first() else {
             return Err("the runner ended with no result".into());

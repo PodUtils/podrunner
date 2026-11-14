@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 154 entries: 28 open, 6 partial, 5 blocked, 115 done.
+`TODO/INDEX.md` holds 154 entries: 25 open, 7 partial, 5 blocked, 117 done.
 
 ## State
 
@@ -38,7 +38,7 @@ The local mode against act and runner.server (`docs/local-mode.md`), the feature
 
 2. T-123 (M, partial): the local mode on the microvm and incus kinds; the run in `runner-image.yml` proves it.
 3. T-124 (M, partial), with T-103: `services:`, `docker build` and a job container through the engine of the unit; then the images from the store, not a pull.
-4. T-145 (S), T-146 (S), T-141 (S): the defects of a missing route, of files that a job leaves, and of Ctrl-C.
+4. T-146 (S, partial): the files that a job leaves; the unit half runs in `runner-image.yml`.
 5. T-125 (M): the event payload, the `github` context of the tree, the filters of `on:`.
 6. T-133 (M): the checkout with the changes of the tree, `.git`, other repositories.
 7. T-130 (M), T-129 (M): images by tag into the store; runner images by `runs-on`.

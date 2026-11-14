@@ -112,3 +112,38 @@ fn continue_on_error_does_not_fail_the_run() {
     assert!(matches!(&lines[0], Line::Ran { result: JobResult::Failure, .. }), "the line of a still says failure");
     assert_eq!(s.result("a"), Some(JobResult::Success));
 }
+
+/// An executor that a signal stops during its first job (T-141).
+struct Stopped<'a> {
+    stop: &'a AtomicBool,
+    ran: Vec<String>,
+}
+
+impl Executor for Stopped<'_> {
+    fn run(&mut self, job: &JobId, _message: Job, _limit: std::time::Duration) -> Result<End, String> {
+        self.ran.push(job.to_string());
+        self.stop.store(true, Ordering::SeqCst);
+        Ok(End { result: JobResult::Cancelled, outputs: vec![] })
+    }
+}
+
+#[test]
+fn a_signal_cancels_the_job_that_runs_and_each_job_after_it() {
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n  \
+                b:\n    runs-on: x\n    steps: [{run: b}]\n  \
+                c:\n    needs: [a, b]\n    runs-on: x\n    steps: [{run: c}]\n";
+    let mut s = LocalSource::new("l", text, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    let stop = AtomicBool::new(false);
+    let mut exec = Stopped { stop: &stop, ran: vec![] };
+    let mut lines = Vec::new();
+    assert!(!drive_with(&mut s, &mut exec, &mut |l| lines.push(l.clone()), &stop).unwrap());
+    assert_eq!(exec.ran, ["a.0"], "no job runs after the signal");
+    let cancelled: Vec<String> = lines
+        .iter()
+        .filter_map(|l| match l {
+            Line::Ran { name, result: JobResult::Cancelled, .. } => Some(name.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(cancelled, ["a", "b", "c"], "{lines:?}");
+}

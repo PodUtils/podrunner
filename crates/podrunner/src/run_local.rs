@@ -314,6 +314,7 @@ pub fn run(args: &[String]) -> Out {
     };
     let mut stdout = String::new();
     let mut stderr = note;
+    podrunner_local::cancel::install();
     let mut each = |l: &Line| stdout.push_str(&line(l));
     let (result, logs) = if let Some(dir) = a.runner_dir.clone() {
         let mut exec = match RunnerDir::new(dir) {
@@ -347,6 +348,24 @@ pub fn run(args: &[String]) -> Out {
     };
     let _ = std::fs::remove_dir_all(kept.join(".pending"));
     let _ = std::fs::remove_dir_all(&scratch);
+    // Each request with no route of the fake broker (T-145), named on
+    // stderr whatever the result: it can explain a failed step.
+    let missing: Vec<String> = logs
+        .iter()
+        .flat_map(|(job, log)| {
+            log.lines()
+                .filter_map(|l| l.strip_prefix(podrunner_local::exec::NO_ROUTE))
+                .map(move |m| format!("podrunner: {job}: no route of the fake broker: {m}\n"))
+        })
+        .collect();
+    if !missing.is_empty() {
+        stderr.extend(missing.iter().map(String::as_str));
+        stderr.push_str(&format!("podrunner: {} requests had no route of the fake broker\n", missing.len()));
+    }
+    if podrunner_local::cancel::requested() {
+        stderr.push_str("podrunner: a signal cancelled the run\n");
+        return Out { code: 130, stdout, stderr };
+    }
     match result {
         Ok(true) => Out { code: 0, stdout, stderr },
         Ok(false) => {

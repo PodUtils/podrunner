@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**154 entries: 28 open, 6 partial, 5 blocked, 115 done.**
+**154 entries: 25 open, 7 partial, 5 blocked, 117 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 10 | 4 | 3 | 55 | 72 |
+| P2 | 7 | 5 | 3 | 57 | 72 |
 | P3 | 18 | 0 | 2 | 28 | 48 |
-| **All** | 28 | 6 | 5 | 115 | 154 |
+| **All** | 25 | 7 | 5 | 117 | 154 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -188,12 +188,12 @@ acceptance, later The crate dependencies later than v1.
 | [T-138](later.md) | P3 | S | later | feature | open | Local mode: keep the unit of a failed job, export the workspace, and a shared tool cache |
 | [T-139](later.md) | P3 | S | later | feature | open | Local mode: actions from a local directory (--local-repository) and from another forge |
 | [T-140](later.md) | P3 | S | later | feature | open | Local mode: OIDC id-tokens (permissions: id-token: write) |
-| [T-141](later.md) | P2 | S | later | defect | open | podrunner run leaves its units and scratch directories at Ctrl-C |
+| [T-141](later.md) | P2 | S | later | defect | done | podrunner run leaves its units and scratch directories at Ctrl-C |
 | [T-142](later.md) | P3 | S | later | feature | open | Local mode: --watch and the cron times of on.schedule |
 | [T-143](later.md) | P3 | S | later | feature | open | Local mode: a configuration file for podrunner run |
 | [T-144](later.md) | P2 | S | later | defect | done | podrunner run --runner-dir starts the runner with W^X on, and dies under a small RLIMIT_FSIZE |
-| [T-145](later.md) | P2 | S | later | defect | open | The fake broker answers 404 in silence to a route that it does not serve |
-| [T-146](later.md) | P2 | S | later | defect | open | A job can leave files that the next run cannot remove |
+| [T-145](later.md) | P2 | S | later | defect | done | The fake broker answers 404 in silence to a route that it does not serve |
+| [T-146](later.md) | P2 | S | later | defect | partial | A job can leave files that the next run cannot remove |
 | [T-147](later.md) | P2 | M | later | feature | done | Local mode: the parity suite, with checks outside the job log |
 | [T-148](later.md) | P3 | M | later | research | open | Research: Azure Pipelines YAML in the local source |
 | [T-149](later.md) | P3 | M | later | feature | open | Local mode: a web view of a run on the loopback |
