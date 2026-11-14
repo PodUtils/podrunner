@@ -59,7 +59,7 @@ the entry that closes the gap, or the entry that did the work.
 | OIDC id-token | no | yes | yes: ES256 with one key for each run, in memory only; `--oidc-issuer`, `--oidc-keys` | T-140 |
 | One job, a matrix filter | `-j`, `--matrix` | `--job`, `--matrix` | `--job` with its needs, `--matrix`; each other cell `skipped` with its reason | T-127 |
 | List, graph, dry run, validate | yes | `--list` | `--list`, `--graph`, `--validate`; `--dry-run` builds each job message and checks the pins | T-128 |
-| Parallel jobs | `--concurrent-jobs` | `--parallel N` | one at a time | T-132 |
+| Parallel jobs | `--concurrent-jobs` | `--parallel N` | `--jobs N` with a unit kind, `max-parallel`; the running cells finish at fail-fast | T-132 |
 | Live logs, log files, JSON | yes | web console, `--log-output-dir` | live lines on stderr, `--json`, `--log-dir` with each step log and `summary.md`; secrets masked again | T-134 |
 | Web view | no | yes | yes: `--web IP:PORT`, the loopback only, a random token in the path, the page in the binary | T-149 |
 | Reruns | no | `rerun --failed`, keep artifacts | `--state DIR`, `--rerun DIR [--failed \| --job ID]`, kept results, outputs and artifacts; a changed workflow fails by name | T-135 |

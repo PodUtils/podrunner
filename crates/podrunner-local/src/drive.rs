@@ -13,6 +13,9 @@ use podrunner_source::{Event, JobSource};
 
 use crate::LocalSource;
 
+mod parallel;
+pub use parallel::{Slot, drive_parallel};
+
 /// The end of one job, as the runner reports it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct End {
@@ -23,7 +26,7 @@ pub struct End {
 /// Runs one job message: on the host, or in a unit. `limit` is the
 /// `timeout-minutes` of the job: an executor that can end the job ends it
 /// there.
-pub trait Executor {
+pub trait Executor: Send {
     fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String>;
     /// The labels of `runs-on` of the next job: an executor of several
     /// images takes its route here, or refuses the job (T-129).
@@ -133,71 +136,101 @@ pub fn drive_with(
                 return Ok(false);
             }
             let name = source.cell(&job).map(|c| c.instance.name.clone()).unwrap_or_default();
-            // A cell that a rerun keeps takes its result and outputs (T-135).
-            if let Some((result, outputs)) = source.kept_of(&job) {
-                out(&Line::Kept { job: job.clone(), name, result });
-                source.ack(&job).map_err(|e| e.to_string())?;
-                source.claim(&job, RUNNER).map_err(|e| e.to_string())?;
-                ok &= matches!(result, JobResult::Success | JobResult::Skipped) || source.may_fail(&job);
-                source.complete(&job, result, outputs)?;
-                source.release(&job).map_err(|e| e.to_string())?;
+            if settle(source, &job, &name, out, &mut ok)? {
                 continue;
             }
-            // A cell that the filter keeps out ends as skipped (T-127).
-            if let Some(reason) = source.not_selected(&job) {
-                out(&Line::NotSelected { job: job.clone(), name, reason });
-                source.ack(&job).map_err(|e| e.to_string())?;
-                source.claim(&job, RUNNER).map_err(|e| e.to_string())?;
-                source.complete(&job, JobResult::Skipped, vec![])?;
-                source.release(&job).map_err(|e| e.to_string())?;
-                continue;
-            }
-            // A cell that `fail-fast` cancelled runs no unit (T-117).
-            if source.is_cancelled(&job) {
-                out(&Line::Ran { job: job.clone(), name, result: JobResult::Cancelled });
-                source.release(&job).map_err(|e| e.to_string())?;
-                continue;
-            }
-            // `timeout-minutes` of the job: 360 by default, as on GitHub.
-            let minutes = source.cell(&job).map(|c| c.instance.timeout_minutes).unwrap_or(360.0);
-            let limit = Duration::from_secs_f64((minutes.max(0.0) * 60.0).min(360.0 * 60.0 * 24.0));
-            source.ack(&job).map_err(|e| e.to_string())?;
-            source.claim(&job, RUNNER).map_err(|e| e.to_string())?;
-            let labels = source.cell(&job).and_then(|c| c.instance.runs_on.as_ref()).map(|r| r.labels.clone());
-            let environment = source.environment_of(&job).ok().flatten();
-            exec.environment(environment.as_deref());
-            let message = source
-                .job_group(&job)
-                .map(|g| exec.concurrency(g.as_ref()))
-                .and_then(|()| exec.select(&labels.unwrap_or_default()))
-                .and_then(|()| source.broker_job(&job));
-            let (end, line) = match message {
-                Err(reason) => (
-                    End { result: JobResult::Failure, outputs: vec![] },
-                    Line::Refused { job: job.clone(), name, reason },
-                ),
-                Ok(message) => match exec.run(&job, message, limit) {
-                    Ok(end) => {
-                        let line = Line::Ran { job: job.clone(), name, result: end.result };
-                        (end, line)
-                    }
-                    Err(reason) => (
-                        End { result: JobResult::Failure, outputs: vec![] },
-                        Line::Refused { job: job.clone(), name, reason },
-                    ),
-                },
-            };
-            // A failed job with `continue-on-error` does not fail the run.
-            ok &= matches!(end.result, JobResult::Success) || source.may_fail(&job);
-            out(&line);
-            source.complete(&job, end.result, end.outputs)?;
-            source.release(&job).map_err(|e| e.to_string())?;
+            let end = prepare(source, exec, &job).and_then(|(message, limit)| exec.run(&job, message, limit));
+            finish(source, &job, name, end, out, &mut ok)?;
         }
         if stop.load(Ordering::SeqCst) {
             cancel_the_rest(source, skips, out);
             return Ok(false);
         }
     }
+}
+
+/// The end of a cell that runs no job: a kept cell of a rerun (T-135), a
+/// cell that the filter keeps out (T-127), a cell that `fail-fast`
+/// cancelled (T-117). True when `job` is settled so.
+pub(crate) fn settle(
+    source: &mut LocalSource,
+    job: &JobId,
+    name: &str,
+    out: &mut dyn FnMut(&Line),
+    ok: &mut bool,
+) -> Result<bool, String> {
+    let name = name.to_string();
+    if let Some((result, outputs)) = source.kept_of(job) {
+        out(&Line::Kept { job: job.clone(), name, result });
+        source.ack(job).map_err(|e| e.to_string())?;
+        source.claim(job, RUNNER).map_err(|e| e.to_string())?;
+        *ok &= matches!(result, JobResult::Success | JobResult::Skipped) || source.may_fail(job);
+        source.complete(job, result, outputs)?;
+        source.release(job).map_err(|e| e.to_string())?;
+        return Ok(true);
+    }
+    if let Some(reason) = source.not_selected(job) {
+        out(&Line::NotSelected { job: job.clone(), name, reason });
+        source.ack(job).map_err(|e| e.to_string())?;
+        source.claim(job, RUNNER).map_err(|e| e.to_string())?;
+        source.complete(job, JobResult::Skipped, vec![])?;
+        source.release(job).map_err(|e| e.to_string())?;
+        return Ok(true);
+    }
+    if source.is_cancelled(job) {
+        out(&Line::Ran { job: job.clone(), name, result: JobResult::Cancelled });
+        source.release(job).map_err(|e| e.to_string())?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+/// Claim `job` and give `exec` its environment, group and labels; its
+/// message and the limit of its `timeout-minutes` (360 by default, as on
+/// GitHub).
+pub(crate) fn prepare(
+    source: &mut LocalSource,
+    exec: &mut dyn Executor,
+    job: &JobId,
+) -> Result<(Job, Duration), String> {
+    let minutes = source.cell(job).map(|c| c.instance.timeout_minutes).unwrap_or(360.0);
+    let limit = Duration::from_secs_f64((minutes.max(0.0) * 60.0).min(360.0 * 60.0 * 24.0));
+    source.ack(job).map_err(|e| e.to_string())?;
+    source.claim(job, RUNNER).map_err(|e| e.to_string())?;
+    let labels = source.cell(job).and_then(|c| c.instance.runs_on.as_ref()).map(|r| r.labels.clone());
+    let environment = source.environment_of(job).ok().flatten();
+    exec.environment(environment.as_deref());
+    source
+        .job_group(job)
+        .map(|g| exec.concurrency(g.as_ref()))
+        .and_then(|()| exec.select(&labels.unwrap_or_default()))
+        .and_then(|()| source.broker_job(job))
+        .map(|m| (m, limit))
+}
+
+/// Record the end of a job that ran, or that failed before it ran.
+pub(crate) fn finish(
+    source: &mut LocalSource,
+    job: &JobId,
+    name: String,
+    end: Result<End, String>,
+    out: &mut dyn FnMut(&Line),
+    ok: &mut bool,
+) -> Result<(), String> {
+    let (end, line) = match end {
+        Ok(end) => {
+            let line = Line::Ran { job: job.clone(), name, result: end.result };
+            (end, line)
+        }
+        Err(reason) => {
+            (End { result: JobResult::Failure, outputs: vec![] }, Line::Refused { job: job.clone(), name, reason })
+        }
+    };
+    // A failed job with `continue-on-error` does not fail the run.
+    *ok &= matches!(end.result, JobResult::Success) || source.may_fail(job);
+    out(&line);
+    source.complete(job, end.result, end.outputs)?;
+    source.release(job).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

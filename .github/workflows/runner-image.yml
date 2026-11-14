@@ -199,6 +199,11 @@ jobs:
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . \
             --podnet "$PODRUNNER_PODNET" | tee "$RUNNER_TEMP/local.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local.txt")" = 8
+          # T-132: the same suite with three jobs at a time, each in its own unit.
+          timeout 1200 cargo run -q -p podrunner -- run crates/podrunner/tests/local/suite.yml \
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . \
+            --jobs 3 | tee "$RUNNER_TEMP/local-jobs.txt"
+          test "$(grep -c '^ok ' "$RUNNER_TEMP/local-jobs.txt")" = 8
           # T-093: a container: job and a Docker step through the hooks.
           sed "s|IMAGE|$PODRUNNER_RUNNER_IMAGE|" crates/podrunner/tests/local/containers.yml > "$RUNNER_TEMP/containers.yml"
           timeout 1200 cargo run -q -p podrunner -- run "$RUNNER_TEMP/containers.yml" \

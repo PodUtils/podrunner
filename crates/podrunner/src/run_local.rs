@@ -15,6 +15,7 @@ mod inspect;
 mod logs;
 mod protect;
 mod routes;
+mod slots;
 mod watch;
 mod web;
 pub use watch::repeat;
@@ -26,7 +27,7 @@ use pod_actions_expr::Value;
 use pod_actions_workflow::{Base, JobResult};
 use pod_core::failure::Class;
 use podrunner_local::LocalSource;
-use podrunner_local::drive::{Line, drive};
+use podrunner_local::drive::Line;
 
 use crate::cli::Out;
 
@@ -372,24 +373,11 @@ pub fn run(args: &[String]) -> Out {
         checkout: tree.clone(),
         oidc,
     };
-    let built = match a.dry_run {
-        true => Ok(Box::new(inspect::DryRun) as Box<dyn podrunner_local::drive::Executor>),
-        false => routes::build(&a, &common, &state),
-    };
-    let mut exec = match built {
-        Ok(e) => e,
-        Err(o) => {
-            let _ = std::fs::remove_dir_all(&state);
-            let _ = std::fs::remove_dir_all(&scratch);
-            return o;
-        }
-    };
     let to_stderr = (!a.quiet).then(|| logs::live(masked.clone(), a.json));
-    match (&web, to_stderr) {
-        (Some(w), then) => exec.set_live(w.live(masked.clone(), then)),
-        (None, Some(l)) => exec.set_live(l),
-        (None, None) => {}
-    }
+    let live = match (&web, to_stderr) {
+        (Some(w), then) => Some(w.live(masked.clone(), then)),
+        (None, l) => l,
+    };
     let notes_sink: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
     // The groups of the run and of its jobs, held across runs (T-137); a dry
     // run holds none.
@@ -404,27 +392,22 @@ pub fn run(args: &[String]) -> Out {
         }
         (_, Ok(Some(_)), Err(e)) => Err(e.clone()),
     };
-    let _run_held = match run_group {
-        Ok(h) => h,
-        Err(e) => {
+    let job_groups = match (a.dry_run, groups) {
+        (false, Ok(dir)) => Some((dir, facts.repository.clone(), Arc::clone(&notes_sink))),
+        _ => None,
+    };
+    let built = run_group
+        .map_err(|e| fail(Class::Config, e))
+        .and_then(|held| slots::build(&a, &common, &state, live, job_groups).map(|s| (held, s)));
+    let (_run_held, execs) = match built {
+        Ok(b) => b,
+        Err(o) => {
             let _ = std::fs::remove_dir_all(&state);
             let _ = std::fs::remove_dir_all(&scratch);
-            return fail(Class::Config, e);
+            return o;
         }
     };
-    let mut exec: Box<dyn podrunner_local::drive::Executor> = match (a.dry_run, groups) {
-        (false, Ok(dir)) => Box::new(concurrency::Grouped {
-            inner: exec,
-            dir,
-            repo: facts.repository.clone(),
-            next: None,
-            notes: Arc::clone(&notes_sink),
-        }),
-        _ => exec,
-    };
-    let result = drive(&mut source, exec.as_mut(), &mut each);
-    let logs = exec.take_logs();
-    let blobs = exec.take_blobs();
+    let (result, (logs, blobs)) = slots::run(&mut source, execs, &mut each);
     group_notes.extend(notes_sink.lock().map(|n| n.clone()).unwrap_or_default());
     stderr.extend(group_notes.iter().map(String::as_str));
     let log_dir = a.log_dir.clone().or_else(|| state_dir.as_ref().map(|d| d.join("logs")));
@@ -440,7 +423,6 @@ pub fn run(args: &[String]) -> Out {
             stderr.push_str(&format!("podrunner: --state {}: {e}\n", dir.display()));
         }
     }
-    drop(exec);
     let _ = std::fs::remove_dir_all(&state);
     let _ = std::fs::remove_dir_all(kept.join(".pending"));
     let _ = std::fs::remove_dir_all(&scratch);

@@ -20,6 +20,9 @@ use crate::drive::{End, Executor, result_of};
 mod host;
 pub use host::RunnerDir;
 
+/// The count of the units of the process.
+static NEXT_UNIT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// Each job in a fresh unit of a driver (T-090): the runner image, the
 /// runner files of the fake broker for the job (mode 0600, no argv, no
 /// environment), `run.sh` as the top process, then `destroy`. A unit with
@@ -58,7 +61,6 @@ pub struct InUnit {
     /// [`crate::front`] on its egress socket; no container hooks (a guest
     /// runs its containers in its own engine).
     pub guest: bool,
-    next: u64,
     pub logs: Vec<(JobId, String)>,
 }
 
@@ -81,7 +83,6 @@ impl InUnit {
             live: None,
             blobs: Vec::new(),
             guest: false,
-            next: 0,
             logs: Vec::new(),
         }
     }
@@ -273,9 +274,11 @@ impl Executor for InUnit {
         }
         let message_copy = message.clone();
         broker.queue(message);
-        self.next += 1;
-        let id = UnitId::parse(&format!("u-{}", self.next)).map_err(|e| format!("unit id: {e:?}"))?;
-        let runner = format!("podrunner-local-{}", self.next);
+        // One count for the process: the units of parallel jobs (T-132)
+        // never share an id, a socket directory or an egress grant.
+        let n = NEXT_UNIT.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        let id = UnitId::parse(&format!("u-{n}")).map_err(|e| format!("unit id: {e:?}"))?;
+        let runner = format!("podrunner-local-{n}");
         let files = podrunner_broker_fake::files::runner_files(
             &broker.base,
             &runner,

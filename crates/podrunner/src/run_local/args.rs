@@ -43,6 +43,8 @@ pub(super) struct Args {
     pub(super) oidc_keys: Option<PathBuf>,
     /// `--web ADDR`: the web view of the run on the loopback (T-149).
     pub(super) web: Option<std::net::SocketAddr>,
+    /// `--jobs N`: N jobs at a time, each in its own unit (T-132).
+    pub(super) parallel: usize,
     /// `--state DIR`, `--rerun DIR`, `--failed`, `--refresh` (T-135).
     pub(super) state: Option<PathBuf>,
     pub(super) rerun: Option<PathBuf>,
@@ -119,6 +121,14 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
                 }
             }
             "--oidc-keys" => a.oidc_keys = Some(PathBuf::from(value()?)),
+            "--jobs" => {
+                let v = value()?;
+                a.parallel = v
+                    .parse()
+                    .ok()
+                    .filter(|n| *n >= 1)
+                    .ok_or_else(|| format!("--jobs {v:?} is not a number of 1 or more"))?;
+            }
             "--web" => a.web = Some(super::web::parse_addr(&value()?)?),
             "--approve" => a.approved.push(value()?),
             "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {
@@ -244,6 +254,10 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
         return Ok(a);
     }
     let unit = [kind, a.images.is_some(), a.image.is_some()];
+    // One runner directory runs one job at a time.
+    if a.parallel > 1 && (a.runner_dir.is_some() || !kind) {
+        return Err("--jobs N needs a unit kind (--podvm, --microvm, --incus) and no --runner-dir".into());
+    }
     if a.export.is_some() && a.runner_dir.is_none() {
         return Err("--export needs --runner-dir: a unit kind does not export its workspace yet".into());
     }

@@ -1519,7 +1519,7 @@ podcrates: the expansion of a reusable workflow in `pod-actions-workflow` (GitHu
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1536,6 +1536,9 @@ Read `drive` and the executors on 2026-11-14. Each executor holds one broker for
 ## Prove
 
 `cargo test -p podrunner-local drive` (N at a time, `max-parallel`, the cancel of the running cells).
+
+State (2026-11-14): `drive_parallel` (`crates/podrunner-local/src/drive/parallel.rs`) runs the queued jobs on a slot each, each slot an executor on its own thread; the source stays on the caller's thread (`settle`, `prepare` and `finish` of `drive.rs` serve both loops), so each line comes when its job ends and `needs` holds; `max-parallel` (from `strategy` of the cell) holds the running cells of a job; a panic of an executor fails its job. `Executor` is `Send`, and the count of units is one for the process, so two slots never share a unit id, a socket directory or an egress grant. `podrunner run --jobs N` builds N slots (`run_local/slots.rs`), each with its own state directory; `--runner-dir` refuses it. The default stays one job at a time (a call in `docs/decisions.md`). Tests: `cargo test -p podrunner-local parallel` (3 at a time and `needs` last; `max-parallel` 2 with 4 slots; fail-fast cancels the cells that did not start) and `cargo test -p podrunner slots`; `runner-image.yml` runs the local suite with `--jobs 3` in podvm units. Next: the cancel of the running cells of a job at fail-fast (a stop flag for each executor, beside the signal).
+
 
 # T-133: Local mode: the checkout with the changes of the tree, the .git directory, and other repositories
 
