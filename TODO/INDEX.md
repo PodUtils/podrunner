@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**158 entries: 0 open, 6 partial, 6 blocked, 146 done.**
+**159 entries: 0 open, 6 partial, 6 blocked, 147 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 0 | 2 | 3 | 67 | 72 |
+| P2 | 0 | 2 | 3 | 68 | 73 |
 | P3 | 0 | 2 | 3 | 47 | 52 |
-| **All** | 0 | 6 | 6 | 146 | 158 |
+| **All** | 0 | 6 | 6 | 147 | 159 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -176,7 +176,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-126](later.md) | P3 | S | later | feature | done | Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs |
 | [T-127](later.md) | P2 | S | later | feature | done | Local mode: run one job (--job) or some cells of a matrix (--matrix) |
 | [T-128](later.md) | P3 | S | later | feature | done | Local mode: --list, --graph, --dry-run and --validate |
-| [T-129](later.md) | P2 | M | later | feature | partial | Local mode: runner images by the labels of runs-on (--platform) |
+| [T-129](later.md) | P2 | M | later | feature | done | Local mode: runner images by the labels of runs-on (--platform) |
 | [T-130](later.md) | P2 | M | later | feature | done | Local mode: container images by tag, resolved to a digest and pulled into the store |
 | [T-131](later.md) | P2 | L | later | feature | done | Local mode: reusable workflows (jobs.<id>.uses) |
 | [T-132](later.md) | P3 | M | later | feature | done | Local mode: jobs in parallel (--jobs N, max-parallel) |
@@ -206,3 +206,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-156](later.md) | P3 | S | later | defect | done | Local mode: a glibc image by tag in a podvm unit where chroot is denied |
 | [T-157](later.md) | P3 | M | later | feature | done | Local mode: load the images of a job from the store into the engine of the guest |
 | [T-158](later.md) | P3 | S | later | defect | blocked | Local mode: a static image as a container of a podvm unit |
+| [T-159](later.md) | P2 | S | later | defect | partial | An intermittent unknown count of processes at the destroy of a podvm unit |

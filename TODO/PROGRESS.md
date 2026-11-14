@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 158 entries: 0 open, 6 partial, 6 blocked, 146 done.
+`TODO/INDEX.md` holds 159 entries: 0 open, 6 partial, 6 blocked, 147 done.
 
 ## State
 
@@ -36,7 +36,7 @@ The queue, most valuable first:
 
 The local mode against act and runner.server (`docs/local-mode.md`), the features that most workflows need first:
 
-2. T-129 (M, partial): the larger runner image is a check and an artifact; close it on its green run.
+2. T-159 (S, partial): an intermittent unknown count of processes at the destroy of a podvm unit; read the cause in the next failed log.
 3. T-138 (S, partial) and T-150 (M, partial): the tool cache, `--keep-failed` and the shell in a paused unit are in; close them on the green run of `links.rs`.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).

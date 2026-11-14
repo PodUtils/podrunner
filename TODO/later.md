@@ -1451,7 +1451,7 @@ Read `crates/podrunner/src/run_local.rs` on 2026-11-14. `plan` and `Graph` of `p
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1476,6 +1476,10 @@ State (2026-11-14, later): the recipe of the larger image is the base `images/ru
 State (2026-11-14, later): runner-image run 43609196605 (`5096a3b`): the larger image is 462 MiB (the archive), and the job of `runs-on: ubuntu-latest` gives `ok tools`. The step is now a check, and it uploads the archive for `podvm load -i` as the artifact `runner-full-x86_64` with its sha256, beside `runner-x86_64`; `docs/local-mode.md` names it. The larger image is x86_64 only. Next: the green run of the upload, then close this entry.
 
 State (2026-11-14, later): runner-image run 43623211536 (`94fddee`): the larger image passes as a check; its upload was skipped, because a failed step before it made `success()` false. The upload now runs after `!cancelled()` when the step passed. Next: the run with the artifact.
+
+## Done
+
+2026-11-14, `47c0daa`: runner-image run 43626860120: the step "The larger runner image by label" passes as a check (a job of `runs-on: ubuntu-latest` with `--platform ubuntu-latest=runner@DIGEST` runs python3, node, make, cmake and zip), and the run has the artifact `runner-full-x86_64` (459 MiB) for `podvm load -i`. `cargo test -p podrunner run_local` covers the choice of an image by label.
 
 
 # T-130: Local mode: container images by tag, resolved to a digest and pulled into the store
@@ -2382,3 +2386,30 @@ Ask podvm for a detached run of the memfd family (GitHub #100, COORD-040). Take 
 ## Blocker
 
 podvm: a detached run of the memfd family (GitHub #100, COORD-040).
+
+# T-159: An intermittent unknown count of processes at the destroy of a podvm unit
+
+**Source:** Runner-image run 43626860120 (`47c0daa`), the step "The runner in a podvm unit runs a canned job and a container job"
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The local suite in a podvm unit with an egress hold failed once: the cell `matrix (alpha, 1)` passed each step, then `destroy` gave `Residue { processes: Unknown, files: Known(0) }`, so the job failed with "left residue" and `fail-fast` cancelled the other cells. The same step passed on the run before (43623211536, `94fddee`), with the same code of the driver. Two checks give `Unknown`: tagged processes with no podvm process (orphans), or podvm names the launcher `dead`. The log does not say which.
+
+## Premise
+
+Read `destroy` of `crates/podrunner-podvm/src/unit.rs` on 2026-11-14. podvm `v0.2.0-beta.18`. One failure in the runs of the day.
+
+## Approach
+
+Log the cause of an unknown count: which check, and the names of the tagged processes. Then fix the check that gives a false `Unknown`, or ask podvm by a COORD issue when podvm leaves the state.
+
+## Prove
+
+Ten runner-image runs in a row with no "left residue" in the local suite of the podvm kind.
+
+State (2026-11-14): `destroy` writes `podrunner: destroy UNIT: no count of processes: orphans B, launcher dead B, tagged [NAMES]` to stderr when the count is unknown. Next: the log of the next failure.

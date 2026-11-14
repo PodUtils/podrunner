@@ -91,6 +91,8 @@ is done.
 
 - podvm is available (the owner, 2026-11-13): it answers COORD issues
   `(to podvm)`. podssh is on break.
+- T-159 (partial): the destroy of a podvm unit gave an unknown count of
+  processes once; `destroy` now logs the cause. Read it at the next failure.
 - T-138 (partial): `--export` and `--toolcache` are in for `--podvm`; the
   step "A tool cache in a podvm unit" checks the tool cache.
   `--keep-failed` is `--break-on-failure`; the pause gives a shell in a

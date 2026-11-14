@@ -326,12 +326,24 @@ impl UnitDriver for PodvmUnit {
         let waiter = removed.as_ref().map(|r| r.waiter.id());
         // The `podnet pod` of the hold carries the tag and can outlive the
         // payload: it is no process of the payload.
-        let lost = !tree.iter().any(|p| Some(*p) != waiter && procs_comm_is_podvm(*p))
+        let orphans = !tree.iter().any(|p| Some(*p) != waiter && procs_comm_is_podvm(*p))
             && tree.iter().any(|p| Some(*p) != waiter && !procs_comm_is(*p, "podnet"));
         // From beta.4 the payload ends with a killed launcher, so no tagged
         // process is left; podvm names the state `dead` then. Read it before
         // the kill, which also ends the launcher.
-        let lost = lost || removed.as_ref().is_some_and(|r| self.launcher_died(&r.dir.join("store"), unit.as_str()));
+        let dead = removed.as_ref().is_some_and(|r| self.launcher_died(&r.dir.join("store"), unit.as_str()));
+        let lost = orphans || dead;
+        if lost {
+            // T-159: the cause of an unknown count, for the log of the job.
+            let names: Vec<String> = tree
+                .iter()
+                .filter(|p| Some(**p) != waiter)
+                .map(|p| fs::read_to_string(format!("/proc/{p}/comm")).unwrap_or_default().trim().to_string())
+                .collect();
+            eprintln!(
+                "podrunner: destroy {unit}: no count of processes: orphans {orphans}, launcher dead {dead}, tagged {names:?}"
+            );
+        }
         let left = shim::kill_tree_of_tagged(&tag, KILL_LIMIT);
         if let Some(mut r) = removed {
             let _ = r.waiter.kill();
