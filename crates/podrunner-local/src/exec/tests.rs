@@ -177,6 +177,30 @@ fn a_runner_directory_exports_the_workspace_of_a_job() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// T-138: a tool cache links its tools into `_work/_tool`, then runs the
+/// runner.
+#[test]
+fn a_tool_cache_links_into_the_cache_of_the_runner() {
+    let dir = std::env::temp_dir().join(format!("podrunner-local-toolcache-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let argv = crate::exec::toolcache_argv("/home/runner/run.sh", "/home/runner");
+    assert_eq!(&argv[..2], ["/bin/sh", "-c"]);
+    assert_eq!(&argv[3..], ["podrunner", "/home/runner/_work/_tool", "/home/runner/run.sh"]);
+    // The script on the host, with a stand-in of the mount.
+    let script = argv[2].replace(crate::exec::TOOLCACHE_MOUNT, &dir.join("cache").display().to_string());
+    std::fs::create_dir_all(dir.join("cache/node/20.0.0/x64")).unwrap();
+    std::fs::write(dir.join("cache/node/20.0.0/x64.complete"), "").unwrap();
+    let out = std::process::Command::new("/bin/sh")
+        .args(["-c", &script, "podrunner", &dir.join("tool").display().to_string(), "true"])
+        .status()
+        .unwrap();
+    assert!(out.success());
+    let link = dir.join("tool/node/20.0.0/x64.complete");
+    assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+    assert!(dir.join("tool/node/20.0.0/x64").is_dir() && !dir.join("tool/node").is_symlink());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// T-138: `export` mounts a host work directory and copies its workspaces
 /// to `DIR/JOB` after the job, also of a failed job; the scratch goes.
 #[test]

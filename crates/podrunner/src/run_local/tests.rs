@@ -279,6 +279,9 @@ fn the_guest_kinds_of_run() {
     assert!(with(&["--incus", "/p", "--engine", "/e"]).unwrap_err().contains("--engine needs --microvm"));
     assert!(with(&["--microvm", "/p", "--podnet", "/n"]).unwrap_err().contains("--podnet needs --podvm"));
     assert!(with(&["--microvm", "/p", "--podvm", "/q"]).unwrap_err().contains("one of --podvm"));
+    // T-138: a tool cache needs a podvm unit.
+    assert_eq!(with(&["--podvm", "/q", "--toolcache", "/t"]).unwrap().toolcache, Some(PathBuf::from("/t")));
+    assert!(with(&["--microvm", "/p", "--toolcache", "/t"]).unwrap_err().contains("--toolcache needs --podvm"));
     assert!(parse(&args(&["w.yml", "--microvm", "/p"])).unwrap_err().contains("--images"));
 }
 

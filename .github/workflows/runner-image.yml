@@ -303,6 +303,26 @@ jobs:
             --export "$RUNNER_TEMP/export/out" | tee "$RUNNER_TEMP/export.txt"
           grep -qx 'ok      build' "$RUNNER_TEMP/export.txt"
           find "$RUNNER_TEMP/export/out" -name app -path '*build.0*' | head -1 | xargs cat | grep -qx built-42
+      # T-138: --toolcache DIR, read-only in the podvm unit and linked into
+      # _work/_tool: the job finds a tool of the cache and adds a new one.
+      - name: A tool cache in a podvm unit (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        run: |
+          set -eu
+          set -o pipefail
+          tc="$RUNNER_TEMP/toolcache"
+          mkdir -p "$tc/cache/mytool/1.0.0/x64"
+          printf '#!/bin/sh\necho tool-$((6*7))\n' > "$tc/cache/mytool/1.0.0/x64/mytool"
+          chmod -R a+rX "$tc/cache" && chmod a+x "$tc/cache/mytool/1.0.0/x64/mytool"
+          touch "$tc/cache/mytool/1.0.0/x64.complete"
+          printf 'on: push\njobs:\n  use:\n    runs-on: x\n    steps:\n      - run: test -f "$RUNNER_TOOL_CACHE/mytool/1.0.0/x64.complete" && "$RUNNER_TOOL_CACHE/mytool/1.0.0/x64/mytool" | grep -qx tool-42\n      - run: mkdir -p "$RUNNER_TOOL_CACHE/other/2.0.0/x64"\n' > "$tc/w.yml"
+          timeout 900 cargo run -q -p podrunner -- run "$tc/w.yml" \
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" \
+            --toolcache "$tc/cache" | tee "$RUNNER_TEMP/toolcache.txt"
+          grep -qx 'ok      use' "$RUNNER_TEMP/toolcache.txt"
+          test ! -e "$tc/cache/other"
+          echo "toolcache ok" >> "$GITHUB_STEP_SUMMARY"
       # T-129: the larger runner image (images/runner/full.txt, the common
       # tools of ubuntu-latest) as the image of a label. A measure: its size,
       # and a job of `runs-on: ubuntu-latest` that uses its tools.

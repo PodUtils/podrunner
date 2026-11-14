@@ -249,7 +249,7 @@ impl UnitDriver for PodvmUnit {
             args.push("-v".into());
             args.push(format!("{}:{guest}", dir.display()));
         }
-        // The host directories of the spec, read-write (T-138).
+        // The host directories of the spec (T-138); `PATH:ro` is read-only.
         for (host, path) in &spec.mounts {
             args.push("-v".into());
             args.push(format!("{}:{path}", host.display()));

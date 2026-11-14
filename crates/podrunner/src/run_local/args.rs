@@ -34,6 +34,8 @@ pub(super) struct Args {
     pub(super) approved: Vec<String>,
     /// `--export DIR`: the workspaces of each job (T-138).
     pub(super) export: Option<PathBuf>,
+    /// `--toolcache DIR`: read-only in each unit (T-138).
+    pub(super) toolcache: Option<PathBuf>,
     /// `--local-repository OWNER/REPO@REF=DIR` and `--action-server URL`
     /// (T-139).
     pub(super) local_repos: Vec<(String, PathBuf)>,
@@ -114,6 +116,7 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             "--job" => a.jobs.push(value()?),
             "--protected" => a.protected.push(value()?),
             "--export" => a.export = Some(PathBuf::from(value()?)),
+            "--toolcache" => a.toolcache = Some(PathBuf::from(value()?)),
             "--local-repository" => a.local_repos.push(podrunner_local::localrepo::parse(&value()?)?),
             "--action-server" | "--oidc-issuer" => {
                 let url = value()?;
@@ -270,6 +273,12 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     if a.export.is_some() && a.guest.is_some() {
         return Err(
             "--export needs --runner-dir or --podvm: a guest of --microvm or --incus mounts no host directory".into()
+        );
+    }
+    if a.toolcache.is_some() && a.podvm.is_none() {
+        return Err(
+            "--toolcache needs --podvm: a guest mounts no host directory, and a runner directory has its own cache"
+                .into(),
         );
     }
     if !a.environment_allow.is_empty() && a.podnet.is_none() && a.guest.is_none() {

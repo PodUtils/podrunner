@@ -18,7 +18,14 @@ use podrunner_schema::JobId;
 use crate::drive::{End, Executor, result_of};
 
 mod host;
+mod images;
+mod toolcache;
+
 pub use host::RunnerDir;
+#[cfg(test)]
+use images::images;
+use images::registries;
+pub use toolcache::{TOOLCACHE_MOUNT, toolcache_argv};
 
 /// The count of the units of the process.
 static NEXT_UNIT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -68,6 +75,9 @@ pub struct InUnit {
     /// `--export DIR`: the work directory of the runner is a host directory,
     /// and its workspaces go to `DIR/JOB` after the job (T-138).
     pub export: Option<PathBuf>,
+    /// `--toolcache DIR`: DIR, read-only in the unit; the tool cache of the
+    /// runner links to its tools at the start (T-138).
+    pub toolcache: Option<PathBuf>,
     pub logs: Vec<(JobId, String)>,
 }
 
@@ -93,6 +103,7 @@ impl InUnit {
             mirror: None,
             stop: None,
             export: None,
+            toolcache: None,
             logs: Vec::new(),
         }
     }
@@ -124,48 +135,6 @@ impl Hooks {
             })
             .unwrap_or_default()
     }
-}
-
-/// The images of a job: `container:`, each service and each Docker step.
-fn images(message: &Job) -> Vec<String> {
-    use serde_json::Value;
-    // A container token: the image itself, or the `image` of a mapping.
-    fn of(v: &Value) -> Option<String> {
-        match v {
-            Value::String(s) => Some(s.clone()),
-            Value::Object(_) => {
-                v["map"].as_array()?.iter().find(|e| e["Key"] == "image")?["Value"].as_str().map(str::to_string)
-            }
-            _ => None,
-        }
-    }
-    let o = &message.overrides;
-    let mut all: Vec<String> = o.get("jobContainer").and_then(of).into_iter().collect();
-    let services = o.get("jobServiceContainers").and_then(|s| s["map"].as_array().cloned()).unwrap_or_default();
-    all.extend(services.iter().filter_map(|e| of(&e["Value"])));
-    let steps = o.get("steps").and_then(|s| s.as_array().cloned()).unwrap_or_default();
-    all.extend(
-        steps
-            .iter()
-            .filter(|s| s["reference"]["type"] == "containerRegistry")
-            .filter_map(|s| s["reference"]["image"].as_str().map(str::to_string)),
-    );
-    all
-}
-
-/// The registry of each image of the job: the first part of its name when
-/// it names a host, else `docker.io`.
-fn registries(message: &Job) -> Vec<String> {
-    let mut hosts: Vec<String> = images(message)
-        .iter()
-        .map(|i| match i.split_once('/') {
-            Some((h, _)) if h.contains('.') || h.contains(':') || h == "localhost" => h.to_string(),
-            _ => "docker.io".to_string(),
-        })
-        .collect();
-    hosts.sort();
-    hosts.dedup();
-    hosts
 }
 
 impl InUnit {
@@ -373,11 +342,18 @@ impl Executor for InUnit {
             }
         }
         let run_root = self.run_sh.rsplit_once('/').map_or("/home/runner", |x| x.0).to_string();
-        let mounts = work.iter().map(|w| (w.clone(), format!("{run_root}/_work"))).collect();
+        let mut mounts: Vec<_> = work.iter().map(|w| (w.clone(), format!("{run_root}/_work"))).collect();
+        let argv = match &self.toolcache {
+            Some(dir) => {
+                mounts.push((dir.clone(), format!("{TOOLCACHE_MOUNT}:ro")));
+                toolcache_argv(&self.run_sh, &run_root)
+            }
+            None => vec![self.run_sh.clone()],
+        };
         let spec = podrunner_unit::StartSpec {
             unit: id.clone(),
             image: self.image.clone(),
-            argv: vec![self.run_sh.clone()],
+            argv,
             env: hooks.as_ref().map(|h| h.env.clone()).unwrap_or_default(),
             credential: Credential { files },
             sockets: sockets.clone(),
