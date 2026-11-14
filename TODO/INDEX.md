@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**157 entries: 0 open, 9 partial, 5 blocked, 143 done.**
+**158 entries: 0 open, 7 partial, 6 blocked, 145 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 0 | 3 | 3 | 66 | 72 |
-| P3 | 0 | 4 | 2 | 45 | 51 |
-| **All** | 0 | 9 | 5 | 143 | 157 |
+| P2 | 0 | 2 | 3 | 67 | 72 |
+| P3 | 0 | 3 | 3 | 46 | 52 |
+| **All** | 0 | 7 | 6 | 145 | 158 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -177,7 +177,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-127](later.md) | P2 | S | later | feature | done | Local mode: run one job (--job) or some cells of a matrix (--matrix) |
 | [T-128](later.md) | P3 | S | later | feature | done | Local mode: --list, --graph, --dry-run and --validate |
 | [T-129](later.md) | P2 | M | later | feature | partial | Local mode: runner images by the labels of runs-on (--platform) |
-| [T-130](later.md) | P2 | M | later | feature | partial | Local mode: container images by tag, resolved to a digest and pulled into the store |
+| [T-130](later.md) | P2 | M | later | feature | done | Local mode: container images by tag, resolved to a digest and pulled into the store |
 | [T-131](later.md) | P2 | L | later | feature | done | Local mode: reusable workflows (jobs.<id>.uses) |
 | [T-132](later.md) | P3 | M | later | feature | done | Local mode: jobs in parallel (--jobs N, max-parallel) |
 | [T-133](later.md) | P2 | M | later | feature | done | Local mode: the checkout with the changes of the tree, the .git directory, and other repositories |
@@ -203,5 +203,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-153](later.md) | P3 | S | later | feature | done | podrunner doctor for the local mode |
 | [T-154](later.md) | P3 | S | later | feature | done | Local mode: the fetch of the actions through the egress module |
 | [T-155](later.md) | P3 | S | later | defect | done | An intermittent failure of the workspace tests that the check script hid |
-| [T-156](later.md) | P3 | S | later | defect | partial | Local mode: a glibc image by tag in a podvm unit where chroot is denied |
+| [T-156](later.md) | P3 | S | later | defect | done | Local mode: a glibc image by tag in a podvm unit where chroot is denied |
 | [T-157](later.md) | P3 | M | later | feature | partial | Local mode: load the images of a job from the store into the engine of the guest |
+| [T-158](later.md) | P3 | S | later | defect | blocked | Local mode: a static image as a container of a podvm unit |

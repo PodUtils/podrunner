@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 157 entries: 0 open, 9 partial, 5 blocked, 143 done.
+`TODO/INDEX.md` holds 158 entries: 0 open, 7 partial, 6 blocked, 145 done.
 
 ## State
 
@@ -37,12 +37,12 @@ The queue, most valuable first:
 The local mode against act and runner.server (`docs/local-mode.md`), the features that most workflows need first:
 
 2. T-157 (M, open): the images of a job from the store into the engine of the guest, not a pull.
-4. T-130 (M, partial): images by tag into the store, proven in `runner-image.yml`; T-129 (M, partial): the recipe of a larger runner image.
+4. T-129 (M, partial): the recipe of a larger runner image; publish it.
 5. T-138 (S, partial: the tool cache and `--keep-failed`), T-150 (M, partial: a shell in the paused unit).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
-Blocked: T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
+Blocked: T-158 (podvm: a detached run of a static image, GitHub #100), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
 
 ## Questions for the owner
 

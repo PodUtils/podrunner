@@ -1481,7 +1481,7 @@ State (2026-11-14, later): the recipe of the larger image is the base `images/ru
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1503,6 +1503,11 @@ State (2026-11-14): `crates/podrunner-local/src/images.rs` collects each image o
 Runner-image run 43560211006 (`034fbfb`): the pull and the pin work (the lock has `docker://busybox:1.37.0`), and the container fails: busybox is pinned by the digest of its index, `podvm save` keeps its platform manifest, and `podvm run` of the index digest in the unit store finds no image. The podvm driver now runs a container by `NAME@` the manifest digest of the `index.json` of the saved tar (`loaded_reference`), so an image that a user pins by its index works too. Runner-image run 43562100819 (`cb31ca7`): the container still fails with `container-not-supported`; the refusal carries the code only, so the hook unit now keeps the text of each driver error (`driver_errors`), and the log of a local run names it.
 Runner-image run 43565195597 (`872b43f`): the log names the error: `podvm run` of `busybox:1.37.0` (glibc) fails where chroot is denied, because the image has no `libdl.so.2` (T-156, COORD-040). `tags.yml` now uses `busybox:1.37.0-musl`, a static binary. The same run skipped the setup of KVM and QEMU after the failed podvm step, so the engine checks found no `qemu-system-x86_64`: the setup is now a step of its own before the podvm step.
 Runner-image run 43570649182 (`e31f9e5`): `busybox:1.37.0-musl` fails too: podvm routes a static binary to its memfd family, which has no detached drive (`run -d`), and the podvm driver runs each container detached. Both cases went to podvm on GitHub #100. `tags.yml` takes `busybox:1.37.0` again, and its check is a step of its own, a measure until T-156: the failed check had skipped the rerun, egress and tar checks after it in the podvm step.
+
+## Done
+
+2026-11-14, `c007cce`: runner-image run 43610257672 is green. `tags.yml` names `busybox:1.37.0` by tag: podrunner pins it by the lock, `podvm pull` puts it into the store, and the job container runs in a podvm unit (the step "An image by tag in a podvm unit", a check). `cargo test -p podrunner-local` covers the lock and `--offline`.
+
 
 # T-131: Local mode: reusable workflows (jobs.<id>.uses)
 
@@ -2275,7 +2280,7 @@ State (2026-11-14): 10 runs of `cargo test --workspace --all-features` at `fca65
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2296,6 +2301,11 @@ Ask podvm for the fix (GitHub #100, COORD-040). Take the podvm release that has 
 `runner-image.yml`: the run of `tags.yml` with `busybox:1.37.0` gives `ok tagged`.
 
 State (2026-11-14): podvm `v0.2.0-beta.17` carries PodUtils/podvm@T-1880 (PodUtils/podvm#351): on its fixture that denies chroot, `podvm-x86_64` runs `busybox:1.37.0`. `images/podvm.toml` pins `v0.2.0-beta.18`; `tags.yml` takes `busybox:1.37.0`, and the step "An image by tag in a podvm unit" of `runner-image.yml` is a check again (no `continue-on-error`). Next: its green run closes T-156 and T-130. A static image (the memfd family, the second case of GitHub #100) is still open in podvm.
+
+## Done
+
+2026-11-14, `c007cce`: runner-image run 43610257672 is green: with podvm `v0.2.0-beta.18` (PodUtils/podvm@T-1880) the glibc `busybox:1.37.0` runs as a job container where chroot is denied, and the step is a check. The static image (the memfd family of podvm) is T-158.
+
 
 # T-157: Local mode: load the images of a job from the store into the engine of the guest
 
@@ -2323,3 +2333,32 @@ The official runner always runs `docker pull` for a service, a job container and
 `runner-image.yml`: the parity rows 04, 05 and 09 pass in guests with an engine with no registry host in the egress allows, and with `--offline` after one run that fills the store.
 
 State (2026-11-14): the mirror is in (`podrunner-local/src/mirror.rs`, `podrunner-broker-fake/src/mirror.rs`, the flags of dockerd in the guest script). The step "The images of a guest engine from the store" of `runner-image.yml` runs 04 and 05 in a guest with an engine and no `--allow`. Next: its green run.
+
+# T-158: Local mode: a static image as a container of a podvm unit
+
+**Source:** T-156 (the second case of GitHub #100)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+podvm routes a static binary (`busybox:1.37.0-musl`) to its memfd family, which has no detached run (`podvm run -d`). The podvm driver runs each container detached, so a static image fails as a job container, a service or a Docker step of the podvm kind.
+
+## Premise
+
+Runner-image run 43570649182 (`e31f9e5`): `busybox:1.37.0-musl` failed as a job container in a podvm unit. podvm `0.2.0-beta.14`; not measured again on `0.2.0-beta.18`.
+
+## Approach
+
+Ask podvm for a detached run of the memfd family (GitHub #100, COORD-040). Take the podvm release that has it in `images/podvm.toml`, and add `busybox:1.37.0-musl` to `tags.yml`.
+
+## Prove
+
+`runner-image.yml`: the step "An image by tag in a podvm unit" gives `ok` for `busybox:1.37.0-musl`.
+
+## Blocker
+
+podvm: a detached run of the memfd family (GitHub #100, COORD-040).

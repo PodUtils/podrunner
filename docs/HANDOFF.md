@@ -91,16 +91,12 @@ is done.
 
 - podvm is available (the owner, 2026-11-13): it answers COORD issues
   `(to podvm)`. podssh is on break.
-- T-157 (open): load the images of a job from the store into the engine
-  of the guest, so that the guest pulls nothing.
-- T-130 (partial) and T-156 (partial): podvm `v0.2.0-beta.18` runs the
-  glibc `busybox:1.37.0` where chroot is denied (PodUtils/podvm@T-1880); the
-  step "An image by tag in a podvm unit" is a check again. Close both on its
-  green run.
-  The setup of KVM and QEMU is now a step of its own, so a failed podvm
-  step no longer skips it.
-- T-138 (partial): the unit kinds need mounts in `StartSpec` for the
-  export, the tool cache and `--keep-failed`.
+- T-157 (partial): the broker is the registry mirror of Docker Hub for
+  the engine of a guest; the step "The images of a guest engine from the
+  store" of `runner-image.yml` proves it. Close it on its green run.
+- T-138 (partial): `--export` and `--toolcache` are in for `--podvm`; the
+  step "A tool cache in a podvm unit" measures the tool cache.
+  `--keep-failed` needs a command to enter a unit, as the shell of T-150.
 - Q6 (T-148): Azure Pipelines YAML; the recommendation is no
   (`docs/azure-pipelines.md`). No work waits on it.
 - T-101 (partial): the `program` source kind is in; its pair with GitHub
@@ -121,7 +117,7 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | LIVE-1 and LIVE-2 | the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
-| podvm | a release with PodUtils/podvm@T-1880: a glibc image with no `libdl.so.2` (GitHub #100) | T-156 |
+| podvm | a detached run of a static image, the memfd family (GitHub #100) | T-158 |
 | githome | its source program, for the pair on the host of LIVE-2 | T-101 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
