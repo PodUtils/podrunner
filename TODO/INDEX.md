@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**156 entries: 0 open, 10 partial, 5 blocked, 141 done.**
+**157 entries: 1 open, 8 partial, 5 blocked, 143 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 0 | 5 | 3 | 64 | 72 |
-| P3 | 0 | 3 | 2 | 45 | 50 |
-| **All** | 0 | 10 | 5 | 141 | 156 |
+| P2 | 0 | 3 | 3 | 66 | 72 |
+| P3 | 1 | 3 | 2 | 45 | 51 |
+| **All** | 1 | 8 | 5 | 143 | 157 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -150,7 +150,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-100](core.md) | P2 | S | later | chore | done | The beta release carries the scale-set sidecar and its notes |
 | [T-101](later.md) | P1 | M | later | feature | partial | G-01: a source kind for an external program that speaks the source wire |
 | [T-102](later.md) | P2 | S | later | feature | done | G-13: a table of the events of a job in the tier rule |
-| [T-103](later.md) | P2 | L | later | feature | partial | G-09: a container engine inside the unit, and the census of the verbs (DR-8) |
+| [T-103](later.md) | P2 | L | later | feature | done | G-09: a container engine inside the unit, and the census of the verbs (DR-8) |
 | [T-104](later.md) | P2 | S | later | feature | done | G-10: the source conformance tests as a command for another source program |
 | [T-105](later.md) | P3 | M | later | feature | done | G-02: an `incus` unit kind for trusted jobs (a system container) |
 | [T-106](later.md) | P1 | S | later | defect | done | The actor classes of githome (agent, bot, external) in the offer schema |
@@ -171,7 +171,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-121](later.md) | P2 | S | later | feature | done | Local mode: secrets from the environment and from a secret file, with the mask |
 | [T-122](later.md) | P2 | S | later | feature | done | Local mode: github.token and secrets.GITHUB_TOKEN |
 | [T-123](later.md) | P2 | M | later | feature | done | Local mode: run each job in a unit of the microvm or the incus kind |
-| [T-124](later.md) | P2 | M | later | feature | partial | Local mode: services:, docker build and Docker-in-Docker through the engine of the unit |
+| [T-124](later.md) | P2 | M | later | feature | done | Local mode: services:, docker build and Docker-in-Docker through the engine of the unit |
 | [T-125](later.md) | P2 | M | later | feature | done | Local mode: the event payload, the github context of the local tree, and the filters of on: |
 | [T-126](later.md) | P3 | S | later | feature | done | Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs |
 | [T-127](later.md) | P2 | S | later | feature | done | Local mode: run one job (--job) or some cells of a matrix (--matrix) |
@@ -204,3 +204,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-154](later.md) | P3 | S | later | feature | done | Local mode: the fetch of the actions through the egress module |
 | [T-155](later.md) | P3 | S | later | defect | done | An intermittent failure of the workspace tests that the check script hid |
 | [T-156](later.md) | P3 | S | later | defect | partial | Local mode: a glibc image by tag in a podvm unit where chroot is denied |
+| [T-157](later.md) | P3 | M | later | feature | open | Local mode: load the images of a job from the store into the engine of the guest |

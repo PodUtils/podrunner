@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 156 entries: 0 open, 10 partial, 5 blocked, 141 done.
+`TODO/INDEX.md` holds 157 entries: 1 open, 8 partial, 5 blocked, 143 done.
 
 ## State
 
@@ -36,7 +36,7 @@ The queue, most valuable first:
 
 The local mode against act and runner.server (`docs/local-mode.md`), the features that most workflows need first:
 
-2. T-124 (M, partial), with T-103: `services:`, `docker build` and a job container through the engine of the unit; then the images from the store, not a pull.
+2. T-157 (M, open): the images of a job from the store into the engine of the guest, not a pull.
 4. T-130 (M, partial): images by tag into the store, proven in `runner-image.yml`; T-129 (M, partial): the recipe of a larger runner image.
 5. T-138 (S, partial: the tool cache and `--keep-failed`), T-150 (M, partial: a shell in the paused unit).
 

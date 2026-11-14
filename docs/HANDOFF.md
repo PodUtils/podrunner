@@ -91,11 +91,8 @@ is done.
 
 - podvm is available (the owner, 2026-11-13): it answers COORD issues
   `(to podvm)`. podssh is on break.
-- T-103, T-123, T-124, T-146 (partial): their proofs run in
-  `runner-image.yml` (the parity suite in guests with an engine, the local
-  suite in microvm and incus units, the rerun job). Close each one on its
-  green run. T-124 then keeps the load of the images from the store, not a
-  pull (with T-130).
+- T-157 (open): load the images of a job from the store into the engine
+  of the guest, so that the guest pulls nothing.
 - T-130 (partial) and T-156 (partial): podvm `v0.2.0-beta.18` runs the
   glibc `busybox:1.37.0` where chroot is denied (PodUtils/podvm@T-1880); the
   step "An image by tag in a podvm unit" is a check again. Close both on its

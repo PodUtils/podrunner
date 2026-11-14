@@ -621,7 +621,7 @@ The offer carries a typed event (`Event` of `pod-job`): githome maps each of its
 **Milestone:** later
 **Priority:** P2
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -642,6 +642,11 @@ State (2026-11-13): step 1 is done: the census of the verbs and the design (`doc
 ## Prove
 
 The census and the design are in `docs/`; a `docker build` job and a `services:` job pass in a unit in `runner-image.yml`. Runner-image run 43557460656 (`5dedd26`): in guests with an engine the runner takes the engine (`docker network create`, `docker pull` of the pinned digest), and the pull fails on the blobs: Docker Hub sends each blob to `production.cloudfront.docker.com`, and the allow list named `production.cloudflare.docker.com`. The step did not fail: a `run` step with no `shell:` has no `pipefail`, so `tee` hid the exit of the test; the step now sets `pipefail`. The parity suite ran inside the step of the engine measure, which has `continue-on-error`: a failure there could not fail the workflow. It is now a step of its own with no `continue-on-error` (a check), and the job has 90 minutes.
+
+## Done
+
+2026-11-14, `5096a3b`: runner-image run 43609196605 is green. In guests of the microvm kind with an engine the official runner uses the engine for `services:`, a job container and Docker actions: 01 to 09 of the parity suite pass. The census and the design are in `docs/container-engine.md`. The load of images from the store into the engine is T-157.
+
 
 # T-104: G-10: the source conformance tests as a command for another source program
 
@@ -1282,7 +1287,7 @@ Read `crates/podrunner/src/run_local.rs` (`in_podvm`) and `crates/podrunner-loca
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1307,6 +1312,10 @@ State (2026-11-14, later): the stop of 10 minutes of the job `local` (06) is fou
 State (2026-11-14, later): runner-image run 43594485325 (`dcc266f`) names both causes with the new diagnostics. (1) The egress policy denied `docker-images-prod.s3.dualstack.us-east-1.amazonaws.com:443`: from the hosted runners of GitHub, Docker Hub sends the layers to S3; the step now allows it. (2) The jobs with a checkout in a guest (`checkout` of the suite, `local` of 06) sent no request for 10 minutes after the start, while the listener polled: the stand-in of `actions/checkout` downloaded a tree of more than a gigabyte through the channel of the guest, because the image steps write `runner-x86_64.tar`, `oci/` and `load.tar` into the root of the checkout and git did not ignore them. `.gitignore` now ignores them, and `podrunner run` warns when the tree of `--checkout` is 100 MiB or more. The absolute form of the broker (`dcc266f`) stays: it is right for a kept-alive connection through the front.
 
 State (2026-11-14, later): runner-image run 43603507382 (`ccf7f42`): the unit tests of the microvm kind pass (the tree of the checkout is small now), and in guests with an engine 01 to 08 of the parity suite pass, `services:`, a job container and the actions among them. 09 failed after its image built: the runner names the container of a Docker action `Sanitize(TAG)_RANDOM`, where TAG is `LABEL:STEP-ID` and `Sanitize` leaves out each leading digit; the label of the runner was `804063` and the step ids of the message were `00000000-...`, so the name began with `_`, which docker refuses. The step ids now begin with a letter (`a0000000-...`), as a GUID of GitHub can.
+
+## Done
+
+2026-11-14, `5096a3b`: runner-image run 43609196605 is green. In guests with an engine, 01 to 09 of the parity suite pass: a service answers by `localhost` and by its name, a job container runs, and a Dockerfile action builds and runs. The guest still pulls its images through the egress policy; the load from the store is T-157.
 
 
 # T-125: Local mode: the event payload, the github context of the local tree, and the filters of on:
@@ -2286,3 +2295,28 @@ Ask podvm for the fix (GitHub #100, COORD-040). Take the podvm release that has 
 `runner-image.yml`: the run of `tags.yml` with `busybox:1.37.0` gives `ok tagged`.
 
 State (2026-11-14): podvm `v0.2.0-beta.17` carries PodUtils/podvm@T-1880 (PodUtils/podvm#351): on its fixture that denies chroot, `podvm-x86_64` runs `busybox:1.37.0`. `images/podvm.toml` pins `v0.2.0-beta.18`; `tags.yml` takes `busybox:1.37.0`, and the step "An image by tag in a podvm unit" of `runner-image.yml` is a check again (no `continue-on-error`). Next: its green run closes T-156 and T-130. A static image (the memfd family, the second case of GitHub #100) is still open in podvm.
+
+# T-157: Local mode: load the images of a job from the store into the engine of the guest
+
+**Source:** T-124 (its approach: no pull inside the guest)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+In a guest with an engine, the runner pulls each image of `services:`, `container:` and Docker actions through the egress policy of the job. The policy must allow the hosts of each registry and its CDN (Docker Hub sends layers to Cloudflare, R2 or S3), and an offline run (`--offline`) cannot use the engine.
+
+## Premise
+
+Runner-image run 43609196605 (`5096a3b`): the parity suite passes in guests with an engine, and the guest pulls its images through the egress policy with the CDN hosts of Docker Hub allowed. The image store of `pod-actions-store` keeps images by digest.
+
+## Approach
+
+Before the job, read the images of the job (`services:`, `container:`, `docker://` steps). Take each one from the image store (`images.rs`, pinned by digest). Load each one into the engine of the guest (`docker load` from a tarball on the shared directory). Give the runner the same reference, so that it finds the image and does not pull it.
+
+## Prove
+
+`runner-image.yml`: the parity rows 04, 05 and 09 pass in guests with an engine with no registry host in the egress allows, and with `--offline` after one run that fills the store.
