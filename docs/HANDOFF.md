@@ -114,8 +114,8 @@ is done.
   (LIVE-1, the remote mint and the App key) and #75 (LIVE-2, the unit
   host and the test jobs). Read their comments; fix each defect they
   find.
-- The x86_64 job of `runner-image.yml` takes up to 90 minutes with the
-  parity suite in guests with an engine; it has 90 minutes.
+- The x86_64 job of `runner-image.yml` takes up to 120 minutes with the
+  parity suite in guests with an engine and the measures; it has 150 minutes.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs
