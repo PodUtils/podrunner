@@ -304,6 +304,40 @@ jobs:
             --export "$RUNNER_TEMP/export/out" | tee "$RUNNER_TEMP/export.txt"
           grep -qx 'ok      build' "$RUNNER_TEMP/export.txt"
           find "$RUNNER_TEMP/export/out" -name app -path '*build.0*' | head -1 | xargs cat | grep -qx built-42
+      # T-129: the larger runner image (images/runner/full.txt, the common
+      # tools of ubuntu-latest) as the image of a label. A measure: its size,
+      # and a job of `runs-on: ubuntu-latest` that uses its tools.
+      - name: The larger runner image by label (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        env:
+          VERSION: ${{ steps.pin.outputs.version }}
+          SHA256: ${{ steps.pin.outputs.sha256 }}
+        run: |
+          set -eu
+          set -o pipefail
+          sh scripts/retry.sh docker buildx build -f images/runner/Dockerfile --platform linux/amd64 --provenance=false --sbom=false \
+            --build-arg "RUNNER_VERSION=$VERSION" --build-arg "RUNNER_SHA256=$SHA256" \
+            --build-arg "EXTRA_PACKAGES=$(cat images/runner/full.txt)" \
+            --output "type=oci,dest=$RUNNER_TEMP/full.tar" .
+          echo "the larger image: $(du -m "$RUNNER_TEMP/full.tar" | cut -f1) MiB (the archive)" | tee -a "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/full" && tar -xf "$RUNNER_TEMP/full.tar" -C "$RUNNER_TEMP/full"
+          digest=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["manifests"][0]["digest"])' "$RUNNER_TEMP/full/index.json")
+          # As the base image: the ref name in the index, and the files of the
+          # layout only.
+          python3 -I - "$RUNNER_TEMP/full" "runner:full" <<'PY'
+          import json, sys
+          p = sys.argv[1] + "/index.json"
+          d = json.load(open(p))
+          d["manifests"][0].setdefault("annotations", {})["org.opencontainers.image.ref.name"] = sys.argv[2]
+          json.dump(d, open(p, "w"))
+          PY
+          (cd "$RUNNER_TEMP/full" && find . -type f | sed 's#^\./##' | sort | tar -cf ../full-load.tar --no-recursion -T -)
+          PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" load -i "$RUNNER_TEMP/full-load.tar"
+          printf 'on: push\njobs:\n  tools:\n    runs-on: ubuntu-latest\n    steps:\n      - run: python3 --version && node --version && make --version | head -1 && cmake --version | head -1 && zip -v | head -2\n' > "$RUNNER_TEMP/full/w.yml"
+          timeout 900 cargo run -q -p podrunner -- run "$RUNNER_TEMP/full/w.yml" \
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --platform "ubuntu-latest=runner@$digest" | tee "$RUNNER_TEMP/full.txt"
+          grep -qx 'ok      tools' "$RUNNER_TEMP/full.txt"
       # T-037 step 1: the machine tier of podvm for the microvm kind. A
       # measure (KVM and QEMU come from the setup step).
       - name: The runner image as a guest of the machine tier (a measure)

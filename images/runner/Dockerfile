@@ -5,6 +5,8 @@
 #   docker buildx build -f images/runner/Dockerfile \
 #     --build-arg RUNNER_VERSION=2.338.2 --build-arg RUNNER_SHA256=HEX .
 #
+# The larger image adds --build-arg "EXTRA_PACKAGES=$(cat images/runner/full.txt)".
+#
 # images/runner/runner.toml holds the version and the digest of each
 # tarball; .github/workflows/runner-image.yml reads them.
 FROM public.ecr.aws/docker/library/ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
@@ -15,8 +17,11 @@ ARG TARGETARCH
 
 # The runtime of the .NET runner (ICU, OpenSSL) and the tools of a step;
 # iptables (nft) for a container engine in a guest (T-103).
+# EXTRA_PACKAGES: the larger image (T-129) adds the packages of
+# images/runner/full.txt, the common tools of `ubuntu-latest`.
+ARG EXTRA_PACKAGES=""
 RUN apt-get update \
- && apt-get install -y --no-install-recommends bash ca-certificates curl git iptables jq libicu74 libssl3t64 tar gzip unzip zstd \
+ && apt-get install -y --no-install-recommends bash ca-certificates curl git iptables jq libicu74 libssl3t64 tar gzip unzip zstd $EXTRA_PACKAGES \
  && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid 1001 runner
