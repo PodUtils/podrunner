@@ -95,7 +95,7 @@ is done.
   the engine of a guest; the step "The images of a guest engine from the
   store" of `runner-image.yml` proves it. Close it on its green run.
 - T-138 (partial): `--export` and `--toolcache` are in for `--podvm`; the
-  step "A tool cache in a podvm unit" measures the tool cache.
+  step "A tool cache in a podvm unit" checks the tool cache.
   `--keep-failed` needs a command to enter a unit, as the shell of T-150.
 - Q6 (T-148): Azure Pipelines YAML; the recommendation is no
   (`docs/azure-pipelines.md`). No work waits on it.

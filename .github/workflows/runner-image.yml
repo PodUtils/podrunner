@@ -305,9 +305,8 @@ jobs:
           find "$RUNNER_TEMP/export/out" -name app -path '*build.0*' | head -1 | xargs cat | grep -qx built-42
       # T-138: --toolcache DIR, read-only in the podvm unit and linked into
       # _work/_tool: the job finds a tool of the cache and adds a new one.
-      - name: A tool cache in a podvm unit (a measure)
+      - name: A tool cache in a podvm unit
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
-        continue-on-error: true
         run: |
           set -eu
           set -o pipefail

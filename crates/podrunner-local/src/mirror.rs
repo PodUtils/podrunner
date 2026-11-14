@@ -135,7 +135,7 @@ pub fn fill(
         }
         let tar = dir.join("save.tar");
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        podvm(pull, &["save", "-o", &tar.to_string_lossy(), &pinned])?;
+        podvm(pull, &["save", "--platform", &pull.platform, "-o", &tar.to_string_lossy(), &pinned])?;
         let manifest = unpack(&tar, dir);
         let _ = std::fs::remove_file(&tar);
         out.insert(key, format!("{name}@{}", manifest?));
