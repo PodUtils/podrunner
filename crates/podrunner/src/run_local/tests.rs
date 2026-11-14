@@ -171,10 +171,21 @@ fn a_workflow_whose_on_does_not_take_the_event_is_refused() {
     let w = file.display().to_string();
     let out = run(&args(&["run", &w, "--runner-dir", "/nonexistent", "--event", "pull_request"])[1..]);
     assert!(
-        out.stderr.contains("not the event \"pull_request\"") && out.stderr.contains("--force-event"),
+        out.stderr.contains("does not take the event \"pull_request\"") && out.stderr.contains("--force-event"),
         "{}",
         out.stderr
     );
+    // The filters of `on:` (T-125): a branch that `branches` keeps out.
+    std::fs::write(
+        &file,
+        "on:\n  push:\n    branches: [release/*]\njobs:\n  a:\n    runs-on: x\n    steps: [{run: x}]\n",
+    )
+    .unwrap();
+    let base = ["run", &w, "--runner-dir", "/nonexistent", "--repository", "o/r", "--ref"];
+    let out = run(&args(&[&base[..], &["refs/heads/main"]].concat())[1..]);
+    assert!(out.stderr.contains("does not take the event \"push\" of refs/heads/main"), "{}", out.stderr);
+    let out = run(&args(&[&base[..], &["refs/heads/release/1"]].concat())[1..]);
+    assert!(!out.stderr.contains("does not take"), "a branch of the filter runs: {}", out.stderr);
     let on: pod_actions_workflow::Node = pod_actions_workflow::parse(
         "on:\n  push:\n    branches: [main]\n  schedule: []\njobs:\n  a:\n    runs-on: x\n    steps: [{run: x}]\n",
     )

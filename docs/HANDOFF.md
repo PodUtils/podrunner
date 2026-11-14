@@ -96,9 +96,9 @@ is done.
   suite in microvm and incus units, the rerun job). Close each one on its
   green run. T-124 then keeps the load of the images from the store, not a
   pull (with T-130).
-- T-125 (partial) and T-131 (blocked): podcrates `main` has the filters
-  of `on:` (GitHub #97) and the expansion of a called workflow (GitHub
-  #98) for its tag `v0.44.0`. Take the tag when it exists.
+- T-131 (blocked until now): podrunner takes podcrates `v0.44.0`
+  (COORD-041, GitHub #101); `Run::with_called` gives the calls of reusable
+  workflows. T-125 is done with the filters of `on:` of the same tag.
 - T-130 (partial): the tags check of `runner-image.yml` takes
   `busybox:1.37.0-musl`; T-156 (blocked) takes the glibc image again after
   the podvm release with PodUtils/podvm@T-1880 (GitHub #100, PodUtils/podvm#351).
@@ -126,7 +126,6 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | LIVE-1 and LIVE-2 | the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
-| podcrates | the tag `v0.44.0`: the filters of `on:` (GitHub #97) and the called workflows (GitHub #98) | T-125, T-131 |
 | podvm | a release with PodUtils/podvm@T-1880: a glibc image with no `libdl.so.2` (GitHub #100) | T-156 |
 | podcrates | the crates of the action store and of the results API (GitHub #94, #95), no block | T-118, T-119, T-120 |
 | githome | its source program, for the pair on the host of LIVE-2 | T-101 |

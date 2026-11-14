@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**156 entries: 0 open, 11 partial, 7 blocked, 138 done.**
+**156 entries: 0 open, 10 partial, 7 blocked, 139 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 0 | 6 | 4 | 62 | 72 |
+| P2 | 0 | 5 | 4 | 63 | 72 |
 | P3 | 0 | 3 | 3 | 44 | 50 |
-| **All** | 0 | 11 | 7 | 138 | 156 |
+| **All** | 0 | 10 | 7 | 139 | 156 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -172,7 +172,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-122](later.md) | P2 | S | later | feature | done | Local mode: github.token and secrets.GITHUB_TOKEN |
 | [T-123](later.md) | P2 | M | later | feature | done | Local mode: run each job in a unit of the microvm or the incus kind |
 | [T-124](later.md) | P2 | M | later | feature | partial | Local mode: services:, docker build and Docker-in-Docker through the engine of the unit |
-| [T-125](later.md) | P2 | M | later | feature | partial | Local mode: the event payload, the github context of the local tree, and the filters of on: |
+| [T-125](later.md) | P2 | M | later | feature | done | Local mode: the event payload, the github context of the local tree, and the filters of on: |
 | [T-126](later.md) | P3 | S | later | feature | done | Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs |
 | [T-127](later.md) | P2 | S | later | feature | done | Local mode: run one job (--job) or some cells of a matrix (--matrix) |
 | [T-128](later.md) | P3 | S | later | feature | done | Local mode: --list, --graph, --dry-run and --validate |

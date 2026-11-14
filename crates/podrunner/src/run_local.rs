@@ -13,6 +13,7 @@ mod doctor;
 mod guest;
 mod inspect;
 mod logs;
+mod many;
 mod pause;
 mod protect;
 mod routes;
@@ -34,7 +35,7 @@ use crate::cli::Out;
 
 use args::{Args, parse};
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--protected NAME]... [--approve NAME]... [--export DIR] [--local-repository OWNER/REPO@REF=DIR]... [--action-server URL] [--oidc-issuer URL] [--oidc-keys FILE] [--watch | --schedule] [--no-config] [--web IP:PORT] [--jobs N] [--break JOB:STEP]... [--break-on-failure] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
+pub const USAGE: &str = "usage: podrunner run (FILE | DIR) (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--protected NAME]... [--approve NAME]... [--export DIR] [--local-repository OWNER/REPO@REF=DIR]... [--action-server URL] [--oidc-issuer URL] [--oidc-keys FILE] [--watch | --schedule] [--no-config] [--changed-since REF] [--web IP:PORT] [--jobs N] [--break JOB:STEP]... [--break-on-failure] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -155,6 +156,10 @@ pub fn run(args: &[String]) -> Out {
         Ok(a) => a,
         Err(e) => return fail(Class::Usage, format!("{e}\n{USAGE}")),
     };
+    // A directory: each of its workflows that takes the event (T-125).
+    if a.file.is_dir() {
+        return many::run_dir(args, &a);
+    }
     let text = match std::fs::read_to_string(&a.file) {
         Ok(t) => t,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -186,28 +191,34 @@ pub fn run(args: &[String]) -> Out {
             }
         };
     }
-    // A workflow whose `on:` does not take the event does not run on GitHub
-    // (T-125); --force-event runs it.
-    if !a.force_event
-        && let Ok(p) = pod_actions_workflow::parse(&text)
-    {
-        let events = context::events(&p.workflow.on);
-        if !events.contains(&a.event) {
-            let msg = format!(
-                "{}: `on:` takes {events:?}, not the event {:?}; --force-event runs it",
-                a.file.display(),
-                a.event
-            );
-            return fail(Class::Config, msg);
-        }
-    }
     // The files of vars, inputs and env, then the flags over them (T-126).
     let (vars, inputs, env) = match files(&a) {
         Ok(x) => x,
         Err(e) => return fail(Class::Config, e),
     };
     let mut facts = context::facts(&a);
-    let on = pod_actions_workflow::parse(&text).map(|p| p.workflow.on).ok();
+    let parsed = pod_actions_workflow::parse(&text).ok();
+    // A workflow whose `on:` does not take the event after its filters does
+    // not run on GitHub (T-125); --force-event runs it.
+    if !a.force_event
+        && let Some(p) = &parsed
+    {
+        match context::takes(&a, &facts, &p.workflow) {
+            Ok(true) => {}
+            Ok(false) => {
+                let events = context::events(&p.workflow.on);
+                let msg = format!(
+                    "{}: `on:` ({events:?}) does not take the event {:?} of {} after its filters; --force-event runs it",
+                    a.file.display(),
+                    a.event,
+                    facts.git_ref
+                );
+                return fail(Class::Config, msg);
+            }
+            Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
+        }
+    }
+    let on = parsed.map(|p| p.workflow.on);
     let typed = match (&on, a.event.as_str()) {
         (Some(on), "workflow_dispatch") => match context::dispatch_inputs(on, &inputs) {
             Ok((typed, event)) => {

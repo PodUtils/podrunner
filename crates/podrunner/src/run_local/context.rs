@@ -245,3 +245,46 @@ pub(super) fn events(on: &Node) -> Vec<String> {
         _ => Vec::new(),
     }
 }
+
+/// The changed files of the tree since `since`: `git diff --name-only`
+/// against the working tree (T-125).
+fn changed(a: &Args, since: &str) -> Result<Vec<String>, String> {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
+    let dir = a.checkout.as_deref().unwrap_or(&cwd);
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(["diff", "--name-only", since, "--"])
+        .output()
+        .map_err(|e| format!("--changed-since: git: {e}"))?;
+    if !out.status.success() {
+        return Err(format!("--changed-since {since}: {}", String::from_utf8_lossy(&out.stderr).trim()));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).lines().map(str::to_string).collect())
+}
+
+/// The workflow takes the event of the run after the filters of its `on:`
+/// (`types`, `branches`, `tags`, `paths` and their `-ignore` forms), as
+/// GitHub decides (T-125): the activity type of the payload, the ref of the
+/// tree (the base branch for a pull request), and the changed files of
+/// `--changed-since`; with no `--changed-since`, a `paths` filter does not
+/// apply.
+pub(super) fn takes(a: &Args, f: &Facts, w: &pod_actions_workflow::Workflow) -> Result<bool, String> {
+    let payload: Option<serde_json::Value> = match &a.event_path {
+        Some(p) => std::fs::read_to_string(p).ok().and_then(|t| serde_json::from_str(&t).ok()),
+        None => Some(payload(&a.event, f)),
+    };
+    let action = payload.as_ref().and_then(|p| p["action"].as_str().map(str::to_string));
+    let pull = matches!(a.event.as_str(), "pull_request" | "pull_request_target");
+    let git_ref = if pull { format!("refs/heads/{}", f.default_branch) } else { f.git_ref.clone() };
+    let paths = a.changed_since.as_deref().map(|s| changed(a, s)).transpose()?;
+    let workflow = payload.as_ref().and_then(|p| p["workflow"]["name"].as_str().map(str::to_string));
+    let trigger = pod_actions_workflow::Trigger {
+        event: &a.event,
+        action: action.as_deref(),
+        git_ref: Some(&git_ref),
+        paths: paths.as_deref(),
+        workflow: workflow.as_deref(),
+    };
+    w.takes(&trigger).map_err(|e| e.to_string())
+}

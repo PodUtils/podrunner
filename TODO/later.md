@@ -1312,7 +1312,7 @@ State (2026-11-14, later): the stop of 10 minutes of the job `local` (06) is fou
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1335,6 +1335,11 @@ Read `crates/podrunner/src/run_local.rs` (`github`) and act's command (`cmd/root
 `cargo test -p podrunner run_local` (the payload, the git facts, a workflow that the filters skip) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored`.
 
 State (2026-11-14): `crates/podrunner/src/run_local/context.rs` gives the facts of the git tree (`repository` of the remote, `ref` and `sha` of HEAD, `actor` of `user.name`) with the flags `--remote`, `--ref`, `--sha`, `--repository` and `--actor` over them; `github.event` from `--event-path` or a minimal payload (`push`, `pull_request` with `head` and `base` on `refs/pull/1/merge`, `workflow_dispatch`); a workflow whose `on:` does not name the event is refused unless `--force-event`. The cache keeps each entry in the scope of the ref and reads the scope of the default branch next; a random id replaces an id that two stores of one second could share. Tests: the URL forms, the facts of a git tree and the flags, the payloads, the refusal, the scopes of the cache. Next: a directory of workflows with the filters of `on:` when podcrates gives them (COORD-037).
+
+## Done
+
+2026-11-14, this commit. podcrates `v0.44.0` gives `Workflow::takes(&Trigger)` (GitHub #97, COORD-037). `context::takes` builds the trigger: the event, the activity type of the payload (`--event-path`, or `opened` of the minimal payload of a pull request), the ref of the tree (the base branch for a pull request), the changed files of `--changed-since REF` (`git diff --name-only REF`; none: a `paths` filter does not apply) and the workflow of a `workflow_run` payload. `podrunner run FILE` refuses a workflow that does not take the event after its filters, unless `--force-event`. `podrunner run DIR` (`run_local/many.rs`) runs each workflow of the directory that takes the event, by name, and names each one that does not. Tests: `cargo test -p podrunner run_local` (a `branches` filter that keeps a ref out and lets another one through) and `cargo test -p podrunner many` (a directory with a workflow that runs, another event, a tag filter on a branch, a file that is not a workflow, an empty directory).
+
 
 # T-126: Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs
 

@@ -47,6 +47,9 @@ pub(super) struct Args {
     pub(super) parallel: usize,
     /// `--break JOB:STEP` and `--break-on-failure` (T-150).
     pub(super) breaks: super::pause::Breaks,
+    /// `--changed-since REF`: the changed files for the `paths` filters of
+    /// `on:` (T-125).
+    pub(super) changed_since: Option<String>,
     /// `--state DIR`, `--rerun DIR`, `--failed`, `--refresh` (T-135).
     pub(super) state: Option<PathBuf>,
     pub(super) rerun: Option<PathBuf>,
@@ -133,6 +136,7 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             }
             "--break" => a.breaks.at.push(super::pause::parse(&value()?)?),
             "--break-on-failure" => a.breaks.on_failure = true,
+            "--changed-since" => a.changed_since = Some(value()?),
             "--web" => a.web = Some(super::web::parse_addr(&value()?)?),
             "--approve" => a.approved.push(value()?),
             "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {
