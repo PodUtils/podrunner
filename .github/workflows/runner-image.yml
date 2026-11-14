@@ -275,19 +275,17 @@ jobs:
           sh scripts/measure-container-verbs.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/verbs" | tee "$RUNNER_TEMP/verbs.txt"
           grep -qx 'externals-read-only ok' "$RUNNER_TEMP/verbs.txt"
       # T-130: an image by tag is pulled into the store and pinned by the
-      # lock beside the workflow; the runner gets the digest. A measure until
-      # T-156: where chroot is denied, podvm runs no container of busybox
-      # detached yet (GitHub #100). Its own step, so that a failure does not
-      # skip the checks of the podvm step.
-      - name: An image by tag in a podvm unit (a measure until T-156)
+      # lock beside the workflow; the runner gets the digest. Where chroot is
+      # denied, podvm runs the glibc image detached from beta.17 (T-156).
+      # Its own step, so that a failure does not skip the podvm step.
+      - name: An image by tag in a podvm unit
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
-        continue-on-error: true
         run: |
           set -eu
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/tags" && cp crates/podrunner/tests/local/tags.yml "$RUNNER_TEMP/tags/"
           timeout 900 cargo run -q -p podrunner -- run "$RUNNER_TEMP/tags/tags.yml" \
-            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/tags.txt" || true
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/tags.txt"
           grep -q '^docker://busybox:1.37.0 sha256:' "$RUNNER_TEMP/tags/podrunner-actions.lock"
           grep -qx 'ok      tagged' "$RUNNER_TEMP/tags.txt"
       # T-138: the work directory of the runner in a podvm unit is a host

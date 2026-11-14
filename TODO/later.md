@@ -2265,7 +2265,7 @@ State (2026-11-14): 10 runs of `cargo test --workspace --all-features` at `fca65
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -2285,6 +2285,4 @@ Ask podvm for the fix (GitHub #100, COORD-040). Take the podvm release that has 
 
 `runner-image.yml`: the run of `tags.yml` with `busybox:1.37.0` gives `ok tagged`.
 
-## Blocker
-
-podvm: the no-chroot loader family and a glibc image with no `libdl.so.2` (GitHub #100, COORD-040).
+State (2026-11-14): podvm `v0.2.0-beta.17` carries PodUtils/podvm@T-1880 (PodUtils/podvm#351): on its fixture that denies chroot, `podvm-x86_64` runs `busybox:1.37.0`. `images/podvm.toml` pins `v0.2.0-beta.18`; `tags.yml` takes `busybox:1.37.0`, and the step "An image by tag in a podvm unit" of `runner-image.yml` is a check again (no `continue-on-error`). Next: its green run closes T-156 and T-130. A static image (the memfd family, the second case of GitHub #100) is still open in podvm.

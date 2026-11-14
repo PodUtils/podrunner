@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.45.0` (`Cargo.toml`); podvm `v0.2.0-beta.14`
+- Pins: podcrates `v0.45.0` (`Cargo.toml`); podvm `v0.2.0-beta.18`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
@@ -96,9 +96,10 @@ is done.
   suite in microvm and incus units, the rerun job). Close each one on its
   green run. T-124 then keeps the load of the images from the store, not a
   pull (with T-130).
-- T-130 (partial): the tags check of `runner-image.yml` takes
-  `busybox:1.37.0-musl`; T-156 (blocked) takes the glibc image again after
-  the podvm release with PodUtils/podvm@T-1880 (GitHub #100, PodUtils/podvm#351).
+- T-130 (partial) and T-156 (partial): podvm `v0.2.0-beta.18` runs the
+  glibc `busybox:1.37.0` where chroot is denied (PodUtils/podvm@T-1880); the
+  step "An image by tag in a podvm unit" is a check again. Close both on its
+  green run.
   The setup of KVM and QEMU is now a step of its own, so a failed podvm
   step no longer skips it.
 - T-138 (partial): the unit kinds need mounts in `StartSpec` for the
