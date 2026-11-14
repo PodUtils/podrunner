@@ -1068,3 +1068,931 @@ Follow the behaviour of GitHub Actions (the rule of Q4). In `complete`, when a c
 ## Prove
 
 `cargo test -p podrunner-local`
+
+# T-118: Local mode: actions by tag, fetched through the egress module into a store with a lock file
+
+**Source:** The owner's ghactions-local study (act: the fetch of remote actions, the action cache, `--action-offline-mode`; runner.server: the action download of the server)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+act clones each remote action at its ref (a tag, a branch or a commit) into an action cache on the host (`--action-cache-path`, `--use-new-action-cache`), and `--action-offline-mode` uses the cache with no fetch. runner.server resolves each `uses: OWNER/REPO@REF` and gives the runner the tarball URL of the forge. Most workflows name actions by a tag (`actions/checkout@v5`, `actions/setup-node@v4`). The local mode takes only `OWNER/REPO[/PATH]@SHA` with a full commit id, from archives that the user puts in `--actions DIR` (T-091): `action` of `crates/podrunner-local/src/message.rs` refuses a tag by name. A composite action that names other actions needs each of them in DIR too.
+
+## Premise
+
+Read `crates/podrunner-local/src/message.rs`, `crates/podrunner-broker-fake/src/actions.rs` and act's action cache (the study) on 2026-11-14. The launch route of the fake broker answers each reference with its own ref as the commit (T-091). Not measured: the resolve of a nested action of a composite action by runner v2.338.2 (the runner calls the launch route again during the job).
+
+## Approach
+
+- Before the first job, `podrunner run` collects each `uses:` of the workflow, and of each composite action that it gets, until no new reference is left.
+- It resolves each `OWNER/REPO@REF` to a commit (the commits API or the git protocol of the forge), and gets the tarball of the commit. The host does the fetch, through the egress module with a policy of the forge hosts only. A unit never fetches an action.
+- The store keeps each tarball by `OWNER_REPO/SHA.tar.gz` (the layout of `--actions DIR`) with its SHA-256. A lock file (`podrunner-actions.lock`, beside the workflow) records `NAME@REF`, the commit and the SHA-256. The launch route of the fake broker resolves `NAME@REF` from the lock.
+- `--offline` uses the lock and the store only, and fails by name on a reference that is not in the lock. `--frozen` refuses a lock that the run must change. A tarball whose SHA-256 differs from the lock fails the run.
+- Exceed act: the lock pins each action by commit and digest, as a forge job of podrunner does; a moved tag fails by name, not in silence; the fetch is held by the egress policy; the store is shared by each unit read-only.
+- The resolve and the store are generic: ask podcrates for a crate (for example `pod-actions-store`) by a COORD issue when the code starts.
+
+## Prove
+
+`cargo test -p podrunner-local` (the resolve from a lock, a moved tag, `--offline` with a missing entry) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test actions -- --ignored` (a composite action by tag that names a second action by tag).
+
+# T-119: Local mode: artifacts v4 (the ArtifactService of the results API), one store for each run
+
+**Source:** The owner's ghactions-local study (act: the artifact server v4 and `--artifact-server-path`; runner.server: the artifact controller v2 and `--artifact-output-dir`; the reproduction of the results-service ECONNRESET)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`actions/upload-artifact@v4` and `actions/download-artifact@v4` call the ArtifactService of the results API (twirp: `CreateArtifact`, `FinalizeArtifact`, `ListArtifacts`, `GetSignedArtifactURL`, `DeleteArtifact`) at `ACTIONS_RESULTS_URL`, and move the bytes to a signed blob URL. act serves these routes and keeps the files in `--artifact-server-path`. runner.server serves them and writes them to `--artifact-output-dir`. In the owner's study, a runner.server build with no results route failed the round trip of the artifact workflow (`Unable to make request: ECONNRESET`, then 403). The fake broker of the local mode serves only the receiver routes of the logs (`crates/podrunner-broker-fake/src/lib.rs`); each ArtifactService route gets 404. Each job also has its own broker (`InUnit::run` of `crates/podrunner-local/src/exec.rs`), so a second job cannot see the artifact of the first.
+
+## Premise
+
+Read the fake broker, the executors, act's artifact server (`artifacts_v4`) and the runner's handlers in the runner.server tree of the study on 2026-11-14. The runner sets `ACTIONS_RESULTS_URL` from `ResultsServiceUrl` in the endpoint data of `SystemVssConnection`, and the fake broker gives no such key. Not measured with runner v2.338.2.
+
+## Approach
+
+- One artifact store for each run, outside each unit, under the scratch directory of the run or `--artifacts DIR`. Each broker of the run serves the ArtifactService routes over it and gives `ResultsServiceUrl` in the endpoint data.
+- The upload goes to a blob URL of the broker with a token that names the run and the job; the finalize checks the size and the SHA-256 that the client sends. A name is unique in a run, as on GitHub.
+- `--artifacts DIR` keeps the artifacts after the run, one directory for each name.
+- `actions/upload-artifact@v3` uses the legacy routes that GitHub turned off: refuse it by name, as GitHub does (the rule of Q4). Read the date of that change in the GitHub changelog before the refusal.
+- Exceed: a limit of bytes for each run, a digest check at finalize, and a store that no unit can write except through the broker.
+- The service is generic (githome and a forge mode can use it): ask podcrates for a crate (for example `pod-actions-results`) by a COORD issue when the code starts.
+
+## Prove
+
+`cargo test -p podrunner-broker-fake` (each route, a wrong digest, a second name) and `cargo test -p podrunner --test local -- --ignored` (the artifact workflow of the parity suite T-147: upload in one job, download in the next, content checked).
+
+# T-120: Local mode: the cache service of actions/cache
+
+**Source:** The owner's ghactions-local study (act: the cache server, `--cache-server-path`, `--no-cache-server`; runner.server: the cache controllers v1 and v2)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`actions/cache` and the cache of the `setup-*` actions save and restore a cache by key, with `restore-keys` as prefixes. act runs a cache server (the legacy routes under `_apis/artifactcache`) with its files in `--cache-server-path`, on by default. runner.server serves the legacy routes and the CacheService of the results API (v2). The local mode has no cache service: the runner gives no `ACTIONS_CACHE_URL`, and a cache step misses each time or fails.
+
+## Premise
+
+Read act's cache handler and the runner's handlers in the runner.server tree of the study on 2026-11-14: the runner sets `ACTIONS_CACHE_URL` from `CacheServerUrl` of the endpoint data, and `ACTIONS_CACHE_SERVICE_V2` when the job variable `actions_uses_cache_service_v2` is true. act binds its cache server to the outbound address of the host by default, so other machines of the network can reach it. Not measured: which protocol `actions/cache@v4` takes with runner v2.338.2.
+
+## Approach
+
+- A cache store that stays across runs (`--cache DIR`, by default in the cache directory of the user), served by the broker of each job on the loopback: the v2 routes, and the legacy routes if a measure shows that an action still takes them.
+- Match keys as GitHub does: the exact key first, then each restore key as a prefix, newest first, in the scope of the ref of the run and then of the default branch; the version of an entry covers its paths and its compression.
+- A limit of bytes for the store (GitHub keeps 10 GB for each repository), with the oldest entry removed first; `--no-cache` turns it off.
+- Exceed act: the store has no port on a network interface; the scope of a ref holds, so a branch cannot poison the cache of another; each entry has its digest.
+- Generic: in the same podcrates crate as T-119.
+
+## Prove
+
+`cargo test -p podrunner-broker-fake` (the match order, the scope, the limit) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test actions -- --ignored` (a save in one run and a restore in the next).
+
+# T-121: Local mode: secrets from the environment and from a secret file, with the mask
+
+**Source:** The owner's ghactions-local study (act: `-s NAME[=VALUE]`, `--secret-file .secrets`, `--insecure-secrets`; runner.server: `--secret`, `--secret-file` in YAML or in the syntax of `GITHUB_ENV`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A workflow reads `${{ secrets.NAME }}`. act takes secrets from `-s` and from a `.secrets` file, and masks them in its output. runner.server takes `--secret` and `--secret-file`, also multiline values. The local mode has no `secrets` context: the job message has no secret variable, so each secret is empty. act takes `-s NAME=VALUE` in argv, where each process of the host can read it.
+
+## Premise
+
+Read `crates/podrunner-local/src/message.rs` and the runner.server tree of the study on 2026-11-14: the runner builds the `secrets` context from the variables of the message that are secret, and masks each one in its logs. Not measured with runner v2.338.2.
+
+## Approach
+
+- `--secret NAME` takes the value from the variable NAME of the environment of podrunner. A value in argv is refused (no `NAME=VALUE` form).
+- `--secret-file FILE`: one `NAME=VALUE` on each line, and `NAME<<DELIM` for a multiline value, as `GITHUB_ENV`. Refuse a file that another user can read (mode above 0600). By default read `.secrets` of the tree only with that mode.
+- Each secret goes into the job message as a secret variable and into its mask list. podrunner writes no secret to a file, a log line or the argv of a unit, and masks each value again in the logs that it keeps (T-134).
+- Exceed act: no secret in argv; a file mode check; the egress hold limits where a step can send a secret.
+
+## Prove
+
+`cargo test -p podrunner-local message` (the secret variables and the mask) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test runner -- --ignored` (a step reads a secret, and the log has `***`).
+
+# T-122: Local mode: github.token and secrets.GITHUB_TOKEN
+
+**Source:** The owner's ghactions-local study (act: the token of `gh auth token` as `GITHUB_TOKEN`; runner.server: `GITHUB_TOKEN`, `GITHUB_TOKEN_READ_ONLY` and `GITHUB_TOKEN_NONE` of the server)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Many actions read `github.token` or `secrets.GITHUB_TOKEN`. act takes the token of the GitHub CLI of the user when no `GITHUB_TOKEN` secret is set: each job then holds a real token with all the scopes of the user. runner.server gives a configured token, read-only or none by `permissions`. The local mode gives neither: the runner reads `github.token` from the variable `system.github.token`, which the job message does not set.
+
+## Premise
+
+Read the runner's execution context in the runner.server tree of the study and `crates/podrunner-broker-fake/src/message.rs` on 2026-11-14. Not measured with runner v2.338.2.
+
+## Approach
+
+- By default `github.token` and `secrets.GITHUB_TOKEN` are a made-up token, as the job token of the fake broker; a call with it to a real forge fails.
+- `--github-token-env NAME` gives a real token from the environment, as a secret (T-121), and only to the jobs whose `permissions` are not `{}`. Never read the token of a CLI with no request of the user.
+- Exceed act: no real credential by default; a real token reaches only the hosts of the egress policy (the forge API), so a step cannot send it to another host.
+
+## Prove
+
+`cargo test -p podrunner-local message` (the default token, the token of `--github-token-env`, `permissions: {}`).
+
+# T-123: Local mode: run each job in a unit of the microvm or the incus kind
+
+**Source:** The owner's ghactions-local study (act and runner.server run each job in a Docker container of the host)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+act runs each job in a container of the Docker daemon of the host, and runner.server runs it in Docker or on the host. `podrunner run` has two executors only: `--runner-dir` (the host) and `--podvm` (the podvm kind, on the host network or under `podnet pod`). `serve` also has the `microvm` kind (a guest with no NIC, one channel to the egress socket, an optional engine) and the `incus` kind (a system container with no NIC). The local mode cannot use them, so a local job cannot get the boundary `guest`, and it cannot get the engine that `services:` needs (T-124).
+
+## Premise
+
+Read `crates/podrunner/src/run_local.rs` (`in_podvm`) and `crates/podrunner-local/src/exec.rs` (`InUnit` takes each `UnitDriver`) on 2026-11-14. The microvm kind passes its unit tests on real guests (T-037), with an engine (T-103, step 3b). Not run: the local mode on either kind.
+
+## Approach
+
+`podrunner run FILE --microvm PODVM --images STORE --image REF [--engine DIR]` and `--incus PODVM ...`: build the driver as `serve` builds `[unit.microvm]` and `[unit.incus]` (the same version check of podvm, T-110, T-112), and give it to `InUnit`. The egress of each unit is the channel to its egress socket, with the policy of `--allow`: the fake broker must be reachable through the egress module (an allow rule for the loopback port of the broker, or a second channel). Exceed act: each job in a fresh guest with its own kernel, no NIC, and one way out.
+
+## Prove
+
+`cargo test -p podrunner run_local` (the argv of each kind) and, in `runner-image.yml`, `podrunner run crates/podrunner/tests/local/suite.yml --microvm ...` gives each `ok` line.
+
+# T-124: Local mode: services:, docker build and Docker-in-Docker through the engine of the unit
+
+**Source:** The owner's ghactions-local study (act: `services:` on a Docker network with health checks, Dockerfile actions; runner.server: the same through the runner)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+act and runner.server run `services:` containers on a network of the job, with port maps, the service name as a host name, and health checks (`options: --health-cmd`); they build the image of a Dockerfile action. The study's service workflows reach a Redis service by `localhost` and by its name. In the local mode `services:` is refused by the hook policy on a unit of the host network (T-093), and a Dockerfile action is refused (`build-not-supported`, call C2).
+
+## Premise
+
+Read `docs/container-engine.md` and T-103 on 2026-11-14: in a guest of the microvm kind with `engine`, `dockerd` runs with `overlay2`, and a container reaches another by its name on a user network (runner-image run 43524984859). Not measured: a `services:` job of the official runner with the engine as its container route.
+
+## Approach
+
+On the microvm kind with an engine (T-123), give the runner `DOCKER_HOST` of the engine in the guest and no container hooks, so the runner runs `services:`, `container:` and Docker actions with its own Docker calls. Load each image from the store into the engine before the job (no pull inside the guest, T-130). Hold the services by the same egress policy as the job. Exceed act: no Docker socket of the host; each job's engine dies with its guest; images pinned by digest.
+
+## Prove
+
+`runner-image.yml` runs the services and container workflows of the parity suite (T-147) with `podrunner run --microvm ... --engine DIR`: a service answers by `localhost` and by its name, and a Dockerfile action builds and runs.
+
+# T-125: Local mode: the event payload, the github context of the local tree, and the filters of on:
+
+**Source:** The owner's ghactions-local study (act: the event argument, `-e/--eventpath`, `--detect-event`, `-a/--actor`, `--defaultbranch`, `--remote-name`, `-W` over a directory; runner.server: `--payload`, `--no-default-payload`, `--ref`, `--sha`, `--repository`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+act and runner.server give `github.event` from a JSON payload file, and `github.repository`, `github.ref`, `github.sha` and `github.actor` from the local git tree or from flags. act runs only the workflows of a directory whose `on:` names the event. The local mode gives `github.event_name` (`--event`) and stand-ins (`repository` `local/workflow`, no `event`, no `ref`, no `sha`); it runs one file, whatever its `on:` says. T-114 has the defect that the steps do not see even these.
+
+## Premise
+
+Read `crates/podrunner/src/run_local.rs` (`github`) and act's command (`cmd/root.go` of the study) on 2026-11-14. `pod-actions-workflow` keeps `on:` as data.
+
+## Approach
+
+- `--event-path FILE` gives `github.event` (job level and steps, after T-114). With no file, a minimal payload of the event as GitHub sends it (`ref`, `before`, `after`, `repository` for `push`; `pull_request` with `head` and `base` for `pull_request`).
+- From the git tree of `--checkout` (or the current directory): `repository` from the URL of the remote (`--remote NAME`, default `origin`), `ref` and `sha` from HEAD, `actor` from the git user; flags `--ref`, `--sha`, `--repository`, `--actor` replace each one.
+- With a directory in place of FILE (default the workflows directory of the tree), run each workflow whose `on:` takes the event, after its filters (`types`, `branches`, `tags`, `paths` with their `-ignore` forms), as GitHub does. With one FILE, refuse an event that its `on:` does not take unless `--force-event`.
+- The filters of `on:` are generic: ask podcrates for them in `pod-actions-workflow` by a COORD issue.
+
+## Prove
+
+`cargo test -p podrunner run_local` (the payload, the git facts, a workflow that the filters skip) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored`.
+
+# T-126: Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs
+
+**Source:** The owner's ghactions-local study (act: `--var-file .vars`, `--env`, `--env-file .env`, `--input-file .input`; runner.server: `--var-file`, `--env-file`, `--input-file`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+act and runner.server read vars, inputs and an extra environment of each job from flags and from files. The local mode has `--var` and `--input` only. It applies no `default` of `on.workflow_dispatch.inputs`, checks no `type` (`boolean`, `number`, `choice`, `environment`) and no `required`, so an input with a default is empty.
+
+## Premise
+
+Read `parse` of `crates/podrunner/src/run_local.rs` on 2026-11-14.
+
+## Approach
+
+`--var-file FILE`, `--input-file FILE` and `--env-file FILE` (the syntax of `GITHUB_ENV`), and `--env NAME=VALUE` for the environment of each job (as act). The inputs of `workflow_dispatch` get their defaults and their types, as GitHub gives them (a boolean is a boolean in `inputs`, a string in `github.event.inputs`); a missing `required` input or a value outside a `choice` fails the run before the first job.
+
+## Prove
+
+`cargo test -p podrunner run_local`
+
+# T-127: Local mode: run one job (--job) or some cells of a matrix (--matrix)
+
+**Source:** The owner's ghactions-local study (act: `-j JOB`, `--matrix KEY:VALUE`; runner.server: `--job`, `--matrix`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+act and runner.server run one job of a workflow, and only the cells of a matrix that match a filter. `podrunner run` runs each job and each cell.
+
+## Premise
+
+Read `drive` of `crates/podrunner-local/src/drive.rs` on 2026-11-14. `Graph::ancestors` of `pod-actions-workflow` gives the needs of a job and their needs.
+
+## Approach
+
+`--job ID` (repeat it) runs the job and each job that it needs; the other jobs end as skipped with the reason "not selected". `--matrix KEY=VALUE` (repeat it) keeps the cells whose matrix has each value. Exceed: with a run directory (T-135), `--job ID --from DIR` takes the results and outputs of its needs from the earlier run and runs only the job.
+
+## Prove
+
+`cargo test -p podrunner-local` (a job with its ancestors, a matrix filter).
+
+# T-128: Local mode: --list, --graph, --dry-run and --validate
+
+**Source:** The owner's ghactions-local study (act: `-l/--list`, `-g/--graph`, `-n/--dryrun`, `--validate`, `--strict`, `--list-options`; runner.server: `--list`, `--list-options`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+act lists the jobs of the workflows with their stages and events, draws the graph of `needs`, validates the files, and plans a run with no container. The local mode has none of these: a fault (an action that is not pinned, an image not in the store) shows only when its job starts.
+
+## Premise
+
+Read `crates/podrunner/src/run_local.rs` on 2026-11-14. `plan` and `Graph` of `pod-actions-workflow` give a dry run and the edges.
+
+## Approach
+
+`--list` prints each job, its cells, its `runs-on` and its needs. `--graph` prints the stages of `needs` as text. `--validate` parses and prints each warning of `pod-actions-workflow`, exit 78 on an error. `--dry-run` runs `plan` and builds the job message of each cell with no unit, so that each refusal (an unpinned action or image, a reusable workflow) and each missing action, image or lock entry shows before a job starts. Exceed act: the dry run checks the pins and the store.
+
+## Prove
+
+`cargo test -p podrunner run_local`
+
+# T-129: Local mode: runner images by the labels of runs-on (--platform)
+
+**Source:** The owner's ghactions-local study (act: `-P LABEL=IMAGE`, the micro, medium and large images; runner.server: `-P LABEL=IMAGE` and `-P LABEL=-self-hosted`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+act maps each label of `runs-on` to an image (`-P ubuntu-latest=IMAGE`), and offers images with the tools of the hosted runners. runner.server maps a label to an image or to the host. `podrunner run` takes one `--image` for each job and does not read `runs-on`. The runner image of podrunner has the runner, `bash` and `curl`, so a step that needs a tool of `ubuntu-latest` (a compiler, `jq`, `docker` CLI, `node` outside the runner) fails.
+
+## Premise
+
+Read `crates/podrunner/src/run_local.rs` and `crates/podrunner-local/src/lib.rs` (the offer carries the labels) on 2026-11-14.
+
+## Approach
+
+`--platform LABEL=NAME@sha256:HEX` (repeat it) and `--platform LABEL=host` (the `--runner-dir` executor). Each cell takes the image of the first label that matches; `--image` is the default. A cell whose labels match nothing fails by name (GitHub would queue it for ever). `windows-*` and `macos-*` fail by name. Add a recipe of a larger runner image with the common tools of `ubuntu-latest`, built by the image pipeline (T-030) and pinned by digest. Exceed act: each image pinned by digest; a label never falls back to an image that the user did not name.
+
+## Prove
+
+`cargo test -p podrunner run_local` (the choice of an image by label, a label with no image).
+
+# T-130: Local mode: container images by tag, resolved to a digest and pulled into the store
+
+**Source:** The owner's ghactions-local study (act: `--pull`, `--container-architecture`; runner.server: the pull of the runner)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+act pulls each image of `container:`, `services:` and `docker://` by its tag. The local mode takes only `NAME@sha256:HEX` that is in the store already (`pinned` of `crates/podrunner-local/src/message.rs`): a workflow with `image: redis:7-alpine` fails, and the user must pull and import each image by hand.
+
+## Premise
+
+Read `crates/podrunner-local/src/message.rs` on 2026-11-14. `pod-oci` of podcrates is a registry client.
+
+## Approach
+
+Before the first job, resolve each image tag to a digest for the platform of the unit through the egress module (the registry hosts only), pull it into the store, and record `NAME:TAG` and the digest in the lock file of T-118. The message gives the runner the digest, not the tag. `--offline` uses the lock only. Exceed act: an image is pinned by the lock; a moved tag fails by name; the units never pull.
+
+## Prove
+
+`cargo test -p podrunner-local` (the lock of images, `--offline` with a missing image).
+
+# T-131: Local mode: reusable workflows (jobs.<id>.uses)
+
+**Source:** The owner's ghactions-local study (act: local and remote reusable workflows; runner.server: reusable workflows with `secrets: inherit` and nested calls)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+A job can call a workflow (`uses: ./.github/workflows/x.yml` or `OWNER/REPO/.github/workflows/x.yml@REF`) with `with:` and `secrets:` (or `secrets: inherit`); the jobs of the called workflow run, and its `outputs` become `needs.<id>.outputs` of the caller. act and runner.server run both forms. The local mode refuses the job by name (`broker_job` of `crates/podrunner-local/src/message.rs`). `pod-actions-workflow` names the call and does not expand it.
+
+## Premise
+
+Read `crates/podrunner-local/src/message.rs` and the model of `pod-actions-workflow` (`Job::uses`, `Job::secrets`) on 2026-11-14.
+
+## Approach
+
+Expand the called workflow into jobs of the run (ids `CALLER/CALLEE`), with the inputs of `on.workflow_call` (defaults and types, T-126), the secrets that the call passes, `github` of the caller, and the outputs of `on.workflow_call.outputs`. A remote workflow comes from the store and the lock of T-118. Keep the nesting limit of GitHub. The expansion is generic: ask podcrates for it in `pod-actions-workflow` by a COORD issue. Exceed: each called job is still one fresh unit; a secret goes only to the called workflow that the call names.
+
+## Prove
+
+`cargo test -p podrunner-local` (a local call with inputs, secrets and outputs; `secrets: inherit`; a nested call) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored`.
+
+# T-132: Local mode: jobs in parallel (--jobs N, max-parallel)
+
+**Source:** The owner's ghactions-local study (act: `--concurrent-jobs`, the matrix in parallel; runner.server: `--parallel N`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+act runs the ready jobs and the cells of a matrix at the same time, up to the number of CPUs; runner.server starts N runners. `drive` of `crates/podrunner-local/src/drive.rs` runs one job at a time, so a matrix of eight cells takes eight times as long.
+
+## Premise
+
+Read `drive` and the executors on 2026-11-14. Each executor holds one broker for each job; the source takes many offers.
+
+## Approach
+
+`--jobs N` (default: the number of CPUs, at most the memory of the host divided by the memory of a unit): run up to N offers at a time, each in its own unit and broker, and honour `strategy.max-parallel` for the cells of a job. Print each line when its job ends. With fail-fast (T-117), cancel the running cells of the job (the cancel of the runner, then destroy). Exceed act: the units of parallel jobs share no file, port or daemon.
+
+## Prove
+
+`cargo test -p podrunner-local drive` (N at a time, `max-parallel`, the cancel of the running cells).
+
+# T-133: Local mode: the checkout with the changes of the tree, the .git directory, and other repositories
+
+**Source:** The owner's ghactions-local study (act: the copy of the working tree, `--use-gitignore`, `--no-skip-checkout`; runner.server: the local checkout of the changes, `--no-copy-git-dir`, `--remote-checkout`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+act copies the working tree (with the changes that are not committed, without the files of `.gitignore`) and its `.git` into the job. runner.server checks out the current changes of the local tree, and `--remote-checkout` runs the real `actions/checkout`. The stand-in of the local mode gives `git archive` of HEAD (`tree_tarball` of `crates/podrunner/src/run_local.rs`): no change that is not committed, no `.git` (so `git describe` and `git log` fail in a step), and a checkout of another repository (`with: repository:`) gets the local tree.
+
+## Premise
+
+Read `crates/podrunner/src/run_local.rs` and `checkout_script` of `crates/podrunner-local/src/message.rs` on 2026-11-14.
+
+## Approach
+
+- By default the tarball holds each tracked file and each new file that git does not ignore, at its state on disk; `--checkout-head` gives HEAD only.
+- `--with-git` adds a copy of `.git` (or a bundle of HEAD with `fetch-depth` commits) so that git works in a step.
+- A checkout with `repository:` of another repository: through the store of T-118 at the ref of `with: ref:`, or with `--remote-checkout`, the real `actions/checkout` through the egress module with the token of T-122.
+- Exceed act: the unit gets a copy; it never writes the tree of the user.
+
+## Prove
+
+`cargo test -p podrunner run_local` (a file that is not committed is in the tarball; an ignored file is not) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored` (`git rev-parse HEAD` in a step with `--with-git`).
+
+# T-134: Local mode: live logs, a log directory, the job summary, and --json
+
+**Source:** The owner's ghactions-local study (act: the live output of each step with the job prefix, `--json`, `-q`, `--log-prefix-job-id`; runner.server: the live web console, `--log-output-dir`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+act prints the output of each step when it comes, with the name of its job. runner.server shows live logs and writes them to `--log-output-dir`. `podrunner run` prints one line when a job ends, and the logs of the failed jobs at the end of the run (`run` of `crates/podrunner/src/run_local.rs`). The broker keeps each blob (the logs and the job summary of `GITHUB_STEP_SUMMARY`) in one text (`Broker::logs`), so the summary mixes with the logs.
+
+## Premise
+
+Read `crates/podrunner-broker-fake/src/lib.rs` and `crates/podrunner/src/run_local.rs` on 2026-11-14. Not measured: whether runner v2.338.2 uploads a step log in parts during the step (live) or at its end.
+
+## Approach
+
+Print each upload of a log as it comes, each line with the job prefix; `-q` prints only the lines of the jobs; `--json` prints one JSON object for each event (a job start, a step, a log line, an end). `--log-dir DIR` writes the log of each job and step, and `summary.md` of each job. Mask each secret again before podrunner writes a line (T-121).
+
+## Prove
+
+`cargo test -p podrunner-broker-fake` (the blobs by kind) and `cargo test -p podrunner run_local` (`--json` lines, `--log-dir`).
+
+# T-135: Local mode: a run directory and reruns of failed jobs
+
+**Source:** The owner's ghactions-local study (runner.server: `rerun` with `--failed`, `--jobid`, `--resetArtifacts`, `--refresh`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+runner.server can rerun a finished run: all failed jobs, or one job, and keep the artifacts and the results of the jobs that passed. act cannot. `podrunner run` keeps no state after the run: a failure in the last job of a long workflow needs a run of each job again.
+
+## Premise
+
+Read `crates/podrunner/src/run_local.rs` on 2026-11-14: the scratch directories are removed at the end of the run.
+
+## Approach
+
+`--state DIR` keeps the run: the result, the outputs and the log of each job, the artifacts (T-119), and the workflow and inputs with their digest. `podrunner run --rerun DIR [--failed | --job ID]` runs the failed jobs (or the job) and each job after them, with the kept results and outputs of the others. A rerun of a changed workflow fails by name unless `--refresh`. Each file of DIR is written by podrunner as its user, never by a unit (see T-146). Exceed: each rerun job gets a fresh unit, so a rerun does not depend on a dirty work tree.
+
+## Prove
+
+`cargo test -p podrunner-local` (a rerun keeps the outputs of a good job and runs the failed one and its dependents).
+
+# T-136: Local mode: environments, with their secrets, vars and egress policy
+
+**Source:** The owner's ghactions-local study (runner.server: `environment:` with `--environment-secret`, `--environment-secret-file`, `--environment-var`, `--environment-var-file`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A job with `environment: NAME` (or `{name, url}`) gets the secrets and vars of that environment, and waits for its protection rules. runner.server takes the secrets and vars of each environment from flags and files. The local mode ignores `environment:`.
+
+## Premise
+
+Read `crates/podrunner-local/src/message.rs` on 2026-11-14. The model of `pod-actions-workflow` keeps `environment`.
+
+## Approach
+
+Evaluate `environment` (name and `url`). `--environment-secret-file NAME=FILE` and `--environment-var-file NAME=FILE` (the syntax of T-121) give its secrets and vars only to the jobs of that environment. `--approve NAME` passes its protection; with no flag, a job of a protected environment asks on the terminal, or fails when stdin is not a terminal. Exceed runner.server: `--environment-allow NAME=HOST` gives the jobs of an environment their own egress policy (a deploy job reaches its target; a test job does not).
+
+## Prove
+
+`cargo test -p podrunner-local message` (the secrets of an environment reach only its jobs).
+
+# T-137: Local mode: concurrency groups and cancel-in-progress
+
+**Source:** The owner's ghactions-local study (runner.server: `concurrency` of the workflow and of the job, with `cancel-in-progress`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+GitHub runs at most one job or run of a concurrency group at a time, and cancels the older one with `cancel-in-progress: true`. runner.server follows it. act does not. The local mode ignores `concurrency`; two parallel jobs of one group (T-132) or two runs on one host can run at once.
+
+## Premise
+
+Read `crates/podrunner-local/src/lib.rs` on 2026-11-14. The model of `pod-actions-workflow` keeps `concurrency` of the workflow and of each job.
+
+## Approach
+
+Evaluate the group of each job and of the run. In a run, a job waits while another job of its group runs. Across runs on one host, a lock file of the group in the state directory of the user holds it; with `cancel-in-progress`, the new run cancels the old one (the cancel of the runner, then destroy). The group of GitHub is per repository: name it with `github.repository`.
+
+## Prove
+
+`cargo test -p podrunner-local` (two jobs of one group take turns; a cancel of the older run).
+
+# T-138: Local mode: keep the unit of a failed job, export the workspace, and a shared tool cache
+
+**Source:** The owner's ghactions-local study (act: `-r/--reuse`, `-b/--bind`, `--rm`; runner.server: `--keep-container`, `--keep-runner-directory`, `--no-shared-toolcache`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+act can keep its containers between runs (`--reuse`) and bind the tree into the container (`--bind`), so that the state and the build outputs stay. runner.server can keep a container or a runner directory for a look after the job, and shares one tool cache between its runners. The local mode destroys each unit at the end of its job: a user cannot look into a failed job, cannot take its build outputs, and each job downloads its tools again.
+
+## Premise
+
+Read `InUnit::run` of `crates/podrunner-local/src/exec.rs` on 2026-11-14. Not measured: a read-only mount of a host directory into a podvm unit for the tool cache.
+
+## Approach
+
+- `--keep-failed`: do not destroy the unit of a failed job; print its id and the command to enter it, and destroy it at the next run or with `podrunner run --clean`.
+- `--export DIR`: copy the workspace of each job to `DIR/JOB` after the job, as files of the user.
+- `--toolcache DIR`: mount DIR read-only at the tool cache path of the runner in each unit; a job that adds a tool writes to its own copy. runner.server warns that a shared writable cache can break a workflow; a read-only cache cannot.
+- Exceed act: by default each job starts from a fresh unit; a reuse never carries state from one job into the next.
+
+## Prove
+
+`cargo test -p podrunner-local exec` (a kept unit is not destroyed; the export) and `runner-image.yml` with `--toolcache`.
+
+# T-139: Local mode: actions from a local directory (--local-repository) and from another forge
+
+**Source:** The owner's ghactions-local study (act: `--local-repository REPO@REF=DIR`, `--github-instance`, `--replace-ghe-action-with-github-com`; runner.server: `--local-repository`, `--git-server-url`, `--git-tarball-url`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+act and runner.server can serve `uses: OWNER/REPO@REF` from a local directory, for the work on an action, and can take actions from a GitHub Enterprise Server or another forge. The local mode takes archives by commit from `--actions DIR` only.
+
+## Premise
+
+Read `crates/podrunner-broker-fake/src/actions.rs` on 2026-11-14.
+
+## Approach
+
+`--local-repository OWNER/REPO@REF=DIR`: the broker resolves that reference to a made-up commit and serves a tarball of DIR made at the start of the run (the files of the tree, with one top directory). `--action-server URL` (default `https://github.com`) is the forge that T-118 asks; a forge of the type of Gitea or Forgejo takes its own tarball URL form.
+
+## Prove
+
+`cargo test -p podrunner-broker-fake` (a local directory served as an action).
+
+# T-140: Local mode: OIDC id-tokens (permissions: id-token: write)
+
+**Source:** The owner's ghactions-local study (runner.server: the OIDC controller, `.well-known/openid-configuration` and `jwks`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A job with `permissions: id-token: write` gets `ACTIONS_ID_TOKEN_REQUEST_URL` and a token to ask for a signed JWT (for a cloud login or a signature). runner.server issues such tokens and serves the keys. The local mode does not: the runner sets the variable from `GenerateIdTokenUrl` in the endpoint data, which the fake broker does not give.
+
+## Premise
+
+Read the runner's handlers in the runner.server tree of the study and `crates/podrunner-broker-fake/src/message.rs` on 2026-11-14.
+
+## Approach
+
+The broker gives `GenerateIdTokenUrl` to a job with that permission, and signs a JWT with the claims of GitHub (`sub` of `repo:OWNER/REPO:ref:REF`, `aud` from the request, `repository`, `ref`, `sha`, `job_workflow_ref`) with a key of the run, which stays in memory. `--oidc-issuer URL` names the issuer, and `--oidc-keys FILE` writes the public keys for a relying party. Exceed: one key for each run, never on disk.
+
+## Prove
+
+`cargo test -p podrunner-broker-fake` (the claims and the signature of a token).
+
+# T-141: podrunner run leaves its units and scratch directories at Ctrl-C
+
+**Source:** The owner's ghactions-local study (act and runner.server cancel the run and remove their containers at an interrupt)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+act cancels its context at SIGINT, stops the job and removes its containers. `podrunner run` has no handler of SIGINT or SIGTERM (`crates/podrunner/src/run_local.rs`): the process ends at once, `destroy` of the unit does not run, and the scratch directories (the tree tarball, the state of the units, the socket directories) stay in the temporary directory.
+
+## Premise
+
+Read `crates/podrunner/src/run_local.rs` and `crates/podrunner-local/src/exec.rs` on 2026-11-14. Not measured: what stays of a podvm unit when its parent ends.
+
+## Approach
+
+At the first SIGINT or SIGTERM, cancel the running job (the cancel message of the broker, then its `cancel-timeout-minutes`), destroy each unit, remove the scratch directories, print the line `cancelled` for each job that did not end, and exit 130. At a second signal, destroy at once. A test with the fake unit: a signal during a job leaves no unit and no scratch directory.
+
+## Prove
+
+`cargo test -p podrunner run_local` (a signal during a job on the fake unit).
+
+# T-142: Local mode: --watch and the cron times of on.schedule
+
+**Source:** The owner's ghactions-local study (act: `-w/--watch`; runner.server: `--watch`, the schedules of the server)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+act and runner.server run the workflow again when a file of the tree changes; runner.server also runs `on: schedule` at its cron times. The local mode runs once.
+
+## Premise
+
+Read `crates/podrunner/src/run_local.rs` on 2026-11-14.
+
+## Approach
+
+`--watch` runs again after a change of the tree (inotify, with a short delay to group changes), and cancels the run in progress (T-137). `--schedule` waits for the next cron time of `on.schedule` (UTC, as GitHub) and runs with the event `schedule`; a systemd timer of the user can do the same with `--event schedule`.
+
+## Prove
+
+`cargo test -p podrunner run_local` (the next time of a cron expression; a change starts a run).
+
+# T-143: Local mode: a configuration file for podrunner run
+
+**Source:** The owner's ghactions-local study (act: `.actrc` in the configuration directory, the home and the tree, with `--trust-project-actrc`; runner.server: reads `.actrc`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+act reads its flags from `.actrc` files; a file of the project may only set flags that do not reach host resources unless the user trusts it. runner.server reads `.actrc` too. Each `podrunner run` needs each flag on the command line.
+
+## Premise
+
+Read act's `cmd/actrc.go` of the study on 2026-11-14.
+
+## Approach
+
+A TOML file of the user (`podrunner/run.toml` in the configuration directory) and of the project (`.podrunner/run.toml`), with each unknown key refused. The project file cannot set a key that reaches the host or the network (`podvm`, `images`, `allow`, `secret-file` outside the tree, `toolcache`) unless the user file names the project as trusted. Read the flags of `.actrc` that map to podrunner (`-P`, `--secret-file`, `--var`, `--env`, `--input`) and name each one that does not.
+
+## Prove
+
+`cargo test -p podrunner run_local` (the order of the files; a project file that sets `allow` is refused).
+
+# T-144: podrunner run --runner-dir starts the runner with W^X on, and dies under a small RLIMIT_FSIZE
+
+**Source:** The owner's ghactions-local study (the reproduction of the dotnet SIGXFSZ)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The study reproduced it: on a host with a limit of file size (`ulimit -f`), .NET with the default W^X maps its code through a memfd and truncates it to a large size, and the process dies with SIGXFSZ at start. The study runs each .NET program with `DOTNET_EnableWriteXorExecute=0`. The podvm driver sets that variable (`crates/podrunner-podvm/src/unit.rs`, U2). `run_once` of `crates/podrunner-broker-fake/src/runner.rs`, which the `--runner-dir` executor calls, clears the environment and does not set it, so `podrunner run --runner-dir` dies on such a host with no reason (T-115 has the other faults of that function).
+
+## Premise
+
+Read both files and `docs/unknowns.md` (U2) on 2026-11-14. Not run under a small limit.
+
+## Approach
+
+Set `DOTNET_EnableWriteXorExecute=0` in the environment of the runner of the `--runner-dir` executor, as the podvm driver does. A runner that ends by SIGXFSZ fails its job with a reason that names the limit. Do it with T-115.
+
+## Prove
+
+`cargo test -p podrunner-local exec` (the environment of the runner has the variable) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test runner -- --ignored` under `ulimit -f 1048576`.
+
+# T-145: The fake broker answers 404 in silence to a route that it does not serve
+
+**Source:** The owner's ghactions-local study (the reproduction of the results-service ECONNRESET)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In the study, an artifact step failed with `ECONNRESET` and then 403, because the server had no route of the results service: the log named a symptom, not the missing service. The fake broker of the local mode answers each route that it does not know with 404 and records it only in `seen` for the tests (`serve` of `crates/podrunner-broker-fake/src/lib.rs`). A step that calls a service of GitHub that the local mode does not give (artifacts, cache, OIDC, a route of a new runner) fails with an error of its client.
+
+## Premise
+
+Read `crates/podrunner-broker-fake/src/lib.rs` on 2026-11-14.
+
+## Approach
+
+Keep each request with no route, and add one line for each to the log of its job: the method, the path with no query, and the service that it belongs to when it is known (`ArtifactService`, `CacheService`, `_apis/artifactcache`), with the entry that gives it (T-119, T-120, T-140). The run prints the count at the end.
+
+## Prove
+
+`cargo test -p podrunner-broker-fake` (a request to an unknown route is in the job log).
+
+# T-146: A job can leave files that the next run cannot remove
+
+**Source:** The owner's ghactions-local study (the reproduction of a rerun EACCES of another local runner: files of a container uid that the host user cannot remove)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The study met a local runner whose second run failed with EACCES: the runner container wrote files as another uid into a directory of the host, and the host user could not remove them. The `--runner-dir` executor removes `_work` before each job and ignores the error (`RunnerDir::run` of `crates/podrunner-local/src/exec.rs`): a step that makes a directory with no write bit, or a file of another uid, makes the next job run in the stale tree of the last one, with no message. In a unit, a `container:` job writes as the uid of its container; destroy must remove those files too, or report residue.
+
+## Premise
+
+Read `crates/podrunner-local/src/exec.rs` on 2026-11-14. Not measured: the residue of a podvm unit after a container job that wrote as root into the workspace.
+
+## Approach
+
+`RunnerDir::run`: add the write bit where it is missing, then remove `_work`; a failure fails the job with the path. In a unit: a test job (`container:` as root, which writes into the workspace and makes a directory of mode 0500) runs twice on one state directory in `runner-image.yml`; both runs pass and destroy reports no residue. Each file of the run directory of T-135 is written by podrunner, never by a unit.
+
+## Prove
+
+`cargo test -p podrunner-local exec` (a `_work` with a directory of mode 0500 is removed, or the job fails with its path) and the double run in `runner-image.yml`.
+
+# T-147: Local mode: the parity suite, with checks outside the job log
+
+**Source:** The owner's ghactions-local study (its conformance suite of seven workflows and its checks)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The study holds a suite of seven workflows of rising scope: exit codes; expressions, functions, `fromJSON` and `needs` outputs; a matrix with `exclude` and `include` (exactly four cells); a service with a health check, reached by `localhost` and by its name; a job container and a container with a service; marketplace actions and a local composite action with outputs; an artifact round trip with a check of its content. Each workflow gives PASS, PARTIAL or FAIL with a reason. T-046 records its defects: a missing file of the actions workflow, markers that can match the echoed script, a removal of each container of the host, and images and actions pinned by tags that move. The scripts carry no licence. podrunner's suites (`crates/podrunner/tests/local/suite.yml`, `containers.yml`, `egress.yml`) cover the first scope, not services, marketplace actions or artifacts.
+
+## Premise
+
+Read the study's conformance runner, its check script and its seven workflows on 2026-11-14. Nothing of it is copied.
+
+## Approach
+
+Write a new suite in `crates/podrunner/tests/local/` (0BSD, own text), one workflow for each scope of the study, each with its own fixtures. Each check reads a value that a step computes (for example the SHA-256 of a file), printed on its own line, and the check matches only output lines, never the echoed script. Images and actions are pinned by digest and commit through the lock of T-118 and T-130. A check that needs a later entry is a known PARTIAL with the entry id, so the suite shows the gaps; each entry of this study turns its row green. Run it in level 2 (`--runner-dir`) and in `runner-image.yml` (the unit kinds).
+
+## Prove
+
+`PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored` prints one verdict for each workflow, and a plant (a wrong artifact content) gives FAIL.
+
+# T-148: Research: Azure Pipelines YAML in the local source
+
+**Source:** The owner's ghactions-local study (runner.server: `--event azpipelines`, the templates of Azure Pipelines)
+**Category:** research
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+runner.server also runs a subset of Azure Pipelines YAML (`steps`, `script`, templates with `each`, `if` and `else`) on the same runner. podrunner's local source reads only GitHub workflows.
+
+## Premise
+
+Read the README of runner.server in the study on 2026-11-14. Not measured: the subset that runner.server covers, and whether the official runner takes the job message of such a pipeline.
+
+## Approach
+
+Read the expansion of runner.server (its `ExpandAzurePipelines` part) and the job message that it gives the runner. Write a note in `docs/` with the subset, the cost, and a recommendation. If the cost is real, write the question for the owner in `TODO/PROGRESS.md` with that recommendation before code.
+
+## Prove
+
+The note exists and `cargo todo check` passes.
+
+# T-149: Local mode: a web view of a run on the loopback
+
+**Source:** The owner's ghactions-local study (runner.server: the web page of runs, jobs and live logs)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+runner.server shows each run, job and live log on a web page. The local mode prints lines only.
+
+## Premise
+
+Read the README of runner.server in the study on 2026-11-14.
+
+## Approach
+
+`--web ADDR` (loopback only, a random token in the URL): a static page served by podrunner with each job, its state, its steps, its live log (T-134) and its artifacts (T-119). No script from a CDN; the page is in the binary. Exceed: the page binds no address other than the loopback, and names no secret.
+
+## Prove
+
+`cargo test -p podrunner run_local` (the page refuses a request with no token; the job list).
+
+# T-150: Local mode: a pause before a step and a shell in the unit
+
+**Source:** The owner's ghactions-local study (its plan of a debugger)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The study plans a debugger: stop a job before a step and look into its environment. act and runner.server give only `--reuse` or `--keep-container`. The local mode gives neither.
+
+## Premise
+
+Read the README of the study on 2026-11-14. Not measured: a pause of the official runner between steps (a step that waits for a file is one way).
+
+## Approach
+
+`--break JOB:STEP` puts a step before STEP that waits for a file in the unit; podrunner prints the command to enter the unit (`podvm exec`) and goes on when the user removes the file or ends the shell. With `--break-on-failure`, the pause comes after a failed step. The unit keeps its egress hold during the pause.
+
+## Prove
+
+`cargo test -p podrunner-local message` (the wait step in the message).
+
+# T-151: Measure: a job of another architecture in the local mode
+
+**Source:** The owner's ghactions-local study (act: `--container-architecture`; runner.server: `--container-architecture`, `--container-platform`)
+**Category:** measurement
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+act runs a container of another architecture (for example `linux/arm64` on an x86_64 host) through the emulation of Docker. The local mode runs the runner of the architecture of the host only (`arch` of `crates/podrunner/src/run_local.rs`).
+
+## Premise
+
+Read `crates/podrunner/src/run_local.rs` on 2026-11-14. Not measured: a guest of the machine tier of podvm with another architecture (emulated by QEMU, with no KVM).
+
+## Approach
+
+Measure in `runner-image.yml`: an aarch64 runner image in a guest of the microvm kind on an x86_64 host, with the time of the start and of a small job. Record the result in `docs/unknowns.md`; if it holds, add `--arch` with T-123.
+
+## Prove
+
+`gh workflow run runner-image.yml` runs the measure, and `docs/unknowns.md` has its row.
+
+# T-152: Local mode: an env of one expression is refused
+
+**Source:** The owner's ghactions-local study (runner.server's README uses `env: ${{ secrets }}` on a step)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+runner.server runs a step with `env: ${{ secrets }}` (an expression that gives a mapping). `env` of `crates/podrunner-local/src/message.rs` refuses an `env:` of one expression by name.
+
+## Premise
+
+Read `crates/podrunner-local/src/message.rs` on 2026-11-14. Not measured: whether GitHub and runner v2.338.2 take an `env:` of one expression at the levels of the workflow, the job and the step.
+
+## Approach
+
+Measure each level against the schema of the runner and the GitHub docs first (the rule of Q4). Where GitHub takes it, send the expression as one token of the mapping and let the runner evaluate it; where GitHub refuses it, keep the refusal and name the level in its text.
+
+## Prove
+
+`PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test runner -- --ignored` (a step `env:` of one expression).
+
+# T-153: podrunner doctor for the local mode
+
+**Source:** The owner's ghactions-local study (its doctor plan; act: `--bug-report`)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The study plans a doctor that finds the faults of a host before a run (the SIGXFSZ limit, a missing tool), and act prints a bug report of the system. `podrunner doctor` reads a file of `serve`; it has no check of the inputs of `podrunner run`.
+
+## Premise
+
+Read `docs/cli.md` (the row of `doctor`) on 2026-11-14.
+
+## Approach
+
+`podrunner doctor --run [the options of run]`: check the podvm binary and its version, the store and the image digest, `/dev/kvm` for the microvm kind, podnet and its hold, the runner directory (`run.sh`, `bin/Runner.Listener`), the limit of file size (T-144), the free disk of the scratch directory, and the lock file and store of T-118. Each check names its fix; nothing changes.
+
+## Prove
+
+`cargo test -p podrunner --test doctor`

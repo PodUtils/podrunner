@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**117 entries: 4 open, 3 partial, 6 blocked, 104 done.**
+**153 entries: 40 open, 3 partial, 6 blocked, 104 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 1 | 1 | 4 | 47 | 53 |
-| P3 | 3 | 0 | 2 | 25 | 30 |
-| **All** | 4 | 3 | 6 | 104 | 117 |
+| P2 | 20 | 1 | 4 | 47 | 72 |
+| P3 | 20 | 0 | 2 | 25 | 47 |
+| **All** | 40 | 3 | 6 | 104 | 153 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -165,3 +165,39 @@ acceptance, later The crate dependencies later than v1.
 | [T-115](later.md) | P3 | S | later | defect | open | podrunner run --runner-dir does not end a job at its timeout-minutes, and it panics on an I/O error |
 | [T-116](later.md) | P3 | S | later | defect | open | check and doctor do not read the version of podvm for the microvm and incus kinds |
 | [T-117](later.md) | P3 | S | later | defect | open | The local run ignores fail-fast and the continue-on-error of a job |
+| [T-118](later.md) | P2 | M | later | feature | open | Local mode: actions by tag, fetched through the egress module into a store with a lock file |
+| [T-119](later.md) | P2 | M | later | feature | open | Local mode: artifacts v4 (the ArtifactService of the results API), one store for each run |
+| [T-120](later.md) | P2 | M | later | feature | open | Local mode: the cache service of actions/cache |
+| [T-121](later.md) | P2 | S | later | feature | open | Local mode: secrets from the environment and from a secret file, with the mask |
+| [T-122](later.md) | P2 | S | later | feature | open | Local mode: github.token and secrets.GITHUB_TOKEN |
+| [T-123](later.md) | P2 | M | later | feature | open | Local mode: run each job in a unit of the microvm or the incus kind |
+| [T-124](later.md) | P2 | M | later | feature | open | Local mode: services:, docker build and Docker-in-Docker through the engine of the unit |
+| [T-125](later.md) | P2 | M | later | feature | open | Local mode: the event payload, the github context of the local tree, and the filters of on: |
+| [T-126](later.md) | P3 | S | later | feature | open | Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs |
+| [T-127](later.md) | P2 | S | later | feature | open | Local mode: run one job (--job) or some cells of a matrix (--matrix) |
+| [T-128](later.md) | P3 | S | later | feature | open | Local mode: --list, --graph, --dry-run and --validate |
+| [T-129](later.md) | P2 | M | later | feature | open | Local mode: runner images by the labels of runs-on (--platform) |
+| [T-130](later.md) | P2 | M | later | feature | open | Local mode: container images by tag, resolved to a digest and pulled into the store |
+| [T-131](later.md) | P2 | L | later | feature | open | Local mode: reusable workflows (jobs.<id>.uses) |
+| [T-132](later.md) | P3 | M | later | feature | open | Local mode: jobs in parallel (--jobs N, max-parallel) |
+| [T-133](later.md) | P2 | M | later | feature | open | Local mode: the checkout with the changes of the tree, the .git directory, and other repositories |
+| [T-134](later.md) | P2 | M | later | feature | open | Local mode: live logs, a log directory, the job summary, and --json |
+| [T-135](later.md) | P3 | M | later | feature | open | Local mode: a run directory and reruns of failed jobs |
+| [T-136](later.md) | P3 | S | later | feature | open | Local mode: environments, with their secrets, vars and egress policy |
+| [T-137](later.md) | P3 | S | later | feature | open | Local mode: concurrency groups and cancel-in-progress |
+| [T-138](later.md) | P3 | S | later | feature | open | Local mode: keep the unit of a failed job, export the workspace, and a shared tool cache |
+| [T-139](later.md) | P3 | S | later | feature | open | Local mode: actions from a local directory (--local-repository) and from another forge |
+| [T-140](later.md) | P3 | S | later | feature | open | Local mode: OIDC id-tokens (permissions: id-token: write) |
+| [T-141](later.md) | P2 | S | later | defect | open | podrunner run leaves its units and scratch directories at Ctrl-C |
+| [T-142](later.md) | P3 | S | later | feature | open | Local mode: --watch and the cron times of on.schedule |
+| [T-143](later.md) | P3 | S | later | feature | open | Local mode: a configuration file for podrunner run |
+| [T-144](later.md) | P2 | S | later | defect | open | podrunner run --runner-dir starts the runner with W^X on, and dies under a small RLIMIT_FSIZE |
+| [T-145](later.md) | P2 | S | later | defect | open | The fake broker answers 404 in silence to a route that it does not serve |
+| [T-146](later.md) | P2 | S | later | defect | open | A job can leave files that the next run cannot remove |
+| [T-147](later.md) | P2 | M | later | feature | open | Local mode: the parity suite, with checks outside the job log |
+| [T-148](later.md) | P3 | M | later | research | open | Research: Azure Pipelines YAML in the local source |
+| [T-149](later.md) | P3 | M | later | feature | open | Local mode: a web view of a run on the loopback |
+| [T-150](later.md) | P3 | M | later | feature | open | Local mode: a pause before a step and a shell in the unit |
+| [T-151](later.md) | P3 | S | later | measurement | open | Measure: a job of another architecture in the local mode |
+| [T-152](later.md) | P3 | S | later | feature | open | Local mode: an env of one expression is refused |
+| [T-153](later.md) | P3 | S | later | feature | open | podrunner doctor for the local mode |
