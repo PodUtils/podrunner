@@ -35,6 +35,9 @@ pub struct HookUnit {
     pub events: Vec<JobEvent>,
     /// Each refusal, for an audit line `hook-refuse` (the code only).
     pub refusals: Vec<RefusalCode>,
+    /// The text of each error of the driver behind a refusal: the runner gets
+    /// the code only, the log of a local run names the cause.
+    pub driver_errors: Vec<String>,
     /// The digest of each image that a container started with, once
     /// (`job_images` of the run report).
     pub images: Vec<String>,
@@ -61,6 +64,7 @@ impl HookUnit {
             steps: 0,
             events: vec![],
             refusals: vec![],
+            driver_errors: vec![],
             images: vec![],
         }
     }
@@ -212,7 +216,14 @@ impl Unit for HookUnit {
             self.refusals.push(RefusalCode::ContainerNotSupported);
             return Err(Refusal { code: RefusalCode::ContainerNotSupported, why: "the unit has no runner directory" });
         }
-        let result = self.gate.check(&input, &self.policy).and_then(|plan| self.run(plan).map_err(|e| refusal(&e)));
+        let mut driver_error = None;
+        let result = self.gate.check(&input, &self.policy).and_then(|plan| {
+            self.run(plan).map_err(|e| {
+                driver_error = Some(format!("{:?}: {}", e.code, e.detail));
+                refusal(&e)
+            })
+        });
+        self.driver_errors.extend(driver_error);
         if let Err(r) = &result {
             self.refusals.push(r.code);
         }

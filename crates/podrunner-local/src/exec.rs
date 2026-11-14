@@ -101,7 +101,14 @@ impl Hooks {
         // The server checks its flag at each connection: wake it.
         let _ = std::os::unix::net::UnixStream::connect(self.dir.join("ctl.sock"));
         let _ = self.thread.join();
-        self.unit.lock().map(|u| u.refusals.iter().map(|r| format!("{r:?}")).collect()).unwrap_or_default()
+        self.unit
+            .lock()
+            .map(|u| {
+                let codes = u.refusals.iter().map(|r| format!("{r:?}"));
+                // The cause of each refusal of the driver, for the log of the run.
+                codes.chain(u.driver_errors.iter().map(|e| format!("the driver: {e}"))).collect()
+            })
+            .unwrap_or_default()
     }
 }
 
