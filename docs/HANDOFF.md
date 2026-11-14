@@ -15,7 +15,7 @@ is done.
   beta.14, T-112); podnet `v0.4.0-beta.8` (`images/podnet.toml`); the
   official runner v2.338.2 (`images/runner/runner.toml`). Last beta of
   podrunner: `v0.1.0-beta.4` (release run 43506335609, `d796a94`).
-- The record: 155 entries (`cargo todo check` gives the counts). The last green `runner-image.yml` run is
+- The record: 156 entries (`cargo todo check` gives the counts). The last green `runner-image.yml` run is
   43541714659 (`9f15901`): the podvm suites, the held tests, the tar
   forms, the microvm kind on real guests (with an engine), and the incus
   suite on real instances. The last green `level2.yml` run is
@@ -62,7 +62,13 @@ is done.
   v4 and the cache v2 served by the fake broker (T-119, T-120); secrets
   and `github.token` (T-121, T-122); the `github` context of the git tree
   and the event payload (T-125); the working tree, `--with-git` and the
-  checkout of another repository (T-133); the cancel at a signal (T-141).
+  checkout of another repository (T-133); the cancel at a signal (T-141);
+  images by tag (T-130); the protection of an environment (T-136); the
+  export of a workspace on `--runner-dir` (T-138); `--local-repository`
+  and `--action-server` (T-139); OIDC id-tokens (T-140); `--watch` and
+  `--schedule` (T-142); `run.toml` and `.actrc` (T-143); an `env:` of one
+  expression (T-152); the fetch of the actions through an egress grant
+  (T-154); `podrunner doctor --run` (T-153).
   The parity suite (`crates/podrunner/tests/parity.rs`, T-147) gives one
   verdict for each workflow: with `--runner-dir`, or in a unit kind
   through `PODRUNNER_PARITY_UNIT`.
@@ -90,18 +96,28 @@ is done.
   suite in microvm and incus units, the rerun job). Close each one on its
   green run. T-124 then keeps the load of the images from the store, not a
   pull (with T-130).
-- T-125 (partial): a directory of workflows with the filters of `on:`
-  waits for podcrates (GitHub #97, COORD-037).
+- T-125 (partial) and T-131 (blocked): podcrates `main` has the filters
+  of `on:` (GitHub #97) and the expansion of a called workflow (GitHub
+  #98) for its tag `v0.44.0`. Take the tag when it exists.
+- T-130 (partial): the tags check of `runner-image.yml` takes
+  `busybox:1.37.0-musl`; T-156 (blocked) takes the glibc image again after
+  the podvm release with its T-1880 (GitHub #100, PodUtils/podvm#351).
+  The setup of KVM and QEMU is now a step of its own, so a failed podvm
+  step no longer skips it.
+- T-138 (partial): the unit kinds need mounts in `StartSpec` for the
+  export, the tool cache and `--keep-failed`.
 - T-155 (open): one run of the workspace tests failed and the next passed;
   the check script now names the failed test.
+- Q6 (T-148): Azure Pipelines YAML; the recommendation is no
+  (`docs/azure-pipelines.md`). No work waits on it.
 - T-101 (partial): the `program` source kind is in; its pair with GitHub
   runs on the host of LIVE-2 when githome gives its program (GitHub #66).
 - The live gates: two agents on two constrained hosts, GitHub #74
   (LIVE-1, the remote mint and the App key) and #75 (LIVE-2, the unit
   host and the test jobs). Read their comments; fix each defect they
   find.
-- The x86_64 job of `runner-image.yml` takes about 30 minutes: it has
-  60 minutes, and each podvm conformance suite 900 s.
+- The x86_64 job of `runner-image.yml` takes up to 90 minutes with the
+  parity suite in guests with an engine; it has 90 minutes.
 - The gate queues for many minutes, and a newer push cancels a queued
   run. Push less often. Close an entry on the green run of a later commit
   that holds the work. A push that changes only `TODO/` or `docs/` runs
@@ -112,7 +128,8 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | LIVE-1 and LIVE-2 | the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
-| podcrates | the filters of `on:` (GitHub #97, COORD-037) | T-125 |
+| podcrates | the tag `v0.44.0`: the filters of `on:` (GitHub #97) and the called workflows (GitHub #98) | T-125, T-131 |
+| podvm | a release with its T-1880: a glibc image with no `libdl.so.2` (GitHub #100) | T-156 |
 | podcrates | the crates of the action store and of the results API (GitHub #94, #95), no block | T-118, T-119, T-120 |
 | githome | its source program, for the pair on the host of LIVE-2 | T-101 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
@@ -123,8 +140,10 @@ is done.
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.
-- GitHub #94, #95, #97 (COORD-034, -035, -037, to podcrates): the asks of
-  the local mode. GitHub #96 (COORD-036): the take of `v0.42.0`.
+- GitHub #94, #95, #97, #98 (COORD-034, -035, -037, -038, to
+  podcrates): the asks of the local mode. GitHub #96 (COORD-036): the take
+  of `v0.42.0`. GitHub #100 (COORD-040, to podvm): a glibc image where
+  chroot is denied.
 - GitHub #9, #32, #33, #40: wait for the live gates (#74, #75). GitHub
   #43 waits for podcrates.
 
