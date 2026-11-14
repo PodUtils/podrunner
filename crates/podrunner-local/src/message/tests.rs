@@ -243,3 +243,23 @@ fn a_checkout_of_another_repository_takes_its_pinned_tree() {
     );
     assert!(script.contains("lib"), "{script}");
 }
+
+#[test]
+fn an_image_by_tag_takes_its_pinned_digest() {
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    container: busybox:1.37.0\n    services:\n      db:\n        image: redis\n    steps:\n      - uses: docker://busybox:1.37.0\n";
+    let mut s = LocalSource::new("l", text, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    let job = JobId::new("a.0").unwrap();
+    assert!(s.broker_job(&job).unwrap_err().contains("digest"), "a tag with no pin is refused");
+    let (bb, redis) = (format!("busybox@sha256:{}", "a".repeat(64)), format!("redis@sha256:{}", "b".repeat(64)));
+    s.set_pins(BTreeMap::from([
+        ("docker://busybox:1.37.0".to_string(), bb.clone()),
+        ("docker://redis:latest".to_string(), redis.clone()),
+    ]));
+    let m = podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &s.broker_job(&job).unwrap());
+    let text = m.to_string();
+    assert!(text.contains(&bb) && text.contains(&redis), "{text}");
+    // The display name keeps the text of the file; the runner pulls the reference.
+    assert_eq!(m["steps"][0]["reference"]["image"], bb.as_str());
+    assert_eq!(m["jobContainer"], bb.as_str());
+}

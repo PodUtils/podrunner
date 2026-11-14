@@ -39,7 +39,7 @@ the entry that closes the gap, or the entry that did the work.
 | Dockerfile actions (`docker build`) | yes | yes | refused (`build-not-supported`) | T-124 |
 | `container:` | yes | yes | yes, pinned by digest | T-093 |
 | `services:` with health checks | yes | yes | refused on the host network | T-123, T-124 |
-| Images by tag, pull | yes, `--pull` | yes | no: digest in the store only | T-130 |
+| Images by tag, pull | yes, `--pull` | yes | yes: `podvm pull` into the store, pinned by the lock; the units never pull | T-130 |
 | Images by `runs-on` label | `-P LABEL=IMAGE` | `-P LABEL=IMAGE` or the host | `--platform LABEL=IMAGE` (pinned) or `host`; no fallback to an image the user did not name | T-129 |
 | Another architecture | `--container-architecture` | yes | host only | T-151 |
 | Reusable workflows | local and remote | yes, `secrets: inherit` | refused | T-131 |

@@ -7,6 +7,10 @@
 //! actions/github-script@v7 f28e40c7f34bde8b3046d885e986cb6290c5673b sha256:HEX
 //! ```
 //!
+//! An image of `container:`, `services:` or a `docker://` step that a tag
+//! names has a line of two words: `docker://NAME:TAG sha256:HEX`, the digest
+//! of the image in the store (T-130).
+//!
 //! A line that starts with `#` is a comment. The lines are sorted, so a
 //! change of the lock is a small diff.
 
@@ -31,6 +35,8 @@ pub struct Pin {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Lock {
     pub pins: BTreeMap<String, Pin>,
+    /// Each image `NAME:TAG` and its digest `sha256:HEX` (T-130).
+    pub images: BTreeMap<String, String>,
 }
 
 /// A full commit id: 40 hex digits.
@@ -45,12 +51,25 @@ fn is_digest(s: &str) -> bool {
 impl Lock {
     pub fn parse(text: &str) -> Result<Lock, String> {
         let mut pins = BTreeMap::new();
+        let mut images = BTreeMap::new();
         for (n, line) in text.lines().enumerate() {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
                 continue;
             }
             let words: Vec<&str> = line.split_whitespace().collect();
+            if let Some(image) = words[0].strip_prefix("docker://") {
+                let [_, digest] = words[..] else {
+                    return Err(format!("line {}: not `docker://NAME:TAG sha256:HEX`", n + 1));
+                };
+                if image.is_empty() || image.contains('@') || !is_digest(digest) {
+                    return Err(format!("line {}: not `docker://NAME:TAG sha256:HEX`", n + 1));
+                }
+                if images.insert(image.to_string(), digest.to_string()).is_some() {
+                    return Err(format!("line {}: `{image}` again", n + 1));
+                }
+                continue;
+            }
             let [key, commit, digest] = words[..] else {
                 return Err(format!("line {}: not `OWNER/REPO@REF COMMIT sha256:HEX`", n + 1));
             };
@@ -63,7 +82,7 @@ impl Lock {
                 return Err(format!("line {}: `{key}` again", n + 1));
             }
         }
-        Ok(Lock { pins })
+        Ok(Lock { pins, images })
     }
 
     /// The lock in `path`; an empty lock when there is no file.
@@ -79,6 +98,9 @@ impl Lock {
         let mut out = HEADER.to_string();
         for (key, pin) in &self.pins {
             out.push_str(&format!("{key} {} {}\n", pin.commit, pin.digest));
+        }
+        for (image, digest) in &self.images {
+            out.push_str(&format!("docker://{image} {digest}\n"));
         }
         out
     }
@@ -102,7 +124,9 @@ mod tests {
         let pin = Pin { commit: "a".repeat(40), digest: format!("sha256:{}", "b".repeat(64)) };
         lock.pins.insert("o/r@v1".into(), pin.clone());
         lock.pins.insert("a/b@main".into(), pin);
+        lock.images.insert("redis:7-alpine".into(), format!("sha256:{}", "c".repeat(64)));
         let text = lock.render();
+        assert!(text.contains("docker://redis:7-alpine sha256:"), "{text}");
         assert!(text.find("a/b@main").unwrap() < text.find("o/r@v1").unwrap(), "sorted: {text}");
         assert_eq!(Lock::parse(&text).unwrap(), lock);
     }
@@ -118,6 +142,8 @@ mod tests {
             format!("o/r@v1 abc {d}"),
             format!("o/r@v1 {c} sha256:12"),
             format!("o/r@v1 {c} {d}\no/r@v1 {c} {d}"),
+            format!("docker://redis:7 {c}"),
+            format!("docker://redis@sha256:00 {d}"),
         ] {
             let e = Lock::parse(&format!("# c\n{bad}")).unwrap_err();
             assert!(e.starts_with("line 2") || e.starts_with("line 3"), "{bad}: {e}");

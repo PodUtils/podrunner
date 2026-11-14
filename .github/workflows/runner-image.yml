@@ -189,6 +189,13 @@ jobs:
           timeout 1200 cargo run -q -p podrunner -- run "$RUNNER_TEMP/containers.yml" \
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/containers.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/containers.txt")" = 2
+          # T-130: an image by tag is pulled into the store and pinned by the
+          # lock beside the workflow; the runner gets the digest.
+          mkdir -p "$RUNNER_TEMP/tags" && cp crates/podrunner/tests/local/tags.yml "$RUNNER_TEMP/tags/"
+          timeout 900 cargo run -q -p podrunner -- run "$RUNNER_TEMP/tags/tags.yml" \
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/tags.txt"
+          grep -qx 'ok      tagged' "$RUNNER_TEMP/tags.txt"
+          grep -q '^docker://busybox:1.37.0 sha256:' "$RUNNER_TEMP/tags/podrunner-actions.lock"
           # T-146: a container job leaves a locked directory; two runs in a
           # row pass, and no unit leaves residue (a residue fails the job).
           sed "s|IMAGE|$PODRUNNER_RUNNER_IMAGE|" crates/podrunner/tests/local/rerun.yml > "$RUNNER_TEMP/rerun.yml"

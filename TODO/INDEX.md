@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**155 entries: 23 open, 9 partial, 5 blocked, 118 done.**
+**155 entries: 22 open, 10 partial, 5 blocked, 118 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 4 | 7 | 3 | 58 | 72 |
+| P2 | 3 | 8 | 3 | 58 | 72 |
 | P3 | 19 | 0 | 2 | 28 | 49 |
-| **All** | 23 | 9 | 5 | 118 | 155 |
+| **All** | 22 | 10 | 5 | 118 | 155 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -177,7 +177,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-127](later.md) | P2 | S | later | feature | open | Local mode: run one job (--job) or some cells of a matrix (--matrix) |
 | [T-128](later.md) | P3 | S | later | feature | open | Local mode: --list, --graph, --dry-run and --validate |
 | [T-129](later.md) | P2 | M | later | feature | partial | Local mode: runner images by the labels of runs-on (--platform) |
-| [T-130](later.md) | P2 | M | later | feature | open | Local mode: container images by tag, resolved to a digest and pulled into the store |
+| [T-130](later.md) | P2 | M | later | feature | partial | Local mode: container images by tag, resolved to a digest and pulled into the store |
 | [T-131](later.md) | P2 | L | later | feature | open | Local mode: reusable workflows (jobs.<id>.uses) |
 | [T-132](later.md) | P3 | M | later | feature | open | Local mode: jobs in parallel (--jobs N, max-parallel) |
 | [T-133](later.md) | P2 | M | later | feature | done | Local mode: the checkout with the changes of the tree, the .git directory, and other repositories |

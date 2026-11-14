@@ -320,11 +320,23 @@ pub fn run(args: &[String]) -> Out {
         (_, true) => podrunner_local::store::Mode::Frozen,
         _ => podrunner_local::store::Mode::Online,
     };
-    let (store, pins, note) = match actions::pin(&a.file, &text, a.actions.as_deref(), mode, &facts.repository) {
-        Ok(Some(p)) => (Some(p.dir), p.commits, p.note),
-        Ok(None) => (a.actions.clone(), Default::default(), String::new()),
-        Err(e) => return fail(Class::Config, format!("{}: the actions: {e}", a.file.display())),
+    // The images of a unit kind come into its store by `podvm pull` (T-130).
+    let binary = a.podvm.clone().or_else(|| a.guest.as_ref().map(|g| g.1.clone()));
+    let pull = match (binary, &a.images) {
+        (Some(binary), Some(store)) => Some(podrunner_local::images::PodvmPull {
+            binary,
+            store: store.clone(),
+            platform: if arch() == "aarch64" { "linux/arm64".into() } else { "linux/amd64".into() },
+        }),
+        _ => None,
     };
+    let image_source = pull.as_ref().map(|p| p as &dyn podrunner_local::images::ImageSource);
+    let (store, pins, note) =
+        match actions::pin(&a.file, &text, a.actions.as_deref(), mode, &facts.repository, image_source) {
+            Ok(Some(p)) => (p.dir.or_else(|| a.actions.clone()), p.commits, p.note),
+            Ok(None) => (a.actions.clone(), Default::default(), String::new()),
+            Err(e) => return fail(Class::Config, format!("{}: the actions: {e}", a.file.display())),
+        };
     source.set_pins(pins.clone());
     let scratch = std::env::temp_dir().join(format!("podrunner-run-tree-{}", std::process::id()));
     let tree = match &a.checkout {

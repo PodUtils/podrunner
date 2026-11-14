@@ -11,6 +11,7 @@ pub mod dispatch;
 pub mod drive;
 pub mod exec;
 pub mod front;
+pub mod images;
 pub mod lock;
 pub mod message;
 pub mod secrets;

@@ -92,6 +92,34 @@ fn container_image(node: &Node, what: &str) -> Result<(), String> {
     pinned(image).map_err(|e| format!("line {}: {what}: {e}", node.mark.line))
 }
 
+/// The image with the digest of its tag from the pins of the run (T-130):
+/// a tag that the pins do not name stays, and the check of a pin refuses it.
+fn pin_image(image: &str, pins: &BTreeMap<String, String>) -> String {
+    match crate::images::by_tag(image).and_then(|t| pins.get(&format!("docker://{t}"))) {
+        Some(p) => p.clone(),
+        None => image.to_string(),
+    }
+}
+
+/// A `container:` or a service with its image pinned (T-130).
+fn pin_node(node: &Node, pins: &BTreeMap<String, String>) -> Node {
+    let mut n = node.clone();
+    match &mut n.kind {
+        Kind::String(s) => *s = pin_image(s, pins),
+        Kind::Map(e) => {
+            for (k, v) in e.iter_mut() {
+                if k.name == "image"
+                    && let Kind::String(s) = &mut v.kind
+                {
+                    *s = pin_image(s, pins);
+                }
+            }
+        }
+        _ => {}
+    }
+    n
+}
+
 /// A mapping token (`TemplateToken` type 2).
 fn mapping(entries: Vec<(String, Value)>) -> Value {
     let map: Vec<Value> = entries.into_iter().map(|(k, v)| json!({ "Key": k, "Value": v })).collect();
@@ -242,7 +270,11 @@ fn step(
             )
         }
         (Some(uses), None) => {
-            let (reference, base) = action(uses, line)?;
+            let pinned_uses = match uses.strip_prefix("docker://") {
+                Some(image) => format!("docker://{}", pin_image(image, d.pins)),
+                None => uses.clone(),
+            };
+            let (reference, base) = action(&pinned_uses, line)?;
             let with = match s.with.as_ref().map(|n| &n.kind) {
                 None => Vec::new(),
                 Some(Kind::Map(entries)) => {
@@ -312,17 +344,21 @@ pub fn broker_job(
     }
     let mut containers = Map::new();
     if let Some(c) = &job.container {
-        container_image(c, "container")?;
-        containers.insert("jobContainer".into(), node_token(c)?);
+        let c = pin_node(c, pins);
+        container_image(&c, "container")?;
+        containers.insert("jobContainer".into(), node_token(&c)?);
     }
     if let Some(s) = &job.services {
         let Kind::Map(entries) = &s.kind else {
             return Err(format!("line {}: services must be a mapping", s.mark.line));
         };
-        for (name, service) in entries {
+        let mut s = s.clone();
+        let pinned: Vec<_> = entries.iter().map(|(k, v)| (k.clone(), pin_node(v, pins))).collect();
+        for (name, service) in &pinned {
             container_image(service, &format!("service {}", name.name))?;
         }
-        containers.insert("jobServiceContainers".into(), node_token(s)?);
+        s.kind = Kind::Map(pinned);
+        containers.insert("jobServiceContainers".into(), node_token(&s)?);
     }
     let wd = workflow.defaults.as_ref();
     let jd = job.defaults.as_ref();

@@ -1437,7 +1437,7 @@ State (2026-11-14): `--platform LABEL=NAME@sha256:HEX` and `--platform LABEL=hos
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1454,6 +1454,9 @@ Before the first job, resolve each image tag to a digest for the platform of the
 ## Prove
 
 `cargo test -p podrunner-local` (the lock of images, `--offline` with a missing image).
+
+State (2026-11-14): `crates/podrunner-local/src/images.rs` collects each image of `container:`, `services:` and `docker://` steps that a tag names (`NAME` alone is `NAME:latest`; an expression is refused), pins it by the lock (`docker://NAME:TAG sha256:HEX`), and pulls it with `podvm pull --platform` into the store of the units (`PodvmPull`); the job message gives `NAME@sha256:HEX` (`pin_image`, `pin_node`). A moved tag fails by name; `--offline` and `--frozen` hold. Not `pod-oci`: podvm pulls into its own store, so the host runs no second registry client. Tests: the images of a workflow, the lock and a moved tag with a fake source, the pinned message; `podvm pull` of `busybox:1.37.0` here gives `sha256:a7dbc319…`, the digest of the registry. Next: the run of `crates/podrunner/tests/local/tags.yml` with `--podvm` in `runner-image.yml`. The pull goes through the proxy of the host, not the egress module (as T-154 for the actions).
+
 
 # T-131: Local mode: reusable workflows (jobs.<id>.uses)
 

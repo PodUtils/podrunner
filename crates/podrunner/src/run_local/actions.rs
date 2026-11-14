@@ -1,12 +1,14 @@
-//! The actions of `podrunner run` by tag (T-118): each remote `uses:` of the
-//! workflow, and of each composite action that it names, is pinned by the
-//! lock file beside the workflow before the first job, and its tarball is
+//! The actions and the images of `podrunner run` by tag (T-118, T-130): each
+//! remote `uses:` of the workflow, and of each composite action that it
+//! names, and each image that a tag names (for a unit kind), is pinned by
+//! the lock file beside the workflow before the first job. Each tarball is
 //! kept in the store (`--actions DIR`, by default the cache directory of the
-//! user).
+//! user); each image is pulled into the store of the units.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use podrunner_local::images::{ImageSource, workflow_images};
 use podrunner_local::lock::{LOCK_FILE, Lock};
 use podrunner_local::store::{Git, Mode, Store, add_trees, resolve, workflow_trees, workflow_uses};
 
@@ -24,11 +26,12 @@ pub(super) fn user_cache(name: &str) -> Result<PathBuf, String> {
     Ok(cache.join("podrunner").join(name))
 }
 
-/// The actions of a run.
+/// The actions and the images of a run.
 pub(super) struct Pinned {
-    /// The store of the tarballs.
-    pub dir: PathBuf,
-    /// The commit of each `OWNER/REPO@REF`.
+    /// The store of the tarballs, when the run has an action or a tree.
+    pub dir: Option<PathBuf>,
+    /// The commit of each `OWNER/REPO@REF`, and `NAME@sha256:HEX` of each
+    /// `docker://NAME:TAG`.
     pub commits: BTreeMap<String, String>,
     /// A line for stderr when the lock changed.
     pub note: String,
@@ -42,27 +45,41 @@ pub(super) fn pin(
     store: Option<&Path>,
     mode: Mode,
     self_repo: &str,
+    images: Option<&dyn ImageSource>,
 ) -> Result<Option<Pinned>, String> {
     let workflow = pod_actions_workflow::parse(text).map_err(|e| e.to_string())?.workflow;
     let uses = workflow_uses(&workflow);
     let trees = workflow_trees(&workflow, self_repo)?;
-    if uses.is_empty() && trees.is_empty() {
+    let tags = match images {
+        Some(_) => workflow_images(&workflow)?,
+        None => Vec::new(),
+    };
+    if uses.is_empty() && trees.is_empty() && tags.is_empty() {
         return Ok(None);
     }
-    let dir = match store {
-        Some(d) => d.to_path_buf(),
-        None => user_cache("actions")?,
-    };
     let lock_path = file.parent().unwrap_or(Path::new(".")).join(LOCK_FILE);
     let lock = Lock::read(&lock_path)?;
     let name = lock_path.display().to_string();
-    let (store, forge) = (Store { dir: dir.clone() }, Git { base: FORGE.into() });
-    let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
-    let r = add_trees(&trees, r, &store, &forge, mode, &name)?;
+    let (mut r, dir) = if uses.is_empty() && trees.is_empty() {
+        (podrunner_local::store::Resolved { lock, ..Default::default() }, None)
+    } else {
+        let dir = match store {
+            Some(d) => d.to_path_buf(),
+            None => user_cache("actions")?,
+        };
+        let (store, forge) = (Store { dir: dir.clone() }, Git { base: FORGE.into() });
+        let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
+        (add_trees(&trees, r, &store, &forge, mode, &name)?, Some(dir))
+    };
+    if let (Some(source), false) = (images, tags.is_empty()) {
+        let (pins, changed) = podrunner_local::images::resolve(&tags, &mut r.lock, source, mode, &name)?;
+        r.commits.extend(pins);
+        r.changed |= changed;
+    }
     let mut note = String::new();
     if r.changed {
         r.lock.write(&lock_path)?;
-        note = format!("podrunner: {name} pins {} references\n", r.lock.pins.len());
+        note = format!("podrunner: {name} pins {} references\n", r.lock.pins.len() + r.lock.images.len());
     }
     Ok(Some(Pinned { dir, commits: r.commits, note }))
 }

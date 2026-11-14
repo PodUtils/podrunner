@@ -1,0 +1,15 @@
+# Images by tag (T-130): podrunner run pulls each tag into the store of the
+# units before the first job and pins it by the lock beside this file; the
+# runner gets the digest. It needs a unit with container hooks (--podvm).
+name: podrunner local tags
+on: push
+jobs:
+  tagged:
+    runs-on: local
+    container: busybox:1.37.0
+    steps:
+      - run: echo "tag-$((6*7))"
+        shell: sh
+      - uses: docker://busybox:1.37.0
+        with:
+          entrypoint: /bin/true
