@@ -641,7 +641,7 @@ State (2026-11-13): step 1 is done: the census of the verbs and the design (`doc
 
 ## Prove
 
-The census and the design are in `docs/`; a `docker build` job and a `services:` job pass in a unit in `runner-image.yml`. Runner-image run 43557460656 (`5dedd26`): in guests with an engine the runner takes the engine (`docker network create`, `docker pull` of the pinned digest), and the pull fails on the blobs: Docker Hub sends each blob to `production.cloudfront.docker.com`, and the allow list named `production.cloudflare.docker.com`. The step did not fail: a `run` step with no `shell:` has no `pipefail`, so `tee` hid the exit of the test; the step now sets `pipefail`.
+The census and the design are in `docs/`; a `docker build` job and a `services:` job pass in a unit in `runner-image.yml`. Runner-image run 43557460656 (`5dedd26`): in guests with an engine the runner takes the engine (`docker network create`, `docker pull` of the pinned digest), and the pull fails on the blobs: Docker Hub sends each blob to `production.cloudfront.docker.com`, and the allow list named `production.cloudflare.docker.com`. The step did not fail: a `run` step with no `shell:` has no `pipefail`, so `tee` hid the exit of the test; the step now sets `pipefail`. The parity suite ran inside the step of the engine measure, which has `continue-on-error`: a failure there could not fail the workflow. It is now a step of its own with no `continue-on-error` (a check), and the job has 90 minutes.
 
 # T-104: G-10: the source conformance tests as a command for another source program
 

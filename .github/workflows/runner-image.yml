@@ -73,7 +73,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     # The x86_64 job runs each podvm suite twice and the guest tests: about
     # 30 minutes on a hosted runner.
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -334,6 +334,12 @@ jobs:
           cargo test -p podrunner-microvm --test engine --no-run
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" PODRUNNER_ENGINE_DIR="$RUNNER_TEMP/engine-dir" timeout 900 \
             cargo test -p podrunner-microvm --test engine -- --ignored --nocapture
+      # T-103, T-124: a check, not a measure: the parity suite in guests with
+      # an engine (the engine directory of the step before).
+      - name: The parity suite in guests with an engine
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
           # T-103, T-124: the parity suite in guests with an engine: services:,
           # a job container, a Dockerfile action. dockerd pulls through the
           # egress module, which allows the hosts of the registry only.
