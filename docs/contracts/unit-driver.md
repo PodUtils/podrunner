@@ -64,8 +64,9 @@ and the hook relay. A driver whose unit has a root of its own names, in
 guest paths. The podvm driver mounts it at `/run/podrunner` on the
 supervise rung, the rung that has volumes and so the container route.
 `start` gets the directory also when the driver has no `socket_mount`
-(T-107): the fake shares the paths of the host, and the microvm driver
-connects the channel of its guest to the egress socket of the directory.
+(T-107): the fake shares the paths of the host, and the microvm and incus
+drivers connect the channel of the guest or the instance to the egress
+socket of the directory.
 
 ## Errors
 
@@ -79,7 +80,10 @@ Each error has a code and a detail with no credential:
 `crates/podrunner-unit/src/conformance/` runs these tests against a
 driver. Each test has a planted defect that fails it and a correct input
 that passes it. A test that does not apply to the kind (no container
-route) reports `skip` with the reason. The payloads of the tests are given
+route) reports `skip` with the reason. A guest kind needs one host process
+for tests 3 and 7, not three (`docs/decisions.md`, "The unit tests 3 and 7
+on a guest kind"); tests 3, 6, 7 and 10 do not apply to the incus kind
+("The test set of the incus kind"). The payloads of the tests are given
 by the fixture of the driver: exit with a code, sleep, a `setsid` child
 with a grandchild, a marker file in the working directory.
 
@@ -137,7 +141,7 @@ each design test, the tests here that cover it, and what is open (T-053).
 | 8 exec env, workdir | UC `container-lifecycle` (an exec with an environment and `/tmp`) | none |
 | 9 another unit's container | HU `the_socket_of_one_unit_reaches_no_container_of_another`: no call names a container id | none |
 | 10 proof canary | UC `no-credential-in-the-outputs` | none |
-| 11 guest self-test | SG `a_fake_that_claims_guest_fails_the_self_test`; a guest of the microvm kind passes (`crates/podrunner-microvm/tests/selftest.rs`, `runner-image.yml`) | the check of the mounts on each `guest` start (T-036) |
+| 11 guest self-test | SG `a_fake_that_claims_guest_fails_the_self_test`; a guest of the microvm kind passes (`crates/podrunner-microvm/tests/selftest.rs`, `runner-image.yml`); the guest script checks its mounts before each job (`MOUNT_CHECK`, T-036) | none |
 | 12 `../x` | `crates/podrunner-schema/src/lib.rs` `an_id_that_climbs_never_parses` (pod-job ids) | none |
 | 13 container options | HK `each_rule_refuses_its_input`, `a_job_container_of_the_runner_passes_with_its_mounts` (the seven entries), `the_mount_tables_and_the_order_of_the_design` | none on the fake path |
 | 14 job_state | HU `each_command_reaches_the_fake_unit` (a second `job-started` is ignored and goes to the audit), SG `job_started_in_running_is_ignored_and_job_completed_moves_no_state` | none |

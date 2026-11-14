@@ -41,10 +41,10 @@ numbers. `TODO/RULES.md` gives the rules.
 | #33 | Milestone M-D: one live trusted job on a no-root host | open (blocked: the live gates #74 and #75) | T-033 |
 | #34 | WP-13: measure U19 and U21 on the podvm rung | closed (T-034, podvm `v0.2.0-beta.3`) | T-034 |
 | #35 | WP-09: hook relay and the per-unit control socket server (`ctl`) | closed (`fda577d`, gate run 42991333922) | T-035 |
-| #36 | Guest floor self-test | closed | T-036 |
-| #37 | WP-11: `microvm` unit driver (form set by DR-5) | closed | T-037 |
+| #36 | Guest floor self-test | closed (`0fd08ac`, runner-image run 43472656290) | T-036 |
+| #37 | WP-11: `microvm` unit driver (form set by DR-5) | closed (`67689fa`, runner-image run 43467164062) | T-037 |
 | #38 | WP-12: canned-message fake broker (level 2) | closed (T-026, runner-image run 42987612426) | T-038 |
-| #39 | Milestone L2: level 2 green, hook path measured | closed | T-039 |
+| #39 | Milestone L2: level 2 green, hook path measured | closed (`0fd08ac`, level2 run 43475568946) | T-039 |
 | #40 | Level 3: live acceptance suite | open (blocked: the live gates #74 and #75) | T-040 |
 | #41 | Hold `enforced` on podvm units (`pod-hold` or `pod-sud`) | closed (`349f0ba`, gate run 43076066364, runner-image run 43076066444) | T-041 |
 | #42 | `confined` boundary (`pod-confine`) | closed (`660bdf1`, runner-image run 43155326439) | T-042 |
@@ -80,18 +80,18 @@ numbers. `TODO/RULES.md` gives the rules.
 | #78 | COORD-018: podrunner pins podvm v0.2.0-beta.7; the tar forms of PodUtils/podvm@T-1743 pass (the answer to PodUtils/podvm#289) (to podvm) | closed (podvm closed PodUtils/podvm#289; runner-image run 43454398354) | T-096 |
 | #79 | COORD-019: podrunner takes podcrates v0.37.0 at 5fc53c4 (the answer to PodUtils/podcrates#134) (to podcrates) | closed (podcrates closed #134 with the take) | T-094 |
 | #80 | COORD-020: pod-job: ActorClass needs agent and bot for githome's offers (to podcrates) | closed (podcrates `v0.38.0` gives agent and bot; taken) | T-106 |
-| #81 | COORD-021: the machine tier gives each file of the image to root: a non-root user of the image cannot run its programs (to podvm) | closed | T-037 |
+| #81 | COORD-021: the machine tier gives each file of the image to root: a non-root user of the image cannot run its programs (to podvm) | closed (`50c084f`, runner-image run 43437838544) | T-037 |
 | #82 | COORD-022: podrunner takes podcrates v0.38.0 at 28ce3b5 (the answer to PodUtils/podcrates#136) (to podcrates) | closed (podcrates closed #136 with the take) | T-094 |
-| #83 | COORD-023: a machine-tier guest with no NIC and one host channel for podrunner's microvm kind (PodUtils/podvm@T-1751) (to podvm) | closed | T-037, T-036 |
+| #83 | COORD-023: a machine-tier guest with no NIC and one host channel for podrunner's microvm kind (PodUtils/podvm@T-1751) (to podvm) | closed (podvm `v0.2.0-beta.10`; `50c084f`, runner-image run 43437838544) | T-037, T-036 |
 | #84 | COORD-024: podrunner takes podcrates v0.39.0 at 69d7b14 (the answer to PodUtils/podcrates#137) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#137) | T-094 |
-| #85 | COORD-025: the incus tier needs stdin for an instance that stays, for podrunner's incus kind (to podvm) | closed | T-105 |
-| #86 | COORD-026: pod-job: cpu_s and peak_rss_mib in run-report.v1, for githome's G-06 (to podcrates) | closed | T-108 |
-| #87 | COORD-027: the channel of a machine-tier guest gets no connection when the run has 9p volumes (to podvm) | closed | T-037 |
-| #88 | COORD-028: --podvm-net none and --podvm-channel on the incus tier, for podrunner's incus kind (to podvm) | closed | T-109 |
+| #85 | COORD-025: the incus tier needs stdin for an instance that stays, for podrunner's incus kind (to podvm) | closed (`b328c4e`; runner-image run 43477657803) | T-105 |
+| #86 | COORD-026: pod-job: cpu_s and peak_rss_mib in run-report.v1, for githome's G-06 (to podcrates) | closed (podcrates `v0.40.0` taken in `35595a6`) | T-108 |
+| #87 | COORD-027: the channel of a machine-tier guest gets no connection when the run has 9p volumes (to podvm) | closed (`50c084f`, runner-image run 43437838544) | T-037 |
+| #88 | COORD-028: --podvm-net none and --podvm-channel on the incus tier, for podrunner's incus kind (to podvm) | closed (podvm `v0.2.0-beta.13`; runner-image run 43492630049) | T-109 |
 | #89 | COORD-029: podrunner takes podcrates v0.40.0 at 35595a6 (the answer to PodUtils/podcrates#140) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#140) | T-108 |
-| #90 | COORD-030: the proxy device of --podvm-channel fails to start on incus 6.0.0 of Ubuntu 24.04 (to podvm) | closed | T-109 |
-| #91 | COORD-031: pod-job: ContainerRoute::Engine, a container engine inside the unit (to podcrates) | open | T-103 |
-| #92 | COORD-032: the kernel of a machine-tier guest for a container engine: bridge, veth, overlay, netfilter, cgroup2 (to podvm) | closed | T-103 |
+| #90 | COORD-030: the proxy device of --podvm-channel fails to start on incus 6.0.0 of Ubuntu 24.04 (to podvm) | closed (podvm `v0.2.0-beta.13`; runner-image run 43492630049) | T-109 |
+| #91 | COORD-031: pod-job: ContainerRoute::Engine, a container engine inside the unit (to podcrates) | open (podcrates took it as PodUtils/podcrates@T-553; closes with the take of its tag) | T-103 |
+| #92 | COORD-032: the kernel of a machine-tier guest for a container engine: bridge, veth, overlay, netfilter, cgroup2 (to podvm) | closed (podvm `v0.2.0-beta.14`; `c817be5`, runner-image run 43514371042) | T-103 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

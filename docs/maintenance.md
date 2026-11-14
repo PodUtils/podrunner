@@ -66,6 +66,18 @@ the tools.
     runner against `images/runner/advisories.txt` (T-082, `runner-image.yml`).
   * `runner-musl.sh SRC RID`: the musl layout of the official runner
     from a clone of its tag (T-081, `runner-musl.yml`).
+  * `check-design.sh`: no detail of a machine or an account of the owner
+    in the design copy (`docs/design/`).
+  * `measure-*.sh`: the measures that `runner-image.yml` runs on a hosted
+    runner: the hook path and the container verbs (T-034), `podnet pod`
+    (T-065), `--podvm-confine` (T-079), the machine tier (T-037), the
+    incus tier (T-105) and an engine in a guest (T-103). The head of each
+    script says what it measures.
+  * `runner-stand-in.py`, `stand-in-image.py`, `connect-stand-in.py`: the
+    stand-ins of the runner, its image and the egress socket that the
+    measures use.
+  * `corpus.py`: the corpus of the fake broker from the workflows of a
+    podcrates checkout (T-038, `level2.yml`).
 * The copies of podcrates scripts (`check-size.py`, `check-static.sh`,
   `cloud-setup.sh`, `fetch-zig.sh`, `pull-image.sh`, `retry.sh`,
   `secrets-report.py`, `check-github-numbers.py`) come from podcrates

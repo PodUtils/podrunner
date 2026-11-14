@@ -1,7 +1,8 @@
 //! The unit seam of podrunner (GitHub #16, `docs/contracts/unit-driver.md`).
 //!
 //! A unit is one isolated environment for one job. A driver makes units of
-//! one kind (`fake`, `podvm`, `microvm`, `docker`, `host`). The core of
+//! one kind (`fake`, `podvm`, `microvm`, `incus`; `docker` and `host` are
+//! non-goals of v1, `docs/non-goals.md`). The core of
 //! podrunner calls only the trait [`UnitDriver`]; the driver is the only
 //! code that knows its tool (its argv, its files). [`conformance`] holds the
 //! tests that each driver must pass.

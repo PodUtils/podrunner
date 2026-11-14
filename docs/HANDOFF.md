@@ -10,19 +10,19 @@ is done.
 
 - Pins: podcrates `v0.40.0` (`Cargo.toml`); podvm `v0.2.0-beta.14`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
-  the microvm and incus kinds need beta.10, T-110); podnet
-  `v0.4.0-beta.8` (`images/podnet.toml`); the official runner v2.338.2
-  (`images/runner/runner.toml`). Last beta of podrunner: `v0.1.0-beta.4`
-  (2026-11-13, release run 43506335609, `d796a94`); githome and the
-  live-gate agents (#74, #75) are told.
-- The record: 111 entries, 3 open, 7 partial, 7 blocked, 94 done
+  the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
+  `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
+  beta.14, T-112); podnet `v0.4.0-beta.8` (`images/podnet.toml`); the
+  official runner v2.338.2 (`images/runner/runner.toml`). Last beta of
+  podrunner: `v0.1.0-beta.4` (release run 43506335609, `d796a94`).
+- The record: 113 entries, 2 open, 3 partial, 6 blocked, 102 done
   (`cargo todo check`). The last green `runner-image.yml` run is
-  43454398354 (`e8795f2`): the podvm suites, the held tests, the 28 tar
-  forms, the microvm kind on real guests and the incus suite on real
-  instances.
-- M-A, M-B and the work packages of M-C and M-D are done. The open
-  milestone gates are T-032, T-033 and T-040 (the live gates: GitHub #74
-  and #75) and T-039 (after T-036 and T-037).
+  43524984859 (`a5867d9`): the podvm suites, the held tests, the tar
+  forms, the microvm kind on real guests (with an engine), and the incus
+  suite on real instances.
+- M-A, M-B and L2 hold (T-039 is done). The work packages of M-C and M-D
+  are done. The open gates are T-032, T-033 and T-040 (the live gates:
+  GitHub #74 and #75).
 - The podvm driver runs the official runner in a unit with no root: a
   canned job and a `container:` job through the hooks pass in
   `runner-image.yml` (T-026, T-035). The unit conformance suite passes on
@@ -47,14 +47,21 @@ is done.
 - The `microvm` kind (`crates/podrunner-microvm`, `[unit.microvm]`): one
   guest of podvm's machine tier for each job, with no NIC and one channel
   to the egress socket of the unit (`PODRUNNER_CHANNEL_PORT`; the guest
-  script sets the proxy variables). Its 11 unit tests, the guest self-test
-  (which compares the boot id and `/proc/version` with the host) and a
-  canned job of the official runner pass on real guests (T-037, T-036).
+  script sets the proxy variables), so its hold is `enforced`. Before each
+  job the guest script checks its mounts (`MOUNT_CHECK`). The self-test,
+  the unit tests and a canned job of the official runner pass on real
+  guests (T-036, T-037). With `[unit.microvm] engine = DIR`, the guest runs
+  `dockerd` (`--podvm-engine`) and the runner gets `DOCKER_HOST` of a
+  socket in the guest (T-103, `docs/container-engine.md`).
 - The `incus` kind (`crates/podrunner-incus`, `[unit.incus]`): one system
   container of podvm's incus tier for each job, the credential files on
-  stdin. It claims `confined`. Its suite passes on real instances (T-105).
-  It has no NIC and one channel to the egress socket, so its hold is
-  `enforced` and it serves `trusted` jobs (T-109).
+  stdin. It claims `confined`. It has no NIC and one channel of podvm to
+  the egress socket (the socket file at mode 0666 in the 0700 socket
+  directory), so its hold is `enforced` and it serves `trusted` jobs
+  (T-105, T-109).
+- Each report carries `cpu_s` and `peak_rss_mib`
+  (`crates/podrunner-slots/src/usage.rs`, T-108); the incus kind gives
+  `unknown`.
 - A musl build of the official runner (`scripts/runner-musl.sh`,
   `runner-musl.yml`) runs the canned jobs in Alpine on x86_64 and
   aarch64, and in a podvm unit on x86_64 (T-081).
@@ -65,23 +72,15 @@ is done.
 
 - podvm is available (the owner, 2026-11-13): it answers COORD issues
   `(to podvm)`. podssh is on break.
-- L2 holds: T-036, T-037 and T-039 are done (GitHub #36, #37, #39
-  closed). The microvm kind passes the self-test, its unit tests, the
-  acceptance of #37 and the mount check on real guests.
-- T-108 is done: each report carries `cpu_s` and `peak_rss_mib`
-  (podcrates `v0.40.0`).
-- T-105, T-108 and T-109 are done: the incus kind serves `trusted` jobs
-  through its egress socket (podvm `v0.2.0-beta.14`); each report carries
-  `cpu_s` and `peak_rss_mib` (podcrates `v0.40.0`).
-- T-103 (partial): GitHub #91 asks podcrates for `ContainerRoute::Engine`.
-  `scripts/measure-engine.sh` runs static Docker 27.5.1 in a machine-tier
-  guest: `dockerd` starts after the script mounts cgroup2 (driver `vfs`:
-  the guest has no `overlay` and no modules); a container needs
-  `DOCKER_RAMDISK` (the root is an initramfs); a container runs
-  (run 43495436619). A bridge network of `services:` fails ("operation
-  not supported"): GitHub #92 asks podvm for bridge, veth, netfilter,
-  overlay and a cgroup2 mount in the guest kernel. T-103 waits for #91
-  and #92.
+- T-112 and T-113 (open): `serve` must require podvm beta.14 for an
+  engine, and `doctor` must read the microvm and incus kinds.
+- T-103 (blocked): steps 1, 2, 3a and 3b are done
+  (`docs/container-engine.md`). Step 3c waits for podcrates:
+  `ContainerRoute::Engine` and `UnitNeed::container_engine` (GitHub #91,
+  PodUtils/podcrates@T-553, the tag after `v0.41.0`). Then take the tag,
+  give the microvm kind with an engine `container: engine` in `probe`, and
+  prove a `services:` job, a Dockerfile action and a Docker-in-Docker step
+  in `runner-image.yml` (step 4).
 - T-101 (partial): the `program` source kind is in; its pair with GitHub
   runs on the host of LIVE-2 when githome gives its program (GitHub #66).
 - The live gates: two agents on two constrained hosts, GitHub #74
@@ -100,7 +99,8 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | LIVE-1 and LIVE-2 | the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
-| podcrates | the tag `v0.40.0` with `cpu_s` and `peak_rss_mib` (GitHub #86) | T-108 |
+| podcrates | `ContainerRoute::Engine` in the tag after `v0.41.0` (GitHub #91) | T-103 |
+| githome | its source program, for the pair on the host of LIVE-2 | T-101 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
 
@@ -109,10 +109,11 @@ is done.
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.
-- GitHub #85 (COORD-025, to podvm): podvm answered in
-  PodUtils/podvm#307; the lead session closes it.
-- GitHub #86 (COORD-026, to podcrates): podcrates answered; it closes with
-  the take of `v0.40.0` (T-108).
+- GitHub #91 (COORD-031, to podcrates): `ContainerRoute::Engine`;
+  podcrates took it as PodUtils/podcrates@T-553. Close it with the take of
+  the tag (T-103).
+- GitHub #9, #32, #33, #40: wait for the live gates (#74, #75). GitHub
+  #43 waits for podcrates.
 
 ## Talk between sessions
 

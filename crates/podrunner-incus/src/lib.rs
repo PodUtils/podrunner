@@ -12,8 +12,12 @@
 //! unit, a `disk` device of the instance.
 //!
 //! The instance has no NIC (`--podvm-net none`). Its one way out is a
-//! channel of podvm from `127.0.0.1:3128` in the instance to the egress
-//! socket of the unit, and the script sets the proxy variables of the
+//! channel of podvm (`--podvm-channel`, no incus `proxy` device) from
+//! `127.0.0.1:3128` in the instance to the egress socket of the unit:
+//! podvm mounts the socket file into the instance and relays to it. The
+//! driver sets the socket to mode 0666, so the mapped root of the instance
+//! can connect; the socket directory of the unit (mode 0700) keeps each
+//! other user of the host out. The script sets the proxy variables of the
 //! payload from `PODRUNNER_CHANNEL_PORT` (T-109).
 //!
 //! A system container shares the kernel of the host: the kind claims

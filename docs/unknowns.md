@@ -23,7 +23,7 @@ live rows wait for the live gates (GitHub #74 and #75).
 | U13 | `DOTNET_EnableWriteXorExecute=0` has a measurable cost | A bench on a unit | none | Settled for the start: no measurable cost. `Runner.Listener --version` of runner 2.338.2, 20 runs for each value, three times: 124 to 140 ms with W^X, 125 to 131 ms with no W^X (the spread of the host is larger than the difference). Not measured: a long job. |
 | U14 | The runner with the hooks variable set and the job variable false | A live job | the live gates | Open (T-040). |
 | U15 | The treatment of a third-party runner version string by github.com | The owner reads the terms (call C10, DR-16) | the owner | Open. No alternate payload ships before it. |
-| U16 | `dookoid` on a host that denies ptrace | A run on such a host | none | Deferred with the Docker API (`docs/non-goals.md`). |
+| U16 | `dookoid` on a host that denies ptrace | A run on such a host | none | Deferred: no shim of the Docker API is planned. T-103 runs a real engine in a guest (`docs/container-engine.md`), and no `dookoid` runs there. |
 | U17 | Two hosts share one scale set | A live job | the live gates | Open (T-040). |
 | U18 | A job can be failed by name through the scale-set API | A live job | the live gates | Open (T-040). |
 | U19 | A job container of another image and a Docker action run on a podvm unit with a shared host network | T-034 | podvm PodUtils/podvm#236 | Settled (T-034, podvm `v0.2.0-beta.3`): yes on the supervise rung (a job container of another image with the seven volumes, `exec -e -w` at 47 ms, an action with the five volumes); `:ro` holds for `run` and, from podvm `v0.2.0-beta.4`, for `exec` (T-062, GitHub #62). On the namespace rung `-v` is refused. |

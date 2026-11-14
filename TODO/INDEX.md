@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**111 entries: 0 open, 3 partial, 6 blocked, 102 done.**
+**113 entries: 2 open, 3 partial, 6 blocked, 102 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 0 | 1 | 4 | 45 | 50 |
+| P2 | 2 | 1 | 4 | 45 | 52 |
 | P3 | 0 | 0 | 2 | 25 | 27 |
-| **All** | 0 | 3 | 6 | 102 | 111 |
+| **All** | 2 | 3 | 6 | 102 | 113 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -159,3 +159,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-109](later.md) | P1 | M | later | defect | done | The incus kind has no egress hold, so placement gives it no trusted job |
 | [T-110](later.md) | P2 | S | later | defect | done | The microvm and incus kinds do not check the version of podvm |
 | [T-111](later.md) | P3 | S | later | defect | done | The configuration accepts keys that nothing reads |
+| [T-112](later.md) | P2 | S | later | defect | open | serve takes a podvm below beta.14 for an engine of the microvm kind |
+| [T-113](later.md) | P2 | S | later | defect | open | doctor names no driver for the microvm and incus kinds |

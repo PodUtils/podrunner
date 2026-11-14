@@ -14,8 +14,9 @@ cargo test --workspace --all-features
 cargo todo check
 ```
 
-`sh scripts/agent/check.sh` runs them, the size of the Rust files, the
-check of the commit messages and the static build. CI runs the same on
+`sh scripts/agent/check.sh` runs them, rustdoc with `-D warnings`, the
+checks of `fuzz/`, the size of the Rust files, the check of the commit
+messages and the static build. CI runs the same on
 each push (`.github/workflows/gate.yml`).
 
 ## Toolchain
@@ -39,7 +40,8 @@ each push (`.github/workflows/gate.yml`).
 * A crate of podcrates comes by its tag, in `[workspace.dependencies]` of
   `Cargo.toml`. A member crate names it only when it needs it.
 * Generic code that another project can use goes to podcrates as a `pod-`
-  crate: ask the podcrates session.
+  crate: ask podcrates by a COORD issue (`docs/maintenance.md`, "Talk
+  between sessions").
 
 ## File size
 

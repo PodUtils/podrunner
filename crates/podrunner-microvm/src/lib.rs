@@ -9,8 +9,15 @@
 //! 0600 and runs the payload as the user of the image. No credential goes
 //! into argv or the environment. The payload runs in a work directory of
 //! the unit that the guest mounts over 9p. Each process of the unit (podvm, QEMU)
-//! carries the tag of the unit, so `destroy` ends the whole tree. A unix
-//! socket does not cross into a guest: the kind has no container route.
+//! carries the tag of the unit, so `destroy` ends the whole tree. Before the
+//! payload, the guest script checks that each host mount of the guest is
+//! in the table of the unit (`MOUNT_CHECK`, T-036).
+//!
+//! A unix socket does not cross into a guest: the kind has no route of the
+//! container hooks. With an engine ([`MicrovmUnit::with_engine`], T-103),
+//! the guest runs `dockerd` and the runner gets its socket in the guest as
+//! `DOCKER_HOST`; the record says `container: none` until `pod-job` gives
+//! the value `engine` (GitHub #91).
 //!
 //! The guest has no NIC (`--podvm-net none`). With a socket directory, its
 //! one way out is a channel of podvm from `127.0.0.1:3128` in the guest to

@@ -908,3 +908,52 @@ Make `[egress]` a struct with `deny_unknown_fields` and one field `default_polic
 
 2026-11-13, this commit. `[egress]` is `EgressConfig` with `deny_unknown_fields` and one field, `default_policy`; the load refuses a policy that is not version 1, a mode other than `open` or `allow`, and a path rule. The `plan` of the `microvm` and `incus` kinds refuses `registries`, `runner_dir`, `podnet` and `confine` by name. `egress_refuses_an_unknown_key_and_a_policy_it_cannot_hold` and a case of `check_and_serve_refuse_a_bad_file_with_one_text` hold it.
 
+# T-112: serve takes a podvm below beta.14 for an engine of the microvm kind
+
+**Source:** A read of `crates/podrunner/src/microvm_kind.rs` and `crates/podrunner-podvm/src/probe.rs` (2026-11-14)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With `[unit.microvm] engine = DIR`, the kind passes `--podvm-engine` to `podvm run`. podvm gives that flag from `v0.2.0-beta.14` (PodUtils/podvm#321). `build` of the kind requires only `LOWEST_GUEST` (`0.2.0-beta.10`) also with an engine. So `serve` and `podrunner check` accept podvm beta.10 to beta.13 with `engine`, and each job then fails at the start of its unit, not at the start of `serve` with a named cause.
+
+## Premise
+
+Read `crates/podrunner/src/microvm_kind.rs` (`build` calls `require(LOWEST_GUEST)` with or without `u.engine`) and `crates/podrunner-podvm/src/probe.rs` (no constant for the engine) on 2026-11-14. `docs/configuration.md` says that `engine` needs beta.14. Not measured with an old podvm.
+
+## Approach
+
+Add `LOWEST_ENGINE = "0.2.0-beta.14"` to `crates/podrunner-podvm/src/probe.rs`. In `build` of the microvm kind, require it when `engine` is set, with a detail that names `engine`. A test with a fake podvm of beta.13: the kind with no engine starts, the kind with `engine` is refused (`unsupported`).
+
+## Prove
+
+`cargo test -p podrunner-podvm` and `cargo test -p podrunner microvm`
+
+# T-113: doctor names no driver for the microvm and incus kinds
+
+**Source:** A read of `crates/podrunner/src/doctor.rs` (2026-11-14)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner doctor --config FILE` gives the capability record of each unit kind through its driver (`docs/cli.md`). `capability` of `crates/podrunner/src/doctor.rs` knows only `fake` and `podvm`; for `[unit.microvm]` and `[unit.incus]` it says "no driver of the kind ... in this build". The build has both drivers. So doctor reports each `untrusted` source on a host with a microvm kind, and each `trusted` source on a host with only an incus kind, as "no unit kind meets the floor and the hold of its tier", which is false.
+
+## Premise
+
+Read `crates/podrunner/src/doctor.rs` and `crates/podrunner/src/serve.rs` (which builds both kinds) on 2026-11-14. Not run on a host with KVM or incusd.
+
+## Approach
+
+Give `capability` the `microvm` and `incus` kinds through the `plan` and the `probe` of their drivers (`crate::microvm_kind`, `crate::incus_kind`), with no unit started: a probe starts no process (unit test 23). For `microvm`, say that `serve` takes the claim `guest` only after the self-test and only for a kind on `guest_kinds`. A test: a file with `[unit.microvm]` and a fake podvm gives the kind its record, not "no driver".
+
+## Prove
+
+`cargo test -p podrunner doctor`

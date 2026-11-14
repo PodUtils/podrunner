@@ -91,9 +91,12 @@ whose own resolver fails keeps its egress and its mint.
 A guest of the machine tier of podvm for each job (T-037): its own kernel,
 under KVM where `/dev/kvm` opens. It is the unit of the `untrusted` tier:
 it claims `guest`, and `serve` takes the claim only for a kind on
-`guest_kinds` and after the self-test of the guest (GitHub #36). It has no
-container route. The host needs `qemu-system-x86_64` (or `-aarch64`) and
-podvm `v0.2.0-beta.10` or later.
+`guest_kinds` and after the self-test of the guest (GitHub #36). Before
+each job the guest script checks that each host mount of the guest is in
+the table of the unit (`MOUNT_CHECK`); a guest with another mount ends with
+exit 96. It has no route of the container hooks. The host needs
+`qemu-system-x86_64` (or `-aarch64`) and podvm `v0.2.0-beta.10` or later
+(`LOWEST_GUEST`).
 
 The guest has no NIC. Its one way out is a channel of podvm from
 `127.0.0.1:3128` in the guest to the egress socket of the unit. The
@@ -116,7 +119,9 @@ engine = "/opt/podrunner/docker"         # optional: the static Docker binaries;
 
 With `engine`, each guest loads the modules of an engine
 (`--podvm-engine`, podvm `v0.2.0-beta.14` or later), mounts the directory
-read-only, and starts `dockerd` before the runner. The runner gets its
+read-only at `/podrunner-engine`, and starts `dockerd` as root before the
+runner. `serve` checks only beta.10 now: T-112 makes it refuse an older
+podvm for `engine`. The runner gets its
 socket as `DOCKER_HOST`; the socket stays in the guest, and the engine
 pulls through the egress channel. The runner image needs `iptables`
 (`images/runner/Dockerfile` has it). The kind says `container: none` until
@@ -127,16 +132,22 @@ podcrates gives the value `engine` (T-103, GitHub #91).
 A system container of the incus tier of podvm for each job (T-105): its
 own init, root file system and network namespace, and the kernel of the
 host. It claims `confined`, the floor of `trusted`, so it never serves an
-`untrusted` job. It has no container route yet (T-103). The host needs an
+`untrusted` job. It has no container route, and it refuses `engine`
+(T-103 puts the engine in a guest of the microvm kind). The host needs an
 incusd that the user of podrunner can reach (`PODVM_INCUS_SOCKET` or
 `INCUS_DIR` in the environment of `serve`) and podvm `v0.2.0-beta.13` or
-later: the credential files go into the instance on stdin.
+later (`LOWEST_INCUS`): the credential files go into the instance on
+stdin, and the instance gets its channel with no NIC.
 
-The instance has no NIC (`--podvm-net none`). Its one way out is an
-incus `proxy` device from `127.0.0.1:3128` in the instance to the egress
-socket of the unit, and the job gets `http_proxy` and `https_proxy` of
-that address, as for the microvm kind. So the egress hold is `enforced`,
-and the kind serves `trusted` jobs.
+The instance has no NIC (`--podvm-net none`). Its one way out is a
+channel of podvm (`--podvm-channel`, no incus `proxy` device) from
+`127.0.0.1:3128` in the instance to the egress socket of the unit: podvm
+mounts the socket file into the instance and relays to it. The driver sets
+the socket to mode 0666, so that the mapped root of the instance can
+connect; the socket directory of the unit (mode 0700) keeps each other
+user of the host out. The job gets `http_proxy` and `https_proxy` of that
+address, as for the microvm kind. So the egress hold is `enforced`, and
+the kind serves `trusted` jobs.
 
 ```toml
 [unit.incus]
