@@ -28,6 +28,10 @@ pub(super) struct Args {
     pub(super) environment_secrets: Vec<(String, PathBuf)>,
     pub(super) environment_vars: Vec<(String, PathBuf)>,
     pub(super) environment_allow: Vec<(String, String)>,
+    /// `--protected NAME` and `--approve NAME`: the protection of an
+    /// environment (T-136).
+    pub(super) protected: Vec<String>,
+    pub(super) approved: Vec<String>,
     /// `--state DIR`, `--rerun DIR`, `--failed`, `--refresh` (T-135).
     pub(super) state: Option<PathBuf>,
     pub(super) rerun: Option<PathBuf>,
@@ -90,6 +94,8 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             "--incus" => a.guest = Some((false, PathBuf::from(value()?))),
             "--engine" => a.engine = Some(PathBuf::from(value()?)),
             "--job" => a.jobs.push(value()?),
+            "--protected" => a.protected.push(value()?),
+            "--approve" => a.approved.push(value()?),
             "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {
                 let v = value()?;
                 let (name, rest) = v

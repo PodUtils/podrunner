@@ -107,6 +107,8 @@ pub struct LocalSource {
 pub struct Environment {
     pub secrets: Vec<(String, String)>,
     pub vars: Vec<(String, String)>,
+    /// The reason when the protection of the environment holds its jobs.
+    pub refused: Option<String>,
 }
 
 fn usage(detail: impl Into<String>) -> SourceError {
@@ -268,6 +270,9 @@ impl LocalSource {
     pub fn broker_job(&self, job: &JobId) -> Result<podrunner_broker_fake::Job, String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
         let environment = self.environment_of(job)?.and_then(|n| self.environments.get(&n).cloned());
+        if let Some(reason) = environment.as_ref().and_then(|e| e.refused.clone()) {
+            return Err(reason);
+        }
         // The vars of an environment over those of the run (T-136).
         let vars = match &environment {
             Some(e) if !e.vars.is_empty() => {

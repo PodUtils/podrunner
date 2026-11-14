@@ -289,8 +289,9 @@ fn only_the_jobs_of_an_environment_get_its_secrets_and_vars() {
     let prod = crate::Environment {
         secrets: vec![("DEPLOY_KEY".into(), "made-up-deploy".into())],
         vars: vec![("A".into(), "prod".into())],
+        refused: None,
     };
-    s.set_environments(BTreeMap::from([("prod".to_string(), prod)]));
+    s.set_environments(BTreeMap::from([("prod".to_string(), prod.clone())]));
     let msg = |s: &LocalSource, j: &str| {
         podrunner_broker_fake::message::job_message(
             "http://127.0.0.1:1/",
@@ -305,6 +306,11 @@ fn only_the_jobs_of_an_environment_get_its_secrets_and_vars() {
     assert!(t["variables"].get("DEPLOY_KEY").is_none(), "a job of no environment gets no secret of it");
     assert!(t["contextData"]["vars"].to_string().contains("run"));
     assert_eq!(s.environment_of(&JobId::new("deploy.0").unwrap()).unwrap().as_deref(), Some("prod"));
+    // A protected environment with no approval holds its jobs by name.
+    let held = crate::Environment { refused: Some("prod is protected".into()), ..prod };
+    s.set_environments(BTreeMap::from([("prod".to_string(), held)]));
+    assert_eq!(s.broker_job(&JobId::new("deploy.0").unwrap()).unwrap_err(), "prod is protected");
+    assert!(s.broker_job(&JobId::new("test.0").unwrap()).is_ok());
 }
 
 #[test]

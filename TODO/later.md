@@ -1633,7 +1633,7 @@ Read `crates/podrunner/src/run_local.rs` on 2026-11-14: the scratch directories 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1652,6 +1652,10 @@ Evaluate `environment` (name and `url`). `--environment-secret-file NAME=FILE` a
 `cargo test -p podrunner-local message` (the secrets of an environment reach only its jobs).
 
 State (2026-11-14): `LocalSource::environment_of` reads `environment: NAME` or its `name:` (an expression is refused when a flag gives an environment); `set_environments` gives the secrets of `--environment-secret-file NAME=FILE` (mode 0600) and the vars of `--environment-var-file NAME=FILE` (over those of the run) only to the jobs of that environment; `--environment-allow NAME=HOST` gives those jobs their own egress policy on a unit kind that holds egress (`Executor::environment`, `InUnit::environment_policies`). Tests: the secrets and vars of an environment in its job and not in another, the flags. Next: the protection of an environment (`--approve NAME`, a prompt on a terminal): GitHub keeps which environment is protected in its settings, so the local mode needs a rule for it first, for example `--protected NAME`.
+
+## Done
+
+2026-11-14, this commit. `--protected NAME` marks an environment as protected; `--approve NAME` passes it; with no flag, `podrunner run` asks on the terminal before the first job, for each protected environment that a selected job names (`crates/podrunner/src/run_local/protect.rs`). With no terminal, or a refusal, `Environment::refused` holds the reason and `broker_job` refuses each job of that environment by name; the other jobs run. A dry run asks nothing. Tests: `cargo test -p podrunner protect` (an approved, an unused, a refused and an unselected environment) and `cargo test -p podrunner-local message` (a held environment refuses its job, not another).
 
 
 # T-137: Local mode: concurrency groups and cancel-in-progress
