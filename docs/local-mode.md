@@ -65,7 +65,7 @@ the entry that closes the gap, or the entry that did the work.
 | Reruns | no | `rerun --failed`, keep artifacts | `--state DIR`, `--rerun DIR [--failed \| --job ID]`, kept results, outputs and artifacts; a changed workflow fails by name | T-135 |
 | Watch, schedules | `--watch` | `--watch`, schedules | no | T-142 |
 | Configuration file | `.actrc`, trust of the project file | `.actrc` | no | T-143 |
-| Keep a container, bind the tree, tool cache | `--reuse`, `--bind` | `--keep-container`, shared tool cache | no | T-138 |
+| Keep a container, bind the tree, tool cache | `--reuse`, `--bind` | `--keep-container`, shared tool cache | `--export DIR` on `--runner-dir`; a unit kind waits | T-138 |
 | Pause before a step | no | no | no | T-150 |
 | Host check, bug report | `--bug-report` | no | `doctor --run FILE [the options of run]`: each input checked, with its fix | T-153 |
 | Interrupt | cancels and removes | cancels | leaves units and scratch files | T-141 |

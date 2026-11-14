@@ -35,6 +35,8 @@ pub struct RunnerDir {
     pub blobs: Vec<(JobId, Vec<(String, String)>)>,
     /// The tarball of the local tree for `actions/checkout` (T-092).
     pub checkout: Option<PathBuf>,
+    /// `--export DIR`: the workspaces of each job go to `DIR/JOB` (T-138).
+    pub export: Option<PathBuf>,
 }
 
 impl RunnerDir {
@@ -52,6 +54,7 @@ impl RunnerDir {
             live: None,
             blobs: Vec::new(),
             checkout: None,
+            export: None,
         })
     }
 }
@@ -70,6 +73,22 @@ impl Executor for RunnerDir {
     }
 
     fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
+        let end = self.job(job, message, limit);
+        // The export of the workspaces, also of a failed job (T-138).
+        if let Some(dir) = &self.export
+            && let Err(e) = crate::work::export(&self.dir.join("_work"), &dir.join(job.as_str()))
+        {
+            match self.logs.iter_mut().rev().find(|(j, _)| j == job) {
+                Some((_, log)) => log.push_str(&format!("\npodrunner: {e}")),
+                None => self.logs.push((job.clone(), format!("podrunner: {e}"))),
+            }
+        }
+        end
+    }
+}
+
+impl RunnerDir {
+    fn job(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
         if needs_containers(&message) {
             return Err("the job needs containers: run it in a unit (--podvm, or --microvm with --engine), not on a runner directory".into());
         }

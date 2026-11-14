@@ -32,6 +32,7 @@ fn host(a: &Args, c: &Common) -> Result<Box<dyn Executor>, Out> {
     e.artifacts = Some(c.artifacts.clone());
     e.cache = c.cache.clone();
     e.checkout = c.checkout.clone();
+    e.export = a.export.clone();
     Ok(Box::new(e))
 }
 

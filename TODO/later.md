@@ -1695,7 +1695,7 @@ Evaluate the group of each job and of the run. In a run, a job waits while anoth
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1715,6 +1715,9 @@ Read `InUnit::run` of `crates/podrunner-local/src/exec.rs` on 2026-11-14. Not me
 ## Prove
 
 `cargo test -p podrunner-local exec` (a kept unit is not destroyed; the export) and `runner-image.yml` with `--toolcache`.
+
+State (2026-11-14): `--export DIR` with `--runner-dir`: after each job, also a failed one, `RunnerDir` copies each workspace of `_work` (each entry whose name does not start with `_`) to `DIR/JOB` (`crates/podrunner-local/src/work.rs` `export`); the modes and the symbolic links stay; a failure of the copy goes into the log of the job. A unit kind refuses `--export`. Tests: `cargo test -p podrunner-local export`. Next: the unit kinds. No driver can copy a file out of a unit or mount a host directory into it, and `podvm run -v` can: add the mounts to `StartSpec` (`podrunner-unit`), with `-v` in the podvm and microvm drivers. Then `--export DIR` mounts `DIR/JOB` at the work directory of the runner, `--toolcache DIR` mounts DIR read-only at a second path that `RUNNER_TOOL_CACHE` does not name (a read-only mount at the tool cache path breaks `setup-*`; a copy of the tools into the cache path at the start of the job is the measure), and `--keep-failed` skips `destroy` of a failed unit and prints its id.
+
 
 # T-139: Local mode: actions from a local directory (--local-repository) and from another forge
 

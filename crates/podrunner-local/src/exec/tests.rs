@@ -152,3 +152,18 @@ fn a_runner_directory_that_takes_no_file_fails_the_job() {
     assert!(e.contains(".runner"), "{e}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-138: `--export DIR` copies the workspace of a job, also of a job that
+/// ended with no result, to `DIR/JOB`.
+#[test]
+fn a_runner_directory_exports_the_workspace_of_a_job() {
+    let dir = stand_in("export", "mkdir -p _work/r/r _work/_temp && echo built > _work/r/r/out && touch _work/_temp/t");
+    let to = dir.join("exported");
+    let mut exec = RunnerDir::new(dir.clone()).unwrap();
+    exec.export = Some(to.clone());
+    let job = JobId::new("build.0").unwrap();
+    assert!(exec.run(&job, Job::scripts("a", &["true"]), Duration::from_secs(60)).is_err());
+    assert_eq!(std::fs::read_to_string(to.join("build.0/r/r/out")).unwrap(), "built\n");
+    assert!(!to.join("build.0/_temp").exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}

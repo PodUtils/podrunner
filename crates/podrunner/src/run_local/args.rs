@@ -32,6 +32,8 @@ pub(super) struct Args {
     /// environment (T-136).
     pub(super) protected: Vec<String>,
     pub(super) approved: Vec<String>,
+    /// `--export DIR`: the workspaces of each job (T-138).
+    pub(super) export: Option<PathBuf>,
     /// `--state DIR`, `--rerun DIR`, `--failed`, `--refresh` (T-135).
     pub(super) state: Option<PathBuf>,
     pub(super) rerun: Option<PathBuf>,
@@ -95,6 +97,7 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             "--engine" => a.engine = Some(PathBuf::from(value()?)),
             "--job" => a.jobs.push(value()?),
             "--protected" => a.protected.push(value()?),
+            "--export" => a.export = Some(PathBuf::from(value()?)),
             "--approve" => a.approved.push(value()?),
             "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {
                 let v = value()?;
@@ -219,6 +222,9 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
         return Ok(a);
     }
     let unit = [kind, a.images.is_some(), a.image.is_some()];
+    if a.export.is_some() && a.runner_dir.is_none() {
+        return Err("--export needs --runner-dir: a unit kind does not export its workspace yet".into());
+    }
     if !a.environment_allow.is_empty() && a.podnet.is_none() && a.guest.is_none() {
         return Err("--environment-allow needs an egress hold: --podnet with --podvm, or --microvm or --incus".into());
     }
