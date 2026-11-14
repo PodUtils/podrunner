@@ -182,7 +182,17 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
         match (key.as_str(), value) {
             ("contextData", Value::Object(extra)) => {
                 let data = m["contextData"].as_object_mut().expect("the context data");
-                data.extend(extra.clone());
+                for (name, v) in extra {
+                    match (name.as_str(), data.get_mut(name)) {
+                        // The entries of `github` join the canned ones, one
+                        // key at a time: `api_url` and `job` of this broker
+                        // stay (T-114).
+                        ("github", Some(canned)) => merge_dictionary(canned, v),
+                        _ => {
+                            data.insert(name.clone(), v.clone());
+                        }
+                    }
+                }
             }
             _ => {
                 m[key] = value.clone();
@@ -190,6 +200,21 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
         }
     }
     m
+}
+
+/// Put each entry of the context dictionary `extra` (`{"t":2,"d":[{"k","v"}]}`)
+/// into `into`, over an entry of the same key.
+fn merge_dictionary(into: &mut Value, extra: &Value) {
+    let (Some(have), Some(new)) = (into["d"].as_array_mut(), extra["d"].as_array()) else {
+        *into = extra.clone();
+        return;
+    };
+    for e in new {
+        match have.iter_mut().find(|h| h["k"] == e["k"]) {
+            Some(h) => *h = e.clone(),
+            None => have.push(e.clone()),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -242,5 +267,15 @@ mod tests {
         assert_eq!(m["steps"], json!([]));
         assert_eq!(m["contextData"]["matrix"]["t"], 2);
         assert_eq!(m["contextData"]["github"]["t"], 2, "the canned github stays");
+        let mut j = Job::scripts("j", &["true"]);
+        j.overrides.insert(
+            "contextData".into(),
+            json!({ "github": { "t": 2, "d": [ { "k": "event_name", "v": "pull_request" } ] } }),
+        );
+        let m = job_message("http://b/", 1, &j);
+        let d = m["contextData"]["github"]["d"].as_array().unwrap();
+        let get = |k: &str| d.iter().find(|e| e["k"] == k).map(|e| e["v"].clone());
+        assert_eq!(get("event_name"), Some(json!("pull_request")), "the run gives its event (T-114)");
+        assert_eq!(get("api_url"), Some(json!("http://b/")), "the api_url of the broker stays");
     }
 }

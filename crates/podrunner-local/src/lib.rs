@@ -55,6 +55,8 @@ pub struct LocalSource {
     /// The end of each cell of each running job.
     ends: BTreeMap<String, Vec<Option<Done>>>,
     skips: Vec<Skip>,
+    /// The `github` context of the run: each step reads it (T-114).
+    github: XValue,
     vars: XValue,
     inputs: XValue,
     minter: Minter,
@@ -72,7 +74,7 @@ impl LocalSource {
     /// `vars` and `inputs`; `arch` is the architecture of each offer.
     pub fn new(name: &str, text: &str, base: Base, arch: &str, minter: Minter) -> Result<LocalSource, String> {
         let parsed = pod_actions_workflow::parse(text).map_err(|e| e.to_string())?;
-        let (vars, inputs) = (base.vars.clone(), base.inputs.clone());
+        let (github, vars, inputs) = (base.github.clone(), base.vars.clone(), base.inputs.clone());
         let run = Run::new(Arc::new(parsed.workflow), base).map_err(|e| e.to_string())?;
         let mut source = LocalSource {
             name: name.into(),
@@ -83,6 +85,7 @@ impl LocalSource {
             states: BTreeMap::new(),
             ends: BTreeMap::new(),
             skips: Vec::new(),
+            github,
             vars,
             inputs,
             minter,
@@ -105,7 +108,7 @@ impl LocalSource {
     /// The job of the fake broker for the offer `job` (T-088).
     pub fn broker_job(&self, job: &JobId) -> Result<podrunner_broker_fake::Job, String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
-        message::broker_job(self.run.workflow(), cell, &self.vars, &self.inputs)
+        message::broker_job(self.run.workflow(), cell, &self.github, &self.vars, &self.inputs)
     }
 
     /// The jobs that did not run, with their reasons, in their order.

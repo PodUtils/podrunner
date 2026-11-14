@@ -973,7 +973,7 @@ Give `capability` the `microvm` and `incus` kinds through the `plan` and the `pr
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -990,6 +990,10 @@ Keep the `github` context of the `Base` in `LocalSource` and send it in `context
 ## Prove
 
 `cargo test -p podrunner-local message`
+
+## Done
+
+2026-11-14, this commit. `LocalSource` keeps the `github` context of its `Base` and `broker_job` sends it in `contextData`; the fake broker puts each entry of a `github` override over its canned entry of the same key, so `api_url` and `job` of the broker stay. `the_steps_read_the_github_context_of_the_run` (a run of `pull_request`) and the broker test of the merge hold it.
 
 # T-115: podrunner run --runner-dir does not end a job at its timeout-minutes, and it panics on an I/O error
 

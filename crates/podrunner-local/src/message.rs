@@ -260,11 +260,13 @@ fn step(
     Ok(v)
 }
 
-/// The job of the fake broker for `cell` of `workflow`. `vars` and `inputs`
-/// are the contexts of the run.
+/// The job of the fake broker for `cell` of `workflow`. `github`, `vars`
+/// and `inputs` are the contexts of the run; the entries of `github` join
+/// the canned ones of the broker, so `api_url` of the broker stays.
 pub fn broker_job(
     workflow: &pod_actions_workflow::Workflow,
     cell: &Cell,
+    github: &XValue,
     vars: &XValue,
     inputs: &XValue,
 ) -> Result<Job, String> {
@@ -313,6 +315,7 @@ pub fn broker_job(
         context.insert(name.into(), context_data(value));
     }
     context.insert("inputs".into(), context_data(inputs));
+    context.insert("github".into(), context_data(github));
     let mut b = Job::scripts(&i.name, &[]);
     b.overrides.insert("steps".into(), Value::Array(steps));
     b.overrides.insert("environmentVariables".into(), Value::Array(environment));

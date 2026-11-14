@@ -179,3 +179,20 @@ fn a_pinned_container_services_and_a_docker_step_go_into_the_message() {
     s.next(10, Duration::ZERO).unwrap();
     assert!(s.broker_job(&JobId::new("build.0").unwrap()).unwrap_err().contains("service s has no image"));
 }
+
+/// T-114: each step reads the `github` context of the run, and the broker
+/// keeps its `api_url`.
+#[test]
+fn the_steps_read_the_github_context_of_the_run() {
+    let github = XValue::from_json("{\"event_name\":\"pull_request\",\"repository\":\"local/workflow\"}").unwrap();
+    let base = Base { github, ..Base::default() };
+    let mut s = LocalSource::new("l", JOB, base, "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    let job = s.broker_job(&JobId::new("build.0").unwrap()).unwrap();
+    let m = podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &job);
+    let d = m["contextData"]["github"]["d"].as_array().unwrap();
+    let get = |k: &str| d.iter().find(|e| e["k"] == k).map(|e| e["v"].clone());
+    assert_eq!(get("event_name"), Some(json!("pull_request")));
+    assert_eq!(get("repository"), Some(json!("local/workflow")));
+    assert_eq!(get("api_url"), Some(json!("http://127.0.0.1:1/")), "the broker keeps its api_url");
+}
