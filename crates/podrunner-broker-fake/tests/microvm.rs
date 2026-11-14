@@ -53,6 +53,7 @@ fn the_runner_in_a_guest_runs_a_canned_job() {
         env: Default::default(),
         credential: Credential { files },
         sockets: Some(sockets.clone()),
+        mounts: Vec::new(),
     };
     unit.start(&spec).unwrap();
     let exit = unit.wait(&id, Duration::from_secs(600)).unwrap();

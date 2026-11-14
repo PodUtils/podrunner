@@ -122,6 +122,7 @@ fn a_held_podvm_unit_sends_each_connect_to_its_egress_socket() {
         env: Default::default(),
         credential: Default::default(),
         sockets: Some(sockets.clone()),
+        mounts: Vec::new(),
     };
     unit.start(&spec).unwrap();
     let root = unit.observe(&id).unwrap().unit_root.unwrap();

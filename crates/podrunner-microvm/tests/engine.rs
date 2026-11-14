@@ -49,6 +49,7 @@ fn the_runner_user_runs_a_container_on_the_engine_of_its_guest() {
         env: Default::default(),
         credential: Credential { files: vec![] },
         sockets: None,
+        mounts: Vec::new(),
     };
     unit.start(&spec).unwrap();
     let exit = unit.wait(&id, Duration::from_secs(600)).unwrap();

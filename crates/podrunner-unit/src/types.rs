@@ -105,6 +105,10 @@ pub struct StartSpec {
     /// `socket_mount` names a path mounts it there; another driver uses the
     /// host paths, or bridges a socket into the unit (the microvm kind).
     pub sockets: Option<std::path::PathBuf>,
+    /// Host directories that the unit sees read-write at a path of its own
+    /// (T-138): the host path, the path in the unit. A driver that cannot
+    /// mount refuses a start with one.
+    pub mounts: Vec<(std::path::PathBuf, String)>,
 }
 
 /// The signals that the core sends.

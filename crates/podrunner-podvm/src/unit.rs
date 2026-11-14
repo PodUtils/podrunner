@@ -249,6 +249,11 @@ impl UnitDriver for PodvmUnit {
             args.push("-v".into());
             args.push(format!("{}:{guest}", dir.display()));
         }
+        // The host directories of the spec, read-write (T-138).
+        for (host, path) in &spec.mounts {
+            args.push("-v".into());
+            args.push(format!("{}:{path}", host.display()));
+        }
         args.push(reference.clone());
         // `podvm wait` gives each exit code (PodUtils/podvm@T-1720), so the
         // payload runs as it is.
@@ -401,6 +406,7 @@ impl PodvmUnit {
             env: Default::default(),
             credential: Default::default(),
             sockets: None,
+            mounts: Vec::new(),
         };
         self.start(&spec)?;
         let tag = procs::tag_of(&self.state_dir, unit.as_str());

@@ -63,6 +63,9 @@ pub struct InUnit {
     pub guest: bool,
     /// The stop flag of the next job (T-132).
     stop: Option<crate::cancel::Stop>,
+    /// `--export DIR`: the work directory of the runner is a host directory,
+    /// and its workspaces go to `DIR/JOB` after the job (T-138).
+    pub export: Option<PathBuf>,
     pub logs: Vec<(JobId, String)>,
 }
 
@@ -86,6 +89,7 @@ impl InUnit {
             blobs: Vec::new(),
             guest: false,
             stop: None,
+            export: None,
             logs: Vec::new(),
         }
     }
@@ -349,6 +353,21 @@ impl Executor for InUnit {
             },
             _ => None,
         };
+        // The work directory on the host, open to the runner user of the unit.
+        let work = self
+            .export
+            .as_ref()
+            .map(|_| std::env::temp_dir().join(format!("podrunner-run-export-{}-{id}", std::process::id())));
+        if let Some(w) = &work {
+            let made = std::fs::create_dir_all(w)
+                .and_then(|()| std::fs::set_permissions(w, std::os::unix::fs::PermissionsExt::from_mode(0o777)));
+            if let Err(e) = made {
+                end_sockets(&sockets);
+                return Err(format!("the work directory {}: {e}", w.display()));
+            }
+        }
+        let run_root = self.run_sh.rsplit_once('/').map_or("/home/runner", |x| x.0).to_string();
+        let mounts = work.iter().map(|w| (w.clone(), format!("{run_root}/_work"))).collect();
         let spec = podrunner_unit::StartSpec {
             unit: id.clone(),
             image: self.image.clone(),
@@ -356,6 +375,7 @@ impl Executor for InUnit {
             env: hooks.as_ref().map(|h| h.env.clone()).unwrap_or_default(),
             credential: Credential { files },
             sockets: sockets.clone(),
+            mounts,
         };
         let started = self.driver.start(&spec).map_err(|e| format!("start {id}: {e}"));
         if let Err(e) = started {
@@ -363,6 +383,9 @@ impl Executor for InUnit {
                 h.stop();
             }
             end_sockets(&sockets);
+            if let Some(w) = &work {
+                let _ = crate::work::clear(w);
+            }
             return Err(e);
         }
         // Wait in slices: a signal destroys the unit at once (T-141).
@@ -390,6 +413,15 @@ impl Executor for InUnit {
         };
         let residue = self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"));
         end_sockets(&sockets);
+        // The workspaces of the job, also of a failed one (T-138).
+        let exported = match (&work, &self.export) {
+            (Some(w), Some(dir)) => {
+                let r = crate::work::export(w, &dir.join(job.as_str()));
+                let _ = crate::work::clear(w);
+                r.err()
+            }
+            _ => None,
+        };
         let residue = residue?;
         let mut log = record(&self.live, &mut self.blobs, job, &broker);
         for r in &refusals {
@@ -397,6 +429,9 @@ impl Executor for InUnit {
         }
         if let Some(o) = output {
             log.push_str(&format!("\npodrunner: the end of the output of unit {id}:\n{o}"));
+        }
+        if let Some(e) = exported {
+            log.push_str(&format!("\npodrunner: {e}"));
         }
         self.logs.push((job.clone(), log));
         let exit = waited.map_err(|e| format!("wait {id}: {e}"))?;

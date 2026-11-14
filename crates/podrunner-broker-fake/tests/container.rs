@@ -69,6 +69,7 @@ fn a_container_job_runs_through_the_hooks() {
         env: Default::default(),
         credential: Default::default(),
         sockets: None,
+        mounts: Vec::new(),
     })
     .unwrap();
     let work_root = dir.display().to_string();

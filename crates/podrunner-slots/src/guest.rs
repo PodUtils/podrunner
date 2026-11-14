@@ -61,6 +61,7 @@ pub(crate) fn observe(
         env: Default::default(),
         credential: Default::default(),
         sockets: None,
+        mounts: Vec::new(),
     };
     driver.start(&spec).map_err(|e| format!("start the first unit: {e}"))?;
     let first_root = driver.observe(&first).ok().and_then(|o| o.unit_root);
@@ -119,6 +120,7 @@ fn run(driver: &dyn UnitDriver, payload: &str, platform: &str, unit: UnitId, scr
         env: Default::default(),
         credential: Default::default(),
         sockets: None,
+        mounts: Vec::new(),
     };
     driver.start(&spec).map_err(|e| format!("start: {e}"))?;
     let root = driver.observe(&unit).ok().and_then(|o| o.unit_root);

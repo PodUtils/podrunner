@@ -38,6 +38,7 @@ fn the_run_report_names_the_image_the_exit_and_the_label() {
         env: Default::default(),
         credential: Default::default(),
         sockets: None,
+        mounts: Vec::new(),
     };
     unit.start(&spec).unwrap();
     // A container of the unit, when the rung has the container route.

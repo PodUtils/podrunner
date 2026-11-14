@@ -191,6 +191,7 @@ impl Slots {
                 // Each driver gets the directory: the microvm kind bridges
                 // its egress socket into the guest (T-107).
                 sockets: Some(dir.clone()),
+                mounts: Vec::new(),
             })
         });
         match started {

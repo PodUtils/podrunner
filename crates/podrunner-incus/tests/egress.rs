@@ -62,6 +62,7 @@ fn an_instance_reaches_the_egress_socket_and_nothing_else() {
         env: Default::default(),
         credential: Credential { files: vec![] },
         sockets: Some(sockets.clone()),
+        mounts: Vec::new(),
     };
     unit.start(&spec).unwrap();
     let exit = unit.wait(&id, Duration::from_secs(300)).unwrap();

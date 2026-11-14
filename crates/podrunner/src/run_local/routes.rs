@@ -63,6 +63,7 @@ fn unit(a: &Args, c: &Common, image: &str, state: &Path) -> Result<Box<dyn Execu
     e.cache = c.cache.clone();
     e.oidc = Some(c.oidc.clone());
     e.checkout = c.checkout.clone();
+    e.export = a.export.clone();
     // The egress policy of each environment (T-136).
     let mut hosts: std::collections::BTreeMap<String, Vec<String>> = Default::default();
     for (name, host) in &a.environment_allow {

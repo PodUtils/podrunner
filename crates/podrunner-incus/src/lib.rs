@@ -187,6 +187,10 @@ impl UnitDriver for IncusUnit {
     }
 
     fn start(&self, spec: &StartSpec) -> Result<(), UnitError> {
+        // The self-check of the guest refuses a mount that it does not know.
+        if !spec.mounts.is_empty() {
+            return Err(UnitError::new(UnitCode::UnitStartFailed, "this kind mounts no host directory (T-138)"));
+        }
         let mut units = self.units.lock().expect("the units");
         let dir = self.unit_dir(&spec.unit);
         if units.contains_key(&spec.unit) || dir.exists() {

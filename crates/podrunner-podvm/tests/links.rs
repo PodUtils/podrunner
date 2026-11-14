@@ -40,6 +40,7 @@ fn an_absolute_link_resolves_in_the_rootfs_of_the_unit() {
         env: Default::default(),
         credential: Default::default(),
         sockets: None,
+        mounts: Vec::new(),
     };
     unit.start(&spec).unwrap();
     let work = unit.observe(&id).unwrap().unit_root.unwrap();

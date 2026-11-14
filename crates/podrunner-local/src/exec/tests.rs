@@ -176,3 +176,24 @@ fn a_runner_directory_exports_the_workspace_of_a_job() {
     assert!(!to.join("build.0/_temp").exists());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-138: `export` mounts a host work directory and copies its workspaces
+/// to `DIR/JOB` after the job, also of a failed job; the scratch goes.
+#[test]
+fn a_unit_exports_its_work_directory() {
+    let dir = std::env::temp_dir().join(format!("podrunner-local-export-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let driver: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir, capability(), "linux/amd64"));
+    let image = driver.prepare(&format!("img@sha256:{}", "a".repeat(64)), "linux/amd64", false).unwrap();
+    let mut exec = InUnit::new(driver, image);
+    exec.run_sh = "true".into();
+    exec.grace = Duration::ZERO;
+    exec.export = Some(dir.join("out"));
+    let job = JobId::new("build.0").unwrap();
+    let e = exec.run(&job, Job::scripts("a", &["true"]), Duration::from_secs(60)).unwrap_err();
+    let unit = unit_of(&e);
+    assert!(dir.join("out/build.0").is_dir(), "the export of a failed job");
+    let scratch = std::env::temp_dir().join(format!("podrunner-run-export-{}-{unit}", std::process::id()));
+    assert!(!scratch.exists(), "the work directory goes");
+    let _ = std::fs::remove_dir_all(&dir);
+}

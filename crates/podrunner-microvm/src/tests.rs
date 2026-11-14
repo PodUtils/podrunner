@@ -40,6 +40,7 @@ fn spec(unit: &str) -> StartSpec {
         env: BTreeMap::new(),
         credential: canary_credential(),
         sockets: None,
+        mounts: Vec::new(),
     }
 }
 

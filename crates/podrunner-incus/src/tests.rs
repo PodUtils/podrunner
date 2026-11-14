@@ -66,6 +66,7 @@ fn spec(unit: &str) -> StartSpec {
         env: BTreeMap::from([("A".to_string(), "1".to_string())]),
         credential: canary_credential(),
         sockets: None,
+        mounts: Vec::new(),
     }
 }
 

@@ -56,6 +56,7 @@ fn a_unit_reaches_its_socket_through_the_relay() {
         env: Default::default(),
         credential: Default::default(),
         sockets: None,
+        mounts: Vec::new(),
     })
     .unwrap();
     let policy = podrunner_hook::policy::Policy {

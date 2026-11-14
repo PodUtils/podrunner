@@ -61,6 +61,7 @@ fn the_runner_in_a_podvm_unit_runs_a_canned_job() {
         env: Default::default(),
         credential: Credential { files },
         sockets: None,
+        mounts: Vec::new(),
     };
     unit.start(&spec).unwrap();
     let exit = unit.wait(&id, Duration::from_secs(300)).unwrap();
@@ -155,6 +156,7 @@ fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
         env: env_of,
         credential: Credential { files },
         sockets: Some(sockets.clone()),
+        mounts: Vec::new(),
     };
     unit.start(&spec).unwrap();
     let exit = unit.wait(&id, Duration::from_secs(300)).unwrap();

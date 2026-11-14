@@ -122,6 +122,7 @@ impl PodvmUnit {
             env: Default::default(),
             credential: Default::default(),
             sockets: None,
+            mounts: Vec::new(),
         };
         if self.start(&spec).is_err() {
             return Ok(None);

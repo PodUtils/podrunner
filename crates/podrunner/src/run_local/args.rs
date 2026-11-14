@@ -262,8 +262,11 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     if a.parallel > 1 && (a.runner_dir.is_some() || !kind) {
         return Err("--jobs N needs a unit kind (--podvm, --microvm, --incus) and no --runner-dir".into());
     }
-    if a.export.is_some() && a.runner_dir.is_none() {
-        return Err("--export needs --runner-dir: a unit kind does not export its workspace yet".into());
+    // A guest kind checks its mounts and takes no host directory (T-138).
+    if a.export.is_some() && a.guest.is_some() {
+        return Err(
+            "--export needs --runner-dir or --podvm: a guest of --microvm or --incus mounts no host directory".into()
+        );
     }
     if !a.environment_allow.is_empty() && a.podnet.is_none() && a.guest.is_none() {
         return Err("--environment-allow needs an egress hold: --podnet with --podvm, or --microvm or --incus".into());

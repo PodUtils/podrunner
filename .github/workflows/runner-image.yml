@@ -289,6 +289,21 @@ jobs:
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/tags.txt" || true
           grep -q '^docker://busybox:1.37.0 sha256:' "$RUNNER_TEMP/tags/podrunner-actions.lock"
           grep -qx 'ok      tagged' "$RUNNER_TEMP/tags.txt"
+      # T-138: the work directory of the runner in a podvm unit is a host
+      # directory; the workspace of the job goes to DIR/JOB. A measure.
+      - name: The export of a workspace from a podvm unit (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        run: |
+          set -eu
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/export"
+          printf 'on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - run: mkdir -p out && echo "built-$((6*7))" > out/app\n' > "$RUNNER_TEMP/export/w.yml"
+          timeout 900 cargo run -q -p podrunner -- run "$RUNNER_TEMP/export/w.yml" \
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" \
+            --export "$RUNNER_TEMP/export/out" | tee "$RUNNER_TEMP/export.txt"
+          grep -qx 'ok      build' "$RUNNER_TEMP/export.txt"
+          find "$RUNNER_TEMP/export/out" -name app -path '*build.0*' | head -1 | xargs cat | grep -qx built-42
       # T-037 step 1: the machine tier of podvm for the microvm kind. A
       # measure (KVM and QEMU come from the setup step).
       - name: The runner image as a guest of the machine tier (a measure)
