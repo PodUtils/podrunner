@@ -11,6 +11,7 @@ pub mod artifacts;
 pub mod cache;
 pub mod corpus;
 pub mod files;
+pub mod hold;
 pub mod message;
 pub mod oidc;
 pub mod runner;
@@ -251,6 +252,7 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
     };
     let actions = actions::route(&req.method, &path, &body, base, dir.as_deref(), &pins, tree.as_deref())
         .or(id_token)
+        .or_else(|| hold::route(&req.method, &req.path))
         .or_else(|| store.and_then(|s| s.route(&req.method, &req.path, &req.body, base)));
     let (status, out) = match (req.method.as_str(), path.as_str()) {
         _ if actions.is_some() => actions.expect("an answer"),

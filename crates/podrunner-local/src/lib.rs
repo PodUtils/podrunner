@@ -31,6 +31,8 @@ pub use podrunner_broker_fake::Job;
 pub use podrunner_broker_fake::artifacts;
 /// The cache store (T-120).
 pub use podrunner_broker_fake::cache;
+/// The holds of the pauses of a run (T-150).
+pub use podrunner_broker_fake::hold;
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;

@@ -2064,7 +2064,7 @@ Read the README of runner.server in the study on 2026-11-14.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2081,6 +2081,9 @@ Read the README of the study on 2026-11-14. Not measured: a pause of the officia
 ## Prove
 
 `cargo test -p podrunner-local message` (the wait step in the message).
+
+State (2026-11-14): `--break JOB:STEP` (the number of the step from 1, or its `id`) and `--break-on-failure`. `run_local/pause.rs`: the executor `Paused` (the outermost wrapper of each slot) puts a pause step into the message of each job: before the step, or after each step with `failure()`. The pause step asks `GET ${{ github.api_url }}_podrunner/hold/CELL` each second with curl or wget; `crates/podrunner-broker-fake/src/hold.rs` answers 503 until the release, from one table of the process, so it works on each executor and kind with no change of their own. `pause::watch` names each paused job on stderr and releases it at Enter; a signal releases each one; with no terminal the run is refused. Tests: `cargo test -p podrunner pause` (the place of the steps, another job, the script) and `cargo test -p podrunner-broker-fake hold`. Next: the command to enter a paused unit (measure `podvm exec` on a running unit of the podvm driver, and a shell in a guest), and the path of the workspace for `--runner-dir`.
+
 
 # T-151: Measure: a job of another architecture in the local mode
 

@@ -45,6 +45,8 @@ pub(super) struct Args {
     pub(super) web: Option<std::net::SocketAddr>,
     /// `--jobs N`: N jobs at a time, each in its own unit (T-132).
     pub(super) parallel: usize,
+    /// `--break JOB:STEP` and `--break-on-failure` (T-150).
+    pub(super) breaks: super::pause::Breaks,
     /// `--state DIR`, `--rerun DIR`, `--failed`, `--refresh` (T-135).
     pub(super) state: Option<PathBuf>,
     pub(super) rerun: Option<PathBuf>,
@@ -129,6 +131,8 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
                     .filter(|n| *n >= 1)
                     .ok_or_else(|| format!("--jobs {v:?} is not a number of 1 or more"))?;
             }
+            "--break" => a.breaks.at.push(super::pause::parse(&value()?)?),
+            "--break-on-failure" => a.breaks.on_failure = true,
             "--web" => a.web = Some(super::web::parse_addr(&value()?)?),
             "--approve" => a.approved.push(value()?),
             "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {

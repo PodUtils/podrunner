@@ -48,6 +48,9 @@ pub(super) fn build(
                 notes: notes.clone(),
             });
         }
+        if !a.breaks.is_empty() {
+            exec = Box::new(super::pause::Paused { inner: exec, breaks: a.breaks.clone() });
+        }
         out.push(exec);
     }
     Ok(out)
