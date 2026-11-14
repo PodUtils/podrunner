@@ -434,6 +434,20 @@ jobs:
           PODRUNNER_PARITY_UNIT="--microvm $PODRUNNER_PODVM --images $PODRUNNER_PODVM_IMAGES --image $PODRUNNER_RUNNER_IMAGE --engine $RUNNER_TEMP/engine-dir $hub" \
             timeout 5400 cargo test -p podrunner --test parity -- --ignored --nocapture | tee "$RUNNER_TEMP/parity-engine.txt"
           grep '^parity ' "$RUNNER_TEMP/parity-engine.txt" >> "$GITHUB_STEP_SUMMARY"
+      # T-157: the engine of a guest takes the images from the store of the
+      # run through the broker, its mirror of Docker Hub. No --allow: the
+      # guest reaches no registry, so each pull comes from the mirror.
+      - name: The images of a guest engine from the store
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
+          cargo build -q -p podrunner
+          for w in 04-services 05-containers; do
+            timeout 1800 target/x86_64-unknown-linux-musl/debug/podrunner run "crates/podrunner/tests/local/parity/$w.yml" \
+              --microvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" \
+              --engine "$RUNNER_TEMP/engine-dir" --checkout . --frozen
+            echo "mirror $w ok" >> "$GITHUB_STEP_SUMMARY"
+          done
       # T-105 step 1: the incus tier of podvm for the incus kind. A measure:
       # incus from apt, initialized with its defaults, and podvm in the
       # group of its socket.

@@ -19,6 +19,7 @@ pub mod images;
 pub mod localrepo;
 pub mod lock;
 pub mod message;
+pub mod mirror;
 pub mod oidc;
 pub mod rerun;
 pub mod secrets;

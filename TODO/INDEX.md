@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**157 entries: 1 open, 8 partial, 5 blocked, 143 done.**
+**157 entries: 0 open, 9 partial, 5 blocked, 143 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 3 | 3 | 66 | 72 |
-| P3 | 1 | 3 | 2 | 45 | 51 |
-| **All** | 1 | 8 | 5 | 143 | 157 |
+| P3 | 0 | 4 | 2 | 45 | 51 |
+| **All** | 0 | 9 | 5 | 143 | 157 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -204,4 +204,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-154](later.md) | P3 | S | later | feature | done | Local mode: the fetch of the actions through the egress module |
 | [T-155](later.md) | P3 | S | later | defect | done | An intermittent failure of the workspace tests that the check script hid |
 | [T-156](later.md) | P3 | S | later | defect | partial | Local mode: a glibc image by tag in a podvm unit where chroot is denied |
-| [T-157](later.md) | P3 | M | later | feature | open | Local mode: load the images of a job from the store into the engine of the guest |
+| [T-157](later.md) | P3 | M | later | feature | partial | Local mode: load the images of a job from the store into the engine of the guest |

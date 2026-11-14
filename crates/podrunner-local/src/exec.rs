@@ -61,6 +61,8 @@ pub struct InUnit {
     /// [`crate::front`] on its egress socket; no container hooks (a guest
     /// runs its containers in its own engine).
     pub guest: bool,
+    /// The registry of the pinned images for the engine of a guest (T-157).
+    pub mirror: Option<Arc<podrunner_broker_fake::mirror::Mirror>>,
     /// The stop flag of the next job (T-132).
     stop: Option<crate::cancel::Stop>,
     /// `--export DIR`: the work directory of the runner is a host directory,
@@ -88,6 +90,7 @@ impl InUnit {
             live: None,
             blobs: Vec::new(),
             guest: false,
+            mirror: None,
             stop: None,
             export: None,
             logs: Vec::new(),
@@ -282,6 +285,9 @@ impl Executor for InUnit {
         }
         if let Some(tree) = &self.checkout {
             broker.serve_checkout(tree);
+        }
+        if let Some(m) = &self.mirror {
+            broker.serve_mirror(m.clone());
         }
         let message_copy = message.clone();
         broker.queue(message);

@@ -2303,7 +2303,7 @@ State (2026-11-14): podvm `v0.2.0-beta.17` carries PodUtils/podvm@T-1880 (PodUti
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2315,8 +2315,10 @@ Runner-image run 43609196605 (`5096a3b`): the parity suite passes in guests with
 
 ## Approach
 
-Before the job, read the images of the job (`services:`, `container:`, `docker://` steps). Take each one from the image store (`images.rs`, pinned by digest). Load each one into the engine of the guest (`docker load` from a tarball on the shared directory). Give the runner the same reference, so that it finds the image and does not pull it.
+The official runner always runs `docker pull` for a service, a job container and a Docker step, so a `docker load` alone does not stop the pull. The broker of each job is the registry mirror of Docker Hub for the engine of the guest (`dockerd --registry-mirror`, through the channel and the front). Before the first job, podrunner saves each image of Docker Hub of the run from the store of the units (`podvm save`) into one OCI layout, and the broker serves its blobs and manifests by digest (`podrunner_broker_fake::mirror`). The store keeps the manifest of the platform, not the index: the job message names that manifest. A miss of the mirror goes to Docker Hub through the egress policy. Another registry than Docker Hub still pulls through the egress policy: dockerd has a mirror only for Docker Hub.
 
 ## Prove
 
 `runner-image.yml`: the parity rows 04, 05 and 09 pass in guests with an engine with no registry host in the egress allows, and with `--offline` after one run that fills the store.
+
+State (2026-11-14): the mirror is in (`podrunner-local/src/mirror.rs`, `podrunner-broker-fake/src/mirror.rs`, the flags of dockerd in the guest script). The step "The images of a guest engine from the store" of `runner-image.yml` runs 04 and 05 in a guest with an engine and no `--allow`. Next: its green run.

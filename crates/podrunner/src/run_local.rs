@@ -314,7 +314,7 @@ pub fn run(args: &[String]) -> Out {
         }
         Err(e) => return fail(Class::Config, e),
     }
-    source.set_pins(pins.clone());
+    source.set_pins(guest::mirror_pins(&a, &pins, source.workflow()));
     let scratch = std::env::temp_dir().join(format!("podrunner-run-tree-{}", std::process::id()));
     let tree = match &a.checkout {
         None => None,

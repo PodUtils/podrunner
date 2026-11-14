@@ -54,8 +54,15 @@ fi
 # The engine of the unit (T-103): dockerd as root in the guest, its socket
 # in the guest only, the proxy of the channel for its pulls. The root of
 # the guest is an initramfs: DOCKER_RAMDISK keeps runc off pivot_root.
+# With a channel, the broker is the mirror of Docker Hub: the pinned images
+# come from the store of the run (T-157); a miss goes to Docker Hub.
 if [ -x /podrunner-engine/dockerd ]; then
-  PATH=/podrunner-engine:$PATH DOCKER_RAMDISK=true dockerd --host=unix:///run/podrunner-docker.sock >/tmp/podrunner-dockerd.log 2>&1 &
+  mirror=
+  if [ -n "${PODRUNNER_CHANNEL_PORT:-}" ]; then
+    mirror="--registry-mirror=http://broker.podrunner.test --insecure-registry=broker.podrunner.test"
+  fi
+  # shellcheck disable=SC2086
+  PATH=/podrunner-engine:$PATH DOCKER_RAMDISK=true dockerd --host=unix:///run/podrunner-docker.sock $mirror >/tmp/podrunner-dockerd.log 2>&1 &
   i=0
   while [ ! -S /run/podrunner-docker.sock ] && [ $i -lt 60 ]; do sleep 1; i=$((i + 1)); done
   if [ ! -S /run/podrunner-docker.sock ]; then

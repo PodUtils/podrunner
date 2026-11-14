@@ -13,6 +13,7 @@ pub mod corpus;
 pub mod files;
 pub mod hold;
 pub mod message;
+pub mod mirror;
 pub mod oidc;
 pub mod runner;
 
@@ -69,6 +70,8 @@ struct State {
     missing: Vec<String>,
     /// The issuer of the id-tokens of the run (T-140).
     oidc: Option<Arc<oidc::Issuer>>,
+    /// The registry of the pinned images for the engine of a guest (T-157).
+    mirror: Option<Arc<mirror::Mirror>>,
 }
 
 /// The service of a route that this broker does not serve, and the entry
@@ -156,6 +159,11 @@ impl Broker {
     /// Serve the id-tokens of the jobs with the key of `issuer` (T-140).
     pub fn serve_oidc(&self, issuer: Arc<oidc::Issuer>) {
         self.state.lock().expect("the broker").oidc = Some(issuer);
+    }
+
+    /// Serve the pinned images of the run to the engine of a guest (T-157).
+    pub fn serve_mirror(&self, m: Arc<mirror::Mirror>) {
+        self.state.lock().expect("the broker").mirror = Some(m);
     }
 
     /// Serve the CacheService and its blobs over `store` (T-120).
@@ -247,6 +255,11 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
     }
     let path = req.path.split('?').next().unwrap_or("").to_string();
     state.lock().expect("the broker").seen.push(format!("{} {path}{form}", req.method));
+    let images = state.lock().expect("the broker").mirror.clone();
+    if let Some((status, out, headers)) = images.and_then(|m| m.route(&req.method, &path)) {
+        let _ = mirror::write(&mut w, &req.method, status, &headers, &out);
+        return;
+    }
     let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
     let base = base.trim_end_matches('/');
     let base = &format!("{base}/");

@@ -95,7 +95,9 @@ fn container_image(node: &Node, what: &str) -> Result<(), String> {
 /// The image with the digest of its tag from the pins of the run (T-130):
 /// a tag that the pins do not name stays, and the check of a pin refuses it.
 fn pin_image(image: &str, pins: &BTreeMap<String, String>) -> String {
-    match crate::images::by_tag(image).and_then(|t| pins.get(&format!("docker://{t}"))) {
+    // An image that a digest names has a pin in a guest with a mirror (T-157).
+    let key = crate::images::by_tag(image).unwrap_or_else(|| image.to_string());
+    match pins.get(&format!("docker://{key}")) {
         Some(p) => p.clone(),
         None => image.to_string(),
     }
