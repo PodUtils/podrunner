@@ -171,12 +171,24 @@ fn action(uses: &str, line: u32) -> Result<(Value, String), String> {
     let (Some(owner), Some(repo)) = (parts.next(), parts.next()) else {
         return Err(format!("line {line}: `uses: {uses}` is not OWNER/REPO@REF"));
     };
+    if legacy_artifacts(owner, repo, r) {
+        return Err(format!(
+            "line {line}: `uses: {uses}`: GitHub refuses v3 and older of the artifact actions since 2025-01-30; use v4"
+        ));
+    }
     let mut reference =
         json!({ "type": "repository", "repositoryType": "GitHub", "name": format!("{owner}/{repo}"), "ref": r });
     if let Some(path) = parts.next().filter(|p| !p.is_empty()) {
         reference["path"] = json!(path);
     }
     Ok((reference, format!("__{owner}_{repo}")))
+}
+
+/// An artifact action of the legacy routes, which GitHub turned off (the
+/// GitHub changelog, 2024-04-16): the local mode serves only v4 (T-119).
+fn legacy_artifacts(owner: &str, repo: &str, r: &str) -> bool {
+    let major = r.strip_prefix('v').and_then(|v| v.split('.').next()).and_then(|m| m.parse::<u32>().ok());
+    owner == "actions" && matches!(repo, "upload-artifact" | "download-artifact") && major.is_some_and(|m| m <= 3)
 }
 
 fn step(

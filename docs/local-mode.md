@@ -54,7 +54,7 @@ the entry that closes the gap, or the entry that did the work.
 | Extra environment | `--env`, `.env` | `--env`, `--env-file` | no | T-126 |
 | Environments, their secrets and vars | name only | yes | ignored | T-136 |
 | Concurrency groups | no | yes | ignored | T-137 |
-| Artifacts v4 | yes | yes | 404 | T-119 |
+| Artifacts v4 | yes | yes | yes, one store for each run, size and SHA-256 checked at finalize; v3 refused by name | T-119 |
 | Cache of `actions/cache` | v1 server | v1 and v2 | none | T-120 |
 | OIDC id-token | no | yes | none | T-140 |
 | One job, a matrix filter | `-j`, `--matrix` | `--job`, `--matrix` | no | T-127 |
@@ -78,7 +78,7 @@ the entry that closes the gap, or the entry that did the work.
 | Fault | In podrunner | Entry |
 | --- | --- | --- |
 | .NET dies with SIGXFSZ under a small file size limit, with W^X on | the podvm driver sets `DOTNET_EnableWriteXorExecute=0`; the `--runner-dir` executor does not | T-144 |
-| The artifact step fails with ECONNRESET, then 403: no route of the results service | the fake broker gives 404 in silence for each route that it does not serve | T-145, T-119 |
+| The artifact step fails with ECONNRESET, then 403: no route of the results service | the ArtifactService is served (T-119); another route still gets 404 in silence | T-145 |
 | A rerun fails with EACCES on files that a container wrote as another uid | the `--runner-dir` executor ignores a failed removal of `_work`; the residue of a unit after a container job is not measured | T-146 |
 
 The study's conformance suite has defects (T-046) and no licence. T-147

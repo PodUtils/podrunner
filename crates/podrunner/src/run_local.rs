@@ -18,7 +18,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--offline | --frozen] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | --podvm PATH --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH [--allow HOST]...] [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -35,6 +35,7 @@ struct Args {
     actions: Option<PathBuf>,
     offline: bool,
     frozen: bool,
+    artifacts: Option<PathBuf>,
     checkout: Option<PathBuf>,
     podnet: Option<PathBuf>,
     allow: Vec<String>,
@@ -63,6 +64,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--images" => a.images = Some(PathBuf::from(value()?)),
             "--image" => a.image = Some(value()?),
             "--actions" => a.actions = Some(PathBuf::from(value()?)),
+            "--artifacts" => a.artifacts = Some(PathBuf::from(value()?)),
             "--offline" => a.offline = true,
             "--frozen" => a.frozen = true,
             "--checkout" => a.checkout = Some(PathBuf::from(value()?)),
@@ -221,6 +223,11 @@ pub fn run(args: &[String]) -> Out {
             Err(e) => return fail(Class::Config, e),
         },
     };
+    let kept = a.artifacts.clone().unwrap_or_else(|| scratch.join("artifacts"));
+    let artifacts = match podrunner_local::artifacts::ArtifactStore::new(&kept, podrunner_local::artifacts::LIMIT) {
+        Ok(s) => std::sync::Arc::new(s),
+        Err(e) => return fail(Class::Config, format!("{}: {e}", kept.display())),
+    };
     let mut stdout = String::new();
     let mut stderr = note;
     let mut each = |l: &Line| stdout.push_str(&line(l));
@@ -231,6 +238,7 @@ pub fn run(args: &[String]) -> Out {
         };
         exec.actions = store.clone();
         exec.pins = pins.clone();
+        exec.artifacts = Some(artifacts.clone());
         exec.checkout = tree.clone();
         (drive(&mut source, &mut exec, &mut each), exec.logs)
     } else {
@@ -241,11 +249,13 @@ pub fn run(args: &[String]) -> Out {
         };
         exec.actions = store.clone();
         exec.pins = pins.clone();
+        exec.artifacts = Some(artifacts.clone());
         exec.checkout = tree.clone();
         let r = drive(&mut source, &mut exec, &mut each);
         let _ = std::fs::remove_dir_all(&state);
         (r, exec.logs)
     };
+    let _ = std::fs::remove_dir_all(kept.join(".pending"));
     let _ = std::fs::remove_dir_all(&scratch);
     match result {
         Ok(true) => Out { code: 0, stdout, stderr },

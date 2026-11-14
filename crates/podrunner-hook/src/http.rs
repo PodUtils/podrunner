@@ -35,6 +35,12 @@ fn line(r: &mut impl BufRead) -> Result<String, HttpError> {
 
 /// Read one request.
 pub fn read_request(r: &mut impl BufRead) -> Result<Request, HttpError> {
+    read_request_with(r, BODY_MAX)
+}
+
+/// Read one request with a body of at most `max` bytes: the fake broker
+/// takes the blocks of an artifact (8 MiB each from the blob client).
+pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, HttpError> {
     let first = line(r)?;
     let mut parts = first.split(' ');
     let (Some(method), Some(path), Some(version), None) = (parts.next(), parts.next(), parts.next(), parts.next())
@@ -66,8 +72,8 @@ pub fn read_request(r: &mut impl BufRead) -> Result<Request, HttpError> {
         }
     }
     let length = length.unwrap_or(0);
-    if length > BODY_MAX {
-        return Err(HttpError(413, "the body is over 1 MiB"));
+    if length > max {
+        return Err(HttpError(413, "the body is too large"));
     }
     let mut body = vec![0; length];
     r.read_exact(&mut body).map_err(|_| HttpError(400, "the body is short"))?;

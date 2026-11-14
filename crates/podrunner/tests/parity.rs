@@ -31,7 +31,7 @@ const ROWS: [(&str, Gap); 7] = [
     ("04-services.yml", Some(("T-124", &[]))),
     ("05-containers.yml", Some(("T-123", &[]))),
     ("06-actions.yml", None),
-    ("07-artifacts.yml", Some(("T-119", &[]))),
+    ("07-artifacts.yml", None),
 ];
 
 #[derive(Debug, PartialEq)]
@@ -130,9 +130,12 @@ fn the_parity_suite_gives_one_verdict_for_each_workflow() {
             bad.push(name);
         }
     }
-    let plant = verdict(&dir, &scratch, "02-expressions.yml", None, &["--var", "PLANT=1"]);
-    println!("parity plant {plant:?}");
+    // The plants: a wrong value of an expression, a wrong artifact content.
+    for name in ["02-expressions.yml", "07-artifacts.yml"] {
+        let plant = verdict(&dir, &scratch, name, None, &["--var", "PLANT=1"]);
+        println!("parity plant {name} {plant:?}");
+        assert_eq!(plant, Verdict::Fail, "the plant of {name} must fail");
+    }
     let _ = std::fs::remove_dir_all(&scratch);
-    assert_eq!(plant, Verdict::Fail, "the plant must fail");
     assert!(bad.is_empty(), "FAIL: {bad:?}");
 }

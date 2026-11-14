@@ -941,6 +941,7 @@ dependencies = [
  "podrunner-source",
  "podrunner-unit",
  "rand_core 0.6.4",
+ "ring",
  "rsa",
  "serde_json",
 ]

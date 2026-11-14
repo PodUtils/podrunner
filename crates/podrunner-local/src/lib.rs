@@ -12,6 +12,9 @@ pub mod lock;
 pub mod message;
 pub mod store;
 
+/// The artifact store of a run (T-119).
+pub use podrunner_broker_fake::artifacts;
+
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;

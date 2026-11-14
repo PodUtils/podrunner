@@ -22,4 +22,4 @@ action by commit and by the digest of its tar (T-118); the test runs with
 | `04-services.yml` | a service with a health check, by its name and by `localhost` | T-124 |
 | `05-containers.yml` | a job container beside a service | T-123 |
 | `06-actions.yml` | a marketplace action by tag, a local composite action with outputs | |
-| `07-artifacts.yml` | an artifact round trip with a check of its content | T-119 |
+| `07-artifacts.yml` | an artifact round trip with a check of its content | |

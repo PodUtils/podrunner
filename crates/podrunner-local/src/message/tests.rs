@@ -125,6 +125,10 @@ fn an_action_pinned_by_commit_is_a_repository_reference_with_its_inputs() {
     assert_eq!(steps[2]["reference"]["path"], "sub/dir");
     assert_eq!(steps[3]["reference"], json!({ "type": "repository", "repositoryType": "self", "path": "./local" }));
     assert_eq!(steps[4]["contextName"], "__run");
+    for old in ["actions/upload-artifact@v3", "actions/download-artifact@v3.0.2", "actions/upload-artifact@v2"] {
+        assert!(action(old, 1).unwrap_err().contains("2025-01-30"), "{old}");
+    }
+    assert!(action("actions/upload-artifact@v4", 1).is_ok());
     for bad in ["docker://alpine", "o/r", "o@0123456789abcdef0123456789abcdef01234567", "o/r@", "o/r@a b"] {
         assert!(action(bad, 1).is_err(), "{bad}");
     }

@@ -1,5 +1,6 @@
-# An artifact round trip with a check of its content (T-147). It needs
-# the artifact service: T-119 (and the actions by tag: T-118).
+# An artifact round trip with a check of its content (T-147, T-119). With
+# `--var PLANT=1` the downloaded file changes and the check fails: a plant
+# of the test.
 name: parity artifacts
 on: push
 defaults:
@@ -26,4 +27,6 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: data
+      - if: vars.PLANT == '1'
+        run: echo planted >> data
       - run: test "$(sha256sum data | cut -d' ' -f1)" = "${{ needs.up.outputs.sum }}"

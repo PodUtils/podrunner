@@ -150,7 +150,8 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
             "endpoints": [{
                 "name": "SystemVssConnection", "url": base, "isReady": true,
                 "authorization": { "scheme": "OAuth", "parameters": { "AccessToken": job_token() } },
-                "data": { "ServerId": guid(5), "ServerName": "podrunner-broker-fake" },
+                // ResultsServiceUrl gives ACTIONS_RESULTS_URL to the steps (T-119).
+                "data": { "ServerId": guid(5), "ServerName": "podrunner-broker-fake", "ResultsServiceUrl": base },
             }],
             "repositories": [],
         },

@@ -7,6 +7,7 @@
 //! podrunner (PodUtils/podcrates@T-106).
 
 pub mod actions;
+pub mod artifacts;
 pub mod corpus;
 pub mod files;
 pub mod message;
@@ -18,7 +19,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use podrunner_hook::http::{read_request, write_response};
+use podrunner_hook::http::{read_request_with, write_response};
 use serde_json::{Value, json};
 
 pub use message::{Job, Step};
@@ -55,7 +56,12 @@ struct State {
     pins: std::collections::BTreeMap<String, String>,
     /// The tarball of the local tree (T-092).
     tree: Option<std::path::PathBuf>,
+    /// The artifact store of the run (T-119).
+    artifacts: Option<Arc<artifacts::ArtifactStore>>,
 }
+
+/// The largest body of a request: a block of an artifact is 8 MiB.
+const BODY_MAX: usize = 16 << 20;
 
 /// A fake broker on the loopback.
 pub struct Broker {
@@ -113,6 +119,12 @@ impl Broker {
         st.pins = pins;
     }
 
+    /// Serve the ArtifactService and its blobs over `store`, the store of
+    /// the run (T-119).
+    pub fn serve_artifacts(&self, store: Arc<artifacts::ArtifactStore>) {
+        self.state.lock().expect("the broker").artifacts = Some(store);
+    }
+
     /// Serve `tarball` as the tree of the stand-in of `actions/checkout`
     /// (`actions::CHECKOUT`, T-092).
     pub fn serve_checkout(&self, tarball: &std::path::Path) {
@@ -148,17 +160,18 @@ fn reply(json: &Value) -> (u16, Vec<u8>) {
 
 fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
     let Ok(mut w) = conn.try_clone() else { return };
-    let Ok(req) = read_request(&mut BufReader::new(conn)) else { return };
+    let Ok(req) = read_request_with(&mut BufReader::new(conn), BODY_MAX) else { return };
     let path = req.path.split('?').next().unwrap_or("").to_string();
     state.lock().expect("the broker").seen.push(format!("{} {path}", req.method));
     let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
     let base = base.trim_end_matches('/');
     let base = &format!("{base}/");
-    let (dir, pins, tree) = {
+    let (dir, pins, tree, store) = {
         let st = state.lock().expect("the broker");
-        (st.actions.clone(), st.pins.clone(), st.tree.clone())
+        (st.actions.clone(), st.pins.clone(), st.tree.clone(), st.artifacts.clone())
     };
-    let actions = actions::route(&req.method, &path, &body, base, dir.as_deref(), &pins, tree.as_deref());
+    let actions = actions::route(&req.method, &path, &body, base, dir.as_deref(), &pins, tree.as_deref())
+        .or_else(|| store.and_then(|s| s.route(&req.method, &req.path, &req.body, base)));
     let (status, out) = match (req.method.as_str(), path.as_str()) {
         _ if actions.is_some() => actions.expect("an answer"),
         ("POST", "/_apis/oauth2/token") => {

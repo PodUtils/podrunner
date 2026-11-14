@@ -1126,7 +1126,7 @@ Read `crates/podrunner-local/src/message.rs`, `crates/podrunner-broker-fake/src/
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1148,6 +1148,10 @@ Read the fake broker, the executors, act's artifact server (`artifacts_v4`) and 
 ## Prove
 
 `cargo test -p podrunner-broker-fake` (each route, a wrong digest, a second name) and `cargo test -p podrunner --test local -- --ignored` (the artifact workflow of the parity suite T-147: upload in one job, download in the next, content checked).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner-broker-fake/src/artifacts.rs` serves `CreateArtifact`, `FinalizeArtifact`, `ListArtifacts`, `GetSignedArtifactURL` and `DeleteArtifact`, and the blob routes of the signed URLs (a whole PUT, `comp=block`, `comp=blocklist`), over one `ArtifactStore` for each run that each broker of the run shares. The job message gives `ResultsServiceUrl`, and the broker reads a body of up to 16 MiB (`read_request_with` of `podrunner-hook`). Each upload and download URL carries a random signature; a name is unique in a run; the finalize checks the size and the SHA-256; a run holds at most 4 GiB. `podrunner run --artifacts DIR` keeps `DIR/NAME/artifact.zip` and `artifact.json`. v3 and older of the artifact actions are refused by name (the GitHub changelog of 2024-04-16: refused from 2025-01-30). A wrapper of protobuf is a plain string in its JSON: download-artifact v4 refused `{"value": ...}`. Proven: 5 unit tests of the service; the parity row `07-artifacts.yml` uploads in one job and downloads in the next on runner v2.338.2 with the content checked, and its plant (a changed file) gives FAIL. The run in a unit kind is in the Prove of T-123. The generic crate is COORD-035.
 
 # T-120: Local mode: the cache service of actions/cache
 

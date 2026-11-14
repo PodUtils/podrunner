@@ -6,8 +6,10 @@
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use podrunner_broker_fake::artifacts::ArtifactStore;
 use podrunner_broker_fake::runner::start_runner;
 use podrunner_broker_fake::{Broker, Job};
 use podrunner_schema::JobId;
@@ -24,6 +26,8 @@ pub struct RunnerDir {
     pub actions: Option<PathBuf>,
     /// The commit of each `OWNER/REPO@REF` of the run (T-118).
     pub pins: BTreeMap<String, String>,
+    /// The artifact store of the run (T-119).
+    pub artifacts: Option<Arc<ArtifactStore>>,
     /// The tarball of the local tree for `actions/checkout` (T-092).
     pub checkout: Option<PathBuf>,
 }
@@ -33,7 +37,7 @@ impl RunnerDir {
         if !dir.join("run.sh").is_file() || !dir.join("bin/Runner.Listener").is_file() {
             return Err(format!("{}: no unpacked runner (run.sh, bin/Runner.Listener)", dir.display()));
         }
-        Ok(RunnerDir { dir, logs: Vec::new(), actions: None, pins: BTreeMap::new(), checkout: None })
+        Ok(RunnerDir { dir, logs: Vec::new(), actions: None, pins: BTreeMap::new(), artifacts: None, checkout: None })
     }
 }
 
@@ -53,6 +57,8 @@ pub struct InUnit {
     pub actions: Option<PathBuf>,
     /// The commit of each `OWNER/REPO@REF` of the run (T-118).
     pub pins: BTreeMap<String, String>,
+    /// The artifact store of the run (T-119).
+    pub artifacts: Option<Arc<ArtifactStore>>,
     /// The tarball of the local tree for `actions/checkout` (T-092).
     pub checkout: Option<PathBuf>,
     /// The egress of a held unit (T-095): the egress module and the
@@ -71,6 +77,7 @@ impl InUnit {
             grace: Duration::from_secs(5),
             actions: None,
             pins: BTreeMap::new(),
+            artifacts: None,
             checkout: None,
             egress: None,
             next: 0,
@@ -187,6 +194,9 @@ impl Executor for InUnit {
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
         if let Some(dir) = &self.actions {
             broker.serve_actions(dir, self.pins.clone());
+        }
+        if let Some(store) = &self.artifacts {
+            broker.serve_artifacts(store.clone());
         }
         if let Some(tree) = &self.checkout {
             broker.serve_checkout(tree);
@@ -312,6 +322,9 @@ impl Executor for RunnerDir {
         let broker = Broker::start().map_err(|e| format!("the fake broker: {e}"))?;
         if let Some(dir) = &self.actions {
             broker.serve_actions(dir, self.pins.clone());
+        }
+        if let Some(store) = &self.artifacts {
+            broker.serve_artifacts(store.clone());
         }
         if let Some(tree) = &self.checkout {
             broker.serve_checkout(tree);
