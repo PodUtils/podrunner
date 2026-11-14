@@ -167,6 +167,21 @@ jobs:
           echo "PODRUNNER_PODNET=$RUNNER_TEMP/podnet" >> "$GITHUB_ENV"
           # The job container of the hook test: the same image (it has tail).
           echo "PODRUNNER_JOB_IMAGE=$image" >> "$GITHUB_ENV"
+      # The machine tier of podvm needs KVM (the udev rule of podvm's
+      # kvm.yml) and QEMU. A step of its own: a failed step before it must
+      # not skip the setup of the later steps that run under !cancelled().
+      - name: KVM and QEMU for the machine tier
+        if: matrix.arch == 'x86_64'
+        run: |
+          set -eu
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle || true
+          [ -e /dev/kvm ] && sudo chmod 0666 /dev/kvm
+          sh scripts/retry.sh sudo apt-get -qq update
+          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends qemu-system-x86
       # T-026: the podvm driver runs the image with the JIT files of the
       # fake broker; the runner takes one canned job and completes it.
       # T-035: a container job through the hooks of the podvm unit.
@@ -195,7 +210,7 @@ jobs:
           timeout 900 cargo run -q -p podrunner -- run "$RUNNER_TEMP/tags/tags.yml" \
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/tags.txt"
           grep -qx 'ok      tagged' "$RUNNER_TEMP/tags.txt"
-          grep -q '^docker://busybox:1.37.0 sha256:' "$RUNNER_TEMP/tags/podrunner-actions.lock"
+          grep -q '^docker://busybox:1.37.0-musl sha256:' "$RUNNER_TEMP/tags/podrunner-actions.lock"
           # T-146: a container job leaves a locked directory; two runs in a
           # row pass, and no unit leaves residue (a residue fails the job).
           sed "s|IMAGE|$PODRUNNER_RUNNER_IMAGE|" crates/podrunner/tests/local/rerun.yml > "$RUNNER_TEMP/rerun.yml"
@@ -261,20 +276,12 @@ jobs:
           sh scripts/measure-container-verbs.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/verbs" | tee "$RUNNER_TEMP/verbs.txt"
           grep -qx 'externals-read-only ok' "$RUNNER_TEMP/verbs.txt"
       # T-037 step 1: the machine tier of podvm for the microvm kind. A
-      # measure: KVM through the udev rule of podvm's kvm.yml, and QEMU.
+      # measure (KVM and QEMU come from the setup step).
       - name: The runner image as a guest of the machine tier (a measure)
         if: matrix.arch == 'x86_64'
         continue-on-error: true
         run: |
           set -eu
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
-            | sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-          sudo udevadm settle || true
-          [ -e /dev/kvm ] && sudo chmod 0666 /dev/kvm
-          sh scripts/retry.sh sudo apt-get -qq update
-          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends qemu-system-x86
           sh scripts/measure-machine.sh "$PODRUNNER_PODVM" "$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_RUNNER_IMAGE" \
             "$RUNNER_TEMP/machine" | tee -a "$GITHUB_STEP_SUMMARY"
       # T-037: the unit tests of the acceptance of the microvm kind on real

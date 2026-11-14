@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**155 entries: 13 open, 9 partial, 6 blocked, 127 done.**
+**156 entries: 13 open, 9 partial, 7 blocked, 127 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 6 | 4 | 62 | 72 |
-| P3 | 13 | 1 | 2 | 33 | 49 |
-| **All** | 13 | 9 | 6 | 127 | 155 |
+| P3 | 13 | 1 | 3 | 33 | 50 |
+| **All** | 13 | 9 | 7 | 127 | 156 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -203,3 +203,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-153](later.md) | P3 | S | later | feature | done | podrunner doctor for the local mode |
 | [T-154](later.md) | P3 | S | later | feature | open | Local mode: the fetch of the actions through the egress module |
 | [T-155](later.md) | P3 | S | later | defect | open | An intermittent failure of the workspace tests that the check script hid |
+| [T-156](later.md) | P3 | S | later | defect | blocked | Local mode: a glibc image by tag in a podvm unit where chroot is denied |

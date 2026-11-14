@@ -1476,6 +1476,7 @@ Before the first job, resolve each image tag to a digest for the platform of the
 
 State (2026-11-14): `crates/podrunner-local/src/images.rs` collects each image of `container:`, `services:` and `docker://` steps that a tag names (`NAME` alone is `NAME:latest`; an expression is refused), pins it by the lock (`docker://NAME:TAG sha256:HEX`), and pulls it with `podvm pull --platform` into the store of the units (`PodvmPull`); the job message gives `NAME@sha256:HEX` (`pin_image`, `pin_node`). A moved tag fails by name; `--offline` and `--frozen` hold. Not `pod-oci`: podvm pulls into its own store, so the host runs no second registry client. Tests: the images of a workflow, the lock and a moved tag with a fake source, the pinned message; `podvm pull` of `busybox:1.37.0` here gives `sha256:a7dbc319…`, the digest of the registry. Next: the run of `crates/podrunner/tests/local/tags.yml` with `--podvm` in `runner-image.yml`. The pull goes through the proxy of the host, not the egress module (as T-154 for the actions).
 Runner-image run 43560211006 (`034fbfb`): the pull and the pin work (the lock has `docker://busybox:1.37.0`), and the container fails: busybox is pinned by the digest of its index, `podvm save` keeps its platform manifest, and `podvm run` of the index digest in the unit store finds no image. The podvm driver now runs a container by `NAME@` the manifest digest of the `index.json` of the saved tar (`loaded_reference`), so an image that a user pins by its index works too. Runner-image run 43562100819 (`cb31ca7`): the container still fails with `container-not-supported`; the refusal carries the code only, so the hook unit now keeps the text of each driver error (`driver_errors`), and the log of a local run names it.
+Runner-image run 43565195597 (`872b43f`): the log names the error: `podvm run` of `busybox:1.37.0` (glibc) fails where chroot is denied, because the image has no `libdl.so.2` (T-156, COORD-040). `tags.yml` now uses `busybox:1.37.0-musl`, a static binary. The same run skipped the setup of KVM and QEMU after the failed podvm step, so the engine checks found no `qemu-system-x86_64`: the setup is now a step of its own before the podvm step.
 
 # T-131: Local mode: reusable workflows (jobs.<id>.uses)
 
@@ -2167,3 +2168,32 @@ Run `cargo test --workspace --all-features` in a loop (20 runs) and keep each fa
 
 State (2026-11-14): 10 runs of `cargo test --workspace --all-features` at `fca65c9` passed. Not reproduced yet; the next failure of the check names its test.
 
+
+# T-156: Local mode: a glibc image by tag in a podvm unit where chroot is denied
+
+**Source:** Runner-image run 43565195597 (`872b43f`): the job container `busybox:1.37.0` failed in the podvm unit
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+On a host that denies chroot(2), `podvm run` refuses a glibc image that has no `libdl.so.2` in its library directories (`busybox:1.37.0`): the no-chroot loader family of podvm asks for `libdl.so.2`. glibc 2.34 and later has no separate libdl, so many glibc images fail as a job container, a service or a Docker step of the podvm kind.
+
+## Premise
+
+The log of the run names the driver error (T-130, `driver_errors`). podvm `0.2.0-beta.14`.
+
+## Approach
+
+Ask podvm for the fix (GitHub #100, COORD-040). Take the podvm release that has it in `images/podvm.toml`. Switch `crates/podrunner/tests/local/tags.yml` back to `busybox:1.37.0`.
+
+## Prove
+
+`runner-image.yml`: the run of `tags.yml` with `busybox:1.37.0` gives `ok tagged`.
+
+## Blocker
+
+podvm: the no-chroot loader family and a glibc image with no `libdl.so.2` (GitHub #100, COORD-040).
