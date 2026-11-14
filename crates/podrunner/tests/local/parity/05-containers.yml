@@ -1,0 +1,18 @@
+# A job container beside a service (T-147). IMAGE as in 04-services.yml.
+# It needs an engine in the unit: T-123.
+name: parity containers
+on: push
+jobs:
+  inside:
+    runs-on: local
+    container: IMAGE
+    services:
+      side:
+        image: IMAGE
+        entrypoint: sh
+        command: -c "mkdir -p /w && echo side-42 > /w/i && httpd -f -p 8080 -h /w"
+    steps:
+      - run: test -f /.dockerenv || test -n "$HOSTNAME"
+        shell: sh
+      - run: test "$(wget -qO- http://side:8080/i)" = side-42
+        shell: sh

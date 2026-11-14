@@ -1,0 +1,32 @@
+# Expressions, functions and the outputs of needs (T-147). With
+# `--var PLANT=1` the last check fails: the plant of the test.
+name: parity expressions
+on: push
+env:
+  LIST: '["a","b","c"]'
+defaults:
+  run:
+    shell: bash
+jobs:
+  make:
+    runs-on: local
+    outputs:
+      json: ${{ steps.j.outputs.json }}
+      sum: ${{ steps.j.outputs.sum }}
+    steps:
+      - id: j
+        run: |
+          echo 'json={"n":[1,2,3],"s":"x"}' >> "$GITHUB_OUTPUT"
+          echo "sum=$((1 + 2 + 3))" >> "$GITHUB_OUTPUT"
+  use:
+    needs: make
+    runs-on: local
+    steps:
+      - run: test "${{ fromJSON(needs.make.outputs.json).s }}" = x
+      - run: test "${{ join(fromJSON(env.LIST), '-') }}" = a-b-c
+      - run: test "${{ contains(fromJSON(env.LIST), 'b') }}" = true
+      - run: test "${{ startsWith('podrunner', 'pod') && endsWith('podrunner', 'runner') }}" = true
+      - run: test "${{ format('{0}-{1}', 'p', 42) }}" = p-42
+      - run: test "${{ needs.make.outputs.sum }}" = 6
+      - run: test "${{ toJSON(fromJSON(needs.make.outputs.json).n) }}" = "$(printf '[\n  1,\n  2,\n  3\n]')"
+      - run: test "${{ vars.PLANT }}" != 1

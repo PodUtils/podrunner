@@ -1,0 +1,29 @@
+# An artifact round trip with a check of its content (T-147). It needs
+# the artifact service: T-119 (and the actions by tag: T-118).
+name: parity artifacts
+on: push
+defaults:
+  run:
+    shell: bash
+jobs:
+  up:
+    runs-on: local
+    outputs:
+      sum: ${{ steps.f.outputs.sum }}
+    steps:
+      - id: f
+        run: |
+          mkdir out && seq 1 1000 > out/data
+          echo "sum=$(sha256sum out/data | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data
+          path: out/data
+  down:
+    needs: up
+    runs-on: local
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: data
+      - run: test "$(sha256sum data | cut -d' ' -f1)" = "${{ needs.up.outputs.sum }}"

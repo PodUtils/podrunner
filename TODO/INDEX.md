@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**153 entries: 35 open, 3 partial, 6 blocked, 109 done.**
+**153 entries: 34 open, 3 partial, 6 blocked, 110 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 18 | 1 | 4 | 49 | 72 |
+| P2 | 17 | 1 | 4 | 50 | 72 |
 | P3 | 17 | 0 | 2 | 28 | 47 |
-| **All** | 35 | 3 | 6 | 109 | 153 |
+| **All** | 34 | 3 | 6 | 110 | 153 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -194,7 +194,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-144](later.md) | P2 | S | later | defect | done | podrunner run --runner-dir starts the runner with W^X on, and dies under a small RLIMIT_FSIZE |
 | [T-145](later.md) | P2 | S | later | defect | open | The fake broker answers 404 in silence to a route that it does not serve |
 | [T-146](later.md) | P2 | S | later | defect | open | A job can leave files that the next run cannot remove |
-| [T-147](later.md) | P2 | M | later | feature | open | Local mode: the parity suite, with checks outside the job log |
+| [T-147](later.md) | P2 | M | later | feature | done | Local mode: the parity suite, with checks outside the job log |
 | [T-148](later.md) | P3 | M | later | research | open | Research: Azure Pipelines YAML in the local source |
 | [T-149](later.md) | P3 | M | later | feature | open | Local mode: a web view of a run on the loopback |
 | [T-150](later.md) | P3 | M | later | feature | open | Local mode: a pause before a step and a shell in the unit |

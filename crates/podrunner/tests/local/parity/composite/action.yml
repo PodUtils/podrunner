@@ -1,0 +1,15 @@
+# A composite action of the parity suite (T-147): the square of an input
+# as an output.
+name: parity composite
+inputs:
+  n:
+    required: true
+outputs:
+  square:
+    value: ${{ steps.s.outputs.square }}
+runs:
+  using: composite
+  steps:
+    - id: s
+      shell: bash
+      run: echo "square=$((${{ inputs.n }} * ${{ inputs.n }}))" >> "$GITHUB_OUTPUT"

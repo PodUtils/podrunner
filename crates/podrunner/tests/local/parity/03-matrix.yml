@@ -1,0 +1,23 @@
+# A matrix with exclude and include: exactly four cells (T-147).
+name: parity matrix
+on: push
+defaults:
+  run:
+    shell: bash
+jobs:
+  cell:
+    name: cell (${{ matrix.os }}, ${{ matrix.n }})
+    runs-on: local
+    strategy:
+      matrix:
+        os: [a, b]
+        n: [1, 2]
+        exclude:
+          - os: b
+            n: 2
+        include:
+          - os: c
+            n: 3
+    steps:
+      - run: test "${{ strategy.job-total }}" = 4
+      - run: case "${{ matrix.os }}-${{ matrix.n }}" in a-1|a-2|b-1|c-3) ;; *) exit 1 ;; esac

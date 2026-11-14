@@ -1849,7 +1849,7 @@ Read `crates/podrunner-local/src/exec.rs` on 2026-11-14. Not measured: the resid
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1865,7 +1865,11 @@ Write a new suite in `crates/podrunner/tests/local/` (0BSD, own text), one workf
 
 ## Prove
 
-`PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored` prints one verdict for each workflow, and a plant (a wrong artifact content) gives FAIL.
+`PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test parity -- --ignored` prints one verdict for each workflow, and a plant (a wrong artifact content) gives FAIL.
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner/tests/local/parity/` holds seven workflows and a local composite action; `crates/podrunner/tests/parity.rs` runs each with `podrunner run --runner-dir` and prints `parity FILE PASS`, `PARTIAL T-NNN` or `FAIL`. A failure is PARTIAL only while its entry is open in the record and only in the jobs that need it, so a done entry with a red row gives FAIL. Level 2 runs it. Result on runner v2.338.2: exit, expressions and matrix PASS; services PARTIAL T-124; containers PARTIAL T-123; actions PARTIAL T-118 (the local composite job passes); artifacts PARTIAL T-119; the plant (`--var PLANT=1`) gives FAIL. The marketplace actions keep their tags until the lock of T-118 pins them by commit; T-123 adds the run in `runner-image.yml`.
 
 # T-148: Research: Azure Pipelines YAML in the local source
 

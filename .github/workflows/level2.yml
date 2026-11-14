@@ -25,6 +25,7 @@ on:
       - crates/podrunner/src/run_local.rs
       - crates/podrunner/src/run_local/**
       - crates/podrunner/tests/local.rs
+      - crates/podrunner/tests/parity.rs
       - crates/podrunner/tests/local/**
       - images/runner/runner.toml
       - scripts/corpus.py
@@ -63,6 +64,9 @@ jobs:
       # T-089: podrunner run runs the suite of the local mode to green.
       - name: podrunner run, the suite of the local mode
         run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner --test local -- --ignored --nocapture
+      # T-147: the parity suite, one verdict for each workflow.
+      - name: podrunner run, the parity suite
+        run: PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" cargo test -p podrunner --test parity -- --ignored --nocapture
 
   corpus:
     runs-on: ubuntu-24.04

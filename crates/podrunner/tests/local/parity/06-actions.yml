@@ -1,0 +1,26 @@
+# A marketplace action by tag and a local composite action with outputs
+# (T-147). The tag needs the fetch of actions by tag: T-118.
+name: parity actions
+on: push
+defaults:
+  run:
+    shell: bash
+jobs:
+  local:
+    runs-on: local
+    steps:
+      - uses: actions/checkout@v4
+      - id: sq
+        uses: ./crates/podrunner/tests/local/parity/composite
+        with:
+          n: 7
+      - run: test "${{ steps.sq.outputs.square }}" = 49
+  market:
+    runs-on: local
+    steps:
+      - id: script
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: return String(6 * 7)
+      - run: test "${{ steps.script.outputs.result }}" = 42

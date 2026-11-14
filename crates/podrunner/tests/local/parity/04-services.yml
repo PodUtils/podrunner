@@ -1,0 +1,21 @@
+# A service with a health check, reached by its name and by localhost
+# (T-147). IMAGE is an image with busybox, pinned by digest; the test puts
+# it in. It needs `services:` through the engine of the unit: T-124.
+name: parity services
+on: push
+defaults:
+  run:
+    shell: bash
+jobs:
+  services:
+    runs-on: local
+    container: IMAGE
+    services:
+      web:
+        image: IMAGE
+        options: --health-cmd "wget -qO- http://127.0.0.1:8080/ok" --health-interval 2s
+        ports: ['8080:8080']
+        entrypoint: sh
+        command: -c "mkdir -p /w && echo up > /w/ok && httpd -f -p 8080 -h /w"
+    steps:
+      - run: test "$(wget -qO- http://web:8080/ok)" = up

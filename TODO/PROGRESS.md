@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 153 entries: 35 open, 3 partial, 6 blocked, 109 done.
+`TODO/INDEX.md` holds 153 entries: 34 open, 3 partial, 6 blocked, 110 done.
 
 ## State
 
@@ -36,22 +36,21 @@ The queue, most valuable first:
 
 The local mode against act and runner.server (`docs/local-mode.md`), the features that most workflows need first:
 
-2. T-147 (M): the parity suite; each row that a later entry closes is a known PARTIAL.
-3. T-118 (M): actions by tag, fetched through the egress module into a store with a lock file.
-4. T-119 (M): artifacts v4, one store for each run.
-5. T-120 (M): the cache service of `actions/cache`.
-6. T-121 (S): secrets from the environment and a secret file, with the mask.
-7. T-122 (S): `github.token` and `secrets.GITHUB_TOKEN`.
-8. T-123 (M): the local mode on the microvm and incus kinds.
-9. T-124 (M): `services:`, `docker build` and Docker-in-Docker through the engine of the unit.
-10. T-145 (S), T-146 (S), T-141 (S): the defects of a missing route, of files that a job leaves, and of Ctrl-C.
-11. T-125 (M): the event payload, the `github` context of the tree, the filters of `on:`.
-12. T-133 (M): the checkout with the changes of the tree, `.git`, other repositories.
-13. T-130 (M), T-129 (M): images by tag into the store; runner images by `runs-on`.
-14. T-131 (L): reusable workflows.
-15. T-127 (S), T-134 (M), T-126 (S), T-128 (S): selection, logs, inputs and files, list and dry run.
-16. T-132 (M), T-135 (M), T-136 (S), T-137 (S): parallel jobs, reruns, environments, concurrency.
-17. T-138, T-139, T-140, T-142, T-143, T-152, T-153 (S each), T-150 (M), T-149 (M), T-151 (S), T-148 (M).
+2. T-118 (M): actions by tag, fetched through the egress module into a store with a lock file.
+3. T-119 (M): artifacts v4, one store for each run.
+4. T-120 (M): the cache service of `actions/cache`.
+5. T-121 (S): secrets from the environment and a secret file, with the mask.
+6. T-122 (S): `github.token` and `secrets.GITHUB_TOKEN`.
+7. T-123 (M): the local mode on the microvm and incus kinds.
+8. T-124 (M): `services:`, `docker build` and Docker-in-Docker through the engine of the unit.
+9. T-145 (S), T-146 (S), T-141 (S): the defects of a missing route, of files that a job leaves, and of Ctrl-C.
+10. T-125 (M): the event payload, the `github` context of the tree, the filters of `on:`.
+11. T-133 (M): the checkout with the changes of the tree, `.git`, other repositories.
+12. T-130 (M), T-129 (M): images by tag into the store; runner images by `runs-on`.
+13. T-131 (L): reusable workflows.
+14. T-127 (S), T-134 (M), T-126 (S), T-128 (S): selection, logs, inputs and files, list and dry run.
+15. T-132 (M), T-135 (M), T-136 (S), T-137 (S): parallel jobs, reruns, environments, concurrency.
+16. T-138, T-139, T-140, T-142, T-143, T-152, T-153 (S each), T-150 (M), T-149 (M), T-151 (S), T-148 (M).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

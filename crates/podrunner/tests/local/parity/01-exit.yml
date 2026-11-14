@@ -1,0 +1,31 @@
+# Exit codes and status functions (T-147).
+name: parity exit
+on: push
+defaults:
+  run:
+    shell: bash
+jobs:
+  exit:
+    runs-on: local
+    steps:
+      - run: exit 0
+      - id: soft
+        continue-on-error: true
+        run: exit 7
+      - run: test "${{ steps.soft.outcome }}" = failure && test "${{ steps.soft.conclusion }}" = success
+      - if: failure()
+        run: exit 1
+      - id: last
+        if: always()
+        run: echo "seen=$((40 + 2))" >> "$GITHUB_OUTPUT"
+      - run: test "${{ steps.last.outputs.seen }}" = 42
+  allowed:
+    runs-on: local
+    continue-on-error: true
+    steps:
+      - run: exit 3
+  after:
+    needs: allowed
+    runs-on: local
+    steps:
+      - run: test "${{ needs.allowed.result }}" = success
