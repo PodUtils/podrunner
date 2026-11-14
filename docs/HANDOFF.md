@@ -134,8 +134,8 @@ is done.
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.
-- GitHub #94, #95, #97, #98 (COORD-034, -035, -037, -038, to
-  podcrates): the asks of the local mode. GitHub #96 (COORD-036): the take
+- GitHub #94, #95 (COORD-034, -035, to
+  podcrates): the asks of the local mode (#97 and #98 are closed). GitHub #96 (COORD-036): the take
   of `v0.42.0`. GitHub #100 (COORD-040, to podvm): a glibc image where
   chroot is denied.
 - GitHub #9, #32, #33, #40: wait for the live gates (#74, #75). GitHub
