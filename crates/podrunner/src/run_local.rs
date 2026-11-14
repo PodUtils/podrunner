@@ -26,7 +26,7 @@ use crate::cli::Out;
 
 use args::{Args, parse};
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE]";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE]";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -94,6 +94,21 @@ pub fn line(l: &Line) -> String {
 /// The secrets of the run (T-121) and the token of `github.token` (T-122):
 /// `.secrets` of the checkout when it exists, then `--secret-file`, then
 /// each `--secret`.
+/// The secrets and vars of each environment (T-136): a secret file needs
+/// mode 0600, as `--secret-file`.
+fn environments(a: &Args) -> Result<std::collections::BTreeMap<String, podrunner_local::Environment>, String> {
+    let mut out: std::collections::BTreeMap<String, podrunner_local::Environment> = Default::default();
+    for (name, file) in &a.environment_secrets {
+        out.entry(name.clone()).or_default().secrets.extend(podrunner_local::secrets::read_file(file)?);
+    }
+    for (name, file) in &a.environment_vars {
+        let text = std::fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
+        let vars = podrunner_local::secrets::parse_pairs(&text).map_err(|e| format!("{}: {e}", file.display()))?;
+        out.entry(name.clone()).or_default().vars.extend(vars);
+    }
+    Ok(out)
+}
+
 /// The vars, the inputs and the env of the run: each file, then each flag
 /// over it (T-126).
 type Pairs = Vec<(String, String)>;
@@ -230,6 +245,14 @@ pub fn run(args: &[String]) -> Out {
     }
     // The values to mask in each line that podrunner writes (T-134).
     let mut masked: Vec<String> = Vec::new();
+    // The secrets and vars of each environment (T-136).
+    match environments(&a) {
+        Ok(envs) => {
+            masked.extend(envs.values().flat_map(|e| e.secrets.iter().map(|(_, v)| v.clone())));
+            source.set_environments(envs);
+        }
+        Err(e) => return fail(Class::Config, e),
+    }
     match secrets(&a) {
         Ok((list, token)) => {
             masked.extend(list.iter().map(|(_, v)| v.clone()));

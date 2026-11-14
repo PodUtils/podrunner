@@ -279,3 +279,30 @@ fn the_env_of_the_run_is_under_the_env_of_the_workflow() {
     assert_eq!(env[0]["map"][0], json!({ "Key": "E", "Value": "1" }), "the env of the run comes first");
     assert!(env.len() >= 2, "the workflow's env comes after it and wins: {env:?}");
 }
+
+#[test]
+fn only_the_jobs_of_an_environment_get_its_secrets_and_vars() {
+    let text = "on: push\njobs:\n  deploy:\n    runs-on: x\n    environment:\n      name: prod\n      url: https://example.invalid\n    steps: [{run: x}]\n  test:\n    runs-on: x\n    steps: [{run: x}]\n";
+    let base = Base { vars: XValue::object([("A", XValue::String("run".into()))]), ..Base::default() };
+    let mut s = LocalSource::new("l", text, base, "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    let prod = crate::Environment {
+        secrets: vec![("DEPLOY_KEY".into(), "made-up-deploy".into())],
+        vars: vec![("A".into(), "prod".into())],
+    };
+    s.set_environments(BTreeMap::from([("prod".to_string(), prod)]));
+    let msg = |s: &LocalSource, j: &str| {
+        podrunner_broker_fake::message::job_message(
+            "http://127.0.0.1:1/",
+            1,
+            &s.broker_job(&JobId::new(j).unwrap()).unwrap(),
+        )
+    };
+    let d = msg(&s, "deploy.0");
+    assert_eq!(d["variables"]["DEPLOY_KEY"]["isSecret"], true);
+    assert!(d["contextData"]["vars"].to_string().contains("prod"), "{}", d["contextData"]["vars"]);
+    let t = msg(&s, "test.0");
+    assert!(t["variables"].get("DEPLOY_KEY").is_none(), "a job of no environment gets no secret of it");
+    assert!(t["contextData"]["vars"].to_string().contains("run"));
+    assert_eq!(s.environment_of(&JobId::new("deploy.0").unwrap()).unwrap().as_deref(), Some("prod"));
+}

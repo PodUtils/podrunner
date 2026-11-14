@@ -60,6 +60,15 @@ impl Executor for Dispatch {
         exec.run(job, message, limit)
     }
 
+    fn environment(&mut self, name: Option<&str>) {
+        for (_, e) in &mut self.routes {
+            e.environment(name);
+        }
+        if let Some(d) = &mut self.default {
+            d.environment(name);
+        }
+    }
+
     fn set_live(&mut self, live: crate::exec::Live) {
         for (_, e) in &mut self.routes {
             e.set_live(live.clone());

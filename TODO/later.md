@@ -1628,7 +1628,7 @@ Read `crates/podrunner/src/run_local.rs` on 2026-11-14: the scratch directories 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1645,6 +1645,9 @@ Evaluate `environment` (name and `url`). `--environment-secret-file NAME=FILE` a
 ## Prove
 
 `cargo test -p podrunner-local message` (the secrets of an environment reach only its jobs).
+
+State (2026-11-14): `LocalSource::environment_of` reads `environment: NAME` or its `name:` (an expression is refused when a flag gives an environment); `set_environments` gives the secrets of `--environment-secret-file NAME=FILE` (mode 0600) and the vars of `--environment-var-file NAME=FILE` (over those of the run) only to the jobs of that environment; `--environment-allow NAME=HOST` gives those jobs their own egress policy on a unit kind that holds egress (`Executor::environment`, `InUnit::environment_policies`). Tests: the secrets and vars of an environment in its job and not in another, the flags. Next: the protection of an environment (`--approve NAME`, a prompt on a terminal): GitHub keeps which environment is protected in its settings, so the local mode needs a rule for it first, for example `--protected NAME`.
+
 
 # T-137: Local mode: concurrency groups and cancel-in-progress
 

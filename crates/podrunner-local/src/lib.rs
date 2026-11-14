@@ -88,11 +88,20 @@ pub struct LocalSource {
     selected: Option<std::collections::BTreeSet<String>>,
     /// The environment of each job under the `env:` of the workflow (T-126).
     env: Vec<(String, String)>,
+    /// The secrets and vars of each environment (T-136).
+    environments: BTreeMap<String, Environment>,
     matrix_filter: Vec<(String, String)>,
     minter: Minter,
     /// The report and audit lines, for the caller.
     pub reports: Vec<(JobId, Map<String, Value>)>,
     pub audits: Vec<Map<String, Value>>,
+}
+
+/// The secrets and vars of one environment: only its jobs get them (T-136).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Environment {
+    pub secrets: Vec<(String, String)>,
+    pub vars: Vec<(String, String)>,
 }
 
 fn usage(detail: impl Into<String>) -> SourceError {
@@ -124,6 +133,7 @@ impl LocalSource {
             pins: BTreeMap::new(),
             selected: None,
             env: Vec::new(),
+            environments: BTreeMap::new(),
             matrix_filter: Vec::new(),
             minter,
             reports: Vec::new(),
@@ -144,6 +154,37 @@ impl LocalSource {
     /// repository takes its tree from the store (T-133).
     pub fn set_pins(&mut self, pins: BTreeMap<String, String>) {
         self.pins = pins;
+    }
+
+    /// The secrets and vars of each environment (T-136).
+    pub fn set_environments(&mut self, environments: BTreeMap<String, Environment>) {
+        self.environments = environments;
+    }
+
+    /// The environment of the job of a cell: `environment: NAME` or its
+    /// `name:` (T-136). A name that is an expression is refused when a flag
+    /// gives an environment: the host gives each one before the first job.
+    pub fn environment_of(&self, job: &JobId) -> Result<Option<String>, String> {
+        use pod_actions_workflow::Kind;
+        let Some(cell) = self.cells.get(job) else { return Ok(None) };
+        let Some(node) = self.run.workflow().job(&cell.job).and_then(|j| j.environment.as_ref()) else {
+            return Ok(None);
+        };
+        let name = match &node.kind {
+            Kind::String(s) => Some(s.clone()),
+            Kind::Map(e) => e.iter().find(|(k, _)| k.name == "name").and_then(|(_, v)| match &v.kind {
+                Kind::String(s) => Some(s.clone()),
+                _ => None,
+            }),
+            _ => None,
+        };
+        match name {
+            Some(n) if n.contains("${{") && !self.environments.is_empty() => Err(format!(
+                "line {}: the environment {n:?} is an expression; name it to give it secrets or vars",
+                node.mark.line
+            )),
+            other => Ok(other),
+        }
     }
 
     /// The environment of each job (`--env`, T-126): under the `env:` of the
@@ -219,8 +260,31 @@ impl LocalSource {
     /// The job of the fake broker for the offer `job` (T-088).
     pub fn broker_job(&self, job: &JobId) -> Result<podrunner_broker_fake::Job, String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
-        let mut b = message::broker_job(self.run.workflow(), cell, &self.github, &self.vars, &self.inputs, &self.pins)?;
+        let environment = self.environment_of(job)?.and_then(|n| self.environments.get(&n).cloned());
+        // The vars of an environment over those of the run (T-136).
+        let vars = match &environment {
+            Some(e) if !e.vars.is_empty() => {
+                let mut all: Vec<(String, XValue)> = self
+                    .vars
+                    .as_object()
+                    .map(|o| o.iter().map(|(k, v)| (k.to_string(), v.clone())).collect())
+                    .unwrap_or_default();
+                for (k, v) in &e.vars {
+                    all.retain(|(o, _)| !o.eq_ignore_ascii_case(k));
+                    all.push((k.clone(), XValue::String(v.clone())));
+                }
+                XValue::object(all)
+            }
+            _ => self.vars.clone(),
+        };
+        let mut b = message::broker_job(self.run.workflow(), cell, &self.github, &vars, &self.inputs, &self.pins)?;
         b.secrets = self.secrets.clone();
+        if let Some(e) = &environment {
+            for (k, v) in &e.secrets {
+                b.secrets.retain(|(o, _)| !o.eq_ignore_ascii_case(k));
+                b.secrets.push((k.clone(), v.clone()));
+            }
+        }
         if !self.env.is_empty() {
             let map: Vec<Value> = self.env.iter().map(|(k, v)| json!({ "Key": k, "Value": v })).collect();
             let first = json!({ "type": 2, "map": map });

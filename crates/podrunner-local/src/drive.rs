@@ -31,6 +31,9 @@ pub trait Executor {
     fn select(&mut self, _labels: &[String]) -> Result<(), String> {
         Ok(())
     }
+    /// The environment of the next job (T-136): an executor with an egress
+    /// policy for it takes that policy.
+    fn environment(&mut self, _name: Option<&str>) {}
     /// The log of each job that ran, taken once.
     fn take_logs(&mut self) -> Vec<(JobId, String)> {
         Vec::new()
@@ -147,6 +150,8 @@ pub fn drive_with(
             source.ack(&job).map_err(|e| e.to_string())?;
             source.claim(&job, RUNNER).map_err(|e| e.to_string())?;
             let labels = source.cell(&job).and_then(|c| c.instance.runs_on.as_ref()).map(|r| r.labels.clone());
+            let environment = source.environment_of(&job).ok().flatten();
+            exec.environment(environment.as_deref());
             let message = exec.select(&labels.unwrap_or_default()).and_then(|()| source.broker_job(&job));
             let (end, line) = match message {
                 Err(reason) => (

@@ -24,6 +24,10 @@ pub(super) struct Args {
     pub(super) env_file: Option<PathBuf>,
     pub(super) env: Vec<(String, String)>,
     /// `--list`, `--graph`, `--validate`, `--dry-run` (T-128).
+    /// The secret files, var files and hosts of each environment (T-136).
+    pub(super) environment_secrets: Vec<(String, PathBuf)>,
+    pub(super) environment_vars: Vec<(String, PathBuf)>,
+    pub(super) environment_allow: Vec<(String, String)>,
     /// `-q`, `--json`, `--log-dir` (T-134).
     pub(super) quiet: bool,
     pub(super) json: bool,
@@ -81,6 +85,18 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             "--incus" => a.guest = Some((false, PathBuf::from(value()?))),
             "--engine" => a.engine = Some(PathBuf::from(value()?)),
             "--job" => a.jobs.push(value()?),
+            "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {
+                let v = value()?;
+                let (name, rest) = v
+                    .split_once('=')
+                    .filter(|(n, r)| !n.is_empty() && !r.is_empty())
+                    .ok_or_else(|| format!("{x} {v:?} is not NAME=VALUE"))?;
+                match x.as_str() {
+                    "--environment-secret-file" => a.environment_secrets.push((name.into(), PathBuf::from(rest))),
+                    "--environment-var-file" => a.environment_vars.push((name.into(), PathBuf::from(rest))),
+                    _ => a.environment_allow.push((name.into(), rest.into())),
+                }
+            }
             "-q" | "--quiet" => a.quiet = true,
             "--json" => a.json = true,
             "--log-dir" => a.log_dir = Some(PathBuf::from(value()?)),
@@ -182,6 +198,9 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
         return Ok(a);
     }
     let unit = [kind, a.images.is_some(), a.image.is_some()];
+    if !a.environment_allow.is_empty() && a.podnet.is_none() && a.guest.is_none() {
+        return Err("--environment-allow needs an egress hold: --podnet with --podvm, or --microvm or --incus".into());
+    }
     if a.podnet.is_some() && a.podvm.is_none() {
         return Err("--podnet needs --podvm".into());
     }

@@ -406,3 +406,30 @@ fn the_log_dir_has_each_step_and_the_summary_with_no_secret() {
     assert!(!dir.join("x.log").exists());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_environment_flags_of_run() {
+    let a = parse(&args(&[
+        "w.yml",
+        "--microvm",
+        "/p",
+        "--images",
+        "/s",
+        "--image",
+        "r@sha256:00",
+        "--environment-allow",
+        "prod=deploy.example",
+        "--environment-var-file",
+        "prod=/v",
+    ]))
+    .unwrap();
+    assert_eq!(a.environment_allow, [("prod".to_string(), "deploy.example".to_string())]);
+    assert_eq!(a.environment_vars, [("prod".to_string(), PathBuf::from("/v"))]);
+    let e = parse(&args(&["w.yml", "--runner-dir", "/r", "--environment-allow", "prod=x.example"])).unwrap_err();
+    assert!(e.contains("egress hold"), "{e}");
+    assert!(
+        parse(&args(&["w.yml", "--runner-dir", "/r", "--environment-secret-file", "prod"]))
+            .unwrap_err()
+            .contains("NAME=VALUE")
+    );
+}

@@ -45,6 +45,10 @@ pub struct InUnit {
     /// The egress of a held unit (T-095): the egress module and the
     /// policy of each unit (`broker-policy.v1`).
     pub egress: Option<(std::sync::Arc<podrunner_egress::Egress>, String)>,
+    /// The egress policy of each environment, and the environment of the
+    /// next job (T-136).
+    pub environment_policies: BTreeMap<String, String>,
+    next_environment: Option<String>,
     /// The live sink and the blobs of each job (T-134).
     pub live: Option<Live>,
     pub blobs: Vec<(JobId, Vec<(String, String)>)>,
@@ -69,6 +73,8 @@ impl InUnit {
             cache: None,
             checkout: None,
             egress: None,
+            environment_policies: BTreeMap::new(),
+            next_environment: None,
             live: None,
             blobs: Vec::new(),
             guest: false,
@@ -228,6 +234,10 @@ impl Executor for InUnit {
         self.live = Some(live);
     }
 
+    fn environment(&mut self, name: Option<&str>) {
+        self.next_environment = name.map(str::to_string);
+    }
+
     fn take_blobs(&mut self) -> Vec<(JobId, Vec<(String, String)>)> {
         std::mem::take(&mut self.blobs)
     }
@@ -283,8 +293,10 @@ impl Executor for InUnit {
             true => dir.join("egress-inner.sock"),
             false => dir.join(podrunner_unit::EGRESS_SOCKET),
         };
+        // The policy of the environment of the job, else that of the run (T-136).
+        let env_policy = self.next_environment.as_ref().and_then(|n| self.environment_policies.get(n));
         if let (Some((egress, policy)), Some(dir)) = (&self.egress, &sockets)
-            && let Err(e) = egress.open(id.as_str(), policy, &egress_socket(dir), limit)
+            && let Err(e) = egress.open(id.as_str(), env_policy.unwrap_or(policy), &egress_socket(dir), limit)
         {
             end_sockets(&sockets);
             return Err(format!("the egress of {id}: {e}"));
