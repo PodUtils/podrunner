@@ -70,3 +70,45 @@ fn the_conclusion_of_the_runner_gives_the_result() {
     assert_eq!(result_of("cancelled"), JobResult::Cancelled);
     assert_eq!(result_of(""), JobResult::Failure);
 }
+
+/// T-117: a failed cell of a matrix with `fail-fast` (the default) cancels
+/// each cell of the job that did not run.
+#[test]
+fn fail_fast_cancels_the_cells_that_did_not_run() {
+    let flow = "on: push\njobs:\n  m:\n    runs-on: x\n    strategy:\n      matrix:\n        n: [1, 2, 3]\n    \
+                steps: [{run: echo m}]\n";
+    let mut s = LocalSource::new("l", flow, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    let mut exec = Scripted::default();
+    exec.results.insert("m.0".into(), JobResult::Failure);
+    let mut lines = Vec::new();
+    let ok = drive(&mut s, &mut exec, &mut |l| lines.push(l.clone())).unwrap();
+    assert!(!ok);
+    assert_eq!(exec.ran, ["m.0"], "the other cells do not run");
+    let cancelled = lines.iter().filter(|l| matches!(l, Line::Ran { result: JobResult::Cancelled, .. })).count();
+    assert_eq!(cancelled, 2, "{lines:?}");
+    assert_eq!(s.result("m"), Some(JobResult::Failure));
+    // With `fail-fast: false`, each cell runs.
+    let flow = flow.replace("    strategy:\n", "    strategy:\n      fail-fast: false\n");
+    let mut s = LocalSource::new("l", &flow, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    let mut exec = Scripted::default();
+    exec.results.insert("m.0".into(), JobResult::Failure);
+    drive(&mut s, &mut exec, &mut |_| {}).unwrap();
+    assert_eq!(exec.ran, ["m.0", "m.1", "m.2"]);
+}
+
+/// T-117: a failed job with `continue-on-error` does not fail the run, and
+/// the jobs after it see a success in `needs`.
+#[test]
+fn continue_on_error_does_not_fail_the_run() {
+    let flow = "on: push\njobs:\n  a:\n    runs-on: x\n    continue-on-error: true\n    steps: [{run: echo a}]\n  \
+                b:\n    needs: a\n    runs-on: x\n    steps: [{run: echo b}]\n";
+    let mut s = LocalSource::new("l", flow, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    let mut exec = Scripted::default();
+    exec.results.insert("a.0".into(), JobResult::Failure);
+    let mut lines = Vec::new();
+    let ok = drive(&mut s, &mut exec, &mut |l| lines.push(l.clone())).unwrap();
+    assert!(ok, "the run does not fail: {lines:?}");
+    assert_eq!(exec.ran, ["a.0", "b.0"], "b runs after a");
+    assert!(matches!(&lines[0], Line::Ran { result: JobResult::Failure, .. }), "the line of a still says failure");
+    assert_eq!(s.result("a"), Some(JobResult::Success));
+}

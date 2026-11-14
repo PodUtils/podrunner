@@ -77,6 +77,12 @@ pub fn drive(source: &mut LocalSource, exec: &mut dyn Executor, out: &mut dyn Fn
         }
         for job in offers {
             let name = source.cell(&job).map(|c| c.instance.name.clone()).unwrap_or_default();
+            // A cell that `fail-fast` cancelled runs no unit (T-117).
+            if source.is_cancelled(&job) {
+                out(&Line::Ran { job: job.clone(), name, result: JobResult::Cancelled });
+                source.release(&job).map_err(|e| e.to_string())?;
+                continue;
+            }
             // `timeout-minutes` of the job: 360 by default, as on GitHub.
             let minutes = source.cell(&job).map(|c| c.instance.timeout_minutes).unwrap_or(360.0);
             let limit = Duration::from_secs_f64((minutes.max(0.0) * 60.0).min(360.0 * 60.0 * 24.0));
@@ -98,7 +104,8 @@ pub fn drive(source: &mut LocalSource, exec: &mut dyn Executor, out: &mut dyn Fn
                     ),
                 },
             };
-            ok &= matches!(end.result, JobResult::Success);
+            // A failed job with `continue-on-error` does not fail the run.
+            ok &= matches!(end.result, JobResult::Success) || source.may_fail(&job);
             out(&line);
             source.complete(&job, end.result, end.outputs)?;
             source.release(&job).map_err(|e| e.to_string())?;

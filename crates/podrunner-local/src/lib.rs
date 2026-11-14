@@ -57,6 +57,8 @@ pub struct LocalSource {
     skips: Vec<Skip>,
     /// The `github` context of the run: each step reads it (T-114).
     github: XValue,
+    /// The cells that `fail-fast` cancelled before they ran (T-117).
+    cancelled: std::collections::BTreeSet<JobId>,
     vars: XValue,
     inputs: XValue,
     minter: Minter,
@@ -86,6 +88,7 @@ impl LocalSource {
             ends: BTreeMap::new(),
             skips: Vec::new(),
             github,
+            cancelled: Default::default(),
             vars,
             inputs,
             minter,
@@ -94,6 +97,17 @@ impl LocalSource {
         };
         source.advance().map_err(|e| e.detail)?;
         Ok(source)
+    }
+
+    /// `fail-fast` cancelled the cell `job` before it ran (T-117).
+    pub fn is_cancelled(&self, job: &JobId) -> bool {
+        self.cancelled.contains(job)
+    }
+
+    /// The job of the cell `job` has `continue-on-error`: its failure does
+    /// not fail the run (T-117).
+    pub fn may_fail(&self, job: &JobId) -> bool {
+        self.cells.get(job).is_some_and(|c| c.instance.continue_on_error)
     }
 
     pub fn workflow(&self) -> &Workflow {
@@ -132,12 +146,34 @@ impl LocalSource {
     /// for a matrix), and the jobs after it can start.
     pub fn complete(&mut self, job: &JobId, result: JobResult, outputs: Vec<(String, String)>) -> Result<(), String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
-        let ends = self.ends.get_mut(&cell.job).ok_or_else(|| format!("the job of {job} is done"))?;
-        let slot = &mut ends[cell.index];
+        // A failed cell of a job with `continue-on-error` does not fail the
+        // run: `needs` gives the jobs after it a success (T-117).
+        let allowed = cell.instance.continue_on_error;
+        let result = if result == JobResult::Failure && allowed { JobResult::Success } else { result };
+        let fail_fast = result == JobResult::Failure
+            && cell.instance.strategy.as_object().and_then(|o| o.get("fail-fast")).and_then(|v| v.as_bool())
+                == Some(true);
+        let (job_name, index) = (cell.job.clone(), cell.index);
+        let ends = self.ends.get_mut(&job_name).ok_or_else(|| format!("the job of {job} is done"))?;
+        let slot = &mut ends[index];
         if slot.is_some() {
             return Err(format!("{job} ended before"));
         }
         *slot = Some(Done { result, outputs });
+        // `fail-fast`: each cell of the job that did not end is cancelled,
+        // as GitHub cancels the cells in progress and in the queue (T-117).
+        if fail_fast {
+            for (i, s) in ends.iter_mut().enumerate() {
+                if s.is_none() {
+                    *s = Some(Done::of(JobResult::Cancelled));
+                    if let Ok(id) = JobId::new(&format!("{job_name}.{i}")) {
+                        self.pending.retain(|o| o.job_id != id);
+                        self.cancelled.insert(id);
+                    }
+                }
+            }
+        }
+        let cell = self.cells.get(job).expect("the cell");
         if ends.iter().all(Option::is_some) {
             let job_id = cell.job.clone();
             let ends = self.ends.remove(&job_id).expect("the ends of the job");

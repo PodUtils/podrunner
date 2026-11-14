@@ -1060,7 +1060,7 @@ Move the version requirement of each kind into a function of the kind (`require_
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1080,6 +1080,10 @@ Follow the behaviour of GitHub Actions (the rule of Q4). In `complete`, when a c
 ## Prove
 
 `cargo test -p podrunner-local`
+
+## Done
+
+2026-11-14, this commit. `LocalSource::complete`: a failed cell of a job with `continue-on-error` ends as a success for the run (`needs` gives a success, as the jobs after such a job run on GitHub under the default `success()`; not measured on GitHub); a failed cell of a matrix with `fail-fast` true cancels each cell of the job that did not end, and `drive` prints those as `cancelled` and runs no unit for them. `drive` does not count a failed job with `continue-on-error` against the exit code; its line still says `failure`. `fail_fast_cancels_the_cells_that_did_not_run` and `continue_on_error_does_not_fail_the_run` hold it.
 
 # T-118: Local mode: actions by tag, fetched through the egress module into a store with a lock file
 
