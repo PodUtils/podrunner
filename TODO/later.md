@@ -1300,6 +1300,9 @@ On the microvm kind with an engine (T-123), give the runner `DOCKER_HOST` of the
 
 `runner-image.yml` runs the services and container workflows of the parity suite (T-147) with `podrunner run --microvm ... --engine DIR`: a service answers by `localhost` and by its name, and a Dockerfile action builds and runs.
 
+State (2026-11-14): runner-image run 43570649182 (`e31f9e5`), the parity suite in guests with an engine: 01, 02, 03, 07 and 08 pass. 04, 05 and 09 fail on the pull of busybox in the guest: the egress module denied a host of the blobs of Docker Hub, which now sends them to `production.cloudflare.docker.com` and to its R2 bucket of layers; the step now allows both, beside CloudFront. 06: the job `local` (a checkout, then a `./` composite action) stopped for 10 minutes after "Getting action download info", while `market` of the same file passed; not explained yet. Next: the run of the next commit.
+
+
 # T-125: Local mode: the event payload, the github context of the local tree, and the filters of on:
 
 **Source:** The owner's ghactions-local study (act: the event argument, `-e/--eventpath`, `--detect-event`, `-a/--actor`, `--defaultbranch`, `--remote-name`, `-W` over a directory; runner.server: `--payload`, `--no-default-payload`, `--ref`, `--sha`, `--repository`)
@@ -1477,6 +1480,7 @@ Before the first job, resolve each image tag to a digest for the platform of the
 State (2026-11-14): `crates/podrunner-local/src/images.rs` collects each image of `container:`, `services:` and `docker://` steps that a tag names (`NAME` alone is `NAME:latest`; an expression is refused), pins it by the lock (`docker://NAME:TAG sha256:HEX`), and pulls it with `podvm pull --platform` into the store of the units (`PodvmPull`); the job message gives `NAME@sha256:HEX` (`pin_image`, `pin_node`). A moved tag fails by name; `--offline` and `--frozen` hold. Not `pod-oci`: podvm pulls into its own store, so the host runs no second registry client. Tests: the images of a workflow, the lock and a moved tag with a fake source, the pinned message; `podvm pull` of `busybox:1.37.0` here gives `sha256:a7dbc319…`, the digest of the registry. Next: the run of `crates/podrunner/tests/local/tags.yml` with `--podvm` in `runner-image.yml`. The pull goes through the proxy of the host, not the egress module (as T-154 for the actions).
 Runner-image run 43560211006 (`034fbfb`): the pull and the pin work (the lock has `docker://busybox:1.37.0`), and the container fails: busybox is pinned by the digest of its index, `podvm save` keeps its platform manifest, and `podvm run` of the index digest in the unit store finds no image. The podvm driver now runs a container by `NAME@` the manifest digest of the `index.json` of the saved tar (`loaded_reference`), so an image that a user pins by its index works too. Runner-image run 43562100819 (`cb31ca7`): the container still fails with `container-not-supported`; the refusal carries the code only, so the hook unit now keeps the text of each driver error (`driver_errors`), and the log of a local run names it.
 Runner-image run 43565195597 (`872b43f`): the log names the error: `podvm run` of `busybox:1.37.0` (glibc) fails where chroot is denied, because the image has no `libdl.so.2` (T-156, COORD-040). `tags.yml` now uses `busybox:1.37.0-musl`, a static binary. The same run skipped the setup of KVM and QEMU after the failed podvm step, so the engine checks found no `qemu-system-x86_64`: the setup is now a step of its own before the podvm step.
+Runner-image run 43570649182 (`e31f9e5`): `busybox:1.37.0-musl` fails too: podvm routes a static binary to its memfd family, which has no detached drive (`run -d`), and the podvm driver runs each container detached. Both cases went to podvm on GitHub #100. `tags.yml` takes `busybox:1.37.0` again, and its check is a step of its own, a measure until T-156: the failed check had skipped the rerun, egress and tar checks after it in the podvm step.
 
 # T-131: Local mode: reusable workflows (jobs.<id>.uses)
 
@@ -2237,9 +2241,11 @@ On a host that denies chroot(2), `podvm run` refuses a glibc image that has no `
 
 The log of the run names the driver error (T-130, `driver_errors`). podvm `0.2.0-beta.14`.
 
+A static image (`busybox:1.37.0-musl`) fails as well: the memfd family of podvm has no detached drive (the second case on GitHub #100).
+
 ## Approach
 
-Ask podvm for the fix (GitHub #100, COORD-040). Take the podvm release that has it in `images/podvm.toml`. Switch `crates/podrunner/tests/local/tags.yml` back to `busybox:1.37.0`.
+Ask podvm for the fix (GitHub #100, COORD-040). Take the podvm release that has it in `images/podvm.toml`. Make the step "An image by tag in a podvm unit" of `runner-image.yml` a check again (no `continue-on-error`).
 
 ## Prove
 
