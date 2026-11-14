@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 159 entries: 0 open, 4 partial, 6 blocked, 149 done.
+`TODO/INDEX.md` holds 160 entries: 0 open, 5 partial, 6 blocked, 149 done.
 
 ## State
 
@@ -37,6 +37,7 @@ The queue, most valuable first:
 The local mode against act and runner.server (`docs/local-mode.md`), the features that most workflows need first:
 
 2. T-159 (S, partial): an intermittent unknown count of processes at the destroy of a podvm unit; read the cause in the next failed log.
+3. T-160 (S, partial): a shell in a paused job of the incus kind; close it on the green run of `egress.rs` of the incus kind.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

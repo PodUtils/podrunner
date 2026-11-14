@@ -53,7 +53,8 @@ fn an_instance_reaches_the_egress_socket_and_nothing_else() {
     let image = unit.prepare(&env("PODRUNNER_PODVM_IMAGE"), platform, false).unwrap();
     let script = "echo \"net $(ls /sys/class/net | tr '\\n' ' ')\"; \
         curl -s --max-time 20 http://egress.podrunner.test/ || echo proxied-failed; \
-        if curl -s --noproxy '*' --max-time 5 -o /dev/null http://1.1.1.1/; then echo direct-reached; else echo direct-refused; fi";
+        if curl -s --noproxy '*' --max-time 5 -o /dev/null http://1.1.1.1/; then echo direct-reached; else echo direct-refused; fi; \
+        echo end-of-checks; exec sleep 120";
     let id = UnitId::parse("u-1").unwrap();
     let spec = StartSpec {
         unit: id.clone(),
@@ -65,8 +66,17 @@ fn an_instance_reaches_the_egress_socket_and_nothing_else() {
         mounts: Vec::new(),
     };
     unit.start(&spec).unwrap();
-    let exit = unit.wait(&id, Duration::from_secs(300)).unwrap();
-    let log = String::from_utf8_lossy(&unit.unit_logs(&id).unwrap_or_default()).to_string();
+    // The payload stays up after its checks, so a command can enter it.
+    let end = std::time::Instant::now() + Duration::from_secs(300);
+    let mut log = String::new();
+    while std::time::Instant::now() < end && !log.contains("end-of-checks") {
+        std::thread::sleep(Duration::from_secs(1));
+        log = String::from_utf8_lossy(&unit.unit_logs(&id).unwrap_or_default()).to_string();
+    }
+    // T-160: a command of `enter` runs in the instance, with no NIC either.
+    let argv = ["sh", "-c", "echo \"in-unit-$((6*7)) $(ls /sys/class/net | tr '\\n' ' ')\""].map(String::from).to_vec();
+    let entered = unit.enter(&id, &argv, false).map(|mut c| c.stdin(std::process::Stdio::null()).output());
+    let exit = unit.wait(&id, Duration::ZERO).ok();
     let residue = unit.destroy(&id).unwrap();
     let _ = std::fs::remove_dir_all(&state);
     let seen = seen.lock().unwrap().clone();
@@ -76,4 +86,7 @@ fn an_instance_reaches_the_egress_socket_and_nothing_else() {
     assert!(log.contains("direct-refused"), "no way out but the socket: {log}");
     assert!(seen.iter().any(|l| l.contains("egress.podrunner.test")), "{seen:?}");
     assert!(residue.is_clean(), "{residue:?}");
+    let out = entered.unwrap().unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("in-unit-42 lo "), "enter: {text:?} {}", String::from_utf8_lossy(&out.stderr));
 }

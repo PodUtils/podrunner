@@ -313,6 +313,22 @@ impl UnitDriver for IncusUnit {
         self.verb(&["logs"], &name).map_err(|e| UnitError::new(UnitCode::Host, format!("podvm logs: {e}")))
     }
 
+    /// `podvm exec --podvm-tier=incus` in the instance (T-160). The
+    /// instance has no NIC: the command has the way out of the payload.
+    fn enter(&self, unit: &UnitId, argv: &[String], tty: bool) -> Result<Command, UnitError> {
+        let name = {
+            let units = self.units.lock().expect("the units");
+            units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?.name.clone()
+        };
+        let mut c = Command::new(&self.podvm.binary);
+        c.env("PODVM_STORE", &self.images).args(["exec", "-i"]);
+        if tty {
+            c.arg("-t");
+        }
+        c.arg("--podvm-tier=incus").arg(name).args(argv);
+        Ok(c)
+    }
+
     fn container_start(&self, _: &UnitId, _: &ContainerSpec) -> Result<ContainerId, UnitError> {
         Err(no_container())
     }

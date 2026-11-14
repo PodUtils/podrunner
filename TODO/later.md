@@ -2423,3 +2423,30 @@ Ten runner-image runs in a row with no "left residue" in the local suite of the 
 State (2026-11-14): `destroy` writes `podrunner: destroy UNIT: no count of processes: orphans B, launcher dead B, tagged [NAMES]` to stderr when the count is unknown. Next: the log of the next failure.
 
 State (2026-11-14, later): runner-image run 43628702784 (`aeac0a3`) is green. The log line came once, from conformance test 26 (`a-killed-shim-is-not-clean`), which kills the launcher on purpose: `orphans false, launcher dead true, tagged ["podvm"]`. So the line works. Next: the log of a failure of the local suite.
+
+# T-160: Local mode: a shell in a paused job of the incus kind
+
+**Source:** T-150 (its Done: the incus kind has no shell)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+At a pause, `s` and Enter open a shell only in a podvm unit. The incus kind refuses `UnitDriver::enter`, so a paused job of `--incus` has no shell.
+
+## Premise
+
+The incus tier of podvm takes `exec` (the limits page of podvm, PodUtils/podvm@T-1722). The instance has no NIC: its one way out is the channel to the egress socket (T-109).
+
+## Approach
+
+`IncusUnit::enter` runs `podvm exec -i [-t] --podvm-tier=incus NAME ARGV`. The command has the way out of the payload, as the instance has no NIC.
+
+## Prove
+
+`crates/podrunner-incus/tests/egress.rs` in `runner-image.yml`: a command of `enter` runs in the instance and sees `lo` only.
+
+State (2026-11-14): `IncusUnit::enter` is in; `egress.rs` keeps the payload up after its checks and enters it. Next: its green run.

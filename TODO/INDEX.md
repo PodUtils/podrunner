@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**159 entries: 0 open, 4 partial, 6 blocked, 149 done.**
+**160 entries: 0 open, 5 partial, 6 blocked, 149 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 2 | 3 | 68 | 73 |
-| P3 | 0 | 0 | 3 | 49 | 52 |
-| **All** | 0 | 4 | 6 | 149 | 159 |
+| P3 | 0 | 1 | 3 | 49 | 53 |
+| **All** | 0 | 5 | 6 | 149 | 160 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -207,3 +207,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-157](later.md) | P3 | M | later | feature | done | Local mode: load the images of a job from the store into the engine of the guest |
 | [T-158](later.md) | P3 | S | later | defect | blocked | Local mode: a static image as a container of a podvm unit |
 | [T-159](later.md) | P2 | S | later | defect | partial | An intermittent unknown count of processes at the destroy of a podvm unit |
+| [T-160](later.md) | P3 | S | later | feature | partial | Local mode: a shell in a paused job of the incus kind |
