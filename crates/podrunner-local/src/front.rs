@@ -98,13 +98,17 @@ fn one(conn: UnixStream, broker: u16, inner: Option<&Path>) -> std::io::Result<(
     let rest = r.buffer().to_vec();
     if host(method, target) == BROKER {
         let mut up = TcpStream::connect(("127.0.0.1", broker))?;
+        // One write of the head and of the bytes after it: an upstream that
+        // answers and closes after its first read gets the whole request.
+        let mut first_bytes = Vec::new();
         if method == "CONNECT" {
             (&conn).write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")?;
         } else {
             let path = target.split_once("://").and_then(|(_, t)| t.find('/').map(|i| &t[i..])).unwrap_or("/");
-            up.write_all(format!("{method} {path} {version}\r\n{head}").as_bytes())?;
+            first_bytes.extend_from_slice(format!("{method} {path} {version}\r\n{head}").as_bytes());
         }
-        up.write_all(&rest)?;
+        first_bytes.extend_from_slice(&rest);
+        up.write_all(&first_bytes)?;
         let up2 = up.try_clone()?;
         return join(conn, up, up2, |u| {
             let _ = u.shutdown(std::net::Shutdown::Write);
@@ -117,9 +121,7 @@ fn one(conn: UnixStream, broker: u16, inner: Option<&Path>) -> std::io::Result<(
         return (&conn).write_all(msg.as_bytes());
     };
     let mut up = UnixStream::connect(inner)?;
-    up.write_all(first.as_bytes())?;
-    up.write_all(head.as_bytes())?;
-    up.write_all(&rest)?;
+    up.write_all(&[first.as_bytes(), head.as_bytes(), &rest].concat())?;
     let up2 = up.try_clone()?;
     join(conn, up, up2, |u| {
         let _ = u.shutdown(std::net::Shutdown::Write);

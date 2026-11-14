@@ -6,9 +6,16 @@ use super::*;
 /// A stand-in of an upstream: it keeps the first line of each request and
 /// answers `ok`.
 fn upstream_answer(mut c: impl Read + Write, seen: &Mutex<Vec<String>>) {
+    // Read the whole head, however the front writes it.
+    let mut got = Vec::new();
     let mut buf = [0u8; 4096];
-    let n = c.read(&mut buf).unwrap_or(0);
-    let text = String::from_utf8_lossy(&buf[..n]).to_string();
+    while !got.windows(4).any(|w| w == b"\r\n\r\n") {
+        match c.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => got.extend_from_slice(&buf[..n]),
+        }
+    }
+    let text = String::from_utf8_lossy(&got).to_string();
     seen.lock().unwrap().push(text.lines().next().unwrap_or("").to_string());
     let _ = c.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
 }
