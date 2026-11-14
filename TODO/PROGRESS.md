@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 155 entries: 22 open, 8 partial, 5 blocked, 120 done.
+`TODO/INDEX.md` holds 155 entries: 21 open, 8 partial, 6 blocked, 120 done.
 
 ## State
 
@@ -39,14 +39,13 @@ The local mode against act and runner.server (`docs/local-mode.md`), the feature
 2. T-124 (M, partial), with T-103: `services:`, `docker build` and a job container through the engine of the unit; then the images from the store, not a pull.
 3. T-125 (M, partial): the payload and the facts of the tree are in; a directory of workflows with the filters of `on:` waits for COORD-037.
 4. T-130 (M, partial): images by tag into the store, proven in `runner-image.yml`; T-129 (M, partial): the recipe of a larger runner image.
-5. T-131 (L): reusable workflows.
-6. T-127 (S), T-134 (M), T-126 (S), T-128 (S): selection, logs, inputs and files, list and dry run.
-7. T-132 (M), T-135 (M), T-136 (S), T-137 (S): parallel jobs, reruns, environments, concurrency.
-8. T-138, T-139, T-140, T-142, T-143, T-152, T-153, T-154, T-155 (S each), T-150 (M), T-149 (M), T-151 (S), T-148 (M).
+5. T-127 (S), T-134 (M), T-126 (S), T-128 (S): selection, logs, inputs and files, list and dry run.
+6. T-132 (M), T-135 (M), T-136 (S), T-137 (S): parallel jobs, reruns, environments, concurrency.
+7. T-138, T-139, T-140, T-142, T-143, T-152, T-153, T-154, T-155 (S each), T-150 (M), T-149 (M), T-151 (S), T-148 (M).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
-Blocked: T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
+Blocked: T-131 (the expansion of a reusable workflow, GitHub #98), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
 
 ## Questions for the owner
 

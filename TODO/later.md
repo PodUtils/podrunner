@@ -1469,7 +1469,7 @@ State (2026-11-14): `crates/podrunner-local/src/images.rs` collects each image o
 **Milestone:** later
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -1486,6 +1486,11 @@ Expand the called workflow into jobs of the run (ids `CALLER/CALLEE`), with the 
 ## Prove
 
 `cargo test -p podrunner-local` (a local call with inputs, secrets and outputs; `secrets: inherit`; a nested call) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored`.
+
+## Blocker
+
+podcrates: the expansion of a reusable workflow in `pod-actions-workflow` (GitHub #98, COORD-038).
+
 
 # T-132: Local mode: jobs in parallel (--jobs N, max-parallel)
 
