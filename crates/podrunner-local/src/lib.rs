@@ -12,6 +12,7 @@ pub mod cron;
 pub mod dispatch;
 pub mod drive;
 pub mod exec;
+pub mod fetch;
 pub mod front;
 pub mod images;
 pub mod localrepo;

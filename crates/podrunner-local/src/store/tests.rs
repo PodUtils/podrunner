@@ -190,3 +190,30 @@ fn a_checkout_of_another_repository_is_a_tree_to_pin() {
     assert!(s.path("o/lib", C).is_file());
     let _ = std::fs::remove_dir_all(&s.dir);
 }
+
+#[test]
+fn the_git_command_takes_the_proxy_of_the_grant_and_https_only() {
+    let git = Git { base: "https://github.com/".into(), proxy: Some("http://127.0.0.1:9".into()) };
+    let c = git.command(&["ls-remote", "https://github.com/a/b"], None);
+    let env: std::collections::BTreeMap<String, Option<String>> = c
+        .get_envs()
+        .map(|(k, v)| (k.to_string_lossy().into_owned(), v.map(|v| v.to_string_lossy().into_owned())))
+        .collect();
+    let config: Vec<(String, String)> = (0..env["GIT_CONFIG_COUNT"].as_deref().unwrap().parse::<usize>().unwrap())
+        .map(|i| {
+            (
+                env[&format!("GIT_CONFIG_KEY_{i}")].clone().unwrap(),
+                env[&format!("GIT_CONFIG_VALUE_{i}")].clone().unwrap(),
+            )
+        })
+        .collect();
+    let has = |k: &str, v: &str| config.contains(&(k.to_string(), v.to_string()));
+    assert!(has("http.proxy", "http://127.0.0.1:9"), "{config:?}");
+    assert!(has("protocol.allow", "never") && has("protocol.https.allow", "always"), "{config:?}");
+    assert!(has("fetch.recurseSubmodules", "false"), "{config:?}");
+    assert_eq!(env["HTTPS_PROXY"], None, "the proxy of the environment is removed");
+    let plain = Git { base: "http://git.example/".into(), proxy: None };
+    let c = plain.command(&["ls-remote"], None);
+    assert!(c.get_envs().any(|(k, v)| k == "GIT_CONFIG_KEY_1" && v.is_some_and(|v| v == "protocol.http.allow")));
+    assert!(!c.get_envs().any(|(k, _)| k == "HTTPS_PROXY"), "no proxy: the environment stays");
+}

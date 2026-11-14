@@ -5,6 +5,7 @@
 //!
 //!   cargo test -p podrunner-local --test store -- --ignored --nocapture
 
+use podrunner_local::fetch::Fetch;
 use podrunner_local::lock::{Lock, is_commit};
 use podrunner_local::store::{Forge, Git, Mode, Store, resolve};
 
@@ -26,7 +27,12 @@ fn a_composite_action_by_tag_and_the_action_that_it_names_by_tag() {
     let dir = std::env::temp_dir().join(format!("podrunner-store-live-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let store = Store { dir: dir.clone() };
-    let git = Git { base: "https://github.com/".into() };
+    // Through one egress grant of github.com only (T-154).
+    let fetch = Fetch::open("github.com").unwrap();
+    let git = Git { base: "https://github.com/".into(), proxy: Some(fetch.proxy.clone()) };
+    let other = Git { base: "https://gitlab.com/".into(), proxy: Some(fetch.proxy.clone()) };
+    let e = other.resolve("gitlab-org/gitlab", "master").unwrap_err();
+    assert!(e.contains("403") || e.contains("CONNECT"), "another host is refused: {e}");
     let uses = vec!["actions/upload-pages-artifact@v3".to_string()];
     let r = resolve(&uses, &Lock::default(), &store, &git, Mode::Online, "L").unwrap();
     println!("{}", r.lock.render());

@@ -2153,7 +2153,7 @@ Read `docs/cli.md` (the row of `doctor`) on 2026-11-14.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2172,6 +2172,11 @@ Read `crates/podrunner-local/src/store.rs` (`Git`) and `crates/podrunner-egress/
 ## Prove
 
 `cargo test -p podrunner-local` (the git command of the fetch names the loopback proxy and the protocol rules) and `cargo test -p podrunner-local --test store -- --ignored` through the egress module.
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner-local/src/fetch.rs`: `Fetch::open(HOST)` makes an egress module of the host (its way out: the proxy that the environment names for HOST through `pod_proxy::Environment`, with names sent to it, or a direct connection), opens one grant with a policy of HOST only on a unix socket, and starts `Relay`, a loopback TCP port that relays each connection to that socket; drop ends the grant, the module and the socket. `Git` takes `proxy`: `Git::command` gives git `http.proxy`, `protocol.allow=never` with only the protocol of the base, and no submodules, through `GIT_CONFIG_*` variables (no file of the user), and removes the proxy variables of the environment. `podrunner run` opens the grant for the host of the forge (`--action-server`, else github.com) before the resolve, unless `--offline`. Tests: `cargo test -p podrunner-local` (the git command: the proxy, the protocol rules, the removed variables; the relay both ways; the host of a URL) and `cargo test -p podrunner-local --test store -- --ignored` (the resolve and the fetch of two actions through the grant; a host outside the policy is refused), green here through the proxy of the environment.
+
 
 # T-155: An intermittent failure of the workspace tests that the check script hid
 

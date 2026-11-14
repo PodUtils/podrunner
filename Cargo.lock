@@ -1005,6 +1005,7 @@ dependencies = [
  "libc",
  "pod-actions-expr",
  "pod-actions-workflow",
+ "pod-proxy",
  "podrunner-broker-fake",
  "podrunner-egress",
  "podrunner-fake",

@@ -73,7 +73,16 @@ pub(super) fn pin(
         // Any git server serves `git ls-remote` and a fetch: GitHub
         // Enterprise Server, Gitea, Forgejo (T-139).
         let base = a.action_server.as_deref().map_or(FORGE.to_string(), |s| format!("{}/", s.trim_end_matches('/')));
-        let git = Git { base };
+        // The fetch goes through one egress grant of the forge host only
+        // (T-154); `--offline` fetches nothing and opens none.
+        let fetch = match mode {
+            Mode::Offline => None,
+            _ => {
+                let host = podrunner_local::fetch::host_of(&base).ok_or_else(|| format!("{base}: no host"))?;
+                Some(podrunner_local::fetch::Fetch::open(&host)?)
+            }
+        };
+        let git = Git { base, proxy: fetch.as_ref().map(|f| f.proxy.clone()) };
         let (store, forge) = (Store { dir: dir.clone() }, Local::new(a.local_repos.iter().cloned().collect(), &git));
         let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
         (add_trees(&trees, r, &store, &forge, mode, &name)?, Some(dir))

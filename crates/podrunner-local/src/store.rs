@@ -330,28 +330,59 @@ fn fetch(
 }
 
 /// The forge of git over HTTPS: `git ls-remote` resolves a ref, and a
-/// shallow fetch of the commit gives `git archive`. git takes the proxy of
-/// the host from its environment.
+/// shallow fetch of the commit gives `git archive`. With `proxy`, git takes
+/// only that proxy (the relay of an egress grant, T-154); else the proxy of
+/// the environment of the host.
 pub struct Git {
     /// The base of the repositories, as `https://github.com/`.
     pub base: String,
+    pub proxy: Option<String>,
 }
 
-fn git(args: &[&str], dir: Option<&Path>) -> Result<Vec<u8>, String> {
-    let mut c = std::process::Command::new("git");
-    if let Some(d) = dir {
-        c.arg("-C").arg(d);
+/// The variables of the proxy that git and curl read.
+const PROXY_VARS: [&str; 8] =
+    ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "no_proxy", "NO_PROXY"];
+
+impl Git {
+    /// The git command: no prompt, no file of the system, only the protocol
+    /// of the base (no submodule, no `file://` or `ssh://`), and the proxy of
+    /// the grant through `GIT_CONFIG_*`, with no file of the user changed.
+    pub fn command(&self, args: &[&str], dir: Option<&Path>) -> std::process::Command {
+        let mut c = std::process::Command::new("git");
+        if let Some(d) = dir {
+            c.arg("-C").arg(d);
+        }
+        let scheme = if self.base.starts_with("http://") { "http" } else { "https" };
+        let mut config = vec![
+            ("protocol.allow".to_string(), "never".to_string()),
+            (format!("protocol.{scheme}.allow"), "always".to_string()),
+            ("fetch.recurseSubmodules".to_string(), "false".to_string()),
+            ("submodule.recurse".to_string(), "false".to_string()),
+        ];
+        if let Some(p) = &self.proxy {
+            config.push(("http.proxy".into(), p.clone()));
+            for v in PROXY_VARS {
+                c.env_remove(v);
+            }
+        }
+        c.env("GIT_CONFIG_COUNT", config.len().to_string());
+        for (i, (k, v)) in config.iter().enumerate() {
+            c.env(format!("GIT_CONFIG_KEY_{i}"), k).env(format!("GIT_CONFIG_VALUE_{i}"), v);
+        }
+        c.args(args).env("GIT_TERMINAL_PROMPT", "0").env("GIT_CONFIG_NOSYSTEM", "1");
+        c
     }
-    let out = c
-        .args(args)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_CONFIG_NOSYSTEM", "1")
-        .stdin(std::process::Stdio::null())
-        .output()
-        .map_err(|e| format!("git: {e}"))?;
+
+    fn git(&self, args: &[&str], dir: Option<&Path>) -> Result<Vec<u8>, String> {
+        git(self.command(args, dir), args[0])
+    }
+}
+
+fn git(mut c: std::process::Command, verb: &str) -> Result<Vec<u8>, String> {
+    let out = c.stdin(std::process::Stdio::null()).output().map_err(|e| format!("git: {e}"))?;
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr);
-        return Err(format!("git {}: {}", args[0], err.trim()));
+        return Err(format!("git {verb}: {}", err.trim()));
     }
     Ok(out.stdout)
 }
@@ -361,7 +392,7 @@ impl Forge for Git {
         let url = format!("{}{repo}", self.base);
         // HEAD: the default branch of the repository (a checkout with no ref).
         if r == "HEAD" {
-            let text = String::from_utf8(git(&["ls-remote", &url, "HEAD"], None)?).map_err(|e| e.to_string())?;
+            let text = String::from_utf8(self.git(&["ls-remote", &url, "HEAD"], None)?).map_err(|e| e.to_string())?;
             return text
                 .lines()
                 .find_map(|l| l.split_once('\t').filter(|(_, n)| *n == "HEAD").map(|x| x.0.to_string()))
@@ -369,7 +400,7 @@ impl Forge for Git {
         }
         let tag = format!("refs/tags/{r}");
         let head = format!("refs/heads/{r}");
-        let text = String::from_utf8(git(&["ls-remote", &url, &tag, &format!("{tag}^{{}}"), &head], None)?)
+        let text = String::from_utf8(self.git(&["ls-remote", &url, &tag, &format!("{tag}^{{}}"), &head], None)?)
             .map_err(|e| e.to_string())?;
         let find = |name: &str| text.lines().find_map(|l| l.split_once('\t').filter(|(_, n)| *n == name).map(|x| x.0));
         // An annotated tag names a tag object: its peeled line names the commit.
@@ -386,9 +417,10 @@ impl Forge for Git {
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         let url = format!("{}{repo}", self.base);
         let prefix = format!("--prefix={}-{}/", repo.replace('/', "-"), &commit[..7]);
-        let r = git(&["init", "-q"], Some(&dir))
-            .and_then(|_| git(&["fetch", "-q", "--depth", "1", &url, commit], Some(&dir)))
-            .and_then(|_| git(&["archive", "--format=tar", &prefix, "FETCH_HEAD"], Some(&dir)));
+        let r = self
+            .git(&["init", "-q"], Some(&dir))
+            .and_then(|_| self.git(&["fetch", "-q", "--depth", "1", &url, commit], Some(&dir)))
+            .and_then(|_| self.git(&["archive", "--format=tar", &prefix, "FETCH_HEAD"], Some(&dir)));
         let _ = std::fs::remove_dir_all(&dir);
         r.map_err(|e| format!("`{repo}` at {commit}: {e}"))
     }
