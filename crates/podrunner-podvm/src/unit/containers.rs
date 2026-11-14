@@ -7,7 +7,7 @@
 //! so the tree kill of `destroy` reaches it.
 
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
+use std::process::{Command, Stdio};
 
 use podrunner_schema::UnitId;
 use podrunner_unit::procs::TAG_VAR;
@@ -153,6 +153,18 @@ impl PodvmUnit {
     }
 
     /// `podvm logs` of the detached payload of `unit`.
+    /// `podvm exec` in the unit, under its hold (T-150).
+    pub(super) fn enter_unit(&self, unit: &UnitId, argv: &[String], tty: bool) -> Result<Command, UnitError> {
+        let (store, tag, _, egress) = self.container_base(unit)?;
+        let mut c = self.command(egress.as_deref());
+        c.args(["exec", "-i"]);
+        if tty {
+            c.arg("-t");
+        }
+        c.arg(unit.as_str()).args(argv).env("PODVM_STORE", store).env(TAG_VAR, tag);
+        Ok(c)
+    }
+
     pub(super) fn logs_unit(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
         let (store, tag, _, _) = self.container_base(unit)?;
         let (code, out) = self.podvm_in(&store, &["logs".into(), unit.to_string()], &tag, None)?;

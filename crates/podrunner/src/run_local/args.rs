@@ -138,7 +138,9 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
                     .ok_or_else(|| format!("--jobs {v:?} is not a number of 1 or more"))?;
             }
             "--break" => a.breaks.at.push(super::pause::parse(&value()?)?),
-            "--break-on-failure" => a.breaks.on_failure = true,
+            // A failed job keeps its unit: the pause after the failed step,
+            // with a shell in the unit (T-138, T-150).
+            "--break-on-failure" | "--keep-failed" => a.breaks.on_failure = true,
             "--changed-since" => a.changed_since = Some(value()?),
             "--web" => a.web = Some(super::web::parse_addr(&value()?)?),
             "--approve" => a.approved.push(value()?),

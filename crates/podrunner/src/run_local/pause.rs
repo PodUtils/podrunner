@@ -4,7 +4,10 @@
 //! that fails. The pause step asks the broker of its job
 //! (`github.api_url`) each second until the user releases the job: podrunner
 //! names the paused job on stderr and goes on when the user presses Enter.
-//! The unit keeps running, with its egress hold, while it waits.
+//! The unit keeps running, with its egress hold, while it waits; the user
+//! can enter it with a shell (`UnitDriver::enter`, the podvm kind).
+//! `--keep-failed` is `--break-on-failure`: after its payload ends, a unit
+//! is stopped, so a failed job keeps its unit at the failed step.
 
 use std::io::{BufRead, IsTerminal};
 use std::time::Duration;
@@ -124,15 +127,33 @@ pub(super) fn watch() -> Result<(), String> {
                 hold::release_all();
             }
             if let Some(job) = hold::waiting().into_iter().next() {
-                eprintln!("podrunner: {job} is paused; its unit keeps running. Press Enter to go on.");
-                let mut line = String::new();
-                let _ = std::io::stdin().lock().read_line(&mut line);
+                loop {
+                    eprintln!(
+                        "podrunner: {job} is paused; its unit keeps running. Press Enter to go on, or type s and Enter for a shell in its unit."
+                    );
+                    let mut line = String::new();
+                    let _ = std::io::stdin().lock().read_line(&mut line);
+                    if line.trim() != "s" {
+                        break;
+                    }
+                    enter(&job);
+                }
                 hold::release(&job);
             }
             std::thread::sleep(Duration::from_millis(500));
         }
     });
     Ok(())
+}
+
+/// A shell in the unit of `job`, on the terminal of podrunner.
+fn enter(job: &str) {
+    let shell = podrunner_local::enter::shell();
+    match podrunner_local::enter::command(job, &shell, true).map(|mut c| c.status()) {
+        Ok(Ok(s)) => eprintln!("podrunner: the shell in {job} ended ({s})"),
+        Ok(Err(e)) => eprintln!("podrunner: a shell in {job}: {e}"),
+        Err(e) => eprintln!("podrunner: no shell in {job}: {e}"),
+    }
 }
 
 #[cfg(test)]

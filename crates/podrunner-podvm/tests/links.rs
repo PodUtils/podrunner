@@ -1,7 +1,7 @@
 //! An absolute link in the rootfs of a podvm unit resolves in that rootfs,
 //! not on the host (T-061, podvm `v0.2.0-beta.4`). The host puts a file
 //! and an absolute link to it in the root of the unit; the payload reads
-//! the link. Ignored by default. Run:
+//! the link; a command of `enter` reads it too (T-150). Ignored by default. Run:
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
 //!   PODRUNNER_PODVM_IMAGE=NAME@sha256:HEX \
@@ -56,8 +56,14 @@ fn an_absolute_link_resolves_in_the_rootfs_of_the_unit() {
         read = std::fs::read_to_string(work.join("read.txt")).unwrap_or_default();
         std::thread::sleep(Duration::from_millis(200));
     }
+    // T-150: a command enters the running unit and sees its tree.
+    let argv = ["sh", "-c", "cat link; echo \" in-unit-$((6*7))\""].map(String::from).to_vec();
+    let entered = unit.enter(&id, &argv, false).map(|mut c| c.stdin(std::process::Stdio::null()).output());
     let residue = unit.destroy(&id).unwrap();
     let _ = std::fs::remove_dir_all(&state);
     assert!(read.contains(BODY), "the payload read {read:?} through an absolute link");
+    let out = entered.unwrap().unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains(&format!("{BODY} in-unit-42")), "enter: {text:?} {}", String::from_utf8_lossy(&out.stderr));
     assert!(residue.is_clean(), "{residue:?}");
 }

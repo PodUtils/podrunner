@@ -80,6 +80,7 @@ C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 | 2026-11-13 | beta.4 (T-108, T-109) | Release `v0.1.0-beta.4` under the ruling of 2026-11-09 when the gate and `runner-image.yml` of `main` are green: githome reads `cpu_s` and `peak_rss_mib` (G-06), and the incus kind serves `trusted` jobs (G-02). Its notes say that no job of real github.com or of githome ran yet. |
 | 2026-11-13 | The test set of the incus kind (T-105) | Tests 3, 7 and 10 count processes of the host, and test 6 reads the credential files on the host: an instance of incus has its processes under incusd and its credential files inside, so the four do not apply. 27 proves the claim `confined`. |
 | 2026-11-14 | `--jobs` (T-132) | `podrunner run` runs one job at a time unless `--jobs N`. The entry asks for the count of CPUs by default; parallel units of the microvm and incus kinds can take the memory of the host, and a user asks for it with the count that the host holds. |
+| 2026-11-14 | `--keep-failed` (T-138) | `--keep-failed` is `--break-on-failure`: the job pauses after its failed step, the unit keeps running, and the user enters it with a shell from the pause. The entry asked to keep the unit after the job and to remove it at the next run. After its payload ends, a podvm unit is stopped, so no command can enter it; and a unit kept across runs keeps a state directory that the end of the run removes. |
 
 ## Questions for the owner
 

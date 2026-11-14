@@ -1760,6 +1760,9 @@ State (2026-11-14, later): `StartSpec::mounts` (host directories, read-write); t
 
 State (2026-11-14, later): `--toolcache DIR` with `--podvm`: `InUnit` mounts DIR read-only at `/podrunner-toolcache` (a mount target `PATH:ro` of `StartSpec`) and starts the runner by `toolcache_argv`: `cp -as` makes `_work/_tool` a tree of links to the files of the mount, so a `setup-*` action finds each tool and adds a new one beside them. A guest and `--runner-dir` refuse it. Tests: `cargo test -p podrunner-local tool_cache`; runner-image run 43615355943 (`3ce59bc`): in a podvm unit the job runs a tool of the cache and adds a new one, and the host directory stays as it was; the step "A tool cache in a podvm unit" is now a check. Next: `--keep-failed`. `--keep-failed` and the shell of T-150 need one command to enter a unit: no driver gives one yet.
 
+State (2026-11-14, later): `--keep-failed` is in: it is `--break-on-failure` (`docs/decisions.md`), and the pause gives a shell in the unit (T-150). Next: the green runner-image run of the shell (`links.rs`), then close this entry.
+
+
 # T-139: Local mode: actions from a local directory (--local-repository) and from another forge
 
 **Source:** The owner's ghactions-local study (act: `--local-repository REPO@REF=DIR`, `--github-instance`, `--replace-ghe-action-with-github-com`; runner.server: `--local-repository`, `--git-server-url`, `--git-tarball-url`)
@@ -2113,6 +2116,8 @@ Read the README of the study on 2026-11-14. Not measured: a pause of the officia
 `cargo test -p podrunner-local message` (the wait step in the message).
 
 State (2026-11-14): `--break JOB:STEP` (the number of the step from 1, or its `id`) and `--break-on-failure`. `run_local/pause.rs`: the executor `Paused` (the outermost wrapper of each slot) puts a pause step into the message of each job: before the step, or after each step with `failure()`. The pause step asks `GET ${{ github.api_url }}_podrunner/hold/CELL` each second with curl or wget; `crates/podrunner-broker-fake/src/hold.rs` answers 503 until the release, from one table of the process, so it works on each executor and kind with no change of their own. `pause::watch` names each paused job on stderr and releases it at Enter; a signal releases each one; with no terminal the run is refused. Tests: `cargo test -p podrunner pause` (the place of the steps, another job, the script) and `cargo test -p podrunner-broker-fake hold`. Next: the command to enter a paused unit (measure `podvm exec` on a running unit of the podvm driver, and a shell in a guest), and the path of the workspace for `--runner-dir`.
+
+State (2026-11-14, later): `UnitDriver::enter` gives a command that runs in the running unit under its egress hold; the podvm kind runs `podvm exec -i [-t]`. `podrunner_local::enter` keeps the unit of each running job. At a pause, `s` and Enter opens a shell in the unit on the terminal of podrunner; Enter goes on. The machine tier of podvm refuses `exec`, so `--microvm` has no shell; the incus kind has none yet. Tests: `cargo test -p podrunner-local enter`; `crates/podrunner-podvm/tests/links.rs` enters a running podvm unit in `runner-image.yml`. Next: its green run.
 
 
 # T-151: Measure: a job of another architecture in the local mode

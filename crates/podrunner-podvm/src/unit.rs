@@ -375,6 +375,9 @@ impl UnitDriver for PodvmUnit {
     fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
         self.logs_unit(unit)
     }
+    fn enter(&self, unit: &UnitId, argv: &[String], tty: bool) -> Result<std::process::Command, UnitError> {
+        self.enter_unit(unit, argv, tty)
+    }
     fn container_inspect(&self, unit: &UnitId, c: &ContainerId) -> Result<ContainerState, UnitError> {
         self.inspect_container(unit, c)
     }

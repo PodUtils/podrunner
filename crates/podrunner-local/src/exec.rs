@@ -370,6 +370,7 @@ impl Executor for InUnit {
             }
             return Err(e);
         }
+        crate::enter::register(job.as_str(), self.driver.clone(), &id);
         // Wait in slices: a signal destroys the unit at once (T-141).
         let until = Instant::now() + limit;
         let waited = loop {
@@ -396,6 +397,7 @@ impl Executor for InUnit {
         // The hosts that the egress policy of the unit refused, before the
         // grant ends: the log names them.
         let denied = self.egress.as_ref().map(|(e, _)| e.denials(id.as_str())).unwrap_or_default();
+        crate::enter::forget(job.as_str());
         let residue = self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"));
         end_sockets(&sockets);
         // The workspaces of the job, also of a failed one (T-138).

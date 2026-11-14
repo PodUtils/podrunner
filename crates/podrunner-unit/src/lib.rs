@@ -110,6 +110,15 @@ pub trait UnitDriver: Send + Sync {
     fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
         Err(UnitError::new(UnitCode::Unsupported, format!("{}: no output of {unit}", self.kind())))
     }
+
+    /// A command that runs `argv` in the running unit for a person (a shell
+    /// in a paused job, T-150), under the egress hold of the unit; the
+    /// caller gives it its stdio. With `tty` it asks for a terminal. A
+    /// driver that cannot enter a unit refuses.
+    fn enter(&self, unit: &UnitId, argv: &[String], tty: bool) -> Result<std::process::Command, UnitError> {
+        let _ = (argv, tty);
+        Err(UnitError::new(UnitCode::Unsupported, format!("{}: no command enters {unit}", self.kind())))
+    }
 }
 
 #[cfg(test)]

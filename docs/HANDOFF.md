@@ -96,7 +96,9 @@ is done.
   store" of `runner-image.yml` proves it. Close it on its green run.
 - T-138 (partial): `--export` and `--toolcache` are in for `--podvm`; the
   step "A tool cache in a podvm unit" checks the tool cache.
-  `--keep-failed` needs a command to enter a unit, as the shell of T-150.
+  `--keep-failed` is `--break-on-failure`; the pause gives a shell in a
+  podvm unit (T-150, `UnitDriver::enter`). Close both on the green run of
+  `links.rs` in `runner-image.yml`.
 - Q6 (T-148): Azure Pipelines YAML; the recommendation is no
   (`docs/azure-pipelines.md`). No work waits on it.
 - T-101 (partial): the `program` source kind is in; its pair with GitHub
