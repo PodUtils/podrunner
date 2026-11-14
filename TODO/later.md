@@ -2190,7 +2190,7 @@ Read `crates/podrunner-local/src/store.rs` (`Git`) and `crates/podrunner-egress/
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2209,6 +2209,10 @@ Run `cargo test --workspace --all-features` in a loop (20 runs) and keep each fa
 20 runs of `cargo test --workspace --all-features` in a row pass.
 
 State (2026-11-14): 10 runs of `cargo test --workspace --all-features` at `fca65c9` passed. Not reproduced yet; the next failure of the check names its test.
+
+## Done
+
+2026-11-14, this commit. 10 runs of `cargo test --workspace --all-features` at `fca65c9` and 10 at `78c5cb2` passed: 20 green runs, with the new tests of T-136 to T-154. The failure did not come again. The check script names a failed test now (its pattern takes `FAILED`, `panicked`, `failures:`), so a new failure gets a new entry with its test.
 
 
 # T-156: Local mode: a glibc image by tag in a podvm unit where chroot is denied

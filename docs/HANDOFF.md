@@ -101,13 +101,11 @@ is done.
   #98) for its tag `v0.44.0`. Take the tag when it exists.
 - T-130 (partial): the tags check of `runner-image.yml` takes
   `busybox:1.37.0-musl`; T-156 (blocked) takes the glibc image again after
-  the podvm release with its T-1880 (GitHub #100, PodUtils/podvm#351).
+  the podvm release with PodUtils/podvm@T-1880 (GitHub #100, PodUtils/podvm#351).
   The setup of KVM and QEMU is now a step of its own, so a failed podvm
   step no longer skips it.
 - T-138 (partial): the unit kinds need mounts in `StartSpec` for the
   export, the tool cache and `--keep-failed`.
-- T-155 (open): one run of the workspace tests failed and the next passed;
-  the check script now names the failed test.
 - Q6 (T-148): Azure Pipelines YAML; the recommendation is no
   (`docs/azure-pipelines.md`). No work waits on it.
 - T-101 (partial): the `program` source kind is in; its pair with GitHub
@@ -129,7 +127,7 @@ is done.
 | --- | --- | --- |
 | LIVE-1 and LIVE-2 | the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
 | podcrates | the tag `v0.44.0`: the filters of `on:` (GitHub #97) and the called workflows (GitHub #98) | T-125, T-131 |
-| podvm | a release with its T-1880: a glibc image with no `libdl.so.2` (GitHub #100) | T-156 |
+| podvm | a release with PodUtils/podvm@T-1880: a glibc image with no `libdl.so.2` (GitHub #100) | T-156 |
 | podcrates | the crates of the action store and of the results API (GitHub #94, #95), no block | T-118, T-119, T-120 |
 | githome | its source program, for the pair on the host of LIVE-2 | T-101 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
