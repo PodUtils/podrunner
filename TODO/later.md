@@ -1363,7 +1363,7 @@ Read `parse` of `crates/podrunner/src/run_local.rs` on 2026-11-14.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1380,6 +1380,11 @@ Read `drive` of `crates/podrunner-local/src/drive.rs` on 2026-11-14. `Graph::anc
 ## Prove
 
 `cargo test -p podrunner-local` (a job with its ancestors, a matrix filter).
+
+## Done
+
+2026-11-14, this commit. `LocalSource::set_filter` keeps the jobs of `--job ID` with their ancestors (`Graph::ancestors`) and the cells of `--matrix KEY=VALUE` (a cell with no such key stays); a job that the workflow does not have is refused by name. The drive loop ends each other cell as skipped (`Line::NotSelected`, `skipped NAME: not selected ...`). Test: a job with its need and a matrix filter (three cells run, three are kept out). The run of one job with the results of an earlier run is the `--rerun DIR --job ID` of T-135.
+
 
 # T-128: Local mode: --list, --graph, --dry-run and --validate
 

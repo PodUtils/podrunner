@@ -147,3 +147,28 @@ fn a_signal_cancels_the_job_that_runs_and_each_job_after_it() {
         .collect();
     assert_eq!(cancelled, ["a", "b", "c"], "{lines:?}");
 }
+
+#[test]
+fn a_job_runs_with_its_needs_and_a_matrix_filter_keeps_its_cells() {
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n  \
+                b:\n    needs: a\n    runs-on: x\n    strategy:\n      matrix:\n        os: [linux, mac]\n        n: [1, 2]\n    steps: [{run: b}]\n  \
+                c:\n    runs-on: x\n    steps: [{run: c}]\n";
+    let mut s = LocalSource::new("l", text, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.set_filter(&["b".into()], &[("os".into(), "linux".into())]).unwrap();
+    let mut exec = Scripted::default();
+    let mut lines = Vec::new();
+    assert!(drive(&mut s, &mut exec, &mut |l| lines.push(l.clone())).unwrap());
+    assert_eq!(exec.ran.len(), 3, "a and the two linux cells of b: {:?}", exec.ran);
+    assert!(exec.ran.contains(&"a.0".to_string()));
+    let kept_out: Vec<&str> = lines
+        .iter()
+        .filter_map(|l| match l {
+            Line::NotSelected { name, .. } => Some(name.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(kept_out.len(), 3, "c and the two mac cells: {lines:?}");
+    assert!(kept_out.contains(&"c"));
+    let mut bad = LocalSource::new("l", text, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    assert!(bad.set_filter(&["nope".into()], &[]).unwrap_err().contains("no such job"));
+}

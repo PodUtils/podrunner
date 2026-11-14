@@ -81,6 +81,10 @@ pub struct LocalSource {
     token: Option<String>,
     /// The commit of each `OWNER/REPO@REF` of the run (T-118, T-133).
     pins: BTreeMap<String, String>,
+    /// The jobs that `--job` selects with their needs, and the values of
+    /// `--matrix` (T-127).
+    selected: Option<std::collections::BTreeSet<String>>,
+    matrix_filter: Vec<(String, String)>,
     minter: Minter,
     /// The report and audit lines, for the caller.
     pub reports: Vec<(JobId, Map<String, Value>)>,
@@ -114,6 +118,8 @@ impl LocalSource {
             secrets: Vec::new(),
             token: None,
             pins: BTreeMap::new(),
+            selected: None,
+            matrix_filter: Vec::new(),
             minter,
             reports: Vec::new(),
             audits: Vec::new(),
@@ -133,6 +139,50 @@ impl LocalSource {
     /// repository takes its tree from the store (T-133).
     pub fn set_pins(&mut self, pins: BTreeMap<String, String>) {
         self.pins = pins;
+    }
+
+    /// Run only `jobs` and each job that they need, and only the cells whose
+    /// matrix has each value of `matrix` (T-127). A job that the workflow
+    /// does not have is refused by name.
+    pub fn set_filter(&mut self, jobs: &[String], matrix: &[(String, String)]) -> Result<(), String> {
+        if !jobs.is_empty() {
+            let mut set = std::collections::BTreeSet::new();
+            for j in jobs {
+                if self.run.workflow().job(j).is_none() {
+                    let ids: Vec<&str> = self.run.workflow().jobs.iter().map(|j| j.id.as_str()).collect();
+                    return Err(format!("--job {j}: the workflow has no such job (its jobs: {ids:?})"));
+                }
+                set.insert(j.clone());
+                set.extend(self.run.graph().ancestors(j).into_iter().map(str::to_string));
+            }
+            self.selected = Some(set);
+        }
+        self.matrix_filter = matrix.to_vec();
+        Ok(())
+    }
+
+    /// Why the filter keeps a cell out (T-127), or `None`.
+    pub fn not_selected(&self, job: &JobId) -> Option<String> {
+        let cell = self.cells.get(job)?;
+        if let Some(set) = &self.selected
+            && !set.contains(&cell.job)
+        {
+            return Some("not selected (--job)".into());
+        }
+        for (k, want) in &self.matrix_filter {
+            let got = match cell.instance.matrix.get(k) {
+                None => continue,
+                Some(XValue::String(s)) => s.clone(),
+                Some(XValue::Bool(b)) => b.to_string(),
+                Some(XValue::Number(n)) if n.fract() == 0.0 => format!("{n:.0}"),
+                Some(XValue::Number(n)) => n.to_string(),
+                Some(other) => other.to_json_line(),
+            };
+            if &got != want {
+                return Some(format!("not selected (--matrix {k}={want}; the cell has {got})"));
+            }
+        }
+        None
     }
 
     /// `fail-fast` cancelled the cell `job` before it ran (T-117).

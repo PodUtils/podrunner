@@ -46,6 +46,8 @@ pub enum Line {
     Refused { job: JobId, name: String, reason: String },
     /// A job did not run: its condition, with its implicit `success() &&`.
     Skipped { job: String, condition: String },
+    /// A cell that `--job` or `--matrix` keeps out (T-127): its name and why.
+    NotSelected { job: JobId, name: String, reason: String },
 }
 
 /// The result of the runner's conclusion.
@@ -117,6 +119,15 @@ pub fn drive_with(
                 return Ok(false);
             }
             let name = source.cell(&job).map(|c| c.instance.name.clone()).unwrap_or_default();
+            // A cell that the filter keeps out ends as skipped (T-127).
+            if let Some(reason) = source.not_selected(&job) {
+                out(&Line::NotSelected { job: job.clone(), name, reason });
+                source.ack(&job).map_err(|e| e.to_string())?;
+                source.claim(&job, RUNNER).map_err(|e| e.to_string())?;
+                source.complete(&job, JobResult::Skipped, vec![])?;
+                source.release(&job).map_err(|e| e.to_string())?;
+                continue;
+            }
             // A cell that `fail-fast` cancelled runs no unit (T-117).
             if source.is_cancelled(&job) {
                 out(&Line::Ran { job: job.clone(), name, result: JobResult::Cancelled });

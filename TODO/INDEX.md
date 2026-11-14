@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**155 entries: 21 open, 8 partial, 6 blocked, 120 done.**
+**155 entries: 20 open, 8 partial, 6 blocked, 121 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 2 | 6 | 4 | 60 | 72 |
+| P2 | 1 | 6 | 4 | 61 | 72 |
 | P3 | 19 | 0 | 2 | 28 | 49 |
-| **All** | 21 | 8 | 6 | 120 | 155 |
+| **All** | 20 | 8 | 6 | 121 | 155 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -174,7 +174,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-124](later.md) | P2 | M | later | feature | partial | Local mode: services:, docker build and Docker-in-Docker through the engine of the unit |
 | [T-125](later.md) | P2 | M | later | feature | partial | Local mode: the event payload, the github context of the local tree, and the filters of on: |
 | [T-126](later.md) | P3 | S | later | feature | open | Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs |
-| [T-127](later.md) | P2 | S | later | feature | open | Local mode: run one job (--job) or some cells of a matrix (--matrix) |
+| [T-127](later.md) | P2 | S | later | feature | done | Local mode: run one job (--job) or some cells of a matrix (--matrix) |
 | [T-128](later.md) | P3 | S | later | feature | open | Local mode: --list, --graph, --dry-run and --validate |
 | [T-129](later.md) | P2 | M | later | feature | partial | Local mode: runner images by the labels of runs-on (--platform) |
 | [T-130](later.md) | P2 | M | later | feature | partial | Local mode: container images by tag, resolved to a digest and pulled into the store |

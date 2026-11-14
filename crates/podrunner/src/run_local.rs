@@ -21,7 +21,7 @@ use podrunner_local::exec::InUnit;
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -40,6 +40,9 @@ struct Args {
     /// `--platform LABEL=TARGET`: a runner image, or `host`, for a label of
     /// `runs-on` (T-129).
     platforms: Vec<(String, String)>,
+    /// `--job ID` and `--matrix KEY=VALUE` (T-127).
+    jobs: Vec<String>,
+    matrix: Vec<(String, String)>,
     images: Option<PathBuf>,
     image: Option<String>,
     actions: Option<PathBuf>,
@@ -88,6 +91,15 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--microvm" => a.guest = Some((true, PathBuf::from(value()?))),
             "--incus" => a.guest = Some((false, PathBuf::from(value()?))),
             "--engine" => a.engine = Some(PathBuf::from(value()?)),
+            "--job" => a.jobs.push(value()?),
+            "--matrix" => {
+                let v = value()?;
+                let (k, val) = v
+                    .split_once('=')
+                    .filter(|(k, _)| !k.is_empty())
+                    .ok_or_else(|| format!("--matrix {v:?} is not KEY=VALUE"))?;
+                a.matrix.push((k.to_string(), val.to_string()));
+            }
             "--platform" => {
                 let v = value()?;
                 let (label, target) =
@@ -237,6 +249,7 @@ pub fn line(l: &Line) -> String {
         Line::Ran { name, result, .. } => format!("{:<7} {name}\n", result.as_str()),
         Line::Refused { name, reason, .. } => format!("failure {name}: {reason}\n"),
         Line::Skipped { job, condition } => format!("skipped {job}: if: {condition}\n"),
+        Line::NotSelected { name, reason, .. } => format!("skipped {name}: {reason}\n"),
     }
 }
 
@@ -311,6 +324,9 @@ pub fn run(args: &[String]) -> Out {
         Ok(s) => s,
         Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
     };
+    if let Err(e) = source.set_filter(&a.jobs, &a.matrix) {
+        return fail(Class::Usage, e);
+    }
     match secrets(&a) {
         Ok((list, token)) => source.set_secrets(list, token),
         Err(e) => return fail(Class::Config, e),
