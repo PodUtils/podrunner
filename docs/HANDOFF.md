@@ -8,15 +8,14 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.41.0` (`Cargo.toml`); podvm `v0.2.0-beta.14`
+- Pins: podcrates `v0.42.0` (`Cargo.toml`); podvm `v0.2.0-beta.14`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
   beta.14, T-112); podnet `v0.4.0-beta.8` (`images/podnet.toml`); the
   official runner v2.338.2 (`images/runner/runner.toml`). Last beta of
   podrunner: `v0.1.0-beta.4` (release run 43506335609, `d796a94`).
-- The record: 117 entries, 4 open, 3 partial, 6 blocked, 104 done
-  (`cargo todo check`). The last green `runner-image.yml` run is
+- The record: 155 entries (`cargo todo check` gives the counts). The last green `runner-image.yml` run is
   43541714659 (`9f15901`): the podvm suites, the held tests, the tar
   forms, the microvm kind on real guests (with an engine), and the incus
   suite on real instances. The last green `level2.yml` run is
@@ -53,7 +52,20 @@ is done.
   the unit tests and a canned job of the official runner pass on real
   guests (T-036, T-037). With `[unit.microvm] engine = DIR`, the guest runs
   `dockerd` (`--podvm-engine`) and the runner gets `DOCKER_HOST` of a
-  socket in the guest (T-103, `docs/container-engine.md`).
+  socket in the guest (T-103, `docs/container-engine.md`); its capability
+  says `container: engine` (podcrates `v0.42.0`), and placement sends a
+  job with `container_engine` only to such a kind.
+- The local mode (`podrunner run`, `docs/local-mode.md`): the executors
+  `--runner-dir`, `--podvm`, `--microvm [--engine]` and `--incus` (T-123:
+  a front on the egress socket of a guest gives the broker); actions by
+  tag pinned by `podrunner-actions.lock` into a store (T-118); artifacts
+  v4 and the cache v2 served by the fake broker (T-119, T-120); secrets
+  and `github.token` (T-121, T-122); the `github` context of the git tree
+  and the event payload (T-125); the working tree, `--with-git` and the
+  checkout of another repository (T-133); the cancel at a signal (T-141).
+  The parity suite (`crates/podrunner/tests/parity.rs`, T-147) gives one
+  verdict for each workflow: with `--runner-dir`, or in a unit kind
+  through `PODRUNNER_PARITY_UNIT`.
 - The `incus` kind (`crates/podrunner-incus`, `[unit.incus]`): one system
   container of podvm's incus tier for each job, the credential files on
   stdin. It claims `confined`. It has no NIC and one channel of podvm to
@@ -73,19 +85,15 @@ is done.
 
 - podvm is available (the owner, 2026-11-13): it answers COORD issues
   `(to podvm)`. podssh is on break.
-- T-114 to T-117 (open): defects that a read found: the `github` context
-  of the steps of the local mode, the `--runner-dir` executor (no
-  `timeout-minutes`, a panic on an I/O error), the version of podvm in
-  `check` and `doctor`, and `fail-fast` and the `continue-on-error` of a
-  job in the local run.
-- T-103 (blocked): steps 1, 2, 3a and 3b are done
-  (`docs/container-engine.md`). Step 3c waits for podcrates:
-  `ContainerRoute::Engine` and `UnitNeed::container_engine` (GitHub #91,
-  PodUtils/podcrates@T-553: on the `main` of podcrates, in the tag after
-  `v0.41.0`). Then take the tag,
-  give the microvm kind with an engine `container: engine` in `probe`, and
-  prove a `services:` job, a Dockerfile action and a Docker-in-Docker step
-  in `runner-image.yml` (step 4).
+- T-103, T-123, T-124, T-146 (partial): their proofs run in
+  `runner-image.yml` (the parity suite in guests with an engine, the local
+  suite in microvm and incus units, the rerun job). Close each one on its
+  green run. T-124 then keeps the load of the images from the store, not a
+  pull (with T-130).
+- T-125 (partial): a directory of workflows with the filters of `on:`
+  waits for podcrates (GitHub #97, COORD-037).
+- T-155 (open): one run of the workspace tests failed and the next passed;
+  the check script now names the failed test.
 - T-101 (partial): the `program` source kind is in; its pair with GitHub
   runs on the host of LIVE-2 when githome gives its program (GitHub #66).
 - The live gates: two agents on two constrained hosts, GitHub #74
@@ -104,7 +112,8 @@ is done.
 | Who | What | Entries |
 | --- | --- | --- |
 | LIVE-1 and LIVE-2 | the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
-| podcrates | `ContainerRoute::Engine` in the tag after `v0.41.0` (GitHub #91) | T-103 |
+| podcrates | the filters of `on:` (GitHub #97, COORD-037) | T-125 |
+| podcrates | the crates of the action store and of the results API (GitHub #94, #95), no block | T-118, T-119, T-120 |
 | githome | its source program, for the pair on the host of LIVE-2 | T-101 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
@@ -114,9 +123,8 @@ is done.
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.
-- GitHub #91 (COORD-031, to podcrates): `ContainerRoute::Engine`;
-  podcrates took it as PodUtils/podcrates@T-553. Close it with the take of
-  the tag (T-103).
+- GitHub #94, #95, #97 (COORD-034, -035, -037, to podcrates): the asks of
+  the local mode. GitHub #96 (COORD-036): the take of `v0.42.0`.
 - GitHub #9, #32, #33, #40: wait for the live gates (#74, #75). GitHub
   #43 waits for podcrates.
 
