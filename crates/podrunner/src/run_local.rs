@@ -323,7 +323,17 @@ pub fn run(args: &[String]) -> Out {
             &scratch,
             podrunner_local::tree::Options { head: a.checkout_head, with_git: a.with_git },
         ) {
-            Ok(t) => Some(t),
+            Ok(t) => {
+                // Each checkout of each job downloads the tree: a guest takes
+                // it through its channel, which is slow for a large tree.
+                let mib = std::fs::metadata(&t).map(|m| m.len() >> 20).unwrap_or(0);
+                if mib >= 100 {
+                    eprintln!(
+                        "podrunner: the tree of --checkout is {mib} MiB; each checkout of a job downloads it: ignore its large files in .gitignore, or give --checkout-head"
+                    );
+                }
+                Some(t)
+            }
             Err(e) => return fail(Class::Config, e),
         },
     };

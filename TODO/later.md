@@ -1304,6 +1304,8 @@ State (2026-11-14): runner-image run 43570649182 (`e31f9e5`), the parity suite i
 
 State (2026-11-14, later): the stop of 10 minutes of the job `local` (06) is found, and the same stop failed the job `checkout` of the local suite in a microvm guest (run 43576346151, `2eee435`). The front of a guest rewrites only the first request of a connection to the origin form; a later request of a kept-alive connection comes in the absolute form `http://broker.podrunner.test/PATH`. `read_request_with` of `podrunner-hook` refused a target that does not start with `/`, and the broker closed the connection with no answer; the runner retried it for minutes. Now the parser takes the absolute form, the broker reads `/PATH` from it (and marks it in `seen`), and a refused request gets its status. A failed job of a unit names the hosts that its egress policy denied (`Egress::denials`, the audit of `pod-broker`) and the last requests of its broker. The pull of the guests (04, 05, 09) was still denied with the CDN hosts of today allowed: the next failed log names the host.
 
+State (2026-11-14, later): runner-image run 43594485325 (`dcc266f`) names both causes with the new diagnostics. (1) The egress policy denied `docker-images-prod.s3.dualstack.us-east-1.amazonaws.com:443`: from the hosted runners of GitHub, Docker Hub sends the layers to S3; the step now allows it. (2) The jobs with a checkout in a guest (`checkout` of the suite, `local` of 06) sent no request for 10 minutes after the start, while the listener polled: the stand-in of `actions/checkout` downloaded a tree of more than a gigabyte through the channel of the guest, because the image steps write `runner-x86_64.tar`, `oci/` and `load.tar` into the root of the checkout and git did not ignore them. `.gitignore` now ignores them, and `podrunner run` warns when the tree of `--checkout` is 100 MiB or more. The absolute form of the broker (`dcc266f`) stays: it is right for a kept-alive connection through the front.
+
 
 # T-125: Local mode: the event payload, the github context of the local tree, and the filters of on:
 
@@ -2122,6 +2124,8 @@ Measure in `runner-image.yml`: an aarch64 runner image in a guest of the microvm
 `gh workflow run runner-image.yml` runs the measure, and `docs/unknowns.md` has its row.
 
 State (2026-11-14): `scripts/measure-foreign.sh` pulls `busybox:1.37.0` for `linux/arm64` into a store of its own and runs it in the machine tier of podvm with `--platform linux/arm64`; it prints the exit, the seconds, the accelerator and `uname -m` of the guest. `runner-image.yml` runs it on the x86_64 host as the step "A guest of another architecture (a measure)", with `qemu-system-arm`. Next: read the step summary of the run, record the result in `docs/unknowns.md`, and then measure the aarch64 runner image with a small job.
+
+Measure (runner-image run 43594485325, `dcc266f`): the pull of `busybox:1.37.0` for `linux/arm64` into a store of its own takes 1 s; `podvm run --podvm-tier=machine --platform linux/arm64` of podvm `0.2.0-beta.14` on the x86_64 host exits 125 after 1 s: podvm starts `qemu-system-x86_64` under KVM, and the guest gives no exit marker. So the machine tier of this podvm takes no guest of another architecture. Next: ask podvm by a COORD issue whether a guest of another architecture (QEMU of that architecture, with no KVM) is planned; the local mode then refuses a job of another architecture by name.
 
 
 # T-152: Local mode: an env of one expression is refused

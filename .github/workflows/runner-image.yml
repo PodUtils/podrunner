@@ -429,6 +429,8 @@ jobs:
           hub="--allow registry-1.docker.io --allow auth.docker.io --allow production.cloudflare.docker.com"
           hub="$hub --allow docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com"
           hub="$hub --allow production.cloudfront.docker.com"
+          # From the hosted runners of GitHub, the layers come from S3.
+          hub="$hub --allow docker-images-prod.s3.dualstack.us-east-1.amazonaws.com"
           # A step with no shell: has no pipefail: tee would hide the exit of the test.
           set -o pipefail
           PODRUNNER_PARITY_UNIT="--microvm $PODRUNNER_PODVM --images $PODRUNNER_PODVM_IMAGES --image $PODRUNNER_RUNNER_IMAGE --engine $RUNNER_TEMP/engine-dir $hub" \

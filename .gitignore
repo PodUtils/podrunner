@@ -15,3 +15,10 @@ __pycache__/
 /fuzz/target
 /fuzz/artifacts
 /fuzz/corpus
+
+# The runner image of .github/workflows/runner-image.yml, built in the root
+# of the checkout: the tree that a local run gives to a job leaves it out.
+/runner-*.tar
+/runner-*.tar.sha256
+/oci/
+/load.tar
