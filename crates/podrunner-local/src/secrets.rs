@@ -21,6 +21,21 @@ fn check_name(name: &str) -> Result<(), String> {
 
 /// The secrets of the text of a secret file.
 pub fn parse(text: &str) -> Result<Vec<(String, String)>, String> {
+    parse_with(text, check_name)
+}
+
+/// The pairs of a file in the syntax of `GITHUB_ENV`, with no rule on the
+/// names of secrets: the files of vars, inputs and env (T-126).
+pub fn parse_pairs(text: &str) -> Result<Vec<(String, String)>, String> {
+    parse_with(text, |name| {
+        if name.is_empty() || name.contains(char::is_whitespace) || name.contains('=') {
+            return Err(format!("{name:?} is not a name"));
+        }
+        Ok(())
+    })
+}
+
+fn parse_with(text: &str, check_name: impl Fn(&str) -> Result<(), String>) -> Result<Vec<(String, String)>, String> {
     let mut out: Vec<(String, String)> = Vec::new();
     let mut lines = text.lines().enumerate();
     while let Some((n, line)) = lines.next() {

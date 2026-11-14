@@ -21,7 +21,7 @@ use podrunner_local::exec::InUnit;
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE]";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -43,6 +43,11 @@ struct Args {
     /// `--job ID` and `--matrix KEY=VALUE` (T-127).
     jobs: Vec<String>,
     matrix: Vec<(String, String)>,
+    /// `--var-file`, `--input-file`, `--env-file` and `--env` (T-126).
+    var_file: Option<PathBuf>,
+    input_file: Option<PathBuf>,
+    env_file: Option<PathBuf>,
+    env: Vec<(String, String)>,
     images: Option<PathBuf>,
     image: Option<String>,
     actions: Option<PathBuf>,
@@ -92,6 +97,10 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--incus" => a.guest = Some((false, PathBuf::from(value()?))),
             "--engine" => a.engine = Some(PathBuf::from(value()?)),
             "--job" => a.jobs.push(value()?),
+            "--var-file" => a.var_file = Some(PathBuf::from(value()?)),
+            "--input-file" => a.input_file = Some(PathBuf::from(value()?)),
+            "--env-file" => a.env_file = Some(PathBuf::from(value()?)),
+            "--env" => a.env.push(pair(&value()?)?),
             "--matrix" => {
                 let v = value()?;
                 let (k, val) = v
@@ -256,6 +265,28 @@ pub fn line(l: &Line) -> String {
 /// The secrets of the run (T-121) and the token of `github.token` (T-122):
 /// `.secrets` of the checkout when it exists, then `--secret-file`, then
 /// each `--secret`.
+/// The vars, the inputs and the env of the run: each file, then each flag
+/// over it (T-126).
+type Pairs = Vec<(String, String)>;
+
+fn files(a: &Args) -> Result<(Pairs, Pairs, Pairs), String> {
+    let read = |f: &Option<PathBuf>, flags: &[(String, String)]| -> Result<Pairs, String> {
+        let mut out = match f {
+            Some(p) => {
+                let text = std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()))?;
+                podrunner_local::secrets::parse_pairs(&text).map_err(|e| format!("{}: {e}", p.display()))?
+            }
+            None => Vec::new(),
+        };
+        for (k, v) in flags {
+            out.retain(|(o, _)| o != k);
+            out.push((k.clone(), v.clone()));
+        }
+        Ok(out)
+    };
+    Ok((read(&a.var_file, &a.vars)?, read(&a.input_file, &a.inputs)?, read(&a.env_file, &a.env)?))
+}
+
 /// The secrets of a run and its token.
 type Secrets = (Vec<(String, String)>, Option<String>);
 
@@ -314,16 +345,33 @@ pub fn run(args: &[String]) -> Out {
             return fail(Class::Config, msg);
         }
     }
-    let facts = context::facts(&a);
+    // The files of vars, inputs and env, then the flags over them (T-126).
+    let (vars, inputs, env) = match files(&a) {
+        Ok(x) => x,
+        Err(e) => return fail(Class::Config, e),
+    };
+    let mut facts = context::facts(&a);
+    let on = pod_actions_workflow::parse(&text).map(|p| p.workflow.on).ok();
+    let typed = match (&on, a.event.as_str()) {
+        (Some(on), "workflow_dispatch") => match context::dispatch_inputs(on, &inputs) {
+            Ok((typed, event)) => {
+                facts.inputs = event;
+                Value::object(typed)
+            }
+            Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
+        },
+        _ => object(&inputs),
+    };
     let github = match context::github(&a, &facts) {
         Ok(g) => g,
         Err(e) => return fail(Class::Config, e),
     };
-    let base = Base { github, vars: object(&a.vars), inputs: object(&a.inputs), ..Base::default() };
+    let base = Base { github, vars: object(&vars), inputs: typed, ..Base::default() };
     let mut source = match LocalSource::new("local", &text, base, arch(), Box::new(|_, _| Default::default())) {
         Ok(s) => s,
         Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
     };
+    source.set_env(env);
     if let Err(e) = source.set_filter(&a.jobs, &a.matrix) {
         return fail(Class::Usage, e);
     }

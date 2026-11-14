@@ -20,6 +20,8 @@ pub(super) struct Facts {
     pub sha: String,
     pub actor: String,
     pub default_branch: String,
+    /// `github.event.inputs` of a `workflow_dispatch` (T-126).
+    pub inputs: serde_json::Map<String, serde_json::Value>,
 }
 
 fn git(dir: &Path, args: &[&str]) -> Option<String> {
@@ -61,6 +63,7 @@ pub(super) fn facts(a: &Args) -> Facts {
         sha: a.sha.clone().or_else(|| git(dir, &["rev-parse", "HEAD"])).unwrap_or_else(|| "0".repeat(40)),
         actor: a.actor.clone().or_else(|| git(dir, &["config", "user.name"])).unwrap_or_else(|| "local".into()),
         default_branch,
+        inputs: serde_json::Map::new(),
     }
 }
 
@@ -71,6 +74,91 @@ fn ref_parts(r: &str) -> (&str, &str) {
     } else {
         (r.strip_prefix("refs/heads/").unwrap_or(r), "branch")
     }
+}
+
+fn get<'a>(n: &'a Node, key: &str) -> Option<&'a Node> {
+    match &n.kind {
+        Kind::Map(e) => e.iter().find(|(k, _)| k.name == key).map(|(_, v)| v),
+        _ => None,
+    }
+}
+
+fn scalar(n: &Node) -> Option<String> {
+    match &n.kind {
+        Kind::String(s) => Some(s.clone()),
+        Kind::Bool(b) => Some(b.to_string()),
+        Kind::Number(x) if x.fract() == 0.0 => Some(format!("{x:.0}")),
+        Kind::Number(x) => Some(x.to_string()),
+        _ => None,
+    }
+}
+
+/// The typed inputs, and the inputs of `github.event.inputs`.
+pub(super) type Inputs = (Vec<(String, Value)>, serde_json::Map<String, serde_json::Value>);
+
+/// The inputs of a `workflow_dispatch` (T-126): each value of `--input`
+/// over the default of its input, with the type of GitHub (a boolean is a
+/// boolean, a number a number); a `required` input with no value, a value
+/// outside a `choice`, and an input that `on:` does not declare fail the
+/// run. Also the inputs as `github.event.inputs` gives them: strings.
+pub(super) fn dispatch_inputs(on: &Node, given: &[(String, String)]) -> Result<Inputs, String> {
+    let declared = get(on, "workflow_dispatch").and_then(|w| get(w, "inputs"));
+    let Some(Node { kind: Kind::Map(inputs), .. }) = declared else {
+        let typed = given.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect();
+        let event = given.iter().map(|(k, v)| (k.clone(), json!(v))).collect();
+        return Ok((typed, event));
+    };
+    for (k, _) in given {
+        if !inputs.iter().any(|(name, _)| &name.name == k) {
+            return Err(format!("--input {k}: on.workflow_dispatch.inputs has no such input"));
+        }
+    }
+    let (mut typed, mut event) = (Vec::new(), serde_json::Map::new());
+    for (name, spec) in inputs {
+        let name = name.name.clone();
+        let value = given
+            .iter()
+            .rev()
+            .find(|(k, _)| *k == name)
+            .map(|(_, v)| v.clone())
+            .or_else(|| get(spec, "default").and_then(scalar));
+        let required = matches!(get(spec, "required").map(|n| &n.kind), Some(Kind::Bool(true)));
+        let kind = get(spec, "type").and_then(scalar).unwrap_or_else(|| "string".into());
+        let Some(value) = value else {
+            if required {
+                return Err(format!("the input {name} is required: give it with --input {name}=VALUE"));
+            }
+            // GitHub gives an input with no value and no default as empty.
+            let empty = if kind == "boolean" { Value::Bool(false) } else { Value::String(String::new()) };
+            typed.push((name.clone(), empty));
+            event.insert(name, json!(""));
+            continue;
+        };
+        let v = match kind.as_str() {
+            "boolean" => match value.as_str() {
+                "true" => Value::Bool(true),
+                "false" => Value::Bool(false),
+                _ => return Err(format!("the input {name} is a boolean, not {value:?}")),
+            },
+            "number" => {
+                Value::Number(value.parse().map_err(|_| format!("the input {name} is a number, not {value:?}"))?)
+            }
+            "choice" => {
+                let options: Vec<String> = match get(spec, "options").map(|n| &n.kind) {
+                    Some(Kind::Seq(o)) => o.iter().filter_map(scalar).collect(),
+                    _ => Vec::new(),
+                };
+                if !options.contains(&value) {
+                    return Err(format!("the input {name} takes one of {options:?}, not {value:?}"));
+                }
+                Value::String(value.clone())
+            }
+            _ => Value::String(value.clone()),
+        };
+        typed.push((name.clone(), v));
+        event.insert(name, json!(value));
+    }
+    Ok((typed, event))
 }
 
 /// The minimal payload of `event`, as GitHub sends it.
@@ -95,7 +183,7 @@ pub(super) fn payload(event: &str, f: &Facts) -> serde_json::Value {
             },
             "repository": repository,
         }),
-        "workflow_dispatch" => json!({ "ref": f.git_ref, "inputs": {}, "repository": repository }),
+        "workflow_dispatch" => json!({ "ref": f.git_ref, "inputs": f.inputs, "repository": repository }),
         _ => json!({ "repository": repository }),
     }
 }

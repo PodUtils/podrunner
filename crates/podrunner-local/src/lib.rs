@@ -84,6 +84,8 @@ pub struct LocalSource {
     /// The jobs that `--job` selects with their needs, and the values of
     /// `--matrix` (T-127).
     selected: Option<std::collections::BTreeSet<String>>,
+    /// The environment of each job under the `env:` of the workflow (T-126).
+    env: Vec<(String, String)>,
     matrix_filter: Vec<(String, String)>,
     minter: Minter,
     /// The report and audit lines, for the caller.
@@ -119,6 +121,7 @@ impl LocalSource {
             token: None,
             pins: BTreeMap::new(),
             selected: None,
+            env: Vec::new(),
             matrix_filter: Vec::new(),
             minter,
             reports: Vec::new(),
@@ -139,6 +142,12 @@ impl LocalSource {
     /// repository takes its tree from the store (T-133).
     pub fn set_pins(&mut self, pins: BTreeMap<String, String>) {
         self.pins = pins;
+    }
+
+    /// The environment of each job (`--env`, T-126): under the `env:` of the
+    /// workflow, the job and the step.
+    pub fn set_env(&mut self, env: Vec<(String, String)>) {
+        self.env = env;
     }
 
     /// Run only `jobs` and each job that they need, and only the cells whose
@@ -210,6 +219,16 @@ impl LocalSource {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
         let mut b = message::broker_job(self.run.workflow(), cell, &self.github, &self.vars, &self.inputs, &self.pins)?;
         b.secrets = self.secrets.clone();
+        if !self.env.is_empty() {
+            let map: Vec<Value> = self.env.iter().map(|(k, v)| json!({ "Key": k, "Value": v })).collect();
+            let first = json!({ "type": 2, "map": map });
+            match b.overrides.get_mut("environmentVariables") {
+                Some(Value::Array(a)) => a.insert(0, first),
+                _ => {
+                    b.overrides.insert("environmentVariables".into(), json!([first]));
+                }
+            }
+        }
         let none = |p: Option<&pod_actions_workflow::Node>| matches!(p.map(|n| &n.kind), Some(pod_actions_workflow::Kind::Map(e)) if e.is_empty());
         let w = self.run.workflow();
         let permissions = w.job(&cell.job).and_then(|j| j.permissions.as_ref()).or(w.permissions.as_ref());

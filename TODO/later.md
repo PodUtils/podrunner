@@ -1338,7 +1338,7 @@ State (2026-11-14): `crates/podrunner/src/run_local/context.rs` gives the facts 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1355,6 +1355,11 @@ Read `parse` of `crates/podrunner/src/run_local.rs` on 2026-11-14.
 ## Prove
 
 `cargo test -p podrunner run_local`
+
+## Done
+
+2026-11-14, this commit. `--var-file`, `--input-file` and `--env-file` read the syntax of `GITHUB_ENV` (`secrets::parse_pairs`), and each flag of the same name wins; `--env NAME=VALUE` gives the environment of each job, under the `env:` of the workflow (`LocalSource::set_env`, the first mapping of `environmentVariables`). With `workflow_dispatch`, `context::dispatch_inputs` gives each input its default and its type (boolean, number, choice, string); a missing `required` input, a value outside a `choice`, a value of the wrong type and an input that `on:` does not declare fail the run before the first job; `github.event.inputs` has the strings. Tests: the typed inputs and each refusal, the files under the flags, the env in the job message; a run here on runner v2.338.2 reads `inputs.debug` as `true`, `inputs.count == 3`, `github.event.inputs.count` and `$E` of `--env`.
+
 
 # T-127: Local mode: run one job (--job) or some cells of a matrix (--matrix)
 

@@ -263,3 +263,19 @@ fn an_image_by_tag_takes_its_pinned_digest() {
     assert_eq!(m["steps"][0]["reference"]["image"], bb.as_str());
     assert_eq!(m["jobContainer"], bb.as_str());
 }
+
+#[test]
+fn the_env_of_the_run_is_under_the_env_of_the_workflow() {
+    let text = "on: push\nenv:\n  W: wf\njobs:\n  a:\n    runs-on: x\n    steps: [{run: x}]\n";
+    let mut s = LocalSource::new("l", text, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    s.set_env(vec![("E".into(), "1".into()), ("W".into(), "run".into())]);
+    let m = podrunner_broker_fake::message::job_message(
+        "http://127.0.0.1:1/",
+        1,
+        &s.broker_job(&JobId::new("a.0").unwrap()).unwrap(),
+    );
+    let env = m["environmentVariables"].as_array().unwrap();
+    assert_eq!(env[0]["map"][0], json!({ "Key": "E", "Value": "1" }), "the env of the run comes first");
+    assert!(env.len() >= 2, "the workflow's env comes after it and wins: {env:?}");
+}

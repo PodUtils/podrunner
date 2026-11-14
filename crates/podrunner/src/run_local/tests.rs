@@ -306,3 +306,41 @@ fn a_job_of_windows_fails_by_name() {
     assert!(out.stdout.contains("failure win: runs-on \"windows-latest\": a unit is Linux"), "{}", out.stdout);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_inputs_of_workflow_dispatch_take_their_defaults_and_types() {
+    let text = "on:\n  workflow_dispatch:\n    inputs:\n      debug:\n        type: boolean\n        default: false\n      level:\n        type: choice\n        options: [info, warn]\n        default: info\n      count:\n        type: number\n        default: 3\n      who:\n        required: true\njobs:\n  a:\n    runs-on: x\n    steps: [{run: x}]\n";
+    let on = pod_actions_workflow::parse(text).unwrap().workflow.on;
+    let given = |p: &[(&str, &str)]| p.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<Vec<_>>();
+    let (typed, event) = context::dispatch_inputs(&on, &given(&[("who", "me"), ("debug", "true")])).unwrap();
+    let t: std::collections::BTreeMap<_, _> = typed.into_iter().collect();
+    assert_eq!(t["debug"], Value::Bool(true));
+    assert_eq!(t["count"], Value::Number(3.0));
+    assert_eq!(t["level"], Value::String("info".into()));
+    assert_eq!(event["debug"], serde_json::json!("true"), "github.event.inputs has strings");
+    for (bad, why) in [
+        (given(&[]), "required"),
+        (given(&[("who", "me"), ("level", "debug")]), "one of"),
+        (given(&[("who", "me"), ("count", "x")]), "number"),
+        (given(&[("who", "me"), ("debug", "yes")]), "boolean"),
+        (given(&[("who", "me"), ("other", "1")]), "no such input"),
+    ] {
+        let e = context::dispatch_inputs(&on, &bad).unwrap_err();
+        assert!(e.contains(why), "{bad:?}: {e}");
+    }
+}
+
+#[test]
+fn the_files_of_vars_inputs_and_env_are_under_the_flags() {
+    let dir = std::env::temp_dir().join(format!("podrunner-files-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("vars"), "A=file\nB=file\nMULTI<<END\none\ntwo\nEND\n").unwrap();
+    let v = dir.join("vars").display().to_string();
+    let a =
+        parse(&args(&["w.yml", "--runner-dir", "/r", "--var-file", &v, "--var", "B=flag", "--env", "E=1"])).unwrap();
+    let (vars, _, env) = files(&a).unwrap();
+    let m: std::collections::BTreeMap<_, _> = vars.into_iter().collect();
+    assert_eq!((m["A"].as_str(), m["B"].as_str(), m["MULTI"].as_str()), ("file", "flag", "one\ntwo"));
+    assert_eq!(env, [("E".to_string(), "1".to_string())]);
+    let _ = std::fs::remove_dir_all(&dir);
+}

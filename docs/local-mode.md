@@ -49,9 +49,9 @@ the entry that closes the gap, or the entry that did the work.
 | Filters of `on:`, a directory of workflows | event names, `-W DIR` | yes | one file; an event that `on:` does not name is refused; the filters wait for COORD-037 | T-125 |
 | Secrets | `-s`, `.secrets`, mask | `--secret`, `--secret-file`, mask | `--secret NAME` from the environment, `--secret-file` at mode 0600, `.secrets` of the checkout, mask; no value in argv | T-121 |
 | `GITHUB_TOKEN` | the token of the GitHub CLI of the user | configured | a made-up token; a real one only by `--github-token-env NAME`, never to `permissions: {}` | T-122 |
-| Vars | `--var`, `.vars` | `--var`, `--var-file` | `--var` | T-089, T-126 |
-| Inputs, defaults of `workflow_dispatch` | `--input`, `.input` | `--input`, `--input-file` | `--input`, no default, no type | T-126 |
-| Extra environment | `--env`, `.env` | `--env`, `--env-file` | no | T-126 |
+| Vars | `--var`, `.vars` | `--var`, `--var-file` | `--var`, `--var-file` | T-089, T-126 |
+| Inputs, defaults of `workflow_dispatch` | `--input`, `.input` | `--input`, `--input-file` | `--input`, `--input-file`; the defaults, types, `required` and `choice` of GitHub | T-126 |
+| Extra environment | `--env`, `.env` | `--env`, `--env-file` | `--env`, `--env-file` | T-126 |
 | Environments, their secrets and vars | name only | yes | ignored | T-136 |
 | Concurrency groups | no | yes | ignored | T-137 |
 | Artifacts v4 | yes | yes | yes, one store for each run, size and SHA-256 checked at finalize; v3 refused by name | T-119 |
