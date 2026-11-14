@@ -34,6 +34,8 @@ pod-confine = { git = "https://github.com/PodUtils/podcrates", tag = "v0.45.0" }
 # Actions for the local mode (T-046, PodUtils/podcrates@T-251).
 pod-actions-expr = { git = "https://github.com/PodUtils/podcrates", tag = "v0.45.0" }
 pod-actions-workflow = { git = "https://github.com/PodUtils/podcrates", tag = "v0.45.0" }
+pod-actions-results = { git = "https://github.com/PodUtils/podcrates", tag = "v0.45.0" }
+pod-actions-store = { git = "https://github.com/PodUtils/podcrates", tag = "v0.45.0" }
 podrunner-local = { path = "crates/podrunner-local" }
 # The RSA key of a runner against the fake broker: key generation only
 # (deny.toml, RUSTSEC-2023-0071).

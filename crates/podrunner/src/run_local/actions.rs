@@ -50,9 +50,11 @@ pub(super) fn pin(
     images: Option<&dyn ImageSource>,
 ) -> Result<Option<Pinned>, String> {
     let (file, store) = (a.file.as_path(), a.actions.as_deref());
+    // The errors of `pod-actions-store` as the text of a run.
+    let s = |e: podrunner_local::store::Error| e.to_string();
     let workflow = pod_actions_workflow::parse(text).map_err(|e| e.to_string())?.workflow;
     let uses = workflow_uses(&workflow);
-    let mut trees = workflow_trees(&workflow, self_repo)?;
+    let mut trees = workflow_trees(&workflow, self_repo).map_err(s)?;
     // The repository of each remote called workflow (T-131): its tree goes
     // into the store at the commit of the lock, as an action.
     for job in &workflow.jobs {
@@ -67,14 +69,14 @@ pub(super) fn pin(
         }
     }
     let tags = match images {
-        Some(_) => workflow_images(&workflow)?,
+        Some(_) => workflow_images(&workflow).map_err(s)?,
         None => Vec::new(),
     };
     if uses.is_empty() && trees.is_empty() && tags.is_empty() {
         return Ok(None);
     }
     let lock_path = file.parent().unwrap_or(Path::new(".")).join(LOCK_FILE);
-    let lock = Lock::read(&lock_path)?;
+    let lock = Lock::read(&lock_path).map_err(s)?;
     let name = lock_path.display().to_string();
     let (mut r, dir) = if uses.is_empty() && trees.is_empty() {
         (podrunner_local::store::Resolved { lock, ..Default::default() }, None)
@@ -95,19 +97,20 @@ pub(super) fn pin(
                 Some(podrunner_local::fetch::Fetch::open(&host)?)
             }
         };
-        let git = Git { base, proxy: fetch.as_ref().map(|f| f.proxy.clone()) };
+        let mut git = Git::new(base, std::env::temp_dir());
+        git.proxy = fetch.as_ref().map(|f| f.proxy.clone());
         let (store, forge) = (Store { dir: dir.clone() }, Local::new(a.local_repos.iter().cloned().collect(), &git));
-        let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
-        (add_trees(&trees, r, &store, &forge, mode, &name)?, Some(dir))
+        let r = resolve(&uses, &lock, &store, &forge, mode, &name).map_err(s)?;
+        (add_trees(&trees, r, &store, &forge, mode, &name).map_err(s)?, Some(dir))
     };
     if let (Some(source), false) = (images, tags.is_empty()) {
-        let (pins, changed) = podrunner_local::images::resolve(&tags, &mut r.lock, source, mode, &name)?;
+        let (pins, changed) = podrunner_local::images::resolve(&tags, &mut r.lock, source, mode, &name).map_err(s)?;
         r.commits.extend(pins);
         r.changed |= changed;
     }
     let mut note = String::new();
     if r.changed {
-        r.lock.write(&lock_path)?;
+        r.lock.write(&lock_path).map_err(s)?;
         note = format!("podrunner: {name} pins {} references\n", r.lock.pins.len() + r.lock.images.len());
     }
     Ok(Some(Pinned { dir, commits: r.commits, note }))

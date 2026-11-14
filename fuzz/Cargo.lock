@@ -748,6 +748,28 @@ version = "0.45.0"
 source = "git+https://github.com/PodUtils/podcrates?tag=v0.45.0#ad50c7f7ac7af06315b66406f08af6a54c0f90e5"
 
 [[package]]
+name = "pod-actions-results"
+version = "0.45.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.45.0#ad50c7f7ac7af06315b66406f08af6a54c0f90e5"
+dependencies = [
+ "base64",
+ "pod-core",
+ "serde_json",
+ "sha2 0.11.1",
+]
+
+[[package]]
+name = "pod-actions-store"
+version = "0.45.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.45.0#ad50c7f7ac7af06315b66406f08af6a54c0f90e5"
+dependencies = [
+ "flate2",
+ "pod-actions-workflow",
+ "sha2 0.11.1",
+ "tar",
+]
+
+[[package]]
 name = "pod-actions-workflow"
 version = "0.45.0"
 source = "git+https://github.com/PodUtils/podcrates?tag=v0.45.0#ad50c7f7ac7af06315b66406f08af6a54c0f90e5"
@@ -944,6 +966,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "pod-actions-expr",
+ "pod-actions-results",
  "podrunner-hook",
  "rand_core 0.6.4",
  "ring",
@@ -1022,6 +1045,7 @@ dependencies = [
  "flate2",
  "libc",
  "pod-actions-expr",
+ "pod-actions-store",
  "pod-actions-workflow",
  "pod-proxy",
  "podrunner-broker-fake",

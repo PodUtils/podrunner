@@ -93,8 +93,8 @@ numbers. `TODO/RULES.md` gives the rules.
 | #91 | COORD-031: pod-job: ContainerRoute::Engine, a container engine inside the unit (to podcrates) | closed (podcrates gave it in v0.42.0; podrunner took it in COORD-036) | T-103 |
 | #92 | COORD-032: the kernel of a machine-tier guest for a container engine: bridge, veth, overlay, netfilter, cgroup2 (to podvm) | closed (podvm `v0.2.0-beta.14`; `c817be5`, runner-image run 43514371042) | T-103 |
 | #93 | COORD-033: podrunner takes podcrates v0.41.0 at 9f15901 (the answer to PodUtils/podcrates#143) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#143) | T-094 |
-| #94 | COORD-034: pod-actions-store: the resolve of action references, a lock file and a store of tarballs (to podcrates) | open (podrunner keeps its copy until a tag) | T-118 |
-| #95 | COORD-035: pod-actions-results: the ArtifactService of the results API and its blob routes (to podcrates) | open (podrunner keeps its copy until a tag) | T-119 |
+| #94 | COORD-034: pod-actions-store: the resolve of action references, a lock file and a store of tarballs (to podcrates) | closed (podrunner uses `pod-actions-store` of `v0.45.0`) | T-118 |
+| #95 | COORD-035: pod-actions-results: the ArtifactService of the results API and its blob routes (to podcrates) | closed (podrunner uses `pod-actions-results` of `v0.45.0`) | T-119 |
 | #96 | COORD-036: podrunner takes podcrates v0.42.0 at 05ceaec (the answer to PodUtils/podcrates#145) (to podcrates) | open (until podcrates records the take) | T-103 |
 | #97 | COORD-037: pod-actions-workflow: the filters of on: (types, branches, tags, paths and their -ignore forms) (to podcrates) | closed (taken in `v0.44.0`; T-125 is done) | T-125 |
 | #98 | COORD-038: pod-actions-workflow: the expansion of a reusable workflow (jobs.ID.uses) into jobs of the run (to podcrates) | closed (taken in `v0.44.0`; T-131 is done) | T-131 |

@@ -124,7 +124,6 @@ is done.
 | --- | --- | --- |
 | LIVE-1 and LIVE-2 | the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
 | podvm | a release with PodUtils/podvm@T-1880: a glibc image with no `libdl.so.2` (GitHub #100) | T-156 |
-| podcrates | the tag `v0.45.0`: `pod-actions-store` and `pod-actions-results` with podrunner's additions (to `9dbefd1`; GitHub #94, #95, #99); then switch to the crates, and start a new `--cache` directory | T-118, T-119, T-120 |
 | githome | its source program, for the pair on the host of LIVE-2 | T-101 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
@@ -134,8 +133,9 @@ is done.
 - GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
   CI plan that podrunner owns (from PodUtils/podcrates#35, #36, #47).
   Their lines map to the entries; T-001 holds them.
-- GitHub #94, #95 (COORD-034, -035, to
-  podcrates): the asks of the local mode (#97 and #98 are closed). GitHub #96 (COORD-036): the take
+- The asks of the local mode to podcrates are closed (#94, #95, #97, #98):
+  podrunner uses `pod-actions-store` and `pod-actions-results` of
+  `v0.45.0`. GitHub #96 (COORD-036): the take
   of `v0.42.0`. GitHub #100 (COORD-040, to podvm): a glibc image where
   chroot is denied.
 - GitHub #9, #32, #33, #40: wait for the live gates (#74, #75). GitHub

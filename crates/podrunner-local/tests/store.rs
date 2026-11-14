@@ -29,8 +29,10 @@ fn a_composite_action_by_tag_and_the_action_that_it_names_by_tag() {
     let store = Store { dir: dir.clone() };
     // Through one egress grant of github.com only (T-154).
     let fetch = Fetch::open("github.com").unwrap();
-    let git = Git { base: "https://github.com/".into(), proxy: Some(fetch.proxy.clone()) };
-    let other = Git { base: "https://gitlab.com/".into(), proxy: Some(fetch.proxy.clone()) };
+    let mut git = Git::new("https://github.com/", std::env::temp_dir());
+    git.proxy = Some(fetch.proxy.clone());
+    let mut other = Git::new("https://gitlab.com/", std::env::temp_dir());
+    other.proxy = Some(fetch.proxy.clone());
     let e = other.resolve("gitlab-org/gitlab", "master").unwrap_err();
     assert!(e.contains("403") || e.contains("CONNECT"), "another host is refused: {e}");
     let uses = vec!["actions/upload-pages-artifact@v3".to_string()];

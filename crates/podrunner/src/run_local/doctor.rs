@@ -72,6 +72,7 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
         if lock.exists() {
             podrunner_local::lock::Lock::read(&lock)
                 .map(|l| format!("{}: {} references", lock.display(), l.pins.len() + l.images.len()))
+                .map_err(|e| e.to_string())
         } else {
             Ok(format!("{}: none yet; a run with no --frozen writes it", lock.display()))
         },
