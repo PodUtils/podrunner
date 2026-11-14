@@ -57,7 +57,9 @@ fn an_absolute_link_resolves_in_the_rootfs_of_the_unit() {
         std::thread::sleep(Duration::from_millis(200));
     }
     // T-150: a command enters the running unit and sees its tree.
-    let argv = ["sh", "-c", "cat link; echo \" in-unit-$((6*7))\""].map(String::from).to_vec();
+    // The command does not start in the work directory of the payload.
+    let script = format!("cat /{name}; echo \" in-unit-$((6*7))\"");
+    let argv = ["sh".to_string(), "-c".to_string(), script];
     let entered = unit.enter(&id, &argv, false).map(|mut c| c.stdin(std::process::Stdio::null()).output());
     let residue = unit.destroy(&id).unwrap();
     let _ = std::fs::remove_dir_all(&state);

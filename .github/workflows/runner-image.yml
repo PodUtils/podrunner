@@ -361,7 +361,7 @@ jobs:
           sha256sum "runner-full-${{ matrix.arch }}.tar" > "runner-full-${{ matrix.arch }}.tar.sha256"
           echo "the larger image: runner@$digest" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ steps.full.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.full.outcome == 'success' }}
         with:
           name: runner-full-${{ matrix.arch }}
           path: |

@@ -91,9 +91,6 @@ is done.
 
 - podvm is available (the owner, 2026-11-13): it answers COORD issues
   `(to podvm)`. podssh is on break.
-- T-157 (partial): the broker is the registry mirror of Docker Hub for
-  the engine of a guest; the step "The images of a guest engine from the
-  store" of `runner-image.yml` proves it. Close it on its green run.
 - T-138 (partial): `--export` and `--toolcache` are in for `--podvm`; the
   step "A tool cache in a podvm unit" checks the tool cache.
   `--keep-failed` is `--break-on-failure`; the pause gives a shell in a

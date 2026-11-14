@@ -1475,6 +1475,8 @@ State (2026-11-14, later): the recipe of the larger image is the base `images/ru
 
 State (2026-11-14, later): runner-image run 43609196605 (`5096a3b`): the larger image is 462 MiB (the archive), and the job of `runs-on: ubuntu-latest` gives `ok tools`. The step is now a check, and it uploads the archive for `podvm load -i` as the artifact `runner-full-x86_64` with its sha256, beside `runner-x86_64`; `docs/local-mode.md` names it. The larger image is x86_64 only. Next: the green run of the upload, then close this entry.
 
+State (2026-11-14, later): runner-image run 43623211536 (`94fddee`): the larger image passes as a check; its upload was skipped, because a failed step before it made `success()` false. The upload now runs after `!cancelled()` when the step passed. Next: the run with the artifact.
+
 
 # T-130: Local mode: container images by tag, resolved to a digest and pulled into the store
 
@@ -2121,6 +2123,8 @@ State (2026-11-14): `--break JOB:STEP` (the number of the step from 1, or its `i
 
 State (2026-11-14, later): `UnitDriver::enter` gives a command that runs in the running unit under its egress hold; the podvm kind runs `podvm exec -i [-t]`. `podrunner_local::enter` keeps the unit of each running job. At a pause, `s` and Enter opens a shell in the unit on the terminal of podrunner; Enter goes on. The machine tier of podvm refuses `exec`, so `--microvm` has no shell; the incus kind has none yet. Tests: `cargo test -p podrunner-local enter`; `crates/podrunner-podvm/tests/links.rs` enters a running podvm unit in `runner-image.yml`. Next: its green run.
 
+State (2026-11-14, later): runner-image run 43623211536 (`94fddee`): `enter` ran its command in the podvm unit (`in-unit-42`), but the test read a path relative to the work directory of the payload, and `podvm exec` starts elsewhere. The test now reads the file by its absolute path. Next: the green run.
+
 
 # T-151: Measure: a job of another architecture in the local mode
 
@@ -2321,7 +2325,7 @@ State (2026-11-14): podvm `v0.2.0-beta.17` carries PodUtils/podvm@T-1880 (PodUti
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2344,6 +2348,10 @@ State (2026-11-14): the mirror is in (`podrunner-local/src/mirror.rs`, `podrunne
 State (2026-11-14, later): runner-image runs 43614533662 (`0750948`) and 43615355943 (`3ce59bc`): the fill of the mirror failed, so the guest pulled from Docker Hub and the egress policy denied it. `podvm save` of an index digest refused to choose: the store had an image of two platforms for it. The mirror and the podvm driver now give `podvm save` the platform of the unit. The other steps of both runs passed, also "A tool cache in a podvm unit" (T-138).
 
 State (2026-11-14, later): runner-image run 43621400822 (`dcbc53f`): `podvm save` has no `--platform` (exit 125), although its message names it; the podvm driver failed each unit start with it. The driver has `save` with no platform again. The mirror pulls each image into a private store of one platform and saves it from there. COORD-044 (GitHub #104) asks podvm for `save --platform`. Next: the green run.
+
+## Done
+
+2026-11-14, `94fddee`: runner-image run 43623211536: the step "The images of a guest engine from the store" passes. 04 (`services:`) and 05 (a job container and a Docker step) run in a microvm guest with an engine and no `--allow`: the guest reaches no registry, so the engine took each image from the mirror of the broker. A Dockerfile action still pulls its base image through the egress policy, and another registry than Docker Hub too.
 
 
 # T-158: Local mode: a static image as a container of a podvm unit
