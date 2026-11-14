@@ -12,6 +12,7 @@ libc.workspace = true
 podrunner-schema.workspace = true
 podrunner-unit.workspace = true
 serde_json.workspace = true
+tar.workspace = true
 
 [dev-dependencies]
 podrunner-schema.workspace = true

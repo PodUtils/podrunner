@@ -1051,6 +1051,7 @@ dependencies = [
  "podrunner-schema",
  "podrunner-unit",
  "serde_json",
+ "tar",
 ]
 
 [[package]]

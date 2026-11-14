@@ -54,6 +54,26 @@ impl PodvmUnit {
         Ok((out.status.code(), [out.stdout, out.stderr].concat()))
     }
 
+    /// The reference that a unit store knows after the load of `tar`: the
+    /// name of `image` with the digest of the manifest of the tar (T-130). An
+    /// image pinned by the digest of an index loads as its platform manifest,
+    /// so `podvm run` of the index digest finds no image.
+    fn loaded_reference(image: &str, tar: &std::path::Path) -> String {
+        let manifest = std::fs::File::open(tar).ok().and_then(|f| {
+            let mut a = tar::Archive::new(f);
+            let mut entry =
+                a.entries().ok()?.flatten().find(|e| e.path().is_ok_and(|p| p.as_os_str() == "index.json"))?;
+            let mut text = String::new();
+            std::io::Read::read_to_string(&mut entry, &mut text).ok()?;
+            let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+            v["manifests"][0]["digest"].as_str().map(str::to_string)
+        });
+        match (image.split_once('@'), manifest) {
+            (Some((name, _)), Some(m)) => format!("{name}@{m}"),
+            _ => image.to_string(),
+        }
+    }
+
     pub(super) fn start_container(&self, unit: &UnitId, spec: &ContainerSpec) -> Result<ContainerId, UnitError> {
         if self.capability.container != podrunner_schema::ContainerRoute::Hooks {
             return Err(UnitError::new(UnitCode::ContainerNotSupported, "volumes need the supervise rung of podvm"));
@@ -93,7 +113,7 @@ impl PodvmUnit {
             args.extend(["-v".into(), format!("{}:{}{ro}", source.display(), m.target)]);
         }
         args.extend(self.container_confine_args(&spec.mounts));
-        args.push(spec.image.clone());
+        args.push(Self::loaded_reference(&spec.image, &tar));
         args.extend(spec.argv.iter().cloned());
         let (code, out) = self.podvm_in(&store, &args, &tag, egress.as_deref())?;
         if code != Some(0) {
@@ -210,5 +230,33 @@ mod tests {
         let long = "x".repeat(5000);
         let cut = last_line(long.as_bytes());
         assert!(cut.ends_with(" [cut]") && cut.len() < 1000, "{}", cut.len());
+    }
+}
+
+#[cfg(test)]
+mod loaded_tests {
+    use super::*;
+
+    #[test]
+    fn an_image_of_an_index_runs_by_the_digest_of_its_loaded_manifest() {
+        let dir = std::env::temp_dir().join(format!("podrunner-loaded-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let tar_path = dir.join("i.tar");
+        let index = format!(r#"{{"schemaVersion":2,"manifests":[{{"digest":"sha256:{}"}}]}}"#, "b".repeat(64));
+        let mut b = tar::Builder::new(std::fs::File::create(&tar_path).unwrap());
+        let mut h = tar::Header::new_gnu();
+        h.set_size(index.len() as u64);
+        h.set_mode(0o644);
+        h.set_cksum();
+        b.append_data(&mut h, "index.json", index.as_bytes()).unwrap();
+        b.finish().unwrap();
+        let index_digest = format!("busybox@sha256:{}", "a".repeat(64));
+        assert_eq!(PodvmUnit::loaded_reference(&index_digest, &tar_path), format!("busybox@sha256:{}", "b".repeat(64)));
+        assert_eq!(
+            PodvmUnit::loaded_reference(&index_digest, &dir.join("none.tar")),
+            index_digest,
+            "no tar: the reference stays"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
