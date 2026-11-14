@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**159 entries: 0 open, 6 partial, 6 blocked, 147 done.**
+**159 entries: 0 open, 4 partial, 6 blocked, 149 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 2 | 3 | 68 | 73 |
-| P3 | 0 | 2 | 3 | 47 | 52 |
-| **All** | 0 | 6 | 6 | 147 | 159 |
+| P3 | 0 | 0 | 3 | 49 | 52 |
+| **All** | 0 | 4 | 6 | 149 | 159 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -185,7 +185,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-135](later.md) | P3 | M | later | feature | done | Local mode: a run directory and reruns of failed jobs |
 | [T-136](later.md) | P3 | S | later | feature | done | Local mode: environments, with their secrets, vars and egress policy |
 | [T-137](later.md) | P3 | S | later | feature | done | Local mode: concurrency groups and cancel-in-progress |
-| [T-138](later.md) | P3 | S | later | feature | partial | Local mode: keep the unit of a failed job, export the workspace, and a shared tool cache |
+| [T-138](later.md) | P3 | S | later | feature | done | Local mode: keep the unit of a failed job, export the workspace, and a shared tool cache |
 | [T-139](later.md) | P3 | S | later | feature | done | Local mode: actions from a local directory (--local-repository) and from another forge |
 | [T-140](later.md) | P3 | S | later | feature | done | Local mode: OIDC id-tokens (permissions: id-token: write) |
 | [T-141](later.md) | P2 | S | later | defect | done | podrunner run leaves its units and scratch directories at Ctrl-C |
@@ -197,7 +197,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-147](later.md) | P2 | M | later | feature | done | Local mode: the parity suite, with checks outside the job log |
 | [T-148](later.md) | P3 | M | later | research | done | Research: Azure Pipelines YAML in the local source |
 | [T-149](later.md) | P3 | M | later | feature | done | Local mode: a web view of a run on the loopback |
-| [T-150](later.md) | P3 | M | later | feature | partial | Local mode: a pause before a step and a shell in the unit |
+| [T-150](later.md) | P3 | M | later | feature | done | Local mode: a pause before a step and a shell in the unit |
 | [T-151](later.md) | P3 | S | later | measurement | done | Measure: a job of another architecture in the local mode |
 | [T-152](later.md) | P3 | S | later | feature | done | Local mode: an env of one expression is refused |
 | [T-153](later.md) | P3 | S | later | feature | done | podrunner doctor for the local mode |

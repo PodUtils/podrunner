@@ -1741,7 +1741,7 @@ Evaluate the group of each job and of the run. In a run, a job waits while anoth
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1769,6 +1769,10 @@ State (2026-11-14, later): `StartSpec::mounts` (host directories, read-write); t
 State (2026-11-14, later): `--toolcache DIR` with `--podvm`: `InUnit` mounts DIR read-only at `/podrunner-toolcache` (a mount target `PATH:ro` of `StartSpec`) and starts the runner by `toolcache_argv`: `cp -as` makes `_work/_tool` a tree of links to the files of the mount, so a `setup-*` action finds each tool and adds a new one beside them. A guest and `--runner-dir` refuse it. Tests: `cargo test -p podrunner-local tool_cache`; runner-image run 43615355943 (`3ce59bc`): in a podvm unit the job runs a tool of the cache and adds a new one, and the host directory stays as it was; the step "A tool cache in a podvm unit" is now a check. Next: `--keep-failed`. `--keep-failed` and the shell of T-150 need one command to enter a unit: no driver gives one yet.
 
 State (2026-11-14, later): `--keep-failed` is in: it is `--break-on-failure` (`docs/decisions.md`), and the pause gives a shell in the unit (T-150). Next: the green runner-image run of the shell (`links.rs`), then close this entry.
+
+## Done
+
+2026-11-14, `aeac0a3`: runner-image run 43628702784 is green. `--export DIR` (the step "The export of a workspace from a podvm unit") and `--toolcache DIR` (the step "A tool cache in a podvm unit", a check) pass in podvm units; `--keep-failed` is `--break-on-failure` (`docs/decisions.md`), and the pause enters the unit (T-150): `links.rs` runs a command of `UnitDriver::enter` in a running podvm unit. `cargo test -p podrunner-local exec` covers the export and the tool cache. A guest of `--microvm` or `--incus` takes no host directory.
 
 
 # T-139: Local mode: actions from a local directory (--local-repository) and from another forge
@@ -2105,7 +2109,7 @@ Read the README of runner.server in the study on 2026-11-14.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2128,6 +2132,10 @@ State (2026-11-14): `--break JOB:STEP` (the number of the step from 1, or its `i
 State (2026-11-14, later): `UnitDriver::enter` gives a command that runs in the running unit under its egress hold; the podvm kind runs `podvm exec -i [-t]`. `podrunner_local::enter` keeps the unit of each running job. At a pause, `s` and Enter opens a shell in the unit on the terminal of podrunner; Enter goes on. The machine tier of podvm refuses `exec`, so `--microvm` has no shell; the incus kind has none yet. Tests: `cargo test -p podrunner-local enter`; `crates/podrunner-podvm/tests/links.rs` enters a running podvm unit in `runner-image.yml`. Next: its green run.
 
 State (2026-11-14, later): runner-image run 43623211536 (`94fddee`): `enter` ran its command in the podvm unit (`in-unit-42`), but the test read a path relative to the work directory of the payload, and `podvm exec` starts elsewhere. The test now reads the file by its absolute path. Next: the green run.
+
+## Done
+
+2026-11-14, `aeac0a3`: runner-image run 43628702784 is green: `crates/podrunner-podvm/tests/links.rs` enters a running podvm unit with `UnitDriver::enter` and reads a file of its tree (`in-unit-42`). At a pause, `s` and Enter open a shell in the unit on the terminal of podrunner. `cargo test -p podrunner run_local::pause` and `cargo test -p podrunner-local enter` cover the pause steps and the table of units. The machine tier of podvm refuses `exec`, so a guest of `--microvm` has no shell; the incus kind has none yet.
 
 
 # T-151: Measure: a job of another architecture in the local mode
@@ -2413,3 +2421,5 @@ Log the cause of an unknown count: which check, and the names of the tagged proc
 Ten runner-image runs in a row with no "left residue" in the local suite of the podvm kind.
 
 State (2026-11-14): `destroy` writes `podrunner: destroy UNIT: no count of processes: orphans B, launcher dead B, tagged [NAMES]` to stderr when the count is unknown. Next: the log of the next failure.
+
+State (2026-11-14, later): runner-image run 43628702784 (`aeac0a3`) is green. The log line came once, from conformance test 26 (`a-killed-shim-is-not-clean`), which kills the launcher on purpose: `orphans false, launcher dead true, tagged ["podvm"]`. So the line works. Next: the log of a failure of the local suite.

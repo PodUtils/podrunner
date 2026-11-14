@@ -93,11 +93,6 @@ is done.
   `(to podvm)`. podssh is on break.
 - T-159 (partial): the destroy of a podvm unit gave an unknown count of
   processes once; `destroy` now logs the cause. Read it at the next failure.
-- T-138 (partial): `--export` and `--toolcache` are in for `--podvm`; the
-  step "A tool cache in a podvm unit" checks the tool cache.
-  `--keep-failed` is `--break-on-failure`; the pause gives a shell in a
-  podvm unit (T-150, `UnitDriver::enter`). Close both on the green run of
-  `links.rs` in `runner-image.yml`.
 - Q6 (T-148): Azure Pipelines YAML; the recommendation is no
   (`docs/azure-pipelines.md`). No work waits on it.
 - T-101 (partial): the `program` source kind is in; its pair with GitHub
