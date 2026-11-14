@@ -124,7 +124,7 @@ is done.
 | --- | --- | --- |
 | LIVE-1 and LIVE-2 | the reports of GitHub #74 and #75 | T-032, T-033, T-040 |
 | podvm | a release with PodUtils/podvm@T-1880: a glibc image with no `libdl.so.2` (GitHub #100) | T-156 |
-| podcrates | the crates of the action store and of the results API (GitHub #94, #95), no block | T-118, T-119, T-120 |
+| podcrates | the tag `v0.45.0`: `pod-actions-store` and `pod-actions-results` with podrunner's additions (to `9dbefd1`; GitHub #94, #95, #99); then switch to the crates, and start a new `--cache` directory | T-118, T-119, T-120 |
 | githome | its source program, for the pair on the host of LIVE-2 | T-101 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
