@@ -67,7 +67,7 @@ the entry that closes the gap, or the entry that did the work.
 | Configuration file | `.actrc`, trust of the project file | `.actrc` | no | T-143 |
 | Keep a container, bind the tree, tool cache | `--reuse`, `--bind` | `--keep-container`, shared tool cache | no | T-138 |
 | Pause before a step | no | no | no | T-150 |
-| Host check, bug report | `--bug-report` | no | `doctor` for `serve` only | T-153 |
+| Host check, bug report | `--bug-report` | no | `doctor --run FILE [the options of run]`: each input checked, with its fix | T-153 |
 | Interrupt | cancels and removes | cancels | leaves units and scratch files | T-141 |
 | `env:` of one expression | not read | yes | refused | T-152 |
 | Privileged containers, host binds, cap add | flags, with a policy | yes | refused by the hook policy; privileged work runs in the engine of the unit | T-124 |

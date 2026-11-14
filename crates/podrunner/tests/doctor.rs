@@ -20,3 +20,25 @@ fn doctor_runs_the_probe_rows_in_children_of_the_binary() {
     let text = String::from_utf8(text.stdout).unwrap();
     assert!(text.contains("probe chroot(/tmp): "), "{text}");
 }
+
+/// T-153: `doctor --run` checks the inputs of a local run; a check that
+/// fails names its fix and the exit is 1.
+#[test]
+fn doctor_run_checks_the_inputs_of_a_local_run() {
+    let dir = std::env::temp_dir().join(format!("podrunner-doctor-run-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
+    std::fs::write(dir.join("runner/run.sh"), "").unwrap();
+    std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    let w = dir.join("w.yml").display().to_string();
+    let r = dir.join("runner").display().to_string();
+    let args = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<String>>();
+    let out = podrunner::cli::run(&args(&["doctor", "--run", &w, "--runner-dir", &r]));
+    assert!(out.stdout.contains("ok   runner-dir") && out.stdout.contains("ok   workflow"), "{}", out.stdout);
+    let missing = dir.join("none").display().to_string();
+    let out = podrunner::cli::run(&args(&["doctor", "--run", &w, "--runner-dir", &missing]));
+    assert_eq!(out.code, 1, "{}", out.stdout);
+    assert!(out.stdout.contains("FAIL runner-dir") && out.stdout.contains("fix:"), "{}", out.stdout);
+    let _ = std::fs::remove_dir_all(&dir);
+}

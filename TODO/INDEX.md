@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**155 entries: 14 open, 9 partial, 6 blocked, 126 done.**
+**155 entries: 13 open, 9 partial, 6 blocked, 127 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 6 | 4 | 62 | 72 |
-| P3 | 14 | 1 | 2 | 32 | 49 |
-| **All** | 14 | 9 | 6 | 126 | 155 |
+| P3 | 13 | 1 | 2 | 33 | 49 |
+| **All** | 13 | 9 | 6 | 127 | 155 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -200,6 +200,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-150](later.md) | P3 | M | later | feature | open | Local mode: a pause before a step and a shell in the unit |
 | [T-151](later.md) | P3 | S | later | measurement | open | Measure: a job of another architecture in the local mode |
 | [T-152](later.md) | P3 | S | later | feature | open | Local mode: an env of one expression is refused |
-| [T-153](later.md) | P3 | S | later | feature | open | podrunner doctor for the local mode |
+| [T-153](later.md) | P3 | S | later | feature | done | podrunner doctor for the local mode |
 | [T-154](later.md) | P3 | S | later | feature | open | Local mode: the fetch of the actions through the egress module |
 | [T-155](later.md) | P3 | S | later | defect | open | An intermittent failure of the workspace tests that the check script hid |

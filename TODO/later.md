@@ -2090,7 +2090,7 @@ Measure each level against the schema of the runner and the GitHub docs first (t
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2107,6 +2107,11 @@ Read `docs/cli.md` (the row of `doctor`) on 2026-11-14.
 ## Prove
 
 `cargo test -p podrunner --test doctor`
+
+## Done
+
+2026-11-14, this commit. `podrunner doctor --run FILE [the options of run]` (`crates/podrunner/src/run_local/doctor.rs`) checks the limit of file size (T-144), the free disk of the scratch directory, the workflow and its lock file, the runner directory, the podvm binary and its lowest version for the kind (`Podvm::require`), the store, `/dev/kvm` for `--microvm`, the engine directory and podnet. Each check gives `ok` or `FAIL` with its fix; nothing changes; the exit is 1 when a check fails. Test: `cargo test -p podrunner --test doctor` (a runner directory that holds and one that is missing).
+
 
 # T-154: Local mode: the fetch of the actions through the egress module
 

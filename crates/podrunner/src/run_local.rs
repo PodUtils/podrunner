@@ -9,6 +9,7 @@ mod actions;
 mod args;
 mod concurrency;
 mod context;
+mod doctor;
 mod guest;
 mod inspect;
 mod logs;
@@ -162,6 +163,18 @@ fn secrets(a: &Args) -> Result<Secrets, String> {
         None => None,
     };
     Ok((out, token))
+}
+
+/// `podrunner doctor --run FILE [the options of run]` (T-153): the checks of
+/// the inputs of a run; exit 0 when each holds, 1 when one fails.
+pub fn doctor(args: &[String]) -> Out {
+    let a = match parse(args) {
+        Ok(a) => a,
+        Err(e) => return fail(Class::Usage, format!("{e}\n{USAGE}")),
+    };
+    let checks = doctor::checks(&a);
+    let code = if checks.iter().all(|c| c.ok) { 0 } else { 1 };
+    Out { code, stdout: doctor::text(&checks), stderr: String::new() }
 }
 
 /// Run `podrunner run ARGS`.
