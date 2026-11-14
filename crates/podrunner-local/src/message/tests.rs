@@ -306,3 +306,15 @@ fn only_the_jobs_of_an_environment_get_its_secrets_and_vars() {
     assert!(t["contextData"]["vars"].to_string().contains("run"));
     assert_eq!(s.environment_of(&JobId::new("deploy.0").unwrap()).unwrap().as_deref(), Some("prod"));
 }
+
+#[test]
+fn the_groups_of_the_run_and_of_a_job_take_the_contexts() {
+    let text = "on: push\nconcurrency: ci-${{ github.ref }}\njobs:\n  a:\n    runs-on: x\n    strategy:\n      matrix:\n        os: [linux]\n    concurrency:\n      group: deploy-${{ matrix.os }}\n      cancel-in-progress: true\n    steps: [{run: x}]\n";
+    let base = Base { github: XValue::object([("ref", XValue::String("refs/heads/main".into()))]), ..Base::default() };
+    let mut s = LocalSource::new("l", text, base, "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    let run = s.run_group().unwrap().unwrap();
+    assert_eq!((run.name.as_str(), run.cancel_in_progress), ("ci-refs/heads/main", false));
+    let job = s.job_group(&JobId::new("a.0").unwrap()).unwrap().unwrap();
+    assert_eq!((job.name.as_str(), job.cancel_in_progress), ("deploy-linux", true));
+}

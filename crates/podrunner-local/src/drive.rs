@@ -31,6 +31,9 @@ pub trait Executor {
     fn select(&mut self, _labels: &[String]) -> Result<(), String> {
         Ok(())
     }
+    /// The concurrency group of the next job (T-137): an executor that holds
+    /// groups holds it while the job runs.
+    fn concurrency(&mut self, _group: Option<&crate::concurrency::Group>) {}
     /// The environment of the next job (T-136): an executor with an egress
     /// policy for it takes that policy.
     fn environment(&mut self, _name: Option<&str>) {}
@@ -152,7 +155,11 @@ pub fn drive_with(
             let labels = source.cell(&job).and_then(|c| c.instance.runs_on.as_ref()).map(|r| r.labels.clone());
             let environment = source.environment_of(&job).ok().flatten();
             exec.environment(environment.as_deref());
-            let message = exec.select(&labels.unwrap_or_default()).and_then(|()| source.broker_job(&job));
+            let message = source
+                .job_group(&job)
+                .map(|g| exec.concurrency(g.as_ref()))
+                .and_then(|()| exec.select(&labels.unwrap_or_default()))
+                .and_then(|()| source.broker_job(&job));
             let (end, line) = match message {
                 Err(reason) => (
                     End { result: JobResult::Failure, outputs: vec![] },

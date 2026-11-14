@@ -7,6 +7,7 @@
 
 mod actions;
 mod args;
+mod concurrency;
 mod context;
 mod guest;
 mod inspect;
@@ -14,6 +15,7 @@ mod logs;
 mod routes;
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use pod_actions_expr::Value;
 use pod_actions_workflow::{Base, JobResult};
@@ -347,9 +349,43 @@ pub fn run(args: &[String]) -> Out {
     if !a.quiet {
         exec.set_live(logs::live(masked.clone(), a.json));
     }
+    let notes_sink: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
+    // The groups of the run and of its jobs, held across runs (T-137); a dry
+    // run holds none.
+    let mut group_notes: Vec<String> = Vec::new();
+    let groups = actions::user_cache("concurrency");
+    let run_group = match (a.dry_run, source.run_group(), &groups) {
+        (true, _, _) => Ok(None),
+        (_, Err(e), _) => Err(e),
+        (_, Ok(None), _) => Ok(None),
+        (_, Ok(Some(g)), Ok(dir)) => {
+            concurrency::hold(dir, &facts.repository, &g, &mut |n| group_notes.push(n)).map(Some)
+        }
+        (_, Ok(Some(_)), Err(e)) => Err(e.clone()),
+    };
+    let _run_held = match run_group {
+        Ok(h) => h,
+        Err(e) => {
+            let _ = std::fs::remove_dir_all(&state);
+            let _ = std::fs::remove_dir_all(&scratch);
+            return fail(Class::Config, e);
+        }
+    };
+    let mut exec: Box<dyn podrunner_local::drive::Executor> = match (a.dry_run, groups) {
+        (false, Ok(dir)) => Box::new(concurrency::Grouped {
+            inner: exec,
+            dir,
+            repo: facts.repository.clone(),
+            next: None,
+            notes: Arc::clone(&notes_sink),
+        }),
+        _ => exec,
+    };
     let result = drive(&mut source, exec.as_mut(), &mut each);
     let logs = exec.take_logs();
     let blobs = exec.take_blobs();
+    group_notes.extend(notes_sink.lock().map(|n| n.clone()).unwrap_or_default());
+    stderr.extend(group_notes.iter().map(String::as_str));
     if let Some(dir) = &a.log_dir
         && let Err(e) = logs::write_dir(dir, &blobs, &masked)
     {

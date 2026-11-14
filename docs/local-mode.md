@@ -53,7 +53,7 @@ the entry that closes the gap, or the entry that did the work.
 | Inputs, defaults of `workflow_dispatch` | `--input`, `.input` | `--input`, `--input-file` | `--input`, `--input-file`; the defaults, types, `required` and `choice` of GitHub | T-126 |
 | Extra environment | `--env`, `.env` | `--env`, `--env-file` | `--env`, `--env-file` | T-126 |
 | Environments, their secrets and vars | name only | yes | secrets, vars and an egress policy for each environment; no protection yet | T-136 |
-| Concurrency groups | no | yes | ignored | T-137 |
+| Concurrency groups | no | yes | held across runs by a lock file; `cancel-in-progress` cancels the older run | T-137 |
 | Artifacts v4 | yes | yes | yes, one store for each run, size and SHA-256 checked at finalize; v3 refused by name | T-119 |
 | Cache of `actions/cache` | v1 server | v1 and v2 | v2, a store that stays across runs, Range downloads, a limit of 10 GB | T-120 |
 | OIDC id-token | no | yes | none | T-140 |

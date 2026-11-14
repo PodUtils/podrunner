@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**155 entries: 16 open, 9 partial, 6 blocked, 124 done.**
+**155 entries: 15 open, 9 partial, 6 blocked, 125 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 6 | 4 | 62 | 72 |
-| P3 | 16 | 1 | 2 | 30 | 49 |
-| **All** | 16 | 9 | 6 | 124 | 155 |
+| P3 | 15 | 1 | 2 | 31 | 49 |
+| **All** | 15 | 9 | 6 | 125 | 155 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -184,7 +184,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-134](later.md) | P2 | M | later | feature | done | Local mode: live logs, a log directory, the job summary, and --json |
 | [T-135](later.md) | P3 | M | later | feature | open | Local mode: a run directory and reruns of failed jobs |
 | [T-136](later.md) | P3 | S | later | feature | partial | Local mode: environments, with their secrets, vars and egress policy |
-| [T-137](later.md) | P3 | S | later | feature | open | Local mode: concurrency groups and cancel-in-progress |
+| [T-137](later.md) | P3 | S | later | feature | done | Local mode: concurrency groups and cancel-in-progress |
 | [T-138](later.md) | P3 | S | later | feature | open | Local mode: keep the unit of a failed job, export the workspace, and a shared tool cache |
 | [T-139](later.md) | P3 | S | later | feature | open | Local mode: actions from a local directory (--local-repository) and from another forge |
 | [T-140](later.md) | P3 | S | later | feature | open | Local mode: OIDC id-tokens (permissions: id-token: write) |

@@ -1656,7 +1656,7 @@ State (2026-11-14): `LocalSource::environment_of` reads `environment: NAME` or i
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1673,6 +1673,11 @@ Evaluate the group of each job and of the run. In a run, a job waits while anoth
 ## Prove
 
 `cargo test -p podrunner-local` (two jobs of one group take turns; a cancel of the older run).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner-local/src/concurrency.rs` evaluates the `concurrency` of the workflow and of each job (a string, or `group:` and `cancel-in-progress:`) with `github`, `inputs`, `vars` and the `matrix` of a cell. `crates/podrunner/src/run_local/concurrency.rs` holds each group across runs by `flock` on a lock file in the cache directory of the user, named by the repository and the group: the run group for the whole run, the group of a job while it runs (`Grouped`, through `Executor::concurrency`). A second run of a held group waits; with `cancel-in-progress` it sends SIGTERM to the pid in the lock file, and that run cancels as at Ctrl-C (T-141). A dry run holds no group. Within one run the jobs run one at a time, so a group holds there with no wait. Tests: the groups with their contexts, a second holder that waits; a run here: a second run of a group with `cancel-in-progress` cancels the first (`cancelled long`, exit 130) and then runs.
+
 
 # T-138: Local mode: keep the unit of a failed job, export the workspace, and a shared tool cache
 
