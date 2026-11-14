@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**156 entries: 9 open, 9 partial, 7 blocked, 131 done.**
+**156 entries: 8 open, 9 partial, 7 blocked, 132 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 6 | 4 | 62 | 72 |
-| P3 | 9 | 1 | 3 | 37 | 50 |
-| **All** | 9 | 9 | 7 | 131 | 156 |
+| P3 | 8 | 1 | 3 | 38 | 50 |
+| **All** | 8 | 9 | 7 | 132 | 156 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -190,7 +190,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-140](later.md) | P3 | S | later | feature | done | Local mode: OIDC id-tokens (permissions: id-token: write) |
 | [T-141](later.md) | P2 | S | later | defect | done | podrunner run leaves its units and scratch directories at Ctrl-C |
 | [T-142](later.md) | P3 | S | later | feature | done | Local mode: --watch and the cron times of on.schedule |
-| [T-143](later.md) | P3 | S | later | feature | open | Local mode: a configuration file for podrunner run |
+| [T-143](later.md) | P3 | S | later | feature | done | Local mode: a configuration file for podrunner run |
 | [T-144](later.md) | P2 | S | later | defect | done | podrunner run --runner-dir starts the runner with W^X on, and dies under a small RLIMIT_FSIZE |
 | [T-145](later.md) | P2 | S | later | defect | done | The fake broker answers 404 in silence to a route that it does not serve |
 | [T-146](later.md) | P2 | S | later | defect | done | A job can leave files that the next run cannot remove |

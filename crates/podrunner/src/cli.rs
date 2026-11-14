@@ -191,8 +191,14 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             }
             _ => Err(err(Class::Usage, format!("image needs verify\n{USAGE}"))),
         },
-        "run" if rest.iter().any(|a| a == "--watch" || a == "--schedule") => Ok(crate::run_local::repeat(rest)),
-        "run" => Ok(crate::run_local::run(rest)),
+        "run" => {
+            // The flags of the configuration files go first (T-143).
+            let rest = crate::run_config::expand(rest).map_err(|e| err(Class::Config, e))?;
+            match rest.iter().any(|a| a == "--watch" || a == "--schedule") {
+                true => Ok(crate::run_local::repeat(&rest)),
+                false => Ok(crate::run_local::run(&rest)),
+            }
+        }
         "source-conformance" => {
             let (text, passed) = crate::program_source::source_conformance(rest).map_err(|f| err(f.class, f.detail))?;
             Ok(Out { code: if passed { 0 } else { 1 }, stdout: text, stderr: String::new() })

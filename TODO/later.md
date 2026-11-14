@@ -1845,7 +1845,7 @@ Read `crates/podrunner/src/run_local.rs` on 2026-11-14.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1862,6 +1862,11 @@ A TOML file of the user (`podrunner/run.toml` in the configuration directory) an
 ## Prove
 
 `cargo test -p podrunner run_local` (the order of the files; a project file that sets `allow` is refused).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner/src/run_config.rs`: `expand` puts the flags of `~/.actrc`, of `podrunner/run.toml` in the configuration directory of the user, of `.actrc` of the project and of `.podrunner/run.toml` of the project before the flags of the command line (the workflow FILE stays first), so a flag of the command line wins; `cli.rs` calls it for `run`, also with `--watch` and `--schedule`. Each key is a flag of `run`; an unknown key and a key of one call (`dry-run`, `list`, `rerun`) fail. A project file may set only the keys of `SAFE`; a key of `HOST` (a binary, a store, a host, a secret, an approval, a checkout) needs `trusted` in the file of the user, and a path of an untrusted project must stay in it. Of `.actrc`, the flags of the same name are taken; `-s NAME=VALUE`, each other flag and a host flag of an untrusted project are named on stderr. `--no-config` reads no file. Tests: `cargo test -p podrunner run_config` (the values of the keys; a project file that sets `allow` is refused and a trusted one is not; a path out of the project; the flags of an `.actrc`; the order of the files and the command line).
+
 
 # T-144: podrunner run --runner-dir starts the runner with W^X on, and dies under a small RLIMIT_FSIZE
 

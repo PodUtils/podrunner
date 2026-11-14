@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 156 entries: 9 open, 9 partial, 7 blocked, 131 done.
+`TODO/INDEX.md` holds 156 entries: 8 open, 9 partial, 7 blocked, 132 done.
 
 ## State
 
@@ -40,7 +40,7 @@ The local mode against act and runner.server (`docs/local-mode.md`), the feature
 3. T-125 (M, partial): the payload and the facts of the tree are in; a directory of workflows with the filters of `on:` waits for COORD-037.
 4. T-130 (M, partial): images by tag into the store, proven in `runner-image.yml`; T-129 (M, partial): the recipe of a larger runner image.
 5. T-132 (M): parallel jobs.
-6. T-138 (S, partial: the unit kinds), T-143, T-152, T-154, T-155 (S each), T-150 (M), T-149 (M), T-151 (S), T-148 (M).
+6. T-138 (S, partial: the unit kinds), T-152, T-154, T-155 (S each), T-150 (M), T-149 (M), T-151 (S), T-148 (M).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
