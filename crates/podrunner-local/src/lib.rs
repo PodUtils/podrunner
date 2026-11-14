@@ -396,6 +396,8 @@ impl LocalSource {
             for id in ready {
                 match self.run.expand(&id).map_err(|e| usage(e.to_string()))? {
                     Outcome::Skipped(skip) => self.skips.push(skip),
+                    // The called jobs come in `ready` later (T-131).
+                    Outcome::Called(_) => {}
                     Outcome::Run(instances) => {
                         self.ends.insert(id.clone(), vec![None; instances.len()]);
                         for (index, instance) in instances.into_iter().enumerate() {

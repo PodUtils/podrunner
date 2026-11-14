@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.43.0` (`Cargo.toml`); podvm `v0.2.0-beta.14`
+- Pins: podcrates `v0.44.0` (`Cargo.toml`); podvm `v0.2.0-beta.14`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs

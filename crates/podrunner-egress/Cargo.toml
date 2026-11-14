@@ -10,10 +10,10 @@ publish.workspace = true
 [dependencies]
 serde_json.workspace = true
 pod-broker.workspace = true
-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.43.0", features = ["async"] }
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.43.0" }
+pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.44.0", features = ["async"] }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.44.0" }
 # The resolver: the system, the cache, DNS over HTTPS by address (T-076).
-pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.43.0" }
-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.43.0" }
+pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.44.0" }
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.44.0" }
 rustls = { version = "0.23", default-features = false, features = ["std", "ring"] }
 tokio.workspace = true

@@ -16,7 +16,7 @@ podrunner-source.workspace = true
 podrunner-unit.workspace = true
 podrunner-hook.workspace = true
 podrunner-egress.workspace = true
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.43.0" }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.44.0" }
 serde_json.workspace = true
 libc.workspace = true
 flate2.workspace = true
