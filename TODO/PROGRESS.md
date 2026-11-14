@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 113 entries: 2 open, 3 partial, 6 blocked, 102 done.
+`TODO/INDEX.md` holds 113 entries: 0 open, 3 partial, 6 blocked, 104 done.
 
 ## State
 
@@ -32,9 +32,7 @@ then take the next one.
 
 The queue, most valuable first:
 
-1. T-113 (S, open): `podrunner doctor` reads the microvm and incus kinds through their drivers; now it says "no driver" and reports a false "no unit kind meets the floor".
-2. T-112 (S, open): `serve` requires podvm `v0.2.0-beta.14` for `[unit.microvm] engine`.
-3. T-101 (M, partial): the `program` source kind is in; its pair with GitHub runs on the host of LIVE-2 (GitHub #75) when githome gives its program.
+1. T-101 (M, partial): the `program` source kind is in; its pair with GitHub runs on the host of LIVE-2 (GitHub #75) when githome gives its program.
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 

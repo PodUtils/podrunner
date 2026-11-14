@@ -53,7 +53,11 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
     plan(u)?;
     let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
     podvm
-        .require(podrunner_podvm::probe::LOWEST_GUEST)
+        .require(if u.engine.is_some() {
+            podrunner_podvm::probe::LOWEST_ENGINE
+        } else {
+            podrunner_podvm::probe::LOWEST_GUEST
+        })
         .map_err(|e| fail(Class::Unsupported, format!("[unit.microvm] binary: {e}")))?;
     let images = PathBuf::from(u.images.clone().unwrap_or_default());
     let unit = podrunner_microvm::MicrovmUnit::new(podvm, &state.join("microvm"), &images)

@@ -72,11 +72,29 @@ fn read(tool: &Path, args: &[&str]) -> Result<Value, String> {
 
 /// The capability record of the unit kind `name`, through its driver.
 fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) -> Result<Capability, String> {
+    use podrunner_unit::UnitDriver;
     match name {
         "fake" => Ok(fake_capability()),
         "podvm" => {
             let binary = u.binary.as_ref().ok_or("[unit.podvm] names no binary")?;
             podrunner_podvm::Podvm { binary: binary.into() }.probe().map_err(|e| e.to_string())
+        }
+        // The probe of a guest kind starts no unit and no process (unit
+        // test 23). `serve` takes a claim of `guest` only for a kind on
+        // `guest_kinds` and after the self-test of GitHub #36.
+        "microvm" => {
+            crate::microvm_kind::plan(u).map_err(|f| f.detail)?;
+            let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
+            let images = std::path::PathBuf::from(u.images.clone().unwrap_or_default());
+            let state = std::env::temp_dir().join("podrunner-doctor");
+            podrunner_microvm::MicrovmUnit::new(podvm, &state, &images).probe().map_err(|e| e.to_string())
+        }
+        "incus" => {
+            crate::incus_kind::plan(u).map_err(|f| f.detail)?;
+            let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
+            let images = std::path::PathBuf::from(u.images.clone().unwrap_or_default());
+            let state = std::env::temp_dir().join("podrunner-doctor");
+            podrunner_incus::IncusUnit::new(podvm, &state, &images).probe().map_err(|e| e.to_string())
         }
         other => Err(format!("no driver of the kind {other} in this build")),
     }
@@ -207,6 +225,23 @@ mod tests {
     fn a_missing_tool_is_named() {
         let r = read(Path::new("podrunner-no-such-tool"), &["--json"]).unwrap_err();
         assert!(r.starts_with("podrunner-no-such-tool: not run"), "{r}");
+    }
+
+    /// T-113: the guest kinds give their record through their probe.
+    #[test]
+    fn doctor_knows_the_microvm_and_incus_kinds() {
+        let dir = std::env::temp_dir().join(format!("podrunner-doctor-guest-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let u = |extra: &str| -> podrunner_slots::config::UnitConfig {
+            toml::from_str(&format!("slots = 1\nbinary = \"/bin/true\"\nimages = \"{}\"\n{extra}", dir.display()))
+                .unwrap()
+        };
+        let m = capability("microvm", &u("")).unwrap();
+        assert_eq!((m.kind.as_str(), m.boundary), ("microvm", podrunner_schema::Boundary::Guest));
+        let i = capability("incus", &u("")).unwrap();
+        assert_eq!((i.kind.as_str(), i.boundary), ("incus", podrunner_schema::Boundary::Confined));
+        assert!(capability("incus", &u("podnet = \"/bin/true\"")).unwrap_err().contains("podnet"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

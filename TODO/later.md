@@ -915,7 +915,7 @@ Make `[egress]` a struct with `deny_unknown_fields` and one field `default_polic
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -933,6 +933,10 @@ Add `LOWEST_ENGINE = "0.2.0-beta.14"` to `crates/podrunner-podvm/src/probe.rs`. 
 
 `cargo test -p podrunner-podvm` and `cargo test -p podrunner microvm`
 
+## Done
+
+2026-11-14, this commit. `LOWEST_ENGINE` (`0.2.0-beta.14`) of `podrunner-podvm`: `serve` asks it of the podvm of `[unit.microvm]` when `engine` is set, else `LOWEST_GUEST`. `Podvm::require` and its test `a_kind_refuses_a_podvm_below_its_lowest_version` hold the refusal by name.
+
 # T-113: doctor names no driver for the microvm and incus kinds
 
 **Source:** A read of `crates/podrunner/src/doctor.rs` (2026-11-14)
@@ -940,7 +944,7 @@ Add `LOWEST_ENGINE = "0.2.0-beta.14"` to `crates/podrunner-podvm/src/probe.rs`. 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -957,3 +961,7 @@ Give `capability` the `microvm` and `incus` kinds through the `plan` and the `pr
 ## Prove
 
 `cargo test -p podrunner doctor`
+
+## Done
+
+2026-11-14, this commit. `capability` of `crates/podrunner/src/doctor.rs` checks `[unit.microvm]` and `[unit.incus]` with the `plan` of their kind and gives the record of their `probe`, which starts no process. `doctor_knows_the_microvm_and_incus_kinds` holds it.

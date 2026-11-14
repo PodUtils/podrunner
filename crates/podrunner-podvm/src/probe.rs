@@ -57,6 +57,9 @@ impl Version {
 /// The lowest podvm of the `microvm` kind: the channel of a guest with no
 /// NIC (T-110).
 pub const LOWEST_GUEST: &str = "0.2.0-beta.10";
+/// The lowest podvm of the `microvm` kind with an engine: `--podvm-engine`
+/// (T-103, T-112).
+pub const LOWEST_ENGINE: &str = "0.2.0-beta.14";
 /// The lowest podvm of the `incus` kind: `run -d -i`, and no NIC and one
 /// channel on the incus tier with no proxy device (T-109).
 pub const LOWEST_INCUS: &str = "0.2.0-beta.13";
