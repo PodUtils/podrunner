@@ -42,7 +42,7 @@ the entry that closes the gap, or the entry that did the work.
 | Images by tag, pull | yes, `--pull` | yes | yes: `podvm pull` into the store, pinned by the lock; the units never pull | T-130 |
 | Images by `runs-on` label | `-P LABEL=IMAGE` | `-P LABEL=IMAGE` or the host | `--platform LABEL=IMAGE` (pinned) or `host`; no fallback to an image the user did not name | T-129 |
 | Another architecture | `--container-architecture` | yes | host only | T-151 |
-| Reusable workflows | local and remote | yes, `secrets: inherit` | refused | T-131 |
+| Reusable workflows | local and remote | yes, `secrets: inherit` | yes: local and remote (pinned by the lock), inputs, passed or inherited secrets, outputs, matrix and nested calls | T-131 |
 | Event name | argument, `--detect-event` | `--event` | `--event` | T-089 |
 | Event payload | `-e FILE` | `--payload` | `--event-path FILE`, or a minimal payload of the event | T-125 |
 | `github` facts from the git tree | yes | yes | yes, and flags over each fact | T-125 |

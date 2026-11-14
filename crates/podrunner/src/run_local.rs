@@ -233,8 +233,33 @@ pub fn run(args: &[String]) -> Out {
         Ok(g) => g,
         Err(e) => return fail(Class::Config, e),
     };
+    let mode = match (a.offline, a.frozen) {
+        (true, _) => podrunner_local::store::Mode::Offline,
+        (_, true) => podrunner_local::store::Mode::Frozen,
+        _ => podrunner_local::store::Mode::Online,
+    };
+    // The images of a unit kind come into its store by `podvm pull` (T-130).
+    let binary = a.podvm.clone().or_else(|| a.guest.as_ref().map(|g| g.1.clone()));
+    let pull = match (binary, &a.images) {
+        (Some(binary), Some(store)) => Some(podrunner_local::images::PodvmPull {
+            binary,
+            store: store.clone(),
+            platform: if arch() == "aarch64" { "linux/arm64".into() } else { "linux/amd64".into() },
+        }),
+        _ => None,
+    };
+    let image_source = pull.as_ref().map(|p| p as &dyn podrunner_local::images::ImageSource);
+    let (store, pins, note) = match actions::pin(&a, &text, mode, &facts.repository, image_source) {
+        Ok(Some(p)) => (p.dir.or_else(|| a.actions.clone()), p.commits, p.note),
+        Ok(None) => (a.actions.clone(), Default::default(), String::new()),
+        Err(e) => return fail(Class::Config, format!("{}: the actions: {e}", a.file.display())),
+    };
     let base = Base { github, vars: object(&vars), inputs: typed, ..Base::default() };
-    let mut source = match LocalSource::new("local", &text, base, arch(), Box::new(|_, _| Default::default())) {
+    // The texts of the called workflows: the tree, and the store (T-131).
+    let root = a.checkout.clone().unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| ".".into()));
+    let texts = Arc::new(podrunner_local::calls::Texts::new(root, store.clone(), pins.clone()));
+    let minter = Box::new(|_: &_, _: &_| Default::default());
+    let mut source = match LocalSource::new_with("local", &text, base, arch(), minter, Some(texts)) {
         Ok(s) => s,
         Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
     };
@@ -289,27 +314,6 @@ pub fn run(args: &[String]) -> Out {
         }
         Err(e) => return fail(Class::Config, e),
     }
-    let mode = match (a.offline, a.frozen) {
-        (true, _) => podrunner_local::store::Mode::Offline,
-        (_, true) => podrunner_local::store::Mode::Frozen,
-        _ => podrunner_local::store::Mode::Online,
-    };
-    // The images of a unit kind come into its store by `podvm pull` (T-130).
-    let binary = a.podvm.clone().or_else(|| a.guest.as_ref().map(|g| g.1.clone()));
-    let pull = match (binary, &a.images) {
-        (Some(binary), Some(store)) => Some(podrunner_local::images::PodvmPull {
-            binary,
-            store: store.clone(),
-            platform: if arch() == "aarch64" { "linux/arm64".into() } else { "linux/amd64".into() },
-        }),
-        _ => None,
-    };
-    let image_source = pull.as_ref().map(|p| p as &dyn podrunner_local::images::ImageSource);
-    let (store, pins, note) = match actions::pin(&a, &text, mode, &facts.repository, image_source) {
-        Ok(Some(p)) => (p.dir.or_else(|| a.actions.clone()), p.commits, p.note),
-        Ok(None) => (a.actions.clone(), Default::default(), String::new()),
-        Err(e) => return fail(Class::Config, format!("{}: the actions: {e}", a.file.display())),
-    };
     source.set_pins(pins.clone());
     let scratch = std::env::temp_dir().join(format!("podrunner-run-tree-{}", std::process::id()));
     let tree = match &a.checkout {

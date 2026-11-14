@@ -96,8 +96,8 @@ numbers. `TODO/RULES.md` gives the rules.
 | #94 | COORD-034: pod-actions-store: the resolve of action references, a lock file and a store of tarballs (to podcrates) | open (podrunner keeps its copy until a tag) | T-118 |
 | #95 | COORD-035: pod-actions-results: the ArtifactService of the results API and its blob routes (to podcrates) | open (podrunner keeps its copy until a tag) | T-119 |
 | #96 | COORD-036: podrunner takes podcrates v0.42.0 at 05ceaec (the answer to PodUtils/podcrates#145) (to podcrates) | open (until podcrates records the take) | T-103 |
-| #97 | COORD-037: pod-actions-workflow: the filters of on: (types, branches, tags, paths and their -ignore forms) (to podcrates) | open (podcrates `main` has it for `v0.44.0`; podrunner checks the event names until the tag) | T-125 |
-| #98 | COORD-038: pod-actions-workflow: the expansion of a reusable workflow (jobs.ID.uses) into jobs of the run (to podcrates) | open (podcrates `main` has it for `v0.44.0`; T-131 is blocked until the tag) | T-131 |
+| #97 | COORD-037: pod-actions-workflow: the filters of on: (types, branches, tags, paths and their -ignore forms) (to podcrates) | open (taken in `v0.44.0`; T-125 is done) | T-125 |
+| #98 | COORD-038: pod-actions-workflow: the expansion of a reusable workflow (jobs.ID.uses) into jobs of the run (to podcrates) | open (taken in `v0.44.0`; T-131 is done) | T-131 |
 | #99 | COORD-039: podrunner takes podcrates v0.43.0 at 51f9e6b, and the additions for pod-actions-store and pod-actions-results (the answer to PodUtils/podcrates#149) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#149; PodUtils/podcrates@T-587 and PodUtils/podcrates@T-588 import the additions) | T-118 |
 | #100 | COORD-040: podvm run of busybox:1.37.0 (glibc) fails where chroot is denied: libdl.so.2 is not in the image (to podvm) | open (podvm answered in PodUtils/podvm#351: the release after 0.2.0-beta.16) | T-156 |
 | #101 | COORD-041: podrunner takes podcrates v0.44.0 at 8ef1730 (the answer to PodUtils/podcrates#154) (to podcrates) | open (until podcrates records the take) | T-125 |

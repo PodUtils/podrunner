@@ -96,9 +96,6 @@ is done.
   suite in microvm and incus units, the rerun job). Close each one on its
   green run. T-124 then keeps the load of the images from the store, not a
   pull (with T-130).
-- T-131 (blocked until now): podrunner takes podcrates `v0.44.0`
-  (COORD-041, GitHub #101); `Run::with_called` gives the calls of reusable
-  workflows. T-125 is done with the filters of `on:` of the same tag.
 - T-130 (partial): the tags check of `runner-image.yml` takes
   `busybox:1.37.0-musl`; T-156 (blocked) takes the glibc image again after
   the podvm release with PodUtils/podvm@T-1880 (GitHub #100, PodUtils/podvm#351).

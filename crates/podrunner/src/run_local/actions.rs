@@ -52,7 +52,20 @@ pub(super) fn pin(
     let (file, store) = (a.file.as_path(), a.actions.as_deref());
     let workflow = pod_actions_workflow::parse(text).map_err(|e| e.to_string())?.workflow;
     let uses = workflow_uses(&workflow);
-    let trees = workflow_trees(&workflow, self_repo)?;
+    let mut trees = workflow_trees(&workflow, self_repo)?;
+    // The repository of each remote called workflow (T-131): its tree goes
+    // into the store at the commit of the lock, as an action.
+    for job in &workflow.jobs {
+        if let Some(u) = job.uses.as_deref().filter(|u| !u.starts_with("./"))
+            && let Some((left, r)) = u.rsplit_once('@')
+        {
+            let repo: Vec<&str> = left.splitn(3, '/').take(2).collect();
+            let key = format!("{}@{r}", repo.join("/"));
+            if !trees.contains(&key) {
+                trees.push(key);
+            }
+        }
+    }
     let tags = match images {
         Some(_) => workflow_images(&workflow)?,
         None => Vec::new(),

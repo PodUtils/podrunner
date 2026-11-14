@@ -64,7 +64,8 @@ impl LocalSource {
     /// The group of the job of a cell: its `concurrency`.
     pub fn job_group(&self, job: &JobId) -> Result<Option<Group>, String> {
         let Some(cell) = self.cells.get(job) else { return Ok(None) };
-        match self.run.workflow().job(&cell.job).and_then(|j| j.concurrency.as_ref()) {
+        let (w, id) = self.job_of(cell);
+        match w.job(id).and_then(|j| j.concurrency.as_ref()) {
             Some(n) => group(n, &self.contexts(Some(&cell.instance.matrix))),
             None => Ok(None),
         }

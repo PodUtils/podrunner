@@ -105,4 +105,24 @@ mod tests {
         assert!(out.stderr.contains("no workflow"), "{}", out.stderr);
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    /// T-131: a call of a workflow of the tree plans the jobs of that
+    /// workflow, then the job after the call.
+    #[test]
+    fn a_call_of_a_workflow_of_the_tree_plans_its_jobs() {
+        let dir = std::env::temp_dir().join(format!("podrunner-call-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join(".github/workflows")).unwrap();
+        let called = "on:\n  workflow_call:\n    inputs:\n      n:\n        type: number\n        default: 1\njobs:\n  build:\n    runs-on: x\n    steps: [{run: \"echo ${{ inputs.n }}\"}]\n  test:\n    needs: build\n    runs-on: x\n    steps: [{run: x}]\n";
+        std::fs::write(dir.join(".github/workflows/called.yml"), called).unwrap();
+        let caller = "on: push\njobs:\n  ci:\n    uses: ./.github/workflows/called.yml\n    with:\n      n: 3\n  after:\n    needs: ci\n    runs-on: x\n    steps: [{run: x}]\n";
+        std::fs::write(dir.join("w.yml"), caller).unwrap();
+        let (w, d) = (dir.join("w.yml").display().to_string(), dir.display().to_string());
+        let args: Vec<String> =
+            [&w, "--dry-run", "--no-cache", "--checkout", &d, "--repository", "o/r"].map(String::from).to_vec();
+        let out = run(&args);
+        assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+        assert_eq!(out.stdout, "planned ci / build\nplanned ci / test\nplanned after\n", "{}", out.stderr);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 156 entries: 0 open, 10 partial, 7 blocked, 139 done.
+`TODO/INDEX.md` holds 156 entries: 0 open, 10 partial, 6 blocked, 140 done.
 
 ## State
 
@@ -42,7 +42,7 @@ The local mode against act and runner.server (`docs/local-mode.md`), the feature
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
-Blocked: T-131 (the expansion of a reusable workflow, GitHub #98), T-156 (a glibc image with no libdl.so.2, GitHub #100), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
+Blocked: T-156 (a glibc image with no libdl.so.2, GitHub #100), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
 
 ## Questions for the owner
 

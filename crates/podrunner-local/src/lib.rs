@@ -6,6 +6,7 @@
 //! its end with [`LocalSource::complete`]; the jobs after it then become
 //! ready. A local set runs each job at tier `local` (call C14).
 
+pub mod calls;
 pub mod cancel;
 pub mod concurrency;
 pub mod cron;
@@ -21,6 +22,7 @@ pub mod message;
 pub mod oidc;
 pub mod rerun;
 pub mod secrets;
+mod source;
 pub mod store;
 pub mod tree;
 pub mod work;
@@ -36,12 +38,11 @@ pub use podrunner_broker_fake::hold;
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
-use std::time::Duration;
 
 use pod_actions_expr::Value as XValue;
 use pod_actions_workflow::{Base, Done, Instance, JobResult, Outcome, Run, Skip, Workflow};
 use podrunner_schema::{Credential, JobId};
-use podrunner_source::{Event, Hello, JobSource, Offer, SourceCode, SourceError};
+use podrunner_source::{Offer, SourceCode, SourceError};
 use serde_json::{Map, Value, json};
 
 /// The credential of a claimed job: the caller makes it (T-089: the files
@@ -103,6 +104,10 @@ pub struct LocalSource {
     kept: BTreeMap<String, rerun::Ended>,
     matrix_filter: Vec<(String, String)>,
     minter: Minter,
+    /// The texts of the called workflows, and the workflow of each called
+    /// job (T-131).
+    texts: Option<Arc<calls::Texts>>,
+    calls: calls::Calls,
     /// The report and audit lines, for the caller.
     pub reports: Vec<(JobId, Map<String, Value>)>,
     pub audits: Vec<Map<String, Value>>,
@@ -125,9 +130,26 @@ impl LocalSource {
     /// A source of the workflow `text`. `base` gives the contexts `github`,
     /// `vars` and `inputs`; `arch` is the architecture of each offer.
     pub fn new(name: &str, text: &str, base: Base, arch: &str, minter: Minter) -> Result<LocalSource, String> {
+        LocalSource::new_with(name, text, base, arch, minter, None)
+    }
+
+    /// [`LocalSource::new`] with the texts of the called workflows: each
+    /// `jobs.ID.uses` becomes the jobs of its workflow (T-131).
+    pub fn new_with(
+        name: &str,
+        text: &str,
+        base: Base,
+        arch: &str,
+        minter: Minter,
+        texts: Option<Arc<calls::Texts>>,
+    ) -> Result<LocalSource, String> {
         let parsed = pod_actions_workflow::parse(text).map_err(|e| e.to_string())?;
         let (github, vars, inputs) = (base.github.clone(), base.vars.clone(), base.inputs.clone());
         let run = Run::new(Arc::new(parsed.workflow), base).map_err(|e| e.to_string())?;
+        let run = match &texts {
+            Some(t) => run.with_called(t.clone()),
+            None => run,
+        };
         let mut source = LocalSource {
             name: name.into(),
             arch: arch.into(),
@@ -151,6 +173,8 @@ impl LocalSource {
             kept: BTreeMap::new(),
             matrix_filter: Vec::new(),
             minter,
+            texts,
+            calls: calls::Calls::default(),
             reports: Vec::new(),
             audits: Vec::new(),
         };
@@ -182,7 +206,8 @@ impl LocalSource {
     pub fn environment_of(&self, job: &JobId) -> Result<Option<String>, String> {
         use pod_actions_workflow::Kind;
         let Some(cell) = self.cells.get(job) else { return Ok(None) };
-        let Some(node) = self.run.workflow().job(&cell.job).and_then(|j| j.environment.as_ref()) else {
+        let (w, id) = self.job_of(cell);
+        let Some(node) = w.job(id).and_then(|j| j.environment.as_ref()) else {
             return Ok(None);
         };
         let name = match &node.kind {
@@ -272,6 +297,12 @@ impl LocalSource {
         self.cells.get(job)
     }
 
+    /// The workflow and the id in it of the job of `cell`: a called job is
+    /// in its called workflow (T-131).
+    pub(crate) fn job_of<'a>(&'a self, cell: &'a Cell) -> (&'a Workflow, &'a str) {
+        self.calls.get(&cell.job).unwrap_or((self.run.workflow(), cell.job.as_str()))
+    }
+
     /// The job of the fake broker for the offer `job` (T-088).
     pub fn broker_job(&self, job: &JobId) -> Result<podrunner_broker_fake::Job, String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
@@ -295,8 +326,12 @@ impl LocalSource {
             }
             _ => self.vars.clone(),
         };
-        let mut b = message::broker_job(self.run.workflow(), cell, &self.github, &vars, &self.inputs, &self.pins)?;
-        b.secrets = self.secrets.clone();
+        // A called job: its workflow, its `inputs` and the secrets of its call.
+        let (w, id) = self.job_of(cell);
+        let called = Cell { job: id.to_string(), ..cell.clone() };
+        let inputs = if self.calls.get(&cell.job).is_some() { &cell.instance.inputs } else { &self.inputs };
+        let mut b = message::broker_job(w, &called, &self.github, &vars, inputs, &self.pins)?;
+        b.secrets = calls::values(&cell.instance.secrets, &self.secrets);
         if let Some(e) = &environment {
             for (k, v) in &e.secrets {
                 b.secrets.retain(|(o, _)| !o.eq_ignore_ascii_case(k));
@@ -314,8 +349,7 @@ impl LocalSource {
             }
         }
         let none = |p: Option<&pod_actions_workflow::Node>| matches!(p.map(|n| &n.kind), Some(pod_actions_workflow::Kind::Map(e)) if e.is_empty());
-        let w = self.run.workflow();
-        let permissions = w.job(&cell.job).and_then(|j| j.permissions.as_ref()).or(w.permissions.as_ref());
+        let permissions = w.job(id).and_then(|j| j.permissions.as_ref()).or(w.permissions.as_ref());
         b.token = if none(permissions) { None } else { self.token.clone() };
         if oidc::may_ask(permissions) {
             b.id_token = Some(oidc::claims(&self.github, &cell.job, self.environment_of(job)?.as_deref()));
@@ -365,7 +399,7 @@ impl LocalSource {
             for (i, s) in ends.iter_mut().enumerate() {
                 if s.is_none() {
                     *s = Some(Done::of(JobResult::Cancelled));
-                    if let Ok(id) = JobId::new(&format!("{job_name}.{i}")) {
+                    if let Ok(id) = calls::cell_id(&job_name, i) {
                         self.pending.retain(|o| o.job_id != id);
                         self.cancelled.insert(id);
                     }
@@ -397,7 +431,12 @@ impl LocalSource {
                 match self.run.expand(&id).map_err(|e| usage(e.to_string()))? {
                     Outcome::Skipped(skip) => self.skips.push(skip),
                     // The called jobs come in `ready` later (T-131).
-                    Outcome::Called(_) => {}
+                    Outcome::Called(calls) => {
+                        let texts = self.texts.clone().ok_or_else(|| usage("a call with no texts"))?;
+                        for c in &calls {
+                            self.calls.add(c, texts.as_ref()).map_err(usage)?;
+                        }
+                    }
                     Outcome::Run(instances) => {
                         self.ends.insert(id.clone(), vec![None; instances.len()]);
                         for (index, instance) in instances.into_iter().enumerate() {
@@ -410,7 +449,7 @@ impl LocalSource {
     }
 
     fn offer(&mut self, id: &str, index: usize, instance: Instance) -> Result<(), SourceError> {
-        let job_id = JobId::new(&format!("{id}.{index}")).map_err(|e| usage(format!("job id of {id}: {e:?}")))?;
+        let job_id = calls::cell_id(id, index).map_err(usage)?;
         let labels = instance.runs_on.as_ref().map(|r| r.labels.clone()).unwrap_or_default();
         let mut fields = Map::new();
         fields.insert("source".into(), json!(self.name));
@@ -428,68 +467,6 @@ impl LocalSource {
             .get(job)
             .copied()
             .ok_or_else(|| SourceError::new(SourceCode::UnknownJob, format!("no offer of {job}")))
-    }
-}
-
-impl JobSource for LocalSource {
-    fn hello(&mut self, _: &str, _: &str) -> Result<Hello, SourceError> {
-        Ok(Hello { source: self.name.clone(), operator_controlled: true })
-    }
-
-    fn next(&mut self, capacity: u32, _wait: Duration) -> Result<Vec<Event>, SourceError> {
-        let mut events = Vec::new();
-        for _ in 0..capacity {
-            let Some(offer) = self.pending.pop_front() else { break };
-            self.states.insert(offer.job_id.clone(), State::Offered);
-            events.push(Event::Offer { offer });
-        }
-        Ok(events)
-    }
-
-    fn ack(&mut self, job: &JobId) -> Result<(), SourceError> {
-        if self.state(job)? == State::Offered {
-            self.states.insert(job.clone(), State::Acked);
-        }
-        Ok(())
-    }
-
-    fn claim(&mut self, job: &JobId, _runner_name: &str) -> Result<(), SourceError> {
-        if self.state(job)? == State::Claimed {
-            return Err(SourceError::new(SourceCode::AlreadyClaimed, format!("{job} is claimed")));
-        }
-        self.states.insert(job.clone(), State::Claimed);
-        Ok(())
-    }
-
-    fn mint(&mut self, job: &JobId, runner_name: &str) -> Result<Credential, SourceError> {
-        if self.state(job)? != State::Claimed {
-            return Err(SourceError::new(SourceCode::NotClaimed, format!("{job} is not claimed")));
-        }
-        Ok((self.minter)(job, runner_name))
-    }
-
-    fn report(&mut self, job: &JobId, report: &Map<String, Value>) -> Result<(), SourceError> {
-        self.reports.push((job.clone(), report.clone()));
-        Ok(())
-    }
-
-    fn audit(&mut self, line: &Map<String, Value>) -> Result<(), SourceError> {
-        self.audits.push(line.clone());
-        Ok(())
-    }
-
-    fn withdraw(&mut self, job: &JobId, _reason: &str) -> Result<(), SourceError> {
-        if self.state(job)? == State::Claimed {
-            return Err(SourceError::new(SourceCode::AlreadyClaimed, format!("{job} is claimed: release it")));
-        }
-        self.states.remove(job);
-        Ok(())
-    }
-
-    fn release(&mut self, job: &JobId) -> Result<(), SourceError> {
-        self.state(job)?;
-        self.states.remove(job);
-        Ok(())
     }
 }
 

@@ -1498,7 +1498,7 @@ Runner-image run 43570649182 (`e31f9e5`): `busybox:1.37.0-musl` fails too: podvm
 **Milestone:** later
 **Priority:** P2
 **Effort:** L
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -1516,9 +1516,9 @@ Expand the called workflow into jobs of the run (ids `CALLER/CALLEE`), with the 
 
 `cargo test -p podrunner-local` (a local call with inputs, secrets and outputs; `secrets: inherit`; a nested call) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored`.
 
-## Blocker
+## Done
 
-podcrates: the expansion of a reusable workflow in `pod-actions-workflow` (GitHub #98, COORD-038).
+2026-11-14, this commit. podcrates `v0.44.0` gives `Run::with_called` (GitHub #98, COORD-038; taken at `8ef1730`, COORD-041). `crates/podrunner-local/src/calls.rs`: `Texts` gives the text of each called workflow (a `./` path of the tree, or `OWNER/REPO/PATH@REF` from the tarball of its pinned commit in the store; a `./` call inside a remote workflow reads that repository); `Calls` keeps the workflow and the id of each called job, so that its job message, its permissions, its environment and its concurrency come from the called workflow; `cell_id` maps `CALLER/CALLEE` and `CALLER[N]/CALLEE` to an offer id (`CALLER__CALLEE.0`, `CALLER-N__CALLEE.0`); `values` gives the secrets that a call passes (its templates over the secrets of the caller), or each secret of the run. `LocalSource::new_with` sets the texts before the first jobs expand. `podrunner run` pins the repository of each remote `jobs.ID.uses` of the workflow (a tree, T-133) before it builds the source; a remote call in a called workflow needs a line of the lock already. Tests: `cargo test -p podrunner-local calls` (a local call with an input, a passed secret and an output to the job after it; the ids; the secrets of `inherit` and of a template; a remote call with no pin) and `cargo test -p podrunner a_call_of` (a dry run plans `ci / build`, `ci / test`, then `after`).
 
 
 # T-132: Local mode: jobs in parallel (--jobs N, max-parallel)
