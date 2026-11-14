@@ -84,6 +84,7 @@ impl Corpus {
             overrides: Default::default(),
             secrets: Vec::new(),
             token: None,
+            id_token: None,
         })
     }
 }

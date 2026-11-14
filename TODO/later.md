@@ -1756,7 +1756,7 @@ Read `crates/podrunner-broker-fake/src/actions.rs` on 2026-11-14.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1773,6 +1773,11 @@ The broker gives `GenerateIdTokenUrl` to a job with that permission, and signs a
 ## Prove
 
 `cargo test -p podrunner-broker-fake` (the claims and the signature of a token).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner-broker-fake/src/oidc.rs`: `Issuer` makes one P-256 key for each run (ring; ring makes no RSA key, and ES256 is a JWS algorithm that relying parties take), signs each token with ES256 and serves the token route (`/_oidc/token?api-version=2.0&audience=AUD`, the answer `{"value": JWT}`), the discovery document and the JWK set. The key never goes to disk. `crates/podrunner-local/src/oidc.rs`: `may_ask` reads `id-token: write` or `write-all` (no `permissions` gives no token, as on GitHub), and `claims` gives the claims of GitHub from the `github` context (`sub` with the environment or the pull request, `job_workflow_ref`, `repository`, `ref`, `sha` and more). The broker job carries the claims; the message gives `GenerateIdTokenUrl` in the data of the system endpoint only then. `--oidc-issuer URL` and `--oidc-keys FILE` in `podrunner run`. Tests: `cargo test -p podrunner-broker-fake oidc` (the claims, the audience, the signature against the JWK set, no token with no permission), `cargo test -p podrunner-local` (the permissions, the claims, the URL in the message of one job and not of another), and `cargo test -p podrunner --test local -- --ignored` in level 2 (the official runner gets a token with curl; a job with no permission has no URL).
+
 
 # T-141: podrunner run leaves its units and scratch directories at Ctrl-C
 

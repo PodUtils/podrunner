@@ -16,6 +16,7 @@ pub mod images;
 pub mod localrepo;
 pub mod lock;
 pub mod message;
+pub mod oidc;
 pub mod rerun;
 pub mod secrets;
 pub mod store;
@@ -312,6 +313,9 @@ impl LocalSource {
         let w = self.run.workflow();
         let permissions = w.job(&cell.job).and_then(|j| j.permissions.as_ref()).or(w.permissions.as_ref());
         b.token = if none(permissions) { None } else { self.token.clone() };
+        if oidc::may_ask(permissions) {
+            b.id_token = Some(oidc::claims(&self.github, &cell.job, self.environment_of(job)?.as_deref()));
+        }
         Ok(b)
     }
 

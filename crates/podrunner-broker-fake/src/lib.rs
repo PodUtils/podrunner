@@ -12,6 +12,7 @@ pub mod cache;
 pub mod corpus;
 pub mod files;
 pub mod message;
+pub mod oidc;
 pub mod runner;
 
 use std::collections::VecDeque;
@@ -65,6 +66,8 @@ struct State {
     cache: Option<Arc<cache::CacheStore>>,
     /// Each request with no route, with its service (T-145).
     missing: Vec<String>,
+    /// The issuer of the id-tokens of the run (T-140).
+    oidc: Option<Arc<oidc::Issuer>>,
 }
 
 /// The service of a route that this broker does not serve, and the entry
@@ -147,6 +150,11 @@ impl Broker {
     /// the run (T-119).
     pub fn serve_artifacts(&self, store: Arc<artifacts::ArtifactStore>) {
         self.state.lock().expect("the broker").artifacts = Some(store);
+    }
+
+    /// Serve the id-tokens of the jobs with the key of `issuer` (T-140).
+    pub fn serve_oidc(&self, issuer: Arc<oidc::Issuer>) {
+        self.state.lock().expect("the broker").oidc = Some(issuer);
     }
 
     /// Serve the CacheService and its blobs over `store` (T-120).
@@ -236,7 +244,13 @@ fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
         let _ = write_response(&mut w, status, &headers, &out);
         return;
     }
+    let id_token = {
+        let st = state.lock().expect("the broker");
+        let claims = st.acquired.iter().rev().find_map(|(_, j)| j.id_token.clone());
+        st.oidc.clone().and_then(|i| oidc::route(&req.method, &req.path, &i, claims.as_ref()))
+    };
     let actions = actions::route(&req.method, &path, &body, base, dir.as_deref(), &pins, tree.as_deref())
+        .or(id_token)
         .or_else(|| store.and_then(|s| s.route(&req.method, &req.path, &req.body, base)));
     let (status, out) = match (req.method.as_str(), path.as_str()) {
         _ if actions.is_some() => actions.expect("an answer"),

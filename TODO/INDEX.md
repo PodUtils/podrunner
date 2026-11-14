@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**156 entries: 11 open, 9 partial, 7 blocked, 129 done.**
+**156 entries: 10 open, 9 partial, 7 blocked, 130 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 6 | 4 | 62 | 72 |
-| P3 | 11 | 1 | 3 | 35 | 50 |
-| **All** | 11 | 9 | 7 | 129 | 156 |
+| P3 | 10 | 1 | 3 | 36 | 50 |
+| **All** | 10 | 9 | 7 | 130 | 156 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -187,7 +187,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-137](later.md) | P3 | S | later | feature | done | Local mode: concurrency groups and cancel-in-progress |
 | [T-138](later.md) | P3 | S | later | feature | partial | Local mode: keep the unit of a failed job, export the workspace, and a shared tool cache |
 | [T-139](later.md) | P3 | S | later | feature | done | Local mode: actions from a local directory (--local-repository) and from another forge |
-| [T-140](later.md) | P3 | S | later | feature | open | Local mode: OIDC id-tokens (permissions: id-token: write) |
+| [T-140](later.md) | P3 | S | later | feature | done | Local mode: OIDC id-tokens (permissions: id-token: write) |
 | [T-141](later.md) | P2 | S | later | defect | done | podrunner run leaves its units and scratch directories at Ctrl-C |
 | [T-142](later.md) | P3 | S | later | feature | open | Local mode: --watch and the cron times of on.schedule |
 | [T-143](later.md) | P3 | S | later | feature | open | Local mode: a configuration file for podrunner run |

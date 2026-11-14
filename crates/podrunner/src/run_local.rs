@@ -30,7 +30,7 @@ use crate::cli::Out;
 
 use args::{Args, parse};
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--protected NAME]... [--approve NAME]... [--export DIR] [--local-repository OWNER/REPO@REF=DIR]... [--action-server URL] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--protected NAME]... [--approve NAME]... [--export DIR] [--local-repository OWNER/REPO@REF=DIR]... [--action-server URL] [--oidc-issuer URL] [--oidc-keys FILE] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -377,12 +377,17 @@ pub fn run(args: &[String]) -> Out {
         stdout.push_str(&if dry && text.starts_with("ok ") { text.replacen("ok      ", "planned ", 1) } else { text })
     };
     let state = std::env::temp_dir().join(format!("podrunner-run-units-{}", std::process::id()));
+    let oidc = match routes::issuer(&a) {
+        Ok(i) => i,
+        Err(e) => return fail(Class::Config, e),
+    };
     let common = routes::Common {
         actions: store.clone(),
         pins: pins.clone(),
         artifacts: artifacts.clone(),
         cache: cache.clone(),
         checkout: tree.clone(),
+        oidc,
     };
     let built = match a.dry_run {
         true => Ok(Box::new(inspect::DryRun) as Box<dyn podrunner_local::drive::Executor>),

@@ -38,6 +38,9 @@ pub(super) struct Args {
     /// (T-139).
     pub(super) local_repos: Vec<(String, PathBuf)>,
     pub(super) action_server: Option<String>,
+    /// `--oidc-issuer URL` and `--oidc-keys FILE` (T-140).
+    pub(super) oidc_issuer: Option<String>,
+    pub(super) oidc_keys: Option<PathBuf>,
     /// `--state DIR`, `--rerun DIR`, `--failed`, `--refresh` (T-135).
     pub(super) state: Option<PathBuf>,
     pub(super) rerun: Option<PathBuf>,
@@ -103,13 +106,17 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             "--protected" => a.protected.push(value()?),
             "--export" => a.export = Some(PathBuf::from(value()?)),
             "--local-repository" => a.local_repos.push(podrunner_local::localrepo::parse(&value()?)?),
-            "--action-server" => {
+            "--action-server" | "--oidc-issuer" => {
                 let url = value()?;
                 if !url.starts_with("https://") && !url.starts_with("http://") {
-                    return Err(format!("--action-server {url:?} is not a URL"));
+                    return Err(format!("{x} {url:?} is not a URL"));
                 }
-                a.action_server = Some(url);
+                match x.as_str() {
+                    "--action-server" => a.action_server = Some(url),
+                    _ => a.oidc_issuer = Some(url),
+                }
             }
+            "--oidc-keys" => a.oidc_keys = Some(PathBuf::from(value()?)),
             "--approve" => a.approved.push(value()?),
             "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {
                 let v = value()?;

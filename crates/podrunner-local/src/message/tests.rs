@@ -324,3 +324,23 @@ fn the_groups_of_the_run_and_of_a_job_take_the_contexts() {
     let job = s.job_group(&JobId::new("a.0").unwrap()).unwrap().unwrap();
     assert_eq!((job.name.as_str(), job.cancel_in_progress), ("deploy-linux", true));
 }
+
+#[test]
+fn a_job_with_id_token_write_gets_the_url_of_the_id_token() {
+    let text = "on: push\njobs:\n  deploy:\n    runs-on: x\n    environment: prod\n    permissions:\n      id-token: write\n    steps: [{run: x}]\n  test:\n    runs-on: x\n    steps: [{run: x}]\n";
+    let github = XValue::object([("repository", XValue::String("me/app".into()))]);
+    let mut s =
+        LocalSource::new("l", text, Base { github, ..Base::default() }, "x86_64", Box::new(|_, _| unreachable!()))
+            .unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    let msg = |j: &str| {
+        let b = s.broker_job(&JobId::new(j).unwrap()).unwrap();
+        (b.id_token.clone(), podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &b))
+    };
+    let (claims, d) = msg("deploy.0");
+    assert_eq!(claims.unwrap()["sub"], "repo:me/app:environment:prod");
+    let data = &d["resources"]["endpoints"][0]["data"];
+    assert_eq!(data["GenerateIdTokenUrl"], "http://127.0.0.1:1/_oidc/token?api-version=2.0");
+    let (claims, t) = msg("test.0");
+    assert!(claims.is_none() && t["resources"]["endpoints"][0]["data"].get("GenerateIdTokenUrl").is_none());
+}

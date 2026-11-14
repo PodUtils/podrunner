@@ -41,6 +41,9 @@ pub struct Job {
     /// `github.token` and `secrets.GITHUB_TOKEN`; [`TOKEN`] when none
     /// (T-122).
     pub token: Option<String>,
+    /// The claims of the OIDC id-token of the job, when its permissions
+    /// let it ask for one (T-140).
+    pub id_token: Option<Map<String, Value>>,
 }
 
 /// The made-up token of `github.token` (T-122): a call with it to a real
@@ -65,6 +68,7 @@ impl Job {
             overrides: Map::new(),
             secrets: Vec::new(),
             token: None,
+            id_token: None,
         }
     }
 }
@@ -89,6 +93,19 @@ fn mapping(pairs: &[(String, String)]) -> Value {
 
 fn b64(v: &Value) -> String {
     URL_SAFE_NO_PAD.encode(v.to_string())
+}
+
+/// The data of the system endpoint. `ResultsServiceUrl` gives
+/// `ACTIONS_RESULTS_URL` to the steps (T-119); `GenerateIdTokenUrl` gives
+/// `ACTIONS_ID_TOKEN_REQUEST_URL` to a job that may ask for an id-token
+/// (T-140).
+fn endpoint_data(base: &str, job: &Job) -> Value {
+    let mut d = json!({ "ServerId": guid(5), "ServerName": "podrunner-broker-fake", "ResultsServiceUrl": base });
+    if job.id_token.is_some() {
+        d["GenerateIdTokenUrl"] =
+            json!(format!("{}{}?api-version=2.0", base.trim_end_matches('/'), crate::oidc::TOKEN_PATH));
+    }
+    d
 }
 
 /// A made-up job token: the runner reads its claims and checks no signature.
@@ -163,7 +180,7 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
                 "name": "SystemVssConnection", "url": base, "isReady": true,
                 "authorization": { "scheme": "OAuth", "parameters": { "AccessToken": job_token() } },
                 // ResultsServiceUrl gives ACTIONS_RESULTS_URL to the steps (T-119).
-                "data": { "ServerId": guid(5), "ServerName": "podrunner-broker-fake", "ResultsServiceUrl": base },
+                "data": endpoint_data(base, job),
             }],
             "repositories": [],
         },

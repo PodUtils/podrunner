@@ -30,6 +30,8 @@ pub struct RunnerDir {
     pub artifacts: Option<Arc<ArtifactStore>>,
     /// The cache store (T-120).
     pub cache: Option<Arc<CacheStore>>,
+    /// The issuer of the id-tokens of the run (T-140).
+    pub oidc: Option<Arc<podrunner_broker_fake::oidc::Issuer>>,
     /// The live sink and the blobs of each job (T-134).
     pub live: Option<Live>,
     pub blobs: Vec<(JobId, Vec<(String, String)>)>,
@@ -51,6 +53,7 @@ impl RunnerDir {
             pins: BTreeMap::new(),
             artifacts: None,
             cache: None,
+            oidc: None,
             live: None,
             blobs: Vec::new(),
             checkout: None,
@@ -101,6 +104,9 @@ impl RunnerDir {
         }
         if let Some(store) = &self.cache {
             broker.serve_cache(store.clone());
+        }
+        if let Some(issuer) = &self.oidc {
+            broker.serve_oidc(issuer.clone());
         }
         if let Some(tree) = &self.checkout {
             broker.serve_checkout(tree);

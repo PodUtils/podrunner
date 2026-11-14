@@ -85,3 +85,47 @@ fn the_checkout_gives_git_and_another_repository() {
     assert!(lock.contains("actions/upload-pages-artifact@v3 "), "the tree is pinned: {lock}");
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+/// T-140: a job with `id-token: write` gets a signed token from the broker,
+/// with the audience that it asks for; a job with no permission gets no URL.
+#[test]
+#[ignore]
+fn a_job_with_id_token_write_gets_a_signed_token() {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
+    let scratch = std::env::temp_dir().join(format!("podrunner-local-oidc-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    std::fs::create_dir_all(&scratch).unwrap();
+    let flow = scratch.join("oidc.yml");
+    // The payload is base64url with no padding: python3 decodes it.
+    std::fs::write(
+        &flow,
+        "on: push\njobs:\n  token:\n    runs-on: x\n    permissions:\n      id-token: write\n    steps:\n      \
+         - run: |\n          curl -fsS -H \"Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN\" \
+         \"$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.example\" > t.json\n          \
+         python3 -c 'import json,base64; t=json.load(open(\"t.json\"))[\"value\"].split(\".\")[1]; \
+         c=json.loads(base64.urlsafe_b64decode(t+\"==\")); assert c[\"aud\"]==\"sts.example\", c; \
+         assert c[\"iss\"]==\"https://oidc.example.invalid\", c'\n  \
+         none:\n    runs-on: x\n    steps:\n      - run: test -z \"$ACTIONS_ID_TOKEN_REQUEST_URL\"\n",
+    )
+    .unwrap();
+    let keys = scratch.join("jwks.json");
+    let args: Vec<String> = [
+        "run",
+        flow.to_str().unwrap(),
+        "--runner-dir",
+        &dir,
+        "--oidc-issuer",
+        "https://oidc.example.invalid",
+        "--oidc-keys",
+        keys.to_str().unwrap(),
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    let out = podrunner::cli::run(&args);
+    println!("{}{}", out.stdout, out.stderr);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert!(std::fs::read_to_string(&keys).unwrap().contains("\"P-256\""));
+    let _ = std::fs::remove_dir_all(&scratch);
+}

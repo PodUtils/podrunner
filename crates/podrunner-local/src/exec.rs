@@ -40,6 +40,8 @@ pub struct InUnit {
     pub artifacts: Option<Arc<ArtifactStore>>,
     /// The cache store (T-120).
     pub cache: Option<Arc<CacheStore>>,
+    /// The issuer of the id-tokens of the run (T-140).
+    pub oidc: Option<Arc<podrunner_broker_fake::oidc::Issuer>>,
     /// The tarball of the local tree for `actions/checkout` (T-092).
     pub checkout: Option<PathBuf>,
     /// The egress of a held unit (T-095): the egress module and the
@@ -71,6 +73,7 @@ impl InUnit {
             pins: BTreeMap::new(),
             artifacts: None,
             cache: None,
+            oidc: None,
             checkout: None,
             egress: None,
             environment_policies: BTreeMap::new(),
@@ -261,6 +264,9 @@ impl Executor for InUnit {
         }
         if let Some(store) = &self.cache {
             broker.serve_cache(store.clone());
+        }
+        if let Some(issuer) = &self.oidc {
+            broker.serve_oidc(issuer.clone());
         }
         if let Some(tree) = &self.checkout {
             broker.serve_checkout(tree);

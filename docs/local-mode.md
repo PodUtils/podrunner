@@ -56,7 +56,7 @@ the entry that closes the gap, or the entry that did the work.
 | Concurrency groups | no | yes | held across runs by a lock file; `cancel-in-progress` cancels the older run | T-137 |
 | Artifacts v4 | yes | yes | yes, one store for each run, size and SHA-256 checked at finalize; v3 refused by name | T-119 |
 | Cache of `actions/cache` | v1 server | v1 and v2 | v2, a store that stays across runs, Range downloads, a limit of 10 GB | T-120 |
-| OIDC id-token | no | yes | none | T-140 |
+| OIDC id-token | no | yes | yes: ES256 with one key for each run, in memory only; `--oidc-issuer`, `--oidc-keys` | T-140 |
 | One job, a matrix filter | `-j`, `--matrix` | `--job`, `--matrix` | `--job` with its needs, `--matrix`; each other cell `skipped` with its reason | T-127 |
 | List, graph, dry run, validate | yes | `--list` | `--list`, `--graph`, `--validate`; `--dry-run` builds each job message and checks the pins | T-128 |
 | Parallel jobs | `--concurrent-jobs` | `--parallel N` | one at a time | T-132 |

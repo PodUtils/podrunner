@@ -22,6 +22,19 @@ pub(super) struct Common {
     pub artifacts: Arc<ArtifactStore>,
     pub cache: Option<Arc<CacheStore>>,
     pub checkout: Option<PathBuf>,
+    pub oidc: Arc<podrunner_local::oidc::Issuer>,
+}
+
+/// The issuer of the id-tokens of the run (T-140): `--oidc-issuer URL`,
+/// one new key; `--oidc-keys FILE` gets its public keys.
+pub(super) fn issuer(a: &Args) -> Result<Arc<podrunner_local::oidc::Issuer>, String> {
+    let name = a.oidc_issuer.as_deref().unwrap_or("https://oidc.podrunner.invalid");
+    let issuer = podrunner_local::oidc::Issuer::new(name)?;
+    if let Some(file) = &a.oidc_keys {
+        std::fs::write(file, format!("{:#}\n", issuer.jwks()))
+            .map_err(|e| format!("--oidc-keys {}: {e}", file.display()))?;
+    }
+    Ok(Arc::new(issuer))
 }
 
 fn host(a: &Args, c: &Common) -> Result<Box<dyn Executor>, Out> {
@@ -31,6 +44,7 @@ fn host(a: &Args, c: &Common) -> Result<Box<dyn Executor>, Out> {
     e.pins = c.pins.clone();
     e.artifacts = Some(c.artifacts.clone());
     e.cache = c.cache.clone();
+    e.oidc = Some(c.oidc.clone());
     e.checkout = c.checkout.clone();
     e.export = a.export.clone();
     Ok(Box::new(e))
@@ -47,6 +61,7 @@ fn unit(a: &Args, c: &Common, image: &str, state: &Path) -> Result<Box<dyn Execu
     e.pins = c.pins.clone();
     e.artifacts = Some(c.artifacts.clone());
     e.cache = c.cache.clone();
+    e.oidc = Some(c.oidc.clone());
     e.checkout = c.checkout.clone();
     // The egress policy of each environment (T-136).
     let mut hosts: std::collections::BTreeMap<String, Vec<String>> = Default::default();
