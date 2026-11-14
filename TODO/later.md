@@ -1815,7 +1815,7 @@ At the first SIGINT or SIGTERM, cancel the running job (the cancel message of th
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1832,6 +1832,11 @@ Read `crates/podrunner/src/run_local.rs` on 2026-11-14.
 ## Prove
 
 `cargo test -p podrunner run_local` (the next time of a cron expression; a change starts a run).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner-local/src/cron.rs`: `Cron::parse` takes the five fields with values, ranges, steps, lists and the names of months and days (7 is Sunday; both day fields restricted match either, as POSIX cron); `next` gives the first matching minute after a time, in UTC, with no new dependency (`civil` is the civil date of a day). `crates/podrunner/src/run_local/watch.rs`: `--watch` polls a stamp of the tree (`tree::stamp`: the names, sizes and times of the files of the tarball) and of the workflow file every 500 ms, waits until a change rests, and runs again; a change during a run calls `cancel::request`, so the run cancels as at a signal (T-141), and `cancel::reset` clears it for the next run. `--schedule` waits for the next cron time and runs with `--event schedule`. SIGINT or SIGTERM ends the loop. Tests: `cargo test -p podrunner-local cron` (the next times, a leap day, both day fields, the bad fields) and `cargo test -p podrunner watch` (the crons of `on.schedule`, the line of a bad cron, the stamp of a change). Checked by hand: a dry run with `--watch` runs once, once again after a new file, and ends at SIGINT; `--schedule` names the next time and ends at SIGINT.
+
 
 # T-143: Local mode: a configuration file for podrunner run
 

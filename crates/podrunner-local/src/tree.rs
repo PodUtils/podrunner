@@ -62,6 +62,40 @@ fn git_copy(dir: &Path, scratch: &Path) -> Result<PathBuf, String> {
     Ok(clone.join(".git"))
 }
 
+/// A stamp of the files of the tree `dir` (the files of the tarball: in a
+/// git tree the tracked and new files that git does not ignore): their
+/// names, sizes and times of change. A change of a file changes it
+/// (T-142).
+pub fn stamp(dir: &Path) -> u64 {
+    use std::hash::{Hash, Hasher};
+    fn walk(dir: &Path, rel: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir.join(rel)) else { return };
+        for e in entries.flatten() {
+            let r = rel.join(e.file_name());
+            match e.file_type() {
+                Ok(t) if t.is_dir() && e.file_name() != ".git" => walk(dir, &r, out),
+                Ok(t) if !t.is_dir() => out.push(r),
+                _ => {}
+            }
+        }
+    }
+    let mut list = Vec::new();
+    match is_git_tree(dir) {
+        true => list = files(dir).unwrap_or_default(),
+        false => walk(dir, Path::new(""), &mut list),
+    }
+    list.sort();
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    for f in &list {
+        f.hash(&mut h);
+        if let Ok(m) = std::fs::symlink_metadata(dir.join(f)) {
+            m.len().hash(&mut h);
+            m.modified().ok().hash(&mut h);
+        }
+    }
+    h.finish()
+}
+
 /// Write the tarball of the tree `dir` into `scratch`; its path.
 pub fn tarball(dir: &Path, scratch: &Path, o: Options) -> Result<PathBuf, String> {
     std::fs::create_dir_all(scratch).map_err(|e| format!("{}: {e}", scratch.display()))?;

@@ -31,6 +31,18 @@ pub fn install() {
     }
 }
 
+/// Ask the run to stop as a signal does: a change of the tree under
+/// `--watch` (T-142).
+pub fn request() {
+    SIGNALLED.store(true, Ordering::SeqCst);
+}
+
+/// Clear a request, for the next run of `--watch` or `--schedule`.
+pub fn reset() {
+    SIGNALLED.store(false, Ordering::SeqCst);
+    COUNT.store(0, Ordering::SeqCst);
+}
+
 /// A signal asked the run to stop.
 pub fn requested() -> bool {
     SIGNALLED.load(Ordering::SeqCst)

@@ -8,6 +8,7 @@
 
 pub mod cancel;
 pub mod concurrency;
+pub mod cron;
 pub mod dispatch;
 pub mod drive;
 pub mod exec;

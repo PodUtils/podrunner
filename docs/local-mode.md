@@ -63,7 +63,7 @@ the entry that closes the gap, or the entry that did the work.
 | Live logs, log files, JSON | yes | web console, `--log-output-dir` | live lines on stderr, `--json`, `--log-dir` with each step log and `summary.md`; secrets masked again | T-134 |
 | Web view | no | yes | no | T-149 |
 | Reruns | no | `rerun --failed`, keep artifacts | `--state DIR`, `--rerun DIR [--failed \| --job ID]`, kept results, outputs and artifacts; a changed workflow fails by name | T-135 |
-| Watch, schedules | `--watch` | `--watch`, schedules | no | T-142 |
+| Watch, schedules | `--watch` | `--watch`, schedules | `--watch` (a change cancels the run in progress), `--schedule` (the crons of `on.schedule`, UTC) | T-142 |
 | Configuration file | `.actrc`, trust of the project file | `.actrc` | no | T-143 |
 | Keep a container, bind the tree, tool cache | `--reuse`, `--bind` | `--keep-container`, shared tool cache | `--export DIR` on `--runner-dir`; a unit kind waits | T-138 |
 | Pause before a step | no | no | no | T-150 |
