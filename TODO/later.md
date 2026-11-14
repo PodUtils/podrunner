@@ -1027,7 +1027,7 @@ Give the broker crate a function that returns a `Result` and a child (write the 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1044,6 +1044,10 @@ Move the version requirement of each kind into a function of the kind (`require_
 ## Prove
 
 `cargo test -p podrunner --test check` and `cargo test -p podrunner doctor`
+
+## Done
+
+2026-11-14, this commit. The version requirement is the last check of `plan` of `crates/podrunner/src/microvm_kind.rs` (`LOWEST_GUEST`, or `LOWEST_ENGINE` with `engine`) and of `crates/podrunner/src/incus_kind.rs` (`LOWEST_INCUS`); `build`, `check` and `doctor` call `plan`, so the three give one answer. `plan_refuses_a_podvm_too_old_for_an_engine` holds it.
 
 # T-117: The local run ignores fail-fast and the continue-on-error of a job
 

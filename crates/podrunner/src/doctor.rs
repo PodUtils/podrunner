@@ -230,11 +230,20 @@ mod tests {
     /// T-113: the guest kinds give their record through their probe.
     #[test]
     fn doctor_knows_the_microvm_and_incus_kinds() {
+        use std::os::unix::fs::PermissionsExt;
         let dir = std::env::temp_dir().join(format!("podrunner-doctor-guest-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
+        // A fake podvm whose probe names a version that each kind takes.
+        let fake = dir.join("podvm");
+        std::fs::write(&fake, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.14\",\"rung\":\"userland\"}'\n").unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
         let u = |extra: &str| -> podrunner_slots::config::UnitConfig {
-            toml::from_str(&format!("slots = 1\nbinary = \"/bin/true\"\nimages = \"{}\"\n{extra}", dir.display()))
-                .unwrap()
+            toml::from_str(&format!(
+                "slots = 1\nbinary = \"{}\"\nimages = \"{}\"\n{extra}",
+                fake.display(),
+                dir.display()
+            ))
+            .unwrap()
         };
         let m = capability("microvm", &u("")).unwrap();
         assert_eq!((m.kind.as_str(), m.boundary), ("microvm", podrunner_schema::Boundary::Guest));

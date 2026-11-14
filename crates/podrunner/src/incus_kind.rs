@@ -13,8 +13,9 @@ use podrunner_unit::UnitDriver;
 
 use crate::serve::{Failure, fail};
 
-/// Check `[unit.incus]` with no side effect: the podvm binary and the
-/// store of the images. `mem` and `cpus` are of the machine tier only.
+/// Check `[unit.incus]`: the podvm binary, its version (`podvm probe
+/// --json`, which reads no state) and the store of the images. `mem` and
+/// `cpus` are of the machine tier only.
 pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     // The keys of the podvm kind: this kind reads none of them (T-111).
     for (key, set) in [
@@ -41,6 +42,10 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     if u.mem.is_some() || u.cpus.is_some() {
         return Err(fail(Class::Config, "[unit.incus] mem and cpus are of the microvm kind only"));
     }
+    // The version of podvm last, as `serve` asks it (T-116).
+    podrunner_podvm::Podvm { binary: binary.into() }
+        .require(podrunner_podvm::probe::LOWEST_INCUS)
+        .map_err(|e| fail(Class::Unsupported, format!("[unit.incus] binary: {e}")))?;
     Ok(())
 }
 
@@ -48,9 +53,6 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
 pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
     plan(u)?;
     let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
-    podvm
-        .require(podrunner_podvm::probe::LOWEST_INCUS)
-        .map_err(|e| fail(Class::Unsupported, format!("[unit.incus] binary: {e}")))?;
     let images = PathBuf::from(u.images.clone().unwrap_or_default());
     let unit = podrunner_incus::IncusUnit::new(podvm, &state.join("incus"), &images);
     let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;

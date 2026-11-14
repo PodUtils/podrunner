@@ -120,8 +120,8 @@ engine = "/opt/podrunner/docker"         # optional: the static Docker binaries;
 With `engine`, each guest loads the modules of an engine
 (`--podvm-engine`, podvm `v0.2.0-beta.14` or later), mounts the directory
 read-only at `/podrunner-engine`, and starts `dockerd` as root before the
-runner. `serve` refuses an older podvm for `engine` (`LOWEST_ENGINE`,
-T-112); `check` and `doctor` do not read the version (T-116). The runner gets its
+runner. `serve`, `check` and `doctor` refuse an older podvm for `engine`
+(`LOWEST_ENGINE`, T-112, T-116). The runner gets its
 socket as `DOCKER_HOST`; the socket stays in the guest, and the engine
 pulls through the egress channel. The runner image needs `iptables`
 (`images/runner/Dockerfile` has it). The kind says `container: none` until
