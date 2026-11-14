@@ -1303,7 +1303,7 @@ On the microvm kind with an engine (T-123), give the runner `DOCKER_HOST` of the
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1324,6 +1324,8 @@ Read `crates/podrunner/src/run_local.rs` (`github`) and act's command (`cmd/root
 ## Prove
 
 `cargo test -p podrunner run_local` (the payload, the git facts, a workflow that the filters skip) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored`.
+
+State (2026-11-14): `crates/podrunner/src/run_local/context.rs` gives the facts of the git tree (`repository` of the remote, `ref` and `sha` of HEAD, `actor` of `user.name`) with the flags `--remote`, `--ref`, `--sha`, `--repository` and `--actor` over them; `github.event` from `--event-path` or a minimal payload (`push`, `pull_request` with `head` and `base` on `refs/pull/1/merge`, `workflow_dispatch`); a workflow whose `on:` does not name the event is refused unless `--force-event`. The cache keeps each entry in the scope of the ref and reads the scope of the default branch next; a random id replaces an id that two stores of one second could share. Tests: the URL forms, the facts of a git tree and the flags, the payloads, the refusal, the scopes of the cache. Next: a directory of workflows with the filters of `on:` when podcrates gives them (COORD-037).
 
 # T-126: Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs
 
@@ -2075,4 +2077,29 @@ Read `crates/podrunner-local/src/store.rs` (`Git`) and `crates/podrunner-egress/
 ## Prove
 
 `cargo test -p podrunner-local` (the git command of the fetch names the loopback proxy and the protocol rules) and `cargo test -p podrunner-local --test store -- --ignored` through the egress module.
+
+# T-155: An intermittent failure of the workspace tests that the check script hid
+
+**Source:** A session (2026-11-14): `sh scripts/agent/check.sh` gave `test 101` once at the commit after `8a65c48`, and passed on the next two runs
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+One run of `cargo test --workspace --all-features` failed, and the next runs passed. The check script printed only the summary lines: its pattern `failed` matched each `0 failed`, and `head -30` cut the output before the cause. The test that failed is not known. Five runs of the unit tests of `podrunner-broker-fake`, `podrunner-local` and `podrunner` gave no failure. The tests that depend on time are suspects: the cache tests with a sleep of 1.1 s (the newest entry first), the limit tests of `exec`, and the front tests (fixed for one race in `8a65c48`).
+
+## Premise
+
+Read `scripts/agent/check.sh` on 2026-11-14. The pattern is fixed in the same commit as this entry: it now matches `FAILED`, `panicked`, `error`, `failures:` and `----`.
+
+## Approach
+
+Run `cargo test --workspace --all-features` in a loop (20 runs) and keep each failed log. Fix the test that fails: no sleep as an order, a time given by the test instead of the clock.
+
+## Prove
+
+20 runs of `cargo test --workspace --all-features` in a row pass.
 

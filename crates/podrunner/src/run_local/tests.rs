@@ -101,10 +101,88 @@ fn each_line_names_the_job_and_its_result() {
 }
 
 #[test]
-fn the_github_context_names_the_event_and_the_file() {
-    let g = github(std::path::Path::new("/x/ci.yml"), "push");
-    assert_eq!(g.get("event_name").and_then(Value::as_str), Some("push"));
-    assert_eq!(g.get("workflow").and_then(Value::as_str), Some("ci.yml"));
+fn the_github_context_comes_from_the_tree_and_the_flags() {
+    for (url, want) in [
+        ("https://github.com/o/r.git", "o/r"),
+        ("git@github.com:o/r.git", "o/r"),
+        ("ssh://git@host.example/o/r", "o/r"),
+        ("https://host.example/group/o/r/", "o/r"),
+    ] {
+        assert_eq!(context::repository_of(url).as_deref(), Some(want), "{url}");
+    }
+    let dir = std::env::temp_dir().join(format!("podrunner-facts-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let g = |a: &[&str]| {
+        assert!(
+            std::process::Command::new("git").arg("-C").arg(&dir).args(a).output().unwrap().status.success(),
+            "{a:?}"
+        )
+    };
+    g(&["init", "-q", "-b", "feature"]);
+    g(&["-c", "user.name=Tester", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "x"]);
+    g(&["config", "user.name", "Tester"]);
+    g(&["remote", "add", "origin", "https://github.com/acme/app.git"]);
+    let tree = dir.display().to_string();
+    let a = parse(&args(&["w.yml", "--runner-dir", "/r", "--checkout", &tree])).unwrap();
+    let f = context::facts(&a);
+    assert_eq!(
+        (f.repository.as_str(), f.git_ref.as_str(), f.actor.as_str()),
+        ("acme/app", "refs/heads/feature", "Tester")
+    );
+    assert_eq!(f.sha.len(), 40);
+    let a = parse(&args(&[
+        "w.yml",
+        "--runner-dir",
+        "/r",
+        "--checkout",
+        &tree,
+        "--ref",
+        "refs/tags/v1",
+        "--repository",
+        "x/y",
+    ]))
+    .unwrap();
+    let f = context::facts(&a);
+    assert_eq!((f.repository.as_str(), f.git_ref.as_str()), ("x/y", "refs/tags/v1"), "the flags replace the tree");
+    let gh = context::github(&a, &f).unwrap();
+    assert_eq!(gh.get("ref_type").and_then(Value::as_str), Some("tag"));
+    assert_eq!(gh.get("workflow").and_then(Value::as_str), Some("w.yml"));
+    let push = context::payload("push", &f);
+    assert_eq!((push["ref"].as_str(), push["after"].as_str()), (Some("refs/tags/v1"), Some(f.sha.as_str())));
+    let a = parse(&args(&["w.yml", "--runner-dir", "/r", "--checkout", &tree, "--event", "pull_request"])).unwrap();
+    let f = context::facts(&a);
+    let gh = context::github(&a, &f).unwrap();
+    assert_eq!(gh.get("head_ref").and_then(Value::as_str), Some("feature"));
+    assert_eq!(gh.get("ref").and_then(Value::as_str), Some("refs/pull/1/merge"));
+    let event = gh.get("event").unwrap();
+    assert_eq!(event.get("pull_request").and_then(|p| p.get("number")), Some(&Value::Number(1.0)));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_workflow_whose_on_does_not_take_the_event_is_refused() {
+    let dir = std::env::temp_dir().join(format!("podrunner-on-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("w.yml");
+    std::fs::write(&file, "on: [push, workflow_dispatch]\njobs:\n  a:\n    runs-on: x\n    steps: [{run: x}]\n")
+        .unwrap();
+    let w = file.display().to_string();
+    let out = run(&args(&["run", &w, "--runner-dir", "/nonexistent", "--event", "pull_request"])[1..]);
+    assert!(
+        out.stderr.contains("not the event \"pull_request\"") && out.stderr.contains("--force-event"),
+        "{}",
+        out.stderr
+    );
+    let on: pod_actions_workflow::Node = pod_actions_workflow::parse(
+        "on:\n  push:\n    branches: [main]\n  schedule: []\njobs:\n  a:\n    runs-on: x\n    steps: [{run: x}]\n",
+    )
+    .unwrap()
+    .workflow
+    .on;
+    assert_eq!(context::events(&on), ["push", "schedule"]);
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]

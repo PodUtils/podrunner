@@ -124,3 +124,19 @@ fn the_store_stays_for_the_next_run() {
     assert_eq!(restore(&next, "k", &[], "v1").unwrap().1, b"kept");
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn a_lookup_reads_the_scope_of_the_ref_then_that_of_the_default_branch() {
+    let (main, dir) = store(LIMIT);
+    let main = main.with_scopes(vec!["refs/heads/main".into()]);
+    save(&main, "deps-a", "v1", b"from-main");
+    let feature =
+        CacheStore::new(&dir, LIMIT).unwrap().with_scopes(vec!["refs/heads/x".into(), "refs/heads/main".into()]);
+    assert_eq!(restore(&feature, "deps-a", &[], "v1").unwrap().1, b"from-main", "the default branch is read");
+    assert_eq!(save(&feature, "deps-a", "v1", b"from-x")["ok"], true, "the scope of the ref is its own");
+    assert_eq!(restore(&feature, "deps-a", &[], "v1").unwrap().1, b"from-x", "the ref first");
+    let other =
+        CacheStore::new(&dir, LIMIT).unwrap().with_scopes(vec!["refs/heads/y".into(), "refs/heads/main".into()]);
+    assert_eq!(restore(&other, "deps-a", &[], "v1").unwrap().1, b"from-main", "a branch does not read another branch");
+    let _ = fs::remove_dir_all(&dir);
+}

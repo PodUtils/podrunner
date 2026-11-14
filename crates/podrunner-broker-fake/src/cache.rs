@@ -4,9 +4,10 @@
 //! of its signed URLs. The store stays across runs (`--cache DIR`).
 //!
 //! An entry is a key and a version (the client hashes its paths and its
-//! compression into the version). A lookup takes the exact key first, then
-//! each restore key as a prefix, newest first, and only entries of the same
-//! version. An entry of a key and a version is written once. The store has a
+//! compression into the version), in the scope of a ref. A lookup reads each
+//! scope in order (the ref of the run, then the default branch, as GitHub
+//! does): the exact key first, then each restore key as a prefix, newest
+//! first, and only entries of the same version. An entry of a key and a version is written once. The store has a
 //! limit of bytes: the oldest entry goes first. A download takes a `Range`,
 //! as the concurrent download of the client asks.
 
@@ -45,6 +46,8 @@ struct Inner {
 pub struct CacheStore {
     dir: PathBuf,
     limit: u64,
+    /// The scope of a new entry first, then each scope that a lookup reads.
+    scopes: Vec<String>,
     inner: Mutex<Inner>,
 }
 
@@ -67,13 +70,32 @@ impl CacheStore {
     pub fn new(dir: &Path, limit: u64) -> std::io::Result<CacheStore> {
         fs::create_dir_all(dir.join(".pending"))?;
         fs::create_dir_all(dir.join("entries"))?;
-        Ok(CacheStore { dir: dir.to_path_buf(), limit, inner: Mutex::default() })
+        Ok(CacheStore { dir: dir.to_path_buf(), limit, scopes: vec![String::new()], inner: Mutex::default() })
+    }
+
+    /// The scopes of the run: a new entry goes into the first; a lookup reads
+    /// each in order (T-125).
+    pub fn with_scopes(mut self, scopes: Vec<String>) -> CacheStore {
+        let mut seen = Vec::new();
+        for s in scopes {
+            if !seen.contains(&s) {
+                seen.push(s);
+            }
+        }
+        if !seen.is_empty() {
+            self.scopes = seen;
+        }
+        self
     }
 
     /// The directory of an entry: a digest of its key and version, so no key
     /// is a path.
     fn entry_dir(&self, key: &str, version: &str) -> PathBuf {
-        let d = sha256(format!("{key}\n{version}").as_bytes());
+        self.entry_dir_in(&self.scopes[0], key, version)
+    }
+
+    fn entry_dir_in(&self, scope: &str, key: &str, version: &str) -> PathBuf {
+        let d = sha256(format!("{scope}\n{key}\n{version}").as_bytes());
         self.dir.join("entries").join(&d["sha256:".len().."sha256:".len() + 32])
     }
 
@@ -92,11 +114,19 @@ impl CacheStore {
 
     /// The entry for a key and its restore keys, of one version.
     fn lookup(&self, key: &str, restore: &[&str], version: &str) -> Option<Value> {
-        let all: Vec<Value> = self.entries().into_iter().filter(|e| e["version"] == version).collect();
-        if let Some(e) = all.iter().find(|e| e["key"] == key) {
-            return Some(e.clone());
-        }
-        restore.iter().find_map(|p| all.iter().find(|e| e["key"].as_str().is_some_and(|k| k.starts_with(p))).cloned())
+        let entries = self.entries();
+        self.scopes.iter().find_map(|scope| {
+            let all: Vec<&Value> = entries
+                .iter()
+                .filter(|e| e["version"] == version && e["scope"].as_str().unwrap_or("") == scope)
+                .collect();
+            if let Some(e) = all.iter().find(|e| e["key"] == key) {
+                return Some((*e).clone());
+            }
+            restore.iter().find_map(|p| {
+                all.iter().find(|e| e["key"].as_str().is_some_and(|k| k.starts_with(p))).cloned().cloned()
+            })
+        })
     }
 
     pub fn route(&self, method: &str, path: &str, body: &[u8], header: Option<&str>, base: &str) -> Option<Answer> {
@@ -217,9 +247,10 @@ impl CacheStore {
         }
         let pending = st.pending.remove(&id).expect("a pending upload");
         let out = self.entry_dir(key, version);
-        let entry_id = format!("{}{id:06}", now());
+        // Random: two runs in one second must not give one id.
+        let entry_id = random_hex()[..16].to_string();
         let meta = json!({
-            "id": entry_id, "key": key, "version": version, "size": blob.len(), "created": now(),
+            "id": entry_id, "key": key, "version": version, "scope": self.scopes[0], "size": blob.len(), "created": now(),
             "created_at": rfc3339(now()), "digest": sha256(&blob), "sig": pending.sig,
         });
         let r = fs::create_dir_all(&out)
@@ -240,7 +271,7 @@ impl CacheStore {
         while total > self.limit {
             let Some(old) = entries.pop() else { break };
             let (k, v) = (old["key"].as_str().unwrap_or(""), old["version"].as_str().unwrap_or(""));
-            let _ = fs::remove_dir_all(self.entry_dir(k, v));
+            let _ = fs::remove_dir_all(self.entry_dir_in(old["scope"].as_str().unwrap_or(""), k, v));
             total -= old["size"].as_u64().unwrap_or(0);
         }
     }
@@ -251,7 +282,9 @@ impl CacheStore {
             return (403, Vec::new(), Vec::new());
         }
         let (k, v) = (e["key"].as_str().unwrap_or(""), e["version"].as_str().unwrap_or(""));
-        let Ok(blob) = fs::read(self.entry_dir(k, v).join("blob")) else { return (404, Vec::new(), Vec::new()) };
+        let Ok(blob) = fs::read(self.entry_dir_in(e["scope"].as_str().unwrap_or(""), k, v).join("blob")) else {
+            return (404, Vec::new(), Vec::new());
+        };
         let len = blob.len() as u64;
         let ranges = vec![("Accept-Ranges", "bytes".to_string())];
         match header {

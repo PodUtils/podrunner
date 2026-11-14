@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**154 entries: 25 open, 7 partial, 5 blocked, 117 done.**
+**155 entries: 25 open, 8 partial, 5 blocked, 117 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 7 | 5 | 3 | 57 | 72 |
-| P3 | 18 | 0 | 2 | 28 | 48 |
-| **All** | 25 | 7 | 5 | 117 | 154 |
+| P2 | 6 | 6 | 3 | 57 | 72 |
+| P3 | 19 | 0 | 2 | 28 | 49 |
+| **All** | 25 | 8 | 5 | 117 | 155 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -172,7 +172,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-122](later.md) | P2 | S | later | feature | done | Local mode: github.token and secrets.GITHUB_TOKEN |
 | [T-123](later.md) | P2 | M | later | feature | partial | Local mode: run each job in a unit of the microvm or the incus kind |
 | [T-124](later.md) | P2 | M | later | feature | partial | Local mode: services:, docker build and Docker-in-Docker through the engine of the unit |
-| [T-125](later.md) | P2 | M | later | feature | open | Local mode: the event payload, the github context of the local tree, and the filters of on: |
+| [T-125](later.md) | P2 | M | later | feature | partial | Local mode: the event payload, the github context of the local tree, and the filters of on: |
 | [T-126](later.md) | P3 | S | later | feature | open | Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs |
 | [T-127](later.md) | P2 | S | later | feature | open | Local mode: run one job (--job) or some cells of a matrix (--matrix) |
 | [T-128](later.md) | P3 | S | later | feature | open | Local mode: --list, --graph, --dry-run and --validate |
@@ -202,3 +202,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-152](later.md) | P3 | S | later | feature | open | Local mode: an env of one expression is refused |
 | [T-153](later.md) | P3 | S | later | feature | open | podrunner doctor for the local mode |
 | [T-154](later.md) | P3 | S | later | feature | open | Local mode: the fetch of the actions through the egress module |
+| [T-155](later.md) | P3 | S | later | defect | open | An intermittent failure of the workspace tests that the check script hid |

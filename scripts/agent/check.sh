@@ -33,6 +33,7 @@ t=x86_64-unknown-linux-musl
 echo "static $st"; [ "$st" -eq 0 ] || { rc=1; tail -20 "$log/static.log"; }
 if [ "${1:-}" != notest ]; then
     timeout 1800 cargo test --workspace --all-features > "$log/test.log" 2>&1; t=$?
-    echo "test $t"; [ "$t" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|failed" "$log/test.log" | head -30; }
+    # Not "failed": each summary line has "0 failed" and would hide the cause.
+    echo "test $t"; [ "$t" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|^error|^failures:|^---- " "$log/test.log" | head -30; }
 fi
 exit "$rc"

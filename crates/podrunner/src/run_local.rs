@@ -6,6 +6,7 @@
 //! 1 when one failed, and the code of the class of a usage or a file error.
 
 mod actions;
+mod context;
 mod guest;
 
 use std::path::PathBuf;
@@ -19,7 +20,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--checkout DIR] [--event NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--checkout DIR] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -50,6 +51,13 @@ struct Args {
     podnet: Option<PathBuf>,
     allow: Vec<String>,
     event: String,
+    event_path: Option<PathBuf>,
+    force_event: bool,
+    remote: Option<String>,
+    git_ref: Option<String>,
+    sha: Option<String>,
+    repository: Option<String>,
+    actor: Option<String>,
     vars: Vec<(String, String)>,
     inputs: Vec<(String, String)>,
 }
@@ -95,6 +103,13 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--podnet" => a.podnet = Some(PathBuf::from(value()?)),
             "--allow" => a.allow.push(value()?),
             "--event" => a.event = value()?,
+            "--event-path" => a.event_path = Some(PathBuf::from(value()?)),
+            "--force-event" => a.force_event = true,
+            "--remote" => a.remote = Some(value()?),
+            "--ref" => a.git_ref = Some(value()?),
+            "--sha" => a.sha = Some(value()?),
+            "--repository" => a.repository = Some(value()?),
+            "--actor" => a.actor = Some(value()?),
             "--var" => a.vars.push(pair(&value()?)?),
             "--input" => a.inputs.push(pair(&value()?)?),
             o if o.starts_with("--") => return Err(format!("an unknown option {o:?}")),
@@ -131,24 +146,6 @@ fn parse(args: &[String]) -> Result<Args, String> {
 
 fn object(pairs: &[(String, String)]) -> Value {
     Value::object(pairs.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))))
-}
-
-/// The local stand-in of the `github` context of the job level. The ref is
-/// `refs/heads/main` until the ref of the tree is read (T-125): the cache
-/// client skips a push with no ref (T-120).
-fn github(file: &std::path::Path, event: &str) -> Value {
-    let workflow = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    Value::object([
-        ("event_name", Value::String(event.into())),
-        ("workflow", Value::String(workflow)),
-        ("repository", Value::String("local/workflow".into())),
-        ("server_url", Value::String("https://github.com".into())),
-        ("run_id", Value::String("1".into())),
-        ("run_number", Value::String("1".into())),
-        ("ref", Value::String("refs/heads/main".into())),
-        ("ref_name", Value::String("main".into())),
-        ("ref_type", Value::String("branch".into())),
-    ])
 }
 
 fn arch() -> &'static str {
@@ -271,8 +268,27 @@ pub fn run(args: &[String]) -> Out {
         }
         Err(e) => return fail(Class::Unavailable, format!("{}: {e}", a.file.display())),
     };
-    let base =
-        Base { github: github(&a.file, &a.event), vars: object(&a.vars), inputs: object(&a.inputs), ..Base::default() };
+    // A workflow whose `on:` does not take the event does not run on GitHub
+    // (T-125); --force-event runs it.
+    if !a.force_event
+        && let Ok(p) = pod_actions_workflow::parse(&text)
+    {
+        let events = context::events(&p.workflow.on);
+        if !events.contains(&a.event) {
+            let msg = format!(
+                "{}: `on:` takes {events:?}, not the event {:?}; --force-event runs it",
+                a.file.display(),
+                a.event
+            );
+            return fail(Class::Config, msg);
+        }
+    }
+    let facts = context::facts(&a);
+    let github = match context::github(&a, &facts) {
+        Ok(g) => g,
+        Err(e) => return fail(Class::Config, e),
+    };
+    let base = Base { github, vars: object(&a.vars), inputs: object(&a.inputs), ..Base::default() };
     let mut source = match LocalSource::new("local", &text, base, arch(), Box::new(|_, _| Default::default())) {
         Ok(s) => s,
         Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
@@ -308,7 +324,10 @@ pub fn run(args: &[String]) -> Out {
         (true, _) => None,
         (false, Err(e)) => return fail(Class::Config, e),
         (false, Ok(dir)) => match podrunner_local::cache::CacheStore::new(&dir, podrunner_local::cache::LIMIT) {
-            Ok(s) => Some(std::sync::Arc::new(s)),
+            // The scope of the ref, then that of the default branch (T-125).
+            Ok(s) => Some(std::sync::Arc::new(
+                s.with_scopes(vec![facts.git_ref.clone(), format!("refs/heads/{}", facts.default_branch)]),
+            )),
             Err(e) => return fail(Class::Config, format!("{}: {e}", dir.display())),
         },
     };
