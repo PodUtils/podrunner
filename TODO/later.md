@@ -1603,7 +1603,7 @@ Print each upload of a log as it comes, each line with the job prefix; `-q` prin
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1620,6 +1620,11 @@ Read `crates/podrunner/src/run_local.rs` on 2026-11-14: the scratch directories 
 ## Prove
 
 `cargo test -p podrunner-local` (a rerun keeps the outputs of a good job and runs the failed one and its dependents).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner-local/src/rerun.rs`: the source records the end of each cell (`ends`), and a rerun gives each cell that it does not run its kept result and outputs (`set_kept`; the drive loop prints `kept NAME (result)` and runs no unit). `rerun_jobs` takes the jobs with a failed or cancelled cell (or the jobs of `--job`), each job that the state does not know, and each job after one of them. `podrunner run --state DIR` writes `DIR/state.json` (the digest of the workflow and each end), the logs in `DIR/logs` and the artifacts in `DIR/artifacts`; `--rerun DIR [--failed | --job ID]` reads it, refuses a changed workflow unless `--refresh`, and writes the new state; the artifact store of a rerun replaces an artifact of the same name (`ArtifactStore::replacing`). Each file of DIR is written by podrunner. Tests: the rerun set and the state file, a changed workflow, the flags; a run here on runner v2.338.2: a run with a failed job `b`, then `--rerun` with a fix gives `kept a (success)`, `ok b`, `ok c`, and `c` reads the kept output of `a`.
+
 
 # T-136: Local mode: environments, with their secrets, vars and egress policy
 

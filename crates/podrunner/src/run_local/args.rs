@@ -28,6 +28,11 @@ pub(super) struct Args {
     pub(super) environment_secrets: Vec<(String, PathBuf)>,
     pub(super) environment_vars: Vec<(String, PathBuf)>,
     pub(super) environment_allow: Vec<(String, String)>,
+    /// `--state DIR`, `--rerun DIR`, `--failed`, `--refresh` (T-135).
+    pub(super) state: Option<PathBuf>,
+    pub(super) rerun: Option<PathBuf>,
+    pub(super) failed: bool,
+    pub(super) refresh: bool,
     /// `-q`, `--json`, `--log-dir` (T-134).
     pub(super) quiet: bool,
     pub(super) json: bool,
@@ -97,6 +102,10 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
                     _ => a.environment_allow.push((name.into(), rest.into())),
                 }
             }
+            "--state" => a.state = Some(PathBuf::from(value()?)),
+            "--rerun" => a.rerun = Some(PathBuf::from(value()?)),
+            "--failed" => a.failed = true,
+            "--refresh" => a.refresh = true,
             "-q" | "--quiet" => a.quiet = true,
             "--json" => a.json = true,
             "--log-dir" => a.log_dir = Some(PathBuf::from(value()?)),
@@ -166,6 +175,12 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
         }
     }
     a.file = file.ok_or("the workflow file is necessary")?;
+    if (a.failed || a.refresh) && a.rerun.is_none() {
+        return Err("--failed and --refresh need --rerun DIR".into());
+    }
+    if a.failed && !a.jobs.is_empty() {
+        return Err("--failed and --job exclude each other".into());
+    }
     if a.cache.is_some() && a.no_cache {
         return Err("--cache and --no-cache exclude each other".into());
     }

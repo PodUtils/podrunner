@@ -41,6 +41,8 @@ struct Inner {
 pub struct ArtifactStore {
     dir: PathBuf,
     limit: u64,
+    /// A rerun replaces an artifact of the same name (T-135).
+    replace: bool,
     inner: Mutex<Inner>,
 }
 
@@ -142,7 +144,13 @@ impl ArtifactStore {
     /// A store in `dir` with a limit of `limit` bytes for the run.
     pub fn new(dir: &Path, limit: u64) -> std::io::Result<ArtifactStore> {
         fs::create_dir_all(dir.join(".pending"))?;
-        Ok(ArtifactStore { dir: dir.to_path_buf(), limit, inner: Mutex::default() })
+        Ok(ArtifactStore { dir: dir.to_path_buf(), limit, replace: false, inner: Mutex::default() })
+    }
+
+    /// The store of a rerun: a job that runs again replaces its artifacts.
+    pub fn replacing(mut self) -> ArtifactStore {
+        self.replace = true;
+        self
     }
 
     fn meta(&self, name: &str) -> Option<Value> {
@@ -194,6 +202,9 @@ impl ArtifactStore {
             "CreateArtifact" => {
                 if !valid(name) {
                     return twirp(400, "invalid_argument", format!("the artifact name {name:?} is not valid"));
+                }
+                if self.replace && self.meta(name).is_some() {
+                    let _ = fs::remove_dir_all(self.dir.join(name));
                 }
                 if self.meta(name).is_some() {
                     let msg = format!("an artifact with the name {name:?} already exists on the workflow run");

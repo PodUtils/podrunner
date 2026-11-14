@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**155 entries: 15 open, 9 partial, 6 blocked, 125 done.**
+**155 entries: 14 open, 9 partial, 6 blocked, 126 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
 | P2 | 0 | 6 | 4 | 62 | 72 |
-| P3 | 15 | 1 | 2 | 31 | 49 |
-| **All** | 15 | 9 | 6 | 125 | 155 |
+| P3 | 14 | 1 | 2 | 32 | 49 |
+| **All** | 14 | 9 | 6 | 126 | 155 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -182,7 +182,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-132](later.md) | P3 | M | later | feature | open | Local mode: jobs in parallel (--jobs N, max-parallel) |
 | [T-133](later.md) | P2 | M | later | feature | done | Local mode: the checkout with the changes of the tree, the .git directory, and other repositories |
 | [T-134](later.md) | P2 | M | later | feature | done | Local mode: live logs, a log directory, the job summary, and --json |
-| [T-135](later.md) | P3 | M | later | feature | open | Local mode: a run directory and reruns of failed jobs |
+| [T-135](later.md) | P3 | M | later | feature | done | Local mode: a run directory and reruns of failed jobs |
 | [T-136](later.md) | P3 | S | later | feature | partial | Local mode: environments, with their secrets, vars and egress policy |
 | [T-137](later.md) | P3 | S | later | feature | done | Local mode: concurrency groups and cancel-in-progress |
 | [T-138](later.md) | P3 | S | later | feature | open | Local mode: keep the unit of a failed job, export the workspace, and a shared tool cache |

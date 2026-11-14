@@ -59,6 +59,8 @@ pub enum Line {
     Refused { job: JobId, name: String, reason: String },
     /// A job did not run: its condition, with its implicit `success() &&`.
     Skipped { job: String, condition: String },
+    /// A cell that a rerun does not run: its kept result (T-135).
+    Kept { job: JobId, name: String, result: JobResult },
     /// A cell that `--job` or `--matrix` keeps out (T-127): its name and why.
     NotSelected { job: JobId, name: String, reason: String },
 }
@@ -132,6 +134,16 @@ pub fn drive_with(
                 return Ok(false);
             }
             let name = source.cell(&job).map(|c| c.instance.name.clone()).unwrap_or_default();
+            // A cell that a rerun keeps takes its result and outputs (T-135).
+            if let Some((result, outputs)) = source.kept_of(&job) {
+                out(&Line::Kept { job: job.clone(), name, result });
+                source.ack(&job).map_err(|e| e.to_string())?;
+                source.claim(&job, RUNNER).map_err(|e| e.to_string())?;
+                ok &= matches!(result, JobResult::Success | JobResult::Skipped) || source.may_fail(&job);
+                source.complete(&job, result, outputs)?;
+                source.release(&job).map_err(|e| e.to_string())?;
+                continue;
+            }
             // A cell that the filter keeps out ends as skipped (T-127).
             if let Some(reason) = source.not_selected(&job) {
                 out(&Line::NotSelected { job: job.clone(), name, reason });

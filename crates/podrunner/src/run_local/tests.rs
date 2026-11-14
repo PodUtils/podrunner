@@ -433,3 +433,22 @@ fn the_environment_flags_of_run() {
             .contains("NAME=VALUE")
     );
 }
+
+#[test]
+fn a_rerun_of_a_changed_workflow_fails_by_name() {
+    let dir = std::env::temp_dir().join(format!("podrunner-rerun-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("state")).unwrap();
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    std::fs::write(dir.join("state/state.json"), r#"{"schema":1,"workflow":"sha256:00","cells":[]}"#).unwrap();
+    let (w, st) = (dir.join("w.yml").display().to_string(), dir.join("state").display().to_string());
+    let out = run(&args(&[&w, "--runner-dir", "/nonexistent", "--rerun", &st, "--no-cache"]));
+    assert!(out.stderr.contains("the workflow changed") && out.stderr.contains("--refresh"), "{}", out.stderr);
+    for (bad, why) in [
+        (vec!["w.yml", "--runner-dir", "/r", "--failed"], "--rerun"),
+        (vec!["w.yml", "--runner-dir", "/r", "--rerun", "/s", "--failed", "--job", "a"], "exclude"),
+    ] {
+        assert!(parse(&args(&bad)).unwrap_err().contains(why), "{bad:?}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

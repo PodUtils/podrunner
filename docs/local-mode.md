@@ -62,7 +62,7 @@ the entry that closes the gap, or the entry that did the work.
 | Parallel jobs | `--concurrent-jobs` | `--parallel N` | one at a time | T-132 |
 | Live logs, log files, JSON | yes | web console, `--log-output-dir` | live lines on stderr, `--json`, `--log-dir` with each step log and `summary.md`; secrets masked again | T-134 |
 | Web view | no | yes | no | T-149 |
-| Reruns | no | `rerun --failed`, keep artifacts | no | T-135 |
+| Reruns | no | `rerun --failed`, keep artifacts | `--state DIR`, `--rerun DIR [--failed \| --job ID]`, kept results, outputs and artifacts; a changed workflow fails by name | T-135 |
 | Watch, schedules | `--watch` | `--watch`, schedules | no | T-142 |
 | Configuration file | `.actrc`, trust of the project file | `.actrc` | no | T-143 |
 | Keep a container, bind the tree, tool cache | `--reuse`, `--bind` | `--keep-container`, shared tool cache | no | T-138 |

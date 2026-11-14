@@ -28,7 +28,7 @@ use crate::cli::Out;
 
 use args::{Args, parse};
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE]";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -90,6 +90,7 @@ pub fn line(l: &Line) -> String {
         Line::Refused { name, reason, .. } => format!("failure {name}: {reason}\n"),
         Line::Skipped { job, condition } => format!("skipped {job}: if: {condition}\n"),
         Line::NotSelected { name, reason, .. } => format!("skipped {name}: {reason}\n"),
+        Line::Kept { name, result, .. } => format!("kept    {name} ({})\n", result.as_str()),
     }
 }
 
@@ -242,7 +243,32 @@ pub fn run(args: &[String]) -> Out {
         Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
     };
     source.set_env(env);
-    if let Err(e) = source.set_filter(&a.jobs, &a.matrix) {
+    // A rerun (T-135): the kept end of each cell that it does not run; its
+    // `--job` names the jobs to run again, not a filter.
+    let state_dir = a.state.clone().or_else(|| a.rerun.clone());
+    let digest = podrunner_local::store::digest(text.as_bytes());
+    if let Some(dir) = &a.rerun {
+        let kept = std::fs::read_to_string(dir.join("state.json"))
+            .map_err(|e| format!("{}: {e}", dir.join("state.json").display()))
+            .and_then(|t| podrunner_local::rerun::parse_state(&t))
+            .and_then(|(was, ends)| {
+                if was != digest && !a.refresh {
+                    return Err(format!(
+                        "{}: the workflow changed since the run of {}; --refresh reruns it",
+                        a.file.display(),
+                        dir.display()
+                    ));
+                }
+                let set = podrunner_local::rerun::rerun_jobs(source.workflow(), &ends, &a.jobs)?;
+                Ok(podrunner_local::rerun::kept(&ends, &set))
+            });
+        match kept {
+            Ok(k) => source.set_kept(k),
+            Err(e) => return fail(Class::Config, e),
+        }
+    }
+    let filter_jobs: &[String] = if a.rerun.is_some() { &[] } else { &a.jobs };
+    if let Err(e) = source.set_filter(filter_jobs, &a.matrix) {
         return fail(Class::Usage, e);
     }
     // The values to mask in each line that podrunner writes (T-134).
@@ -298,8 +324,15 @@ pub fn run(args: &[String]) -> Out {
             Err(e) => return fail(Class::Config, e),
         },
     };
-    let kept = a.artifacts.clone().unwrap_or_else(|| scratch.join("artifacts"));
+    // The artifacts stay in the state of the run, so that a rerun job reads
+    // the artifact of a kept job; a rerun replaces what it uploads again.
+    let kept = a
+        .artifacts
+        .clone()
+        .or_else(|| state_dir.as_ref().map(|d| d.join("artifacts")))
+        .unwrap_or_else(|| scratch.join("artifacts"));
     let artifacts = match podrunner_local::artifacts::ArtifactStore::new(&kept, podrunner_local::artifacts::LIMIT) {
+        Ok(s) if a.rerun.is_some() => std::sync::Arc::new(s.replacing()),
         Ok(s) => std::sync::Arc::new(s),
         Err(e) => return fail(Class::Config, format!("{}: {e}", kept.display())),
     };
@@ -386,10 +419,18 @@ pub fn run(args: &[String]) -> Out {
     let blobs = exec.take_blobs();
     group_notes.extend(notes_sink.lock().map(|n| n.clone()).unwrap_or_default());
     stderr.extend(group_notes.iter().map(String::as_str));
-    if let Some(dir) = &a.log_dir
+    let log_dir = a.log_dir.clone().or_else(|| state_dir.as_ref().map(|d| d.join("logs")));
+    if let Some(dir) = &log_dir
         && let Err(e) = logs::write_dir(dir, &blobs, &masked)
     {
         stderr.push_str(&format!("podrunner: --log-dir: {e}\n"));
+    }
+    // The state of the run, for a rerun (T-135).
+    if let Some(dir) = &state_dir {
+        let text = podrunner_local::rerun::state_json(&digest, source.ends());
+        if let Err(e) = std::fs::create_dir_all(dir).and_then(|()| std::fs::write(dir.join("state.json"), text)) {
+            stderr.push_str(&format!("podrunner: --state {}: {e}\n", dir.display()));
+        }
     }
     drop(exec);
     let _ = std::fs::remove_dir_all(&state);

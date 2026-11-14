@@ -15,6 +15,7 @@ pub mod front;
 pub mod images;
 pub mod lock;
 pub mod message;
+pub mod rerun;
 pub mod secrets;
 pub mod store;
 pub mod tree;
@@ -91,6 +92,9 @@ pub struct LocalSource {
     env: Vec<(String, String)>,
     /// The secrets and vars of each environment (T-136).
     environments: BTreeMap<String, Environment>,
+    /// The end of each cell of this run, and the kept ends of a rerun (T-135).
+    cell_ends: Vec<rerun::CellEnd>,
+    kept: BTreeMap<String, rerun::Ended>,
     matrix_filter: Vec<(String, String)>,
     minter: Minter,
     /// The report and audit lines, for the caller.
@@ -135,6 +139,8 @@ impl LocalSource {
             selected: None,
             env: Vec::new(),
             environments: BTreeMap::new(),
+            cell_ends: Vec::new(),
+            kept: BTreeMap::new(),
             matrix_filter: Vec::new(),
             minter,
             reports: Vec::new(),
@@ -324,6 +330,7 @@ impl LocalSource {
     /// for a matrix), and the jobs after it can start.
     pub fn complete(&mut self, job: &JobId, result: JobResult, outputs: Vec<(String, String)>) -> Result<(), String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
+        self.cell_ends.push((job.clone(), result, outputs.clone()));
         // A failed cell of a job with `continue-on-error` does not fail the
         // run: `needs` gives the jobs after it a success (T-117).
         let allowed = cell.instance.continue_on_error;

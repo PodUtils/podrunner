@@ -46,6 +46,9 @@ pub(super) fn line_json(l: &Line) -> String {
         Line::Skipped { job, condition } => {
             json!({ "event": "job", "name": job, "result": "skipped", "if": condition })
         }
+        Line::Kept { job, name, result } => {
+            json!({ "event": "job", "job": job.to_string(), "name": name, "result": result.as_str(), "kept": true })
+        }
         Line::NotSelected { job, name, reason } => {
             json!({ "event": "job", "job": job.to_string(), "name": name, "result": "skipped", "reason": reason })
         }
