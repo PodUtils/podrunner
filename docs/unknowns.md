@@ -1,6 +1,6 @@
 # The unknowns of the design
 
-The design rests on 25 unknowns (GitHub #9, T-009). Each row has the
+The design rests on 26 unknowns (GitHub #9, T-009). Each row has the
 action that settles it, its blocker and its state. A statement of a
 document that depends on an open row says "Unverified". A live row runs in
 the live acceptance suite (GitHub #40, T-040). DR-7 is yes (2026-11-13): the
@@ -33,3 +33,4 @@ live rows wait for the live gates (GitHub #74 and #75).
 | U23 | The trust inputs behave as the tier rule says for re-runs, merge queues and reusable workflows | A live job | the live gates | Open (T-040). |
 | U24 | `pod-broker` v1 serves one listener for each unit | A read of the crate | none | Settled: yes (podcrates `v0.16.0` and later): `Broker::serve_unix_job` binds one listener to one job, with no token in the unit, and a token of another job gets 407 (PodUtils/podcrates@T-160; T-024: `crates/podrunner-egress` and its tests). No wrapper. |
 | U25 | `podvm run -v` accepts `/proc/self/fd/N` as a mount source | A run on the userland rung | an H0 host | Settled (T-023): yes on the supervise rung of podvm `v0.2.0-beta.2` (the payload reads the open file). On the namespace rung `-v` is refused by name. The driver writes the credential files into the rootfs and needs no `-v`. |
+| U26 | A job of another architecture (`linux/arm64` on an x86_64 host) runs in a guest of the machine tier, emulated by QEMU | T-151 (`scripts/measure-foreign.sh` in `runner-image.yml`) | podvm PodUtils/podvm#366 (PodUtils/podvm@T-1890) | Settled for now (T-151, podvm `v0.2.0-beta.14`): no. The machine tier starts an x86_64 guest only; `--platform linux/arm64` exits 125. podrunner refuses a label of another architecture (`ARM64`, `ubuntu-24.04-arm`) by name unless a `--platform` route names it. podvm plans the guest (QEMU of that architecture under TCG); podrunner measures it when podvm amends PodUtils/podvm#366 with its release. |

@@ -101,7 +101,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #99 | COORD-039: podrunner takes podcrates v0.43.0 at 51f9e6b, and the additions for pod-actions-store and pod-actions-results (the answer to PodUtils/podcrates#149) (to podcrates) | closed (podcrates recorded the take on PodUtils/podcrates#149; PodUtils/podcrates@T-587 and PodUtils/podcrates@T-588 import the additions) | T-118 |
 | #100 | COORD-040: podvm run of busybox:1.37.0 (glibc) fails where chroot is denied: libdl.so.2 is not in the image (to podvm) | open (podvm answered in PodUtils/podvm#351: the release after 0.2.0-beta.16) | T-156 |
 | #101 | COORD-041: podrunner takes podcrates v0.44.0 at 8ef1730 (the answer to PodUtils/podcrates#154) (to podcrates) | closed (podcrates closed PodUtils/podcrates#154 when each project took the tag) | T-125 |
-| #102 | COORD-042: a guest of another architecture in the machine tier (linux/arm64 on x86_64) (to podvm) | open (T-151 waits for the answer) | T-151 |
+| #102 | COORD-042: a guest of another architecture in the machine tier (linux/arm64 on x86_64) (to podvm) | closed (podvm answered no on PodUtils/podvm#366; T-151 is done) | T-151 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

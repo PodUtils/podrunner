@@ -19,6 +19,19 @@ pub struct Dispatch {
     next: Option<usize>,
 }
 
+/// The platform that `label` asks for when it is not the one of `host`
+/// (`ARM64`, `ubuntu-24.04-arm`, `aarch64`; `X64`, `x86_64`, `amd64`).
+pub fn other_arch(label: &str, host: &str) -> Option<&'static str> {
+    let l = label.to_ascii_lowercase();
+    let arm = l == "arm" || l == "arm64" || l == "aarch64" || l.ends_with("-arm") || l.ends_with("-arm64");
+    let x64 = l == "x64" || l == "x86_64" || l == "amd64" || l.ends_with("-x64");
+    match host {
+        "x86_64" if arm => Some("linux/arm64"),
+        "aarch64" if x64 => Some("linux/amd64"),
+        _ => None,
+    }
+}
+
 impl Dispatch {
     pub fn new(routes: Vec<(String, Box<dyn Executor>)>, default: Option<Box<dyn Executor>>) -> Dispatch {
         Dispatch { routes, default, next: None }
@@ -37,6 +50,14 @@ impl Dispatch {
         });
         if let Some(l) = foreign {
             return Err(format!("runs-on {l:?}: a unit is Linux; name a --platform for the label to run it there"));
+        }
+        // A label of another architecture (T-151): the units of this host have
+        // its architecture, and podvm runs no guest of another one yet.
+        if let Some((l, arch)) = labels.iter().find_map(|l| other_arch(l, std::env::consts::ARCH).map(|a| (l, a))) {
+            return Err(format!(
+                "runs-on {l:?}: a job of {arch}, and the units of this host are {}; podvm runs no guest of another architecture yet; name a --platform for the label to run it there",
+                if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" }
+            ));
         }
         if self.default.is_none() {
             let names: Vec<&str> = self.routes.iter().map(|(r, _)| r.as_str()).collect();
@@ -135,6 +156,12 @@ mod tests {
         assert_eq!(by(&mut d, &["host", "big"]).unwrap(), "host", "the first label that has a route");
         assert_eq!(by(&mut d, &["ubuntu-latest"]).unwrap(), "default");
         assert!(by(&mut d, &["windows-latest"]).unwrap_err().contains("Linux"));
+        assert_eq!(other_arch("ubuntu-24.04-arm", "x86_64"), Some("linux/arm64"));
+        assert_eq!(other_arch("ARM64", "x86_64"), Some("linux/arm64"));
+        assert_eq!(other_arch("X64", "aarch64"), Some("linux/amd64"));
+        assert_eq!(other_arch("ubuntu-latest", "x86_64"), None);
+        assert_eq!(other_arch("ARM64", "aarch64"), None, "the architecture of the host");
+        assert_eq!(other_arch("charm", "x86_64"), None);
         let mut none = Dispatch::new(vec![("big".into(), Box::new(Named("big")))], None);
         assert!(by(&mut none, &["ubuntu-latest"]).unwrap_err().contains("no --platform"));
         let mut mac = Dispatch::new(vec![("macos-14".into(), Box::new(Named("mac")))], None);

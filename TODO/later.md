@@ -2105,7 +2105,7 @@ State (2026-11-14): `--break JOB:STEP` (the number of the step from 1, or its `i
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2126,6 +2126,10 @@ Measure in `runner-image.yml`: an aarch64 runner image in a guest of the microvm
 State (2026-11-14): `scripts/measure-foreign.sh` pulls `busybox:1.37.0` for `linux/arm64` into a store of its own and runs it in the machine tier of podvm with `--platform linux/arm64`; it prints the exit, the seconds, the accelerator and `uname -m` of the guest. `runner-image.yml` runs it on the x86_64 host as the step "A guest of another architecture (a measure)", with `qemu-system-arm`. Next: read the step summary of the run, record the result in `docs/unknowns.md`, and then measure the aarch64 runner image with a small job.
 
 Measure (runner-image run 43594485325, `dcc266f`): the pull of `busybox:1.37.0` for `linux/arm64` into a store of its own takes 1 s; `podvm run --podvm-tier=machine --platform linux/arm64` of podvm `0.2.0-beta.14` on the x86_64 host exits 125 after 1 s: podvm starts `qemu-system-x86_64` under KVM, and the guest gives no exit marker. So the machine tier of this podvm takes no guest of another architecture. Asked podvm on GitHub #102 (COORD-042): a guest of another architecture (QEMU of that architecture, with no KVM). Next: with no, the local mode refuses a job of another architecture by name, and `docs/unknowns.md` records it; with yes, a choice of the architecture and its measure.
+
+## Done
+
+2026-11-14, this commit. podvm answered on PodUtils/podvm#366 (COORD-112, to GitHub #102): no guest of another architecture yet; PodUtils/podvm@T-1889 refuses `--platform linux/arm64` in the machine tier by name, and PodUtils/podvm@T-1890 plans the guest. `dispatch::other_arch` names the platform of a label of another architecture than the host (`ARM64`, `aarch64`, `*-arm`, `*-arm64` on x86_64; `X64`, `x86_64`, `amd64`, `*-x64` on aarch64), and `Dispatch::route` fails such a job by name unless a `--platform` route names its label. `docs/unknowns.md` records U26. Test: `cargo test -p podrunner-local dispatch`. When podvm amends PodUtils/podvm#366 with a release, a new entry measures the guest and adds the choice of the architecture.
 
 
 # T-152: Local mode: an env of one expression is refused
