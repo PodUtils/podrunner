@@ -5,9 +5,13 @@
 //!
 //!   PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored
 
+/// The tests of this file share one runner directory: one runs at a time.
+static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 #[ignore]
 fn podrunner_run_runs_the_local_suite_to_green() {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
     let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
     let suite = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/local/suite.yml");
     let tree = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
@@ -44,6 +48,7 @@ fn podrunner_run_runs_the_local_suite_to_green() {
 #[test]
 #[ignore]
 fn the_checkout_gives_git_and_another_repository() {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
     let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
     let scratch = std::env::temp_dir().join(format!("podrunner-local-checkout-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&scratch);

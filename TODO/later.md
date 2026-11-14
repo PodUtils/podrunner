@@ -2108,3 +2108,5 @@ Run `cargo test --workspace --all-features` in a loop (20 runs) and keep each fa
 
 20 runs of `cargo test --workspace --all-features` in a row pass.
 
+State (2026-11-14): 10 runs of `cargo test --workspace --all-features` at `fca65c9` passed. Not reproduced yet; the next failure of the check names its test.
+
