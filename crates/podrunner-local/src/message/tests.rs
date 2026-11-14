@@ -57,6 +57,9 @@ fn a_job_becomes_steps_env_outputs_and_contexts() {
     let o = &job.overrides;
     let steps = o["steps"].as_array().unwrap();
     assert_eq!(steps.len(), 3);
+    // A step id starts with a letter: the runner names the container of a
+    // Docker action from it (T-124).
+    assert!(steps.iter().all(|s| s["id"].as_str().unwrap().starts_with(|c: char| c.is_ascii_alphabetic())));
     // Step 1: its id names its context; the script is a format(); the
     // shell of the workflow and the directory of the job are its inputs.
     assert_eq!(steps[0]["contextName"], "s");

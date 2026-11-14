@@ -49,7 +49,7 @@ fn pause_step(cell: &str, n: usize, condition: &str, what: &str) -> Value {
     let name = format!("__podrunner_pause_{n}");
     json!({
         "type": "action", "reference": { "type": "script" },
-        "id": format!("00000000-0000-0000-0000-00000f{n:06x}"), "name": name, "contextName": name,
+        "id": format!("a0000000-0000-0000-0000-00000f{n:06x}"), "name": name, "contextName": name,
         "displayName": format!("podrunner: a pause {what}"), "condition": condition,
         "inputs": { "type": 2, "map": [{ "Key": "script", "Value": script }] },
     })

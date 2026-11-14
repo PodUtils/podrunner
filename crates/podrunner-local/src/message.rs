@@ -163,8 +163,12 @@ pub fn context_data(v: &XValue) -> Value {
     }
 }
 
+/// The id of a step. It starts with a letter: the runner names the
+/// container of a Docker action from the image tag `LABEL:STEP-ID` with its
+/// leading digits left out, and a name of digits only is empty, which docker
+/// refuses (T-124).
 fn guid(n: u64) -> String {
-    format!("00000000-0000-0000-0000-{n:012x}")
+    format!("a0000000-0000-0000-0000-{n:012x}")
 }
 
 /// The shell and the directory of `defaults.run`: the job's over the
