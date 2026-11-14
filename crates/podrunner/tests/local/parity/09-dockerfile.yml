@@ -1,0 +1,14 @@
+# A Dockerfile action: the engine builds its image, and its output reaches
+# the next step (T-124). It needs an engine in the unit.
+name: parity dockerfile
+on: push
+jobs:
+  build:
+    runs-on: local
+    steps:
+      - uses: actions/checkout@v4
+      - id: sq
+        uses: ./crates/podrunner/tests/local/parity/dockerfile
+        with:
+          n: 7
+      - run: test "${{ steps.sq.outputs.square }}" = 49

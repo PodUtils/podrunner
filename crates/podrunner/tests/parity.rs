@@ -2,15 +2,16 @@
 //! workflow of `tests/local/parity`, with one verdict for each. A failure
 //! is PARTIAL only while the entry that closes it is open in the record,
 //! and only in the jobs that need that entry; after that entry is done, the
-//! same failure is FAIL. A plant (a wrong
-//! value of a check) gives FAIL. Ignored by default: it needs an unpacked
-//! release of `actions/runner` in a directory it may change.
+//! same failure is FAIL. A plant (a wrong value of a check) gives FAIL.
+//! Ignored by default.
 //!
-//!   PODRUNNER_RUNNER_DIR=DIR [PODRUNNER_PARITY_IMAGE=NAME@sha256:HEX] \
-//!   cargo test -p podrunner --test parity -- --ignored --nocapture
+//!   PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test parity -- --ignored --nocapture
 //!
-//! PODRUNNER_PARITY_IMAGE is an image with busybox for the workflows with
-//! containers; with no value, those workflows keep the word IMAGE and fail.
+//! DIR is an unpacked release of `actions/runner` that the test may change.
+//! With `--runner-dir` a workflow that needs a container route gives SKIP.
+//! `PODRUNNER_PARITY_UNIT` replaces `--runner-dir DIR` with the options of a
+//! unit kind, split at each space (for example `--microvm PODVM --images
+//! STORE --image REF --engine DIR --allow HOST`), and each workflow runs.
 //! The actions come from github.com by the lock of the suite, into the
 //! store of the user.
 
@@ -23,16 +24,17 @@ const SUITE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/local/parity");
 /// job named: each job of the workflow).
 type Gap = Option<(&'static str, &'static [&'static str])>;
 
-/// Each workflow and its gap.
-const ROWS: [(&str, Gap); 8] = [
-    ("01-exit.yml", None),
-    ("02-expressions.yml", None),
-    ("03-matrix.yml", None),
-    ("04-services.yml", Some(("T-124", &[]))),
-    ("05-containers.yml", Some(("T-123", &[]))),
-    ("06-actions.yml", None),
-    ("07-artifacts.yml", None),
-    ("08-cache.yml", None),
+/// Each workflow, its gap, and whether it needs a container route.
+const ROWS: [(&str, Gap, bool); 9] = [
+    ("01-exit.yml", None, false),
+    ("02-expressions.yml", None, false),
+    ("03-matrix.yml", None, false),
+    ("04-services.yml", None, true),
+    ("05-containers.yml", None, true),
+    ("06-actions.yml", None, false),
+    ("07-artifacts.yml", None, false),
+    ("08-cache.yml", None, false),
+    ("09-dockerfile.yml", None, true),
 ];
 
 #[derive(Debug, PartialEq)]
@@ -56,18 +58,13 @@ fn status(entry: &str) -> String {
     panic!("{entry} is not in the record")
 }
 
-/// A copy of the workflow with IMAGE replaced, and of the lock of the
-/// actions of the suite (T-118), in `scratch`.
+/// A copy of the workflow and of the lock of the actions of the suite
+/// (T-118) in `scratch`.
 fn workflow(name: &str, scratch: &Path) -> PathBuf {
     let lock = podrunner_local::lock::LOCK_FILE;
     std::fs::copy(Path::new(SUITE).join(lock), scratch.join(lock)).unwrap();
-    let text = std::fs::read_to_string(Path::new(SUITE).join(name)).unwrap();
-    let text = match std::env::var("PODRUNNER_PARITY_IMAGE") {
-        Ok(image) => text.replace("IMAGE", &image),
-        Err(_) => text,
-    };
     let path = scratch.join(name);
-    std::fs::write(&path, text).unwrap();
+    std::fs::copy(Path::new(SUITE).join(name), &path).unwrap();
     path
 }
 
@@ -81,17 +78,11 @@ fn failed(stdout: &str) -> Vec<String> {
         .collect()
 }
 
-fn verdict(dir: &str, scratch: &Path, name: &str, gap: Gap, extra: &[&str]) -> Verdict {
-    let mut args: Vec<String> = vec![
-        "run".into(),
-        workflow(name, scratch).display().to_string(),
-        "--runner-dir".into(),
-        dir.into(),
-        "--checkout".into(),
-        ROOT.into(),
-        // The lock of the suite pins each action: a run may not change it.
-        "--frozen".into(),
-    ];
+fn verdict(unit: &[String], scratch: &Path, name: &str, gap: Gap, extra: &[&str]) -> Verdict {
+    let mut args: Vec<String> = vec!["run".into(), workflow(name, scratch).display().to_string()];
+    args.extend(unit.iter().cloned());
+    // The lock of the suite pins each action: a run may not change it.
+    args.extend(["--checkout".into(), ROOT.into(), "--frozen".into()]);
     args.extend(extra.iter().map(|s| s.to_string()));
     let out = podrunner::cli::run(&args);
     println!("--- {name}\n{}{}", out.stdout, out.stderr);
@@ -114,13 +105,23 @@ fn verdict(dir: &str, scratch: &Path, name: &str, gap: Gap, extra: &[&str]) -> V
 #[test]
 #[ignore]
 fn the_parity_suite_gives_one_verdict_for_each_workflow() {
-    let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
+    let (unit, routes) = match std::env::var("PODRUNNER_PARITY_UNIT") {
+        Ok(u) => (u.split(' ').filter(|w| !w.is_empty()).map(str::to_string).collect::<Vec<_>>(), true),
+        Err(_) => {
+            let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR or PODRUNNER_PARITY_UNIT");
+            (vec!["--runner-dir".to_string(), dir], false)
+        }
+    };
     let scratch = std::env::temp_dir().join(format!("podrunner-parity-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&scratch);
     std::fs::create_dir_all(&scratch).unwrap();
     let mut bad = Vec::new();
-    for (name, gap) in ROWS {
-        let v = verdict(&dir, &scratch, name, gap, &[]);
+    for (name, gap, needs_route) in ROWS {
+        if needs_route && !routes {
+            println!("parity {name} SKIP: it needs a unit with a container route");
+            continue;
+        }
+        let v = verdict(&unit, &scratch, name, gap, &[]);
         let word = match &v {
             Verdict::Pass => "PASS".to_string(),
             Verdict::Partial(e) => format!("PARTIAL {e}"),
@@ -133,7 +134,7 @@ fn the_parity_suite_gives_one_verdict_for_each_workflow() {
     }
     // The plants: a wrong value of an expression, a wrong artifact content.
     for name in ["02-expressions.yml", "07-artifacts.yml"] {
-        let plant = verdict(&dir, &scratch, name, None, &["--var", "PLANT=1"]);
+        let plant = verdict(&unit, &scratch, name, None, &["--var", "PLANT=1"]);
         println!("parity plant {name} {plant:?}");
         assert_eq!(plant, Verdict::Fail, "the plant of {name} must fail");
     }

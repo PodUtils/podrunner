@@ -81,8 +81,17 @@ pub fn place(offer: &JobOffer, set: Tier, kinds: &[Kind], cfg: &Config, now_s: u
     narrow(&mut c, kinds, RefusalCode::BoundaryNotAvailable, |k| {
         k.capability.secret_delivery.contains(&SecretDelivery::Files)
     })?;
+    // A `container:` job runs through the hooks or in the engine of the
+    // unit; `services:` and a Dockerfile action need the engine (T-103).
     if need.container {
-        narrow(&mut c, kinds, RefusalCode::ContainerNotSupported, |k| k.capability.container == ContainerRoute::Hooks)?;
+        narrow(&mut c, kinds, RefusalCode::ContainerNotSupported, |k| {
+            matches!(k.capability.container, ContainerRoute::Hooks | ContainerRoute::Engine)
+        })?;
+    }
+    if need.container_engine {
+        narrow(&mut c, kinds, RefusalCode::ContainerNotSupported, |k| {
+            k.capability.container == ContainerRoute::Engine
+        })?;
     }
     // A policy of the offer needs the egress module on the way out of the
     // unit, and no path rule: podrunner has no TLS end (T-107).

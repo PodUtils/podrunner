@@ -133,6 +133,8 @@ fn the_kind_claims_a_guest_and_has_no_container_route() {
     let id = UnitId::parse("u-4").unwrap();
     let e = u.container_logs(&id, &ContainerId("c".into())).unwrap_err();
     assert_eq!(e.code, UnitCode::ContainerNotSupported);
+    let engine = u.with_engine(&d);
+    assert_eq!(engine.probe().unwrap().container, ContainerRoute::Engine, "an engine in each guest");
     let _ = fs::remove_dir_all(&d);
 }
 

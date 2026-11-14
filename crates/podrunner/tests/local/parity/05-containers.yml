@@ -1,18 +1,15 @@
-# A job container beside a service (T-147). IMAGE as in 04-services.yml.
-# It needs an engine in the unit: T-123.
+# A job container and a Docker step by digest (T-147, T-124). It needs a
+# unit with a container route: the engine of --microvm --engine, or the
+# hooks of --podvm.
 name: parity containers
 on: push
 jobs:
   inside:
     runs-on: local
-    container: IMAGE
-    services:
-      side:
-        image: IMAGE
-        entrypoint: sh
-        command: -c "mkdir -p /w && echo side-42 > /w/i && httpd -f -p 8080 -h /w"
+    container: busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
     steps:
-      - run: test -f /.dockerenv || test -n "$HOSTNAME"
+      - run: test "$(cat /etc/hostname)" = "$(hostname)" && echo "in-container-$((6*7))"
         shell: sh
-      - run: test "$(wget -qO- http://side:8080/i)" = side-42
-        shell: sh
+      - uses: docker://busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+        with:
+          entrypoint: /bin/true

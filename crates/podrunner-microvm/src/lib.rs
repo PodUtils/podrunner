@@ -16,8 +16,8 @@
 //! A unix socket does not cross into a guest: the kind has no route of the
 //! container hooks. With an engine ([`MicrovmUnit::with_engine`], T-103),
 //! the guest runs `dockerd` and the runner gets its socket in the guest as
-//! `DOCKER_HOST`; the record says `container: none` until `pod-job` gives
-//! the value `engine` (GitHub #91).
+//! `DOCKER_HOST`; the record says `container: engine` (GitHub #91), so
+//! placement sends it a job of `services:` or of a Dockerfile action.
 //!
 //! The guest has no NIC (`--podvm-net none`). With a socket directory, its
 //! one way out is a channel of podvm from `127.0.0.1:3128` in the guest to
@@ -157,7 +157,8 @@ impl UnitDriver for MicrovmUnit {
             boundary: Boundary::Guest,
             boundary_proof: None,
             principal: Principal::Distinct,
-            container: ContainerRoute::None,
+            // An engine of its own in each guest, or no route at all.
+            container: if self.engine.is_some() { ContainerRoute::Engine } else { ContainerRoute::None },
             net: "none".into(),
             secret_delivery: vec![podrunner_schema::SecretDelivery::Files],
             // The files wait on the disk of the host until the guest copies them.

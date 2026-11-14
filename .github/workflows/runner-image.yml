@@ -319,6 +319,13 @@ jobs:
           cargo test -p podrunner-microvm --test engine --no-run
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" PODRUNNER_ENGINE_DIR="$RUNNER_TEMP/engine-dir" timeout 900 \
             cargo test -p podrunner-microvm --test engine -- --ignored --nocapture
+          # T-103, T-124: the parity suite in guests with an engine: services:,
+          # a job container, a Dockerfile action. dockerd pulls through the
+          # egress module, which allows the hosts of the registry only.
+          hub="--allow registry-1.docker.io --allow auth.docker.io --allow production.cloudflare.docker.com"
+          PODRUNNER_PARITY_UNIT="--microvm $PODRUNNER_PODVM --images $PODRUNNER_PODVM_IMAGES --image $PODRUNNER_RUNNER_IMAGE --engine $RUNNER_TEMP/engine-dir $hub" \
+            timeout 5400 cargo test -p podrunner --test parity -- --ignored --nocapture | tee "$RUNNER_TEMP/parity-engine.txt"
+          grep '^parity ' "$RUNNER_TEMP/parity-engine.txt" >> "$GITHUB_STEP_SUMMARY"
       # T-105 step 1: the incus tier of podvm for the incus kind. A measure:
       # incus from apt, initialized with its defaults, and podvm in the
       # group of its socket.

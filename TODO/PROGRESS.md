@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 154 entries: 29 open, 4 partial, 6 blocked, 115 done.
+`TODO/INDEX.md` holds 154 entries: 28 open, 6 partial, 5 blocked, 115 done.
 
 ## State
 
@@ -17,7 +17,7 @@
 - The `microvm` kind (no NIC, one channel, a mount check before each job,
   an optional engine) and the `incus` kind (no NIC, one channel, hold
   `enforced`) pass on real guests and instances. T-103 has the engine in a
-  guest; its capability waits for podcrates (GitHub #91).
+  guest, and its capability `container: engine` (podcrates `v0.42.0`).
 - Each project gets COORD issues only (no direct message, the owner,
   2026-11-12); podnet and podvm answer; podssh is on break. An entry that
   needs a change of another project is `blocked`, and the session takes
@@ -36,8 +36,8 @@ The queue, most valuable first:
 
 The local mode against act and runner.server (`docs/local-mode.md`), the features that most workflows need first:
 
-2. T-123 (M): the local mode on the microvm and incus kinds.
-3. T-124 (M): `services:`, `docker build` and Docker-in-Docker through the engine of the unit.
+2. T-123 (M, partial): the local mode on the microvm and incus kinds; the run in `runner-image.yml` proves it.
+3. T-124 (M, partial), with T-103: `services:`, `docker build` and a job container through the engine of the unit; then the images from the store, not a pull.
 4. T-145 (S), T-146 (S), T-141 (S): the defects of a missing route, of files that a job leaves, and of Ctrl-C.
 5. T-125 (M): the event payload, the `github` context of the tree, the filters of `on:`.
 6. T-133 (M): the checkout with the changes of the tree, `.git`, other repositories.
@@ -49,7 +49,7 @@ The local mode against act and runner.server (`docs/local-mode.md`), the feature
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
-Blocked: T-103 (podcrates: `ContainerRoute::Engine` in the tag after `v0.41.0`, GitHub #91, PodUtils/podcrates@T-553, on the `main` of podcrates; steps 1 to 3b are done, `docs/container-engine.md`), T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
+Blocked: T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
 
 ## Questions for the owner
 

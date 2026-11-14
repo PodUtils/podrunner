@@ -399,3 +399,33 @@ fn a_program_source_needs_its_program() {
         .replace("host = \"h\"", "host = \"h\"\nallow_fake = true");
     assert!(Config::parse(&fake).unwrap_err().contains("for a program source"));
 }
+
+/// T-103: a job of `services:` or of a Dockerfile action goes only to a kind
+/// with an engine; a `container:` job goes to the hooks or to an engine.
+#[test]
+fn a_job_that_needs_an_engine_goes_only_to_a_kind_with_an_engine() {
+    let cfg = config("");
+    let route = |r: ContainerRoute| {
+        let mut c = confined();
+        c.container = r;
+        kind(c)
+    };
+    let engine = job(json!({ "unit_need": { "container_engine": true } }));
+    for r in [ContainerRoute::None, ContainerRoute::Hooks] {
+        assert_eq!(
+            place(&engine, Tier::Trusted, &[route(r)], &cfg, NOW_UNIX).map(|p| p.kind),
+            Err(RefusalCode::ContainerNotSupported),
+            "{r:?}"
+        );
+    }
+    let kinds = [route(ContainerRoute::Hooks), route(ContainerRoute::Engine)];
+    assert_eq!(place(&engine, Tier::Trusted, &kinds, &cfg, NOW_UNIX).map(|p| p.kind), Ok(1));
+    let container = job(json!({ "unit_need": { "container": true } }));
+    for r in [ContainerRoute::Hooks, ContainerRoute::Engine] {
+        assert!(place(&container, Tier::Trusted, &[route(r)], &cfg, NOW_UNIX).is_ok(), "{r:?}");
+    }
+    assert_eq!(
+        place(&container, Tier::Trusted, &[route(ContainerRoute::None)], &cfg, NOW_UNIX).map(|p| p.kind),
+        Err(RefusalCode::ContainerNotSupported)
+    );
+}

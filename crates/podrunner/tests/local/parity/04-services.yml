@@ -1,21 +1,26 @@
-# A service with a health check, reached by its name and by localhost
-# (T-147). IMAGE is an image with busybox, pinned by digest; the test puts
-# it in. It needs `services:` through the engine of the unit: T-124.
+# services: with a health check, reached by its name from a job container
+# and by localhost from the runner (T-147, T-124). It needs an engine in
+# the unit: podrunner run --microvm PODVM --engine DIR, with --allow for the
+# hosts of the registry. The proxy of the guest is off for these names.
 name: parity services
 on: push
-defaults:
-  run:
-    shell: bash
 jobs:
-  services:
+  by-name:
     runs-on: local
-    container: IMAGE
+    container: busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
     services:
       web:
-        image: IMAGE
-        options: --health-cmd "wget -qO- http://127.0.0.1:8080/ok" --health-interval 2s
-        ports: ['8080:8080']
-        entrypoint: sh
-        command: -c "mkdir -p /w && echo up > /w/ok && httpd -f -p 8080 -h /w"
+        image: nginx@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+        options: --health-cmd "wget -Y off -qO /dev/null http://127.0.0.1/" --health-interval 2s --health-retries 30
     steps:
-      - run: test "$(wget -qO- http://web:8080/ok)" = up
+      - run: wget -Y off -qO- http://web/ | grep -q "Welcome to nginx"
+        shell: sh
+  by-localhost:
+    runs-on: local
+    services:
+      web:
+        image: nginx@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+        ports: ['8080:80']
+        options: --health-cmd "wget -Y off -qO /dev/null http://127.0.0.1/" --health-interval 2s --health-retries 30
+    steps:
+      - run: curl --noproxy '*' -fsS http://localhost:8080/ | grep -q "Welcome to nginx"

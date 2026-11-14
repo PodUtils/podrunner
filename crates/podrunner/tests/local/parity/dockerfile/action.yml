@@ -1,0 +1,14 @@
+# A Dockerfile action of the parity suite (T-124): the square of an input
+# as an output.
+name: parity dockerfile
+inputs:
+  n:
+    required: true
+outputs:
+  square:
+    description: the square of n
+runs:
+  using: docker
+  image: Dockerfile
+  args:
+    - ${{ inputs.n }}
