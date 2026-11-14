@@ -40,7 +40,7 @@ the entry that closes the gap, or the entry that did the work.
 | `container:` | yes | yes | yes, pinned by digest | T-093 |
 | `services:` with health checks | yes | yes | refused on the host network | T-123, T-124 |
 | Images by tag, pull | yes, `--pull` | yes | yes: `podvm pull` into the store, pinned by the lock; the units never pull | T-130 |
-| Images by `runs-on` label | `-P LABEL=IMAGE` | `-P LABEL=IMAGE` or the host | `--platform LABEL=IMAGE` (pinned) or `host`; no fallback to an image the user did not name | T-129 |
+| Images by `runs-on` label | `-P LABEL=IMAGE` | `-P LABEL=IMAGE` or the host | `--platform LABEL=IMAGE` (pinned) or `host`; no fallback to an image the user did not name. The larger image (`images/runner/full.txt`: C and C++, CMake, Python, Node.js) is the artifact `runner-full-x86_64` of `runner-image.yml`: `podvm load -i` it, then `--platform ubuntu-latest=runner@DIGEST` | T-129 |
 | Another architecture | `--container-architecture` | yes | host only | T-151 |
 | Reusable workflows | local and remote | yes, `secrets: inherit` | yes: local and remote (pinned by the lock), inputs, passed or inherited secrets, outputs, matrix and nested calls | T-131 |
 | Event name | argument, `--detect-event` | `--event` | `--event` | T-089 |

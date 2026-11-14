@@ -1473,6 +1473,8 @@ State (2026-11-14): `--platform LABEL=NAME@sha256:HEX` and `--platform LABEL=hos
 
 State (2026-11-14, later): the recipe of the larger image is the base `images/runner/Dockerfile` with `--build-arg EXTRA_PACKAGES="$(cat images/runner/full.txt)"` (a C and C++ tool chain, CMake, Python 3 with pip and venv, Node.js with npm, zip, xz, bzip2, rsync, an SSH client, wget, file, patch): one recipe, so the two images keep the same runner and the same user. `runner-image.yml` builds it on x86_64 as a measure, prints the size of its archive, loads it into the store and runs a job of `runs-on: ubuntu-latest` with `--platform ubuntu-latest=runner@DIGEST` that calls each tool. Next: read the measure, then publish the larger image with the base one (T-030) and name its digest in `docs/local-mode.md`.
 
+State (2026-11-14, later): runner-image run 43609196605 (`5096a3b`): the larger image is 462 MiB (the archive), and the job of `runs-on: ubuntu-latest` gives `ok tools`. The step is now a check, and it uploads the archive for `podvm load -i` as the artifact `runner-full-x86_64` with its sha256, beside `runner-x86_64`; `docs/local-mode.md` names it. The larger image is x86_64 only. Next: the green run of the upload, then close this entry.
+
 
 # T-130: Local mode: container images by tag, resolved to a digest and pulled into the store
 

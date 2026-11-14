@@ -323,11 +323,11 @@ jobs:
           test ! -e "$tc/cache/other"
           echo "toolcache ok" >> "$GITHUB_STEP_SUMMARY"
       # T-129: the larger runner image (images/runner/full.txt, the common
-      # tools of ubuntu-latest) as the image of a label. A measure: its size,
-      # and a job of `runs-on: ubuntu-latest` that uses its tools.
-      - name: The larger runner image by label (a measure)
+      # tools of ubuntu-latest) as the image of a label: its size, and a job
+      # of `runs-on: ubuntu-latest` that uses its tools.
+      - name: The larger runner image by label
+        id: full
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
-        continue-on-error: true
         env:
           VERSION: ${{ steps.pin.outputs.version }}
           SHA256: ${{ steps.pin.outputs.sha256 }}
@@ -356,6 +356,18 @@ jobs:
           timeout 900 cargo run -q -p podrunner -- run "$RUNNER_TEMP/full/w.yml" \
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --platform "ubuntu-latest=runner@$digest" | tee "$RUNNER_TEMP/full.txt"
           grep -qx 'ok      tools' "$RUNNER_TEMP/full.txt"
+          # The archive that `podvm load -i` takes, as the base image.
+          cp "$RUNNER_TEMP/full-load.tar" "runner-full-${{ matrix.arch }}.tar"
+          sha256sum "runner-full-${{ matrix.arch }}.tar" > "runner-full-${{ matrix.arch }}.tar.sha256"
+          echo "the larger image: runner@$digest" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.full.outcome == 'success' }}
+        with:
+          name: runner-full-${{ matrix.arch }}
+          path: |
+            runner-full-${{ matrix.arch }}.tar
+            runner-full-${{ matrix.arch }}.tar.sha256
+          retention-days: 30
       # T-037 step 1: the machine tier of podvm for the microvm kind. A
       # measure (KVM and QEMU come from the setup step).
       - name: The runner image as a guest of the machine tier (a measure)
