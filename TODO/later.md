@@ -1398,7 +1398,7 @@ Read `drive` of `crates/podrunner-local/src/drive.rs` on 2026-11-14. `Graph::anc
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1415,6 +1415,11 @@ Read `crates/podrunner/src/run_local.rs` on 2026-11-14. `plan` and `Graph` of `p
 ## Prove
 
 `cargo test -p podrunner run_local`
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner/src/run_local/inspect.rs`: `--list` prints each job with its name, `runs-on` and needs; `--graph` prints the stages of `needs` (each job one stage after its last need) and each edge; `--validate` prints each warning of `pod-actions-workflow`, and an error has the class of a config fault; none of them needs an executor. `--dry-run` resolves the pins (with `--offline` or `--frozen` it changes nothing) and drives the run with an executor that runs no unit: each job message is built, a job that would start is `planned`, and each refusal shows. Test: the four modes on one workflow, with an image by tag that the dry run refuses with no unit kind.
+
 
 # T-129: Local mode: runner images by the labels of runs-on (--platform)
 

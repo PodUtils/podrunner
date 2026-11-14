@@ -58,7 +58,7 @@ the entry that closes the gap, or the entry that did the work.
 | Cache of `actions/cache` | v1 server | v1 and v2 | v2, a store that stays across runs, Range downloads, a limit of 10 GB | T-120 |
 | OIDC id-token | no | yes | none | T-140 |
 | One job, a matrix filter | `-j`, `--matrix` | `--job`, `--matrix` | `--job` with its needs, `--matrix`; each other cell `skipped` with its reason | T-127 |
-| List, graph, dry run, validate | yes | `--list` | no | T-128 |
+| List, graph, dry run, validate | yes | `--list` | `--list`, `--graph`, `--validate`; `--dry-run` builds each job message and checks the pins | T-128 |
 | Parallel jobs | `--concurrent-jobs` | `--parallel N` | one at a time | T-132 |
 | Live logs, log files, JSON | yes | web console, `--log-output-dir` | one line for each job; logs of failed jobs at the end | T-134 |
 | Web view | no | yes | no | T-149 |

@@ -344,3 +344,31 @@ fn the_files_of_vars_inputs_and_env_are_under_the_flags() {
     assert_eq!(env, [("E".to_string(), "1".to_string())]);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn list_graph_validate_and_dry_run_run_no_job() {
+    let dir = std::env::temp_dir().join(format!("podrunner-inspect-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("w.yml");
+    std::fs::write(
+        &file,
+        "on: push\nunknown-key: 1\njobs:\n  a:\n    runs-on: [self-hosted, big]\n    steps: [{run: a}]\n  \
+         b:\n    needs: a\n    runs-on: x\n    container: busybox:1.37.0\n    steps: [{run: b}]\n",
+    )
+    .unwrap();
+    let w = file.display().to_string();
+    let out = run(&args(&[&w, "--list"]));
+    assert!(out.stdout.contains("a\ta\truns-on: self-hosted, big\tneeds: -"), "{}", out.stdout);
+    let out = run(&args(&[&w, "--graph"]));
+    assert!(out.stdout.contains("stage 1: a\nstage 2: b\na -> b\n"), "{}", out.stdout);
+    let out = run(&args(&[&w, "--validate"]));
+    assert!(out.stdout.contains("warning:") && out.stdout.contains("unknown-key"), "{}", out.stdout);
+    // A dry run builds each message: the image by tag has no pin, with no unit
+    // kind to pull it, and its job fails before any unit starts.
+    let out = run(&args(&[&w, "--dry-run", "--no-cache"]));
+    assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
+    assert!(out.stdout.contains("planned a\n"), "{}", out.stdout);
+    assert!(out.stdout.contains("failure b:") && out.stdout.contains("digest"), "{}", out.stdout);
+    let _ = std::fs::remove_dir_all(&dir);
+}

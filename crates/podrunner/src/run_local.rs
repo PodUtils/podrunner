@@ -6,8 +6,10 @@
 //! 1 when one failed, and the code of the class of a usage or a file error.
 
 mod actions;
+mod args;
 mod context;
 mod guest;
+mod inspect;
 mod routes;
 
 use std::path::PathBuf;
@@ -21,186 +23,12 @@ use podrunner_local::exec::InUnit;
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE]";
+use args::{Args, parse};
+
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE]";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
-}
-
-/// The options of `run`.
-#[derive(Debug, Default, PartialEq, Clone)]
-struct Args {
-    file: PathBuf,
-    runner_dir: Option<PathBuf>,
-    podvm: Option<PathBuf>,
-    /// `--microvm PATH` (true) or `--incus PATH` (false): a guest kind of
-    /// the podvm binary PATH (T-123).
-    guest: Option<(bool, PathBuf)>,
-    engine: Option<PathBuf>,
-    /// `--platform LABEL=TARGET`: a runner image, or `host`, for a label of
-    /// `runs-on` (T-129).
-    platforms: Vec<(String, String)>,
-    /// `--job ID` and `--matrix KEY=VALUE` (T-127).
-    jobs: Vec<String>,
-    matrix: Vec<(String, String)>,
-    /// `--var-file`, `--input-file`, `--env-file` and `--env` (T-126).
-    var_file: Option<PathBuf>,
-    input_file: Option<PathBuf>,
-    env_file: Option<PathBuf>,
-    env: Vec<(String, String)>,
-    images: Option<PathBuf>,
-    image: Option<String>,
-    actions: Option<PathBuf>,
-    offline: bool,
-    frozen: bool,
-    artifacts: Option<PathBuf>,
-    cache: Option<PathBuf>,
-    no_cache: bool,
-    secrets: Vec<String>,
-    secret_file: Option<PathBuf>,
-    token_env: Option<String>,
-    checkout: Option<PathBuf>,
-    checkout_head: bool,
-    with_git: bool,
-    podnet: Option<PathBuf>,
-    allow: Vec<String>,
-    event: String,
-    event_path: Option<PathBuf>,
-    force_event: bool,
-    remote: Option<String>,
-    git_ref: Option<String>,
-    sha: Option<String>,
-    repository: Option<String>,
-    actor: Option<String>,
-    vars: Vec<(String, String)>,
-    inputs: Vec<(String, String)>,
-}
-
-fn pair(v: &str) -> Result<(String, String), String> {
-    let (k, v) = v.split_once('=').ok_or_else(|| format!("{v:?} is not NAME=VALUE"))?;
-    if !pod_actions_expr::is_name(k) {
-        return Err(format!("{k:?} is not a name"));
-    }
-    Ok((k.to_string(), v.to_string()))
-}
-
-fn parse(args: &[String]) -> Result<Args, String> {
-    let mut a = Args { event: "push".into(), ..Args::default() };
-    let mut it = args.iter();
-    let mut file = None;
-    while let Some(x) = it.next() {
-        let mut value = || it.next().cloned().ok_or_else(|| format!("{x} needs a value"));
-        match x.as_str() {
-            "--runner-dir" => a.runner_dir = Some(PathBuf::from(value()?)),
-            "--podvm" => a.podvm = Some(PathBuf::from(value()?)),
-            "--microvm" => a.guest = Some((true, PathBuf::from(value()?))),
-            "--incus" => a.guest = Some((false, PathBuf::from(value()?))),
-            "--engine" => a.engine = Some(PathBuf::from(value()?)),
-            "--job" => a.jobs.push(value()?),
-            "--var-file" => a.var_file = Some(PathBuf::from(value()?)),
-            "--input-file" => a.input_file = Some(PathBuf::from(value()?)),
-            "--env-file" => a.env_file = Some(PathBuf::from(value()?)),
-            "--env" => a.env.push(pair(&value()?)?),
-            "--matrix" => {
-                let v = value()?;
-                let (k, val) = v
-                    .split_once('=')
-                    .filter(|(k, _)| !k.is_empty())
-                    .ok_or_else(|| format!("--matrix {v:?} is not KEY=VALUE"))?;
-                a.matrix.push((k.to_string(), val.to_string()));
-            }
-            "--platform" => {
-                let v = value()?;
-                let (label, target) =
-                    v.split_once('=').ok_or_else(|| format!("--platform {v:?} is not LABEL=TARGET"))?;
-                if label.is_empty() || label.contains(char::is_whitespace) {
-                    return Err(format!("--platform {v:?}: not a label"));
-                }
-                if target != "host" {
-                    podrunner_local::message::pinned(target).map_err(|e| format!("--platform {v:?}: {e}"))?;
-                }
-                a.platforms.push((label.to_string(), target.to_string()));
-            }
-            "--images" => a.images = Some(PathBuf::from(value()?)),
-            "--image" => a.image = Some(value()?),
-            "--actions" => a.actions = Some(PathBuf::from(value()?)),
-            "--artifacts" => a.artifacts = Some(PathBuf::from(value()?)),
-            "--secret" => {
-                let name = value()?;
-                if name.contains('=') {
-                    return Err("--secret takes a NAME of the environment, never a value in argv".into());
-                }
-                a.secrets.push(name);
-            }
-            "--secret-file" => a.secret_file = Some(PathBuf::from(value()?)),
-            "--github-token-env" => a.token_env = Some(value()?),
-            "--cache" => a.cache = Some(PathBuf::from(value()?)),
-            "--no-cache" => a.no_cache = true,
-            "--offline" => a.offline = true,
-            "--frozen" => a.frozen = true,
-            "--checkout" => a.checkout = Some(PathBuf::from(value()?)),
-            "--checkout-head" => a.checkout_head = true,
-            "--with-git" => a.with_git = true,
-            "--podnet" => a.podnet = Some(PathBuf::from(value()?)),
-            "--allow" => a.allow.push(value()?),
-            "--event" => a.event = value()?,
-            "--event-path" => a.event_path = Some(PathBuf::from(value()?)),
-            "--force-event" => a.force_event = true,
-            "--remote" => a.remote = Some(value()?),
-            "--ref" => a.git_ref = Some(value()?),
-            "--sha" => a.sha = Some(value()?),
-            "--repository" => a.repository = Some(value()?),
-            "--actor" => a.actor = Some(value()?),
-            "--var" => a.vars.push(pair(&value()?)?),
-            "--input" => a.inputs.push(pair(&value()?)?),
-            o if o.starts_with("--") => return Err(format!("an unknown option {o:?}")),
-            f if file.is_none() => file = Some(PathBuf::from(f)),
-            f => return Err(format!("a second file {f:?}")),
-        }
-    }
-    a.file = file.ok_or("the workflow file is necessary")?;
-    if a.cache.is_some() && a.no_cache {
-        return Err("--cache and --no-cache exclude each other".into());
-    }
-    if (a.checkout_head || a.with_git) && a.checkout.is_none() {
-        return Err("--checkout-head and --with-git need --checkout".into());
-    }
-    if a.offline && a.frozen {
-        return Err("--offline and --frozen exclude each other".into());
-    }
-    if a.podvm.is_some() && a.guest.is_some() {
-        return Err("one of --podvm, --microvm and --incus".into());
-    }
-    let kind = a.podvm.is_some() || a.guest.is_some();
-    if !a.platforms.is_empty() {
-        let host = a.platforms.iter().any(|(_, t)| t == "host");
-        let images = a.platforms.iter().any(|(_, t)| t != "host");
-        if host && a.runner_dir.is_none() {
-            return Err("--platform LABEL=host needs --runner-dir DIR".into());
-        }
-        if images && (!kind || a.images.is_none()) {
-            return Err("--platform LABEL=IMAGE needs a unit kind (--podvm, --microvm, --incus) and --images".into());
-        }
-        if a.image.is_some() && !kind {
-            return Err("--image needs a unit kind".into());
-        }
-        return Ok(a);
-    }
-    let unit = [kind, a.images.is_some(), a.image.is_some()];
-    if a.podnet.is_some() && a.podvm.is_none() {
-        return Err("--podnet needs --podvm".into());
-    }
-    // A guest has no NIC: the egress module holds --allow with no podnet.
-    if !a.allow.is_empty() && a.podnet.is_none() && a.guest.is_none() {
-        return Err("--allow needs --podnet with --podvm, or --microvm or --incus".into());
-    }
-    if a.engine.is_some() && !matches!(a.guest, Some((true, _))) {
-        return Err("--engine needs --microvm".into());
-    }
-    match (a.runner_dir.is_some(), unit) {
-        (true, [false, false, false]) | (false, [true, true, true]) => Ok(a),
-        _ => Err("one of --runner-dir DIR, or a unit kind (--podvm, --microvm, --incus) with --images and --image, is necessary".into()),
-    }
 }
 
 fn object(pairs: &[(String, String)]) -> Value {
@@ -330,6 +158,30 @@ pub fn run(args: &[String]) -> Out {
         }
         Err(e) => return fail(Class::Unavailable, format!("{}: {e}", a.file.display())),
     };
+    if a.validate || a.list || a.graph {
+        return match pod_actions_workflow::parse(&text) {
+            Err(e) => fail(Class::Config, format!("{}: {e}", a.file.display())),
+            Ok(p) => {
+                let mut stdout = String::new();
+                if a.validate {
+                    for w in &p.warnings {
+                        stdout.push_str(&format!("warning: {w}\n"));
+                    }
+                    stdout.push_str(&format!("valid: {}\n", a.file.display()));
+                }
+                if a.list {
+                    stdout.push_str(&inspect::list(&p.workflow));
+                }
+                if a.graph {
+                    match inspect::graph(&p.workflow) {
+                        Ok(g) => stdout.push_str(&g),
+                        Err(e) => return fail(Class::Config, format!("{}: {e}", a.file.display())),
+                    }
+                }
+                Out { code: 0, stdout, stderr: String::new() }
+            }
+        };
+    }
     // A workflow whose `on:` does not take the event does not run on GitHub
     // (T-125); --force-event runs it.
     if !a.force_event
@@ -433,7 +285,12 @@ pub fn run(args: &[String]) -> Out {
     let mut stdout = String::new();
     let mut stderr = note;
     podrunner_local::cancel::install();
-    let mut each = |l: &Line| stdout.push_str(&line(l));
+    let dry = a.dry_run;
+    let mut each = |l: &Line| {
+        let text = line(l);
+        // A dry run runs no job: a job that would start is `planned`.
+        stdout.push_str(&if dry && text.starts_with("ok ") { text.replacen("ok      ", "planned ", 1) } else { text })
+    };
     let state = std::env::temp_dir().join(format!("podrunner-run-units-{}", std::process::id()));
     let common = routes::Common {
         actions: store.clone(),
@@ -442,7 +299,11 @@ pub fn run(args: &[String]) -> Out {
         cache: cache.clone(),
         checkout: tree.clone(),
     };
-    let mut exec = match routes::build(&a, &common, &state) {
+    let built = match a.dry_run {
+        true => Ok(Box::new(inspect::DryRun) as Box<dyn podrunner_local::drive::Executor>),
+        false => routes::build(&a, &common, &state),
+    };
+    let mut exec = match built {
         Ok(e) => e,
         Err(o) => {
             let _ = std::fs::remove_dir_all(&state);

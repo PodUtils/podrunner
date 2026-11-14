@@ -19,6 +19,8 @@ pub mod store;
 pub mod tree;
 pub mod work;
 
+/// The job message of the fake broker, for an executor of the caller.
+pub use podrunner_broker_fake::Job;
 /// The artifact store of a run (T-119).
 pub use podrunner_broker_fake::artifacts;
 /// The cache store (T-120).
