@@ -1993,7 +1993,7 @@ Write a new suite in `crates/podrunner/tests/local/` (0BSD, own text), one workf
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2010,6 +2010,11 @@ Read the expansion of runner.server (its `ExpandAzurePipelines` part) and the jo
 ## Prove
 
 The note exists and `cargo todo check` passes.
+
+## Done
+
+2026-11-14, this commit. Read `src/Sdk/AzurePipelines` (28 files, about 4,000 lines) and the message of `MessageController` in the runner.server tree of the study. runner.server sends an Azure job as `AgentJobRequestMessage` to the Azure Pipelines agent; its `script`, `bash` and `pwsh` steps are task steps, which the GitHub runner does not run. The note `docs/azure-pipelines.md` gives the subset, the cost (a second payload, a second fake broker, a store of tasks, a template expansion) and the recommendation: not now. The question is Q6 of `TODO/PROGRESS.md`; no work waits on it.
+
 
 # T-149: Local mode: a web view of a run on the loopback
 

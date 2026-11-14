@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 156 entries: 6 open, 9 partial, 7 blocked, 134 done.
+`TODO/INDEX.md` holds 156 entries: 5 open, 9 partial, 7 blocked, 135 done.
 
 ## State
 
@@ -40,7 +40,7 @@ The local mode against act and runner.server (`docs/local-mode.md`), the feature
 3. T-125 (M, partial): the payload and the facts of the tree are in; a directory of workflows with the filters of `on:` waits for COORD-037.
 4. T-130 (M, partial): images by tag into the store, proven in `runner-image.yml`; T-129 (M, partial): the recipe of a larger runner image.
 5. T-132 (M): parallel jobs.
-6. T-138 (S, partial: the unit kinds), T-155 (S), T-150 (M), T-149 (M), T-151 (S), T-148 (M).
+6. T-138 (S, partial: the unit kinds), T-155 (S), T-150 (M), T-149 (M), T-151 (S).
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040; U15 for the owner).
 
@@ -48,6 +48,6 @@ Blocked: T-131 (the expansion of a reusable workflow, GitHub #98), T-156 (a glib
 
 ## Questions for the owner
 
-None open.
+Q6 (T-148, 2026-11-14): Azure Pipelines YAML in the local mode? runner.server runs it on the Azure Pipelines agent, not on the GitHub runner: podrunner would need a second payload, a second fake broker, a store of tasks and a template expansion of about 4,000 lines (`docs/azure-pipelines.md`). Recommendation: no, not now; if yes, the first step is a measure of the agent in a podvm unit with one canned message. No work waits on the answer.
 
 The owner answered Q1 to Q3 (DR-4, DR-5, DR-6) on 2026-11-11, and Q4, Q5 and DR-7 on 2026-11-13 (`docs/decisions.md`).

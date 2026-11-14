@@ -83,7 +83,7 @@ C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 ## Questions for the owner
 
 `TODO/PROGRESS.md`, "Questions for the owner", has each open question
-with its recommendation. No question is open.
+with its recommendation. Open: Q6 (Azure Pipelines YAML, T-148).
 
 ## Superseded
 
