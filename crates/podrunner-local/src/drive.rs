@@ -1,8 +1,7 @@
 //! The loop of a local run (T-089): take each offer of the local source,
 //! run it with an [`Executor`], and record its end, until each job is done.
-//! A job that cannot become a job message (a reusable workflow, an `env:`
-//! of one expression, an action or an image that is not pinned) fails with
-//! its reason, as a job of GitHub fails at its setup.
+//! A job that cannot become a job message (a reusable workflow, an action
+//! or an image that is not pinned) fails with its reason, as a job of GitHub fails at its setup.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;

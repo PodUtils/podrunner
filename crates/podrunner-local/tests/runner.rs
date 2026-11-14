@@ -131,3 +131,28 @@ fn a_step_reads_a_secret_and_the_token_and_the_log_masks_the_secret() {
     assert!(logs.contains("the secret is ***"), "{logs}");
     assert!(!logs.contains("made-up-secret-value-42"), "the log has the secret: {logs}");
 }
+
+/// T-152: an `env:` of one expression at the levels of the workflow, the
+/// job and the step: the runner evaluates it to a mapping.
+const ENV_EXPR: &str = r#"on: push
+env: ${{ fromJSON('{"W":"wf"}') }}
+jobs:
+  e:
+    runs-on: x
+    env: ${{ fromJSON('{"J":"job"}') }}
+    steps:
+      - env: ${{ secrets }}
+        run: test "$W-$J-$API_KEY" = "wf-job-made-up-secret-value-42"
+"#;
+
+#[test]
+#[ignore]
+fn an_env_of_one_expression_gives_a_mapping_at_each_level() {
+    let dir = PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let mut s =
+        LocalSource::new("local", ENV_EXPR, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.set_secrets(vec![("API_KEY".into(), "made-up-secret-value-42".into())], None);
+    let job = offers(&mut s);
+    let (result, _, logs) = run(&dir, &mut s, &job[0]);
+    assert_eq!(result, JobResult::Success, "{logs}");
+}

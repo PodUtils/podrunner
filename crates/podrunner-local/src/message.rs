@@ -126,12 +126,22 @@ fn mapping(entries: Vec<(String, Value)>) -> Value {
     json!({ "type": 2, "map": map })
 }
 
-/// An `env:` mapping into its entries as tokens.
-fn env(node: Option<&Node>) -> Result<Vec<(String, Value)>, String> {
-    let Some(node) = node else { return Ok(Vec::new()) };
+/// An `env:` as one token: a mapping of tokens, or one expression that the
+/// runner evaluates to a mapping (T-152). The schema of the runner gives
+/// `workflow-env`, `job-env` and `step-env` a context, so an expression
+/// may stand for the whole mapping (`env: ${{ fromJSON(needs.a.outputs.env) }}`).
+/// `None` for no entry.
+fn env(node: Option<&Node>) -> Result<Option<Value>, String> {
+    let Some(node) = node else { return Ok(None) };
     match &node.kind {
-        Kind::Map(entries) => entries.iter().map(|(k, v)| Ok((k.name.clone(), scalar(v)?))).collect(),
-        Kind::String(_) => Err(format!("line {}: an env of one expression is not supported", node.mark.line)),
+        Kind::Map(entries) if entries.is_empty() => Ok(None),
+        Kind::Map(entries) => Ok(Some(mapping(
+            entries.iter().map(|(k, v)| Ok((k.name.clone(), scalar(v)?))).collect::<Result<_, String>>()?,
+        ))),
+        Kind::String(s) => match token(s)? {
+            t @ Value::Object(_) if Template::parse(s).is_ok_and(|t| t.as_expression().is_some()) => Ok(Some(t)),
+            _ => Err(format!("line {}: env must be a mapping, or one expression that gives a mapping", node.mark.line)),
+        },
         _ => Err(format!("line {}: env must be a mapping", node.mark.line)),
     }
 }
@@ -314,9 +324,8 @@ fn step(
         "displayName": display, "condition": step_condition(s.condition.as_deref().unwrap_or("")),
         "inputs": mapping(inputs),
     });
-    let environment = env(s.env.as_ref())?;
-    if !environment.is_empty() {
-        v["environment"] = mapping(environment);
+    if let Some(environment) = env(s.env.as_ref())? {
+        v["environment"] = environment;
     }
     if let Some(c) = &s.continue_on_error {
         v["continueOnError"] = scalar(c)?;
@@ -375,12 +384,7 @@ pub fn broker_job(
         job.steps.iter().enumerate().map(|(i, s)| step(i, s, &defaults, &mut unnamed)).collect::<Result<_, _>>()?;
     // The runner merges the mappings in order: the job's env over the
     // workflow's.
-    let mut environment = Vec::new();
-    for e in [env(workflow.env.as_ref())?, env(job.env.as_ref())?] {
-        if !e.is_empty() {
-            environment.push(mapping(e));
-        }
-    }
+    let environment: Vec<Value> = [env(workflow.env.as_ref())?, env(job.env.as_ref())?].into_iter().flatten().collect();
     let outputs: Vec<(String, Value)> =
         job.outputs.iter().map(|(k, t)| Ok((k.clone(), token(t)?))).collect::<Result<_, String>>()?;
     let mut context = Map::new();

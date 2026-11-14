@@ -2093,7 +2093,7 @@ Measure in `runner-image.yml`: an aarch64 runner image in a guest of the microvm
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2110,6 +2110,11 @@ Measure each level against the schema of the runner and the GitHub docs first (t
 ## Prove
 
 `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test runner -- --ignored` (a step `env:` of one expression).
+
+## Done
+
+2026-11-14, this commit. Measured: the workflow schema of the runner (`workflow-v1.0.json`, the copies in the runner.server tree of the study) gives `workflow-env`, `job-env` and `step-env` a `context`, so one expression may stand for the whole mapping; `container-env` has no context. `env` of `crates/podrunner-local/src/message.rs` now gives one token: a mapping, or the expression token (type 3) that the runner evaluates to a mapping, at the three levels; another text fails the job with the line. Tests: `cargo test -p podrunner-local message` (the tokens of the workflow and the step, two bad texts) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test runner -- --ignored` in level 2 (`fromJSON` at the workflow and the job, `env: ${{ secrets }}` at a step).
+
 
 # T-153: podrunner doctor for the local mode
 

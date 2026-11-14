@@ -69,7 +69,7 @@ the entry that closes the gap, or the entry that did the work.
 | Pause before a step | no | no | no | T-150 |
 | Host check, bug report | `--bug-report` | no | `doctor --run FILE [the options of run]`: each input checked, with its fix | T-153 |
 | Interrupt | cancels and removes | cancels | leaves units and scratch files | T-141 |
-| `env:` of one expression | not read | yes | refused | T-152 |
+| `env:` of one expression | not read | yes | yes: the workflow, the job and the step, as the schema of the runner allows | T-152 |
 | Privileged containers, host binds, cap add | flags, with a policy | yes | refused by the hook policy; privileged work runs in the engine of the unit | T-124 |
 | Azure Pipelines YAML | no | a subset | no | T-148 |
 

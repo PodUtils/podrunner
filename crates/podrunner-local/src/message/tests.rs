@@ -344,3 +344,21 @@ fn a_job_with_id_token_write_gets_the_url_of_the_id_token() {
     let (claims, t) = msg("test.0");
     assert!(claims.is_none() && t["resources"]["endpoints"][0]["data"].get("GenerateIdTokenUrl").is_none());
 }
+
+#[test]
+fn an_env_of_one_expression_is_one_token_for_the_runner() {
+    let text = "on: push\nenv: ${{ fromJSON(vars.E) }}\njobs:\n  build:\n    runs-on: x\n    env: {J: j}\n    steps:\n      - env: ${{ secrets }}\n        run: x\n";
+    let b = job_of(text);
+    let env = &b.overrides["environmentVariables"];
+    assert_eq!(env[0], json!({ "type": 3, "expr": "fromJSON(vars.E)" }), "{env}");
+    assert_eq!(env[1]["type"], 2);
+    assert_eq!(b.overrides["steps"][0]["environment"], json!({ "type": 3, "expr": "secrets" }));
+    for bad in ["env: plain", "env: a-${{ secrets }}"] {
+        let text = format!("on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - {bad}\n        run: x\n");
+        let source = LocalSource::new("l", &text, Base::default(), "x86_64", Box::new(|_, _| unreachable!()));
+        let mut s = source.unwrap();
+        s.next(10, Duration::ZERO).unwrap();
+        let e = s.broker_job(&JobId::new("a.0").unwrap()).unwrap_err();
+        assert!(e.contains("one expression that gives a mapping"), "{bad}: {e}");
+    }
+}
