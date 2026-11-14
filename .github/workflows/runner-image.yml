@@ -189,7 +189,7 @@ jobs:
           timeout 1200 cargo run -q -p podrunner -- run "$RUNNER_TEMP/containers.yml" \
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" | tee "$RUNNER_TEMP/containers.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/containers.txt")" = 2
-          # T-146: a container job as root leaves locked files; two runs in a
+          # T-146: a container job leaves a locked directory; two runs in a
           # row pass, and no unit leaves residue (a residue fails the job).
           sed "s|IMAGE|$PODRUNNER_RUNNER_IMAGE|" crates/podrunner/tests/local/rerun.yml > "$RUNNER_TEMP/rerun.yml"
           for n in 1 2; do

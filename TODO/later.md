@@ -1870,7 +1870,7 @@ Read `crates/podrunner-local/src/exec.rs` on 2026-11-14. Not measured: the resid
 
 `cargo test -p podrunner-local exec` (a `_work` with a directory of mode 0500 is removed, or the job fails with its path) and the double run in `runner-image.yml`.
 
-State (2026-11-14): `podrunner_local::work::clear` gives each directory of `_work` the bits `u+rwx` again before the removal, and a failure fails the job with the path (unit test: a tree with modes 0000 and 0500). The unit half is in `runner-image.yml`: `crates/podrunner/tests/local/rerun.yml` (a container job as root that leaves a directory of mode 0500) runs twice with `--podvm`; a residue fails the job.
+State (2026-11-14): `podrunner_local::work::clear` gives each directory of `_work` the bits `u+rwx` again before the removal, and a failure fails the job with the path (unit test: a tree with modes 0000 and 0500). The unit half is in `runner-image.yml`: `crates/podrunner/tests/local/rerun.yml` (a container job that leaves a directory of mode 0500) runs twice with `--podvm`; a residue fails the job. Runner-image run 43556484747 (`8a65c48`): the podvm kind refuses `--user 0` (`container-option-refused`), so a podvm unit runs no container as root; the job now runs as the user of the image.
 
 # T-147: Local mode: the parity suite, with checks outside the job log
 

@@ -1,15 +1,14 @@
-# A container job as root leaves a directory of mode 0500 and a file of
-# root in the workspace (T-146). Two runs in a row both pass, and destroy
-# reports no residue. IMAGE is the runner image of the store; the test puts
+# A container job leaves a directory of mode 0500 in the workspace (T-146).
+# Two runs in a row both pass, and destroy reports no residue. The podvm
+# kind refuses `--user 0` (container-option-refused), so the job runs as the
+# user of the image. IMAGE is the runner image of the store; the test puts
 # it in.
 name: podrunner local rerun
 on: push
 jobs:
   root:
     runs-on: local
-    container:
-      image: IMAGE
-      options: --user 0
+    container: IMAGE
     steps:
       - run: |
           mkdir -p locked/deep && echo x > locked/deep/f && chmod 0500 locked/deep locked
