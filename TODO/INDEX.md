@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**153 entries: 38 open, 3 partial, 6 blocked, 106 done.**
+**153 entries: 36 open, 3 partial, 6 blocked, 108 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 19 | 1 | 4 | 48 | 72 |
-| P3 | 19 | 0 | 2 | 26 | 47 |
-| **All** | 38 | 3 | 6 | 106 | 153 |
+| P2 | 18 | 1 | 4 | 49 | 72 |
+| P3 | 18 | 0 | 2 | 27 | 47 |
+| **All** | 36 | 3 | 6 | 108 | 153 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -162,7 +162,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-112](later.md) | P2 | S | later | defect | done | serve takes a podvm below beta.14 for an engine of the microvm kind |
 | [T-113](later.md) | P2 | S | later | defect | done | doctor names no driver for the microvm and incus kinds |
 | [T-114](later.md) | P2 | S | later | defect | done | The steps of the local mode read the github context of the fake broker, not that of the run |
-| [T-115](later.md) | P3 | S | later | defect | open | podrunner run --runner-dir does not end a job at its timeout-minutes, and it panics on an I/O error |
+| [T-115](later.md) | P3 | S | later | defect | done | podrunner run --runner-dir does not end a job at its timeout-minutes, and it panics on an I/O error |
 | [T-116](later.md) | P3 | S | later | defect | done | check and doctor do not read the version of podvm for the microvm and incus kinds |
 | [T-117](later.md) | P3 | S | later | defect | open | The local run ignores fail-fast and the continue-on-error of a job |
 | [T-118](later.md) | P2 | M | later | feature | open | Local mode: actions by tag, fetched through the egress module into a store with a lock file |
@@ -191,7 +191,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-141](later.md) | P2 | S | later | defect | open | podrunner run leaves its units and scratch directories at Ctrl-C |
 | [T-142](later.md) | P3 | S | later | feature | open | Local mode: --watch and the cron times of on.schedule |
 | [T-143](later.md) | P3 | S | later | feature | open | Local mode: a configuration file for podrunner run |
-| [T-144](later.md) | P2 | S | later | defect | open | podrunner run --runner-dir starts the runner with W^X on, and dies under a small RLIMIT_FSIZE |
+| [T-144](later.md) | P2 | S | later | defect | done | podrunner run --runner-dir starts the runner with W^X on, and dies under a small RLIMIT_FSIZE |
 | [T-145](later.md) | P2 | S | later | defect | open | The fake broker answers 404 in silence to a route that it does not serve |
 | [T-146](later.md) | P2 | S | later | defect | open | A job can leave files that the next run cannot remove |
 | [T-147](later.md) | P2 | M | later | feature | open | Local mode: the parity suite, with checks outside the job log |

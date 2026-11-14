@@ -17,6 +17,7 @@ podrunner-unit.workspace = true
 podrunner-hook.workspace = true
 podrunner-egress.workspace = true
 serde_json.workspace = true
+libc.workspace = true
 
 [dev-dependencies]
 podrunner-fake.workspace = true

@@ -107,3 +107,48 @@ fn the_registries_of_the_images_of_a_job() {
     plain.overrides.insert("jobContainer".into(), serde_json::json!(format!("alpine@sha256:{d}")));
     assert_eq!(registries(&plain), ["docker.io"]);
 }
+
+/// A stand-in runner directory whose `run.sh` runs `script`.
+fn stand_in(name: &str, script: &str) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("podrunner-local-stand-in-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("bin")).unwrap();
+    std::fs::write(dir.join("run.sh"), format!("#!/bin/sh\n{script}\n")).unwrap();
+    std::fs::set_permissions(dir.join("run.sh"), std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::write(dir.join("bin/Runner.Listener"), "").unwrap();
+    dir
+}
+
+/// T-115: a runner past the limit of its job ends with its whole process
+/// group, and the job fails with the limit in the reason.
+#[test]
+fn a_runner_directory_ends_a_job_at_its_limit() {
+    let mark = format!("podrunner-t115-{}", std::process::id());
+    let dir = stand_in("limit", &format!("sh -c 'exec sleep 300 # {mark}' & wait"));
+    let mut exec = RunnerDir::new(dir.clone()).unwrap();
+    let t = Instant::now();
+    let e = exec.run(&JobId::new("a.0").unwrap(), Job::scripts("a", &["true"]), Duration::from_secs(1)).unwrap_err();
+    assert!(e.contains("limit of 1 s"), "{e}");
+    assert!(t.elapsed() < Duration::from_secs(30), "the job ends at its limit");
+    let left = std::fs::read_dir("/proc")
+        .unwrap()
+        .flatten()
+        .filter_map(|p| std::fs::read(p.path().join("cmdline")).ok())
+        .any(|c| String::from_utf8_lossy(&c).contains(&mark));
+    assert!(!left, "no process of the runner is left");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// T-115: a directory that the runner files cannot go into fails the job
+/// with a reason; the command does not panic.
+#[test]
+fn a_runner_directory_that_takes_no_file_fails_the_job() {
+    let dir = stand_in("files", "exit 0");
+    // A directory where a runner file is to go: the write fails.
+    std::fs::create_dir_all(dir.join(".runner")).unwrap();
+    let mut exec = RunnerDir::new(dir.clone()).unwrap();
+    let e = exec.run(&JobId::new("a.0").unwrap(), Job::scripts("a", &["true"]), Duration::from_secs(60)).unwrap_err();
+    assert!(e.contains(".runner"), "{e}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -32,11 +32,14 @@ pub fn rsaparams() -> String {
     .to_string()
 }
 
-/// Run the runner in `dir` once against `broker`, with the extra
-/// environment `env`.
-pub fn run_once(dir: &Path, broker: &Broker, env: &[(&str, String)]) -> std::process::ExitStatus {
+/// Write the runner files of `broker` into `dir` and start `run.sh` there,
+/// with the extra environment `env`, as the leader of a process group of
+/// its own: a caller can end the whole runner with one signal.
+pub fn start_runner(dir: &Path, broker: &Broker, env: &[(&str, String)]) -> Result<std::process::Child, String> {
+    use std::os::unix::process::CommandExt;
     for (name, content) in runner_files(&broker.base, "runner-u-1", &rsaparams()) {
-        std::fs::write(dir.join(name), content).unwrap();
+        std::fs::write(dir.join(&name), content)
+            .map_err(|e| format!("{}: the runner file {name}: {}", dir.display(), e.kind()))?;
     }
     // A clean environment: the runner refuses some proxy variables.
     Command::new("./run.sh")
@@ -45,9 +48,20 @@ pub fn run_once(dir: &Path, broker: &Broker, env: &[(&str, String)]) -> std::pro
         .env("PATH", "/usr/bin:/bin")
         .env("HOME", std::env::var("HOME").unwrap_or_else(|_| "/tmp".into()))
         .env("RUNNER_ALLOW_RUNASROOT", "1")
+        // With W^X, .NET maps its code through a memfd that it truncates to
+        // a large size: under a limit of file size it dies by SIGXFSZ at the
+        // start (U2, T-144). The podvm driver sets the same.
+        .env("DOTNET_EnableWriteXorExecute", "0")
         .envs(env.iter().map(|(k, v)| (k, v)))
-        .status()
-        .unwrap()
+        .process_group(0)
+        .spawn()
+        .map_err(|e| format!("{}: run.sh: {}", dir.display(), e.kind()))
+}
+
+/// Run the runner in `dir` once against `broker`, with the extra
+/// environment `env` (a helper of the tests).
+pub fn run_once(dir: &Path, broker: &Broker, env: &[(&str, String)]) -> std::process::ExitStatus {
+    start_runner(dir, broker, env).expect("the runner starts").wait().expect("the runner ends")
 }
 
 #[cfg(test)]

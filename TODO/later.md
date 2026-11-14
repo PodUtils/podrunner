@@ -1002,7 +1002,7 @@ Keep the `github` context of the `Base` in `LocalSource` and send it in `context
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1019,6 +1019,10 @@ Give the broker crate a function that returns a `Result` and a child (write the 
 ## Prove
 
 `cargo test -p podrunner-local exec`
+
+## Done
+
+2026-11-14, this commit. `start_runner` of `crates/podrunner-broker-fake/src/runner.rs` writes the runner files and starts `run.sh` as the leader of its own process group, and returns each fault as an error; `run_once` stays for the tests over it. `RunnerDir::run` waits for the runner up to the limit of the job, then ends its process group (TERM, then KILL after 5 s) and fails the job with the limit in the reason. `a_runner_directory_ends_a_job_at_its_limit` and `a_runner_directory_that_takes_no_file_fails_the_job` hold it.
 
 # T-116: check and doctor do not read the version of podvm for the microvm and incus kinds
 
@@ -1762,7 +1766,7 @@ A TOML file of the user (`podrunner/run.toml` in the configuration directory) an
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1779,6 +1783,10 @@ Set `DOTNET_EnableWriteXorExecute=0` in the environment of the runner of the `--
 ## Prove
 
 `cargo test -p podrunner-local exec` (the environment of the runner has the variable) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner-local --test runner -- --ignored` under `ulimit -f 1048576`.
+
+## Done
+
+2026-11-14, this commit. `start_runner` sets `DOTNET_EnableWriteXorExecute=0` for each runner of the `--runner-dir` executor and of the tests, as the podvm driver does; a runner that SIGXFSZ ends fails its job with a reason that names the limit of file size.
 
 # T-145: The fake broker answers 404 in silence to a route that it does not serve
 

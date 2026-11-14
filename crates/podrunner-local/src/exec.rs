@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use podrunner_broker_fake::runner::run_once;
+use podrunner_broker_fake::runner::start_runner;
 use podrunner_broker_fake::{Broker, Job};
 use podrunner_schema::JobId;
 
@@ -299,7 +299,7 @@ pub fn needs_containers(message: &Job) -> bool {
 }
 
 impl Executor for RunnerDir {
-    fn run(&mut self, job: &JobId, message: Job, _limit: Duration) -> Result<End, String> {
+    fn run(&mut self, job: &JobId, message: Job, limit: Duration) -> Result<End, String> {
         if needs_containers(&message) {
             return Err("the job needs containers: run it in a unit (--podvm), not on a runner directory".into());
         }
@@ -313,7 +313,29 @@ impl Executor for RunnerDir {
         broker.queue(message);
         // Each job starts in a fresh work directory.
         let _ = std::fs::remove_dir_all(self.dir.join("_work"));
-        run_once(&self.dir, &broker, &[]);
+        let mut child = start_runner(&self.dir, &broker, &[])?;
+        // The limit of the job (`timeout-minutes`, T-115): at its end, the
+        // whole process group of the runner ends, as the unit of `InUnit`.
+        let end = Instant::now() + limit;
+        let status = loop {
+            if let Some(s) = child.try_wait().map_err(|e| format!("the runner: {}", e.kind()))? {
+                break Some(s);
+            }
+            if Instant::now() >= end {
+                break None;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        };
+        let Some(status) = status else {
+            end_group(child.id());
+            let _ = child.wait();
+            self.logs.push((job.clone(), broker.logs()));
+            return Err(format!("the job ran past its limit of {} s", limit.as_secs()));
+        };
+        if let Some(why) = signal_reason(&status) {
+            self.logs.push((job.clone(), broker.logs()));
+            return Err(why);
+        }
         // The runner sends `completejob` before it ends; give the broker
         // time to record it.
         let t = Instant::now();
@@ -326,6 +348,30 @@ impl Executor for RunnerDir {
             return Err("the runner ended with no result".into());
         };
         Ok(End { result: result_of(&end.conclusion), outputs: end.outputs.clone() })
+    }
+}
+
+/// End the process group of `leader`: TERM, then KILL after 5 s.
+fn end_group(leader: u32) {
+    let Ok(pgid) = i32::try_from(leader) else { return };
+    // SAFETY: kill of a process group that this process made.
+    unsafe { libc::kill(-pgid, libc::SIGTERM) };
+    let t = Instant::now();
+    // SAFETY: a signal 0 checks that the group still has a process.
+    while t.elapsed() < Duration::from_secs(5) && unsafe { libc::kill(-pgid, 0) } == 0 {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    // SAFETY: as above.
+    unsafe { libc::kill(-pgid, libc::SIGKILL) };
+}
+
+/// The reason of a runner that a signal ended, with a word on SIGXFSZ (a
+/// limit of file size, T-144).
+fn signal_reason(status: &std::process::ExitStatus) -> Option<String> {
+    use std::os::unix::process::ExitStatusExt;
+    match status.signal()? {
+        libc::SIGXFSZ => Some("the runner ended by SIGXFSZ: a limit of file size (ulimit -f) is too small".into()),
+        s => Some(format!("the runner ended by signal {s}")),
     }
 }
 

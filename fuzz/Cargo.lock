@@ -972,6 +972,7 @@ dependencies = [
 name = "podrunner-local"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "pod-actions-expr",
  "pod-actions-workflow",
  "podrunner-broker-fake",
