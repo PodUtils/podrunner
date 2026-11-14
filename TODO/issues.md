@@ -104,6 +104,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #102 | COORD-042: a guest of another architecture in the machine tier (linux/arm64 on x86_64) (to podvm) | closed (podvm answered no on PodUtils/podvm#366; T-151 is done) | T-151 |
 | #103 | COORD-043: podrunner takes podcrates v0.45.0 at b3502d6 and uses its two crates at 5096a3b (the answer to PodUtils/podcrates#157) (to podcrates) | closed | T-118 |
 | #104 | COORD-044: podvm save of an index digest refuses to choose a platform, and names an option that save does not have (to podvm) | open | T-157 |
+| #105 | COORD-045: podrunner takes podcrates v0.46.0 at 0e12826 (the answer to PodUtils/podcrates#159) (to podcrates) | open (until podcrates closes PodUtils/podcrates#159) | T-118 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |
