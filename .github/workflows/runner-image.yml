@@ -337,7 +337,10 @@ jobs:
           # T-103, T-124: the parity suite in guests with an engine: services:,
           # a job container, a Dockerfile action. dockerd pulls through the
           # egress module, which allows the hosts of the registry only.
-          hub="--allow registry-1.docker.io --allow auth.docker.io --allow production.cloudflare.docker.com"
+          # Docker Hub sends each blob to its CDN (a 307 to production.cloudfront.docker.com).
+          hub="--allow registry-1.docker.io --allow auth.docker.io --allow production.cloudfront.docker.com"
+          # A step with no shell: has no pipefail: tee would hide the exit of the test.
+          set -o pipefail
           PODRUNNER_PARITY_UNIT="--microvm $PODRUNNER_PODVM --images $PODRUNNER_PODVM_IMAGES --image $PODRUNNER_RUNNER_IMAGE --engine $RUNNER_TEMP/engine-dir $hub" \
             timeout 5400 cargo test -p podrunner --test parity -- --ignored --nocapture | tee "$RUNNER_TEMP/parity-engine.txt"
           grep '^parity ' "$RUNNER_TEMP/parity-engine.txt" >> "$GITHUB_STEP_SUMMARY"

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**155 entries: 22 open, 10 partial, 5 blocked, 118 done.**
+**155 entries: 22 open, 8 partial, 5 blocked, 120 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 0 | 2 | 0 | 32 | 34 |
-| P2 | 3 | 8 | 3 | 58 | 72 |
+| P2 | 3 | 6 | 3 | 60 | 72 |
 | P3 | 19 | 0 | 2 | 28 | 49 |
-| **All** | 22 | 10 | 5 | 118 | 155 |
+| **All** | 22 | 8 | 5 | 120 | 155 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -170,7 +170,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-120](later.md) | P2 | M | later | feature | done | Local mode: the cache service of actions/cache |
 | [T-121](later.md) | P2 | S | later | feature | done | Local mode: secrets from the environment and from a secret file, with the mask |
 | [T-122](later.md) | P2 | S | later | feature | done | Local mode: github.token and secrets.GITHUB_TOKEN |
-| [T-123](later.md) | P2 | M | later | feature | partial | Local mode: run each job in a unit of the microvm or the incus kind |
+| [T-123](later.md) | P2 | M | later | feature | done | Local mode: run each job in a unit of the microvm or the incus kind |
 | [T-124](later.md) | P2 | M | later | feature | partial | Local mode: services:, docker build and Docker-in-Docker through the engine of the unit |
 | [T-125](later.md) | P2 | M | later | feature | partial | Local mode: the event payload, the github context of the local tree, and the filters of on: |
 | [T-126](later.md) | P3 | S | later | feature | open | Local mode: the inputs of workflow_dispatch, and files of vars, env and inputs |
@@ -193,7 +193,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-143](later.md) | P3 | S | later | feature | open | Local mode: a configuration file for podrunner run |
 | [T-144](later.md) | P2 | S | later | defect | done | podrunner run --runner-dir starts the runner with W^X on, and dies under a small RLIMIT_FSIZE |
 | [T-145](later.md) | P2 | S | later | defect | done | The fake broker answers 404 in silence to a route that it does not serve |
-| [T-146](later.md) | P2 | S | later | defect | partial | A job can leave files that the next run cannot remove |
+| [T-146](later.md) | P2 | S | later | defect | done | A job can leave files that the next run cannot remove |
 | [T-147](later.md) | P2 | M | later | feature | done | Local mode: the parity suite, with checks outside the job log |
 | [T-148](later.md) | P3 | M | later | research | open | Research: Azure Pipelines YAML in the local source |
 | [T-149](later.md) | P3 | M | later | feature | open | Local mode: a web view of a run on the loopback |

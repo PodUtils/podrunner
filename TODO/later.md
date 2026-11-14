@@ -641,7 +641,7 @@ State (2026-11-13): step 1 is done: the census of the verbs and the design (`doc
 
 ## Prove
 
-The census and the design are in `docs/`; a `docker build` job and a `services:` job pass in a unit in `runner-image.yml`.
+The census and the design are in `docs/`; a `docker build` job and a `services:` job pass in a unit in `runner-image.yml`. Runner-image run 43557460656 (`5dedd26`): in guests with an engine the runner takes the engine (`docker network create`, `docker pull` of the pinned digest), and the pull fails on the blobs: Docker Hub sends each blob to `production.cloudfront.docker.com`, and the allow list named `production.cloudflare.docker.com`. The step did not fail: a `run` step with no `shell:` has no `pipefail`, so `tee` hid the exit of the test; the step now sets `pipefail`.
 
 # T-104: G-10: the source conformance tests as a command for another source program
 
@@ -1253,7 +1253,7 @@ Read the runner's execution context in the runner.server tree of the study and `
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1270,6 +1270,10 @@ Read `crates/podrunner/src/run_local.rs` (`in_podvm`) and `crates/podrunner-loca
 ## Prove
 
 `cargo test -p podrunner run_local` (the argv of each kind) and, in `runner-image.yml`, `podrunner run crates/podrunner/tests/local/suite.yml --microvm ...` gives each `ok` line.
+
+## Done
+
+2026-11-14, `6cbfd5d` and `8a65c48`. `podrunner run --microvm PODVM [--engine DIR]` and `--incus PODVM` build the driver as `serve` builds `[unit.microvm]` and `[unit.incus]` (`run_local/guest.rs`), and `podrunner_local::front` serves the egress socket of each guest: `broker.podrunner.test` goes to the fake broker, each other host to the egress module of `--allow`, or 403. Runner-image run 43557460656 (`5dedd26`): `crates/podrunner/tests/local/suite.yml` gives each `ok` line in fresh microvm guests and in fresh incus instances; a guest reaches no host but the broker (`ok denied`), and with `--allow example.com` the same step reaches the host (`failure denied`).
 
 # T-124: Local mode: services:, docker build and Docker-in-Docker through the engine of the unit
 
@@ -1863,7 +1867,7 @@ Keep each request with no route, and add one line for each to the log of its job
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1882,6 +1886,10 @@ Read `crates/podrunner-local/src/exec.rs` on 2026-11-14. Not measured: the resid
 `cargo test -p podrunner-local exec` (a `_work` with a directory of mode 0500 is removed, or the job fails with its path) and the double run in `runner-image.yml`.
 
 State (2026-11-14): `podrunner_local::work::clear` gives each directory of `_work` the bits `u+rwx` again before the removal, and a failure fails the job with the path (unit test: a tree with modes 0000 and 0500). The unit half is in `runner-image.yml`: `crates/podrunner/tests/local/rerun.yml` (a container job that leaves a directory of mode 0500) runs twice with `--podvm`; a residue fails the job. Runner-image run 43556484747 (`8a65c48`): the podvm kind refuses `--user 0` (`container-option-refused`), so a podvm unit runs no container as root; the job now runs as the user of the image.
+
+## Done
+
+2026-11-14, `11aaeff` and `5dedd26`. `podrunner_local::work::clear` gives each directory of `_work` its write bit back before the removal, and a failure fails the job with the path. Runner-image run 43557460656 (`5dedd26`): `crates/podrunner/tests/local/rerun.yml` (a container job that leaves a directory of mode 0500 in the workspace) passes twice in a row with `--podvm`, and no unit leaves residue. The podvm kind refuses `--user 0`, so a podvm unit runs no container as root.
 
 # T-147: Local mode: the parity suite, with checks outside the job log
 
