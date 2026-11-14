@@ -452,3 +452,27 @@ fn a_rerun_of_a_changed_workflow_fails_by_name() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-139: `--local-repository` serves a directory as an action; the lock
+/// stays as it was, and the forge is not asked (`--offline`).
+#[test]
+fn a_local_repository_serves_an_action() {
+    let dir = std::env::temp_dir().join(format!("podrunner-localrepo-run-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("tool")).unwrap();
+    std::fs::write(dir.join("tool/action.yml"), "runs:\n  using: composite\n  steps: [{run: hi, shell: sh}]\n")
+        .unwrap();
+    let file = dir.join("w.yml");
+    std::fs::write(&file, "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{uses: me/tool@main}]\n").unwrap();
+    let (w, local) = (file.display().to_string(), format!("me/tool@main={}", dir.join("tool").display()));
+    let store = dir.join("store").display().to_string();
+    let base = [w.as_str(), "--dry-run", "--no-cache", "--offline", "--actions", &store];
+    let out = run(&args(&[&base[..], &["--local-repository", &local]].concat()));
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert!(out.stdout.contains("planned a\n"), "{}", out.stdout);
+    assert!(!dir.join("podrunner-actions.lock").exists(), "a local reference is not in the lock");
+    let out = run(&args(&base));
+    assert_ne!(out.code, 0, "with no --local-repository, --offline has no pin: {}", out.stdout);
+    assert!(run(&args(&[&w, "--local-repository", "me/tool"])).stderr.contains("OWNER/REPO@REF=DIR"));
+    let _ = std::fs::remove_dir_all(&dir);
+}

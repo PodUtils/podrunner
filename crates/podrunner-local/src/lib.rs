@@ -13,6 +13,7 @@ pub mod drive;
 pub mod exec;
 pub mod front;
 pub mod images;
+pub mod localrepo;
 pub mod lock;
 pub mod message;
 pub mod rerun;

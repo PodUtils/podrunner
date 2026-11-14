@@ -31,7 +31,7 @@ the entry that closes the gap, or the entry that did the work.
 | Composite and JavaScript actions by commit | yes | yes | yes, from `--actions DIR` | T-091 |
 | Actions by tag or branch, fetched | yes, git clone | yes, tarball of the forge | yes, pinned by a lock file with a SHA-256; a moved tag fails by name | T-118 |
 | Offline mode, action cache | `--action-offline-mode`, `--action-cache-path` | no | `--offline`, `--frozen`, the store `--actions DIR` | T-118 |
-| `--local-repository`, another forge | yes | yes | no | T-139 |
+| `--local-repository`, another forge | yes | yes | yes: a made-up commit of the directory, never in the lock; `--action-server URL` for any git server | T-139 |
 | `actions/checkout` of the local tree | copy of the working tree | local checkout of the changes | the working tree with its changes, not the ignored files; `--checkout-head`; `--with-git` gives a `.git` | T-092, T-133 |
 | Checkout of another repository | real action | `--remote-checkout` | from the store at the commit of the lock | T-133 |
 | `./` local actions | yes | yes | yes | T-092 |

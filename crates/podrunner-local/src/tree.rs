@@ -32,12 +32,12 @@ fn git(dir: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
     Ok(out.stdout)
 }
 
-fn is_git_tree(dir: &Path) -> bool {
+pub(crate) fn is_git_tree(dir: &Path) -> bool {
     git(dir, &["rev-parse", "--is-inside-work-tree"]).is_ok_and(|o| o.starts_with(b"true"))
 }
 
 /// The files of the tree: tracked and new, not ignored, that exist on disk.
-fn files(dir: &Path) -> Result<Vec<PathBuf>, String> {
+pub(crate) fn files(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let out = git(dir, &["ls-files", "-z", "--cached", "--others", "--exclude-standard"])?;
     let mut list: Vec<PathBuf> = out
         .split(|b| *b == 0)

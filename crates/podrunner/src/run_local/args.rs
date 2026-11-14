@@ -34,6 +34,10 @@ pub(super) struct Args {
     pub(super) approved: Vec<String>,
     /// `--export DIR`: the workspaces of each job (T-138).
     pub(super) export: Option<PathBuf>,
+    /// `--local-repository OWNER/REPO@REF=DIR` and `--action-server URL`
+    /// (T-139).
+    pub(super) local_repos: Vec<(String, PathBuf)>,
+    pub(super) action_server: Option<String>,
     /// `--state DIR`, `--rerun DIR`, `--failed`, `--refresh` (T-135).
     pub(super) state: Option<PathBuf>,
     pub(super) rerun: Option<PathBuf>,
@@ -98,6 +102,14 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             "--job" => a.jobs.push(value()?),
             "--protected" => a.protected.push(value()?),
             "--export" => a.export = Some(PathBuf::from(value()?)),
+            "--local-repository" => a.local_repos.push(podrunner_local::localrepo::parse(&value()?)?),
+            "--action-server" => {
+                let url = value()?;
+                if !url.starts_with("https://") && !url.starts_with("http://") {
+                    return Err(format!("--action-server {url:?} is not a URL"));
+                }
+                a.action_server = Some(url);
+            }
             "--approve" => a.approved.push(value()?),
             "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {
                 let v = value()?;

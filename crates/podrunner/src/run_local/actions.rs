@@ -9,10 +9,13 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use podrunner_local::images::{ImageSource, workflow_images};
+use podrunner_local::localrepo::Local;
 use podrunner_local::lock::{LOCK_FILE, Lock};
 use podrunner_local::store::{Git, Mode, Store, add_trees, resolve, workflow_trees, workflow_uses};
 
-/// The forge of the actions.
+use super::Args;
+
+/// The forge of the actions, unless `--action-server URL` (T-139).
 const FORGE: &str = "https://github.com/";
 
 /// A directory of the cache of the user: `$XDG_CACHE_HOME/podrunner/NAME`,
@@ -40,13 +43,13 @@ pub(super) struct Pinned {
 /// The actions of the run, or `None` when the workflow names no action of a
 /// repository.
 pub(super) fn pin(
-    file: &Path,
+    a: &Args,
     text: &str,
-    store: Option<&Path>,
     mode: Mode,
     self_repo: &str,
     images: Option<&dyn ImageSource>,
 ) -> Result<Option<Pinned>, String> {
+    let (file, store) = (a.file.as_path(), a.actions.as_deref());
     let workflow = pod_actions_workflow::parse(text).map_err(|e| e.to_string())?.workflow;
     let uses = workflow_uses(&workflow);
     let trees = workflow_trees(&workflow, self_repo)?;
@@ -67,7 +70,11 @@ pub(super) fn pin(
             Some(d) => d.to_path_buf(),
             None => user_cache("actions")?,
         };
-        let (store, forge) = (Store { dir: dir.clone() }, Git { base: FORGE.into() });
+        // Any git server serves `git ls-remote` and a fetch: GitHub
+        // Enterprise Server, Gitea, Forgejo (T-139).
+        let base = a.action_server.as_deref().map_or(FORGE.to_string(), |s| format!("{}/", s.trim_end_matches('/')));
+        let git = Git { base };
+        let (store, forge) = (Store { dir: dir.clone() }, Local::new(a.local_repos.iter().cloned().collect(), &git));
         let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
         (add_trees(&trees, r, &store, &forge, mode, &name)?, Some(dir))
     };

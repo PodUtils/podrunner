@@ -21,6 +21,10 @@ pub trait Forge {
     fn resolve(&self, repo: &str, r: &str) -> Result<String, String>;
     /// The uncompressed tar of `commit`, with one top directory.
     fn tar(&self, repo: &str, commit: &str) -> Result<Vec<u8>, String>;
+    /// `OWNER/REPO@REF` comes from a local directory: no lock (T-139).
+    fn is_local(&self, _key: &str) -> bool {
+        false
+    }
 }
 
 /// How a run may change the lock and the store.
@@ -263,6 +267,15 @@ fn fetch(
     mode: Mode,
     lock_name: &str,
 ) -> Result<(String, Vec<u8>), String> {
+    // A local directory: a made-up commit, in the store, not in the lock.
+    if forge.is_local(key) {
+        let commit = forge.resolve(repo, r)?;
+        let tar = forge.tar(repo, &commit)?;
+        if store.get(repo, &commit)?.is_none() {
+            store.put(repo, &commit, &tar)?;
+        }
+        return Ok((commit, tar));
+    }
     let pin = out.lock.pins.get(key).cloned();
     let commit = match (&pin, mode) {
         _ if is_commit(r) => r.to_ascii_lowercase(),

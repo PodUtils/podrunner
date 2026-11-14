@@ -30,7 +30,7 @@ use crate::cli::Out;
 
 use args::{Args, parse};
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--protected NAME]... [--approve NAME]... [--export DIR] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--protected NAME]... [--approve NAME]... [--export DIR] [--local-repository OWNER/REPO@REF=DIR]... [--action-server URL] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -323,12 +323,11 @@ pub fn run(args: &[String]) -> Out {
         _ => None,
     };
     let image_source = pull.as_ref().map(|p| p as &dyn podrunner_local::images::ImageSource);
-    let (store, pins, note) =
-        match actions::pin(&a.file, &text, a.actions.as_deref(), mode, &facts.repository, image_source) {
-            Ok(Some(p)) => (p.dir.or_else(|| a.actions.clone()), p.commits, p.note),
-            Ok(None) => (a.actions.clone(), Default::default(), String::new()),
-            Err(e) => return fail(Class::Config, format!("{}: the actions: {e}", a.file.display())),
-        };
+    let (store, pins, note) = match actions::pin(&a, &text, mode, &facts.repository, image_source) {
+        Ok(Some(p)) => (p.dir.or_else(|| a.actions.clone()), p.commits, p.note),
+        Ok(None) => (a.actions.clone(), Default::default(), String::new()),
+        Err(e) => return fail(Class::Config, format!("{}: the actions: {e}", a.file.display())),
+    };
     source.set_pins(pins.clone());
     let scratch = std::env::temp_dir().join(format!("podrunner-run-tree-{}", std::process::id()));
     let tree = match &a.checkout {

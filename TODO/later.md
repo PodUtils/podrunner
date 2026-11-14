@@ -1726,7 +1726,7 @@ State (2026-11-14): `--export DIR` with `--runner-dir`: after each job, also a f
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1743,6 +1743,11 @@ Read `crates/podrunner-broker-fake/src/actions.rs` on 2026-11-14.
 ## Prove
 
 `cargo test -p podrunner-broker-fake` (a local directory served as an action).
+
+## Done
+
+2026-11-14, this commit. `--local-repository OWNER/REPO@REF=DIR` (repeat it): the forge `Local` of `crates/podrunner-local/src/localrepo.rs` serves the tar of DIR (one top directory; in a git tree the tracked and new files that git does not ignore) with a made-up commit, the first 40 hex digits of its SHA-256; `fetch` of the store puts it in the store and keeps it out of the lock (`Forge::is_local`), so `--offline` and `--frozen` take it and the forge is not asked. A composite action in DIR names its own `uses:`, which resolve as usual. `--action-server URL` replaces the base of `Git`: `git ls-remote` and a fetch work on GitHub Enterprise Server, Gitea and Forgejo, so no other tarball URL form is necessary. Tests: `cargo test -p podrunner-local localrepo` (the action in the store, not in the lock; a change gives a new commit; the flag syntax) and `cargo test -p podrunner a_local_repository` (a dry run with `--offline` plans the job and writes no lock).
+
 
 # T-140: Local mode: OIDC id-tokens (permissions: id-token: write)
 
