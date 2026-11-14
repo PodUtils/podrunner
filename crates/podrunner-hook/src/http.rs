@@ -50,7 +50,10 @@ pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, Ht
     else {
         return Err(HttpError(400, "a bad request line"));
     };
-    if !matches!(version, "HTTP/1.1" | "HTTP/1.0") || !path.starts_with('/') {
+    // The origin form `/PATH`, or the absolute form `http://HOST/PATH` of a
+    // request through a proxy (the front of a guest of the local mode).
+    let absolute = path.starts_with("http://") || path.starts_with("https://");
+    if !matches!(version, "HTTP/1.1" | "HTTP/1.0") || !(path.starts_with('/') || absolute) {
         return Err(HttpError(400, "a bad request line"));
     }
     let mut length: Option<usize> = None;

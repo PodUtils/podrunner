@@ -108,6 +108,12 @@ fn each_unit_has_a_listener_of_its_job_with_no_token() {
     // Each listener has the policy of its own job.
     assert_eq!(ask(&a, &connect("b.example:443")).0, 403);
     assert_eq!(ask(&b, &connect("b.example:443")).0, 200);
+    // The denial is named for its job only, once.
+    assert_eq!(ask(&a, &connect("b.example:443")).0, 403);
+    let denied = e.denials("u-1");
+    assert_eq!(denied.len(), 1, "{denied:?}");
+    assert!(denied[0].starts_with("b.example:443") && denied[0].contains("no-rule"), "{denied:?}");
+    assert!(e.denials("u-2").is_empty());
     // A token of unit A on the listener of unit B is refused.
     let with_a =
         "CONNECT b.example:443 HTTP/1.1\r\nHost: b.example:443\r\nProxy-Authorization: Bearer token-of-u-1\r\n\r\n";

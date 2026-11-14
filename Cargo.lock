@@ -960,6 +960,7 @@ dependencies = [
  "pod-proxy",
  "pod-tls",
  "rustls",
+ "serde_json",
  "tokio",
 ]
 

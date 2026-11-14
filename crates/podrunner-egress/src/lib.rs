@@ -18,6 +18,7 @@ use pod_core::{BoxFuture, Class, Failure, Found, Resolve, Source, Stage};
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 
+pub mod denials;
 pub mod dns;
 
 /// A failure of the egress module, with no byte of a policy or a token.
@@ -70,6 +71,7 @@ pub struct Egress {
     broker: Arc<Broker>,
     open: Mutex<HashMap<String, Listener>>,
     alive: Arc<AtomicBool>,
+    denials: Arc<denials::Denials>,
 }
 
 /// A token that no unit sees: the listener is the identity of the job.
@@ -88,11 +90,13 @@ impl Egress {
             .enable_all()
             .build()
             .map_err(|e| EgressError(format!("the runtime of egress: {}", e.kind())))?;
+        let denials = Arc::new(denials::Denials::default());
         Ok(Egress {
             rt,
-            broker: Arc::new(broker),
+            broker: Arc::new(broker.with_audit(denials.clone())),
             open: Mutex::new(HashMap::new()),
             alive: Arc::new(AtomicBool::new(true)),
+            denials,
         })
     }
 
@@ -160,6 +164,12 @@ impl Egress {
             let _ = std::fs::remove_file(socket);
         }
         dropped
+    }
+
+    /// `HOST:PORT (RULE)` of each connection of `job` that its policy
+    /// refused, once each.
+    pub fn denials(&self, job: &str) -> Vec<String> {
+        self.denials.of(job)
     }
 
     /// The proxy URL of a socket for the unit, in the form that `podnet pod

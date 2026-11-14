@@ -58,4 +58,22 @@ mod tests {
         assert_eq!(route("POST", "/_podrunner/hold/x").unwrap().0, 404);
         assert!(route("GET", "/message").is_none());
     }
+
+    /// A request in the absolute form of a proxy takes the same route.
+    #[test]
+    fn the_broker_takes_the_absolute_form_of_a_proxy() {
+        use std::io::{Read, Write};
+        let broker = crate::Broker::start().unwrap();
+        let hostport = broker.base.trim_start_matches("http://").trim_end_matches('/').to_string();
+        let mut c = std::net::TcpStream::connect(&hostport).unwrap();
+        write!(
+            c,
+            "GET http://broker.podrunner.test/_podrunner/hold/abs.0 HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n"
+        )
+        .unwrap();
+        let mut out = String::new();
+        c.read_to_string(&mut out).unwrap();
+        assert!(out.starts_with("HTTP/1.1 503"), "{out}");
+        assert!(broker.seen().iter().any(|s| s == "GET /_podrunner/hold/abs.0 (absolute form)"), "{:?}", broker.seen());
+    }
 }

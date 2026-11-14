@@ -229,9 +229,24 @@ fn reply(json: &Value) -> (u16, Vec<u8>) {
 
 fn serve(conn: TcpStream, state: &Mutex<State>, base: &str) {
     let Ok(mut w) = conn.try_clone() else { return };
-    let Ok(req) = read_request_with(&mut BufReader::new(conn), BODY_MAX) else { return };
+    let mut req = match read_request_with(&mut BufReader::new(conn), BODY_MAX) {
+        Ok(r) => r,
+        // An answer, not a closed connection: a client retries a closed one
+        // for minutes.
+        Err(e) => {
+            let _ = write_response(&mut w, e.0, &[], e.1.as_bytes());
+            return;
+        }
+    };
+    // A request of a proxy (the front of a guest) can name the absolute
+    // form `http://HOST/PATH`: the routes take `/PATH`.
+    let mut form = "";
+    if let Some(rest) = req.path.strip_prefix("http://").or_else(|| req.path.strip_prefix("https://")) {
+        req.path = rest.find('/').map_or_else(|| "/".to_string(), |i| rest[i..].to_string());
+        form = " (absolute form)";
+    }
     let path = req.path.split('?').next().unwrap_or("").to_string();
-    state.lock().expect("the broker").seen.push(format!("{} {path}", req.method));
+    state.lock().expect("the broker").seen.push(format!("{} {path}{form}", req.method));
     let body: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
     let base = base.trim_end_matches('/');
     let base = &format!("{base}/");

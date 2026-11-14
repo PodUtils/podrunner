@@ -411,6 +411,9 @@ impl Executor for InUnit {
             true => self.driver.unit_logs(&id).map(|o| tail(&o)).ok(),
             false => None,
         };
+        // The hosts that the egress policy of the unit refused, before the
+        // grant ends: the log names them.
+        let denied = self.egress.as_ref().map(|(e, _)| e.denials(id.as_str())).unwrap_or_default();
         let residue = self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"));
         end_sockets(&sockets);
         // The workspaces of the job, also of a failed one (T-138).
@@ -432,6 +435,15 @@ impl Executor for InUnit {
         }
         if let Some(e) = exported {
             log.push_str(&format!("\npodrunner: {e}"));
+        }
+        for d in &denied {
+            log.push_str(&format!("\npodrunner: the egress policy of {id} denied {d}"));
+        }
+        // A job that did not succeed: the last requests of its broker.
+        if !broker.completions().iter().any(|c| c.conclusion == "succeeded") {
+            let seen = broker.seen();
+            let last = &seen[seen.len().saturating_sub(15)..];
+            log.push_str(&format!("\npodrunner: the last requests of the broker: {}", last.join(", ")));
         }
         self.logs.push((job.clone(), log));
         let exit = waited.map_err(|e| format!("wait {id}: {e}"))?;
