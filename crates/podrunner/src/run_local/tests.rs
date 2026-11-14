@@ -191,15 +191,16 @@ fn the_tree_of_the_checkout_is_a_tarball_of_its_files() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("plain/sub")).unwrap();
     std::fs::write(dir.join("plain/sub/f.txt"), "x").unwrap();
-    let t = tree_tarball(&dir.join("plain"), &dir.join("scratch")).unwrap();
+    let t = podrunner_local::tree::tarball(&dir.join("plain"), &dir.join("scratch"), Default::default()).unwrap();
     let list = std::process::Command::new("tar").arg("-tzf").arg(&t).output().unwrap();
     assert!(String::from_utf8_lossy(&list.stdout).contains("sub/f.txt"));
     // A git tree gives its committed files.
     let repo = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
-    let t = tree_tarball(std::path::Path::new(repo), &dir.join("scratch2")).unwrap();
+    let t =
+        podrunner_local::tree::tarball(std::path::Path::new(repo), &dir.join("scratch2"), Default::default()).unwrap();
     let list = std::process::Command::new("tar").arg("-tzf").arg(&t).output().unwrap();
     assert!(String::from_utf8_lossy(&list.stdout).lines().any(|l| l == "Cargo.toml"));
-    assert!(tree_tarball(&dir.join("missing"), &dir.join("scratch3")).is_err());
+    assert!(podrunner_local::tree::tarball(&dir.join("missing"), &dir.join("scratch3"), Default::default()).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }
 

@@ -166,3 +166,27 @@ fn the_workflow_gives_its_remote_actions_and_not_the_checkout() {
     let w = pod_actions_workflow::parse(text).unwrap().workflow;
     assert_eq!(workflow_uses(&w), ["o/r@v1"]);
 }
+
+#[test]
+fn a_checkout_of_another_repository_is_a_tree_to_pin() {
+    let with = |text: &str| pod_actions_workflow::yaml::load(text, Limits::default()).unwrap();
+    let t = |text: &str| checkout_target(Some(&with(text)), "me/app");
+    assert_eq!(t("repository: o/lib\nref: v2\n").unwrap().as_deref(), Some("o/lib@v2"));
+    assert_eq!(t("repository: o/lib\n").unwrap().as_deref(), Some("o/lib@HEAD"));
+    assert_eq!(t("repository: Me/App\n").unwrap(), None, "the repository of the run is the local tree");
+    assert_eq!(t("repository: ${{ github.repository }}\n").unwrap(), None);
+    assert_eq!(t("path: x\n").unwrap(), None);
+    assert!(t("repository: ${{ inputs.repo }}\n").unwrap_err().contains("plain"));
+    assert!(t("repository: o/lib\nref: ${{ inputs.ref }}\n").unwrap_err().contains("plain"));
+    assert!(t("repository: nothing\n").unwrap_err().contains("OWNER/REPO"));
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/checkout@v4\n        with:\n          repository: o/lib\n          ref: v2\n";
+    let w = pod_actions_workflow::parse(text).unwrap().workflow;
+    assert_eq!(workflow_trees(&w, "me/app").unwrap(), ["o/lib@v2"]);
+    // A tree is pinned and kept as an action is, with no action file.
+    let (f, s) = (forge(), store());
+    f.add("o/lib@v2", C, &[("README", "no action here")]);
+    let r = add_trees(&["o/lib@v2".to_string()], Resolved::default(), &s, &f, Mode::Online, "L").unwrap();
+    assert_eq!((r.commits["o/lib@v2"].as_str(), r.changed), (C, true));
+    assert!(s.path("o/lib", C).is_file());
+    let _ = std::fs::remove_dir_all(&s.dir);
+}

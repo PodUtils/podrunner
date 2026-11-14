@@ -14,6 +14,7 @@ pub mod lock;
 pub mod message;
 pub mod secrets;
 pub mod store;
+pub mod tree;
 pub mod work;
 
 /// The artifact store of a run (T-119).
@@ -76,6 +77,8 @@ pub struct LocalSource {
     /// (T-122).
     secrets: Vec<(String, String)>,
     token: Option<String>,
+    /// The commit of each `OWNER/REPO@REF` of the run (T-118, T-133).
+    pins: BTreeMap<String, String>,
     minter: Minter,
     /// The report and audit lines, for the caller.
     pub reports: Vec<(JobId, Map<String, Value>)>,
@@ -108,6 +111,7 @@ impl LocalSource {
             inputs,
             secrets: Vec::new(),
             token: None,
+            pins: BTreeMap::new(),
             minter,
             reports: Vec::new(),
             audits: Vec::new(),
@@ -121,6 +125,12 @@ impl LocalSource {
     pub fn set_secrets(&mut self, secrets: Vec<(String, String)>, token: Option<String>) {
         self.secrets = secrets;
         self.token = token;
+    }
+
+    /// The commit of each `OWNER/REPO@REF` of the run: a checkout of another
+    /// repository takes its tree from the store (T-133).
+    pub fn set_pins(&mut self, pins: BTreeMap<String, String>) {
+        self.pins = pins;
     }
 
     /// `fail-fast` cancelled the cell `job` before it ran (T-117).
@@ -146,7 +156,7 @@ impl LocalSource {
     /// The job of the fake broker for the offer `job` (T-088).
     pub fn broker_job(&self, job: &JobId) -> Result<podrunner_broker_fake::Job, String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
-        let mut b = message::broker_job(self.run.workflow(), cell, &self.github, &self.vars, &self.inputs)?;
+        let mut b = message::broker_job(self.run.workflow(), cell, &self.github, &self.vars, &self.inputs, &self.pins)?;
         b.secrets = self.secrets.clone();
         let none = |p: Option<&pod_actions_workflow::Node>| matches!(p.map(|n| &n.kind), Some(pod_actions_workflow::Kind::Map(e)) if e.is_empty());
         let w = self.run.workflow();

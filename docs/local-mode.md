@@ -32,8 +32,8 @@ the entry that closes the gap, or the entry that did the work.
 | Actions by tag or branch, fetched | yes, git clone | yes, tarball of the forge | yes, pinned by a lock file with a SHA-256; a moved tag fails by name | T-118 |
 | Offline mode, action cache | `--action-offline-mode`, `--action-cache-path` | no | `--offline`, `--frozen`, the store `--actions DIR` | T-118 |
 | `--local-repository`, another forge | yes | yes | no | T-139 |
-| `actions/checkout` of the local tree | copy of the working tree | local checkout of the changes | `git archive` of HEAD in a git tree, no `.git` | T-092, T-133 |
-| Checkout of another repository | real action | `--remote-checkout` | no | T-133 |
+| `actions/checkout` of the local tree | copy of the working tree | local checkout of the changes | the working tree with its changes, not the ignored files; `--checkout-head`; `--with-git` gives a `.git` | T-092, T-133 |
+| Checkout of another repository | real action | `--remote-checkout` | from the store at the commit of the lock | T-133 |
 | `./` local actions | yes | yes | yes | T-092 |
 | Docker actions by image | yes | yes | yes, pinned by digest, through the hooks | T-093, T-098 |
 | Dockerfile actions (`docker build`) | yes | yes | refused (`build-not-supported`) | T-124 |

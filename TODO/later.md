@@ -1509,7 +1509,7 @@ Read `drive` and the executors on 2026-11-14. Each executor holds one broker for
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1529,6 +1529,11 @@ Read `crates/podrunner/src/run_local.rs` and `checkout_script` of `crates/podrun
 ## Prove
 
 `cargo test -p podrunner run_local` (a file that is not committed is in the tarball; an ignored file is not) and `PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored` (`git rev-parse HEAD` in a step with `--with-git`).
+
+## Done
+
+2026-11-14, this commit. `crates/podrunner-local/src/tree.rs` writes the tree of `--checkout`: in a git tree each tracked file and each new file that git does not ignore, at its state on disk (`git ls-files --cached --others --exclude-standard`); `--checkout-head` gives `git archive` of HEAD; `--with-git` adds a `.git` from a clone of the tree with no checkout and an index of HEAD, so the unit never writes the `.git` of the user. A checkout with `with: repository:` of another repository (plain values; HEAD of its default branch with no `ref`) is resolved and pinned by the lock of T-118 and kept in the store (`store::checkout_target`, `workflow_trees`, `add_trees`); the stand-in unpacks that tarball from the broker with its top directory stripped. Proven: the unit tests of the tree (a change on disk and a new file are in, an ignored file is out, HEAD only, a `.git` where `git rev-parse HEAD` and `git status` work), of the checkout targets and of the job message; `cargo test -p podrunner --test local -- --ignored the_checkout` on runner v2.338.2: `git rev-parse HEAD` equals `github.sha` in a step, and `actions/upload-pages-artifact@v3` lands in `other/` at its pinned commit. The real `actions/checkout` through the egress module (`--remote-checkout`) is not taken: the store gives the same tree with a pin.
+
 
 # T-134: Local mode: live logs, a log directory, the job summary, and --json
 

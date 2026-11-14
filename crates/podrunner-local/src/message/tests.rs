@@ -224,3 +224,22 @@ fn the_secrets_and_the_token_are_secret_variables_and_permissions_none_gets_no_r
     assert_eq!(v["system.github.token"]["value"], podrunner_broker_fake::message::TOKEN, "permissions: {{}}");
     assert_eq!(v["API_KEY"]["isSecret"], true);
 }
+
+#[test]
+fn a_checkout_of_another_repository_takes_its_pinned_tree() {
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          repository: o/lib\n          ref: v2\n          path: lib\n";
+    let base = Base { github: XValue::object([("repository", XValue::String("me/app".into()))]), ..Base::default() };
+    let mut s = LocalSource::new("l", text, base, "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.next(10, Duration::ZERO).unwrap();
+    let job = JobId::new("a.0").unwrap();
+    assert!(s.broker_job(&job).unwrap_err().contains("not pinned"));
+    let sha = "c".repeat(40);
+    s.set_pins(BTreeMap::from([("o/lib@v2".to_string(), sha.clone())]));
+    let m = podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &s.broker_job(&job).unwrap());
+    let script = m["steps"][0]["inputs"]["map"][0]["Value"].to_string();
+    assert!(
+        script.contains(&format!("_actions/o_lib/{sha}.tar.gz")) && script.contains("--strip-components=1"),
+        "{script}"
+    );
+    assert!(script.contains("lib"), "{script}");
+}

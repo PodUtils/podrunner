@@ -70,6 +70,68 @@ pub fn workflow_uses(w: &Workflow) -> Vec<String> {
     out
 }
 
+/// The repository of a checkout of another repository (T-133): `OWNER/REPO@REF`
+/// of `with: repository` and `with: ref` (HEAD when no ref), or `None` for
+/// the repository of the run, which is the local tree. An expression is
+/// refused: the host resolves each tree before the first job.
+pub fn checkout_target(with: Option<&Node>, self_repo: &str) -> Result<Option<String>, String> {
+    let value = |key: &str| -> Result<Option<String>, String> {
+        match with.and_then(|w| get(w, key)).map(|n| &n.kind) {
+            None => Ok(None),
+            Some(Kind::String(v)) if v.trim() == "${{ github.repository }}" && key == "repository" => Ok(None),
+            Some(Kind::String(v)) if v.contains("${{") => {
+                Err(format!("the `{key}` of a checkout of another repository must be plain, not {v:?}"))
+            }
+            Some(Kind::String(v)) => Ok(Some(v.trim().to_string())),
+            Some(_) => Err(format!("the `{key}` of a checkout must be a string")),
+        }
+    };
+    let Some(repo) = value("repository")? else { return Ok(None) };
+    if repo.eq_ignore_ascii_case(self_repo) {
+        return Ok(None);
+    }
+    if repo.split('/').count() != 2 || repo.split('/').any(str::is_empty) {
+        return Err(format!("the `repository` of a checkout is not OWNER/REPO: {repo:?}"));
+    }
+    Ok(Some(format!("{repo}@{}", value("ref")?.unwrap_or_else(|| "HEAD".into()))))
+}
+
+/// Each checkout of another repository in the steps of the workflow.
+pub fn workflow_trees(w: &Workflow, self_repo: &str) -> Result<Vec<String>, String> {
+    let mut out = Vec::new();
+    for job in &w.jobs {
+        for s in &job.steps {
+            if s.uses.as_deref().is_some_and(|u| u.starts_with("actions/checkout@"))
+                && let Some(t) = checkout_target(s.with.as_ref(), self_repo)?
+            {
+                out.push(t);
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Resolve and keep each tree of `trees` (`OWNER/REPO@REF`, T-133) after the
+/// actions: as an action, with no action file to read.
+pub fn add_trees(
+    trees: &[String],
+    mut out: Resolved,
+    store: &Store,
+    forge: &dyn Forge,
+    mode: Mode,
+    lock_name: &str,
+) -> Result<Resolved, String> {
+    for t in trees {
+        let (repo, _, r) = split(t).ok_or_else(|| format!("the checkout `{t}` is not OWNER/REPO@REF"))?;
+        let key = format!("{repo}@{r}");
+        if !out.commits.contains_key(&key) {
+            let (commit, _) = fetch(&repo, &r, &key, &mut out, store, forge, mode, lock_name)?;
+            out.commits.insert(key, commit);
+        }
+    }
+    Ok(out)
+}
+
 fn remote(uses: &str) -> bool {
     !uses.starts_with("./") && !uses.starts_with("docker://")
 }
@@ -284,6 +346,14 @@ fn git(args: &[&str], dir: Option<&Path>) -> Result<Vec<u8>, String> {
 impl Forge for Git {
     fn resolve(&self, repo: &str, r: &str) -> Result<String, String> {
         let url = format!("{}{repo}", self.base);
+        // HEAD: the default branch of the repository (a checkout with no ref).
+        if r == "HEAD" {
+            let text = String::from_utf8(git(&["ls-remote", &url, "HEAD"], None)?).map_err(|e| e.to_string())?;
+            return text
+                .lines()
+                .find_map(|l| l.split_once('\t').filter(|(_, n)| *n == "HEAD").map(|x| x.0.to_string()))
+                .ok_or_else(|| format!("`{repo}@HEAD`: {url} has no HEAD"));
+        }
         let tag = format!("refs/tags/{r}");
         let head = format!("refs/heads/{r}");
         let text = String::from_utf8(git(&["ls-remote", &url, &tag, &format!("{tag}^{{}}"), &head], None)?)

@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use podrunner_local::lock::{LOCK_FILE, Lock};
-use podrunner_local::store::{Git, Mode, Store, resolve, workflow_uses};
+use podrunner_local::store::{Git, Mode, Store, add_trees, resolve, workflow_trees, workflow_uses};
 
 /// The forge of the actions.
 const FORGE: &str = "https://github.com/";
@@ -36,10 +36,17 @@ pub(super) struct Pinned {
 
 /// The actions of the run, or `None` when the workflow names no action of a
 /// repository.
-pub(super) fn pin(file: &Path, text: &str, store: Option<&Path>, mode: Mode) -> Result<Option<Pinned>, String> {
+pub(super) fn pin(
+    file: &Path,
+    text: &str,
+    store: Option<&Path>,
+    mode: Mode,
+    self_repo: &str,
+) -> Result<Option<Pinned>, String> {
     let workflow = pod_actions_workflow::parse(text).map_err(|e| e.to_string())?.workflow;
     let uses = workflow_uses(&workflow);
-    if uses.is_empty() {
+    let trees = workflow_trees(&workflow, self_repo)?;
+    if uses.is_empty() && trees.is_empty() {
         return Ok(None);
     }
     let dir = match store {
@@ -49,11 +56,13 @@ pub(super) fn pin(file: &Path, text: &str, store: Option<&Path>, mode: Mode) -> 
     let lock_path = file.parent().unwrap_or(Path::new(".")).join(LOCK_FILE);
     let lock = Lock::read(&lock_path)?;
     let name = lock_path.display().to_string();
-    let r = resolve(&uses, &lock, &Store { dir: dir.clone() }, &Git { base: FORGE.into() }, mode, &name)?;
+    let (store, forge) = (Store { dir: dir.clone() }, Git { base: FORGE.into() });
+    let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
+    let r = add_trees(&trees, r, &store, &forge, mode, &name)?;
     let mut note = String::new();
     if r.changed {
         r.lock.write(&lock_path)?;
-        note = format!("podrunner: {name} pins {} actions\n", r.lock.pins.len());
+        note = format!("podrunner: {name} pins {} references\n", r.lock.pins.len());
     }
     Ok(Some(Pinned { dir, commits: r.commits, note }))
 }

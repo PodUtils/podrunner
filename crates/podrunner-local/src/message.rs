@@ -134,6 +134,10 @@ fn guid(n: u64) -> String {
 struct RunDefaults<'a> {
     shell: Option<&'a str>,
     working_directory: Option<&'a str>,
+    /// The commit of each `OWNER/REPO@REF` of the run (T-118, T-133).
+    pins: &'a BTreeMap<String, String>,
+    /// The repository of the run: its checkout is the local tree (T-133).
+    self_repo: &'a str,
 }
 
 /// One step as the runner reads it: a script action.
@@ -142,11 +146,18 @@ struct RunDefaults<'a> {
 /// it) into the workspace, or into `path` in it. No `tar -C` and no
 /// `tar -z`: in a podvm unit GNU `tar -C DIR` failed to open an existing
 /// DIR (T-093).
-fn checkout_script(path: &str) -> String {
+/// With `other` (`OWNER/REPO` and its commit, T-133), the tarball of that
+/// commit from the store, with its top directory stripped.
+fn checkout_script(path: &str, other: Option<(&str, &str)>) -> String {
     let dest = if path.is_empty() { "$GITHUB_WORKSPACE".to_string() } else { format!("$GITHUB_WORKSPACE/{path}") };
+    let (route, strip) = match other {
+        None => (podrunner_broker_fake::actions::CHECKOUT.to_string(), ""),
+        Some((repo, sha)) => {
+            (format!("_actions/{}", podrunner_broker_fake::actions::archive_name(repo, sha)), " --strip-components=1")
+        }
+    };
     format!(
-        "set -eu\nmkdir -p \"{dest}\"\ncd \"{dest}\"\ncurl -fsSL \"${{{{ github.api_url }}}}{}\" | gzip -dc | tar -xf -",
-        podrunner_broker_fake::actions::CHECKOUT
+        "set -eu\nmkdir -p \"{dest}\"\ncd \"{dest}\"\ncurl -fsSL \"${{{{ github.api_url }}}}{route}\" | gzip -dc | tar -xf -{strip}"
     )
 }
 
@@ -212,11 +223,22 @@ fn step(
                     return Err(format!("line {line}: the `path` of the local checkout must be a plain relative path"));
                 }
             };
+            let target =
+                crate::store::checkout_target(s.with.as_ref(), d.self_repo).map_err(|e| format!("line {line}: {e}"))?;
+            let (script, what) = match &target {
+                None => (checkout_script(&path, None), "the local tree".to_string()),
+                Some(t) => {
+                    let sha =
+                        d.pins.get(t).ok_or_else(|| format!("line {line}: the checkout of `{t}` is not pinned"))?;
+                    let repo = t.split('@').next().unwrap_or(t);
+                    (checkout_script(&path, Some((repo, sha))), format!("{t} at {sha}"))
+                }
+            };
             (
                 json!({ "type": "script" }),
                 "__actions_checkout".to_string(),
-                format!("Run {uses} (the local tree)"),
-                vec![("script".to_string(), token(&checkout_script(&path))?)],
+                format!("Run {uses} ({what})"),
+                vec![("script".to_string(), token(&script)?)],
             )
         }
         (Some(uses), None) => {
@@ -282,6 +304,7 @@ pub fn broker_job(
     github: &XValue,
     vars: &XValue,
     inputs: &XValue,
+    pins: &BTreeMap<String, String>,
 ) -> Result<Job, String> {
     let job: &WorkflowJob = workflow.job(&cell.job).ok_or_else(|| format!("no job {}", cell.job))?;
     if let Some(uses) = &job.uses {
@@ -308,6 +331,8 @@ pub fn broker_job(
         working_directory: jd
             .and_then(|d| d.working_directory.as_deref())
             .or(wd.and_then(|d| d.working_directory.as_deref())),
+        pins,
+        self_repo: github.get("repository").and_then(XValue::as_str).unwrap_or(""),
     };
     let mut unnamed = BTreeMap::new();
     let steps: Vec<Value> =

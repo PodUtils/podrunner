@@ -20,7 +20,7 @@ use podrunner_local::exec::{InUnit, RunnerDir};
 
 use crate::cli::Out;
 
-pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--checkout DIR] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
+pub const USAGE: &str = "usage: podrunner run FILE (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH] [--allow HOST]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--checkout DIR [--checkout-head] [--with-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]...";
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -48,6 +48,8 @@ struct Args {
     secret_file: Option<PathBuf>,
     token_env: Option<String>,
     checkout: Option<PathBuf>,
+    checkout_head: bool,
+    with_git: bool,
     podnet: Option<PathBuf>,
     allow: Vec<String>,
     event: String,
@@ -100,6 +102,8 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--offline" => a.offline = true,
             "--frozen" => a.frozen = true,
             "--checkout" => a.checkout = Some(PathBuf::from(value()?)),
+            "--checkout-head" => a.checkout_head = true,
+            "--with-git" => a.with_git = true,
             "--podnet" => a.podnet = Some(PathBuf::from(value()?)),
             "--allow" => a.allow.push(value()?),
             "--event" => a.event = value()?,
@@ -120,6 +124,9 @@ fn parse(args: &[String]) -> Result<Args, String> {
     a.file = file.ok_or("the workflow file is necessary")?;
     if a.cache.is_some() && a.no_cache {
         return Err("--cache and --no-cache exclude each other".into());
+    }
+    if (a.checkout_head || a.with_git) && a.checkout.is_none() {
+        return Err("--checkout-head and --with-git need --checkout".into());
     }
     if a.offline && a.frozen {
         return Err("--offline and --frozen exclude each other".into());
@@ -150,26 +157,6 @@ fn object(pairs: &[(String, String)]) -> Value {
 
 fn arch() -> &'static str {
     if cfg!(target_arch = "aarch64") { "aarch64" } else { "x86_64" }
-}
-
-/// The tarball of the tree `dir` for the stand-in of `actions/checkout`
-/// (T-092): `git archive` of HEAD in a git tree (the committed files, as a
-/// checkout gives them), else each file of `dir`.
-fn tree_tarball(dir: &std::path::Path, scratch: &std::path::Path) -> Result<PathBuf, String> {
-    use std::process::Command;
-    std::fs::create_dir_all(scratch).map_err(|e| format!("{}: {e}", scratch.display()))?;
-    let out = scratch.join("tree.tar.gz");
-    let git = Command::new("git").arg("-C").arg(dir).args(["rev-parse", "--is-inside-work-tree"]).output();
-    let status = if git.is_ok_and(|o| o.status.success()) {
-        Command::new("git").arg("-C").arg(dir).args(["archive", "--format=tar.gz", "-o"]).arg(&out).arg("HEAD").status()
-    } else {
-        Command::new("tar").arg("-czf").arg(&out).arg("-C").arg(dir).arg(".").status()
-    };
-    match status {
-        Ok(s) if s.success() => Ok(out),
-        Ok(s) => Err(format!("{}: the tarball of the tree failed ({s})", dir.display())),
-        Err(e) => Err(format!("{}: the tarball of the tree: {e}", dir.display())),
-    }
 }
 
 /// The egress policy of each unit of a held run: only the hosts of
@@ -302,15 +289,20 @@ pub fn run(args: &[String]) -> Out {
         (_, true) => podrunner_local::store::Mode::Frozen,
         _ => podrunner_local::store::Mode::Online,
     };
-    let (store, pins, note) = match actions::pin(&a.file, &text, a.actions.as_deref(), mode) {
+    let (store, pins, note) = match actions::pin(&a.file, &text, a.actions.as_deref(), mode, &facts.repository) {
         Ok(Some(p)) => (Some(p.dir), p.commits, p.note),
         Ok(None) => (a.actions.clone(), Default::default(), String::new()),
         Err(e) => return fail(Class::Config, format!("{}: the actions: {e}", a.file.display())),
     };
+    source.set_pins(pins.clone());
     let scratch = std::env::temp_dir().join(format!("podrunner-run-tree-{}", std::process::id()));
     let tree = match &a.checkout {
         None => None,
-        Some(dir) => match tree_tarball(dir, &scratch) {
+        Some(dir) => match podrunner_local::tree::tarball(
+            dir,
+            &scratch,
+            podrunner_local::tree::Options { head: a.checkout_head, with_git: a.with_git },
+        ) {
             Ok(t) => Some(t),
             Err(e) => return fail(Class::Config, e),
         },
