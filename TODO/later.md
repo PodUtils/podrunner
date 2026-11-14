@@ -2089,7 +2089,7 @@ Read the README of the study on 2026-11-14. Not measured: a pause of the officia
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2106,6 +2106,9 @@ Measure in `runner-image.yml`: an aarch64 runner image in a guest of the microvm
 ## Prove
 
 `gh workflow run runner-image.yml` runs the measure, and `docs/unknowns.md` has its row.
+
+State (2026-11-14): `scripts/measure-foreign.sh` pulls `busybox:1.37.0` for `linux/arm64` into a store of its own and runs it in the machine tier of podvm with `--platform linux/arm64`; it prints the exit, the seconds, the accelerator and `uname -m` of the guest. `runner-image.yml` runs it on the x86_64 host as the step "A guest of another architecture (a measure)", with `qemu-system-arm`. Next: read the step summary of the run, record the result in `docs/unknowns.md`, and then measure the aarch64 runner image with a small job.
+
 
 # T-152: Local mode: an env of one expression is refused
 

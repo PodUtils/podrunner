@@ -298,6 +298,16 @@ jobs:
           set -eu
           sh scripts/measure-machine.sh "$PODRUNNER_PODVM" "$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_RUNNER_IMAGE" \
             "$RUNNER_TEMP/machine" | tee -a "$GITHUB_STEP_SUMMARY"
+      # T-151: a guest of another architecture (linux/arm64) in the machine
+      # tier on this x86_64 host, emulated by QEMU. A measure for
+      # docs/unknowns.md.
+      - name: A guest of another architecture (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        run: |
+          set -eu
+          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends qemu-system-arm qemu-efi-aarch64
+          sh scripts/measure-foreign.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/foreign" | tee -a "$GITHUB_STEP_SUMMARY"
       # T-037: the unit tests of the acceptance of the microvm kind on real
       # guests (KVM from the step before). A check.
       - name: The microvm kind passes its unit tests
