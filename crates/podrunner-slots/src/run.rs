@@ -154,6 +154,13 @@ impl Slots {
             self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("the socket directory: {}", e.kind())));
             return self.give_up(key, RefusalCode::UnitStartFailed, now);
         }
+        if self.egress.is_some()
+            && self.cfg.egress.default_policy.is_none()
+            && self.jobs[key].offer.as_ref().is_some_and(|o| !o.policy.is_empty())
+        {
+            let why = "egress: the policy of the offer opens nothing with no [egress] default_policy (T-410)";
+            self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(why.into()));
+        }
         if let Some(e) = &self.egress {
             let policy = self.policy_of(key);
             let socket = dir.join(EGRESS_SOCKET);
@@ -397,10 +404,11 @@ impl Slots {
         let offer = self.jobs[key].offer.as_ref().map(|o| o.policy.clone()).filter(|p| !p.is_empty());
         let default = self.cfg.egress.default_policy.clone();
         let (offer, default) = (offer.map(serde_json::Value::Object), default.map(serde_json::Value::Object));
+        // No ceiling allows nothing: an offer only takes away (T-410).
         match (offer, default) {
             (Some(o), Some(d)) => crate::policy::narrow(&d, &o).to_string(),
-            (Some(p), None) | (None, Some(p)) => p.to_string(),
-            (None, None) => r#"{"schema":1,"mode":"allow","allow":[]}"#.into(),
+            (None, Some(p)) => p.to_string(),
+            (_, None) => r#"{"schema":1,"mode":"allow","allow":[]}"#.into(),
         }
     }
 

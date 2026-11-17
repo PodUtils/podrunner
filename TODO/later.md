@@ -8599,7 +8599,7 @@ Make it with a random name at 0700 and give the unit access by its user map, not
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8617,6 +8617,10 @@ Pin the trusted signer key out of each file that the uid of a unit can write (a 
 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
+## Done
+
+2026-11-17: `check` and `serve` refuse a configuration file that the group or others can write, or that another user (not root) owns (`tiers::file_closed`): the signer of the pin list is in that file. The other way in is closed already: `trusted` at `redirect` needs `same_principal_ok = false` (DR-4), so the user of a unit is not the user of `serve` and cannot write a file of mode 0644 or 0600. A key out of the file (a key of the binary) would add nothing more for that case. Test `a_configuration_that_others_can_write_is_refused`. Level: a unit test.
+
 # T-410: With no `[egress] default_policy`, an offer with `mode: open` opens the egress
 
 **Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
@@ -8624,7 +8628,7 @@ Pin the trusted signer key out of each file that the uid of a unit can write (a 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8641,6 +8645,10 @@ With no ceiling, narrow the offer by the policy that allows nothing, or refuse a
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: with no `[egress] default_policy`, the ceiling allows nothing: an offer with a policy (also `mode: open`) gets no way out, and the audit names why (`Slots::policy_of`, `run.rs`). An open ceiling (`mode = "open"`) takes the policy of the offer. The call is in `docs/decisions.md`; `docs/configuration.md` says it. Test `with_no_ceiling_an_offer_opens_nothing` fails on the old code (the open offer opened the egress).
 
 # T-411: The `id` of a configured organization or repository is not checked
 

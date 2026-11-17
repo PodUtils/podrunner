@@ -60,8 +60,46 @@ pub fn future_pins(cfg: &Config, now_s: u64) -> Vec<String> {
         .collect()
 }
 
+/// The configuration file holds the signer of the pin list and each path
+/// of a key (T-409): a file that the group or others can write, or that
+/// another user (not root) owns, could be rewritten with a key and a
+/// signature of their own.
+pub fn file_closed(path: &std::path::Path) -> Result<(), Failure> {
+    use std::os::unix::fs::MetadataExt;
+    let m = std::fs::metadata(path).map_err(|e| fail(Class::Config, format!("{}: {e}", path.display())))?;
+    // SAFETY: getuid has no failure.
+    let me = unsafe { libc::getuid() };
+    if m.mode() & 0o022 != 0 {
+        return Err(fail(
+            Class::Config,
+            format!("{}: the group or others can write it: set mode 0644 or 0600", path.display()),
+        ));
+    }
+    if m.uid() != me && m.uid() != 0 {
+        return Err(fail(
+            Class::Config,
+            format!("{}: owned by uid {}, not by this user or root", path.display(), m.uid()),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    /// T-409: a configuration that another user can write is refused.
+    #[test]
+    fn a_configuration_that_others_can_write_is_refused() {
+        use std::os::unix::fs::PermissionsExt;
+        let f = std::env::temp_dir().join(format!("podrunner-config-mode-{}.toml", std::process::id()));
+        std::fs::write(&f, "host = \"h\"\n").unwrap();
+        for (mode, ok) in [(0o600, true), (0o644, true), (0o664, false), (0o646, false), (0o666, false)] {
+            std::fs::set_permissions(&f, std::fs::Permissions::from_mode(mode)).unwrap();
+            assert_eq!(super::file_closed(&f).is_ok(), ok, "{mode:o}");
+        }
+        assert!(super::file_closed(&f).unwrap_err().detail.contains("set mode 0644"));
+        let _ = std::fs::remove_file(&f);
+    }
+
     /// #287: a payload built after the clock is named; one within the skew
     /// of the clocks is not.
     #[test]

@@ -32,6 +32,9 @@ impl EgressPort for Seen {
     }
 }
 
+/// An open ceiling: the policy of an offer narrows it (T-410).
+const OPEN: &str = "[egress]\ndefault_policy = { schema = 1, mode = \"open\" }";
+
 fn confined() -> podrunner_schema::Capability {
     capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory)
 }
@@ -41,7 +44,7 @@ fn each_unit_gets_a_listener_and_the_unit_sees_its_way_out() {
     let seen = Seen::default();
     let policy = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "github.com" }] } });
     let bed = Bed::new(
-        config(""),
+        config(OPEN),
         vec![("a", "trusted", None, vec![offer(0, "j-1", policy)])],
         vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("test -n \"$PODRUNNER_EGRESS\"") }],
     );
@@ -62,7 +65,7 @@ fn a_flagged_allow_rule_is_an_audit_line() {
     let seen = Seen::default();
     let policy = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "*.github.io" }] } });
     let bed = Bed::new(
-        config(""),
+        config(OPEN),
         vec![("a", "trusted", None, vec![offer(0, "j-1", policy)])],
         vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }],
     );
@@ -131,6 +134,34 @@ fn the_ceiling_of_the_operator_narrows_the_policy_of_an_offer() {
     assert_eq!(opened.len(), 1);
     assert!(opened[0].1.contains("api.github.com"), "{}", opened[0].1);
     assert!(!opened[0].1.contains("evil.example"), "an offer adds no host: {}", opened[0].1);
+}
+
+/// T-410: with no `[egress] default_policy`, the ceiling allows nothing:
+/// an offer with `mode: open` (or any rule) gets no way out, and the audit
+/// names why; with an open ceiling the offer narrows it.
+#[test]
+fn with_no_ceiling_an_offer_opens_nothing() {
+    let open = json!({ "policy": { "schema": 1, "mode": "open" } });
+    let run = |cfg: &str| {
+        let seen = Seen::default();
+        let bed = Bed::new(
+            config(cfg),
+            vec![("a", "trusted", None, vec![offer(0, "j-1", open.clone())])],
+            vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }],
+        );
+        let mut bed = Bed { slots: bed.slots.with_egress(Box::new(seen.clone())), ..bed };
+        bed.until(30, |s| s.jobs().count() == 1 && Bed::all_final(s));
+        let audit = std::fs::read_to_string(bed.dir.0.join("state/audit.jsonl")).unwrap_or_default();
+        (seen.opened.lock().unwrap().clone(), audit)
+    };
+    let (opened, audit) = run("");
+    assert_eq!(opened.len(), 1);
+    let p: Value = serde_json::from_str(&opened[0].1).unwrap();
+    assert_eq!((p["mode"].as_str(), p["allow"].as_array().map(Vec::len)), (Some("allow"), Some(0)), "{p}");
+    assert!(audit.contains("default_policy"), "{audit}");
+    let (opened, _) = run("[egress]\ndefault_policy = { schema = 1, mode = \"open\" }");
+    let p: Value = serde_json::from_str(&opened[0].1).unwrap();
+    assert_eq!(p["mode"], "open", "an open ceiling takes the offer: {p}");
 }
 
 /// T-107: a policy needs a kind with a hold, and no path rule.

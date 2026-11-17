@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**471 entries: 89 open, 29 partial, 11 blocked, 342 done.**
+**471 entries: 87 open, 29 partial, 11 blocked, 344 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
-| P2 | 36 | 12 | 7 | 178 | 233 |
+| P2 | 34 | 12 | 7 | 180 | 233 |
 | P3 | 50 | 5 | 3 | 102 | 160 |
-| **All** | 89 | 29 | 11 | 342 | 471 |
+| **All** | 87 | 29 | 11 | 344 | 471 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -453,8 +453,8 @@ acceptance, later The crate dependencies later than v1.
 | [T-406](later.md) | P1 | M | later | defect | done | The fake broker of the local mode gives the job message to each local process |
 | [T-407](later.md) | P2 | M | later | defect | done | Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made |
 | [T-408](later.md) | P2 | M | later | defect | done | With `--export` the work directory of a job is 0777 in `/tmp` |
-| [T-409](later.md) | P2 | M | later | defect | open | The signed pin list trusts the signer key of the same file |
-| [T-410](later.md) | P2 | M | later | defect | open | With no `[egress] default_policy`, an offer with `mode: open` opens the egress |
+| [T-409](later.md) | P2 | M | later | defect | done | The signed pin list trusts the signer key of the same file |
+| [T-410](later.md) | P2 | M | later | defect | done | With no `[egress] default_policy`, an offer with `mode: open` opens the egress |
 | [T-411](later.md) | P3 | M | later | defect | open | The `id` of a configured organization or repository is not checked |
 | [T-412](later.md) | P3 | M | later | defect | open | The front of a guest reads a request line with no limit |
 | [T-413](later.md) | P3 | M | later | defect | open | Text that a job controls reaches stderr with no escape |

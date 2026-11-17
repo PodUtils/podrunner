@@ -4,7 +4,10 @@
 refused. The `microvm` and `incus` kinds also refuse a key of the podvm
 kind that they do not read (`registries`, `runner_dir`, `podnet`,
 `confine`). A file that lowers the floor of a tier, or that names a `fake`
-source or unit with no `allow_fake = true`, is refused.
+source or unit with no `allow_fake = true`, is refused. A file that the
+group or others can write, or that another user (not root) owns, is
+refused: it names the signer of the pin list and the paths of the keys
+(T-409).
 
 `docs/examples/podrunner.toml` is a working example (a fake source and fake units); `podrunner check --config FILE` checks a file with no side effect. A test reads each block below and refuses a key that does not exist.
 
@@ -85,7 +88,8 @@ max_age_s = 2419200          # the age limit of this pin; the smaller of it and 
 
 [egress]                     # the egress policy of the operator (T-024, T-107)
 # broker-policy.v1 of pod-broker: the policy of each job. The policy of an offer
-# can only narrow it; absent: the policy of the offer, else no way out at all.
+# can only narrow it. Absent: no way out at all, also for an offer with a policy
+# (T-410); to take the policies of a source, set { schema = 1, mode = "open" }.
 default_policy = { schema = 1, mode = "allow", allow = [{ host = "*.github.com", ports = [443] }] }
 
 [dns]                        # the resolver of the egress and of a remote mint (pod-dns, T-076)

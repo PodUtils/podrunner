@@ -190,6 +190,7 @@ pub fn plan(cfg: &Config) -> Result<(), Failure> {
 
 /// Read and check the configuration at `path`: what `check` prints.
 pub fn check(path: &Path) -> Result<Config, Failure> {
+    crate::tiers::file_closed(path)?;
     let text = std::fs::read_to_string(path)
         .map_err(|e| fail(Class::Config, format!("the configuration {}: {e}", path.display())))?;
     let cfg = Config::parse(&text).map_err(|e| fail(Class::Config, e))?;
