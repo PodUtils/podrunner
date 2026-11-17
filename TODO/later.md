@@ -8421,7 +8421,7 @@ Count the late credentials of each host for the life of the mint, and count a cr
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -8439,6 +8439,8 @@ Resolve each source on the host under the runner directory with no link (`openat
 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
+In the code (2026-11-17): `HookUnit::spec` refuses a mount source with a symbolic link in its path under the root of the unit (`container-option-refused`). The test `tests_unit::a_linked_mount_source_is_refused` fails on the code before the fix and passes after it. Open: a link that the job makes after the check and before podvm reads the path (a race): podvm must refuse a linked `-v` source itself (a COORD issue to podvm).
+
 # T-404: In the local mode the logs of a hook step are in the socket directory that the unit writes
 
 **Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
@@ -8446,7 +8448,7 @@ Resolve each source on the host under the runner directory with no link (`openat
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8463,6 +8465,10 @@ Keep the logs out of the socket directory, as `serve` does (`dir.with_extension(
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: the logs of the hook steps of the local mode are beside the socket directory (`hooks::logs_dir`, 0700), never in it, and go with the hooks. The test `the_logs_are_out_of_the_socket_directory` fails on the old path. Not run with a real unit.
 
 # T-405: Secrets of a job and the credential of the proxy go into the argv of podvm
 
@@ -8496,7 +8502,7 @@ Give the environment to podvm in a file at 0600 or on a descriptor (a COORD issu
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -8514,6 +8520,8 @@ Give the broker a bearer token that only the runner files of the unit hold, and 
 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
+In the code (2026-11-17): the socket directory of a unit is new at 0700, and one that another user made, or a link, is refused (`work::private_dir`; test `a_private_directory_is_new_and_ours`). Open: the fake broker on the loopback checks no credential; it needs a token that only the runner files of the unit hold, and a check of the signed assertion of `oauth2/token`.
+
 # T-407: Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made
 
 **Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
@@ -8521,7 +8529,7 @@ Give the broker a bearer token that only the runner files of the unit hold, and 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -8538,6 +8546,8 @@ Make each such directory with `mkdir` at 0700 that fails when it exists (or a ra
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+In the code (2026-11-17): the socket directory of a unit (`work::private_dir`). Open: the other fixed names (`podrunner-run-*`, the vnet shim copy, the run directories of `serve`); also GitHub #250.
 
 # T-408: With `--export` the work directory of a job is 0777 in `/tmp`
 

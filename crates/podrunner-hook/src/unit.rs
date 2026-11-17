@@ -78,24 +78,36 @@ impl HookUnit {
         }
     }
 
-    fn spec(&self, p: &Planned) -> ContainerSpec {
-        let mounts = p
-            .mounts
-            .iter()
-            .map(|m| ContainerMount {
-                source: self.host_root.clone().unwrap_or_default().join(&m.source),
+    fn spec(&self, p: &Planned) -> Result<ContainerSpec, UnitError> {
+        let root = self.host_root.clone().unwrap_or_default();
+        let mut mounts = Vec::new();
+        for m in &p.mounts {
+            // The job writes the tree under the root: a link in a source
+            // would give a container a path of the host (T-403).
+            let mut at = root.clone();
+            for part in std::path::Path::new(&m.source).components() {
+                at.push(part);
+                if std::fs::symlink_metadata(&at).is_ok_and(|md| md.file_type().is_symlink()) {
+                    return Err(UnitError::new(
+                        UnitCode::ContainerOptionRefused,
+                        format!("the mount source {} holds a symbolic link", m.source),
+                    ));
+                }
+            }
+            mounts.push(ContainerMount {
+                source: root.join(&m.source),
                 target: m.target.clone(),
                 read_only: m.read_only,
-            })
-            .collect();
-        ContainerSpec {
+            });
+        }
+        Ok(ContainerSpec {
             image: p.image.clone(),
             argv: p.argv.clone(),
             env: p.env.clone(),
             workdir: p.workdir.clone(),
             mounts,
             options: p.options.clone(),
-        }
+        })
     }
 
     fn log(&mut self) -> PathBuf {
@@ -116,7 +128,7 @@ impl HookUnit {
                     if p.argv.is_empty() {
                         p.argv = ["tail", "-f", "/dev/null"].map(String::from).to_vec();
                     }
-                    let id = d.container_start(&self.unit, &self.spec(&p))?;
+                    let id = d.container_start(&self.unit, &self.spec(&p)?)?;
                     self.note_image(&p);
                     let probe = ExecSpec {
                         argv: vec!["test".into(), "-f".into(), "/etc/alpine-release".into()],
@@ -128,7 +140,7 @@ impl HookUnit {
                 }
                 let mut ctx_services = Vec::new();
                 for p in services {
-                    let id = d.container_start(&self.unit, &self.spec(&p))?;
+                    let id = d.container_start(&self.unit, &self.spec(&p)?)?;
                     self.note_image(&p);
                     ctx_services.push(json!({ "id": id.0, "ports": {} }));
                     self.services.push(id);
@@ -158,7 +170,7 @@ impl HookUnit {
                 Ok(Answer { exit: code(exit), output })
             }
             Plan::ContainerStep(p) => {
-                let id = d.container_start(&self.unit, &self.spec(&p))?;
+                let id = d.container_start(&self.unit, &self.spec(&p)?)?;
                 self.note_image(&p);
                 let exit = loop {
                     if let Some(exit) = d.container_inspect(&self.unit, &id)?.exit {

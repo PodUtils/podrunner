@@ -245,8 +245,7 @@ impl Executor for InUnit {
         let sockets = (containers || self.egress.is_some() || fronted)
             .then(|| std::env::temp_dir().join(format!("podrunner-local-unit-{}-{id}", std::process::id())));
         if let Some(dir) = &sockets {
-            let _ = std::fs::remove_dir_all(dir);
-            std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+            crate::work::private_dir(dir)?;
         }
         let end_sockets = |sockets: &Option<PathBuf>| {
             if let Some((egress, _)) = &self.egress {

@@ -164,3 +164,40 @@ fn the_socket_of_one_unit_reaches_no_container_of_another() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-403: a mount source with a symbolic link in the tree of the unit is
+/// refused: a job that makes `_work` a link to the host gets no container.
+#[test]
+fn a_linked_mount_source_is_refused() {
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-link-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("runner")).unwrap();
+    std::fs::create_dir_all(dir.join("host")).unwrap();
+    std::os::unix::fs::symlink(dir.join("host"), dir.join("runner/_work")).unwrap();
+    let fake: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir.join("fake"), capability(), "linux/amd64"));
+    let id = UnitId::parse("u-1").unwrap();
+    let image = fake.prepare(IMAGE, "linux/amd64", false).unwrap();
+    fake.start(&StartSpec {
+        unit: id.clone(),
+        image,
+        argv: vec!["sleep".into(), "30".into()],
+        env: Default::default(),
+        credential: Default::default(),
+        sockets: None,
+        mounts: Vec::new(),
+        limits: Default::default(),
+    })
+    .unwrap();
+    let policy = Policy {
+        container: ContainerRoute::Hooks,
+        shared_host_net: false,
+        registries: vec!["docker.io".into()],
+        work_root: "/home/runner".into(),
+    };
+    let mut u = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.clone());
+    let body = call("prepare_job", json!({ "container": container("", &[], "/__w"), "services": [] }));
+    let e = u.hook(parse(Command::PrepareJob, &body).unwrap()).unwrap_err();
+    assert_eq!(e.code, RefusalCode::ContainerOptionRefused, "{e:?}");
+    let _ = fake.destroy(&id);
+    let _ = std::fs::remove_dir_all(&dir);
+}

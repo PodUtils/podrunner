@@ -24,6 +24,7 @@ impl Hooks {
         // The server checks its flag at each connection: wake it.
         let _ = std::os::unix::net::UnixStream::connect(self.dir.join("ctl.sock"));
         let _ = self.thread.join();
+        let _ = std::fs::remove_dir_all(logs_dir(&self.dir));
         self.unit
             .lock()
             .map(|u| {
@@ -44,12 +45,17 @@ impl InUnit {
     ) -> Result<Hooks, String> {
         use podrunner_hook::policy::Policy;
         use podrunner_hook::server::{Unit, bind, serve_until};
-        use std::os::unix::fs::PermissionsExt;
+        use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
         let Some(guest) = self.driver.socket_mount().map(str::to_string) else {
             return Err("the job needs containers, and this unit kind has no container hooks here; run it with --microvm and --engine".into());
         };
         let dir = dir.to_path_buf();
-        std::fs::create_dir_all(dir.join("logs")).map_err(|e| format!("{}: {e}", dir.display()))?;
+        // The logs of the steps stay out of the socket directory, which the
+        // unit writes: a link there would make the host write a file of the
+        // user (T-404), as `serve` keeps them.
+        let logs = logs_dir(&dir);
+        let _ = std::fs::remove_dir_all(&logs);
+        std::fs::DirBuilder::new().mode(0o700).create(&logs).map_err(|e| format!("{}: {e}", logs.display()))?;
         let relay = dir.join("podrunner-hook.sh");
         std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| format!("the relay: {e}"))?;
         std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755))
@@ -65,7 +71,7 @@ impl InUnit {
             id.clone(),
             policy,
             None,
-            dir.join("logs"),
+            logs,
         )));
         let listener = bind(&dir.join("ctl.sock")).map_err(|e| format!("the control socket: {e}"))?;
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -76,5 +82,23 @@ impl InUnit {
             ("PODRUNNER_CTL".to_string(), format!("{guest}/ctl.sock")),
         ]);
         Ok(Hooks { dir, env, stop, unit, thread })
+    }
+}
+
+/// The directory of the logs of the steps of a unit: beside its socket
+/// directory, never in it (T-404).
+fn logs_dir(sockets: &std::path::Path) -> PathBuf {
+    sockets.with_extension("logs")
+}
+
+#[cfg(test)]
+mod tests {
+    /// T-404: the logs are out of the directory that the unit writes.
+    #[test]
+    fn the_logs_are_out_of_the_socket_directory() {
+        let sockets = std::path::Path::new("/tmp/podrunner-local-unit-1-u-1");
+        let logs = super::logs_dir(sockets);
+        assert!(!logs.starts_with(sockets), "{}", logs.display());
+        assert_eq!(logs.parent(), sockets.parent());
     }
 }

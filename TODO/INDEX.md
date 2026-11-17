@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**453 entries: 87 open, 28 partial, 10 blocked, 328 done.**
+**453 entries: 83 open, 31 partial, 10 blocked, 329 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 6 | 11 | 1 | 60 | 78 |
-| P2 | 33 | 12 | 7 | 170 | 222 |
+| P1 | 3 | 13 | 1 | 61 | 78 |
+| P2 | 32 | 13 | 7 | 170 | 222 |
 | P3 | 48 | 5 | 2 | 98 | 153 |
-| **All** | 87 | 28 | 10 | 328 | 453 |
+| **All** | 83 | 31 | 10 | 329 | 453 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -447,11 +447,11 @@ acceptance, later The crate dependencies later than v1.
 | [T-400](later.md) | P2 | S | later | defect | done | A local composite action of `./../PATH` or a link out of the tree is read |
 | [T-401](later.md) | P3 | S | later | defect | done | A dry run with a runner directory that cannot take the lock says planned |
 | [T-402](later.md) | P2 | S | later | defect | done | The mint forgets a late credential that starts or goes back after its alert |
-| [T-403](later.md) | P1 | M | later | defect | open | A mount source of the hooks follows a symbolic link that the job made |
-| [T-404](later.md) | P1 | M | later | defect | open | In the local mode the logs of a hook step are in the socket directory that the unit writes |
+| [T-403](later.md) | P1 | M | later | defect | partial | A mount source of the hooks follows a symbolic link that the job made |
+| [T-404](later.md) | P1 | M | later | defect | done | In the local mode the logs of a hook step are in the socket directory that the unit writes |
 | [T-405](later.md) | P1 | M | later | defect | open | Secrets of a job and the credential of the proxy go into the argv of podvm |
-| [T-406](later.md) | P1 | M | later | defect | open | The fake broker of the local mode gives the job message to each local process |
-| [T-407](later.md) | P2 | M | later | defect | open | Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made |
+| [T-406](later.md) | P1 | M | later | defect | partial | The fake broker of the local mode gives the job message to each local process |
+| [T-407](later.md) | P2 | M | later | defect | partial | Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made |
 | [T-408](later.md) | P2 | M | later | defect | open | With `--export` the work directory of a job is 0777 in `/tmp` |
 | [T-409](later.md) | P2 | M | later | defect | open | The signed pin list trusts the signer key of the same file |
 | [T-410](later.md) | P2 | M | later | defect | open | With no `[egress] default_policy`, an offer with `mode: open` opens the egress |

@@ -49,6 +49,22 @@ pub fn host_work(dir: &Path) -> std::path::PathBuf {
     base.join("podrunner-work").join(format!("{}-{:08x}", name.trim_start_matches('.'), hash as u32))
 }
 
+/// Make `dir` new, at 0700, owned by this user: a directory of the same name
+/// that this user left goes first; one that another user made fails, as
+/// its links and its files are not ours (T-406, T-407).
+pub fn private_dir(dir: &Path) -> Result<(), String> {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt};
+    if let Ok(m) = std::fs::symlink_metadata(dir) {
+        // SAFETY: getuid has no failure.
+        let me = unsafe { libc::getuid() };
+        if m.uid() != me || m.file_type().is_symlink() {
+            return Err(format!("{}: there already, and not a directory of this user: remove it", dir.display()));
+        }
+        std::fs::remove_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    }
+    std::fs::DirBuilder::new().mode(0o700).create(dir).map_err(|e| format!("{}: {e}", dir.display()))
+}
+
 /// Remove `dir` and each file in it; no `dir` is no error.
 pub fn clear(dir: &Path) -> Result<(), String> {
     if std::fs::symlink_metadata(dir).is_err() {
@@ -94,6 +110,25 @@ fn copy(from: &Path, to: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    /// T-406, T-407: a private directory is new and 0700; a link there is
+    /// refused.
+    #[test]
+    fn a_private_directory_is_new_and_ours() {
+        use std::os::unix::fs::PermissionsExt;
+        let base = std::env::temp_dir().join(format!("podrunner-private-dir-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        let d = base.join("d");
+        std::fs::create_dir_all(d.join("old")).unwrap();
+        super::private_dir(&d).unwrap();
+        assert_eq!(std::fs::metadata(&d).unwrap().permissions().mode() & 0o777, 0o700);
+        assert!(!d.join("old").exists(), "a directory of this user is made new");
+        let link = base.join("link");
+        std::os::unix::fs::symlink(&base, &link).unwrap();
+        assert!(super::private_dir(&link).unwrap_err().contains("not a directory of this user"));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     use super::*;
 
     #[test]
