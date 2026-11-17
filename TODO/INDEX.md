@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**474 entries: 52 open, 28 partial, 13 blocked, 381 done.**
+**475 entries: 52 open, 28 partial, 13 blocked, 382 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
-| P2 | 5 | 12 | 9 | 207 | 233 |
+| P2 | 5 | 12 | 9 | 208 | 234 |
 | P3 | 44 | 4 | 3 | 112 | 163 |
-| **All** | 52 | 28 | 13 | 381 | 474 |
+| **All** | 52 | 28 | 13 | 382 | 475 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -522,3 +522,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-475](later.md) | P3 | S | later | defect | open | A `uses:` with an empty part runs on GitHub and is refused here |
 | [T-476](later.md) | P3 | S | later | defect | open | A `:` in TMPDIR or in an option path fails each job start, not `check` |
 | [T-477](later.md) | P3 | S | later | defect | open | An audit line that fails half way leaves a fragment, and the next line joins it |
+| [T-478](later.md) | P2 | S | later | defect | done | The build of the runner image fails when public.ecr.aws refuses the pull of its base image |

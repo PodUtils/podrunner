@@ -14,6 +14,7 @@ on:
     paths:
       - scripts/runner-musl.sh
       - images/runner/Dockerfile.musl
+      - scripts/build-image.sh
       - images/podvm.toml
       - .github/workflows/runner-musl.yml
 
@@ -91,7 +92,7 @@ jobs:
         run: |
           set -eu
           docker buildx create --use --name podrunner --driver-opt network=host > /dev/null
-          sh scripts/retry.sh docker buildx build -f images/runner/Dockerfile.musl --platform "${{ matrix.platform }}" \
+          sh scripts/build-image.sh images/runner/Dockerfile.musl --platform "${{ matrix.platform }}" \
             --provenance=false --sbom=false --build-context "layout=$LAYOUT" \
             --output "type=oci,dest=runner-musl.tar" .
           mkdir oci && tar -xf runner-musl.tar -C oci

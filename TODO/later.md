@@ -10525,3 +10525,32 @@ Remember the length of the file before a write; on a failure, truncate the file 
 ## Prove
 
 `cargo test -p podrunner-slots`; a test with a file that takes only part of a line.
+
+# T-478: The build of the runner image fails when public.ecr.aws refuses the pull of its base image
+
+**Source:** runner-image 44192584888 (`402d7a5`, 2026-11-17): the job `build (x86_64)` failed at "Build the OCI archive" with `429 toomanyrequests: Data limit exceeded` five times
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`images/runner/Dockerfile` starts `FROM public.ecr.aws/docker/library/ubuntu:24.04@sha256:...`. public.ecr.aws can refuse each pull of a shared hosted runner for a time. The five tries of `scripts/retry.sh` (150 s) all failed, and each later step of the job failed for want of the image. `images/runner/Dockerfile.musl` takes alpine from the same registry.
+
+## Premise
+
+The log of the job `build (x86_64, linux/amd64, ubuntu-24.04)` of runner-image 44192584888.
+
+## Approach
+
+Give the registry of the base image as `ARG BASE_REGISTRY`; the digest pins the content. `scripts/build-image.sh` tries public.ecr.aws, mirror.gcr.io and Docker Hub, in three rounds.
+
+## Prove
+
+The steps "Build the OCI archive" and "The larger runner image by label" of `runner-image.yml`, and the build of `runner-musl.yml`.
+
+## Done
+
+2026-11-17: both Dockerfiles start `ARG BASE_REGISTRY=public.ecr.aws/docker` and `FROM ${BASE_REGISTRY}/library/...@sha256:...`; mirror.gcr.io serves both digests (checked: 200 for each index). `scripts/build-image.sh` builds from the first registry that serves the image and names it; a test with a fake `docker` gives mirror.gcr.io after a refusal of public.ecr.aws, and exit 1 with a line when each registry fails. The three builds use it. Not run yet in CI.

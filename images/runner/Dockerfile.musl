@@ -7,7 +7,11 @@
 #
 # .github/workflows/runner-musl.yml builds it. images/runner/Dockerfile is
 # the image of the units.
-FROM public.ecr.aws/docker/library/alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
+#
+# BASE_REGISTRY gives the registry of the base image; the digest pins its
+# content (scripts/build-image.sh, T-478).
+ARG BASE_REGISTRY=public.ecr.aws/docker
+FROM ${BASE_REGISTRY}/library/alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
 
 # The runtime of the .NET runner (ICU, OpenSSL, the C++ library) and the
 # tools of a step. run.sh is a bash script.

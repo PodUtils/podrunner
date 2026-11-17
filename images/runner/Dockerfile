@@ -9,7 +9,12 @@
 #
 # images/runner/runner.toml holds the version and the digest of each
 # tarball; .github/workflows/runner-image.yml reads them.
-FROM public.ecr.aws/docker/library/ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
+#
+# BASE_REGISTRY gives the registry of the base image: the digest pins its
+# content, so each mirror of Docker Hub gives the same image. CI tries
+# mirror.gcr.io when public.ecr.aws refuses a pull (429, T-478).
+ARG BASE_REGISTRY=public.ecr.aws/docker
+FROM ${BASE_REGISTRY}/library/ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
 
 ARG RUNNER_VERSION
 ARG RUNNER_SHA256

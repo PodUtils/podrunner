@@ -21,6 +21,7 @@ on:
       - crates/podrunner-fake/**
       - images/runner/**
       - scripts/runner-audit.sh
+      - scripts/build-image.sh
       - crates/podrunner-hook/relay/**
       - crates/podrunner-podvm/**
       - crates/podrunner-microvm/**
@@ -103,7 +104,9 @@ jobs:
           docker buildx create --use --name podrunner --driver-opt network=host > /dev/null
           # No attestation: the archive holds one image manifest, which
           # podvm load takes.
-          sh scripts/retry.sh docker buildx build -f images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
+          # T-478: the base image from a second registry when the first
+          # refuses the pull.
+          sh scripts/build-image.sh images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
             --build-arg "RUNNER_VERSION=$VERSION" --build-arg "RUNNER_SHA256=$SHA256" \
             --output "type=oci,dest=$RUNNER_TEMP/oci.tar" .
           mkdir oci && tar -xf "$RUNNER_TEMP/oci.tar" -C oci
@@ -389,7 +392,7 @@ jobs:
         run: |
           set -eu
           set -o pipefail
-          sh scripts/retry.sh docker buildx build -f images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
+          sh scripts/build-image.sh images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
             --build-arg "RUNNER_VERSION=$VERSION" --build-arg "RUNNER_SHA256=$SHA256" \
             --build-arg "EXTRA_PACKAGES=$(cat images/runner/full.txt)" \
             --output "type=oci,dest=$RUNNER_TEMP/full.tar" .
