@@ -117,7 +117,9 @@ impl Calls {
 
     /// Keep the called jobs of `call`.
     pub fn add(&mut self, call: &Call, texts: &dyn Called) -> Result<(), String> {
-        let from = self.uses_of(&call.job).map(str::to_string);
+        // A `./` call in a workflow of another repository reads that
+        // repository, also through a `./` workflow of it.
+        let from = self.origin(&call.job);
         let text = texts.text(&call.uses, from.as_deref())?;
         let workflow = Arc::new(pod_actions_workflow::parse(&text).map_err(|e| e.to_string())?.workflow);
         for node in &call.jobs {
@@ -135,6 +137,47 @@ impl Calls {
 }
 
 impl Calls {
+    /// The call of another repository that holds the job `node`, through
+    /// each `./` call: `None` for a job of the tree.
+    fn origin(&self, node: &str) -> Option<String> {
+        let mut at = node.to_string();
+        for _ in 0..20 {
+            let uses = self.uses_of(&at)?;
+            if !uses.starts_with("./") {
+                return Some(uses.to_string());
+            }
+            at = self.callers.get(&at)?.clone();
+        }
+        None
+    }
+
+    /// The `job_workflow_ref` and `job_workflow_sha` of the called job
+    /// `node` (T-434): its workflow, at the ref of its repository; `None`
+    /// for a job of the top workflow. `repo`, `git_ref` and `sha` are those
+    /// of the run.
+    pub fn job_workflow(
+        &self,
+        node: &str,
+        repo: &str,
+        git_ref: &str,
+        sha: &str,
+        pins: &BTreeMap<String, String>,
+    ) -> Option<(String, String)> {
+        let uses = self.uses_of(node)?;
+        let remote = |u: &str| {
+            let (r, path, at) = split(u)?;
+            let commit = pins.get(&format!("{r}@{at}")).cloned().unwrap_or_default();
+            Some((r, path, at, commit))
+        };
+        match uses.strip_prefix("./") {
+            None => remote(uses).map(|(r, path, at, commit)| (format!("{r}/{path}@{at}"), commit)),
+            Some(path) => match self.origin(node) {
+                Some(o) => remote(&o).map(|(r, _, at, commit)| (format!("{r}/{path}@{at}"), commit)),
+                None => Some((format!("{repo}/{path}@{git_ref}"), sha.to_string())),
+            },
+        }
+    }
+
     /// The `permissions` of the job `node` and of each job that calls it,
     /// the job first: each one of a job, else of its workflow (T-416).
     pub fn permissions<'a>(&'a self, top: &'a Workflow, node: &str) -> Vec<Option<&'a Node>> {

@@ -335,7 +335,9 @@ impl LocalSource {
         let empty = self.token.as_deref() == Some("");
         b.token = if none && !empty { None } else { self.token.clone() };
         if ask {
-            b.id_token = Some(oidc::claims(&self.github, &cell.job, self.environment_of(job)?.as_deref()));
+            let g = |k: &str| self.github.as_object().and_then(|o| o.get(k)).and_then(XValue::as_str).unwrap_or("");
+            let called = self.calls.job_workflow(&cell.job, g("repository"), g("ref"), g("sha"), &self.pins);
+            b.id_token = Some(oidc::claims(&self.github, &cell.job, self.environment_of(job)?.as_deref(), called));
         }
         Ok(b)
     }

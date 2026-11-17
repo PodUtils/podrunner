@@ -36,8 +36,14 @@ pub fn of_chain(levels: &[Option<&Node>]) -> (bool, bool) {
     (none, ask)
 }
 
-/// The claims of the job `job` of the environment `environment`.
-pub fn claims(github: &XValue, job: &str, environment: Option<&str>) -> Map<String, Value> {
+/// The claims of the job `job` of the environment `environment`. A called
+/// job gives `called`: the ref and the commit of its workflow (T-434).
+pub fn claims(
+    github: &XValue,
+    job: &str,
+    environment: Option<&str>,
+    called: Option<(String, String)>,
+) -> Map<String, Value> {
     let g = |k: &str| github.as_object().and_then(|o| o.get(k)).and_then(XValue::as_str).unwrap_or("").to_string();
     let (repo, git_ref, event) = (g("repository"), g("ref"), g("event_name"));
     let sub = match (environment, event.as_str()) {
@@ -45,7 +51,8 @@ pub fn claims(github: &XValue, job: &str, environment: Option<&str>) -> Map<Stri
         (None, "pull_request" | "pull_request_target") => format!("repo:{repo}:pull_request"),
         (None, _) => format!("repo:{repo}:ref:{git_ref}"),
     };
-    let workflow_ref = format!("{repo}/.github/workflows/{}@{git_ref}", g("workflow"));
+    let workflow_ref = g("workflow_ref");
+    let (job_ref, job_sha) = called.unwrap_or_else(|| (workflow_ref.clone(), g("sha")));
     let mut m = Map::new();
     for (k, v) in [
         ("sub", sub),
@@ -57,8 +64,11 @@ pub fn claims(github: &XValue, job: &str, environment: Option<&str>) -> Map<Stri
         ("actor", g("actor")),
         ("event_name", event),
         ("workflow", g("workflow")),
-        ("workflow_ref", workflow_ref.clone()),
-        ("job_workflow_ref", workflow_ref),
+        ("workflow_ref", workflow_ref),
+        ("workflow_sha", g("sha")),
+        ("job_workflow_ref", job_ref),
+        ("job_workflow_sha", job_sha),
+        ("runner_environment", "self-hosted".to_string()),
         ("run_id", g("run_id")),
         ("run_number", g("run_number")),
         ("run_attempt", g("run_attempt")),
@@ -97,11 +107,21 @@ mod tests {
             ("repository_owner", s("me")),
             ("ref", s("refs/heads/main")),
             ("event_name", s("push")),
-            ("workflow", s("ci.yml")),
+            ("workflow", s("CI")),
+            ("workflow_ref", s("me/app/.github/workflows/ci.yml@refs/heads/main")),
+            ("sha", s("abc")),
         ]);
-        let c = claims(&github, "deploy", None);
+        let c = claims(&github, "deploy", None, None);
         assert_eq!(c["sub"], "repo:me/app:ref:refs/heads/main");
         assert_eq!(c["job_workflow_ref"], "me/app/.github/workflows/ci.yml@refs/heads/main");
-        assert_eq!(claims(&github, "deploy", Some("prod"))["sub"], "repo:me/app:environment:prod");
+        assert_eq!((c["workflow"].as_str(), c["job_workflow_sha"].as_str()), (Some("CI"), Some("abc")));
+        let called = Some(("o/lib/.github/workflows/d.yml@v1".to_string(), "c0ffee".to_string()));
+        let c = claims(&github, "deploy", None, called);
+        assert_eq!(c["workflow_ref"], "me/app/.github/workflows/ci.yml@refs/heads/main", "the caller");
+        assert_eq!(
+            (c["job_workflow_ref"].as_str(), c["job_workflow_sha"].as_str()),
+            (Some("o/lib/.github/workflows/d.yml@v1"), Some("c0ffee"))
+        );
+        assert_eq!(claims(&github, "deploy", Some("prod"), None)["sub"], "repo:me/app:environment:prod");
     }
 }

@@ -223,6 +223,23 @@ pub(super) fn payload(event: &str, f: &Facts) -> serde_json::Value {
     }
 }
 
+/// The `github.workflow` of the file, and its path in the repository, as
+/// GitHub gives them (T-426): its `name:`, else the path; the path
+/// `.github/workflows/FILE` for a file of that directory, else the name of
+/// the file.
+fn workflow_of(file: &std::path::Path) -> (String, String) {
+    let name = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let named = |d: Option<&std::path::Path>, n: &str| d.and_then(|d| d.file_name()).is_some_and(|x| x == n);
+    let dir = file.parent();
+    let path = match named(dir, "workflows") && named(dir.and_then(|d| d.parent()), ".github") {
+        true => format!(".github/workflows/{name}"),
+        false => name,
+    };
+    let text = std::fs::read_to_string(file).unwrap_or_default();
+    let title = pod_actions_workflow::parse(&text).ok().and_then(|p| p.workflow.name).filter(|n| !n.is_empty());
+    (title.unwrap_or_else(|| path.clone()), path)
+}
+
 /// The `github` context of the job level.
 pub(super) fn github(a: &Args, f: &Facts) -> Result<Value, String> {
     let event = match &a.event_path {
@@ -235,7 +252,7 @@ pub(super) fn github(a: &Args, f: &Facts) -> Result<Value, String> {
         .map_or_else(|| "the event payload".to_string(), |p| format!("--event-path {}", p.display()));
     let base = base_branch(serde_json::from_str(&event).ok().as_ref(), f);
     let event = Value::from_json(&event).map_err(|e| format!("{at}: {e}"))?;
-    let workflow = a.file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let (workflow, path) = workflow_of(&a.file);
     let owner = f.repository.split('/').next().unwrap_or("local").to_string();
     let pull = matches!(a.event.as_str(), "pull_request" | "pull_request_target");
     let (ref_name, ref_type) = ref_parts(&f.git_ref);
@@ -247,6 +264,8 @@ pub(super) fn github(a: &Args, f: &Facts) -> Result<Value, String> {
         ("event_name", s(&a.event)),
         ("event", event),
         ("workflow", s(&workflow)),
+        ("workflow_ref", s(&format!("{}/{path}@{}", f.repository, f.git_ref))),
+        ("workflow_sha", s(&f.sha)),
         ("repository", s(&f.repository)),
         ("repository_owner", s(&owner)),
         ("server_url", s("https://github.com")),
@@ -354,4 +373,28 @@ fn base_branch(payload: Option<&serde_json::Value>, f: &Facts) -> String {
         .map(|r| r.trim_start_matches("refs/heads/").to_string())
         .filter(|r| !r.is_empty())
         .unwrap_or_else(|| f.default_branch.clone())
+}
+
+#[cfg(test)]
+mod workflow_tests {
+    /// T-426: `github.workflow` is the `name:`, else the path in the
+    /// repository.
+    #[test]
+    fn the_name_and_the_path_of_a_workflow() {
+        let dir = std::env::temp_dir().join(format!("podrunner-workflow-of-{}", std::process::id()));
+        let wf = dir.join(".github/workflows");
+        std::fs::create_dir_all(&wf).unwrap();
+        let job = "jobs:\n  a:\n    runs-on: x\n    steps: [{run: x}]\n";
+        std::fs::write(wf.join("ci.yml"), format!("name: CI build\non: push\n{job}")).unwrap();
+        std::fs::write(wf.join("plain.yml"), format!("on: push\n{job}")).unwrap();
+        std::fs::write(dir.join("loose.yml"), format!("on: push\n{job}")).unwrap();
+        let of = |p: std::path::PathBuf| super::workflow_of(&p);
+        assert_eq!(of(wf.join("ci.yml")), ("CI build".into(), ".github/workflows/ci.yml".into()));
+        assert_eq!(
+            of(wf.join("plain.yml")),
+            (".github/workflows/plain.yml".into(), ".github/workflows/plain.yml".into())
+        );
+        assert_eq!(of(dir.join("loose.yml")), ("loose.yml".into(), "loose.yml".into()));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

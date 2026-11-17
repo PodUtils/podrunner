@@ -127,3 +127,78 @@ fn a_called_job_takes_the_permissions_of_its_caller() {
     }
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// T-434: the id-token of a called job names its own workflow in
+/// `job_workflow_ref`, and the caller in `workflow_ref`; a `./` call in a
+/// workflow of another repository reads and names that repository.
+#[test]
+fn the_id_token_of_a_called_job_names_its_workflow() {
+    use std::io::Write;
+    let root = std::env::temp_dir().join(format!("podrunner-calls-jwr-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join(".github/workflows")).unwrap();
+    let job = |name: &str| {
+        format!("  {name}:\n    runs-on: x\n    permissions: {{id-token: write}}\n    steps: [{{run: x}}]\n")
+    };
+    std::fs::write(root.join(".github/workflows/local.yml"), format!("on: workflow_call\njobs:\n{}", job("l")))
+        .unwrap();
+    // The store: o/lib at v1, with a workflow that calls a `./` workflow of
+    // its own repository.
+    let commit = "c".repeat(40);
+    let store = root.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    let files = [
+        (".github/workflows/outer.yml", "on: workflow_call\njobs:\n  in:\n    permissions: {id-token: write}\n    uses: ./.github/workflows/inner.yml\n".to_string()),
+        (".github/workflows/inner.yml", format!("on: workflow_call\njobs:\n{}", job("i"))),
+    ];
+    let archive = store.join(podrunner_broker_fake::actions::archive_name("o/lib", &commit));
+    std::fs::create_dir_all(archive.parent().unwrap()).unwrap();
+    let mut b = tar::Builder::new(flate2::write::GzEncoder::new(
+        std::fs::File::create(&archive).unwrap(),
+        flate2::Compression::default(),
+    ));
+    for (path, text) in &files {
+        let mut h = tar::Header::new_gnu();
+        h.set_size(text.len() as u64);
+        h.set_mode(0o644);
+        h.set_cksum();
+        b.append_data(&mut h, format!("lib-top/{path}"), text.as_bytes()).unwrap();
+    }
+    b.into_inner().unwrap().finish().unwrap().flush().unwrap();
+    let pins = BTreeMap::from([("o/lib@v1".to_string(), commit.clone())]);
+    let texts = Arc::new(Texts::new(root.clone(), Some(store), pins.clone()));
+    let text = "on: push\npermissions: {id-token: write}\njobs:\n  loc:\n    uses: ./.github/workflows/local.yml\n  \
+                rem:\n    uses: o/lib/.github/workflows/outer.yml@v1\n";
+    let s = |v: &str| XValue::String(v.into());
+    let github = XValue::object([
+        ("repository", s("me/app")),
+        ("ref", s("refs/heads/main")),
+        ("sha", s("abc")),
+        ("workflow_ref", s("me/app/.github/workflows/ci.yml@refs/heads/main")),
+    ]);
+    let mut src = LocalSource::new_with(
+        "l",
+        text,
+        Base { github, ..Base::default() },
+        "x86_64",
+        Box::new(|_, _| unreachable!()),
+        Some(texts),
+    )
+    .unwrap();
+    src.set_pins(pins);
+    let mut got = Vec::new();
+    for j in offers(&mut src) {
+        let c = src.broker_job(&j).unwrap().id_token.unwrap();
+        assert_eq!(c["workflow_ref"], "me/app/.github/workflows/ci.yml@refs/heads/main", "{j}");
+        got.push((j.as_str().to_string(), c["job_workflow_ref"].clone(), c["job_workflow_sha"].clone()));
+    }
+    got.sort_by(|a, b| a.0.cmp(&b.0));
+    let want = [
+        ("loc__l.0", "me/app/.github/workflows/local.yml@refs/heads/main", "abc"),
+        ("rem__in__i.0", "o/lib/.github/workflows/inner.yml@v1", commit.as_str()),
+    ];
+    let want: Vec<_> =
+        want.iter().map(|(j, r, c)| (j.to_string(), serde_json::json!(r), serde_json::json!(c))).collect();
+    assert_eq!(got, want);
+    let _ = std::fs::remove_dir_all(&root);
+}

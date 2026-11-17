@@ -62,7 +62,8 @@ impl Issuer {
             "subject_types_supported": ["public", "pairwise"],
             "id_token_signing_alg_values_supported": ["ES256"],
             "claims_supported": ["sub", "aud", "exp", "iat", "iss", "jti", "nbf", "ref", "repository", "sha",
-                "actor", "event_name", "job_workflow_ref", "run_id", "environment"],
+                "actor", "event_name", "workflow", "workflow_ref", "workflow_sha", "job_workflow_ref", "job_workflow_sha",
+                "run_id", "environment", "runner_environment"],
         })
     }
 

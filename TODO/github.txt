@@ -257,7 +257,7 @@
 251 issue open
 252 issue closed
 253 issue closed
-254 issue open
+254 issue closed
 255 issue closed
 256 issue closed
 257 issue closed

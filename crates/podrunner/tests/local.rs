@@ -88,7 +88,8 @@ fn the_checkout_gives_git_and_another_repository() {
 
 /// T-140: a job with `id-token: write` gets a signed token from the broker,
 /// with the audience that it asks for; a job with no permission gets no URL.
-/// A called job takes the permissions of its caller (T-416).
+/// A called job takes the permissions of its caller (T-416). The runner
+/// gives `GITHUB_WORKFLOW` and `GITHUB_WORKFLOW_REF` (T-426).
 #[test]
 #[ignore]
 fn a_job_with_id_token_write_gets_a_signed_token() {
@@ -107,7 +108,8 @@ fn a_job_with_id_token_write_gets_a_signed_token() {
          python3 -c 'import json,base64; t=json.load(open(\"t.json\"))[\"value\"].split(\".\")[1]; \
          c=json.loads(base64.urlsafe_b64decode(t+\"==\")); assert c[\"aud\"]==\"sts.example\", c; \
          assert c[\"iss\"]==\"https://oidc.example.invalid\", c'\n  \
-         none:\n    runs-on: x\n    steps:\n      - run: test -z \"$ACTIONS_ID_TOKEN_REQUEST_URL\"\n  \
+         none:\n    runs-on: x\n    steps:\n      - run: test -z \"$ACTIONS_ID_TOKEN_REQUEST_URL\"\n      \
+         - run: test \"$GITHUB_WORKFLOW\" = oidc.yml && case \"$GITHUB_WORKFLOW_REF\" in */oidc.yml@refs/*) ;; *) exit 1;; esac\n  \
          called:\n    permissions:\n      id-token: write\n    uses: ./.github/workflows/called.yml\n",
     )
     .unwrap();

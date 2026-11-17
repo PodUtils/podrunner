@@ -151,7 +151,9 @@ fn the_github_context_comes_from_the_tree_and_the_flags() {
     assert_eq!((f.repository.as_str(), f.git_ref.as_str()), ("x/y", "refs/tags/v1"), "the flags replace the tree");
     let gh = context::github(&a, &f).unwrap();
     assert_eq!(gh.get("ref_type").and_then(Value::as_str), Some("tag"));
+    // T-426: with no `name:` (here, no file), the path of the file.
     assert_eq!(gh.get("workflow").and_then(Value::as_str), Some("w.yml"));
+    assert_eq!(gh.get("workflow_ref").and_then(Value::as_str), Some("x/y/w.yml@refs/tags/v1"));
     let push = context::payload("push", &f);
     assert_eq!((push["ref"].as_str(), push["after"].as_str()), (Some("refs/tags/v1"), Some(f.sha.as_str())));
     let a = parse(&args(&["w.yml", "--runner-dir", "/r", "--checkout", &tree, "--event", "pull_request"])).unwrap();

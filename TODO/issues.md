@@ -251,10 +251,9 @@ numbers. `TODO/RULES.md` gives the rules.
 | #249 | policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy | closed | T-438 |
 | #250 | run: the per-run and per-unit scratch directories under TMPDIR follow a pre-created symlink | closed | T-407 |
 | #251 | run: a checkout of another repository with an empty, full or SHA ref is not resolved | open | T-439 |
-| #291 | COORD-085: a reader of the zone files (TZif) for the timezone of on.schedule (to podcrates) | open (waits for podcrates) | T-423 |
 | #252 | run: fetch::host_of cuts an IPv6 action-server address at the first colon | closed | T-440 |
 | #253 | run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused | closed | T-441 |
-| #254 | oidc: job_workflow_ref names the caller's workflow for a job of a reusable workflow | open | T-434 |
+| #254 | oidc: job_workflow_ref names the caller's workflow for a job of a reusable workflow | closed | T-434 |
 | #255 | serve: a malformed offer is refused as event-not-allowed with no detail, not bad-request | closed | T-442 |
 | #256 | serve: a job-completed hook event is lost when the unit ends before the next tick | closed | T-443 |
 | #257 | podvm: a start that fails after run -d leaves the podvm unit, because destroy skips podvm rm | closed | T-444 |
@@ -291,6 +290,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #288 | COORD-082: pod-actions-store: Lock::parse keeps a digest in uppercase, and each fetch then fails against the lowercase SHA-256 (to podcrates) | open (waits for podcrates) | T-469 |
 | #289 | COORD-083: the answer to COORD-131 (PodUtils/podcrates#221): the copies of shared code in podrunner (to podcrates) | open (waits for the next tag of podcrates) | T-473, T-474 |
 | #290 | COORD-084: pod-actions-store: the ref of a checkout of another repository (empty, full ref, commit SHA) is not resolved (to podcrates) | open (waits for podcrates) | T-439 |
+| #291 | COORD-085: a reader of the zone files (TZif) for the timezone of on.schedule (to podcrates) | open (waits for podcrates) | T-423 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

@@ -9085,7 +9085,7 @@ Add the files of each submodule (git `ls-files --recurse-submodules`), or refuse
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9102,6 +9102,10 @@ Give `name:`, else the path of the file in the tree.
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: `github.workflow` is the `name:` of the workflow, else its path (the path under .github/workflows for a file of that directory, else the name of the file); `github.workflow_ref` and `github.workflow_sha` are in the context, so the runner gives `GITHUB_WORKFLOW_REF` (`run_local/context.rs` `workflow_of`). Tests: `workflow_tests` (a name, no name, a file out of `.github/workflows`), and the context test.
 
 # T-427: `--rerun DIR --job CALLER` reruns nothing of a call
 
@@ -9285,7 +9289,7 @@ Run on the default branch, and say that a cron under 5 minutes runs every 5 minu
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9302,6 +9306,10 @@ Give the claims of the called workflow, and the `*_id` claims.
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: The claims take `workflow_ref` from the context, and a called job gets `job_workflow_ref` and `job_workflow_sha` of its own workflow: a `./` workflow of the tree at the ref and commit of the run, a workflow of another repository at the ref of its call and its pinned commit, a `./` workflow of another repository in that repository (`Calls::job_workflow`, `Calls::origin`; the text of a `./` call through a `./` workflow of another repository comes from that repository too). `workflow_sha` and `runner_environment` (`self-hosted`) are added. podrunner knows no numeric ids of GitHub, so the `*_id` claims stay out. Test: the token of a local and a remote nested called job (`calls/tests.rs`). Closes #254.
 
 # T-435: mint: one thread for each TCP connection with no cap, each waiting up to 90 s
 
