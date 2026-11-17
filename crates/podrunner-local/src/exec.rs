@@ -225,14 +225,11 @@ impl Executor for InUnit {
         broker.queue(message);
         let id = UnitId::parse(&format!("u-{n}")).map_err(|e| format!("unit id: {e:?}"))?;
         let runner = format!("podrunner-local-{n}");
-        let mut files: Vec<CredentialFile> = podrunner_broker_fake::files::runner_files(
-            &broker.base,
-            &runner,
-            &podrunner_broker_fake::runner::rsaparams(),
-        )
-        .into_iter()
-        .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
-        .collect();
+        let mut files: Vec<CredentialFile> = broker
+            .runner_files(&runner)
+            .into_iter()
+            .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
+            .collect();
         let mut proxy_env = Vec::new();
         if let (false, Some(dir)) = (fronted, &self.credential_dir) {
             let (env, more) = proxy::unit_env(dir, std::env::vars(), self.egress.is_some())?;

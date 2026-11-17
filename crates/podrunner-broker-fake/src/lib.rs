@@ -2,12 +2,14 @@
 //! the official runner runs a job offline. It serves the routes that runner
 //! v2.338.2 calls with a JIT configuration of a scale set: the token of the
 //! OAuth client, the broker session and its messages, and the run service
-//! (`acquirejob`, `renewjob`, `completejob`). It checks no credential: it
-//! listens on the loopback only, for tests. The fakes of GitHub stay in
+//! (`acquirejob`, `renewjob`, `completejob`). It gives a job only to the
+//! runner of its own key (the module `auth`, T-406). The fakes of GitHub stay in
 //! podrunner (PodUtils/podcrates@T-106).
 
 pub mod actions;
+mod auth;
 mod listen;
+mod results;
 use listen::Wake;
 pub use listen::bind_loopback;
 pub mod artifacts;
@@ -81,6 +83,8 @@ struct State {
     oidc: Option<Arc<oidc::Issuer>>,
     /// The registry of the pinned images for the engine of a guest (T-157).
     mirror: Option<Arc<mirror::Mirror>>,
+    /// The tokens and the runner keys of this broker (T-406).
+    auth: auth::Auth,
 }
 
 /// The service of a route that this broker does not serve, and the entry
@@ -112,6 +116,9 @@ pub struct Broker {
     stop: Arc<std::sync::atomic::AtomicBool>,
     wake: Wake,
 }
+
+/// The most lines of `seen` and of `missing`.
+const LIST_MAX: usize = 10_000;
 
 /// How long a long poll of `/message` waits for a job.
 const POLL: Duration = Duration::from_secs(2);
@@ -165,6 +172,14 @@ impl Broker {
             }
         });
         Ok(Broker { base, state, stop, wake: Wake::Unix(path.to_path_buf()) })
+    }
+
+    /// The files of a runner named `name` (`files::runner_files`), with a
+    /// new key that this broker admits: only that runner gets a job.
+    pub fn runner_files(&self, name: &str) -> Vec<(String, String)> {
+        let key = runner::rsaparams();
+        self.state.lock().expect("the broker").auth.admit(&key).expect("a key of runner::rsaparams");
+        files::runner_files(&self.base, name, &key)
     }
 
     /// Offer `job` to the next long poll; its request id.
@@ -338,8 +353,30 @@ fn serve<C: Conn>(conn: C, state: &Mutex<State>, base: &str) {
         req.path = rest.find('/').map_or_else(|| "/".to_string(), |i| rest[i..].to_string());
         form = " (absolute form)";
     }
-    let path = req.path.split('?').next().unwrap_or("").to_string();
-    state.lock().expect("the broker").seen.push(format!("{} {path}{form}", req.method));
+    let mut path = req.path.split('?').next().unwrap_or("").to_string();
+    // A hold names the hold key of this broker (T-406); the key goes
+    // into no log.
+    match state.lock().expect("the broker").auth.hold_path(&path) {
+        Some(Ok(p)) => path = p,
+        Some(Err(())) => {
+            let _ = write_response(&mut w, 401, &[], b"the broker gives a hold only with its key");
+            return;
+        }
+        None => {}
+    }
+    {
+        // A bound: each local process can send requests (T-406).
+        let mut st = state.lock().expect("the broker");
+        if st.seen.len() < LIST_MAX {
+            st.seen.push(format!("{} {path}{form}", req.method));
+        }
+    }
+    let refused = auth::need(&req.method, &path)
+        .is_some_and(|n| !state.lock().expect("the broker").auth.allows(n, req.authorization.as_deref()));
+    if refused {
+        let _ = write_response(&mut w, 401, &[], b"the broker gives this route only to its own runner");
+        return;
+    }
     if let (true, Some(key)) = (req.method == "GET" && path == feed::PATH, &req.ws_key) {
         if feed::handshake(&mut w, key).is_ok() {
             feed::read_messages(&mut w, |step, lines| {
@@ -378,13 +415,15 @@ fn serve<C: Conn>(conn: C, state: &Mutex<State>, base: &str) {
     };
     let actions = actions::route(&req.method, &path, &body, base, dir.as_deref(), &pins, tree.as_deref())
         .or(id_token)
-        .or_else(|| hold::route(&req.method, &req.path))
-        .or_else(|| store.and_then(|s| s.route(&req.method, &req.path, &req.body, base)));
+        .or_else(|| hold::route(&req.method, &path))
+        .or_else(|| store.and_then(|s| s.route(&req.method, &req.path, &req.body, base)))
+        .or_else(|| results::route(&req.method, &path, &req.path, &body, &req.body, base, state));
     let (status, out) = match (req.method.as_str(), path.as_str()) {
         _ if actions.is_some() => actions.expect("an answer"),
-        ("POST", "/_apis/oauth2/token") => {
-            reply(&json!({ "access_token": message::job_token(), "token_type": "bearer", "expires_in": 3600 }))
-        }
+        ("POST", "/_apis/oauth2/token") => match state.lock().expect("the broker").auth.grant(&req.body) {
+            Some(t) => reply(&json!({ "access_token": t, "token_type": "bearer", "expires_in": 3600 })),
+            None => (401, br#"{"error":"invalid_client"}"#.to_vec()),
+        },
         ("POST", "/session") => {
             let mut session = body;
             session["sessionId"] = json!("11111111-1111-1111-1111-111111111111");
@@ -418,36 +457,9 @@ fn serve<C: Conn>(conn: C, state: &Mutex<State>, base: &str) {
             let id: u64 = body["jobMessageId"].as_str().and_then(|s| s.parse().ok()).unwrap_or(0);
             let st = state.lock().expect("the broker");
             match st.acquired.iter().find(|(i, _)| *i == id).or(st.acquired.last()) {
-                Some((i, job)) => reply(&message::job_message(base, *i, job)),
+                Some((i, job)) => reply(&message::job_message_with(base, *i, job, &st.auth.job, &st.auth.hold)),
                 None => (404, Vec::new()),
             }
-        }
-        // The results service: a signed URL is a blob of this broker; each
-        // upload appends; each metadata call is `ok`.
-        ("POST", p) if p.starts_with("/twirp/results.services.receiver.Receiver/Get") => {
-            // A summary of `GITHUB_STEP_SUMMARY` is a blob of its own (T-134).
-            let kind = if p.contains("Summary") { "summary" } else { "step" };
-            let name = match body["step_backend_id"].as_str() {
-                Some(step) => format!("{kind}-{step}"),
-                None => p.rsplit('/').next().unwrap_or("blob").to_string(),
-            };
-            let url = format!("{base}blobs/{name}?sig=fake");
-            reply(&json!({
-                "logs_url": url, "summary_url": url, "blob_storage_type": "BLOB_STORAGE_TYPE_UNSPECIFIED",
-                "soft_size_limit": 1u64 << 30,
-            }))
-        }
-        ("POST", p) if p.starts_with("/twirp/results.services.receiver.Receiver/Create") => {
-            reply(&json!({ "ok": true }))
-        }
-        ("POST", "/twirp/github.actions.results.api.v1.WorkflowStepUpdateService/WorkflowStepsUpdate") => {
-            state.lock().expect("the broker").step_updates.push(body);
-            reply(&json!({ "ok": true }))
-        }
-        ("PUT", p) if p.starts_with("/blobs/") => {
-            let name = p.trim_start_matches("/blobs/").to_string();
-            state.lock().expect("the broker").blobs.entry(name).or_default().extend_from_slice(&req.body);
-            (201, Vec::new())
         }
         ("POST", "/renewjob") => reply(&json!({ "lockedUntil": "2099-01-01T00:00:00Z" })),
         ("POST", "/completejob") => {
@@ -470,7 +482,10 @@ fn serve<C: Conn>(conn: C, state: &Mutex<State>, base: &str) {
                 Some(s) => format!("{method} {p} ({s})"),
                 None => format!("{method} {p}"),
             };
-            state.lock().expect("the broker").missing.push(line);
+            let mut st = state.lock().expect("the broker");
+            if st.missing.len() < LIST_MAX {
+                st.missing.push(line);
+            }
             (404, Vec::new())
         }
     };

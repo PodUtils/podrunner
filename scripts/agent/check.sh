@@ -7,7 +7,9 @@
 # notes of a release (scripts/check-notes.sh), and the static build
 # of x86_64 musl (scripts/check-static.sh). Print each exit code and the
 # first faults; exit 1 on a fault. With the argument notest, the tests are
-# skipped.
+# skipped. A full run (the tests and PODRUNNER_RUNNER_DIR) that passes
+# writes the tree that it checked into .work/agent/checked-trees:
+# .githooks/pre-push refuses a push of another tree.
 #
 #   sh scripts/agent/check.sh [notest]
 set -u
@@ -15,6 +17,18 @@ cd "$(dirname "$0")/../.." || exit 1
 log=${TMPDIR:-/tmp}/podrunner-check
 mkdir -p "$log"
 rc=0
+# The tree of the working copy (tracked and new files), with no change to
+# the index.
+tree_now() {
+    idx=$(mktemp) || return 1
+    cp "$(git rev-parse --git-path index)" "$idx" &&
+        GIT_INDEX_FILE=$idx git add -A >/dev/null 2>&1 &&
+        GIT_INDEX_FILE=$idx git write-tree
+    e=$?
+    rm -f "$idx"
+    return "$e"
+}
+tree=$(tree_now)
 cargo fmt --all --check > "$log/fmt.log" 2>&1; f=$?
 echo "fmt $f"; [ "$f" -eq 0 ] || { rc=1; head -20 "$log/fmt.log"; }
 cargo clippy --workspace --all-targets --all-features -- -D warnings > "$log/clippy.log" 2>&1; c=$?
@@ -52,6 +66,16 @@ if [ "${1:-}" != notest ]; then
         echo "runner $r"; [ "$r" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|^error|^---- " "$log/runner.log" | head -30; }
     else
         echo "runner skipped: set PODRUNNER_RUNNER_DIR to an unpacked actions/runner (level2.yml runs these suites)"
+    fi
+fi
+if [ "$rc" -eq 0 ] && [ "${1:-}" != notest ] && [ -n "${PODRUNNER_RUNNER_DIR:-}" ]; then
+    if [ -z "$tree" ]; then
+        echo "no tree of the working copy: not recorded"
+    elif [ "$(tree_now)" = "$tree" ]; then
+        mkdir -p .work/agent && echo "$tree" >> .work/agent/checked-trees
+        echo "checked tree $tree"
+    else
+        echo "the tree changed during the checks: not recorded"
     fi
 fi
 exit "$rc"

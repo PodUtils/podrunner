@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use podrunner_broker_fake::{Broker, Job, files::runner_files};
+use podrunner_broker_fake::{Broker, Job};
 use podrunner_podvm::{Podvm, PodvmUnit};
 use podrunner_schema::{Credential, CredentialFile, EgressHold, Secret, UnitId};
 use podrunner_unit::{EGRESS_SOCKET, StartSpec, UnitDriver};
@@ -118,7 +118,8 @@ fn a_held_runner_reaches_an_allowed_host_and_not_a_denied_one() {
         "if curl -s --max-time 20 http://denied.example:{port}/; then echo denied-$((6*7)); else echo refused-$((6*7)); fi"
     );
     broker.queue(Job::scripts("held", &[&allowed, &denied]));
-    let files = runner_files(&broker.base, "runner-u-1", &common::rsaparams())
+    let files = broker
+        .runner_files("runner-u-1")
         .into_iter()
         .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
         .collect();

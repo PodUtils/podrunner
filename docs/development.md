@@ -42,6 +42,13 @@ checks of `fuzz/`, the size of the Rust files, the check of the commit
 messages and the static build. CI runs the same on
 each push (`.github/workflows/gate.yml`).
 
+A full run of `check.sh` (the tests, with `PODRUNNER_RUNNER_DIR`) that
+passes records the tree that it checked in `.work/agent/checked-trees`.
+`.githooks/pre-push` refuses a push of a tree that is not recorded. A
+change of only `TODO/` after a recorded tree needs only `cargo todo
+check`, which the hook runs. A change of Markdown needs a full run: tests
+compile `docs/cli.md` and `docs/contracts/`.
+
 ## Toolchain
 
 * `rust-toolchain.toml` pins the channel of podcrates, with the musl

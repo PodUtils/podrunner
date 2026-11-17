@@ -54,6 +54,11 @@ fn the_reader_holds_its_limits() {
         ("POST /x HTTP/2\r\n\r\n", 400),
         ("POST /x HTTP/1.1\r\nno colon\r\n\r\n", 400),
         ("POST /x HTTP/1.1", 400),
+        // T-406: no escape sequence of a terminal in a path.
+        ("GET /\x1b]0;x\x1b[2J HTTP/1.1\r\n\r\n", 400),
+        ("GET /a\tb HTTP/1.1\r\n\r\n", 400),
+        ("GET /a\u{7f} HTTP/1.1\r\n\r\n", 400),
+        ("GET /a\u{9b}31m HTTP/1.1\r\n\r\n", 400),
     ] {
         assert_eq!(req(text).unwrap_err().0, status, "{text:?}");
     }

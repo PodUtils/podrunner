@@ -4,7 +4,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use crate::{Broker, files::runner_files};
+use crate::Broker;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 
@@ -60,7 +60,7 @@ pub fn start_runner_in(
     console: bool,
 ) -> Result<std::process::Child, String> {
     use std::os::unix::process::CommandExt;
-    for (name, mut content) in runner_files(&broker.base, "runner-u-1", &rsaparams()) {
+    for (name, mut content) in broker.runner_files("runner-u-1") {
         if name == ".runner" {
             let mut v: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
             v["workFolder"] = work.to_string_lossy().into_owned().into();

@@ -65,10 +65,12 @@ mod tests {
         use std::io::{Read, Write};
         let broker = crate::Broker::start().unwrap();
         let hostport = broker.base.trim_start_matches("http://").trim_end_matches('/').to_string();
+        let key = broker.state.lock().unwrap().auth.hold.clone();
         let mut c = std::net::TcpStream::connect(&hostport).unwrap();
         write!(
             c,
-            "GET http://broker.podrunner.test/_podrunner/hold/abs.0 HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n"
+            "GET http://broker.podrunner.test/_podrunner/hold/{key}/abs.0 HTTP/1.1\r\nHost: x\r\n\
+             Content-Length: 0\r\n\r\n"
         )
         .unwrap();
         let mut out = String::new();

@@ -15,7 +15,7 @@ mod common;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use podrunner_broker_fake::{Broker, Job, files::runner_files};
+use podrunner_broker_fake::{Broker, Job};
 use podrunner_microvm::MicrovmUnit;
 use podrunner_podvm::Podvm;
 use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
@@ -41,7 +41,8 @@ fn the_runner_in_a_guest_runs_a_canned_job() {
     std::fs::create_dir_all(&sockets).unwrap();
     let through = common::proxy(&sockets.join(EGRESS_SOCKET), port);
     broker.queue(Job::scripts("in-guest", &["echo podrunner-guest-$((6*7)); uname -r"]));
-    let files = runner_files(&broker.base, "runner-u-1", &common::rsaparams())
+    let files = broker
+        .runner_files("runner-u-1")
         .into_iter()
         .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
         .collect();

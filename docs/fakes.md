@@ -108,7 +108,10 @@ the steps, the context data and the containers of the local mode) and
 reads each `Completion` (the conclusion and the job outputs) and the
 logs. For the local mode it also serves the launch route and the tarballs
 of the actions of a directory (`serve_actions`, T-091) and the tarball of
-the local tree (`serve_checkout`, T-092). It checks no credential and listens on the loopback only.
+the local tree (`serve_checkout`, T-092). It listens on the loopback (or
+a unix socket) and gives a job only to the runner of its own key: random
+tokens for each broker, a checked client assertion, and the job token on
+the routes of a job (module `auth`, T-406).
 `.github/workflows/level2.yml` runs the official runner against it.
 
 The corpus `corpus/podcrates.json` holds the `ubuntu-24.04` jobs of the

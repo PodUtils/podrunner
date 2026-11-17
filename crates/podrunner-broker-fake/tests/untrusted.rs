@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use podrunner_broker_fake::{Broker, Job, files::runner_files};
+use podrunner_broker_fake::{Broker, Job};
 use podrunner_clock::{Clock, SystemClock};
 use podrunner_fake::{FakeSource, parse_script};
 use podrunner_microvm::MicrovmUnit;
@@ -35,7 +35,7 @@ const NAME: &str = "broker.podrunner.test";
 /// The fake source, with the files of the fake broker as its credential.
 struct BrokerSource {
     inner: FakeSource,
-    base: String,
+    broker: Arc<Broker>,
 }
 
 impl JobSource for BrokerSource {
@@ -53,7 +53,9 @@ impl JobSource for BrokerSource {
     }
     fn mint(&mut self, job: &JobId, runner_name: &str) -> Result<Credential, SourceError> {
         self.inner.mint(job, runner_name)?;
-        let files = runner_files(&self.base, runner_name, &common::rsaparams())
+        let files = self
+            .broker
+            .runner_files(runner_name)
             .into_iter()
             .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
             .collect();
@@ -127,7 +129,7 @@ fn a_fork_pull_request_runs_in_a_guest_and_a_container_need_is_refused() {
     std::fs::create_dir_all(&state).unwrap();
     let now_unix = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
 
-    let broker = Broker::start_seen_at(NAME).unwrap();
+    let broker = Arc::new(Broker::start_seen_at(NAME).unwrap());
     broker.queue(Job::scripts("fork-job", &["echo podrunner-fork-$((6*7))"]));
     let port: u16 = broker.base.trim_end_matches('/').rsplit(':').next().unwrap().parse().unwrap();
 
@@ -162,7 +164,7 @@ built_at_s = {now}
         fork_offer("fork-container", json!({ "unit_need": { "container": true } })),
     ];
     let script = parse_script(&lines.join("\n")).unwrap();
-    let source = BrokerSource { inner: FakeSource::new("forks", clock.clone(), script), base: broker.base.clone() };
+    let source = BrokerSource { inner: FakeSource::new("forks", clock.clone(), script), broker: broker.clone() };
 
     // The microvm kind, with the claim that the self-test on this host gives.
     let unit = MicrovmUnit::new(

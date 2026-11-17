@@ -146,7 +146,14 @@ fn actions_checkout_is_the_stand_in_of_the_local_tree() {
     assert_eq!(steps[0]["reference"]["type"], "script");
     assert_eq!(steps[0]["contextName"], "__actions_checkout");
     let script = steps[0]["inputs"]["map"][0]["Value"]["expr"].as_str().unwrap();
-    assert!(script.contains("{0}_checkout.tar.gz") && script.contains("(github.podrunner_broker)"), "{script}");
+    assert!(script.contains("{1}_checkout.tar.gz") && script.contains("(github.podrunner_broker)"), "{script}");
+    // T-406: the broker gives the tree only with the job token, which goes
+    // to curl on its standard input (printf is a builtin): not in an argv.
+    assert!(
+        script.contains("printf ''header = \"Authorization: Bearer %s\"") && script.contains("curl -fsSL -K - "),
+        "{script}"
+    );
+    assert!(script.contains("(github.podrunner_token)") && !script.contains("-H "), "{script}");
     assert!(script.contains("cd \"$GITHUB_WORKSPACE\"") && script.contains("gzip -dc | tar -xf -"), "{script}");
     assert!(!script.contains(" -C ") && !script.contains("-xz"), "{script}");
     assert_eq!(steps[1]["contextName"], "__actions_checkout_2");

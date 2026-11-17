@@ -117,6 +117,12 @@ fn endpoint_data(base: &str, job: &Job) -> Value {
 
 /// A made-up job token: the runner reads its claims and checks no signature.
 pub fn job_token() -> String {
+    job_token_with("c2lnbmF0dXJl")
+}
+
+/// A job token with the signature part `sig`: the broker makes `sig`
+/// random and checks the whole token (T-406).
+pub fn job_token_with(sig: &str) -> String {
     let head = json!({ "typ": "JWT", "alg": "RS256" });
     let claims = json!({
         "nameid": "dddddddd-dddd-dddd-dddd-dddddddddddd",
@@ -124,7 +130,7 @@ pub fn job_token() -> String {
         "iat": 1_700_000_000u64, "nbf": 1_700_000_000u64, "exp": 4_102_444_800u64,
         "iss": "podrunner-broker-fake", "aud": "podrunner-broker-fake",
     });
-    format!("{}.{}.c2lnbmF0dXJl", b64(&head), b64(&claims))
+    format!("{}.{}.{sig}", b64(&head), b64(&claims))
 }
 
 fn guid(n: u64) -> String {
@@ -154,8 +160,14 @@ pub fn step_condition(condition: &str) -> String {
     }
 }
 
-/// The job message of job `request`.
+/// The job message of job `request`, with the made-up [`job_token`].
 pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
+    job_message_with(base, request, job, &job_token(), "hold")
+}
+
+/// The job message of job `request`, with the job token `token` and the
+/// key of the holds `hold` (T-406).
+pub fn job_message_with(base: &str, request: u64, job: &Job, token: &str, hold: &str) -> Value {
     let steps: Vec<Value> = job
         .steps
         .iter()
@@ -185,7 +197,7 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
         "resources": {
             "endpoints": [{
                 "name": "SystemVssConnection", "url": base, "isReady": true,
-                "authorization": { "scheme": "OAuth", "parameters": { "AccessToken": job_token() } },
+                "authorization": { "scheme": "OAuth", "parameters": { "AccessToken": token } },
                 // ResultsServiceUrl gives ACTIONS_RESULTS_URL to the steps (T-119).
                 "data": endpoint_data(base, job),
             }],
@@ -223,11 +235,15 @@ pub fn job_message(base: &str, request: u64, job: &Job) -> Value {
             // podrunner reach this broker by `podrunner_broker` (T-293).
             s("server_url", "https://github.com"), s("api_url", "https://api.github.com"),
             s("graphql_url", "https://api.github.com/graphql"), s("podrunner_broker", base),
+            // The scripts of podrunner send it to the broker (T-406).
+            s("podrunner_token", token), s("podrunner_hold", hold),
         ] } },
         "steps": steps,
         // GitHub masks each secret of a job; the password of the registry
         // comes from a secret.
-        "fileTable": [], "mask": job.registry.iter().map(|(_, p)| json!({ "type": "regex", "value": p })).collect::<Vec<_>>(),
+        "fileTable": [],
+        "mask": job.registry.iter().map(|(_, p)| p.as_str()).chain([token, hold]).map(|p| json!({ "type": "regex", "value": p }))
+            .collect::<Vec<_>>(),
     });
     for (key, value) in &job.overrides {
         match (key.as_str(), value) {

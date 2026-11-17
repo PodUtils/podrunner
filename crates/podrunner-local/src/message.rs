@@ -241,7 +241,7 @@ fn checkout_script(path: &str, other: Option<(&str, &str)>) -> String {
         }
     };
     format!(
-        "set -eu\nmkdir -p \"{dest}\"\ncd \"{dest}\"\ncurl -fsSL \"${{{{ github.podrunner_broker }}}}{route}\" | gzip -dc | tar -xf -{strip}"
+        "set -eu\nmkdir -p \"{dest}\"\ncd \"{dest}\"\nprintf 'header = \"Authorization: Bearer %s\"\\n' \"${{{{ github.podrunner_token }}}}\" | \\\n  curl -fsSL -K - \"${{{{ github.podrunner_broker }}}}{route}\" | gzip -dc | tar -xf -{strip}"
     )
 }
 

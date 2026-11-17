@@ -1,0 +1,49 @@
+#!/bin/sh
+# Refuse a push of a tree that scripts/agent/check.sh did not pass
+# (AGENTS.md, "Checks before each push"). A full run of check.sh writes the
+# tree that it checked into .work/agent/checked-trees. The push of a ref
+# passes when the tree of its tip is in that file, or when it differs from
+# the last checked tree only in the record (TODO/): then the check of the
+# record runs here, on a working copy whose TODO/ is that of the tip.
+# Markdown is not free: tests compile some of it (docs/cli.md, docs/contracts).
+#
+#   .githooks/pre-push REMOTE URL < REFS
+set -u
+top=$(git rev-parse --show-toplevel) || exit 1
+stamps="$top/.work/agent/checked-trees"
+zero=0000000000000000000000000000000000000000
+rc=0
+while read -r _local sha _remote _rsha; do
+    [ "$sha" = "$zero" ] && continue
+    tree=$(git rev-parse "$sha^{tree}") || exit 1
+    if [ -f "$stamps" ] && grep -qx "$tree" "$stamps"; then
+        continue
+    fi
+    last=$(tail -n 1 "$stamps" 2>/dev/null || true)
+    if [ -n "$last" ] && git cat-file -e "$last" 2>/dev/null; then
+        # --no-renames: a move of a file into TODO/ names both paths.
+        if ! changed=$(git diff --no-renames --name-only "$last" "$tree"); then
+            echo "pre-push: git diff of $last and $tree failed" >&2
+            rc=1
+            continue
+        fi
+        other=$(printf '%s\n' "$changed" | grep -v '^TODO/' | grep -v '^$' || true)
+        if [ -z "$other" ]; then
+            if ! git -C "$top" diff --quiet "$sha" -- TODO ||
+                [ -n "$(git -C "$top" ls-files --others --exclude-standard -- TODO)" ]; then
+                echo "pre-push: TODO/ of the working copy is not that of $sha" >&2
+                rc=1
+            elif ! (cd "$top" && cargo run -q -p podrunner-todo -- check < /dev/null); then
+                rc=1
+            fi
+            continue
+        fi
+        echo "pre-push: $sha changes files that check.sh did not check:" >&2
+        printf '%s\n' "$other" | head -20 >&2
+    else
+        echo "pre-push: no tree that check.sh passed" >&2
+    fi
+    echo "pre-push: run sh scripts/agent/check.sh (with PODRUNNER_RUNNER_DIR), then push" >&2
+    rc=1
+done
+exit "$rc"

@@ -61,7 +61,12 @@ pub(super) fn check(b: &Breaks, w: &pod_actions_workflow::Workflow) -> Result<()
 
 /// The pause step of the cell `cell`, run when `condition` holds.
 fn pause_step(cell: &str, n: usize, condition: &str, what: &str, once: bool) -> Value {
-    let url = format!("${{{{ github.podrunner_broker }}}}{}{cell}", hold::PATH.trim_start_matches('/'));
+    // The hold key of the broker (T-406): it gives the holds only, so it
+    // may be in the argv of curl or wget.
+    let url = format!(
+        "${{{{ github.podrunner_broker }}}}{}${{{{ github.podrunner_hold }}}}/{cell}",
+        hold::PATH.trim_start_matches('/')
+    );
     // A pause after a failed step holds once in a job: the steps that run
     // after a failure (`always()`) do not pause again (#223).
     let first = match once {
@@ -230,7 +235,10 @@ mod tests {
         assert_eq!(s.len(), 6);
         assert_eq!(s[1].1, "failure()");
         let script = m.overrides["steps"][1]["inputs"]["map"][0]["Value"].to_string();
-        assert!(script.contains("github.podrunner_broker") && script.contains("_podrunner/hold/build.0"), "{script}");
+        assert!(script.contains("github.podrunner_broker") && script.contains("_podrunner/hold/"), "{script}");
+        // T-406: the hold key of the broker, not the job token, is in the URL.
+        assert!(script.contains("github.podrunner_hold") && script.contains("/build.0"), "{script}");
+        assert!(!script.contains("podrunner_token") && !script.contains("Authorization"), "{script}");
         assert!(parse("build:2").is_ok() && parse("build").is_err() && parse(":2").is_err());
         // #223: a pause after a failure holds once; a pause before a step
         // has the condition of that step.

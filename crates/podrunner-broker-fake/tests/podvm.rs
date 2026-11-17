@@ -18,7 +18,7 @@ mod common;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use podrunner_broker_fake::{Broker, Job, files::runner_files};
+use podrunner_broker_fake::{Broker, Job};
 use podrunner_podvm::{Podvm, PodvmUnit};
 use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
 use podrunner_unit::{StartSpec, UnitDriver};
@@ -51,7 +51,8 @@ fn the_runner_in_a_podvm_unit_runs_a_canned_job() {
     broker.queue(Job::scripts("in-podvm", &["echo podrunner-podvm-$((6*7))"]));
     // T-175: the placed job (the fake broker gives example-org/app, run 1):
     // the job-started hook of the image lets it run.
-    let mut files: Vec<CredentialFile> = runner_files(&broker.base, "runner-u-1", &common::rsaparams())
+    let mut files: Vec<CredentialFile> = broker
+        .runner_files("runner-u-1")
         .into_iter()
         .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
         .collect();
@@ -147,7 +148,8 @@ fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
         Job::scripts("in-container", &["echo podrunner-podvm-container-$((6*7)) > marker.txt; cat marker.txt"]);
     job.container = Some(env("PODRUNNER_JOB_IMAGE"));
     broker.queue(job);
-    let files = runner_files(&broker.base, "runner-u-1", &common::rsaparams())
+    let files = broker
+        .runner_files("runner-u-1")
         .into_iter()
         .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
         .collect();
@@ -196,7 +198,8 @@ fn a_foreign_job_ends_before_its_first_step_in_a_podvm_unit() {
     let prepared = unit.prepare(&env("PODRUNNER_RUNNER_IMAGE"), platform, false).unwrap();
     let broker = Broker::start().unwrap();
     broker.queue(Job::scripts("foreign", &["echo podrunner-foreign-$((6*7))"]));
-    let mut files: Vec<CredentialFile> = runner_files(&broker.base, "runner-u-2", &common::rsaparams())
+    let mut files: Vec<CredentialFile> = broker
+        .runner_files("runner-u-2")
         .into_iter()
         .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
         .collect();
@@ -247,7 +250,8 @@ fn the_runner_runs_under_the_limits_of_the_unit() {
     let prepared = unit.prepare(&env("PODRUNNER_RUNNER_IMAGE"), platform, false).unwrap();
     let broker = Broker::start().unwrap();
     broker.queue(Job::scripts("limits", &["ulimit -v; ulimit -u; echo podrunner-limits-$((6*7))"]));
-    let files: Vec<CredentialFile> = runner_files(&broker.base, "runner-u-3", &common::rsaparams())
+    let files: Vec<CredentialFile> = broker
+        .runner_files("runner-u-3")
         .into_iter()
         .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
         .collect();

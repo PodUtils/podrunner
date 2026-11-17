@@ -22,6 +22,8 @@ pub struct Request {
     pub range: Option<String>,
     /// The `Sec-WebSocket-Key` header: the live feed of the fake broker.
     pub ws_key: Option<String>,
+    /// The `Authorization` header: the fake broker checks its tokens.
+    pub authorization: Option<String>,
 }
 
 /// Why a request is refused: the status and a short reason.
@@ -47,6 +49,10 @@ pub fn read_request(r: &mut impl BufRead) -> Result<Request, HttpError> {
 /// takes the blocks of an artifact (8 MiB each from the blob client).
 pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, HttpError> {
     let first = line(r)?;
+    // The path goes into logs and onto a terminal: no escape sequence.
+    if first.chars().any(char::is_control) {
+        return Err(HttpError(400, "a control character in the request line"));
+    }
     let mut parts = first.split(' ');
     let (Some(method), Some(path), Some(version), None) = (parts.next(), parts.next(), parts.next(), parts.next())
     else {
@@ -61,6 +67,7 @@ pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, Ht
     let mut length: Option<usize> = None;
     let mut range = None;
     let mut ws_key = None;
+    let mut authorization = None;
     for i in 0.. {
         let h = line(r)?;
         if h.is_empty() {
@@ -80,6 +87,7 @@ pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, Ht
             "transfer-encoding" => return Err(HttpError(501, "no chunked body")),
             "range" => range = Some(value.trim().to_string()),
             "sec-websocket-key" => ws_key = Some(value.trim().to_string()),
+            "authorization" => authorization = Some(value.trim().to_string()),
             _ => {}
         }
     }
@@ -89,7 +97,7 @@ pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, Ht
     }
     let mut body = vec![0; length];
     r.read_exact(&mut body).map_err(|_| HttpError(400, "the body is short"))?;
-    Ok(Request { method: method.into(), path: path.into(), body, range, ws_key })
+    Ok(Request { method: method.into(), path: path.into(), body, range, ws_key, authorization })
 }
 
 /// Write one response, with extra headers, and close.
@@ -100,6 +108,7 @@ pub fn write_response(w: &mut impl Write, status: u16, headers: &[(&str, String)
         202 => "Accepted",
         206 => "Partial Content",
         400 => "Bad Request",
+        401 => "Unauthorized",
         403 => "Forbidden",
         404 => "Not Found",
         405 => "Method Not Allowed",
