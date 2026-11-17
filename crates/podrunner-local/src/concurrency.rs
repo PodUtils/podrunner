@@ -2,7 +2,7 @@
 //! workflow and of each job, evaluated with the contexts of the run (and the
 //! `matrix` of a cell). The caller holds each group across runs.
 
-use pod_actions_expr::{Contexts, Template, Value as XValue};
+use pod_actions_expr::{Contexts, Template};
 use pod_actions_workflow::{Kind, Node};
 use podrunner_schema::JobId;
 
@@ -42,21 +42,10 @@ fn group(node: &Node, c: &Contexts) -> Result<Option<Group>, String> {
 }
 
 impl LocalSource {
-    fn contexts(&self, matrix: Option<&XValue>) -> Contexts {
-        let mut c = Contexts::new();
-        c.insert("github", self.github.clone());
-        c.insert("inputs", self.inputs.clone());
-        c.insert("vars", self.vars.clone());
-        if let Some(m) = matrix {
-            c.insert("matrix", m.clone());
-        }
-        c
-    }
-
     /// The group of the run: `concurrency` of the workflow.
     pub fn run_group(&self) -> Result<Option<Group>, String> {
         match &self.run.workflow().concurrency {
-            Some(n) => group(n, &self.contexts(None)),
+            Some(n) => group(n, &self.contexts_of(None)),
             None => Ok(None),
         }
     }
@@ -66,7 +55,7 @@ impl LocalSource {
         let Some(cell) = self.cells.get(job) else { return Ok(None) };
         let (w, id) = self.job_of(cell);
         match w.job(id).and_then(|j| j.concurrency.as_ref()) {
-            Some(n) => group(n, &self.contexts(Some(&cell.instance.matrix))),
+            Some(n) => group(n, &self.contexts_of(Some(cell))),
             None => Ok(None),
         }
     }

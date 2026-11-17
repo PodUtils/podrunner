@@ -240,7 +240,7 @@ pub fn run(args: &[String]) -> Out {
     pins.extend(refused);
     let base = Base { github, vars: object(&vars), inputs: typed, ..Base::default() };
     // The texts of the called workflows: the tree, and the store (T-131).
-    let root = a.checkout.clone().unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| ".".into()));
+    let root = args::calls_root(&a);
     let texts = Arc::new(podrunner_local::calls::Texts::new(root, store.clone(), pins.clone()));
     let minter = Box::new(|_: &_, _: &_| Default::default());
     let mut source = match LocalSource::new_with("local", &text, base, arch(), minter, Some(texts)) {
@@ -287,10 +287,10 @@ pub fn run(args: &[String]) -> Out {
     // The secrets and vars of each environment (T-136).
     match environments(&a) {
         Ok(mut envs) => {
-            protect::unknown(&a, source.workflow()).iter().for_each(|l| eprintln!("{l}"));
+            protect::unknown(&a, source.workflow(), source.called()).iter().for_each(|l| eprintln!("{l}"));
             // Only a run of jobs asks for an approval (T-136).
             if !a.dry_run {
-                protect::hold(&a, source.workflow(), &mut envs, &mut protect::terminal);
+                protect::hold(&a, source.workflow(), source.called(), &mut envs, &mut protect::terminal);
             }
             masked.extend(envs.values().flat_map(|e| e.secrets.iter().map(|(_, v)| v.clone())));
             source.set_environments(envs);

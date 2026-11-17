@@ -105,31 +105,9 @@ pub(super) fn pair(v: &str) -> Result<(String, String), String> {
     Ok((k.to_string(), v.to_string()))
 }
 
-/// With no `--checkout`, a workflow that uses `actions/checkout@` takes
-/// the top of the git tree of the current directory, as GitHub checks out
-/// the repository (T-203, T-337); out of a git tree, the project whose
-/// `.github/workflows` holds the file (T-336). With neither, the run is
-/// refused with the fix: a checkout of nothing fails in the job.
-pub(super) fn default_checkout(mut a: Args) -> Result<Args, String> {
-    if let Some(e) = link_out(&a.file) {
-        return Err(e);
-    }
-    let uses = std::fs::read_to_string(&a.file).is_ok_and(|t| t.contains("actions/checkout@"));
-    if a.checkout.is_some() || !uses {
-        return Ok(a);
-    }
-    let cwd = std::env::current_dir().map_err(|e| format!("the current directory: {e}"))?;
-    let Some(root) = toplevel(&cwd).or_else(|| project_of(&a.file)) else {
-        return Err(format!(
-            "{}: the workflow uses actions/checkout, and {} is in no git tree: give --checkout DIR, the tree of the project",
-            a.file.display(),
-            cwd.display()
-        ));
-    };
-    eprintln!("podrunner: the workflow uses actions/checkout: it gets the tree of {} (--checkout DIR)", root.display());
-    a.checkout = Some(root);
-    Ok(a)
-}
+#[path = "checkout_root.rs"]
+mod checkout_root;
+pub(super) use checkout_root::{calls_root, default_checkout};
 
 /// The top of the git tree that holds `dir`.
 fn toplevel(dir: &std::path::Path) -> Option<PathBuf> {

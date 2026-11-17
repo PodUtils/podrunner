@@ -140,3 +140,94 @@ fn a_job_with_id_token_write_gets_a_signed_token() {
     assert!(out.stdout.lines().any(|l| l.starts_with("ok") && l.contains("called / t")), "{}", out.stdout);
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+/// T-419, T-420: `--protected` holds a job of a called workflow and a job
+/// whose environment is an expression; `--approve` runs them.
+#[test]
+#[ignore]
+fn a_protected_environment_holds_a_called_job_and_an_expression() {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
+    let scratch = std::env::temp_dir().join(format!("podrunner-local-protect-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    std::fs::create_dir_all(scratch.join(".github/workflows")).unwrap();
+    let flow = scratch.join("protect.yml");
+    std::fs::write(
+        &flow,
+        "on: push\njobs:\n  free:\n    runs-on: x\n    steps: [{run: 'true'}]\n  pick:\n    runs-on: x\n    \
+         environment: ${{ vars.TARGET }}\n    steps: [{run: 'true'}]\n  call:\n    uses: ./.github/workflows/rel.yml\n",
+    )
+    .unwrap();
+    std::fs::write(
+        scratch.join(".github/workflows/rel.yml"),
+        "on: workflow_call\njobs:\n  r:\n    runs-on: x\n    environment: prod\n    steps: [{run: 'true'}]\n",
+    )
+    .unwrap();
+    let run = |more: &[&str]| {
+        let mut args: Vec<String> =
+            ["run", flow.to_str().unwrap(), "--runner-dir", &dir, "--checkout"].iter().map(|s| s.to_string()).collect();
+        args.push(scratch.display().to_string());
+        args.extend(["--var", "TARGET=prod", "--protected", "prod", "-q"].iter().map(|s| s.to_string()));
+        args.extend(more.iter().map(|s| s.to_string()));
+        let out = podrunner::cli::run(&args);
+        println!("{}{}", out.stdout, out.stderr);
+        out
+    };
+    let out = run(&[]);
+    assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
+    let line =
+        |job: &str| out.stdout.lines().find(|l| l.ends_with(job) || l.contains(&format!(" {job} "))).unwrap_or("");
+    assert!(line("free").starts_with("ok"), "{}", out.stdout);
+    for job in ["pick", "call / r"] {
+        let l = out.stdout.lines().find(|l| l.contains(job)).unwrap_or("");
+        assert!(l.starts_with("failure") && l.contains("--approve prod"), "{job}: {}", out.stdout);
+    }
+    let out = run(&["--approve", "prod"]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    let _ = std::fs::remove_dir_all(&scratch);
+}
+
+/// T-421: with no `--checkout`, a run from a subdirectory of a git tree
+/// reads a called workflow from the top of the tree, and the checkout of
+/// that called workflow gets the tree.
+#[test]
+#[ignore]
+fn a_checkout_in_a_called_workflow_gets_the_tree() {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
+    let scratch = std::env::temp_dir().join(format!("podrunner-local-called-checkout-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    std::fs::create_dir_all(scratch.join(".github/workflows")).unwrap();
+    std::fs::create_dir_all(scratch.join("sub")).unwrap();
+    std::fs::write(scratch.join("marker.txt"), "tree\n").unwrap();
+    std::fs::write(
+        scratch.join(".github/workflows/main.yml"),
+        "on: push\njobs:\n  call:\n    uses: ./.github/workflows/build.yml\n",
+    )
+    .unwrap();
+    std::fs::write(
+        scratch.join(".github/workflows/build.yml"),
+        "on: workflow_call\njobs:\n  b:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n      \
+         - run: test -f marker.txt\n",
+    )
+    .unwrap();
+    let git = |args: &[&str]| {
+        let ok = std::process::Command::new("git").arg("-C").arg(&scratch).args(args).status().unwrap().success();
+        assert!(ok, "git {args:?}");
+    };
+    git(&["init", "-q", "-b", "main"]);
+    git(&["add", "-A"]);
+    git(&["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "t"]);
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_podrunner"))
+        .current_dir(scratch.join("sub"))
+        .args(["run", "../.github/workflows/main.yml", "--runner-dir", &dir, "-q", "--actions"])
+        .arg(scratch.join("store"))
+        .stdin(std::process::Stdio::null())
+        .output()
+        .unwrap();
+    let (stdout, stderr) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    println!("{stdout}{stderr}");
+    assert!(out.status.success(), "{stdout}{stderr}");
+    assert!(stdout.lines().any(|l| l.starts_with("ok") && l.contains("call / b")), "{stdout}");
+    let _ = std::fs::remove_dir_all(&scratch);
+}

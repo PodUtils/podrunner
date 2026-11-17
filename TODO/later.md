@@ -8882,7 +8882,7 @@ Give each run a new `run_id` (time and process), a `run_number` that counts in t
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8900,6 +8900,10 @@ Check the environment of each cell that runs, after the expansion of calls and o
 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
+## Done
+
+2026-11-17: Each protected environment with no approval is held. The terminal asks for each environment of a job that runs, of each job that `--job` needs, and of each job of a called workflow, to 10 levels (`protect.rs` `used`, `walk`); each other protected one is refused with no question, so a name of an expression cannot pass. The unit test checks needs and two levels of calls; the end-to-end test (`tests/local.rs`, the official runner) holds a called job and a job of an expression, and runs both with `--approve`.
+
 # T-420: An environment name of an expression is not evaluated
 
 **Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
@@ -8907,7 +8911,7 @@ Check the environment of each cell that runs, after the expansion of calls and o
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8925,6 +8929,10 @@ Evaluate the name with the contexts of the job (`inputs`, `vars`, `matrix`, `nee
 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
+## Done
+
+2026-11-17: The name of an environment is evaluated with `github`, `inputs` (of the call for a called job), `vars`, `matrix`, `strategy` and `needs`; an empty name is no environment (`podrunner-local/src/environment.rs`). The concurrency group of a called job now reads the inputs of its call too. Tests: a name of `inputs`, of `matrix` and an empty one; a called job; the end-to-end test of T-419 with a name of `vars`.
+
 # T-421: No checkout tree when only a called workflow uses `actions/checkout`
 
 **Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
@@ -8932,7 +8940,7 @@ Evaluate the name with the contexts of the job (`inputs`, `vars`, `matrix`, `nee
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8949,6 +8957,10 @@ Look for `actions/checkout` in the called workflows too, and read them from the 
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: With no `--checkout`, the default checkout also looks in each called workflow of `./PATH` (to 10 levels), and a call of another repository takes the tree when there is one; a called workflow of `./PATH` comes from the tree of the project, not the current directory (`run_local/checkout_root.rs`). The end-to-end test (`tests/local.rs`) runs from a subdirectory of a git tree, and the checkout of the called workflow gets the tree.
 
 # T-422: The stand-in of `actions/checkout` needs `curl` in a job container
 

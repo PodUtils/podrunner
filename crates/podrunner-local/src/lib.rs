@@ -13,6 +13,7 @@ pub mod cron;
 pub mod dispatch;
 pub mod drive;
 pub mod enter;
+pub mod environment;
 pub mod exec;
 pub mod fetch;
 pub mod front;
@@ -201,33 +202,6 @@ impl LocalSource {
     /// The secrets and vars of each environment (T-136).
     pub fn set_environments(&mut self, environments: BTreeMap<String, Environment>) {
         self.environments = environments;
-    }
-
-    /// The environment of the job of a cell: `environment: NAME` or its
-    /// `name:` (T-136). A name that is an expression is refused when a flag
-    /// gives an environment: the host gives each one before the first job.
-    pub fn environment_of(&self, job: &JobId) -> Result<Option<String>, String> {
-        use pod_actions_workflow::Kind;
-        let Some(cell) = self.cells.get(job) else { return Ok(None) };
-        let (w, id) = self.job_of(cell);
-        let Some(node) = w.job(id).and_then(|j| j.environment.as_ref()) else {
-            return Ok(None);
-        };
-        let name = match &node.kind {
-            Kind::String(s) => Some(s.clone()),
-            Kind::Map(e) => e.iter().find(|(k, _)| k.name == "name").and_then(|(_, v)| match &v.kind {
-                Kind::String(s) => Some(s.clone()),
-                _ => None,
-            }),
-            _ => None,
-        };
-        match name {
-            Some(n) if n.contains("${{") && !self.environments.is_empty() => Err(format!(
-                "line {}: the environment {n:?} is an expression; name it to give it secrets or vars",
-                node.mark.line
-            )),
-            other => Ok(other),
-        }
     }
 
     /// The environment of each job (`--env`, T-126): under the `env:` of the
