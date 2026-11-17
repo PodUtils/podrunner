@@ -8766,7 +8766,7 @@ Keep the detail in the log of `serve`, and put only a code in the audit line.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8783,6 +8783,10 @@ Combine the outputs of the cells: a value that is set wins over an empty one, th
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: The outputs of a matrix job combine its cells in the order that they ended: a value that is set wins over an empty one, and the last cell to end that sets it wins (`LocalSource::complete`). Test `the_outputs_of_a_matrix_job_combine_its_cells` (three cells that end out of order) fails on the old code.
 
 # T-416: A job of a called workflow ignores the `permissions` of the caller
 
@@ -8816,7 +8820,7 @@ Take the permissions of the calling job as the default of each job of the called
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8834,6 +8838,10 @@ Let a run hold a group that it holds already (a count of holds in the run).
 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
+## Done
+
+2026-11-17: The groups that this process holds are in a registry, with whether the run or a job holds each: a job takes a group of its run at once, and a job that meets another job of its run waits for it; a run never signals itself, also with `cancel-in-progress` (`concurrency::hold`). Test `a_run_never_waits_for_or_cancels_itself`. On the old code the job waits for its own run for ever, or the run sends SIGTERM to itself.
+
 # T-418: `github.run_id`, `run_number` and `run_attempt` are always 1
 
 **Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
@@ -8841,7 +8849,7 @@ Let a run hold a group that it holds already (a count of holds in the run).
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8858,6 +8866,10 @@ Give each run a new `run_id` (time and process), a `run_number` that counts in t
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: Each run has a new `run_id` (the time in milliseconds), a `run_number` that counts the runs of the repository and the workflow in the cache of the user, and `run_attempt` 1; a `--rerun` keeps the id and the number of its run (`run.json` beside the state) and counts its attempt. A dry run writes nothing (`run_local/ids.rs`). Test `each_run_has_its_own_id_and_number`.
 
 # T-419: `--protected` misses jobs of called workflows, needs of `--job` and environment names of an expression
 

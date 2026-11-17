@@ -116,6 +116,25 @@ fn the_outputs_of_a_job_reach_the_needs_of_the_next_one() {
     assert_eq!(s.cell(&id("b.0")).unwrap().instance.runs_on.as_ref().unwrap().labels, ["linux-arm"]);
 }
 
+/// T-415: the outputs of a matrix job combine its cells, as GitHub does: a
+/// value that is set wins over an empty one, and the last cell to end that
+/// sets it wins.
+#[test]
+fn the_outputs_of_a_matrix_job_combine_its_cells() {
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    strategy:\n      matrix:\n        n: [0, 1, 2]\n    \
+                outputs:\n      o1: ${{ steps.s.outputs.o1 }}\n      o2: ${{ steps.s.outputs.o2 }}\n    \
+                steps:\n      - id: s\n        run: echo\n  b:\n    needs: a\n    \
+                runs-on: ${{ needs.a.outputs.o1 }}-${{ needs.a.outputs.o2 }}\n    steps:\n      - run: echo b\n";
+    let mut s = source(text);
+    assert_eq!(offers(&mut s), ["a.0", "a.1", "a.2"]);
+    let out = |o1: &str, o2: &str| vec![("o1".to_string(), o1.to_string()), ("o2".to_string(), o2.to_string())];
+    s.complete(&id("a.0"), JobResult::Success, out("x", "")).unwrap();
+    s.complete(&id("a.2"), JobResult::Success, out("", "y")).unwrap();
+    s.complete(&id("a.1"), JobResult::Success, out("z", "")).unwrap();
+    assert_eq!(offers(&mut s), ["b.0"]);
+    assert_eq!(s.cell(&id("b.0")).unwrap().instance.runs_on.as_ref().unwrap().labels, ["z-y"]);
+}
+
 #[test]
 fn a_bad_file_and_a_cycle_are_refused_by_name() {
     let no_jobs = LocalSource::new("l", "on: push\n", Base::default(), "x86_64", minter());

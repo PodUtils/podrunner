@@ -7,7 +7,7 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, Write};
 use std::os::fd::AsRawFd;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use podrunner_local::Job;
@@ -16,8 +16,23 @@ use podrunner_local::drive::{End, Executor};
 use podrunner_local::exec::Live;
 use podrunner_schema::JobId;
 
-/// A held group: the lock ends with the file.
-pub(super) struct Held(#[allow(dead_code)] File);
+/// A held group: the lock ends with the file, and the group leaves the
+/// groups of this process. A group that the run holds already is held by
+/// its jobs with no file.
+pub(super) struct Held(Option<(File, PathBuf)>);
+
+impl Drop for Held {
+    fn drop(&mut self) {
+        if let Some((_, path)) = &self.0 {
+            HELD.lock().unwrap_or_else(|e| e.into_inner()).remove(path);
+        }
+    }
+}
+
+/// The groups that this process holds, and whether its run (not a job)
+/// holds each one (T-417).
+static HELD: std::sync::Mutex<std::collections::BTreeMap<PathBuf, bool>> =
+    std::sync::Mutex::new(std::collections::BTreeMap::new());
 
 /// The file name of a group: its repository and its name, each letter that
 /// a file name cannot hold as `_`.
@@ -33,10 +48,21 @@ fn file_name(repo: &str, group: &str) -> String {
     format!("{}-{hash}.lock", &s[..s.len().min(80)])
 }
 
-/// Hold `group` in `dir`; `note` tells of a wait or a cancel.
-pub(super) fn hold(dir: &Path, repo: &str, group: &Group, note: &mut dyn FnMut(String)) -> Result<Held, String> {
+/// Hold `group` in `dir` for the run (`run`) or for one of its jobs; `note`
+/// tells of a wait or a cancel. A job takes a group of its run at once, and
+/// waits for another job of its run; a run never signals itself (T-417).
+pub(super) fn hold(
+    dir: &Path,
+    repo: &str,
+    group: &Group,
+    run: bool,
+    note: &mut dyn FnMut(String),
+) -> Result<Held, String> {
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let path = dir.join(file_name(repo, &group.name));
+    if !run && HELD.lock().unwrap_or_else(|e| e.into_inner()).get(&path) == Some(&true) {
+        return Ok(Held(None));
+    }
     let mut f = OpenOptions::new()
         .read(true)
         .write(true)
@@ -50,7 +76,9 @@ pub(super) fn hold(dir: &Path, repo: &str, group: &Group, note: &mut dyn FnMut(S
         let mut pid = String::new();
         let _ = f.read_to_string(&mut pid);
         let pid: i32 = pid.trim().parse().unwrap_or(0);
-        if group.cancel_in_progress && pid > 1 {
+        if pid == std::process::id() as i32 {
+            note(format!("podrunner: the group {:?} waits for another job of this run\n", group.name));
+        } else if group.cancel_in_progress && pid > 1 {
             note(format!("podrunner: the group {:?} cancels the run {pid} that holds it\n", group.name));
             // SAFETY: a signal to the process that wrote the lock.
             unsafe { libc::kill(pid, libc::SIGTERM) };
@@ -66,7 +94,8 @@ pub(super) fn hold(dir: &Path, repo: &str, group: &Group, note: &mut dyn FnMut(S
         .and_then(|()| f.rewind())
         .and_then(|()| write!(f, "{}", std::process::id()))
         .map_err(|e| e.to_string())?;
-    Ok(Held(f))
+    HELD.lock().unwrap_or_else(|e| e.into_inner()).insert(path.clone(), run);
+    Ok(Held(Some((f, path))))
 }
 
 /// The executor that holds the group of each job while it runs.
@@ -104,7 +133,7 @@ impl Executor for Grouped {
         let _held = match self.next.take() {
             Some(g) => {
                 let notes = self.notes.clone();
-                Some(hold(&self.dir, &self.repo, &g, &mut |n| notes.lock().expect("the notes").push(n))?)
+                Some(hold(&self.dir, &self.repo, &g, false, &mut |n| notes.lock().expect("the notes").push(n))?)
             }
             None => None,
         };
@@ -122,14 +151,14 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let g = Group { name: "deploy-refs/heads/main".into(), cancel_in_progress: false };
         let mut notes = Vec::new();
-        let held = hold(&dir, "o/r", &g, &mut |n| notes.push(n)).unwrap();
+        let held = hold(&dir, "o/r", &g, false, &mut |n| notes.push(n)).unwrap();
         let path = dir.join(file_name("o/r", &g.name));
         assert_eq!(std::fs::read_to_string(&path).unwrap(), std::process::id().to_string());
         // A second holder waits: a thread takes the lock once the first ends.
         let (d, g2) = (dir.clone(), g.clone());
         let t = std::thread::spawn(move || {
             let mut n = Vec::new();
-            let h = hold(&d, "o/r", &g2, &mut |x| n.push(x)).unwrap();
+            let h = hold(&d, "o/r", &g2, false, &mut |x| n.push(x)).unwrap();
             drop(h);
             n
         });
@@ -147,6 +176,37 @@ mod tests {
         assert_ne!(file_name("o/r", &long1), file_name("o/r", &long2));
         assert!(file_name("o/r", &long1).len() < 120);
         assert_eq!(file_name("O/R", "Prod"), file_name("o/r", "prod"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-417: a job takes a group that its run holds at once, and a job
+    /// that meets another job of its run waits for it: it never sends a
+    /// signal to its own run, also with `cancel-in-progress`.
+    #[test]
+    fn a_run_never_waits_for_or_cancels_itself() {
+        let dir = std::env::temp_dir().join(format!("podrunner-group-self-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let g = Group { name: "self".into(), cancel_in_progress: true };
+        let run = hold(&dir, "o/r", &g, true, &mut |_| {}).unwrap();
+        let mut notes = Vec::new();
+        let start = std::time::Instant::now();
+        let job = hold(&dir, "o/r", &g, false, &mut |n| notes.push(n)).unwrap();
+        assert!(start.elapsed() < Duration::from_secs(1), "the job of the run takes its group at once");
+        drop((job, run));
+        // Two jobs of one run: the second waits for the first.
+        let g2 = Group { name: "cells".into(), cancel_in_progress: true };
+        let first = hold(&dir, "o/r", &g2, false, &mut |_| {}).unwrap();
+        let (d, g3) = (dir.clone(), g2.clone());
+        let t = std::thread::spawn(move || {
+            let mut n = Vec::new();
+            drop(hold(&d, "o/r", &g3, false, &mut |x| n.push(x)).unwrap());
+            n
+        });
+        std::thread::sleep(Duration::from_millis(300));
+        assert!(!t.is_finished(), "the second job waits");
+        drop(first);
+        let n = t.join().unwrap();
+        assert!(n.iter().any(|l| l.contains("another job of this run")), "{n:?}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

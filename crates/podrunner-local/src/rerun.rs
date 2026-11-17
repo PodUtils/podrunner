@@ -80,10 +80,15 @@ pub fn with_kept(
 /// secret, so DIR is 0700 and the file 0600 (#219); the outputs stay as
 /// they are, as `--rerun` gives them to the jobs after.
 pub fn write_state(dir: &std::path::Path, text: &str) -> std::io::Result<()> {
+    write_file(dir, "state.json", text)
+}
+
+/// Write `name` in the state directory `dir` (0700), at mode 0600.
+pub fn write_file(dir: &std::path::Path, name: &str, text: &str) -> std::io::Result<()> {
     use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
     std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
     std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
-    podrunner_broker_fake::runner::private_file(&dir.join("state.json"), text.as_bytes())
+    podrunner_broker_fake::runner::private_file(&dir.join(name), text.as_bytes())
 }
 
 /// The state file of a run: the digest of the workflow and each end.

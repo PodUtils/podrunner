@@ -32,6 +32,9 @@ fn git(dir: &Path, args: &[&str]) -> Option<String> {
 
 /// `OWNER/REPO` of a remote URL: `https://HOST/OWNER/REPO(.git)`,
 /// `git@HOST:OWNER/REPO(.git)` or `ssh://git@HOST/OWNER/REPO`.
+#[path = "ids.rs"]
+mod ids;
+
 pub(super) fn repository_of(url: &str) -> Option<String> {
     let path = url.trim_end_matches('/').trim_end_matches(".git");
     let path = match path.split_once("://") {
@@ -232,6 +235,9 @@ pub(super) fn github(a: &Args, f: &Facts) -> Result<Value, String> {
     let owner = f.repository.split('/').next().unwrap_or("local").to_string();
     let pull = matches!(a.event.as_str(), "pull_request" | "pull_request_target");
     let (ref_name, ref_type) = ref_parts(&f.git_ref);
+    // A new id and number for each run, and an attempt for each rerun
+    // (T-418).
+    let (run_id, run_number, run_attempt) = ids::ids(a, ids::counter(&f.repository, &a.file).as_deref());
     let s = |v: &str| Value::String(v.into());
     let mut entries = vec![
         ("event_name", s(&a.event)),
@@ -240,9 +246,9 @@ pub(super) fn github(a: &Args, f: &Facts) -> Result<Value, String> {
         ("repository", s(&f.repository)),
         ("repository_owner", s(&owner)),
         ("server_url", s("https://github.com")),
-        ("run_id", s("1")),
-        ("run_number", s("1")),
-        ("run_attempt", s("1")),
+        ("run_id", s(&run_id)),
+        ("run_number", s(&run_number)),
+        ("run_attempt", s(&run_attempt)),
         ("sha", s(&f.sha)),
         ("actor", s(&f.actor)),
         ("triggering_actor", s(&f.actor)),

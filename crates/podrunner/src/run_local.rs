@@ -423,7 +423,7 @@ pub fn run(args: &[String]) -> Out {
         (_, Err(e), _) => Err(e),
         (_, Ok(None), _) => Ok(None),
         (_, Ok(Some(g)), Ok(dir)) => {
-            concurrency::hold(dir, &facts.repository, &g, &mut |n| group_notes.push(n)).map(Some)
+            concurrency::hold(dir, &facts.repository, &g, true, &mut |n| group_notes.push(n)).map(Some)
         }
         (_, Ok(Some(_)), Err(e)) => Err(e.clone()),
     };

@@ -383,9 +383,10 @@ impl LocalSource {
     }
 
     /// The end of the cell `job`: its result and its outputs. When each
-    /// cell of its job ended, the job is done with the combined result
-    /// (the outputs of the last cell, as GitHub keeps one set of outputs
-    /// for a matrix), and the jobs after it can start.
+    /// cell of its job ended, the job is done with the combined result and
+    /// the combined outputs (T-415: as GitHub, a value that is set wins over
+    /// an empty one, and the last cell to end that sets it wins), and the
+    /// jobs after it can start.
     pub fn complete(&mut self, job: &JobId, result: JobResult, outputs: Vec<(String, String)>) -> Result<(), String> {
         let cell = self.cells.get(job).ok_or_else(|| format!("no cell {job}"))?;
         self.cell_ends.push((job.clone(), result, outputs.clone()));
@@ -421,7 +422,15 @@ impl LocalSource {
             let job_id = cell.job.clone();
             let ends = self.ends.remove(&job_id).expect("the ends of the job");
             let results: Vec<JobResult> = ends.iter().flatten().map(|d| d.result).collect();
-            let outputs = ends.into_iter().flatten().next_back().map(|d| d.outputs).unwrap_or_default();
+            let mut outputs: Vec<(String, String)> = Vec::new();
+            let cells = self.cell_ends.iter().filter(|(id, _, _)| self.cells.get(id).is_some_and(|c| c.job == job_id));
+            for (key, value) in cells.flat_map(|(_, _, o)| o) {
+                match outputs.iter_mut().find(|(k, _)| k == key) {
+                    Some(slot) if !value.is_empty() => slot.1 = value.clone(),
+                    Some(_) => {}
+                    None => outputs.push((key.clone(), value.clone())),
+                }
+            }
             let done = Done { result: JobResult::combine(results), outputs };
             self.run.finish(&job_id, done).map_err(|e| e.to_string())?;
             self.advance().map_err(|e| e.detail)?;
