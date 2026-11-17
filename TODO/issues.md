@@ -249,7 +249,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #247 | guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest | open | T-436 |
 | #248 | placement: a required limit that the kind reports is refused, although the docs allow reported | open | T-437 |
 | #249 | policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy | open | T-438 |
-| #250 | run: the per-run and per-unit scratch directories under TMPDIR follow a pre-created symlink | open | T-407 |
+| #250 | run: the per-run and per-unit scratch directories under TMPDIR follow a pre-created symlink | closed | T-407 |
 | #251 | run: a checkout of another repository with an empty, full or SHA ref is not resolved | open | T-439 |
 | #252 | run: fetch::host_of cuts an IPv6 action-server address at the first colon | open | T-440 |
 | #253 | run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused | open | T-441 |

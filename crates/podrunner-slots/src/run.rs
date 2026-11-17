@@ -147,7 +147,8 @@ impl Slots {
             Some(g) => format!("{}/{name}", g.trim_end_matches('/')),
             None => dir.join(name).display().to_string(),
         };
-        let made = std::fs::create_dir_all(&dir)
+        let made = crate::own::own_root(&egress_dir(&self.state_dir))
+            .and_then(|()| std::fs::create_dir_all(&dir))
             .and_then(|()| std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)));
         if let Err(e) = made {
             self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("the socket directory: {}", e.kind())));

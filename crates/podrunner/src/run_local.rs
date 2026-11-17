@@ -306,12 +306,11 @@ pub fn run(args: &[String]) -> Out {
         Err(e) => return fail(Class::Config, e),
     }
     source.set_pins(guest::mirror_pins(&a, &pins, source.workflow()));
-    if let Err(e) = stale::tmp_ok(&std::env::temp_dir()) {
-        return fail(Class::Config, e);
-    }
     stale::end_dead_runs(a.dry_run);
-    let scratch = std::env::temp_dir().join(format!("podrunner-run-tree-{}", std::process::id()));
-    let state = std::env::temp_dir().join(format!("podrunner-run-units-{}", std::process::id()));
+    let (scratch, state) = match stale::run_dirs(&std::env::temp_dir(), std::process::id()) {
+        Ok(d) => d,
+        Err(e) => return fail(Class::Config, e),
+    };
     // Each return removes both, also an early refusal (T-323 F38).
     let _gone = stale::Gone(vec![scratch.clone(), state.clone()]);
     let tree = match &a.checkout {

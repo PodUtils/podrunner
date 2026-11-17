@@ -22,11 +22,23 @@ impl Drop for Gone {
 
 /// The temporary directory of the run: it must exist and take a
 /// directory, or each later step fails with a path only (T-323 F14).
-pub(super) fn tmp_ok(tmp: &Path) -> Result<(), String> {
+fn tmp_ok(tmp: &Path) -> Result<(), String> {
     let probe = tmp.join(format!("podrunner-probe-{}", std::process::id()));
     std::fs::create_dir(&probe)
         .map(|()| drop(std::fs::remove_dir(&probe)))
         .map_err(|e| format!("TMPDIR {}: {e}: set TMPDIR to a directory that you can write", tmp.display()))
+}
+
+/// The tree directory and the units directory of the run `pid` under
+/// `tmp`, each new at 0700 (T-407, #250): a name that another user made
+/// first, or a link, is refused, so no write of the run follows it.
+/// A `tmp` that cannot take a directory is named first (T-323 F14).
+pub(super) fn run_dirs(tmp: &Path, pid: u32) -> Result<(PathBuf, PathBuf), String> {
+    tmp_ok(tmp)?;
+    let (tree, units) = (tmp.join(format!("{}{pid}", PREFIXES[1])), tmp.join(format!("{}{pid}", PREFIXES[0])));
+    podrunner_local::work::private_dir(&tree)?;
+    podrunner_local::work::private_dir(&units)?;
+    Ok((tree, units))
 }
 
 /// Whether a process `pid` lives. Any process counts, not only one named
@@ -128,6 +140,29 @@ mod tests {
         let mut units = Vec::new();
         units_of(&dead, 3, &mut units);
         assert_eq!(units, [(dead.join("default"), "u-1".to_string())]);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// T-407, #250: a directory of the run that another user made, or a
+    /// link at its name, is refused; one of this user is made new at 0700.
+    #[test]
+    fn the_directories_of_a_run_are_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = std::env::temp_dir().join(format!("podrunner-run-dirs-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("elsewhere")).unwrap();
+        let (tree, units) = run_dirs(&tmp, 7).unwrap();
+        for d in [&tree, &units] {
+            assert_eq!(std::fs::metadata(d).unwrap().permissions().mode() & 0o777, 0o700, "{}", d.display());
+        }
+        std::fs::write(tree.join("old"), "x").unwrap();
+        let (tree, _) = run_dirs(&tmp, 7).unwrap();
+        assert!(!tree.join("old").exists(), "a directory of this user is made new");
+        std::fs::remove_dir_all(&units).unwrap();
+        std::os::unix::fs::symlink(tmp.join("elsewhere"), &units).unwrap();
+        let e = run_dirs(&tmp, 7).unwrap_err();
+        assert!(e.contains("podrunner-run-units-7") && e.contains("not a directory of this user"), "{e}");
+        assert!(std::fs::read_dir(tmp.join("elsewhere")).unwrap().next().is_none(), "nothing went through the link");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

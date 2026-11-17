@@ -8537,7 +8537,7 @@ Proof: the test `a_caller_with_no_token_gets_no_job` fails on the code before th
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -8556,6 +8556,12 @@ Make each such directory with `mkdir` at 0700 that fails when it exists (or a ra
 `cargo test --workspace`; a test that fails on the code before the fix.
 
 In the code (2026-11-17): the socket directory of a unit (`work::private_dir`). Open: the other fixed names (`podrunner-run-*`, the vnet shim copy, the run directories of `serve`); also GitHub #250.
+
+## Done
+
+2026-11-17: each directory of a run with a fixed name in the shared temporary directory is new at 0700 or refused by name when another user made it, or when it is a link: the tree and the units of `podrunner run` (`stale::run_dirs`, with `work::private_dir`; the mirror, the vnet shim copy and the tarball are in them), the logs of the hooks (`exec/hooks.rs`), the socket directory of a unit (before), and the root of the socket directories of `serve` (`own::own_root`: `STATE/egress` or its short fallback in the temporary directory). The state path of `doctor` is fixed but nothing writes it. The export directory at 0777 is T-408.
+
+Proof: `the_directories_of_a_run_are_private` (fails with `create_dir_all`) and `the_root_of_the_sockets_is_a_directory_of_this_user`. As a user with no root: a link that another user made at `/tmp/podrunner-run-units-PID` before the run with that PID: the run refuses it by name (exit 78) and writes nothing through it; a normal run passes.
 
 # T-408: With `--export` the work directory of a job is 0777 in `/tmp`
 

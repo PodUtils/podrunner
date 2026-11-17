@@ -45,7 +45,7 @@ impl InUnit {
     ) -> Result<Hooks, String> {
         use podrunner_hook::policy::Policy;
         use podrunner_hook::server::{Unit, bind, serve_until};
-        use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+        use std::os::unix::fs::PermissionsExt;
         let Some(guest) = self.driver.socket_mount().map(str::to_string) else {
             return Err("the job needs containers, and this unit kind has no container hooks here; run it with --microvm and --engine".into());
         };
@@ -54,8 +54,8 @@ impl InUnit {
         // unit writes: a link there would make the host write a file of the
         // user (T-404), as `serve` keeps them.
         let logs = logs_dir(&dir);
-        let _ = std::fs::remove_dir_all(&logs);
-        std::fs::DirBuilder::new().mode(0o700).create(&logs).map_err(|e| format!("{}: {e}", logs.display()))?;
+        // A name that another user made first is refused (T-407).
+        crate::work::private_dir(&logs)?;
         let relay = dir.join("podrunner-hook.sh");
         std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| format!("the relay: {e}"))?;
         std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755))

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**471 entries: 90 open, 30 partial, 11 blocked, 340 done.**
+**471 entries: 90 open, 29 partial, 11 blocked, 341 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
-| P2 | 37 | 13 | 7 | 176 | 233 |
+| P2 | 37 | 12 | 7 | 177 | 233 |
 | P3 | 50 | 5 | 3 | 102 | 160 |
-| **All** | 90 | 30 | 11 | 340 | 471 |
+| **All** | 90 | 29 | 11 | 341 | 471 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -451,7 +451,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-404](later.md) | P1 | M | later | defect | done | In the local mode the logs of a hook step are in the socket directory that the unit writes |
 | [T-405](later.md) | P1 | M | later | defect | open | Secrets of a job and the credential of the proxy go into the argv of podvm |
 | [T-406](later.md) | P1 | M | later | defect | done | The fake broker of the local mode gives the job message to each local process |
-| [T-407](later.md) | P2 | M | later | defect | partial | Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made |
+| [T-407](later.md) | P2 | M | later | defect | done | Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made |
 | [T-408](later.md) | P2 | M | later | defect | open | With `--export` the work directory of a job is 0777 in `/tmp` |
 | [T-409](later.md) | P2 | M | later | defect | open | The signed pin list trusts the signer key of the same file |
 | [T-410](later.md) | P2 | M | later | defect | open | With no `[egress] default_policy`, an offer with `mode: open` opens the egress |
