@@ -8953,7 +8953,7 @@ Look for `actions/checkout` in the called workflows too, and read them from the 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8970,6 +8970,10 @@ Fetch the tree with a fallback that needs no tool of the image (the Node of the 
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: The stand-in of `actions/checkout` gets the tree with curl, else with node (of the runner in `/__e`, or of the image), else with python3, and else names what it needs in one line; the token goes to curl on its standard input and to node and python3 in the environment of that one process, never in an argv. The tree goes to a file first, so a failed fetch fails the step. Test `the_checkout_stand_in_needs_no_curl` runs the script under a PATH with no curl (python3, node, neither) against a broker that checks the token; it fails on the old script. Level: the curl path runs in the suites of the runner; the node and python3 paths in the unit test only.
 
 # T-423: `--schedule` reads no `timezone` of `on.schedule`
 
@@ -9003,7 +9007,7 @@ Read `timezone` (an IANA name, through the zone files of the host) and say it in
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9020,6 +9024,10 @@ Give `head.repo` and `base.repo` with `full_name`, `name` and `owner.login` of t
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: The minimal payload of `pull_request` names the repository in `head.repo` and `base.repo` (a branch of the same repository, not a fork), with `user` and `draft`. The test of the event context checks both sides.
 
 # T-425: A git submodule is an empty directory in the checkout
 

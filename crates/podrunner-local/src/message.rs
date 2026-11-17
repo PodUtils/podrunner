@@ -240,10 +240,43 @@ fn checkout_script(path: &str, other: Option<(&str, &str)>) -> String {
             (format!("_actions/{}", podrunner_broker_fake::actions::archive_name(repo, sha)), " --strip-components=1")
         }
     };
-    format!(
-        "set -eu\nmkdir -p \"{dest}\"\ncd \"{dest}\"\nprintf 'header = \"Authorization: Bearer %s\"\\n' \"${{{{ github.podrunner_token }}}}\" | \\\n  curl -fsSL -K - \"${{{{ github.podrunner_broker }}}}{route}\" | gzip -dc | tar -xf -{strip}"
-    )
+    CHECKOUT_SCRIPT.replace("DEST", &dest).replace("ROUTE", &route).replace("STRIP", strip)
 }
+
+/// The script of [`checkout_script`]. The tree comes from the broker with
+/// the job token in no argv (T-406): curl reads it on its standard input;
+/// node (of the runner, in `/__e`, or of the image) and python3 read it
+/// from their environment, so a job container with no curl
+/// (`ubuntu:24.04`, `debian:*-slim`) gets its tree too (T-422). The tree
+/// goes to a file first: a failed fetch fails the step.
+const CHECKOUT_SCRIPT: &str = r#"set -eu
+mkdir -p "DEST"
+cd "DEST"
+u="${{ github.podrunner_broker }}ROUTE"
+t="${{ github.podrunner_token }}"
+get() {
+  if command -v curl >/dev/null 2>&1; then
+    printf 'header = "Authorization: Bearer %s"
+' "$t" | curl -fsSL -K - "$u"
+    return
+  fi
+  for n in /__e/node*/bin/node node; do
+    if command -v "$n" >/dev/null 2>&1; then
+      PODRUNNER_T="$t" PODRUNNER_U="$u" "$n" -e 'const u=process.env.PODRUNNER_U;require(u.startsWith("https")?"https":"http").get(u,{headers:{Authorization:"Bearer "+process.env.PODRUNNER_T}},r=>{if(r.statusCode!==200){console.error("podrunner: the tree: HTTP "+r.statusCode);process.exit(22)}r.pipe(process.stdout)}).on("error",e=>{console.error("podrunner: the tree: "+e.message);process.exit(7)})'
+      return
+    fi
+  done
+  if command -v python3 >/dev/null 2>&1; then
+    PODRUNNER_T="$t" PODRUNNER_U="$u" python3 -c 'import os,sys,urllib.request as q;r=q.urlopen(q.Request(os.environ["PODRUNNER_U"],headers={"Authorization":"Bearer "+os.environ["PODRUNNER_T"]}));sys.stdout.buffer.write(r.read())'
+    return
+  fi
+  echo "podrunner: the stand-in of actions/checkout needs curl, node or python3 in the job container" >&2
+  return 1
+}
+f="${RUNNER_TEMP:-/tmp}/podrunner-tree-$$.tgz"
+get > "$f"
+gzip -dc < "$f" | tar -xf -STRIP
+rm -f "$f""#;
 
 /// The reference of `uses:`, its base context name and its display name.
 /// The ref of an action of a repository is a tag, a branch or a commit:

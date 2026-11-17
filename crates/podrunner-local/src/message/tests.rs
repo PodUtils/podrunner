@@ -149,7 +149,7 @@ fn actions_checkout_is_the_stand_in_of_the_local_tree() {
     assert_eq!(steps[0]["reference"]["type"], "script");
     assert_eq!(steps[0]["contextName"], "__actions_checkout");
     let script = steps[0]["inputs"]["map"][0]["Value"]["expr"].as_str().unwrap();
-    assert!(script.contains("{1}_checkout.tar.gz") && script.contains("(github.podrunner_broker)"), "{script}");
+    assert!(script.contains("{0}_checkout.tar.gz") && script.contains("(github.podrunner_broker)"), "{script}");
     // T-406: the broker gives the tree only with the job token, which goes
     // to curl on its standard input (printf is a builtin): not in an argv.
     assert!(
@@ -157,7 +157,10 @@ fn actions_checkout_is_the_stand_in_of_the_local_tree() {
         "{script}"
     );
     assert!(script.contains("(github.podrunner_token)") && !script.contains("-H "), "{script}");
-    assert!(script.contains("cd \"$GITHUB_WORKSPACE\"") && script.contains("gzip -dc | tar -xf -"), "{script}");
+    assert!(
+        script.contains("cd \"$GITHUB_WORKSPACE\"") && script.contains("gzip -dc < \"$f\" | tar -xf -"),
+        "{script}"
+    );
     assert!(!script.contains(" -C ") && !script.contains("-xz"), "{script}");
     assert_eq!(steps[1]["contextName"], "__actions_checkout_2");
     let script = steps[1]["inputs"]["map"][0]["Value"]["expr"].as_str().unwrap();
@@ -390,4 +393,83 @@ fn an_image_takes_the_values_of_the_matrix() {
     assert_eq!(super::image_with("pg:${{ github.sha }}", v), None, "not the matrix");
     assert_eq!(super::image_with("pg:16", v).as_deref(), Some("pg:16"));
     assert_eq!(super::matrix_text(&pod_actions_expr::Value::Number(15.0)).as_deref(), Some("15"));
+}
+
+/// T-422: the stand-in of `actions/checkout` gets the tree in a job
+/// container with no curl: with python3 (`python:*-slim`) or node (the
+/// runner's in `/__e`, `node:*-slim`); with none, one line names what it
+/// needs. The token is in no argv.
+#[test]
+fn the_checkout_stand_in_needs_no_curl() {
+    use std::io::{BufRead, Read, Write};
+    let dir = std::env::temp_dir().join(format!("podrunner-checkout-nocurl-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("tree")).unwrap();
+    std::fs::write(dir.join("tree/hello.txt"), "hi\n").unwrap();
+    let tgz = std::process::Command::new("tar")
+        .args(["-czf", "-", "-C"])
+        .arg(dir.join("tree"))
+        .arg(".")
+        .output()
+        .unwrap()
+        .stdout;
+    // A broker that gives the tree only with the token.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for c in listener.incoming().flatten() {
+            let mut r = std::io::BufReader::new(c.try_clone().unwrap());
+            let mut auth = false;
+            loop {
+                let mut l = String::new();
+                if r.read_line(&mut l).unwrap_or(0) == 0 || l == "\r\n" {
+                    break;
+                }
+                auth |= l.to_ascii_lowercase().starts_with("authorization: bearer tok-1");
+            }
+            let mut c = c;
+            let body: &[u8] = if auth { &tgz } else { b"" };
+            let status = if auth { "200 OK" } else { "401 Unauthorized" };
+            let _ = write!(c, "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+            let _ = c.write_all(body);
+            let _ = r.read(&mut [0u8; 1]);
+        }
+    });
+    let script = super::CHECKOUT_SCRIPT
+        .replace("${{ github.podrunner_broker }}", &format!("http://127.0.0.1:{port}/"))
+        .replace("${{ github.podrunner_token }}", "tok-1")
+        .replace("DEST", "$GITHUB_WORKSPACE")
+        .replace("ROUTE", "_checkout.tar.gz")
+        .replace("STRIP", "");
+    // A PATH of only the tools that each image has, and one of python3 or node.
+    let path_with = |tool: Option<&str>| {
+        let bin = dir.join(format!("bin-{}", tool.unwrap_or("none")));
+        std::fs::create_dir_all(&bin).unwrap();
+        for t in ["mkdir", "gzip", "tar", "rm"].into_iter().chain(tool) {
+            let real = String::from_utf8(
+                std::process::Command::new("sh").args(["-c", &format!("command -v {t}")]).output().unwrap().stdout,
+            )
+            .unwrap();
+            let _ = std::os::unix::fs::symlink(real.trim(), bin.join(t));
+        }
+        bin
+    };
+    for tool in [Some("python3"), Some("node"), None] {
+        let work = dir.join(format!("work-{}", tool.unwrap_or("none")));
+        std::fs::create_dir_all(&work).unwrap();
+        let out = std::process::Command::new("/bin/sh")
+            .args(["-c", &script])
+            .env_clear()
+            .env("PATH", path_with(tool))
+            .env("GITHUB_WORKSPACE", &work)
+            .env("RUNNER_TEMP", &dir)
+            .output()
+            .unwrap();
+        let err = String::from_utf8_lossy(&out.stderr);
+        match tool {
+            Some(t) => assert!(work.join("hello.txt").is_file(), "{t}: {err}"),
+            None => assert!(!out.status.success() && err.contains("needs curl, node or python3"), "{err}"),
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
 }

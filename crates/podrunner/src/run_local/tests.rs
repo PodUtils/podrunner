@@ -161,6 +161,12 @@ fn the_github_context_comes_from_the_tree_and_the_flags() {
     assert_eq!(gh.get("ref").and_then(Value::as_str), Some("refs/pull/1/merge"));
     let event = gh.get("event").unwrap();
     assert_eq!(event.get("pull_request").and_then(|p| p.get("number")), Some(&Value::Number(1.0)));
+    // T-424: the head and the base name the repository, as on GitHub.
+    let pr = event.get("pull_request").unwrap();
+    for side in ["head", "base"] {
+        let full = pr.get(side).and_then(|h| h.get("repo")).and_then(|r| r.get("full_name"));
+        assert_eq!(full, gh.get("repository"), "{side}");
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }
 

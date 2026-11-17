@@ -206,8 +206,12 @@ pub(super) fn payload(event: &str, f: &Facts) -> serde_json::Value {
             "action": "opened", "number": 1,
             "pull_request": {
                 "number": 1,
-                "head": { "ref": ref_name, "sha": f.sha },
-                "base": { "ref": f.default_branch, "sha": f.sha },
+                // The head is a branch of the same repository, not a fork,
+                // so a guard of a fork (`head.repo.full_name ==
+                // github.repository`) runs as on GitHub (T-424).
+                "head": { "ref": ref_name, "sha": f.sha, "repo": repository.clone() },
+                "base": { "ref": f.default_branch, "sha": f.sha, "repo": repository.clone() },
+                "user": { "login": f.actor }, "draft": false,
             },
             "repository": repository,
         }),

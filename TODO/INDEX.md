@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**474 entries: 59 open, 28 partial, 12 blocked, 375 done.**
+**474 entries: 57 open, 28 partial, 12 blocked, 377 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
-| P2 | 12 | 12 | 8 | 201 | 233 |
+| P2 | 10 | 12 | 8 | 203 | 233 |
 | P3 | 44 | 4 | 3 | 112 | 163 |
-| **All** | 59 | 28 | 12 | 375 | 474 |
+| **All** | 57 | 28 | 12 | 377 | 474 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -466,9 +466,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-419](later.md) | P2 | M | later | defect | open | `--protected` misses jobs of called workflows, needs of `--job` and environment names of an expression |
 | [T-420](later.md) | P2 | M | later | defect | open | An environment name of an expression is not evaluated |
 | [T-421](later.md) | P2 | M | later | defect | open | No checkout tree when only a called workflow uses `actions/checkout` |
-| [T-422](later.md) | P2 | M | later | defect | open | The stand-in of `actions/checkout` needs `curl` in a job container |
+| [T-422](later.md) | P2 | M | later | defect | done | The stand-in of `actions/checkout` needs `curl` in a job container |
 | [T-423](later.md) | P2 | M | later | defect | open | `--schedule` reads no `timezone` of `on.schedule` |
-| [T-424](later.md) | P2 | M | later | defect | open | The minimal payload of `pull_request` has no `head.repo` and `base.repo` |
+| [T-424](later.md) | P2 | M | later | defect | done | The minimal payload of `pull_request` has no `head.repo` and `base.repo` |
 | [T-425](later.md) | P2 | M | later | defect | open | A git submodule is an empty directory in the checkout |
 | [T-426](later.md) | P3 | M | later | defect | open | `github.workflow` is the file name, not the `name:` of the workflow |
 | [T-427](later.md) | P3 | M | later | defect | open | `--rerun DIR --job CALLER` reruns nothing of a call |
