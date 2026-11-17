@@ -23,6 +23,9 @@ pub(super) struct Common {
     pub cache: Option<Arc<CacheStore>>,
     pub checkout: Option<PathBuf>,
     pub oidc: Arc<podrunner_local::oidc::Issuer>,
+    /// The mirror of the images of the run (T-157): one for each run, also
+    /// with `--parallel`, whose slots each have a directory of their own.
+    pub mirror: PathBuf,
 }
 
 /// The issuer of the id-tokens of the run (T-140): `--oidc-issuer URL`,
@@ -82,8 +85,8 @@ fn unit(a: &Args, c: &Common, image: &str, state: &Path) -> Result<Box<dyn Execu
     e.checkout = c.checkout.clone();
     e.export = a.export.clone();
     e.toolcache = a.toolcache.clone();
-    if a.engine.is_some() && guest::mirror_dir(state).is_dir() {
-        e.mirror = Some(Arc::new(podrunner_local::mirror::Mirror::new(guest::mirror_dir(state))));
+    if a.engine.is_some() && c.mirror.is_dir() {
+        e.mirror = Some(Arc::new(podrunner_local::mirror::Mirror::new(c.mirror.clone())));
     }
     // The egress policy of each environment (T-136).
     let mut hosts: std::collections::BTreeMap<String, Vec<String>> = Default::default();

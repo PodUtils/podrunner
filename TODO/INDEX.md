@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**474 entries: 73 open, 29 partial, 11 blocked, 361 done.**
+**474 entries: 73 open, 28 partial, 11 blocked, 362 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
 | P2 | 24 | 12 | 7 | 190 | 233 |
-| P3 | 46 | 5 | 3 | 109 | 163 |
-| **All** | 73 | 29 | 11 | 361 | 474 |
+| P3 | 46 | 4 | 3 | 110 | 163 |
+| **All** | 73 | 28 | 11 | 362 | 474 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -268,7 +268,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-218](later.md) | P3 | S | later | defect | done | The nits of the local-mode user run |
 | [T-219](later.md) | P3 | S | later | defect | done | An unknown `--event` gets the text of the `on:` filter, and `--event-path` is read after the filter |
 | [T-220](later.md) | P2 | M | later | feature | partial | The local mode cannot run on a host that refuses each AF_INET bind |
-| [T-221](later.md) | P3 | S | later | feature | partial | `cpus` on the podvm kind |
+| [T-221](later.md) | P3 | S | later | feature | done | `cpus` on the podvm kind |
 | [T-222](live.md) | P1 | S | M-C | defect | done | A refusal of one source holds the job for each source of the host |
 | [T-223](later.md) | P2 | S | later | defect | done | `doctor --run` says ok for a store that does not hold `--image` |
 | [T-224](later.md) | P2 | M | later | feature | done | A run that hangs prints nothing until it ends |

@@ -406,6 +406,7 @@ pub fn run(args: &[String]) -> Out {
         cache: cache.clone(),
         checkout: tree.clone(),
         oidc,
+        mirror: guest::mirror_dir(&state),
     };
     let to_stderr = (!a.quiet).then(|| logs::live(masked.clone(), a.json));
     let live = match (&web, to_stderr) {

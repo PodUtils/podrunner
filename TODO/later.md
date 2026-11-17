@@ -3243,7 +3243,7 @@ State (2026-11-17): step 4: the fix of a refused bind (`doctor --run` and the er
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3273,6 +3273,10 @@ State (2026-11-17): the measure of runner-image 44085737348 (`8a4ad2f`) did not 
 
 State (2026-11-17): the cause, from runner-image 44100036389: the delegated cgroup has each controller (`cpuset cpu io memory hugetlb pids ...`), but systemd-run read `$$` of the command as one `$`, so the shell wrote `$` into `cgroup.procs` (EIO). The step writes `0` now, which moves the shell itself.
 State (2026-11-17): runner-image 44153617910 reached the test: podvm made the cgroup of the run in the delegated directory (`run-u29.service/podvm-...`), but the payload could not read its `cpu.max` (exit 13): a unit has no cgroup file system in its root. The test now reads `cpu.max` of the new `podvm-*` cgroup beside its own, on the host, while the unit sleeps. Next: that measure.
+
+## Done
+
+2026-11-17: runner-image 44170614365 (`5095d91`): in a transient service of systemd with `Delegate=yes`, a podvm unit with `cpus = 1` runs in the cgroup `run-u27.service/podvm-...`, whose `cpu.max` is `100000 100000` (one CPU); `a_cpu_limit_holds_in_a_delegated_cgroup` passes. Level: proven in CI on GitHub-hosted runners. Elsewhere `cpus` stays refused with its reason.
 
 # T-223: `doctor --run` says ok for a store that does not hold `--image`
 
@@ -8566,7 +8570,7 @@ In the code (2026-11-17): the socket directory of a unit (`work::private_dir`). 
 
 2026-11-17: each directory of a run with a fixed name in the shared temporary directory is new at 0700 or refused by name when another user made it, or when it is a link: the tree and the units of `podrunner run` (`stale::run_dirs`, with `work::private_dir`, named `PID-N` so that two runs of one process get two; they are made before the mirror of `--engine`, which is in the units directory, as the vnet shim copy and the tarball), the logs of the hooks (`exec/hooks.rs`), the socket directory of a unit (before), and the root of the socket directories of `serve` (`own::own_root`: `STATE/egress` or its short fallback in the temporary directory). The state path of `doctor` is fixed but nothing writes it. The export directory at 0777 is T-408.
 
-Proof: `the_directories_of_a_run_are_private` (fails with `create_dir_all`) and `the_root_of_the_sockets_is_a_directory_of_this_user`. As a user with no root: a link that another user made at `/tmp/podrunner-run-units-PID-0` before the run with that PID: the run refuses it by name (exit 78) and writes nothing through it; a normal run passes.
+A regression of this work, found by runner-image 44170614365: with `--parallel` above 1, each slot builds its executor with `STATE/slot-N`, so the mirror of `--engine` (now in the units directory of the run) was not found, and the engine pulled from Docker Hub, which the egress refuses. The mirror path now comes from the run (`routes::Common::mirror`); the step of runner-image is the proof. Proof: `the_directories_of_a_run_are_private` (fails with `create_dir_all`) and `the_root_of_the_sockets_is_a_directory_of_this_user`. As a user with no root: a link that another user made at `/tmp/podrunner-run-units-PID-0` before the run with that PID: the run refuses it by name (exit 78) and writes nothing through it; a normal run passes.
 
 # T-408: With `--export` the work directory of a job is 0777 in `/tmp`
 
