@@ -9056,7 +9056,7 @@ Give `head.repo` and `base.repo` with `full_name`, `name` and `owner.login` of t
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9073,6 +9073,10 @@ Add the files of each submodule (git `ls-files --recurse-submodules`), or refuse
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: The tarball of a git tree holds the tracked files of each submodule with a work tree, to 10 levels (with `--checkout-head`, each at the commit that its parent records), and a list of the submodules (`tree/submodules.rs`). The stand-in keeps those of its `submodules:` and leaves each other one an empty directory; a kept submodule with no files fails the step with the fix; an expression in `submodules`, or `submodules` with a checkout of another repository, is refused by name (`message/checkout.rs`). The stamp of `--watch` takes the submodule files too. Tests: the tarball of a tree with two levels of submodules, at disk and at HEAD, and of a clone with no update; the two refusals; the end-to-end test (`tests/local.rs`, the official runner) with `false`, `true` and `recursive`, and a clone with no update that fails with the fix.
 
 # T-426: `github.workflow` is the file name, not the `name:` of the workflow
 

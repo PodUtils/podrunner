@@ -231,3 +231,76 @@ fn a_checkout_in_a_called_workflow_gets_the_tree() {
     assert!(stdout.lines().any(|l| l.starts_with("ok") && l.contains("call / b")), "{stdout}");
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+/// T-425: the checkout of the local tree keeps the submodules of its
+/// `submodules:`, and leaves each other one an empty directory.
+#[test]
+#[ignore]
+fn a_checkout_keeps_the_submodules_that_it_asks_for() {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
+    let base = std::env::temp_dir().join(format!("podrunner-local-submodules-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let git = |d: &std::path::Path, args: &[&str]| {
+        let ok = std::process::Command::new("git")
+            .arg("-C")
+            .arg(d)
+            .args(["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "protocol.file.allow=always"])
+            .args(args)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "git {args:?}");
+    };
+    let init = |name: &str| {
+        let d = base.join(name);
+        std::fs::create_dir_all(&d).unwrap();
+        git(&d, &["init", "-q", "-b", "main"]);
+        std::fs::write(d.join(format!("{name}.txt")), name).unwrap();
+        d
+    };
+    let commit = |d: &std::path::Path| {
+        git(d, &["add", "-A"]);
+        git(d, &["commit", "-qm", "c"]);
+    };
+    let inner = init("inner");
+    commit(&inner);
+    let lib = init("lib");
+    git(&lib, &["submodule", "add", "-q", inner.to_str().unwrap(), "nested"]);
+    commit(&lib);
+    let top = init("top");
+    git(&top, &["submodule", "add", "-q", lib.to_str().unwrap(), "lib"]);
+    git(&top, &["submodule", "update", "-q", "--init", "--recursive"]);
+    let flow = base.join("subs.yml");
+    std::fs::write(
+        &flow,
+        "on: push\njobs:\n  s:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        with: {path: none}\n      \
+         - uses: actions/checkout@v4\n        with: {path: one, submodules: true}\n      \
+         - uses: actions/checkout@v4\n        with: {path: all, submodules: recursive}\n      \
+         - run: |\n          test -d none/lib && test -z \"$(ls -A none/lib)\"\n          \
+         test -f one/lib/lib.txt && test -d one/lib/nested && test -z \"$(ls -A one/lib/nested)\"\n          \
+         test -f all/lib/nested/inner.txt && test ! -e all/.podrunner-submodules.list\n",
+    )
+    .unwrap();
+    commit(&top);
+    let run = |checkout: &std::path::Path| {
+        let args: Vec<String> =
+            ["run", flow.to_str().unwrap(), "--runner-dir", &dir, "-q", "--checkout", checkout.to_str().unwrap()]
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
+        let out = podrunner::cli::run(&args);
+        println!("{}{}", out.stdout, out.stderr);
+        out
+    };
+    let out = run(&top);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    // A clone with no `submodule update`: a checkout that asks for the
+    // submodule fails with the fix.
+    let clone = base.join("clone");
+    git(&base, &["clone", "-q", top.to_str().unwrap(), clone.to_str().unwrap()]);
+    let out = run(&clone);
+    assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
+    assert!(out.stderr.contains("git submodule update --init --recursive"), "{}", out.stderr);
+    let _ = std::fs::remove_dir_all(&base);
+}

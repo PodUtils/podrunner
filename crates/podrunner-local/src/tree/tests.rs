@@ -154,3 +154,49 @@ fn a_subdirectory_of_a_git_tree_gets_no_git() {
     let _ = std::fs::remove_dir_all(&dir);
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+/// T-425: the tarball holds the files of each submodule with a work tree,
+/// to each level, and the list of the submodules; a submodule with no work
+/// tree is in the list with no files.
+#[test]
+fn the_files_and_the_list_of_the_submodules() {
+    let base = std::env::temp_dir().join(format!("podrunner-tree-subs-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let commit = |d: &Path| {
+        git(d, &["add", "."]).unwrap();
+        git(d, &["-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "c"]).unwrap();
+    };
+    let init = |name: &str, file: &str| {
+        let d = base.join(name);
+        std::fs::create_dir_all(&d).unwrap();
+        git(&d, &["init", "-q", "-b", "main"]).unwrap();
+        std::fs::write(d.join(file), name).unwrap();
+        commit(&d);
+        d
+    };
+    let add = |to: &Path, from: &Path, at: &str| {
+        let url = from.display().to_string();
+        git(to, &["-c", "protocol.file.allow=always", "submodule", "add", "-q", &url, at]).unwrap();
+        commit(to);
+    };
+    let inner = init("inner", "deep.txt");
+    let lib = init("lib", "lib.txt");
+    add(&lib, &inner, "nested");
+    let top = init("top", "top.txt");
+    add(&top, &lib, "vendor/lib");
+    git(&top, &["-c", "protocol.file.allow=always", "submodule", "update", "-q", "--init", "--recursive"]).unwrap();
+    for head in [false, true] {
+        let t = tarball(&top, &base.join(format!("scratch-{head}")), Options { head, ..Options::default() }).unwrap();
+        let e = entries(&t);
+        assert_eq!(e.get("vendor/lib/lib.txt").map(String::as_str), Some("lib"), "head {head}: {:?}", e.keys());
+        assert_eq!(e.get("vendor/lib/nested/deep.txt").map(String::as_str), Some("inner"), "head {head}");
+        assert_eq!(e[SUBMODULES], "1 1 vendor/lib\n2 1 vendor/lib/nested\n", "head {head}");
+    }
+    // A clone with no `submodule update`: the submodule has no work tree.
+    let bare = base.join("clone");
+    git(&base, &["clone", "-q", &top.display().to_string(), &bare.display().to_string()]).unwrap();
+    let e = entries(&tarball(&bare, &base.join("scratch-clone"), Options::default()).unwrap());
+    assert_eq!(e[SUBMODULES], "1 0 vendor/lib\n");
+    assert!(!e.keys().any(|k| k.starts_with("vendor/lib/")), "{:?}", e.keys());
+    let _ = std::fs::remove_dir_all(&base);
+}

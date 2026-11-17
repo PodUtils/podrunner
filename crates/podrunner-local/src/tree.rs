@@ -9,6 +9,14 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod submodules;
+
+/// The list of the submodules in the tarball (T-425).
+pub use submodules::LIST as SUBMODULES;
+
+/// The levels of `submodules: recursive`.
+pub const SUBMODULE_LEVELS: u32 = 10;
+
 /// What the tarball holds.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
@@ -127,7 +135,10 @@ pub fn stamp(dir: &Path) -> u64 {
     }
     let mut list = Vec::new();
     match is_git_tree(dir) {
-        true => list = files(dir).unwrap_or_default(),
+        true => {
+            list = files(dir).unwrap_or_default();
+            list.extend(submodules::files(dir).unwrap_or_default());
+        }
         false => walk(dir, Path::new(""), &mut list),
     }
     list.sort();
@@ -192,6 +203,19 @@ pub fn tarball(dir: &Path, scratch: &Path, o: Options) -> Result<PathBuf, String
             }
             b.append_data(&mut h, path, &mut entry).map_err(fail)?;
         }
+        // The files of each submodule at the commit that HEAD records.
+        for s in submodules::list(dir, true)?.iter().filter(|s| s.ready) {
+            let tar = submodules::archive(dir, s)?;
+            let mut a = tar::Archive::new(tar.as_slice());
+            for entry in a.entries().map_err(fail)? {
+                let mut entry = entry.map_err(fail)?;
+                let mut h = entry.header().clone();
+                let path = entry.path().map_err(fail)?.into_owned();
+                if !left_out(&path, &o) {
+                    b.append_data(&mut h, path, &mut entry).map_err(fail)?;
+                }
+            }
+        }
     } else {
         // A committed lock stays at its state on disk, as each tracked
         // file: leaving it out made it deleted in the job (T-339 item 11).
@@ -202,10 +226,28 @@ pub fn tarball(dir: &Path, scratch: &Path, o: Options) -> Result<PathBuf, String
             .map(|p| PathBuf::from(String::from_utf8_lossy(p).into_owned()))
             .collect();
         let lock = |f: &Path| f.file_name().is_some_and(|n| n == crate::lock::LOCK_FILE) && tracked.contains(f);
-        let list =
+        let mut list: Vec<PathBuf> =
             files(dir)?.into_iter().filter(|f| !left_out(f, &o) || (lock(f) && !o.exclude.contains(f))).collect();
+        // The files of each submodule with a work tree, at their state on
+        // disk (T-425).
+        if !submodules::list(dir, false)?.is_empty() {
+            list.extend(submodules::files(dir)?.into_iter().filter(|f| !left_out(f, &o)));
+            list.sort();
+            list.dedup();
+        }
         for f in links_last(dir, list) {
             add(&mut b, &f)?;
+        }
+    }
+    // The list of the submodules, for the stand-in (T-425).
+    if is_git_tree(dir) {
+        let text = submodules::list_text(&submodules::list(dir, o.head)?);
+        if !text.is_empty() {
+            let mut h = tar::Header::new_gnu();
+            h.set_size(text.len() as u64);
+            h.set_mode(0o644);
+            h.set_cksum();
+            b.append_data(&mut h, SUBMODULES, text.as_bytes()).map_err(fail)?;
         }
     }
     if o.with_git {

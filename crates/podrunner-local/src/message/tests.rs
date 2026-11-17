@@ -170,6 +170,20 @@ fn actions_checkout_is_the_stand_in_of_the_local_tree() {
     let mut s = LocalSource::new("l", bad, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
     s.next(10, Duration::ZERO).unwrap();
     assert!(s.broker_job(&JobId::new("build.0").unwrap()).unwrap_err().contains("plain relative path"));
+    // T-425: `submodules` takes a plain value, and the store keeps no
+    // submodule of another repository.
+    for (with, want) in [
+        ("submodules: ${{ inputs.s }}", "true, false or recursive"),
+        ("repository: o/r\n          ref: v1\n          submodules: true", "keeps no submodule"),
+    ] {
+        let text = format!(
+            "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          {with}\n"
+        );
+        let mut s = LocalSource::new("l", &text, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+        s.next(10, Duration::ZERO).unwrap();
+        let e = s.broker_job(&JobId::new("build.0").unwrap()).unwrap_err();
+        assert!(e.contains(want), "{with}: {e}");
+    }
 }
 
 #[test]
@@ -435,7 +449,7 @@ fn the_checkout_stand_in_needs_no_curl() {
             let _ = r.read(&mut [0u8; 1]);
         }
     });
-    let script = super::CHECKOUT_SCRIPT
+    let script = super::checkout::CHECKOUT_SCRIPT
         .replace("${{ github.podrunner_broker }}", &format!("http://127.0.0.1:{port}/"))
         .replace("${{ github.podrunner_token }}", "tok-1")
         .replace("DEST", "$GITHUB_WORKSPACE")
