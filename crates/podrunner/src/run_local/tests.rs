@@ -346,6 +346,14 @@ fn the_inputs_of_workflow_dispatch_take_their_defaults_and_types() {
         let e = context::dispatch_inputs(&on, &bad).unwrap_err();
         assert!(e.contains(why), "{bad:?}: {e}");
     }
+    // #231: a workflow_dispatch with no inputs declares none.
+    for text in ["on: workflow_dispatch\n", "on: [push, workflow_dispatch]\n", "on:\n  workflow_dispatch:\n"] {
+        let full = format!("{text}jobs:\n  a:\n    runs-on: x\n    steps: [{{run: x}}]\n");
+        let on = pod_actions_workflow::parse(&full).unwrap().workflow.on;
+        let e = context::dispatch_inputs(&on, &given(&[("foo", "bar")])).unwrap_err();
+        assert!(e.contains("declares no inputs"), "{text}: {e}");
+        assert!(context::dispatch_inputs(&on, &given(&[])).is_ok(), "{text}");
+    }
 }
 
 #[test]

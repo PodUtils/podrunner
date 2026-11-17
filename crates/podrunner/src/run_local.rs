@@ -309,7 +309,7 @@ pub fn run(args: &[String]) -> Out {
     if let Err(e) = stale::tmp_ok(&std::env::temp_dir()) {
         return fail(Class::Config, e);
     }
-    stale::end_dead_runs();
+    stale::end_dead_runs(a.dry_run);
     let scratch = std::env::temp_dir().join(format!("podrunner-run-tree-{}", std::process::id()));
     let state = std::env::temp_dir().join(format!("podrunner-run-units-{}", std::process::id()));
     // Each return removes both, also an early refusal (T-323 F38).

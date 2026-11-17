@@ -71,9 +71,19 @@ pub fn parse(line: &[u8]) -> Result<Request, Reply> {
     if v.get("v") != Some(&Value::from(1)) {
         return Err(Reply::error("bad-request", "no \"v\": 1"));
     }
-    serde_json::from_value::<Envelope<Request>>(v)
-        .map(|e| e.body)
-        .map_err(|_| Reply::error("bad-request", "an unknown op or field"))
+    // The request itself, with no `v`: a flattened body takes any field
+    // (#233), so the fields of each op are held by hand too.
+    let mut v = v;
+    let Some(map) = v.as_object_mut() else { return Err(Reply::error("bad-request", "not an object")) };
+    map.remove("v");
+    let fields: &[&str] = match map.get("op").and_then(Value::as_str) {
+        Some("withdraw") => &["op", "job_id"],
+        _ => &["op"],
+    };
+    if map.keys().any(|k| !fields.contains(&k.as_str())) {
+        return Err(Reply::error("bad-request", "an unknown op or field"));
+    }
+    serde_json::from_value::<Request>(v).map_err(|_| Reply::error("bad-request", "an unknown op or field"))
 }
 
 fn line_of<T: Serialize>(body: &T) -> String {
@@ -267,7 +277,16 @@ mod tests {
 
     #[test]
     fn bad_lines_are_bad_requests() {
-        for line in [&b"x"[..], br#"{"op":"status"}"#, br#"{"v":2,"op":"status"}"#, br#"{"v":1,"op":"rm"}"#] {
+        // #233: a field that the op does not take is refused too.
+        for line in [
+            &b"x"[..],
+            br#"{"op":"status"}"#,
+            br#"{"v":2,"op":"status"}"#,
+            br#"{"v":1,"op":"rm"}"#,
+            br#"{"v":1,"op":"status","bogus":1}"#,
+            br#"{"v":1,"op":"status","job_id":"x"}"#,
+            br#"{"v":1,"op":"withdraw","job_id":"x","bogus":1}"#,
+        ] {
             assert!(matches!(parse(line), Err(Reply::Error { code, .. }) if code == "bad-request"));
         }
         assert_eq!(parse(br#"{"v":1,"op":"drain"}"#), Ok(Request::Drain));

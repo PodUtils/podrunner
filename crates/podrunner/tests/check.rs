@@ -87,6 +87,15 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             ),
             "no-tier-served",
         ),
+        // #232: a `mem` that is not a size fails `check`, as it fails `serve`.
+        (
+            format!("{head}[unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nmem = \"nonsense\"\n{pin}"),
+            "mem",
+        ),
+        (
+            format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nmem = \"2GB\"\n{pin}"),
+            "mem",
+        ),
         // T-162: a guest holds no limit of processes.
         (format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\npids = 9\n{pin}"), "pids"),
         // T-111: a key of the podvm kind that the incus kind does not read.

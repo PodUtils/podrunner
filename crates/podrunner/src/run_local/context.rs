@@ -112,6 +112,16 @@ pub(super) type Inputs = (Vec<(String, Value)>, serde_json::Map<String, serde_js
 pub(super) fn dispatch_inputs(on: &Node, given: &[(String, String)]) -> Result<Inputs, String> {
     let declared = get(on, "workflow_dispatch").and_then(|w| get(w, "inputs"));
     let Some(Node { kind: Kind::Map(inputs), .. }) = declared else {
+        // A workflow_dispatch with no inputs declares none (#231).
+        let names = match &on.kind {
+            Kind::String(e) => e == "workflow_dispatch",
+            Kind::Seq(items) => items.iter().any(|i| matches!(&i.kind, Kind::String(e) if e == "workflow_dispatch")),
+            Kind::Map(m) => m.iter().any(|(k, _)| k.name == "workflow_dispatch"),
+            _ => false,
+        };
+        if let Some((k, _)) = given.first().filter(|_| names) {
+            return Err(format!("--input {k}: on.workflow_dispatch declares no inputs"));
+        }
         let typed = given.iter().map(|(k, v)| (k.clone(), Value::String(v.clone()))).collect();
         let event = given.iter().map(|(k, v)| (k.clone(), json!(v))).collect();
         return Ok((typed, event));
@@ -216,6 +226,7 @@ pub(super) fn github(a: &Args, f: &Facts) -> Result<Value, String> {
         .event_path
         .as_ref()
         .map_or_else(|| "the event payload".to_string(), |p| format!("--event-path {}", p.display()));
+    let base = base_branch(serde_json::from_str(&event).ok().as_ref(), f);
     let event = Value::from_json(&event).map_err(|e| format!("{at}: {e}"))?;
     let workflow = a.file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let owner = f.repository.split('/').next().unwrap_or("local").to_string();
@@ -243,7 +254,7 @@ pub(super) fn github(a: &Args, f: &Facts) -> Result<Value, String> {
             ("ref_name", s("1/merge")),
             ("ref_type", s("branch")),
             ("head_ref", s(ref_name)),
-            ("base_ref", s(&f.default_branch)),
+            ("base_ref", s(&base)),
         ]);
     } else {
         entries.extend([("ref", s(&f.git_ref)), ("ref_name", s(ref_name)), ("ref_type", s(ref_type))]);
@@ -311,7 +322,8 @@ pub(super) fn takes(a: &Args, f: &Facts, w: &pod_actions_workflow::Workflow) -> 
     };
     let action = payload.as_ref().and_then(|p| p["action"].as_str().map(str::to_string));
     let pull = matches!(a.event.as_str(), "pull_request" | "pull_request_target");
-    let git_ref = if pull { format!("refs/heads/{}", f.default_branch) } else { f.git_ref.clone() };
+    // A pull request is filtered on its base branch, as GitHub does (#230).
+    let git_ref = if pull { format!("refs/heads/{}", base_branch(payload.as_ref(), f)) } else { f.git_ref.clone() };
     let paths = a.changed_since.as_deref().map(|s| changed(a, s)).transpose()?;
     let workflow = payload.as_ref().and_then(|p| p["workflow"]["name"].as_str().map(str::to_string));
     let trigger = pod_actions_workflow::Trigger {
@@ -322,4 +334,14 @@ pub(super) fn takes(a: &Args, f: &Facts, w: &pod_actions_workflow::Workflow) -> 
         workflow: workflow.as_deref(),
     };
     w.takes(&trigger).map_err(|e| e.to_string())
+}
+
+/// The base branch of a pull request: `pull_request.base.ref` of the
+/// payload, else the default branch of the tree (#230).
+fn base_branch(payload: Option<&serde_json::Value>, f: &Facts) -> String {
+    payload
+        .and_then(|p| p["pull_request"]["base"]["ref"].as_str())
+        .map(|r| r.trim_start_matches("refs/heads/").to_string())
+        .filter(|r| !r.is_empty())
+        .unwrap_or_else(|| f.default_branch.clone())
 }

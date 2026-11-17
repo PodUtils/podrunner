@@ -7829,3 +7829,322 @@ Run the test 50 times under load (`cargo test -p podrunner-fake each_unit_plant 
 ## Prove
 
 `cargo test -p podrunner-fake each_unit_plant_fails_its_test` passes 50 times of 50 under the load of the suite.
+
+# T-383: A container mount can name the runner root or a file of it
+
+**Source:** GitHub #227 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The hook policy took a mount source of `<runner>/.` (or a file of the runner root, as `.credentials_rsaparams`): the private key of the runner went into a container.
+
+## Premise
+
+The report of #227, with the lines of the code and a measure.
+
+## Approach
+
+A mount source is under `_work` or `externals` of the runner, and a `.` part of a path is refused (`policy::MOUNT_DIRS`, `clean_abs`).
+
+## Prove
+
+`cargo test -p podrunner-hook the_runner_root_is_no_mount_source`
+
+## Done
+
+2026-11-17: the hook policy takes a mount source under `_work` or `externals` of the runner only, and refuses a `.` part of a path. Proven in CI on GitHub-hosted runners by `tests::the_runner_root_is_no_mount_source` (once the gate runs).
+
+# T-384: A secret that starts a longer secret leaves the rest of the longer one in a log
+
+**Source:** GitHub #228 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The mask replaced the secrets in their order: with `abc` before `abcdef`, a log kept `***def`.
+
+## Premise
+
+The report of #228, with the lines of the code and a measure.
+
+## Approach
+
+Mask the longest secret first (`logs::mask`), for the live lines, `--log-dir` and the web view.
+
+## Prove
+
+`cargo test -p podrunner the_longest_secret_is_masked_first`
+
+## Done
+
+2026-11-17: `logs::mask` masks the longest secret first. Proven in CI on GitHub-hosted runners by `logs::mask_tests::the_longest_secret_is_masked_first` (once the gate runs).
+
+# T-385: `--github-token-env ""` fails, though the documents say it sends no token
+
+**Source:** GitHub #229 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+An empty NAME read the variable of the empty name and failed the run.
+
+## Premise
+
+The report of #229, with the lines of the code and a measure.
+
+## Approach
+
+An empty NAME sends no token (`secrets::secrets`).
+
+## Prove
+
+`cargo test -p podrunner an_empty_token_variable_sends_no_token`
+
+## Done
+
+2026-11-17: an empty NAME of `--github-token-env` sends no token. Proven in CI on GitHub-hosted runners by `qa6_tests::an_empty_token_variable_sends_no_token` (once the gate runs).
+
+# T-386: A `pull_request` filter of branches reads the default branch, not the base branch
+
+**Source:** GitHub #230 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The filter of `on.pull_request.branches` took the default branch of the tree; GitHub takes the base branch of the pull request.
+
+## Premise
+
+The report of #230, with the lines of the code and a measure.
+
+## Approach
+
+Take `pull_request.base.ref` of the payload, else the default branch, for the filter and for `github.base_ref` (`context::base_branch`).
+
+## Prove
+
+`cargo test -p podrunner a_pull_request_is_filtered_on_its_base_branch`
+
+## Done
+
+2026-11-17: a pull request is filtered on `pull_request.base.ref` of its payload, and `github.base_ref` is that branch (`context::base_branch`). Proven in CI on GitHub-hosted runners by `qa6_tests::a_pull_request_is_filtered_on_its_base_branch` (once the gate runs).
+
+# T-387: A `workflow_dispatch` with no inputs takes each `--input`
+
+**Source:** GitHub #231 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+With no `inputs:` table, each `--input` went to the job; the documents say an input that `on:` does not declare fails the run.
+
+## Premise
+
+The report of #231, with the lines of the code and a measure.
+
+## Approach
+
+A `workflow_dispatch` with no `inputs:` declares none: each `--input` is refused by name (`context::dispatch_inputs`).
+
+## Prove
+
+`cargo test -p podrunner the_inputs_of_workflow_dispatch_take_their_defaults_and_types`
+
+## Done
+
+2026-11-17: `on: workflow_dispatch` with no `inputs:` refuses each `--input` with `on.workflow_dispatch declares no inputs`. Proven in CI on GitHub-hosted runners by `tests::the_inputs_of_workflow_dispatch_take_their_defaults_and_types` (once the gate runs).
+
+# T-388: `check` passes a `mem` of `[unit.podvm]` or `[unit.microvm]` that `serve` refuses
+
+**Source:** GitHub #232 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`serve::plan` did not read the limits of the podvm kind, and `microvm_kind::plan` did not either: `check` called a file usable that `serve` then refused.
+
+## Premise
+
+The report of #232, with the lines of the code and a measure.
+
+## Approach
+
+`podvm_kind::plan` and `microvm_kind::plan` read the limits as the build does (`limits_of`).
+
+## Prove
+
+`cargo test -p podrunner --test check`
+
+## Done
+
+2026-11-17: `check` reads `mem`, `cpus` and `pids` of `[unit.podvm]` and `[unit.microvm]` as `serve` does (`podvm_kind::plan`, `microvm_kind::plan`). Proven in CI on GitHub-hosted runners by `tests/check.rs` (once the gate runs).
+
+# T-389: The control socket takes a field that an op does not take
+
+**Source:** GitHub #233 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A request was the flattened body of an envelope, so `deny_unknown_fields` did not hold: `status` with `job_id` or a bogus field was a status.
+
+## Premise
+
+The report of #233, with the lines of the code and a measure.
+
+## Approach
+
+Drop `v` and hold the fields of each op by hand, then read the request itself (`control::parse`).
+
+## Prove
+
+`cargo test -p podrunner bad_lines_are_bad_requests`
+
+## Done
+
+2026-11-17: each field that an op of the control socket does not take gives `bad-request` (`control::parse`); the source wire already refused them (a test guards it). Proven in CI on GitHub-hosted runners by `control::tests::bad_lines_are_bad_requests` and `wire::field_tests` (once the gate runs).
+
+# T-390: An error of a source whose text starts with "the " ends its sidecar
+
+**Source:** GitHub #234 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The sidecar was ended when an `Unavailable` error began with `the `, the words of a broken wire; a source that says `the API is down` lost its process.
+
+## Premise
+
+The report of #234, with the lines of the code and a measure.
+
+## Approach
+
+The pipe marks a failure of the wire itself; only that ends the sidecar (`sidecar::Pipe::broken`).
+
+## Prove
+
+`cargo test -p podrunner-mint an_error_of_the_source_keeps_its_sidecar`
+
+## Done
+
+2026-11-17: only a failure of the wire (a write, a read, a deadline, an end) ends the sidecar; an error that the source sends goes to the caller (`Pipe::broken`). Proven in CI on GitHub-hosted runners by `sidecar::tests::an_error_of_the_source_keeps_its_sidecar` (once the gate runs).
+
+# T-391: A stale first payload of an architecture hides a fresh one after it
+
+**Source:** GitHub #235 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Placement took the first payload of the architecture; when it was stale, each job was refused, though a fresh payload came after it.
+
+## Premise
+
+The report of #235, with the lines of the code and a measure.
+
+## Approach
+
+Take the first payload of the architecture that is not stale (`placement::pick_payload`).
+
+## Prove
+
+`cargo test -p podrunner-slots a_stale_image_and_a_digest_off_the_pin_list_are_refused`
+
+## Done
+
+2026-11-17: placement takes the first payload of the architecture that is not stale, and refuses `image-stale` only when each is stale. Proven in CI on GitHub-hosted runners by `tests::guards::a_stale_image_and_a_digest_off_the_pin_list_are_refused` (once the gate runs).
+
+# T-392: The affinity of a shared principal compares a repository with case
+
+**Source:** GitHub #236 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+With `same_principal_ok`, `Owner/Repo` and `owner/repo` were two repositories.
+
+## Premise
+
+The report of #236, with the lines of the code and a measure.
+
+## Approach
+
+Compare with no case, as GitHub does (`placement`).
+
+## Prove
+
+`cargo test -p podrunner-slots a_shared_principal_runs_one_unit_at_a_time`
+
+## Done
+
+2026-11-17: the affinity compares the repositories with no case. Proven in CI on GitHub-hosted runners by `tests::guards::a_shared_principal_runs_one_unit_at_a_time` (once the gate runs).
+
+# T-393: A dry run ends the processes and removes the files of a dead run
+
+**Source:** GitHub #237 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`stale::end_dead_runs` ran before the dry run was known, and killed tagged processes.
+
+## Premise
+
+The report of #237, with the lines of the code and a measure.
+
+## Approach
+
+A dry run does not end or remove anything (`stale::end_dead_runs(dry)`).
+
+## Prove
+
+`cargo test -p podrunner a_dry_run_leaves_a_dead_run`
+
+## Done
+
+2026-11-17: a dry run leaves the processes and the files of a dead run. Proven in CI on GitHub-hosted runners by `stale::tests::a_dry_run_leaves_a_dead_run` (once the gate runs).

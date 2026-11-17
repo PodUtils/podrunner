@@ -276,3 +276,41 @@ fn a_checkout_with_the_text_of_the_directory_stays() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// #229: `--github-token-env ""` sends no token.
+#[test]
+fn an_empty_token_variable_sends_no_token() {
+    let a = parse(&args(&["w.yml", "--runner-dir", "/r", "--github-token-env", ""])).unwrap();
+    let (_, token) = super::secrets::secrets(&a).unwrap();
+    assert_eq!(token, None);
+}
+
+/// #230: a pull request is filtered on the base branch of its payload.
+#[test]
+fn a_pull_request_is_filtered_on_its_base_branch() {
+    let dir = scratch("prbase");
+    std::fs::write(
+        dir.join("w.yml"),
+        "on:\n  pull_request:\n    branches: ['release/*']\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps: [{run: a}]\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("p.json"),
+        r#"{"action":"opened","pull_request":{"base":{"ref":"release/1"},"head":{"ref":"f"}}}"#,
+    )
+    .unwrap();
+    let (w, p) = (dir.join("w.yml").display().to_string(), dir.join("p.json").display().to_string());
+    let r = runner_dir("prbase");
+    let out =
+        run(&args(&[&w, "--runner-dir", &r, "--dry-run", "--no-cache", "--event", "pull_request", "--event-path", &p]));
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    std::fs::write(
+        dir.join("p.json"),
+        r#"{"action":"opened","pull_request":{"base":{"ref":"main"},"head":{"ref":"f"}}}"#,
+    )
+    .unwrap();
+    let out =
+        run(&args(&[&w, "--runner-dir", &r, "--dry-run", "--no-cache", "--event", "pull_request", "--event-path", &p]));
+    assert_eq!(out.code, 78, "{}{}", out.stdout, out.stderr);
+    let _ = std::fs::remove_dir_all(&dir);
+}

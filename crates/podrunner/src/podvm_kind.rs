@@ -13,6 +13,23 @@ use podrunner_unit::UnitDriver;
 use crate::serve::{Failure, fail};
 
 /// The driver and the record of `[unit.podvm]`.
+/// The checks of `[unit.podvm]` before a build: the binary, the store and
+/// the limits, as the build reads them (`check` gives the same text, #232).
+pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
+    let binary = u.binary.clone().ok_or_else(|| fail(Class::Config, "[unit.podvm] needs binary"))?;
+    podrunner_slots::config::check_driver(Path::new(&binary))
+        .map_err(|e| fail(Class::Config, format!("[unit.podvm] binary: {e}")))?;
+    if !Path::new(&binary).is_file() {
+        return Err(fail(Class::Config, "[unit.podvm] binary: not a file"));
+    }
+    let images = u.images.clone().ok_or_else(|| fail(Class::Config, "[unit.podvm] needs images"))?;
+    if !Path::new(&images).is_dir() {
+        return Err(fail(Class::Config, "[unit.podvm] images: not a directory"));
+    }
+    podrunner_slots::limits::limits_of(u).map_err(|e| fail(Class::Config, format!("[unit.podvm] {e}")))?;
+    Ok(())
+}
+
 pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
     let need = |v: &Option<String>, key: &str| {
         v.clone().ok_or_else(|| fail(Class::Config, format!("[unit.podvm] needs {key}")))

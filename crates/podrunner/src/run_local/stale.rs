@@ -65,7 +65,11 @@ fn units_of(dir: &Path, depth: u32, out: &mut Vec<(PathBuf, String)>) {
 }
 
 /// End the units of each dead run and remove its directories.
-pub(super) fn end_dead_runs() {
+/// With `dry`, a dry run, nothing ends and nothing goes (#237).
+pub(super) fn end_dead_runs(dry: bool) {
+    if dry {
+        return;
+    }
     // SAFETY: getuid has no failure.
     let uid = unsafe { libc::getuid() };
     for dir in dead_runs(&std::env::temp_dir(), uid, std::process::id()) {
@@ -92,6 +96,16 @@ pub(super) fn end_dead_runs() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #237: a dry run leaves the directories of a dead run.
+    #[test]
+    fn a_dry_run_leaves_a_dead_run() {
+        let dead = std::env::temp_dir().join("podrunner-run-units-4194307");
+        std::fs::create_dir_all(dead.join("default/units/u-1")).unwrap();
+        end_dead_runs(true);
+        assert!(dead.is_dir(), "a dry run removed the files of a dead run");
+        let _ = std::fs::remove_dir_all(&dead);
+    }
 
     /// A directory of a dead run is found; one of a live podrunner, of
     /// this process or of another name is not.

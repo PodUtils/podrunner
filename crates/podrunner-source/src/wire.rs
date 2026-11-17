@@ -182,3 +182,13 @@ pub fn request_line(r: &Request) -> String {
 pub fn reply_line(r: &Reply) -> String {
     write(r)
 }
+
+#[cfg(test)]
+mod field_tests {
+    /// #233: a field that a request or a reply does not take is refused.
+    #[test]
+    fn an_unknown_field_is_refused() {
+        assert!(super::parse_request(br#"{"schema":1,"op":"next","capacity":1,"wait_s":1}"#).is_ok());
+        assert!(super::parse_request(br#"{"schema":1,"op":"next","capacity":1,"wait_s":1,"bogus":1}"#).is_err());
+    }
+}

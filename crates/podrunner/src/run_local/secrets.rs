@@ -44,6 +44,8 @@ pub(super) fn secrets(a: &Args) -> Result<Secrets, String> {
         add(vec![from_env(name)?]);
     }
     let token = match &a.token_env {
+        // An empty NAME sends no token, as the documents say (#229).
+        Some(name) if name.is_empty() => None,
         Some(name) => {
             Some(std::env::var(name).map_err(|_| format!("--github-token-env {name}: the environment has no {name}"))?)
         }

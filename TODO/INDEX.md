@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**379 entries: 33 open, 28 partial, 10 blocked, 308 done.**
+**390 entries: 33 open, 28 partial, 10 blocked, 319 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 2 | 11 | 1 | 58 | 72 |
-| P2 | 3 | 12 | 7 | 159 | 181 |
-| P3 | 28 | 5 | 2 | 91 | 126 |
-| **All** | 33 | 28 | 10 | 308 | 379 |
+| P1 | 2 | 11 | 1 | 60 | 74 |
+| P2 | 3 | 12 | 7 | 164 | 186 |
+| P3 | 28 | 5 | 2 | 95 | 130 |
+| **All** | 33 | 28 | 10 | 319 | 390 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -427,3 +427,14 @@ acceptance, later The crate dependencies later than v1.
 | [T-380](later.md) | P2 | S | later | defect | done | The image of an excluded cell of a matrix is pulled |
 | [T-381](later.md) | P2 | S | later | defect | done | `run DIR --checkout DIR` replaces the value of `--checkout` with a workflow file |
 | [T-382](later.md) | P3 | S | later | defect | open | The test of the plants of the fake unit is not stable under load |
+| [T-383](later.md) | P1 | S | later | defect | done | A container mount can name the runner root or a file of it |
+| [T-384](later.md) | P1 | S | later | defect | done | A secret that starts a longer secret leaves the rest of the longer one in a log |
+| [T-385](later.md) | P3 | S | later | defect | done | `--github-token-env ""` fails, though the documents say it sends no token |
+| [T-386](later.md) | P2 | S | later | defect | done | A `pull_request` filter of branches reads the default branch, not the base branch |
+| [T-387](later.md) | P3 | S | later | defect | done | A `workflow_dispatch` with no inputs takes each `--input` |
+| [T-388](later.md) | P2 | S | later | defect | done | `check` passes a `mem` of `[unit.podvm]` or `[unit.microvm]` that `serve` refuses |
+| [T-389](later.md) | P3 | S | later | defect | done | The control socket takes a field that an op does not take |
+| [T-390](later.md) | P2 | S | later | defect | done | An error of a source whose text starts with "the " ends its sidecar |
+| [T-391](later.md) | P2 | S | later | defect | done | A stale first payload of an architecture hides a fresh one after it |
+| [T-392](later.md) | P3 | S | later | defect | done | The affinity of a shared principal compares a repository with case |
+| [T-393](later.md) | P2 | S | later | defect | done | A dry run ends the processes and removes the files of a dead run |

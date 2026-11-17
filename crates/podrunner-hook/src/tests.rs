@@ -283,3 +283,26 @@ fn the_mount_tables_and_the_order_of_the_design() {
         Err(RefusalCode::ContainerOptionRefused)
     );
 }
+
+/// #227: a mount source is under the work directory or the externals of the
+/// runner: never the runner root or one of its files.
+#[test]
+fn the_runner_root_is_no_mount_source() {
+    let mut p = policy();
+    p.work_root = "/home/runner".into();
+    for src in [
+        "/home/runner/.",
+        "/home/runner",
+        "/home/runner/.credentials_rsaparams",
+        "/home/runner/./_work",
+        "/home/runner/bin",
+    ] {
+        let mut c = container();
+        c["systemMountVolumes"] = json!([mount(src, "/__w")]);
+        assert_eq!(
+            code(check(&mut Gate::default(), &p, Command::PrepareJob, &prepare(c))),
+            RefusalCode::ContainerOptionRefused,
+            "{src}"
+        );
+    }
+}

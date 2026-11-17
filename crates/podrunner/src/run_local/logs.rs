@@ -32,8 +32,12 @@ const TOKEN_HINT: &str = "podrunner: a job gave the made-up github.token to a re
 
 /// `text` with each secret value as `***`.
 pub(super) fn mask(text: &str, secrets: &[String]) -> String {
+    // The longest first: a secret that starts another must not leave the
+    // rest of the longer one (#228).
+    let mut sorted: Vec<&String> = secrets.iter().filter(|s| !s.is_empty()).collect();
+    sorted.sort_by_key(|s| std::cmp::Reverse(s.len()));
     let mut out = text.to_string();
-    for s in secrets.iter().filter(|s| !s.is_empty()) {
+    for s in sorted {
         out = out.replace(s.as_str(), "***");
     }
     out
@@ -234,6 +238,16 @@ pub(super) fn failed_end<J: std::fmt::Display>(
         },
     }
     out
+}
+
+#[cfg(test)]
+mod mask_tests {
+    /// #228: a secret that starts a longer one leaves no part of it.
+    #[test]
+    fn the_longest_secret_is_masked_first() {
+        let secrets = ["abc".to_string(), "abcdef".to_string()];
+        assert_eq!(super::mask("value abcdef end abc", &secrets), "value *** end ***");
+    }
 }
 
 #[cfg(test)]

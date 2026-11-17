@@ -184,6 +184,14 @@ fn a_stale_image_and_a_digest_off_the_pin_list_are_refused() {
     assert_eq!(place(&with_payload, Tier::Trusted, &k, &from_offer, NOW_UNIX), Err(RefusalCode::PayloadNotPinned));
     let pinned = job(json!({ "payload": format!("sha256:{}", "1".repeat(64)) }));
     assert!(!place(&pinned, Tier::Trusted, &k, &from_offer, NOW_UNIX).unwrap().payload_ignored);
+    // #235: a fresh payload after a stale one of the same architecture.
+    let mut rotated = config("");
+    let mut fresh = rotated.pin.payload[0].clone();
+    fresh.built_at_s = NOW_UNIX + month - 60;
+    fresh.reference = format!("runner@sha256:{}", "3".repeat(64));
+    rotated.pin.payload.push(fresh.clone());
+    let p = place(&job(json!({})), Tier::Trusted, &k, &rotated, NOW_UNIX + month).unwrap();
+    assert_eq!(p.payload, fresh.reference);
 }
 
 #[test]
@@ -208,7 +216,14 @@ fn a_shared_principal_runs_one_unit_at_a_time() {
     let ok = config("same_principal_ok = true");
     assert!(place(&job(json!({})), Tier::Trusted, std::slice::from_ref(&busy), &ok, NOW_UNIX).is_ok());
     let other_repo = job(json!({ "trust_inputs": { "repo": "other" } }));
-    assert_eq!(place(&other_repo, Tier::Trusted, &[busy], &ok, NOW_UNIX), Err(RefusalCode::NoSlotOfKind));
+    assert_eq!(
+        place(&other_repo, Tier::Trusted, std::slice::from_ref(&busy), &ok, NOW_UNIX),
+        Err(RefusalCode::NoSlotOfKind)
+    );
+    // #236: the same repository in another case is the same repository.
+    let mut upper = busy;
+    upper.repos = vec!["Example-Org/App".into()];
+    assert!(place(&job(json!({})), Tier::Trusted, &[upper], &ok, NOW_UNIX).is_ok());
 }
 
 #[test]

@@ -38,6 +38,8 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     if !Path::new(&images).is_dir() {
         return Err(fail(Class::Config, "[unit.microvm] images: not a directory"));
     }
+    // `mem` and the other limits, as the build reads them (#232).
+    podrunner_slots::limits::limits_of(u).map_err(|e| fail(Class::Config, format!("[unit.microvm] {e}")))?;
     if let Some(e) = &u.engine
         && !Path::new(e).join("dockerd").is_file()
     {

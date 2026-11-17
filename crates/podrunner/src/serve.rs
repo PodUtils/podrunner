@@ -176,18 +176,7 @@ pub fn plan(cfg: &Config) -> Result<(), Failure> {
     for (name, u) in &cfg.unit {
         match name.as_str() {
             "fake" => {}
-            "podvm" => {
-                let binary = u.binary.clone().ok_or_else(|| fail(Class::Config, "[unit.podvm] needs binary"))?;
-                podrunner_slots::config::check_driver(Path::new(&binary))
-                    .map_err(|e| fail(Class::Config, format!("[unit.podvm] binary: {e}")))?;
-                if !Path::new(&binary).is_file() {
-                    return Err(fail(Class::Config, "[unit.podvm] binary: not a file"));
-                }
-                let images = u.images.clone().ok_or_else(|| fail(Class::Config, "[unit.podvm] needs images"))?;
-                if !Path::new(&images).is_dir() {
-                    return Err(fail(Class::Config, "[unit.podvm] images: not a directory"));
-                }
-            }
+            "podvm" => crate::podvm_kind::plan(u)?,
             "microvm" => crate::microvm_kind::plan(u)?,
             "incus" => crate::incus_kind::plan(u)?,
             other => {

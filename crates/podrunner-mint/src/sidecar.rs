@@ -37,10 +37,21 @@ struct Pipe {
     writer: ChildStdin,
     /// The deadline of the next exchange.
     limit: Duration,
+    /// The wire itself failed: a write, a read, a deadline or an end. A
+    /// reply of the source, also an error, is no failure of the wire (#234).
+    broken: bool,
 }
 
 impl Exchange for Pipe {
     fn exchange(&mut self, line: &str) -> Result<Vec<u8>, SourceError> {
+        let r = self.exchange_once(line);
+        self.broken |= r.is_err();
+        r
+    }
+}
+
+impl Pipe {
+    fn exchange_once(&mut self, line: &str) -> Result<Vec<u8>, SourceError> {
         let down = |e: std::io::Error| SourceError::new(SourceCode::Unavailable, format!("the wire: {}", e.kind()));
         self.writer.write_all(line.as_bytes()).map_err(down)?;
         self.writer.flush().map_err(down)?;
@@ -242,7 +253,7 @@ impl SidecarSource {
             });
         }
         let (stdin, stdout) = (child.stdin.take().expect("stdin"), child.stdout.take().expect("stdout"));
-        let pipe = Pipe { reader: BufReader::new(stdout), writer: stdin, limit: REPLY_LIMIT };
+        let pipe = Pipe { reader: BufReader::new(stdout), writer: stdin, limit: REPLY_LIMIT, broken: false };
         self.running = Some(Running { child, wire: Wire(pipe) });
         self.starts += 1;
         Ok(())
@@ -267,14 +278,17 @@ impl SidecarSource {
         }
         let running = self.running.as_mut().expect("running");
         running.wire.0.limit = self.limit + wait;
+        running.wire.0.broken = false;
         let got = f(&mut running.wire);
+        let broken = running.wire.0.broken;
         match &got {
             Err(e) if e.code == SourceCode::SourceRevoked => {
                 self.revoked = true;
                 self.running = None;
             }
-            // The wire broke: the sidecar ended. Start it again later.
-            Err(e) if e.code == SourceCode::Unavailable && e.detail.starts_with("the ") => {
+            // The wire broke: the sidecar ended. Start it again later. An
+            // error that the source sent goes to the caller as it is.
+            Err(_) if broken => {
                 self.running = None;
                 self.not_before = Some(Instant::now() + self.backoff);
                 self.backoff = (self.backoff * 2).min(BACKOFF_MAX);
@@ -348,6 +362,20 @@ mod tests {
         let hello = r#"{"schema":1,"reply":"hello","source":"s","operator_controlled":true}"#;
         let body = format!("read l; echo '{hello}'; read l; {then}");
         SidecarSource::new("sh", vec!["-c".into(), body], signer(), "test")
+    }
+
+    /// #234: an error that the source sends keeps its sidecar, also when its
+    /// text starts with "the ".
+    #[test]
+    fn an_error_of_the_source_keeps_its_sidecar() {
+        let err = r#"{"schema":1,"reply":"error","code":"unavailable","detail":"the API is down"}"#;
+        let mut s = script(&format!("echo '{err}'; read l; echo '{err}'; sleep 5"));
+        s.hello("p", "0").unwrap();
+        let e = s.next(1, Duration::ZERO).unwrap_err();
+        assert_eq!(e.detail, "the API is down");
+        let e = s.next(1, Duration::ZERO).unwrap_err();
+        assert_eq!(e.detail, "the API is down", "the sidecar stays: its next answer comes");
+        assert_eq!(s.starts, 1);
     }
 
     #[test]

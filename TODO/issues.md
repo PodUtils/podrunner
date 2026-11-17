@@ -226,6 +226,17 @@ numbers. `TODO/RULES.md` gives the rules.
 | #224 | `timeout-minutes` is held to 6 days | closed (fixed on `main`; the entry is done) | T-379 |
 | #225 | The image of an excluded cell of a matrix is pulled | closed (fixed on `main`; the entry is done) | T-380 |
 | #226 | `run DIR --checkout DIR` replaces the value of `--checkout` with a workflow file | closed (fixed on `main`; the entry is done) | T-381 |
+| #227 | A container mount can name the runner root or a file of it | closed (fixed on `main`; the entry is done) | T-383 |
+| #228 | A secret that starts a longer secret leaves the rest of the longer one in a log | closed (fixed on `main`; the entry is done) | T-384 |
+| #229 | `--github-token-env ""` fails, though the documents say it sends no token | closed (fixed on `main`; the entry is done) | T-385 |
+| #230 | A `pull_request` filter of branches reads the default branch, not the base branch | closed (fixed on `main`; the entry is done) | T-386 |
+| #231 | A `workflow_dispatch` with no inputs takes each `--input` | closed (fixed on `main`; the entry is done) | T-387 |
+| #232 | `check` passes a `mem` of `[unit.podvm]` or `[unit.microvm]` that `serve` refuses | closed (fixed on `main`; the entry is done) | T-388 |
+| #233 | The control socket takes a field that an op does not take | closed (fixed on `main`; the entry is done) | T-389 |
+| #234 | An error of a source whose text starts with "the " ends its sidecar | closed (fixed on `main`; the entry is done) | T-390 |
+| #235 | A stale first payload of an architecture hides a fresh one after it | closed (fixed on `main`; the entry is done) | T-391 |
+| #236 | The affinity of a shared principal compares a repository with case | closed (fixed on `main`; the entry is done) | T-392 |
+| #237 | A dry run ends the processes and removes the files of a dead run | closed (fixed on `main`; the entry is done) | T-393 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |
