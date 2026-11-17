@@ -78,15 +78,27 @@ fn a_payload_past_the_pids_limit_gets_an_error() {
     assert!(matches!(exit, Some(Exit::Code(c)) if c != 0 && c != 12), "1000 forks must fail under pids 256: {exit:?}");
 }
 
-/// The quota of the cgroup of the payload: exit 0 when `cpu.max` is the
-/// quota of one CPU; 13 when it can not be read.
-const CPU_MAX: &str = "p=$(sed -n 's/^0:://p' /proc/self/cgroup); cat /proc/self/cgroup; \
-    q=$(cat /sys/fs/cgroup$p/cpu.max 2>/dev/null) || exit 13; echo \"cpu.max $q\"; \
-    case $q in '100000 100000') exit 0 ;; *) exit 14 ;; esac";
+/// The `cpu.max` of each cgroup of a podvm run beside `own` (the cgroup of
+/// this test), read on the host: a unit has no cgroup file system in its
+/// root, so its payload cannot read its own quota (runner-image
+/// 44153617910: exit 13).
+fn cpu_max_beside(own: &Path) -> Vec<(PathBuf, String)> {
+    let Some(parent) = own.parent() else { return Vec::new() };
+    std::fs::read_dir(parent)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().starts_with("podvm-"))
+        .filter_map(|e| {
+            std::fs::read_to_string(e.path().join("cpu.max")).ok().map(|q| (e.path(), q.trim().to_string()))
+        })
+        .collect()
+}
 
 /// T-221: where the host delegates a cgroup v2 subtree with the `cpu`
-/// controller to the user, a unit holds `cpus` of its limits. Run it in such
-/// a subtree (`systemd-run --uid=USER -p Delegate=yes`).
+/// controller to the user, a unit holds `cpus` of its limits: the cgroup of
+/// its podvm run has the quota of one CPU. Run it in such a subtree
+/// (`systemd-run --uid=USER -p Delegate=yes`).
 #[test]
 #[ignore]
 fn a_cpu_limit_holds_in_a_delegated_cgroup() {
@@ -95,6 +107,44 @@ fn a_cpu_limit_holds_in_a_delegated_cgroup() {
         println!("skip: PODRUNNER_CPU_DELEGATED is not set");
         return;
     }
-    let held = Limits { cpus: Some(1), ..Limits::default() };
-    assert_eq!(run(5, CPU_MAX, held), Some(Exit::Code(0)), "cpu.max of the unit must be one CPU");
+    let cg = std::fs::read_to_string("/proc/self/cgroup").unwrap();
+    let own = PathBuf::from(format!("/sys/fs/cgroup{}", cg.trim().trim_start_matches("0::")));
+    let state = std::env::temp_dir().join(format!("podrunner-limits-{}-5", std::process::id()));
+    let _ = std::fs::remove_dir_all(&state);
+    let unit = PodvmUnit::new(
+        Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
+        &state,
+        Path::new(&env("PODRUNNER_PODVM_IMAGES")),
+    )
+    .unwrap();
+    let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
+    let image = unit.prepare(&env("PODRUNNER_PODVM_IMAGE"), platform, false).unwrap();
+    let id = UnitId::parse("u-5").unwrap();
+    let spec = StartSpec {
+        unit: id.clone(),
+        image,
+        argv: ["sh", "-c", "sleep 30"].map(String::from).to_vec(),
+        env: Default::default(),
+        credential: Default::default(),
+        sockets: None,
+        mounts: Vec::new(),
+        limits: Limits { cpus: Some(1), ..Limits::default() },
+    };
+    let before = cpu_max_beside(&own);
+    unit.start(&spec).unwrap();
+    let end = std::time::Instant::now() + Duration::from_secs(20);
+    let mut seen = Vec::new();
+    while std::time::Instant::now() < end {
+        seen = cpu_max_beside(&own).into_iter().filter(|c| !before.contains(c)).collect();
+        if !seen.is_empty() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    let residue = unit.destroy(&id).unwrap();
+    let _ = std::fs::remove_dir_all(&state);
+    println!("own cgroup {}; the cgroups of the run: {seen:?}", own.display());
+    assert!(residue.is_clean(), "{residue:?}");
+    assert!(!seen.is_empty(), "no cgroup podvm-* of the run beside {}", own.display());
+    assert!(seen.iter().any(|(_, q)| q == "100000 100000"), "cpu.max of the run must be one CPU: {seen:?}");
 }

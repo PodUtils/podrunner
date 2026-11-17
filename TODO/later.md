@@ -3272,6 +3272,7 @@ State (2026-11-17, the measure): runner-image 44075936648: in a service of syste
 State (2026-11-17): the measure of runner-image 44085737348 (`8a4ad2f`) did not reach its test: the shell of the delegated unit ended at `echo: I/O error` before the test (a write to the cgroup files). The step now writes each controller alone, and prints the cgroup, its controllers and the modes, so the next run names the cause.
 
 State (2026-11-17): the cause, from runner-image 44100036389: the delegated cgroup has each controller (`cpuset cpu io memory hugetlb pids ...`), but systemd-run read `$$` of the command as one `$`, so the shell wrote `$` into `cgroup.procs` (EIO). The step writes `0` now, which moves the shell itself.
+State (2026-11-17): runner-image 44153617910 reached the test: podvm made the cgroup of the run in the delegated directory (`run-u29.service/podvm-...`), but the payload could not read its `cpu.max` (exit 13): a unit has no cgroup file system in its root. The test now reads `cpu.max` of the new `podvm-*` cgroup beside its own, on the host, while the unit sleeps. Next: that measure.
 
 # T-223: `doctor --run` says ok for a store that does not hold `--image`
 
