@@ -3271,6 +3271,8 @@ State (2026-11-17, the measure): runner-image 44075936648: in a service of syste
 
 State (2026-11-17): the measure of runner-image 44085737348 (`8a4ad2f`) did not reach its test: the shell of the delegated unit ended at `echo: I/O error` before the test (a write to the cgroup files). The step now writes each controller alone, and prints the cgroup, its controllers and the modes, so the next run names the cause.
 
+State (2026-11-17): the cause, from runner-image 44100036389: the delegated cgroup has each controller (`cpuset cpu io memory hugetlb pids ...`), but systemd-run read `$$` of the command as one `$`, so the shell wrote `$` into `cgroup.procs` (EIO). The step writes `0` now, which moves the shell itself.
+
 # T-223: `doctor --run` says ok for a store that does not hold `--image`
 
 **Source:** GitHub #172 (a user agent of the local mode, #153, 2026-11-15)
@@ -8148,3 +8150,32 @@ A dry run does not end or remove anything (`stale::end_dead_runs(dry)`).
 ## Done
 
 2026-11-17: a dry run leaves the processes and the files of a dead run. Proven in CI on GitHub-hosted runners by `stale::tests::a_dry_run_leaves_a_dead_run` (once the gate runs).
+
+# T-394: The parity suite pulls from Docker Hub with no login and meets its limit
+
+**Source:** runner-image 44100036389 (2026-11-17): `09-dockerfile.yml` failed with `toomanyrequests` in the engine of a guest
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The Dockerfile action of the parity suite starts `FROM busybox@sha256:...` of Docker Hub. A shared hosted runner meets the limit of an unnamed pull, and the check of `runner-image.yml` fails for a cause outside podrunner.
+
+## Premise
+
+The log of the job `build (x86_64)` of runner-image 44100036389.
+
+## Approach
+
+Take the same digest from `mirror.gcr.io` (it serves the manifest and the blobs on its own host), and allow that host to the guests of the step.
+
+## Prove
+
+The step "The parity suite in guests with an engine" of `runner-image.yml`.
+
+## Done
+
+2026-11-17: the Dockerfile starts `FROM mirror.gcr.io/library/busybox@sha256:a7dbc319...` (the same digest; checked: 200 for the index, the blobs on `mirror.gcr.io`), and the step allows `mirror.gcr.io`. Not run yet in CI.

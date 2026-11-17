@@ -289,13 +289,14 @@ jobs:
         run: |
           set -eu
           cargo test -p podrunner-podvm --test limits --no-run
+          # systemd-run reads $$ of a command as one $: "echo 0" moves the shell itself.
           sudo systemd-run --quiet --wait --pipe --collect --uid="$(id -u)" --gid="$(id -g)" -p Delegate=yes \
             --working-directory="$PWD" --setenv=PATH="$PATH" --setenv=HOME="$HOME" \
             --setenv=CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}" --setenv=RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}" \
             --setenv=PODRUNNER_PODVM="$PODRUNNER_PODVM" --setenv=PODRUNNER_PODVM_IMAGES="$PODRUNNER_PODVM_IMAGES" \
             --setenv=PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" --setenv=PODRUNNER_CPU_DELEGATED=1 \
             -- sh -c 'set -x; c=/sys/fs/cgroup$(sed -n "s/^0:://p" /proc/self/cgroup); cat /proc/self/cgroup "$c/cgroup.controllers"; ls -ld "$c" "$c/cgroup.procs" "$c/cgroup.subtree_control"
-              mkdir "$c/test" && echo $$ > "$c/test/cgroup.procs" || exit 1
+              mkdir "$c/test" && echo 0 > "$c/test/cgroup.procs" || exit 1
               for x in cpu memory pids; do echo "+$x" > "$c/cgroup.subtree_control" || echo "the controller $x is not delegated"; done
               exec timeout 300 cargo test -p podrunner-podvm --test limits cpu_limit -- --ignored --nocapture'
       # T-130: an image by tag is pulled into the store and pinned by the
@@ -516,6 +517,7 @@ jobs:
           hub="--allow registry-1.docker.io --allow auth.docker.io --allow production.cloudflare.docker.com"
           hub="$hub --allow docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com"
           hub="$hub --allow production.cloudfront.docker.com"
+          hub="$hub --allow mirror.gcr.io"
           # From the hosted runners of GitHub, the layers come from S3.
           hub="$hub --allow docker-images-prod.s3.dualstack.us-east-1.amazonaws.com"
           # A step with no shell: has no pipefail: tee would hide the exit of the test.

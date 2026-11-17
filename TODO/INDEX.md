@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**390 entries: 33 open, 28 partial, 10 blocked, 319 done.**
+**391 entries: 33 open, 28 partial, 10 blocked, 320 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 2 | 11 | 1 | 60 | 74 |
-| P2 | 3 | 12 | 7 | 164 | 186 |
+| P2 | 3 | 12 | 7 | 165 | 187 |
 | P3 | 28 | 5 | 2 | 95 | 130 |
-| **All** | 33 | 28 | 10 | 319 | 390 |
+| **All** | 33 | 28 | 10 | 320 | 391 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -438,3 +438,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-391](later.md) | P2 | S | later | defect | done | A stale first payload of an architecture hides a fresh one after it |
 | [T-392](later.md) | P3 | S | later | defect | done | The affinity of a shared principal compares a repository with case |
 | [T-393](later.md) | P2 | S | later | defect | done | A dry run ends the processes and removes the files of a dead run |
+| [T-394](later.md) | P2 | S | later | defect | done | The parity suite pulls from Docker Hub with no login and meets its limit |
