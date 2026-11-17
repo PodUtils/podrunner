@@ -1,7 +1,7 @@
 //! A pause in a job (T-150). `--break JOB:STEP` puts a step before the
 //! step STEP (its number from 1, or its `id`) of the job JOB; with
 //! `--break-on-failure`, a step after each step pauses after the first one
-//! that fails. The pause step asks the broker of its job
+//! that fails, once in a job. The pause step asks the broker of its job
 //! (`github.podrunner_broker`) each second until the user releases the job: podrunner
 //! names the paused job on stderr and goes on when the user presses Enter.
 //! The unit keeps running, with its egress hold, while it waits; the user
@@ -60,10 +60,16 @@ pub(super) fn check(b: &Breaks, w: &pod_actions_workflow::Workflow) -> Result<()
 }
 
 /// The pause step of the cell `cell`, run when `condition` holds.
-fn pause_step(cell: &str, n: usize, condition: &str, what: &str) -> Value {
+fn pause_step(cell: &str, n: usize, condition: &str, what: &str, once: bool) -> Value {
     let url = format!("${{{{ github.podrunner_broker }}}}{}{cell}", hold::PATH.trim_start_matches('/'));
+    // A pause after a failed step holds once in a job: the steps that run
+    // after a failure (`always()`) do not pause again (#223).
+    let first = match once {
+        true => "m=\"${RUNNER_TEMP:-/tmp}/podrunner-paused-after-a-failure\"\n[ -e \"$m\" ] && exit 0\n: > \"$m\"\n",
+        false => "",
+    };
     let script = format!(
-        "echo \"podrunner: a pause {what}; press Enter in podrunner to go on\"\n\
+        "{first}echo \"podrunner: a pause {what}; press Enter in podrunner to go on\"\n\
          until curl -fsS -o /dev/null \"{url}\" 2>/dev/null || wget -q -O /dev/null \"{url}\" 2>/dev/null; do sleep 1; done"
     );
     let script = podrunner_local::message::token(&script).unwrap_or(Value::String(String::new()));
@@ -88,12 +94,15 @@ pub(super) fn insert(b: &Breaks, cell: &str, message: &mut Job) {
         let here = b.at.iter().any(|(j, s)| j == job && (*s == (i + 1).to_string() || *s == id));
         if here {
             n += 1;
-            out.push(pause_step(cell, n, "success()", &format!("before step {} of {cell}", i + 1)));
+            // The pause runs when its step runs: the condition of the step
+            // (`always()` too), `success()` when it has none (#223).
+            let condition = step["condition"].as_str().filter(|c| !c.is_empty()).unwrap_or("success()").to_string();
+            out.push(pause_step(cell, n, &condition, &format!("before step {} of {cell}", i + 1), false));
         }
         out.push(step);
         if b.on_failure {
             n += 1;
-            out.push(pause_step(cell, n, "failure()", &format!("after a failed step of {cell}")));
+            out.push(pause_step(cell, n, "failure()", &format!("after a failed step of {cell}"), true));
         }
     }
     *steps = out;
@@ -223,5 +232,16 @@ mod tests {
         let script = m.overrides["steps"][1]["inputs"]["map"][0]["Value"].to_string();
         assert!(script.contains("github.podrunner_broker") && script.contains("_podrunner/hold/build.0"), "{script}");
         assert!(parse("build:2").is_ok() && parse("build").is_err() && parse(":2").is_err());
+        // #223: a pause after a failure holds once; a pause before a step
+        // has the condition of that step.
+        assert!(script.contains("podrunner-paused-after-a-failure"), "{script}");
+        let mut m = Job::scripts("build", &[]);
+        m.overrides.insert(
+            "steps".into(),
+            json!([{ "contextName": "a", "condition": "success()" }, { "contextName": "b", "condition": "always()" }]),
+        );
+        let b = Breaks { at: vec![("build".into(), "b".into())], on_failure: false };
+        insert(&b, "build.0", &mut m);
+        assert_eq!(steps(&m)[1], ("__podrunner_pause_1".to_string(), "always()".to_string()));
     }
 }

@@ -224,7 +224,9 @@ pub(crate) fn prepare(
     job: &JobId,
 ) -> Result<(Job, Duration), String> {
     let minutes = source.cell(job).map(|c| c.instance.timeout_minutes).unwrap_or(360.0);
-    let limit = Duration::from_secs_f64((minutes.max(0.0) * 60.0).min(360.0 * 60.0 * 24.0));
+    // A NaN of the file is no time: `from_secs_f64` refuses it.
+    let minutes = if minutes.is_nan() { 0.0 } else { minutes.clamp(0.0, MAX_MINUTES) };
+    let limit = Duration::from_secs_f64(minutes * 60.0);
     source.ack(job).map_err(|e| e.to_string())?;
     source.claim(job, RUNNER).map_err(|e| e.to_string())?;
     let labels = source.cell(job).and_then(|c| c.instance.runs_on.as_ref()).map(|r| r.labels.clone());
@@ -237,6 +239,10 @@ pub(crate) fn prepare(
         .and_then(|()| source.broker_job(job))
         .map(|m| (m, limit))
 }
+
+/// The longest job of a self-hosted runner on GitHub: 5 days (the limit of
+/// a job of a hosted runner is 6 hours; podrunner is self-hosted, #224).
+pub const MAX_MINUTES: f64 = 5.0 * 24.0 * 60.0;
 
 /// Record the end of a job that ran, or that failed before it ran.
 pub(crate) fn finish(

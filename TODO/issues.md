@@ -217,6 +217,15 @@ numbers. `TODO/RULES.md` gives the rules.
 | #215 | COORD-078: pod-broker: names_upstream still resolves the name itself, so a host whose DNS is only through its proxy refuses each CONNECT (to podcrates) | open (waits for podcrates) | T-351 |
 | #216 | COORD-079: a podvm unit has no /dev/pts: pty.spawn and script fail, and pager tests fail (to podvm) | open (podvm answered on PodUtils/podvm#470: pod-enter of podcrates, PodUtils/podvm#469; PodUtils/podvm@T-1934) | T-354 |
 | #217 | COORD-080: the answer to PodUtils/podnet#649 (COORD-102): #213, #142, and what podrunner's gate proves (to podnet) | closed (podnet read it, PodUtils/podnet#649) | T-372, T-371, T-245, T-179 |
+| #218 | `--runner-dir` writes the runner files, a private key with them, at mode 0644 | closed (fixed on `main`; the entry is done) | T-373 |
+| #219 | `--state` writes the outputs of the jobs into a file that each user can read | closed (fixed on `main`; the entry is done) | T-374 |
+| #220 | `--checkout` of a directory in a git tree gets a `.git` of the whole tree | closed (fixed on `main`; the entry is done) | T-375 |
+| #221 | Each job leaves the thread and the listener of its fake broker | closed (fixed on `main`; the entry is done) | T-376 |
+| #222 | Two concurrency groups can share one lock file | closed (fixed on `main`; the entry is done) | T-377 |
+| #223 | `--break-on-failure` pauses after each step after a failure; `--break` before an `always()` step is skipped | closed (fixed on `main`; the entry is done) | T-378 |
+| #224 | `timeout-minutes` is held to 6 days | closed (fixed on `main`; the entry is done) | T-379 |
+| #225 | The image of an excluded cell of a matrix is pulled | closed (fixed on `main`; the entry is done) | T-380 |
+| #226 | `run DIR --checkout DIR` replaces the value of `--checkout` with a workflow file | closed (fixed on `main`; the entry is done) | T-381 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

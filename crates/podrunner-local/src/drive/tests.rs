@@ -205,3 +205,24 @@ fn a_signal_names_each_open_cell_and_keeps_a_left_out_job_out() {
         "the job that --job keeps out: {lines:?}"
     );
 }
+
+/// #224: the limit of a job is its `timeout-minutes`, at most the 5 days of a
+/// job of a self-hosted runner.
+#[test]
+fn the_limit_of_a_job_is_at_most_five_days() {
+    struct Limit(Vec<std::time::Duration>);
+    impl Executor for Limit {
+        fn run(&mut self, _job: &JobId, _m: Job, limit: std::time::Duration) -> Result<End, String> {
+            self.0.push(limit);
+            Ok(End { result: JobResult::Success, outputs: vec![] })
+        }
+    }
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    timeout-minutes: 10000\n    steps: [{run: a}]\n  \
+                b:\n    runs-on: x\n    timeout-minutes: 30\n    steps: [{run: b}]\n";
+    let mut s = LocalSource::new("l", text, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    let mut exec = Limit(vec![]);
+    assert!(drive(&mut s, &mut exec, &mut |_| {}).unwrap());
+    let mut got: Vec<u64> = exec.0.iter().map(|d| d.as_secs()).collect();
+    got.sort();
+    assert_eq!(got, [30 * 60, 5 * 24 * 3600]);
+}

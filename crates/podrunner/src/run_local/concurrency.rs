@@ -22,9 +22,15 @@ pub(super) struct Held(#[allow(dead_code)] File);
 /// The file name of a group: its repository and its name, each letter that
 /// a file name cannot hold as `_`.
 fn file_name(repo: &str, group: &str) -> String {
-    let raw = format!("{repo}__{group}");
+    // GitHub compares the names of a group with no case. A readable prefix,
+    // then a hash of the whole name: two groups never share a file (#222).
+    let raw = format!("{repo}\n{group}").to_lowercase();
     let s: String = raw.chars().map(|c| if c.is_ascii_alphanumeric() || "._-".contains(c) { c } else { '_' }).collect();
-    format!("{}.lock", &s[..s.len().min(200)])
+    let hash: String = ring::digest::digest(&ring::digest::SHA256, raw.as_bytes()).as_ref()[..12]
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    format!("{}-{hash}.lock", &s[..s.len().min(80)])
 }
 
 /// Hold `group` in `dir`; `note` tells of a wait or a cancel.
@@ -133,7 +139,14 @@ mod tests {
         let n = t.join().unwrap();
         assert!(n[0].contains("waits"), "{n:?}");
         assert!(notes.is_empty());
-        assert_eq!(file_name("o/r", "a b/c"), "o_r__a_b_c.lock");
+        // #222: distinct groups get distinct files; the case does not count.
+        let name = file_name("o/r", "a b/c");
+        assert!(name.starts_with("o_r_a_b_c-") && name.ends_with(".lock"), "{name}");
+        assert_ne!(file_name("o/r", "a b"), file_name("o/r", "a_b"));
+        let (long1, long2) = ("x".repeat(300) + "1", "x".repeat(300) + "2");
+        assert_ne!(file_name("o/r", &long1), file_name("o/r", &long2));
+        assert!(file_name("o/r", &long1).len() < 120);
+        assert_eq!(file_name("O/R", "Prod"), file_name("o/r", "prod"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

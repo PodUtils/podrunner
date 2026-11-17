@@ -136,3 +136,21 @@ fn the_secrets_and_the_lock_stay_out_of_the_tree() {
     let _ = std::fs::remove_dir_all(&plain);
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+/// #220: a directory in a git tree is not its top: no `.git` by default, and
+/// `--with-git` is refused with the fix.
+#[test]
+fn a_subdirectory_of_a_git_tree_gets_no_git() {
+    let dir = repo("subdir");
+    let scratch = dir.with_extension("scratch");
+    std::fs::create_dir_all(dir.join("sub")).unwrap();
+    std::fs::write(dir.join("sub/s.txt"), "s").unwrap();
+    assert!(is_git_top(&dir) && !is_git_top(&dir.join("sub")));
+    let o = Options { with_git: true, ..Default::default() };
+    let e = tarball(&dir.join("sub"), &scratch, o).unwrap_err();
+    assert!(e.contains("give the top of the tree"), "{e}");
+    let t = entries(&tarball(&dir.join("sub"), &scratch, Options::default()).unwrap());
+    assert!(t.contains_key("s.txt") && !t.keys().any(|k| k.starts_with(".git")), "{t:?}");
+    let _ = std::fs::remove_dir_all(&dir);
+    let _ = std::fs::remove_dir_all(&scratch);
+}

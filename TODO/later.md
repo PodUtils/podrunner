@@ -7543,3 +7543,289 @@ Add error-path checks to the user gate, each with three demands: the run ends wi
 The user gate has a check for each case, and each holds on `main`.
 
 In the code (2026-11-17): the check `errors` of the user gate (`error_paths`) runs a dead proxy for an action fetch (each lane with `runner-dir`), a missing `--toolcache` and an image that is not in the store (each lane with podvm). Each case must end within 120 s, with exit 78, and a last line with its words. A case that does not hold is an xfail with its detail, until it holds. Open: a proxy that answers 502, no resolver (T-371), no route to an allowed host (T-355); then the xfail becomes a failure.
+
+# T-373: `--runner-dir` writes the runner files, a private key with them, at mode 0644
+
+**Source:** GitHub #218 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`start_runner_in` wrote `.runner`, `.credentials` and `.credentials_rsaparams` with `std::fs::write`, so at the umask (0644). A unit gets them at 0600, and the contract says 0600.
+
+## Premise
+
+The report of #218, with the lines of the code and a measure.
+
+## Approach
+
+Write each runner file with `OpenOptions::mode(0o600)` and set the mode of a file that was there (`runner::private_file`).
+
+## Prove
+
+`cargo test -p podrunner-broker-fake a_runner_file_is_written_at_mode_0600`
+
+## Done
+
+2026-11-17: each runner file of `--runner-dir` is written at 0600, also over a file at 0644 (`runner::private_file`). Proven in CI on GitHub-hosted runners by `runner::tests::a_runner_file_is_written_at_mode_0600` (once the gate runs).
+
+# T-374: `--state` writes the outputs of the jobs into a file that each user can read
+
+**Source:** GitHub #219 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`state.json` holds the outputs of each cell, which can hold a secret; it was 0644 in a 0755 directory.
+
+## Premise
+
+The report of #219, with the lines of the code and a measure.
+
+## Approach
+
+The state directory is 0700 and `state.json` 0600 (`rerun::write_state`); the outputs stay as they are, as `--rerun` gives them to the jobs after.
+
+## Prove
+
+`cargo test -p podrunner-local the_state_is_private`
+
+## Done
+
+2026-11-17: `--state DIR` is 0700 and `DIR/state.json` 0600 (`rerun::write_state`). Proven in CI on GitHub-hosted runners by `rerun::mode_tests::the_state_is_private` (once the gate runs).
+
+# T-375: `--checkout` of a directory in a git tree gets a `.git` of the whole tree
+
+**Source:** GitHub #220 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The `.git` of a checkout was a clone of the top of the tree, while the workspace held the files of the directory only: `git status` in the job showed each file as deleted or untracked.
+
+## Premise
+
+The report of #220, with the lines of the code and a measure.
+
+## Approach
+
+A `.git` only for the top of a git tree: a directory in it gets no `.git` by default, and `--with-git` there is refused with the fix (`tree::is_git_top`).
+
+## Prove
+
+`cargo test -p podrunner-local a_subdirectory_of_a_git_tree_gets_no_git`
+
+## Done
+
+2026-11-17: a checkout of a directory in a git tree has no `.git` by default, and `--with-git` there is refused with `give the top of the tree to --checkout` (`tree::is_git_top`). Proven in CI on GitHub-hosted runners by `tree::tests::a_subdirectory_of_a_git_tree_gets_no_git` (once the gate runs).
+
+# T-376: Each job leaves the thread and the listener of its fake broker
+
+**Source:** GitHub #221 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Broker::start` and `start_unix` spawned an accept loop with no end; a dropped broker kept its thread and its descriptor, so a long `--watch` grows.
+
+## Premise
+
+The report of #221, with the lines of the code and a measure.
+
+## Approach
+
+At drop a broker sets a stop flag and connects once to its listener; the loop sees the flag and closes the listener (`listen.rs`).
+
+## Prove
+
+`cargo test -p podrunner-broker-fake a_broker_that_goes_closes_its_listener`
+
+## Done
+
+2026-11-17: a dropped broker closes its listener and ends its accept loop (`Broker` `Drop`, `listen::Wake`). Proven in CI on GitHub-hosted runners by `listen::tests::a_broker_that_goes_closes_its_listener` (once the gate runs). A host that refuses the connect of the wake keeps the loop until the process ends.
+
+# T-377: Two concurrency groups can share one lock file
+
+**Source:** GitHub #222 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The name of a lock file replaced each character that is not safe with `_` and cut it at 200 characters, so `a b` and `a_b`, and two long names, shared one lock.
+
+## Premise
+
+The report of #222, with the lines of the code and a measure.
+
+## Approach
+
+A readable prefix of 80 characters and a SHA-256 of the whole name, with no case, as GitHub compares the names of a group with no case.
+
+## Prove
+
+`cargo test -p podrunner concurrency`
+
+## Done
+
+2026-11-17: the lock file of a group is `PREFIX-HASH.lock`, HASH of the repository and the group with no case (GitHub: `prod` and `Prod` are one group); `a b` and `a_b`, and two long names, get two files. Proven in CI on GitHub-hosted runners by the test of `run_local::concurrency` (once the gate runs).
+
+# T-378: `--break-on-failure` pauses after each step after a failure; `--break` before an `always()` step is skipped
+
+**Source:** GitHub #223 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Each pause after a step had `failure()`, so each step that ran after a failure paused again; a `--break` pause had `success()`, so it did not run before a step that runs after a failure.
+
+## Premise
+
+The report of #223, with the lines of the code and a measure.
+
+## Approach
+
+The pause after a failure holds once in a job (a marker in `RUNNER_TEMP`); a `--break` pause takes the condition of its step.
+
+## Prove
+
+`cargo test -p podrunner pause`
+
+## Done
+
+2026-11-17: the pause after a failure holds once in a job, and a `--break` pause has the condition of its step (`pause::insert`). Proven in CI on GitHub-hosted runners by `pause::tests` (once the gate runs); a run with a pause is not run in CI.
+
+# T-379: `timeout-minutes` is held to 6 days
+
+**Source:** GitHub #224 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The limit of a job was `timeout-minutes`, at most 6 days. GitHub holds a job of a self-hosted runner to 5 days, and one of a hosted runner to 6 hours.
+
+## Premise
+
+The report of #224, with the lines of the code and a measure.
+
+## Approach
+
+Hold it to 5 days, the limit of a self-hosted runner, as podrunner is one (`drive::MAX_MINUTES`); the documents say it.
+
+## Prove
+
+`cargo test -p podrunner-local the_limit_of_a_job_is_at_most_five_days`
+
+## Done
+
+2026-11-17: the limit of a job is its `timeout-minutes`, at most 5 days (`drive::MAX_MINUTES`); `docs/cli.md` says it. Proven in CI on GitHub-hosted runners by `drive::tests::the_limit_of_a_job_is_at_most_five_days` (once the gate runs).
+
+# T-380: The image of an excluded cell of a matrix is pulled
+
+**Source:** GitHub #225 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The images of a job with a matrix were made from each value of each vector; `exclude` was left out, so a run pulled the image of a cell that does not run.
+
+## Premise
+
+The report of #225, with the lines of the code and a measure.
+
+## Approach
+
+Make the cells as GitHub does (the product, less `exclude`, then `include`), and the images from those cells (`run_local/matrix.rs`).
+
+## Prove
+
+`cargo test -p podrunner the_image_of_an_excluded_cell_is_not_pulled`
+
+## Done
+
+2026-11-17: the images of a matrix come from its cells, with `exclude` and `include` (`matrix::cells`). Proven in CI on GitHub-hosted runners by `matrix::tests::the_cells_of_a_matrix` and `the_image_of_an_excluded_cell_is_not_pulled` (once the gate runs).
+
+# T-381: `run DIR --checkout DIR` replaces the value of `--checkout` with a workflow file
+
+**Source:** GitHub #226 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Directory mode found the file argument by its text, so a `--checkout` with the same text was replaced with the first workflow file.
+
+## Premise
+
+The report of #226, with the lines of the code and a measure.
+
+## Approach
+
+Find the argument that the parser takes as the file (`many::run_dir`).
+
+## Prove
+
+`cargo test -p podrunner a_checkout_with_the_text_of_the_directory_stays`
+
+## Done
+
+2026-11-17: directory mode replaces the argument that the parser takes as the file, not a value of a flag (`many::run_dir`). Proven in CI on GitHub-hosted runners by `qa6_tests::a_checkout_with_the_text_of_the_directory_stays` (once the gate runs).
+
+# T-382: The test of the plants of the fake unit is not stable under load
+
+**Source:** the full test suite of this session (2026-11-17): `tests::each_unit_plant_fails_its_test` of `podrunner-fake` failed once and passed three times alone
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Under the load of the whole suite, one plant of the fake unit passed its test of the conformance once. A test that fails at random hides a real failure and makes a red gate that nobody reads.
+
+## Premise
+
+One run of `cargo test --workspace` here; the plant that passed is not named (the output was cut).
+
+## Approach
+
+Run the test 50 times under load (`cargo test -p podrunner-fake each_unit_plant -- --test-threads 1` beside a loaded suite), name the plant, and make its test wait for its event, not for a time.
+
+## Prove
+
+`cargo test -p podrunner-fake each_unit_plant_fails_its_test` passes 50 times of 50 under the load of the suite.

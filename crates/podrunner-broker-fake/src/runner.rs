@@ -66,7 +66,7 @@ pub fn start_runner_in(
             v["workFolder"] = work.to_string_lossy().into_owned().into();
             content = v.to_string();
         }
-        std::fs::write(dir.join(&name), content)
+        private_file(&dir.join(&name), content.as_bytes())
             .map_err(|e| format!("{}: the runner file {name}: {}", dir.display(), e.kind()))?;
     }
     // A clean environment: the runner refuses some proxy variables.
@@ -107,6 +107,17 @@ pub fn start_runner_in(
         .map_err(|e| format!("{}: run.sh: {}", dir.display(), e.kind()))
 }
 
+/// Write `bytes` to `path` at mode 0600, as a unit gets its runner files
+/// (`.credentials_rsaparams` is a private key; #218).
+pub fn private_file(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(path)?;
+    // A file that was there keeps its mode at open: set it.
+    f.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    f.write_all(bytes)
+}
+
 /// A line of the console of the runner: the runner names GitHub where it
 /// reached the fake broker of the run (T-331).
 pub fn console_line(line: &str) -> String {
@@ -122,6 +133,19 @@ pub fn run_once(dir: &Path, broker: &Broker, env: &[(&str, String)]) -> std::pro
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// #218: a runner file is private, also one that was there at 0644.
+    #[test]
+    fn a_runner_file_is_written_at_mode_0600() {
+        use std::os::unix::fs::PermissionsExt;
+        let f = std::env::temp_dir().join(format!("podrunner-private-{}", std::process::id()));
+        std::fs::write(&f, "old").unwrap();
+        std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o644)).unwrap();
+        private_file(&f, b"new").unwrap();
+        assert_eq!(std::fs::metadata(&f).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(std::fs::read_to_string(&f).unwrap(), "new");
+        let _ = std::fs::remove_file(&f);
+    }
 
     /// T-331: the console does not claim GitHub.
     #[test]

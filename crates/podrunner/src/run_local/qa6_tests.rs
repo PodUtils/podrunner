@@ -259,3 +259,20 @@ fn a_run_refuses_a_missing_toolcache_before_a_unit() {
 /// The command line of `run` as a contract (T-245).
 #[path = "contract_tests.rs"]
 mod contract;
+
+/// #226: `run DIR --checkout DIR` keeps the value of `--checkout`.
+#[test]
+fn a_checkout_with_the_text_of_the_directory_stays() {
+    let dir = scratch("dircheckout");
+    std::fs::write(dir.join("a.yml"), WORKFLOW).unwrap();
+    let d = dir.display().to_string();
+    let r = runner_dir("dircheckout");
+    for a in [vec!["--checkout", d.as_str(), d.as_str()], vec![d.as_str(), "--checkout", d.as_str()]] {
+        let mut a = a.clone();
+        a.extend(["--runner-dir", r.as_str(), "--dry-run", "--no-cache"]);
+        let out = run(&args(&a));
+        assert_eq!(out.code, 0, "{a:?}: {}{}", out.stdout, out.stderr);
+        assert!(out.stdout.contains("planned a"), "{}", out.stdout);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

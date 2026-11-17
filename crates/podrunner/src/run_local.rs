@@ -321,7 +321,7 @@ pub fn run(args: &[String]) -> Out {
             &scratch,
             podrunner_local::tree::Options {
                 head: a.checkout_head,
-                with_git: a.with_git || (!a.no_git && podrunner_local::tree::is_git_tree(dir)),
+                with_git: a.with_git || (!a.no_git && podrunner_local::tree::is_git_top(dir)),
                 exclude: run_files(&a, dir),
             },
         ) {
@@ -451,7 +451,7 @@ pub fn run(args: &[String]) -> Out {
     if let Some(dir) = state_dir.as_ref().filter(|_| !a.dry_run) {
         let ends = podrunner_local::rerun::with_kept(source.ends(), &before, |j| source.not_selected(j).is_some());
         let text = podrunner_local::rerun::state_json(&digest, &ends);
-        if let Err(e) = std::fs::create_dir_all(dir).and_then(|()| std::fs::write(dir.join("state.json"), text)) {
+        if let Err(e) = podrunner_local::rerun::write_state(dir, &text) {
             stderr.push_str(&format!("podrunner: --state {}: {e}\n", dir.display()));
         }
     }

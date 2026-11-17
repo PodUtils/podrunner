@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**369 entries: 32 open, 28 partial, 10 blocked, 299 done.**
+**379 entries: 33 open, 28 partial, 10 blocked, 308 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 2 | 11 | 1 | 58 | 72 |
-| P2 | 3 | 12 | 7 | 152 | 174 |
-| P3 | 27 | 5 | 2 | 89 | 123 |
-| **All** | 32 | 28 | 10 | 299 | 369 |
+| P2 | 3 | 12 | 7 | 159 | 181 |
+| P3 | 28 | 5 | 2 | 91 | 126 |
+| **All** | 33 | 28 | 10 | 308 | 379 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -417,3 +417,13 @@ acceptance, later The crate dependencies later than v1.
 | [T-370](later.md) | P3 | S | later | defect | open | A run does not say which configuration files it read |
 | [T-371](later.md) | P1 | M | later | defect | open | The user gate has no lane of a host with DNS only through an authenticated proxy |
 | [T-372](later.md) | P1 | M | later | release | partial | The user gate checks success paths only |
+| [T-373](later.md) | P2 | S | later | defect | done | `--runner-dir` writes the runner files, a private key with them, at mode 0644 |
+| [T-374](later.md) | P2 | S | later | defect | done | `--state` writes the outputs of the jobs into a file that each user can read |
+| [T-375](later.md) | P2 | S | later | defect | done | `--checkout` of a directory in a git tree gets a `.git` of the whole tree |
+| [T-376](later.md) | P2 | S | later | defect | done | Each job leaves the thread and the listener of its fake broker |
+| [T-377](later.md) | P2 | S | later | defect | done | Two concurrency groups can share one lock file |
+| [T-378](later.md) | P3 | S | later | defect | done | `--break-on-failure` pauses after each step after a failure; `--break` before an `always()` step is skipped |
+| [T-379](later.md) | P3 | S | later | defect | done | `timeout-minutes` is held to 6 days |
+| [T-380](later.md) | P2 | S | later | defect | done | The image of an excluded cell of a matrix is pulled |
+| [T-381](later.md) | P2 | S | later | defect | done | `run DIR --checkout DIR` replaces the value of `--checkout` with a workflow file |
+| [T-382](later.md) | P3 | S | later | defect | open | The test of the plants of the fake unit is not stable under load |

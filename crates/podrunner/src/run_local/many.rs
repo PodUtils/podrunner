@@ -37,7 +37,14 @@ pub(super) fn run_dir(args: &[String], a: &Args) -> Out {
         Err(e) => return fail(Class::NotFound, e),
     };
     let dir = a.file.to_string_lossy().into_owned();
-    let Some(at) = args.iter().position(|x| *x == dir) else {
+    // The argument that the parser takes as the file, not a value of a flag
+    // that has the same text (`--checkout DIR DIR`, #226).
+    let is_file = |i: usize| {
+        let mut probe = args.to_vec();
+        probe[i] = "\u{0}podrunner-file".into();
+        super::args::parse(&probe).is_ok_and(|p| p.file.as_os_str() == "\u{0}podrunner-file")
+    };
+    let Some(at) = (0..args.len()).find(|&i| args[i] == dir && is_file(i)) else {
         return fail(Class::Usage, format!("run: {dir} is not an argument"));
     };
     let facts = context::facts(a);

@@ -68,6 +68,16 @@ fn git(dir: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
     Ok(out.stdout)
 }
 
+/// Whether `dir` is the top of a git tree: only a checkout of the top gets
+/// a `.git` whose index fits the files of the job (#220).
+pub fn is_git_top(dir: &Path) -> bool {
+    let top = git(dir, &["rev-parse", "--show-toplevel"]).map(|o| String::from_utf8_lossy(&o).trim().to_string());
+    match (top, dir.canonicalize()) {
+        (Ok(top), Ok(dir)) => Path::new(&top).canonicalize().is_ok_and(|t| t == dir),
+        _ => false,
+    }
+}
+
 pub fn is_git_tree(dir: &Path) -> bool {
     git(dir, &["rev-parse", "--is-inside-work-tree"]).is_ok_and(|o| o.starts_with(b"true"))
 }
@@ -201,6 +211,12 @@ pub fn tarball(dir: &Path, scratch: &Path, o: Options) -> Result<PathBuf, String
     if o.with_git {
         if !is_git_tree(dir) {
             return Err(format!("--with-git: {} is not a git tree", dir.display()));
+        }
+        if !is_git_top(dir) {
+            return Err(format!(
+                "--with-git: {} is a directory in a git tree, and its .git would hold the whole tree; fix: give the top of the tree to --checkout, or leave out --with-git",
+                dir.display()
+            ));
         }
         let copy = git_copy(dir, scratch)?;
         b.append_dir_all(".git", &copy).map_err(fail)?;

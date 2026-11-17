@@ -76,6 +76,16 @@ pub fn with_kept(
     out
 }
 
+/// Write `text` as `DIR/state.json`: the outputs of the jobs can hold a
+/// secret, so DIR is 0700 and the file 0600 (#219); the outputs stay as
+/// they are, as `--rerun` gives them to the jobs after.
+pub fn write_state(dir: &std::path::Path, text: &str) -> std::io::Result<()> {
+    use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
+    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
+    podrunner_broker_fake::runner::private_file(&dir.join("state.json"), text.as_bytes())
+}
+
 /// The state file of a run: the digest of the workflow and each end.
 pub fn state_json(digest: &str, ends: &[CellEnd]) -> String {
     let cells: Vec<Value> = ends
@@ -206,5 +216,21 @@ mod tests {
         let out = with_kept(&ends, &before, |c| c.as_str() == "m.1");
         let got: Vec<(&str, JobResult)> = out.iter().map(|(c, r, _)| (c.as_str(), *r)).collect();
         assert_eq!(got, [("m.0", JobResult::Success), ("m.1", JobResult::Failure), ("n.0", JobResult::Failure)]);
+    }
+}
+
+#[cfg(test)]
+mod mode_tests {
+    /// #219: the state of a run is private: DIR 0700, `state.json` 0600.
+    #[test]
+    fn the_state_is_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("podrunner-state-mode-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        super::write_state(&dir, "{}").unwrap();
+        let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&dir), 0o700);
+        assert_eq!(mode(&dir.join("state.json")), 0o600);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -7,6 +7,9 @@
 //! podrunner (PodUtils/podcrates@T-106).
 
 pub mod actions;
+mod listen;
+use listen::Wake;
+pub use listen::bind_loopback;
 pub mod artifacts;
 pub mod cache;
 pub mod corpus;
@@ -20,7 +23,7 @@ pub mod runner;
 
 use std::collections::VecDeque;
 use std::io::BufReader;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -104,6 +107,10 @@ const BODY_MAX: usize = 160 << 20;
 pub struct Broker {
     pub base: String,
     state: Arc<Mutex<State>>,
+    /// The end of the listener: set at drop, then a connect wakes its loop,
+    /// which closes the listener (#221).
+    stop: Arc<std::sync::atomic::AtomicBool>,
+    wake: Wake,
 }
 
 /// How long a long poll of `/message` waits for a job.
@@ -123,13 +130,18 @@ impl Broker {
         let base = format!("http://{host}:{port}/");
         let state: Arc<Mutex<State>> = Arc::default();
         let (s, b) = (state.clone(), base.clone());
+        let stop: Arc<std::sync::atomic::AtomicBool> = Arc::default();
+        let end = stop.clone();
         std::thread::spawn(move || {
             for conn in listener.incoming().flatten() {
+                if end.load(std::sync::atomic::Ordering::SeqCst) {
+                    break;
+                }
                 let (s, b) = (s.clone(), b.clone());
                 std::thread::spawn(move || serve(conn, &s, &b));
             }
         });
-        Ok(Broker { base, state })
+        Ok(Broker { base, state, stop, wake: Wake::Tcp(port) })
     }
 
     /// Listen on the unix socket `path`, and give its clients the address
@@ -141,13 +153,18 @@ impl Broker {
         let base = format!("http://{host}/");
         let state: Arc<Mutex<State>> = Arc::default();
         let (s, b) = (state.clone(), base.clone());
+        let stop: Arc<std::sync::atomic::AtomicBool> = Arc::default();
+        let end = stop.clone();
         std::thread::spawn(move || {
             for conn in listener.incoming().flatten() {
+                if end.load(std::sync::atomic::Ordering::SeqCst) {
+                    break;
+                }
                 let (s, b) = (s.clone(), b.clone());
                 std::thread::spawn(move || serve(conn, &s, &b));
             }
         });
-        Ok(Broker { base, state })
+        Ok(Broker { base, state, stop, wake: Wake::Unix(path.to_path_buf()) })
     }
 
     /// Offer `job` to the next long poll; its request id.
@@ -284,30 +301,6 @@ impl Broker {
 
 fn reply(json: &Value) -> (u16, Vec<u8>) {
     (200, json.to_string().into_bytes())
-}
-
-/// A free port of the loopback and its listener. Under a supervisor that
-/// refuses `getsockname` (`podnet pod`), the port of `127.0.0.1:0` cannot
-/// be read: then try ports of the dynamic range, from a start that each
-/// process draws (T-228).
-pub fn bind_loopback() -> std::io::Result<(TcpListener, u16)> {
-    let listener = TcpListener::bind("127.0.0.1:0")?;
-    if let Ok(a) = listener.local_addr() {
-        return Ok((listener, a.port()));
-    }
-    drop(listener);
-    let mut seed = [0u8; 2];
-    let _ = std::fs::File::open("/dev/urandom").and_then(|mut f| std::io::Read::read_exact(&mut f, &mut seed));
-    let start = u16::from_le_bytes(seed) % 16_000;
-    let mut last = std::io::Error::from(std::io::ErrorKind::AddrInUse);
-    for i in 0..400u16 {
-        let port = 49_152 + (start + i * 37) % 16_000;
-        match TcpListener::bind(("127.0.0.1", port)) {
-            Ok(l) => return Ok((l, port)),
-            Err(e) => last = e,
-        }
-    }
-    Err(last)
 }
 
 /// A connection of a client: TCP or a unix socket.
