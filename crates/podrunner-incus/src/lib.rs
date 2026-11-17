@@ -227,6 +227,15 @@ impl UnitDriver for IncusUnit {
             UnitError::new(UnitCode::UnitStartFailed, why)
         };
         let egress = spec.sockets.as_ref().map(|s| s.join(podrunner_unit::EGRESS_SOCKET));
+        // Each host path of a -v or a channel of podvm (#275).
+        if let Some(e) = [Some(work.as_path()), egress.as_deref()]
+            .into_iter()
+            .flatten()
+            .find_map(|p| podrunner_unit::mounts::host_path(p, UnitCode::UnitStartFailed).err())
+        {
+            let _ = fs::remove_dir_all(&dir);
+            return Err(e);
+        }
         // podvm mounts the socket file into the instance, whose root is a
         // mapped id: the file must take its connect. The socket directory
         // of the unit (mode 0700) keeps each other user of the host out.

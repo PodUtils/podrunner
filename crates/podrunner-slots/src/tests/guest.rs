@@ -139,4 +139,25 @@ fn a_driver_comes_from_a_checked_place() {
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o777)).unwrap();
     assert!(crate::config::check_driver(&file).unwrap_err().contains("writable"));
     assert!(crate::config::check_driver(&dir.join("missing")).is_err());
+    // #263: a file that cannot run, a directory, and an open directory
+    // above the directory of the driver are refused.
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600)).unwrap();
+    assert!(crate::config::check_driver(&file).unwrap_err().contains("not a file that this user can run"));
+    assert!(crate::config::check_driver(&dir).unwrap_err().contains("not a file that this user can run"));
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::set_permissions(&tmp.0, std::fs::Permissions::from_mode(0o777)).unwrap();
+    let e = crate::config::check_driver(&file).unwrap_err();
+    assert!(e.contains("writable") && e.contains(&tmp.0.display().to_string()), "{e}");
+    std::fs::set_permissions(&tmp.0, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(crate::config::check_driver(&file), Ok(()));
+    // A link to the driver does not hide an open directory above the file.
+    let open = tmp.0.join("open");
+    std::fs::create_dir(&open).unwrap();
+    std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o777)).unwrap();
+    std::fs::create_dir(open.join("d")).unwrap();
+    std::fs::write(open.join("d/podvm"), "").unwrap();
+    std::fs::set_permissions(open.join("d/podvm"), std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::os::unix::fs::symlink(open.join("d"), dir.join("linked")).unwrap();
+    assert!(crate::config::check_driver(&dir.join("linked/podvm")).unwrap_err().contains("writable"));
 }

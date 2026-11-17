@@ -9,10 +9,20 @@
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
-/// Whether a policy has a rule with a path: podrunner has no TLS end, so it
-/// cannot hold one (`egress-policy-unsupported`).
-pub fn has_path_rule(policy: &serde_json::Map<String, Value>) -> bool {
-    rules(&Value::Object(policy.clone())).iter().any(|r| r.get("path").is_some_and(|p| !p.is_null()))
+/// Whether a policy has a rule that podrunner cannot hold
+/// (`egress-policy-unsupported`): a path (podrunner has no TLS end), or a
+/// field other than `host`, `path` and `ports`, or a value of another type
+/// (`ports` as text), which `narrow` would drop, so the policy would be
+/// wider than its rule (#249). The rule of `pod-broker` has these three.
+pub fn unheld_rule(policy: &serde_json::Map<String, Value>) -> bool {
+    let port = |p: &Value| p.as_u64().is_some_and(|n| (1..=65535).contains(&n));
+    rules(&Value::Object(policy.clone())).iter().any(|r| {
+        let Some(o) = r.as_object() else { return true };
+        o.keys().any(|k| !matches!(k.as_str(), "host" | "path" | "ports"))
+            || !o.get("host").is_some_and(Value::is_string)
+            || o.get("path").is_some_and(|p| !p.is_null())
+            || o.get("ports").is_some_and(|p| !p.is_null() && !p.as_array().is_some_and(|a| a.iter().all(port)))
+    })
 }
 
 fn rules(p: &Value) -> Vec<Value> {
@@ -127,8 +137,8 @@ impl EgressConfig {
         if !matches!(p.get("mode").and_then(Value::as_str), Some("open" | "allow")) {
             return Err("[egress] default_policy: mode must be \"open\" or \"allow\"".into());
         }
-        if has_path_rule(p) {
-            return Err("[egress] default_policy: a path rule needs a TLS end, which podrunner has not".into());
+        if unheld_rule(p) {
+            return Err("[egress] default_policy: a rule holds a host and ports only (a path needs a TLS end)".into());
         }
         Ok(())
     }
@@ -205,10 +215,28 @@ mod tests {
         assert!(two.get("allow").is_none_or(|a| a == &json!([])), "{two}");
     }
 
+    /// A path, or a field that `narrow` would drop (#249), is a rule that
+    /// podrunner cannot hold.
     #[test]
-    fn a_path_rule_is_found() {
-        let p = json!({ "schema": 1, "mode": "allow", "allow": [{ "host": "a", "path": "/x" }] });
-        assert!(has_path_rule(p.as_object().unwrap()));
-        assert!(!has_path_rule(allow(json!([{ "host": "a" }])).as_object().unwrap()));
+    fn a_rule_that_podrunner_cannot_hold_is_found() {
+        let unheld = |rule: Value| unheld_rule(allow(json!([rule])).as_object().unwrap());
+        for r in [
+            json!({ "host": "a", "path": "/x" }),
+            json!({ "host": "a.example", "methods": ["GET"] }),
+            json!({ "host": "a", "Ports": [443] }),
+            json!("a.example"),
+            json!({ "host": "a", "ports": ["443"] }),
+            json!({ "host": "a", "ports": 443 }),
+            json!({ "host": "a", "ports": [0] }),
+            json!({ "host": "a", "ports": [70000] }),
+            json!({ "host": 1 }),
+            json!({ "ports": [443] }),
+        ] {
+            assert!(unheld(r.clone()), "{r}");
+        }
+        for r in [json!({ "host": "a" }), json!({ "host": "a", "ports": [443] }), json!({ "host": "a", "path": null })]
+        {
+            assert!(!unheld(r.clone()), "{r}");
+        }
     }
 }

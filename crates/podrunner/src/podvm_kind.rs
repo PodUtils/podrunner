@@ -41,7 +41,33 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         return Err(fail(Class::Config, "[unit.podvm] images: not a directory"));
     }
     podrunner_slots::limits::limits_of(u).map_err(|e| fail(Class::Config, format!("[unit.podvm] {e}")))?;
+    // The fields that the unit and its hook policy read at the start of a
+    // job: each one is checked here, not at that start (#271).
+    if u.command.is_empty() || u.command[0].is_empty() {
+        return Err(fail(Class::Config, "[unit.podvm] command is empty: name the command of the unit"));
+    }
+    if let Some(d) = u.runner_dir.as_deref().filter(|d| !d.starts_with('/')) {
+        return Err(fail(Class::Config, format!("[unit.podvm] runner_dir {d:?} is not an absolute path")));
+    }
+    if let Some(r) = u.registries.iter().find(|r| !registry_ok(r)) {
+        return Err(fail(Class::Config, format!("[unit.podvm] registries: {r:?} is not a HOST or HOST:PORT")));
+    }
     Ok(())
+}
+
+/// A registry of the hook policy: a host name or `[IPv6]`, with an
+/// optional port.
+fn registry_ok(r: &str) -> bool {
+    if let Some(rest) = r.strip_prefix('[') {
+        let Some((ip, port)) = rest.split_once(']') else { return false };
+        let port_ok =
+            port.is_empty() || port.strip_prefix(':').and_then(|p| p.parse::<u16>().ok()).is_some_and(|n| n > 0);
+        return ip.parse::<std::net::Ipv6Addr>().is_ok() && port_ok;
+    }
+    let (host, port) = r.rsplit_once(':').map_or((r, None), |(h, p)| (h, Some(p)));
+    let host_ok = !host.is_empty()
+        && host.split('.').all(|l| !l.is_empty() && l.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'));
+    host_ok && port.is_none_or(|p| p.parse::<u16>().is_ok_and(|n| n > 0))
 }
 
 pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
@@ -110,5 +136,34 @@ mod tests {
         assert_eq!(super::work_root("podvm", &unit("")), "/home/runner");
         assert_eq!(super::work_root("podvm", &unit("runner_dir = \"/r\"\n")), "/r");
         assert_eq!(super::work_root("docker", &unit("")), "");
+    }
+
+    /// #271: an empty command, a relative runner_dir and a registry that is
+    /// not a host fail `check`, not the start of a job.
+    #[test]
+    fn the_fields_of_a_podvm_unit_are_checked() {
+        let plan = |extra: &str| {
+            let cfg = podrunner_slots::config::Config::parse(&format!(
+                "host = \"h\"\n[unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\n{extra}\n[pin]\n"
+            ))
+            .unwrap();
+            super::plan(&cfg.unit["podvm"]).map_err(|f| f.detail)
+        };
+        plan("command = [\"/home/runner/run.sh\"]\nrunner_dir = \"/home/runner\"\nregistries = [\"docker.io\", \"ghcr.io:443\", \"localhost:5000\", \"[::1]:5000\", \"[fd00::1]\"]")
+            .unwrap();
+        for (extra, says) in [
+            ("command = []", "command is empty"),
+            ("command = [\"\"]", "command is empty"),
+            ("command = [\"x\"]\nrunner_dir = \"relative/runner\"", "not an absolute path"),
+            ("command = [\"x\"]\nregistries = [\"not a host\"]", "not a HOST"),
+            ("command = [\"x\"]\nregistries = [\"ghcr.io:0\"]", "not a HOST"),
+            ("command = [\"x\"]\nregistries = [\"https://ghcr.io\"]", "not a HOST"),
+            ("command = [\"x\"]\nregistries = [\"\"]", "not a HOST"),
+            ("command = [\"x\"]\nregistries = [\"[::1\"]", "not a HOST"),
+            ("command = [\"x\"]\nregistries = [\"[nope]:5000\"]", "not a HOST"),
+        ] {
+            let e = plan(extra).unwrap_err();
+            assert!(e.contains(says), "{extra}: {e}");
+        }
     }
 }

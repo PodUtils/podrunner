@@ -211,6 +211,16 @@ impl UnitDriver for MicrovmUnit {
             .cloned()
             .ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "the image is not prepared"))?;
         let (cred, work) = (dir.join("cred"), dir.join("work"));
+        // Each host path of a -v or a channel of podvm (#275).
+        let paths = [Some(dir.as_path()), self.engine.as_deref(), spec.sockets.as_deref()];
+        if let Some(e) = paths
+            .into_iter()
+            .flatten()
+            .find_map(|p| podrunner_unit::mounts::host_path(p, UnitCode::UnitStartFailed).err())
+        {
+            let _ = fs::remove_dir_all(&dir);
+            return Err(e);
+        }
         if let Err(e) = guest::make_work(&dir, &work).and_then(|()| guest::write_credentials(&cred, &spec.credential)) {
             let _ = fs::remove_dir_all(&dir);
             return Err(e);

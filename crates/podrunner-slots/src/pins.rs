@@ -61,6 +61,10 @@ pub fn check(pins: &Pins) -> Result<(), String> {
     let mut seen = std::collections::BTreeSet::new();
     for p in &pins.payload {
         podrunner_unit::parse_pinned(&p.reference).map_err(|e| format!("[[pin.payload]]: {e}"))?;
+        // Placement picks a payload by these names only (#270).
+        if !matches!(p.arch.as_str(), "x86_64" | "aarch64") {
+            return Err(format!("[[pin.payload]] {}: arch {:?} is not x86_64 or aarch64", p.reference, p.arch));
+        }
         // One index digest can serve two architectures.
         if !seen.insert((p.arch.as_str(), p.reference.as_str())) {
             return Err(format!("[[pin.payload]] {} ({}) is there two times", p.reference, p.arch));

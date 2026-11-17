@@ -132,6 +132,9 @@ fn an_action_pinned_by_commit_is_a_repository_reference_with_its_inputs() {
         assert!(action(old, 1).unwrap_err().contains("2025-01-30"), "{old}");
     }
     assert!(action("actions/upload-artifact@v4", 1).is_ok());
+    // #261: a repository part of `..` goes to no other repository.
+    assert!(action("../x@v1", 3).unwrap_err().starts_with("line 3: "));
+    assert!(action("o/r/../../x@v1", 1).unwrap_err().contains("not a name"));
     for bad in ["docker://alpine", "o/r", "o@0123456789abcdef0123456789abcdef01234567", "o/r@", "o/r@a b"] {
         assert!(action(bad, 1).is_err(), "{bad}");
     }

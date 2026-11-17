@@ -259,6 +259,7 @@ fn action(uses: &str, line: u32) -> Result<(Value, String), String> {
         return Ok((reference, "__self".into()));
     }
     let (target, r) = uses.rsplit_once('@').ok_or_else(|| format!("line {line}: `uses: {uses}` has no @REF"))?;
+    crate::store::repo_ok(uses).map_err(|e| format!("line {line}: {e}"))?;
     if r.is_empty() || r.contains(char::is_whitespace) {
         return Err(format!("line {line}: `uses: {uses}` has no valid @REF"));
     }

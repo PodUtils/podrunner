@@ -7,6 +7,7 @@
 pub mod audit;
 pub mod config;
 pub mod disk;
+mod driver;
 mod engine;
 pub mod forget;
 pub mod guest;

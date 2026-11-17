@@ -92,6 +92,9 @@ pub(super) fn pin(
             }
         }
     }
+    // No fetch of a name with `..` (#261): the actions, the checkouts of
+    // other repositories and the repositories of called workflows.
+    uses.iter().chain(&trees).try_for_each(|u| podrunner_local::store::repo_ok(u))?;
     let tags = match images {
         Some(_) => {
             // The executor refuses services: their images stay out (T-327).

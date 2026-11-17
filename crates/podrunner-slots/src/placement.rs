@@ -96,7 +96,7 @@ pub fn place(offer: &JobOffer, set: Tier, kinds: &[Kind], cfg: &Config, now_s: u
     // A policy of the offer needs the egress module on the way out of the
     // unit, and no path rule: podrunner has no TLS end (T-107).
     if !offer.policy.is_empty() {
-        if crate::policy::has_path_rule(&offer.policy) {
+        if crate::policy::unheld_rule(&offer.policy) {
             return Err(RefusalCode::EgressPolicyUnsupported);
         }
         narrow(&mut c, kinds, RefusalCode::EgressPolicyUnsupported, |k| {

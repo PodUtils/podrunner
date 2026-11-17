@@ -477,6 +477,11 @@ fn a_bad_pin_payload_is_refused_by_name() {
         let e = parse("", &payload(&format!("runner_version = \"{bad}\""))).unwrap_err();
         assert!(e.contains("runner_version"), "{bad}: {e}");
     }
+    // #270: an arch that placement does not know.
+    for arch in ["riscv64", "x86-64", "amd64", "", "X86_64"] {
+        let e = parse("", &payload("").replace("\"x86_64\"", &format!("{arch:?}"))).unwrap_err();
+        assert!(e.contains("is not x86_64 or aarch64"), "{arch}: {e}");
+    }
     let ok = parse("", &payload("runner_version = \"2.338.2\"\nmax_age_s = 60")).unwrap();
     // Built one day after the clock: stale; at the clock or one minute
     // after (a skew of the clocks): not stale.

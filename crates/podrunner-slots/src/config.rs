@@ -312,23 +312,7 @@ pub struct Config {
     pub egress: EgressConfig,
 }
 
-/// Check a driver file at its use: the file and its directory belong to
-/// root or to this uid, and the group and the others cannot write them.
-pub fn check_driver(path: &std::path::Path) -> Result<(), String> {
-    use std::os::unix::fs::MetadataExt;
-    // SAFETY: getuid has no failure and no side effect.
-    let me = unsafe { libc::getuid() };
-    for p in [Some(path), path.parent()].into_iter().flatten() {
-        let m = std::fs::metadata(p).map_err(|e| format!("{}: {}", p.display(), e.kind()))?;
-        if m.uid() != 0 && m.uid() != me {
-            return Err(format!("{} belongs to another user", p.display()));
-        }
-        if m.mode() & 0o022 != 0 {
-            return Err(format!("{} is writable by the group or the others", p.display()));
-        }
-    }
-    Ok(())
-}
+pub use crate::driver::check_driver;
 
 /// The lowest floor of each tier that the configuration may set. `trusted`
 /// may go to `redirect` with the mitigations of DR-4.

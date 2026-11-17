@@ -229,6 +229,7 @@ impl UnitDriver for PodvmUnit {
         if units.contains_key(&spec.unit) || dir.exists() {
             return Err(UnitError::new(UnitCode::UnitInUse, spec.unit.to_string()));
         }
+        podrunner_unit::mounts::spec(spec)?;
         let store = dir.join("store");
         fs::create_dir_all(&store).map_err(|e| host("the unit store", e))?;
         let tar = self.tar_of(&spec.image.digest);
@@ -282,8 +283,7 @@ impl UnitDriver for PodvmUnit {
             args.push(format!("{}:{path}", host.display()));
         }
         args.push(reference.clone());
-        // `podvm wait` gives each exit code (PodUtils/podvm@T-1720), so the
-        // payload runs as it is.
+        // The payload runs as it is: `podvm wait` gives each exit code.
         args.extend(spec.argv.iter().cloned());
         let argv: Vec<&str> = args.iter().map(String::as_str).collect();
         let egress = self.egress_of(spec)?;

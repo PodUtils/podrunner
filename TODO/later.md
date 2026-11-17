@@ -9332,7 +9332,7 @@ Accept `Enforced` or `Reported` for a required limit; for `wall`, also require `
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9349,6 +9349,10 @@ Validate each rule with the `broker-policy.v1` rule shape (or `pod_broker::Polic
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: An offer rule (or a rule of `default_policy`) with a field other than `host`, `path` and `ports`, or with a value of another type (`ports` as text, a port of 0 or above 65535, no `host`), is a rule that podrunner cannot hold: placement refuses the offer with `egress-policy-unsupported`, and `check` refuses the ceiling (`policy::unheld_rule`, which also holds the path rule). Tests `a_rule_that_podrunner_cannot_hold_is_found` and the `methods` case of `egress_refuses_an_unknown_key_and_a_policy_it_cannot_hold`.
 
 # T-439: run: a checkout of another repository with an empty, full or SHA ref is not resolved
 
@@ -9407,7 +9411,7 @@ Parse the authority with brackets: `[::1]:8443` -> `::1`; `[2001:db8::1]` -> `20
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9424,6 +9428,10 @@ Recognize the other architecture labels (`ppc64le`, `s390x`, `riscv64`, `i386`, 
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `dispatch::foreign` refuses a label (or the end `-ARCH` of one) of ppc64le, ppc64, s390x, riscv64, loongarch64, i386, i686, x86, armv7, armv7l, armv6, armhf and mips64, and the label `ARM` alone (a 32-bit ARM runner; `-arm` at the end of a GitHub image stays 64-bit): no unit runs them, and the line names `--platform`. Test `a_label_of_an_architecture_with_no_unit_is_refused` (a table) fails on the old code.
 
 # T-442: serve: a malformed offer is refused as event-not-allowed with no detail, not bad-request
 
@@ -9557,7 +9565,7 @@ Encode the source name reversibly (percent/hex for the bytes that are not safe) 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9574,6 +9582,10 @@ Validate the owner and repository with the same name rule as `--repository` (alp
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `store::repo_ok` refuses a remote `uses:` whose owner, repository or path has a part that is empty, `.`, `..` or not a name, before any fetch (the pins of `run`: each action, each checkout of another repository, each repository of a called workflow) and in the job message. A lock key is used only for a key of these, so the check holds it too. Tests `the_repository_of_a_uses_is_a_name` (a table), the `../x@v1` case of the message test, and `a_repository_with_dot_dot_is_refused_before_a_fetch` (a checkout of `repository: ../x`, a call of `../x/...`, a step; it fails with the check of the step `uses:` only, which a review found).
 
 # T-448: check: a podvm config with a bad upstream_proxy, an old podvm or a bad podnet passes check and stops serve
 
@@ -9607,7 +9619,7 @@ In `serve::plan` for `[unit.podvm]`, parse `upstream_proxy` (or call the same `p
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9624,6 +9636,10 @@ Require `m.is_file()` and `m.mode() & 0o111 != 0` for a driver, and check each a
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `check_driver` needs a regular file that this user can run (`access(X_OK)`), and checks each real directory above it (`canonicalize`: a link hides none; a root directory with the sticky bit, as `/tmp`, may be open). Test `a_driver_comes_from_a_checked_place` has the cases of #263.
 
 # T-450: run: a dry run with a --vnet podnet binary that cannot build the shim says planned
 
@@ -9786,7 +9802,7 @@ In `Slots::start`, print a line for `replay.bad_lines` (with the path and the co
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9804,6 +9820,10 @@ In `Config::check`, require each `pin.payload.arch` to be `x86_64` or `aarch64` 
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
 
+## Done
+
+2026-11-17: `pins::check` refuses a payload `arch` other than `x86_64` and `aarch64`, the names that placement picks. The table of `a_bad_pin_payload_is_refused_by_name` has `riscv64`, `x86-64`, `amd64`, `X86_64` and an empty one.
+
 # T-457: check: an empty [unit.podvm] command, a relative runner_dir and a bad registry host are accepted
 
 **Source:** GitHub #271 (a user who read the code of `main`, 2026-11-17)
@@ -9811,7 +9831,7 @@ In `Config::check`, require each `pin.payload.arch` to be `x86_64` or `aarch64` 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9828,6 +9848,10 @@ In `serve::plan` for `[unit.podvm]`, require `command` non-empty, `runner_dir` a
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `podvm_kind::plan` (`check` and `serve`) refuses an empty `command`, a `runner_dir` that is not absolute, and a registry that is not `HOST`, `HOST:PORT` or `[IPv6]:PORT`. Test `the_fields_of_a_podvm_unit_are_checked` (a table).
 
 # T-458: guest: the microvm and incus scripts set HTTP(S)_PROXY but not NODE_USE_ENV_PROXY
 
@@ -9911,7 +9935,7 @@ In the `else` branch, remove the unit directory (and the `machine/run-PID-*` dir
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9928,6 +9952,10 @@ Refuse a host path with a colon before the first job, with the flag and the path
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: Each driver refuses a host path with a `:` (or not UTF-8) before it builds a `-v` or a `--podvm-channel` of podvm, with a line that names the path and the fix (`podrunner_unit::mounts`): podvm `start` (the socket directory and each mount: toolcache, export), its container mounts, and the unit directory, the engine and the egress of the microvm and incus kinds. Tests `a_host_path_with_a_colon_is_refused` and `a_start_with_a_colon_in_a_host_path_is_refused`. Level: unit tests; the guest kinds run in CI only.
 
 # T-462: microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed
 
@@ -10293,3 +10321,53 @@ Take `pod_proxy::env` for the proxy variables and `NO_PROXY`. When podcrates giv
 ## Prove
 
 `cargo test --workspace`; the lane `proxy-only-dns` of the user gate passes.
+
+# T-475: A `uses:` with an empty part runs on GitHub and is refused here
+
+**Source:** the review of the fix of #261 by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The runner of GitHub splits `OWNER/REPO/PATH` with no empty parts, so `o//r@v1` and `o/r/dir/@v1` run there. `store::repo_ok` and the job message refuse them.
+
+## Premise
+
+The review read the split of the runner; not measured against GitHub.
+
+## Approach
+
+Measure one such `uses:` in the live workflow. If GitHub runs it, drop the empty parts before the check and in the message, as the runner does.
+
+## Prove
+
+`cargo test --workspace`; the live run of the measure.
+
+# T-476: A `:` in TMPDIR or in an option path fails each job start, not `check`
+
+**Source:** the review of the fix of #275 by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A host path with a `:` is refused at the start of each job of a guest kind (#275). `check`, `doctor` and the start of `podrunner run` do not name it, so a run starts and each job fails.
+
+## Premise
+
+The review read the code of the drivers.
+
+## Approach
+
+Check the state directory, `TMPDIR`, `--toolcache`, `--export` and the `engine` of a guest kind in `check`, `doctor` and the checks of `podrunner run` (`dry.rs`), with the same line as the drivers.
+
+## Prove
+
+`cargo test --workspace`; a test with `TMPDIR=/tmp/a:b` and `--microvm`.

@@ -204,6 +204,8 @@ fn egress_refuses_an_unknown_key_and_a_policy_it_cannot_hold() {
     assert!(parse("default_policy = { schema = 2, mode = \"open\" }").unwrap_err().contains("schema"));
     assert!(parse("default_policy = { schema = 1, mode = \"closed\" }").unwrap_err().contains("mode"));
     let path = "default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\", path = \"/x\" }] }";
-    assert!(parse(path).unwrap_err().contains("path rule"));
+    assert!(parse(path).unwrap_err().contains("a path needs a TLS end"));
+    let methods = "default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\", methods = [\"GET\"] }] }";
+    assert!(parse(methods).unwrap_err().contains("a host and ports only"), "#249");
     assert!(parse("default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\" }] }").is_ok());
 }

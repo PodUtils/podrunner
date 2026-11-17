@@ -23,7 +23,7 @@ pub struct Dispatch {
 /// (`ARM64`, `ubuntu-24.04-arm`, `aarch64`; `X64`, `x86_64`, `amd64`).
 pub fn other_arch(label: &str, host: &str) -> Option<&'static str> {
     let l = label.to_ascii_lowercase();
-    let arm = l == "arm" || l == "arm64" || l == "aarch64" || l.ends_with("-arm") || l.ends_with("-arm64");
+    let arm = l == "arm64" || l == "aarch64" || l.ends_with("-arm") || l.ends_with("-arm64");
     let x64 = l == "x64" || l == "x86_64" || l == "amd64" || l.ends_with("-x64");
     match host {
         "x86_64" if arm => Some("linux/arm64"),
@@ -41,6 +41,11 @@ pub fn foreign(labels: &[String]) -> Result<(), String> {
     });
     if let Some(l) = other_os {
         return Err(format!("runs-on {l:?}: a unit is Linux; name a --platform for the label to run it there"));
+    }
+    if let Some((l, arch)) = labels.iter().find_map(|l| no_unit(l).map(|a| (l, a))) {
+        return Err(format!(
+            "runs-on {l:?}: a job of {arch}, and no unit runs {arch}: the units are linux/amd64 or linux/arm64; name a --platform for the label to run it there"
+        ));
     }
     // The units of this host have its architecture, and podvm runs no
     // guest of another one yet.
@@ -132,6 +137,33 @@ impl Executor for Dispatch {
     }
 }
 
+/// The architectures that no unit of a host runs, as a label or its end
+/// (`self-hosted-s390x`): a job of one is refused by name (#253).
+/// `ARM` alone is the label of a 32-bit ARM runner (as `X86`); `-arm` at the
+/// end of a GitHub-hosted image is 64-bit.
+const NO_UNIT: &[&str] = &[
+    "ppc64le",
+    "ppc64",
+    "s390x",
+    "riscv64",
+    "loongarch64",
+    "i386",
+    "i686",
+    "x86",
+    "arm",
+    "armhf",
+    "armv7",
+    "armv7l",
+    "armv6",
+    "mips64",
+];
+
+/// The architecture of `label` when no unit runs it.
+fn no_unit(label: &str) -> Option<&'static str> {
+    let l = label.to_ascii_lowercase();
+    NO_UNIT.iter().copied().find(|a| l == *a || (*a != "arm" && l.ends_with(&format!("-{a}"))))
+}
+
 #[cfg(test)]
 mod tests {
     use pod_actions_workflow::JobResult;
@@ -152,6 +184,22 @@ mod tests {
         d.select(&labels)?;
         let end = d.run(&JobId::new("j.0").unwrap(), Job::scripts("j", &[]), Duration::ZERO)?;
         Ok(end.outputs[0].1.clone())
+    }
+
+    /// #253: a label of an architecture that no unit runs is refused; a
+    /// label that only contains its letters is not.
+    #[test]
+    fn a_label_of_an_architecture_with_no_unit_is_refused() {
+        let one = |l: &str| foreign(&[l.to_string()]);
+        for l in
+            ["ppc64le", "s390x", "riscv64", "i386", "i686", "armv7", "RISCV64", "self-hosted-s390x", "ARM", "armhf"]
+        {
+            let e = one(l).unwrap_err();
+            assert!(e.contains("no unit runs"), "{l}: {e}");
+        }
+        for l in ["ubuntu-latest", "self-hosted", "linux", "x86_64-big", "my-i386ish", "charm"] {
+            assert!(one(l).is_ok(), "{l}");
+        }
     }
 
     #[test]

@@ -109,6 +109,7 @@ impl PodvmUnit {
             if !source.exists() && !m.source.is_absolute() {
                 std::fs::create_dir_all(&source).map_err(|e| host("a volume source", e))?;
             }
+            podrunner_unit::mounts::host_path(&source, UnitCode::ContainerOptionRefused)?;
             let ro = if m.read_only { ":ro" } else { "" };
             args.extend(["-v".into(), format!("{}:{}{ro}", source.display(), m.target)]);
         }

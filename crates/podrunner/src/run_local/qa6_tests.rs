@@ -401,3 +401,26 @@ fn a_local_repository_serves_an_action() {
     assert!(run(&args(&[&w, "--local-repository", "me/tool"])).stderr.contains("OWNER/REPO@REF=DIR"));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// #261: a checkout of another repository, or a called workflow, with a
+/// part `..` is refused before any fetch.
+#[test]
+fn a_repository_with_dot_dot_is_refused_before_a_fetch() {
+    let dir = scratch("dotdot");
+    let flows = [
+        "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          repository: ../x\n",
+        "on: push\njobs:\n  a:\n    uses: ../x/.github/workflows/w.yml@v1\n",
+        "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{uses: ../x@v1}]\n",
+    ];
+    for (i, flow) in flows.iter().enumerate() {
+        let file = dir.join(format!("w{i}.yml"));
+        std::fs::write(&file, flow).unwrap();
+        let store = dir.join("store").display().to_string();
+        let w = file.display().to_string();
+        let out =
+            run(&args(&[&w, "--dry-run", "--no-cache", "--actions", &store, "--runner-dir", &runner_dir("dotdot")]));
+        assert_ne!(out.code, 0, "{i}: {}{}", out.stdout, out.stderr);
+        assert!(out.stderr.contains("not a name"), "{i}: {}", out.stderr);
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
