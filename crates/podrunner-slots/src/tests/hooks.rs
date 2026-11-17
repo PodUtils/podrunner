@@ -22,6 +22,9 @@ struct Seen {
     closed: Arc<Mutex<Vec<String>>>,
     queued: Queued,
     images: Arc<Mutex<Vec<String>>>,
+    /// The next calls of `take` that give nothing (a read before the event
+    /// arrives).
+    hold: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl HookPort for Seen {
@@ -40,6 +43,10 @@ impl HookPort for Seen {
         self.closed.lock().unwrap().push(unit.to_string());
     }
     fn take(&self, _unit: &UnitId) -> (Vec<RefusalCode>, Vec<HookEvent>) {
+        use std::sync::atomic::Ordering;
+        if self.hold.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok() {
+            return Default::default();
+        }
         self.queued.lock().unwrap().pop().unwrap_or_default()
     }
     fn images(&self, _unit: &UnitId) -> Vec<String> {
@@ -131,4 +138,21 @@ fn report_fields_name_the_first_step_and_the_job_images() {
     // The public report leaves both out.
     let public = serde_json::to_value(r.public()).unwrap();
     assert!(public.get("job_images").is_none() && public.get("claim_to_first_step_s").is_none());
+}
+
+/// #256: a `job-completed` event that the tick does not read before the
+/// unit ends still gives its audit line: `finish` reads the hooks of the
+/// unit before it closes them.
+#[test]
+fn a_job_completed_event_of_a_unit_that_ended_is_not_lost() {
+    let (mut b, seen) = bed(ContainerRoute::Hooks, "exit 0");
+    b.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    // The unit ends before the next tick.
+    std::thread::sleep(std::time::Duration::from_millis(500));
+    seen.queued.lock().unwrap().push((vec![], vec![HookEvent::JobCompleted]));
+    seen.hold.store(1, std::sync::atomic::Ordering::SeqCst);
+    b.until(50, Bed::all_final);
+    let done = b.slots.audit_lines().iter().filter(|l| l.audit == audit::Kind::JobCompleted).count();
+    assert_eq!(done, 1, "{:?}", b.slots.audit_lines());
+    assert!(seen.queued.lock().unwrap().is_empty(), "the event was read");
 }

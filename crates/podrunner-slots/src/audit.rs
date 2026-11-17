@@ -126,20 +126,24 @@ impl Audit {
     }
 
     /// Write `e` as the next line of the chain, and give it back with its
-    /// `seq` and `prev` (the copy for the source).
-    pub fn write(&mut self, mut e: Entry) -> Entry {
+    /// `seq` and `prev` (the copy for the source); `None` when it is not on
+    /// the disk: then it is in no copy, and the next line takes its `seq`
+    /// (#265).
+    pub fn write(&mut self, mut e: Entry) -> Option<Entry> {
         e.seq = self.seq + 1;
         e.prev = self.prev.clone();
-        if let Ok(text) = serde_json::to_string(&e) {
-            // An audit line that cannot be written must not stop a job:
-            // the journal holds the transitions.
-            let _ = self.append(&text);
+        // An audit line that cannot be written must not stop a job: the
+        // journal holds the transitions. It gives one line on stderr.
+        let written = serde_json::to_string(&e).map_err(std::io::Error::other).and_then(|t| self.append(&t));
+        if let Err(why) = written {
+            eprintln!("podrunner: the audit line {} ({:?} of {}) is not written: {why}", e.seq, e.audit, e.job_id);
+            return None;
         }
         self.lines.push(e.clone());
         if self.lines.len() > KEEP {
             self.lines.drain(..self.lines.len() - KEEP);
         }
-        e
+        Some(e)
     }
 }
 
@@ -282,6 +286,10 @@ mod tests {
         a.file = OpenOptions::new().append(true).open(d.join("audit.jsonl")).unwrap();
         a.write(entry(3, "b"));
         assert_eq!(verify(&std::fs::read(d.join("audit.jsonl")).unwrap(), None), Ok(2));
+        // #265: the lost line is not in memory, and no seq is there twice.
+        let seqs: Vec<u64> = a.lines.iter().map(|l| l.seq).collect();
+        assert_eq!(seqs, [1, 2], "{:?}", a.lines);
+        assert!(!a.lines.iter().any(|l| l.detail.as_deref() == Some("lost")));
         for n in 0..5000 {
             a.write(entry(n, "x"));
         }

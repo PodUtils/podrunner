@@ -104,6 +104,17 @@ pub fn replay(state_dir: &Path) -> std::io::Result<Replay> {
     Ok(r)
 }
 
+/// A copy of a journal with lines that could not be read, before the
+/// compaction drops them (#269): `journal.jsonl.bad-N`, N the first free
+/// number. `None` when each line was read or the copy failed.
+pub fn keep_bad(state_dir: &Path, r: &Replay) -> Option<std::path::PathBuf> {
+    if r.bad_lines == 0 {
+        return None;
+    }
+    let to = (0..1000).map(|n| state_dir.join(format!("journal.jsonl.bad-{n}"))).find(|p| !p.exists())?;
+    std::fs::copy(state_dir.join("journal.jsonl"), &to).ok().map(|_| to)
+}
+
 /// Write the journal again with what a later start needs (T-068): the
 /// last line of each open job, and the line with the highest unit number.
 /// The new file is written beside the old one, synced, and renamed over

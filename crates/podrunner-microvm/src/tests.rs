@@ -263,3 +263,23 @@ fn destroy_removes_the_run_directory_of_the_guest() {
     assert_eq!(left, ["run-1-1"]);
     let _ = fs::remove_dir_all(&d);
 }
+
+/// #272: with a channel, the guest script sets `NODE_USE_ENV_PROXY=1`, so
+/// that the `fetch` of Node takes the proxy; a value of the job stays.
+#[test]
+fn the_guest_script_gives_node_the_proxy() {
+    let script = crate::guest::SCRIPT;
+    let from = script.find("if [ -n \"${PODRUNNER_CHANNEL_PORT").unwrap();
+    let block = &script[from..from + script[from..].find("fi\n").unwrap() + 3];
+    let run = |pre: &str| {
+        let out = std::process::Command::new("sh")
+            .args(["-c", &format!("set -eu; {pre} {block} echo \"$NODE_USE_ENV_PROXY $HTTPS_PROXY\"")])
+            .env_remove("NODE_USE_ENV_PROXY")
+            .env("PODRUNNER_CHANNEL_PORT", "3128")
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    };
+    assert_eq!(run(""), "1 http://127.0.0.1:3128");
+    assert_eq!(run("NODE_USE_ENV_PROXY=0;"), "0 http://127.0.0.1:3128");
+}

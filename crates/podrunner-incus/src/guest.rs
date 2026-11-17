@@ -27,6 +27,8 @@ root=$1; shift
 if [ -n "${PODRUNNER_CHANNEL_PORT:-}" ]; then
   u=http://127.0.0.1:$PODRUNNER_CHANNEL_PORT
   export http_proxy=$u https_proxy=$u HTTP_PROXY=$u HTTPS_PROXY=$u
+  # The fetch of Node takes the proxy only with this (#272).
+  export NODE_USE_ENV_PROXY="${NODE_USE_ENV_PROXY:-1}"
 fi
 mkdir -p "$root"
 while read -r n b; do
@@ -120,11 +122,22 @@ pub fn credential_stream(credential: &Credential) -> Result<Vec<u8>, UnitError> 
 /// two hosts on one incusd do not meet, and the same after a restart, so a
 /// replay of the journal finds it. incus takes a letter first, then
 /// letters, digits and `-`, at most 63.
-pub fn instance_name(state_dir: &Path, unit: &str) -> String {
-    // FNV-1a: stable over builds, unlike the hasher of the standard library.
+/// The name that a release before #273 gave: a 32-bit hash. A replay of the
+/// journal after an upgrade removes it too.
+pub fn legacy_instance_name(state_dir: &Path, unit: &str) -> String {
     let mut h: u32 = 0x811c_9dc5;
     for b in state_dir.as_os_str().as_encoded_bytes() {
         h = (h ^ u32::from(*b)).wrapping_mul(0x0100_0193);
     }
     format!("podrunner-{h:08x}-{unit}")
+}
+
+pub fn instance_name(state_dir: &Path, unit: &str) -> String {
+    // FNV-1a of 64 bits (#273): stable over builds, unlike the hasher of
+    // the standard library; 32 bits met for two paths.
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in state_dir.as_os_str().as_encoded_bytes() {
+        h = (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("podrunner-{h:016x}-{unit}")
 }

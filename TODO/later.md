@@ -7815,7 +7815,7 @@ Find the argument that the parser takes as the file (`many::run_dir`).
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7834,6 +7834,10 @@ Run the test 50 times under load (`cargo test -p podrunner-fake each_unit_plant 
 `cargo test -p podrunner-fake each_unit_plant_fails_its_test` passes 50 times of 50 under the load of the suite.
 
 State (2026-11-17): six runs of the suite of `podrunner-fake` at one time on this sandbox: each passed. Not reproduced; the entry stays open for the next failure.
+
+## Done
+
+2026-11-17: the cause, from a second failure in the check of a push (`TagOnly passes test 25`): the plant `TagOnly` ends the tagged processes, but the shim ends its children when the payload ends; under load the shim ran before its own kill and ended the untagged orphan, so the plant passed the test that it must fail. The plant now ends the shim first (`podrunner-fake/src/unit.rs`), so the orphan stays. Proof: the suite of `check.sh` passes; the race is in the plant, not in a driver.
 
 # T-383: A container mount can name the runner root or a file of it
 
@@ -9387,7 +9391,7 @@ Normalize the ref: empty or absent -> `HEAD`; `refs/heads/X` -> `X`; `refs/tags/
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9404,6 +9408,10 @@ Parse the authority with brackets: `[::1]:8443` -> `::1`; `[2001:db8::1]` -> `20
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `fetch::host_of` takes an IPv6 literal in brackets, after a user part and before a port, and gives `[ADDR]` in its one spelling, the host form of a rule of `pod-broker` (`on_local_network` takes the brackets off). The cases of #252 are in the test of `host_of`; they fail on the old code.
 
 # T-441: run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused
 
@@ -9441,7 +9449,7 @@ Recognize the other architecture labels (`ppc64le`, `s390x`, `riscv64`, `i386`, 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9459,6 +9467,10 @@ Keep the parser/check error and refuse with a `bad-request` reason (the source w
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
 
+## Done
+
+2026-11-17: A malformed offer (the parser, or `JobOffer::check`: the schema, a limit, the policy) is withdrawn with the reason `bad-request`, as the remote mint does, also when it is offered again, and the audit line has the fault (`bad-request: ...`). The report keeps `event-not-allowed`: pod-job has no code of a bad offer. Test `a_malformed_offer_is_a_bad_request_with_its_fault` (a bad schema, a bad policy, an unknown limit) fails on the old code. After `forget` (an hour after the end), a malformed offer offered again is `event-not-allowed` again: the job is gone.
+
 # T-443: serve: a job-completed hook event is lost when the unit ends before the next tick
 
 **Source:** GitHub #256 (a user who read the code of `main`, 2026-11-17)
@@ -9466,7 +9478,7 @@ Keep the parser/check error and refuse with a `bad-request` reason (the source w
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9483,6 +9495,10 @@ Read the hook events of a unit that is `Ended`/`Destroyed` before `finish` close
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `finish` reads the hooks of the unit (`read_hooks`) before it destroys the unit and closes them, so a `job-completed` that the last tick did not read gives its audit line. Test `a_job_completed_event_of_a_unit_that_ended_is_not_lost` (a port that gives nothing on the read of the tick) fails on the old code.
 
 # T-444: podvm: a start that fails after run -d leaves the podvm unit, because destroy skips podvm rm
 
@@ -9541,7 +9557,7 @@ Kill the child and join the thread on timeout (a `Child` handle shared with the 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9558,6 +9574,10 @@ Encode the source name reversibly (percent/hex for the bytes that are not safe) 
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: The spool file of a report has a readable form of the source and the job and a 64-bit FNV-1a hash of the exact names (`spool::file_name`): `a b` and `a_b` get two files. Test `two_source_names_get_two_spool_files`.
 
 # T-447: run: a lock key or uses: with ../x@v1 is accepted and the fetch URL normalizes to another repository
 
@@ -9674,7 +9694,7 @@ In `dry::paths`, call `vnet::shim` (into a scratch directory that the dry run re
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9691,6 +9711,10 @@ Push the entry to `lines` only when `append` succeeds, or mark it as not written
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `Audit::write` gives the entry only when it is on the disk: a failed write is in no memory and no copy for the source, the next line takes its `seq`, and one line on stderr names it. Test `a_failed_write_moves_no_chain_and_memory_is_bounded` (with `/dev/full`) fails on the old code.
 
 # T-452: guest: the self-test skips the first unit's file check when the driver reports no unit_root
 
@@ -9753,7 +9777,7 @@ Include `k.capability.egress_hold.effective() >= needed_hold(s.cfg.tier)` in `no
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9771,6 +9795,10 @@ Name the orphan on stderr and remove it (or move it to a `spool/orphan/` directo
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
 
+## Done
+
+2026-11-17: A spooled report of a source that the configuration no longer has goes to `STATE/spool/orphan/` with one line on stderr; it is kept, not sent and not counted. The retry time saturates (a test with the largest time found an overflow). Test `a_report_of_a_source_that_is_gone_goes_to_the_orphans`.
+
 # T-455: serve: a bad journal line is counted in Replay.bad_lines and never reported
 
 **Source:** GitHub #269 (a user who read the code of `main`, 2026-11-17)
@@ -9778,7 +9806,7 @@ Name the orphan on stderr and remove it (or move it to a `spool/orphan/` directo
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9795,6 +9823,10 @@ In `Slots::start`, print a line for `replay.bad_lines` (with the path and the co
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `Slots::start` keeps a copy of a journal with lines that could not be read (`journal.jsonl.bad-N`) before the compaction drops them, and names the count and the copy on stderr. Each start with bad lines makes one copy (at most 1000; then the line says `no copy`). Test `a_bad_journal_line_is_kept_and_named`.
 
 # T-456: check: a pin payload with an invalid arch (riscv64, x86-64) is accepted and then refuses every job
 
@@ -9861,7 +9893,7 @@ In `serve::plan` for `[unit.podvm]`, require `command` non-empty, `runner_dir` a
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9879,6 +9911,10 @@ Add `NODE_USE_ENV_PROXY=1` to both guest scripts when the channel is set (unless
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
 
+## Done
+
+2026-11-17: The guest scripts of the microvm and incus kinds export `NODE_USE_ENV_PROXY=${NODE_USE_ENV_PROXY:-1}` with the proxy of the channel. Tests `the_guest_script_gives_node_the_proxy` (each kind; the proxy lines of the script run in `sh`) fail on the old scripts.
+
 # T-459: incus: the instance name is a 32-bit hash, so two state directories can collide
 
 **Source:** GitHub #273 (a user who read the code of `main`, 2026-11-17)
@@ -9886,7 +9922,7 @@ Add `NODE_USE_ENV_PROXY=1` to both guest scripts when the channel is set (unless
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9903,6 +9939,10 @@ Use a 64-bit hash (the name has room: `podrunner-{h:016x}-{unit}` is under 63 ch
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: The incus instance name has a 64-bit FNV-1a hash of the state directory. The two paths of #273 are in `the_name_is_one_incus_takes`; it fails on the old hash. A destroy of a replay of the journal also removes the instance of the old 32-bit name, so an upgrade during a job leaves no instance with its credential (a review found it; `a_replay_destroy_removes_the_instance_of_the_old_name`).
 
 # T-460: microvm: destroy of a unit that is not in the map leaves its directory and reports a residue
 
@@ -10372,3 +10412,28 @@ Check the state directory, `TMPDIR`, `--toolcache`, `--export` and the `engine` 
 ## Prove
 
 `cargo test --workspace`; a test with `TMPDIR=/tmp/a:b` and `--microvm`.
+
+# T-477: An audit line that fails half way leaves a fragment, and the next line joins it
+
+**Source:** the review of the fix of #265 by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When `write_all` of an audit line fails part way (a full disk), part of the line stays in `audit.jsonl` with no end of line. The next line is appended to that fragment, so it cannot be read on the disk, while the source has its copy.
+
+## Premise
+
+The review read `Audit::append`; not measured.
+
+## Approach
+
+Remember the length of the file before a write; on a failure, truncate the file to it (or write a line end before the next line and mark the chain as torn, as `verify` reads it).
+
+## Prove
+
+`cargo test -p podrunner-slots`; a test with a file that takes only part of a line.

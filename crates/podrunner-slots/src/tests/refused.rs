@@ -93,3 +93,29 @@ fn a_refusal_of_one_source_holds_no_other_source() {
     let audit = std::fs::read_to_string(bed.slots.state_dir.join("audit.jsonl")).unwrap();
     assert!(audit.contains("offered again"), "{audit}");
 }
+
+/// #255: a malformed offer is withdrawn as `bad-request`, as the remote mint
+/// does, and the audit names the fault; not `event-not-allowed` with none.
+#[test]
+fn a_malformed_offer_is_a_bad_request_with_its_fault() {
+    for (with, fault) in [
+        (json!({ "schema": 2 }), "schema 2"),
+        (json!({ "policy": { "schema": 1, "mode": "sometimes" } }), "policy"),
+        (json!({ "limits": { "frobs": 1 } }), "frobs"),
+    ] {
+        let cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
+        let kind = KindSpec { name: "fake", slots: 1, capability: cap, command: sh("exit 0") };
+        let mut bed = Bed::new(config(""), vec![("a", "trusted", None, vec![])], vec![kind]);
+        let step: Value = serde_json::from_str(&offer(0, "j-1", with)).unwrap();
+        let offer: Offer = serde_json::from_value(step["offer"].clone()).unwrap();
+        let withdrawn: Arc<Mutex<Vec<String>>> = Arc::default();
+        bed.slots.sources[0].source = Box::new(Again { offer, withdrawn: withdrawn.clone() });
+        for _ in 0..3 {
+            bed.tick();
+        }
+        let w = withdrawn.lock().unwrap().clone();
+        assert!(w.len() >= 2 && w.iter().all(|x| x == "j-1 bad-request"), "also when offered again: {w:?}");
+        let audit = std::fs::read_to_string(bed.slots.state_dir.join("audit.jsonl")).unwrap();
+        assert!(audit.contains("bad-request") && audit.contains(fault), "{fault}: {audit}");
+    }
+}

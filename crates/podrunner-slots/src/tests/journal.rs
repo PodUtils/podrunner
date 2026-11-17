@@ -107,3 +107,20 @@ fn a_replayed_claimed_line_is_released_and_reported_lost() {
         assert!(journal.contains("\"lost\""), "{last}: {journal}");
     }
 }
+
+/// #269: a journal with a line that cannot be read keeps a copy before the
+/// compaction, which drops the line, and the copy names the count.
+#[test]
+fn a_bad_journal_line_is_kept_and_named() {
+    let d = std::env::temp_dir().join(format!("podrunner-journal-bad-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
+    assert_eq!(crate::journal::keep_bad(&d, &crate::journal::replay(&d).unwrap()), None, "no journal");
+    std::fs::write(d.join("journal.jsonl"), "not json\n").unwrap();
+    let replay = crate::journal::replay(&d).unwrap();
+    assert_eq!(replay.bad_lines, 1);
+    let kept = crate::journal::keep_bad(&d, &replay).expect("a copy");
+    assert_eq!(std::fs::read_to_string(&kept).unwrap(), "not json\n");
+    assert!(kept.file_name().unwrap().to_string_lossy().starts_with("journal.jsonl.bad-"), "{}", kept.display());
+    let _ = std::fs::remove_dir_all(&d);
+}

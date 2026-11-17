@@ -136,7 +136,8 @@ fn a_cpu_limit_holds_in_a_delegated_cgroup() {
     let mut seen = Vec::new();
     while std::time::Instant::now() < end {
         seen = cpu_max_beside(&own).into_iter().filter(|c| !before.contains(c)).collect();
-        if !seen.is_empty() {
+        // podvm can make the cgroup before it writes the quota: wait for it.
+        if seen.iter().any(|(_, q)| q == "100000 100000") {
             break;
         }
         std::thread::sleep(Duration::from_millis(200));

@@ -185,6 +185,27 @@ fn the_name_is_one_incus_takes() {
     assert!(n.len() <= 63 && n.starts_with("podrunner-"), "{n}");
     assert!(n.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'), "{n}");
     assert_ne!(n, instance_name(Path::new("/srv/other"), "u-123456789"), "two hosts do not meet");
+    // #273: two state directories with one 32-bit FNV-1a hash.
+    let (a, b) = (Path::new("/tmp/state-PWQ32AQYYH4h"), Path::new("/tmp/state-EFBr8apCHnCy"));
+    assert_ne!(instance_name(a, "u-1"), instance_name(b, "u-1"));
+}
+
+/// #272: with a channel, the guest script sets `NODE_USE_ENV_PROXY=1`, so
+/// that the `fetch` of Node takes the proxy; a value of the job stays.
+#[test]
+fn the_guest_script_gives_node_the_proxy() {
+    let head = &crate::guest::SCRIPT[..crate::guest::SCRIPT.find("fi\n").unwrap() + 3];
+    let run = |pre: &str| {
+        let out = std::process::Command::new("sh")
+            .args(["-c", &format!("{pre} set -- /x; {head} echo \"$NODE_USE_ENV_PROXY $HTTPS_PROXY\"")])
+            .env_remove("NODE_USE_ENV_PROXY")
+            .env("PODRUNNER_CHANNEL_PORT", "3128")
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    };
+    assert_eq!(run(""), "1 http://127.0.0.1:3128");
+    assert_eq!(run("NODE_USE_ENV_PROXY=0;"), "0 http://127.0.0.1:3128");
 }
 
 #[test]
@@ -267,4 +288,21 @@ fn the_limits_become_the_keys_of_the_instance() {
         assert_eq!(cap.limit(name), podrunner_schema::LimitMode::Enforced, "{name}");
     }
     let _ = std::fs::remove_dir_all(&d);
+}
+
+/// The review of #273: a destroy of a replay also removes an instance of the
+/// 32-bit name that a release before it made, so that an upgrade during a
+/// job leaves no instance with the credential of the job.
+#[test]
+fn a_replay_destroy_removes_the_instance_of_the_old_name() {
+    let (u, d) = driver("legacy", "sleep 30");
+    let state = d.join("state");
+    let old = crate::guest::legacy_instance_name(&state, "u-1");
+    assert!(old.starts_with("podrunner-") && old.len() == "podrunner-".len() + 8 + "-u-1".len(), "{old}");
+    assert_ne!(old, instance_name(&state, "u-1"));
+    fs::create_dir_all(d.join("store")).unwrap();
+    fs::write(d.join("store").join(format!("{old}.status")), "Running 0\n").unwrap();
+    let residue = u.destroy(&UnitId::parse("u-1").unwrap()).unwrap();
+    assert!(!d.join("store").join(format!("{old}.status")).exists(), "the old instance is removed");
+    assert_eq!(residue.processes, Count::Known(0));
 }

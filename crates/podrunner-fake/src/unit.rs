@@ -421,10 +421,11 @@ impl UnitDriver for FakeUnit {
         let left = if self.planted(UnitPlant::NoKill) {
             shim::unit_pids(r.child.id(), Some(&r.tag)).len() as u64
         } else if top_only || self.planted(UnitPlant::TagOnly) {
-            if top_only {
-                let _ = r.child.kill();
-                let _ = r.child.wait();
-            }
+            // The shim goes first: it ends its children when the payload
+            // ends, which would end an untagged orphan that the plant must
+            // leave (T-382).
+            let _ = r.child.kill();
+            let _ = r.child.wait();
             procs::kill_tagged(&r.tag, if top_only { Duration::ZERO } else { KILL_LIMIT })
         } else {
             shim::kill_unit(r.child.id(), Some(&r.tag), KILL_LIMIT)

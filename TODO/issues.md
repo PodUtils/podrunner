@@ -251,28 +251,28 @@ numbers. `TODO/RULES.md` gives the rules.
 | #249 | policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy | closed | T-438 |
 | #250 | run: the per-run and per-unit scratch directories under TMPDIR follow a pre-created symlink | closed | T-407 |
 | #251 | run: a checkout of another repository with an empty, full or SHA ref is not resolved | open | T-439 |
-| #252 | run: fetch::host_of cuts an IPv6 action-server address at the first colon | open | T-440 |
+| #252 | run: fetch::host_of cuts an IPv6 action-server address at the first colon | closed | T-440 |
 | #253 | run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused | closed | T-441 |
 | #254 | oidc: job_workflow_ref names the caller's workflow for a job of a reusable workflow | open | T-434 |
-| #255 | serve: a malformed offer is refused as event-not-allowed with no detail, not bad-request | open | T-442 |
-| #256 | serve: a job-completed hook event is lost when the unit ends before the next tick | open | T-443 |
+| #255 | serve: a malformed offer is refused as event-not-allowed with no detail, not bad-request | closed | T-442 |
+| #256 | serve: a job-completed hook event is lost when the unit ends before the next tick | closed | T-443 |
 | #257 | podvm: a start that fails after run -d leaves the podvm unit, because destroy skips podvm rm | open | T-444 |
 | #258 | source-conformance: a timed-out test leaves its thread and child process alive | open | T-445 |
-| #259 | serve: two source names that map to the same spool file lose one refused report | open | T-446 |
+| #259 | serve: two source names that map to the same spool file lose one refused report | closed | T-446 |
 | #260 | front: a guest can grow memory with an unbounded request line and hold threads with no read timeout or cap | open | T-412 |
 | #261 | run: a lock key or uses: with ../x@v1 is accepted and the fetch URL normalizes to another repository | closed | T-447 |
 | #262 | check: a podvm config with a bad upstream_proxy, an old podvm or a bad podnet passes check and stops serve | open | T-448 |
 | #263 | check_driver: a non-executable driver and a writable ancestor are accepted | closed | T-449 |
 | #264 | run: a dry run with a --vnet podnet binary that cannot build the shim says planned | open | T-450 |
-| #265 | audit: a failed write still appears in the in-memory lines and the next line reuses its seq | open | T-451 |
+| #265 | audit: a failed write still appears in the in-memory lines and the next line reuses its seq | closed | T-451 |
 | #266 | guest: the self-test skips the first unit's file check when the driver reports no unit_root | open | T-452 |
 | #267 | status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused | closed | T-453 |
-| #268 | serve: a spooled report of a source that is no longer configured is skipped forever | open | T-454 |
-| #269 | serve: a bad journal line is counted in Replay.bad_lines and never reported | open | T-455 |
+| #268 | serve: a spooled report of a source that is no longer configured is skipped forever | closed | T-454 |
+| #269 | serve: a bad journal line is counted in Replay.bad_lines and never reported | closed | T-455 |
 | #270 | check: a pin payload with an invalid arch (riscv64, x86-64) is accepted and then refuses every job | closed | T-456 |
 | #271 | check: an empty [unit.podvm] command, a relative runner_dir and a bad registry host are accepted | closed | T-457 |
-| #272 | guest: the microvm and incus scripts set HTTP(S)_PROXY but not NODE_USE_ENV_PROXY | open | T-458 |
-| #273 | incus: the instance name is a 32-bit hash, so two state directories can collide | open | T-459 |
+| #272 | guest: the microvm and incus scripts set HTTP(S)_PROXY but not NODE_USE_ENV_PROXY | closed | T-458 |
+| #273 | incus: the instance name is a 32-bit hash, so two state directories can collide | closed | T-459 |
 | #274 | microvm: destroy of a unit that is not in the map leaves its directory and reports a residue | open | T-460 |
 | #275 | run: a host path with a colon breaks the -v mount of a unit (toolcache, export, container mount) | closed | T-461 |
 | #276 | microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed | open | T-462 |

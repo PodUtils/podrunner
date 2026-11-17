@@ -103,3 +103,30 @@ fn report_spool_survives_a_restart() {
     assert_eq!(*taken.lock().unwrap(), ["j-1"]);
     assert_eq!(bed.slots.spooled(), 0);
 }
+
+/// #259: two source names that differ only in a byte that is not plain get
+/// two spool files.
+#[test]
+fn two_source_names_get_two_spool_files() {
+    let job = JobId::new("j-1").unwrap();
+    let (a, b) = (crate::spool::file_name("a b", &job), crate::spool::file_name("a_b", &job));
+    assert_ne!(a, b);
+    assert!(a.starts_with("a_b--j-1-") && a.ends_with(".json"), "{a}");
+    assert_eq!(a, crate::spool::file_name("a b", &job), "one name for one report");
+}
+
+/// #268: a spooled report of a source that the configuration no longer has
+/// leaves the spool for `spool/orphan/`, with one line, and is not counted.
+#[test]
+fn a_report_of_a_source_that_is_gone_goes_to_the_orphans() {
+    let mut bed = Bed::new(config(""), vec![("a", "trusted", None, vec![])], vec![kind()]);
+    let dir = bed.slots.state_dir.join("spool");
+    std::fs::create_dir_all(&dir).unwrap();
+    let entry = json!({ "source": "gone", "job_id": "j-9", "report": {} });
+    std::fs::write(dir.join("gone--j-9.json"), entry.to_string()).unwrap();
+    assert_eq!(bed.slots.spooled(), 1);
+    bed.slots.retry_spool(u64::MAX);
+    assert_eq!(bed.slots.spooled(), 0, "an orphan is not counted");
+    assert!(dir.join("orphan/gone--j-9.json").is_file(), "the orphan is kept");
+    bed.tick();
+}

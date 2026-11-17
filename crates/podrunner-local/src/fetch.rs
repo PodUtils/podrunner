@@ -81,6 +81,12 @@ pub fn host_of(base: &str) -> Option<String> {
     let rest = base.split_once("://")?.1;
     let authority = rest.split('/').next()?;
     let host = authority.rsplit_once('@').map_or(authority, |x| x.1);
+    // An IPv6 literal is `[ADDR]` with a port after it (#252): the host of
+    // a rule of the egress module is `[ADDR]` in its one spelling.
+    if let Some(rest) = host.strip_prefix('[') {
+        let ip: std::net::Ipv6Addr = rest.split_once(']')?.0.parse().ok()?;
+        return Some(format!("[{ip}]"));
+    }
     let host = host.split(':').next()?;
     (!host.is_empty()).then(|| host.to_ascii_lowercase())
 }
@@ -168,6 +174,12 @@ mod tests {
         assert_eq!(host_of("https://github.com/").as_deref(), Some("github.com"));
         assert_eq!(host_of("https://u@Git.Example:8443/org/").as_deref(), Some("git.example"));
         assert_eq!(host_of("github.com"), None);
+        // #252: an IPv6 literal in brackets, with a port and a user part.
+        assert_eq!(host_of("https://[::1]:8443/").as_deref(), Some("[::1]"));
+        assert_eq!(host_of("https://[2001:DB8::1]/x").as_deref(), Some("[2001:db8::1]"));
+        assert_eq!(host_of("https://u@[::1]:8443/").as_deref(), Some("[::1]"));
+        assert_eq!(host_of("https://[::1/").as_deref(), None, "no closing bracket");
+        assert_eq!(host_of("https://[]/").as_deref(), None);
         assert!(policy(&["github.com".into()]).contains("\"host\":\"github.com\""));
         let _ = std::fs::remove_dir_all(&dir);
     }

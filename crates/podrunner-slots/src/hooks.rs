@@ -77,35 +77,41 @@ impl Slots {
     /// Read the hooks of each live unit: an audit line `hook-refuse` for
     /// each refusal, and `job-started` moves `started` to `running` once.
     pub(crate) fn hook_events(&mut self, now: u64) {
-        let Some(h) = &self.hooks else { return };
-        let mut seen = Vec::new();
-        for (key, j) in &self.jobs {
-            if let (Some(u), State::Started | State::Running) = (&j.unit, j.state) {
-                let (refusals, events) = h.take(u);
-                let images = h.images(u);
-                if !refusals.is_empty() || !events.is_empty() || !images.is_empty() {
-                    seen.push((key.clone(), refusals, events, images));
-                }
-            }
+        let live: Vec<(usize, podrunner_schema::JobId)> = self
+            .jobs
+            .iter()
+            .filter(|(_, j)| j.unit.is_some() && matches!(j.state, State::Started | State::Running))
+            .map(|(k, _)| k.clone())
+            .collect();
+        for key in live {
+            self.read_hooks(&key, now);
         }
-        for (key, refusals, events, images) in seen {
-            let j = self.jobs.get_mut(&key).expect("a live job");
+    }
+
+    /// Read the hooks of the unit of `key`: also at its end, before they
+    /// close, so that an event that the last tick did not read is not lost
+    /// (#256).
+    pub(crate) fn read_hooks(&mut self, key: &(usize, podrunner_schema::JobId), now: u64) {
+        let (Some(h), Some(u)) = (&self.hooks, self.jobs.get(key).and_then(|j| j.unit.clone())) else { return };
+        let (refusals, events) = h.take(&u);
+        let images = h.images(&u);
+        if let Some(j) = self.jobs.get_mut(key) {
             for i in images {
                 if !j.images.contains(&i) {
                     j.images.push(i);
                 }
             }
-            for code in refusals {
-                self.audit(audit::Kind::HookRefuse, key.0, &key.1, Some(code), None);
-            }
-            if events.contains(&HookEvent::JobStarted) && self.jobs[&key].state == State::Started {
-                self.set(&key, State::Running, now);
-            }
-            // The time of job-completed goes to the audit; the state moves
-            // on the exit of the unit only.
-            if events.contains(&HookEvent::JobCompleted) {
-                self.audit(audit::Kind::JobCompleted, key.0, &key.1, None, None);
-            }
+        }
+        for code in refusals {
+            self.audit(audit::Kind::HookRefuse, key.0, &key.1, Some(code), None);
+        }
+        if events.contains(&HookEvent::JobStarted) && self.jobs[key].state == State::Started {
+            self.set(key, State::Running, now);
+        }
+        // The time of job-completed goes to the audit; the state moves
+        // on the exit of the unit only.
+        if events.contains(&HookEvent::JobCompleted) {
+            self.audit(audit::Kind::JobCompleted, key.0, &key.1, None, None);
         }
     }
 }

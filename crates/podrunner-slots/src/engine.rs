@@ -286,8 +286,9 @@ impl Slots {
             detail,
         };
         // The copy at the source carries the chain: the anchor of the tail.
-        let e = self.audit.write(e);
-        let _ = self.sources[s].source.audit(&e.to_map());
+        if let Some(e) = self.audit.write(e) {
+            let _ = self.sources[s].source.audit(&e.to_map());
+        }
     }
 
     /// Move job `key` to `state` and write the journal line. `false` when
@@ -328,8 +329,11 @@ impl Slots {
             // The source offers a refused job again: withdraw it again, so
             // that a source that keeps it at the head of its queue moves on
             // (T-189), with an audit line (T-222).
-            let code = self.jobs.get(&(s, id.clone())).and_then(|j| j.refusal).unwrap_or(RefusalCode::EventNotAllowed);
-            let _ = self.sources[s].source.withdraw(&id, code.as_str());
+            let job = self.jobs.get(&(s, id.clone()));
+            let code = job.and_then(|j| j.refusal).unwrap_or(RefusalCode::EventNotAllowed);
+            // A malformed offer stays a bad request (#255).
+            let reason = if job.is_some_and(|j| j.offer.is_none()) { "bad-request" } else { code.as_str() };
+            let _ = self.sources[s].source.withdraw(&id, reason);
             self.audit(audit::Kind::Refuse, s, &id, Some(code), Some("offered again: withdrawn again".into()));
             return;
         }
@@ -339,15 +343,22 @@ impl Slots {
         }
         let mut fields = offer.fields;
         fields.insert("job_id".into(), Value::String(id.to_string()));
-        let parsed: Option<JobOffer> = serde_json::from_value(Value::Object(fields)).ok();
         let scaleset = self.sources[s].cfg.kind == SourceKind::GithubScaleset;
+        // The fault of a malformed offer: the parser or the check (#255).
+        let (parsed, fault) = match serde_json::from_value::<JobOffer>(Value::Object(fields)) {
+            Err(e) => (None, Some(e.to_string())),
+            Ok(o) => match o.check(scaleset) {
+                Err(e) => (None, Some(e)),
+                Ok(()) => (Some(o), None),
+            },
+        };
         let job = Job {
             source: s,
             id: id.clone(),
             state: State::Offered,
             since_ms: now,
             offered_ms: now,
-            offer: parsed.clone().filter(|o| o.check(scaleset).is_ok()),
+            offer: parsed.clone(),
             placement: None,
             unit: None,
             runner_name: None,
@@ -364,12 +375,14 @@ impl Slots {
             completed: false,
             usage: Default::default(),
         };
-        let valid = job.offer.is_some();
         self.jobs.insert(key.clone(), job);
         self.set(&key, State::Offered, now);
         self.audit(audit::Kind::Offer, s, &id, None, None);
-        if !valid {
-            return self.refuse(&key, RefusalCode::EventNotAllowed, now);
+        if let Some(fault) = fault {
+            // As the remote mint (T-188): the source gets `bad-request`; the
+            // report keeps the nearest code of pod-job.
+            let detail = Some(format!("bad-request: {fault}"));
+            return self.refuse_as(&key, RefusalCode::EventNotAllowed, "bad-request", detail, now);
         }
         if self.sources[s].source.ack(&id).is_err() {
             self.set(&key, State::Released, now);
@@ -423,17 +436,16 @@ impl Slots {
             }
         }
     }
-
     /// A terminal refusal: withdraw the offer, report it, and suppress the
-    /// job id.
-    pub(crate) fn refuse(&mut self, key: &(usize, JobId), code: RefusalCode, now: u64) {
-        self.refuse_naming(key, code, None, now)
+    /// job id; `detail` goes to the audit line.
+    fn refuse_naming(&mut self, key: &(usize, JobId), code: RefusalCode, detail: Option<String>, now: u64) {
+        self.refuse_as(key, code, code.as_str(), detail, now)
     }
 
-    /// `refuse`, with a detail for the audit line.
-    fn refuse_naming(&mut self, key: &(usize, JobId), code: RefusalCode, detail: Option<String>, now: u64) {
+    /// `refuse_naming`, with the reason of the withdraw that the source gets.
+    fn refuse_as(&mut self, key: &(usize, JobId), code: RefusalCode, reason: &str, detail: Option<String>, now: u64) {
         let s = key.0;
-        let _ = self.sources[s].source.withdraw(&key.1, code.as_str());
+        let _ = self.sources[s].source.withdraw(&key.1, reason);
         if let Some(j) = self.jobs.get_mut(key) {
             j.refusal = Some(code);
             j.reason = Some(ExitReason::Refused);

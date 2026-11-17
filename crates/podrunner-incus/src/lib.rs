@@ -322,12 +322,16 @@ impl UnitDriver for IncusUnit {
 
     fn destroy(&self, unit: &UnitId) -> Result<Residue, UnitError> {
         let mut units = self.units.lock().expect("the units");
-        let (dir, name) = match units.remove(unit) {
-            Some(r) => (r.dir, r.name),
+        let (dir, name, replay) = match units.remove(unit) {
+            Some(r) => (r.dir, r.name, false),
             // A second call, or a replay of the journal: the name is known.
-            None => (self.unit_dir(unit), self.name(unit)),
+            None => (self.unit_dir(unit), self.name(unit), true),
         };
-        let left = self.remove(&name);
+        let mut left = self.remove(&name);
+        if replay {
+            // An instance of a release before #273 (a 32-bit name).
+            left += self.remove(&crate::guest::legacy_instance_name(&self.state_dir, unit.as_str()));
+        }
         let removed = fs::remove_dir_all(&dir).is_ok() || !dir.exists();
         Ok(Residue { processes: Count::Known(left), files: Count::Known(u64::from(!removed)) })
     }

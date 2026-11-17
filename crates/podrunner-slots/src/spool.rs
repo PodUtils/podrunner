@@ -25,6 +25,22 @@ struct Spooled {
     report: Map<String, Value>,
 }
 
+/// The file of a spooled report: a readable form of the source and the job,
+/// and a hash of the exact names, so that two names that differ only in a
+/// byte that is not plain get two files (#259).
+pub(crate) fn file_name(source: &str, job: &JobId) -> String {
+    let plain = |t: &str| {
+        t.chars().map(|c| if c.is_ascii_alphanumeric() || "-_.".contains(c) { c } else { '_' }).collect::<String>()
+    };
+    // FNV-1a over both names: the same report keeps one file.
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in source.bytes().chain([0]).chain(job.as_str().bytes()) {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("{}--{}-{h:016x}.json", plain(source), plain(job.as_str()))
+}
+
 impl Slots {
     fn spool_dir(&self) -> PathBuf {
         self.state_dir.join("spool")
@@ -46,12 +62,7 @@ impl Slots {
         let dir = self.spool_dir();
         std::fs::create_dir_all(&dir)?;
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
-        // Source names and job ids are plain words (the configuration and
-        // pod-job check them); a byte outside of them becomes `_`.
-        let plain = |t: &str| {
-            t.chars().map(|c| if c.is_ascii_alphanumeric() || "-_.".contains(c) { c } else { '_' }).collect::<String>()
-        };
-        let name = format!("{}--{}.json", plain(&entry.source), plain(entry.job_id.as_str()));
+        let name = file_name(&entry.source, &entry.job_id);
         let part = dir.join(format!("{name}.part"));
         let mut f = std::fs::OpenOptions::new().create(true).write(true).truncate(true).mode(0o600).open(&part)?;
         f.write_all(&serde_json::to_vec(entry).map_err(std::io::Error::other)?)?;
@@ -64,13 +75,31 @@ impl Slots {
         if now < self.spool_next_ms {
             return;
         }
-        self.spool_next_ms = now + RETRY_MS;
+        self.spool_next_ms = now.saturating_add(RETRY_MS);
         let Ok(dir) = std::fs::read_dir(self.spool_dir()) else { return };
         for path in dir.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "json")) {
             let Some(entry) = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice::<Spooled>(&b).ok()) else {
                 continue;
             };
-            let Some(s) = self.sources.iter().position(|x| x.cfg.name == entry.source) else { continue };
+            let Some(s) = self.sources.iter().position(|x| x.cfg.name == entry.source) else {
+                // A source that the configuration no longer has (#268): its
+                // report goes to `spool/orphan/`, kept and not sent.
+                let orphans = self.spool_dir().join("orphan");
+                let to = orphans.join(path.file_name().unwrap_or_default());
+                let moved = std::fs::create_dir_all(&orphans).and_then(|()| std::fs::rename(&path, &to));
+                match moved {
+                    Ok(()) => eprintln!(
+                        "podrunner: a spooled report of {} for the source {:?}, which is not configured, is in {}",
+                        entry.job_id,
+                        entry.source,
+                        to.display()
+                    ),
+                    Err(e) => {
+                        eprintln!("podrunner: {}: a report of a source that is not configured: {e}", path.display())
+                    }
+                }
+                continue;
+            };
             if self.sources[s].source.report(&entry.job_id, &entry.report).is_ok() {
                 let _ = std::fs::remove_file(&path);
             }

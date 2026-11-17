@@ -48,6 +48,13 @@ impl Slots {
         kinds: Vec<UnitKind>,
     ) -> std::io::Result<Slots> {
         let replay = journal::replay(state_dir)?;
+        if replay.bad_lines > 0 {
+            let kept = journal::keep_bad(state_dir, &replay).map_or("no copy".into(), |p| p.display().to_string());
+            eprintln!(
+                "podrunner: the journal had {} lines that could not be read; they are in {kept}",
+                replay.bad_lines
+            );
+        }
         // The lock of serve is held: no other writer (T-068).
         journal::compact(state_dir, &replay)?;
         let journal = journal::Journal::open(state_dir)?;

@@ -375,6 +375,7 @@ impl Slots {
 
     /// Destroy the unit, report, release.
     fn finish(&mut self, key: &Key, now: u64) {
+        self.read_hooks(key, now);
         let j = self.jobs[key].clone();
         if let (Some(u), Some(p)) = (&j.unit, &j.placement) {
             let residue = self.kinds[p.kind]

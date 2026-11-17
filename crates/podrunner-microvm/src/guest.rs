@@ -50,6 +50,8 @@ fi
 if [ -n "${PODRUNNER_CHANNEL_PORT:-}" ]; then
   u=http://127.0.0.1:$PODRUNNER_CHANNEL_PORT
   export http_proxy=$u https_proxy=$u HTTP_PROXY=$u HTTPS_PROXY=$u
+  # The fetch of Node takes the proxy only with this (#272).
+  export NODE_USE_ENV_PROXY="${NODE_USE_ENV_PROXY:-1}"
 fi
 # The engine of the unit (T-103): dockerd as root in the guest, its socket
 # in the guest only, the proxy of the channel for its pulls. The root of
