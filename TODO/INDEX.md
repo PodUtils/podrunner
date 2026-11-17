@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**453 entries: 83 open, 31 partial, 10 blocked, 329 done.**
+**459 entries: 89 open, 31 partial, 10 blocked, 329 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 13 | 1 | 61 | 78 |
-| P2 | 32 | 13 | 7 | 170 | 222 |
-| P3 | 48 | 5 | 2 | 98 | 153 |
-| **All** | 83 | 31 | 10 | 329 | 453 |
+| P2 | 36 | 13 | 7 | 170 | 226 |
+| P3 | 50 | 5 | 2 | 98 | 155 |
+| **All** | 89 | 31 | 10 | 329 | 459 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -501,3 +501,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-454](later.md) | P2 | S | later | defect | open | serve: a spooled report of a source that is no longer configured is skipped forever |
 | [T-455](later.md) | P3 | S | later | defect | open | serve: a bad journal line is counted in Replay.bad_lines and never reported |
 | [T-456](later.md) | P2 | S | later | defect | open | check: a pin payload with an invalid arch (riscv64, x86-64) is accepted and then refuses every job |
+| [T-457](later.md) | P3 | S | later | defect | open | check: an empty [unit.podvm] command, a relative runner_dir and a bad registry host are accepted |
+| [T-458](later.md) | P3 | S | later | defect | open | guest: the microvm and incus scripts set HTTP(S)_PROXY but not NODE_USE_ENV_PROXY |
+| [T-459](later.md) | P2 | S | later | defect | open | incus: the instance name is a 32-bit hash, so two state directories can collide |
+| [T-460](later.md) | P2 | S | later | defect | open | microvm: destroy of a unit that is not in the map leaves its directory and reports a residue |
+| [T-461](later.md) | P2 | S | later | defect | open | run: a host path with a colon breaks the -v mount of a unit (toolcache, export, container mount) |
+| [T-462](later.md) | P2 | S | later | defect | open | microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed |

@@ -9773,3 +9773,153 @@ In `Config::check`, require each `pin.payload.arch` to be `x86_64` or `aarch64` 
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-457: check: an empty [unit.podvm] command, a relative runner_dir and a bad registry host are accepted
+
+**Source:** GitHub #271 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Config::check` accepts an empty `[unit.podvm] command`, a relative `runner_dir` and a registry host that is not a host. Measured:
+
+## Premise
+
+The report of #271, with the lines of the code and a measure.
+
+## Approach
+
+In `serve::plan` for `[unit.podvm]`, require `command` non-empty, `runner_dir` absolute (as the runner names it), and each `registries` entry a host name (no space, no slash). Add the three cases above to the `check` tests.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-458: guest: the microvm and incus scripts set HTTP(S)_PROXY but not NODE_USE_ENV_PROXY
+
+**Source:** GitHub #272 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The guest scripts of the `microvm` and `incus` kinds set the proxy variables of the channel but not `NODE_USE_ENV_PROXY`:
+
+## Premise
+
+The report of #272, with the lines of the code and a measure.
+
+## Approach
+
+Add `NODE_USE_ENV_PROXY=1` to both guest scripts when the channel is set (unless the image or the job sets it), as `proxy::all_env` does. Add it to the guest script tests.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-459: incus: the instance name is a 32-bit hash, so two state directories can collide
+
+**Source:** GitHub #273 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The incus instance name is a 32-bit FNV-1a hash of the state directory plus the unit id:
+
+## Premise
+
+The report of #273, with the lines of the code and a measure.
+
+## Approach
+
+Use a 64-bit hash (the name has room: `podrunner-{h:016x}-{unit}` is under 63 characters for a normal unit id) or a random suffix stored in the state directory. Add a test with the two paths above.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-460: microvm: destroy of a unit that is not in the map leaves its directory and reports a residue
+
+**Source:** GitHub #274 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`MicrovmUnit::destroy` removes the unit directory only when the unit is in `self.units`. A second call, or a replay of the journal for a unit that is not in the map, takes the `else` branch and returns a residue without removing the directory:
+
+## Premise
+
+The report of #274, with the lines of the code and a measure.
+
+## Approach
+
+In the `else` branch, remove the unit directory (and the `machine/run-PID-*` dirs if the podvm process is known) and count what is left, as the `Some` branch does. Add a test with a unit directory and no `Running` entry.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-461: run: a host path with a colon breaks the -v mount of a unit (toolcache, export, container mount)
+
+**Source:** GitHub #275 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A host path with a colon is passed to `-v` without escaping, so the mount is misparsed. Measured with `microvm::run_args` and a work path `/tmp/a:b`:
+
+## Premise
+
+The report of #275, with the lines of the code and a measure.
+
+## Approach
+
+Refuse a host path with a colon before the first job, with the flag and the path, or use a mount syntax that escapes it. Add a test with `/tmp/a:b` for each mount.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-462: microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed
+
+**Source:** GitHub #276 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`MicrovmUnit::destroy` removes the podvm run directories by the PID of the `podvm` child:
+
+## Premise
+
+The report of #276, with the lines of the code and a measure.
+
+## Approach
+
+Name the run directory by the unit (or by a random token) instead of the podvm PID, or remove it before `child.wait` while the PID is still the child's, or check the directory's owner/tag before removing. Add a test with a pre-created `run-{pid}-*` of another unit.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").

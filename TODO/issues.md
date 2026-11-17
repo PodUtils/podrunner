@@ -270,6 +270,13 @@ numbers. `TODO/RULES.md` gives the rules.
 | #268 | serve: a spooled report of a source that is no longer configured is skipped forever | open | T-454 |
 | #269 | serve: a bad journal line is counted in Replay.bad_lines and never reported | open | T-455 |
 | #270 | check: a pin payload with an invalid arch (riscv64, x86-64) is accepted and then refuses every job | open | T-456 |
+| #271 | check: an empty [unit.podvm] command, a relative runner_dir and a bad registry host are accepted | open | T-457 |
+| #272 | guest: the microvm and incus scripts set HTTP(S)_PROXY but not NODE_USE_ENV_PROXY | open | T-458 |
+| #273 | incus: the instance name is a 32-bit hash, so two state directories can collide | open | T-459 |
+| #274 | microvm: destroy of a unit that is not in the map leaves its directory and reports a residue | open | T-460 |
+| #275 | run: a host path with a colon breaks the -v mount of a unit (toolcache, export, container mount) | open | T-461 |
+| #276 | microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed | open | T-462 |
+| #277 | COORD-081: podvm run and exec: a -v source with no link, and an environment that is not argv (to podvm) | open (waits for podvm) | T-403, T-405 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |
