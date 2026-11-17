@@ -3,6 +3,29 @@
 Rules for the code and the tests of podrunner. `AGENTS.md` has the rules
 of each session; `docs/maintenance.md` has the procedures.
 
+## The proof of a change (the owner, 2026-11-17)
+
+Users found more than 60 defects in `v0.1.0-beta.7` and in the fixes of
+one day, four of them in fixes of that day. Green checks did not find
+them. Each change of code keeps these rules before its push:
+
+1. **A test that fails before the change.** Write the test first, run it
+   on the code before the change, and see it fail. A test that passes
+   on the old code proves nothing.
+2. **The edges of each input.** For each new input, a test of: empty;
+   `..` and `.`; a symbolic link out of the tree; a name in another
+   case; an expression (`${{ }}`) in place of a value; a value at its
+   limit; a file at mode 0644 and 0600; a run as root and as a user
+   with no root.
+3. **The path of a user.** A change that a user sees runs once through
+   the built binary, as a user with no root (`sudo -u labdns`), with the
+   command of the report. The record names the level of the proof.
+4. **A review of the diff.** Before the push of a batch, a review agent
+   that did not write the code reads the diff for defects of the same
+   class, and each finding becomes an entry.
+5. **A closed issue keeps its test.** A comment that closes an issue
+   names the test, and the test reproduces the report.
+
 ## Checks before a push
 
 Run these, and push only when each exits 0:
