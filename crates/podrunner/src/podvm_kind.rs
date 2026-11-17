@@ -12,6 +12,20 @@ use podrunner_unit::UnitDriver;
 
 use crate::serve::{Failure, fail};
 
+/// The runner directory of the image when `[unit.podvm]` names none.
+const RUNNER_DIR: &str = "/home/runner";
+
+/// The work root of the hook policy of the kind `name`: the runner
+/// directory that its driver uses (#279). Empty for a kind whose driver
+/// observes it.
+pub(crate) fn work_root(name: &str, u: &UnitConfig) -> String {
+    match (&u.runner_dir, name) {
+        (Some(d), _) => d.clone(),
+        (None, "podvm") => RUNNER_DIR.into(),
+        (None, _) => String::new(),
+    }
+}
+
 /// The driver and the record of `[unit.podvm]`.
 /// The checks of `[unit.podvm]` before a build: the binary, the store and
 /// the limits, as the build reads them (`check` gives the same text, #232).
@@ -41,7 +55,7 @@ pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn Unit
     let images = PathBuf::from(need(&u.images, "images")?);
     let mut unit = podrunner_podvm::PodvmUnit::new(podvm, &state.join("podvm"), &images)
         .map_err(|e| fail(Class::Unsupported, format!("[unit.podvm]: {e}")))?
-        .with_runner_dir(u.runner_dir.as_deref().unwrap_or("/home/runner"));
+        .with_runner_dir(u.runner_dir.as_deref().unwrap_or(RUNNER_DIR));
     if let Some(podnet) = &u.podnet {
         podrunner_slots::config::check_driver(Path::new(podnet))
             .map_err(|e| fail(Class::Config, format!("[unit.podvm] podnet: {e}")))?;
@@ -78,4 +92,23 @@ pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn Unit
     }
     let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
     Ok((Arc::new(unit), cap))
+}
+
+#[cfg(test)]
+mod tests {
+    /// #279: a podvm kind with no `runner_dir` has the work root of its
+    /// driver, not an empty one that refuses each container job.
+    #[test]
+    fn a_podvm_kind_with_no_runner_dir_has_the_work_root_of_the_driver() {
+        let unit = |extra: &str| {
+            let cfg = podrunner_slots::config::Config::parse(&format!(
+                "host = \"h\"\n[unit.podvm]\nslots = 1\ncommand = [\"x\"]\n{extra}[pin]\n"
+            ))
+            .unwrap();
+            cfg.unit["podvm"].clone()
+        };
+        assert_eq!(super::work_root("podvm", &unit("")), "/home/runner");
+        assert_eq!(super::work_root("podvm", &unit("runner_dir = \"/r\"\n")), "/r");
+        assert_eq!(super::work_root("docker", &unit("")), "");
+    }
 }

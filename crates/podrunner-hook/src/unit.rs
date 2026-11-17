@@ -128,8 +128,24 @@ impl HookUnit {
                     if p.argv.is_empty() {
                         p.argv = ["tail", "-f", "/dev/null"].map(String::from).to_vec();
                     }
-                    let id = d.container_start(&self.unit, &self.spec(&p)?)?;
+                    // A start that fails, or a container that stops at once
+                    // (an image with no `tail`), is a start failure that
+                    // names what a job container needs (#278).
+                    let start = |e: UnitError| match e.code {
+                        UnitCode::PayloadNotPinned | UnitCode::ArchMismatch | UnitCode::ContainerOptionRefused => e,
+                        _ => UnitError::new(UnitCode::UnitStartFailed, e.detail),
+                    };
+                    let id = d.container_start(&self.unit, &self.spec(&p)?).map_err(start)?;
                     self.note_image(&p);
+                    for _ in 0..4 {
+                        // An exit, not "not running": a container that is
+                        // still being created is not running yet.
+                        if d.container_inspect(&self.unit, &id).is_ok_and(|s| s.exit.is_some()) {
+                            let _ = d.container_stop(&self.unit, &id);
+                            return Err(UnitError::new(UnitCode::UnitStartFailed, "the job container stopped"));
+                        }
+                        std::thread::sleep(Duration::from_millis(50));
+                    }
                     let probe = ExecSpec {
                         argv: vec!["test".into(), "-f".into(), "/etc/alpine-release".into()],
                         ..Default::default()
@@ -206,6 +222,12 @@ fn refusal(e: &UnitError) -> Refusal {
         UnitCode::PayloadNotPinned => (RefusalCode::PayloadNotPinned, "the driver refused the image"),
         UnitCode::ContainerOptionRefused => (RefusalCode::ContainerOptionRefused, "the driver refused an option"),
         UnitCode::ArchMismatch => (RefusalCode::ArchMismatch, "the image is of another platform"),
+        UnitCode::UnitStartFailed => (
+            RefusalCode::ContainerNotSupported,
+            "a container did not start, or stopped at its start: a job container must live while its steps \
+             run; with no entry point it runs `tail -f /dev/null`, as on GitHub, so its image needs `tail` and \
+             `sh`; the cause of the driver is in the audit",
+        ),
         _ => (RefusalCode::ContainerNotSupported, "the driver did not do the container operation"),
     };
     Refusal { code, why }

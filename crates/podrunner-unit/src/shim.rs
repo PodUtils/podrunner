@@ -41,8 +41,8 @@ pub fn under_shim_confined(cmd: &mut Command, mode: Mode, confine: Option<Arc<po
     use std::os::unix::process::CommandExt;
     // SAFETY: the closure runs in the child between fork and exec. It
     // calls only functions that are safe there: prctl, fork, close_range,
-    // close, waitpid, open, read, kill, the Landlock and seccomp calls of
-    // `pod_confine::apply`, and _exit. It allocates nothing.
+    // getrlimit, close, waitpid, open, read, kill, the Landlock and seccomp
+    // calls of `pod_confine::apply`, and _exit. It allocates nothing.
     unsafe {
         cmd.pre_exec(move || shim(mode, confine.as_deref()));
     }
@@ -66,9 +66,16 @@ unsafe fn shim(mode: Mode, confine: Option<&pod_confine::Compiled>) -> std::io::
             return Ok(());
         }
         // The shim never execs: it closes each descriptor above 2, so that
-        // the parent sees the exec of the payload on its pipe.
+        // the parent sees the exec of the payload on its pipe. With no
+        // close_range (a kernel before 5.9), each descriptor below the limit
+        // of the process (#281): the pipe of the parent can be above 4096.
         if libc::syscall(libc::SYS_close_range, 3u32, u32::MAX, 0u32) != 0 {
-            for fd in 3..4096 {
+            let mut lim = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+            let cur = match libc::getrlimit(libc::RLIMIT_NOFILE, &mut lim) {
+                0 => lim.rlim_cur,
+                _ => 0,
+            };
+            for fd in 3..fallback_bound(cur) {
                 libc::close(fd);
             }
         }
@@ -225,10 +232,26 @@ pub fn kill_unit(shim: u32, tag: Option<&str>, limit: Duration) -> u64 {
     }
 }
 
+/// The end of the descriptors that the shim closes with no close_range:
+/// the soft limit of open files, at least 4096 and at most 2^20 (a loop
+/// of one close each).
+fn fallback_bound(soft: libc::rlim_t) -> i32 {
+    soft.clamp(4096, 1 << 20) as i32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::conformance::alive;
+
+    /// #281: the fallback reaches the limit of the process, not 4096.
+    #[test]
+    fn the_fallback_closes_to_the_limit() {
+        assert_eq!(fallback_bound(65_536), 65_536);
+        assert_eq!(fallback_bound(1024), 4096);
+        assert_eq!(fallback_bound(0), 4096);
+        assert_eq!(fallback_bound(libc::RLIM_INFINITY), 1 << 20);
+    }
 
     fn sh(script: &str, mode: Mode) -> std::process::Child {
         let mut c = Command::new("sh");

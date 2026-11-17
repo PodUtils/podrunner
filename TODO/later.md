@@ -8495,6 +8495,8 @@ Give the environment to podvm in a file at 0600 or on a descriptor (a COORD issu
 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
+State (2026-11-17): podvm answered by PodUtils/podvm#509 (COORD-179): `exec --env-file PATH` is on podvm `main` for its next beta, and `run --env-file` is in `0.2.0-beta.21` and later; the file is the caller's to make at 0600 and to remove. podvm keeps its pin until the gate of `PodUtils/podvm@T-1949` (PodUtils/podvm#567), so podrunner takes `exec --env-file` with that beta.
+
 # T-406: The fake broker of the local mode gives the job message to each local process
 
 **Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
@@ -8502,7 +8504,7 @@ Give the environment to podvm in a file at 0600 or on a descriptor (a COORD issu
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -8521,6 +8523,12 @@ Give the broker a bearer token that only the runner files of the unit hold, and 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
 In the code (2026-11-17): the socket directory of a unit is new at 0700, and one that another user made, or a link, is refused (`work::private_dir`; test `a_private_directory_is_new_and_ours`). Open: the fake broker on the loopback checks no credential; it needs a token that only the runner files of the unit hold, and a check of the signed assertion of `oauth2/token`.
+
+## Done
+
+2026-11-17: the fake broker has random tokens for each broker (module `auth` of `podrunner-broker-fake`). `oauth2/token` gives the client token only for a client assertion (RS256) that a key of `Broker::runner_files` signed. The session, the long poll and `acquirejob` take only that token. `renewjob`, `completejob`, the id-token, the live feed and each twirp call (the logs, the cache, the artifacts) take it or the job token. A blob URL of the logs has a random signature in place of `sig=fake`. The tokens that the runner sends on each route were measured on the runner of the pin. The checkout script gives the job token (`github.podrunner_token`, masked) to curl on its standard input (`printf` is a builtin; `curl -K -`), never in an argv. A hold is `/_podrunner/hold/KEY/CELL` with a hold key of the broker (`github.podrunner_hold`): that key is in the argv of curl or wget and gives the holds only. The request line refuses control characters (no escape sequence reaches a log or a terminal), and the lists `seen` and `missing` have a bound. A second review found the token in argv; it is fixed in the same work.
+
+Proof: the test `a_caller_with_no_token_gets_no_job` fails on the code before the change (and with the blob check or the twirp gate removed); `only_an_admitted_key_gets_the_token` and `each_route_takes_its_token` test the edges (no key, a key of another runner, a changed claim, a bad form, the case of the scheme). The suites of the runner of the pin pass (`podrunner-broker-fake --test runner`, `podrunner --test local`, `scripts/agent/check.sh` with `PODRUNNER_RUNNER_DIR`). As a user with no root (`podrunner run --runner-dir`), a step that scans the ports of the loopback finds the broker and gets 401 on the long poll, `acquirejob`, `oauth2/token` and the session, and the job passes. Level: proven on a constrained host as a user (the host mode); the guest kinds run in CI.
 
 # T-407: Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made
 
@@ -9681,7 +9689,7 @@ Treat a missing `unit_root` as a failed self-test (or use a known path from the 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9698,6 +9706,10 @@ Include `k.capability.egress_hold.effective() >= needed_hold(s.cfg.tier)` in `no
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `Slots::no_tier_served` also needs the egress hold of the tier, as placement and `tiers::served` (T-465). Test `a_kind_with_no_hold_serves_no_tier` fails on the old code.
 
 # T-454: serve: a spooled report of a source that is no longer configured is skipped forever
 
@@ -9923,3 +9935,343 @@ Name the run directory by the unit (or by a random token) instead of the podvm P
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-463: hooks: a job container with no entry point is started with tail, which a distroless image does not have
+
+**Source:** GitHub #278 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The hook starts a job container that has no entry point with `tail -f /dev/null`. A distroless or scratch image has no `tail`: the container stops at once, and the job fails before its first step.
+
+## Premise
+
+The report of #278, with the lines of the code.
+
+## Approach
+
+Keep the container alive with a binary that the hook gives (a static sleep in a mount), not with a binary of the image. Add a test with an image that has no `tail`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `prepare_job` of the hooks fails at once when the job container does not start or stops at its start, with a cause that names what a job container needs: `tail` and `sh`, as on GitHub (the runner and the container hooks of `actions` start it with `tail -f /dev/null`; a distroless job container fails on GitHub too). Test `a_job_container_that_stops_at_its_start_is_named` fails with the check removed. Not run with a real engine.
+
+# T-464: podvm: a config without [unit.podvm] runner_dir gives the hook policy an empty work_root and refuses every container job
+
+**Source:** GitHub #279 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`serve` sets `work_root` of the hook policy to `runner_dir` or to an empty path. A podvm kind with no `runner_dir` refuses each container job with "the unit has no runner directory", but the podvm driver uses `/home/runner`.
+
+## Premise
+
+The report of #279, with the lines of the code.
+
+## Approach
+
+Use the runner directory of the driver when the configuration has none. Add a test with a podvm kind with no `runner_dir`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: A podvm kind with no `runner_dir` gives its hook policy the runner directory of its driver, `/home/runner` (`podvm_kind::work_root`). Test `a_podvm_kind_with_no_runner_dir_has_the_work_root_of_the_driver`. Not run with a real podvm unit.
+
+# T-465: check: tiers::served ignores the egress hold, so a config with no hold passes check and serves nothing
+
+**Source:** GitHub #280 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`tiers::served` checks the boundary floor of each source, but not the egress hold that placement needs. `check` passes and `serve` starts, and each offer is refused with `hold-not-available`.
+
+## Premise
+
+The report of #280, with the lines of the code.
+
+## Approach
+
+Also require the hold of the tier, as `doctor` does. Add a test with a trusted source at `redirect` and a podvm kind with no hold.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `tiers::served` also needs the egress hold of the tier, as placement and `doctor`: a podvm kind has a hold only with `podnet`. The case of `tests/check.rs` (a trusted source, a podvm kind at `confined` with no podnet) fails on the old code. Level: a test of `check` through the binary.
+
+# T-466: shim: the close_range fallback closes only 3..4096, so a higher descriptor leaks into the payload
+
+**Source:** GitHub #281 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+On a kernel with no `close_range`, the shim closes only the descriptors 3 to 4095. A descriptor at 4096 or above goes into the payload.
+
+## Premise
+
+The report of #281, with the lines of the code.
+
+## Approach
+
+Close to the limit of `RLIMIT_NOFILE`, or read `/proc/self/fd`. Add a test of the fallback with a descriptor above 4096.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: With no `close_range`, the shim closes the descriptors up to the soft limit of open files (at least 4096, at most 2^20). The report is right on the bound, not on the effect: the shim closes its own descriptors, not those of the payload; a high pipe of the parent could stay open in the shim. Test `the_fallback_closes_to_the_limit` (the bound only): the host has `close_range`, so the fallback path did not run.
+
+# T-467: mint: the revocation message calls the source name a credential
+
+**Source:** GitHub #282 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The message of a revoked source says "the credential NAME is revoked", but NAME is the name of the source.
+
+## Premise
+
+The report of #282, with the lines of the code.
+
+## Approach
+
+Say "the source NAME is revoked". Add a test.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: The message is "the source NAME is revoked: renew its credential, then start serve again". Test `a_revocation_is_final_and_names_no_secret` fails on the old text.
+
+# T-468: check: a guest_kinds entry that is not a [unit.NAME] table passes check and drops the guest claim
+
+**Source:** GitHub #283 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Config::check` does not check that each entry of `guest_kinds` names a `[unit.NAME]` table. A typo passes `check`, and each untrusted job is refused with no line that names the typo.
+
+## Premise
+
+The report of #283, with the lines of the code.
+
+## Approach
+
+Refuse an entry that is not a unit kind, by name. Add a test with `microvmm`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `Config::check` refuses an entry of `guest_kinds` that names no `[unit.NAME]`, by name; the default `microvm` stays valid with no microvm kind. Test `a_guest_kind_with_no_unit_is_refused` fails on the old code.
+
+# T-469: lock: an uppercase digest is accepted and then fails every action against the lowercase SHA-256
+
+**Source:** GitHub #284 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`Lock::parse` accepts a digest in uppercase, and the compare with the lowercase SHA-256 of the tarball fails each action.
+
+## Premise
+
+The report of #284, with the lines of the code.
+
+## Approach
+
+Lowercase the digest in `Lock::parse`, as the commit. Add a test.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Blocker
+
+The lock parser is `pod-actions-store` of podcrates: COORD-082 (PodUtils/podrunner#288, to podcrates) asks for a lowercase digest.
+
+# T-470: status: trust_unknown counts a repository or owner literally named unknown
+
+**Source:** GitHub #285 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`status.trust_unknown` counts a job when any value of its trust inputs is the text `unknown`, also an owner or a repository with that name.
+
+## Premise
+
+The report of #285, with the lines of the code.
+
+## Approach
+
+Count only the fields with an `unknown` value of their enum. Add a test with the owner `unknown`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `trust_unknown` counts only the four fields with an `unknown` value of their enum. The status test with a `ref` and a `workflow_ref` named `unknown` fails on the old code.
+
+# T-471: policy: a host with a trailing dot is not covered by a wildcard ceiling
+
+**Source:** GitHub #286 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`policy::covers("*.github.com", "api.github.com.")` is false: the compare is of text. `narrow` drops the rule.
+
+## Premise
+
+The report of #286, with the lines of the code.
+
+## Approach
+
+Remove one trailing dot of a host before the compare. Add a test.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `policy::host` removes one trailing dot. Test `a_trailing_dot_names_the_same_host` fails on the old code.
+
+# T-472: check: a pin payload with a duplicate reference, a future built_at_s, max_age_s 0 or a bad runner_version is accepted
+
+**Source:** GitHub #287 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Config::check` accepts two payloads with one reference, a `built_at_s` in the future, `max_age_s = 0`, and a `runner_version` that is not a version.
+
+## Premise
+
+The report of #287, with the lines of the code.
+
+## Approach
+
+Refuse each of the four, by name. Add a test with each case.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `pins::check` refuses a duplicate reference, an age limit of 0 (of `[pin]` or of a payload) and a `runner_version` that is not `MAJOR.MINOR.PATCH`. One reference on two architectures is valid (an index digest). A payload built more than one hour after the clock is stale (`Payload::stale`), at placement, where the clock of the engine is; `check` and `serve` name it on stderr (`tiers::future_pins`), and the examples of the documents have a build time in the past. Tests `a_bad_pin_payload_is_refused_by_name` (fails on the old code) and `a_payload_built_after_the_clock_is_named`.
+
+# T-473: Take `pod_core::clock` in place of the crate `podrunner-clock`
+
+**Source:** PodUtils/podcrates#221 (COORD-131, the ruling "Shared code"), 2026-11-17
+**Category:** chore
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/podrunner-clock` is a copy of the clock of `pod_core::clock`. The ruling "Shared code" asks each project to take the crate of podcrates.
+
+## Premise
+
+The survey of COORD-131, read from the code of `main`.
+
+## Approach
+
+Replace each use of `podrunner_clock` with `pod_core::clock`, keep the manual clock of the tests if podcrates has one (else ask by COORD), and remove the crate.
+
+## Prove
+
+`cargo test --workspace`; the tests of slots with the manual clock pass unchanged.
+
+# T-474: Take `pod_proxy::env` for the proxy environment of a unit
+
+**Source:** PodUtils/podcrates#221 (COORD-131, the ruling "Shared code"), 2026-11-17
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`crates/podrunner-local/src/exec/proxy.rs` splits `NO_PROXY` by hand and lists the CA variables itself. podcrates has `pod_proxy::env::NoProxy` and `Environment`; the list of CA variables waits for `pod_tls::env_bundle` (`PodUtils/podcrates@T-881`), also for `podrunner-egress/src/dns.rs` (`resolver_via`).
+
+## Premise
+
+The survey of COORD-131, read from the code of `main`.
+
+## Approach
+
+Take `pod_proxy::env` for the proxy variables and `NO_PROXY`. When podcrates gives `pod_tls::env_bundle`, take it in `proxy.rs` and in `dns::resolver_via`. Keep the tests of the proxy-only lane of the user gate.
+
+## Prove
+
+`cargo test --workspace`; the lane `proxy-only-dns` of the user gate passes.

@@ -96,10 +96,14 @@ impl Slots {
                 let mut trust_unknown = 0;
                 let mut credential_ages_s = Vec::new();
                 for j in self.jobs.values().filter(|j| j.source == i) {
+                    // Only the fields with an `unknown` value of their enum: a
+                    // text field (an owner, a ref) named `unknown` is known (#285).
                     if j.offer.as_ref().is_some_and(|o| {
-                        let t = &o.trust_inputs;
-                        serde_json::to_value(t)
-                            .is_ok_and(|v| v.as_object().is_some_and(|m| m.values().any(|x| x == "unknown")))
+                        serde_json::to_value(&o.trust_inputs).is_ok_and(|v| {
+                            ["event", "head_is_fork", "actor_class", "repo_visibility"]
+                                .iter()
+                                .any(|k| v[*k] == "unknown")
+                        })
                     }) {
                         trust_unknown += 1;
                     }
@@ -180,8 +184,13 @@ impl Slots {
     /// True when no kind meets the floor of the tier of any source.
     pub fn no_tier_served(&self) -> bool {
         !self.sources.iter().any(|s| {
-            let floor = self.cfg.floor(s.cfg.tier);
-            self.kinds.iter().any(|k| k.capability.arch == s.cfg.arch && k.capability.boundary >= floor)
+            // The floor and the hold, as placement needs them (#267).
+            let (floor, hold) = (self.cfg.floor(s.cfg.tier), crate::placement::needed_hold(s.cfg.tier));
+            self.kinds.iter().any(|k| {
+                k.capability.arch == s.cfg.arch
+                    && k.capability.boundary >= floor
+                    && k.capability.egress_hold.effective() >= hold
+            })
         })
     }
 }

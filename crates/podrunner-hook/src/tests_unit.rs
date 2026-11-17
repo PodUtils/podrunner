@@ -201,3 +201,41 @@ fn a_linked_mount_source_is_refused() {
     let _ = fake.destroy(&id);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// #278: a job container that stops at its start fails `prepare_job` with
+/// a cause that names what a job container needs, as on GitHub (`tail`
+/// and `sh`); it does not fail later at the first step.
+#[test]
+fn a_job_container_that_stops_at_its_start_is_named() {
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-stops-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let fake: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir.join("fake"), capability(), "linux/amd64"));
+    let id = UnitId::parse("u-1").unwrap();
+    let image = fake.prepare(IMAGE, "linux/amd64", false).unwrap();
+    let spec = StartSpec {
+        unit: id.clone(),
+        image,
+        argv: vec!["sleep".into(), "30".into()],
+        env: Default::default(),
+        credential: Default::default(),
+        sockets: None,
+        mounts: Vec::new(),
+        limits: Default::default(),
+    };
+    fake.start(&spec).unwrap();
+    let policy = Policy {
+        container: ContainerRoute::Hooks,
+        shared_host_net: false,
+        registries: vec!["docker.io".into()],
+        work_root: "/home/runner".into(),
+    };
+    let mut u = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.clone());
+    let body = call("prepare_job", json!({ "container": container("sh", &["-c", "exit 9"], "/__w"), "services": [] }));
+    let e = u.hook(parse(Command::PrepareJob, &body).unwrap()).unwrap_err();
+    assert!(e.why.contains("stopped at its start") && e.why.contains("`tail` and `sh`"), "{e:?}");
+    assert!(e.why.contains("job container"), "{e:?}");
+    assert!(u.driver_errors.iter().any(|d| d.contains("UnitStartFailed")), "{:?}", u.driver_errors);
+    let _ = fake.destroy(&id);
+    let _ = std::fs::remove_dir_all(&dir);
+}

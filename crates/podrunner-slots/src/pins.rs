@@ -47,6 +47,37 @@ pub fn sign(pins: &Pins, seed: &[u8; 32]) -> (String, String) {
     (id.public().hex(), hex(&id.sign(&message(pins))))
 }
 
+/// How far after the clock of the host a build time may be: the clocks of
+/// two hosts differ.
+pub const SKEW_S: u64 = 3600;
+
+/// Check the payloads of a pin list (#287): each reference is pinned and
+/// there once, each age limit is above 0, and a runner version has the
+/// form `MAJOR.MINOR.PATCH`.
+pub fn check(pins: &Pins) -> Result<(), String> {
+    if pins.max_age_s == 0 {
+        return Err("[pin] max_age_s is 0: each image is stale at once".into());
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for p in &pins.payload {
+        podrunner_unit::parse_pinned(&p.reference).map_err(|e| format!("[[pin.payload]]: {e}"))?;
+        // One index digest can serve two architectures.
+        if !seen.insert((p.arch.as_str(), p.reference.as_str())) {
+            return Err(format!("[[pin.payload]] {} ({}) is there two times", p.reference, p.arch));
+        }
+        if p.max_age_s == Some(0) {
+            return Err(format!("[[pin.payload]] {}: max_age_s is 0: the image is stale at once", p.reference));
+        }
+        if let Some(v) = &p.runner_version {
+            let parts: Vec<&str> = v.split('.').collect();
+            if parts.len() != 3 || parts.iter().any(|n| n.is_empty() || !n.bytes().all(|b| b.is_ascii_digit())) {
+                return Err(format!("[[pin.payload]] {}: runner_version {v:?} is not MAJOR.MINOR.PATCH", p.reference));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Check the signature of a pin list that names a signer. A list with no
 /// signer passes here; `trusted` at `redirect` needs one (the
 /// configuration check).

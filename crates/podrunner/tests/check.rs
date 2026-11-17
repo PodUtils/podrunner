@@ -76,6 +76,17 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             format!("{head}[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nmem = \"4X\"\n{pin}"),
             "[unit.incus] mem",
         ),
+        // #280: a podvm kind at `confined` with no podnet has no egress
+        // hold, and a trusted job needs one: no kind serves it.
+        (
+            format!(
+                "host = \"h\"\nallow_fake = true\n[trust]\norganizations = [{{ login = \"o\" }}]\n\
+                 [[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"trusted\"\narch = \"{}\"\n\
+                 [unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nconfine = true\n{pin}",
+                std::env::consts::ARCH
+            ),
+            "no-tier-served",
+        ),
         // T-185: a trusted source (floor `confined`) and a podvm kind with no
         // confine layer (at best `redirect`): no kind serves it.
         (

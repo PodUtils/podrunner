@@ -14,13 +14,14 @@ use serde_json::{Map, Value};
 /// `mint` over one source.
 pub struct Mint {
     source: Box<dyn JobSource>,
-    /// The name of the revoked credential, once the source revoked it.
+    /// The name of the source, once the source revoked its credential.
     revoked: Option<String>,
     name: String,
 }
 
 impl Mint {
-    /// `name` names the credential in messages: never its value.
+    /// `name` is the name of the source in messages: never a value of its
+    /// credential.
     pub fn new(name: &str, source: Box<dyn JobSource>) -> Mint {
         Mint { source, revoked: None, name: name.into() }
     }
@@ -31,20 +32,25 @@ impl Mint {
 
     fn call<T>(&mut self, f: impl FnOnce(&mut dyn JobSource) -> Result<T, SourceError>) -> Result<T, SourceError> {
         if let Some(name) = &self.revoked {
-            return Err(SourceError::new(SourceCode::SourceRevoked, format!("the credential {name} is revoked")));
+            return Err(SourceError::new(SourceCode::SourceRevoked, revoked_line(name)));
         }
         let got = f(self.source.as_mut());
         if let Err(e) = &got
             && e.code == SourceCode::SourceRevoked
         {
             self.revoked = Some(self.name.clone());
-            return Err(SourceError::new(
-                SourceCode::SourceRevoked,
-                format!("the credential {} is revoked", self.name),
-            ));
+            return Err(SourceError::new(SourceCode::SourceRevoked, revoked_line(&self.name)));
         }
         got
     }
+}
+
+/// The message of a revoked source (#282): the operator renews the
+/// credential of the source `name`.
+fn revoked_line(name: &str) -> String {
+    format!(
+        "the source {name} is revoked (by its forge, or by the mint of a remote host): renew its access, then start serve again"
+    )
 }
 
 impl JobSource for Mint {
@@ -161,6 +167,9 @@ mod tests {
         let e = m.hello("p", "0").unwrap_err();
         assert_eq!(e.code, SourceCode::SourceRevoked);
         assert!(e.detail.contains("app-key-of-org-a") && !e.detail.contains("secret-value-77"), "{e}");
+        // #282: the name is the name of the source, not of a credential.
+        assert!(e.detail.starts_with("the source app-key-of-org-a is revoked"), "{e}");
+        assert!(!e.detail.contains("the credential app-key"), "{e}");
         assert!(m.revoked());
         // No later call reaches the source.
         assert_eq!(m.next(1, Duration::ZERO).unwrap_err().code, SourceCode::SourceRevoked);

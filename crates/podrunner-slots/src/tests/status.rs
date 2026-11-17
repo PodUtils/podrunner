@@ -66,14 +66,17 @@ fn the_status_counts_unknown_trust_and_ends_without_completion() {
         offer(0, "known", json!({})),
         offer(0, "unknown", json!({ "trust_inputs": { "actor_class": "unknown" } })),
         offer(0, "done", json!({})),
+        // #285: a text field named `unknown` is a known value.
+        offer(0, "named", json!({ "trust_inputs": { "workflow_ref": "unknown", "ref": "unknown" } })),
         r#"{"at_s":2,"completed":{"job_id":"done","result":"succeeded"}}"#.to_string(),
+        r#"{"at_s":2,"completed":{"job_id":"named","result":"succeeded"}}"#.to_string(),
     ];
     let mut bed = Bed::new(
         config(""),
         vec![("a", "trusted", None, lines)],
         vec![KindSpec { name: "fake", slots: 3, capability: cap, command: sh("sleep 0.2") }],
     );
-    bed.until(200, |s| s.jobs().count() == 3 && Bed::all_final(s));
+    bed.until(200, |s| s.jobs().count() == 4 && Bed::all_final(s));
     let st = bed.slots.status();
     assert_eq!(st.sources[0].trust_unknown, 1);
     assert_eq!(st.sources[0].refused.get("event-not-allowed"), Some(&1));
@@ -240,4 +243,21 @@ fn a_shared_principal_has_one_slot_in_the_status() {
         vec![KindSpec { name: "fake", slots: 2, capability: cap, command: sh("exit 0") }],
     );
     assert_eq!(bed.slots.status().kinds[0].slots, 1);
+}
+
+/// #267: a kind at the floor with no egress hold serves no tier: each
+/// offer would be refused with `hold-not-available`.
+#[test]
+fn a_kind_with_no_hold_serves_no_tier() {
+    let at = |hold| {
+        let cap = capability(podrunner_schema::Boundary::Confined, podrunner_schema::Principal::Distinct, hold);
+        let bed = Bed::new(
+            config(""),
+            vec![("a", "trusted", None, vec![])],
+            vec![KindSpec { name: "fake", slots: 1, capability: cap, command: sh("exit 0") }],
+        );
+        bed.slots.status().no_tier_served
+    };
+    assert!(at(podrunner_schema::EgressHold::None));
+    assert!(!at(podrunner_schema::EgressHold::Advisory));
 }

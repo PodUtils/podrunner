@@ -194,6 +194,9 @@ pub fn check(path: &Path) -> Result<Config, Failure> {
         .map_err(|e| fail(Class::Config, format!("the configuration {}: {e}", path.display())))?;
     let cfg = Config::parse(&text).map_err(|e| fail(Class::Config, e))?;
     plan(&cfg)?;
+    for line in crate::tiers::future_pins(&cfg, now_unix()) {
+        eprintln!("podrunner: {line}");
+    }
     Ok(cfg)
 }
 
@@ -283,7 +286,7 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                 container: capability.container,
                 shared_host_net: capability.net == "shared-host",
                 registries: u.registries.clone(),
-                work_root: u.runner_dir.clone().unwrap_or_default(),
+                work_root: crate::podvm_kind::work_root(name, u),
             },
         );
         // slots measures the disk of a kind with a bound (T-074).

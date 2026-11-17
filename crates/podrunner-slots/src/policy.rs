@@ -23,8 +23,11 @@ fn open(p: &Value) -> bool {
     p.get("mode").and_then(Value::as_str) == Some("open")
 }
 
+/// The host of a rule, in lowercase, with no trailing dot: `name.` and
+/// `name` are one host (#286).
 fn host(r: &Value) -> String {
-    r.get("host").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase()
+    let h = r.get("host").and_then(Value::as_str).unwrap_or("");
+    h.strip_suffix('.').unwrap_or(h).to_ascii_lowercase()
 }
 
 fn ports(r: &Value) -> Vec<u64> {
@@ -188,6 +191,18 @@ mod tests {
         assert!(!covers("*.github.com", "github.com"), "whole labels: the name itself is not below it");
         assert!(!covers("*.github.com", "evilgithub.com"));
         assert!(!covers("api.github.com", "*.github.com"));
+    }
+
+    /// #286: a host with a trailing dot (an absolute name) is the same host.
+    #[test]
+    fn a_trailing_dot_names_the_same_host() {
+        let ceiling = allow(json!([{ "host": "*.github.com" }, { "host": "example.org." }]));
+        let offer = allow(json!([{ "host": "api.github.com." }, { "host": "EXAMPLE.org" }, { "host": "." }]));
+        let got = narrow(&ceiling, &offer);
+        assert_eq!(got["allow"], json!([{ "host": "api.github.com" }, { "host": "example.org" }]), "{got}");
+        // One dot only: `a..` is not `a`.
+        let two = narrow(&ceiling, &allow(json!([{ "host": "api.github.com.." }])));
+        assert!(two.get("allow").is_none_or(|a| a == &json!([])), "{two}");
     }
 
     #[test]

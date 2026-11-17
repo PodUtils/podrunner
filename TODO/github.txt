@@ -270,7 +270,7 @@
 264 issue open
 265 issue open
 266 issue open
-267 issue open
+267 issue closed
 268 issue open
 269 issue open
 270 issue open
@@ -281,3 +281,14 @@
 275 issue open
 276 issue open
 277 issue open
+278 issue closed
+279 issue closed
+280 issue closed
+281 issue closed
+282 issue closed
+283 issue closed
+284 issue open
+285 issue closed
+286 issue closed
+287 issue closed
+288 issue open

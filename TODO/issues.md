@@ -266,7 +266,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #264 | run: a dry run with a --vnet podnet binary that cannot build the shim says planned | open | T-450 |
 | #265 | audit: a failed write still appears in the in-memory lines and the next line reuses its seq | open | T-451 |
 | #266 | guest: the self-test skips the first unit's file check when the driver reports no unit_root | open | T-452 |
-| #267 | status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused | open | T-453 |
+| #267 | status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused | closed | T-453 |
 | #268 | serve: a spooled report of a source that is no longer configured is skipped forever | open | T-454 |
 | #269 | serve: a bad journal line is counted in Replay.bad_lines and never reported | open | T-455 |
 | #270 | check: a pin payload with an invalid arch (riscv64, x86-64) is accepted and then refuses every job | open | T-456 |
@@ -277,6 +277,17 @@ numbers. `TODO/RULES.md` gives the rules.
 | #275 | run: a host path with a colon breaks the -v mount of a unit (toolcache, export, container mount) | open | T-461 |
 | #276 | microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed | open | T-462 |
 | #277 | COORD-081: podvm run and exec: a -v source with no link, and an environment that is not argv (to podvm) | open (waits for podvm) | T-403, T-405 |
+| #278 | hooks: a job container with no entry point is started with tail, which a distroless image does not have | closed | T-463 |
+| #279 | podvm: a config without [unit.podvm] runner_dir gives the hook policy an empty work_root and refuses every container job | closed | T-464 |
+| #280 | check: tiers::served ignores the egress hold, so a config with no hold passes check and serves nothing | closed | T-465 |
+| #281 | shim: the close_range fallback closes only 3..4096, so a higher descriptor leaks into the payload | closed | T-466 |
+| #282 | mint: the revocation message calls the source name a credential | closed | T-467 |
+| #283 | check: a guest_kinds entry that is not a [unit.NAME] table passes check and drops the guest claim | closed | T-468 |
+| #284 | lock: an uppercase digest is accepted and then fails every action against the lowercase SHA-256 | open | T-469 |
+| #285 | status: trust_unknown counts a repository or owner literally named unknown | closed | T-470 |
+| #286 | policy: a host with a trailing dot is not covered by a wildcard ceiling | closed | T-471 |
+| #287 | check: a pin payload with a duplicate reference, a future built_at_s, max_age_s 0 or a bad runner_version is accepted | closed | T-472 |
+| #288 | COORD-082: pod-actions-store: Lock::parse keeps a digest in uppercase, and each fetch then fails against the lowercase SHA-256 (to podcrates) | open (waits for podcrates) | T-469 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

@@ -218,10 +218,12 @@ pub struct Payload {
 }
 
 impl Payload {
-    /// True when the image is older than its limit at `now_s`.
+    /// True when the image is older than its limit at `now_s`, or built
+    /// after `now_s` by more than a skew of the clocks: a wrong time would
+    /// keep it young for ever (#287).
     pub fn stale(&self, pins: &Pins, now_s: u64) -> bool {
         let limit = self.max_age_s.map_or(pins.max_age_s, |m| m.min(pins.max_age_s));
-        now_s.saturating_sub(self.built_at_s) > limit
+        self.built_at_s > now_s.saturating_add(crate::pins::SKEW_S) || now_s.saturating_sub(self.built_at_s) > limit
     }
 }
 
@@ -377,6 +379,11 @@ impl Config {
                 ));
             }
         }
+        // A typo would drop the guest claim with no line that names it (#283).
+        // The default name stays valid with no microvm kind.
+        if let Some(k) = self.guest_kinds.iter().find(|k| *k != "microvm" && !self.unit.contains_key(k.as_str())) {
+            return Err(format!("guest_kinds: {k:?} is not a [unit.NAME] table"));
+        }
         if self.upstream_names_only && self.upstream_proxy.is_none() {
             return Err("upstream_names_only needs upstream_proxy".into());
         }
@@ -435,9 +442,7 @@ impl Config {
         if self.unit.contains_key("fake") && !self.allow_fake {
             return Err("[unit.fake] needs allow_fake = true".into());
         }
-        for p in &self.pin.payload {
-            podrunner_unit::parse_pinned(&p.reference).map_err(|e| format!("[[pin.payload]]: {e}"))?;
-        }
+        crate::pins::check(&self.pin)?;
         crate::pins::verify(&self.pin)?;
         let drivers = self.unit.iter().map(|(n, u)| (format!("[unit.{n}] binary"), &u.binary));
         let sidecars = self.source.iter().map(|s| (format!("[[source]] {:?} sidecar", s.name), &s.sidecar));

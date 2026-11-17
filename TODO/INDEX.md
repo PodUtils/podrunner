@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**459 entries: 89 open, 31 partial, 10 blocked, 329 done.**
+**471 entries: 90 open, 30 partial, 11 blocked, 340 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 3 | 13 | 1 | 61 | 78 |
-| P2 | 36 | 13 | 7 | 170 | 226 |
-| P3 | 50 | 5 | 2 | 98 | 155 |
-| **All** | 89 | 31 | 10 | 329 | 459 |
+| P1 | 3 | 12 | 1 | 62 | 78 |
+| P2 | 37 | 13 | 7 | 176 | 233 |
+| P3 | 50 | 5 | 3 | 102 | 160 |
+| **All** | 90 | 30 | 11 | 340 | 471 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -450,7 +450,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-403](later.md) | P1 | M | later | defect | partial | A mount source of the hooks follows a symbolic link that the job made |
 | [T-404](later.md) | P1 | M | later | defect | done | In the local mode the logs of a hook step are in the socket directory that the unit writes |
 | [T-405](later.md) | P1 | M | later | defect | open | Secrets of a job and the credential of the proxy go into the argv of podvm |
-| [T-406](later.md) | P1 | M | later | defect | partial | The fake broker of the local mode gives the job message to each local process |
+| [T-406](later.md) | P1 | M | later | defect | done | The fake broker of the local mode gives the job message to each local process |
 | [T-407](later.md) | P2 | M | later | defect | partial | Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made |
 | [T-408](later.md) | P2 | M | later | defect | open | With `--export` the work directory of a job is 0777 in `/tmp` |
 | [T-409](later.md) | P2 | M | later | defect | open | The signed pin list trusts the signer key of the same file |
@@ -497,7 +497,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-450](later.md) | P3 | S | later | defect | open | run: a dry run with a --vnet podnet binary that cannot build the shim says planned |
 | [T-451](later.md) | P2 | S | later | defect | open | audit: a failed write still appears in the in-memory lines and the next line reuses its seq |
 | [T-452](later.md) | P2 | S | later | defect | open | guest: the self-test skips the first unit's file check when the driver reports no unit_root |
-| [T-453](later.md) | P3 | S | later | defect | open | status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused |
+| [T-453](later.md) | P3 | S | later | defect | done | status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused |
 | [T-454](later.md) | P2 | S | later | defect | open | serve: a spooled report of a source that is no longer configured is skipped forever |
 | [T-455](later.md) | P3 | S | later | defect | open | serve: a bad journal line is counted in Replay.bad_lines and never reported |
 | [T-456](later.md) | P2 | S | later | defect | open | check: a pin payload with an invalid arch (riscv64, x86-64) is accepted and then refuses every job |
@@ -507,3 +507,15 @@ acceptance, later The crate dependencies later than v1.
 | [T-460](later.md) | P2 | S | later | defect | open | microvm: destroy of a unit that is not in the map leaves its directory and reports a residue |
 | [T-461](later.md) | P2 | S | later | defect | open | run: a host path with a colon breaks the -v mount of a unit (toolcache, export, container mount) |
 | [T-462](later.md) | P2 | S | later | defect | open | microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed |
+| [T-463](later.md) | P2 | S | later | defect | done | hooks: a job container with no entry point is started with tail, which a distroless image does not have |
+| [T-464](later.md) | P2 | S | later | defect | done | podvm: a config without [unit.podvm] runner_dir gives the hook policy an empty work_root and refuses every container job |
+| [T-465](later.md) | P2 | S | later | defect | done | check: tiers::served ignores the egress hold, so a config with no hold passes check and serves nothing |
+| [T-466](later.md) | P2 | S | later | defect | done | shim: the close_range fallback closes only 3..4096, so a higher descriptor leaks into the payload |
+| [T-467](later.md) | P3 | S | later | defect | done | mint: the revocation message calls the source name a credential |
+| [T-468](later.md) | P2 | S | later | defect | done | check: a guest_kinds entry that is not a [unit.NAME] table passes check and drops the guest claim |
+| [T-469](later.md) | P3 | S | later | defect | blocked | lock: an uppercase digest is accepted and then fails every action against the lowercase SHA-256 |
+| [T-470](later.md) | P3 | S | later | defect | done | status: trust_unknown counts a repository or owner literally named unknown |
+| [T-471](later.md) | P2 | S | later | defect | done | policy: a host with a trailing dot is not covered by a wildcard ceiling |
+| [T-472](later.md) | P3 | S | later | defect | done | check: a pin payload with a duplicate reference, a future built_at_s, max_age_s 0 or a bad runner_version is accepted |
+| [T-473](later.md) | P3 | S | later | chore | open | Take `pod_core::clock` in place of the crate `podrunner-clock` |
+| [T-474](later.md) | P2 | M | later | chore | open | Take `pod_proxy::env` for the proxy environment of a unit |

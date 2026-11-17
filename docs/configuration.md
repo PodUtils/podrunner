@@ -79,7 +79,7 @@ signature = "HEX128"         # its signature; a changed pin list is refused
 [[pin.payload]]
 arch = "x86_64"
 reference = "runner@sha256:HEX"
-built_at_s = 1800000000      # the time of the build, Unix seconds
+built_at_s = 1763337600      # the time of the build, Unix seconds; a time after the clock is stale
 runner_version = "2.338.2"   # the official runner in the image
 max_age_s = 2419200          # the age limit of this pin; the smaller of it and [pin] max_age_s holds
 
@@ -103,7 +103,9 @@ whose own resolver fails keeps its egress and its mint.
 A guest of the machine tier of podvm for each job (T-037): its own kernel,
 under KVM where `/dev/kvm` opens. It is the unit of the `untrusted` tier:
 it claims `guest`, and `serve` takes the claim only for a kind on
-`guest_kinds` and after the self-test of the guest (GitHub #36). Before
+`guest_kinds` and after the self-test of the guest (GitHub #36). Each
+entry of `guest_kinds` other than the default `microvm` must name a
+`[unit.NAME]` table: `check` refuses another name. Before
 each job the guest script checks that each host mount of the guest is in
 the table of the unit (`MOUNT_CHECK`); a guest with another mount ends with
 exit 96. It has no route of the container hooks. The host needs
