@@ -184,8 +184,21 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   COORD-078 #215) and T-371 (P1: the user gate has no lane of that host),
   and the P2 T-353, T-354 (devpts, COORD-079 #216), T-355 and T-356.
 - COORD state: #170 (podnet) and #191 (podcrates) are closed; #189 holds
-  the facts that podvm asked for (PodUtils/podvm#466); #214 and #215 wait
-  for podcrates, #216 for podvm.
+  the facts that podvm asked for (PodUtils/podvm#466), and podvm answered
+  (PodUtils/podvm#470: T-1934 for the pty, T-1935 for the raw calls of the
+  userland rung); #214 and #215 wait for podcrates, #216 for podvm.
+- The owner (2026-11-17, Q9 in `docs/decisions.md`): the session owns the
+  project and its issues, and asks the owner only for a change of a ruling.
+  `issue-sync.yml` writes.
+- A user read the code of beta.7 and filed #218 to #237: each is fixed on
+  `main` and closed (T-373 to T-393). F1 (T-351) is fixed in podrunner:
+  DNS over HTTPS through the proxy (`dns::resolver_via`), measured on this
+  sandbox as a user with no resolver. Two read-only review agents (security,
+  fidelity of the local mode) look for the same class of defect; file each
+  finding as an entry.
+- runner-image 44100036389 failed on a pull limit of Docker Hub (T-394,
+  fixed: `mirror.gcr.io`); its T-221 measure showed that systemd-run reads
+  `$$` as `$` (fixed: `echo 0`). Read the next runner-image run first.
 - The fourth QA: agent B found T-318 to T-323 and T-203 (each P1 and P2
   done). Agent A (user
   `qa3`) stopped before its report: it gave no findings. The adversarial
