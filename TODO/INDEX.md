@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**399 entries: 33 open, 28 partial, 10 blocked, 328 done.**
+**453 entries: 87 open, 28 partial, 10 blocked, 328 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 2 | 11 | 1 | 60 | 74 |
-| P2 | 3 | 12 | 7 | 170 | 192 |
-| P3 | 28 | 5 | 2 | 98 | 133 |
-| **All** | 33 | 28 | 10 | 328 | 399 |
+| P1 | 6 | 11 | 1 | 60 | 78 |
+| P2 | 33 | 12 | 7 | 170 | 222 |
+| P3 | 48 | 5 | 2 | 98 | 153 |
+| **All** | 87 | 28 | 10 | 328 | 453 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -447,3 +447,57 @@ acceptance, later The crate dependencies later than v1.
 | [T-400](later.md) | P2 | S | later | defect | done | A local composite action of `./../PATH` or a link out of the tree is read |
 | [T-401](later.md) | P3 | S | later | defect | done | A dry run with a runner directory that cannot take the lock says planned |
 | [T-402](later.md) | P2 | S | later | defect | done | The mint forgets a late credential that starts or goes back after its alert |
+| [T-403](later.md) | P1 | M | later | defect | open | A mount source of the hooks follows a symbolic link that the job made |
+| [T-404](later.md) | P1 | M | later | defect | open | In the local mode the logs of a hook step are in the socket directory that the unit writes |
+| [T-405](later.md) | P1 | M | later | defect | open | Secrets of a job and the credential of the proxy go into the argv of podvm |
+| [T-406](later.md) | P1 | M | later | defect | open | The fake broker of the local mode gives the job message to each local process |
+| [T-407](later.md) | P2 | M | later | defect | open | Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made |
+| [T-408](later.md) | P2 | M | later | defect | open | With `--export` the work directory of a job is 0777 in `/tmp` |
+| [T-409](later.md) | P2 | M | later | defect | open | The signed pin list trusts the signer key of the same file |
+| [T-410](later.md) | P2 | M | later | defect | open | With no `[egress] default_policy`, an offer with `mode: open` opens the egress |
+| [T-411](later.md) | P3 | M | later | defect | open | The `id` of a configured organization or repository is not checked |
+| [T-412](later.md) | P3 | M | later | defect | open | The front of a guest reads a request line with no limit |
+| [T-413](later.md) | P3 | M | later | defect | open | Text that a job controls reaches stderr with no escape |
+| [T-414](later.md) | P3 | M | later | defect | open | The audit line of a failed start carries the text of the driver to the source |
+| [T-415](later.md) | P2 | M | later | defect | open | A matrix job keeps the outputs of its last cell only |
+| [T-416](later.md) | P2 | M | later | defect | open | A job of a called workflow ignores the `permissions` of the caller |
+| [T-417](later.md) | P2 | M | later | defect | open | A run can hold one concurrency group two times |
+| [T-418](later.md) | P2 | M | later | defect | open | `github.run_id`, `run_number` and `run_attempt` are always 1 |
+| [T-419](later.md) | P2 | M | later | defect | open | `--protected` misses jobs of called workflows, needs of `--job` and environment names of an expression |
+| [T-420](later.md) | P2 | M | later | defect | open | An environment name of an expression is not evaluated |
+| [T-421](later.md) | P2 | M | later | defect | open | No checkout tree when only a called workflow uses `actions/checkout` |
+| [T-422](later.md) | P2 | M | later | defect | open | The stand-in of `actions/checkout` needs `curl` in a job container |
+| [T-423](later.md) | P2 | M | later | defect | open | `--schedule` reads no `timezone` of `on.schedule` |
+| [T-424](later.md) | P2 | M | later | defect | open | The minimal payload of `pull_request` has no `head.repo` and `base.repo` |
+| [T-425](later.md) | P2 | M | later | defect | open | A git submodule is an empty directory in the checkout |
+| [T-426](later.md) | P3 | M | later | defect | open | `github.workflow` is the file name, not the `name:` of the workflow |
+| [T-427](later.md) | P3 | M | later | defect | open | `--rerun DIR --job CALLER` reruns nothing of a call |
+| [T-428](later.md) | P3 | M | later | defect | open | A directory run with `--artifacts` or `--state` keeps the output of the last workflow only |
+| [T-429](later.md) | P3 | M | later | defect | open | A line of a secret, var or env file with `<<` in its value is refused |
+| [T-430](later.md) | P3 | M | later | defect | open | `--changed-since` does not see new files that git does not track |
+| [T-431](later.md) | P3 | M | later | defect | open | The `secrets:` of a call see only the `secrets` context |
+| [T-432](later.md) | P3 | M | later | defect | open | A concurrency group queues each waiter |
+| [T-433](later.md) | P3 | M | later | defect | open | `--schedule` runs on the current branch and takes a cron under 5 minutes |
+| [T-434](later.md) | P3 | M | later | defect | open | The OIDC claims of a called job name the caller |
+| [T-435](later.md) | P2 | S | later | defect | open | mint: one thread for each TCP connection with no cap, each waiting up to 90 s |
+| [T-436](later.md) | P2 | S | later | defect | open | guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest |
+| [T-437](later.md) | P2 | S | later | defect | open | placement: a required limit that the kind reports is refused, although the docs allow reported |
+| [T-438](later.md) | P2 | S | later | defect | open | policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy |
+| [T-439](later.md) | P2 | S | later | defect | open | run: a checkout of another repository with an empty, full or SHA ref is not resolved |
+| [T-440](later.md) | P3 | S | later | defect | open | run: fetch::host_of cuts an IPv6 action-server address at the first colon |
+| [T-441](later.md) | P2 | S | later | defect | open | run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused |
+| [T-442](later.md) | P3 | S | later | defect | open | serve: a malformed offer is refused as event-not-allowed with no detail, not bad-request |
+| [T-443](later.md) | P2 | S | later | defect | open | serve: a job-completed hook event is lost when the unit ends before the next tick |
+| [T-444](later.md) | P2 | S | later | defect | open | podvm: a start that fails after run -d leaves the podvm unit, because destroy skips podvm rm |
+| [T-445](later.md) | P3 | S | later | defect | open | source-conformance: a timed-out test leaves its thread and child process alive |
+| [T-446](later.md) | P3 | S | later | defect | open | serve: two source names that map to the same spool file lose one refused report |
+| [T-447](later.md) | P2 | S | later | defect | open | run: a lock key or uses: with ../x@v1 is accepted and the fetch URL normalizes to another repository |
+| [T-448](later.md) | P2 | S | later | defect | open | check: a podvm config with a bad upstream_proxy, an old podvm or a bad podnet passes check and stops serve |
+| [T-449](later.md) | P2 | S | later | defect | open | check_driver: a non-executable driver and a writable ancestor are accepted |
+| [T-450](later.md) | P3 | S | later | defect | open | run: a dry run with a --vnet podnet binary that cannot build the shim says planned |
+| [T-451](later.md) | P2 | S | later | defect | open | audit: a failed write still appears in the in-memory lines and the next line reuses its seq |
+| [T-452](later.md) | P2 | S | later | defect | open | guest: the self-test skips the first unit's file check when the driver reports no unit_root |
+| [T-453](later.md) | P3 | S | later | defect | open | status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused |
+| [T-454](later.md) | P2 | S | later | defect | open | serve: a spooled report of a source that is no longer configured is skipped forever |
+| [T-455](later.md) | P3 | S | later | defect | open | serve: a bad journal line is counted in Replay.bad_lines and never reported |
+| [T-456](later.md) | P2 | S | later | defect | open | check: a pin payload with an invalid arch (riscv64, x86-64) is accepted and then refuses every job |

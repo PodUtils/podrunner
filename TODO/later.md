@@ -8413,3 +8413,1353 @@ Count the late credentials of each host for the life of the mint, and count a cr
 ## Done
 
 2026-11-17: each late credential of a host counts, also one that starts or goes back after its alert (`late_of`, `settle`). Proven in CI on GitHub-hosted runners by `tests::a_released_late_credential_still_counts` (once the gate runs).
+
+# T-403: A mount source of the hooks follows a symbolic link that the job made
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The policy checks the text of a mount source only; the host resolves a link in it. A step makes `_work/x` a link to `/` and posts `run_container_step` with the source `_work/x`, or swaps `_work/_temp/_github_home` for a link: a container gets the root of the host, writable (`podrunner-hook/src/policy.rs`, `podrunner-hook/src/unit.rs`, `podrunner-podvm/src/unit/containers.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Resolve each source on the host under the runner directory with no link (`openat2` with `RESOLVE_BENEATH|RESOLVE_NO_SYMLINKS`, or a walk with `O_NOFOLLOW`), and refuse a link in the path. Ask podvm by COORD whether its `-v` refuses a linked source.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-404: In the local mode the logs of a hook step are in the socket directory that the unit writes
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The job makes `$GUEST/logs/step-1.log` a link to a file of the user; the host writes the step output through it, and can read it back (`podrunner-local/src/exec/hooks.rs`, `podrunner-hook/src/unit.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Keep the logs out of the socket directory, as `serve` does (`dir.with_extension("logs")`), and open each log with `O_EXCL|O_NOFOLLOW`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-405: Secrets of a job and the credential of the proxy go into the argv of podvm
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each step environment (secrets, `ACTIONS_RUNTIME_TOKEN`, a proxy URL with `user:pass@`) becomes `-e K=V` of a `podvm` process; each user of the host reads `/proc/PID/cmdline` (`podrunner-podvm/src/unit/containers.rs`, `unit.rs`, `podrunner-local/src/exec/proxy.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Give the environment to podvm in a file at 0600 or on a descriptor (a COORD issue to podvm when podvm has no form for it).
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-406: The fake broker of the local mode gives the job message to each local process
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The broker on the loopback checks no credential: each uid can `POST /acquirejob` and get the secrets and the token of the job; the socket directory of a guest is 0755 (`podrunner-broker-fake`, `podrunner-local/src/front.rs`, `exec.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Give the broker a bearer token that only the runner files of the unit hold, and make the socket directory 0700.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-407: Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Another user makes the directory first; `create_dir_all` takes it, and the writes of the relay and the vnet shim follow that user's links (`podrunner-local/src/exec.rs`, `exec/hooks.rs`, `exec/vnet.rs`, `podrunner-slots/src/run.rs`). Also GitHub #250.
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Make each such directory with `mkdir` at 0700 that fails when it exists (or a random name), check its owner, and open files with `O_EXCL|O_NOFOLLOW`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-408: With `--export` the work directory of a job is 0777 in `/tmp`
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Other users read the workspace and change the checkout during the run (`podrunner-local/src/exec.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Make it with a random name at 0700 and give the unit access by its user map, not by mode 0777.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-409: The signed pin list trusts the signer key of the same file
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A step that rewrites the configuration makes a key, signs its own pin list and writes its own `signer`: `verify` passes (`podrunner-slots/src/pins.rs`, `config.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Pin the trusted signer key out of each file that the uid of a unit can write (a key of the binary or of a root file).
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-410: With no `[egress] default_policy`, an offer with `mode: open` opens the egress
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+With no ceiling the offer policy is taken whole, also `mode: open`; `policy.rs` says an offer only takes away (`podrunner-slots/src/run.rs`). Not certain that a job can set the policy of an offer.
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+With no ceiling, narrow the offer by the policy that allows nothing, or refuse an offer policy.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-411: The `id` of a configured organization or repository is not checked
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The sidecar sends no `owner_id` or `repo_id`, and `same_id` passes when the offer has none: an `id` in the configuration checks the name only (`podrunner-tier/src/lib.rs`, `tools/scaleset-sidecar/sidecar.go`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Require the id in the offer when the configuration gives one, and send it from the sidecar.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-412: The front of a guest reads a request line with no limit
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A job sends one long line with no newline, and the memory of the host process grows (`podrunner-local/src/front.rs`). Also GitHub #260.
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Read each line through `take(HEAD_MAX)` and answer 431, with a read timeout and a cap of connections.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-413: Text that a job controls reaches stderr with no escape
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A host name of a CONNECT with control bytes, or the last line of `podvm run`, can write lines of the log or change the terminal (`podrunner-egress/src/denials.rs`, `exec/proxy.rs`, `podrunner-hook/src/hooks.rs`, `podrunner-slots/src/run.rs`). Not certain for the host name.
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Give each such value through `text::display` before it is written.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-414: The audit line of a failed start carries the text of the driver to the source
+
+**Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The line holds host paths and podvm output and goes to the source (`podrunner-slots/src/run.rs`); `audit.rs` says an audit line holds no path.
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Keep the detail in the log of `serve`, and put only a code in the audit line.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-415: A matrix job keeps the outputs of its last cell only
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+GitHub combines the outputs of the cells, and an empty value does not replace a set one; `needs.a.outputs.o1` is empty in the example of the GitHub documents (`podrunner-local/src/lib.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Combine the outputs of the cells: a value that is set wins over an empty one, the last set one wins.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-416: A job of a called workflow ignores the `permissions` of the caller
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`id-token: write` on the caller gives no OIDC token when the called workflow has no `permissions:` (`podrunner-local/src/lib.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Take the permissions of the calling job as the default of each job of the called workflow, as GitHub does.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-417: A run can hold one concurrency group two times
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The workflow and a job with the same group, or cells with `--jobs 2`: with no `cancel-in-progress` the run waits for itself; with it, it sends SIGTERM to itself (`run_local/concurrency.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Let a run hold a group that it holds already (a count of holds in the run).
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-418: `github.run_id`, `run_number` and `run_attempt` are always 1
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A cache key with `github.run_id` hits the first entry for ever; the fallback `head_ref || run_id` of a group makes runs cancel each other (`run_local/context.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Give each run a new `run_id` (time and process), a `run_number` that counts in the state, and `run_attempt` from `--rerun`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-419: `--protected` misses jobs of called workflows, needs of `--job` and environment names of an expression
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Those jobs run with no approval and get the secrets of the environment (`run_local/protect.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Check the environment of each cell that runs, after the expansion of calls and of `--job`, and refuse a name of an expression in a protected run.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-420: An environment name of an expression is not evaluated
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`environment: ${{ inputs.env }}` stays as text; the OIDC `sub` names it (`podrunner-local/src/lib.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Evaluate the name with the contexts of the job (`inputs`, `vars`, `matrix`, `needs`).
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-421: No checkout tree when only a called workflow uses `actions/checkout`
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`default_checkout` reads the caller file only; the called workflows come from the current directory, not from the top of the git tree (`run_local/args.rs`, `run_local.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Look for `actions/checkout` in the called workflows too, and read them from the root of the tree.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-422: The stand-in of `actions/checkout` needs `curl` in a job container
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+It fails in `ubuntu:24.04`, `debian:*-slim`, `python:*-slim` and `node:*-slim` (`podrunner-local/src/message.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Fetch the tree with a fallback that needs no tool of the image (the Node of the runner in `/__e`, or `wget`, `python3`), as `actions/checkout` runs on Node.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-423: `--schedule` reads no `timezone` of `on.schedule`
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+GitHub takes `timezone`; podrunner runs at the UTC time, and `docs/cli.md` says UTC (`run_local/watch.rs`, `podrunner-local/src/cron.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Read `timezone` (an IANA name, through the zone files of the host) and say it in the documents.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-424: The minimal payload of `pull_request` has no `head.repo` and `base.repo`
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The guard `head.repo.full_name == github.repository` skips the job locally, and runs it on GitHub (`run_local/context.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Give `head.repo` and `base.repo` with `full_name`, `name` and `owner.login` of the repository.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-425: A git submodule is an empty directory in the checkout
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Also with `submodules: true` or `recursive` (`podrunner-local/src/tree.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Add the files of each submodule (git `ls-files --recurse-submodules`), or refuse `submodules:` by name.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-426: `github.workflow` is the file name, not the `name:` of the workflow
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+GitHub gives the `name:`, else the path (`run_local/context.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Give `name:`, else the path of the file in the tree.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-427: `--rerun DIR --job CALLER` reruns nothing of a call
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Jobs that need a call always rerun, also after it passed (`podrunner-local/src/rerun.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Map a caller to the cells of its called jobs in the state.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-428: A directory run with `--artifacts` or `--state` keeps the output of the last workflow only
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each workflow writes the same directory (`run_local/many.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Give each workflow a directory of its own under DIR, or refuse the pair.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-429: A line of a secret, var or env file with `<<` in its value is refused
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The runner reads `NAME=a<<b` as a plain value (`podrunner-local/src/secrets.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Take `NAME<<DELIM` only when `<<` comes right after the name, as the runner does.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-430: `--changed-since` does not see new files that git does not track
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The checkout has them; a `paths` filter does not (`run_local/context.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Add the new files that git does not ignore to the changed files.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-431: The `secrets:` of a call see only the `secrets` context
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Another expression gives an empty secret with no message (`podrunner-local/src/calls.rs`). Not certain how often users meet it.
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Evaluate with the contexts that GitHub gives there, and name an empty result.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-432: A concurrency group queues each waiter
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+GitHub keeps one pending run and cancels the others (`run_local/concurrency.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Keep one waiter; a newer waiter cancels the older one.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-433: `--schedule` runs on the current branch and takes a cron under 5 minutes
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+GitHub runs a schedule on the default branch, every 5 minutes at most (`run_local/watch.rs`).
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Run on the default branch, and say that a cron under 5 minutes runs every 5 minutes on GitHub.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-434: The OIDC claims of a called job name the caller
+
+**Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`job_workflow_ref` names the caller; the `*_id` claims and `GITHUB_WORKFLOW_REF` are missing (`podrunner-broker-fake/src/oidc.rs`). Also GitHub #254.
+
+## Premise
+
+The report of the review agent, read from the code, not run. Each case is a measure to make first (`docs/development.md`, "The proof of a change").
+
+## Approach
+
+Give the claims of the called workflow, and the `*_id` claims.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix.
+
+# T-435: mint: one thread for each TCP connection with no cap, each waiting up to 90 s
+
+**Source:** GitHub #246 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The remote mint spawns one thread for each TCP connection with no cap, and each thread can wait up to `READ_TIMEOUT` (90 s) for a TLS handshake and a request:
+
+## Premise
+
+The report of #246, with the lines of the code and a measure.
+
+## Approach
+
+Cap the connections served at one time (as `podrunner-hook` does with `CLIENTS`), refuse the excess with a short `busy` reply, and/or set a much shorter handshake deadline. Add a test that opens more than the cap and sees the excess refused.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-436: guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest
+
+**Source:** GitHub #247 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The guest self-test needs a listener on the host loopback, so a host that denies `bind(127.0.0.1:0)` can never claim `guest`. `guest::second`:
+
+## Premise
+
+The report of #247, with the lines of the code and a measure.
+
+## Approach
+
+Use a canary that does not need an AF_INET bind (a unix socket, a file, or a connect to a port that the host already has), or treat a bind failure as "the unit cannot reach a listener" and continue with the other checks. Add a test that runs the self-test on a host that denies the loopback bind.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-437: placement: a required limit that the kind reports is refused, although the docs allow reported
+
+**Source:** GitHub #248 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Placement refuses a required limit that the kind reports, although the docs allow `reported`. `placement::place`:
+
+## Premise
+
+The report of #248, with the lines of the code and a measure.
+
+## Approach
+
+Accept `Enforced` or `Reported` for a required limit; for `wall`, also require `tree_kill: Verified`. The report can say that the limit is reported. Add a test with `wall: Reported` and `tree_kill: Verified`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-438: policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy
+
+**Source:** GitHub #249 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A policy rule with an unknown field is accepted by `JobOffer::check`, and `policy::narrow` drops the field, so the resulting policy is broader than the rule. Measured with an offer policy:
+
+## Premise
+
+The report of #249, with the lines of the code and a measure.
+
+## Approach
+
+Validate each rule with the `broker-policy.v1` rule shape (or `pod_broker::Policy::from_value`) in `JobOffer::check`/`policy_fault`, and refuse an unknown rule field by name. `narrow` should preserve the known fields it keeps, not silently drop the rest. Add a test with an unknown rule field.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-439: run: a checkout of another repository with an empty, full or SHA ref is not resolved
+
+**Source:** GitHub #251 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A checkout of another repository passes `with: ref` through unchanged, so an empty ref, a full ref and a commit SHA are not resolved. `checkout_target`:
+
+## Premise
+
+The report of #251, with the lines of the code and a measure.
+
+## Approach
+
+Normalize the ref: empty or absent -> `HEAD`; `refs/heads/X` -> `X`; `refs/tags/X` -> `X`; a full 40-hex SHA -> the SHA (and `Git::resolve` should return it as the commit). Add tests for each form.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-440: run: fetch::host_of cuts an IPv6 action-server address at the first colon
+
+**Source:** GitHub #252 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`fetch::host_of` splits the authority at the first `:`, so an IPv6 literal is cut. Measured:
+
+## Premise
+
+The report of #252, with the lines of the code and a measure.
+
+## Approach
+
+Parse the authority with brackets: `[::1]:8443` -> `::1`; `[2001:db8::1]` -> `2001:db8::1`; a user part is removed first. Add the three cases above to the `host_of` test.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-441: run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused
+
+**Source:** GitHub #253 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`dispatch::foreign` refuses only ARM and X64 labels. Measured:
+
+## Premise
+
+The report of #253, with the lines of the code and a measure.
+
+## Approach
+
+Recognize the other architecture labels (`ppc64le`, `s390x`, `riscv64`, `i386`, `i686`, `armv7`, and the like) and refuse them by name, or refuse any label that names an architecture the host is not. Add the cases above to the dispatch test.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-442: serve: a malformed offer is refused as event-not-allowed with no detail, not bad-request
+
+**Source:** GitHub #255 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A malformed offer is refused as `event-not-allowed` with no detail, while the remote mint refuses the same offer as `bad-request` with the parser's text. `engine::intake`:
+
+## Premise
+
+The report of #255, with the lines of the code and a measure.
+
+## Approach
+
+Keep the parser/check error and refuse with a `bad-request` reason (the source wire's `withdraw` reason is a string) and an audit detail, as the remote mint does. Add a test with a bad schema, an unknown limit and a bad policy.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-443: serve: a job-completed hook event is lost when the unit ends before the next tick
+
+**Source:** GitHub #256 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A `job-completed` hook event is read only while the job is `Started` or `Running`. If the unit ends before the next tick, the job is `Ended`/`Destroyed`/`Reported` and `hook_events` skips it; the event stays in the hook port and no audit line is written. Measured with a unit that ends, then a queued `JobCompleted`:
+
+## Premise
+
+The report of #256, with the lines of the code and a measure.
+
+## Approach
+
+Read the hook events of a unit that is `Ended`/`Destroyed` before `finish` closes it, or drain the hook port in `finish`/`close_hooks` and write the `JobCompleted` line there. Add a test with a unit that ends before the event is read.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-444: podvm: a start that fails after run -d leaves the podvm unit, because destroy skips podvm rm
+
+**Source:** GitHub #257 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+If a podvm unit starts (`podvm run -d` succeeds) and a later step of `start` fails before the unit is inserted into `self.units`, `destroy` does not call `podvm rm -f`. `PodvmUnit::destroy`:
+
+## Premise
+
+The report of #257, with the lines of the code and a measure.
+
+## Approach
+
+Call `podvm rm -f` for the unit even when `removed` is `None` (the unit directory's store is enough), or insert the `Running` record before the steps that can fail and remove it on the error path. Add a test with a driver whose `root_of_unit`/`waiter` fails after a successful `run -d`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-445: source-conformance: a timed-out test leaves its thread and child process alive
+
+**Source:** GitHub #258 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`source-conformance` runs each test in a thread with a 60 s timeout, but a timed-out test is not stopped: the thread stays in `Under::exchange`'s `read_line`, and the child process it spawned is not killed. `source_conformance`:
+
+## Premise
+
+The report of #258, with the lines of the code and a measure.
+
+## Approach
+
+Kill the child and join the thread on timeout (a `Child` handle shared with the timeout path, or a process group), or run each test in a child process that the timeout can kill. Add a test with a program that sleeps past a short limit.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-446: serve: two source names that map to the same spool file lose one refused report
+
+**Source:** GitHub #259 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The spool file name maps each character that is not alphanumeric or `-_` to `_`, so two source names can share one file. `spool`:
+
+## Premise
+
+The report of #259, with the lines of the code and a measure.
+
+## Approach
+
+Encode the source name reversibly (percent/hex for the bytes that are not safe) or add a hash of the full name, as the concurrency lock should. Add a test with `a b` and `a_b`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-447: run: a lock key or uses: with ../x@v1 is accepted and the fetch URL normalizes to another repository
+
+**Source:** GitHub #261 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A lock key and a workflow `uses:` accept a repository part with `..`, so the fetch URL can normalize to another repository. Measured:
+
+## Premise
+
+The report of #261, with the lines of the code and a measure.
+
+## Approach
+
+Validate the owner and repository with the same name rule as `--repository` (alphanumeric, `-_.`), in `Lock::parse` and in the `uses` split, and refuse `..`, an empty part and a path separator. Add a test with `../x@v1` and `o/../x@v1`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-448: check: a podvm config with a bad upstream_proxy, an old podvm or a bad podnet passes check and stops serve
+
+**Source:** GitHub #262 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner check` says a podvm configuration is usable, and `serve` refuses the same file at build. Three measured cases:
+
+## Premise
+
+The report of #262, with the lines of the code and a measure.
+
+## Approach
+
+In `serve::plan` for `[unit.podvm]`, parse `upstream_proxy` (or call the same `pod_proxy::Proxy::parse` as `build`), call `podvm.require(LOWEST)`, and `check_driver` the `podnet` binary. Add the three cases above to the `check` tests.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-449: check_driver: a non-executable driver and a writable ancestor are accepted
+
+**Source:** GitHub #263 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`check_driver` accepts a driver file that is not executable, and it does not check the ancestors of the driver's directory. Measured:
+
+## Premise
+
+The report of #263, with the lines of the code and a measure.
+
+## Approach
+
+Require `m.is_file()` and `m.mode() & 0o111 != 0` for a driver, and check each ancestor up to `/` for ownership and the group/other write bits (as `parents_readable` does for read). Add the three cases above to the `check_driver` tests.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-450: run: a dry run with a --vnet podnet binary that cannot build the shim says planned
+
+**Source:** GitHub #264 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A dry run with a `--vnet` path that is a file but not a usable podnet binary says `planned`; the real run fails when it builds the shim. Measured with `--vnet /bin/false`:
+
+## Premise
+
+The report of #264, with the lines of the code and a measure.
+
+## Approach
+
+In `dry::paths`, call `vnet::shim` (into a scratch directory that the dry run removes) or at least check that the path is a `.so` or an executable podnet binary; name the build failure before the first job. Add a test with `/bin/false`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-451: audit: a failed write still appears in the in-memory lines and the next line reuses its seq
+
+**Source:** GitHub #265 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+An audit line that cannot be written still goes into the in-memory `lines`, and the next line reuses its `seq`. `Audit::write`:
+
+## Premise
+
+The report of #265, with the lines of the code and a measure.
+
+## Approach
+
+Push the entry to `lines` only when `append` succeeds, or mark it as not written and keep the seq/prev unchanged. Add a test that a failed write leaves `lines` without the entry and the next line has the next seq.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-452: guest: the self-test skips the first unit's file check when the driver reports no unit_root
+
+**Source:** GitHub #266 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The guest self-test skips the first unit's file check when the driver reports no `unit_root`. `guest::observe`:
+
+## Premise
+
+The report of #266, with the lines of the code and a measure.
+
+## Approach
+
+Treat a missing `unit_root` as a failed self-test (or use a known path from the driver's `observe` contract), so the firstfile check always runs. Add a test with a driver that returns `unit_root: None`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-453: status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused
+
+**Source:** GitHub #267 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`status.no_tier_served` checks only the boundary floor, not the egress hold that placement also requires. `Slots::no_tier_served`:
+
+## Premise
+
+The report of #267, with the lines of the code and a measure.
+
+## Approach
+
+Include `k.capability.egress_hold.effective() >= needed_hold(s.cfg.tier)` in `no_tier_served`, as `doctor` does. Add a test with a guest kind and no hold.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-454: serve: a spooled report of a source that is no longer configured is skipped forever
+
+**Source:** GitHub #268 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A spooled report whose source is no longer in the configuration is skipped forever. `retry_spool`:
+
+## Premise
+
+The report of #268, with the lines of the code and a measure.
+
+## Approach
+
+Name the orphan on stderr and remove it (or move it to a `spool/orphan/` directory) after a grace period, or refuse to start with an orphan and name the file. Add a test with a spooled report of a source that is not in the config.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-455: serve: a bad journal line is counted in Replay.bad_lines and never reported
+
+**Source:** GitHub #269 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`journal::replay` counts the lines it cannot read in `Replay.bad_lines`, but `Slots::start` never reads that field. A torn or corrupt journal line is silently dropped; the operator sees no line and no count.
+
+## Premise
+
+The report of #269, with the lines of the code and a measure.
+
+## Approach
+
+In `Slots::start`, print a line for `replay.bad_lines` (with the path and the count) and/or put the host in `degraded` until an operator looks. Add a test with a torn journal line.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+# T-456: check: a pin payload with an invalid arch (riscv64, x86-64) is accepted and then refuses every job
+
+**Source:** GitHub #270 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Config::check` validates the `arch` of each source but not the `arch` of each `[[pin.payload]]`. Measured:
+
+## Premise
+
+The report of #270, with the lines of the code and a measure.
+
+## Approach
+
+In `Config::check`, require each `pin.payload.arch` to be `x86_64` or `aarch64` (and, if a second payload for one architecture is not a rotation, refuse it as #235 suggests). Add a test with `riscv64` and `x86-64`.
+
+## Prove
+
+`cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
