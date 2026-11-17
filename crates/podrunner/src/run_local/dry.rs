@@ -27,6 +27,14 @@ pub(super) fn paths(a: &Args) -> Result<(), String> {
             return Err(format!("{flag} {}: not a file", b.display()));
         }
     }
+    // A dry run builds the shim of `--vnet` too (#264), into a private
+    // scratch directory that it removes; a real run builds it in its routes.
+    if let (true, Some(v)) = (a.dry_run, &a.vnet) {
+        let scratch = std::env::temp_dir().join(format!("podrunner-dry-vnet-{}", std::process::id()));
+        let built = podrunner_local::work::private_dir(&scratch).and_then(|()| super::vnet::shim(v, &scratch));
+        let _ = std::fs::remove_dir_all(&scratch);
+        built.map_err(|e| format!("--vnet {e}"))?;
+    }
     if let Some(t) = a.toolcache.as_ref().filter(|t| !t.is_dir()) {
         return Err(format!("--toolcache {}: not a directory; fix: mkdir -p {0}", t.display()));
     }
@@ -49,4 +57,29 @@ pub(super) fn paths(a: &Args) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    /// #264: a dry run names a `--vnet` that builds no shim (a program that
+    /// is not podnet, a `.so` that is not a library), not `planned`.
+    #[test]
+    fn a_vnet_that_builds_no_shim_fails_the_dry_run() {
+        let img = format!("r@sha256:{}", "0".repeat(64));
+        let dir = std::env::temp_dir().join(format!("podrunner-dry-vnet-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let not_elf = dir.join("libpodnet-vnet.so");
+        std::fs::write(&not_elf, "not a library").unwrap();
+        for vnet in ["/bin/false".to_string(), not_elf.display().to_string()] {
+            let a = super::super::parse(
+                &["w.yml", "--podvm", "/bin/true", "--images", "/", "--image", &img, "--vnet", &vnet, "--dry-run"]
+                    .map(String::from),
+            )
+            .unwrap();
+            let e = super::paths(&a).unwrap_err();
+            assert!(e.starts_with("--vnet "), "{vnet}: {e}");
+            assert!(!vnet.ends_with(".so") || e.contains("no ELF header"), "{vnet}: {e}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

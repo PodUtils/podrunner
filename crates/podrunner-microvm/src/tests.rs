@@ -283,3 +283,41 @@ fn the_guest_script_gives_node_the_proxy() {
     assert_eq!(run(""), "1 http://127.0.0.1:3128");
     assert_eq!(run("NODE_USE_ENV_PROXY=0;"), "0 http://127.0.0.1:3128");
 }
+
+/// #274: a destroy of a unit that this process does not know (a replay of
+/// the journal) removes its directory, as the podvm and incus kinds do.
+#[test]
+fn a_destroy_of_an_unknown_unit_removes_its_directory() {
+    let d = std::env::temp_dir().join(format!("podrunner-microvm-unknown-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    let u = MicrovmUnit::new(Podvm { binary: "/bin/false".into() }, &d.join("state"), &d.join("store"));
+    let unit = UnitId::parse("u-7").unwrap();
+    let dir = d.join("state/units/u-7");
+    std::fs::create_dir_all(dir.join("work")).unwrap();
+    std::fs::write(dir.join("guest.log"), "x").unwrap();
+    let residue = u.destroy(&unit).unwrap();
+    assert!(residue.is_clean(), "{residue:?}");
+    assert!(!dir.exists(), "the directory is removed");
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// #276: the run directories of a podvm are listed while its pid is still
+/// its own; a run that a later process of the same pid makes stays.
+#[test]
+fn the_runs_of_a_podvm_are_listed_before_its_pid_is_free() {
+    let d = std::env::temp_dir().join(format!("podrunner-microvm-runs-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&d);
+    let machine = d.join("machine");
+    fs::create_dir_all(machine.join("run-42-a")).unwrap();
+    fs::create_dir_all(machine.join("run-420-x")).unwrap();
+    let runs = runs_of(&d, 42);
+    assert_eq!(runs, [machine.join("run-42-a")], "run-420 is another pid");
+    // The pid is free and reused: a new run of another podvm.
+    fs::create_dir_all(machine.join("run-42-b")).unwrap();
+    remove_runs(&runs);
+    let mut left: Vec<String> =
+        fs::read_dir(&machine).unwrap().map(|e| e.unwrap().file_name().into_string().unwrap()).collect();
+    left.sort();
+    assert_eq!(left, ["run-42-b", "run-420-x"]);
+    let _ = fs::remove_dir_all(&d);
+}

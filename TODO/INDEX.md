@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**474 entries: 73 open, 28 partial, 11 blocked, 362 done.**
+**474 entries: 62 open, 28 partial, 12 blocked, 372 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
-| P2 | 24 | 12 | 7 | 190 | 233 |
-| P3 | 46 | 4 | 3 | 110 | 163 |
-| **All** | 73 | 28 | 11 | 362 | 474 |
+| P2 | 15 | 12 | 8 | 198 | 233 |
+| P3 | 44 | 4 | 3 | 112 | 163 |
+| **All** | 62 | 28 | 12 | 372 | 474 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -479,24 +479,24 @@ acceptance, later The crate dependencies later than v1.
 | [T-432](later.md) | P3 | M | later | defect | open | A concurrency group queues each waiter |
 | [T-433](later.md) | P3 | M | later | defect | open | `--schedule` runs on the current branch and takes a cron under 5 minutes |
 | [T-434](later.md) | P3 | M | later | defect | open | The OIDC claims of a called job name the caller |
-| [T-435](later.md) | P2 | S | later | defect | open | mint: one thread for each TCP connection with no cap, each waiting up to 90 s |
-| [T-436](later.md) | P2 | S | later | defect | open | guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest |
-| [T-437](later.md) | P2 | S | later | defect | open | placement: a required limit that the kind reports is refused, although the docs allow reported |
+| [T-435](later.md) | P2 | S | later | defect | done | mint: one thread for each TCP connection with no cap, each waiting up to 90 s |
+| [T-436](later.md) | P2 | S | later | defect | done | guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest |
+| [T-437](later.md) | P2 | S | later | defect | done | placement: a required limit that the kind reports is refused, although the docs allow reported |
 | [T-438](later.md) | P2 | S | later | defect | done | policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy |
-| [T-439](later.md) | P2 | S | later | defect | open | run: a checkout of another repository with an empty, full or SHA ref is not resolved |
+| [T-439](later.md) | P2 | S | later | defect | blocked | run: a checkout of another repository with an empty, full or SHA ref is not resolved |
 | [T-440](later.md) | P3 | S | later | defect | done | run: fetch::host_of cuts an IPv6 action-server address at the first colon |
 | [T-441](later.md) | P2 | S | later | defect | done | run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused |
 | [T-442](later.md) | P3 | S | later | defect | done | serve: a malformed offer is refused as event-not-allowed with no detail, not bad-request |
 | [T-443](later.md) | P2 | S | later | defect | done | serve: a job-completed hook event is lost when the unit ends before the next tick |
-| [T-444](later.md) | P2 | S | later | defect | open | podvm: a start that fails after run -d leaves the podvm unit, because destroy skips podvm rm |
-| [T-445](later.md) | P3 | S | later | defect | open | source-conformance: a timed-out test leaves its thread and child process alive |
+| [T-444](later.md) | P2 | S | later | defect | done | podvm: a start that fails after run -d leaves the podvm unit, because destroy skips podvm rm |
+| [T-445](later.md) | P3 | S | later | defect | done | source-conformance: a timed-out test leaves its thread and child process alive |
 | [T-446](later.md) | P3 | S | later | defect | done | serve: two source names that map to the same spool file lose one refused report |
 | [T-447](later.md) | P2 | S | later | defect | done | run: a lock key or uses: with ../x@v1 is accepted and the fetch URL normalizes to another repository |
-| [T-448](later.md) | P2 | S | later | defect | open | check: a podvm config with a bad upstream_proxy, an old podvm or a bad podnet passes check and stops serve |
+| [T-448](later.md) | P2 | S | later | defect | done | check: a podvm config with a bad upstream_proxy, an old podvm or a bad podnet passes check and stops serve |
 | [T-449](later.md) | P2 | S | later | defect | done | check_driver: a non-executable driver and a writable ancestor are accepted |
-| [T-450](later.md) | P3 | S | later | defect | open | run: a dry run with a --vnet podnet binary that cannot build the shim says planned |
+| [T-450](later.md) | P3 | S | later | defect | done | run: a dry run with a --vnet podnet binary that cannot build the shim says planned |
 | [T-451](later.md) | P2 | S | later | defect | done | audit: a failed write still appears in the in-memory lines and the next line reuses its seq |
-| [T-452](later.md) | P2 | S | later | defect | open | guest: the self-test skips the first unit's file check when the driver reports no unit_root |
+| [T-452](later.md) | P2 | S | later | defect | done | guest: the self-test skips the first unit's file check when the driver reports no unit_root |
 | [T-453](later.md) | P3 | S | later | defect | done | status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused |
 | [T-454](later.md) | P2 | S | later | defect | done | serve: a spooled report of a source that is no longer configured is skipped forever |
 | [T-455](later.md) | P3 | S | later | defect | done | serve: a bad journal line is counted in Replay.bad_lines and never reported |
@@ -504,9 +504,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-457](later.md) | P3 | S | later | defect | done | check: an empty [unit.podvm] command, a relative runner_dir and a bad registry host are accepted |
 | [T-458](later.md) | P3 | S | later | defect | done | guest: the microvm and incus scripts set HTTP(S)_PROXY but not NODE_USE_ENV_PROXY |
 | [T-459](later.md) | P2 | S | later | defect | done | incus: the instance name is a 32-bit hash, so two state directories can collide |
-| [T-460](later.md) | P2 | S | later | defect | open | microvm: destroy of a unit that is not in the map leaves its directory and reports a residue |
+| [T-460](later.md) | P2 | S | later | defect | done | microvm: destroy of a unit that is not in the map leaves its directory and reports a residue |
 | [T-461](later.md) | P2 | S | later | defect | done | run: a host path with a colon breaks the -v mount of a unit (toolcache, export, container mount) |
-| [T-462](later.md) | P2 | S | later | defect | open | microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed |
+| [T-462](later.md) | P2 | S | later | defect | done | microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed |
 | [T-463](later.md) | P2 | S | later | defect | done | hooks: a job container with no entry point is started with tail, which a distroless image does not have |
 | [T-464](later.md) | P2 | S | later | defect | done | podvm: a config without [unit.podvm] runner_dir gives the hook policy an empty work_root and refuses every container job |
 | [T-465](later.md) | P2 | S | later | defect | done | check: tiers::served ignores the egress hold, so a config with no hold passes check and serves nothing |

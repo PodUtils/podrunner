@@ -51,7 +51,24 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
     std::fs::set_permissions(&key, std::fs::Permissions::from_mode(0o640)).unwrap();
     let head = "host = \"h\"\n[trust]\norganizations = [{ login = \"o\" }]\n";
     let pin = "[pin]\n";
+    // A podvm that answers its version, as `check` and `serve` ask it (#262).
+    let fake = |name: &str, version: &str| {
+        let f = d.join(name);
+        std::fs::write(&f, format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n")).unwrap();
+        std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o755)).unwrap();
+        f.display().to_string()
+    };
+    let (podvm, old) = (fake("podvm", "0.2.0-beta.21"), fake("podvm-old", "0.1.0-beta.12"));
+    let open = d.join("podnet-open");
+    std::fs::write(&open, "").unwrap();
+    std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o777)).unwrap();
+    let unit =
+        |binary: &str, extra: &str| format!("[unit.podvm]\nslots = 1\nbinary = \"{binary}\"\nimages = \"/\"\n{extra}");
     let cases = [
+        // #262: what `serve` refuses at its build, `check` refuses too.
+        (format!("host = \"h\"\nupstream_proxy = \"not a url\"\n{pin}"), "upstream_proxy"),
+        (format!("{head}{}{pin}", unit(&old, "")), "0.2.0-beta.5"),
+        (format!("{head}{}{pin}", unit(&podvm, &format!("podnet = \"{}\"\n", open.display()))), "podnet"),
         // A misspelled table and a value of the wrong type name the key.
         (format!("{head}[[sources]]\nname = \"x\"\n{pin}"), "sources"),
         (format!("{head}[deadlines]\nclaim_s = \"60\"\n{pin}"), "claim_s"),
@@ -82,7 +99,7 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             format!(
                 "host = \"h\"\nallow_fake = true\n[trust]\norganizations = [{{ login = \"o\" }}]\n\
                  [[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"trusted\"\narch = \"{}\"\n\
-                 [unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nconfine = true\n{pin}",
+                 [unit.podvm]\nslots = 1\nbinary = \"{podvm}\"\nimages = \"/\"\nconfine = true\n{pin}",
                 std::env::consts::ARCH
             ),
             "no-tier-served",
@@ -93,14 +110,14 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             format!(
                 "host = \"h\"\nallow_fake = true\n[trust]\norganizations = [{{ login = \"o\" }}]\n\
                  [[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"trusted\"\narch = \"{}\"\n\
-                 [unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\n{pin}",
+                 [unit.podvm]\nslots = 1\nbinary = \"{podvm}\"\nimages = \"/\"\n{pin}",
                 std::env::consts::ARCH
             ),
             "no-tier-served",
         ),
         // #232: a `mem` that is not a size fails `check`, as it fails `serve`.
         (
-            format!("{head}[unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nmem = \"nonsense\"\n{pin}"),
+            format!("{head}[unit.podvm]\nslots = 1\nbinary = \"{podvm}\"\nimages = \"/\"\nmem = \"nonsense\"\n{pin}"),
             "mem",
         ),
         (
@@ -134,7 +151,8 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
         let serve =
             Command::new(BIN).args(["serve", "--config"]).arg(&file).arg("--state").arg(&state).output().unwrap();
         let text = String::from_utf8_lossy(&check.stderr);
-        assert_eq!(check.status.code(), Some(78), "{i}: {text}");
+        // 78: the file; 80: the host (an old podvm, #262).
+        assert!(matches!(check.status.code(), Some(78 | 80)), "{i}: {text}");
         assert!(text.contains(word), "{i}: {text}");
         assert_eq!(serve.status.code(), check.status.code(), "{i}");
         assert_eq!(serve.stderr, check.stderr, "{i}");

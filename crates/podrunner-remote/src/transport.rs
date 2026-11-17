@@ -24,8 +24,28 @@ pub const ALPN: &[u8] = b"podrunner-mint/1";
 /// The most calls of one host in [`WINDOW`].
 pub const RATE: u32 = 120;
 pub const WINDOW: Duration = Duration::from_secs(10);
-/// The longest wait for a read: above the long poll of `next`.
+/// The longest wait of a client for its answer: above the long poll of
+/// `next`.
 const READ_TIMEOUT: Duration = Duration::from_secs(90);
+/// The longest wait of the mint for the handshake and the request of a
+/// connection (#246): a peer that sends nothing holds no thread for long.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
+/// The most connections that the mint serves at one time (#246): each host
+/// holds one call at a time, and a flood gets no more threads.
+pub const CONNECTIONS: usize = 256;
+/// The most connections of one peer address at one time: one peer cannot
+/// take each place and lock the hosts out.
+pub const PER_PEER: usize = 16;
+
+/// The connections served now, in all and by the address of the peer, and
+/// the refusals since the last line about them.
+#[derive(Default)]
+struct Places {
+    total: usize,
+    per: HashMap<std::net::IpAddr, usize>,
+    refused: u64,
+    said: Option<Instant>,
+}
 
 /// The provider of both sides.
 pub fn provider() -> Arc<rustls::crypto::CryptoProvider> {
@@ -48,11 +68,13 @@ pub struct Server {
     pub hosts: Vec<HostKey>,
     pub config: Arc<rustls::ServerConfig>,
     calls: Mutex<HashMap<String, (Instant, u32)>>,
+    /// The connections served now.
+    places: Mutex<Places>,
 }
 
 impl Server {
     pub fn new(gate: Arc<Mutex<Gate>>, hosts: Vec<HostKey>, config: Arc<rustls::ServerConfig>) -> Arc<Server> {
-        Arc::new(Server { gate, hosts, config, calls: Mutex::default() })
+        Arc::new(Server { gate, hosts, config, calls: Mutex::default(), places: Mutex::default() })
     }
 
     /// False when `host` made [`RATE`] calls in this window.
@@ -74,14 +96,66 @@ impl Server {
                 return;
             }
             let Ok(tcp) = conn else { continue };
+            let Ok(ip) = tcp.peer_addr().map(|a| a.ip()) else { continue };
+            // Over a cap: the connection closes at once; a client tries
+            // again.
+            if !self.take(ip) {
+                drop(tcp);
+                continue;
+            }
             let me = self.clone();
-            std::thread::spawn(move || me.one(tcp));
+            let spawned = std::thread::Builder::new().spawn(move || {
+                // The place goes back also when `one` panics.
+                struct Done<'a>(&'a Server, std::net::IpAddr);
+                impl Drop for Done<'_> {
+                    fn drop(&mut self) {
+                        self.0.give(self.1);
+                    }
+                }
+                let _done = Done(&me, ip);
+                me.one(tcp);
+            });
+            if spawned.is_err() {
+                self.give(ip);
+            }
+        }
+    }
+
+    /// A place for a connection of `ip`, or false over a cap: the refusals
+    /// get a line on stderr, at most one in a minute.
+    fn take(&self, ip: std::net::IpAddr) -> bool {
+        let mut p = self.places.lock().unwrap_or_else(|e| e.into_inner());
+        let mine = p.per.get(&ip).copied().unwrap_or(0);
+        if p.total < CONNECTIONS && mine < PER_PEER {
+            p.total += 1;
+            *p.per.entry(ip).or_default() += 1;
+            return true;
+        }
+        p.refused += 1;
+        if p.said.is_none_or(|t| t.elapsed() >= Duration::from_secs(60)) {
+            eprintln!(
+                "podrunner: mint: {} connections refused over the caps ({CONNECTIONS} in all, {PER_PEER} for each peer); the last from {ip}",
+                p.refused
+            );
+            (p.refused, p.said) = (0, Some(Instant::now()));
+        }
+        false
+    }
+
+    fn give(&self, ip: std::net::IpAddr) {
+        let mut p = self.places.lock().unwrap_or_else(|e| e.into_inner());
+        p.total = p.total.saturating_sub(1);
+        if let Some(n) = p.per.get_mut(&ip) {
+            *n -= 1;
+            if *n == 0 {
+                p.per.remove(&ip);
+            }
         }
     }
 
     fn one(&self, tcp: TcpStream) {
         let peer = tcp.peer_addr().map(|a| a.to_string()).unwrap_or_default();
-        let _ = tcp.set_read_timeout(Some(READ_TIMEOUT));
+        let _ = tcp.set_read_timeout(Some(REQUEST_TIMEOUT));
         let Ok(conn) = rustls::ServerConnection::new(self.config.clone()) else { return };
         let mut tls = rustls::StreamOwned::new(conn, tcp);
         // The handshake runs in the first read; a key with no pin fails it.

@@ -20,5 +20,6 @@ serde.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+libc.workspace = true
 podrunner-clock.workspace = true
 podrunner-fake.workspace = true

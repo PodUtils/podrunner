@@ -17,6 +17,16 @@ pub(super) fn shim(path: &Path, dir: &Path) -> Result<PathBuf, String> {
         return Err(format!("{}: not a file; give the vnet shim ({SHIM}) or a podnet binary", path.display()));
     }
     if path.extension().is_some_and(|x| x == "so") {
+        // A shared object starts with the magic of ELF (#264).
+        let mut magic = [0u8; 4];
+        let elf = std::fs::File::open(path).and_then(|mut f| std::io::Read::read_exact(&mut f, &mut magic)).is_ok()
+            && magic == *b"\x7fELF";
+        if !elf {
+            return Err(format!(
+                "{}: not a shared object (no ELF header); give the vnet shim of podnet",
+                path.display()
+            ));
+        }
         return Ok(path.to_path_buf());
     }
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -59,7 +69,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let lib = dir.join(super::SHIM);
-        std::fs::write(&lib, "").unwrap();
+        std::fs::write(&lib, b"\x7fELF\x02\x01\x01").unwrap();
         assert_eq!(super::shim(&lib, &dir.join("out")).unwrap(), lib);
         let json = format!("{{\"LD_PRELOAD\":\"{}:/other.so\"}}", lib.display());
         assert_eq!(super::found(&json, &dir.join("none")), Some(lib.clone()));

@@ -179,6 +179,7 @@ mod tests {
     /// its egress socket, which goes at the end; an unheld driver none.
     #[test]
     fn a_held_self_test_has_its_egress_socket() {
+        let _one = super::super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
         use std::os::unix::fs::PermissionsExt;
         let d = std::env::temp_dir().join(format!("podrunner-selftest-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);

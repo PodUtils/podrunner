@@ -3,6 +3,7 @@
 //! one second and waits a few milliseconds of real time for them.
 
 mod bounded;
+mod config;
 mod egress;
 mod guards;
 mod guest;

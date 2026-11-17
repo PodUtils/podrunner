@@ -81,14 +81,16 @@ fn second(
     mark: &str,
     first_root: Option<&Path>,
 ) -> Result<(String, bool), String> {
-    let first_file = first_root.map(|r| r.display().to_string()).unwrap_or_else(|| "/nonexistent".into());
+    let first_file = first_file(first_root)?;
     let canary = scratch.join(format!("podrunner-guest-canary-{}", std::process::id()));
     std::fs::write(&canary, "canary").map_err(|e| format!("the canary: {}", e.kind()))?;
     // A listener on the loopback of the host: a unit that reaches it shares
-    // the network of the host. The unit tries with the tool it has.
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").map_err(|e| format!("the listener: {}", e.kind()))?;
-    listener.set_nonblocking(true).map_err(|e| format!("the listener: {}", e.kind()))?;
-    let port = listener.local_addr().map_err(|e| format!("the listener: {}", e.kind()))?.port();
+    // the network of the host. The unit tries with the tool it has. A host
+    // that refuses the bind (#247) has no listener: the other lines still
+    // hold (another kernel, no network interface), and the unit tries a
+    // closed port.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").ok().filter(|l| l.set_nonblocking(true).is_ok());
+    let port = listener.as_ref().and_then(|l| l.local_addr().ok()).map_or(1, |a| a.port());
     let me = std::process::id();
     let script = format!(
         "{{ echo boot_id=$(cat /proc/sys/kernel/random/boot_id); \
@@ -106,8 +108,17 @@ fn second(
     );
     let result = run(driver, payload, platform, unit, &script);
     let _ = std::fs::remove_file(&canary);
-    let reached = listener.accept().is_ok();
+    let reached = listener.is_some_and(|l| l.accept().is_ok());
     Ok((result?, reached))
+}
+
+/// The root of the first unit, in which the test unit looks for its file: a
+/// driver that names none fails the test (#266), as the check of one unit
+/// by another cannot run.
+fn first_file(first_root: Option<&Path>) -> Result<String, String> {
+    first_root
+        .map(|r| r.display().to_string())
+        .ok_or_else(|| "the driver names no root of the first unit: the check of one unit by another cannot run".into())
 }
 
 /// Start the test unit, wait for its end, and read its result file.
@@ -256,5 +267,15 @@ mod tests {
             let bad = good.replace(from, to);
             assert!(judge(&bad, &host).unwrap_err().contains(why), "{bad}");
         }
+    }
+}
+
+#[cfg(test)]
+mod first_tests {
+    /// #266: a driver that names no root of the first unit fails the test.
+    #[test]
+    fn a_driver_with_no_root_of_the_first_unit_fails() {
+        assert!(super::first_file(None).unwrap_err().contains("no root of the first unit"));
+        assert_eq!(super::first_file(Some(std::path::Path::new("/u/1"))).unwrap(), "/u/1");
     }
 }

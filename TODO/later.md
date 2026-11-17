@@ -9266,7 +9266,7 @@ Give the claims of the called workflow, and the `*_id` claims.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9284,6 +9284,10 @@ Cap the connections served at one time (as `podrunner-hook` does with `CLIENTS`)
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
 
+## Done
+
+2026-11-17: The remote mint serves at most 256 connections at one time (`transport::CONNECTIONS`) and at most 16 of one peer address (`PER_PEER`, so one peer cannot lock the hosts out: a review found it); a connection over a cap closes at once, and the refusals get one line on stderr each minute. A failed spawn of a thread gives its place back. The mint waits 15 s for the handshake and the request (the 90 s stay on the client, above the long poll). A guard lowers the count also when a call panics. Test `a_flood_of_connections_gets_no_more_threads` (16 idle connections of one peer, then one more is closed at once, and a connection from `127.0.0.2` is still served); on the old code the extra connection waits.
+
 # T-436: guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest
 
 **Source:** GitHub #247 (a user who read the code of `main`, 2026-11-17)
@@ -9291,7 +9295,7 @@ Cap the connections served at one time (as `podrunner-hook` does with `CLIENTS`)
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9309,6 +9313,10 @@ Use a canary that does not need an AF_INET bind (a unix socket, a file, or a con
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
 
+## Done
+
+2026-11-17: A host that refuses the bind of the loopback has no listener in the guest self-test: the unit tries a closed port, and the other lines still decide (another kernel, no network interface, no file or process of the host or of another unit). Level: the code only; no host here refuses the bind.
+
 # T-437: placement: a required limit that the kind reports is refused, although the docs allow reported
 
 **Source:** GitHub #248 (a user who read the code of `main`, 2026-11-17)
@@ -9316,7 +9324,7 @@ Use a canary that does not need an AF_INET bind (a unix socket, a file, or a con
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9333,6 +9341,10 @@ Accept `Enforced` or `Reported` for a required limit; for `wall`, also require `
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: A required limit holds on a kind that enforces or reports it (SPEC 9); `wall` also needs a verified tree kill, which `Capability::limit` does not say for `reported`. Cases in `a_required_limit_that_no_kind_enforces_is_refused` (reported wall with and without the tree kill, reported disk, no disk); they fail on the old code.
 
 # T-438: policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy
 
@@ -9370,7 +9382,7 @@ Validate each rule with the `broker-policy.v1` rule shape (or `pod_broker::Polic
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -9387,6 +9399,10 @@ Normalize the ref: empty or absent -> `HEAD`; `refs/heads/X` -> `X`; `refs/tags/
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Blocker
+
+The ref of a checkout of another repository is read and resolved in `pod-actions-store` of podcrates: COORD-084 (PodUtils/podrunner#290, to podcrates). The ruling "Shared code" asks podrunner not to copy it.
 
 # T-440: run: fetch::host_of cuts an IPv6 action-server address at the first colon
 
@@ -9511,7 +9527,7 @@ Read the hook events of a unit that is `Ended`/`Destroyed` before `finish` close
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9529,6 +9545,10 @@ Call `podvm rm -f` for the unit even when `removed` is `None` (the unit director
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
 
+## Done
+
+2026-11-17: `destroy` of a podvm unit removes its containers and the podvm unit by the store of the unit directory also when the unit has no record: a start that failed after `run -d`, or a replay. Test `a_destroy_with_no_record_removes_the_podvm_unit` (a fake podvm that logs its calls). The tests that write a fake podvm hold one lock (`FAKE_PODVM`; a fork of one test held the file of another: `Text file busy`). `verify_tree_kill` and `image_reference` moved to `unit/tree_kill.rs` (the size of `unit.rs`).
+
 # T-445: source-conformance: a timed-out test leaves its thread and child process alive
 
 **Source:** GitHub #258 (a user who read the code of `main`, 2026-11-17)
@@ -9536,7 +9556,7 @@ Call `podvm rm -f` for the unit even when `removed` is `None` (the unit director
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9553,6 +9573,10 @@ Kill the child and join the thread on timeout (a `Child` handle shared with the 
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: On the time limit of a test, `source-conformance` ends each child of the process that runs the program (an argument of its command line is the program, as given or resolved, so a script under its interpreter counts, and the line ends with its arguments) and each process below it, so the thread of the test ends; then it waits for the thread a short time. Test `a_program_that_never_answers_leaves_no_process` (a script that runs `sleep`, with a limit of 0.5 s) leaves processes on the old code.
 
 # T-446: serve: two source names that map to the same spool file lose one refused report
 
@@ -9619,7 +9643,7 @@ Validate the owner and repository with the same name rule as `--repository` (alp
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9636,6 +9660,10 @@ In `serve::plan` for `[unit.podvm]`, parse `upstream_proxy` (or call the same `p
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `check` checks what `serve` checks at its build: `upstream_proxy` parses, podvm is `0.2.0-beta.5` or later (exit 80, as `serve`), and the `podnet` driver of `[unit.podvm]` passes `check_driver`. The three cases of #262 are in `check_and_serve_refuse_a_bad_file_with_one_text`, with a fake podvm that answers its version; they fail on the old code.
 
 # T-449: check_driver: a non-executable driver and a writable ancestor are accepted
 
@@ -9673,7 +9701,7 @@ Require `m.is_file()` and `m.mode() & 0o111 != 0` for a driver, and check each a
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9690,6 +9718,10 @@ In `dry::paths`, call `vnet::shim` (into a scratch directory that the dry run re
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: A dry run builds the shim of `--vnet` into a private scratch directory that it removes, so a program that is not podnet is named; a `.so` must start with the magic of ELF. Test `a_vnet_that_builds_no_shim_fails_the_dry_run` (`/bin/false`, and a `.so` that is text, which reaches the check of the ELF header) fails on the old code.
 
 # T-451: audit: a failed write still appears in the in-memory lines and the next line reuses its seq
 
@@ -9727,7 +9759,7 @@ Push the entry to `lines` only when `append` succeeds, or mark it as not written
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9744,6 +9776,10 @@ Treat a missing `unit_root` as a failed self-test (or use a known path from the 
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: A driver that names no root of the first unit fails the guest self-test by name (`guest::first_file`): the check of one unit by another must run. Test `a_driver_with_no_root_of_the_first_unit_fails` (the function; no driver here returns no root).
 
 # T-453: status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused
 
@@ -9955,7 +9991,7 @@ Use a 64-bit hash (the name has room: `podrunner-{h:016x}-{unit}` is under 63 ch
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9972,6 +10008,10 @@ In the `else` branch, remove the unit directory (and the `machine/run-PID-*` dir
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: `destroy` of a microvm unit that this process does not know ends its tagged processes and removes its directory, as the other kinds. The run directory of its old podvm in the store (`machine/run-PID-*`) stays: its pid is not known after a restart. Test `a_destroy_of_an_unknown_unit_removes_its_directory` fails on the old code.
 
 # T-461: run: a host path with a colon breaks the -v mount of a unit (toolcache, export, container mount)
 
@@ -10009,7 +10049,7 @@ Refuse a host path with a colon before the first job, with the flag and the path
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10026,6 +10066,10 @@ Name the run directory by the unit (or by a random token) instead of the podvm P
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
+
+## Done
+
+2026-11-17: The run directories of a podvm are listed while its pid is its own (before `kill` and `wait`), and only those are removed (`runs_of`, `remove_runs`). Test `the_runs_of_a_podvm_are_listed_before_its_pid_is_free` (a run of the same pid made after the list stays).
 
 # T-463: hooks: a job container with no entry point is started with tail, which a distroless image does not have
 

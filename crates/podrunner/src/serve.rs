@@ -170,6 +170,9 @@ pub(crate) fn source_of(
 pub fn plan(cfg: &Config) -> Result<(), Failure> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
     resolve(cfg)?;
+    if let Some(url) = &cfg.upstream_proxy {
+        pod_proxy::Proxy::parse(url).map_err(|e| fail(Class::Config, format!("upstream_proxy: {e}")))?;
+    }
     for s in &cfg.source {
         drop(source_of(s, clock.clone(), None)?);
     }

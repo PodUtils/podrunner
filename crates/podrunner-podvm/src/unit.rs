@@ -27,6 +27,15 @@ use podrunner_unit::{
 use crate::Podvm;
 
 mod cache;
+#[cfg(test)]
+mod destroy_tests;
+mod tree_kill;
+/// Each test that writes a fake podvm and runs it holds this: a fork in
+/// another test can hold the new file open, and its exec fails with "Text
+/// file busy".
+#[cfg(test)]
+pub(crate) static FAKE_PODVM: Mutex<()> = Mutex::new(());
+use tree_kill::procs_comm_is_podvm;
 mod confine;
 mod containers;
 mod hold;
@@ -381,8 +390,12 @@ impl UnitDriver for PodvmUnit {
         if let Some(mut r) = removed {
             let _ = r.waiter.kill();
             let _ = r.waiter.wait();
-            let store = r.dir.join("store");
-            // Each container of the unit by its label, then the unit.
+        }
+        // Each container of the unit by its label, then the unit: also of a
+        // start that failed after `run -d`, before its record, and of a
+        // replay (#257).
+        let store = dir.join("store");
+        if store.is_dir() {
             self.remove_labeled(&store, unit.as_str());
             let _ = self.podvm(&store, &["rm", "-f", unit.as_str()], None);
         }
@@ -426,68 +439,6 @@ impl UnitDriver for PodvmUnit {
     }
     fn container_stop(&self, unit: &UnitId, c: &ContainerId) -> Result<(), UnitError> {
         self.stop_container(unit, c)
-    }
-}
-
-/// True when the process is podvm itself (its name).
-fn procs_comm_is_podvm(pid: u32) -> bool {
-    procs_comm_is(pid, "podvm")
-}
-
-fn procs_comm_is(pid: u32, name: &str) -> bool {
-    fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|c| c.trim().starts_with(name))
-}
-
-impl PodvmUnit {
-    /// Prove the tree kill on this host with the pinned image `reference`
-    /// (unit test 3): a payload with a `setsid` grandchild, then destroy.
-    /// When no process is left, the record says `tree_kill: verified`, and
-    /// a `wall` limit can be enforced. The image needs `sh`, `setsid` and
-    /// `sleep`.
-    pub fn verify_tree_kill(&mut self, reference: &str, unit: UnitId) -> Result<bool, UnitError> {
-        let image = self.prepare(reference, &self.platform.clone(), false)?;
-        // A unit of the last self-test, of a process that ended (T-183).
-        let _ = self.destroy(&unit);
-        let held = self.self_test_sockets(&unit)?;
-        let argv = ["sh", "-c", "setsid sh -c 'sleep 300 & wait' & wait"].map(String::from).to_vec();
-        let spec = StartSpec {
-            unit: unit.clone(),
-            image,
-            argv,
-            env: Default::default(),
-            credential: Default::default(),
-            sockets: held.as_ref().map(|h| h.dir.clone()),
-            mounts: Vec::new(),
-            limits: Default::default(),
-        };
-        self.start(&spec)?;
-        let tag = procs::tag_of(&self.state_dir, unit.as_str());
-        let end = Instant::now() + Duration::from_secs(10);
-        let mut seen = Vec::new();
-        while Instant::now() < end {
-            seen = procs::tagged(&tag);
-            if seen.iter().filter(|p| !procs_comm_is_podvm(**p)).count() >= 3 {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(20));
-        }
-        let residue = self.destroy(&unit)?;
-        let verified =
-            seen.len() >= 3 && residue.is_clean() && seen.iter().all(|p| !podrunner_unit::conformance::alive(*p));
-        if verified {
-            self.capability.tree_kill = podrunner_schema::TreeKill::Verified;
-            self.capability.limits.insert("wall".into(), podrunner_schema::LimitMode::Enforced);
-        }
-        Ok(verified)
-    }
-
-    /// The reference of the one image of a unit store: `podvm images`
-    /// names the repository and the tag that `load` gave it.
-    fn image_reference(&self, store: &Path) -> Option<String> {
-        let out = self.podvm(store, &["images"], None).ok()?;
-        let line = out.lines().nth(1)?;
-        let mut cols = line.split_whitespace();
-        Some(format!("{}:{}", cols.next()?, cols.next()?))
     }
 }
 

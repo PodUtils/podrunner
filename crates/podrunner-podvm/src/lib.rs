@@ -127,6 +127,7 @@ mod tests {
 
     #[test]
     fn a_kind_refuses_a_podvm_below_its_lowest_version() {
+        let _one = crate::unit::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
         for (have, ok) in [("0.2.0-beta.9", false), ("0.2.0-beta.10", true), ("0.2.0", true), ("0.3.0-beta.1", false)] {
             let (p, d) = fake(have);
             let got = p.require("0.2.0-beta.10");

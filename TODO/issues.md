@@ -245,9 +245,9 @@ numbers. `TODO/RULES.md` gives the rules.
 | #243 | A local composite action of `./../PATH` or a link out of the tree is read | closed (fixed on `main`; the entry is done) | T-400 |
 | #244 | A dry run with a runner directory that cannot take the lock says planned | closed (fixed on `main`; the entry is done) | T-401 |
 | #245 | The mint forgets a late credential that starts or goes back after its alert | closed (fixed on `main`; the entry is done) | T-402 |
-| #246 | mint: one thread for each TCP connection with no cap, each waiting up to 90 s | open | T-435 |
-| #247 | guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest | open | T-436 |
-| #248 | placement: a required limit that the kind reports is refused, although the docs allow reported | open | T-437 |
+| #246 | mint: one thread for each TCP connection with no cap, each waiting up to 90 s | closed | T-435 |
+| #247 | guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest | closed | T-436 |
+| #248 | placement: a required limit that the kind reports is refused, although the docs allow reported | closed | T-437 |
 | #249 | policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy | closed | T-438 |
 | #250 | run: the per-run and per-unit scratch directories under TMPDIR follow a pre-created symlink | closed | T-407 |
 | #251 | run: a checkout of another repository with an empty, full or SHA ref is not resolved | open | T-439 |
@@ -256,16 +256,16 @@ numbers. `TODO/RULES.md` gives the rules.
 | #254 | oidc: job_workflow_ref names the caller's workflow for a job of a reusable workflow | open | T-434 |
 | #255 | serve: a malformed offer is refused as event-not-allowed with no detail, not bad-request | closed | T-442 |
 | #256 | serve: a job-completed hook event is lost when the unit ends before the next tick | closed | T-443 |
-| #257 | podvm: a start that fails after run -d leaves the podvm unit, because destroy skips podvm rm | open | T-444 |
-| #258 | source-conformance: a timed-out test leaves its thread and child process alive | open | T-445 |
+| #257 | podvm: a start that fails after run -d leaves the podvm unit, because destroy skips podvm rm | closed | T-444 |
+| #258 | source-conformance: a timed-out test leaves its thread and child process alive | closed | T-445 |
 | #259 | serve: two source names that map to the same spool file lose one refused report | closed | T-446 |
 | #260 | front: a guest can grow memory with an unbounded request line and hold threads with no read timeout or cap | open | T-412 |
 | #261 | run: a lock key or uses: with ../x@v1 is accepted and the fetch URL normalizes to another repository | closed | T-447 |
-| #262 | check: a podvm config with a bad upstream_proxy, an old podvm or a bad podnet passes check and stops serve | open | T-448 |
+| #262 | check: a podvm config with a bad upstream_proxy, an old podvm or a bad podnet passes check and stops serve | closed | T-448 |
 | #263 | check_driver: a non-executable driver and a writable ancestor are accepted | closed | T-449 |
-| #264 | run: a dry run with a --vnet podnet binary that cannot build the shim says planned | open | T-450 |
+| #264 | run: a dry run with a --vnet podnet binary that cannot build the shim says planned | closed | T-450 |
 | #265 | audit: a failed write still appears in the in-memory lines and the next line reuses its seq | closed | T-451 |
-| #266 | guest: the self-test skips the first unit's file check when the driver reports no unit_root | open | T-452 |
+| #266 | guest: the self-test skips the first unit's file check when the driver reports no unit_root | closed | T-452 |
 | #267 | status: no_tier_served ignores the egress hold, so it says a tier is served when every offer is refused | closed | T-453 |
 | #268 | serve: a spooled report of a source that is no longer configured is skipped forever | closed | T-454 |
 | #269 | serve: a bad journal line is counted in Replay.bad_lines and never reported | closed | T-455 |
@@ -273,9 +273,9 @@ numbers. `TODO/RULES.md` gives the rules.
 | #271 | check: an empty [unit.podvm] command, a relative runner_dir and a bad registry host are accepted | closed | T-457 |
 | #272 | guest: the microvm and incus scripts set HTTP(S)_PROXY but not NODE_USE_ENV_PROXY | closed | T-458 |
 | #273 | incus: the instance name is a 32-bit hash, so two state directories can collide | closed | T-459 |
-| #274 | microvm: destroy of a unit that is not in the map leaves its directory and reports a residue | open | T-460 |
+| #274 | microvm: destroy of a unit that is not in the map leaves its directory and reports a residue | closed | T-460 |
 | #275 | run: a host path with a colon breaks the -v mount of a unit (toolcache, export, container mount) | closed | T-461 |
-| #276 | microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed | open | T-462 |
+| #276 | microvm: remove_runs_of uses the podvm PID, which can be reused before the run directory is removed | closed | T-462 |
 | #277 | COORD-081: podvm run and exec: a -v source with no link, and an environment that is not argv (to podvm) | open (waits for podvm) | T-403, T-405 |
 | #278 | hooks: a job container with no entry point is started with tail, which a distroless image does not have | closed | T-463 |
 | #279 | podvm: a config without [unit.podvm] runner_dir gives the hook policy an empty work_root and refuses every container job | closed | T-464 |
@@ -289,6 +289,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #287 | check: a pin payload with a duplicate reference, a future built_at_s, max_age_s 0 or a bad runner_version is accepted | closed | T-472 |
 | #288 | COORD-082: pod-actions-store: Lock::parse keeps a digest in uppercase, and each fetch then fails against the lowercase SHA-256 (to podcrates) | open (waits for podcrates) | T-469 |
 | #289 | COORD-083: the answer to COORD-131 (PodUtils/podcrates#221): the copies of shared code in podrunner (to podcrates) | open (waits for the next tag of podcrates) | T-473, T-474 |
+| #290 | COORD-084: pod-actions-store: the ref of a checkout of another repository (empty, full ref, commit SHA) is not resolved (to podcrates) | open (waits for podcrates) | T-439 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

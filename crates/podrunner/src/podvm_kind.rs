@@ -52,6 +52,15 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     if let Some(r) = u.registries.iter().find(|r| !registry_ok(r)) {
         return Err(fail(Class::Config, format!("[unit.podvm] registries: {r:?} is not a HOST or HOST:PORT")));
     }
+    // Then the host, as `build` checks it (#262): the version of podvm and
+    // the podnet driver.
+    podrunner_podvm::Podvm { binary: binary.clone().into() }
+        .require(podrunner_podvm::probe::LOWEST)
+        .map_err(|e| fail(Class::Unsupported, format!("[unit.podvm] binary: {e}")))?;
+    if let Some(podnet) = &u.podnet {
+        podrunner_slots::config::check_driver(Path::new(podnet))
+            .map_err(|e| fail(Class::Config, format!("[unit.podvm] podnet: {e}")))?;
+    }
     Ok(())
 }
 
@@ -142,9 +151,17 @@ mod tests {
     /// not a host fail `check`, not the start of a job.
     #[test]
     fn the_fields_of_a_podvm_unit_are_checked() {
+        use std::os::unix::fs::PermissionsExt;
+        // A podvm that answers its version (`plan` asks it, #262).
+        let dir = std::env::temp_dir().join(format!("podrunner-podvm-plan-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let fake = dir.join("podvm");
+        std::fs::write(&fake, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.21\",\"rung\":\"userland\"}'\n").unwrap();
+        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
         let plan = |extra: &str| {
             let cfg = podrunner_slots::config::Config::parse(&format!(
-                "host = \"h\"\n[unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\n{extra}\n[pin]\n"
+                "host = \"h\"\n[unit.podvm]\nslots = 1\nbinary = \"{}\"\nimages = \"/\"\n{extra}\n[pin]\n",
+                fake.display()
             ))
             .unwrap();
             super::plan(&cfg.unit["podvm"]).map_err(|f| f.detail)

@@ -72,7 +72,12 @@ pub fn place(offer: &JobOffer, set: Tier, kinds: &[Kind], cfg: &Config, now_s: u
         if tier == Tier::Untrusted { RefusalCode::TierNeedsGuest } else { RefusalCode::BoundaryNotAvailable };
     narrow(&mut c, kinds, no_boundary, |k| k.capability.boundary >= boundary)?;
     narrow(&mut c, kinds, RefusalCode::LimitNotEnforceable, |k| {
-        offer.limits_required.iter().all(|l| k.capability.limit(l) == LimitMode::Enforced)
+        // Enforced or reported, as SPEC 9 says (#248); a `wall` also needs a
+        // verified tree kill, which `limit` does not say for `reported`.
+        offer.limits_required.iter().all(|l| {
+            matches!(k.capability.limit(l), LimitMode::Enforced | LimitMode::Reported)
+                && (l != "wall" || k.capability.tree_kill.is_verified())
+        })
     })?;
     narrow(&mut c, kinds, RefusalCode::HoldNotAvailable, |k| {
         k.capability.egress_hold.effective() >= needed_hold(tier)

@@ -73,6 +73,39 @@ pub fn fake_source(args: &[String]) -> Result<(), Failure> {
 /// The time limit of one test of `source-conformance`.
 const TEST_LIMIT: std::time::Duration = std::time::Duration::from_secs(60);
 
+/// End each child of this process that runs `program` with `args`, and
+/// each process below it (#258). A child runs it when an argument of its
+/// command line is the program (as given, or the file it names: a script
+/// runs under its interpreter) and its command line ends with `args`.
+fn end_children_of(program: &str, args: &[String]) {
+    let me = std::process::id();
+    let real = std::fs::canonicalize(program).ok().map(|p| p.display().to_string());
+    let mut procs: Vec<(u32, u32, Vec<String>)> = Vec::new();
+    for e in std::fs::read_dir("/proc").into_iter().flatten().flatten() {
+        let Some(pid) = e.file_name().to_str().and_then(|n| n.parse::<u32>().ok()) else { continue };
+        let stat = std::fs::read_to_string(e.path().join("stat")).unwrap_or_default();
+        // The second field after the name in parentheses is the parent.
+        let Some(ppid) = stat.rsplit_once(')').and_then(|(_, r)| r.split_whitespace().nth(1)?.parse().ok()) else {
+            continue;
+        };
+        let raw = std::fs::read(e.path().join("cmdline")).unwrap_or_default();
+        let argv = raw.split(|b| *b == 0).filter(|a| !a.is_empty()).map(|a| String::from_utf8_lossy(a).into_owned());
+        procs.push((pid, ppid, argv.collect()));
+    }
+    let runs = |argv: &[String]| argv.iter().any(|a| a == program || Some(a) == real.as_ref()) && argv.ends_with(args);
+    let mut doomed: Vec<u32> = procs.iter().filter(|(_, pp, argv)| *pp == me && runs(argv)).map(|p| p.0).collect();
+    let mut i = 0;
+    while i < doomed.len() {
+        let parent = doomed[i];
+        doomed.extend(procs.iter().filter(|(_, pp, _)| *pp == parent).map(|p| p.0));
+        i += 1;
+    }
+    for pid in doomed {
+        // SAFETY: a signal to a process below this one.
+        unsafe { libc::kill(pid as i32, libc::SIGKILL) };
+    }
+}
+
 /// The program under test of `source-conformance`.
 struct Under {
     program: String,
@@ -107,6 +140,11 @@ impl podrunner_source::conformance::Fixture for Under {
 /// source wire against PROGRAM, one line each; the text and true when each
 /// passes. The program must give two offers or more on its first `next`.
 pub fn source_conformance(args: &[String]) -> Result<(String, bool), Failure> {
+    source_conformance_in(args, TEST_LIMIT)
+}
+
+/// [`source_conformance`] with the time limit `limit` of each test.
+fn source_conformance_in(args: &[String], limit: std::time::Duration) -> Result<(String, bool), Failure> {
     let rest = match args.split_first() {
         Some((dash, rest)) if dash == "--" && !rest.is_empty() => rest,
         _ => return Err(fail(Class::Usage, "usage: podrunner source-conformance -- PROGRAM ARGS...")),
@@ -121,18 +159,55 @@ pub fn source_conformance(args: &[String]) -> Result<(String, bool), Failure> {
         std::thread::spawn(move || {
             let _ = tx.send(podrunner_source::conformance::run(&*u, &[number]).remove(0));
         });
-        let line = match rx.recv_timeout(TEST_LIMIT) {
+        let line = match rx.recv_timeout(limit) {
             Ok(r) => {
                 passed &= r.failure.is_none();
                 r.to_string()
             }
             Err(_) => {
                 passed = false;
-                format!("source {number:2} {name}: FAIL: no end in {} s", TEST_LIMIT.as_secs())
+                // The program of the test ends, so that its thread ends too
+                // and leaves no process (#258).
+                end_children_of(&under.program, &under.args);
+                let _ = rx.recv_timeout(std::time::Duration::from_secs(5));
+                format!("source {number:2} {name}: FAIL: no end in {} s", limit.as_secs())
             }
         };
         text.push_str(&line);
         text.push('\n');
     }
     Ok((text, passed))
+}
+
+#[cfg(test)]
+mod tests {
+    /// #258: a program that never answers fails each test by its time
+    /// limit, and leaves no process and no thread that waits on it.
+    #[test]
+    fn a_program_that_never_answers_leaves_no_process() {
+        use std::os::unix::fs::PermissionsExt;
+        // A script, as a program of a user often is: its process is the
+        // interpreter, and it has a child (#258, the review).
+        let dir = std::env::temp_dir().join(format!("podrunner-conformance-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let script = dir.join("never");
+        std::fs::write(&script, "#!/bin/sh\nsleep 307\n").unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let args = ["--".to_string(), script.display().to_string()];
+        let (text, passed) = super::source_conformance_in(&args, std::time::Duration::from_millis(500)).unwrap();
+        assert!(!passed && text.contains("FAIL"), "{text}");
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let name = script.display().to_string();
+        let left: Vec<String> = std::fs::read_dir("/proc")
+            .unwrap()
+            .flatten()
+            .filter(|e| {
+                std::fs::read_to_string(e.path().join("cmdline"))
+                    .is_ok_and(|c| c.contains(name.as_str()) || c == "sleep\u{0}307\u{0}")
+            })
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(left.is_empty(), "processes left: {left:?}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

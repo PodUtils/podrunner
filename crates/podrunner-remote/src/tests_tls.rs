@@ -123,3 +123,72 @@ fn the_source_tests_pass_over_tls() {
     let failed = podrunner_source::conformance::not_passed(&results);
     assert!(failed.is_empty(), "{results:#?}");
 }
+
+/// #246: the mint serves at most `PER_PEER` connections of one peer at one
+/// time; one more is closed at once, not given a thread that waits, and a
+/// connection of another peer is still served.
+#[test]
+fn a_flood_of_connections_gets_no_more_threads() {
+    use std::io::Read;
+    let d = dir();
+    let (Some(mint), Some(host)) = (key(&d, "mint"), key(&d, "host")) else {
+        return; // No openssl on this host.
+    };
+    let g = Arc::new(Mutex::new(gate(&[], &[("h1", 1)], &d)));
+    let served = Served::new(Some(certified(&mint.1, &mint.0).unwrap()));
+    let config = server_config(provider(), served, Pins::new([host.2]), &[ALPN]).unwrap();
+    let server = Server::new(g, vec![HostKey { pin: host.2, host: "h1".into(), not_after_s: None }], config);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    std::thread::spawn(move || server.serve(listener, Arc::new(AtomicBool::new(false))));
+    let idle: Vec<std::net::TcpStream> =
+        (0..crate::transport::PER_PEER).map(|_| std::net::TcpStream::connect(address).unwrap()).collect();
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    // A closed connection reads 0 at once; a served one waits for its
+    // handshake, so its read ends at its timeout.
+    let read = |mut c: std::net::TcpStream| {
+        c.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
+        c.read(&mut [0u8; 16])
+    };
+    let start = std::time::Instant::now();
+    assert_eq!(read(std::net::TcpStream::connect(address).unwrap()).unwrap_or(9), 0, "the 17th of one peer is closed");
+    assert!(start.elapsed() < std::time::Duration::from_secs(1), "closed at once: {:?}", start.elapsed());
+    // Another address of the loopback is another peer.
+    let other = socket2_connect_from([127, 0, 0, 2], address);
+    if let Some(other) = other {
+        assert!(read(other).is_err(), "another peer is served (its read waits)");
+    }
+    drop(idle);
+}
+
+/// A connection from `from` (an address of the loopback) to `to`, if the
+/// host lets this process bind it.
+fn socket2_connect_from(from: [u8; 4], to: std::net::SocketAddr) -> Option<std::net::TcpStream> {
+    // SAFETY: plain socket calls on a descriptor that this function owns.
+    unsafe {
+        use std::os::fd::FromRawFd;
+        let fd = libc::socket(libc::AF_INET, libc::SOCK_STREAM | libc::SOCK_CLOEXEC, 0);
+        if fd < 0 {
+            return None;
+        }
+        let stream = std::net::TcpStream::from_raw_fd(fd);
+        let local = libc::sockaddr_in {
+            sin_family: libc::AF_INET as libc::sa_family_t,
+            sin_port: 0,
+            sin_addr: libc::in_addr { s_addr: u32::from_ne_bytes(from) },
+            sin_zero: [0; 8],
+        };
+        let size = std::mem::size_of::<libc::sockaddr_in>() as libc::socklen_t;
+        if libc::bind(fd, (&raw const local).cast(), size) != 0 {
+            return None;
+        }
+        let std::net::SocketAddr::V4(v4) = to else { return None };
+        let remote = libc::sockaddr_in {
+            sin_family: libc::AF_INET as libc::sa_family_t,
+            sin_port: v4.port().to_be(),
+            sin_addr: libc::in_addr { s_addr: u32::from_ne_bytes(v4.ip().octets()) },
+            sin_zero: [0; 8],
+        };
+        (libc::connect(fd, (&raw const remote).cast(), size) == 0).then_some(stream)
+    }
+}

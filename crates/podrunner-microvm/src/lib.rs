@@ -300,19 +300,22 @@ impl UnitDriver for MicrovmUnit {
     fn destroy(&self, unit: &UnitId) -> Result<Residue, UnitError> {
         let mut units = self.units.lock().expect("the units");
         let Some(mut r) = units.remove(unit) else {
-            // A second call counts again: nothing of this unit is known.
+            // A second call, or a replay of the journal (#274): end the
+            // tagged processes and remove the directory, as the other kinds.
             let dir = self.unit_dir(unit);
-            let files = if dir.exists() { Count::Known(1) } else { Count::Known(0) };
             let tag = procs::tag_of(&self.state_dir, unit.as_str());
-            return Ok(Residue { processes: Count::Known(procs::tagged(&tag).len() as u64), files });
+            let left = procs::kill_tagged(&tag, KILL_LIMIT);
+            let removed = fs::remove_dir_all(&dir).is_ok() || !dir.exists();
+            return Ok(Residue { processes: Count::Known(left), files: Count::Known(u64::from(!removed)) });
         };
         let left = procs::kill_tagged(&r.tag, KILL_LIMIT);
-        let podvm = r.child.id();
+        // A killed podvm leaves the run directory of its guest in the store
+        // (`machine/run-PID-*`, T-186). They are listed while the pid is
+        // still its own: after `wait` another process can take it (#276).
+        let runs = runs_of(&self.images, r.child.id());
         let _ = r.child.kill();
         let _ = r.child.wait();
-        // A killed podvm leaves the run directory of its guest in the store
-        // (`machine/run-PID-*`, T-186).
-        remove_runs_of(&self.images, podvm);
+        remove_runs(&runs);
         if let Some(keep) = &self.kept_logs {
             let _ = fs::create_dir_all(keep);
             let _ = fs::copy(r.dir.join("guest.log"), keep.join(format!("{unit}.log")));
@@ -364,14 +367,17 @@ fn no_container() -> UnitError {
 #[cfg(test)]
 mod tests;
 
-/// Remove the run directories that the podvm process `pid` made in the
-/// store `images` (`machine/run-PID-*`).
-fn remove_runs_of(images: &Path, pid: u32) {
+/// The run directories that the podvm process `pid` made in the store
+/// `images` (`machine/run-PID-*`).
+fn runs_of(images: &Path, pid: u32) -> Vec<PathBuf> {
     let prefix = format!("run-{pid}-");
-    let Ok(entries) = fs::read_dir(images.join("machine")) else { return };
-    for e in entries.flatten() {
-        if e.file_name().to_string_lossy().starts_with(&prefix) {
-            let _ = fs::remove_dir_all(e.path());
-        }
+    let Ok(entries) = fs::read_dir(images.join("machine")) else { return Vec::new() };
+    entries.flatten().filter(|e| e.file_name().to_string_lossy().starts_with(&prefix)).map(|e| e.path()).collect()
+}
+
+/// Remove the run directories of [`runs_of`].
+fn remove_runs(runs: &[PathBuf]) {
+    for r in runs {
+        let _ = fs::remove_dir_all(r);
     }
 }
