@@ -62,8 +62,8 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
 
 /// The OCI layout of the mirror of the run (T-157), under the state of the
 /// units, so that the end of the run removes it.
-pub(super) fn mirror_dir() -> std::path::PathBuf {
-    std::env::temp_dir().join(format!("podrunner-run-units-{}", std::process::id())).join("mirror")
+pub(super) fn mirror_dir(state: &std::path::Path) -> std::path::PathBuf {
+    state.join("mirror")
 }
 
 /// The pins of the job messages. With `--engine`, each pinned image of
@@ -73,12 +73,13 @@ pub(super) fn mirror_pins(
     a: &Args,
     pins: &std::collections::BTreeMap<String, String>,
     w: &pod_actions_workflow::Workflow,
+    state: &std::path::Path,
 ) -> std::collections::BTreeMap<String, String> {
     let (Some(_), Some((true, binary)), Some(store)) = (&a.engine, &a.guest, &a.images) else { return pins.clone() };
     let platform = if arch() == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let pull =
         podrunner_local::images::PodvmPull { binary: binary.clone(), store: store.clone(), platform: platform.into() };
-    match podrunner_local::mirror::fill(&pull, pins, &podrunner_local::mirror::by_digest(w), &mirror_dir()) {
+    match podrunner_local::mirror::fill(&pull, pins, &podrunner_local::mirror::by_digest(w), &mirror_dir(state)) {
         Ok(p) => p,
         Err(e) => {
             eprintln!("podrunner: the mirror of the images: {e}; the engine pulls them through the egress policy");

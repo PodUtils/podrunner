@@ -32,13 +32,22 @@ fn tmp_ok(tmp: &Path) -> Result<(), String> {
 /// The tree directory and the units directory of the run `pid` under
 /// `tmp`, each new at 0700 (T-407, #250): a name that another user made
 /// first, or a link, is refused, so no write of the run follows it.
-/// A `tmp` that cannot take a directory is named first (T-323 F14).
-pub(super) fn run_dirs(tmp: &Path, pid: u32) -> Result<(PathBuf, PathBuf), String> {
+/// A `tmp` that cannot take a directory is named first (T-323 F14). `id`
+/// is [`run_id`].
+pub(super) fn run_dirs(tmp: &Path, id: &str) -> Result<(PathBuf, PathBuf), String> {
     tmp_ok(tmp)?;
-    let (tree, units) = (tmp.join(format!("{}{pid}", PREFIXES[1])), tmp.join(format!("{}{pid}", PREFIXES[0])));
+    let (tree, units) = (tmp.join(format!("{}{id}", PREFIXES[1])), tmp.join(format!("{}{id}", PREFIXES[0])));
     podrunner_local::work::private_dir(&tree)?;
     podrunner_local::work::private_dir(&units)?;
     Ok((tree, units))
+}
+
+/// The name of a run: the pid and a count of the runs of this process
+/// (`PID-N`): two runs of one process (the tests) get two directories, and
+/// a dead run is found by its pid.
+pub(super) fn run_id() -> String {
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    format!("{}-{}", std::process::id(), NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
 }
 
 /// Whether a process `pid` lives. Any process counts, not only one named
@@ -54,7 +63,8 @@ pub(super) fn dead_runs(tmp: &Path, uid: u32, me: u32) -> Vec<PathBuf> {
         .flatten()
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().into_owned();
-            let pid: u32 = PREFIXES.iter().find_map(|p| name.strip_prefix(p))?.parse().ok()?;
+            let id = PREFIXES.iter().find_map(|p| name.strip_prefix(p))?;
+            let pid: u32 = id.split_once('-').map_or(id, |(p, _)| p).parse().ok()?;
             let meta = std::fs::symlink_metadata(e.path()).ok()?;
             (meta.is_dir() && meta.uid() == uid && pid != me && !live_podrunner(pid)).then(|| e.path())
         })
@@ -131,11 +141,15 @@ mod tests {
         std::fs::create_dir_all(tmp.join("podrunner-run-tree-4194306")).unwrap();
         std::fs::create_dir_all(tmp.join(format!("podrunner-run-units-{}", std::process::id()))).unwrap();
         std::fs::create_dir_all(tmp.join("other-4194305")).unwrap();
+        // The names `PID-N` of a run: a dead pid is found, this one is not.
+        std::fs::create_dir_all(tmp.join("podrunner-run-tree-4194307-2")).unwrap();
+        std::fs::create_dir_all(tmp.join(format!("podrunner-run-tree-{}-3", std::process::id()))).unwrap();
         // SAFETY: getuid has no failure.
         let uid = unsafe { libc::getuid() };
         let mut got = dead_runs(&tmp, uid, std::process::id());
         got.sort();
-        assert_eq!(got, [tmp.join("podrunner-run-tree-4194306"), dead.clone()]);
+        let names = [tmp.join("podrunner-run-tree-4194306"), tmp.join("podrunner-run-tree-4194307-2"), dead.clone()];
+        assert_eq!(got, names);
         assert!(dead_runs(&tmp, uid + 1, std::process::id()).is_empty(), "another user");
         let mut units = Vec::new();
         units_of(&dead, 3, &mut units);
@@ -151,17 +165,17 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("podrunner-run-dirs-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(tmp.join("elsewhere")).unwrap();
-        let (tree, units) = run_dirs(&tmp, 7).unwrap();
+        let (tree, units) = run_dirs(&tmp, "7-0").unwrap();
         for d in [&tree, &units] {
             assert_eq!(std::fs::metadata(d).unwrap().permissions().mode() & 0o777, 0o700, "{}", d.display());
         }
         std::fs::write(tree.join("old"), "x").unwrap();
-        let (tree, _) = run_dirs(&tmp, 7).unwrap();
+        let (tree, _) = run_dirs(&tmp, "7-0").unwrap();
         assert!(!tree.join("old").exists(), "a directory of this user is made new");
         std::fs::remove_dir_all(&units).unwrap();
         std::os::unix::fs::symlink(tmp.join("elsewhere"), &units).unwrap();
-        let e = run_dirs(&tmp, 7).unwrap_err();
-        assert!(e.contains("podrunner-run-units-7") && e.contains("not a directory of this user"), "{e}");
+        let e = run_dirs(&tmp, "7-0").unwrap_err();
+        assert!(e.contains("podrunner-run-units-7-0") && e.contains("not a directory of this user"), "{e}");
         assert!(std::fs::read_dir(tmp.join("elsewhere")).unwrap().next().is_none(), "nothing went through the link");
         let _ = std::fs::remove_dir_all(&tmp);
     }

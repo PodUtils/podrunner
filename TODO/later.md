@@ -8559,9 +8559,9 @@ In the code (2026-11-17): the socket directory of a unit (`work::private_dir`). 
 
 ## Done
 
-2026-11-17: each directory of a run with a fixed name in the shared temporary directory is new at 0700 or refused by name when another user made it, or when it is a link: the tree and the units of `podrunner run` (`stale::run_dirs`, with `work::private_dir`; the mirror, the vnet shim copy and the tarball are in them), the logs of the hooks (`exec/hooks.rs`), the socket directory of a unit (before), and the root of the socket directories of `serve` (`own::own_root`: `STATE/egress` or its short fallback in the temporary directory). The state path of `doctor` is fixed but nothing writes it. The export directory at 0777 is T-408.
+2026-11-17: each directory of a run with a fixed name in the shared temporary directory is new at 0700 or refused by name when another user made it, or when it is a link: the tree and the units of `podrunner run` (`stale::run_dirs`, with `work::private_dir`, named `PID-N` so that two runs of one process get two; they are made before the mirror of `--engine`, which is in the units directory, as the vnet shim copy and the tarball), the logs of the hooks (`exec/hooks.rs`), the socket directory of a unit (before), and the root of the socket directories of `serve` (`own::own_root`: `STATE/egress` or its short fallback in the temporary directory). The state path of `doctor` is fixed but nothing writes it. The export directory at 0777 is T-408.
 
-Proof: `the_directories_of_a_run_are_private` (fails with `create_dir_all`) and `the_root_of_the_sockets_is_a_directory_of_this_user`. As a user with no root: a link that another user made at `/tmp/podrunner-run-units-PID` before the run with that PID: the run refuses it by name (exit 78) and writes nothing through it; a normal run passes.
+Proof: `the_directories_of_a_run_are_private` (fails with `create_dir_all`) and `the_root_of_the_sockets_is_a_directory_of_this_user`. As a user with no root: a link that another user made at `/tmp/podrunner-run-units-PID-0` before the run with that PID: the run refuses it by name (exit 78) and writes nothing through it; a normal run passes.
 
 # T-408: With `--export` the work directory of a job is 0777 in `/tmp`
 
@@ -8570,7 +8570,7 @@ Proof: `the_directories_of_a_run_are_private` (fails with `create_dir_all`) and 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8587,6 +8587,10 @@ Make it with a random name at 0700 and give the unit access by its user map, not
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: the work directory of a job with `--export` is `work` at 0777 in a new parent at 0700 of this user (`work::export_dir`; a name of another user, or a link, is refused). The runner user of the unit writes it through its mount, as before; no other user of the host can reach it. The end of the job removes the parent. Proof: `the_export_directory_is_open_only_through_a_closed_parent`. Level: the unit test; the guest kinds (podvm, microvm) run `--export` in CI only, not on this host.
 
 # T-409: The signed pin list trusts the signer key of the same file
 

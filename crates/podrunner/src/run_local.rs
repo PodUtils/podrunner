@@ -305,14 +305,14 @@ pub fn run(args: &[String]) -> Out {
         }
         Err(e) => return fail(Class::Config, e),
     }
-    source.set_pins(guest::mirror_pins(&a, &pins, source.workflow()));
     stale::end_dead_runs(a.dry_run);
-    let (scratch, state) = match stale::run_dirs(&std::env::temp_dir(), std::process::id()) {
+    let (scratch, state) = match stale::run_dirs(&std::env::temp_dir(), &stale::run_id()) {
         Ok(d) => d,
         Err(e) => return fail(Class::Config, e),
     };
     // Each return removes both, also an early refusal (T-323 F38).
     let _gone = stale::Gone(vec![scratch.clone(), state.clone()]);
+    source.set_pins(guest::mirror_pins(&a, &pins, source.workflow(), &state));
     let tree = match &a.checkout {
         None => None,
         Some(dir) => match podrunner_local::tree::tarball(

@@ -311,14 +311,14 @@ impl Executor for InUnit {
             .export
             .as_ref()
             .map(|_| std::env::temp_dir().join(format!("podrunner-run-export-{}-{id}", std::process::id())));
-        if let Some(w) = &work {
-            let made = std::fs::create_dir_all(w)
-                .and_then(|()| std::fs::set_permissions(w, std::os::unix::fs::PermissionsExt::from_mode(0o777)));
-            if let Err(e) = made {
+        // 0777 for the runner user of the unit, in a parent at 0700 (T-408).
+        let work = match work.as_deref().map(crate::work::export_dir).transpose() {
+            Ok(w) => w,
+            Err(e) => {
                 end_sockets(&sockets);
-                return Err(format!("the work directory {}: {e}", w.display()));
+                return Err(format!("the work directory: {e}"));
             }
-        }
+        };
         let run_root = self.run_sh.rsplit_once('/').map_or("/home/runner", |x| x.0).to_string();
         let mut mounts: Vec<_> = work.iter().map(|w| (w.clone(), format!("{run_root}/_work"))).collect();
         let argv = match &self.toolcache {
@@ -353,7 +353,7 @@ impl Executor for InUnit {
             }
             end_sockets(&sockets);
             if let Some(w) = &work {
-                let _ = crate::work::clear(w);
+                let _ = crate::work::clear(w.parent().unwrap_or(w));
             }
             return Err(e);
         }
@@ -392,7 +392,7 @@ impl Executor for InUnit {
             (Some(w), Some(dir)) => {
                 let r = crate::work::export(w, &dir.join(job.as_str()))
                     .inspect_err(|e| eprintln!("podrunner: {}: --export: {e}", job.as_str()));
-                let _ = crate::work::clear(w);
+                let _ = crate::work::clear(w.parent().unwrap_or(w));
                 r.err()
             }
             _ => None,

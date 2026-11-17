@@ -82,8 +82,8 @@ fn unit(a: &Args, c: &Common, image: &str, state: &Path) -> Result<Box<dyn Execu
     e.checkout = c.checkout.clone();
     e.export = a.export.clone();
     e.toolcache = a.toolcache.clone();
-    if a.engine.is_some() && guest::mirror_dir().is_dir() {
-        e.mirror = Some(Arc::new(podrunner_local::mirror::Mirror::new(guest::mirror_dir())));
+    if a.engine.is_some() && guest::mirror_dir(state).is_dir() {
+        e.mirror = Some(Arc::new(podrunner_local::mirror::Mirror::new(guest::mirror_dir(state))));
     }
     // The egress policy of each environment (T-136).
     let mut hosts: std::collections::BTreeMap<String, Vec<String>> = Default::default();

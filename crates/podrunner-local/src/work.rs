@@ -5,7 +5,7 @@
 //! the removal, and a failure names the path.
 
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Give each directory under `dir` (and `dir`) the bits `u+rwx`. A symbolic
 /// link is not followed.
@@ -65,6 +65,20 @@ pub fn private_dir(dir: &Path) -> Result<(), String> {
     std::fs::DirBuilder::new().mode(0o700).create(dir).map_err(|e| format!("{}: {e}", dir.display()))
 }
 
+/// The work directory of a job with `--export` (T-408): `outer` new at
+/// 0700 (a name of another user, or a link, is refused), and in it `work`
+/// at 0777, which the runner user of the unit writes through its mount. No
+/// other user of the host can reach `work`: the parent is closed.
+pub fn export_dir(outer: &Path) -> Result<PathBuf, String> {
+    use std::os::unix::fs::PermissionsExt;
+    private_dir(outer)?;
+    let work = outer.join("work");
+    std::fs::create_dir(&work)
+        .and_then(|()| std::fs::set_permissions(&work, std::fs::Permissions::from_mode(0o777)))
+        .map_err(|e| format!("{}: {e}", work.display()))?;
+    Ok(work)
+}
+
 /// Remove `dir` and each file in it; no `dir` is no error.
 pub fn clear(dir: &Path) -> Result<(), String> {
     if std::fs::symlink_metadata(dir).is_err() {
@@ -110,6 +124,27 @@ fn copy(from: &Path, to: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    /// T-408: the work directory of `--export` is 0777 in a parent at 0700
+    /// of this user; a link at the name of the parent is refused.
+    #[test]
+    fn the_export_directory_is_open_only_through_a_closed_parent() {
+        use std::os::unix::fs::PermissionsExt;
+        use std::path::Path;
+        let base = std::env::temp_dir().join(format!("podrunner-export-dir-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("theirs")).unwrap();
+        let outer = base.join("job");
+        let work = super::export_dir(&outer).unwrap();
+        let mode = |p: &Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!((mode(&outer), mode(&work)), (0o700, 0o777));
+        assert_eq!(work.parent(), Some(outer.as_path()));
+        std::fs::remove_dir_all(&outer).unwrap();
+        std::os::unix::fs::symlink(base.join("theirs"), &outer).unwrap();
+        assert!(super::export_dir(&outer).is_err());
+        assert!(std::fs::read_dir(base.join("theirs")).unwrap().next().is_none(), "nothing through the link");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     /// T-406, T-407: a private directory is new and 0700; a link there is
     /// refused.
     #[test]
