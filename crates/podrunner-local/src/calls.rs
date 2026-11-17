@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use pod_actions_expr::{Contexts, Template, Value as XValue};
-use pod_actions_workflow::{Call, Called, Secrets, Workflow};
+use pod_actions_workflow::{Call, Called, Node, Secrets, Workflow};
 use podrunner_schema::JobId;
 
 /// The texts of the called workflows: the tree, and the store of the
@@ -104,6 +104,8 @@ impl Called for Texts {
 #[derive(Default)]
 pub struct Calls {
     jobs: BTreeMap<String, (Arc<Workflow>, String, String)>,
+    /// The calling job of each called job.
+    callers: BTreeMap<String, String>,
 }
 
 impl Calls {
@@ -121,6 +123,7 @@ impl Calls {
         for node in &call.jobs {
             let callee = node.rsplit('/').next().unwrap_or(node).to_string();
             self.jobs.insert(node.clone(), (workflow.clone(), callee, call.uses.clone()));
+            self.callers.insert(node.clone(), call.job.clone());
         }
         Ok(())
     }
@@ -128,6 +131,26 @@ impl Calls {
     /// The workflow and the id in it of the called job `node`.
     pub fn get(&self, node: &str) -> Option<(&Workflow, &str)> {
         self.jobs.get(node).map(|(w, j, _)| (w.as_ref(), j.as_str()))
+    }
+}
+
+impl Calls {
+    /// The `permissions` of the job `node` and of each job that calls it,
+    /// the job first: each one of a job, else of its workflow (T-416).
+    pub fn permissions<'a>(&'a self, top: &'a Workflow, node: &str) -> Vec<Option<&'a Node>> {
+        let mut levels = Vec::new();
+        let mut at = Some(node.to_string());
+        while let Some(n) = at.take() {
+            // A cell of a matrix of calls is `CALLER[N]`.
+            let plain = n.strip_suffix(']').and_then(|x| x.rsplit_once('[')).map_or(n.as_str(), |x| x.0);
+            let (w, id) = self.get(&n).or_else(|| self.get(plain)).unwrap_or((top, plain));
+            levels.push(w.job(id).and_then(|j| j.permissions.as_ref()).or(w.permissions.as_ref()));
+            at = self.callers.get(&n).or_else(|| self.callers.get(plain)).cloned();
+            if levels.len() > 20 {
+                break;
+            }
+        }
+        levels
     }
 }
 

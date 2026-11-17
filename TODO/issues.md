@@ -251,6 +251,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #249 | policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy | closed | T-438 |
 | #250 | run: the per-run and per-unit scratch directories under TMPDIR follow a pre-created symlink | closed | T-407 |
 | #251 | run: a checkout of another repository with an empty, full or SHA ref is not resolved | open | T-439 |
+| #291 | COORD-085: a reader of the zone files (TZif) for the timezone of on.schedule (to podcrates) | open (waits for podcrates) | T-423 |
 | #252 | run: fetch::host_of cuts an IPv6 action-server address at the first colon | closed | T-440 |
 | #253 | run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused | closed | T-441 |
 | #254 | oidc: job_workflow_ref names the caller's workflow for a job of a reusable workflow | open | T-434 |

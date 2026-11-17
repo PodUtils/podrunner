@@ -55,6 +55,26 @@ pub(super) fn cron_texts(on: &Node) -> Result<Vec<(Cron, String)>, String> {
     Ok(out)
 }
 
+/// The time zones of `on.schedule` other than UTC, with their line: GitHub
+/// reads `timezone`, and podrunner reads no time zone yet, so it says so
+/// (T-423).
+pub(super) fn timezones(on: &Node) -> Vec<(u32, String)> {
+    let Kind::Map(entries) = &on.kind else { return Vec::new() };
+    let Some((_, Node { kind: Kind::Seq(items), .. })) = entries.iter().find(|(k, _)| k.name == "schedule") else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .filter_map(|item| match &item.kind {
+            Kind::Map(e) => e.iter().find(|(k, _)| k.name == "timezone").and_then(|(_, v)| match &v.kind {
+                Kind::String(tz) if !matches!(tz.as_str(), "UTC" | "Etc/UTC") => Some((item.mark.line, tz.clone())),
+                _ => None,
+            }),
+            _ => None,
+        })
+        .collect()
+}
+
 fn now() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
@@ -142,6 +162,11 @@ pub fn repeat(args: &[String]) -> Out {
                 Err(e) => return fail(Class::Config, format!("{}: {e}", file.display())),
             };
             eprintln!("podrunner: the next run of the schedule is at {}", utc(at));
+            if let Ok(p) = std::fs::read_to_string(&file).map(|t| pod_actions_workflow::parse(&t)) {
+                for (line, tz) in p.map(|p| timezones(&p.workflow.on)).unwrap_or_default() {
+                    eprintln!("podrunner: line {line}: timezone {tz:?} is not read yet: the cron runs at UTC (T-423)");
+                }
+            }
             while now() < at {
                 // A signal in the wait is an interrupt, as in a run (T-231).
                 if cancel::requested() {
@@ -208,6 +233,14 @@ mod tests {
         assert_eq!(utc(1800), "1970-01-01T00:30Z");
         let bad = pod_actions_workflow::parse(&text.replace("*/30", "61")).unwrap().workflow.on;
         assert!(crons(&bad).unwrap_err().contains("line 3"), "{:?}", crons(&bad));
+        // T-423: a time zone other than UTC is named, with its line.
+        let tz = pod_actions_workflow::parse(
+            "on:\n  schedule:\n    - cron: '0 9 * * *'\n      timezone: Europe/Berlin\n    - cron: '0 1 * * *'\n      timezone: UTC\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n",
+        )
+        .unwrap()
+        .workflow
+        .on;
+        assert_eq!(timezones(&tz), [(3, "Europe/Berlin".to_string())]);
         let dir = std::env::temp_dir().join(format!("podrunner-watch-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();

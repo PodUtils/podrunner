@@ -85,3 +85,45 @@ fn the_ids_and_the_secrets_of_calls() {
     let t = Texts::new(std::env::temp_dir(), None, BTreeMap::new());
     assert!(t.text("o/r/.github/workflows/x.yml@v1", None).unwrap_err().contains("not pinned"));
 }
+
+/// T-416: a called job takes the `permissions` of its caller, and its own
+/// can only lower them, as on GitHub.
+#[test]
+fn a_called_job_takes_the_permissions_of_its_caller() {
+    let root = std::env::temp_dir().join(format!("podrunner-calls-perm-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join(".github/workflows")).unwrap();
+    let called =
+        |perm: &str| format!("on: workflow_call\n{perm}jobs:\n  build:\n    runs-on: x\n    steps: [{{run: x}}]\n");
+    let caller = |perm: &str, matrix: &str| {
+        format!("on: push\njobs:\n  call:\n{matrix}{perm}    uses: ./.github/workflows/called.yml\n")
+    };
+    let id = "    permissions: {id-token: write}\n";
+    let matrix = "    strategy: {matrix: {n: [1, 2]}}\n";
+    // (caller, called, an id-token, the made-up token)
+    for (up, down, mx, ask, token) in [
+        (id, "", "", true, true),
+        (id, "", matrix, true, true),
+        ("", "", "", false, true),
+        ("", "permissions: {id-token: write}\n", "", false, true),
+        (id, "permissions: {contents: read}\n", "", false, true),
+        (id, "permissions: write-all\n", "", true, true),
+        ("    permissions: {}\n", "", "", false, false),
+        (id, "permissions: {}\n", "", false, false),
+    ] {
+        std::fs::write(root.join(".github/workflows/called.yml"), called(down)).unwrap();
+        let texts = Arc::new(Texts::new(root.clone(), None, BTreeMap::new()));
+        let text = caller(up, mx);
+        let mut s =
+            LocalSource::new_with("l", &text, Base::default(), "x86_64", Box::new(|_, _| unreachable!()), Some(texts))
+                .unwrap();
+        s.set_secrets(vec![], Some("made-up-run-token".into()));
+        for job in offers(&mut s) {
+            let b = s.broker_job(&job).unwrap();
+            let case = format!("{job}: caller {up:?}, called {down:?}");
+            assert_eq!(b.id_token.is_some(), ask, "{case}");
+            assert_eq!(b.token.is_some(), token, "{case}");
+        }
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}

@@ -113,6 +113,11 @@ pub(super) fn answer(a: &super::args::Args, text: &str) -> super::Out {
         if let Err(e) = super::watch::crons(&p.workflow.on) {
             return fail(e);
         }
+        for (line, tz) in super::watch::timezones(&p.workflow.on) {
+            eprintln!(
+                "podrunner: {file}: line {line}: timezone {tz:?} is not read yet: --schedule runs the cron at UTC (T-423)"
+            );
+        }
         // Each number of minutes, as a run reads it (T-339).
         if let Err(e) = minutes(&p.workflow) {
             return fail(e);

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**474 entries: 57 open, 28 partial, 12 blocked, 377 done.**
+**474 entries: 55 open, 28 partial, 13 blocked, 378 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
-| P2 | 10 | 12 | 8 | 203 | 233 |
+| P2 | 8 | 12 | 9 | 204 | 233 |
 | P3 | 44 | 4 | 3 | 112 | 163 |
-| **All** | 57 | 28 | 12 | 377 | 474 |
+| **All** | 55 | 28 | 13 | 378 | 474 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -460,14 +460,14 @@ acceptance, later The crate dependencies later than v1.
 | [T-413](later.md) | P3 | M | later | defect | open | Text that a job controls reaches stderr with no escape |
 | [T-414](later.md) | P3 | M | later | defect | open | The audit line of a failed start carries the text of the driver to the source |
 | [T-415](later.md) | P2 | M | later | defect | done | A matrix job keeps the outputs of its last cell only |
-| [T-416](later.md) | P2 | M | later | defect | open | A job of a called workflow ignores the `permissions` of the caller |
+| [T-416](later.md) | P2 | M | later | defect | done | A job of a called workflow ignores the `permissions` of the caller |
 | [T-417](later.md) | P2 | M | later | defect | done | A run can hold one concurrency group two times |
 | [T-418](later.md) | P2 | M | later | defect | done | `github.run_id`, `run_number` and `run_attempt` are always 1 |
 | [T-419](later.md) | P2 | M | later | defect | open | `--protected` misses jobs of called workflows, needs of `--job` and environment names of an expression |
 | [T-420](later.md) | P2 | M | later | defect | open | An environment name of an expression is not evaluated |
 | [T-421](later.md) | P2 | M | later | defect | open | No checkout tree when only a called workflow uses `actions/checkout` |
 | [T-422](later.md) | P2 | M | later | defect | done | The stand-in of `actions/checkout` needs `curl` in a job container |
-| [T-423](later.md) | P2 | M | later | defect | open | `--schedule` reads no `timezone` of `on.schedule` |
+| [T-423](later.md) | P2 | M | later | defect | blocked | `--schedule` reads no `timezone` of `on.schedule` |
 | [T-424](later.md) | P2 | M | later | defect | done | The minimal payload of `pull_request` has no `head.repo` and `base.repo` |
 | [T-425](later.md) | P2 | M | later | defect | open | A git submodule is an empty directory in the checkout |
 | [T-426](later.md) | P3 | M | later | defect | open | `github.workflow` is the file name, not the `name:` of the workflow |

@@ -8795,7 +8795,7 @@ Combine the outputs of the cells: a value that is set wins over an empty one, th
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8812,6 +8812,10 @@ Take the permissions of the calling job as the default of each job of the called
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: A called job takes the `permissions` of each job that calls it: a level of `{}` gives no token, and the id-token needs the top caller to give it and each called level to give it or to name no permissions (`calls.rs` `Calls::permissions`, `oidc::of_chain`). The test of the calls checks eight cases, with a matrix of calls; the end-to-end test of the OIDC token (`tests/local.rs`, the official runner) gets the token in a called job.
 
 # T-417: A run can hold one concurrency group two times
 
@@ -8982,7 +8986,7 @@ Fetch the tree with a fallback that needs no tool of the image (the Node of the 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -8999,6 +9003,10 @@ Read `timezone` (an IANA name, through the zone files of the host) and say it in
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Blocker
+
+The time zone of a cron needs a reader of the zone files (TZif). That is generic code: the ruling "Shared code" sends it to podcrates. COORD-085 (PodUtils/podrunner#291, to podcrates) asks for it. Until the tag comes, `--schedule` and `--validate` name each `timezone` that is not UTC on stderr and say that the cron runs at UTC (`run_local/watch.rs` `timezones`, with a test); `docs/cli.md` says so.
 
 # T-424: The minimal payload of `pull_request` has no `head.repo` and `base.repo`
 

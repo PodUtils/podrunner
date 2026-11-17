@@ -88,6 +88,7 @@ fn the_checkout_gives_git_and_another_repository() {
 
 /// T-140: a job with `id-token: write` gets a signed token from the broker,
 /// with the audience that it asks for; a job with no permission gets no URL.
+/// A called job takes the permissions of its caller (T-416).
 #[test]
 #[ignore]
 fn a_job_with_id_token_write_gets_a_signed_token() {
@@ -106,7 +107,14 @@ fn a_job_with_id_token_write_gets_a_signed_token() {
          python3 -c 'import json,base64; t=json.load(open(\"t.json\"))[\"value\"].split(\".\")[1]; \
          c=json.loads(base64.urlsafe_b64decode(t+\"==\")); assert c[\"aud\"]==\"sts.example\", c; \
          assert c[\"iss\"]==\"https://oidc.example.invalid\", c'\n  \
-         none:\n    runs-on: x\n    steps:\n      - run: test -z \"$ACTIONS_ID_TOKEN_REQUEST_URL\"\n",
+         none:\n    runs-on: x\n    steps:\n      - run: test -z \"$ACTIONS_ID_TOKEN_REQUEST_URL\"\n  \
+         called:\n    permissions:\n      id-token: write\n    uses: ./.github/workflows/called.yml\n",
+    )
+    .unwrap();
+    std::fs::create_dir_all(scratch.join(".github/workflows")).unwrap();
+    std::fs::write(
+        scratch.join(".github/workflows/called.yml"),
+        "on: workflow_call\njobs:\n  t:\n    runs-on: x\n    steps:\n      - run: test -n \"$ACTIONS_ID_TOKEN_REQUEST_URL\"\n",
     )
     .unwrap();
     let keys = scratch.join("jwks.json");
@@ -119,6 +127,8 @@ fn a_job_with_id_token_write_gets_a_signed_token() {
         "https://oidc.example.invalid",
         "--oidc-keys",
         keys.to_str().unwrap(),
+        "--checkout",
+        scratch.to_str().unwrap(),
     ]
     .iter()
     .map(|s| s.to_string())
@@ -127,5 +137,6 @@ fn a_job_with_id_token_write_gets_a_signed_token() {
     println!("{}{}", out.stdout, out.stderr);
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
     assert!(std::fs::read_to_string(&keys).unwrap().contains("\"P-256\""));
+    assert!(out.stdout.lines().any(|l| l.starts_with("ok") && l.contains("called / t")), "{}", out.stdout);
     let _ = std::fs::remove_dir_all(&scratch);
 }

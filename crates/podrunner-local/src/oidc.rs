@@ -22,6 +22,20 @@ pub fn may_ask(p: Option<&Node>) -> bool {
     }
 }
 
+/// The permissions of a job and of each job that calls it, the job first
+/// (T-416): as on GitHub, a called workflow can only lower the permissions
+/// of its caller. The first is no token (a level of `{}`); the second lets
+/// the job ask for an id-token (the top level gives it, and each called
+/// level gives it or names no permissions).
+pub fn of_chain(levels: &[Option<&Node>]) -> (bool, bool) {
+    let none = levels.iter().any(|p| matches!(p.map(|n| &n.kind), Some(Kind::Map(e)) if e.is_empty()));
+    let ask = match levels.split_last() {
+        Some((top, called)) => may_ask(*top) && called.iter().all(|p| p.is_none() || may_ask(*p)),
+        None => false,
+    };
+    (none, ask)
+}
+
 /// The claims of the job `job` of the environment `environment`.
 pub fn claims(github: &XValue, job: &str, environment: Option<&str>) -> Map<String, Value> {
     let g = |k: &str| github.as_object().and_then(|o| o.get(k)).and_then(XValue::as_str).unwrap_or("").to_string();
