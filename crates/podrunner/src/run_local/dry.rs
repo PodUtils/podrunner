@@ -13,6 +13,9 @@ pub(super) fn paths(a: &Args) -> Result<(), String> {
         if let Some(e) = podrunner_local::exec::space_refusal(dir) {
             return Err(format!("--runner-dir {e}"));
         }
+        // The run takes the directory with a lock file in it (#244).
+        super::doctor::writable(dir)
+            .map_err(|e| format!("--runner-dir {e}; the run writes its lock file .podrunner-run.lock there"))?;
     }
     let binaries = [
         a.guest.as_ref().map(|(microvm, b)| (if *microvm { "--microvm" } else { "--incus" }, b)),
@@ -27,8 +30,14 @@ pub(super) fn paths(a: &Args) -> Result<(), String> {
     if let Some(t) = a.toolcache.as_ref().filter(|t| !t.is_dir()) {
         return Err(format!("--toolcache {}: not a directory; fix: mkdir -p {0}", t.display()));
     }
+    // With `--offline` the store of actions is read only (#242).
+    if let Some(d) = a.actions.as_ref().filter(|_| a.offline)
+        && !d.is_dir()
+    {
+        return Err(format!("--actions {}: not a directory; --offline reads the actions from it", d.display()));
+    }
     let dirs = [
-        ("--actions", a.actions.as_ref()),
+        ("--actions", a.actions.as_ref().filter(|_| !a.offline)),
         ("--artifacts", a.artifacts.as_ref()),
         ("--cache", a.cache.as_ref().filter(|_| !a.no_cache)),
         ("--log-dir", a.log_dir.as_ref()),

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**391 entries: 33 open, 28 partial, 10 blocked, 320 done.**
+**399 entries: 33 open, 28 partial, 10 blocked, 328 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 2 | 11 | 1 | 60 | 74 |
-| P2 | 3 | 12 | 7 | 165 | 187 |
-| P3 | 28 | 5 | 2 | 95 | 130 |
-| **All** | 33 | 28 | 10 | 320 | 391 |
+| P2 | 3 | 12 | 7 | 170 | 192 |
+| P3 | 28 | 5 | 2 | 98 | 133 |
+| **All** | 33 | 28 | 10 | 328 | 399 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -439,3 +439,11 @@ acceptance, later The crate dependencies later than v1.
 | [T-392](later.md) | P3 | S | later | defect | done | The affinity of a shared principal compares a repository with case |
 | [T-393](later.md) | P2 | S | later | defect | done | A dry run ends the processes and removes the files of a dead run |
 | [T-394](later.md) | P2 | S | later | defect | done | The parity suite pulls from Docker Hub with no login and meets its limit |
+| [T-395](later.md) | P2 | S | later | defect | done | The actions and images of a called workflow of the tree are not pinned before the first job |
+| [T-396](later.md) | P2 | S | later | defect | done | A later matrix `include` does not overwrite a value that an earlier one added |
+| [T-397](later.md) | P2 | S | later | defect | done | A matrix `exclude` with an expression drops each cell |
+| [T-398](later.md) | P3 | S | later | defect | done | `--vnet` gives no `NODE_USE_ENV_PROXY` |
+| [T-399](later.md) | P3 | S | later | defect | done | `--offline` with a store of actions that the user cannot write is refused |
+| [T-400](later.md) | P2 | S | later | defect | done | A local composite action of `./../PATH` or a link out of the tree is read |
+| [T-401](later.md) | P3 | S | later | defect | done | A dry run with a runner directory that cannot take the lock says planned |
+| [T-402](later.md) | P2 | S | later | defect | done | The mint forgets a late credential that starts or goes back after its alert |

@@ -35,6 +35,9 @@ pub(super) fn env(env: &mut BTreeMap<String, String>, mount: &str) {
     for k in ["NO_PROXY", "no_proxy"] {
         env.insert(k.into(), String::new());
     }
+    // `fetch` of Node reads the proxy variables only with this (Node 22.21
+    // and 24.5 on), as the host path sets it (#241).
+    env.entry("NODE_USE_ENV_PROXY".into()).or_insert_with(|| "1".into());
 }
 
 #[cfg(test)]
@@ -48,5 +51,6 @@ mod tests {
         assert_eq!(env["PODNET_VNET_FORWARD"], "127.0.0.1:3128=unix:/run/podrunner/egress.sock");
         assert_eq!(env["HTTPS_PROXY"], "http://127.0.0.1:3128");
         assert_eq!(env["NO_PROXY"], "");
+        assert_eq!(env["NODE_USE_ENV_PROXY"], "1", "#241");
     }
 }

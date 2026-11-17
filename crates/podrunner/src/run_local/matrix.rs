@@ -19,15 +19,18 @@ fn text(n: &Node) -> Option<String> {
     }
 }
 
-/// The entries of a list of maps (`include`, `exclude`).
+/// The entries of a list of maps (`include`, `exclude`). An entry with a
+/// value that is not static is left out: the local mode cannot decide it,
+/// and an empty entry would match each cell (#240).
 fn entries(n: &Node) -> Vec<Cell> {
     let Kind::Seq(items) = &n.kind else { return Vec::new() };
     items
         .iter()
         .filter_map(|i| match &i.kind {
-            Kind::Map(m) => Some(m.iter().filter_map(|(k, v)| Some((k.name.clone(), text(v)?))).collect()),
+            Kind::Map(m) => m.iter().map(|(k, v)| Some((k.name.clone(), text(v)?))).collect::<Option<Cell>>(),
             _ => None,
         })
+        .filter(|e| !e.is_empty())
         .collect()
 }
 
@@ -72,8 +75,10 @@ pub(super) fn cells(job: &pod_actions_workflow::Job) -> Vec<Cell> {
         for c in out.iter_mut() {
             let fits = inc.iter().all(|(k, v)| !vector_keys.contains(k) || c.get(k) == Some(v));
             if fits {
-                for (k, v) in &inc {
-                    c.entry(k.clone()).or_insert_with(|| v.clone());
+                // An original value stays; an added value can be overwritten
+                // by a later include, as GitHub says (#239).
+                for (k, v) in inc.iter().filter(|(k, _)| !vector_keys.contains(k)) {
+                    c.insert(k.clone(), v.clone());
                 }
                 matched = true;
             }
@@ -104,5 +109,31 @@ mod tests {
             .map(|c| c.iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join(","))
             .collect();
         assert_eq!(got, ["extra=e,os=a,v=15", "v=17"]);
+    }
+
+    fn cells_of(matrix: &str) -> Vec<String> {
+        let text = format!(
+            "on: push\njobs:\n  j:\n    runs-on: x\n    strategy:\n      matrix:\n{matrix}    steps: [{{run: x}}]\n"
+        );
+        let w = pod_actions_workflow::parse(&text).unwrap().workflow;
+        super::cells(&w.jobs[0])
+            .iter()
+            .map(|c| c.iter().map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join(","))
+            .collect()
+    }
+
+    /// #239: a later include overwrites a value that an earlier one added.
+    #[test]
+    fn a_later_include_overwrites_an_added_value() {
+        assert_eq!(
+            cells_of("        v: [1]\n        include: [{v: 1, extra: a}, {v: 1, extra: b}]\n"),
+            ["extra=b,v=1"]
+        );
+    }
+
+    /// #240: an exclude with an expression drops no cell.
+    #[test]
+    fn an_exclude_with_an_expression_drops_no_cell() {
+        assert_eq!(cells_of("        os: [a, b]\n        exclude: [{os: '${{ inputs.x }}'}]\n"), ["os=a", "os=b"]);
     }
 }

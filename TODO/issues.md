@@ -237,6 +237,14 @@ numbers. `TODO/RULES.md` gives the rules.
 | #235 | A stale first payload of an architecture hides a fresh one after it | closed (fixed on `main`; the entry is done) | T-391 |
 | #236 | The affinity of a shared principal compares a repository with case | closed (fixed on `main`; the entry is done) | T-392 |
 | #237 | A dry run ends the processes and removes the files of a dead run | closed (fixed on `main`; the entry is done) | T-393 |
+| #238 | The actions and images of a called workflow of the tree are not pinned before the first job | closed (fixed on `main`; the entry is done) | T-395 |
+| #239 | A later matrix `include` does not overwrite a value that an earlier one added | closed (fixed on `main`; the entry is done) | T-396 |
+| #240 | A matrix `exclude` with an expression drops each cell | closed (fixed on `main`; the entry is done) | T-397 |
+| #241 | `--vnet` gives no `NODE_USE_ENV_PROXY` | closed (fixed on `main`; the entry is done) | T-398 |
+| #242 | `--offline` with a store of actions that the user cannot write is refused | closed (fixed on `main`; the entry is done) | T-399 |
+| #243 | A local composite action of `./../PATH` or a link out of the tree is read | closed (fixed on `main`; the entry is done) | T-400 |
+| #244 | A dry run with a runner directory that cannot take the lock says planned | closed (fixed on `main`; the entry is done) | T-401 |
+| #245 | The mint forgets a late credential that starts or goes back after its alert | closed (fixed on `main`; the entry is done) | T-402 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

@@ -79,7 +79,14 @@ impl Called for Texts {
                 self.remote(&repo, &r, rel)?
             }
             (Some(rel), None) => {
+                // A called workflow of the tree stays in it (#243).
                 let file = self.root.join(rel);
+                let root = self.root.canonicalize().unwrap_or_else(|_| self.root.clone());
+                let inside = !std::path::Path::new(rel).components().any(|c| c == std::path::Component::ParentDir)
+                    && file.canonicalize().is_ok_and(|r| r.starts_with(&root));
+                if !inside && file.exists() {
+                    return Err(format!("`uses: {uses}`: the workflow is out of the tree"));
+                }
                 std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))?
             }
             (None, _) => {

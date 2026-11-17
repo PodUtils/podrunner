@@ -7832,6 +7832,8 @@ Run the test 50 times under load (`cargo test -p podrunner-fake each_unit_plant 
 
 `cargo test -p podrunner-fake each_unit_plant_fails_its_test` passes 50 times of 50 under the load of the suite.
 
+State (2026-11-17): six runs of the suite of `podrunner-fake` at one time on this sandbox: each passed. Not reproduced; the entry stays open for the next failure.
+
 # T-383: A container mount can name the runner root or a file of it
 
 **Source:** GitHub #227 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
@@ -8179,3 +8181,235 @@ The step "The parity suite in guests with an engine" of `runner-image.yml`.
 ## Done
 
 2026-11-17: the Dockerfile starts `FROM mirror.gcr.io/library/busybox@sha256:a7dbc319...` (the same digest; checked: 200 for the index, the blobs on `mirror.gcr.io`), and the step allows `mirror.gcr.io`. Not run yet in CI.
+
+# T-395: The actions and images of a called workflow of the tree are not pinned before the first job
+
+**Source:** GitHub #238 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`actions::pin` read the top workflow only; a `jobs.ID.uses: ./PATH` was read later, so its actions and images were not in the lock or the store.
+
+## Premise
+
+The report of #238, with the lines of the code and a measure.
+
+## Approach
+
+Read each called workflow of the tree before the pin (to 10 levels, in the tree only) and pin its actions, its trees and its images (`composites::local_calls`).
+
+## Prove
+
+`cargo test -p podrunner the_actions_of_a_called_workflow_are_pinned`
+
+## Done
+
+2026-11-17: the called workflows of the tree are read before the pin, and their actions, trees and images are pinned (`composites::local_calls`); a called workflow out of the tree is refused, also in `calls::Texts`. Proven in CI on GitHub-hosted runners by `qa6_tests::the_actions_of_a_called_workflow_are_pinned` (once the gate runs).
+
+# T-396: A later matrix `include` does not overwrite a value that an earlier one added
+
+**Source:** GitHub #239 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`matrix::cells` kept the first value of an added key; GitHub says an added value can be overwritten.
+
+## Premise
+
+The report of #239, with the lines of the code and a measure.
+
+## Approach
+
+An include that fits a cell sets each key that is not an original key (`matrix::cells`).
+
+## Prove
+
+`cargo test -p podrunner a_later_include_overwrites_an_added_value`
+
+## Done
+
+2026-11-17: a later include overwrites an added value; an original value stays. Proven in CI on GitHub-hosted runners by `matrix::tests::a_later_include_overwrites_an_added_value` (once the gate runs). The defect came with T-380 of this session.
+
+# T-397: A matrix `exclude` with an expression drops each cell
+
+**Source:** GitHub #240 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+An entry with an expression became an empty entry, which matched each cell.
+
+## Premise
+
+The report of #240, with the lines of the code and a measure.
+
+## Approach
+
+An entry with a value that is not static is left out, and an empty entry is no entry (`matrix::entries`).
+
+## Prove
+
+`cargo test -p podrunner an_exclude_with_an_expression_drops_no_cell`
+
+## Done
+
+2026-11-17: an `exclude` or `include` entry with an expression is left out (`matrix::entries`). Proven in CI on GitHub-hosted runners by `matrix::tests::an_exclude_with_an_expression_drops_no_cell` (once the gate runs). The defect came with T-380 of this session.
+
+# T-398: `--vnet` gives no `NODE_USE_ENV_PROXY`
+
+**Source:** GitHub #241 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The proxy variables of the vnet were set, but `fetch` of Node reads them only with `NODE_USE_ENV_PROXY`.
+
+## Premise
+
+The report of #241, with the lines of the code and a measure.
+
+## Approach
+
+Set `NODE_USE_ENV_PROXY=1` in `vnet::env`, as the host path does.
+
+## Prove
+
+`cargo test -p podrunner-local the_environment_of_a_runner_under_the_vnet_shim`
+
+## Done
+
+2026-11-17: `vnet::env` sets `NODE_USE_ENV_PROXY=1` when it is not set. Proven in CI on GitHub-hosted runners by `vnet::tests` (once the gate runs). The defect came with T-220 of this session.
+
+# T-399: `--offline` with a store of actions that the user cannot write is refused
+
+**Source:** GitHub #242 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`dry::paths` asked for a store that takes files also with `--offline`, which only reads it.
+
+## Premise
+
+The report of #242, with the lines of the code and a measure.
+
+## Approach
+
+With `--offline`, the store must be a directory only (`dry::paths`).
+
+## Prove
+
+`cargo test -p podrunner the_paths_of_a_run_by_their_use`
+
+## Done
+
+2026-11-17: with `--offline`, `--actions` must be a directory, not one that takes files. Proven in CI on GitHub-hosted runners by `qa6_tests::the_paths_of_a_run_by_their_use` (once the gate runs). `--frozen` still needs a store that takes files: it fetches a tarball that the lock pins. The defect came with T-345 of this session.
+
+# T-400: A local composite action of `./../PATH` or a link out of the tree is read
+
+**Source:** GitHub #243 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`composites::local_uses` read `base.join(path)` with no check: a workflow made podrunner read a file out of the checkout.
+
+## Premise
+
+The report of #243, with the lines of the code and a measure.
+
+## Approach
+
+Refuse a `..` part and a link that leads out of the tree, by name (`composites::local_uses`, `local_calls`, `calls::Texts`).
+
+## Prove
+
+`cargo test -p podrunner composites`
+
+## Done
+
+2026-11-17: a local action or a called workflow with `..` or a link out of the tree is refused by name. Proven in CI on GitHub-hosted runners by `composites::tests::the_uses_of_local_composite_actions` (once the gate runs). The defect came with T-346 of this session.
+
+# T-401: A dry run with a runner directory that cannot take the lock says planned
+
+**Source:** GitHub #244 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`dry::paths` checked the files of the runner directory, not that it takes the lock file of the run.
+
+## Premise
+
+The report of #244, with the lines of the code and a measure.
+
+## Approach
+
+Check that the runner directory takes files, and name the lock file (`dry::paths`).
+
+## Prove
+
+`cargo test -p podrunner the_paths_of_a_run_by_their_use`
+
+## Done
+
+2026-11-17: the runner directory must take files, with the lock file named in the error. Proven on a constrained host as a user (`labdns`, no root, a 0555 runner directory: exit 78 with `.podrunner-run.lock`); the unit test skips as root.
+
+# T-402: The mint forgets a late credential that starts or goes back after its alert
+
+**Source:** GitHub #245 (a user who read the code of `main`, 2026-11-17)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The count of late credentials of a host was the pending set: a credential that went back after its alert was not counted, so a host stayed under `revoke_after`.
+
+## Premise
+
+The report of #245, with the lines of the code and a measure.
+
+## Approach
+
+Count the late credentials of each host for the life of the mint, and count a credential that starts or goes back past the limit (`gate::late`, `gate::settle`).
+
+## Prove
+
+`cargo test -p podrunner-remote a_released_late_credential_still_counts`
+
+## Done
+
+2026-11-17: each late credential of a host counts, also one that starts or goes back after its alert (`late_of`, `settle`). Proven in CI on GitHub-hosted runners by `tests::a_released_late_credential_still_counts` (once the gate runs).

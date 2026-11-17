@@ -59,14 +59,26 @@ pub(super) fn pin(
     let s = |e: podrunner_local::store::Error| e.to_string();
     let workflow = pod_actions_workflow::parse(text).map_err(|e| e.to_string())?.workflow;
     let mut uses = workflow_uses(&workflow);
-    // The local composite actions of the tree (T-346).
+    // The local composite actions of the tree (T-346), and the workflows of
+    // the tree that a job calls, with their own (#238).
     let base = a.checkout.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default();
-    for u in super::composites::local_uses(&workflow, &base)? {
-        if !uses.contains(&u) {
-            uses.push(u);
+    let called = super::composites::local_calls(&workflow, &base)?;
+    for w in std::iter::once(&workflow).chain(&called) {
+        let more = workflow_uses(w).into_iter().chain(super::composites::local_uses(w, &base)?);
+        for u in more {
+            if !uses.contains(&u) {
+                uses.push(u);
+            }
         }
     }
     let mut trees = workflow_trees(&workflow, self_repo).map_err(s)?;
+    for w in &called {
+        for t in workflow_trees(w, self_repo).map_err(s)? {
+            if !trees.contains(&t) {
+                trees.push(t);
+            }
+        }
+    }
     // The repository of each remote called workflow (T-131): its tree goes
     // into the store at the commit of the lock, as an action.
     for job in &workflow.jobs {
@@ -88,6 +100,12 @@ pub(super) fn pin(
             let (w, more) = run_jobs(&w, &a.jobs);
             let mut t = workflow_images(&w).map_err(s)?;
             t.extend(more);
+            // The images of the called workflows of the tree (#238).
+            for c in &called {
+                let (c, more) = run_jobs(c, &[]);
+                t.extend(workflow_images(&c).map_err(s)?);
+                t.extend(more);
+            }
             t.sort();
             t.dedup();
             t

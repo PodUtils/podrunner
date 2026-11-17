@@ -34,6 +34,9 @@ pub struct Gate {
     reconcile: Reconcile,
     /// The credentials with an alert, once each.
     alerted: BTreeSet<JobId>,
+    /// The late credentials of each host, also one that started or was
+    /// released after its alert (#245).
+    late_of: std::collections::BTreeMap<String, usize>,
     /// The hosts that the reconciliation revoked: each call is
     /// `source-revoked` until the operator starts the mint again.
     revoked: BTreeSet<String>,
@@ -82,6 +85,7 @@ impl Gate {
             now: Box::new(unix_now),
             reconcile: Reconcile::default(),
             alerted: BTreeSet::new(),
+            late_of: std::collections::BTreeMap::new(),
             revoked: BTreeSet::new(),
         }
     }
@@ -103,20 +107,42 @@ impl Gate {
             .map(|(j, h, _)| (j.clone(), h.to_string()))
             .collect();
         for (job, host) in late {
-            self.alerted.insert(job.clone());
-            let line =
-                serde_json::json!({ "t_s": now, "alert": "credential-with-no-start", "host": host, "job_id": job });
+            self.late(&job, &host, now, "credential-with-no-start");
+        }
+    }
+
+    /// A credential of `job` that ends its wait now (it starts, or goes
+    /// back): one past the limit is late, as one that never starts (#245).
+    fn settle(&mut self, job: &JobId) {
+        let now = (self.now)();
+        let late = self.ledger.pending().find(|(j, _, _)| *j == job).and_then(|(_, h, t)| {
+            (now.saturating_sub(t) >= self.reconcile.after_s && !self.alerted.contains(job)).then(|| h.to_string())
+        });
+        if let Some(host) = late {
+            self.late(job, &host, now, "credential-used-late");
+        }
+    }
+
+    /// One late credential of `host`: an alert; the late credentials of a
+    /// host count, also one that starts or goes back after its alert, and
+    /// `revoke_after` of them revoke the host.
+    fn late(&mut self, job: &JobId, host: &str, now: u64, alert: &str) {
+        self.alerted.insert(job.clone());
+        let line = serde_json::json!({ "t_s": now, "alert": alert, "host": host, "job_id": job });
+        let _ = writeln!(self.audit, "{line}");
+        let count = {
+            let n = self.late_of.entry(host.to_string()).or_default();
+            *n += 1;
+            *n
+        };
+        if count >= self.reconcile.revoke_after && self.revoked.insert(host.to_string()) {
+            let line = serde_json::json!({ "t_s": now, "alert": "host-revoked", "host": host });
             let _ = writeln!(self.audit, "{line}");
-            let count = self.ledger.pending().filter(|(j, h, _)| *h == host && self.alerted.contains(*j)).count();
-            if count >= self.reconcile.revoke_after && self.revoked.insert(host.clone()) {
-                let line = serde_json::json!({ "t_s": now, "alert": "host-revoked", "host": host });
-                let _ = writeln!(self.audit, "{line}");
-                // Each offer of the host goes back; the source removes the
-                // runner of each one that it minted (the sidecar does).
-                for job in self.ledger.offers_of(&host) {
-                    let _ = self.source.release(&job);
-                    let _ = self.ledger.end(&host, &job);
-                }
+            // Each offer of the host goes back; the source removes the
+            // runner of each one that it minted (the sidecar does).
+            for job in self.ledger.offers_of(host) {
+                let _ = self.source.release(&job);
+                let _ = self.ledger.end(host, &job);
             }
         }
     }
@@ -194,11 +220,13 @@ impl Gate {
             Request::Report { job_id, report } => self.source.report(&job_id, &report).map(|()| Reply::Done)?,
             Request::Audit { line } => self.source.audit(&line).map(|()| Reply::Done)?,
             Request::Withdraw { job_id, reason } => {
+                self.settle(&job_id);
                 self.source.withdraw(&job_id, &reason)?;
                 self.ledger.end(host, &job_id).map_err(Self::disk)?;
                 Reply::Done
             }
             Request::Release { job_id } => {
+                self.settle(&job_id);
                 self.source.release(&job_id)?;
                 self.ledger.end(host, &job_id).map_err(Self::disk)?;
                 Reply::Done
@@ -238,6 +266,7 @@ impl Gate {
             other => match self.ledger.holder(other.job_id()).map(str::to_string) {
                 Some(h) => {
                     if matches!(other, Event::Started { .. }) {
+                        self.settle(other.job_id());
                         self.ledger.start(&h, other.job_id()).map_err(Self::disk)?;
                     }
                     h

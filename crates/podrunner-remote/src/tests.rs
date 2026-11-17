@@ -204,3 +204,39 @@ fn credentials_with_no_start_revoke_the_host() {
     let ledger = Ledger::open(&d.join("ledger.jsonl")).unwrap();
     assert_eq!(ledger.outstanding("h1"), 0);
 }
+
+/// #245: the late credentials of a host count, also one that goes back
+/// after its alert: two alerts, a release, then a third alert revoke the
+/// host (the count of the pending set gave two).
+#[test]
+fn a_released_late_credential_still_counts() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    let d = dir();
+    let clock = ManualClock::default();
+    let lines: Vec<String> = (1..=3).map(|i| offer(&format!("j-{i}"), false)).collect();
+    let now = Arc::new(AtomicU64::new(1_000));
+    let n = now.clone();
+    let reconcile = crate::gate::Reconcile { after_s: 300, revoke_after: 3 };
+    let g = gate_at(&lines, &[("h1", 3)], &d, clock.clone())
+        .with_reconcile(Box::new(move || n.load(Ordering::SeqCst)), reconcile);
+    let g = Arc::new(std::sync::Mutex::new(g));
+    let mut h1 = host(&g, "h1");
+    assert_eq!(offers(&h1.next(3, Duration::ZERO).unwrap()).len(), 3);
+    for i in 1..=2 {
+        let j = job(&format!("j-{i}"));
+        h1.ack(&j).unwrap();
+        h1.claim(&j, "r").unwrap();
+        h1.mint(&j, "r").unwrap();
+    }
+    // Two alerts.
+    now.store(1_301, Ordering::SeqCst);
+    h1.hello("p", "0").unwrap();
+    // One of them goes back; a third credential, late too.
+    h1.release(&job("j-1")).unwrap();
+    let j3 = job("j-3");
+    h1.ack(&j3).unwrap();
+    h1.claim(&j3, "r").unwrap();
+    h1.mint(&j3, "r").unwrap();
+    now.store(1_700, Ordering::SeqCst);
+    assert_eq!(h1.hello("p", "0").unwrap_err().code, SourceCode::SourceRevoked);
+}

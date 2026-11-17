@@ -185,7 +185,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   and the P2 T-353, T-354 (devpts, COORD-079 #216), T-355 and T-356.
 - COORD state: #170 (podnet) and #191 (podcrates) are closed; #189 holds
   the facts that podvm asked for (PodUtils/podvm#466), and podvm answered
-  (PodUtils/podvm#470: T-1934 for the pty, T-1935 for the raw calls of the
+  (PodUtils/podvm#470: PodUtils/podvm@T-1934 for the pty, PodUtils/podvm@T-1935 for the raw calls of the
   userland rung); #214 and #215 wait for podcrates, #216 for podvm.
 - The owner (2026-11-17, Q9 in `docs/decisions.md`): the session owns the
   project and its issues, and asks the owner only for a change of a ruling.

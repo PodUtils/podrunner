@@ -314,3 +314,66 @@ fn a_pull_request_is_filtered_on_its_base_branch() {
     assert_eq!(out.code, 78, "{}{}", out.stdout, out.stderr);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// #242: `--offline` reads the store of actions only: a store that the user
+/// cannot write is no refusal. #244: a runner directory that cannot take
+/// the lock fails a dry run (as a user with no root only: root writes each
+/// directory).
+#[test]
+fn the_paths_of_a_run_by_their_use() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = scratch("pathuse");
+    std::fs::write(dir.join("w.yml"), WORKFLOW).unwrap();
+    let w = dir.join("w.yml").display().to_string();
+    let store = dir.join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    std::fs::set_permissions(&store, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let s = store.display().to_string();
+    let r = runner_dir("pathuse");
+    let out = run(&args(&[&w, "--runner-dir", &r, "--dry-run", "--no-cache", "--offline", "--actions", &s]));
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    // SAFETY: geteuid has no failure.
+    if unsafe { libc::geteuid() } != 0 {
+        std::fs::set_permissions(&r, std::fs::Permissions::from_mode(0o555)).unwrap();
+        let out = run(&args(&[&w, "--runner-dir", &r, "--dry-run", "--no-cache"]));
+        std::fs::set_permissions(&r, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(out.code, 78, "{}{}", out.stdout, out.stderr);
+        assert!(out.stderr.contains(".podrunner-run.lock"), "{}", out.stderr);
+    }
+    std::fs::set_permissions(&store, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// #238: the actions of a called workflow of the tree are pinned before the
+/// first job: with `--offline` and no pin, a dry run fails on them.
+#[test]
+fn the_actions_of_a_called_workflow_are_pinned() {
+    let dir = scratch("called");
+    let tree = dir.join("tree");
+    std::fs::create_dir_all(tree.join(".github/workflows")).unwrap();
+    std::fs::write(
+        tree.join(".github/workflows/reuse.yml"),
+        "on: workflow_call\njobs:\n  inner:\n    runs-on: ubuntu-latest\n    steps: [{uses: owner/action@v1}]\n",
+    )
+    .unwrap();
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  call:\n    uses: ./.github/workflows/reuse.yml\n").unwrap();
+    let (w, t, store) =
+        (dir.join("w.yml").display().to_string(), tree.display().to_string(), dir.join("store").display().to_string());
+    std::fs::create_dir_all(dir.join("store")).unwrap();
+    let r = runner_dir("called");
+    let out = run(&args(&[
+        &w,
+        "--runner-dir",
+        &r,
+        "--dry-run",
+        "--no-cache",
+        "--offline",
+        "--checkout",
+        &t,
+        "--actions",
+        &store,
+    ]));
+    assert_eq!(out.code, 78, "{}{}", out.stdout, out.stderr);
+    assert!(out.stderr.contains("owner/action@v1"), "{}", out.stderr);
+    let _ = std::fs::remove_dir_all(&dir);
+}
