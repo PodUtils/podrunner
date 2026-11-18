@@ -24,6 +24,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `run-report.v1` | The report fills `arch`, `assigned`, `image_digest`, `runner_version`, `prepare_s`, `start_s`, `run_s`, `destroy_s`, `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes` (or `unknown` with a reason), and `log_tail` (scrubbed, 64 KiB at most) for a unit that failed before a step. | T-497, T-514 |
 | `run-report.v1` | The incus kind fills `cpu_s` and `peak_rss_mib` from incusd; a job that failed after a kill of the OOM killer ends with `limit`. | T-483, T-515 |
 | `run-report.v1` | The disk bound of a unit is the lesser of the `disk` of the offer and `disk_max_bytes`. | T-529 |
+| `run-report.v1` | The contract names the tolerance of `cpu_s`: 20 % or 1 s of the CPU time of the payload, the larger. | T-520 |
 | control socket | A new op `restart-source` (field `source`). | T-498 |
 | control socket | New ops `drain-source` and `resume-source` (field `source`). | T-501 |
 | `status.v1` | Each source has `draining` (an operator drained it). | T-501 |
@@ -47,6 +48,6 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
-<!-- contract docs/contracts/source-driver.md de94dbd537bf29edcb6450354e0b686be95757cb46c9dff287fd4417d31db972 -->
+<!-- contract docs/contracts/source-driver.md efada533842c5e79c2170a0c42ccd6c826fa21095f07274d923f580b20e21eb8 -->
 <!-- contract docs/contracts/unit-driver.md 07162598a8a264928373602ba954e00d94f973583ce4e6592494f758b8746401 -->
 <!-- contract schemas/status.v1.json 6e26927bbbf3eb22c42bd666c73c012c0332715909f9f4215842536080bb3f68 -->

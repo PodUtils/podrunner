@@ -66,3 +66,30 @@ fn a_job_that_failed_after_an_oom_kill_ends_with_limit() {
     let r = run(None, &format!("echo 0 > {}; exit 3", podrunner_fake::OOM_KILLS));
     assert_ne!(r.exit_reason, ExitReason::Limit, "{r:?}");
 }
+
+#[test]
+fn cpu_s_is_the_cpu_time_of_the_payload_within_its_tolerance() {
+    // T-520 (githome's G-06): one process burns 2 s of CPU, then the unit
+    // ends. The sampler reads it at each tick, and rounds up.
+    let started = std::time::Instant::now();
+    let mut bed = Bed::new(
+        // The fake payload runs no runner: no start event comes, so the
+        // deadline of the start must not end it first.
+        config("[deadlines]\nstart_s = 100000"),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])],
+        vec![KindSpec {
+            name: "fake",
+            slots: 1,
+            capability: capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory),
+            command: sh("timeout 2 sh -c 'while :; do :; done'; exit 0"),
+        }],
+    );
+    // Each tick takes 5 ms of real time: the loop needs 2 s.
+    bed.until(2000, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    let r = bed.slots.reports[0].clone();
+    let wall = started.elapsed().as_secs_f64();
+    let Some(Residual::Count(cpu)) = r.cpu_s else { panic!("no cpu_s: {r:?}") };
+    // The tolerance of the contract: 20 % or 1 s, the larger, of the CPU
+    // time of the payload (here at most the 2 s of the loop).
+    assert!((1..=3).contains(&cpu), "cpu_s {cpu} for 2 s of CPU in {wall:.1} s");
+}

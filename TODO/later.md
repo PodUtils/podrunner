@@ -11857,7 +11857,7 @@ Say it in `docs/security/residuals.md` and in the section of the run report of `
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11874,6 +11874,8 @@ Run a payload that burns a known CPU time on the podvm and microvm kinds in `run
 ## Prove
 
 `runner-image.yml`: the step of the CPU measure passes.
+
+In the code (2026-11-18): `docs/contracts/source-driver.md` names the tolerance of `cpu_s` (20 % or 1 s of the CPU time of the payload, the larger) and how each kind measures it. `cargo test -p podrunner-slots cpu_s_is_the_cpu_time_of_the_payload_within_its_tolerance`: a payload of the fake kind (its processes on the host, sampled as the podvm kind's) burns 2 s of CPU in one process, and `cpu_s` is 2 (three runs); the test takes 1 to 3. Open: the step of `runner-image.yml` on the podvm and microvm kinds of the Prove.
 
 # T-521: G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit
 

@@ -110,7 +110,12 @@ is done.
   T-534 (done), T-405 (done), T-482, T-483, T-485, T-488, T-515 (the
   podvm `0.2.0-beta.33` features, each open for its CI measure), T-506
   (the sandbox unit), T-510 (done: `CHANGES.md`; each commit that
-  changes a contract adds its row and runs `check-notes.sh --stamp`).
+  changes a contract adds its row and runs `check-notes.sh --stamp`),
+  T-511 (`[unit.fake] claim`), T-526 (the incus suites block), T-503,
+  T-505, T-519, T-522, T-492 (done; #65 and #66 rewritten), T-501
+  (`drain --source`; open: `stop --source`), T-502 (the slots test; open:
+  a conformance test), T-520 (the tolerance of `cpu_s`; open: the CI
+  measure).
 - CI to read first: `runner-image.yml` on `7319014` or later runs the new
   measures (T-485 `podrunner-incus --test engine`, T-488
   `podrunner-microvm --test pids`, T-493 `podvm.rs`). A red one is the
