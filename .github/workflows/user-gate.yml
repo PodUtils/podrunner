@@ -209,6 +209,13 @@ jobs:
             lab: sh scripts/lab/nonroot.sh --
             executors: ""
             podvm_lab: bind-denied,getsockname-denied
+          # The host class of githome's pool (T-527): incusd and KVM; the
+          # user is in the group of the socket of incusd. config init,
+          # check, doctor, print-unit and serve on each kind.
+          - lane: serve-incus-kvm
+            lab: sh scripts/lab/nonroot.sh --
+            executors: ""
+            serve_kinds: incus,microvm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -234,7 +241,7 @@ jobs:
           sudo install -d -m 1777 /opt/user-gate/out
       # The machine tier of podvm needs KVM and QEMU (as in runner-image.yml).
       - name: KVM and QEMU for --microvm
-        if: contains(matrix.executors, 'microvm')
+        if: contains(matrix.executors, 'microvm') || contains(matrix.serve_kinds, 'microvm')
         run: |
           set -eu
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -245,6 +252,17 @@ jobs:
           [ -e /dev/kvm ] && sudo chmod 0666 /dev/kvm
           sh scripts/retry.sh sudo apt-get -qq update
           sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends qemu-system-x86
+      # incusd from apt, with its defaults; the user of the lane is in the
+      # group of its socket and has no root (T-527).
+      - name: incus for the serve lane
+        if: contains(matrix.serve_kinds, 'incus')
+        run: |
+          set -eu
+          sh scripts/retry.sh sudo apt-get -qq update
+          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus dnsmasq-base
+          sudo incus admin init --minimal
+          id labuser >/dev/null 2>&1 || sudo useradd -m -s /bin/sh labuser
+          sudo usermod -aG incus-admin labuser
       - name: The lane, as a user with no root
         working-directory: /opt/user-gate/src
         env:
@@ -252,6 +270,7 @@ jobs:
           LAB: ${{ matrix.lab }}
           EXECUTORS: ${{ matrix.executors }}
           PODVM_LAB: ${{ matrix.podvm_lab }}
+          SERVE_KINDS: ${{ matrix.serve_kinds }}
           # The jobs of the corpus call the API of GitHub (setup-node, the
           # releases of tools): the token of this run (contents: read) keeps
           # them under the rate limit of a shared address (T-253).
@@ -260,7 +279,8 @@ jobs:
           set -eu
           # shellcheck disable=SC2086 # LAB is a command with its words.
           $LAB python3 -I scripts/user-gate.py lane --lane "$LANE" --assets /opt/user-gate/assets \
-            --out /opt/user-gate/out --executors "$EXECUTORS" --podvm-lab "${PODVM_LAB:-}"
+            --out /opt/user-gate/out --executors "$EXECUTORS" --podvm-lab "${PODVM_LAB:-}" \
+            --serve-kinds "${SERVE_KINDS:-}"
       - name: The results can be read
         if: always()
         run: sudo chmod -R a+rX /opt/user-gate/out
@@ -289,7 +309,7 @@ jobs:
           set +e
           # The lanes of the matrix of the job lanes: a lane with no results
           # fails the gate.
-          python3 -I scripts/user-gate.py summary --lanes plain,small-tmp,userns-off,inherited-fds,proxy-only,proxy-only-dns,bind-denied results > table.md
+          python3 -I scripts/user-gate.py summary --lanes plain,small-tmp,userns-off,inherited-fds,proxy-only,proxy-only-dns,bind-denied,serve-incus-kvm results > table.md
           rc=$?
           cat table.md | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$rc"

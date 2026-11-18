@@ -23,6 +23,7 @@ root: the lab scripts (scripts/lab/) make the user and the host class.
 import argparse
 import functools
 import http.server
+import json
 import os
 import pathlib
 import platform
@@ -155,6 +156,10 @@ class Lane:
             if e not in EXECUTORS:
                 raise SystemExit(f"no executor {e!r}")
         self.results: list[tuple[str, str, str]] = []
+        self.serve_kinds = [k for k in (a.serve_kinds or "").split(",") if k]
+        for k in self.serve_kinds:
+            if k not in ("incus", "microvm"):
+                raise SystemExit(f"no serve kind {k!r}")
         pins = read_pins(self.assets / "podrunner-install.sh")
         self.version, self.runner_version = pins["PODRUNNER_VERSION"], pins["RUNNER_VERSION"]
         arch = {"x86_64": "x86_64", "amd64": "x86_64", "aarch64": "aarch64", "arm64": "aarch64"}
@@ -551,6 +556,122 @@ class Lane:
         detail = f"rung of a unit with a volume: {rung.strip() or 'unknown'}; {words}"
         return ("xfail", f"{detail} (T-353, T-354)") if "=no" in words else detail
 
+    # The checks of `serve` (T-527): the host class of githome's pool, with
+    # incusd and KVM, as a user with no root.
+    def serve_config(self, kind: str) -> pathlib.Path:
+        """`config init` for KIND: a program source (the fake source of the
+        release) at the tier that KIND serves; the microvm kind also gets
+        the pin of a sandbox (T-506) and one sandbox offer."""
+        d = self.work / f"serve-{kind}"
+        d.mkdir(parents=True, exist_ok=True)
+        tier = "untrusted" if kind == "microvm" else "trusted"
+        script = d / "script"
+        offers = []
+        if kind == "microvm":
+            offer = {
+                "schema": 1, "job_id": "gate-sandbox", "source": "gate", "labels": [], "arch": self.arch,
+                "wait_deadline_s": 900,
+                "trust_inputs": {
+                    "event": "pull_request", "head_is_fork": "yes", "actor_class": "outside",
+                    "repo_visibility": "public", "owner": "example-org", "repo": "app", "run_id": 1,
+                    "ref": "refs/pull/1/merge", "workflow_ref": "w",
+                },
+                "sandbox": {"image": self.image, "command": ["sh", "-c", "echo podrunner-sandbox-ok"], "max_s": 600},
+            }
+            offers.append(json.dumps({"at_s": 0, "offer": offer}))
+        script.write_text("".join(f"{o}\n" for o in offers))
+        built = int(time.time())
+        manifest = self.assets / "podrunner-manifest.json"
+        if manifest.is_file():
+            images = json.loads(manifest.read_text())["runner"]["images"].get(self.arch, {})
+            digest = self.image.rpartition("@")[2]
+            built = next((i["built_at_s"] for i in images.values() if i and i.get("digest") == digest and i.get("built_at_s")), built)
+        out = d / "podrunner.toml"
+        argv = [
+            "podrunner", "config", "init", "--source", "gate", "--program", shutil.which("podrunner", path=self.env(self.home)["PATH"]),
+            "--arg", "fake-source", "--arg", "--script", "--arg", script, "--tier", tier, "--org", "example-org",
+            "--podvm", self.data / "bin" / "podvm", "--images", self.data / "images", "--image", self.image,
+            "--built-at-s", built, "--kinds", kind, "--host", f"gate-{kind}", "--out", out, "--json",
+        ]
+        rc, text = self.run(argv, self.env(self.home), d, f"serve-{kind}-init")
+        if rc:
+            self.show(f"serve-{kind}-init")
+            raise GateError(f"podrunner config init --kinds {kind}: exit {rc}")
+        got = json.loads(text.strip().splitlines()[-1])
+        if got.get("kinds") != [kind]:
+            raise GateError(f"config init: kinds {got.get('kinds')}, refused {got.get('refused')}")
+        if kind == "microvm":
+            with out.open("a") as f:
+                f.write(f'\n[[pin.payload]]\narch = "{self.arch}"\nreference = "{self.image}"\nbuilt_at_s = {built}\nsandbox = true\n')
+        return out
+
+    def serve_check(self, kind: str) -> str:
+        """config init, check, doctor --json (the boundary and the hold of
+        the kind) and print-unit."""
+        cfg = self.serve_config(kind)
+        env = self.env(self.home)
+        rc, _ = self.run(["podrunner", "check", "--config", cfg], env, cfg.parent, f"serve-{kind}-check")
+        if rc:
+            self.show(f"serve-{kind}-check")
+            raise GateError(f"podrunner check: exit {rc}")
+        rc, text = self.run(["podrunner", "doctor", "--config", cfg, "--json"], env, cfg.parent, f"serve-{kind}-doctor")
+        v = json.loads(text)
+        cap = next((k.get("capability") for k in v.get("kinds", []) if k.get("kind") == kind), None)
+        want = "guest" if kind == "microvm" else "confined"
+        if not cap or cap.get("boundary") != want:
+            raise GateError(f"doctor --json: the {kind} kind is {cap and cap.get('boundary')}, not {want}: {v.get('kinds')}")
+        if not all(src.get("served") for src in v.get("sources", [])):
+            raise GateError(f"doctor --json: a source is not served: {v.get('sources')}")
+        rc, unit = self.run(["podrunner", "print-unit", "--config", cfg, "--state", cfg.parent / "state",
+                             "--binary", shutil.which("podrunner", path=env["PATH"])], env, cfg.parent, f"serve-{kind}-unit")
+        if rc or "Type=notify" not in unit:
+            raise GateError(f"podrunner print-unit: exit {rc}")
+        return f"config init, check, doctor ({kind}: {want}, hold {cap.get('egress_hold')}), print-unit"
+
+    def serve_run(self, kind: str) -> str:
+        """`serve` with the kind: it starts, and the microvm kind runs the
+        sandbox offer to a report of `success`."""
+        cfg = self.work / f"serve-{kind}" / "podrunner.toml"
+        state = cfg.parent / "state"
+        env = self.env(self.home)
+        env.pop("NOTIFY_SOCKET", None)
+        log = self.out / "logs" / f"serve-{kind}.err"
+        journal = state / "journal.jsonl"
+        with log.open("w") as e:
+            p = subprocess.Popen(["podrunner", "serve", "--config", str(cfg), "--state", str(state)], cwd=cfg.parent,
+                                 env=env, stdout=subprocess.DEVNULL, stderr=e, start_new_session=True)
+            try:
+                end = time.monotonic() + (900 if kind == "microvm" else 60)
+                reported = None
+                while time.monotonic() < end and p.poll() is None:
+                    lines = journal.read_text().splitlines() if journal.is_file() else []
+                    done = [json.loads(x) for x in lines if '"reported"' in x]
+                    if done:
+                        reported = done[-1]
+                        break
+                    time.sleep(2)
+                alive = p.poll() is None
+            finally:
+                if p.poll() is None:
+                    os.killpg(p.pid, signal.SIGTERM)
+                    try:
+                        p.wait(timeout=120)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(p.pid, signal.SIGKILL)
+                        p.wait()
+        if kind != "microvm":
+            if not alive:
+                self.show(f"serve-{kind}", 100)
+                raise GateError(f"serve ended: exit {p.returncode}")
+            return "serve started and stopped on SIGTERM"
+        if not reported:
+            self.show(f"serve-{kind}", 200)
+            raise GateError("no report of the sandbox offer")
+        if reported.get("reason") != "success" or reported.get("unit_kind") != kind:
+            self.show(f"serve-{kind}", 200)
+            raise GateError(f"the sandbox offer: {reported}")
+        return f"serve ran the sandbox offer in a unit of {kind}: {reported.get('reason')}"
+
     def microvm_probe(self) -> str:
         """`podvm run --verbose` of the runner image on the machine tier, as
         the unit does it: the last lines name the cause of an early end
@@ -680,6 +801,7 @@ def lane(a) -> int:
         if errors:
             raise SystemExit("\n".join(errors))
     later = [f"hello:{e}" for e in g.executors] + (["errors"] if "runner-dir" in g.executors else []) + (["rung:podvm", "confine:podvm", "pids:podvm", "pty:podvm", "hold:podvm"] if "podvm" in g.executors else [])
+    later += [f"serve:{c}:{k}" for k in g.serve_kinds for c in ("check", "run")]
     later += [f"corpus:{r['id']}:{r['executor']}" for r in rows if g.wants(r)]
     try:
         if not g.check("serve", g.serve):
@@ -707,6 +829,11 @@ def lane(a) -> int:
                     g.check("pids:podvm", functools.partial(g.pids, "podvm"))
                     g.check("pty:podvm", g.pty)
                     g.check("hold:podvm", g.hold)
+                for k in g.serve_kinds:
+                    if g.check(f"serve:check:{k}", functools.partial(g.serve_check, k)):
+                        g.check(f"serve:run:{k}", functools.partial(g.serve_run, k))
+                    else:
+                        g.skip(f"serve:run:{k}", "the check of the configuration failed")
                 for r in rows:
                     if g.wants(r):
                         g.check(f"corpus:{r['id']}:{r['executor']}", functools.partial(g.corpus_row, r))
@@ -786,6 +913,7 @@ def main() -> int:
     ln.add_argument("--executors", default="podvm,runner-dir")
     ln.add_argument("--no-corpus", action="store_true")
     ln.add_argument("--podvm-lab", default="", metavar="PROFILES")
+    ln.add_argument("--serve-kinds", default="", metavar="KINDS")
     s = sub.add_parser("summary")
     s.add_argument("--lanes", default="")
     s.add_argument("dir")

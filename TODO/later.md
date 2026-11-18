@@ -12075,7 +12075,7 @@ In the code (2026-11-18): the incus step of `runner-image.yml` has no `continue-
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12092,6 +12092,8 @@ Add a lane `serve-incus-kvm`: install as a user with no root, then `check`, `doc
 ## Prove
 
 `user-gate.yml`: the lane passes.
+
+State (2026-11-18): `user-gate.yml` has the lane `serve-incus-kvm`: incusd from apt, KVM, and the user of the lane in the group `incus-admin` with no root. After the install, `scripts/user-gate.py` runs for each kind (`--serve-kinds incus,microvm`) the check `serve:check:KIND` (`config init` with the released fake source as its program source, `check`, `doctor --config --json` with the boundary `confined` for incus and `guest` for microvm and each source served, `print-unit`) and `serve:run:KIND` (`serve` starts and stops on SIGTERM; on microvm it runs one sandbox offer of the image to a report of `success` in the journal). A job of a runner through `serve` needs a broker: the released `pod-fake-github` of podcrates (PodUtils/podcrates@T-921, its next tag) gives one. Left: the green run of the lane, then one runner job on each kind with `pod-fake-github`.
 
 # T-528: No row of the user-path gate copies the gate of rbg
 
