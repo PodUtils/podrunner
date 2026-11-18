@@ -10632,9 +10632,9 @@ The issue of cfb, read on 2026-11-18. The parser refuses an unknown key (`deny_u
 **Source:** GitHub #292 (cfb, P-3), 2026-11-18
 **Category:** feature
 **Milestone:** later
-**Priority:** P3
+**Priority:** P2
 **Effort:** L
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -10646,17 +10646,13 @@ The issue of cfb, read on 2026-11-18. Not measured.
 
 ## Approach
 
-1. Take cfb's measure for each gate: `claim_to_first_step_s` of the run report, the time of the install steps on a cold unit, and the time with a restore.
-2. When it meets the trigger: a cache directory for each repository and trust class on the host, mounted read-write only into a trusted job of the default branch, read-only into each other trusted job, and into no untrusted job until a decision says otherwise. Each kind needs its own mount (a disk device of incus, a 9p mount of the guest).
+1. Take cfb's measure for each gate as the baseline: `claim_to_first_step_s` of the run report, the time of the install steps on a cold unit, and the time with a restore. The ruling of 2026-11-18 lifts the trigger of the non-goal, so the work does not wait for the measure.
+2. A cache directory for each repository and trust class on the host, mounted read-write only into a trusted job of the default branch, read-only into each other trusted job, and into no untrusted job until a decision says otherwise. Each kind needs its own mount (a disk device of incus, a 9p mount of the guest).
 3. A test: a file that an untrusted job writes is absent from the cache of the next trusted job.
 
 ## Prove
 
 The test of G-07 above, on each kind in `runner-image.yml`, and cfb's measure again with the cache.
-
-## Blocker
-
-The measure of cfb (GitHub #292, P-3): the trigger of the non-goal needs it.
 
 # T-481: The checkout of a job on the incus kind is proven by a test of the script only
 
