@@ -10870,7 +10870,7 @@ A job on real guests in `runner-image.yml` that forks past `pids` fails, and the
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10887,6 +10887,8 @@ Ask podcrates (COORD) that a change of a field of `run-report.v1` comes as a new
 ## Prove
 
 The answer of podcrates, and a line in `docs/releases/` of the next release that names the rule.
+
+State (2026-11-18): podcrates answered yes (COORD-134, PodUtils/podcrates#225; the README of `pod-job` of podcrates, "Versions of a record"): a field that changes its type, name, unit or meaning, a removed field and a new required field give a new schema id (`NAME.v2`) and a COORD issue `(to all)`; an added optional field keeps the id, and the hand-off COORD issue of its tag names it. Left: the line in the notes of the next release of podrunner.
 
 # T-490: Settle each open unknown of `docs/unknowns.md`
 

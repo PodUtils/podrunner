@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**489 entries: 55 open, 28 partial, 13 blocked, 393 done.**
+**489 entries: 54 open, 29 partial, 13 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 6 | 12 | 1 | 62 | 81 |
 | P2 | 14 | 12 | 9 | 209 | 244 |
-| P3 | 35 | 4 | 3 | 122 | 164 |
-| **All** | 55 | 28 | 13 | 393 | 489 |
+| P3 | 34 | 5 | 3 | 122 | 164 |
+| **All** | 54 | 29 | 13 | 393 | 489 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -533,7 +533,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-486](later.md) | P1 | M | later | feature | open | G-04: the egress verdicts of a unit do not reach the source of the job |
 | [T-487](later.md) | P2 | L | later | feature | open | G-11: warm units from a pinned golden image |
 | [T-488](later.md) | P2 | M | later | feature | open | G-12: the microvm kind enforces no limit of processes |
-| [T-489](later.md) | P3 | S | later | chore | open | githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version |
+| [T-489](later.md) | P3 | S | later | chore | partial | githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version |
 | [T-490](later.md) | P1 | L | later | research | open | Settle each open unknown of `docs/unknowns.md` |
 | [T-491](later.md) | P1 | M | later | research | open | Lift each limit and non-goal that a need of githome or cfb names |
 | [T-492](later.md) | P2 | S | later | docs | open | The trackers of githome and cfb and the state pages name an old release |
