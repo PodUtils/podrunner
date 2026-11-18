@@ -11426,6 +11426,8 @@ The answer on a COORD issue, and `cargo test --workspace` on the take of the tag
 
 State (2026-11-18): answered by COORD-087 (GitHub #294): the types and files at `3a0cbbb`, the stable fields (each field of `3a0cbbb` is the `v1` form), and the names and units of the new fields of G-15, G-16, G-17, G-18, G-19, G-20, G-36 and G-04, from the calls of Q-1 to Q-8. Left: take the tag of podcrates that carries them, and read the schemas from `pod-job`.
 
+State (2026-11-18, later): podcrates took the answer (PodUtils/podcrates@T-922, PodUtils/podcrates@T-923, podcrates `main` `1da8fcc9`; COORD-135 closed). Its two calls: the source wire moves to `pod-job` after T-486, T-493 and T-495 land, so that each change lands once (the coordinator confirms the order at the start of the next session); `limits.disk` as a size where a kind can enforce it keeps the meaning "the disk limit of the job in bytes", the enforcement of each kind is in `unit-capability.v1`, so the id stays `v1` (podrunner agrees).
+
 # T-509: G-38: a test of githome's source in podrunner's CI that blocks a release
 
 **Source:** githome's G-38 on GitHub #292 (2026-11-18T07:22Z, before githome's pause); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
@@ -11476,6 +11478,8 @@ A file `CHANGES.md` (one line for each change of such a contract, with its relea
 ## Prove
 
 `sh scripts/check-notes.sh --latest` fails on a planted change of `docs/contracts/source-driver.md` with no line, and passes with it.
+
+Note (2026-11-18): when the source wire moves to `pod-job` (T-508), the lines of `CHANGES.md` for the records of `pod-job` move to the change file of the schemas of podcrates (the call of podcrates on COORD-135).
 
 # T-511: G-40: each fake and tool that githome's tests need, as a release asset
 
