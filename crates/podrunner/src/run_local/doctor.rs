@@ -165,6 +165,10 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
                 .map_err(|e| format!("bind 127.0.0.1:0: {e}; {}", podrunner_local::exec::BIND_FIX)),
         },
     ));
+    // The host paths that a unit kind mounts (T-476).
+    if a.podvm.is_some() || a.guest.is_some() {
+        out.push(check("host-paths", super::dry::mounted(a).map(|()| "no ':' in a mounted path".to_string())));
+    }
     // Each path of a flag (T-321): a file to read, or a directory to use.
     let files = [
         ("--secret-file", &a.secret_file),

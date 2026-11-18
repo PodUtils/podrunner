@@ -406,6 +406,7 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     // A configuration that cannot be used fails before the state directory
     // is made (T-339 item 19).
     let cfg = check(config)?;
+    crate::tiers::state_path(&cfg, state)?;
     let _lock = crate::lock::StateLock::take(state)?;
     let slots = build(cfg, state)?;
     if slots.no_tier_served() {

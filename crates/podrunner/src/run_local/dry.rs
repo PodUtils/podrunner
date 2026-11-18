@@ -44,6 +44,7 @@ pub(super) fn paths(a: &Args) -> Result<(), String> {
     {
         return Err(format!("--actions {}: not a directory; --offline reads the actions from it", d.display()));
     }
+    mounted(a)?;
     let dirs = [
         ("--actions", a.actions.as_ref().filter(|_| !a.offline)),
         ("--artifacts", a.artifacts.as_ref()),
@@ -59,8 +60,44 @@ pub(super) fn paths(a: &Args) -> Result<(), String> {
     Ok(())
 }
 
+/// The host paths that a unit kind mounts with a `-v` of podvm, which
+/// takes no ':' (T-476): the scratch of the run in TMPDIR, `--toolcache`,
+/// `--export` and `--engine`. A run names one before its first job.
+pub(super) fn mounted(a: &Args) -> Result<(), String> {
+    if a.podvm.is_none() && a.guest.is_none() {
+        return Ok(());
+    }
+    let tmp = std::env::temp_dir();
+    let paths = [
+        ("TMPDIR", Some(&tmp)),
+        ("--toolcache", a.toolcache.as_ref()),
+        ("--export", a.export.as_ref()),
+        ("--engine", a.engine.as_ref()),
+    ];
+    for (what, p) in paths {
+        if let Some(p) = p {
+            podrunner_unit::mounts::host_path(p, podrunner_unit::UnitCode::UnitStartFailed)
+                .map_err(|e| format!("{what}: {}", e.detail))?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
+    /// T-476: a host path with a ':' that a unit kind mounts fails the
+    /// checks of the run; with `--runner-dir` it mounts nothing.
+    #[test]
+    fn a_mounted_path_with_a_colon_is_named() {
+        let a =
+            super::Args { podvm: Some("/bin/true".into()), export: Some("/tmp/a:b".into()), ..super::Args::default() };
+        let e = super::mounted(&a).unwrap_err();
+        assert!(e.starts_with("--export: the host path /tmp/a:b has a ':'"), "{e}");
+        let host =
+            super::Args { runner_dir: Some("/r".into()), export: Some("/tmp/a:b".into()), ..super::Args::default() };
+        assert!(super::mounted(&host).is_ok());
+    }
+
     /// #264: a dry run names a `--vnet` that builds no shim (a program that
     /// is not podnet, a `.so` that is not a library), not `planned`.
     #[test]

@@ -45,6 +45,11 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     {
         return Err(fail(Class::Config, "[unit.microvm] engine: no dockerd in the directory"));
     }
+    // The engine is a host path of a `-v` of podvm, which takes no ':' (T-476).
+    if let Some(e) = &u.engine {
+        podrunner_unit::mounts::host_path(Path::new(e), podrunner_unit::UnitCode::UnitStartFailed)
+            .map_err(|e| fail(Class::Config, format!("[unit.microvm] engine: {}", e.detail)))?;
+    }
     if u.pids.is_some() {
         return Err(fail(Class::Config, "[unit.microvm] pids: a guest holds no limit of processes"));
     }

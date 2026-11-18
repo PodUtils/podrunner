@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**475 entries: 42 open, 28 partial, 13 blocked, 392 done.**
+**475 entries: 41 open, 28 partial, 13 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
 | P2 | 4 | 12 | 9 | 209 | 234 |
-| P3 | 35 | 4 | 3 | 121 | 163 |
-| **All** | 42 | 28 | 13 | 392 | 475 |
+| P3 | 34 | 4 | 3 | 122 | 163 |
+| **All** | 41 | 28 | 13 | 393 | 475 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -520,6 +520,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-473](later.md) | P3 | S | later | chore | open | Take `pod_core::clock` in place of the crate `podrunner-clock` |
 | [T-474](later.md) | P2 | M | later | chore | open | Take `pod_proxy::env` for the proxy environment of a unit |
 | [T-475](later.md) | P3 | S | later | defect | open | A `uses:` with an empty part runs on GitHub and is refused here |
-| [T-476](later.md) | P3 | S | later | defect | open | A `:` in TMPDIR or in an option path fails each job start, not `check` |
+| [T-476](later.md) | P3 | S | later | defect | done | A `:` in TMPDIR or in an option path fails each job start, not `check` |
 | [T-477](later.md) | P3 | S | later | defect | done | An audit line that fails half way leaves a fragment, and the next line joins it |
 | [T-478](later.md) | P2 | S | later | defect | done | The build of the runner image fails when public.ecr.aws refuses the pull of its base image |

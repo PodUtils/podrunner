@@ -10519,7 +10519,7 @@ Measure one such `uses:` in the live workflow. If GitHub runs it, drop the empty
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10536,6 +10536,10 @@ Check the state directory, `TMPDIR`, `--toolcache`, `--export` and the `engine` 
 ## Prove
 
 `cargo test --workspace`; a test with `TMPDIR=/tmp/a:b` and `--microvm`.
+
+## Done
+
+2026-11-18: The checks of `podrunner run` (also a dry run) and the check `host-paths` of `doctor --run` name a `:` in TMPDIR, `--toolcache`, `--export` or `--engine` of a unit kind (`dry.rs` `mounted`); `check` and `serve` name it in the `engine` of `[unit.microvm]`, and `serve` in a `--state` of a kind of podvm (`tiers.rs` `state_path`), each with the line of the drivers. Test: `mounted` with a podvm and with a runner directory. Measured: the binary with TMPDIR of a `:` fails the dry run with exit 78, and `doctor --run` gives `FAIL host-paths`.
 
 # T-477: An audit line that fails half way leaves a fragment, and the next line joins it
 

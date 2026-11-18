@@ -84,6 +84,17 @@ pub fn file_closed(path: &std::path::Path) -> Result<(), Failure> {
     Ok(())
 }
 
+/// The state directory holds the unit directories that a kind of podvm
+/// mounts with `-v`, which takes no ':' (T-476): `serve` refuses such a
+/// path before the first job, not at the start of each one.
+pub fn state_path(cfg: &podrunner_slots::config::Config, state: &std::path::Path) -> Result<(), crate::serve::Failure> {
+    if !cfg.unit.keys().any(|k| matches!(k.as_str(), "podvm" | "microvm" | "incus")) {
+        return Ok(());
+    }
+    podrunner_unit::mounts::host_path(state, podrunner_unit::UnitCode::UnitStartFailed)
+        .map_err(|e| crate::serve::fail(pod_core::failure::Class::Config, format!("--state: {}", e.detail)))
+}
+
 #[cfg(test)]
 mod tests {
     /// T-409: a configuration that another user can write is refused.
