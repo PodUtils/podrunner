@@ -1,13 +1,15 @@
 //! A small HTTP/1.1 reader and writer for the control socket of a unit: one
 //! request for each connection, a `Content-Length` body of at most
-//! [`BODY_MAX`], no chunked body, and bounded lines.
+//! [`BODY_MAX`], and no chunked body. The head is read by
+//! `pod_core::http1` (podcrates `v0.72.0`): each reader of PodUtils has the
+//! same bounds and refuses the same heads.
 
-use std::io::{BufRead, Read, Write};
+use std::io::{BufRead, Write};
+
+use pod_core::http1::{self, Bounds, MAX_HEAD, RequestError};
 
 use crate::input::BODY_MAX;
 
-/// The longest request line and header line.
-const LINE_MAX: usize = 8 * 1024;
 /// The most header lines.
 const HEADERS_MAX: usize = 64;
 
@@ -30,14 +32,36 @@ pub struct Request {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HttpError(pub u16, pub &'static str);
 
-fn line(r: &mut impl BufRead) -> Result<String, HttpError> {
-    let mut buf = Vec::new();
-    let n = r.take(LINE_MAX as u64 + 1).read_until(b'\n', &mut buf).map_err(|_| HttpError(400, "a read failed"))?;
-    if n > LINE_MAX || !buf.ends_with(b"\n") {
-        return Err(HttpError(400, "a line is too long or has no end"));
+impl From<RequestError> for HttpError {
+    fn from(e: RequestError) -> HttpError {
+        match e {
+            RequestError::Gone(_) => HttpError(400, "the request has no end"),
+            RequestError::TooLarge => HttpError(431, "the head is too large"),
+            RequestError::Malformed { status: 505, .. } => HttpError(505, "another version of HTTP"),
+            RequestError::Malformed { status, .. } => HttpError(status, "a bad request head"),
+        }
     }
-    let text = String::from_utf8(buf).map_err(|_| HttpError(400, "a line is not UTF-8"))?;
-    Ok(text.trim_end_matches(['\r', '\n']).to_string())
+}
+
+/// The bytes of the head, to its empty line and not a byte further: the
+/// body stays in `r`.
+fn head(r: &mut impl BufRead) -> Result<Vec<u8>, HttpError> {
+    let bounds = Bounds { bytes: MAX_HEAD, lines: HEADERS_MAX + 1 };
+    let mut buf = Vec::new();
+    loop {
+        let more = r.fill_buf().map_err(|_| HttpError(400, "a read failed"))?;
+        if more.is_empty() {
+            return Err(RequestError::Gone("end of stream".into()).into());
+        }
+        let (old, n) = (buf.len(), more.len());
+        buf.extend_from_slice(more);
+        if let Some((_, end)) = http1::find_request(&buf, bounds)? {
+            r.consume(end - old);
+            buf.truncate(end);
+            return Ok(buf);
+        }
+        r.consume(n);
+    }
 }
 
 /// Read one request.
@@ -48,77 +72,42 @@ pub fn read_request(r: &mut impl BufRead) -> Result<Request, HttpError> {
 /// Read one request with a body of at most `max` bytes: the fake broker
 /// takes the blocks of an artifact (8 MiB each from the blob client).
 pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, HttpError> {
-    let first = line(r)?;
-    // The path goes into logs and onto a terminal: no escape sequence.
-    if first.chars().any(char::is_control) {
-        return Err(HttpError(400, "a control character in the request line"));
-    }
-    let mut parts = first.split(' ');
-    let (Some(method), Some(path), Some(version), None) = (parts.next(), parts.next(), parts.next(), parts.next())
-    else {
-        return Err(HttpError(400, "a bad request line"));
-    };
+    let h = http1::parse_request(&head(r)?)?;
     // The origin form `/PATH`, or the absolute form `http://HOST/PATH` of a
     // request through a proxy (the front of a guest of the local mode).
-    let absolute = path.starts_with("http://") || path.starts_with("https://");
-    if !matches!(version, "HTTP/1.1" | "HTTP/1.0") || !(path.starts_with('/') || absolute) {
+    let path = &h.target;
+    if !(path.starts_with('/') || path.starts_with("http://") || path.starts_with("https://")) {
         return Err(HttpError(400, "a bad request line"));
     }
-    let mut length: Option<usize> = None;
-    let mut range = None;
-    let mut ws_key = None;
-    let mut authorization = None;
-    for i in 0.. {
-        let h = line(r)?;
-        if h.is_empty() {
-            break;
-        }
-        if i >= HEADERS_MAX {
-            return Err(HttpError(431, "too many headers"));
-        }
-        let (name, value) = h.split_once(':').ok_or(HttpError(400, "a bad header"))?;
-        match name.trim().to_ascii_lowercase().as_str() {
-            "content-length" => {
-                if length.is_some() {
-                    return Err(HttpError(400, "two lengths"));
-                }
-                length = Some(value.trim().parse().map_err(|_| HttpError(400, "a bad length"))?);
-            }
-            "transfer-encoding" => return Err(HttpError(501, "no chunked body")),
-            "range" => range = Some(value.trim().to_string()),
-            "sec-websocket-key" => ws_key = Some(value.trim().to_string()),
-            "authorization" => authorization = Some(value.trim().to_string()),
-            _ => {}
-        }
+    if h.has("transfer-encoding") {
+        return Err(HttpError(501, "no chunked body"));
     }
-    let length = length.unwrap_or(0);
+    let mut lengths = h.headers.iter().filter(|(n, _)| n == "content-length").map(|(_, v)| v);
+    let length = match (lengths.next(), lengths.next()) {
+        (None, _) => 0,
+        (Some(v), None) => v.parse().map_err(|_| HttpError(400, "a bad length"))?,
+        (Some(_), Some(_)) => return Err(HttpError(400, "two lengths")),
+    };
     if length > max {
         return Err(HttpError(413, "the body is too large"));
     }
     let mut body = vec![0; length];
     r.read_exact(&mut body).map_err(|_| HttpError(400, "the body is short"))?;
-    Ok(Request { method: method.into(), path: path.into(), body, range, ws_key, authorization })
+    let field = |n: &str| h.header(n).map(str::to_string);
+    Ok(Request {
+        method: h.method.clone(),
+        path: h.target.clone(),
+        body,
+        range: field("range"),
+        ws_key: field("sec-websocket-key"),
+        authorization: field("authorization"),
+    })
 }
 
 /// Write one response, with extra headers, and close.
 pub fn write_response(w: &mut impl Write, status: u16, headers: &[(&str, String)], body: &[u8]) -> std::io::Result<()> {
-    let reason = match status {
-        200 => "OK",
-        201 => "Created",
-        202 => "Accepted",
-        206 => "Partial Content",
-        400 => "Bad Request",
-        401 => "Unauthorized",
-        403 => "Forbidden",
-        404 => "Not Found",
-        405 => "Method Not Allowed",
-        409 => "Conflict",
-        413 => "Content Too Large",
-        416 => "Range Not Satisfiable",
-        431 => "Request Header Fields Too Large",
-        501 => "Not Implemented",
-        _ => "Error",
-    };
+    // The phrase of 200 in `pod_core::http1` is the one of a CONNECT.
+    let reason = if status == 200 { "OK" } else { http1::reason(status) };
     let mut head = format!("HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nConnection: close\r\n", body.len());
     for (k, v) in headers {
         head.push_str(&format!("{k}: {v}\r\n"));

@@ -12302,3 +12302,32 @@ Give each test a directory that goes when the test ends, also on a panic (a guar
 ## Prove
 
 Two runs of `cargo test --workspace` leave no new directory `/tmp/podrunner-*`.
+
+# T-536: Take `pod_core::http1` in place of the reader of an HTTP/1.1 head of podrunner-hook
+
+**Source:** podcrates `v0.72.0` (COORD-138, PodUtils/podcrates#229; PodUtils/podcrates@T-882; COORD-131, the ruling "Shared code"), 2026-11-18
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`crates/podrunner-hook/src/http.rs` reads the head of a request by its own lines and checks. The control socket of a unit, the fake broker, the remote gate and the web front of the local mode use it. Two readers that read one head two ways can let a request past one of them.
+
+## Premise
+
+`pod-core/src/http1` at `v0.72.0`, read on 2026-11-18.
+
+## Approach
+
+Read the head to its empty line with `pod_core::http1::find_request` (the body stays in the reader), parse it with `parse_request`, and keep the checks of podrunner: the form of the path, no `Transfer-Encoding`, one `Content-Length`, the bound of the body. The reason phrases come from `http1::reason`.
+
+## Prove
+
+`cargo test -p podrunner-hook`, `cargo test -p podrunner-broker-fake`, `cargo test -p podrunner-remote`.
+
+## Done
+
+2026-11-18: `http.rs` reads the head with `pod_core::http1` (at most 16 KiB and 65 lines). Changes of the answers: another version of HTTP gets 505 (was 400), and a head over 16 KiB gets 431 (a line over 8 KiB got 400). `the_reader_holds_its_limits` holds the new statuses. `cargo test -p podrunner-hook` passes; the full `check.sh` passes.

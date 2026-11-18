@@ -51,7 +51,7 @@ fn the_reader_holds_its_limits() {
         ("POST /x HTTP/1.1\r\nContent-Length: 9999999\r\n\r\n", 413),
         ("POST /x HTTP/1.1\r\nContent-Length: 5\r\n\r\n{}", 400),
         ("POST x HTTP/1.1\r\n\r\n", 400),
-        ("POST /x HTTP/2\r\n\r\n", 400),
+        ("POST /x HTTP/2\r\n\r\n", 505),
         ("POST /x HTTP/1.1\r\nno colon\r\n\r\n", 400),
         ("POST /x HTTP/1.1", 400),
         // T-406: no escape sequence of a terminal in a path.
@@ -62,8 +62,8 @@ fn the_reader_holds_its_limits() {
     ] {
         assert_eq!(req(text).unwrap_err().0, status, "{text:?}");
     }
-    let long = format!("POST /{} HTTP/1.1\r\n\r\n", "a".repeat(9000));
-    assert_eq!(req(&long).unwrap_err().0, 400);
+    let long = format!("POST /{} HTTP/1.1\r\n\r\n", "a".repeat(17_000));
+    assert_eq!(req(&long).unwrap_err().0, 431);
     let many = format!("POST /x HTTP/1.1\r\n{}\r\n", "A: b\r\n".repeat(70));
     assert_eq!(req(&many).unwrap_err().0, 431);
 }
