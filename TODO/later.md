@@ -11565,7 +11565,7 @@ The job in `runner-image.yml` (or its own workflow) passes on `main`, and `relea
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11584,6 +11584,10 @@ The census of T-491 (2026-11-18): the changes of a contract on `main` since `v0.
 ## Prove
 
 `sh scripts/check-notes.sh --latest` fails on a planted change of `docs/contracts/source-driver.md` with no line, and passes with it.
+
+## Done
+
+2026-11-18, the commit that names T-510. `CHANGES.md` has one row for each change of a contract since `v0.1.0-beta.7` (the wire, the report, the control socket, the keys, the command line, the assets, the pins), under `## next`, and the SHA-256 of each contract file (`docs/contracts/*.md`, `schemas/*.json`). `scripts/check-notes.sh` (in `check.sh`, `gate.yml` and `release.yml`) fails when a contract file differs from its stamp (`--stamp` writes the stamps after the row), and refuses the notes of a release after the base with no section of its tag or with rows left under `## next`. `docs/maintenance.md`, "A release", step 5. Measured: `sh scripts/check-notes.sh --latest` fails with a line planted in `docs/contracts/source-driver.md` and passes with the file restored; the notes of a planted `v0.1.0-beta.8` fail with `## next` and pass with a section `## v0.1.0-beta.8`. `sh scripts/shellcheck.sh scripts/check-notes.sh`: clean.
 
 Note (2026-11-18): when the source wire moves to `pod-job` (T-508), the lines of `CHANGES.md` for the records of `pod-job` move to the change file of the schemas of podcrates (the call of podcrates on COORD-135).
 

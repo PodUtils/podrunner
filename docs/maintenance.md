@@ -174,6 +174,10 @@ comes only after each step below holds on the commit of the release
    a P1 or P2 finding blocks the release.
 4. The notes of the release say, for each claim, the level of its proof:
    CI, a constrained host, or not run.
+5. `CHANGES.md` has a section of the tag of the release: rename
+   `## next` to it (T-510). Each commit that changes a contract adds its
+   row under `## next` in the same commit. `scripts/check-notes.sh`
+   refuses the notes of a release with no such section.
 
 ### The user-path gate
 
