@@ -8,6 +8,19 @@ use crate::cli::{Opts, Out, USAGE, err, ok, opts};
 use crate::control::{self, Reply, Request};
 use crate::text::display;
 
+/// `source restart --name NAME`: `serve` builds the source again from its
+/// table, with its key file of now, and keeps its jobs (T-498).
+pub(crate) fn source_restart(rest: &[String]) -> Result<Out, Out> {
+    let o = opts(rest)?;
+    o.only(&["--name", "--state", "--socket"])?;
+    let source = o.need("--name")?.display().to_string();
+    let reply = control::call(&o.socket()?, &Request::RestartSource { source }).map_err(|e| no_socket(&o, e))?;
+    match reply {
+        Reply::Ok { value } => Ok(ok(format!("{value}\n"))),
+        Reply::Error { code, detail } => Err(err(Class::Refused, format!("{}: {}", display(&code), display(&detail)))),
+    }
+}
+
 /// `stop --wait`: ask for the stop, then wait until no `serve` holds the
 /// lock of the state directory (GitHub #54). A timeout is exit 75.
 pub(crate) fn stop_wait(rest: &[String]) -> Result<Out, Out> {

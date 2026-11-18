@@ -61,6 +61,7 @@ fn now_unix() -> u64 {
 pub(crate) mod front;
 #[path = "serve/host.rs"]
 mod host;
+mod restart;
 #[path = "serve/sources.rs"]
 mod sources;
 pub(crate) use sources::{private_file, source_of};
@@ -115,12 +116,18 @@ fn resolve(cfg: &Config) -> Result<Arc<dyn pod_core::Resolve>, Failure> {
 
 /// Build the supervisor of a configuration.
 pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
+    build_with(cfg, state).map(|(slots, _)| slots)
+}
+
+/// Build the supervisor, and what builds one of its sources again.
+fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Failure> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     // One origin for the slots and the signer: their lines of `t_ms` share
     // one time line.
     let origin = clock.now();
     let resolve = resolve(&cfg)?;
     let lookup: podrunner_remote::transport::Lookup = Arc::new(podrunner_egress::dns::lookup(resolve.clone()));
+    let rebuild = restart::Rebuild::new(&cfg, clock.clone(), origin, Some(lookup.clone()));
     let mut sources = Vec::new();
     for s in &cfg.source {
         sources.push(Source {
@@ -234,7 +241,7 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     }
     let hooks = crate::hooks::HooksOf::new(policies);
     slots.set_hooks(Box::new(hooks));
-    Ok(slots.with_egress(Box::new(EgressOf::new(egress, ttl))))
+    Ok((slots.with_egress(Box::new(EgressOf::new(egress, ttl))), rebuild))
 }
 
 /// The hold of a kind behind an upstream that does not refuse a
@@ -315,6 +322,7 @@ impl podrunner_slots::EgressPort for EgressOf {
 
 struct Supervisor {
     slots: Slots,
+    rebuild: restart::Rebuild,
     stop: bool,
 }
 
@@ -342,6 +350,10 @@ impl Handler for Supervisor {
                 self.slots.clear_degraded();
                 Reply::Ok { value: Value::from("cleared") }
             }
+            Request::RestartSource { source } => match self.rebuild.restart(&mut self.slots, source) {
+                Ok(()) => Reply::Ok { value: Value::from("restarted") },
+                Err(e) => Reply::error("refused", e),
+            },
             Request::Withdraw { .. } => {
                 Reply::error("unsupported", "withdraw of one job comes with the scale-set source (GitHub #29)")
             }
@@ -365,7 +377,7 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     crate::tiers::state_path(&cfg, state)?;
     let _lock = crate::lock::StateLock::take(state)?;
     let tools = host::tools(&cfg);
-    let mut slots = build(cfg, state)?;
+    let (mut slots, mut rebuild) = build_with(cfg, state)?;
     if slots.no_tier_served() {
         eprintln!("podrunner: no-tier-served: no unit kind meets the floor of a source");
     }
@@ -374,6 +386,7 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     for why in slots.hello_sources("podrunner", env!("CARGO_PKG_VERSION"), &facts) {
         eprintln!("podrunner: hello: {why}");
     }
+    rebuild.facts = Some(facts);
     let listener = control::bind(socket).map_err(|e| {
         let class = if e.kind() == std::io::ErrorKind::AlreadyExists { Class::Usage } else { Class::Unavailable };
         fail(class, format!("the control socket: {e}"))
@@ -383,7 +396,7 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     crate::notify::install();
     crate::notify::send("READY=1");
     let watchdog = crate::notify::watchdog();
-    let mut sup = Supervisor { slots, stop: false };
+    let mut sup = Supervisor { slots, rebuild, stop: false };
     let (mut next, mut ping, mut stopping) = (Instant::now(), Instant::now(), false);
     loop {
         if crate::notify::take_signal() && !sup.stop {
@@ -395,6 +408,9 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
         }
         if Instant::now() >= next {
             sup.slots.tick();
+            for line in sup.rebuild.watch(&mut sup.slots) {
+                eprintln!("podrunner: source {line}");
+            }
             next = next_tick(next, Instant::now());
             // The `status` for a client while a later tick waits on a
             // source (T-184).

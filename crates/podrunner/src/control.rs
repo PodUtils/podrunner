@@ -33,6 +33,11 @@ pub enum Request {
     Withdraw {
         job_id: String,
     },
+    /// Build the source `source` again from the configuration, with its
+    /// key file of now, and keep its jobs (T-498).
+    RestartSource {
+        source: String,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -78,6 +83,7 @@ pub fn parse(line: &[u8]) -> Result<Request, Reply> {
     map.remove("v");
     let fields: &[&str] = match map.get("op").and_then(Value::as_str) {
         Some("withdraw") => &["op", "job_id"],
+        Some("restart-source") => &["op", "source"],
         _ => &["op"],
     };
     if map.keys().any(|k| !fields.contains(&k.as_str())) {

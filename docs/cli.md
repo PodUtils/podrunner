@@ -23,6 +23,7 @@ this build or command has not.
 | `podrunner stop ...` | Drain, then end when each job is final. |
 | `podrunner stop --wait --state DIR [--timeout SECONDS]` | Also wait until `serve` has ended (the lock of `DIR` is free). A timeout exits 75. |
 | `podrunner clear-degraded ...` | Start jobs again after the operator looked at a residue. |
+| `podrunner source restart --name NAME ...` | Build the source `NAME` again from its `[[source]]` table, with its key file of now (a new key of a program source: its program starts again), and keep each job of the source: no drain (T-498). A source that does not build or refuses `hello` keeps the old one, and the command exits 77 with the cause. A source that answered `source-revoked` gets no job (`revoked` in `status`) and starts again by itself when its key file changes: one try for each change. |
 | `podrunner audit verify (--state DIR \| --file FILE) [--anchor SEQ:HASH]` | Walk the chain of `audit.jsonl`: each line has `seq` and `prev` (the SHA-256 of the line before). A lost, edited or torn line exits 76 and names the `seq`. A cut tail needs the anchor: the `seq` of a line and the `prev` of the next line in the copy at the source. |
 | `podrunner doctor [--config FILE] [--json]` | With the file: the capability record of each unit kind through its driver binary, the hold of `[unit.podvm] podnet`, and for each source whether a kind meets the floor and the hold of its tier. Always: the Landlock ABI, `/dev/kvm`, and the rows of `pod-hostprobe` that the drivers need (user namespaces, mount, chroot, KVM, Landlock), each in a disposable child of the binary. It names each input that is missing and changes nothing (call C9). |
 | `podrunner doctor [--json] --run FILE [the options of run]` | The checks of a local run before it starts (T-153), with the flags of the configuration files of `run` first, as `run` takes them (T-143, T-202): the limit of file size (T-144), the free disk of the scratch directory, the workflow and its lock file, the runner directory, the podvm binary and its lowest version for the kind, the store, `/dev/kvm` for `--microvm`, the engine directory and podnet. One line for each check: `ok` or `FAIL` with its fix; with `--json` (before or after `--run`), one object `{"ok", "checks": [{"name", "ok", "text"}]}` (T-342). Nothing changes. Exit 0, or 1 when a check fails. |
@@ -43,7 +44,7 @@ delays no tick of the supervisor. A request is one line, `{"v": 1, "op": ...}`, 
 line, `{"v": 1, "reply": "ok", "value": ...}` or
 `{"v": 1, "reply": "error", "code": ..., "detail": ...}`. The operations:
 `version`, `status`, `drain`, `stop`, `capacity`, `clear-degraded`,
-`withdraw`. `crates/podrunner/src/control.rs` sits behind the trait
+`withdraw`, `restart-source` (field `source`). `crates/podrunner/src/control.rs` sits behind the trait
 `Handler`, so that `pod-control` of podcrates can replace it with no change
 of the wire.
 

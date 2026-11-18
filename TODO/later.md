@@ -11214,7 +11214,7 @@ State (2026-11-18): `log_tail` is filled for a unit that started and ended with 
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11232,7 +11232,11 @@ The census of T-491 (2026-11-18): the code parks a revoked source (`revoked` in 
 
 ## Prove
 
-`cargo test -p podrunner --test serve`: a change of the key and `source restart` keep each running job; a revoked key shows `revoked` in `status --json` with no loop of restarts.
+`cargo test -p podrunner --test serve_restart`: a change of the key and `source restart` keep each running job; a revoked key shows `revoked` in `status --json` with no loop of restarts.
+
+## Done
+
+2026-11-18, the commit that names T-498. Measured first: a revoked source stayed parked and was never started again (no loop; `revoked` in `engine.rs` was never cleared). Now `podrunner source restart --name NAME (--state DIR | --socket PATH)` (the control op `restart-source`) builds the source again from its table with its key file of now, sends it `hello` with the facts of the host, and puts it in the place of the old one (`Slots::replace_source`): each job of the source stays, and `revoked` clears. A source that does not build or refuses `hello` keeps the old one (exit 77). Each tick, a revoked source whose key file changed since it was built starts again by itself: one try for each change, so a bad key gives no loop (`crates/podrunner/src/serve/restart.rs`). `docs/cli.md` has the command. `cargo test -p podrunner --test serve_restart`: 2 passed (`source_restart_keeps_the_running_job`: a restart while the job runs, the job is reported, no `lost`, an unknown name exits 77; `a_revoked_source_waits_for_a_new_key_file`: `revoked` stays 3 s with the same key, then a new key file starts the source again, one line). The second fails with no watch of the key file. The process test uses the fake source with a key file: a program source needs a tier above `local`, which the fake unit does not serve; both kinds go through `source_of`. Level: proven here with fakes.
 
 # T-499: G-23: the runner of a GitHub job stays inside GitHub's window of updates
 

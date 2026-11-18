@@ -1,7 +1,9 @@
 //! The facts of the kinds of this host for its sources (T-495), and the
 //! `hello` that gives them.
 
-use podrunner_source::{HostFacts, KindFacts};
+use podrunner_source::{HostFacts, JobSource, KindFacts};
+
+use crate::config::SourceConfig;
 
 use crate::engine::Slots;
 
@@ -24,6 +26,26 @@ impl Slots {
                 }
             })
             .collect()
+    }
+
+    /// The configuration of the source `name`.
+    pub fn source_config(&self, name: &str) -> Option<SourceConfig> {
+        self.sources.iter().find(|s| s.cfg.name == name).map(|s| s.cfg.clone())
+    }
+
+    /// The names of the sources that revoked podrunner.
+    pub fn revoked_sources(&self) -> Vec<String> {
+        self.sources.iter().filter(|s| s.revoked).map(|s| s.cfg.name.clone()).collect()
+    }
+
+    /// Put `source` in the place of the source `name` (T-498): a new key
+    /// with no drain. Each job of the source stays; its next call goes to
+    /// the new one, and the source gets capacity again.
+    pub fn replace_source(&mut self, name: &str, source: Box<dyn JobSource>) -> Result<(), String> {
+        let s = self.sources.iter_mut().find(|s| s.cfg.name == name).ok_or_else(|| format!("no source {name:?}"))?;
+        s.source = source;
+        s.revoked = false;
+        Ok(())
     }
 
     /// Send `hello` with `host` to each source. One line for each source
