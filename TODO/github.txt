@@ -219,7 +219,7 @@
 213 issue open
 214 issue closed
 215 issue closed
-216 issue open
+216 issue closed
 217 issue closed
 218 issue closed
 219 issue closed

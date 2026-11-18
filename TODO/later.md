@@ -7068,7 +7068,7 @@ In the code (2026-11-17): `less` is in the base package list of `images/runner/D
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -7087,6 +7087,10 @@ Ask podvm by a COORD issue `(to podvm)` to mount a new `devpts` instance (`newin
 `cargo test -p podrunner`; a probe step in `runner-image.yml` (`python3 -c "import pty; pty.spawn(['/bin/true'])"`).
 
 In the code (2026-11-18): podvm `0.2.0-beta.32` mounts a devpts instance of the unit and its `ptmx` on the namespace rung (COORD-185, PodUtils/podvm#572); podrunner pins it. `runner-image.yml` has the step "A pty in a podvm unit": `run -d` of the runner image, then `pty.spawn` of Python and `script` through `podvm exec`. Open: the green run of that step; then close GitHub #216.
+
+## Done
+
+2026-11-18, `f348c47` (the step) and the next commit (the check of the gate). `runner-image.yml` run 44302792725: the step "A pty in a podvm unit" passed on x86_64 and aarch64 (`pty.spawn` of Python and `script` through `podvm exec` in a unit of `run -d`, on the namespace rung of a GitHub-hosted runner). The user-path gate has the check `pty:podvm` (`scripts/user-gate.py`, `pty`): a step runs `script`; a failure on a rung other than the namespace rung is an xfail that names the rung, as `pids:podvm`. `sh scripts/test-install.sh`: 14 passed. Level: proven in CI on GitHub-hosted runners; the other rungs wait for the next run of `user-gate.yml`.
 
 
 # T-355: A failed route of the egress module is reported as a host that the policy refused

@@ -430,6 +430,37 @@ class Lane:
             raise GateError("a step on the namespace rung sees a process of the host (T-318)")
         return "xfail", f"rung {rung}: a unit has no PID namespace there; a step sees the processes of the user"
 
+    def pty(self):
+        """A step opens a pty in a podvm unit (a user QA, finding F3, T-354).
+        podvm 0.2.0-beta.32 or later mounts a devpts of the unit on the
+        namespace rung: on another rung a failure is an xfail that names the
+        rung."""
+        src = self.work / "pty"
+        shutil.rmtree(src, ignore_errors=True)
+        (src / ".github" / "workflows").mkdir(parents=True)
+        (src / ".github" / "workflows" / "pty.yml").write_text(
+            "on: push\njobs:\n  pty:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - run: |\n"
+            # The text of the step holds no answer: the log echoes the step.
+            "          command -v script >/dev/null || { echo \"a pty: no tool\"; exit 0; }\n"
+            "          r=open; script -qec 'echo x' /dev/null >/dev/null 2>&1 || r=\"not $r\"; echo \"a pty: $r\"\n"
+        )
+        ok, detail = self.podrunner([".github/workflows/pty.yml", *self.flags("podvm")], src, "pty-podvm", True)
+        logs = "".join(j.read_text(errors="replace") for j in (self.out / "logs" / "pty-podvm").glob("*/job.log"))
+        said = re.findall(r"a pty: (no tool|not open|open)\s*$", logs, re.M)
+        if not ok or not said:
+            raise GateError(f"the job did not say if it has a pty ({detail})")
+        if said[-1] == "no tool":
+            return "xfail", "the image of the unit has no `script`"
+        doctor = (self.out / "logs" / "pty-podvm-doctor.out").read_text(errors="replace")
+        m = re.search(r"rung: (\S+?):", doctor)
+        rung = m.group(1) if m else "unknown"
+        if said[-1] == "open":
+            return f"a step opens a pty (rung {rung})"
+        if rung == "namespace":
+            raise GateError("a step on the namespace rung opens no pty (T-354)")
+        return "xfail", f"rung {rung}: a unit has no devpts there"
+
     def hold(self):
         """The egress hold of `run.toml` (its `podnet` and `allow` lines): a
         step reaches an allowed host through the seccomp hold of podnet and
@@ -648,7 +679,7 @@ def lane(a) -> int:
         rows, errors = read_table(TABLE)
         if errors:
             raise SystemExit("\n".join(errors))
-    later = [f"hello:{e}" for e in g.executors] + (["errors"] if "runner-dir" in g.executors else []) + (["rung:podvm", "confine:podvm", "pids:podvm", "hold:podvm"] if "podvm" in g.executors else [])
+    later = [f"hello:{e}" for e in g.executors] + (["errors"] if "runner-dir" in g.executors else []) + (["rung:podvm", "confine:podvm", "pids:podvm", "pty:podvm", "hold:podvm"] if "podvm" in g.executors else [])
     later += [f"corpus:{r['id']}:{r['executor']}" for r in rows if g.wants(r)]
     try:
         if not g.check("serve", g.serve):
@@ -674,6 +705,7 @@ def lane(a) -> int:
                     g.check("rung:podvm", g.rung)
                     g.check("confine:podvm", functools.partial(g.confine, "podvm"))
                     g.check("pids:podvm", functools.partial(g.pids, "podvm"))
+                    g.check("pty:podvm", g.pty)
                     g.check("hold:podvm", g.hold)
                 for r in rows:
                     if g.wants(r):

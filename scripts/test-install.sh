@@ -49,11 +49,11 @@ case "$1 ${2:-}" in
     "doctor --run") echo "ok   workflow: $3" ;;
     "doctor ") echo "kvm: no"; echo "probe unshare(CLONE_NEWUSER): ok"; echo "missing: --config: no unit kind" ;;
     "run "*)
-        # A job log in --log-dir, as a run writes it (the check pids:podvm
-        # of the gate reads it).
+        # A job log in --log-dir, as a run writes it (the checks pids:podvm
+        # and pty:podvm of the gate read it).
         ld=; prev=
         for x in "$@"; do [ "$prev" != --log-dir ] || ld=$x; prev=$x; done
-        [ -z "$ld" ] || { mkdir -p "$ld/job.0" && echo "host pid: not seen" > "$ld/job.0/job.log"; }
+        [ -z "$ld" ] || { mkdir -p "$ld/job.0" && printf 'host pid: not seen\na pty: open\n' > "$ld/job.0/job.log"; }
         echo "ok      hello" ;;
     *) echo "podrunner 9.9.9-test" ;;
 esac

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**529 entries: 79 open, 34 partial, 12 blocked, 404 done.**
+**529 entries: 79 open, 33 partial, 12 blocked, 405 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
 | P1 | 17 | 15 | 2 | 64 | 98 |
-| P2 | 22 | 13 | 7 | 214 | 256 |
+| P2 | 22 | 12 | 7 | 215 | 256 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 79 | 34 | 12 | 404 | 529 |
+| **All** | 79 | 33 | 12 | 405 | 529 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -398,7 +398,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-351](later.md) | P1 | M | later | defect | partial | The egress module resolves each name itself, so a host with DNS only through its proxy gets 502 for each fetch and each allowed host |
 | [T-352](later.md) | P3 | S | later | defect | open | `image verify` cannot verify the runner image of the release |
 | [T-353](later.md) | P2 | M | later | defect | partial | The runner image has no `less` |
-| [T-354](later.md) | P2 | M | later | defect | partial | A podvm unit has no devpts: `openpty` fails |
+| [T-354](later.md) | P2 | M | later | defect | done | A podvm unit has no devpts: `openpty` fails |
 | [T-355](later.md) | P2 | M | later | defect | partial | A failed route of the egress module is reported as a host that the policy refused |
 | [T-356](later.md) | P2 | M | later | defect | done | A run does not check `--toolcache` before its first unit |
 | [T-357](later.md) | P3 | S | later | defect | open | `--state FILE` is named as `--artifacts`; a `--log-dir` with a missing parent does not name the parent |

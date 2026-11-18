@@ -101,8 +101,8 @@ is done.
   T-493, T-494, T-486, T-495; amend COORD-088 when T-486, T-493 and T-495
   are done (the move of the schemas, T-508).
 - podvm `0.2.0-beta.32` is pinned (COORD-185, PodUtils/podvm#572): the
-  environment goes to podvm in a file (T-405, partial), a pty step in `runner-image.yml` (T-354, partial:
-  close #216 when it is green). T-403 waits for `--podvm-volume-base` on
+  environment goes to podvm in a file (T-405, partial), a pty step in `runner-image.yml` and the check
+  `pty:podvm` of the user-path gate (T-354, done; #216 closed). T-403 waits for `--podvm-volume-base` on
   the rungs with containers (COORD-090, #300). #110 waits for the measure
   of T-162. podvm answered COORD-089 (#296) with COORD-187
   (PodUtils/podvm#583); `--pids-limit` of a guest (T-488) is in its next

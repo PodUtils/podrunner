@@ -215,7 +215,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #213 | v0.1.0-beta.7 pins podnet 0.4.0-beta.13, but the vnet forward needed by #170 is in 0.4.0-beta.14 | open (podnet `0.4.0-beta.17` pinned; the forward is T-220) | T-350 |
 | #214 | COORD-077: pod-actions-workflow: the error of an unknown need marks the job, not its needs: (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-859) | T-331 |
 | #215 | COORD-078: pod-broker: names_upstream still resolves the name itself, so a host whose DNS is only through its proxy refuses each CONNECT (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-862) | T-351 |
-| #216 | COORD-079: a podvm unit has no /dev/pts: pty.spawn and script fail, and pager tests fail (to podvm) | open (podvm answered on PodUtils/podvm#470: pod-enter of podcrates, PodUtils/podvm#469; PodUtils/podvm@T-1934) | T-354 |
+| #216 | COORD-079: a podvm unit has no /dev/pts: pty.spawn and script fail, and pager tests fail (to podvm) | closed (podvm `0.2.0-beta.32` mounts a devpts of the unit; the pty step of `runner-image.yml` passed) | T-354 |
 | #217 | COORD-080: the answer to PodUtils/podnet#649 (COORD-102): #213, #142, and what podrunner's gate proves (to podnet) | closed (podnet read it, PodUtils/podnet#649) | T-372, T-371, T-245, T-179 |
 | #218 | `--runner-dir` writes the runner files, a private key with them, at mode 0644 | closed (fixed on `main`; the entry is done) | T-373 |
 | #219 | `--state` writes the outputs of the jobs into a file that each user can read | closed (fixed on `main`; the entry is done) | T-374 |
