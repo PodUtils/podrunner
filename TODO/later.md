@@ -10749,12 +10749,12 @@ podssh, podnet, podvm and podcrates sign one `SHA256SUMS` file of each release w
 
 ## Premise
 
-`.github/workflows/release.yml`, read on 2026-11-18, and the note of cfb on GitHub #292.
+`.github/workflows/release.yml`, read on 2026-11-18, the note of cfb on GitHub #292, and the answer of podcrates to C-2 of PodUtils/podcrates#223: podssh, podnet, podvm and podcrates publish `SHA256SUMS` with a keyless cosign bundle `SHA256SUMS.sigstore.json`.
 
 ## Approach
 
-1. In `release.yml`, write `SHA256SUMS` of each asset, and sign it with `cosign sign-blob --bundle SHA256SUMS.sigstore` (keyless, the identity of the workflow), as the other projects do; keep the `.sha256` files and the attestations.
-2. Name the check in `docs/install.md`: `cosign verify-blob --bundle SHA256SUMS.sigstore --certificate-identity-regexp '^https://github.com/PodUtils/podrunner/' --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS`, then `sha256sum -c SHA256SUMS`.
+1. In `release.yml`, write `SHA256SUMS` of each asset, and sign it with `cosign sign-blob --bundle SHA256SUMS.sigstore.json` (keyless, the identity of the workflow), with the file names of the other projects; keep the `.sha256` files and the attestations.
+2. Name the check in `docs/install.md`: `cosign verify-blob --bundle SHA256SUMS.sigstore.json --certificate-identity-regexp '^https://github.com/PodUtils/podrunner/' --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS`, then `sha256sum -c SHA256SUMS`.
 3. The installer can check the sums file when `cosign` exists.
 
 ## Prove
