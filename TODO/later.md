@@ -4334,7 +4334,7 @@ podvm found the cause (PodUtils/podvm#439): a volume of the unit puts the run on
 
 The rows `click-py313` and `rq-lint` on `podvm` pass in the user-path gate.
 
-In the code (2026-11-18): podvm `0.2.0-beta.32` holds the raw system calls of a run on the userland rung with `--podvm-tier=syscall` (PodUtils/podvm#470, COORD-185). The podvm kind adds the flag to `run -d` of a unit where the probe names the userland rung (`labels::tier_args`, test `the_syscall_tier_holds_the_userland_rung_only`). Open: the next run of `user-gate.yml`; when the rows `click-py313` and `rq-lint` on `podvm` pass, set them `ok` in `scripts/corpus/user-gate.tsv` and close GitHub #189.
+In the code (2026-11-18): podvm `0.2.0-beta.32` holds the raw system calls of a run on the userland rung with `--podvm-tier=syscall` (PodUtils/podvm#470, COORD-185). The podvm kind adds the flag to `run -d` of a unit where the probe names the userland rung (`labels::tier_args`, test `the_syscall_tier_holds_the_userland_rung_of_x86_64_only`). The tier runs on podvm's native-static rung, which is x86_64 only: `runner-musl.yml` on aarch64 got exit 125 for the flag on `8ec7d87`, so an aarch64 host gets no flag, and uv and ruff keep the fault there. Open: the next run of `user-gate.yml`; when the rows `click-py313` and `rq-lint` on `podvm` pass, set them `ok` in `scripts/corpus/user-gate.tsv` and close GitHub #189.
 
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
@@ -10606,6 +10606,9 @@ The steps "Build the OCI archive" and "The larger runner image by label" of `run
 ## Done
 
 2026-11-17: both Dockerfiles start `ARG BASE_REGISTRY=public.ecr.aws/docker` and `FROM ${BASE_REGISTRY}/library/...@sha256:...`; mirror.gcr.io serves both digests (checked: 200 for each index). `scripts/build-image.sh` builds from the first registry that serves the image and names it; a test with a fake `docker` gives mirror.gcr.io after a refusal of public.ecr.aws, and exit 1 with a line when each registry fails. The three builds use it. Not run yet in CI.
+
+2026-11-18: the same class hit the pull of Alpine in `runner-musl.yml` (`toomanyrequests` on `8ec7d87`). `scripts/pull-base.sh` pulls a base image pinned by its digest from the first of public.ecr.aws, mirror.gcr.io and Docker Hub that serves it, and prints the reference; the Alpine step runs it. Proven with a fake `docker` that refuses public.ecr.aws (the digest comes from mirror.gcr.io), one that refuses each registry (exit 1), and a reference that is not pinned (exit 2).
+
 
 # T-479: A JSON Schema of `podrunner.toml` for a program that writes the file
 

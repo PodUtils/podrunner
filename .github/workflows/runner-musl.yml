@@ -80,7 +80,9 @@ jobs:
       - name: The musl runner runs the canned jobs in Alpine
         run: |
           set -eu
-          docker run --rm --network host -v "$LAYOUT:/layout:ro" -v "$RUNNER_TEMP/t:/t:ro" "$ALPINE" sh -euc '
+          # A second registry when public.ecr.aws answers 429 (T-478).
+          alpine=$(sh scripts/pull-base.sh "$ALPINE")
+          docker run --rm --network host -v "$LAYOUT:/layout:ro" -v "$RUNNER_TEMP/t:/t:ro" "$alpine" sh -euc '
             for f in /lib/ld-linux* /lib64/ld-linux*; do test ! -e "$f"; done
             apk add --no-cache -q bash icu-libs krb5-libs libgcc libssl3 libstdc++ zlib openssl git
             cp -a /layout /runner

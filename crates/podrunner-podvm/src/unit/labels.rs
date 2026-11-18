@@ -48,8 +48,17 @@ const SYSCALL_TIER: &str = "0.2.0-beta.32";
 /// `--podvm-tier=syscall` for `run -d` of a unit where podvm takes the
 /// userland rung: each raw system call (`renameat2` of `rustix`, as uv and
 /// ruff issue it) goes to podvm's handler, and `exec` enters the same tier
-/// (T-261, PodUtils/podrunner#189). The rung of each binary is kept.
+/// (T-261, PodUtils/podrunner#189). The tier runs on podvm's native-static
+/// rung, which is x86_64 only: on another host podvm refuses the flag
+/// (runner-musl.yml on aarch64). The rung of each binary is kept.
 pub(super) fn tier_args(podvm: &crate::Podvm) -> &'static [&'static str] {
+    tier_args_on(podvm, std::env::consts::ARCH)
+}
+
+fn tier_args_on(podvm: &crate::Podvm, arch: &str) -> &'static [&'static str] {
+    if arch != "x86_64" {
+        return &[];
+    }
     static SEEN: std::sync::Mutex<std::collections::BTreeMap<std::path::PathBuf, bool>> =
         std::sync::Mutex::new(std::collections::BTreeMap::new());
     let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
@@ -155,12 +164,14 @@ mod tests {
     }
 
     /// T-261: the syscall tier on the userland rung of podvm beta.32 or
-    /// later, and nowhere else.
+    /// later on x86_64, and nowhere else (podvm refuses it on aarch64).
     #[test]
-    fn the_syscall_tier_holds_the_userland_rung_only() {
-        assert_eq!(super::tier_args(&stand_in("0.2.0-beta.32", "userland")), ["--podvm-tier=syscall"]);
-        assert!(super::tier_args(&stand_in("0.2.0-beta.32", "namespace")).is_empty());
-        assert!(super::tier_args(&stand_in("0.2.0-beta.30", "userland")).is_empty());
+    fn the_syscall_tier_holds_the_userland_rung_of_x86_64_only() {
+        let on = super::tier_args_on;
+        assert_eq!(on(&stand_in("0.2.0-beta.32", "userland"), "x86_64"), ["--podvm-tier=syscall"]);
+        assert!(on(&stand_in("0.2.0-beta.32", "userland"), "aarch64").is_empty());
+        assert!(on(&stand_in("0.2.0-beta.32", "namespace"), "x86_64").is_empty());
+        assert!(on(&stand_in("0.2.0-beta.30", "userland"), "x86_64").is_empty());
     }
 
     /// T-159: a process that ended after the list is no orphan.
