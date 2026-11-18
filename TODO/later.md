@@ -8960,7 +8960,7 @@ Look for `actions/checkout` in the called workflows too, and read them from the 
 
 ## Done
 
-2026-11-17: With no `--checkout`, the default checkout also looks in each called workflow of `./PATH` (to 10 levels), and a call of another repository takes the tree when there is one; a called workflow of `./PATH` comes from the tree of the project, not the current directory (`run_local/checkout_root.rs`). The end-to-end test (`tests/local.rs`) runs from a subdirectory of a git tree, and the checkout of the called workflow gets the tree.
+2026-11-17: With no `--checkout`, the default checkout also looks in each called workflow of `./PATH` (to 10 levels), and a call of another repository takes the tree when there is one; a called workflow of `./PATH` comes from the tree of the project, not the current directory (`run_local/checkout_root.rs`). The end-to-end test (`tests/local.rs`) runs from a subdirectory of a git tree, and the checkout of the called workflow gets the tree. Its first CI run (level2 44203198207) failed: an earlier test of `tests/local.rs` held the lock of the runner directory in the test process, and the child process of this test could not take it. The test is now in `tests/local_subdir.rs`, a test binary of its own, which level2 and `check.sh` run.
 
 # T-422: The stand-in of `actions/checkout` needs `curl` in a job container
 
@@ -9139,7 +9139,7 @@ Map a caller to the cells of its called jobs in the state.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9156,6 +9156,10 @@ Give each workflow a directory of its own under DIR, or refuse the pair.
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: A directory run gives each workflow `DIR/NAME` for each flag of an output directory (`--artifacts`, `--state`, `--log-dir`, `--export`, `--rerun`; `many.rs` `outputs`), so no workflow writes over another. Tests: `outputs` in `many.rs`; the end-to-end test (`tests/local.rs`, the official runner) runs two workflows with `--state` and reads both states.
 
 # T-429: A line of a secret, var or env file with `<<` in its value is refused
 

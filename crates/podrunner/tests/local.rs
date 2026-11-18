@@ -189,51 +189,6 @@ fn a_protected_environment_holds_a_called_job_and_an_expression() {
     let _ = std::fs::remove_dir_all(&scratch);
 }
 
-/// T-421: with no `--checkout`, a run from a subdirectory of a git tree
-/// reads a called workflow from the top of the tree, and the checkout of
-/// that called workflow gets the tree.
-#[test]
-#[ignore]
-fn a_checkout_in_a_called_workflow_gets_the_tree() {
-    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
-    let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
-    let scratch = std::env::temp_dir().join(format!("podrunner-local-called-checkout-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&scratch);
-    std::fs::create_dir_all(scratch.join(".github/workflows")).unwrap();
-    std::fs::create_dir_all(scratch.join("sub")).unwrap();
-    std::fs::write(scratch.join("marker.txt"), "tree\n").unwrap();
-    std::fs::write(
-        scratch.join(".github/workflows/main.yml"),
-        "on: push\njobs:\n  call:\n    uses: ./.github/workflows/build.yml\n",
-    )
-    .unwrap();
-    std::fs::write(
-        scratch.join(".github/workflows/build.yml"),
-        "on: workflow_call\njobs:\n  b:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n      \
-         - run: test -f marker.txt\n",
-    )
-    .unwrap();
-    let git = |args: &[&str]| {
-        let ok = std::process::Command::new("git").arg("-C").arg(&scratch).args(args).status().unwrap().success();
-        assert!(ok, "git {args:?}");
-    };
-    git(&["init", "-q", "-b", "main"]);
-    git(&["add", "-A"]);
-    git(&["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "t"]);
-    let out = std::process::Command::new(env!("CARGO_BIN_EXE_podrunner"))
-        .current_dir(scratch.join("sub"))
-        .args(["run", "../.github/workflows/main.yml", "--runner-dir", &dir, "-q", "--actions"])
-        .arg(scratch.join("store"))
-        .stdin(std::process::Stdio::null())
-        .output()
-        .unwrap();
-    let (stdout, stderr) = (String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
-    println!("{stdout}{stderr}");
-    assert!(out.status.success(), "{stdout}{stderr}");
-    assert!(stdout.lines().any(|l| l.starts_with("ok") && l.contains("call / b")), "{stdout}");
-    let _ = std::fs::remove_dir_all(&scratch);
-}
-
 /// T-425: the checkout of the local tree keeps the submodules of its
 /// `submodules:`, and leaves each other one an empty directory.
 #[test]
@@ -305,4 +260,35 @@ fn a_checkout_keeps_the_submodules_that_it_asks_for() {
     assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
     assert!(out.stderr.contains("git submodule update --init --recursive"), "{}", out.stderr);
     let _ = std::fs::remove_dir_all(&base);
+}
+
+/// T-428: a directory run with `--state` keeps the state of each workflow
+/// in a directory of its own.
+#[test]
+#[ignore]
+fn a_directory_run_keeps_the_state_of_each_workflow() {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
+    let scratch = std::env::temp_dir().join(format!("podrunner-local-many-state-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    let flows = scratch.join("flows");
+    std::fs::create_dir_all(&flows).unwrap();
+    for name in ["a", "b"] {
+        let text = format!("on: push\njobs:\n  {name}:\n    runs-on: x\n    steps: [{{run: echo {name}}}]\n");
+        std::fs::write(flows.join(format!("{name}.yml")), text).unwrap();
+    }
+    let state = scratch.join("state");
+    let args: Vec<String> =
+        ["run", flows.to_str().unwrap(), "--runner-dir", &dir, "-q", "--state", state.to_str().unwrap()]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+    let out = podrunner::cli::run(&args);
+    println!("{}{}", out.stdout, out.stderr);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    for (name, job) in [("a.yml", "\"a.0\""), ("b.yml", "\"b.0\"")] {
+        let s = std::fs::read_to_string(state.join(name).join("state.json")).unwrap();
+        assert!(s.contains(job), "{name}: {s}");
+    }
+    let _ = std::fs::remove_dir_all(&scratch);
 }

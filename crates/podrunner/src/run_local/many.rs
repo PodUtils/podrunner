@@ -79,6 +79,9 @@ pub(super) fn run_dir(args: &[String], a: &Args) -> Out {
         }
         let mut one = args.to_vec();
         one[at] = file.display().to_string();
+        // Each workflow keeps its output in a directory of its own under
+        // the directory of each flag (T-428); the last value of a flag wins.
+        one.extend(outputs(a, &name));
         super::emit(&mut out.stdout, &head(a.json, &name, None));
         let o = run(&one);
         // The text of `--list`, `--graph` and `--validate` after its own
@@ -88,6 +91,23 @@ pub(super) fn run_dir(args: &[String], a: &Args) -> Out {
         out.code = out.code.max(o.code);
     }
     out
+}
+
+/// The flags of the output of the workflow `name` of a directory run:
+/// `DIR/NAME` for each flag of an output directory.
+fn outputs(a: &Args, name: &str) -> Vec<String> {
+    let flags = [
+        ("--artifacts", &a.artifacts),
+        ("--state", &a.state),
+        ("--log-dir", &a.log_dir),
+        ("--export", &a.export),
+        ("--rerun", &a.rerun),
+    ];
+    flags
+        .into_iter()
+        .filter_map(|(f, d)| d.as_ref().map(|d| [f.to_string(), d.join(name).display().to_string()]))
+        .flatten()
+        .collect()
 }
 
 /// The line of one workflow of a directory: `--- NAME`, or a JSON object
@@ -128,6 +148,15 @@ mod tests {
         let out = run(&[empty.display().to_string(), "--dry-run".into()]);
         assert!(out.stderr.contains("no workflow"), "{}", out.stderr);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-428: each output flag of a directory run names a directory of
+    /// the workflow under it.
+    #[test]
+    fn each_workflow_of_a_directory_has_its_own_outputs() {
+        let a = Args { artifacts: Some("/o/art".into()), state: Some("/o/state".into()), ..Args::default() };
+        assert_eq!(outputs(&a, "ci.yml"), ["--artifacts", "/o/art/ci.yml", "--state", "/o/state/ci.yml"]);
+        assert!(outputs(&Args::default(), "ci.yml").is_empty());
     }
 
     /// T-131: a call of a workflow of the tree plans the jobs of that
