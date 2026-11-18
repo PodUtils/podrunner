@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**482 entries: 47 open, 28 partial, 14 blocked, 393 done.**
+**489 entries: 54 open, 28 partial, 14 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 3 | 12 | 1 | 62 | 78 |
-| P2 | 10 | 12 | 9 | 209 | 240 |
-| P3 | 34 | 4 | 4 | 122 | 164 |
-| **All** | 47 | 28 | 14 | 393 | 482 |
+| P1 | 6 | 12 | 1 | 62 | 81 |
+| P2 | 13 | 12 | 9 | 209 | 243 |
+| P3 | 35 | 4 | 4 | 122 | 165 |
+| **All** | 54 | 28 | 14 | 393 | 489 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -530,3 +530,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-483](later.md) | P2 | M | later | defect | open | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
 | [T-484](later.md) | P2 | S | later | release | open | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
 | [T-485](later.md) | P2 | M | later | feature | open | The incus kind has no container route, though G-02 asks for an engine in the system container |
+| [T-486](later.md) | P1 | M | later | feature | open | G-04: the egress verdicts of a unit do not reach the source of the job |
+| [T-487](later.md) | P2 | L | later | feature | open | G-11: warm units from a pinned golden image |
+| [T-488](later.md) | P2 | M | later | feature | open | G-12: the microvm kind enforces no limit of processes |
+| [T-489](later.md) | P3 | S | later | chore | open | githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version |
+| [T-490](later.md) | P1 | L | later | research | open | Settle each open unknown of `docs/unknowns.md` |
+| [T-491](later.md) | P1 | M | later | research | open | Lift each limit and non-goal that a need of githome or cfb names |
+| [T-492](later.md) | P2 | S | later | docs | open | The trackers of githome and cfb and the state pages name an old release |

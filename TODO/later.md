@@ -10787,3 +10787,187 @@ Read from the code and the documents on 2026-11-18. Not measured.
 ## Prove
 
 The parity suite of the engine (`services:`, a job container, a Docker action, a Dockerfile action) passes on real incus instances in `runner-image.yml`.
+
+# T-486: G-04: the egress verdicts of a unit do not reach the source of the job
+
+**Source:** githome on GitHub #66 (the live run of 2026-11-15: "The audit lines of a unit do not reach the source yet") and on GitHub #151; the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome stores the audit lines of each job (`job_id`, `host`, `port`, `verdict`, `bytes`, `rule`, `at`), the first 1000 of a job, and shows them on the job page (G-04). slots sends its own audit lines to the source (`crates/podrunner-slots/src/audit.rs`), but the verdicts of the egress module of a unit (each connection, allowed or denied, with its host, port, bytes and rule) go only to `tracing` and to the stderr of `serve` (`crates/podrunner-egress/src/denials.rs`). The source sees no egress verdict.
+
+## Premise
+
+Read from the code and from the comments of githome on 2026-11-18. Not measured live.
+
+## Approach
+
+1. Take the audit lines of `pod-broker` for each job (the sink of the module), and give each one to `audit` of the source of the job, in the form that githome stores, with no data of a request beyond the host, the port, the verdict, the bytes and the rule.
+2. A cap for each job (githome keeps 1000), and a count of the lines that the cap dropped.
+3. The run report keeps its form.
+
+## Prove
+
+A test of slots with a fake source and a fake egress sink: an allowed and a denied connection of a job give two `audit` calls to its source, and no call to another source. Then githome's pair run shows the lines on the job page.
+
+# T-487: G-11: warm units from a pinned golden image
+
+**Source:** githome's G-11 (GitHub #66) and cfb's A-X-01 ("a warm golden image", "warm pool"; GitHub #65); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Each job waits for a fresh unit to start: podvm, a guest of the machine tier (about 30 s), or an incus instance. githome (G-11) and cfb (A-X-01) ask for units that start from a pinned golden image and wait warm, so that the time from claim to first step is short. `docs/non-goals.md` lists warm units as a non-goal of v1; the ruling of 2026-11-18 lifts it.
+
+## Premise
+
+Read from GitHub #65 and #66 on 2026-11-18. Not measured: the time of a cold start of each kind on cfb's host (`claim_to_first_step_s`).
+
+## Approach
+
+1. Measure `claim_to_first_step_s` of each kind in `runner-image.yml` and on cfb's first host.
+2. Design: a warm unit is fresh (no job ran in it), from the pinned image, with no credential and no egress until a claim; each unit still runs one job and is destroyed. Decide the count of warm units for each kind and what a warm unit holds of the host (memory of a guest).
+3. Build it behind `UnitDriver` (a `prepare` before the claim), with the unit tests of a fresh unit.
+
+## Prove
+
+The measure of step 1 before and after (`claim_to_first_step_s` of the run report); the conformance suite of `crates/podrunner-unit` on a warm unit (no file of an earlier job, no credential before the mint).
+
+# T-488: G-12: the microvm kind enforces no limit of processes
+
+**Source:** githome's G-12 (GitHub #66); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+G-12 asks for limits of CPU, memory and processes on container and microVM units. The `microvm` kind applies the memory and the vCPUs of its guest, but refuses `pids` (`docs/configuration.md`, "The limits of a unit"). cfb now runs each GitHub job on the `microvm` kind, so no job of cfb has a limit of processes.
+
+## Premise
+
+Read from `docs/configuration.md` on 2026-11-18.
+
+## Approach
+
+Apply `pids` in the guest: the guest script sets a cgroup `pids.max` (or `RLIMIT_NPROC` of `runner`) before the runner starts. If the guest of podvm gives no way, ask podvm by a COORD issue.
+
+## Prove
+
+A job on real guests in `runner-image.yml` that forks past `pids` fails, and the guest and the host stay up.
+
+# T-489: githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version
+
+**Source:** githome and cfb on GitHub #292 (P-7); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** chore
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome stores `cpu_s` and `peak_rss_mib` of each `run-report.v1`, and cfb shows the CI time of each project from them. Both ask that the fields stay in a versioned schema. The schema belongs to podcrates (`pod-job`), and the ruling of 2026-11-05 allows a change of a field in any version.
+
+## Premise
+
+GitHub #292, read on 2026-11-18. cfb pins a version and needs no promise; githome asks for one.
+
+## Approach
+
+Ask podcrates (COORD) that a change of a field of `run-report.v1` comes as a new schema id, with a COORD issue to all; name each change of the report in the notes of the podrunner release that takes it.
+
+## Prove
+
+The answer of podcrates, and a line in `docs/releases/` of the next release that names the rule.
+
+# T-490: Settle each open unknown of `docs/unknowns.md`
+
+**Source:** the ruling of the owner of 2026-11-18 ("researching/lifting all current unknowns+limits")
+**Category:** research
+**Milestone:** later
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+`docs/unknowns.md` holds open unknowns: U6, U7, U8, U11, U12, U14, U17, U18, U20, U22 and U23 wait for a live job (T-040); U9 is not measured on the long poll of github.com; U16 is deferred; U26 (a job of another architecture in an emulated guest) is "no for now". githome and cfb build on the answers.
+
+## Premise
+
+`docs/unknowns.md`, read on 2026-11-18. The live runs that can settle them: LIVE-1 and LIVE-2 (GitHub #74, #75), githome's pair run (GitHub #151) and the acceptance run of A-X-01 on cfb's first host (GitHub #292, C1 to C5).
+
+## Approach
+
+1. For each open unknown, name the run that settles it (a live gate, githome's pair, cfb's host, or a measure in CI), and give that run a step that records it.
+2. Measure in CI each one that needs no live forge.
+3. U26: ask podvm for the state of the foreign guest (PodUtils/podvm#366).
+4. Write each answer into `docs/unknowns.md`, and an entry for each defect that an answer shows.
+
+## Prove
+
+`docs/unknowns.md` has no row in the state "Open" without a named run and date.
+
+# T-491: Lift each limit and non-goal that a need of githome or cfb names
+
+**Source:** the ruling of the owner of 2026-11-18 ("accommodate every need & asks", "researching/lifting all current unknowns+limits")
+**Category:** research
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podrunner has limits that block a need of githome or cfb, and `docs/non-goals.md` lists items that their asks name. Examples: no container route on the incus kind (T-485); no disk bound of the root of an instance (T-482); no measure of CPU and memory on incus (T-483); no process limit on microvm (T-488); `cpus` on the podvm kind only with a delegated cgroup; no trusted tier on an emulated aarch64 host; shared caches (T-480); warm units (T-487); `metrics` (cfb A-X-01: "metrics as JSON"); the bridges of Forgejo and GitLab (cfb A-X-01: "later backends"); `podrunner image build` and a JSON API on a Unix socket (cfb A-X-01, A-X-15) against the current command line.
+
+## Premise
+
+`docs/non-goals.md`, `docs/configuration.md` and the full text of A-X-01 and of G-01 to G-14 (GitHub #65, #66), read on 2026-11-18.
+
+## Approach
+
+1. A census: each ask of A-X-01 and G-01 to G-14, clause by clause, against the code and the release (done, partial, missing), with the level of proof.
+2. One entry for each gap that has none, in the order of the needs of githome and cfb.
+3. Move each lifted row of `docs/non-goals.md` to "Triggers that are met", with its entry.
+
+## Prove
+
+The census table in this entry; each gap has an entry; `docs/non-goals.md` names no item that a need of githome or cfb names without an entry.
+
+# T-492: The trackers of githome and cfb and the state pages name an old release
+
+**Source:** the session start of 2026-11-18
+**Category:** docs
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The bodies of GitHub #65 and #66 say "State read: 2026-11-15, at podrunner `v0.1.0-beta.6`"; the G-12 line of #66 calls T-162 partial, which is done, and the G-14 line names a run on beta.6. `docs/configuration.md` says that the microvm kind says `container: none` until podcrates gives `engine`; the code says `engine` with an engine. A reader of githome or cfb reads an old state.
+
+## Premise
+
+GitHub #65 and #66 and `docs/configuration.md`, read on 2026-11-18.
+
+## Approach
+
+Write the hand-written part of #65 and #66 from the record and the census of T-491 (the generated block stays), and fix the line of `docs/configuration.md`. Change the bodies at each change of state of an ask.
+
+## Prove
+
+Each line of #65 and #66 names the current release and the entry of its ask; the test of `docs/configuration.md` passes.
