@@ -120,7 +120,7 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
   T-494, T-505 and T-507 ship (cfb's request).
 - The channels: GitHub #292 (cfb's questions P-1 to P-7 and githome's
   note; podrunner's one comment holds each answer and the steps C1 to C5
-  of the acceptance of A-X-01 on cfb's first host), GitHub #151
+  of the acceptance of A-X-01 on the host of githome's pool), GitHub #151
   (COORD-054, githome; podrunner's one comment holds the table of each
   need of githome), #65 and #66 (the trackers). Each side keeps one
   comment and edits it; watch their `updated_at` (`docs/maintenance.md`,
@@ -139,7 +139,7 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
   `incus` kind, a job of a fork to the `microvm` kind. A trusted job with
   `container:`, `services:` or `docker://` goes to a `microvm` guest with
   `engine` until T-485 gives `incus` an engine. The host has 32 GiB of RAM
-  and `/dev/kvm`; each unit is 4 vCPU, 12 GiB and 40 GiB of
+  and `/dev/kvm`; each unit is 4 vCPU, 12 GiB and 40 GB of
   `disk_max_bytes`; until T-505 it takes 1 `incus` and 1 `microvm` slot.
 - Order:
   1. Done: podcrates `v0.70.0` is taken (COORD-132,
@@ -147,8 +147,10 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
      #288 (T-469), `Clock` (T-473), the proxy and CA lists (T-474), the
      lock of `serve`. T-513 holds the two locks that `FileLock` cannot
      hold yet.
-  2. T-491: the census of each clause of A-X-01 and G-01 to G-14 against
-     the code and the release; an entry for each gap.
+  2. Done: the census of T-491 (`docs/reports/census-2026-11-18.md`).
+     Its gaps are T-514 to T-528; T-529 (the disk bound of an offer) is
+     fixed. Asks: COORD-089 (GitHub #296, to podvm), COORD-087 amended
+     (GitHub #294, `arch`).
   3. First T-493 and T-494 (P0: githome's G-15 and G-16; they block
      R-051), then a beta. Then the needs, P1 first: T-486 (G-04), T-490
      (the unknowns), T-495 to T-499, T-485, T-506 (G-36, a sandbox

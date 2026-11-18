@@ -415,6 +415,22 @@ fn disk_limit_ends_a_unit_over_its_bound() {
     assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
 }
 
+/// The census of T-491: the disk bound of an offer above the bound of the
+/// kind does not lift it; the lesser holds, as for each other limit
+/// (T-198).
+#[test]
+fn the_disk_of_an_offer_does_not_lift_the_bound_of_the_kind() {
+    let big = "head -c 300000 /dev/zero > big.bin; exec sleep 300";
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", json!({ "limits": { "disk": 10_000_000 } }))])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh(big) }],
+    );
+    bed.slots.kinds[0].cfg.disk_max_bytes = Some(100_000);
+    bed.until(120, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Limit);
+}
+
 /// A `program` source (T-101) needs its program, takes no key of another
 /// kind, and is never local; another kind takes no `program`.
 #[test]

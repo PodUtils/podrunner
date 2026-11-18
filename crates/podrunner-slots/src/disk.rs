@@ -58,7 +58,13 @@ impl Slots {
             let j = &self.jobs[&key];
             let (Some(unit), Some(p)) = (j.unit.clone(), j.placement.clone()) else { continue };
             let kind = &self.kinds[p.kind];
-            let bound = j.offer.as_ref().and_then(|o| o.limits.get("disk").copied()).or(kind.cfg.disk_max_bytes);
+            // The lesser of the offer and the kind, as for each other limit
+            // (T-198): an offer only narrows the bound of the operator.
+            let offered = j.offer.as_ref().and_then(|o| o.limits.get("disk").copied());
+            let bound = match (offered, kind.cfg.disk_max_bytes) {
+                (Some(a), Some(b)) => Some(a.min(b)),
+                (a, b) => a.or(b),
+            };
             let Some(bound) = bound else { continue };
             let Some(root) = kind.driver.observe(&unit).ok().and_then(|o| o.unit_root) else { continue };
             if bytes_under(&root) > bound {

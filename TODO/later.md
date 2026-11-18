@@ -10660,6 +10660,8 @@ The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-j
 2. A cache directory for each repository and trust class on the host, mounted read-write only into a trusted job of the default branch, read-only into each other trusted job, and into no untrusted job until a decision says otherwise. Each kind needs its own mount (a disk device of incus, a 9p mount of the guest).
 3. A test: a file that an untrusted job writes is absent from the cache of the next trusted job.
 
+The census of T-491 (2026-11-18): no gate of cfb needs bun (Q-13). The base line is the row of T-528.
+
 ## Decision
 
 Each cache is scoped by source, forge, repository, tier and `key`: no cache is shared between two repositories. A job of the untrusted tier (a fork, an agent) gets no cache (`none` is forced). `rw` only for a push to the default branch, `ro` for each other trusted job. (the question Q-5 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
@@ -10947,7 +10949,7 @@ State (2026-11-18): podcrates answered yes (COORD-134, PodUtils/podcrates#225; t
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10971,6 +10973,10 @@ cfb's answer to Q-12 (GitHub #292, 2026-11-18): of A-X-01, (a) metrics as JSON b
 
 The census table in this entry; each gap has an entry; `docs/non-goals.md` names no item that a need of githome or cfb names without an entry.
 
+## Done
+
+2026-11-18: two read-only agents made the census of each clause of G-01 to G-41 and of cfb's A-X-01, A-V-11, P-1 to P-8, R-051 to R-054 and C1 to C5, against `main` at `d72b161` and `v0.1.0-beta.7`; the lead session checked each claimed defect in the code. The tables are in `docs/reports/census-2026-11-18.md`. No ask of G-01 to G-41 is done in full in a release. The gaps with no entry are T-514 to T-528; a defect that it found is fixed (T-529). Notes went to T-480, T-492, T-497, T-498, T-500, T-502 and T-510. The asks to other projects: podvm by COORD-089 (GitHub #296: T-482, T-483, T-485, T-488, T-490, T-496, T-515); podcrates by an amend of COORD-087 (GitHub #294: `arch`, T-514); the rest wait for work of podcrates that is in its order already (T-509, T-511, T-523, T-524). `docs/non-goals.md` moves each row that a need names to "Triggers met", with its entry. A claim of the census was wrong and is corrected in the report: a cancel never meets `Claimed` (T-502).
+
 # T-492: The trackers of githome and cfb and the state pages name an old release
 
 **Source:** the session start of 2026-11-18
@@ -10991,6 +10997,8 @@ GitHub #65 and #66 and `docs/configuration.md`, read on 2026-11-18.
 ## Approach
 
 Write the hand-written part of #65 and #66 from the record and the census of T-491 (the generated block stays), and fix the line of `docs/configuration.md`. Change the bodies at each change of state of an ask.
+
+The census of T-491 (2026-11-18): `docs/container-engine.md` steps 3.3 and 4 and `docs/configuration.md` still say `container: none` for a kind that has an engine; the body of GitHub #65 says that A-X-01 waits for #74 and #75, where by R-053 it waits for githome's C1 to C5.
 
 ## Prove
 
@@ -11131,6 +11139,8 @@ The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-j
 2. Fill each field on podvm, incus and microvm, or give `unknown` with its reason.
 3. The `log_tail` goes through the scrubber of credentials.
 
+The census of T-491 (2026-11-18): `host`, `unit.unit_kind`, `unit.boundary` and the image digest are in the report already; ask githome whether it wants them at the top level. `arch` is T-514.
+
 ## Decision
 
 `host`, `unit_kind`, `boundary`, `image_digest` (`sha256:HEX`), `runner_version` (strings); `prepare_s`, `start_s`, `run_s`, `destroy_s` (integer seconds, rounded up); `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes` (integer bytes; the network bytes through the egress module); `cache_read_bytes`, `cache_written_bytes` (integer bytes); `log_tail` (UTF-8, at most 65536 bytes, scrubbed of each credential, only for a unit that failed before the runner connected). Each optional; `unknown` with a reason where a kind cannot measure. cfb's milestone needs these fields (cfb's answer to Q-14): the CI time of each job reaches cfb's bill split through githome's usage feed. (the question Q-3 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
@@ -11159,6 +11169,8 @@ githome's comment on GitHub #292, read on 2026-11-18.
 ## Approach
 
 `serve` passes the path of `key_file` each time it starts the program (it does); `podrunner source restart NAME` restarts one source and keeps its running jobs; a source that answers `source-revoked` is parked (its state in `status --json`), and starts again when its `key_file` changes.
+
+The census of T-491 (2026-11-18): the code parks a revoked source (`revoked` in `engine.rs`) and never clears it; it does not restart in a loop. Measure this before the change.
 
 ## Prove
 
@@ -11212,6 +11224,8 @@ cfb's answer to Q-13 (GitHub #292, 2026-11-18): the gates of the five private re
 
 A `runner-full` image with a published list of its software and the libraries of Playwright, or `podrunner image build` from a recipe file, pinned by digest.
 
+The census of T-491 (2026-11-18): cfb keeps `podrunner image build` (Q-12 b), so it is not optional; no gate of cfb needs bun (Q-13).
+
 ## Prove
 
 A Playwright test of a gate passes in a unit with no download of the system libraries (`runner-image.yml`).
@@ -11261,6 +11275,8 @@ githome's comment on GitHub #292, read on 2026-11-18.
 ## Approach
 
 Measure the time from a cancel to `destroyed` on each kind; bound it; add the test to `source-conformance`.
+
+The census of T-491 (2026-11-18): no test of a cancel exists in the slots or in `serve`; with the defaults, `grace_s` 30 and `destroy_s` 60 allow 90 s, above the 60 s of the ask. A cancel never meets `Matched`, `Claimed` or `Minted`: `intake` runs the placement, the claim, the mint and the start in one call.
 
 ## Prove
 
@@ -11485,6 +11501,8 @@ githome's comment on GitHub #292, read on 2026-11-18.
 
 A file `CHANGES.md` (one line for each change of such a contract, with its release tag and its entry), written in the same commit as the change; `scripts/check-notes.sh` refuses a release whose contract changes have no line.
 
+The census of T-491 (2026-11-18): the changes of a contract on `main` since `v0.1.0-beta.7` go into the first lines: no egress with no `[egress] default_policy` (T-410), T-409, `cpus` of the podvm kind (T-221), the disk limit of an offer as the lesser of two (T-529), `pod-job` from `v0.52.0` to `v0.70.0`, and the path of `schemas/status.v1.json` after T-508 (the check C4 on GitHub #292 names it).
+
 ## Prove
 
 `sh scripts/check-notes.sh --latest` fails on a planted change of `docs/contracts/source-driver.md` with no line, and passes with it.
@@ -11548,7 +11566,7 @@ The statement on both issues, and `cargo todo check` with each entry of G-01 to 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -11565,3 +11583,423 @@ Ask podcrates by a COORD issue for two extensions of `FileLock`: a wait with no 
 ## Prove
 
 `cargo test -p podrunner-local exec`, `cargo test -p podrunner concurrency`; no `libc::flock` in `crates/` (`grep -rn 'libc::flock' crates`).
+
+## Blocker
+
+The two extensions of `pod_core::lock::FileLock`: COORD-088 (GitHub #295, to podcrates).
+
+# T-514: G-05 and G-06: the run report names no architecture
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+githome asks that each report names the architecture of the job (G-05, G-06). `RunReport` and `PublicReport` of `pod-job` have no field `arch`, and the field list of T-497 leaves it out.
+
+## Premise
+
+The census read `pod-job` at `v0.70.0` and `crates/podrunner-slots/src/run.rs`. Not measured.
+
+## Approach
+
+Ask podcrates to add an optional `arch` to `run-report.v1` beside the fields of COORD-087 (an added optional field keeps the id). Fill it from `capability.arch` of the kind. Add it to the `CHANGES.md` of T-510.
+
+## Prove
+
+`cargo test -p podrunner-slots` with a test that reads `arch` in the report of a fake unit.
+
+## Blocker
+
+The field is in `pod-job` of podcrates: COORD-087 (GitHub #294), amended on 2026-11-18 with `arch`.
+
+# T-515: G-12: a unit past its memory limit does not end with the exit reason `limit`
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome's G-12 asks that a unit past a limit ends with `limit`. Only the disk check sets `ExitReason::Limit` (`crates/podrunner-slots/src/disk.rs`). On the podvm kind one process gets `ENOMEM` and the job fails as `failure`; incus and microvm kill on OOM with no fact in the report.
+
+## Premise
+
+The census read the code of `main`. Not measured on a unit.
+
+## Approach
+
+At the end of a unit, read the OOM facts of its kind: `memory.events` `oom_kill` of the delegated cgroup (podvm), the state of the instance (incus), the exit of the guest (microvm). Report `limit` with an audit line `limit` and the detail `memory`. Ask podvm by a COORD issue for each fact that it does not give.
+
+## Prove
+
+`cargo test -p podrunner-slots` (a fake unit that reports an OOM ends `limit`); `runner-image.yml`: a payload past `mem` on the podvm and incus kinds ends `limit`.
+
+# T-516: G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome's G-09 keeps `docker build` and Docker-in-Docker. The parity workflows of the engine (01 to 09) run `services:`, `container:` and Docker actions; none runs a `docker build` step or a Docker-in-Docker step. `docs/container-engine.md` step 4 says "Open".
+
+## Premise
+
+The census read `crates/podrunner/tests/local/parity` and `runner-image.yml`. Not run.
+
+## Approach
+
+Add a parity workflow `10-docker-build.yml` (a `docker build` of a small Dockerfile and a `docker run` of the result) and one with a `docker:dind` service, to the engine run of `runner-image.yml`; compare with the result of github.com.
+
+## Prove
+
+`runner-image.yml`: the parity step of the engine passes with the two new workflows.
+
+# T-517: G-09: the engine of a guest is a directory of the host, not a part of the payload image
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** docs
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome's G-09 says that the engine is in the payload image, not set by the host. `[unit.microvm] engine = DIR` names a directory of the host.
+
+## Premise
+
+The census read `docs/container-engine.md` and `crates/podrunner-microvm`. Not measured.
+
+## Approach
+
+Decide: ship the engine in `runner-full` and keep `engine = DIR` as an override, or keep the directory. Record the call in `docs/decisions.md` and give it to githome on GitHub #151.
+
+## Prove
+
+The call in `docs/decisions.md`; `cargo todo check`.
+
+# T-518: G-13: each event by name, a rule of trust that can be swapped, and a published table of cases
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome's G-13 asks for each event by name (also `pull_request_target`), a module of the trust rule that can be swapped, and a table of cases that githome runs. The ruling Q5 allows four extra events, and never trusts `pull_request_target`; `podrunner-tier` has no trait; `crates/podrunner-tier/tests/cases.json` is not a release asset.
+
+## Premise
+
+The census read G-13 on GitHub #66 and the ruling Q5 (`docs/decisions.md`).
+
+## Approach
+
+Compare each clause of G-13 with Q5. A clause that needs a change of Q5 becomes a question for the owner with a recommendation (`TODO/PROGRESS.md`). Put the trust rule behind a trait (the ruling of DR-3: each seam stays swappable). Attach `cases.json` to each release with T-511.
+
+## Prove
+
+`cargo test -p podrunner-tier`; the release assets list `tier-cases.json`.
+
+# T-519: G-03: no document says that a step of the job can read the credential of its runner
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** docs
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome's G-03 asks that the report says so. Only the SPEC and `kinds[].probe.secret_delivery` of `status` say it.
+
+## Premise
+
+The census read G-03 and `docs/contracts/`. Not measured.
+
+## Approach
+
+Say it in `docs/security/residuals.md` and in the section of the run report of `docs/configuration.md`; or record that `secret_delivery` of `status` meets the clause, and tell githome.
+
+## Prove
+
+`cargo todo check`; the documents name it.
+
+# T-520: G-06: no test of `cpu_s` against a known load, and no tolerance in the contract
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** measurement
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome's G-06 asks that the CPU time is within a tolerance. The tests check `cpu_s > 0` only, and the schema names no tolerance.
+
+## Premise
+
+The census read `crates/podrunner-slots/src/usage.rs` and its tests.
+
+## Approach
+
+Run a payload that burns a known CPU time on the podvm and microvm kinds in `runner-image.yml`; check `cpu_s` within 20 %; write the tolerance in the contract of the report.
+
+## Prove
+
+`runner-image.yml`: the step of the CPU measure passes.
+
+# T-521: G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`[unit.podvm] pids` is `RLIMIT_NPROC`, which counts each process of the uid. Two units of one user share it.
+
+## Premise
+
+The census read `crates/podrunner-podvm`. Not measured.
+
+## Approach
+
+Where the cgroup of the unit is delegated (the path of T-221), set `pids.max` in the leaf of the unit; keep `RLIMIT_NPROC` as the fall back, and say which one holds in `status`.
+
+## Prove
+
+`runner-image.yml`: two units under one user, each with its own `pids`.
+
+# T-522: G-31: the design copies of the schemas have the ids of `pod-job` and other fields
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** docs
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`docs/design/schemas/*.v1.schema.json` have the same ids as the schemas of `pod-job` and other fields (the design copy of `run-report.v1` has `arch`, `bytes_in`, `bytes_out`, `image_digest`, `limits_applied`). A reader can take the wrong file.
+
+## Premise
+
+The census compared the files. The design copy is call C17: do not edit it.
+
+## Approach
+
+Do not edit the copy. Add a line to `docs/design-issues.md` and to the README of `docs/design/` that the schemas of record are those of `pod-job`, and name them.
+
+## Prove
+
+`cargo todo check`; `sh docs/design/verify.sh`.
+
+# T-523: G-34: take the signed release index of `pod-release`
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+githome's G-34 asks for a signed index of each release. A release of podrunner has a `.sha256` for each file and attestations.
+
+## Premise
+
+The census read `release.yml` and `scripts/release-assets.sh`. T-484 holds the interim.
+
+## Approach
+
+When `pod-release` gives the signed index, write it in `release.yml` and check it in the installer.
+
+## Prove
+
+`release.yml` dry run: the index is signed and lists each asset.
+
+## Blocker
+
+`pod-release` of podcrates: PodUtils/podcrates@T-104 and PodUtils/podcrates@T-880.
+
+# T-524: G-04 and G-35: the half of podrunner of the placeholders of a policy
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+githome's G-04 (its P2 part) and G-35 ask for placeholders and path rules in a policy. podrunner refuses a path rule (`egress-policy-unsupported`).
+
+## Premise
+
+The census read G-04 and G-35 and `docs/non-goals.md` (the TLS end of the broker).
+
+## Approach
+
+When `pod-broker` gives placeholders, pass the placeholders of the offer's policy to the egress module and lift the refusal of path rules.
+
+## Prove
+
+`cargo test -p podrunner-egress` with a policy that has a placeholder.
+
+## Blocker
+
+The TLS end of `pod-broker`: PodUtils/podcrates@T-100.
+
+# T-525: C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** measurement
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+No test runs `serve` on real incus and microvm units for 20 jobs, a burst of 10, a cancel, `status` samples against the schema and a canary beside `key_file` (cfb's checks C1 to C5, GitHub #292). The incus suite skips the credential cases 6, 7, 21 and 24. No entry takes githome's results of C1 to C5.
+
+## Premise
+
+The census read the scripts of #292 and `runner-image.yml`.
+
+## Approach
+
+Add a step to `runner-image.yml` that runs the scripts of C1 to C5 against `serve` with a `program` script source, on each kind. Record the results of githome's host here, and file each defect as an entry.
+
+## Prove
+
+`runner-image.yml`: the step of C1 to C5 passes on the incus and the microvm kinds.
+
+# T-526: The incus suite of `runner-image.yml` does not block a release
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`runner-image.yml` runs the incus step with `continue-on-error: true`. `release.yml` needs a green `runner-image.yml` run, so a red incus suite does not stop a release, and incus is the kind of cfb's trusted jobs.
+
+## Premise
+
+The census read `.github/workflows/runner-image.yml`.
+
+## Approach
+
+Keep `scripts/measure-incus.sh` as a measure. Make the conformance, egress, limits and local suites of incus blocking, with a retry of the install of incus, as the microvm step does.
+
+## Prove
+
+`runner-image.yml` is red when a planted defect fails the incus conformance.
+
+# T-527: No lane of the user-path gate for the host class of githome's pool
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each lane of `user-gate.yml` runs `podrunner run`. No lane runs `serve` with a `program` source, and no lane has incus. `AGENTS.md` section 12: each host class becomes a lane.
+
+## Premise
+
+The census read `user-gate.yml` and `scripts/user-gate.py`.
+
+## Approach
+
+Add a lane `serve-incus-kvm`: install as a user with no root, then `check`, `doctor --json` (incus `confined`, microvm `guest`, hold `enforced`), `print-unit`, and `serve` with one job on each kind. After T-507 the lane uses the install of `serve`.
+
+## Prove
+
+`user-gate.yml`: the lane passes.
+
+# T-528: No row of the user-path gate copies the gate of rbg
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** measurement
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+cfb's answer to Q-13 (GitHub #292) asks for the gate of rbg (npm 12, Node 26 or later, Playwright 1.64.1, TypeScript 7) as the base line of T-480 and T-500. `scripts/corpus/user-gate.tsv` has no such row.
+
+## Premise
+
+The census read the corpus and cfb's answer.
+
+## Approach
+
+Add a pinned stand-in row on the microvm and incus kinds that records `claim_to_first_step_s` and the cold install time; make it the Prove of T-480 and T-500.
+
+## Prove
+
+`user-gate.yml`: the row passes and the summary gives both times.
+
+# T-529: The disk limit of an offer lifts the bound of the operator
+
+**Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`crates/podrunner-slots/src/disk.rs` took the `disk` of the offer first and `disk_max_bytes` only when the offer had none. An offer with a larger value lifted the bound of the operator. Each other limit takes the lesser of the two (T-198), and an offer only narrows (T-107).
+
+## Premise
+
+The census of T-491 read the code; the test below reproduces it.
+
+## Approach
+
+Take the lesser of the two bounds; correct `docs/configuration.md`.
+
+## Prove
+
+`cargo test -p podrunner-slots the_disk_of_an_offer_does_not_lift_the_bound_of_the_kind`.
+
+## Done
+
+2026-11-18: the disk check takes the lesser of the offer and `disk_max_bytes`. Test `the_disk_of_an_offer_does_not_lift_the_bound_of_the_kind` fails on the code before the fix (the unit writes 300000 bytes under a bound of 100000 and an offer of 10000000, and runs past 120 ticks). `docs/configuration.md` says the rule.
