@@ -11027,7 +11027,7 @@ The census table in this entry; each gap has an entry; `docs/non-goals.md` names
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11046,6 +11046,10 @@ The census of T-491 (2026-11-18): `docs/container-engine.md` steps 3.3 and 4 and
 ## Prove
 
 Each line of #65 and #66 names the current release and the entry of its ask; the test of `docs/configuration.md` passes.
+
+## Done
+
+2026-11-18, the commit that names T-492. The hand-written parts of GitHub #65 and #66 are written from the record: the state read at `main` `a817f6f` with the last release `v0.1.0-beta.7` and podvm `v0.2.0-beta.33`, `CHANGES.md` for the changes since; each line names the entries of its ask, what is on `main` and what is open; G-07 and G-11 are open entries (T-480, T-487) by the owner's ruling of 2026-11-18; A-X-01 waits for githome's C1 to C5 (R-053). `docs/configuration.md` and `docs/container-engine.md` say `container: engine` for a kind with an engine. `cargo test -p podrunner --test check`: 4 passed. Rule: amend the bodies at each change of state of an ask.
 
 # T-493: G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer
 
@@ -11818,7 +11822,7 @@ Compare each clause of G-13 with Q5. A clause that needs a change of Q5 becomes 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11835,6 +11839,10 @@ Say it in `docs/security/residuals.md` and in the section of the run report of `
 ## Prove
 
 `cargo todo check`; the documents name it.
+
+## Done
+
+2026-11-18, the commit that names T-519. `docs/security/residuals.md` has a row: each step of a job can read the credential files of its runner on each kind (`secret_delivery: files` in `kinds[].probe` of `status --json`), for the life of one JIT configuration; it is the design of the official runner. `cargo todo check`: the record agrees.
 
 # T-520: G-06: no test of `cpu_s` against a known load, and no tolerance in the contract
 
@@ -11893,7 +11901,7 @@ Where the cgroup of the unit is delegated (the path of T-221), set `pids.max` in
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11910,6 +11918,10 @@ Do not edit the copy. Add a line to `docs/design-issues.md` and to the README of
 ## Prove
 
 `cargo todo check`; `sh docs/design/verify.sh`.
+
+## Done
+
+2026-11-18, the commit that names T-522. `docs/design-issues.md` and the table of `docs/design/README.md` say that the schemas of record are those of `pod-job` (`job-offer.v1`, `unit-capability.v1`, `run-report.v1`, `public-report.v1`) and `schemas/status.v1.json`, and that the copies of `docs/design/schemas/` are the design; no copy is edited. `sh docs/design/verify.sh`: exit 0.
 
 # T-523: G-34: take the signed release index of `pod-release`
 

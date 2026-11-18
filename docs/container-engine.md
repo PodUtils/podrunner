@@ -83,12 +83,11 @@ The incus kind refuses `engine`.
       `crates/podrunner-microvm/tests/engine.rs` runs a container as the
       user `runner` on a network in a real guest (runner-image run
       43524984859).
-   3. Open: the capability `container: engine` in `probe`, and placement
-      that gives a job that needs an engine only to such a kind. It needs
-      `ContainerRoute::Engine` and `UnitNeed::container_engine` of
-      `pod-job` (GitHub #91, PodUtils/podcrates@T-553, the tag after
-      `v0.41.0`). Until then the kind says `container: none`, so a
-      `container:` job is refused on it.
-4. Open: proof in `runner-image.yml`: a `services:` job, a Dockerfile
-   action and a Docker-in-Docker step of the official runner pass in a
-   guest.
+   3. Done: the kind with an engine says `container: engine` in `probe`,
+      and placement gives a job that needs an engine
+      (`UnitNeed::container_engine` of `pod-job`) only to such a kind
+      (GitHub #91).
+4. Done in part: the step "The parity suite in guests with an engine" of
+   `runner-image.yml` runs a `services:` job, a job container and a
+   Dockerfile action of the official runner in a guest. Open: a
+   Docker-in-Docker step and a `docker build` step (T-516).

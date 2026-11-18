@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 63 open, 42 partial, 13 blocked, 413 done.**
+**531 entries: 60 open, 42 partial, 13 blocked, 416 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
 | P1 | 7 | 19 | 3 | 69 | 98 |
-| P2 | 16 | 17 | 7 | 218 | 258 |
-| P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 63 | 42 | 13 | 413 | 531 |
+| P2 | 14 | 17 | 7 | 220 | 258 |
+| P3 | 38 | 5 | 3 | 126 | 172 |
+| **All** | 60 | 42 | 13 | 416 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -536,7 +536,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-489](later.md) | P3 | S | later | chore | partial | githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version |
 | [T-490](later.md) | P1 | L | later | research | done | Settle each open unknown of `docs/unknowns.md` |
 | [T-491](later.md) | P1 | M | later | research | done | Lift each limit and non-goal that a need of githome or cfb names |
-| [T-492](later.md) | P2 | S | later | docs | open | The trackers of githome and cfb and the state pages name an old release |
+| [T-492](later.md) | P2 | S | later | docs | done | The trackers of githome and cfb and the state pages name an old release |
 | [T-493](later.md) | P0 | M | later | defect | partial | G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer |
 | [T-494](later.md) | P0 | M | later | defect | done | G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub |
 | [T-495](later.md) | P1 | M | later | feature | done | G-17: the facts of a host for its source in `hello` |
@@ -563,10 +563,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-516](later.md) | P2 | S | later | feature | open | G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine |
 | [T-517](later.md) | P3 | S | later | docs | open | G-09: the engine of a guest is a directory of the host, not a part of the payload image |
 | [T-518](later.md) | P2 | M | later | feature | open | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
-| [T-519](later.md) | P3 | S | later | docs | open | G-03: no document says that a step of the job can read the credential of its runner |
+| [T-519](later.md) | P3 | S | later | docs | done | G-03: no document says that a step of the job can read the credential of its runner |
 | [T-520](later.md) | P3 | S | later | measurement | open | G-06: no test of `cpu_s` against a known load, and no tolerance in the contract |
 | [T-521](later.md) | P3 | S | later | defect | open | G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit |
-| [T-522](later.md) | P2 | S | later | docs | open | G-31: the design copies of the schemas have the ids of `pod-job` and other fields |
+| [T-522](later.md) | P2 | S | later | docs | done | G-31: the design copies of the schemas have the ids of `pod-job` and other fields |
 | [T-523](later.md) | P2 | M | later | feature | blocked | G-34: take the signed release index of `pod-release` |
 | [T-524](later.md) | P3 | M | later | feature | blocked | G-04 and G-35: the half of podrunner of the placeholders of a policy |
 | [T-525](later.md) | P1 | M | later | measurement | open | C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host |

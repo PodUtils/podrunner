@@ -149,8 +149,10 @@ runner. `serve`, `check` and `doctor` refuse an older podvm for `engine`
 (`LOWEST_ENGINE`, T-112, T-116). The runner gets its
 socket as `DOCKER_HOST`; the socket stays in the guest, and the engine
 pulls through the egress channel. The runner image needs `iptables`
-(`images/runner/Dockerfile` has it). The kind says `container: none` until
-podcrates gives the value `engine` (T-103, GitHub #91).
+(`images/runner/Dockerfile` has it). With `engine` the kind says
+`container: engine`, and placement gives a job that needs an engine
+(`services:`, a Dockerfile action) only to such a kind (T-103, GitHub #91).
+The incus kind takes `engine` too (T-485).
 
 ## The incus kind
 

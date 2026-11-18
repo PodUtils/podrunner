@@ -21,7 +21,7 @@ This is the cleaned copy that podrunner keeps (GitHub #14, T-014). It leaves out
 | `APPENDIX-DETAIL.md` | Design detail that `SPEC.md` summarises, kept out of it for length |
 | `APPENDIX-FLOWS.md` | The configuration example and three walk-throughs of a job with the message trace |
 | `contracts/` | The unit driver, source driver and container hook contracts (version 1) |
-| `schemas/`, `examples/` | JSON Schemas for the capability record, the job offer, the run report and its public subset, valid and invalid examples (`examples/invalid/EXPECT.json` names the reason each is invalid), and the tier cases |
+| `schemas/`, `examples/` | JSON Schemas for the capability record, the job offer, the run report and its public subset, valid and invalid examples (`examples/invalid/EXPECT.json` names the reason each is invalid), and the tier cases. They are the design copies, not the schemas of record: those are the schemas of `pod-job` of podcrates and the `status.v1` schema at the root of this repository (T-522). |
 | `recon/` | Five recon reports (R1 to R4, R6) |
 | `measurements/` | Runs on the official runner and on podvm, with scripts and raw logs |
 | `tools/`, `verify.sh` | `./verify.sh` runs seven checks (schemas, contracts, fields, codes, tiers, docs, selftest), then `MANIFEST.sha256` if present. It stops with exit 2 and a message if `jsonschema` is missing. `tools/selftest.sh` plants a defect for each guard in a temporary copy of the tree and checks that the real tree is unchanged. Needs `python3` with `jsonschema`, `bash`, `sha256sum`, `tar` |
