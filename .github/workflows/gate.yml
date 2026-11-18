@@ -112,6 +112,15 @@ jobs:
         run: sh scripts/retry.sh rustup toolchain install
       - name: Test
         run: cargo test --locked --workspace --all-features
+      # T-509 (githome's G-38): the source of githome (the pinned
+      # pod-fake-githome of podcrates, images/fake-githome.toml) passes each
+      # test of source-conformance; a red gate blocks release.yml.
+      - name: githome's source passes source-conformance
+        run: |
+          set -eu
+          cargo build --locked -q -p podrunner
+          bin=$(ls target/*/debug/podrunner target/debug/podrunner 2> /dev/null | head -n 1)
+          sh scripts/githome-conformance.sh "$bin" "$RUNNER_TEMP/githome"
 
   record:
     runs-on: ubuntu-24.04

@@ -11596,7 +11596,7 @@ State (2026-11-18, v0.72.0): podrunner took podcrates `v0.72.0` (COORD-138, PodU
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11618,6 +11618,9 @@ The job in `runner-image.yml` (or its own workflow) passes on `main`, and `relea
 State (2026-11-18): `PodUtils/githome` is not reachable from the sessions and the CI of podrunner (the REST API gives 404), so podrunner has no source of githome to pin; podcrates PodUtils/podcrates@T-921 is a fake GitHub, not githome's source.
 
 State (2026-11-18, later): podcrates `v0.73.0` has the release asset `pod-fake-githome-TARGET` (PodUtils/podcrates@T-948, in the signed `SHA256SUMS`): `pod-fake-githome serve` keeps the state, `pod-fake-githome source` is the program source; a run of `source-conformance` takes one queued job. Next: pin the asset, run `source-conformance --json` and one live job of each kind against it in `runner-image.yml`, and gate `release.yml` on it.
+
+In the code (2026-11-18): `images/fake-githome.toml` pins `pod-fake-githome` of podcrates `v0.73.0` (the SHA-256 of each architecture, from the signed `SHA256SUMS`). `scripts/githome-conformance.sh PODRUNNER` downloads and checks it, starts `serve`, queues one job for each test and two more, and runs `podrunner source-conformance --json -- pod-fake-githome source`: each of the 15 tests passes (also here). The job `test` of `gate.yml` runs it, and `release.yml` needs a green gate. Left: one live job of each kind against githome's source (it needs the broker of `pod-fake-github`, PodUtils/podcrates@T-921).
+
 
 # T-510: G-39: one record of each change of a contract that githome reads
 

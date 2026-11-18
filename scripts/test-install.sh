@@ -294,6 +294,7 @@ ok "a lane of the user-path gate; a lane with a missing asset fails"
 # version in CI and on the host of an agent, never skipped.
 sh "$root/scripts/shellcheck.sh" "$root/scripts/install.sh" "$root/scripts/make-bundle.sh" \
     "$root/scripts/test-install.sh" "$root/scripts/release-assets.sh" "$root/scripts/shellcheck.sh" \
+    "$root/scripts/githome-conformance.sh" \
     "$root"/scripts/lab/*.sh || fail "shellcheck"
 ok "shellcheck"
 echo "test-install: $pass passed"
