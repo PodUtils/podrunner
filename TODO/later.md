@@ -11153,7 +11153,7 @@ A size for each kind: a quota or a sized file system for the work directory and 
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11178,6 +11178,8 @@ The census of T-491 (2026-11-18): `host`, `unit.unit_kind`, `unit.boundary` and 
 ## Prove
 
 `cargo test -p podrunner-slots`: a report of each kind has each field or `unknown`; a canary in the log of a failed start is not in `log_tail`.
+
+In the code (2026-11-18), with podcrates `v0.71.0`: the slots fill `image_digest` (the pinned digest of the payload), `runner_version` (the pin of the payload), `prepare_s` (claim to start), `start_s` (start to the first step of the runner), `run_s` (the first step, or else the start, to the end of the unit), `destroy_s` (the end to the destroy), each in whole seconds rounded up (`crates/podrunner-slots/src/report.rs`, `Times`). `disk_peak_bytes` is the peak of the disk checks (`disk.rs`), or `unknown` with the reason "no disk bound, so no disk check of the unit". `net_rx_bytes` and `net_tx_bytes` are the sums of the bytes of the egress lines of the job (`egress_lines.rs`), or `unknown` with the reason "the host has no egress module". A unit that ran with no first step gives no `start_s` and the reason "the runner reached no first step". `host`, `unit_kind` and `boundary` were in the report before. Test: `cargo test -p podrunner-slots tests::report`. Level: proven here with the fake unit; not run on a real unit. Open: `log_tail` with the scrubber; `cache_read_bytes` and `cache_written_bytes` (T-480); `cpu_s` and `peak_rss_mib` on incus (T-483).
 
 # T-498: G-22: a rotation of the key of a program source with no drain
 

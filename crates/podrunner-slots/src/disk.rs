@@ -67,7 +67,11 @@ impl Slots {
             };
             let Some(bound) = bound else { continue };
             let Some(root) = kind.driver.observe(&unit).ok().and_then(|o| o.unit_root) else { continue };
-            if bytes_under(&root) > bound {
+            let used = bytes_under(&root);
+            if let Some(j) = self.jobs.get_mut(&key) {
+                j.times.disk_peak = Some(j.times.disk_peak.map_or(used, |p| p.max(used)));
+            }
+            if used > bound {
                 self.audit(audit::Kind::Limit, key.0, &key.1, None, Some("disk".into()));
                 self.end(&key, ExitReason::Limit, Signal::Term, now);
             }

@@ -32,6 +32,9 @@ impl Slots {
                 .map(|(k, _)| k.clone());
             let Some(key) = key else { continue };
             let Some(j) = self.jobs.get_mut(&key) else { continue };
+            // Each line counts in the bytes of the report, also over the bound.
+            j.times.net_rx += line.get("bytes_in").and_then(|v| v.as_u64()).unwrap_or(0);
+            j.times.net_tx += line.get("bytes_out").and_then(|v| v.as_u64()).unwrap_or(0);
             if j.egress.sent >= PER_JOB {
                 j.egress.dropped += 1;
                 continue;

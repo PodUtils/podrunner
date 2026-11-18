@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**529 entries: 80 open, 33 partial, 12 blocked, 404 done.**
+**529 entries: 79 open, 34 partial, 12 blocked, 404 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
-| P1 | 18 | 14 | 2 | 64 | 98 |
+| P1 | 17 | 15 | 2 | 64 | 98 |
 | P2 | 22 | 13 | 7 | 214 | 256 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 80 | 33 | 12 | 404 | 529 |
+| **All** | 79 | 34 | 12 | 404 | 529 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -541,7 +541,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-494](later.md) | P0 | M | later | defect | done | G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub |
 | [T-495](later.md) | P1 | M | later | feature | partial | G-17: the facts of a host for its source in `hello` |
 | [T-496](later.md) | P1 | M | later | feature | open | G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC` |
-| [T-497](later.md) | P1 | M | later | feature | open | G-19: more facts of a job in the run report |
+| [T-497](later.md) | P1 | M | later | feature | partial | G-19: more facts of a job in the run report |
 | [T-498](later.md) | P1 | M | later | feature | open | G-22: a rotation of the key of a program source with no drain |
 | [T-499](later.md) | P1 | M | later | feature | open | G-23: the runner of a GitHub job stays inside GitHub's window of updates |
 | [T-500](later.md) | P2 | M | later | feature | open | G-24: a runner image with the software that cfb's gates need |

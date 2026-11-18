@@ -71,6 +71,7 @@ pub struct Job {
     /// job when it was not the run of the offer (the run report).
     pub assigned: Option<crate::assigned::Verdict>,
     pub real: Option<podrunner_source::RealJob>,
+    pub times: crate::report::Times,
     /// Its egress lines at its source (T-486).
     pub egress: crate::egress_lines::EgressCount,
 }
@@ -306,6 +307,7 @@ impl Slots {
             State::Running => j.first_step_ms = j.first_step_ms.or(Some(now)),
             _ => {}
         }
+        j.times.mark(state, now);
         let kind = j.placement.as_ref().map(|p| self.kinds[p.kind].name.clone());
         let line = Line {
             t_ms: now,
@@ -380,6 +382,7 @@ impl Slots {
             usage: Default::default(),
             assigned: None,
             real: None,
+            times: Default::default(),
             egress: Default::default(),
         };
         self.jobs.insert(key.clone(), job);
