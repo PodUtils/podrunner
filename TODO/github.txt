@@ -145,7 +145,7 @@
 139 issue closed
 140 issue open
 141 issue closed
-142 issue open
+142 issue closed
 143 issue open
 144 issue open
 145 issue closed
@@ -312,3 +312,4 @@
 306 issue open
 307 issue open
 308 issue open
+309 issue open

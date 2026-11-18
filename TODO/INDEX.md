@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**533 entries: 52 open, 45 partial, 13 blocked, 423 done.**
+**534 entries: 52 open, 44 partial, 13 blocked, 425 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 3 | 22 | 4 | 69 | 98 |
+| P1 | 3 | 21 | 4 | 71 | 99 |
 | P2 | 11 | 16 | 6 | 226 | 259 |
 | P3 | 37 | 7 | 3 | 126 | 173 |
-| **All** | 52 | 45 | 13 | 423 | 533 |
+| **All** | 52 | 44 | 13 | 425 | 534 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -226,7 +226,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-176](live.md) | P1 | M | M-C | defect | done | The JIT configuration is minted before the unit starts: a failed start spends it and leaves the job assigned |
 | [T-177](live.md) | P1 | S | M-C | defect | done | `serve` does not pull an image that a digest pins: a `container:` job fails with no cause in the log |
 | [T-178](live.md) | P1 | S | M-C | defect | done | A job on the incus and microvm kinds has `HOME=/root` for a runner that is not root: `actions/checkout` fails |
-| [T-179](live.md) | P1 | M | M-C | defect | partial | On an H0 host the runner times out on the broker under the seccomp hold and the egress module |
+| [T-179](live.md) | P1 | M | M-C | defect | done | On an H0 host the runner times out on the broker under the seccomp hold and the egress module |
 | [T-180](live.md) | P2 | S | M-C | defect | partial | As PID 1 of a container, `serve` reaps no orphan: the zombies stop the supervisor |
 | [T-181](live.md) | P2 | M | M-C | defect | partial | `--podvm-confine` stops name resolution in a podvm unit: the runner cannot reach the broker |
 | [T-182](live.md) | P2 | S | M-C | defect | done | A podvm unit has the host name of the host: the job log of GitHub shows it |
@@ -581,3 +581,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-534](later.md) | P2 | S | later | defect | done | The probe of the incus kind claims the kind on a host with no incusd |
 | [T-535](later.md) | P3 | S | later | defect | partial | The tests leave their temporary directories in /tmp |
 | [T-536](later.md) | P2 | S | later | chore | done | Take `pod_core::http1` in place of the reader of an HTTP/1.1 head of podrunner-hook |
+| [T-537](later.md) | P1 | S | later | defect | done | The installer leaves the data directory writable by the group, and the microvm kind refuses its podvm |

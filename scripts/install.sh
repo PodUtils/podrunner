@@ -137,8 +137,10 @@ store=$data/images
 downloads=$data/downloads
 mkdir -p "$bin" "$data/bin" "$store" "$downloads" "$config" || die "cannot make the directories under $prefix"
 # The umask does not apply to a directory that was there before: podrunner
-# refuses a driver in a directory that the group or the others can write.
-chmod go-w "$bin" "$data/bin" || die "cannot remove the write of the group and the others from $bin and $data/bin"
+# refuses a driver under a directory that the group or the others can
+# write, also the data directory above data/bin.
+chmod go-w "$bin" "$data" "$data/bin" ||
+    die "cannot remove the write of the group and the others from $bin, $data and $data/bin"
 # A partial file of an earlier run that stopped is never used.
 rm -f "$bin/podrunner.part" "$data"/bin/*.part "$downloads"/*.part
 

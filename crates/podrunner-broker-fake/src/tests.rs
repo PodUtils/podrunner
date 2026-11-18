@@ -82,3 +82,29 @@ fn a_caller_with_no_token_gets_no_job() {
     assert!(broker.take_new().is_empty() && broker.logs().is_empty());
     assert!(put(&broker, "/blobs/step-1?sig=x", "a line\n").starts_with("HTTP/1.1 201"));
 }
+
+/// A runner polls `/message` again while it runs its job (for a cancel):
+/// that poll of its session takes no queued job, and another session gets
+/// it (the C1 run of T-525 lost 18 of 20 jobs so).
+#[test]
+fn a_session_that_got_a_job_takes_no_other() {
+    let broker = Broker::start().unwrap();
+    broker.queue(Job::scripts("a", &["echo a"]));
+    broker.queue(Job::scripts("b", &["echo b"]));
+    let token = broker.state.lock().unwrap().auth.runner.clone();
+    let poll = |session: &str| {
+        let addr = broker.base.trim_start_matches("http://").trim_end_matches('/');
+        let mut c = TcpStream::connect(addr).unwrap();
+        let head = format!(
+            "GET /message?sessionId={session}&status=Online HTTP/1.1\r\nHost: b\r\nAuthorization: Bearer {token}\r\nContent-Length: 0\r\n\r\n"
+        );
+        c.write_all(head.as_bytes()).unwrap();
+        let mut out = String::new();
+        let _ = c.read_to_string(&mut out);
+        out
+    };
+    assert!(poll("s-1").starts_with("HTTP/1.1 200"), "the first poll of s-1 takes a job");
+    assert!(poll("s-1").starts_with("HTTP/1.1 202"), "s-1 has its job: no second one");
+    assert!(poll("s-2").starts_with("HTTP/1.1 200"), "s-2 takes the other job");
+    assert!(broker.state.lock().unwrap().queue.is_empty());
+}

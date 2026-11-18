@@ -115,13 +115,16 @@ impl JobSource for BrokerSource {
 /// An offer of the set: a fork pull request (untrusted) or a push of a
 /// member (trusted).
 fn offer(job: &str, untrusted: bool) -> String {
-    let (event, fork, actor) = if untrusted { ("pull_request", "yes", "outside") } else { ("push", "no", "member") };
+    // A trusted job of a public repository needs `trusted_public`: the
+    // trusted offer is of a private one.
+    let (event, fork, actor, visibility) =
+        if untrusted { ("pull_request", "yes", "outside", "public") } else { ("push", "no", "member", "private") };
     let o = json!({
         "schema": 1, "job_id": job, "source": "accept", "labels": ["podrunner"], "arch": std::env::consts::ARCH,
         "wait_deadline_s": 3600,
         "trust_inputs": {
             "event": event, "head_is_fork": fork, "actor_class": actor,
-            "repo_visibility": "public", "owner": "example-org", "repo": "app", "run_id": 1,
+            "repo_visibility": visibility, "owner": "example-org", "repo": "app", "run_id": 1,
             "ref": "refs/heads/main", "workflow_ref": "w"
         }
     });

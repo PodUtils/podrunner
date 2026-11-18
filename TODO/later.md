@@ -12057,6 +12057,9 @@ Add a step to `runner-image.yml` that runs the scripts of C1 to C5 against `serv
 
 State (2026-11-18): `crates/podrunner-broker-fake/tests/accept.rs` runs C1 to C5 through the slots on the kind of `PODRUNNER_ACCEPT_KIND` (`microvm` at `untrusted`, `incus` at `trusted`): 20 offers in a burst at 2 slots, each job checks that no earlier job left its marker (C1) and finds no canary of the host (an environment variable of the host process, the content and the path of a `key_file`) in `/proc/*/environ`, `/proc/*/cmdline`, `/etc` and `/root` (C5); each tick checks `busy <= slots` (C2) and writes a sample of `status` that `scripts/check-status-samples.py` validates against `schemas/status.v1.json` (C4); a long job is cancelled 60 s after its mint, and its report must come within 60 s, with `busy` 0 and `degraded` null after (C3). Two steps of `runner-image.yml` run it, as measures until they are green. Left: the green runs, then the steps block; the results of githome's host when githome comes back.
 
+State (2026-11-18, the first run, `runner-image.yml` 44396030197): microvm: two jobs passed, then each runner listened for 600 s with no job. The cause: a runner polls `GET /message` again while it runs its job (`status=Busy`, for a cancel), and the fake broker gave each poll the next queued job, which was then lost (18 of 20). The fake broker now gives one job to each session (`sessionId` of the poll; `a_session_that_got_a_job_takes_no_other`). incus: each offer was `event-not-allowed`: the trusted offer of the test named a public repository, which needs `trusted_public`; it is private now. Next: the next run of both steps.
+
+
 # T-526: The incus suite of `runner-image.yml` does not block a release
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
@@ -12361,3 +12364,32 @@ Read the head to its empty line with `pod_core::http1::find_request` (the body s
 ## Done
 
 2026-11-18: `http.rs` reads the head with `pod_core::http1` (at most 16 KiB and 65 lines). Changes of the answers: another version of HTTP gets 505 (was 400), and a head over 16 KiB gets 431 (a line over 8 KiB got 400). `the_reader_holds_its_limits` holds the new statuses. `cargo test -p podrunner-hook` passes; the full `check.sh` passes.
+
+# T-537: The installer leaves the data directory writable by the group, and the microvm kind refuses its podvm
+
+**Source:** `user-gate.yml` run 44393864747, lane `plain` (job 135128949293), 2026-11-18
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+In the lane `plain`, `hello:microvm` and the microvm row of the corpus exit 78: `[unit.microvm] binary: ~/.local/share/podrunner is writable by the group or the others`. Since T-263 (`check_driver`) a driver needs each directory above it closed to the group and the others. The installer removes that write from `bin` and `data/bin` only; a data directory that was there before (or made with a umask of 002) stays open.
+
+## Premise
+
+The log of the lane, read on 2026-11-18. Which step of the lane made the data directory open is not known.
+
+## Approach
+
+`chmod go-w` the data directory too, beside `bin` and `data/bin`; the case 4b of `scripts/test-install.sh` plants an open data directory.
+
+## Prove
+
+`sh scripts/test-install.sh` (case 5: each of the three directories is closed after the install); the next run of `user-gate.yml`: `hello:microvm` passes in the lane `plain`.
+
+## Done
+
+2026-11-18: `scripts/install.sh` removes the write of the group and the others from `$data` as well; `sh scripts/test-install.sh` passes with an open data directory planted. The run of `user-gate.yml` that proves it in the lane `plain` is the next one.

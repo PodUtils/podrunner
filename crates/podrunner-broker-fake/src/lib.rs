@@ -10,8 +10,10 @@ pub mod actions;
 mod auth;
 mod listen;
 mod results;
+mod routes;
 use listen::Wake;
 pub use listen::bind_loopback;
+pub use routes::service_of;
 pub mod artifacts;
 pub mod cache;
 pub mod corpus;
@@ -61,6 +63,11 @@ struct State {
     step_updates: Vec<Value>,
     queue: VecDeque<(u64, Job)>,
     acquired: Vec<(u64, Job)>,
+    /// The sessions made, and each session that got a job: a runner polls
+    /// again while it runs its job (for a cancel), and an ephemeral runner
+    /// takes one job, so that poll takes no queued job.
+    sessions: u64,
+    served: std::collections::BTreeSet<String>,
     done: Vec<Completion>,
     /// Each request line, for a test that looks at the routes.
     seen: Vec<String>,
@@ -85,22 +92,6 @@ struct State {
     mirror: Option<Arc<mirror::Mirror>>,
     /// The tokens and the runner keys of this broker (T-406).
     auth: auth::Auth,
-}
-
-/// The service of a route that this broker does not serve, and the entry
-/// that gives it, when it is known (T-145).
-pub fn service_of(path: &str) -> Option<&'static str> {
-    let known: [(&str, &str); 5] = [
-        ("ArtifactService", "the ArtifactService of the results API (T-119)"),
-        ("CacheService", "the CacheService of the results API (T-120)"),
-        (
-            "_apis/artifactcache",
-            "the legacy cache routes, which GitHub turned off; actions/cache@v4 takes the CacheService (T-120)",
-        ),
-        ("_apis/pipelines/workflows", "the legacy artifact routes of v3, which GitHub turned off (T-119)"),
-        ("idtoken", "the OIDC id-token of the job (T-140)"),
-    ];
-    known.iter().find(|(k, _)| path.contains(k)).map(|(_, s)| *s)
 }
 
 /// The largest body of a request: the cache client sends an archive under
@@ -426,7 +417,9 @@ fn serve<C: Conn>(conn: C, state: &Mutex<State>, base: &str) {
         },
         ("POST", "/session") => {
             let mut session = body;
-            session["sessionId"] = json!("11111111-1111-1111-1111-111111111111");
+            let mut st = state.lock().expect("the broker");
+            st.sessions += 1;
+            session["sessionId"] = json!(format!("11111111-1111-1111-1111-{:012}", st.sessions));
             reply(&session)
         }
         ("DELETE", "/session") => (200, Vec::new()),
@@ -441,8 +434,17 @@ fn serve<C: Conn>(conn: C, state: &Mutex<State>, base: &str) {
         ),
         ("GET", "/message") => {
             let end = Instant::now() + POLL;
+            let query = req.path.split_once('?').map_or("", |(_, q)| q);
+            let who = query.split('&').find_map(|kv| kv.strip_prefix("sessionId=")).unwrap_or("").to_string();
             loop {
-                let next = state.lock().expect("the broker").queue.pop_front();
+                let next = {
+                    let mut st = state.lock().expect("the broker");
+                    let next = if st.served.contains(&who) { None } else { st.queue.pop_front() };
+                    if next.is_some() && !who.is_empty() {
+                        st.served.insert(who.clone());
+                    }
+                    next
+                };
                 if let Some((id, job)) = next {
                     state.lock().expect("the broker").acquired.push((id, job));
                     break reply(&message::job_request(base, id));
