@@ -148,11 +148,21 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
   2. T-491: the census of each clause of A-X-01 and G-01 to G-14 against
      the code and the release; an entry for each gap.
   3. First T-493 and T-494 (P0: githome's G-15 and G-16; they block
-     R-051). Then the needs, P1 first: T-486 (G-04), T-490 (the
-     unknowns), T-495 to T-499, T-485; then T-488, T-482, T-483, T-481,
-     T-487, T-480, T-479, T-484, T-489, T-492, and T-500 to T-504.
+     R-051), then a beta. Then the needs, P1 first: T-486 (G-04), T-490
+     (the unknowns), T-495 to T-499, T-485, T-506 (G-36, a sandbox
+     unit), T-507 (G-37, an install of `serve` that githome's CLI drives,
+     no TCP listener), T-508 (take the `pod-job` schemas; the source
+     wire moves after T-486, T-493 and T-495), T-509 (G-38, githome's
+     source in CI), T-510 (G-39, `CHANGES.md`), T-511 (G-40, the fakes as
+     release assets); then T-488, T-482, T-483, T-481, T-487, T-480,
+     T-479, T-484, T-489, T-492, T-505 (`max_units`), and T-500 to
+     T-504.
   4. A beta for githome's pair run (GitHub #151) and cfb's host, when the
-     gates of `AGENTS.md`, section 12, hold.
+     gates of `AGENTS.md`, section 12, hold. Name the tag on #292 when
+     T-493, T-494, T-505 or T-507 ships (cfb's request).
+  5. Last, T-512 (G-41, P0): when each ask G-01 to G-41 is done in a
+     release, write `githome: complete in vTAG` on #292 and #151.
+     githome comes back on that line.
 - Each change that podvm or podnet must make: a COORD issue at once.
 - Newer releases of the siblings than the pins: podcrates `v0.70.0`,
   podvm `v0.2.0-beta.31`, podnet `v0.4.0-beta.16`. podnet fixed #142
