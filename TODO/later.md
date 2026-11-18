@@ -10642,7 +10642,7 @@ githome's G-20 (GitHub #292, 2026-11-18) asks the same, in this shape: an offer 
 
 ## Premise
 
-The issue of cfb, read on 2026-11-18. Not measured.
+The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-job`), which podcrates takes under COORD-134. The issue of cfb, read on 2026-11-18. Not measured.
 
 ## Approach
 
@@ -10799,7 +10799,7 @@ githome stores the audit lines of each job (`job_id`, `host`, `port`, `verdict`,
 
 ## Premise
 
-Read from the code and from the comments of githome on 2026-11-18. Not measured live.
+The crate half is githome's G-33 on PodUtils/podcrates#223 (the audit lines of `pod-broker` to the source), which podcrates takes under COORD-134. Read from the code and from the comments of githome on 2026-11-18. Not measured live.
 
 ## Approach
 
@@ -11012,7 +11012,7 @@ githome's comment on GitHub #292, read on 2026-11-18. T-175 measured that GitHub
 
 ## Premise
 
-githome's comment on GitHub #292, read on 2026-11-18. `crates/podrunner-tier/src/lib.rs` compares the owner by name, and by id only when both sides give one.
+The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-job`), which podcrates takes under COORD-134. githome's comment on GitHub #292, read on 2026-11-18. `crates/podrunner-tier/src/lib.rs` compares the owner by name, and by id only when both sides give one.
 
 ## Approach
 
@@ -11064,7 +11064,7 @@ githome asks for `limits.disk` as the size of the writable layer and the work di
 
 ## Premise
 
-githome's comment on GitHub #292 and the code, read on 2026-11-18.
+The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-job`), which podcrates takes under COORD-134. githome's comment on GitHub #292 and the code, read on 2026-11-18.
 
 ## Approach
 
@@ -11089,7 +11089,7 @@ githome and cfb meter the CI time of each project from the run report. githome a
 
 ## Premise
 
-githome's comment on GitHub #292, read on 2026-11-18. The rule of COORD-134: an added optional field keeps the schema id.
+The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-job`), which podcrates takes under COORD-134. githome's comment on GitHub #292, read on 2026-11-18. The rule of COORD-134: an added optional field keeps the schema id.
 
 ## Approach
 
