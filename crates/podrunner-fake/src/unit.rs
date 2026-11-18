@@ -135,8 +135,7 @@ impl Drop for FakeUnit {
 /// The time that destroy waits for the processes of a unit to end.
 const KILL_LIMIT: Duration = Duration::from_secs(5);
 
-/// The file of the output of the payload, in the root of a unit.
-const UNIT_LOG: &str = ".unit.log";
+use crate::unit_files::{UNIT_LOG, root_of};
 
 fn host(e: std::io::Error, what: &str) -> UnitError {
     UnitError::new(UnitCode::Host, format!("{what}: {}", e.kind()))
@@ -478,9 +477,13 @@ impl UnitDriver for FakeUnit {
         self.exec_container(unit, c, spec)
     }
     fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
-        let units = self.units.lock().expect("the units");
-        let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;
-        fs::read(r.root.join(UNIT_LOG)).map_err(|e| host(e, "the log of the unit"))
+        let root = root_of(&self.units.lock().expect("the units"), unit, |r| r.root.clone())?;
+        crate::unit_files::log(&root)
+    }
+
+    fn oom_kills(&self, unit: &UnitId) -> Option<u64> {
+        let root = root_of(&self.units.lock().expect("the units"), unit, |r| r.root.clone()).ok()?;
+        crate::unit_files::oom_kills(&root)
     }
 
     fn container_logs(&self, unit: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {

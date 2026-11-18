@@ -390,6 +390,16 @@ impl Slots {
             {
                 job.usage.of_kind(use_of);
             }
+            // A job that failed after a kill of the OOM killer ends with
+            // `limit` (T-515, githome's G-12).
+            if self.kinds[p.kind].driver.oom_kills(u).is_some_and(|n| n > 0)
+                && matches!(j.reason, None | Some(ExitReason::Failure | ExitReason::UnitFailed))
+            {
+                if let Some(job) = self.jobs.get_mut(key) {
+                    job.reason = Some(ExitReason::Limit);
+                }
+                self.audit(audit::Kind::Limit, key.0, &key.1, None, Some("memory".into()));
+            }
             let residue = self.kinds[p.kind]
                 .driver
                 .destroy(u)

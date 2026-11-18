@@ -11696,7 +11696,7 @@ Ask podcrates to add an optional `arch` to `run-report.v1` beside the fields of 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11713,6 +11713,8 @@ At the end of a unit, read the OOM facts of its kind: `memory.events` `oom_kill`
 ## Prove
 
 `cargo test -p podrunner-slots` (a fake unit that reports an OOM ends `limit`); `runner-image.yml`: a payload past `mem` on the podvm and incus kinds ends `limit`.
+
+In the code (2026-11-18): the unit seam has `UnitDriver::oom_kills` (none by default). The podvm kind reads `oom_kills` of its run report (podvm `0.2.0-beta.32`, a unit with `--memory` in a delegated cgroup2 subtree), the incus kind `OomKills` of `inspect` (podvm `0.2.0-beta.33`; COORD-187 ask 6, PodUtils/podvm#583). Before the destroy, slots turns a job that failed (`failure`, `unit-failed`) after a kill into `limit`, with an audit line `limit` and the detail `memory` (`crates/podrunner-slots/src/run.rs`). The fake unit says a count that its payload writes to `.oom_kills` (`crates/podrunner-fake/src/unit_files.rs`). Test: `cargo test -p podrunner-slots a_job_that_failed_after_an_oom_kill_ends_with_limit`. Open: the measure on the podvm and incus kinds in `runner-image.yml`, and a guest of the microvm kind (podvm has no OOM fact of a guest yet).
 
 # T-516: G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine
 

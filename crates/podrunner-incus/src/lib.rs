@@ -440,6 +440,12 @@ impl UnitDriver for IncusUnit {
         self.instance_usage(&self.name(unit))
     }
 
+    fn oom_kills(&self, unit: &UnitId) -> Option<u64> {
+        // podvm `0.2.0-beta.33`: `OomKills` of the state of the instance.
+        let out = self.verb(&["inspect", "--format", "{{.OomKills}}"], &self.name(unit)).ok()?;
+        String::from_utf8_lossy(&out).trim().parse().ok()
+    }
+
     fn container_inspect(&self, _: &UnitId, _: &ContainerId) -> Result<ContainerState, UnitError> {
         Err(no_container())
     }

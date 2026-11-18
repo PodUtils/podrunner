@@ -9,10 +9,12 @@ mod assigned;
 mod mounts;
 mod source;
 mod unit;
+mod unit_files;
 
 pub use podrunner_unit::procs::{TAG_VAR, tag_of, tagged};
 pub use source::{FakeSource, SourcePlant, Step, What, canned_credential, parse_script};
 pub use unit::{FakeUnit, UnitPlant};
+pub use unit_files::OOM_KILLS;
 
 use podrunner_unit::conformance::Behaviour;
 

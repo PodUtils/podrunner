@@ -1,6 +1,6 @@
 //! T-497 (githome's G-19): the times and the measures of the run report.
 
-use podrunner_schema::{Boundary, EgressHold, Principal, Residual};
+use podrunner_schema::{Boundary, EgressHold, ExitReason, Principal, Residual};
 use serde_json::json;
 
 use super::*;
@@ -54,4 +54,15 @@ fn a_unit_that_fails_before_a_step_gives_a_scrubbed_log_tail() {
     assert!(!tail.contains("fake-client"), "the canary of the credential is in the tail: {tail}");
     // A unit that ends well gives none.
     assert_eq!(run(None, "echo fine; exit 0").log_tail, None);
+}
+
+#[test]
+fn a_job_that_failed_after_an_oom_kill_ends_with_limit() {
+    // T-515: the fake unit stands for a kind that says that the OOM killer
+    // ended a process of the unit; the job failed after it.
+    let r = run(None, &format!("echo 1 > {}; exit 3", podrunner_fake::OOM_KILLS));
+    assert_eq!(r.exit_reason, ExitReason::Limit, "{r:?}");
+    // No OOM kill: the failure stays a failure of the unit.
+    let r = run(None, &format!("echo 0 > {}; exit 3", podrunner_fake::OOM_KILLS));
+    assert_ne!(r.exit_reason, ExitReason::Limit, "{r:?}");
 }

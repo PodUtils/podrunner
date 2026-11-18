@@ -113,6 +113,13 @@ pub trait UnitDriver: Send + Sync {
         None
     }
 
+    /// The count of kills of the OOM killer in a unit, before `destroy`
+    /// (T-515): a job that failed after one ends with `limit`. None: the
+    /// kind does not know.
+    fn oom_kills(&self, _unit: &UnitId) -> Option<u64> {
+        None
+    }
+
     /// Start a container of the job in the unit (the container hooks).
     fn container_start(&self, unit: &UnitId, spec: &ContainerSpec) -> Result<ContainerId, UnitError>;
 

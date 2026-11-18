@@ -410,6 +410,12 @@ impl UnitDriver for PodvmUnit {
         Ok(Residue { processes, files: Count::Known(u64::from(dir.exists())) })
     }
 
+    fn oom_kills(&self, unit: &UnitId) -> Option<u64> {
+        // podvm `0.2.0-beta.32`: `oom_kills` of the run report, for a unit
+        // with `--memory` in a delegated cgroup2 subtree.
+        self.run_report(unit)?.get("oom_kills")?.as_u64()
+    }
+
     fn observe(&self, unit: &UnitId) -> Result<Observation, UnitError> {
         let units = self.units.lock().expect("the units");
         let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;

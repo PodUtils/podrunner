@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 70 open, 38 partial, 12 blocked, 411 done.**
+**531 entries: 69 open, 39 partial, 12 blocked, 411 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
 | P1 | 11 | 16 | 3 | 68 | 98 |
-| P2 | 19 | 16 | 6 | 217 | 258 |
+| P2 | 18 | 17 | 6 | 217 | 258 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 70 | 38 | 12 | 411 | 531 |
+| **All** | 69 | 39 | 12 | 411 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -559,7 +559,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-512](later.md) | P0 | S | later | release | open | G-41: the statement "githome: complete in vTAG" |
 | [T-513](later.md) | P3 | S | later | chore | done | Two file locks of the local mode that `pod_core::lock` cannot hold yet |
 | [T-514](later.md) | P2 | S | later | feature | done | G-05 and G-06: the run report names no architecture |
-| [T-515](later.md) | P2 | M | later | defect | open | G-12: a unit past its memory limit does not end with the exit reason `limit` |
+| [T-515](later.md) | P2 | M | later | defect | partial | G-12: a unit past its memory limit does not end with the exit reason `limit` |
 | [T-516](later.md) | P2 | S | later | feature | open | G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine |
 | [T-517](later.md) | P3 | S | later | docs | open | G-09: the engine of a guest is a directory of the host, not a part of the payload image |
 | [T-518](later.md) | P2 | M | later | feature | open | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
