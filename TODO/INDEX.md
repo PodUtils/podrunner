@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**527 entries: 81 open, 32 partial, 16 blocked, 398 done.**
+**528 entries: 82 open, 32 partial, 16 blocked, 398 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 2 | 0 | 0 | 3 |
 | P1 | 20 | 13 | 1 | 63 | 97 |
 | P2 | 22 | 12 | 11 | 211 | 256 |
-| P3 | 38 | 5 | 4 | 124 | 171 |
-| **All** | 81 | 32 | 16 | 398 | 527 |
+| P3 | 39 | 5 | 4 | 124 | 172 |
+| **All** | 82 | 32 | 16 | 398 | 528 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -575,3 +575,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-528](later.md) | P1 | S | later | measurement | open | No row of the user-path gate copies the gate of rbg |
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
 | [T-530](later.md) | P2 | S | later | feature | open | The job-started hook of a podvm unit cannot ask serve |
+| [T-531](later.md) | P3 | S | later | chore | open | Take rsa 0.10 in the fake broker |

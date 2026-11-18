@@ -300,4 +300,4 @@ numbers. `TODO/RULES.md` gives the rules.
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162, T-480, T-481, T-482, T-483, T-485, T-486, T-487, T-488, T-491, T-492, T-493, T-494, T-495, T-496, T-497, T-498, T-499, T-500, T-501, T-502, T-503, T-504, T-506, T-507, T-509, T-510, T-511, T-512, T-514, T-515, T-516, T-517, T-518, T-519, T-520, T-521, T-522, T-523, T-524, T-529 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |
 
-#44, #45 and #63 are pull requests (#63: Dependabot, base64 0.23, applied on `main`).
+#44, #45, #63, #297, #298 and #299 are pull requests (Dependabot: #63 base64 0.23, #297 trufflehog 3.99.9 and #298 actions/setup-dotnet 6.1.0 are applied on `main`; #299 rsa 0.10 is T-531).

@@ -12037,3 +12037,29 @@ Let the hook take `PODRUNNER_EGRESS` when it names a unix socket (node `http.req
 ## Prove
 
 `cargo test -p podrunner-broker-fake --test runner -- --ignored` with `PODRUNNER_EGRESS` of a unix socket and no proxy variable: the hook asks and `keep` runs the job.
+
+# T-531: Take rsa 0.10 in the fake broker
+
+**Source:** Dependabot GitHub #299 (rsa 0.9.10 to 0.10.0), 2026-11-18
+**Category:** chore
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Dependabot proposes rsa 0.10.0 (#299). The gate of its branch fails: rsa 0.10 changes the API that the fake broker uses to build the key of a runner and to sign a token (`BigUint`, `RsaPrivateKey::from_components`, `Pkcs1v15Sign`, the traits `PrivateKeyParts` and `PublicKeyParts`).
+
+## Premise
+
+The diff of #299 and the red gate run of its branch, read on 2026-11-18; the uses are in `crates/podrunner-broker-fake/src/auth.rs` and `crates/podrunner-broker-fake/src/runner.rs`. rsa is a dependency of the fake broker only: the released binary signs with `ring`.
+
+## Approach
+
+Move the two files to the API of rsa 0.10 (its `BoxedUint`, the new constructors and the signing traits), raise the version in `Cargo.toml`, and apply it as a commit on `main`; close #299 with a link to the commit.
+
+## Prove
+
+`cargo test -p podrunner-broker-fake`; with the official runner, `cargo test -p podrunner-broker-fake --test runner -- --ignored` (the runner accepts the signed token).
+
