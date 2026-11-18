@@ -11599,7 +11599,7 @@ State (2026-11-18): `PodUtils/githome` is not reachable from the sessions and th
 
 ## Blocker
 
-COORD-096 (GitHub #306, to podcrates): a release asset of githome's source program, or a fake of githome's source in `pod-testkit`. Then the job goes into `runner-image.yml` and the gate of `release.yml`.
+COORD-096 (GitHub #306, to podcrates): a release asset of githome's source program, or a fake of githome's source in `pod-testkit`. Then the job goes into `runner-image.yml` and the gate of `release.yml`. podcrates chose the fake (COORD-139, PodUtils/podcrates#230): `pod-fake-githome source`, a source program of kind `program` (PodUtils/podcrates@T-948), a release asset of a later tag. When its hand-off names the asset: pin it, run `source-conformance --json` and one live job of each kind against it, and gate `release.yml` on it.
 
 # T-510: G-39: one record of each change of a contract that githome reads
 
