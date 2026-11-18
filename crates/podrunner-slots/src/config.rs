@@ -139,12 +139,14 @@ pub struct UnitConfig {
     /// measure.
     #[serde(default)]
     pub disk_max_bytes: Option<u64>,
-    /// `incus`: the pool of incusd holds a size of a root disk (btrfs,
-    /// zfs, lvm): each instance gets a root disk of the lesser of the
-    /// `disk` of the offer and `disk_max_bytes`, and a job past it gets
-    /// `ENOSPC` (T-482). The `dir` driver holds none.
+    /// `incus`: the pool holds a size of a root disk (not `dir`): each root
+    /// is the lesser of the `disk` of the offer and `disk_max_bytes` (T-482).
     #[serde(default)]
     pub root_quota: bool,
+    /// `fake`, with `allow_fake`: the boundary that the fake kind claims and
+    /// an enforced hold, for a test of a forge source (T-511). A test only.
+    #[serde(default)]
+    pub claim: Option<podrunner_schema::Boundary>,
     /// `podvm`: run each unit and container under the confine layer of
     /// podvm (`--podvm-confine`, T-079). The kind says `confined` only
     /// after its self-test on this host.
@@ -438,6 +440,14 @@ impl Config {
         }
         if self.unit.contains_key("fake") && !self.allow_fake {
             return Err("[unit.fake] needs allow_fake = true".into());
+        }
+        if let Some((n, _)) = self.unit.iter().find(|(n, u)| u.claim.is_some() && n.as_str() != "fake") {
+            return Err(format!("[unit.{n}] claim: only the fake kind takes a claim"));
+        }
+        if let Some(c) = self.unit.get("fake").and_then(|u| u.claim)
+            && !matches!(c, podrunner_schema::Boundary::Confined | podrunner_schema::Boundary::Guest)
+        {
+            return Err(format!("[unit.fake] claim {c:?}: confined or guest"));
         }
         crate::pins::check(&self.pin)?;
         crate::pins::verify(&self.pin)?;

@@ -13,14 +13,14 @@ use crate::serve::{Failure, fail, fake_capability};
 /// has a hold only with `podnet`, and then at best `enforced`.
 pub fn served(cfg: &Config) -> Result<(), Failure> {
     let best = |name: &str, u: &podrunner_slots::config::UnitConfig| match name {
-        "fake" => fake_capability().boundary,
+        "fake" => crate::serve::fake_capability_of(u).boundary,
         "podvm" if u.confine => Boundary::Confined,
         "podvm" => Boundary::Redirect,
         "incus" => Boundary::Confined,
         _ => Boundary::Guest,
     };
     let hold = |name: &str, u: &podrunner_slots::config::UnitConfig| match name {
-        "fake" => fake_capability().egress_hold,
+        "fake" => crate::serve::fake_capability_of(u).egress_hold,
         "podvm" if u.podnet.is_none() => EgressHold::Unknown,
         _ => EgressHold::Enforced,
     };

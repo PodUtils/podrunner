@@ -53,6 +53,8 @@ disk_max_bytes = 10737418240          # the bytes that a unit may write under it
 # root_quota = true                  # incus only: the pool of incusd holds a size of a root disk (btrfs, zfs, lvm; not dir): each
                                       # instance gets a root disk of the lesser of disk_max_bytes and the disk limit of the offer (64 MiB at
                                       # least), a job past it gets ENOSPC, and the kind says `disk: enforced` (T-482); podvm refuses it on dir
+# claim = "confined"                 # fake only, with allow_fake: the fake kind claims confined or guest and an enforced hold, so that
+                                      # a test drives a trusted or untrusted forge source through serve (T-511); it holds nothing
 confine = false                       # podvm: each unit and container under the confine layer of podvm (--podvm-confine); the kind says confined after its self-test
 
 [tier.trusted]               # a floor at or above the lowest floor

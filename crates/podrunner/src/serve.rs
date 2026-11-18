@@ -8,10 +8,7 @@ use std::time::{Duration, Instant};
 use pod_core::clock::{Clock, SystemClock};
 use pod_core::failure::Class;
 use podrunner_fake::FakeUnit;
-use podrunner_schema::{
-    Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, Fact, LimitMode, Principal, SecretDelivery,
-    TreeKill,
-};
+use podrunner_schema::Capability;
 use podrunner_slots::config::Config;
 use podrunner_slots::{Slots, Source, UnitKind};
 use serde_json::Value;
@@ -25,38 +22,17 @@ pub struct Failure {
     pub detail: String,
 }
 
+pub use fake::{fake_capability, fake_capability_of};
+
 pub(crate) fn fail(class: Class, detail: impl Into<String>) -> Failure {
     Failure { class, detail: detail.into() }
-}
-
-/// The record of the `fake` kind: no boundary, a shared principal, no hold.
-/// It meets only the floor of `local`: a fake unit never runs a forge job
-/// of `trusted` or `untrusted`.
-pub fn fake_capability() -> Capability {
-    Capability {
-        schema: podrunner_schema::SCHEMA,
-        kind: "fake".into(),
-        arch: std::env::consts::ARCH.into(),
-        boundary: Boundary::None,
-        boundary_proof: None,
-        principal: Principal::Shared,
-        container: ContainerRoute::None,
-        net: "shared-host".into(),
-        secret_delivery: vec![SecretDelivery::Files],
-        credential_store: CredentialStore::PrivateDir,
-        mount_modes: vec!["rw".into()],
-        rootfs_fresh: Fact::Yes,
-        tree_kill: TreeKill::Verified,
-        limits: [("wall".to_string(), LimitMode::Enforced)].into(),
-        egress_hold: EgressHold::None,
-        kvm: Fact::Unknown,
-    }
 }
 
 fn now_unix() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
+mod fake;
 #[path = "serve/front.rs"]
 pub(crate) mod front;
 #[path = "serve/host.rs"]
@@ -142,7 +118,12 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
     for (name, u) in &cfg.unit {
         let (driver, capability): (Arc<dyn podrunner_unit::UnitDriver>, Capability) = match name.as_str() {
             "fake" => {
-                let cap = fake_capability();
+                let cap = fake_capability_of(u);
+                if let Some(c) = u.claim {
+                    eprintln!(
+                        "podrunner: [unit.fake] claims {c:?} and an enforced hold: a test only, it holds nothing"
+                    );
+                }
                 let platform = if cap.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" };
                 (Arc::new(FakeUnit::new(&state.join("fake"), cap.clone(), platform)), cap)
             }

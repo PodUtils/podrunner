@@ -97,21 +97,34 @@ is done.
 
 - The coordinator (podcrates) sends its orders as COORD issues only
   (COORD-136, PodUtils/podcrates#227). Its order for podrunner: the take
-  of `v0.70.0` (done, COORD-088 #295), the census of T-491 (done), then
-  T-493, T-494, T-486, T-495. T-486 and T-495 are done, T-497 is
-  partial; amend COORD-088 when T-493 is done too (the move of the
-  schemas, T-508).
-- podvm `0.2.0-beta.33` is pinned (COORD-187, COORD-189, COORD-190): each
-  value of the environment goes to podvm in a NUL-ended file (T-405,
-  done); the syscall tier broke absolute links in a unit (T-261,
-  blocked on COORD-093, #303; the flag is off again). A pty
-  step and the check `pty:podvm` (T-354, done; #216 closed). T-403 waits
-  for `--podvm-volume-base` on the rungs with containers (COORD-090,
-  #300). #110 waits for the measure of T-162. COORD-187 (#296) gives
-  `--storage-opt size=N`, `inspect` facts and an engine on the incus
-  tier, and `--pids-limit` in a guest: T-482, T-483, T-485, T-488 can go
-  on (T-482 and T-496 are still `blocked` in the record: unblock them).
-- Dependabot: #297 and #298 are applied; #299 (rsa 0.10) is T-531.
+  of `v0.70.0` (done), the census of T-491 (done), then T-493, T-494,
+  T-486, T-495 (T-494, T-486, T-495 done; T-493 partial: its last open
+  item is the test `a_job_of_another_run_that_serve_keeps_runs_in_a_podvm_unit`
+  in `runner-image.yml`). Amend COORD-088 (#295) when T-493 is done (the
+  move of the schemas, T-508).
+- Done or advanced in this session (each pushed after `check.sh`):
+  T-497 (the times, measures and `log_tail` of the report; open: the
+  cache bytes, T-480), T-498 (done: `source restart`), T-499 (doctor
+  pins and `podrunner-manifest.json`; open: an image release of its
+  own), T-490 (done), T-507 (`config init`; open: `install.sh --serve`),
+  T-534 (done), T-405 (done), T-482, T-483, T-485, T-488, T-515 (the
+  podvm `0.2.0-beta.33` features, each open for its CI measure), T-506
+  (the sandbox unit), T-510 (done: `CHANGES.md`; each commit that
+  changes a contract adds its row and runs `check-notes.sh --stamp`).
+- CI to read first: `runner-image.yml` on `7319014` or later runs the new
+  measures (T-485 `podrunner-incus --test engine`, T-488
+  `podrunner-microvm --test pids`, T-493 `podvm.rs`). A red one is the
+  first task.
+- podvm `0.2.0-beta.33` is pinned. The syscall tier is off again: under
+  it an absolute link of a unit did not resolve (COORD-093, #303); podvm
+  fixed it on its `main` (COORD-192, PodUtils/podvm#588). Take its next
+  beta, give the flag again (the code is at `322d214`), run `links.rs`
+  and the container steps (T-261). T-403 waits for COORD-090 (#300).
+  T-496 waits for PodUtils/podvm@T-1968.
+- podnet `v0.4.0-beta.17` is pinned (COORD-108, PodUtils/podnet#655): run
+  `user-gate.yml` on a green `runner-image.yml` run and send the result
+  of #142 to podnet as a COORD issue (T-179).
+- Dependabot: #299 (rsa 0.10) is T-531.
 - A full `check.sh` with the runner takes about 45 minutes here: batch the
   commits before a push.
 

@@ -17,7 +17,7 @@ use podrunner_schema::Capability;
 use podrunner_slots::config::Config;
 use serde_json::{Value, json};
 
-use crate::serve::{Failure, fail, fake_capability};
+use crate::serve::{Failure, fail};
 use crate::text::display;
 
 /// The probes of `pod-hostprobe` that the drivers need: user namespaces
@@ -104,7 +104,7 @@ fn connect_incusd(socket: &Path) -> Result<(), String> {
 fn capability_at(name: &str, u: &podrunner_slots::config::UnitConfig, incusd: &Path) -> Result<Capability, String> {
     use podrunner_unit::UnitDriver;
     match name {
-        "fake" => Ok(fake_capability()),
+        "fake" => Ok(crate::serve::fake_capability_of(u)),
         "podvm" => {
             let binary = u.binary.as_ref().ok_or("[unit.podvm] names no binary")?;
             let podvm = podrunner_podvm::Podvm { binary: binary.into() };
