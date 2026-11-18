@@ -8,8 +8,10 @@
 # PodUtils/podnet#605).
 # v0.4.0-beta.14 and later take `PODNET_VNET_FORWARD`: a TCP address of the
 # vnet that connects to a unix socket (#170, T-350).
-version = "0.4.0-beta.15"
+# v0.4.0-beta.17 and later keep the nonblocking socket of an epoll waiter on
+# the relay of the seccomp hold (#142, T-179).
+version = "0.4.0-beta.17"
 
 [sha256]
-x86_64 = "97cbad273fa764f80dea5e431d56bb791b49ced3c7abe548d97c103e5344e39c"
-aarch64 = "981be4b71ac6cc21d145b0599582237cbc39bf5aa5d3253c3acbe4b413d115d4"
+x86_64 = "d0b72b9bfe2473afef360e41c8a830a003239c8695535bef0f4bbd20486ab1f5"
+aarch64 = "e8c37a1d100d169c6e3240b2df33ffb9ec584d94c47ca959a970d8df7f327d71"

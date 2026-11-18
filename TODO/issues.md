@@ -212,7 +212,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #210 | run: --watch/--schedule with a one-shot mode hangs; --schedule on a schedule-less workflow says on.schedule has no cron time | closed (fixed on `main`; the entry is done) | T-347 |
 | #211 | run: --validate --json emits no JSON for an invalid workflow | closed (fixed on `main`; the entry is done) | T-348 |
 | #212 | run: a pre-start failure claims a log in --log-dir that is not written | closed (fixed on `main`; the entry is done) | T-349 |
-| #213 | v0.1.0-beta.7 pins podnet 0.4.0-beta.13, but the vnet forward needed by #170 is in 0.4.0-beta.14 | open (podnet `0.4.0-beta.15` pinned; the forward is T-220) | T-350 |
+| #213 | v0.1.0-beta.7 pins podnet 0.4.0-beta.13, but the vnet forward needed by #170 is in 0.4.0-beta.14 | open (podnet `0.4.0-beta.17` pinned; the forward is T-220) | T-350 |
 | #214 | COORD-077: pod-actions-workflow: the error of an unknown need marks the job, not its needs: (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-859) | T-331 |
 | #215 | COORD-078: pod-broker: names_upstream still resolves the name itself, so a host whose DNS is only through its proxy refuses each CONNECT (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-862) | T-351 |
 | #216 | COORD-079: a podvm unit has no /dev/pts: pty.spawn and script fail, and pager tests fail (to podvm) | open (podvm answered on PodUtils/podvm#470: pod-enter of podcrates, PodUtils/podvm#469; PodUtils/podvm@T-1934) | T-354 |

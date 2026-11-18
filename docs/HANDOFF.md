@@ -12,7 +12,7 @@ is done.
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
-  beta.14, T-112); podnet `v0.4.0-beta.15` (`images/podnet.toml`); the
+  beta.14, T-112); podnet `v0.4.0-beta.17` (`images/podnet.toml`); the
   official runner v2.338.2 (`images/runner/runner.toml`). Last beta of
   podrunner: `v0.1.0-beta.7` (release run 44066276664, `129310e`).
 - The record: `cargo todo check` gives the counts. The last green
@@ -192,8 +192,8 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
      release, write `githome: complete in vTAG` on #292 and #151.
      githome comes back on that line.
 - Each change that podvm or podnet must make: a COORD issue at once.
-- Newer releases of the siblings than the pins: podvm `v0.2.0-beta.31`, podnet `v0.4.0-beta.16`. podnet fixed #142
-  (T-179) on its `main` (T-457), for its next beta.
+- podnet `v0.4.0-beta.17` is pinned (COORD-108, PodUtils/podnet#655): it has the fix of #142 (T-179). Next: `user-gate.yml`
+  on the green `runner-image.yml` run of the pin, then the result to podnet as a COORD issue.
 
 ## Resume here (the work of 2026-11-17 and 2026-11-18)
 
@@ -310,7 +310,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   P3 groups T-331, T-339, T-308, T-316, T-323, and T-264 (podcrates
   `v0.68.0`, COORD-129).
 - A user QA of beta.7 (#203 to #213) gave T-340 to T-350. Each is done
-  but T-350 (podnet `0.4.0-beta.15` is pinned on `main`; the forward is
+  but T-350 (podnet `0.4.0-beta.17` is pinned on `main`; the forward is
   T-220). #203 to #212 are closed. The user measured the podvm kind on
   the unix broker and the front on a host that refuses the loopback bind
   (#170): that is `--vnet PATH` now (`docs/local-mode.md`). The

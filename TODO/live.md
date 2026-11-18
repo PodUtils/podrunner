@@ -1042,6 +1042,8 @@ State (2026-11-17): the user-path gate has the check `hold:podvm` (`scripts/user
 
 State (2026-11-17): podnet records #142 as PodUtils/podnet@T-457 (PodUtils/podnet#649): most likely the hang of PodUtils/podnet#610, fixed in podnet `8a0b0f19`, in the next release of podnet. Next: take that release and run the lane `userns-off` (H0) again.
 
+State (2026-11-18): podnet `v0.4.0-beta.17` has the fix (PodUtils/podnet#655, COORD-108: an epoll waiter keeps its nonblocking socket on the relay of the seccomp hold; a connect to a loopback port of the host gives a kernel TCP socket where the host refuses writes to the memory of the program). It is pinned (`images/podnet.toml`, `scripts/install.sh`). Next: the run of `user-gate.yml` on the green `runner-image.yml` run of this pin (the lane `userns-off` and the check `hold:podvm`), and the result as a COORD issue `(to podnet)`.
+
 # T-180: As PID 1 of a container, `serve` reaps no orphan: the zombies stop the supervisor
 
 **Source:** LIVE-2 report on GitHub #75 (2026-11-15, podrunner `v0.1.0-beta.5`)
