@@ -292,3 +292,43 @@ fn a_directory_run_keeps_the_state_of_each_workflow() {
     }
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+/// T-427: a rerun of a failed job keeps a call that passed; it does not
+/// run the jobs of the call again.
+#[test]
+#[ignore]
+fn a_rerun_keeps_a_call_that_passed() {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
+    let scratch = std::env::temp_dir().join(format!("podrunner-local-rerun-call-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    std::fs::create_dir_all(scratch.join(".github/workflows")).unwrap();
+    let marker = scratch.join("ok");
+    let flow = scratch.join("w.yml");
+    let text = format!(
+        "on: push\njobs:\n  call:\n    uses: ./.github/workflows/c.yml\n  bad:\n    runs-on: x\n    steps: [{{run: test -f '{}'}}]\n",
+        marker.display()
+    );
+    std::fs::write(&flow, text).unwrap();
+    std::fs::write(
+        scratch.join(".github/workflows/c.yml"),
+        "on: workflow_call\njobs:\n  b:\n    runs-on: x\n    steps: [{run: 'true'}]\n",
+    )
+    .unwrap();
+    let state = scratch.join("state").display().to_string();
+    let base = ["run", flow.to_str().unwrap(), "--runner-dir", &dir, "-q", "--checkout", scratch.to_str().unwrap()];
+    let run = |more: &[&str]| {
+        let args: Vec<String> = base.iter().chain(more).map(|s| s.to_string()).collect();
+        let out = podrunner::cli::run(&args);
+        println!("{}{}", out.stdout, out.stderr);
+        out
+    };
+    let out = run(&["--state", &state]);
+    assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
+    std::fs::write(&marker, "").unwrap();
+    let out = run(&["--rerun", &state]);
+    assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
+    assert!(out.stdout.lines().any(|l| l.starts_with("kept") && l.contains("call")), "{}", out.stdout);
+    assert!(out.stdout.lines().any(|l| l.starts_with("ok") && l.ends_with("bad")), "{}", out.stdout);
+    let _ = std::fs::remove_dir_all(&scratch);
+}

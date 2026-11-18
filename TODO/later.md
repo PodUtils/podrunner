@@ -9114,7 +9114,7 @@ Give `name:`, else the path of the file in the tree.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9131,6 +9131,10 @@ Map a caller to the cells of its called jobs in the state.
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-18: A rerun maps each cell of a called job (`CALLER__CALLEE.N`, `CALLER-N__CALLEE.N`) to the job that calls (`rerun.rs` `top_job`, read from the jobs of the workflow): a call that passed is kept, and `--job CALLER` runs the jobs of the call. Tests: the rerun test with a call and a matrix of calls; the end-to-end test (`tests/local.rs`, the official runner) reruns a failed job and keeps the call.
 
 # T-428: A directory run with `--artifacts` or `--state` keeps the output of the last workflow only
 
@@ -10540,7 +10544,7 @@ Check the state directory, `TMPDIR`, `--toolcache`, `--export` and the `engine` 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10557,6 +10561,10 @@ Remember the length of the file before a write; on a failure, truncate the file 
 ## Prove
 
 `cargo test -p podrunner-slots`; a test with a file that takes only part of a line.
+
+## Done
+
+2026-11-18: A write of an audit line remembers the length of the file; when it fails part way, the file is cut back to it. When the cut fails too, the next write ends the part and writes a `resume` line first, so `verify` passes the torn part once (`audit.rs` `append_line`, `mend`). A write that adds nothing (a full device) marks nothing. The test makes a write fail after 12 bytes, with and without the cut; the chain holds each time, and the copy for the source has the `seq` of the disk. On the code before the fix the next line joins the part.
 
 # T-478: The build of the runner image fails when public.ecr.aws refuses the pull of its base image
 

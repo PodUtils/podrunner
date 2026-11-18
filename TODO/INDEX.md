@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**475 entries: 44 open, 28 partial, 13 blocked, 390 done.**
+**475 entries: 42 open, 28 partial, 13 blocked, 392 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
 | P2 | 4 | 12 | 9 | 209 | 234 |
-| P3 | 37 | 4 | 3 | 119 | 163 |
-| **All** | 44 | 28 | 13 | 390 | 475 |
+| P3 | 35 | 4 | 3 | 121 | 163 |
+| **All** | 42 | 28 | 13 | 392 | 475 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -471,7 +471,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-424](later.md) | P2 | M | later | defect | done | The minimal payload of `pull_request` has no `head.repo` and `base.repo` |
 | [T-425](later.md) | P2 | M | later | defect | done | A git submodule is an empty directory in the checkout |
 | [T-426](later.md) | P3 | M | later | defect | done | `github.workflow` is the file name, not the `name:` of the workflow |
-| [T-427](later.md) | P3 | M | later | defect | open | `--rerun DIR --job CALLER` reruns nothing of a call |
+| [T-427](later.md) | P3 | M | later | defect | done | `--rerun DIR --job CALLER` reruns nothing of a call |
 | [T-428](later.md) | P3 | M | later | defect | done | A directory run with `--artifacts` or `--state` keeps the output of the last workflow only |
 | [T-429](later.md) | P3 | M | later | defect | done | A line of a secret, var or env file with `<<` in its value is refused |
 | [T-430](later.md) | P3 | M | later | defect | done | `--changed-since` does not see new files that git does not track |
@@ -521,5 +521,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-474](later.md) | P2 | M | later | chore | open | Take `pod_proxy::env` for the proxy environment of a unit |
 | [T-475](later.md) | P3 | S | later | defect | open | A `uses:` with an empty part runs on GitHub and is refused here |
 | [T-476](later.md) | P3 | S | later | defect | open | A `:` in TMPDIR or in an option path fails each job start, not `check` |
-| [T-477](later.md) | P3 | S | later | defect | open | An audit line that fails half way leaves a fragment, and the next line joins it |
+| [T-477](later.md) | P3 | S | later | defect | done | An audit line that fails half way leaves a fragment, and the next line joins it |
 | [T-478](later.md) | P2 | S | later | defect | done | The build of the runner image fails when public.ecr.aws refuses the pull of its base image |

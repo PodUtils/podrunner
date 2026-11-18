@@ -85,6 +85,15 @@ pub struct Audit {
     pub lines: Vec<Entry>,
     seq: u64,
     prev: String,
+    /// A part of a line stays at the end of the file: the next line ends
+    /// it and marks the chain first (T-477).
+    torn: bool,
+    /// Tests: the next write fails after this many bytes, and the cut of
+    /// the file back fails with `no_cut`.
+    #[cfg(test)]
+    fail_after: Option<usize>,
+    #[cfg(test)]
+    no_cut: bool,
 }
 
 /// The `seq` and the hash of the last line of `text` that is a whole JSON
@@ -106,23 +115,71 @@ impl Audit {
         let file = OpenOptions::new().create(true).append(true).mode(0o600).open(&path)?;
         file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
         let (seq, prev) = tail(&text);
-        let mut a = Audit { file, lines: Vec::new(), seq, prev };
+        let mut a = Audit {
+            file,
+            lines: Vec::new(),
+            seq,
+            prev,
+            torn: false,
+            #[cfg(test)]
+            fail_after: None,
+            #[cfg(test)]
+            no_cut: false,
+        };
         // A torn last line (a death in a write): end it, and say so in
         // the chain, so that `verify` passes the torn line once.
         if !text.is_empty() && !text.ends_with(b"\n") {
             a.file.write_all(b"\n")?;
             let line = serde_json::json!({ "seq": a.seq + 1, "prev": a.prev, "audit": "resume", "detail": "a torn line before" });
-            a.append(&line.to_string())?;
+            a.append_line(&line.to_string())?;
         }
         Ok(a)
     }
 
+    /// After a part line that stays, end it and write a `resume` line, as
+    /// `open` does for a torn line (T-477).
+    fn mend(&mut self) -> std::io::Result<()> {
+        if self.torn {
+            self.put(b"\n")?;
+            self.torn = false;
+            let line = serde_json::json!({ "seq": self.seq + 1, "prev": self.prev, "audit": "resume", "detail": "a torn line before" });
+            self.append_line(&line.to_string())?;
+        }
+        Ok(())
+    }
+
     /// Append one line and move the chain on; a failed write moves nothing.
-    fn append(&mut self, text: &str) -> std::io::Result<()> {
-        self.file.write_all(format!("{text}\n").as_bytes())?;
+    /// A write that fails part way cuts the file back to its length before
+    /// it: else the next line joins the part (T-477).
+    fn append_line(&mut self, text: &str) -> std::io::Result<()> {
+        let len = self.file.metadata()?.len();
+        if let Err(e) = self.put(format!("{text}\n").as_bytes()) {
+            let grew = self.file.metadata().map_or(true, |m| m.len() != len);
+            if grew && self.cut(len).is_err() {
+                self.torn = true;
+            }
+            return Err(e);
+        }
         self.seq += 1;
         self.prev = hash(text.as_bytes());
         Ok(())
+    }
+
+    fn put(&mut self, bytes: &[u8]) -> std::io::Result<()> {
+        #[cfg(test)]
+        if let Some(n) = self.fail_after.take() {
+            self.file.write_all(&bytes[..n.min(bytes.len())])?;
+            return Err(std::io::Error::other("the disk is full (a test)"));
+        }
+        self.file.write_all(bytes)
+    }
+
+    fn cut(&mut self, len: u64) -> std::io::Result<()> {
+        #[cfg(test)]
+        if self.no_cut {
+            return Err(std::io::Error::other("no cut (a test)"));
+        }
+        self.file.set_len(len)
     }
 
     /// Write `e` as the next line of the chain, and give it back with its
@@ -130,11 +187,20 @@ impl Audit {
     /// the disk: then it is in no copy, and the next line takes its `seq`
     /// (#265).
     pub fn write(&mut self, mut e: Entry) -> Option<Entry> {
+        if let Err(why) = self.mend() {
+            eprintln!(
+                "podrunner: the audit line {} ({:?} of {}) is not written: {why}",
+                self.seq + 1,
+                e.audit,
+                e.job_id
+            );
+            return None;
+        }
         e.seq = self.seq + 1;
         e.prev = self.prev.clone();
         // An audit line that cannot be written must not stop a job: the
         // journal holds the transitions. It gives one line on stderr.
-        let written = serde_json::to_string(&e).map_err(std::io::Error::other).and_then(|t| self.append(&t));
+        let written = serde_json::to_string(&e).map_err(std::io::Error::other).and_then(|t| self.append_line(&t));
         if let Err(why) = written {
             eprintln!("podrunner: the audit line {} ({:?} of {}) is not written: {why}", e.seq, e.audit, e.job_id);
             return None;
@@ -295,6 +361,26 @@ mod tests {
         }
         assert_eq!(a.lines.len(), KEEP);
         let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// T-477: a write that fails part way leaves no part line: the file is
+    /// cut back; when the cut fails too, the next line ends the part and a
+    /// `resume` line marks it. Each time the chain holds.
+    #[test]
+    fn a_write_that_fails_part_way_leaves_a_chain_that_holds() {
+        for no_cut in [false, true] {
+            let d = dir(&format!("part-{no_cut}"));
+            let mut a = Audit::open(&d).unwrap();
+            a.write(entry(1, "one")).unwrap();
+            (a.fail_after, a.no_cut) = (Some(12), no_cut);
+            assert!(a.write(entry(2, "lost")).is_none());
+            let third = a.write(entry(3, "three")).unwrap();
+            let text = std::fs::read(d.join("audit.jsonl")).unwrap();
+            let want = if no_cut { 3 } else { 2 };
+            assert_eq!(verify(&text, None), Ok(want), "no_cut {no_cut}: {}", String::from_utf8_lossy(&text));
+            assert_eq!(third.seq, want, "the copy of the source has the seq of the disk");
+            let _ = std::fs::remove_dir_all(&d);
+        }
     }
 
     #[test]

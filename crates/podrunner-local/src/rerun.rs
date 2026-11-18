@@ -126,6 +126,20 @@ fn job_of(cell: &str) -> &str {
     cell.rsplit_once('.').map_or(cell, |x| x.0)
 }
 
+/// The job of `w` of a cell id: a cell of a called job (`CALLER__CALLEE.N`,
+/// or `CALLER-N__CALLEE.N` for a matrix of calls) is a cell of its caller
+/// (T-427).
+fn top_job<'a>(w: &'a Workflow, cell: &'a str) -> &'a str {
+    let job = job_of(cell);
+    let caller = w.jobs.iter().filter(|j| j.uses.is_some()).find(|j| {
+        job.strip_prefix(j.id.as_str()).is_some_and(|rest| {
+            let rest = rest.strip_prefix('-').map_or(rest, |r| r.trim_start_matches(|c: char| c.is_ascii_digit()));
+            rest.starts_with("__")
+        })
+    });
+    caller.map_or(job, |j| j.id.as_str())
+}
+
 /// The jobs of a rerun: the jobs of `jobs`, or each job with a failed or
 /// cancelled cell, and each job after one of them.
 pub fn rerun_jobs(w: &Workflow, ends: &BTreeMap<String, Ended>, jobs: &[String]) -> Result<BTreeSet<String>, String> {
@@ -133,7 +147,7 @@ pub fn rerun_jobs(w: &Workflow, ends: &BTreeMap<String, Ended>, jobs: &[String])
     let mut set: BTreeSet<String> = if jobs.is_empty() {
         ends.iter()
             .filter(|(_, (r, _))| matches!(r, JobResult::Failure | JobResult::Cancelled))
-            .map(|(c, _)| job_of(c).to_string())
+            .map(|(c, _)| top_job(w, c).to_string())
             .collect()
     } else {
         jobs.iter().cloned().collect()
@@ -141,7 +155,7 @@ pub fn rerun_jobs(w: &Workflow, ends: &BTreeMap<String, Ended>, jobs: &[String])
     // A job that the state does not know (a job of a run that was cut
     // short) runs too.
     for j in &w.jobs {
-        if !ends.keys().any(|c| job_of(c) == j.id) {
+        if !ends.keys().any(|c| top_job(w, c) == j.id) {
             set.insert(j.id.clone());
         }
     }
@@ -166,7 +180,7 @@ pub fn kept(
     let needs_rerun = |job: &str| Graph::new(w).is_ok_and(|g| g.needs(job).iter().any(|n| rerun.contains(*n)));
     ends.iter()
         .filter(|(c, (r, _))| {
-            let job = job_of(c);
+            let job = top_job(w, c);
             !rerun.contains(job) || (failed && *r == JobResult::Success && !needs_rerun(job))
         })
         .map(|(c, e)| (c.clone(), e.clone()))
@@ -196,6 +210,25 @@ mod tests {
         assert_eq!(k.keys().collect::<Vec<_>>(), ["a.0", "b.0"]);
         let k = kept(&w, &m, &rerun_jobs(&w, &m, &["b".into()]).unwrap(), false);
         assert_eq!(k.keys().collect::<Vec<_>>(), ["a.0"], "--job b runs each cell of b");
+        // T-427: the cells of a call are cells of its caller.
+        let calls = pod_actions_workflow::parse(
+            "on: push\njobs:\n  call:\n    uses: ./c.yml\n  m:\n    strategy: {matrix: {n: [1, 2]}}\n    uses: ./c.yml\n  \
+             after:\n    needs: [call, m]\n    runs-on: x\n    steps: [{run: x}]\n",
+        )
+        .unwrap()
+        .workflow;
+        let passed = ends(&[
+            ("call__build.0", JobResult::Success),
+            ("m-0__build.0", JobResult::Success),
+            ("m-1__build.0", JobResult::Failure),
+            ("after.0", JobResult::Skipped),
+        ]);
+        let set = rerun_jobs(&calls, &passed, &[]).unwrap();
+        assert_eq!(set.iter().collect::<Vec<_>>(), ["after", "m"], "a call that passed does not run again");
+        let k = kept(&calls, &passed, &set, true);
+        assert_eq!(k.keys().collect::<Vec<_>>(), ["call__build.0", "m-0__build.0"], "the cell of m that passed stays");
+        let k = kept(&calls, &passed, &rerun_jobs(&calls, &passed, &["call".into()]).unwrap(), false);
+        assert!(!k.contains_key("call__build.0"), "--job call runs the jobs of the call: {k:?}");
         let only_a = rerun_jobs(&w, &e, &["a".into()]).unwrap();
         assert_eq!(only_a.into_iter().collect::<Vec<_>>(), ["a"], "--job a: a alone, nothing needs it");
         let short = ends(&[("a.0", JobResult::Success)]);
