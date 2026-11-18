@@ -224,6 +224,10 @@ pub struct Payload {
     /// `[pin]` holds.
     #[serde(default)]
     pub max_age_s: Option<u64>,
+    /// The image of a sandbox (T-506): only an offer with `sandbox` of
+    /// this digest takes it, and a runner job never does.
+    #[serde(default)]
+    pub sandbox: bool,
 }
 
 impl Payload {

@@ -25,6 +25,7 @@ pub mod placement;
 pub mod policy;
 mod report;
 mod run;
+pub mod sandbox;
 mod sources;
 mod spool;
 pub mod state;

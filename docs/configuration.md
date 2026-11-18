@@ -88,6 +88,8 @@ reference = "runner@sha256:HEX"
 built_at_s = 1763337600      # the time of the build, Unix seconds; a time after the clock is stale
 runner_version = "2.338.2"   # the official runner in the image
 max_age_s = 2419200          # the age limit of this pin; the smaller of it and [pin] max_age_s holds
+# sandbox = true             # the image of a sandbox unit (T-506): only an offer with sandbox.image of this digest
+                             # takes it, at untrusted (a guest); a runner job never does
 
 [egress]                     # the egress policy of the operator (T-024, T-107)
 # broker-policy.v1 of pod-broker: the policy of each job. The policy of an offer

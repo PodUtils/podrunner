@@ -73,7 +73,7 @@ pub fn place_for(
 ) -> Result<Placement, RefusalCode> {
     let mut c: Vec<usize> = (0..kinds.len()).collect();
     narrow(&mut c, kinds, RefusalCode::ArchMismatch, |k| k.capability.arch == offer.arch)?;
-    let tier = podrunner_tier::intake(&offer.trust_inputs, trust, set)?;
+    let tier = crate::sandbox::tier(offer, podrunner_tier::intake(&offer.trust_inputs, trust, set)?);
     let repo = format!("{}/{}", offer.trust_inputs.owner, offer.trust_inputs.repo);
     // One repository for the host (DR-4): the files of the uid outlive a job.
     if cfg.repository.as_ref().is_some_and(|r| !r.eq_ignore_ascii_case(&repo)) {
@@ -139,9 +139,19 @@ pub fn place_for(
 
 /// The payload of the pin list for the architecture of the offer.
 fn pick_payload(offer: &JobOffer, cfg: &Config, now_s: u64) -> Result<(String, bool), RefusalCode> {
+    // The image of a sandbox (T-506).
+    if let Some(pin) = crate::sandbox::pin(offer, cfg) {
+        let pin = pin?;
+        if pin.stale(&cfg.pin, now_s) {
+            return Err(RefusalCode::ImageStale);
+        }
+        return Ok((pin.reference.clone(), false));
+    }
     let pinned = |reference: &str| {
         cfg.pin.payload.iter().find(|p| {
-            p.arch == offer.arch && podrunner_unit::parse_pinned(&p.reference).is_ok_and(|(_, d)| d == reference)
+            !p.sandbox
+                && p.arch == offer.arch
+                && podrunner_unit::parse_pinned(&p.reference).is_ok_and(|(_, d)| d == reference)
         })
     };
     let from_offer = offer.payload.as_deref().filter(|_| cfg.payload_from_offer);
@@ -150,7 +160,7 @@ fn pick_payload(offer: &JobOffer, cfg: &Config, now_s: u64) -> Result<(String, b
         // The first payload of the architecture that is not stale: a pin
         // list keeps the old payload beside the new one (#235).
         None => {
-            let mut of_arch = cfg.pin.payload.iter().filter(|p| p.arch == offer.arch).peekable();
+            let mut of_arch = cfg.pin.payload.iter().filter(|p| !p.sandbox && p.arch == offer.arch).peekable();
             let first = *of_arch.peek().ok_or(RefusalCode::PayloadNotPinned)?;
             of_arch.find(|p| !p.stale(&cfg.pin, now_s)).unwrap_or(first)
         }

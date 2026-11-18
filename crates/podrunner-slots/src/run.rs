@@ -115,7 +115,7 @@ impl Slots {
         // T-175: the job that this unit is for, for the job-started hook of
         // the runner image.
         let mut credential = credential;
-        if let Some(f) = self.jobs[key].offer.as_ref().and_then(job_file) {
+        if let Some(f) = self.jobs[key].offer.as_ref().filter(|o| o.sandbox.is_none()).and_then(job_file) {
             credential.files.push(f);
         }
         self.audit(audit::Kind::Mint, key.0, &key.1, None, None);
@@ -133,6 +133,7 @@ impl Slots {
             // string "1" here (SPEC §11.3); slots then marks the pin stale.
             ("ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE".to_string(), "1".to_string()),
         ]);
+        crate::sandbox::env(j.offer.as_ref(), &mut env);
         // One socket directory for each unit: its egress socket, its
         // control socket and the relay. A driver that mounts it into the
         // unit gets it as `sockets`, and the unit sees the guest paths.
@@ -201,7 +202,7 @@ impl Slots {
             kind.driver.start(&StartSpec {
                 unit: unit.clone(),
                 image,
-                argv: kind.cfg.command.clone(),
+                argv: crate::sandbox::argv(self.jobs[key].offer.as_ref(), &kind.cfg.command),
                 env,
                 credential,
                 // Each driver gets the directory: the microvm kind bridges
@@ -335,12 +336,14 @@ impl Slots {
                         self.set(&key, State::Ended, now);
                         continue;
                     }
-                    let wall_s = j
-                        .offer
-                        .as_ref()
-                        .and_then(|o| o.limits.get("wall").copied())
-                        .unwrap_or(d.running_s)
-                        .min(d.running_s);
+                    let wall_s = crate::sandbox::wall_s(
+                        j.offer.as_ref(),
+                        j.offer
+                            .as_ref()
+                            .and_then(|o| o.limits.get("wall").copied())
+                            .unwrap_or(d.running_s)
+                            .min(d.running_s),
+                    );
                     let elapsed = now.saturating_sub(j.started_ms.unwrap_or(now));
                     if j.state == State::Started
                         && j.term_ms.is_none()

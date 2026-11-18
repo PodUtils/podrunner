@@ -4344,7 +4344,7 @@ State (2026-11-18): podvm `0.2.0-beta.33` maps the path of a unix socket in the 
 
 ## Blocker
 
-The syscall tier resolves an absolute link target against the root of the host, not the rootfs of the unit: COORD-093 (GitHub #303, to podvm). When podvm fixes it, give the flag again (x86_64 only; the code of `labels::tier_args` is in the history at `322d214`) and run `links.rs` and the container steps of `runner-image.yml` with it.
+The syscall tier resolves an absolute link target against the root of the host, not the rootfs of the unit: COORD-093 (GitHub #303, to podvm). podvm answered with COORD-192 (PodUtils/podvm#588): the handler took glibc's `AT_FDCWD` (the low 32 bits) for a descriptor, so a relative path through an absolute link went to the kernel unmapped; fixed on podvm `main`, for its next beta. When podvm fixes it, give the flag again (x86_64 only; the code of `labels::tier_args` is in the history at `322d214`) and run `links.rs` and the container steps of `runner-image.yml` with it.
 
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
@@ -11440,7 +11440,7 @@ A key of the host, `max_units` (and, if a measure shows the need, a memory budge
 **Milestone:** later
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11464,6 +11464,8 @@ githome's sandbox image carries its own attach client: podrunner gives the crede
 ## Prove
 
 `cargo test -p podrunner-slots` with a fake source and a fake unit: a sandbox offer runs its command, ends at `idle_s` with no attach and at `max_s`, and gives a report; then a sandbox on real units in `runner-image.yml` that attaches over an outbound WebSocket.
+
+In the code (2026-11-18): `pod-job` `v0.71.0` carries `sandbox { image, command, idle_s, max_s }` of an offer (no new value of `Event`: a sandbox comes through a source of its own). An offer with it runs at `untrusted` (a guest), also on a trusted set; its image must be a `[[pin.payload]]` with `sandbox = true` of its architecture and digest (else `payload-not-pinned`), and a runner job never takes such a pin; the unit runs `command`, not the command of the kind; the payload gets `PODRUNNER_IDLE_S`; the unit ends at the lesser of `max_s` and the wall; no job file of the hook (`crates/podrunner-slots/src/sandbox.rs`; `docs/configuration.md`; `CHANGES.md`). The idle end is the payload's: an attach is one long connection through the egress module, which shows no idle time to podrunner (the call in `sandbox.rs`). Tests: `cargo test -p podrunner-slots tests::sandbox` (3: the placement and the pin, the command, the idle time and the end, and a run through slots with the fake unit). Open: the end at `max_s` in a test, and a sandbox on real units that attaches over an outbound WebSocket.
 
 # T-507: G-37: an install of `serve` that another program drives, with no prompt
 

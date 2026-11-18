@@ -138,6 +138,7 @@ mod tests {
                 built_at_s: 7,
                 runner_version: None,
                 max_age_s: None,
+                sandbox: false,
             }],
             signer: None,
             signature: None,
