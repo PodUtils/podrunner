@@ -5,12 +5,12 @@
 //! never removed: a removal lets a waiter that holds the old inode and a
 //! starter that creates a new one both hold "the" lock.
 
-use std::fs::{DirBuilder, File, OpenOptions};
-use std::os::fd::AsRawFd;
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+use std::fs::DirBuilder;
+use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 
 use pod_core::failure::Class;
+use pod_core::lock::{FileLock, Mode};
 
 use crate::serve::{Failure, fail};
 
@@ -19,33 +19,11 @@ pub fn path_of(state: &Path) -> PathBuf {
     state.join("serve.lock")
 }
 
-/// A held lock. Dropping it frees the lock.
+/// A held lock. Dropping it frees the lock. `pod_core::lock` opens the file
+/// at mode 0600, with no link at its name, and close-on-exec: a unit that
+/// serve starts does not keep the lock held after serve ends.
 #[derive(Debug)]
-pub struct StateLock(#[allow(dead_code)] File);
-
-fn open(state: &Path) -> std::io::Result<File> {
-    // O_CLOEXEC is the default of std: a unit that serve starts does not
-    // keep the lock held after serve ends.
-    OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .mode(0o600)
-        .custom_flags(libc::O_NOFOLLOW)
-        .open(path_of(state))
-}
-
-/// Try the lock on `f`: `Ok(true)` held now, `Ok(false)` another holds it.
-fn try_flock(f: &File) -> std::io::Result<bool> {
-    // SAFETY: flock(2) on a descriptor that `f` owns.
-    let rc = unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
-    if rc == 0 {
-        return Ok(true);
-    }
-    let e = std::io::Error::last_os_error();
-    if e.raw_os_error() == Some(libc::EWOULDBLOCK) { Ok(false) } else { Err(e) }
-}
+pub struct StateLock(#[allow(dead_code)] FileLock);
 
 impl StateLock {
     /// Take the lock of `state`, or fail with `Unavailable` (exit 69). Each
@@ -57,25 +35,30 @@ impl StateLock {
             .mode(0o700)
             .create(state)
             .map_err(|e| fail(Class::Unavailable, format!("the state directory: {}", e)))?;
-        let f = open(state).map_err(|e| fail(Class::Unavailable, format!("the lock of the state directory: {}", e)))?;
-        match try_flock(&f) {
-            Ok(true) => Ok(StateLock(f)),
-            Ok(false) => Err(fail(Class::Unavailable, "another podrunner serve holds the state directory")),
+        match FileLock::try_lock(&path_of(state), Mode::Exclusive) {
+            Ok(Some(l)) => Ok(StateLock(l)),
+            Ok(None) => Err(fail(Class::Unavailable, "another podrunner serve holds the state directory")),
             Err(e) => Err(fail(Class::Unavailable, format!("the lock of the state directory: {}", e))),
         }
     }
 }
 
 /// Whether no `serve` holds the lock of `state` now. A directory with no
-/// lock file has no holder.
+/// lock file has no holder. The probe opens the file read-only, with no
+/// create and no link at its name, so it makes no file and needs no write.
 pub fn is_free(state: &Path) -> std::io::Result<bool> {
-    let f = match OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(path_of(state)) {
+    use std::os::unix::fs::OpenOptionsExt;
+    let f = match std::fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(path_of(state)) {
         Ok(f) => f,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(true),
         Err(e) => return Err(e),
     };
-    // The probe holds the lock for an instant; dropping `f` frees it.
-    try_flock(&f)
+    // The probe holds the lock for an instant; the drop of `f` frees it.
+    match f.try_lock() {
+        Ok(()) => Ok(true),
+        Err(std::fs::TryLockError::WouldBlock) => Ok(false),
+        Err(std::fs::TryLockError::Error(e)) => Err(e),
+    }
 }
 
 #[cfg(test)]

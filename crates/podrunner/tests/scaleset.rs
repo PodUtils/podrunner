@@ -16,7 +16,7 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podrunner_clock::ManualClock;
+use pod_core::clock::ManualClock;
 use podrunner_fake::FakeUnit;
 use podrunner_mint::sign::{Signer, key_from_pem};
 use podrunner_mint::{Mint, SidecarSource};
@@ -88,12 +88,12 @@ fn run(tag: &str, script: &str, want: usize) -> Run {
     std::io::BufReader::new(fake.stdout.take().unwrap()).read_line(&mut url).unwrap();
     let url = url.trim().to_string();
 
-    let clock = ManualClock::default();
+    let clock = Arc::new(ManualClock::new());
     let pem = Command::new("openssl").args(["genrsa", "-traditional", "2048"]).output().unwrap().stdout;
     let key = key_from_pem(&String::from_utf8(pem).unwrap()).unwrap();
     // The sidecar sets iat from the clock of the host: sign reads the same.
     let unix = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
-    let signer = Arc::new(Mutex::new(Signer::new(key, "4242", Arc::new(clock.clone()), Box::new(unix))));
+    let signer = Arc::new(Mutex::new(Signer::new(key, "4242", clock.clone(), Box::new(unix))));
     let args = [
         "-config-url",
         &format!("{url}/example-org"),
@@ -167,8 +167,7 @@ fn run(tag: &str, script: &str, want: usize) -> Run {
     }];
     let sources =
         vec![Source { cfg: source_cfg, source: Box::new(Mint::new("org-trusted", Box::new(sidecar))), revoked: false }];
-    let mut slots =
-        Slots::start(cfg, &dir.join("state"), Arc::new(clock.clone()), Box::new(|| NOW), sources, kinds).unwrap();
+    let mut slots = Slots::start(cfg, &dir.join("state"), clock.clone(), Box::new(|| NOW), sources, kinds).unwrap();
 
     for _ in 0..200 {
         slots.tick();

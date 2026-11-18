@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.69.0` (`Cargo.toml`); podvm `v0.2.0-beta.30`
+- Pins: podcrates `v0.70.0` (`Cargo.toml`); podvm `v0.2.0-beta.30`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
@@ -142,9 +142,11 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
   and `/dev/kvm`; each unit is 4 vCPU, 12 GiB and 40 GiB of
   `disk_max_bytes`; until T-505 it takes 1 `incus` and 1 `microvm` slot.
 - Order:
-  1. Take podcrates `v0.70.0` (COORD-132, PodUtils/podcrates#222): the
-     answers to #214, #215 (T-351) and #288 (T-469), and `FileLock` and
-     `Clock` of `pod-core` in place of the copies (T-473, T-474).
+  1. Done: podcrates `v0.70.0` is taken (COORD-132,
+     PodUtils/podcrates#222): #214 (T-331, F9), #215 (T-351, step 1),
+     #288 (T-469), `Clock` (T-473), the proxy and CA lists (T-474), the
+     lock of `serve`. T-513 holds the two locks that `FileLock` cannot
+     hold yet.
   2. T-491: the census of each clause of A-X-01 and G-01 to G-14 against
      the code and the release; an entry for each gap.
   3. First T-493 and T-494 (P0: githome's G-15 and G-16; they block
@@ -164,8 +166,7 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
      release, write `githome: complete in vTAG` on #292 and #151.
      githome comes back on that line.
 - Each change that podvm or podnet must make: a COORD issue at once.
-- Newer releases of the siblings than the pins: podcrates `v0.70.0`,
-  podvm `v0.2.0-beta.31`, podnet `v0.4.0-beta.16`. podnet fixed #142
+- Newer releases of the siblings than the pins: podvm `v0.2.0-beta.31`, podnet `v0.4.0-beta.16`. podnet fixed #142
   (T-179) on its `main` (T-457), for its next beta.
 
 ## Resume here (the work of 2026-11-17 and 2026-11-18)
@@ -384,8 +385,8 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   CI plan that podrunner owns. Their bodies have the current state
   (2026-11-15); T-001 holds them.
 - COORD issues open: #110 (COORD-050, to podvm); #111 (COORD-051, to
-  podvm); #189 (COORD-066) to podvm (T-261); #191 (COORD-067, to podcrates, T-283). #288 (COORD-082), #289 (COORD-083), #290 (COORD-084, to podcrates, T-439) and #291 (COORD-085, to podcrates, T-423). No podcrates release notice is open; podrunner takes
-  podcrates `v0.69.0` (T-264).
+  podvm); #189 (COORD-066) to podvm (T-261); #191 (COORD-067, to podcrates, T-283). #290 (COORD-084, to podcrates, T-439) and #291 (COORD-085, to podcrates, T-423). podrunner takes
+  podcrates `v0.70.0`; #214, #215, #288 and #289 close with the take.
 - GitHub #9, #32, #33, #40: wait for the live gates (#74, #75). GitHub
   #43 waits for podcrates.
 - No question for the owner is open: Q7 (cancel the run of a refused job), the

@@ -60,7 +60,7 @@ fn kind() -> KindSpec {
 fn probed(bed: &mut Bed) -> Arc<Mutex<Vec<bool>>> {
     let seen: Arc<Mutex<Vec<bool>>> = Arc::default();
     let empty = podrunner_fake::parse_script("").unwrap();
-    let placeholder = podrunner_fake::FakeSource::new("a", Arc::new(bed.clock.clone()), empty);
+    let placeholder = podrunner_fake::FakeSource::new("a", bed.clock.clone(), empty);
     let inner = std::mem::replace(&mut bed.slots.sources[0].source, Box::new(placeholder));
     let journal = bed.dir.0.join("state/journal.jsonl");
     bed.slots.sources[0].source = Box::new(Probe { inner, journal, seen: seen.clone() });
@@ -98,7 +98,7 @@ fn a_replayed_claimed_line_is_released_and_reported_lost() {
         ];
         let text: String = lines.iter().map(|l| format!("{l}\n")).collect();
         std::fs::write(dir.0.join("state/journal.jsonl"), text).unwrap();
-        let bed = Bed::in_dir(config(""), vec![("a", "trusted", None, vec![])], vec![kind()], dir, Default::default());
+        let bed = Bed::in_dir(config(""), vec![("a", "trusted", None, vec![])], vec![kind()], dir, Bed::clock());
         let lost = bed.slots.reports.iter().any(|r| r.exit_reason == ExitReason::Lost);
         // A `matched` line: the claim never went out, so no release can
         // free a claim of another runner.

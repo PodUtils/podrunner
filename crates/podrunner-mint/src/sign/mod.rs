@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use base64::Engine;
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
-use podrunner_clock::Clock;
+use pod_core::clock::Clock;
 use ring::rand::SystemRandom;
 use ring::signature::{RSA_PKCS1_SHA256, RsaKeyPair};
 use serde::Serialize;
@@ -56,6 +56,8 @@ pub struct Signer {
     key: RsaKeyPair,
     iss: String,
     clock: Arc<dyn Clock>,
+    /// The time of the make: each time of the audit is in ms after it.
+    origin: std::time::Instant,
     /// The time of the Unix epoch in seconds.
     now_unix: Box<dyn Fn() -> u64 + Send + Sync>,
     last_ms: Option<u64>,
@@ -97,7 +99,29 @@ impl Signer {
         clock: Arc<dyn Clock>,
         now_unix: Box<dyn Fn() -> u64 + Send + Sync>,
     ) -> Signer {
-        Signer { key, iss: iss.into(), clock, now_unix, last_ms: None, last: None, audit: Vec::new(), sink: None }
+        Signer {
+            key,
+            iss: iss.into(),
+            origin: clock.now(),
+            clock,
+            now_unix,
+            last_ms: None,
+            last: None,
+            audit: Vec::new(),
+            sink: None,
+        }
+    }
+
+    /// Count each time of the audit from `origin`, the origin of the slots
+    /// of the process, so that both logs share one time line.
+    pub fn since(mut self, origin: std::time::Instant) -> Signer {
+        self.origin = origin;
+        self
+    }
+
+    fn elapsed_ms(&self) -> u64 {
+        let ms = self.clock.now().saturating_duration_since(self.origin).as_millis();
+        u64::try_from(ms).unwrap_or(u64::MAX)
     }
 
     /// Write each audit line as one JSON line to `sink` (T-172).
@@ -116,7 +140,7 @@ impl Signer {
     /// `iss`, with `iss` the App id of this signer and `exp` after `iat` by
     /// ten minutes or less; `iat` within a minute of now.
     pub fn sign(&mut self, caller: &str, claims: &Map<String, Value>) -> Result<String, Refusal> {
-        let now_ms = self.clock.now_ms();
+        let now_ms = self.elapsed_ms();
         let iss = claims.get("iss").and_then(Value::as_str).unwrap_or("").to_string();
         let exp = claims.get("exp").and_then(Value::as_u64).unwrap_or(0);
         let mut reused = false;

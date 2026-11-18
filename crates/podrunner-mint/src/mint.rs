@@ -94,7 +94,7 @@ impl JobSource for Mint {
 mod tests {
     use std::sync::Arc;
 
-    use podrunner_clock::ManualClock;
+    use pod_core::clock::ManualClock;
     use podrunner_fake::{FakeSource, parse_script};
     use podrunner_source::conformance::{self, Fixture};
 
@@ -111,7 +111,7 @@ mod tests {
 
     impl Fixture for Fx {
         fn fresh(&self) -> Box<dyn JobSource> {
-            let fake = FakeSource::new("fake-1", Arc::new(ManualClock::default()), parse_script(&script()).unwrap());
+            let fake = FakeSource::new("fake-1", Arc::new(ManualClock::new()), parse_script(&script()).unwrap());
             Box::new(Mint::new("fake-1", Box::new(fake)))
         }
     }

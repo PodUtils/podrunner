@@ -213,8 +213,8 @@ numbers. `TODO/RULES.md` gives the rules.
 | #211 | run: --validate --json emits no JSON for an invalid workflow | closed (fixed on `main`; the entry is done) | T-348 |
 | #212 | run: a pre-start failure claims a log in --log-dir that is not written | closed (fixed on `main`; the entry is done) | T-349 |
 | #213 | v0.1.0-beta.7 pins podnet 0.4.0-beta.13, but the vnet forward needed by #170 is in 0.4.0-beta.14 | open (podnet `0.4.0-beta.15` pinned; the forward is T-220) | T-350 |
-| #214 | COORD-077: pod-actions-workflow: the error of an unknown need marks the job, not its needs: (to podcrates) | open (waits for podcrates) | T-331 |
-| #215 | COORD-078: pod-broker: names_upstream still resolves the name itself, so a host whose DNS is only through its proxy refuses each CONNECT (to podcrates) | open (waits for podcrates) | T-351 |
+| #214 | COORD-077: pod-actions-workflow: the error of an unknown need marks the job, not its needs: (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-859) | T-331 |
+| #215 | COORD-078: pod-broker: names_upstream still resolves the name itself, so a host whose DNS is only through its proxy refuses each CONNECT (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-862) | T-351 |
 | #216 | COORD-079: a podvm unit has no /dev/pts: pty.spawn and script fail, and pager tests fail (to podvm) | open (podvm answered on PodUtils/podvm#470: pod-enter of podcrates, PodUtils/podvm#469; PodUtils/podvm@T-1934) | T-354 |
 | #217 | COORD-080: the answer to PodUtils/podnet#649 (COORD-102): #213, #142, and what podrunner's gate proves (to podnet) | closed (podnet read it, PodUtils/podnet#649) | T-372, T-371, T-245, T-179 |
 | #218 | `--runner-dir` writes the runner files, a private key with them, at mode 0644 | closed (fixed on `main`; the entry is done) | T-373 |
@@ -283,12 +283,12 @@ numbers. `TODO/RULES.md` gives the rules.
 | #281 | shim: the close_range fallback closes only 3..4096, so a higher descriptor leaks into the payload | closed | T-466 |
 | #282 | mint: the revocation message calls the source name a credential | closed | T-467 |
 | #283 | check: a guest_kinds entry that is not a [unit.NAME] table passes check and drops the guest claim | closed | T-468 |
-| #284 | lock: an uppercase digest is accepted and then fails every action against the lowercase SHA-256 | open | T-469 |
+| #284 | lock: an uppercase digest is accepted and then fails every action against the lowercase SHA-256 | closed (podcrates `v0.70.0`, T-469) | T-469 |
 | #285 | status: trust_unknown counts a repository or owner literally named unknown | closed | T-470 |
 | #286 | policy: a host with a trailing dot is not covered by a wildcard ceiling | closed | T-471 |
 | #287 | check: a pin payload with a duplicate reference, a future built_at_s, max_age_s 0 or a bad runner_version is accepted | closed | T-472 |
-| #288 | COORD-082: pod-actions-store: Lock::parse keeps a digest in uppercase, and each fetch then fails against the lowercase SHA-256 (to podcrates) | open (waits for podcrates) | T-469 |
-| #289 | COORD-083: the answer to COORD-131 (PodUtils/podcrates#221): the copies of shared code in podrunner (to podcrates) | open (waits for the next tag of podcrates) | T-473, T-474 |
+| #288 | COORD-082: pod-actions-store: Lock::parse keeps a digest in uppercase, and each fetch then fails against the lowercase SHA-256 (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-902) | T-469 |
+| #289 | COORD-083: the answer to COORD-131 (PodUtils/podcrates#221): the copies of shared code in podrunner (to podcrates) | closed (podcrates `v0.70.0` taken: T-473, T-474) | T-473, T-474 |
 | #290 | COORD-084: pod-actions-store: the ref of a checkout of another repository (empty, full ref, commit SHA) is not resolved (to podcrates) | open (waits for podcrates) | T-439 |
 | #291 | COORD-085: a reader of the zone files (TZif) for the timezone of on.schedule (to podcrates) | open (waits for podcrates) | T-423 |
 | #292 | from cfb | open (cfb's questions P-1 to P-7 of its CI host; podrunner answered on the issue) | T-479, T-480, T-481, T-482, T-483, T-484, T-485, T-489, T-493, T-494, T-495, T-496, T-497, T-498, T-499, T-500, T-501, T-502, T-503, T-504, T-505, T-506, T-507, T-508, T-509, T-510, T-511, T-512 |

@@ -10,9 +10,9 @@ use podrunner_schema::{CredentialFile, Secret};
 
 use super::host::PASSED;
 
-/// The variables of `PASSED` that name a CA file.
-const CA_VARS: &[&str] =
-    &["SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS", "GIT_SSL_CAINFO", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"];
+/// The variables that name a CA file: the list of `pod_tls`. Only the
+/// variables of `PASSED` among them reach a unit.
+const CA_VARS: [&str; 6] = pod_tls::BUNDLE_VARS;
 
 /// The variables and the CA files of a unit.
 pub(crate) type UnitEnv = (Vec<(String, String)>, Vec<CredentialFile>);
@@ -57,15 +57,9 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
         env.push((k.to_string(), v));
     }
     if env.iter().any(|(k, _)| k.to_ascii_lowercase().ends_with("_proxy") && k != "NODE_USE_ENV_PROXY") {
-        let mut no = vec!["127.0.0.1".to_string(), "localhost".to_string(), "::1".to_string()];
-        for k in ["NO_PROXY", "no_proxy"] {
-            let more = vars.get(k).into_iter().flat_map(|v| v.split(',')).map(str::trim);
-            no.extend(more.filter(|v| !v.is_empty() && !v.chars().all(|c| c == ':')).map(String::from));
-        }
-        let mut seen = std::collections::BTreeSet::new();
-        no.retain(|v| seen.insert(v.clone()));
-        env.push(("NO_PROXY".into(), no.join(",")));
-        env.push(("no_proxy".into(), no.join(",")));
+        let no = super::host::no_proxy(&vars);
+        env.push(("NO_PROXY".into(), no.clone()));
+        env.push(("no_proxy".into(), no));
     }
     Ok((env, files))
 }

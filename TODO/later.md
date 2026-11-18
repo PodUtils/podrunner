@@ -6424,7 +6424,7 @@ The report of agent 1 of the fifth QA (the commands and outputs are in it).
 
 Fix each one; a finding that the code cannot change goes into the documents.
 
-Fixed (2026-11-17): F9, a missing workflow file names the workflows of its directory (`inspect::missing`); F9, a folded `name: >` is one line (`line` of `run_local.rs`); F8, no `failed at connect` line where the fallback to the proxy works (T-329, `Egress::quiet`). Also fixed: F9, a wrong value of a flag (`--event nope`) names its flag with no usage; the usage comes with a wrong form of the line only (`args::with_usage`); F9, the console of `--runner-dir` says `Connected to the fake broker of podrunner (not GitHub)` (`runner::console_line`); F10, a work directory out of the runner directory (`BASE/podrunner-work`) goes with the run. Open: F9, `--validate` points at the job, not at `needs:` (the mark is in `pod-actions-workflow` of podcrates: COORD-077, GitHub #214); F10, a socket of podnet after a `kill -9` of podrunner (the socket is podnet's); a failed pull ends the run, also for the jobs that need no image (T-327).
+Fixed (2026-11-17): F9, a missing workflow file names the workflows of its directory (`inspect::missing`); F9, a folded `name: >` is one line (`line` of `run_local.rs`); F8, no `failed at connect` line where the fallback to the proxy works (T-329, `Egress::quiet`). Also fixed: F9, a wrong value of a flag (`--event nope`) names its flag with no usage; the usage comes with a wrong form of the line only (`args::with_usage`); F9, the console of `--runner-dir` says `Connected to the fake broker of podrunner (not GitHub)` (`runner::console_line`); F10, a work directory out of the runner directory (`BASE/podrunner-work`) goes with the run. Fixed (2026-11-18): F9, `--validate` points at the need that names no job (`jobs.b.needs (line 9, column 16)`), with podcrates `v0.70.0` (PodUtils/podcrates@T-859, GitHub #214); measured with the built binary. Open: F10, a socket of podnet after a `kill -9` of podrunner (the socket is podnet's); a failed pull ends the run, also for the jobs that need no image (T-327).
 
 ## Prove
 
@@ -7009,6 +7009,8 @@ The report and its logs (not in the repository), read on 2026-11-17; the triage 
 In the code (2026-11-17): step 3: a fetch whose way out fails (`CONNECT tunnel failed`) names the egress module, the proxy of the environment, `podrunner doctor` and `--local-repository OWNER/REPO@REF=DIR` (`actions::with_fix`); measured here with a dead proxy. Open: the root fix (COORD-078, #215), the lane of T-371, and the line of `doctor`.
 
 In the code (2026-11-17): step 2, the fix in podrunner: an egress module with a proxy of the environment (the fetch of actions, `--podnet`, `--vnet`, a guest) takes `dns::resolver_via(proxy)`: the system resolver first, then DNS over HTTPS through that proxy, with the CA bundle of the environment added to the roots. Proven on a constrained host as a user: on this sandbox, a user with no resolver (port 53 refused by the firewall, `getent hosts github.com` fails), behind a proxy that intercepts TLS, gave the 502 before the fix and pins `actions/upload-artifact@v4` after it (`run --dry-run`). Not proven: a proxy that asks for a login (the lane `proxy-only-dns`, T-371), and a proxy that refuses a CONNECT to the address of a DoH server. The ask of #215 stays: a broker that sends a name it cannot resolve.
+
+In the code (2026-11-18): step 1, the root fix: podcrates `v0.70.0` (PodUtils/podcrates@T-862) sends an allowed name with no local address to the upstream in the names mode, and podrunner takes the tag. Test `names_upstream_with_no_resolver` (`podrunner-egress`): a resolver with no address for each name, an upstream that takes names: the allowed name gets a tunnel, a denied name gets 403. Open: the lane of T-371 and the line of `doctor`.
 
 # T-352: `image verify` cannot verify the runner image of the release
 
@@ -10328,7 +10330,7 @@ Refuse an entry that is not a unit kind, by name. Add a test with `microvmm`.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -10346,9 +10348,9 @@ Lowercase the digest in `Lock::parse`, as the commit. Add a test.
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
 
-## Blocker
+## Done
 
-The lock parser is `pod-actions-store` of podcrates: COORD-082 (PodUtils/podrunner#288, to podcrates) asks for a lowercase digest.
+2026-11-18: podcrates `v0.70.0` (PodUtils/podcrates@T-902) keeps each digest of `Lock::parse` in lowercase. podrunner takes the tag. Test `lock::tests::an_uppercase_digest_matches_the_store` (`podrunner-local`) reproduces #284; it fails on `v0.69.0`, whose parser keeps the digest as written.
 
 # T-470: status: trust_unknown counts a repository or owner literally named unknown
 
@@ -10444,11 +10446,11 @@ Refuse each of the four, by name. Add a test with each case.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
-`crates/podrunner-clock` is a copy of the clock of `pod_core::clock`. The ruling "Shared code" asks each project to take the crate of podcrates.
+The crate podrunner-clock was a copy of the clock of `pod_core::clock`. The ruling "Shared code" asks each project to take the crate of podcrates.
 
 ## Premise
 
@@ -10462,6 +10464,10 @@ Replace each use of `podrunner_clock` with `pod_core::clock`, keep the manual cl
 
 `cargo test --workspace`; the tests of slots with the manual clock pass unchanged.
 
+## Done
+
+2026-11-18: the crate `podrunner-clock` is removed. The slots, the fake source, the signer of the mint, the remote gate and the tests take `pod_core::clock` (`Clock`, `SystemClock`, `ManualClock`). Each holder keeps the instant of its make, and its times in ms count from it, as before. The test bed of the slots takes the Unix time from the wall clock of `ManualClock::at`, so it moves on across a restart of the slots. `cargo test -p podrunner-slots -p podrunner-fake -p podrunner-mint -p podrunner-remote -p podrunner-broker-fake` passes with no change of an assertion, except the end of `the_script_follows_the_manual_clock` (the elapsed time in place of `now_ms`).
+
 # T-474: Take `pod_proxy::env` for the proxy environment of a unit
 
 **Source:** PodUtils/podcrates#221 (COORD-131, the ruling "Shared code"), 2026-11-17
@@ -10469,7 +10475,7 @@ Replace each use of `podrunner_clock` with `pod_core::clock`, keep the manual cl
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10486,6 +10492,10 @@ Take `pod_proxy::env` for the proxy variables and `NO_PROXY`. When podcrates giv
 ## Prove
 
 `cargo test --workspace`; the lane `proxy-only-dns` of the user gate passes.
+
+## Done
+
+2026-11-18: the CA variables of a unit are `pod_tls::BUNDLE_VARS`; `dns::resolver_via` takes the bundle of `pod_tls::env_bundle` (the first variable that names a file which opens; each variable passed over gets one line on stderr). The names of `NO_PROXY` come from `pod_proxy::env::NO_PROXY_VARS_UPPER_FIRST`, and the two copies of the merge of `NO_PROXY` (the runner directory, a unit) are one function, `exec::host::no_proxy`. `pod_proxy::env::Environment` takes the first list only; a job gets both lists, so the merge stays. `cargo test -p podrunner-local -p podrunner-egress` passes. The lane `proxy-only-dns` of the user gate is T-371.
 
 # T-475: A `uses:` with an empty part runs on GitHub and is refused here
 
@@ -11530,3 +11540,28 @@ When each ask G-01 to G-41 is done in a release (each entry `done` with its tag,
 ## Prove
 
 The statement on both issues, and `cargo todo check` with each entry of G-01 to G-41 `done`.
+
+# T-513: Two file locks of the local mode that `pod_core::lock` cannot hold yet
+
+**Source:** the take of podcrates `v0.70.0` (COORD-132, PodUtils/podcrates#222; COORD-131, the ruling "Shared code"), 2026-11-18
+**Category:** chore
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podrunner has two more copies of a `flock` lock, beside `pod_core::lock::FileLock`. `run_local/concurrency.rs` (the groups of `concurrency:`) waits with no bound for the holder, and a signal ends the wait (a newer run of the group cancels a waiting one, or Ctrl-C). `exec/host.rs` (the lock of a runner directory) opens a lock file of another user read-only when it cannot open it for write, as `flock` takes a read descriptor. `FileLock` has a wait with a bound only, and opens each file for write.
+
+## Premise
+
+The code of both files and `pod-core/src/lock.rs` at `v0.70.0`, read on 2026-11-18. `crates/podrunner/src/lock.rs` (the lock of `serve`) takes `FileLock` already.
+
+## Approach
+
+Ask podcrates by a COORD issue for two extensions of `FileLock`: a wait with no bound that a signal ends (`EINTR` gives a refusal of its own), and a read-only open for a file that the caller cannot write. Then replace both copies, and keep the tests of both (`concurrency`, `exec::tests` with `flock(1)`).
+
+## Prove
+
+`cargo test -p podrunner-local exec`, `cargo test -p podrunner concurrency`; no `libc::flock` in `crates/` (`grep -rn 'libc::flock' crates`).

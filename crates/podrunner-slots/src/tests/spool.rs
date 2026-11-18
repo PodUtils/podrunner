@@ -62,7 +62,7 @@ fn kind() -> KindSpec {
 fn refusing(bed: &mut Bed, refuse: &Arc<AtomicBool>) -> Arc<Mutex<Vec<String>>> {
     let taken: Arc<Mutex<Vec<String>>> = Arc::default();
     let empty = podrunner_fake::parse_script("").unwrap();
-    let placeholder = podrunner_fake::FakeSource::new("a", Arc::new(bed.clock.clone()), empty);
+    let placeholder = podrunner_fake::FakeSource::new("a", bed.clock.clone(), empty);
     let inner = std::mem::replace(&mut bed.slots.sources[0].source, Box::new(placeholder));
     bed.slots.sources[0].source = Box::new(Refusing { inner, refuse: refuse.clone(), taken: taken.clone() });
     taken

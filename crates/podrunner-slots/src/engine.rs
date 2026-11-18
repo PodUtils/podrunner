@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use podrunner_clock::Clock;
+use pod_core::clock::Clock;
 use podrunner_schema::{Capability, ExitReason, JobId, JobOffer, LimitMode, RefusalCode, Tier, UnitIds};
 use podrunner_source::{Event, JobSource, Offer, SourceCode};
 use podrunner_unit::UnitDriver;
@@ -85,6 +85,8 @@ pub trait EgressPort: Send {
 pub struct Slots {
     pub(crate) cfg: Config,
     pub(crate) clock: Arc<dyn Clock>,
+    /// The time of the start: each time of the slots is in ms after it.
+    pub(crate) origin: std::time::Instant,
     /// The time of the Unix epoch in seconds, for the age of a payload.
     pub(crate) now_unix: Box<dyn Fn() -> u64 + Send>,
     pub(crate) sources: Vec<Source>,
@@ -118,7 +120,15 @@ pub struct Slots {
 
 impl Slots {
     pub fn now(&self) -> u64 {
-        self.clock.now_ms()
+        let ms = self.clock.now().saturating_duration_since(self.origin).as_millis();
+        u64::try_from(ms).unwrap_or(u64::MAX)
+    }
+
+    /// Count each time of the slots from `origin`, also given to the other
+    /// parts of the process that write a time in ms.
+    pub fn since(mut self, origin: std::time::Instant) -> Slots {
+        self.origin = origin;
+        self
     }
 
     /// Give each unit a listener of the egress module.

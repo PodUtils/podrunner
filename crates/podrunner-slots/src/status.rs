@@ -108,7 +108,7 @@ impl Slots {
                         trust_unknown += 1;
                     }
                     if let (false, Some(m)) = (j.state.is_final(), j.minted_ms) {
-                        credential_ages_s.push(self.clock.now_ms().saturating_sub(m) / 1000);
+                        credential_ages_s.push(self.now().saturating_sub(m) / 1000);
                     }
                     if !j.state.is_final() {
                         *jobs.entry(state_name(j.state)).or_insert(0) += 1;

@@ -291,3 +291,50 @@ fn ip_literal_reset_and_the_names_mode() {
     }
     let _ = std::fs::remove_dir_all(d);
 }
+
+/// A resolver of a host whose names resolve only through its proxy: it
+/// keeps an IP literal (the host of the upstream proxy) and finds no
+/// address for each name.
+struct NoNames;
+
+impl Resolve for NoNames {
+    fn label(&self) -> String {
+        "no-names".into()
+    }
+    fn resolve_from<'a>(
+        &'a self,
+        host: &'a str,
+        port: u16,
+        deadline: tokio::time::Instant,
+        after: Option<Source>,
+    ) -> BoxFuture<'a, Result<Found, Failure>> {
+        match host.parse::<std::net::IpAddr>() {
+            Ok(_) => PublicNames.resolve_from(host, port, deadline, after),
+            Err(_) => Box::pin(async move {
+                Err(Failure::new(pod_core::Stage::Dns, pod_core::Class::NotFound, format!("{host}: no address")))
+            }),
+        }
+    }
+}
+
+/// T-351 (GitHub #215): in the names mode, an allowed name with no local
+/// address goes to the upstream, which resolves it; a denied name stays
+/// refused.
+#[test]
+fn names_upstream_with_no_resolver() {
+    let d = dir();
+    let proxy = pod_proxy::Proxy::parse(&proxy_that_takes_names_only()).unwrap();
+    let e = Egress::host(Some(proxy), true, Arc::new(NoNames)).unwrap();
+    let socket = d.join("no-names.sock");
+    e.open("u-1", ONLY_A, &socket, Duration::from_secs(60)).unwrap();
+    let (status, mut tunnel) = ask(&socket, &connect("a.example:443"));
+    assert_eq!(status, 200, "an allowed name goes up");
+    tunnel.get_mut().write_all(b"ping").unwrap();
+    let mut got = [0u8; 4];
+    tunnel.read_exact(&mut got).unwrap();
+    assert_eq!(&got, b"ping");
+    let (status, _) = ask(&socket, &connect("b.example:443"));
+    assert_eq!(status, 403, "a denied name stays refused");
+    e.kill();
+    let _ = std::fs::remove_dir_all(d);
+}

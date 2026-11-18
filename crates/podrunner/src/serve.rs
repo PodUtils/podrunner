@@ -5,14 +5,14 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use pod_core::clock::{Clock, SystemClock};
 use pod_core::failure::Class;
-use podrunner_clock::{Clock, SystemClock};
-use podrunner_fake::{FakeSource, FakeUnit, parse_script};
+use podrunner_fake::FakeUnit;
 use podrunner_schema::{
     Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, Fact, LimitMode, Principal, SecretDelivery,
     TreeKill,
 };
-use podrunner_slots::config::{Config, SourceKind};
+use podrunner_slots::config::Config;
 use podrunner_slots::{Slots, Source, UnitKind};
 use serde_json::Value;
 
@@ -57,124 +57,22 @@ fn now_unix() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
-/// A file of a key: the group and the others cannot read it.
-pub(crate) fn private_file(name: &str, path: &str) -> Result<Vec<u8>, Failure> {
-    use std::os::unix::fs::PermissionsExt;
-    let meta = std::fs::metadata(path).map_err(|e| fail(Class::Config, format!("{name}: {}", e)))?;
-    if meta.permissions().mode() & 0o077 != 0 {
-        return Err(fail(Class::Config, format!("{name} is open to the group or to others: set mode 0600")));
-    }
-    std::fs::read(path).map_err(|e| fail(Class::Config, format!("{name}: {}", e)))
-}
-
-/// The wire to a remote mint (GitHub #31): this host presents its key, and
-/// trusts only the pinned key of the mint.
-fn remote(
-    s: &podrunner_slots::config::SourceConfig,
-    lookup: Option<podrunner_remote::transport::Lookup>,
-) -> Result<podrunner_source::Wire<podrunner_remote::transport::Https>, Failure> {
-    use podrunner_remote::transport::{ALPN, Https, provider};
-    let get = |v: &Option<String>| v.clone().unwrap_or_default();
-    let key = private_file(&format!("{}: the key file", s.name), &get(&s.key_file))?;
-    let cert = std::fs::read(get(&s.cert_file))
-        .map_err(|e| fail(Class::Config, format!("{}: the certificate: {}", s.name, e)))?;
-    let certified =
-        pod_tls::server::certified(&cert, &key).map_err(|e| fail(Class::Config, format!("{}: {e}", s.name)))?;
-    let pin =
-        pod_tls::mutual::Pin::parse(&get(&s.mint_pin)).map_err(|e| fail(Class::Config, format!("{}: {e}", s.name)))?;
-    let config = pod_tls::mutual::client_config(provider(), certified, pod_tls::mutual::Pins::new([pin]), &[ALPN])
-        .map_err(|e| fail(Class::Config, format!("{}: {e}", s.name)))?;
-    Ok(podrunner_source::Wire(Https { address: get(&s.mint), config, lookup }))
-}
-
-/// The scale-set sidecar of a source, with `sign` over the key of the App.
-pub(crate) fn scaleset(
-    s: &podrunner_slots::config::SourceConfig,
-    clock: Arc<dyn Clock>,
-) -> Result<podrunner_mint::SidecarSource, Failure> {
-    use std::os::unix::fs::PermissionsExt;
-    if s.token_file.is_some() {
-        return crate::pat::scaleset(s);
-    }
-    let get = |v: &Option<String>| v.clone().unwrap_or_default();
-    let key_file = get(&s.key_file);
-    let meta =
-        std::fs::metadata(&key_file).map_err(|e| fail(Class::Config, format!("{}: the key file: {}", s.name, e)))?;
-    if meta.permissions().mode() & 0o077 != 0 {
-        return Err(fail(
-            Class::Config,
-            format!("{}: the key file is open to the group or to others: set mode 0400", s.name),
-        ));
-    }
-    let pem = std::fs::read_to_string(&key_file)
-        .map_err(|e| fail(Class::Config, format!("{}: the key file: {}", s.name, e)))?;
-    let key = podrunner_mint::sign::key_from_pem(&pem)
-        .map_err(|_| fail(Class::Config, format!("{}: the key file holds no PKCS#1 key", s.name)))?;
-    // Each request of `sign` is a line of the log of the process (T-172).
-    let signer = podrunner_mint::sign::Signer::new(key, &get(&s.app_id), clock, Box::new(now_unix))
-        .with_sink(Box::new(std::io::stderr()));
-    let mut args = vec![
-        "-config-url".to_string(),
-        get(&s.config_url),
-        "-api-url".into(),
-        s.api_url.clone().unwrap_or_else(|| "https://api.github.com".into()),
-        "-installation-id".into(),
-        s.installation_id.unwrap_or(0).to_string(),
-        "-scale-set".into(),
-        get(&s.scale_set),
-        "-source".into(),
-        s.name.clone(),
-        "-arch".into(),
-        s.arch.clone(),
-        "-app-id".into(),
-        get(&s.app_id),
-    ];
-    if s.operator_controlled {
-        args.push("-operator-controlled".into());
-    }
-    podrunner_slots::config::check_driver(Path::new(&get(&s.sidecar)))
-        .map_err(|e| fail(Class::Config, format!("[[source]] {} sidecar: {e}", s.name)))?;
-    let caller = format!("sidecar:{}", s.name);
-    Ok(podrunner_mint::SidecarSource::new(&get(&s.sidecar), args, Arc::new(std::sync::Mutex::new(signer)), &caller))
-}
-
-/// The source of a `[[source]]` table, behind `mint` (GitHub #27): mint
-/// stops a source for good after a revocation.
-pub(crate) fn source_of(
-    s: &podrunner_slots::config::SourceConfig,
-    clock: Arc<dyn Clock>,
-    lookup: Option<podrunner_remote::transport::Lookup>,
-) -> Result<Box<dyn podrunner_source::JobSource>, Failure> {
-    let source: Box<dyn podrunner_source::JobSource> = match s.kind {
-        SourceKind::Fake => {
-            let text = match &s.script {
-                Some(p) => std::fs::read_to_string(p)
-                    .map_err(|e| fail(Class::Config, format!("the script of {}: {}", s.name, e)))?,
-                None => String::new(),
-            };
-            let script =
-                parse_script(&text).map_err(|e| fail(Class::Config, format!("the script of {}: {e}", s.name)))?;
-            Box::new(FakeSource::new(&s.name, clock, script))
-        }
-        SourceKind::GithubScaleset => Box::new(scaleset(s, clock)?),
-        SourceKind::Remote => Box::new(remote(s, lookup)?),
-        SourceKind::Program => Box::new(crate::program_source::program(s)?),
-    };
-    Ok(Box::new(podrunner_mint::Mint::new(&s.name, source)))
-}
+#[path = "serve/sources.rs"]
+mod sources;
+pub(crate) use sources::{private_file, source_of};
 
 /// Check each part of `cfg` that has no side effect (GitHub #58): each
 /// source is built and not called, and each unit kind has its driver
 /// file. No state directory, no unit, no network. `serve` runs it before
 /// `build`, so `check` and `serve` refuse a file with the same text.
 pub fn plan(cfg: &Config) -> Result<(), Failure> {
-    let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     resolve(cfg)?;
     if let Some(url) = &cfg.upstream_proxy {
         pod_proxy::Proxy::parse(url).map_err(|e| fail(Class::Config, format!("upstream_proxy: {e}")))?;
     }
     for s in &cfg.source {
-        drop(source_of(s, clock.clone(), None)?);
+        drop(source_of(s, clock.clone(), clock.now(), None)?);
     }
     for (name, u) in &cfg.unit {
         match name.as_str() {
@@ -213,14 +111,17 @@ fn resolve(cfg: &Config) -> Result<Arc<dyn pod_core::Resolve>, Failure> {
 
 /// Build the supervisor of a configuration.
 pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
-    let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+    // One origin for the slots and the signer: their lines of `t_ms` share
+    // one time line.
+    let origin = clock.now();
     let resolve = resolve(&cfg)?;
     let lookup: podrunner_remote::transport::Lookup = Arc::new(podrunner_egress::dns::lookup(resolve.clone()));
     let mut sources = Vec::new();
     for s in &cfg.source {
         sources.push(Source {
             cfg: s.clone(),
-            source: source_of(s, clock.clone(), Some(lookup.clone()))?,
+            source: source_of(s, clock.clone(), origin, Some(lookup.clone()))?,
             revoked: false,
         });
     }
@@ -274,7 +175,8 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
                         allowed,
                         payload: p.reference.clone(),
                         platform: platform.into(),
-                        last_ms: clock.now_ms(),
+                        // The time of the slots starts after this test.
+                        last_ms: 0,
                         driver,
                         stamp,
                     },
@@ -321,7 +223,8 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
         }
     }
     let mut slots = Slots::start(cfg, state, clock, Box::new(now_unix), sources, kinds)
-        .map_err(|e| fail(Class::Unavailable, format!("the state directory: {}", e)))?;
+        .map_err(|e| fail(Class::Unavailable, format!("the state directory: {}", e)))?
+        .since(origin);
     for (i, r) in retests {
         slots.retest_guest(i, r);
     }

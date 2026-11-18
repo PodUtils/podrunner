@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use podrunner_clock::ManualClock;
+use pod_core::clock::{Clock, ManualClock};
 use ring::signature::{RSA_PKCS1_2048_8192_SHA256, UnparsedPublicKey};
 use serde_json::{Map, Value, json};
 
@@ -22,9 +22,9 @@ fn test_key() -> String {
     String::from_utf8(out.stdout).unwrap()
 }
 
-fn signer(clock: &ManualClock) -> Signer {
+fn signer(clock: &Arc<ManualClock>) -> Signer {
     let key = key_from_pem(&test_key()).unwrap();
-    Signer::new(key, "12345", Arc::new(clock.clone()), Box::new(|| NOW))
+    Signer::new(key, "12345", clock.clone(), Box::new(|| NOW))
 }
 
 fn claims(v: Value) -> Map<String, Value> {
@@ -33,7 +33,7 @@ fn claims(v: Value) -> Map<String, Value> {
 
 #[test]
 fn a_jwt_of_the_one_shape_verifies() {
-    let clock = ManualClock::default();
+    let clock = Arc::new(ManualClock::new());
     let mut s = signer(&clock);
     let token = s.sign("sidecar", &claims(json!({ "iat": NOW - 30, "exp": NOW + 540, "iss": "12345" }))).unwrap();
     let parts: Vec<&str> = token.split('.').collect();
@@ -49,7 +49,7 @@ fn a_jwt_of_the_one_shape_verifies() {
 
 #[test]
 fn another_shape_is_refused_and_audited() {
-    let clock = ManualClock::default();
+    let clock = Arc::new(ManualClock::new());
     let mut s = signer(&clock);
     let bad = [
         json!({ "iat": NOW, "exp": NOW + 60, "iss": "12345", "sub": "x" }),
@@ -67,15 +67,15 @@ fn another_shape_is_refused_and_audited() {
 }
 
 /// A signer whose Unix time follows `clock`.
-fn moving(clock: &ManualClock) -> Signer {
+fn moving(clock: &Arc<ManualClock>) -> Signer {
     let key = key_from_pem(&test_key()).unwrap();
-    let c = clock.clone();
-    Signer::new(key, "12345", Arc::new(clock.clone()), Box::new(move || NOW + c.now_ms() / 1000))
+    let (c, start) = (clock.clone(), clock.now());
+    Signer::new(key, "12345", clock.clone(), Box::new(move || NOW + (c.now() - start).as_secs()))
 }
 
 #[test]
 fn one_signature_a_minute() {
-    let clock = ManualClock::default();
+    let clock = Arc::new(ManualClock::new());
     let mut s = moving(&clock);
     // A token with a short life is not given again: the rate holds.
     let short = claims(json!({ "iat": NOW, "exp": NOW + 100, "iss": "12345" }));
@@ -92,7 +92,7 @@ fn one_signature_a_minute() {
 /// last token, which is valid for long enough, and no new signature.
 #[test]
 fn a_second_request_in_the_minute_gets_the_last_token() {
-    let clock = ManualClock::default();
+    let clock = Arc::new(ManualClock::new());
     let mut s = moving(&clock);
     let first = s.sign("a", &claims(json!({ "iat": NOW - 30, "exp": NOW + 540, "iss": "12345" }))).unwrap();
     clock.advance(Duration::from_secs(5));
@@ -109,8 +109,8 @@ fn a_second_request_in_the_minute_gets_the_last_token() {
 fn the_key_and_the_token_reach_no_output() {
     let pem = test_key();
     let body_line = pem.lines().nth(1).unwrap().to_string();
-    let clock = ManualClock::default();
-    let mut s = Signer::new(key_from_pem(&pem).unwrap(), "12345", Arc::new(clock.clone()), Box::new(|| NOW));
+    let clock = Arc::new(ManualClock::new());
+    let mut s = Signer::new(key_from_pem(&pem).unwrap(), "12345", clock.clone(), Box::new(|| NOW));
     let token = s.sign("a", &claims(json!({ "iat": NOW, "exp": NOW + 600, "iss": "12345" }))).unwrap();
     // A positive control: the token holds the claims.
     assert!(token.len() > 300);
@@ -144,7 +144,7 @@ fn each_audit_line_goes_to_the_sink_and_the_memory_is_bounded() {
         }
     }
     let sink = Sink::default();
-    let clock = ManualClock::default();
+    let clock = Arc::new(ManualClock::new());
     let mut s = signer(&clock).with_sink(Box::new(sink.clone()));
     let token = s.sign("a", &claims(json!({ "iat": NOW, "exp": NOW + 600, "iss": "12345" }))).unwrap();
     let bad = claims(json!({ "iat": NOW, "exp": NOW + 60, "iss": "999" }));

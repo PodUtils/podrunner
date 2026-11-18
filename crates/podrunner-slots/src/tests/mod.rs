@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use podrunner_clock::ManualClock;
+use pod_core::clock::{Clock, ManualClock};
 use podrunner_fake::{FakeSource, FakeUnit, parse_script};
 use podrunner_schema::{
     Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, Fact, LimitMode, Principal, SecretDelivery,
@@ -137,7 +137,7 @@ built_at_s = {NOW_UNIX}
 /// One source, one unit kind, a test of its own.
 pub(crate) struct Bed {
     pub slots: Slots,
-    pub clock: ManualClock,
+    pub clock: Arc<ManualClock>,
     pub dir: TempDir,
 }
 
@@ -156,7 +156,12 @@ impl Bed {
     /// `sources`: the name, the tier, the most units, and the script lines.
     pub fn new(cfg: Config, sources: Vec<(&str, &str, Option<u32>, Vec<String>)>, kinds: Vec<KindSpec>) -> Bed {
         let dir = TempDir::new();
-        Bed::in_dir(cfg, sources, kinds, dir, ManualClock::default())
+        Bed::in_dir(cfg, sources, kinds, dir, Bed::clock())
+    }
+
+    /// A manual clock whose wall clock reads `NOW_UNIX`.
+    pub fn clock() -> Arc<ManualClock> {
+        Arc::new(ManualClock::at(std::time::UNIX_EPOCH + Duration::from_secs(NOW_UNIX)))
     }
 
     pub fn in_dir(
@@ -164,7 +169,7 @@ impl Bed {
         sources: Vec<(&str, &str, Option<u32>, Vec<String>)>,
         kinds: Vec<KindSpec>,
         dir: TempDir,
-        clock: ManualClock,
+        clock: Arc<ManualClock>,
     ) -> Bed {
         let mut srcs = Vec::new();
         for (name, tier, max, lines) in sources {
@@ -176,7 +181,7 @@ impl Bed {
             let script = parse_script(&lines.join("\n")).unwrap();
             srcs.push(Source {
                 cfg: sc,
-                source: Box::new(FakeSource::new(name, Arc::new(clock.clone()), script)),
+                source: Box::new(FakeSource::new(name, clock.clone(), script)),
                 revoked: false,
             });
         }
@@ -193,10 +198,11 @@ impl Bed {
                 capability: k.capability,
             });
         }
-        // The Unix time moves with the manual clock.
+        // The Unix time is the wall clock of the manual clock: it moves with
+        // it, also across a restart of the slots.
         let c = clock.clone();
-        let unix = Box::new(move || NOW_UNIX + podrunner_clock::Clock::now_ms(&c) / 1000);
-        let slots = Slots::start(cfg, &dir.0.join("state"), Arc::new(clock.clone()), unix, srcs, ks).unwrap();
+        let unix = Box::new(move || c.wall().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs()));
+        let slots = Slots::start(cfg, &dir.0.join("state"), clock.clone(), unix, srcs, ks).unwrap();
         Bed { slots, clock, dir }
     }
 

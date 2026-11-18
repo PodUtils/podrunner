@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use podrunner_clock::ManualClock;
+use pod_core::clock::ManualClock;
 use podrunner_fake::{FakeSource, parse_script};
 use podrunner_schema::{JobId, Tier};
 use podrunner_source::conformance::{self as sc, Fixture};
@@ -42,11 +42,11 @@ pub(crate) fn dir() -> PathBuf {
 }
 
 pub(crate) fn gate(lines: &[String], slots: &[(&str, u32)], at: &std::path::Path) -> Gate {
-    gate_at(lines, slots, at, ManualClock::default())
+    gate_at(lines, slots, at, Arc::new(ManualClock::new()))
 }
 
-fn gate_at(lines: &[String], slots: &[(&str, u32)], at: &std::path::Path, clock: ManualClock) -> Gate {
-    let source = FakeSource::new("src", Arc::new(clock), parse_script(&lines.join("\n")).unwrap());
+fn gate_at(lines: &[String], slots: &[(&str, u32)], at: &std::path::Path, clock: Arc<ManualClock>) -> Gate {
+    let source = FakeSource::new("src", clock, parse_script(&lines.join("\n")).unwrap());
     let trust = serde_json::from_value(json!({ "organizations": [{ "login": "example-org" }] })).unwrap();
     let hosts: BTreeMap<String, u32> = slots.iter().map(|(h, n)| (h.to_string(), *n)).collect();
     let ledger = Ledger::open(&at.join("ledger.jsonl")).unwrap();
@@ -169,7 +169,7 @@ fn a_bad_offer_is_withdrawn_as_bad_request() {
 fn credentials_with_no_start_revoke_the_host() {
     use std::sync::atomic::{AtomicU64, Ordering};
     let d = dir();
-    let clock = ManualClock::default();
+    let clock = Arc::new(ManualClock::new());
     let mut lines: Vec<String> = (1..=4).map(|i| offer(&format!("j-{i}"), false)).collect();
     lines.push(r#"{"at_s":10,"started":{"job_id":"j-1","runner_name":"r"}}"#.into());
     let now = Arc::new(AtomicU64::new(1_000));
@@ -212,7 +212,7 @@ fn credentials_with_no_start_revoke_the_host() {
 fn a_released_late_credential_still_counts() {
     use std::sync::atomic::{AtomicU64, Ordering};
     let d = dir();
-    let clock = ManualClock::default();
+    let clock = Arc::new(ManualClock::new());
     let lines: Vec<String> = (1..=3).map(|i| offer(&format!("j-{i}"), false)).collect();
     let now = Arc::new(AtomicU64::new(1_000));
     let n = now.clone();

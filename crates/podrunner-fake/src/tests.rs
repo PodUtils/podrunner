@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use podrunner_clock::{Clock, ManualClock};
+use pod_core::clock::{Clock, ManualClock};
 use podrunner_schema::{
     Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, Fact, JobId, LimitMode, Principal,
     SecretDelivery, TreeKill, UnitId, UnitIds,
@@ -204,7 +204,7 @@ struct SourceFixture {
 
 impl sc::Fixture for SourceFixture {
     fn fresh(&self) -> Box<dyn JobSource> {
-        let s = FakeSource::new("fake-1", Arc::new(ManualClock::default()), script());
+        let s = FakeSource::new("fake-1", Arc::new(ManualClock::new()), script());
         Box::new(match self.plant {
             Some(p) => s.with_plant(p),
             None => s,
@@ -250,12 +250,13 @@ fn each_source_plant_fails_its_test() {
 
 #[test]
 fn the_script_follows_the_manual_clock() {
-    let clock = ManualClock::default();
+    let clock = Arc::new(ManualClock::new());
+    let start = clock.now();
     let text = format!(
         "# a comment\n{}\n{{\"at_s\":10,\"cancel\":\"j-1\"}}\n{{\"at_s\":0,\"mint_error\":{{\"job_id\":\"j-1\",\"code\":\"credential-unavailable\"}}}}\n",
         offer_line(5, "j-1")
     );
-    let mut s = FakeSource::new("fake-1", Arc::new(clock.clone()), parse_script(&text).unwrap());
+    let mut s = FakeSource::new("fake-1", clock.clone(), parse_script(&text).unwrap());
     assert!(s.next(1, Duration::ZERO).unwrap().is_empty(), "no offer before 5 s");
     clock.advance(Duration::from_secs(5));
     let job = JobId::new("j-1").unwrap();
@@ -266,7 +267,7 @@ fn the_script_follows_the_manual_clock() {
     assert_eq!(s.mint(&job, "r").unwrap().files.len(), 3, "the scripted error comes once");
     clock.advance(Duration::from_secs(5));
     assert!(matches!(&s.next(0, Duration::ZERO).unwrap()[..], [Event::Cancel { job_id }] if *job_id == job));
-    assert_eq!(clock.now_ms(), 10_000);
+    assert_eq!(clock.now() - start, Duration::from_secs(10));
 }
 
 #[test]

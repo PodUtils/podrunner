@@ -744,13 +744,13 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-expr"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 
 [[package]]
 name = "pod-actions-results"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "base64",
  "pod-core",
@@ -760,8 +760,8 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-store"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "flate2",
  "pod-actions-workflow",
@@ -771,8 +771,8 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-workflow"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "pod-actions-expr",
  "saphyr-parser",
@@ -780,8 +780,8 @@ dependencies = [
 
 [[package]]
 name = "pod-broker"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "base64",
  "libc",
@@ -798,8 +798,8 @@ dependencies = [
 
 [[package]]
 name = "pod-confine"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -807,8 +807,8 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "libc",
  "rand 0.10.3",
@@ -818,8 +818,8 @@ dependencies = [
 
 [[package]]
 name = "pod-dns"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "base64",
  "bytes",
@@ -839,8 +839,8 @@ dependencies = [
 
 [[package]]
 name = "pod-hostprobe"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "linux-raw-sys",
  "pod-core",
@@ -849,8 +849,8 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -864,8 +864,8 @@ dependencies = [
 
 [[package]]
 name = "pod-job"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "serde",
  "serde_json",
@@ -873,8 +873,8 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "base64",
  "libc",
@@ -890,8 +890,8 @@ dependencies = [
 
 [[package]]
 name = "pod-services"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "pod-core",
  "toml",
@@ -899,8 +899,8 @@ dependencies = [
 
 [[package]]
 name = "pod-tls"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "base64",
  "p256",
@@ -919,8 +919,8 @@ dependencies = [
 
 [[package]]
 name = "pod-turn"
-version = "0.69.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.69.0#d85f2d245b9de93b6932124c06463c7f6416203e"
+version = "0.70.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.70.0#ed6d84c8ed09b219665fcfe3ad760296027042dc"
 dependencies = [
  "hmac",
  "sha1",
@@ -939,7 +939,6 @@ dependencies = [
  "pod-hostprobe",
  "pod-proxy",
  "pod-tls",
- "podrunner-clock",
  "podrunner-egress",
  "podrunner-fake",
  "podrunner-hook",
@@ -975,10 +974,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "podrunner-clock"
-version = "0.1.0"
-
-[[package]]
 name = "podrunner-egress"
 version = "0.1.0"
 dependencies = [
@@ -997,7 +992,7 @@ name = "podrunner-fake"
 version = "0.1.0"
 dependencies = [
  "libc",
- "podrunner-clock",
+ "pod-core",
  "podrunner-schema",
  "podrunner-source",
  "podrunner-unit",
@@ -1048,6 +1043,7 @@ dependencies = [
  "pod-actions-store",
  "pod-actions-workflow",
  "pod-proxy",
+ "pod-tls",
  "podrunner-broker-fake",
  "podrunner-egress",
  "podrunner-hook",
@@ -1075,7 +1071,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "libc",
- "podrunner-clock",
+ "pod-core",
  "podrunner-schema",
  "podrunner-source",
  "ring",
@@ -1122,8 +1118,8 @@ name = "podrunner-slots"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "pod-core",
  "pod-identity",
- "podrunner-clock",
  "podrunner-schema",
  "podrunner-source",
  "podrunner-tier",

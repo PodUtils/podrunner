@@ -2,7 +2,7 @@
 
 `crates/podrunner-fake` holds the `fake` source and the `fake` unit
 (GitHub #20). Level 1 runs on them, offline, on a manual clock
-(`crates/podrunner-clock`). Each fake can carry one planted defect, which
+(`pod_core::clock::ManualClock`). Each fake can carry one planted defect, which
 fails one conformance test (`docs/contracts/unit-driver.md`,
 `docs/contracts/source-driver.md`). The configuration refuses a `fake`
 source or unit in production unless `allow_fake = true`, and each report

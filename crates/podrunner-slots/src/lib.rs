@@ -29,7 +29,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 pub use engine::{EgressPort, Job, Slots, Source, UnitKind};
-use podrunner_clock::Clock;
+use pod_core::clock::Clock;
 use podrunner_schema::{ExitReason, UnitIds};
 
 use crate::config::Config;
@@ -61,6 +61,7 @@ impl Slots {
         let audit = audit::Audit::open(state_dir)?;
         let mut s = Slots {
             cfg,
+            origin: clock.now(),
             clock,
             now_unix,
             sources,

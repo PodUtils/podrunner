@@ -19,7 +19,7 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podrunner_clock::ManualClock;
+use pod_core::clock::ManualClock;
 use podrunner_mint::SidecarSource;
 use podrunner_mint::sign::{Signer, key_from_pem};
 use podrunner_source::JobSource;
@@ -93,7 +93,7 @@ fn gates_g_h2_and_g_h3_offline() {
     let pem = Command::new("openssl").args(["genrsa", "-traditional", "2048"]).output().unwrap().stdout;
     let key = key_from_pem(&String::from_utf8(pem).unwrap()).unwrap();
     let unix = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
-    let signer = Arc::new(Mutex::new(Signer::new(key, "4242", Arc::new(ManualClock::default()), Box::new(unix))));
+    let signer = Arc::new(Mutex::new(Signer::new(key, "4242", Arc::new(ManualClock::new()), Box::new(unix))));
     let args = [
         "-config-url",
         &format!("{url}/example-org"),

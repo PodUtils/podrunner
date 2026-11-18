@@ -13,8 +13,8 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::sync::Arc;
 
+use pod_core::clock::{Clock, SystemClock};
 use pod_core::failure::Class;
-use podrunner_clock::{Clock, SystemClock};
 use podrunner_slots::config::SourceConfig;
 
 use crate::serve::{Failure, fail};
@@ -55,7 +55,7 @@ pub fn fake_source(args: &[String]) -> Result<(), Failure> {
         _ => return Err(fail(Class::Usage, "usage: podrunner fake-source [--script FILE]")),
     };
     let script = podrunner_fake::parse_script(&script).map_err(|e| fail(Class::Config, format!("the script: {e}")))?;
-    let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     let mut source = podrunner_fake::FakeSource::new("fake-program", clock, script);
     let stdin = std::io::stdin().lock();
     let mut stdout = std::io::stdout().lock();

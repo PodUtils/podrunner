@@ -17,8 +17,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use pod_core::clock::{Clock, SystemClock};
 use podrunner_broker_fake::{Broker, Job};
-use podrunner_clock::{Clock, SystemClock};
 use podrunner_fake::{FakeSource, parse_script};
 use podrunner_microvm::MicrovmUnit;
 use podrunner_podvm::Podvm;
@@ -158,7 +158,7 @@ built_at_s = {now}
     }))
     .unwrap();
     cfg.source.push(sc.clone());
-    let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     let lines = [
         fork_offer("fork-run", json!({})),
         fork_offer("fork-container", json!({ "unit_need": { "container": true } })),

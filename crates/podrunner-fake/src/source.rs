@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 
-use podrunner_clock::Clock;
+use pod_core::clock::Clock;
 use podrunner_schema::{Credential, CredentialFile, JobId, Secret};
 use podrunner_source::{Event, Hello, JobSource, Offer, SourceCode, SourceError};
 use serde::Deserialize;
@@ -94,6 +94,8 @@ enum State {
 pub struct FakeSource {
     name: String,
     clock: Arc<dyn Clock>,
+    /// The time of the make: the `at_s` of a step counts from it.
+    origin: std::time::Instant,
     script: VecDeque<Step>,
     /// Offers that are due and wait for capacity.
     pending: VecDeque<Offer>,
@@ -110,6 +112,7 @@ impl FakeSource {
         script.sort_by_key(|s| s.at_s);
         FakeSource {
             name: name.into(),
+            origin: clock.now(),
             clock,
             script: script.into(),
             pending: VecDeque::new(),
@@ -133,7 +136,7 @@ impl FakeSource {
     /// Move each due step of the script into the state; give the events
     /// that are not offers.
     fn take_due(&mut self) -> Vec<Event> {
-        let now = self.clock.now_ms() / 1000;
+        let now = self.clock.now().saturating_duration_since(self.origin).as_secs();
         let mut events = Vec::new();
         while self.script.front().is_some_and(|s| s.at_s <= now) {
             match self.script.pop_front().expect("a step").what {

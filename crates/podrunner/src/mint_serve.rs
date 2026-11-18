@@ -8,10 +8,10 @@ use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
+use pod_core::clock::{Clock, SystemClock};
 use pod_core::failure::Class;
 use pod_tls::mutual::{Pin, Pins, server_config};
 use pod_tls::server::{Served, certified};
-use podrunner_clock::{Clock, SystemClock};
 use podrunner_remote::gate::Gate;
 use podrunner_remote::ledger::Ledger;
 use podrunner_remote::transport::{ALPN, HostKey, Server, provider};
@@ -131,7 +131,7 @@ pub fn check(config: &Path) -> Result<MintConfig, Failure> {
         ));
     }
     let c = MintConfig::parse(&text).map_err(|e| fail(Class::Config, e))?;
-    source_of(&c.source, Arc::new(SystemClock::default()), None)?;
+    source_of(&c.source, Arc::new(SystemClock), std::time::Instant::now(), None)?;
     private_file("the key file of the mint", &c.key_file)?;
     std::fs::read(&c.cert_file).map_err(|e| fail(Class::Config, format!("the certificate: {}", e)))?;
     Ok(c)
@@ -140,9 +140,9 @@ pub fn check(config: &Path) -> Result<MintConfig, Failure> {
 /// Run the mint until the process ends.
 pub fn run(config: &Path) -> Result<(), Failure> {
     let c = check(config)?;
-    let clock: Arc<dyn Clock> = Arc::new(SystemClock::default());
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     // A mint holds no remote source: no lookup.
-    let source = source_of(&c.source, clock, None)?;
+    let source = source_of(&c.source, clock.clone(), clock.now(), None)?;
     let state = Path::new(&c.state);
     let io = |what: &str, e: std::io::Error| fail(Class::Unavailable, format!("{what}: {}", e));
     std::fs::create_dir_all(state).map_err(|e| io("the state directory", e))?;

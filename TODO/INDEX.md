@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**509 entries: 73 open, 30 partial, 13 blocked, 393 done.**
+**510 entries: 72 open, 30 partial, 12 blocked, 396 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 3 | 0 | 0 | 0 | 3 |
 | P1 | 17 | 13 | 1 | 62 | 93 |
-| P2 | 18 | 12 | 9 | 209 | 248 |
-| P3 | 35 | 5 | 3 | 122 | 165 |
-| **All** | 73 | 30 | 13 | 393 | 509 |
+| P2 | 17 | 12 | 9 | 210 | 248 |
+| P3 | 35 | 5 | 2 | 124 | 166 |
+| **All** | 72 | 30 | 12 | 396 | 510 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -513,12 +513,12 @@ acceptance, later The crate dependencies later than v1.
 | [T-466](later.md) | P2 | S | later | defect | done | shim: the close_range fallback closes only 3..4096, so a higher descriptor leaks into the payload |
 | [T-467](later.md) | P3 | S | later | defect | done | mint: the revocation message calls the source name a credential |
 | [T-468](later.md) | P2 | S | later | defect | done | check: a guest_kinds entry that is not a [unit.NAME] table passes check and drops the guest claim |
-| [T-469](later.md) | P3 | S | later | defect | blocked | lock: an uppercase digest is accepted and then fails every action against the lowercase SHA-256 |
+| [T-469](later.md) | P3 | S | later | defect | done | lock: an uppercase digest is accepted and then fails every action against the lowercase SHA-256 |
 | [T-470](later.md) | P3 | S | later | defect | done | status: trust_unknown counts a repository or owner literally named unknown |
 | [T-471](later.md) | P2 | S | later | defect | done | policy: a host with a trailing dot is not covered by a wildcard ceiling |
 | [T-472](later.md) | P3 | S | later | defect | done | check: a pin payload with a duplicate reference, a future built_at_s, max_age_s 0 or a bad runner_version is accepted |
-| [T-473](later.md) | P3 | S | later | chore | open | Take `pod_core::clock` in place of the crate `podrunner-clock` |
-| [T-474](later.md) | P2 | M | later | chore | open | Take `pod_proxy::env` for the proxy environment of a unit |
+| [T-473](later.md) | P3 | S | later | chore | done | Take `pod_core::clock` in place of the crate `podrunner-clock` |
+| [T-474](later.md) | P2 | M | later | chore | done | Take `pod_proxy::env` for the proxy environment of a unit |
 | [T-475](later.md) | P3 | S | later | defect | open | A `uses:` with an empty part runs on GitHub and is refused here |
 | [T-476](later.md) | P3 | S | later | defect | done | A `:` in TMPDIR or in an option path fails each job start, not `check` |
 | [T-477](later.md) | P3 | S | later | defect | done | An audit line that fails half way leaves a fragment, and the next line joins it |
@@ -557,3 +557,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-510](later.md) | P1 | S | later | release | open | G-39: one record of each change of a contract that githome reads |
 | [T-511](later.md) | P1 | M | later | release | open | G-40: each fake and tool that githome's tests need, as a release asset |
 | [T-512](later.md) | P0 | S | later | release | open | G-41: the statement "githome: complete in vTAG" |
+| [T-513](later.md) | P3 | S | later | chore | open | Two file locks of the local mode that `pod_core::lock` cannot hold yet |

@@ -112,7 +112,7 @@ fn a_refused_claim_is_reported_before_its_release() {
     );
     let calls = std::sync::Arc::default();
     let empty = podrunner_fake::parse_script("").unwrap();
-    let placeholder = podrunner_fake::FakeSource::new("a", std::sync::Arc::new(bed.clock.clone()), empty);
+    let placeholder = podrunner_fake::FakeSource::new("a", bed.clock.clone(), empty);
     let inner = std::mem::replace(&mut bed.slots.sources[0].source, Box::new(placeholder));
     bed.slots.sources[0].source = Box::new(Order { inner, calls: std::sync::Arc::clone(&calls) });
     bed.until(50, |s| s.jobs().all(|j| j.state.is_final()) && s.jobs().count() == 1);

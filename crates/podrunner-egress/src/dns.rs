@@ -33,9 +33,9 @@ pub fn resolver(doh: bool, pins: Vec<(String, IpAddr)>) -> Arc<dyn Resolve> {
 /// host whose only resolver is the proxy, the system has no address, and
 /// the broker refuses each name before it sends the name up. With a proxy,
 /// DNS over HTTPS goes through that proxy, and the CA bundle of the
-/// environment (`SSL_CERT_FILE`, `CURL_CA_BUNDLE`, `REQUESTS_CA_BUNDLE`)
-/// adds to the roots, as a proxy that intercepts TLS needs. The system
-/// resolver stays first.
+/// environment (`pod_tls::env_bundle`: the first variable that names a file
+/// which opens) adds to the roots, as a proxy that intercepts TLS needs.
+/// The system resolver stays first.
 pub fn resolver_via(proxy: Option<&pod_proxy::Proxy>) -> Arc<dyn Resolve> {
     let Some(proxy) = proxy else { return resolver(false, Vec::new()) };
     let version = env!("CARGO_PKG_VERSION");
@@ -43,10 +43,15 @@ pub fn resolver_via(proxy: Option<&pod_proxy::Proxy>) -> Arc<dyn Resolve> {
     let plain: Arc<dyn Resolve> = Arc::new(pod_dns::Resolver::new(settings.clone()));
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let mut tls = pod_tls::Settings::new(pod_tls::Words::new("podrunner"));
-    tls.extra_bundle = ["SSL_CERT_FILE", "CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE"]
-        .iter()
-        .find_map(|v| std::env::var_os(v).filter(|p| !p.is_empty()))
-        .map(std::path::PathBuf::from);
+    let (bundle, passed) = pod_tls::env_bundle(|v| std::env::var(v).ok());
+    // One run makes many resolvers: name each variable once.
+    static NAMED: std::sync::Once = std::sync::Once::new();
+    NAMED.call_once(|| {
+        for p in passed {
+            eprintln!("podrunner: {} is passed over for the CA bundle: {}", p.var, p.why);
+        }
+    });
+    tls.extra_bundle = bundle.map(|b| b.path);
     let context = Arc::new(pod_tls::Context::new(provider, tls));
     let way = pod_proxy::Settings::new("podrunner", ProxyChoice::Via(proxy.clone()));
     let dial = Arc::new(Dialer::new(way, plain));

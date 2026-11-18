@@ -334,14 +334,14 @@ impl JobSource for SidecarSource {
 mod tests {
     use std::sync::Arc;
 
-    use podrunner_clock::SystemClock;
+    use pod_core::clock::SystemClock;
 
     use super::*;
 
     fn signer() -> Arc<Mutex<Signer>> {
         let out = Command::new("openssl").args(["genrsa", "-traditional", "2048"]).output().unwrap();
         let key = crate::sign::key_from_pem(&String::from_utf8(out.stdout).unwrap()).unwrap();
-        Arc::new(Mutex::new(Signer::new(key, "1", Arc::new(SystemClock::default()), Box::new(|| 0))))
+        Arc::new(Mutex::new(Signer::new(key, "1", Arc::new(SystemClock), Box::new(|| 0))))
     }
 
     /// A sidecar that ends at once: each call is unavailable, the restart

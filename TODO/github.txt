@@ -217,8 +217,8 @@
 211 issue closed
 212 issue closed
 213 issue open
-214 issue open
-215 issue open
+214 issue closed
+215 issue closed
 216 issue open
 217 issue closed
 218 issue closed
@@ -287,12 +287,12 @@
 281 issue closed
 282 issue closed
 283 issue closed
-284 issue open
+284 issue closed
 285 issue closed
 286 issue closed
 287 issue closed
-288 issue open
-289 issue open
+288 issue closed
+289 issue closed
 290 issue open
 291 issue open
 292 issue open

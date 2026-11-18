@@ -19,7 +19,7 @@ ring.workspace = true
 
 [dev-dependencies]
 podrunner-slots.workspace = true
-podrunner-clock.workspace = true
+pod-core.workspace = true
 podrunner-source.workspace = true
 podrunner-fake.workspace = true
 podrunner-schema.workspace = true
@@ -27,4 +27,4 @@ podrunner-unit.workspace = true
 podrunner-microvm.workspace = true
 podrunner-podvm.workspace = true
 podrunner-egress.workspace = true
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.69.0" }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.70.0" }

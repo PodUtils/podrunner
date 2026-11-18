@@ -121,7 +121,7 @@ fn a_stale_pin_is_refused_at_the_start_and_exit_7_degrades() {
     );
     // The source gives the credential at the third call: two seconds after
     // the claim, when the pin is past its limit of one second.
-    let empty = Box::new(podrunner_fake::FakeSource::new("x", Arc::new(ManualClock::default()), vec![]));
+    let empty = Box::new(podrunner_fake::FakeSource::new("x", Arc::new(pod_core::clock::ManualClock::new()), vec![]));
     let inner = std::mem::replace(&mut bed.slots.sources[0].source, empty);
     bed.slots.sources[0].source = Box::new(LateMint { inner, left: 2 });
     bed.until(20, |s| s.jobs().count() == 1 && Bed::all_final(s));

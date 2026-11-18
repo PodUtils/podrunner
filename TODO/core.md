@@ -241,7 +241,7 @@ A `fake` source and a `fake` unit that read scripts of timed events and behaviou
 
 ## Done
 
-2026-11-11, `e8f4c0d`; gate run 42938706745 of `f72f679` is green. `crates/podrunner-fake`, `crates/podrunner-clock`, `docs/fakes.md`. `cargo test -p podrunner-fake`: 7 passed: the fake unit passes unit tests 1 to 17 (13 or 14 skip by the container route), the fake source passes source tests 1 to 12, each of 17 unit plants and 12 source plants fails the test of its number, the script follows the manual clock. `fake` is refused unless `allow_fake = true` (`crates/podrunner-slots/src/config.rs`); a report of a fake unit names the kind `fake`. A fake that claims `guest` fails the guest self-test (T-036, `a_fake_that_claims_guest_fails_the_self_test`).
+2026-11-11, `e8f4c0d`; gate run 42938706745 of `f72f679` is green. `crates/podrunner-fake`, the crate podrunner-clock (removed by T-473), `docs/fakes.md`. `cargo test -p podrunner-fake`: 7 passed: the fake unit passes unit tests 1 to 17 (13 or 14 skip by the container route), the fake source passes source tests 1 to 12, each of 17 unit plants and 12 source plants fails the test of its number, the script follows the manual clock. `fake` is refused unless `allow_fake = true` (`crates/podrunner-slots/src/config.rs`); a report of a fake unit names the kind `fake`. A fake that claims `guest` fails the guest self-test (T-036, `a_fake_that_claims_guest_fails_the_self_test`).
 
 # T-021: WP-03: the slots core: states, journal, placement, status, drain, codes, config, audit (GitHub #21)
 
