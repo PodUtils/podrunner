@@ -102,3 +102,33 @@ fn source_conformance_passes_a_source_and_fails_an_echo() {
     let usage = Command::new(binary()).arg("source-conformance").output().unwrap();
     assert_eq!(usage.status.code(), Some(64));
 }
+
+/// T-503 (githome's G-28): `--json` gives one object for each line: the
+/// count of tests and the offers that a fresh source needs, each test, and
+/// the totals.
+#[test]
+fn source_conformance_json_is_a_line_for_each_test() {
+    let script = script();
+    let out = Command::new(binary())
+        .args(["source-conformance", "--json", "--"])
+        .arg(binary())
+        .args(["fake-source", "--script", &script])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stdout));
+    let lines: Vec<serde_json::Value> =
+        String::from_utf8_lossy(&out.stdout).lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+    assert_eq!(lines.len(), 16, "{lines:?}");
+    assert_eq!((lines[0]["tests"].as_u64(), lines[0]["offers_needed"].as_u64()), (Some(14), Some(2)));
+    for (i, t) in lines[1..15].iter().enumerate() {
+        assert_eq!(t["number"].as_u64(), Some(i as u64 + 1), "{t}");
+        assert_eq!(t["pass"], true, "{t}");
+        assert!(t["name"].as_str().is_some_and(|n| !n.is_empty()) && t["why"].is_null(), "{t}");
+    }
+    assert_eq!((lines[15]["passed"].as_u64(), lines[15]["failed"].as_u64()), (Some(14), Some(0)));
+    let none = Command::new(binary()).args(["source-conformance", "--json", "--", "/bin/false"]).output().unwrap();
+    assert_eq!(none.status.code(), Some(1));
+    let last: serde_json::Value =
+        serde_json::from_str(String::from_utf8_lossy(&none.stdout).lines().last().unwrap()).unwrap();
+    assert_eq!(last["failed"].as_u64(), Some(14), "{last}");
+}

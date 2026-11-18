@@ -37,7 +37,7 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
   mint-serve --config FILE                          the remote mint (on a machine with no unit)
   fake-source [--script FILE]                       a fake source on stdio (for a test of a program source)
-  source-conformance -- PROGRAM ARGS...             the source tests against a source program
+  source-conformance [--json] -- PROGRAM ARGS...    the source tests against a source program
   image verify --tarball FILE --arch ARCH           check actions-runner-linux-*.tar.gz against its pin
   run (FILE | DIR) (--runner-dir DIR | (--podvm PATH [--podnet PATH] | --microvm PATH [--engine DIR] | --incus PATH)
       --images STORE --image NAME@sha256:HEX) [OPTION...]

@@ -136,47 +136,69 @@ impl podrunner_source::conformance::Fixture for Under {
     }
 }
 
-/// `podrunner source-conformance -- PROGRAM ARGS...`: the 14 tests of the
-/// source wire against PROGRAM, one line each; the text and true when each
-/// passes. The program must give two offers or more on its first `next`.
+/// The offers that a fresh source of each test gives on its first `next`:
+/// test 3 needs two to be strict.
+pub const OFFERS_NEEDED: u32 = 2;
+
+/// `podrunner source-conformance [--json] -- PROGRAM ARGS...`: the 14 tests
+/// of the source wire against PROGRAM, one line each; the text and true
+/// when each passes. The program must give two offers or more on its first
+/// `next`. With `--json` (T-503, githome's G-28), one JSON object for each
+/// line: first `{tests, offers_needed}`, then `{number, name, pass, why}`
+/// for each test, then `{passed, failed}`.
 pub fn source_conformance(args: &[String]) -> Result<(String, bool), Failure> {
-    source_conformance_in(args, TEST_LIMIT)
+    match args.split_first() {
+        Some((flag, rest)) if flag == "--json" => source_conformance_in(rest, TEST_LIMIT, true),
+        _ => source_conformance_in(args, TEST_LIMIT, false),
+    }
 }
 
 /// [`source_conformance`] with the time limit `limit` of each test.
-fn source_conformance_in(args: &[String], limit: std::time::Duration) -> Result<(String, bool), Failure> {
+fn source_conformance_in(args: &[String], limit: std::time::Duration, json: bool) -> Result<(String, bool), Failure> {
     let rest = match args.split_first() {
         Some((dash, rest)) if dash == "--" && !rest.is_empty() => rest,
-        _ => return Err(fail(Class::Usage, "usage: podrunner source-conformance -- PROGRAM ARGS...")),
+        _ => return Err(fail(Class::Usage, "usage: podrunner source-conformance [--json] -- PROGRAM ARGS...")),
     };
+    let tests = podrunner_source::conformance::tests();
+    let mut lines: Vec<String> = Vec::new();
+    if json {
+        lines.push(serde_json::json!({ "tests": tests.len(), "offers_needed": OFFERS_NEEDED }).to_string());
+    }
+    let mut failed = 0;
     let under = Arc::new(Under { program: rest[0].clone(), args: rest[1..].to_vec() });
-    let (mut text, mut passed) = (String::new(), true);
     // Each test in a time limit: a program that never answers fails that
     // test by name, and the run goes on.
-    for (number, name) in podrunner_source::conformance::tests() {
+    for (number, name) in tests.iter().copied() {
         let (tx, rx) = std::sync::mpsc::channel();
         let u = under.clone();
         std::thread::spawn(move || {
             let _ = tx.send(podrunner_source::conformance::run(&*u, &[number]).remove(0));
         });
-        let line = match rx.recv_timeout(limit) {
-            Ok(r) => {
-                passed &= r.failure.is_none();
-                r.to_string()
-            }
+        let report = match rx.recv_timeout(limit) {
+            Ok(r) => r,
             Err(_) => {
-                passed = false;
                 // The program of the test ends, so that its thread ends too
                 // and leaves no process (#258).
                 end_children_of(&under.program, &under.args);
                 let _ = rx.recv_timeout(std::time::Duration::from_secs(5));
-                format!("source {number:2} {name}: FAIL: no end in {} s", limit.as_secs())
+                let why = format!("no end in {} s", limit.as_secs());
+                podrunner_source::conformance::Report { number, name, failure: Some(why) }
             }
         };
-        text.push_str(&line);
-        text.push('\n');
+        failed += usize::from(report.failure.is_some());
+        lines.push(if json {
+            serde_json::json!({
+                "number": report.number, "name": report.name, "pass": report.failure.is_none(), "why": report.failure,
+            })
+            .to_string()
+        } else {
+            report.to_string()
+        });
     }
-    Ok((text, passed))
+    if json {
+        lines.push(serde_json::json!({ "passed": tests.len() - failed, "failed": failed }).to_string());
+    }
+    Ok((lines.iter().map(|l| format!("{l}\n")).collect(), failed == 0))
 }
 
 #[cfg(test)]
@@ -194,7 +216,7 @@ mod tests {
         std::fs::write(&script, "#!/bin/sh\nsleep 307\n").unwrap();
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
         let args = ["--".to_string(), script.display().to_string()];
-        let (text, passed) = super::source_conformance_in(&args, std::time::Duration::from_millis(500)).unwrap();
+        let (text, passed) = super::source_conformance_in(&args, std::time::Duration::from_millis(500), false).unwrap();
         assert!(!passed && text.contains("FAIL"), "{text}");
         std::thread::sleep(std::time::Duration::from_millis(300));
         let name = script.display().to_string();

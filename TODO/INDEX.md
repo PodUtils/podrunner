@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 65 open, 41 partial, 13 blocked, 412 done.**
+**531 entries: 64 open, 41 partial, 13 blocked, 413 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
 | P1 | 7 | 19 | 3 | 69 | 98 |
-| P2 | 18 | 16 | 7 | 217 | 258 |
+| P2 | 17 | 16 | 7 | 218 | 258 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 65 | 41 | 13 | 412 | 531 |
+| **All** | 64 | 41 | 13 | 413 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -547,7 +547,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-500](later.md) | P2 | M | later | feature | open | G-24: a runner image with the software that cfb's gates need |
 | [T-501](later.md) | P2 | S | later | feature | open | G-26: a drain and a stop of one source |
 | [T-502](later.md) | P2 | S | later | feature | open | G-27: a cancel ends its unit in a bounded time, with a conformance test |
-| [T-503](later.md) | P2 | S | later | feature | open | G-28: the output of `source-conformance` for CI |
+| [T-503](later.md) | P2 | S | later | feature | done | G-28: the output of `source-conformance` for CI |
 | [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |
 | [T-505](later.md) | P2 | S | later | feature | open | No cap of units for the whole host across its kinds |
 | [T-506](later.md) | P1 | L | later | feature | partial | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |

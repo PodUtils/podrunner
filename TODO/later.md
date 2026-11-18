@@ -11364,7 +11364,7 @@ The census of T-491 (2026-11-18): no test of a cancel exists in the slots or in 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11380,7 +11380,11 @@ githome's comment on GitHub #292, read on 2026-11-18.
 
 ## Prove
 
-`cargo test -p podrunner-source`: the JSON lines of a run against `podrunner fake-source`.
+`cargo test -p podrunner --test program_source`: the JSON lines of a run against `podrunner fake-source`.
+
+## Done
+
+2026-11-18, the commit that names T-503. `podrunner source-conformance --json -- PROGRAM ARGS` writes one JSON object for each line: `{tests, offers_needed}` (14 and 2: each test takes a fresh source, whose first `next` gives two offers or more), then `{number, name, pass, why}` for each test, then `{passed, failed}` (`crates/podrunner/src/program_source.rs`, `docs/cli.md`). The Prove names the test target of the command, which is `podrunner`, not `podrunner-source`. `cargo test -p podrunner --test program_source source_conformance_json_is_a_line_for_each_test`: the fake source passes 14 of 14; `/bin/false` fails 14 and exits 1.
 
 # T-504: G-29: a GitHub source for the repositories of a personal account
 
