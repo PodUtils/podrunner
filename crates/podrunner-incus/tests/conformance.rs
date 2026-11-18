@@ -53,6 +53,12 @@ impl Fixture for Real {
     }
     fn payload(&self, b: Behaviour) -> Vec<String> {
         match b {
+            // T-526: `PODRUNNER_PLANT=incus-conformance` plants a wrong
+            // exit code, so a run of `runner-image.yml` proves that the
+            // suite blocks.
+            Behaviour::Exit(n) if std::env::var("PODRUNNER_PLANT").as_deref() == Ok("incus-conformance") => {
+                sh(&format!("exit {}", n + 1))
+            }
             Behaviour::Exit(n) => sh(&format!("exit {n}")),
             Behaviour::Sleep => vec!["sleep".into(), "300".into()],
             Behaviour::Grandchild => sh("setsid sh -c 'sleep 300 & wait' & wait"),

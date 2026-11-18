@@ -8,6 +8,13 @@ name: runner-image
 
 on:
   workflow_dispatch:
+    inputs:
+      plant:
+        description: "A planted defect that must make the run red (T-526): none or incus-conformance"
+        required: false
+        default: none
+        type: choice
+        options: [none, incus-conformance]
   push:
     branches: [main]
     paths:
@@ -578,6 +585,8 @@ jobs:
         # It runs after a failed step too: the incus kind does not depend on
         # the microvm kind.
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        env:
+          PLANT: ${{ inputs.plant || 'none' }}
         run: |
           set -eu
           sh scripts/retry.sh sudo apt-get -qq update
@@ -590,7 +599,7 @@ jobs:
             | tee -a "$GITHUB_STEP_SUMMARY" || echo "incus measure: failed" | tee -a "$GITHUB_STEP_SUMMARY"
           # T-105 step 2: the unit tests of the incus kind on real instances.
           cargo test -p podrunner-incus --test conformance --no-run
-          sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 1800 cargo test -p podrunner-incus --test conformance -- --ignored --nocapture"
+          sg incus-admin -c "PODRUNNER_PLANT='$PLANT' PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 1800 cargo test -p podrunner-incus --test conformance -- --ignored --nocapture"
           # T-109: no NIC, and the egress socket as the one way out.
           cargo test -p podrunner-incus --test egress --no-run
           sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 600 cargo test -p podrunner-incus --test egress -- --ignored --nocapture"

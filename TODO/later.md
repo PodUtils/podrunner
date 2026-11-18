@@ -12087,6 +12087,8 @@ Keep `scripts/measure-incus.sh` as a measure. Make the conformance, egress, limi
 
 In the code (2026-11-18): the incus step of `runner-image.yml` has no `continue-on-error`: its conformance, egress, limits and local suites block (they passed in run 44302792725); `scripts/measure-incus.sh` and the engine test of T-485 stay measures (a line in the summary); the apt installs go through `scripts/retry.sh`. The new `pids` test of T-488 in the microvm step is a measure too until it is green once. Open: the run with a planted defect of the Prove.
 
+In the code (2026-11-18, the plant): `runner-image.yml` takes the input `plant` (`none` or `incus-conformance`) of a dispatch; with `incus-conformance` the fixture of `crates/podrunner-incus/tests/conformance.rs` gives each exit payload a wrong exit code (`PODRUNNER_PLANT`). Next: a dispatch with `plant: incus-conformance` must end red in the incus step.
+
 # T-527: No lane of the user-path gate for the host class of githome's pool
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
