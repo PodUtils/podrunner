@@ -69,6 +69,8 @@ pub struct Job {
     pub usage: crate::usage::Usage,
     /// The answer to the job-started hook of its unit (T-493).
     pub assigned: Option<crate::assigned::Verdict>,
+    /// Its egress lines at its source (T-486).
+    pub egress: crate::egress_lines::EgressCount,
 }
 
 /// The supervisor of the slots.
@@ -375,6 +377,7 @@ impl Slots {
             completed: false,
             usage: Default::default(),
             assigned: None,
+            egress: Default::default(),
         };
         self.jobs.insert(key.clone(), job);
         self.set(&key, State::Offered, now);

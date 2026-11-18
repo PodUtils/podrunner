@@ -12,6 +12,11 @@ pub trait EgressPort: Send {
     /// False when the module ended: slots gives no capacity and ends the
     /// running units.
     fn alive(&self) -> bool;
+    /// The line of each connection that ended since the last call, with
+    /// the unit of its listener (T-486).
+    fn lines(&self) -> Vec<(String, serde_json::Map<String, serde_json::Value>)> {
+        Vec::new()
+    }
     /// The questions of the units since the last call (T-493).
     fn questions(&self) -> Vec<crate::assigned::Question> {
         Vec::new()

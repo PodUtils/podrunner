@@ -17,6 +17,8 @@ const KEEP: usize = 1000;
 #[derive(Default)]
 pub struct Denials {
     last: Mutex<VecDeque<(String, String)>>,
+    /// The line of each connection, for the source of its job (T-486).
+    pub(crate) lines: crate::lines::Lines,
     /// No line on stderr for each failed connection: the local mode names
     /// the refused hosts of a failed job at its end (T-328, T-329).
     quiet: AtomicBool,
@@ -59,6 +61,7 @@ pub fn failure_text(line: &Line) -> Option<String> {
 impl Audit for Denials {
     fn line(&self, line: &Line) {
         Tracing.line(line);
+        self.lines.keep(line, &pod_core::clock::rfc3339(std::time::SystemTime::now()));
         if let Some(t) = failure_text(line).filter(|_| !self.quiet.load(Ordering::Relaxed)) {
             eprintln!("{t}");
         }

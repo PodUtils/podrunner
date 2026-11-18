@@ -10809,7 +10809,7 @@ The parity suite of the engine (`services:`, a job container, a Docker action, a
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10832,6 +10832,11 @@ The crate half is githome's G-33 on PodUtils/podcrates#223 (the audit lines of `
 ## Prove
 
 A test of slots with a fake source and a fake egress sink: an allowed and a denied connection of a job give two `audit` calls to its source, and no call to another source. Then githome's pair run shows the lines on the job page.
+
+## Done
+
+2026-11-18: the sink of the egress module keeps the line of each connection that ends (`crates/podrunner-egress/src/lines.rs`: host, port, verdict `allow`, `deny` or `fail`, rule, bytes in and out, the time; a queue of 10000 lines at most), `serve` gives them to the slots through `EgressPort::lines`, and the slots send each one to `audit` of the source of the job of the unit, with its `job_id`, at most 1000 for a job, then one line `{ job_id, dropped }` (`crates/podrunner-slots/src/egress_lines.rs`). `docs/contracts/source-driver.md` names the form. Tests: `each_connection_gives_one_line_with_no_path` (`podrunner-egress`), `the_egress_lines_of_a_unit_reach_the_source_of_its_job` and `a_job_gets_at_most_1000_lines_and_the_count_of_the_rest` (`podrunner-slots`; the other source gets none). Level: proven by tests here; githome's pair run (its job page) is not run, and T-512 holds it.
+
 
 # T-487: G-11: warm units from a pinned golden image
 

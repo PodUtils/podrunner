@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**529 entries: 82 open, 34 partial, 15 blocked, 398 done.**
+**529 entries: 81 open, 34 partial, 15 blocked, 399 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 2 | 0 | 0 | 3 |
-| P1 | 20 | 13 | 2 | 63 | 98 |
+| P1 | 19 | 13 | 2 | 64 | 98 |
 | P2 | 22 | 14 | 9 | 211 | 256 |
 | P3 | 39 | 5 | 4 | 124 | 172 |
-| **All** | 82 | 34 | 15 | 398 | 529 |
+| **All** | 81 | 34 | 15 | 399 | 529 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -530,7 +530,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-483](later.md) | P2 | M | later | defect | open | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
 | [T-484](later.md) | P2 | S | later | release | open | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
 | [T-485](later.md) | P1 | M | later | feature | open | The incus kind has no container route, though G-02 asks for an engine in the system container |
-| [T-486](later.md) | P1 | M | later | feature | open | G-04: the egress verdicts of a unit do not reach the source of the job |
+| [T-486](later.md) | P1 | M | later | feature | done | G-04: the egress verdicts of a unit do not reach the source of the job |
 | [T-487](later.md) | P2 | L | later | feature | open | G-11: warm units from a pinned golden image |
 | [T-488](later.md) | P2 | M | later | feature | open | G-12: the microvm kind enforces no limit of processes |
 | [T-489](later.md) | P3 | S | later | chore | partial | githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version |

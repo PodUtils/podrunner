@@ -303,6 +303,9 @@ impl podrunner_slots::EgressPort for EgressOf {
     fn alive(&self) -> bool {
         self.egress.alive()
     }
+    fn lines(&self) -> Vec<(String, serde_json::Map<String, serde_json::Value>)> {
+        self.egress.take_lines()
+    }
     fn questions(&self) -> Vec<podrunner_slots::assigned::Question> {
         self.asked.lock().map(|r| r.try_iter().collect()).unwrap_or_default()
     }

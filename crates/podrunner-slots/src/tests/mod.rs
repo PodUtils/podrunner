@@ -6,6 +6,7 @@ mod assigned;
 mod bounded;
 mod config;
 mod egress;
+mod egress_lines;
 mod guards;
 mod guest;
 mod hooks;

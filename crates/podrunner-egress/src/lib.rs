@@ -20,6 +20,7 @@ use tokio::task::JoinHandle;
 
 pub mod denials;
 pub mod dns;
+pub mod lines;
 
 /// A failure of the egress module, with no byte of a policy or a token.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -170,6 +171,12 @@ impl Egress {
     pub fn quiet(self) -> Self {
         self.denials.quiet();
         self
+    }
+
+    /// The line of each connection that ended since the last call, with the
+    /// job (the unit) of its listener (T-486).
+    pub fn take_lines(&self) -> Vec<(String, serde_json::Map<String, serde_json::Value>)> {
+        self.denials.lines.take()
     }
 
     /// `HOST:PORT (RULE)` of each connection of `job` that its policy

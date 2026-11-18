@@ -81,6 +81,14 @@ its first step with an annotation that names the code. A source with no
 `assigned` answers `bad-request`, and the job ends as before. No answer
 within 10 s ends the job with the code `source-unavailable`.
 
+`audit` carries the audit lines of the slots, and one line for each
+connection of a unit through its egress module when the connection ends
+(T-486, githome's G-04): `{ job_id, host, port, verdict, rule, bytes_in,
+bytes_out, at }`, with `verdict` `allow`, `deny` or `fail` and `at` in
+RFC 3339 UTC. No path, header or body of a request is in it. A job gets
+at most 1000 of them; then, when the job is final, one line
+`{ job_id, dropped }` with the count of the rest.
+
 A source in a child process (the scale-set sidecar) answers each request
 within 15 s after the long poll of `next` (`REPLY_LIMIT`,
 `crates/podrunner-mint/src/sidecar.rs`). A child that passes it is killed

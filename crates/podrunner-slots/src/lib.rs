@@ -9,6 +9,7 @@ pub mod audit;
 pub mod config;
 pub mod disk;
 mod driver;
+pub mod egress_lines;
 mod egress_port;
 mod engine;
 pub mod forget;
