@@ -10610,7 +10610,7 @@ The steps "Build the OCI archive" and "The larger runner image by label" of `run
 
 ## Problem
 
-cfb renders `podrunner.toml` for each host that it bootstraps, and asks for a schema of the file, as `schemas/status.v1.json` is for `status --json`, so that its renderer can check its output. No schema exists: the contract is `docs/configuration.md` and the parser (`crates/podrunner-slots/src/config.rs`). `docs/non-goals.md` lists "A schema for `podrunner.toml`" with the trigger "a second reader of the file exists"; cfb's renderer meets it.
+cfb asked for a schema of `podrunner.toml`, as `schemas/status.v1.json` is for `status --json`, so that a renderer can check its output. By cfb's R-053 (GitHub #292), githome renders the file and bootstraps the host, not cfb: the schema serves githome. No schema exists: the contract is `docs/configuration.md` and the parser (`crates/podrunner-slots/src/config.rs`). `docs/non-goals.md` lists "A schema for `podrunner.toml`" with the trigger "a second reader of the file exists"; githome's renderer meets it.
 
 ## Premise
 

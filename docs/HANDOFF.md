@@ -109,17 +109,22 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
   need of githome), #65 and #66 (the trackers). Each side keeps one
   comment and edits it; watch their `updated_at` (`docs/maintenance.md`,
   "Talk between sessions").
-- Facts of cfb's host (GitHub #292): githome is the CI front (cfb's
-  R-051, adopted by githome's owner). githome runs no GitHub job until
-  T-493 and T-494 (its G-15 and G-16) land: they block R-051. Then
-  githome sends the real trust facts of each job: the trusted jobs of
-  cfb's five private repositories (`[trust] users` holds their owner) go
-  to the `incus` kind, a job of a fork to the `microvm` kind. A trusted
-  job with `container:`, `services:` or `docker://` goes to a `microvm`
-  guest with `engine` until T-485 gives `incus` an engine. The host has
-  32 GiB of RAM and `/dev/kvm`; each unit is 4 vCPU, 12 GiB and 40 GiB of
-  `disk_max_bytes`. It waits for the operator's server and for githome's
-  GitHub path.
+- The operator's order (cfb's R-053, GitHub #292): self-hosted CI first
+  (githome gives it, podrunner runs each job); then githome becomes the
+  primary forge, one project at a time; then the self-hosted parts of
+  Cloudflare. cfb never uses podrunner directly: githome renders
+  `podrunner.toml`, bootstraps the host of cfb's gates, pins the release
+  and runs the checks C1 to C5. cfb's needs stand, as needs of the CI that
+  it gets through githome.
+- Facts of that host (GitHub #292): githome runs no GitHub job until
+  T-493 and T-494 (its G-15 and G-16) land: they block R-051. Then githome
+  sends the real trust facts of each job: the trusted jobs of the five
+  private repositories (`[trust] users` holds their owner) go to the
+  `incus` kind, a job of a fork to the `microvm` kind. A trusted job with
+  `container:`, `services:` or `docker://` goes to a `microvm` guest with
+  `engine` until T-485 gives `incus` an engine. The host has 32 GiB of RAM
+  and `/dev/kvm`; each unit is 4 vCPU, 12 GiB and 40 GiB of
+  `disk_max_bytes`; until T-505 it takes 1 `incus` and 1 `microvm` slot.
 - Order:
   1. Take podcrates `v0.70.0` (COORD-132, PodUtils/podcrates#222): the
      answers to #214, #215 (T-351) and #288 (T-469), and `FileLock` and
