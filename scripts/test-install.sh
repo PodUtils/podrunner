@@ -82,7 +82,11 @@ image() { # NAME TEXT
     d=$(printf '%s' "$2" | sha256sum | cut -d' ' -f1)
     printf '{"schemaVersion": 2, "manifests": [{"digest": "sha256:%s", "annotations": {"org.opencontainers.image.ref.name": "runner:%s"}}]}\n' "$d" "$1" \
         > "$t/oci/$1/index.json"
-    (cd "$t/oci/$1" && tar -cf "$a/$1" index.json blobs/sha256/x)
+    # The manifest at the digest of the index, and its config with the
+    # time of the build (the manifest of a release reads it, T-499).
+    printf '{"config": {"digest": "sha256:cfg"}}\n' > "$t/oci/$1/blobs/sha256/$d"
+    printf '{"created": "2026-11-01T00:00:00Z"}\n' > "$t/oci/$1/blobs/sha256/cfg"
+    (cd "$t/oci/$1" && tar -cf "$a/$1" index.json blobs/sha256/x "blobs/sha256/$d" blobs/sha256/cfg)
 }
 image "runner-$arch.tar" base
 image "runner-full-$arch.tar" full
@@ -231,6 +235,7 @@ assert m["schema"] == 1 and m["podrunner"]["version"] == "9.9.9-test", m
 assert m["runner"]["version"] and m["podvm"]["version"] and m["podnet"]["version"], m
 base = m["runner"]["images"][arch]["base"]
 assert base["file"] == f"runner-{arch}.tar" and base["digest"].startswith("sha256:"), base
+assert base["built_at_s"] == 1793491200, base
 assert len(m["podrunner"]["files"][arch]["sha256"]) == 64, m
 EOF
 ok "the assets of a release (scripts/release-assets.sh)"

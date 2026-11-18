@@ -11461,7 +11461,7 @@ githome's sandbox image carries its own attach client: podrunner gives the crede
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11486,6 +11486,9 @@ The operator does the steps with root once: Incus with a range for root in `/etc
 ## Prove
 
 `sh scripts/test-install.sh` with a lane of `--serve`: on a fresh user account, a run with no prompt gives a configuration that `podrunner check` takes and a unit from `print-unit`; a second run changes nothing; `ss -ltn` shows no new TCP listener after the install and the start of `serve`.
+
+In the code (2026-11-18): step 2: `podrunner config init` writes a `podrunner.toml` with one `program` source, the kinds that this host can run and the pin of the image; `check` takes it; a second run changes nothing; 78 when no kind runs; 77 when the file holds another text (`crates/podrunner/src/config_init.rs`, `docs/cli.md`). The manifest of a release has the time of the build of each image (`built_at_s`, from the OCI config) for `--built-at-s`. Test: `cargo test -p podrunner --test config_init`. Open: step 1 (`podrunner-install.sh --serve`), the `print-unit` of a systemd user unit, and the schema of T-479.
+
 
 # T-508: COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks
 
@@ -12175,3 +12178,31 @@ podvm runs a `linux/arm64` guest on an x86_64 host in the machine tier (TCG, no 
 ## Prove
 
 The measure step prints `foreign runner ok` and the seconds of a canned job; `docs/unknowns.md` U26 names the run.
+
+# T-534: The probe of the incus kind claims the kind on a host with no incusd
+
+**Source:** the work of T-507, 2026-11-18
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+`IncusUnit::probe` gives a fixed capability record, and `incus_kind::plan` checks only the version of podvm. So `doctor --config` named the incus kind on a host with no incusd, `config init --kinds auto` would take it, and `serve` starts with the kind and each job on it fails at its start.
+
+## Premise
+
+`crates/podrunner-incus/src/lib.rs` (`probe`), `crates/podrunner/src/incus_kind.rs` (`plan`, `build`) and `crates/podrunner/src/doctor.rs` (`capability`), read on 2026-11-18.
+
+## Approach
+
+1. `doctor` and `config init`: the kind needs a socket of incusd (`INCUS_SOCKET`, else `/var/lib/incus/unix.socket`) that takes a connection of this user.
+2. `serve`: the same check at the build of the kind, so that a host with no incusd starts with no incus kind and one line that names the socket; `check` stays free of side effects and does not connect.
+
+## Prove
+
+`cargo test -p podrunner --test config_init` (no incusd: no incus kind); a test of `serve` with an `[unit.incus]` and no incusd names the socket.
+
+In the code (2026-11-18): step 1 (`doctor::capability`, used by `doctor` and `config init`). Open: step 2.

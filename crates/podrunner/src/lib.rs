@@ -3,6 +3,7 @@
 //! [`cli::run`].
 
 pub mod cli;
+mod config_init;
 pub mod control;
 pub mod doctor;
 pub mod help;

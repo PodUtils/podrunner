@@ -24,6 +24,8 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   stop (--state DIR | --socket PATH)                drain, then end
   stop --wait --state DIR [--timeout SECONDS]       ... and wait until serve ends
   clear-degraded (--state DIR | --socket PATH)      start jobs again after a residue
+  config init --source NAME --program PATH --podvm PATH --images STORE --image REF --built-at-s N --out FILE ...
+                                                    a podrunner.toml from the kinds of this host
   source restart --name NAME (--state DIR | --socket PATH)
                                                     build one source again (a new key), keep its jobs
   doctor [--config FILE] [--json]                   the inputs of a host check
@@ -202,6 +204,10 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             }
             print_unit(&binary, &config, &o.need("--state")?, watchdog).map(ok).map_err(|e| err(Class::Usage, e))
         }
+        "config" => match rest.split_first() {
+            Some((sub, rest)) if sub == "init" => crate::config_init::init(rest),
+            _ => Err(err(Class::Usage, format!("config needs init\n{USAGE}"))),
+        },
         "source" => match rest.split_first() {
             Some((sub, rest)) if sub == "restart" => crate::verbs::source_restart(rest),
             _ => Err(err(Class::Usage, format!("source needs restart\n{USAGE}"))),

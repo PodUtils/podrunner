@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**530 entries: 74 open, 33 partial, 14 blocked, 409 done.**
+**531 entries: 73 open, 35 partial, 14 blocked, 409 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
-| P1 | 13 | 15 | 3 | 67 | 98 |
-| P2 | 21 | 12 | 8 | 216 | 257 |
+| P1 | 12 | 16 | 3 | 67 | 98 |
+| P2 | 21 | 13 | 8 | 216 | 258 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 74 | 33 | 14 | 409 | 530 |
+| **All** | 73 | 35 | 14 | 409 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -551,7 +551,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |
 | [T-505](later.md) | P2 | S | later | feature | open | No cap of units for the whole host across its kinds |
 | [T-506](later.md) | P1 | L | later | feature | open | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
-| [T-507](later.md) | P1 | M | later | feature | open | G-37: an install of `serve` that another program drives, with no prompt |
+| [T-507](later.md) | P1 | M | later | feature | partial | G-37: an install of `serve` that another program drives, with no prompt |
 | [T-508](later.md) | P1 | S | later | chore | partial | COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks |
 | [T-509](later.md) | P1 | M | later | feature | open | G-38: a test of githome's source in podrunner's CI that blocks a release |
 | [T-510](later.md) | P1 | S | later | release | open | G-39: one record of each change of a contract that githome reads |
@@ -578,3 +578,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-531](later.md) | P3 | S | later | chore | open | Take rsa 0.10 in the fake broker |
 | [T-532](later.md) | P1 | M | later | feature | open | The containers of a podvm unit on the namespace rung, with a volume base |
 | [T-533](later.md) | P2 | M | later | measurement | open | A job of another architecture in a guest of the machine tier |
+| [T-534](later.md) | P2 | S | later | defect | partial | The probe of the incus kind claims the kind on a host with no incusd |

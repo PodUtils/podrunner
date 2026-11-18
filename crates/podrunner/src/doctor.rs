@@ -74,7 +74,14 @@ fn read(tool: &Path, args: &[&str]) -> Result<Value, String> {
 }
 
 /// The capability record of the unit kind `name`, through its driver.
-fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) -> Result<Capability, String> {
+pub(crate) fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) -> Result<Capability, String> {
+    let incusd = std::env::var_os("INCUS_SOCKET")
+        .map_or_else(|| std::path::PathBuf::from("/var/lib/incus/unix.socket"), std::path::PathBuf::from);
+    capability_at(name, u, &incusd)
+}
+
+/// The record of a kind, with the socket of incusd at `incusd`.
+fn capability_at(name: &str, u: &podrunner_slots::config::UnitConfig, incusd: &Path) -> Result<Capability, String> {
     use podrunner_unit::UnitDriver;
     match name {
         "fake" => Ok(fake_capability()),
@@ -103,6 +110,10 @@ fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) -> Result<Cap
         }
         "incus" => {
             crate::incus_kind::plan(u).map_err(|f| f.detail)?;
+            // The probe of the kind reads only the version of podvm: an
+            // incusd must also take a connection of this user (T-534).
+            std::os::unix::net::UnixStream::connect(incusd)
+                .map_err(|e| format!("incusd: {}: {}", incusd.display(), e.kind()))?;
             let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
             let images = std::path::PathBuf::from(u.images.clone().unwrap_or_default());
             let state = std::env::temp_dir().join("podrunner-doctor");
@@ -389,9 +400,14 @@ mod tests {
         };
         let m = capability("microvm", &u("")).unwrap();
         assert_eq!((m.kind.as_str(), m.boundary), ("microvm", podrunner_schema::Boundary::Guest));
-        let i = capability("incus", &u("")).unwrap();
+        // T-534: no incusd, no incus kind.
+        let incusd = dir.join("incus.socket");
+        let _ = std::fs::remove_file(&incusd);
+        assert!(capability_at("incus", &u(""), &incusd).unwrap_err().starts_with("incusd: "));
+        let _listen = std::os::unix::net::UnixListener::bind(&incusd).unwrap();
+        let i = capability_at("incus", &u(""), &incusd).unwrap();
         assert_eq!((i.kind.as_str(), i.boundary), ("incus", podrunner_schema::Boundary::Confined));
-        assert!(capability("incus", &u("podnet = \"/bin/true\"")).unwrap_err().contains("podnet"));
+        assert!(capability_at("incus", &u("podnet = \"/bin/true\""), &incusd).unwrap_err().contains("podnet"));
         // T-181: the podvm kind with podnet gives the hold of `podnet pod
         // doctor`, as `serve` does; with none, `unknown`.
         let podnet = dir.join("podnet");

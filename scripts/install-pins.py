@@ -18,6 +18,7 @@ digest of each image (from index.json in the archive).
 """
 
 import argparse
+import datetime
 import hashlib
 import json
 import pathlib
@@ -101,7 +102,13 @@ def manifest(images: pathlib.Path, release: str, assets: pathlib.Path) -> str:
         name = "runner" if kind == "image" else "runner-full"
         if not v[f"{kind}_{a}"]:
             return None
-        return {"file": f"{name}-{a}.tar", "sha256": v[f"{kind}_{a}"], "digest": v[f"{kind}_digest_{a}"]}
+        f = f"{name}-{a}.tar"
+        return {
+            "file": f,
+            "sha256": v[f"{kind}_{a}"],
+            "digest": v[f"{kind}_digest_{a}"],
+            "built_at_s": image_created(assets / f),
+        }
 
     doc = {
         "schema": 1,
@@ -118,6 +125,29 @@ def manifest(images: pathlib.Path, release: str, assets: pathlib.Path) -> str:
         "podnet": {"version": pins["podnet"][0], "sha256": pins["podnet"][1]},
     }
     return json.dumps(doc, indent=2, sort_keys=True) + "\n"
+
+
+def image_created(path: pathlib.Path) -> int | None:
+    """The `created` time of the image config of an archive, in seconds of
+    the Unix epoch, or None: the `built_at_s` of a pin of it."""
+    with tarfile.open(path) as t:
+        names = {m.lstrip("./"): m for m in t.getnames()}
+
+        def blob(digest: str) -> dict | None:
+            name = names.get("blobs/" + digest.replace(":", "/"))
+            f = t.extractfile(name) if name else None
+            return json.load(f) if f else None
+
+        index = json.load(t.extractfile(names["index.json"]))
+        manifest = blob(index["manifests"][0]["digest"]) if index.get("manifests") else None
+        config = blob(manifest["config"]["digest"]) if manifest and "config" in manifest else None
+    created = (config or {}).get("created")
+    if not isinstance(created, str):
+        return None
+    try:
+        return int(datetime.datetime.fromisoformat(created.replace("Z", "+00:00")).timestamp())
+    except ValueError:
+        return None
 
 
 def block(images: pathlib.Path, release: str, assets: pathlib.Path | None) -> str:
