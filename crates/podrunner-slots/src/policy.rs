@@ -116,6 +116,7 @@ pub fn narrow(ceiling: &Value, offer: &Value) -> Value {
 
 /// `[egress]` (T-111): an unknown key is refused, so a misspelled
 /// `default_policy` does not leave the operator with no ceiling.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EgressConfig {

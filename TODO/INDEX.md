@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**533 entries: 53 open, 45 partial, 13 blocked, 422 done.**
+**533 entries: 52 open, 45 partial, 13 blocked, 423 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 3 | 22 | 4 | 69 | 98 |
-| P2 | 12 | 16 | 6 | 225 | 259 |
+| P2 | 11 | 16 | 6 | 226 | 259 |
 | P3 | 37 | 7 | 3 | 126 | 173 |
-| **All** | 53 | 45 | 13 | 422 | 533 |
+| **All** | 52 | 45 | 13 | 423 | 533 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -523,7 +523,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-476](later.md) | P3 | S | later | defect | done | A `:` in TMPDIR or in an option path fails each job start, not `check` |
 | [T-477](later.md) | P3 | S | later | defect | done | An audit line that fails half way leaves a fragment, and the next line joins it |
 | [T-478](later.md) | P2 | S | later | defect | done | The build of the runner image fails when public.ecr.aws refuses the pull of its base image |
-| [T-479](later.md) | P2 | M | later | feature | open | A JSON Schema of `podrunner.toml` for a program that writes the file |
+| [T-479](later.md) | P2 | M | later | feature | done | A JSON Schema of `podrunner.toml` for a program that writes the file |
 | [T-480](later.md) | P2 | L | later | feature | open | A cache directory of the host, kept apart by trust (cfb and githome G-07) |
 | [T-481](later.md) | P2 | S | later | measurement | open | The checkout of a job on the incus kind is proven by a test of the script only |
 | [T-482](later.md) | P2 | M | later | defect | partial | The incus kind bounds no disk of the root of an instance |

@@ -12,6 +12,7 @@ use serde_json::Value;
 pub use crate::policy::EgressConfig;
 
 /// The kind of a source.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SourceKind {
@@ -25,6 +26,7 @@ pub enum SourceKind {
 }
 
 /// One source instance: one set of one tier, one architecture, one host.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceConfig {
@@ -87,6 +89,7 @@ pub struct SourceConfig {
 /// `[dns]`: the resolver of podrunner (`pod-dns`): the system, the cache of
 /// addresses that carried a session, DNS over HTTPS to resolvers by their
 /// address. A host whose own resolver fails keeps its egress and its mint.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DnsConfig {
@@ -109,6 +112,7 @@ fn yes() -> bool {
 }
 
 /// The slots of one unit kind.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UnitConfig {
@@ -175,6 +179,7 @@ fn run_sh() -> Vec<String> {
 }
 
 /// The floor of one tier.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TierFloor {
@@ -182,6 +187,7 @@ pub struct TierFloor {
 }
 
 /// The time limit of each state, in seconds.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Deadlines {
@@ -211,6 +217,7 @@ impl Default for Deadlines {
 }
 
 /// A pinned payload of one architecture.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Payload {
@@ -243,6 +250,7 @@ impl Payload {
 }
 
 /// The pin list.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Pins {
@@ -272,6 +280,7 @@ fn hour() -> u64 {
 }
 
 /// The whole file.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {

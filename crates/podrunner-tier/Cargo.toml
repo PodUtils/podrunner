@@ -10,6 +10,12 @@ publish.workspace = true
 [dependencies]
 podrunner-schema.workspace = true
 serde.workspace = true
+# The JsonSchema of the trust lists, for the schema of `podrunner.toml` in
+# the tests of podrunner-slots only: the binaries carry no schemars.
+schemars = { version = "1", optional = true }
+
+[features]
+schema = ["dep:schemars", "podrunner-schema/schema"]
 
 [dev-dependencies]
 serde_json.workspace = true

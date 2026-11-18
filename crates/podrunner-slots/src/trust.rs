@@ -13,6 +13,7 @@ use serde::Deserialize;
 use crate::config::{Config, SourceConfig, SourceKind};
 
 /// The trust lists of one source.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(untagged)]
 pub enum SourceTrust {
@@ -23,6 +24,7 @@ pub enum SourceTrust {
 }
 
 /// The lists of one forge of a source.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(from = "RawForge")]
 pub struct ForgeTrust {
@@ -31,6 +33,7 @@ pub struct ForgeTrust {
     pub lists: TierConfig,
 }
 
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawForge {

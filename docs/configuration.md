@@ -11,6 +11,8 @@ refused: it names the signer of the pin list and the paths of the keys
 
 `docs/examples/podrunner.toml` is a working example (a fake source and fake units); `podrunner check --config FILE` checks a file with no side effect. A test reads each block below and refuses a key that does not exist.
 
+`schemas/config.v1.json` is the JSON Schema of the file (draft 2020-12, T-479), generated from the types of the parser: a program that writes the file checks its output with it (read the TOML as JSON). `scripts/check-config-schema.py` validates the example and each block below against it. A floor, the pin list and the modes of the files are not in the schema: `podrunner check` is the last word.
+
 ```toml
 host = "host-a"              # the name of the host in the full report
 allow_fake = false           # a fake source or unit only with true
@@ -261,6 +263,12 @@ with no forge, or with a forge that the list does not name, is refused
 (`tier-mismatch`). A remote mint takes one table only.
 
 ```toml
+[[source]]
+name = "forges"
+kind = "program"
+tier = "trusted"
+arch = "x86_64"
+program = "forge-source"
 trust = [
   { forge = "github.com", organizations = [{ login = "acme" }] },
   { forge = "githome.example", users = [{ login = "alice" }] },
@@ -295,6 +303,7 @@ two remote sources of two tiers.
 
 The file of the mint:
 
+<!-- not podrunner.toml -->
 ```toml
 listen = "0.0.0.0:8443"
 cert_file = "/etc/podrunner-mint/mint.pem"

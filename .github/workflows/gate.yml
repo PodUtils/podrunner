@@ -138,6 +138,8 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/venv"
           sh scripts/retry.sh "$RUNNER_TEMP/venv/bin/pip" install --quiet jsonschema==4.26.0
           PATH="$RUNNER_TEMP/venv/bin:$PATH" bash docs/design/verify.sh
+          # The schema of podrunner.toml (T-479).
+          "$RUNNER_TEMP/venv/bin/python3" -I scripts/check-config-schema.py --self-test
           sh scripts/check-design.sh --self-test
           sh scripts/check-design.sh
 

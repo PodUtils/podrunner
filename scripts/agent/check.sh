@@ -43,6 +43,14 @@ echo "fuzz $z"; [ "$z" -eq 0 ] || { rc=1; tail -20 "$log/fuzz.log"; }
 echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/size.log" | head -20; }
 { sh scripts/check-commit-msg.sh --self-test && sh scripts/check-commit-msg.sh --rev HEAD; } > "$log/msg.log" 2>&1; m=$?
 echo "commit-msg $m"; [ "$m" -eq 0 ] || { rc=1; grep -v "^ok" "$log/msg.log" | head -20; }
+# The schema of podrunner.toml (T-479), where python3 has jsonschema; the
+# gate runs it in its venv.
+if python3 -I -c 'import jsonschema' 2> /dev/null; then
+    python3 -I scripts/check-config-schema.py --self-test > "$log/config-schema.log" 2>&1; c=$?
+    echo "config-schema $c"; [ "$c" -eq 0 ] || { rc=1; cat "$log/config-schema.log"; }
+else
+    echo "config-schema skipped: no jsonschema module"
+fi
 sh scripts/test-install.sh > "$log/install.log" 2>&1; i=$?
 echo "install $i"; [ "$i" -eq 0 ] || { rc=1; tail -20 "$log/install.log"; }
 sh scripts/check-notes.sh --latest > "$log/notes.log" 2>&1; n=$?

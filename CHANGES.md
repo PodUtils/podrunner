@@ -32,6 +32,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `status.v1` | Each source has `draining` (an operator drained it). | T-501 |
 | `status.v1` | `max_units` and `units` of the host. | T-505 |
 | `podrunner.toml` | `max_units`: the most units of the host across its kinds. | T-505 |
+| `podrunner.toml` | `schemas/config.v1.json`: the JSON Schema of the file, generated from the types of the parser; `check` stays the last word. | T-479 |
 | `podrunner.toml` | `[[source]] trust` (one trust list for each source, or for each forge of a source). | T-494 |
 | `podrunner.toml` | With no `[egress] default_policy`, a unit has no way out; a configuration that the group or others can write is refused. | T-410, T-409 |
 | `podrunner.toml` | `[unit.podvm] cpus` where the host delegates a cgroup v2 subtree to the user. | T-221 |
@@ -53,4 +54,5 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
 <!-- contract docs/contracts/source-driver.md 5700b24d3839fe92012962770699804c9473e901c8bec3dc7d6aa260b3b899d1 -->
 <!-- contract docs/contracts/unit-driver.md 07162598a8a264928373602ba954e00d94f973583ce4e6592494f758b8746401 -->
+<!-- contract schemas/config.v1.json 81d02c7cd73381f795db86183a3c81c28a3935b67df3a63c2b8f03be443176d2 -->
 <!-- contract schemas/status.v1.json 6e26927bbbf3eb22c42bd666c73c012c0332715909f9f4215842536080bb3f68 -->

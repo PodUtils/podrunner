@@ -1,0 +1,817 @@
+{
+  "$id": "https://github.com/PodUtils/podrunner/schemas/config.v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "description": "The keys of podrunner.toml (docs/configuration.md). `podrunner check --config FILE` is the last word: the floors, the pin list and the modes of the files are not in this schema.",
+  "type": "object",
+  "properties": {
+    "allow_fake": {
+      "type": "boolean",
+      "default": false
+    },
+    "deadlines": {
+      "$ref": "#/$defs/Deadlines"
+    },
+    "dns": {
+      "description": "The resolver of the egress and of a remote mint (T-076).",
+      "$ref": "#/$defs/DnsConfig"
+    },
+    "driver_dir": {
+      "description": "The directory of the driver executables (the podvm binary, the\nsidecars): each one must be in it (GitHub #36).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "egress": {
+      "$ref": "#/$defs/EgressConfig"
+    },
+    "guest_kinds": {
+      "description": "The unit kinds whose claim of `guest` slots may accept, after the\nguest self-test (GitHub #36).",
+      "type": "array",
+      "default": [
+        "microvm"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "host": {
+      "description": "The name of the host in the full report.",
+      "type": "string"
+    },
+    "max_units": {
+      "description": "The most units of the host across its kinds (T-505); none: the\n`slots` of each kind only.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "default": null,
+      "minimum": 0
+    },
+    "payload_from_offer": {
+      "description": "Take the payload of an offer when it is on the pin list.",
+      "type": "boolean",
+      "default": false
+    },
+    "pin": {
+      "$ref": "#/$defs/Pins"
+    },
+    "repository": {
+      "description": "The one repository (`owner/repo`) that the host serves; an offer of\nanother repository is `repo-scope-refused`. `trusted` at\n`redirect` needs it (DR-4).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "same_principal_ok": {
+      "description": "More than one unit at a time on a shared principal.",
+      "type": "boolean",
+      "default": false
+    },
+    "source": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SourceConfig"
+      }
+    },
+    "terminal_suppress_s": {
+      "description": "A terminal refusal suppresses its job id for this time.",
+      "type": "integer",
+      "format": "uint64",
+      "default": 3600,
+      "minimum": 0
+    },
+    "tier": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/TierFloor"
+      }
+    },
+    "trust": {
+      "$ref": "#/$defs/TierConfig",
+      "default": {
+        "extra_events": [],
+        "organizations": [],
+        "trusted_public": [],
+        "users": []
+      }
+    },
+    "unit": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/UnitConfig"
+      }
+    },
+    "upstream_names_only": {
+      "description": "The upstream proxy takes names only: the broker sends it the checked\nname, and checks at the start that it refuses a non-public one.",
+      "type": "boolean",
+      "default": false
+    },
+    "upstream_proxy": {
+      "description": "The CONNECT proxy of the way out of the egress module (`http://host:port`);\nabsent: direct.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "host",
+    "pin"
+  ],
+  "$defs": {
+    "Boundary": {
+      "description": "The boundary between a job and the host, weakest first. `redirect`\nrewrites file paths and is no isolation against hostile code.",
+      "type": "string",
+      "enum": [
+        "none",
+        "redirect",
+        "confined",
+        "guest"
+      ]
+    },
+    "Deadlines": {
+      "description": "The time limit of each state, in seconds.",
+      "type": "object",
+      "properties": {
+        "claim_s": {
+          "type": "integer",
+          "format": "uint64",
+          "default": 60,
+          "minimum": 0
+        },
+        "destroy_s": {
+          "type": "integer",
+          "format": "uint64",
+          "default": 60,
+          "minimum": 0
+        },
+        "grace_s": {
+          "type": "integer",
+          "format": "uint64",
+          "default": 30,
+          "minimum": 0
+        },
+        "mint_s": {
+          "type": "integer",
+          "format": "uint64",
+          "default": 60,
+          "minimum": 0
+        },
+        "prepare_s": {
+          "type": "integer",
+          "format": "uint64",
+          "default": 600,
+          "minimum": 0
+        },
+        "report_s": {
+          "type": "integer",
+          "format": "uint64",
+          "default": 60,
+          "minimum": 0
+        },
+        "running_s": {
+          "type": "integer",
+          "format": "uint64",
+          "default": 21600,
+          "minimum": 0
+        },
+        "start_s": {
+          "type": "integer",
+          "format": "uint64",
+          "default": 120,
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "DnsConfig": {
+      "description": "`[dns]`: the resolver of podrunner (`pod-dns`): the system, the cache of\naddresses that carried a session, DNS over HTTPS to resolvers by their\naddress. A host whose own resolver fails keeps its egress and its mint.",
+      "type": "object",
+      "properties": {
+        "doh": {
+          "description": "Ask DNS over HTTPS when the system and the cache give no address.",
+          "type": "boolean",
+          "default": true
+        },
+        "pins": {
+          "description": "`HOST=IP` pins: a pinned name is not asked of the system.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "EgressConfig": {
+      "description": "`[egress]` (T-111): an unknown key is refused, so a misspelled\n`default_policy` does not leave the operator with no ceiling.",
+      "type": "object",
+      "properties": {
+        "default_policy": {
+          "description": "The `broker-policy.v1` of the operator: the policy of a job with no\npolicy of its own, and the ceiling of the policy of an offer (T-024,\nT-107).",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": true,
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "Event": {
+      "description": "The event that started the workflow. Each value that the tier rule does\nnot name is `other`; a value that the source cannot read is `unknown`.",
+      "type": "string",
+      "enum": [
+        "push",
+        "pull_request",
+        "pull_request_target",
+        "workflow_dispatch",
+        "schedule",
+        "merge_group",
+        "workflow_run",
+        "issue_comment",
+        "release",
+        "repository_dispatch",
+        "other",
+        "unknown"
+      ]
+    },
+    "ForgeTrust": {
+      "description": "The lists of one forge of a source.",
+      "type": "object",
+      "properties": {
+        "extra_events": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Event"
+          }
+        },
+        "forge": {
+          "type": "string"
+        },
+        "organizations": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Organization"
+          }
+        },
+        "trusted_public": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PublicRepo"
+          }
+        },
+        "users": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Organization"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "forge"
+      ]
+    },
+    "Organization": {
+      "description": "A configured organization. With an `id`, an offer that carries\n`owner_id` must match it too.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "login": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "login"
+      ]
+    },
+    "Payload": {
+      "description": "A pinned payload of one architecture.",
+      "type": "object",
+      "properties": {
+        "arch": {
+          "type": "string"
+        },
+        "built_at_s": {
+          "description": "The time of the build, in seconds of the Unix epoch.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "max_age_s": {
+          "description": "The age limit of this pin; the smaller of it and `max_age_s` of\n`[pin]` holds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "reference": {
+          "description": "`NAME@sha256:HEX`.",
+          "type": "string"
+        },
+        "runner_version": {
+          "description": "The version of the official runner in the image (`2.338.2`).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "sandbox": {
+          "description": "The image of a sandbox (T-506): only an offer with `sandbox` of\nthis digest takes it, and a runner job never does.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "arch",
+        "reference",
+        "built_at_s"
+      ]
+    },
+    "Pins": {
+      "description": "The pin list.",
+      "type": "object",
+      "properties": {
+        "max_age_s": {
+          "description": "An image older than this is `image-stale`.",
+          "type": "integer",
+          "format": "uint64",
+          "default": 2592000,
+          "minimum": 0
+        },
+        "payload": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Payload"
+          }
+        },
+        "signature": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "signer": {
+          "description": "The Ed25519 key (64 hex digits) that signs the pin list, and its\nsignature (128 hex digits): `podrunner pin-sign` (DR-4).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "PublicRepo": {
+      "description": "A public repository that the operator trusts (`owner/repo`).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "owner": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "repo"
+      ]
+    },
+    "SourceConfig": {
+      "description": "One source instance: one set of one tier, one architecture, one host.",
+      "type": "object",
+      "properties": {
+        "api_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "app_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "arch": {
+          "type": "string"
+        },
+        "cert_file": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "config_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "installation_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "key_file": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "mint": {
+          "description": "`remote`: the address of the mint (`host:port`), the pin of its key\n(`sha256/BASE64`), and the certificate of this host (its key is\n`key_file`, a P-256 key at mode 0600).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "mint_pin": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "type": "string"
+        },
+        "operator_controlled": {
+          "description": "True when the operator controls the source: it gets the full run\nreport.",
+          "type": "boolean",
+          "default": false
+        },
+        "program": {
+          "description": "`program`: the program, in `driver_dir`, and its argv. Its credential\nfile is `key_file` (optional, mode 0400 or 0600): the program gets\nits path in `PODRUNNER_SOURCE_KEY_FILE`, never its content.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "program_args": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "scale_set": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "script": {
+          "description": "The script of a `fake` source.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "sidecar": {
+          "description": "`github-scaleset`: the sidecar, the organization URL, the REST API,\nthe installation and the App, the scale set, and the file of the\nprivate key of the App (mode 0400 or 0600).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "slots": {
+          "description": "The most units of this source at one time (no limit when absent).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "tier": {
+          "$ref": "#/$defs/Tier"
+        },
+        "token_file": {
+          "description": "`github-scaleset`: a fine-grained token of the organization (mode\n0400 or 0600) in place of the App (T-174).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "trust": {
+          "description": "The trust lists of this source, in place of `[trust]` (T-494).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceTrust"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "kind",
+        "tier",
+        "arch"
+      ]
+    },
+    "SourceKind": {
+      "description": "The kind of a source.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "fake",
+            "github-scaleset"
+          ]
+        },
+        {
+          "description": "A remote mint over mutual TLS (GitHub #31): the source and its\ncredentials live on another machine.",
+          "type": "string",
+          "const": "remote"
+        },
+        {
+          "description": "A program that speaks the source wire on its stdio (T-101, G-01).",
+          "type": "string",
+          "const": "program"
+        }
+      ]
+    },
+    "SourceTrust": {
+      "description": "The trust lists of one source.",
+      "anyOf": [
+        {
+          "description": "One table for each offer of the source.",
+          "$ref": "#/$defs/TierConfig"
+        },
+        {
+          "description": "One table for each forge.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ForgeTrust"
+          }
+        }
+      ]
+    },
+    "Tier": {
+      "description": "The trust tier of a job. It comes from the trust inputs of an offer,\nnever from a label; `local` comes only from the configuration.",
+      "oneOf": [
+        {
+          "description": "A pull request from a fork.",
+          "type": "string",
+          "const": "untrusted"
+        },
+        {
+          "description": "A member job of a configured organization.",
+          "type": "string",
+          "const": "trusted"
+        },
+        {
+          "description": "Set only by the configuration.",
+          "type": "string",
+          "const": "local"
+        }
+      ]
+    },
+    "TierConfig": {
+      "description": "The configuration that the rule reads.",
+      "type": "object",
+      "properties": {
+        "extra_events": {
+          "description": "More events that a trusted job may come from: only those of\n[`EXTRA_EVENTS`] (the owner, Q5).",
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Event"
+          }
+        },
+        "organizations": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Organization"
+          }
+        },
+        "trusted_public": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PublicRepo"
+          }
+        },
+        "users": {
+          "description": "Personal accounts whose repositories the operator trusts (T-191): a\nforge with repositories of a person (a `program` source). The\nGitHub scale set refuses a personal account at its start (call C3).",
+          "type": "array",
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Organization"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "TierFloor": {
+      "description": "The floor of one tier.",
+      "type": "object",
+      "properties": {
+        "min_boundary": {
+          "$ref": "#/$defs/Boundary"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "min_boundary"
+      ]
+    },
+    "UnitConfig": {
+      "description": "The slots of one unit kind.",
+      "type": "object",
+      "properties": {
+        "binary": {
+          "description": "The tool of the kind (`podvm`: the path of the podvm binary).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "claim": {
+          "description": "`fake`, with `allow_fake`: the boundary that the fake kind claims and\nan enforced hold, for a test of a forge source (T-511). A test only.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Boundary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "command": {
+          "description": "The top process of a unit: the runner in the payload.",
+          "type": "array",
+          "default": [
+            "./run.sh"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "confine": {
+          "description": "`podvm`: run each unit and container under the confine layer of\npodvm (`--podvm-confine`, T-079). The kind says `confined` only\nafter its self-test on this host.",
+          "type": "boolean",
+          "default": false
+        },
+        "cpus": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "disk_max_bytes": {
+          "description": "The bytes that a unit may write under its root, measured every\n30 s (T-074); a `disk` limit of the offer comes first. Absent: no\nmeasure.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
+        "engine": {
+          "description": "`microvm`: the directory of the static Docker binaries; each guest\nruns an engine of its own (T-103).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "images": {
+          "description": "The store of the pinned images (`podvm`: a podvm store).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "mem": {
+          "description": "`microvm`: the memory of each guest (`--podvm-mem`, default `4G`)\nand its vCPUs (default 2). The image is an initramfs: the memory\nholds it twice. `podvm`: the memory of each unit (`RLIMIT_AS`);\n`incus`: the memory and the CPUs of each instance (T-162).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "pids": {
+          "description": "`podvm`, `incus`: the most processes of each unit (T-162). `mem`\nand, on `incus`, `cpus` are limits there too.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": null,
+          "minimum": 0
+        },
+        "podnet": {
+          "description": "`podvm`: the `podnet` binary that holds the egress of each unit\n(`podnet pod`, T-065); absent: no hold (`egress_hold: unknown`).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "registries": {
+          "description": "The registry hosts of the container images of a job (`ghcr.io`),\nfor `container: hooks`. None: each container is refused.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
+        },
+        "root_quota": {
+          "description": "`incus`: the pool holds a size of a root disk (not `dir`): each root\nis the lesser of the `disk` of the offer and `disk_max_bytes` (T-482).",
+          "type": "boolean",
+          "default": false
+        },
+        "runner_dir": {
+          "description": "The runner directory in a unit, as the runner names it; absent: the\npath that the driver observes (the fake unit).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "slots": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "slots"
+      ]
+    }
+  }
+}

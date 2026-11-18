@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 
 /// A configured organization. With an `id`, an offer that carries
 /// `owner_id` must match it too.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Organization {
@@ -36,6 +37,7 @@ pub struct Organization {
 }
 
 /// A public repository that the operator trusts (`owner/repo`).
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PublicRepo {
@@ -46,6 +48,7 @@ pub struct PublicRepo {
 }
 
 /// The configuration that the rule reads.
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TierConfig {

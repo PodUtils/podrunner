@@ -6,6 +6,7 @@ mod assigned;
 mod bounded;
 mod cancel;
 mod config;
+mod config_schema;
 mod egress;
 mod egress_lines;
 mod guards;
