@@ -193,6 +193,23 @@ grep -qx 'podvm = "/my/podvm"' "$t/mine/.config/podrunner/run.toml" || fail "the
 [ -f "$t/mine/.config/podrunner/run.toml.podrunner-install" ] || fail "no keys of the install beside it"
 ok "a run.toml of the user stays"
 
+# 7b. --serve (T-507): serve.json and no file of the local mode; a
+# second run changes nothing.
+run serve --serve || fail "the install with --serve"
+d=$t/serve/.local/share/podrunner
+[ -f "$d/serve.json" ] || fail "--serve wrote no serve.json"
+python3 -I -c 'import json,sys; v=json.load(open(sys.argv[1])); assert v["image"].startswith("runner@sha256:") and v["podvm"].endswith("/bin/podvm"), v' "$d/serve.json" ||
+    fail "serve.json is not the JSON of the install"
+[ ! -e "$t/serve/.config/podrunner/run.toml" ] && [ ! -e "$d/hello.yml" ] || fail "--serve wrote a file of the local mode"
+grep -q 'next: .*podrunner config init --source NAME' "$t/out" || fail "--serve names no next step"
+before=$(sha256sum < "$d/serve.json")
+mirror=file://$t/empty
+run serve --serve || fail "the second run with --serve"
+[ "$(sha256sum < "$d/serve.json")" = "$before" ] || fail "the second run with --serve changed serve.json"
+grep -q 'nothing was downloaded' "$t/out" || fail "the second run with --serve downloaded a file"
+mirror=file://$a
+ok "--serve"
+
 # 8. The offline bundle: no mirror reaches anything.
 mirror=file://$t/empty
 sh "$root/scripts/make-bundle.sh" "$installer" "$arch" "$a" "$t/dist" > /dev/null

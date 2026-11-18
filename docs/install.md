@@ -56,6 +56,7 @@ and `allow` lines, and give in `allow` each host that a job needs.
 | `--prefix DIR` | Install into `DIR/bin` and `DIR/share/podrunner`. |
 | `--full` | Load the larger runner image (`images/runner/full.txt`: C and C++, CMake, Python, Node.js) in place of the base image, and use it for each job. |
 | `--bundle PATH` | Install from an offline bundle: its `.tar.gz` or its unpacked directory. No network. |
+| `--serve` | Install for `podrunner serve` (T-507): the same files, but no `run.toml` and no `hello.yml`. It writes `DATA/serve.json` (`podrunner`, `podvm`, `podnet`, `images`, `image`, `runner_version`) for a program that runs `podrunner config init`, and prints that next step. A second run changes nothing. |
 
 `PODRUNNER_MIRROR=URL` takes each file from `URL/NAME` in place of its
 release on github.com (`file://DIR` is a directory). Each file must agree

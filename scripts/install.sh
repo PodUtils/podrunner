@@ -46,7 +46,7 @@ DIGEST_imagefull_aarch64=""
 
 usage() {
     cat <<'EOF'
-usage: sh podrunner-install.sh [--prefix DIR] [--full] [--bundle PATH]
+usage: sh podrunner-install.sh [--prefix DIR] [--full] [--bundle PATH] [--serve]
 
   --prefix DIR   install podrunner into DIR/bin and the data into
                  DIR/share/podrunner (default: ~/.local, and the data into
@@ -55,6 +55,9 @@ usage: sh podrunner-install.sh [--prefix DIR] [--full] [--bundle PATH]
                  ubuntu-latest) and use it for each job
   --bundle PATH  install from a bundle of a release (its .tar.gz or its
                  unpacked directory), with no network
+  --serve        install for `podrunner serve`: write no run.toml and no
+                 hello.yml; write DATA/serve.json (the paths and the image
+                 that `podrunner config init` takes) and print the next step
 
 The environment variable PODRUNNER_MIRROR=URL takes each file from URL/NAME
 in place of its release on github.com. Each file must agree with its pin.
@@ -68,12 +71,13 @@ die() {
 }
 have() { command -v "$1" > /dev/null 2>&1; }
 
-prefix="" full=0 bundle=""
+prefix="" full=0 bundle="" serve=0
 while [ $# -gt 0 ]; do
     case $1 in
         --prefix) [ $# -ge 2 ] || die "--prefix needs a directory"; prefix=$2; shift 2 ;;
         --prefix=*) prefix=${1#--prefix=}; shift ;;
         --full) full=1; shift ;;
+        --serve) serve=1; shift ;;
         --bundle) [ $# -ge 2 ] || die "--bundle needs a path"; bundle=$2; shift 2 ;;
         --bundle=*) bundle=${1#--bundle=}; shift ;;
         -h | --help) usage; exit 0 ;;
@@ -275,6 +279,20 @@ else
     image=$(pin DIGEST_image)
 fi
 [ "$unpacked" = 0 ] || rm -rf "$downloads/bundle"
+
+# An install for `serve` (T-507): a program (githome's CLI) reads
+# serve.json and runs `podrunner config init`; no file of the local mode.
+if [ "$serve" = 1 ]; then
+    printf '{"schema": 1, "podrunner": "%s", "podvm": "%s", "podnet": "%s", "images": "%s", "image": "runner@%s", "runner_version": "%s"}\n' \
+        "$bin/podrunner" "$podvm" "$data/bin/podnet" "$store" "$image" "$RUNNER_VERSION" > "$data/serve.json.new"
+    mv -f "$data/serve.json.new" "$data/serve.json"
+    say "ok      $data/serve.json"
+    say "the checks of podrunner doctor:"
+    "$bin/podrunner" doctor 2>&1 | grep -v '^missing: --config' | sed 's/^/    /' || true
+    [ "$got" -eq 0 ] && say "nothing was downloaded: each file was present and correct"
+    say "next: $bin/podrunner config init --source NAME --program PATH --podvm $podvm --images $store --image runner@$image --built-at-s N --out FILE (N: built_at_s of podrunner-manifest.json)"
+    exit 0
+fi
 
 # A small workflow for a first run.
 cat > "$data/hello.yml" <<'EOF'

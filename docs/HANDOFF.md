@@ -8,7 +8,10 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.70.0` (`Cargo.toml`); podvm `v0.2.0-beta.32`
+- Pins: podcrates `v0.72.0` (`Cargo.toml`; the source wire and the
+  credential are `pod_job::source`, the HTTP head is `pod_core::http1`;
+  `status.v1` stays podrunner's until PodUtils/podcrates@T-947, COORD-095 #305);
+  podvm `v0.2.0-beta.34`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
@@ -132,6 +135,24 @@ is done.
   commits before a push.
 
 ## Resume here (the next session: githome and cfb first)
+
+The last session (2026-11-18, evening) left:
+
+- Open answers: #305 (status.v1 fields, PodUtils/podcrates@T-947 in its next tag:
+  then take `pod_job::Status`, remove `schemas/status.v1.json`, T-508
+  done); #306 (`pod-fake-githome source`, PodUtils/podcrates@T-948: then T-509);
+  #307 (podvm's limits of `--podvm-confine`, no change; close on podvm's
+  tag); #304 (a tier for confined kinds, on podvm's next beta).
+- New measures in CI, not yet green: the steps "C1 to C5" of
+  `runner-image.yml` (T-525, `tests/accept.rs`), the lane
+  `serve-incus-kvm` of `user-gate.yml` (T-527), the rows of the stand-in
+  of rbg's gate (T-528, `.github/workflows/rbg-stand-in.yml`). Read each
+  first run and fix or record each failure.
+- `runner-image.yml` run 44391387598 (`e422c23`) failed once in the podvm
+  canned job: `native-static rung: /usr/bin/bash: ld-linux: errno 11`
+  (PodUtils/podvm@T-1652). If it comes again, write a COORD issue to podvm.
+- `user-gate.yml` run 44393864747 (images of run 44376274000) is the run
+  of T-179 for podnet #142: send its result as a COORD issue to podnet.
 
 The owner ruled on 2026-11-18 (`docs/decisions.md`, "githome and cfb
 first"): podrunner accommodates each need and ask of githome and cfb, their
