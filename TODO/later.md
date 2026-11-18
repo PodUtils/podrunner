@@ -4340,7 +4340,7 @@ In the code (2026-11-18): podvm `0.2.0-beta.32` holds the raw system calls of a 
 
 ## Blocker
 
-The syscall tier maps no path of an `AF_UNIX` `connect` under a `-v` mount: COORD-091 (GitHub #301, to podvm).
+The syscall tier maps no path of an `AF_UNIX` `connect` under a `-v` mount: COORD-091 (GitHub #301, to podvm). podvm answered with COORD-190 (PodUtils/podvm#586): the tier maps the path of a unix socket on podvm `main`, for its next beta; then give the flag again (x86_64 only) and measure it in `runner-image.yml`.
 
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
