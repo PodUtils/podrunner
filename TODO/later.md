@@ -1895,7 +1895,7 @@ Read `crates/podrunner/src/run_local.rs` on 2026-11-14.
 
 ## Done
 
-2026-11-14, this commit. `crates/podrunner-local/src/cron.rs`: `Cron::parse` takes the five fields with values, ranges, steps, lists and the names of months and days (7 is Sunday; both day fields restricted match either, as POSIX cron); `next` gives the first matching minute after a time, in UTC, with no new dependency (`civil` is the civil date of a day). `crates/podrunner/src/run_local/watch.rs`: `--watch` polls a stamp of the tree (`tree::stamp`: the names, sizes and times of the files of the tarball) and of the workflow file every 500 ms, waits until a change rests, and runs again; a change during a run calls `cancel::request`, so the run cancels as at a signal (T-141), and `cancel::reset` clears it for the next run. `--schedule` waits for the next cron time and runs with `--event schedule`. SIGINT or SIGTERM ends the loop. Tests: `cargo test -p podrunner-local cron` (the next times, a leap day, both day fields, the bad fields) and `cargo test -p podrunner watch` (the crons of `on.schedule`, the line of a bad cron, the stamp of a change). Checked by hand: a dry run with `--watch` runs once, once again after a new file, and ends at SIGINT; `--schedule` names the next time and ends at SIGINT.
+2026-11-14, this commit. the cron of `podrunner-local` (removed by T-423): `Cron::parse` takes the five fields with values, ranges, steps, lists and the names of months and days (7 is Sunday; both day fields restricted match either, as POSIX cron); `next` gives the first matching minute after a time, in UTC, with no new dependency (`civil` is the civil date of a day). `crates/podrunner/src/run_local/watch.rs`: `--watch` polls a stamp of the tree (`tree::stamp`: the names, sizes and times of the files of the tarball) and of the workflow file every 500 ms, waits until a change rests, and runs again; a change during a run calls `cancel::request`, so the run cancels as at a signal (T-141), and `cancel::reset` clears it for the next run. `--schedule` waits for the next cron time and runs with `--event schedule`. SIGINT or SIGTERM ends the loop. Tests: `cargo test -p podrunner-local cron` (the next times, a leap day, both day fields, the bad fields) and `cargo test -p podrunner watch` (the crons of `on.schedule`, the line of a bad cron, the stamp of a change). Checked by hand: a dry run with `--watch` runs once, once again after a new file, and ends at SIGINT; `--schedule` names the next time and ends at SIGINT.
 
 
 # T-143: Local mode: a configuration file for podrunner run
@@ -9004,7 +9004,7 @@ Fetch the tree with a fallback that needs no tool of the image (the Node of the 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -9022,9 +9022,10 @@ Read `timezone` (an IANA name, through the zone files of the host) and say it in
 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
-## Blocker
+## Done
 
-The time zone of a cron needs a reader of the zone files (TZif). That is generic code: the ruling "Shared code" sends it to podcrates. COORD-085 (PodUtils/podrunner#291, to podcrates) asks for it. Until the tag comes, `--schedule` and `--validate` name each `timezone` that is not UTC on stderr and say that the cron runs at UTC (`run_local/watch.rs` `timezones`, with a test); `docs/cli.md` says so.
+2026-11-18: podcrates `v0.71.0` gives `pod-time` (PodUtils/podcrates@T-907). `--schedule` reads each cron of `on.schedule` with the zone of its `timezone` (`Zone::load`, `Cron::next_in`); an unknown zone fails with its line; the note "timezone is not read" is gone, and the cron of `podrunner-local` (removed by T-423) is removed for `pod_time::Cron`. Test `the_crons_of_on_schedule_and_a_change_of_the_tree`: 09:00 in Europe/Berlin on 1970-01-01 is 08:00 UTC; an unknown zone gives `line 3: timezone "Mars/Olympus"`.
+
 
 # T-424: The minimal payload of `pull_request` has no `head.repo` and `base.repo`
 

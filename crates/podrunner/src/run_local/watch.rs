@@ -3,7 +3,8 @@
 //! the current directory) or of the workflow file; a change while a run is
 //! in progress cancels that run, as a signal does (T-141), and starts a new
 //! one. `--schedule` waits for the next time of the crons of `on.schedule`
-//! (UTC, as GitHub) and runs with the event `schedule`, again and again.
+//! (UTC, or the `timezone` of the item, as GitHub) and runs with the event
+//! `schedule`, again and again.
 //! SIGINT or SIGTERM ends the loop.
 
 use std::path::{Path, PathBuf};
@@ -13,8 +14,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use pod_actions_workflow::{Kind, Node};
 use pod_core::failure::Class;
+use pod_time::civil::civil;
+use pod_time::{Cron, Zone};
 use podrunner_local::cancel;
-use podrunner_local::cron::{Cron, civil};
 
 use super::{fail, run};
 use crate::cli::Out;
@@ -34,12 +36,13 @@ fn has_schedule(on: &Node) -> bool {
 
 /// The crons of `on.schedule`.
 pub(super) fn crons(on: &Node) -> Result<Vec<Cron>, String> {
-    Ok(cron_texts(on)?.into_iter().map(|(c, _)| c).collect())
+    Ok(cron_texts(on)?.into_iter().map(|(c, _, _)| c).collect())
 }
 
-/// The crons of `on.schedule` with their text: `github.event.schedule` of a
-/// run of the schedule (T-279).
-pub(super) fn cron_texts(on: &Node) -> Result<Vec<(Cron, String)>, String> {
+/// The crons of `on.schedule` with the zone of their `timezone` (UTC when
+/// none, T-423) and their text: `github.event.schedule` of a run of the
+/// schedule (T-279).
+pub(super) fn cron_texts(on: &Node) -> Result<Vec<(Cron, Zone, String)>, String> {
     let Kind::Map(entries) = &on.kind else { return Ok(Vec::new()) };
     let Some((_, Node { kind: Kind::Seq(items), .. })) = entries.iter().find(|(k, _)| k.name == "schedule") else {
         return Ok(Vec::new());
@@ -49,40 +52,23 @@ pub(super) fn cron_texts(on: &Node) -> Result<Vec<(Cron, String)>, String> {
         if let Kind::Map(e) = &item.kind
             && let Some((_, Node { kind: Kind::String(c), .. })) = e.iter().find(|(k, _)| k.name == "cron")
         {
-            out.push((Cron::parse(c).map_err(|e| format!("line {}: {e}", item.mark.line))?, c.clone()));
+            let line = item.mark.line;
+            let cron = Cron::parse(c).map_err(|e| format!("line {line}: {e}"))?;
+            let zone = match e.iter().find(|(k, _)| k.name == "timezone").map(|(_, v)| &v.kind) {
+                None => Zone::utc(),
+                Some(Kind::String(tz)) => Zone::load(tz).map_err(|e| format!("line {line}: timezone {tz:?}: {e}"))?,
+                Some(_) => return Err(format!("line {line}: timezone is not a name of a time zone")),
+            };
+            out.push((cron, zone, c.clone()));
         }
     }
     Ok(out)
 }
 
-/// The time zones of `on.schedule` other than UTC, with their line: GitHub
-/// reads `timezone`, and podrunner reads no time zone yet, so it says so
-/// (T-423).
-pub(super) fn timezones(on: &Node) -> Vec<(u32, String)> {
-    let Kind::Map(entries) = &on.kind else { return Vec::new() };
-    let Some((_, Node { kind: Kind::Seq(items), .. })) = entries.iter().find(|(k, _)| k.name == "schedule") else {
-        return Vec::new();
-    };
-    items
-        .iter()
-        .filter_map(|item| match &item.kind {
-            Kind::Map(e) => e.iter().find(|(k, _)| k.name == "timezone").and_then(|(_, v)| match &v.kind {
-                Kind::String(tz) if !matches!(tz.as_str(), "UTC" | "Etc/UTC") => Some((item.mark.line, tz.clone())),
-                _ => None,
-            }),
-            _ => None,
-        })
-        .collect()
-}
-
-/// The lines of `on.schedule` that GitHub runs in another way: a time zone
-/// that podrunner does not read (T-423), and a cron more often than each 5
-/// minutes, the shortest interval of GitHub (T-433).
+/// The lines of `on.schedule` that GitHub runs in another way: a cron more
+/// often than each 5 minutes, the shortest interval of GitHub (T-433).
 pub(super) fn notes(on: &Node) -> Vec<String> {
-    let mut out: Vec<String> = timezones(on)
-        .into_iter()
-        .map(|(line, tz)| format!("line {line}: timezone {tz:?} is not read yet: the cron runs at UTC (T-423)"))
-        .collect();
+    let mut out: Vec<String> = Vec::new();
     let Kind::Map(entries) = &on.kind else { return out };
     let Some((_, Node { kind: Kind::Seq(items), .. })) = entries.iter().find(|(k, _)| k.name == "schedule") else {
         return out;
@@ -189,7 +175,7 @@ pub fn repeat(args: &[String]) -> Out {
             }
             let next = parsed
                 .and_then(|p| cron_texts(&p.workflow.on))
-                .map(|c| c.iter().filter_map(|(c, t)| Some((c.next(now())?, t.clone()))).min());
+                .map(|c| c.iter().filter_map(|(c, z, t)| Some((c.next_in(z, now())?, t.clone()))).min());
             let at = match next {
                 Ok(Some((at, text))) => {
                     super::context::set_schedule(&text);
@@ -271,14 +257,20 @@ mod tests {
         assert_eq!(utc(1800), "1970-01-01T00:30Z");
         let bad = pod_actions_workflow::parse(&text.replace("*/30", "61")).unwrap().workflow.on;
         assert!(crons(&bad).unwrap_err().contains("line 3"), "{:?}", crons(&bad));
-        // T-423: a time zone other than UTC is named, with its line.
-        let tz = pod_actions_workflow::parse(
-            "on:\n  schedule:\n    - cron: '0 9 * * *'\n      timezone: Europe/Berlin\n    - cron: '0 1 * * *'\n      timezone: UTC\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n",
-        )
-        .unwrap()
-        .workflow
-        .on;
-        assert_eq!(timezones(&tz), [(3, "Europe/Berlin".to_string())]);
+        // T-423: the cron of an item runs in its `timezone`: 09:00 in Berlin
+        // on 1970-01-01 is 08:00 UTC (CET); an unknown zone names its line.
+        let tz = |zone: &str| {
+            let text = format!(
+                "on:\n  schedule:\n    - cron: '0 9 * * *'\n      timezone: {zone}\njobs:\n  a:\n    runs-on: x\n    steps: [{{run: a}}]\n"
+            );
+            pod_actions_workflow::parse(&text).unwrap().workflow.on
+        };
+        let berlin = cron_texts(&tz("Europe/Berlin")).unwrap();
+        assert_eq!(berlin[0].0.next_in(&berlin[0].1, 0), Some(8 * 3600));
+        let utc_zone = cron_texts(&tz("UTC")).unwrap();
+        assert_eq!(utc_zone[0].0.next_in(&utc_zone[0].1, 0), Some(9 * 3600));
+        let e = cron_texts(&tz("Mars/Olympus")).unwrap_err();
+        assert!(e.starts_with("line 3: timezone \"Mars/Olympus\""), "{e}");
         // T-433: a cron more often than each 5 minutes is named.
         let on = |c: &str| {
             let text =

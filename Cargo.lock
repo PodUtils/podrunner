@@ -877,6 +877,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-time"
+version = "0.71.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.71.0#6dff7fc8d0d30e381e91005e065d3ce82c089818"
+
+[[package]]
 name = "pod-tls"
 version = "0.71.0"
 source = "git+https://github.com/PodUtils/podcrates?tag=v0.71.0#6dff7fc8d0d30e381e91005e065d3ce82c089818"
@@ -923,6 +928,7 @@ dependencies = [
  "pod-hostprobe",
  "pod-proxy",
  "pod-services",
+ "pod-time",
  "pod-tls",
  "podrunner-egress",
  "podrunner-fake",

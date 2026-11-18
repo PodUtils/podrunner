@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**529 entries: 80 open, 34 partial, 13 blocked, 402 done.**
+**529 entries: 80 open, 34 partial, 12 blocked, 403 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 2 | 0 | 0 | 3 |
 | P1 | 18 | 14 | 2 | 64 | 98 |
-| P2 | 22 | 13 | 8 | 213 | 256 |
+| P2 | 22 | 13 | 7 | 214 | 256 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 80 | 34 | 13 | 402 | 529 |
+| **All** | 80 | 34 | 12 | 403 | 529 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -467,7 +467,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-420](later.md) | P2 | M | later | defect | done | An environment name of an expression is not evaluated |
 | [T-421](later.md) | P2 | M | later | defect | done | No checkout tree when only a called workflow uses `actions/checkout` |
 | [T-422](later.md) | P2 | M | later | defect | done | The stand-in of `actions/checkout` needs `curl` in a job container |
-| [T-423](later.md) | P2 | M | later | defect | blocked | `--schedule` reads no `timezone` of `on.schedule` |
+| [T-423](later.md) | P2 | M | later | defect | done | `--schedule` reads no `timezone` of `on.schedule` |
 | [T-424](later.md) | P2 | M | later | defect | done | The minimal payload of `pull_request` has no `head.repo` and `base.repo` |
 | [T-425](later.md) | P2 | M | later | defect | done | A git submodule is an empty directory in the checkout |
 | [T-426](later.md) | P3 | M | later | defect | done | `github.workflow` is the file name, not the `name:` of the workflow |
