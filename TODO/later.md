@@ -12125,6 +12125,7 @@ State (2026-11-18): `user-gate.yml` has the lane `serve-incus-kvm`: incusd from 
 
 State (2026-11-18, run 44416704184): `config init` exited 78 for both kinds: the driver check refused `~/.local/share` (T-537). Next: the run after the fix of the installer.
 
+A runner job through `serve` needs a source whose `mint` reaches a broker: `pod-fake-githome` mints made-up files, `pod-fake-github` has the JIT route and the broker. Asked: COORD-101 (GitHub #311), `pod-fake-githome serve --github URL`.
 
 # T-528: No row of the user-path gate copies the gate of rbg
 
