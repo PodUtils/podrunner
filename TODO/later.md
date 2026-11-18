@@ -11404,7 +11404,7 @@ The operator does the steps with root once: Incus with a range for root in `/etc
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11423,6 +11423,8 @@ The direct message of the podcrates session and COORD-135, read on 2026-11-18.
 ## Prove
 
 The answer on a COORD issue, and `cargo test --workspace` on the take of the tag, with a test that the status of `serve` validates against the schema of `pod-job`.
+
+State (2026-11-18): answered by COORD-087 (GitHub #294): the types and files at `3a0cbbb`, the stable fields (each field of `3a0cbbb` is the `v1` form), and the names and units of the new fields of G-15, G-16, G-17, G-18, G-19, G-20, G-36 and G-04, from the calls of Q-1 to Q-8. Left: take the tag of podcrates that carries them, and read the schemas from `pod-job`.
 
 # T-509: G-38: a test of githome's source in podrunner's CI that blocks a release
 
