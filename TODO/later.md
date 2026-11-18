@@ -11278,3 +11278,28 @@ githome's comment on GitHub #292, read on 2026-11-18. DR-9 is a ruling of 2026-1
 ## Prove
 
 `cargo test -p podrunner --test scaleset`: a repository URL of a personal account with the opt-in serves a job of the fake scale set; without it, `repo-scope-refused`.
+
+# T-505: No cap of units for the whole host across its kinds
+
+**Source:** cfb's P-8 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A host bounds its units by the `slots` of each kind and of each source only. cfb's host has 32 GiB of RAM and units of 12 GiB on two kinds (`incus` for trusted jobs, `microvm` for the jobs of forks and the trusted jobs with containers): it must set `[unit.incus] slots = 1` and `[unit.microvm] slots = 1`, so two trusted jobs never run at one time, also when no job of a fork waits. A cap for the whole host would let each kind take up to the cap.
+
+## Premise
+
+`crates/podrunner-slots/src/config.rs` (no key of the host for a count or a memory of units), read on 2026-11-18.
+
+## Approach
+
+A key of the host, `max_units` (and, if a measure shows the need, a memory budget: the sum of the `mem` of the running units), checked by placement before a claim, with its value and use in `status --json`. `check` refuses a cap of 0.
+
+## Prove
+
+`cargo test -p podrunner-slots`: with `max_units = 2`, two kinds of 2 slots each never hold more than 2 units, and each kind can take both.

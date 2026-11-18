@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**501 entries: 66 open, 29 partial, 13 blocked, 393 done.**
+**502 entries: 67 open, 29 partial, 13 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 2 | 0 | 0 | 0 | 2 |
 | P1 | 12 | 12 | 1 | 62 | 87 |
-| P2 | 17 | 12 | 9 | 209 | 247 |
+| P2 | 18 | 12 | 9 | 209 | 248 |
 | P3 | 35 | 5 | 3 | 122 | 165 |
-| **All** | 66 | 29 | 13 | 393 | 501 |
+| **All** | 67 | 29 | 13 | 393 | 502 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -549,3 +549,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-502](later.md) | P2 | S | later | feature | open | G-27: a cancel ends its unit in a bounded time, with a conformance test |
 | [T-503](later.md) | P2 | S | later | feature | open | G-28: the output of `source-conformance` for CI |
 | [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |
+| [T-505](later.md) | P2 | S | later | feature | open | No cap of units for the whole host across its kinds |
