@@ -93,6 +93,43 @@ is done.
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
+## Resume here (the work of 2026-11-17 and 2026-11-18)
+
+- `main` is at `d5cfbb5` or later. Each commit passed
+  `PODRUNNER_RUNNER_DIR=... sh scripts/agent/check.sh` before its push.
+- Done in this stretch, each with a test that fails on the code before
+  the fix, and an end-to-end test on the official runner where a job
+  runs: T-416, T-419, T-420, T-421, T-425, T-426, T-427, T-428, T-429,
+  T-430, T-432, T-433, T-434 (#254 closed), T-476, T-477, T-478.
+- CI: gate and level2 are green on `50a8c15`; level2 failed on `95324c5`
+  and `fcec4d7` for a test that ran a child podrunner in the process of
+  `tests/local.rs` (the lock of the runner directory holds until the
+  test process ends). That test is now `tests/local_subdir.rs`. Rule: a
+  test that starts the podrunner binary on a runner directory goes into
+  a test binary of its own.
+- T-478: `scripts/build-image.sh` builds the runner images with a second
+  registry (mirror.gcr.io, then Docker Hub) when public.ecr.aws answers
+  429. Proven only when public.ecr.aws serves; the fallback path is
+  proven with a fake `docker`.
+- Blocked, with a COORD issue open: T-423 on COORD-085 (#291, to
+  podcrates: a reader of TZif zone files); T-439 on COORD-084 (#290, to
+  podcrates); T-469 on COORD-082 (#288); T-405 and the race of T-403 on
+  podvm. Read their answers with the org watcher.
+- Next: T-412 (GitHub #260, the front of a guest). The design:
+  - read each line of the head through `take` with the bytes that are
+    left of `HEAD_MAX`, and answer 431 when a line is longer;
+  - set a read timeout on the connection for the head (30 s; 1 s in a
+    test), and clear it before the tunnel;
+  - cap the connections of a front (128) with a counter and a guard;
+    answer 503 above it;
+  - tests in `crates/podrunner-local/src/front/tests.rs`: a line of
+    70 KiB with no newline gets 431; a silent connection ends after the
+    timeout; the connection over the cap gets 503.
+  Then T-413, T-414, T-411, T-431, T-475 (a measure in the live
+  workflow first), T-473 and T-474 (takes of podcrates crates).
+- No release: the P1 entries T-403 and T-405 are open, and a round of
+  adversarial QA on the current `main` is due (`docs/qa-brief.md`).
+
 ## The release of `v0.1.0-beta.7` (in flight)
 
 The rules: `AGENTS.md`, section 12, and `docs/maintenance.md`, "A
@@ -272,7 +309,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   CI plan that podrunner owns. Their bodies have the current state
   (2026-11-15); T-001 holds them.
 - COORD issues open: #110 (COORD-050, to podvm); #111 (COORD-051, to
-  podvm); #189 (COORD-066) to podvm (T-261); #191 (COORD-067, to podcrates, T-283). No podcrates release notice is open; podrunner takes
+  podvm); #189 (COORD-066) to podvm (T-261); #191 (COORD-067, to podcrates, T-283). #288 (COORD-082), #289 (COORD-083), #290 (COORD-084, to podcrates, T-439) and #291 (COORD-085, to podcrates, T-423). No podcrates release notice is open; podrunner takes
   podcrates `v0.69.0` (T-264).
 - GitHub #9, #32, #33, #40: wait for the live gates (#74, #75). GitHub
   #43 waits for podcrates.
