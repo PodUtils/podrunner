@@ -140,3 +140,31 @@ pub fn front_stand_in_unix(verdict: &'static str, path: &std::path::Path) -> See
     });
     seen
 }
+
+/// The egress module of the test: each unit socket is a proxy to the
+/// broker, and the log of its request lines.
+pub struct ToBroker {
+    pub port: u16,
+    pub seen: Arc<Mutex<Vec<String>>>,
+}
+
+impl podrunner_slots::EgressPort for ToBroker {
+    fn open(&self, _unit: &str, _policy: &str, socket: &Path) -> Result<usize, String> {
+        let log = proxy(socket, self.port);
+        let seen = self.seen.clone();
+        std::thread::spawn(move || {
+            for _ in 0..1200 {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                let mut s = seen.lock().unwrap();
+                for l in log.lock().unwrap().drain(..) {
+                    s.push(l);
+                }
+            }
+        });
+        Ok(0)
+    }
+    fn close(&self, _unit: &str) {}
+    fn alive(&self) -> bool {
+        true
+    }
+}

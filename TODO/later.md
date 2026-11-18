@@ -12021,7 +12021,7 @@ The TLS end of `pod-broker`: PodUtils/podcrates@T-100.
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12038,6 +12038,8 @@ Add a step to `runner-image.yml` that runs the scripts of C1 to C5 against `serv
 ## Prove
 
 `runner-image.yml`: the step of C1 to C5 passes on the incus and the microvm kinds.
+
+State (2026-11-18): `crates/podrunner-broker-fake/tests/accept.rs` runs C1 to C5 through the slots on the kind of `PODRUNNER_ACCEPT_KIND` (`microvm` at `untrusted`, `incus` at `trusted`): 20 offers in a burst at 2 slots, each job checks that no earlier job left its marker (C1) and finds no canary of the host (an environment variable of the host process, the content and the path of a `key_file`) in `/proc/*/environ`, `/proc/*/cmdline`, `/etc` and `/root` (C5); each tick checks `busy <= slots` (C2) and writes a sample of `status` that `scripts/check-status-samples.py` validates against `schemas/status.v1.json` (C4); a long job is cancelled 60 s after its mint, and its report must come within 60 s, with `busy` 0 and `degraded` null after (C3). Two steps of `runner-image.yml` run it, as measures until they are green. Left: the green runs, then the steps block; the results of githome's host when githome comes back.
 
 # T-526: The incus suite of `runner-image.yml` does not block a release
 

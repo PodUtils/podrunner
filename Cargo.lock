@@ -963,6 +963,7 @@ dependencies = [
  "podrunner-egress",
  "podrunner-fake",
  "podrunner-hook",
+ "podrunner-incus",
  "podrunner-microvm",
  "podrunner-podvm",
  "podrunner-schema",

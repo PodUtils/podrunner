@@ -13,7 +13,7 @@
 
 mod common;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -24,7 +24,7 @@ use podrunner_microvm::MicrovmUnit;
 use podrunner_podvm::Podvm;
 use podrunner_schema::{Boundary, Credential, CredentialFile, ExitReason, JobId, RefusalCode, Secret, Tier};
 use podrunner_slots::config::{Config, SourceConfig, UnitConfig};
-use podrunner_slots::{EgressPort, Slots, Source, UnitKind};
+use podrunner_slots::{Slots, Source, UnitKind};
 use podrunner_source::{Event, Hello, JobSource, SourceError};
 use podrunner_unit::UnitDriver;
 use serde_json::{Map, Value, json};
@@ -72,34 +72,6 @@ impl JobSource for BrokerSource {
     }
     fn release(&mut self, job: &JobId) -> Result<(), SourceError> {
         self.inner.release(job)
-    }
-}
-
-/// The egress module of the test: each unit socket is a proxy to the
-/// broker, and the log of its request lines.
-struct ToBroker {
-    port: u16,
-    seen: Arc<Mutex<Vec<String>>>,
-}
-
-impl EgressPort for ToBroker {
-    fn open(&self, _unit: &str, _policy: &str, socket: &Path) -> Result<usize, String> {
-        let log = common::proxy(socket, self.port);
-        let seen = self.seen.clone();
-        std::thread::spawn(move || {
-            for _ in 0..1200 {
-                std::thread::sleep(Duration::from_millis(500));
-                let mut s = seen.lock().unwrap();
-                for l in log.lock().unwrap().drain(..) {
-                    s.push(l);
-                }
-            }
-        });
-        Ok(0)
-    }
-    fn close(&self, _unit: &str) {}
-    fn alive(&self) -> bool {
-        true
     }
 }
 
@@ -185,7 +157,7 @@ built_at_s = {now}
     let sources = vec![Source { cfg: sc, source: Box::new(source), revoked: false }];
     let mut slots = Slots::start(cfg, &state.join("state"), clock, Box::new(now_unix), sources, kinds)
         .unwrap()
-        .with_egress(Box::new(ToBroker { port, seen: seen.clone() }));
+        .with_egress(Box::new(common::ToBroker { port, seen: seen.clone() }));
 
     let end = Instant::now() + Duration::from_secs(900);
     while Instant::now() < end && slots.reports.len() != 2 {

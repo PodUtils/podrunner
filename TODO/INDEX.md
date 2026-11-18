@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**533 entries: 57 open, 43 partial, 13 blocked, 420 done.**
+**533 entries: 56 open, 44 partial, 13 blocked, 420 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 6 | 19 | 4 | 69 | 98 |
+| P1 | 5 | 20 | 4 | 69 | 98 |
 | P2 | 12 | 18 | 6 | 223 | 259 |
 | P3 | 38 | 6 | 3 | 126 | 173 |
-| **All** | 57 | 43 | 13 | 420 | 533 |
+| **All** | 56 | 44 | 13 | 420 | 533 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -569,7 +569,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-522](later.md) | P2 | S | later | docs | done | G-31: the design copies of the schemas have the ids of `pod-job` and other fields |
 | [T-523](later.md) | P2 | M | later | feature | blocked | G-34: take the signed release index of `pod-release` |
 | [T-524](later.md) | P3 | M | later | feature | blocked | G-04 and G-35: the half of podrunner of the placeholders of a policy |
-| [T-525](later.md) | P1 | M | later | measurement | open | C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host |
+| [T-525](later.md) | P1 | M | later | measurement | partial | C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host |
 | [T-526](later.md) | P1 | S | later | chore | partial | The incus suite of `runner-image.yml` does not block a release |
 | [T-527](later.md) | P1 | M | later | chore | open | No lane of the user-path gate for the host class of githome's pool |
 | [T-528](later.md) | P1 | S | later | measurement | open | No row of the user-path gate copies the gate of rbg |

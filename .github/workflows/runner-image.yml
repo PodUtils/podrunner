@@ -496,6 +496,19 @@ jobs:
           grep -qx 'ok      denied' "$RUNNER_TEMP/egress-microvm.txt"
           guest_egress --allow example.com | tee "$RUNNER_TEMP/egress-microvm-allow.txt"
           grep -qx 'failure denied' "$RUNNER_TEMP/egress-microvm-allow.txt"
+      # T-525: the checks C1 to C5 of GitHub #292 through the slots on the
+      # microvm kind: 20 jobs in a burst, a cancel, the status samples, a
+      # canary of the host. A measure until it is green on main.
+      - name: C1 to C5 on the microvm kind (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        run: |
+          set -eu
+          sh scripts/retry.sh python3 -m pip install -q --user 'jsonschema==4.23.0'
+          PODRUNNER_ACCEPT_KIND=microvm PODRUNNER_ACCEPT_OUT="$RUNNER_TEMP/status-microvm.jsonl" timeout 3600 \
+            cargo test -p podrunner-broker-fake --test accept -- --ignored --nocapture
+          python3 -I scripts/check-status-samples.py schemas/status.v1.json "$RUNNER_TEMP/status-microvm.jsonl" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
       # T-103 step 3: a container engine inside a guest of the machine tier
       # (KVM from the machine measure). A measure: the static Docker binaries
       # and a saved image go in by a 9p volume.
@@ -595,6 +608,17 @@ jobs:
           sg incus-admin -c "timeout 2400 target/x86_64-unknown-linux-musl/debug/podrunner run crates/podrunner/tests/local/suite.yml --incus '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_IMAGE' --checkout ." \
             | tee "$RUNNER_TEMP/local-incus.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local-incus.txt")" = 8
+      # T-525: C1 to C5 on the incus kind (incus from the step before).
+      - name: C1 to C5 on the incus kind (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        run: |
+          set -eu
+          sh scripts/retry.sh python3 -m pip install -q --user 'jsonschema==4.23.0'
+          cargo test -p podrunner-broker-fake --test accept --no-run
+          sg incus-admin -c "PODRUNNER_ACCEPT_KIND=incus PODRUNNER_ACCEPT_OUT='$RUNNER_TEMP/status-incus.jsonl' timeout 3600 cargo test -p podrunner-broker-fake --test accept -- --ignored --nocapture"
+          python3 -I scripts/check-status-samples.py schemas/status.v1.json "$RUNNER_TEMP/status-incus.jsonl" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runner-${{ matrix.arch }}
