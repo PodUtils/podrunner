@@ -10598,3 +10598,165 @@ The steps "Build the OCI archive" and "The larger runner image by label" of `run
 ## Done
 
 2026-11-17: both Dockerfiles start `ARG BASE_REGISTRY=public.ecr.aws/docker` and `FROM ${BASE_REGISTRY}/library/...@sha256:...`; mirror.gcr.io serves both digests (checked: 200 for each index). `scripts/build-image.sh` builds from the first registry that serves the image and names it; a test with a fake `docker` gives mirror.gcr.io after a refusal of public.ecr.aws, and exit 1 with a line when each registry fails. The three builds use it. Not run yet in CI.
+
+# T-479: A JSON Schema of `podrunner.toml` for a program that writes the file
+
+**Source:** GitHub #292 (cfb, P-1), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+cfb renders `podrunner.toml` for each host that it bootstraps, and asks for a schema of the file, as `schemas/status.v1.json` is for `status --json`, so that its renderer can check its output. No schema exists: the contract is `docs/configuration.md` and the parser (`crates/podrunner-slots/src/config.rs`). `docs/non-goals.md` lists "A schema for `podrunner.toml`" with the trigger "a second reader of the file exists"; cfb's renderer meets it.
+
+## Premise
+
+The issue of cfb, read on 2026-11-18. The parser refuses an unknown key (`deny_unknown_fields`); `podrunner check --config FILE` is the validator with no side effect.
+
+## Approach
+
+1. Derive `schemars::JsonSchema` on the types of the configuration (a dev-dependency or a feature, as `pod-job` does), and write the schema file `config.v1.json` into `schemas/` from them.
+2. A test fails when the file differs from the types, and a test validates `docs/examples/podrunner.toml` and each block of `docs/configuration.md` against it.
+3. The rules that a schema cannot hold (a floor, the pin list, the modes of files) stay in `check`; the schema names `check` as the last word.
+4. Move the row out of `docs/non-goals.md` ("Triggers that are met").
+
+## Prove
+
+`cargo test -p podrunner-slots` with the new tests; a planted key that the parser refuses fails the schema test.
+
+# T-480: A cache directory of the host, kept apart by trust (cfb and githome G-07)
+
+**Source:** GitHub #292 (cfb, P-3), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** L
+**Status:** blocked
+
+## Problem
+
+The gates of cfb's projects use bun, pnpm, npm and Playwright. Each job starts in a clean unit and fetches each package again. cfb asks for a cache directory on the host for `serve`: read-write for the jobs of the main branch, read-only for a pull request. Shared caches are a non-goal of v1, with the trigger "a measure shows that the cost of a start or a fetch matters" (`docs/non-goals.md`). githome's G-07 sets the rule: a unit of a lower trust never writes what a unit of a higher trust reads.
+
+## Premise
+
+The issue of cfb, read on 2026-11-18. Not measured.
+
+## Approach
+
+1. Take cfb's measure for each gate: `claim_to_first_step_s` of the run report, the time of the install steps on a cold unit, and the time with a restore.
+2. When it meets the trigger: a cache directory for each repository and trust class on the host, mounted read-write only into a trusted job of the default branch, read-only into each other trusted job, and into no untrusted job until a decision says otherwise. Each kind needs its own mount (a disk device of incus, a 9p mount of the guest).
+3. A test: a file that an untrusted job writes is absent from the cache of the next trusted job.
+
+## Prove
+
+The test of G-07 above, on each kind in `runner-image.yml`, and cfb's measure again with the cache.
+
+## Blocker
+
+The measure of cfb (GitHub #292, P-3): the trigger of the non-goal needs it.
+
+# T-481: The checkout of a job on the incus kind is proven by a test of the script only
+
+**Source:** GitHub #292 (cfb, P-4), 2026-11-18
+**Category:** measurement
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-178 fixed `HOME=/root` for the runner on the `incus` and `microvm` kinds. CI proves `actions/checkout` in `microvm` guests (the parity suite of `runner-image.yml`). On `incus`, only `tests::the_payload_has_the_home_of_the_runner` proves it, with stubs. cfb plans the `incus` kind for each trusted job, and githome has not run a checkout there.
+
+## Premise
+
+The Done section of T-178, read on 2026-11-18.
+
+## Approach
+
+Add a job with `actions/checkout` to the suite of the incus kind on real instances in `runner-image.yml`.
+
+## Prove
+
+The step of the incus suite in `runner-image.yml` passes, and it fails with the guest script of before T-178.
+
+# T-482: The incus kind bounds no disk of the root of an instance
+
+**Source:** GitHub #292 (cfb, P-5), 2026-11-18
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The `disk` limit of an offer, else `[unit.KIND] disk_max_bytes`, bounds the bytes under the work directory of a unit (`crates/podrunner-slots/src/disk.rs`; `observe` gives the work directory as `unit_root`). An instance of the `incus` kind has its own root file system in the storage pool of incusd, and the driver sets no size of it (`crates/podrunner-incus/src/guest.rs` passes `--memory`, `--cpus` and `--pids-limit` only). A job that writes into `$HOME` or `/tmp` of the instance (a package cache) can fill the pool of the host, and no `limit` ends it. cfb plans 40 GB for each unit.
+
+## Premise
+
+Read from the code on 2026-11-18. Not measured on an instance.
+
+## Approach
+
+1. Measure: a job on the incus kind writes 1 GiB into `/tmp` of the instance with `disk_max_bytes` of 100 MiB; record whether the job ends.
+2. Find whether podvm's incus tier sets a size of the root disk device (incus `size` of the root device). If yes, pass the lesser of `disk` of the offer and `disk_max_bytes`. If no, ask podvm by a COORD issue.
+
+## Prove
+
+The measure of step 1 on real instances in `runner-image.yml`: the job ends with the exit reason `limit`.
+
+# T-483: The incus kind reports `unknown` for the CPU time and the peak memory of a job
+
+**Source:** GitHub #292 (cfb, P-7, and githome), 2026-11-18
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`crates/podrunner-slots/src/usage.rs` samples the processes of a unit on the host. The processes of an `incus` instance belong to incusd, so its report gives `unknown` for `cpu_s` and `peak_rss_mib`. githome's G-06 asks for both on container and microVM units, and cfb shows the CI time of each project from them. cfb plans the `incus` kind for each trusted job.
+
+## Premise
+
+Read from the code and from `docs/HANDOFF.md` on 2026-11-18.
+
+## Approach
+
+Read the cgroup of the instance (the CPU time and the peak memory that incus gives in the state of an instance, or `cpu.stat` and `memory.peak` of its cgroup through podvm) at each tick and at the end. Where podvm gives no way, ask podvm by a COORD issue.
+
+## Prove
+
+A job on real instances in `runner-image.yml` that burns a known CPU time gives `cpu_s` within the tolerance of the schema, and a `peak_rss_mib` that is not `unknown`.
+
+# T-484: A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have
+
+**Source:** GitHub #292 (cfb, "Release files"; PodUtils/podcrates#223, C-2), 2026-11-18
+**Category:** release
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh, podnet, podvm and podcrates sign one `SHA256SUMS` file of each release with a cosign bundle. A release of podrunner has one `.sha256` file for each asset and a build provenance attestation of each binary, the installer, the bundles and the runner image archives (`.github/workflows/release.yml`), but no `SHA256SUMS` and no cosign bundle. cfb checks the sums file of each other project with one procedure, and cannot do so for podrunner.
+
+## Premise
+
+`.github/workflows/release.yml`, read on 2026-11-18, and the note of cfb on GitHub #292.
+
+## Approach
+
+1. In `release.yml`, write `SHA256SUMS` of each asset, and sign it with `cosign sign-blob --bundle SHA256SUMS.sigstore` (keyless, the identity of the workflow), as the other projects do; keep the `.sha256` files and the attestations.
+2. Name the check in `docs/install.md`: `cosign verify-blob --bundle SHA256SUMS.sigstore --certificate-identity-regexp '^https://github.com/PodUtils/podrunner/' --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS`, then `sha256sum -c SHA256SUMS`.
+3. The installer can check the sums file when `cosign` exists.
+
+## Prove
+
+A dry run of `release.yml` makes both files, and the step of the check passes on them and fails on a changed `SHA256SUMS`.

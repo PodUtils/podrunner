@@ -291,6 +291,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #289 | COORD-083: the answer to COORD-131 (PodUtils/podcrates#221): the copies of shared code in podrunner (to podcrates) | open (waits for the next tag of podcrates) | T-473, T-474 |
 | #290 | COORD-084: pod-actions-store: the ref of a checkout of another repository (empty, full ref, commit SHA) is not resolved (to podcrates) | open (waits for podcrates) | T-439 |
 | #291 | COORD-085: a reader of the zone files (TZif) for the timezone of on.schedule (to podcrates) | open (waits for podcrates) | T-423 |
+| #292 | from cfb | open (cfb's questions P-1 to P-7 of its CI host; podrunner answered on the issue) | T-479, T-480, T-481, T-482, T-483, T-484 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162 |
 | #67 | CI plan items: tracker for the 26 items owned by podrunner (from podcrates#47) | open (a tracker; P0-4 is T-081, the others map to the entries of their lines) | T-001, T-081 |

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**475 entries: 41 open, 28 partial, 13 blocked, 393 done.**
+**481 entries: 46 open, 28 partial, 14 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
-| P2 | 4 | 12 | 9 | 209 | 234 |
-| P3 | 34 | 4 | 3 | 122 | 163 |
-| **All** | 41 | 28 | 13 | 393 | 475 |
+| P2 | 9 | 12 | 9 | 209 | 239 |
+| P3 | 34 | 4 | 4 | 122 | 164 |
+| **All** | 46 | 28 | 14 | 393 | 481 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -523,3 +523,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-476](later.md) | P3 | S | later | defect | done | A `:` in TMPDIR or in an option path fails each job start, not `check` |
 | [T-477](later.md) | P3 | S | later | defect | done | An audit line that fails half way leaves a fragment, and the next line joins it |
 | [T-478](later.md) | P2 | S | later | defect | done | The build of the runner image fails when public.ecr.aws refuses the pull of its base image |
+| [T-479](later.md) | P2 | M | later | feature | open | A JSON Schema of `podrunner.toml` for a program that writes the file |
+| [T-480](later.md) | P3 | L | later | feature | blocked | A cache directory of the host, kept apart by trust (cfb and githome G-07) |
+| [T-481](later.md) | P2 | S | later | measurement | open | The checkout of a job on the incus kind is proven by a test of the script only |
+| [T-482](later.md) | P2 | M | later | defect | open | The incus kind bounds no disk of the root of an instance |
+| [T-483](later.md) | P2 | M | later | defect | open | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
+| [T-484](later.md) | P2 | S | later | release | open | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
