@@ -85,6 +85,9 @@ pub struct PodvmUnit {
     podnet: Option<(PathBuf, &'static str)>,
     /// The confine layer of podvm on each `run -d` (T-079).
     confine: bool,
+    /// A kind with the confine layer takes no syscall tier (T-261): under
+    /// the tier the open run of its self-test reads no host process.
+    no_tier: bool,
     /// The rlimits of each unit (T-162).
     limits: podrunner_unit::limits::Limits,
     /// The cache of image tars, else `STATE/images` (T-242).
@@ -117,6 +120,7 @@ impl PodvmUnit {
             containers: std::sync::atomic::AtomicU64::new(0),
             podnet: None,
             confine: false,
+            no_tier: false,
             limits: podrunner_unit::limits::Limits::default(),
             tars: None,
         })
@@ -269,7 +273,9 @@ impl UnitDriver for PodvmUnit {
         let name = format!("podrunner-{}", spec.unit);
         args.extend(["--hostname".into(), name.clone()]);
         args.extend(labels::run_args(&self.podvm, spec.unit.as_str()));
-        args.extend(labels::tier_args(&self.podvm).iter().map(|a| a.to_string()));
+        if !self.no_tier {
+            args.extend(labels::tier_args(&self.podvm).iter().map(|a| a.to_string()));
+        }
         args.extend(["--report".into(), dir.join(labels::REPORT).display().to_string()]);
         let guest = spec.sockets.as_ref().and(self.socket_mount());
         args.extend(self.confine_args(&rootfs, guest));

@@ -27,6 +27,7 @@ impl PodvmUnit {
     /// after [`PodvmUnit::verify_confine`].
     pub fn with_confine(mut self) -> PodvmUnit {
         self.confine = true;
+        self.no_tier = true;
         self
     }
 
