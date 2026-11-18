@@ -90,3 +90,19 @@ fn a_sandbox_runs_its_command_in_a_unit_and_ends() {
     assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Success, "{r:?}");
     assert_eq!(r.unit.as_ref().map(|u| u.boundary), Some(Boundary::Guest), "{r:?}");
 }
+
+/// The unit of a sandbox ends at `max_s`, below the wall of the host: its
+/// report says `timeout`.
+#[test]
+fn a_sandbox_ends_at_its_max_s() {
+    let guest = capability(Boundary::Guest, Principal::Distinct, EgressHold::Enforced);
+    let with = json!({ "sandbox": { "image": SANDBOX, "command": ["sleep", "600"], "max_s": 2 } });
+    let mut bed = Bed::new(
+        cfg(),
+        vec![("a", "untrusted", None, vec![offer(0, "j-1", with)])],
+        vec![KindSpec { name: "fake", slots: 1, capability: guest, command: sh("exit 9") }],
+    );
+    bed.until(120, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    let r = &bed.slots.reports[0];
+    assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Timeout, "{r:?}");
+}
