@@ -103,8 +103,8 @@ is done.
   schemas, T-508).
 - podvm `0.2.0-beta.33` is pinned (COORD-187, COORD-189, COORD-190): each
   value of the environment goes to podvm in a NUL-ended file (T-405,
-  done); the syscall tier is back on the userland rung of x86_64 (T-261,
-  partial: the container steps of `runner-image.yml` measure it). A pty
+  done); the syscall tier broke absolute links in a unit (T-261,
+  blocked on COORD-093, #303; the flag is off again). A pty
   step and the check `pty:podvm` (T-354, done; #216 closed). T-403 waits
   for `--podvm-volume-base` on the rungs with containers (COORD-090,
   #300). #110 waits for the measure of T-162. COORD-187 (#296) gives

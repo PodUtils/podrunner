@@ -4316,7 +4316,7 @@ The log of the job `runner` of level2 43750372759, read on 2026-11-15.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -4339,6 +4339,12 @@ In the code (2026-11-18): podvm `0.2.0-beta.32` holds the raw system calls of a 
 2026-11-18, later: the flag broke the container hooks on the userland rung of GitHub's runner (`runner-image.yml` run 44292729694: the relay in the unit cannot connect to the control socket under its `-v`, `curl: (7)`); the flag is removed. Asked of podvm by COORD-091 (GitHub #301).
 
 State (2026-11-18): podvm `0.2.0-beta.33` maps the path of a unix socket in the syscall tier (COORD-190, PodUtils/podvm#586). It is pinned, and the podvm kind gives `--podvm-tier=syscall` again on the userland rung of x86_64 with that podvm or later (`labels::tier_args`, test `the_syscall_tier_holds_the_userland_rung_of_x86_64_only`). Next: the container steps of `runner-image.yml` (the relay of the hooks under the tier), then the rows `click-py313` and `rq-lint` in `user-gate.yml`.
+
+2026-11-18, later: with podvm `0.2.0-beta.33` the relay of the hooks connects under the tier (#301 closed), but `runner-image.yml` run 44331618064 failed `podrunner-podvm --test links`: under the tier an absolute symbolic link of the unit does not resolve in its rootfs (`cat: link: No such file or directory`). The flag is removed again; asked of podvm by COORD-093 (GitHub #303).
+
+## Blocker
+
+The syscall tier resolves an absolute link target against the root of the host, not the rootfs of the unit: COORD-093 (GitHub #303, to podvm). When podvm fixes it, give the flag again (x86_64 only; the code of `labels::tier_args` is in the history at `322d214`) and run `links.rs` and the container steps of `runner-image.yml` with it.
 
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json

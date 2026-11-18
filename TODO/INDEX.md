@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 69 open, 39 partial, 12 blocked, 411 done.**
+**531 entries: 69 open, 38 partial, 13 blocked, 411 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
 | P1 | 11 | 16 | 3 | 68 | 98 |
-| P2 | 18 | 17 | 6 | 217 | 258 |
+| P2 | 18 | 16 | 7 | 217 | 258 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 69 | 39 | 12 | 411 | 531 |
+| **All** | 69 | 38 | 13 | 411 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -305,7 +305,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-255](later.md) | P2 | S | later | defect | done | On `--runner-dir`, the tests of express miss headers and hang |
 | [T-256](later.md) | P1 | S | later | defect | done | The checks of a session do not run the suites that need the official runner |
 | [T-260](later.md) | P2 | S | later | defect | done | An expression in the image of a service or a job container fails the job |
-| [T-261](later.md) | P2 | S | later | defect | partial | In a podvm unit, the persist of a temporary file gets EACCES |
+| [T-261](later.md) | P2 | S | later | defect | blocked | In a podvm unit, the persist of a temporary file gets EACCES |
 | [T-262](later.md) | P2 | S | later | defect | done | In a podvm unit, Node sometimes reads an invalid package.json |
 | [T-263](later.md) | P1 | S | later | defect | done | The installer keeps a directory that the group can write |
 | [T-264](later.md) | P2 | M | later | chore | partial | Take podcrates `v0.55.0`: the sync of the issues and pod-lab |
