@@ -101,17 +101,14 @@ is done.
   T-493, T-494, T-486, T-495; amend COORD-088 when T-486, T-493 and T-495
   are done (the move of the schemas, T-508).
 - podvm `0.2.0-beta.32` is pinned (COORD-185, PodUtils/podvm#572): the
-  environment goes to podvm in a file (T-405, partial), the syscall tier
-  on the userland rung (T-261, partial: flip the corpus rows after the
-  next user-gate run), a pty step in `runner-image.yml` (T-354, partial:
+  environment goes to podvm in a file (T-405, partial), a pty step in `runner-image.yml` (T-354, partial:
   close #216 when it is green). T-403 waits for `--podvm-volume-base` on
   the rungs with containers (COORD-090, #300). #110 waits for the measure
   of T-162. podvm answered COORD-089 (#296) with COORD-187
   (PodUtils/podvm#583); `--pids-limit` of a guest (T-488) is in its next
-  tag.
-- Three Dependabot pull requests (#297 trufflehog, #298 setup-dotnet,
-  #299 rsa 0.10; the gate of #299 is red) wait: apply each judged update
-  as a commit on `main` (`docs/decisions.md`, Dependabot).
+  tag. The syscall tier broke the container hooks on GitHub's userland
+  rung: T-261 is blocked on COORD-091 (#301).
+- Dependabot: #297 and #298 are applied; #299 (rsa 0.10) is T-531.
 - A full `check.sh` with the runner takes about 45 minutes here: batch the
   commits before a push.
 

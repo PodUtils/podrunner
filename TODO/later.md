@@ -4316,7 +4316,7 @@ The log of the job `runner` of level2 43750372759, read on 2026-11-15.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -4334,7 +4334,13 @@ podvm found the cause (PodUtils/podvm#439): a volume of the unit puts the run on
 
 The rows `click-py313` and `rq-lint` on `podvm` pass in the user-path gate.
 
-In the code (2026-11-18): podvm `0.2.0-beta.32` holds the raw system calls of a run on the userland rung with `--podvm-tier=syscall` (PodUtils/podvm#470, COORD-185). The podvm kind adds the flag to `run -d` of a unit where the probe names the userland rung (`labels::tier_args`, test `the_syscall_tier_holds_the_userland_rung_of_x86_64_only`). The tier runs on podvm's native-static rung, which is x86_64 only: `runner-musl.yml` on aarch64 got exit 125 for the flag on `8ec7d87`, so an aarch64 host gets no flag, and uv and ruff keep the fault there. Open: the next run of `user-gate.yml`; when the rows `click-py313` and `rq-lint` on `podvm` pass, set them `ok` in `scripts/corpus/user-gate.tsv` and close GitHub #189.
+In the code (2026-11-18): podvm `0.2.0-beta.32` holds the raw system calls of a run on the userland rung with `--podvm-tier=syscall` (PodUtils/podvm#470, COORD-185). The podvm kind adds the flag to `run -d` of a unit where the probe names the userland rung (`labels::tier_args`, since removed). The tier runs on podvm's native-static rung, which is x86_64 only: `runner-musl.yml` on aarch64 got exit 125 for the flag on `8ec7d87`, so an aarch64 host gets no flag, and uv and ruff keep the fault there. Open: the next run of `user-gate.yml`; when the rows `click-py313` and `rq-lint` on `podvm` pass, set them `ok` in `scripts/corpus/user-gate.tsv` and close GitHub #189.
+
+2026-11-18, later: the flag broke the container hooks on the userland rung of GitHub's runner (`runner-image.yml` run 44292729694: the relay in the unit cannot connect to the control socket under its `-v`, `curl: (7)`); the flag is removed. Asked of podvm by COORD-091 (GitHub #301).
+
+## Blocker
+
+The syscall tier maps no path of an `AF_UNIX` `connect` under a `-v` mount: COORD-091 (GitHub #301, to podvm).
 
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
