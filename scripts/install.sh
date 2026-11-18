@@ -136,11 +136,23 @@ config=${XDG_CONFIG_HOME:-$HOME/.config}/podrunner
 store=$data/images
 downloads=$data/downloads
 mkdir -p "$bin" "$data/bin" "$store" "$downloads" "$config" || die "cannot make the directories under $prefix"
-# The umask does not apply to a directory that was there before: podrunner
-# refuses a driver under a directory that the group or the others can
-# write, also the data directory above data/bin.
-chmod go-w "$bin" "$data" "$data/bin" ||
-    die "cannot remove the write of the group and the others from $bin, $data and $data/bin"
+# podrunner refuses a driver under a directory that the group or the others
+# can write (T-537). The umask does not apply to a directory that was there
+# before, and a umask of 002 leaves ~/.local/share open: close each
+# directory of this user from the binaries up to $HOME, and say so.
+me=$(id -u)
+close_up() { # DIR
+    d=$1
+    while [ -n "$d" ] && [ "$d" != "${HOME:-/}" ] && [ "$d" != / ]; do
+        if [ -n "$(find "$d" -maxdepth 0 -user "$me" -perm /022)" ]; then
+            chmod go-w "$d" || die "cannot remove the write of the group and the others from $d"
+            say "ok      $d: the group and the others can no longer write it (a driver under it is refused)"
+        fi
+        d=$(dirname "$d")
+    done
+}
+close_up "$bin"
+close_up "$data/bin"
 # A partial file of an earlier run that stopped is never used.
 rm -f "$bin/podrunner.part" "$data"/bin/*.part "$downloads"/*.part
 

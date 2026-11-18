@@ -12123,6 +12123,9 @@ Add a lane `serve-incus-kvm`: install as a user with no root, then `check`, `doc
 
 State (2026-11-18): `user-gate.yml` has the lane `serve-incus-kvm`: incusd from apt, KVM, and the user of the lane in the group `incus-admin` with no root. After the install, `scripts/user-gate.py` runs for each kind (`--serve-kinds incus,microvm`) the check `serve:check:KIND` (`config init` with the released fake source as its program source, `check`, `doctor --config --json` with the boundary `confined` for incus and `guest` for microvm and each source served, `print-unit`) and `serve:run:KIND` (`serve` starts and stops on SIGTERM; on microvm it runs one sandbox offer of the image to a report of `success` in the journal). A job of a runner through `serve` needs a broker: the released `pod-fake-github` of podcrates (PodUtils/podcrates@T-921, its next tag) gives one. Left: the green run of the lane, then one runner job on each kind with `pod-fake-github`.
 
+State (2026-11-18, run 44416704184): `config init` exited 78 for both kinds: the driver check refused `~/.local/share` (T-537). Next: the run after the fix of the installer.
+
+
 # T-528: No row of the user-path gate copies the gate of rbg
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
@@ -12149,6 +12152,9 @@ Add a pinned stand-in row on the microvm and incus kinds that records `claim_to_
 `user-gate.yml`: the row passes and the summary gives both times.
 
 State (2026-11-18): `.github/workflows/rbg-stand-in.yml` is the stand-in: Node 26 (setup-node v7.1.0), npm 12.2.3, TypeScript 7.0.2 and `@playwright/test` 1.64.1, a cold install, `tsc --strict`, and a page in headless Chromium. On github.com (run 44400362506) the job took 33 s and the cold install 12 s. The rows `rbg-gate` of `scripts/corpus/user-gate.tsv` run it at `14bc880` on the podvm, runner-dir and microvm executors in the lane `plain`; `scripts/user-gate.py` gives each row the seconds from the start of `run` to the first step and the time of the install (`podrunner-gate-NAME=N` lines). It is the base line of T-480 and T-500. Left: the green run of the rows, and a row on the incus kind (the user-path gate has no incus executor of `run`; the lane `serve-incus-kvm` of T-527 is the place).
+
+State (2026-11-18, run 44416704184): each row `rbg-gate` exited 78: the workflow takes `workflow_dispatch` only, and `run` gives `push` by default; the rows give `--event workflow_dispatch` now. Next: the next run.
+
 
 # T-529: The disk limit of an offer lifts the bound of the operator
 
@@ -12406,3 +12412,5 @@ The log of the lane, read on 2026-11-18. Which step of the lane made the data di
 ## Done
 
 2026-11-18: `scripts/install.sh` removes the write of the group and the others from `$data` as well; `sh scripts/test-install.sh` passes with an open data directory planted. The run of `user-gate.yml` that proves it in the lane `plain` is the next one.
+
+State (2026-11-18, later): `user-gate.yml` run 44416704184: the lane `plain` then refused `~/.local/share`, the next directory up (a umask of 002 leaves it open; a desktop makes it so too). The installer now closes each directory of the user from `bin` and `data/bin` up to `$HOME` (not `$HOME` itself), with one line for each; case 5 of `sh scripts/test-install.sh` plants each of them open.

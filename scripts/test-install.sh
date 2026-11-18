@@ -156,10 +156,13 @@ ok "a second run downloads nothing"
 # 4b. A directory that was there before, writable by the group: the
 # installer removes that write (a driver in it is refused).
 mkdir -p "$t/gw/.local/bin" "$t/gw/.local/share/podrunner/bin"
-chmod 0775 "$t/gw/.local/bin" "$t/gw/.local/share/podrunner" "$t/gw/.local/share/podrunner/bin"
+chmod 0775 "$t/gw" "$t/gw/.local" "$t/gw/.local/bin" "$t/gw/.local/share" "$t/gw/.local/share/podrunner" \
+    "$t/gw/.local/share/podrunner/bin"
 mirror=file://$a
 run gw || fail "the install over a directory that the group can write"
-for dir in "$t/gw/.local/bin" "$t/gw/.local/share/podrunner" "$t/gw/.local/share/podrunner/bin"; do
+[ -n "$(find "$t/gw" -maxdepth 0 -perm /022)" ] || fail "the installer changed the mode of HOME"
+for dir in "$t/gw/.local" "$t/gw/.local/bin" "$t/gw/.local/share" "$t/gw/.local/share/podrunner" \
+    "$t/gw/.local/share/podrunner/bin"; do
     [ -z "$(find "$dir" -maxdepth 0 -perm /022)" ] || fail "$dir stays writable by the group or the others"
 done
 ok "the installer removes the write of the group from its directories"
