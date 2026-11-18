@@ -102,6 +102,15 @@ or lifted. From this next session, all of PodUtils works to make podrunner
 complete and stable, so that the milestones of githome and cfb are met.
 COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
 
+- githome and cfb are away until podrunner is complete (the owner,
+  2026-11-18). Their last answers are on GitHub #292: cfb answered Q-12
+  to Q-14; githome's G-38 to G-41 came before the questions, so the
+  recommendations of Q-1 to Q-8 are the Decision sections of their
+  entries (`docs/decisions.md`, "The answers of githome and cfb before
+  their pause"). githome comes back on the statement of T-512: one line
+  `githome: complete in vTAG` on #292 and #151, when each ask G-01 to
+  G-41 is done in a release. Name each release tag on #292 when T-493,
+  T-494, T-505 and T-507 ship (cfb's request).
 - The channels: GitHub #292 (cfb's questions P-1 to P-7 and githome's
   note; podrunner's one comment holds each answer and the steps C1 to C5
   of the acceptance of A-X-01 on cfb's first host), GitHub #151

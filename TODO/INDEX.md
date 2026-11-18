@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**505 entries: 70 open, 29 partial, 13 blocked, 393 done.**
+**509 entries: 74 open, 29 partial, 13 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 2 | 0 | 0 | 0 | 2 |
-| P1 | 15 | 12 | 1 | 62 | 90 |
+| P0 | 3 | 0 | 0 | 0 | 3 |
+| P1 | 18 | 12 | 1 | 62 | 93 |
 | P2 | 18 | 12 | 9 | 209 | 248 |
 | P3 | 35 | 5 | 3 | 122 | 165 |
-| **All** | 70 | 29 | 13 | 393 | 505 |
+| **All** | 74 | 29 | 13 | 393 | 509 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -553,3 +553,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-506](later.md) | P1 | L | later | feature | open | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
 | [T-507](later.md) | P1 | M | later | feature | open | G-37: an install of `serve` that another program drives, with no prompt |
 | [T-508](later.md) | P1 | S | later | chore | open | COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks |
+| [T-509](later.md) | P1 | M | later | feature | open | G-38: a test of githome's source in podrunner's CI that blocks a release |
+| [T-510](later.md) | P1 | S | later | release | open | G-39: one record of each change of a contract that githome reads |
+| [T-511](later.md) | P1 | M | later | release | open | G-40: each fake and tool that githome's tests need, as a release asset |
+| [T-512](later.md) | P0 | S | later | release | open | G-41: the statement "githome: complete in vTAG" |

@@ -10650,6 +10650,10 @@ The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-j
 2. A cache directory for each repository and trust class on the host, mounted read-write only into a trusted job of the default branch, read-only into each other trusted job, and into no untrusted job until a decision says otherwise. Each kind needs its own mount (a disk device of incus, a 9p mount of the guest).
 3. A test: a file that an untrusted job writes is absent from the cache of the next trusted job.
 
+## Decision
+
+Each cache is scoped by source, forge, repository, tier and `key`: no cache is shared between two repositories. A job of the untrusted tier (a fork, an agent) gets no cache (`none` is forced). `rw` only for a push to the default branch, `ro` for each other trusted job. (the question Q-5 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
+
 ## Prove
 
 The test of G-07 above, on each kind in `runner-image.yml`, and cfb's measure again with the cache.
@@ -10780,6 +10784,10 @@ githome's owner (GitHub #292, 2026-11-18T06:15Z): githome has no interim rule fo
 2. Decide what nesting does to the claim `confined`, and record the call in `docs/decisions.md`.
 3. If the claim holds: `[unit.incus] engine = DIR`, the kind says `container: engine`, and the parity suite of the engine runs on incus. If podvm must change, ask podvm by a COORD issue.
 
+## Decision
+
+If an engine in an instance cannot keep `confined`: by default a trusted job with containers on a host with no `/dev/kvm` is refused by name (`container-not-supported`, with the reason); an opt-in of the operator (`[unit.incus] engine` with an explicit `boundary_with_engine`) runs it at the lower boundary, and the report names that boundary. (the question Q-6 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
+
 ## Prove
 
 The parity suite of the engine (`services:`, a job container, a Docker action, a Dockerfile action) passes on real incus instances in `runner-image.yml`.
@@ -10806,6 +10814,10 @@ The crate half is githome's G-33 on PodUtils/podcrates#223 (the audit lines of `
 1. Take the audit lines of `pod-broker` for each job (the sink of the module), and give each one to `audit` of the source of the job, in the form that githome stores, with no data of a request beyond the host, the port, the verdict, the bytes and the rule.
 2. A cap for each job (githome keeps 1000), and a count of the lines that the cap dropped.
 3. The run report keeps its form.
+
+## Decision
+
+`{ job_id, host, port, verdict: "allow" | "deny" | "fail", rule, bytes_in, bytes_out, at }`, `at` in RFC 3339 UTC, one line when a connection ends; at most 1000 lines for each job, then one line `{ job_id, dropped: N }`. No path, header or body of a request. (the question Q-4 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
 
 ## Prove
 
@@ -10941,6 +10953,10 @@ podrunner has limits that block a need of githome or cfb, and `docs/non-goals.md
 2. One entry for each gap that has none, in the order of the needs of githome and cfb.
 3. Move each lifted row of `docs/non-goals.md` to "Triggers that are met", with its entry.
 
+## Decision
+
+cfb's answer to Q-12 (GitHub #292, 2026-11-18): of A-X-01, (a) metrics as JSON beyond `status --json` and the run report: no; (b) `podrunner image build`: yes, as T-500; (c) a JSON API on a Unix socket beyond the control socket: no; (d) the runner backends of Forgejo and GitLab: no for this milestone (a project on such a forge comes back later as an ask through githome, cfb's R-054). The rest of A-X-01 stands. githome's G-41 (T-512): githome's milestone closes when each ask G-01 to G-41 is done in a release.
+
 ## Prove
 
 The census table in this entry; each gap has an entry; `docs/non-goals.md` names no item that a need of githome or cfb names without an entry.
@@ -10993,6 +11009,10 @@ githome's comment on GitHub #292, read on 2026-11-18. T-175 measured that GitHub
 2. Independent of the source, the hook ends a job whose trust facts are below the tier of its unit, with an annotation: a job of a fork never runs in a trusted unit.
 3. The source wire (`docs/contracts/source-driver.md`) and `source-conformance` get the request.
 
+## Decision
+
+The job-started hook asks `serve`, and `serve` asks the source: `assigned { job_id (of the offer), real: { run_id, job_id, job_name, event, repository, head_repository, head_is_fork, actor } }`. The source answers `keep { trust_inputs }` (the trust facts of the real job, read by githome from GitHub) or `end { code }`. podrunner runs its tier rule on those facts against the tier of the unit and ends the job on a mismatch, with an annotation. No answer in 10 s: the job ends (fail closed) with the code `source-unavailable`. The report keeps the `job_id` of the offer and adds the ids of the real job; the job of the offer stays open for a later mint. (the question Q-1 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
+
 ## Prove
 
 `cargo test -p podrunner-broker-fake --test runner -- --ignored`: two runs of one repository with the same labels, in both orders of assignment, end `success` in units of the right tier; a fork job given to a trusted unit ends with its annotation and the source gets a report with its code.
@@ -11019,6 +11039,10 @@ The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-j
 1. `[[source]] trust = { users = [...], organizations = [...] }` replaces the global `[trust]` for that source.
 2. `trust_inputs.forge` (`github.com`, or the host of the forge) in `job-offer.v1`, checked against the source: ask podcrates for the field (an added optional field keeps the id, COORD-134).
 3. `check` refuses a global `[trust]` with two sources of two forges and no list of their own.
+
+## Decision
+
+One `program` source carries the jobs of two forges, so the trust lists are per source and per forge: `[[source]] trust = [{ forge = "github.com", users = [...], organizations = [...] }, { forge = "HOST", users = [...] }]`. `trust_inputs.forge` is the host name of the forge. An offer with no forge, or with a forge that the source does not list, is refused by name. (the question Q-2 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
 
 ## Prove
 
@@ -11097,6 +11121,10 @@ The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-j
 2. Fill each field on podvm, incus and microvm, or give `unknown` with its reason.
 3. The `log_tail` goes through the scrubber of credentials.
 
+## Decision
+
+`host`, `unit_kind`, `boundary`, `image_digest` (`sha256:HEX`), `runner_version` (strings); `prepare_s`, `start_s`, `run_s`, `destroy_s` (integer seconds, rounded up); `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes` (integer bytes; the network bytes through the egress module); `cache_read_bytes`, `cache_written_bytes` (integer bytes); `log_tail` (UTF-8, at most 65536 bytes, scrubbed of each credential, only for a unit that failed before the runner connected). Each optional; `unknown` with a reason where a kind cannot measure. cfb's milestone needs these fields (cfb's answer to Q-14): the CI time of each job reaches cfb's bill split through githome's usage feed. (the question Q-3 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
+
 ## Prove
 
 `cargo test -p podrunner-slots`: a report of each kind has each field or `unknown`; a canary in the log of a failed start is not in `log_tail`.
@@ -11168,7 +11196,7 @@ cfb's gates use Node, bun, pnpm and Playwright with its browser libraries. The l
 
 ## Premise
 
-githome's comment on GitHub #292, read on 2026-11-18.
+cfb's answer to Q-13 (GitHub #292, 2026-11-18): the gates of the five private repositories (rbg first) use npm 12 or pnpm 10 to 12, Node 26 (ai also 22.12 and 24), TypeScript 7, wrangler 4.149 to 4.156 (dry runs only), Biome 2.5, vitest and `node --test`; rbg uses Playwright 1.64.1 with its browsers; no gate needs bun. The gates use about 19,300 to 24,600 build minutes in 30 days, rbg about half. A row of `scripts/corpus/user-gate.tsv` that copies rbg's gate measures this entry and T-480. githome's comment on GitHub #292, read on 2026-11-18.
 
 ## Approach
 
@@ -11328,6 +11356,10 @@ githome's comment on GitHub #292, read on 2026-11-18. `payload_from_offer` and t
 3. The attach: the payload dials the URL of the source through the egress module of its unit (the policy of the offer allows that host); podrunner adds no inbound port.
 4. The ends: `idle_s` with no attach, `max_s`, `cancel`; the report with the use, as for a job.
 
+## Decision
+
+githome's sandbox image carries its own attach client: podrunner gives the credential as a file and a way out to the URL of the source through the egress module, and knows no attach protocol. An agent task and a web terminal both run at `untrusted` (a guest of the `microvm` kind), also for a member. A new value `sandbox` of `Event` in `job-offer.v1` (asked of podcrates). Sandboxes come through a `program` source of their own, with its own `slots`. (the question Q-7 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
+
 ## Prove
 
 `cargo test -p podrunner-slots` with a fake source and a fake unit: a sandbox offer runs its command, ends at `idle_s` with no attach and at `max_s`, and gives a report; then a sandbox on real units in `runner-image.yml` that attaches over an outbound WebSocket.
@@ -11356,6 +11388,10 @@ githome's comment on GitHub #292 and `docs/install.md`, read on 2026-11-18.
 3. `--json` output and a documented exit code on each step; no root where the kinds allow it; a second run changes nothing.
 5. The host keeps no inbound port (cfb's R-044; githome on GitHub #292, 2026-11-18T07:12Z): the install and `serve` open no TCP listener; githome's agent reaches the host through the podssh roost of the operator.
 4. The schema of T-479 checks the file that `config init` writes.
+
+## Decision
+
+The operator does the steps with root once: Incus with a range for root in `/etc/subuid` and `/etc/subgid`, the user in the group of `/dev/kvm` and of incusd, and `loginctl enable-linger` for the user. `podrunner doctor --json` lists each one that is missing. Then githome's CLI runs, as the user, `podrunner-install.sh --serve` and `podrunner config init`, and installs a systemd user unit from `print-unit`. No TCP listener. (the question Q-8 of podrunner on GitHub #292, 2026-11-18T07:25Z; githome went away at 07:22Z with no answer, so podrunner takes its recommendation)
 
 ## Prove
 
@@ -11387,3 +11423,104 @@ The direct message of the podcrates session and COORD-135, read on 2026-11-18.
 ## Prove
 
 The answer on a COORD issue, and `cargo test --workspace` on the take of the tag, with a test that the status of `serve` validates against the schema of `pod-job`.
+
+# T-509: G-38: a test of githome's source in podrunner's CI that blocks a release
+
+**Source:** githome's G-38 on GitHub #292 (2026-11-18T07:22Z, before githome's pause); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome is away until podrunner is complete, and a change of podrunner must never break githome meanwhile. podrunner's CI tests the source wire against its own fake source only.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18. githome's wire is `docs/contracts/source-driver.md` (githome serves it at `/_runner/source/OP`, JSON).
+
+## Approach
+
+1. A job of CI runs `podrunner source-conformance` and one live job of each kind (`podvm`, `incus`, `microvm` with `engine`) against a githome core: the CLI of githome from its released bundle (`githome source`) with a core of githome's local stack, or a fake of githome's wire that podcrates' `pod-testkit` keeps (githome's G-30, G-40).
+2. A red run of that job blocks `release.yml`, as the user-path gate does.
+
+## Prove
+
+The job in `runner-image.yml` (or its own workflow) passes on `main`, and `release.yml` refuses a version whose run of it is red.
+
+# T-510: G-39: one record of each change of a contract that githome reads
+
+**Source:** githome's G-39 on GitHub #292 (2026-11-18T07:22Z); the ruling of the owner of 2026-11-18
+**Category:** release
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome's next session must see what changed since `v0.1.0-beta.7` in each contract that it reads: `job-offer`, `run-report`, the source wire, the keys of `podrunner.toml` that `githome runner install` writes (T-507), and the exit codes. The notes of each release list changes in prose.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18.
+
+## Approach
+
+A file `CHANGES.md` (one line for each change of such a contract, with its release tag and its entry), written in the same commit as the change; `scripts/check-notes.sh` refuses a release whose contract changes have no line.
+
+## Prove
+
+`sh scripts/check-notes.sh --latest` fails on a planted change of `docs/contracts/source-driver.md` with no line, and passes with it.
+
+# T-511: G-40: each fake and tool that githome's tests need, as a release asset
+
+**Source:** githome's G-40 on GitHub #292 (2026-11-18T07:22Z); the ruling of the owner of 2026-11-18
+**Category:** release
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome's CI must pin, with no build: a fake podrunner that drives the source wire (`podrunner-fake`), the fake GitHub of githome's G-30, and the runner images. A release attaches the images, but no fake.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18. podcrates moves `podrunner-fake` and `podrunner-broker-fake` into podcrates for G-30 (COORD-134).
+
+## Approach
+
+Each fake as a static binary of the release (or of the podcrates tag that holds it after the move), with its SHA-256 and an attestation, listed in `SHA256SUMS` (T-484).
+
+## Prove
+
+A dry run of `release.yml` attaches each fake, and `sha256sum -c` and `gh attestation verify` pass on each.
+
+# T-512: G-41: the statement "githome: complete in vTAG"
+
+**Source:** githome's G-41 on GitHub #292 (2026-11-18T07:22Z): githome's next session starts on it; the ruling of the owner of 2026-11-18
+**Category:** release
+**Milestone:** later
+**Priority:** P0
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome's owner starts githome's next session only on a statement of podrunner that each ask of githome (G-01 to G-41) is done in a release. cfb's milestone closes with the checks C1 to C5 on githome's host and the gates of the five repositories through githome (cfb's Q-14). With no statement, githome does not come back.
+
+## Premise
+
+githome's and cfb's comments on GitHub #292, read on 2026-11-18.
+
+## Approach
+
+When each ask G-01 to G-41 is done in a release (each entry `done` with its tag, the gates of `AGENTS.md` section 12 held): one line `githome: complete in vTAG` on GitHub #292 and #151, with the table of each ask, its entry and its release, the steps of githome's pair run and of the bootstrap of the host at that tag (T-507), and the record of changes (T-510). Name each release tag on #292 when T-493, T-494, T-505 and T-507 ship (cfb's request).
+
+## Prove
+
+The statement on both issues, and `cargo todo check` with each entry of G-01 to G-41 `done`.
