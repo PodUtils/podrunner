@@ -79,8 +79,36 @@ fn a_global_list_shared_with_a_program_source_is_refused() {
     // Each source with a list of its own (the second takes the global one
     // alone): accepted, and each source reads its own.
     let c = Config::parse(&two_sources("trust = { users = [{ login = \"carol\" }] }")).unwrap();
-    assert_eq!(c.trust_of(&c.source[0]).users[0].login, "carol");
-    assert_eq!(c.trust_of(&c.source[1]).users[0].login, "alice");
+    let any = job("x").trust_inputs;
+    assert_eq!(c.trust_for(&c.source[0], &any).unwrap().users[0].login, "carol");
+    assert_eq!(c.trust_for(&c.source[1], &any).unwrap().users[0].login, "alice");
     let bad = two_sources("trust = { extra_events = [\"pull_request_target\"] }");
     assert!(Config::parse(&bad).unwrap_err().contains("[[source]] githome"));
+}
+
+/// T-494 step 2: one source carries two forges; an offer takes the list of
+/// its `forge`; an offer with no forge, or a forge that the source does not
+/// list, is refused.
+#[test]
+fn each_forge_of_a_source_has_its_own_list() {
+    let lists = r#"trust = [{ forge = "GitHub.com", users = [{ login = "bob" }] }, { forge = "githome.example", users = [{ login = "alice" }] }]"#;
+    let c = Config::parse(&two_sources(lists)).unwrap();
+    let s = &c.source[0];
+    let offer = |owner: &str, forge: Option<&str>| {
+        let mut t = job(owner).trust_inputs;
+        t.forge = forge.map(String::from);
+        t
+    };
+    let alice_githome = offer("alice", Some("githome.example"));
+    assert_eq!(c.trust_for(s, &alice_githome).unwrap().users[0].login, "alice");
+    assert_eq!(c.trust_for(s, &offer("bob", Some("github.com"))).unwrap().users[0].login, "bob");
+    assert_eq!(c.trust_for(s, &offer("alice", None)), Err(RefusalCode::TierMismatch));
+    assert_eq!(c.trust_for(s, &offer("alice", Some("gitlab.example"))), Err(RefusalCode::TierMismatch));
+    // The list of GitHub does not trust the login of githome.
+    let github = c.trust_for(s, &offer("alice", Some("github.com"))).unwrap();
+    let mut j = job("alice");
+    j.trust_inputs.forge = Some("github.com".into());
+    assert!(place_for(&j, Tier::Trusted, &kinds(), &c, github, NOW_UNIX).is_err());
+    let twice = r#"trust = [{ forge = "a.example" }, { forge = "A.example" }]"#;
+    assert!(Config::parse(&two_sources(twice)).unwrap_err().contains("named twice"));
 }

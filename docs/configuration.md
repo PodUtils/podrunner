@@ -234,9 +234,20 @@ GitHub (T-494, githome's G-16). `trust` of a `[[source]]` has the keys of
 `[trust]` and holds in place of it for the offers of that source: the
 placement, the question of the job-started hook (T-493) and a remote mint
 read it. `check` refuses a `[trust]` that names an owner when a `program`
-source shares it with another source: give each one its own `trust`. The
-field `trust_inputs.forge` of an offer, which lets one source carry two
-forges, waits for `pod-job` (PodUtils/podcrates@T-923).
+source shares it with another source: give each one its own `trust`.
+
+One source can carry the jobs of two forges. Then `trust` is a list, one
+table for each forge, and an offer takes the table of its
+`trust_inputs.forge` (the host name of the forge, in any case); an offer
+with no forge, or with a forge that the list does not name, is refused
+(`tier-mismatch`). A remote mint takes one table only.
+
+```toml
+trust = [
+  { forge = "github.com", organizations = [{ login = "acme" }] },
+  { forge = "githome.example", users = [{ login = "alice" }] },
+]
+```
 `podrunner fake-source --script FILE` is a program of this kind over the
 fake source: a forge checks its own program against it.
 

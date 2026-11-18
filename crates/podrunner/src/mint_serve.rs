@@ -155,7 +155,14 @@ pub fn run(config: &Path) -> Result<(), Failure> {
     let hosts: BTreeMap<String, u32> = c.host.iter().map(|h| (h.name.clone(), h.slots)).collect();
     let reconcile = podrunner_remote::gate::Reconcile { after_s: c.reconcile_after_s, revoke_after: c.revoke_after };
     let now = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
-    let trust = c.source.trust.clone().unwrap_or_else(|| c.trust.clone());
+    // A remote mint serves one source of one forge: one table (T-494).
+    let trust = match &c.source.trust {
+        None => c.trust.clone(),
+        Some(podrunner_slots::trust::SourceTrust::One(t)) => t.clone(),
+        Some(podrunner_slots::trust::SourceTrust::ByForge(_)) => {
+            return Err(fail(Class::Config, "a remote mint takes one trust table, not one for each forge"));
+        }
+    };
     let gate = Gate::new(source, c.source.tier, trust, ledger, hosts, audit).with_reconcile(Box::new(now), reconcile);
     let keys: Vec<HostKey> = c
         .host

@@ -1,26 +1,102 @@
 //! The trust lists of each source (T-494, githome's G-16). A login is a
 //! name in the namespace of one forge: `alice` of githome is not `alice` of
 //! GitHub. A `[[source]] trust` table holds in place of `[trust]` for the
-//! offers of its source.
+//! offers of its source; a list of tables, each with its `forge`, holds for
+//! the offers whose `trust_inputs.forge` names that forge, so that one
+//! source can carry the jobs of two forges.
 
-use podrunner_tier::TierConfig;
+use podrunner_schema::RefusalCode;
+use podrunner_schema::offer::TrustInputs;
+use podrunner_tier::{Organization, PublicRepo, TierConfig};
+use serde::Deserialize;
 
 use crate::config::{Config, SourceConfig, SourceKind};
 
+/// The trust lists of one source.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(untagged)]
+pub enum SourceTrust {
+    /// One table for each offer of the source.
+    One(TierConfig),
+    /// One table for each forge.
+    ByForge(Vec<ForgeTrust>),
+}
+
+/// The lists of one forge of a source.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(from = "RawForge")]
+pub struct ForgeTrust {
+    /// The host name of the forge, in lower case (`github.com`).
+    pub forge: String,
+    pub lists: TierConfig,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawForge {
+    forge: String,
+    #[serde(default)]
+    organizations: Vec<Organization>,
+    #[serde(default)]
+    users: Vec<Organization>,
+    #[serde(default)]
+    trusted_public: Vec<PublicRepo>,
+    #[serde(default)]
+    extra_events: Vec<podrunner_schema::offer::Event>,
+}
+
+impl From<RawForge> for ForgeTrust {
+    fn from(r: RawForge) -> ForgeTrust {
+        ForgeTrust {
+            forge: r.forge.to_ascii_lowercase(),
+            lists: TierConfig {
+                organizations: r.organizations,
+                users: r.users,
+                trusted_public: r.trusted_public,
+                extra_events: r.extra_events,
+            },
+        }
+    }
+}
+
 impl Config {
-    /// The trust lists that hold for the offers of `source`.
-    pub fn trust_of<'a>(&'a self, source: &'a SourceConfig) -> &'a TierConfig {
-        source.trust.as_ref().unwrap_or(&self.trust)
+    /// The trust lists that hold for an offer of `source` with the facts
+    /// `t`; an offer with no forge, or with a forge that the lists of the
+    /// source do not name, is refused (`tier-mismatch`).
+    pub fn trust_for<'a>(&'a self, source: &'a SourceConfig, t: &TrustInputs) -> Result<&'a TierConfig, RefusalCode> {
+        match &source.trust {
+            None => Ok(&self.trust),
+            Some(SourceTrust::One(lists)) => Ok(lists),
+            Some(SourceTrust::ByForge(forges)) => {
+                let forge = t.forge.as_deref().map(str::to_ascii_lowercase);
+                forges
+                    .iter()
+                    .find(|f| Some(&f.forge) == forge.as_ref())
+                    .map(|f| &f.lists)
+                    .ok_or(RefusalCode::TierMismatch)
+            }
+        }
     }
 
-    /// Each list is valid, and no `program` source shares the global list
-    /// with another source: a `program` source can carry the jobs of a
-    /// forge that is not GitHub, where the same login is another owner.
+    /// Each list is valid, each forge of a source is named once, and no
+    /// `program` source shares the global list with another source: a
+    /// `program` source can carry the jobs of a forge that is not GitHub,
+    /// where the same login is another owner.
     pub(crate) fn check_trust(&self) -> Result<(), String> {
         self.trust.check()?;
         for s in &self.source {
-            if let Some(t) = &s.trust {
-                t.check().map_err(|e| format!("[[source]] {}: {e}", s.name))?;
+            let named = |e: String| format!("[[source]] {}: {e}", s.name);
+            match &s.trust {
+                None => {}
+                Some(SourceTrust::One(t)) => t.check().map_err(named)?,
+                Some(SourceTrust::ByForge(forges)) => {
+                    for (i, f) in forges.iter().enumerate() {
+                        if f.forge.is_empty() || forges[..i].iter().any(|g| g.forge == f.forge) {
+                            return Err(named(format!("trust: the forge {:?} is empty or named twice", f.forge)));
+                        }
+                        f.lists.check().map_err(named)?;
+                    }
+                }
             }
         }
         let t = &self.trust;

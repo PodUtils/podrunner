@@ -81,7 +81,7 @@ pub struct SourceConfig {
     pub program_args: Vec<String>,
     /// The trust lists of this source, in place of `[trust]` (T-494).
     #[serde(default)]
-    pub trust: Option<TierConfig>,
+    pub trust: Option<crate::trust::SourceTrust>,
 }
 
 /// `[dns]`: the resolver of podrunner (`pod-dns`): the system, the cache of
