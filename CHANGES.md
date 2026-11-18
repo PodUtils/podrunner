@@ -27,6 +27,8 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | control socket | A new op `restart-source` (field `source`). | T-498 |
 | control socket | New ops `drain-source` and `resume-source` (field `source`). | T-501 |
 | `status.v1` | Each source has `draining` (an operator drained it). | T-501 |
+| `status.v1` | `max_units` and `units` of the host. | T-505 |
+| `podrunner.toml` | `max_units`: the most units of the host across its kinds. | T-505 |
 | `podrunner.toml` | `[[source]] trust` (one trust list for each source, or for each forge of a source). | T-494 |
 | `podrunner.toml` | With no `[egress] default_policy`, a unit has no way out; a configuration that the group or others can write is refused. | T-410, T-409 |
 | `podrunner.toml` | `[unit.podvm] cpus` where the host delegates a cgroup v2 subtree to the user. | T-221 |
@@ -47,4 +49,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
 <!-- contract docs/contracts/source-driver.md de94dbd537bf29edcb6450354e0b686be95757cb46c9dff287fd4417d31db972 -->
 <!-- contract docs/contracts/unit-driver.md 07162598a8a264928373602ba954e00d94f973583ce4e6592494f758b8746401 -->
-<!-- contract schemas/status.v1.json 30dd44ce233c91853167ecb96cd0a21a5f7aeee60314840983a75bc511684b23 -->
+<!-- contract schemas/status.v1.json 6e26927bbbf3eb22c42bd666c73c012c0332715909f9f4215842536080bb3f68 -->

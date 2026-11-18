@@ -74,6 +74,12 @@ pub struct Status {
     pub ended_without_completion: u64,
     /// The reports that a source refused, in the spool (T-069).
     pub spooled_reports: usize,
+    /// The cap of the units of the host across its kinds, and the units
+    /// that run now (T-505).
+    #[serde(default)]
+    pub max_units: Option<u32>,
+    #[serde(default)]
+    pub units: u32,
 }
 
 /// The age of the file `path` from its time of change, in seconds.
@@ -171,6 +177,8 @@ impl Slots {
             draining: self.draining,
             degraded: self.degraded.clone(),
             no_tier_served: self.no_tier_served(),
+            max_units: self.cfg.max_units,
+            units: self.jobs.values().filter(|j| j.unit.is_some() && !j.state.is_final()).count() as u32,
             spooled_reports: self.spooled(),
             sources,
             kinds,

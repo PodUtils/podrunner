@@ -15,7 +15,7 @@ use serde_json::Value;
 use crate::audit::{self, Audit, Entry};
 use crate::config::{Config, SourceKind, UnitConfig};
 use crate::journal::Journal;
-use crate::placement::{self, Kind, Placement};
+use crate::placement::{self, Placement};
 use crate::state::{Line, State};
 
 pub use crate::egress_port::EgressPort;
@@ -193,34 +193,6 @@ impl Slots {
 
     pub fn audit_lines(&self) -> &[Entry] {
         &self.audit.lines
-    }
-
-    pub(crate) fn kind_views(&self) -> Vec<Kind> {
-        self.kinds
-            .iter()
-            .enumerate()
-            .map(|(i, k)| {
-                let units: Vec<&Job> = self
-                    .jobs
-                    .values()
-                    .filter(|j| {
-                        j.unit.is_some() && !j.state.is_final() && j.placement.as_ref().is_some_and(|p| p.kind == i)
-                    })
-                    .collect();
-                let repos = units
-                    .iter()
-                    .filter_map(|j| {
-                        j.offer.as_ref().map(|o| format!("{}/{}", o.trust_inputs.owner, o.trust_inputs.repo))
-                    })
-                    .collect();
-                Kind {
-                    capability: k.capability.clone(),
-                    free: k.cfg.slots.saturating_sub(units.len() as u32),
-                    running: units.len() as u32,
-                    repos,
-                }
-            })
-            .collect()
     }
 
     /// The offers that a source can take now.

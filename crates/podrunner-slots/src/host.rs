@@ -5,9 +5,41 @@ use podrunner_source::{HostFacts, JobSource, KindFacts};
 
 use crate::config::SourceConfig;
 
-use crate::engine::Slots;
+use crate::engine::{Job, Slots};
+use crate::placement::Kind;
 
 impl Slots {
+    pub(crate) fn kind_views(&self) -> Vec<Kind> {
+        // The cap of the host across its kinds (T-505).
+        let running = self.jobs.values().filter(|j| j.unit.is_some() && !j.state.is_final()).count() as u32;
+        let host_free = self.cfg.max_units.map_or(u32::MAX, |m| m.saturating_sub(running));
+        self.kinds
+            .iter()
+            .enumerate()
+            .map(|(i, k)| {
+                let units: Vec<&Job> = self
+                    .jobs
+                    .values()
+                    .filter(|j| {
+                        j.unit.is_some() && !j.state.is_final() && j.placement.as_ref().is_some_and(|p| p.kind == i)
+                    })
+                    .collect();
+                let repos = units
+                    .iter()
+                    .filter_map(|j| {
+                        j.offer.as_ref().map(|o| format!("{}/{}", o.trust_inputs.owner, o.trust_inputs.repo))
+                    })
+                    .collect();
+                Kind {
+                    capability: k.capability.clone(),
+                    free: k.cfg.slots.saturating_sub(units.len() as u32).min(host_free),
+                    running: units.len() as u32,
+                    repos,
+                }
+            })
+            .collect()
+    }
+
     /// The facts of each unit kind: its boundary, its container route, and
     /// the largest CPU, memory, disk and processes that a unit gets.
     pub fn kind_facts(&self) -> Vec<KindFacts> {

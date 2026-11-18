@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 59 open, 43 partial, 13 blocked, 416 done.**
+**531 entries: 58 open, 43 partial, 13 blocked, 417 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
 | P1 | 7 | 19 | 3 | 69 | 98 |
-| P2 | 13 | 18 | 7 | 220 | 258 |
+| P2 | 12 | 18 | 7 | 221 | 258 |
 | P3 | 38 | 5 | 3 | 126 | 172 |
-| **All** | 59 | 43 | 13 | 416 | 531 |
+| **All** | 58 | 43 | 13 | 417 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -549,7 +549,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-502](later.md) | P2 | S | later | feature | partial | G-27: a cancel ends its unit in a bounded time, with a conformance test |
 | [T-503](later.md) | P2 | S | later | feature | done | G-28: the output of `source-conformance` for CI |
 | [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |
-| [T-505](later.md) | P2 | S | later | feature | open | No cap of units for the whole host across its kinds |
+| [T-505](later.md) | P2 | S | later | feature | done | No cap of units for the whole host across its kinds |
 | [T-506](later.md) | P1 | L | later | feature | partial | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
 | [T-507](later.md) | P1 | M | later | feature | partial | G-37: an install of `serve` that another program drives, with no prompt |
 | [T-508](later.md) | P1 | S | later | chore | partial | COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks |

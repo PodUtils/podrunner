@@ -11427,7 +11427,7 @@ githome's comment on GitHub #292, read on 2026-11-18. DR-9 is a ruling of 2026-1
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11444,6 +11444,10 @@ A key of the host, `max_units` (and, if a measure shows the need, a memory budge
 ## Prove
 
 `cargo test -p podrunner-slots`: with `max_units = 2`, two kinds of 2 slots each never hold more than 2 units, and each kind can take both.
+
+## Done
+
+2026-11-18, the commit that names T-505. The key `max_units` of the host caps the units across its kinds: the free slots of each kind are the lesser of its own and of the cap less the units that run (`kind_views`, now in `crates/podrunner-slots/src/host.rs`), so placement and the capacity of each source hold it; `check` refuses 0; `status --json` has `max_units` and `units` (`schemas/status.v1.json`); `docs/configuration.md`; `CHANGES.md`. No memory budget: no measure shows the need yet. `cargo test -p podrunner-slots tests::host_cap`: with `max_units = 2`, two kinds of 2 slots and four offers hold 2 units for 5 more ticks, the first kind takes both, `status` says 2 of 2; with no cap the four run; `max_units = 0` is refused.
 
 # T-506: G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal
 
