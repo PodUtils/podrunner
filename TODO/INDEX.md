@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**504 entries: 69 open, 29 partial, 13 blocked, 393 done.**
+**505 entries: 70 open, 29 partial, 13 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 2 | 0 | 0 | 0 | 2 |
-| P1 | 14 | 12 | 1 | 62 | 89 |
+| P1 | 15 | 12 | 1 | 62 | 90 |
 | P2 | 18 | 12 | 9 | 209 | 248 |
 | P3 | 35 | 5 | 3 | 122 | 165 |
-| **All** | 69 | 29 | 13 | 393 | 504 |
+| **All** | 70 | 29 | 13 | 393 | 505 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -552,3 +552,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-505](later.md) | P2 | S | later | feature | open | No cap of units for the whole host across its kinds |
 | [T-506](later.md) | P1 | L | later | feature | open | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
 | [T-507](later.md) | P1 | M | later | feature | open | G-37: an install of `serve` that another program drives, with no prompt |
+| [T-508](later.md) | P1 | S | later | chore | open | COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks |

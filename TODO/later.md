@@ -11359,3 +11359,30 @@ githome's comment on GitHub #292 and `docs/install.md`, read on 2026-11-18.
 ## Prove
 
 `sh scripts/test-install.sh` with a lane of `--serve`: on a fresh user account, a run with no prompt gives a configuration that `podrunner check` takes and a unit from `print-unit`; a second run changes nothing.
+
+# T-508: COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks
+
+**Source:** COORD-135 of podcrates (PodUtils/podcrates#226, 2026-11-18): githome's G-31 and G-32 (PodUtils/podcrates#223); the ruling of the owner of 2026-11-18 (each need of githome and cfb) and the ruling "Shared code"
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome pins the schemas of podrunner from one podcrates tag (G-31). podrunner and githome both read `schemas/status.v1.json` and the source wire (`docs/contracts/source-driver.md`), so under the ruling "Shared code" they move to `pod-job` (PodUtils/podcrates@T-922). The new fields of the offer and the report for githome's G-16, G-18, G-19 and G-20 come as fields of `pod-job` too (PodUtils/podcrates@T-923, githome's G-32). podcrates needs from podrunner: the names of the types and the files at a commit of `main`; which fields are stable; and the names and units of the fields of G-16, G-18, G-19 and G-20.
+
+## Premise
+
+The direct message of the podcrates session and COORD-135, read on 2026-11-18.
+
+## Approach
+
+1. Name the types of `status.v1` (`crates/podrunner-slots/src/status.rs`, `schemas/status.v1.json`) and of the source wire (`crates/podrunner-source`), at a commit of `main`, with the stable fields.
+2. With the designs of T-494 (`trust_inputs.forge`), T-496 (the disk as a size), T-497 (the facts of the report) and T-480 (`cache: { key, mode }`), give the name, the type and the unit of each new field.
+3. Answer by a COORD issue `(to podcrates)`, and take the tag of podcrates that carries them; podrunner then reads the schemas from `pod-job`, and `schemas/status.v1.json` goes.
+
+## Prove
+
+The answer on a COORD issue, and `cargo test --workspace` on the take of the tag, with a test that the status of `serve` validates against the schema of `pod-job`.
