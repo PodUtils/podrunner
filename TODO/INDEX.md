@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**528 entries: 81 open, 34 partial, 15 blocked, 398 done.**
+**529 entries: 82 open, 34 partial, 15 blocked, 398 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 2 | 0 | 0 | 3 |
-| P1 | 19 | 13 | 2 | 63 | 97 |
+| P1 | 20 | 13 | 2 | 63 | 98 |
 | P2 | 22 | 14 | 9 | 211 | 256 |
 | P3 | 39 | 5 | 4 | 124 | 172 |
-| **All** | 81 | 34 | 15 | 398 | 528 |
+| **All** | 82 | 34 | 15 | 398 | 529 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -576,3 +576,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
 | [T-530](later.md) | P2 | S | later | feature | open | The job-started hook of a podvm unit cannot ask serve |
 | [T-531](later.md) | P3 | S | later | chore | open | Take rsa 0.10 in the fake broker |
+| [T-532](later.md) | P1 | M | later | feature | open | The containers of a podvm unit on the namespace rung, with a volume base |

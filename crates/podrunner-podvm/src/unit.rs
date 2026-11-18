@@ -38,7 +38,7 @@ pub(crate) static FAKE_PODVM: Mutex<()> = Mutex::new(());
 use tree_kill::procs_comm_is_podvm;
 mod confine;
 mod containers;
-mod envfile;
+pub(crate) mod envfile;
 mod hold;
 mod labels;
 mod limits;

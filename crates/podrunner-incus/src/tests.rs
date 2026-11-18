@@ -277,10 +277,10 @@ fn the_limits_become_the_keys_of_the_instance() {
         runner_root: "/podrunner/.runner",
         limits: &limits,
     };
-    let a = run_args(&i, &Default::default(), &[]).join(" ");
+    let a = run_args(&i, None, &Default::default(), &[]).join(" ");
     assert!(a.contains("--memory 2147483648 --cpus 2 --pids-limit 256"), "{a}");
     let none =
-        run_args(&crate::guest::Instance { limits: &Limits::default(), ..i }, &Default::default(), &[]).join(" ");
+        run_args(&crate::guest::Instance { limits: &Limits::default(), ..i }, None, &Default::default(), &[]).join(" ");
     assert!(!none.contains("--memory") && !none.contains("--pids-limit"), "{none}");
     let (u, d) = driver("limits", "true");
     let cap = u.with_limits(limits).probe().unwrap();

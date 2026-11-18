@@ -34,31 +34,54 @@ pub(super) fn env_args<'a>(
     dir: &Path,
     env: impl IntoIterator<Item = (&'a String, &'a String)>,
 ) -> Result<(Vec<String>, EnvFile), UnitError> {
-    let pairs: Vec<(&String, &String)> = env.into_iter().collect();
-    if pairs.is_empty() || !super::labels::at_least(podvm, ENV_FILE) {
-        return Ok((pairs.iter().flat_map(|(k, v)| ["-e".into(), format!("{k}={v}")]).collect(), EnvFile(None)));
-    }
-    let (lines, rest): (Vec<_>, Vec<_>) = pairs.into_iter().partition(|(_, v)| !v.contains('\n'));
+    let env: std::collections::BTreeMap<String, String> =
+        env.into_iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    let (path, rest) = write_env_file(podvm, dir, &env)?;
     let mut args = Vec::new();
-    let mut file = EnvFile(None);
-    if !lines.is_empty() {
-        static N: AtomicU64 = AtomicU64::new(0);
-        let path = dir.join(format!("env-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
-        let text: String = lines.iter().map(|(k, v)| format!("{k}={v}\n")).collect();
-        let io = |e: std::io::Error| UnitError::new(UnitCode::UnitStartFailed, format!("the environment file: {e}"));
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .custom_flags(libc::O_NOFOLLOW)
-            .open(&path)
-            .map_err(io)?;
-        file = EnvFile(Some(path.clone()));
-        f.write_all(text.as_bytes()).map_err(io)?;
-        args.extend(["--env-file".into(), path.display().to_string()]);
+    if let Some(p) = &path {
+        args.extend(["--env-file".into(), p.display().to_string()]);
     }
-    args.extend(rest.into_iter().flat_map(|(k, v)| ["-e".into(), format!("{k}={v}")]));
-    Ok((args, file))
+    args.extend(rest.iter().flat_map(|(k, v)| ["-e".into(), format!("{k}={v}")]));
+    Ok((args, EnvFile(path)))
+}
+
+/// Write each value of `env` with no newline to a new file of mode 0600 in
+/// `dir`, for a podvm that takes `--env-file`. The path of the file (none
+/// when no value went in it), and the pairs that stay `-e`. The caller
+/// removes the file; a guest kind leaves it to the removal of the
+/// directory of its unit.
+pub fn write_env_file(
+    podvm: &crate::Podvm,
+    dir: &Path,
+    env: &std::collections::BTreeMap<String, String>,
+) -> Result<(Option<PathBuf>, std::collections::BTreeMap<String, String>), UnitError> {
+    if env.is_empty() || !super::labels::at_least(podvm, ENV_FILE) {
+        return Ok((None, env.clone()));
+    }
+    let (lines, rest): (Vec<_>, Vec<_>) = env.iter().partition(|(_, v)| !v.contains('\n'));
+    let rest = rest.into_iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    if lines.is_empty() {
+        return Ok((None, rest));
+    }
+    // A pid repeats in each PID namespace: the name has a nonce too, and
+    // the open refuses a file that is there.
+    static N: AtomicU64 = AtomicU64::new(0);
+    let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
+    let path = dir.join(format!("env-{}-{}-{nonce}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
+    let text: String = lines.iter().map(|(k, v)| format!("{k}={v}\n")).collect();
+    let io = |e: std::io::Error| UnitError::new(UnitCode::UnitStartFailed, format!("the environment file: {e}"));
+    let mut f = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(&path)
+        .map_err(io)?;
+    if let Err(e) = f.write_all(text.as_bytes()) {
+        let _ = std::fs::remove_file(&path);
+        return Err(io(e));
+    }
+    Ok((Some(path), rest))
 }
 
 #[cfg(test)]

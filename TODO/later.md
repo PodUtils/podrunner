@@ -8444,7 +8444,7 @@ In the code (2026-11-18): podvm `0.2.0-beta.32` gives `--podvm-volume-base DIR` 
 
 ## Blocker
 
-`--podvm-volume-base` on the supervise and userland rungs, or containers on the namespace rung: COORD-090 (GitHub #300, to podvm), ask 3.
+The containers of a podvm unit on the namespace rung with `--podvm-volume-base` (T-532), or the flag on the supervise and userland rungs (PodUtils/podvm@T-1972, COORD-090, GitHub #300).
 
 
 # T-404: In the local mode the logs of a hook step are in the socket directory that the unit writes
@@ -8503,7 +8503,7 @@ Give the environment to podvm in a file at 0600 or on a descriptor (a COORD issu
 
 State (2026-11-17): podvm answered by PodUtils/podvm#509 (COORD-179): `exec --env-file PATH` is on podvm `main` for its next beta, and `run --env-file` is in `0.2.0-beta.21` and later; the file is the caller's to make at 0600 and to remove. podvm keeps its pin until the gate of `PodUtils/podvm@T-1949` (PodUtils/podvm#567), so podrunner takes `exec --env-file` with that beta.
 
-In the code (2026-11-18): podvm `0.2.0-beta.32` takes `--env-file` on `run` and `exec` (COORD-185, PodUtils/podvm#572). The podvm kind writes the environment of a unit, of a job container and of a step in a container to a file of mode 0600 in the directory of the unit, which goes after the call (`crates/podrunner-podvm/src/unit/envfile.rs`); an older podvm keeps `-e`. Tests: `the_values_go_in_a_file_of_mode_0600`, `an_older_podvm_gets_the_values_in_the_argv`. Not run with a real podvm unit here. Open: a value with a newline stays `-e` (podvm reads `KEY=VALUE` lines); the microvm and incus kinds still pass the unit environment with `-e` (in `serve` it holds no secret; in the local mode it can hold a proxy URL with a password). Both asked of podvm by COORD-090.
+In the code (2026-11-18): podvm `0.2.0-beta.32` takes `--env-file` on `run` and `exec` (COORD-185, PodUtils/podvm#572). The podvm kind writes the environment of a unit, of a job container and of a step in a container to a file of mode 0600 in the directory of the unit, which goes after the call (`crates/podrunner-podvm/src/unit/envfile.rs`); an older podvm keeps `-e`. Tests: `the_values_go_in_a_file_of_mode_0600`, `an_older_podvm_gets_the_values_in_the_argv`. Not run with a real podvm unit here. podvm answered COORD-090 with COORD-189 (PodUtils/podvm#585): `--env-file` holds on the machine and incus tiers, so the microvm and incus kinds write the file into the directory of the unit (`podrunner_podvm::write_env_file`; test `an_environment_file_keeps_the_values_out_of_the_argv`); it goes with the directory at `destroy`. Open: a value with a newline stays `-e` until `--env-file0` (PodUtils/podvm@T-1971) is in a tagged podvm.
 
 
 # T-406: The fake broker of the local mode gives the job message to each local process
@@ -12060,4 +12060,31 @@ Move the two files to the API of rsa 0.10 (its `BoxedUint`, the new constructors
 ## Prove
 
 `cargo test -p podrunner-broker-fake`; with the official runner, `cargo test -p podrunner-broker-fake --test runner -- --ignored` (the runner accepts the signed token).
+
+# T-532: The containers of a podvm unit on the namespace rung, with a volume base
+
+**Source:** podvm's answer to COORD-090 (COORD-189, PodUtils/podvm#585), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The podvm kind gives the route of the container hooks only on the supervise and userland rungs (`crates/podrunner-podvm/src/probe.rs`: "podvm gives volumes on the supervise rung only", U19, T-034). podvm says that `run -d -v` binds on the namespace rung since `0.2.0-beta.25` (PodUtils/podvm@T-1920), and that `--podvm-volume-base` holds there since `0.2.0-beta.32`. So on a host with user namespaces the containers of a job can run on the namespace rung, where the flag closes the race of T-403 (a step makes a mount source a link after the check).
+
+## Premise
+
+COORD-189, read on 2026-11-18. Not measured: the container suite of the hooks on the namespace rung.
+
+## Approach
+
+1. Measure in `runner-image.yml`: the container suite of the hooks (`podrunner-broker-fake --test container`) in a podvm unit on the namespace rung, with `--podvm-volume-base` of the runner root on each `run -d` of a container.
+2. If it passes, the probe says `container: hooks` on the namespace rung too, and each `-v` of a container under the runner root goes with the flag; correct U19 in `docs/unknowns.md`.
+3. Then T-403 is done on that rung; the supervise and userland rungs wait for PodUtils/podvm@T-1972.
+
+## Prove
+
+`runner-image.yml`: the container suite passes on the namespace rung; a test of the hooks where a step swaps a mount source for a link after the check gets exit 125 of podvm and `container-option-refused`.
 

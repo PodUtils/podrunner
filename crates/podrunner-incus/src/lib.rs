@@ -246,6 +246,15 @@ impl UnitDriver for IncusUnit {
                 return Err(host("the egress socket", why));
             }
         }
+        // podvm reads the file before `run -d` returns; it goes with the
+        // directory of the unit.
+        let (env_file, env) = match podrunner_podvm::write_env_file(&self.podvm, &dir, &spec.env) {
+            Ok(x) => x,
+            Err(e) => {
+                let _ = fs::remove_dir_all(&dir);
+                return Err(e);
+            }
+        };
         let args = run_args(
             &guest::Instance {
                 name: &name,
@@ -255,7 +264,8 @@ impl UnitDriver for IncusUnit {
                 runner_root: &self.cred_root,
                 limits: &self.limits.lesser(&spec.limits),
             },
-            &spec.env,
+            env_file.as_deref(),
+            &env,
             &spec.argv,
         );
         let mut child =

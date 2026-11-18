@@ -229,7 +229,9 @@ impl UnitDriver for MicrovmUnit {
         let egress = spec.sockets.as_ref().map(|s| s.join(EGRESS_SOCKET));
         let shape =
             Shape { mem: &self.mem, cpus: self.cpus, egress: egress.as_deref(), engine: self.engine.as_deref() };
-        let args = run_args(&reference, &dir, &shape, &self.cred_root, &spec.env, &spec.argv);
+        // The file stays in the directory of the unit until `destroy`.
+        let (env_file, env) = podrunner_podvm::write_env_file(&self.podvm, &dir, &spec.env)?;
+        let args = run_args(&reference, &dir, &shape, &self.cred_root, env_file.as_deref(), &env, &spec.argv);
         // The output of the guest: `unit_logs` reads it before `destroy`.
         let log = fs::File::create(dir.join("guest.log")).map_err(|e| host("the log of the guest", e))?;
         let log2 = log.try_clone().map_err(|e| host("the log of the guest", e))?;

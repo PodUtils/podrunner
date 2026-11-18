@@ -16,6 +16,7 @@
 pub mod probe;
 mod unit;
 
+pub use unit::envfile::write_env_file;
 pub use unit::{CREDENTIAL_DIR, PodvmUnit};
 
 use std::path::PathBuf;

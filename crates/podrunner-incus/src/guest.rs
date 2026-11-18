@@ -69,7 +69,7 @@ pub struct Instance<'a> {
 /// directory `work`. The instance has no NIC; with an egress socket it has
 /// one channel to it (T-109). The argv of the payload goes to the script
 /// as positional parameters: no word of it is quoted again.
-pub fn run_args(i: &Instance, env: &BTreeMap<String, String>, argv: &[String]) -> Vec<String> {
+pub fn run_args(i: &Instance, env_file: Option<&Path>, env: &BTreeMap<String, String>, argv: &[String]) -> Vec<String> {
     let Instance { name, reference, work, egress, runner_root, limits } = *i;
     let mut a: Vec<String> =
         ["run", "-d", "-i", "--name", name, "--podvm-tier=incus", "--podvm-net", "none"].map(String::from).to_vec();
@@ -92,6 +92,10 @@ pub fn run_args(i: &Instance, env: &BTreeMap<String, String>, argv: &[String]) -
     }
     a.push("-v".into());
     a.push(format!("{}:{WORK_MOUNT}", work.display()));
+    // The values of the environment in a file, not in the argv (T-405).
+    if let Some(f) = env_file {
+        a.extend(["--env-file".into(), f.display().to_string()]);
+    }
     for (k, v) in env {
         a.push("-e".into());
         a.push(format!("{k}={v}"));
