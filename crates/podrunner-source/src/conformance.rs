@@ -6,7 +6,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use podrunner_schema::{Boundary, ContainerRoute, JobId};
+use podrunner_schema::{Boundary, ContainerRoute, JobId, PlainName};
 use serde_json::Map;
 
 use crate::{Event, HostFacts, JobSource, KindFacts, RealJob, SourceCode, SourceError, serve_line, wire};

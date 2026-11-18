@@ -31,13 +31,13 @@ fn answer(s: &mut dyn JobSource, req: Request) -> Result<Reply, SourceError> {
         Request::Next { capacity, wait_s } => {
             Reply::Events { events: s.next(capacity, Duration::from_secs(wait_s.into()))? }
         }
-        Request::Ack { job_id } => s.ack(&job_id).map(|_| Reply::Done)?,
-        Request::Claim { job_id, runner_name } => s.claim(&job_id, &runner_name).map(|_| Reply::Done)?,
+        Request::Ack { job_id } => s.ack(&job_id).map(|_| Reply::Done {})?,
+        Request::Claim { job_id, runner_name } => s.claim(&job_id, &runner_name).map(|_| Reply::Done {})?,
         Request::Mint { job_id, runner_name } => Reply::Credential { credential: s.mint(&job_id, &runner_name)? },
-        Request::Report { job_id, report } => s.report(&job_id, &report).map(|_| Reply::Done)?,
-        Request::Audit { line } => s.audit(&line).map(|_| Reply::Done)?,
-        Request::Withdraw { job_id, reason } => s.withdraw(&job_id, &reason).map(|_| Reply::Done)?,
-        Request::Release { job_id } => s.release(&job_id).map(|_| Reply::Done)?,
+        Request::Report { job_id, report } => s.report(&job_id, &report).map(|_| Reply::Done {})?,
+        Request::Audit { line } => s.audit(&line).map(|_| Reply::Done {})?,
+        Request::Withdraw { job_id, reason } => s.withdraw(&job_id, &reason).map(|_| Reply::Done {})?,
+        Request::Release { job_id } => s.release(&job_id).map(|_| Reply::Done {})?,
         Request::Assigned { job_id, real } => match s.assigned(&job_id, &real)? {
             Assigned::Keep(trust_inputs) => Reply::Keep { trust_inputs },
             Assigned::End { code, detail } => Reply::End { code, detail },
@@ -98,7 +98,7 @@ impl<E: Exchange> Wire<E> {
     fn done(&mut self, req: Request) -> Result<(), SourceError> {
         let op = req.op();
         match self.call(&req)? {
-            Reply::Done => Ok(()),
+            Reply::Done {} => Ok(()),
             other => Err(unexpected(op, &other)),
         }
     }
@@ -111,7 +111,7 @@ fn unexpected(op: &str, r: &Reply) -> SourceError {
         Reply::Credential { .. } => "credential",
         Reply::Keep { .. } => "keep",
         Reply::End { .. } => "end",
-        Reply::Done => "done",
+        Reply::Done {} => "done",
         Reply::Error { .. } => "error",
     };
     SourceError::new(SourceCode::BadRequest, format!("the reply to {op} is {kind}"))

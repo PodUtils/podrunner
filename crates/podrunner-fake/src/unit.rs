@@ -13,7 +13,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use podrunner_schema::{Capability, TreeKill, UnitId};
+use podrunner_schema::{Capability, PlainName, TreeKill, UnitId};
 use podrunner_unit::{
     ContainerId, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue, Signal,
     StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,

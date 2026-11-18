@@ -16,7 +16,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use podrunner_schema::{Capability, UnitId};
+use podrunner_schema::{Capability, PlainName, UnitId};
 use podrunner_unit::procs::{self, TAG_VAR};
 use podrunner_unit::shim;
 use podrunner_unit::{

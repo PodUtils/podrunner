@@ -12,7 +12,7 @@ pub use pod_job::{
 
 mod secret;
 
-pub use secret::{Credential, CredentialFile, Secret};
+pub use secret::{Credential, CredentialFile, PlainName, Secret};
 
 #[cfg(test)]
 mod tests {

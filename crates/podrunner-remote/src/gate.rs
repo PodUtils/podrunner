@@ -207,8 +207,10 @@ impl Gate {
                 }
                 Reply::Events { events: self.queued.remove(host).unwrap_or_default() }
             }
-            Request::Ack { job_id } => self.source.ack(&job_id).map(|()| Reply::Done)?,
-            Request::Claim { job_id, runner_name } => self.source.claim(&job_id, &runner_name).map(|()| Reply::Done)?,
+            Request::Ack { job_id } => self.source.ack(&job_id).map(|()| Reply::Done {})?,
+            Request::Claim { job_id, runner_name } => {
+                self.source.claim(&job_id, &runner_name).map(|()| Reply::Done {})?
+            }
             Request::Mint { job_id, runner_name } => {
                 if self.ledger.minted(&job_id) {
                     return Err(err(SourceCode::CredentialAlreadyIssued, "one credential for each job id"));
@@ -220,19 +222,19 @@ impl Gate {
                 self.ledger.mint(host, &job_id, (self.now)()).map_err(Self::disk)?;
                 Reply::Credential { credential }
             }
-            Request::Report { job_id, report } => self.source.report(&job_id, &report).map(|()| Reply::Done)?,
-            Request::Audit { line } => self.source.audit(&line).map(|()| Reply::Done)?,
+            Request::Report { job_id, report } => self.source.report(&job_id, &report).map(|()| Reply::Done {})?,
+            Request::Audit { line } => self.source.audit(&line).map(|()| Reply::Done {})?,
             Request::Withdraw { job_id, reason } => {
                 self.settle(&job_id);
                 self.source.withdraw(&job_id, &reason)?;
                 self.ledger.end(host, &job_id).map_err(Self::disk)?;
-                Reply::Done
+                Reply::Done {}
             }
             Request::Release { job_id } => {
                 self.settle(&job_id);
                 self.source.release(&job_id)?;
                 self.ledger.end(host, &job_id).map_err(Self::disk)?;
-                Reply::Done
+                Reply::Done {}
             }
             // The job of a host only (`mine` above): the source answers.
             Request::Assigned { job_id, real } => match self.source.assigned(&job_id, &real)? {

@@ -4,6 +4,7 @@
 use serde_json::{Value, json};
 
 use crate::run::{JOB_FILE, job_file};
+use podrunner_schema::PlainName;
 
 fn offer_of(with: Value) -> podrunner_schema::JobOffer {
     let step: Value = serde_json::from_str(&super::offer(0, "j-1", with)).unwrap();

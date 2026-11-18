@@ -1,56 +1,22 @@
 //! A credential: the files that the runner reads at start (the JIT runner
-//! configuration). The bytes go on the source wire and into files of mode
-//! 0600; they never go into argv, the environment, a log or a report.
+//! configuration). The form of the wire is `pod_job::source::Minted`
+//! (podcrates `v0.72.0`); the check of a file name and the writer of the
+//! files stay in podrunner.
 
-use std::fmt;
+pub use pod_job::source::{Hidden as Secret, Minted as Credential, MintedFile as CredentialFile};
 
-use serde::{Deserialize, Serialize};
-
-/// A secret text. `Debug` and `Display` print no byte of it.
-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
-#[serde(transparent)]
-pub struct Secret(String);
-
-impl Secret {
-    pub fn new(s: impl Into<String>) -> Secret {
-        Secret(s.into())
-    }
-
-    /// The text, for the one writer of the credential file.
-    pub fn expose(&self) -> &str {
-        &self.0
-    }
+/// The check of the name of a credential file.
+pub trait PlainName {
+    /// True when the name is a plain file name: no `/`, no `..`, and not
+    /// empty.
+    fn name_is_plain(&self) -> bool;
 }
 
-impl fmt::Debug for Secret {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Secret(<{} bytes>)", self.0.len())
-    }
-}
-
-/// One file of a credential. The name is a plain file name: no `/`, no
-/// `..`, and not empty.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
-pub struct CredentialFile {
-    pub name: String,
-    pub content: Secret,
-}
-
-impl CredentialFile {
-    /// True when the name is a plain file name.
-    pub fn name_is_plain(&self) -> bool {
+impl PlainName for CredentialFile {
+    fn name_is_plain(&self) -> bool {
         let n = self.name.as_str();
         !n.is_empty() && n.len() <= 64 && n != "." && n != ".." && !n.contains(['/', '\\', '\0'])
     }
-}
-
-/// The files that the runner needs for one job.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
-pub struct Credential {
-    pub files: Vec<CredentialFile>,
 }
 
 #[cfg(test)]

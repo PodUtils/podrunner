@@ -56,7 +56,7 @@ impl Fixture for RefuserFixture {
     }
     // A wire that answers each line with `done`: the wire tests fail too.
     fn exchange(&self, _: &[u8]) -> String {
-        wire::reply_line(&Reply::Done)
+        wire::reply_line(&Reply::Done {})
     }
 }
 

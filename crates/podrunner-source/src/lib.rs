@@ -9,79 +9,16 @@
 
 pub mod conformance;
 mod event;
-mod host;
 mod pipe;
 pub mod wire;
 
-use std::fmt;
 use std::time::Duration;
 
-pub use event::{Assigned, Event, Offer, RealJob};
-pub use host::{HostFacts, KindFacts};
+pub use event::Assigned;
 pub use pipe::{Exchange, Stream, Wire, WireSource, serve_line};
+pub use pod_job::source::{Event, HostFacts, KindFacts, Offer, RealJob, SourceCode, SourceError};
 use podrunner_schema::{Credential, JobId};
-use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-
-/// The class of a refusal of a source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum SourceCode {
-    /// A line that the wire refuses: too long, not JSON, an unknown `op`, a
-    /// bad `job_id`, another `schema`.
-    BadRequest,
-    /// No offer with this job id (never offered, withdrawn, or released).
-    UnknownJob,
-    /// The job is claimed already.
-    AlreadyClaimed,
-    /// The operation needs a claim first.
-    NotClaimed,
-    /// The source revoked the credential of podrunner (`source-revoked`).
-    SourceRevoked,
-    /// The source cannot give a credential now (`credential-unavailable`).
-    CredentialUnavailable,
-    /// The remote mint gave a credential for this job before: one for each
-    /// job id (GitHub #31).
-    CredentialAlreadyIssued,
-    /// The source is not reachable.
-    Unavailable,
-}
-
-impl SourceCode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            SourceCode::BadRequest => "bad-request",
-            SourceCode::UnknownJob => "unknown-job",
-            SourceCode::AlreadyClaimed => "already-claimed",
-            SourceCode::NotClaimed => "not-claimed",
-            SourceCode::SourceRevoked => "source-revoked",
-            SourceCode::CredentialUnavailable => "credential-unavailable",
-            SourceCode::CredentialAlreadyIssued => "credential-already-issued",
-            SourceCode::Unavailable => "unavailable",
-        }
-    }
-}
-
-/// A refusal of a source: a code and a detail with no credential.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceError {
-    pub code: SourceCode,
-    pub detail: String,
-}
-
-impl SourceError {
-    pub fn new(code: SourceCode, detail: impl Into<String>) -> SourceError {
-        SourceError { code, detail: detail.into() }
-    }
-}
-
-impl fmt::Display for SourceError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.code.as_str(), self.detail)
-    }
-}
-
-impl std::error::Error for SourceError {}
 
 /// The reply to `hello`.
 #[derive(Debug, Clone, PartialEq, Eq)]

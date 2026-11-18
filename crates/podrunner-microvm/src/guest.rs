@@ -7,7 +7,7 @@ use std::io::Write;
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::Path;
 
-use podrunner_schema::Credential;
+use podrunner_schema::{Credential, PlainName};
 use podrunner_unit::{UnitCode, UnitError};
 
 /// Where the guest sees the credential directory (a 9p mount, read-only).

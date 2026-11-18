@@ -11567,6 +11567,8 @@ State (2026-11-18): answered by COORD-087 (GitHub #294): the types and files at 
 
 State (2026-11-18, later): podcrates took the answer (PodUtils/podcrates@T-922, PodUtils/podcrates@T-923, podcrates `main` `1da8fcc9`; COORD-135 closed). Its two calls: the source wire moves to `pod-job` after T-486, T-493 and T-495 land, so that each change lands once (the coordinator confirms the order at the start of the next session); `limits.disk` as a size where a kind can enforce it keeps the meaning "the disk limit of the job in bytes", the enforcement of each kind is in `unit-capability.v1`, so the id stays `v1` (podrunner agrees).
 
+State (2026-11-18, v0.72.0): podrunner took podcrates `v0.72.0` (COORD-138, PodUtils/podcrates#229). The source wire is `pod_job::source`: `podrunner-source` re-exports `Request`, `Reply`, the events, the facts of the host and the codes; the credential is `pod_job::source::Minted`, and the check of a file name stays in podrunner (`PlainName`). Left: `status.v1`. The `Status` of `pod-job` refuses unknown fields and has no `draining` of a source (T-501), no `max_units` and no `units` of the host (T-505); podrunner keeps its own `Status` until a tag of podcrates has them (asked on the COORD issue of the take).
+
 # T-509: G-38: a test of githome's source in podrunner's CI that blocks a release
 
 **Source:** githome's G-38 on GitHub #292 (2026-11-18T07:22Z, before githome's pause); the ruling of the owner of 2026-11-18 (each need of githome and cfb)

@@ -7,7 +7,7 @@
 
 use std::time::Duration;
 
-use podrunner_schema::{Credential, JobId};
+use podrunner_schema::{Credential, JobId, PlainName};
 use podrunner_source::{Event, Hello, JobSource, SourceCode, SourceError};
 use serde_json::{Map, Value};
 

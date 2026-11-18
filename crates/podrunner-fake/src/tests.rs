@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use pod_core::clock::{Clock, ManualClock};
 use podrunner_schema::{
-    Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, Fact, JobId, LimitMode, Principal,
+    Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, Fact, JobId, LimitMode, PlainName, Principal,
     SecretDelivery, TreeKill, UnitId, UnitIds,
 };
 use podrunner_source::conformance as sc;
@@ -212,7 +212,7 @@ impl sc::Fixture for SourceFixture {
     }
     fn exchange(&self, line: &[u8]) -> String {
         if self.lax_wire {
-            return podrunner_source::wire::reply_line(&podrunner_source::wire::Reply::Done);
+            return podrunner_source::wire::reply_line(&podrunner_source::wire::Reply::Done {});
         }
         podrunner_source::serve_line(self.fresh().as_mut(), line)
     }

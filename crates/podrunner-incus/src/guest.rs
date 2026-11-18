@@ -6,7 +6,7 @@ use std::path::Path;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use podrunner_schema::Credential;
+use podrunner_schema::{Credential, PlainName};
 use podrunner_unit::{UnitCode, UnitError};
 
 /// Where the instance sees the work directory of the unit (a `disk`
