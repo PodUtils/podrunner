@@ -110,19 +110,26 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
   comment and edits it; watch their `updated_at` (`docs/maintenance.md`,
   "Talk between sessions").
 - Facts of cfb's host (GitHub #292): githome is the CI front (cfb's
-  R-051); githome gives each GitHub job the tier `untrusted`, so each job
-  runs on the `microvm` kind with `engine` (2 slots, 4 vCPU, 12 GiB, 40 GiB
-  `disk_max_bytes`, 32 GiB of RAM); `[trust] users` holds the owner of
-  five private repositories. The host waits for the operator's server and
-  for githome's GitHub path.
+  R-051, adopted by githome's owner). githome runs no GitHub job until
+  T-493 and T-494 (its G-15 and G-16) land: they block R-051. Then
+  githome sends the real trust facts of each job: the trusted jobs of
+  cfb's five private repositories (`[trust] users` holds their owner) go
+  to the `incus` kind, a job of a fork to the `microvm` kind. A trusted
+  job with `container:`, `services:` or `docker://` goes to a `microvm`
+  guest with `engine` until T-485 gives `incus` an engine. The host has
+  32 GiB of RAM and `/dev/kvm`; each unit is 4 vCPU, 12 GiB and 40 GiB of
+  `disk_max_bytes`. It waits for the operator's server and for githome's
+  GitHub path.
 - Order:
   1. Take podcrates `v0.70.0` (COORD-132, PodUtils/podcrates#222): the
      answers to #214, #215 (T-351) and #288 (T-469), and `FileLock` and
      `Clock` of `pod-core` in place of the copies (T-473, T-474).
   2. T-491: the census of each clause of A-X-01 and G-01 to G-14 against
      the code and the release; an entry for each gap.
-  3. The needs, P1 first: T-486 (G-04), T-490 (the unknowns), then T-488,
-     T-482, T-483, T-485, T-481, T-487, T-480, T-479, T-484, T-489, T-492.
+  3. First T-493 and T-494 (P0: githome's G-15 and G-16; they block
+     R-051). Then the needs, P1 first: T-486 (G-04), T-490 (the
+     unknowns), T-495 to T-499, T-485; then T-488, T-482, T-483, T-481,
+     T-487, T-480, T-479, T-484, T-489, T-492, and T-500 to T-504.
   4. A beta for githome's pair run (GitHub #151) and cfb's host, when the
      gates of `AGENTS.md`, section 12, hold.
 - Each change that podvm or podnet must make: a COORD issue at once.

@@ -10762,7 +10762,7 @@ A dry run of `release.yml` makes both files, and the step of the check passes on
 **Source:** a question of the owner on the answer to GitHub #292 (P-4), 2026-11-18
 **Category:** feature
 **Milestone:** later
-**Priority:** P2
+**Priority:** P1
 **Effort:** M
 **Status:** open
 
@@ -10772,7 +10772,7 @@ githome's G-21 (GitHub #292, 2026-11-18) asks for it: `services:`, `container:`,
 
 ## Premise
 
-Read from the code and the documents on 2026-11-18. Not measured.
+githome's owner (GitHub #292, 2026-11-18T06:15Z): githome has no interim rule for GitHub jobs; after T-493 and T-494 the trusted jobs of cfb's five repositories go to the `incus` kind, so a trusted job with containers needs this entry, or a `microvm` guest with `engine` on the same host. Read from the code and the documents on 2026-11-18. Not measured.
 
 ## Approach
 
@@ -10849,7 +10849,7 @@ The measure of step 1 before and after (`claim_to_first_step_s` of the run repor
 
 ## Problem
 
-G-12 asks for limits of CPU, memory and processes on container and microVM units. The `microvm` kind applies the memory and the vCPUs of its guest, but refuses `pids` (`docs/configuration.md`, "The limits of a unit"). cfb now runs each GitHub job on the `microvm` kind, so no job of cfb has a limit of processes.
+G-12 asks for limits of CPU, memory and processes on container and microVM units. The `microvm` kind applies the memory and the vCPUs of its guest, but refuses `pids` (`docs/configuration.md`, "The limits of a unit"). The jobs of forks run on the `microvm` kind, and so do the trusted jobs with containers until T-485: none of them has a limit of processes.
 
 ## Premise
 
