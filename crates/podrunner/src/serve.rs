@@ -57,6 +57,8 @@ fn now_unix() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
+#[path = "serve/front.rs"]
+pub(crate) mod front;
 #[path = "serve/sources.rs"]
 mod sources;
 pub(crate) use sources::{private_file, source_of};
@@ -230,7 +232,7 @@ pub fn build(cfg: Config, state: &Path) -> Result<Slots, Failure> {
     }
     let hooks = crate::hooks::HooksOf::new(policies);
     slots.set_hooks(Box::new(hooks));
-    Ok(slots.with_egress(Box::new(EgressOf { egress, ttl })))
+    Ok(slots.with_egress(Box::new(EgressOf::new(egress, ttl))))
 }
 
 /// The hold of a kind behind an upstream that does not refuse a
@@ -242,21 +244,67 @@ pub(crate) fn cap_hold(h: podrunner_schema::EgressHold) -> podrunner_schema::Egr
     }
 }
 
-/// The egress module behind slots.
+/// The egress module behind slots. The module of a unit listens on an
+/// inner socket; the socket that the unit sees is a front that also
+/// carries the questions of its job-started hook (T-493).
 struct EgressOf {
     egress: podrunner_egress::Egress,
     ttl: Duration,
+    asks: std::sync::mpsc::SyncSender<podrunner_slots::assigned::Question>,
+    asked: std::sync::Mutex<std::sync::mpsc::Receiver<podrunner_slots::assigned::Question>>,
+    fronts: std::sync::Mutex<std::collections::HashMap<String, front::Front>>,
 }
+
+impl EgressOf {
+    fn new(egress: podrunner_egress::Egress, ttl: Duration) -> EgressOf {
+        // A bounded queue: a unit that asks too much gets `end`.
+        let (asks, asked) = std::sync::mpsc::sync_channel(64);
+        EgressOf { egress, ttl, asks, asked: std::sync::Mutex::new(asked), fronts: Default::default() }
+    }
+}
+
+/// The time that a question waits for the slots; then the job ends (fail
+/// closed).
+const ASK_WAIT: Duration = Duration::from_secs(10);
 
 impl podrunner_slots::EgressPort for EgressOf {
     fn open(&self, unit: &str, policy: &str, socket: &Path) -> Result<usize, String> {
-        self.egress.open(unit, policy, socket, self.ttl).map_err(|e| e.to_string())
+        let id = podrunner_schema::UnitId::parse(unit).map_err(|e| e.to_string())?;
+        let inner = socket.with_file_name("egress-inner.sock");
+        let flagged = self.egress.open(unit, policy, &inner, self.ttl).map_err(|e| e.to_string())?;
+        let asks = std::sync::Mutex::new(self.asks.clone());
+        let ask: front::Ask = std::sync::Arc::new(move |body: &[u8]| {
+            let (tx, rx) = std::sync::mpsc::sync_channel(1);
+            let sent = asks.lock().map(|a| a.try_send((id.clone(), body.to_vec(), tx)).is_ok()).unwrap_or(false);
+            match sent.then(|| rx.recv_timeout(ASK_WAIT).ok()).flatten() {
+                Some(answer) => answer,
+                None => r#"{"verdict":"end","code":"source-unavailable"}"#.to_string(),
+            }
+        });
+        match front::serve(socket, inner, ask, front::Bounds::default()) {
+            Ok(f) => {
+                if let Ok(mut m) = self.fronts.lock() {
+                    m.insert(unit.to_string(), f);
+                }
+                Ok(flagged)
+            }
+            Err(e) => {
+                self.egress.close(unit);
+                Err(format!("the front of the egress socket: {}", e.kind()))
+            }
+        }
     }
     fn close(&self, unit: &str) {
+        if let Ok(mut m) = self.fronts.lock() {
+            m.remove(unit);
+        }
         self.egress.close(unit);
     }
     fn alive(&self) -> bool {
         self.egress.alive()
+    }
+    fn questions(&self) -> Vec<podrunner_slots::assigned::Question> {
+        self.asked.lock().map(|r| r.try_iter().collect()).unwrap_or_default()
     }
 }
 

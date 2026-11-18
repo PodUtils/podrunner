@@ -231,6 +231,11 @@ impl Gate {
                 self.ledger.end(host, &job_id).map_err(Self::disk)?;
                 Reply::Done
             }
+            // The job of a host only (`mine` above): the source answers.
+            Request::Assigned { job_id, real } => match self.source.assigned(&job_id, &real)? {
+                podrunner_source::Assigned::Keep(trust_inputs) => Reply::Keep { trust_inputs },
+                podrunner_source::Assigned::End { code, detail } => Reply::End { code, detail },
+            },
         })
     }
 
@@ -286,7 +291,8 @@ fn job_of(r: &Request) -> Option<JobId> {
         | Request::Mint { job_id, .. }
         | Request::Report { job_id, .. }
         | Request::Withdraw { job_id, .. }
-        | Request::Release { job_id } => Some(job_id.clone()),
+        | Request::Release { job_id }
+        | Request::Assigned { job_id, .. } => Some(job_id.clone()),
         Request::Hello { .. } | Request::Next { .. } | Request::Audit { .. } => None,
     }
 }

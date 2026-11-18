@@ -19,7 +19,10 @@ fn the_job_file_names_the_repository_and_the_run() {
 }
 
 #[test]
-fn an_offer_with_no_run_gives_no_job_file() {
-    assert!(job_file(&offer_of(json!({ "trust_inputs": { "run_id": 0 } }))).is_none());
+fn an_offer_with_no_run_gets_run_0_and_one_with_no_repository_no_file() {
+    // The review of T-493: an offer with no run still gets the file, with
+    // run 0, which no job matches; so the hook asks serve for each job.
+    let f = job_file(&offer_of(json!({ "trust_inputs": { "run_id": 0 } }))).expect("a job file");
+    assert_eq!(f.content.expose(), "example-org/app 0\n");
     assert!(job_file(&offer_of(json!({ "trust_inputs": { "repo": "" } }))).is_none());
 }

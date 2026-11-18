@@ -10883,6 +10883,8 @@ Read from `docs/configuration.md` on 2026-11-18.
 
 Apply `pids` in the guest: the guest script sets a cgroup `pids.max` (or `RLIMIT_NPROC` of `runner`) before the runner starts. If the guest of podvm gives no way, ask podvm by a COORD issue.
 
+podvm's answer (COORD-187, PodUtils/podvm#583, 2026-11-18): the init of each guest mounts cgroup2 on `/sys/fs/cgroup` (its PodUtils/podvm@T-1780), so the guest script can write `+pids` to `cgroup.subtree_control`, make a child, write `pids.max` and move the runner into it now; podvm adds `--pids-limit N` on the machine tier later (its PodUtils/podvm@T-1967).
+
 ## Prove
 
 A job on real guests in `runner-image.yml` that forks past `pids` fails, and the guest and the host stay up.
@@ -10937,6 +10939,8 @@ State (2026-11-18): podcrates answered yes (COORD-134, PodUtils/podcrates#225; t
 2. Measure in CI each one that needs no live forge.
 3. U26: ask podvm for the state of the foreign guest (PodUtils/podvm#366).
 4. Write each answer into `docs/unknowns.md`, and an entry for each defect that an answer shows.
+
+podvm's answer for U26 (COORD-187, PodUtils/podvm#583, 2026-11-18): an aarch64 guest on an x86_64 host runs since podvm `0.2.0-beta.22` (`run --podvm-tier=machine --platform linux/arm64`, TCG, no KVM); the reverse is not measured; no measure of the cost of a CI job yet.
 
 ## Prove
 
@@ -11011,7 +11015,7 @@ Each line of #65 and #66 names the current release and the entry of its ask; the
 **Milestone:** later
 **Priority:** P0
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11034,6 +11038,9 @@ The job-started hook asks `serve`, and `serve` asks the source: `assigned { job_
 ## Prove
 
 `cargo test -p podrunner-broker-fake --test runner -- --ignored`: two runs of one repository with the same labels, in both orders of assignment, end `success` in units of the right tier; a fork job given to a trusted unit ends with its annotation and the source gets a report with its code.
+
+In the code (2026-11-18): the source wire has `assigned` (`podrunner-source`: `Request::Assigned`, the replies `keep` and `end`, `JobSource::assigned` with a default of `bad-request`, the remote gate and the mint pass it on; conformance test 13 `assigned-needs-a-claim`, failed by the plant `AssignedUnclaimed` of the fake). The slots answer once for each unit (`crates/podrunner-slots/src/assigned.rs`): the run of the offer is kept with no call; else the source answers, and `keep` runs the job only when `podrunner_tier::intake` of the facts of the real job gives the tier of the unit; `bad-request` of a source ends the job as before; an audit line `assigned` names the run, the repository and the answer, and goes to the source. `serve` gives each unit a front on its egress socket (`crates/podrunner/src/serve/front.rs`): `POST http://control.podrunner.test/v1/assigned` is a question; each other request goes to the egress module; a head over 64 KiB is 431, a silent peer ends after 30 s, a 129th connection is 503; no answer within 10 s is `end source-unavailable`. The job-started hook (`images/runner/podrunner-job-started.sh`) asks through the proxy of the unit with the node of the runner and ends the job on each answer but `keep`. Tests: `cargo test -p podrunner-slots assigned` (5), `cargo test -p podrunner front::` (3), `cargo test -p podrunner-fake`, `cargo test -p podrunner-source`, and with the official runner `the_job_started_hook_asks_serve_for_a_job_of_another_run` (`podrunner-broker-fake --test runner`). Level: proven here with the official runner and fakes; not run on a real unit. A review agent read the diff; its findings are fixed in the same commit: an offer with no run gets the job file with run 0, so the hook always asks; the facts of `keep` must name the repository and the run of the real job (`facts-mismatch`); the front gives a place back only when both ways of a tunnel end, survives a failed accept and a failed thread, and reads a head as bytes; the queue of questions has 64 places; an answer that comes after the hook gave up records `end source-unavailable`; the hook runs with a fixed `PATH` and no `NODE_OPTIONS`. Open: the podvm kind (T-530); the ids of the real job in the run report (a field of `run-report.v1`, COORD-087); a run of `serve` with two runs on a real microvm or incus unit in `runner-image.yml`.
+
 
 # T-494: G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub
 
@@ -12003,3 +12010,28 @@ Take the lesser of the two bounds; correct `docs/configuration.md`.
 ## Done
 
 2026-11-18: the disk check takes the lesser of the offer and `disk_max_bytes`. Test `the_disk_of_an_offer_does_not_lift_the_bound_of_the_kind` fails on the code before the fix (the unit writes 300000 bytes under a bound of 100000 and an offer of 10000000, and runs past 120 ticks). `docs/configuration.md` says the rule.
+
+# T-530: The job-started hook of a podvm unit cannot ask serve
+
+**Source:** the work of T-493 (githome's G-15), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The hook asks `serve` through the proxy variables of its unit (T-493). The guests of the microvm and incus kinds set them to the channel of the egress socket. A unit of the podvm kind gets `PODRUNNER_EGRESS` (`http://unix:PATH`) and no proxy variable, so its hook ends each job of another run, as before T-493.
+
+## Premise
+
+`crates/podrunner-slots/src/run.rs`, the guest scripts of `crates/podrunner-microvm` and `crates/podrunner-incus`, read on 2026-11-18. githome sends its jobs to the incus and microvm kinds; the podvm kind is not on its path now.
+
+## Approach
+
+Let the hook take `PODRUNNER_EGRESS` when it names a unix socket (node `http.request` with `socketPath`), or ask through the control socket of a unit with `container: hooks` (`PODRUNNER_CTL`, a route `/v1/assigned` of `podrunner-hook`). Test it with a podvm unit in `runner-image.yml`.
+
+## Prove
+
+`cargo test -p podrunner-broker-fake --test runner -- --ignored` with `PODRUNNER_EGRESS` of a unix socket and no proxy variable: the hook asks and `keep` runs the job.

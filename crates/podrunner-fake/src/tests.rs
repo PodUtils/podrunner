@@ -240,6 +240,7 @@ fn each_source_plant_fails_its_test() {
         (10, Some(KeepReleased)),
         (11, None),
         (12, None),
+        (13, Some(AssignedUnclaimed)),
     ];
     for (n, plant) in plants {
         let fx = SourceFixture { plant, lax_wire: plant.is_none() };
@@ -285,4 +286,36 @@ fn the_canned_credential_names_no_secret_of_a_host() {
         [".runner", ".credentials", ".credentials_rsaparams"]
     );
     assert!(c.files.iter().all(|f| f.name_is_plain()));
+}
+
+/// T-493: the fake keeps a job of the owner of the offer, with the facts of
+/// the real job, and ends a job of another owner.
+#[test]
+fn assigned_keeps_a_job_of_the_owner_and_ends_another() {
+    use podrunner_source::{Assigned, RealJob};
+    let line = r#"{"at_s":0,"offer":{"job_id":"j-1","source":"fake-1","labels":["x"],"arch":"x86_64","wait_deadline_s":60,"trust_inputs":{"event":"push","head_is_fork":"no","actor_class":"member","repo_visibility":"private","owner":"example-org","repo":"app","run_id":1,"ref":"refs/heads/main","workflow_ref":"w"}}}"#;
+    let mut s = FakeSource::new("fake-1", Arc::new(ManualClock::new()), parse_script(line).unwrap());
+    s.next(1, Duration::ZERO).unwrap();
+    let job = JobId::new("j-1").unwrap();
+    let owner = "example-org";
+    s.ack(&job).unwrap();
+    s.claim(&job, "r").unwrap();
+    let real = |repository: String, fork: bool| RealJob {
+        run_id: 99,
+        job_name: "test".into(),
+        event: "pull_request".into(),
+        repository,
+        head_repository: None,
+        head_is_fork: Some(fork),
+        actor: "a".into(),
+        job_id: None,
+    };
+    match s.assigned(&job, &real(format!("{owner}/other"), true)).unwrap() {
+        Assigned::Keep(t) => {
+            assert_eq!((t.repo.as_str(), t.run_id), ("other", 99));
+            assert_eq!(t.head_is_fork, podrunner_schema::Fact::Yes);
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(matches!(s.assigned(&job, &real("someone-else/x".into(), false)).unwrap(), Assigned::End { .. }));
 }

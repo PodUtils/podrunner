@@ -5,6 +5,7 @@
 //! `podrunner-unit` and `podrunner-source`. `docs/fakes.md` gives the
 //! formats.
 
+mod assigned;
 mod mounts;
 mod source;
 mod unit;

@@ -88,6 +88,13 @@ impl JobSource for Mint {
     fn release(&mut self, job: &JobId) -> Result<(), SourceError> {
         self.call(|s| s.release(job))
     }
+    fn assigned(
+        &mut self,
+        job: &JobId,
+        real: &podrunner_source::RealJob,
+    ) -> Result<podrunner_source::Assigned, SourceError> {
+        self.call(|s| s.assigned(job, real))
+    }
 }
 
 #[cfg(test)]

@@ -77,6 +77,8 @@ impl Slots {
     /// Read the hooks of each live unit: an audit line `hook-refuse` for
     /// each refusal, and `job-started` moves `started` to `running` once.
     pub(crate) fn hook_events(&mut self, now: u64) {
+        // The job-started hook of a unit asks through its egress socket.
+        self.answer_questions();
         let live: Vec<(usize, podrunner_schema::JobId)> = self
             .jobs
             .iter()

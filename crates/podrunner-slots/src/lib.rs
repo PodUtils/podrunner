@@ -4,10 +4,12 @@
 //! the journal: it destroys each unit that was not reported, releases each
 //! claimed job as `lost`, and stays `degraded` while a residue is left.
 
+pub mod assigned;
 pub mod audit;
 pub mod config;
 pub mod disk;
 mod driver;
+mod egress_port;
 mod engine;
 pub mod forget;
 pub mod guest;

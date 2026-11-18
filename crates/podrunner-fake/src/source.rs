@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use pod_core::clock::Clock;
 use podrunner_schema::{Credential, CredentialFile, JobId, Secret};
-use podrunner_source::{Event, Hello, JobSource, Offer, SourceCode, SourceError};
+use podrunner_source::{Assigned, Event, Hello, JobSource, Offer, RealJob, SourceCode, SourceError};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
@@ -81,6 +81,8 @@ pub enum SourcePlant {
     KeepWithdrawn,
     /// Test 10: release keeps the claim.
     KeepReleased,
+    /// Test 13: `assigned` of a job that is not claimed is kept.
+    AssignedUnclaimed,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -100,6 +102,8 @@ pub struct FakeSource {
     /// Offers that are due and wait for capacity.
     pending: VecDeque<Offer>,
     jobs: BTreeMap<JobId, State>,
+    /// Each offer that `next` gave, for `assigned`.
+    offered: BTreeMap<JobId, Offer>,
     mint_errors: BTreeMap<JobId, SourceCode>,
     plant: Option<SourcePlant>,
     /// The report and audit lines, for the tests.
@@ -117,6 +121,7 @@ impl FakeSource {
             script: script.into(),
             pending: VecDeque::new(),
             jobs: BTreeMap::new(),
+            offered: BTreeMap::new(),
             mint_errors: BTreeMap::new(),
             plant: None,
             reports: Vec::new(),
@@ -185,6 +190,7 @@ impl JobSource for FakeSource {
         while room > 0 {
             let Some(o) = self.pending.pop_front() else { break };
             self.jobs.insert(o.job_id.clone(), State::Offered);
+            self.offered.insert(o.job_id.clone(), o.clone());
             events.push(Event::Offer { offer: o });
             room -= 1;
         }
@@ -255,5 +261,14 @@ impl JobSource for FakeSource {
             self.jobs.remove(job);
         }
         Ok(())
+    }
+
+    fn assigned(&mut self, job: &JobId, real: &RealJob) -> Result<Assigned, SourceError> {
+        let claimed = self.jobs.get(job) == Some(&State::Claimed);
+        match self.offered.get(job) {
+            Some(o) if claimed || self.planted(SourcePlant::AssignedUnclaimed) => Ok(crate::assigned::answer(o, real)),
+            Some(_) => Err(SourceError::new(SourceCode::NotClaimed, format!("{job} is not claimed"))),
+            None => Err(SourceError::new(SourceCode::UnknownJob, format!("no offer of {job}"))),
+        }
     }
 }

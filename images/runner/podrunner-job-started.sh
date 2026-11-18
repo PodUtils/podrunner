@@ -1,19 +1,75 @@
 #!/bin/sh
-# The job-started hook of the runner image (T-175). GitHub binds no runner
-# of a scale set to one job, so this runner can get another job than the
-# one that podrunner placed in this unit, at the boundary of that job.
-# podrunner writes the placed job, "OWNER/REPO RUN_ID", into the runner
-# root (.podrunner-job). Another job ends here, before its first step. A
-# job of the same run has the same trust inputs, so the run is enough.
-# With no file (the local mode), there is nothing to compare.
-want_file="$(dirname "$0")/../.podrunner-job"
+# The job-started hook of the runner image (T-175, T-493). GitHub binds no
+# runner of a just-in-time configuration to one job, so this runner can get
+# another job than the one that podrunner placed in this unit. podrunner
+# writes the placed job, "OWNER/REPO RUN_ID", into the runner root
+# (.podrunner-job). A job of the same run has the same trust inputs, so the
+# run is enough. For a job of another run, the hook asks serve through the
+# proxy of the unit (control.podrunner.test, the front of the egress
+# socket): serve asks the source, checks the trust facts of the real job
+# against the tier of the unit, and answers keep or end. No answer, no
+# proxy or no node ends the job (fail closed). With no file (the local
+# mode), there is nothing to compare.
+# A fixed PATH and no options of node from the environment of the job.
+PATH=/usr/bin:/bin
+export PATH
+unset NODE_OPTIONS NODE_PATH
+case $0 in
+  */*) root="${0%/*}/.." ;;
+  *) root=.. ;;
+esac
+want_file="$root/.podrunner-job"
 [ -f "$want_file" ] || exit 0
 want=$(tr 'A-Z' 'a-z' < "$want_file")
 got=$(printf '%s %s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" | tr 'A-Z' 'a-z')
 [ "$got" = "$want" ] && exit 0
+
+# The question: the facts of this job, as JSON, to serve. Exit 0 is keep;
+# else the line on stdout is the code.
+ask='
+const http = require("http"), fs = require("fs");
+const e = process.env;
+let head_repository, head_is_fork;
+try {
+  const pr = JSON.parse(fs.readFileSync(e.GITHUB_EVENT_PATH, "utf8")).pull_request;
+  if (pr && pr.head && pr.head.repo) { head_repository = pr.head.repo.full_name; head_is_fork = !!pr.head.repo.fork; }
+} catch (_) {}
+const body = JSON.stringify({
+  run_id: Number(e.GITHUB_RUN_ID), job_name: e.GITHUB_JOB || "", event: e.GITHUB_EVENT_NAME || "",
+  repository: e.GITHUB_REPOSITORY || "", head_repository, head_is_fork, actor: e.GITHUB_ACTOR || ""
+});
+const end = (code) => { console.log(code); process.exit(3); };
+let proxy;
+try { proxy = new URL(e.HTTP_PROXY || e.http_proxy || e.HTTPS_PROXY || e.https_proxy); } catch (_) { end("no-proxy"); }
+const req = http.request({
+  host: proxy.hostname, port: proxy.port || 80, method: "POST", timeout: 15000,
+  path: "http://control.podrunner.test/v1/assigned",
+  headers: { "Host": "control.podrunner.test", "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }
+}, (res) => {
+  let d = "";
+  res.on("data", (c) => { d += c; });
+  res.on("end", () => {
+    let v;
+    try { v = JSON.parse(d); } catch (_) { end("bad-answer"); }
+    if (v.verdict === "keep") process.exit(0);
+    end(String(v.code || "end").replace(/[^a-z0-9-]/g, "").slice(0, 64));
+  });
+});
+req.on("timeout", () => { req.destroy(); end("source-unavailable"); });
+req.on("error", () => end("no-answer"));
+req.end(body);
+'
+node=""
+for n in "$root/externals/node24/bin/node" "$root/externals/node20/bin/node"; do
+  if [ -x "$n" ]; then node=$n; break; fi
+done
+code="no-node"
+if [ -n "$node" ]; then
+  code=$("$node" -e "$ask" 2>/dev/null) && exit 0
+fi
 # An annotation names the cause in the summary of the job, not only in
 # the log of the hook. It names this job, not the placed one (T-201).
-msg="podrunner: this runner was placed for another job: the job ends before its first step (this job: $got)"
+msg="podrunner: this runner was placed for another job: the job ends before its first step (this job: $got; $code)"
 echo "::error title=podrunner::$msg"
 echo "$msg" >&2
 exit 1

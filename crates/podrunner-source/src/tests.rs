@@ -63,7 +63,7 @@ impl Fixture for RefuserFixture {
 #[test]
 fn the_harness_fails_each_test_on_a_refuser() {
     let results = conformance::run(&RefuserFixture, &[]);
-    assert_eq!(results.iter().map(|r| r.number).collect::<Vec<_>>(), (1..=12).collect::<Vec<_>>());
+    assert_eq!(results.iter().map(|r| r.number).collect::<Vec<_>>(), (1..=13).collect::<Vec<_>>());
     for r in &results {
         assert!(r.failure.is_some(), "{r}");
         assert!(r.to_string().starts_with(&format!("source {:2} {}: FAIL", r.number, r.name)), "{r}");
@@ -95,7 +95,20 @@ fn a_request_round_trips_with_its_schema() {
         Request::Report { job_id: job.clone(), report: Map::new() },
         Request::Audit { line: Map::new() },
         Request::Withdraw { job_id: job.clone(), reason: "wait-deadline".into() },
-        Request::Release { job_id: job },
+        Request::Release { job_id: job.clone() },
+        Request::Assigned {
+            job_id: job,
+            real: crate::RealJob {
+                run_id: 7,
+                job_name: "build".into(),
+                event: "push".into(),
+                repository: "o/r".into(),
+                head_repository: None,
+                head_is_fork: None,
+                actor: "a".into(),
+                job_id: None,
+            },
+        },
     ];
     assert_eq!(reqs.iter().map(Request::op).collect::<Vec<_>>(), OPS);
     for r in reqs {

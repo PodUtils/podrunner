@@ -18,6 +18,8 @@ use crate::journal::Journal;
 use crate::placement::{self, Kind, Placement};
 use crate::state::{Line, State};
 
+pub use crate::egress_port::EgressPort;
+
 /// One source instance.
 pub struct Source {
     pub cfg: SourceConfig,
@@ -65,20 +67,8 @@ pub struct Job {
     pub completed: bool,
     /// The CPU time and the peak memory of its unit (T-108).
     pub usage: crate::usage::Usage,
-}
-
-/// The egress module as slots sees it (`podrunner-egress` behind it): one
-/// listener for each unit, bound to its job, and a health.
-pub trait EgressPort: Send {
-    /// Serve `policy` (JSON of `broker-policy.v1`) for the unit `unit` on
-    /// the socket `socket`.
-    /// The count of allow rules of the policy under an open suffix (a
-    /// host that anyone can publish under), for an audit line.
-    fn open(&self, unit: &str, policy: &str, socket: &std::path::Path) -> Result<usize, String>;
-    fn close(&self, unit: &str);
-    /// False when the module ended: slots gives no capacity and ends the
-    /// running units.
-    fn alive(&self) -> bool;
+    /// The answer to the job-started hook of its unit (T-493).
+    pub assigned: Option<crate::assigned::Verdict>,
 }
 
 /// The supervisor of the slots.
@@ -384,6 +374,7 @@ impl Slots {
             residue: None,
             completed: false,
             usage: Default::default(),
+            assigned: None,
         };
         self.jobs.insert(key.clone(), job);
         self.set(&key, State::Offered, now);

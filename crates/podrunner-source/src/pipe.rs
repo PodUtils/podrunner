@@ -8,7 +8,7 @@ use podrunner_schema::{Credential, JobId};
 use serde_json::{Map, Value};
 
 use crate::wire::{self, LINE_MAX, Reply, Request};
-use crate::{Event, Hello, JobSource, SourceCode, SourceError};
+use crate::{Assigned, Event, Hello, JobSource, RealJob, SourceCode, SourceError};
 
 /// Answer one line of the wire. The reply line has its end of line.
 pub fn serve_line(source: &mut dyn JobSource, line: &[u8]) -> String {
@@ -35,6 +35,10 @@ fn answer(s: &mut dyn JobSource, req: Request) -> Result<Reply, SourceError> {
         Request::Audit { line } => s.audit(&line).map(|_| Reply::Done)?,
         Request::Withdraw { job_id, reason } => s.withdraw(&job_id, &reason).map(|_| Reply::Done)?,
         Request::Release { job_id } => s.release(&job_id).map(|_| Reply::Done)?,
+        Request::Assigned { job_id, real } => match s.assigned(&job_id, &real)? {
+            Assigned::Keep(trust_inputs) => Reply::Keep { trust_inputs },
+            Assigned::End { code, detail } => Reply::End { code, detail },
+        },
     })
 }
 
@@ -102,6 +106,8 @@ fn unexpected(op: &str, r: &Reply) -> SourceError {
         Reply::Hello { .. } => "hello",
         Reply::Events { .. } => "events",
         Reply::Credential { .. } => "credential",
+        Reply::Keep { .. } => "keep",
+        Reply::End { .. } => "end",
         Reply::Done => "done",
         Reply::Error { .. } => "error",
     };
@@ -153,5 +159,13 @@ impl<E: Exchange> JobSource for Wire<E> {
 
     fn release(&mut self, job: &JobId) -> Result<(), SourceError> {
         self.done(Request::Release { job_id: job.clone() })
+    }
+
+    fn assigned(&mut self, job: &JobId, real: &RealJob) -> Result<Assigned, SourceError> {
+        match self.call(&Request::Assigned { job_id: job.clone(), real: real.clone() })? {
+            Reply::Keep { trust_inputs } => Ok(Assigned::Keep(trust_inputs)),
+            Reply::End { code, detail } => Ok(Assigned::End { code, detail }),
+            other => Err(unexpected("assigned", &other)),
+        }
     }
 }

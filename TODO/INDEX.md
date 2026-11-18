@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**526 entries: 82 open, 30 partial, 16 blocked, 398 done.**
+**527 entries: 82 open, 31 partial, 16 blocked, 398 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 3 | 0 | 0 | 0 | 3 |
+| P0 | 2 | 1 | 0 | 0 | 3 |
 | P1 | 20 | 13 | 1 | 63 | 97 |
-| P2 | 21 | 12 | 11 | 211 | 255 |
+| P2 | 22 | 12 | 11 | 211 | 256 |
 | P3 | 38 | 5 | 4 | 124 | 171 |
-| **All** | 82 | 30 | 16 | 398 | 526 |
+| **All** | 82 | 31 | 16 | 398 | 527 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -537,7 +537,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-490](later.md) | P1 | L | later | research | open | Settle each open unknown of `docs/unknowns.md` |
 | [T-491](later.md) | P1 | M | later | research | done | Lift each limit and non-goal that a need of githome or cfb names |
 | [T-492](later.md) | P2 | S | later | docs | open | The trackers of githome and cfb and the state pages name an old release |
-| [T-493](later.md) | P0 | M | later | defect | open | G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer |
+| [T-493](later.md) | P0 | M | later | defect | partial | G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer |
 | [T-494](later.md) | P0 | M | later | defect | open | G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub |
 | [T-495](later.md) | P1 | M | later | feature | open | G-17: the facts of a host for its source in `hello` |
 | [T-496](later.md) | P1 | M | later | feature | open | G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC` |
@@ -574,3 +574,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-527](later.md) | P1 | M | later | chore | open | No lane of the user-path gate for the host class of githome's pool |
 | [T-528](later.md) | P1 | S | later | measurement | open | No row of the user-path gate copies the gate of rbg |
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
+| [T-530](later.md) | P2 | S | later | feature | open | The job-started hook of a podvm unit cannot ask serve |

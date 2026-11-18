@@ -36,6 +36,7 @@ source is the trait `JobSource` of `crates/podrunner-source/src/lib.rs`;
 | `audit` | `line` | `done` |
 | `withdraw` | `job_id`, `reason` | `done` |
 | `release` | `job_id` | `done` |
+| `assigned` | `job_id` (of the offer), `real`: `run_id`, `job_name`, `event`, `repository`, `actor`; optional `head_repository`, `head_is_fork`, `job_id` (the number of the job at the forge) | `keep`: `trust_inputs` (of `job-offer.v1`); or `end`: `code`, `detail` |
 
 The order of one job: `offer` (an event of `next`), `ack`, `claim`,
 `mint`, then `report` and `release`. `withdraw` ends an offer that
@@ -66,6 +67,19 @@ sends `claim` (GitHub #55). After a death between the two, the restart
 sends `release` for a job that it may not hold. `release` names no
 runner, so a source must not free the claim of another runner on it: the
 scale-set sidecar releases only a runner that it registered itself.
+
+The forge, not the source, picks the queued job that a runner takes: a
+runner of a just-in-time configuration can get a job of another run of
+the same repository (T-175, githome's G-15). The job-started hook of the
+runner image compares the run of the job with the run of the offer. When
+they differ, `serve` sends `assigned` with the facts of the real job
+(T-493). A source answers `keep` with the trust facts of the real job, as
+it reads them from the forge; podrunner computes the tier of those facts
+and runs the job only when it is the tier of the unit (a job of a fork
+never runs in a trusted unit). Else, and on `end`, the job ends before
+its first step with an annotation that names the code. A source with no
+`assigned` answers `bad-request`, and the job ends as before. No answer
+within 10 s ends the job with the code `source-unavailable`.
 
 A source in a child process (the scale-set sidecar) answers each request
 within 15 s after the long poll of `next` (`REPLY_LIMIT`,
@@ -142,6 +156,7 @@ and a correct input that passes it.
 | 10 | `release-ends-a-claim` | After `release`, a claim is `unknown-job`. |
 | 11 | `an-unknown-op-is-bad-request` | An unknown `op` is `bad-request`. |
 | 12 | `the-wire-refuses-a-long-line-a-path-and-a-schema` | A line over 1 MiB, a `job_id` of `../x`, schema 2 and no schema are each `bad-request`. |
+| 13 | `assigned-needs-a-claim` | `assigned` of an offer that is not claimed is refused; of a claimed job it gives `keep` or `end` (or `bad-request` from a source with no `assigned`). |
 
 The numbers of the tests follow this page. The design contract numbers its
 tests in another order; the next table maps them (T-053).

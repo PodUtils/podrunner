@@ -48,7 +48,7 @@ fn the_local_source_passes_the_source_conformance_suite() {
     let reports = conformance::run(&Two, &[]);
     let failed: Vec<String> = reports.iter().filter(|r| r.failure.is_some()).map(ToString::to_string).collect();
     assert!(failed.is_empty(), "{failed:#?}");
-    assert_eq!(reports.len(), 12);
+    assert_eq!(reports.len(), 13);
 }
 
 #[test]
@@ -213,7 +213,7 @@ fn the_conformance_suite_gives_each_job_back() {
     let reports = conformance::run(&Fx(count.clone()), &[]);
     assert!(reports.iter().all(|r| r.failure.is_none()), "{reports:?}");
     let c = count.lock().unwrap();
-    // Tests 5, 6, 7 and 10 claim a job (10 releases it as its test); 4
-    // and 9 only ack one (9 withdraws it as its test).
-    assert_eq!((c.release, c.withdraw), (4, 2));
+    // Tests 5, 6, 7, 10 and 13 claim a job (10 releases it as its test);
+    // 4 and 9 only ack one (9 withdraws it as its test).
+    assert_eq!((c.release, c.withdraw), (5, 2));
 }

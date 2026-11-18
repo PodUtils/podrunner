@@ -39,6 +39,8 @@ pub enum Kind {
     ReportSpooled,
     /// A unit went over a limit that slots measures (`disk`, T-074).
     Limit,
+    /// The runner of a unit got a job of another run: the answer (T-493).
+    Assigned,
 }
 
 /// One audit line.

@@ -1,4 +1,4 @@
-//! The conformance suite of the source seam: the tests 1 to 12 of
+//! The conformance suite of the source seam: the tests 1 to 13 of
 //! `docs/contracts/source-driver.md`. Each test takes a fresh source from
 //! the fixture. A fresh source gives an offer on its first `next`; two or
 //! more make test 3 strict. Each test gives its job back at its end (T-190).
@@ -9,7 +9,7 @@ use std::time::Duration;
 use podrunner_schema::JobId;
 use serde_json::Map;
 
-use crate::{Event, JobSource, SourceCode, SourceError, serve_line, wire};
+use crate::{Event, JobSource, RealJob, SourceCode, SourceError, serve_line, wire};
 
 /// What a test needs from the source under test.
 pub trait Fixture {
@@ -43,7 +43,7 @@ impl fmt::Display for Report {
 
 type Run = fn(&dyn Fixture) -> Result<(), String>;
 
-const CASES: [(u32, &str, Run); 12] = [
+const CASES: [(u32, &str, Run); 13] = [
     (1, "hello-names-the-source", hello_names_the_source),
     (2, "no-capacity-gives-no-offer", no_capacity_gives_no_offer),
     (3, "next-gives-at-most-capacity-offers", next_gives_at_most_capacity_offers),
@@ -56,6 +56,7 @@ const CASES: [(u32, &str, Run); 12] = [
     (10, "release-ends-a-claim", release_ends_a_claim),
     (11, "an-unknown-op-is-bad-request", an_unknown_op_is_bad_request),
     (12, "the-wire-refuses-a-long-line-a-path-and-a-schema", the_wire_refuses_bad_lines),
+    (13, "assigned-needs-a-claim", assigned_needs_a_claim),
 ];
 
 /// The number and the name of each test, in order.
@@ -194,6 +195,37 @@ fn release_ends_a_claim(fx: &dyn Fixture) -> Result<(), String> {
     let (mut s, job) = claimed(fx)?;
     s.release(&job).map_err(err("release"))?;
     refused("claim after release", s.claim(&job, "runner-u-2"), SourceCode::UnknownJob)
+}
+
+/// `assigned` (T-493) of an offer that is not claimed is refused; of a
+/// claimed job it gives `keep` or `end`, or `bad-request` from a source
+/// with no such operation.
+fn assigned_needs_a_claim(fx: &dyn Fixture) -> Result<(), String> {
+    let real = RealJob {
+        run_id: 2,
+        job_name: "build".into(),
+        event: "push".into(),
+        repository: "example-org/app".into(),
+        head_repository: None,
+        head_is_fork: Some(false),
+        actor: "conformance".into(),
+        job_id: None,
+    };
+    let (mut s, job) = offered(fx)?;
+    let before = match s.assigned(&job, &real) {
+        Ok(a) => Err(format!("assigned of an offer that is not claimed: accepted ({a:?})")),
+        Err(_) => Ok(()),
+    };
+    let result = before.and_then(|()| {
+        s.ack(&job).map_err(err("ack"))?;
+        s.claim(&job, "runner-u-1").map_err(err("claim"))?;
+        match s.assigned(&job, &real) {
+            Ok(_) => Ok(()),
+            Err(e) if e.code == SourceCode::BadRequest => Ok(()),
+            Err(e) => Err(format!("assigned of a claimed job: {e}")),
+        }
+    });
+    give_back(s.as_mut(), &job, true, result)
 }
 
 /// The code of an error reply, or a failure.

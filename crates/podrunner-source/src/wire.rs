@@ -7,7 +7,9 @@ use podrunner_schema::{Credential, JobId, SCHEMA};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::{Event, SourceCode, SourceError};
+use podrunner_schema::offer::TrustInputs;
+
+use crate::{Event, RealJob, SourceCode, SourceError};
 
 /// The longest line of the wire, without its end of line.
 pub const LINE_MAX: usize = 1 << 20;
@@ -50,10 +52,16 @@ pub enum Request {
     Release {
         job_id: JobId,
     },
+    /// The forge gave the runner of `job_id` the job `real` (T-493).
+    Assigned {
+        job_id: JobId,
+        real: RealJob,
+    },
 }
 
 /// The names of the operations, in the order of the contract.
-pub const OPS: [&str; 9] = ["hello", "next", "ack", "claim", "mint", "report", "audit", "withdraw", "release"];
+pub const OPS: [&str; 10] =
+    ["hello", "next", "ack", "claim", "mint", "report", "audit", "withdraw", "release", "assigned"];
 
 impl Request {
     pub fn op(&self) -> &'static str {
@@ -67,6 +75,7 @@ impl Request {
             Request::Audit { .. } => "audit",
             Request::Withdraw { .. } => "withdraw",
             Request::Release { .. } => "release",
+            Request::Assigned { .. } => "assigned",
         }
     }
 }
@@ -88,6 +97,15 @@ pub enum Reply {
     /// The reply to `mint`.
     Credential {
         credential: Credential,
+    },
+    /// The replies to `assigned`: run the job with these trust facts, or
+    /// end it with a code.
+    Keep {
+        trust_inputs: TrustInputs,
+    },
+    End {
+        code: String,
+        detail: String,
     },
     /// The reply to each other request.
     Done,

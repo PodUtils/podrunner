@@ -487,10 +487,11 @@ pub const JOB_FILE: &str = ".podrunner-job";
 
 /// `OWNER/REPO RUN_ID` of the offer, for the job-started hook of the runner
 /// image (`images/runner/podrunner-job-started.sh`). An offer with no run
-/// gives none: the hook then compares nothing.
+/// gives run 0, which no job matches: the hook then asks serve (T-493). An
+/// offer with no repository (the local mode) gives none.
 pub(crate) fn job_file(offer: &podrunner_schema::JobOffer) -> Option<podrunner_schema::CredentialFile> {
     let t = &offer.trust_inputs;
-    if t.run_id == 0 || t.owner.is_empty() || t.repo.is_empty() {
+    if t.owner.is_empty() || t.repo.is_empty() {
         return None;
     }
     let text = format!("{}/{} {}\n", t.owner, t.repo, t.run_id);

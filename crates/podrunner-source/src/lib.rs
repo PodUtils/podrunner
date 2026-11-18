@@ -15,7 +15,7 @@ pub mod wire;
 use std::fmt;
 use std::time::Duration;
 
-pub use event::{Event, Offer};
+pub use event::{Assigned, Event, Offer, RealJob};
 pub use pipe::{Exchange, Stream, Wire, WireSource, serve_line};
 use podrunner_schema::{Credential, JobId};
 use serde::{Deserialize, Serialize};
@@ -106,6 +106,14 @@ pub trait JobSource: Send {
     fn audit(&mut self, line: &Map<String, Value>) -> Result<(), SourceError>;
     fn withdraw(&mut self, job: &JobId, reason: &str) -> Result<(), SourceError>;
     fn release(&mut self, job: &JobId) -> Result<(), SourceError>;
+    /// The forge gave the runner of the claimed `job` the job `real`, not
+    /// the run of the offer (T-493): keep it, with its trust facts, or end
+    /// it. A source with no such operation refuses it as `bad-request`, and
+    /// podrunner then ends the job.
+    fn assigned(&mut self, job: &JobId, real: &RealJob) -> Result<Assigned, SourceError> {
+        let _ = (job, real);
+        Err(SourceError::new(SourceCode::BadRequest, "assigned is not an operation of this source"))
+    }
 }
 
 #[cfg(test)]
