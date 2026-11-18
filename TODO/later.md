@@ -10896,7 +10896,7 @@ The measure of step 1 before and after (`claim_to_first_step_s` of the run repor
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10915,6 +10915,8 @@ podvm's answer (COORD-187, PodUtils/podvm#583, 2026-11-18): the init of each gue
 ## Prove
 
 A job on real guests in `runner-image.yml` that forks past `pids` fails, and the guest and the host stay up.
+
+In the code (2026-11-18): podvm `0.2.0-beta.32` holds `--pids-limit N` on the machine tier (COORD-187 ask 4, PodUtils/podvm#583). `[unit.microvm] pids` gives each guest `--pids-limit` of the lesser of it and the `pids` of the offer, and the record says `pids: enforced`; `check` asks podvm `0.2.0-beta.32` or later for it (`crates/podrunner-microvm/src/guest.rs`, `lib.rs`, `crates/podrunner/src/microvm_kind.rs`, `docs/configuration.md`). Tests: `cargo test -p podrunner-microvm a_limit_of_processes_goes_to_the_guest`, `cargo test -p podrunner --test check`; `a_payload_past_the_pids_limit_of_a_guest_gets_an_error` (`podrunner-microvm --test pids`, a step of `runner-image.yml`). Open: its green run.
 
 # T-489: githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version
 

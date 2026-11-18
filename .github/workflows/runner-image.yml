@@ -471,6 +471,9 @@ jobs:
           # T-036: a guest with no NIC passes the guest self-test.
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 600 \
             cargo test -p podrunner-microvm --test selftest -- --ignored --nocapture
+          # T-488: a limit of processes in a guest.
+          PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 900 \
+            cargo test -p podrunner-microvm --test pids -- --ignored --nocapture
           # T-037 step 3: the official runner in a guest takes a canned job
           # of the fake broker through the one channel of the guest.
           timeout 900 cargo test -p podrunner-broker-fake --test microvm -- --ignored --nocapture

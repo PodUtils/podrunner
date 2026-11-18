@@ -69,6 +69,8 @@ pub struct MicrovmUnit {
     /// must fit twice (packed and unpacked).
     mem: String,
     cpus: u32,
+    /// The most processes of the payload of each guest (T-488).
+    pids: Option<u32>,
     platform: String,
     /// The reference of each prepared digest.
     references: Mutex<HashMap<String, String>>,
@@ -102,6 +104,7 @@ impl MicrovmUnit {
             // guest of 4 GiB cannot boot (PodUtils/podvm#454, T-291).
             mem: "8G".into(),
             cpus: 2,
+            pids: None,
             platform: platform.into(),
             references: Mutex::new(HashMap::new()),
             units: Mutex::new(HashMap::new()),
@@ -126,6 +129,13 @@ impl MicrovmUnit {
     }
 
     /// The guest memory and vCPUs of each unit.
+    /// The most processes of the payload of each guest (`[unit.microvm]
+    /// pids`, podvm `0.2.0-beta.32` or later, T-488); an offer can lower it.
+    pub fn with_pids(mut self, pids: u32) -> MicrovmUnit {
+        self.pids = Some(pids);
+        self
+    }
+
     pub fn with_size(mut self, mem: &str, cpus: u32) -> MicrovmUnit {
         self.mem = mem.into();
         self.cpus = cpus;
@@ -174,7 +184,9 @@ impl UnitDriver for MicrovmUnit {
                 ("memory".to_string(), podrunner_schema::LimitMode::Enforced),
                 ("cpu".to_string(), podrunner_schema::LimitMode::Enforced),
             ]
-            .into(),
+            .into_iter()
+            .chain(self.pids.map(|_| ("pids".to_string(), podrunner_schema::LimitMode::Enforced)))
+            .collect(),
             // No NIC: the channel to the egress socket is the only way out.
             egress_hold: EgressHold::Enforced,
             kvm: kvm(),
@@ -227,8 +239,15 @@ impl UnitDriver for MicrovmUnit {
         }
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
         let egress = spec.sockets.as_ref().map(|s| s.join(EGRESS_SOCKET));
-        let shape =
-            Shape { mem: &self.mem, cpus: self.cpus, egress: egress.as_deref(), engine: self.engine.as_deref() };
+        let shape = Shape {
+            mem: &self.mem,
+            cpus: self.cpus,
+            egress: egress.as_deref(),
+            engine: self.engine.as_deref(),
+            // The lesser of the kind and the offer; no flag for a kind with
+            // no limit, so an older podvm gets none.
+            pids: self.pids.map(|k| spec.limits.pids.map_or(k, |o| o.min(k))),
+        };
         // The file stays in the directory of the unit until `destroy`.
         let (env_file, env) = podrunner_podvm::write_env_file(&self.podvm, &dir, &spec.env)?;
         let args = run_args(&reference, &dir, &shape, &self.cred_root, &env_file, &env, &spec.argv);

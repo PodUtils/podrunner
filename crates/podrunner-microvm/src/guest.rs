@@ -107,6 +107,9 @@ pub struct Shape<'a> {
     /// The directory of the static Docker binaries: the guest runs an
     /// engine of its own (`--podvm-engine`, T-103).
     pub engine: Option<&'a Path>,
+    /// The most processes of the payload (`--pids-limit`, T-488): the init
+    /// of the guest puts the command in a cgroup with `pids.max`.
+    pub pids: Option<u32>,
 }
 
 /// The variable that gives the guest script the port of the egress
@@ -133,6 +136,9 @@ pub fn run_args(
         .to_vec();
     a.push("--podvm-cpus".into());
     a.push(shape.cpus.to_string());
+    if let Some(n) = shape.pids {
+        a.extend(["--pids-limit".into(), n.to_string()]);
+    }
     if let Some(engine) = shape.engine {
         a.push("--podvm-engine".into());
         a.push("-v".into());

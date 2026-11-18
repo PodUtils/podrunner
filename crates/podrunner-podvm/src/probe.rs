@@ -61,6 +61,10 @@ pub const LOWEST_GUEST: &str = "0.2.0-beta.10";
 /// (T-103, T-112).
 pub const LOWEST_ENGINE: &str = "0.2.0-beta.14";
 
+/// The first podvm that holds a limit of processes in a machine guest
+/// (`--pids-limit` on the machine tier, PodUtils/podvm@T-1967, T-488).
+pub const LOWEST_GUEST_PIDS: &str = "0.2.0-beta.32";
+
 /// The first podvm that runs an engine in an incus instance
 /// (`--podvm-engine` on the incus tier, PodUtils/podvm@T-1966, T-485).
 pub const LOWEST_ENGINE_INCUS: &str = "0.2.0-beta.32";

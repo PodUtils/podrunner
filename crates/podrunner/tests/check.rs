@@ -124,8 +124,8 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nmem = \"2GB\"\n{pin}"),
             "mem",
         ),
-        // T-162: a guest holds no limit of processes.
-        (format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\npids = 9\n{pin}"), "pids"),
+        // T-488: a limit of processes of 0.
+        (format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\npids = 0\n{pin}"), "pids"),
         // T-111: a key of the podvm kind that the incus kind does not read.
         (
             format!(

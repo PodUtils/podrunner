@@ -51,9 +51,6 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         podrunner_unit::mounts::host_path(Path::new(e), podrunner_unit::UnitCode::UnitStartFailed)
             .map_err(|e| fail(Class::Config, format!("[unit.microvm] engine: {}", e.detail)))?;
     }
-    if u.pids.is_some() {
-        return Err(fail(Class::Config, "[unit.microvm] pids: a guest holds no limit of processes"));
-    }
     if u.cpus.is_some_and(|c| c == 0 || c > 64) {
         return Err(fail(Class::Config, "[unit.microvm] cpus: 1 to 64"));
     }
@@ -61,8 +58,14 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     // starts no unit, so `check` and `doctor` give the answer of `serve`
     // (T-116).
     let podvm = podrunner_podvm::Podvm { binary: binary.clone().into() };
-    let lowest =
-        if u.engine.is_some() { podrunner_podvm::probe::LOWEST_ENGINE } else { podrunner_podvm::probe::LOWEST_GUEST };
+    // `pids` needs `--pids-limit` of the machine tier (T-488).
+    let lowest = if u.pids.is_some() {
+        podrunner_podvm::probe::LOWEST_GUEST_PIDS
+    } else if u.engine.is_some() {
+        podrunner_podvm::probe::LOWEST_ENGINE
+    } else {
+        podrunner_podvm::probe::LOWEST_GUEST
+    };
     podvm.require(lowest).map_err(|e| fail(Class::Unsupported, format!("[unit.microvm] binary: {e}")))?;
     Ok(())
 }
@@ -76,6 +79,10 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
         .with_size(u.mem.as_deref().unwrap_or("8G"), u.cpus.unwrap_or(2));
     let unit = match &u.engine {
         Some(e) => unit.with_engine(Path::new(e)),
+        None => unit,
+    };
+    let unit = match u.pids {
+        Some(n) => unit.with_pids(n),
         None => unit,
     };
     let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
