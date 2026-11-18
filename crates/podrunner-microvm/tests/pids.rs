@@ -30,8 +30,9 @@ fn run(n: u32, pids: Option<u32>) -> Option<Exit> {
         Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
         &state,
         &PathBuf::from(env("PODRUNNER_PODVM_IMAGES")),
-    )
-    .with_size("1G", 1);
+    );
+    // The default size of the kind: the initrd of the runner image needs
+    // about 3.3 GiB of memory (run 44349725647 with 1G: exit 125).
     let unit = match pids {
         Some(p) => unit.with_pids(p),
         None => unit,

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 57 open, 44 partial, 13 blocked, 417 done.**
+**531 entries: 57 open, 43 partial, 13 blocked, 418 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 1 | 1 | 0 | 1 | 3 |
+| P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 7 | 19 | 3 | 69 | 98 |
 | P2 | 12 | 18 | 7 | 221 | 258 |
 | P3 | 37 | 6 | 3 | 126 | 172 |
-| **All** | 57 | 44 | 13 | 417 | 531 |
+| **All** | 57 | 43 | 13 | 418 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -537,7 +537,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-490](later.md) | P1 | L | later | research | done | Settle each open unknown of `docs/unknowns.md` |
 | [T-491](later.md) | P1 | M | later | research | done | Lift each limit and non-goal that a need of githome or cfb names |
 | [T-492](later.md) | P2 | S | later | docs | done | The trackers of githome and cfb and the state pages name an old release |
-| [T-493](later.md) | P0 | M | later | defect | partial | G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer |
+| [T-493](later.md) | P0 | M | later | defect | done | G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer |
 | [T-494](later.md) | P0 | M | later | defect | done | G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub |
 | [T-495](later.md) | P1 | M | later | feature | done | G-17: the facts of a host for its source in `hello` |
 | [T-496](later.md) | P1 | M | later | feature | blocked | G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC` |

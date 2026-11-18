@@ -98,10 +98,9 @@ is done.
 - The coordinator (podcrates) sends its orders as COORD issues only
   (COORD-136, PodUtils/podcrates#227). Its order for podrunner: the take
   of `v0.70.0` (done), the census of T-491 (done), then T-493, T-494,
-  T-486, T-495 (T-494, T-486, T-495 done; T-493 partial: its last open
-  item is the test `a_job_of_another_run_that_serve_keeps_runs_in_a_podvm_unit`
-  in `runner-image.yml`). Amend COORD-088 (#295) when T-493 is done (the
-  move of the schemas, T-508).
+  T-486, T-495: all done (T-493 on a real podvm unit, `runner-image.yml`
+  run 44349725647); COORD-092 (#302) says so to the coordinator. The move
+  of the schemas (T-508) waits for podcrates.
 - Done or advanced in this session (each pushed after `check.sh`):
   T-497 (the times, measures and `log_tail` of the report; open: the
   cache bytes, T-480), T-498 (done: `source restart`), T-499 (doctor
@@ -116,10 +115,10 @@ is done.
   (`drain --source`; open: `stop --source`), T-502 (the slots test; open:
   a conformance test), T-520 (the tolerance of `cpu_s`; open: the CI
   measure).
-- CI to read first: `runner-image.yml` on `7319014` or later runs the new
-  measures (T-485 `podrunner-incus --test engine`, T-488
-  `podrunner-microvm --test pids`, T-493 `podvm.rs`). A red one is the
-  first task.
+- CI to read first: `runner-image.yml` on the newest commit. Run
+  44349725647 (`e6beea0`) was green: the incus engine ran a container
+  (T-485); the `pids` test of T-488 failed on its own guest size (fixed:
+  read its next run, then make it blocking).
 - podvm `0.2.0-beta.33` is pinned. The syscall tier is off again: under
   it an absolute link of a unit did not resolve (COORD-093, #303); podvm
   fixed it on its `main` (COORD-192, PodUtils/podvm#588). Take its next
