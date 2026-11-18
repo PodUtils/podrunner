@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**475 entries: 45 open, 28 partial, 13 blocked, 389 done.**
+**475 entries: 44 open, 28 partial, 13 blocked, 390 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
 | P2 | 4 | 12 | 9 | 209 | 234 |
-| P3 | 38 | 4 | 3 | 118 | 163 |
-| **All** | 45 | 28 | 13 | 389 | 475 |
+| P3 | 37 | 4 | 3 | 119 | 163 |
+| **All** | 44 | 28 | 13 | 390 | 475 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -476,7 +476,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-429](later.md) | P3 | M | later | defect | done | A line of a secret, var or env file with `<<` in its value is refused |
 | [T-430](later.md) | P3 | M | later | defect | done | `--changed-since` does not see new files that git does not track |
 | [T-431](later.md) | P3 | M | later | defect | open | The `secrets:` of a call see only the `secrets` context |
-| [T-432](later.md) | P3 | M | later | defect | open | A concurrency group queues each waiter |
+| [T-432](later.md) | P3 | M | later | defect | done | A concurrency group queues each waiter |
 | [T-433](later.md) | P3 | M | later | defect | done | `--schedule` runs on the current branch and takes a cron under 5 minutes |
 | [T-434](later.md) | P3 | M | later | defect | done | The OIDC claims of a called job name the caller |
 | [T-435](later.md) | P2 | S | later | defect | done | mint: one thread for each TCP connection with no cap, each waiting up to 90 s |

@@ -2,7 +2,9 @@
 //! group in the cache directory of the user (`flock`), named by the
 //! repository and the group, as GitHub scopes a group to its repository. A
 //! second run of a group waits for the first; with `cancel-in-progress` it
-//! sends SIGTERM to the run that holds it, which cancels as at Ctrl-C.
+//! sends SIGTERM to the run that holds it, which cancels as at Ctrl-C. As
+//! on GitHub, a group keeps one waiting run: a newer waiter sends SIGTERM to
+//! the older one (T-432).
 
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, Write};
@@ -73,9 +75,12 @@ pub(super) fn hold(
     // SAFETY: flock on a file descriptor that this function owns.
     let free = unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0;
     if !free {
-        let mut pid = String::new();
-        let _ = f.read_to_string(&mut pid);
-        let pid: i32 = pid.trim().parse().unwrap_or(0);
+        let pid = pid_of(&mut f);
+        // The waiting place of another run, held while this run waits.
+        let _waiting = match pid == std::process::id() as i32 {
+            true => None,
+            false => Some(wait_place(&path, group, note)?),
+        };
         if pid == std::process::id() as i32 {
             note(format!("podrunner: the group {:?} waits for another job of this run\n", group.name));
         } else if group.cancel_in_progress && pid > 1 {
@@ -87,7 +92,7 @@ pub(super) fn hold(
         }
         // SAFETY: as above; this call blocks until the lock is free.
         if unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX) } != 0 {
-            return Err(format!("{}: {}", path.display(), std::io::Error::last_os_error()));
+            return Err(interrupted(group));
         }
     }
     f.set_len(0)
@@ -96,6 +101,55 @@ pub(super) fn hold(
         .map_err(|e| e.to_string())?;
     HELD.lock().unwrap_or_else(|e| e.into_inner()).insert(path.clone(), run);
     Ok(Held(Some((f, path))))
+}
+
+/// The process id in a lock file of a group.
+fn pid_of(f: &mut File) -> i32 {
+    let mut pid = String::new();
+    let _ = f.rewind().and_then(|()| f.read_to_string(&mut pid));
+    pid.trim().parse().unwrap_or(0)
+}
+
+fn interrupted(group: &Group) -> String {
+    format!(
+        "the wait for the group {:?} ended: a signal (a newer run of the group took the waiting place, or Ctrl-C)",
+        group.name
+    )
+}
+
+/// Take the waiting place of the group of `path`: the run that waits there
+/// gets SIGTERM, as GitHub cancels a pending run when a newer one comes
+/// (T-432). The place holds until the file goes.
+fn wait_place(path: &Path, group: &Group, note: &mut dyn FnMut(String)) -> Result<File, String> {
+    let place = path.with_extension("waiting");
+    let mut f = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&place)
+        .map_err(|e| format!("{}: {e}", place.display()))?;
+    // SAFETY: flock on a file descriptor that this function owns.
+    if unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
+        let pid = pid_of(&mut f);
+        if pid > 1 && pid != std::process::id() as i32 {
+            note(format!(
+                "podrunner: the group {:?} cancels the waiting run {pid}: a group keeps one waiting run\n",
+                group.name
+            ));
+            // SAFETY: a signal to the process that wrote the waiting place.
+            unsafe { libc::kill(pid, libc::SIGTERM) };
+        }
+        // SAFETY: as above; this call blocks until the place is free.
+        if unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX) } != 0 {
+            return Err(interrupted(group));
+        }
+    }
+    f.set_len(0)
+        .and_then(|()| f.rewind())
+        .and_then(|()| write!(f, "{}", std::process::id()))
+        .map_err(|e| e.to_string())?;
+    Ok(f)
 }
 
 /// The executor that holds the group of each job while it runs.
@@ -207,6 +261,45 @@ mod tests {
         drop(first);
         let n = t.join().unwrap();
         assert!(n.iter().any(|l| l.contains("another job of this run")), "{n:?}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-432: a group keeps one waiting run; a newer waiter sends SIGTERM to
+    /// the older one. Two processes hold the group and its waiting place.
+    #[test]
+    fn a_newer_waiter_cancels_the_older_one() {
+        let dir = std::env::temp_dir().join(format!("podrunner-group-wait-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let g = Group { name: "deploy".into(), cancel_in_progress: false };
+        let path = dir.join(file_name("o/r", &g.name));
+        // A process holds each file, and writes its pid in it.
+        let take = |file: &Path| {
+            let script = format!("echo $$ > '{}'; exec flock -o '{}' sleep 300", file.display(), file.display());
+            let c = std::process::Command::new("sh").args(["-c", &script]).spawn().unwrap();
+            while std::fs::read_to_string(file).map_or(true, |t| t.trim().is_empty()) {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            std::thread::sleep(Duration::from_millis(200));
+            c
+        };
+        let mut holder = take(&path);
+        let mut older = take(&path.with_extension("waiting"));
+        let (d, g2) = (dir.clone(), g.clone());
+        let t = std::thread::spawn(move || {
+            let mut n = Vec::new();
+            drop(hold(&d, "o/r", &g2, true, &mut |x| n.push(x)).unwrap());
+            n
+        });
+        // The older waiter ends by the signal; the new one waits on.
+        let status = older.wait().unwrap();
+        assert!(!status.success(), "{status:?}");
+        std::thread::sleep(Duration::from_millis(300));
+        assert!(!t.is_finished(), "the new waiter waits for the holder");
+        let _ = holder.kill();
+        let _ = holder.wait();
+        let n = t.join().unwrap();
+        assert!(n.iter().any(|l| l.contains("cancels the waiting run")), "{n:?}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

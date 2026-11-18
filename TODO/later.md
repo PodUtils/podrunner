@@ -9251,7 +9251,7 @@ Evaluate with the contexts that GitHub gives there, and name an empty result.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9268,6 +9268,10 @@ Keep one waiter; a newer waiter cancels the older one.
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-18: A run that waits for a group of another run takes the waiting place of the group (a second lock file); a newer waiter sends SIGTERM to the older one and takes the place, as GitHub cancels a pending run. The older run ends with a line that names the cause (`concurrency.rs` `wait_place`). The test holds the group and the waiting place in two other processes; the older one ends by the signal, and the new waiter waits for the holder. On the code before the fix the older waiter stays.
 
 # T-433: `--schedule` runs on the current branch and takes a cron under 5 minutes
 
