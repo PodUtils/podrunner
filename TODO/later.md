@@ -12104,7 +12104,7 @@ State (2026-11-18): `user-gate.yml` has the lane `serve-incus-kvm`: incusd from 
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12121,6 +12121,8 @@ Add a pinned stand-in row on the microvm and incus kinds that records `claim_to_
 ## Prove
 
 `user-gate.yml`: the row passes and the summary gives both times.
+
+State (2026-11-18): `.github/workflows/rbg-stand-in.yml` is the stand-in: Node 26 (setup-node v7.1.0), npm 12.2.3, TypeScript 7.0.2 and `@playwright/test` 1.64.1, a cold install, `tsc --strict`, and a page in headless Chromium. On github.com (run 44400362506) the job took 33 s and the cold install 12 s. The rows `rbg-gate` of `scripts/corpus/user-gate.tsv` run it at `14bc880` on the podvm, runner-dir and microvm executors in the lane `plain`; `scripts/user-gate.py` gives each row the seconds from the start of `run` to the first step and the time of the install (`podrunner-gate-NAME=N` lines). It is the base line of T-480 and T-500. Left: the green run of the rows, and a row on the incus kind (the user-path gate has no incus executor of `run`; the lane `serve-incus-kvm` of T-527 is the place).
 
 # T-529: The disk limit of an offer lifts the bound of the operator
 
