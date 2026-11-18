@@ -85,8 +85,9 @@ pub struct PodvmUnit {
     podnet: Option<(PathBuf, &'static str)>,
     /// The confine layer of podvm on each `run -d` (T-079).
     confine: bool,
-    /// A kind with the confine layer takes no syscall tier (T-261): under
-    /// the tier the open run of its self-test reads no host process.
+    /// A kind with the confine layer takes no syscall tier (T-261): podvm
+    /// `0.2.0-beta.34` cannot start a payload of `run -d` under both
+    /// (COORD-194).
     no_tier: bool,
     /// The rlimits of each unit (T-162).
     limits: podrunner_unit::limits::Limits,
