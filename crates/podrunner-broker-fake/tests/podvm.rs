@@ -232,6 +232,65 @@ fn a_foreign_job_ends_before_its_first_step_in_a_podvm_unit() {
     assert!(residue.is_clean(), "{residue:?}");
 }
 
+/// T-493, T-530: a runner that gets a job of another run asks serve
+/// through the egress socket of its podvm unit; `keep` runs the job.
+#[test]
+#[ignore]
+fn a_job_of_another_run_that_serve_keeps_runs_in_a_podvm_unit() {
+    let state = std::env::temp_dir().join(format!("podrunner-podvm-kept-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&state);
+    let sockets = state.join("sockets");
+    std::fs::create_dir_all(&sockets).unwrap();
+    let seen = common::front_stand_in_unix(r#"{"verdict":"keep"}"#, &sockets.join(podrunner_unit::EGRESS_SOCKET));
+    let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
+    let unit = PodvmUnit::new(podvm, &state.join("units"), &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
+    let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
+    let prepared = unit.prepare(&env("PODRUNNER_RUNNER_IMAGE"), platform, false).unwrap();
+    let broker = Broker::start().unwrap();
+    broker.queue(Job::scripts("kept", &["echo podrunner-kept-$((6*7))"]));
+    let mut files: Vec<CredentialFile> = broker
+        .runner_files("runner-u-3")
+        .into_iter()
+        .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
+        .collect();
+    files.push(CredentialFile { name: ".podrunner-job".into(), content: Secret::new("example-org/other 7\n") });
+    let id = UnitId::parse("u-3").unwrap();
+    // The path of the egress socket as the unit sees it: the socket
+    // directory where the kind mounts one, else the host path.
+    let seen_path = match unit.socket_mount() {
+        Some(m) => format!("{m}/{}", podrunner_unit::EGRESS_SOCKET),
+        None => sockets.join(podrunner_unit::EGRESS_SOCKET).display().to_string(),
+    };
+    let spec_env =
+        std::collections::BTreeMap::from([("PODRUNNER_EGRESS".to_string(), format!("http://unix:{seen_path}"))]);
+    let spec = StartSpec {
+        unit: id.clone(),
+        image: prepared,
+        argv: vec!["/home/runner/run.sh".into()],
+        env: spec_env,
+        credential: Credential { files },
+        sockets: Some(sockets),
+        mounts: Vec::new(),
+        limits: Default::default(),
+    };
+    unit.start(&spec).unwrap();
+    let _ = unit.wait(&id, Duration::from_secs(300)).unwrap();
+    let t = Instant::now();
+    while broker.completions().is_empty() && t.elapsed() < Duration::from_secs(5) {
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let (done, logs) = (broker.completions(), broker.logs());
+    let residue = unit.destroy(&id).unwrap();
+    let _ = std::fs::remove_dir_all(&state);
+    let asked = seen.lock().unwrap().clone();
+    assert_eq!(asked.len(), 1, "one question through the egress socket: {asked:?}\n{logs}");
+    assert!(asked[0].contains(r#""repository":"example-org/app""#), "{asked:?}");
+    assert_eq!(done.len(), 1, "{:?}\n{logs}", broker.seen());
+    assert_eq!(done[0].conclusion, "succeeded", "{logs}");
+    assert!(logs.contains("podrunner-kept-42"), "the step of the kept job ran: {logs}");
+    assert!(residue.is_clean(), "{residue:?}");
+}
+
 /// T-162: the runner starts and ends a canned job under the limits of
 /// `[unit.podvm] mem` and `pids` (`RLIMIT_AS`, with the heap limit of .NET
 /// at three quarters; `RLIMIT_NPROC`).

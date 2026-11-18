@@ -11,7 +11,7 @@ use podrunner_broker_fake::{Broker, Job};
 
 mod common;
 
-use common::run_once;
+use common::{front_stand_in, front_stand_in_unix, run_once};
 
 /// The tests share one runner directory and its configuration: one at a
 /// time.
@@ -112,68 +112,6 @@ fn a_job_started_hook_ends_a_foreign_job_before_its_first_step() {
         );
     }
     let _ = std::fs::remove_file(&job);
-}
-
-/// A stand-in of the front of the egress socket on the loopback: it
-/// answers each question with `verdict`, and keeps the head and the body.
-type Seen = std::sync::Arc<Mutex<Vec<String>>>;
-
-/// One question to the stand-in of the front: its head and body go to
-/// `seen`, and the answer is `verdict`.
-fn front_one<C>(c: C, verdict: &str, seen: &Seen)
-where
-    for<'a> &'a C: std::io::Read + std::io::Write,
-{
-    use std::io::{BufRead, BufReader, Read, Write};
-    let mut r = BufReader::new(&c);
-    let mut head = String::new();
-    let mut len = 0;
-    loop {
-        let mut line = String::new();
-        if r.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
-            break;
-        }
-        if let Some(v) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-            len = v.trim().parse().unwrap_or(0);
-        }
-        head.push_str(&line);
-    }
-    let mut body = vec![0; len];
-    let _ = r.read_exact(&mut body);
-    seen.lock().unwrap().push(format!("{head}\n{}", String::from_utf8_lossy(&body)));
-    let _ = (&c).write_all(
-        format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{verdict}", verdict.len())
-            .as_bytes(),
-    );
-}
-
-/// The stand-in of the front on a TCP port, as the proxy of a unit.
-fn front_stand_in(verdict: &'static str) -> (u16, Seen) {
-    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = l.local_addr().unwrap().port();
-    let seen = Seen::default();
-    let keep = seen.clone();
-    std::thread::spawn(move || {
-        for c in l.incoming().flatten() {
-            front_one(c, verdict, &keep);
-        }
-    });
-    (port, seen)
-}
-
-/// The stand-in of the front on a unix socket, as the egress socket of a
-/// podvm unit (T-530).
-fn front_stand_in_unix(verdict: &'static str, path: &std::path::Path) -> Seen {
-    let _ = std::fs::remove_file(path);
-    let l = std::os::unix::net::UnixListener::bind(path).unwrap();
-    let seen = Seen::default();
-    let keep = seen.clone();
-    std::thread::spawn(move || {
-        for c in l.incoming().flatten() {
-            front_one(c, verdict, &keep);
-        }
-    });
-    seen
 }
 
 /// T-493: for a job of another run, the hook asks serve through the proxy

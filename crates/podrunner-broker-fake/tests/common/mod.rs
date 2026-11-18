@@ -78,3 +78,65 @@ pub fn proxy(path: &Path, broker: u16) -> Arc<Mutex<Vec<String>>> {
 pub fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
 }
+
+/// T-493, T-530: a stand-in of the front of the egress socket of `serve`
+/// that answers each question of the job-started hook with one verdict.
+pub type Seen = Arc<Mutex<Vec<String>>>;
+
+/// One question to the stand-in of the front: its head and body go to
+/// `seen`, and the answer is `verdict`.
+pub fn front_one<C>(c: C, verdict: &str, seen: &Seen)
+where
+    for<'a> &'a C: std::io::Read + std::io::Write,
+{
+    use std::io::{BufRead, BufReader, Read, Write};
+    let mut r = BufReader::new(&c);
+    let mut head = String::new();
+    let mut len = 0;
+    loop {
+        let mut line = String::new();
+        if r.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+            break;
+        }
+        if let Some(v) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+            len = v.trim().parse().unwrap_or(0);
+        }
+        head.push_str(&line);
+    }
+    let mut body = vec![0; len];
+    let _ = r.read_exact(&mut body);
+    seen.lock().unwrap().push(format!("{head}\n{}", String::from_utf8_lossy(&body)));
+    let _ = (&c).write_all(
+        format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{verdict}", verdict.len())
+            .as_bytes(),
+    );
+}
+
+/// The stand-in of the front on a TCP port, as the proxy of a unit.
+pub fn front_stand_in(verdict: &'static str) -> (u16, Seen) {
+    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = l.local_addr().unwrap().port();
+    let seen = Seen::default();
+    let keep = seen.clone();
+    std::thread::spawn(move || {
+        for c in l.incoming().flatten() {
+            front_one(c, verdict, &keep);
+        }
+    });
+    (port, seen)
+}
+
+/// The stand-in of the front on a unix socket, as the egress socket of a
+/// podvm unit (T-530).
+pub fn front_stand_in_unix(verdict: &'static str, path: &std::path::Path) -> Seen {
+    let _ = std::fs::remove_file(path);
+    let l = std::os::unix::net::UnixListener::bind(path).unwrap();
+    let seen = Seen::default();
+    let keep = seen.clone();
+    std::thread::spawn(move || {
+        for c in l.incoming().flatten() {
+            front_one(c, verdict, &keep);
+        }
+    });
+    seen
+}
