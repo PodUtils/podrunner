@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**475 entries: 49 open, 28 partial, 13 blocked, 385 done.**
+**475 entries: 46 open, 28 partial, 13 blocked, 388 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
 | P2 | 4 | 12 | 9 | 209 | 234 |
-| P3 | 42 | 4 | 3 | 114 | 163 |
-| **All** | 49 | 28 | 13 | 385 | 475 |
+| P3 | 39 | 4 | 3 | 117 | 163 |
+| **All** | 46 | 28 | 13 | 388 | 475 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -473,11 +473,11 @@ acceptance, later The crate dependencies later than v1.
 | [T-426](later.md) | P3 | M | later | defect | done | `github.workflow` is the file name, not the `name:` of the workflow |
 | [T-427](later.md) | P3 | M | later | defect | open | `--rerun DIR --job CALLER` reruns nothing of a call |
 | [T-428](later.md) | P3 | M | later | defect | open | A directory run with `--artifacts` or `--state` keeps the output of the last workflow only |
-| [T-429](later.md) | P3 | M | later | defect | open | A line of a secret, var or env file with `<<` in its value is refused |
-| [T-430](later.md) | P3 | M | later | defect | open | `--changed-since` does not see new files that git does not track |
+| [T-429](later.md) | P3 | M | later | defect | done | A line of a secret, var or env file with `<<` in its value is refused |
+| [T-430](later.md) | P3 | M | later | defect | done | `--changed-since` does not see new files that git does not track |
 | [T-431](later.md) | P3 | M | later | defect | open | The `secrets:` of a call see only the `secrets` context |
 | [T-432](later.md) | P3 | M | later | defect | open | A concurrency group queues each waiter |
-| [T-433](later.md) | P3 | M | later | defect | open | `--schedule` runs on the current branch and takes a cron under 5 minutes |
+| [T-433](later.md) | P3 | M | later | defect | done | `--schedule` runs on the current branch and takes a cron under 5 minutes |
 | [T-434](later.md) | P3 | M | later | defect | done | The OIDC claims of a called job name the caller |
 | [T-435](later.md) | P2 | S | later | defect | done | mint: one thread for each TCP connection with no cap, each waiting up to 90 s |
 | [T-436](later.md) | P2 | S | later | defect | done | guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest |

@@ -9164,7 +9164,7 @@ Give each workflow a directory of its own under DIR, or refuse the pair.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9182,6 +9182,10 @@ Take `NAME<<DELIM` only when `<<` comes right after the name, as the runner does
 
 `cargo test --workspace`; a test that fails on the code before the fix.
 
+## Done
+
+2026-11-17: A line is `NAME<<DELIM` only when `<<` comes before the first `=`, as the file commands of the runner read it; `A=a<<b` is a plain value (`secrets.rs`). The test of the parser checks both forms; it fails on the code before the fix.
+
 # T-430: `--changed-since` does not see new files that git does not track
 
 **Source:** the review of the local mode against GitHub of `65ee5e3` by a review agent of this session (read only), 2026-11-17
@@ -9189,7 +9193,7 @@ Take `NAME<<DELIM` only when `<<` comes right after the name, as the runner does
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9206,6 +9210,10 @@ Add the new files that git does not ignore to the changed files.
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: The changed files of `--changed-since` are the diff with the work tree and each new file that git does not ignore, from the top of the tree (`context.rs` `changed`). The test runs from a subdirectory with a changed file, a new file and an ignored file.
 
 # T-431: The `secrets:` of a call see only the `secrets` context
 
@@ -9264,7 +9272,7 @@ Keep one waiter; a newer waiter cancels the older one.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9281,6 +9289,10 @@ Run on the default branch, and say that a cron under 5 minutes runs every 5 minu
 ## Prove
 
 `cargo test --workspace`; a test that fails on the code before the fix.
+
+## Done
+
+2026-11-17: A run of `--event schedule` (also of `--schedule`) has the ref of the default branch and the commit of its head, with the files of the tree (`context.rs` `facts`). `--schedule` and `--validate` name a cron more often than each 5 minutes, once for each loop (`watch.rs` `notes`). Tests: the ref of a schedule in the context test; four crons in the watch test.
 
 # T-434: The OIDC claims of a called job name the caller
 

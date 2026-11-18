@@ -75,6 +75,42 @@ pub(super) fn timezones(on: &Node) -> Vec<(u32, String)> {
         .collect()
 }
 
+/// The lines of `on.schedule` that GitHub runs in another way: a time zone
+/// that podrunner does not read (T-423), and a cron more often than each 5
+/// minutes, the shortest interval of GitHub (T-433).
+pub(super) fn notes(on: &Node) -> Vec<String> {
+    let mut out: Vec<String> = timezones(on)
+        .into_iter()
+        .map(|(line, tz)| format!("line {line}: timezone {tz:?} is not read yet: the cron runs at UTC (T-423)"))
+        .collect();
+    let Kind::Map(entries) = &on.kind else { return out };
+    let Some((_, Node { kind: Kind::Seq(items), .. })) = entries.iter().find(|(k, _)| k.name == "schedule") else {
+        return out;
+    };
+    for item in items {
+        let Kind::Map(e) = &item.kind else { continue };
+        let Some((_, Node { kind: Kind::String(text), .. })) = e.iter().find(|(k, _)| k.name == "cron") else {
+            continue;
+        };
+        let Ok(c) = Cron::parse(text) else { continue };
+        // The shortest gap of the times of two days.
+        let mut at = c.next(0);
+        let mut gap = i64::MAX;
+        while let Some(t) = at.filter(|t| *t < 2 * 86_400) {
+            let n = c.next(t);
+            gap = gap.min(n.map_or(i64::MAX, |n| n - t));
+            at = n;
+        }
+        if gap < 300 {
+            out.push(format!(
+                "line {}: the cron {text:?} runs more often than each 5 minutes; GitHub runs a schedule at most each 5 minutes (T-433)",
+                item.mark.line
+            ));
+        }
+    }
+    out
+}
+
 fn now() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
@@ -136,6 +172,7 @@ pub fn repeat(args: &[String]) -> Out {
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| ".".into()));
     cancel::install();
     let mut last = Out { code: 0, stdout: String::new(), stderr: String::new() };
+    let mut noted = false;
     loop {
         if schedule {
             let text = std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()));
@@ -161,12 +198,13 @@ pub fn repeat(args: &[String]) -> Out {
                 Ok(None) => return fail(Class::Config, format!("{}: on.schedule has no cron time", file.display())),
                 Err(e) => return fail(Class::Config, format!("{}: {e}", file.display())),
             };
-            eprintln!("podrunner: the next run of the schedule is at {}", utc(at));
-            if let Ok(p) = std::fs::read_to_string(&file).map(|t| pod_actions_workflow::parse(&t)) {
-                for (line, tz) in p.map(|p| timezones(&p.workflow.on)).unwrap_or_default() {
-                    eprintln!("podrunner: line {line}: timezone {tz:?} is not read yet: the cron runs at UTC (T-423)");
+            if !noted {
+                noted = true;
+                if let Ok(Ok(p)) = std::fs::read_to_string(&file).map(|t| pod_actions_workflow::parse(&t)) {
+                    notes(&p.workflow.on).iter().for_each(|n| eprintln!("podrunner: {n}"));
                 }
             }
+            eprintln!("podrunner: the next run of the schedule is at {}", utc(at));
             while now() < at {
                 // A signal in the wait is an interrupt, as in a run (T-231).
                 if cancel::requested() {
@@ -241,6 +279,17 @@ mod tests {
         .workflow
         .on;
         assert_eq!(timezones(&tz), [(3, "Europe/Berlin".to_string())]);
+        // T-433: a cron more often than each 5 minutes is named.
+        let on = |c: &str| {
+            let text =
+                format!("on:\n  schedule:\n    - cron: '{c}'\njobs:\n  a:\n    runs-on: x\n    steps: [{{run: a}}]\n");
+            pod_actions_workflow::parse(&text).unwrap().workflow.on
+        };
+        for (cron, short) in
+            [("*/2 * * * *", true), ("0,1 9 * * *", true), ("*/5 * * * *", false), ("0 3 * * 1", false)]
+        {
+            assert_eq!(notes(&on(cron)).iter().any(|n| n.contains("T-433")), short, "{cron}");
+        }
         let dir = std::env::temp_dir().join(format!("podrunner-watch-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();

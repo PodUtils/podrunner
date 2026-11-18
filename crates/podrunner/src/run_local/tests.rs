@@ -169,6 +169,9 @@ fn the_github_context_comes_from_the_tree_and_the_flags() {
         let full = pr.get(side).and_then(|h| h.get("repo")).and_then(|r| r.get("full_name"));
         assert_eq!(full, gh.get("repository"), "{side}");
     }
+    // T-433: a schedule runs on the default branch, not on the branch of the tree.
+    let a = parse(&args(&["w.yml", "--runner-dir", "/r", "--checkout", &tree, "--event", "schedule"])).unwrap();
+    assert_eq!(context::facts(&a).git_ref, "refs/heads/main");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

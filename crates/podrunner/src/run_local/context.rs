@@ -64,6 +64,15 @@ pub(super) fn facts(a: &Args) -> Facts {
         .unwrap_or_else(|| "main".into());
     let tree_ref = git(dir, &["symbolic-ref", "-q", "HEAD"])
         .or_else(|| git(dir, &["describe", "--exact-match", "--tags", "HEAD"]).map(|t| format!("refs/tags/{t}")));
+    // GitHub runs a schedule on the newest commit of the default branch
+    // (T-433); the files stay those of the tree.
+    let schedule = a.event == "schedule";
+    let tree_ref = if schedule { None } else { tree_ref };
+    let head = match schedule {
+        true => git(dir, &["rev-parse", "-q", "--verify", &format!("refs/heads/{default_branch}")])
+            .or_else(|| git(dir, &["rev-parse", "HEAD"])),
+        false => git(dir, &["rev-parse", "HEAD"]),
+    };
     Facts {
         repository: a
             .repository
@@ -71,7 +80,7 @@ pub(super) fn facts(a: &Args) -> Facts {
             .or_else(|| git(dir, &["remote", "get-url", remote]).and_then(|u| repository_of(&u)))
             .unwrap_or_else(|| "local/workflow".into()),
         git_ref: a.git_ref.clone().or(tree_ref).unwrap_or_else(|| format!("refs/heads/{default_branch}")),
-        sha: a.sha.clone().or_else(|| git(dir, &["rev-parse", "HEAD"])).unwrap_or_else(|| "0".repeat(40)),
+        sha: a.sha.clone().or(head).unwrap_or_else(|| "0".repeat(40)),
         actor: a.actor.clone().or_else(|| git(dir, &["config", "user.name"])).unwrap_or_else(|| "local".into()),
         default_branch,
         inputs: serde_json::Map::new(),
@@ -322,20 +331,56 @@ pub(super) fn events(on: &Node) -> Vec<String> {
 }
 
 /// The changed files of the tree since `since`: `git diff --name-only`
-/// against the working tree (T-125).
+/// against the working tree (T-125), and each new file that git does not
+/// ignore, as the checkout has it (T-430). Each path is from the top of
+/// the tree, as a `paths` filter reads it.
 fn changed(a: &Args, since: &str) -> Result<Vec<String>, String> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
     let dir = a.checkout.as_deref().unwrap_or(&cwd);
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(["diff", "--name-only", since, "--"])
-        .output()
-        .map_err(|e| format!("--changed-since: git: {e}"))?;
-    if !out.status.success() {
-        return Err(format!("--changed-since {since}: {}", String::from_utf8_lossy(&out.stderr).trim()));
+    let git = |args: &[&str]| {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .output()
+            .map_err(|e| format!("--changed-since: git: {e}"))?;
+        if !out.status.success() {
+            return Err(format!("--changed-since {since}: {}", String::from_utf8_lossy(&out.stderr).trim()));
+        }
+        Ok(String::from_utf8_lossy(&out.stdout).lines().map(str::to_string).collect::<Vec<_>>())
+    };
+    let mut files = git(&["diff", "--name-only", since, "--"])?;
+    files.extend(git(&["ls-files", "--others", "--exclude-standard", "--full-name"])?);
+    files.sort();
+    files.dedup();
+    Ok(files)
+}
+
+#[cfg(test)]
+mod changed_tests {
+    /// T-430: a new file that git does not ignore is a changed file; an
+    /// ignored one is not.
+    #[test]
+    fn a_new_file_is_a_changed_file() {
+        let dir = std::env::temp_dir().join(format!("podrunner-changed-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        let git = |args: &[&str]| {
+            let ok = std::process::Command::new("git").arg("-C").arg(&dir).args(args).status().unwrap().success();
+            assert!(ok, "git {args:?}");
+        };
+        git(&["init", "-q", "-b", "main"]);
+        std::fs::write(dir.join("a.txt"), "a").unwrap();
+        std::fs::write(dir.join(".gitignore"), "*.log\n").unwrap();
+        git(&["add", "-A"]);
+        git(&["-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "c"]);
+        std::fs::write(dir.join("a.txt"), "b").unwrap();
+        std::fs::write(dir.join("sub/new.rs"), "n").unwrap();
+        std::fs::write(dir.join("x.log"), "l").unwrap();
+        let a = super::Args { checkout: Some(dir.join("sub")), ..super::Args::default() };
+        assert_eq!(super::changed(&a, "HEAD").unwrap(), ["a.txt", "sub/new.rs"]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
-    Ok(String::from_utf8_lossy(&out.stdout).lines().map(str::to_string).collect())
 }
 
 /// The workflow takes the event of the run after the filters of its `on:`

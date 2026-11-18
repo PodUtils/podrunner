@@ -42,7 +42,10 @@ fn parse_with(text: &str, check_name: impl Fn(&str) -> Result<(), String>) -> Re
         if line.trim().is_empty() || line.trim_start().starts_with('#') {
             continue;
         }
-        let (name, value) = if let Some((name, delim)) = line.split_once("<<") {
+        // As the runner: `NAME<<DELIM` only when `<<` comes before the
+        // first `=`; `NAME=a<<b` is a plain value (T-429).
+        let heredoc = line.find("<<").filter(|h| line.find('=').is_none_or(|e| *h < e));
+        let (name, value) = if let Some((name, delim)) = heredoc.map(|h| (&line[..h], &line[h + 2..])) {
             let mut value = Vec::new();
             loop {
                 let Some((_, l)) = lines.next() else {
@@ -96,6 +99,9 @@ mod tests {
         let s = parse("# c\nA=1\nB=x=y\n\nCERT<<END\nline 1\nline 2\nEND\nA=2\n").unwrap();
         let want = [("B", "x=y"), ("CERT", "line 1\nline 2"), ("A", "2")];
         assert_eq!(s, want.map(|(k, v)| (k.to_string(), v.to_string())));
+        // T-429: `<<` after the first `=` is a part of a plain value.
+        assert_eq!(parse("A=a<<b\nB=<<x\n").unwrap(), [("A".into(), "a<<b".into()), ("B".into(), "<<x".into())]);
+        assert_eq!(parse("C<<E=X\nv\nE=X\n").unwrap(), [("C".to_string(), "v".to_string())]);
         for bad in ["A", "1A=x", "GITHUB_TOKEN=x", "A-B=x", "C<<END\nno end"] {
             assert!(parse(bad).is_err(), "{bad:?}");
         }
