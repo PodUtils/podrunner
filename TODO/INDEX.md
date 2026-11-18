@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 57 open, 43 partial, 13 blocked, 418 done.**
+**532 entries: 58 open, 44 partial, 12 blocked, 418 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 7 | 19 | 3 | 69 | 98 |
-| P2 | 12 | 18 | 7 | 221 | 258 |
-| P3 | 37 | 6 | 3 | 126 | 172 |
-| **All** | 57 | 43 | 13 | 418 | 531 |
+| P2 | 12 | 19 | 6 | 221 | 258 |
+| P3 | 38 | 6 | 3 | 126 | 173 |
+| **All** | 58 | 44 | 12 | 418 | 532 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -305,7 +305,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-255](later.md) | P2 | S | later | defect | done | On `--runner-dir`, the tests of express miss headers and hang |
 | [T-256](later.md) | P1 | S | later | defect | done | The checks of a session do not run the suites that need the official runner |
 | [T-260](later.md) | P2 | S | later | defect | done | An expression in the image of a service or a job container fails the job |
-| [T-261](later.md) | P2 | S | later | defect | blocked | In a podvm unit, the persist of a temporary file gets EACCES |
+| [T-261](later.md) | P2 | S | later | defect | partial | In a podvm unit, the persist of a temporary file gets EACCES |
 | [T-262](later.md) | P2 | S | later | defect | done | In a podvm unit, Node sometimes reads an invalid package.json |
 | [T-263](later.md) | P1 | S | later | defect | done | The installer keeps a directory that the group can write |
 | [T-264](later.md) | P2 | M | later | chore | partial | Take podcrates `v0.55.0`: the sync of the issues and pod-lab |
@@ -579,3 +579,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-532](later.md) | P1 | M | later | feature | open | The containers of a podvm unit on the namespace rung, with a volume base |
 | [T-533](later.md) | P2 | M | later | measurement | open | A job of another architecture in a guest of the machine tier |
 | [T-534](later.md) | P2 | S | later | defect | done | The probe of the incus kind claims the kind on a host with no incusd |
+| [T-535](later.md) | P3 | S | later | defect | open | The tests leave their temporary directories in /tmp |

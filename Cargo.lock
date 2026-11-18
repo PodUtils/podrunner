@@ -1055,6 +1055,7 @@ dependencies = [
  "podrunner-schema",
  "podrunner-slots",
  "podrunner-unit",
+ "serde_json",
 ]
 
 [[package]]

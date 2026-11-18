@@ -93,6 +93,9 @@ fi
 exec "$@"
 "#;
 
+/// podvm's report of the run of a guest, in the directory of the unit.
+pub const REPORT: &str = "run-report.json";
+
 /// The port in the guest of the channel to the egress socket: the payload
 /// gets `http://127.0.0.1:EGRESS_PORT` as its proxy.
 pub const EGRESS_PORT: u16 = 3128;
@@ -136,6 +139,9 @@ pub fn run_args(
         .to_vec();
     a.push("--podvm-cpus".into());
     a.push(shape.cpus.to_string());
+    // podvm's report of the run, for the OOM kills of the guest (T-515).
+    a.push("--report".into());
+    a.push(unit_dir.join(REPORT).display().to_string());
     if let Some(n) = shape.pids {
         a.extend(["--pids-limit".into(), n.to_string()]);
     }

@@ -44,7 +44,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `job-offer.v1` | An offer with `sandbox { image, command, idle_s, max_s }` runs `command` in a unit of `image` at `untrusted`; the image must be a `[[pin.payload]]` with `sandbox = true` (else `payload-not-pinned`); the payload gets `PODRUNNER_IDLE_S`; the unit ends at the lesser of `max_s` and the wall. | T-506 |
 | `podrunner.toml` | `[[pin.payload]] sandbox = true`. | T-506 |
 | `podrunner.toml` | `[unit.fake] claim = "confined" \| "guest"` (with `allow_fake`): a forge tests its program source through `serve` with the fake kind. | T-511 |
-| pins | podvm `0.2.0-beta.33`, podnet `0.4.0-beta.17`. | T-405, T-179 |
+| pins | podvm `0.2.0-beta.34`, podnet `0.4.0-beta.17`; `--podvm-tier=syscall` on the userland rung of x86_64. | T-405, T-179, T-261 |
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->

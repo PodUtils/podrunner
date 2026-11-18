@@ -1070,6 +1070,7 @@ dependencies = [
  "podrunner-podvm",
  "podrunner-schema",
  "podrunner-unit",
+ "serde_json",
 ]
 
 [[package]]

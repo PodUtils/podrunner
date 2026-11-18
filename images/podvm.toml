@@ -42,8 +42,10 @@
 # the syscall tier (T-261, COORD-190), and on the incus tier
 # `--storage-opt size=N` (T-482) and the CPU time, the peak memory and the
 # OOM kills in `inspect` (T-483) (COORD-187, PodUtils/podvm#583).
-version = "0.2.0-beta.33"
+# v0.2.0-beta.34 resolves an absolute link of a unit under the syscall tier
+# (T-261, COORD-192) and gives the OOM kills of a machine guest (T-515).
+version = "0.2.0-beta.34"
 
 [sha256]
-x86_64 = "68f86f7de73eddceeb5f97708e4f811788a6f0a5e6a563b16801cbc0cd02b4a8"
-aarch64 = "cfd23020f3d2b418e9c6afc241ec43a4934f17c89f82fa73fdd7dd20e533b3a3"
+x86_64 = "2ca17f08ddb8707ca045b664712cf53b3e1429aab8701ef9e7ac09a5fc6dc4b1"
+aarch64 = "4561f48dd3cd4534541d6ce452b1dd489e544c73508d8ed55baa6eb2df73ab68"

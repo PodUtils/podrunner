@@ -355,6 +355,13 @@ impl UnitDriver for MicrovmUnit {
         })
     }
 
+    fn oom_kills(&self, unit: &UnitId) -> Option<u64> {
+        // podvm `0.2.0-beta.34`: `oom_kills` of the report of the run of
+        // the guest (PodUtils/podvm#583, ask 6).
+        let text = std::fs::read(self.unit_dir(unit).join(guest::REPORT)).ok()?;
+        serde_json::from_slice::<serde_json::Value>(&text).ok()?.get("oom_kills")?.as_u64()
+    }
+
     fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
         let units = self.units.lock().expect("the units");
         let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;

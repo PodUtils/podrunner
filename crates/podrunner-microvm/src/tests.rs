@@ -146,7 +146,7 @@ fn an_egress_socket_is_the_one_channel_and_the_proxy_of_the_payload() {
         Shape { mem: "4G", cpus: 2, egress: Some(Path::new("/s/sockets/egress.sock")), engine: None, pids: None };
     let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", &[], &BTreeMap::new(), &[]);
     let s = a.join(" ");
-    assert!(s.contains(&format!("--podvm-net none --podvm-mem 4G --podvm-cpus 2 --podvm-channel /s/sockets/egress.sock:127.0.0.1:{EGRESS_PORT}")), "{s}");
+    assert!(s.contains(&format!("--podvm-net none --podvm-mem 4G --podvm-cpus 2 --report /s/u-1/run-report.json --podvm-channel /s/sockets/egress.sock:127.0.0.1:{EGRESS_PORT}")), "{s}");
     assert!(s.contains(&format!("-e {CHANNEL_PORT_VAR}={EGRESS_PORT}")), "{s}");
     assert!(
         !s.contains("-e http_proxy") && !s.contains("-e https_proxy"),
@@ -355,4 +355,22 @@ fn a_limit_of_processes_goes_to_the_guest() {
     assert_eq!(u.probe().unwrap().limit("pids"), podrunner_schema::LimitMode::None);
     let u = MicrovmUnit::new(podrunner_podvm::Podvm { binary: "/bin/true".into() }, &d, &d).with_pids(64);
     assert_eq!(u.probe().unwrap().limit("pids"), podrunner_schema::LimitMode::Enforced);
+}
+
+/// T-515: each guest writes podvm's report into the directory of its unit,
+/// and the kind reads the OOM kills of the guest from it.
+#[test]
+fn the_oom_kills_of_a_guest_come_from_the_report_of_podvm() {
+    let shape = Shape { mem: "1G", cpus: 1, egress: None, engine: None, pids: None };
+    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", &[], &BTreeMap::new(), &[]).join(" ");
+    assert!(a.contains("--report /s/u-1/run-report.json"), "{a}");
+    let d = std::env::temp_dir().join(format!("podrunner-microvm-oom-{}", std::process::id()));
+    let u = MicrovmUnit::new(podrunner_podvm::Podvm { binary: "/bin/true".into() }, &d, &d);
+    let id = podrunner_schema::UnitId::parse("u-1").unwrap();
+    let dir = d.join("units").join("u-1");
+    fs::create_dir_all(&dir).unwrap();
+    assert_eq!(u.oom_kills(&id), None, "no report");
+    fs::write(dir.join("run-report.json"), r#"{"exit_code": 137, "oom_kills": 2}"#).unwrap();
+    assert_eq!(u.oom_kills(&id), Some(2));
+    let _ = fs::remove_dir_all(&d);
 }

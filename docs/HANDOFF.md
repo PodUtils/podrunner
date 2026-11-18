@@ -119,12 +119,11 @@ is done.
   44349725647 (`e6beea0`) was green: the incus engine ran a container
   (T-485); the `pids` test of T-488 failed on its own guest size (fixed:
   read its next run, then make it blocking).
-- podvm `0.2.0-beta.33` is pinned. The syscall tier is off again: under
-  it an absolute link of a unit did not resolve (COORD-093, #303); podvm
-  fixed it on its `main` (COORD-192, PodUtils/podvm#588). Take its next
-  beta, give the flag again (the code is at `322d214`), run `links.rs`
-  and the container steps (T-261). T-403 waits for COORD-090 (#300).
-  T-496 waits for PodUtils/podvm@T-1968.
+- podvm `0.2.0-beta.34` is pinned: the syscall tier is back on the
+  userland rung of x86_64 (T-261: read `links.rs` and the container steps
+  of `runner-image.yml`, then close #303), and the microvm kind reads the
+  OOM kills of a guest from podvm's report (T-515). T-403 waits for
+  COORD-090 (#300). T-496 waits for PodUtils/podvm@T-1968.
 - podnet `v0.4.0-beta.17` is pinned (COORD-108, PodUtils/podnet#655): run
   `user-gate.yml` on a green `runner-image.yml` run and send the result
   of #142 to podnet as a COORD issue (T-179).

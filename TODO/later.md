@@ -4316,7 +4316,7 @@ The log of the job `runner` of level2 43750372759, read on 2026-11-15.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -4342,9 +4342,7 @@ State (2026-11-18): podvm `0.2.0-beta.33` maps the path of a unix socket in the 
 
 2026-11-18, later: with podvm `0.2.0-beta.33` the relay of the hooks connects under the tier (#301 closed), but `runner-image.yml` run 44331618064 failed `podrunner-podvm --test links`: under the tier an absolute symbolic link of the unit does not resolve in its rootfs (`cat: link: No such file or directory`). The flag is removed again; asked of podvm by COORD-093 (GitHub #303).
 
-## Blocker
-
-The syscall tier resolves an absolute link target against the root of the host, not the rootfs of the unit: COORD-093 (GitHub #303, to podvm). podvm answered with COORD-192 (PodUtils/podvm#588): the handler took glibc's `AT_FDCWD` (the low 32 bits) for a descriptor, so a relative path through an absolute link went to the kernel unmapped; fixed on podvm `main`, for its next beta. When podvm fixes it, give the flag again (x86_64 only; the code of `labels::tier_args` is in the history at `322d214`) and run `links.rs` and the container steps of `runner-image.yml` with it.
+State (2026-11-18, later): podvm `0.2.0-beta.34` fixes COORD-093 (COORD-192, PodUtils/podvm#588). It is pinned, and the flag is back on the userland rung of x86_64 with that podvm or later (`labels::tier_args`, `SYSCALL_TIER`). Next: `links.rs` and the container steps of `runner-image.yml` with it; then the rows `click-py313` and `rq-lint` in `user-gate.yml`, and close #303 and #189.
 
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
@@ -11752,7 +11750,7 @@ At the end of a unit, read the OOM facts of its kind: `memory.events` `oom_kill`
 
 `cargo test -p podrunner-slots` (a fake unit that reports an OOM ends `limit`); `runner-image.yml`: a payload past `mem` on the podvm and incus kinds ends `limit`.
 
-In the code (2026-11-18): the unit seam has `UnitDriver::oom_kills` (none by default). The podvm kind reads `oom_kills` of its run report (podvm `0.2.0-beta.32`, a unit with `--memory` in a delegated cgroup2 subtree), the incus kind `OomKills` of `inspect` (podvm `0.2.0-beta.33`; COORD-187 ask 6, PodUtils/podvm#583). Before the destroy, slots turns a job that failed (`failure`, `unit-failed`) after a kill into `limit`, with an audit line `limit` and the detail `memory` (`crates/podrunner-slots/src/run.rs`). The fake unit says a count that its payload writes to `.oom_kills` (`crates/podrunner-fake/src/unit_files.rs`). Test: `cargo test -p podrunner-slots a_job_that_failed_after_an_oom_kill_ends_with_limit`. Open: the measure on the podvm and incus kinds in `runner-image.yml`, and a guest of the microvm kind (podvm has no OOM fact of a guest yet).
+In the code (2026-11-18): the unit seam has `UnitDriver::oom_kills` (none by default). The podvm kind reads `oom_kills` of its run report (podvm `0.2.0-beta.32`, a unit with `--memory` in a delegated cgroup2 subtree), the incus kind `OomKills` of `inspect` (podvm `0.2.0-beta.33`; COORD-187 ask 6, PodUtils/podvm#583). Before the destroy, slots turns a job that failed (`failure`, `unit-failed`) after a kill into `limit`, with an audit line `limit` and the detail `memory` (`crates/podrunner-slots/src/run.rs`). The fake unit says a count that its payload writes to `.oom_kills` (`crates/podrunner-fake/src/unit_files.rs`). Test: `cargo test -p podrunner-slots a_job_that_failed_after_an_oom_kill_ends_with_limit`. Open: the measure on the podvm and incus kinds in `runner-image.yml`, and a guest of the microvm kind on real guests. With podvm `0.2.0-beta.34` the microvm kind gives each guest `--report` in the directory of its unit and reads `oom_kills` of it (`crates/podrunner-microvm/src/lib.rs`; test `the_oom_kills_of_a_guest_come_from_the_report_of_podvm`).
 
 # T-516: G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine
 
@@ -12266,3 +12264,28 @@ The measure step prints `foreign runner ok` and the seconds of a canned job; `do
 ## Done
 
 2026-11-18, `1fff2fe` (step 1) and the commit that names T-534 (step 2). `doctor::capability` (used by `doctor` and `config init`) needs a connection to the socket of incusd, found as podvm finds it (`PODVM_INCUS_SOCKET`, else `unix.socket` of `INCUS_DIR`, else of `/var/lib/incus`) for the incus kind; `serve` builds no incus kind with no incusd, runs each other kind, and writes one line `[unit.incus]: not here: incusd: PATH: ...`; `check` connects to nothing. Tests: `cargo test -p podrunner doctor::tests::doctor_knows_the_microvm_and_incus_kinds` (no socket: refused; a listener: the record), `cargo test -p podrunner --test config_init`, `cargo test -p podrunner --test serve_incus` (status names the fake kind only, and stderr names the socket). Level: proven here with stand-ins.
+
+# T-535: The tests leave their temporary directories in /tmp
+
+**Source:** the work of T-515, 2026-11-18 (a full `check.sh` found `/tmp` full)
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+After a day of `sh scripts/agent/check.sh` runs on one host, `/tmp` held 3172 directories `podrunner-*` of the tests (2190 of `podrunner-remote`, 164 of `podrunner-front`, 122 of `podrunner-envfile`, 56 of each `podrunner-qa6-runner-*`, 56 of `podrunner-egress-*`): a test that fails, or one that does not remove its directory, leaves it. They held 34 MB; the disk was full for other reasons, but a host of CI that runs the tests often fills.
+
+## Premise
+
+`ls /tmp/podrunner-*` on the host of the session, 2026-11-18.
+
+## Approach
+
+Give each test a directory that goes when the test ends, also on a panic (a guard with `Drop`, or `tempfile`), in the crates of the prefixes above; a test of `check.sh` counts the directories `podrunner-*` of `/tmp` before and after a run.
+
+## Prove
+
+Two runs of `cargo test --workspace` leave no new directory `/tmp/podrunner-*`.
