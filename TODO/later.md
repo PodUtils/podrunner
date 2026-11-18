@@ -11576,7 +11576,7 @@ State (2026-11-18, v0.72.0): podrunner took podcrates `v0.72.0` (COORD-138, PodU
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -11594,6 +11594,12 @@ githome's comment on GitHub #292, read on 2026-11-18. githome's wire is `docs/co
 ## Prove
 
 The job in `runner-image.yml` (or its own workflow) passes on `main`, and `release.yml` refuses a version whose run of it is red.
+
+State (2026-11-18): `PodUtils/githome` is not reachable from the sessions and the CI of podrunner (the REST API gives 404), so podrunner has no source of githome to pin; podcrates PodUtils/podcrates@T-921 is a fake GitHub, not githome's source.
+
+## Blocker
+
+COORD-096 (GitHub #306, to podcrates): a release asset of githome's source program, or a fake of githome's source in `pod-testkit`. Then the job goes into `runner-image.yml` and the gate of `release.yml`.
 
 # T-510: G-39: one record of each change of a contract that githome reads
 
