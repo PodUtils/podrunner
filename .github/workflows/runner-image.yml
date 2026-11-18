@@ -54,7 +54,7 @@ jobs:
           version=$(python3 -I -c 'import tomllib; print(tomllib.load(open("images/runner/runner.toml", "rb"))["version"])')
           sh scripts/retry.sh git clone -q --depth 1 --branch "v$version" https://github.com/actions/runner.git "$RUNNER_TEMP/runner-src"
           echo "RUNNER_SRC=$RUNNER_TEMP/runner-src" >> "$GITHUB_ENV"
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: ${{ env.RUNNER_SRC }}/src/global.json
       - name: The advisories of the runner are the reviewed ones
