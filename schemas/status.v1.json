@@ -354,6 +354,11 @@
             "minimum": 0
           }
         },
+        "draining": {
+          "description": "An operator drained the source (T-501): it takes no offer.",
+          "type": "boolean",
+          "default": false
+        },
         "jobs": {
           "description": "The jobs of the source in each state that is not final.",
           "type": "object",

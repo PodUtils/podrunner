@@ -17,6 +17,9 @@ pub struct SourceStatus {
     pub tier: Tier,
     pub arch: String,
     pub revoked: bool,
+    /// An operator drained the source (T-501): it takes no offer.
+    #[serde(default)]
+    pub draining: bool,
     /// The jobs of the source in each state that is not final.
     pub jobs: BTreeMap<String, u64>,
     /// The refusals of the source, by code.
@@ -125,6 +128,7 @@ impl Slots {
                     tier: s.cfg.tier,
                     arch: s.cfg.arch.clone(),
                     revoked: s.revoked,
+                    draining: self.drained.contains(&s.cfg.name),
                     jobs,
                     refused,
                     trust_unknown,

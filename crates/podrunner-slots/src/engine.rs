@@ -8,25 +8,18 @@ use std::time::Duration;
 
 use pod_core::clock::Clock;
 use podrunner_schema::{Capability, ExitReason, JobId, JobOffer, LimitMode, RefusalCode, Tier, UnitIds};
-use podrunner_source::{Event, JobSource, Offer, SourceCode};
+use podrunner_source::{Event, Offer, SourceCode};
 use podrunner_unit::UnitDriver;
 use serde_json::Value;
 
 use crate::audit::{self, Audit, Entry};
-use crate::config::{Config, SourceConfig, SourceKind, UnitConfig};
+use crate::config::{Config, SourceKind, UnitConfig};
 use crate::journal::Journal;
 use crate::placement::{self, Kind, Placement};
 use crate::state::{Line, State};
 
 pub use crate::egress_port::EgressPort;
-
-/// One source instance.
-pub struct Source {
-    pub cfg: SourceConfig,
-    pub source: Box<dyn JobSource>,
-    /// The source revoked podrunner: it gets no capacity.
-    pub revoked: bool,
-}
+pub use crate::sources::Source;
 
 /// One unit kind of the host.
 pub struct UnitKind {
@@ -94,6 +87,8 @@ pub struct Slots {
     pub(crate) audit: Audit,
     pub(crate) ids: UnitIds,
     pub(crate) draining: bool,
+    /// The sources that an operator drained (T-501): no capacity.
+    pub(crate) drained: std::collections::BTreeSet<String>,
     /// Set when a residue is above 0 or `unknown`: capacity 0, and no start
     /// until an operator clears it.
     pub(crate) degraded: Option<String>,
@@ -231,7 +226,12 @@ impl Slots {
     /// The offers that a source can take now.
     fn capacity(&self, s: usize) -> u32 {
         let src = &self.sources[s];
-        if self.draining || self.degraded.is_some() || src.revoked || self.egress_down {
+        if self.draining
+            || self.degraded.is_some()
+            || src.revoked
+            || self.egress_down
+            || self.drained.contains(&src.cfg.name)
+        {
             return 0;
         }
         let free: u32 = self

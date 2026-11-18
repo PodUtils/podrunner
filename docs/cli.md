@@ -20,6 +20,8 @@ this build or command has not.
 | `podrunner check --config FILE` | Check a configuration as `serve` does before it starts, with no side effect: each table and key (an unknown key or a wrong type exits 78 and names it), each source built and not called (key files, certificates, the sidecar file), each unit kind with its driver file. No state directory, no unit, no network. `serve` refuses a bad file with the same text. `docs/examples/podrunner.toml` passes it in the gate. A file with `cert_file` is a file of `mint-serve`: `check` reads it as the mint does (its keys, its source, the key file of the mint at mode 0600 and its certificate). |
 | `podrunner status [--json] (--state DIR \| --socket PATH)` | The status (`schemas/status.v1.json`): each source with its jobs and refusals, each kind with its record, each pin with its age, `degraded`, `no-tier-served`. Text from a file or a forge prints with each control character as an escape, cut at 200 bytes. |
 | `podrunner drain ...` | Take no new job; the jobs in flight go on. |
+| `podrunner drain --source NAME ...` | The source NAME takes no new job; its jobs in flight and each other source go on; `status --json` names it `draining` (T-501). A name that is no source exits 77. |
+| `podrunner resume --source NAME ...` | The source NAME takes jobs again. |
 | `podrunner stop ...` | Drain, then end when each job is final. |
 | `podrunner stop --wait --state DIR [--timeout SECONDS]` | Also wait until `serve` has ended (the lock of `DIR` is free). A timeout exits 75. |
 | `podrunner clear-degraded ...` | Start jobs again after the operator looked at a residue. |
@@ -45,7 +47,7 @@ delays no tick of the supervisor. A request is one line, `{"v": 1, "op": ...}`, 
 line, `{"v": 1, "reply": "ok", "value": ...}` or
 `{"v": 1, "reply": "error", "code": ..., "detail": ...}`. The operations:
 `version`, `status`, `drain`, `stop`, `capacity`, `clear-degraded`,
-`withdraw`, `restart-source` (field `source`). `crates/podrunner/src/control.rs` sits behind the trait
+`withdraw`, `restart-source`, `drain-source` and `resume-source` (each with the field `source`). `crates/podrunner/src/control.rs` sits behind the trait
 `Handler`, so that `pod-control` of podcrates can replace it with no change
 of the wire.
 

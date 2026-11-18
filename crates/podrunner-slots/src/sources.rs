@@ -2,7 +2,17 @@
 //! installation and its key file), or a fine-grained token of the
 //! organization (`token_file`, T-174), never both.
 
+use podrunner_source::JobSource;
+
 use crate::config::SourceConfig;
+
+/// One source instance.
+pub struct Source {
+    pub cfg: SourceConfig,
+    pub source: Box<dyn JobSource>,
+    /// The source revoked podrunner: it gets no capacity.
+    pub revoked: bool,
+}
 
 pub(crate) fn check_scaleset(s: &SourceConfig) -> Result<(), String> {
     let app = [

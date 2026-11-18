@@ -342,6 +342,13 @@ impl Handler for Supervisor {
                 Ok(()) => Reply::Ok { value: Value::from("restarted") },
                 Err(e) => Reply::error("refused", e),
             },
+            Request::DrainSource { source } | Request::ResumeSource { source } => {
+                let on = matches!(req, Request::DrainSource { .. });
+                match self.slots.drain_source(source, on) {
+                    Ok(()) => Reply::Ok { value: Value::from(if on { "draining" } else { "resumed" }) },
+                    Err(e) => Reply::error("refused", e),
+                }
+            }
             Request::Withdraw { .. } => {
                 Reply::error("unsupported", "withdraw of one job comes with the scale-set source (GitHub #29)")
             }

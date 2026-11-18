@@ -25,6 +25,8 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `run-report.v1` | The incus kind fills `cpu_s` and `peak_rss_mib` from incusd; a job that failed after a kill of the OOM killer ends with `limit`. | T-483, T-515 |
 | `run-report.v1` | The disk bound of a unit is the lesser of the `disk` of the offer and `disk_max_bytes`. | T-529 |
 | control socket | A new op `restart-source` (field `source`). | T-498 |
+| control socket | New ops `drain-source` and `resume-source` (field `source`). | T-501 |
+| `status.v1` | Each source has `draining` (an operator drained it). | T-501 |
 | `podrunner.toml` | `[[source]] trust` (one trust list for each source, or for each forge of a source). | T-494 |
 | `podrunner.toml` | With no `[egress] default_policy`, a unit has no way out; a configuration that the group or others can write is refused. | T-410, T-409 |
 | `podrunner.toml` | `[unit.podvm] cpus` where the host delegates a cgroup v2 subtree to the user. | T-221 |
@@ -33,6 +35,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | command line | `podrunner config init` (exit 0, 64, 77, 78) and `podrunner source restart --name NAME` (exit 77 for a source that does not build or refuses `hello`). | T-507, T-498 |
 | command line | `doctor --config` names the runner of each pin, its age, its window and `near-end` or `stale`; the incus kind needs a reachable incusd. | T-499, T-534 |
 | command line | `run --schedule` reads the `timezone` of each item of `on.schedule`. | T-423 |
+| command line | `drain --source NAME` and `resume --source NAME`. | T-501 |
 | command line | `source-conformance --json`: one JSON object for each line (the count and the offers needed, each test, the totals). | T-503 |
 | release assets | `podrunner-manifest.json` with its `.sha256` and an attestation: the versions, each binary and each runner image with its digest and `built_at_s`. | T-499 |
 | `job-offer.v1` | An offer with `sandbox { image, command, idle_s, max_s }` runs `command` in a unit of `image` at `untrusted`; the image must be a `[[pin.payload]]` with `sandbox = true` (else `payload-not-pinned`); the payload gets `PODRUNNER_IDLE_S`; the unit ends at the lesser of `max_s` and the wall. | T-506 |
@@ -44,4 +47,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
 <!-- contract docs/contracts/source-driver.md de94dbd537bf29edcb6450354e0b686be95757cb46c9dff287fd4417d31db972 -->
 <!-- contract docs/contracts/unit-driver.md 07162598a8a264928373602ba954e00d94f973583ce4e6592494f758b8746401 -->
-<!-- contract schemas/status.v1.json 7a647401df1ed3c21eba8ff490e06db7b601f448d92cf0ec1034ab69ac3cd0ff -->
+<!-- contract schemas/status.v1.json 30dd44ce233c91853167ecb96cd0a21a5f7aeee60314840983a75bc511684b23 -->

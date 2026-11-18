@@ -21,6 +21,9 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   check --config FILE                               check a configuration; start nothing
   status [--json] (--state DIR | --socket PATH)     the state of the slots
   drain (--state DIR | --socket PATH)               take no new job
+  drain --source NAME (--state DIR | --socket PATH) one source takes no new job
+  resume --source NAME (--state DIR | --socket PATH)
+                                                    the source takes jobs again
   stop (--state DIR | --socket PATH)                drain, then end
   stop --wait --state DIR [--timeout SECONDS]       ... and wait until serve ends
   clear-degraded (--state DIR | --socket PATH)      start jobs again after a residue
@@ -142,13 +145,18 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             Ok(ok(said.into()))
         }
         "stop" if rest.iter().any(|a| a == "--wait") => stop_wait(rest),
-        "status" | "drain" | "stop" | "clear-degraded" => {
+        "status" | "drain" | "stop" | "clear-degraded" | "resume" => {
             let o = opts(rest)?;
-            o.only(&["--state", "--socket"])?;
-            let req = match cmd.as_str() {
-                "status" => Request::Status,
-                "drain" => Request::Drain,
-                "stop" => Request::Stop,
+            o.only(&["--state", "--socket", "--source"])?;
+            let source = o.get("--source").map(|s| s.display().to_string());
+            let req = match (cmd.as_str(), source) {
+                ("drain", Some(source)) => Request::DrainSource { source },
+                ("resume", Some(source)) => Request::ResumeSource { source },
+                ("resume", None) => return Err(err(Class::Usage, format!("resume needs --source\n{USAGE}"))),
+                (_, Some(_)) => return Err(err(Class::Usage, format!("{cmd} takes no --source\n{USAGE}"))),
+                ("status", None) => Request::Status,
+                ("drain", None) => Request::Drain,
+                ("stop", None) => Request::Stop,
                 _ => Request::ClearDegraded,
             };
             let reply = control::call(&o.socket()?, &req).map_err(|e| crate::verbs::no_socket(&o, e))?;

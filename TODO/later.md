@@ -11312,7 +11312,7 @@ A Playwright test of a gate passes in a unit with no download of the system libr
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11329,6 +11329,8 @@ githome's comment on GitHub #292, read on 2026-11-18.
 ## Prove
 
 `cargo test -p podrunner --test serve`: a drained source takes no offer, and the other sources go on.
+
+In the code (2026-11-18): `podrunner drain --source NAME` and `podrunner resume --source NAME` (the control ops `drain-source` and `resume-source`): a drained source gets no capacity, so it takes no offer; its jobs in flight and each other source go on; `status --json` has `draining` for each source (`schemas/status.v1.json`). `Slots::drain_source` (`crates/podrunner-slots/src/host.rs`); `Source` moved to `sources.rs`. Test: `cargo test -p podrunner --test serve_drain` (a drained source takes no offer while the other runs its job; an unknown name exits 77; `status` names the states; after `resume` the offer runs). Open: `stop --source NAME`, which also ends the program of the source when its jobs end.
 
 # T-502: G-27: a cancel ends its unit in a bounded time, with a conformance test
 

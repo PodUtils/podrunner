@@ -33,6 +33,21 @@ impl Slots {
         self.sources.iter().find(|s| s.cfg.name == name).map(|s| s.cfg.clone())
     }
 
+    /// Drain the source `name` (T-501): it takes no offer, and its jobs in
+    /// flight go on; `on = false` takes offers again. Each other source goes
+    /// on.
+    pub fn drain_source(&mut self, name: &str, on: bool) -> Result<(), String> {
+        if !self.sources.iter().any(|s| s.cfg.name == name) {
+            return Err(format!("no source {name:?}"));
+        }
+        if on {
+            self.drained.insert(name.to_string());
+        } else {
+            self.drained.remove(name);
+        }
+        Ok(())
+    }
+
     /// The names of the sources that revoked podrunner.
     pub fn revoked_sources(&self) -> Vec<String> {
         self.sources.iter().filter(|s| s.revoked).map(|s| s.cfg.name.clone()).collect()

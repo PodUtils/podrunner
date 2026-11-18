@@ -38,6 +38,14 @@ pub enum Request {
     RestartSource {
         source: String,
     },
+    /// The source `source` takes no offer; its jobs go on (T-501).
+    DrainSource {
+        source: String,
+    },
+    /// The source `source` takes offers again.
+    ResumeSource {
+        source: String,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -83,7 +91,7 @@ pub fn parse(line: &[u8]) -> Result<Request, Reply> {
     map.remove("v");
     let fields: &[&str] = match map.get("op").and_then(Value::as_str) {
         Some("withdraw") => &["op", "job_id"],
-        Some("restart-source") => &["op", "source"],
+        Some("restart-source" | "drain-source" | "resume-source") => &["op", "source"],
         _ => &["op"],
     };
     if map.keys().any(|k| !fields.contains(&k.as_str())) {
