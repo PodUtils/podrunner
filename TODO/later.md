@@ -4348,6 +4348,8 @@ State (2026-11-18, later): `runner-image.yml` run 44365652790 (`79fe9e1`): with 
 
 State (2026-11-18, later): run 44376274000 (`2041d27`) is green with the tier for an unconfined kind: `links.rs`, the conformance and the container steps; #303 is closed. Open: the tier for a confined kind (COORD-094, #304, the next beta of podvm), and the rows `click-py313` and `rq-lint` in `user-gate.yml`.
 
+State (2026-11-18, evening): `user-gate.yml` run 44393864747, lane `proxy-only`: with the tier, `click-py313` and `rq-lint` pass on the podvm executor (the xfail rows fail the gate as "passes now"). The tier breaks a dynamic program in a volume: Node of `setup-node` in `_work/_tool` gives `native-static rung: ... ld-linux-x86-64.so.2: errno 11` each time (the express rows), and `/usr/bin/bash` gave it once in `runner-image.yml` run 44391387598. COORD-098 (GitHub #308, to podvm). Next: the rows of the other lanes of the run, then the corpus (`ok` for click and rq; the express rows by the answer of podvm).
+
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
 
