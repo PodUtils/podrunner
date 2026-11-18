@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**489 entries: 54 open, 29 partial, 13 blocked, 393 done.**
+**501 entries: 66 open, 29 partial, 13 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
-| P0 | 0 | 0 | 0 | 0 | 0 |
-| P1 | 6 | 12 | 1 | 62 | 81 |
-| P2 | 14 | 12 | 9 | 209 | 244 |
-| P3 | 34 | 5 | 3 | 122 | 164 |
-| **All** | 54 | 29 | 13 | 393 | 489 |
+| P0 | 2 | 0 | 0 | 0 | 2 |
+| P1 | 11 | 12 | 1 | 62 | 86 |
+| P2 | 18 | 12 | 9 | 209 | 248 |
+| P3 | 35 | 5 | 3 | 122 | 165 |
+| **All** | 66 | 29 | 13 | 393 | 501 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -537,3 +537,15 @@ acceptance, later The crate dependencies later than v1.
 | [T-490](later.md) | P1 | L | later | research | open | Settle each open unknown of `docs/unknowns.md` |
 | [T-491](later.md) | P1 | M | later | research | open | Lift each limit and non-goal that a need of githome or cfb names |
 | [T-492](later.md) | P2 | S | later | docs | open | The trackers of githome and cfb and the state pages name an old release |
+| [T-493](later.md) | P0 | M | later | defect | open | G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer |
+| [T-494](later.md) | P0 | M | later | defect | open | G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub |
+| [T-495](later.md) | P1 | M | later | feature | open | G-17: the facts of a host for its source in `hello` |
+| [T-496](later.md) | P1 | M | later | feature | open | G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC` |
+| [T-497](later.md) | P1 | M | later | feature | open | G-19: more facts of a job in the run report |
+| [T-498](later.md) | P1 | M | later | feature | open | G-22: a rotation of the key of a program source with no drain |
+| [T-499](later.md) | P1 | M | later | feature | open | G-23: the runner of a GitHub job stays inside GitHub's window of updates |
+| [T-500](later.md) | P2 | M | later | feature | open | G-24: a runner image with the software that cfb's gates need |
+| [T-501](later.md) | P2 | S | later | feature | open | G-26: a drain and a stop of one source |
+| [T-502](later.md) | P2 | S | later | feature | open | G-27: a cancel ends its unit in a bounded time, with a conformance test |
+| [T-503](later.md) | P2 | S | later | feature | open | G-28: the output of `source-conformance` for CI |
+| [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |

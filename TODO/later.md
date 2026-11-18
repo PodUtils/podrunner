@@ -10638,7 +10638,7 @@ The issue of cfb, read on 2026-11-18. The parser refuses an unknown key (`deny_u
 
 ## Problem
 
-The gates of cfb's projects use bun, pnpm, npm and Playwright. Each job starts in a clean unit and fetches each package again. cfb asks for a cache directory on the host for `serve`: read-write for the jobs of the main branch, read-only for a pull request. Shared caches are a non-goal of v1, with the trigger "a measure shows that the cost of a start or a fetch matters" (`docs/non-goals.md`). githome's G-07 sets the rule: a unit of a lower trust never writes what a unit of a higher trust reads.
+githome's G-20 (GitHub #292, 2026-11-18) asks the same, in this shape: an offer field `cache: { key, mode }` with `mode` `rw` (a push to the default branch), `ro` (a pull request) or `none`, set by the source; one directory for each source, key and tier at a fixed path; `npm_config_cache`, `PNPM_STORE_DIR`, `BUN_INSTALL_CACHE_DIR`, `PLAYWRIGHT_BROWSERS_PATH` and `RUNNER_TOOL_CACHE` from a `[cache]` table; a size cap for each key with the oldest evicted; the bytes read and written in the report (G-19). The gates of cfb's projects use bun, pnpm, npm and Playwright. Each job starts in a clean unit and fetches each package again. cfb asks for a cache directory on the host for `serve`: read-write for the jobs of the main branch, read-only for a pull request. Shared caches are a non-goal of v1, with the trigger "a measure shows that the cost of a start or a fetch matters" (`docs/non-goals.md`). githome's G-07 sets the rule: a unit of a lower trust never writes what a unit of a higher trust reads.
 
 ## Premise
 
@@ -10768,7 +10768,7 @@ A dry run of `release.yml` makes both files, and the step of the check passes on
 
 ## Problem
 
-The `incus` kind says `container: none` (`crates/podrunner-incus/src/lib.rs`) and refuses `[unit.incus] engine` (`crates/podrunner/src/incus_kind.rs`). So a trusted job with `container:`, `services:` or a `docker://` step on a host whose trusted tier has only the incus kind is refused with `container-not-supported`. githome's G-02 asks for a system container "with its own init, file system, network and container engine", and `docs/container-engine.md` names a system container of incus as a place for the engine. Only the engine of the `microvm` kind exists (T-103). The record gives no reason for the refusal. This is a limit of podrunner, not of Incus.
+githome's G-21 (GitHub #292, 2026-11-18) asks for it: `services:`, `container:`, Docker actions and `docker build` in an `incus` unit, for trusted jobs on a host with no `/dev/kvm`, with the same `[unit.KIND] engine` as the `microvm` kind and the images from the store. The `incus` kind says `container: none` (`crates/podrunner-incus/src/lib.rs`) and refuses `[unit.incus] engine` (`crates/podrunner/src/incus_kind.rs`). So a trusted job with `container:`, `services:` or a `docker://` step on a host whose trusted tier has only the incus kind is refused with `container-not-supported`. githome's G-02 asks for a system container "with its own init, file system, network and container engine", and `docs/container-engine.md` names a system container of incus as a place for the engine. Only the engine of the `microvm` kind exists (T-103). The record gives no reason for the refusal. This is a limit of podrunner, not of Incus.
 
 ## Premise
 
@@ -10822,7 +10822,7 @@ A test of slots with a fake source and a fake egress sink: an allowed and a deni
 
 ## Problem
 
-Each job waits for a fresh unit to start: podvm, a guest of the machine tier (about 30 s), or an incus instance. githome (G-11) and cfb (A-X-01) ask for units that start from a pinned golden image and wait warm, so that the time from claim to first step is short. `docs/non-goals.md` lists warm units as a non-goal of v1; the ruling of 2026-11-18 lifts it.
+githome's G-25 (GitHub #292, 2026-11-18) asks for a warm pool size for each kind in the configuration, and the start time of a warm and of a cold unit in the report (G-19). Each job waits for a fresh unit to start: podvm, a guest of the machine tier (about 30 s), or an incus instance. githome (G-11) and cfb (A-X-01) ask for units that start from a pinned golden image and wait warm, so that the time from claim to first step is short. `docs/non-goals.md` lists warm units as a non-goal of v1; the ruling of 2026-11-18 lifts it.
 
 ## Premise
 
@@ -10969,3 +10969,312 @@ Write the hand-written part of #65 and #66 from the record and the census of T-4
 ## Prove
 
 Each line of #65 and #66 names the current release and the entry of its ask; the test of `docs/configuration.md` passes.
+
+# T-493: G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer
+
+**Source:** githome's G-15 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** defect
+**Milestone:** later
+**Priority:** P0
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome's GitHub path (cfb's R-051) mints a GitHub just-in-time configuration through a `program` source. GitHub, not the source, chooses which queued job of the repository a runner takes: each queued job with the labels of the runner can go to it, also a job of another run. The job-started hook of the runner image (T-175) ends a job whose run id is not the run id of the offer, so a correct job of GitHub fails.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18. T-175 measured that GitHub binds no runner of a scale set to its job.
+
+## Approach
+
+1. The hook asks `serve` before it ends a job; `serve` asks the source with a new request `assigned` (the `job_id` of the offer and the facts of the job that the runner got: `run_id`, the job id and name, `event`, the head repository and its fork flag, the actor). The source answers `keep` (podrunner records the real job in the journal and the report) or `end` with a code.
+2. Independent of the source, the hook ends a job whose trust facts are below the tier of its unit, with an annotation: a job of a fork never runs in a trusted unit.
+3. The source wire (`docs/contracts/source-driver.md`) and `source-conformance` get the request.
+
+## Prove
+
+`cargo test -p podrunner-broker-fake --test runner -- --ignored`: two runs of one repository with the same labels, in both orders of assignment, end `success` in units of the right tier; a fork job given to a trusted unit ends with its annotation and the source gets a report with its code.
+
+# T-494: G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub
+
+**Source:** githome's G-16 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** defect
+**Milestone:** later
+**Priority:** P0
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`[trust] users` and `organizations` hold for each source of the host. A login of githome and a login of GitHub are names in two namespaces: an entry `alice` meant for one forge trusts the owner `alice` of the other.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18. `crates/podrunner-tier/src/lib.rs` compares the owner by name, and by id only when both sides give one.
+
+## Approach
+
+1. `[[source]] trust = { users = [...], organizations = [...] }` replaces the global `[trust]` for that source.
+2. `trust_inputs.forge` (`github.com`, or the host of the forge) in `job-offer.v1`, checked against the source: ask podcrates for the field (an added optional field keeps the id, COORD-134).
+3. `check` refuses a global `[trust]` with two sources of two forges and no list of their own.
+
+## Prove
+
+`cargo test -p podrunner-tier`: a job whose owner is `alice` on githome is not trusted by an entry `alice` of the GitHub source, and the reverse.
+
+# T-495: G-17: the facts of a host for its source in `hello`
+
+**Source:** githome's G-17 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A source does not know what a host can run, so it offers jobs that the host must refuse, and it cannot show its hosts to an operator.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18.
+
+## Approach
+
+The `hello` request carries `host`: the versions of podrunner, podvm and podnet, `arch`, `/dev/kvm`, and for each kind its boundary, its container route, and its largest `cpu`, `memory`, `disk` and `pids`. `serve` sends a new `hello` after a change of the configuration. The source wire and `source-conformance` get the field.
+
+## Prove
+
+`cargo test -p podrunner-source`: the `hello` of a host with two kinds holds both, with their limits.
+
+# T-496: G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC`
+
+**Source:** githome's G-18 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome asks for `limits.disk` as the size of the writable layer and the work directory of a unit, so that a job past it gets `ENOSPC` in its unit. podrunner measures the bytes under the work directory each 30 s and ends the job with `limit` (`crates/podrunner-slots/src/disk.rs`); the root of an incus instance has no bound (T-482). The `wall` of an offer already ends the job (`timeout`).
+
+## Premise
+
+githome's comment on GitHub #292 and the code, read on 2026-11-18.
+
+## Approach
+
+A size for each kind: a quota or a sized file system for the work directory and the writable layer (podvm, incus `size` of the root device, a sized disk of a guest). Ask podvm by a COORD issue where podvm must give it. Keep the measure as a second path.
+
+## Prove
+
+`cargo test -p podrunner-unit` (the conformance suite) and a job on real units in `runner-image.yml` that writes past `disk` fails with `ENOSPC` on each kind.
+
+# T-497: G-19: more facts of a job in the run report
+
+**Source:** githome's G-19 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome and cfb meter the CI time of each project from the run report. githome asks for: `host`, `unit_kind`, `boundary`, the image digest, the runner version, the timings (`prepare_s`, `start_s`, `run_s`, `destroy_s`), `cpu_s` and `peak_rss_mib` on incus too (T-483), `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes`, the bytes of the cache (G-20), and a scrubbed `log_tail` (64 KiB at most) for a unit that failed before the runner connected.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18. The rule of COORD-134: an added optional field keeps the schema id.
+
+## Approach
+
+1. Ask podcrates for the optional fields of `run-report.v1` that it does not have.
+2. Fill each field on podvm, incus and microvm, or give `unknown` with its reason.
+3. The `log_tail` goes through the scrubber of credentials.
+
+## Prove
+
+`cargo test -p podrunner-slots`: a report of each kind has each field or `unknown`; a canary in the log of a failed start is not in `log_tail`.
+
+# T-498: G-22: a rotation of the key of a program source with no drain
+
+**Source:** githome's G-22 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome's host tokens get an end date. A new `key_file` needs a restart of `serve`, which drains the host; a source that answers `source-revoked` is started again in a loop.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18.
+
+## Approach
+
+`serve` passes the path of `key_file` each time it starts the program (it does); `podrunner source restart NAME` restarts one source and keeps its running jobs; a source that answers `source-revoked` is parked (its state in `status --json`), and starts again when its `key_file` changes.
+
+## Prove
+
+`cargo test -p podrunner --test serve`: a change of the key and `source restart` keep each running job; a revoked key shows `revoked` in `status --json` with no loop of restarts.
+
+# T-499: G-23: the runner of a GitHub job stays inside GitHub's window of updates
+
+**Source:** githome's G-23 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+GitHub refuses a runner that is too old. A new release of `actions/runner` needs a new runner image, which comes only with a release of podrunner.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18. `images/runner/runner.toml` pins the runner.
+
+## Approach
+
+1. A runner image within 14 days of each release of `actions/runner`, as a release asset with its digest, with no new podrunner binary.
+2. A manifest in each release that a machine reads (the runner version, the image digests, the pins of podvm and podnet).
+3. `doctor` names the runner version and its age, and warns near the end of the window.
+
+## Prove
+
+`cargo test -p podrunner --test doctor` names the version and the age; a new image loads with `podvm load -i` on a running host.
+
+# T-500: G-24: a runner image with the software that cfb's gates need
+
+**Source:** githome's G-24 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+cfb's gates use Node, bun, pnpm and Playwright with its browser libraries. The larger image (`images/runner/full.txt`) has no published list against GitHub's `ubuntu-24.04` image and no browser libraries; a user cannot make an image from a recipe.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18.
+
+## Approach
+
+A `runner-full` image with a published list of its software and the libraries of Playwright, or `podrunner image build` from a recipe file, pinned by digest.
+
+## Prove
+
+A Playwright test of a gate passes in a unit with no download of the system libraries (`runner-image.yml`).
+
+# T-501: G-26: a drain and a stop of one source
+
+**Source:** githome's G-26 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner drain` and `stop` act on the whole host. An operator cannot stop one source and keep the others.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18.
+
+## Approach
+
+`podrunner drain --source NAME` and `podrunner stop --source NAME`, with the state of each source in `status --json`.
+
+## Prove
+
+`cargo test -p podrunner --test serve`: a drained source takes no offer, and the other sources go on.
+
+# T-502: G-27: a cancel ends its unit in a bounded time, with a conformance test
+
+**Source:** githome's G-27 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome asks that a `cancel` destroys the unit within 60 s and reports `exit_reason: cancelled`, with a test in `source-conformance`. The check C3 on cfb's host (GitHub #292) measures it live.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18.
+
+## Approach
+
+Measure the time from a cancel to `destroyed` on each kind; bound it; add the test to `source-conformance`.
+
+## Prove
+
+`podrunner source-conformance` has the test and it passes against `podrunner fake-source`; `cargo test -p podrunner-source`.
+
+# T-503: G-28: the output of `source-conformance` for CI
+
+**Source:** githome's G-28 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`source-conformance` writes text. githome's CI must parse it, and it does not say how many queued jobs a run needs.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18.
+
+## Approach
+
+`--json`: one line for each test; the count of queued jobs that the run needs, at its start.
+
+## Prove
+
+`cargo test -p podrunner-source`: the JSON lines of a run against `podrunner fake-source`.
+
+# T-504: G-29: a GitHub source for the repositories of a personal account
+
+**Source:** githome's G-29 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A GitHub source serves the repositories of an organization only (call C3, DR-9: a repository of a personal account needs "Administration: write"). githome asks for repository scale sets of a personal account, as a second path beside githome; R-051 does not need it.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18. DR-9 is a ruling of 2026-11-11; the ruling of 2026-11-18 accommodates each ask of githome.
+
+## Approach
+
+1. Measure the permission that a repository scale set needs.
+2. An opt-in of the operator, with the permission named in `check` and `doctor`; the default stays DR-9. Record the call in `docs/decisions.md`; ask the owner if the opt-in changes DR-9.
+
+## Prove
+
+`cargo test -p podrunner --test scaleset`: a repository URL of a personal account with the opt-in serves a job of the fake scale set; without it, `repo-scope-refused`.
