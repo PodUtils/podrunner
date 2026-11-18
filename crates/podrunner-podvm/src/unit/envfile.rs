@@ -2,9 +2,10 @@
 //! user of the host reads the argv of a process (`/proc/PID/cmdline`), and
 //! a step environment holds secrets and the runtime token. With podvm
 //! 0.2.0-beta.32 or later the values go in a file of mode 0600 in the
-//! directory of the unit (`--env-file`), which goes after the call. podvm
-//! reads a line as `KEY=VALUE`, so a value with a newline stays an `-e`
-//! argument until podvm has a form for it.
+//! directory of the unit, which goes after the call. podvm 0.2.0-beta.33
+//! and later read each `KEY=VALUE` to a NUL (`--env-file0`), so each value
+//! goes in the file; with 0.2.0-beta.32 (`--env-file`, one line each) a
+//! value with a newline stays an `-e` argument.
 
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
@@ -15,6 +16,9 @@ use podrunner_unit::{UnitCode, UnitError};
 
 /// The first podvm that takes `--env-file` on `run` and `exec`.
 const ENV_FILE: &str = "0.2.0-beta.32";
+
+/// The first podvm that takes `--env-file0` (PodUtils/podvm@T-1971).
+const ENV_FILE0: &str = "0.2.0-beta.33";
 
 /// The file of one call; it goes at the drop.
 pub(super) struct EnvFile(Option<PathBuf>);
@@ -36,39 +40,39 @@ pub(super) fn env_args<'a>(
 ) -> Result<(Vec<String>, EnvFile), UnitError> {
     let env: std::collections::BTreeMap<String, String> =
         env.into_iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-    let (path, rest) = write_env_file(podvm, dir, &env)?;
-    let mut args = Vec::new();
-    if let Some(p) = &path {
-        args.extend(["--env-file".into(), p.display().to_string()]);
-    }
+    let (mut args, rest) = write_env_file(podvm, dir, &env)?;
+    let path = args.get(1).map(PathBuf::from);
     args.extend(rest.iter().flat_map(|(k, v)| ["-e".into(), format!("{k}={v}")]));
     Ok((args, EnvFile(path)))
 }
 
-/// Write each value of `env` with no newline to a new file of mode 0600 in
-/// `dir`, for a podvm that takes `--env-file`. The path of the file (none
-/// when no value went in it), and the pairs that stay `-e`. The caller
-/// removes the file; a guest kind leaves it to the removal of the
-/// directory of its unit.
+/// Write the values of `env` to a new file of mode 0600 in `dir`, for a
+/// podvm that takes it: each one with `--env-file0`, each one with no
+/// newline with `--env-file`. The arguments that name the file (none when
+/// no value went in it: the flag and the path), and the pairs that stay
+/// `-e`. The caller removes the file; a guest kind leaves it to the
+/// removal of the directory of its unit.
 pub fn write_env_file(
     podvm: &crate::Podvm,
     dir: &Path,
     env: &std::collections::BTreeMap<String, String>,
-) -> Result<(Option<PathBuf>, std::collections::BTreeMap<String, String>), UnitError> {
+) -> Result<(Vec<String>, std::collections::BTreeMap<String, String>), UnitError> {
     if env.is_empty() || !super::labels::at_least(podvm, ENV_FILE) {
-        return Ok((None, env.clone()));
+        return Ok((Vec::new(), env.clone()));
     }
-    let (lines, rest): (Vec<_>, Vec<_>) = env.iter().partition(|(_, v)| !v.contains('\n'));
+    let nul = super::labels::at_least(podvm, ENV_FILE0);
+    let (lines, rest): (Vec<_>, Vec<_>) = env.iter().partition(|(_, v)| nul || !v.contains('\n'));
     let rest = rest.into_iter().map(|(k, v)| (k.clone(), v.clone())).collect();
     if lines.is_empty() {
-        return Ok((None, rest));
+        return Ok((Vec::new(), rest));
     }
     // A pid repeats in each PID namespace: the name has a nonce too, and
     // the open refuses a file that is there.
     static N: AtomicU64 = AtomicU64::new(0);
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
     let path = dir.join(format!("env-{}-{}-{nonce}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
-    let text: String = lines.iter().map(|(k, v)| format!("{k}={v}\n")).collect();
+    let end = if nul { '\0' } else { '\n' };
+    let text: String = lines.iter().map(|(k, v)| format!("{k}={v}{end}")).collect();
     let io = |e: std::io::Error| UnitError::new(UnitCode::UnitStartFailed, format!("the environment file: {e}"));
     let mut f = std::fs::OpenOptions::new()
         .write(true)
@@ -81,7 +85,8 @@ pub fn write_env_file(
         let _ = std::fs::remove_file(&path);
         return Err(io(e));
     }
-    Ok((Some(path), rest))
+    let flag = if nul { "--env-file0" } else { "--env-file" };
+    Ok((vec![flag.into(), path.display().to_string()], rest))
 }
 
 #[cfg(test)]
@@ -129,6 +134,20 @@ mod tests {
 
     fn write_for_test(d: &Path, env: &[(String, String)]) -> (Vec<String>, EnvFile) {
         args_with(d, "0.2.0-beta.32", env)
+    }
+
+    /// With podvm 0.2.0-beta.33 each value goes in the file, a value with a
+    /// newline too, each one ended by a NUL.
+    #[test]
+    fn each_value_goes_in_a_file_of_nul_ended_entries() {
+        let d = dir();
+        let env = [("TOKEN".to_string(), "secret-value-41".to_string()), ("KEY".to_string(), "a\nb".to_string())];
+        let (args, file) = args_with(&d, "0.2.0-beta.33", &env);
+        assert_eq!(args.len(), 2, "no -e: {args:?}");
+        assert_eq!(args[0], "--env-file0");
+        assert_eq!(std::fs::read_to_string(&args[1]).unwrap(), "KEY=a\nb\0TOKEN=secret-value-41\0");
+        drop(file);
+        assert!(!PathBuf::from(&args[1]).exists());
     }
 
     /// An older podvm has no `--env-file`: the values stay in the argv.

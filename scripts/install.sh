@@ -23,13 +23,13 @@ umask 022
 
 # BEGIN PINS (scripts/install-pins.py writes this block; do not edit it)
 PODRUNNER_VERSION=""
-PODVM_VERSION="0.2.0-beta.32"
+PODVM_VERSION="0.2.0-beta.33"
 PODNET_VERSION="0.4.0-beta.17"
 RUNNER_VERSION="2.338.2"
 SUM_podrunner_x86_64=""
 SUM_podrunner_aarch64=""
-SUM_podvm_x86_64="e68b977a68ebff90ba98d79f27d9a3d7cb84c7120bcc7c4e0a4be7eee4b1f88f"
-SUM_podvm_aarch64="8f1130b380d63b6cfb5dbcb1032e17cf285a3c1abee5bec2f32b75b5de419a18"
+SUM_podvm_x86_64="68f86f7de73eddceeb5f97708e4f811788a6f0a5e6a563b16801cbc0cd02b4a8"
+SUM_podvm_aarch64="cfd23020f3d2b418e9c6afc241ec43a4934f17c89f82fa73fdd7dd20e533b3a3"
 SUM_podnet_x86_64="d0b72b9bfe2473afef360e41c8a830a003239c8695535bef0f4bbd20486ab1f5"
 SUM_podnet_aarch64="e8c37a1d100d169c6e3240b2df33ffb9ec584d94c47ca959a970d8df7f327d71"
 SUM_runner_x86_64="baebf204307bac6193480852732f0aba2ae97b6c5597c244f4d5558390147c40"

@@ -264,7 +264,7 @@ impl UnitDriver for IncusUnit {
                 runner_root: &self.cred_root,
                 limits: &self.limits.lesser(&spec.limits),
             },
-            env_file.as_deref(),
+            &env_file,
             &env,
             &spec.argv,
         );

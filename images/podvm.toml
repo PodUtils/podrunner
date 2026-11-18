@@ -38,8 +38,12 @@
 # PodUtils/podrunner#277), `exec --env-file` (T-405), a devpts of the unit
 # (T-354, #216), the syscall tier on the userland rung (T-261, #189) and the
 # cgroup leaf of `run -d` (#110, COORD-185, PodUtils/podvm#572).
-version = "0.2.0-beta.32"
+# v0.2.0-beta.33 carries `--env-file0` (T-405), the path of a unix socket in
+# the syscall tier (T-261, COORD-190), and on the incus tier
+# `--storage-opt size=N` (T-482) and the CPU time, the peak memory and the
+# OOM kills in `inspect` (T-483) (COORD-187, PodUtils/podvm#583).
+version = "0.2.0-beta.33"
 
 [sha256]
-x86_64 = "e68b977a68ebff90ba98d79f27d9a3d7cb84c7120bcc7c4e0a4be7eee4b1f88f"
-aarch64 = "8f1130b380d63b6cfb5dbcb1032e17cf285a3c1abee5bec2f32b75b5de419a18"
+x86_64 = "68f86f7de73eddceeb5f97708e4f811788a6f0a5e6a563b16801cbc0cd02b4a8"
+aarch64 = "cfd23020f3d2b418e9c6afc241ec43a4934f17c89f82fa73fdd7dd20e533b3a3"

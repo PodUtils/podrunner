@@ -50,7 +50,7 @@ fn the_argv_holds_the_tier_the_size_and_a_read_only_volume_and_no_credential() {
     let env = BTreeMap::from([("A".to_string(), "1".to_string())]);
     let argv = vec!["/home/runner/run.sh".to_string(), "a b".to_string()];
     let shape = Shape { mem: "4G", cpus: 2, egress: None, engine: None };
-    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", None, &env, &argv);
+    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", &[], &env, &argv);
     let s = a.join(" ");
     for want in ["run --rm --podvm-tier=machine --podvm-net none", "--podvm-mem 4G", "--podvm-cpus 2", "-e A=1"] {
         assert!(s.contains(want), "{want}: {s}");
@@ -143,7 +143,7 @@ fn the_kind_claims_a_guest_and_has_no_container_route() {
 #[test]
 fn an_egress_socket_is_the_one_channel_and_the_proxy_of_the_payload() {
     let shape = Shape { mem: "4G", cpus: 2, egress: Some(Path::new("/s/sockets/egress.sock")), engine: None };
-    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", None, &BTreeMap::new(), &[]);
+    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", &[], &BTreeMap::new(), &[]);
     let s = a.join(" ");
     assert!(s.contains(&format!("--podvm-net none --podvm-mem 4G --podvm-cpus 2 --podvm-channel /s/sockets/egress.sock:127.0.0.1:{EGRESS_PORT}")), "{s}");
     assert!(s.contains(&format!("-e {CHANNEL_PORT_VAR}={EGRESS_PORT}")), "{s}");
@@ -175,7 +175,7 @@ fn the_mount_check_takes_only_the_table_of_the_unit() {
         Path::new("/s/u-1"),
         &Shape { mem: "4G", cpus: 2, egress: None, engine: None },
         "/r",
-        None,
+        &[],
         &BTreeMap::new(),
         &[],
     );
@@ -188,7 +188,8 @@ fn the_mount_check_takes_only_the_table_of_the_unit() {
 fn an_environment_file_keeps_the_values_out_of_the_argv() {
     let shape = Shape { mem: "4G", cpus: 2, egress: None, engine: None };
     let rest = BTreeMap::from([("KEY".to_string(), "a\nb".to_string())]);
-    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", Some(Path::new("/s/u-1/env-1")), &rest, &[]);
+    let a =
+        run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", &["--env-file".into(), "/s/u-1/env-1".into()], &rest, &[]);
     let s = a.join(" ");
     assert!(s.contains("--env-file /s/u-1/env-1"), "{s}");
     assert!(s.contains("-e KEY=a\nb"), "a value with a newline stays: {s}");
@@ -197,7 +198,7 @@ fn an_environment_file_keeps_the_values_out_of_the_argv() {
 #[test]
 fn an_engine_is_a_read_only_mount_and_the_flag_of_podvm() {
     let shape = Shape { mem: "4G", cpus: 2, egress: None, engine: Some(Path::new("/opt/docker")) };
-    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", None, &BTreeMap::new(), &[]);
+    let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", &[], &BTreeMap::new(), &[]);
     let s = a.join(" ");
     assert!(s.contains("--podvm-engine"), "{s}");
     assert!(a.contains(&format!("/opt/docker:{ENGINE_MOUNT}:ro")), "{s}");
@@ -215,7 +216,7 @@ fn an_engine_is_a_read_only_mount_and_the_flag_of_podvm() {
         Path::new("/s/u-1"),
         &Shape { mem: "4G", cpus: 2, egress: None, engine: None },
         "/r",
-        None,
+        &[],
         &BTreeMap::new(),
         &[],
     );

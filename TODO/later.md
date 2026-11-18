@@ -4316,7 +4316,7 @@ The log of the job `runner` of level2 43750372759, read on 2026-11-15.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -4338,9 +4338,7 @@ In the code (2026-11-18): podvm `0.2.0-beta.32` holds the raw system calls of a 
 
 2026-11-18, later: the flag broke the container hooks on the userland rung of GitHub's runner (`runner-image.yml` run 44292729694: the relay in the unit cannot connect to the control socket under its `-v`, `curl: (7)`); the flag is removed. Asked of podvm by COORD-091 (GitHub #301).
 
-## Blocker
-
-The syscall tier maps no path of an `AF_UNIX` `connect` under a `-v` mount: COORD-091 (GitHub #301, to podvm). podvm answered with COORD-190 (PodUtils/podvm#586): the tier maps the path of a unix socket on podvm `main`, for its next beta; then give the flag again (x86_64 only) and measure it in `runner-image.yml`.
+State (2026-11-18): podvm `0.2.0-beta.33` maps the path of a unix socket in the syscall tier (COORD-190, PodUtils/podvm#586). It is pinned, and the podvm kind gives `--podvm-tier=syscall` again on the userland rung of x86_64 with that podvm or later (`labels::tier_args`, test `the_syscall_tier_holds_the_userland_rung_of_x86_64_only`). Next: the container steps of `runner-image.yml` (the relay of the hooks under the tier), then the rows `click-py313` and `rq-lint` in `user-gate.yml`.
 
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
@@ -8493,7 +8491,7 @@ Keep the logs out of the socket directory, as `serve` does (`dir.with_extension(
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -8514,6 +8512,10 @@ Give the environment to podvm in a file at 0600 or on a descriptor (a COORD issu
 State (2026-11-17): podvm answered by PodUtils/podvm#509 (COORD-179): `exec --env-file PATH` is on podvm `main` for its next beta, and `run --env-file` is in `0.2.0-beta.21` and later; the file is the caller's to make at 0600 and to remove. podvm keeps its pin until the gate of `PodUtils/podvm@T-1949` (PodUtils/podvm#567), so podrunner takes `exec --env-file` with that beta.
 
 In the code (2026-11-18): podvm `0.2.0-beta.32` takes `--env-file` on `run` and `exec` (COORD-185, PodUtils/podvm#572). The podvm kind writes the environment of a unit, of a job container and of a step in a container to a file of mode 0600 in the directory of the unit, which goes after the call (`crates/podrunner-podvm/src/unit/envfile.rs`); an older podvm keeps `-e`. Tests: `the_values_go_in_a_file_of_mode_0600`, `an_older_podvm_gets_the_values_in_the_argv`. Not run with a real podvm unit here. podvm answered COORD-090 with COORD-189 (PodUtils/podvm#585): `--env-file` holds on the machine and incus tiers, so the microvm and incus kinds write the file into the directory of the unit (`podrunner_podvm::write_env_file`; test `an_environment_file_keeps_the_values_out_of_the_argv`); it goes with the directory at `destroy`. Open: a value with a newline stays `-e` until `--env-file0` (PodUtils/podvm@T-1971) is in a tagged podvm.
+
+## Done
+
+2026-11-18, the commit that names T-405. podvm `0.2.0-beta.33` is pinned; with it each value of the environment of a unit, of a job container and of a step in a container goes in the file of mode 0600, each `KEY=VALUE` ended by a NUL (`--env-file0`), a value with a newline too: no value is in the argv. The microvm and incus kinds pass the same arguments (`write_env_file` gives them). `cargo test -p podrunner-podvm envfile` (3: `each_value_goes_in_a_file_of_nul_ended_entries` fails on the code before, where the newline value stays `-e`), `cargo test -p podrunner-microvm`, `cargo test -p podrunner-incus`. Level: proven here with a stand-in podvm; the real podvm of `runner-image.yml` takes the file in each unit there.
 
 
 # T-406: The fake broker of the local mode gives the job message to each local process

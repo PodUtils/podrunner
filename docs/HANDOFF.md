@@ -101,14 +101,16 @@ is done.
   T-493, T-494, T-486, T-495. T-486 and T-495 are done, T-497 is
   partial; amend COORD-088 when T-493 is done too (the move of the
   schemas, T-508).
-- podvm `0.2.0-beta.32` is pinned (COORD-185, PodUtils/podvm#572): the
-  environment goes to podvm in a file (T-405, partial), a pty step in `runner-image.yml` and the check
-  `pty:podvm` of the user-path gate (T-354, done; #216 closed). T-403 waits for `--podvm-volume-base` on
-  the rungs with containers (COORD-090, #300). #110 waits for the measure
-  of T-162. podvm answered COORD-089 (#296) with COORD-187
-  (PodUtils/podvm#583); `--pids-limit` of a guest (T-488) is in its next
-  tag. The syscall tier broke the container hooks on GitHub's userland
-  rung: T-261 is blocked on COORD-091 (#301).
+- podvm `0.2.0-beta.33` is pinned (COORD-187, COORD-189, COORD-190): each
+  value of the environment goes to podvm in a NUL-ended file (T-405,
+  done); the syscall tier is back on the userland rung of x86_64 (T-261,
+  partial: the container steps of `runner-image.yml` measure it). A pty
+  step and the check `pty:podvm` (T-354, done; #216 closed). T-403 waits
+  for `--podvm-volume-base` on the rungs with containers (COORD-090,
+  #300). #110 waits for the measure of T-162. COORD-187 (#296) gives
+  `--storage-opt size=N`, `inspect` facts and an engine on the incus
+  tier, and `--pids-limit` in a guest: T-482, T-483, T-485, T-488 can go
+  on (T-482 and T-496 are still `blocked` in the record: unblock them).
 - Dependabot: #297 and #298 are applied; #299 (rsa 0.10) is T-531.
 - A full `check.sh` with the runner takes about 45 minutes here: batch the
   commits before a push.

@@ -124,7 +124,7 @@ pub fn run_args(
     unit_dir: &Path,
     shape: &Shape,
     runner_root: &str,
-    env_file: Option<&Path>,
+    env_file: &[String],
     env: &BTreeMap<String, String>,
     argv: &[String],
 ) -> Vec<String> {
@@ -149,9 +149,7 @@ pub fn run_args(
     a.push("-v".into());
     a.push(format!("{}:{WORK_MOUNT}", unit_dir.join("work").display()));
     // The values of the environment in a file, not in the argv (T-405).
-    if let Some(f) = env_file {
-        a.extend(["--env-file".into(), f.display().to_string()]);
-    }
+    a.extend(env_file.iter().cloned());
     for (k, v) in env {
         a.push("-e".into());
         a.push(format!("{k}={v}"));

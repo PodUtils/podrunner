@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 73 open, 34 partial, 14 blocked, 410 done.**
+**531 entries: 73 open, 34 partial, 13 blocked, 411 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
-| P1 | 12 | 16 | 3 | 67 | 98 |
-| P2 | 21 | 12 | 8 | 217 | 258 |
+| P1 | 12 | 15 | 3 | 68 | 98 |
+| P2 | 21 | 13 | 7 | 217 | 258 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 73 | 34 | 14 | 410 | 531 |
+| **All** | 73 | 34 | 13 | 411 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -305,7 +305,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-255](later.md) | P2 | S | later | defect | done | On `--runner-dir`, the tests of express miss headers and hang |
 | [T-256](later.md) | P1 | S | later | defect | done | The checks of a session do not run the suites that need the official runner |
 | [T-260](later.md) | P2 | S | later | defect | done | An expression in the image of a service or a job container fails the job |
-| [T-261](later.md) | P2 | S | later | defect | blocked | In a podvm unit, the persist of a temporary file gets EACCES |
+| [T-261](later.md) | P2 | S | later | defect | partial | In a podvm unit, the persist of a temporary file gets EACCES |
 | [T-262](later.md) | P2 | S | later | defect | done | In a podvm unit, Node sometimes reads an invalid package.json |
 | [T-263](later.md) | P1 | S | later | defect | done | The installer keeps a directory that the group can write |
 | [T-264](later.md) | P2 | M | later | chore | partial | Take podcrates `v0.55.0`: the sync of the issues and pod-lab |
@@ -449,7 +449,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-402](later.md) | P2 | S | later | defect | done | The mint forgets a late credential that starts or goes back after its alert |
 | [T-403](later.md) | P1 | M | later | defect | blocked | A mount source of the hooks follows a symbolic link that the job made |
 | [T-404](later.md) | P1 | M | later | defect | done | In the local mode the logs of a hook step are in the socket directory that the unit writes |
-| [T-405](later.md) | P1 | M | later | defect | partial | Secrets of a job and the credential of the proxy go into the argv of podvm |
+| [T-405](later.md) | P1 | M | later | defect | done | Secrets of a job and the credential of the proxy go into the argv of podvm |
 | [T-406](later.md) | P1 | M | later | defect | done | The fake broker of the local mode gives the job message to each local process |
 | [T-407](later.md) | P2 | M | later | defect | done | Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made |
 | [T-408](later.md) | P2 | M | later | defect | done | With `--export` the work directory of a job is 0777 in `/tmp` |
