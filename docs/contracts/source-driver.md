@@ -180,6 +180,7 @@ and a correct input that passes it.
 | 12 | `the-wire-refuses-a-long-line-a-path-and-a-schema` | A line over 1 MiB, a `job_id` of `../x`, schema 2 and no schema are each `bad-request`. |
 | 13 | `assigned-needs-a-claim` | `assigned` of an offer that is not claimed is refused; of a claimed job it gives `keep` or `end` (or `bad-request` from a source with no `assigned`). |
 | 14 | `hello-takes-the-facts-of-the-host` | `hello` with `host` names the same source as `hello` with none. |
+| 15 | `a-cancelled-job-is-reported-and-released` | After `mint`, a report with `exit_reason: cancelled` and `release` are taken, and a claim after them is `unknown-job` (T-502). |
 
 The numbers of the tests follow this page. The design contract numbers its
 tests in another order; the next table maps them (T-053).

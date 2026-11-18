@@ -21,7 +21,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | source wire | `hello` has an optional `host`: the versions of podrunner, podvm and podnet, `arch`, `kvm`, and for each kind its boundary, its container route and its largest `cpu`, `memory`, `disk` and `pids`. | T-495 |
 | source wire | A new request `assigned { job_id, real }`, with the replies `keep { trust_inputs }` and `end { code, detail }`; a source with no `assigned` answers `bad-request`. | T-493 |
 | source wire | `audit` carries an egress line `{ job_id, host, port, verdict, rule, bytes_in, bytes_out, at }` for each connection of a unit, at most 1000 for each job, then `{ job_id, dropped }`. | T-486 |
-| source wire | `source-conformance` has 14 tests: test 13 `assigned-needs-a-claim`, test 14 `hello-takes-the-facts-of-the-host`. | T-493, T-495 |
+| source wire | `source-conformance` has 15 tests: test 13 `assigned-needs-a-claim`, test 14 `hello-takes-the-facts-of-the-host`, test 15 `a-cancelled-job-is-reported-and-released`. | T-493, T-495, T-502 |
 | `run-report.v1` | The report fills `arch`, `assigned`, `image_digest`, `runner_version`, `prepare_s`, `start_s`, `run_s`, `destroy_s`, `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes` (or `unknown` with a reason), and `log_tail` (scrubbed, 64 KiB at most) for a unit that failed before a step. | T-497, T-514 |
 | `run-report.v1` | The incus kind fills `cpu_s` and `peak_rss_mib` from incusd; a job that failed after a kill of the OOM killer ends with `limit`. | T-483, T-515 |
 | `run-report.v1` | The disk bound of a unit is the lesser of the `disk` of the offer and `disk_max_bytes`. | T-529 |
@@ -51,6 +51,6 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
-<!-- contract docs/contracts/source-driver.md efada533842c5e79c2170a0c42ccd6c826fa21095f07274d923f580b20e21eb8 -->
+<!-- contract docs/contracts/source-driver.md 5700b24d3839fe92012962770699804c9473e901c8bec3dc7d6aa260b3b899d1 -->
 <!-- contract docs/contracts/unit-driver.md 07162598a8a264928373602ba954e00d94f973583ce4e6592494f758b8746401 -->
 <!-- contract schemas/status.v1.json 6e26927bbbf3eb22c42bd666c73c012c0332715909f9f4215842536080bb3f68 -->

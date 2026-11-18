@@ -95,7 +95,7 @@ fn source_conformance_passes_a_source_and_fails_an_echo() {
     let ok = run(&[binary().to_str().unwrap(), "fake-source", "--script", &script]);
     let text = String::from_utf8_lossy(&ok.stdout);
     assert_eq!(ok.status.code(), Some(0), "{text}");
-    assert_eq!(text.lines().filter(|l| l.contains(": pass")).count(), 14, "{text}");
+    assert_eq!(text.lines().filter(|l| l.contains(": pass")).count(), 15, "{text}");
     let none = run(&["/bin/false"]);
     assert_eq!(none.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&none.stdout).contains("FAIL"));
@@ -118,17 +118,17 @@ fn source_conformance_json_is_a_line_for_each_test() {
     assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stdout));
     let lines: Vec<serde_json::Value> =
         String::from_utf8_lossy(&out.stdout).lines().map(|l| serde_json::from_str(l).unwrap()).collect();
-    assert_eq!(lines.len(), 16, "{lines:?}");
-    assert_eq!((lines[0]["tests"].as_u64(), lines[0]["offers_needed"].as_u64()), (Some(14), Some(2)));
-    for (i, t) in lines[1..15].iter().enumerate() {
+    assert_eq!(lines.len(), 17, "{lines:?}");
+    assert_eq!((lines[0]["tests"].as_u64(), lines[0]["offers_needed"].as_u64()), (Some(15), Some(2)));
+    for (i, t) in lines[1..16].iter().enumerate() {
         assert_eq!(t["number"].as_u64(), Some(i as u64 + 1), "{t}");
         assert_eq!(t["pass"], true, "{t}");
         assert!(t["name"].as_str().is_some_and(|n| !n.is_empty()) && t["why"].is_null(), "{t}");
     }
-    assert_eq!((lines[15]["passed"].as_u64(), lines[15]["failed"].as_u64()), (Some(14), Some(0)));
+    assert_eq!((lines[16]["passed"].as_u64(), lines[16]["failed"].as_u64()), (Some(15), Some(0)));
     let none = Command::new(binary()).args(["source-conformance", "--json", "--", "/bin/false"]).output().unwrap();
     assert_eq!(none.status.code(), Some(1));
     let last: serde_json::Value =
         serde_json::from_str(String::from_utf8_lossy(&none.stdout).lines().last().unwrap()).unwrap();
-    assert_eq!(last["failed"].as_u64(), Some(14), "{last}");
+    assert_eq!(last["failed"].as_u64(), Some(15), "{last}");
 }

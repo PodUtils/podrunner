@@ -11366,7 +11366,7 @@ In the code (2026-11-18): `podrunner drain --source NAME` and `podrunner resume 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -11387,6 +11387,10 @@ The census of T-491 (2026-11-18): no test of a cancel exists in the slots or in 
 `podrunner source-conformance` has the test and it passes against `podrunner fake-source`; `cargo test -p podrunner-source`.
 
 In the code (2026-11-18): `cargo test -p podrunner-slots tests::cancel` (`a_cancel_destroys_its_unit_within_60_s`): a cancel of the source 5 s after the start ends the unit, which is destroyed with no residual process and reported `cancelled`, within 60 s of the cancel, for a payload that ends at SIGTERM and for one that ignores it (the kill comes at `grace_s`, 30 s). The defaults hold the bound when the destroy is fast; `destroy_s` (60) is the deadline of a slow destroy. Open: a test of `source-conformance`: the wire has no request with which the suite makes a source cancel a job, so the test needs a design (a scripted cancel of a conformance source, or a report of `cancelled` that the source must take); the measure on real kinds (C3 on cfb's host).
+
+## Done
+
+2026-11-18: test 15 of `source-conformance`, `a-cancelled-job-is-reported-and-released`: after `mint`, the report with `exit_reason: cancelled` and `release` are taken, and a claim after them is `unknown-job`; the plant `RefuseCancelled` of the fake source fails it (`each_source_plant_fails_its_test`). The wire has no request that makes a source cancel, so the time from a cancel to `destroyed` stays a test of the slots (`tests::cancel`, within 60 s) and the check C3 of `tests/accept.rs` on real kinds (T-525). `cargo test -p podrunner-source -p podrunner-fake -p podrunner-local`, `cargo test -p podrunner --test program_source` (15 lines) pass.
 
 # T-503: G-28: the output of `source-conformance` for CI
 

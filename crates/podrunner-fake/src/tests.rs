@@ -242,6 +242,7 @@ fn each_source_plant_fails_its_test() {
         (12, None),
         (13, Some(AssignedUnclaimed)),
         (14, Some(RefuseHost)),
+        (15, Some(RefuseCancelled)),
     ];
     for (n, plant) in plants {
         let fx = SourceFixture { plant, lax_wire: plant.is_none() };

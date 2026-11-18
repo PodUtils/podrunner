@@ -5,7 +5,7 @@
 //!
 //! `podrunner fake-source --script FILE` is such a program over the fake
 //! source of the tests, and `podrunner source-conformance -- PROGRAM ARGS`
-//! runs the 14 tests of the source wire against a program (T-104): a forge
+//! runs the 15 tests of the source wire against a program (T-104): a forge
 //! runs them in its own CI.
 
 use std::io::{BufRead, BufReader, Write};
@@ -140,7 +140,7 @@ impl podrunner_source::conformance::Fixture for Under {
 /// test 3 needs two to be strict.
 pub const OFFERS_NEEDED: u32 = 2;
 
-/// `podrunner source-conformance [--json] -- PROGRAM ARGS...`: the 14 tests
+/// `podrunner source-conformance [--json] -- PROGRAM ARGS...`: the 15 tests
 /// of the source wire against PROGRAM, one line each; the text and true
 /// when each passes. The program must give two offers or more on its first
 /// `next`. With `--json` (T-503, githome's G-28), one JSON object for each

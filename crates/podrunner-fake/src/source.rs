@@ -85,6 +85,8 @@ pub enum SourcePlant {
     AssignedUnclaimed,
     /// Test 14: `hello` with `host` is refused.
     RefuseHost,
+    /// Test 15: the report of a cancelled job is refused.
+    RefuseCancelled,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -244,7 +246,8 @@ impl JobSource for FakeSource {
     }
 
     fn report(&mut self, job: &JobId, report: &Map<String, Value>) -> Result<(), SourceError> {
-        if self.planted(SourcePlant::RefuseReport) {
+        let cancelled = report.get("exit_reason").and_then(Value::as_str) == Some("cancelled");
+        if self.planted(SourcePlant::RefuseReport) || (cancelled && self.planted(SourcePlant::RefuseCancelled)) {
             return Err(SourceError::new(SourceCode::Unavailable, "planted"));
         }
         self.reports.push((job.clone(), report.clone()));

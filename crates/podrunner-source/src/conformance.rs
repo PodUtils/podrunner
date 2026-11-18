@@ -1,4 +1,4 @@
-//! The conformance suite of the source seam: the tests 1 to 14 of
+//! The conformance suite of the source seam: the tests 1 to 15 of
 //! `docs/contracts/source-driver.md`. Each test takes a fresh source from
 //! the fixture. A fresh source gives an offer on its first `next`; two or
 //! more make test 3 strict. Each test gives its job back at its end (T-190).
@@ -43,7 +43,7 @@ impl fmt::Display for Report {
 
 type Run = fn(&dyn Fixture) -> Result<(), String>;
 
-const CASES: [(u32, &str, Run); 14] = [
+const CASES: [(u32, &str, Run); 15] = [
     (1, "hello-names-the-source", hello_names_the_source),
     (2, "no-capacity-gives-no-offer", no_capacity_gives_no_offer),
     (3, "next-gives-at-most-capacity-offers", next_gives_at_most_capacity_offers),
@@ -58,6 +58,7 @@ const CASES: [(u32, &str, Run); 14] = [
     (12, "the-wire-refuses-a-long-line-a-path-and-a-schema", the_wire_refuses_bad_lines),
     (13, "assigned-needs-a-claim", assigned_needs_a_claim),
     (14, "hello-takes-the-facts-of-the-host", hello_takes_the_facts_of_the_host),
+    (15, "a-cancelled-job-is-reported-and-released", a_cancelled_job_is_reported_and_released),
 ];
 
 /// The number and the name of each test, in order.
@@ -254,6 +255,26 @@ fn hello_takes_the_facts_of_the_host(fx: &dyn Fixture) -> Result<(), String> {
         return Err(format!("hello with host names {:?}, hello with none {:?}", h.source, plain.source));
     }
     Ok(())
+}
+
+/// The end of a job that the source cancelled (T-502, githome's G-27):
+/// after its mint, the report with `exit_reason: cancelled` and the release
+/// are taken, and the job is gone. The wire has no request that makes a
+/// source cancel; the time from a cancel to `destroyed` is a test of the
+/// slots (`tests::cancel`).
+fn a_cancelled_job_is_reported_and_released(fx: &dyn Fixture) -> Result<(), String> {
+    let (mut s, job) = claimed(fx)?;
+    let result = (|| {
+        s.mint(&job, "runner-u-1").map_err(err("mint"))?;
+        let mut r = Map::new();
+        r.insert("exit_reason".into(), "cancelled".into());
+        s.report(&job, &r).map_err(err("report of a cancelled job"))?;
+        s.release(&job).map_err(err("release of a cancelled job"))
+    })();
+    if result.is_err() {
+        return give_back(s.as_mut(), &job, true, result);
+    }
+    refused("claim after the release of a cancelled job", s.claim(&job, "runner-u-2"), SourceCode::UnknownJob)
 }
 
 /// The code of an error reply, or a failure.
