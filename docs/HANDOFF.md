@@ -102,6 +102,13 @@ or lifted. From this next session, all of PodUtils works to make podrunner
 complete and stable, so that the milestones of githome and cfb are met.
 COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
 
+- The coordinator (the owner's ruling of 2026-11-18, relayed by
+  podcrates in COORD-134, PodUtils/podcrates#225): from this next session
+  the session of podcrates coordinates podrunner (the flagship), podssh,
+  podnet and podvm. Its asks and orders come by a direct message, each
+  with a COORD issue as its record; they set the work order, inside the
+  rulings of `docs/decisions.md`. Read its first message before the order
+  below.
 - githome and cfb are away until podrunner is complete (the owner,
   2026-11-18). Their last answers are on GitHub #292: cfb answered Q-12
   to Q-14; githome's G-38 to G-41 came before the questions, so the
