@@ -11354,11 +11354,12 @@ githome's comment on GitHub #292 and `docs/install.md`, read on 2026-11-18.
 1. `podrunner-install.sh --serve`: the pinned files of the serve mode (podrunner, podvm, podnet, the runner images), each checked by its SHA-256.
 2. `podrunner config init --source NAME --program 'CMD ARGS' --key-file FILE --kinds auto`: a `podrunner.toml` from the kinds that `doctor` finds, which `check` takes; then `print-unit`.
 3. `--json` output and a documented exit code on each step; no root where the kinds allow it; a second run changes nothing.
+5. The host keeps no inbound port (cfb's R-044; githome on GitHub #292, 2026-11-18T07:12Z): the install and `serve` open no TCP listener; githome's agent reaches the host through the podssh roost of the operator.
 4. The schema of T-479 checks the file that `config init` writes.
 
 ## Prove
 
-`sh scripts/test-install.sh` with a lane of `--serve`: on a fresh user account, a run with no prompt gives a configuration that `podrunner check` takes and a unit from `print-unit`; a second run changes nothing.
+`sh scripts/test-install.sh` with a lane of `--serve`: on a fresh user account, a run with no prompt gives a configuration that `podrunner check` takes and a unit from `print-unit`; a second run changes nothing; `ss -ltn` shows no new TCP listener after the install and the start of `serve`.
 
 # T-508: COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks
 
