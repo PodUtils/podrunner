@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**530 entries: 78 open, 32 partial, 12 blocked, 408 done.**
+**530 entries: 76 open, 32 partial, 14 blocked, 408 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
-| P1 | 16 | 14 | 2 | 66 | 98 |
-| P2 | 22 | 12 | 7 | 216 | 257 |
+| P1 | 15 | 14 | 3 | 66 | 98 |
+| P2 | 21 | 12 | 8 | 216 | 257 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 78 | 32 | 12 | 408 | 530 |
+| **All** | 76 | 32 | 14 | 408 | 530 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -526,7 +526,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-479](later.md) | P2 | M | later | feature | open | A JSON Schema of `podrunner.toml` for a program that writes the file |
 | [T-480](later.md) | P2 | L | later | feature | open | A cache directory of the host, kept apart by trust (cfb and githome G-07) |
 | [T-481](later.md) | P2 | S | later | measurement | open | The checkout of a job on the incus kind is proven by a test of the script only |
-| [T-482](later.md) | P2 | M | later | defect | open | The incus kind bounds no disk of the root of an instance |
+| [T-482](later.md) | P2 | M | later | defect | blocked | The incus kind bounds no disk of the root of an instance |
 | [T-483](later.md) | P2 | M | later | defect | open | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
 | [T-484](later.md) | P2 | S | later | release | open | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
 | [T-485](later.md) | P1 | M | later | feature | open | The incus kind has no container route, though G-02 asks for an engine in the system container |
@@ -540,7 +540,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-493](later.md) | P0 | M | later | defect | partial | G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer |
 | [T-494](later.md) | P0 | M | later | defect | done | G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub |
 | [T-495](later.md) | P1 | M | later | feature | done | G-17: the facts of a host for its source in `hello` |
-| [T-496](later.md) | P1 | M | later | feature | open | G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC` |
+| [T-496](later.md) | P1 | M | later | feature | blocked | G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC` |
 | [T-497](later.md) | P1 | M | later | feature | partial | G-19: more facts of a job in the run report |
 | [T-498](later.md) | P1 | M | later | feature | open | G-22: a rotation of the key of a program source with no drain |
 | [T-499](later.md) | P1 | M | later | feature | open | G-23: the runner of a GitHub job stays inside GitHub's window of updates |

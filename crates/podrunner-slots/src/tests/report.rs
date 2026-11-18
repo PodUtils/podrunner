@@ -43,3 +43,15 @@ fn a_report_has_its_times_its_image_and_its_measures_or_a_reason() {
     assert!(matches!(r.disk_peak_bytes, Some(Residual::Unknown(_))));
     assert!(r.unknown_reasons.contains_key("disk_peak_bytes"));
 }
+
+#[test]
+fn a_unit_that_fails_before_a_step_gives_a_scrubbed_log_tail() {
+    // The payload prints its credential file and fails: the canary of the
+    // credential is not in the tail, and the rest of the log is.
+    let r = run(None, "echo before; cat .runner-root/.credentials; echo; echo after; exit 3");
+    let tail = r.log_tail.as_deref().expect("a log tail");
+    assert!(tail.contains("before") && tail.contains("after") && tail.contains("clientId"), "{tail}");
+    assert!(!tail.contains("fake-client"), "the canary of the credential is in the tail: {tail}");
+    // A unit that ends well gives none.
+    assert_eq!(run(None, "echo fine; exit 0").log_tail, None);
+}

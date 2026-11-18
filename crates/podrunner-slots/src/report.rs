@@ -25,6 +25,12 @@ pub struct Times {
     /// egress module (the egress lines of T-486).
     pub net_rx: u64,
     pub net_tx: u64,
+    /// The hashes of the long words of the credential, for the scrub of
+    /// `log_tail`; no credential stays after the start.
+    pub marks: crate::log_tail::Marks,
+    /// The scrubbed end of the log of a unit that failed before its first
+    /// step.
+    pub log_tail: Option<String>,
 }
 
 impl Times {
@@ -136,6 +142,7 @@ impl Slots {
         if unit_ran && j.first_step_ms.is_none() {
             r.unknown_reasons.insert("start_s".into(), "the runner reached no first step".into());
         }
+        r.log_tail = j.times.log_tail.clone();
         if unit_ran {
             let unknown = || Residual::Unknown(podrunner_schema::report::Unknown::Unknown);
             r.disk_peak_bytes = Some(j.times.disk_peak.map_or_else(unknown, Residual::Count));

@@ -120,7 +120,9 @@ impl Slots {
         }
         self.audit(audit::Kind::Mint, key.0, &key.1, None, None);
         self.set(key, State::Minted, now);
-        self.jobs.get_mut(key).expect("a minted job").minted_ms = Some(now);
+        let minted = self.jobs.get_mut(key).expect("a minted job");
+        minted.minted_ms = Some(now);
+        minted.times.marks = crate::log_tail::Marks::of(&credential);
         let j = &self.jobs[key];
         let (p, unit) = (j.placement.clone().expect("a placed job"), j.unit.clone().expect("a unit id"));
         let kind = &self.kinds[p.kind];
@@ -371,6 +373,16 @@ impl Slots {
         self.read_hooks(key, now);
         let j = self.jobs[key].clone();
         if let (Some(u), Some(p)) = (&j.unit, &j.placement) {
+            // A unit that ended with no step: the end of its log tells why
+            // (T-497). A cancel is no failure.
+            if j.started_ms.is_some()
+                && j.first_step_ms.is_none()
+                && !matches!(j.reason, Some(ExitReason::Success | ExitReason::Cancelled))
+                && let Ok(log) = self.kinds[p.kind].driver.unit_logs(u)
+                && let Some(job) = self.jobs.get_mut(key)
+            {
+                job.times.log_tail = Some(crate::log_tail::scrub(&log, &job.times.marks));
+            }
             let residue = self.kinds[p.kind]
                 .driver
                 .destroy(u)

@@ -135,6 +135,9 @@ impl Drop for FakeUnit {
 /// The time that destroy waits for the processes of a unit to end.
 const KILL_LIMIT: Duration = Duration::from_secs(5);
 
+/// The file of the output of the payload, in the root of a unit.
+const UNIT_LOG: &str = ".unit.log";
+
 fn host(e: std::io::Error, what: &str) -> UnitError {
     UnitError::new(UnitCode::Host, format!("{what}: {}", e.kind()))
 }
@@ -342,8 +345,11 @@ impl UnitDriver for FakeUnit {
         {
             env.push(("PODRUNNER_PLANTED_CREDENTIAL".into(), f.content.expose().to_string()));
         }
+        // The output of the payload, for `unit_logs`: in the root, so that
+        // destroy removes it.
+        let log = root.join(UNIT_LOG);
         let child =
-            self.spawn(&spec.argv, &root, &env, None, self.shimmed(), Some((&root, spec.sockets.as_deref())))?;
+            self.spawn(&spec.argv, &root, &env, Some(&log), self.shimmed(), Some((&root, spec.sockets.as_deref())))?;
         let run = Running {
             root,
             runner_root,
@@ -471,6 +477,12 @@ impl UnitDriver for FakeUnit {
     fn container_exec(&self, unit: &UnitId, c: &ContainerId, spec: &ExecSpec) -> Result<Exit, UnitError> {
         self.exec_container(unit, c, spec)
     }
+    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+        let units = self.units.lock().expect("the units");
+        let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;
+        fs::read(r.root.join(UNIT_LOG)).map_err(|e| host(e, "the log of the unit"))
+    }
+
     fn container_logs(&self, unit: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {
         self.logs_container(unit, c)
     }

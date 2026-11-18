@@ -18,6 +18,7 @@ pub mod hooks;
 mod host;
 pub mod journal;
 pub mod limits;
+pub mod log_tail;
 mod own;
 pub mod pins;
 pub mod placement;
