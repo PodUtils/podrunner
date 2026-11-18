@@ -38,6 +38,7 @@ pub(crate) static FAKE_PODVM: Mutex<()> = Mutex::new(());
 use tree_kill::procs_comm_is_podvm;
 mod confine;
 mod containers;
+mod envfile;
 mod hold;
 mod labels;
 mod limits;
@@ -268,6 +269,7 @@ impl UnitDriver for PodvmUnit {
         let name = format!("podrunner-{}", spec.unit);
         args.extend(["--hostname".into(), name.clone()]);
         args.extend(labels::run_args(&self.podvm, spec.unit.as_str()));
+        args.extend(labels::tier_args(&self.podvm).iter().map(|a| a.to_string()));
         args.extend(["--report".into(), dir.join(labels::REPORT).display().to_string()]);
         let guest = spec.sockets.as_ref().and(self.socket_mount());
         args.extend(self.confine_args(&rootfs, guest));
@@ -278,10 +280,10 @@ impl UnitDriver for PodvmUnit {
         // The lesser of the kind and the offer (T-198); podvm holds no CPU limit.
         let held = limits::held(&self.podvm, &self.limits, &spec.limits);
         args.extend(limits::ulimit_args(&held, &mut env));
-        for (k, v) in &env {
-            args.push("-e".into());
-            args.push(format!("{k}={v}"));
-        }
+        // The values in a file, not in the argv (T-405); it goes after the
+        // call.
+        let (env_args, _env_file) = envfile::env_args(&self.podvm, &dir, &env)?;
+        args.extend(env_args);
         if let (Some(dir), Some(guest)) = (&spec.sockets, self.socket_mount()) {
             args.push("-v".into());
             args.push(format!("{}:{guest}", dir.display()));

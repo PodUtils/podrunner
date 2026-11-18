@@ -98,9 +98,9 @@ impl PodvmUnit {
             args.extend(["-w".into(), w.clone()]);
         }
         args.extend(["-e".into(), format!("{TAG_VAR}={tag}")]);
-        for (k, v) in &spec.env {
-            args.extend(["-e".into(), format!("{k}={v}")]);
-        }
+        let unit_dir = store.parent().unwrap_or(&store).to_path_buf();
+        let (env_args, _env_file) = super::envfile::env_args(&self.podvm, &unit_dir, &spec.env)?;
+        args.extend(env_args);
         for m in &spec.mounts {
             // A relative source is under the runner directory of the unit.
             let source = if m.source.is_absolute() { m.source.clone() } else { runner.join(&m.source) };
@@ -133,9 +133,9 @@ impl PodvmUnit {
         if let Some(w) = &spec.workdir {
             args.extend(["-w".into(), w.clone()]);
         }
-        for (k, v) in &spec.env {
-            args.extend(["-e".into(), format!("{k}={v}")]);
-        }
+        let unit_dir = store.parent().unwrap_or(&store).to_path_buf();
+        let (env_args, _env_file) = super::envfile::env_args(&self.podvm, &unit_dir, &spec.env)?;
+        args.extend(env_args);
         args.push(c.0.clone());
         args.extend(spec.argv.iter().cloned());
         let (code, out) = self.podvm_in(&store, &args, &tag, egress.as_deref())?;

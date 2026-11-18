@@ -4316,7 +4316,7 @@ The log of the job `runner` of level2 43750372759, read on 2026-11-15.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -4334,17 +4334,8 @@ podvm found the cause (PodUtils/podvm#439): a volume of the unit puts the run on
 
 The rows `click-py313` and `rq-lint` on `podvm` pass in the user-path gate.
 
-## Blocker
+In the code (2026-11-18): podvm `0.2.0-beta.32` holds the raw system calls of a run on the userland rung with `--podvm-tier=syscall` (PodUtils/podvm#470, COORD-185). The podvm kind adds the flag to `run -d` of a unit where the probe names the userland rung (`labels::tier_args`, test `the_syscall_tier_holds_the_userland_rung_only`). Open: the next run of `user-gate.yml`; when the rows `click-py313` and `rq-lint` on `podvm` pass, set them `ok` in `scripts/corpus/user-gate.tsv` and close GitHub #189.
 
-2026-11-16: waits for the release of podvm that binds a volume on the namespace rung (PodUtils/podvm#439; on podvm `main` at `1298b66a`, PodUtils/podvm#442).
-
-State (2026-11-16): podvm `v0.2.0-beta.25` (PodUtils/podvm#439, PodUtils/podvm@T-1920) binds each volume of a foreground run of a user with no root and keeps the run on the namespace rung. podrunner pins it (`images/podvm.toml`, the installer); the rows `click-py313` and `rq-lint` on podvm of the corpus are `ok`. The proof is the next run of `runner-image.yml` and of the user-path gate on that pin.
-
-State (2026-11-17): the rows `click-py313` and `rq-lint` on podvm are still xfail in each lane of user-gate 44051472680 (podvm `0.2.0-beta.30`): a unit with a volume (the socket directory where the hooks give containers, `--export`) leaves the namespace rung until PodUtils/podvm@T-1740; GitHub #189 names it (PodUtils/podvm#466).
-
-State (2026-11-17): the premise above is most likely wrong. As uid 30036 on this sandbox, podvm `0.2.0-beta.30` keeps `run -d` on the namespace rung with no volume, with the socket directory and with a read-only volume (`namespace fresh-chroot`). The podvm tests of runner-image 44085737348 on the hosted `ubuntu-24.04` runner say `entered rung: userland` (AppArmor restricts user namespaces). So the rows most likely fail because each unit there is on the userland rung, where `tempfile` issues `renameat2` as a raw system call. #189 gives podvm the three facts that PodUtils/podvm#466 asked for. The user gate has the measure `rung:podvm` (the rung and the mode of a detached unit with a volume, a pty and `less`) in each lane with podvm.
-
-State (2026-11-17): podvm confirmed the cause (PodUtils/podvm#470): on the userland rung, `rustix` issues a raw `renameat2`, `rename` and `link`, which the interposer does not see (EACCES in `/root`). No workaround in podvm `0.2.0-beta.31`; PodUtils/podvm@T-1935 (P1) makes the syscall tier serve `run -d`. podvm asks for the rung of a failing unit for the Node error of T-262.
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
 
@@ -7071,7 +7062,7 @@ In the code (2026-11-17): `less` is in the base package list of `images/runner/D
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -7089,11 +7080,8 @@ Ask podvm by a COORD issue `(to podvm)` to mount a new `devpts` instance (`newin
 
 `cargo test -p podrunner`; a probe step in `runner-image.yml` (`python3 -c "import pty; pty.spawn(['/bin/true'])"`).
 
-## Blocker
+In the code (2026-11-18): podvm `0.2.0-beta.32` mounts a devpts instance of the unit and its `ptmx` on the namespace rung (COORD-185, PodUtils/podvm#572); podrunner pins it. `runner-image.yml` has the step "A pty in a podvm unit": `run -d` of the runner image, then `pty.spawn` of Python and `script` through `podvm exec`. Open: the green run of that step; then close GitHub #216.
 
-2026-11-17: waits for podvm: COORD-079 (GitHub #216) asks for a devpts in each unit.
-
-State (2026-11-17): podvm answered (PodUtils/podvm#470, COORD-177): the namespace rung binds the host's `/dev/pts` and makes no `/dev/ptmx`; the userland rung gives a pty now. The fix is in pod-enter of podcrates (PodUtils/podvm#469, COORD-176), then PodUtils/podvm@T-1934 takes the tag. podrunner waits for that podvm release.
 
 # T-355: A failed route of the egress module is reported as a host that the policy refused
 
@@ -8432,7 +8420,7 @@ Count the late credentials of each host for the life of the mint, and count a cr
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -8451,6 +8439,13 @@ Resolve each source on the host under the runner directory with no link (`openat
 `cargo test --workspace`; a test that fails on the code before the fix.
 
 In the code (2026-11-17): `HookUnit::spec` refuses a mount source with a symbolic link in its path under the root of the unit (`container-option-refused`). The test `tests_unit::a_linked_mount_source_is_refused` fails on the code before the fix and passes after it. Open: a link that the job makes after the check and before podvm reads the path (a race): podvm must refuse a linked `-v` source itself (a COORD issue to podvm).
+
+In the code (2026-11-18): podvm `0.2.0-beta.32` gives `--podvm-volume-base DIR` (a `-v` source under DIR opens with no symbolic link and binds by its descriptor), on the namespace rung only; the userland rung and the guest tiers refuse it. The containers of a podvm unit run on the supervise and userland rungs (U19), so the flag cannot hold the race yet.
+
+## Blocker
+
+`--podvm-volume-base` on the supervise and userland rungs, or containers on the namespace rung: COORD-090 (GitHub #300, to podvm), ask 3.
+
 
 # T-404: In the local mode the logs of a hook step are in the socket directory that the unit writes
 
@@ -8488,7 +8483,7 @@ Keep the logs out of the socket directory, as `serve` does (`dir.with_extension(
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -8507,6 +8502,9 @@ Give the environment to podvm in a file at 0600 or on a descriptor (a COORD issu
 `cargo test --workspace`; a test that fails on the code before the fix.
 
 State (2026-11-17): podvm answered by PodUtils/podvm#509 (COORD-179): `exec --env-file PATH` is on podvm `main` for its next beta, and `run --env-file` is in `0.2.0-beta.21` and later; the file is the caller's to make at 0600 and to remove. podvm keeps its pin until the gate of `PodUtils/podvm@T-1949` (PodUtils/podvm#567), so podrunner takes `exec --env-file` with that beta.
+
+In the code (2026-11-18): podvm `0.2.0-beta.32` takes `--env-file` on `run` and `exec` (COORD-185, PodUtils/podvm#572). The podvm kind writes the environment of a unit, of a job container and of a step in a container to a file of mode 0600 in the directory of the unit, which goes after the call (`crates/podrunner-podvm/src/unit/envfile.rs`); an older podvm keeps `-e`. Tests: `the_values_go_in_a_file_of_mode_0600`, `an_older_podvm_gets_the_values_in_the_argv`. Not run with a real podvm unit here. Open: a value with a newline stays `-e` (podvm reads `KEY=VALUE` lines); the microvm and incus kinds still pass the unit environment with `-e` (in `serve` it holds no secret; in the local mode it can hold a proxy URL with a password). Both asked of podvm by COORD-090.
+
 
 # T-406: The fake broker of the local mode gives the job message to each local process
 

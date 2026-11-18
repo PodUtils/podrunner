@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.70.0` (`Cargo.toml`); podvm `v0.2.0-beta.30`
+- Pins: podcrates `v0.70.0` (`Cargo.toml`); podvm `v0.2.0-beta.32`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
@@ -100,11 +100,15 @@ is done.
   of `v0.70.0` (done, COORD-088 #295), the census of T-491 (done), then
   T-493, T-494, T-486, T-495; amend COORD-088 when T-486, T-493 and T-495
   are done (the move of the schemas, T-508).
-- podvm answered COORD-089 (#296) with COORD-187 (PodUtils/podvm#583) and
-  COORD-185 (PodUtils/podvm#572): its next beta carries T-403, T-405,
-  T-354, the tier of #189, the cgroup leaf of #110 and `--pids-limit` of
-  a guest (T-488). Take it when it is out, and close #277, #216, #189,
-  #168 and #110 when each holds.
+- podvm `0.2.0-beta.32` is pinned (COORD-185, PodUtils/podvm#572): the
+  environment goes to podvm in a file (T-405, partial), the syscall tier
+  on the userland rung (T-261, partial: flip the corpus rows after the
+  next user-gate run), a pty step in `runner-image.yml` (T-354, partial:
+  close #216 when it is green). T-403 waits for `--podvm-volume-base` on
+  the rungs with containers (COORD-090, #300). #110 waits for the measure
+  of T-162. podvm answered COORD-089 (#296) with COORD-187
+  (PodUtils/podvm#583); `--pids-limit` of a guest (T-488) is in its next
+  tag.
 - Three Dependabot pull requests (#297 trufflehog, #298 setup-dotnet,
   #299 rsa 0.10; the gate of #299 is red) wait: apply each judged update
   as a commit on `main` (`docs/decisions.md`, Dependabot).

@@ -38,14 +38,35 @@ const NO_SOURCE_FIXUP: &str = "0.2.0-beta.30";
 /// payload, also under the egress hold of a unit (T-332,
 /// PodUtils/podvm#464). The answer of each binary is kept.
 pub(super) fn fixup_args(podvm: &crate::Podvm) -> &'static [&'static str] {
+    if at_least(podvm, NO_SOURCE_FIXUP) { &["--no-source-fixup"] } else { &[] }
+}
+
+/// The first podvm whose syscall tier holds the raw system calls of a run
+/// on the userland rung (PodUtils/podvm#470, T-261).
+const SYSCALL_TIER: &str = "0.2.0-beta.32";
+
+/// `--podvm-tier=syscall` for `run -d` of a unit where podvm takes the
+/// userland rung: each raw system call (`renameat2` of `rustix`, as uv and
+/// ruff issue it) goes to podvm's handler, and `exec` enters the same tier
+/// (T-261, PodUtils/podrunner#189). The rung of each binary is kept.
+pub(super) fn tier_args(podvm: &crate::Podvm) -> &'static [&'static str] {
     static SEEN: std::sync::Mutex<std::collections::BTreeMap<std::path::PathBuf, bool>> =
         std::sync::Mutex::new(std::collections::BTreeMap::new());
     let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
-    let takes = *seen.entry(podvm.binary.clone()).or_insert_with(|| {
-        let low = crate::probe::Version::parse(NO_SOURCE_FIXUP).expect("a version");
+    let userland = *seen.entry(podvm.binary.clone()).or_insert_with(|| podvm.rung().as_deref() == Some("userland"));
+    if userland && at_least(podvm, SYSCALL_TIER) { &["--podvm-tier=syscall"] } else { &[] }
+}
+
+/// Whether `podvm` is `version` or later. The answer of each binary for
+/// each version is kept.
+pub(super) fn at_least(podvm: &crate::Podvm, version: &str) -> bool {
+    type Seen = std::collections::BTreeMap<(std::path::PathBuf, String), bool>;
+    static SEEN: std::sync::Mutex<Seen> = std::sync::Mutex::new(std::collections::BTreeMap::new());
+    let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
+    *seen.entry((podvm.binary.clone(), version.to_string())).or_insert_with(|| {
+        let low = crate::probe::Version::parse(version).expect("a version");
         podvm.version().is_some_and(|v| v >= low)
-    });
-    if takes { &["--no-source-fixup"] } else { &[] }
+    })
 }
 
 impl PodvmUnit {
@@ -121,6 +142,27 @@ pub(super) fn orphaned(live: &[String]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    /// A stand-in podvm whose probe gives `version` and `rung`.
+    fn stand_in(version: &str, rung: &str) -> crate::Podvm {
+        use std::os::unix::fs::PermissionsExt;
+        let d = std::env::temp_dir().join(format!("podrunner-tier-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        let bin = d.join(format!("podvm-{version}-{rung}"));
+        let probe = format!("{{\"podvm\":\"{version}\",\"rung\":\"{rung}\"}}");
+        std::fs::write(&bin, format!("#!/bin/sh\necho '{probe}'\n")).unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        crate::Podvm { binary: bin }
+    }
+
+    /// T-261: the syscall tier on the userland rung of podvm beta.32 or
+    /// later, and nowhere else.
+    #[test]
+    fn the_syscall_tier_holds_the_userland_rung_only() {
+        assert_eq!(super::tier_args(&stand_in("0.2.0-beta.32", "userland")), ["--podvm-tier=syscall"]);
+        assert!(super::tier_args(&stand_in("0.2.0-beta.32", "namespace")).is_empty());
+        assert!(super::tier_args(&stand_in("0.2.0-beta.30", "userland")).is_empty());
+    }
+
     /// T-159: a process that ended after the list is no orphan.
     #[test]
     fn a_process_that_ended_is_no_orphan() {

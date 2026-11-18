@@ -326,6 +326,17 @@ jobs:
           set -eu
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" \
             /bin/sh -c 'make --version | head -1 && python3 --version && ls /usr/lib/*/libatomic.so.1 && command -v less'
+      # T-354: a detached podvm unit has a pty: a devpts of its own on the
+      # namespace rung (podvm 0.2.0-beta.32, PodUtils/podrunner#216).
+      - name: A pty in a podvm unit
+        if: ${{ !cancelled() }}
+        run: |
+          set -eu
+          export PODVM_STORE="$PODRUNNER_PODVM_IMAGES"
+          trap '"$PODRUNNER_PODVM" rm -f ptyprobe >/dev/null 2>&1 || true' EXIT
+          "$PODRUNNER_PODVM" run -d --name ptyprobe "$PODRUNNER_RUNNER_IMAGE" sleep 300
+          "$PODRUNNER_PODVM" exec ptyprobe python3 -c 'import pty; pty.spawn(["true"])'
+          "$PODRUNNER_PODVM" exec ptyprobe script -qec 'echo pty-ok' /dev/null | grep -q pty-ok
       # T-232: GNU tar in a podvm unit extracts a link before its target and
       # a dangling link (PodUtils/podvm#423, podvm 0.2.0-beta.24).
       - name: The links of tar in a podvm unit

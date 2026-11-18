@@ -34,9 +34,12 @@
 # of `run -d` on the namespace rung (T-182, PodUtils/podvm#448); beta.27
 # the payload of `run -d` as the `USER` of the image on that rung (T-317);
 # beta.30 a PID namespace and a `/proc` of its own for `run -d` on that
-# rung (T-318, PodUtils/podvm#458).
-version = "0.2.0-beta.30"
+# rung (T-318, PodUtils/podvm#458); beta.32 `--podvm-volume-base` (T-403,
+# PodUtils/podrunner#277), `exec --env-file` (T-405), a devpts of the unit
+# (T-354, #216), the syscall tier on the userland rung (T-261, #189) and the
+# cgroup leaf of `run -d` (#110, COORD-185, PodUtils/podvm#572).
+version = "0.2.0-beta.32"
 
 [sha256]
-x86_64 = "04d1d56e352e1eb001a3423b06b6ee510d5494754dbb3baa205fb3813001335a"
-aarch64 = "7e1d3b178c2642dacdb2b1bee267fa71617d755bd77baca0336a65d0781c6976"
+x86_64 = "e68b977a68ebff90ba98d79f27d9a3d7cb84c7120bcc7c4e0a4be7eee4b1f88f"
+aarch64 = "8f1130b380d63b6cfb5dbcb1032e17cf285a3c1abee5bec2f32b75b5de419a18"

@@ -171,7 +171,7 @@
 165 issue closed
 166 issue closed
 167 issue open
-168 issue open
+168 issue closed
 169 issue closed
 170 issue closed
 171 issue open
@@ -303,3 +303,4 @@
 297 pull closed
 298 pull closed
 299 pull open
+300 issue open

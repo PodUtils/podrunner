@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**528 entries: 82 open, 32 partial, 16 blocked, 398 done.**
+**528 entries: 81 open, 34 partial, 15 blocked, 398 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 2 | 0 | 0 | 3 |
-| P1 | 20 | 13 | 1 | 63 | 97 |
-| P2 | 22 | 12 | 11 | 211 | 256 |
+| P1 | 19 | 13 | 2 | 63 | 97 |
+| P2 | 22 | 14 | 9 | 211 | 256 |
 | P3 | 39 | 5 | 4 | 124 | 172 |
-| **All** | 82 | 32 | 16 | 398 | 528 |
+| **All** | 81 | 34 | 15 | 398 | 528 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -305,7 +305,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-255](later.md) | P2 | S | later | defect | done | On `--runner-dir`, the tests of express miss headers and hang |
 | [T-256](later.md) | P1 | S | later | defect | done | The checks of a session do not run the suites that need the official runner |
 | [T-260](later.md) | P2 | S | later | defect | done | An expression in the image of a service or a job container fails the job |
-| [T-261](later.md) | P2 | S | later | defect | blocked | In a podvm unit, the persist of a temporary file gets EACCES |
+| [T-261](later.md) | P2 | S | later | defect | partial | In a podvm unit, the persist of a temporary file gets EACCES |
 | [T-262](later.md) | P2 | S | later | defect | done | In a podvm unit, Node sometimes reads an invalid package.json |
 | [T-263](later.md) | P1 | S | later | defect | done | The installer keeps a directory that the group can write |
 | [T-264](later.md) | P2 | M | later | chore | partial | Take podcrates `v0.55.0`: the sync of the issues and pod-lab |
@@ -398,7 +398,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-351](later.md) | P1 | M | later | defect | partial | The egress module resolves each name itself, so a host with DNS only through its proxy gets 502 for each fetch and each allowed host |
 | [T-352](later.md) | P3 | S | later | defect | open | `image verify` cannot verify the runner image of the release |
 | [T-353](later.md) | P2 | M | later | defect | partial | The runner image has no `less` |
-| [T-354](later.md) | P2 | M | later | defect | blocked | A podvm unit has no devpts: `openpty` fails |
+| [T-354](later.md) | P2 | M | later | defect | partial | A podvm unit has no devpts: `openpty` fails |
 | [T-355](later.md) | P2 | M | later | defect | partial | A failed route of the egress module is reported as a host that the policy refused |
 | [T-356](later.md) | P2 | M | later | defect | done | A run does not check `--toolcache` before its first unit |
 | [T-357](later.md) | P3 | S | later | defect | open | `--state FILE` is named as `--artifacts`; a `--log-dir` with a missing parent does not name the parent |
@@ -447,9 +447,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-400](later.md) | P2 | S | later | defect | done | A local composite action of `./../PATH` or a link out of the tree is read |
 | [T-401](later.md) | P3 | S | later | defect | done | A dry run with a runner directory that cannot take the lock says planned |
 | [T-402](later.md) | P2 | S | later | defect | done | The mint forgets a late credential that starts or goes back after its alert |
-| [T-403](later.md) | P1 | M | later | defect | partial | A mount source of the hooks follows a symbolic link that the job made |
+| [T-403](later.md) | P1 | M | later | defect | blocked | A mount source of the hooks follows a symbolic link that the job made |
 | [T-404](later.md) | P1 | M | later | defect | done | In the local mode the logs of a hook step are in the socket directory that the unit writes |
-| [T-405](later.md) | P1 | M | later | defect | open | Secrets of a job and the credential of the proxy go into the argv of podvm |
+| [T-405](later.md) | P1 | M | later | defect | partial | Secrets of a job and the credential of the proxy go into the argv of podvm |
 | [T-406](later.md) | P1 | M | later | defect | done | The fake broker of the local mode gives the job message to each local process |
 | [T-407](later.md) | P2 | M | later | defect | done | Directories of a run with a fixed name in the shared `/tmp` take a directory that another user made |
 | [T-408](later.md) | P2 | M | later | defect | done | With `--export` the work directory of a job is 0777 in `/tmp` |
