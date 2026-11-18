@@ -11303,3 +11303,59 @@ A key of the host, `max_units` (and, if a measure shows the need, a memory budge
 ## Prove
 
 `cargo test -p podrunner-slots`: with `max_units = 2`, two kinds of 2 slots each never hold more than 2 units, and each kind can take both.
+
+# T-506: G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal
+
+**Source:** githome's G-36 on GitHub #292 (2026-11-18): githome's owner ruled that podrunner is the one way a machine runs work for githome; the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+githome removes its Cloudflare Containers, its own job agent and its runner protocol: its coding-agent tasks and its web terminals move to podrunner. A unit of podrunner runs only the official runner (or an alternate payload of a CI job, T-161). githome asks for a sandbox unit: a payload that the source names (an image of the store by digest and a command), with the isolation, the egress hold, the limits and the report of a job unit; an attach of a terminal over an outbound WebSocket to a URL of the source, with no inbound port; an end at `idle_s` with no attach, and at `max_s`; `cancel` ends it; the credential of the payload as a file, as the files of `mint`.
+
+## Premise
+
+githome's comment on GitHub #292, read on 2026-11-18. `payload_from_offer` and the pin list (`[pin]`) take a payload of an offer only when it is pinned.
+
+## Approach
+
+1. The offer: `payload: { kind: "sandbox", image, command }`, `idle_s`, `max_s` (ask podcrates for the optional fields of `job-offer.v1`; COORD-134: an optional field keeps the id).
+2. Placement and the tier rule as for a job; the image must be in the store and on the pin list of the operator, or the offer is refused by name.
+3. The attach: the payload dials the URL of the source through the egress module of its unit (the policy of the offer allows that host); podrunner adds no inbound port.
+4. The ends: `idle_s` with no attach, `max_s`, `cancel`; the report with the use, as for a job.
+
+## Prove
+
+`cargo test -p podrunner-slots` with a fake source and a fake unit: a sandbox offer runs its command, ends at `idle_s` with no attach and at `max_s`, and gives a report; then a sandbox on real units in `runner-image.yml` that attaches over an outbound WebSocket.
+
+# T-507: G-37: an install of `serve` that another program drives, with no prompt
+
+**Source:** githome's G-37 on GitHub #292 (2026-11-18): `githome runner` becomes a wrapper of podrunner; the ruling of the owner of 2026-11-18 (each need of githome and cfb)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome's CLI installs and configures podrunner on a machine of a user, with a host token that the user mints in githome. `scripts/install.sh` sets up the local mode only: it writes no `podrunner.toml` and no unit file. A program that drives the install must write the configuration of `serve` by hand from `docs/configuration.md`.
+
+## Premise
+
+githome's comment on GitHub #292 and `docs/install.md`, read on 2026-11-18.
+
+## Approach
+
+1. `podrunner-install.sh --serve`: the pinned files of the serve mode (podrunner, podvm, podnet, the runner images), each checked by its SHA-256.
+2. `podrunner config init --source NAME --program 'CMD ARGS' --key-file FILE --kinds auto`: a `podrunner.toml` from the kinds that `doctor` finds, which `check` takes; then `print-unit`.
+3. `--json` output and a documented exit code on each step; no root where the kinds allow it; a second run changes nothing.
+4. The schema of T-479 checks the file that `config init` writes.
+
+## Prove
+
+`sh scripts/test-install.sh` with a lane of `--serve`: on a fresh user account, a run with no prompt gives a configuration that `podrunner check` takes and a unit from `print-unit`; a second run changes nothing.

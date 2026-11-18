@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**502 entries: 67 open, 29 partial, 13 blocked, 393 done.**
+**504 entries: 69 open, 29 partial, 13 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 2 | 0 | 0 | 0 | 2 |
-| P1 | 12 | 12 | 1 | 62 | 87 |
+| P1 | 14 | 12 | 1 | 62 | 89 |
 | P2 | 18 | 12 | 9 | 209 | 248 |
 | P3 | 35 | 5 | 3 | 122 | 165 |
-| **All** | 67 | 29 | 13 | 393 | 502 |
+| **All** | 69 | 29 | 13 | 393 | 504 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -550,3 +550,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-503](later.md) | P2 | S | later | feature | open | G-28: the output of `source-conformance` for CI |
 | [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |
 | [T-505](later.md) | P2 | S | later | feature | open | No cap of units for the whole host across its kinds |
+| [T-506](later.md) | P1 | L | later | feature | open | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
+| [T-507](later.md) | P1 | M | later | feature | open | G-37: an install of `serve` that another program drives, with no prompt |
