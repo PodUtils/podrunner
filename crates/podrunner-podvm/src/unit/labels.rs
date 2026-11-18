@@ -41,12 +41,13 @@ pub(super) fn fixup_args(podvm: &crate::Podvm) -> &'static [&'static str] {
     if at_least(podvm, NO_SOURCE_FIXUP) { &["--no-source-fixup"] } else { &[] }
 }
 
-/// The first podvm whose syscall tier holds the raw system calls of a run
-/// on the userland rung (PodUtils/podvm#470, T-261) and maps the path of a
-/// unix socket under a `-v` mount (COORD-190, PodUtils/podvm#586), and
-/// resolves an absolute link of the unit in its rootfs (COORD-192,
-/// PodUtils/podvm#588).
-const SYSCALL_TIER: &str = "0.2.0-beta.34";
+/// The first podvm whose syscall tier podrunner gives: none now. Beta.34
+/// holds the raw system calls of uv and ruff (PodUtils/podvm#470), the
+/// unix socket under a `-v` mount (PodUtils/podvm#586) and the absolute
+/// links (PodUtils/podvm#588), but its loader fails a dynamic program in a
+/// volume with `EAGAIN` and hangs a cargo build (COORD-098, GitHub #308):
+/// Node of `setup-node` and Rust builds are the more common jobs (T-261).
+const SYSCALL_TIER: Option<&str> = None;
 
 /// `--podvm-tier=syscall` for `run -d` of a unit where podvm takes the
 /// userland rung: each raw system call (`renameat2` of `rustix`, as uv and
@@ -55,10 +56,11 @@ const SYSCALL_TIER: &str = "0.2.0-beta.34";
 /// rung, which is x86_64 only: on another host podvm refuses the flag
 /// (runner-musl.yml on aarch64). The rung of each binary is kept.
 pub(super) fn tier_args(podvm: &crate::Podvm) -> &'static [&'static str] {
-    tier_args_on(podvm, std::env::consts::ARCH)
+    tier_args_on(podvm, std::env::consts::ARCH, SYSCALL_TIER)
 }
 
-fn tier_args_on(podvm: &crate::Podvm, arch: &str) -> &'static [&'static str] {
+fn tier_args_on(podvm: &crate::Podvm, arch: &str, from: Option<&str>) -> &'static [&'static str] {
+    let Some(from) = from else { return &[] };
     if arch != "x86_64" {
         return &[];
     }
@@ -66,7 +68,7 @@ fn tier_args_on(podvm: &crate::Podvm, arch: &str) -> &'static [&'static str] {
         std::sync::Mutex::new(std::collections::BTreeMap::new());
     let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
     let userland = *seen.entry(podvm.binary.clone()).or_insert_with(|| podvm.rung().as_deref() == Some("userland"));
-    if userland && at_least(podvm, SYSCALL_TIER) { &["--podvm-tier=syscall"] } else { &[] }
+    if userland && at_least(podvm, from) { &["--podvm-tier=syscall"] } else { &[] }
 }
 
 /// Whether `podvm` is `version` or later. The answer of each binary for
@@ -167,10 +169,12 @@ mod tests {
     }
 
     /// T-261: the syscall tier on the userland rung of podvm beta.34 or
-    /// later on x86_64, and nowhere else (podvm refuses it on aarch64).
+    /// later on x86_64, and nowhere else (podvm refuses it on aarch64); none
+    /// while `SYSCALL_TIER` is `None` (COORD-098).
     #[test]
     fn the_syscall_tier_holds_the_userland_rung_of_x86_64_only() {
-        let on = super::tier_args_on;
+        assert!(super::tier_args_on(&stand_in("0.2.0-beta.34", "userland"), "x86_64", super::SYSCALL_TIER).is_empty());
+        let on = |p: &crate::Podvm, arch: &str| super::tier_args_on(p, arch, Some("0.2.0-beta.34"));
         assert_eq!(on(&stand_in("0.2.0-beta.34", "userland"), "x86_64"), ["--podvm-tier=syscall"]);
         assert!(on(&stand_in("0.2.0-beta.34", "userland"), "aarch64").is_empty());
         assert!(on(&stand_in("0.2.0-beta.34", "namespace"), "x86_64").is_empty());

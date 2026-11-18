@@ -122,9 +122,11 @@ is done.
   44349725647 (`e6beea0`) was green: the incus engine ran a container
   (T-485); the `pids` test of T-488 failed on its own guest size (fixed:
   read its next run, then make it blocking).
-- podvm `0.2.0-beta.34` is pinned: the syscall tier is back on the
-  userland rung of x86_64 (T-261: read `links.rs` and the container steps
-  of `runner-image.yml`, then close #303), and the microvm kind reads the
+- podvm `0.2.0-beta.34` is pinned. The syscall tier is off again
+  (`SYSCALL_TIER = None`, T-261): under it Node of `setup-node` fails with
+  `errno 11` and a cargo build hangs (COORD-098, #308); give it again when
+  podvm fixes them, and set `click-py313` and `rq-lint` to `ok` then. The
+  microvm kind reads the
   OOM kills of a guest from podvm's report (T-515). T-403 waits for
   COORD-090 (#300). T-496 waits for PodUtils/podvm@T-1968.
 - podnet `v0.4.0-beta.17` is pinned (COORD-108, PodUtils/podnet#655): run
