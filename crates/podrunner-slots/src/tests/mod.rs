@@ -4,6 +4,7 @@
 
 mod assigned;
 mod bounded;
+mod cancel;
 mod config;
 mod egress;
 mod egress_lines;
