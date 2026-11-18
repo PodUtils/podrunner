@@ -129,9 +129,8 @@ is done.
   microvm kind reads the
   OOM kills of a guest from podvm's report (T-515). T-403 waits for
   COORD-090 (#300). T-496 waits for PodUtils/podvm@T-1968.
-- podnet `v0.4.0-beta.17` is pinned (COORD-108, PodUtils/podnet#655): run
-  `user-gate.yml` on a green `runner-image.yml` run and send the result
-  of #142 to podnet as a COORD issue (T-179).
+- podnet `v0.4.0-beta.17` is pinned (COORD-108, PodUtils/podnet#655);
+  T-179 is done in CI (COORD-099, #309; #142 closed).
 - Dependabot: #299 (rsa 0.10) is T-531.
 - A full `check.sh` with the runner takes about 45 minutes here: batch the
   commits before a push.
@@ -140,21 +139,24 @@ is done.
 
 The last session (2026-11-18, evening) left:
 
-- Open answers: #305 (status.v1 fields, PodUtils/podcrates@T-947 in its next tag:
-  then take `pod_job::Status`, remove `schemas/status.v1.json`, T-508
-  done); #306 (`pod-fake-githome source`, PodUtils/podcrates@T-948: then T-509);
-  #307 (podvm's limits of `--podvm-confine`, no change; close on podvm's
-  tag); #304 (a tier for confined kinds, on podvm's next beta).
-- New measures in CI, not yet green: the steps "C1 to C5" of
-  `runner-image.yml` (T-525, `tests/accept.rs`), the lane
-  `serve-incus-kvm` of `user-gate.yml` (T-527), the rows of the stand-in
-  of rbg's gate (T-528, `.github/workflows/rbg-stand-in.yml`). Read each
-  first run and fix or record each failure.
-- `runner-image.yml` run 44391387598 (`e422c23`) failed once in the podvm
-  canned job: `native-static rung: /usr/bin/bash: ld-linux: errno 11`
-  (PodUtils/podvm@T-1652). If it comes again, write a COORD issue to podvm.
-- `user-gate.yml` run 44393864747 (images of run 44376274000) is the run
-  of T-179 for podnet #142: send its result as a COORD issue to podnet.
+- Open answers: #305 (status.v1 fields, PodUtils/podcrates@T-947 in its
+  next tag: then take `pod_job::Status`, remove `schemas/status.v1.json`,
+  T-508 done); #306 (`pod-fake-githome source`, PodUtils/podcrates@T-948:
+  then T-509); #307 (podvm's limits of `--podvm-confine`, no change; close
+  on podvm's tag of PodUtils/podvm@T-1984 and PodUtils/podvm@T-1985); #304 (a tier for confined kinds);
+  #308 (the syscall tier is off: podvm retries the EAGAIN of `openat2` on
+  its `main`, COORD-197; with that beta set `SYSCALL_TIER`, run
+  `user-gate.yml`, set `click-py313` and `rq-lint` to `ok`); #309 (the
+  result of T-179 to podnet).
+- Runs to read first: `user-gate.yml` on `ffc9658` (the tier off; T-537:
+  `hello:microvm` in `plain`; T-527: the lane `serve-incus-kvm`; T-528: the
+  rows `rbg-gate` and their times) and `runner-image.yml` on `ffc9658`
+  (T-525: the steps "C1 to C5" after the fix of the fake broker and of the
+  trusted offer). Fix or record each failure; make a measure blocking when
+  it is green.
+- podvm `0.2.0-beta.35` is out (confine on the tier, `exec=` on the tier);
+  podrunner gives no tier now, so its pin can wait for the beta with
+  PodUtils/podvm@T-1990 (PodUtils/podvm#593).
 
 The owner ruled on 2026-11-18 (`docs/decisions.md`, "githome and cfb
 first"): podrunner accommodates each need and ask of githome and cfb, their
