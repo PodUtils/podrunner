@@ -772,11 +772,13 @@ class Lane:
             args += ["--matrix", kv]
         args += [] if r["flags"] == "-" else r["flags"].split()
         args += self.flags(r["executor"]) + self.token_flags()
+        t0 = time.time()
         ok, detail = self.podrunner(args, src, f"{r['id']}-{r['executor']}", r["expect"] == "ok", ROW_TIMEOUT)
+        times = self.gate_times(f"{r['id']}-{r['executor']}", t0)
         if r["expect"] == "ok":
             if not ok:
-                raise GateError(f"github.com: success; {detail}")
-            return "ok, as on github.com"
+                raise GateError(f"github.com: success; {detail}{times}")
+            return f"ok, as on github.com{times}"
         # A flaky row fails some runs for a known cause (its entry): either
         # result holds, and the table shows which one came.
         if r["expect"] == "flaky":
@@ -784,6 +786,20 @@ class Lane:
         if ok:
             raise GateError("the job passes now (an xfail row): set expect to ok in scripts/corpus/user-gate.tsv")
         return "xfail", f"{r['note']} ({detail})"
+
+    def gate_times(self, log: str, t0: float) -> str:
+        """The `podrunner-gate-NAME=N` lines of the jobs of a row (the
+        stand-in of rbg's gate, T-528): the seconds from the start of `run`
+        to the first step, and each other time that a step prints."""
+        found = {}
+        for job in sorted((self.out / "logs" / log).glob("*/job.log")):
+            for m in re.finditer(r"podrunner-gate-([a-z-]+)=(\d+)", job.read_text(errors="replace")):
+                found.setdefault(m.group(1), int(m.group(2)))
+        if not found:
+            return ""
+        if "first-step-at" in found:
+            found["run-to-first-step-s"] = found.pop("first-step-at") - int(t0)
+        return " (" + ", ".join(f"{k} {v}" for k, v in sorted(found.items())) + ")"
 
     def write(self):
         with (self.out / "results.tsv").open("w") as f:

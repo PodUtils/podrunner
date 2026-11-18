@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: 0BSD
+# A stand-in of the gate of rbg (cfb's answer to Q-13 on GitHub #292,
+# T-528): Node 26, npm 12, TypeScript 7 and Playwright 1.64.1 with a page
+# in Chromium. The user-path gate runs the job `gate` in the kinds of
+# podrunner at a pinned commit (scripts/corpus/user-gate.tsv); a run of
+# this workflow on github.com is the base line. Each step prints its times
+# as `podrunner-gate-NAME=VALUE` lines.
+name: rbg-stand-in
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: The first step
+        run: echo "podrunner-gate-first-step-at=$(date +%s)"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+      - name: npm 12, TypeScript 7 and Playwright 1.64.1 (a cold install)
+        run: |
+          set -eu
+          t0=$(date +%s)
+          npm install -g --no-audit --no-fund npm@12.2.3
+          mkdir -p "$RUNNER_TEMP/rbg"
+          cd "$RUNNER_TEMP/rbg"
+          printf '{"private":true}\n' > package.json
+          npm install --no-audit --no-fund typescript@7.0.2 @playwright/test@1.64.1
+          npx playwright install chromium
+          echo "podrunner-gate-install-s=$(($(date +%s) - t0))"
+      - name: tsc, and a page in Chromium
+        run: |
+          set -eu
+          cd "$RUNNER_TEMP/rbg"
+          echo "node $(node --version), npm $(npm --version), $(npx tsc --version)"
+          printf 'const x: number = 6 * 7;\nconsole.log(`podrunner-gate-tsc-${x}`);\n' > a.ts
+          npx tsc --strict a.ts
+          node a.js
+          cat > page.js <<'EOF'
+          const { chromium } = require("@playwright/test");
+          (async () => {
+            const b = await chromium.launch();
+            const p = await b.newPage();
+            await p.setContent("<p id=x>podrunner-gate-page-42</p>");
+            console.log(await p.textContent("#x"));
+            await b.close();
+          })().catch((e) => { console.error(e); process.exit(1); });
+          EOF
+          node page.js | grep -x podrunner-gate-page-42
