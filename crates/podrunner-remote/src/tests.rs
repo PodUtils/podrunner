@@ -29,7 +29,24 @@ pub(crate) fn offer(job: &str, fork: bool) -> String {
     .to_string()
 }
 
-pub(crate) fn dir() -> PathBuf {
+/// A directory of a test that goes when the test ends, also on a panic
+/// (T-535).
+pub(crate) struct Dir(PathBuf);
+
+impl std::ops::Deref for Dir {
+    type Target = std::path::Path;
+    fn deref(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+impl Drop for Dir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+pub(crate) fn dir() -> Dir {
     use std::sync::atomic::{AtomicU32, Ordering};
     static N: AtomicU32 = AtomicU32::new(0);
     let d = std::env::temp_dir().join(format!(
@@ -38,7 +55,7 @@ pub(crate) fn dir() -> PathBuf {
         N.fetch_add(1, Ordering::Relaxed)
     ));
     std::fs::create_dir_all(&d).unwrap();
-    d
+    Dir(d)
 }
 
 pub(crate) fn gate(lines: &[String], slots: &[(&str, u32)], at: &std::path::Path) -> Gate {
@@ -70,18 +87,25 @@ fn host(g: &Arc<std::sync::Mutex<Gate>>, host: &'static str) -> Wire<Local> {
     Wire(Local { gate: g.clone(), host })
 }
 
-struct Through;
+/// Each fresh gate has a directory of its own under `base`, which goes
+/// with the fixture.
+struct Through {
+    base: Dir,
+    n: std::sync::atomic::AtomicU32,
+}
 
 impl Fixture for Through {
     fn fresh(&self) -> Box<dyn JobSource> {
-        let g = gate(&[offer("j-1", false), offer("j-2", false), offer("j-3", false)], &[("h1", 10)], &dir());
+        let at = self.base.join(self.n.fetch_add(1, std::sync::atomic::Ordering::Relaxed).to_string());
+        std::fs::create_dir_all(&at).unwrap();
+        let g = gate(&[offer("j-1", false), offer("j-2", false), offer("j-3", false)], &[("h1", 10)], &at);
         Box::new(host(&Arc::new(std::sync::Mutex::new(g)), "h1"))
     }
 }
 
 #[test]
 fn the_source_tests_pass_through_the_gate() {
-    let results = sc::run(&Through, &[]);
+    let results = sc::run(&Through { base: dir(), n: Default::default() }, &[]);
     assert!(sc::not_passed(&results).is_empty(), "{results:#?}");
 }
 

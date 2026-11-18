@@ -12299,7 +12299,7 @@ The measure step prints `foreign runner ok` and the seconds of a canned job; `do
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12316,6 +12316,8 @@ Give each test a directory that goes when the test ends, also on a panic (a guar
 ## Prove
 
 Two runs of `cargo test --workspace` leave no new directory `/tmp/podrunner-*`.
+
+State (2026-11-18): the tests of `podrunner-remote` (one directory for each gate of the conformance fixture, about 700 of each run of `check.sh`) take a guard `tests::Dir` that removes its directory on drop, also on a panic; the fixture holds one base directory for its gates. `cargo test -p podrunner-remote` leaves no directory `/tmp/podrunner-remote-*`. Left: the directories of one process that tests share while they run (`podrunner-qa6-runner-*`, `podrunner-program-*`, `podrunner-tier-*`, `podrunner-podvm-plan-*`, `podrunner-front-*`: one each for each run), and the count in `check.sh`.
 
 # T-536: Take `pod_core::http1` in place of the reader of an HTTP/1.1 head of podrunner-hook
 

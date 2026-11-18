@@ -200,9 +200,7 @@ mod tests {
     /// each recent credential, and drops the rest.
     #[test]
     fn ledger_compact_keeps_what_a_later_call_needs() {
-        let dir = std::env::temp_dir().join(format!("podrunner-ledger-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::tests::dir();
         let path = dir.join("ledger.jsonl");
         let j = |n: u32| JobId::new(&format!("j-{n}")).unwrap();
         let mut l = Ledger::open_at(&path, 0).unwrap();
@@ -231,6 +229,5 @@ mod tests {
         drop(l);
         let after = std::fs::read_to_string(&path).unwrap().lines().count();
         assert!(after == 3 && before > 400, "{before} lines, then {after}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

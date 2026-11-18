@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**533 entries: 54 open, 46 partial, 13 blocked, 420 done.**
+**533 entries: 53 open, 47 partial, 13 blocked, 420 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 3 | 22 | 4 | 69 | 98 |
 | P2 | 12 | 18 | 6 | 223 | 259 |
-| P3 | 38 | 6 | 3 | 126 | 173 |
-| **All** | 54 | 46 | 13 | 420 | 533 |
+| P3 | 37 | 7 | 3 | 126 | 173 |
+| **All** | 53 | 47 | 13 | 420 | 533 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -579,5 +579,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-532](later.md) | P1 | M | later | feature | open | The containers of a podvm unit on the namespace rung, with a volume base |
 | [T-533](later.md) | P2 | M | later | measurement | open | A job of another architecture in a guest of the machine tier |
 | [T-534](later.md) | P2 | S | later | defect | done | The probe of the incus kind claims the kind on a host with no incusd |
-| [T-535](later.md) | P3 | S | later | defect | open | The tests leave their temporary directories in /tmp |
+| [T-535](later.md) | P3 | S | later | defect | partial | The tests leave their temporary directories in /tmp |
 | [T-536](later.md) | P2 | S | later | chore | done | Take `pod_core::http1` in place of the reader of an HTTP/1.1 head of podrunner-hook |
