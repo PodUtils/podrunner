@@ -12186,7 +12186,7 @@ The measure step prints `foreign runner ok` and the seconds of a canned job; `do
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12205,4 +12205,7 @@ The measure step prints `foreign runner ok` and the seconds of a canned job; `do
 
 `cargo test -p podrunner --test config_init` (no incusd: no incus kind); a test of `serve` with an `[unit.incus]` and no incusd names the socket.
 
-In the code (2026-11-18): step 1 (`doctor::capability`, used by `doctor` and `config init`). Open: step 2.
+
+## Done
+
+2026-11-18, `1fff2fe` (step 1) and the commit that names T-534 (step 2). `doctor::capability` (used by `doctor` and `config init`) needs a connection to the socket of incusd (`INCUS_SOCKET`, else `/var/lib/incus/unix.socket`) for the incus kind; `serve` builds no incus kind with no incusd, runs each other kind, and writes one line `[unit.incus]: not here: incusd: PATH: ...`; `check` connects to nothing. Tests: `cargo test -p podrunner doctor::tests::doctor_knows_the_microvm_and_incus_kinds` (no socket: refused; a listener: the record), `cargo test -p podrunner --test config_init`, `cargo test -p podrunner --test serve_incus` (status names the fake kind only, and stderr names the socket). Level: proven here with stand-ins.

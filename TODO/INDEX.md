@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 73 open, 35 partial, 14 blocked, 409 done.**
+**531 entries: 73 open, 34 partial, 14 blocked, 410 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
 | P1 | 12 | 16 | 3 | 67 | 98 |
-| P2 | 21 | 13 | 8 | 216 | 258 |
+| P2 | 21 | 12 | 8 | 217 | 258 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 73 | 35 | 14 | 409 | 531 |
+| **All** | 73 | 34 | 14 | 410 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -578,4 +578,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-531](later.md) | P3 | S | later | chore | open | Take rsa 0.10 in the fake broker |
 | [T-532](later.md) | P1 | M | later | feature | open | The containers of a podvm unit on the namespace rung, with a volume base |
 | [T-533](later.md) | P2 | M | later | measurement | open | A job of another architecture in a guest of the machine tier |
-| [T-534](later.md) | P2 | S | later | defect | partial | The probe of the incus kind claims the kind on a host with no incusd |
+| [T-534](later.md) | P2 | S | later | defect | done | The probe of the incus kind claims the kind on a host with no incusd |

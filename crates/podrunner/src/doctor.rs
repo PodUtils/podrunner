@@ -75,9 +75,25 @@ fn read(tool: &Path, args: &[&str]) -> Result<Value, String> {
 
 /// The capability record of the unit kind `name`, through its driver.
 pub(crate) fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) -> Result<Capability, String> {
-    let incusd = std::env::var_os("INCUS_SOCKET")
-        .map_or_else(|| std::path::PathBuf::from("/var/lib/incus/unix.socket"), std::path::PathBuf::from);
-    capability_at(name, u, &incusd)
+    capability_at(name, u, &incusd_socket())
+}
+
+/// The socket of incusd: `INCUS_SOCKET`, else the path of a package.
+fn incusd_socket() -> std::path::PathBuf {
+    std::env::var_os("INCUS_SOCKET")
+        .map_or_else(|| std::path::PathBuf::from("/var/lib/incus/unix.socket"), std::path::PathBuf::from)
+}
+
+/// An incusd takes a connection of this user (T-534): the probe of the
+/// incus kind reads only the version of podvm.
+pub(crate) fn incusd() -> Result<(), String> {
+    connect_incusd(&incusd_socket())
+}
+
+fn connect_incusd(socket: &Path) -> Result<(), String> {
+    std::os::unix::net::UnixStream::connect(socket)
+        .map(drop)
+        .map_err(|e| format!("incusd: {}: {}", socket.display(), e.kind()))
 }
 
 /// The record of a kind, with the socket of incusd at `incusd`.
@@ -112,8 +128,7 @@ fn capability_at(name: &str, u: &podrunner_slots::config::UnitConfig, incusd: &P
             crate::incus_kind::plan(u).map_err(|f| f.detail)?;
             // The probe of the kind reads only the version of podvm: an
             // incusd must also take a connection of this user (T-534).
-            std::os::unix::net::UnixStream::connect(incusd)
-                .map_err(|e| format!("incusd: {}: {}", incusd.display(), e.kind()))?;
+            connect_incusd(incusd)?;
             let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
             let images = std::path::PathBuf::from(u.images.clone().unwrap_or_default());
             let state = std::env::temp_dir().join("podrunner-doctor");

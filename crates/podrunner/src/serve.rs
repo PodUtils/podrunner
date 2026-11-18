@@ -148,7 +148,14 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
             }
             "podvm" => crate::podvm_kind::build(u, &cfg, state)?,
             "microvm" => crate::microvm_kind::build(u, state)?,
-            "incus" => crate::incus_kind::build(u, state)?,
+            "incus" => match crate::doctor::incusd() {
+                Ok(()) => crate::incus_kind::build(u, state)?,
+                // No incusd: no incus kind, and each other kind runs (T-534).
+                Err(why) => {
+                    eprintln!("podrunner: [unit.incus]: not here: {why}");
+                    continue;
+                }
+            },
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }
