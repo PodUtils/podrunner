@@ -402,7 +402,8 @@ impl Slots {
             return;
         }
         let set = self.sources[s].cfg.tier;
-        match placement::place(&offer, set, &self.kind_views(), &self.cfg, (self.now_unix)()) {
+        let trust = self.cfg.trust_of(&self.sources[s].cfg);
+        match placement::place_for(&offer, set, &self.kind_views(), &self.cfg, trust, (self.now_unix)()) {
             Ok(p) => {
                 let tier = format!("{:?}", p.tier).to_lowercase();
                 self.audit(audit::Kind::Tier, s, &key.1, None, Some(tier));

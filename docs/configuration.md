@@ -223,10 +223,20 @@ slots = 2
 program = "/opt/podrunner/drivers/githome-source"  # absolute, in driver_dir
 program_args = ["--deployment", "staging"]
 key_file = "/etc/podrunner/githome.token"         # optional, mode 0400 or 0600
+trust = { users = [{ login = "alice" }], organizations = [{ login = "acme" }] }  # in place of [trust]
 ```
 
 The program gets the path of `key_file` in `PODRUNNER_SOURCE_KEY_FILE`,
 never its content. A program source is never `local`.
+
+A login is a name of one forge: `alice` of githome is not `alice` of
+GitHub (T-494, githome's G-16). `trust` of a `[[source]]` has the keys of
+`[trust]` and holds in place of it for the offers of that source: the
+placement, the question of the job-started hook (T-493) and a remote mint
+read it. `check` refuses a `[trust]` that names an owner when a `program`
+source shares it with another source: give each one its own `trust`. The
+field `trust_inputs.forge` of an offer, which lets one source carry two
+forges, waits for `pod-job` (PodUtils/podcrates@T-923).
 `podrunner fake-source --script FILE` is a program of this kind over the
 fake source: a forge checks its own program against it.
 

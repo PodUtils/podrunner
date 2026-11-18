@@ -58,9 +58,22 @@ fn narrow(
 /// Place an offer of a source of tier `set`. `now_s` is the time in
 /// seconds of the Unix epoch, for the age of the payload.
 pub fn place(offer: &JobOffer, set: Tier, kinds: &[Kind], cfg: &Config, now_s: u64) -> Result<Placement, RefusalCode> {
+    place_for(offer, set, kinds, cfg, &cfg.trust, now_s)
+}
+
+/// [`place`] with the trust lists `trust` of the source of the offer
+/// (T-494).
+pub fn place_for(
+    offer: &JobOffer,
+    set: Tier,
+    kinds: &[Kind],
+    cfg: &Config,
+    trust: &podrunner_tier::TierConfig,
+    now_s: u64,
+) -> Result<Placement, RefusalCode> {
     let mut c: Vec<usize> = (0..kinds.len()).collect();
     narrow(&mut c, kinds, RefusalCode::ArchMismatch, |k| k.capability.arch == offer.arch)?;
-    let tier = podrunner_tier::intake(&offer.trust_inputs, &cfg.trust, set)?;
+    let tier = podrunner_tier::intake(&offer.trust_inputs, trust, set)?;
     let repo = format!("{}/{}", offer.trust_inputs.owner, offer.trust_inputs.repo);
     // One repository for the host (DR-4): the files of the uid outlive a job.
     if cfg.repository.as_ref().is_some_and(|r| !r.eq_ignore_ascii_case(&repo)) {

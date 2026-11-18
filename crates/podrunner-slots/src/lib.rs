@@ -25,6 +25,7 @@ mod sources;
 mod spool;
 pub mod state;
 pub mod status;
+mod trust;
 pub mod usage;
 
 use std::path::Path;

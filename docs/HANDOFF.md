@@ -93,6 +93,24 @@ is done.
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
+## Resume here (the session of 2026-11-18, after the coordinator's order)
+
+- The coordinator (podcrates) sends its orders as COORD issues only
+  (COORD-136, PodUtils/podcrates#227). Its order for podrunner: the take
+  of `v0.70.0` (done, COORD-088 #295), the census of T-491 (done), then
+  T-493, T-494, T-486, T-495; amend COORD-088 when T-486, T-493 and T-495
+  are done (the move of the schemas, T-508).
+- podvm answered COORD-089 (#296) with COORD-187 (PodUtils/podvm#583) and
+  COORD-185 (PodUtils/podvm#572): its next beta carries T-403, T-405,
+  T-354, the tier of #189, the cgroup leaf of #110 and `--pids-limit` of
+  a guest (T-488). Take it when it is out, and close #277, #216, #189,
+  #168 and #110 when each holds.
+- Three Dependabot pull requests (#297 trufflehog, #298 setup-dotnet,
+  #299 rsa 0.10; the gate of #299 is red) wait: apply each judged update
+  as a commit on `main` (`docs/decisions.md`, Dependabot).
+- A full `check.sh` with the runner takes about 45 minutes here: batch the
+  commits before a push.
+
 ## Resume here (the next session: githome and cfb first)
 
 The owner ruled on 2026-11-18 (`docs/decisions.md`, "githome and cfb
@@ -151,8 +169,13 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
      Its gaps are T-514 to T-528; T-529 (the disk bound of an offer) is
      fixed. Asks: COORD-089 (GitHub #296, to podvm), COORD-087 amended
      (GitHub #294, `arch`).
-  3. First T-493 and T-494 (P0: githome's G-15 and G-16; they block
-     R-051), then a beta. Then the needs, P1 first: T-486 (G-04), T-490
+  3. T-493 and T-494 (P0: githome's G-15 and G-16; they block R-051)
+     are partial on `main`: the question of the job-started hook through
+     the front of the egress socket (`crates/podrunner/src/serve/front.rs`,
+     `crates/podrunner-slots/src/assigned.rs`), and `[[source]] trust`.
+     Open: T-530 (a podvm unit), the field `assigned` and `forge` of
+     `pod-job` (PodUtils/podcrates@T-923, COORD-087), a run on a real
+     unit in `runner-image.yml`. Then a beta; name its tag on #292. Then the needs, P1 first: T-486 (G-04), T-490
      (the unknowns), T-495 to T-499, T-485, T-506 (G-36, a sandbox
      unit), T-507 (G-37, an install of `serve` that githome's CLI drives,
      no TCP listener), T-508 (take the `pod-job` schemas; the source

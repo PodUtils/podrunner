@@ -79,6 +79,9 @@ pub struct SourceConfig {
     pub program: Option<String>,
     #[serde(default)]
     pub program_args: Vec<String>,
+    /// The trust lists of this source, in place of `[trust]` (T-494).
+    #[serde(default)]
+    pub trust: Option<TierConfig>,
 }
 
 /// `[dns]`: the resolver of podrunner (`pod-dns`): the system, the cache of
@@ -350,7 +353,7 @@ impl Config {
     }
 
     fn check(&self) -> Result<(), String> {
-        self.trust.check()?;
+        self.check_trust()?;
         self.egress.check()?;
         for (name, floor) in &self.tier {
             let t: Tier = serde_json::from_value(Value::String(name.clone()))

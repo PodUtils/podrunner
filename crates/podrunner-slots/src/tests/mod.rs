@@ -16,6 +16,7 @@ mod refused;
 mod spool;
 mod start;
 mod status;
+mod trust;
 mod usage;
 
 use std::collections::BTreeMap;

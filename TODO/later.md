@@ -11049,7 +11049,7 @@ In the code (2026-11-18): the source wire has `assigned` (`podrunner-source`: `R
 **Milestone:** later
 **Priority:** P0
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11072,6 +11072,8 @@ One `program` source carries the jobs of two forges, so the trust lists are per 
 ## Prove
 
 `cargo test -p podrunner-tier`: a job whose owner is `alice` on githome is not trusted by an entry `alice` of the GitHub source, and the reverse.
+
+In the code (2026-11-18): steps 1 and 3. `[[source]] trust` (the keys of `[trust]`) holds in place of `[trust]` for the offers of its source: the placement (`placement::place_for`), the answer to the job-started hook (T-493) and the remote mint read `Config::trust_of` (`crates/podrunner-slots/src/trust.rs`). `check` refuses a `[trust]` that names an owner when a `program` source shares it with another source. Tests: `cargo test -p podrunner-slots trust` (`a_login_of_one_source_is_not_trusted_on_another`, `a_global_list_shared_with_a_program_source_is_refused`). Level: proven by unit tests here; not run with githome. Open: step 2, the field `trust_inputs.forge` and one list for each forge inside a source; the field is in `pod-job` of podcrates (PodUtils/podcrates@T-923, asked by COORD-087, GitHub #294).
 
 # T-495: G-17: the facts of a host for its source in `hello`
 

@@ -141,10 +141,12 @@ impl Slots {
             {
                 Verdict::end("facts-mismatch")
             }
-            Ok(Assigned::Keep(facts)) => match podrunner_tier::intake(&facts, &self.cfg.trust, tier) {
-                Ok(_) => Verdict::Keep,
-                Err(_) => Verdict::end("tier-mismatch"),
-            },
+            Ok(Assigned::Keep(facts)) => {
+                match podrunner_tier::intake(&facts, self.cfg.trust_of(&self.sources[key.0].cfg), tier) {
+                    Ok(_) => Verdict::Keep,
+                    Err(_) => Verdict::end("tier-mismatch"),
+                }
+            }
         }
     }
 }
