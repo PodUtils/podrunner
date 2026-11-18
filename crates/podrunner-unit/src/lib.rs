@@ -29,6 +29,15 @@ pub const LOOPBACK_ALLOW: &str = "PODRUNNER_LOOPBACK_ALLOW";
 /// The name of the control socket in the socket directory of a unit.
 pub const CONTROL_SOCKET: &str = "ctl.sock";
 pub use stub::Stub;
+
+/// The use of a unit that its kind measures (T-483).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct UnitUsage {
+    /// The CPU time, in whole seconds rounded up.
+    pub cpu_s: u64,
+    /// The peak memory, in bytes.
+    pub peak_memory_bytes: u64,
+}
 pub use types::{
     ContainerId, ContainerMount, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue,
     Signal, StartSpec, UnitCode, UnitError, parse_pinned,
@@ -96,6 +105,13 @@ pub trait UnitDriver: Send + Sync {
     /// tests and for `status`. A driver that cannot see a field leaves it
     /// empty.
     fn observe(&self, unit: &UnitId) -> Result<Observation, UnitError>;
+
+    /// The CPU time and the peak memory of a unit whose processes are not
+    /// on the host (an incus instance, T-483), before `destroy`. A kind
+    /// whose processes slots samples on the host gives none.
+    fn usage(&self, _unit: &UnitId) -> Option<UnitUsage> {
+        None
+    }
 
     /// Start a container of the job in the unit (the container hooks).
     fn container_start(&self, unit: &UnitId, spec: &ContainerSpec) -> Result<ContainerId, UnitError>;

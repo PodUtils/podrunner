@@ -57,8 +57,12 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
     plan(u)?;
     let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
     let images = PathBuf::from(u.images.clone().unwrap_or_default());
-    let limits = podrunner_slots::limits::limits_of(u).map_err(|e| fail(Class::Config, format!("[unit.incus] {e}")))?;
-    let unit = podrunner_incus::IncusUnit::new(podvm, &state.join("incus"), &images).with_limits(limits);
+    let mut limits =
+        podrunner_slots::limits::limits_of(u).map_err(|e| fail(Class::Config, format!("[unit.incus] {e}")))?;
+    limits.disk_bytes = u.disk_max_bytes.filter(|_| u.root_quota);
+    let unit = podrunner_incus::IncusUnit::new(podvm, &state.join("incus"), &images)
+        .with_limits(limits)
+        .with_root_quota(u.root_quota);
     let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
     Ok((Arc::new(unit), cap))
 }

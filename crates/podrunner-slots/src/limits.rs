@@ -9,5 +9,5 @@ pub fn limits_of(u: &UnitConfig) -> Result<podrunner_unit::limits::Limits, Strin
     if u.pids == Some(0) {
         return Err("pids: 0".into());
     }
-    Ok(podrunner_unit::limits::Limits { memory_bytes, cpus: u.cpus, pids: u.pids })
+    Ok(podrunner_unit::limits::Limits { memory_bytes, cpus: u.cpus, pids: u.pids, disk_bytes: None })
 }

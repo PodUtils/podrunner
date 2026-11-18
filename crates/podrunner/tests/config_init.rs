@@ -30,7 +30,7 @@ fn init(dir: &Path, kinds: &str, out: &Path, extra: &[&str]) -> Output {
         .args(["--image", &image, "--built-at-s", "1793491200", "--runner-version", "2.338.2"])
         .args(["--kinds", kinds, "--out", out, "--json"])
         .args(extra)
-        .env("INCUS_SOCKET", dir.join("incus.socket"))
+        .env("PODVM_INCUS_SOCKET", dir.join("incus.socket"))
         .output()
         .unwrap()
 }

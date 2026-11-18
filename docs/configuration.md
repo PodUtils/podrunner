@@ -50,6 +50,9 @@ runner_dir = "/home/runner"  # the runner directory in the unit; absent: the pat
 podnet = "/usr/local/bin/podnet"      # podvm: hold the egress of each unit with podnet pod (netns: enforced, else seccomp: advisory); absent: unknown
 disk_max_bytes = 10737418240          # the bytes that a unit may write under its root, measured each 30 s; over it the
                                       # unit ends with the exit reason limit; the lesser of it and a disk limit of the offer holds; absent: the limit of the offer, or no measure
+# root_quota = true                  # incus only: the pool of incusd holds a size of a root disk (btrfs, zfs, lvm; not dir): each
+                                      # instance gets a root disk of the lesser of disk_max_bytes and the disk limit of the offer (64 MiB at
+                                      # least), a job past it gets ENOSPC, and the kind says `disk: enforced` (T-482); podvm refuses it on dir
 confine = false                       # podvm: each unit and container under the confine layer of podvm (--podvm-confine); the kind says confined after its self-test
 
 [tier.trusted]               # a floor at or above the lowest floor

@@ -23,6 +23,7 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         ("runner_dir", u.runner_dir.is_some()),
         ("podnet", u.podnet.is_some()),
         ("confine", u.confine),
+        ("root_quota", u.root_quota),
     ] {
         if set {
             return Err(fail(Class::Config, format!("[unit.microvm] {key}: the microvm kind does not read it")));

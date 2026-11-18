@@ -383,6 +383,13 @@ impl Slots {
             {
                 job.times.log_tail = Some(crate::log_tail::scrub(&log, &job.times.marks));
             }
+            // A kind that measures its units itself (T-483): before the
+            // destroy, while the instance is there.
+            if let Some(use_of) = self.kinds[p.kind].driver.usage(u)
+                && let Some(job) = self.jobs.get_mut(key)
+            {
+                job.usage.of_kind(use_of);
+            }
             let residue = self.kinds[p.kind]
                 .driver
                 .destroy(u)

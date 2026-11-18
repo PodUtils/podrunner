@@ -139,6 +139,12 @@ pub struct UnitConfig {
     /// measure.
     #[serde(default)]
     pub disk_max_bytes: Option<u64>,
+    /// `incus`: the pool of incusd holds a size of a root disk (btrfs,
+    /// zfs, lvm): each instance gets a root disk of the lesser of the
+    /// `disk` of the offer and `disk_max_bytes`, and a job past it gets
+    /// `ENOSPC` (T-482). The `dir` driver holds none.
+    #[serde(default)]
+    pub root_quota: bool,
     /// `podvm`: run each unit and container under the confine layer of
     /// podvm (`--podvm-confine`, T-079). The kind says `confined` only
     /// after its self-test on this host.

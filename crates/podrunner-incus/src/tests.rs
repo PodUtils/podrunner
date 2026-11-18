@@ -26,7 +26,9 @@ run)
   ( sh -c "$BODY" > "$S/$name.log" 2>&1; echo "Stopped $?" > "$S/$name.status" ) </dev/null >/dev/null 2>&1 &
   echo $! > "$S/$name.pid"
   echo "$name" ;;
-inspect) [ -f "$S/$n.status" ] || { echo "no instance $n" >&2; exit 1; }; cat "$S/$n.status" ;;
+inspect)
+  [ -f "$S/$n.status" ] || { echo "no instance $n" >&2; exit 1; }
+  case "$*" in *CpuSeconds*) echo "12.25 104857601" ;; *) cat "$S/$n.status" ;; esac ;;
 stop|rm)
   [ -f "$S/$n.pid" ] && { pkill -P "$(cat "$S/$n.pid")"; kill "$(cat "$S/$n.pid")"; } 2>/dev/null
   if [ "$verb" = rm ]; then rm -f "$S/$n".*; else echo "Stopped 143" > "$S/$n.status"; fi ;;
@@ -268,7 +270,7 @@ fn the_payload_has_the_home_of_the_runner() {
 #[test]
 fn the_limits_become_the_keys_of_the_instance() {
     use podrunner_unit::limits::Limits;
-    let limits = Limits { memory_bytes: Some(2 << 30), cpus: Some(2), pids: Some(256) };
+    let limits = Limits { memory_bytes: Some(2 << 30), cpus: Some(2), pids: Some(256), disk_bytes: None };
     let i = crate::guest::Instance {
         name: "n",
         reference: "r@sha256:1",
@@ -305,4 +307,49 @@ fn a_replay_destroy_removes_the_instance_of_the_old_name() {
     let residue = u.destroy(&UnitId::parse("u-1").unwrap()).unwrap();
     assert!(!d.join("store").join(format!("{old}.status")).exists(), "the old instance is removed");
     assert_eq!(residue.processes, Count::Known(0));
+}
+
+/// T-482: with `root_quota` the root disk of an instance gets the lesser of
+/// the `disk` of the offer and of the kind (64 MiB at least), and the record
+/// says `enforced` for `disk`; with none, no size and no claim.
+#[test]
+fn a_pool_with_quotas_gives_each_instance_a_sized_root() {
+    use podrunner_unit::limits::Limits;
+    fn args(l: &Limits) -> String {
+        let i = crate::guest::Instance {
+            name: "n",
+            reference: "r@sha256:1",
+            work: std::path::Path::new("/w"),
+            egress: None,
+            runner_root: "/r",
+            limits: l,
+        };
+        run_args(&i, &[], &Default::default(), &[]).join(" ")
+    }
+    let disk = |d: Option<u64>| Limits { disk_bytes: d, ..Limits::default() };
+    let offer = Limits::of_offer(&[("disk".to_string(), 10 << 30)].into());
+    let a = args(&disk(Some(40 << 30)).lesser(&offer));
+    assert!(a.contains(&format!("--storage-opt size={}", 10u64 << 30)), "{a}");
+    let small = args(&disk(Some(1 << 20)));
+    assert!(small.contains(&format!("--storage-opt size={}", 64u64 << 20)), "{small}");
+    assert!(!args(&disk(None)).contains("--storage-opt"));
+    let (u, d) = driver("quota", "true");
+    assert_eq!(u.probe().unwrap().limit("disk"), podrunner_schema::LimitMode::None);
+    let (u2, d2) = driver("quota2", "true");
+    assert_eq!(u2.with_root_quota(true).probe().unwrap().limit("disk"), podrunner_schema::LimitMode::Enforced);
+    let _ = std::fs::remove_dir_all(&d);
+    let _ = std::fs::remove_dir_all(&d2);
+}
+
+/// T-483: the CPU time and the peak memory of an instance come from the
+/// state of incusd, rounded up to whole seconds; a gone instance gives none.
+#[test]
+fn the_use_of_an_instance_comes_from_incusd() {
+    let (u, d) = driver("usage", "sleep 30");
+    let s = spec("u-1");
+    u.start(&s).unwrap();
+    assert_eq!(u.usage(&s.unit), Some(podrunner_unit::UnitUsage { cpu_s: 13, peak_memory_bytes: 104857601 }));
+    u.destroy(&s.unit).unwrap();
+    assert_eq!(u.usage(&s.unit), None);
+    let _ = std::fs::remove_dir_all(&d);
 }

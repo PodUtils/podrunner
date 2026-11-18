@@ -78,10 +78,14 @@ pub(crate) fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) ->
     capability_at(name, u, &incusd_socket())
 }
 
-/// The socket of incusd: `INCUS_SOCKET`, else the path of a package.
+/// The socket of incusd, as podvm finds it: `PODVM_INCUS_SOCKET`, else
+/// `unix.socket` of `INCUS_DIR`, else of `/var/lib/incus`.
 fn incusd_socket() -> std::path::PathBuf {
-    std::env::var_os("INCUS_SOCKET")
-        .map_or_else(|| std::path::PathBuf::from("/var/lib/incus/unix.socket"), std::path::PathBuf::from)
+    if let Some(s) = std::env::var_os("PODVM_INCUS_SOCKET") {
+        return s.into();
+    }
+    let dir = std::env::var_os("INCUS_DIR").map_or_else(|| "/var/lib/incus".into(), std::path::PathBuf::from);
+    dir.join("unix.socket")
 }
 
 /// An incusd takes a connection of this user (T-534): the probe of the

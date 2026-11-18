@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn the_limits_become_rlimits_of_the_payload() {
         let mut env = std::collections::BTreeMap::new();
-        let l = Limits { memory_bytes: Some(8 << 30), cpus: None, pids: Some(512) };
+        let l = Limits { memory_bytes: Some(8 << 30), cpus: None, pids: Some(512), disk_bytes: None };
         let a = super::ulimit_args(&l, &mut env);
         assert_eq!(a, ["--ulimit", "as=8589934592", "--ulimit", "nproc=512"]);
         assert_eq!(env["DOTNET_GCHeapHardLimit"], format!("{:x}", 6u64 << 30));

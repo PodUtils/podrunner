@@ -47,6 +47,9 @@ fi
 exec "$@" </dev/null
 "#;
 
+/// The smallest root disk that podvm gives an instance.
+pub const ROOT_MIN: u64 = 64 << 20;
+
 /// The port in the instance of the channel to the egress socket.
 pub const EGRESS_PORT: u16 = 3128;
 
@@ -83,6 +86,10 @@ pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String
     }
     if let Some(n) = limits.pids {
         a.extend(["--pids-limit".into(), n.to_string()]);
+    }
+    // The size of the root disk (T-482); podvm takes 64 MiB at least.
+    if let Some(d) = limits.disk_bytes {
+        a.extend(["--storage-opt".into(), format!("size={}", d.max(ROOT_MIN))]);
     }
     if let Some(egress) = egress {
         a.push("--podvm-channel".into());

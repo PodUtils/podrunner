@@ -37,7 +37,7 @@ fn serve_with_no_incusd_runs_no_incus_kind() {
         .arg(dir.join("podrunner.toml"))
         .arg("--state")
         .arg(&state)
-        .env("INCUS_SOCKET", dir.join("none.socket"))
+        .env("PODVM_INCUS_SOCKET", dir.join("none.socket"))
         .env_remove("NOTIFY_SOCKET")
         .stdout(Stdio::null())
         .stderr(Stdio::piped())

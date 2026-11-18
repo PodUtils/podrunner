@@ -36,6 +36,7 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
         runner_dir: None,
         podnet: None,
         disk_max_bytes: None,
+        root_quota: false,
         confine: false,
         mem: None,
         cpus: None,

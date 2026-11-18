@@ -10716,7 +10716,7 @@ The step of the incus suite in `runner-image.yml` passes, and it fails with the 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -10735,9 +10735,7 @@ Read from the code on 2026-11-18. Not measured on an instance.
 
 The measure of step 1 on real instances in `runner-image.yml`: the job ends with the exit reason `limit`.
 
-## Blocker
-
-podvm must act: ask 1 of COORD-089 (GitHub #296): a flag of `run -d` of the incus tier that sets the `size` of the root disk device. podvm has not answered on 2026-11-18. The entry opens again when podvm releases the flag.
+In the code (2026-11-18): podvm `0.2.0-beta.33` sizes the root disk of an instance (`run -d --podvm-tier=incus --storage-opt size=N`, COORD-187, PodUtils/podvm#583) and refuses the size on a pool with no quota (the `dir` driver, exit 125). `[unit.incus] root_quota = true` (the operator says that the pool holds a size) gives each instance a root disk of the lesser of `disk_max_bytes` and the `disk` of the offer (64 MiB at least), and the kind says `disk: enforced`; with no `root_quota` the bound stays the measure of `disk.rs` (`crates/podrunner-incus/src/guest.rs`, `crates/podrunner/src/incus_kind.rs`, `docs/configuration.md`; call of 2026-11-18 in `docs/decisions.md`). Test: `cargo test -p podrunner-incus a_pool_with_quotas_gives_each_instance_a_sized_root`. Open: step 1, the measure on a real instance in `runner-image.yml` (the cloud host of podvm has a `dir` pool only; a pool of `btrfs` on a loop file is a way to measure ENOSPC there).
 
 
 # T-483: The incus kind reports `unknown` for the CPU time and the peak memory of a job
@@ -10747,7 +10745,7 @@ podvm must act: ask 1 of COORD-089 (GitHub #296): a flag of `run -d` of the incu
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10764,6 +10762,8 @@ Read the cgroup of the instance (the CPU time and the peak memory that incus giv
 ## Prove
 
 A job on real instances in `runner-image.yml` that burns a known CPU time gives `cpu_s` within the tolerance of the schema, and a `peak_rss_mib` that is not `unknown`.
+
+In the code (2026-11-18): podvm `0.2.0-beta.33` gives `CpuSeconds` and `PeakMemoryBytes` in `inspect` of an incus unit (COORD-187, PodUtils/podvm#583). The unit seam has `UnitDriver::usage` (none by default); the incus kind answers it from `inspect`; slots asks it before the destroy, and the report takes it over the samples of the host (`cpu_s` rounded up, `peak_rss_mib` in MiB rounded up; `crates/podrunner-slots/src/usage.rs`, `run.rs`). Tests: `cargo test -p podrunner-incus the_use_of_an_instance_comes_from_incusd`, `cargo test -p podrunner-slots the_use_of_the_kind_holds`. Open: the measure of the Prove on real instances.
 
 # T-484: A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have
 
@@ -11169,9 +11169,7 @@ A size for each kind: a quota or a sized file system for the work directory and 
 
 ## Blocker
 
-podvm must act: ask 5 of COORD-089 (GitHub #296): a sized writable disk for each tier (a quota or a sized file system on the namespace rung, the `size` of the root disk of an incus instance, a sized disk of a guest). podvm has not answered on 2026-11-18. The entry opens again when podvm releases the flag.
-
-
+podvm must act for the other kinds: ask 5 of COORD-089 (GitHub #296), PodUtils/podvm@T-1968 (open): a sized disk of a machine guest, and on the namespace rung a sized work directory (podvm proposes a tmpfs with `size=`, memory and not disk). The incus kind has its size since podvm `0.2.0-beta.33` (T-482, `[unit.incus] root_quota`).
 # T-497: G-19: more facts of a job in the run report
 
 **Source:** githome's G-19 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
@@ -11207,7 +11205,7 @@ The census of T-491 (2026-11-18): `host`, `unit.unit_kind`, `unit.boundary` and 
 
 In the code (2026-11-18), with podcrates `v0.71.0`: the slots fill `image_digest` (the pinned digest of the payload), `runner_version` (the pin of the payload), `prepare_s` (claim to start), `start_s` (start to the first step of the runner), `run_s` (the first step, or else the start, to the end of the unit), `destroy_s` (the end to the destroy), each in whole seconds rounded up (`crates/podrunner-slots/src/report.rs`, `Times`). `disk_peak_bytes` is the peak of the disk checks (`disk.rs`), or `unknown` with the reason "no disk bound, so no disk check of the unit". `net_rx_bytes` and `net_tx_bytes` are the sums of the bytes of the egress lines of the job (`egress_lines.rs`), or `unknown` with the reason "the host has no egress module". A unit that ran with no first step gives no `start_s` and the reason "the runner reached no first step". `host`, `unit_kind` and `boundary` were in the report before. Test: `cargo test -p podrunner-slots tests::report`. Level: proven here with the fake unit; not run on a real unit. Open: `log_tail` with the scrubber; `cache_read_bytes` and `cache_written_bytes` (T-480); `cpu_s` and `peak_rss_mib` on incus (T-483).
 
-State (2026-11-18): `log_tail` is filled for a unit that started and ended with no step and not by success or a cancel: the driver gives the log of the unit (`unit_logs`) before the destroy, and `crates/podrunner-slots/src/log_tail.rs` masks each word whose SHA-256 is the hash of a string value of a JSON credential file (or a long word of another file; `.runner` and `.podrunner-job` hold no secret), and each word of the shape of a token of GitHub, then keeps the last 65536 bytes. No credential stays in slots after the start: only the hashes. The fake unit keeps the output of its payload in its root (`.unit.log`). Tests: `cargo test -p podrunner-slots log_tail` (4), `tests::report::a_unit_that_fails_before_a_step_gives_a_scrubbed_log_tail` (a canary of the credential that the payload prints is not in the tail; it fails with no hashes). Open: the cache bytes (T-480); `cpu_s` and `peak_rss_mib` on incus (T-483).
+State (2026-11-18): `log_tail` is filled for a unit that started and ended with no step and not by success or a cancel: the driver gives the log of the unit (`unit_logs`) before the destroy, and `crates/podrunner-slots/src/log_tail.rs` masks each word whose SHA-256 is the hash of a string value of a JSON credential file (or a long word of another file; `.runner` and `.podrunner-job` hold no secret), and each word of the shape of a token of GitHub, then keeps the last 65536 bytes. No credential stays in slots after the start: only the hashes. The fake unit keeps the output of its payload in its root (`.unit.log`). Tests: `cargo test -p podrunner-slots log_tail` (4), `tests::report::a_unit_that_fails_before_a_step_gives_a_scrubbed_log_tail` (a canary of the credential that the payload prints is not in the tail; it fails with no hashes). Open: the cache bytes (T-480); `cpu_s` and `peak_rss_mib` on incus (T-483, in the code; its measure on real instances).
 
 # T-498: G-22: a rotation of the key of a program source with no drain
 
@@ -12200,7 +12198,7 @@ The measure step prints `foreign runner ok` and the seconds of a canned job; `do
 
 ## Approach
 
-1. `doctor` and `config init`: the kind needs a socket of incusd (`INCUS_SOCKET`, else `/var/lib/incus/unix.socket`) that takes a connection of this user.
+1. `doctor` and `config init`: the kind needs a socket of incusd (`PODVM_INCUS_SOCKET`, else `unix.socket` of `INCUS_DIR`, else of `/var/lib/incus`) that takes a connection of this user.
 2. `serve`: the same check at the build of the kind, so that a host with no incusd starts with no incus kind and one line that names the socket; `check` stays free of side effects and does not connect.
 
 ## Prove
@@ -12210,4 +12208,4 @@ The measure step prints `foreign runner ok` and the seconds of a canned job; `do
 
 ## Done
 
-2026-11-18, `1fff2fe` (step 1) and the commit that names T-534 (step 2). `doctor::capability` (used by `doctor` and `config init`) needs a connection to the socket of incusd (`INCUS_SOCKET`, else `/var/lib/incus/unix.socket`) for the incus kind; `serve` builds no incus kind with no incusd, runs each other kind, and writes one line `[unit.incus]: not here: incusd: PATH: ...`; `check` connects to nothing. Tests: `cargo test -p podrunner doctor::tests::doctor_knows_the_microvm_and_incus_kinds` (no socket: refused; a listener: the record), `cargo test -p podrunner --test config_init`, `cargo test -p podrunner --test serve_incus` (status names the fake kind only, and stderr names the socket). Level: proven here with stand-ins.
+2026-11-18, `1fff2fe` (step 1) and the commit that names T-534 (step 2). `doctor::capability` (used by `doctor` and `config init`) needs a connection to the socket of incusd, found as podvm finds it (`PODVM_INCUS_SOCKET`, else `unix.socket` of `INCUS_DIR`, else of `/var/lib/incus`) for the incus kind; `serve` builds no incus kind with no incusd, runs each other kind, and writes one line `[unit.incus]: not here: incusd: PATH: ...`; `check` connects to nothing. Tests: `cargo test -p podrunner doctor::tests::doctor_knows_the_microvm_and_incus_kinds` (no socket: refused; a listener: the record), `cargo test -p podrunner --test config_init`, `cargo test -p podrunner --test serve_incus` (status names the fake kind only, and stderr names the socket). Level: proven here with stand-ins.

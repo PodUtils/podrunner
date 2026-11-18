@@ -216,7 +216,7 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
         // slots measures the disk of a kind with a bound (T-074).
         let mut capability = capability;
         if u.disk_max_bytes.is_some() {
-            capability.limits.insert("disk".into(), podrunner_schema::LimitMode::Reported);
+            capability.limits.entry("disk".into()).or_insert(podrunner_schema::LimitMode::Reported);
         }
         kinds.push(UnitKind { name: name.clone(), cfg: u.clone(), driver, capability });
     }

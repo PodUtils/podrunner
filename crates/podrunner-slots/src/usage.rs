@@ -26,6 +26,9 @@ pub struct Usage {
     peak_kib: u64,
     /// A sample saw a process of the unit.
     seen: bool,
+    /// The use that the kind measured itself (T-483); it holds over the
+    /// samples.
+    kind: Option<podrunner_unit::UnitUsage>,
 }
 
 impl Usage {
@@ -42,9 +45,17 @@ impl Usage {
         self.peak_kib = self.peak_kib.max(rss);
     }
 
-    /// `cpu_s` and `peak_rss_mib` of the report: `unknown` when no sample
-    /// saw a process of the unit.
+    /// The use that the kind of the unit measured (an incus instance).
+    pub fn of_kind(&mut self, u: podrunner_unit::UnitUsage) {
+        self.kind = Some(u);
+    }
+
+    /// `cpu_s` and `peak_rss_mib` of the report: the use of the kind, else
+    /// the samples; `unknown` when neither saw the unit.
     pub fn report(&self) -> (Residual, Residual) {
+        if let Some(k) = self.kind {
+            return (Residual::Count(k.cpu_s), Residual::Count(k.peak_memory_bytes.div_ceil(1 << 20)));
+        }
         if !self.seen {
             let unknown = Residual::Unknown(podrunner_schema::report::Unknown::Unknown);
             return (unknown, unknown);
@@ -101,6 +112,16 @@ impl Slots {
 
 #[cfg(test)]
 mod tests {
+
+    /// T-483: the use that a kind measured holds over the samples, in MiB
+    /// rounded up.
+    #[test]
+    fn the_use_of_the_kind_holds() {
+        let mut u = Usage::default();
+        u.of_kind(podrunner_unit::UnitUsage { cpu_s: 13, peak_memory_bytes: (100 << 20) + 1 });
+        assert_eq!(u.report(), (Residual::Count(13), Residual::Count(101)));
+    }
+
     use super::*;
 
     #[test]

@@ -300,7 +300,8 @@ fn the_runner_runs_under_the_limits_of_the_unit() {
     let state = std::env::temp_dir().join(format!("podrunner-podvm-limits-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&state);
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
-    let limits = podrunner_unit::limits::Limits { memory_bytes: Some(16 << 30), cpus: None, pids: Some(4096) };
+    let limits =
+        podrunner_unit::limits::Limits { memory_bytes: Some(16 << 30), cpus: None, pids: Some(4096), disk_bytes: None };
     let unit = PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES")))
         .unwrap()
         .with_limits(limits)

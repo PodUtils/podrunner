@@ -72,6 +72,9 @@ pub struct IncusUnit {
     cred_root: String,
     /// The limits of each instance (T-162).
     limits: podrunner_unit::limits::Limits,
+    /// The pool of incusd holds a size of a root disk (T-482): each
+    /// instance gets one, `disk_bytes` of its limits.
+    root_quota: bool,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -100,7 +103,17 @@ impl IncusUnit {
             units: Mutex::new(HashMap::new()),
             cred_root: "/podrunner/.runner".into(),
             limits: Default::default(),
+            root_quota: false,
         }
+    }
+
+    /// The pool of incusd holds a size of a root disk: each instance gets
+    /// `--storage-opt size=` of the lesser of the `disk` of the offer and
+    /// of the kind (`[unit.incus] root_quota`, T-482). podvm refuses the
+    /// size on a pool with no quota (the `dir` driver).
+    pub fn with_root_quota(mut self, on: bool) -> IncusUnit {
+        self.root_quota = on;
+        self
     }
 
     /// The limits of memory, CPU and processes of each instance
@@ -134,6 +147,17 @@ impl IncusUnit {
             .output()
             .map_err(|e| format!("podvm {}: {}", verb[0], e.kind()))?;
         if out.status.success() { Ok(out.stdout) } else { Err(tail(&out.stderr)) }
+    }
+
+    /// The CPU time and the peak memory of the instance, from the state of
+    /// incusd (podvm `0.2.0-beta.33`, `CpuSeconds` and `PeakMemoryBytes`).
+    fn instance_usage(&self, name: &str) -> Option<podrunner_unit::UnitUsage> {
+        let out = self.verb(&["inspect", "--format", "{{.CpuSeconds}} {{.PeakMemoryBytes}}"], name).ok()?;
+        let text = String::from_utf8_lossy(&out);
+        let mut words = text.split_whitespace();
+        let cpu: f64 = words.next()?.parse().ok().filter(|c: &f64| c.is_finite() && *c >= 0.0)?;
+        let peak: u64 = words.next()?.parse().ok()?;
+        Some(podrunner_unit::UnitUsage { cpu_s: cpu.ceil() as u64, peak_memory_bytes: peak })
     }
 
     /// The state of the instance: `None` when incusd has no such instance.
@@ -184,7 +208,13 @@ impl UnitDriver for IncusUnit {
         };
         // The keys of an instance: the kind applies each limit that an offer
         // or its configuration names (T-198).
-        podrunner_unit::limits::Limits { memory_bytes: Some(1), cpus: Some(1), pids: Some(1) }.record(&mut cap);
+        podrunner_unit::limits::Limits { memory_bytes: Some(1), cpus: Some(1), pids: Some(1), disk_bytes: None }
+            .record(&mut cap);
+        // A size of the root disk of each instance, on a pool with quotas
+        // (T-482): a job past it gets ENOSPC.
+        if self.root_quota {
+            cap.limits.insert("disk".into(), podrunner_schema::LimitMode::Enforced);
+        }
         Ok(cap)
     }
 
@@ -262,7 +292,11 @@ impl UnitDriver for IncusUnit {
                 work: &work,
                 egress: egress.as_deref(),
                 runner_root: &self.cred_root,
-                limits: &self.limits.lesser(&spec.limits),
+                limits: &{
+                    let mut l = self.limits.lesser(&spec.limits);
+                    l.disk_bytes = l.disk_bytes.filter(|_| self.root_quota);
+                    l
+                },
             },
             &env_file,
             &env,
@@ -386,6 +420,10 @@ impl UnitDriver for IncusUnit {
     fn container_logs(&self, _: &UnitId, _: &ContainerId) -> Result<Vec<u8>, UnitError> {
         Err(no_container())
     }
+    fn usage(&self, unit: &UnitId) -> Option<podrunner_unit::UnitUsage> {
+        self.instance_usage(&self.name(unit))
+    }
+
     fn container_inspect(&self, _: &UnitId, _: &ContainerId) -> Result<ContainerState, UnitError> {
         Err(no_container())
     }

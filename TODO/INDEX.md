@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 73 open, 34 partial, 13 blocked, 411 done.**
+**531 entries: 72 open, 36 partial, 12 blocked, 411 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
 | P1 | 12 | 15 | 3 | 68 | 98 |
-| P2 | 21 | 13 | 7 | 217 | 258 |
+| P2 | 20 | 15 | 6 | 217 | 258 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 73 | 34 | 13 | 411 | 531 |
+| **All** | 72 | 36 | 12 | 411 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -526,8 +526,8 @@ acceptance, later The crate dependencies later than v1.
 | [T-479](later.md) | P2 | M | later | feature | open | A JSON Schema of `podrunner.toml` for a program that writes the file |
 | [T-480](later.md) | P2 | L | later | feature | open | A cache directory of the host, kept apart by trust (cfb and githome G-07) |
 | [T-481](later.md) | P2 | S | later | measurement | open | The checkout of a job on the incus kind is proven by a test of the script only |
-| [T-482](later.md) | P2 | M | later | defect | blocked | The incus kind bounds no disk of the root of an instance |
-| [T-483](later.md) | P2 | M | later | defect | open | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
+| [T-482](later.md) | P2 | M | later | defect | partial | The incus kind bounds no disk of the root of an instance |
+| [T-483](later.md) | P2 | M | later | defect | partial | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
 | [T-484](later.md) | P2 | S | later | release | open | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
 | [T-485](later.md) | P1 | M | later | feature | open | The incus kind has no container route, though G-02 asks for an engine in the system container |
 | [T-486](later.md) | P1 | M | later | feature | done | G-04: the egress verdicts of a unit do not reach the source of the job |
