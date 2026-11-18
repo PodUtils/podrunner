@@ -171,13 +171,13 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
      Its gaps are T-514 to T-528; T-529 (the disk bound of an offer) is
      fixed. Asks: COORD-089 (GitHub #296, to podvm), COORD-087 amended
      (GitHub #294, `arch`).
-  3. T-493 and T-494 (P0: githome's G-15 and G-16; they block R-051)
-     are partial on `main`: the question of the job-started hook through
-     the front of the egress socket (`crates/podrunner/src/serve/front.rs`,
-     `crates/podrunner-slots/src/assigned.rs`), and `[[source]] trust`.
-     Open: T-530 (a podvm unit), the field `assigned` and `forge` of
-     `pod-job` (PodUtils/podcrates@T-923, COORD-087), a run on a real
-     unit in `runner-image.yml`. Then a beta; name its tag on #292. Then the needs, P1 first: T-490
+  3. T-493 (P0: githome's G-15; it blocks R-051) is partial on `main`:
+     the question of the job-started hook through the front of the egress
+     socket (`crates/podrunner/src/serve/front.rs`,
+     `crates/podrunner-slots/src/assigned.rs`), also from a podvm unit
+     (T-530, done), and the field `assigned` of the report. T-494 is done.
+     Open: a run of `serve` with two runs on a real unit in
+     `runner-image.yml`. Then a beta; name its tag on #292. Then the needs, P1 first: T-490
      (the unknowns), T-496 to T-499, T-485, T-506 (G-36, a sandbox
      unit), T-507 (G-37, an install of `serve` that githome's CLI drives,
      no TCP listener), T-508 (take the `pod-job` schemas; the source

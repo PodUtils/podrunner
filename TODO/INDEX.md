@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**529 entries: 79 open, 32 partial, 12 blocked, 406 done.**
+**529 entries: 78 open, 32 partial, 12 blocked, 407 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
 | P1 | 17 | 14 | 2 | 65 | 98 |
-| P2 | 22 | 12 | 7 | 215 | 256 |
+| P2 | 21 | 12 | 7 | 216 | 256 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 79 | 32 | 12 | 406 | 529 |
+| **All** | 78 | 32 | 12 | 407 | 529 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -574,6 +574,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-527](later.md) | P1 | M | later | chore | open | No lane of the user-path gate for the host class of githome's pool |
 | [T-528](later.md) | P1 | S | later | measurement | open | No row of the user-path gate copies the gate of rbg |
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
-| [T-530](later.md) | P2 | S | later | feature | open | The job-started hook of a podvm unit cannot ask serve |
+| [T-530](later.md) | P2 | S | later | feature | done | The job-started hook of a podvm unit cannot ask serve |
 | [T-531](later.md) | P3 | S | later | chore | open | Take rsa 0.10 in the fake broker |
 | [T-532](later.md) | P1 | M | later | feature | open | The containers of a podvm unit on the namespace rung, with a volume base |

@@ -5,8 +5,9 @@
 # writes the placed job, "OWNER/REPO RUN_ID", into the runner root
 # (.podrunner-job). A job of the same run has the same trust inputs, so the
 # run is enough. For a job of another run, the hook asks serve through the
-# proxy of the unit (control.podrunner.test, the front of the egress
-# socket): serve asks the source, checks the trust facts of the real job
+# proxy of the unit, or else through the egress socket that
+# PODRUNNER_EGRESS names (a podvm unit, T-530), at control.podrunner.test
+# (the front of the egress socket): serve asks the source, checks the trust facts of the real job
 # against the tier of the unit, and answers keep or end. No answer, no
 # proxy or no node ends the job (fail closed). With no file (the local
 # mode), there is nothing to compare.
@@ -39,10 +40,19 @@ const body = JSON.stringify({
   repository: e.GITHUB_REPOSITORY || "", head_repository, head_is_fork, actor: e.GITHUB_ACTOR || ""
 });
 const end = (code) => { console.log(code); process.exit(3); };
-let proxy;
-try { proxy = new URL(e.HTTP_PROXY || e.http_proxy || e.HTTPS_PROXY || e.https_proxy); } catch (_) { end("no-proxy"); }
+// The proxy of the unit, else the egress socket of PODRUNNER_EGRESS.
+let to;
+const named = e.HTTP_PROXY || e.http_proxy || e.HTTPS_PROXY || e.https_proxy;
+const sock = /^http:\/\/unix:(\/.+)$/.exec(e.PODRUNNER_EGRESS || "");
+if (named) {
+  try { const u = new URL(named); to = { host: u.hostname, port: u.port || 80 }; } catch (_) { end("no-proxy"); }
+} else if (sock) {
+  to = { socketPath: sock[1] };
+} else {
+  end("no-proxy");
+}
 const req = http.request({
-  host: proxy.hostname, port: proxy.port || 80, method: "POST", timeout: 15000,
+  ...to, method: "POST", timeout: 15000,
   path: "http://control.podrunner.test/v1/assigned",
   headers: { "Host": "control.podrunner.test", "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }
 }, (res) => {

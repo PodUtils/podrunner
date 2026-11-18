@@ -116,37 +116,64 @@ fn a_job_started_hook_ends_a_foreign_job_before_its_first_step() {
 
 /// A stand-in of the front of the egress socket on the loopback: it
 /// answers each question with `verdict`, and keeps the head and the body.
-fn front_stand_in(verdict: &'static str) -> (u16, std::sync::Arc<Mutex<Vec<String>>>) {
+type Seen = std::sync::Arc<Mutex<Vec<String>>>;
+
+/// One question to the stand-in of the front: its head and body go to
+/// `seen`, and the answer is `verdict`.
+fn front_one<C>(c: C, verdict: &str, seen: &Seen)
+where
+    for<'a> &'a C: std::io::Read + std::io::Write,
+{
     use std::io::{BufRead, BufReader, Read, Write};
+    let mut r = BufReader::new(&c);
+    let mut head = String::new();
+    let mut len = 0;
+    loop {
+        let mut line = String::new();
+        if r.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+            break;
+        }
+        if let Some(v) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+            len = v.trim().parse().unwrap_or(0);
+        }
+        head.push_str(&line);
+    }
+    let mut body = vec![0; len];
+    let _ = r.read_exact(&mut body);
+    seen.lock().unwrap().push(format!("{head}\n{}", String::from_utf8_lossy(&body)));
+    let _ = (&c).write_all(
+        format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{verdict}", verdict.len())
+            .as_bytes(),
+    );
+}
+
+/// The stand-in of the front on a TCP port, as the proxy of a unit.
+fn front_stand_in(verdict: &'static str) -> (u16, Seen) {
     let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = l.local_addr().unwrap().port();
-    let seen = std::sync::Arc::new(Mutex::new(Vec::new()));
+    let seen = Seen::default();
     let keep = seen.clone();
     std::thread::spawn(move || {
         for c in l.incoming().flatten() {
-            let mut r = BufReader::new(c.try_clone().unwrap());
-            let mut head = String::new();
-            let mut len = 0;
-            loop {
-                let mut line = String::new();
-                if r.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
-                    break;
-                }
-                if let Some(v) = line.to_ascii_lowercase().strip_prefix("content-length:") {
-                    len = v.trim().parse().unwrap_or(0);
-                }
-                head.push_str(&line);
-            }
-            let mut body = vec![0; len];
-            let _ = r.read_exact(&mut body);
-            keep.lock().unwrap().push(format!("{head}\n{}", String::from_utf8_lossy(&body)));
-            let _ = (&c).write_all(
-                format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{verdict}", verdict.len())
-                    .as_bytes(),
-            );
+            front_one(c, verdict, &keep);
         }
     });
     (port, seen)
+}
+
+/// The stand-in of the front on a unix socket, as the egress socket of a
+/// podvm unit (T-530).
+fn front_stand_in_unix(verdict: &'static str, path: &std::path::Path) -> Seen {
+    let _ = std::fs::remove_file(path);
+    let l = std::os::unix::net::UnixListener::bind(path).unwrap();
+    let seen = Seen::default();
+    let keep = seen.clone();
+    std::thread::spawn(move || {
+        for c in l.incoming().flatten() {
+            front_one(c, verdict, &keep);
+        }
+    });
+    seen
 }
 
 /// T-493: for a job of another run, the hook asks serve through the proxy
@@ -190,4 +217,39 @@ fn the_job_started_hook_asks_serve_for_a_job_of_another_run() {
         assert_eq!(broker.logs().contains("tier-mismatch"), !ok, "{}", broker.logs());
     }
     let _ = std::fs::remove_file(&job);
+}
+
+/// T-530: a podvm unit has no proxy variable; the hook asks through the
+/// egress socket that `PODRUNNER_EGRESS` names, and `keep` runs the job.
+#[test]
+#[ignore]
+fn the_job_started_hook_asks_through_the_egress_socket() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::path::PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let script = include_str!("../../../images/runner/podrunner-job-started.sh");
+    std::fs::create_dir_all(dir.join("hooks")).unwrap();
+    let hook = dir.join("hooks/podrunner-job-started.sh");
+    std::fs::write(&hook, script).unwrap();
+    std::fs::set_permissions(&hook, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    let job = dir.join(".podrunner-job");
+    std::fs::write(&job, "example-org/app 2\n").unwrap();
+    let sock = std::env::temp_dir().join(format!("podrunner-egress-{}.sock", std::process::id()));
+    let seen = front_stand_in_unix(r#"{"verdict":"keep"}"#, &sock);
+    let broker = Broker::start().unwrap();
+    broker.queue(Job::scripts("own", &["echo step > marker.txt"]));
+    let _ = std::fs::remove_dir_all(dir.join("_work"));
+    let env = [
+        ("ACTIONS_RUNNER_HOOK_JOB_STARTED", hook.display().to_string()),
+        ("PODRUNNER_EGRESS", format!("http://unix:{}", sock.display())),
+    ];
+    run_once(&dir, &broker, &env);
+    std::thread::sleep(Duration::from_millis(100));
+    let done = broker.completions();
+    assert_eq!(done[0].conclusion, "succeeded", "{done:?} {}", broker.logs());
+    assert!(dir.join("_work/app/app/marker.txt").exists(), "the step ran");
+    let asked = seen.lock().unwrap().clone();
+    assert_eq!(asked.len(), 1, "one question: {asked:?}");
+    assert!(asked[0].starts_with("POST http://control.podrunner.test/v1/assigned "), "{asked:?}");
+    let _ = std::fs::remove_file(&job);
+    let _ = std::fs::remove_file(&sock);
 }
