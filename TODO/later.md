@@ -4346,6 +4346,8 @@ State (2026-11-18, later): podvm `0.2.0-beta.34` fixes COORD-093 (COORD-192, Pod
 
 State (2026-11-18, later): `runner-image.yml` run 44365652790 (`79fe9e1`): with the tier, `links.rs` and the plain conformance pass (COORD-093 holds), but the conformance under the confine layer fails: its self-test is not proven. The cause (podvm's answer COORD-194, PodUtils/podvm#590): `run -d` with `--podvm-confine` on the tier could not start its payload (Landlock denied the exec of podvm itself), so the held run failed; the tier hides no host process. Fixed on podvm `main` (PodUtils/podvm@T-1982). Call until the next beta: a kind with the confine layer takes no syscall tier (`PodvmUnit::no_tier`, set by `with_confine`), in its units and its self-test; asked of podvm by COORD-094 (GitHub #304). Next: the next run of `runner-image.yml`.
 
+State (2026-11-18, later): run 44376274000 (`2041d27`) is green with the tier for an unconfined kind: `links.rs`, the conformance and the container steps; #303 is closed. Open: the tier for a confined kind (COORD-094, #304, the next beta of podvm), and the rows `click-py313` and `rq-lint` in `user-gate.yml`.
+
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
 
@@ -10833,6 +10835,8 @@ In the code (2026-11-18): podvm `0.2.0-beta.32` runs an engine in an incus insta
 
 State (2026-11-18): `runner-image.yml` run 44349725647 (`e6beea0`): `the_runner_user_runs_a_container_on_the_engine_of_its_instance` passed on a real incus instance (the user `runner`, `DOCKER_HOST`, a container gave `engine-42`), and `docker network create` worked in the instance. Open: the parity suite on incus with an engine (`services:`), and `--incus --engine` in the local mode.
 
+State (2026-11-18, later): run 44376274000 (`2041d27`): the engine test passed again; it blocks from the next commit.
+
 
 # T-486: G-04: the egress verdicts of a unit do not reach the source of the job
 
@@ -10904,7 +10908,7 @@ The measure of step 1 before and after (`claim_to_first_step_s` of the run repor
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -10924,9 +10928,14 @@ podvm's answer (COORD-187, PodUtils/podvm#583, 2026-11-18): the init of each gue
 
 A job on real guests in `runner-image.yml` that forks past `pids` fails, and the guest and the host stay up.
 
-In the code (2026-11-18): podvm `0.2.0-beta.32` holds `--pids-limit N` on the machine tier (COORD-187 ask 4, PodUtils/podvm#583). `[unit.microvm] pids` gives each guest `--pids-limit` of the lesser of it and the `pids` of the offer, and the record says `pids: enforced`; `check` asks podvm `0.2.0-beta.32` or later for it (`crates/podrunner-microvm/src/guest.rs`, `lib.rs`, `crates/podrunner/src/microvm_kind.rs`, `docs/configuration.md`). Tests: `cargo test -p podrunner-microvm a_limit_of_processes_goes_to_the_guest`, `cargo test -p podrunner --test check`; `a_payload_past_the_pids_limit_of_a_guest_gets_an_error` (`podrunner-microvm --test pids`, a step of `runner-image.yml`). Open: its green run.
+In the code (2026-11-18): podvm `0.2.0-beta.32` holds `--pids-limit N` on the machine tier (COORD-187 ask 4, PodUtils/podvm#583). `[unit.microvm] pids` gives each guest `--pids-limit` of the lesser of it and the `pids` of the offer, and the record says `pids: enforced`; `check` asks podvm `0.2.0-beta.32` or later for it (`crates/podrunner-microvm/src/guest.rs`, `lib.rs`, `crates/podrunner/src/microvm_kind.rs`, `docs/configuration.md`). Tests: `cargo test -p podrunner-microvm a_limit_of_processes_goes_to_the_guest`, `cargo test -p podrunner --test check`; `a_payload_past_the_pids_limit_of_a_guest_gets_an_error` (`cargo test -p podrunner-microvm --test pids`, a step of `runner-image.yml`). Open: its green run.
 
 State (2026-11-18): `runner-image.yml` run 44349725647: the test failed before the limit: it sized the guest at 1 GiB, and the initrd of the runner image (892 MiB) needs about 3.3 GiB, so the control run ended with 125. The test now keeps the size of the kind. Next: its run.
+
+## Done
+
+2026-11-18, `9da2056` and `f66eef5` (the test keeps the size of the kind). `runner-image.yml` run 44376274000 (`2041d27`): `a_payload_past_the_pids_limit_of_a_guest_gets_an_error` passed on real guests: 300 forks with no limit end with 12 (each fork passed); under `pids = 64` they end with 2 (a fork failed), and the guest and the host stayed up. The step is blocking from the next commit. Level: proven in CI on GitHub-hosted runners.
+
 
 # T-489: githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version
 

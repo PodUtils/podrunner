@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**532 entries: 58 open, 44 partial, 12 blocked, 418 done.**
+**532 entries: 58 open, 43 partial, 12 blocked, 419 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 7 | 19 | 3 | 69 | 98 |
-| P2 | 12 | 19 | 6 | 221 | 258 |
+| P2 | 12 | 18 | 6 | 222 | 258 |
 | P3 | 38 | 6 | 3 | 126 | 173 |
-| **All** | 58 | 44 | 12 | 418 | 532 |
+| **All** | 58 | 43 | 12 | 419 | 532 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -532,7 +532,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-485](later.md) | P1 | M | later | feature | partial | The incus kind has no container route, though G-02 asks for an engine in the system container |
 | [T-486](later.md) | P1 | M | later | feature | done | G-04: the egress verdicts of a unit do not reach the source of the job |
 | [T-487](later.md) | P2 | L | later | feature | open | G-11: warm units from a pinned golden image |
-| [T-488](later.md) | P2 | M | later | feature | partial | G-12: the microvm kind enforces no limit of processes |
+| [T-488](later.md) | P2 | M | later | feature | done | G-12: the microvm kind enforces no limit of processes |
 | [T-489](later.md) | P3 | S | later | chore | partial | githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version |
 | [T-490](later.md) | P1 | L | later | research | done | Settle each open unknown of `docs/unknowns.md` |
 | [T-491](later.md) | P1 | M | later | research | done | Lift each limit and non-goal that a need of githome or cfb names |

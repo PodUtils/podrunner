@@ -471,14 +471,9 @@ jobs:
           # T-036: a guest with no NIC passes the guest self-test.
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 600 \
             cargo test -p podrunner-microvm --test selftest -- --ignored --nocapture
-          # T-488: a limit of processes in a guest. A measure until it is
-          # green once.
-          if PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 900 \
-            cargo test -p podrunner-microvm --test pids -- --ignored --nocapture; then
-            echo "microvm pids: ok" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "microvm pids: failed (a measure, T-488)" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          # T-488: a limit of processes in a guest.
+          PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 900 \
+            cargo test -p podrunner-microvm --test pids -- --ignored --nocapture
           # T-037 step 3: the official runner in a guest takes a canned job
           # of the fake broker through the one channel of the guest.
           timeout 900 cargo test -p podrunner-broker-fake --test microvm -- --ignored --nocapture
@@ -590,14 +585,10 @@ jobs:
           cargo test -p podrunner-incus --test limits --no-run
           sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 600 cargo test -p podrunner-incus --test limits -- --ignored --nocapture"
           # T-485: an engine in an instance (the engine directory of the
-          # step of the guest engine). A measure until it is green once.
+          # step of the guest engine).
           if [ -x "$RUNNER_TEMP/engine-dir/dockerd" ]; then
             cargo test -p podrunner-incus --test engine --no-run
-            if sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' PODRUNNER_ENGINE_DIR='$RUNNER_TEMP/engine-dir' timeout 900 cargo test -p podrunner-incus --test engine -- --ignored --nocapture"; then
-              echo "incus engine: ok" >> "$GITHUB_STEP_SUMMARY"
-            else
-              echo "incus engine: failed (a measure, T-485)" >> "$GITHUB_STEP_SUMMARY"
-            fi
+            sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' PODRUNNER_ENGINE_DIR='$RUNNER_TEMP/engine-dir' timeout 900 cargo test -p podrunner-incus --test engine -- --ignored --nocapture"
           fi
           # T-123: podrunner run, each job in a fresh incus instance.
           cargo build -q -p podrunner
