@@ -12,12 +12,12 @@ use base64::engine::general_purpose::STANDARD;
 /// number big-endian with no sign byte, `d` as long as the modulus, and the
 /// five numbers of the CRT half as long: each is padded with zero bytes.
 pub fn rsaparams() -> String {
-    use rsa::BigUint;
+    use rsa::BoxedUint;
     use rsa::traits::{PrivateKeyParts, PublicKeyParts};
-    let key = rsa::RsaPrivateKey::new(&mut rand_core::OsRng, 2048).expect("an RSA key");
+    let key = rsa::PrivateKey::new(&mut getrandom::SysRng, 2048).expect("an RSA key");
     let k = key.size();
-    let b = |n: &BigUint, len: usize| {
-        let raw = n.to_bytes_be();
+    let b = |n: &BoxedUint, len: usize| {
+        let raw = n.to_be_bytes_trimmed_vartime();
         let mut v = vec![0u8; len.saturating_sub(raw.len())];
         v.extend_from_slice(&raw);
         STANDARD.encode(v)
@@ -26,7 +26,8 @@ pub fn rsaparams() -> String {
     let qinv = key.crt_coefficient().expect("the CRT coefficient");
     serde_json::json!({
         "d": b(key.d(), k), "dp": b(key.dp().expect("dp"), k / 2), "dq": b(key.dq().expect("dq"), k / 2),
-        "exponent": STANDARD.encode(key.e().to_bytes_be()), "inverseQ": b(&qinv, k / 2), "modulus": b(key.n(), k),
+        "exponent": STANDARD.encode(key.e().to_be_bytes_trimmed_vartime()), "inverseQ": b(&qinv, k / 2),
+        "modulus": b(key.n().as_ref(), k),
         "p": b(&primes[0], k / 2), "q": b(&primes[1], k / 2),
     })
     .to_string()

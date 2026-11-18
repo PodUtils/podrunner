@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**534 entries: 52 open, 44 partial, 12 blocked, 426 done.**
+**534 entries: 51 open, 44 partial, 12 blocked, 427 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 3 | 21 | 3 | 72 | 99 |
 | P2 | 11 | 16 | 6 | 226 | 259 |
-| P3 | 37 | 7 | 3 | 126 | 173 |
-| **All** | 52 | 44 | 12 | 426 | 534 |
+| P3 | 36 | 7 | 3 | 127 | 173 |
+| **All** | 51 | 44 | 12 | 427 | 534 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -575,7 +575,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-528](later.md) | P1 | S | later | measurement | partial | No row of the user-path gate copies the gate of rbg |
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
 | [T-530](later.md) | P2 | S | later | feature | done | The job-started hook of a podvm unit cannot ask serve |
-| [T-531](later.md) | P3 | S | later | chore | open | Take rsa 0.10 in the fake broker |
+| [T-531](later.md) | P3 | S | later | chore | done | Take rsa 0.10 in the fake broker |
 | [T-532](later.md) | P1 | M | later | feature | open | The containers of a podvm unit on the namespace rung, with a volume base |
 | [T-533](later.md) | P2 | M | later | measurement | open | A job of another architecture in a guest of the machine tier |
 | [T-534](later.md) | P2 | S | later | defect | done | The probe of the incus kind claims the kind on a host with no incusd |

@@ -180,12 +180,11 @@ pub(crate) mod tests {
     /// A client assertion signed with the key `rsaparams`, as the runner
     /// makes it.
     pub(crate) fn assertion(rsaparams: &str) -> String {
-        use rsa::BigUint;
+        use rsa::BoxedUint;
         let v: serde_json::Value = serde_json::from_str(rsaparams).unwrap();
-        let int = |k: &str| BigUint::from_bytes_be(&STANDARD.decode(v[k].as_str().unwrap()).unwrap());
-        let key =
-            rsa::RsaPrivateKey::from_components(int("modulus"), int("exponent"), int("d"), vec![int("p"), int("q")])
-                .unwrap();
+        let int = |k: &str| BoxedUint::from_be_slice_vartime(&STANDARD.decode(v[k].as_str().unwrap()).unwrap());
+        let key = rsa::PrivateKey::from_components(int("modulus"), int("exponent"), int("d"), vec![int("p"), int("q")])
+            .unwrap();
         let head = URL_SAFE_NO_PAD.encode(r#"{"alg":"RS256","typ":"JWT"}"#);
         let claims = URL_SAFE_NO_PAD.encode(r#"{"sub":"00000000-0000-0000-0000-000000000007"}"#);
         let signed = format!("{head}.{claims}");

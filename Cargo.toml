@@ -39,8 +39,8 @@ pod-actions-store = { git = "https://github.com/PodUtils/podcrates", tag = "v0.7
 podrunner-local = { path = "crates/podrunner-local" }
 # The RSA key of a runner against the fake broker: key generation only
 # (deny.toml, RUSTSEC-2023-0071).
-rsa = { version = "0.9.10", default-features = false, features = ["std"] }
-rand_core = { version = "0.6.4", features = ["getrandom"] }
+rsa = { version = "0.10.0", default-features = false, features = ["std", "pkcs1v15"] }
+getrandom = { version = "0.4.3", features = ["sys_rng"] }
 podrunner-egress = { path = "crates/podrunner-egress" }
 podrunner-hook = { path = "crates/podrunner-hook" }
 podrunner-remote = { path = "crates/podrunner-remote" }
@@ -78,7 +78,9 @@ panic = "abort"
 
 # The RSA key of a test runner: the bignum code is slow with no
 # optimisation (seconds for each key).
-[profile.dev.package.num-bigint-dig]
+[profile.dev.package.crypto-bigint]
+opt-level = 3
+[profile.dev.package.crypto-primes]
 opt-level = 3
 [profile.dev.package.rsa]
 opt-level = 3

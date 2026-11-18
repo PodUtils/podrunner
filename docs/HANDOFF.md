@@ -131,7 +131,7 @@ is done.
   COORD-090 (#300). T-496 waits for PodUtils/podvm@T-1968.
 - podnet `v0.4.0-beta.17` is pinned (COORD-108, PodUtils/podnet#655);
   T-179 is done in CI (COORD-099, #309; #142 closed).
-- Dependabot: #299 (rsa 0.10) is T-531.
+- Dependabot: #299 (rsa 0.10) is done as T-531.
 - A full `check.sh` with the runner takes about 45 minutes here: batch the
   commits before a push.
 

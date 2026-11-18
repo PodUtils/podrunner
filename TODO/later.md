@@ -7451,7 +7451,7 @@ The report and its logs (not in the repository), read on 2026-11-17; the triage 
 
 ## Approach
 
-In `crates/podrunner-broker-fake/src/runner.rs` (the console relay at `:101`), put each console line in the log of the job (`--log-dir`) and show on stderr only a warning or an error line, as on podvm. Give the runner a machine name `podrunner-host` (`--name` of the config of the runner directory) so that the host name does not leak.
+In `crates/podrunner-broker-fake/src/runner.rs` (the console relay at `:102`), put each console line in the log of the job (`--log-dir`) and show on stderr only a warning or an error line, as on podvm. Give the runner a machine name `podrunner-host` (`--name` of the config of the runner directory) so that the host name does not leak.
 
 ## Prove
 
@@ -12215,7 +12215,7 @@ Let the hook take `PODRUNNER_EGRESS` when it names a unix socket (node `http.req
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12232,6 +12232,10 @@ Move the two files to the API of rsa 0.10 (its `BoxedUint`, the new constructors
 ## Prove
 
 `cargo test -p podrunner-broker-fake`; with the official runner, `cargo test -p podrunner-broker-fake --test runner -- --ignored` (the runner accepts the signed token).
+
+## Done
+
+2026-11-18: the fake broker takes rsa `0.10.0`: `rsa::PrivateKey::new` with `getrandom::SysRng` (getrandom `0.4`, feature `sys_rng`; rsa no longer takes the `OsRng` of rand_core `0.6`), the numbers as `BoxedUint` (`to_be_bytes_trimmed_vartime`, `from_be_slice_vartime`), and `Pkcs1v15Sign` under the feature `pkcs1v15`. The workspace drops `rand_core`; the dev profile optimises `crypto-bigint` and `crypto-primes` in place of `num-bigint-dig`. `cargo test -p podrunner-broker-fake`, and `cargo test -p podrunner-broker-fake --test runner -- --ignored` with the official runner (it accepts the signed token), pass. Dependabot #299 closes with a link to the commit.
 
 # T-532: The containers of a podvm unit on the namespace rung, with a volume base
 
