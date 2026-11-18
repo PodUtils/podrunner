@@ -86,9 +86,7 @@ impl Podvm {
     }
 
     fn probe_json(&self) -> Result<serde_json::Value, UnitError> {
-        let out = Command::new(&self.binary)
-            .args(["probe", "--json"])
-            .output()
+        let out = output_of(Command::new(&self.binary).args(["probe", "--json"]))
             .map_err(|e| UnitError::new(UnitCode::Host, format!("podvm probe: {}", e.kind())))?;
         if !out.status.success() {
             return Err(UnitError::new(
@@ -99,6 +97,21 @@ impl Podvm {
         serde_json::from_slice(&out.stdout)
             .map_err(|_| UnitError::new(UnitCode::Unsupported, "podvm probe --json gives no JSON"))
     }
+}
+
+/// The output of `cmd`. A binary that a process still holds open for a
+/// write (`ETXTBSY`: a copy in place, or a fork of another thread in the
+/// short time after a write) is tried again a few times.
+fn output_of(cmd: &mut Command) -> std::io::Result<std::process::Output> {
+    for _ in 0..5 {
+        match cmd.output() {
+            Err(e) if e.kind() == std::io::ErrorKind::ExecutableFileBusy => {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            r => return r,
+        }
+    }
+    cmd.output()
 }
 
 #[cfg(test)]
