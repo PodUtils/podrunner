@@ -9,6 +9,7 @@
 
 pub mod conformance;
 mod event;
+mod host;
 mod pipe;
 pub mod wire;
 
@@ -16,6 +17,7 @@ use std::fmt;
 use std::time::Duration;
 
 pub use event::{Assigned, Event, Offer, RealJob};
+pub use host::{HostFacts, KindFacts};
 pub use pipe::{Exchange, Stream, Wire, WireSource, serve_line};
 use podrunner_schema::{Credential, JobId};
 use serde::{Deserialize, Serialize};
@@ -96,6 +98,12 @@ pub struct Hello {
 /// offer that podrunner does not claim.
 pub trait JobSource: Send {
     fn hello(&mut self, client: &str, version: &str) -> Result<Hello, SourceError>;
+    /// `hello` with the facts of the host (T-495). A source in this process
+    /// needs no facts: the default is `hello`.
+    fn hello_host(&mut self, client: &str, version: &str, host: &HostFacts) -> Result<Hello, SourceError> {
+        let _ = host;
+        self.hello(client, version)
+    }
     /// Up to `capacity` offers, and the other events, within `wait`.
     fn next(&mut self, capacity: u32, wait: Duration) -> Result<Vec<Event>, SourceError>;
     fn ack(&mut self, job: &JobId) -> Result<(), SourceError>;

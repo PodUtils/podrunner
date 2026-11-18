@@ -57,6 +57,14 @@ impl JobSource for Mint {
     fn hello(&mut self, client: &str, version: &str) -> Result<Hello, SourceError> {
         self.call(|s| s.hello(client, version))
     }
+    fn hello_host(
+        &mut self,
+        client: &str,
+        version: &str,
+        host: &podrunner_source::HostFacts,
+    ) -> Result<Hello, SourceError> {
+        self.call(|s| s.hello_host(client, version, host))
+    }
     fn next(&mut self, capacity: u32, wait: Duration) -> Result<Vec<Event>, SourceError> {
         self.call(|s| s.next(capacity, wait))
     }

@@ -261,3 +261,38 @@ fn a_kind_with_no_hold_serves_no_tier() {
     assert!(at(podrunner_schema::EgressHold::None));
     assert!(!at(podrunner_schema::EgressHold::Advisory));
 }
+
+/// T-495: the facts of each kind for the `hello` of the sources, and a
+/// source that takes them.
+#[test]
+fn the_facts_of_a_kind_hold_its_largest_values() {
+    let mut bed = Bed::new(
+        config(""),
+        vec![("a", "trusted", None, vec![])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined_cap(), command: sh("true") }],
+    );
+    bed.slots.kinds[0].cfg.mem = Some("2G".into());
+    bed.slots.kinds[0].cfg.cpus = Some(3);
+    bed.slots.kinds[0].cfg.disk_max_bytes = Some(1000);
+    let facts = bed.slots.kind_facts();
+    assert_eq!(facts.len(), 1);
+    let f = &facts[0];
+    assert_eq!((f.cpu, f.memory, f.disk, f.pids), (Some(3000), Some(2 << 30), Some(1000), None));
+    let host = podrunner_source::HostFacts {
+        podrunner: "0".into(),
+        podvm: None,
+        podnet: None,
+        arch: "x86_64".into(),
+        kvm: false,
+        kinds: facts,
+    };
+    assert!(bed.slots.hello_sources("podrunner", "0", &host).is_empty(), "the fake source takes the facts");
+}
+
+fn confined_cap() -> podrunner_schema::Capability {
+    capability(
+        podrunner_schema::Boundary::Confined,
+        podrunner_schema::Principal::Distinct,
+        podrunner_schema::EgressHold::Advisory,
+    )
+}

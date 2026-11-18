@@ -9,7 +9,7 @@ use serde_json::{Map, Value};
 
 use podrunner_schema::offer::TrustInputs;
 
-use crate::{Event, RealJob, SourceCode, SourceError};
+use crate::{Event, HostFacts, RealJob, SourceCode, SourceError};
 
 /// The longest line of the wire, without its end of line.
 pub const LINE_MAX: usize = 1 << 20;
@@ -21,6 +21,9 @@ pub enum Request {
     Hello {
         client: String,
         version: String,
+        /// The facts of the host (T-495).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host: Option<HostFacts>,
     },
     /// A long poll: up to `capacity` offers, within `wait_s` seconds.
     Next {

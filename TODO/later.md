@@ -11088,7 +11088,7 @@ In the code (2026-11-18): steps 1 and 3. `[[source]] trust` (the keys of `[trust
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11105,6 +11105,9 @@ The `hello` request carries `host`: the versions of podrunner, podvm and podnet,
 ## Prove
 
 `cargo test -p podrunner-source`: the `hello` of a host with two kinds holds both, with their limits.
+
+In the code (2026-11-18): the `hello` request has an optional `host` (`podrunner_source::HostFacts`: the versions of podrunner and podvm, `arch`, `kvm`, and for each kind its boundary, its container route and its largest `cpu`, `memory`, `disk` and `pids`); `JobSource::hello_host` gives it (the default is `hello`); the wire, the mint and the remote gate pass it on. `serve` sends it to each source at its start, and logs one line for a source that refuses it (`crates/podrunner/src/serve/host.rs`, `Slots::hello_sources`). With no reload, a change of the configuration takes a new start, which sends the new facts. Tests: `the_facts_of_the_host_reach_a_source_in_hello` (`podrunner-source`), `the_facts_of_a_kind_hold_its_largest_values` (`podrunner-slots`). Open: the version of podnet (the field is empty), and a test of `source-conformance` for the field.
+
 
 # T-496: G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC`
 

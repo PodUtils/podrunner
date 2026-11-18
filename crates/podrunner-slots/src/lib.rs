@@ -15,6 +15,7 @@ mod engine;
 pub mod forget;
 pub mod guest;
 pub mod hooks;
+mod host;
 pub mod journal;
 pub mod limits;
 mod own;

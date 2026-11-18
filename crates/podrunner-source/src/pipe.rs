@@ -8,7 +8,7 @@ use podrunner_schema::{Credential, JobId};
 use serde_json::{Map, Value};
 
 use crate::wire::{self, LINE_MAX, Reply, Request};
-use crate::{Assigned, Event, Hello, JobSource, RealJob, SourceCode, SourceError};
+use crate::{Assigned, Event, Hello, HostFacts, JobSource, RealJob, SourceCode, SourceError};
 
 /// Answer one line of the wire. The reply line has its end of line.
 pub fn serve_line(source: &mut dyn JobSource, line: &[u8]) -> String {
@@ -21,8 +21,11 @@ pub fn serve_line(source: &mut dyn JobSource, line: &[u8]) -> String {
 
 fn answer(s: &mut dyn JobSource, req: Request) -> Result<Reply, SourceError> {
     Ok(match req {
-        Request::Hello { client, version } => {
-            let h = s.hello(&client, &version)?;
+        Request::Hello { client, version, host } => {
+            let h = match &host {
+                Some(facts) => s.hello_host(&client, &version, facts)?,
+                None => s.hello(&client, &version)?,
+            };
             Reply::Hello { source: h.source, operator_controlled: h.operator_controlled }
         }
         Request::Next { capacity, wait_s } => {
@@ -116,7 +119,15 @@ fn unexpected(op: &str, r: &Reply) -> SourceError {
 
 impl<E: Exchange> JobSource for Wire<E> {
     fn hello(&mut self, client: &str, version: &str) -> Result<Hello, SourceError> {
-        match self.call(&Request::Hello { client: client.into(), version: version.into() })? {
+        match self.call(&Request::Hello { client: client.into(), version: version.into(), host: None })? {
+            Reply::Hello { source, operator_controlled } => Ok(Hello { source, operator_controlled }),
+            other => Err(unexpected("hello", &other)),
+        }
+    }
+
+    fn hello_host(&mut self, client: &str, version: &str, host: &HostFacts) -> Result<Hello, SourceError> {
+        let req = Request::Hello { client: client.into(), version: version.into(), host: Some(host.clone()) };
+        match self.call(&req)? {
             Reply::Hello { source, operator_controlled } => Ok(Hello { source, operator_controlled }),
             other => Err(unexpected("hello", &other)),
         }

@@ -189,8 +189,11 @@ impl Gate {
             self.mine(host, &job)?;
         }
         Ok(match req {
-            Request::Hello { client, version } => {
-                let h = self.source.hello(&client, &version)?;
+            Request::Hello { client, version, host } => {
+                let h = match &host {
+                    Some(facts) => self.source.hello_host(&client, &version, facts)?,
+                    None => self.source.hello(&client, &version)?,
+                };
                 Reply::Hello { source: h.source, operator_controlled: h.operator_controlled }
             }
             Request::Next { capacity, wait_s } => {

@@ -27,7 +27,7 @@ source is the trait `JobSource` of `crates/podrunner-source/src/lib.rs`;
 
 | Operation | Request fields | Reply |
 | --- | --- | --- |
-| `hello` | `client`, `version` | `hello`: `source`, `operator_controlled` |
+| `hello` | `client`, `version`; optional `host`: `podrunner`, `podvm`, `podnet` (versions), `arch`, `kvm`, `kinds` (each `name`, `boundary`, `container`, and the largest `cpu` in milli-cores, `memory` and `disk` in bytes, `pids`) | `hello`: `source`, `operator_controlled` |
 | `next` | `capacity`, `wait_s` (the longest wait of the reply, in seconds; a source with a slower poll keeps it in the background) | `events`: a list of events |
 | `ack` | `job_id` | `done` |
 | `claim` | `job_id`, `runner_name` | `done` |
@@ -80,6 +80,12 @@ never runs in a trusted unit). Else, and on `end`, the job ends before
 its first step with an annotation that names the code. A source with no
 `assigned` answers `bad-request`, and the job ends as before. No answer
 within 10 s ends the job with the code `source-unavailable`.
+
+`serve` sends `hello` with `host` to each source at its start (T-495,
+githome's G-17), so that a source offers no job that the host must refuse.
+A change of the configuration needs a new start of `serve`, which sends
+the new facts. A source whose wire refuses the field logs one line, and
+the start goes on.
 
 `audit` carries the audit lines of the slots, and one line for each
 connection of a unit through its egress module when the connection ends

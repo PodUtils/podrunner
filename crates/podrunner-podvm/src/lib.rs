@@ -70,6 +70,11 @@ impl Podvm {
         Ok(version.to_string())
     }
 
+    /// The version text that `podvm probe` gives, or `None`.
+    pub fn version_text(&self) -> Option<String> {
+        Some(self.probe_json().ok()?["podvm"].as_str()?.to_string())
+    }
+
     /// The rung that `podvm probe` gives, or `None`.
     pub fn rung(&self) -> Option<String> {
         Some(self.probe_json().ok()?["rung"].as_str()?.to_string())

@@ -59,6 +59,8 @@ fn now_unix() -> u64 {
 
 #[path = "serve/front.rs"]
 pub(crate) mod front;
+#[path = "serve/host.rs"]
+mod host;
 #[path = "serve/sources.rs"]
 mod sources;
 pub(crate) use sources::{private_file, source_of};
@@ -362,9 +364,15 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     let cfg = check(config)?;
     crate::tiers::state_path(&cfg, state)?;
     let _lock = crate::lock::StateLock::take(state)?;
-    let slots = build(cfg, state)?;
+    let podvm = host::podvm_version(&cfg);
+    let mut slots = build(cfg, state)?;
     if slots.no_tier_served() {
         eprintln!("podrunner: no-tier-served: no unit kind meets the floor of a source");
+    }
+    // Each source learns what this host can run (T-495).
+    let facts = host::facts(&slots, podvm);
+    for why in slots.hello_sources("podrunner", env!("CARGO_PKG_VERSION"), &facts) {
+        eprintln!("podrunner: hello: {why}");
     }
     let listener = control::bind(socket).map_err(|e| {
         let class = if e.kind() == std::io::ErrorKind::AlreadyExists { Class::Usage } else { Class::Unavailable };

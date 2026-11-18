@@ -87,7 +87,7 @@ fn the_wire_tests_pass_on_serve_line() {
 fn a_request_round_trips_with_its_schema() {
     let job = JobId::new("j-1").unwrap();
     let reqs = [
-        Request::Hello { client: "podrunner".into(), version: "0.1.0".into() },
+        Request::Hello { client: "podrunner".into(), version: "0.1.0".into(), host: None },
         Request::Next { capacity: 2, wait_s: 30 },
         Request::Ack { job_id: job.clone() },
         Request::Claim { job_id: job.clone(), runner_name: "r".into() },
@@ -211,4 +211,76 @@ fn wire_source_and_serve_line_speak_over_a_pipe() {
     assert_eq!(client.next(1, Duration::ZERO).unwrap_err().code, SourceCode::Unavailable);
     drop(client);
     server.join().unwrap();
+}
+
+/// T-495 (githome's G-17): the facts of the host in `hello` reach a source
+/// through the wire; a `hello` with no facts reaches it as before.
+#[test]
+fn the_facts_of_the_host_reach_a_source_in_hello() {
+    use std::sync::{Arc, Mutex};
+    struct Seeing(Arc<Mutex<Option<crate::HostFacts>>>);
+    impl JobSource for Seeing {
+        fn hello(&mut self, _: &str, _: &str) -> Result<Hello, SourceError> {
+            Ok(Hello { source: "s".into(), operator_controlled: true })
+        }
+        fn hello_host(&mut self, c: &str, v: &str, host: &crate::HostFacts) -> Result<Hello, SourceError> {
+            *self.0.lock().unwrap() = Some(host.clone());
+            self.hello(c, v)
+        }
+        fn next(&mut self, _: u32, _: Duration) -> Result<Vec<Event>, SourceError> {
+            no()
+        }
+        fn ack(&mut self, _: &JobId) -> Result<(), SourceError> {
+            no()
+        }
+        fn claim(&mut self, _: &JobId, _: &str) -> Result<(), SourceError> {
+            no()
+        }
+        fn mint(&mut self, _: &JobId, _: &str) -> Result<Credential, SourceError> {
+            no()
+        }
+        fn report(&mut self, _: &JobId, _: &Map<String, Value>) -> Result<(), SourceError> {
+            no()
+        }
+        fn audit(&mut self, _: &Map<String, Value>) -> Result<(), SourceError> {
+            no()
+        }
+        fn withdraw(&mut self, _: &JobId, _: &str) -> Result<(), SourceError> {
+            no()
+        }
+        fn release(&mut self, _: &JobId) -> Result<(), SourceError> {
+            no()
+        }
+    }
+    let facts = crate::HostFacts {
+        podrunner: "0.1.0".into(),
+        podvm: Some("0.2.0-beta.32".into()),
+        podnet: None,
+        arch: "x86_64".into(),
+        kvm: true,
+        kinds: vec![crate::KindFacts {
+            name: "incus".into(),
+            boundary: podrunner_schema::Boundary::Confined,
+            container: podrunner_schema::ContainerRoute::None,
+            cpu: Some(4000),
+            memory: Some(12 << 30),
+            disk: Some(40_000_000_000),
+            pids: None,
+        }],
+    };
+    let seen = Arc::new(Mutex::new(None));
+    let line = wire::request_line(&Request::Hello {
+        client: "podrunner".into(),
+        version: "0".into(),
+        host: Some(facts.clone()),
+    });
+    assert!(line.contains(r#""kvm":true"#) && line.contains(r#""cpu":4000"#), "{line}");
+    let reply = serve_line(&mut Seeing(seen.clone()), line.as_bytes());
+    assert!(reply.contains(r#""reply":"hello""#), "{reply}");
+    assert_eq!(seen.lock().unwrap().as_ref(), Some(&facts));
+    let plain = wire::request_line(&Request::Hello { client: "podrunner".into(), version: "0".into(), host: None });
+    assert!(!plain.contains("host"), "{plain}");
+    *seen.lock().unwrap() = None;
+    serve_line(&mut Seeing(seen.clone()), plain.as_bytes());
+    assert!(seen.lock().unwrap().is_none(), "a hello with no facts");
 }
