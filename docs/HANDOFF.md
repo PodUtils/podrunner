@@ -139,7 +139,7 @@ is done.
 
 The last session (2026-11-18, evening) left:
 
-- podcrates `v0.73.0` is taken (T-508 done; the take is COORD-100). Its
+- podcrates `v0.73.0` is taken (T-508 done; the take is COORD-100, #310). Its
   `pod-fake-githome` (PodUtils/podcrates@T-948) unblocks T-509 and its
   `pod-fake-github` (PodUtils/podcrates@T-921) gives a broker for a runner
   job through `serve` (T-527). Open answers: #307 (podvm's limits of `--podvm-confine`, no change; close
