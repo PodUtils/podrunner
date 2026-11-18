@@ -88,6 +88,18 @@ sha256sum -c podrunner-install.sh.sha256
 gh attestation verify podrunner-install.sh --repo PodUtils/podrunner
 ```
 
+## The manifest of a release
+
+Each release attaches `podrunner-manifest.json` with its `.sha256` and an
+attestation. A machine reads it to take a new runner image with no new
+binary (T-499). It holds `schema` (1); `podrunner`: the version and, for
+each architecture, the file and its SHA-256; `runner`: the version of the
+official runner, the SHA-256 of each tarball, and for each architecture the
+base and the full image (`file`, `sha256` and the manifest `digest`, or
+`null`); `podvm` and `podnet`: the version and the SHA-256 of each
+architecture. `podrunner doctor --config FILE` names the runner of each pin
+of the file, its age and its window, and warns in the last 7 days of it.
+
 ## The offline bundle
 
 The release attaches `podrunner-bundle-x86_64.tar.gz` and

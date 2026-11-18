@@ -11245,7 +11245,7 @@ The census of T-491 (2026-11-18): the code parks a revoked source (`revoked` in 
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11264,6 +11264,8 @@ githome's comment on GitHub #292, read on 2026-11-18. `images/runner/runner.toml
 ## Prove
 
 `cargo test -p podrunner --test doctor` names the version and the age; a new image loads with `podvm load -i` on a running host.
+
+In the code (2026-11-18): step 3: `podrunner doctor --config FILE` names each pinned payload with its runner version, its age, its window (the age limit of the pin) and `ok`, `near-end` (the last 7 days) or `stale`, and the runner that the build pins (`crates/podrunner/src/doctor.rs`, `pin_rows`; `docs/cli.md`). Step 2: each release attaches `podrunner-manifest.json` with its `.sha256` and an attestation: the versions of podrunner, the runner, podvm and podnet, each binary with its SHA-256, and each runner image with its file, SHA-256 and manifest digest (`scripts/install-pins.py --manifest`, `scripts/release-assets.sh local-mode`, `release.yml`; `docs/install.md`). Tests: `cargo test -p podrunner --test doctor doctor_names_the_runner_of_each_pin_and_its_age`, `cargo test -p podrunner doctor::tests::a_pin_names`, `sh scripts/test-install.sh` (the manifest of a release from the fixture). Open: step 1, a runner image as a release asset of its own within 14 days of a release of `actions/runner`, with no new binary (a workflow that builds the image of a new runner and publishes it with a manifest); the load of such an image with `podvm load -i` on a running host.
 
 # T-500: G-24: a runner image with the software that cfb's gates need
 

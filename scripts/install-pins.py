@@ -12,6 +12,9 @@ digest of each image (from index.json in the archive).
       release values)
   install-pins.py [--images DIR] [--release VERSION --assets DIR] FILE [--out OUT]
       write the block into FILE (or into a copy OUT)
+  install-pins.py [--images DIR] --release VERSION --assets DIR --manifest OUT
+      write the manifest of the release that a machine reads (T-499): the
+      same values as JSON
 """
 
 import argparse
@@ -63,10 +66,13 @@ def image_digest(path: pathlib.Path) -> str:
     return digest
 
 
-def block(images: pathlib.Path, release: str, assets: pathlib.Path | None) -> str:
-    podvm_v, podvm = toml_pin(images / "podvm.toml")
-    podnet_v, podnet = toml_pin(images / "podnet.toml")
-    runner_v, runner = toml_pin(images / "runner" / "runner.toml")
+def values(images: pathlib.Path, assets: pathlib.Path | None) -> tuple[dict, dict[str, str]]:
+    """The pins of the tree, and the values of the files of a release."""
+    pins = {
+        "podvm": toml_pin(images / "podvm.toml"),
+        "podnet": toml_pin(images / "podnet.toml"),
+        "runner": toml_pin(images / "runner" / "runner.toml"),
+    }
     v: dict[str, str] = {}
     for a in ARCHES:
         v[f"podrunner_{a}"] = ""
@@ -84,6 +90,39 @@ def block(images: pathlib.Path, release: str, assets: pathlib.Path | None) -> st
         full = assets / f"runner-full-{a}.tar"
         if full.is_file():
             v[f"imagefull_{a}"], v[f"imagefull_digest_{a}"] = sha256(full), image_digest(full)
+    return pins, v
+
+
+def manifest(images: pathlib.Path, release: str, assets: pathlib.Path) -> str:
+    """The manifest of a release, as JSON (T-499, githome's G-23)."""
+    pins, v = values(images, assets)
+
+    def image(kind: str, a: str) -> dict | None:
+        name = "runner" if kind == "image" else "runner-full"
+        if not v[f"{kind}_{a}"]:
+            return None
+        return {"file": f"{name}-{a}.tar", "sha256": v[f"{kind}_{a}"], "digest": v[f"{kind}_digest_{a}"]}
+
+    doc = {
+        "schema": 1,
+        "podrunner": {
+            "version": release,
+            "files": {a: {"file": f"podrunner-{a}-unknown-linux-musl", "sha256": v[f"podrunner_{a}"]} for a in ARCHES},
+        },
+        "runner": {
+            "version": pins["runner"][0],
+            "tarball_sha256": pins["runner"][1],
+            "images": {a: {"base": image("image", a), "full": image("imagefull", a)} for a in ARCHES},
+        },
+        "podvm": {"version": pins["podvm"][0], "sha256": pins["podvm"][1]},
+        "podnet": {"version": pins["podnet"][0], "sha256": pins["podnet"][1]},
+    }
+    return json.dumps(doc, indent=2, sort_keys=True) + "\n"
+
+
+def block(images: pathlib.Path, release: str, assets: pathlib.Path | None) -> str:
+    pins, v = values(images, assets)
+    (podvm_v, podvm), (podnet_v, podnet), (runner_v, runner) = pins["podvm"], pins["podnet"], pins["runner"]
     lines = [
         BEGIN,
         f'PODRUNNER_VERSION="{release}"',
@@ -113,12 +152,13 @@ def split(text: str, name: str) -> tuple[str, str, str]:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("file")
+    p.add_argument("file", nargs="?")
     p.add_argument("--check", action="store_true")
     p.add_argument("--images", default="images")
     p.add_argument("--release", default="")
     p.add_argument("--assets")
     p.add_argument("--out")
+    p.add_argument("--manifest")
     o = p.parse_args()
     if bool(o.release) != bool(o.assets):
         sys.exit("--release and --assets go together")
@@ -126,6 +166,14 @@ def main() -> int:
         sys.exit("--check takes no release")
     if o.release and not re.match(r"^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$", o.release):
         sys.exit(f"--release {o.release!r} is not a version")
+    if o.manifest:
+        if not o.release or o.file or o.check:
+            sys.exit("--manifest takes --release and --assets, and no FILE")
+        pathlib.Path(o.manifest).write_text(manifest(pathlib.Path(o.images), o.release, pathlib.Path(o.assets)))
+        print(f"{o.manifest}: the manifest is written")
+        return 0
+    if not o.file:
+        sys.exit("a FILE is necessary")
     text = pathlib.Path(o.file).read_text()
     head, old, tail = split(text, o.file)
     new = block(pathlib.Path(o.images), o.release, pathlib.Path(o.assets) if o.assets else None)

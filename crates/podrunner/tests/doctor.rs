@@ -79,3 +79,31 @@ fn doctor_run_reads_the_run_toml_of_the_user() {
     assert!(text.contains("ok   runner-dir"), "{text}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-499: `doctor --config` names the runner of each pin, its age and its
+/// window, and the runner of this build.
+#[test]
+fn doctor_names_the_runner_of_each_pin_and_its_age() {
+    let dir = std::env::temp_dir().join(format!("podrunner-doctor-pins-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let config = format!(
+        "host = \"h\"\n[pin]\n[[pin.payload]]\narch = \"x86_64\"\nreference = \"runner@sha256:{}\"\n\
+         built_at_s = {}\nrunner_version = \"2.338.2\"\n",
+        "1".repeat(64),
+        now - 25 * 24 * 3600
+    );
+    std::fs::write(dir.join("p.toml"), config).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_podrunner"))
+        .args(["doctor", "--json", "--config"])
+        .arg(dir.join("p.toml"))
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let pin = &v["pins"][0];
+    assert_eq!((pin["runner_version"].as_str(), pin["state"].as_str()), (Some("2.338.2"), Some("near-end")), "{v}");
+    assert!(pin["age_s"].as_u64().unwrap() >= 25 * 24 * 3600, "{v}");
+    assert!(v["runner_of_this_build"].as_str().is_some_and(|r| r.starts_with("2.")), "{v}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

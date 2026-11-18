@@ -132,6 +132,7 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
     let mut kinds = Vec::new();
     let mut tiers = Vec::new();
     let mut hold = Value::Null;
+    let mut pins = Vec::new();
     if let Some(path) = config {
         let text = std::fs::read_to_string(path)
             .map_err(|e| fail(Class::Config, format!("the configuration {}: {e}", path.display())))?;
@@ -187,13 +188,78 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
                 ));
             }
         }
+        pins = pin_rows(&cfg.pin, now_s());
     } else {
         missing.push("--config: no unit kind and no source were read".into());
     }
     Ok(json!({
         "schema": 1, "landlock_abi": landlock, "kvm": kvm, "hold": hold, "host": host,
-        "kinds": kinds, "sources": tiers, "missing": missing,
+        "kinds": kinds, "sources": tiers, "pins": pins, "missing": missing,
+        "runner_of_this_build": RUNNER_OF_THIS_BUILD,
     }))
+}
+
+/// The version of the official runner that `images/runner/runner.toml` of
+/// this build pins.
+const RUNNER_OF_THIS_BUILD: &str = {
+    // The first line `version = "..."` of the file.
+    const TEXT: &str = include_str!("../../../images/runner/runner.toml");
+    const_version(TEXT)
+};
+
+const fn const_version(text: &'static str) -> &'static str {
+    let b = text.as_bytes();
+    let key = b"\nversion = \"";
+    let mut i = 0;
+    while i + key.len() < b.len() {
+        let mut k = 0;
+        while k < key.len() && b[i + k] == key[k] {
+            k += 1;
+        }
+        if k == key.len() {
+            let start = i + k;
+            let mut end = start;
+            while end < b.len() && b[end] != b'"' {
+                end += 1;
+            }
+            let (_, rest) = text.split_at(start);
+            let (v, _) = rest.split_at(end - start);
+            return v;
+        }
+        i += 1;
+    }
+    "unknown"
+}
+
+fn now_s() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+/// The last days of the window of a pin, in which `doctor` warns (T-499).
+const NEAR_END_S: u64 = 7 * 24 * 3600;
+
+/// One row for each pinned payload: its runner version, its age and its
+/// window (the age limit of the pin, which keeps the runner inside the
+/// window of updates of GitHub), and `ok`, `near-end` or `stale`.
+fn pin_rows(pins: &podrunner_slots::config::Pins, now: u64) -> Vec<Value> {
+    pins.payload
+        .iter()
+        .map(|p| {
+            let limit = p.max_age_s.map_or(pins.max_age_s, |m| m.min(pins.max_age_s));
+            let age = now.saturating_sub(p.built_at_s);
+            let state = if p.stale(pins, now) {
+                "stale"
+            } else if age.saturating_add(NEAR_END_S) >= limit {
+                "near-end"
+            } else {
+                "ok"
+            };
+            json!({
+                "arch": p.arch, "reference": p.reference, "runner_version": p.runner_version,
+                "age_s": age, "limit_s": limit, "state": state,
+            })
+        })
+        .collect()
 }
 
 /// The report as text: one line for each finding, then each missing
@@ -235,6 +301,24 @@ pub fn text(v: &Value) -> String {
         let served = if s["served"] == json!(true) { "served" } else { "not served" };
         out.push_str(&format!("source {}: tier {}, {served}\n", word("source"), word("tier")));
     }
+    if let Some(r) = v["runner_of_this_build"].as_str() {
+        out.push_str(&format!("runner of this build: {}\n", display(r)));
+    }
+    for p in v["pins"].as_array().into_iter().flatten() {
+        let days = |f: &str| p[f].as_u64().unwrap_or(0) / (24 * 3600);
+        let version = display(p["runner_version"].as_str().unwrap_or("not named"));
+        let what = match p["state"].as_str() {
+            Some("stale") => ": stale, no job starts on it: build and pin a new image",
+            Some("near-end") => ": near the end of its window: build and pin a new image",
+            _ => "",
+        };
+        out.push_str(&format!(
+            "pin {}: runner {version}, {} of {} days{what}\n",
+            display(p["arch"].as_str().unwrap_or("?")),
+            days("age_s"),
+            days("limit_s"),
+        ));
+    }
     for m in v["missing"].as_array().into_iter().flatten() {
         out.push_str(&format!("missing: {}\n", display(m.as_str().unwrap_or(""))));
     }
@@ -252,6 +336,32 @@ fn tier_of(v: &Value, source: &str) -> Option<(podrunner_schema::Tier, bool)> {
 mod tests {
     use super::*;
     use podrunner_schema::Tier;
+
+    #[test]
+    fn a_pin_names_its_runner_its_age_and_the_end_of_its_window() {
+        let day = 24 * 3600;
+        let cfg = Config::parse(&format!(
+            "host = \"h\"\n[pin]\n[[pin.payload]]\narch = \"x86_64\"\nreference = \"runner@sha256:{d}\"\n\
+             built_at_s = {a}\nrunner_version = \"2.338.2\"\n[[pin.payload]]\narch = \"aarch64\"\n\
+             reference = \"runner@sha256:{d}\"\nbuilt_at_s = {b}\n[[pin.payload]]\narch = \"x86_64\"\n\
+             reference = \"runner@sha256:{e}\"\nbuilt_at_s = {c}\n",
+            d = "1".repeat(64),
+            e = "2".repeat(64),
+            a = 100 * day - 2 * day,
+            b = 100 * day - 25 * day,
+            c = 100 * day - 31 * day,
+        ))
+        .unwrap();
+        let rows = pin_rows(&cfg.pin, 100 * day);
+        let states: Vec<&str> = rows.iter().map(|r| r["state"].as_str().unwrap()).collect();
+        assert_eq!(states, ["ok", "near-end", "stale"]);
+        let text = text(&json!({ "pins": rows, "runner_of_this_build": RUNNER_OF_THIS_BUILD }));
+        assert!(text.contains("pin x86_64: runner 2.338.2, 2 of 30 days\n"), "{text}");
+        assert!(text.contains("pin aarch64: runner not named, 25 of 30 days: near the end of its window"), "{text}");
+        assert!(text.contains("pin x86_64: runner not named, 31 of 30 days: stale"), "{text}");
+        assert!(RUNNER_OF_THIS_BUILD.starts_with("2."), "{RUNNER_OF_THIS_BUILD}");
+        assert!(text.contains(&format!("runner of this build: {RUNNER_OF_THIS_BUILD}\n")), "{text}");
+    }
 
     #[test]
     fn a_missing_tool_is_named() {

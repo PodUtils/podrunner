@@ -220,6 +220,7 @@ jobs:
             dist/podrunner-*-linux-musl
             dist/scaleset-sidecar-*-linux-musl
             dist/podrunner-install.sh
+            dist/podrunner-manifest.json
             dist/podrunner-bundle-*.tar.gz
             dist/runner-*.tar
       - name: Tag and publish a pre-release

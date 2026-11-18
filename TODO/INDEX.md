@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**530 entries: 75 open, 32 partial, 14 blocked, 409 done.**
+**530 entries: 74 open, 33 partial, 14 blocked, 409 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
-| P1 | 14 | 14 | 3 | 67 | 98 |
+| P1 | 13 | 15 | 3 | 67 | 98 |
 | P2 | 21 | 12 | 8 | 216 | 257 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 75 | 32 | 14 | 409 | 530 |
+| **All** | 74 | 33 | 14 | 409 | 530 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -543,7 +543,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-496](later.md) | P1 | M | later | feature | blocked | G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC` |
 | [T-497](later.md) | P1 | M | later | feature | partial | G-19: more facts of a job in the run report |
 | [T-498](later.md) | P1 | M | later | feature | done | G-22: a rotation of the key of a program source with no drain |
-| [T-499](later.md) | P1 | M | later | feature | open | G-23: the runner of a GitHub job stays inside GitHub's window of updates |
+| [T-499](later.md) | P1 | M | later | feature | partial | G-23: the runner of a GitHub job stays inside GitHub's window of updates |
 | [T-500](later.md) | P2 | M | later | feature | open | G-24: a runner image with the software that cfb's gates need |
 | [T-501](later.md) | P2 | S | later | feature | open | G-26: a drain and a stop of one source |
 | [T-502](later.md) | P2 | S | later | feature | open | G-27: a cancel ends its unit in a bounded time, with a conformance test |

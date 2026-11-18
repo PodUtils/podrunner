@@ -217,12 +217,22 @@ ok "the offline bundle, from its directory, with --prefix and --full"
 # 9. The assets of a release, as release.yml and user-gate.yml make them.
 RELEASE_ASSETS_IMAGES=$t/images sh "$root/scripts/release-assets.sh" local-mode 9.9.9-test "$a" "$t/rel" > "$t/out" 2>&1 ||
     fail "release-assets.sh local-mode"
-for f in podrunner-install.sh podrunner-bundle-x86_64.tar.gz podrunner-bundle-aarch64.tar.gz "runner-$arch.tar" "runner-full-$arch.tar"; do
+for f in podrunner-install.sh podrunner-manifest.json podrunner-bundle-x86_64.tar.gz podrunner-bundle-aarch64.tar.gz "runner-$arch.tar" "runner-full-$arch.tar"; do
     if [ ! -f "$t/rel/$f" ] || [ ! -f "$t/rel/$f.sha256" ]; then
         fail "release-assets.sh: no $f with its .sha256"
     fi
 done
 grep -qx 'PODRUNNER_VERSION="9.9.9-test"' "$t/rel/podrunner-install.sh" || fail "release-assets.sh: the installer has not the version"
+python3 -I - "$t/rel/podrunner-manifest.json" "$arch" <<'EOF' || fail "release-assets.sh: the manifest"
+import json, sys
+m = json.load(open(sys.argv[1]))
+arch = sys.argv[2]
+assert m["schema"] == 1 and m["podrunner"]["version"] == "9.9.9-test", m
+assert m["runner"]["version"] and m["podvm"]["version"] and m["podnet"]["version"], m
+base = m["runner"]["images"][arch]["base"]
+assert base["file"] == f"runner-{arch}.tar" and base["digest"].startswith("sha256:"), base
+assert len(m["podrunner"]["files"][arch]["sha256"]) == 64, m
+EOF
 ok "the assets of a release (scripts/release-assets.sh)"
 
 # 10. An install from a local HTTP server, through curl.
