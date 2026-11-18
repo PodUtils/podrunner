@@ -11333,7 +11333,7 @@ A Playwright test of a gate passes in a unit with no download of the system libr
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -11352,6 +11352,10 @@ githome's comment on GitHub #292, read on 2026-11-18.
 `cargo test -p podrunner --test serve`: a drained source takes no offer, and the other sources go on.
 
 In the code (2026-11-18): `podrunner drain --source NAME` and `podrunner resume --source NAME` (the control ops `drain-source` and `resume-source`): a drained source gets no capacity, so it takes no offer; its jobs in flight and each other source go on; `status --json` has `draining` for each source (`schemas/status.v1.json`). `Slots::drain_source` (`crates/podrunner-slots/src/host.rs`); `Source` moved to `sources.rs`. Test: `cargo test -p podrunner --test serve_drain` (a drained source takes no offer while the other runs its job; an unknown name exits 77; `status` names the states; after `resume` the offer runs). Open: `stop --source NAME`, which also ends the program of the source when its jobs end.
+
+## Done
+
+2026-11-18: `podrunner stop --source NAME` (the control op `stop-source`) drains the source; when its last job ends, `Slots::end_stopped` puts `sources::Stopped` in its place (it gives no event and refuses each call), so the old source and its program end (`Running` of the sidecar kills and reaps its child on drop), and `serve` writes one line. `resume --source NAME` builds a stopped source again from its `[[source]]` table (as `source restart`), then takes its offers. Test: `cargo test -p podrunner --test serve_drain` (`a_stopped_source_ends_and_resume_builds_it_again`: the line of the stop, the other source runs its job, the stopped one takes no offer, an unknown name exits 77, and after `resume` its offer runs). Level: proven in CI on GitHub-hosted runners when `gate` is green.
 
 # T-502: G-27: a cancel ends its unit in a bounded time, with a conformance test
 

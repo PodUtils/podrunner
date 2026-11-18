@@ -28,7 +28,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `run-report.v1` | The contract names the tolerance of `cpu_s`: 20 % or 1 s of the CPU time of the payload, the larger. | T-520 |
 | control socket | The HTTP head of each socket of a unit is read by `pod_core::http1`: another version of HTTP gets 505, a head over 16 KiB gets 431. | T-536 |
 | control socket | A new op `restart-source` (field `source`). | T-498 |
-| control socket | New ops `drain-source` and `resume-source` (field `source`). | T-501 |
+| control socket | New ops `drain-source`, `resume-source` and `stop-source` (field `source`); `resume-source` builds a stopped source again. | T-501 |
 | `status.v1` | Each source has `draining` (an operator drained it). | T-501 |
 | `status.v1` | `max_units` and `units` of the host. | T-505 |
 | `podrunner.toml` | `max_units`: the most units of the host across its kinds. | T-505 |
@@ -40,7 +40,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | command line | `podrunner config init` (exit 0, 64, 77, 78) and `podrunner source restart --name NAME` (exit 77 for a source that does not build or refuses `hello`). | T-507, T-498 |
 | command line | `doctor --config` names the runner of each pin, its age, its window and `near-end` or `stale`; the incus kind needs a reachable incusd. | T-499, T-534 |
 | command line | `run --schedule` reads the `timezone` of each item of `on.schedule`. | T-423 |
-| command line | `drain --source NAME` and `resume --source NAME`. | T-501 |
+| command line | `drain --source NAME`, `stop --source NAME` and `resume --source NAME`. | T-501 |
 | command line | `source-conformance --json`: one JSON object for each line (the count and the offers needed, each test, the totals). | T-503 |
 | release assets | `podrunner-install.sh --serve` writes `serve.json` and no file of the local mode. | T-507 |
 | release assets | `podrunner-manifest.json` with its `.sha256` and an attestation: the versions, each binary and each runner image with its digest and `built_at_s`. | T-499 |

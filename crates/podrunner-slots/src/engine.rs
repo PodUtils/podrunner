@@ -89,6 +89,9 @@ pub struct Slots {
     pub(crate) draining: bool,
     /// The sources that an operator drained (T-501): no capacity.
     pub(crate) drained: std::collections::BTreeSet<String>,
+    /// The sources that an operator stopped (T-501): true once the source
+    /// is `sources::Stopped` and its program ended.
+    pub(crate) stopped: BTreeMap<String, bool>,
     /// Set when a residue is above 0 or `unknown`: capacity 0, and no start
     /// until an operator clears it.
     pub(crate) degraded: Option<String>,

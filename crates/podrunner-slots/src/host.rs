@@ -76,8 +76,40 @@ impl Slots {
             self.drained.insert(name.to_string());
         } else {
             self.drained.remove(name);
+            self.stopped.remove(name);
         }
         Ok(())
+    }
+
+    /// Stop the source `name` (T-501): drain it, and when its last job
+    /// ends, [`Slots::end_stopped`] puts `sources::Stopped` in its
+    /// place, so that its program ends.
+    pub fn stop_source(&mut self, name: &str) -> Result<(), String> {
+        self.drain_source(name, true)?;
+        self.stopped.entry(name.to_string()).or_insert(false);
+        Ok(())
+    }
+
+    /// True when the source `name` is stopped and its program ended.
+    pub fn source_ended(&self, name: &str) -> bool {
+        self.stopped.get(name) == Some(&true)
+    }
+
+    /// End each stopped source with no job: the names of the ones that
+    /// ended now.
+    pub fn end_stopped(&mut self) -> Vec<String> {
+        let mut ended = Vec::new();
+        for (i, s) in self.sources.iter_mut().enumerate() {
+            let busy = self.jobs.keys().any(|(j, _)| *j == i);
+            if let Some(done @ false) = self.stopped.get_mut(&s.cfg.name)
+                && !busy
+            {
+                s.source = Box::new(crate::sources::Stopped);
+                *done = true;
+                ended.push(s.cfg.name.clone());
+            }
+        }
+        ended
     }
 
     /// The names of the sources that revoked podrunner.

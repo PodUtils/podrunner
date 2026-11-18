@@ -2,7 +2,9 @@
 //! installation and its key file), or a fine-grained token of the
 //! organization (`token_file`, T-174), never both.
 
-use podrunner_source::JobSource;
+use podrunner_schema::JobId;
+use podrunner_source::{JobSource, SourceCode, SourceError};
+use serde_json::{Map, Value};
 
 use crate::config::SourceConfig;
 
@@ -12,6 +14,45 @@ pub struct Source {
     pub source: Box<dyn JobSource>,
     /// The source revoked podrunner: it gets no capacity.
     pub revoked: bool,
+}
+
+/// The place of a source that an operator stopped (T-501): the old source
+/// (and its program) went with its last job. It gives no event, and refuses
+/// each other call; `resume --source` builds the source again.
+pub struct Stopped;
+
+impl JobSource for Stopped {
+    fn hello(&mut self, _: &str, _: &str) -> Result<podrunner_source::Hello, SourceError> {
+        Err(stopped())
+    }
+    fn next(&mut self, _: u32, _: std::time::Duration) -> Result<Vec<podrunner_source::Event>, SourceError> {
+        Ok(Vec::new())
+    }
+    fn ack(&mut self, _: &JobId) -> Result<(), SourceError> {
+        Err(stopped())
+    }
+    fn claim(&mut self, _: &JobId, _: &str) -> Result<(), SourceError> {
+        Err(stopped())
+    }
+    fn mint(&mut self, _: &JobId, _: &str) -> Result<podrunner_schema::Credential, SourceError> {
+        Err(stopped())
+    }
+    fn report(&mut self, _: &JobId, _: &Map<String, Value>) -> Result<(), SourceError> {
+        Err(stopped())
+    }
+    fn audit(&mut self, _: &Map<String, Value>) -> Result<(), SourceError> {
+        Ok(())
+    }
+    fn withdraw(&mut self, _: &JobId, _: &str) -> Result<(), SourceError> {
+        Err(stopped())
+    }
+    fn release(&mut self, _: &JobId) -> Result<(), SourceError> {
+        Err(stopped())
+    }
+}
+
+fn stopped() -> SourceError {
+    SourceError::new(SourceCode::Unavailable, "the operator stopped this source")
 }
 
 pub(crate) fn check_scaleset(s: &SourceConfig) -> Result<(), String> {

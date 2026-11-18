@@ -342,8 +342,19 @@ impl Handler for Supervisor {
                 Ok(()) => Reply::Ok { value: Value::from("restarted") },
                 Err(e) => Reply::error("refused", e),
             },
+            Request::StopSource { source } => match self.slots.stop_source(source) {
+                Ok(()) => Reply::Ok { value: Value::from("stopping") },
+                Err(e) => Reply::error("refused", e),
+            },
             Request::DrainSource { source } | Request::ResumeSource { source } => {
                 let on = matches!(req, Request::DrainSource { .. });
+                // A stopped source has no program: build it again first.
+                if !on
+                    && self.slots.source_ended(source)
+                    && let Err(e) = self.rebuild.restart(&mut self.slots, source)
+                {
+                    return Reply::error("refused", e);
+                }
                 match self.slots.drain_source(source, on) {
                     Ok(()) => Reply::Ok { value: Value::from(if on { "draining" } else { "resumed" }) },
                     Err(e) => Reply::error("refused", e),
@@ -405,6 +416,11 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
             sup.slots.tick();
             for line in sup.rebuild.watch(&mut sup.slots) {
                 eprintln!("podrunner: source {line}");
+            }
+            for name in sup.slots.end_stopped() {
+                eprintln!(
+                    "podrunner: source {name}: stopped (its last job ended); resume --source {name} builds it again"
+                );
             }
             next = next_tick(next, Instant::now());
             // The `status` for a client while a later tick waits on a

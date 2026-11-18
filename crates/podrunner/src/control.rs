@@ -42,8 +42,14 @@ pub enum Request {
     DrainSource {
         source: String,
     },
-    /// The source `source` takes offers again.
+    /// The source `source` takes offers again; a stopped source is built
+    /// again first.
     ResumeSource {
+        source: String,
+    },
+    /// Drain the source `source`, and end its program when its last job
+    /// ends (T-501).
+    StopSource {
         source: String,
     },
 }
@@ -91,7 +97,7 @@ pub fn parse(line: &[u8]) -> Result<Request, Reply> {
     map.remove("v");
     let fields: &[&str] = match map.get("op").and_then(Value::as_str) {
         Some("withdraw") => &["op", "job_id"],
-        Some("restart-source" | "drain-source" | "resume-source") => &["op", "source"],
+        Some("restart-source" | "drain-source" | "resume-source" | "stop-source") => &["op", "source"],
         _ => &["op"],
     };
     if map.keys().any(|k| !fields.contains(&k.as_str())) {

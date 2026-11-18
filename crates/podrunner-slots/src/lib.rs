@@ -82,6 +82,7 @@ impl Slots {
             ids: UnitIds::starting_at(replay.next_unit),
             draining: false,
             drained: Default::default(),
+            stopped: Default::default(),
             degraded: None,
             reports: Default::default(),
             state_dir: state_dir.to_path_buf(),

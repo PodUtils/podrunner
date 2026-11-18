@@ -152,6 +152,7 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             let req = match (cmd.as_str(), source) {
                 ("drain", Some(source)) => Request::DrainSource { source },
                 ("resume", Some(source)) => Request::ResumeSource { source },
+                ("stop", Some(source)) => Request::StopSource { source },
                 ("resume", None) => return Err(err(Class::Usage, format!("resume needs --source\n{USAGE}"))),
                 (_, Some(_)) => return Err(err(Class::Usage, format!("{cmd} takes no --source\n{USAGE}"))),
                 ("status", None) => Request::Status,
