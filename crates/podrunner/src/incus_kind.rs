@@ -23,7 +23,6 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         ("runner_dir", u.runner_dir.is_some()),
         ("podnet", u.podnet.is_some()),
         ("confine", u.confine),
-        ("engine", u.engine.is_some()),
     ] {
         if set {
             return Err(fail(Class::Config, format!("[unit.incus] {key}: the incus kind does not read it")));
@@ -40,7 +39,18 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         return Err(fail(Class::Config, "[unit.incus] images: not a directory"));
     }
     let limits = podrunner_slots::limits::limits_of(u).map_err(|e| fail(Class::Config, format!("[unit.incus] {e}")))?;
-    let lowest = if limits.is_empty() {
+    // An engine of each instance (T-485), as for the microvm kind.
+    if let Some(e) = &u.engine {
+        if !Path::new(e).join("dockerd").is_file() {
+            return Err(fail(Class::Config, "[unit.incus] engine: no dockerd in the directory"));
+        }
+        // A host path of a `-v` of podvm takes no ':' (T-476).
+        podrunner_unit::mounts::host_path(Path::new(e), podrunner_unit::UnitCode::UnitStartFailed)
+            .map_err(|e| fail(Class::Config, format!("[unit.incus] engine: {}", e.detail)))?;
+    }
+    let lowest = if u.engine.is_some() {
+        podrunner_podvm::probe::LOWEST_ENGINE_INCUS
+    } else if limits.is_empty() {
         podrunner_podvm::probe::LOWEST_INCUS
     } else {
         podrunner_podvm::probe::LOWEST_INCUS_LIMITS
@@ -60,9 +70,12 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
     let mut limits =
         podrunner_slots::limits::limits_of(u).map_err(|e| fail(Class::Config, format!("[unit.incus] {e}")))?;
     limits.disk_bytes = u.disk_max_bytes.filter(|_| u.root_quota);
-    let unit = podrunner_incus::IncusUnit::new(podvm, &state.join("incus"), &images)
+    let mut unit = podrunner_incus::IncusUnit::new(podvm, &state.join("incus"), &images)
         .with_limits(limits)
         .with_root_quota(u.root_quota);
+    if let Some(e) = &u.engine {
+        unit = unit.with_engine(Path::new(e));
+    }
     let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
     Ok((Arc::new(unit), cap))
 }

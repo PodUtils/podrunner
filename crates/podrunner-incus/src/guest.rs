@@ -36,6 +36,23 @@ while read -r n b; do
   printf '%s' "$b" | base64 -d > "$root/$n"
   chmod 0600 "$root/$n"
 done
+# The engine of the unit (T-485): dockerd as root in the instance, from
+# the read-only engine directory, its socket in the instance only. The
+# instance has no NIC: no bridge and no iptables; the pulls go through the
+# proxy of the channel.
+if [ -x /podrunner-engine/dockerd ]; then
+  PATH=/podrunner-engine:$PATH dockerd --host=unix:///run/podrunner-docker.sock --iptables=false --ip6tables=false \
+    --bridge=none >/tmp/podrunner-dockerd.log 2>&1 &
+  i=0
+  while [ ! -S /run/podrunner-docker.sock ] && [ $i -lt 60 ]; do sleep 1; i=$((i + 1)); done
+  if [ ! -S /run/podrunner-docker.sock ]; then
+    echo "podrunner: the engine did not start" >&2
+    tail -n 20 /tmp/podrunner-dockerd.log >&2
+    exit 95
+  fi
+  if id runner >/dev/null 2>&1; then chown runner /run/podrunner-docker.sock; fi
+  export DOCKER_HOST=unix:///run/podrunner-docker.sock PATH=/podrunner-engine:$PATH
+fi
 cd /podrunner-work
 if id runner >/dev/null 2>&1; then
   chown -R runner: "$root"
@@ -66,14 +83,20 @@ pub struct Instance<'a> {
     pub egress: Option<&'a Path>,
     pub runner_root: &'a str,
     pub limits: &'a podrunner_unit::limits::Limits,
+    /// The directory of the static Docker binaries: each instance runs an
+    /// engine of its own (T-485).
+    pub engine: Option<&'a Path>,
 }
+
+/// Where the instance sees the engine directory, read-only.
+pub const ENGINE_MOUNT: &str = "/podrunner-engine";
 
 /// The argv of `podvm run -d -i` for the instance `name`, with the work
 /// directory `work`. The instance has no NIC; with an egress socket it has
 /// one channel to it (T-109). The argv of the payload goes to the script
 /// as positional parameters: no word of it is quoted again.
 pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String>, argv: &[String]) -> Vec<String> {
-    let Instance { name, reference, work, egress, runner_root, limits } = *i;
+    let Instance { name, reference, work, egress, runner_root, limits, engine } = *i;
     let mut a: Vec<String> =
         ["run", "-d", "-i", "--name", name, "--podvm-tier=incus", "--podvm-net", "none"].map(String::from).to_vec();
     // The limits of the instance (T-162): incus `limits.memory`,
@@ -90,6 +113,11 @@ pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String
     // The size of the root disk (T-482); podvm takes 64 MiB at least.
     if let Some(d) = limits.disk_bytes {
         a.extend(["--storage-opt".into(), format!("size={}", d.max(ROOT_MIN))]);
+    }
+    if let Some(engine) = engine {
+        a.push("--podvm-engine".into());
+        a.push("-v".into());
+        a.push(format!("{}:{ENGINE_MOUNT}:ro", engine.display()));
     }
     if let Some(egress) = egress {
         a.push("--podvm-channel".into());

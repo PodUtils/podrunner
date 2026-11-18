@@ -153,8 +153,16 @@ podcrates gives the value `engine` (T-103, GitHub #91).
 A system container of the incus tier of podvm for each job (T-105): its
 own init, root file system and network namespace, and the kernel of the
 host. It claims `confined`, the floor of `trusted`, so it never serves an
-`untrusted` job. It has no container route, and it refuses `engine`
-(T-103 puts the engine in a guest of the microvm kind). The host needs an
+`untrusted` job. With no `engine` it has no container route. With
+`engine` (podvm `v0.2.0-beta.32` or later, `LOWEST_ENGINE_INCUS`), each
+instance runs an engine of its own, as a guest of the microvm kind does
+(T-485): podvm sets `security.nesting` and the intercepts of `mknod` and
+`setxattr` (`--podvm-engine`), the directory is read-only at
+`/podrunner-engine`, `dockerd` starts as root with no bridge and no
+iptables (the instance has no NIC), and the runner gets its socket as
+`DOCKER_HOST`; the record says `container: engine`. The instance stays
+unprivileged, so the kind keeps `confined` (call of 2026-11-18,
+`docs/decisions.md`). The host needs an
 incusd that the user of podrunner can reach (`PODVM_INCUS_SOCKET` or
 `INCUS_DIR` in the environment of `serve`) and podvm `v0.2.0-beta.13` or
 later (`LOWEST_INCUS`): the credential files go into the instance on

@@ -579,6 +579,12 @@ jobs:
           # T-162: the keys of the instance hold past `memory` and `pids`.
           cargo test -p podrunner-incus --test limits --no-run
           sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 600 cargo test -p podrunner-incus --test limits -- --ignored --nocapture"
+          # T-485: an engine in an instance (the engine directory of the
+          # step of the guest engine).
+          if [ -x "$RUNNER_TEMP/engine-dir/dockerd" ]; then
+            cargo test -p podrunner-incus --test engine --no-run
+            sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' PODRUNNER_ENGINE_DIR='$RUNNER_TEMP/engine-dir' timeout 900 cargo test -p podrunner-incus --test engine -- --ignored --nocapture"
+          fi
           # T-123: podrunner run, each job in a fresh incus instance.
           cargo build -q -p podrunner
           sg incus-admin -c "timeout 2400 target/x86_64-unknown-linux-musl/debug/podrunner run crates/podrunner/tests/local/suite.yml --incus '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_IMAGE' --checkout ." \

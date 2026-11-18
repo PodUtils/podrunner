@@ -42,7 +42,9 @@ use podrunner_unit::{
     StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
 
-pub use guest::{CHANNEL_PORT_VAR, EGRESS_PORT, SCRIPT, WORK_MOUNT, credential_stream, instance_name, run_args};
+pub use guest::{
+    CHANNEL_PORT_VAR, EGRESS_PORT, ENGINE_MOUNT, SCRIPT, WORK_MOUNT, credential_stream, instance_name, run_args,
+};
 
 /// The time between two reads of the state of an instance.
 const POLL: Duration = Duration::from_millis(500);
@@ -75,6 +77,9 @@ pub struct IncusUnit {
     /// The pool of incusd holds a size of a root disk (T-482): each
     /// instance gets one, `disk_bytes` of its limits.
     root_quota: bool,
+    /// The directory of the static Docker binaries: each instance runs an
+    /// engine of its own (T-485).
+    engine: Option<PathBuf>,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -104,7 +109,17 @@ impl IncusUnit {
             cred_root: "/podrunner/.runner".into(),
             limits: Default::default(),
             root_quota: false,
+            engine: None,
         }
+    }
+
+    /// Run a container engine in each instance, from the static Docker
+    /// binaries of `dir` (`[unit.incus] engine`, T-485): podvm sets
+    /// `security.nesting` and the intercepts of `mknod` and `setxattr`; the
+    /// instance stays unprivileged. The record says `container: engine`.
+    pub fn with_engine(mut self, dir: &Path) -> IncusUnit {
+        self.engine = Some(dir.to_path_buf());
+        self
     }
 
     /// The pool of incusd holds a size of a root disk: each instance gets
@@ -191,7 +206,7 @@ impl UnitDriver for IncusUnit {
             boundary: Boundary::Confined,
             boundary_proof: Some("incus system container".into()),
             principal: Principal::Distinct,
-            container: ContainerRoute::None,
+            container: if self.engine.is_some() { ContainerRoute::Engine } else { ContainerRoute::None },
             // No NIC: the channel to the egress socket is the only way out
             // (T-109).
             net: "none".into(),
@@ -292,6 +307,7 @@ impl UnitDriver for IncusUnit {
                 work: &work,
                 egress: egress.as_deref(),
                 runner_root: &self.cred_root,
+                engine: self.engine.as_deref(),
                 limits: &{
                     let mut l = self.limits.lesser(&spec.limits);
                     l.disk_bytes = l.disk_bytes.filter(|_| self.root_quota);

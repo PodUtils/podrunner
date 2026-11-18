@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**531 entries: 72 open, 36 partial, 12 blocked, 411 done.**
+**531 entries: 71 open, 37 partial, 12 blocked, 411 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
-| P1 | 12 | 15 | 3 | 68 | 98 |
+| P1 | 11 | 16 | 3 | 68 | 98 |
 | P2 | 20 | 15 | 6 | 217 | 258 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 72 | 36 | 12 | 411 | 531 |
+| **All** | 71 | 37 | 12 | 411 | 531 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -529,7 +529,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-482](later.md) | P2 | M | later | defect | partial | The incus kind bounds no disk of the root of an instance |
 | [T-483](later.md) | P2 | M | later | defect | partial | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
 | [T-484](later.md) | P2 | S | later | release | open | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
-| [T-485](later.md) | P1 | M | later | feature | open | The incus kind has no container route, though G-02 asks for an engine in the system container |
+| [T-485](later.md) | P1 | M | later | feature | partial | The incus kind has no container route, though G-02 asks for an engine in the system container |
 | [T-486](later.md) | P1 | M | later | feature | done | G-04: the egress verdicts of a unit do not reach the source of the job |
 | [T-487](later.md) | P2 | L | later | feature | open | G-11: warm units from a pinned golden image |
 | [T-488](later.md) | P2 | M | later | feature | open | G-12: the microvm kind enforces no limit of processes |

@@ -278,6 +278,7 @@ fn the_limits_become_the_keys_of_the_instance() {
         egress: None,
         runner_root: "/podrunner/.runner",
         limits: &limits,
+        engine: None,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--memory 2147483648 --cpus 2 --pids-limit 256"), "{a}");
@@ -323,6 +324,7 @@ fn a_pool_with_quotas_gives_each_instance_a_sized_root() {
             egress: None,
             runner_root: "/r",
             limits: l,
+            engine: None,
         };
         run_args(&i, &[], &Default::default(), &[]).join(" ")
     }
@@ -352,4 +354,30 @@ fn the_use_of_an_instance_comes_from_incusd() {
     u.destroy(&s.unit).unwrap();
     assert_eq!(u.usage(&s.unit), None);
     let _ = std::fs::remove_dir_all(&d);
+}
+
+/// T-485: with an engine directory each instance gets `--podvm-engine` and
+/// the directory read-only, and the record says `container: engine`.
+#[test]
+fn an_engine_directory_gives_each_instance_an_engine() {
+    use podrunner_unit::limits::Limits;
+    let i = crate::guest::Instance {
+        name: "n",
+        reference: "r@sha256:1",
+        work: std::path::Path::new("/w"),
+        egress: None,
+        runner_root: "/r",
+        limits: &Limits::default(),
+        engine: Some(std::path::Path::new("/opt/engine")),
+    };
+    let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
+    assert!(a.contains("--podvm-engine -v /opt/engine:/podrunner-engine:ro"), "{a}");
+    assert!(crate::guest::SCRIPT.contains("--bridge=none"));
+    let (u, d) = driver("engine", "true");
+    assert_eq!(u.probe().unwrap().container, podrunner_schema::ContainerRoute::None);
+    let (u2, d2) = driver("engine2", "true");
+    let cap = u2.with_engine(std::path::Path::new("/opt/engine")).probe().unwrap();
+    assert_eq!(cap.container, podrunner_schema::ContainerRoute::Engine);
+    let _ = std::fs::remove_dir_all(&d);
+    let _ = std::fs::remove_dir_all(&d2);
 }

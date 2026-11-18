@@ -10799,7 +10799,7 @@ A dry run of `release.yml` makes both files, and the step of the check passes on
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10822,6 +10822,9 @@ If an engine in an instance cannot keep `confined`: by default a trusted job wit
 ## Prove
 
 The parity suite of the engine (`services:`, a job container, a Docker action, a Dockerfile action) passes on real incus instances in `runner-image.yml`.
+
+In the code (2026-11-18): podvm `0.2.0-beta.32` runs an engine in an incus instance (`--podvm-engine`, COORD-187 ask 3, PodUtils/podvm#583; measured by podvm with `docker info` in an unprivileged instance with no NIC). `[unit.incus] engine = DIR` gives each instance `--podvm-engine` and the directory read-only; the script starts `dockerd` with no bridge and no iptables and gives its socket as `DOCKER_HOST`; the record says `container: engine`; `check` refuses a directory with no `dockerd` and a podvm before `0.2.0-beta.32` (`crates/podrunner-incus/src/guest.rs`, `lib.rs`, `crates/podrunner/src/incus_kind.rs`, `docs/configuration.md`). The call on `confined` is in `docs/decisions.md`. Tests: `cargo test -p podrunner-incus an_engine_directory_gives_each_instance_an_engine`, `cargo test -p podrunner --test check`; `the_runner_user_runs_a_container_on_the_engine_of_its_instance` (`podrunner-incus --test engine`, a step of `runner-image.yml`) runs a container on real instances. Open: its green run, the network of the engine (`services:` needs one), the parity suite on incus with an engine, and `--incus --engine` in the local mode (`--engine needs --microvm` now).
+
 
 # T-486: G-04: the egress verdicts of a unit do not reach the source of the job
 
