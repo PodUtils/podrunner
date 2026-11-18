@@ -96,6 +96,7 @@ fn each_input() -> Vec<TrustInputs> {
                             workflow_ref: "w".into(),
                             owner_id: None,
                             repo_id: None,
+                            forge: None,
                         });
                     }
                 }

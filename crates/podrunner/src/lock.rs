@@ -47,17 +47,11 @@ impl StateLock {
 /// lock file has no holder. The probe opens the file read-only, with no
 /// create and no link at its name, so it makes no file and needs no write.
 pub fn is_free(state: &Path) -> std::io::Result<bool> {
-    use std::os::unix::fs::OpenOptionsExt;
-    let f = match std::fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(path_of(state)) {
-        Ok(f) => f,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(true),
-        Err(e) => return Err(e),
-    };
-    // The probe holds the lock for an instant; the drop of `f` frees it.
-    match f.try_lock() {
-        Ok(()) => Ok(true),
-        Err(std::fs::TryLockError::WouldBlock) => Ok(false),
-        Err(std::fs::TryLockError::Error(e)) => Err(e),
+    // The probe holds the lock for an instant; the drop frees it.
+    match FileLock::try_lock_existing(&path_of(state), Mode::Exclusive) {
+        Ok(held) => Ok(held.is_some()),
+        Err(e) if e.class == Class::NotFound => Ok(true),
+        Err(e) => Err(std::io::Error::other(e.to_string())),
     }
 }
 

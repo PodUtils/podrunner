@@ -250,7 +250,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #248 | placement: a required limit that the kind reports is refused, although the docs allow reported | closed | T-437 |
 | #249 | policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy | closed | T-438 |
 | #250 | run: the per-run and per-unit scratch directories under TMPDIR follow a pre-created symlink | closed | T-407 |
-| #251 | run: a checkout of another repository with an empty, full or SHA ref is not resolved | open | T-439 |
+| #251 | run: a checkout of another repository with an empty, full or SHA ref is not resolved | closed (podcrates `v0.71.0`, T-439) | T-439 |
 | #252 | run: fetch::host_of cuts an IPv6 action-server address at the first colon | closed | T-440 |
 | #253 | run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused | closed | T-441 |
 | #254 | oidc: job_workflow_ref names the caller's workflow for a job of a reusable workflow | closed | T-434 |
@@ -289,12 +289,12 @@ numbers. `TODO/RULES.md` gives the rules.
 | #287 | check: a pin payload with a duplicate reference, a future built_at_s, max_age_s 0 or a bad runner_version is accepted | closed | T-472 |
 | #288 | COORD-082: pod-actions-store: Lock::parse keeps a digest in uppercase, and each fetch then fails against the lowercase SHA-256 (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-902) | T-469 |
 | #289 | COORD-083: the answer to COORD-131 (PodUtils/podcrates#221): the copies of shared code in podrunner (to podcrates) | closed (podcrates `v0.70.0` taken: T-473, T-474) | T-473, T-474 |
-| #290 | COORD-084: pod-actions-store: the ref of a checkout of another repository (empty, full ref, commit SHA) is not resolved (to podcrates) | open (waits for podcrates) | T-439 |
+| #290 | COORD-084: pod-actions-store: the ref of a checkout of another repository (empty, full ref, commit SHA) is not resolved (to podcrates) | closed (podcrates `v0.71.0`, PodUtils/podcrates@T-906) | T-439 |
 | #291 | COORD-085: a reader of the zone files (TZif) for the timezone of on.schedule (to podcrates) | open (waits for podcrates) | T-423 |
 | #292 | from cfb | open (cfb's questions P-1 to P-7 of its CI host; podrunner answered on the issue) | T-479, T-480, T-481, T-482, T-483, T-484, T-485, T-489, T-493, T-494, T-495, T-496, T-497, T-498, T-499, T-500, T-501, T-502, T-503, T-504, T-505, T-506, T-507, T-508, T-509, T-510, T-511, T-512 |
 | #293 | COORD-086: the owner's ruling of 2026-11-18: the needs of githome and cfb come first, and from the next session all of PodUtils makes podrunner complete and stable (to podcrates) | open (podcrates answered A1 to A4 in COORD-134, PodUtils/podcrates#225; the entries are open) | T-489, T-490, T-491 |
 | #294 | COORD-087: the answer to COORD-135 (PodUtils/podcrates#226): the types of status and of the source wire, the stable fields, and the new fields of githome's asks (to podcrates) | open (waits for the tag of podcrates that carries the fields) | T-508, T-514 |
-| #295 | COORD-088: the start report of 2026-11-18 and the take of v0.70.0; two extensions of FileLock (to podcrates) | open (waits for the extensions of `FileLock`) | T-513 |
+| #295 | COORD-088: the start report of 2026-11-18 and the take of v0.70.0; two extensions of FileLock (to podcrates) | closed (podcrates `v0.71.0`, PodUtils/podcrates@T-924) | T-513 |
 | #296 | COORD-089: the asks of githome's and cfb's needs: the root disk and the usage of an incus instance, an engine in an instance, pids and a sized disk in a guest, OOM facts, a foreign guest (to podvm) | open (waits for podvm) | T-482, T-483, T-485, T-488, T-490, T-496, T-515 |
 | #300 | COORD-090: --env-file for a value with a newline and on the guest tiers; --podvm-volume-base on the rungs with containers (to podvm) | open (podvm answered with COORD-189, PodUtils/podvm#585: `--env-file0` and the flag off the namespace rung come later) | T-403, T-405, T-532 |
 | #301 | COORD-091: under --podvm-tier=syscall on the userland rung, a payload cannot connect to a unix socket of a -v directory (to podvm) | open (waits for podvm) | T-261 |

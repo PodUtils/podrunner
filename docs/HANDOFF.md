@@ -164,8 +164,8 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
   1. Done: podcrates `v0.70.0` is taken (COORD-132,
      PodUtils/podcrates#222): #214 (T-331, F9), #215 (T-351, step 1),
      #288 (T-469), `Clock` (T-473), the proxy and CA lists (T-474), the
-     lock of `serve`. T-513 holds the two locks that `FileLock` cannot
-     hold yet.
+     lock of `serve`. podcrates `v0.71.0` gave the two other locks
+     (T-513, done).
   2. Done: the census of T-491 (`docs/reports/census-2026-11-18.md`).
      Its gaps are T-514 to T-528; T-529 (the disk bound of an offer) is
      fixed. Asks: COORD-089 (GitHub #296, to podvm), COORD-087 amended

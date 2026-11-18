@@ -9464,7 +9464,7 @@ Validate each rule with the `broker-policy.v1` rule shape (or `pod_broker::Polic
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -9482,9 +9482,9 @@ Normalize the ref: empty or absent -> `HEAD`; `refs/heads/X` -> `X`; `refs/tags/
 
 `cargo test --workspace`; a test that fails on the code before the fix (`docs/development.md`, "The proof of a change").
 
-## Blocker
+## Done
 
-The ref of a checkout of another repository is read and resolved in `pod-actions-store` of podcrates: COORD-084 (PodUtils/podrunner#290, to podcrates). The ruling "Shared code" asks podrunner not to copy it.
+2026-11-18: podcrates `v0.71.0` (PodUtils/podcrates@T-906) resolves the ref of a checkout of another repository: an empty ref is `HEAD`, a full ref is looked up as written, a commit id needs no lookup. podrunner takes the tag. Test `the_ref_of_a_checkout_of_another_repository` (`podrunner-local`, GitHub #251) fails on `v0.70.0`, where an empty ref gives `o/empty@`.
 
 # T-440: run: fetch::host_of cuts an IPv6 action-server address at the first colon
 
@@ -11051,7 +11051,7 @@ The job-started hook asks `serve`, and `serve` asks the source: `assigned { job_
 
 `cargo test -p podrunner-broker-fake --test runner -- --ignored`: two runs of one repository with the same labels, in both orders of assignment, end `success` in units of the right tier; a fork job given to a trusted unit ends with its annotation and the source gets a report with its code.
 
-In the code (2026-11-18): the source wire has `assigned` (`podrunner-source`: `Request::Assigned`, the replies `keep` and `end`, `JobSource::assigned` with a default of `bad-request`, the remote gate and the mint pass it on; conformance test 13 `assigned-needs-a-claim`, failed by the plant `AssignedUnclaimed` of the fake). The slots answer once for each unit (`crates/podrunner-slots/src/assigned.rs`): the run of the offer is kept with no call; else the source answers, and `keep` runs the job only when `podrunner_tier::intake` of the facts of the real job gives the tier of the unit; `bad-request` of a source ends the job as before; an audit line `assigned` names the run, the repository and the answer, and goes to the source. `serve` gives each unit a front on its egress socket (`crates/podrunner/src/serve/front.rs`): `POST http://control.podrunner.test/v1/assigned` is a question; each other request goes to the egress module; a head over 64 KiB is 431, a silent peer ends after 30 s, a 129th connection is 503; no answer within 10 s is `end source-unavailable`. The job-started hook (`images/runner/podrunner-job-started.sh`) asks through the proxy of the unit with the node of the runner and ends the job on each answer but `keep`. Tests: `cargo test -p podrunner-slots assigned` (5), `cargo test -p podrunner front::` (3), `cargo test -p podrunner-fake`, `cargo test -p podrunner-source`, and with the official runner `the_job_started_hook_asks_serve_for_a_job_of_another_run` (`podrunner-broker-fake --test runner`). Level: proven here with the official runner and fakes; not run on a real unit. A review agent read the diff; its findings are fixed in the same commit: an offer with no run gets the job file with run 0, so the hook always asks; the facts of `keep` must name the repository and the run of the real job (`facts-mismatch`); the front gives a place back only when both ways of a tunnel end, survives a failed accept and a failed thread, and reads a head as bytes; the queue of questions has 64 places; an answer that comes after the hook gave up records `end source-unavailable`; the hook runs with a fixed `PATH` and no `NODE_OPTIONS`. Open: the podvm kind (T-530); the ids of the real job in the run report (a field of `run-report.v1`, COORD-087); a run of `serve` with two runs on a real microvm or incus unit in `runner-image.yml`.
+In the code (2026-11-18): the source wire has `assigned` (`podrunner-source`: `Request::Assigned`, the replies `keep` and `end`, `JobSource::assigned` with a default of `bad-request`, the remote gate and the mint pass it on; conformance test 13 `assigned-needs-a-claim`, failed by the plant `AssignedUnclaimed` of the fake). The slots answer once for each unit (`crates/podrunner-slots/src/assigned.rs`): the run of the offer is kept with no call; else the source answers, and `keep` runs the job only when `podrunner_tier::intake` of the facts of the real job gives the tier of the unit; `bad-request` of a source ends the job as before; an audit line `assigned` names the run, the repository and the answer, and goes to the source. `serve` gives each unit a front on its egress socket (`crates/podrunner/src/serve/front.rs`): `POST http://control.podrunner.test/v1/assigned` is a question; each other request goes to the egress module; a head over 64 KiB is 431, a silent peer ends after 30 s, a 129th connection is 503; no answer within 10 s is `end source-unavailable`. The job-started hook (`images/runner/podrunner-job-started.sh`) asks through the proxy of the unit with the node of the runner and ends the job on each answer but `keep`. Tests: `cargo test -p podrunner-slots assigned` (5), `cargo test -p podrunner front::` (3), `cargo test -p podrunner-fake`, `cargo test -p podrunner-source`, and with the official runner `the_job_started_hook_asks_serve_for_a_job_of_another_run` (`podrunner-broker-fake --test runner`). Level: proven here with the official runner and fakes; not run on a real unit. A review agent read the diff; its findings are fixed in the same commit: an offer with no run gets the job file with run 0, so the hook always asks; the facts of `keep` must name the repository and the run of the real job (`facts-mismatch`); the front gives a place back only when both ways of a tunnel end, survives a failed accept and a failed thread, and reads a head as bytes; the queue of questions has 64 places; an answer that comes after the hook gave up records `end source-unavailable`; the hook runs with a fixed `PATH` and no `NODE_OPTIONS`. Open: the podvm kind (T-530); the ids of the real job in the run report (a field of `run-report.v1`, COORD-087); a run of `serve` with two runs on a real microvm or incus unit in `runner-image.yml`. With podcrates `v0.71.0` the run report has `assigned` (the run, the repository, the job name, the answer and its code), filled when the real job is not the run of the offer.
 
 
 # T-494: G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub
@@ -11590,7 +11590,7 @@ The statement on both issues, and `cargo todo check` with each entry of G-01 to 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -11608,9 +11608,9 @@ Ask podcrates by a COORD issue for two extensions of `FileLock`: a wait with no 
 
 `cargo test -p podrunner-local exec`, `cargo test -p podrunner concurrency`; no `libc::flock` in `crates/` (`grep -rn 'libc::flock' crates`).
 
-## Blocker
+## Done
 
-The two extensions of `pod_core::lock::FileLock`: COORD-088 (GitHub #295, to podcrates).
+2026-11-18: podcrates `v0.71.0` (PodUtils/podcrates@T-924) gives `FileLock::lock_until` (a wait with no bound that a stop flag ends), `FileLock::try_lock_existing` (a probe that makes no file) and a read-only open of a lock file that the caller cannot write. The groups of `concurrency:` wait with `lock_until` and the flag of `cancel` (a SIGTERM of a newer run, Ctrl-C), the lock of a runner directory takes `try_lock`, and `is_free` takes `try_lock_existing`. No `libc::flock` is left in `crates/`. `cargo test -p podrunner concurrency`, `-p podrunner lock::` and `-p podrunner-local exec` pass, the last with `flock(1)` of another process.
 
 # T-514: G-05 and G-06: the run report names no architecture
 
@@ -11619,7 +11619,7 @@ The two extensions of `pod_core::lock::FileLock`: COORD-088 (GitHub #295, to pod
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -11637,9 +11637,9 @@ Ask podcrates to add an optional `arch` to `run-report.v1` beside the fields of 
 
 `cargo test -p podrunner-slots` with a test that reads `arch` in the report of a fake unit.
 
-## Blocker
+## Done
 
-The field is in `pod-job` of podcrates: COORD-087 (GitHub #294), amended on 2026-11-18 with `arch`.
+2026-11-18: podcrates `v0.71.0` (PodUtils/podcrates@T-923) has `arch` in `run-report.v1`; the report of a placed job names the architecture of its kind (`crates/podrunner-slots/src/report.rs`).
 
 # T-515: G-12: a unit past its memory limit does not end with the exit reason `limit`
 

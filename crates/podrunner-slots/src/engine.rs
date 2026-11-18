@@ -67,8 +67,10 @@ pub struct Job {
     pub completed: bool,
     /// The CPU time and the peak memory of its unit (T-108).
     pub usage: crate::usage::Usage,
-    /// The answer to the job-started hook of its unit (T-493).
+    /// The answer to the job-started hook of its unit (T-493), and the real
+    /// job when it was not the run of the offer (the run report).
     pub assigned: Option<crate::assigned::Verdict>,
+    pub real: Option<podrunner_source::RealJob>,
     /// Its egress lines at its source (T-486).
     pub egress: crate::egress_lines::EgressCount,
 }
@@ -377,6 +379,7 @@ impl Slots {
             completed: false,
             usage: Default::default(),
             assigned: None,
+            real: None,
             egress: Default::default(),
         };
         self.jobs.insert(key.clone(), job);

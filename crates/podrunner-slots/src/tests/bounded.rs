@@ -55,21 +55,12 @@ fn bounded_jobs_suppressions_and_journal() {
 #[test]
 fn bounded_reports_keep_the_last() {
     let mut reports = std::collections::VecDeque::new();
-    let r = |n: usize| podrunner_schema::RunReport {
-        schema: 1,
-        job_id: podrunner_schema::JobId::new(&format!("j-{n}")).unwrap(),
-        source: "a".into(),
-        tier: None,
-        host: "h".into(),
-        exit_reason: podrunner_schema::ExitReason::Success,
-        exit_code: Some(0),
-        wall_s: 0,
-        refusal_code: None,
-        unit: None,
-        claim_to_first_step_s: None,
-        job_images: Vec::new(),
-        cpu_s: None,
-        peak_rss_mib: None,
+    let r = |n: usize| {
+        let mut r =
+            crate::report::base(podrunner_schema::JobId::new(&format!("j-{n}")).unwrap(), "a".into(), "h".into());
+        r.exit_reason = podrunner_schema::ExitReason::Success;
+        r.exit_code = Some(0);
+        r
     };
     for n in 0..REPORTS_KEPT + 10 {
         keep(&mut reports, r(n));

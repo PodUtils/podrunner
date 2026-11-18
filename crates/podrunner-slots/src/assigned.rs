@@ -106,8 +106,15 @@ impl Slots {
             }
         );
         self.audit(audit::Kind::Assigned, key.0, &key.1, None, Some(detail));
+        let offered = self.jobs[&key].offer.as_ref().is_some_and(|o| {
+            let t = &o.trust_inputs;
+            t.run_id == real.run_id && real.repository.eq_ignore_ascii_case(&format!("{}/{}", t.owner, t.repo))
+        });
         if let Some(j) = self.jobs.get_mut(&key) {
             j.assigned = Some(verdict.clone());
+            if !offered {
+                j.real = Some(real.clone());
+            }
             if verdict != Verdict::Keep {
                 // The hook ends the job; the runner then ends the unit.
                 j.reason.get_or_insert(ExitReason::JobMismatch);

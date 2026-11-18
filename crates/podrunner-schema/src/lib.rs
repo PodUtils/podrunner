@@ -5,9 +5,9 @@
 //! credential of a unit stays in podrunner.
 
 pub use pod_job::{
-    ARCHES, Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, ExitReason, Fact, IdError, JOB_ID_MAX,
-    JobId, JobOffer, LimitMode, Principal, PublicReport, RefusalCode, Residual, RunReport, SCHEMA, SecretDelivery,
-    Tier, TreeKill, UnitFields, UnitId, UnitIds, capability, offer, report,
+    ARCHES, Assigned, Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, ExitReason, Fact, IdError,
+    JOB_ID_MAX, JobId, JobOffer, LimitMode, Principal, PublicReport, RefusalCode, Residual, RunReport, SCHEMA,
+    SecretDelivery, Tier, TreeKill, UnitFields, UnitId, UnitIds, Verdict, capability, offer, report,
 };
 
 mod secret;

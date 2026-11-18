@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**529 entries: 80 open, 34 partial, 16 blocked, 399 done.**
+**529 entries: 80 open, 34 partial, 13 blocked, 402 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 2 | 0 | 0 | 3 |
 | P1 | 18 | 14 | 2 | 64 | 98 |
-| P2 | 22 | 13 | 10 | 211 | 256 |
-| P3 | 39 | 5 | 4 | 124 | 172 |
-| **All** | 80 | 34 | 16 | 399 | 529 |
+| P2 | 22 | 13 | 8 | 213 | 256 |
+| P3 | 39 | 5 | 3 | 125 | 172 |
+| **All** | 80 | 34 | 13 | 402 | 529 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -483,7 +483,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-436](later.md) | P2 | S | later | defect | done | guest: the self-test needs a loopback bind, so a host that denies loopback can never claim guest |
 | [T-437](later.md) | P2 | S | later | defect | done | placement: a required limit that the kind reports is refused, although the docs allow reported |
 | [T-438](later.md) | P2 | S | later | defect | done | policy: a rule with an unknown field is accepted and the field is dropped, broadening the policy |
-| [T-439](later.md) | P2 | S | later | defect | blocked | run: a checkout of another repository with an empty, full or SHA ref is not resolved |
+| [T-439](later.md) | P2 | S | later | defect | done | run: a checkout of another repository with an empty, full or SHA ref is not resolved |
 | [T-440](later.md) | P3 | S | later | defect | done | run: fetch::host_of cuts an IPv6 action-server address at the first colon |
 | [T-441](later.md) | P2 | S | later | defect | done | run: a runs-on label of ppc64le, s390x, riscv64, i386, i686 or armv7 is not refused |
 | [T-442](later.md) | P3 | S | later | defect | done | serve: a malformed offer is refused as event-not-allowed with no detail, not bad-request |
@@ -557,8 +557,8 @@ acceptance, later The crate dependencies later than v1.
 | [T-510](later.md) | P1 | S | later | release | open | G-39: one record of each change of a contract that githome reads |
 | [T-511](later.md) | P1 | M | later | release | open | G-40: each fake and tool that githome's tests need, as a release asset |
 | [T-512](later.md) | P0 | S | later | release | open | G-41: the statement "githome: complete in vTAG" |
-| [T-513](later.md) | P3 | S | later | chore | blocked | Two file locks of the local mode that `pod_core::lock` cannot hold yet |
-| [T-514](later.md) | P2 | S | later | feature | blocked | G-05 and G-06: the run report names no architecture |
+| [T-513](later.md) | P3 | S | later | chore | done | Two file locks of the local mode that `pod_core::lock` cannot hold yet |
+| [T-514](later.md) | P2 | S | later | feature | done | G-05 and G-06: the run report names no architecture |
 | [T-515](later.md) | P2 | M | later | defect | open | G-12: a unit past its memory limit does not end with the exit reason `limit` |
 | [T-516](later.md) | P2 | S | later | feature | open | G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine |
 | [T-517](later.md) | P3 | S | later | docs | open | G-09: the engine of a guest is a directory of the host, not a part of the payload image |

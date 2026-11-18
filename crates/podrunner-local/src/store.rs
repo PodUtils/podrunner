@@ -30,6 +30,30 @@ pub fn repo_ok(uses: &str) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    /// GitHub #251 (T-439): a checkout of another repository with an empty
+    /// ref is `HEAD`; a full ref and a commit id go to the lookup as written.
+    #[test]
+    fn the_ref_of_a_checkout_of_another_repository() {
+        let sha = "4f0c1d2a".repeat(5);
+        let text = [
+            "on: push",
+            "jobs:",
+            "  a:",
+            "    runs-on: ubuntu-latest",
+            "    steps:",
+            "      - uses: actions/checkout@v4",
+            "        with: { repository: o/empty, ref: '' }",
+            "      - uses: actions/checkout@v4",
+            "        with: { repository: o/full, ref: refs/tags/v1 }",
+            "      - uses: actions/checkout@v4",
+            &format!("        with: {{ repository: o/sha, ref: {sha} }}"),
+        ]
+        .join("\n");
+        let w = pod_actions_workflow::parse(&text).unwrap().workflow;
+        let trees = super::workflow_trees(&w, "o/self").unwrap();
+        assert_eq!(trees, ["o/empty@HEAD".to_string(), "o/full@refs/tags/v1".into(), format!("o/sha@{sha}")]);
+    }
+
     /// #261: a part of `.` or `..`, or one that is not a name, is refused.
     #[test]
     fn the_repository_of_a_uses_is_a_name() {

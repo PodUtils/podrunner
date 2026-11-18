@@ -22,6 +22,7 @@ mod own;
 pub mod pins;
 pub mod placement;
 pub mod policy;
+mod report;
 mod run;
 mod sources;
 mod spool;
@@ -112,22 +113,7 @@ impl Slots {
             if let Some(s) = s
                 && line.state.is_claimed()
             {
-                let report = podrunner_schema::RunReport {
-                    schema: podrunner_schema::SCHEMA,
-                    job_id: job_id.clone(),
-                    source: source.clone(),
-                    tier: None,
-                    host: self.cfg.host.clone(),
-                    exit_reason: ExitReason::Lost,
-                    exit_code: None,
-                    wall_s: 0,
-                    refusal_code: None,
-                    unit: None,
-                    claim_to_first_step_s: None,
-                    job_images: Vec::new(),
-                    cpu_s: None,
-                    peak_rss_mib: None,
-                };
+                let report = crate::report::base(job_id.clone(), source.clone(), self.cfg.host.clone());
                 let value = if self.sources[s].cfg.operator_controlled {
                     serde_json::to_value(&report)
                 } else {

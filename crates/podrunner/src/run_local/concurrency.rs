@@ -6,10 +6,11 @@
 //! on GitHub, a group keeps one waiting run: a newer waiter sends SIGTERM to
 //! the older one (T-432).
 
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Seek, Write};
-use std::os::fd::AsRawFd;
+use std::io::{Seek, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering;
+
+use pod_core::lock::{FileLock, Mode};
 use std::time::Duration;
 
 use podrunner_local::Job;
@@ -21,7 +22,7 @@ use podrunner_schema::JobId;
 /// A held group: the lock ends with the file, and the group leaves the
 /// groups of this process. A group that the run holds already is held by
 /// its jobs with no file.
-pub(super) struct Held(Option<(File, PathBuf)>);
+pub(super) struct Held(Option<(FileLock, PathBuf)>);
 
 impl Drop for Held {
     fn drop(&mut self) {
@@ -65,49 +66,48 @@ pub(super) fn hold(
     if !run && HELD.lock().unwrap_or_else(|e| e.into_inner()).get(&path) == Some(&true) {
         return Ok(Held(None));
     }
-    let mut f = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&path)
-        .map_err(|e| format!("{}: {e}", path.display()))?;
-    // SAFETY: flock on a file descriptor that this function owns.
-    let free = unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0;
-    if !free {
-        let pid = pid_of(&mut f);
-        // The waiting place of another run, held while this run waits.
-        let _waiting = match pid == std::process::id() as i32 {
-            true => None,
-            false => Some(wait_place(&path, group, note)?),
-        };
-        if pid == std::process::id() as i32 {
-            note(format!("podrunner: the group {:?} waits for another job of this run\n", group.name));
-        } else if group.cancel_in_progress && pid > 1 {
-            note(format!("podrunner: the group {:?} cancels the run {pid} that holds it\n", group.name));
-            // SAFETY: a signal to the process that wrote the lock.
-            unsafe { libc::kill(pid, libc::SIGTERM) };
-        } else {
-            note(format!("podrunner: the group {:?} waits for the run {pid} that holds it\n", group.name));
+    let fail = |e: pod_core::Failure| e.to_string();
+    let lock = match FileLock::try_lock(&path, Mode::Exclusive).map_err(fail)? {
+        Some(l) => l,
+        None => {
+            let pid = pid_of(&path);
+            // The waiting place of another run, held while this run waits.
+            let _waiting = match pid == std::process::id() as i32 {
+                true => None,
+                false => Some(wait_place(&path, group, note)?),
+            };
+            if pid == std::process::id() as i32 {
+                note(format!("podrunner: the group {:?} waits for another job of this run\n", group.name));
+            } else if group.cancel_in_progress && pid > 1 {
+                note(format!("podrunner: the group {:?} cancels the run {pid} that holds it\n", group.name));
+                // SAFETY: a signal to the process that wrote the lock.
+                unsafe { libc::kill(pid, libc::SIGTERM) };
+            } else {
+                note(format!("podrunner: the group {:?} waits for the run {pid} that holds it\n", group.name));
+            }
+            // A signal (a newer run of the group, or Ctrl-C) ends the wait.
+            FileLock::lock_until(&path, Mode::Exclusive, stopped).map_err(|_| interrupted(group))?
         }
-        // SAFETY: as above; this call blocks until the lock is free.
-        if unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX) } != 0 {
-            return Err(interrupted(group));
-        }
-    }
-    f.set_len(0)
-        .and_then(|()| f.rewind())
-        .and_then(|()| write!(f, "{}", std::process::id()))
-        .map_err(|e| e.to_string())?;
+    };
+    write_pid(&lock)?;
     HELD.lock().unwrap_or_else(|e| e.into_inner()).insert(path.clone(), run);
-    Ok(Held(Some((f, path))))
+    Ok(Held(Some((lock, path))))
 }
 
-/// The process id in a lock file of a group.
-fn pid_of(f: &mut File) -> i32 {
-    let mut pid = String::new();
-    let _ = f.rewind().and_then(|()| f.read_to_string(&mut pid));
-    pid.trim().parse().unwrap_or(0)
+/// The process id in a lock file of a group, read with no lock.
+fn pid_of(path: &Path) -> i32 {
+    std::fs::read_to_string(path).ok().and_then(|p| p.trim().parse().ok()).unwrap_or(0)
+}
+
+/// Write the id of this process into the held lock file.
+fn write_pid(lock: &FileLock) -> Result<(), String> {
+    let mut f = lock.file();
+    f.set_len(0).and_then(|()| f.rewind()).and_then(|()| write!(f, "{}", std::process::id())).map_err(|e| e.to_string())
+}
+
+/// A signal of the run: the handler of `cancel` sets the flag.
+fn stopped() -> bool {
+    podrunner_local::cancel::SIGNALLED.load(Ordering::SeqCst)
 }
 
 fn interrupted(group: &Group) -> String {
@@ -120,36 +120,25 @@ fn interrupted(group: &Group) -> String {
 /// Take the waiting place of the group of `path`: the run that waits there
 /// gets SIGTERM, as GitHub cancels a pending run when a newer one comes
 /// (T-432). The place holds until the file goes.
-fn wait_place(path: &Path, group: &Group, note: &mut dyn FnMut(String)) -> Result<File, String> {
+fn wait_place(path: &Path, group: &Group, note: &mut dyn FnMut(String)) -> Result<FileLock, String> {
     let place = path.with_extension("waiting");
-    let mut f = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(&place)
-        .map_err(|e| format!("{}: {e}", place.display()))?;
-    // SAFETY: flock on a file descriptor that this function owns.
-    if unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
-        let pid = pid_of(&mut f);
-        if pid > 1 && pid != std::process::id() as i32 {
-            note(format!(
-                "podrunner: the group {:?} cancels the waiting run {pid}: a group keeps one waiting run\n",
-                group.name
-            ));
-            // SAFETY: a signal to the process that wrote the waiting place.
-            unsafe { libc::kill(pid, libc::SIGTERM) };
+    let lock = match FileLock::try_lock(&place, Mode::Exclusive).map_err(|e| e.to_string())? {
+        Some(l) => l,
+        None => {
+            let pid = pid_of(&place);
+            if pid > 1 && pid != std::process::id() as i32 {
+                note(format!(
+                    "podrunner: the group {:?} cancels the waiting run {pid}: a group keeps one waiting run\n",
+                    group.name
+                ));
+                // SAFETY: a signal to the process that wrote the waiting place.
+                unsafe { libc::kill(pid, libc::SIGTERM) };
+            }
+            FileLock::lock_until(&place, Mode::Exclusive, stopped).map_err(|_| interrupted(group))?
         }
-        // SAFETY: as above; this call blocks until the place is free.
-        if unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX) } != 0 {
-            return Err(interrupted(group));
-        }
-    }
-    f.set_len(0)
-        .and_then(|()| f.rewind())
-        .and_then(|()| write!(f, "{}", std::process::id()))
-        .map_err(|e| e.to_string())?;
-    Ok(f)
+    };
+    write_pid(&lock)?;
+    Ok(lock)
 }
 
 /// The executor that holds the group of each job while it runs.

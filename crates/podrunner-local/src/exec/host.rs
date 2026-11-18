@@ -46,7 +46,7 @@ pub struct RunnerDir {
     /// No console of the runner on stderr (`-q`, `--json`, T-278).
     pub quiet: bool,
     /// The lock of the runner directory for this run (T-274).
-    _lock: Arc<std::fs::File>,
+    _lock: Arc<pod_core::lock::FileLock>,
 }
 
 /// A work directory out of the runner directory (`BASE/podrunner-work`,
@@ -114,34 +114,28 @@ const LOCK: &str = ".podrunner-run.lock";
 /// at once, as two runners in one directory break each other (T-274). The
 /// executors of one process (the routes of `--platform`, the runs of
 /// `--watch`) share the lock, which holds until the process ends.
-fn lock(dir: &std::path::Path) -> Result<Arc<std::fs::File>, String> {
-    use std::os::fd::AsRawFd;
-    static HELD: std::sync::Mutex<BTreeMap<PathBuf, Arc<std::fs::File>>> = std::sync::Mutex::new(BTreeMap::new());
+fn lock(dir: &std::path::Path) -> Result<Arc<pod_core::lock::FileLock>, String> {
+    use pod_core::lock::{FileLock, Mode};
+    static HELD: std::sync::Mutex<BTreeMap<PathBuf, Arc<FileLock>>> = std::sync::Mutex::new(BTreeMap::new());
     let key = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
     let mut held = HELD.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(f) = held.get(&key) {
         return Ok(f.clone());
     }
     let path = dir.join(LOCK);
-    // A lock file of another user can be read, and flock takes a read
-    // descriptor.
-    let f = std::fs::OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .write(true)
-        .open(&path)
-        .or_else(|_| std::fs::File::open(&path))
-        .map_err(|e| format!("{}: {e}; fix: the runner directory must be writable by you", path.display()))?;
-    // SAFETY: flock of a descriptor that `f` owns.
-    if unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
-        return Err(format!(
-            "{}: another run of podrunner uses this runner directory; wait for it to end, or give each run its own --runner-dir",
-            dir.display()
-        ));
-    }
-    let f = Arc::new(f);
-    held.insert(key, f.clone());
-    Ok(f)
+    // `FileLock` opens a lock file of another user read-only, as flock
+    // takes a read descriptor (pod-core, T-513).
+    let lock = FileLock::try_lock(&path, Mode::Exclusive)
+        .map_err(|e| format!("{e}; fix: the runner directory must be writable by you"))?
+        .ok_or_else(|| {
+            format!(
+                "{}: another run of podrunner uses this runner directory; wait for it to end, or give each run its own --runner-dir",
+                dir.display()
+            )
+        })?;
+    let lock = Arc::new(lock);
+    held.insert(key, lock.clone());
+    Ok(lock)
 }
 
 impl RunnerDir {

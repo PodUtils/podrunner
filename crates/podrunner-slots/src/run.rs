@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 
-use podrunner_schema::{ExitReason, JobId, RefusalCode, Residual, RunReport, UnitFields};
+use podrunner_schema::{ExitReason, JobId, RefusalCode};
 use podrunner_source::SourceCode;
 use podrunner_unit::{Count, Exit, Signal, StartSpec};
 
@@ -17,13 +17,6 @@ type Key = (usize, JobId);
 
 /// The exit code of the official runner when the forge refuses its version.
 const RUNNER_TOO_OLD: i32 = 7;
-
-fn residual(c: Count) -> Residual {
-    match c {
-        Count::Known(n) => Residual::Count(n),
-        Count::Unknown => Residual::Unknown(podrunner_schema::report::Unknown::Unknown),
-    }
-}
 
 /// The longest path of a unix socket that each kernel takes (the field
 /// `sun_path` has 108 bytes with its end).
@@ -429,56 +422,6 @@ impl Slots {
         for key in running {
             self.end(&key, ExitReason::UnitFailed, Signal::Kill, now);
         }
-    }
-
-    /// Build the report of a job, keep it, and send it to its source: the
-    /// full report to a source that the operator controls, else the
-    /// public one.
-    pub(crate) fn report(&mut self, key: &Key) {
-        let j = &self.jobs[key];
-        let unit = match (&j.unit, &j.placement, j.residue) {
-            (Some(u), Some(p), Some(r)) => {
-                let k = &self.kinds[p.kind];
-                Some(UnitFields {
-                    unit_id: u.clone(),
-                    unit_kind: k.name.clone(),
-                    boundary: k.capability.boundary,
-                    principal: k.capability.principal,
-                    egress_hold: k.capability.egress_hold,
-                    payload: podrunner_unit::parse_pinned(&p.payload).map(|(_, d)| d.to_string()).unwrap_or_default(),
-                    residual_processes: residual(r.processes),
-                    residual_files: residual(r.files),
-                })
-            }
-            _ => None,
-        };
-        let unit_ran = unit.is_some();
-        let r = RunReport {
-            schema: podrunner_schema::SCHEMA,
-            job_id: key.1.clone(),
-            source: self.sources[key.0].cfg.name.clone(),
-            tier: j.placement.as_ref().map(|p| p.tier),
-            host: self.cfg.host.clone(),
-            exit_reason: j.reason.unwrap_or(ExitReason::Lost),
-            exit_code: j.exit_code,
-            wall_s: self.now().saturating_sub(j.offered_ms) / 1000,
-            refusal_code: j.refusal,
-            unit,
-            claim_to_first_step_s: j.claimed_ms.zip(j.first_step_ms).map(|(c, f)| f.saturating_sub(c) / 1000),
-            job_images: j.images.clone(),
-            // The use of the unit, when a unit ran (T-108).
-            cpu_s: unit_ran.then(|| j.usage.report().0),
-            peak_rss_mib: unit_ran.then(|| j.usage.report().1),
-        };
-        let value = if self.sources[key.0].cfg.operator_controlled {
-            serde_json::to_value(&r)
-        } else {
-            serde_json::to_value(r.public())
-        };
-        if let Ok(serde_json::Value::Object(m)) = value {
-            self.send_report(key.0, &key.1, m);
-        }
-        crate::forget::keep(&mut self.reports, r);
     }
 }
 

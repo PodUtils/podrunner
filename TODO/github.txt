@@ -254,7 +254,7 @@
 248 issue closed
 249 issue closed
 250 issue closed
-251 issue open
+251 issue closed
 252 issue closed
 253 issue closed
 254 issue closed
@@ -293,12 +293,12 @@
 287 issue closed
 288 issue closed
 289 issue closed
-290 issue open
+290 issue closed
 291 issue open
 292 issue open
 293 issue open
 294 issue open
-295 issue open
+295 issue closed
 296 issue open
 297 pull closed
 298 pull closed
