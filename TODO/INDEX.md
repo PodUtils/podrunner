@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**529 entries: 78 open, 32 partial, 12 blocked, 407 done.**
+**530 entries: 78 open, 32 partial, 12 blocked, 408 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
-| P1 | 17 | 14 | 2 | 65 | 98 |
-| P2 | 21 | 12 | 7 | 216 | 256 |
+| P1 | 16 | 14 | 2 | 66 | 98 |
+| P2 | 22 | 12 | 7 | 216 | 257 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 78 | 32 | 12 | 407 | 529 |
+| **All** | 78 | 32 | 12 | 408 | 530 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -534,7 +534,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-487](later.md) | P2 | L | later | feature | open | G-11: warm units from a pinned golden image |
 | [T-488](later.md) | P2 | M | later | feature | open | G-12: the microvm kind enforces no limit of processes |
 | [T-489](later.md) | P3 | S | later | chore | partial | githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version |
-| [T-490](later.md) | P1 | L | later | research | open | Settle each open unknown of `docs/unknowns.md` |
+| [T-490](later.md) | P1 | L | later | research | done | Settle each open unknown of `docs/unknowns.md` |
 | [T-491](later.md) | P1 | M | later | research | done | Lift each limit and non-goal that a need of githome or cfb names |
 | [T-492](later.md) | P2 | S | later | docs | open | The trackers of githome and cfb and the state pages name an old release |
 | [T-493](later.md) | P0 | M | later | defect | partial | G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer |
@@ -577,3 +577,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-530](later.md) | P2 | S | later | feature | done | The job-started hook of a podvm unit cannot ask serve |
 | [T-531](later.md) | P3 | S | later | chore | open | Take rsa 0.10 in the fake broker |
 | [T-532](later.md) | P1 | M | later | feature | open | The containers of a podvm unit on the namespace rung, with a volume base |
+| [T-533](later.md) | P2 | M | later | measurement | open | A job of another architecture in a guest of the machine tier |

@@ -23,6 +23,7 @@ fi
 echo "foreign pull ok seconds=$(($(date +%s) - start)) platform=$platform image=$image"
 
 start=$(date +%s)
+# shellcheck disable=SC2016 # the guest expands the expression.
 out=$(timeout 900 "$podvm" run --rm --podvm-tier=machine --podvm-mem 1G --podvm-cpus 2 --platform "$platform" "$image" \
   /bin/sh -c 'uname -m; echo guest-ran-$((6*7))' 2>"$work/run.err")
 code=$?

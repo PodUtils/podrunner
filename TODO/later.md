@@ -10940,7 +10940,7 @@ State (2026-11-18): podcrates answered yes (COORD-134, PodUtils/podcrates#225; t
 **Milestone:** later
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10962,6 +10962,10 @@ podvm's answer for U26 (COORD-187, PodUtils/podvm#583, 2026-11-18): an aarch64 g
 ## Prove
 
 `docs/unknowns.md` has no row in the state "Open" without a named run and date.
+
+## Done
+
+2026-11-18, the commit that names T-490. Each open row of `docs/unknowns.md` names its run and the date: U6, U7, U8, U11, U12, U14, U17, U18, U20, U22 and U23 the live gates LIVE-1 and LIVE-2 (GitHub #74, #75) on the next beta and githome's pair run (GitHub #151); U9 the long poll of github.com in LIVE-2 with podnet `v0.4.0-beta.17` (T-179). U26 is settled for a guest: `runner-image.yml` run 44302792725 (podvm `0.2.0-beta.32`) booted `busybox:1.37.0` for `linux/arm64` on x86_64 in 10 s, `uname -m` `aarch64`; the job in such a guest is T-533. U16 stays deferred (no shim of the Docker API). A defect that the read of that run found is fixed: the probe of the runner version of `scripts/measure-machine.sh` ran `run.sh --version`, which starts a run and aborts with no configuration (exit 134), and printed the exit of `sed`; it runs `Runner.Listener --version` now and prints its exit. `sh scripts/shellcheck.sh scripts/measure-machine.sh scripts/measure-foreign.sh`: clean.
 
 # T-491: Lift each limit and non-goal that a need of githome or cfb names
 
@@ -12127,3 +12131,29 @@ COORD-189, read on 2026-11-18. Not measured: the container suite of the hooks on
 
 `runner-image.yml`: the container suite passes on the namespace rung; a test of the hooks where a step swaps a mount source for a link after the check gets exit 125 of podvm and `container-option-refused`.
 
+# T-533: A job of another architecture in a guest of the machine tier
+
+**Source:** podvm's answer for U26 (COORD-187, PodUtils/podvm#583, 2026-11-18); the measure of T-490 (`runner-image.yml` run 44302792725)
+**Category:** measurement
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm runs a `linux/arm64` guest on an x86_64 host in the machine tier (TCG, no KVM) since `0.2.0-beta.22`: the measure step of `runner-image.yml` booted `busybox:1.37.0` for `linux/arm64` in 10 s and read `uname -m` `aarch64`. podrunner refuses a label of another architecture unless a `--platform` route names it, and no run measured the official runner of arm64 in such a guest: the start of .NET under TCG and the time of a small job are not known (U26).
+
+## Premise
+
+`scripts/measure-foreign.sh`, the step "A guest of another architecture (a measure)" of `runner-image.yml`, and its output of run 44302792725, read on 2026-11-18. `crates/podrunner-local/src/dispatch.rs` (`other_arch`). podvm's comment on PodUtils/podvm#583.
+
+## Approach
+
+1. In `runner-image.yml`, give the x86_64 job the arm64 runner image archive of the aarch64 job (an artifact), load it into a store of its own, and run `Runner.Listener --version` and a canned job of the fake broker in a `linux/arm64` guest; print the seconds of each.
+2. Write the result into `docs/unknowns.md` (U26).
+3. If a job ends in a usable time, let a `--platform` route of the machine tier take a label of the other architecture, and name the cost in `docs/local-mode.md`.
+
+## Prove
+
+The measure step prints `foreign runner ok` and the seconds of a canned job; `docs/unknowns.md` U26 names the run.

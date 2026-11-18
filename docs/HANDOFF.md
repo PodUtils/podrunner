@@ -177,8 +177,7 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
      `crates/podrunner-slots/src/assigned.rs`), also from a podvm unit
      (T-530, done), and the field `assigned` of the report. T-494 is done.
      Open: a run of `serve` with two runs on a real unit in
-     `runner-image.yml`. Then a beta; name its tag on #292. Then the needs, P1 first: T-490
-     (the unknowns), T-496 to T-499, T-485, T-506 (G-36, a sandbox
+     `runner-image.yml`. Then a beta; name its tag on #292. Then the needs, P1 first: T-496 to T-499, T-485, T-506 (G-36, a sandbox
      unit), T-507 (G-37, an install of `serve` that githome's CLI drives,
      no TCP listener), T-508 (take the `pod-job` schemas; the source
      wire moves after T-486, T-493 and T-495), T-509 (G-38, githome's
