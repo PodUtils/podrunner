@@ -10760,3 +10760,30 @@ podssh, podnet, podvm and podcrates sign one `SHA256SUMS` file of each release w
 ## Prove
 
 A dry run of `release.yml` makes both files, and the step of the check passes on them and fails on a changed `SHA256SUMS`.
+
+# T-485: The incus kind has no container route, though G-02 asks for an engine in the system container
+
+**Source:** a question of the owner on the answer to GitHub #292 (P-4), 2026-11-18
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The `incus` kind says `container: none` (`crates/podrunner-incus/src/lib.rs`) and refuses `[unit.incus] engine` (`crates/podrunner/src/incus_kind.rs`). So a trusted job with `container:`, `services:` or a `docker://` step on a host whose trusted tier has only the incus kind is refused with `container-not-supported`. githome's G-02 asks for a system container "with its own init, file system, network and container engine", and `docs/container-engine.md` names a system container of incus as a place for the engine. Only the engine of the `microvm` kind exists (T-103). The record gives no reason for the refusal. This is a limit of podrunner, not of Incus.
+
+## Premise
+
+Read from the code and the documents on 2026-11-18. Not measured.
+
+## Approach
+
+1. Measure on real instances: `dockerd` in a system container of podvm's incus tier with no NIC and one channel (nesting, cgroups, overlay, the pull through the egress channel).
+2. Decide what nesting does to the claim `confined`, and record the call in `docs/decisions.md`.
+3. If the claim holds: `[unit.incus] engine = DIR`, the kind says `container: engine`, and the parity suite of the engine runs on incus. If podvm must change, ask podvm by a COORD issue.
+
+## Prove
+
+The parity suite of the engine (`services:`, a job container, a Docker action, a Dockerfile action) passes on real incus instances in `runner-image.yml`.

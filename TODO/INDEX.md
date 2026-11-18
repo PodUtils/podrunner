@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**481 entries: 46 open, 28 partial, 14 blocked, 393 done.**
+**482 entries: 47 open, 28 partial, 14 blocked, 393 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 0 | 0 |
 | P1 | 3 | 12 | 1 | 62 | 78 |
-| P2 | 9 | 12 | 9 | 209 | 239 |
+| P2 | 10 | 12 | 9 | 209 | 240 |
 | P3 | 34 | 4 | 4 | 122 | 164 |
-| **All** | 46 | 28 | 14 | 393 | 481 |
+| **All** | 47 | 28 | 14 | 393 | 482 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -529,3 +529,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-482](later.md) | P2 | M | later | defect | open | The incus kind bounds no disk of the root of an instance |
 | [T-483](later.md) | P2 | M | later | defect | open | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
 | [T-484](later.md) | P2 | S | later | release | open | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
+| [T-485](later.md) | P2 | M | later | feature | open | The incus kind has no container route, though G-02 asks for an engine in the system container |
