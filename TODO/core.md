@@ -84,7 +84,7 @@ Read the text of GitHub #17 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-Draft the four records and their schemas, then use the released types of podcrates (ruling Q-A8, PodUtils/podcrates@T-163). podcrates released them as `pod-job` in v0.17.0 (PodUtils/podcrates#58). `crates/podrunner-schema` re-exports `pod_job` and keeps only the credential (`secret.rs`). The four schemas, the examples and their test are in podcrates. `schemas/status.v1.json` stays here: it embeds the capability record of `pod-job`. `docs/contracts/codes.md` points to the code table of `pod-job` and lists the uses of podrunner beyond it.
+Draft the four records and their schemas, then use the released types of podcrates (ruling Q-A8, PodUtils/podcrates@T-163). podcrates released them as `pod-job` in v0.17.0 (PodUtils/podcrates#58). `crates/podrunner-schema` re-exports `pod_job` and keeps only the credential (`secret.rs`). The four schemas, the examples and their test are in podcrates. the schema of `status.v1` stays here: it embeds the capability record of `pod-job`. `docs/contracts/codes.md` points to the code table of `pod-job` and lists the uses of podrunner beyond it.
 
 ## Prove
 
@@ -92,7 +92,7 @@ Draft the four records and their schemas, then use the released types of podcrat
 
 ## Done
 
-2026-11-11: podrunner takes `pod-job` at podcrates v0.17.0; the draft types, the four schemas and the examples are removed. `cargo test --workspace --all-features`: each test passes; `schemas/status.v1.json` is generated again from the types (`PODRUNNER_WRITE_SCHEMAS=1`). Gate run 42953651407 (`0457ed0`) is green.
+2026-11-11: podrunner takes `pod-job` at podcrates v0.17.0; the draft types, the four schemas and the examples are removed. `cargo test --workspace --all-features`: each test passes; the schema of `status.v1` is generated again from the types (`PODRUNNER_WRITE_SCHEMAS=1`). Gate run 42953651407 (`0457ed0`) is green.
 
 # T-018: The tier rule: Rust implementation and the case table (GitHub #18)
 
@@ -289,7 +289,7 @@ Read the text of GitHub #21 on 2026-11-11. Nothing measured.
 
 ## Approach
 
-The state machine with a deadline for each transition, the placement steps, the 19 refusal codes, the journal and the reconcile at start, the `degraded` state, `podrunner.toml` (`docs/configuration.md`), the audit lines (forwarded to the source), the full and the public reports, `status` (`crates/podrunner-slots/src/status.rs`, `schemas/status.v1.json`), `no-tier-served`, and the exit codes of `pod-core`. The level 1 tests G-01, G-02, G-05, G-08 and G-12 and the guards run on the fakes of T-020 with a manual clock. The fuzz targets `slots_config` and `slots_journal`.
+The state machine with a deadline for each transition, the placement steps, the 19 refusal codes, the journal and the reconcile at start, the `degraded` state, `podrunner.toml` (`docs/configuration.md`), the audit lines (forwarded to the source), the full and the public reports, `status` (`crates/podrunner-slots/src/status.rs`, the schema of `status.v1`), `no-tier-served`, and the exit codes of `pod-core`. The level 1 tests G-01, G-02, G-05, G-08 and G-12 and the guards run on the fakes of T-020 with a manual clock. The fuzz targets `slots_config` and `slots_journal`.
 
 ## Prove
 
@@ -350,7 +350,7 @@ The control socket (JSON lines on a unix socket, mode 0600, peer uid checked, `"
 
 ## Done
 
-2026-11-11, `644bab7`; gate run 42940434305 of `223c009` is green. `cargo test -p podrunner`: 11 passed: an ANSI escape prints as `\x1b[2J` and a value is cut at 200 bytes; the socket has mode 0600 and answers one request; bad lines are `bad-request`; a usage error exits 64, a silent socket 69, a bad configuration 78; `print-unit` holds no credential canary. `status --json` follows `schemas/status.v1.json` (generated from the type; a test fails on a difference). A run by hand of `serve`, `status`, `status --json` and `stop` exits 0 on the fake kind and on the podvm kind.
+2026-11-11, `644bab7`; gate run 42940434305 of `223c009` is green. `cargo test -p podrunner`: 11 passed: an ANSI escape prints as `\x1b[2J` and a value is cut at 200 bytes; the socket has mode 0600 and answers one request; bad lines are `bad-request`; a usage error exits 64, a silent socket 69, a bad configuration 78; `print-unit` holds no credential canary. `status --json` follows the schema of `status.v1` (generated from the type; a test fails on a difference). A run by hand of `serve`, `status`, `status --json` and `stop` exits 0 on the fake kind and on the podvm kind.
 
 # T-023: WP-04: the podvm unit driver with a store for each unit and a subreaper shim (GitHub #23)
 
@@ -1133,9 +1133,9 @@ Read SPEC §11.4, §11.5, `pod-job` (`report.rs`) at `v0.24.0` and `crates/podru
 
 ## Approach
 
-Ask podcrates (a direct message) for the two optional fields in `RunReport` of `pod-job`; fill them in slots from the `started` time and the images of the hook calls. Add to `status` the age of each credential of a running job and the age of the key file of each `github-scaleset` source (from its time of change), with no value of the key. Regenerate `schemas/status.v1.json`.
+Ask podcrates (a direct message) for the two optional fields in `RunReport` of `pod-job`; fill them in slots from the `started` time and the images of the hook calls. Add to `status` the age of each credential of a running job and the age of the key file of each `github-scaleset` source (from its time of change), with no value of the key. Regenerate the schema of `status.v1`.
 
-Done: `status` shows `credential_ages_s` (the age of the credential of each job that is not final, from its mint) and `key_age_s` (the age of the key file of a source, from its time of change) for each source; `schemas/status.v1.json` is regenerated (`the_status_shows_the_age_of_each_credential_and_of_the_key`).
+Done: `status` shows `credential_ages_s` (the age of the credential of each job that is not final, from its mint) and `key_age_s` (the age of the key file of a source, from its time of change) for each source; the schema of `status.v1` is regenerated (`the_status_shows_the_age_of_each_credential_and_of_the_key`).
 
 ## Prove
 

@@ -512,9 +512,13 @@ jobs:
         run: |
           set -eu
           sh scripts/retry.sh python3 -m pip install -q --user 'jsonschema==4.23.0'
+          # The schema of status.v1 is pod-job's, at the commit of the pinned
+          # tag of podcrates (v0.73.0, T-508).
+          sh scripts/retry.sh curl -qfsSL -o "$RUNNER_TEMP/status.v1.schema.json" \
+            "https://raw.githubusercontent.com/PodUtils/podcrates/1f1fd3fe3feb125e7067bf920efb345269468076/schemas/status.v1.schema.json"
           PODRUNNER_ACCEPT_KIND=microvm PODRUNNER_ACCEPT_OUT="$RUNNER_TEMP/status-microvm.jsonl" timeout 3600 \
             cargo test -p podrunner-broker-fake --test accept -- --ignored --nocapture
-          python3 -I scripts/check-status-samples.py schemas/status.v1.json "$RUNNER_TEMP/status-microvm.jsonl" \
+          python3 -I scripts/check-status-samples.py "$RUNNER_TEMP/status.v1.schema.json" "$RUNNER_TEMP/status-microvm.jsonl" \
             | tee -a "$GITHUB_STEP_SUMMARY"
       # T-103 step 3: a container engine inside a guest of the machine tier
       # (KVM from the machine measure). A measure: the static Docker binaries
@@ -624,9 +628,13 @@ jobs:
         run: |
           set -eu
           sh scripts/retry.sh python3 -m pip install -q --user 'jsonschema==4.23.0'
+          # The schema of status.v1 is pod-job's, at the commit of the pinned
+          # tag of podcrates (v0.73.0, T-508).
+          sh scripts/retry.sh curl -qfsSL -o "$RUNNER_TEMP/status.v1.schema.json" \
+            "https://raw.githubusercontent.com/PodUtils/podcrates/1f1fd3fe3feb125e7067bf920efb345269468076/schemas/status.v1.schema.json"
           cargo test -p podrunner-broker-fake --test accept --no-run
           sg incus-admin -c "PODRUNNER_ACCEPT_KIND=incus PODRUNNER_ACCEPT_OUT='$RUNNER_TEMP/status-incus.jsonl' timeout 3600 cargo test -p podrunner-broker-fake --test accept -- --ignored --nocapture"
-          python3 -I scripts/check-status-samples.py schemas/status.v1.json "$RUNNER_TEMP/status-incus.jsonl" \
+          python3 -I scripts/check-status-samples.py "$RUNNER_TEMP/status.v1.schema.json" "$RUNNER_TEMP/status-incus.jsonl" \
             | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

@@ -10,7 +10,7 @@ is done.
 
 - Pins: podcrates `v0.72.0` (`Cargo.toml`; the source wire and the
   credential are `pod_job::source`, the HTTP head is `pod_core::http1`;
-  `status.v1` stays podrunner's until PodUtils/podcrates@T-947, COORD-095 #305);
+  `status.v1` is `pod_job::Status` from podcrates `v0.73.0`);
   podvm `v0.2.0-beta.34`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
@@ -139,10 +139,10 @@ is done.
 
 The last session (2026-11-18, evening) left:
 
-- Open answers: #305 (status.v1 fields, PodUtils/podcrates@T-947 in its
-  next tag: then take `pod_job::Status`, remove `schemas/status.v1.json`,
-  T-508 done); #306 (`pod-fake-githome source`, PodUtils/podcrates@T-948:
-  then T-509); #307 (podvm's limits of `--podvm-confine`, no change; close
+- podcrates `v0.73.0` is taken (T-508 done; the take is COORD-100). Its
+  `pod-fake-githome` (PodUtils/podcrates@T-948) unblocks T-509 and its
+  `pod-fake-github` (PodUtils/podcrates@T-921) gives a broker for a runner
+  job through `serve` (T-527). Open answers: #307 (podvm's limits of `--podvm-confine`, no change; close
   on podvm's tag of PodUtils/podvm@T-1984 and PodUtils/podvm@T-1985); #304 (a tier for confined kinds);
   #308 (the syscall tier is off: podvm retries the EAGAIN of `openat2` on
   its `main`, COORD-197; with that beta set `SYSCALL_TIER`, run

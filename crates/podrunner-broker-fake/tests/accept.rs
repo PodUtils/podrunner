@@ -2,7 +2,7 @@
 //! slots of `serve`: 20 jobs in a burst, each in a fresh unit (C1); `busy`
 //! never over `slots` (C2); a cancel ends its unit within 60 s, and then
 //! `busy` is 0 and `degraded` is null (C3); each sample of `status` goes to
-//! a file that the workflow validates against `schemas/status.v1.json`
+//! a file that the workflow validates against `status.v1` of `pod-job`
 //! (C4); a job finds no canary of the host and no `key_file` (C5).
 //!
 //! The kind is `PODRUNNER_ACCEPT_KIND`: `microvm` (a guest, fork offers at

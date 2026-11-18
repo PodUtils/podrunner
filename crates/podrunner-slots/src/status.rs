@@ -3,84 +3,12 @@
 
 use std::collections::BTreeMap;
 
-use podrunner_schema::{Capability, Tier};
-use serde::Serialize;
-
 use crate::engine::Slots;
 use crate::state::State;
 
-/// One source in the status.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
-pub struct SourceStatus {
-    pub name: String,
-    pub tier: Tier,
-    pub arch: String,
-    pub revoked: bool,
-    /// An operator drained the source (T-501): it takes no offer.
-    #[serde(default)]
-    pub draining: bool,
-    /// The jobs of the source in each state that is not final.
-    pub jobs: BTreeMap<String, u64>,
-    /// The refusals of the source, by code.
-    pub refused: BTreeMap<String, u64>,
-    /// The offers whose trust inputs hold `unknown`: the source could not
-    /// read the run or the membership.
-    pub trust_unknown: u64,
-    /// The age of the credential of each job that is not final, in
-    /// seconds, oldest first (SPEC §11.5).
-    pub credential_ages_s: Vec<u64>,
-    /// The age of the key file of the source (the App key of
-    /// `github-scaleset`, the key of `remote`), from its time of change.
-    /// No value of the key is read.
-    pub key_age_s: Option<u64>,
-}
-
-/// One unit kind in the status.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
-pub struct KindStatus {
-    pub name: String,
-    pub slots: u32,
-    pub busy: u32,
-    pub probe: Capability,
-}
-
-/// One pinned payload in the status.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
-pub struct PinStatus {
-    pub arch: String,
-    pub reference: String,
-    pub age_s: u64,
-}
-
-/// The status of a host (`status.v1`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[cfg_attr(test, derive(schemars::JsonSchema))]
-pub struct Status {
-    pub schema: u32,
-    pub host: String,
-    pub draining: bool,
-    /// Why the host is degraded: capacity 0 until an operator clears it.
-    pub degraded: Option<String>,
-    /// No unit kind of the host meets the floor of any source: no source
-    /// gets an offer.
-    pub no_tier_served: bool,
-    pub sources: Vec<SourceStatus>,
-    pub kinds: Vec<KindStatus>,
-    pub pins: Vec<PinStatus>,
-    /// The jobs that ended without a `completed` event of their source.
-    pub ended_without_completion: u64,
-    /// The reports that a source refused, in the spool (T-069).
-    pub spooled_reports: usize,
-    /// The cap of the units of the host across its kinds, and the units
-    /// that run now (T-505).
-    #[serde(default)]
-    pub max_units: Option<u32>,
-    #[serde(default)]
-    pub units: u32,
-}
+/// The types of `status.v1` are `pod_job`'s (podcrates `v0.73.0`, T-508):
+/// one form for podrunner and each reader (githome's G-31).
+pub use podrunner_schema::{KindStatus, PinStatus, SourceStatus, Status};
 
 /// The age of the file `path` from its time of change, in seconds.
 pub(crate) fn key_age_s(path: &str, now_unix: u64) -> Option<u64> {

@@ -6,8 +6,8 @@ Each issue of the plan (GitHub #1) has its sections in the design copy
 design; `docs/decisions.md` holds the rulings since.
 
 The schemas of record are those of `pod-job` of podcrates
-(`job-offer.v1`, `unit-capability.v1`, `run-report.v1`, `public-report.v1`),
-and `schemas/status.v1.json` of this repository. The copies in
+(`job-offer.v1`, `unit-capability.v1`, `run-report.v1`, `public-report.v1`,
+`status.v1`, and the source wire). The copies in
 `docs/design/schemas/` are the design of 2026-11 and keep its fields: they
 are not the contracts (T-522).
 

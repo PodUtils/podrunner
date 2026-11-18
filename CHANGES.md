@@ -16,7 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
-| `pod-job` | podcrates `v0.52.0` to `v0.72.0`: the optional fields of githome's asks (`trust_inputs.forge`, `cache`, `sandbox` of an offer; `arch`, `assigned`, the times, the measures and `log_tail` of a report). An optional field keeps the schema id. | T-508, T-514 |
+| `pod-job` | podcrates `v0.52.0` to `v0.73.0`: the optional fields of githome's asks (`trust_inputs.forge`, `cache`, `sandbox` of an offer; `arch`, `assigned`, the times, the measures and `log_tail` of a report). An optional field keeps the schema id. | T-508, T-514 |
 | source wire | The types of the wire are `pod_job::source` of podcrates `v0.72.0` (one form for podrunner and each source); the lines do not change. | T-508 |
 | source wire | `hello` has an optional `host`: the versions of podrunner, podvm and podnet, `arch`, `kvm`, and for each kind its boundary, its container route and its largest `cpu`, `memory`, `disk` and `pids`. | T-495 |
 | source wire | A new request `assigned { job_id, real }`, with the replies `keep { trust_inputs }` and `end { code, detail }`; a source with no `assigned` answers `bad-request`. | T-493 |
@@ -29,6 +29,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | control socket | The HTTP head of each socket of a unit is read by `pod_core::http1`: another version of HTTP gets 505, a head over 16 KiB gets 431. | T-536 |
 | control socket | A new op `restart-source` (field `source`). | T-498 |
 | control socket | New ops `drain-source`, `resume-source` and `stop-source` (field `source`); `resume-source` builds a stopped source again. | T-501 |
+| `status.v1` | The type and the schema are `pod_job::Status` of podcrates `v0.73.0` (`schemas/status.v1.schema.json` of podcrates); `schemas/status.v1.json` of podrunner goes. | T-508 |
 | `status.v1` | Each source has `draining` (an operator drained it). | T-501 |
 | `status.v1` | `max_units` and `units` of the host. | T-505 |
 | `podrunner.toml` | `max_units`: the most units of the host across its kinds. | T-505 |
@@ -55,4 +56,3 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/source-driver.md 5700b24d3839fe92012962770699804c9473e901c8bec3dc7d6aa260b3b899d1 -->
 <!-- contract docs/contracts/unit-driver.md 07162598a8a264928373602ba954e00d94f973583ce4e6592494f758b8746401 -->
 <!-- contract schemas/config.v1.json 81d02c7cd73381f795db86183a3c81c28a3935b67df3a63c2b8f03be443176d2 -->
-<!-- contract schemas/status.v1.json 6e26927bbbf3eb22c42bd666c73c012c0332715909f9f4215842536080bb3f68 -->

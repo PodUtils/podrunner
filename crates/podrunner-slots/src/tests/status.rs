@@ -1,22 +1,9 @@
-//! `status.v1`: the schema of `schemas/` is generated from the type, and a
-//! status of a running host names its sources, kinds and pins.
+//! `status.v1` (the type of `pod_job`, T-508): a status of a running host
+//! names its sources, kinds and pins.
 
 use serde_json::json;
 
 use super::*;
-use crate::status::Status;
-
-#[test]
-fn the_status_schema_is_generated_from_the_type() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/status.v1.json");
-    let mut s = schemars::schema_for!(Status);
-    s.insert("$id".into(), "https://github.com/PodUtils/podrunner/schemas/status.v1.json".into());
-    let text = serde_json::to_string_pretty(&s).unwrap() + "\n";
-    if std::env::var_os("PODRUNNER_WRITE_SCHEMAS").is_some() {
-        std::fs::write(&path, &text).unwrap();
-    }
-    assert!(std::fs::read_to_string(&path).unwrap_or_default() == text, "{} differs from the type", path.display());
-}
 
 #[test]
 fn the_status_names_the_sources_the_kinds_and_the_pins() {
