@@ -11995,7 +11995,7 @@ Add a step to `runner-image.yml` that runs the scripts of C1 to C5 against `serv
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12012,6 +12012,8 @@ Keep `scripts/measure-incus.sh` as a measure. Make the conformance, egress, limi
 ## Prove
 
 `runner-image.yml` is red when a planted defect fails the incus conformance.
+
+In the code (2026-11-18): the incus step of `runner-image.yml` has no `continue-on-error`: its conformance, egress, limits and local suites block (they passed in run 44302792725); `scripts/measure-incus.sh` and the engine test of T-485 stay measures (a line in the summary); the apt installs go through `scripts/retry.sh`. The new `pids` test of T-488 in the microvm step is a measure too until it is green once. Open: the run with a planted defect of the Prove.
 
 # T-527: No lane of the user-path gate for the host class of githome's pool
 
