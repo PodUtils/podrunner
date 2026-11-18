@@ -110,8 +110,9 @@ the tools.
 ## Talk between sessions
 
 * **podcrates**: a COORD issue of this repository titled
-  `COORD-NNN: subject (to podcrates)`, as below; no direct message
-  (the owner, 2026-11-12). Each ask
+  `COORD-NNN: subject (to podcrates)`, as below. A direct message to the
+  session of podcrates is also allowed (the owner, 2026-11-18); the COORD
+  issue keeps the record. Each ask
   for a crate goes there. podcrates writes each ask as an entry, answers
   with its id, and releases a tag. podrunner takes the crate by that tag
   (`Cargo.toml`, one tag for each crate of podcrates).
@@ -124,6 +125,12 @@ the tools.
   podssh is on break: expect no answer.
 * A COORD issue is an issue of this repository: map it in
   `TODO/issues.md` as any issue.
+* **cfb and githome** (GitHub #292, #151): each keeps one comment in the
+  issue and edits it on each reply, with its UTC time. podrunner keeps one
+  comment too, and edits it with a line `Last updated (UTC):` for each
+  new answer or question. An acknowledgement of an acknowledgement gets no
+  edit. The watcher of the organization does not see an edit of a
+  comment: poll the `updated_at` of the comments of those issues.
 
 ## Dependabot
 

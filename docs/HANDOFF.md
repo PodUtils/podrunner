@@ -93,6 +93,43 @@ is done.
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
+## Resume here (the next session: githome and cfb first)
+
+The owner ruled on 2026-11-18 (`docs/decisions.md`, "githome and cfb
+first"): podrunner accommodates each need and ask of githome and cfb, their
+CI work comes first, and each unknown and limit that blocks one is settled
+or lifted. From this next session, all of PodUtils works to make podrunner
+complete and stable, so that the milestones of githome and cfb are met.
+COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
+
+- The channels: GitHub #292 (cfb's questions P-1 to P-7 and githome's
+  note; podrunner's one comment holds each answer and the steps C1 to C5
+  of the acceptance of A-X-01 on cfb's first host), GitHub #151
+  (COORD-054, githome; podrunner's one comment holds the table of each
+  need of githome), #65 and #66 (the trackers). Each side keeps one
+  comment and edits it; watch their `updated_at` (`docs/maintenance.md`,
+  "Talk between sessions").
+- Facts of cfb's host (GitHub #292): githome is the CI front (cfb's
+  R-051); githome gives each GitHub job the tier `untrusted`, so each job
+  runs on the `microvm` kind with `engine` (2 slots, 4 vCPU, 12 GiB, 40 GiB
+  `disk_max_bytes`, 32 GiB of RAM); `[trust] users` holds the owner of
+  five private repositories. The host waits for the operator's server and
+  for githome's GitHub path.
+- Order:
+  1. Take podcrates `v0.70.0` (COORD-132, PodUtils/podcrates#222): the
+     answers to #214, #215 (T-351) and #288 (T-469), and `FileLock` and
+     `Clock` of `pod-core` in place of the copies (T-473, T-474).
+  2. T-491: the census of each clause of A-X-01 and G-01 to G-14 against
+     the code and the release; an entry for each gap.
+  3. The needs, P1 first: T-486 (G-04), T-490 (the unknowns), then T-488,
+     T-482, T-483, T-485, T-481, T-487, T-480, T-479, T-484, T-489, T-492.
+  4. A beta for githome's pair run (GitHub #151) and cfb's host, when the
+     gates of `AGENTS.md`, section 12, hold.
+- Each change that podvm or podnet must make: a COORD issue at once.
+- Newer releases of the siblings than the pins: podcrates `v0.70.0`,
+  podvm `v0.2.0-beta.31`, podnet `v0.4.0-beta.16`. podnet fixed #142
+  (T-179) on its `main` (T-457), for its next beta.
+
 ## Resume here (the work of 2026-11-17 and 2026-11-18)
 
 - `main` is at `d5cfbb5` or later. Each commit passed
@@ -320,8 +357,9 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
 ## Talk between sessions
 
 - podcrates: a COORD issue of this repository titled
-  `COORD-NNN: subject (to podcrates)`; no direct message (the owner,
-  2026-11-12, `docs/decisions.md`). Each ask for a crate, each take of a
+  `COORD-NNN: subject (to podcrates)`; a direct message to the session
+  of podcrates is also allowed (the owner, 2026-11-18,
+  `docs/decisions.md`). Each ask for a crate, each take of a
   tag and each milestone report goes there.
 - podnet: a COORD issue of this repository titled
   `COORD-NNN: subject (to podnet)`. podnet answers in its repository with

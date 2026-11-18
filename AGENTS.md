@@ -159,9 +159,15 @@ component keeps its own licence and is listed in `THIRD_PARTY.md`.
    python3 -I .work/agent/watch-runs.py --self-test
    python3 -I .work/agent/watch-runs.py PodUtils/podrunner .work/agent/runs.json 120
    ```
-6. Talk to each other project (podcrates too) only by COORD issues
-   (`docs/maintenance.md`, "Talk between sessions"). Send no direct
-   message to another session.
+6. Talk to each other project (podcrates too) by COORD issues
+   (`docs/maintenance.md`, "Talk between sessions"). The one exception:
+   a direct message to the session of podcrates is allowed (the owner,
+   2026-11-18); a COORD issue still holds the record of each ask. Send no
+   direct message to another session.
+7. cfb and githome each keep one comment in their issue of this
+   repository and edit it on each reply. The watcher of the organization
+   does not see an edit of a comment: watch the comments of those issues
+   too (`docs/HANDOFF.md`, "Talk between sessions").
 
 ## 9. Decisions
 
@@ -198,6 +204,10 @@ component keeps its own licence and is listed in `THIRD_PARTY.md`.
 * Work unattended: take the next entry of the work order, and continue
   until the owner interrupts. Ask the owner only for a change of a
   ruling.
+* The needs of githome and cfb come first (the owner, 2026-11-18,
+  `docs/decisions.md`): podrunner accommodates each need and ask of
+  theirs, and settles each unknown and limit that blocks one. All of
+  PodUtils works to make podrunner complete and stable for them.
 
 ## 11. Checks before each push
 

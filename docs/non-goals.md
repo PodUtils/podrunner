@@ -4,6 +4,12 @@ v1 cuts these items (GitHub #10, T-010). Nothing of v1 depends on them.
 Each has a trigger that brings it back; a request that meets a trigger
 opens its own issue.
 
+The owner ruled on 2026-11-18 that podrunner accommodates each need and
+ask of githome and cfb (`docs/decisions.md`, "githome and cfb first"): a
+row that one of their needs names is lifted. T-491 finds each such row;
+T-480 (shared caches), T-487 (warm units) and T-479 (a schema of
+`podrunner.toml`) hold three of them.
+
 | Item | Trigger |
 | --- | --- |
 | A `docker` unit kind | The owner names a Docker or Podman host with no KVM (call C7, DR-13). |
