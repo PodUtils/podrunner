@@ -5,7 +5,7 @@
 //!
 //! `podrunner fake-source --script FILE` is such a program over the fake
 //! source of the tests, and `podrunner source-conformance -- PROGRAM ARGS`
-//! runs the 13 tests of the source wire against a program (T-104): a forge
+//! runs the 14 tests of the source wire against a program (T-104): a forge
 //! runs them in its own CI.
 
 use std::io::{BufRead, BufReader, Write};
@@ -136,7 +136,7 @@ impl podrunner_source::conformance::Fixture for Under {
     }
 }
 
-/// `podrunner source-conformance -- PROGRAM ARGS...`: the 13 tests of the
+/// `podrunner source-conformance -- PROGRAM ARGS...`: the 14 tests of the
 /// source wire against PROGRAM, one line each; the text and true when each
 /// passes. The program must give two offers or more on its first `next`.
 pub fn source_conformance(args: &[String]) -> Result<(String, bool), Failure> {

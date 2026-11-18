@@ -63,7 +63,7 @@ impl Fixture for RefuserFixture {
 #[test]
 fn the_harness_fails_each_test_on_a_refuser() {
     let results = conformance::run(&RefuserFixture, &[]);
-    assert_eq!(results.iter().map(|r| r.number).collect::<Vec<_>>(), (1..=13).collect::<Vec<_>>());
+    assert_eq!(results.iter().map(|r| r.number).collect::<Vec<_>>(), (1..=14).collect::<Vec<_>>());
     for r in &results {
         assert!(r.failure.is_some(), "{r}");
         assert!(r.to_string().starts_with(&format!("source {:2} {}: FAIL", r.number, r.name)), "{r}");

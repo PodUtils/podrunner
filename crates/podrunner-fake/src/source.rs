@@ -83,6 +83,8 @@ pub enum SourcePlant {
     KeepReleased,
     /// Test 13: `assigned` of a job that is not claimed is kept.
     AssignedUnclaimed,
+    /// Test 14: `hello` with `host` is refused.
+    RefuseHost,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -178,6 +180,18 @@ impl JobSource for FakeSource {
     fn hello(&mut self, _: &str, _: &str) -> Result<Hello, SourceError> {
         let source = if self.planted(SourcePlant::NoName) { String::new() } else { self.name.clone() };
         Ok(Hello { source, operator_controlled: true })
+    }
+
+    fn hello_host(
+        &mut self,
+        client: &str,
+        version: &str,
+        _: &podrunner_source::HostFacts,
+    ) -> Result<Hello, SourceError> {
+        if self.planted(SourcePlant::RefuseHost) {
+            return Err(SourceError::new(SourceCode::BadRequest, "no host"));
+        }
+        self.hello(client, version)
     }
 
     fn next(&mut self, capacity: u32, _wait: Duration) -> Result<Vec<Event>, SourceError> {

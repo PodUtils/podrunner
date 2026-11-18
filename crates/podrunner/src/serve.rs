@@ -364,13 +364,13 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     let cfg = check(config)?;
     crate::tiers::state_path(&cfg, state)?;
     let _lock = crate::lock::StateLock::take(state)?;
-    let podvm = host::podvm_version(&cfg);
+    let tools = host::tools(&cfg);
     let mut slots = build(cfg, state)?;
     if slots.no_tier_served() {
         eprintln!("podrunner: no-tier-served: no unit kind meets the floor of a source");
     }
     // Each source learns what this host can run (T-495).
-    let facts = host::facts(&slots, podvm);
+    let facts = host::facts(&slots, tools);
     for why in slots.hello_sources("podrunner", env!("CARGO_PKG_VERSION"), &facts) {
         eprintln!("podrunner: hello: {why}");
     }

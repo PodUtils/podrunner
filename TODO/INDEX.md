@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**529 entries: 79 open, 33 partial, 12 blocked, 405 done.**
+**529 entries: 79 open, 32 partial, 12 blocked, 406 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 1 | 0 | 1 | 3 |
-| P1 | 17 | 15 | 2 | 64 | 98 |
+| P1 | 17 | 14 | 2 | 65 | 98 |
 | P2 | 22 | 12 | 7 | 215 | 256 |
 | P3 | 39 | 5 | 3 | 125 | 172 |
-| **All** | 79 | 33 | 12 | 405 | 529 |
+| **All** | 79 | 32 | 12 | 406 | 529 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -539,7 +539,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-492](later.md) | P2 | S | later | docs | open | The trackers of githome and cfb and the state pages name an old release |
 | [T-493](later.md) | P0 | M | later | defect | partial | G-15: the job-started hook ends a job that GitHub gave to a runner of a program source, when its run is not the run of the offer |
 | [T-494](later.md) | P0 | M | later | defect | done | G-16: one `[trust]` list for each host: a login of githome can match a login of GitHub |
-| [T-495](later.md) | P1 | M | later | feature | partial | G-17: the facts of a host for its source in `hello` |
+| [T-495](later.md) | P1 | M | later | feature | done | G-17: the facts of a host for its source in `hello` |
 | [T-496](later.md) | P1 | M | later | feature | open | G-18: the disk of a unit is a measured bound, not a size: a job does not get `ENOSPC` |
 | [T-497](later.md) | P1 | M | later | feature | partial | G-19: more facts of a job in the run report |
 | [T-498](later.md) | P1 | M | later | feature | open | G-22: a rotation of the key of a program source with no drain |

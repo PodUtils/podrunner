@@ -95,7 +95,7 @@ fn source_conformance_passes_a_source_and_fails_an_echo() {
     let ok = run(&[binary().to_str().unwrap(), "fake-source", "--script", &script]);
     let text = String::from_utf8_lossy(&ok.stdout);
     assert_eq!(ok.status.code(), Some(0), "{text}");
-    assert_eq!(text.lines().filter(|l| l.contains(": pass")).count(), 13, "{text}");
+    assert_eq!(text.lines().filter(|l| l.contains(": pass")).count(), 14, "{text}");
     let none = run(&["/bin/false"]);
     assert_eq!(none.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&none.stdout).contains("FAIL"));

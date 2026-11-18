@@ -48,7 +48,7 @@ fn the_local_source_passes_the_source_conformance_suite() {
     let reports = conformance::run(&Two, &[]);
     let failed: Vec<String> = reports.iter().filter(|r| r.failure.is_some()).map(ToString::to_string).collect();
     assert!(failed.is_empty(), "{failed:#?}");
-    assert_eq!(reports.len(), 13);
+    assert_eq!(reports.len(), 14);
 }
 
 #[test]

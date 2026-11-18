@@ -1,4 +1,4 @@
-//! The conformance suite of the source seam: the tests 1 to 13 of
+//! The conformance suite of the source seam: the tests 1 to 14 of
 //! `docs/contracts/source-driver.md`. Each test takes a fresh source from
 //! the fixture. A fresh source gives an offer on its first `next`; two or
 //! more make test 3 strict. Each test gives its job back at its end (T-190).
@@ -6,10 +6,10 @@
 use std::fmt;
 use std::time::Duration;
 
-use podrunner_schema::JobId;
+use podrunner_schema::{Boundary, ContainerRoute, JobId};
 use serde_json::Map;
 
-use crate::{Event, JobSource, RealJob, SourceCode, SourceError, serve_line, wire};
+use crate::{Event, HostFacts, JobSource, KindFacts, RealJob, SourceCode, SourceError, serve_line, wire};
 
 /// What a test needs from the source under test.
 pub trait Fixture {
@@ -43,7 +43,7 @@ impl fmt::Display for Report {
 
 type Run = fn(&dyn Fixture) -> Result<(), String>;
 
-const CASES: [(u32, &str, Run); 13] = [
+const CASES: [(u32, &str, Run); 14] = [
     (1, "hello-names-the-source", hello_names_the_source),
     (2, "no-capacity-gives-no-offer", no_capacity_gives_no_offer),
     (3, "next-gives-at-most-capacity-offers", next_gives_at_most_capacity_offers),
@@ -57,6 +57,7 @@ const CASES: [(u32, &str, Run); 13] = [
     (11, "an-unknown-op-is-bad-request", an_unknown_op_is_bad_request),
     (12, "the-wire-refuses-a-long-line-a-path-and-a-schema", the_wire_refuses_bad_lines),
     (13, "assigned-needs-a-claim", assigned_needs_a_claim),
+    (14, "hello-takes-the-facts-of-the-host", hello_takes_the_facts_of_the_host),
 ];
 
 /// The number and the name of each test, in order.
@@ -226,6 +227,33 @@ fn assigned_needs_a_claim(fx: &dyn Fixture) -> Result<(), String> {
         }
     });
     give_back(s.as_mut(), &job, true, result)
+}
+
+/// `hello` with the optional `host` is accepted and names the same source
+/// as `hello` with no `host` (T-495).
+fn hello_takes_the_facts_of_the_host(fx: &dyn Fixture) -> Result<(), String> {
+    let plain = fx.fresh().hello("podrunner", "0").map_err(err("hello"))?;
+    let host = HostFacts {
+        podrunner: "0".into(),
+        podvm: Some("0.2.0".into()),
+        podnet: Some("0.4.0".into()),
+        arch: "x86_64".into(),
+        kvm: false,
+        kinds: vec![KindFacts {
+            name: "conformance".into(),
+            boundary: Boundary::Confined,
+            container: ContainerRoute::None,
+            cpu: Some(2000),
+            memory: Some(1 << 30),
+            disk: None,
+            pids: Some(512),
+        }],
+    };
+    let h = fx.fresh().hello_host("podrunner", "0", &host).map_err(err("hello with host"))?;
+    if h.source != plain.source {
+        return Err(format!("hello with host names {:?}, hello with none {:?}", h.source, plain.source));
+    }
+    Ok(())
 }
 
 /// The code of an error reply, or a failure.

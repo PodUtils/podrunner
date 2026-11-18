@@ -98,8 +98,9 @@ is done.
 - The coordinator (podcrates) sends its orders as COORD issues only
   (COORD-136, PodUtils/podcrates#227). Its order for podrunner: the take
   of `v0.70.0` (done, COORD-088 #295), the census of T-491 (done), then
-  T-493, T-494, T-486, T-495; amend COORD-088 when T-486, T-493 and T-495
-  are done (the move of the schemas, T-508).
+  T-493, T-494, T-486, T-495. T-486 and T-495 are done, T-497 is
+  partial; amend COORD-088 when T-493 is done too (the move of the
+  schemas, T-508).
 - podvm `0.2.0-beta.32` is pinned (COORD-185, PodUtils/podvm#572): the
   environment goes to podvm in a file (T-405, partial), a pty step in `runner-image.yml` and the check
   `pty:podvm` of the user-path gate (T-354, done; #216 closed). T-403 waits for `--podvm-volume-base` on
@@ -176,8 +177,8 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
      `crates/podrunner-slots/src/assigned.rs`), and `[[source]] trust`.
      Open: T-530 (a podvm unit), the field `assigned` and `forge` of
      `pod-job` (PodUtils/podcrates@T-923, COORD-087), a run on a real
-     unit in `runner-image.yml`. Then a beta; name its tag on #292. Then the needs, P1 first: T-486 (G-04), T-490
-     (the unknowns), T-495 to T-499, T-485, T-506 (G-36, a sandbox
+     unit in `runner-image.yml`. Then a beta; name its tag on #292. Then the needs, P1 first: T-490
+     (the unknowns), T-496 to T-499, T-485, T-506 (G-36, a sandbox
      unit), T-507 (G-37, an install of `serve` that githome's CLI drives,
      no TCP listener), T-508 (take the `pod-job` schemas; the source
      wire moves after T-486, T-493 and T-495), T-509 (G-38, githome's
