@@ -148,12 +148,14 @@ The last session (2026-11-18, evening) left:
   its `main`, COORD-197; with that beta set `SYSCALL_TIER`, run
   `user-gate.yml`, set `click-py313` and `rq-lint` to `ok`); #309 (the
   result of T-179 to podnet).
-- Runs to read first: `user-gate.yml` on `ffc9658` (the tier off; T-537:
-  `hello:microvm` in `plain`; T-527: the lane `serve-incus-kvm`; T-528: the
-  rows `rbg-gate` and their times) and `runner-image.yml` on `ffc9658`
-  (T-525: the steps "C1 to C5" after the fix of the fake broker and of the
-  trusted offer). Fix or record each failure; make a measure blocking when
-  it is green.
+- Runs to read first: `user-gate.yml` on `0090c57` (T-537: the installer
+  closes `~/.local/share`; T-527: the lane `serve-incus-kvm`; T-528: the
+  rows `rbg-gate` with `--event workflow_dispatch`); `runner-image.yml` on
+  `033c25d` (T-525: "C1 to C5" after the fix of the fake broker); the
+  dispatch of `runner-image.yml` with `plant: incus-conformance` (T-526:
+  it must be red in the incus step). Run 44416704184 (`ffc9658`) showed
+  the tier off works: the express rows and `rg-docs` pass on podvm in
+  each lane. Make each measure blocking once it is green.
 - podvm `0.2.0-beta.35` is out (confine on the tier, `exec=` on the tier);
   podrunner gives no tier now, so its pin can wait for the beta with
   PodUtils/podvm@T-1990 (PodUtils/podvm#593).
