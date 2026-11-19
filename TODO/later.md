@@ -12604,6 +12604,8 @@ State (2026-11-19, `hosted-snapshot.yml` run 44468934583 at `e7bfc76`, proven in
 
 State (2026-11-19, `hosted-snapshot.yml` run 44477535075, `ubuntu-26.04`): the plan refused the layer `base` of 9.4 GB, over the bound of 8 GB. `layers.toml` takes `usr/share`, the arch tree of `usr/lib`, the rest of `usr/lib` and `var/lib/snapd` out of `base`, and a refused layer names its largest trees. On this label `/mnt` is on the root file system (145 GB, 88 GB free); the rule `mnt/**` keeps the output out of the capture.
 
+State (2026-11-19, later; proven in CI on GitHub-hosted runners, dry runs, nothing pushed): `ubuntu-24.04-arm` (run 44477539612, image `20261111.182.1`, kernel `7.0.0-1017-azure`, the runner root `/home/runner/extracted`): 64 layers and `boot`, 9.7 GiB with zstd, 56 minutes. `ubuntu-26.04` (run 44479933476, image `20261116.202.1`, kernel `7.0.0-1020-azure`): 82 layers and `boot`, 16.1 GiB, 53 minutes; `base` 5.9 GB and the containerd store 4.9 GB after the split. The check of the scrub passes in each layer of both. Next: `ubuntu-26.04-arm` (dispatched), then pass 1 and pass 3 (C1).
+
 # T-543: systemd as PID 1 in an incus instance
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12644,6 +12646,8 @@ State (2026-11-19, later): podvm `0.2.0-beta.36` carries PodUtils/podvm@T-1993 (
 State (2026-11-19, later): the podrunner side is in. `[unit.incus] init = "image"` gives each instance `--podvm-init=image --podvm-engine`: the init of the image is PID 1 and its own `docker.service` runs; podrunner mounts no engine and starts no `dockerd` (finding PF-5), and the record says `container: engine`. `check` refuses it with `engine` and on the other kinds, and asks podvm `0.2.0-beta.36` or later. `cargo test -p podrunner-incus` (`the_init_of_the_image_boots_with_its_own_engine`) and `cargo test -p podrunner --test check` pass. `UnitConfig` moved to `crates/podrunner-slots/src/unit_config.rs` (the size of `config.rs`). Left: the Prove in `runner-image.yml` with an image that boots systemd, and the asks of COORD-106 for the snapshot.
 
 State (2026-11-19, COORD-203, PodUtils/podvm#599): PodUtils/podvm@T-1996 is on podvm's `main` (partial): with `--podvm-init=image` an instance gets `security.idmap.isolated` with `security.idmap.size` 231072, `/dev/fuse`, and an empty `/etc/machine-id`. The host must give incusd 231,072 free subordinate ids for each such instance; an incusd with fewer is refused, and the error names `/etc/subuid`. This becomes a check of `doctor` for `init = "image"` when podvm releases it.
+
+State (2026-11-19, COORD-203): PodUtils/podvm@T-1997 is on podvm's `main`: the unified tarball goes to the import of incusd through a pipe. podvm measured the disk of the first run on the incus tier at the extracted tree plus about 2.4 times it in incusd: for the snapshot of 55 to 60 GB, plan for about 190 GB on the host (T-551).
 
 # T-544: systemd as PID 1 and a root on a disk in a microvm guest
 
@@ -12864,6 +12868,8 @@ The study, section 3.3, findings F5 and F8, read on 2026-11-19.
 `cargo test -p podrunner --test check`: a pin whose size is over the disk bound is refused with the fix.
 
 State (2026-11-19, the second study, finding PF-4): the snapshot is about 55 to 60 GB on disk, more than githome's unit disk of 40 GB (`disk_max_bytes`). This entry is now a blocker of the snapshot on that host: P1. Also ask githome on GitHub #151 for 80 GB or more for each unit, or a copy-on-write pool where only the writes count.
+
+State (2026-11-19): podvm's measure (PodUtils/podvm@T-1997, COORD-203): the incus tier needs the extracted tree plus about 2.4 times it in incusd. The disk of a host for the snapshot on the incus kind is about 190 GB; `doctor` names it with the bound of the kind.
 
 # T-552: A job that the job-started hook ends with no answer is reported as success
 
