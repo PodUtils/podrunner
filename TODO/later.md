@@ -10725,6 +10725,8 @@ The step of the incus suite in `runner-image.yml` passes, and it fails with the 
 
 In the code (2026-11-19): the parity suite takes `PODRUNNER_PARITY_ROUTES=0` (a unit with no container route skips those workflows), and a step of `runner-image.yml` runs it on the incus kind with no engine, as a measure: `06-actions.yml` (the real `actions/checkout@v4`) must give PASS. Left: the green run, then the step blocks; the plant of the Prove (the guest script of before T-178).
 
+State (2026-11-19, `runner-image.yml` run 44429314715, `b9128b2`): on the incus kind with no engine, `01`, `02`, `03`, `06-actions.yml` (the real `actions/checkout@v4` in an instance), `07` and `08` PASS, the three workflows of containers SKIP, and both plants fail. Proven in CI on GitHub-hosted runners. Left: the plant of the Prove (the guest script of before T-178), then the step blocks.
+
 # T-482: The incus kind bounds no disk of the root of an instance
 
 **Source:** GitHub #292 (cfb, P-5), 2026-11-18
