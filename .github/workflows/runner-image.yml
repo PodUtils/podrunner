@@ -623,11 +623,10 @@ jobs:
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local-incus.txt")" = 8
       # T-481: the parity suite on the incus kind: the real actions/checkout
       # of 06-actions.yml in an instance (HOME of the runner, T-178); T-485:
-      # with an engine, the workflows of containers too. A measure until it
-      # is green.
-      - name: The parity suite on the incus kind (a measure)
+      # with an engine, the workflows of containers too. It blocks (green in
+      # runs 44429314715 and 44431209673).
+      - name: The parity suite on the incus kind
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
-        continue-on-error: true
         run: |
           set -eu
           set -o pipefail

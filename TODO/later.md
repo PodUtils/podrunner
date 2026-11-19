@@ -10819,7 +10819,7 @@ In the code (2026-11-18): `sh scripts/release-assets.sh sums DIR` writes `DIR/SH
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -10843,7 +10843,7 @@ If an engine in an instance cannot keep `confined`: by default a trusted job wit
 
 The parity suite of the engine (`services:`, a job container, a Docker action, a Dockerfile action) passes on real incus instances in `runner-image.yml`.
 
-In the code (2026-11-18): podvm `0.2.0-beta.32` runs an engine in an incus instance (`--podvm-engine`, COORD-187 ask 3, PodUtils/podvm#583; measured by podvm with `docker info` in an unprivileged instance with no NIC). `[unit.incus] engine = DIR` gives each instance `--podvm-engine` and the directory read-only; the script starts `dockerd` with no bridge and no iptables and gives its socket as `DOCKER_HOST`; the record says `container: engine`; `check` refuses a directory with no `dockerd` and a podvm before `0.2.0-beta.32` (`crates/podrunner-incus/src/guest.rs`, `lib.rs`, `crates/podrunner/src/incus_kind.rs`, `docs/configuration.md`). The call on `confined` is in `docs/decisions.md`. Tests: `cargo test -p podrunner-incus an_engine_directory_gives_each_instance_an_engine`, `cargo test -p podrunner --test check`; `the_runner_user_runs_a_container_on_the_engine_of_its_instance` (`podrunner-incus --test engine`, a step of `runner-image.yml`) runs a container on real instances. Open: its green run, the network of the engine (`services:` needs one), the parity suite on incus with an engine, and `--incus --engine` in the local mode (`--engine needs --microvm` now).
+In the code (2026-11-18): podvm `0.2.0-beta.32` runs an engine in an incus instance (`--podvm-engine`, COORD-187 ask 3, PodUtils/podvm#583; measured by podvm with `docker info` in an unprivileged instance with no NIC). `[unit.incus] engine = DIR` gives each instance `--podvm-engine` and the directory read-only; the script starts `dockerd` with no bridge and no iptables and gives its socket as `DOCKER_HOST`; the record says `container: engine`; `check` refuses a directory with no `dockerd` and a podvm before `0.2.0-beta.32` (`crates/podrunner-incus/src/guest.rs`, `lib.rs`, `crates/podrunner/src/incus_kind.rs`, `docs/configuration.md`). The call on `confined` is in `docs/decisions.md`. Tests: `cargo test -p podrunner-incus an_engine_directory_gives_each_instance_an_engine`, `cargo test -p podrunner --test check`; `the_runner_user_runs_a_container_on_the_engine_of_its_instance` (`cargo test -p podrunner-incus --test engine`, a step of `runner-image.yml`) runs a container on real instances. Open: its green run, the network of the engine (`services:` needs one), the parity suite on incus with an engine, and `--incus --engine` in the local mode (`--engine needs --microvm` now).
 
 State (2026-11-18): `runner-image.yml` run 44349725647 (`e6beea0`): `the_runner_user_runs_a_container_on_the_engine_of_its_instance` passed on a real incus instance (the user `runner`, `DOCKER_HOST`, a container gave `engine-42`), and `docker network create` worked in the instance. Open: the parity suite on incus with an engine (`services:`), and `--incus --engine` in the local mode.
 
@@ -10851,6 +10851,9 @@ In the code (2026-11-19): `podrunner run --incus PODVM --engine DIR` gives each 
 
 State (2026-11-18, later): run 44376274000 (`2041d27`): the engine test passed again; it blocks from the next commit.
 
+## Done
+
+2026-11-19: `runner-image.yml` run 44431209673 (`b24f5a3`): the parity suite on the incus kind with the engine of the guest engine step gives PASS for each of the 9 workflows, also `04-services.yml` (`services:`), `05-containers.yml` (a job container) and `09-dockerfile.yml` (a Dockerfile action), and both plants fail. `podrunner run --incus PODVM --engine DIR` gives the engine to the local mode. The step blocks now. Level: proven in CI on GitHub-hosted runners.
 
 # T-486: G-04: the egress verdicts of a unit do not reach the source of the job
 
