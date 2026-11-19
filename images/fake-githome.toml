@@ -2,9 +2,13 @@
 # source of githome, for the test of githome's source in podrunner's CI
 # (T-509, githome's G-38). scripts/githome-conformance.sh downloads the
 # asset of the release of podcrates and checks its SHA-256 (the line of the
-# signed SHA256SUMS of that release).
-version = "0.74.0"
+# signed SHA256SUMS of that release). The same binary is the index
+# `reference` on ghcr.io, attested (T-553, COORD-142).
+version = "0.75.0"
 
 [sha256]
-x86_64 = "74c5c128ea6a0f2b694e7223480672bca9f9b4e7003411a03a56a20c40e75b47"
-aarch64 = "5a3e5425f6069b8742d5a3f92fa7bcc2dc9bcac650276d7a49b76cda18550580"
+x86_64 = "05219ff80730ef7a77f8fdfe6aaf7c6a2d8f72004a542e080f29d3cfe7f7a3c4"
+aarch64 = "e03b9b818bf893921222313340a623125649070817e7ba0b24ec40844206ab33"
+
+[ghcr]
+reference = "ghcr.io/podutils/pod-fake-githome:v0.75.0@sha256:88169fa21de7498a457adc024ae46b351ce0ec6113cef3962f0d0dbc9052dc16"

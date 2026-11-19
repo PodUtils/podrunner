@@ -11641,6 +11641,8 @@ In the code (2026-11-18): `images/fake-githome.toml` pins `pod-fake-githome` of 
 
 State (2026-11-19): podcrates `v0.74.0` (COORD-141, PodUtils/podcrates#237): `images/fake-githome.toml` pins its `pod-fake-githome`, which passes the 15 tests here; its `serve --github URL` mints the JIT configuration of a `pod-fake-github` for the claimed job, so one live job of each kind can run through `serve` now (with T-527).
 
+State (2026-11-19): `pod-fake-githome` `0.75.0` passes the 15 tests (`sh scripts/githome-conformance.sh`, `{"failed":0,"passed":15}`).
+
 # T-510: G-39: one record of each change of a contract that githome reads
 
 **Source:** githome's G-39 on GitHub #292 (2026-11-18T07:22Z); the ruling of the owner of 2026-11-18
@@ -12919,6 +12921,8 @@ State (2026-11-19, COORD-142 amended, PodUtils/podcrates#236): podvm publishes i
 
 State (2026-11-19, later): `ghcr.io/podutils/podvm:v0.2.0-beta.36` is published too; `images/podvm.toml` pins the SHA-256 of the assets for now.
 
+State (2026-11-19, later): podcrates `v0.75.0` publishes its fakes on ghcr.io in the form; `images/fake-githome.toml` pins `pod-fake-githome` by the SHA-256 of each asset and by its index digest (`[ghcr] reference`).
+
 # T-554: The compile of TypeScript 7 hangs on the podvm userland rung with no tier
 
 **Source:** the user-path gate, run 44438881119 (row `rbg-gate`, podvm executor), 2026-11-19
@@ -13123,3 +13127,6 @@ Take the release of podcrates that reads each member, with its tests (two gzip m
 ## Blocker
 
 COORD-107 (GitHub #317, to podcrates) ask 2.
+
+State (2026-11-19): podcrates `v0.75.0` (COORD-143, PodUtils/podcrates#238, PodUtils/podcrates@T-956) reads each gzip member and each zstd frame of a layer. podrunner takes the tag (COORD-108, GitHub #318) but links no `pod-extract`: podvm extracts the layers. Next: podvm takes `v0.75.0`, then a layer of two gzip members extracts whole in a unit.
+
