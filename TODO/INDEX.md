@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**534 entries: 49 open, 44 partial, 12 blocked, 429 done.**
+**535 entries: 50 open, 44 partial, 12 blocked, 429 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 3 | 19 | 3 | 74 | 99 |
+| P1 | 4 | 19 | 3 | 74 | 100 |
 | P2 | 9 | 18 | 6 | 226 | 259 |
 | P3 | 36 | 7 | 3 | 127 | 173 |
-| **All** | 49 | 44 | 12 | 429 | 534 |
+| **All** | 50 | 44 | 12 | 429 | 535 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -582,3 +582,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-535](later.md) | P3 | S | later | defect | partial | The tests leave their temporary directories in /tmp |
 | [T-536](later.md) | P2 | S | later | chore | done | Take `pod_core::http1` in place of the reader of an HTTP/1.1 head of podrunner-hook |
 | [T-537](later.md) | P1 | S | later | defect | done | The installer leaves the data directory writable by the group, and the microvm kind refuses its podvm |
+| [T-538](later.md) | P1 | L | later | feature | open | A unit with the toolset of the GitHub-hosted ubuntu-latest, with systemd, checked mechanically |

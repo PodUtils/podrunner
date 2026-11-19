@@ -12438,3 +12438,30 @@ State (2026-11-18, later): `user-gate.yml` run 44416704184: the lane `plain` the
 
 State (2026-11-19, `user-gate.yml` run 44428133678): the check then refused the home of the lane itself, which `scripts/user-gate.py` made under the umask 002 of the lab user. The installer leaves `$HOME` as it is (a home is the user's); the harness now makes the home of the lane and its work directory with mode 0755, as a home is.
 
+
+# T-538: A unit with the toolset of the GitHub-hosted ubuntu-latest, with systemd, checked mechanically
+
+**Source:** the owner, 2026-11-19 (the rulings "GitHub-hosted parity" and "ghcr.io" in `docs/decisions.md`); githome's and cfb's scripts assume the GitHub-hosted runner (GitHub #292, #151)
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The runner image of podrunner (`images/runner/Dockerfile`, `images/runner/full.txt`) is Ubuntu 24.04 with a small set of packages and no systemd. A script of githome or cfb that assumes a tool of the GitHub-hosted `ubuntu-latest` image, or `systemctl`, fails in a unit. No check compares a unit with the hosted image. The full hosted image is too large for a release asset of 2 GiB.
+
+## Premise
+
+The Dockerfile and `runner-image.yml`, read on 2026-11-19. A study of the hosted image (`actions/runner-images`), of systemd on each unit kind, of distribution on ghcr.io and of a mechanical parity check is in progress; its work items become entries.
+
+## Approach
+
+1. The study: the source of the hosted image, what needs systemd, what each unit kind can run, the distribution on ghcr.io, and the design of the mechanical check.
+2. An image with the hosted toolset and systemd, built from a pinned recipe and pushed to ghcr.io by digest; the units pull it by digest.
+3. A check in CI that compares the tools of the unit with those of the hosted image (a probe job on github.com and in the unit, diffed), so that a drift fails the gate and a new hosted image becomes a work item.
+
+## Prove
+
+`runner-image.yml`: the probe job gives the same tool list (names and major versions) on github.com and in a unit of each kind that can run the image; a removed tool fails the step.
