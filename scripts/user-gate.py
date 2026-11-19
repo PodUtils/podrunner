@@ -171,6 +171,12 @@ class Lane:
         self.home = self.work / "home"
         self.data = self.home / ".local" / "share" / "podrunner"
         self.image = ""
+        # The home of the lane as a home is: no write of the group or the
+        # others, whatever the umask of the lab user (podrunner refuses a
+        # driver under an open directory, T-537).
+        self.home.mkdir()
+        for d in (self.work, self.home):
+            d.chmod(0o755)
 
     # The helpers.
     def env(self, home: pathlib.Path, **extra) -> dict[str, str]:

@@ -12432,3 +12432,6 @@ The log of the lane, read on 2026-11-18. Which step of the lane made the data di
 2026-11-18: `scripts/install.sh` removes the write of the group and the others from `$data` as well; `sh scripts/test-install.sh` passes with an open data directory planted. The run of `user-gate.yml` that proves it in the lane `plain` is the next one.
 
 State (2026-11-18, later): `user-gate.yml` run 44416704184: the lane `plain` then refused `~/.local/share`, the next directory up (a umask of 002 leaves it open; a desktop makes it so too). The installer now closes each directory of the user from `bin` and `data/bin` up to `$HOME` (not `$HOME` itself), with one line for each; case 5 of `sh scripts/test-install.sh` plants each of them open.
+
+State (2026-11-19, `user-gate.yml` run 44428133678): the check then refused the home of the lane itself, which `scripts/user-gate.py` made under the umask 002 of the lab user. The installer leaves `$HOME` as it is (a home is the user's); the harness now makes the home of the lane and its work directory with mode 0755, as a home is.
+
