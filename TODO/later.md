@@ -11251,6 +11251,8 @@ In the code (2026-11-18), with podcrates `v0.71.0`: the slots fill `image_digest
 
 State (2026-11-18): `log_tail` is filled for a unit that started and ended with no step and not by success or a cancel: the driver gives the log of the unit (`unit_logs`) before the destroy, and `crates/podrunner-slots/src/log_tail.rs` masks each word whose SHA-256 is the hash of a string value of a JSON credential file (or a long word of another file; `.runner` and `.podrunner-job` hold no secret), and each word of the shape of a token of GitHub, then keeps the last 65536 bytes. No credential stays in slots after the start: only the hashes. The fake unit keeps the output of its payload in its root (`.unit.log`). Tests: `cargo test -p podrunner-slots log_tail` (4), `tests::report::a_unit_that_fails_before_a_step_gives_a_scrubbed_log_tail` (a canary of the credential that the payload prints is not in the tail; it fails with no hashes). Open: the cache bytes (T-480); `cpu_s` and `peak_rss_mib` on incus (T-483, in the code; its measure on real instances).
 
+State (2026-11-19): `gate.yml` run 44432274968 failed once in `a_report_has_its_times_its_image_and_its_measures_or_a_reason`: `run_s` was 31, not 30 (the bed ticks each second, and on a slow host the unit starts a tick late). The test takes 30 to 32 s now.
+
 # T-498: G-22: a rotation of the key of a program source with no drain
 
 **Source:** githome's G-22 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
