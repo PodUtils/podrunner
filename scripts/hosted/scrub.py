@@ -27,6 +27,8 @@ import tarfile
 import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+# `python3 -I` puts no directory of the script on the path: c1.py is beside.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 RULES = ROOT / "images" / "hosted" / "scrub.toml"
 
 # The patterns of a credential (C2). A match prints the name only.
@@ -174,11 +176,17 @@ def cmd_list(rules: Rules, root: pathlib.Path, fix: pathlib.Path, w) -> None:
     w.write(b"".join(p.encode() + b"\0" for p in sorted(fixed | extra)))
 
 
-def cmd_verify(rules: Rules, stream) -> list[str]:
+def cmd_verify(rules: Rules, stream, rows=None) -> list[str]:
+    """The findings of a layer stream; with `rows`, the row of each member
+    for check C1 (c1.py)."""
+    if rows is not None:
+        from c1 import row_of_member
     bad = []
     # A large buffer: the stream of a layer can be 8 GB.
     with tarfile.open(fileobj=stream, mode="r|*", bufsize=1 << 20) as tar:
         for m in tar:
+            if rows is not None:
+                rows.write(row_of_member(m) + "\n")
             path = m.name.removeprefix("./").rstrip("/")
             if rules.dropped(path):
                 bad.append(f"{path}: a dropped path is in the stream")
@@ -309,6 +317,7 @@ def main() -> int:
     ap.add_argument("--out", type=pathlib.Path)
     ap.add_argument("--fix", type=pathlib.Path)
     ap.add_argument("--runner-root")
+    ap.add_argument("--rows", type=pathlib.Path, help="verify: the rows of check C1 (c1.py)")
     a = ap.parse_args()
     rules = Rules(a.rules.read_text(), a.runner_root)
     if a.cmd == "fix":
@@ -318,7 +327,11 @@ def main() -> int:
     if a.cmd == "list":
         cmd_list(rules, a.root, a.fix, sys.stdout.buffer)
         return 0
-    found = cmd_verify(rules, sys.stdin.buffer)
+    if a.rows:
+        with open(a.rows, "w", encoding="utf-8", errors="surrogateescape") as rows:
+            found = cmd_verify(rules, sys.stdin.buffer, rows)
+    else:
+        found = cmd_verify(rules, sys.stdin.buffer)
     for f in found:
         print(f, file=sys.stderr)
     return 1 if found else 0

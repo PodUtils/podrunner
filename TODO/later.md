@@ -12606,6 +12606,8 @@ State (2026-11-19, `hosted-snapshot.yml` run 44477535075, `ubuntu-26.04`): the p
 
 State (2026-11-19, later; proven in CI on GitHub-hosted runners, dry runs, nothing pushed): `ubuntu-24.04-arm` (run 44477539612, image `20261111.182.1`, kernel `7.0.0-1017-azure`, the runner root `/home/runner/extracted`): 64 layers and `boot`, 9.7 GiB with zstd, 56 minutes. `ubuntu-26.04` (run 44479933476, image `20261116.202.1`, kernel `7.0.0-1020-azure`): 82 layers and `boot`, 16.1 GiB, 53 minutes; `base` 5.9 GB and the containerd store 4.9 GB after the split. The check of the scrub passes in each layer of both. Next: `ubuntu-26.04-arm` (dispatched), then pass 1 and pass 3 (C1).
 
+State (2026-11-19, later): check C1 is in. `plan.py --manifest` writes a row for each member after the scrub (type, mode, owner, size, link target, file capabilities and user xattrs); `scrub.py verify --rows` writes the same row for each member of a layer stream; `scripts/hosted/c1.py compare` merges the rows of the layers in order and fails on a missing, changed or extra path. `python3 -I scripts/hosted/c1.py --self-test` passes (a lost file, a lost setuid bit, a lost xattr and an extra path each fail); a run of the whole chain on a fixture with a real `security.capability`, a setuid bit and a hard link across two planned layers gives 0 differences. The content is not hashed in C1: tar reads the bytes that it lists. Next: a capture with C1 on a hosted label.
+
 # T-543: systemd as PID 1 in an incus instance
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19

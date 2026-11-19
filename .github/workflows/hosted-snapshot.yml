@@ -36,7 +36,7 @@ jobs:
           sudo mkdir -p /mnt/podrunner-capture/scripts/hosted /mnt/podrunner-capture/images/hosted
           sudo chown -R "$(id -u):$(id -g)" /mnt/podrunner-capture
           cd /mnt/podrunner-capture
-          for f in scripts/hosted/capture.sh scripts/hosted/scrub.py scripts/hosted/plan.py \
+          for f in scripts/hosted/capture.sh scripts/hosted/scrub.py scripts/hosted/plan.py scripts/hosted/c1.py \
             images/hosted/scrub.toml images/hosted/layers.toml; do
             curl -fsSL --retry 3 -o "$f" "$SRC/$f"
           done
@@ -59,7 +59,7 @@ jobs:
           df -h /mnt
           mkdir -p "$RUNNER_TEMP/record"
           cd /mnt/snapshot
-          cp snapshot.json plan.tsv layers.tsv fixed.txt "$RUNNER_TEMP/record/" 2>/dev/null || true
+          cp snapshot.json plan.tsv layers.tsv fixed.txt c1.txt "$RUNNER_TEMP/record/" 2>/dev/null || true
           cp plan/plan.json "$RUNNER_TEMP/record/" 2>/dev/null || true
           for f in layers/*.verify; do [ -s "$f" ] && cp "$f" "$RUNNER_TEMP/record/"; done || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

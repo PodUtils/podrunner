@@ -96,6 +96,9 @@ the tools.
   * `hosted/plan.py`, `hosted/capture.sh`: the layers of the snapshot by
     `images/hosted/layers.toml`, and the capture of a hosted root as the
     first step of a job (`hosted-snapshot.yml`, a dry run to `/mnt`).
+  * `hosted/c1.py`: check C1 of the snapshot: the rows of the layer
+    streams, merged in order, against the root after the scrub (type,
+    mode, owner, size, link, file capabilities).
   * `hosted/watch.py`: the image of each hosted label, matched to its
     release of runner-images by the build number (T-540,
     `images/hosted/labels.toml`).

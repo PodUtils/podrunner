@@ -10,7 +10,9 @@
 # member list of the scrub (scrub.py), the layers (plan.py), and streams
 # each layer through GNU tar, the check of the scrub (scrub.py verify) and
 # zstd into OUT/layers/NN-NAME.tar.zst, with its diff id and its digest in
-# OUT/layers.tsv. The kernel layer `boot` (/boot and /boot/efi) is last.
+# OUT/layers.tsv. Check C1 (c1.py) compares the rows of the layers with
+# the root after the scrub. The kernel layer `boot` (/boot and /boot/efi)
+# is last.
 # A failed check of any layer fails the capture. OUT must be outside the
 # root file system (/mnt on a hosted runner).
 set -euo pipefail
@@ -73,7 +75,8 @@ sudo mount --make-private "$view"
 
 sudo python3 -I "$here/scrub.py" fix --root "$view" --out "$out/fix" --runner-root "${runner_root#/}" > "$out/fixed.txt"
 sudo python3 -I "$here/scrub.py" list --root "$view" --fix "$out/fix" --runner-root "${runner_root#/}" > "$out/members"
-sudo python3 -I "$here/plan.py" --root "$view" --members "$out/members" --out "$out/plan" | tee "$out/plan.tsv"
+sudo python3 -I "$here/plan.py" --root "$view" --members "$out/members" --out "$out/plan" \
+  --manifest "$out/expected.tsv" | tee "$out/plan.tsv"
 
 # One layer: a tar stream through the check of the scrub and zstd.
 layer() {
@@ -83,7 +86,8 @@ layer() {
   sudo tar --format=posix --xattrs --xattrs-include='*' --acls --sparse --numeric-owner \
     --pax-option=delete=atime,delete=ctime "$@" -cf - |
     tee >(sha256sum | cut -d' ' -f1 > "$dst.diff_id") \
-      >(python3 -I "$here/scrub.py" verify --runner-root "${runner_root#/}" 2> "$dst.verify"; echo $? > "$dst.verify.rc") |
+      >(python3 -I "$here/scrub.py" verify --runner-root "${runner_root#/}" --rows "$dst.rows" 2> "$dst.verify"
+        echo $? > "$dst.verify.rc") |
     zstd -q -T0 "-$level" -o "$dst"
   # The two checks of the tee end after zstd: wait for their files.
   for _ in $(seq 600); do [ -s "$dst.verify.rc" ] && [ -s "$dst.diff_id" ] && break; sleep 1; done
@@ -102,6 +106,13 @@ for list in "$out"/plan/*.list; do
   name=$(basename "$list" .list)
   layer "$name" -C "$view" --null --no-verbatim-files-from --no-recursion -T "$list" || failed=1
 done
+# C1: the layers hold the root after the scrub, 1:1 (c1.py).
+if ! python3 -I "$here/c1.py" compare "$out/expected.tsv" "$out"/layers/[0-9]*.rows > "$out/c1.txt"; then
+  echo "capture: check C1 failed:" >&2
+  head -n 50 "$out/c1.txt" >&2
+  failed=1
+fi
+tail -n 1 "$out/c1.txt"
 # The kernel layer: /boot with /boot/efi, at their paths.
 layer boot -C / boot || failed=1
 column -t "$out/layers.tsv" || cat "$out/layers.tsv"

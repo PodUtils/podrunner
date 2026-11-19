@@ -35,6 +35,7 @@ jobs:
           python3 -I scripts/hosted/diff.py --self-test
           python3 -I scripts/hosted/scrub.py --self-test
           python3 -I scripts/hosted/plan.py --self-test
+          python3 -I scripts/hosted/c1.py --self-test
           python3 -I scripts/hosted/watch.py --self-test
           timeout 120 python3 -I scripts/hosted/push-blob.py --self-test
 

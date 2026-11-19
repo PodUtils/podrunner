@@ -125,6 +125,18 @@ def plan(root: pathlib.Path, members: list[tuple[str, str]], rules: Plan, digest
     return out
 
 
+def write_manifest(root: pathlib.Path, members: list[tuple[str, str]], out: pathlib.Path) -> None:
+    """The rows of check C1 for each member: what the layers must hold."""
+    from c1 import row_of_stat
+
+    with open(out, "w", encoding="utf-8", errors="surrogateescape") as f:
+        for b, p in members:
+            full = str((pathlib.Path(b) if b else root) / p)
+            r = row_of_stat(p, full, os.lstat(full))
+            if r is not None:
+                f.write(r + "\n")
+
+
 def write(out_dir: pathlib.Path, layers: list[dict]) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     meta = []
@@ -248,13 +260,17 @@ def main() -> int:
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--layers", type=pathlib.Path, default=LAYERS)
     ap.add_argument("--digests", type=pathlib.Path)
+    ap.add_argument("--manifest", type=pathlib.Path, help="the rows of check C1 (c1.py)")
     a = ap.parse_args()
     digests = {}
     if a.digests:
         for line in a.digests.read_text().splitlines():
             h, _, p = line.partition("  ")
             digests[p.removeprefix("./")] = h
-    layers = plan(a.root, read_members(a.members.read_bytes()), Plan(a.layers.read_text()), digests)
+    members = read_members(a.members.read_bytes())
+    layers = plan(a.root, members, Plan(a.layers.read_text()), digests)
+    if a.manifest:
+        write_manifest(a.root, members, a.manifest)
     write(a.out, layers)
     for lay in layers:
         print(f"{lay['name']}\t{len(lay['members'])}\t{lay['bytes']}")
