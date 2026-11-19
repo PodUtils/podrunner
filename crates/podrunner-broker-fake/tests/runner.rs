@@ -98,10 +98,17 @@ fn a_job_started_hook_ends_a_foreign_job_before_its_first_step() {
         let broker = Broker::start().unwrap();
         broker.queue(Job::scripts("own", &["echo step > marker.txt"]));
         let _ = std::fs::remove_dir_all(dir.join("_work"));
-        run_once(&dir, &broker, &[("ACTIONS_RUNNER_HOOK_JOB_STARTED", hook.display().to_string())]);
+        let err = dir.join("podrunner-stderr.txt");
+        let env = [("ACTIONS_RUNNER_HOOK_JOB_STARTED", hook.display().to_string())];
+        let status = podrunner_broker_fake::runner::run_once_into(&dir, &broker, &env, &err);
         std::thread::sleep(Duration::from_millis(100));
         let done = broker.completions();
         assert_eq!(done[0].conclusion, if ok { "succeeded" } else { "failed" }, "{want:?}: {done:?}");
+        // T-552: the runner exits 0 either way; an ended job leaves the
+        // line of the hook on the stderr of the runner (the log of a unit).
+        assert!(status.success(), "{want:?}: {status:?}");
+        let log = std::fs::read_to_string(&err).unwrap_or_default();
+        assert_eq!(log.contains("podrunner-job-started: ended: "), !ok, "{want:?}: {log}");
         assert_eq!(dir.join("_work/app/app/marker.txt").exists(), ok, "{want:?}: the step ran or not");
         // T-201: an annotation of the job names the cause of a foreign job.
         assert_eq!(

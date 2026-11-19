@@ -82,4 +82,17 @@ fi
 msg="podrunner: this runner was placed for another job: the job ends before its first step (this job: $got; $code)"
 echo "::error title=podrunner::$msg"
 echo "$msg" >&2
+# The runner exits 0 after this job, so the host reads this line in the log
+# of the unit (the stderr of Runner.Listener, an ancestor) to report the
+# job as job-mismatch (T-552). The name of the line is HOOK_ENDED of
+# crates/podrunner-slots/src/log_tail.rs.
+pid=$$
+while [ "$pid" -gt 1 ] 2>/dev/null; do
+  comm=$(cat "/proc/$pid/comm" 2>/dev/null) || break
+  if [ "$comm" = Runner.Listener ]; then
+    { printf 'podrunner-job-started: ended: %s\n' "$code" >> "/proc/$pid/fd/2"; } 2>/dev/null
+    break
+  fi
+  pid=$(sed 's/.*) . \([0-9]*\) .*/\1/' "/proc/$pid/stat" 2>/dev/null) || break
+done
 exit 1

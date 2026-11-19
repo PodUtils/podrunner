@@ -94,6 +94,22 @@ fn token_shape(word: &[u8]) -> bool {
         || (w.starts_with("eyJ") && w.matches('.').count() >= 2)
 }
 
+/// The line that the job-started hook of the runner image
+/// (`images/runner/podrunner-job-started.sh`) writes to the stderr of the
+/// runner when it ends a job before its first step (T-552): the runner
+/// exits 0 after such a job, so its exit code does not tell.
+pub const HOOK_ENDED: &str = "podrunner-job-started: ended: ";
+
+/// The code of the last [`HOOK_ENDED`] line of `log`: at most 64 bytes of
+/// `[a-z0-9-]`, else `end`.
+pub fn hook_ended(log: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(log);
+    let rest = text.lines().rev().find_map(|l| l.find(HOOK_ENDED).map(|i| &l[i + HOOK_ENDED.len()..]))?;
+    let code: String =
+        rest.chars().take_while(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-').take(64).collect();
+    Some(if code.is_empty() { "end".into() } else { code })
+}
+
 /// `log` with each mark and each token shape masked: its last
 /// [`podrunner_schema::report::LOG_TAIL_MAX`] bytes at most, as UTF-8.
 pub fn scrub(log: &[u8], marks: &Marks) -> String {
@@ -154,6 +170,14 @@ mod tests {
     fn a_token_of_github_is_masked_with_no_mark() {
         let s = scrub(b"x ghs_madeupmadeupmadeup1234 y eyJhbGciOi.eyJzdWIiOi.c2lnbmF0dXJl z", &Marks::default());
         assert_eq!(s, "x *** y *** z");
+    }
+
+    #[test]
+    fn the_line_of_the_hook_gives_its_code() {
+        let log = format!("x\n{HOOK_ENDED}no-answer\ny\n{HOOK_ENDED}source-unavailable; more\n");
+        assert_eq!(hook_ended(log.as_bytes()).as_deref(), Some("source-unavailable"));
+        assert_eq!(hook_ended(format!("{HOOK_ENDED}\n").as_bytes()).as_deref(), Some("end"));
+        assert_eq!(hook_ended(b"podrunner-job-started: kept\n"), None);
     }
 
     #[test]

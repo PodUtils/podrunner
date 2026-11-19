@@ -377,14 +377,26 @@ impl Slots {
         let j = self.jobs[key].clone();
         if let (Some(u), Some(p)) = (&j.unit, &j.placement) {
             // A unit that ended with no step: the end of its log tells why
-            // (T-497). A cancel is no failure.
+            // (T-497). A cancel is no failure. A job that the job-started
+            // hook ended exits 0: its line in the log tells (T-552).
             if j.started_ms.is_some()
                 && j.first_step_ms.is_none()
-                && !matches!(j.reason, Some(ExitReason::Success | ExitReason::Cancelled))
+                && j.reason != Some(ExitReason::Cancelled)
                 && let Ok(log) = self.kinds[p.kind].driver.unit_logs(u)
-                && let Some(job) = self.jobs.get_mut(key)
             {
-                job.times.log_tail = Some(crate::log_tail::scrub(&log, &job.times.marks));
+                let ended = crate::log_tail::hook_ended(&log);
+                if let Some(code) = &ended {
+                    let why = format!("the job-started hook ended the job: {code}");
+                    self.audit(audit::Kind::JobMismatch, key.0, &key.1, None, Some(why));
+                }
+                if let Some(job) = self.jobs.get_mut(key) {
+                    if ended.is_some() && matches!(job.reason, None | Some(ExitReason::Success | ExitReason::Failure)) {
+                        job.reason = Some(ExitReason::JobMismatch);
+                    }
+                    if job.reason != Some(ExitReason::Success) {
+                        job.times.log_tail = Some(crate::log_tail::scrub(&log, &job.times.marks));
+                    }
+                }
             }
             // A kind that measures its units itself (T-483): before the
             // destroy, while the instance is there.

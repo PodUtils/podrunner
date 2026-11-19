@@ -59,6 +59,18 @@ fn a_unit_that_fails_before_a_step_gives_a_scrubbed_log_tail() {
 }
 
 #[test]
+fn a_job_that_the_job_started_hook_ended_is_a_job_mismatch() {
+    // T-552: the hook ends the job and the runner exits 0; the line of the
+    // hook in the log of the unit makes the report `job-mismatch`.
+    let line = crate::log_tail::HOOK_ENDED;
+    let r = run(None, &format!("echo '{line}no-answer' >&2; exit 0"));
+    assert_eq!(r.exit_reason, ExitReason::JobMismatch, "{r:?}");
+    assert!(r.log_tail.as_deref().is_some_and(|t| t.contains("no-answer")), "{r:?}");
+    // With no line, a unit that exits 0 stays a success.
+    assert_eq!(run(None, "echo fine; exit 0").exit_reason, ExitReason::Success);
+}
+
+#[test]
 fn a_job_that_failed_after_an_oom_kill_ends_with_limit() {
     // T-515: the fake unit stands for a kind that says that the OOM killer
     // ended a process of the unit; the job failed after it.

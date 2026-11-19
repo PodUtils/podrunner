@@ -60,6 +60,17 @@ pub fn start_runner_in(
     env: &[(&str, String)],
     console: bool,
 ) -> Result<std::process::Child, String> {
+    spawn(dir, work, broker, env, console, std::process::Stdio::inherit())
+}
+
+fn spawn(
+    dir: &Path,
+    work: &Path,
+    broker: &Broker,
+    env: &[(&str, String)],
+    console: bool,
+    stderr: std::process::Stdio,
+) -> Result<std::process::Child, String> {
     use std::os::unix::process::CommandExt;
     for (name, mut content) in broker.runner_files("runner-u-1") {
         if name == ".runner" {
@@ -93,6 +104,7 @@ pub fn start_runner_in(
             false => std::process::Stdio::null(),
         })
         // The errors of the runner stay on stderr: a crash names its cause.
+        .stderr(stderr)
         .spawn()
         .map(|mut child| {
             if let Some(out) = child.stdout.take() {
@@ -129,6 +141,16 @@ pub fn console_line(line: &str) -> String {
 /// environment `env` (a helper of the tests).
 pub fn run_once(dir: &Path, broker: &Broker, env: &[(&str, String)]) -> std::process::ExitStatus {
     start_runner(dir, broker, env).expect("the runner starts").wait().expect("the runner ends")
+}
+
+/// [`run_once`], with the stderr of the runner kept in the file `err` (the
+/// log of a unit, where the job-started hook writes its line, T-552).
+pub fn run_once_into(dir: &Path, broker: &Broker, env: &[(&str, String)], err: &Path) -> std::process::ExitStatus {
+    let file = std::fs::File::create(err).expect("the stderr file");
+    spawn(dir, &dir.join("_work"), broker, env, false, file.into())
+        .expect("the runner starts")
+        .wait()
+        .expect("the runner ends")
 }
 
 #[cfg(test)]
