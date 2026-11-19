@@ -417,8 +417,10 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     if !a.allow.is_empty() && a.podnet.is_none() && a.vnet.is_none() && a.guest.is_none() {
         return Err("--allow needs --podnet or --vnet with --podvm, or --microvm or --incus".into());
     }
-    if a.engine.is_some() && !matches!(a.guest, Some((true, _))) {
-        return Err("--engine needs --microvm".into());
+    // An engine in a guest of the machine tier, or in an incus instance
+    // (T-485, podvm 0.2.0-beta.32).
+    if a.engine.is_some() && a.guest.is_none() {
+        return Err("--engine needs --microvm or --incus".into());
     }
     // The executor: name the flag that is missing or that clashes (T-207).
     let store = a.images.is_some();

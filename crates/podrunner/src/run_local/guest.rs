@@ -77,7 +77,7 @@ pub(super) fn mirror_pins(
     w: &pod_actions_workflow::Workflow,
     state: &std::path::Path,
 ) -> std::collections::BTreeMap<String, String> {
-    let (Some(_), Some((true, binary)), Some(store)) = (&a.engine, &a.guest, &a.images) else { return pins.clone() };
+    let (Some(_), Some((_, binary)), Some(store)) = (&a.engine, &a.guest, &a.images) else { return pins.clone() };
     let platform = if arch() == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let pull =
         podrunner_local::images::PodvmPull { binary: binary.clone(), store: store.clone(), platform: platform.into() };

@@ -5,7 +5,7 @@
 use std::path::Path;
 
 use podrunner_podvm::Podvm;
-use podrunner_podvm::probe::{LOWEST, LOWEST_ENGINE, LOWEST_GUEST, LOWEST_INCUS};
+use podrunner_podvm::probe::{LOWEST, LOWEST_ENGINE, LOWEST_ENGINE_INCUS, LOWEST_GUEST, LOWEST_INCUS};
 
 use super::Args;
 
@@ -234,7 +234,9 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
         (None, Some((true, b))) => {
             (Some(b.clone()), if a.engine.is_some() { LOWEST_ENGINE } else { LOWEST_GUEST }, "--microvm")
         }
-        (None, Some((false, b))) => (Some(b.clone()), LOWEST_INCUS, "--incus"),
+        (None, Some((false, b))) => {
+            (Some(b.clone()), if a.engine.is_some() { LOWEST_ENGINE_INCUS } else { LOWEST_INCUS }, "--incus")
+        }
         _ => (None, LOWEST, ""),
     };
     if let Some(b) = binary {

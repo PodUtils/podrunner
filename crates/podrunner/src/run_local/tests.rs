@@ -291,7 +291,8 @@ fn the_guest_kinds_of_run() {
     assert_eq!((m.engine, m.allow.len()), (Some(PathBuf::from("/e")), 1), "a guest takes --allow with no podnet");
     let i = with(&["--incus", "/p"]).unwrap();
     assert_eq!(i.guest, Some((false, PathBuf::from("/p"))));
-    assert!(with(&["--incus", "/p", "--engine", "/e"]).unwrap_err().contains("--engine needs --microvm"));
+    // T-485: an engine in an incus instance.
+    assert_eq!(with(&["--incus", "/p", "--engine", "/e"]).unwrap().engine, Some(PathBuf::from("/e")));
     assert!(with(&["--microvm", "/p", "--podnet", "/n"]).unwrap_err().contains("--podnet needs --podvm"));
     assert!(with(&["--microvm", "/p", "--podvm", "/q"]).unwrap_err().contains("one of --podvm"));
     // T-138: a tool cache needs a podvm unit.

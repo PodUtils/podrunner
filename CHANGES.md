@@ -44,6 +44,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | command line | `doctor --config` names the runner of each pin, its age, its window and `near-end` or `stale`; the incus kind needs a reachable incusd. | T-499, T-534 |
 | command line | `run --schedule` reads the `timezone` of each item of `on.schedule`. | T-423 |
 | command line | `drain --source NAME`, `stop --source NAME` and `resume --source NAME`. | T-501 |
+| command line | `run --incus PATH --engine DIR`: an engine in each incus instance of the local mode. | T-485 |
 | command line | `source-conformance --json`: one JSON object for each line (the count and the offers needed, each test, the totals). | T-503 |
 | release assets | `SHA256SUMS` of each asset with its keyless cosign bundle `SHA256SUMS.sigstore.json` (the identity of `release.yml`). | T-484 |
 | release assets | `podrunner-install.sh --serve` writes `serve.json` and no file of the local mode. | T-507 |

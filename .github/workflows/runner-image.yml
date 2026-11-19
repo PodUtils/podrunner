@@ -621,9 +621,10 @@ jobs:
           sg incus-admin -c "timeout 2400 target/x86_64-unknown-linux-musl/debug/podrunner run crates/podrunner/tests/local/suite.yml --incus '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_IMAGE' --checkout ." \
             | tee "$RUNNER_TEMP/local-incus.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local-incus.txt")" = 8
-      # T-481: the parity suite on the incus kind, with no engine: the real
-      # actions/checkout of 06-actions.yml in an instance (HOME of the
-      # runner, T-178). A measure until it is green.
+      # T-481: the parity suite on the incus kind: the real actions/checkout
+      # of 06-actions.yml in an instance (HOME of the runner, T-178); T-485:
+      # with an engine, the workflows of containers too. A measure until it
+      # is green.
       - name: The parity suite on the incus kind (a measure)
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
         continue-on-error: true
@@ -631,7 +632,20 @@ jobs:
           set -eu
           set -o pipefail
           cargo test -p podrunner --test parity --no-run
-          sg incus-admin -c "PODRUNNER_PARITY_ROUTES=0 PODRUNNER_PARITY_UNIT='--incus $PODRUNNER_PODVM --images $PODRUNNER_PODVM_IMAGES --image $PODRUNNER_RUNNER_IMAGE' timeout 3600 cargo test -p podrunner --test parity -- --ignored --nocapture" \
+          unit="--incus $PODRUNNER_PODVM --images $PODRUNNER_PODVM_IMAGES --image $PODRUNNER_RUNNER_IMAGE"
+          routes=0
+          # T-485: with the engine directory of the guest engine step, the
+          # instance runs services:, a job container and a Dockerfile action;
+          # dockerd pulls through the egress module (the hosts of Docker Hub).
+          if [ -x "$RUNNER_TEMP/engine-dir/dockerd" ]; then
+            hub="--allow registry-1.docker.io --allow auth.docker.io --allow production.cloudflare.docker.com"
+            hub="$hub --allow docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com"
+            hub="$hub --allow production.cloudfront.docker.com --allow mirror.gcr.io"
+            hub="$hub --allow docker-images-prod.s3.dualstack.us-east-1.amazonaws.com"
+            unit="$unit --engine $RUNNER_TEMP/engine-dir $hub"
+            routes=1
+          fi
+          sg incus-admin -c "PODRUNNER_PARITY_ROUTES=$routes PODRUNNER_PARITY_UNIT='$unit' timeout 3600 cargo test -p podrunner --test parity -- --ignored --nocapture" \
             | tee "$RUNNER_TEMP/parity-incus.txt"
           grep -q '^parity 06-actions.yml PASS' "$RUNNER_TEMP/parity-incus.txt"
       # T-525: C1 to C5 on the incus kind (incus from the step before).

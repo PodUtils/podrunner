@@ -40,10 +40,9 @@ pub(super) fn refusals(a: &Args, hooks: impl FnOnce() -> bool) -> BTreeMap<Strin
         (None, Some((true, _))) if a.engine.is_none() => {
             Some("the job needs containers: a guest of --microvm runs them with --engine DIR".to_string())
         }
-        (None, Some((false, _))) => Some(
-            "the job needs containers, and a guest of --incus runs none: run it with --microvm and --engine"
-                .to_string(),
-        ),
+        (None, Some((false, _))) if a.engine.is_none() => {
+            Some("the job needs containers: an instance of --incus runs them with --engine DIR".to_string())
+        }
         _ => None,
     };
     if let Some(c) = containers {

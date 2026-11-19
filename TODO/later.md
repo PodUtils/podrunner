@@ -10845,6 +10845,8 @@ In the code (2026-11-18): podvm `0.2.0-beta.32` runs an engine in an incus insta
 
 State (2026-11-18): `runner-image.yml` run 44349725647 (`e6beea0`): `the_runner_user_runs_a_container_on_the_engine_of_its_instance` passed on a real incus instance (the user `runner`, `DOCKER_HOST`, a container gave `engine-42`), and `docker network create` worked in the instance. Open: the parity suite on incus with an engine (`services:`), and `--incus --engine` in the local mode.
 
+In the code (2026-11-19): `podrunner run --incus PODVM --engine DIR` gives each instance the engine (the local mode builds the unit as `serve` does; `doctor --run` needs podvm `0.2.0-beta.32` with an engine; a job with containers on `--incus` with no engine fails by that cause); the step "The parity suite on the incus kind" of `runner-image.yml` gives the engine when the engine directory is there, so `04-services.yml`, `05-containers.yml` and `09-dockerfile.yml` run in an instance. Left: the green run of that step.
+
 State (2026-11-18, later): run 44376274000 (`2041d27`): the engine test passed again; it blocks from the next commit.
 
 
