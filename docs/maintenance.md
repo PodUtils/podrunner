@@ -93,6 +93,9 @@ the tools.
   * `hosted/scrub.py`: the scrub of the hosted snapshot by
     `images/hosted/scrub.toml` (T-542): the fix tree, the member list of a
     layer for GNU tar, and the check of a layer stream (C2).
+  * `hosted/plan.py`, `hosted/capture.sh`: the layers of the snapshot by
+    `images/hosted/layers.toml`, and the capture of a hosted root as the
+    first step of a job (`hosted-snapshot.yml`, a dry run to `/mnt`).
 * The copies of podcrates scripts (`check-size.py`, `check-static.sh`,
   `cloud-setup.sh`, `fetch-zig.sh`, `pull-image.sh`, `retry.sh`,
   `secrets-report.py`, `check-github-numbers.py`) come from podcrates

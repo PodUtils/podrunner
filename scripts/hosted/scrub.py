@@ -170,7 +170,8 @@ def cmd_list(rules: Rules, root: pathlib.Path, fix: pathlib.Path, w) -> None:
 
 def cmd_verify(rules: Rules, stream) -> list[str]:
     bad = []
-    with tarfile.open(fileobj=stream, mode="r|*") as tar:
+    # A large buffer: the stream of a layer can be 8 GB.
+    with tarfile.open(fileobj=stream, mode="r|*", bufsize=1 << 20) as tar:
         for m in tar:
             path = m.name.removeprefix("./").rstrip("/")
             if rules.dropped(path):

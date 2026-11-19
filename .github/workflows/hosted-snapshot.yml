@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: 0BSD
+# The capture of the hosted snapshot (T-542), a dry run: the first step of
+# a job on a hosted label captures its root (scripts/hosted/capture.sh)
+# into /mnt and pushes nothing. It measures the layers and checks the scrub
+# against the real image. The artifacts hold the record, the plan, the
+# layer table and the findings of the check (paths and pattern names, no
+# content). The publish to ghcr.io is T-555.
+name: hosted-snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "The hosted label to capture"
+        required: true
+        default: ubuntu-24.04
+        type: choice
+        options: [ubuntu-24.04, ubuntu-26.04, ubuntu-24.04-arm, ubuntu-26.04-arm]
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ${{ inputs.label }}
+    timeout-minutes: 300
+    steps:
+      # No action before the capture: an action writes into the root. The
+      # scripts come by curl into /mnt, outside the captured tree.
+      - name: Capture the root (dry run)
+        env:
+          PODRUNNER_LABEL: ${{ inputs.label }}
+          SRC: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}
+        run: |
+          set -eu
+          sudo mkdir -p /mnt/podrunner-capture/scripts/hosted /mnt/podrunner-capture/images/hosted
+          sudo chown -R "$(id -u):$(id -g)" /mnt/podrunner-capture
+          cd /mnt/podrunner-capture
+          for f in scripts/hosted/capture.sh scripts/hosted/scrub.py scripts/hosted/plan.py \
+            images/hosted/scrub.toml images/hosted/layers.toml; do
+            curl -fsSL --retry 3 -o "$f" "$SRC/$f"
+          done
+          df -h / /mnt
+          bash scripts/hosted/capture.sh /mnt/snapshot
+      - name: The summary
+        if: always()
+        run: |
+          {
+            echo "## Capture of ${{ inputs.label }} (dry run)"
+            echo
+            cat /mnt/snapshot/snapshot.json 2>/dev/null | sed -n '1,12p'
+            echo
+            echo '| Layer | diff id | digest | bytes (zstd) | check |'
+            echo '| --- | --- | --- | --- | --- |'
+            awk -F'\t' '{printf "| %s | `%.19s` | `%.19s` | %s | %s |\n", $1, $2, $3, $4, $5}' /mnt/snapshot/layers.tsv 2>/dev/null
+            echo
+            awk -F'\t' '{s += $4} END {printf "Total: %.2f GiB in %d layers\n", s / 1073741824, NR}' /mnt/snapshot/layers.tsv 2>/dev/null
+          } >> "$GITHUB_STEP_SUMMARY"
+          df -h /mnt
+          mkdir -p "$RUNNER_TEMP/record"
+          cd /mnt/snapshot
+          cp snapshot.json plan.tsv layers.tsv fixed.txt "$RUNNER_TEMP/record/" 2>/dev/null || true
+          cp plan/plan.json "$RUNNER_TEMP/record/" 2>/dev/null || true
+          for f in layers/*.verify; do [ -s "$f" ] && cp "$f" "$RUNNER_TEMP/record/"; done || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: capture-${{ inputs.label }}
+          path: ${{ runner.temp }}/record

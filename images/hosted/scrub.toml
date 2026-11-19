@@ -181,3 +181,7 @@ path = "etc/systemd/system/ssh.service.d/podrunner-host-keys.conf"
 content = "[Service]\nExecStartPre=\nExecStartPre=/usr/bin/ssh-keygen -A\nExecStartPre=/usr/sbin/sshd -t\n"
 create = true
 reason = "the dropped SSH host keys are made at boot, before the test of the configuration"
+
+[[drop]]
+path = "mnt/**"
+reason = "the ephemeral disk of the VM; the capture writes its output there"

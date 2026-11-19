@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: 0BSD
+# The layers of the hosted snapshot (T-542), bottom to top: the trees that
+# change least go first, so a new capture reuses their blobs and the
+# extracted layers above them (a layer is keyed by its chain). A path goes
+# to the first rule whose `path` glob matches it or one of its parent
+# directories; `each = true` makes one layer for each match. The rest is
+# the layer `base`, on top. The kernel layer `boot` is a capture of its
+# own (/boot and /boot/efi). scripts/hosted/plan.py reads this file.
+
+# The limits: a layer of ghcr.io is at most 10 GB, and overlayfs takes
+# about 125 lower layers.
+max_bytes = 8_000_000_000
+max_layers = 100
+
+[[layer]]
+name = "android"
+path = "usr/local/lib/android/sdk/*"
+each = true
+
+[[layer]]
+name = "android-rest"
+path = "usr/local/lib/android"
+
+[[layer]]
+name = "swift"
+path = "usr/share/swift"
+
+[[layer]]
+name = "dotnet"
+path = "usr/share/dotnet"
+
+[[layer]]
+name = "jvm"
+path = "usr/lib/jvm"
+
+[[layer]]
+name = "ghcup"
+path = "usr/local/.ghcup"
+
+[[layer]]
+name = "llvm"
+path = "usr/lib/llvm-*"
+each = true
+
+[[layer]]
+name = "google-cloud-sdk"
+path = "usr/lib/google-cloud-sdk"
+
+[[layer]]
+name = "miniconda"
+path = "usr/share/miniconda"
+
+[[layer]]
+name = "powershell"
+path = "usr/local/share/powershell"
+
+[[layer]]
+name = "firefox"
+path = "usr/lib/firefox"
+
+[[layer]]
+name = "gcc"
+path = "usr/lib/gcc"
+
+[[layer]]
+name = "toolcache"
+path = "opt/hostedtoolcache/*/*"
+each = true
+
+[[layer]]
+name = "rust"
+path = "home/runner/.rustup"
+
+[[layer]]
+name = "cargo"
+path = "home/runner/.cargo"
+
+[[layer]]
+name = "linuxbrew"
+path = "home/linuxbrew"
+
+[[layer]]
+name = "opt"
+path = "opt/*"
+each = true
+
+[[layer]]
+name = "usr-local"
+path = "usr/local/*"
+each = true
+
+[[layer]]
+name = "docker"
+path = "var/lib/docker"
+
+[[layer]]
+name = "containerd"
+path = "var/lib/containerd"
