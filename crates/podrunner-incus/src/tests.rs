@@ -279,6 +279,7 @@ fn the_limits_become_the_keys_of_the_instance() {
         runner_root: "/podrunner/.runner",
         limits: &limits,
         engine: None,
+        init_image: false,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--memory 2147483648 --cpus 2 --pids-limit 256"), "{a}");
@@ -325,6 +326,7 @@ fn a_pool_with_quotas_gives_each_instance_a_sized_root() {
             runner_root: "/r",
             limits: l,
             engine: None,
+            init_image: false,
         };
         run_args(&i, &[], &Default::default(), &[]).join(" ")
     }
@@ -369,6 +371,7 @@ fn an_engine_directory_gives_each_instance_an_engine() {
         runner_root: "/r",
         limits: &Limits::default(),
         engine: Some(std::path::Path::new("/opt/engine")),
+        init_image: false,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--podvm-engine -v /opt/engine:/podrunner-engine:ro"), "{a}");
@@ -380,4 +383,30 @@ fn an_engine_directory_gives_each_instance_an_engine() {
     assert_eq!(cap.container, podrunner_schema::ContainerRoute::Engine);
     let _ = std::fs::remove_dir_all(&d);
     let _ = std::fs::remove_dir_all(&d2);
+}
+
+/// T-543: with the init of the image each instance boots it as PID 1 with
+/// the nesting of an engine, mounts no engine directory, and the record
+/// says `container: engine` (the engine of the image).
+#[test]
+fn the_init_of_the_image_boots_with_its_own_engine() {
+    use podrunner_unit::limits::Limits;
+    let i = crate::guest::Instance {
+        name: "n",
+        reference: "r@sha256:1",
+        work: std::path::Path::new("/w"),
+        egress: None,
+        runner_root: "/r",
+        limits: &Limits::default(),
+        engine: None,
+        init_image: true,
+    };
+    let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
+    assert!(a.contains("--podvm-init=image --podvm-engine"), "{a}");
+    let head = a.split(" /bin/sh ").next().unwrap();
+    assert!(!head.contains("/podrunner-engine"), "{head}");
+    let (u, d) = driver("init", "true");
+    let cap = u.with_image_init(true).probe().unwrap();
+    assert_eq!(cap.container, podrunner_schema::ContainerRoute::Engine);
+    let _ = std::fs::remove_dir_all(&d);
 }

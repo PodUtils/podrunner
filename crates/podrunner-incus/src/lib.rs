@@ -80,6 +80,8 @@ pub struct IncusUnit {
     /// The directory of the static Docker binaries: each instance runs an
     /// engine of its own (T-485).
     engine: Option<PathBuf>,
+    /// The init of the image is PID 1 (`[unit.incus] init = "image"`, T-543).
+    init_image: bool,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -110,7 +112,17 @@ impl IncusUnit {
             limits: Default::default(),
             root_quota: false,
             engine: None,
+            init_image: false,
         }
+    }
+
+    /// Boot the init of the image as PID 1 of each instance (`[unit.incus]
+    /// init = "image"`, T-543): the services and the engine of the image
+    /// run, as on the GitHub-hosted runner. The record says `container:
+    /// engine`.
+    pub fn with_image_init(mut self, on: bool) -> IncusUnit {
+        self.init_image = on;
+        self
     }
 
     /// Run a container engine in each instance, from the static Docker
@@ -206,7 +218,11 @@ impl UnitDriver for IncusUnit {
             boundary: Boundary::Confined,
             boundary_proof: Some("incus system container".into()),
             principal: Principal::Distinct,
-            container: if self.engine.is_some() { ContainerRoute::Engine } else { ContainerRoute::None },
+            container: if self.engine.is_some() || self.init_image {
+                ContainerRoute::Engine
+            } else {
+                ContainerRoute::None
+            },
             // No NIC: the channel to the egress socket is the only way out
             // (T-109).
             net: "none".into(),
@@ -308,6 +324,7 @@ impl UnitDriver for IncusUnit {
                 egress: egress.as_deref(),
                 runner_root: &self.cred_root,
                 engine: self.engine.as_deref(),
+                init_image: self.init_image,
                 limits: &{
                     let mut l = self.limits.lesser(&spec.limits);
                     l.disk_bytes = l.disk_bytes.filter(|_| self.root_quota);

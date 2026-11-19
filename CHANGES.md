@@ -29,6 +29,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `run-report.v1` | The contract names the tolerance of `cpu_s`: 20 % or 1 s of the CPU time of the payload, the larger. | T-520 |
 | `run-report.v1` | A job that the job-started hook of the runner image ended before its first step (a job of another run with no `keep` of the source) ends with `job-mismatch`, not `success`, and its report has `log_tail`. | T-552 |
 | control socket | The HTTP head of each socket of a unit is read by `pod_core::http1`: another version of HTTP gets 505, a head over 16 KiB gets 431. | T-536 |
+| `podrunner.toml` | `[unit.incus] init = "image"`: the init of the image is PID 1 of each instance, with the services and the engine of the image (`--podvm-init=image --podvm-engine`, podvm `0.2.0-beta.36` or later); not with `engine`; the other kinds refuse the key. | T-543 |
 | control socket | A new op `restart-source` (field `source`). | T-498 |
 | control socket | New ops `drain-source`, `resume-source` and `stop-source` (field `source`); `resume-source` builds a stopped source again. | T-501 |
 | `status.v1` | The type and the schema are `pod_job::Status` of podcrates `v0.73.0` (`schemas/status.v1.schema.json` of podcrates); `schemas/status.v1.json` of podrunner goes. | T-508 |
@@ -59,4 +60,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
 <!-- contract docs/contracts/source-driver.md 5700b24d3839fe92012962770699804c9473e901c8bec3dc7d6aa260b3b899d1 -->
 <!-- contract docs/contracts/unit-driver.md 07162598a8a264928373602ba954e00d94f973583ce4e6592494f758b8746401 -->
-<!-- contract schemas/config.v1.json 81d02c7cd73381f795db86183a3c81c28a3935b67df3a63c2b8f03be443176d2 -->
+<!-- contract schemas/config.v1.json c22e56c36a1378e58f5327b06dcfcebbfb34cd2a668da875a5fe918c5e442241 -->

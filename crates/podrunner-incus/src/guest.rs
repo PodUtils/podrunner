@@ -86,6 +86,9 @@ pub struct Instance<'a> {
     /// The directory of the static Docker binaries: each instance runs an
     /// engine of its own (T-485).
     pub engine: Option<&'a Path>,
+    /// The init of the image is PID 1 (systemd of the hosted snapshot),
+    /// with its own services and engine (T-543).
+    pub init_image: bool,
 }
 
 /// Where the instance sees the engine directory, read-only.
@@ -96,7 +99,7 @@ pub const ENGINE_MOUNT: &str = "/podrunner-engine";
 /// one channel to it (T-109). The argv of the payload goes to the script
 /// as positional parameters: no word of it is quoted again.
 pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String>, argv: &[String]) -> Vec<String> {
-    let Instance { name, reference, work, egress, runner_root, limits, engine } = *i;
+    let Instance { name, reference, work, egress, runner_root, limits, engine, init_image } = *i;
     let mut a: Vec<String> =
         ["run", "-d", "-i", "--name", name, "--podvm-tier=incus", "--podvm-net", "none"].map(String::from).to_vec();
     // The limits of the instance (T-162): incus `limits.memory`,
@@ -114,7 +117,12 @@ pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String
     if let Some(d) = limits.disk_bytes {
         a.extend(["--storage-opt".into(), format!("size={}", d.max(ROOT_MIN))]);
     }
-    if let Some(engine) = engine {
+    if init_image {
+        // The image boots its own init and runs its own `docker.service`:
+        // podvm gives the instance the nesting of an engine, and podrunner
+        // mounts no engine and starts no `dockerd` (T-543).
+        a.extend(["--podvm-init=image".into(), "--podvm-engine".into()]);
+    } else if let Some(engine) = engine {
         a.push("--podvm-engine".into());
         a.push("-v".into());
         a.push(format!("{}:{ENGINE_MOUNT}:ro", engine.display()));

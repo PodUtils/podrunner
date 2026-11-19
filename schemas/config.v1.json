@@ -286,6 +286,16 @@
         "forge"
       ]
     },
+    "IncusInit": {
+      "description": "The PID 1 of an incus instance (`[unit.incus] init`).",
+      "oneOf": [
+        {
+          "description": "The init of the image: systemd boots the services of the image.",
+          "type": "string",
+          "const": "image"
+        }
+      ]
+    },
     "Organization": {
       "description": "A configured organization. With an `id`, an offer that carries\n`owner_id` must match it too.",
       "type": "object",
@@ -754,6 +764,17 @@
             "null"
           ],
           "default": null
+        },
+        "init": {
+          "description": "`incus`: the PID 1 of each instance. `image`: the init of the image\n(systemd of the hosted snapshot) with its own services and engine\n(`--podvm-init=image --podvm-engine`, T-543); absent: podvm's own.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/IncusInit"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "mem": {
           "description": "`microvm`: the memory of each guest (`--podvm-mem`, default `4G`)\nand its vCPUs (default 2). The image is an initramfs: the memory\nholds it twice. `podvm`: the memory of each unit (`RLIMIT_AS`);\n`incus`: the memory and the CPUs of each instance (T-162).",

@@ -39,6 +39,12 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         return Err(fail(Class::Config, "[unit.incus] images: not a directory"));
     }
     let limits = podrunner_slots::limits::limits_of(u).map_err(|e| fail(Class::Config, format!("[unit.incus] {e}")))?;
+    // The init of the image runs the engine of the image: a second engine
+    // of podrunner would start its own dockerd beside it (T-543).
+    let init_image = u.init == Some(podrunner_slots::config::IncusInit::Image);
+    if init_image && u.engine.is_some() {
+        return Err(fail(Class::Config, "[unit.incus] init = \"image\" runs the engine of the image: remove engine"));
+    }
     // An engine of each instance (T-485), as for the microvm kind.
     if let Some(e) = &u.engine {
         if !Path::new(e).join("dockerd").is_file() {
@@ -48,7 +54,9 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         podrunner_unit::mounts::host_path(Path::new(e), podrunner_unit::UnitCode::UnitStartFailed)
             .map_err(|e| fail(Class::Config, format!("[unit.incus] engine: {}", e.detail)))?;
     }
-    let lowest = if u.engine.is_some() {
+    let lowest = if init_image {
+        podrunner_podvm::probe::LOWEST_INCUS_INIT
+    } else if u.engine.is_some() {
         podrunner_podvm::probe::LOWEST_ENGINE_INCUS
     } else if limits.is_empty() {
         podrunner_podvm::probe::LOWEST_INCUS
@@ -72,7 +80,8 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
     limits.disk_bytes = u.disk_max_bytes.filter(|_| u.root_quota);
     let mut unit = podrunner_incus::IncusUnit::new(podvm, &state.join("incus"), &images)
         .with_limits(limits)
-        .with_root_quota(u.root_quota);
+        .with_root_quota(u.root_quota)
+        .with_image_init(u.init == Some(podrunner_slots::config::IncusInit::Image));
     if let Some(e) = &u.engine {
         unit = unit.with_engine(Path::new(e));
     }

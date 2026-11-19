@@ -71,6 +71,9 @@ pub const LOWEST_ENGINE_INCUS: &str = "0.2.0-beta.32";
 /// The lowest podvm of the `incus` kind: `run -d -i`, and no NIC and one
 /// channel on the incus tier with no proxy device (T-109).
 pub const LOWEST_INCUS: &str = "0.2.0-beta.13";
+/// The first podvm whose incus tier boots the init of the image as PID 1
+/// (`--podvm-init=image`, PodUtils/podvm@T-1993, T-543).
+pub const LOWEST_INCUS_INIT: &str = "0.2.0-beta.36";
 /// The lowest podvm whose incus tier takes `--memory`, `--cpus` and
 /// `--pids-limit` (PodUtils/podvm@T-1897, T-162).
 pub const LOWEST_INCUS_LIMITS: &str = "0.2.0-beta.20";

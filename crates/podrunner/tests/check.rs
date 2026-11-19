@@ -142,6 +142,18 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             format!("{head}[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nengine = \"/\"\n{pin}"),
             "[unit.incus] engine: no dockerd",
         ),
+        // T-543: the init of the image runs the engine of the image, and the
+        // microvm kind boots no init of an image.
+        (
+            format!(
+                "{head}[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ninit = \"image\"\nengine = \"/\"\n{pin}"
+            ),
+            "remove engine",
+        ),
+        (
+            format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ninit = \"image\"\n{pin}"),
+            "[unit.microvm] init",
+        ),
     ];
     for (i, (text, word)) in cases.iter().enumerate() {
         let file = d.join(format!("{i}.toml"));

@@ -32,6 +32,7 @@ mod spool;
 pub mod state;
 pub mod status;
 pub mod trust;
+mod unit_config;
 pub mod usage;
 
 use std::path::Path;
