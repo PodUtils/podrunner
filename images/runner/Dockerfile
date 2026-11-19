@@ -26,7 +26,8 @@ ARG TARGETARCH
 # (the Node of setup-node from 26 on) come in the base image (T-324); less
 # for the pager of a test (T-353).
 # EXTRA_PACKAGES: the larger image (T-129) adds the packages of
-# images/runner/full.txt, the common tools of `ubuntu-latest`.
+# images/runner/full.txt, the common tools of `ubuntu-latest` and the
+# libraries of Playwright's Chromium (T-500).
 ARG EXTRA_PACKAGES=""
 RUN apt-get update \
  && apt-get install -y --no-install-recommends bash ca-certificates curl git iptables jq less libatomic1 libicu74 libssl3t64 make python3 sudo tar gzip unzip zstd $EXTRA_PACKAGES \

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**557 entries: 58 open, 48 partial, 19 blocked, 432 done.**
+**557 entries: 57 open, 49 partial, 19 blocked, 432 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 6 | 23 | 6 | 77 | 112 |
-| P2 | 15 | 18 | 9 | 226 | 268 |
+| P2 | 14 | 19 | 9 | 226 | 268 |
 | P3 | 36 | 7 | 4 | 127 | 174 |
-| **All** | 58 | 48 | 19 | 432 | 557 |
+| **All** | 57 | 49 | 19 | 432 | 557 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -544,7 +544,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-497](later.md) | P1 | M | later | feature | partial | G-19: more facts of a job in the run report |
 | [T-498](later.md) | P1 | M | later | feature | done | G-22: a rotation of the key of a program source with no drain |
 | [T-499](later.md) | P1 | M | later | feature | partial | G-23: the runner of a GitHub job stays inside GitHub's window of updates |
-| [T-500](later.md) | P2 | M | later | feature | open | G-24: a runner image with the software that cfb's gates need |
+| [T-500](later.md) | P2 | M | later | feature | partial | G-24: a runner image with the software that cfb's gates need |
 | [T-501](later.md) | P2 | S | later | feature | done | G-26: a drain and a stop of one source |
 | [T-502](later.md) | P2 | S | later | feature | done | G-27: a cancel ends its unit in a bounded time, with a conformance test |
 | [T-503](later.md) | P2 | S | later | feature | done | G-28: the output of `source-conformance` for CI |

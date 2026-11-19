@@ -11328,7 +11328,7 @@ In the code (2026-11-18): step 3: `podrunner doctor --config FILE` names each pi
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11347,6 +11347,8 @@ The census of T-491 (2026-11-18): cfb keeps `podrunner image build` (Q-12 b), so
 ## Prove
 
 A Playwright test of a gate passes in a unit with no download of the system libraries (`runner-image.yml`).
+
+State (2026-11-19, `user-gate.yml` run 44462524454): on the microvm executor the row `rbg-gate` passed the install and `tsc` of TypeScript 7, then Chromium of Playwright failed: `libglib-2.0.so.0` is not in `runner-full`. `images/runner/full.txt` now holds the libraries that `playwright install-deps chromium` installs on Ubuntu 24.04 (`libglib2.0-0t64`, `libnss3`, `libgbm1` and the others). The hosted snapshot (T-542) is the full answer; this is the step for the kinds that run `runner-full`. Next: the row on microvm with the new image.
 
 # T-501: G-26: a drain and a stop of one source
 
@@ -12159,6 +12161,8 @@ A runner job through `serve` needs a source whose `mint` reaches a broker: `pod-
 
 State (2026-11-19, run 44438881119): `serve:check:microvm` failed: `config init` pins the image of the microvm kind, and the sandbox offer pinned the same image a second time, which `check` refuses (T-506). `scripts/user-gate.py` now sets `sandbox = true` on the pin that `config init` wrote. Next: the next run.
 
+State (2026-11-19, run 44462524454): the lane `serve-incus-kvm` passes: `config init`, `check`, `doctor`, `print-unit` and `serve` on the incus and the microvm kinds, with the sandbox offer on microvm. Left: one runner job on each kind through `serve` with the fakes of podcrates (`pod-fake-githome serve --github`, T-509).
+
 # T-528: No row of the user-path gate copies the gate of rbg
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
@@ -12190,6 +12194,7 @@ State (2026-11-18, run 44416704184): each row `rbg-gate` exited 78: the workflow
 
 State (2026-11-19, run 44438881119): the row on runner-dir passed. The row on microvm failed: the proxy refused `storage.googleapis.com` (the download of Chromium by Playwright); the row allows it now. The row on podvm hung in `tsc` (TypeScript 7, a Go binary) on the userland rung with no syscall tier: T-554, COORD-105 (GitHub #315).
 
+State (2026-11-19, run 44462524454, podvm `0.2.0-beta.34`): runner-dir passes (install 13 s, first step 1 s). microvm: the download of Chromium passes with the allow; Chromium lacks `libglib-2.0` in `runner-full` (T-500, fixed in the image list). podvm: the hang of `tsc` (T-554); run 44489222156 runs the row on podvm `0.2.0-beta.36`.
 
 # T-529: The disk limit of an offer lifts the bound of the operator
 
