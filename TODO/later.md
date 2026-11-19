@@ -12600,6 +12600,8 @@ State (2026-11-19, later): `scripts/hosted/plan.py` splits the member list into 
 
 State (2026-11-19, `hosted-snapshot.yml` run 44458897438, `ubuntu-24.04`, image `20261111.370.1`): the first dry run captured the whole root in 58 minutes: 54.5 GiB of file data in 82 layers and `boot`, 15.9 GiB with zstd at level 10; the largest layers are `base` (2.5 GB), `dotnet` (2.0 GB) and `android-ndk` (1.8 GB), each far below the bound of ghcr.io. The check of the scrub stopped the capture in three layers. (1) The code and the documents of the pre-pulled public images (`var/lib/docker`), of the Ruby gems and of Homebrew name key headers and token fields: these trees are `[[skip]]` rules of the scan now, each with its reason. (2) `var/lib/mysql/*.pem`: the TLS and RSA private keys of MySQL, made at the build of the image and the same on each runner. They are dropped (the owner's ruling on the per-machine values); mysqld makes new ones at its first start. Next: the dry run again.
 
+State (2026-11-19, `hosted-snapshot.yml` run 44468934583 at `e7bfc76`, proven in CI on GitHub-hosted runners): the second dry run of `ubuntu-24.04` passes. Image `20261111.370.1`, kernel `7.0.0-1017-azure`; 81 layers and `boot`, 15.8 GiB with zstd, in 70 minutes; the check of the scrub passes in each layer. The runner root of the capture job was `/home/runner/actions-runner/cached/2.338.2`, dropped by `--runner-root`. Next: the dry runs of `ubuntu-26.04` and `ubuntu-24.04-arm` (dispatched), then pass 1 and pass 3 (C1).
+
 # T-543: systemd as PID 1 in an incus instance
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12638,6 +12640,8 @@ State (2026-11-19, COORD-203, PodUtils/podvm#599): COORD-106 ask 1 is PodUtils/p
 State (2026-11-19, later): podvm `0.2.0-beta.36` carries PodUtils/podvm@T-1993 (`--podvm-init=image` on the incus tier) and is pinned. Next: the incus kind takes `[unit.incus] init = "image"` for a payload that boots its init.
 
 State (2026-11-19, later): the podrunner side is in. `[unit.incus] init = "image"` gives each instance `--podvm-init=image --podvm-engine`: the init of the image is PID 1 and its own `docker.service` runs; podrunner mounts no engine and starts no `dockerd` (finding PF-5), and the record says `container: engine`. `check` refuses it with `engine` and on the other kinds, and asks podvm `0.2.0-beta.36` or later. `cargo test -p podrunner-incus` (`the_init_of_the_image_boots_with_its_own_engine`) and `cargo test -p podrunner --test check` pass. `UnitConfig` moved to `crates/podrunner-slots/src/unit_config.rs` (the size of `config.rs`). Left: the Prove in `runner-image.yml` with an image that boots systemd, and the asks of COORD-106 for the snapshot.
+
+State (2026-11-19, COORD-203, PodUtils/podvm#599): PodUtils/podvm@T-1996 is on podvm's `main` (partial): with `--podvm-init=image` an instance gets `security.idmap.isolated` with `security.idmap.size` 231072, `/dev/fuse`, and an empty `/etc/machine-id`. The host must give incusd 231,072 free subordinate ids for each such instance; an incusd with fewer is refused, and the error names `/etc/subuid`. This becomes a check of `doctor` for `init = "image"` when podvm releases it.
 
 # T-544: systemd as PID 1 and a root on a disk in a microvm guest
 
