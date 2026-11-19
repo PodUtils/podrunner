@@ -12534,6 +12534,8 @@ The study, section 1.1 (W-1, W-4), read on 2026-11-19.
 
 State (2026-11-19): a job on `ubuntu-latest` (`hosted-parity.yml` run 44456462683) ran `ubuntu-26.04`, version `20261111.196.1`, while the README of runner-images still names 24.04: the watcher takes the label from a job, not from the README. `images/hosted/labels.toml` names the OS of five labels, with no pin yet. `python3 -I scripts/hosted/watch.py --self-test` passes: a tag date other than the version date matches by the build number; arm64 takes the `-arm64` tags; a moved label and a version with no release fail; a newer release than the pin is reported. The job `watch` of `hosted-parity.yml` runs it each day on the five labels. Left: the pins of the first capture (T-555), and the dispatch of the capture with an issue on a new release.
 
+State (2026-11-19, `hosted-parity.yml` run 44459794216): the first run of the job `watch` failed on two facts of the hosted runners. (1) `ImageOS` of an arm64 runner is `ubuntu24-arm64`, and the watcher added `-arm64` again; `labels.toml` names it now, and the watcher adds no second suffix. (2) Pools of one label carry other build numbers for one release: in one run `ubuntu-24.04` gave `20261111.370.1`, `20261111.127.1` and `20261116.133.1`, and the release is `ubuntu24/20261111.370`. The watcher matches by the build number first, else by the date of the version, and the report names which. The self-test has both cases.
+
 # T-541: The runner layer of the hosted snapshot, and the hosted work folder /home/runner/work
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19

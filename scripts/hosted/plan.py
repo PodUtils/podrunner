@@ -198,7 +198,8 @@ def self_test() -> int:
                 ["tar", "-C", str(root), "--format=posix", "--xattrs", "--xattrs-include=*", "--acls", "--sparse",
                  "--numeric-owner", "--null", "--no-verbatim-files-from", "--no-recursion", "-T",
                  str(out / m["list"]), "-cf", str(tar)], check=True)
-            subprocess.run(["tar", "-C", str(got), "--xattrs", "--xattrs-include=*", "-xf", str(tar)], check=True)
+            # -p: a consumer keeps the modes (setuid) as root does by default.
+            subprocess.run(["tar", "-C", str(got), "-p", "--xattrs", "--xattrs-include=*", "-xf", str(tar)], check=True)
         expect = dict(files) | {"etc/machine-id": b""}
         for p, c in expect.items():
             if (got / p).read_bytes() != c:

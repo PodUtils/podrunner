@@ -23,13 +23,24 @@ import sys
 import tomllib
 
 
-def release_of(version: str, image_os: str, arch: str, releases: list[dict]) -> dict | None:
+def release_of(version: str, image_os: str, arch: str, releases: list[dict]) -> tuple[dict, str] | None:
+    """The release of a version, and how it matched: by the build number
+    first (the date of a tag can differ from the date of the version), else
+    by the date (a pool of hosted runners can carry its own build number)."""
     parts = version.split(".")
     if len(parts) < 2 or not parts[1].isdigit():
         return None
-    prefix = image_os + ("-arm64" if arch in ("arm64", "aarch64", "ARM64") else "") + "/"
-    hits = [r for r in releases if r["tag_name"].startswith(prefix) and r["tag_name"].endswith("." + parts[1])]
-    return hits[0] if len(hits) == 1 else None
+    arm = arch in ("arm64", "aarch64", "ARM64")
+    # ImageOS of an arm64 runner names the arch already (ubuntu24-arm64).
+    prefix = image_os + ("-arm64" if arm and not image_os.endswith("-arm64") else "") + "/"
+    mine = [r for r in releases if r["tag_name"].startswith(prefix)]
+    hits = [r for r in mine if r["tag_name"].endswith("." + parts[1])]
+    if len(hits) == 1:
+        return hits[0], "build"
+    hits = [r for r in mine if r["tag_name"].removeprefix(prefix).split(".")[0] == parts[0]]
+    if len(hits) == 1:
+        return hits[0], "date"
+    return None
 
 
 def judge(labels: dict, images: list[list[str]], releases: list[dict]) -> tuple[list[str], list[str]]:
@@ -42,14 +53,15 @@ def judge(labels: dict, images: list[list[str]], releases: list[dict]) -> tuple[
             continue
         if want["image_os"] != image_os:
             bad.append(f"{label}: runs {image_os}, labels.toml says {want['image_os']}: the label moved")
-        r = release_of(version, image_os, arch, releases)
-        if r is None:
+        m = release_of(version, image_os, arch, releases)
+        if m is None:
             bad.append(f"{label}: no release of runner-images for {image_os} {version} ({arch})")
             continue
+        r, how = m
         tag, commit = r["tag_name"], r["target_commitish"]
         pin = want.get("release", "")
         state = "pinned" if tag == pin else ("new: capture it" if pin else "no pin")
-        rows.append(f"| `{label}` | {image_os} | {version} | `{tag}` | `{commit[:12]}` | {state} |")
+        rows.append(f"| `{label}` | {image_os} | {version} | `{tag}` (by {how}) | `{commit[:12]}` | {state} |")
     return rows, bad
 
 
@@ -62,17 +74,24 @@ def self_test() -> int:
     ]
     labels = {
         "ubuntu-24.04": {"image_os": "ubuntu24", "release": "ubuntu24/20261023.334"},
-        "ubuntu-24.04-arm": {"image_os": "ubuntu24", "release": ""},
+        "ubuntu-24.04-arm": {"image_os": "ubuntu24-arm64", "release": ""},
         "ubuntu-latest": {"image_os": "ubuntu26", "release": "ubuntu26/20261111.196"},
     }
     bad = []
     # The date of the tag differs from the date of the version: the build
     # number matches.
-    r = release_of("20261012.334.1", "ubuntu24", "X64", releases)
-    if not r or r["tag_name"] != "ubuntu24/20261023.334":
-        bad.append(f"the build number: {r}")
-    if release_of("20261111.182.1", "ubuntu24", "ARM64", releases)["tag_name"] != "ubuntu24-arm64/20261111.182":
-        bad.append("arm64")
+    m = release_of("20261012.334.1", "ubuntu24", "X64", releases)
+    if not m or m[0]["tag_name"] != "ubuntu24/20261023.334" or m[1] != "build":
+        bad.append(f"the build number: {m}")
+    # A pool with its own build number matches by the date.
+    m = release_of("20261111.127.1", "ubuntu24", "X64", releases)
+    if not m or m[0]["tag_name"] != "ubuntu24/20261111.370" or m[1] != "date":
+        bad.append(f"the date: {m}")
+    # ImageOS of arm64 names the arch already.
+    for os_name in ("ubuntu24", "ubuntu24-arm64"):
+        m = release_of("20261111.182.1", os_name, "ARM64", releases)
+        if not m or m[0]["tag_name"] != "ubuntu24-arm64/20261111.182":
+            bad.append(f"arm64 with ImageOS {os_name}: {m}")
     rows, b = judge(labels, [["ubuntu-24.04", "ubuntu24", "20261111.370.1", "X64"]], releases)
     if b or "new: capture it" not in rows[0]:
         bad.append(f"a newer version: {rows} {b}")
