@@ -66,7 +66,7 @@ def glob_re(g: str) -> re.Pattern:
 class Rules:
     def __init__(self, text: str, runner_root: str | None = None):
         doc = tomllib.loads(text)
-        for kind in ("drop", "fix", "mask", "allow"):
+        for kind in ("drop", "fix", "mask", "allow", "skip"):
             for i, r in enumerate(doc.get(kind, [])):
                 if not r.get("reason"):
                     raise ValueError(f"{kind} rule {i + 1}: no reason")
@@ -77,6 +77,7 @@ class Rules:
         self.mask = [r["unit"] for r in doc.get("mask", [])]
         self.scan = [glob_re(r["path"]) for r in doc.get("scan", [])]
         self.allow = [glob_re(r["path"]) for r in doc.get("allow", [])]
+        self.skip = [glob_re(r["path"]) for r in doc.get("skip", [])]
 
     def dropped(self, path: str) -> bool:
         # A rule on a directory covers its tree.
@@ -92,7 +93,12 @@ class Rules:
         return {f"etc/systemd/system/{u}" for u in self.mask}
 
     def scanned(self, path: str) -> bool:
-        return any(r.match(path) for r in self.scan) and not any(r.match(path) for r in self.allow)
+        if not any(r.match(path) for r in self.scan) or any(r.match(path) for r in self.allow):
+            return False
+        # A skip rule on a directory covers its tree: code and documents of
+        # packages and public images, not the state of a machine.
+        parts = path.split("/")
+        return not any(r.match("/".join(parts[:n])) for r in self.skip for n in range(1, len(parts) + 1))
 
 
 def walk(root: pathlib.Path):
@@ -220,6 +226,8 @@ def self_test() -> int:
             "var/log/cloud-init.log": "a log line\n",
             "var/log/syslog.1": "an old line\n",
             "usr/bin/tool": "a binary\n",
+            "var/lib/mysql/server-key.pem": "-----BEGIN PRIVATE KEY-----\nmade-up\n",
+            "var/lib/mysql/ibdata1": "data\n",
         }
         for p, c in files.items():
             (root / p).parent.mkdir(parents=True, exist_ok=True)
@@ -230,11 +238,11 @@ def self_test() -> int:
         cmd_list(rules, root, fix, members)
         names = members.getvalue().split(b"\0")
         listed = {n.decode() for n in names if n and not n.startswith(b"--")}
-        for gone in ("etc/ssh/ssh_host_ed25519_key", "opt/hca/.settings", "var/log/syslog.1",
+        for gone in ("etc/ssh/ssh_host_ed25519_key", "opt/hca/.settings", "var/log/syslog.1", "var/lib/mysql/server-key.pem",
                      "home/runner/actions-runner/cached/2.0.0/.credentials"):
             if gone in listed:
                 bad.append(f"list: {gone} is listed")
-        for kept in ("etc/machine-id", "home/runner/.docker/config.json", "usr/bin/tool", "etc/ssh/sshd_config",
+        for kept in ("etc/machine-id", "home/runner/.docker/config.json", "usr/bin/tool", "etc/ssh/sshd_config", "var/lib/mysql/ibdata1",
                      "etc/cloud/cloud-init.disabled", "etc/systemd/system/hosted-compute-agent.service"):
             if kept not in listed:
                 bad.append(f"list: {kept} is not listed")
@@ -277,6 +285,11 @@ def self_test() -> int:
         found = cmd_verify(rules, tar_of(pairs + [(root, "etc/new-agent.json")]))
         if found != ["etc/new-agent.json: a json-secret pattern that no rule covers"]:
             bad.append(f"verify of an unlisted secret: {found}")
+        # A skipped tree is not scanned: library code names key headers.
+        (root / "var/lib/gems/x").mkdir(parents=True)
+        (root / "var/lib/gems/x/README.md").write_text("-----BEGIN RSA PRIVATE KEY-----\n")
+        if cmd_verify(rules, tar_of(pairs + [(root, "var/lib/gems/x/README.md")])):
+            bad.append("a skipped tree is scanned")
         if any("made-up" in f for f in found + raw):
             bad.append("a finding prints a secret")
     for b in bad:

@@ -14,6 +14,9 @@
 #   [[scan]]  where the scan of credential patterns looks (C2); a match
 #             that no drop, fix or allow covers fails the capture
 #   [[allow]] a file that matches a pattern and is not a secret
+#   [[skip]]  a tree that the scan does not read: the code and the
+#             documents of packages and of public images, which name key
+#             headers and token fields (the dry run of 2026-11-19)
 #
 # The hosted runner root (the root of Runner.Worker of the capture job) is
 # dropped by the capture itself, whatever its path (`--runner-root`).
@@ -185,3 +188,23 @@ reason = "the dropped SSH host keys are made at boot, before the test of the con
 [[drop]]
 path = "mnt/**"
 reason = "the ephemeral disk of the VM; the capture writes its output there"
+
+[[drop]]
+path = "var/lib/mysql/*.pem"
+reason = "the TLS and RSA keys of MySQL, made at the build of the image and the same on each runner; mysqld makes new ones at its first start when none is there"
+
+[[skip]]
+path = "var/lib/docker"
+reason = "the pre-pulled public images of the hosted runner: their code and documents name key headers"
+
+[[skip]]
+path = "var/lib/containerd"
+reason = "the same, for containerd"
+
+[[skip]]
+path = "var/lib/gems"
+reason = "Ruby gems: library code and documents"
+
+[[skip]]
+path = "home/linuxbrew"
+reason = "Homebrew and its test fixtures"
