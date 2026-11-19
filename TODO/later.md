@@ -13029,6 +13029,8 @@ State (2026-11-19, `hosted-snapshot.yml` run 44528851334 at `7bc77fc`, `ubuntu-2
 
 State (2026-11-19, later): `docs/hosted-snapshot.md` names where the snapshot is, what is 1:1 and what the scrub changes, the checks of each capture, and the pull and the check of its attestation.
 
+State (2026-11-19, later): `ubuntu-24.04-arm` is published too (run 44557881914, image `20261111.182.1`, C1 0 differences): `ghcr.io/podutils/podrunner-hosted:ubuntu24-arm64-20261111.182.1@sha256:512b882a4ccdc621df767aadbb70af7107f5f05a2532353692d7b7be58d4ed5e`. `.github/workflows/hosted-index.yml` makes the index `OS-latest` of an amd64 and an arm64 manifest: it reads each back from ghcr.io, checks its digest, writes the index with `oci.py entry` and `oci.py index`, pushes it and attests it. A flaw found in the review of this step and fixed with it: the token exchange of `hosted-snapshot.yml` gave the token of the job to curl in argv (`-u`); both workflows now give each token to curl on stdin (`curl -K -`).
+
 # T-556: The base slice of the hosted snapshot boots in hosted CI
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19

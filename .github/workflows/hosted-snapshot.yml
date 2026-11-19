@@ -71,8 +71,9 @@ jobs:
           s=/mnt/snapshot
           # The token of ghcr.io for this repository: masked, in the
           # environment of this step only.
-          REGISTRY_TOKEN=$(curl -fsS -u "x-access-token:$GH_TOKEN" \
-            "https://ghcr.io/token?service=ghcr.io&scope=repository:$name:pull,push" |
+          # Each token goes to curl on stdin (-K -), never in argv.
+          REGISTRY_TOKEN=$(printf 'user = "x-access-token:%s"\n' "$GH_TOKEN" |
+            curl -fsS -K - "https://ghcr.io/token?service=ghcr.io&scope=repository:$name:pull,push" |
             python3 -I -c 'import json,sys; print(json.load(sys.stdin)["token"])')
           echo "::add-mask::$REGISTRY_TOKEN"
           export REGISTRY_TOKEN

@@ -3,7 +3,8 @@
 """The OCI config, manifest and index of the hosted snapshot (T-555).
 
     python3 -I scripts/hosted/oci.py image --layers LAYERS.TSV --record SNAPSHOT.JSON --out DIR
-    python3 -I scripts/hosted/oci.py index --out DIR MANIFEST.JSON...
+    python3 -I scripts/hosted/oci.py entry --manifest FILE --arch amd64|arm64 > ENTRY.JSON
+    python3 -I scripts/hosted/oci.py index --out DIR ENTRY.JSON...
     python3 -I scripts/hosted/oci.py --self-test
 
 `image` reads the layer table of a capture (`capture.sh`: name, diff id,
@@ -11,8 +12,9 @@ digest, size, check) and its record, and writes DIR/config.json and
 DIR/manifest.json, each with the digest of its exact bytes in a file
 beside it (`.digest`). The layers are `tar+zstd`; `boot` is the last. The
 annotations name the hosted image (ImageOS, ImageVersion, the kernel) and
-the source of podrunner. `index` writes one multi-arch index of the
-manifests (each with its platform). The bytes are canonical (sorted keys,
+the source of podrunner. `entry` makes the index entry of a
+manifest read back from the registry (its exact bytes), and `index` writes
+one multi-arch index of the entries. The bytes are canonical (sorted keys,
 no spaces), so the same capture gives the same digests.
 """
 
@@ -93,6 +95,17 @@ def image(layers: list[dict], record: dict, out: pathlib.Path) -> dict:
     return {"mediaType": MANIFEST, **m, "platform": {"architecture": arch, "os": "linux"}}
 
 
+def entry(data: bytes, arch: str) -> dict:
+    """The index entry of the manifest DATA (its exact bytes) for ARCH."""
+    if arch not in ARCH.values():
+        raise ValueError(f"no OCI arch {arch!r}")
+    m = json.loads(data)
+    if m.get("mediaType") != MANIFEST:
+        raise ValueError(f"not an OCI image manifest: {m.get('mediaType')!r}")
+    return {"mediaType": MANIFEST, "digest": "sha256:" + hashlib.sha256(data).hexdigest(), "size": len(data),
+            "platform": {"architecture": arch, "os": "linux"}}
+
+
 def index(entries: list[dict], out: pathlib.Path) -> dict:
     arches = [e["platform"]["architecture"] for e in entries]
     if len(set(arches)) != len(arches):
@@ -123,6 +136,14 @@ def self_test() -> int:
         if m["config"]["digest"] != (out / "a" / "config.json.digest").read_text().strip():
             bad.append("the digest of the config")
         arm = image(read_layers(table), {**record, "arch": "aarch64"}, out / "c")
+        back = entry((out / "c" / "manifest.json").read_bytes(), "arm64")
+        if back != arm:
+            bad.append(f"the entry of a manifest read back: {back} {arm}")
+        try:
+            entry(b'{"mediaType":"application/vnd.docker.distribution.manifest.v2+json"}', "amd64")
+            bad.append("a manifest of another type is taken")
+        except ValueError:
+            pass
         index([e1, arm], out / "i")
         ix = json.loads((out / "i" / "index.json").read_text())
         if [x["platform"]["architecture"] for x in ix["manifests"]] != ["amd64", "arm64"]:
@@ -156,6 +177,9 @@ def main() -> int:
                   pathlib.Path(a[6]))
         (pathlib.Path(a[6]) / "entry.json").write_text(json.dumps(e) + "\n")
         print(e["digest"])
+        return 0
+    if a[:1] == ["entry"] and len(a) == 5 and a[1] == "--manifest" and a[3] == "--arch":
+        print(json.dumps(entry(pathlib.Path(a[2]).read_bytes(), a[4])))
         return 0
     if a[:2] == ["index", "--out"] and len(a) > 3:
         entries = [json.loads(pathlib.Path(p).read_text()) for p in a[3:]]

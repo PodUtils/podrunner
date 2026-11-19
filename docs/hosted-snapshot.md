@@ -11,7 +11,9 @@ services and the environment of the hosted label.
 `ghcr.io/podutils/podrunner-hosted`, one tag for each image that a capture
 took: `IMAGEOS-IMAGEVERSION`, for example `ubuntu24-20261116.376.1`
 (`ImageOS` and `ImageVersion` of the hosted runner; on arm64 `ImageOS`
-names the architecture, `ubuntu24-arm64`). Pin an image by its digest. The
+names the architecture, `ubuntu24-arm64`), and one multi-arch index for
+each OS, `ubuntu24-latest` and `ubuntu26-latest`
+(`.github/workflows/hosted-index.yml`). Pin an image by its digest. The
 package is public; each version stays (the owner's ruling "Retention on
 ghcr.io").
 
