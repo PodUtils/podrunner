@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: 0BSD
-# The capture of the hosted snapshot (T-542), a dry run: the first step of
-# a job on a hosted label captures its root (scripts/hosted/capture.sh)
-# into /mnt and pushes nothing. It measures the layers and checks the scrub
-# against the real image. The artifacts hold the record, the plan, the
-# layer table and the findings of the check (paths and pattern names, no
-# content). The publish to ghcr.io is T-555.
+# The capture of the hosted snapshot (T-542): the first step of a job on a
+# hosted label captures its root (scripts/hosted/capture.sh) into /mnt,
+# with the check of the scrub (C2) and the 1:1 check (C1). With `publish`
+# (T-555, the owner's rulings "The hosted snapshot" and "ghcr.io"), the
+# layers, the config and the manifest go to ghcr.io/podutils/podrunner-hosted
+# under the tag IMAGEOS-IMAGEVERSION, and the manifest is attested. The
+# artifacts hold the record, the plan, the layer table and the findings of
+# the checks (paths and pattern names, no content).
 name: hosted-snapshot
 
 on:
@@ -16,6 +18,11 @@ on:
         default: ubuntu-24.04
         type: choice
         options: [ubuntu-24.04, ubuntu-26.04, ubuntu-24.04-arm, ubuntu-26.04-arm]
+      publish:
+        description: "Push the snapshot to ghcr.io after the checks pass"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -24,6 +31,12 @@ jobs:
   capture:
     runs-on: ${{ inputs.label }}
     timeout-minutes: 300
+    # The publish only: the packages of ghcr.io and the attestation.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     steps:
       # No action before the capture: an action writes into the root. The
       # scripts come by curl into /mnt, outside the captured tree.
@@ -42,6 +55,48 @@ jobs:
           done
           df -h / /mnt
           bash scripts/hosted/capture.sh /mnt/snapshot
+      - name: Publish to ghcr.io
+        id: publish
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SRC: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}
+        run: |
+          set -eu
+          cd /mnt/podrunner-capture
+          for f in scripts/hosted/oci.py scripts/hosted/push-blob.py; do
+            curl -fsSL --retry 3 -o "$f" "$SRC/$f"
+          done
+          name=podutils/podrunner-hosted
+          s=/mnt/snapshot
+          # The token of ghcr.io for this repository: masked, in the
+          # environment of this step only.
+          REGISTRY_TOKEN=$(curl -fsS -u "x-access-token:$GH_TOKEN" \
+            "https://ghcr.io/token?service=ghcr.io&scope=repository:$name:pull,push" |
+            python3 -I -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+          echo "::add-mask::$REGISTRY_TOKEN"
+          export REGISTRY_TOKEN
+          python3 -I scripts/hosted/oci.py image --layers "$s/layers.tsv" --record "$s/snapshot.json" --out "$s/oci"
+          tab=$(printf '\t')
+          while IFS=$tab read -r lname _ digest _ _; do
+            got=$(python3 -I scripts/hosted/push-blob.py https://ghcr.io "$name" "$s/layers/$lname.tar.zst")
+            [ "$got" = "$digest" ] || { echo "the layer $lname: pushed $got, recorded $digest" >&2; exit 1; }
+          done < "$s/layers.tsv"
+          python3 -I scripts/hosted/push-blob.py https://ghcr.io "$name" "$s/oci/config.json" > /dev/null
+          tag=$(python3 -I -c 'import json,sys; r=json.load(open(sys.argv[1])); print(r["image_os"] + "-" + r["image_version"])' "$s/snapshot.json")
+          digest=$(python3 -I scripts/hosted/push-blob.py --manifest https://ghcr.io "$name" "$tag" "$s/oci/manifest.json" \
+            application/vnd.oci.image.manifest.v1+json)
+          [ "$digest" = "$(cat "$s/oci/manifest.json.digest")" ]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "### ghcr.io/$name:$tag" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`ghcr.io/$name@$digest\`" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: inputs.publish
+        with:
+          subject-name: ghcr.io/podutils/podrunner-hosted
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
       - name: The summary
         if: always()
         run: |

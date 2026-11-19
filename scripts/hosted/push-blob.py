@@ -3,6 +3,7 @@
 """Push one blob to an OCI registry in chunks (T-542, T-555).
 
     REGISTRY_TOKEN=... python3 -I scripts/hosted/push-blob.py https://ghcr.io NAME FILE
+    REGISTRY_TOKEN=... python3 -I scripts/hosted/push-blob.py --manifest https://ghcr.io NAME REF FILE TYPE
     python3 -I scripts/hosted/push-blob.py --self-test
 
 A layer of the snapshot can be 8 GB; ghcr.io ends a request after 10
@@ -91,12 +92,28 @@ def push(reg: Registry, name: str, path: str, chunk: int = CHUNK) -> str:
     return digest
 
 
+def push_manifest(reg: Registry, name: str, ref: str, path: str, media_type: str) -> str:
+    """PUT the exact bytes of a manifest or an index at REF (a tag); the
+    registry must give back their digest."""
+    data = open(path, "rb").read()
+    digest = "sha256:" + hashlib.sha256(data).hexdigest()
+    r = reg.request("PUT", f"/v2/{name}/manifests/{ref}", body=data,
+                    headers={"Content-Type": media_type, "Content-Length": str(len(data))})
+    if r.status != 201:
+        raise RuntimeError(f"the manifest {ref}: HTTP {r.status}")
+    got = r.getheader("Docker-Content-Digest")
+    if got and got != digest:
+        raise RuntimeError(f"the manifest {ref}: the registry gives {got}, not {digest}")
+    return digest
+
+
 def self_test() -> int:
     import tempfile
     import threading
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
     blobs: dict[str, bytes] = {}
+    manifests: dict[str, tuple] = {}
     uploads: dict[str, bytearray] = {}
     seen: list[str] = []
     fail_once = {"done": False}
@@ -144,6 +161,10 @@ def self_test() -> int:
             self.reply(202, {"Location": self.path})
 
         def do_PUT(self):
+            if "/manifests/" in self.path:
+                data = self.body()
+                manifests[self.path.rsplit("/", 1)[-1]] = (self.headers["Content-Type"], data)
+                return self.reply(201, {"Docker-Content-Digest": "sha256:" + hashlib.sha256(data).hexdigest()})
             path, _, q = self.path.partition("?")
             uid = path.rsplit("/", 1)[-1]
             want = urllib.parse.parse_qs(q)["digest"][0]
@@ -168,6 +189,13 @@ def self_test() -> int:
         seen.clear()
         if push(reg, "x", f, chunk=4) != d or seen:
             bad.append(f"a blob that the registry has is sent again: {seen}")
+        # A manifest goes up with its type, and its digest comes back.
+        mf = os.path.join(t, "m.json")
+        open(mf, "wb").write(b'{"schemaVersion":2}')
+        md = push_manifest(reg, "x", "tag1", mf, "application/vnd.oci.image.manifest.v1+json")
+        if manifests.get("tag1") != ("application/vnd.oci.image.manifest.v1+json", b'{"schemaVersion":2}') \
+                or md != "sha256:" + hashlib.sha256(b'{"schemaVersion":2}').hexdigest():
+            bad.append(f"the manifest: {manifests}")
         # A wrong digest is refused by the registry.
         uploads["w"] = bytearray(b"abc")
         r = reg.request("PUT", "/v2/x/blobs/uploads/w?digest=sha256:" + "0" * 64, headers={"Content-Length": "0"})
@@ -184,6 +212,10 @@ def self_test() -> int:
 def main() -> int:
     if sys.argv[1:] == ["--self-test"]:
         return self_test()
+    if sys.argv[1:2] == ["--manifest"] and len(sys.argv) == 7:
+        base, name, ref, path, media_type = sys.argv[2:]
+        print(push_manifest(Registry(base, os.environ.get("REGISTRY_TOKEN")), name, ref, path, media_type))
+        return 0
     if len(sys.argv) != 4:
         print(__doc__.strip().splitlines()[2], file=sys.stderr)
         return 2

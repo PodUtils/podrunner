@@ -12619,6 +12619,8 @@ State (2026-11-19, later): check C1 is in. `plan.py --manifest` writes a row for
 
 State (2026-11-19, `hosted-snapshot.yml` run 44492148094, `ubuntu-24.04` with C1): check C1 found one difference: `var/log/sysstat/sa19` grew between the list of the root and the stream, as the timer of sysstat ran. The quiesce now stops each active timer (sysstat, apt-daily, logrotate), and the scrub drops `var/log/sysstat`. Each other path of 1,130,863 agreed: type, mode, owner, size, link and file capabilities.
 
+State (2026-11-19, `hosted-snapshot.yml` run 44503451991 at `582e827`, `ubuntu-24.04`, image `20261111.127.1`; proven in CI on GitHub-hosted runners): the capture passes C1 and C2. `c1: 0 differences between the root after the scrub and the layers` over 1,127,981 paths; the check of the scrub passes in each of 85 layers and `boot`; 15.9 GiB with zstd, 68 minutes. Left: the boot of the base slice (T-556) and the snapshots of the other labels with C1.
+
 # T-543: systemd as PID 1 in an incus instance
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -13009,6 +13011,8 @@ the new file .github/workflows/hosted-snapshot.yml, dispatched by T-540 or by ha
 
 State (2026-11-19): `scripts/hosted/push-blob.py` pushes one blob in chunks (POST, a PATCH for each chunk with its Content-Range, PUT with the digest), sends a failed chunk again from the offset of the registry, sends no blob that the registry has, and reads the token from the environment. `python3 -I scripts/hosted/push-blob.py --self-test` passes against a stand-in registry, which refuses a wrong digest.
 
+State (2026-11-19, later): `hosted-snapshot.yml` takes `publish`: after C1 and C2 pass, the layers, the config and the manifest of `scripts/hosted/oci.py` go to `ghcr.io/podutils/podrunner-hosted` under the tag `IMAGEOS-IMAGEVERSION`, each pushed digest equal to the one that the capture recorded, and `actions/attest-build-provenance` attests the manifest in the registry. The token of ghcr.io comes from the job's `GITHUB_TOKEN`, masked, in one step. `python3 -I scripts/hosted/oci.py --self-test` and `push-blob.py --self-test` (now with the manifest) pass. Left: the first publish, the multi-arch index of a release, `docs/hosted-snapshot.md`, and the public setting of the package by an admin of PodUtils.
+
 # T-556: The base slice of the hosted snapshot boots in hosted CI
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -13095,6 +13099,8 @@ COORD-107 (GitHub #317, to podcrates) ask 1; COORD-106 (GitHub #316, to podvm) a
 State (2026-11-19, COORD-203, PodUtils/podvm#599): podvm's part is PodUtils/podvm@T-1999 (the xattrs in `.meta.jsonl`, as PAX records in the unified tarball, and in the root of the machine tier); it waits for the extract of podcrates (COORD-107, GitHub #317).
 
 State (2026-11-19): podcrates `v0.76.0` (COORD-144, PodUtils/podcrates#239, PodUtils/podcrates@T-957) sets the `SCHILY.xattr.*` records in `pod-extract`, a file's after its last write, and names each that it cannot set. A binary value with the byte `0x0a` is not set yet (PodUtils/podcrates@T-961); the capabilities of `ping` and `mtr-packet` have none. podrunner takes the tag (COORD-109, GitHub #319); podvm sets them in a unit (PodUtils/podvm@T-1999). Next: podvm's release, then `getcap` in a unit of each kind.
+
+State (2026-11-19, COORD-203): PodUtils/podvm@T-1999 is on podvm's `main` (partial) on podcrates `v0.76.0`: the unified tarball of the incus tier carries `security.capability` and `user.*` as PAX records; a file of `cap_net_raw+ep` keeps it in the root of an incus instance. The machine tier comes with PodUtils/podvm@T-1994.
 
 # T-559: An incus VM mode for an image with a kernel
 
