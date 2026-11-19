@@ -10705,7 +10705,7 @@ The test of G-07 above, on each kind in `runner-image.yml`, and cfb's measure ag
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10722,6 +10722,8 @@ Add a job with `actions/checkout` to the suite of the incus kind on real instanc
 ## Prove
 
 The step of the incus suite in `runner-image.yml` passes, and it fails with the guest script of before T-178.
+
+In the code (2026-11-19): the parity suite takes `PODRUNNER_PARITY_ROUTES=0` (a unit with no container route skips those workflows), and a step of `runner-image.yml` runs it on the incus kind with no engine, as a measure: `06-actions.yml` (the real `actions/checkout@v4`) must give PASS. Left: the green run, then the step blocks; the plant of the Prove (the guest script of before T-178).
 
 # T-482: The incus kind bounds no disk of the root of an instance
 

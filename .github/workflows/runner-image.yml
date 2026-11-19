@@ -621,6 +621,19 @@ jobs:
           sg incus-admin -c "timeout 2400 target/x86_64-unknown-linux-musl/debug/podrunner run crates/podrunner/tests/local/suite.yml --incus '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_IMAGE' --checkout ." \
             | tee "$RUNNER_TEMP/local-incus.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local-incus.txt")" = 8
+      # T-481: the parity suite on the incus kind, with no engine: the real
+      # actions/checkout of 06-actions.yml in an instance (HOME of the
+      # runner, T-178). A measure until it is green.
+      - name: The parity suite on the incus kind (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        run: |
+          set -eu
+          set -o pipefail
+          cargo test -p podrunner --test parity --no-run
+          sg incus-admin -c "PODRUNNER_PARITY_ROUTES=0 PODRUNNER_PARITY_UNIT='--incus $PODRUNNER_PODVM --images $PODRUNNER_PODVM_IMAGES --image $PODRUNNER_RUNNER_IMAGE' timeout 3600 cargo test -p podrunner --test parity -- --ignored --nocapture" \
+            | tee "$RUNNER_TEMP/parity-incus.txt"
+          grep -q '^parity 06-actions.yml PASS' "$RUNNER_TEMP/parity-incus.txt"
       # T-525: C1 to C5 on the incus kind (incus from the step before).
       - name: C1 to C5 on the incus kind (a measure)
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}

@@ -11,7 +11,9 @@
 //! With `--runner-dir` a workflow that needs a container route gives SKIP.
 //! `PODRUNNER_PARITY_UNIT` replaces `--runner-dir DIR` with the options of a
 //! unit kind, split at each space (for example `--microvm PODVM --images
-//! STORE --image REF --engine DIR --allow HOST`), and each workflow runs.
+//! STORE --image REF --engine DIR --allow HOST`), and each workflow runs;
+//! with `PODRUNNER_PARITY_ROUTES=0` too, a workflow that needs a container
+//! route gives SKIP.
 //! The actions come from github.com by the lock of the suite, into the
 //! store of the user.
 
@@ -106,7 +108,12 @@ fn verdict(unit: &[String], scratch: &Path, name: &str, gap: Gap, extra: &[&str]
 #[ignore]
 fn the_parity_suite_gives_one_verdict_for_each_workflow() {
     let (unit, routes) = match std::env::var("PODRUNNER_PARITY_UNIT") {
-        Ok(u) => (u.split(' ').filter(|w| !w.is_empty()).map(str::to_string).collect::<Vec<_>>(), true),
+        // `PODRUNNER_PARITY_ROUTES=0`: a unit with no container route (the
+        // incus kind with no engine, T-481) skips those workflows.
+        Ok(u) => (
+            u.split(' ').filter(|w| !w.is_empty()).map(str::to_string).collect::<Vec<_>>(),
+            std::env::var("PODRUNNER_PARITY_ROUTES").as_deref() != Ok("0"),
+        ),
         Err(_) => {
             let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR or PODRUNNER_PARITY_UNIT");
             (vec!["--runner-dir".to_string(), dir], false)
