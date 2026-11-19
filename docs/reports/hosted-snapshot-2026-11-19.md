@@ -399,7 +399,7 @@ allow row of the conformance diff when it changes behaviour.
 | `/home/runner/work` | drop | the job |
 | `/opt/hca/` state: `.settings`, `diagnostics.json`, `egress_proxy_condition.json`, `logs/`, `.hca.lock`, `environment.dirty` | drop | tokens and SAS URIs |
 | `/opt/hca/` binaries, `/opt/primer/` | drop; mask `hosted-compute-agent.service` and `primer.service` (link to `/dev/null`) | GitHub's provisioner: it calls GitHub's scheduler; no job uses it |
-| `/home/runner/.docker/config.json` | rewrite to `{}` with the same owner and mode | shared Docker Hub credential; allow row: anonymous Docker Hub pulls (an operator can add a mirror or a login) |
+| `/home/runner/.docker/config.json` | keep as is (the owner's ruling "The snapshot keeps the Docker Hub login") | the hosted runner has it |
 | `/etc/ssh/ssh_host_*` | drop; a oneshot unit runs `ssh-keygen -A` before `ssh.service` | private keys |
 | `/var/lib/waagent/*` except the agent egg | drop; mask `walinuxagent.service` | keys, provisioning document; it needs the Azure wire server |
 | `/root/.ssh/authorized_keys`, `/home/packer/.ssh/authorized_keys` | drop | provisioning keys |
@@ -588,7 +588,7 @@ conformance runs are green (section 4).
 Container mode: kernel version, modules, the hosted sysctls, swap, `/dev`
 loop and kvm nodes, no NIC (egress by the proxy channel), hostname,
 `cloud-init status`, `walinuxagent`, `hosted-compute-agent`, `primer`,
-`pollinate` failed or masked, the Docker Hub login. VM mode: the same
+`pollinate` failed or masked. VM mode: the same
 less kernel, modules, sysctls, loop and swap.
 
 ## 5. Why re-mirror instead of using their blobs
@@ -738,18 +738,11 @@ Flaws and gaps found in this study. None is fixed here.
   `dockerd` when the image has `docker.service`"); the snapshot makes it
   required, not optional.
 - **PF-6 (podcrates, P3).** The single-member gzip reader of 6.1 item 5.
-- **PF-7 (third party).** Held back: a disclosure to the author of the
-  community snapshot. The owner decides it.
-
 ## 8. Questions for the owner
 
-- Retention of old package versions on ghcr.io needs a delete of package
-  versions. `AGENTS.md` forbids a delete of a tag or a release; a package
-  version is neither. Recommendation: keep each pinned digest and the last
-  8 versions of each tag line, delete the rest by a workflow.
-- The Docker Hub credential of the hosted image is a GitHub credential.
-  Recommendation: drop it (an allow row: anonymous pulls), and offer an
-  operator setting for a mirror or a login.
+The owner ruled both on 2026-11-19 (`docs/decisions.md`): each version on
+ghcr.io stays; the snapshot keeps the Docker Hub login, and the capture
+makes each per-machine value fresh.
 
 ## 9. Sources
 

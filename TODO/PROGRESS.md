@@ -58,11 +58,9 @@ Blocked: T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runn
 
 ## Questions for the owner
 
-Q10 (2026-11-19, T-555): the retention of old versions of the hosted snapshot on ghcr.io. Each version adds about 55 to 65 GiB of blobs a week before dedup, and only a delete of package versions removes them. `AGENTS.md` forbids the delete of a tag or a release; a package version is neither. Recommendation: keep each digest that a pin names and the last 8 versions of each label, and delete the rest by a workflow.
+None is open. The owner ruled Q10 (retention on ghcr.io: keep each version) and Q11 (the snapshot keeps the Docker Hub login; the per-machine values are made fresh) on 2026-11-19 (`docs/decisions.md`).
 
-Q11 (2026-11-19, T-542): the hosted image has a Docker Hub login in `/home/runner/.docker/config.json`, a credential of GitHub. Recommendation: the scrub rewrites it to `{}` (an allow row: anonymous pulls, a lower pull rate), and an operator setting gives a mirror or a login.
-
-The owner ruled Q9 on 2026-11-17 (`docs/decisions.md`).
+Before Q10: the owner ruled Q9 on 2026-11-17 (`docs/decisions.md`).
 
 Before Q9: the owner ruled Q7 and the size of a job, and Q8 and `limits_required` settled with githome, on 2026-11-15 (`docs/decisions.md`).
 
