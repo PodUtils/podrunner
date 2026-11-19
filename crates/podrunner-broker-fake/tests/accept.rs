@@ -33,7 +33,7 @@ use podrunner_podvm::Podvm;
 use podrunner_schema::{Capability, Credential, CredentialFile, ExitReason, JobId, Residual, Secret};
 use podrunner_slots::config::{Config, SourceConfig, UnitConfig};
 use podrunner_slots::{Slots, Source, UnitKind};
-use podrunner_source::{Event, Hello, JobSource, SourceError};
+use podrunner_source::{Assigned, Event, Hello, JobSource, RealJob, SourceError};
 use podrunner_unit::UnitDriver;
 use serde_json::{Map, Value, json};
 
@@ -109,6 +109,11 @@ impl JobSource for BrokerSource {
     }
     fn release(&mut self, job: &JobId) -> Result<(), SourceError> {
         self.inner.release(job)
+    }
+    // The broker gives its jobs to any runner, each with a run of its own:
+    // the job-started hook asks, and the fake source keeps the job.
+    fn assigned(&mut self, job: &JobId, real: &RealJob) -> Result<Assigned, SourceError> {
+        self.inner.assigned(job, real)
     }
 }
 

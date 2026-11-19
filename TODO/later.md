@@ -12068,6 +12068,7 @@ State (2026-11-18): `crates/podrunner-broker-fake/tests/accept.rs` runs C1 to C5
 
 State (2026-11-18, the first run, `runner-image.yml` 44396030197): microvm: two jobs passed, then each runner listened for 600 s with no job. The cause: a runner polls `GET /message` again while it runs its job (`status=Busy`, for a cancel), and the fake broker gave each poll the next queued job, which was then lost (18 of 20). The fake broker now gives one job to each session (`sessionId` of the poll; `a_session_that_got_a_job_takes_no_other`). incus: each offer was `event-not-allowed`: the trusted offer of the test named a public repository, which needs `trusted_public`; it is private now. Next: the next run of both steps.
 
+State (2026-11-19, run 44417916405): on incus each runner was "placed for another job": the broker gives its jobs to any runner, each with a run of its own, so the job-started hook asks `assigned`, which the source of the test did not answer. It now hands `assigned` to the fake source, which keeps a job of the owner of the offer.
 
 # T-526: The incus suite of `runner-image.yml` does not block a release
 
@@ -12076,7 +12077,7 @@ State (2026-11-18, the first run, `runner-image.yml` 44396030197): microvm: two 
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12097,6 +12098,10 @@ Keep `scripts/measure-incus.sh` as a measure. Make the conformance, egress, limi
 In the code (2026-11-18): the incus step of `runner-image.yml` has no `continue-on-error`: its conformance, egress, limits and local suites block (they passed in run 44302792725); `scripts/measure-incus.sh` and the engine test of T-485 stay measures (a line in the summary); the apt installs go through `scripts/retry.sh`. The new `pids` test of T-488 in the microvm step is a measure too until it is green once. Open: the run with a planted defect of the Prove.
 
 In the code (2026-11-18, the plant): `runner-image.yml` takes the input `plant` (`none` or `incus-conformance`) of a dispatch; with `incus-conformance` the fixture of `crates/podrunner-incus/tests/conformance.rs` gives each exit payload a wrong exit code (`PODRUNNER_PLANT`). Next: a dispatch with `plant: incus-conformance` must end red in the incus step.
+
+## Done
+
+2026-11-19: the dispatch of `runner-image.yml` with `plant: incus-conformance` (run 44417916405, `9fa28c2`) ended red, in the incus step only: `unit  8 wait-gives-the-exit-code: FAIL: wait gives Some(Code(8)), not exit code 7`. The incus suites block a release (`release.yml` needs a green `runner-image.yml` run of its commit).
 
 # T-527: No lane of the user-path gate for the host class of githome's pool
 

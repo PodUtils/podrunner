@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**534 entries: 50 open, 45 partial, 12 blocked, 427 done.**
+**534 entries: 50 open, 44 partial, 12 blocked, 428 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 3 | 21 | 3 | 72 | 99 |
+| P1 | 3 | 20 | 3 | 73 | 99 |
 | P2 | 10 | 17 | 6 | 226 | 259 |
 | P3 | 36 | 7 | 3 | 127 | 173 |
-| **All** | 50 | 45 | 12 | 427 | 534 |
+| **All** | 50 | 44 | 12 | 428 | 534 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -570,7 +570,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-523](later.md) | P2 | M | later | feature | blocked | G-34: take the signed release index of `pod-release` |
 | [T-524](later.md) | P3 | M | later | feature | blocked | G-04 and G-35: the half of podrunner of the placeholders of a policy |
 | [T-525](later.md) | P1 | M | later | measurement | partial | C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host |
-| [T-526](later.md) | P1 | S | later | chore | partial | The incus suite of `runner-image.yml` does not block a release |
+| [T-526](later.md) | P1 | S | later | chore | done | The incus suite of `runner-image.yml` does not block a release |
 | [T-527](later.md) | P1 | M | later | chore | partial | No lane of the user-path gate for the host class of githome's pool |
 | [T-528](later.md) | P1 | S | later | measurement | partial | No row of the user-path gate copies the gate of rbg |
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
