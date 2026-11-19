@@ -208,3 +208,7 @@ reason = "Ruby gems: library code and documents"
 [[skip]]
 path = "home/linuxbrew"
 reason = "Homebrew and its test fixtures"
+
+[[drop]]
+path = "var/log/sysstat"
+reason = "the activity data of the capture VM; sysstat makes its files again"

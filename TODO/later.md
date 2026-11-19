@@ -12617,6 +12617,8 @@ State (2026-11-19, later; proven in CI on GitHub-hosted runners, dry runs, nothi
 
 State (2026-11-19, later): check C1 is in. `plan.py --manifest` writes a row for each member after the scrub (type, mode, owner, size, link target, file capabilities and user xattrs); `scrub.py verify --rows` writes the same row for each member of a layer stream; `scripts/hosted/c1.py compare` merges the rows of the layers in order and fails on a missing, changed or extra path. `python3 -I scripts/hosted/c1.py --self-test` passes (a lost file, a lost setuid bit, a lost xattr and an extra path each fail); a run of the whole chain on a fixture with a real `security.capability`, a setuid bit and a hard link across two planned layers gives 0 differences. The content is not hashed in C1: tar reads the bytes that it lists. Next: a capture with C1 on a hosted label.
 
+State (2026-11-19, `hosted-snapshot.yml` run 44492148094, `ubuntu-24.04` with C1): check C1 found one difference: `var/log/sysstat/sa19` grew between the list of the root and the stream, as the timer of sysstat ran. The quiesce now stops each active timer (sysstat, apt-daily, logrotate), and the scrub drops `var/log/sysstat`. Each other path of 1,130,863 agreed: type, mode, owner, size, link and file capabilities.
+
 # T-543: systemd as PID 1 in an incus instance
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19

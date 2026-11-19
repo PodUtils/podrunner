@@ -66,6 +66,11 @@ done
 for s in $(systemctl list-units --type=service --state=running --no-legend --plain 'php*-fpm.service' | cut -d' ' -f1); do
   sudo systemctl stop "$s" || true
 done
+# Each timer: sysstat, apt-daily, logrotate and the others write during the
+# capture, and check C1 then finds a file that changed between the passes.
+for s in $(systemctl list-units --type=timer --state=active --no-legend --plain | cut -d' ' -f1); do
+  sudo systemctl stop "$s" || true
+done
 sync
 
 # A view of / with no other mount.
