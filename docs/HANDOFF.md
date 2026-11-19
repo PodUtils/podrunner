@@ -156,6 +156,12 @@ The last session (2026-11-18, evening) left:
   works: the express rows and `rg-docs` pass on podvm in each lane. Make
   each measure blocking once it is green. T-526 is done (the plant run
   44417916405 was red in the incus step).
+- New measure steps of `runner-image.yml` from `b24f5a3`: "The parity
+  suite on the incus kind" (T-481: the real `actions/checkout`; T-485: with
+  the engine, `services:` and job containers in an instance). Read their
+  first run; make them block when green.
+- COORD-101 (#311) asks podcrates to join `pod-fake-githome` to
+  `pod-fake-github`, for a runner job through `serve` (T-527, T-509).
 - If a local runner test says a file of `_diag/blocks` "already exists",
   an interrupted run left it: remove `_diag/blocks` and `_work` of
   `PODRUNNER_RUNNER_DIR`.
