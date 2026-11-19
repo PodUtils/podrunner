@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: 0BSD
+# The allowed differences of the hosted parity (T-539): each row lets
+# scripts/hosted/diff.py pass one kind of difference between the probe of a
+# hosted label and the probe of a unit. `key` and `side` are globs; `change`
+# is missing, extra, changed or any; `entry` is the work that removes the
+# row. A row that matches no difference fails the diff: remove it.
+#
+# The workflow hosted-parity.yml is report-only until the snapshot (T-542)
+# runs in each unit kind; then the rows are only the ones that the study of
+# the snapshot names (docs/reports/hosted-snapshot-2026-11-19.md, 4.3).

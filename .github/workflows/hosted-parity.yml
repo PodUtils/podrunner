@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: 0BSD
+# The hosted parity (T-539): the probe of each GitHub-hosted label against
+# the probe of the runner image, diffed with images/hosted/allow.toml.
+# Report-only: the summary gives the gap. The units of each kind and the
+# hosted snapshot (T-542) join when they exist; then the diff blocks.
+name: hosted-parity
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/hosted/**
+      - images/hosted/**
+      - .github/workflows/hosted-parity.yml
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The runner image of this release is the unit side until the snapshot.
+  IMAGE_TAG: v0.1.0-beta.7
+
+jobs:
+  self-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The probe parses, and the diff passes its self-test
+        run: |
+          sh -n scripts/hosted/probe.sh
+          python3 -I scripts/hosted/diff.py --self-test
+
+  reference:
+    strategy:
+      fail-fast: false
+      matrix:
+        label: [ubuntu-24.04, ubuntu-26.04, ubuntu-latest]
+    runs-on: ${{ matrix.label }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The probe of the hosted label
+        run: |
+          sh scripts/hosted/probe.sh > "probe-${{ matrix.label }}.tsv"
+          wc -l "probe-${{ matrix.label }}.tsv"
+          echo "${{ matrix.label }}: ImageOS ${ImageOS:-} ImageVersion ${ImageVersion:-}" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: probe-${{ matrix.label }}
+          path: probe-${{ matrix.label }}.tsv
+
+  runner-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The probe in the runner image (runner-full of the release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          gh release download "$IMAGE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'runner-full-x86_64.tar' --pattern 'runner-full-x86_64.tar.sha256' --dir "$RUNNER_TEMP"
+          (cd "$RUNNER_TEMP" && sha256sum -c runner-full-x86_64.tar.sha256)
+          image=$(podman load -q -i "$RUNNER_TEMP/runner-full-x86_64.tar" | sed -n 's/^Loaded image: //p' | tail -n 1)
+          podman run --rm --user runner -v "$PWD/scripts/hosted:/probe:ro" "$image" sh /probe/probe.sh > probe-runner-full.tsv
+          wc -l probe-runner-full.tsv
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: probe-runner-full
+          path: probe-runner-full.tsv
+
+  diff:
+    needs: [self-test, reference, runner-image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: probe-*
+          merge-multiple: true
+      - name: The gap of the runner image to each label (report-only)
+        run: |
+          python3 -I scripts/hosted/diff.py --allow images/hosted/allow.toml --report-only \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --pair probe-ubuntu-24.04.tsv probe-runner-full.tsv runner-full-vs-24.04 \
+            --pair probe-ubuntu-26.04.tsv probe-runner-full.tsv runner-full-vs-26.04 > gap.md
+          head -n 60 gap.md
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gap
+          path: gap.md

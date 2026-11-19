@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**557 entries: 62 open, 44 partial, 19 blocked, 432 done.**
+**557 entries: 61 open, 45 partial, 19 blocked, 432 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 10 | 19 | 6 | 77 | 112 |
+| P1 | 9 | 20 | 6 | 77 | 112 |
 | P2 | 15 | 18 | 9 | 226 | 268 |
 | P3 | 36 | 7 | 4 | 127 | 174 |
-| **All** | 62 | 44 | 19 | 432 | 557 |
+| **All** | 61 | 45 | 19 | 432 | 557 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -583,7 +583,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-536](later.md) | P2 | S | later | chore | done | Take `pod_core::http1` in place of the reader of an HTTP/1.1 head of podrunner-hook |
 | [T-537](later.md) | P1 | S | later | defect | done | The installer leaves the data directory writable by the group, and the microvm kind refuses its podvm |
 | [T-538](later.md) | P1 | L | later | feature | partial | A unit with the toolset of the GitHub-hosted ubuntu-latest, with systemd, checked mechanically |
-| [T-539](later.md) | P1 | M | later | measurement | open | The probe and the diff of the hosted parity, report-only in CI |
+| [T-539](later.md) | P1 | M | later | measurement | partial | The probe and the diff of the hosted parity, report-only in CI |
 | [T-540](later.md) | P1 | S | later | chore | open | A watcher of the hosted image releases and of the label of ubuntu-latest |
 | [T-541](later.md) | P1 | M | later | feature | open | The runner layer of the hosted snapshot, and the hosted work folder /home/runner/work |
 | [T-542](later.md) | P1 | L | later | feature | open | The hosted snapshot: a 1:1 capture of the root of a hosted runner, scrubbed, with its kernel layer |

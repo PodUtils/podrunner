@@ -12485,7 +12485,7 @@ State (2026-11-19, the second study): `docs/reports/hosted-snapshot-2026-11-19.m
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12497,11 +12497,13 @@ The study, section 4 (W-2, W-3), read on 2026-11-19.
 
 ## Approach
 
-the new file scripts/hosted/probe.sh (POSIX sh) writes one JSON object: os-release, the tools of the software report with their versions, `dpkg-query -W`, the `/opt/hostedtoolcache` tree, the environment and `PATH`, `id runner`, `sudo -l`, the enabled and active units, `is-system-running` and the failed units, PID 1, the cgroup version and controllers, ulimits of `runner`, the sysctl list, the `/dev` nodes (`fuse`, `kvm`, `loop*`, `net/tun`), `lsmod` and `modprobe -n` of the hosted module list, `getcap -r /`, mounts, swap, `binfmt_misc`, `docker info`, `podman info`, the docker socket path, the hostname form, `GITHUB_WORKSPACE`. the new file scripts/hosted/diff.py compares two probes; each difference needs a row of the new file images/hosted/allow.toml (key, kind, reason, entry); a row that no longer matches fails. The allow rows known now are in section 4.3 of the study (container mode and VM mode). `hosted-parity.yml` runs the probe on github.com (each label) and in a unit of each kind, report-only first. It is check C4 of the snapshot.
+`scripts/hosted/probe.sh` (POSIX sh) writes one `KEY<TAB>VALUE` line for each fact, sorted: os-release, the tools of the software report with their versions, `dpkg-query -W`, the `/opt/hostedtoolcache` tree, the environment and `PATH`, `id runner`, `sudo -l`, the enabled and active units, `is-system-running` and the failed units, PID 1, the cgroup version and controllers, ulimits of `runner`, the sysctl list, the `/dev` nodes (`fuse`, `kvm`, `loop*`, `net/tun`), `lsmod` and `modprobe -n` of the hosted module list, `getcap -r /`, mounts, swap, `binfmt_misc`, `docker info`, `podman info`, the docker socket path, the hostname form, `GITHUB_WORKSPACE`. `scripts/hosted/diff.py` compares two probes; each difference needs a row of `images/hosted/allow.toml` (key, kind, reason, entry); a row that no longer matches fails. The allow rows known now are in section 4.3 of the study (container mode and VM mode). `hosted-parity.yml` runs the probe on github.com (each label) and in a unit of each kind, report-only first. It is check C4 of the snapshot.
 
 ## Prove
 
 `hosted-parity.yml`: the first run lists the gap; in a test of the gate, fixtures with a removed tool, a lost file capability, a failed unit, a changed major version and an unlisted variable each fail, and a stale allow row fails.
+
+State (2026-11-19): `scripts/hosted/probe.sh` gives the facts of the Approach; the environment gives the names of each variable and the values of a fixed list only, so no secret value leaves the machine. `python3 -I scripts/hosted/diff.py --self-test` passes: a removed tool, a lost capability, a failed unit, a changed major version and an unlisted variable each fail; a patch version passes; a stale allow row fails; a bad row is refused. `.github/workflows/hosted-parity.yml` (report-only, daily) probes `ubuntu-24.04`, `ubuntu-26.04` and `ubuntu-latest`, and the image `runner-full` of `v0.1.0-beta.7` under podman, and writes the gap to the summary. Left: the probe in a unit of each kind (incus, microvm, podvm) through `podrunner run`, then the snapshot (T-542) as the unit side, then the diff blocks.
 
 # T-540: A watcher of the hosted image releases and of the label of ubuntu-latest
 

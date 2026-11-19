@@ -86,6 +86,10 @@ the tools.
     corpus table `corpus/user-gate.tsv` and the summary (T-243).
     `test-install.sh` runs a lane on fake assets.
   * `lab/*.sh`: the host classes of the lanes (T-244, `lab/README.md`).
+  * `hosted/probe.sh`, `hosted/diff.py`: the probe of the hosted parity
+    and its diff against `images/hosted/allow.toml` (T-539);
+    `hosted-parity.yml` runs them on each hosted label and in the runner
+    image, report-only, each day.
 * The copies of podcrates scripts (`check-size.py`, `check-static.sh`,
   `cloud-setup.sh`, `fetch-zig.sh`, `pull-image.sh`, `retry.sh`,
   `secrets-report.py`, `check-github-numbers.py`) come from podcrates
