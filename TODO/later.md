@@ -13177,7 +13177,7 @@ State (2026-11-19): podcrates `v0.75.0` (COORD-143, PodUtils/podcrates#238, PodU
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -13198,3 +13198,4 @@ The logs of both lanes, read on 2026-11-19: each check before `lab:vnet` passes;
 
 State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): the bound holds: `lab:vnet` ends after 900 s as `xfail T-561`, and the lane `bind-denied` passes 9 of 9. The log: the unit starts ("unit u-1 starts"), then the runner of the unit takes no job and prints no line; `podrunner run` waits with no bound ("no line for 60 s; the run waits for its job" up to 840 s). Two steps: (a) find the link that fails between the runner of the unit and the broker on its unix socket through the vnet shim (the log of the runner in the unit); (b) a local run ends with a named failure when no runner takes the job within a bound, as `serve` does with `[deadlines] start_s`.
 
+State (2026-11-19, later): step (b) is in: `InUnit::reach` (600 s) ends a job whose runner sends no request to its broker in that time, with the cause "the runner of unit u-N sent no request to its broker in 600 s: it cannot reach the broker" and the end of the output of the unit in the log, not at its `timeout-minutes`. `cargo test -p podrunner-local --lib exec::` (`a_runner_that_reaches_no_broker_ends_the_job_with_its_cause`) passes. Left: step (a), the link that fails under `--vnet` in the lab.

@@ -30,6 +30,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `run-report.v1` | A job that the job-started hook of the runner image ended before its first step (a job of another run with no `keep` of the source) ends with `job-mismatch`, not `success`, and its report has `log_tail`. | T-552 |
 | control socket | The HTTP head of each socket of a unit is read by `pod_core::http1`: another version of HTTP gets 505, a head over 16 KiB gets 431. | T-536 |
 | `podrunner.toml` | `[unit.incus] init = "image"`: the init of the image is PID 1 of each instance, with the services and the engine of the image (`--podvm-init=image --podvm-engine`, podvm `0.2.0-beta.36` or later); not with `engine`; the other kinds refuse the key. | T-543 |
+| command line | `podrunner run` in a unit: a runner that sends no request to its broker in 600 s fails its job with that cause, not at its `timeout-minutes`. | T-561 |
 | control socket | A new op `restart-source` (field `source`). | T-498 |
 | control socket | New ops `drain-source`, `resume-source` and `stop-source` (field `source`); `resume-source` builds a stopped source again. | T-501 |
 | `status.v1` | The type and the schema are `pod_job::Status` of podcrates `v0.73.0` (`schemas/status.v1.schema.json` of podcrates); `schemas/status.v1.json` of podrunner goes. | T-508 |

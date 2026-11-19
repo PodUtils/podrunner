@@ -76,6 +76,30 @@ fn a_unit_past_its_limit_is_ended() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// T-561: a runner that never reaches its broker ends the job at the bound
+/// of `reach` with that cause, not at the limit of the job.
+#[test]
+fn a_runner_that_reaches_no_broker_ends_the_job_with_its_cause() {
+    let dir = std::env::temp_dir().join(format!("podrunner-local-reach-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let driver: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir, capability(), "linux/amd64"));
+    let image = driver.prepare(&format!("img@sha256:{}", "a".repeat(64)), "linux/amd64", false).unwrap();
+    let mut exec = InUnit::new(driver.clone(), image);
+    let hang = dir.with_extension("reach.sh");
+    std::fs::write(&hang, "#!/bin/sh\nexec sleep 30\n").unwrap();
+    std::fs::set_permissions(&hang, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    exec.run_sh = hang.to_str().unwrap().into();
+    exec.grace = Duration::ZERO;
+    exec.reach = Duration::from_millis(300);
+    let t = std::time::Instant::now();
+    let e = exec.run(&JobId::new("a.0").unwrap(), Job::scripts("a", &["true"]), Duration::from_secs(60)).unwrap_err();
+    assert!(e.contains("sent no request to its broker"), "{e}");
+    assert!(t.elapsed() < Duration::from_secs(20), "{:?}", t.elapsed());
+    assert!(driver.destroy(&unit_of(&e)).unwrap().is_clean());
+    let _ = std::fs::remove_file(&hang);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn a_runner_directory_refuses_a_job_with_containers() {
     let dir = std::env::temp_dir().join(format!("podrunner-local-dir-{}", std::process::id()));

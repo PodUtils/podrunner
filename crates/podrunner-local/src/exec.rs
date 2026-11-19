@@ -50,6 +50,10 @@ pub struct InUnit {
     /// How long the broker may take to record `completejob` after the
     /// end of the unit.
     pub grace: Duration,
+    /// How long the runner of a unit may take to send its first request to
+    /// the broker (T-561): past it the runner cannot reach the broker, and
+    /// the job ends with that cause, not at its `timeout-minutes`.
+    pub reach: Duration,
     /// The archives of the actions (`OWNER_REPO/SHA.tar.gz`, T-091).
     pub actions: Option<PathBuf>,
     /// The commit of each `OWNER/REPO@REF` of the run (T-118).
@@ -103,6 +107,7 @@ impl InUnit {
             image,
             run_sh: "/home/runner/run.sh".into(),
             grace: Duration::from_secs(5),
+            reach: Duration::from_secs(600),
             actions: None,
             pins: BTreeMap::new(),
             artifacts: None,
@@ -360,17 +365,23 @@ impl Executor for InUnit {
         crate::enter::register(job.as_str(), self.driver.clone(), &id);
         // Wait in slices: a signal destroys the unit at once (T-141).
         let until = Instant::now() + limit;
+        let reach_by = Instant::now() + self.reach;
+        let mut unreached = false;
         let waited = loop {
             let slice = until.saturating_duration_since(Instant::now()).min(Duration::from_secs(1));
             pump(&self.live, job, &broker);
             match self.driver.wait(&id, slice) {
+                Ok(None) if Instant::now() >= reach_by && broker.seen().is_empty() => {
+                    unreached = true;
+                    break Ok(None);
+                }
                 Ok(None) if !crate::cancel::stopped(&self.stop) && Instant::now() < until => continue,
                 other => break other,
             }
         };
         let cancelled = crate::cancel::stopped(&self.stop) && matches!(waited, Ok(None));
         // Still running at the limit: end the unit (destroy below).
-        let timed_out = matches!(waited, Ok(None));
+        let timed_out = matches!(waited, Ok(None)) && !unreached;
         let t = Instant::now();
         while broker.completions().is_empty() && t.elapsed() < self.grace {
             std::thread::sleep(Duration::from_millis(50));
@@ -420,6 +431,13 @@ impl Executor for InUnit {
         let exit = waited.map_err(|e| format!("wait {id}: {e}"))?;
         if cancelled {
             return Ok(End { result: JobResult::Cancelled, outputs: vec![] });
+        }
+        if unreached {
+            return Err(format!(
+                "the runner of unit {id} sent no request to its broker in {} s: it cannot reach the broker; \
+                 the end of its output is in the log",
+                self.reach.as_secs()
+            ));
         }
         if timed_out {
             return Err(format!("the job ran past its timeout-minutes ({} s); unit {id} was ended", limit.as_secs()));
