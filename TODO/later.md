@@ -12198,6 +12198,8 @@ State (2026-11-19, run 44438881119): the row on runner-dir passed. The row on mi
 
 State (2026-11-19, run 44462524454, podvm `0.2.0-beta.34`): runner-dir passes (install 13 s, first step 1 s). microvm: the download of Chromium passes with the allow; Chromium lacks `libglib-2.0` in `runner-full` (T-500, fixed in the image list). podvm: the hang of `tsc` (T-554); run 44489222156 runs the row on podvm `0.2.0-beta.36`.
 
+State (2026-11-19, run 44489222156, podvm `0.2.0-beta.36`): the row passes on podvm (install 18 s, first step 30 s) and on runner-dir (16 s, 2 s). microvm fails on the libraries of Chromium; the image of `88fde6c` has them (T-500). Left: the row on microvm with that image, and a row on the incus kind.
+
 # T-529: The disk limit of an offer lifts the bound of the operator
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
@@ -12951,7 +12953,7 @@ State (2026-11-19, later): podcrates `v0.75.0` publishes its fakes on ghcr.io in
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -12969,13 +12971,14 @@ podvm finds the cause in the userland rung (a Go runtime with many threads and i
 
 `user-gate.yml`: the row `rbg-gate` on the podvm executor passes.
 
-## Blocker
-
-COORD-105 (GitHub #315, to podvm): the compile of TypeScript 7 hangs on the userland rung with no tier.
 
 State (2026-11-19, later): podvm's answer, COORD-202 (PodUtils/podvm#598): Go preempts a goroutine with SIGURG; when it stopped podvm's SIGSYS handler in a system call, Go's handler ran on the wrong stack and waited for ever. Fixed on podvm's `main` in `fbc8fc7` (PodUtils/podvm@T-1995); `tsc --strict` ends on the userland rung, three runs of three. Next: the beta that carries it, then the row `rbg-gate` on the podvm executor; the hang of `cargo doc` under the tier (T-261) may have the same cause and runs again on that tag.
 
 State (2026-11-19, later): podvm `0.2.0-beta.36` (release run 44466195422) carries the fix and is pinned (`images/podvm.toml`). Next: the row `rbg-gate` on the podvm executor in the next run of `user-gate.yml`.
+
+## Done
+
+2026-11-19, `user-gate.yml` run 44489222156 at `e95db51` with the images of `runner-image.yml` run 44474014016 (podvm `0.2.0-beta.36`; proven on a constrained host as a user, the lane `plain`): the row `rbg-gate` passes on the podvm executor, as on github.com (install 18 s, run to the first step 30 s); `tsc` of TypeScript 7 ends. The fix is podvm's (PodUtils/podvm@T-1995, COORD-202). COORD-105 (GitHub #315) is closed.
 
 # T-555: The publish of the hosted snapshot: hosted-snapshot.yml, the checks C1 to C3, the attested index
 

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**558 entries: 58 open, 49 partial, 19 blocked, 432 done.**
+**558 entries: 58 open, 49 partial, 18 blocked, 433 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 6 | 23 | 6 | 77 | 112 |
+| P1 | 6 | 23 | 5 | 78 | 112 |
 | P2 | 15 | 19 | 9 | 226 | 269 |
 | P3 | 36 | 7 | 4 | 127 | 174 |
-| **All** | 58 | 49 | 19 | 432 | 558 |
+| **All** | 58 | 49 | 18 | 433 | 558 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -598,7 +598,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-551](later.md) | P1 | S | later | defect | open | A pinned image larger than the disk bound of its kind is not refused |
 | [T-552](later.md) | P1 | S | later | defect | done | A job that the job-started hook ends with no answer is reported as success |
 | [T-553](later.md) | P1 | M | later | release | open | podrunner and its runner images on ghcr.io, in the form of PodUtils |
-| [T-554](later.md) | P1 | S | later | defect | blocked | The compile of TypeScript 7 hangs on the podvm userland rung with no tier |
+| [T-554](later.md) | P1 | S | later | defect | done | The compile of TypeScript 7 hangs on the podvm userland rung with no tier |
 | [T-555](later.md) | P1 | M | later | feature | partial | The publish of the hosted snapshot: hosted-snapshot.yml, the checks C1 to C3, the attested index |
 | [T-556](later.md) | P1 | M | later | measurement | blocked | The base slice of the hosted snapshot boots in hosted CI |
 | [T-557](later.md) | P2 | S | later | measurement | open | Measure: can a standard hosted runner hold a full boot of the snapshot |
