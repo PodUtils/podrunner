@@ -11350,6 +11350,8 @@ A Playwright test of a gate passes in a unit with no download of the system libr
 
 State (2026-11-19, `user-gate.yml` run 44462524454): on the microvm executor the row `rbg-gate` passed the install and `tsc` of TypeScript 7, then Chromium of Playwright failed: `libglib-2.0.so.0` is not in `runner-full`. `images/runner/full.txt` now holds the libraries that `playwright install-deps chromium` installs on Ubuntu 24.04 (`libglib2.0-0t64`, `libnss3`, `libgbm1` and the others). The hosted snapshot (T-542) is the full answer; this is the step for the kinds that run `runner-full`. Next: the row on microvm with the new image.
 
+State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): with the libraries of Chromium in `runner-full`, the page of Playwright 1.64.1 opens in headless Chromium on the microvm executor (the row `rbg-gate`). Left: the published list of the software of `runner-full` against `ubuntu-24.04` (the hosted parity of T-539 gives it), and `podrunner image build` from a recipe (cfb's Q-12 b).
+
 # T-501: G-26: a drain and a stop of one source
 
 **Source:** githome's G-26 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
@@ -12165,6 +12167,8 @@ State (2026-11-19, run 44438881119): `serve:check:microvm` failed: `config init`
 
 State (2026-11-19, run 44462524454): the lane `serve-incus-kvm` passes: `config init`, `check`, `doctor`, `print-unit` and `serve` on the incus and the microvm kinds, with the sandbox offer on microvm. Left: one runner job on each kind through `serve` with the fakes of podcrates (`pod-fake-githome serve --github`, T-509).
 
+State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): the lane `serve-incus-kvm` passes again.
+
 # T-528: No row of the user-path gate copies the gate of rbg
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
@@ -12199,6 +12203,8 @@ State (2026-11-19, run 44438881119): the row on runner-dir passed. The row on mi
 State (2026-11-19, run 44462524454, podvm `0.2.0-beta.34`): runner-dir passes (install 13 s, first step 1 s). microvm: the download of Chromium passes with the allow; Chromium lacks `libglib-2.0` in `runner-full` (T-500, fixed in the image list). podvm: the hang of `tsc` (T-554); run 44489222156 runs the row on podvm `0.2.0-beta.36`.
 
 State (2026-11-19, run 44489222156, podvm `0.2.0-beta.36`): the row passes on podvm (install 18 s, first step 30 s) and on runner-dir (16 s, 2 s). microvm fails on the libraries of Chromium; the image of `88fde6c` has them (T-500). Left: the row on microvm with that image, and a row on the incus kind.
+
+State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): the row `rbg-gate` passes on each executor, as on github.com: podvm (install 14 s, run to the first step 28 s), runner-dir (12 s, 2 s), microvm (20 s, 4 s). The lane `plain` passes 32 of 32. Left: a row on the incus kind (through `serve`, T-527).
 
 # T-529: The disk limit of an offer lifts the bound of the operator
 
@@ -13189,4 +13195,6 @@ The logs of both lanes, read on 2026-11-19: each check before `lab:vnet` passes;
 ## Prove
 
 `user-gate.yml`: the lane `bind-denied` ends within its bound, and `lab:vnet` passes or fails with a named cause.
+
+State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): the bound holds: `lab:vnet` ends after 900 s as `xfail T-561`, and the lane `bind-denied` passes 9 of 9. The log: the unit starts ("unit u-1 starts"), then the runner of the unit takes no job and prints no line; `podrunner run` waits with no bound ("no line for 60 s; the run waits for its job" up to 840 s). Two steps: (a) find the link that fails between the runner of the unit and the broker on its unix socket through the vnet shim (the log of the runner in the unit); (b) a local run ends with a named failure when no runner takes the job within a bound, as `serve` does with `[deadlines] start_s`.
 
