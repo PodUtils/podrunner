@@ -12629,6 +12629,8 @@ State (2026-11-19, `hosted-snapshot.yml` run 44492148094, `ubuntu-24.04` with C1
 
 State (2026-11-19, `hosted-snapshot.yml` run 44503451991 at `582e827`, `ubuntu-24.04`, image `20261111.127.1`; proven in CI on GitHub-hosted runners): the capture passes C1 and C2. `c1: 0 differences between the root after the scrub and the layers` over 1,127,981 paths; the check of the scrub passes in each of 85 layers and `boot`; 15.9 GiB with zstd, 68 minutes. Left: the boot of the base slice (T-556) and the snapshots of the other labels with C1.
 
+State (2026-11-19, later): the snapshot of `ubuntu-24.04` is published (T-555, `sha256:d00306d81d0eee8b5fbba72fc353924df84bb074fd0dcadc60baf3b55fe66f0e`). Left: the boot of the base slice (T-556) and a capture with C1 of each other label.
+
 # T-543: systemd as PID 1 in an incus instance
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -13022,6 +13024,8 @@ State (2026-11-19): `scripts/hosted/push-blob.py` pushes one blob in chunks (POS
 State (2026-11-19, later): `hosted-snapshot.yml` takes `publish`: after C1 and C2 pass, the layers, the config and the manifest of `scripts/hosted/oci.py` go to `ghcr.io/podutils/podrunner-hosted` under the tag `IMAGEOS-IMAGEVERSION`, each pushed digest equal to the one that the capture recorded, and `actions/attest-build-provenance` attests the manifest in the registry. The token of ghcr.io comes from the job's `GITHUB_TOKEN`, masked, in one step. `python3 -I scripts/hosted/oci.py --self-test` and `push-blob.py --self-test` (now with the manifest) pass. Left: the first publish, the multi-arch index of a release, the new file docs/hosted-snapshot.md, and the public setting of the package by an admin of PodUtils.
 
 State (2026-11-19, `hosted-snapshot.yml` run 44517923954 with `publish`, `ubuntu-24.04`): C1 passed again (0 differences); the token of ghcr.io and the first layer (167 bytes, one chunk) went up; the second layer failed: ghcr.io answers a PATCH with a `Content-Range` with HTTP 416. `push-blob.py` now sends a blob in one streamed PATCH with no `Content-Range`, as the community snapshot does with ghcr.io; the largest layer is about 2 GB with zstd, far inside the 10 minutes of a request. The chunked form stays for a registry that takes it. Next: the publish again.
+
+State (2026-11-19, `hosted-snapshot.yml` run 44528851334 at `7bc77fc`, `ubuntu-24.04`, image `20261116.376.1`; proven in CI on GitHub-hosted runners): the first version is published: `ghcr.io/podutils/podrunner-hosted:ubuntu24-20261116.376.1@sha256:d00306d81d0eee8b5fbba72fc353924df84bb074fd0dcadc60baf3b55fe66f0e`. C1 gave 0 differences and C2 passed in each layer; the push of 15.9 GiB took 14 minutes with one streamed PATCH for each blob; `actions/attest-build-provenance` attested the manifest (Rekor log index 3999886051, stored beside it in the registry). An anonymous client reads the manifest (HTTP 200): the package is public. Left: `gh attestation verify` in a test, the planted credential that must fail C2, the multi-arch index of a release, the other labels, and the new file docs/hosted-snapshot.md.
 
 # T-556: The base slice of the hosted snapshot boots in hosted CI
 
