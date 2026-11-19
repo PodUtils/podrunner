@@ -3,8 +3,8 @@
 # (T-509, githome's G-38). scripts/githome-conformance.sh downloads the
 # asset of the release of podcrates and checks its SHA-256 (the line of the
 # signed SHA256SUMS of that release).
-version = "0.73.0"
+version = "0.74.0"
 
 [sha256]
-x86_64 = "4a8124df3961b273e7ff4e1a8d24d01cdb0f2e1ce3ddd26b2ef8fc1b9b4dc276"
-aarch64 = "570e6bce0d7fbba631468cca4aa7a74b7bcb20279be5f24d5291dba30268394f"
+x86_64 = "74c5c128ea6a0f2b694e7223480672bca9f9b4e7003411a03a56a20c40e75b47"
+aarch64 = "5a3e5425f6069b8742d5a3f92fa7bcc2dc9bcac650276d7a49b76cda18550580"

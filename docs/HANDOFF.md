@@ -162,6 +162,12 @@ The last session (2026-11-18, evening) left:
   first run; make them block when green.
 - COORD-101 (#311) asks podcrates to join `pod-fake-githome` to
   `pod-fake-github`, for a runner job through `serve` (T-527, T-509).
+- The watcher of the runs of podssh (`.work/agent/watch-runs.py`) ends on a
+  temporary HTTP error of the mirror (a 520): run it in a loop that starts
+  it again (a defect of podssh's script; podrunner does not edit it).
+- The hosted snapshot (the ruling of 2026-11-19): a second study of how
+  ChristopherHX and catthehacker capture the hosted runner gives the
+  pipeline; T-538 and its entries change with it.
 - If a local runner test says a file of `_diag/blocks` "already exists",
   an interrupted run left it: remove `_diag/blocks` and `_work` of
   `PODRUNNER_RUNNER_DIR`.

@@ -11636,6 +11636,7 @@ State (2026-11-18, later): podcrates `v0.73.0` has the release asset `pod-fake-g
 
 In the code (2026-11-18): `images/fake-githome.toml` pins `pod-fake-githome` of podcrates `v0.73.0` (the SHA-256 of each architecture, from the signed `SHA256SUMS`). `scripts/githome-conformance.sh PODRUNNER` downloads and checks it, starts `serve`, queues one job for each test and two more, and runs `podrunner source-conformance --json -- pod-fake-githome source`: each of the 15 tests passes (also here). The job `test` of `gate.yml` runs it, and `release.yml` needs a green gate. Left: one live job of each kind against githome's source (it needs the broker of `pod-fake-github`, PodUtils/podcrates@T-921).
 
+State (2026-11-19): podcrates `v0.74.0` (COORD-141, PodUtils/podcrates#237): `images/fake-githome.toml` pins its `pod-fake-githome`, which passes the 15 tests here; its `serve --github URL` mints the JIT configuration of a `pod-fake-github` for the claimed job, so one live job of each kind can run through `serve` now (with T-527).
 
 # T-510: G-39: one record of each change of a contract that githome reads
 
@@ -12468,6 +12469,9 @@ The Dockerfile and `runner-image.yml`, read on 2026-11-19. A study of the hosted
 
 State (2026-11-19): the study is done (`docs/reports/hosted-parity-2026-11-19.md`). Its work is T-539 to T-552; its order: T-540 and T-548 (records), T-539 (the check on the image of today, report-only), the COORD issues of T-543 and T-544, then T-541 and T-542 on the incus kind, then T-546, T-545, T-550, then T-543, T-544, T-549 on the answers of podvm and podcrates, T-547 on the live lane. Not feasible: systemd on the podvm userland rung (no root, no namespaces), `hosted-full` as a microvm initramfs, `hosted-full` on a standard GitHub-hosted runner (disk), and the hosted kernel settings on a shared kernel.
 
+State (2026-11-19, later): the owner's ruling "The hosted snapshot" (`docs/decisions.md`): no build; a 1:1 copy of the root filesystem of a hosted runner, with its kernel, fixed, tested and published on ghcr.io as streamable blobs, a better community snapshot than those of ChristopherHX and catthehacker. A second study (how they do it, the defects, a better pipeline, the conformance tests) shapes the work; T-542, T-547 and T-548 change with it. podvm gives the init of the image as PID 1 on the incus tier first (COORD-200, PodUtils/podvm#596, `--podvm-init=image`), then the machine tier in three steps.
+
+
 # T-539: The probe and the diff of the hosted parity, report-only in CI
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12568,6 +12572,9 @@ the new file images/hosted/Dockerfile for 24.04 and 26.04: the base by digest; r
 
 `runner-image.yml`: the build passes on a hosted runner, `podvm pull` of the digest as a user with no root then runs a job, the report diff of the core tools is empty or allowed, and T-500's Prove (a Playwright test with no download of system libraries) passes; on incus with no systemd, `sudo systemctl start postgresql.service && pg_isready` passes through the shim.
 
+State (2026-11-19): the ruling "The hosted snapshot" replaces the build of this image by a 1:1 copy of the root filesystem of a hosted runner (T-538); the second study gives the new approach of this entry.
+
+
 # T-543: systemd as PID 1 in an incus instance
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12597,6 +12604,9 @@ COORD (to podvm): an option of the incus tier that boots the init of the image, 
 
 COORD-103 (GitHub #313, to podvm): the init of the image as PID 1 on the incus tier (ask 1).
 
+State (2026-11-19): podvm's answer, COORD-200 (PodUtils/podvm#596): the incus tier first, PodUtils/podvm@T-1993: `run -d --podvm-tier=incus --podvm-init=image`; the init of the image is PID 1, the relay by the exec API, a bounded wait for `is-system-running` (past it, 125 with the state), the command by exec, the instance stops at its end. podvm names the tag of each on #313.
+
+
 # T-544: systemd as PID 1 and a root on a disk in a microvm guest
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12625,6 +12635,9 @@ COORD (to podvm): a root on a disk for each image digest with a copy-on-write ov
 ## Blocker
 
 COORD-103 (GitHub #313, to podvm): a root on a disk and the init of the image on the machine tier (ask 2).
+
+State (2026-11-19): podvm's answer, COORD-200 (PodUtils/podvm#596): PodUtils/podvm@T-1994, in three steps, each released alone: a root on a disk image for each digest with a copy-on-write overlay for each guest; the init of the image with a kernel that systemd accepts; the exit status through the serial port. The same flag `--podvm-init=image` on the machine tier. podvm names the tag of each on #313.
+
 
 # T-545: The podvm kind loads, extracts and copies the whole image for each unit
 
@@ -12701,6 +12714,9 @@ The full script list less the restricted parts, built on a large host and pushed
 
 `hosted-parity.yml`: the probe diff and the Pester lane pass on the live host lane with the incus kind, at the level "proven on a constrained host".
 
+State (2026-11-19): the ruling "The hosted snapshot" replaces the build of this image by a 1:1 copy of the root filesystem of a hosted runner (T-538); the second study gives the new approach of this entry.
+
+
 # T-548: The licence call of a published hosted image
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12725,6 +12741,9 @@ Record in `docs/decisions.md` that a published image leaves out each part that m
 ## Prove
 
 `hosted-parity.yml`: a test image with a planted path of the restricted list fails the diff.
+
+State (2026-11-19): the ruling "The hosted snapshot": the owner accepts each licence and terms of service of the hosted image. The snapshot mirrors the hosted runner 1:1 and leaves out nothing for a licence. The check of a restricted path goes; what stays is `THIRD_PARTY.md` naming the snapshot and its source image.
+
 
 # T-549: Placement by label and by init: a systemd payload goes only to a kind that boots it
 
