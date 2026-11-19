@@ -13019,6 +13019,8 @@ State (2026-11-19): `scripts/hosted/push-blob.py` pushes one blob in chunks (POS
 
 State (2026-11-19, later): `hosted-snapshot.yml` takes `publish`: after C1 and C2 pass, the layers, the config and the manifest of `scripts/hosted/oci.py` go to `ghcr.io/podutils/podrunner-hosted` under the tag `IMAGEOS-IMAGEVERSION`, each pushed digest equal to the one that the capture recorded, and `actions/attest-build-provenance` attests the manifest in the registry. The token of ghcr.io comes from the job's `GITHUB_TOKEN`, masked, in one step. `python3 -I scripts/hosted/oci.py --self-test` and `push-blob.py --self-test` (now with the manifest) pass. Left: the first publish, the multi-arch index of a release, the new file docs/hosted-snapshot.md, and the public setting of the package by an admin of PodUtils.
 
+State (2026-11-19, `hosted-snapshot.yml` run 44517923954 with `publish`, `ubuntu-24.04`): C1 passed again (0 differences); the token of ghcr.io and the first layer (167 bytes, one chunk) went up; the second layer failed: ghcr.io answers a PATCH with a `Content-Range` with HTTP 416. `push-blob.py` now sends a blob in one streamed PATCH with no `Content-Range`, as the community snapshot does with ghcr.io; the largest layer is about 2 GB with zstd, far inside the 10 minutes of a request. The chunked form stays for a registry that takes it. Next: the publish again.
+
 # T-556: The base slice of the hosted snapshot boots in hosted CI
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19

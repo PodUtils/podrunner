@@ -40,7 +40,7 @@ jobs:
     steps:
       # No action before the capture: an action writes into the root. The
       # scripts come by curl into /mnt, outside the captured tree.
-      - name: Capture the root (dry run)
+      - name: Capture the root
         env:
           PODRUNNER_LABEL: ${{ inputs.label }}
           SRC: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}

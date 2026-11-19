@@ -6,13 +6,16 @@
     REGISTRY_TOKEN=... python3 -I scripts/hosted/push-blob.py --manifest https://ghcr.io NAME REF FILE TYPE
     python3 -I scripts/hosted/push-blob.py --self-test
 
-A layer of the snapshot can be 8 GB; ghcr.io ends a request after 10
-minutes. So the upload is the chunked form of the distribution spec: POST
-to open, one PATCH for each chunk with its Content-Range, PUT with the
-digest to close. A blob that the registry has already (HEAD) is not sent
-again. A failed chunk is sent again, up to three times, from the offset
-that the registry gives. The token comes from the environment, never from
-argv. It prints the digest.
+The upload is the streamed form of the distribution spec: POST to open,
+one PATCH with the whole file as its body (no Content-Range: ghcr.io
+refuses a chunk with one, HTTP 416), PUT with the digest to close. ghcr.io
+ends a request after 10 minutes; a layer of the snapshot is at most about
+2 GB with zstd, which a hosted runner sends in well under that. The
+chunked form (a PATCH for each chunk with its Content-Range; a failed
+chunk is sent again from the offset that the registry gives) stays for a
+registry that takes it (`chunk=`). A blob that the registry has already
+(HEAD) is not sent again. The token comes from the environment, never
+from argv. It prints the digest.
 """
 
 import hashlib
@@ -21,7 +24,6 @@ import os
 import sys
 import urllib.parse
 
-CHUNK = 256 << 20
 
 
 def digest_of(path: str) -> str:
@@ -54,7 +56,7 @@ class Registry:
         return r
 
 
-def push(reg: Registry, name: str, path: str, chunk: int = CHUNK) -> str:
+def push(reg: Registry, name: str, path: str, chunk: int | None = None) -> str:
     digest = digest_of(path)
     if reg.request("HEAD", f"/v2/{name}/blobs/{digest}").status == 200:
         return digest
@@ -63,6 +65,19 @@ def push(reg: Registry, name: str, path: str, chunk: int = CHUNK) -> str:
         raise RuntimeError(f"open the upload: HTTP {r.status}")
     loc = r.getheader("Location")
     size = os.path.getsize(path)
+    if chunk is None:
+        # One streamed PATCH: http.client reads the file in blocks.
+        with open(path, "rb") as f:
+            r = reg.request("PATCH", loc, body=f, headers={
+                "Content-Type": "application/octet-stream", "Content-Length": str(size)})
+        if r.status != 202:
+            raise RuntimeError(f"the upload: HTTP {r.status}")
+        loc = r.getheader("Location") or loc
+        sep = "&" if "?" in loc else "?"
+        r = reg.request("PUT", f"{loc}{sep}digest={urllib.parse.quote(digest)}", headers={"Content-Length": "0"})
+        if r.status != 201:
+            raise RuntimeError(f"close the upload: HTTP {r.status}")
+        return digest
     with open(path, "rb") as f:
         offset, tries = 0, 0
         while offset < size:
@@ -150,6 +165,11 @@ def self_test() -> int:
         def do_PATCH(self):
             uid = self.path.rsplit("/", 1)[-1]
             data = self.body()
+            if "Content-Range" not in self.headers:
+                # The streamed form: the whole blob in one PATCH.
+                uploads[uid] += data
+                seen.append("PATCH stream")
+                return self.reply(202, {"Location": self.path})
             start = int(self.headers["Content-Range"].split("-")[0])
             if start == 4 and not fail_once["done"]:
                 fail_once["done"] = True
@@ -189,6 +209,12 @@ def self_test() -> int:
         seen.clear()
         if push(reg, "x", f, chunk=4) != d or seen:
             bad.append(f"a blob that the registry has is sent again: {seen}")
+        # The default is the streamed form: one PATCH with no Content-Range.
+        g = os.path.join(t, "layer2")
+        open(g, "wb").write(b"abcdefghij" * 1000)
+        d2 = push(reg, "x", g)
+        if blobs.get(d2) != b"abcdefghij" * 1000 or seen != ["POST", "PATCH stream"]:
+            bad.append(f"the streamed upload: {seen}")
         # A manifest goes up with its type, and its digest comes back.
         mf = os.path.join(t, "m.json")
         open(mf, "wb").write(b'{"schemaVersion":2}')
