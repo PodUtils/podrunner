@@ -16,9 +16,9 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
-| `pod-job` | podcrates `v0.52.0` to `v0.76.0`: the optional fields of githome's asks (`trust_inputs.forge`, `cache`, `sandbox` of an offer; `arch`, `assigned`, the times, the measures and `log_tail` of a report). An optional field keeps the schema id. | T-508, T-514 |
+| `pod-job` | podcrates `v0.52.0` to `v0.77.0`: the optional fields of githome's asks (`trust_inputs.forge`, `cache`, `sandbox` of an offer; `arch`, `assigned`, the times, the measures and `log_tail` of a report). An optional field keeps the schema id. | T-508, T-514 |
 | source wire | The types of the wire are `pod_job::source` of podcrates `v0.72.0` (one form for podrunner and each source); the lines do not change. | T-508 |
-| source wire | The gate runs the tests of `source-conformance` against githome's source (`pod-fake-githome` of podcrates `v0.76.0`, `images/fake-githome.toml`, pinned also by its digest on ghcr.io); a red run blocks a release. | T-509 |
+| source wire | The gate runs the tests of `source-conformance` against githome's source (`pod-fake-githome` of podcrates `v0.77.0`, `images/fake-githome.toml`, pinned also by its digest on ghcr.io); a red run blocks a release. | T-509 |
 | source wire | `hello` has an optional `host`: the versions of podrunner, podvm and podnet, `arch`, `kvm`, and for each kind its boundary, its container route and its largest `cpu`, `memory`, `disk` and `pids`. | T-495 |
 | source wire | A new request `assigned { job_id, real }`, with the replies `keep { trust_inputs }` and `end { code, detail }`; a source with no `assigned` answers `bad-request`. | T-493 |
 | source wire | `audit` carries an egress line `{ job_id, host, port, verdict, rule, bytes_in, bytes_out, at }` for each connection of a unit, at most 1000 for each job, then `{ job_id, dropped }`. | T-486 |

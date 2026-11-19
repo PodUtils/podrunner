@@ -11649,6 +11649,8 @@ State (2026-11-19): `pod-fake-githome` `0.75.0` passes the 15 tests (`sh scripts
 
 State (2026-11-19, later): `pod-fake-githome` `0.76.0` passes the 15 tests.
 
+State (2026-11-19, later): `pod-fake-githome` `0.77.0` passes the 15 tests.
+
 # T-510: G-39: one record of each change of a contract that githome reads
 
 **Source:** githome's G-39 on GitHub #292 (2026-11-18T07:22Z); the ruling of the owner of 2026-11-18
@@ -13110,6 +13112,8 @@ State (2026-11-19): podcrates `v0.76.0` (COORD-144, PodUtils/podcrates#239, PodU
 
 State (2026-11-19, COORD-203): PodUtils/podvm@T-1999 is on podvm's `main` (partial) on podcrates `v0.76.0`: the unified tarball of the incus tier carries `security.capability` and `user.*` as PAX records; a file of `cap_net_raw+ep` keeps it in the root of an incus instance. The machine tier comes with PodUtils/podvm@T-1994.
 
+State (2026-11-19, later): podcrates `v0.77.0` (PodUtils/podcrates@T-961) reads each PAX record by its length: a value with the byte `0x0a` is set too.
+
 # T-559: An incus VM mode for an image with a kernel
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -13201,3 +13205,31 @@ The logs of both lanes, read on 2026-11-19: each check before `lab:vnet` passes;
 State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): the bound holds: `lab:vnet` ends after 900 s as `xfail T-561`, and the lane `bind-denied` passes 9 of 9. The log: the unit starts ("unit u-1 starts"), then the runner of the unit takes no job and prints no line; `podrunner run` waits with no bound ("no line for 60 s; the run waits for its job" up to 840 s). Two steps: (a) find the link that fails between the runner of the unit and the broker on its unix socket through the vnet shim (the log of the runner in the unit); (b) a local run ends with a named failure when no runner takes the job within a bound, as `serve` does with `[deadlines] start_s`.
 
 State (2026-11-19, later): step (b) is in: `InUnit::reach` (600 s) ends a job whose runner sends no request to its broker in that time, with the cause "the runner of unit u-N sent no request to its broker in 600 s: it cannot reach the broker" and the end of the output of the unit in the log, not at its `timeout-minutes`. `cargo test -p podrunner-local --lib exec::` (`a_runner_that_reaches_no_broker_ends_the_job_with_its_cause`) passes. Left: step (a), the link that fails under `--vnet` in the lab.
+
+# T-562: A release of podrunner has no signed `release-index.json`
+
+**Source:** podcrates `v0.77.0` (COORD-145, PodUtils/podcrates#240, the crate `pod-release`, PodUtils/podcrates@T-880); githome's G-34 (PodUtils/podcrates#223), 2026-11-19
+**Category:** release
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome asks for one release index in each release of each product of PodUtils, and one verifier (G-34). podcrates `v0.77.0` gives both: `release-index.json` (`release-index.v1`: the tag, the date, the commit, each file with its SHA-256, size and target, the SBOM and the acceptance), written by its script release-index.py, and the verifier of `pod-release`. A release of podrunner has neither.
+
+## Premise
+
+COORD-145, read on 2026-11-19. The index is written before `SHA256SUMS`, so that the one cosign bundle of `SHA256SUMS` signs it too (T-484).
+
+## Approach
+
+1. `release.yml`: fetch the script release-index.py of podcrates at the commit of the pinned tag, write `release-index.json` of the assets (`scripts/release-assets.sh`) before `SHA256SUMS`, and list it in `SHA256SUMS`.
+2. The dry run of `release.yml` checks the index with the verifier of `pod-release` (a command from PodUtils/podcrates@T-965, else a test in podrunner that links `pod-release`).
+3. `docs/install.md` names the check.
+
+## Prove
+
+`release.yml`: a dry run writes `release-index.json` that the verifier of `pod-release` takes, and a changed file of the release fails it.
+
