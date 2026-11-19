@@ -34,12 +34,14 @@ jobs:
           sh -n scripts/hosted/probe.sh
           python3 -I scripts/hosted/diff.py --self-test
           python3 -I scripts/hosted/scrub.py --self-test
+          python3 -I scripts/hosted/plan.py --self-test
+          python3 -I scripts/hosted/watch.py --self-test
 
   reference:
     strategy:
       fail-fast: false
       matrix:
-        label: [ubuntu-24.04, ubuntu-26.04, ubuntu-latest]
+        label: [ubuntu-24.04, ubuntu-26.04, ubuntu-latest, ubuntu-24.04-arm, ubuntu-26.04-arm]
     runs-on: ${{ matrix.label }}
     timeout-minutes: 15
     steps:
@@ -49,10 +51,13 @@ jobs:
           sh scripts/hosted/probe.sh > "probe-${{ matrix.label }}.tsv"
           wc -l "probe-${{ matrix.label }}.tsv"
           echo "${{ matrix.label }}: ImageOS ${ImageOS:-} ImageVersion ${ImageVersion:-}" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\t%s\t%s\t%s\n' "${{ matrix.label }}" "${ImageOS:-}" "${ImageVersion:-}" "$RUNNER_ARCH" > "image-${{ matrix.label }}.txt"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: probe-${{ matrix.label }}
-          path: probe-${{ matrix.label }}.tsv
+          path: |
+            probe-${{ matrix.label }}.tsv
+            image-${{ matrix.label }}.txt
 
   runner-image:
     runs-on: ubuntu-24.04
@@ -96,3 +101,23 @@ jobs:
         with:
           name: gap
           path: gap.md
+
+  # T-540: the image of each label, matched to its release of
+  # runner-images by the build number. A moved label fails.
+  watch:
+    needs: [reference]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: probe-*
+          merge-multiple: true
+      - name: The image of each label and its release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api 'repos/actions/runner-images/releases?per_page=100' > releases.json
+          python3 -I scripts/hosted/watch.py --labels images/hosted/labels.toml --releases releases.json \
+            --summary "$GITHUB_STEP_SUMMARY" image-*.txt

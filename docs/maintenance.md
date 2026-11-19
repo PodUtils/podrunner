@@ -96,6 +96,9 @@ the tools.
   * `hosted/plan.py`, `hosted/capture.sh`: the layers of the snapshot by
     `images/hosted/layers.toml`, and the capture of a hosted root as the
     first step of a job (`hosted-snapshot.yml`, a dry run to `/mnt`).
+  * `hosted/watch.py`: the image of each hosted label, matched to its
+    release of runner-images by the build number (T-540,
+    `images/hosted/labels.toml`).
 * The copies of podcrates scripts (`check-size.py`, `check-static.sh`,
   `cloud-setup.sh`, `fetch-zig.sh`, `pull-image.sh`, `retry.sh`,
   `secrets-report.py`, `check-github-numbers.py`) come from podcrates

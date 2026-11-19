@@ -12512,7 +12512,7 @@ State (2026-11-19): `scripts/hosted/probe.sh` gives the facts of the Approach; t
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12524,11 +12524,13 @@ The study, section 1.1 (W-1, W-4), read on 2026-11-19.
 
 ## Approach
 
-the new file images/hosted/labels.toml names each label with its OS, its `ImageVersion` and the release tag and commit of runner-images. A daily job (the new file .github/workflows/hosted-watch.yml, with the new file scripts/hosted/watch.py) reads the `ImageVersion` of each label from a probe job on that label, matches it to a release by the build number (the date of a tag can differ from the date of the version: `20261012.334.1` is the release `ubuntu24/20261023.334`), and reads the label table of runner-images. A new version dispatches the capture (T-555) and updates one issue; a moved label fails the job.
+`images/hosted/labels.toml` names each label with its OS, its `ImageVersion` and the release tag and commit of runner-images. A daily job (the job `watch` of `hosted-parity.yml`, with `scripts/hosted/watch.py`) reads the `ImageVersion` of each label from a probe job on that label, matches it to a release by the build number (the date of a tag can differ from the date of the version: `20261012.334.1` is the release `ubuntu24/20261023.334`), and reads the label table of runner-images. A new version dispatches the capture (T-555) and updates one issue; a moved label fails the job.
 
 ## Prove
 
 `python3 -I scripts/hosted/watch.py --self-test`: a fixture of the releases API where the tag date differs from the version date matches by build number; a fixture of the README with a moved label fails.
+
+State (2026-11-19): a job on `ubuntu-latest` (`hosted-parity.yml` run 44456462683) ran `ubuntu-26.04`, version `20261111.196.1`, while the README of runner-images still names 24.04: the watcher takes the label from a job, not from the README. `images/hosted/labels.toml` names the OS of five labels, with no pin yet. `python3 -I scripts/hosted/watch.py --self-test` passes: a tag date other than the version date matches by the build number; arm64 takes the `-arm64` tags; a moved label and a version with no release fail; a newer release than the pin is reported. The job `watch` of `hosted-parity.yml` runs it each day on the five labels. Left: the pins of the first capture (T-555), and the dispatch of the capture with an issue on a new release.
 
 # T-541: The runner layer of the hosted snapshot, and the hosted work folder /home/runner/work
 

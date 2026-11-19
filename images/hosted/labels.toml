@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: 0BSD
+# The hosted labels of the snapshot (T-540): the OS that each label runs
+# (`image_os`, the ImageOS of a job on it) and the release of runner-images
+# that the snapshot of the label pins (`release`, empty until the first
+# capture, T-555). scripts/hosted/watch.py fails when a label runs another
+# OS (a moved label) or a version has no release; a newer release than the
+# pin is reported for a capture. `ubuntu-latest` is measured by a job: the
+# README of runner-images can lag a move.
+
+[[label]]
+name = "ubuntu-latest"
+image_os = "ubuntu26"
+release = ""
+
+[[label]]
+name = "ubuntu-24.04"
+image_os = "ubuntu24"
+release = ""
+
+[[label]]
+name = "ubuntu-26.04"
+image_os = "ubuntu26"
+release = ""
+
+[[label]]
+name = "ubuntu-24.04-arm"
+image_os = "ubuntu24"
+release = ""
+
+[[label]]
+name = "ubuntu-26.04-arm"
+image_os = "ubuntu26"
+release = ""
