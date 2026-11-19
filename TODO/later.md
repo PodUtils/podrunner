@@ -12059,7 +12059,7 @@ The TLS end of `pod-broker`: PodUtils/podcrates@T-100.
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12084,6 +12084,10 @@ State (2026-11-18, the first run, `runner-image.yml` 44396030197): microvm: two 
 State (2026-11-19, run 44417916405): on incus each runner was "placed for another job": the broker gives its jobs to any runner, each with a run of its own, so the job-started hook asks `assigned`, which the source of the test did not answer. It now hands `assigned` to the fake source, which keeps a job of the owner of the offer.
 
 State (2026-11-19, `runner-image.yml` run 44428126855, `2d3d73b`): on the microvm kind and on the incus kind each of the 20 jobs of C1 ended `success`, each in a fresh unit with no residue, and each step found no canary (C5). The test then failed on its own count of `podrunner-accept-ok` in `broker.logs()`, which holds the last job only (2 lines, not 20); it counts the jobs that succeeded on the broker now. C2, C3 and C4 come after that assertion: the next run gives them.
+
+## Done
+
+2026-11-19, `runner-image.yml` run 44447033257 at `20f5a4b` (proven in CI on GitHub-hosted runners, x86_64): the steps C1 to C5 pass on the microvm kind and on the incus kind. C1 and C5: 20 jobs succeed on the broker, each in a fresh unit with no residue, with no marker of an earlier job and no canary of the host. C2: no sample has `busy` over `slots`. C3: the cancelled long job ends `cancelled` and the host is idle and not degraded, 1.1 s (microvm) and 3.3 s (incus) from the cancel to the report. C4: 241 (microvm) and 150 (incus) samples of `status` validate against the schema. The arm64 job skips the steps (no KVM on that runner).
 
 # T-526: The incus suite of `runner-image.yml` does not block a release
 
