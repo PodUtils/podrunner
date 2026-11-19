@@ -4350,6 +4350,7 @@ State (2026-11-18, later): run 44376274000 (`2041d27`) is green with the tier fo
 
 State (2026-11-18, evening): `user-gate.yml` run 44393864747, lane `proxy-only`: with the tier, `click-py313` and `rq-lint` pass on the podvm executor (the xfail rows fail the gate as "passes now"). The tier breaks a dynamic program in a volume: Node of `setup-node` in `_work/_tool` gives `native-static rung: ... ld-linux-x86-64.so.2: errno 11` each time (the express rows), and `/usr/bin/bash` gave it once in `runner-image.yml` run 44391387598. COORD-098 (GitHub #308, to podvm). The lanes `inherited-fds`, `proxy-only-dns` and `small-tmp` give the same five rows. So podrunner gives no tier now (`SYSCALL_TIER = None`, the call in `docs/decisions.md`); the rows stay as they are. podvm's answer (COORD-197, PodUtils/podvm#593): the EAGAIN of `openat2` is retried on its `main`, for the beta after `0.2.0-beta.35`; the hang does not reproduce. Next: with that beta, give the tier again (`SYSCALL_TIER`), run `user-gate.yml`, and set `ok` for click and rq when the express rows and `rg-docs` pass; if `rg-docs` hangs again, take `uname -r`, `ps -eo pid,ppid,stat,wchan:32,args` of the unit and the `wchan` and fds of the waiting process for podvm.
 
+State (2026-11-19): COORD-202 (PodUtils/podvm#598): a signal of Go stopped podvm's SIGSYS handler (PodUtils/podvm@T-1995, fixed on podvm's `main`). The hang of `cargo doc` under the tier (PodUtils/podvm@T-1991) may have the same cause: run it again on the beta that carries the fix.
 
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
 
@@ -12610,6 +12611,8 @@ State (2026-11-19): podvm's answer, COORD-200 (PodUtils/podvm#596): the incus ti
 
 State (2026-11-19, later): PodUtils/podvm@T-1993 is done on podvm's `main` (`26974ca`), tested with `ubi9/ubi-init`; the exit code comes from `inspect --format '{{.ExitCode}}'` (the incus tier serves no `wait`); the next beta carries it. For the snapshot: COORD-106 (GitHub #316) ask 1: an id map of at least 231,072 ids (rootless podman of `runner`), `security.nesting`, `/dev/fuse`, a fresh `machine-id`, and the import of a 55 to 60 GB image with no third copy. podrunner side, required now (finding PF-5): `crates/podrunner-incus/src/guest.rs` must not start its own `dockerd` or set `DOCKER_HOST` when the image boots its init and has `docker.service`.
 
+State (2026-11-19, COORD-203, PodUtils/podvm#599): COORD-106 ask 1 is PodUtils/podvm@T-1996 (first: `security.idmap.size` of at least 231,072, else a refusal with 125; `/dev/fuse`; an empty `/etc/machine-id`) and PodUtils/podvm@T-1997 (the import as a stream, peak disk 2.2 times the image). Nesting is there already: the snapshot runs with `--podvm-init=image --podvm-engine`.
+
 # T-544: systemd as PID 1 and a root on a disk in a microvm guest
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12641,6 +12644,7 @@ COORD-103 (GitHub #313, to podvm): a root on a disk and the init of the image on
 
 State (2026-11-19): podvm's answer, COORD-200 (PodUtils/podvm#596): PodUtils/podvm@T-1994, in three steps, each released alone: a root on a disk image for each digest with a copy-on-write overlay for each guest; the init of the image with a kernel that systemd accepts; the exit status through the serial port. The same flag `--podvm-init=image` on the machine tier. podvm names the tag of each on #313.
 
+State (2026-11-19, COORD-203, PodUtils/podvm#599): PodUtils/podvm@T-1994 is amended: a choice boots the kernel and the initrd of the image (`root=LABEL=cloudimg-rootfs`), with the 9p and vsock modules of the image and nested KVM; measured on podvm's `kvm.yml`.
 
 # T-545: The podvm kind loads, extracts and copies the whole image for each unit
 
@@ -12885,6 +12889,8 @@ COORD-142, read on 2026-11-19: one `FROM scratch` image for each architecture wi
 
 `release.yml`: a dry run builds the images and pushes nothing; the release run pushes, `gh attestation verify oci://ghcr.io/podutils/podrunner@DIGEST --repo PodUtils/podrunner` passes, and the check by SHA-256 passes.
 
+State (2026-11-19, COORD-142 amended, PodUtils/podcrates#236): podvm publishes in the form: `ghcr.io/podutils/podvm:v0.2.0-beta.35` (PodUtils/podvm@T-1992), attested, with the digests in its notes. Two faults of its first pushes to avoid: take the manifest of each platform from the index for the check after the push, and keep the login to ghcr.io for `actions/attest`. A new package can be private: an admin of PodUtils sets it to public once.
+
 # T-554: The compile of TypeScript 7 hangs on the podvm userland rung with no tier
 
 **Source:** the user-path gate, run 44438881119 (row `rbg-gate`, podvm executor), 2026-11-19
@@ -12913,6 +12919,8 @@ podvm finds the cause in the userland rung (a Go runtime with many threads and i
 ## Blocker
 
 COORD-105 (GitHub #315, to podvm): the compile of TypeScript 7 hangs on the userland rung with no tier.
+
+State (2026-11-19, later): podvm's answer, COORD-202 (PodUtils/podvm#598): Go preempts a goroutine with SIGURG; when it stopped podvm's SIGSYS handler in a system call, Go's handler ran on the wrong stack and waited for ever. Fixed on podvm's `main` in `fbc8fc7` (PodUtils/podvm@T-1995); `tsc --strict` ends on the userland rung, three runs of three. Next: the beta that carries it, then the row `rbg-gate` on the podvm executor; the hang of `cargo doc` under the tier (T-261) may have the same cause and runs again on that tag.
 
 # T-555: The publish of the hosted snapshot: hosted-snapshot.yml, the checks C1 to C3, the attested index
 
@@ -13022,6 +13030,8 @@ Take the releases that keep the records, then check `getcap` of the two files in
 
 COORD-107 (GitHub #317, to podcrates) ask 1; COORD-106 (GitHub #316, to podvm) ask 4.
 
+State (2026-11-19, COORD-203, PodUtils/podvm#599): podvm's part is PodUtils/podvm@T-1999 (the xattrs in `.meta.jsonl`, as PAX records in the unified tarball, and in the root of the machine tier); it waits for the extract of podcrates (COORD-107, GitHub #317).
+
 # T-559: An incus VM mode for an image with a kernel
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -13050,6 +13060,8 @@ podvm turns an OCI image with a `/boot` into a VM image once for each digest; po
 ## Blocker
 
 COORD-106 (GitHub #316, to podvm) ask 3.
+
+State (2026-11-19, COORD-203, PodUtils/podvm#599): PodUtils/podvm@T-1998: `--podvm-tier=incus --podvm-vm` makes a VM image once for each digest (a qcow2 root, the ESP from `/boot/efi`, else a direct boot), run with `--podvm-init=image`; a host with no VM support of incusd is refused with 125.
 
 # T-560: pod-extract reads only the first gzip member of a layer
 
