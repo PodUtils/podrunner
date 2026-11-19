@@ -12602,6 +12602,8 @@ State (2026-11-19, `hosted-snapshot.yml` run 44458897438, `ubuntu-24.04`, image 
 
 State (2026-11-19, `hosted-snapshot.yml` run 44468934583 at `e7bfc76`, proven in CI on GitHub-hosted runners): the second dry run of `ubuntu-24.04` passes. Image `20261111.370.1`, kernel `7.0.0-1017-azure`; 81 layers and `boot`, 15.8 GiB with zstd, in 70 minutes; the check of the scrub passes in each layer. The runner root of the capture job was `/home/runner/actions-runner/cached/2.338.2`, dropped by `--runner-root`. Next: the dry runs of `ubuntu-26.04` and `ubuntu-24.04-arm` (dispatched), then pass 1 and pass 3 (C1).
 
+State (2026-11-19, `hosted-snapshot.yml` run 44477535075, `ubuntu-26.04`): the plan refused the layer `base` of 9.4 GB, over the bound of 8 GB. `layers.toml` takes `usr/share`, the arch tree of `usr/lib`, the rest of `usr/lib` and `var/lib/snapd` out of `base`, and a refused layer names its largest trees. On this label `/mnt` is on the root file system (145 GB, 88 GB free); the rule `mnt/**` keeps the output out of the capture.
+
 # T-543: systemd as PID 1 in an incus instance
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19

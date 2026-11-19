@@ -110,7 +110,15 @@ def plan(root: pathlib.Path, members: list[tuple[str, str]], rules: Plan, digest
             row = [p, oct(s.st_mode), str(s.st_uid), str(s.st_gid), str(s.st_size), link, digests.get(p, "")]
             h.update("\t".join(row).encode() + b"\n")
         if size > rules.max_bytes:
-            raise ValueError(f"layer {name}: {size} bytes, over {rules.max_bytes}: split it in layers.toml")
+            # Name the largest trees of the layer: the next rule of layers.toml.
+            by: dict[str, int] = {}
+            for b, p in ms:
+                s = st[(b, p)]
+                if stat.S_ISREG(s.st_mode):
+                    key = "/".join(p.split("/")[:3])
+                    by[key] = by.get(key, 0) + min(s.st_size, s.st_blocks * 512 or s.st_size)
+            top = ", ".join(f"{k} {v >> 20} MiB" for k, v in sorted(by.items(), key=lambda kv: -kv[1])[:8])
+            raise ValueError(f"layer {name}: {size} bytes, over {rules.max_bytes}: split it in layers.toml ({top})")
         out.append({"order": order, "name": name, "members": ms, "bytes": size, "key": h.hexdigest()})
     if len(out) > rules.max_layers:
         raise ValueError(f"{len(out)} layers, over {rules.max_layers}: join some in layers.toml")

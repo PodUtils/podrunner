@@ -89,6 +89,24 @@ name = "usr-local"
 path = "usr/local/*"
 each = true
 
+# The big trees of the distribution, out of `base`: `base` of ubuntu-26.04
+# was 9.4 GB in one layer.
+[[layer]]
+name = "usr-share"
+path = "usr/share"
+
+[[layer]]
+name = "usr-lib-arch"
+path = "usr/lib/*-linux-gnu"
+
+[[layer]]
+name = "usr-lib"
+path = "usr/lib"
+
+[[layer]]
+name = "snapd"
+path = "var/lib/snapd"
+
 [[layer]]
 name = "docker"
 path = "var/lib/docker"
