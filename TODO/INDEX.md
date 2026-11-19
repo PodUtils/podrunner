@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**559 entries: 58 open, 50 partial, 18 blocked, 433 done.**
+**559 entries: 58 open, 51 partial, 17 blocked, 433 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 6 | 23 | 5 | 78 | 112 |
+| P1 | 6 | 24 | 4 | 78 | 112 |
 | P2 | 15 | 20 | 9 | 226 | 270 |
 | P3 | 36 | 7 | 4 | 127 | 174 |
-| **All** | 58 | 50 | 18 | 433 | 559 |
+| **All** | 58 | 51 | 17 | 433 | 559 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -600,7 +600,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-553](later.md) | P1 | M | later | release | open | podrunner and its runner images on ghcr.io, in the form of PodUtils |
 | [T-554](later.md) | P1 | S | later | defect | done | The compile of TypeScript 7 hangs on the podvm userland rung with no tier |
 | [T-555](later.md) | P1 | M | later | feature | partial | The publish of the hosted snapshot: hosted-snapshot.yml, the checks C1 to C3, the attested index |
-| [T-556](later.md) | P1 | M | later | measurement | blocked | The base slice of the hosted snapshot boots in hosted CI |
+| [T-556](later.md) | P1 | M | later | measurement | partial | The base slice of the hosted snapshot boots in hosted CI |
 | [T-557](later.md) | P2 | S | later | measurement | open | Measure: can a standard hosted runner hold a full boot of the snapshot |
 | [T-558](later.md) | P2 | S | later | defect | blocked | The file capabilities of an image are lost through the extract of podcrates and podvm |
 | [T-559](later.md) | P2 | M | later | feature | blocked | An incus VM mode for an image with a kernel |

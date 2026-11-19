@@ -13040,7 +13040,7 @@ State (2026-11-19, `hosted-index.yml` run 44568301448; proven in CI on GitHub-ho
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -13058,9 +13058,9 @@ A job of `hosted-snapshot.yml` (or `runner-image.yml`) boots the `base` and `boo
 
 `hosted-snapshot.yml`: the boot job passes in both modes; a planted unmasked `walinuxagent.service` fails it.
 
-## Blocker
+State (2026-11-19, the needs left): the checks in a full unit need COORD-106 (GitHub #316) ask 1 on the incus tier (the id map of rootless podman, `/dev/fuse`), and ask 2 or ask 3 for a KVM guest.
 
-The incus container: the tag of PodUtils/podvm@T-1993 (COORD-200, done on podvm's `main`) and COORD-106 (GitHub #316) ask 1. The KVM guest: COORD-106 ask 2 or ask 3.
+State (2026-11-19): podvm `0.2.0-beta.36` boots the init of an image on the incus tier (`--podvm-init=image`), so the boot can run before the asks of COORD-106. `scripts/hosted/slice.py` makes the core slice of a published manifest: the layers `base`, `usr-lib`, `usr-lib-arch`, `usr-share`, `snapd` and `boot` (6 of 85 for `ubuntu24-20261116.376.1`, 2.4 GiB with zstd), with a config that names only them; each downloaded layer is checked against its digest. `.github/workflows/hosted-boot.yml` (report-only) loads it into a podvm store, boots it with `--podvm-init=image` under incusd, and records `is-system-running`, the failed units, PID 1, the kernel, the machine id, the capability of `ping` and the SSH host keys. A hard-link group whose first name is in a layer of a tool is not in the slice. `python3 -I scripts/hosted/slice.py --self-test` passes. Next: the first run.
 
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 

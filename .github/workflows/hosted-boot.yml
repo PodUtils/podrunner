@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: 0BSD
+# The boot of the hosted snapshot in hosted CI (T-556), report-only: the
+# core slice of a published manifest (scripts/hosted/slice.py: the base,
+# the libraries of the distribution and boot, with no trees of the tools)
+# goes into a podvm store and boots in an incus system container with the
+# init of the image (podvm --podvm-init=image). The checks in the
+# instance write their results into a mounted directory; the summary
+# shows them. The full snapshot needs about 190 GB in incusd (T-551,
+# T-557), more than a hosted runner has.
+name: hosted-boot
+
+on:
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: "The digest of an amd64 manifest of ghcr.io/podutils/podrunner-hosted (sha256:...)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The core slice
+        env:
+          DIGEST: ${{ inputs.digest }}
+        run: |
+          set -eu
+          case $DIGEST in sha256:[0-9a-f]*) [ ${#DIGEST} -eq 71 ] ;; *) echo "not a digest: $DIGEST" >&2; exit 1 ;; esac
+          df -h / /mnt
+          dig=$(python3 -I scripts/hosted/slice.py --digest "$DIGEST" --ref hosted:core --out /mnt/slice)
+          echo "SLICE=$dig" >> "$GITHUB_ENV"
+          (cd /mnt/slice && find . -type f | sed 's#^\./##' | sort | tar -cf /mnt/slice.tar --no-recursion -T -)
+          rm -rf /mnt/slice
+          ls -l /mnt/slice.tar
+      - name: podvm and incusd
+        run: |
+          set -eu
+          eval "$(python3 -I - <<'PY'
+          import tomllib
+          pin = tomllib.load(open("images/podvm.toml", "rb"))
+          print(f"podvm_version={pin['version']} podvm_sha256={pin['sha256']['x86_64']}")
+          PY
+          )"
+          sh scripts/retry.sh curl -qfsSLo "$RUNNER_TEMP/podvm" \
+            "https://github.com/PodUtils/podvm/releases/download/v$podvm_version/podvm-x86_64"
+          echo "$podvm_sha256  $RUNNER_TEMP/podvm" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/podvm"
+          sh scripts/retry.sh sudo apt-get -qq update
+          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus dnsmasq-base
+          sudo incus admin init --minimal
+          sudo usermod -aG incus-admin "$(id -un)"
+      - name: Boot the slice with the init of the image
+        run: |
+          set -u
+          export PODVM_STORE=/mnt/store
+          podvm=$RUNNER_TEMP/podvm
+          "$podvm" load -i /mnt/slice.tar
+          rm -f /mnt/slice.tar
+          out=$RUNNER_TEMP/out
+          mkdir -p "$out" && chmod 0777 "$out"
+          # The checks run in the instance from the mounted directory: no
+          # quoting through sg and podvm.
+          cat > "$out/checks.sh" <<'SH'
+          systemctl is-system-running > /out/state 2>&1
+          systemctl --failed --no-legend --plain > /out/failed 2>&1
+          cat /proc/1/comm > /out/pid1
+          uname -r > /out/kernel
+          sed -n 's/^PRETTY_NAME=//p' /etc/os-release > /out/os
+          test -s /etc/machine-id && echo filled > /out/machine-id
+          getcap /usr/bin/ping > /out/cap 2>&1
+          ls /etc/ssh/ssh_host_*_key > /out/ssh-keys 2>&1
+          true
+          SH
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name core --podvm-tier=incus --podvm-init=image --podvm-net none -v $out:/out hosted@$SLICE /bin/sh /out/checks.sh" < /dev/null
+          rc=$?
+          state=""
+          for _ in $(seq 120); do
+            state=$(sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' core" 2>&1)
+            case $state in Running*) sleep 10 ;; *) break ;; esac
+          done
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm logs --podvm-tier=incus core" 2>&1 | tail -n 40
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus core" || true
+          {
+            echo "## The boot of the core slice (report-only)"
+            echo
+            echo "run: exit $rc; the instance at its end: $state"
+            for f in state pid1 kernel os machine-id cap ssh-keys failed; do
+              echo
+              echo "### $f"
+              echo '```'
+              cat "$out/$f" 2>/dev/null || echo "(none)"
+              echo '```'
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"

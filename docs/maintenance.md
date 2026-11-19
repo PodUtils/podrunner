@@ -106,6 +106,10 @@ the tools.
     and of a manifest to an OCI registry, with the token from the
     environment, and the config, the manifest and the index of the
     snapshot as canonical bytes (T-555).
+  * `hosted/slice.py`: the core slice of a published snapshot (the
+    layers of the distribution and `boot`, no trees of the tools) as an
+    OCI layout for `podvm load`; `hosted-boot.yml` boots it under incus
+    with the init of the image (T-556).
 * The copies of podcrates scripts (`check-size.py`, `check-static.sh`,
   `cloud-setup.sh`, `fetch-zig.sh`, `pull-image.sh`, `retry.sh`,
   `secrets-report.py`, `check-github-numbers.py`) come from podcrates
