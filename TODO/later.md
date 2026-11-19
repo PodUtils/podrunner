@@ -12076,6 +12076,8 @@ State (2026-11-18, the first run, `runner-image.yml` 44396030197): microvm: two 
 
 State (2026-11-19, run 44417916405): on incus each runner was "placed for another job": the broker gives its jobs to any runner, each with a run of its own, so the job-started hook asks `assigned`, which the source of the test did not answer. It now hands `assigned` to the fake source, which keeps a job of the owner of the offer.
 
+State (2026-11-19, `runner-image.yml` run 44428126855, `2d3d73b`): on the microvm kind and on the incus kind each of the 20 jobs of C1 ended `success`, each in a fresh unit with no residue, and each step found no canary (C5). The test then failed on its own count of `podrunner-accept-ok` in `broker.logs()`, which holds the last job only (2 lines, not 20); it counts the jobs that succeeded on the broker now. C2, C3 and C4 come after that assertion: the next run gives them.
+
 # T-526: The incus suite of `runner-image.yml` does not block a release
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18

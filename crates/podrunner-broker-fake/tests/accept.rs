@@ -308,7 +308,10 @@ built_at_s = {now}
         units.insert(u.unit_id.as_str().to_string());
     }
     assert_eq!(units.len(), JOBS, "C1: each job in a fresh unit: {units:?}");
-    assert_eq!(broker.logs().matches("podrunner-accept-ok").count(), JOBS, "{}", broker.logs());
+    // Each step of C1 and C5 exits 1 on a finding: 20 jobs that succeeded on
+    // the broker (its logs hold the last job only).
+    let ok = broker.completions().iter().filter(|c| c.conclusion == "succeeded").count();
+    assert_eq!(ok, JOBS, "the broker saw {ok} jobs succeed: {:?}", broker.completions());
     // C2.
     assert!(over.is_empty(), "C2: {over:?}");
     // C3.
