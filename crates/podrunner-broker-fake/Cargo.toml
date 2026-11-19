@@ -28,4 +28,4 @@ podrunner-microvm.workspace = true
 podrunner-incus.workspace = true
 podrunner-podvm.workspace = true
 podrunner-egress.workspace = true
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.75.0" }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.76.0" }

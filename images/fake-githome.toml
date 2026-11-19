@@ -4,11 +4,11 @@
 # asset of the release of podcrates and checks its SHA-256 (the line of the
 # signed SHA256SUMS of that release). The same binary is the index
 # `reference` on ghcr.io, attested (T-553, COORD-142).
-version = "0.75.0"
+version = "0.76.0"
 
 [sha256]
-x86_64 = "05219ff80730ef7a77f8fdfe6aaf7c6a2d8f72004a542e080f29d3cfe7f7a3c4"
-aarch64 = "e03b9b818bf893921222313340a623125649070817e7ba0b24ec40844206ab33"
+x86_64 = "e5a695fcb5da590ec3fa9ad0f29e863cd22a9ad045730c20acea673dfa74c51e"
+aarch64 = "f4efdc4e9178475ddb4492fe5e220ac4d378120ff0e690b813eba7a954bb4de2"
 
 [ghcr]
-reference = "ghcr.io/podutils/pod-fake-githome:v0.75.0@sha256:88169fa21de7498a457adc024ae46b351ce0ec6113cef3962f0d0dbc9052dc16"
+reference = "ghcr.io/podutils/pod-fake-githome:v0.76.0@sha256:697e34995a1ad3e4eb1402c58b11f08ac2421ba3efea5b7b8d3a10ed4dabb178"

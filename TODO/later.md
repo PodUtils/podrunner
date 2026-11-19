@@ -11645,6 +11645,8 @@ State (2026-11-19): podcrates `v0.74.0` (COORD-141, PodUtils/podcrates#237): `im
 
 State (2026-11-19): `pod-fake-githome` `0.75.0` passes the 15 tests (`sh scripts/githome-conformance.sh`, `{"failed":0,"passed":15}`).
 
+State (2026-11-19, later): `pod-fake-githome` `0.76.0` passes the 15 tests.
+
 # T-510: G-39: one record of each change of a contract that githome reads
 
 **Source:** githome's G-39 on GitHub #292 (2026-11-18T07:22Z); the ruling of the owner of 2026-11-18
@@ -13086,6 +13088,8 @@ Take the releases that keep the records, then check `getcap` of the two files in
 COORD-107 (GitHub #317, to podcrates) ask 1; COORD-106 (GitHub #316, to podvm) ask 4.
 
 State (2026-11-19, COORD-203, PodUtils/podvm#599): podvm's part is PodUtils/podvm@T-1999 (the xattrs in `.meta.jsonl`, as PAX records in the unified tarball, and in the root of the machine tier); it waits for the extract of podcrates (COORD-107, GitHub #317).
+
+State (2026-11-19): podcrates `v0.76.0` (COORD-144, PodUtils/podcrates#239, PodUtils/podcrates@T-957) sets the `SCHILY.xattr.*` records in `pod-extract`, a file's after its last write, and names each that it cannot set. A binary value with the byte `0x0a` is not set yet (PodUtils/podcrates@T-961); the capabilities of `ping` and `mtr-packet` have none. podrunner takes the tag (COORD-109, GitHub #319); podvm sets them in a unit (PodUtils/podvm@T-1999). Next: podvm's release, then `getcap` in a unit of each kind.
 
 # T-559: An incus VM mode for an image with a kernel
 
