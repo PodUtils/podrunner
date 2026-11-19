@@ -714,11 +714,17 @@ class Lane:
             subprocess.run(["git", "-C", str(d), "checkout", "-q", "--detach", sha], check=True)
         return d
 
+    # A run of hello.yml in the lab takes a few minutes: a hang ends at this
+    # bound with its log, not at the limit of the job with none.
+    LAB_TIMEOUT_S = 900
+
     def in_lab(self, profiles: str, argv, log: str) -> tuple[int, str]:
         """ARGV in the lab PROFILES of the installed podvm (`podvm lab run`,
-        PodUtils/podvm#430): stdout and stderr together."""
+        PodUtils/podvm#430): stdout and stderr together, exit 124 after
+        LAB_TIMEOUT_S."""
         podvm = self.data / "bin" / "podvm"
-        rc, out = self.run([podvm, "lab", "run", profiles, "--", *argv], self.env(self.home), self.work, log)
+        argv = [podvm, "lab", "run", profiles, "--", *argv]
+        rc, out = self.run(argv, self.env(self.home), self.work, log, timeout=self.LAB_TIMEOUT_S)
         return rc, out + (self.out / "logs" / f"{log}.err").read_text(errors="replace")
 
     def lab_check(self, profiles: str) -> str:
@@ -763,6 +769,8 @@ class Lane:
         if rc == 0:
             return "a run with --vnet passes in the lab"
         self.show("lab-vnet")
+        if rc == 124:
+            return "xfail", f"T-561: the run with --vnet hung; stopped after {self.LAB_TIMEOUT_S} s"
         tail = " / ".join(line for line in out.splitlines()[-3:] if line.strip())[:300]
         return "xfail", f"T-220: the run with --vnet failed (exit {rc}): {tail}"
 

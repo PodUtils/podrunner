@@ -13153,3 +13153,29 @@ COORD-107 (GitHub #317, to podcrates) ask 2.
 
 State (2026-11-19): podcrates `v0.75.0` (COORD-143, PodUtils/podcrates#238, PodUtils/podcrates@T-956) reads each gzip member and each zstd frame of a layer. podrunner takes the tag (COORD-108, GitHub #318) but links no `pod-extract`: podvm extracts the layers. Next: podvm takes `v0.75.0`, then a layer of two gzip members extracts whole in a unit.
 
+# T-561: `podrunner run --vnet` hangs in the lab that refuses the bind
+
+**Source:** `user-gate.yml` runs 44438881119 and 44462524454, the lane `bind-denied`, 2026-11-19
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In the lane `bind-denied` (podvm lab `bind-denied,getsockname-denied`), the check `lab:vnet` runs `podrunner run hello.yml --vnet PODNET` (T-220). In two runs it gave no output and no exit: the job ran to its limit of 240 minutes and was cancelled, with no log of the run. A run on a host that refuses the bind must end, with a pass or a named failure.
+
+## Premise
+
+The logs of both lanes, read on 2026-11-19: each check before `lab:vnet` passes; the log ends at `==== bind-denied: lab:vnet`.
+
+## Approach
+
+1. `scripts/user-gate.py` bounds each run in the lab at 900 s (`LAB_TIMEOUT_S`): a hang ends with exit 124, its log, and `xfail T-561`.
+2. Read the log of the next run: the step of `run --vnet` that waits (the broker on its unix socket, the vnet shim of podnet, the runner of the unit), and fix it or ask podnet by a COORD issue.
+
+## Prove
+
+`user-gate.yml`: the lane `bind-denied` ends within its bound, and `lab:vnet` passes or fails with a named cause.
+
