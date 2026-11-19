@@ -148,14 +148,17 @@ The last session (2026-11-18, evening) left:
   its `main`, COORD-197; with that beta set `SYSCALL_TIER`, run
   `user-gate.yml`, set `click-py313` and `rq-lint` to `ok`); #309 (the
   result of T-179 to podnet).
-- Runs to read first: `user-gate.yml` on `0090c57` (T-537: the installer
+- Runs to read first: `user-gate.yml` on `2d3d73b` (T-537: the installer
   closes `~/.local/share`; T-527: the lane `serve-incus-kvm`; T-528: the
-  rows `rbg-gate` with `--event workflow_dispatch`); `runner-image.yml` on
-  `033c25d` (T-525: "C1 to C5" after the fix of the fake broker); the
-  dispatch of `runner-image.yml` with `plant: incus-conformance` (T-526:
-  it must be red in the incus step). Run 44416704184 (`ffc9658`) showed
-  the tier off works: the express rows and `rg-docs` pass on podvm in
-  each lane. Make each measure blocking once it is green.
+  rows `rbg-gate` with `--event workflow_dispatch`) and `runner-image.yml`
+  on `2d3d73b` (T-525: "C1 to C5" with the session rule of the fake broker
+  and the answer to `assigned`). Run 44416704184 showed the tier off
+  works: the express rows and `rg-docs` pass on podvm in each lane. Make
+  each measure blocking once it is green. T-526 is done (the plant run
+  44417916405 was red in the incus step).
+- If a local runner test says a file of `_diag/blocks` "already exists",
+  an interrupted run left it: remove `_diag/blocks` and `_work` of
+  `PODRUNNER_RUNNER_DIR`.
 - podvm `0.2.0-beta.35` is out (confine on the tier, `exec=` on the tier);
   podrunner gives no tier now, so its pin can wait for the beta with
   PodUtils/podvm@T-1990 (PodUtils/podvm#593).
