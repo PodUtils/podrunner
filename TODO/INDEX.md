@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**535 entries: 50 open, 44 partial, 12 blocked, 429 done.**
+**550 entries: 62 open, 45 partial, 14 blocked, 429 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 4 | 19 | 3 | 74 | 100 |
-| P2 | 9 | 18 | 6 | 226 | 259 |
+| P1 | 10 | 20 | 4 | 74 | 108 |
+| P2 | 15 | 18 | 7 | 226 | 266 |
 | P3 | 36 | 7 | 3 | 127 | 173 |
-| **All** | 50 | 44 | 12 | 429 | 535 |
+| **All** | 62 | 45 | 14 | 429 | 550 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -582,4 +582,19 @@ acceptance, later The crate dependencies later than v1.
 | [T-535](later.md) | P3 | S | later | defect | partial | The tests leave their temporary directories in /tmp |
 | [T-536](later.md) | P2 | S | later | chore | done | Take `pod_core::http1` in place of the reader of an HTTP/1.1 head of podrunner-hook |
 | [T-537](later.md) | P1 | S | later | defect | done | The installer leaves the data directory writable by the group, and the microvm kind refuses its podvm |
-| [T-538](later.md) | P1 | L | later | feature | open | A unit with the toolset of the GitHub-hosted ubuntu-latest, with systemd, checked mechanically |
+| [T-538](later.md) | P1 | L | later | feature | partial | A unit with the toolset of the GitHub-hosted ubuntu-latest, with systemd, checked mechanically |
+| [T-539](later.md) | P1 | M | later | measurement | open | The probe and the diff of the hosted parity, report-only in CI |
+| [T-540](later.md) | P1 | S | later | chore | open | A watcher of the hosted image releases and of the label of ubuntu-latest |
+| [T-541](later.md) | P1 | M | later | feature | open | The hosted environment in the runner image: the tool cache, ImageOS, the runner .env, the docker socket |
+| [T-542](later.md) | P1 | L | later | feature | open | The hosted-core image: the tools of runner-images, built from a pinned recipe and pushed to ghcr.io |
+| [T-543](later.md) | P1 | M | later | feature | blocked | systemd as PID 1 in an incus instance |
+| [T-544](later.md) | P2 | M | later | feature | blocked | systemd as PID 1 and a root on a disk in a microvm guest |
+| [T-545](later.md) | P2 | M | later | defect | open | The podvm kind loads, extracts and copies the whole image for each unit |
+| [T-546](later.md) | P2 | M | later | measurement | open | The tests of runner-images (Pester) in a unit |
+| [T-547](later.md) | P2 | L | later | feature | open | hosted-full: the full hosted toolset, less the parts that cannot be redistributed |
+| [T-548](later.md) | P1 | S | later | chore | open | The licence call of a published hosted image |
+| [T-549](later.md) | P2 | M | later | feature | open | Placement by label and by init: a systemd payload goes only to a kind that boots it |
+| [T-550](later.md) | P2 | S | later | chore | open | The corpus of the user-path gate records the image of each github.com result |
+| [T-551](later.md) | P2 | S | later | defect | open | A pinned image larger than the disk bound of its kind is not refused |
+| [T-552](later.md) | P1 | S | later | defect | open | A job that the job-started hook ends with no answer is reported as success |
+| [T-553](later.md) | P1 | M | later | release | open | podrunner and its runner images on ghcr.io, in the form of PodUtils |

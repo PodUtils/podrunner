@@ -12446,11 +12446,11 @@ State (2026-11-19, `user-gate.yml` run 44428133678): the check then refused the 
 **Milestone:** later
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
-The runner image of podrunner (`images/runner/Dockerfile`, `images/runner/full.txt`) is Ubuntu 24.04 with a small set of packages and no systemd. A script of githome or cfb that assumes a tool of the GitHub-hosted `ubuntu-latest` image, or `systemctl`, fails in a unit. No check compares a unit with the hosted image. The full hosted image is too large for a release asset of 2 GiB.
+The runner image of podrunner (`images/runner/Dockerfile`, `images/runner/full.txt`) is Ubuntu 24.04 with a small set of packages and no systemd. The target is the label `ubuntu-latest`, not one OS: it moved from Ubuntu 24.04 to 26.04 on 2026-11-19 (runner-images#14748), so the work pins both and follows the label. A script of githome or cfb that assumes a tool of the GitHub-hosted `ubuntu-latest` image, or `systemctl`, fails in a unit. No check compares a unit with the hosted image. The full hosted image is too large for a release asset of 2 GiB.
 
 ## Premise
 
@@ -12464,4 +12464,391 @@ The Dockerfile and `runner-image.yml`, read on 2026-11-19. A study of the hosted
 
 ## Prove
 
-`runner-image.yml`: the probe job gives the same tool list (names and major versions) on github.com and in a unit of each kind that can run the image; a removed tool fails the step.
+`hosted-parity.yml`: the probe of `hosted-core` gives the same tool list as github.com, at the precision of the toolset (an exact version exactly, a wildcard at major.minor), on each kind that runs it in hosted CI; `hosted-full` gives it on the live host lane; a removed tool fails the step.
+
+State (2026-11-19): the study is done (`docs/reports/hosted-parity-2026-11-19.md`). Its work is T-539 to T-552; its order: T-540 and T-548 (records), T-539 (the check on the image of today, report-only), the COORD issues of T-543 and T-544, then T-541 and T-542 on the incus kind, then T-546, T-545, T-550, then T-543, T-544, T-549 on the answers of podvm and podcrates, T-547 on the live lane. Not feasible: systemd on the podvm userland rung (no root, no namespaces), `hosted-full` as a microvm initramfs, `hosted-full` on a standard GitHub-hosted runner (disk), and the hosted kernel settings on a shared kernel.
+
+# T-539: The probe and the diff of the hosted parity, report-only in CI
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** measurement
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+No check compares the tools, the environment and the services of a unit with the GitHub-hosted runner of the same label. A gap shows only when a job of githome or cfb fails.
+
+## Premise
+
+The study, section 4 (W-2, W-3), read on 2026-11-19.
+
+## Approach
+
+the new file scripts/hosted/probe.sh (POSIX sh) writes one JSON object: os-release, the tools of the software report with their versions, `dpkg-query -W`, the `/opt/hostedtoolcache` tree, the environment, `id runner`, `sudo -n true`, the enabled and active services, PID 1, ulimits, a set of sysctls, `df /`, the docker socket path, `GITHUB_WORKSPACE`. the new file scripts/hosted/diff.py compares two probes; each difference needs a row of the new file images/hosted/allow.toml (key, kind, reason, entry); a row that no longer matches fails. `hosted-parity.yml` runs the probe on github.com (`ubuntu-24.04`, `ubuntu-26.04`, `ubuntu-latest`) and in a unit of each kind with the image of today, report-only first.
+
+## Prove
+
+`hosted-parity.yml`: the first run lists the gap; in a test of the gate a fixture pair with a removed tool, a changed major version and an unlisted variable each fail, and a stale allow row fails.
+
+# T-540: A watcher of the hosted image releases and of the label of ubuntu-latest
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A new release of the hosted image comes each week, and the label `ubuntu-latest` moved from 24.04 to 26.04 on 2026-11-19 (runner-images#14748). No job tells podrunner.
+
+## Premise
+
+The study, section 1.1 (W-1, W-4), read on 2026-11-19.
+
+## Approach
+
+the new file images/hosted/labels.toml names each label with its OS, its pinned release tag and commit. A daily job of `hosted-parity.yml` reads the newest release tags and the label table of runner-images; a newer release or a moved label fails the job and opens or updates one issue.
+
+## Prove
+
+`hosted-parity.yml`: in a test, a fixture of the releases API with a newer tag, and a fixture of the README with a moved label, each fail the watcher.
+
+# T-541: The hosted environment in the runner image: the tool cache, ImageOS, the runner .env, the docker socket
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The runner image sets no hosted environment: no `RUNNER_TOOL_CACHE=/opt/hostedtoolcache`, no `ImageOS`, no runner `.env`. Each `setup-*` action downloads its tool in each job. The engine socket is `/run/podrunner-docker.sock`, so a script that mounts `/var/run/docker.sock` fails.
+
+## Premise
+
+The study, section 7, findings F3 and F6 (W-5), read on 2026-11-19.
+
+## Approach
+
+Write the hosted `/etc/environment` (the hosted `PATH`, `ImageOS`, an `ImageVersion` that names the build, `RUNNER_TOOL_CACHE`, `AGENT_TOOLSDIRECTORY`) and the runner `.env` made from it (a JIT runner runs no `config.sh`); `/opt/hostedtoolcache` owned by `runner`; `runner` in the groups `docker`, `adm`, `systemd-journal`; a link `/var/run/docker.sock` where an engine runs (`images/runner/Dockerfile`, `crates/podrunner-incus/src/guest.rs`, `crates/podrunner-microvm/src/guest.rs`).
+
+## Prove
+
+`hosted-parity.yml`: the probe diff of these keys is empty on the incus and the microvm kinds, and a `setup-python` job takes the cache path.
+
+# T-542: The hosted-core image: the tools of runner-images, built from a pinned recipe and pushed to ghcr.io
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+The image of today has a small set of tools. The hosted image is built by runner-images on a VM with Packer, and its full form is about 55 GB.
+
+## Premise
+
+The study, section 1.4, 3.1, 3.2 (W-6, W-7, W-8, W-10, W-20), read on 2026-11-19.
+
+## Approach
+
+the new file images/hosted/Dockerfile for 24.04 and 26.04: the base by digest; runner-images at the commit of the pinned release tag; a build-time `systemctl`; the tests of each script off; `APT_SNAPSHOT_TIMESTAMP` of the release date; the toolset patched to the exact tool-cache versions of the release report; a token as a build secret; the core scripts (the tool cache of Python, Node, Go, Ruby and PyPy, the apt lists, git, gh, git-lfs, pwsh, cmake, gcc, the docker CLI, the browser libraries); then the runner layer of `images/runner/Dockerfile`; a 0BSD `systemctl` shim for postgresql, mysql, docker, nginx and apache2 where systemd is not PID 1. Push it and the image of today to `ghcr.io/podutils/podrunner-hosted` and `podrunner-runner` by digest, signed with cosign, the digests in `podrunner-manifest.json`; the installer and the kinds pull by digest when the store lacks it; arm64 after x86_64.
+
+## Prove
+
+`runner-image.yml`: the build passes on a hosted runner, `podvm pull` of the digest as a user with no root then runs a job, the report diff of the core tools is empty or allowed, and T-500's Prove (a Playwright test with no download of system libraries) passes; on incus with no systemd, `sudo systemctl start postgresql.service && pg_isready` passes through the shim.
+
+# T-543: systemd as PID 1 in an incus instance
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+podvm is PID 1 of an incus instance (`lxc.init.cmd` of its incus tier), so `systemctl` and the services of the hosted image do not run.
+
+## Premise
+
+The study, section 2.2, 2.3 (W-11), read on 2026-11-19.
+
+## Approach
+
+COORD (to podvm): an option of the incus tier that boots the init of the image, runs the channel relay as its own process, waits for `systemctl is-system-running`, runs the command by the exec API and stops the instance at its end. podrunner: `[unit.incus] init = "systemd"`, a fact of the capability record, and no own `dockerd` when the image has `docker.service`.
+
+## Prove
+
+`runner-image.yml`: in the incus suite `systemctl is-system-running` is `running` or `degraded`, `sudo systemctl start postgresql.service` works, and `docker run` reaches the daemon of the image at `/var/run/docker.sock`.
+
+## Blocker
+
+COORD-103 (GitHub #313, to podvm): the init of the image as PID 1 on the incus tier (ask 1).
+
+# T-544: systemd as PID 1 and a root on a disk in a microvm guest
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+The root of a guest is an initramfs that must fit twice in its memory, so a large image cannot boot, and podvm's init runs the command, not systemd.
+
+## Premise
+
+The study, section 2.2, 3.3 (W-12), read on 2026-11-19.
+
+## Approach
+
+COORD (to podvm): a root on a disk for each image digest with a copy-on-write overlay for each guest, a switch to the init of the image, a kernel that systemd accepts, and the exit status of the payload back to the host. podrunner: the unit form (`podrunner-job.service`) of the study.
+
+## Prove
+
+`runner-image.yml`: a guest boots `hosted-core` with 4 GiB of memory, and the probe diff passes.
+
+## Blocker
+
+COORD-103 (GitHub #313, to podvm): a root on a disk and the init of the image on the machine tier (ask 2).
+
+# T-545: The podvm kind loads, extracts and copies the whole image for each unit
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+For each unit the podvm driver loads the image archive into a new store, extracts it, and podvm copies the tree (`crates/podrunner-podvm/src/unit.rs`). The cost grows with the image: a large image is not usable on this kind.
+
+## Premise
+
+The study, section 3.3, finding F4 (W-13), read on 2026-11-19.
+
+## Approach
+
+First find why each unit has its own store (labels, cleanup, confine). Then use one operator store and podvm's tree for each container (`FICLONE`, the spare tree).
+
+## Prove
+
+`runner-image.yml`: a measure of the writes and of the start time of a unit of `hosted-core`, before and after.
+
+# T-546: The tests of runner-images (Pester) in a unit
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** measurement
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The software report and the probe check presence and versions, not behaviour: a tool can be present and fail.
+
+## Premise
+
+The study, section 4.1 (W-14), read on 2026-11-19.
+
+## Approach
+
+the new file scripts/hosted/pester.sh runs the tests of the pinned commit of runner-images in a unit, with `toolset.json` at `/imagegeneration/installers/`, and an allow list for each `Describe` and `It` (the new file images/hosted/pester-allow.toml).
+
+## Prove
+
+`hosted-parity.yml`: the lane runs on the incus kind, and a missing tool fails its `Describe` with no allow row.
+
+# T-547: hosted-full: the full hosted toolset, less the parts that cannot be redistributed
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Some scripts of githome and cfb need tools outside the core set. The full image is about 55 GB and does not fit a standard GitHub-hosted runner as a build host or a unit host.
+
+## Premise
+
+The study, section 3.1, 3.5 (W-15), read on 2026-11-19.
+
+## Approach
+
+The full script list less the restricted parts, built on a large host and pushed to ghcr.io; the restricted parts as a host step that the operator runs (`podrunner image complete`). Its check runs on a live host lane (GitHub #74, #75).
+
+## Prove
+
+`hosted-parity.yml`: the probe diff and the Pester lane pass on the live host lane with the incus kind, at the level "proven on a constrained host".
+
+# T-548: The licence call of a published hosted image
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The hosted image holds parts whose licence forbids redistribution: the Android SDK (clause 3.4 of its terms). Google Chrome, Microsoft Edge, the CodeQL bundle and the Copilot CLI need a check.
+
+## Premise
+
+The study, section 3.5 (W-16), read on 2026-11-19.
+
+## Approach
+
+Record in `docs/decisions.md` that a published image leaves out each part that may not be redistributed, and list each component of the published image in `THIRD_PARTY.md`; the new file scripts/hosted/diff.py refuses an image that holds a path of the restricted list.
+
+## Prove
+
+`hosted-parity.yml`: a test image with a planted path of the restricted list fails the diff.
+
+# T-549: Placement by label and by init: a systemd payload goes only to a kind that boots it
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A pin has no label and no need of an init. A job of `ubuntu-latest` with a systemd image could go to the podvm kind, which cannot run systemd.
+
+## Premise
+
+The study, section 2.2 (W-18), read on 2026-11-19.
+
+## Approach
+
+`[[pin.payload]]` names its labels and `init = "systemd"`; the capability record of a kind has an `init` fact (COORD to podcrates: the field in `pod-job`); `serve` places a job of that label only on a kind with the fact.
+
+## Prove
+
+`cargo test -p podrunner-slots`: a job of `ubuntu-latest` with a systemd payload never goes to the podvm kind.
+
+# T-550: The corpus of the user-path gate records the image of each github.com result
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/corpus/user-gate.tsv` records the github.com result of each row with no image version. After the move of `ubuntu-latest` to 26.04, the corpus cannot tell a change of the image from a change of podrunner.
+
+## Premise
+
+The study, section 7, finding F7 (W-19), read on 2026-11-19.
+
+## Approach
+
+Record `ImageOS` and `ImageVersion` of each github.com result; read the results again on 26.04; add real public jobs that run `sudo systemctl start postgresql.service` or `mysql.service` (xfail until T-543).
+
+## Prove
+
+`user-gate.yml`: the rows name their image, and the new rows run.
+
+# T-551: A pinned image larger than the disk bound of its kind is not refused
+
+**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The root disk of an incus instance takes the disk bound of the unit (`crates/podrunner-incus/src/guest.rs`); githome gives 40 GB per unit, and a hosted-full image of about 55 GB does not fit. Nothing refuses the pin before a job fails. The hosted sysctls (`vm.max_map_count`, the inotify limits) do not hold on a shared kernel either.
+
+## Premise
+
+The study, section 3.3, findings F5 and F8, read on 2026-11-19.
+
+## Approach
+
+`check` and `doctor` refuse a pin whose image is larger than the disk bound of the kinds that would run it; `docs/install.md` names the hosted sysctls for the operator of an incus or podvm host.
+
+## Prove
+
+`cargo test -p podrunner --test check`: a pin whose size is over the disk bound is refused with the fix.
+
+# T-552: A job that the job-started hook ends with no answer is reported as success
+
+**Source:** `runner-image.yml` run 44437720868, the steps "C1 to C5" (T-525), 2026-11-19
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When the job-started hook gets no answer to its question (fail closed), it ends the job before its first step, and the runner reports the job `failed` to the forge. The runner then exits 0, so the run report of podrunner says `success`. In the C1 run, 19 jobs failed on the broker and their reports said `success`. An operator, githome and cfb read a job that never ran as a success.
+
+## Premise
+
+The completions of the fake broker and the reports of the slots of that run, read on 2026-11-19.
+
+## Approach
+
+The hook writes a marker file in the runner root when it ends a job (its reason). `finish()` of the slots reads it after the unit ends and gives `exit_reason: job-mismatch` with the reason in the report; with no marker, nothing changes.
+
+## Prove
+
+`cargo test -p podrunner-slots`: a fake payload that writes the marker and exits 0 gives a report with `job-mismatch`.
+
+# T-553: podrunner and its runner images on ghcr.io, in the form of PodUtils
+
+**Source:** the owner's ruling "ghcr.io" (2026-11-19, `docs/decisions.md`); the form of the coordinator, COORD-142 (PodUtils/podcrates#236, call C789 of podcrates)
+**Category:** release
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podrunner publishes its binaries and its runner images as GitHub release assets only. The ruling asks each project to publish them on ghcr.io too, in one form, so that a consumer takes each from one registry by digest.
+
+## Premise
+
+COORD-142, read on 2026-11-19: one `FROM scratch` image for each architecture with the static binary at `/usr/local/bin/NAME`, `ENTRYPOINT`, the labels `org.opencontainers.image.source`, `version` and `revision`; one multi-arch index at `ghcr.io/podutils/NAME:TAG` (the tag of the release as it is); pushed by the release workflow from the files that it built, with `packages: write`; the provenance of the index attested in the registry (`actions/attest` with `push-to-registry`); a check after the push that compares each binary with its asset by SHA-256; the digest of each index in the body of the release; a dry run builds and pushes nothing.
+
+## Approach
+
+1. `release.yml`: the `podrunner` index (x86_64, aarch64) in that form, from `dist`, with the attestation, the check by SHA-256 and the digests in the notes; the runner images `runner` and `runner-full` of the release pushed by digest to `ghcr.io/podutils/podrunner-runner` (they are OCI images already).
+2. `images/podvm.toml`, `images/podnet.toml` and `images/fake-githome.toml` take a `reference` digest beside the SHA-256 of each asset, when each project publishes (podnet does since PodUtils/podnet#656).
+3. The take is named in a COORD issue `(to podcrates)`.
+
+## Prove
+
+`release.yml`: a dry run builds the images and pushes nothing; the release run pushes, `gh attestation verify oci://ghcr.io/podutils/podrunner@DIGEST --repo PodUtils/podrunner` passes, and the check by SHA-256 passes.

@@ -117,6 +117,15 @@ impl JobSource for BrokerSource {
     }
 }
 
+/// A job of the run of the offers (run 1 of `example-org/app`): the broker
+/// gives its jobs to any runner, and the job-started hook keeps a job of the
+/// placed run with no question (the egress socket of this test reaches the
+/// broker only, not the control of `serve`).
+fn of_the_offers(mut job: Job) -> Job {
+    job.run_id = Some(1);
+    job
+}
+
 /// An offer of the set: a fork pull request (untrusted) or a push of a
 /// member (trusted).
 fn offer(job: &str, untrusted: bool) -> String {
@@ -201,7 +210,7 @@ fn c1_to_c5_hold_through_the_slots_on_a_real_kind() {
     let port: u16 = broker.base.trim_end_matches('/').rsplit(':').next().unwrap().parse().unwrap();
     let step = step(&canary, &key_file.to_string_lossy());
     for i in 0..JOBS {
-        broker.queue(Job::scripts(&format!("c1-{i}"), &[step.as_str()]));
+        broker.queue(of_the_offers(Job::scripts(&format!("c1-{i}"), &[step.as_str()])));
     }
 
     let (driver, capability, untrusted) = kind(&kind_name, &state, &image);
@@ -276,7 +285,7 @@ built_at_s = {now}
         // C3 after C1: the long job goes to the broker when each job of C1
         // has its report.
         if !release.load(Ordering::SeqCst) && slots.reports.len() >= JOBS {
-            broker.queue(Job::scripts(LONG, &["sleep 900"]));
+            broker.queue(of_the_offers(Job::scripts(LONG, &["sleep 900"])));
             release.store(true, Ordering::SeqCst);
         }
         if long_report_at.is_none() && slots.reports.iter().any(|r| r.job_id.as_str() == LONG) {

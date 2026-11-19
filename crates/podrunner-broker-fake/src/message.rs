@@ -44,6 +44,9 @@ pub struct Job {
     /// The claims of the OIDC id-token of the job, when its permissions
     /// let it ask for one (T-140).
     pub id_token: Option<Map<String, Value>>,
+    /// `github.run_id`; none: the request id. A test of slots gives the
+    /// run of its offers, so that the job-started hook keeps the job.
+    pub run_id: Option<u64>,
 }
 
 /// The made-up token of `github.token` (T-122): a call with it to a real
@@ -71,6 +74,7 @@ impl Job {
             secrets: Vec::new(),
             token: None,
             id_token: None,
+            run_id: None,
         }
     }
 }
@@ -230,7 +234,7 @@ pub fn job_message_with(base: &str, request: u64, job: &Job, token: &str, hold: 
         },
         "contextData": { "github": { "t": 2, "d": [
             s("repository", "example-org/app"), s("workflow", "podrunner"), s("job", &job.name),
-            s("run_id", &request.to_string()), s("event_name", "push"),
+            s("run_id", &job.run_id.unwrap_or(request).to_string()), s("event_name", "push"),
             // A job reaches the API of GitHub as on GitHub; the scripts of
             // podrunner reach this broker by `podrunner_broker` (T-293).
             s("server_url", "https://github.com"), s("api_url", "https://api.github.com"),

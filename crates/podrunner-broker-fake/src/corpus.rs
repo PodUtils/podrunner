@@ -85,6 +85,7 @@ impl Corpus {
             secrets: Vec::new(),
             token: None,
             id_token: None,
+            run_id: None,
         })
     }
 }
