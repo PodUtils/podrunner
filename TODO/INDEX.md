@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**550 entries: 62 open, 45 partial, 14 blocked, 429 done.**
+**557 entries: 62 open, 45 partial, 19 blocked, 431 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 10 | 20 | 4 | 74 | 108 |
-| P2 | 15 | 18 | 7 | 226 | 266 |
-| P3 | 36 | 7 | 3 | 127 | 173 |
-| **All** | 62 | 45 | 14 | 429 | 550 |
+| P1 | 10 | 20 | 6 | 76 | 112 |
+| P2 | 15 | 18 | 9 | 226 | 268 |
+| P3 | 36 | 7 | 4 | 127 | 174 |
+| **All** | 62 | 45 | 19 | 431 | 557 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -585,16 +585,23 @@ acceptance, later The crate dependencies later than v1.
 | [T-538](later.md) | P1 | L | later | feature | partial | A unit with the toolset of the GitHub-hosted ubuntu-latest, with systemd, checked mechanically |
 | [T-539](later.md) | P1 | M | later | measurement | open | The probe and the diff of the hosted parity, report-only in CI |
 | [T-540](later.md) | P1 | S | later | chore | open | A watcher of the hosted image releases and of the label of ubuntu-latest |
-| [T-541](later.md) | P1 | M | later | feature | open | The hosted environment in the runner image: the tool cache, ImageOS, the runner .env, the docker socket |
-| [T-542](later.md) | P1 | L | later | feature | open | The hosted-core image: the tools of runner-images, built from a pinned recipe and pushed to ghcr.io |
+| [T-541](later.md) | P1 | M | later | feature | open | The runner layer of the hosted snapshot, and the hosted work folder /home/runner/work |
+| [T-542](later.md) | P1 | L | later | feature | open | The hosted snapshot: a 1:1 capture of the root of a hosted runner, scrubbed, with its kernel layer |
 | [T-543](later.md) | P1 | M | later | feature | blocked | systemd as PID 1 in an incus instance |
 | [T-544](later.md) | P2 | M | later | feature | blocked | systemd as PID 1 and a root on a disk in a microvm guest |
 | [T-545](later.md) | P2 | M | later | defect | open | The podvm kind loads, extracts and copies the whole image for each unit |
 | [T-546](later.md) | P2 | M | later | measurement | open | The tests of runner-images (Pester) in a unit |
-| [T-547](later.md) | P2 | L | later | feature | open | hosted-full: the full hosted toolset, less the parts that cannot be redistributed |
-| [T-548](later.md) | P1 | S | later | chore | open | The licence call of a published hosted image |
+| [T-547](later.md) | P2 | L | later | feature | open | The full lane of the hosted snapshot: a boot in each mode on a live host, checks C4 to C8 |
+| [T-548](later.md) | P1 | S | later | chore | done | The licence call of a published hosted image |
 | [T-549](later.md) | P2 | M | later | feature | open | Placement by label and by init: a systemd payload goes only to a kind that boots it |
 | [T-550](later.md) | P2 | S | later | chore | open | The corpus of the user-path gate records the image of each github.com result |
-| [T-551](later.md) | P2 | S | later | defect | open | A pinned image larger than the disk bound of its kind is not refused |
-| [T-552](later.md) | P1 | S | later | defect | open | A job that the job-started hook ends with no answer is reported as success |
+| [T-551](later.md) | P1 | S | later | defect | open | A pinned image larger than the disk bound of its kind is not refused |
+| [T-552](later.md) | P1 | S | later | defect | done | A job that the job-started hook ends with no answer is reported as success |
 | [T-553](later.md) | P1 | M | later | release | open | podrunner and its runner images on ghcr.io, in the form of PodUtils |
+| [T-554](later.md) | P1 | S | later | defect | blocked | The compile of TypeScript 7 hangs on the podvm userland rung with no tier |
+| [T-555](later.md) | P1 | M | later | feature | open | The publish of the hosted snapshot: hosted-snapshot.yml, the checks C1 to C3, the attested index |
+| [T-556](later.md) | P1 | M | later | measurement | blocked | The base slice of the hosted snapshot boots in hosted CI |
+| [T-557](later.md) | P2 | S | later | measurement | open | Measure: can a standard hosted runner hold a full boot of the snapshot |
+| [T-558](later.md) | P2 | S | later | defect | blocked | The file capabilities of an image are lost through the extract of podcrates and podvm |
+| [T-559](later.md) | P2 | M | later | feature | blocked | An incus VM mode for an image with a kernel |
+| [T-560](later.md) | P3 | S | later | defect | blocked | pod-extract reads only the first gzip member of a layer |

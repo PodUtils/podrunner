@@ -3,6 +3,13 @@
 The work items W-1 to W-20 of section 5 are the entries T-538 to T-551 of
 the record (`TODO/later.md`); `TODO/issues.md` maps the COORD issues.
 
+The owner's ruling "The hosted snapshot" (2026-11-19, `docs/decisions.md`)
+replaces the build plan of this study (W-6, W-10, W-15) and its licence
+text (section 3.5, W-16): podrunner copies the root of a hosted runner 1:1.
+`docs/reports/hosted-snapshot-2026-11-19.md` gives that pipeline. Its
+finding: the community snapshot now holds the runner too (its exclusion of
+`/home/runner/runners` is stale), unlike the row of section 1 below.
+
 The question: can a unit of podrunner give the toolset of the GitHub-hosted
 `ubuntu-latest` runner, with systemd, and can CI check the parity
 mechanically? This study gives the facts, the limits and the work.

@@ -607,8 +607,13 @@ class Lane:
         if got.get("kinds") != [kind]:
             raise GateError(f"config init: kinds {got.get('kinds')}, refused {got.get('refused')}")
         if kind == "microvm":
-            with out.open("a") as f:
-                f.write(f'\n[[pin.payload]]\narch = "{self.arch}"\nreference = "{self.image}"\nbuilt_at_s = {built}\nsandbox = true\n')
+            # The pin of the image becomes the pin of a sandbox (T-506): a
+            # second pin of the same image is refused by check.
+            text = out.read_text()
+            line = f'reference = "{self.image}"\n'
+            if line not in text:
+                raise GateError(f"config init wrote no pin of {self.image}")
+            out.write_text(text.replace(line, line + "sandbox = true\n", 1))
         return out
 
     def serve_check(self, kind: str) -> str:

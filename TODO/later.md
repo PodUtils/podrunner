@@ -7451,7 +7451,7 @@ The report and its logs (not in the repository), read on 2026-11-17; the triage 
 
 ## Approach
 
-In `crates/podrunner-broker-fake/src/runner.rs` (the console relay at `:102`), put each console line in the log of the job (`--log-dir`) and show on stderr only a warning or an error line, as on podvm. Give the runner a machine name `podrunner-host` (`--name` of the config of the runner directory) so that the host name does not leak.
+In `crates/podrunner-broker-fake/src/runner.rs` (the console relay at `:114`), put each console line in the log of the job (`--log-dir`) and show on stderr only a warning or an error line, as on podvm. Give the runner a machine name `podrunner-host` (`--name` of the config of the runner directory) so that the host name does not leak.
 
 ## Prove
 
@@ -12148,6 +12148,8 @@ State (2026-11-18, run 44416704184): `config init` exited 78 for both kinds: the
 
 A runner job through `serve` needs a source whose `mint` reaches a broker: `pod-fake-githome` mints made-up files, `pod-fake-github` has the JIT route and the broker. Asked: COORD-101 (GitHub #311), `pod-fake-githome serve --github URL`.
 
+State (2026-11-19, run 44438881119): `serve:check:microvm` failed: `config init` pins the image of the microvm kind, and the sandbox offer pinned the same image a second time, which `check` refuses (T-506). `scripts/user-gate.py` now sets `sandbox = true` on the pin that `config init` wrote. Next: the next run.
+
 # T-528: No row of the user-path gate copies the gate of rbg
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
@@ -12176,6 +12178,8 @@ Add a pinned stand-in row on the microvm and incus kinds that records `claim_to_
 State (2026-11-18): `.github/workflows/rbg-stand-in.yml` is the stand-in: Node 26 (setup-node v7.1.0), npm 12.2.3, TypeScript 7.0.2 and `@playwright/test` 1.64.1, a cold install, `tsc --strict`, and a page in headless Chromium. On github.com (run 44400362506) the job took 33 s and the cold install 12 s. The rows `rbg-gate` of `scripts/corpus/user-gate.tsv` run it at `14bc880` on the podvm, runner-dir and microvm executors in the lane `plain`; `scripts/user-gate.py` gives each row the seconds from the start of `run` to the first step and the time of the install (`podrunner-gate-NAME=N` lines). It is the base line of T-480 and T-500. Left: the green run of the rows, and a row on the incus kind (the user-path gate has no incus executor of `run`; the lane `serve-incus-kvm` of T-527 is the place).
 
 State (2026-11-18, run 44416704184): each row `rbg-gate` exited 78: the workflow takes `workflow_dispatch` only, and `run` gives `push` by default; the rows give `--event workflow_dispatch` now. Next: the next run.
+
+State (2026-11-19, run 44438881119): the row on runner-dir passed. The row on microvm failed: the proxy refused `storage.googleapis.com` (the download of Chromium by Playwright); the row allows it now. The row on podvm hung in `tsc` (TypeScript 7, a Go binary) on the userland rung with no syscall tier: T-554, COORD-105 (GitHub #315).
 
 
 # T-529: The disk limit of an offer lifts the bound of the operator
@@ -12465,12 +12469,9 @@ The Dockerfile and `runner-image.yml`, read on 2026-11-19. A study of the hosted
 
 ## Prove
 
-`hosted-parity.yml`: the probe of `hosted-core` gives the same tool list as github.com, at the precision of the toolset (an exact version exactly, a wildcard at major.minor), on each kind that runs it in hosted CI; `hosted-full` gives it on the live host lane; a removed tool fails the step.
+`hosted-snapshot.yml`: a version of each label is published with C1 to C3 green and an attestation that `gh attestation verify` passes (T-542, T-555); the base slice boots on incus in hosted CI (T-556); the full lane passes C4 to C8 on a live host (T-547), at the level "proven on a constrained host". Then the State line of `hosted-parity.yml` (T-539) of each label is green.
 
-State (2026-11-19): the study is done (`docs/reports/hosted-parity-2026-11-19.md`). Its work is T-539 to T-552; its order: T-540 and T-548 (records), T-539 (the check on the image of today, report-only), the COORD issues of T-543 and T-544, then T-541 and T-542 on the incus kind, then T-546, T-545, T-550, then T-543, T-544, T-549 on the answers of podvm and podcrates, T-547 on the live lane. Not feasible: systemd on the podvm userland rung (no root, no namespaces), `hosted-full` as a microvm initramfs, `hosted-full` on a standard GitHub-hosted runner (disk), and the hosted kernel settings on a shared kernel.
-
-State (2026-11-19, later): the owner's ruling "The hosted snapshot" (`docs/decisions.md`): no build; a 1:1 copy of the root filesystem of a hosted runner, with its kernel, fixed, tested and published on ghcr.io as streamable blobs, a better community snapshot than those of ChristopherHX and catthehacker. A second study (how they do it, the defects, a better pipeline, the conformance tests) shapes the work; T-542, T-547 and T-548 change with it. podvm gives the init of the image as PID 1 on the incus tier first (COORD-200, PodUtils/podvm#596, `--podvm-init=image`), then the machine tier in three steps.
-
+State (2026-11-19, the second study): `docs/reports/hosted-snapshot-2026-11-19.md` (a public copy; section 2.1 is held back). The pipeline: a capture in the first step of a job on each hosted label, a quiesce, a read of `/` through a bind mount, GNU tar `--format=posix --xattrs --acls --sparse --numeric-owner` through a scrub filter and `zstd -T0`, a chunked upload, stable path layers, a kernel layer from `/boot`, an attested multi-arch index, a daily watcher. The checks C1 to C8 (section 4). The work S-1 to S-15 maps to: T-542 (S-2 to S-4, the capture, the scrub, the kernel layer), T-555 (S-5, S-15, the publish), T-540 (S-6), T-541 (S-7), T-539 (S-8), T-556 (S-9), T-547 (S-10), T-546 (S-11), T-549 and T-551 (S-12), T-557 (S-13), T-550 (S-14). The asks: COORD-106 (GitHub #316, to podvm: T-543, T-544, T-558, T-559) and COORD-107 (GitHub #317, to podcrates: T-558, T-560). Order: T-539, T-542, T-555 with T-540, T-541, T-556, T-557, T-551, T-549, then T-547, T-546, T-550 on the answers of podvm and the live lane.
 
 # T-539: The probe and the diff of the hosted parity, report-only in CI
 
@@ -12491,11 +12492,11 @@ The study, section 4 (W-2, W-3), read on 2026-11-19.
 
 ## Approach
 
-the new file scripts/hosted/probe.sh (POSIX sh) writes one JSON object: os-release, the tools of the software report with their versions, `dpkg-query -W`, the `/opt/hostedtoolcache` tree, the environment, `id runner`, `sudo -n true`, the enabled and active services, PID 1, ulimits, a set of sysctls, `df /`, the docker socket path, `GITHUB_WORKSPACE`. the new file scripts/hosted/diff.py compares two probes; each difference needs a row of the new file images/hosted/allow.toml (key, kind, reason, entry); a row that no longer matches fails. `hosted-parity.yml` runs the probe on github.com (`ubuntu-24.04`, `ubuntu-26.04`, `ubuntu-latest`) and in a unit of each kind with the image of today, report-only first.
+the new file scripts/hosted/probe.sh (POSIX sh) writes one JSON object: os-release, the tools of the software report with their versions, `dpkg-query -W`, the `/opt/hostedtoolcache` tree, the environment and `PATH`, `id runner`, `sudo -l`, the enabled and active units, `is-system-running` and the failed units, PID 1, the cgroup version and controllers, ulimits of `runner`, the sysctl list, the `/dev` nodes (`fuse`, `kvm`, `loop*`, `net/tun`), `lsmod` and `modprobe -n` of the hosted module list, `getcap -r /`, mounts, swap, `binfmt_misc`, `docker info`, `podman info`, the docker socket path, the hostname form, `GITHUB_WORKSPACE`. the new file scripts/hosted/diff.py compares two probes; each difference needs a row of the new file images/hosted/allow.toml (key, kind, reason, entry); a row that no longer matches fails. The allow rows known now are in section 4.3 of the study (container mode and VM mode). `hosted-parity.yml` runs the probe on github.com (each label) and in a unit of each kind, report-only first. It is check C4 of the snapshot.
 
 ## Prove
 
-`hosted-parity.yml`: the first run lists the gap; in a test of the gate a fixture pair with a removed tool, a changed major version and an unlisted variable each fail, and a stale allow row fails.
+`hosted-parity.yml`: the first run lists the gap; in a test of the gate, fixtures with a removed tool, a lost file capability, a failed unit, a changed major version and an unlisted variable each fail, and a stale allow row fails.
 
 # T-540: A watcher of the hosted image releases and of the label of ubuntu-latest
 
@@ -12516,13 +12517,13 @@ The study, section 1.1 (W-1, W-4), read on 2026-11-19.
 
 ## Approach
 
-the new file images/hosted/labels.toml names each label with its OS, its pinned release tag and commit. A daily job of `hosted-parity.yml` reads the newest release tags and the label table of runner-images; a newer release or a moved label fails the job and opens or updates one issue.
+the new file images/hosted/labels.toml names each label with its OS, its `ImageVersion` and the release tag and commit of runner-images. A daily job (the new file .github/workflows/hosted-watch.yml, with the new file scripts/hosted/watch.py) reads the `ImageVersion` of each label from a probe job on that label, matches it to a release by the build number (the date of a tag can differ from the date of the version: `20261012.334.1` is the release `ubuntu24/20261023.334`), and reads the label table of runner-images. A new version dispatches the capture (T-555) and updates one issue; a moved label fails the job.
 
 ## Prove
 
-`hosted-parity.yml`: in a test, a fixture of the releases API with a newer tag, and a fixture of the README with a moved label, each fail the watcher.
+`python3 -I scripts/hosted/watch.py --self-test`: a fixture of the releases API where the tag date differs from the version date matches by build number; a fixture of the README with a moved label fails.
 
-# T-541: The hosted environment in the runner image: the tool cache, ImageOS, the runner .env, the docker socket
+# T-541: The runner layer of the hosted snapshot, and the hosted work folder /home/runner/work
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
 **Category:** feature
@@ -12533,23 +12534,23 @@ the new file images/hosted/labels.toml names each label with its OS, its pinned 
 
 ## Problem
 
-The runner image sets no hosted environment: no `RUNNER_TOOL_CACHE=/opt/hostedtoolcache`, no `ImageOS`, no runner `.env`. Each `setup-*` action downloads its tool in each job. The engine socket is `/run/podrunner-docker.sock`, so a script that mounts `/var/run/docker.sock` fails.
+The snapshot (T-542) drops the hosted runner root, because it holds the runner's credentials and its logs. A unit of the snapshot needs a runner at the hosted place, `/home/runner/actions-runner`, with the hooks of podrunner. Each unit kind of today also uses the work folder `_work` under the runner root (`crates/podrunner-local/src/exec.rs`, and `"workFolder": "_work"` in `crates/podrunner-broker-fake/src/files.rs`). The hosted runner uses `/home/runner/work`, and `GITHUB_WORKSPACE` is `/home/runner/work/REPO/REPO`. A script that names `/home/runner/work` fails in a unit. A JIT runner runs no `config.sh`, so it has no `.env` from `/etc/environment`.
 
 ## Premise
 
-The study, section 7, findings F3 and F6 (W-5), read on 2026-11-19.
+The hosted-snapshot study, section 3.5 and finding PF-1 (`docs/reports/hosted-snapshot-2026-11-19.md`), read on 2026-11-19. The first study, findings F3 and F6 (the tool cache, `ImageOS`, the docker socket).
 
 ## Approach
 
-Write the hosted `/etc/environment` (the hosted `PATH`, `ImageOS`, an `ImageVersion` that names the build, `RUNNER_TOOL_CACHE`, `AGENT_TOOLSDIRECTORY`) and the runner `.env` made from it (a JIT runner runs no `config.sh`); `/opt/hostedtoolcache` owned by `runner`; `runner` in the groups `docker`, `adm`, `systemd-journal`; a link `/var/run/docker.sock` where an engine runs (`images/runner/Dockerfile`, `crates/podrunner-incus/src/guest.rs`, `crates/podrunner-microvm/src/guest.rs`).
+the new file scripts/hosted/runner-layer.sh makes one layer over the snapshot: the official runner of the pinned version at `/home/runner/actions-runner`, owned by `runner`; its `.env` made from the snapshot's `/etc/environment` (the hosted `PATH`, `ImageOS`, `ImageVersion`, `RUNNER_TOOL_CACHE`, `AGENT_TOOLSDIRECTORY`); the hooks and the credential links of `images/runner/Dockerfile`; the `workFolder` `/home/runner/work`. The work folder of each kind with a `runner` home becomes `/home/runner/work` (the runner image too). The engine socket of the snapshot is the image's own `/var/run/docker.sock` (T-543).
 
 ## Prove
 
-`hosted-parity.yml`: the probe diff of these keys is empty on the incus and the microvm kinds, and a `setup-python` job takes the cache path.
+`runner-image.yml`: a canned job in the base slice on incus sees `GITHUB_WORKSPACE=/home/runner/work/R/R` and `RUNNER_TOOL_CACHE=/opt/hostedtoolcache`, and a `setup-python` job takes the cache path.
 
-# T-542: The hosted-core image: the tools of runner-images, built from a pinned recipe and pushed to ghcr.io
+# T-542: The hosted snapshot: a 1:1 capture of the root of a hosted runner, scrubbed, with its kernel layer
 
-**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
 **Category:** feature
 **Milestone:** later
 **Priority:** P1
@@ -12558,22 +12559,23 @@ Write the hosted `/etc/environment` (the hosted `PATH`, `ImageOS`, an `ImageVers
 
 ## Problem
 
-The image of today has a small set of tools. The hosted image is built by runner-images on a VM with Packer, and its full form is about 55 GB.
+The ruling "The hosted snapshot" asks for a 1:1 copy of the root filesystem of a GitHub-hosted runner, with its kernel. The community snapshots lose the xattrs (file capabilities), `/boot`, the apt lists, `/var/cache`, `/etc/skel`, and keep the machine state and secret material of the capture VM; their blobs cannot be fixed by a filter. No tool of podrunner captures a root.
 
 ## Premise
 
-The study, section 1.4, 3.1, 3.2 (W-6, W-7, W-8, W-10, W-20), read on 2026-11-19.
+The hosted-snapshot study, sections 1 to 3 (`docs/reports/hosted-snapshot-2026-11-19.md`), read on 2026-11-19.
 
 ## Approach
 
-the new file images/hosted/Dockerfile for 24.04 and 26.04: the base by digest; runner-images at the commit of the pinned release tag; a build-time `systemctl`; the tests of each script off; `APT_SNAPSHOT_TIMESTAMP` of the release date; the toolset patched to the exact tool-cache versions of the release report; a token as a build secret; the core scripts (the tool cache of Python, Node, Go, Ruby and PyPy, the apt lists, git, gh, git-lfs, pwsh, cmake, gcc, the docker CLI, the browser libraries); then the runner layer of `images/runner/Dockerfile`; a 0BSD `systemctl` shim for postgresql, mysql, docker, nginx and apache2 where systemd is not PID 1. Push it and the image of today to `ghcr.io/podutils/podrunner-hosted` and `podrunner-runner` by digest, signed with cosign, the digests in `podrunner-manifest.json`; the installer and the kinds pull by digest when the store lacks it; arm64 after x86_64.
+1. The capture (the new file scripts/hosted/capture.sh): in the first step of a job on the hosted label, record the image (`ImageVersion`, the release, `uname -r`), stop the services that write, bind mount `/` read-only to a second path, pass 1 hashes each file, pass 2 streams GNU tar `--format=posix --xattrs --acls --sparse --numeric-owner` of the planned layers through the scrub and `zstd -T0`. the new file scripts/hosted/plan.py (`python3 -I`) makes the partition into stable path layers, keeps each hard-link group in one layer and gives the content keys. the new file scripts/hosted/push-blob.py does the chunked upload and checks the digest.
+2. The scrub (the new file images/hosted/scrub.toml, the new file scripts/hosted/scrub.py, a filter of the stream): drop the hosted runner root, the state of the hosted compute agent, the SSH host keys (a oneshot unit runs `ssh-keygen -A`), the waagent state, the provisioning keys, the logs and the journal, the cloud-init state, the random seed; rewrite `/home/runner/.docker/config.json` to `{}`, `/etc/machine-id` to empty, the fstab and the netplan; mask the units of Azure and of GitHub's agents. Each rule names its reason. A file that matches a credential pattern and no rule fails the capture.
+3. The kernel layer: `/boot` and `/boot/efi` as their own layer (`vmlinuz-$(uname -r)`, the initrd), beside `/usr/lib/modules`.
 
 ## Prove
 
-`runner-image.yml`: the build passes on a hosted runner, `podvm pull` of the digest as a user with no root then runs a job, the report diff of the core tools is empty or allowed, and T-500's Prove (a Playwright test with no download of system libraries) passes; on incus with no systemd, `sudo systemctl start postgresql.service && pg_isready` passes through the shim.
+`python3 -I scripts/hosted/plan.py --self-test`: a fixture tree with xattrs, a setuid file, a sparse file and a hard link across two planned layers round-trips exactly; `python3 -I scripts/hosted/scrub.py --self-test`: a fixture tar with each listed file drops or rewrites it, and an unlisted file of a credential pattern fails; a stand-in registry takes a chunked upload and refuses a wrong digest.
 
-State (2026-11-19): the ruling "The hosted snapshot" replaces the build of this image by a 1:1 copy of the root filesystem of a hosted runner (T-538); the second study gives the new approach of this entry.
-
+State (2026-11-19): the second study gives this approach; the build from a recipe of the first study is dropped by the ruling.
 
 # T-543: systemd as PID 1 in an incus instance
 
@@ -12602,10 +12604,11 @@ COORD (to podvm): an option of the incus tier that boots the init of the image, 
 
 ## Blocker
 
-COORD-103 (GitHub #313, to podvm): the init of the image as PID 1 on the incus tier (ask 1).
+COORD-103 (GitHub #313, to podvm): the init of the image as PID 1 on the incus tier (ask 1). COORD-106 (GitHub #316, to podvm), ask 1: the needs of the snapshot on the incus tier.
 
 State (2026-11-19): podvm's answer, COORD-200 (PodUtils/podvm#596): the incus tier first, PodUtils/podvm@T-1993: `run -d --podvm-tier=incus --podvm-init=image`; the init of the image is PID 1, the relay by the exec API, a bounded wait for `is-system-running` (past it, 125 with the state), the command by exec, the instance stops at its end. podvm names the tag of each on #313.
 
+State (2026-11-19, later): PodUtils/podvm@T-1993 is done on podvm's `main` (`26974ca`), tested with `ubi9/ubi-init`; the exit code comes from `inspect --format '{{.ExitCode}}'` (the incus tier serves no `wait`); the next beta carries it. For the snapshot: COORD-106 (GitHub #316) ask 1: an id map of at least 231,072 ids (rootless podman of `runner`), `security.nesting`, `/dev/fuse`, a fresh `machine-id`, and the import of a 55 to 60 GB image with no third copy. podrunner side, required now (finding PF-5): `crates/podrunner-incus/src/guest.rs` must not start its own `dockerd` or set `DOCKER_HOST` when the image boots its init and has `docker.service`.
 
 # T-544: systemd as PID 1 and a root on a disk in a microvm guest
 
@@ -12634,7 +12637,7 @@ COORD (to podvm): a root on a disk for each image digest with a copy-on-write ov
 
 ## Blocker
 
-COORD-103 (GitHub #313, to podvm): a root on a disk and the init of the image on the machine tier (ask 2).
+COORD-103 (GitHub #313, to podvm): a root on a disk and the init of the image on the machine tier (ask 2). COORD-106 (GitHub #316, to podvm), ask 2: the image's own kernel and initrd, its 9p and vsock modules, nested KVM.
 
 State (2026-11-19): podvm's answer, COORD-200 (PodUtils/podvm#596): PodUtils/podvm@T-1994, in three steps, each released alone: a root on a disk image for each digest with a copy-on-write overlay for each guest; the init of the image with a kernel that systemd accepts; the exit status through the serial port. The same flag `--podvm-init=image` on the machine tier. podvm names the tag of each on #313.
 
@@ -12683,15 +12686,15 @@ The study, section 4.1 (W-14), read on 2026-11-19.
 
 ## Approach
 
-the new file scripts/hosted/pester.sh runs the tests of the pinned commit of runner-images in a unit, with `toolset.json` at `/imagegeneration/installers/`, and an allow list for each `Describe` and `It` (the new file images/hosted/pester-allow.toml).
+The snapshot carries the scripts and the tests of its own release: `/imagegeneration/SoftwareReport/Generate-SoftwareReport.ps1`, `/imagegeneration/software-report.json` and the 11 test files of `/imagegeneration/tests`. the new file scripts/hosted/report.sh runs the report in the unit and `Calculate-ImagesDifference.ps1` against the report of the snapshot (check C5); the new file scripts/hosted/pester.sh runs `Invoke-Pester /imagegeneration/tests` in the unit (check C6), with an allow list for each `Describe` and `It` (the new file images/hosted/pester-allow.toml).
 
 ## Prove
 
-`hosted-parity.yml`: the lane runs on the incus kind, and a missing tool fails its `Describe` with no allow row.
+The live lane of T-547: a removed tool fails its `Describe` and its report row, with no allow row.
 
-# T-547: hosted-full: the full hosted toolset, less the parts that cannot be redistributed
+# T-547: The full lane of the hosted snapshot: a boot in each mode on a live host, checks C4 to C8
 
-**Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
+**Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
 **Category:** feature
 **Milestone:** later
 **Priority:** P2
@@ -12700,22 +12703,19 @@ the new file scripts/hosted/pester.sh runs the tests of the pinned commit of run
 
 ## Problem
 
-Some scripts of githome and cfb need tools outside the core set. The full image is about 55 GB and does not fit a standard GitHub-hosted runner as a build host or a unit host.
+The full snapshot (55 to 60 GB on disk) does not boot on a standard GitHub-hosted runner as far as anyone has measured (T-557): the store, the extracted tree and the pool need about three times its size. The probe diff, the report, Pester, the behaviour checks and the real jobs need a full boot.
 
 ## Premise
 
-The study, section 3.1, 3.5 (W-15), read on 2026-11-19.
+The hosted-snapshot study, section 4.2 (`docs/reports/hosted-snapshot-2026-11-19.md`), read on 2026-11-19.
 
 ## Approach
 
-The full script list less the restricted parts, built on a large host and pushed to ghcr.io; the restricted parts as a host step that the operator runs (`podrunner image complete`). Its check runs on a live host lane (GitHub #74, #75).
+A live workflow pulls the snapshot by digest, boots it in each mode that podvm offers (incus container, incus VM, machine tier), and runs C4 (the probe diff, T-539), C5 and C6 (T-546), C7 (as `runner`: `sudo systemctl start postgresql.service` and `pg_isready`, `mysql.service` and a query, `docker run hello-world` on `/var/run/docker.sock`, docker-in-docker, rootless `podman run`, `podman run --systemd=always`, `mount -t fuse` by `fuse-overlayfs`, `ping -c1 127.0.0.1`, `losetup -f` and a loop mount in the VM mode, `binfmt` where the hosted runner has it) and C8 (T-550).
 
 ## Prove
 
-`hosted-parity.yml`: the probe diff and the Pester lane pass on the live host lane with the incus kind, at the level "proven on a constrained host".
-
-State (2026-11-19): the ruling "The hosted snapshot" replaces the build of this image by a 1:1 copy of the root filesystem of a hosted runner (T-538); the second study gives the new approach of this entry.
-
+`hosted-snapshot.yml`, its live lane (GitHub #74, #75): each check passes in each mode, at the level "proven on a constrained host".
 
 # T-548: The licence call of a published hosted image
 
@@ -12724,7 +12724,7 @@ State (2026-11-19): the ruling "The hosted snapshot" replaces the build of this 
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12744,6 +12744,9 @@ Record in `docs/decisions.md` that a published image leaves out each part that m
 
 State (2026-11-19): the ruling "The hosted snapshot": the owner accepts each licence and terms of service of the hosted image. The snapshot mirrors the hosted runner 1:1 and leaves out nothing for a licence. The check of a restricted path goes; what stays is `THIRD_PARTY.md` naming the snapshot and its source image.
 
+## Done
+
+2026-11-19, this commit. The owner's ruling "The hosted snapshot" (`docs/decisions.md`) settles the call: each licence and term of service of the hosted image is accepted, and the snapshot leaves out nothing for a licence. No restricted list and no check of one. `THIRD_PARTY.md` names the snapshot and its source image when the first version is published (T-555). `cargo todo check` passes.
 
 # T-549: Placement by label and by init: a systemd payload goes only to a kind that boots it
 
@@ -12770,6 +12773,8 @@ The study, section 2.2 (W-18), read on 2026-11-19.
 
 `cargo test -p podrunner-slots`: a job of `ubuntu-latest` with a systemd payload never goes to the podvm kind.
 
+State (2026-11-19, the second study, S-12): a systemd payload goes only to a kind that boots the init of its image; a job of `ubuntu-latest` with the snapshot never goes to the podvm userland kind. the new file images/hosted/pins.toml names the snapshot of each label.
+
 # T-550: The corpus of the user-path gate records the image of each github.com result
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12795,12 +12800,14 @@ Record `ImageOS` and `ImageVersion` of each github.com result; read the results 
 
 `user-gate.yml`: the rows name their image, and the new rows run.
 
+State (2026-11-19, the second study, S-14): new rows on the snapshot kinds: `services:`, `container:`, a systemd service, Playwright and podman (check C8, T-547).
+
 # T-551: A pinned image larger than the disk bound of its kind is not refused
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
 **Category:** defect
 **Milestone:** later
-**Priority:** P2
+**Priority:** P1
 **Effort:** S
 **Status:** open
 
@@ -12820,6 +12827,8 @@ The study, section 3.3, findings F5 and F8, read on 2026-11-19.
 
 `cargo test -p podrunner --test check`: a pin whose size is over the disk bound is refused with the fix.
 
+State (2026-11-19, the second study, finding PF-4): the snapshot is about 55 to 60 GB on disk, more than githome's unit disk of 40 GB (`disk_max_bytes`). This entry is now a blocker of the snapshot on that host: P1. Also ask githome on GitHub #151 for 80 GB or more for each unit, or a copy-on-write pool where only the writes count.
+
 # T-552: A job that the job-started hook ends with no answer is reported as success
 
 **Source:** `runner-image.yml` run 44437720868, the steps "C1 to C5" (T-525), 2026-11-19
@@ -12827,7 +12836,7 @@ The study, section 3.3, findings F5 and F8, read on 2026-11-19.
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12839,11 +12848,15 @@ The completions of the fake broker and the reports of the slots of that run, rea
 
 ## Approach
 
-The hook writes a marker file in the runner root when it ends a job (its reason). `finish()` of the slots reads it after the unit ends and gives `exit_reason: job-mismatch` with the reason in the report; with no marker, nothing changes.
+The runner root is not on the host for each kind, and a unit with no container route has no control socket. The log of the unit is the one channel of each kind: the hook writes the line `podrunner-job-started: ended: CODE` to the stderr of its ancestor `Runner.Listener` (the log of the unit) when it ends a job. `finish()` of the slots reads the log of a unit with no first step (not cancelled): with the line, the job ends with `job-mismatch`, an audit line names the code, and the report has `log_tail`.
 
 ## Prove
 
-`cargo test -p podrunner-slots`: a fake payload that writes the marker and exits 0 gives a report with `job-mismatch`.
+`cargo test -p podrunner-slots --lib -- log_tail report`: a fake payload that writes the line and exits 0 gives a report with `job-mismatch` and the code in `log_tail`; with no line, a unit that exits 0 stays `success`. With the official runner (`PODRUNNER_RUNNER_DIR`), `cargo test -p podrunner-broker-fake --test runner -- --ignored job_started`: the runner exits 0 either way, and an ended job leaves the line on the stderr of the runner.
+
+## Done
+
+2026-11-19, this commit. `crates/podrunner-slots/src/log_tail.rs` (`HOOK_ENDED`, `hook_ended`), `crates/podrunner-slots/src/run.rs` (`finish`), `images/runner/podrunner-job-started.sh` (the line to the stderr of `Runner.Listener`), `run_once_into` of the fake broker. `cargo test -p podrunner-slots --lib -- log_tail report`: 19 passed. `cargo test -p podrunner-broker-fake --test runner -- --ignored job_started` with the official runner: 3 passed. The runner image of the next push carries the script; the C1 to C5 steps of `runner-image.yml` (T-525) show it on real units.
 
 # T-553: podrunner and its runner images on ghcr.io, in the form of PodUtils
 
@@ -12871,3 +12884,198 @@ COORD-142, read on 2026-11-19: one `FROM scratch` image for each architecture wi
 ## Prove
 
 `release.yml`: a dry run builds the images and pushes nothing; the release run pushes, `gh attestation verify oci://ghcr.io/podutils/podrunner@DIGEST --repo PodUtils/podrunner` passes, and the check by SHA-256 passes.
+
+# T-554: The compile of TypeScript 7 hangs on the podvm userland rung with no tier
+
+**Source:** the user-path gate, run 44438881119 (row `rbg-gate`, podvm executor), 2026-11-19
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+The row `rbg-gate` of the user-path gate hangs on the podvm kind in the step `tsc --strict`. TypeScript 7 is a Go binary (`tsgo`). On the userland rung with no syscall tier (the tier is off, T-261, GitHub #308), the compile does not end, and the job ends at its time limit. cfb's gate needs TypeScript 7 (Q-13).
+
+## Premise
+
+The log of the job, read on 2026-11-19: the install and the earlier steps end; `tsc` prints nothing and does not exit. The same row passes on runner-dir.
+
+## Approach
+
+podvm finds the cause in the userland rung (a Go runtime with many threads and its signals); podrunner takes the release that fixes it and runs the row again. If the syscall tier comes back first (T-261), the row runs with the tier.
+
+## Prove
+
+`user-gate.yml`: the row `rbg-gate` on the podvm executor passes.
+
+## Blocker
+
+COORD-105 (GitHub #315, to podvm): the compile of TypeScript 7 hangs on the userland rung with no tier.
+
+# T-555: The publish of the hosted snapshot: hosted-snapshot.yml, the checks C1 to C3, the attested index
+
+**Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
+**Category:** feature
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+No workflow captures a hosted label, checks the capture and publishes it. A pin of podrunner must name a digest that podrunner made and tested.
+
+## Premise
+
+The hosted-snapshot study (`docs/reports/hosted-snapshot-2026-11-19.md`), read on 2026-11-19. Sections 3.6, 3.7 and 4.
+
+## Approach
+
+the new file .github/workflows/hosted-snapshot.yml, dispatched by T-540 or by hand: one job on each label (`ubuntu-24.04`, `ubuntu-26.04`, `ubuntu-24.04-arm`, `ubuntu-26.04-arm`) runs the capture of T-542; C1 (pass 3: the live root against the merged layers, file by file: type, mode, owner, size, digest, link, xattrs, hard-link groups); C2 (the scrub list and a pattern scan of each layer stream with `images/trufflehog`, and again on the pushed blobs); C3 (two VMs of one `ImageVersion`, diffed, once per version, to find new machine state). Then the OCI manifests with zstd layers, one multi-arch index for each release, the tags (`ubuntu24-VERSION`, `ubuntu24-latest`), the annotations (the runner-images tag and commit), the attestation in the registry, the official SBOM, and the digests in the summary. the new file docs/hosted-snapshot.md: what is 1:1, the scrub list, the allow rows, the verify command. `THIRD_PARTY.md` names the snapshot.
+
+## Prove
+
+`hosted-snapshot.yml`: a dispatch publishes one version; `gh attestation verify oci://ghcr.io/podutils/podrunner-hosted@DIGEST --repo PodUtils/podrunner` passes; a planted file `/home/runner/.credentials-test` with a made-up value (listed in `.github/secrets-allow.txt`) fails C2.
+
+# T-556: The base slice of the hosted snapshot boots in hosted CI
+
+**Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
+**Category:** measurement
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+The scrub must leave a root that boots: the fstab, the network, the masked units, the machine id and the SSH host keys. The full image does not fit a standard runner, but its base and kernel layers do (a few GiB).
+
+## Premise
+
+The hosted-snapshot study (`docs/reports/hosted-snapshot-2026-11-19.md`), read on 2026-11-19. Section 4.2.
+
+## Approach
+
+A job of `hosted-snapshot.yml` (or `runner-image.yml`) boots the `base` and `boot` layers as an incus system container with `--podvm-init=image` and as a KVM guest with the hosted kernel, and checks: `is-system-running` is `running` or `degraded` with only allowed failed units; no unit of Azure or of GitHub's agents runs; C4 on the slice.
+
+## Prove
+
+`hosted-snapshot.yml`: the boot job passes in both modes; a planted unmasked `walinuxagent.service` fails it.
+
+## Blocker
+
+The incus container: the tag of PodUtils/podvm@T-1993 (COORD-200, done on podvm's `main`) and COORD-106 (GitHub #316) ask 1. The KVM guest: COORD-106 ask 2 or ask 3.
+
+# T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
+
+**Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
+**Category:** measurement
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The full boot (T-547) needs about three times the size of the snapshot. A standard hosted runner has 72 or 145 GB with 54 to 58 GB used. If the 145 GB class holds a boot after it frees its own trees and uses `/mnt`, the full checks can run in hosted CI before a live lane.
+
+## Premise
+
+The hosted-snapshot study (`docs/reports/hosted-snapshot-2026-11-19.md`), read on 2026-11-19. Section 4.2 (an estimate, not a measure).
+
+## Approach
+
+A dispatch-only workflow frees the preinstalled trees of the test runner, uses `/mnt`, pulls the snapshot and imports it into incus, and records the free space at each step.
+
+## Prove
+
+`hosted-snapshot.yml`, its dispatch-only measure job: the free space at each step is recorded in this entry with its run.
+
+# T-558: The file capabilities of an image are lost through the extract of podcrates and podvm
+
+**Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`pod-extract` (the file crates/pod-extract/src/apply.rs of podcrates) has no path for extended attributes, and podvm's sidecar and unified tarball carry none. The PAX `SCHILY.xattr.security.capability` of `ping` and `mtr-packet` in the hosted snapshot is dropped, so `ping` as `runner` fails in a unit.
+
+## Premise
+
+The hosted-snapshot study (`docs/reports/hosted-snapshot-2026-11-19.md`), read on 2026-11-19. Section 2.2 and ask 4 of section 6.1; the extract of podcrates `v0.74.0`, read on 2026-11-19.
+
+## Approach
+
+Take the releases that keep the records, then check `getcap` of the two files in a unit of each kind (C4 and C7).
+
+## Prove
+
+`runner-image.yml`: in a unit of an image with a planted `security.capability` on a file, `getcap` of that file gives the capability.
+
+## Blocker
+
+COORD-107 (GitHub #317, to podcrates) ask 1; COORD-106 (GitHub #316, to podvm) ask 4.
+
+# T-559: An incus VM mode for an image with a kernel
+
+**Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+incus runs an OCI image only as a container (lxc/incus#1360). The snapshot carries its kernel, and the VM mode gives the hosted kernel, its modules, its sysctls, loop devices and swap.
+
+## Premise
+
+The hosted-snapshot study (`docs/reports/hosted-snapshot-2026-11-19.md`), read on 2026-11-19. Section 3.2 and ask 3 of section 6.1.
+
+## Approach
+
+podvm turns an OCI image with a `/boot` into a VM image once for each digest; podrunner adds the mode to the incus kind (`[unit.incus]`), a fact of the capability record, and placement by it (T-549).
+
+## Prove
+
+`runner-image.yml` or the live lane: the base slice boots as an incus VM and `uname -r` equals the kernel of the snapshot.
+
+## Blocker
+
+COORD-106 (GitHub #316, to podvm) ask 3.
+
+# T-560: pod-extract reads only the first gzip member of a layer
+
+**Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+The file crates/pod-extract/src/layer.rs of podcrates reads a gzip layer with `GzDecoder`, which stops after the first member. A valid layer of many members (eStargz, bgzip, a concatenated stream) is cut short with no error, and a unit gets a partial root.
+
+## Premise
+
+The hosted-snapshot study (`docs/reports/hosted-snapshot-2026-11-19.md`), read on 2026-11-19. Ask 5 of section 6.1; `layer.rs` of podcrates `v0.74.0`, read on 2026-11-19.
+
+## Approach
+
+Take the release of podcrates that reads each member, with its tests (two gzip members; a zstd layer of many frames).
+
+## Prove
+
+`cargo test --workspace`: after the take, a test of podrunner pulls a fixture layer of two gzip members and gets both files.
+
+## Blocker
+
+COORD-107 (GitHub #317, to podcrates) ask 2.
