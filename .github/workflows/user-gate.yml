@@ -89,8 +89,10 @@ jobs:
             if [ "$2" != "$sha" ]; then
               git fetch -q --depth=200 origin "$2" ||
                 { echo "run $IMAGES_RUN is of $2, which this checkout cannot fetch"; exit 1; }
-              # images/fake-githome.toml pins a test tool (T-509), not an image.
-              git diff --quiet "$2" "$sha" -- images/ ':(exclude)images/fake-githome.toml' ||
+              # images/fake-githome.toml pins a test tool (T-509), and
+              # images/hosted/ holds the rules of the snapshot (T-539, T-542):
+              # neither is in the runner image.
+              git diff --quiet "$2" "$sha" -- images/ ':(exclude)images/fake-githome.toml' ':(exclude)images/hosted' ||
                 { echo "run $IMAGES_RUN is of $2, and images/ changed since: run runner-image.yml on $sha"; exit 1; }
               echo "run $IMAGES_RUN is of $2; images/ is the same at $sha"
             fi

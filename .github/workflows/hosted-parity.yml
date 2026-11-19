@@ -29,10 +29,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: The probe parses, and the diff passes its self-test
+      - name: The probe parses; the diff and the scrub pass their self-tests
         run: |
           sh -n scripts/hosted/probe.sh
           python3 -I scripts/hosted/diff.py --self-test
+          python3 -I scripts/hosted/scrub.py --self-test
 
   reference:
     strategy:

@@ -12562,7 +12562,7 @@ the new file scripts/hosted/runner-layer.sh makes one layer over the snapshot: t
 **Milestone:** later
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12575,7 +12575,7 @@ The hosted-snapshot study, sections 1 to 3 (`docs/reports/hosted-snapshot-2026-1
 ## Approach
 
 1. The capture (the new file scripts/hosted/capture.sh): in the first step of a job on the hosted label, record the image (`ImageVersion`, the release, `uname -r`), stop the services that write, bind mount `/` read-only to a second path, pass 1 hashes each file, pass 2 streams GNU tar `--format=posix --xattrs --acls --sparse --numeric-owner` of the planned layers through the scrub and `zstd -T0`. the new file scripts/hosted/plan.py (`python3 -I`) makes the partition into stable path layers, keeps each hard-link group in one layer and gives the content keys. the new file scripts/hosted/push-blob.py does the chunked upload and checks the digest.
-2. The scrub (the new file images/hosted/scrub.toml, the new file scripts/hosted/scrub.py, a filter of the stream): drop the hosted runner root, the state of the hosted compute agent, the SSH host keys (a oneshot unit runs `ssh-keygen -A`), the waagent state, the provisioning keys, the logs and the journal, the cloud-init state, the random seed; keep `/home/runner/.docker/config.json` (the ruling "The snapshot keeps the Docker Hub login"); make each per-machine value fresh as on a new hosted runner: `/etc/machine-id` empty (a new id at each boot), the SSH host keys dropped and made at boot, the random seed dropped; rewrite the fstab and the netplan; mask the units of Azure and of GitHub's agents. Each rule names its reason. A file that matches a credential pattern and no rule fails the capture.
+2. The scrub (`images/hosted/scrub.toml`, `scripts/hosted/scrub.py`): drop the hosted runner root, the state of the hosted compute agent, the SSH host keys (a oneshot unit runs `ssh-keygen -A`), the waagent state, the provisioning keys, the logs and the journal, the cloud-init state, the random seed; keep `/home/runner/.docker/config.json` (the ruling "The snapshot keeps the Docker Hub login"); make each per-machine value fresh as on a new hosted runner: `/etc/machine-id` empty (a new id at each boot), the SSH host keys dropped and made at boot, the random seed dropped; rewrite the fstab and the netplan; mask the units of Azure and of GitHub's agents. Each rule names its reason. A file that matches a credential pattern and no rule fails the capture.
 3. The kernel layer: `/boot` and `/boot/efi` as their own layer (`vmlinuz-$(uname -r)`, the initrd), beside `/usr/lib/modules`.
 
 ## Prove
@@ -12583,6 +12583,8 @@ The hosted-snapshot study, sections 1 to 3 (`docs/reports/hosted-snapshot-2026-1
 `python3 -I scripts/hosted/plan.py --self-test`: a fixture tree with xattrs, a setuid file, a sparse file and a hard link across two planned layers round-trips exactly; `python3 -I scripts/hosted/scrub.py --self-test`: a fixture tar with each listed file drops or rewrites it, and an unlisted file of a credential pattern fails; a stand-in registry takes a chunked upload and refuses a wrong digest.
 
 State (2026-11-19): the second study gives this approach; the build from a recipe of the first study is dropped by the ruling.
+
+State (2026-11-19): the scrub is in. `images/hosted/scrub.toml` holds the rules of the study (section 3.3) with the owner's ruling: the Docker Hub login stays; each per-machine value is made fresh (an empty `machine-id`, the SSH host keys made at boot by a drop-in of `ssh.service`, the snakeoil TLS key made again by `ssl-cert.service`, no random seed, no cloud-init state). A dropped path never enters a blob: `scrub.py list` writes the member list of a layer for GNU tar (`--null --no-verbatim-files-from --no-recursion -T`), with each fixed path from the fix tree (`--directory=FIX`). `scrub.py verify` reads a layer stream: a dropped path, a fixed path with other content, an unmasked unit, or a credential pattern in a scan root that no rule covers fails it, with the path and the name of the pattern only. `python3 -I scripts/hosted/scrub.py --self-test` passes; a manual run through GNU tar 1.35 kept a file capability and a hard link. Left: the capture (`capture.sh`, the partition `plan.py`, `push-blob.py`) and the kernel layer.
 
 # T-543: systemd as PID 1 in an incus instance
 

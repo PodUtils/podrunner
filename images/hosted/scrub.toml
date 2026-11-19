@@ -1,0 +1,183 @@
+# SPDX-License-Identifier: 0BSD
+# The scrub of the hosted snapshot (T-542, the owner's rulings "The hosted
+# snapshot" and "The snapshot keeps the Docker Hub login"): what the
+# capture of a hosted runner drops or rewrites. Everything else is copied
+# 1:1. A path is relative to the root, with no leading slash. `path` is a
+# glob of scripts/hosted/scrub.py: `*` stays in one name, `**` crosses
+# names; a rule on a directory covers its tree.
+#
+#   [[drop]]  the path is not in any layer
+#   [[fix]]   the path is in its layer with new content (empty, or text),
+#             with the owner and the mode of the live file
+#   [[mask]]  a unit of systemd that cannot work outside Azure: a link to
+#             /dev/null in etc/systemd/system, in the fix tree
+#   [[scan]]  where the scan of credential patterns looks (C2); a match
+#             that no drop, fix or allow covers fails the capture
+#   [[allow]] a file that matches a pattern and is not a secret
+#
+# The hosted runner root (the root of Runner.Worker of the capture job) is
+# dropped by the capture itself, whatever its path (`--runner-root`).
+
+[[drop]]
+path = "home/runner/work"
+reason = "the work folder of the capture job"
+
+[[drop]]
+path = "home/runner/actions-runner"
+reason = "the hosted runner of x64: its credentials, its logs and the capture job; podrunner's runner comes in its own layer (T-541)"
+
+[[drop]]
+path = "home/runner/extracted"
+reason = "the hosted runner of arm64, as above"
+
+[[drop]]
+path = "opt/hca"
+reason = "the hosted compute agent: its tokens, its SAS URIs and its logs; it calls GitHub's scheduler"
+
+[[drop]]
+path = "opt/primer"
+reason = "GitHub's provisioner; no job uses it"
+
+[[drop]]
+path = "etc/ssh/ssh_host_*"
+reason = "SSH host keys: a new hosted runner gets its own; regenerated at boot (ssh-keygen -A)"
+
+[[drop]]
+path = "var/lib/waagent"
+reason = "the Azure agent: its keys, its provisioning document and its goal state"
+
+[[drop]]
+path = "root/.ssh/authorized_keys"
+reason = "a provisioning key"
+
+[[drop]]
+path = "home/packer/.ssh/authorized_keys"
+reason = "a provisioning key"
+
+[[drop]]
+path = "var/lib/systemd/random-seed"
+reason = "the seed of one machine"
+
+[[drop]]
+path = "var/lib/systemd/credential.secret"
+reason = "the credential key of one machine"
+
+[[drop]]
+path = "var/lib/cloud/instances"
+reason = "the cloud-init state of the capture VM"
+
+[[drop]]
+path = "var/lib/cloud/instance"
+reason = "the cloud-init state of the capture VM"
+
+[[drop]]
+path = "var/lib/cloud/data"
+reason = "the cloud-init state of the capture VM"
+
+[[drop]]
+path = "var/log/journal/**"
+reason = "the journal of the capture VM"
+
+[[drop]]
+path = "var/log/**/*.[0-9]*"
+reason = "rotated logs of the capture VM"
+
+[[drop]]
+path = "tmp/**"
+reason = "volatile"
+
+[[drop]]
+path = "var/tmp/**"
+reason = "volatile"
+
+[[drop]]
+path = "var/crash/**"
+reason = "volatile"
+
+[[drop]]
+path = "swapfile"
+reason = "the swap of the capture VM; the VM mode makes its own"
+
+[[fix]]
+path = "etc/machine-id"
+content = ""
+reason = "machine-id(5): an empty file gives a new id at each boot, as on a new hosted runner, and is not a first boot"
+
+[[fix]]
+path = "etc/hostname"
+content = "localhost\n"
+reason = "the Azure name of the capture VM; the unit sets its own"
+
+[[fix]]
+path = "etc/cloud/cloud-init.disabled"
+content = ""
+create = true
+reason = "cloud-init waits for the Azure metadata service"
+
+[[fix]]
+path = "etc/fstab"
+content = "LABEL=cloudimg-rootfs\t/\text4\tdiscard,commit=30,errors=remount-ro\t0 1\n"
+reason = "the UUIDs, /boot/efi, the Azure disk and the swap file of the capture VM do not exist in a unit"
+
+[[fix]]
+path = "etc/netplan/50-cloud-init.yaml"
+content = "network:\n  version: 2\n  ethernets:\n    all:\n      match:\n        name: \"e*\"\n      dhcp4: true\n"
+reason = "it matches one Azure MAC and the hv_netvsc driver"
+
+[[fix]]
+path = "var/log/*.log"
+content = ""
+reason = "the logs of the capture VM, truncated as runner-images' cleanup.sh does"
+
+[[fix]]
+path = "var/log/syslog"
+content = ""
+reason = "the log of the capture VM"
+
+[[mask]]
+unit = "hosted-compute-agent.service"
+reason = "dropped with opt/hca"
+
+[[mask]]
+unit = "primer.service"
+reason = "dropped with opt/primer"
+
+[[mask]]
+unit = "walinuxagent.service"
+reason = "it needs the Azure wire server"
+
+[[scan]]
+path = "etc/**"
+
+[[scan]]
+path = "home/**"
+
+[[scan]]
+path = "root/**"
+
+[[scan]]
+path = "var/lib/**"
+
+[[scan]]
+path = "opt/*"
+
+[[scan]]
+path = "opt/*/*"
+
+[[allow]]
+path = "home/runner/.docker/config.json"
+reason = "the owner's ruling: the snapshot keeps the Docker Hub login of the hosted runner"
+
+[[drop]]
+path = "etc/ssl/private/ssl-cert-snakeoil.key"
+reason = "the TLS key of one machine; ssl-cert.service makes a new one at boot, as on a new hosted runner"
+
+[[drop]]
+path = "etc/ssl/certs/ssl-cert-snakeoil.pem"
+reason = "the certificate of that key"
+
+[[fix]]
+path = "etc/systemd/system/ssh.service.d/podrunner-host-keys.conf"
+content = "[Service]\nExecStartPre=\nExecStartPre=/usr/bin/ssh-keygen -A\nExecStartPre=/usr/sbin/sshd -t\n"
+create = true
+reason = "the dropped SSH host keys are made at boot, before the test of the configuration"
