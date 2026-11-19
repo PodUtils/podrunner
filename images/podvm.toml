@@ -44,8 +44,13 @@
 # OOM kills in `inspect` (T-483) (COORD-187, PodUtils/podvm#583).
 # v0.2.0-beta.34 resolves an absolute link of a unit under the syscall tier
 # (T-261, COORD-192) and gives the OOM kills of a machine guest (T-515).
-version = "0.2.0-beta.34"
+# v0.2.0-beta.36 runs the init of the image as PID 1 on the incus tier
+# (`--podvm-init=image`, T-543, COORD-200), keeps a Go program off podvm's
+# signal stack (T-554, COORD-202), retries `openat2` on EAGAIN under the
+# syscall tier (T-261, COORD-197) and runs `apt-get install` as `-u 0` on
+# the userland rung.
+version = "0.2.0-beta.36"
 
 [sha256]
-x86_64 = "2ca17f08ddb8707ca045b664712cf53b3e1429aab8701ef9e7ac09a5fc6dc4b1"
-aarch64 = "4561f48dd3cd4534541d6ce452b1dd489e544c73508d8ed55baa6eb2df73ab68"
+x86_64 = "3d1b7fe89c9e634d8970d7ff54e40ef6d8df024bc8143c5df34687f0ca96e3e6"
+aarch64 = "db31c455ec27688f77cdb20362436e823a56dba9a93a24d1f1979536af295852"

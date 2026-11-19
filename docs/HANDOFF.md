@@ -11,7 +11,7 @@ is done.
 - Pins: podcrates `v0.72.0` (`Cargo.toml`; the source wire and the
   credential are `pod_job::source`, the HTTP head is `pod_core::http1`;
   `status.v1` is `pod_job::Status` from podcrates `v0.73.0`);
-  podvm `v0.2.0-beta.34`
+  podvm `v0.2.0-beta.36`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
@@ -122,7 +122,8 @@ is done.
   44349725647 (`e6beea0`) was green: the incus engine ran a container
   (T-485); the `pids` test of T-488 failed on its own guest size (fixed:
   read its next run, then make it blocking).
-- podvm `0.2.0-beta.34` is pinned. The syscall tier is off again
+- podvm `0.2.0-beta.36` is pinned (it carries the retry of `openat2` and
+  the fix of the signal stack of a Go program). The syscall tier is off again
   (`SYSCALL_TIER = None`, T-261): under it Node of `setup-node` fails with
   `errno 11` and a cargo build hangs (COORD-098, #308); give it again when
   podvm fixes them, and set `click-py313` and `rq-lint` to `ok` then. The

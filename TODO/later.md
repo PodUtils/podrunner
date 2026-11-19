@@ -4352,6 +4352,8 @@ State (2026-11-18, evening): `user-gate.yml` run 44393864747, lane `proxy-only`:
 
 State (2026-11-19): COORD-202 (PodUtils/podvm#598): a signal of Go stopped podvm's SIGSYS handler (PodUtils/podvm@T-1995, fixed on podvm's `main`). The hang of `cargo doc` under the tier (PodUtils/podvm@T-1991) may have the same cause: run it again on the beta that carries the fix.
 
+State (2026-11-19, later): podvm `0.2.0-beta.36` carries the retry of `openat2` on EAGAIN (COORD-197, PodUtils/podvm#593) and the fix of COORD-202, and is pinned with the tier still off. Next: a run of the user-path gate with `SYSCALL_TIER` set, the lane `proxy-only` first (podvm's ask), then the default.
+
 # T-262: In a podvm unit, Node sometimes reads an invalid package.json
 
 **Source:** the second run of the user-path gate, user-gate 43758947099 on `b5c9214` (2026-11-16)
@@ -12631,6 +12633,8 @@ State (2026-11-19, later): PodUtils/podvm@T-1993 is done on podvm's `main` (`269
 
 State (2026-11-19, COORD-203, PodUtils/podvm#599): COORD-106 ask 1 is PodUtils/podvm@T-1996 (first: `security.idmap.size` of at least 231,072, else a refusal with 125; `/dev/fuse`; an empty `/etc/machine-id`) and PodUtils/podvm@T-1997 (the import as a stream, peak disk 2.2 times the image). Nesting is there already: the snapshot runs with `--podvm-init=image --podvm-engine`.
 
+State (2026-11-19, later): podvm `0.2.0-beta.36` carries PodUtils/podvm@T-1993 (`--podvm-init=image` on the incus tier) and is pinned. Next: the incus kind takes `[unit.incus] init = "image"` for a payload that boots its init.
+
 # T-544: systemd as PID 1 and a root on a disk in a microvm guest
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12911,6 +12915,8 @@ COORD-142, read on 2026-11-19: one `FROM scratch` image for each architecture wi
 
 State (2026-11-19, COORD-142 amended, PodUtils/podcrates#236): podvm publishes in the form: `ghcr.io/podutils/podvm:v0.2.0-beta.35` (PodUtils/podvm@T-1992), attested, with the digests in its notes. Two faults of its first pushes to avoid: take the manifest of each platform from the index for the check after the push, and keep the login to ghcr.io for `actions/attest`. A new package can be private: an admin of PodUtils sets it to public once.
 
+State (2026-11-19, later): `ghcr.io/podutils/podvm:v0.2.0-beta.36` is published too; `images/podvm.toml` pins the SHA-256 of the assets for now.
+
 # T-554: The compile of TypeScript 7 hangs on the podvm userland rung with no tier
 
 **Source:** the user-path gate, run 44438881119 (row `rbg-gate`, podvm executor), 2026-11-19
@@ -12941,6 +12947,8 @@ podvm finds the cause in the userland rung (a Go runtime with many threads and i
 COORD-105 (GitHub #315, to podvm): the compile of TypeScript 7 hangs on the userland rung with no tier.
 
 State (2026-11-19, later): podvm's answer, COORD-202 (PodUtils/podvm#598): Go preempts a goroutine with SIGURG; when it stopped podvm's SIGSYS handler in a system call, Go's handler ran on the wrong stack and waited for ever. Fixed on podvm's `main` in `fbc8fc7` (PodUtils/podvm@T-1995); `tsc --strict` ends on the userland rung, three runs of three. Next: the beta that carries it, then the row `rbg-gate` on the podvm executor; the hang of `cargo doc` under the tier (T-261) may have the same cause and runs again on that tag.
+
+State (2026-11-19, later): podvm `0.2.0-beta.36` (release run 44466195422) carries the fix and is pinned (`images/podvm.toml`). Next: the row `rbg-gate` on the podvm executor in the next run of `user-gate.yml`.
 
 # T-555: The publish of the hosted snapshot: hosted-snapshot.yml, the checks C1 to C3, the attested index
 
