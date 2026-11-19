@@ -12505,6 +12505,8 @@ The study, section 4 (W-2, W-3), read on 2026-11-19.
 
 State (2026-11-19): `scripts/hosted/probe.sh` gives the facts of the Approach; the environment gives the names of each variable and the values of a fixed list only, so no secret value leaves the machine. `python3 -I scripts/hosted/diff.py --self-test` passes: a removed tool, a lost capability, a failed unit, a changed major version and an unlisted variable each fail; a patch version passes; a stale allow row fails; a bad row is refused. `.github/workflows/hosted-parity.yml` (report-only, daily) probes `ubuntu-24.04`, `ubuntu-26.04` and `ubuntu-latest`, and the image `runner-full` of `v0.1.0-beta.7` under podman, and writes the gap to the summary. Left: the probe in a unit of each kind (incus, microvm, podvm) through `podrunner run`, then the snapshot (T-542) as the unit side, then the diff blocks.
 
+State (2026-11-19, `hosted-parity.yml` run 44456462683, proven in CI on GitHub-hosted runners): the first gap, report-only. The image `runner-full` of `v0.1.0-beta.7` under podman against `ubuntu-24.04`: 3389 differences, among them 42 tools of the probe list, 986 packages, 9 trees of the tool cache, 65 enabled units of systemd and 63 variables missing, and the file capabilities of `ping` and `mtr-packet`. Against `ubuntu-26.04`: the same order, and the OS. This is the base line that the snapshot (T-542) removes.
+
 # T-540: A watcher of the hosted image releases and of the label of ubuntu-latest
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -12874,6 +12876,8 @@ The runner root is not on the host for each kind, and a unit with no container r
 
 2026-11-19, this commit. `crates/podrunner-slots/src/log_tail.rs` (`HOOK_ENDED`, `hook_ended`), `crates/podrunner-slots/src/run.rs` (`finish`), `images/runner/podrunner-job-started.sh` (the line to the stderr of `Runner.Listener`), `run_once_into` of the fake broker. `cargo test -p podrunner-slots --lib -- log_tail report`: 19 passed. `cargo test -p podrunner-broker-fake --test runner -- --ignored job_started` with the official runner: 3 passed. The runner image of the next push carries the script; the C1 to C5 steps of `runner-image.yml` (T-525) show it on real units.
 
+State (2026-11-19): `runner-image.yml` run 44453922354 at `e7e5d4c` (the image with the new hook): C1 to C5 pass again on the microvm and the incus kinds, so the line of the hook changes no job that it keeps.
+
 # T-553: podrunner and its runner images on ghcr.io, in the form of PodUtils
 
 **Source:** the owner's ruling "ghcr.io" (2026-11-19, `docs/decisions.md`); the form of the coordinator, COORD-142 (PodUtils/podcrates#236, call C789 of podcrates)
@@ -12941,7 +12945,7 @@ State (2026-11-19, later): podvm's answer, COORD-202 (PodUtils/podvm#598): Go pr
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12958,6 +12962,8 @@ the new file .github/workflows/hosted-snapshot.yml, dispatched by T-540 or by ha
 ## Prove
 
 `hosted-snapshot.yml`: a dispatch publishes one version; `gh attestation verify oci://ghcr.io/podutils/podrunner-hosted@DIGEST --repo PodUtils/podrunner` passes; a planted file `/home/runner/.credentials-test` with a made-up value (listed in `.github/secrets-allow.txt`) fails C2.
+
+State (2026-11-19): `scripts/hosted/push-blob.py` pushes one blob in chunks (POST, a PATCH for each chunk with its Content-Range, PUT with the digest), sends a failed chunk again from the offset of the registry, sends no blob that the registry has, and reads the token from the environment. `python3 -I scripts/hosted/push-blob.py --self-test` passes against a stand-in registry, which refuses a wrong digest.
 
 # T-556: The base slice of the hosted snapshot boots in hosted CI
 

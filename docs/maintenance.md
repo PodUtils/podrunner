@@ -99,6 +99,8 @@ the tools.
   * `hosted/watch.py`: the image of each hosted label, matched to its
     release of runner-images by the build number (T-540,
     `images/hosted/labels.toml`).
+  * `hosted/push-blob.py`: the chunked upload of one blob to an OCI
+    registry, with the token from the environment (T-555).
 * The copies of podcrates scripts (`check-size.py`, `check-static.sh`,
   `cloud-setup.sh`, `fetch-zig.sh`, `pull-image.sh`, `retry.sh`,
   `secrets-report.py`, `check-github-numbers.py`) come from podcrates
