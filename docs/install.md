@@ -89,6 +89,17 @@ sha256sum -c podrunner-install.sh.sha256
 gh attestation verify podrunner-install.sh --repo PodUtils/podrunner
 ```
 
+Each release also has `SHA256SUMS` (one line for each asset) with its
+keyless cosign bundle `SHA256SUMS.sigstore.json`, as the other projects of
+PodUtils have (T-484). The identity is `release.yml` of this repository:
+
+```sh
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity-regexp '^https://github.com/PodUtils/podrunner/\.github/workflows/release\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS
+```
+
 ## The manifest of a release
 
 Each release attaches `podrunner-manifest.json` with its `.sha256` and an

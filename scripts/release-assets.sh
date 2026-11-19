@@ -21,6 +21,10 @@
 #       DIST holds the binaries and the image archives; the pins of
 #       podvm, podnet and the runner come from images/ (a test gives
 #       another directory in RELEASE_ASSETS_IMAGES)
+#   sh scripts/release-assets.sh sums DIR
+#       DIR/SHA256SUMS: one line for each asset of DIR (not the .sha256
+#       files), the file that release.yml signs with cosign, as the other
+#       projects of PodUtils do (T-484)
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 die() {
@@ -108,6 +112,24 @@ case $cmd in
             echo "$(basename "$f"): $((size >> 20)) MiB"
             [ "$size" -lt 2147483648 ] || die "$f is 2 GiB or more: GitHub refuses it"
         done
+        ;;
+    sums)
+        [ $# -eq 1 ] || usage
+        dir=$1
+        (
+            cd "$dir"
+            rm -f SHA256SUMS SHA256SUMS.sigstore.json
+            set --
+            for f in *; do
+                case $f in *.sha256) continue ;; esac
+                [ -f "$f" ] && set -- "$@" "$f"
+            done
+            [ $# -gt 0 ] || die "$dir holds no asset"
+            sha256sum -- "$@" > SHA256SUMS.part
+            mv -f SHA256SUMS.part SHA256SUMS
+            sha256sum -c --quiet SHA256SUMS
+        )
+        echo "SHA256SUMS: $(wc -l < "$dir/SHA256SUMS") assets"
         ;;
     *) usage ;;
 esac

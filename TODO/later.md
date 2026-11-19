@@ -10786,7 +10786,7 @@ In the code (2026-11-18): podvm `0.2.0-beta.33` gives `CpuSeconds` and `PeakMemo
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10805,6 +10805,8 @@ podssh, podnet, podvm and podcrates sign one `SHA256SUMS` file of each release w
 ## Prove
 
 A dry run of `release.yml` makes both files, and the step of the check passes on them and fails on a changed `SHA256SUMS`.
+
+In the code (2026-11-18): `sh scripts/release-assets.sh sums DIR` writes `DIR/SHA256SUMS` of each asset (not the `.sha256` files; case 12 of `sh scripts/test-install.sh` checks it). The job `release` of `release.yml` writes it over `dist`, signs it with `cosign sign-blob --bundle SHA256SUMS.sigstore.json` (the cosign installer and `v3.1.4` of podcrates), checks the signature with the identity of the workflow at the ref of the dispatch, and checks that a changed copy fails; both files go into the release. `docs/install.md` names the check. Left: the first release that runs it (the signing needs the token of a release run), and step 3 (the installer checks the sums file when `cosign` exists).
 
 # T-485: The incus kind has no container route, though G-02 asks for an engine in the system container
 

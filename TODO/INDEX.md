@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**534 entries: 51 open, 44 partial, 12 blocked, 427 done.**
+**534 entries: 50 open, 45 partial, 12 blocked, 427 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 3 | 21 | 3 | 72 | 99 |
-| P2 | 11 | 16 | 6 | 226 | 259 |
+| P2 | 10 | 17 | 6 | 226 | 259 |
 | P3 | 36 | 7 | 3 | 127 | 173 |
-| **All** | 51 | 44 | 12 | 427 | 534 |
+| **All** | 50 | 45 | 12 | 427 | 534 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -528,7 +528,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-481](later.md) | P2 | S | later | measurement | open | The checkout of a job on the incus kind is proven by a test of the script only |
 | [T-482](later.md) | P2 | M | later | defect | partial | The incus kind bounds no disk of the root of an instance |
 | [T-483](later.md) | P2 | M | later | defect | partial | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
-| [T-484](later.md) | P2 | S | later | release | open | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
+| [T-484](later.md) | P2 | S | later | release | partial | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
 | [T-485](later.md) | P1 | M | later | feature | partial | The incus kind has no container route, though G-02 asks for an engine in the system container |
 | [T-486](later.md) | P1 | M | later | feature | done | G-04: the egress verdicts of a unit do not reach the source of the job |
 | [T-487](later.md) | P2 | L | later | feature | open | G-11: warm units from a pinned golden image |

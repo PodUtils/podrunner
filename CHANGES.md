@@ -45,6 +45,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | command line | `run --schedule` reads the `timezone` of each item of `on.schedule`. | T-423 |
 | command line | `drain --source NAME`, `stop --source NAME` and `resume --source NAME`. | T-501 |
 | command line | `source-conformance --json`: one JSON object for each line (the count and the offers needed, each test, the totals). | T-503 |
+| release assets | `SHA256SUMS` of each asset with its keyless cosign bundle `SHA256SUMS.sigstore.json` (the identity of `release.yml`). | T-484 |
 | release assets | `podrunner-install.sh --serve` writes `serve.json` and no file of the local mode. | T-507 |
 | release assets | `podrunner-manifest.json` with its `.sha256` and an attestation: the versions, each binary and each runner image with its digest and `built_at_s`. | T-499 |
 | `job-offer.v1` | An offer with `sandbox { image, command, idle_s, max_s }` runs `command` in a unit of `image` at `untrusted`; the image must be a `[[pin.payload]]` with `sandbox = true` (else `payload-not-pinned`); the payload gets `PODRUNNER_IDLE_S`; the unit ends at the lesser of `max_s` and the wall. | T-506 |

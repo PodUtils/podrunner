@@ -247,6 +247,13 @@ for f in podrunner-install.sh podrunner-manifest.json podrunner-bundle-x86_64.ta
     fi
 done
 grep -qx 'PODRUNNER_VERSION="9.9.9-test"' "$t/rel/podrunner-install.sh" || fail "release-assets.sh: the installer has not the version"
+# T-484: SHA256SUMS of each asset, with no line of a .sha256 file.
+sh "$root/scripts/release-assets.sh" sums "$t/rel" > "$t/out" 2>&1 || fail "release-assets.sh sums"
+(cd "$t/rel" && sha256sum -c --quiet SHA256SUMS) || fail "SHA256SUMS does not check"
+for f in podrunner-install.sh podrunner-manifest.json "runner-$arch.tar"; do
+    grep -q "  $f\$" "$t/rel/SHA256SUMS" || fail "SHA256SUMS has no line of $f"
+done
+! grep -q '\.sha256$' "$t/rel/SHA256SUMS" || fail "SHA256SUMS lists a .sha256 file"
 python3 -I - "$t/rel/podrunner-manifest.json" "$arch" <<'EOF' || fail "release-assets.sh: the manifest"
 import json, sys
 m = json.load(open(sys.argv[1]))
