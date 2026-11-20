@@ -13475,6 +13475,8 @@ The rule does not change the fake units of the tests: their payloads are shell s
 
 State (2026-11-20): the code and the three tests are in the commit that names T-567. Not built and not run (level: not run).
 
+State (2026-11-20, the review of T-567 and T-568): the rule of T-567 stays. The read of the log for each job that exits 0 has no bound in time and in memory: T-570 has it. The reason of an unknown `start_s` is now "no first-step event came for the job": a `program` source with no container hook sends no such event, also for a job that ran its steps, so the old text "the runner reached no first step" was not true for it. Not built and not run (level: not run).
+
 ## Prove
 
 `cargo test -p podrunner-slots --lib -- log_tail report sandbox`: `the_runner_with_no_job_line_took_no_job`; `a_runner_that_exits_0_with_no_job_is_no_success` (a fake payload that prints the line of `run-helper.sh` and exits 0 gives `unit-failed`, an audit line and a `log_tail`; with a "Running job:" line it stays `success`; it fails on the code before); `a_sandbox_that_exits_0_stays_a_success_with_no_job_line`. Then the lane serve-incus-kvm of `user-gate.yml`: `serve:job:incus` and `serve:job:microvm` give a report that is not `success` while the egress refuses the fake GitHub.
@@ -13496,21 +13498,48 @@ An ephemeral runner (a JIT runner) exits 0 after its job, also when the job fail
 
 Read on 2026-11-20 in actions/runner at `7e211dc6`: `RunAsync` of `actions/runner:src/Runner.Listener/Runner.cs` returns the result of a run-once job (`TaskResultUtil.TranslateToReturnCode`) only with `ACTIONS_RUNNER_RETURN_JOB_RESULT_FOR_HOSTED`, else `ReturnCode.Success`; `actions/runner:src/Misc/layoutroot/run-helper.sh.template` exits 0 for each code that is not 2, 3, 4 or 7, so the variable does not help through `run.sh`. `JobDispatcher.cs` prints "Job NAME completed with result: RESULT" (`Succeeded`, `Failed`, `Canceled`, ...) to the console. Not measured: what the source of githome and cfb expect in `exit_reason` for a job that failed.
 
-`JobDispatcher.cs` writes both lines as `{DateTime.UtcNow:u}: ...`, so each starts with a stamp such as `2026-11-20 10:00:00Z: `. The listener copies the stdout of the worker to its console only with `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT`; the trace lines then start with `[WORKER` or `[RUNNER`. The output of a step goes to the job log at the forge, not to the console.
+`JobDispatcher.cs` writes both lines as `{DateTime.UtcNow:u}: ...`, so each starts with a stamp such as `2026-11-20 10:00:00Z: `. The output of a step goes to the job log at the forge, not to the console.
+
+Read on 2026-11-20 in actions/runner at `main` for the review of T-568:
+
+- `JobDispatcher.cs` prints "Running job: NAME" before it starts the worker, so before a step runs. It prints the completed line on one of two paths that exclude each other (the worker ends; or a cancel or an abandon), so one completed line for each job. NAME is `message.JobDisplayName` on both lines.
+- With `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT` true, `JobDispatcher.cs` copies each stdout line of the worker to the console of the listener as it is (`term.WriteLine(stdout.Data, skipTracing: true)`), and `HostContext.cs` adds a `StdoutTraceListener`. That listener puts the `[WORKER`/`[RUNNER` prefix on each line of a trace message; with `ACTIONS_RUNNER_DISABLE_STDOUT_MULTILINE_LOG_PREFIXING` true only the first line has it (`StdoutTraceListener.cs`). So with the first variable, a trace message or an exception text of the worker that holds text of a step can put a line with no prefix into the log of the unit. `StringUtil.ConvertToBoolean` reads "false" as false.
+- Neither variable is set in `images/runner/` or in `crates/`. podrunner now sets `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=false` in the start environment of each unit (`crates/podrunner-slots/src/run.rs`), so the second variable has no effect. Not measured: that the environment of each driver replaces an `ENV` of the payload image of the operator.
+- A process of the job can write a full stamped line to the console of the listener: `/proc/PID/fd/1` of `Runner.Listener`, the route of the job-started hook (`images/runner/podrunner-job-started.sh`, on `fd/2`). The runner ends the processes of a job at its end by their `RUNNER_TRACKING_ID`; a process that clears the variable is not ended, and a step can open the console during the job and keep the descriptor. So a process of the job can write a line also after the real completed line. Not measured on the kinds of podrunner.
 
 ## Approach
 
 In `finish()`, for a unit that is not a sandbox and that exited 0, read the last "completed with result: " line of its log (T-567 reads the log already): `Failed` gives `failure`, `Canceled` gives `cancelled`, `Succeeded` keeps `success`. The log of a job with a first step is read too, so the read moves out of the block of T-497. A test with a fake payload that prints each line.
 
-The line of the runner: a line that starts with the stamp of `JobDispatcher.cs`, then `Job NAME completed with result: RESULT`, where NAME is the name of the last stamped `Running job: NAME` line before it and RESULT is one word. The last such line wins. The output of a step that only holds the words, a trace line and a line of the job log (an ISO stamp) do not start with that stamp. Limits: a process of the unit that writes the full stamped line to the console of the listener is not told apart; a log that adds a prefix to each line (not measured for `podvm logs` and `guest.log`) gives no result, so the exit code keeps its rule (`success`). Other results (`SucceededWithIssues`, `Skipped`, `Abandoned`) keep `success`; T-569 has `Abandoned`.
+The line of the runner: a line that starts with the stamp of `JobDispatcher.cs`, then `Job NAME completed with result: RESULT`, where NAME is the name of the first stamped `Running job: NAME` line of the log and RESULT is one word. NAME is compared with no trailing white space on both lines (the end of the line is cut, so a display name with a trailing space gave no result). A `Succeeded` line does not hide a `Failed`, `Canceled` or other line; of those, the last wins. The output of a step that only holds the words, a trace line and a line of the job log (an ISO stamp) do not start with that stamp. A log that adds a prefix to each line (not measured for `podvm logs` and `guest.log`) gives no result, so the exit code keeps its rule (`success`). Other results (`SucceededWithIssues`, `Skipped`, `Abandoned`) keep `success`; T-569 has `Abandoned`.
 
-A job with a first step that the runner says failed gets no `log_tail`: G-19 (T-497) gives `log_tail` only to a unit that failed before its first step, and the log of a job with a step is at the forge. A job with no first step that the runner says failed (a failed set-up) gets `log_tail` by the rule of T-497. A cancel gets none ("a cancel is no failure"). The OOM rule of T-515 now reads the reason after the log, so a failure that the log tells, with an OOM kill, ends with `limit`.
+What holds against a forged line of a process of the job:
+
+- A forged `Running job:` line after the real one does not change the job (a JIT runner runs one job, and its line comes before each step).
+- A forged `Succeeded` line before or after the real `Failed` or `Canceled` line does not hide it. A forged line of another NAME has no effect.
+
+What does not hold:
+
+- A process of the job can forge a `Failed` or `Canceled` line for a job that succeeded: the report then says `failure` or `cancelled`. The job can fail by itself, so it harms only its own report.
+- With no real completed line in the log (a log that the driver cut, T-570), a forged `Succeeded` line gives `success`, as the exit code does.
+
+A change of the reason by the log gives an audit line `job-completed` with the cause, and serve prints it on stderr, as T-567 does.
+
+A job with a first step that the runner says failed gets no `log_tail`: G-19 (T-497) gives `log_tail` only to a unit that failed before its first step, and the log of a job with a step is at the forge. "A first step" is a first-step event: a `started` event of the source or the `job-started` container hook. A `program` source with no container hook sends neither, so each of its jobs counts as one with no first step, and each one that failed gets `log_tail` by the rule of T-497. A cancel gets none ("a cancel is no failure"). The OOM rule of T-515 now reads the reason after the log, so a failure that the log tells, with an OOM kill, ends with `limit`.
+
+## Decision
+
+2026-11-20, a call with no ruling: a failed job of a `program` source with no first-step event keeps its `log_tail`. githome has no other log of a failed job, and the tail holds the lines of the listener, scrubbed. When githome or cfb ask for no tail, record the question.
+
+2026-11-20, a call with no ruling: the review asked for "the last completed line wins". A process of the job can write after the real line (Premise), so a `Succeeded` line does not hide another result.
 
 State (2026-11-20): `log_tail::job_result` holds the parser; `Slots::read_unit_log` (`crates/podrunner-slots/src/report.rs`) reads the log one time for T-497, T-552, T-567 and T-568, and `finish()` of `run.rs` calls it. Tests: `log_tail::tests::the_last_job_line_of_the_listener_gives_the_result`, `tests::report::a_runner_that_exits_0_after_a_failed_job_is_no_success`, `tests::hooks::a_job_with_a_step_that_the_runner_says_failed_is_a_failure`, `tests::sandbox::a_sandbox_that_exits_0_stays_a_success_with_a_failed_job_line`. Not built and not run (level: not run).
 
+State (2026-11-20, the review of T-567 and T-568): the first stamped `Running job:` line binds; a `Succeeded` line hides no other result; NAME is compared with no trailing space; a change of the reason gives an audit line `job-completed` and a line on stderr; the start environment sets `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=false`. The read of the log has no bound: T-570. New tests: `log_tail::tests::the_first_running_line_binds_and_a_forged_success_hides_no_failure`, `log_tail::tests::a_job_name_with_a_trailing_space_gives_its_result`, `tests::report::a_forged_running_line_does_not_hide_a_failed_job_and_the_change_has_an_audit_line`, `tests::report::the_listener_of_a_unit_copies_no_worker_output_to_the_log`. Not built and not run (level: not run).
+
 ## Prove
 
-`cargo test -p podrunner-slots --lib -- log_tail report hooks sandbox`: a fake payload that prints "Running job: build" and "Job build completed with result: Failed" and exits 0 gives `failure` with a `log_tail`; with `Canceled` gives `cancelled`; with `Succeeded` gives `success`; a step that prints only the words keeps `success`; a job with a first step that the runner says failed gives `failure` and no `log_tail`; a sandbox stays `success`. The tests of report and hooks fail on the code before.
+`cargo test -p podrunner-slots --lib -- log_tail report hooks sandbox`: a fake payload that prints "Running job: build" and "Job build completed with result: Failed" and exits 0 gives `failure` with a `log_tail`; with `Canceled` gives `cancelled`; with `Succeeded` gives `success`; a step that prints only the words keeps `success`; a job with a first step that the runner says failed gives `failure` and no `log_tail`; a sandbox stays `success`. The tests of report and hooks fail on the code before. A forged later `Running job: x` line, then the real `Failed` line, then a forged `Succeeded` line gives `failure` and an audit line `job-completed`; a display name with a trailing space gives its result; the unit gets `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=false`. These fail on the code before the review.
 
 # T-569: A job that the runner abandoned is reported as success
 
@@ -13536,3 +13565,39 @@ Map `Abandoned` to `failure` (the job did not succeed; `lost` means a restart of
 ## Prove
 
 `cargo test -p podrunner-slots --lib -- log_tail report`: a fake payload that prints the stamped "Running job: build" and "Job build completed with result: Abandoned" lines and exits 0 gives `failure`.
+
+# T-570: The read of the unit log for each runner job has no bound
+
+**Source:** the review of T-567 and T-568, 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`Slots::read_unit_log` (`crates/podrunner-slots/src/report.rs`) reads the log of the unit for each runner job that exits 0 (T-567, T-568), not only for a unit that failed before its first step (T-497). `finish()` of `crates/podrunner-slots/src/run.rs` calls it in the tick. The read has no bound in time and in memory:
+
+- The podvm and the incus kinds run one `podvm logs` subprocess for each job (`logs_unit` of `crates/podrunner-podvm/src/unit/containers.rs`, `verb` of `crates/podrunner-incus/src/lib.rs`). `Command::output` has no time limit and holds all of the output. The tick waits for it.
+- The microvm kind reads all of `guest.log` (`crates/podrunner-microvm/src/lib.rs`), and the fake kind all of `.unit.log`.
+- `hook_ended`, `runner_took_no_job` and `job_result` of `crates/podrunner-slots/src/log_tail.rs` each make a UTF-8 copy of the full log when it is not valid UTF-8, and `scrub` copies the full log before it cuts the tail.
+
+A process of the job can write to the console of the listener (`/proc/PID/fd/1`), so the job sets the size of the log.
+
+## Premise
+
+Read on 2026-11-20 in this repository at the commit of the review. Not measured: the time of `podvm logs` for each job on the podvm and the incus kinds; the size of `guest.log` and of the output of `podvm logs` for a usual job; whether `podvm logs` has an option that gives only the end of the log.
+
+A read of only the end of the log is not safe for `job_result` by itself (T-568): the first stamped `Running job:` line binds the job, and it is at the start. A process of the job that lives after the job (a cleared `RUNNER_TRACKING_ID`, or a descriptor of the console that a step opened) can also write after the real completed line, to push it out of a window at the end. Then only its forged lines are in the window.
+
+## Approach
+
+1. Measure: the time of `podvm logs` for one job on the podvm and the incus lanes of `user-gate.yml`, and the size of the log of a usual job and of a job that writes 100 MiB to the console of the listener.
+2. Read the log as a stream with a bound of bytes: a reader of the driver (a file, or the stdout of `podvm logs` with a time limit), and one pass that keeps the state of `hook_ended`, `runner_took_no_job` and `job_result` and the last `LOG_TAIL_MAX` bytes for `scrub`. Keep the first stamped `Running job:` line from the start of the log.
+3. A log over the bound: a `Failed` or `Canceled` line in the part that was read still tells. Else the report keeps `success`, and an audit line names the cut log.
+4. When `podvm logs` has no option for a bound, write a COORD issue `(to podvm)`.
+
+## Prove
+
+`cargo test -p podrunner-slots --lib -- log_tail report`: a fake payload that writes more than the bound after the real `Failed` line, then a forged `Succeeded` line, gives `failure` and reads no more than the bound. Then the podvm and the incus lanes of `user-gate.yml` give the time of the read in the log of `serve`.

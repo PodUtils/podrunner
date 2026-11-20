@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**566 entries: 60 open, 51 partial, 17 blocked, 438 done.**
+**567 entries: 61 open, 51 partial, 17 blocked, 438 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 5 | 24 | 6 | 78 | 113 |
 | P2 | 16 | 20 | 8 | 230 | 274 |
-| P3 | 38 | 7 | 3 | 128 | 176 |
-| **All** | 60 | 51 | 17 | 438 | 566 |
+| P3 | 39 | 7 | 3 | 128 | 177 |
+| **All** | 61 | 51 | 17 | 438 | 567 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -614,3 +614,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-567](later.md) | P1 | S | later | defect | partial | A runner unit that exits 0 with no job is reported as success |
 | [T-568](later.md) | P2 | S | later | defect | partial | A runner job that fails is reported as success |
 | [T-569](later.md) | P3 | S | later | defect | open | A job that the runner abandoned is reported as success |
+| [T-570](later.md) | P3 | M | later | defect | open | The read of the unit log for each runner job has no bound |

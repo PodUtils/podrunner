@@ -469,7 +469,7 @@ A host that serves no `untrusted` tier does not poll that tier's set: a polled j
 
 ### 10.3 Per-job start environment
 
-`slots` passes the start environment in `start.env`, not the image, so a pin cannot drop it: `DOTNET_EnableWriteXorExecute=0` (§10.4), the hook variables (§7.2) and `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` (§11.3). It sets none of `RUNNER_TOOL_CACHE`, `RUNNER_TOOLSDIRECTORY` and `AGENT_TOOLSDIRECTORY`, which keeps the tool mount target at `/__w/_tool` (`contracts/unit-driver.md`). The `runner_root` of the contract examples is not a requirement.
+`slots` passes the start environment in `start.env`, not the image, so a pin cannot drop it: `DOTNET_EnableWriteXorExecute=0` (§10.4), the hook variables (§7.2), `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` (§11.3) and `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=false` (the log of the unit holds no output of the worker, T-568). It sets none of `RUNNER_TOOL_CACHE`, `RUNNER_TOOLSDIRECTORY` and `AGENT_TOOLSDIRECTORY`, which keeps the tool mount target at `/__w/_tool` (`contracts/unit-driver.md`). The `runner_root` of the contract examples is not a requirement.
 
 ### 10.4 Limits, the .NET constraint and the tree kill
 

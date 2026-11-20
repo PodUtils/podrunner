@@ -140,7 +140,10 @@ impl Slots {
             r.runner_version = self.cfg.pin.payload.iter().find(pinned).and_then(|x| x.runner_version.clone());
         }
         if unit_ran && j.first_step_ms.is_none() {
-            r.unknown_reasons.insert("start_s".into(), "the runner reached no first step".into());
+            // No `started` event of the source and no container hook came:
+            // a `program` source with no hook sends none, also for a job
+            // that ran its steps (T-568).
+            r.unknown_reasons.insert("start_s".into(), "no first-step event came for the job".into());
         }
         r.log_tail = j.times.log_tail.clone();
         if unit_ran {
@@ -207,6 +210,16 @@ impl Slots {
             self.audit(crate::audit::Kind::Refuse, key.0, &key.1, None, Some(why.into()));
         }
         let result = if zero && ended.is_none() && !idle { crate::log_tail::job_result(&log) } else { None };
+        let told = match result {
+            Some(crate::log_tail::JobResult::Failed) => Some((ExitReason::Failure, "Failed")),
+            Some(crate::log_tail::JobResult::Canceled) => Some((ExitReason::Cancelled, "Canceled")),
+            _ => None,
+        };
+        if let Some((_, word)) = told {
+            let why = format!("the runner exited 0 and its log says that the job completed with result: {word}");
+            eprintln!("podrunner: {unit}: {why}");
+            self.audit(crate::audit::Kind::JobCompleted, key.0, &key.1, None, Some(why));
+        }
         let Some(job) = self.jobs.get_mut(key) else { return };
         if ended.is_some() && matches!(job.reason, None | Some(ExitReason::Success | ExitReason::Failure)) {
             job.reason = Some(ExitReason::JobMismatch);
@@ -214,13 +227,14 @@ impl Slots {
         if idle {
             job.reason = Some(ExitReason::UnitFailed);
         }
-        match result {
-            Some(crate::log_tail::JobResult::Failed) => job.reason = Some(ExitReason::Failure),
-            Some(crate::log_tail::JobResult::Canceled) => job.reason = Some(ExitReason::Cancelled),
-            _ => {}
+        if let Some((reason, _)) = told {
+            job.reason = Some(reason);
         }
         // A job that ran a step has its log at the forge: no `log_tail`
         // (the G-19 contract: a unit that failed before its first step).
+        // With no first-step event (a `program` source with no container
+        // hook) each job counts as early, so each one that failed gets a
+        // `log_tail`: such a source has no other log of the job (T-568).
         if early && !matches!(job.reason, Some(ExitReason::Success | ExitReason::Cancelled)) {
             job.times.log_tail = Some(crate::log_tail::scrub(&log, &job.times.marks));
         }

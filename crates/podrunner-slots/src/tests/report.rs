@@ -36,7 +36,7 @@ fn a_report_has_its_times_its_image_and_its_measures_or_a_reason() {
     }
     // The fake unit runs no job: no first step, so no start_s, with a reason.
     assert_eq!(r.start_s, None);
-    assert_eq!(r.unknown_reasons.get("start_s").map(String::as_str), Some("the runner reached no first step"));
+    assert_eq!(r.unknown_reasons.get("start_s").map(String::as_str), Some("no first-step event came for the job"));
     // The disk check comes each 30 s of the manual clock; the bed ticks
     // each second, and on a slow host the unit can start a tick late.
     assert!(r.run_s.is_some_and(|s| (30..=32).contains(&s)), "the unit ran 30 s until the disk check: {:?}", r.run_s);
@@ -100,13 +100,7 @@ fn a_runner_that_exits_0_with_no_job_is_no_success() {
 fn a_runner_that_exits_0_after_a_failed_job_is_no_success() {
     // T-568: `run.sh` exits 0 whatever the result of the job. The fake
     // payload prints the lines of `JobDispatcher.cs` and exits 0.
-    let job = |result: &str| {
-        let lines = format!(
-            "echo '2026-11-20 10:00:00Z: Running job: build'; \
-             echo '2026-11-20 10:00:09Z: Job build completed with result: {result}'; exit 0"
-        );
-        run(None, &lines)
-    };
+    let job = |result: &str| run(None, &lines_of(result));
     let r = job("Failed");
     assert_eq!(r.exit_reason, ExitReason::Failure, "{r:?}");
     assert_eq!(r.exit_code, Some(0), "{r:?}");
@@ -121,6 +115,41 @@ fn a_runner_that_exits_0_after_a_failed_job_is_no_success() {
     assert_eq!(r.log_tail, None, "{r:?}");
     // A step that prints the words is not the line of the runner.
     let r = run(None, "echo '2026-11-20 10:00:00Z: Running job: build'; echo 'completed with result: Failed'; exit 0");
+    assert_eq!(r.exit_reason, ExitReason::Success, "{r:?}");
+}
+
+#[test]
+fn a_forged_running_line_does_not_hide_a_failed_job_and_the_change_has_an_audit_line() {
+    // T-568: a step writes a later `Running job:` line of another name to
+    // the console of the listener; the real `Failed` line still tells.
+    let lines = "echo '2026-11-20 10:00:00Z: Running job: build'; \
+                 echo '2026-11-20 10:00:03Z: Running job: x'; \
+                 echo '2026-11-20 10:00:09Z: Job build completed with result: Failed'; \
+                 echo '2026-11-20 10:00:10Z: Job build completed with result: Succeeded'; exit 0";
+    let bed = ran(None, lines);
+    let r = &bed.slots.reports[0];
+    assert_eq!(r.exit_reason, ExitReason::Failure, "{r:?}");
+    let why = |l: &crate::audit::Entry| l.detail.as_deref().is_some_and(|d| d.ends_with("result: Failed"));
+    let lines = bed.slots.audit_lines();
+    assert!(lines.iter().any(|l| l.audit == crate::audit::Kind::JobCompleted && why(l)), "{lines:?}");
+    // A success changes no reason: no such audit line.
+    let bed = ran(None, &lines_of("Succeeded"));
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
+    assert!(!bed.slots.audit_lines().iter().any(|l| l.audit == crate::audit::Kind::JobCompleted));
+}
+
+fn lines_of(result: &str) -> String {
+    format!(
+        "echo '2026-11-20 10:00:00Z: Running job: build'; \
+         echo '2026-11-20 10:00:09Z: Job build completed with result: {result}'; exit 0"
+    )
+}
+
+#[test]
+fn the_listener_of_a_unit_copies_no_worker_output_to_the_log() {
+    // T-568: the start environment sets the variable to "false", so the
+    // log that `job_result` reads holds no trace line of the worker.
+    let r = run(None, r#"test "$ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT" = false || exit 3"#);
     assert_eq!(r.exit_reason, ExitReason::Success, "{r:?}");
 }
 

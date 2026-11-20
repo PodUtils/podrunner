@@ -132,6 +132,10 @@ impl Slots {
             // The runner exits 7 on a "version too old" answer only with the
             // string "1" here (SPEC §11.3); slots then marks the pin stale.
             ("ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE".to_string(), "1".to_string()),
+            // With "true" the listener copies the stdout of its worker to
+            // the log of the unit, and a trace line can hold text of a step;
+            // `log_tail::job_result` reads that log (T-568).
+            ("ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT".to_string(), "false".to_string()),
         ]);
         crate::sandbox::env(j.offer.as_ref(), &mut env);
         // One socket directory for each unit: its egress socket, its

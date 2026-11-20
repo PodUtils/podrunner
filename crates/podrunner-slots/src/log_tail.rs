@@ -153,38 +153,48 @@ fn after_stamp(line: &str) -> Option<&str> {
     ok.then(|| &line[STAMP.len()..])
 }
 
-/// The result of the last job of the runner in `log` (T-568): the last
-/// line `STAMP: Job NAME completed with result: RESULT` of the listener,
-/// where NAME is the name of the last `STAMP: Running job: NAME` line before
-/// it. `run.sh` exits 0 whatever the result, so the exit code does not
-/// tell. Each line must start with the time stamp, so the output of a step
-/// that only holds the words is not taken. A step that writes the full
-/// line to the console of the listener is not told apart.
+/// The result of the job of the runner in `log` (T-568): from the lines
+/// `STAMP: Job NAME completed with result: RESULT` of the listener, where
+/// NAME is the name of the first `STAMP: Running job: NAME` line. `run.sh`
+/// exits 0 whatever the result, so the exit code does not tell.
+///
+/// Each line must start with the time stamp, so the output of a step that
+/// only holds the words is not taken. A process of the job can write a
+/// full line to the console of the listener (`/proc/PID/fd/1`, the route
+/// of the job-started hook). A JIT runner runs one job, and the listener
+/// prints its `Running job:` line before a step runs: the first one
+/// binds. The listener prints one completed line for the job, so each
+/// other one is forged: a `Succeeded` line does not hide another result,
+/// and of the other results the last wins. NAME is compared with no
+/// trailing white space, as the line is.
 pub fn job_result(log: &[u8]) -> Option<JobResult> {
     let text = String::from_utf8_lossy(log);
     let mut running: Option<&str> = None;
-    let mut last = None;
+    let mut found = None;
     for line in text.lines().map(str::trim_end) {
         let Some(rest) = after_stamp(line) else { continue };
-        if let Some(name) = rest.strip_prefix("Running job: ") {
-            running = Some(name);
+        let Some(job) = running else {
+            running = rest.strip_prefix("Running job: ").map(str::trim_end);
             continue;
-        }
+        };
         let Some((name, result)) = rest.strip_prefix("Job ").and_then(|r| r.rsplit_once(" completed with result: "))
         else {
             continue;
         };
-        if running != Some(name) || result.is_empty() || !result.bytes().all(|c| c.is_ascii_alphabetic()) {
+        if name.trim_end() != job || result.is_empty() || !result.bytes().all(|c| c.is_ascii_alphabetic()) {
             continue;
         }
-        last = Some(match result {
+        let r = match result {
             "Succeeded" => JobResult::Succeeded,
             "Failed" => JobResult::Failed,
             "Canceled" => JobResult::Canceled,
             _ => JobResult::Other,
-        });
+        };
+        if r != JobResult::Succeeded || found.is_none() {
+            found = Some(r);
+        }
     }
-    last
+    found
 }
 
 /// `log` with each mark and each token shape masked: its last
@@ -278,8 +288,8 @@ mod tests {
         assert_eq!(of(format!("{run}{}", end("Canceled"))), Some(JobResult::Canceled));
         assert_eq!(of(format!("{run}{}", end("Succeeded"))), Some(JobResult::Succeeded));
         assert_eq!(of(format!("{run}{}", end("Abandoned"))), Some(JobResult::Other));
-        // The last line wins.
-        assert_eq!(of(format!("{run}{}{}", end("Failed"), end("Succeeded"))), Some(JobResult::Succeeded));
+        // Of two results that are not `Succeeded`, the last wins.
+        assert_eq!(of(format!("{run}{}{}", end("Canceled"), end("Failed"))), Some(JobResult::Failed));
         // No line of the listener: no result.
         assert_eq!(job_result(b"echo fine\n"), None);
         // The output of a step, or a line of the trace, holds the words but
@@ -297,6 +307,33 @@ mod tests {
         assert_eq!(of(end("Failed")), None);
         // A result that is not one word.
         assert_eq!(of(format!("{run}{}", end("Failed now"))), None);
+    }
+
+    #[test]
+    fn the_first_running_line_binds_and_a_forged_success_hides_no_failure() {
+        let run = "2026-11-20 10:00:00Z: Running job: build\n";
+        let failed = "2026-11-20 10:00:09Z: Job build completed with result: Failed\n";
+        let ok = |name: &str| format!("2026-11-20 10:00:05Z: Job {name} completed with result: Succeeded\n");
+        let of = |s: String| job_result(s.as_bytes());
+        // A step writes a later `Running job:` line of another name to the
+        // console of the listener: the real line of the job still binds.
+        let forged_run = "2026-11-20 10:00:03Z: Running job: x\n";
+        assert_eq!(of(format!("{run}{forged_run}{failed}")), Some(JobResult::Failed));
+        assert_eq!(of(format!("{run}{forged_run}{}{failed}", ok("x"))), Some(JobResult::Failed));
+        // A forged `Succeeded` line before or after the real `Failed` line.
+        assert_eq!(of(format!("{run}{}{failed}", ok("build"))), Some(JobResult::Failed));
+        assert_eq!(of(format!("{run}{failed}{}", ok("build"))), Some(JobResult::Failed));
+        // One `Succeeded` line, or two, is a success.
+        assert_eq!(of(format!("{run}{}{}", ok("build"), ok("build"))), Some(JobResult::Succeeded));
+    }
+
+    #[test]
+    fn a_job_name_with_a_trailing_space_gives_its_result() {
+        // The runner prints the display name as it is; the line of the
+        // `Running job:` loses its trailing space with the end of the line.
+        let log = "2026-11-20 10:00:00Z: Running job: build \n\
+                   2026-11-20 10:00:09Z: Job build  completed with result: Failed\n";
+        assert_eq!(job_result(log.as_bytes()), Some(JobResult::Failed));
     }
 
     #[test]
