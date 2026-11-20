@@ -12947,7 +12947,7 @@ State (2026-11-19): podvm's measure (PodUtils/podvm@T-1997, COORD-203): the incu
 
 `cargo test -p podrunner --test check`: 5 passed; `a_pin_over_the_root_disk_of_the_incus_kind_is_refused` fails on the code with no rule (exit 0) and passes with it: 55 GB over 40 GB exits 78 with the fix and the host disk (187.0 GB), at `serve` with the same text; 30 GB, 40 GB (at the bound), no `root_quota`, and another architecture pass. `cargo test -p podrunner --lib -- doctor text`: 16 passed (`doctor_names_the_disk_of_a_pinned_image`). `cargo test -p podrunner-slots --lib`: 132 passed (`a_signed_list_verifies_and_each_change_fails` fails on the old message for `sandbox` and `unpacked_bytes`).
 
-Level: proven by tests on this machine only; not run in CI and not run on a constrained host as a user (no incus host here). Not in this commit: the ask to githome on GitHub #151 for a root disk of 80 GB or more for each unit. Findings: T-573 (the memory of a microvm guest), T-571 (an offer `disk` below the image), T-572 (the size in the release manifest and in `config init`).
+Level: proven by tests on this machine only; not run in CI and not run on a constrained host as a user (no incus host here). The ask to githome for a root disk of 80 GB or more for each unit is on GitHub #151 (2026-11-20). Findings: T-573 (the memory of a microvm guest), T-571 (an offer `disk` below the image), T-572 (the size in the release manifest and in `config init`).
 
 # T-552: A job that the job-started hook ends with no answer is reported as success
 
