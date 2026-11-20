@@ -32,11 +32,15 @@ jobs:
           set -eu
           case $DIGEST in sha256:[0-9a-f]*) [ ${#DIGEST} -eq 71 ] ;; *) echo "not a digest: $DIGEST" >&2; exit 1 ;; esac
           df -h / /mnt
-          dig=$(python3 -I scripts/hosted/slice.py --digest "$DIGEST" --ref hosted:core --out /mnt/slice)
+          # /mnt belongs to root on a hosted runner: a work directory of the
+          # user of the job.
+          sudo mkdir -p /mnt/w
+          sudo chown "$(id -u):$(id -g)" /mnt/w
+          dig=$(python3 -I scripts/hosted/slice.py --digest "$DIGEST" --ref hosted:core --out /mnt/w/slice)
           echo "SLICE=$dig" >> "$GITHUB_ENV"
-          (cd /mnt/slice && find . -type f | sed 's#^\./##' | sort | tar -cf /mnt/slice.tar --no-recursion -T -)
-          rm -rf /mnt/slice
-          ls -l /mnt/slice.tar
+          (cd /mnt/w/slice && find . -type f | sed 's#^\./##' | sort | tar -cf /mnt/w/slice.tar --no-recursion -T -)
+          rm -rf /mnt/w/slice
+          ls -l /mnt/w/slice.tar
       - name: podvm and incusd
         run: |
           set -eu
@@ -57,10 +61,10 @@ jobs:
       - name: Boot the slice with the init of the image
         run: |
           set -u
-          export PODVM_STORE=/mnt/store
+          export PODVM_STORE=/mnt/w/store
           podvm=$RUNNER_TEMP/podvm
-          "$podvm" load -i /mnt/slice.tar
-          rm -f /mnt/slice.tar
+          "$podvm" load -i /mnt/w/slice.tar
+          rm -f /mnt/w/slice.tar
           out=$RUNNER_TEMP/out
           mkdir -p "$out" && chmod 0777 "$out"
           # The checks run in the instance from the mounted directory: no
