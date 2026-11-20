@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**567 entries: 60 open, 52 partial, 17 blocked, 438 done.**
+**570 entries: 62 open, 52 partial, 17 blocked, 439 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 5 | 24 | 6 | 78 | 113 |
-| P2 | 15 | 21 | 8 | 230 | 274 |
-| P3 | 39 | 7 | 3 | 128 | 177 |
-| **All** | 60 | 52 | 17 | 438 | 567 |
+| P1 | 4 | 24 | 6 | 79 | 113 |
+| P2 | 17 | 21 | 8 | 230 | 276 |
+| P3 | 40 | 7 | 3 | 128 | 178 |
+| **All** | 62 | 52 | 17 | 439 | 570 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -595,7 +595,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-548](later.md) | P1 | S | later | chore | done | The licence call of a published hosted image |
 | [T-549](later.md) | P2 | M | later | feature | open | Placement by label and by init: a systemd payload goes only to a kind that boots it |
 | [T-550](later.md) | P2 | S | later | chore | open | The corpus of the user-path gate records the image of each github.com result |
-| [T-551](later.md) | P1 | S | later | defect | open | A pinned image larger than the disk bound of its kind is not refused |
+| [T-551](later.md) | P1 | S | later | defect | done | A pinned image larger than the disk bound of its kind is not refused |
 | [T-552](later.md) | P1 | S | later | defect | done | A job that the job-started hook ends with no answer is reported as success |
 | [T-553](later.md) | P1 | M | later | release | open | podrunner and its runner images on ghcr.io, in the form of PodUtils |
 | [T-554](later.md) | P1 | S | later | defect | done | The compile of TypeScript 7 hangs on the podvm userland rung with no tier |
@@ -615,3 +615,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-568](later.md) | P2 | S | later | defect | partial | A runner job that fails is reported as success |
 | [T-569](later.md) | P3 | S | later | defect | open | A job that the runner abandoned is reported as success |
 | [T-570](later.md) | P3 | M | later | defect | open | The read of the unit log for each runner job has no bound |
+| [T-571](later.md) | P2 | S | later | defect | open | An offer whose disk limit is below the size of its image starts a unit that cannot hold it |
+| [T-572](later.md) | P3 | S | later | feature | open | The release manifest and config init do not carry the size of a runner image |
+| [T-573](later.md) | P2 | S | later | defect | open | An image larger than the memory of a microvm guest is not refused |

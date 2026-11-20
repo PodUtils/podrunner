@@ -12915,7 +12915,7 @@ State (2026-11-19, the second study, S-14): new rows on the snapshot kinds: `ser
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12929,6 +12929,10 @@ The study, section 3.3, findings F5 and F8, read on 2026-11-19.
 
 `check` and `doctor` refuse a pin whose image is larger than the disk bound of the kinds that would run it; `docs/install.md` names the hosted sysctls for the operator of an incus or podvm host.
 
+## Decision
+
+2026-11-20 (`docs/decisions.md`, T-551): the size comes from the pin, `[[pin.payload]] unpacked_bytes`; `podvm inspect` gives only the stored (compressed) bytes. A pin with no size is not checked. The bound is `disk_max_bytes` of `[unit.incus]` with `root_quota`; with no `root_quota` the bound measures the work directory only, and nothing is refused. The signature of the pin list covers `unpacked_bytes` and `sandbox` (it did not cover `sandbox`: an edit of the file could change the role of a signed payload; fixed in place).
+
 ## Prove
 
 `cargo test -p podrunner --test check`: a pin whose size is over the disk bound is refused with the fix.
@@ -12936,6 +12940,14 @@ The study, section 3.3, findings F5 and F8, read on 2026-11-19.
 State (2026-11-19, the second study, finding PF-4): the snapshot is about 55 to 60 GB on disk, more than githome's unit disk of 40 GB (`disk_max_bytes`). This entry is now a blocker of the snapshot on that host: P1. Also ask githome on GitHub #151 for 80 GB or more for each unit, or a copy-on-write pool where only the writes count.
 
 State (2026-11-19): podvm's measure (PodUtils/podvm@T-1997, COORD-203): the incus tier needs the extracted tree plus about 2.4 times it in incusd. The disk of a host for the snapshot on the incus kind is about 190 GB; `doctor` names it with the bound of the kind.
+
+## Done
+
+2026-11-20, this commit. `crates/podrunner/src/incus_kind.rs` (`pins_fit`, `HOST_DISK_TENTHS`, `gb`), called by `serve::plan` (so `check` and `serve` give one text) and by `doctor`; `crates/podrunner/src/doctor/pins.rs` (the pin rows, out of `doctor.rs`: `unpacked_bytes`, `incus_host_bytes`); `crates/podrunner-slots/src/config.rs` (`unpacked_bytes`), `pins.rs` (the signed message); `crates/podrunner/src/text.rs` (`display_max`: a `missing:` line of `doctor` was cut at 200 bytes and hid its fix; fixed in place). Docs: `docs/install.md` ("The disk and the sysctls of a host of the incus or podvm kind": the root disk, the host disk, `vm.max_map_count`, the inotify limits), `docs/configuration.md`, `docs/cli.md`, `docs/hosted-snapshot.md`, `schemas/config.v1.json`.
+
+`cargo test -p podrunner --test check`: 5 passed; `a_pin_over_the_root_disk_of_the_incus_kind_is_refused` fails on the code with no rule (exit 0) and passes with it: 55 GB over 40 GB exits 78 with the fix and the host disk (187.0 GB), at `serve` with the same text; 30 GB, 40 GB (at the bound), no `root_quota`, and another architecture pass. `cargo test -p podrunner --lib -- doctor text`: 16 passed (`doctor_names_the_disk_of_a_pinned_image`). `cargo test -p podrunner-slots --lib`: 132 passed (`a_signed_list_verifies_and_each_change_fails` fails on the old message for `sandbox` and `unpacked_bytes`).
+
+Level: proven by tests on this machine only; not run in CI and not run on a constrained host as a user (no incus host here). Not in this commit: the ask to githome on GitHub #151 for a root disk of 80 GB or more for each unit. Findings: T-573 (the memory of a microvm guest), T-571 (an offer `disk` below the image), T-572 (the size in the release manifest and in `config init`).
 
 # T-552: A job that the job-started hook ends with no answer is reported as success
 
@@ -13605,3 +13617,78 @@ A read of only the end of the log is not safe for `job_result` by itself (T-568)
 ## Prove
 
 `cargo test -p podrunner-slots --lib -- log_tail report`: a fake payload that writes more than the bound after the real `Failed` line, then a forged `Succeeded` line, gives `failure` and reads no more than the bound. Then the podvm and the incus lanes of `user-gate.yml` give the time of the read in the log of `serve`.
+
+# T-573: An image larger than the memory of a microvm guest is not refused
+
+**Source:** the work of T-551, 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The root of a microvm guest is an initramfs, and the memory of the guest holds it twice (`[unit.microvm] mem`, `docs/configuration.md`). A pin whose image is larger than half of `mem` cannot boot, and nothing refuses it before a job fails. T-551 gives a pin its size (`unpacked_bytes`) and refuses it only on the incus kind.
+
+## Premise
+
+Read on 2026-11-20: the doc comment of `mem` in `crates/podrunner-slots/src/unit_config.rs` ("the memory holds it twice") and the hosted-parity study (`docs/reports/hosted-parity-2026-11-19.md`, the microvm row of section 3). Not measured: the ratio of the initramfs of podvm to the unpacked tree.
+
+## Approach
+
+Ask podvm (COORD) for its measure of the memory of a guest for an image of N unpacked bytes. Then `crate::microvm_kind` refuses a pin of this architecture with `unpacked_bytes` over that bound, with the fix (a larger `mem`, or the disk root of PodUtils/podvm@T-1994), as `incus_kind::pins_fit` does; `doctor` names it.
+
+## Prove
+
+`cargo test -p podrunner --test check`: a pin over the memory bound of `[unit.microvm]` is refused with the fix; one under it passes.
+
+# T-571: An offer whose disk limit is below the size of its image starts a unit that cannot hold it
+
+**Source:** the work of T-551, 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With `[unit.incus] root_quota`, the root disk of an instance is the lesser of `disk_max_bytes` and the `disk` limit of the offer (T-482). `check` refuses a pin above `disk_max_bytes` (T-551), but an offer can narrow the bound below `unpacked_bytes` of its payload. The unit then starts and fails with no clear cause.
+
+## Premise
+
+Read on 2026-11-20: `crates/podrunner-incus/src/lib.rs` (the lesser of the offer and the kind), `crates/podrunner-slots/src/disk.rs` (the bound of the offer). Not run on a host with a quota pool.
+
+## Approach
+
+Placement refuses an offer whose `disk` limit is below `unpacked_bytes` of its payload on a kind with `root_quota`, with a terminal code and a detail that names both sizes. A test of `podrunner-slots` with a fake kind that has `root_quota`.
+
+## Prove
+
+`cargo test -p podrunner-slots --lib -- placement`: an offer with `disk` below the size of its pinned payload is refused with both sizes; one at the size is placed.
+
+# T-572: The release manifest and config init do not carry the size of a runner image
+
+**Source:** the work of T-551, 2026-11-20
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-551 refuses a pin above the root disk of the incus kind only when the pin has `unpacked_bytes`. The operator measures it by hand (`du -sxb /` in a unit). `podrunner-manifest.json` of a release names each runner image with its digest and `built_at_s` but not its size, and `podrunner config init` writes no `unpacked_bytes`.
+
+## Premise
+
+Read on 2026-11-20: `scripts/release-assets.sh` (the manifest), `crates/podrunner/src/config_init.rs` (the pin that it writes), `docs/install.md`. Not measured: the unpacked size of `runner` and `runner-full`.
+
+## Approach
+
+`release.yml` measures the unpacked tree of each runner image once and writes `unpacked_bytes` into the manifest; `config init` takes `--unpacked-bytes N` and writes it into the pin; `scripts/install.sh` prints it in the `config init` line.
+
+## Prove
+
+`sh scripts/test-install.sh`: the manifest of the local release has `unpacked_bytes` for each image; `cargo test -p podrunner --test config_init`: `--unpacked-bytes` lands in the pin and `check` takes the file.

@@ -171,6 +171,11 @@ pub struct Payload {
     /// this digest takes it, and a runner job never does.
     #[serde(default)]
     pub sandbox: bool,
+    /// The bytes of the image unpacked (its tree, `du -sxb /` in a unit).
+    /// `check` refuses a pin above the root disk of a kind that runs it
+    /// (T-551). Absent: not checked.
+    #[serde(default)]
+    pub unpacked_bytes: Option<u64>,
 }
 
 impl Payload {

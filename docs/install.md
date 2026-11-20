@@ -102,6 +102,34 @@ the schema of the file, no TCP listener of `serve`, and a runner job
 through `serve` on podvm (T-527, T-566); the lanes measure them in CI
 next. `systemctl --user` of the unit is not run.
 
+### The disk and the sysctls of a host of the incus or podvm kind
+
+The root disk of an incus instance is `disk_max_bytes` when the pool
+holds a size (`root_quota`). An image larger than it fails each job at
+its start. Give each pin its `unpacked_bytes` (`du -sxb /` in a unit of
+the image): `podrunner check` and `serve` then refuse a pin above the
+root disk, and `doctor` names the disk that the image needs (T-551). The
+incus kind needs the extracted tree plus about 2.4 times it in incusd
+(podvm's measure). For the hosted snapshot of 55 to 60 GB, give each
+unit a root disk of 80 GB or more, and the host about 190 GB.
+
+A unit of the incus or the podvm kind shares the kernel of the host, so
+it cannot set a sysctl. A job of a file watcher or of Elasticsearch
+expects the values of a GitHub-hosted runner. Set them on the host, with
+root, one time:
+
+```sh
+cat > /etc/sysctl.d/90-podrunner-hosted.conf <<'EOF'
+vm.max_map_count = 262144
+fs.inotify.max_user_watches = 655360
+fs.inotify.max_user_instances = 1280
+EOF
+sysctl --system
+```
+
+A guest of the microvm kind has its own kernel; these host values do
+not apply to it.
+
 ## The checks
 
 - Each version and each SHA-256 is in the block of pins of the installer.

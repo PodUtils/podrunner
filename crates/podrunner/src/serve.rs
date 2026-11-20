@@ -66,6 +66,10 @@ pub fn plan(cfg: &Config) -> Result<(), Failure> {
             }
         }
     }
+    // A pinned image larger than the root disk of the incus kind (T-551).
+    if let Some(u) = cfg.unit.get("incus") {
+        crate::incus_kind::pins_fit(u, &cfg.pin)?;
+    }
     crate::tiers::served(cfg)?;
     Ok(())
 }

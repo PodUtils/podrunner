@@ -20,6 +20,8 @@ use serde_json::{Value, json};
 use crate::serve::{Failure, fail};
 use crate::text::display;
 
+mod pins;
+
 /// The probes of `pod-hostprobe` that the drivers need: user namespaces
 /// and mount (a driver with namespaces), chroot, KVM and Landlock.
 pub const HOST_ROWS: [&str; 5] = [
@@ -234,78 +236,20 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
                 ));
             }
         }
-        pins = pin_rows(&cfg.pin, now_s());
+        // A pinned image larger than the root disk of the incus kind, as
+        // `check` refuses it (T-551).
+        if let Some(Err(f)) = cfg.unit.get("incus").map(|u| crate::incus_kind::pins_fit(u, &cfg.pin)) {
+            missing.push(f.detail);
+        }
+        pins = pins::rows(&cfg, pins::now_s());
     } else {
         missing.push("--config: no unit kind and no source were read".into());
     }
     Ok(json!({
         "schema": 1, "landlock_abi": landlock, "kvm": kvm, "hold": hold, "host": host,
         "kinds": kinds, "sources": tiers, "pins": pins, "missing": missing,
-        "runner_of_this_build": RUNNER_OF_THIS_BUILD,
+        "runner_of_this_build": pins::RUNNER_OF_THIS_BUILD,
     }))
-}
-
-/// The version of the official runner that `images/runner/runner.toml` of
-/// this build pins.
-const RUNNER_OF_THIS_BUILD: &str = {
-    // The first line `version = "..."` of the file.
-    const TEXT: &str = include_str!("../../../images/runner/runner.toml");
-    const_version(TEXT)
-};
-
-const fn const_version(text: &'static str) -> &'static str {
-    let b = text.as_bytes();
-    let key = b"\nversion = \"";
-    let mut i = 0;
-    while i + key.len() < b.len() {
-        let mut k = 0;
-        while k < key.len() && b[i + k] == key[k] {
-            k += 1;
-        }
-        if k == key.len() {
-            let start = i + k;
-            let mut end = start;
-            while end < b.len() && b[end] != b'"' {
-                end += 1;
-            }
-            let (_, rest) = text.split_at(start);
-            let (v, _) = rest.split_at(end - start);
-            return v;
-        }
-        i += 1;
-    }
-    "unknown"
-}
-
-fn now_s() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
-}
-
-/// The last days of the window of a pin, in which `doctor` warns (T-499).
-const NEAR_END_S: u64 = 7 * 24 * 3600;
-
-/// One row for each pinned payload: its runner version, its age and its
-/// window (the age limit of the pin, which keeps the runner inside the
-/// window of updates of GitHub), and `ok`, `near-end` or `stale`.
-fn pin_rows(pins: &podrunner_slots::config::Pins, now: u64) -> Vec<Value> {
-    pins.payload
-        .iter()
-        .map(|p| {
-            let limit = p.max_age_s.map_or(pins.max_age_s, |m| m.min(pins.max_age_s));
-            let age = now.saturating_sub(p.built_at_s);
-            let state = if p.stale(pins, now) {
-                "stale"
-            } else if age.saturating_add(NEAR_END_S) >= limit {
-                "near-end"
-            } else {
-                "ok"
-            };
-            json!({
-                "arch": p.arch, "reference": p.reference, "runner_version": p.runner_version,
-                "age_s": age, "limit_s": limit, "state": state,
-            })
-        })
-        .collect()
 }
 
 /// The report as text: one line for each finding, then each missing
@@ -350,23 +294,12 @@ pub fn text(v: &Value) -> String {
     if let Some(r) = v["runner_of_this_build"].as_str() {
         out.push_str(&format!("runner of this build: {}\n", display(r)));
     }
-    for p in v["pins"].as_array().into_iter().flatten() {
-        let days = |f: &str| p[f].as_u64().unwrap_or(0) / (24 * 3600);
-        let version = display(p["runner_version"].as_str().unwrap_or("not named"));
-        let what = match p["state"].as_str() {
-            Some("stale") => ": stale, no job starts on it: build and pin a new image",
-            Some("near-end") => ": near the end of its window: build and pin a new image",
-            _ => "",
-        };
-        out.push_str(&format!(
-            "pin {}: runner {version}, {} of {} days{what}\n",
-            display(p["arch"].as_str().unwrap_or("?")),
-            days("age_s"),
-            days("limit_s"),
-        ));
-    }
+    out.push_str(&pins::lines(v));
     for m in v["missing"].as_array().into_iter().flatten() {
-        out.push_str(&format!("missing: {}\n", display(m.as_str().unwrap_or(""))));
+        out.push_str(&format!(
+            "missing: {}\n",
+            crate::text::display_max(m.as_str().unwrap_or(""), crate::text::MAX_LINE)
+        ));
     }
     out
 }
@@ -398,15 +331,46 @@ mod tests {
             c = 100 * day - 31 * day,
         ))
         .unwrap();
-        let rows = pin_rows(&cfg.pin, 100 * day);
+        let rows = pins::rows(&cfg, 100 * day);
         let states: Vec<&str> = rows.iter().map(|r| r["state"].as_str().unwrap()).collect();
         assert_eq!(states, ["ok", "near-end", "stale"]);
-        let text = text(&json!({ "pins": rows, "runner_of_this_build": RUNNER_OF_THIS_BUILD }));
+        let text = text(&json!({ "pins": rows, "runner_of_this_build": pins::RUNNER_OF_THIS_BUILD }));
         assert!(text.contains("pin x86_64: runner 2.338.2, 2 of 30 days\n"), "{text}");
         assert!(text.contains("pin aarch64: runner not named, 25 of 30 days: near the end of its window"), "{text}");
         assert!(text.contains("pin x86_64: runner not named, 31 of 30 days: stale"), "{text}");
-        assert!(RUNNER_OF_THIS_BUILD.starts_with("2."), "{RUNNER_OF_THIS_BUILD}");
-        assert!(text.contains(&format!("runner of this build: {RUNNER_OF_THIS_BUILD}\n")), "{text}");
+        let built = pins::RUNNER_OF_THIS_BUILD;
+        assert!(built.starts_with("2."), "{built}");
+        assert!(text.contains(&format!("runner of this build: {built}\n")), "{text}");
+    }
+
+    /// T-551: doctor names the size of a pinned image, the host disk of the
+    /// incus kind for it, and, as `check`, an image over the root disk.
+    #[test]
+    fn doctor_names_the_disk_of_a_pinned_image() {
+        let dir = std::env::temp_dir().join(format!("podrunner-doctor-disk-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("podrunner.toml");
+        let pin = |size: u64| {
+            format!(
+                "host = \"h\"\n[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nroot_quota = true\n\
+                 disk_max_bytes = 40000000000\n[pin]\n[[pin.payload]]\narch = \"{}\"\n\
+                 reference = \"hosted@sha256:{}\"\nbuilt_at_s = 1\nunpacked_bytes = {size}\n",
+                std::env::consts::ARCH,
+                "1".repeat(64)
+            )
+        };
+        std::fs::write(&file, pin(55_000_000_000)).unwrap();
+        let v = report_with(Some(&file), json!([])).unwrap();
+        assert_eq!(v["pins"][0]["unpacked_bytes"], json!(55_000_000_000u64), "{v}");
+        assert_eq!(v["pins"][0]["incus_host_bytes"], json!(187_000_000_000u64), "{v}");
+        let t = text(&v);
+        assert!(t.contains(", 55.0 GB unpacked, the incus kind needs about 187.0 GB of host disk"), "{t}");
+        assert!(t.contains("missing: [unit.incus] disk_max_bytes: the pin hosted@sha256:"), "{t}");
+        assert!(t.contains("fix: set disk_max_bytes above 55.0 GB"), "{t}");
+        std::fs::write(&file, pin(30_000_000_000)).unwrap();
+        let v = report_with(Some(&file), json!([])).unwrap();
+        assert!(!v["missing"].to_string().contains("disk_max_bytes"), "{v}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

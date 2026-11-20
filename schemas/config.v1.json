@@ -357,6 +357,16 @@
           "description": "The image of a sandbox (T-506): only an offer with `sandbox` of\nthis digest takes it, and a runner job never does.",
           "type": "boolean",
           "default": false
+        },
+        "unpacked_bytes": {
+          "description": "The bytes of the image unpacked (its tree, `du -sxb /` in a unit).\n`check` refuses a pin above the root disk of a kind that runs it\n(T-551). Absent: not checked.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
         }
       },
       "additionalProperties": false,

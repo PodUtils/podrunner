@@ -237,3 +237,62 @@ fn check_reads_a_mint_file_as_the_mint_does() {
     assert!(!d.join("state").exists(), "check made the state directory");
     let _ = std::fs::remove_dir_all(&d);
 }
+
+/// T-551: with `root_quota`, `disk_max_bytes` is the root disk of each
+/// incus instance. `check` and `serve` refuse a pin of this architecture
+/// that unpacks to more, with the fix and the host disk of podvm's
+/// measure; a pin at or under the bound passes, and so does a pin with no
+/// root size or of another architecture.
+#[test]
+fn a_pin_over_the_root_disk_of_the_incus_kind_is_refused() {
+    use std::os::unix::fs::PermissionsExt;
+    let d = dir("disk");
+    let podvm = d.join("podvm");
+    std::fs::write(&podvm, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.36\",\"rung\":\"userland\"}'\n").unwrap();
+    std::fs::set_permissions(&podvm, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let here = std::env::consts::ARCH;
+    let other = if here == "x86_64" { "aarch64" } else { "x86_64" };
+    let file = |i: usize, size: u64, quota: bool, arch: &str| {
+        let text = format!(
+            "host = \"h\"\n[unit.incus]\nslots = 1\nbinary = \"{}\"\nimages = \"{}\"\nroot_quota = {quota}\n\
+             disk_max_bytes = 40000000000\n[pin]\n[[pin.payload]]\narch = \"{arch}\"\n\
+             reference = \"hosted@sha256:{}\"\nbuilt_at_s = {}\nunpacked_bytes = {size}\n",
+            podvm.display(),
+            d.display(),
+            "1".repeat(64),
+            now - 3600,
+        );
+        let f = d.join(format!("{i}.toml"));
+        std::fs::write(&f, text).unwrap();
+        f
+    };
+    let check = |f: &Path| Command::new(BIN).args(["check", "--config"]).arg(f).output().unwrap();
+    let over = file(0, 55_000_000_000, true, here);
+    let out = check(&over);
+    let text = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(78), "{text}");
+    for word in [
+        "[unit.incus] disk_max_bytes: the pin hosted@sha256:",
+        "unpacks to 55.0 GB, more than the root disk of an instance (40.0 GB)",
+        "fix: set disk_max_bytes above 55.0 GB",
+        "about 2.4 times it in incusd, about 187.0 GB of disk",
+    ] {
+        assert!(text.contains(word), "{word}: {text}");
+    }
+    let state = d.join("state");
+    let serve = Command::new(BIN).args(["serve", "--config"]).arg(&over).arg("--state").arg(&state).output().unwrap();
+    assert_eq!((serve.status.code(), &serve.stderr), (out.status.code(), &out.stderr));
+    assert!(!state.join("journal.jsonl").exists());
+    let passes = [
+        (1, 30_000_000_000, true, here),
+        (2, 40_000_000_000, true, here),
+        (3, 55_000_000_000, false, here),
+        (4, 55_000_000_000, true, other),
+    ];
+    for (i, size, quota, arch) in passes {
+        let out = check(&file(i, size, quota, arch));
+        assert_eq!(out.status.code(), Some(0), "{i}: {}", String::from_utf8_lossy(&out.stderr));
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}

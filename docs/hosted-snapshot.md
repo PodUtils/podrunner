@@ -79,4 +79,6 @@ podvm pull ghcr.io/podutils/podrunner-hosted@sha256:DIGEST
 
 The image is about 16 GiB with zstd and about 55 GiB on disk. A host of
 the incus kind needs the extracted tree and about 2.4 times it in incusd
-(T-551).
+(T-551). Give its pin `unpacked_bytes`: `check` refuses it above the
+root disk of the incus kind (`docs/install.md`, "The disk and the sysctls
+of a host of the incus or podvm kind").

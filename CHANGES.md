@@ -16,6 +16,8 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `podrunner.toml` | `[[pin.payload]] unpacked_bytes`: the bytes of the image unpacked. `check` and `serve` refuse a pin of this architecture above `disk_max_bytes` of `[unit.incus]` with `root_quota` (exit 78, with the fix); `doctor` names the size, the host disk of the incus kind (about 3.4 times the image) and the refusal. | T-551 |
+| `podrunner.toml` | The signature of the pin list covers `sandbox` and `unpacked_bytes` of each payload: a signed list with `sandbox = true` must be signed again (`podrunner pin-sign`). A list with neither keeps its signature. | T-551 |
 | `pod-job` | podcrates `v0.52.0` to `v0.78.1`: the optional fields of githome's asks (`trust_inputs.forge`, `cache`, `sandbox` of an offer; `arch`, `assigned`, the times, the measures and `log_tail` of a report). An optional field keeps the schema id. | T-508, T-514 |
 | source wire | The types of the wire are `pod_job::source` of podcrates `v0.72.0` (one form for podrunner and each source); the lines do not change. | T-508 |
 | source wire | The gate runs the tests of `source-conformance` against githome's source (`pod-fake-githome` of podcrates `v0.78.1`, `images/fake-githome.toml`, pinned also by its digest on ghcr.io); a red run blocks a release. | T-509 |
@@ -65,4 +67,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
 <!-- contract docs/contracts/source-driver.md 5700b24d3839fe92012962770699804c9473e901c8bec3dc7d6aa260b3b899d1 -->
 <!-- contract docs/contracts/unit-driver.md 1c1ce27e4fe5d369f94dac4b7a7cddf91956562437546c6f775218e7d6d7416f -->
-<!-- contract schemas/config.v1.json c22e56c36a1378e58f5327b06dcfcebbfb34cd2a668da875a5fe918c5e442241 -->
+<!-- contract schemas/config.v1.json 418199e0f873449bfa08207fa2c039ad0644592498aaa949a129c030424404ae -->

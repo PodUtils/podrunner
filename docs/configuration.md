@@ -57,7 +57,8 @@ disk_max_bytes = 10737418240          # the bytes that a unit may write under it
                                       # engine of the image (the hosted snapshot, T-543); not with engine; podvm 0.2.0-beta.36 or later
 # root_quota = true                  # incus only: the pool of incusd holds a size of a root disk (btrfs, zfs, lvm; not dir): each
                                       # instance gets a root disk of the lesser of disk_max_bytes and the disk limit of the offer (64 MiB at
-                                      # least), a job past it gets ENOSPC, and the kind says `disk: enforced` (T-482); podvm refuses it on dir
+                                      # least), a job past it gets ENOSPC, and the kind says `disk: enforced` (T-482); podvm refuses it on dir;
+                                      # check refuses a pin whose unpacked_bytes is over disk_max_bytes (T-551)
 # claim = "confined"                 # fake only, with allow_fake: the fake kind claims confined or guest and an enforced hold, so that
                                       # a test drives a trusted or untrusted forge source through serve (T-511); it holds nothing
 confine = false                       # podvm: each unit and container under the confine layer of podvm (--podvm-confine); the kind says confined after its self-test
@@ -97,6 +98,8 @@ runner_version = "2.338.2"   # the official runner in the image
 max_age_s = 2419200          # the age limit of this pin; the smaller of it and [pin] max_age_s holds
 # sandbox = true             # the image of a sandbox unit (T-506): only an offer with sandbox.image of this digest
                              # takes it, at untrusted (a guest); a runner job never does
+unpacked_bytes = 59000000000 # the bytes of the image unpacked (du -sxb / in a unit of it); check and doctor refuse a pin
+                             # above the root disk of [unit.incus] (root_quota, disk_max_bytes); absent: not checked (T-551)
 
 [egress]                     # the egress policy of the operator (T-024, T-107)
 # broker-policy.v1 of pod-broker: the policy of each job. The policy of an offer

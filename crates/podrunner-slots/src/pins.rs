@@ -13,14 +13,19 @@ use crate::config::Pins;
 const LABEL: &[u8] = b"podrunner pin list v1\n";
 
 /// The bytes that the key signs: the label, the age limit, and each payload
-/// on its own line, in the order of the file.
+/// on its own line, in the order of the file. `sandbox` and
+/// `unpacked_bytes` add a word only when set, so that a signature of a list
+/// with neither stays valid.
 pub fn message(pins: &Pins) -> Vec<u8> {
     let mut m = LABEL.to_vec();
     m.extend_from_slice(format!("max_age_s {}\n", pins.max_age_s).as_bytes());
     for p in &pins.payload {
         let version = p.runner_version.as_deref().unwrap_or("-");
         let age = p.max_age_s.map_or("-".to_string(), |a| a.to_string());
-        let line = format!("payload {} {} {} {version} {age}\n", p.arch, p.reference, p.built_at_s);
+        // An edit of the file must not change the role of a payload (T-551).
+        let sandbox = if p.sandbox { " sandbox" } else { "" };
+        let size = p.unpacked_bytes.map_or(String::new(), |b| format!(" unpacked {b}"));
+        let line = format!("payload {} {} {} {version} {age}{sandbox}{size}\n", p.arch, p.reference, p.built_at_s);
         m.extend_from_slice(line.as_bytes());
     }
     m
@@ -139,6 +144,7 @@ mod tests {
                 runner_version: None,
                 max_age_s: None,
                 sandbox: false,
+                unpacked_bytes: None,
             }],
             signer: None,
             signature: None,
@@ -152,13 +158,16 @@ mod tests {
         let (k, s) = sign(&p, &[7; 32]);
         (p.signer, p.signature) = (Some(k.clone()), Some(s.clone()));
         assert_eq!(verify(&p), Ok(()));
-        let changes: [fn(&mut Pins); 6] = [
+        // The role and the size of a payload are signed too (T-551).
+        let changes: [fn(&mut Pins); 8] = [
             |p| p.max_age_s += 1,
             |p| p.payload[0].max_age_s = Some(1),
             |p| p.payload[0].runner_version = Some("2.338.2".into()),
             |p| p.payload[0].built_at_s += 1,
             |p| p.payload[0].reference.push('1'),
             |p| p.payload.push(p.payload[0].clone()),
+            |p| p.payload[0].sandbox = true,
+            |p| p.payload[0].unpacked_bytes = Some(1),
         ];
         for change in changes {
             let mut q = p.clone();
