@@ -126,7 +126,16 @@ under KVM where `/dev/kvm` opens. It is the unit of the `untrusted` tier:
 it claims `guest`, and `serve` takes the claim only for a kind on
 `guest_kinds` and after the self-test of the guest (GitHub #36). Each
 entry of `guest_kinds` other than the default `microvm` must name a
-`[unit.NAME]` table: `check` refuses another name. Before
+`[unit.NAME]` table: `check` refuses another name.
+
+`serve` runs the self-test at its start, then each day and on a change
+of the driver file. A test with no verdict (a unit did not start, did
+not end in 60 s, or wrote no result) runs once more at once. If it again
+has no verdict, the next test is in 2 minutes, then 4, 8, 16, and 30
+minutes at most (T-574). A failed verdict waits one day. The line `the
+claim of guest drops to none` gives the cause: for a test unit with no
+result, its exit code and the end of its log. The scrubbed end of that
+log stays in `STATE/guest-test-KIND.log`. Before
 each job the guest script checks that each host mount of the guest is in
 the table of the unit (`MOUNT_CHECK`); a guest with another mount ends with
 exit 96. It has no route of the container hooks. The host needs

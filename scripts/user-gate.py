@@ -715,11 +715,16 @@ class Lane:
             try:
                 end = time.monotonic() + (900 if kind == "microvm" else 60)
                 reported = None
+                no_tier = False
                 while time.monotonic() < end and p.poll() is None:
                     lines = journal.read_text().splitlines() if journal.is_file() else []
                     done = [json.loads(x) for x in lines if '"reported"' in x]
                     if done:
                         reported = done[-1]
+                        break
+                    # T-574: serve with no tier runs no offer: do not wait.
+                    if "no-tier-served" in log.read_text(errors="replace"):
+                        no_tier = True
                         break
                     time.sleep(2)
                 alive = p.poll() is None
@@ -734,6 +739,11 @@ class Lane:
                     except subprocess.TimeoutExpired:
                         os.killpg(p.pid, signal.SIGKILL)
                         p.wait()
+                self.keep_guest_logs(state, f"serve-{kind}")
+        if no_tier:
+            self.show(f"serve-{kind}", 200)
+            drops = [x for x in log.read_text(errors="replace").splitlines() if "drops to none" in x]
+            raise GateError(f"serve served no tier: {drops[-1] if drops else 'no-tier-served'}")
         if listening:
             raise GateError(f"serve listens on TCP: {listening}")
         if kind != "microvm":
@@ -748,6 +758,19 @@ class Lane:
             self.show(f"serve-{kind}", 200)
             raise GateError(f"the sandbox offer: {reported}")
         return f"serve ran the sandbox offer in a unit of {kind}: {reported.get('reason')}"
+
+    def keep_guest_logs(self, state: pathlib.Path, log: str):
+        """Copy the logs of the guests of serve in STATE to out/logs/LOG:
+        the end of the log of a failed self-test of guest (T-574), and the
+        log of each guest that is still there."""
+        found = [*state.glob("guest-test-*.log"), *state.glob("*/units/*/guest.log")]
+        if not found:
+            return
+        dest = self.out / "logs" / log
+        dest.mkdir(parents=True, exist_ok=True)
+        for f in found:
+            name = f.name if f.name.startswith("guest-test-") else f"{f.parent.name}-{f.name}"
+            shutil.copy(f, dest / name)
 
     # A runner job through `serve` (T-527): githome's source and GitHub as
     # the fakes of podcrates (images/fake-githome.toml).
@@ -838,8 +861,13 @@ class Lane:
                                          headers={"Content-Type": "application/json"})
             urllib.request.urlopen(req, timeout=30).read()
             reports, end = [], time.monotonic() + 900
+            serve_err, no_tier = self.out / "logs" / f"job-{kind}-serve.err", False
             while time.monotonic() < end and serve.poll() is None and not reports:
                 reports = json.loads(urllib.request.urlopen(f"{ho_url}/_fake/reports", timeout=30).read())
+                # T-574: serve with no tier runs no job: do not wait.
+                if not reports and "no-tier-served" in serve_err.read_text(errors="replace"):
+                    no_tier = True
+                    break
                 time.sleep(5)
             jobs = json.loads(urllib.request.urlopen(f"{gh_url}/_fake/jobs", timeout=30).read())
             early = serve.poll()
@@ -852,6 +880,7 @@ class Lane:
                     except subprocess.TimeoutExpired:
                         os.killpg(p.pid, signal.SIGKILL)
                         p.wait()
+            self.keep_guest_logs(d / "state", f"job-{kind}-serve")
         report = reports[-1]["report"] if reports else {}
         conclusion = jobs[0].get("conclusion") if jobs else None
         # A trusted job on podvm runs only when serve proved the layer (T-566).
@@ -861,6 +890,7 @@ class Lane:
             for log in (f"job-{kind}-serve", f"job-{kind}-githome", f"job-{kind}-github"):
                 self.show(log, 120)
             ended = f"serve ended with exit {early}" if early is not None else "serve ran to the end of the wait"
+            ended = "serve served no tier (no-tier-served)" if no_tier else ended
             raise GateError(f"the job through serve on {kind}: {ended}; report {report or 'none'}, GitHub conclusion {conclusion}")
         return f"a runner job of githome through serve on {kind} ({tier}, {report.get('boundary')}): success, as GitHub says"
 

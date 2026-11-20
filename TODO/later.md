@@ -13783,7 +13783,7 @@ State (2026-11-20): done in this commit. Proven by tests on this machine only; n
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -13806,6 +13806,8 @@ The logs of the lane (`serve-microvm.err`) and the code at `6a84667`, read on 20
 ## Prove
 
 `cargo test -p podrunner-slots --lib guest`: a test unit that exits with no result gives an error with its exit code and the end of its log; a self-test with no verdict is tried again, a failed verdict is not. `cargo test -p podrunner --lib serve`: the retest of a kind with no verdict is due in minutes. `user-gate.yml`: the lane `serve-incus-kvm` passes.
+
+State (2026-11-20; the unit tests pass in this sandbox; the lane `serve-incus-kvm` of `user-gate.yml`: not run): the three parts of the Approach are in the code. (1) `run` of `crates/podrunner-slots/src/guest.rs` reads the log of a test unit with no result before the destroy (bounded, T-570): the error has the exit code and the scrubbed end of the log, and the scrubbed end stays in `STATE/guest-test-KIND.log`. The audit chain has a line for each job only: the cause goes to the stderr of `serve`, now also for a retest of slots. (2) `self_test` returns `guest::Fail`: `NoVerdict` (a unit did not start, did not end in 60 s, or wrote no result) or `Verdict`. A test with no verdict runs once more at once; after two tries with no verdict the retest is due in 2, 4, 8, 16 and at most 30 minutes (`Retest::misses`, `next_ms`); a failed verdict keeps `RETEST_MS` (`docs/decisions.md`, T-574). `serve` registers the retest from `crates/podrunner/src/serve/guest.rs`. (3) `serve_run` and the serve of `serve:job` of `scripts/user-gate.py` stop at once on `no-tier-served` and copy the guest logs of the state directory to `out/logs/serve-KIND/` (`keep_guest_logs`). Tests: `tests::guest_retry::a_test_unit_with_no_result_gives_its_exit_code_and_the_end_of_its_log` and `tests::guest_retry::a_self_test_with_no_verdict_runs_again_and_a_failed_verdict_does_not` fail on the code before (no exit code, no log, one try); `tests::guest::the_self_test_runs_again_on_a_driver_change_and_each_day` (the part of minutes) and `serve::guest::tests::the_retest_of_a_kind_with_no_verdict_is_due_in_minutes` fail with the rule of 24 h; `guest::backoff_tests::a_test_with_no_verdict_backs_off_in_minutes`. A dry run of `serve_run` with a stand-in of `serve` fails in 2 s with the cause and copies the log; the code before waits 900 s. Open: the Prove of `user-gate.yml`.
 
 # T-575: The host facts of a microvm kind with no `mem` name no memory and no CPU
 

@@ -147,8 +147,9 @@ impl Slots {
         self.forget(now);
     }
 
-    /// Test the claim of `guest` of kind `kind` again each day and on a
-    /// change of its driver file (GitHub #36).
+    /// Test the claim of `guest` of kind `kind` again each day, on a
+    /// change of its driver file (GitHub #36), and in minutes after a test
+    /// with no verdict (T-574).
     pub fn retest_guest(&mut self, kind: usize, retest: crate::guest::Retest) {
         self.guest.insert(kind, retest);
     }
@@ -170,10 +171,14 @@ impl Slots {
                     &scratch,
                 )
             } else {
-                Err("not on guest_kinds".into())
+                Err(crate::guest::Fail::Verdict("not on guest_kinds".into()))
             };
-            (r.last_ms, r.stamp) = (now, r.driver.as_deref().and_then(crate::guest::stamp));
-            self.kinds[i].capability = crate::guest::settle(r.claim.clone(), r.allowed, verdict).0;
+            r.tested(now, &verdict);
+            let (cap, why) = crate::guest::settle(r.claim.clone(), r.allowed, verdict);
+            if let Some(why) = why {
+                eprintln!("podrunner: [unit.{}]: the claim of guest drops to none: {why}", self.kinds[i].name);
+            }
+            self.kinds[i].capability = cap;
         }
     }
 

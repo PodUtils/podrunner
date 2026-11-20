@@ -18,25 +18,71 @@ use std::path::Path;
 use std::time::Duration;
 
 use podrunner_schema::{Boundary, Capability, UnitId};
-use podrunner_unit::{StartSpec, UnitDriver};
+use podrunner_unit::{Exit, StartSpec, UnitDriver};
 
 /// The file that the test unit writes in its working directory.
 const RESULT: &str = "podrunner-guest-test";
 
-/// Why a claim of `guest` failed, or `Ok` when it holds.
+/// Why a claim of `guest` does not hold.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Fail {
+    /// The test unit ran, and its result shows that the boundary does not
+    /// hold. The test runs again after [`RETEST_MS`].
+    Verdict(String),
+    /// The test gave no verdict: a unit did not start, did not end in time,
+    /// or wrote no result. The test runs again after [`next_ms`].
+    NoVerdict(String),
+}
+
+impl Fail {
+    pub fn no_verdict(&self) -> bool {
+        matches!(self, Fail::NoVerdict(_))
+    }
+}
+
+impl std::fmt::Display for Fail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Fail::Verdict(why) => f.write_str(why),
+            Fail::NoVerdict(why) => write!(f, "no verdict: {why}"),
+        }
+    }
+}
+
+/// Why a claim of `guest` failed, or `Ok` when it holds. A test with no
+/// verdict runs once more at once: one cold start that fails does not take
+/// the kind out.
 pub fn self_test(
     driver: &dyn UnitDriver,
     payload: &str,
     platform: &str,
     units: (UnitId, UnitId),
     scratch: &Path,
-) -> Result<(), String> {
+) -> Result<(), Fail> {
+    match attempt(driver, payload, platform, units.clone(), scratch) {
+        Err(Fail::NoVerdict(_)) => attempt(driver, payload, platform, units, scratch).map_err(|e| match e {
+            Fail::NoVerdict(why) => Fail::NoVerdict(format!("two tries, the last: {why}")),
+            verdict => verdict,
+        }),
+        verdict => verdict,
+    }
+}
+
+/// One run of the test.
+fn attempt(
+    driver: &dyn UnitDriver,
+    payload: &str,
+    platform: &str,
+    units: (UnitId, UnitId),
+    scratch: &Path,
+) -> Result<(), Fail> {
     let (text, reached) = observe(driver, payload, platform, units, scratch)?;
     if reached {
-        return Err("the unit reached a listener on the loopback of the host".into());
+        return Err(Fail::Verdict("the unit reached a listener on the loopback of the host".into()));
     }
     let read = |p: &str| std::fs::read_to_string(p).unwrap_or_default().trim().to_string();
     judge(&text, &Host { boot_id: read("/proc/sys/kernel/random/boot_id"), version: read("/proc/version") })
+        .map_err(Fail::Verdict)
 }
 
 /// The lines of the test unit, and whether it reached the listener on the
@@ -47,12 +93,12 @@ pub(crate) fn observe(
     platform: &str,
     (first, unit): (UnitId, UnitId),
     scratch: &Path,
-) -> Result<(String, bool), String> {
+) -> Result<(String, bool), Fail> {
     // A first unit that runs during the test: its marker is in its argv and
     // in a file of its root. The test unit builds the marker from two parts,
     // so that the marker is in no argv of the test unit.
     let mark = format!("{}", std::process::id());
-    let image = driver.prepare(payload, platform, false).map_err(|e| format!("prepare: {e}"))?;
+    let image = driver.prepare(payload, platform, false).map_err(|e| Fail::NoVerdict(format!("prepare: {e}")))?;
     let argv = vec!["sh".into(), "-c".into(), format!(": > podrunner-first-{mark}; sleep 60; :")];
     let spec = StartSpec {
         unit: first.clone(),
@@ -64,7 +110,7 @@ pub(crate) fn observe(
         mounts: Vec::new(),
         limits: Default::default(),
     };
-    driver.start(&spec).map_err(|e| format!("start the first unit: {e}"))?;
+    driver.start(&spec).map_err(|e| Fail::NoVerdict(format!("start the first unit: {e}")))?;
     let first_root = driver.observe(&first).ok().and_then(|o| o.unit_root);
     let verdict = second(driver, payload, platform, unit, scratch, &mark, first_root.as_deref());
     let _ = driver.destroy(&first);
@@ -80,10 +126,10 @@ fn second(
     scratch: &Path,
     mark: &str,
     first_root: Option<&Path>,
-) -> Result<(String, bool), String> {
-    let first_file = first_file(first_root)?;
+) -> Result<(String, bool), Fail> {
+    let first_file = first_file(first_root).map_err(Fail::Verdict)?;
     let canary = scratch.join(format!("podrunner-guest-canary-{}", std::process::id()));
-    std::fs::write(&canary, "canary").map_err(|e| format!("the canary: {}", e.kind()))?;
+    std::fs::write(&canary, "canary").map_err(|e| Fail::NoVerdict(format!("the canary: {}", e.kind())))?;
     // A listener on the loopback of the host: a unit that reaches it shares
     // the network of the host. The unit tries with the tool it has. A host
     // that refuses the bind (#247) has no listener: the other lines still
@@ -106,7 +152,7 @@ fn second(
          (command -v bash >/dev/null && bash -c 'exec 3<>/dev/tcp/127.0.0.1/{port}') >/dev/null 2>&1; true",
         canary = canary.display()
     );
-    let result = run(driver, payload, platform, unit, &script);
+    let result = run(driver, payload, platform, unit, &script, scratch);
     let _ = std::fs::remove_file(&canary);
     let reached = listener.is_some_and(|l| l.accept().is_ok());
     Ok((result?, reached))
@@ -121,9 +167,18 @@ fn first_file(first_root: Option<&Path>) -> Result<String, String> {
         .ok_or_else(|| "the driver names no root of the first unit: the check of one unit by another cannot run".into())
 }
 
-/// Start the test unit, wait for its end, and read its result file.
-fn run(driver: &dyn UnitDriver, payload: &str, platform: &str, unit: UnitId, script: &str) -> Result<String, String> {
-    let image = driver.prepare(payload, platform, false).map_err(|e| format!("prepare: {e}"))?;
+/// Start the test unit, wait for its end, and read its result file. A unit
+/// with no result gives its exit code and the end of its log, read before
+/// the destroy.
+pub(crate) fn run(
+    driver: &dyn UnitDriver,
+    payload: &str,
+    platform: &str,
+    unit: UnitId,
+    script: &str,
+    scratch: &Path,
+) -> Result<String, Fail> {
+    let image = driver.prepare(payload, platform, false).map_err(|e| Fail::NoVerdict(format!("prepare: {e}")))?;
     let argv = vec!["sh".into(), "-c".into(), script.into()];
     let spec = StartSpec {
         unit: unit.clone(),
@@ -135,15 +190,66 @@ fn run(driver: &dyn UnitDriver, payload: &str, platform: &str, unit: UnitId, scr
         mounts: Vec::new(),
         limits: Default::default(),
     };
-    driver.start(&spec).map_err(|e| format!("start: {e}"))?;
+    driver.start(&spec).map_err(|e| Fail::NoVerdict(format!("start: {e}")))?;
     let root = driver.observe(&unit).ok().and_then(|o| o.unit_root);
-    let ended = driver.wait(&unit, Duration::from_secs(60)).map_err(|e| format!("wait: {e}"));
-    let text = root.map(|r| std::fs::read_to_string(r.join(RESULT)));
+    let ended = driver.wait(&unit, Duration::from_secs(60));
+    let text = root.and_then(|r| std::fs::read_to_string(r.join(RESULT)).ok());
+    let got = match (ended, text) {
+        (Err(e), _) => Err(format!("wait: {e}")),
+        (Ok(None), _) => Err("the test unit did not end in 60 s".to_string()),
+        (Ok(Some(_)), Some(t)) => Ok(t),
+        (Ok(Some(exit)), None) => Err(format!("the test unit wrote no result the host can read ({})", exit_text(exit))),
+    };
+    let got = got.map_err(|why| Fail::NoVerdict(format!("{why}; {}", log_end(driver, &unit, scratch))));
     let _ = driver.destroy(&unit);
-    ended?.ok_or("the test unit did not end in 60 s")?;
-    match text {
-        Some(Ok(t)) => Ok(t),
-        _ => Err("the test unit wrote no result the host can read".into()),
+    got
+}
+
+fn exit_text(exit: Exit) -> String {
+    match exit {
+        Exit::Code(c) => format!("exit code {c}"),
+        Exit::Signal(s) => format!("signal {s}"),
+    }
+}
+
+/// The bounds of the read of the log of a test unit (T-570).
+const LOG_READ_MAX: u64 = 8 << 20;
+const LOG_READ_TIME: Duration = Duration::from_secs(5);
+
+/// The most bytes of the end of the log in the text of an error: the error
+/// is one line of the journal.
+const LINE_MAX: usize = 1024;
+
+/// The end of the log of the test unit, scrubbed, as one line. The destroy
+/// removes the log of the unit: the scrubbed end (at most `LOG_TAIL_MAX`
+/// bytes) stays in `SCRATCH/guest-test-KIND.log` for the operator.
+fn log_end(driver: &dyn UnitDriver, unit: &UnitId, scratch: &Path) -> String {
+    let log = match driver.unit_log(unit) {
+        Ok(log) => log,
+        Err(e) => return format!("no log of the unit: {e}"),
+    };
+    let mut scan = crate::log_tail::Scan::default();
+    let read = log.read_bounded(LOG_READ_MAX, LOG_READ_TIME, &mut |b| scan.feed(b));
+    scan.end();
+    let tail = scan.tail(&crate::log_tail::Marks::default());
+    let file = scratch.join(format!("guest-test-{}.log", driver.kind()));
+    let kept = match std::fs::write(&file, &tail) {
+        Ok(()) => format!(" (the end of the log is in {})", file.display()),
+        Err(_) => String::new(),
+    };
+    if let Err(e) = read {
+        return format!("the log of the unit: {e}{kept}");
+    }
+    let text = tail.trim_end();
+    let mut cut = text.len().saturating_sub(LINE_MAX);
+    while !text.is_char_boundary(cut) {
+        cut += 1;
+    }
+    let end = text[cut..].trim_start().lines().collect::<Vec<_>>().join(" | ");
+    if end.is_empty() {
+        format!("the log of the unit is empty{kept}")
+    } else {
+        format!("the end of its log: {end}{kept}")
     }
 }
 
@@ -184,8 +290,27 @@ pub fn judge(text: &str, host: &Host) -> Result<(), String> {
     Ok(())
 }
 
-/// The test runs again after this time.
+/// The test runs again after this time, after a verdict.
 pub const RETEST_MS: u64 = 24 * 3600 * 1000;
+
+/// The first wait after a test with no verdict; each test in a row with
+/// no verdict doubles it, up to [`BACKOFF_MAX_MS`].
+pub const BACKOFF_MS: u64 = 2 * 60 * 1000;
+pub const BACKOFF_MAX_MS: u64 = 30 * 60 * 1000;
+
+/// The time from a test to the next, after `misses` tests in a row with no
+/// verdict: [`RETEST_MS`] after a verdict.
+pub fn next_ms(misses: u32) -> u64 {
+    match misses {
+        0 => RETEST_MS,
+        n => (BACKOFF_MS << (n - 1).min(8)).min(BACKOFF_MAX_MS),
+    }
+}
+
+/// The count of tests in a row with no verdict, after `verdict`.
+pub fn misses_after(misses: u32, verdict: &Result<(), Fail>) -> u32 {
+    if verdict.as_ref().is_err_and(Fail::no_verdict) { misses.saturating_add(1) } else { 0 }
+}
 
 /// The identity of a driver file: a new install changes it.
 pub type Stamp = (u64, u64, i64);
@@ -197,7 +322,8 @@ pub fn stamp(path: &Path) -> Option<Stamp> {
 }
 
 /// A kind that claims `guest`: its claim, and when slots tests it again
-/// (each day, and when its driver file changes).
+/// (each day, when its driver file changes, and in minutes after a test
+/// with no verdict).
 #[derive(Debug, Clone)]
 pub struct Retest {
     pub claim: Capability,
@@ -207,12 +333,21 @@ pub struct Retest {
     pub last_ms: u64,
     pub driver: Option<std::path::PathBuf>,
     pub stamp: Option<Stamp>,
+    /// The count of the last tests in a row with no verdict.
+    pub misses: u32,
 }
 
 impl Retest {
     pub fn due(&self, now_ms: u64) -> bool {
         let changed = self.driver.as_deref().is_some_and(|d| stamp(d) != self.stamp);
-        changed || now_ms.saturating_sub(self.last_ms) >= RETEST_MS
+        changed || now_ms.saturating_sub(self.last_ms) >= next_ms(self.misses)
+    }
+
+    /// Record a test at `now_ms`.
+    pub fn tested(&mut self, now_ms: u64, verdict: &Result<(), Fail>) {
+        self.last_ms = now_ms;
+        self.stamp = self.driver.as_deref().and_then(stamp);
+        self.misses = misses_after(self.misses, verdict);
     }
 }
 
@@ -224,11 +359,15 @@ pub fn test_ids() -> (UnitId, UnitId) {
 
 /// The record of a kind after the test: a claim of `guest` that is not on
 /// the allowlist, or that fails, drops to `none`.
-pub fn settle(mut cap: Capability, allowed: bool, verdict: Result<(), String>) -> (Capability, Option<String>) {
+pub fn settle(mut cap: Capability, allowed: bool, verdict: Result<(), Fail>) -> (Capability, Option<String>) {
     if cap.boundary != Boundary::Guest {
         return (cap, None);
     }
-    let why = if !allowed { Some("the kind is not on guest_kinds".to_string()) } else { verdict.err() };
+    let why = if !allowed {
+        Some("the kind is not on guest_kinds".to_string())
+    } else {
+        verdict.err().map(|f| f.to_string())
+    };
     match why {
         Some(why) => {
             cap.boundary = Boundary::None;
@@ -267,6 +406,25 @@ mod tests {
             let bad = good.replace(from, to);
             assert!(judge(&bad, &host).unwrap_err().contains(why), "{bad}");
         }
+    }
+}
+
+#[cfg(test)]
+mod backoff_tests {
+    use super::*;
+
+    /// T-574: a test with no verdict waits minutes, doubled for each miss
+    /// in a row and bounded; a verdict resets the count.
+    #[test]
+    fn a_test_with_no_verdict_backs_off_in_minutes() {
+        let minutes: Vec<u64> = (1..=7).map(|n| next_ms(n) / 60_000).collect();
+        assert_eq!(minutes, [2, 4, 8, 16, 30, 30, 30]);
+        assert_eq!(next_ms(0), RETEST_MS);
+        assert_eq!(next_ms(u32::MAX), BACKOFF_MAX_MS);
+        let none = Err(Fail::NoVerdict("x".into()));
+        assert_eq!(misses_after(2, &none), 3);
+        assert_eq!(misses_after(2, &Err(Fail::Verdict("x".into()))), 0);
+        assert_eq!(misses_after(2, &Ok(())), 0);
     }
 }
 

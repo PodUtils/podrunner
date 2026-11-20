@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**572 entries: 59 open, 51 partial, 18 blocked, 444 done.**
+**572 entries: 58 open, 52 partial, 18 blocked, 444 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 5 | 24 | 6 | 79 | 114 |
+| P1 | 4 | 25 | 6 | 79 | 114 |
 | P2 | 16 | 20 | 8 | 233 | 277 |
 | P3 | 37 | 7 | 4 | 130 | 178 |
-| **All** | 59 | 51 | 18 | 444 | 572 |
+| **All** | 58 | 52 | 18 | 444 | 572 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -618,5 +618,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-571](later.md) | P2 | S | later | defect | done | An offer whose disk limit is below the size of its image starts a unit that cannot hold it |
 | [T-572](later.md) | P3 | S | later | feature | done | The release manifest and config init do not carry the size of a runner image |
 | [T-573](later.md) | P2 | S | later | defect | done | An image larger than the memory of a microvm guest is not refused |
-| [T-574](later.md) | P1 | S | later | defect | open | One failed self-test of the guest tier takes the microvm kind out of `serve` for a day, with no cause |
+| [T-574](later.md) | P1 | S | later | defect | partial | One failed self-test of the guest tier takes the microvm kind out of `serve` for a day, with no cause |
 | [T-575](later.md) | P2 | S | later | defect | open | The host facts of a microvm kind with no `mem` name no memory and no CPU |

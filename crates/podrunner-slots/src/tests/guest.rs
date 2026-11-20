@@ -14,7 +14,7 @@ fn a_fake_that_claims_guest_fails_the_self_test() {
     let unit = FakeUnit::new(&dir.0.join("fake"), claim.clone(), "linux/amd64");
     let verdict =
         self_test(&unit, PIN, "linux/amd64", (UnitId::parse("u-10").unwrap(), UnitId::parse("u-1").unwrap()), &dir.0);
-    let why = verdict.clone().unwrap_err();
+    let why = verdict.clone().unwrap_err().to_string();
     assert!(why.contains("boot id") || why.contains("loopback"), "{why}");
     let (cap, note) = settle(claim.clone(), true, verdict);
     assert_eq!(cap.boundary, Boundary::None);
@@ -28,7 +28,7 @@ fn a_fake_that_claims_guest_fails_the_self_test() {
 #[test]
 fn a_kind_below_guest_is_not_touched() {
     let c = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
-    assert_eq!(settle(c.clone(), false, Err("x".into())), (c, None));
+    assert_eq!(settle(c.clone(), false, Err(crate::guest::Fail::Verdict("x".into()))), (c, None));
 }
 
 /// A unit on the network of the host reaches the planted listener, and
@@ -47,7 +47,8 @@ fn the_loopback_listener_is_reached_from_the_host_network() {
     let unit = FakeUnit::new(&dir.0.join("fake"), claim, "linux/amd64");
     let why =
         self_test(&unit, PIN, "linux/amd64", (UnitId::parse("u-20").unwrap(), UnitId::parse("u-2").unwrap()), &dir.0)
-            .unwrap_err();
+            .unwrap_err()
+            .to_string();
     assert!(why.contains("loopback"), "{why}");
 }
 
@@ -65,13 +66,14 @@ fn a_second_fake_unit_sees_the_first() {
     assert!(text.contains("hostpid=visible") || text.contains("hostpid=absent"), "{text}");
 }
 
-/// The claim of `guest` is tested again when the driver file changes and
-/// after a day; a fake fails the test, so its claim drops to `none`.
+/// The claim of `guest` is tested again when the driver file changes,
+/// after a day, and in minutes after a test with no verdict; a fake fails
+/// the test, so its claim drops to `none`.
 #[test]
 fn the_self_test_runs_again_on_a_driver_change_and_each_day() {
     use crate::guest::{Retest, stamp};
     let claim = capability(Boundary::Guest, Principal::Distinct, EgressHold::Enforced);
-    let bed = |driver: Option<std::path::PathBuf>| {
+    let bed = |driver: Option<std::path::PathBuf>, misses: u32| {
         let mut bed = Bed::new(
             config(""),
             vec![],
@@ -87,6 +89,7 @@ fn the_self_test_runs_again_on_a_driver_change_and_each_day() {
             last_ms: now,
             driver,
             stamp,
+            misses,
         };
         bed.slots.retest_guest(0, r);
         bed
@@ -96,7 +99,7 @@ fn the_self_test_runs_again_on_a_driver_change_and_each_day() {
     let dir = TempDir::new();
     let driver = dir.0.join("driver");
     std::fs::write(&driver, "v1").unwrap();
-    let mut b = bed(Some(driver.clone()));
+    let mut b = bed(Some(driver.clone()), 0);
     b.tick();
     assert_eq!(boundary(&b), Boundary::Guest);
     std::fs::write(&driver, "version 2").unwrap();
@@ -104,10 +107,18 @@ fn the_self_test_runs_again_on_a_driver_change_and_each_day() {
     assert_eq!(boundary(&b), Boundary::None);
     assert_eq!(b.slots.status().kinds[0].probe.boundary_proof.as_deref(), Some("guest-self-test-failed"));
     // A day.
-    let mut b = bed(None);
+    let mut b = bed(None, 0);
     b.tick();
     assert_eq!(boundary(&b), Boundary::Guest);
     b.clock.advance(std::time::Duration::from_millis(crate::guest::RETEST_MS));
+    b.tick();
+    assert_eq!(boundary(&b), Boundary::None);
+    // T-574: minutes after a test with no verdict, not a day.
+    let mut b = bed(None, 1);
+    b.clock.advance(std::time::Duration::from_millis(crate::guest::BACKOFF_MS - 1));
+    b.tick();
+    assert_eq!(boundary(&b), Boundary::Guest);
+    b.clock.advance(std::time::Duration::from_millis(1));
     b.tick();
     assert_eq!(boundary(&b), Boundary::None);
 }

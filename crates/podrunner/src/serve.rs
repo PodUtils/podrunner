@@ -35,6 +35,7 @@ fn now_unix() -> u64 {
 mod fake;
 #[path = "serve/front.rs"]
 pub(crate) mod front;
+mod guest;
 #[path = "serve/host.rs"]
 mod host;
 mod restart;
@@ -144,45 +145,10 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
             }
         };
         // A claim of guest holds only on the allowlist and after the
-        // self-test of GitHub #36; slots tests it again each day and on a
-        // change of the driver file.
+        // self-test of GitHub #36.
         let capability = if capability.boundary == podrunner_schema::Boundary::Guest {
-            let allowed = cfg.guest_kinds.contains(name);
-            let pin = cfg.pin.payload.iter().find(|p| p.arch == capability.arch);
-            let platform = if capability.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" };
-            let verdict = match (allowed, pin) {
-                (true, Some(p)) => podrunner_slots::guest::self_test(
-                    driver.as_ref(),
-                    &p.reference,
-                    platform,
-                    podrunner_slots::guest::test_ids(),
-                    state,
-                ),
-                (true, None) => Err("no pinned payload for the self-test".into()),
-                (false, _) => Err("not on guest_kinds".into()),
-            };
-            let claim = capability.clone();
-            let (cap, note) = podrunner_slots::guest::settle(capability, allowed, verdict);
-            if let Some(why) = note {
-                eprintln!("podrunner: [unit.{name}]: the claim of guest drops to none: {why}");
-            }
-            if let Some(p) = pin {
-                let driver = u.binary.as_ref().map(PathBuf::from);
-                let stamp = driver.as_deref().and_then(podrunner_slots::guest::stamp);
-                retests.push((
-                    kinds.len(),
-                    podrunner_slots::guest::Retest {
-                        claim,
-                        allowed,
-                        payload: p.reference.clone(),
-                        platform: platform.into(),
-                        // The time of the slots starts after this test.
-                        last_ms: 0,
-                        driver,
-                        stamp,
-                    },
-                ));
-            }
+            let (cap, retest) = guest::claim(name, u, &cfg, driver.as_ref(), capability, state);
+            retests.extend(retest.map(|r| (kinds.len(), r)));
             cap
         } else {
             capability

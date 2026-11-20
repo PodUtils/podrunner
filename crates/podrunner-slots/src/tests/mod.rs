@@ -11,6 +11,7 @@ mod egress;
 mod egress_lines;
 mod guards;
 mod guest;
+mod guest_retry;
 mod hooks;
 mod host_cap;
 mod jobfile;
