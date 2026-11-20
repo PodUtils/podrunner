@@ -75,8 +75,8 @@ gives other behaviours as argv of its own.
 | 20 | the processes of a container do not carry the tag, and have no shim |
 | 21 | start keeps a copy of the credential outside the unit root |
 | 22 | probe gives the credential of the last unit in `boundary_proof` |
-| 23 | probe leaves a process (`tests/alone.rs`) |
-| 24 | the credential goes into the environment of each container (`tests/alone.rs`) |
+| 23 | probe leaves a process (`crates/podrunner-fake/tests/alone.rs`) |
+| 24 | the credential goes into the environment of each container (`crates/podrunner-fake/tests/alone.rs`) |
 | 25 | no shim: destroy finds the processes by their tag only |
 | 26 | destroy counts 0 processes after its shim was killed |
 | 27 | the record claims `confined`, and no rule applies |

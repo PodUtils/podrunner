@@ -13,9 +13,10 @@ its test, not podrunner at run time.
 ## Rules
 
 - `probe` gives the capability record (`unit-capability.v1`,
-  `crates/podrunner-schema/src/capability.rs`). Two calls give the same
-  record. A field that the driver cannot prove is `unknown`, and placement
-  reads `unknown` as absent.
+  `pod_job::Capability`, re-exported by
+  `crates/podrunner-schema/src/lib.rs`). Two calls give the same record.
+  A field that the driver cannot prove is `unknown`, and placement reads
+  `unknown` as absent.
 - `prepare` takes a digest (`NAME@sha256:HEX`), never a tag
   (`payload-not-pinned`). It refuses a platform that is not the host's
   (`arch-mismatch`) unless emulation is named and the driver can emulate.

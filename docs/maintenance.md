@@ -86,6 +86,18 @@ the tools.
     corpus table `corpus/user-gate.tsv` and the summary (T-243).
     `test-install.sh` runs a lane on fake assets.
   * `lab/*.sh`: the host classes of the lanes (T-244, `lab/README.md`).
+  * `install-pins.py --check FILE`: the block of pins of `install.sh`
+    against `images/*.toml`; `make-bundle.sh INSTALLER ARCH ASSETS OUT`:
+    the offline bundle of one architecture (T-202).
+  * `build-image.sh DOCKERFILE ...`, `pull-base.sh REFERENCE`: a build and
+    a pull of a base image from the first registry that serves it (T-478).
+  * `shellcheck.sh FILE...`: the pinned ShellCheck (T-251).
+  * `check-config-schema.py [--self-test]`: the config files of
+    `docs/` against `schemas/config.v1.json` (T-479);
+    `check-status-samples.py SCHEMA SAMPLES`: `status` samples against a
+    schema (T-525).
+  * `githome-conformance.sh PODRUNNER [DIR]`: the pinned pod-fake-githome
+    against `podrunner source-conformance` (T-509).
   * `hosted/probe.sh`, `hosted/diff.py`: the probe of the hosted parity
     and its diff against `images/hosted/allow.toml` (T-539);
     `hosted-parity.yml` runs them on each hosted label and in the runner
@@ -105,7 +117,10 @@ the tools.
   * `hosted/push-blob.py`, `hosted/oci.py`: the chunked upload of one blob
     and of a manifest to an OCI registry, with the token from the
     environment, and the config, the manifest and the index of the
-    snapshot as canonical bytes (T-555).
+    snapshot as canonical bytes (T-555). `hosted-index.yml` pushes the
+    multi-arch index of each OS (`ubuntu24-latest`, `ubuntu26-latest`)
+    after it reads back each manifest from ghcr.io
+    (`docs/hosted-snapshot.md`).
   * `hosted/slice.py`: the core slice of a published snapshot (the
     layers of the distribution and `boot`, no trees of the tools) as an
     OCI layout for `podvm load`; `hosted-boot.yml` boots it under incus
