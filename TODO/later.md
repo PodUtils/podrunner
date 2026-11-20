@@ -13368,6 +13368,8 @@ State (2026-11-20, the measure, podvm `0.2.0-beta.36`, the runner image of `v0.1
 
 CI (2026-11-20, `user-gate.yml` run 44698971408 at `85ace56`, the first run of the lane `userns-on`; proven in CI on GitHub-hosted runners): `rung:podvm` gives `namespace`, and `lab:vnet` (a run with `--vnet` in `podvm lab run bind-denied,getsockname-denied`), `hello:podvm`, `confine:podvm`, `pids:podvm`, `pty:podvm` and `hold:podvm` pass on that rung. The rows `click-py313` and `rq-lint` on podvm, xfail on the other rungs (T-261), pass there: the expect of a row now takes a lane (`xfail userns-on:ok`, `scripts/user-gate.py`). Each other lane passes.
 
+CI (2026-11-20, `user-gate.yml` run 44708738377 at `dcefbfd`): the lane `userns-on` passes each check, with the rows of uv and ruff `ok` there.
+
 # T-565: `config init` writes no `confine` for the podvm kind, so a trusted source on a host with no incus gets no kind
 
 **Source:** a prototype of a runner job through `serve` with the fakes of podcrates (T-527, T-509), 2026-11-20
