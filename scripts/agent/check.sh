@@ -48,8 +48,12 @@ echo "commit-msg $m"; [ "$m" -eq 0 ] || { rc=1; grep -v "^ok" "$log/msg.log" | h
 if python3 -I -c 'import jsonschema' 2> /dev/null; then
     python3 -I scripts/check-config-schema.py --self-test > "$log/config-schema.log" 2>&1; c=$?
     echo "config-schema $c"; [ "$c" -eq 0 ] || { rc=1; cat "$log/config-schema.log"; }
+    # The design checks of the gate's job record (the word ceiling of
+    # SPEC.md, the schemas, the contracts).
+    { bash docs/design/verify.sh && sh scripts/check-design.sh --self-test && sh scripts/check-design.sh; } > "$log/design.log" 2>&1; d=$?
+    echo "design $d"; [ "$d" -eq 0 ] || { rc=1; grep -v "^ok" "$log/design.log" | tail -20; }
 else
-    echo "config-schema skipped: no jsonschema module"
+    echo "config-schema and design skipped: no jsonschema module"
 fi
 sh scripts/test-install.sh > "$log/install.log" 2>&1; i=$?
 echo "install $i"; [ "$i" -eq 0 ] || { rc=1; tail -20 "$log/install.log"; }

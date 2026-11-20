@@ -298,7 +298,7 @@ The pin list names the payload: an image by digest, an argv, the credential deli
    - `mount_modes` holds `ro` where a mount needs it.
 5. The job's egress policy is intersected with the tier's ceiling. An offer can only narrow it. Path rules while the broker has no TLS end are `egress-policy-unsupported`.
 6. The payload comes from the offer only for a `payload_from_offer` source. Otherwise `slots` takes it from the pin list entry of the set, ignores and audits a `payload` in the offer, and an offer naming a digest outside the pin list is `payload-not-pinned`. A pin past its age limit is `image-stale`, checked here and again at `start` (§11.3).
-   A kind that sizes the root disk of a unit (`root_quota`) gives it the lesser of the `disk` limit of the offer and `disk_max_bytes`. Such a kind with a root below `unpacked_bytes` of the payload is no candidate; with no candidate left the offer is `limit-not-enforceable`, and the audit line names both sizes (T-571).
+   With `root_quota`, the root of a unit is the lesser of the `disk` of the offer and `disk_max_bytes`; a root below `unpacked_bytes` of the payload is no candidate (`limit-not-enforceable`, T-571).
 7. The first candidate with a free slot wins. A slot reserved for a tier (`slots_reserved`) is not given to another tier, and a tier is held to `slots_max` (§11.7). With none free the job waits (`no-slot-of-kind`) until `wait_deadline_s`, then `withdraw`. A kind on a `shared` principal has `max_concurrent` 1 (§5.3).
 8. `prepare`, `claim`, create the credential directory, `mint`, write the files, `egress.load`, `start` (§11.1).
 
@@ -470,7 +470,7 @@ A host that serves no `untrusted` tier does not poll that tier's set: a polled j
 
 ### 10.3 Per-job start environment
 
-`slots` passes the start environment in `start.env`, not the image, so a pin cannot drop it: `DOTNET_EnableWriteXorExecute=0` (§10.4), the hook variables (§7.2), `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` (§11.3) and `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=false` (the log of the unit holds no output of the worker, T-568). It sets none of `RUNNER_TOOL_CACHE`, `RUNNER_TOOLSDIRECTORY` and `AGENT_TOOLSDIRECTORY`, which keeps the tool mount target at `/__w/_tool` (`contracts/unit-driver.md`). The `runner_root` of the contract examples is not a requirement.
+`slots` passes the start environment in `start.env`, not the image, so a pin cannot drop it: `DOTNET_EnableWriteXorExecute=0` (§10.4), the hook variables (§7.2), `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1` (§11.3) and `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=false` (T-568). It sets none of `RUNNER_TOOL_CACHE`, `RUNNER_TOOLSDIRECTORY` and `AGENT_TOOLSDIRECTORY`, which keeps the tool mount target at `/__w/_tool` (`contracts/unit-driver.md`). The `runner_root` of the contract examples is not a requirement.
 
 ### 10.4 Limits, the .NET constraint and the tree kill
 
