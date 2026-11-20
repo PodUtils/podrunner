@@ -13833,3 +13833,33 @@ Put the defaults of the microvm kind (`8G`, 2 vCPUs) in one place in `podrunner-
 ## Prove
 
 `cargo test -p podrunner-slots --lib host`: a microvm kind with no `mem` and no `cpus` gives `memory` 8 GiB and `cpu` 2000 in its facts; a kind with `mem = "4G"` gives 4 GiB. `cargo test -p podrunner --lib microvm_kind`: `build` and `pins_fit` take the same default.
+
+# T-576: Take podcrates `v0.80.0` (COORD-150 of podcrates)
+
+**Source:** PodUtils/podcrates#250 (COORD-150, to all), 2026-11-20
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podcrates `v0.80.0` is out (tag at `62b8039`). podrunner takes `v0.79.0`. The release asks podrunner first: the new binary of `pod-release` (each certificate of a failed chain is named), the crate `pod-control` (one JSON control API; githome's G-08), the crate `pod-unit` (hardened service units; T-507), and the bundle of `pod-broker` for 14 clients (10 CA variables, a PKCS #12 trust store for a JVM; githome's G-35, T-563).
+
+## Premise
+
+The body of PodUtils/podcrates#250, read on 2026-11-20.
+
+## Approach
+
+1. Each podcrates dependency names `tag = "v0.80.0"` (`Cargo.toml`, `Cargo.lock`, `fuzz/Cargo.lock`); `issue-sync.yml` uses `@v0.80.0` with `podcrates_ref: v0.80.0`.
+2. Pin the new `pod-release` in `images/pod-release.toml` (x86_64 `dffc65db56c2c3214aa2a1d79404403c9a95d9260a16caa6bc648f2bdbbf8b22`, aarch64 `31404cce1bed13074a79b825bf349e4a7cb04584d9da8b6b2efe0d2cab213cd3`) and the fakes of `v0.80.0` (`images/fake-githome.toml`).
+3. Move `crates/podrunner/src/control.rs` onto `pod-control` by the table "The take of podrunner" of the README of `pod-control` (PodUtils/podcrates `v0.80.0`) (`Drain` is `drain {"exit":false}`, `Stop` is `drain {"exit":true}`); run `pod_control::conformance::check` against the server of podrunner in a test.
+4. Move `print_unit` and `exec_word` of `cli.rs` onto `pod_unit::Unit` (`Start::Notify`, `Stop { drain: true, timeout_s: None }`) and `systemd::render`.
+5. Give a unit the 10 CA variables of `ca::env`, and for a JVM `ca::write_trust_store` and `ca::java_options`, where podrunner sets the CA of the broker today.
+6. Write the commit of the take as a COORD issue `(to podcrates)`.
+
+## Prove
+
+`sh scripts/agent/check.sh` passes; the conformance test of `pod-control` passes; the gate and `level2.yml` are green on the commit of the take.

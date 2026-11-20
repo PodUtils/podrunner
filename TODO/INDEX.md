@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**572 entries: 58 open, 52 partial, 18 blocked, 444 done.**
+**573 entries: 59 open, 52 partial, 18 blocked, 444 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 4 | 25 | 6 | 79 | 114 |
+| P1 | 5 | 25 | 6 | 79 | 115 |
 | P2 | 16 | 20 | 8 | 233 | 277 |
 | P3 | 37 | 7 | 4 | 130 | 178 |
-| **All** | 58 | 52 | 18 | 444 | 572 |
+| **All** | 59 | 52 | 18 | 444 | 573 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -620,3 +620,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-573](later.md) | P2 | S | later | defect | done | An image larger than the memory of a microvm guest is not refused |
 | [T-574](later.md) | P1 | S | later | defect | partial | One failed self-test of the guest tier takes the microvm kind out of `serve` for a day, with no cause |
 | [T-575](later.md) | P2 | S | later | defect | open | The host facts of a microvm kind with no `mem` name no memory and no CPU |
+| [T-576](later.md) | P1 | M | later | chore | open | Take podcrates `v0.80.0` (COORD-150 of podcrates) |
