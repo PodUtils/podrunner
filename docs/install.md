@@ -62,6 +62,41 @@ and `allow` lines, and give in `allow` each host that a job needs.
 release on github.com (`file://DIR` is a directory). Each file must agree
 with its pin.
 
+## An install of serve
+
+A program (githome's CLI, for example) installs `podrunner serve` on a
+machine with no prompt (T-507). The operator does these steps with root,
+one time: Incus with a range for root in `/etc/subuid` and `/etc/subgid`,
+the user in the group of `/dev/kvm` and of the socket of incusd, and
+`loginctl enable-linger USER`. `podrunner doctor --json` names each one
+that is missing. Then, as the user:
+
+```sh
+sh podrunner-install.sh --serve
+podrunner config init --source NAME --program PATH --podvm PODVM --images STORE \
+  --image runner@sha256:HEX --built-at-s N --out ~/.config/podrunner/podrunner.toml --json
+mkdir -p ~/.config/systemd/user
+podrunner print-unit --config ~/.config/podrunner/podrunner.toml --state ~/.local/state/podrunner \
+  --binary ~/.local/bin/podrunner > ~/.config/systemd/user/podrunner.service
+systemctl --user daemon-reload
+systemctl --user enable --now podrunner.service
+```
+
+`podrunner-install.sh --serve` prints the `config init` line with the
+paths of the install (`DATA/serve.json` has them too). `config init`
+writes the kinds that this host can run, at the tier of the source; a
+trusted podvm kind needs `--podnet` and a confine layer that its
+self-test proves here. A second run of each step changes nothing. The
+install and `serve` open no TCP listener: the host keeps no inbound port.
+
+Proof level: `podrunner-install.sh --serve`, `config init`, `check`,
+`doctor`, `print-unit` and a start of `serve` in CI on GitHub-hosted
+runners as a user with no root (the lane `serve-incus-kvm` of
+`user-gate.yml`, on incus and microvm). On a constrained host as a user:
+the schema of the file, no TCP listener of `serve`, and a runner job
+through `serve` on podvm (T-527, T-566); the lanes measure them in CI
+next. `systemctl --user` of the unit is not run.
+
 ## The checks
 
 - Each version and each SHA-256 is in the block of pins of the installer.

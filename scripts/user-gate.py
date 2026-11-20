@@ -68,6 +68,31 @@ class GateError(Exception):
     pass
 
 
+def tcp_listeners_of(pid: int) -> list[str]:
+    """The TCP sockets in LISTEN that the process PID holds, as ADDR:PORT
+    in hex of /proc/net/tcp and tcp6."""
+    listen = {}
+    for name in ("tcp", "tcp6"):
+        try:
+            rows = pathlib.Path(f"/proc/net/{name}").read_text().splitlines()[1:]
+        except OSError:
+            continue
+        for row in rows:
+            f = row.split()
+            if len(f) > 9 and f[3] == "0A":
+                listen[f[9]] = f[1]
+    held = []
+    for fd in pathlib.Path(f"/proc/{pid}/fd").glob("*"):
+        try:
+            target = os.readlink(fd)
+        except OSError:
+            continue
+        m = re.fullmatch(r"socket:\[(\d+)\]", target)
+        if m and m.group(1) in listen:
+            held.append(listen[m.group(1)])
+    return held
+
+
 def read_table(path: pathlib.Path) -> tuple[list[dict], list[str]]:
     rows, errors, seen = [], [], set()
     for n, line in enumerate(path.read_text().splitlines(), 1):
@@ -168,6 +193,8 @@ class Lane:
         self.serve_kinds = [k for k in (a.serve_kinds or "").split(",") if k]
         # The rung that the class of the lane must give podvm (T-564).
         self.want_rung = getattr(a, "want_rung", "") or ""
+        # A Python with jsonschema for the check of podrunner.toml (T-507).
+        self.schema_python = getattr(a, "schema_python", "") or ""
         for k in self.serve_kinds:
             if k not in ("incus", "microvm", "podvm"):
                 raise SystemExit(f"no serve kind {k!r}")
@@ -652,11 +679,20 @@ class Lane:
             raise GateError(f"doctor --json: the {kind} kind is {cap and cap.get('boundary')}, not {want}: {v.get('kinds')}")
         if not all(src.get("served") for src in v.get("sources", [])):
             raise GateError(f"doctor --json: a source is not served: {v.get('sources')}")
+        # T-507, T-479: the file of config init agrees with the schema.
+        schema = "schema not checked (no --schema-python)"
+        if self.schema_python:
+            rc, _ = self.run([self.schema_python, "-I", ROOT / "scripts" / "check-config-schema.py", cfg], env, cfg.parent,
+                             f"serve-{kind}-schema")
+            if rc:
+                self.show(f"serve-{kind}-schema")
+                raise GateError(f"the file of config init does not agree with schemas/config.v1.json: exit {rc}")
+            schema = "the schema"
         rc, unit = self.run(["podrunner", "print-unit", "--config", cfg, "--state", cfg.parent / "state",
                              "--binary", shutil.which("podrunner", path=env["PATH"])], env, cfg.parent, f"serve-{kind}-unit")
         if rc or "Type=notify" not in unit:
             raise GateError(f"podrunner print-unit: exit {rc}")
-        return f"config init, check, doctor ({kind}: {want}, hold {cap.get('egress_hold')}), print-unit"
+        return f"config init, {schema}, check, doctor ({kind}: {want}, hold {cap.get('egress_hold')}), print-unit"
 
     def serve_run(self, kind: str) -> str:
         """`serve` with the kind: it starts, and the microvm kind runs the
@@ -681,6 +717,9 @@ class Lane:
                         break
                     time.sleep(2)
                 alive = p.poll() is None
+                # T-507: serve opens no TCP listener (the host keeps no
+                # inbound port; githome's agent comes through podssh).
+                listening = tcp_listeners_of(p.pid) if alive else []
             finally:
                 if p.poll() is None:
                     os.killpg(p.pid, signal.SIGTERM)
@@ -689,11 +728,13 @@ class Lane:
                     except subprocess.TimeoutExpired:
                         os.killpg(p.pid, signal.SIGKILL)
                         p.wait()
+        if listening:
+            raise GateError(f"serve listens on TCP: {listening}")
         if kind != "microvm":
             if not alive:
                 self.show(f"serve-{kind}", 100)
                 raise GateError(f"serve ended: exit {p.returncode}")
-            return "serve started and stopped on SIGTERM"
+            return "serve started and stopped on SIGTERM, with no TCP listener"
         if not reported:
             self.show(f"serve-{kind}", 200)
             raise GateError("no report of the sandbox offer")
@@ -1101,6 +1142,7 @@ def main() -> int:
     ln.add_argument("--podvm-lab", default="", metavar="PROFILES")
     ln.add_argument("--serve-kinds", default="", metavar="KINDS")
     ln.add_argument("--want-rung", default="", metavar="RUNG")
+    ln.add_argument("--schema-python", default="", metavar="PATH")
     s = sub.add_parser("summary")
     s.add_argument("--lanes", default="")
     s.add_argument("dir")

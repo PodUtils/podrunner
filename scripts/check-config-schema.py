@@ -3,6 +3,7 @@
 """Validate podrunner.toml files against schemas/config.v1.json (T-479).
 
     python3 -I scripts/check-config-schema.py [--self-test]
+    python3 -I scripts/check-config-schema.py FILE...
 
 It validates docs/examples/podrunner.toml as a whole file, and each
 ```toml block of docs/configuration.md with the keys that a block may leave
@@ -10,6 +11,8 @@ out (a block shows some tables of a file); a block after the line
 `<!-- not podrunner.toml -->` is another file. With --self-test, a planted
 unknown key and a planted wrong type must each fail. It needs the module
 `jsonschema` (draft 2020-12). `podrunner check` stays the last word.
+With FILE, it validates each FILE as a whole file instead (the file of
+`podrunner config init` in the user-path gate, T-507).
 """
 
 import copy
@@ -51,6 +54,21 @@ def blocks(text: str) -> list[tuple[int, str]]:
 
 def main() -> int:
     whole, part = validators()
+    files = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if files:
+        bad = []
+        for f in files:
+            try:
+                doc = tomllib.loads(pathlib.Path(f).read_text())
+            except (OSError, tomllib.TOMLDecodeError) as e:
+                bad.append(f"{f}: {e}")
+                continue
+            bad += [f"{f}: {e}" for e in errors(whole, doc)]
+        for b in bad:
+            print(b)
+        if not bad:
+            print(f"check-config-schema: {len(files)} files agree with {SCHEMA.name}")
+        return 1 if bad else 0
     bad = []
     bad += [f"{EXAMPLE.relative_to(ROOT)}: {e}" for e in errors(whole, tomllib.loads(EXAMPLE.read_text()))]
     found = blocks(DOC.read_text())

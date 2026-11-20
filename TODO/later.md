@@ -11585,6 +11585,7 @@ In the code (2026-11-18): step 2: `podrunner config init` writes a `podrunner.to
 
 In the code (2026-11-18, step 1): `podrunner-install.sh --serve` installs the same files with no `run.toml` and no `hello.yml`, writes `DATA/serve.json` (`podrunner`, `podvm`, `podnet`, `images`, `image`, `runner_version`) and prints the command of `config init`; a second run changes nothing (`sh scripts/test-install.sh`, case `--serve`). The lane `serve-incus-kvm` of the user-path gate (T-527) runs `config init`, `check`, `doctor` and `print-unit` as a user with no root.
 
+State (2026-11-20): the open parts are in. `print-unit` gives a unit that runs as a systemd user unit (`WantedBy=default.target`, no `User=`); `docs/install.md`, "An install of serve", gives the steps of the operator and of the program, with `systemctl --user`. The user-path gate checks the file of `config init` against `schemas/config.v1.json` (`scripts/check-config-schema.py FILE`, in a venv of the lane) and that `serve` holds no TCP socket in LISTEN (`tcp_listeners_of`: the socket inodes of its descriptors against `/proc/net/tcp` and `tcp6`; a planted listener is found). Through the code of the gate as a user with no root on the podvm kind: `serve:check` ("config init, the schema, check, doctor (podvm: confined, hold enforced), print-unit") and `serve:run` ("with no TCP listener") pass. Next: the lanes in CI.
 
 # T-508: COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks
 

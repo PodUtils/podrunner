@@ -278,6 +278,15 @@ jobs:
           sudo incus admin init --minimal
           id labuser >/dev/null 2>&1 || sudo useradd -m -s /bin/sh labuser
           sudo usermod -aG incus-admin labuser
+      # T-507: the file of config init against schemas/config.v1.json, in a
+      # venv that the user of the lane can run.
+      - name: The checker of the schema of podrunner.toml
+        if: matrix.serve_kinds != ''
+        run: |
+          set -eu
+          sudo python3 -m venv /opt/user-gate/venv
+          sudo sh scripts/retry.sh /opt/user-gate/venv/bin/pip install --quiet jsonschema==4.26.0
+          sudo chmod -R a+rX /opt/user-gate/venv
       - name: The lane, as a user with no root
         working-directory: /opt/user-gate/src
         env:
@@ -296,7 +305,8 @@ jobs:
           # shellcheck disable=SC2086 # LAB is a command with its words.
           $LAB python3 -I scripts/user-gate.py lane --lane "$LANE" --assets /opt/user-gate/assets \
             --out /opt/user-gate/out --executors "$EXECUTORS" --podvm-lab "${PODVM_LAB:-}" \
-            --serve-kinds "${SERVE_KINDS:-}" --want-rung "${WANT_RUNG:-}"
+            --serve-kinds "${SERVE_KINDS:-}" --want-rung "${WANT_RUNG:-}" \
+            --schema-python "$(test -x /opt/user-gate/venv/bin/python3 && echo /opt/user-gate/venv/bin/python3)"
       - name: The results can be read
         if: always()
         run: sudo chmod -R a+rX /opt/user-gate/out
