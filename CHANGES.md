@@ -31,6 +31,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | control socket | The HTTP head of each socket of a unit is read by `pod_core::http1`: another version of HTTP gets 505, a head over 16 KiB gets 431. | T-536 |
 | `podrunner.toml` | `[unit.incus] init = "image"`: the init of the image is PID 1 of each instance, with the services and the engine of the image (`--podvm-init=image --podvm-engine`, podvm `0.2.0-beta.36` or later); not with `engine`; the other kinds refuse the key. | T-543 |
 | command line | `podrunner run` in a unit: a runner that sends no request to its broker in 600 s fails its job with that cause, not at its `timeout-minutes`. | T-561 |
+| unit driver | The contract names `pod_job::Capability` (re-exported by `podrunner-schema`) as the type of the capability record; the record does not change. | T-001 |
 | control socket | A new op `restart-source` (field `source`). | T-498 |
 | control socket | New ops `drain-source`, `resume-source` and `stop-source` (field `source`); `resume-source` builds a stopped source again. | T-501 |
 | `status.v1` | The type and the schema are `pod_job::Status` of podcrates `v0.73.0` (`schemas/status.v1.schema.json` of podcrates); `schemas/status.v1.json` of podrunner goes. | T-508 |
@@ -60,5 +61,5 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
 <!-- contract docs/contracts/source-driver.md 5700b24d3839fe92012962770699804c9473e901c8bec3dc7d6aa260b3b899d1 -->
-<!-- contract docs/contracts/unit-driver.md 07162598a8a264928373602ba954e00d94f973583ce4e6592494f758b8746401 -->
+<!-- contract docs/contracts/unit-driver.md 1c1ce27e4fe5d369f94dac4b7a7cddf91956562437546c6f775218e7d6d7416f -->
 <!-- contract schemas/config.v1.json c22e56c36a1378e58f5327b06dcfcebbfb34cd2a668da875a5fe918c5e442241 -->
