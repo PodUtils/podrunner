@@ -281,3 +281,10 @@ sh scripts/lab/nonroot.sh -- python3 -I scripts/user-gate.py lane --lane plain -
   when a build fails with "No space left on device".
 * A cloud session starts with a shallow clone. Run
   `git fetch --unshallow origin main` before a `git log` over a range.
+* Agents in worktrees (`.claude/worktrees/`) can share one target
+  directory (`CARGO_TARGET_DIR=/workspace/podrunner/target`): the lock of
+  cargo then runs one build at a time. Cargo finds a path crate up to
+  date by the time of its files, not by their content. A build after a
+  build of another worktree can take the other sources. Touch the sources
+  of the tree before each build:
+  `find crates -name '*.rs' -exec touch {} +`.

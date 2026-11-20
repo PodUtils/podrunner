@@ -13656,7 +13656,7 @@ Tests (they ran on a development host; level: not run): `cargo test -p podrunner
 
 ## Blocker
 
-podvm must act (a COORD issue `(to podvm)`, not yet written): `podvm logs CONTAINER` and `podvm logs --podvm-tier=incus NAME` stream the log from its start to stdout, with no copy of all of the log in memory, and take `--limit-bytes N`: stop after the first N bytes and exit 0. podrunner then passes `--limit-bytes` with its bound when `podvm --version` is that version or later. Also open: step 1 (the time of the read on the podvm and the incus lanes of `user-gate.yml`, from the stderr line of `serve`).
+podvm must act (COORD-115, GitHub #333, written 2026-11-20): `podvm logs CONTAINER` and `podvm logs --podvm-tier=incus NAME` stream the log from its start to stdout, with no copy of all of the log in memory, and take `--limit-bytes N`: stop after the first N bytes and exit 0. podrunner then passes `--limit-bytes` with its bound when `podvm --version` is that version or later. Also open: step 1 (the time of the read on the podvm and the incus lanes of `user-gate.yml`, from the stderr line of `serve`).
 
 # T-573: An image larger than the memory of a microvm guest is not refused
 
