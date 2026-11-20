@@ -296,3 +296,57 @@ fn a_pin_over_the_root_disk_of_the_incus_kind_is_refused() {
     }
     let _ = std::fs::remove_dir_all(&d);
 }
+
+/// T-573: the root of a microvm guest is an initramfs, and the memory of
+/// the guest holds it twice. `check` and `serve` refuse a pin of this
+/// architecture that unpacks to more than half of `mem` (8G when absent),
+/// with the fix; a pin at or under the bound passes, and so does a pin of
+/// another architecture.
+#[test]
+fn a_pin_over_half_the_memory_of_a_microvm_guest_is_refused() {
+    use std::os::unix::fs::PermissionsExt;
+    let d = dir("mem");
+    let podvm = d.join("podvm");
+    std::fs::write(&podvm, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.36\",\"rung\":\"userland\"}'\n").unwrap();
+    std::fs::set_permissions(&podvm, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let here = std::env::consts::ARCH;
+    let other = if here == "x86_64" { "aarch64" } else { "x86_64" };
+    let file = |i: usize, size: u64, mem: &str, arch: &str| {
+        let text = format!(
+            "host = \"h\"\n[unit.microvm]\nslots = 1\nbinary = \"{}\"\nimages = \"{}\"\n{mem}\n[pin]\n[[pin.payload]]\n\
+             arch = \"{arch}\"\nreference = \"runner@sha256:{}\"\nbuilt_at_s = {}\nunpacked_bytes = {size}\n",
+            podvm.display(),
+            d.display(),
+            "1".repeat(64),
+            now - 3600,
+        );
+        let f = d.join(format!("{i}.toml"));
+        std::fs::write(&f, text).unwrap();
+        f
+    };
+    let check = |f: &Path| Command::new(BIN).args(["check", "--config"]).arg(f).output().unwrap();
+    let over = file(0, 5_000_000_000, "", here);
+    let out = check(&over);
+    let text = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(78), "{text}");
+    for word in [
+        "[unit.microvm] mem: the pin runner@sha256:",
+        "unpacks to 5.0 GB, more than half of the memory of a guest (8G, 8.6 GB)",
+        "the root of a guest is an initramfs, and the memory holds it twice",
+        "fix: set mem = \"10G\" or more, or pin a smaller image",
+    ] {
+        assert!(text.contains(word), "{word}: {text}");
+    }
+    let state = d.join("state");
+    let serve = Command::new(BIN).args(["serve", "--config"]).arg(&over).arg("--state").arg(&state).output().unwrap();
+    assert_eq!((serve.status.code(), &serve.stderr), (out.status.code(), &out.stderr));
+    assert!(!state.join("journal.jsonl").exists());
+    let passes =
+        [(1, 5_000_000_000, "mem = \"10G\"", here), (2, 4_294_967_296, "", here), (3, 5_000_000_000, "", other)];
+    for (i, size, mem, arch) in passes {
+        let out = check(&file(i, size, mem, arch));
+        assert_eq!(out.status.code(), Some(0), "{i}: {}", String::from_utf8_lossy(&out.stderr));
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}

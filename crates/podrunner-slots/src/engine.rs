@@ -387,7 +387,10 @@ impl Slots {
         }
         let set = self.sources[s].cfg.tier;
         let trust = self.cfg.trust_for(&self.sources[s].cfg, &offer.trust_inputs);
-        match trust.and_then(|t| placement::place_for(&offer, set, &self.kind_views(), &self.cfg, t, (self.now_unix)()))
+        let now_s = (self.now_unix)();
+        match trust
+            .map_err(placement::Refusal::from)
+            .and_then(|t| placement::place_why(&offer, set, &self.kind_views(), &self.cfg, t, now_s))
         {
             Ok(p) => {
                 let tier = format!("{:?}", p.tier).to_lowercase();
@@ -405,8 +408,9 @@ impl Slots {
                 self.set(key, State::Matched, now);
                 self.claim(key, now);
             }
-            Err(code) if code.is_wait() => {}
-            Err(code) => {
+            Err(r) if r.code.is_wait() => {}
+            Err(placement::Refusal { code, detail: Some(d) }) => self.refuse_naming(key, code, Some(d), now),
+            Err(placement::Refusal { code, detail: None }) => {
                 // A limit refusal names the limits that no kind enforces.
                 let detail = (code == RefusalCode::LimitNotEnforceable).then(|| {
                     let views = self.kind_views();

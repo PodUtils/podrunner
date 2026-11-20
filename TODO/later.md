@@ -13665,7 +13665,7 @@ podvm must act (COORD-115, GitHub #333, written 2026-11-20): `podvm logs CONTAIN
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13683,6 +13683,14 @@ Ask podvm (COORD) for its measure of the memory of a guest for an image of N unp
 
 `cargo test -p podrunner --test check`: a pin over the memory bound of `[unit.microvm]` is refused with the fix; one under it passes.
 
+State (2026-11-20): done in this commit. Proven by tests on this machine only; not run in CI and not run on a constrained host as a user (no KVM host here). The bound is half of `mem`, the rule of the code (`MicrovmUnit::mem`: the initramfs must fit twice, packed and unpacked); podvm's measure of the ratio is not asked yet (a COORD issue to podvm), and it can only raise the bound.
+
+## Done
+
+2026-11-20, this commit. `crates/podrunner/src/pin_size.rs` (new: `gb`, `over`, `kind_fits`, `fits`: one rule for `check`, `serve`, `doctor` and `config init`); `crates/podrunner/src/microvm_kind.rs` (`pins_fit`, `DEFAULT_MEM`); `crates/podrunner/src/incus_kind.rs` (`pins_fit` on `pin_size::over`); `serve::plan` and `doctor` call `pin_size` for each kind; `doctor/pins.rs` (`microvm_mem_bytes`: twice the size); `config_init.rs` refuses a kind whose bound the image exceeds, with the fix in `refused`. The doc comment of `[unit.microvm] mem` said a default of `4G`; the driver uses `8G` (fixed in place, `schemas/config.v1.json`). Docs: `docs/configuration.md`, `docs/cli.md`, `docs/install.md`; the call is in `docs/decisions.md`.
+
+`cargo test -p podrunner --test check`: 6 passed; `a_pin_over_half_the_memory_of_a_microvm_guest_is_refused` fails on the code before (exit 0) and passes: 5.0 GB over 8G exits 78 with "set mem = \"10G\" or more", at `serve` with the same text; 5.0 GB with `mem = "10G"`, 4 GiB (at the bound) and another architecture pass. `cargo test -p podrunner --lib -- doctor`: `doctor_names_the_memory_of_a_pinned_image` fails on the code before (no `missing:` line) and passes.
+
 # T-571: An offer whose disk limit is below the size of its image starts a unit that cannot hold it
 
 **Source:** the work of T-551, 2026-11-20
@@ -13690,7 +13698,7 @@ Ask podvm (COORD) for its measure of the memory of a guest for an image of N unp
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13708,6 +13716,14 @@ Placement refuses an offer whose `disk` limit is below `unpacked_bytes` of its p
 
 `cargo test -p podrunner-slots --lib -- placement`: an offer with `disk` below the size of its pinned payload is refused with both sizes; one at the size is placed.
 
+State (2026-11-20): done in this commit. Proven by tests on this machine only; not run in CI and not run on a constrained host as a user (no host with a quota pool here).
+
+## Done
+
+2026-11-20, this commit. `crates/podrunner-slots/src/placement.rs`: `Kind::root_disk` (with `root_quota`, `disk_max_bytes` or no bound; `host.rs` fills it), a step after the pick of the payload: a kind whose root (the lesser of the `disk` of the offer and its bound) is below `unpacked_bytes` of the payload is no candidate; with none left, `limit-not-enforceable` (pod-job has no code of its own for it) with a detail that names both sizes. `place_why` gives the detail (`Refusal`), `place_for` keeps the code; `engine.rs` writes the detail to the audit line. Docs: `docs/design/SPEC.md` (step 6), `docs/configuration.md`.
+
+`cargo test -p podrunner-slots --lib -- placement`: 2 passed (`tests::placement_disk`). Both fail on the code before (the step off): `placement_refuses_a_root_disk_below_the_payload` (one byte under the size is refused, at the size and with no `disk` placed, a kind with no `root_quota` takes the offer, a pin with no size is not checked) and `placement_names_both_sizes_in_the_audit_line` (through the slots: the audit line of the refusal names both sizes; at the size the unit runs).
+
 # T-572: The release manifest and config init do not carry the size of a runner image
 
 **Source:** the work of T-551, 2026-11-20
@@ -13715,7 +13731,7 @@ Placement refuses an offer whose `disk` limit is below `unpacked_bytes` of its p
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13732,3 +13748,11 @@ Read on 2026-11-20: `scripts/release-assets.sh` (the manifest), `crates/podrunne
 ## Prove
 
 `sh scripts/test-install.sh`: the manifest of the local release has `unpacked_bytes` for each image; `cargo test -p podrunner --test config_init`: `--unpacked-bytes` lands in the pin and `check` takes the file.
+
+State (2026-11-20): done in this commit. Proven by tests on this machine only; not run in CI and not run on a constrained host as a user. Not measured: the size of `runner` and `runner-full` (the next release writes it).
+
+## Done
+
+2026-11-20, this commit. `scripts/install-pins.py` (`image_unpacked`: the bytes of the regular files of the image, from its layers, after the whiteouts and the opaque directories; a hard link counts once; a layer that is not tar or tar+gzip stops the release by name): `podrunner-manifest.json` has `unpacked_bytes` for each image, and the block of pins of the installer has `UNPACKED_image_ARCH` and `UNPACKED_imagefull_ARCH`. `release.yml` and `user-gate.yml` write the manifest through `release-assets.sh local-mode`, so no change of a workflow. `scripts/install.sh --serve` writes `unpacked_bytes` into `serve.json` and prints `--unpacked-bytes N` in the line of `config init`. `podrunner config init --unpacked-bytes N` writes it into the pin. Docs: `docs/install.md` (the manifest, `--serve`, the steps of serve), `docs/cli.md`, `docs/configuration.md`.
+
+`sh scripts/test-install.sh`: 16 passed; the fixture image has two layers (a whiteout and an opaque directory): the manifest and `serve.json` give 110 bytes, and the next line has `--unpacked-bytes 110`; with the scripts before, the run fails ("serve.json is not the JSON of the install"). `cargo test -p podrunner --test config_init`: 3 passed; `the_unpacked_bytes_of_the_image_land_in_the_pin` fails on the code before (an unknown option) and passes: the pin has `unpacked_bytes = 1500000000`, `check` takes the file, and a value that is not a number exits 64.

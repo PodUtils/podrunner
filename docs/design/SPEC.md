@@ -298,6 +298,7 @@ The pin list names the payload: an image by digest, an argv, the credential deli
    - `mount_modes` holds `ro` where a mount needs it.
 5. The job's egress policy is intersected with the tier's ceiling. An offer can only narrow it. Path rules while the broker has no TLS end are `egress-policy-unsupported`.
 6. The payload comes from the offer only for a `payload_from_offer` source. Otherwise `slots` takes it from the pin list entry of the set, ignores and audits a `payload` in the offer, and an offer naming a digest outside the pin list is `payload-not-pinned`. A pin past its age limit is `image-stale`, checked here and again at `start` (§11.3).
+   A kind that sizes the root disk of a unit (`root_quota`) gives it the lesser of the `disk` limit of the offer and `disk_max_bytes`. Such a kind with a root below `unpacked_bytes` of the payload is no candidate; with no candidate left the offer is `limit-not-enforceable`, and the audit line names both sizes (T-571).
 7. The first candidate with a free slot wins. A slot reserved for a tier (`slots_reserved`) is not given to another tier, and a tier is held to `slots_max` (§11.7). With none free the job waits (`no-slot-of-kind`) until `wait_deadline_s`, then `withdraw`. A kind on a `shared` principal has `max_concurrent` 1 (§5.3).
 8. `prepare`, `claim`, create the credential directory, `mint`, write the files, `egress.load`, `start` (§11.1).
 

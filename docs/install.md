@@ -59,7 +59,7 @@ and `allow` lines, and give in `allow` each host that a job needs.
 | `--prefix DIR` | Install into `DIR/bin` and `DIR/share/podrunner`. |
 | `--full` | Load the larger runner image (`images/runner/full.txt`: C and C++, CMake, Python, Node.js) in place of the base image, and use it for each job. |
 | `--bundle PATH` | Install from an offline bundle: its `.tar.gz` or its unpacked directory. No network. |
-| `--serve` | Install for `podrunner serve` (T-507): the same files, but no `run.toml` and no `hello.yml`. It writes `DATA/serve.json` (`podrunner`, `podvm`, `podnet`, `images`, `image`, `runner_version`) for a program that runs `podrunner config init`, and prints that next step. A second run changes nothing. |
+| `--serve` | Install for `podrunner serve` (T-507): the same files, but no `run.toml` and no `hello.yml`. It writes `DATA/serve.json` (`podrunner`, `podvm`, `podnet`, `images`, `image`, `runner_version`, `unpacked_bytes`) for a program that runs `podrunner config init`, and prints that next step. A second run changes nothing. |
 
 `PODRUNNER_MIRROR=URL` takes each file from `URL/NAME` in place of its
 release on github.com (`file://DIR` is a directory). Each file must agree
@@ -79,7 +79,7 @@ that is missing. Then, as the user:
 ```sh
 sh podrunner-install.sh --serve
 podrunner config init --source NAME --program PATH --podvm PODVM --images STORE \
-  --image runner@sha256:HEX --built-at-s N --out ~/.config/podrunner/podrunner.toml --json
+  --image runner@sha256:HEX --built-at-s N --unpacked-bytes N --out ~/.config/podrunner/podrunner.toml --json
 mkdir -p ~/.config/systemd/user
 podrunner print-unit --config ~/.config/podrunner/podrunner.toml --state ~/.local/state/podrunner \
   --binary ~/.local/bin/podrunner > ~/.config/systemd/user/podrunner.service
@@ -108,10 +108,18 @@ The root disk of an incus instance is `disk_max_bytes` when the pool
 holds a size (`root_quota`). An image larger than it fails each job at
 its start. Give each pin its `unpacked_bytes` (`du -sxb /` in a unit of
 the image): `podrunner check` and `serve` then refuse a pin above the
-root disk, and `doctor` names the disk that the image needs (T-551). The
+root disk, and `doctor` names the disk that the image needs (T-551).
+`podrunner-manifest.json` of a release gives `unpacked_bytes` of each
+runner image (the files of its layers), and the installer prints it in
+the line of `config init` (T-572). The
 incus kind needs the extracted tree plus about 2.4 times it in incusd
 (podvm's measure). For the hosted snapshot of 55 to 60 GB, give each
 unit a root disk of 80 GB or more, and the host about 190 GB.
+
+The root of a microvm guest is an initramfs, and the memory of the
+guest holds it twice. `check` refuses a pin over half of
+`[unit.microvm] mem` (8G when absent), with the value of `mem` that
+holds it (T-573).
 
 A unit of the incus or the podvm kind shares the kernel of the host, so
 it cannot set a sysctl. A job of a file watcher or of Elasticsearch
@@ -211,8 +219,8 @@ attestation. A machine reads it to take a new runner image with no new
 binary (T-499). It holds `schema` (1); `podrunner`: the version and, for
 each architecture, the file and its SHA-256; `runner`: the version of the
 official runner, the SHA-256 of each tarball, and for each architecture the
-base and the full image (`file`, `sha256` and the manifest `digest`, or
-`null`); `podvm` and `podnet`: the version and the SHA-256 of each
+base and the full image (`file`, `sha256`, the manifest `digest`,
+`built_at_s` and `unpacked_bytes`, or `null`); `podvm` and `podnet`: the version and the SHA-256 of each
 architecture. `podrunner doctor --config FILE` names the runner of each pin
 of the file, its age and its window, and warns in the last 7 days of it.
 

@@ -6,7 +6,7 @@ use podrunner_schema::{
     Boundary, Capability, ContainerRoute, EgressHold, JobOffer, LimitMode, Principal, RefusalCode, SecretDelivery, Tier,
 };
 
-use crate::config::Config;
+use crate::config::{Config, Payload};
 
 /// One unit kind of the host, as placement sees it.
 #[derive(Debug, Clone)]
@@ -18,6 +18,23 @@ pub struct Kind {
     pub running: u32,
     /// The repositories (`owner/repo`) of the running units.
     pub repos: Vec<String>,
+    /// With `root_quota`, the size of the root disk of a unit:
+    /// `disk_max_bytes`, or `u64::MAX` with none; the `disk` limit of an
+    /// offer narrows it (T-482). `None`: the kind does not size the root.
+    pub root_disk: Option<u64>,
+}
+
+/// A refusal of placement, with a detail for the audit line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Refusal {
+    pub code: RefusalCode,
+    pub detail: Option<String>,
+}
+
+impl From<RefusalCode> for Refusal {
+    fn from(code: RefusalCode) -> Refusal {
+        Refusal { code, detail: None }
+    }
 }
 
 /// Where an offer goes.
@@ -71,13 +88,25 @@ pub fn place_for(
     trust: &podrunner_tier::TierConfig,
     now_s: u64,
 ) -> Result<Placement, RefusalCode> {
+    place_why(offer, set, kinds, cfg, trust, now_s).map_err(|r| r.code)
+}
+
+/// [`place_for`], with the detail of a refusal.
+pub fn place_why(
+    offer: &JobOffer,
+    set: Tier,
+    kinds: &[Kind],
+    cfg: &Config,
+    trust: &podrunner_tier::TierConfig,
+    now_s: u64,
+) -> Result<Placement, Refusal> {
     let mut c: Vec<usize> = (0..kinds.len()).collect();
     narrow(&mut c, kinds, RefusalCode::ArchMismatch, |k| k.capability.arch == offer.arch)?;
     let tier = crate::sandbox::tier(offer, podrunner_tier::intake(&offer.trust_inputs, trust, set)?);
     let repo = format!("{}/{}", offer.trust_inputs.owner, offer.trust_inputs.repo);
     // One repository for the host (DR-4): the files of the uid outlive a job.
     if cfg.repository.as_ref().is_some_and(|r| !r.eq_ignore_ascii_case(&repo)) {
-        return Err(RefusalCode::RepoScopeRefused);
+        return Err(RefusalCode::RepoScopeRefused.into());
     }
     let need = offer.unit_need.clone().unwrap_or_default();
     let boundary = cfg.floor(tier).max(need.min_boundary.unwrap_or(Boundary::None));
@@ -115,13 +144,32 @@ pub fn place_for(
     // unit, and no path rule: podrunner has no TLS end (T-107).
     if !offer.policy.is_empty() {
         if crate::policy::unheld_rule(&offer.policy) {
-            return Err(RefusalCode::EgressPolicyUnsupported);
+            return Err(RefusalCode::EgressPolicyUnsupported.into());
         }
         narrow(&mut c, kinds, RefusalCode::EgressPolicyUnsupported, |k| {
             k.capability.egress_hold.effective() > EgressHold::None
         })?;
     }
-    let (payload, payload_ignored) = pick_payload(offer, cfg, now_s)?;
+    let (pin, payload_ignored) = pick_payload(offer, cfg, now_s)?;
+    // A root disk smaller than the image cannot hold it (T-571): the unit
+    // would start and fail with no clear cause.
+    if let Some(size) = pin.unpacked_bytes {
+        let offered = offer.limits.get("disk").copied().unwrap_or(u64::MAX);
+        let root = |k: &Kind| k.root_disk.map(|r| r.min(offered));
+        if let Some(bound) = c.iter().filter_map(|i| root(&kinds[*i])).filter(|b| *b < size).max() {
+            c.retain(|i| root(&kinds[*i]).is_none_or(|b| b >= size));
+            if c.is_empty() {
+                return Err(Refusal {
+                    code: RefusalCode::LimitNotEnforceable,
+                    detail: Some(format!(
+                        "disk: the root disk of a unit is {bound} bytes (the lesser of the disk limit of the offer \
+                         and disk_max_bytes), less than the {size} bytes of the payload {} unpacked",
+                        pin.reference
+                    )),
+                });
+            }
+        }
+    }
     // A shared principal runs one unit at a time; with same_principal_ok,
     // more, but of one repository only (affinity).
     let free = |k: &Kind| {
@@ -134,18 +182,18 @@ pub fn place_for(
             }
     };
     let kind = *c.iter().find(|i| free(&kinds[**i])).ok_or(RefusalCode::NoSlotOfKind)?;
-    Ok(Placement { kind, tier, boundary, payload, payload_ignored })
+    Ok(Placement { kind, tier, boundary, payload: pin.reference.clone(), payload_ignored })
 }
 
 /// The payload of the pin list for the architecture of the offer.
-fn pick_payload(offer: &JobOffer, cfg: &Config, now_s: u64) -> Result<(String, bool), RefusalCode> {
+fn pick_payload<'a>(offer: &JobOffer, cfg: &'a Config, now_s: u64) -> Result<(&'a Payload, bool), RefusalCode> {
     // The image of a sandbox (T-506).
     if let Some(pin) = crate::sandbox::pin(offer, cfg) {
         let pin = pin?;
         if pin.stale(&cfg.pin, now_s) {
             return Err(RefusalCode::ImageStale);
         }
-        return Ok((pin.reference.clone(), false));
+        return Ok((pin, false));
     }
     let pinned = |reference: &str| {
         cfg.pin.payload.iter().find(|p| {
@@ -168,5 +216,5 @@ fn pick_payload(offer: &JobOffer, cfg: &Config, now_s: u64) -> Result<(String, b
     if chosen.stale(&cfg.pin, now_s) {
         return Err(RefusalCode::ImageStale);
     }
-    Ok((chosen.reference.clone(), offer.payload.is_some() && from_offer.is_none()))
+    Ok((chosen, offer.payload.is_some() && from_offer.is_none()))
 }

@@ -44,6 +44,10 @@ SUM_imagefull_x86_64=""
 SUM_imagefull_aarch64=""
 DIGEST_imagefull_x86_64=""
 DIGEST_imagefull_aarch64=""
+UNPACKED_image_x86_64=""
+UNPACKED_image_aarch64=""
+UNPACKED_imagefull_x86_64=""
+UNPACKED_imagefull_aarch64=""
 # END PINS
 
 usage() {
@@ -359,10 +363,10 @@ load_image() { # KIND NAME
 }
 if [ "$full" = 1 ]; then
     load_image imagefull "runner-full-$arch.tar"
-    image=$(pin DIGEST_imagefull)
+    image=$(pin DIGEST_imagefull) image_bytes=$(pin UNPACKED_imagefull)
 else
     load_image image "runner-$arch.tar"
-    image=$(pin DIGEST_image)
+    image=$(pin DIGEST_image) image_bytes=$(pin UNPACKED_image)
 fi
 [ "$unpacked" = 0 ] || rm -rf "$downloads/bundle"
 rm -rf "$rel"
@@ -370,14 +374,17 @@ rm -rf "$rel"
 # An install for `serve` (T-507): a program (githome's CLI) reads
 # serve.json and runs `podrunner config init`; no file of the local mode.
 if [ "$serve" = 1 ]; then
-    printf '{"schema": 1, "podrunner": "%s", "podvm": "%s", "podnet": "%s", "images": "%s", "image": "runner@%s", "runner_version": "%s"}\n' \
-        "$bin/podrunner" "$podvm" "$data/bin/podnet" "$store" "$image" "$RUNNER_VERSION" > "$data/serve.json.new"
+    # The unpacked size of the image (T-572): `check` refuses a pin above
+    # the bound of a kind. A release before it has none.
+    printf '{"schema": 1, "podrunner": "%s", "podvm": "%s", "podnet": "%s", "images": "%s", "image": "runner@%s", "runner_version": "%s", "unpacked_bytes": %s}\n' \
+        "$bin/podrunner" "$podvm" "$data/bin/podnet" "$store" "$image" "$RUNNER_VERSION" "${image_bytes:-null}" > "$data/serve.json.new"
     mv -f "$data/serve.json.new" "$data/serve.json"
     say "ok      $data/serve.json"
     say "the checks of podrunner doctor:"
     "$bin/podrunner" doctor 2>&1 | grep -v '^missing: --config' | sed 's/^/    /' || true
     [ "$got" -eq 0 ] && say "nothing was downloaded: each file was present and correct"
-    say "next: $bin/podrunner config init --source NAME --program PATH --podvm $podvm --images $store --image runner@$image --built-at-s N --out FILE (N: built_at_s of podrunner-manifest.json)"
+    size=${image_bytes:+ --unpacked-bytes $image_bytes}
+    say "next: $bin/podrunner config init --source NAME --program PATH --podvm $podvm --images $store --image runner@$image --built-at-s N$size --out FILE (N: built_at_s of podrunner-manifest.json)"
     exit 0
 fi
 

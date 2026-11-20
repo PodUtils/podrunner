@@ -11,6 +11,7 @@ use podrunner_schema::Capability;
 use podrunner_slots::config::UnitConfig;
 use podrunner_unit::UnitDriver;
 
+use crate::pin_size::gb;
 use crate::serve::{Failure, fail};
 
 /// Check `[unit.incus]`: the podvm binary, its version (`podvm probe
@@ -75,35 +76,25 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
 /// measure of podvm, COORD-203).
 pub const HOST_DISK_TENTHS: u64 = 34;
 
-/// Bytes as decimal GB with one decimal, as a host gives its disk.
-pub fn gb(bytes: u64) -> String {
-    format!("{:.1} GB", bytes as f64 / 1e9)
-}
-
 /// Each pin of this architecture fits the root disk of an instance (T-551):
 /// with `root_quota`, `disk_max_bytes` is the size of each root, and an
-/// image larger than it fails each job at its start. A pin with no
-/// `unpacked_bytes` is not checked.
+/// image larger than it fails each job at its start.
 pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<(), Failure> {
     let (true, Some(bound)) = (u.root_quota, u.disk_max_bytes) else { return Ok(()) };
-    let arch = std::env::consts::ARCH;
-    for p in pins.payload.iter().filter(|p| p.arch == arch) {
-        let Some(size) = p.unpacked_bytes.filter(|s| *s > bound) else { continue };
-        return Err(fail(
-            Class::Config,
-            format!(
-                "[unit.incus] disk_max_bytes: the pin {} unpacks to {}, more than the root disk of an instance ({}); \
-                 fix: set disk_max_bytes above {} with room for the writes of a job, or pin a smaller image; \
-                 the host needs the extracted tree plus about 2.4 times it in incusd, about {} of disk (podvm's measure)",
-                p.reference,
-                gb(size),
-                gb(bound),
-                gb(size),
-                gb(size.saturating_mul(HOST_DISK_TENTHS) / 10),
-            ),
-        ));
-    }
-    Ok(())
+    let Some((p, size)) = crate::pin_size::over(pins, bound) else { return Ok(()) };
+    Err(fail(
+        Class::Config,
+        format!(
+            "[unit.incus] disk_max_bytes: the pin {} unpacks to {}, more than the root disk of an instance ({}); \
+             fix: set disk_max_bytes above {} with room for the writes of a job, or pin a smaller image; \
+             the host needs the extracted tree plus about 2.4 times it in incusd, about {} of disk (podvm's measure)",
+            p.reference,
+            gb(size),
+            gb(bound),
+            gb(size),
+            gb(size.saturating_mul(HOST_DISK_TENTHS) / 10),
+        ),
+    ))
 }
 
 /// The driver and the record of `[unit.incus]`.

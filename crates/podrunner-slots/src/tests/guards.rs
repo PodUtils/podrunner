@@ -13,7 +13,7 @@ fn job(with: serde_json::Value) -> JobOffer {
 }
 
 fn kind(c: Capability) -> Kind {
-    Kind { capability: c, free: 1, running: 0, repos: vec![] }
+    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk: None }
 }
 
 fn confined() -> Capability {
@@ -228,7 +228,13 @@ fn a_required_limit_that_no_kind_enforces_is_refused() {
 #[test]
 fn a_shared_principal_runs_one_unit_at_a_time() {
     let shared = capability(Boundary::Confined, Principal::Shared, EgressHold::Advisory);
-    let busy = Kind { capability: shared.clone(), free: 1, running: 1, repos: vec!["example-org/app".into()] };
+    let busy = Kind {
+        capability: shared.clone(),
+        free: 1,
+        running: 1,
+        repos: vec!["example-org/app".into()],
+        root_disk: None,
+    };
     assert_eq!(
         place(&job(json!({})), Tier::Trusted, std::slice::from_ref(&busy), &config(""), NOW_UNIX),
         Err(RefusalCode::NoSlotOfKind)

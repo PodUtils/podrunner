@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use pod_core::failure::Class;
-use podrunner_slots::config::{Config, UnitConfig};
+use podrunner_slots::config::{Config, Pins, UnitConfig};
 use serde_json::json;
 
 use crate::cli::{Out, err, ok, opts};
@@ -44,6 +44,8 @@ struct Input {
     image: String,
     built_at_s: u64,
     runner_version: Option<String>,
+    /// The bytes of the image unpacked (`podrunner-manifest.json`, T-572).
+    unpacked_bytes: Option<u64>,
     slots: u32,
     kinds: Vec<String>,
 }
@@ -81,6 +83,9 @@ fn probed(i: &Input) -> (Vec<String>, Vec<(String, String)>) {
             .map_err(|e| e.message().to_string());
         let proven = |u: UnitConfig| {
             crate::doctor::capability(kind, &u)?;
+            // A kind whose bound the image exceeds refuses each job (T-573).
+            let pins: Pins = toml::from_str(&format!("[[payload]]\n{}", payload(i))).map_err(|e| e.to_string())?;
+            crate::pin_size::kind_fits(kind, &u, &pins).map_err(|f| f.detail)?;
             // With no hold a trusted podvm kind serves nothing anyway, and
             // `check` says so (`no-tier-served`): no self-test then.
             match kind == "podvm" && u.confine && u.podnet.is_some() {
@@ -130,14 +135,23 @@ fn text(i: &Input, kinds: &[String]) -> String {
     }
     let logins = |v: &[String]| v.iter().map(|l| format!("{{ login = {} }}", quoted(l))).collect::<Vec<_>>().join(", ");
     s.push_str(&format!("\n[trust]\norganizations = [{}]\nusers = [{}]\n", logins(&i.orgs), logins(&i.users)));
-    s.push_str(&format!(
-        "\n[pin]\n[[pin.payload]]\narch = {}\nreference = {}\nbuilt_at_s = {}\n",
+    s.push_str(&format!("\n[pin]\n[[pin.payload]]\n{}", payload(i)));
+    s
+}
+
+/// The keys of the pinned payload.
+fn payload(i: &Input) -> String {
+    let mut s = format!(
+        "arch = {}\nreference = {}\nbuilt_at_s = {}\n",
         quoted(std::env::consts::ARCH),
         quoted(&i.image),
         i.built_at_s
-    ));
+    );
     if let Some(v) = &i.runner_version {
         s.push_str(&format!("runner_version = {}\n", quoted(v)));
+    }
+    if let Some(n) = i.unpacked_bytes {
+        s.push_str(&format!("unpacked_bytes = {n}\n"));
     }
     s
 }
@@ -159,6 +173,7 @@ fn input(rest: &[String]) -> Result<(Input, PathBuf, bool), Out> {
         "--image",
         "--built-at-s",
         "--runner-version",
+        "--unpacked-bytes",
         "--slots",
         "--kinds",
         "--out",
@@ -198,6 +213,7 @@ fn input(rest: &[String]) -> Result<(Input, PathBuf, bool), Out> {
         image: need("--image")?,
         built_at_s: number("--built-at-s", need("--built-at-s")?)?,
         runner_version: s("--runner-version"),
+        unpacked_bytes: s("--unpacked-bytes").map(|v| number("--unpacked-bytes", v)).transpose()?,
         slots: u32::try_from(number("--slots", s("--slots").unwrap_or_else(|| "1".into()))?)
             .map_err(|_| err(Class::Usage, "--slots: too large"))?,
         kinds,

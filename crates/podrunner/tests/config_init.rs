@@ -109,3 +109,26 @@ fn a_trusted_podvm_kind_needs_a_proven_confine_layer() {
     assert!(!out.exists());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-572: `--unpacked-bytes` (the size of the image in
+/// `podrunner-manifest.json`) lands in the pin, and `check` takes the file;
+/// a value that is not a number exits 64.
+#[test]
+fn the_unpacked_bytes_of_the_image_land_in_the_pin() {
+    let dir = std::env::temp_dir().join(format!("podrunner-config-init-size-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let _incusd = std::os::unix::net::UnixListener::bind(dir.join("incus.socket")).unwrap();
+    let out = dir.join("podrunner.toml");
+    let o = init(&dir, "incus", &out, &["--unpacked-bytes", "many"]);
+    assert_eq!(o.status.code(), Some(64), "{}", String::from_utf8_lossy(&o.stderr));
+    assert!(!out.exists());
+    let o = init(&dir, "incus", &out, &["--unpacked-bytes", "1500000000"]);
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(text.contains("\nunpacked_bytes = 1500000000\n"), "{text}");
+    let check = Command::new(BIN).args(["check", "--config"]).arg(&out).output().unwrap();
+    assert!(check.status.success(), "{}", String::from_utf8_lossy(&check.stderr));
+    let _ = std::fs::remove_dir_all(&dir);
+}

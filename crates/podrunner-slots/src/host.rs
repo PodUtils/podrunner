@@ -35,6 +35,7 @@ impl Slots {
                     free: k.cfg.slots.saturating_sub(units.len() as u32).min(host_free),
                     running: units.len() as u32,
                     repos,
+                    root_disk: k.cfg.root_quota.then(|| k.cfg.disk_max_bytes.unwrap_or(u64::MAX)),
                 }
             })
             .collect()

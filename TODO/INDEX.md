@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**570 entries: 60 open, 52 partial, 18 blocked, 440 done.**
+**570 entries: 57 open, 52 partial, 18 blocked, 443 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 4 | 24 | 6 | 79 | 113 |
-| P2 | 17 | 21 | 8 | 230 | 276 |
-| P3 | 38 | 7 | 4 | 129 | 178 |
-| **All** | 60 | 52 | 18 | 440 | 570 |
+| P2 | 15 | 21 | 8 | 232 | 276 |
+| P3 | 37 | 7 | 4 | 130 | 178 |
+| **All** | 57 | 52 | 18 | 443 | 570 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -615,6 +615,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-568](later.md) | P2 | S | later | defect | partial | A runner job that fails is reported as success |
 | [T-569](later.md) | P3 | S | later | defect | done | A job that the runner abandoned is reported as success |
 | [T-570](later.md) | P3 | M | later | defect | blocked | The read of the unit log for each runner job has no bound |
-| [T-571](later.md) | P2 | S | later | defect | open | An offer whose disk limit is below the size of its image starts a unit that cannot hold it |
-| [T-572](later.md) | P3 | S | later | feature | open | The release manifest and config init do not carry the size of a runner image |
-| [T-573](later.md) | P2 | S | later | defect | open | An image larger than the memory of a microvm guest is not refused |
+| [T-571](later.md) | P2 | S | later | defect | done | An offer whose disk limit is below the size of its image starts a unit that cannot hold it |
+| [T-572](later.md) | P3 | S | later | feature | done | The release manifest and config init do not carry the size of a runner image |
+| [T-573](later.md) | P2 | S | later | defect | done | An image larger than the memory of a microvm guest is not refused |

@@ -173,7 +173,9 @@ pub struct Payload {
     pub sandbox: bool,
     /// The bytes of the image unpacked (its tree, `du -sxb /` in a unit).
     /// `check` refuses a pin above the root disk of a kind that runs it
-    /// (T-551). Absent: not checked.
+    /// (T-551) or above half of the memory of a microvm guest (T-573), and
+    /// placement refuses an offer whose `disk` limit is below it on a kind
+    /// with `root_quota` (T-571). Absent: not checked.
     #[serde(default)]
     pub unpacked_bytes: Option<u64>,
 }

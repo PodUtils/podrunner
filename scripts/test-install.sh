@@ -76,17 +76,31 @@ mkdir -p "$t/r/bin"
 printf '#!/bin/sh\n' > "$t/r/run.sh"
 printf 'listener\n' > "$t/r/bin/Runner.Listener"
 tar -cf - -C "$t/r" . | gzip -c > "$a/actions-runner-linux-$rarch-2.0.0.tar.gz"
+# Two layers of an image (T-572): the first has 100, 50 and 20 bytes; the
+# second removes the 50 bytes with a whiteout and the 20 bytes with an
+# opaque directory, and adds 7 and 3; unpacked: 110.
+mkdir -p "$t/l1/dir" "$t/l1/opq" "$t/l2/dir" "$t/l2/opq"
+head -c 100 /dev/zero > "$t/l1/dir/f1"
+head -c 50 /dev/zero > "$t/l1/dir/f2"
+head -c 20 /dev/zero > "$t/l1/opq/old"
+: > "$t/l2/dir/.wh.f2"
+: > "$t/l2/opq/.wh..wh..opq"
+head -c 3 /dev/zero > "$t/l2/opq/new"
+head -c 7 /dev/zero > "$t/l2/g"
 image() { # NAME TEXT
     mkdir -p "$t/oci/$1/blobs/sha256"
     printf '%s\n' "$2" > "$t/oci/$1/blobs/sha256/x"
     d=$(printf '%s' "$2" | sha256sum | cut -d' ' -f1)
     printf '{"schemaVersion": 2, "manifests": [{"digest": "sha256:%s", "annotations": {"org.opencontainers.image.ref.name": "runner:%s"}}]}\n' "$d" "$1" \
         > "$t/oci/$1/index.json"
-    # The manifest at the digest of the index, and its config with the
-    # time of the build (the manifest of a release reads it, T-499).
-    printf '{"config": {"digest": "sha256:cfg"}}\n' > "$t/oci/$1/blobs/sha256/$d"
+    # The manifest at the digest of the index, its config with the time of
+    # the build (the manifest of a release reads it, T-499), and its layers.
+    printf '{"config": {"digest": "sha256:cfg"}, "layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar+gzip", "digest": "sha256:l1"}, {"mediaType": "application/vnd.oci.image.layer.v1.tar", "digest": "sha256:l2"}]}\n' \
+        > "$t/oci/$1/blobs/sha256/$d"
     printf '{"created": "2026-11-01T00:00:00Z"}\n' > "$t/oci/$1/blobs/sha256/cfg"
-    (cd "$t/oci/$1" && tar -cf "$a/$1" index.json blobs/sha256/x "blobs/sha256/$d" blobs/sha256/cfg)
+    tar -cf - -C "$t/l1" . | gzip -c > "$t/oci/$1/blobs/sha256/l1"
+    tar -cf "$t/oci/$1/blobs/sha256/l2" -C "$t/l2" .
+    (cd "$t/oci/$1" && tar -cf "$a/$1" index.json blobs/sha256/x "blobs/sha256/$d" blobs/sha256/cfg blobs/sha256/l1 blobs/sha256/l2)
 }
 image "runner-$arch.tar" base
 image "runner-full-$arch.tar" full
@@ -280,10 +294,11 @@ ok "a run.toml of the user stays"
 run serve --serve || fail "the install with --serve"
 d=$t/serve/.local/share/podrunner
 [ -f "$d/serve.json" ] || fail "--serve wrote no serve.json"
-python3 -I -c 'import json,sys; v=json.load(open(sys.argv[1])); assert v["image"].startswith("runner@sha256:") and v["podvm"].endswith("/bin/podvm"), v' "$d/serve.json" ||
+python3 -I -c 'import json,sys; v=json.load(open(sys.argv[1])); assert v["image"].startswith("runner@sha256:") and v["podvm"].endswith("/bin/podvm") and v["unpacked_bytes"] == 110, v' "$d/serve.json" ||
     fail "serve.json is not the JSON of the install"
 [ ! -e "$t/serve/.config/podrunner/run.toml" ] && [ ! -e "$d/hello.yml" ] || fail "--serve wrote a file of the local mode"
 grep -q 'next: .*podrunner config init --source NAME' "$t/out" || fail "--serve names no next step"
+grep -q 'next: .* --built-at-s N --unpacked-bytes 110 --out FILE' "$t/out" || fail "--serve names no size of the image"
 before=$(sha256sum < "$d/serve.json")
 mirror=file://$t/empty
 run serve --serve || fail "the second run with --serve"
@@ -346,6 +361,9 @@ assert m["runner"]["version"] and m["podvm"]["version"] and m["podnet"]["version
 base = m["runner"]["images"][arch]["base"]
 assert base["file"] == f"runner-{arch}.tar" and base["digest"].startswith("sha256:"), base
 assert base["built_at_s"] == 1793491200, base
+# The files of the layers after the whiteout (T-572).
+assert base["unpacked_bytes"] == 110, base
+assert m["runner"]["images"][arch]["full"]["unpacked_bytes"] == 110, m
 assert len(m["podrunner"]["files"][arch]["sha256"]) == 64, m
 EOF
 ok "the assets of a release (scripts/release-assets.sh)"

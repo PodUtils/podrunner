@@ -1,10 +1,12 @@
 //! The rows of `doctor` for the pin list: the runner of each pin, its age
-//! and its window (T-499), and the disk of its image (T-551).
+//! and its window (T-499), the disk of its image (T-551) and the memory of
+//! a guest that holds it (T-573).
 
 use podrunner_slots::config::Config;
 use serde_json::{Value, json};
 
-use crate::incus_kind::{HOST_DISK_TENTHS, gb};
+use crate::incus_kind::HOST_DISK_TENTHS;
+use crate::pin_size::gb;
 use crate::text::display;
 
 /// The version of the official runner that `images/runner/runner.toml` of
@@ -49,11 +51,13 @@ const NEAR_END_S: u64 = 7 * 24 * 3600;
 /// One row for each pinned payload: its runner version, its age and its
 /// window (the age limit of the pin, which keeps the runner inside the
 /// window of updates of GitHub), and `ok`, `near-end` or `stale`. With
-/// `unpacked_bytes`, the size of the image, and with an incus kind the host
-/// disk that the image needs (podvm's measure, T-551).
+/// `unpacked_bytes`, the size of the image, with an incus kind the host
+/// disk that the image needs (podvm's measure, T-551), and with a microvm
+/// kind the memory of a guest that holds it twice (T-573).
 pub(super) fn rows(cfg: &Config, now: u64) -> Vec<Value> {
     let pins = &cfg.pin;
     let incus = cfg.unit.contains_key("incus");
+    let microvm = cfg.unit.contains_key("microvm");
     pins.payload
         .iter()
         .map(|p| {
@@ -67,10 +71,11 @@ pub(super) fn rows(cfg: &Config, now: u64) -> Vec<Value> {
                 "ok"
             };
             let host = p.unpacked_bytes.filter(|_| incus).map(|b| b.saturating_mul(HOST_DISK_TENTHS) / 10);
+            let mem = p.unpacked_bytes.filter(|_| microvm).map(|b| b.saturating_mul(2));
             json!({
                 "arch": p.arch, "reference": p.reference, "runner_version": p.runner_version,
                 "age_s": age, "limit_s": limit, "state": state,
-                "unpacked_bytes": p.unpacked_bytes, "incus_host_bytes": host,
+                "unpacked_bytes": p.unpacked_bytes, "incus_host_bytes": host, "microvm_mem_bytes": mem,
             })
         })
         .collect()
@@ -92,12 +97,50 @@ pub(super) fn lines(v: &Value) -> String {
             .as_u64()
             .map(|b| format!(", the incus kind needs about {} of host disk", gb(b)))
             .unwrap_or_default();
+        let mem = p["microvm_mem_bytes"]
+            .as_u64()
+            .map(|b| format!(", the microvm kind needs mem of {} or more", gb(b)))
+            .unwrap_or_default();
         out.push_str(&format!(
-            "pin {}: runner {version}, {} of {} days{size}{host}{what}\n",
+            "pin {}: runner {version}, {} of {} days{size}{host}{mem}{what}\n",
             display(p["arch"].as_str().unwrap_or("?")),
             days("age_s"),
             days("limit_s"),
         ));
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    /// T-573: with a microvm kind, `doctor` names the memory of a guest that
+    /// holds the image twice, and the refusal of `check` with its fix.
+    #[test]
+    fn doctor_names_the_memory_of_a_pinned_image() {
+        let dir = std::env::temp_dir().join(format!("podrunner-doctor-mem-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("podrunner.toml");
+        let pin = |size: u64| {
+            format!(
+                "host = \"h\"\n[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nmem = \"4G\"\n\
+                 [pin]\n[[pin.payload]]\narch = \"{}\"\nreference = \"runner@sha256:{}\"\nbuilt_at_s = 1\n\
+                 unpacked_bytes = {size}\n",
+                std::env::consts::ARCH,
+                "1".repeat(64)
+            )
+        };
+        std::fs::write(&file, pin(3_000_000_000)).unwrap();
+        let v = super::super::report_with(Some(&file), json!([])).unwrap();
+        assert_eq!(v["pins"][0]["microvm_mem_bytes"], json!(6_000_000_000u64), "{v}");
+        let t = super::super::text(&v);
+        assert!(t.contains(", 3.0 GB unpacked, the microvm kind needs mem of 6.0 GB or more"), "{t}");
+        assert!(t.contains("missing: [unit.microvm] mem: the pin runner@sha256:"), "{t}");
+        assert!(t.contains("fix: set mem = \"6G\" or more"), "{t}");
+        std::fs::write(&file, pin(2_000_000_000)).unwrap();
+        let v = super::super::report_with(Some(&file), json!([])).unwrap();
+        assert!(!v["missing"].to_string().contains("[unit.microvm] mem"), "{v}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

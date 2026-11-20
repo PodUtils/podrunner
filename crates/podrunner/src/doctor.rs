@@ -236,10 +236,12 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
                 ));
             }
         }
-        // A pinned image larger than the root disk of the incus kind, as
-        // `check` refuses it (T-551).
-        if let Some(Err(f)) = cfg.unit.get("incus").map(|u| crate::incus_kind::pins_fit(u, &cfg.pin)) {
-            missing.push(f.detail);
+        // A pinned image larger than the bound of a kind, as `check`
+        // refuses it (T-551, T-573).
+        for (kind, u) in &cfg.unit {
+            if let Err(f) = crate::pin_size::kind_fits(kind, u, &cfg.pin) {
+                missing.push(f.detail);
+            }
         }
         pins = pins::rows(&cfg, pins::now_s());
     } else {

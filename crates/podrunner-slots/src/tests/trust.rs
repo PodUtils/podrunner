@@ -23,7 +23,7 @@ fn users(logins: &[&str]) -> TierConfig {
 
 fn kinds() -> Vec<Kind> {
     let c: Capability = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
-    vec![Kind { capability: c, free: 1, running: 0, repos: vec![] }]
+    vec![Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk: None }]
 }
 
 #[test]

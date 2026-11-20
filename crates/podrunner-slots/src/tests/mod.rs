@@ -16,6 +16,7 @@ mod host_cap;
 mod jobfile;
 mod journal;
 mod level1;
+mod placement_disk;
 mod refused;
 mod report;
 mod sandbox;

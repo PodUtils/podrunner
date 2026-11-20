@@ -16,6 +16,7 @@ pub mod microvm_kind;
 pub mod mint_serve;
 pub mod notify;
 pub mod pat;
+pub mod pin_size;
 pub mod podvm_kind;
 pub mod program_source;
 pub mod run_config;

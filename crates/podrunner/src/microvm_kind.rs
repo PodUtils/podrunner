@@ -11,6 +11,7 @@ use podrunner_schema::Capability;
 use podrunner_slots::config::UnitConfig;
 use podrunner_unit::UnitDriver;
 
+use crate::pin_size::gb;
 use crate::serve::{Failure, fail};
 
 /// Check `[unit.microvm]`: the podvm binary, its version (`podvm probe
@@ -71,13 +72,39 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     Ok(())
 }
 
+/// The memory of a guest with no `mem`.
+pub const DEFAULT_MEM: &str = "8G";
+
+/// Each pin of this architecture fits the memory of a guest (T-573): the
+/// root of a guest is an initramfs, and the memory holds it twice (packed
+/// and unpacked) while the kernel unpacks it. An image larger than half of
+/// `mem` cannot boot, and the guest fails with no output.
+pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<(), Failure> {
+    let mem = u.mem.as_deref().unwrap_or(DEFAULT_MEM);
+    // `plan` refuses a `mem` that is not a size.
+    let Ok(bytes) = podrunner_unit::limits::size_bytes(mem) else { return Ok(()) };
+    let Some((p, size)) = crate::pin_size::over(pins, bytes / 2) else { return Ok(()) };
+    Err(fail(
+        Class::Config,
+        format!(
+            "[unit.microvm] mem: the pin {} unpacks to {}, more than half of the memory of a guest ({mem}, {}); \
+             the root of a guest is an initramfs, and the memory holds it twice; \
+             fix: set mem = \"{}G\" or more, or pin a smaller image",
+            p.reference,
+            gb(size),
+            gb(bytes),
+            size.saturating_mul(2).div_ceil(1 << 30),
+        ),
+    ))
+}
+
 /// The driver and the record of `[unit.microvm]`.
 pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
     plan(u)?;
     let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
     let images = PathBuf::from(u.images.clone().unwrap_or_default());
     let unit = podrunner_microvm::MicrovmUnit::new(podvm, &state.join("microvm"), &images)
-        .with_size(u.mem.as_deref().unwrap_or("8G"), u.cpus.unwrap_or(2));
+        .with_size(u.mem.as_deref().unwrap_or(DEFAULT_MEM), u.cpus.unwrap_or(2));
     let unit = match &u.engine {
         Some(e) => unit.with_engine(Path::new(e)),
         None => unit,

@@ -4,8 +4,9 @@
 
 The block comes from images/podvm.toml, images/podnet.toml and
 images/runner/runner.toml. A release adds its own version, the SHA-256 of
-each podrunner binary and of each runner image archive, and the manifest
-digest of each image (from index.json in the archive).
+each podrunner binary and of each runner image archive, the manifest
+digest of each image (from index.json in the archive) and its unpacked
+size (from its layers).
 
   install-pins.py --check FILE
       exit 1 when the block of FILE is not the block of the tree (no
@@ -22,6 +23,7 @@ import datetime
 import hashlib
 import json
 import pathlib
+import posixpath
 import re
 import sys
 import tarfile
@@ -77,8 +79,8 @@ def values(images: pathlib.Path, assets: pathlib.Path | None) -> tuple[dict, dic
     v: dict[str, str] = {}
     for a in ARCHES:
         v[f"podrunner_{a}"] = ""
-        v[f"image_{a}"] = v[f"image_digest_{a}"] = ""
-        v[f"imagefull_{a}"] = v[f"imagefull_digest_{a}"] = ""
+        v[f"image_{a}"] = v[f"image_digest_{a}"] = v[f"image_unpacked_{a}"] = ""
+        v[f"imagefull_{a}"] = v[f"imagefull_digest_{a}"] = v[f"imagefull_unpacked_{a}"] = ""
         if assets is None:
             continue
         exe = assets / f"podrunner-{a}-unknown-linux-musl"
@@ -88,9 +90,11 @@ def values(images: pathlib.Path, assets: pathlib.Path | None) -> tuple[dict, dic
                 sys.exit(f"{f}: missing: a release needs it")
         v[f"podrunner_{a}"] = sha256(exe)
         v[f"image_{a}"], v[f"image_digest_{a}"] = sha256(base), image_digest(base)
+        v[f"image_unpacked_{a}"] = str(image_unpacked(base))
         full = assets / f"runner-full-{a}.tar"
         if full.is_file():
             v[f"imagefull_{a}"], v[f"imagefull_digest_{a}"] = sha256(full), image_digest(full)
+            v[f"imagefull_unpacked_{a}"] = str(image_unpacked(full))
     return pins, v
 
 
@@ -108,6 +112,7 @@ def manifest(images: pathlib.Path, release: str, assets: pathlib.Path) -> str:
             "sha256": v[f"{kind}_{a}"],
             "digest": v[f"{kind}_digest_{a}"],
             "built_at_s": image_created(assets / f),
+            "unpacked_bytes": int(v[f"{kind}_unpacked_{a}"]),
         }
 
     doc = {
@@ -150,6 +155,56 @@ def image_created(path: pathlib.Path) -> int | None:
         return None
 
 
+def image_unpacked(path: pathlib.Path) -> int:
+    """The bytes of the regular files of the image of an archive, after the
+    whiteouts of its layers: the `unpacked_bytes` of a pin of it (T-572).
+    A hard link counts once, as `du` counts it."""
+    files: dict[str, int] = {}
+    with tarfile.open(path) as t:
+        names = {m.lstrip("./"): m for m in t.getnames()}
+
+        def blob(digest: str):
+            name = names.get("blobs/" + digest.replace(":", "/"))
+            if name is None:
+                sys.exit(f"{path}: no blob {digest}")
+            return t.extractfile(name)
+
+        index = json.load(t.extractfile(names["index.json"]))
+        manifest = json.load(blob(index["manifests"][0]["digest"]))
+        for layer in manifest.get("layers", []):
+            media = layer.get("mediaType", "")
+            if media.endswith("gzip"):
+                mode = "r|gz"
+            elif media.endswith("tar"):
+                mode = "r|"
+            else:
+                sys.exit(f"{path}: the layer type {media!r} is not tar or tar+gzip")
+            put: dict[str, int | None] = {}
+            gone: list[str] = []
+            with tarfile.open(fileobj=blob(layer["digest"]), mode=mode) as lt:
+                for m in lt:
+                    name = posixpath.normpath("/" + m.name).lstrip("/")
+                    if not name or name == ".":
+                        continue
+                    where, base = posixpath.split(name)
+                    if base == ".wh..wh..opq":
+                        gone.append(where + "/" if where else "")
+                    elif base.startswith(".wh."):
+                        gone.append(posixpath.join(where, base[4:]))
+                    else:
+                        put[name] = m.size if m.isreg() else None
+            # A whiteout hides the lower layers only, so it goes first.
+            for g in gone:
+                for k in [k for k in files if k == g or k.startswith(g.rstrip("/") + "/") or g == ""]:
+                    del files[k]
+            for k, size in put.items():
+                if size is None:
+                    files.pop(k, None)
+                else:
+                    files[k] = size
+    return sum(files.values())
+
+
 def block(images: pathlib.Path, release: str, assets: pathlib.Path | None) -> str:
     pins, v = values(images, assets)
     (podvm_v, podvm), (podnet_v, podnet), (runner_v, runner) = pins["podvm"], pins["podnet"], pins["runner"]
@@ -168,6 +223,8 @@ def block(images: pathlib.Path, release: str, assets: pathlib.Path | None) -> st
     lines += [f'DIGEST_image_{a}="{v[f"image_digest_{a}"]}"' for a in ARCHES]
     lines += [f'SUM_imagefull_{a}="{v[f"imagefull_{a}"]}"' for a in ARCHES]
     lines += [f'DIGEST_imagefull_{a}="{v[f"imagefull_digest_{a}"]}"' for a in ARCHES]
+    lines += [f'UNPACKED_image_{a}="{v[f"image_unpacked_{a}"]}"' for a in ARCHES]
+    lines += [f'UNPACKED_imagefull_{a}="{v[f"imagefull_unpacked_{a}"]}"' for a in ARCHES]
     lines.append(END)
     return "\n".join(lines) + "\n"
 

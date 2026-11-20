@@ -98,8 +98,9 @@ runner_version = "2.338.2"   # the official runner in the image
 max_age_s = 2419200          # the age limit of this pin; the smaller of it and [pin] max_age_s holds
 # sandbox = true             # the image of a sandbox unit (T-506): only an offer with sandbox.image of this digest
                              # takes it, at untrusted (a guest); a runner job never does
-unpacked_bytes = 59000000000 # the bytes of the image unpacked (du -sxb / in a unit of it); check and doctor refuse a pin
-                             # above the root disk of [unit.incus] (root_quota, disk_max_bytes); absent: not checked (T-551)
+unpacked_bytes = 59000000000 # the bytes of the image unpacked (podrunner-manifest.json of a release, T-572; or du -sxb / in a
+                             # unit of it); check and doctor refuse a pin above the root disk of [unit.incus] (root_quota,
+                             # disk_max_bytes, T-551) or above half of mem of [unit.microvm] (T-573); absent: not checked
 
 [egress]                     # the egress policy of the operator (T-024, T-107)
 # broker-policy.v1 of pod-broker: the policy of each job. The policy of an offer
@@ -145,7 +146,8 @@ slots = 1
 command = ["/home/runner/run.sh"]        # an absolute path: the job runs in a work directory
 binary = "/opt/podrunner/drivers/podvm"  # the released podvm binary
 images = "/var/lib/podrunner/images"     # a podvm store with the pinned images
-mem = "8G"                               # the memory of each guest (default 8G: the initrd of a runner image is about 1.4 GiB)
+mem = "8G"                               # the memory of each guest (default 8G: the initrd of a runner image is about 1.4 GiB);
+                                         # it holds the image twice: check refuses a pin whose unpacked_bytes is over half of it (T-573)
 cpus = 2                                 # its vCPUs (default 2)
 engine = "/opt/podrunner/docker"         # optional: the static Docker binaries; each guest runs an engine
 ```
@@ -212,6 +214,11 @@ owner, 2026-11-15, T-198). The `podvm` kind enforces `memory` and `pids` (and `c
 the `incus` kind `memory`, `cpu` and `pids`, and the `microvm` kind the
 `memory` and `cpu` of its guest, and `pids` with `[unit.microvm] pids`; placement refuses an offer that needs a
 limit that no kind enforces (`limit-not-enforceable`).
+On the `incus` kind with `root_quota`, the root disk of a unit is the
+lesser of the `disk` limit of the offer and `disk_max_bytes`. Placement
+refuses an offer whose root disk is below `unpacked_bytes` of its
+payload (`limit-not-enforceable`); the audit line names both sizes
+(T-571).
 
 | Kind | `mem` | `cpus` | `pids` |
 | --- | --- | --- | --- |
