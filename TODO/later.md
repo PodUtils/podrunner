@@ -12337,7 +12337,7 @@ State (2026-11-20, the measure; proven on a constrained host as a user): with th
 
 ## Blocker
 
-COORD-113 (GitHub #326, to podvm): `exec` into a `run -d` container of the namespace rung must join its mount namespace. Then give the hooks on that rung and run the container suite in the lane `userns-on`.
+COORD-113 (GitHub #326, to podvm): `exec` into a `run -d` container of the namespace rung must join its mount namespace. Then give the hooks on that rung and run the container suite in the lane `userns-on`. podvm's answer COORD-214 (PodUtils/podvm#612): `exec` into a running container of the namespace rung now always joins its namespaces (PodUtils/podvm@T-2012, podvm `main` `27e366b`); before, the probe of the host chose the entry with no chroot on a host that denies chroot to the user. The next beta of podvm unblocks this entry; podvm asks for `a_container_job_runs_through_the_hooks_of_a_podvm_unit` on the lane `userns-on` with it.
 
 # T-533: A job of another architecture in a guest of the machine tier
 
@@ -13353,3 +13353,56 @@ State (2026-11-20, the measure, podvm `0.2.0-beta.36`, the runner image of `v0.1
 ## Done
 
 2026-11-20, the commit of this entry. `cargo test -p podrunner-podvm --lib` (`the_rungs_with_volumes_and_the_rungs_with_containers`, `the_socket_mount_follows_the_rungs_with_volumes`; the second fails on the code before the change: `namespace: false`): 27 passed. `cargo test -p podrunner-local --lib` (`a_socket_volume_with_no_container_hooks_refuses_a_container_job`; it fails on the code before the change: the unit started): 111 passed. The built binary as a user with no root on the namespace rung: `podrunner run hello.yml --podvm ...` passes, with `--podnet` passes, and `podvm lab run bind-denied,getsockname-denied -- podrunner run hello.yml --vnet PODNET` passes (before: "--vnet needs the socket volume of podvm"); a job with `container:` is refused before its unit starts and names `--microvm --engine`. Proof level: on a constrained host as a user. CI: the new lane `userns-on` of `user-gate.yml` (`scripts/lab/userns-on.sh`: AppArmor's restriction of user namespaces off) runs podvm on its namespace rung, with the checks of `bind-denied`; read its first run. The review of the diff (an agent that did not write it) found: the hold and a verified confine add text to `boundary_proof`, so a rung read from it no longer matched and a held or confined unit lost its socket mount on each rung (P1; `PodvmUnit` now keeps `volumes` from the plain probe, and `has_volumes` reads the rung before the first `;`; the tests fail on the code before: "supervise, held and confined"); the lane did not check that podvm took the namespace rung (P2; `--want-rung namespace` fails the lane on another rung); the lab script hid the error of `unshare` and a message named the old rung (P3, fixed).
+
+# T-565: `config init` writes no `confine` for the podvm kind, so a trusted source on a host with no incus gets no kind
+
+**Source:** a prototype of a runner job through `serve` with the fakes of podcrates (T-527, T-509), 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner config init --tier trusted --kinds podvm --podnet PODNET` refuses with `no-tier-served: no unit kind meets the floor and the egress hold of a source on this host`: the trusted floor is `confined`, and `config init` (`crates/podrunner/src/config_init.rs`, fn `unit`) never writes `[unit.podvm] confine = true`, so the podvm kind counts at `redirect`. An operator with no incus and no KVM cannot get a trusted file from `config init`, and githome's CLI drives `config init` (T-507).
+
+## Premise
+
+Measured on 2026-11-20 with the release binary of `main`, podvm `0.2.0-beta.36`, as a user with no root on the namespace rung: the refusal above, also with `--podnet`. Read: `crates/podrunner/src/tiers.rs` (`best`: podvm is `confined` only with `confine`). Not measured: a host where the confine self-test passes (the supervise rung of the hosted runners).
+
+## Approach
+
+1. `config init` writes `confine = true` for the podvm kind when the source is `trusted` and the confine layer is proven on this host (the self-test of `serve`, `PodvmUnit::verify_confine`), and names the refusal with its cause when it is not.
+2. `--json` names the boundary of each kind.
+
+## Prove
+
+`cargo test -p podrunner config_init` (a trusted file with the podvm kind and a proven layer has `confine = true`; an unproven layer gives a refusal that names the self-test); the lane `serve-incus-kvm` of `user-gate.yml` with a podvm kind.
+
+# T-566: The confine self-test cannot pass on the namespace rung of podvm
+
+**Source:** a prototype of a runner job through `serve` (T-527), 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`PodvmUnit::verify_confine` (`crates/podrunner-podvm/src/unit/confine.rs`) runs a unit with no layer, which must read a canary in the environment of a host process through `/proc`, "else the check proves nothing", then a unit with the layer. On the namespace rung of podvm the unit has its own PID namespace, so the run with no layer cannot see the host process, and the layer is never proven: `serve` says "the confine layer is not proven: the boundary stays redirect", and a trusted source gets no kind (`no-tier-served`). The namespace rung isolates `/proc` by itself, which the boundary record of the probe does not say (each rung is `redirect`).
+
+## Premise
+
+Measured on 2026-11-20, podvm `0.2.0-beta.36`, a user with no root, the namespace rung: `podrunner-broker-fake --test podvm` with `PODRUNNER_PODVM_CONFINE=1` fails with "the confine layer is not proven"; `serve` with `[unit.podvm] confine = true` refuses the trusted source. Proven on a constrained host as a user. The decision of 2026-11-16 (T-300) holds for the rungs off the namespace rung.
+
+## Approach
+
+1. Measure what the namespace rung holds against a static binary of a job: the host processes and their `/proc` (PID namespace), the files of the user out of the volumes (mount namespace), the network (shared).
+2. Give the namespace rung the boundary that the measure proves, with its own self-test (a host canary that the unit must not read, with and without the layer), so that the self-test does not need an open run that reads the canary.
+3. A call in `docs/decisions.md` if the boundary of the namespace rung changes.
+
+## Prove
+
+`cargo test -p podrunner-podvm --lib confine` with a stand-in of each rung; `user-gate.yml`, the lane `userns-on`: `serve` with a trusted source on the podvm kind with the layer.
