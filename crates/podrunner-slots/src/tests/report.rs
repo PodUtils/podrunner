@@ -6,6 +6,11 @@ use serde_json::json;
 use super::*;
 
 fn run(disk_bound: Option<u64>, script: &str) -> podrunner_schema::RunReport {
+    ran(disk_bound, script).slots.reports[0].clone()
+}
+
+/// The bed after one job of a fake unit that runs `script`.
+fn ran(disk_bound: Option<u64>, script: &str) -> Bed {
     let mut bed = Bed::new(
         config(""),
         vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])],
@@ -18,7 +23,7 @@ fn run(disk_bound: Option<u64>, script: &str) -> podrunner_schema::RunReport {
     );
     bed.slots.kinds[0].cfg.disk_max_bytes = disk_bound;
     bed.until(120, |s| s.jobs().count() == 1 && Bed::all_final(s));
-    bed.slots.reports[0].clone()
+    bed
 }
 
 #[test]
@@ -67,6 +72,27 @@ fn a_job_that_the_job_started_hook_ended_is_a_job_mismatch() {
     assert_eq!(r.exit_reason, ExitReason::JobMismatch, "{r:?}");
     assert!(r.log_tail.as_deref().is_some_and(|t| t.contains("no-answer")), "{r:?}");
     // With no line, a unit that exits 0 stays a success.
+    assert_eq!(run(None, "echo fine; exit 0").exit_reason, ExitReason::Success);
+}
+
+#[test]
+fn a_runner_that_exits_0_with_no_job_is_no_success() {
+    // T-567: `run.sh` of the official runner exits 0 when its listener ends
+    // with code 1 (a refused session). The fake payload prints the line of
+    // `run-helper.sh` and exits 0, as the runner in a guest did.
+    let exit = "echo 'Runner listener exit with terminated error, stop the service, no retry needed.'";
+    let bed = ran(None, &format!("{exit}; exit 0"));
+    let r = &bed.slots.reports[0];
+    assert_eq!(r.exit_reason, ExitReason::UnitFailed, "{r:?}");
+    assert_eq!(r.exit_code, Some(0), "{r:?}");
+    assert!(r.log_tail.as_deref().is_some_and(|t| t.contains("terminated error")), "{r:?}");
+    let why = |l: &crate::audit::Entry| l.detail.as_deref().is_some_and(|d| d.contains("no job"));
+    assert!(bed.slots.audit_lines().iter().any(|l| l.audit == crate::audit::Kind::Refuse && why(l)), "no audit line");
+    // The runner took a job: its exit 0 stays a success.
+    let r = run(None, &format!("echo '2026-11-20 10:00:00Z: Running job: build'; {exit}; exit 0"));
+    assert_eq!(r.exit_reason, ExitReason::Success, "{r:?}");
+    // No line of the runner (a payload that is not the runner): the exit
+    // code tells.
     assert_eq!(run(None, "echo fine; exit 0").exit_reason, ExitReason::Success);
 }
 

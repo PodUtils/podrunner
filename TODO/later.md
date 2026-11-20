@@ -13440,3 +13440,66 @@ Measured on 2026-11-20, podvm `0.2.0-beta.36`, a user with no root, the namespac
 State (2026-11-20, proven on a constrained host as a user): `serve` now names why the layer is not proven (`PodvmUnit::confine_why`, the verdict of the self-test: the first fact that fails). With `[unit.podvm] podnet` and `confine = true` it says "the run with no layer cannot read a process of the host through /proc (a PID namespace)", on the namespace rung and also on the userland rung (`podvm lab run userns-mount-denied`). The measure of the cause (2026-11-20, a user with no root, a host process with a canary): a shell under `podnet pod` (both backends) sees the host process, so podnet adds no PID namespace. On a host with user namespaces podvm takes its namespace rung also under `podnet pod`, and its unit has its own PID 1 (`podvm`): `/proc/PID` of the host is "No such file". In `podvm lab run userns-mount-denied` podvm takes the userland rung; under the netns backend the unit sees the process but gets "Permission denied" on its `environ` (podnet's netns backend puts podvm in a user namespace of its own, so the host process is of a user outside it); under the seccomp backend (rung `interpose`) the open run reads the canary. So the self-test fails where the unit has a PID namespace (the namespace rung) or a user namespace (the netns hold). The message of the verdict names both. Without the hold, the self-test passes on the userland rung (`podrunner-broker-fake --test podvm` with `PODRUNNER_PODVM_CONFINE=1`: the canned job passes). So on a host with user namespaces, a trusted podvm kind with the hold is never `confined`; the hosted runners have no user namespaces for a user, so CI did not show it. The approach stands: a self-test whose canary is a process that the unit can see in its own namespaces (or a proof of the PID namespace), and a boundary record that names what the namespaces hold.
 
 State (2026-11-20, later): `doctor --config` runs the same self-test (`podvm_kind::confine_proven`, shared with `config init`) for a podvm kind with `confine` and a pin, so it names the boundary that `serve` will have, or the cause in `missing` (`doctor_runs_the_self_test_of_the_confine_layer`; on the code before, doctor gave the probe's `redirect` and "not served" with no cause). The lane `userns-on` of `user-gate.yml` gets `serve_kinds: podvm`: `serve:check:podvm` (doctor must say `confined`, after its self-test) and `serve:job:podvm`, a trusted runner job of githome's fake source with the hold, whose report must say `confined`. Through the code of the gate, as a user with no root on the namespace rung: `serve:job:podvm` passes ("trusted, confined: success, as GitHub says").
+
+# T-567: A runner unit that exits 0 with no job is reported as success
+
+**Source:** `user-gate.yml` run 44745685573, lane serve-incus-kvm, the check `serve:job:KIND` of `scripts/user-gate.py`, 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The check `serve:job:KIND` runs a real runner job of githome's fake source through `podrunner serve`. On the incus and the microvm kinds, the runner of the unit could not reach its broker: the egress module refused the fake GitHub at a private 10.x address (`podrunner: egress: job u-0 10.1.2.77:33581 failed at proxy (policy)`, two times). The report to the source still said `exit_reason: success`, after `wall_s` 21 (incus) and 5 (microvm). The fake GitHub has no conclusion for the job: the job did not run. On the podvm kind, the same refusal made the runner try again until `[deadlines] start_s` (120 s): `unit-failed`. In a guest (incus, microvm) the runner goes through an HTTP proxy (`http_proxy` of `127.0.0.1:3128` in the guest), so it gets a 403 answer, not a refused connection, and the unit exits 0.
+
+The cause: `progress` of `crates/podrunner-slots/src/run.rs` makes exit code 0 of the top process `success`, whatever the job did. The state `Running` (the first step) comes only from a source event `started` (the scale-set source sends it; a `program` source such as githome's fake source does not) or from the container hooks. So a githome job that succeeds can end in the state `Started`, and the state alone cannot decide.
+
+## Premise
+
+Read on 2026-11-20 in actions/runner at `7e211dc6` (main):
+
+- `actions/runner:src/Runner.Common/BrokerServer.cs` and `actions/runner:src/Sdk/WebApi/WebApi/BrokerHttpClient.cs`: a 403 answer to the create of the broker session throws `AccessDeniedException`; `IsSessionCreationExceptionRetriable` of `actions/runner:src/Runner.Listener/BrokerMessageListener.cs` does not try again on it, so the create gives `CreateSessionResult.Failure`.
+- `actions/runner:src/Runner.Listener/Runner.cs`, in `RunAsync`: on `CreateSessionResult.Failure` it returns `Constants.Runner.ReturnCode.TerminatedError`, which is 1 (`actions/runner:src/Runner.Common/Constants.cs`, `ReturnCode`).
+- `actions/runner:src/Misc/layoutroot/run-helper.sh.template`: code 1 of `Runner.Listener` prints "Runner listener exit with terminated error, stop the service, no retry needed." and exits 0. Codes 0, 1 and 5 and each unknown code exit 0; only 2, 3 and 4 (start again) and 7 (with `ACTIONS_RUNNER_RETURN_VERSION_DEPRECATED_EXIT_CODE=1`) do not. `run.sh` exits 0 after it. The kinds run `run.sh` (`command = ["/home/runner/run.sh"]` of `config init`, `crates/podrunner/src/podvm_kind.rs`).
+- An ephemeral runner (a JIT runner) returns 0 after its job whatever the result of the job: `RunAsync` returns the result only with `ACTIONS_RUNNER_RETURN_JOB_RESULT_FOR_HOSTED` (T-568).
+- `actions/runner:src/Runner.Listener/JobDispatcher.cs` prints "Running job: NAME" to the console when it takes a job, and "Job NAME completed with result: RESULT" at its end. The listener prints "Connected to GitHub" (`MessageListener.cs`) and "Listening for Jobs" (`Runner.cs`). A payload that is not the runner prints none of these.
+- `unit_logs` of each kind holds the output of the payload: `.unit.log` of the root for the fake kind (`crates/podrunner-fake/src/unit.rs`), `podvm logs` for the podvm and the incus kinds, `guest.log` (the stdout and the stderr of `podvm run`) for the microvm kind. Not measured: that the log of the podvm and the incus kinds holds the stdout of the payload (the console of the runner).
+
+## Approach
+
+The log of the unit is the evidence of each kind, as for T-552. In `finish()` of `crates/podrunner-slots/src/run.rs`, for a unit with no first step, not cancelled, that exited 0 and that is not a sandbox: when its log has a line of the official runner (`run-helper.sh` "Runner listener exit with", "Exiting with unknown error code", "Listening for Jobs", "Connected to GitHub") and no line of a job ("Running job: ", " completed with result: "), the job ends with `unit-failed`. That is the code of the podvm kind for the same cause (the `start_s` deadline), so one cause gives one code on each kind; no new `ExitReason` is necessary. An audit line `refuse` names why, serve prints it, and the report has `log_tail` (each reason that is not `success` gets it). `crates/podrunner-slots/src/log_tail.rs` holds the lines (`runner_took_no_job`).
+
+The rule does not change the fake units of the tests: their payloads are shell scripts that print no line of the runner. A sandbox (T-506) runs a command, not the runner: its exit 0 stays `success`. A log that cannot be read, or a log with no line of the runner, keeps the rule of the exit code.
+
+State (2026-11-20): the code and the three tests are in the commit that names T-567. Not built and not run (level: not run).
+
+## Prove
+
+`cargo test -p podrunner-slots --lib -- log_tail report sandbox`: `the_runner_with_no_job_line_took_no_job`; `a_runner_that_exits_0_with_no_job_is_no_success` (a fake payload that prints the line of `run-helper.sh` and exits 0 gives `unit-failed`, an audit line and a `log_tail`; with a "Running job:" line it stays `success`; it fails on the code before); `a_sandbox_that_exits_0_stays_a_success_with_no_job_line`. Then the lane serve-incus-kvm of `user-gate.yml`: `serve:job:incus` and `serve:job:microvm` give a report that is not `success` while the egress refuses the fake GitHub.
+
+# T-568: A runner job that fails is reported as success
+
+**Source:** the reading of actions/runner for T-567, 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+An ephemeral runner (a JIT runner) exits 0 after its job, also when the job failed or was cancelled. `progress` of `crates/podrunner-slots/src/run.rs` makes exit 0 `success`. So the report of a job that failed says `success` to a source with no `started` event and no conclusion of its own (a `program` source such as githome's fake source).
+
+## Premise
+
+Read on 2026-11-20 in actions/runner at `7e211dc6`: `RunAsync` of `actions/runner:src/Runner.Listener/Runner.cs` returns the result of a run-once job (`TaskResultUtil.TranslateToReturnCode`) only with `ACTIONS_RUNNER_RETURN_JOB_RESULT_FOR_HOSTED`, else `ReturnCode.Success`; `actions/runner:src/Misc/layoutroot/run-helper.sh.template` exits 0 for each code that is not 2, 3, 4 or 7, so the variable does not help through `run.sh`. `JobDispatcher.cs` prints "Job NAME completed with result: RESULT" (`Succeeded`, `Failed`, `Canceled`, ...) to the console. Not measured: what the source of githome and cfb expect in `exit_reason` for a job that failed.
+
+## Approach
+
+In `finish()`, for a unit that is not a sandbox and that exited 0, read the last "completed with result: " line of its log (T-567 reads the log already): `Failed` gives `failure`, `Canceled` gives `cancelled`, `Succeeded` keeps `success`. The log of a job with a first step is read too, so the read moves out of the block of T-497. A test with a fake payload that prints each line.
+
+## Prove
+
+`cargo test -p podrunner-slots --lib -- report`: a fake payload that prints "Job build completed with result: Failed" and exits 0 gives `failure`; one with `Succeeded` gives `success`; a sandbox stays `success`.

@@ -106,3 +106,20 @@ fn a_sandbox_ends_at_its_max_s() {
     let r = &bed.slots.reports[0];
     assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Timeout, "{r:?}");
 }
+
+/// T-567: a sandbox runs a command, not the runner: its exit 0 stays a
+/// success, also when its output has a line of the runner and no job.
+#[test]
+fn a_sandbox_that_exits_0_stays_a_success_with_no_job_line() {
+    let guest = capability(Boundary::Guest, Principal::Distinct, EgressHold::Enforced);
+    let script = "echo 'Runner listener exit with 0 return code, stop the service, no retry needed.'; exit 0";
+    let with = json!({ "sandbox": { "image": SANDBOX, "command": ["sh", "-c", script] } });
+    let mut bed = Bed::new(
+        cfg(),
+        vec![("a", "untrusted", None, vec![offer(0, "j-1", with)])],
+        vec![KindSpec { name: "fake", slots: 1, capability: guest, command: sh("exit 9") }],
+    );
+    bed.until(60, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    let r = &bed.slots.reports[0];
+    assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Success, "{r:?}");
+}

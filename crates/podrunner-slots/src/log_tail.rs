@@ -110,6 +110,25 @@ pub fn hook_ended(log: &[u8]) -> Option<String> {
     Some(if code.is_empty() { "end".into() } else { code })
 }
 
+/// Lines that only the official runner writes to the log of its unit:
+/// `run-helper.sh` at each end of `Runner.Listener`, and the listener at
+/// its session. A payload that is not the runner (a sandbox, a script of
+/// a test) writes none (T-567).
+const RUNNER_LINES: [&str; 4] =
+    ["Runner listener exit with ", "Exiting with unknown error code", ": Listening for Jobs", "Connected to GitHub"];
+
+/// Lines that the runner writes when it takes a job (`JobDispatcher.cs`
+/// of actions/runner): at the start and at the end of the job.
+const JOB_LINES: [&str; 2] = ["Running job: ", " completed with result: "];
+
+/// True when `log` shows the official runner and no job of it (T-567).
+/// `run.sh` exits 0 also when the listener ends with code 1 (a refused
+/// session), so its exit code does not tell that a job ran.
+pub fn runner_took_no_job(log: &[u8]) -> bool {
+    let text = String::from_utf8_lossy(log);
+    RUNNER_LINES.iter().any(|l| text.contains(l)) && !JOB_LINES.iter().any(|l| text.contains(l))
+}
+
 /// `log` with each mark and each token shape masked: its last
 /// [`podrunner_schema::report::LOG_TAIL_MAX`] bytes at most, as UTF-8.
 pub fn scrub(log: &[u8], marks: &Marks) -> String {
@@ -178,6 +197,18 @@ mod tests {
         assert_eq!(hook_ended(log.as_bytes()).as_deref(), Some("source-unavailable"));
         assert_eq!(hook_ended(format!("{HOOK_ENDED}\n").as_bytes()).as_deref(), Some("end"));
         assert_eq!(hook_ended(b"podrunner-job-started: kept\n"), None);
+    }
+
+    #[test]
+    fn the_runner_with_no_job_line_took_no_job() {
+        let exit = "Runner listener exit with terminated error, stop the service, no retry needed.\n";
+        assert!(runner_took_no_job(exit.as_bytes()));
+        let ran = format!("2026-11-20 10:00:00Z: Running job: build\n{exit}");
+        assert!(!runner_took_no_job(ran.as_bytes()));
+        let done = format!("2026-11-20 10:00:09Z: Job build completed with result: Succeeded\n{exit}");
+        assert!(!runner_took_no_job(done.as_bytes()));
+        // No line of the runner: not the runner, so no rule.
+        assert!(!runner_took_no_job(b"echo fine\n"));
     }
 
     #[test]

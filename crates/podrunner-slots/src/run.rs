@@ -389,9 +389,22 @@ impl Slots {
                     let why = format!("the job-started hook ended the job: {code}");
                     self.audit(audit::Kind::JobMismatch, key.0, &key.1, None, Some(why));
                 }
+                // `run.sh` exits 0 also with no job (T-567). A sandbox has no runner.
+                let idle = ended.is_none()
+                    && j.reason == Some(ExitReason::Success)
+                    && j.offer.as_ref().is_none_or(|o| o.sandbox.is_none())
+                    && crate::log_tail::runner_took_no_job(&log);
+                if idle {
+                    let why = "the runner exited 0 with no job: no `Running job:` line in its log";
+                    eprintln!("podrunner: {u}: {why}");
+                    self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(why.into()));
+                }
                 if let Some(job) = self.jobs.get_mut(key) {
                     if ended.is_some() && matches!(job.reason, None | Some(ExitReason::Success | ExitReason::Failure)) {
                         job.reason = Some(ExitReason::JobMismatch);
+                    }
+                    if idle {
+                        job.reason = Some(ExitReason::UnitFailed);
                     }
                     if job.reason != Some(ExitReason::Success) {
                         job.times.log_tail = Some(crate::log_tail::scrub(&log, &job.times.marks));
