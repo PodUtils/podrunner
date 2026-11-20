@@ -1,1 +1,1 @@
-{"v":1,"op":"withdraw","job_id":"j-1"}
+{"schema":1,"id":2,"method":"withdraw","params":{"job_id":"j-1"}}

@@ -41,16 +41,46 @@ this build or command has not.
 
 ## The control socket
 
-JSON lines on a unix socket of mode 0600. A peer with another uid is
-refused. The socket has threads of its own: at most 8 clients at a time
-(one more gets `busy`), and 5 s for each exchange, so a silent client
-delays no tick of the supervisor. A request is one line, `{"v": 1, "op": ...}`, and the reply is one
-line, `{"v": 1, "reply": "ok", "value": ...}` or
-`{"v": 1, "reply": "error", "code": ..., "detail": ...}`. The operations:
-`version`, `status`, `drain`, `stop`, `capacity`, `clear-degraded`,
-`withdraw`, `restart-source`, `drain-source`, `resume-source` and `stop-source` (each with the field `source`). `crates/podrunner/src/control.rs` sits behind the trait
-`Handler`, so that `pod-control` of podcrates can replace it with no change
-of the wire.
+The control API of `pod-control` of podcrates, protocol 1
+(`schemas/control.v1.schema.json` of podcrates `v0.80.0`; T-576): JSON
+lines on a unix socket of mode 0600. A peer with another uid is refused.
+The socket has threads of its own: at most 8 clients at a time (one more
+gets `busy`), a line of at most 64 KiB, 5 s for each line and 5 s for the
+answer of the supervisor, so a silent client delays no tick of the
+supervisor. While the supervisor waits on a source, `status` gets the
+last status and another method gets `busy`. A connection can send more
+than one request.
+
+A request is one line,
+`{"schema": 1, "id": N, "method": NAME, "params": {...}}`; the answer is
+`{"schema": 1, "id": N, "ok": true, "result": ...}` or
+`{"schema": 1, "id": N, "ok": false, "error": {"code": CODE, "detail": WORDS}}`.
+The codes: `bad-request`, `not-utf8`, `too-long`, `unknown-method`,
+`bad-params`, `refused`, `busy`, `budget`, `timeout`, `unsupported`,
+`failed`, `internal`.
+
+| Method | Tier | Params | What |
+| --- | --- | --- | --- |
+| `version` | read | none | `{"program": "podrunner", "version": ..., "protocol": 1}`. |
+| `methods` | read | none | The methods that the caller can call, with its tier. |
+| `auth` | read | `{"token"}` | `refused`: `serve` has no master token. |
+| `status` | read | none | `status.v1`. |
+| `metrics` | read | none | Gauges (`slots`, `busy`, `units`, `draining`, `degraded`, `no_tier_served`, `spooled_reports`, `jobs_STATE`) and counters (`refused_WHY`, `ended_without_completion`). |
+| `reload` | master | none | `unsupported`: `restart-source` builds one source again. |
+| `drain` | operate | `{"exit": BOOL}` | `exit: false` (`podrunner drain`): take no new job. `exit: true`, the default (`podrunner stop`): take no new job, then exit after the last job. |
+| `stop` | operate | none | As `drain` with `exit: true`. |
+| `capacity` | read | none | The free slots of all unit kinds. |
+| `clear-degraded` | operate | none | Start jobs again. |
+| `withdraw` | operate | `{"job_id"}` | `unsupported` (GitHub #29). |
+| `drain-source`, `resume-source`, `stop-source` | operate | `{"source"}` | `podrunner drain`, `resume` and `stop` with `--source`. |
+| `restart-source` | master | `{"source"}` | `podrunner source restart`. |
+
+A peer of the uid of `serve` has the master tier, so each command of
+this page can call each method. A method above the tier of a caller
+answers as a method that is not there (`unknown-method`). The command
+line prints the `result` as JSON; an `error` exits 77 with its code and
+its detail. A test runs `pod_control::conformance::check` against the
+socket of `serve` (`crates/podrunner/tests/serve.rs`).
 
 Where units run as the uid of podrunner (a shared principal), the peer
 check does not protect the socket from a unit.

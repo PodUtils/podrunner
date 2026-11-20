@@ -5,7 +5,7 @@ use pod_core::failure::Class;
 use serde_json::Value;
 
 use crate::cli::{Opts, Out, USAGE, err, ok, opts};
-use crate::control::{self, Reply, Request};
+use crate::control::{self, Error, Request};
 use crate::text::display;
 
 /// `source restart --name NAME`: `serve` builds the source again from its
@@ -14,11 +14,8 @@ pub(crate) fn source_restart(rest: &[String]) -> Result<Out, Out> {
     let o = opts(rest)?;
     o.only(&["--name", "--state", "--socket"])?;
     let source = o.need("--name")?.display().to_string();
-    let reply = control::call(&o.socket()?, &Request::RestartSource { source }).map_err(|e| no_socket(&o, e))?;
-    match reply {
-        Reply::Ok { value } => Ok(ok(format!("{value}\n"))),
-        Reply::Error { code, detail } => Err(err(Class::Refused, format!("{}: {}", display(&code), display(&detail)))),
-    }
+    let value = control::call(&o.socket()?, &Request::RestartSource { source }).map_err(|e| control_failure(&o, e))?;
+    Ok(ok(format!("{value}\n")))
 }
 
 /// `stop --wait`: ask for the stop, then wait until no `serve` holds the
@@ -40,10 +37,8 @@ pub(crate) fn stop_wait(rest: &[String]) -> Result<Out, Out> {
         return Err(err(Class::Unavailable, format!("--state {}: not a directory", state.display())));
     }
     match control::call(&crate::serve::socket_of(&state), &Request::Stop) {
-        Ok(Reply::Ok { .. }) => {}
-        Ok(Reply::Error { code, detail }) => {
-            return Err(err(Class::Refused, format!("{}: {}", display(&code), display(&detail))));
-        }
+        Ok(_) => {}
+        Err(Error::Remote(f)) => return Err(refused(&f)),
         // No socket: serve may be gone already; the lock says.
         Err(_) => {}
     }
@@ -125,12 +120,26 @@ pub(crate) fn human(v: &Value) -> String {
 
 /// A control socket that does not answer: name the path, and a state
 /// directory that does not exist (T-214).
-pub(crate) fn no_socket(o: &Opts, e: std::io::Error) -> Out {
+/// The failure of a call of the control socket: an error that `serve`
+/// answered is exit 77 (`refused`), with its code and its detail; no answer
+/// is exit 69, with the path.
+pub(crate) fn control_failure(o: &Opts, e: Error) -> Out {
+    if let Error::Remote(f) = &e {
+        return refused(f);
+    }
     let socket = o.socket().map(|s| s.display().to_string()).unwrap_or_default();
+    let why = match e {
+        Error::Io(e) => e.to_string(),
+        e => e.to_string(),
+    };
     match o.get("--state") {
         Some(d) if !d.is_dir() => err(Class::Unavailable, format!("--state {}: not a directory", d.display())),
-        _ => err(Class::Unavailable, format!("the control socket {socket}: {}", e)),
+        _ => err(Class::Unavailable, format!("the control socket {socket}: {why}")),
     }
+}
+
+fn refused(f: &control::Fault) -> Out {
+    err(Class::Refused, format!("{}: {}", f.code, display(&f.detail)))
 }
 
 #[cfg(test)]

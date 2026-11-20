@@ -13,7 +13,7 @@ use podrunner_slots::config::Config;
 use podrunner_slots::{Slots, Source, UnitKind};
 use serde_json::Value;
 
-use crate::control::{self, Handler, Reply, Request};
+use crate::control::{self, Code, Fault, Handler, Outcome, Request};
 
 /// A failure of `serve`, with its class of `pod-core`.
 #[derive(Debug)]
@@ -283,37 +283,33 @@ struct Supervisor {
 }
 
 impl Handler for Supervisor {
-    fn handle(&mut self, req: &Request) -> Reply {
+    fn handle(&mut self, req: &Request) -> Outcome {
+        let refused = |e: String| Fault::new(Code::Refused, e);
         match req {
-            Request::Version => Reply::Ok { value: Value::from(crate::cli::version().trim_end()) },
-            Request::Status => match serde_json::to_value(self.slots.status()) {
-                Ok(v) => Reply::Ok { value: v },
-                Err(_) => Reply::error("internal", "the status is not JSON"),
-            },
+            Request::Status => serde_json::to_value(self.slots.status())
+                .map_err(|_| Fault::new(Code::Internal, "the status is not JSON")),
             Request::Drain => {
                 self.slots.drain();
-                Reply::Ok { value: Value::from("draining") }
+                Ok(Value::from("draining"))
             }
             Request::Stop => {
                 self.slots.drain();
                 self.stop = true;
-                Reply::Ok { value: Value::from("stopping") }
+                Ok(Value::from("stopping"))
             }
-            Request::Capacity => Reply::Ok {
-                value: Value::from(self.slots.status().kinds.iter().map(|k| k.slots - k.busy).sum::<u32>()),
-            },
+            Request::Capacity => {
+                Ok(Value::from(self.slots.status().kinds.iter().map(|k| k.slots - k.busy).sum::<u32>()))
+            }
             Request::ClearDegraded => {
                 self.slots.clear_degraded();
-                Reply::Ok { value: Value::from("cleared") }
+                Ok(Value::from("cleared"))
             }
-            Request::RestartSource { source } => match self.rebuild.restart(&mut self.slots, source) {
-                Ok(()) => Reply::Ok { value: Value::from("restarted") },
-                Err(e) => Reply::error("refused", e),
-            },
-            Request::StopSource { source } => match self.slots.stop_source(source) {
-                Ok(()) => Reply::Ok { value: Value::from("stopping") },
-                Err(e) => Reply::error("refused", e),
-            },
+            Request::RestartSource { source } => {
+                self.rebuild.restart(&mut self.slots, source).map(|()| Value::from("restarted")).map_err(refused)
+            }
+            Request::StopSource { source } => {
+                self.slots.stop_source(source).map(|()| Value::from("stopping")).map_err(refused)
+            }
             Request::DrainSource { source } | Request::ResumeSource { source } => {
                 let on = matches!(req, Request::DrainSource { .. });
                 // A stopped source has no program: build it again first.
@@ -321,15 +317,15 @@ impl Handler for Supervisor {
                     && self.slots.source_ended(source)
                     && let Err(e) = self.rebuild.restart(&mut self.slots, source)
                 {
-                    return Reply::error("refused", e);
+                    return Err(refused(e));
                 }
-                match self.slots.drain_source(source, on) {
-                    Ok(()) => Reply::Ok { value: Value::from(if on { "draining" } else { "resumed" }) },
-                    Err(e) => Reply::error("refused", e),
-                }
+                self.slots
+                    .drain_source(source, on)
+                    .map(|()| Value::from(if on { "draining" } else { "resumed" }))
+                    .map_err(refused)
             }
             Request::Withdraw { .. } => {
-                Reply::error("unsupported", "withdraw of one job comes with the scale-set source (GitHub #29)")
+                Err(Fault::new(Code::Unsupported, "withdraw of one job comes with the scale-set source (GitHub #29)"))
             }
         }
     }
@@ -361,12 +357,11 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
         eprintln!("podrunner: hello: {why}");
     }
     rebuild.facts = Some(facts);
-    let listener = control::bind(socket).map_err(|e| {
+    let (server, calls) = control::serve(socket).map_err(|e| {
         let class = if e.kind() == std::io::ErrorKind::AlreadyExists { Class::Usage } else { Class::Unavailable };
         fail(class, format!("the control socket: {e}"))
     })?;
-    let snapshot = control::Snapshot::default();
-    let calls = control::spawn_with(listener, snapshot.clone());
+    let snapshot = server.snapshot();
     crate::notify::install();
     crate::notify::send("READY=1");
     let watchdog = crate::notify::watchdog();
@@ -374,7 +369,7 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     let (mut next, mut ping, mut stopping) = (Instant::now(), Instant::now(), false);
     loop {
         if crate::notify::take_signal() && !sup.stop {
-            sup.handle(&Request::Stop);
+            let _ = sup.handle(&Request::Stop);
         }
         if sup.stop && !stopping {
             crate::notify::send("STOPPING=1");
@@ -393,9 +388,8 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
             next = next_tick(next, Instant::now());
             // The `status` for a client while a later tick waits on a
             // source (T-184).
-            let status = control::Handler::handle(&mut sup, &Request::Status);
-            if let Ok(mut s) = snapshot.lock() {
-                *s = Some(status);
+            if let Ok(status) = sup.handle(&Request::Status) {
+                snapshot.set(status);
             }
         }
         if let Some(w) = watchdog
@@ -404,9 +398,10 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
             crate::notify::send("WATCHDOG=1");
             ping = Instant::now();
         }
-        control::answer_waiting(&calls, &mut sup, Duration::from_millis(50));
+        calls.answer_waiting(&mut control::AsHost(&mut sup), Duration::from_millis(50));
         if sup.stop && sup.slots.jobs().all(|j| j.state.is_final()) {
-            let _ = std::fs::remove_file(socket);
+            // The drop of the server removes the socket.
+            drop(server);
             return Ok(());
         }
     }

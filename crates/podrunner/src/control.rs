@@ -1,31 +1,38 @@
-//! The control socket (GitHub #22): JSON lines on a unix socket of mode
-//! 0600. A peer with another uid is refused. Each request is one line with
-//! `"v": 1` first; the reply is one line. The module sits behind the trait
-//! [`Handler`], so that `pod-control` of podcrates (PodUtils/podcrates
-//! T-103) can replace it with no change of the wire.
+//! The control socket (GitHub #22): `pod-control` protocol 1 of podcrates
+//! on a unix socket of mode 0600 (T-576). A peer with another uid is
+//! refused. `version`, `methods` and `auth` are local to the server;
+//! `status`, `metrics`, `drain` and `stop` go to the supervisor, and the
+//! methods of podrunner are the [`Extra`] rows of [`catalogue`].
+//!
+//! A peer of the uid of podrunner has the master tier: it can call each
+//! method, `restart-source` too (a key file read again is a new
+//! credential, so that row has the master tier).
 //!
 //! Where units run as the uid of podrunner (a shared principal), the peer
 //! check protects nothing against a unit: `docs/security/` says so.
 
-use std::io::{BufRead, BufReader, Read, Write};
-use std::os::unix::fs::PermissionsExt;
-use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::Path;
-use std::time::Duration;
 
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde::Deserialize;
+use serde_json::{Map, Value, json};
 
-/// The longest request line.
-pub const LINE_MAX: usize = 64 * 1024;
+pub use pod_control::{
+    Catalogue, Client, ClientSettings, Code, Context, Drain, Error, Extra, Fault, Host, Incoming, Metrics, Outcome,
+    Settings, Snapshot, Tier,
+};
 
-/// A request.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "op", rename_all = "kebab-case", deny_unknown_fields)]
+/// The name of the program in `version`.
+pub const PROGRAM: &str = "podrunner";
+
+/// A request of the command line or of `serve` itself, with the method of
+/// the wire that carries it.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
-    Version,
     Status,
+    /// `drain {"exit": false}`: no new claim; `serve` keeps running.
     Drain,
+    /// `drain {"exit": true}`: no new claim, each running job ends, then
+    /// `serve` exits. The method `stop` does the same.
     Stop,
     Capacity,
     /// The operator looked at the host: start jobs again.
@@ -54,383 +61,207 @@ pub enum Request {
     },
 }
 
-#[derive(Serialize, Deserialize)]
-struct Envelope<T> {
-    v: u32,
-    #[serde(flatten)]
-    body: T,
+/// The extra methods of podrunner: each name, its tier and its summary.
+const EXTRAS: &[(&str, Tier, &str)] = &[
+    ("capacity", Tier::Read, "The free slots of all unit kinds."),
+    ("clear-degraded", Tier::Operate, "The operator looked at the host: start jobs again."),
+    ("withdraw", Tier::Operate, "{\"job_id\"}: withdraw one job (with the scale-set source)."),
+    ("drain-source", Tier::Operate, "{\"source\"}: the source takes no offer; its jobs go on."),
+    ("resume-source", Tier::Operate, "{\"source\"}: the source takes offers again."),
+    ("stop-source", Tier::Operate, "{\"source\"}: drain the source and end its program after its last job."),
+    ("restart-source", Tier::Master, "{\"source\"}: build the source again with its key file of now."),
+];
+
+/// The catalogue of podrunner: the rows of `pod-control` and [`EXTRAS`].
+pub fn catalogue() -> Catalogue {
+    let extras = EXTRAS
+        .iter()
+        .map(|(name, tier, summary)| {
+            let mut e = Extra::new(name, *tier, summary);
+            // A key file read again is a new credential: it outlives the
+            // token of the caller.
+            e.outlives = *tier == Tier::Master;
+            e
+        })
+        .collect();
+    Catalogue::new(extras).expect("the extras of podrunner are a valid catalogue")
 }
 
-/// A reply: `ok` with a value, or an error with a code and a detail.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "reply", rename_all = "kebab-case", deny_unknown_fields)]
-pub enum Reply {
-    Ok { value: Value },
-    Error { code: String, detail: String },
+/// The names of the extra methods, for the conformance check.
+pub fn extra_names() -> Vec<String> {
+    EXTRAS.iter().map(|(n, ..)| n.to_string()).collect()
 }
 
-impl Reply {
-    pub fn error(code: &str, detail: impl Into<String>) -> Reply {
-        Reply::Error { code: code.into(), detail: detail.into() }
+/// The settings of the server of `serve`: 8 clients, a line of 64 KiB,
+/// 5 s for a line and 5 s for the supervisor, mode 0600.
+pub fn settings() -> Settings {
+    let version = format!("{} ({})", env!("PODRUNNER_VERSION"), env!("PODRUNNER_COMMIT"));
+    let mut s = Settings::new(PROGRAM, version);
+    s.same_user = Tier::Master;
+    s
+}
+
+fn bad_params() -> Fault {
+    Fault::new(Code::BadParams, "the params do not fit the method")
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SourceParams {
+    source: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WithdrawParams {
+    job_id: String,
+}
+
+fn no_params(params: &Value) -> Result<(), Fault> {
+    match params.as_object() {
+        Some(m) if m.is_empty() => Ok(()),
+        _ => Err(bad_params()),
+    }
+}
+
+impl Request {
+    /// The request of the extra method `name`. The detail of an error holds
+    /// no byte of the params.
+    pub fn of_extra(name: &str, params: &Value) -> Result<Request, Fault> {
+        let source =
+            || serde_json::from_value::<SourceParams>(params.clone()).map(|p| p.source).map_err(|_| bad_params());
+        Ok(match name {
+            "capacity" => no_params(params).map(|()| Request::Capacity)?,
+            "clear-degraded" => no_params(params).map(|()| Request::ClearDegraded)?,
+            "withdraw" => {
+                let p: WithdrawParams = serde_json::from_value(params.clone()).map_err(|_| bad_params())?;
+                Request::Withdraw { job_id: p.job_id }
+            }
+            "drain-source" => Request::DrainSource { source: source()? },
+            "resume-source" => Request::ResumeSource { source: source()? },
+            "stop-source" => Request::StopSource { source: source()? },
+            "restart-source" => Request::RestartSource { source: source()? },
+            _ => return Err(Fault::unknown_method()),
+        })
+    }
+
+    /// The method of the wire and its params.
+    pub fn method(&self) -> (&'static str, Value) {
+        let source = |s: &str| json!({ "source": s });
+        match self {
+            Request::Status => ("status", json!({})),
+            Request::Drain => ("drain", json!({ "exit": false })),
+            Request::Stop => ("drain", json!({ "exit": true })),
+            Request::Capacity => ("capacity", json!({})),
+            Request::ClearDegraded => ("clear-degraded", json!({})),
+            Request::Withdraw { job_id } => ("withdraw", json!({ "job_id": job_id })),
+            Request::RestartSource { source: s } => ("restart-source", source(s)),
+            Request::DrainSource { source: s } => ("drain-source", source(s)),
+            Request::ResumeSource { source: s } => ("resume-source", source(s)),
+            Request::StopSource { source: s } => ("stop-source", source(s)),
+        }
+    }
+}
+
+/// Read one request line of a client, as the server reads it: the frame
+/// of `pod-control`, then the method of podrunner and its params.
+pub fn parse(line: &[u8]) -> Result<Request, Fault> {
+    let text = std::str::from_utf8(line).map_err(|_| Fault::new(Code::NotUtf8, "a line is UTF-8"))?;
+    let text = text.strip_suffix('\n').unwrap_or(text);
+    if text.len() > pod_control::LINE_MAX {
+        return Err(Fault::new(Code::TooLong, "a line over the cap"));
+    }
+    match pod_control::wire::parse(text).map_err(|(_, f)| f)? {
+        pod_control::wire::Inbound::Answer { .. } => Err(Fault::new(Code::BadRequest, "an answer with no call back")),
+        pod_control::wire::Inbound::Request(r) => match r.method.as_str() {
+            "status" => no_params(&r.params).map(|()| Request::Status),
+            "stop" => no_params(&r.params).map(|()| Request::Stop),
+            "drain" => {
+                let d: Drain = serde_json::from_value(r.params).map_err(|_| bad_params())?;
+                Ok(if d.exit { Request::Stop } else { Request::Drain })
+            }
+            name => Request::of_extra(name, &r.params),
+        },
     }
 }
 
 /// What answers a request: the supervisor.
 pub trait Handler {
-    fn handle(&mut self, req: &Request) -> Reply;
+    fn handle(&mut self, req: &Request) -> Outcome;
 }
 
-/// Read one request line. The detail of an error holds no byte of it.
-pub fn parse(line: &[u8]) -> Result<Request, Reply> {
-    let line = line.strip_suffix(b"\n").unwrap_or(line);
-    if line.len() > LINE_MAX {
-        return Err(Reply::error("bad-request", format!("a line over {LINE_MAX} bytes")));
+/// The [`Host`] of `pod-control` over a [`Handler`].
+pub struct AsHost<'a, H: Handler + ?Sized>(pub &'a mut H);
+
+impl<H: Handler + ?Sized> Host for AsHost<'_, H> {
+    fn status(&mut self, _: &mut Context) -> Outcome {
+        self.0.handle(&Request::Status)
     }
-    let v: Value = serde_json::from_slice(line).map_err(|_| Reply::error("bad-request", "not JSON"))?;
-    if v.get("v") != Some(&Value::from(1)) {
-        return Err(Reply::error("bad-request", "no \"v\": 1"));
+
+    fn metrics(&mut self, _: &mut Context) -> Result<Metrics, Fault> {
+        self.0.handle(&Request::Status).map(|s| metrics_of(&s))
     }
-    // The request itself, with no `v`: a flattened body takes any field
-    // (#233), so the fields of each op are held by hand too.
-    let mut v = v;
-    let Some(map) = v.as_object_mut() else { return Err(Reply::error("bad-request", "not an object")) };
-    map.remove("v");
-    let fields: &[&str] = match map.get("op").and_then(Value::as_str) {
-        Some("withdraw") => &["op", "job_id"],
-        Some("restart-source" | "drain-source" | "resume-source" | "stop-source") => &["op", "source"],
-        _ => &["op"],
-    };
-    if map.keys().any(|k| !fields.contains(&k.as_str())) {
-        return Err(Reply::error("bad-request", "an unknown op or field"));
+
+    fn reload(&mut self, _: &mut Context) -> Outcome {
+        Err(Fault::new(
+            Code::Unsupported,
+            "serve reads its configuration at the start; restart-source builds one source again",
+        ))
     }
-    serde_json::from_value::<Request>(v).map_err(|_| Reply::error("bad-request", "an unknown op or field"))
+
+    fn drain(&mut self, drain: Drain, _: &mut Context) -> Outcome {
+        self.0.handle(if drain.exit { &Request::Stop } else { &Request::Drain })
+    }
+
+    fn stop(&mut self, _: &mut Context) -> Outcome {
+        self.0.handle(&Request::Stop)
+    }
+
+    fn extra(&mut self, name: &str, params: &Value, _: &mut Context) -> Outcome {
+        self.0.handle(&Request::of_extra(name, params)?)
+    }
 }
 
-fn line_of<T: Serialize>(body: &T) -> String {
-    let mut s = serde_json::to_string(&Envelope { v: 1, body }).expect("JSON");
-    s.push('\n');
-    s
-}
-
-/// Bind the socket at `path` with mode 0600 (GitHub #54). A stale socket
-/// (no one answers) goes first; a live socket is `AddrInUse`, and a path
-/// that is not a socket is `AlreadyExists`: neither is removed.
-pub fn bind(path: &Path) -> std::io::Result<UnixListener> {
-    use std::os::unix::fs::FileTypeExt;
-    match std::fs::symlink_metadata(path) {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => return Err(e),
-        Ok(m) if m.file_type().is_socket() => {
-            if UnixStream::connect(path).is_ok() {
-                return Err(std::io::Error::new(std::io::ErrorKind::AddrInUse, "a live socket"));
-            }
-            std::fs::remove_file(path)?;
+/// The metrics of a `status.v1` value: gauges of now, and the counters
+/// that only grow.
+pub fn metrics_of(status: &Value) -> Metrics {
+    let mut m = Metrics::default();
+    let flag = |k: &str| i64::from(status[k].as_bool().unwrap_or(false));
+    let num = |v: &Value| v.as_u64().map_or(0, |n| i64::try_from(n).unwrap_or(i64::MAX));
+    m.gauges.insert("draining".into(), flag("draining"));
+    m.gauges.insert("degraded".into(), i64::from(!status["degraded"].is_null()));
+    m.gauges.insert("no_tier_served".into(), flag("no_tier_served"));
+    m.gauges.insert("units".into(), num(&status["units"]));
+    m.gauges.insert("spooled_reports".into(), num(&status["spooled_reports"]));
+    let kinds = status["kinds"].as_array().map(Vec::as_slice).unwrap_or_default();
+    m.gauges.insert("slots".into(), kinds.iter().map(|k| num(&k["slots"])).sum());
+    m.gauges.insert("busy".into(), kinds.iter().map(|k| num(&k["busy"])).sum());
+    let empty = Map::new();
+    for s in status["sources"].as_array().map(Vec::as_slice).unwrap_or_default() {
+        for (state, n) in s["jobs"].as_object().unwrap_or(&empty) {
+            *m.gauges.entry(format!("jobs_{state}")).or_default() += num(n);
         }
-        Ok(_) => return Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, "not a socket")),
-    }
-    let l = UnixListener::bind(path)?;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
-    Ok(l)
-}
-
-/// The uid of the peer of a unix stream.
-pub fn peer_uid(s: &UnixStream) -> Option<u32> {
-    use std::os::fd::AsRawFd;
-    let mut cred = libc::ucred { pid: 0, uid: 0, gid: 0 };
-    let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
-    // SAFETY: getsockopt writes at most `len` bytes into `cred`, a ucred.
-    let rc = unsafe {
-        libc::getsockopt(
-            s.as_raw_fd(),
-            libc::SOL_SOCKET,
-            libc::SO_PEERCRED,
-            (&mut cred as *mut libc::ucred).cast(),
-            &mut len,
-        )
-    };
-    (rc == 0).then_some(cred.uid)
-}
-
-fn my_uid() -> u32 {
-    // SAFETY: getuid(2) cannot fail.
-    unsafe { libc::getuid() }
-}
-
-/// The clients served at one time; one more gets `busy`.
-pub const CLIENTS: usize = 8;
-
-/// The absolute deadline of one exchange: the request line, and the reply
-/// of the supervisor.
-pub const EXCHANGE: Duration = Duration::from_secs(5);
-
-/// A request for the supervisor, and where its reply goes.
-pub struct Call {
-    pub req: Request,
-    pub reply: std::sync::mpsc::Sender<Reply>,
-}
-
-/// Serve `l` in threads of its own (GitHub #56): the supervisor gets whole
-/// requests from the channel, so a slow or silent peer delays no tick.
-pub fn spawn(l: UnixListener) -> std::sync::mpsc::Receiver<Call> {
-    spawn_with(l, Snapshot::default())
-}
-
-/// The last `status` reply of the supervisor (T-184): while the supervisor
-/// waits on a call of a source, a `status` gets it, not `busy`.
-pub type Snapshot = std::sync::Arc<std::sync::Mutex<Option<Reply>>>;
-
-/// `spawn`, with the snapshot of `status` that the supervisor keeps.
-pub fn spawn_with(l: UnixListener, snapshot: Snapshot) -> std::sync::mpsc::Receiver<Call> {
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    let (tx, rx) = std::sync::mpsc::channel();
-    let active = Arc::new(AtomicUsize::new(0));
-    std::thread::spawn(move || {
-        for stream in l.incoming() {
-            let Ok(stream) = stream else { continue };
-            if active.load(Ordering::SeqCst) >= CLIENTS {
-                let _ = stream.set_write_timeout(Some(Duration::from_secs(1)));
-                let _ = (&stream).write_all(line_of(&Reply::error("busy", "too many clients")).as_bytes());
-                continue;
-            }
-            active.fetch_add(1, Ordering::SeqCst);
-            let (tx, active, snapshot) = (tx.clone(), active.clone(), snapshot.clone());
-            std::thread::spawn(move || {
-                let _ = exchange(stream, &tx, &snapshot);
-                active.fetch_sub(1, Ordering::SeqCst);
-            });
-        }
-    });
-    rx
-}
-
-/// Read one line before `deadline`, at most `LINE_MAX` bytes and a newline.
-fn read_line(mut s: &UnixStream, deadline: std::time::Instant) -> std::io::Result<Vec<u8>> {
-    let mut line = Vec::new();
-    let mut buf = [0u8; 4096];
-    while !line.contains(&b'\n') && line.len() <= LINE_MAX + 1 {
-        let left = deadline.saturating_duration_since(std::time::Instant::now());
-        if left.is_zero() {
-            return Err(std::io::ErrorKind::TimedOut.into());
-        }
-        s.set_read_timeout(Some(left))?;
-        match s.read(&mut buf)? {
-            0 => break,
-            n => line.extend_from_slice(&buf[..n]),
+        for (why, n) in s["refused"].as_object().unwrap_or(&empty) {
+            *m.counters.entry(format!("refused_{why}")).or_default() += n.as_u64().unwrap_or(0);
         }
     }
-    Ok(line)
+    m.counters.insert("ended_without_completion".into(), status["ended_without_completion"].as_u64().unwrap_or(0));
+    m
 }
 
-fn exchange(stream: UnixStream, tx: &std::sync::mpsc::Sender<Call>, snapshot: &Snapshot) -> std::io::Result<()> {
-    let deadline = std::time::Instant::now() + EXCHANGE;
-    stream.set_write_timeout(Some(EXCHANGE))?;
-    let mut writer = &stream;
-    if peer_uid(&stream) != Some(my_uid()) {
-        return writer.write_all(line_of(&Reply::error("refused", "the peer has another uid")).as_bytes());
-    }
-    let line = read_line(&stream, deadline)?;
-    let reply = match parse(&line) {
-        Err(r) => r,
-        Ok(req) => {
-            let status = req == Request::Status;
-            let (rtx, rrx) = std::sync::mpsc::channel();
-            if tx.send(Call { req, reply: rtx }).is_err() {
-                return Ok(());
-            }
-            let left = deadline.saturating_duration_since(std::time::Instant::now());
-            // A `status` takes the last snapshot when the supervisor is in a
-            // call of a source; another request gets `busy`.
-            let last = || if status { snapshot.lock().ok().and_then(|s| s.clone()) } else { None };
-            rrx.recv_timeout(left.max(Duration::from_secs(1)))
-                .ok()
-                .or_else(last)
-                .unwrap_or_else(|| Reply::error("busy", "the supervisor did not answer in time"))
-        }
-    };
-    writer.write_all(line_of(&reply).as_bytes())
+/// Serve the control at `path`. A stale socket goes first; a live socket
+/// is `AddrInUse`, and a path that is not a socket is `AlreadyExists`:
+/// neither is removed. The drop of the server removes its socket.
+pub fn serve(path: &Path) -> std::io::Result<(pod_control::unix::Server, Incoming)> {
+    pod_control::unix::serve(path, settings(), catalogue())
 }
 
-/// Answer each call that waits now, with `h`.
-pub fn answer_waiting(rx: &std::sync::mpsc::Receiver<Call>, h: &mut dyn Handler, wait: Duration) {
-    let Ok(first) = rx.recv_timeout(wait) else { return };
-    let mut next = Some(first);
-    while let Some(call) = next {
-        let _ = call.reply.send(h.handle(&call.req));
-        next = rx.try_recv().ok();
-    }
-}
-
-/// Send one request to the socket at `path`.
-pub fn call(path: &Path, req: &Request) -> std::io::Result<Reply> {
-    exchange_on(UnixStream::connect(path)?, req)
-}
-
-/// One request and its reply on `s`. The server can answer `busy` and
-/// close before the request is written: the write then fails, but the
-/// reply is still in the socket, so read it before the write error counts.
-fn exchange_on(mut s: UnixStream, req: &Request) -> std::io::Result<Reply> {
-    s.set_read_timeout(Some(Duration::from_secs(30)))?;
-    let written = s.write_all(line_of(req).as_bytes());
-    let mut line = Vec::new();
-    let read = BufReader::new(s).take(16 * 1024 * 1024).read_until(b'\n', &mut line);
-    if line.is_empty() {
-        written?;
-        read?;
-    }
-    let v: Envelope<Reply> = serde_json::from_slice(&line).map_err(std::io::Error::other)?;
-    Ok(v.body)
+/// Send one request to the socket at `path`, and give its result.
+pub fn call(path: &Path, req: &Request) -> Result<Value, Error> {
+    let (method, params) = req.method();
+    Client::connect_unix(path, ClientSettings::default())?.call(method, params)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct Echo(Vec<Request>);
-
-    impl Handler for Echo {
-        fn handle(&mut self, req: &Request) -> Reply {
-            self.0.push(req.clone());
-            Reply::Ok { value: Value::from("done") }
-        }
-    }
-
-    #[test]
-    fn bad_lines_are_bad_requests() {
-        // #233: a field that the op does not take is refused too.
-        for line in [
-            &b"x"[..],
-            br#"{"op":"status"}"#,
-            br#"{"v":2,"op":"status"}"#,
-            br#"{"v":1,"op":"rm"}"#,
-            br#"{"v":1,"op":"status","bogus":1}"#,
-            br#"{"v":1,"op":"status","job_id":"x"}"#,
-            br#"{"v":1,"op":"withdraw","job_id":"x","bogus":1}"#,
-        ] {
-            assert!(matches!(parse(line), Err(Reply::Error { code, .. }) if code == "bad-request"));
-        }
-        assert_eq!(parse(br#"{"v":1,"op":"drain"}"#), Ok(Request::Drain));
-        let long = vec![b' '; LINE_MAX + 1];
-        assert!(parse(&long).is_err());
-    }
-
-    fn dir(name: &str) -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("podrunner-ctl-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
-        d
-    }
-
-    #[test]
-    fn the_socket_has_mode_0600_and_answers_one_request() {
-        let dir = dir("one");
-        let path = dir.join("ctl.sock");
-        let rx = spawn(bind(&path).unwrap());
-        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
-        let p = path.clone();
-        let client = std::thread::spawn(move || call(&p, &Request::Status).unwrap());
-        let mut h = Echo(Vec::new());
-        while h.0.is_empty() {
-            answer_waiting(&rx, &mut h, Duration::from_millis(50));
-        }
-        assert_eq!(client.join().unwrap(), Reply::Ok { value: Value::from("done") });
-        assert_eq!(h.0, [Request::Status]);
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// A `busy` reply that comes, with a close, before the request is
-    /// written is still the reply, not a broken pipe.
-    #[test]
-    fn a_reply_before_the_request_is_read() {
-        let dir = dir("early");
-        let path = dir.join("ctl.sock");
-        let l = UnixListener::bind(&path).unwrap();
-        let server = std::thread::spawn(move || {
-            let (s, _) = l.accept().unwrap();
-            (&s).write_all(line_of(&Reply::error("busy", "too many clients")).as_bytes()).unwrap();
-        });
-        let s = UnixStream::connect(&path).unwrap();
-        server.join().unwrap();
-        // The server side is closed now: the write of the request fails.
-        let r = exchange_on(s, &Request::Status).unwrap();
-        assert!(matches!(&r, Reply::Error { code, .. } if code == "busy"), "{r:?}");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn silent_clients_delay_no_answer_and_a_ninth_is_busy() {
-        let dir = dir("idle");
-        let path = dir.join("ctl.sock");
-        let rx = spawn(bind(&path).unwrap());
-        // Seven silent clients hold seven of the eight places.
-        let idle: Vec<UnixStream> = (0..CLIENTS - 1).map(|_| UnixStream::connect(&path).unwrap()).collect();
-        std::thread::sleep(Duration::from_millis(100));
-        let p = path.clone();
-        let started = std::time::Instant::now();
-        let client = std::thread::spawn(move || call(&p, &Request::Status).unwrap());
-        let mut h = Echo(Vec::new());
-        while h.0.is_empty() && started.elapsed() < Duration::from_secs(3) {
-            answer_waiting(&rx, &mut h, Duration::from_millis(50));
-        }
-        assert_eq!(client.join().unwrap(), Reply::Ok { value: Value::from("done") });
-        assert!(started.elapsed() < Duration::from_secs(1), "{:?}", started.elapsed());
-        // Eight silent clients now: a ninth gets busy.
-        let _eighth = UnixStream::connect(&path).unwrap();
-        std::thread::sleep(Duration::from_millis(100));
-        assert!(matches!(call(&path, &Request::Status).unwrap(), Reply::Error { code, .. } if code == "busy"));
-        drop(idle);
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// T-184: while the supervisor answers nothing, `status` gets the last
-    /// snapshot, and another request gets `busy`.
-    #[test]
-    fn status_takes_the_snapshot_while_the_supervisor_is_busy() {
-        let dir = dir("snapshot");
-        let path = dir.join("ctl.sock");
-        let snap = Snapshot::default();
-        *snap.lock().unwrap() = Some(Reply::Ok { value: serde_json::json!({ "jobs": 3 }) });
-        let _rx = spawn_with(bind(&path).unwrap(), snap);
-        assert_eq!(call(&path, &Request::Status).unwrap(), Reply::Ok { value: serde_json::json!({ "jobs": 3 }) });
-        assert!(matches!(call(&path, &Request::Drain).unwrap(), Reply::Error { .. }));
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_slow_client_is_cut_at_the_deadline() {
-        let dir = dir("slow");
-        let path = dir.join("ctl.sock");
-        let _rx = spawn(bind(&path).unwrap());
-        let mut s = UnixStream::connect(&path).unwrap();
-        let started = std::time::Instant::now();
-        // One byte each 500 ms, never a newline: the server ends the
-        // exchange at its absolute deadline.
-        let mut closed = false;
-        while started.elapsed() < EXCHANGE + Duration::from_secs(3) {
-            if s.write_all(b" ").is_err() {
-                closed = true;
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(500));
-        }
-        assert!(closed, "the exchange was not cut");
-        assert!(started.elapsed() >= EXCHANGE, "{:?}", started.elapsed());
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn bind_keeps_a_live_socket_and_a_file_and_replaces_a_stale_socket() {
-        let dir = dir("bind");
-        let path = dir.join("ctl.sock");
-        let live = bind(&path).unwrap();
-        assert_eq!(bind(&path).unwrap_err().kind(), std::io::ErrorKind::AddrInUse);
-        drop(live);
-        // The file of a dead listener is stale: it is replaced.
-        assert!(bind(&path).is_ok());
-        let file = dir.join("file");
-        std::fs::write(&file, "x").unwrap();
-        assert_eq!(bind(&file).unwrap_err().kind(), std::io::ErrorKind::AlreadyExists);
-        assert_eq!(std::fs::read(&file).unwrap(), b"x");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-}
+#[path = "control_tests.rs"]
+mod tests;

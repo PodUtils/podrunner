@@ -208,3 +208,24 @@ fn no_credential_reaches_stderr_or_a_file_of_the_state() {
     assert!(!String::from_utf8_lossy(&status.stdout).contains(canary), "status holds the credential");
     assert_eq!(files_holding(&bed.state(), canary), Vec::<PathBuf>::new());
 }
+
+/// T-576: the control socket of `podrunner serve` passes the conformance
+/// check of `pod-control`; a client of protocol 1 drains it and it exits.
+#[test]
+fn the_control_socket_of_serve_conforms_to_pod_control() {
+    use pod_control::{Client, ClientSettings, Drain, conformance};
+    let bed = Bed::new("conformance", 1);
+    let mut serve = bed.serve(None);
+    bed.wait_started();
+    let socket = bed.state().join("ctl.sock");
+    let mut connect = || Client::connect_unix(&socket, ClientSettings::default());
+    let extras = podrunner::control::extra_names();
+    let faults = conformance::check(&mut connect, &conformance::Options { extras, ..Default::default() });
+    assert!(faults.is_empty(), "{faults:#?}");
+    let mut c = connect().unwrap();
+    assert_eq!(c.version().unwrap().program, "podrunner");
+    assert!(c.metrics().unwrap().gauges.contains_key("slots"));
+    assert_eq!(c.drain(Drain { exit: true }).unwrap(), serde_json::json!("stopping"));
+    assert!(wait_exit(&mut serve, Duration::from_secs(30)).is_some_and(|s| s.success()), "serve did not end");
+    assert!(!socket.exists(), "serve left its socket");
+}

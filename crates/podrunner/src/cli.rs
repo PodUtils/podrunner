@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use pod_core::failure::Class;
 
-use crate::control::{self, Reply, Request};
+use crate::control::{self, Request};
 use crate::text::display;
 use crate::verbs::{audit_verify, human, stop_wait};
 
@@ -160,15 +160,11 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
                 ("stop", None) => Request::Stop,
                 _ => Request::ClearDegraded,
             };
-            let reply = control::call(&o.socket()?, &req).map_err(|e| crate::verbs::no_socket(&o, e))?;
-            match reply {
-                Reply::Ok { value } if req == Request::Status && !o.flags.contains(&"--json".into()) => {
-                    Ok(ok(human(&value)))
-                }
-                Reply::Ok { value } => Ok(ok(format!("{value}\n"))),
-                Reply::Error { code, detail } => {
-                    Err(err(Class::Refused, format!("{}: {}", display(&code), display(&detail))))
-                }
+            let value = control::call(&o.socket()?, &req).map_err(|e| crate::verbs::control_failure(&o, e))?;
+            if req == Request::Status && !o.flags.contains(&"--json".into()) {
+                Ok(ok(human(&value)))
+            } else {
+                Ok(ok(format!("{value}\n")))
             }
         }
         "doctor" if rest.iter().any(|x| x == "--run") => {
