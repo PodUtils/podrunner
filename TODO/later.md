@@ -12015,7 +12015,7 @@ Do not edit the copy. Add a line to `docs/design-issues.md` and to the README of
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -12033,9 +12033,11 @@ When `pod-release` gives the signed index, write it in `release.yml` and check i
 
 `release.yml` dry run: the index is signed and lists each asset.
 
-## Blocker
+## Start condition
 
-`pod-release` of podcrates: PodUtils/podcrates@T-104 and PodUtils/podcrates@T-880.
+T-562 writes `release-index.json` with `pod-release`; this entry then adds the check of the installer.
+
+State (2026-11-20): unblocked. PodUtils/podcrates@T-104 and PodUtils/podcrates@T-880 are done in podcrates `v0.78.1`: the static command `pod-release` writes and verifies the index (T-562).
 
 # T-524: G-04 and G-35: the half of podrunner of the placeholders of a policy
 
@@ -12044,7 +12046,7 @@ When `pod-release` gives the signed index, write it in `release.yml` and check i
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -12062,9 +12064,7 @@ When `pod-broker` gives placeholders, pass the placeholders of the offer's polic
 
 `cargo test -p podrunner-egress` with a policy that has a placeholder.
 
-## Blocker
-
-The TLS end of `pod-broker`: PodUtils/podcrates@T-100.
+State (2026-11-20): unblocked. The TLS end of `pod-broker` with placeholder credentials is done in podcrates `v0.78.1` (PodUtils/podcrates@T-100). The placeholders are T-563; this entry keeps the path rules of a policy (`egress-policy-unsupported`).
 
 # T-525: C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host
 

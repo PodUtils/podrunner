@@ -113,7 +113,7 @@
 107 issue closed
 108 issue closed
 109 issue closed
-110 issue open
+110 issue closed
 111 issue closed
 112 issue closed
 113 issue closed
@@ -297,7 +297,7 @@
 291 issue closed
 292 issue open
 293 issue open
-294 issue open
+294 issue closed
 295 issue closed
 296 issue open
 297 pull closed
@@ -325,3 +325,4 @@
 319 issue open
 320 issue open
 321 issue open
+322 issue open

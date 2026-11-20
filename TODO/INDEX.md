@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**560 entries: 59 open, 51 partial, 17 blocked, 433 done.**
+**560 entries: 61 open, 51 partial, 15 blocked, 433 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 6 | 24 | 4 | 78 | 112 |
-| P2 | 16 | 20 | 9 | 226 | 271 |
-| P3 | 36 | 7 | 4 | 127 | 174 |
-| **All** | 59 | 51 | 17 | 433 | 560 |
+| P2 | 17 | 20 | 8 | 226 | 271 |
+| P3 | 37 | 7 | 3 | 127 | 174 |
+| **All** | 61 | 51 | 15 | 433 | 560 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -567,8 +567,8 @@ acceptance, later The crate dependencies later than v1.
 | [T-520](later.md) | P3 | S | later | measurement | partial | G-06: no test of `cpu_s` against a known load, and no tolerance in the contract |
 | [T-521](later.md) | P3 | S | later | defect | open | G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit |
 | [T-522](later.md) | P2 | S | later | docs | done | G-31: the design copies of the schemas have the ids of `pod-job` and other fields |
-| [T-523](later.md) | P2 | M | later | feature | blocked | G-34: take the signed release index of `pod-release` |
-| [T-524](later.md) | P3 | M | later | feature | blocked | G-04 and G-35: the half of podrunner of the placeholders of a policy |
+| [T-523](later.md) | P2 | M | later | feature | open | G-34: take the signed release index of `pod-release` |
+| [T-524](later.md) | P3 | M | later | feature | open | G-04 and G-35: the half of podrunner of the placeholders of a policy |
 | [T-525](later.md) | P1 | M | later | measurement | done | C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host |
 | [T-526](later.md) | P1 | S | later | chore | done | The incus suite of `runner-image.yml` does not block a release |
 | [T-527](later.md) | P1 | M | later | chore | partial | No lane of the user-path gate for the host class of githome's pool |
