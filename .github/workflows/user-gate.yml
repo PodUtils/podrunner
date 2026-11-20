@@ -229,7 +229,8 @@ jobs:
           # check, doctor, print-unit and serve on each kind.
           - lane: serve-incus-kvm
             lab: sh scripts/lab/nonroot.sh --
-            executors: ""
+            # T-528: the local mode on the incus kind (hello and rbg-gate).
+            executors: incus
             serve_kinds: incus,microvm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

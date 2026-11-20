@@ -12231,6 +12231,8 @@ State (2026-11-19, run 44489222156, podvm `0.2.0-beta.36`): the row passes on po
 
 State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): the row `rbg-gate` passes on each executor, as on github.com: podvm (install 14 s, run to the first step 28 s), runner-dir (12 s, 2 s), microvm (20 s, 4 s). The lane `plain` passes 32 of 32. Left: a row on the incus kind (through `serve`, T-527).
 
+State (2026-11-20): the fake GitHub of podcrates serves `run:` steps only, so the workflow of rbg cannot go through `serve`. The local mode has `--incus` (T-123): `scripts/user-gate.py` has the executor `incus`, the lane `serve-incus-kvm` runs `hello:incus` and the row `rbg-gate` on incus with the allow list of the microvm row. Next: its first run.
+
 # T-529: The disk limit of an offer lifts the bound of the operator
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18

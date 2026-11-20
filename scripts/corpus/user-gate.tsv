@@ -11,7 +11,8 @@
 #   job       the id of the job (--job)
 #   matrix    KEY=VALUE;KEY=VALUE (each one a --matrix), or -
 #   github    the result of the job on github.com at the commit
-#   executor  podvm (the run.toml of the installer), runner-dir or microvm
+#   executor  podvm (the run.toml of the installer), runner-dir, microvm or
+#             incus
 #   lanes     the lanes that run the row (a,b), or * for each lane
 #   expect    ok; xfail when podrunner fails the job for a known cause;
 #             flaky when it fails some runs for a known cause (the note of
@@ -48,3 +49,4 @@ rq-valkey	rq/rq	535172412469b78d4ac690a446284d8ec1e9f541	.github/workflows/valke
 rbg-gate	PodUtils/podrunner	14bc880d4e0245a65340846a0bdb51d78c427f85	.github/workflows/rbg-stand-in.yml	gate	-	success	podvm	plain	ok	--event workflow_dispatch	the stand-in of the gate of rbg (T-528): the times of the row are its base line
 rbg-gate	PodUtils/podrunner	14bc880d4e0245a65340846a0bdb51d78c427f85	.github/workflows/rbg-stand-in.yml	gate	-	success	runner-dir	plain	ok	--event workflow_dispatch	the stand-in of the gate of rbg (T-528)
 rbg-gate	PodUtils/podrunner	14bc880d4e0245a65340846a0bdb51d78c427f85	.github/workflows/rbg-stand-in.yml	gate	-	success	microvm	plain	ok	--event workflow_dispatch --allow github.com --allow api.github.com --allow raw.githubusercontent.com --allow objects.githubusercontent.com --allow release-assets.githubusercontent.com --allow nodejs.org --allow registry.npmjs.org --allow cdn.playwright.dev --allow playwright.download.prss.microsoft.com --allow playwright.azureedge.net --allow storage.googleapis.com	a guest has no NIC: Node, npm and Chromium come through --allow (T-528)
+rbg-gate	PodUtils/podrunner	14bc880d4e0245a65340846a0bdb51d78c427f85	.github/workflows/rbg-stand-in.yml	gate	-	success	incus	serve-incus-kvm	ok	--event workflow_dispatch --allow github.com --allow api.github.com --allow raw.githubusercontent.com --allow objects.githubusercontent.com --allow release-assets.githubusercontent.com --allow nodejs.org --allow registry.npmjs.org --allow cdn.playwright.dev --allow playwright.download.prss.microsoft.com --allow playwright.azureedge.net --allow storage.googleapis.com	a system container of incus has no NIC: Node, npm and Chromium come through --allow (T-528)

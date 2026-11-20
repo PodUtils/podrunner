@@ -41,7 +41,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 TABLE = ROOT / "scripts" / "corpus" / "user-gate.tsv"
 INSTALL_DOC = ROOT / "docs" / "install.md"
 COLUMNS = ("id", "repo", "sha", "workflow", "job", "matrix", "github", "executor", "lanes", "expect", "flags", "note")
-EXECUTORS = ("podvm", "runner-dir", "microvm")
+EXECUTORS = ("podvm", "runner-dir", "microvm", "incus")
 RELEASE_URL = "https://github.com/PodUtils/podrunner/releases/download/"
 # The sections of docs/install.md that a lane runs as they are written.
 QUICK_START = "Quick start"
@@ -379,7 +379,10 @@ class Lane:
             return []  # the run.toml of the installer
         if executor == "runner-dir":
             return ["--no-config", "--runner-dir", str(self.data / "runner" / self.runner_version)]
-        return ["--no-config", "--microvm", str(self.data / "bin" / "podvm"), "--images", str(self.data / "images"), "--image", self.image]
+        # A guest of podvm's machine tier, or a system container of its incus
+        # tier (incusd, T-123, T-528).
+        guest = "--incus" if executor == "incus" else "--microvm"
+        return ["--no-config", guest, str(self.data / "bin" / "podvm"), "--images", str(self.data / "images"), "--image", self.image]
 
     def podrunner(self, args, cwd, log, expect_ok: bool, timeout=None) -> tuple[bool, str]:
         """doctor --run, then run, with ARGS. True when each job is ok."""
