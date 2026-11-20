@@ -119,45 +119,35 @@ is done.
     each label, daily), `hosted-boot.yml` (the core slice under incus,
     report-only). Scripts: `scripts/hosted/`.
 - In flight, read first:
-  - `hosted-boot.yml` (T-556, blocked): systemd of the slice boots to
-    `boot-complete.target` under incus, `degraded` (`systemd-remount-fs`,
-    `chrony`); podvm runs no command on a degraded boot, stops the
-    instance and exits 0 (run 44663656956). The ask is COORD-112 (#325,
-    to podvm). On its beta, dispatch `hosted-boot.yml` again with the
-    digest `sha256:d00306d8...` of T-555.
-  - podvm's next beta (COORD-209, PodUtils/podvm#605) boots the init of an
-    image with no incus; podvm asks for a run of the snapshot that way.
-    COORD-203 (PodUtils/podvm#599): PodUtils/podvm@T-1996, @T-1997 and
-    @T-1999 are on podvm's `main`; @T-1994 and @T-1998 come later. Take the beta when it is out.
-  - T-561, T-220 and T-350 are done (proven in CI: `user-gate.yml` run
-    44664120384, `pass lab:vnet` in the lane `bind-denied`; a failure of
-    `lab:vnet` now fails the lane). #167 and #213 are closed.
-  - T-564 is done (proven on a constrained host as a user): the units of
-    podvm's namespace rung get the socket volume (`--vnet`, the question
-    of `serve`); the container hooks stay off that rung, since `exec`
-    there refuses the volumes of a container (T-532, blocked on COORD-113,
-    #326). The new lane `userns-on` of `user-gate.yml` runs podvm on its
-    namespace rung: request a run and read its first result.
-  - T-562: `release-index.py` names the signer at `@refs/tags/TAG`, and
-    `release.yml` signs from a dispatch on `main`. Choose the route (the
-    entry) before the work.
-  - T-562 (the release index of `pod-release`, signed at the tag, the form
-    of podcrates): the dry run is green in CI (`release.yml` 44698975325);
-    the run on a tag is not run yet. The next release is its first test:
-    read both runs (`docs/maintenance.md`, "A release").
-  - T-565 is done: `config init` writes `command`, `runner_dir` and, for
-    a trusted podvm kind, `confine = true` after the self-test of the
-    layer. T-566 (partial): the self-test is proven by the namespaces of
-    the unit where they hide the host (a call in `docs/decisions.md`);
-    measured here, not in CI. A runner job through `serve` with the fakes
-    of podcrates passes on podvm with the hold (T-527); the lane
-    `serve-incus-kvm` has the check `serve:job:KIND` for incus and
-    microvm: request `user-gate.yml` and read its first run.
-  - The lane `userns-on` (podvm's namespace rung) passes in CI but for the
-    rows of uv and ruff, which pass there: their expect is now
-    `xfail userns-on:ok`. T-532 waits for podvm's beta with PodUtils/podvm@T-2012.
+  - #331 (`[gh action] requested`): gate, `level2`, `runner-image.yml`
+    (with busybox through `pull-base.sh`, T-478), then `user-gate.yml` on
+    its images, on `c3efe9b` and later. Read in `user-gate.yml`:
+    `serve:job:incus`, `serve:job:microvm` (T-527; the last run hid their
+    cause, the gate now prints the logs of `serve` and both fakes),
+    `serve:check:podvm`, `serve:run:podvm`, `serve:job:podvm` in the lane
+    `userns-on` (T-566: the report must say `confined`), the schema of
+    the file of `config init` and no TCP listener of `serve` (T-507), and
+    `hello:incus` with the row `rbg-gate` on incus (T-528).
+  - T-556 (blocked): podvm's answer COORD-212 (PodUtils/podvm#609) fixes
+    the prefix of the Entrypoint `/sbin/init` of the snapshot on its
+    `main` (PodUtils/podvm@T-2011). On its next beta: pin it, dispatch
+    `hosted-boot.yml` with the digest `sha256:d00306d8...` of T-555.
+    T-532 waits for the same beta (PodUtils/podvm@T-2012, `exec` on the
+    namespace rung); then give the hooks on that rung and run the container
+    job in the lane `userns-on`.
+  - T-562: the release index, signed at the tag (the form of podcrates);
+    the dry run is green in CI; the run on a tag is the first test of the
+    next release: read both runs.
+- Done in this session (2026-11-20), each with its proof level in the
+  entry: T-561, T-220, T-350 (CI: `lab:vnet`); T-564 (CI: the lane
+  `userns-on`); T-565 (`config init` writes `command`, `runner_dir`,
+  and `confine` after the self-test); podcrates `v0.79.0` taken
+  (COORD-114, #329). Partial: T-566 (the confine layer proven by the
+  namespaces of the unit, a call in `docs/decisions.md`; `doctor` and
+  `config init` run the self-test), T-527 (a runner job through `serve`
+  passes on podvm on a constrained host), T-507, T-528, T-562.
   - This session cannot dispatch a workflow: ask the local agent with a
-    `[gh action] requested` issue (#324 was the last). Its pushes start
+    `[gh action] requested` issue (#331 is the last). Its pushes start
     no run either: ask for the gate and `level2.yml` too, and give
     `user-gate.yml` an `images_run` (the green `runner-image.yml` run
     44646254235 serves while `images/` is the same).
