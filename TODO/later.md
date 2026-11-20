@@ -12734,6 +12734,8 @@ First find why each unit has its own store (labels, cleanup, confine). Then use 
 
 `runner-image.yml`: a measure of the writes and of the start time of a unit of `hosted-core`, before and after.
 
+State (2026-11-20, COORD-209): the podvm kind can boot the init of an image with no incus on the next beta of podvm (the namespace rung with a delegated cgroup2 subtree, or runsc), so the snapshot's systemd is not limited to the incus kind; the run of T-556 measures which route a hosted runner takes.
+
 # T-546: The tests of runner-images (Pester) in a unit
 
 **Source:** the hosted-parity study of T-538 (`docs/reports/hosted-parity-2026-11-19.md`), 2026-11-19
@@ -13065,6 +13067,8 @@ A job of `hosted-snapshot.yml` (or `runner-image.yml`) boots the `base` and `boo
 State (2026-11-19, the needs left): the checks in a full unit need COORD-106 (GitHub #316) ask 1 on the incus tier (the id map of rootless podman, `/dev/fuse`), and ask 2 or ask 3 for a KVM guest.
 
 State (2026-11-19): podvm `0.2.0-beta.36` boots the init of an image on the incus tier (`--podvm-init=image`), so the boot can run before the asks of COORD-106. `scripts/hosted/slice.py` makes the core slice of a published manifest: the layers `base`, `usr-lib`, `usr-lib-arch`, `usr-share`, `snapd` and `boot` (6 of 85 for `ubuntu24-20261116.376.1`, 2.4 GiB with zstd), with a config that names only them; each downloaded layer is checked against its digest. `.github/workflows/hosted-boot.yml` (report-only) loads it into a podvm store, boots it with `--podvm-init=image` under incusd, and records `is-system-running`, the failed units, PID 1, the kernel, the machine id, the capability of `ping` and the SSH host keys. A hard-link group whose first name is in a layer of a tool is not in the slice. `python3 -I scripts/hosted/slice.py --self-test` passes. Next: the first run.
+
+State (2026-11-20, COORD-209, PodUtils/podvm#605): on podvm's `main` (`38b766f`, the next beta), `podvm run --rm --podvm-init=image` with no tier boots the init of the image on the first route that the host gives: the namespace rung (a subordinate id range and a delegated cgroup2 subtree, or a user manager of systemd), the runsc tier (gVisor), or the machine tier (QEMU). systemd is PID 1 and each `User=` unit runs as its uid; MariaDB and PostgreSQL answer. `run -d` with the init on the namespace rung is refused by name for now; the machine tier still has an initramfs root. podvm asks: run the snapshot that way on the next beta and say which route a hosted runner takes. Next: a second step of `hosted-boot.yml` with no tier, on that beta.
 
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
