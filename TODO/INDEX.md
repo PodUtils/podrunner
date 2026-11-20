@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**561 entries: 62 open, 49 partial, 16 blocked, 434 done.**
+**561 entries: 62 open, 47 partial, 16 blocked, 436 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 6 | 23 | 5 | 78 | 112 |
-| P2 | 17 | 19 | 8 | 227 | 271 |
+| P2 | 17 | 17 | 8 | 229 | 271 |
 | P3 | 38 | 7 | 3 | 127 | 175 |
-| **All** | 62 | 49 | 16 | 434 | 561 |
+| **All** | 62 | 47 | 16 | 436 | 561 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -267,7 +267,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-217](later.md) | P1 | S | later | defect | done | The artifact `runner-ARCH.tar` cannot be loaded by the pinned podvm and has no ref name |
 | [T-218](later.md) | P3 | S | later | defect | done | The nits of the local-mode user run |
 | [T-219](later.md) | P3 | S | later | defect | done | An unknown `--event` gets the text of the `on:` filter, and `--event-path` is read after the filter |
-| [T-220](later.md) | P2 | M | later | feature | partial | The local mode cannot run on a host that refuses each AF_INET bind |
+| [T-220](later.md) | P2 | M | later | feature | done | The local mode cannot run on a host that refuses each AF_INET bind |
 | [T-221](later.md) | P3 | S | later | feature | done | `cpus` on the podvm kind |
 | [T-222](live.md) | P1 | S | M-C | defect | done | A refusal of one source holds the job for each source of the host |
 | [T-223](later.md) | P2 | S | later | defect | done | `doctor --run` says ok for a store that does not hold `--image` |
@@ -394,7 +394,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-347](later.md) | P3 | S | later | defect | done | `--watch` and `--schedule` with a one-shot mode wait for ever; `--schedule` of a workflow with no `on.schedule` gives a bad message |
 | [T-348](later.md) | P3 | S | later | defect | done | `--validate --json` gives no JSON for a workflow that is not valid |
 | [T-349](later.md) | P3 | S | later | defect | done | A failure before the start of a job names a log in `--log-dir` that is not there |
-| [T-350](later.md) | P2 | M | later | defect | partial | beta.7 pins podnet `0.4.0-beta.13`; the vnet forward of #170 is in `0.4.0-beta.14` |
+| [T-350](later.md) | P2 | M | later | defect | done | beta.7 pins podnet `0.4.0-beta.13`; the vnet forward of #170 is in `0.4.0-beta.14` |
 | [T-351](later.md) | P1 | M | later | defect | partial | The egress module resolves each name itself, so a host with DNS only through its proxy gets 502 for each fetch and each allowed host |
 | [T-352](later.md) | P3 | S | later | defect | open | `image verify` cannot verify the runner image of the release |
 | [T-353](later.md) | P2 | M | later | defect | partial | The runner image has no `less` |

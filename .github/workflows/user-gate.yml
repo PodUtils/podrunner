@@ -29,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
       images_run:
-        description: "The id of a green runner-image.yml run of this commit (empty: the latest one)"
+        description: "The id of a green runner-image.yml run (of an older commit when images/ is the same); empty: the green run of this commit, else the gate refuses"
         required: false
         default: ""
       version:

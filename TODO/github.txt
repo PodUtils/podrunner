@@ -170,7 +170,7 @@
 164 issue closed
 165 issue closed
 166 issue closed
-167 issue open
+167 issue closed
 168 issue closed
 169 issue closed
 170 issue closed
@@ -216,7 +216,7 @@
 210 issue closed
 211 issue closed
 212 issue closed
-213 issue open
+213 issue closed
 214 issue closed
 215 issue closed
 216 issue closed
@@ -327,5 +327,5 @@
 321 issue open
 322 issue closed
 323 issue closed
-324 issue open
+324 issue closed
 325 issue open

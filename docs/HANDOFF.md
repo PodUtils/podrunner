@@ -119,26 +119,29 @@ is done.
     each label, daily), `hosted-boot.yml` (the core slice under incus,
     report-only). Scripts: `scripts/hosted/`.
 - In flight, read first:
-  - `hosted-boot.yml` (T-556): run 44659969426 booted systemd of the
-    image as PID 1 under incus; then the instance powered off with no file
-    of the checks. The workflow now traces the checks and prints the head
-    of the console. Dispatch it again (a `[gh action] requested` issue,
-    the digest `sha256:d00306d8...` of T-555) and read whether podvm runs
-    the payload and whether `/out` takes its writes.
+  - `hosted-boot.yml` (T-556, blocked): systemd of the slice boots to
+    `boot-complete.target` under incus, `degraded` (`systemd-remount-fs`,
+    `chrony`); podvm runs no command on a degraded boot, stops the
+    instance and exits 0 (run 44663656956). The ask is COORD-112 (#325,
+    to podvm). On its beta, dispatch `hosted-boot.yml` again with the
+    digest `sha256:d00306d8...` of T-555.
   - podvm's next beta (COORD-209, PodUtils/podvm#605) boots the init of an
     image with no incus; podvm asks for a run of the snapshot that way.
     COORD-203 (PodUtils/podvm#599): PodUtils/podvm@T-1996, @T-1997 and
     @T-1999 are on podvm's `main`; @T-1994 and @T-1998 come later. Take the beta when it is out.
-  - T-561 is done (proven on a constrained host as a user): the vnet shim
-    did not load on podvm's userland rung; the socket directory is now
-    mounted at its host path. Read the lane `bind-denied` of the next
-    `user-gate.yml` run: `lab:vnet` must pass. T-564: the namespace rung
-    gets no socket volume (`run -d -v` works there with beta.36).
+  - T-561, T-220 and T-350 are done (proven in CI: `user-gate.yml` run
+    44664120384, `pass lab:vnet` in the lane `bind-denied`; a failure of
+    `lab:vnet` now fails the lane). #167 and #213 are closed. T-564: the
+    namespace rung gets no socket volume (`run -d -v` works there with
+    beta.36).
   - T-562: `release-index.py` names the signer at `@refs/tags/TAG`, and
     `release.yml` signs from a dispatch on `main`. Choose the route (the
     entry) before the work.
   - This session cannot dispatch a workflow: ask the local agent with a
-    `[gh action] requested` issue (#322 was the last).
+    `[gh action] requested` issue (#324 was the last). Its pushes start
+    no run either: ask for the gate and `level2.yml` too, and give
+    `user-gate.yml` an `images_run` (the green `runner-image.yml` run
+    44646254235 serves while `images/` is the same).
 - Done in this session: T-525 (C1 to C5 on microvm and incus), T-552
   (a job that the hook ends is `job-mismatch`), T-554 (TypeScript 7 on
   podvm, fixed by podvm beta.36), T-548. Partial: T-539, T-540, T-541

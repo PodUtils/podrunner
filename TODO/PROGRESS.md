@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 561 entries: 62 open, 49 partial, 16 blocked, 434 done.
+`TODO/INDEX.md` holds 561 entries: 62 open, 47 partial, 16 blocked, 436 done.
 
 ## State
 
@@ -45,10 +45,9 @@ The queue, most valuable first:
 
 3. The onboarding of the local mode: T-205 (P1, partial: a `runner-image.yml` run and a dry run of `release.yml` prove the assets; then the next release), T-204 (P3: the packages of the image archives).
 
-4. The second local-mode user run (#171 to #176): T-229 (M: the run picks its transport and stores; the fetch relay on the transport of the broker; with T-220).
+4. The second local-mode user run (#171 to #176): T-229 (M: the run picks its transport and stores; the fetch relay on the transport of the broker; `--vnet` is in).
 5. The second QA report (its open entries): T-242 (partial: the load and the extract of each unit), then the P3 ones.
-6. T-220 (M, blocked on podnet, COORD-058 #170): the local mode on a host that refuses AF_INET bind and connect (GitHub #167); steps 1 and 2 (the broker on a unix socket, the front of the guest kinds) can go first.
-7. T-161 (M, partial): an alternate payload: the census and the call are in `docs/alternate-payload.md`; next, the measure of a third-party runner.
+6. T-161 (M, partial): an alternate payload: the census and the call are in `docs/alternate-payload.md`; next, the measure of a third-party runner.
 
 The local mode against act and runner.server (`docs/local-mode.md`) has no open entry.
 

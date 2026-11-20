@@ -166,7 +166,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #164 | Local mode 2026-11-15: stop --wait prints stopped and exits 0 for a state directory that does not exist, while stop exits 69 | closed (fixed; the entries are done) | T-215 |
 | #165 | Local mode 2026-11-15: mint-serve reports a TOML type error at host for a run configuration, and check calls the same file usable | closed (fixed; the entries are done) | T-216 |
 | #166 | Live run 2026-11-15: the published runner-x86_64 artifact cannot be imported by the pinned podvm, and it carries no ref name | closed (fixed; the entries are done) | T-217 |
-| #167 | Local mode 2026-11-15: a host that denies AF_INET bind cannot serve the fake broker, and the static binary keeps podnet's shim out | open (T-220 waits for podnet, #170) | T-220, T-228 |
+| #167 | Local mode 2026-11-15: a host that denies AF_INET bind cannot serve the fake broker, and the static binary keeps podnet's shim out | closed (`--vnet`: T-220 and T-561 done, `user-gate.yml` run 44664120384, the lane `bind-denied`) | T-220, T-228 |
 | #168 | COORD-056: a store flag of `load` and `images`, and an attestation of each release (to podvm) | closed (podvm `0.2.0-beta.32`: `--store` and an attestation of each binary, COORD-185) | T-218 |
 | #169 | COORD-057: podrunner takes podcrates v0.52.0 at 45bd964 (the answer to PodUtils/podcrates#176) (to podcrates) | closed (podcrates closed PodUtils/podcrates#176) | T-118 |
 | #170 | COORD-058: a TCP address of the vnet that connects to a unix socket, for a payload in a podvm unit (to podnet) | closed (podnet v0.4.0-beta.14; `--vnet`, T-220) | T-220 |
@@ -212,7 +212,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #210 | run: --watch/--schedule with a one-shot mode hangs; --schedule on a schedule-less workflow says on.schedule has no cron time | closed (fixed on `main`; the entry is done) | T-347 |
 | #211 | run: --validate --json emits no JSON for an invalid workflow | closed (fixed on `main`; the entry is done) | T-348 |
 | #212 | run: a pre-start failure claims a log in --log-dir that is not written | closed (fixed on `main`; the entry is done) | T-349 |
-| #213 | v0.1.0-beta.7 pins podnet 0.4.0-beta.13, but the vnet forward needed by #170 is in 0.4.0-beta.14 | open (podnet `0.4.0-beta.17` pinned; the forward is T-220) | T-350 |
+| #213 | v0.1.0-beta.7 pins podnet 0.4.0-beta.13, but the vnet forward needed by #170 is in 0.4.0-beta.14 | closed (podnet `0.4.0-beta.17` pinned; the forward through `--vnet` passes in `user-gate.yml` run 44664120384) | T-350 |
 | #214 | COORD-077: pod-actions-workflow: the error of an unknown need marks the job, not its needs: (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-859) | T-331 |
 | #215 | COORD-078: pod-broker: names_upstream still resolves the name itself, so a host whose DNS is only through its proxy refuses each CONNECT (to podcrates) | closed (podcrates `v0.70.0`, PodUtils/podcrates@T-862) | T-351 |
 | #216 | COORD-079: a podvm unit has no /dev/pts: pty.spawn and script fail, and pager tests fail (to podvm) | closed (podvm `0.2.0-beta.32` mounts a devpts of the unit; the pty step of `runner-image.yml` passed) | T-354 |
@@ -320,7 +320,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #321 | COORD-111: the take of v0.78.1; Load::new for a job with no secret; pod-release for T-562 (to podcrates) | open (a report to the coordinator; closes when T-562 runs `pod-release` in `release.yml`) | T-562, T-563, T-509 |
 | #322 | [gh action] requested | closed (`hosted-boot.yml` run 44659969426 on `5583c93`: systemd of the image is PID 1, then the instance powers off with no file of the checks) | T-556 |
 | #323 | [gh action] requested | closed (`hosted-boot.yml` run 44663656956 on `02cd495`; its `user-gate.yml` run 44663660686 stopped at `prepare`: no `images_run`, and no green `runner-image.yml` run of that commit; replaced by #324) | T-556, T-561 |
-| #324 | [gh action] requested | open (gate, `level2.yml` and `user-gate.yml` with `images_run=44646254235` on `02cd495`: `lab:vnet` of the lane `bind-denied`) | T-561 |
+| #324 | [gh action] requested | closed (on `f084c4c`: gate 44664111796, `level2.yml` 44664115893 and `user-gate.yml` 44664120384 green; `pass lab:vnet` in the lane `bind-denied`) | T-561 |
 | #325 | COORD-112: run -d --podvm-init=image on the incus tier: a degraded boot runs no command, stops the instance, and exits 0 (to podvm) | open (waits for podvm's answer) | T-556 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001, T-040, T-479, T-480, T-481, T-482, T-483, T-484, T-485, T-487, T-491, T-492, T-497, T-500, T-501, T-502, T-505, T-507, T-512, T-525, T-526, T-527, T-528 |
 | #66 | githome asks: tracker for the 12 asks owned by podrunner (from podcrates#36) | open (a tracker; each ask maps to the entries of its line) | T-001, T-101, T-102, T-103, T-104, T-105, T-106, T-107, T-108, T-162, T-480, T-481, T-482, T-483, T-485, T-486, T-487, T-488, T-491, T-492, T-493, T-494, T-495, T-496, T-497, T-498, T-499, T-500, T-501, T-502, T-503, T-504, T-506, T-507, T-509, T-510, T-511, T-512, T-514, T-515, T-516, T-517, T-518, T-519, T-520, T-521, T-522, T-523, T-524, T-529 |

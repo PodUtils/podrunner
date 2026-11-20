@@ -3197,7 +3197,7 @@ A test of `run`: an unknown event and a missing payload file each fail with thei
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3235,6 +3235,10 @@ State (2026-11-17): podnet `v0.4.0-beta.14` is released with PodUtils/podnet@T-3
 State (2026-11-17): step 3 is in the code, after the measure of a user on #170 (the podvm kind on the unix broker and the front ran a hello job on a host that refuses the loopback bind). `--vnet PATH` (with `--podvm`, not with `--podnet`): the broker of each job on a unix socket, the front in the socket directory of the unit (the broker, and the egress module for `--allow`), the shim `libpodnet-vnet.so` copied into that directory, and `LD_PRELOAD`, `PODNET_VNET_FORWARD=127.0.0.1:3128=unix:MOUNT/egress.sock` and the proxy variables in the unit (`exec/vnet.rs`, `run_local/vnet.rs`); the container hooks stay. PATH is the shim or a podnet binary that builds it (`podnet net shim --json --out DIR`). Proven in CI on GitHub-hosted runners: the environment, the shim path and the refusal with no socket volume (unit tests). Not run: a job under `--vnet`. Next: a step of the lane `bind-denied` of the user-gate with `--vnet`; step 4 (`doctor --run` names `--vnet` on a host that refuses the bind).
 
 State (2026-11-17): step 4: the fix of a refused bind (`doctor --run` and the error of the broker) names `--podvm` with `--vnet PODNET`; with `--vnet` or a guest, the `loopback` row of `doctor --run` says that the broker needs no bind (`exec::BIND_FIX`). Open: a run with `--vnet` (the `lab:vnet` measure of the user-gate, and a user on #170).
+
+## Done
+
+2026-11-20, `ade7c34` (T-561). Steps 1 to 4 are in the code (the states above). The run on a host that refuses the AF_INET bind: `user-gate.yml` run 44664120384 at `f084c4c` (images of `runner-image.yml` run 44646254235), the lane `bind-denied` (podvm lab `bind-denied,getsockname-denied`, a user with no root): `pass lab:vnet: a run with --vnet passes in the lab` (36 s), 9 of 9 checks; gate 44664111796 and `level2.yml` 44664115893 green on the same commit. Proven in CI on GitHub-hosted runners. Before T-561 the same check hung (`user-gate.yml` runs 44438881119, 44462524454). The route is `--vnet` (the vnet shim of podnet in the unit), not `podnet pod` around the static binary (`docs/decisions.md`, "`--vnet` is a flag, not a fall-back"). The namespace rung of podvm gives no socket volume yet: T-564.
 
 # T-221: `cpus` on the podvm kind
 
@@ -6969,7 +6973,7 @@ Write `DIR/JOB/job.log` with the failure line when a job fails before it starts.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6988,6 +6992,10 @@ Pin podnet `0.4.0-beta.15` (`images/podnet.toml`) after the gate passes with it.
 `cargo test -p podrunner`; The gate and the user-gate with podnet beta.15; a podvm job in `podnet pod --backend seccomp` connects to the broker on a host that refuses a bind of the loopback.
 
 Pinned (2026-11-17): podnet `0.4.0-beta.15` in `images/podnet.toml` and `scripts/install.sh`; its Breaking items (the ports of `netns-kernel`, the rules of `warp proxy`) do not touch the seccomp hold. Open: the gate and the user-gate with it; the listener of the broker on a unix socket and `PODNET_VNET_FORWARD` (#170 step 1, T-220).
+
+## Done
+
+2026-11-20. podnet `0.4.0-beta.17` is pinned (`images/podnet.toml`, `scripts/install.sh`), and the gate and `user-gate.yml` are green with it (run 44664120384, each lane). The broker listens on a unix socket (T-220 step 1), and the unit takes `PODNET_VNET_FORWARD` to the front of its socket directory (T-220, T-561). A podvm job reaches the broker on a host that refuses the bind of the loopback: the lane `bind-denied`, `pass lab:vnet` (run 44664120384), through `--vnet` (the vnet shim), which is the route of the forward; the seccomp hold of `podnet pod` is not that route.
 
 # T-351: The egress module resolves each name itself, so a host with DNS only through its proxy gets 502 for each fetch and each allowed host
 
@@ -13241,6 +13249,8 @@ State (2026-11-20, step (a), proven on a constrained host as a user): the cause 
 2026-11-20, the commit of this entry. `cargo test -p podrunner-local --lib exec::` (`the_vnet_shim_and_its_forward_have_one_path_in_each_rung`; it fails on the code before the fix: `LD_PRELOAD` was `/run/podrunner/libpodnet-vnet.so`): 28 passed. The built binary as a user with no root (`labu`), podvm `0.2.0-beta.36`, podnet `0.4.0-beta.17`, the runner image of `v0.1.0-beta.7`: `podvm lab run userns-mount-denied,bind-denied,getsockname-denied -- podrunner run hello.yml --podvm ... --vnet podnet` hung until the bound of 600 s before the fix ("sent no request to its broker in 600 s") and passes after it (`ok hello`, exit 0). Proof level: on a constrained host as a user. The lane `bind-denied` of `user-gate.yml` gives the CI proof on its next run (`lab:vnet` passes, no xfail).
 
 The review of the diff (an agent that did not write it) found: a socket directory with a space, a comma or a colon (from TMPDIR) would split `LD_PRELOAD` or the forward of the shim and give the same silent hang (P2, new with the host path); `vnet::host_dir` now refuses it, and a socket past `sun_path`, with "set TMPDIR" (`a_socket_directory_that_the_shim_cannot_take_is_refused`, a new function, so no run on the old code). The front of a guest names TMPDIR when its socket path is too long (P3, older). `hosted-boot.yml` under `bash -e`: a failed run, inspect or console no longer ends the step before the logs and the summary, and the marker of the checks does not need `/dev/console`. Not run: the second mount on the namespace rung inside `podrunner run` (T-564), a TMPDIR out of `/tmp`.
+
+CI (2026-11-20): `user-gate.yml` run 44664120384 at `f084c4c` (images of `runner-image.yml` run 44646254235), the lane `bind-denied` (podvm lab `bind-denied,getsockname-denied`, a user with no root): `pass lab:vnet: a run with --vnet passes in the lab` (36 s), 9 of 9 checks; gate 44664111796 and `level2.yml` 44664115893 green on the same commit. Proven in CI on GitHub-hosted runners. `scripts/user-gate.py` now fails the lane when `lab:vnet` fails (no xfail).
 
 # T-562: A release of podrunner has no signed `release-index.json`
 

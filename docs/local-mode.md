@@ -107,10 +107,11 @@ unit cannot reach it. Give `--vnet PATH` with `--podvm` (T-220):
   podvm the loader of the image runs on the host, before a path of the
   unit exists (T-561). `--vnet` and `--podnet` exclude each other.
 
-Proof level: on a constrained host as a user (T-561: `hello.yml` passes
-in `podvm lab run userns-mount-denied,bind-denied,getsockname-denied` as
-a user with no root, on the userland rung). The lane `bind-denied` of
-`user-gate.yml` measures it in CI.
+Proof level: in CI on GitHub-hosted runners (the lane `bind-denied` of
+`user-gate.yml`: `hello.yml` passes with `--vnet` in `podvm lab run
+bind-denied,getsockname-denied` as a user with no root), and on a
+constrained host as a user (T-561). The namespace rung of podvm gives no
+socket volume yet, so `--vnet` is refused there (T-564).
 
 ## What a podvm unit holds
 
