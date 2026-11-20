@@ -180,4 +180,49 @@ impl Slots {
         }
         crate::forget::keep(&mut self.reports, r);
     }
+
+    /// Read the log of the unit of `key` before its destroy, once, when its
+    /// exit code does not tell how the job ended. The runner exits 0 after
+    /// a job that the job-started hook ended (T-552), with no job (T-567),
+    /// and after a job that failed or was cancelled (T-568). A unit that
+    /// ended with no step and not well gets `log_tail` (T-497).
+    pub(crate) fn read_unit_log(&mut self, key: &Key, unit: &podrunner_schema::UnitId, kind: usize) {
+        let j = &self.jobs[key];
+        // A cancel is no failure. A sandbox has no runner.
+        let early = j.started_ms.is_some() && j.first_step_ms.is_none() && j.reason != Some(ExitReason::Cancelled);
+        let zero = j.reason == Some(ExitReason::Success) && j.offer.as_ref().is_none_or(|o| o.sandbox.is_none());
+        if !(early || zero) {
+            return;
+        }
+        let Ok(log) = self.kinds[kind].driver.unit_logs(unit) else { return };
+        let ended = if early { crate::log_tail::hook_ended(&log) } else { None };
+        if let Some(code) = &ended {
+            let why = format!("the job-started hook ended the job: {code}");
+            self.audit(crate::audit::Kind::JobMismatch, key.0, &key.1, None, Some(why));
+        }
+        let idle = early && zero && ended.is_none() && crate::log_tail::runner_took_no_job(&log);
+        if idle {
+            let why = "the runner exited 0 with no job: no `Running job:` line in its log";
+            eprintln!("podrunner: {unit}: {why}");
+            self.audit(crate::audit::Kind::Refuse, key.0, &key.1, None, Some(why.into()));
+        }
+        let result = if zero && ended.is_none() && !idle { crate::log_tail::job_result(&log) } else { None };
+        let Some(job) = self.jobs.get_mut(key) else { return };
+        if ended.is_some() && matches!(job.reason, None | Some(ExitReason::Success | ExitReason::Failure)) {
+            job.reason = Some(ExitReason::JobMismatch);
+        }
+        if idle {
+            job.reason = Some(ExitReason::UnitFailed);
+        }
+        match result {
+            Some(crate::log_tail::JobResult::Failed) => job.reason = Some(ExitReason::Failure),
+            Some(crate::log_tail::JobResult::Canceled) => job.reason = Some(ExitReason::Cancelled),
+            _ => {}
+        }
+        // A job that ran a step has its log at the forge: no `log_tail`
+        // (the G-19 contract: a unit that failed before its first step).
+        if early && !matches!(job.reason, Some(ExitReason::Success | ExitReason::Cancelled)) {
+            job.times.log_tail = Some(crate::log_tail::scrub(&log, &job.times.marks));
+        }
+    }
 }

@@ -107,12 +107,9 @@ fn a_sandbox_ends_at_its_max_s() {
     assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Timeout, "{r:?}");
 }
 
-/// T-567: a sandbox runs a command, not the runner: its exit 0 stays a
-/// success, also when its output has a line of the runner and no job.
-#[test]
-fn a_sandbox_that_exits_0_stays_a_success_with_no_job_line() {
+/// The report of one sandbox that runs `script` in a unit of a guest.
+fn sandbox_report(script: &str) -> podrunner_schema::RunReport {
     let guest = capability(Boundary::Guest, Principal::Distinct, EgressHold::Enforced);
-    let script = "echo 'Runner listener exit with 0 return code, stop the service, no retry needed.'; exit 0";
     let with = json!({ "sandbox": { "image": SANDBOX, "command": ["sh", "-c", script] } });
     let mut bed = Bed::new(
         cfg(),
@@ -120,6 +117,25 @@ fn a_sandbox_that_exits_0_stays_a_success_with_no_job_line() {
         vec![KindSpec { name: "fake", slots: 1, capability: guest, command: sh("exit 9") }],
     );
     bed.until(60, |s| s.jobs().count() == 1 && Bed::all_final(s));
-    let r = &bed.slots.reports[0];
+    bed.slots.reports[0].clone()
+}
+
+/// T-567: a sandbox runs a command, not the runner: its exit 0 stays a
+/// success, also when its output has a line of the runner and no job.
+#[test]
+fn a_sandbox_that_exits_0_stays_a_success_with_no_job_line() {
+    let r =
+        sandbox_report("echo 'Runner listener exit with 0 return code, stop the service, no retry needed.'; exit 0");
+    assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Success, "{r:?}");
+}
+
+/// T-568: the line of the result of a job is a line of the runner too: a
+/// sandbox that prints a `Failed` line and exits 0 stays a success.
+#[test]
+fn a_sandbox_that_exits_0_stays_a_success_with_a_failed_job_line() {
+    let r = sandbox_report(
+        "echo '2026-11-20 10:00:00Z: Running job: build'; \
+         echo '2026-11-20 10:00:09Z: Job build completed with result: Failed'; exit 0",
+    );
     assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Success, "{r:?}");
 }

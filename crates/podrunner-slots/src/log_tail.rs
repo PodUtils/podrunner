@@ -129,6 +129,64 @@ pub fn runner_took_no_job(log: &[u8]) -> bool {
     RUNNER_LINES.iter().any(|l| text.contains(l)) && !JOB_LINES.iter().any(|l| text.contains(l))
 }
 
+/// The result of a job as the runner prints it at the end of the job
+/// (`TaskResult` of actions/runner).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JobResult {
+    Succeeded,
+    Failed,
+    Canceled,
+    /// `SucceededWithIssues`, `Skipped`, `Abandoned` or a new name.
+    Other,
+}
+
+/// The shape of the time stamp at the start of a line of `JobDispatcher.cs`
+/// (`{DateTime.UtcNow:u}: `): `0` is a digit.
+const STAMP: &[u8] = b"0000-00-00 00:00:00Z: ";
+
+/// The rest of `line` after the time stamp of the console of the listener.
+/// A line of the trace (`[WORKER ...`) or of a step does not start so.
+fn after_stamp(line: &str) -> Option<&str> {
+    let b = line.as_bytes();
+    let ok = b.len() >= STAMP.len()
+        && STAMP.iter().zip(b).all(|(s, c)| if *s == b'0' { c.is_ascii_digit() } else { s == c });
+    ok.then(|| &line[STAMP.len()..])
+}
+
+/// The result of the last job of the runner in `log` (T-568): the last
+/// line `STAMP: Job NAME completed with result: RESULT` of the listener,
+/// where NAME is the name of the last `STAMP: Running job: NAME` line before
+/// it. `run.sh` exits 0 whatever the result, so the exit code does not
+/// tell. Each line must start with the time stamp, so the output of a step
+/// that only holds the words is not taken. A step that writes the full
+/// line to the console of the listener is not told apart.
+pub fn job_result(log: &[u8]) -> Option<JobResult> {
+    let text = String::from_utf8_lossy(log);
+    let mut running: Option<&str> = None;
+    let mut last = None;
+    for line in text.lines().map(str::trim_end) {
+        let Some(rest) = after_stamp(line) else { continue };
+        if let Some(name) = rest.strip_prefix("Running job: ") {
+            running = Some(name);
+            continue;
+        }
+        let Some((name, result)) = rest.strip_prefix("Job ").and_then(|r| r.rsplit_once(" completed with result: "))
+        else {
+            continue;
+        };
+        if running != Some(name) || result.is_empty() || !result.bytes().all(|c| c.is_ascii_alphabetic()) {
+            continue;
+        }
+        last = Some(match result {
+            "Succeeded" => JobResult::Succeeded,
+            "Failed" => JobResult::Failed,
+            "Canceled" => JobResult::Canceled,
+            _ => JobResult::Other,
+        });
+    }
+    last
+}
+
 /// `log` with each mark and each token shape masked: its last
 /// [`podrunner_schema::report::LOG_TAIL_MAX`] bytes at most, as UTF-8.
 pub fn scrub(log: &[u8], marks: &Marks) -> String {
@@ -209,6 +267,36 @@ mod tests {
         assert!(!runner_took_no_job(done.as_bytes()));
         // No line of the runner: not the runner, so no rule.
         assert!(!runner_took_no_job(b"echo fine\n"));
+    }
+
+    #[test]
+    fn the_last_job_line_of_the_listener_gives_the_result() {
+        let run = "2026-11-20 10:00:00Z: Running job: build (a, 1)\n";
+        let end = |r: &str| format!("2026-11-20 10:00:09Z: Job build (a, 1) completed with result: {r}\r\n");
+        let of = |s: String| job_result(s.as_bytes());
+        assert_eq!(of(format!("{run}{}", end("Failed"))), Some(JobResult::Failed));
+        assert_eq!(of(format!("{run}{}", end("Canceled"))), Some(JobResult::Canceled));
+        assert_eq!(of(format!("{run}{}", end("Succeeded"))), Some(JobResult::Succeeded));
+        assert_eq!(of(format!("{run}{}", end("Abandoned"))), Some(JobResult::Other));
+        // The last line wins.
+        assert_eq!(of(format!("{run}{}{}", end("Failed"), end("Succeeded"))), Some(JobResult::Succeeded));
+        // No line of the listener: no result.
+        assert_eq!(job_result(b"echo fine\n"), None);
+        // The output of a step, or a line of the trace, holds the words but
+        // does not start with the time stamp of the listener.
+        let step = "completed with result: Failed\nJob build (a, 1) completed with result: Failed\n";
+        let trace = "[WORKER 2026-11-20 10:00:05Z INFO X] Job build (a, 1) completed with result: Failed\n";
+        let iso = "2026-11-20T10:00:05.1234567Z Job build (a, 1) completed with result: Failed\n";
+        for noise in [step, trace, iso] {
+            assert_eq!(of(format!("{run}{noise}")), None, "{noise}");
+            assert_eq!(of(format!("{run}{}{noise}", end("Succeeded"))), Some(JobResult::Succeeded), "{noise}");
+        }
+        // A line of a job that is not the job that the runner took.
+        assert_eq!(of(format!("{run}2026-11-20 10:00:09Z: Job other completed with result: Failed\n")), None);
+        // No `Running job:` line before it.
+        assert_eq!(of(end("Failed")), None);
+        // A result that is not one word.
+        assert_eq!(of(format!("{run}{}", end("Failed now"))), None);
     }
 
     #[test]

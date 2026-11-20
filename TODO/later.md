@@ -13486,7 +13486,7 @@ State (2026-11-20): the code and the three tests are in the commit that names T-
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -13496,10 +13496,43 @@ An ephemeral runner (a JIT runner) exits 0 after its job, also when the job fail
 
 Read on 2026-11-20 in actions/runner at `7e211dc6`: `RunAsync` of `actions/runner:src/Runner.Listener/Runner.cs` returns the result of a run-once job (`TaskResultUtil.TranslateToReturnCode`) only with `ACTIONS_RUNNER_RETURN_JOB_RESULT_FOR_HOSTED`, else `ReturnCode.Success`; `actions/runner:src/Misc/layoutroot/run-helper.sh.template` exits 0 for each code that is not 2, 3, 4 or 7, so the variable does not help through `run.sh`. `JobDispatcher.cs` prints "Job NAME completed with result: RESULT" (`Succeeded`, `Failed`, `Canceled`, ...) to the console. Not measured: what the source of githome and cfb expect in `exit_reason` for a job that failed.
 
+`JobDispatcher.cs` writes both lines as `{DateTime.UtcNow:u}: ...`, so each starts with a stamp such as `2026-11-20 10:00:00Z: `. The listener copies the stdout of the worker to its console only with `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT`; the trace lines then start with `[WORKER` or `[RUNNER`. The output of a step goes to the job log at the forge, not to the console.
+
 ## Approach
 
 In `finish()`, for a unit that is not a sandbox and that exited 0, read the last "completed with result: " line of its log (T-567 reads the log already): `Failed` gives `failure`, `Canceled` gives `cancelled`, `Succeeded` keeps `success`. The log of a job with a first step is read too, so the read moves out of the block of T-497. A test with a fake payload that prints each line.
 
+The line of the runner: a line that starts with the stamp of `JobDispatcher.cs`, then `Job NAME completed with result: RESULT`, where NAME is the name of the last stamped `Running job: NAME` line before it and RESULT is one word. The last such line wins. The output of a step that only holds the words, a trace line and a line of the job log (an ISO stamp) do not start with that stamp. Limits: a process of the unit that writes the full stamped line to the console of the listener is not told apart; a log that adds a prefix to each line (not measured for `podvm logs` and `guest.log`) gives no result, so the exit code keeps its rule (`success`). Other results (`SucceededWithIssues`, `Skipped`, `Abandoned`) keep `success`; T-569 has `Abandoned`.
+
+A job with a first step that the runner says failed gets no `log_tail`: G-19 (T-497) gives `log_tail` only to a unit that failed before its first step, and the log of a job with a step is at the forge. A job with no first step that the runner says failed (a failed set-up) gets `log_tail` by the rule of T-497. A cancel gets none ("a cancel is no failure"). The OOM rule of T-515 now reads the reason after the log, so a failure that the log tells, with an OOM kill, ends with `limit`.
+
+State (2026-11-20): `log_tail::job_result` holds the parser; `Slots::read_unit_log` (`crates/podrunner-slots/src/report.rs`) reads the log one time for T-497, T-552, T-567 and T-568, and `finish()` of `run.rs` calls it. Tests: `log_tail::tests::the_last_job_line_of_the_listener_gives_the_result`, `tests::report::a_runner_that_exits_0_after_a_failed_job_is_no_success`, `tests::hooks::a_job_with_a_step_that_the_runner_says_failed_is_a_failure`, `tests::sandbox::a_sandbox_that_exits_0_stays_a_success_with_a_failed_job_line`. Not built and not run (level: not run).
+
 ## Prove
 
-`cargo test -p podrunner-slots --lib -- report`: a fake payload that prints "Job build completed with result: Failed" and exits 0 gives `failure`; one with `Succeeded` gives `success`; a sandbox stays `success`.
+`cargo test -p podrunner-slots --lib -- log_tail report hooks sandbox`: a fake payload that prints "Running job: build" and "Job build completed with result: Failed" and exits 0 gives `failure` with a `log_tail`; with `Canceled` gives `cancelled`; with `Succeeded` gives `success`; a step that prints only the words keeps `success`; a job with a first step that the runner says failed gives `failure` and no `log_tail`; a sandbox stays `success`. The tests of report and hooks fail on the code before.
+
+# T-569: A job that the runner abandoned is reported as success
+
+**Source:** the reading of actions/runner for T-568, 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The listener of actions/runner prints "Job NAME completed with result: Abandoned" when the renewal of the lock of the job ends before the job (`JobDispatcher.cs`: `completedTask == renewJobRequest`). The runner then exits 0. T-568 maps only `Failed` and `Canceled`, so the report says `success` for a job that did not end under this runner.
+
+## Premise
+
+Read on 2026-11-20 in actions/runner at `7e211dc6`: `TaskResult` has `Succeeded`, `SucceededWithIssues`, `Failed`, `Canceled`, `Skipped`, `Abandoned`; `JobDispatcher.cs` sets `Abandoned` when the renewal task ends first, then cancels the worker. `log_tail::job_result` gives `JobResult::Other` for it. Not measured: when the forge ends the renewal in practice, and what githome and cfb expect.
+
+## Approach
+
+Map `Abandoned` to `failure` (the job did not succeed; `lost` means a restart of podrunner from `claimed` on, a different cause). Add the case to the test of T-568. When githome or cfb ask for a different code, record the question.
+
+## Prove
+
+`cargo test -p podrunner-slots --lib -- log_tail report`: a fake payload that prints the stamped "Running job: build" and "Job build completed with result: Abandoned" lines and exits 0 gives `failure`.

@@ -97,6 +97,34 @@ fn a_runner_that_exits_0_with_no_job_is_no_success() {
 }
 
 #[test]
+fn a_runner_that_exits_0_after_a_failed_job_is_no_success() {
+    // T-568: `run.sh` exits 0 whatever the result of the job. The fake
+    // payload prints the lines of `JobDispatcher.cs` and exits 0.
+    let job = |result: &str| {
+        let lines = format!(
+            "echo '2026-11-20 10:00:00Z: Running job: build'; \
+             echo '2026-11-20 10:00:09Z: Job build completed with result: {result}'; exit 0"
+        );
+        run(None, &lines)
+    };
+    let r = job("Failed");
+    assert_eq!(r.exit_reason, ExitReason::Failure, "{r:?}");
+    assert_eq!(r.exit_code, Some(0), "{r:?}");
+    // No first step: the unit failed before it, so it has its log tail
+    // (T-497).
+    assert!(r.log_tail.as_deref().is_some_and(|t| t.contains("result: Failed")), "{r:?}");
+    let r = job("Canceled");
+    assert_eq!(r.exit_reason, ExitReason::Cancelled, "{r:?}");
+    assert_eq!(r.log_tail, None, "a cancel is no failure: {r:?}");
+    let r = job("Succeeded");
+    assert_eq!(r.exit_reason, ExitReason::Success, "{r:?}");
+    assert_eq!(r.log_tail, None, "{r:?}");
+    // A step that prints the words is not the line of the runner.
+    let r = run(None, "echo '2026-11-20 10:00:00Z: Running job: build'; echo 'completed with result: Failed'; exit 0");
+    assert_eq!(r.exit_reason, ExitReason::Success, "{r:?}");
+}
+
+#[test]
 fn a_job_that_failed_after_an_oom_kill_ends_with_limit() {
     // T-515: the fake unit stands for a kind that says that the OOM killer
     // ended a process of the unit; the job failed after it.

@@ -90,6 +90,25 @@ fn a_unit_with_hooks_gets_a_socket_and_its_events() {
     assert_eq!(b.slots.reports[0].exit_reason, podrunner_schema::ExitReason::Success);
 }
 
+/// T-568: a job that ran a step and that the runner says failed is a
+/// failure, also when the runner exits 0. Its log is at the forge: no
+/// `log_tail`.
+#[test]
+fn a_job_with_a_step_that_the_runner_says_failed_is_a_failure() {
+    let lines = "echo '2026-11-20 10:00:00Z: Running job: build'; sleep 2; \
+                 echo '2026-11-20 10:00:09Z: Job build completed with result: Failed'; exit 0";
+    let (mut b, seen) = bed(ContainerRoute::Hooks, lines);
+    b.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    seen.queued.lock().unwrap().push((vec![], vec![HookEvent::JobStarted]));
+    b.tick();
+    assert!(b.slots.jobs().all(|j| j.state == State::Running));
+    b.until(400, Bed::all_final);
+    let r = &b.slots.reports[0];
+    assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Failure, "{r:?}");
+    assert_eq!(r.exit_code, Some(0), "{r:?}");
+    assert_eq!(r.log_tail, None, "{r:?}");
+}
+
 /// The design test 14 of the unit contract (T-053): `job-started` in
 /// `running` is ignored, and `job-completed` goes to the audit with its
 /// time and moves no state.

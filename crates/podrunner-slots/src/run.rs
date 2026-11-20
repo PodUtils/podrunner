@@ -376,41 +376,9 @@ impl Slots {
         self.read_hooks(key, now);
         let j = self.jobs[key].clone();
         if let (Some(u), Some(p)) = (&j.unit, &j.placement) {
-            // A unit that ended with no step: the end of its log tells why
-            // (T-497). A cancel is no failure. A job that the job-started
-            // hook ended exits 0: its line in the log tells (T-552).
-            if j.started_ms.is_some()
-                && j.first_step_ms.is_none()
-                && j.reason != Some(ExitReason::Cancelled)
-                && let Ok(log) = self.kinds[p.kind].driver.unit_logs(u)
-            {
-                let ended = crate::log_tail::hook_ended(&log);
-                if let Some(code) = &ended {
-                    let why = format!("the job-started hook ended the job: {code}");
-                    self.audit(audit::Kind::JobMismatch, key.0, &key.1, None, Some(why));
-                }
-                // `run.sh` exits 0 also with no job (T-567). A sandbox has no runner.
-                let idle = ended.is_none()
-                    && j.reason == Some(ExitReason::Success)
-                    && j.offer.as_ref().is_none_or(|o| o.sandbox.is_none())
-                    && crate::log_tail::runner_took_no_job(&log);
-                if idle {
-                    let why = "the runner exited 0 with no job: no `Running job:` line in its log";
-                    eprintln!("podrunner: {u}: {why}");
-                    self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(why.into()));
-                }
-                if let Some(job) = self.jobs.get_mut(key) {
-                    if ended.is_some() && matches!(job.reason, None | Some(ExitReason::Success | ExitReason::Failure)) {
-                        job.reason = Some(ExitReason::JobMismatch);
-                    }
-                    if idle {
-                        job.reason = Some(ExitReason::UnitFailed);
-                    }
-                    if job.reason != Some(ExitReason::Success) {
-                        job.times.log_tail = Some(crate::log_tail::scrub(&log, &job.times.marks));
-                    }
-                }
-            }
+            // The exit code of the runner does not tell each end: its log
+            // does (T-497, T-552, T-567, T-568).
+            self.read_unit_log(key, u, p.kind);
             // A kind that measures its units itself (T-483): before the
             // destroy, while the instance is there.
             if let Some(use_of) = self.kinds[p.kind].driver.usage(u)
@@ -419,9 +387,10 @@ impl Slots {
                 job.usage.of_kind(use_of);
             }
             // A job that failed after a kill of the OOM killer ends with
-            // `limit` (T-515, githome's G-12).
+            // `limit` (T-515, githome's G-12): also a failure that the log
+            // of the runner told.
             if self.kinds[p.kind].driver.oom_kills(u).is_some_and(|n| n > 0)
-                && matches!(j.reason, None | Some(ExitReason::Failure | ExitReason::UnitFailed))
+                && matches!(self.jobs[key].reason, None | Some(ExitReason::Failure | ExitReason::UnitFailed))
             {
                 if let Some(job) = self.jobs.get_mut(key) {
                     job.reason = Some(ExitReason::Limit);
