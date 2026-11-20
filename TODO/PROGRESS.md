@@ -7,7 +7,7 @@
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is yes
   (2026-11-13): the live gates run on GitHub #74 and #75.
-- Pins: podcrates `v0.79.0`, podvm `v0.2.0-beta.36`, podnet
+- Pins: podcrates `v0.80.0`, podvm `v0.2.0-beta.36`, podnet
   `v0.4.0-beta.17`, runner v2.338.2. Last beta: `v0.1.0-beta.7`
   (release run 44066276664, `129310e`).
 - The owner, 2026-11-18 (`docs/decisions.md`, "githome and cfb first"):
