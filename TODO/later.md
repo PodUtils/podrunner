@@ -13046,7 +13046,7 @@ State (2026-11-20, `hosted-snapshot.yml` runs 44557874043 and 44557889203, `host
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -13074,6 +13074,12 @@ State (2026-11-20, `hosted-boot.yml` run 44644817156, report-only): the core sli
 
 State (2026-11-20, `hosted-boot.yml` run 44659969426 at `5583c93`, report-only, proven in CI on GitHub-hosted runners): systemd of the image is PID 1 in the incus instance and runs the units of the slice (the console shows docker, containerd, php8.3-fpm, sphinxsearch and the user manager of uid 1001 stop); then the instance powers off (`Reached target poweroff.target`) with no file of the checks in `/out`, and `podvm run -d` ends with exit 0 after about 2 minutes. The console tail held only the shutdown. The workflow now writes a start marker and a trace of the checks, sends each line of the checks to the console, and prints the head of the console, its failure lines and the files on the host. Next: the run with them (does podvm run the payload, and does `/out` take its writes).
 
+State (2026-11-20, `hosted-boot.yml` run 44663656956 at `02cd495`, proven in CI on GitHub-hosted runners): systemd of the slice boots to `boot-complete.target`; two units fail (`systemd-remount-fs.service`, `chrony.service`), so the state is `degraded`. podvm runs no command: the marker `/out/started` is not written and the console has no line of the checks, though `/out` is mounted. After its wait of 180 s for `systemctl is-system-running` (which exits 1 for `degraded`), podvm stops the instance and `run -d` exits 0. The ask is COORD-112 (GitHub #325, to podvm): run the command on `degraded` too, refuse a failed wait with a non-zero exit, and give `podvm logs` of the incus tier.
+
+
+## Blocker
+
+COORD-112 (GitHub #325, to podvm): `run -d --podvm-init=image` on the incus tier runs no command on a `degraded` boot. The next beta of podvm with the fix unblocks it.
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
