@@ -1226,6 +1226,7 @@ dependencies = [
  "pod-actions-expr",
  "pod-actions-store",
  "pod-actions-workflow",
+ "pod-broker",
  "pod-core",
  "pod-proxy",
  "pod-tls",

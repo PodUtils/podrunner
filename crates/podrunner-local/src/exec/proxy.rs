@@ -10,9 +10,13 @@ use podrunner_schema::{CredentialFile, Secret};
 
 use super::host::PASSED;
 
-/// The variables that name a CA file: the list of `pod_tls`. Only the
-/// variables of `PASSED` among them reach a unit.
-const CA_VARS: [&str; 6] = pod_tls::BUNDLE_VARS;
+/// The variables that name a CA file: the ten of `pod_broker::ca::env`,
+/// `pod_tls::BUNDLE_VARS` and then `pod_broker::ca::CLIENT_VARS` (Deno,
+/// Hex, the Google Cloud CLI, cargo). Each is in `PASSED` (a test).
+const CA_VARS: [&str; 10] = {
+    let (b, c) = (pod_tls::BUNDLE_VARS, pod_broker::ca::CLIENT_VARS);
+    [b[0], b[1], b[2], b[3], b[4], b[5], c[0], c[1], c[2], c[3]]
+};
 
 /// The variables and the CA files of a unit.
 pub(crate) type UnitEnv = (Vec<(String, String)>, Vec<CredentialFile>);
@@ -162,6 +166,25 @@ mod tests {
         );
         let (env, files) = unit_env("/d", std::iter::empty(), false).unwrap();
         assert!(env.is_empty() && files.is_empty(), "no proxy, nothing");
+        let _ = std::fs::remove_file(&ca);
+    }
+
+    /// T-576: each variable of `pod_broker::ca::env` names a CA file that a
+    /// unit takes from the caller.
+    #[test]
+    fn each_variable_of_the_bundle_of_the_broker_is_passed() {
+        let path = std::path::Path::new("/ca.pem");
+        let vars: Vec<&str> = pod_broker::ca::env(path).into_iter().map(|(k, _)| k).collect();
+        assert_eq!(vars, CA_VARS);
+        assert!(CA_VARS.iter().all(|k| PASSED.contains(k)), "{CA_VARS:?}");
+        let ca = std::env::temp_dir().join(format!("podrunner-proxy-cargo-{}.crt", std::process::id()));
+        std::fs::write(&ca, "-----BEGIN CERTIFICATE-----\nmade-up\n").unwrap();
+        let p = ca.display().to_string();
+        let given = [("CARGO_HTTP_CAINFO", p.clone()), ("DENO_CERT", p)].map(|(k, v)| (k.to_string(), v));
+        let (env, files) = unit_env("/d", given.into_iter(), true).unwrap();
+        assert_eq!(files.len(), 1, "one file for one path");
+        assert!(env.iter().any(|(k, v)| k == "CARGO_HTTP_CAINFO" && v == "/d/podrunner-ca-0.crt"), "{env:?}");
+        assert!(env.iter().any(|(k, v)| k == "DENO_CERT" && v == "/d/podrunner-ca-0.crt"), "{env:?}");
         let _ = std::fs::remove_file(&ca);
     }
 

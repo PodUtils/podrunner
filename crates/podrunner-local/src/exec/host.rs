@@ -300,7 +300,8 @@ impl RunnerDir {
 
 /// The variables of the user that a job on a runner directory takes
 /// (T-265): `PATH`, the CA files and the proxy. The broker is on the
-/// loopback, so `NO_PROXY` always holds the loopback.
+/// loopback, so `NO_PROXY` always holds the loopback. The CA files are the
+/// ten variables of `pod_broker::ca::env` (T-576) and `SSL_CERT_DIR`.
 pub const PASSED: &[&str] = &[
     "PATH",
     "SSL_CERT_FILE",
@@ -309,6 +310,11 @@ pub const PASSED: &[&str] = &[
     "GIT_SSL_CAINFO",
     "REQUESTS_CA_BUNDLE",
     "CURL_CA_BUNDLE",
+    "AWS_CA_BUNDLE",
+    "DENO_CERT",
+    "HEX_CACERTS_PATH",
+    "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE",
+    "CARGO_HTTP_CAINFO",
     "HTTPS_PROXY",
     "https_proxy",
     "HTTP_PROXY",

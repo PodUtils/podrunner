@@ -13360,6 +13360,8 @@ COORD-146, read on 2026-11-20: the `policy` of an offer takes `credentials: [{ "
 
 `cargo test -p podrunner-egress`: a job with a placeholder reaches a stand-in host with the real value in its header, and the job sees only the placeholder in each answer; no audit line and no log line holds the value.
 
+State (2026-11-20, podcrates `v0.80.0`, T-576): `ca::env` gives ten variables (the six of `pod_tls::BUNDLE_VARS`, then `DENO_CERT`, `HEX_CACERTS_PATH`, `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE`, `CARGO_HTTP_CAINFO`), and a JVM takes the store of `ca::write_trust_store` in `JAVA_TOOL_OPTIONS` by `ca::java_options`; step 2 gives the unit all of them. The list of the CA variables of a unit (`CA_VARS` of `crates/podrunner-local/src/exec/proxy.rs`) is the list of `ca::env` already. The README of `pod-broker`, "Placeholder credentials", gives the setup of the TLS end (`Broker::with_tunnel_end`, `TlsEnd`).
+
 
 # T-564: The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there
 
@@ -13841,7 +13843,7 @@ Put the defaults of the microvm kind (`8G`, 2 vCPUs) in one place in `podrunner-
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -13863,3 +13865,32 @@ The body of PodUtils/podcrates#250, read on 2026-11-20.
 ## Prove
 
 `sh scripts/agent/check.sh` passes; the conformance test of `pod-control` passes; the gate and `level2.yml` are green on the commit of the take.
+
+State (2026-11-20, steps 1 to 5, this branch): (1, 2) each podcrates dependency, `Cargo.lock`, `fuzz/Cargo.lock` and `issue-sync.yml` name `v0.80.0`; `images/pod-release.toml` and `images/fake-githome.toml` pin the assets of `v0.80.0` (each SHA-256 of the downloaded asset agrees with the signed `SHA256SUMS`; `pod-release` 0.80.0 verifies that `SHA256SUMS` as `release.yml` of podcrates at `v0.80.0`; `release-index.py` is the same), and `pod-fake-githome` 0.80.0 passes the 15 tests of `scripts/githome-conformance.sh`. (3) `control.rs` is `pod-control` protocol 1: the ops are methods and `Extra` rows, a peer of the uid of `serve` has the master tier (`docs/decisions.md`), `metrics` comes from `status.v1`, `reload` is `unsupported`; `pod_control::conformance::check` passes against the server at three tiers and against the socket of a `serve` process; `docs/cli.md` and `CHANGES.md` give the wire. podrunner serves no control of its broker, so `pod_broker::control::Control` has no host here. (4) `print-unit` is `pod_unit::Unit` with `systemd::render`, `Restart=on-failure`, and six relaxed lines of the hardening, each with its reason; `systemd-analyze verify` accepts the unit. (5) podrunner gives a unit no CA of its broker: the broker has no TLS end before T-563. The CA files of the caller (an intercepting proxy of the host, T-284) now take the ten variables of `ca::env` (`AWS_CA_BUNDLE` and the four of `ca::CLIENT_VARS` were not passed). The bundle of the broker with `ca::env`, `ca::write_trust_store` and `ca::java_options` is step 2 of T-563; a JVM behind an intercepting proxy of the host is T-577. Not done: step 6 (the COORD issue). Proof level: not run in CI; `cargo test --workspace --all-features` passes here.
+
+# T-577: A JVM job behind an intercepting proxy of the host does not trust the CA of the proxy
+
+**Source:** the take of podcrates `v0.80.0` (T-576), 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On a host whose only way out is a proxy that intercepts TLS, a job gets the CA files of the caller in the ten variables of `pod_broker::ca::env` (`crates/podrunner-local/src/exec/proxy.rs`, T-284, T-576). A JVM (Maven, Gradle, sbt) reads none of them: it reads its own trust store. A Java job then fails the TLS handshake to each host through the proxy.
+
+## Premise
+
+podcrates `v0.80.0`: `pod_broker::ca::trust_store(ca_pem, roots_pem)` gives a PKCS #12 store with no password and the trusted key usage of the JDK; `ca::write_trust_store` writes it; `ca::java_options(store, job_options)` gives the value of `JAVA_TOOL_OPTIONS` before the options of the job. A credential file of a unit (`podrunner_schema::CredentialFile`) holds text (`Secret` of a `String`), and a PKCS #12 store is binary.
+
+## Approach
+
+1. When the caller gives a CA file, make the trust store of that bundle (`ca::trust_store`), and give it to the unit as a file of the runner (a binary credential file, or the store in base64 with a decode in the unit).
+2. Set `JAVA_TOOL_OPTIONS` by `ca::java_options` with the value of the caller, when the caller gives one.
+3. `docs/local-mode.md`, "A host with a proxy", names the store.
+
+## Prove
+
+`cargo test -p podrunner-local --lib proxy::`: a caller with `SSL_CERT_FILE` gives a unit a trust store and `JAVA_TOOL_OPTIONS` that names it; a `java` client in the lane `proxy-only` of `user-gate.yml` reaches a host through the intercepting proxy.
