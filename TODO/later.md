@@ -13700,6 +13700,8 @@ Ask podvm (COORD) for its measure of the memory of a guest for an image of N unp
 
 State (2026-11-20): done in this commit. Proven by tests on this machine only; not run in CI and not run on a constrained host as a user (no KVM host here). The bound is half of `mem`, the rule of the code (`MicrovmUnit::mem`: the initramfs must fit twice, packed and unpacked); podvm's measure of the ratio is asked by COORD-116 (GitHub #334, 2026-11-20); it can only raise the bound.
 
+State (2026-11-20): podvm answered COORD-116 with COORD-219 (PodUtils/podvm#629). The initrd of podvm is an uncompressed `newc` cpio: packed and unpacked are each about N, and the guest holds both during the unpack. podvm's measure (experiment 463, `kvm.yml` run 43876504275, PodUtils/podvm@T-1922): an initrd of 1416 MiB resets the guest at 4G and boots at 5G, 6G and 8G; podvm's rule is `mem = 3 × N + 512 MiB`. The measure lowered the bound (the note above, "it can only raise the bound", was wrong). New rule: `N ≤ (mem - 512 MiB) / 3` (`microvm_kind::largest_image`, `mem_for`); the fix names a `mem` of at least `3 × N + 512 MiB` in whole GiB, or the disk root of PodUtils/podvm@T-1994 (no version of podvm has it). podrunner keeps its default of 8G and always passes `--podvm-mem` (`docs/decisions.md`). Level: proven by tests here (`cargo test -p podrunner --test check`, `--lib microvm_kind doctor::pins`; each fails on the old rule of half); not run on a KVM host. PodUtils/podvm@T-2047 measures more sizes: T-573 takes those points into `largest_image` when podvm writes them.
+
 ## Done
 
 2026-11-20, this commit. `crates/podrunner/src/pin_size.rs` (new: `gb`, `over`, `kind_fits`, `fits`: one rule for `check`, `serve`, `doctor` and `config init`); `crates/podrunner/src/microvm_kind.rs` (`pins_fit`, `DEFAULT_MEM`); `crates/podrunner/src/incus_kind.rs` (`pins_fit` on `pin_size::over`); `serve::plan` and `doctor` call `pin_size` for each kind; `doctor/pins.rs` (`microvm_mem_bytes`: twice the size); `config_init.rs` refuses a kind whose bound the image exceeds, with the fix in `refused`. The doc comment of `[unit.microvm] mem` said a default of `4G`; the driver uses `8G` (fixed in place, `schemas/config.v1.json`). Docs: `docs/configuration.md`, `docs/cli.md`, `docs/install.md`; the call is in `docs/decisions.md`.
@@ -13802,3 +13804,28 @@ The logs of the lane (`serve-microvm.err`) and the code at `6a84667`, read on 20
 ## Prove
 
 `cargo test -p podrunner-slots --lib guest`: a test unit that exits with no result gives an error with its exit code and the end of its log; a self-test with no verdict is tried again, a failed verdict is not. `cargo test -p podrunner --lib serve`: the retest of a kind with no verdict is due in minutes. `user-gate.yml`: the lane `serve-incus-kvm` passes.
+
+# T-575: The host facts of a microvm kind with no `mem` name no memory and no CPU
+
+**Source:** the work of T-573 (COORD-219), 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Slots::kind_facts` (`crates/podrunner-slots/src/host.rs`) takes `cpu` and `memory` of each kind from `limits::limits_of`, which reads only `[unit.KIND] mem` and `cpus`. A microvm kind with neither key sends no `memory` and no `cpu` in the host facts, but each guest gets 8G and 2 vCPUs (`microvm_kind::DEFAULT_MEM`, `MicrovmUnit::new`), and the kind claims `memory` and `cpu` as `enforced`. A forge (githome, cfb) then cannot see the bound of a unit of the kind. The defaults are in two places (`DEFAULT_MEM` and the `8G` of `MicrovmUnit::new`).
+
+## Premise
+
+Read on 2026-11-20: `host.rs` (`kind_facts`), `limits.rs` (`limits_of`), `crates/podrunner/src/microvm_kind.rs` (`DEFAULT_MEM`, `build`), `crates/podrunner-microvm/src/lib.rs` (`MicrovmUnit::new`, the capability), and `KindFacts` of `pod-job` ("the largest values that a unit of the kind gets"). Not read: whether placement of an offer with a `memory` limit reads the same `limits_of` for this kind.
+
+## Approach
+
+Put the defaults of the microvm kind (`8G`, 2 vCPUs) in one place in `podrunner-slots`, and let `limits_of` (or `kind_facts`) give them for the microvm kind when `mem` or `cpus` is absent. `microvm_kind::build`, `microvm_kind::pins_fit` and `MicrovmUnit::new` use the same values.
+
+## Prove
+
+`cargo test -p podrunner-slots --lib host`: a microvm kind with no `mem` and no `cpus` gives `memory` 8 GiB and `cpu` 2000 in its facts; a kind with `mem = "4G"` gives 4 GiB. `cargo test -p podrunner --lib microvm_kind`: `build` and `pins_fit` take the same default.

@@ -297,13 +297,14 @@ fn a_pin_over_the_root_disk_of_the_incus_kind_is_refused() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
-/// T-573: the root of a microvm guest is an initramfs, and the memory of
-/// the guest holds it twice. `check` and `serve` refuse a pin of this
-/// architecture that unpacks to more than half of `mem` (8G when absent),
-/// with the fix; a pin at or under the bound passes, and so does a pin of
-/// another architecture.
+/// T-573: the root of a microvm guest is an uncompressed initramfs, and
+/// podvm needs `mem = 3 × N + 512 MiB` for an image of N bytes (COORD-219).
+/// `check` and `serve` refuse a pin of this architecture over
+/// `(mem - 512 MiB) / 3` (8G when absent), with the fix; a pin at the bound
+/// passes, one byte over is refused, and a pin of another architecture
+/// passes. podvm's measure: 1416 MiB resets a guest of 4G and boots at 5G.
 #[test]
-fn a_pin_over_half_the_memory_of_a_microvm_guest_is_refused() {
+fn a_pin_over_the_memory_of_a_microvm_guest_is_refused() {
     use std::os::unix::fs::PermissionsExt;
     let d = dir("mem");
     let podvm = d.join("podvm");
@@ -332,9 +333,9 @@ fn a_pin_over_half_the_memory_of_a_microvm_guest_is_refused() {
     assert_eq!(out.status.code(), Some(78), "{text}");
     for word in [
         "[unit.microvm] mem: the pin runner@sha256:",
-        "unpacks to 5.0 GB, more than half of the memory of a guest (8G, 8.6 GB)",
-        "the root of a guest is an initramfs, and the memory holds it twice",
-        "fix: set mem = \"10G\" or more, or pin a smaller image",
+        "unpacks to 5.0 GB, more than a guest of 8G (8.6 GB) boots",
+        "the root of a guest is an uncompressed initramfs, and podvm needs 3 times the image plus 512 MiB",
+        "fix: set mem = \"15G\" or more, or pin a smaller image (the disk root of podvm, T-1994,",
     ] {
         assert!(text.contains(word), "{word}: {text}");
     }
@@ -342,11 +343,21 @@ fn a_pin_over_half_the_memory_of_a_microvm_guest_is_refused() {
     let serve = Command::new(BIN).args(["serve", "--config"]).arg(&over).arg("--state").arg(&state).output().unwrap();
     assert_eq!((serve.status.code(), &serve.stderr), (out.status.code(), &out.stderr));
     assert!(!state.join("journal.jsonl").exists());
-    let passes =
-        [(1, 5_000_000_000, "mem = \"10G\"", here), (2, 4_294_967_296, "", here), (3, 5_000_000_000, "", other)];
-    for (i, size, mem, arch) in passes {
+    // The bound of 8G is (8192 - 512) / 3 = 2560 MiB.
+    let bound: u64 = 2560 << 20;
+    let measured: u64 = 1416 << 20;
+    let cases = [
+        (1, 5_000_000_000, "mem = \"15G\"", here, 0),
+        (2, 5_000_000_000, "mem = \"14G\"", here, 78),
+        (3, bound, "", here, 0),
+        (4, bound + 1, "", here, 78),
+        (5, measured, "mem = \"5G\"", here, 0),
+        (6, measured, "mem = \"4G\"", here, 78),
+        (7, 5_000_000_000, "", other, 0),
+    ];
+    for (i, size, mem, arch, code) in cases {
         let out = check(&file(i, size, mem, arch));
-        assert_eq!(out.status.code(), Some(0), "{i}: {}", String::from_utf8_lossy(&out.stderr));
+        assert_eq!(out.status.code(), Some(code), "{i}: {}", String::from_utf8_lossy(&out.stderr));
     }
     let _ = std::fs::remove_dir_all(&d);
 }

@@ -53,7 +53,7 @@ const NEAR_END_S: u64 = 7 * 24 * 3600;
 /// window of updates of GitHub), and `ok`, `near-end` or `stale`. With
 /// `unpacked_bytes`, the size of the image, with an incus kind the host
 /// disk that the image needs (podvm's measure, T-551), and with a microvm
-/// kind the memory of a guest that holds it twice (T-573).
+/// kind the memory of a guest that boots it (podvm's rule, T-573).
 pub(super) fn rows(cfg: &Config, now: u64) -> Vec<Value> {
     let pins = &cfg.pin;
     let incus = cfg.unit.contains_key("incus");
@@ -71,7 +71,7 @@ pub(super) fn rows(cfg: &Config, now: u64) -> Vec<Value> {
                 "ok"
             };
             let host = p.unpacked_bytes.filter(|_| incus).map(|b| b.saturating_mul(HOST_DISK_TENTHS) / 10);
-            let mem = p.unpacked_bytes.filter(|_| microvm).map(|b| b.saturating_mul(2));
+            let mem = p.unpacked_bytes.filter(|_| microvm).map(crate::microvm_kind::mem_for);
             json!({
                 "arch": p.arch, "reference": p.reference, "runner_version": p.runner_version,
                 "age_s": age, "limit_s": limit, "state": state,
@@ -116,7 +116,8 @@ mod tests {
     use serde_json::json;
 
     /// T-573: with a microvm kind, `doctor` names the memory of a guest that
-    /// holds the image twice, and the refusal of `check` with its fix.
+    /// boots the image (3 times it plus 512 MiB), and the refusal of `check`
+    /// with its fix.
     #[test]
     fn doctor_names_the_memory_of_a_pinned_image() {
         let dir = std::env::temp_dir().join(format!("podrunner-doctor-mem-{}", std::process::id()));
@@ -133,12 +134,12 @@ mod tests {
         };
         std::fs::write(&file, pin(3_000_000_000)).unwrap();
         let v = super::super::report_with(Some(&file), json!([])).unwrap();
-        assert_eq!(v["pins"][0]["microvm_mem_bytes"], json!(6_000_000_000u64), "{v}");
+        assert_eq!(v["pins"][0]["microvm_mem_bytes"], json!(9_536_870_912u64), "{v}");
         let t = super::super::text(&v);
-        assert!(t.contains(", 3.0 GB unpacked, the microvm kind needs mem of 6.0 GB or more"), "{t}");
+        assert!(t.contains(", 3.0 GB unpacked, the microvm kind needs mem of 9.5 GB or more"), "{t}");
         assert!(t.contains("missing: [unit.microvm] mem: the pin runner@sha256:"), "{t}");
-        assert!(t.contains("fix: set mem = \"6G\" or more"), "{t}");
-        std::fs::write(&file, pin(2_000_000_000)).unwrap();
+        assert!(t.contains("fix: set mem = \"9G\" or more"), "{t}");
+        std::fs::write(&file, pin(1_000_000_000)).unwrap();
         let v = super::super::report_with(Some(&file), json!([])).unwrap();
         assert!(!v["missing"].to_string().contains("[unit.microvm] mem"), "{v}");
         let _ = std::fs::remove_dir_all(&dir);

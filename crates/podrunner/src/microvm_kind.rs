@@ -72,28 +72,44 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     Ok(())
 }
 
-/// The memory of a guest with no `mem`.
+/// The memory of a guest with no `mem`. podrunner always passes
+/// `--podvm-mem`: placement needs a known memory bound for each unit.
 pub const DEFAULT_MEM: &str = "8G";
 
-/// Each pin of this architecture fits the memory of a guest (T-573): the
-/// root of a guest is an initramfs, and the memory holds it twice (packed
-/// and unpacked) while the kernel unpacks it. An image larger than half of
-/// `mem` cannot boot, and the guest fails with no output.
+/// The memory of a guest beside its initramfs, in podvm's rule (COORD-219).
+const GUEST_BASE: u64 = 512 << 20;
+
+/// The largest image that a guest of `mem` bytes boots (T-573). podvm's
+/// initrd is an uncompressed `newc` cpio: packed and unpacked are each about
+/// the image, and the guest holds both during the unpack. podvm's rule is
+/// `mem = 3 × N + 512 MiB` (COORD-219, `machine/guest/mem.rs` of podvm).
+pub fn largest_image(mem: u64) -> u64 {
+    mem.saturating_sub(GUEST_BASE) / 3
+}
+
+/// The memory of a guest that boots an image of `size` bytes.
+pub fn mem_for(size: u64) -> u64 {
+    size.saturating_mul(3).saturating_add(GUEST_BASE)
+}
+
+/// Each pin of this architecture fits the memory of a guest (T-573). A guest
+/// with too little memory for its initramfs resets with no output.
 pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<(), Failure> {
     let mem = u.mem.as_deref().unwrap_or(DEFAULT_MEM);
     // `plan` refuses a `mem` that is not a size.
     let Ok(bytes) = podrunner_unit::limits::size_bytes(mem) else { return Ok(()) };
-    let Some((p, size)) = crate::pin_size::over(pins, bytes / 2) else { return Ok(()) };
+    let Some((p, size)) = crate::pin_size::over(pins, largest_image(bytes)) else { return Ok(()) };
     Err(fail(
         Class::Config,
         format!(
-            "[unit.microvm] mem: the pin {} unpacks to {}, more than half of the memory of a guest ({mem}, {}); \
-             the root of a guest is an initramfs, and the memory holds it twice; \
-             fix: set mem = \"{}G\" or more, or pin a smaller image",
+            "[unit.microvm] mem: the pin {} unpacks to {}, more than a guest of {mem} ({}) boots; \
+             the root of a guest is an uncompressed initramfs, and podvm needs 3 times the image plus 512 MiB; \
+             fix: set mem = \"{}G\" or more, or pin a smaller image (the disk root of podvm, T-1994, \
+             removes this bound; no version of podvm has it)",
             p.reference,
             gb(size),
             gb(bytes),
-            size.saturating_mul(2).div_ceil(1 << 30),
+            mem_for(size).div_ceil(1 << 30),
         ),
     ))
 }
@@ -120,6 +136,19 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
 #[cfg(test)]
 mod tests {
     use std::os::unix::fs::PermissionsExt;
+
+    /// T-573: podvm's measure (COORD-219): an image of 1416 MiB resets a
+    /// guest of 4G and boots at 5G. The bound is `(mem - 512 MiB) / 3`.
+    #[test]
+    fn the_largest_image_follows_the_measure_of_podvm() {
+        const GIB: u64 = 1 << 30;
+        let image = 1416 << 20;
+        assert!(image > super::largest_image(4 * GIB));
+        assert!(image <= super::largest_image(5 * GIB));
+        assert_eq!(super::mem_for(image).div_ceil(GIB), 5);
+        assert_eq!(super::largest_image(8 * GIB), 2560 << 20);
+        assert_eq!(super::largest_image(1 << 20), 0);
+    }
 
     /// T-116: `plan`, which `check` and `doctor` call, refuses a podvm below
     /// the lowest version of the kind, as `serve` does.

@@ -100,7 +100,8 @@ max_age_s = 2419200          # the age limit of this pin; the smaller of it and 
                              # takes it, at untrusted (a guest); a runner job never does
 unpacked_bytes = 59000000000 # the bytes of the image unpacked (podrunner-manifest.json of a release, T-572; or du -sxb / in a
                              # unit of it); check and doctor refuse a pin above the root disk of [unit.incus] (root_quota,
-                             # disk_max_bytes, T-551) or above half of mem of [unit.microvm] (T-573); absent: not checked
+                             # disk_max_bytes, T-551) or above (mem - 512 MiB) / 3 of [unit.microvm] (T-573); absent: not
+                             # checked
 
 [egress]                     # the egress policy of the operator (T-024, T-107)
 # broker-policy.v1 of pod-broker: the policy of each job. The policy of an offer
@@ -147,7 +148,9 @@ command = ["/home/runner/run.sh"]        # an absolute path: the job runs in a w
 binary = "/opt/podrunner/drivers/podvm"  # the released podvm binary
 images = "/var/lib/podrunner/images"     # a podvm store with the pinned images
 mem = "8G"                               # the memory of each guest (default 8G: the initrd of a runner image is about 1.4 GiB);
-                                         # it holds the image twice: check refuses a pin whose unpacked_bytes is over half of it (T-573)
+                                         # podrunner always passes it to podvm. The image is an uncompressed initramfs: podvm needs
+                                         # 3 x unpacked_bytes + 512 MiB (COORD-219). check refuses a pin whose unpacked_bytes is over
+                                         # (mem - 512 MiB) / 3 (T-573), with the fix: mem of at least 3 x N + 512 MiB, in whole GiB
 cpus = 2                                 # its vCPUs (default 2)
 engine = "/opt/podrunner/docker"         # optional: the static Docker binaries; each guest runs an engine
 ```

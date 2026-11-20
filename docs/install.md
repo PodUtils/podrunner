@@ -116,10 +116,10 @@ incus kind needs the extracted tree plus about 2.4 times it in incusd
 (podvm's measure). For the hosted snapshot of 55 to 60 GB, give each
 unit a root disk of 80 GB or more, and the host about 190 GB.
 
-The root of a microvm guest is an initramfs, and the memory of the
-guest holds it twice. `check` refuses a pin over half of
-`[unit.microvm] mem` (8G when absent), with the value of `mem` that
-holds it (T-573).
+The root of a microvm guest is an uncompressed initramfs. podvm needs
+3 times the image plus 512 MiB of guest memory (COORD-219). `check`
+refuses a pin over `([unit.microvm] mem - 512 MiB) / 3` (8G when
+absent: 2560 MiB), with the value of `mem` that holds it (T-573).
 
 A unit of the incus or the podvm kind shares the kernel of the host, so
 it cannot set a sysctl. A job of a file watcher or of Elasticsearch

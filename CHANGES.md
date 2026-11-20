@@ -17,7 +17,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | Contract | Change | Entry |
 | --- | --- | --- |
 | `podrunner.toml` | `[[pin.payload]] unpacked_bytes`: the bytes of the image unpacked. `check` and `serve` refuse a pin of this architecture above `disk_max_bytes` of `[unit.incus]` with `root_quota` (exit 78, with the fix); `doctor` names the size, the host disk of the incus kind (about 3.4 times the image) and the refusal. | T-551 |
-| `podrunner.toml` | `check` and `serve` refuse a pin of this architecture whose `unpacked_bytes` is over half of `[unit.microvm] mem` (8G when absent; exit 78, with the value of `mem` that holds it); `doctor` names the memory of a guest that holds it; `config init` refuses such a kind with the fix. The doc of `mem` named a default of `4G`; the default is `8G`. | T-573 |
+| `podrunner.toml` | `check` and `serve` refuse a pin of this architecture whose `unpacked_bytes` N is over `(mem - 512 MiB) / 3` of `[unit.microvm]` (8G when absent: 2560 MiB; podvm's rule `mem = 3 × N + 512 MiB`, COORD-219; exit 78, with the fix: a `mem` of at least `3 × N + 512 MiB` in whole GiB); `doctor` names that memory (`microvm_mem_bytes`); `config init` refuses such a kind with the fix. The doc of `mem` named a default of `4G`; the default is `8G`. | T-573 |
 | `run-report.v1` | On a kind with `root_quota`, an offer whose root disk (the lesser of its `disk` limit and `disk_max_bytes`) is below `unpacked_bytes` of its payload is refused with `limit-not-enforceable`; the audit line names both sizes. | T-571 |
 | release assets | `podrunner-manifest.json` has `unpacked_bytes` for each runner image; `podrunner-install.sh --serve` writes it into `serve.json` and prints `--unpacked-bytes N` in the line of `config init`. | T-572 |
 | command line | `podrunner config init --unpacked-bytes N` writes `unpacked_bytes` into the pin. | T-572 |
@@ -73,4 +73,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
 <!-- contract docs/contracts/source-driver.md 5700b24d3839fe92012962770699804c9473e901c8bec3dc7d6aa260b3b899d1 -->
 <!-- contract docs/contracts/unit-driver.md 1c1ce27e4fe5d369f94dac4b7a7cddf91956562437546c6f775218e7d6d7416f -->
-<!-- contract schemas/config.v1.json bcef0cdb7c34b6077b950d90628a1cfa296701dcd3a0ae7e3e84e5cf9c283c5e -->
+<!-- contract schemas/config.v1.json 1ed3159fa2acce85931a15e2760ceee2fce8db5100a46f29d60176c18d9a8c84 -->

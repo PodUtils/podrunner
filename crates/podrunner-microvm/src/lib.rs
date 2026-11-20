@@ -65,8 +65,9 @@ pub struct MicrovmUnit {
     state_dir: PathBuf,
     /// The store of the operator that holds the pinned images.
     images: PathBuf,
-    /// The guest memory (`--podvm-mem`): the image is an initramfs, which
-    /// must fit twice (packed and unpacked).
+    /// The guest memory (`--podvm-mem`), always passed: placement needs a
+    /// known bound. The image is an uncompressed initramfs: podvm needs
+    /// 3 times the image plus 512 MiB (T-573).
     mem: String,
     cpus: u32,
     /// The most processes of the payload of each guest (T-488).
