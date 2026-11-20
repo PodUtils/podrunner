@@ -10648,6 +10648,8 @@ The steps "Build the OCI archive" and "The larger runner image by label" of `run
 
 State (2026-11-20, `runner-image.yml` run 44713839288): the step of the engine of a guest pulled `public.ecr.aws/docker/library/busybox:1.37` by its tag with `docker pull`, not through `scripts/pull-base.sh`, and public.ecr.aws refused it five times ("toomanyrequests: Data limit exceeded"); the parity suite in guests with an engine then failed with no dockerd. The step now pulls `busybox@sha256:a7dbc319...` (the digest of the parity suite) through `pull-base.sh`.
 
+CI (2026-11-20, `runner-image.yml` run 44737580022 at `980c79b`, proven in CI on GitHub-hosted runners): green, with the engine image through `pull-base.sh` and podcrates `v0.79.0`.
+
 # T-479: A JSON Schema of `podrunner.toml` for a program that writes the file
 
 **Source:** GitHub #292 (cfb, P-1), 2026-11-18
