@@ -169,7 +169,7 @@ class Lane:
         # The rung that the class of the lane must give podvm (T-564).
         self.want_rung = getattr(a, "want_rung", "") or ""
         for k in self.serve_kinds:
-            if k not in ("incus", "microvm"):
+            if k not in ("incus", "microvm", "podvm"):
                 raise SystemExit(f"no serve kind {k!r}")
         pins = read_pins(self.assets / "podrunner-install.sh")
         self.version, self.runner_version = pins["PODRUNNER_VERSION"], pins["RUNNER_VERSION"]
@@ -222,7 +222,10 @@ class Lane:
 
     def show(self, log: str, lines: int = 300):
         for ext in ("out", "err"):
-            text = (self.out / "logs" / f"{log}.{ext}").read_text(errors="replace").splitlines()
+            path = self.out / "logs" / f"{log}.{ext}"
+            if not path.is_file():
+                continue
+            text = path.read_text(errors="replace").splitlines()
             print(f"---- {log}.{ext} (the last {min(lines, len(text))} of {len(text)} lines)")
             print("\n".join(text[-lines:]))
 
@@ -612,7 +615,7 @@ class Lane:
             "--arg", "fake-source", "--arg", "--script", "--arg", script, "--tier", tier, "--org", "example-org",
             "--podvm", self.data / "bin" / "podvm", "--images", self.data / "images", "--image", self.image,
             "--built-at-s", built, "--kinds", kind, "--host", f"gate-{kind}", "--out", out, "--json",
-        ]
+        ] + self.hold_args(kind)
         rc, text = self.run(argv, self.env(self.home), d, f"serve-{kind}-init")
         if rc:
             self.show(f"serve-{kind}-init")
@@ -642,6 +645,8 @@ class Lane:
         rc, text = self.run(["podrunner", "doctor", "--config", cfg, "--json"], env, cfg.parent, f"serve-{kind}-doctor")
         v = json.loads(text)
         cap = next((k.get("capability") for k in v.get("kinds", []) if k.get("kind") == kind), None)
+        # doctor runs the self-test of podvm's confine layer, as serve does
+        # (T-566): a trusted podvm kind is `confined` when it is proven.
         want = "guest" if kind == "microvm" else "confined"
         if not cap or cap.get("boundary") != want:
             raise GateError(f"doctor --json: the {kind} kind is {cap and cap.get('boundary')}, not {want}: {v.get('kinds')}")
@@ -763,7 +768,7 @@ class Lane:
             "--arg", "source", "--arg", "--server", "--arg", ho_url, "--tier", tier, "--org", "example-org",
             "--podvm", self.data / "bin" / "podvm", "--images", self.data / "images", "--image", self.image,
             "--built-at-s", self.built_at(), "--kinds", kind, "--host", f"gate-job-{kind}", "--out", cfg, "--json",
-        ]
+        ] + self.hold_args(kind)
         procs = [gh, ho]
         try:
             rc, _ = self.run(argv, env, d, f"job-{kind}-init")
@@ -775,7 +780,7 @@ class Lane:
             with cfg.open("a") as f:
                 f.write('\n[egress]\ndefault_policy = { schema = 1, mode = "open" }\n')
             serve = subprocess.Popen(["podrunner", "serve", "--config", str(cfg), "--state", str(d / "state")], cwd=d,
-                                     env=env, stdout=subprocess.DEVNULL,
+                                     env=env, stdout=(self.out / "logs" / f"job-{kind}-serve.out").open("w"),
                                      stderr=(self.out / "logs" / f"job-{kind}-serve.err").open("w"),
                                      start_new_session=True)
             procs.append(serve)
@@ -789,6 +794,7 @@ class Lane:
                 reports = json.loads(urllib.request.urlopen(f"{ho_url}/_fake/reports", timeout=30).read())
                 time.sleep(5)
             jobs = json.loads(urllib.request.urlopen(f"{gh_url}/_fake/jobs", timeout=30).read())
+            early = serve.poll()
         finally:
             for p in reversed(procs):
                 if p.poll() is None:
@@ -800,10 +806,19 @@ class Lane:
                         p.wait()
         report = reports[-1]["report"] if reports else {}
         conclusion = jobs[0].get("conclusion") if jobs else None
-        if report.get("exit_reason") != "success" or report.get("unit_kind") != kind or conclusion != "success":
-            self.show(f"job-{kind}-serve", 200)
-            raise GateError(f"the job through serve on {kind}: report {report or 'none'}, GitHub conclusion {conclusion}")
+        # A trusted job on podvm runs only when serve proved the layer (T-566).
+        boundary_ok = kind != "podvm" or report.get("boundary") == "confined"
+        if report.get("exit_reason") != "success" or report.get("unit_kind") != kind or conclusion != "success" \
+                or not boundary_ok:
+            for log in (f"job-{kind}-serve", f"job-{kind}-githome", f"job-{kind}-github"):
+                self.show(log, 120)
+            ended = f"serve ended with exit {early}" if early is not None else "serve ran to the end of the wait"
+            raise GateError(f"the job through serve on {kind}: {ended}; report {report or 'none'}, GitHub conclusion {conclusion}")
         return f"a runner job of githome through serve on {kind} ({tier}, {report.get('boundary')}): success, as GitHub says"
+
+    def hold_args(self, kind: str) -> list:
+        """The hold of a trusted podvm kind: podnet of the install."""
+        return ["--podnet", self.data / "bin" / "podnet"] if kind == "podvm" else []
 
     def built_at(self) -> int:
         """`built_at_s` of the image of the lane in the manifest of the

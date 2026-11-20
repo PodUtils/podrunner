@@ -200,6 +200,9 @@ jobs:
             executors: podvm
             podvm_lab: bind-denied,getsockname-denied
             want_rung: namespace
+            # T-566: a trusted runner job of githome's fake source through
+            # serve on the podvm kind with the hold and the confine layer.
+            serve_kinds: podvm
           - lane: inherited-fds
             lab: sh scripts/lab/nonroot.sh -- bash scripts/lab/inherited-fds.sh --
             executors: podvm,runner-dir

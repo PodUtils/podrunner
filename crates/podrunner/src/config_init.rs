@@ -101,22 +101,7 @@ fn probed(i: &Input) -> (Vec<String>, Vec<(String, String)>) {
 /// whose layer is not proven here would serve nothing, so it is refused
 /// with the cause.
 fn confine_proven(i: &Input, u: &UnitConfig) -> Result<(), String> {
-    let podvm = podrunner_podvm::Podvm { binary: i.podvm.clone().into() };
-    let state = std::env::temp_dir().join(format!("podrunner-config-init-{}", std::process::id()));
-    let mut unit = podrunner_podvm::PodvmUnit::new(podvm, &state, Path::new(&i.images)).map_err(|e| e.to_string())?;
-    if let Some(p) = &u.podnet {
-        unit = unit.with_podnet(Path::new(p)).map_err(|e| e.to_string())?;
-    }
-    let mut unit = unit.with_confine();
-    let id = podrunner_schema::UnitId::parse("u-999999997").expect("a unit id");
-    let proven = unit.verify_confine(&i.image, id);
-    let _ = std::fs::remove_dir_all(&state);
-    let why = match proven {
-        Ok(true) => return Ok(()),
-        Ok(false) => unit.confine_why().unwrap_or("no cause").to_string(),
-        Err(e) => format!("its self-test: {e}"),
-    };
-    Err(format!("the confine layer that a trusted source needs is not proven here: {why}"))
+    crate::podvm_kind::confine_proven(&i.podvm, &i.images, u.podnet.as_deref(), &i.image)
 }
 
 /// The text of the file with the kinds `kinds`.

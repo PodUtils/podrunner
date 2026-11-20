@@ -531,8 +531,10 @@ jobs:
           v=27.5.1
           sh scripts/retry.sh curl -fsSLo "$RUNNER_TEMP/docker.tgz" "https://download.docker.com/linux/static/stable/x86_64/docker-$v.tgz"
           echo "engine docker $v sha256 $(sha256sum "$RUNNER_TEMP/docker.tgz" | cut -d' ' -f1)" | tee -a "$GITHUB_STEP_SUMMARY"
-          sh scripts/retry.sh docker pull -q public.ecr.aws/docker/library/busybox:1.37
-          docker tag public.ecr.aws/docker/library/busybox:1.37 measure:latest
+          # The first registry that serves it (T-478): run 44713839288 got
+          # "toomanyrequests: Data limit exceeded" of public.ecr.aws.
+          img=$(sh scripts/pull-base.sh public.ecr.aws/docker/library/busybox:1.37@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec)
+          docker tag "$img" measure:latest
           docker save measure:latest -o "$RUNNER_TEMP/measure.tar"
           sh scripts/measure-engine.sh "$PODRUNNER_PODVM" "$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_RUNNER_IMAGE" \
             "$RUNNER_TEMP/engine" "$RUNNER_TEMP/docker.tgz" "$RUNNER_TEMP/measure.tar" | tee -a "$GITHUB_STEP_SUMMARY"

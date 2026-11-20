@@ -79,6 +79,29 @@ fn registry_ok(r: &str) -> bool {
     host_ok && port.is_none_or(|p| p.parse::<u16>().is_ok_and(|n| n > 0))
 }
 
+/// The self-test of the confine layer that `serve` runs at its start, with
+/// the hold `podnet` and the pinned `image` (T-565, T-566): `config init`
+/// and `doctor` run it too, so that each says what `serve` will do.
+pub(crate) fn confine_proven(binary: &str, images: &str, podnet: Option<&str>, image: &str) -> Result<(), String> {
+    let podvm = podrunner_podvm::Podvm { binary: binary.into() };
+    let state = std::env::temp_dir().join(format!("podrunner-confine-test-{}", std::process::id()));
+    let unit = podrunner_podvm::PodvmUnit::new(podvm, &state, Path::new(images)).map_err(|e| e.to_string());
+    let unit = match podnet {
+        Some(p) => unit.and_then(|u| u.with_podnet(Path::new(p)).map_err(|e| e.to_string())),
+        None => unit,
+    };
+    let mut unit = unit?.with_confine();
+    let id = podrunner_schema::UnitId::parse("u-999999997").expect("a unit id");
+    let proven = unit.verify_confine(image, id);
+    let _ = std::fs::remove_dir_all(&state);
+    let why = match proven {
+        Ok(true) => return Ok(()),
+        Ok(false) => unit.confine_why().unwrap_or("no cause").to_string(),
+        Err(e) => format!("its self-test: {e}"),
+    };
+    Err(format!("the confine layer that a trusted source needs is not proven here: {why}"))
+}
+
 pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
     let need = |v: &Option<String>, key: &str| {
         v.clone().ok_or_else(|| fail(Class::Config, format!("[unit.podvm] needs {key}")))

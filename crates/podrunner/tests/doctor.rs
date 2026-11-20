@@ -107,3 +107,39 @@ fn doctor_names_the_runner_of_each_pin_and_its_age() {
     assert!(v["runner_of_this_build"].as_str().is_some_and(|r| r.starts_with("2.")), "{v}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-566: doctor runs the self-test of podvm's confine layer that serve
+/// runs, so it says what serve will do: a stand-in podvm that holds no
+/// image proves nothing, the kind is missing with that cause, and the
+/// trusted source is not served.
+#[test]
+fn doctor_runs_the_self_test_of_the_confine_layer() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("podrunner-doctor-confine-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("store")).unwrap();
+    let podvm = dir.join("podvm");
+    std::fs::write(&podvm, "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.36\", \"rung\": \"namespace\"}'\n").unwrap();
+    std::fs::set_permissions(&podvm, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let config = format!(
+        "host = \"h\"\nallow_fake = true\n[[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"trusted\"\narch = \"{arch}\"\n\
+         [unit.podvm]\nslots = 1\nbinary = \"{podvm}\"\nimages = \"{store}\"\nconfine = true\n\
+         [pin]\n[[pin.payload]]\narch = \"{arch}\"\nreference = \"runner@sha256:{sha}\"\nbuilt_at_s = 1795000000\n",
+        arch = std::env::consts::ARCH,
+        podvm = podvm.display(),
+        store = dir.join("store").display(),
+        sha = "1".repeat(64),
+    );
+    std::fs::write(dir.join("c.toml"), config).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_podrunner"))
+        .args(["doctor", "--json", "--config"])
+        .arg(dir.join("c.toml"))
+        .output()
+        .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let kind = v["kinds"].as_array().unwrap().iter().find(|k| k["kind"] == "podvm").unwrap().clone();
+    let why = kind["missing"].as_str().unwrap_or_default();
+    assert!(why.contains("the confine layer that a trusted source needs is not proven here"), "{v}");
+    assert_eq!(v["sources"][0]["served"], false, "{v}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

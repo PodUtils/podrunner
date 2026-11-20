@@ -78,6 +78,22 @@ pub(crate) fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) ->
     capability_at(name, u, &incusd_socket())
 }
 
+/// A podvm kind with `confine`: the self-test of the layer with the
+/// pinned image, as `serve` runs it, so that doctor names the boundary
+/// that `serve` will have (T-566), or why the layer is not proven.
+fn confined(
+    name: &str,
+    u: &podrunner_slots::config::UnitConfig,
+    cfg: &Config,
+    c: Capability,
+) -> Result<Capability, String> {
+    let pin = cfg.pin.payload.iter().find(|p| p.arch == std::env::consts::ARCH);
+    let (true, true, Some(pin)) = (name == "podvm", u.confine, pin) else { return Ok(c) };
+    let (binary, images) = (u.binary.clone().unwrap_or_default(), u.images.clone().unwrap_or_default());
+    crate::podvm_kind::confine_proven(&binary, &images, u.podnet.as_deref(), &pin.reference)?;
+    Ok(Capability { boundary: podrunner_schema::Boundary::Confined, ..c })
+}
+
 /// The socket of incusd, as podvm finds it: `PODVM_INCUS_SOCKET`, else
 /// `unix.socket` of `INCUS_DIR`, else of `/var/lib/incus`.
 fn incusd_socket() -> std::path::PathBuf {
@@ -169,7 +185,7 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
         let cfg = Config::parse(&text).map_err(|e| fail(Class::Config, e))?;
         let mut caps = Vec::new();
         for (name, u) in &cfg.unit {
-            match capability(name, u) {
+            match capability(name, u).and_then(|c| confined(name, u, &cfg, c)) {
                 Ok(c) => {
                     kinds.push(json!({ "kind": name, "capability": c }));
                     caps.push(c);
