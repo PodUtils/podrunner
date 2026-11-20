@@ -28,6 +28,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `run-report.v1` | The disk bound of a unit is the lesser of the `disk` of the offer and `disk_max_bytes`. | T-529 |
 | `run-report.v1` | The contract names the tolerance of `cpu_s`: 20 % or 1 s of the CPU time of the payload, the larger. | T-520 |
 | `run-report.v1` | A job that the job-started hook of the runner image ended before its first step (a job of another run with no `keep` of the source) ends with `job-mismatch`, not `success`, and its report has `log_tail`. | T-552 |
+| assets of a release | Each release has `release-index.json` (`release-index.v1` of podcrates' `pod-release`: the tag, the commit, each file with its SHA-256, size and target), named in `SHA256SUMS`. The signer of `SHA256SUMS` is `release.yml` at the tag (a run with a version makes the tag and starts `release.yml` on it), so `pod-release verify --repo PodUtils/podrunner --tag TAG` checks a release. | T-562 |
 | control socket | The HTTP head of each socket of a unit is read by `pod_core::http1`: another version of HTTP gets 505, a head over 16 KiB gets 431. | T-536 |
 | `podrunner.toml` | `[unit.incus] init = "image"`: the init of the image is PID 1 of each instance, with the services and the engine of the image (`--podvm-init=image --podvm-engine`, podvm `0.2.0-beta.36` or later); not with `engine`; the other kinds refuse the key. | T-543 |
 | command line | `podrunner run` in a unit: a runner that sends no request to its broker in 600 s fails its job with that cause, not at its `timeout-minutes`. | T-561 |

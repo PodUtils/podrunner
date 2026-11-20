@@ -100,6 +100,18 @@ cosign verify-blob --bundle SHA256SUMS.sigstore.json \
 sha256sum -c --ignore-missing SHA256SUMS
 ```
 
+From the next release, each release also has `release-index.json` (T-562,
+githome's G-34): the tag, the commit, and each file with its SHA-256,
+size and target. `SHA256SUMS` names it, so the one signature covers it,
+and the signer is `release.yml` at the tag of the release. The verifier
+of each product of PodUtils, `pod-release` (a static binary of each
+release of podcrates), checks the signature, each file in the directory
+and the index:
+
+```sh
+pod-release verify --repo PodUtils/podrunner --tag vVERSION DIR
+```
+
 ## The manifest of a release
 
 Each release attaches `podrunner-manifest.json` with its `.sha256` and an

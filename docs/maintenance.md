@@ -218,11 +218,19 @@ comes only after each step below holds on the commit of the release
    row under `## next` in the same commit. `scripts/check-notes.sh`
    refuses the notes of a release with no such section.
 
+The run with a version makes the tag and starts `release.yml` on the tag
+(T-562). That second run builds the files again, writes
+`release-index.json`, signs `SHA256SUMS` as `release.yml` at the tag,
+checks the release with `pod-release verify`, and publishes it. Read both
+runs. A dry run (no version) writes the index and checks it with
+`pod-release sums`.
+
 ### The user-path gate
 
 `user-gate.yml` takes a commit and two optional inputs: `images_run`, the
-id of a green `runner-image.yml` run of the same commit (empty: the latest
-green one; with none, the gate refuses), and `version`, the version of the
+id of a green `runner-image.yml` run (of an older commit too, when
+`images/` is the same; empty: the green run of this commit, and with
+none the gate refuses), and `version`, the version of the
 files (empty: the version of `Cargo.toml` with `-gate.RUN_ID`). Give the
 version of the release to test the files with the version that the release
 writes into them.

@@ -13266,7 +13266,7 @@ CI (2026-11-20): `user-gate.yml` run 44664120384 at `f084c4c` (images of `runner
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -13289,6 +13289,8 @@ COORD-145, read on 2026-11-19. The index is written before `SHA256SUMS`, so that
 State (2026-11-20): podcrates `v0.78.1` (COORD-146, PodUtils/podcrates#241, PodUtils/podcrates@T-965) makes the verifier the static command `pod-release`, an asset of each release (`pod-release-x86_64-unknown-linux-musl`, in its `SHA256SUMS`). The approach: pin the asset by its SHA-256; `pod-release sums --all dist` in the dry run of `release.yml`; `pod-release verify --repo PodUtils/podrunner --tag "$GITHUB_REF_NAME" --all dist` after `cosign sign-blob` on a tag. Exit 0 when each check holds; 77 a refusal.
 
 State (2026-11-20, read of `release.yml` and of the script release-index.py of podcrates `v0.78.1`): the index names the signer `https://github.com/OWNER/REPO/.github/workflows/release.yml@refs/tags/TAG`, and `pod-release verify --repo --tag` checks that identity. `release.yml` of podrunner runs from a dispatch on `main` and makes the tag in its last step, so the cosign leaf names `release.yml@refs/heads/main`: the index would not verify. Two routes: a release that signs on the ref of the tag (a second dispatch of `release.yml` on the tag after the tag step), or an option of the signer's ref in release-index.py and in `Index::signed_as` (a COORD issue to podcrates). Next: choose the route and ask podcrates if it needs a change.
+
+State (2026-11-20, the route of podcrates): `release.yml` with a version builds and checks, makes the tag, and starts itself on the tag (`gh workflow run release.yml --ref vVERSION`; a tag that GITHUB_TOKEN pushes starts no workflow). The run on the tag builds the files again, writes `release-index.json` (`scripts/release-assets.sh index`, release-index.py of podcrates at the commit of `v0.78.1`, `images/pod-release.toml`), writes `SHA256SUMS`, checks both with `pod-release sums --all` and a changed index (`release-assets.sh check`), signs as `release.yml@refs/tags/vVERSION`, runs `pod-release verify --repo --tag --all`, attests, and publishes. A dry run writes the index and runs the same check with no signature. Measured here on fake assets: the index of three files, `pod-release sums --all` passes, and a changed file or index gives 77. Not run: a dry run of `release.yml`, and a run on a tag. `docs/install.md` names the check; T-523 adds it to the installer. `release-assets.sh verify` holds on the signed release `v0.78.1` of podcrates (11 files, the signer at its tag), and another tag and a changed `SHA256SUMS` give 77. The review of the diff (an agent that did not write it) found: `no_user_gate` was lost on the run on the tag, and the index was first checked after the tag (P2 each: a tag with no release; the run on the tag gets `no_user_gate`, and `dry` runs before `tag`); the planted checks took any failure (now 77 only); a missing pin failed late; the path of the verifier was written twice; the run on the tag had no negative test of `pod-release verify` (P3, each fixed).
 
 # T-563: A unit holds the real values of its secrets, not placeholders that the broker swaps
 
