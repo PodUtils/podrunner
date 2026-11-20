@@ -12202,6 +12202,9 @@ State (2026-11-20, `user-gate.yml` run 44722827108 at `3038770`): `serve:job:inc
 
 State (2026-11-20, `user-gate.yml` run 44745685573 at `ab645c6`): the egress module refused the fake GitHub on the address of the runner host, which is private on GitHub's runners (`10.x`, a fixed deny of `pod-broker` that no policy lifts): `serve:job:podvm` ended `unit-failed` at `start_s`, and `serve:job:incus` and `serve:job:microvm` gave a report `success` for a job that never ran (a defect of slots: exit 0 of the unit is `success`). The gate now puts `192.0.2.10/32` (TEST-NET-1, not a fixed deny) on `lo` of the lanes that serve, and the fake GitHub listens there (`--broker-address`). The same lanes passed `serve:check:KIND` (the schema; doctor `confined` on podvm), `serve:run:KIND` (no TCP listener), `hello:incus` and `rbg-gate` on incus.
 
+State (2026-11-20, proven in CI on GitHub-hosted runners, `user-gate.yml` run 44788390111 at `6a84667` (#332; gate 44788380238 and `level2.yml` 44788384919 green)): with the fake GitHub on `192.0.2.10` of `lo`, `serve:job:incus` (trusted, confined) and `serve:job:microvm` (untrusted, guest) pass: a runner job of githome through `serve` ends `success`, as GitHub says. The lane `serve-incus-kvm` failed on one check: `serve:run:microvm` (the self-test of the guest tier failed once at the first boot of the lane, then passed for `serve:job:microvm`; `no-tier-served`; the gate waited 900 s). T-574 has the defects that this shows.
+
+
 # T-528: No row of the user-path gate copies the gate of rbg
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
@@ -13433,7 +13436,7 @@ Measured on 2026-11-20 with the release binary of `main`, podvm `0.2.0-beta.36`,
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -13456,6 +13459,12 @@ Measured on 2026-11-20, podvm `0.2.0-beta.36`, a user with no root, the namespac
 State (2026-11-20, proven on a constrained host as a user): `serve` now names why the layer is not proven (`PodvmUnit::confine_why`, the verdict of the self-test: the first fact that fails). With `[unit.podvm] podnet` and `confine = true` it says "the run with no layer cannot read a process of the host through /proc (a PID namespace)", on the namespace rung and also on the userland rung (`podvm lab run userns-mount-denied`). The measure of the cause (2026-11-20, a user with no root, a host process with a canary): a shell under `podnet pod` (both backends) sees the host process, so podnet adds no PID namespace. On a host with user namespaces podvm takes its namespace rung also under `podnet pod`, and its unit has its own PID 1 (`podvm`): `/proc/PID` of the host is "No such file". In `podvm lab run userns-mount-denied` podvm takes the userland rung; under the netns backend the unit sees the process but gets "Permission denied" on its `environ` (podnet's netns backend puts podvm in a user namespace of its own, so the host process is of a user outside it); under the seccomp backend (rung `interpose`) the open run reads the canary. So the self-test fails where the unit has a PID namespace (the namespace rung) or a user namespace (the netns hold). The message of the verdict names both. Without the hold, the self-test passes on the userland rung (`podrunner-broker-fake --test podvm` with `PODRUNNER_PODVM_CONFINE=1`: the canned job passes). So on a host with user namespaces, a trusted podvm kind with the hold is never `confined`; the hosted runners have no user namespaces for a user, so CI did not show it. The approach stands: a self-test whose canary is a process that the unit can see in its own namespaces (or a proof of the PID namespace), and a boundary record that names what the namespaces hold.
 
 State (2026-11-20, later): `doctor --config` runs the same self-test (`podvm_kind::confine_proven`, shared with `config init`) for a podvm kind with `confine` and a pin, so it names the boundary that `serve` will have, or the cause in `missing` (`doctor_runs_the_self_test_of_the_confine_layer`; on the code before, doctor gave the probe's `redirect` and "not served" with no cause). The lane `userns-on` of `user-gate.yml` gets `serve_kinds: podvm`: `serve:check:podvm` (doctor must say `confined`, after its self-test) and `serve:job:podvm`, a trusted runner job of githome's fake source with the hold, whose report must say `confined`. Through the code of the gate, as a user with no root on the namespace rung: `serve:job:podvm` passes ("trusted, confined: success, as GitHub says").
+
+State (2026-11-20, proven in CI on GitHub-hosted runners, `user-gate.yml` run 44788390111 at `6a84667` (#332; gate 44788380238 and `level2.yml` 44788384919 green)): the lane `userns-on` (podvm, the namespace rung, `bind-denied` and `getsockname-denied`) passes 25 of 25 checks: `doctor` gives `confined` for the podvm kind, and `serve:job:podvm` (trusted, confined) ends `success`, as GitHub says.
+
+## Done
+
+2026-11-20, `c3efe9b` and the commits before it (the self-test under namespaces, `confine_why`, `doctor` and `config init`). `user-gate.yml` run 44788390111 at `6a84667`: the lane `userns-on` passes 25 of 25; `serve:job:podvm` (trusted, confined) ends `success`. Proven in CI on GitHub-hosted runners.
 
 # T-567: A runner unit that exits 0 with no job is reported as success
 
@@ -13496,6 +13505,9 @@ State (2026-11-20, the review of T-567 and T-568): the rule of T-567 stays. The 
 ## Prove
 
 `cargo test -p podrunner-slots --lib -- log_tail report sandbox`: `the_runner_with_no_job_line_took_no_job`; `a_runner_that_exits_0_with_no_job_is_no_success` (a fake payload that prints the line of `run-helper.sh` and exits 0 gives `unit-failed`, an audit line and a `log_tail`; with a "Running job:" line it stays `success`; it fails on the code before); `a_sandbox_that_exits_0_stays_a_success_with_no_job_line`. Then the lane serve-incus-kvm of `user-gate.yml`: `serve:job:incus` and `serve:job:microvm` give a report that is not `success` while the egress refuses the fake GitHub.
+
+State (2026-11-20, proven in CI on GitHub-hosted runners, `user-gate.yml` run 44788390111 at `6a84667` (#332; gate 44788380238 and `level2.yml` 44788384919 green)): the real runner jobs of `serve:job:incus`, `serve:job:microvm` and `serve:job:podvm` end `success`, as GitHub says: the rule takes no job that ran for a job that did not. Not run in CI: the review fixes, T-569 and T-570 (after `6a84667`).
+
 
 # T-568: A runner job that fails is reported as success
 
@@ -13556,6 +13568,9 @@ State (2026-11-20, the review of T-567 and T-568): the first stamped `Running jo
 ## Prove
 
 `cargo test -p podrunner-slots --lib -- log_tail report hooks sandbox`: a fake payload that prints "Running job: build" and "Job build completed with result: Failed" and exits 0 gives `failure` with a `log_tail`; with `Canceled` gives `cancelled`; with `Succeeded` gives `success`; a step that prints only the words keeps `success`; a job with a first step that the runner says failed gives `failure` and no `log_tail`; a sandbox stays `success`. The tests of report and hooks fail on the code before. A forged later `Running job: x` line, then the real `Failed` line, then a forged `Succeeded` line gives `failure` and an audit line `job-completed`; a display name with a trailing space gives its result; the unit gets `ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=false`. These fail on the code before the review.
+
+State (2026-11-20, proven in CI on GitHub-hosted runners, `user-gate.yml` run 44788390111 at `6a84667` (#332; gate 44788380238 and `level2.yml` 44788384919 green)): each real runner job of `serve:job:KIND` (incus, microvm, podvm) ends `success`, as GitHub says: the log of each kind holds the stamped lines of the listener with no prefix. Not run in CI: the review fixes, T-569 and T-570 (after `6a84667`), and a job that GitHub says failed.
+
 
 # T-569: A job that the runner abandoned is reported as success
 
@@ -13756,3 +13771,34 @@ State (2026-11-20): done in this commit. Proven by tests on this machine only; n
 2026-11-20, this commit. `scripts/install-pins.py` (`image_unpacked`: the bytes of the regular files of the image, from its layers, after the whiteouts and the opaque directories; a hard link counts once; a layer that is not tar or tar+gzip stops the release by name): `podrunner-manifest.json` has `unpacked_bytes` for each image, and the block of pins of the installer has `UNPACKED_image_ARCH` and `UNPACKED_imagefull_ARCH`. `release.yml` and `user-gate.yml` write the manifest through `release-assets.sh local-mode`, so no change of a workflow. `scripts/install.sh --serve` writes `unpacked_bytes` into `serve.json` and prints `--unpacked-bytes N` in the line of `config init`. `podrunner config init --unpacked-bytes N` writes it into the pin. Docs: `docs/install.md` (the manifest, `--serve`, the steps of serve), `docs/cli.md`, `docs/configuration.md`.
 
 `sh scripts/test-install.sh`: 16 passed; the fixture image has two layers (a whiteout and an opaque directory): the manifest and `serve.json` give 110 bytes, and the next line has `--unpacked-bytes 110`; with the scripts before, the run fails ("serve.json is not the JSON of the install"). `cargo test -p podrunner --test config_init`: 3 passed; `the_unpacked_bytes_of_the_image_land_in_the_pin` fails on the code before (an unknown option) and passes: the pin has `unpacked_bytes = 1500000000`, `check` takes the file, and a value that is not a number exits 64.
+
+# T-574: One failed self-test of the guest tier takes the microvm kind out of `serve` for a day, with no cause
+
+**Source:** `user-gate.yml` run 44788390111 at `6a84667` (#332), the lane `serve-incus-kvm`, 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`serve:run:microvm` failed: `serve` wrote "the claim of guest drops to none: the test unit wrote no result the host can read", then `no-tier-served`, and ran no sandbox offer. Later in the same lane the same self-test passed (`serve:job:microvm`). Three defects:
+
+1. `run` of `crates/podrunner-slots/src/guest.rs` ignores the exit code of the test unit and destroys it without a read of its log (`UnitDriver::unit_log`, `guest.log`). The operator gets no cause.
+2. `serve.rs` registers the retest with `last_ms: 0` and `RETEST_MS` (24 h). A self-test with no verdict (the unit did not start, or wrote no result) takes the kind out for 24 h, as a real failed verdict does.
+3. `serve_run` of `scripts/user-gate.py` waits 900 s after `serve` printed `no-tier-served`, and keeps no log of the guest.
+
+## Premise
+
+The logs of the lane (`serve-microvm.err`) and the code at `6a84667`, read on 2026-11-20. The cause of the first failure is not known: two cold guests of 8G boot at the same time (a race on the store of podvm, or memory) is a guess.
+
+## Approach
+
+1. Put the exit code and the scrubbed end of the log of the test unit into the error of `run` (and the audit line), before the destroy.
+2. A self-test with no verdict runs once more at once; if it again has no verdict, the next test is in minutes (a bounded back-off), not in 24 h. A failed verdict keeps `RETEST_MS`.
+3. `serve_run` fails at once on `no-tier-served` and copies the logs of the guest to `out/logs`.
+
+## Prove
+
+`cargo test -p podrunner-slots --lib guest`: a test unit that exits with no result gives an error with its exit code and the end of its log; a self-test with no verdict is tried again, a failed verdict is not. `cargo test -p podrunner --lib serve`: the retest of a kind with no verdict is due in minutes. `user-gate.yml`: the lane `serve-incus-kvm` passes.

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**570 entries: 57 open, 52 partial, 18 blocked, 443 done.**
+**571 entries: 58 open, 51 partial, 18 blocked, 444 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 4 | 24 | 6 | 79 | 113 |
-| P2 | 15 | 21 | 8 | 232 | 276 |
+| P1 | 5 | 24 | 6 | 79 | 114 |
+| P2 | 15 | 20 | 8 | 233 | 276 |
 | P3 | 37 | 7 | 4 | 130 | 178 |
-| **All** | 57 | 52 | 18 | 443 | 570 |
+| **All** | 58 | 51 | 18 | 444 | 571 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -610,7 +610,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-563](later.md) | P2 | M | later | feature | open | A unit holds the real values of its secrets, not placeholders that the broker swaps |
 | [T-564](later.md) | P3 | S | later | defect | done | The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there |
 | [T-565](later.md) | P2 | S | later | defect | done | `config init` writes no `confine` for the podvm kind, so a trusted source on a host with no incus gets no kind |
-| [T-566](later.md) | P2 | M | later | defect | partial | The confine self-test cannot pass on the namespace rung of podvm |
+| [T-566](later.md) | P2 | M | later | defect | done | The confine self-test cannot pass on the namespace rung of podvm |
 | [T-567](later.md) | P1 | S | later | defect | partial | A runner unit that exits 0 with no job is reported as success |
 | [T-568](later.md) | P2 | S | later | defect | partial | A runner job that fails is reported as success |
 | [T-569](later.md) | P3 | S | later | defect | done | A job that the runner abandoned is reported as success |
@@ -618,3 +618,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-571](later.md) | P2 | S | later | defect | done | An offer whose disk limit is below the size of its image starts a unit that cannot hold it |
 | [T-572](later.md) | P3 | S | later | feature | done | The release manifest and config init do not carry the size of a runner image |
 | [T-573](later.md) | P2 | S | later | defect | done | An image larger than the memory of a microvm guest is not refused |
+| [T-574](later.md) | P1 | S | later | defect | open | One failed self-test of the guest tier takes the microvm kind out of `serve` for a day, with no cause |

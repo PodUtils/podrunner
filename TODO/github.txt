@@ -335,6 +335,6 @@
 329 issue open
 330 issue closed
 331 issue closed
-332 issue open
+332 issue closed
 333 issue open
 334 issue open
