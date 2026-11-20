@@ -13673,6 +13673,8 @@ Tests (they ran on a development host; level: not run): `cargo test -p podrunner
 
 podvm must act (COORD-115, GitHub #333, written 2026-11-20): `podvm logs CONTAINER` and `podvm logs --podvm-tier=incus NAME` stream the log from its start to stdout, with no copy of all of the log in memory, and take `--limit-bytes N`: stop after the first N bytes and exit 0. podrunner then passes `--limit-bytes` with its bound when `podvm --version` is that version or later. Also open: step 1 (the time of the read on the podvm and the incus lanes of `user-gate.yml`, from the stderr line of `serve`).
 
+State (2026-11-20, COORD-220, PodUtils/podvm#630): PodUtils/podvm@T-2046 is done on podvm's `main` and ships in `0.2.0-beta.37`. `podvm logs` streams through one buffer of 64 KiB (a log of 200,000,000 bytes: a peak RSS of 4,952 KiB, before 200,160 KiB). `--limit-bytes N` stops after the first N bytes with exit 0; with `-f` it also stops when the container ends. `--podvm-tier=incus` holds the log in memory, 64 MiB at most (a larger log is refused), because the API of incus gives the file whole; it refuses `--tail`. A closed stdout ends `podvm logs` with SIGPIPE (141). Next: pin `0.2.0-beta.37`, pass `--limit-bytes` with the bound of podrunner, and take the exit 141 of a cut as no failure.
+
 # T-573: An image larger than the memory of a microvm guest is not refused
 
 **Source:** the work of T-551, 2026-11-20
