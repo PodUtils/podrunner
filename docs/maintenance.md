@@ -240,7 +240,7 @@ The run has these jobs:
 | Job | What it does |
 | --- | --- |
 | `build`, `assets` | The files of the release, made by `scripts/release-assets.sh` as `release.yml` makes them, as the artifact `user-gate-assets`. |
-| `lanes` | One job for each host class: `plain`, `small-tmp`, `userns-off`, `inherited-fds` (`scripts/lab/`), each as a user with no root. |
+| `lanes` | One job for each host class, each as a user with no root: `plain`, `small-tmp`, `userns-off`, `userns-on` (the namespace rung of podvm), `inherited-fds`, `proxy-only`, `proxy-only-dns` (`scripts/lab/`), `bind-denied` (`podvm lab run`) and `serve-incus-kvm`. |
 | `summary` | One table, check x lane, in the summary of the run. A failed check or a lane with no results fails it. |
 
 Each lane runs `scripts/user-gate.py lane`: the quick start of

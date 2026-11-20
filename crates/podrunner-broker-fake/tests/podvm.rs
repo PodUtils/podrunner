@@ -11,7 +11,7 @@
 //! no docker the stand-in of `scripts/runner-stand-in.py`. The second test
 //! (T-035) runs a `container:` job through the hooks: it needs
 //! `PODRUNNER_JOB_IMAGE` (NAME@sha256:HEX, an image with `sh` in the same
-//! store) and podvm on the supervise rung.
+//! store) and podvm on a rung with containers (supervise or userland).
 
 mod common;
 
@@ -119,7 +119,7 @@ fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
         assert!(podvm_unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap(), "not proven");
     }
     let unit: Arc<dyn UnitDriver> = Arc::new(podvm_unit);
-    let guest = unit.socket_mount().expect("podvm on the supervise rung").to_string();
+    let guest = unit.socket_mount().expect("podvm on a rung with containers").to_string();
     let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let prepared = unit.prepare(&env("PODRUNNER_RUNNER_IMAGE"), platform, false).unwrap();
 

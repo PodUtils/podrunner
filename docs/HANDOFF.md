@@ -131,9 +131,13 @@ is done.
     @T-1999 are on podvm's `main`; @T-1994 and @T-1998 come later. Take the beta when it is out.
   - T-561, T-220 and T-350 are done (proven in CI: `user-gate.yml` run
     44664120384, `pass lab:vnet` in the lane `bind-denied`; a failure of
-    `lab:vnet` now fails the lane). #167 and #213 are closed. T-564: the
-    namespace rung gets no socket volume (`run -d -v` works there with
-    beta.36).
+    `lab:vnet` now fails the lane). #167 and #213 are closed.
+  - T-564 is done (proven on a constrained host as a user): the units of
+    podvm's namespace rung get the socket volume (`--vnet`, the question
+    of `serve`); the container hooks stay off that rung, since `exec`
+    there refuses the volumes of a container (T-532, blocked on COORD-113,
+    #326). The new lane `userns-on` of `user-gate.yml` runs podvm on its
+    namespace rung: request a run and read its first result.
   - T-562: `release-index.py` names the signer at `@refs/tags/TAG`, and
     `release.yml` signs from a dispatch on `main`. Choose the route (the
     entry) before the work.

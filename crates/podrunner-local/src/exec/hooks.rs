@@ -46,7 +46,10 @@ impl InUnit {
         use podrunner_hook::policy::Policy;
         use podrunner_hook::server::{Unit, bind, serve_until};
         use std::os::unix::fs::PermissionsExt;
-        let Some(guest) = self.driver.socket_mount().map(str::to_string) else {
+        // The socket volume alone is not enough: podvm on the namespace
+        // rung has it, and no container step (T-564, T-532).
+        let routed = self.driver.probe().is_ok_and(|c| c.container == podrunner_schema::ContainerRoute::Hooks);
+        let Some(guest) = self.driver.socket_mount().filter(|_| routed).map(str::to_string) else {
             return Err("the job needs containers, and this unit kind has no container hooks here; run it with --microvm and --engine".into());
         };
         let dir = dir.to_path_buf();

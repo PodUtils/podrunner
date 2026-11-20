@@ -89,6 +89,9 @@ pub struct PodvmUnit {
     /// `0.2.0-beta.34` cannot start a payload of `run -d` under both
     /// (COORD-194).
     no_tier: bool,
+    /// The rung binds `run -d -v`: the socket volume (T-564), read once
+    /// from the probe, before the hold and the confine add to its proof.
+    volumes: bool,
     /// The rlimits of each unit (T-162).
     limits: podrunner_unit::limits::Limits,
     /// The cache of image tars, else `STATE/images` (T-242).
@@ -110,7 +113,9 @@ impl PodvmUnit {
             capability.limits.insert(name.into(), podrunner_schema::LimitMode::Enforced);
         }
         let platform = if capability.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" }.to_string();
+        let volumes = crate::probe::has_volumes(&capability);
         Ok(PodvmUnit {
+            volumes,
             podvm,
             state_dir: state_dir.to_path_buf(),
             images: images.to_path_buf(),
@@ -206,10 +211,11 @@ impl UnitDriver for PodvmUnit {
         Ok(self.capability.clone())
     }
 
-    /// The socket directory of a unit is a volume where volumes work: on
-    /// the supervise rung (T-050), the same rung that has containers.
+    /// The socket directory of a unit is a volume where `run -d -v` binds:
+    /// the supervise, userland and namespace rungs (T-050, T-564). On the
+    /// namespace rung a host path is not in the root of the unit.
     fn socket_mount(&self) -> Option<&str> {
-        (self.capability.container == podrunner_schema::ContainerRoute::Hooks).then_some(containers::SOCKET_MOUNT)
+        self.volumes.then_some(containers::SOCKET_MOUNT)
     }
 
     fn prepare(&self, reference: &str, platform: &str, _emulation: bool) -> Result<Prepared, UnitError> {

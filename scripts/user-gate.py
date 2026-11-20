@@ -157,6 +157,8 @@ class Lane:
                 raise SystemExit(f"no executor {e!r}")
         self.results: list[tuple[str, str, str]] = []
         self.serve_kinds = [k for k in (a.serve_kinds or "").split(",") if k]
+        # The rung that the class of the lane must give podvm (T-564).
+        self.want_rung = getattr(a, "want_rung", "") or ""
         for k in self.serve_kinds:
             if k not in ("incus", "microvm"):
                 raise SystemExit(f"no serve kind {k!r}")
@@ -559,6 +561,9 @@ class Lane:
         finally:
             self.run([podvm, "rm", "-f", name], env, self.work, "rung-rm")
         words = " ".join(tools.split())
+        got = (rung.split() or ["unknown"])[0]
+        if self.want_rung and got != self.want_rung:
+            raise GateError(f"the lane needs the {self.want_rung} rung of podvm, and its unit took {rung.strip() or 'none'}")
         detail = f"rung of a unit with a volume: {rung.strip() or 'unknown'}; {words}"
         return ("xfail", f"{detail} (T-353, T-354)") if "=no" in words else detail
 
@@ -949,6 +954,7 @@ def main() -> int:
     ln.add_argument("--no-corpus", action="store_true")
     ln.add_argument("--podvm-lab", default="", metavar="PROFILES")
     ln.add_argument("--serve-kinds", default="", metavar="KINDS")
+    ln.add_argument("--want-rung", default="", metavar="RUNG")
     s = sub.add_parser("summary")
     s.add_argument("--lanes", default="")
     s.add_argument("dir")

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**561 entries: 62 open, 47 partial, 16 blocked, 436 done.**
+**561 entries: 60 open, 47 partial, 17 blocked, 437 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 6 | 23 | 5 | 78 | 112 |
+| P1 | 5 | 23 | 6 | 78 | 112 |
 | P2 | 17 | 17 | 8 | 229 | 271 |
-| P3 | 38 | 7 | 3 | 127 | 175 |
-| **All** | 62 | 47 | 16 | 436 | 561 |
+| P3 | 37 | 7 | 3 | 128 | 175 |
+| **All** | 60 | 47 | 17 | 437 | 561 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -576,7 +576,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
 | [T-530](later.md) | P2 | S | later | feature | done | The job-started hook of a podvm unit cannot ask serve |
 | [T-531](later.md) | P3 | S | later | chore | done | Take rsa 0.10 in the fake broker |
-| [T-532](later.md) | P1 | M | later | feature | open | The containers of a podvm unit on the namespace rung, with a volume base |
+| [T-532](later.md) | P1 | M | later | feature | blocked | The containers of a podvm unit on the namespace rung, with a volume base |
 | [T-533](later.md) | P2 | M | later | measurement | open | A job of another architecture in a guest of the machine tier |
 | [T-534](later.md) | P2 | S | later | defect | done | The probe of the incus kind claims the kind on a host with no incusd |
 | [T-535](later.md) | P3 | S | later | defect | partial | The tests leave their temporary directories in /tmp |
@@ -608,4 +608,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-561](later.md) | P2 | S | later | defect | done | `podrunner run --vnet` hangs in the lab that refuses the bind |
 | [T-562](later.md) | P2 | S | later | release | open | A release of podrunner has no signed `release-index.json` |
 | [T-563](later.md) | P2 | M | later | feature | open | A unit holds the real values of its secrets, not placeholders that the broker swaps |
-| [T-564](later.md) | P3 | S | later | defect | open | The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there |
+| [T-564](later.md) | P3 | S | later | defect | done | The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there |

@@ -281,7 +281,7 @@ impl Executor for InUnit {
                     .driver
                     .socket_mount()
                     .ok_or_else(|| {
-                        "--vnet needs the socket volume of podvm (the rung of its container hooks; `podrunner doctor --run` names it)"
+                        "--vnet needs the socket volume of podvm (its supervise, userland or namespace rung; `podrunner doctor --run` names the rung)"
                             .to_string()
                     })
                     .and_then(|_| vnet::host_dir(dir));

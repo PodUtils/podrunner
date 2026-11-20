@@ -12313,7 +12313,7 @@ Move the two files to the API of rsa 0.10 (its `BoxedUint`, the new constructors
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -12332,6 +12332,12 @@ COORD-189, read on 2026-11-18. Not measured: the container suite of the hooks on
 ## Prove
 
 `runner-image.yml`: the container suite passes on the namespace rung; a test of the hooks where a step swaps a mount source for a link after the check gets exit 125 of podvm and `container-option-refused`.
+
+State (2026-11-20, the measure; proven on a constrained host as a user): with the hooks given on the namespace rung (podvm `0.2.0-beta.36`, a user with no root), `podrunner-broker-fake --test podvm` runs the canned job, and the container job fails at the `exec` of its first step: "podvm exec: the volume .../rootfs/home/runner/_work:/__w needs the namespace rung; the entry with no chroot has no mount namespace of its own" (exit 125). `exec` is a fresh chroot re-entry, so the volumes of a `run -d` container of that rung are not in the step. The container hooks stay off the namespace rung; its units get the socket volume (T-564). The ask is COORD-113 (GitHub #326, to podvm): `exec` joins the mount namespace of the container.
+
+## Blocker
+
+COORD-113 (GitHub #326, to podvm): `exec` into a `run -d` container of the namespace rung must join its mount namespace. Then give the hooks on that rung and run the container suite in the lane `userns-on`.
 
 # T-533: A job of another architecture in a guest of the machine tier
 
@@ -13319,7 +13325,7 @@ COORD-146, read on 2026-11-20: the `policy` of an offer takes `credentials: [{ "
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13339,3 +13345,9 @@ Measured on 2026-11-20 with podvm `0.2.0-beta.36`, as a user with no root, on th
 `cargo test -p podrunner-podvm --lib probe::` with the namespace fixture; `podvm lab run bind-denied,getsockname-denied -- podrunner run hello.yml --vnet PODNET` on a host with user namespaces passes.
 
 State (2026-11-20, podvm's COORD-189, PodUtils/podvm#585, ask 3): `run -d -v` binds on the namespace rung since podvm `0.2.0-beta.25` (PodUtils/podvm@T-1920), and `--podvm-volume-base` holds there since `0.2.0-beta.32`; podvm knows of no fact that a container there gets no volume. The claim of the probe ("volumes on the supervise rung only", U19, T-034) is stale. This entry and T-532 (the containers of a unit on the namespace rung) are one change of the probe: do them together. `socket_mount` also serves `serve` (the slots), the hook relay and the podvm unit, and CI runs on the supervise rung only: measure on a host with the namespace rung first.
+
+State (2026-11-20, the measure, podvm `0.2.0-beta.36`, the runner image of `v0.1.0-beta.7`, a user with no root on the namespace rung; proven on a constrained host as a user): the podvm test suite with the hooks given on that rung (`podrunner-broker-fake --test podvm`) fails the container job: the `exec` of its first step exits 125 ("the volume ...:/__w needs the namespace rung; the entry with no chroot has no mount namespace of its own"; T-532, COORD-113). So the socket volume and the container route are two facts: `probe::has_volumes` gives the socket mount on the supervise, userland and namespace rungs, and `container: hooks` stays on the supervise and userland rungs. The hooks of the local mode check the container route, not only the socket mount.
+
+## Done
+
+2026-11-20, the commit of this entry. `cargo test -p podrunner-podvm --lib` (`the_rungs_with_volumes_and_the_rungs_with_containers`, `the_socket_mount_follows_the_rungs_with_volumes`; the second fails on the code before the change: `namespace: false`): 27 passed. `cargo test -p podrunner-local --lib` (`a_socket_volume_with_no_container_hooks_refuses_a_container_job`; it fails on the code before the change: the unit started): 111 passed. The built binary as a user with no root on the namespace rung: `podrunner run hello.yml --podvm ...` passes, with `--podnet` passes, and `podvm lab run bind-denied,getsockname-denied -- podrunner run hello.yml --vnet PODNET` passes (before: "--vnet needs the socket volume of podvm"); a job with `container:` is refused before its unit starts and names `--microvm --engine`. Proof level: on a constrained host as a user. CI: the new lane `userns-on` of `user-gate.yml` (`scripts/lab/userns-on.sh`: AppArmor's restriction of user namespaces off) runs podvm on its namespace rung, with the checks of `bind-denied`; read its first run. The review of the diff (an agent that did not write it) found: the hold and a verified confine add text to `boundary_proof`, so a rung read from it no longer matched and a held or confined unit lost its socket mount on each rung (P1; `PodvmUnit` now keeps `volumes` from the plain probe, and `has_volumes` reads the rung before the first `;`; the tests fail on the code before: "supervise, held and confined"); the lane did not check that podvm took the namespace rung (P2; `--want-rung namespace` fails the lane on another rung); the lab script hid the error of `unshare` and a message named the old rung (P3, fixed).

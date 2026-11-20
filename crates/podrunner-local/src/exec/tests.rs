@@ -443,3 +443,24 @@ fn the_vnet_shim_and_its_forward_have_one_path_in_each_rung() {
     assert!(!sockets.exists(), "the socket directory goes with the failed start");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-564: a kind with the socket volume and no container hooks (podvm on
+/// the namespace rung) refuses a job with containers before its unit
+/// starts, with the fix.
+#[test]
+fn a_socket_volume_with_no_container_hooks_refuses_a_container_job() {
+    let dir = std::env::temp_dir().join(format!("podrunner-local-nohooks-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let mut cap = capability();
+    cap.container = podrunner_schema::ContainerRoute::None;
+    let driver = Arc::new(Mounted(FakeUnit::new(&dir.join("units"), cap, "linux/amd64"), std::sync::Mutex::new(None)));
+    let image = driver.prepare(&format!("img@sha256:{}", "a".repeat(64)), "linux/amd64", false).unwrap();
+    let mut exec = InUnit::new(driver.clone(), image);
+    exec.run_sh = "true".into();
+    let mut job = Job::scripts("a", &["true"]);
+    job.overrides.insert("jobContainer".into(), serde_json::json!({ "image": "alpine" }));
+    let e = exec.run(&JobId::new("a.0").unwrap(), job, Duration::from_secs(60)).unwrap_err();
+    assert!(e.contains("no container hooks here"), "{e}");
+    assert!(driver.1.lock().unwrap().is_none(), "no unit starts");
+    let _ = std::fs::remove_dir_all(&dir);
+}

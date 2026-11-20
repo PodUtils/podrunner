@@ -2,9 +2,10 @@
 //! podvm container in the store of its unit, with the volumes of the hook
 //! tables as `-v`. The podvm verbs: `run -d` for a job container or a
 //! service, `exec -e -w` for a step, `logs`, `inspect`, `rm -f`. Volumes
-//! work on the supervise rung only (U19, T-034); the probe gives
-//! `container: hooks` there. Each container carries the tag of its unit,
-//! so the tree kill of `destroy` reaches it.
+//! work in each step on the supervise and userland rungs (U19, T-034);
+//! the probe gives `container: hooks` there (on the namespace rung `exec`
+//! refuses a volume, T-532). Each container
+//! carries the tag of its unit, so the tree kill of `destroy` reaches it.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -76,7 +77,10 @@ impl PodvmUnit {
 
     pub(super) fn start_container(&self, unit: &UnitId, spec: &ContainerSpec) -> Result<ContainerId, UnitError> {
         if self.capability.container != podrunner_schema::ContainerRoute::Hooks {
-            return Err(UnitError::new(UnitCode::ContainerNotSupported, "volumes need the supervise rung of podvm"));
+            return Err(UnitError::new(
+                UnitCode::ContainerNotSupported,
+                "the steps of a container need the supervise or userland rung of podvm",
+            ));
         }
         parse_pinned(&spec.image)?;
         if !spec.options.is_empty() {

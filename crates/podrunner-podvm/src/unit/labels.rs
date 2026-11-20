@@ -168,6 +168,26 @@ mod tests {
         crate::Podvm { binary: bin }
     }
 
+    /// T-564: a unit on the namespace rung gets its socket directory at
+    /// the socket mount, as on the rungs with containers; one on a rung
+    /// with no volume reaches the host path.
+    #[test]
+    fn the_socket_mount_follows_the_rungs_with_volumes() {
+        use podrunner_unit::UnitDriver;
+        let state = std::env::temp_dir().join(format!("podrunner-sockmount-{}", std::process::id()));
+        for (rung, mount) in [("namespace", true), ("userland", true), ("supervise", true), ("chroot", false)] {
+            let mut unit = crate::PodvmUnit::new(stand_in("0.2.0-beta.36", rung), &state, &state).unwrap();
+            assert_eq!(unit.socket_mount().is_some(), mount, "{rung}");
+            // The hold and a verified confine add to the proof (the review
+            // of T-564): the socket mount stays.
+            let proof = unit.capability.boundary_proof.take().unwrap_or_default();
+            unit.capability.boundary_proof =
+                Some(format!("{proof}; hold: podnet pod seccomp advisory; podvm --podvm-confine, verified"));
+            assert_eq!(unit.socket_mount().is_some(), mount, "{rung}, held and confined");
+        }
+        let _ = std::fs::remove_dir_all(&state);
+    }
+
     /// T-261: the syscall tier on the userland rung of podvm beta.34 or
     /// later on x86_64, and nowhere else (podvm refuses it on aarch64); none
     /// while `SYSCALL_TIER` is `None` (COORD-098).

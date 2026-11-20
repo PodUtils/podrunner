@@ -101,17 +101,18 @@ unit cannot reach it. Give `--vnet PATH` with `--podvm` (T-220):
   `podnet net shim` (a C compiler on the host). The shim loads in the
   runner image: build it for glibc.
 * The shim reaches the unit in its socket directory: podvm must give the
-  socket volume (the rung of its container hooks; `podrunner doctor --run`
-  names it). The unit mounts that directory at its host path, and
-  `LD_PRELOAD` and the forward name that path: on the userland rung of
-  podvm the loader of the image runs on the host, before a path of the
-  unit exists (T-561). `--vnet` and `--podnet` exclude each other.
+  socket volume (its supervise, userland or namespace rung; `podrunner
+  doctor --run` names the rung). The unit mounts that directory at its
+  host path, and `LD_PRELOAD` and the forward name that path: on the
+  userland rung of podvm the loader of the image runs on the host, before
+  a path of the unit exists (T-561). `--vnet` and `--podnet` exclude each
+  other.
 
 Proof level: in CI on GitHub-hosted runners (the lane `bind-denied` of
 `user-gate.yml`: `hello.yml` passes with `--vnet` in `podvm lab run
 bind-denied,getsockname-denied` as a user with no root), and on a
-constrained host as a user (T-561). The namespace rung of podvm gives no
-socket volume yet, so `--vnet` is refused there (T-564).
+constrained host as a user (T-561), also on the namespace rung of podvm
+(T-564; the lane `userns-on` measures it in CI).
 
 ## What a podvm unit holds
 

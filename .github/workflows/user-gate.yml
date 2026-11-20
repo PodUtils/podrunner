@@ -191,6 +191,14 @@ jobs:
           - lane: userns-off
             lab: sh scripts/lab/userns-off.sh -- sh scripts/lab/nonroot.sh --
             executors: podvm,runner-dir
+          # The namespace rung of podvm (T-564): no other lane gives it,
+          # since the runners restrict user namespaces by AppArmor. The
+          # units get the socket volume there; containers stay off (T-532).
+          - lane: userns-on
+            lab: sh scripts/lab/userns-on.sh -- sh scripts/lab/nonroot.sh --
+            executors: podvm
+            podvm_lab: bind-denied,getsockname-denied
+            want_rung: namespace
           - lane: inherited-fds
             lab: sh scripts/lab/nonroot.sh -- bash scripts/lab/inherited-fds.sh --
             executors: podvm,runner-dir
@@ -274,6 +282,7 @@ jobs:
           EXECUTORS: ${{ matrix.executors }}
           PODVM_LAB: ${{ matrix.podvm_lab }}
           SERVE_KINDS: ${{ matrix.serve_kinds }}
+          WANT_RUNG: ${{ matrix.want_rung }}
           # The jobs of the corpus call the API of GitHub (setup-node, the
           # releases of tools): the token of this run (contents: read) keeps
           # them under the rate limit of a shared address (T-253).
@@ -283,7 +292,7 @@ jobs:
           # shellcheck disable=SC2086 # LAB is a command with its words.
           $LAB python3 -I scripts/user-gate.py lane --lane "$LANE" --assets /opt/user-gate/assets \
             --out /opt/user-gate/out --executors "$EXECUTORS" --podvm-lab "${PODVM_LAB:-}" \
-            --serve-kinds "${SERVE_KINDS:-}"
+            --serve-kinds "${SERVE_KINDS:-}" --want-rung "${WANT_RUNG:-}"
       - name: The results can be read
         if: always()
         run: sudo chmod -R a+rX /opt/user-gate/out
@@ -312,7 +321,7 @@ jobs:
           set +e
           # The lanes of the matrix of the job lanes: a lane with no results
           # fails the gate.
-          python3 -I scripts/user-gate.py summary --lanes plain,small-tmp,userns-off,inherited-fds,proxy-only,proxy-only-dns,bind-denied,serve-incus-kvm results > table.md
+          python3 -I scripts/user-gate.py summary --lanes plain,small-tmp,userns-off,userns-on,inherited-fds,proxy-only,proxy-only-dns,bind-denied,serve-incus-kvm results > table.md
           rc=$?
           cat table.md | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$rc"
