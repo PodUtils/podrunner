@@ -109,6 +109,38 @@ installer=$t/podrunner-install.sh
 python3 -I "$root/scripts/install-pins.py" --images "$t/images" --release 9.9.9-test --assets "$a" \
     "$root/scripts/install.sh" --out "$installer" > /dev/null
 mkdir -p "$t/empty"
+# index DIR: a release-index.json of each file of DIR, in the form of
+# release-index.py of podcrates (no network: the test does not fetch it).
+index() {
+    python3 -I - "$1" <<'PY'
+import hashlib, json, pathlib, sys
+d = pathlib.Path(sys.argv[1])
+own = ("SHA256SUMS", "SHA256SUMS.sigstore.json", "release-index.json")
+files = [{"name": f.name, "sha256": hashlib.sha256(f.read_bytes()).hexdigest(), "size": f.stat().st_size}
+         for f in sorted(d.iterdir()) if f.is_file() and f.name not in own and not f.name.endswith(".sha256")]
+doc = {"schema": 1, "project": "PodUtils/podrunner", "version": "v9.9.9-test", "date": "2026-11-20T00:00:00Z", "files": files}
+(d / "release-index.json").write_text(json.dumps(doc, indent=2) + "\n")
+PY
+}
+# The fixture is a release (T-523): the installer, release-index.json and
+# SHA256SUMS beside the assets.
+cp "$installer" "$a/podrunner-install.sh"
+index "$a"
+# sums DIR: SHA256SUMS of DIR and a bundle with no real signature.
+sums() {
+    sh "$root/scripts/release-assets.sh" sums "$1" > /dev/null
+    echo '{"fake": "no signature"}' > "$1/SHA256SUMS.sigstore.json"
+}
+sums "$a"
+# A fake pod-release: it logs its arguments and exits with the code in
+# $t/verify-rc (the fixture has no real signature).
+mkdir -p "$t/verify"
+cat > "$t/verify/pod-release" <<EOF
+#!/bin/sh
+echo "\$*" >> "$t/verify.log"
+exit "\$(cat "$t/verify-rc" 2> /dev/null || echo 0)"
+EOF
+chmod 0755 "$t/verify/pod-release"
 
 # run NAME [ARGS]: the installer in the home $t/NAME, with the mirror
 # $mirror, its output in $t/out.
@@ -117,7 +149,7 @@ run() {
     h=$t/$1
     shift
     mkdir -p "$h"
-    env -u XDG_DATA_HOME -u XDG_CONFIG_HOME HOME="$h" PATH="/usr/bin:/bin" PODRUNNER_MIRROR="$mirror" \
+    env -u XDG_DATA_HOME -u XDG_CONFIG_HOME HOME="$h" PATH="${path:-$t/verify:/usr/bin:/bin}" PODRUNNER_MIRROR="$mirror" \
         sh "${script:-$installer}" "$@" > "$t/out" 2>&1
 }
 loads() { if [ -f "$t/log/loads" ]; then wc -l < "$t/log/loads" | tr -d ' '; else echo 0; fi; }
@@ -143,6 +175,10 @@ grep -q 'user namespaces: yes' "$t/out" || fail "no line of the user namespaces"
 grep -q 'next, in the tree of your project: .* run .github/workflows/ci.yml --checkout .' "$t/out" || fail "no next command"
 [ -z "$(find "$t/home" -name '*.part')" ] || fail "a partial file stays"
 [ "$(loads)" = 1 ] || fail "the image was loaded $(loads) times"
+grep -qx "verify --repo PodUtils/podrunner --tag v9.9.9-test $d/downloads/release" "$t/verify.log" ||
+    fail "pod-release verify was not called with the signer of the release"
+grep -q 'ok      this installer is podrunner-install.sh of SHA256SUMS of v9.9.9-test' "$t/out" || fail "no check of the installer"
+[ ! -e "$d/downloads/release" ] || fail "the files of the release stay in downloads"
 ok "a fresh install"
 
 # 4. A second run with an empty mirror: it downloads nothing.
@@ -166,6 +202,49 @@ for dir in "$t/gw/.local" "$t/gw/.local/bin" "$t/gw/.local/share" "$t/gw/.local/
     [ -z "$(find "$dir" -maxdepth 0 -perm /022)" ] || fail "$dir stays writable by the group or the others"
 done
 ok "the installer removes the write of the group from its directories"
+
+# 4c. The signed list of the release (T-523). Each refusal exits nonzero,
+# names the cause, and puts no file of the release in place.
+# refused NAME TEXT WHY: the install in the home NAME fails with TEXT.
+refused() {
+    if run "$1"; then fail "$3 passed"; fi
+    grep -q "$2" "$t/out" || fail "$3: the error does not name the cause"
+    [ ! -e "$t/$1/.local/bin/podrunner" ] || fail "$3: podrunner is in place"
+}
+# release NAME: a copy of the release, served as the mirror.
+release() { rm -rf "${t:?}/$1" && cp -R "$a" "$t/$1" && mirror=file://$t/$1; }
+bin=podrunner-$arch-unknown-linux-musl
+release changed
+echo changed >> "$t/changed/$bin"
+index "$t/changed" && sums "$t/changed"
+refused r-changed "error: $bin: the SHA-256 is .*, not the pin" "a changed asset with a new SHA256SUMS"
+release sumline
+awk -v n="$bin" '$2 == n { $0 = (substr($0, 1, 1) == "0" ? "1" : "0") substr($0, 2) } { print }' "$a/SHA256SUMS" > "$t/sumline/SHA256SUMS"
+refused r-sumline "error: $bin: SHA256SUMS of v9.9.9-test gives .*, not the pin" "a SHA256SUMS that names another SHA-256"
+release nosums
+rm "$t/nosums/SHA256SUMS"
+refused r-nosums "error: SHA256SUMS: the download from .* failed" "a release with no SHA256SUMS"
+release noindex
+rm "$t/noindex/release-index.json"
+refused r-noindex "error: release-index.json: the download from .* failed" "a release with no release-index.json"
+release badindex
+sed -i "/$(sum "$a/$bin")/d" "$t/badindex/release-index.json"
+sums "$t/badindex"
+refused r-badindex "error: $bin: release-index.json of v9.9.9-test does not name its SHA-256" "an index with no line of the binary"
+mirror=file://$a
+echo 77 > "$t/verify-rc"
+refused r-unsigned "error: pod-release verify refused SHA256SUMS" "a signature that pod-release refuses"
+rm "$t/verify-rc"
+{ cat "$installer" && echo "# changed"; } > "$t/changed-install.sh"
+script=$t/changed-install.sh refused r-self "error: .*changed-install.sh: the SHA-256 of this installer is" "a changed installer"
+if PATH=/usr/bin:/bin command -v pod-release > /dev/null || PATH=/usr/bin:/bin command -v cosign > /dev/null; then
+    echo "test-install: a verifier is in /usr/bin or /bin: the install with no verifier is not run"
+else
+    path=/usr/bin:/bin run r-nosig || fail "the install with no verifier on PATH"
+    grep -q 'warn    no pod-release and no cosign on PATH: the signature of SHA256SUMS is not checked' "$t/out" ||
+        fail "the install with no verifier does not say that it checks no signature"
+fi
+ok "SHA256SUMS and release-index.json of the release: a changed asset, a changed SHA256SUMS, no SHA256SUMS, no index, a bad index, a refused signature and a changed installer are refused"
 
 # 5. A changed binary and a partial download are replaced, not used.
 mirror=file://$a
@@ -247,7 +326,11 @@ for f in podrunner-install.sh podrunner-manifest.json podrunner-bundle-x86_64.ta
     fi
 done
 grep -qx 'PODRUNNER_VERSION="9.9.9-test"' "$t/rel/podrunner-install.sh" || fail "release-assets.sh: the installer has not the version"
-# T-484: SHA256SUMS of each asset, with no line of a .sha256 file.
+# T-484: SHA256SUMS of each asset, with no line of a .sha256 file. The
+# binaries and release-index.json go beside them first, as user-gate.yml
+# puts them (T-523: the installer needs both).
+cp "$a"/podrunner-*-unknown-linux-musl "$t/rel/"
+index "$t/rel"
 sh "$root/scripts/release-assets.sh" sums "$t/rel" > "$t/out" 2>&1 || fail "release-assets.sh sums"
 (cd "$t/rel" && sha256sum -c --quiet SHA256SUMS) || fail "SHA256SUMS does not check"
 for f in podrunner-install.sh podrunner-manifest.json "runner-$arch.tar"; do

@@ -10829,6 +10829,8 @@ A dry run of `release.yml` makes both files, and the step of the check passes on
 
 In the code (2026-11-18): `sh scripts/release-assets.sh sums DIR` writes `DIR/SHA256SUMS` of each asset (not the `.sha256` files; case 12 of `sh scripts/test-install.sh` checks it). The job `release` of `release.yml` writes it over `dist`, signs it with `cosign sign-blob --bundle SHA256SUMS.sigstore.json` (the cosign installer and `v3.1.4` of podcrates), checks the signature with the identity of the workflow at the ref of the dispatch, and checks that a changed copy fails; both files go into the release. `docs/install.md` names the check. Left: the first release that runs it (the signing needs the token of a release run), and step 3 (the installer checks the sums file when `cosign` exists).
 
+State (2026-11-20): T-523 does step 3: the installer checks each file of the release against `SHA256SUMS`, and the signature with `pod-release` or `cosign` when one is on `PATH` (proven by the test of the installer only). Left: the first release that runs it.
+
 # T-485: The incus kind has no container route, though G-02 asks for an engine in the system container
 
 **Source:** a question of the owner on the answer to GitHub #292 (P-4), 2026-11-18
@@ -12030,7 +12032,7 @@ Do not edit the copy. Add a line to `docs/design-issues.md` and to the README of
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12053,6 +12055,8 @@ When `pod-release` gives the signed index, write it in `release.yml` and check i
 T-562 writes `release-index.json` with `pod-release`; this entry then adds the check of the installer.
 
 State (2026-11-20): unblocked. PodUtils/podcrates@T-104 and PodUtils/podcrates@T-880 are done in podcrates `v0.78.1`: the static command `pod-release` writes and verifies the index (T-562).
+
+State (2026-11-20, the check of the installer): before the first download of a file of the podrunner release (the binary, a runner image archive), `scripts/install.sh` downloads `SHA256SUMS` and `release-index.json` of the release. A file goes to its place only when `SHA256SUMS` gives its pin and the index names its SHA-256; `SHA256SUMS` must give the SHA-256 of the index, the index must name the tag, and an installer that runs from a file must be `podrunner-install.sh` of `SHA256SUMS`. With `pod-release` on `PATH` it runs `pod-release verify --repo PodUtils/podrunner --tag vVERSION` on the three files (no network); else with `cosign`, `cosign verify-blob` with the signer `release.yml` at the tag; with neither, a `warn` line. Each failure exits 1 and names the file. An install from a bundle reads no `SHA256SUMS`. There is no opt-out. `user-gate.yml` writes `release-index.json` and `SHA256SUMS` of its assets (`release-assets.sh index`, `sums`, `check`), as the job `dry` of `release.yml` does. Proven here (not on a constrained host, not in CI): case 6 of `sh scripts/test-install.sh` (16 passed, no network) refuses a changed asset, a `SHA256SUMS` with another SHA-256, no `SHA256SUMS`, no index, an index with no line of the binary, a signature that a fake `pod-release` refuses (77), and a changed installer; the install with no verifier passes with the `warn` line; a planted removal of the check of `SHA256SUMS` or of the index fails the test. Measured here on the signed release `v0.78.1` of podcrates with the pinned `pod-release` of `images/pod-release.toml`: `pod-release verify --repo PodUtils/podcrates --tag v0.78.1 DIR` on a directory with only `SHA256SUMS`, `SHA256SUMS.sigstore.json` and `release-index.json` (the shape that the installer makes) gives 0 (the signature and the index hold, each other file is `missing`, not an error), and a changed `SHA256SUMS` gives 77. Not run: the check on a signed release of podrunner (the first run of `release.yml` on a tag), `cosign verify-blob` on a real release, and the lanes of `user-gate.yml` with the index step.
 
 # T-524: G-04 and G-35: the half of podrunner of the placeholders of a policy
 

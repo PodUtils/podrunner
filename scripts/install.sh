@@ -14,7 +14,9 @@
 # writes the block (scripts/install-pins.py); a copy of the tree has no
 # pins of a release and installs only from a bundle of a release. A second
 # run checks what exists and downloads only what is missing or wrong. A
-# file goes to its place only after its SHA-256 agrees with its pin.
+# file goes to its place only after its SHA-256 agrees with its pin. A
+# download of a file of the podrunner release also needs SHA256SUMS and
+# release-index.json of the release to name it (T-523).
 set -eu
 # The directories and files of the install are not writable by the group
 # or others, whatever the umask of the user: podrunner refuses a binary in a
@@ -61,6 +63,9 @@ usage: sh podrunner-install.sh [--prefix DIR] [--full] [--bundle PATH] [--serve]
 
 The environment variable PODRUNNER_MIRROR=URL takes each file from URL/NAME
 in place of its release on github.com. Each file must agree with its pin.
+A file of the podrunner release must also agree with SHA256SUMS and
+release-index.json of the release. With pod-release or cosign on PATH, the
+installer also checks the signature of SHA256SUMS.
 EOF
 }
 
@@ -200,6 +205,57 @@ fetch() {
     esac
 }
 
+# The signed list of the release (T-523): SHA256SUMS and release-index.json
+# of the podrunner release, read once, before the first download of a file
+# of that release. A file of the release goes to its place only when
+# SHA256SUMS names its pin and the index names its SHA-256. pod-release
+# (no network) or cosign checks the signature when one is on PATH.
+rel=$downloads/release
+rel_read=0
+release_sums() {
+    [ "$rel_read" = 0 ] || return 0
+    rm -rf "$rel"
+    mkdir -p "$rel" || die "cannot make $rel"
+    for f in SHA256SUMS release-index.json; do
+        fetch "$(url_of podrunner "$f")" "$rel/$f" ||
+            die "$f: the download from $(url_of podrunner "$f") failed: the installer takes no file of a release with no $f"
+    done
+    tag=v$PODRUNNER_VERSION
+    identity=https://github.com/PodUtils/podrunner/.github/workflows/release.yml@refs/tags/$tag
+    if have pod-release || have cosign; then
+        fetch "$(url_of podrunner SHA256SUMS.sigstore.json)" "$rel/SHA256SUMS.sigstore.json" ||
+            die "SHA256SUMS.sigstore.json: the download from $(url_of podrunner SHA256SUMS.sigstore.json) failed"
+    fi
+    if have pod-release; then
+        pod-release verify --repo PodUtils/podrunner --tag "$tag" "$rel" >&2 ||
+            die "pod-release verify refused SHA256SUMS or release-index.json of $tag (the signer must be $identity)"
+        say "ok      the signature of SHA256SUMS and release-index.json ($identity, pod-release)"
+    elif have cosign; then
+        cosign verify-blob --bundle "$rel/SHA256SUMS.sigstore.json" --certificate-identity "$identity" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com "$rel/SHA256SUMS" >&2 ||
+            die "cosign verify-blob refused SHA256SUMS of $tag (the signer must be $identity; cosign can need the network: put pod-release on PATH, as it needs none)"
+        say "ok      the signature of SHA256SUMS ($identity, cosign)"
+    else
+        say "warn    no pod-release and no cosign on PATH: the signature of SHA256SUMS is not checked (docs/install.md, The checks)"
+    fi
+    isum=$(listed release-index.json)
+    [ -n "$isum" ] || die "release-index.json: SHA256SUMS of $tag has no line of it"
+    [ "$(sha256_of "$rel/release-index.json")" = "$isum" ] ||
+        die "release-index.json: the SHA-256 is $(sha256_of "$rel/release-index.json"), not $isum of SHA256SUMS"
+    grep -qF "\"$tag\"" "$rel/release-index.json" || die "release-index.json: it does not name the tag $tag"
+    # This installer is a file of the release: SHA256SUMS names its SHA-256.
+    # A copy that a pipe gives (curl ... | sh) has no file to read.
+    if [ -f "$0" ]; then
+        self=$(sha256_of "$0")
+        [ "$(listed podrunner-install.sh)" = "$self" ] ||
+            die "$0: the SHA-256 of this installer is $self, not the line of podrunner-install.sh in SHA256SUMS of $tag: take the installer of the release"
+        say "ok      this installer is podrunner-install.sh of SHA256SUMS of $tag"
+    fi
+    rel_read=1
+}
+# listed NAME: the SHA-256 that SHA256SUMS of the release gives for NAME.
+listed() { awk -v n="$1" '$2 == n || $2 == "*" n { print $1 }' "$rel/SHA256SUMS"; }
+
 # get KIND NAME DEST: the file NAME, checked against its pin, at DEST. A
 # file at DEST that agrees with the pin stays; a partial or wrong file never
 # takes the place of DEST.
@@ -217,6 +273,7 @@ get() {
         [ -f "$bundle/$2" ] || die "$2: not in the bundle $bundle (download it from the release into that directory)"
         cp "$bundle/$2" "$part" || die "$2: cannot copy it from the bundle"
     else
+        case $1 in podrunner | image | imagefull) release_sums ;; esac
         say "fetch   $2"
         fetch "$(url_of "$1" "$2")" "$part" || {
             rm -f "$part"
@@ -227,6 +284,21 @@ get() {
     if [ "$have_sum" != "$want" ]; then
         rm -f "$part"
         die "$2: the SHA-256 is $have_sum, not the pin $want: the file is wrong or partial"
+    fi
+    if [ "$rel_read" = 1 ]; then
+        case $1 in
+            podrunner | image | imagefull)
+                line=$(listed "$2")
+                [ "$line" = "$want" ] || {
+                    rm -f "$part"
+                    die "$2: SHA256SUMS of v$PODRUNNER_VERSION gives ${line:-no line}, not the pin $want: the release and this installer differ"
+                }
+                grep -qF "\"$want\"" "$rel/release-index.json" || {
+                    rm -f "$part"
+                    die "$2: release-index.json of v$PODRUNNER_VERSION does not name its SHA-256 $want"
+                }
+                ;;
+        esac
     fi
     mv -f "$part" "$3"
     got=$((got + 1))
@@ -293,6 +365,7 @@ else
     image=$(pin DIGEST_image)
 fi
 [ "$unpacked" = 0 ] || rm -rf "$downloads/bundle"
+rm -rf "$rel"
 
 # An install for `serve` (T-507): a program (githome's CLI) reads
 # serve.json and runs `podrunner config init`; no file of the local mode.

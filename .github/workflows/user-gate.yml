@@ -161,6 +161,12 @@ jobs:
           # The files of the job build of release.yml.
           cp dist/podrunner-*-linux-musl* dist/scaleset-sidecar-*-linux-musl* out/
           (cd out && sha256sum -c ./*.sha256)
+          # T-523: the installer takes no file of a release with no
+          # release-index.json and SHA256SUMS; the job dry of release.yml
+          # writes them in the same way (no signature).
+          sh scripts/release-assets.sh index "$VERSION" out
+          sh scripts/release-assets.sh sums out
+          sh scripts/release-assets.sh check out
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: user-gate-assets

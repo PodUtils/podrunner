@@ -23,6 +23,9 @@ GitHub gives no `latest` link for a pre-release: name the version.
 - `curl` or `wget` (not with `--bundle`).
 - `sha256sum`, `shasum` or `openssl`.
 - No root, no `gh`, no token and no Python.
+- Optional: `pod-release` (a static binary of each release of podcrates;
+  it needs no network) or `cosign` on `PATH`. With one of them, the
+  installer checks the signature of `SHA256SUMS` (T-523).
 
 ## What it does
 
@@ -60,7 +63,9 @@ and `allow` lines, and give in `allow` each host that a job needs.
 
 `PODRUNNER_MIRROR=URL` takes each file from `URL/NAME` in place of its
 release on github.com (`file://DIR` is a directory). Each file must agree
-with its pin.
+with its pin. The mirror must also hold `SHA256SUMS` and
+`release-index.json` of the release, and `SHA256SUMS.sigstore.json` when
+`pod-release` or `cosign` is on `PATH`.
 
 ## An install of serve
 
@@ -116,6 +121,30 @@ next. `systemctl --user` of the unit is not run.
   `podvm verify`). It downloads only what is missing or wrong. A run that
   downloads nothing says so.
 - `podvm load` checks each blob of the image against its digest.
+- Before the first download of a file of the podrunner release (the
+  podrunner binary or a runner image archive), the installer downloads
+  `SHA256SUMS` and `release-index.json` of the release (T-523). A file of
+  the release goes to its place only when `SHA256SUMS` gives its pin and
+  `release-index.json` names its SHA-256. `SHA256SUMS` must give the
+  SHA-256 of `release-index.json`, and the index must name the tag. When
+  the installer runs from a file (not from a pipe), `SHA256SUMS` must give
+  the SHA-256 of the installer as `podrunner-install.sh`.
+- With `pod-release` on `PATH`, the installer also downloads
+  `SHA256SUMS.sigstore.json` and runs
+  `pod-release verify --repo PodUtils/podrunner --tag vVERSION DIR`: the
+  signer must be `release.yml` at the tag of the release. With no
+  `pod-release` and with `cosign` on `PATH`, it runs `cosign verify-blob`
+  with the same signer (cosign can need the network for its trust root).
+  With neither, it writes a `warn` line and checks no signature.
+- Each failure of these checks stops the install with exit 1, a line that
+  names the file and the cause, and no file of the release in place. A
+  missing `SHA256SUMS`, `release-index.json` or (with a verifier)
+  `SHA256SUMS.sigstore.json` is a failure. There is no option to skip a
+  check. To skip the check of the signature, run the installer with a
+  `PATH` that has no `pod-release` and no `cosign`.
+- An install from a bundle (`--bundle`) uses no network and does not read
+  `SHA256SUMS`: check the archive of the bundle with `SHA256SUMS` of the
+  release first (below).
 
 To check the installer itself and a bundle:
 
@@ -205,7 +234,11 @@ in a directory, with their own pins: a fresh install, a second run that
 downloads nothing (its mirror is empty), a changed binary that is replaced,
 a corrupt asset that fails by name, a `run.toml` of the user that stays, and
 the offline bundle as an archive and as a directory, with `--prefix` and
-`--full`. It also runs the check of the pins with a planted change, the
+`--full`. The checks of `SHA256SUMS` and `release-index.json` (T-523): a
+changed asset, a `SHA256SUMS` that gives another SHA-256, no `SHA256SUMS`,
+no `release-index.json`, an index with no line of the binary, a signature
+that a fake `pod-release` refuses, and a changed installer each fail; with
+no verifier on `PATH`, the install passes with a `warn` line. It also runs the check of the pins with a planted change, the
 assets of a release from `scripts/release-assets.sh`, an install from a
 local HTTP server, a lane of the user-path gate (`scripts/user-gate.py`)
 on the fake assets, and `shellcheck` when it is there. The gate and
