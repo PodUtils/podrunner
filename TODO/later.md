@@ -13683,7 +13683,7 @@ Ask podvm (COORD) for its measure of the memory of a guest for an image of N unp
 
 `cargo test -p podrunner --test check`: a pin over the memory bound of `[unit.microvm]` is refused with the fix; one under it passes.
 
-State (2026-11-20): done in this commit. Proven by tests on this machine only; not run in CI and not run on a constrained host as a user (no KVM host here). The bound is half of `mem`, the rule of the code (`MicrovmUnit::mem`: the initramfs must fit twice, packed and unpacked); podvm's measure of the ratio is not asked yet (a COORD issue to podvm), and it can only raise the bound.
+State (2026-11-20): done in this commit. Proven by tests on this machine only; not run in CI and not run on a constrained host as a user (no KVM host here). The bound is half of `mem`, the rule of the code (`MicrovmUnit::mem`: the initramfs must fit twice, packed and unpacked); podvm's measure of the ratio is asked by COORD-116 (GitHub #334, 2026-11-20); it can only raise the bound.
 
 ## Done
 
