@@ -11651,6 +11651,8 @@ State (2026-11-19, later): `pod-fake-githome` `0.76.0` passes the 15 tests.
 
 State (2026-11-19, later): `pod-fake-githome` `0.77.0` passes the 15 tests.
 
+State (2026-11-20): `pod-fake-githome` `0.78.1` passes the 15 tests.
+
 # T-510: G-39: one record of each change of a contract that githome reads
 
 **Source:** githome's G-39 on GitHub #292 (2026-11-18T07:22Z); the ruling of the owner of 2026-11-18
@@ -13033,6 +13035,8 @@ State (2026-11-19, later): `ubuntu-24.04-arm` is published too (run 44557881914,
 
 State (2026-11-19, `hosted-index.yml` run 44568301448; proven in CI on GitHub-hosted runners): `ghcr.io/podutils/podrunner-hosted:ubuntu24-latest@sha256:dd51ce51ea1aad6f53afaae2a5650ff14fbd6636f7f29faebcecb7e75549d4f3`, an OCI index of the amd64 manifest (`sha256:d00306d8…`) and the arm64 manifest (`sha256:512b882a…`), attested (Rekor log index 4001110279); an anonymous client reads it. Next: `ubuntu-26.04` and `ubuntu-26.04-arm`, then `ubuntu26-latest`.
 
+State (2026-11-20, `hosted-snapshot.yml` runs 44557874043 and 44557889203, `hosted-index.yml` run 44644535344; proven in CI on GitHub-hosted runners): each of the four labels is published with C1 0 differences and attested: `ubuntu26-20261111.196.1@sha256:d35cf32ba21c6760d6212db6e64fc480bfc3e3c0a8eac30fbbcd2fa42444ebd2` (16.1 GiB) and `ubuntu26-arm64-20261116.190.1@sha256:1444cf658d0a0e71cce08dfef857e33d186ab482cf9bfed4e1298a93de0eaca7` (10.5 GiB), and the index `ubuntu26-latest@sha256:9fc38c7bc474c04f82c9d90b9667c32634b47e5d44804144f1f893b1b7b6e468` (Rekor log index 4010966245). Left: `gh attestation verify` in a test, the planted credential that must fail C2, and a schedule from the watcher (T-540).
+
 # T-556: The base slice of the hosted snapshot boots in hosted CI
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -13242,4 +13246,33 @@ COORD-145, read on 2026-11-19. The index is written before `SHA256SUMS`, so that
 ## Prove
 
 `release.yml`: a dry run writes `release-index.json` that the verifier of `pod-release` takes, and a changed file of the release fails it.
+
+State (2026-11-20): podcrates `v0.78.1` (COORD-146, PodUtils/podcrates#241, PodUtils/podcrates@T-965) makes the verifier the static command `pod-release`, an asset of each release (`pod-release-x86_64-unknown-linux-musl`, in its `SHA256SUMS`). The approach: pin the asset by its SHA-256; `pod-release sums --all dist` in the dry run of `release.yml`; `pod-release verify --repo PodUtils/podrunner --tag "$GITHUB_REF_NAME" --all dist` after `cosign sign-blob` on a tag. Exit 0 when each check holds; 77 a refusal.
+
+# T-563: A unit holds the real values of its secrets, not placeholders that the broker swaps
+
+**Source:** podcrates `v0.78.1` (COORD-146, PodUtils/podcrates#241, PodUtils/podcrates@T-100); githome's G-35 (PodUtils/podcrates#223), 2026-11-20
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome asks that a job hold a placeholder of each credential, never the real value (G-35). The broker of podcrates `v0.78.1` can do it: it ends TLS for each host that a credential names, swaps the placeholder in a header, in Basic authentication, a query or a body, and puts the placeholder back in each answer. podrunner loads each job with no secret (`Load::new`) and gives the unit no CA bundle of its broker.
+
+## Premise
+
+COORD-146, read on 2026-11-20: the `policy` of an offer takes `credentials: [{ "placeholder", "secret", "hosts", "in" }]`; the host gives each value at the load (`Load::secrets`); the broker makes one CA for each job, whose bundle the job needs (`ca::write_bundle`) with the variables of `ca::env` (`SSL_CERT_FILE`, `GIT_SSL_CAINFO`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`, `AWS_CA_BUNDLE`).
+
+## Approach
+
+1. The egress module (`crates/podrunner-egress/src/lib.rs`) sets up the broker with the TLS end, and gives each load the secrets of its offer, by name from the secret store of the host.
+2. The slots write the CA bundle of the job into the unit and give it the variables of `ca::env`.
+3. A refusal of a credential policy is a refusal of the offer, by name.
+
+## Prove
+
+`cargo test -p podrunner-egress`: a job with a placeholder reaches a stand-in host with the real value in its header, and the job sees only the placeholder in each answer; no audit line and no log line holds the value.
 

@@ -135,7 +135,7 @@ impl Egress {
         let policy = Policy::from_json(policy).map_err(|e| EgressError(format!("the policy of {job}: {}", e.class)))?;
         let info = self
             .broker
-            .load(Load { job: job.into(), token: token(), ttl, policy })
+            .load(Load::new(job, token(), ttl, policy))
             .map_err(|e| EgressError(format!("the load of {job}: {}", e.class)))?;
         let flagged = info.flagged.len();
         let mut open = self.open.lock().expect("the listeners");

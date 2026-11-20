@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**559 entries: 58 open, 51 partial, 17 blocked, 433 done.**
+**560 entries: 59 open, 51 partial, 17 blocked, 433 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 6 | 24 | 4 | 78 | 112 |
-| P2 | 15 | 20 | 9 | 226 | 270 |
+| P2 | 16 | 20 | 9 | 226 | 271 |
 | P3 | 36 | 7 | 4 | 127 | 174 |
-| **All** | 58 | 51 | 17 | 433 | 559 |
+| **All** | 59 | 51 | 17 | 433 | 560 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -607,3 +607,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-560](later.md) | P3 | S | later | defect | blocked | pod-extract reads only the first gzip member of a layer |
 | [T-561](later.md) | P2 | S | later | defect | partial | `podrunner run --vnet` hangs in the lab that refuses the bind |
 | [T-562](later.md) | P2 | S | later | release | open | A release of podrunner has no signed `release-index.json` |
+| [T-563](later.md) | P2 | M | later | feature | open | A unit holds the real values of its secrets, not placeholders that the broker swaps |
