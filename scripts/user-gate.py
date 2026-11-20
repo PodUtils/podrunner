@@ -697,6 +697,123 @@ class Lane:
             raise GateError(f"the sandbox offer: {reported}")
         return f"serve ran the sandbox offer in a unit of {kind}: {reported.get('reason')}"
 
+    # A runner job through `serve` (T-527): githome's source and GitHub as
+    # the fakes of podcrates (images/fake-githome.toml).
+    def fake(self, name: str) -> pathlib.Path:
+        """The pinned binary NAME of podcrates (pod-fake-githome or
+        pod-fake-github), downloaded once and checked by its SHA-256."""
+        import hashlib
+        import tomllib
+        import urllib.request
+        pins = tomllib.loads((ROOT / "images" / "fake-githome.toml").read_text())
+        key = self.arch if name == "pod-fake-githome" else f"github_{self.arch}"
+        want = pins["sha256"][key]
+        path = self.work / "fakes" / name
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != want:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            url = (f"https://github.com/PodUtils/podcrates/releases/download/v{pins['version']}/"
+                   f"{name}-{self.arch}-unknown-linux-musl")
+            body = urllib.request.urlopen(url, timeout=120).read()
+            if hashlib.sha256(body).hexdigest() != want:
+                raise GateError(f"{url}: the SHA-256 is not the pin of images/fake-githome.toml")
+            path.write_bytes(body)
+        path.chmod(0o755)
+        return path
+
+    @staticmethod
+    def host_address() -> str:
+        """An address of this host that is not the loopback: under the
+        hold of a unit its loopback is its own, so a broker there is not
+        reached (T-527). A UDP connect sends nothing."""
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as u:
+            u.connect(("192.0.2.1", 9))
+            return u.getsockname()[0]
+
+    def started(self, argv, log: str, env) -> tuple[subprocess.Popen, str]:
+        """ARGV, which prints its base URL on the first line of stdout."""
+        out = (self.out / "logs" / f"{log}.err").open("w")
+        p = subprocess.Popen([str(a) for a in argv], stdout=subprocess.PIPE, stderr=out, env=env, text=True,
+                             start_new_session=True)
+        line = p.stdout.readline().strip()
+        if not line.startswith("http://"):
+            p.kill()
+            raise GateError(f"{argv[0]}: no base URL ({line!r})")
+        return p, line.rstrip("/")
+
+    def serve_job(self, kind: str) -> str:
+        """One runner job of githome's fake source through `serve` on KIND:
+        the claim, the mint of a JIT configuration of the fake GitHub, the
+        official runner in a unit of KIND, and the report `success`."""
+        import urllib.request
+        env = self.env(self.home)
+        env.pop("NOTIFY_SOCKET", None)
+        tier = "untrusted" if kind == "microvm" else "trusted"
+        gh, gh_url = self.started([self.fake("pod-fake-github"), "--listen", f"{self.host_address()}:0"], f"job-{kind}-github", env)
+        ho, ho_url = self.started([self.fake("pod-fake-githome"), "serve", "--listen", "127.0.0.1:0", "--github", gh_url],
+                                  f"job-{kind}-githome", env)
+        d = self.work / f"serve-job-{kind}"
+        shutil.rmtree(d, ignore_errors=True)
+        d.mkdir(parents=True)
+        cfg = d / "podrunner.toml"
+        argv = [
+            "podrunner", "config", "init", "--source", "githome", "--program", self.fake("pod-fake-githome"),
+            "--arg", "source", "--arg", "--server", "--arg", ho_url, "--tier", tier, "--org", "example-org",
+            "--podvm", self.data / "bin" / "podvm", "--images", self.data / "images", "--image", self.image,
+            "--built-at-s", self.built_at(), "--kinds", kind, "--host", f"gate-job-{kind}", "--out", cfg, "--json",
+        ]
+        procs = [gh, ho]
+        try:
+            rc, _ = self.run(argv, env, d, f"job-{kind}-init")
+            if rc:
+                self.show(f"job-{kind}-init")
+                raise GateError(f"config init --kinds {kind} --tier {tier}: exit {rc}")
+            # The fake GitHub is on an address of the host: the policy of the
+            # operator opens it (an offer of the fake names no policy).
+            with cfg.open("a") as f:
+                f.write('\n[egress]\ndefault_policy = { schema = 1, mode = "open" }\n')
+            serve = subprocess.Popen(["podrunner", "serve", "--config", str(cfg), "--state", str(d / "state")], cwd=d,
+                                     env=env, stdout=subprocess.DEVNULL,
+                                     stderr=(self.out / "logs" / f"job-{kind}-serve.err").open("w"),
+                                     start_new_session=True)
+            procs.append(serve)
+            job = json.dumps({"repository": "example-org/app", "tier": tier,
+                              "steps": ["echo podrunner-gate-job-$((6*7))"]}).encode()
+            req = urllib.request.Request(f"{ho_url}/_fake/jobs", data=job, method="POST",
+                                         headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=30).read()
+            reports, end = [], time.monotonic() + 900
+            while time.monotonic() < end and serve.poll() is None and not reports:
+                reports = json.loads(urllib.request.urlopen(f"{ho_url}/_fake/reports", timeout=30).read())
+                time.sleep(5)
+            jobs = json.loads(urllib.request.urlopen(f"{gh_url}/_fake/jobs", timeout=30).read())
+        finally:
+            for p in reversed(procs):
+                if p.poll() is None:
+                    os.killpg(p.pid, signal.SIGTERM)
+                    try:
+                        p.wait(timeout=120)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(p.pid, signal.SIGKILL)
+                        p.wait()
+        report = reports[-1]["report"] if reports else {}
+        conclusion = jobs[0].get("conclusion") if jobs else None
+        if report.get("exit_reason") != "success" or report.get("unit_kind") != kind or conclusion != "success":
+            self.show(f"job-{kind}-serve", 200)
+            raise GateError(f"the job through serve on {kind}: report {report or 'none'}, GitHub conclusion {conclusion}")
+        return f"a runner job of githome through serve on {kind} ({tier}, {report.get('boundary')}): success, as GitHub says"
+
+    def built_at(self) -> int:
+        """`built_at_s` of the image of the lane in the manifest of the
+        release, else now."""
+        manifest = self.assets / "podrunner-manifest.json"
+        if manifest.is_file():
+            images = json.loads(manifest.read_text())["runner"]["images"].get(self.arch, {})
+            digest = self.image.rpartition("@")[2]
+            return next((i["built_at_s"] for i in images.values() if i and i.get("digest") == digest and i.get("built_at_s")),
+                        int(time.time()))
+        return int(time.time())
+
     def microvm_probe(self) -> str:
         """`podvm run --verbose` of the runner image on the machine tier, as
         the unit does it: the last lines name the cause of an early end
@@ -851,7 +968,7 @@ def lane(a) -> int:
         if errors:
             raise SystemExit("\n".join(errors))
     later = [f"hello:{e}" for e in g.executors] + (["errors"] if "runner-dir" in g.executors else []) + (["rung:podvm", "confine:podvm", "pids:podvm", "pty:podvm", "hold:podvm"] if "podvm" in g.executors else [])
-    later += [f"serve:{c}:{k}" for k in g.serve_kinds for c in ("check", "run")]
+    later += [f"serve:{c}:{k}" for k in g.serve_kinds for c in ("check", "run", "job")]
     later += [f"corpus:{r['id']}:{r['executor']}" for r in rows if g.wants(r)]
     try:
         if not g.check("serve", g.serve):
@@ -882,8 +999,10 @@ def lane(a) -> int:
                 for k in g.serve_kinds:
                     if g.check(f"serve:check:{k}", functools.partial(g.serve_check, k)):
                         g.check(f"serve:run:{k}", functools.partial(g.serve_run, k))
+                        g.check(f"serve:job:{k}", functools.partial(g.serve_job, k))
                     else:
                         g.skip(f"serve:run:{k}", "the check of the configuration failed")
+                        g.skip(f"serve:job:{k}", "the check of the configuration failed")
                 for r in rows:
                     if g.wants(r):
                         g.check(f"corpus:{r['id']}:{r['executor']}", functools.partial(g.corpus_row, r))

@@ -9,6 +9,10 @@ version = "0.78.1"
 [sha256]
 x86_64 = "e7521b18c347a8d0c393a785476029325657c6ea44d86ca81fb145bda6f3ff46"
 aarch64 = "dda43f40f30f14ed7c660d3088ab82982863065343437f0c6f68212efa3b69a3"
+# pod-fake-github of the same release: the fake GitHub of a runner job
+# through `serve` in the lane serve-incus-kvm of user-gate.yml (T-527).
+github_x86_64 = "1d2188904daac2a3cdb3cd1fd54f1070e3ef503e36eea198b0d20f31561a2948"
+github_aarch64 = "0a5aa74ffd04fa0f32589c77b05b7d6a025c09cb564a9ef581c7a560d662539f"
 
 [ghcr]
 reference = "ghcr.io/podutils/pod-fake-githome:v0.78.1@sha256:ef99c5cb06fcb63557b2638971b44c53e6fda77df98a706b1b6c24cb0e5e2289"
