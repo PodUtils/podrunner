@@ -96,6 +96,63 @@ is done.
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
+## Resume here (the session of 2026-11-19 and 2026-11-20)
+
+- The owner's rulings of this session (`docs/decisions.md`): "The hosted
+  snapshot" (copy the root of a hosted runner 1:1 with its kernel, no
+  build), "ghcr.io", "The snapshot keeps the Docker Hub login" (make each
+  per-machine value fresh), "Retention on ghcr.io" (keep each version).
+  The owner handles the disclosure to the author of the community
+  snapshot: do not raise it.
+- The hosted snapshot is published, public and attested
+  (`docs/hosted-snapshot.md`, T-542, T-555), each capture with C1
+  (0 differences) and C2 (no secret):
+  - `ghcr.io/podutils/podrunner-hosted:ubuntu24-latest@sha256:dd51ce51ea1aad6f53afaae2a5650ff14fbd6636f7f29faebcecb7e75549d4f3`
+    (amd64 `ubuntu24-20261116.376.1@sha256:d00306d8…`, arm64
+    `ubuntu24-arm64-20261111.182.1@sha256:512b882a…`);
+  - `ghcr.io/podutils/podrunner-hosted:ubuntu26-latest@sha256:9fc38c7bc474c04f82c9d90b9667c32634b47e5d44804144f1f893b1b7b6e468`
+    (amd64 `ubuntu26-20261111.196.1@sha256:d35cf32b…`, arm64
+    `ubuntu26-arm64-20261116.190.1@sha256:1444cf65…`).
+  - Workflows: `hosted-snapshot.yml` (capture, dry run or `publish`; 1 to
+    2 hours), `hosted-index.yml` (the index `OS-latest` of two digests),
+    `hosted-parity.yml` (the probe diff, report-only, and the watcher of
+    each label, daily), `hosted-boot.yml` (the core slice under incus,
+    report-only). Scripts: `scripts/hosted/`.
+- In flight, read first:
+  - `hosted-boot.yml` (T-556): the first boot of the core slice stopped
+    with exit 1 and no result; the workflow now prints the LXC log and the
+    console of the init. Dispatch it again with the amd64 digest of
+    `ubuntu24` and read why.
+  - podvm's next beta (COORD-209, PodUtils/podvm#605) boots the init of an
+    image with no incus; podvm asks for a run of the snapshot that way.
+    COORD-203 (PodUtils/podvm#599): PodUtils/podvm@T-1996, @T-1997 and
+    @T-1999 are on podvm's `main`; @T-1994 and @T-1998 come later. Take the beta when it is out.
+  - T-561: `run --vnet` in the lab that refuses the bind gets no request
+    from its runner; a local run now ends after 600 s with that cause.
+    Find the broken link of the vnet shim.
+- Done in this session: T-525 (C1 to C5 on microvm and incus), T-552
+  (a job that the hook ends is `job-mismatch`), T-554 (TypeScript 7 on
+  podvm, fixed by podvm beta.36), T-548. Partial: T-539, T-540, T-541
+  (approach), T-542, T-543 (`[unit.incus] init = "image"`), T-555, T-556,
+  T-561, T-500 (Chromium libraries in `runner-full`; `rbg-gate` passes on
+  podvm, runner-dir and microvm, `user-gate.yml` run 44506794088).
+- New entries: T-555 to T-563 (T-562: `release-index.json` with
+  `pod-release`, after T-484; T-563: the placeholder credentials of
+  `pod-broker`, githome's G-35).
+- The hard problems of the project, for research by the owner's agent:
+  `docs/reports/hard-problems-2026-11-20.md`.
+- Housekeeping findings for the next session: #294 (COORD-087) and #110
+  (COORD-050, add T-221 to its row) can close; #151 (githome) has all its
+  entries done, its close is githome's call; #309 waits for podnet's read.
+  T-523 and T-524 may be unblocked by podcrates `v0.77.0` and `v0.78.1`:
+  check their Blockers. The remote has two leftover Dependabot branches
+  (trufflehog 3.99.8 and 3.99.9), both superseded; the owner deletes them.
+- CI notes: `gate.yml` cancels an older run of the same ref, so batch the
+  pushes. A capture uses one hosted runner for 1 to 2 hours. A full
+  `check.sh` takes 25 to 45 minutes here; an edit of the tree during it
+  makes the push fail ("the tree changed"). Keep the disk under control:
+  remove `target/*/debug/incremental`, `target/debug` and `fuzz/target`.
+
 ## Resume here (the session of 2026-11-18, after the coordinator's order)
 
 - The coordinator (podcrates) sends its orders as COORD issues only

@@ -21,8 +21,10 @@ The layers are `tar+zstd`. The stable trees are at the bottom (the Android
 SDK, .NET, the JVMs, each version of the tool cache), the base of the
 distribution is on top, and the last layer, `boot`, holds `/boot` and
 `/boot/efi`: the kernel and the initrd of the hosted runner. The config
-names `/sbin/init` as the entrypoint: a unit boots the init of the image
-(`[unit.incus] init = "image"`, podvm `--podvm-init=image`).
+names `/sbin/init` as the entrypoint, for a unit that boots the init of
+the image (`[unit.incus] init = "image"`, podvm `--podvm-init=image`).
+No boot of the snapshot has a result yet (T-556), and the image holds no
+runner yet (T-541): a unit of it cannot run a job now.
 
 ## What is 1:1, and what the scrub changes
 
