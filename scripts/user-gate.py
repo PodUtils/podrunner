@@ -79,6 +79,15 @@ def read_table(path: pathlib.Path) -> tuple[list[dict], list[str]]:
             errors.append(f"{where}: {len(f)} columns, not {len(COLUMNS)}")
             continue
         r = dict(zip(COLUMNS, f))
+        # `xfail userns-on:ok`: the expect of each lane, else the first word
+        # (a rung of podvm can pass a row that the others fail, T-564).
+        words = r["expect"].split(" ")
+        r["expect"], r["expect_by_lane"] = words[0], {}
+        for w in words[1:]:
+            lane, _, value = w.partition(":")
+            if not lane or value not in ("ok", "xfail", "flaky"):
+                errors.append(f"{where}: a lane of expect is LANE:ok, LANE:xfail or LANE:flaky, not {w!r}")
+            r["expect_by_lane"][lane] = value
         if not re.fullmatch(r"[0-9a-f]{40}", r["sha"]):
             errors.append(f"{where}: the sha is not 40 hex digits")
         if not re.fullmatch(r"[\w.-]+/[\w.-]+", r["repo"]):
@@ -790,6 +799,7 @@ class Lane:
         return ["--github-token-env", "PODRUNNER_GATE_TOKEN"] if os.environ.get("PODRUNNER_GATE_TOKEN") else []
 
     def corpus_row(self, r: dict):
+        r = {**r, "expect": r.get("expect_by_lane", {}).get(self.name, r["expect"])}
         src = self.clone(r["repo"], r["sha"])
         args = [r["workflow"], "--checkout", ".", "--job", r["job"]]
         for kv in [] if r["matrix"] == "-" else r["matrix"].split(";"):

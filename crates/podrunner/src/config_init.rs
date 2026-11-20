@@ -15,6 +15,8 @@ use crate::text::display;
 
 /// The kinds that `--kinds auto` tries, strongest boundary first.
 const KINDS: [&str; 3] = ["microvm", "incus", "podvm"];
+/// The runner directory of the runner image of a release (`images/runner/`).
+const RUNNER_DIR: &str = "/home/runner";
 
 /// One value of TOML: a string with its quotes and escapes. The escapes of
 /// a JSON string are escapes of a basic string of TOML.
@@ -50,6 +52,13 @@ struct Input {
 fn unit(i: &Input, kind: &str) -> String {
     let mut t =
         format!("[unit.{kind}]\nslots = {}\nbinary = {}\nimages = {}\n", i.slots, quoted(&i.podvm), quoted(&i.images));
+    // The runner of the image by its absolute path: a podvm unit runs in a
+    // work directory of its own, a guest in its own (T-565); the default
+    // `./run.sh` is not there.
+    t.push_str(&format!("command = [{}]\n", quoted(&format!("{RUNNER_DIR}/run.sh"))));
+    if kind == "podvm" {
+        t.push_str(&format!("runner_dir = {}\n", quoted(RUNNER_DIR)));
+    }
     if kind == "podvm"
         && let Some(p) = &i.podnet
     {

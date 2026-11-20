@@ -15,7 +15,8 @@
 #   lanes     the lanes that run the row (a,b), or * for each lane
 #   expect    ok; xfail when podrunner fails the job for a known cause;
 #             flaky when it fails some runs for a known cause (the note of
-#             an xfail or a flaky row names the entry)
+#             an xfail or a flaky row names the entry); then LANE:EXPECT
+#             for each lane that differs, separated by a space
 #   flags     more flags of run, separated by a space, or -
 #   note      why, or -
 #
@@ -34,13 +35,13 @@ rg-rustfmt	BurntSushi/ripgrep	178cc027e283fd965cb72d0a7395b219eada170c	.github/w
 rg-rustfmt	BurntSushi/ripgrep	178cc027e283fd965cb72d0a7395b219eada170c	.github/workflows/ci.yml	rustfmt	-	success	microvm	plain	ok	--allow sh.rustup.rs --allow static.rust-lang.org	a guest has no NIC: rustup reaches its hosts through --allow
 rg-docs	BurntSushi/ripgrep	178cc027e283fd965cb72d0a7395b219eada170c	.github/workflows/ci.yml	docs	-	success	podvm	*	ok	-	-
 rg-docs	BurntSushi/ripgrep	178cc027e283fd965cb72d0a7395b219eada170c	.github/workflows/ci.yml	docs	-	success	runner-dir	*	ok	-	-
-click-py313	pallets/click	e38188e9e205005d5af5f9e59df51904c984586a	.github/workflows/tests.yaml	tests	python=3.13	success	podvm	*	xfail	-	in a podvm unit the rename of a temporary file of uv or ruff gets EACCES: podvm keeps a run -d with a volume off the namespace rung until pod-enter binds it (T-261, PodUtils/podvm#442)
+click-py313	pallets/click	e38188e9e205005d5af5f9e59df51904c984586a	.github/workflows/tests.yaml	tests	python=3.13	success	podvm	*	xfail userns-on:ok	-	in a podvm unit the rename of a temporary file of uv or ruff gets EACCES: podvm keeps a run -d with a volume off the namespace rung until pod-enter binds it (T-261, PodUtils/podvm#442); on the namespace rung (the lane userns-on) it passes (T-564, user-gate.yml run 44698971408)
 click-py313	pallets/click	e38188e9e205005d5af5f9e59df51904c984586a	.github/workflows/tests.yaml	tests	python=3.13	success	runner-dir	*	ok	-	-
 express-lint	expressjs/express	43fca52d28a422c8be48fd489cbd4f2d6152bab6	.github/workflows/ci.yml	lint	-	success	podvm	*	ok	-	-
 express-lint	expressjs/express	43fca52d28a422c8be48fd489cbd4f2d6152bab6	.github/workflows/ci.yml	lint	-	success	runner-dir	*	ok	-	-
 express-node22	expressjs/express	43fca52d28a422c8be48fd489cbd4f2d6152bab6	.github/workflows/ci.yml	test	os=ubuntu-latest;node-version=22	success	podvm	*	ok	-	upload-artifact v7 through the broker of the run
 express-node22	expressjs/express	43fca52d28a422c8be48fd489cbd4f2d6152bab6	.github/workflows/ci.yml	test	os=ubuntu-latest;node-version=22	success	runner-dir	*	ok	-	the work directory has no name with a dot, as send of Node refuses it (T-255)
-rq-lint	rq/rq	535172412469b78d4ac690a446284d8ec1e9f541	.github/workflows/lint.yml	lint	-	success	podvm	*	xfail	-	in a podvm unit the rename of a temporary file of uv or ruff gets EACCES: podvm keeps a run -d with a volume off the namespace rung until pod-enter binds it (T-261, PodUtils/podvm#442)
+rq-lint	rq/rq	535172412469b78d4ac690a446284d8ec1e9f541	.github/workflows/lint.yml	lint	-	success	podvm	*	xfail userns-on:ok	-	in a podvm unit the rename of a temporary file of uv or ruff gets EACCES: podvm keeps a run -d with a volume off the namespace rung until pod-enter binds it (T-261, PodUtils/podvm#442); on the namespace rung (the lane userns-on) it passes (T-564, user-gate.yml run 44698971408)
 rq-lint	rq/rq	535172412469b78d4ac690a446284d8ec1e9f541	.github/workflows/lint.yml	lint	-	success	runner-dir	*	ok	-	-
 rq-valkey	rq/rq	535172412469b78d4ac690a446284d8ec1e9f541	.github/workflows/valkey.yml	valkey-test	python-version=3.14;valkey-version=9.0;redis-py-version=8	success	podvm	*	xfail	-	services: needs a network of its own, and a podvm unit of the local mode is on the host network (T-124 gives it on --microvm with --engine)
 rq-valkey	rq/rq	535172412469b78d4ac690a446284d8ec1e9f541	.github/workflows/valkey.yml	valkey-test	python-version=3.14;valkey-version=9.0;redis-py-version=8	success	runner-dir	*	xfail	-	--runner-dir refuses a job with containers (T-218)

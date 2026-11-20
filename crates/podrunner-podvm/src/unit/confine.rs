@@ -21,6 +21,9 @@ use super::{PodvmUnit, WORKDIR};
 const SEEN: &str = "podrunner-confine-seen";
 /// The positive control of the self-test.
 const OWN: &str = "podrunner-confine-own";
+/// The variable that a unit of the self-test reads in its own environment.
+const MARK: &str = "PODRUNNER_CONFINE_SELF";
+const MARK_VALUE: &str = "podrunner-confine-self";
 
 impl PodvmUnit {
     /// Give each unit the confine layer of podvm. The record changes only
@@ -110,10 +113,14 @@ impl PodvmUnit {
         // Why the layer is not proven, for the line of `serve`.
         self.confine_why = verdict.as_ref().err().cloned();
         let verified = verdict.is_ok();
-        if verified {
+        if let Ok(by) = verdict {
             self.capability.boundary = Boundary::Confined;
             let proof = self.capability.boundary_proof.take().unwrap_or_default();
-            self.capability.boundary_proof = Some(format!("{proof}; podvm --podvm-confine, verified"));
+            let how = match by {
+                Proof::Layer => "",
+                Proof::Namespaces => " (the namespaces of the unit hide the processes of the host)",
+            };
+            self.capability.boundary_proof = Some(format!("{proof}; podvm --podvm-confine, verified{how}"));
         }
         Ok(verified)
     }
@@ -126,14 +133,19 @@ impl PodvmUnit {
         // driver (T-183).
         let _ = self.destroy(unit);
         let held = self.self_test_sockets(unit)?;
+        // The marker of the unit itself: a run that reads the environ of
+        // its own shell (`/proc/$$`; `/proc/self` of a unit of the namespace
+        // rung names another process) and not the canary is held by its
+        // namespaces (T-566), not blind.
         let script = format!(
-            "echo own > {OWN}; tr '\\0' '\\n' < /proc/{pid}/environ > {SEEN} 2>/dev/null; echo done >> {SEEN}; exec sleep 60"
+            "echo own > {OWN}; tr '\\0' '\\n' < /proc/{pid}/environ > {SEEN} 2>/dev/null; \
+             tr '\\0' '\\n' < /proc/$$/environ 2>/dev/null | grep '^{MARK}=' >> {SEEN}; echo done >> {SEEN}; exec sleep 60"
         );
         let spec = StartSpec {
             unit: unit.clone(),
             image,
             argv: ["sh", "-c", &script].map(String::from).to_vec(),
-            env: Default::default(),
+            env: [(MARK.to_string(), MARK_VALUE.to_string())].into(),
             credential: Default::default(),
             sockets: held.as_ref().map(|h| h.dir.clone()),
             mounts: Vec::new(),
@@ -168,44 +180,63 @@ impl PodvmUnit {
 /// read of the canary, else why it gave no result.
 type Run = Result<(bool, String), String>;
 
-/// The verdict of the self-test: the open run read the canary (the check
-/// can see it), and the held run wrote its own file and did not read it.
-/// Else the first fact that fails, as one line.
-fn verdict(open: &Run, held: &Run, canary: &str) -> Result<(), String> {
-    match open {
+/// What proves that a unit cannot read a process of the host.
+#[derive(Debug, PartialEq)]
+enum Proof {
+    /// The open run read the canary, the run with the layer did not.
+    Layer,
+    /// Neither run read it, and the open run read its own `/proc`: the
+    /// PID namespace of podvm's namespace rung, or the user namespace of
+    /// the netns hold, hides the host (T-566).
+    Namespaces,
+}
+
+/// The verdict of the self-test: the open run read the canary, or read
+/// its own `/proc/PID` and not the canary (the check can see it, or the
+/// namespaces hold), and the held run wrote its own file and did not read
+/// the canary. Else the first fact that fails, as one line.
+fn verdict(open: &Run, held: &Run, canary: &str) -> Result<Proof, String> {
+    let proof = match open {
         Err(why) => return Err(format!("the run with no layer: {why}")),
-        Ok((_, seen)) if !seen.contains(canary) => {
-            return Err("the run with no layer cannot read a process of the host through /proc (a PID namespace of podvm's namespace rung, or the user namespace of the netns hold), so the check proves nothing".into());
+        Ok((_, seen)) if seen.contains(canary) => Proof::Layer,
+        Ok((_, seen)) if seen.contains(&format!("{MARK}={MARK_VALUE}")) => Proof::Namespaces,
+        Ok(_) => {
+            return Err("the run with no layer reads neither a process of the host nor its own /proc, so the check proves nothing".into());
         }
-        Ok(_) => {}
-    }
+    };
     match held {
         Err(why) => Err(format!("the run with the layer: {why}")),
         Ok((false, _)) => Err("the layer denies the unit the write of its own working directory".into()),
         Ok((true, seen)) if seen.contains(canary) => {
             Err("the run with the layer read the canary: the layer does not hold".into())
         }
-        Ok(_) => Ok(()),
+        Ok(_) => Ok(proof),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::verdict;
+    use super::{MARK, MARK_VALUE, Proof, verdict};
 
     #[test]
     fn confine_is_proven_only_by_a_check_that_sees_and_a_layer_that_holds() {
         let c = "canary-1";
-        let seen = Ok((true, format!("PODRUNNER_CONFINE_CANARY={c}\ndone\n")));
+        let seen = Ok((true, format!("PODRUNNER_CONFINE_CANARY={c}\n{MARK}={MARK_VALUE}\ndone\n")));
         let blind = Ok((true, "done\n".to_string()));
-        assert_eq!(verdict(&seen, &blind, c), Ok(()));
-        // A plant: the open run sees nothing (a rung with no /proc of the
-        // host): no proof, whatever the held run gives (T-566).
-        assert!(verdict(&blind, &blind, c).unwrap_err().contains("PID namespace"));
+        let own = Ok((true, format!("{MARK}={MARK_VALUE}\ndone\n")));
+        assert_eq!(verdict(&seen, &blind, c), Ok(Proof::Layer));
+        // T-566: the open run reads its own /proc and not the host (a PID
+        // or user namespace): the namespaces hold, with the layer too.
+        assert_eq!(verdict(&own, &blind, c), Ok(Proof::Namespaces));
+        assert_eq!(verdict(&own, &own, c), Ok(Proof::Namespaces));
+        // A plant: the open run sees nothing, also not itself (a rung with
+        // no /proc): no proof, whatever the held run gives.
+        assert!(verdict(&blind, &blind, c).unwrap_err().contains("proves nothing"));
         // A plant: the layer is not applied, the held run reads the canary.
         assert!(verdict(&seen, &seen, c).unwrap_err().contains("read the canary"));
         // The layer denies the own write too: no unit can work under it.
         assert!(verdict(&seen, &Ok((false, "done\n".into())), c).unwrap_err().contains("own working directory"));
+        assert!(verdict(&own, &Ok((false, "done\n".into())), c).unwrap_err().contains("own working directory"));
         // A run that did not start proves nothing, and says why.
         let none = Err("the unit did not start: podvm run: exit 125".to_string());
         assert!(verdict(&none, &blind, c).unwrap_err().starts_with("the run with no layer: the unit did not start"));

@@ -65,6 +65,9 @@ fn config_init_writes_a_file_that_check_takes_once() {
     assert!(check.status.success(), "{}", String::from_utf8_lossy(&check.stderr));
     let text = std::fs::read_to_string(&out).unwrap();
     assert!(!text.contains("made-up-key") && !text.contains("listen"), "{text}");
+    // The runner of the image by its absolute path: a podvm unit runs in
+    // /podrunner, where `./run.sh` (the default) is not (T-565).
+    assert!(text.contains("command = [\"/home/runner/run.sh\"]"), "{text}");
     // The same input again changes nothing; another input is refused.
     let o = init(&dir, "auto", &out, &[]);
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
