@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.78.1` (`Cargo.toml`; the source wire and the
+- Pins: podcrates `v0.79.0` (`Cargo.toml`; the source wire and the
   credential are `pod_job::source`, the HTTP head is `pod_core::http1`;
   `status.v1` is `pod_job::Status` from podcrates `v0.73.0`);
   podvm `v0.2.0-beta.36`

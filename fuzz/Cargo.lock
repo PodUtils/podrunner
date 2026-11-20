@@ -863,8 +863,8 @@ dependencies = [
 
 [[package]]
 name = "pod-acme"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "base64",
  "p256",
@@ -884,13 +884,13 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-expr"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 
 [[package]]
 name = "pod-actions-results"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "base64",
  "pod-core",
@@ -900,8 +900,8 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-store"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "flate2",
  "pod-actions-workflow",
@@ -911,8 +911,8 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-workflow"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "pod-actions-expr",
  "saphyr-parser",
@@ -920,8 +920,8 @@ dependencies = [
 
 [[package]]
 name = "pod-broker"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "base64",
  "libc",
@@ -943,8 +943,8 @@ dependencies = [
 
 [[package]]
 name = "pod-confine"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -952,8 +952,8 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "libc",
  "rand",
@@ -963,8 +963,8 @@ dependencies = [
 
 [[package]]
 name = "pod-dns"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "base64",
  "bytes",
@@ -984,8 +984,8 @@ dependencies = [
 
 [[package]]
 name = "pod-hostprobe"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "linux-raw-sys",
  "pod-core",
@@ -994,8 +994,8 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -1009,8 +1009,8 @@ dependencies = [
 
 [[package]]
 name = "pod-job"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "serde",
  "serde_json",
@@ -1019,8 +1019,8 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "base64",
  "libc",
@@ -1036,8 +1036,8 @@ dependencies = [
 
 [[package]]
 name = "pod-services"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "pod-core",
  "toml",
@@ -1045,13 +1045,13 @@ dependencies = [
 
 [[package]]
 name = "pod-time"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 
 [[package]]
 name = "pod-tls"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "base64",
  "p256",
@@ -1070,8 +1070,8 @@ dependencies = [
 
 [[package]]
 name = "pod-turn"
-version = "0.78.1"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.78.1#edbc86bc1482f6d821301ca432f7cdca91573577"
+version = "0.79.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.79.0#68fbc9679344ea82e37448402a68091d4c6ae83d"
 dependencies = [
  "hmac",
  "sha1",

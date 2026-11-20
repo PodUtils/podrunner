@@ -13302,6 +13302,8 @@ State (2026-11-20, the route of podcrates): `release.yml` with a version builds 
 
 CI (2026-11-20, `release.yml` run 44698975325 at `85ace56`, a dry run; proven in CI on GitHub-hosted runners): the job `dry` writes `release-index.json` of the four binaries, `pod-release sums --all` checks five files with no signature, and a changed index gives 77. `assets` was skipped (no `runner-image.yml` run of that commit), so the image archives were not in it. Not run: a run on a tag (the signature, `release-assets.sh verify`, the publish).
 
+State (2026-11-20, podcrates `v0.79.0`, COORD-149): `pod-release` of `v0.79.0` verifies a bundle of Rekor v2 and an RFC 3161 timestamp beside Rekor v1, so a release that cosign signs with Rekor v2 verifies; `images/pod-release.toml` pins it (release-index.py is the same). `release-assets.sh verify` with it holds on the signed release `v0.78.1` of podcrates.
+
 # T-563: A unit holds the real values of its secrets, not placeholders that the broker swaps
 
 **Source:** podcrates `v0.78.1` (COORD-146, PodUtils/podcrates#241, PodUtils/podcrates@T-100); githome's G-35 (PodUtils/podcrates#223), 2026-11-20
