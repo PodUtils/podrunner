@@ -141,6 +141,21 @@ is done.
   - T-562: `release-index.py` names the signer at `@refs/tags/TAG`, and
     `release.yml` signs from a dispatch on `main`. Choose the route (the
     entry) before the work.
+  - T-562 (the release index of `pod-release`, signed at the tag, the form
+    of podcrates): the dry run is green in CI (`release.yml` 44698975325);
+    the run on a tag is not run yet. The next release is its first test:
+    read both runs (`docs/maintenance.md`, "A release").
+  - T-565 is done: `config init` writes `command`, `runner_dir` and, for
+    a trusted podvm kind, `confine = true` after the self-test of the
+    layer. T-566 (partial): the self-test is proven by the namespaces of
+    the unit where they hide the host (a call in `docs/decisions.md`);
+    measured here, not in CI. A runner job through `serve` with the fakes
+    of podcrates passes on podvm with the hold (T-527); the lane
+    `serve-incus-kvm` has the check `serve:job:KIND` for incus and
+    microvm: request `user-gate.yml` and read its first run.
+  - The lane `userns-on` (podvm's namespace rung) passes in CI but for the
+    rows of uv and ruff, which pass there: their expect is now
+    `xfail userns-on:ok`. T-532 waits for podvm's beta with PodUtils/podvm@T-2012.
   - This session cannot dispatch a workflow: ask the local agent with a
     `[gh action] requested` issue (#324 was the last). Its pushes start
     no run either: ask for the gate and `level2.yml` too, and give
