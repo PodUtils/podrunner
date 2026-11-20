@@ -95,10 +95,8 @@ fn the_podvm_unit_passes_its_tests() {
     // confine layer of podvm, proven first; test 27 then runs too.
     if std::env::var_os("PODRUNNER_PODVM_CONFINE").is_some() {
         unit = unit.with_confine();
-        assert!(
-            unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap(),
-            "the confine layer is not proven"
-        );
+        let proven = unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap();
+        assert!(proven, "the confine layer is not proven: {:?}", unit.confine_why());
         assert_eq!(unit.probe().unwrap().boundary, podrunner_schema::Boundary::Confined);
     }
     // The self-test of the tree kill; test 17 then holds the claim to test 3.

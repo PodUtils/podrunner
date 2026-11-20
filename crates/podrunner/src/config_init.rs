@@ -55,6 +55,11 @@ fn unit(i: &Input, kind: &str) -> String {
     {
         t.push_str(&format!("podnet = {}\n", quoted(p)));
     }
+    // The trusted floor is `confined`: a podvm kind reaches it only with
+    // the confine layer, which `serve` proves at its start (T-565).
+    if kind == "podvm" && i.tier == "trusted" {
+        t.push_str("confine = true\n");
+    }
     t
 }
 
@@ -65,12 +70,44 @@ fn probed(i: &Input) -> (Vec<String>, Vec<(String, String)>) {
     for kind in &i.kinds {
         let u: Result<UnitConfig, String> = toml::from_str(&unit(i, kind).replacen(&format!("[unit.{kind}]\n"), "", 1))
             .map_err(|e| e.message().to_string());
-        match u.and_then(|u| crate::doctor::capability(kind, &u)) {
-            Ok(_) => ok.push(kind.clone()),
+        let proven = |u: UnitConfig| {
+            crate::doctor::capability(kind, &u)?;
+            // With no hold a trusted podvm kind serves nothing anyway, and
+            // `check` says so (`no-tier-served`): no self-test then.
+            match kind == "podvm" && u.confine && u.podnet.is_some() {
+                true => confine_proven(i, &u),
+                false => Ok(()),
+            }
+        };
+        match u.and_then(proven) {
+            Ok(()) => ok.push(kind.clone()),
             Err(why) => no.push((kind.clone(), why)),
         }
     }
     (ok, no)
+}
+
+/// The self-test of the confine layer that `serve` runs at its start, with
+/// the hold and the pinned image of the file (T-565): a trusted podvm kind
+/// whose layer is not proven here would serve nothing, so it is refused
+/// with the cause.
+fn confine_proven(i: &Input, u: &UnitConfig) -> Result<(), String> {
+    let podvm = podrunner_podvm::Podvm { binary: i.podvm.clone().into() };
+    let state = std::env::temp_dir().join(format!("podrunner-config-init-{}", std::process::id()));
+    let mut unit = podrunner_podvm::PodvmUnit::new(podvm, &state, Path::new(&i.images)).map_err(|e| e.to_string())?;
+    if let Some(p) = &u.podnet {
+        unit = unit.with_podnet(Path::new(p)).map_err(|e| e.to_string())?;
+    }
+    let mut unit = unit.with_confine();
+    let id = podrunner_schema::UnitId::parse("u-999999997").expect("a unit id");
+    let proven = unit.verify_confine(&i.image, id);
+    let _ = std::fs::remove_dir_all(&state);
+    let why = match proven {
+        Ok(true) => return Ok(()),
+        Ok(false) => unit.confine_why().unwrap_or("no cause").to_string(),
+        Err(e) => format!("its self-test: {e}"),
+    };
+    Err(format!("the confine layer that a trusted source needs is not proven here: {why}"))
 }
 
 /// The text of the file with the kinds `kinds`.

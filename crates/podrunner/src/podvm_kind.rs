@@ -112,9 +112,10 @@ pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn Unit
             let id = podrunner_schema::UnitId::parse("u-999999998").expect("a unit id");
             match unit.verify_confine(&pin.reference, id) {
                 Ok(true) => {}
-                Ok(false) => {
-                    eprintln!("podrunner: [unit.podvm]: the confine layer is not proven: the boundary stays redirect")
-                }
+                Ok(false) => eprintln!(
+                    "podrunner: [unit.podvm]: the confine layer is not proven ({}): the boundary stays redirect",
+                    unit.confine_why().unwrap_or("no cause")
+                ),
                 Err(e) => eprintln!("podrunner: [unit.podvm]: the self-test of the confine layer: {e}"),
             }
         }

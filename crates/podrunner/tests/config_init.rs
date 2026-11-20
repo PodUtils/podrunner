@@ -74,3 +74,35 @@ fn config_init_writes_a_file_that_check_takes_once() {
     assert_eq!(std::fs::read_to_string(&out).unwrap(), text);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-565: a trusted source on the podvm kind with the hold of podnet needs
+/// the confine layer (the trusted floor is `confined`). `config init`
+/// runs the self-test of the layer that `serve` runs: here podvm is a
+/// stand-in that holds no image and starts no unit, so the layer is not
+/// proven, and the kind is refused with that cause, with no file.
+#[test]
+fn a_trusted_podvm_kind_needs_a_proven_confine_layer() {
+    let dir = std::env::temp_dir().join(format!("podrunner-config-init-confine-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let podnet = dir.join("podnet");
+    let doctor = r#"{"netns":{"level":"enforced"},"seccomp":{"level":"advisory"}}"#;
+    std::fs::write(&podnet, format!("#!/bin/sh\necho '{doctor}'\n")).unwrap();
+    std::fs::set_permissions(&podnet, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let out = dir.join("podrunner.toml");
+    let o = init(&dir, "podvm", &out, &["--podnet", podnet.to_str().unwrap()]);
+    let err = String::from_utf8_lossy(&o.stderr);
+    assert_eq!(o.status.code(), Some(78), "{err}");
+    assert!(err.contains("the confine layer that a trusted source needs is not proven here"), "{err}");
+    assert!(err.contains("podvm:"), "the refusal names the kind: {err}");
+    assert!(!out.exists());
+    // An untrusted source runs no self-test: its floor is a guest, which
+    // podvm is not, so `check` refuses the file as before.
+    let o = init(&dir, "podvm", &out, &["--podnet", podnet.to_str().unwrap(), "--tier", "untrusted"]);
+    let err = String::from_utf8_lossy(&o.stderr);
+    assert_eq!(o.status.code(), Some(78), "{err}");
+    assert!(err.contains("no-tier-served") && !err.contains("confine"), "{err}");
+    assert!(!out.exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}

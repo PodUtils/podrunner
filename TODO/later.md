@@ -13361,7 +13361,7 @@ State (2026-11-20, the measure, podvm `0.2.0-beta.36`, the runner image of `v0.1
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13380,6 +13380,10 @@ Measured on 2026-11-20 with the release binary of `main`, podvm `0.2.0-beta.36`,
 
 `cargo test -p podrunner config_init` (a trusted file with the podvm kind and a proven layer has `confine = true`; an unproven layer gives a refusal that names the self-test); the lane `serve-incus-kvm` of `user-gate.yml` with a podvm kind.
 
+## Done
+
+2026-11-20, the commit of this entry. `config init` writes `confine = true` on the podvm kind of a trusted source (`crates/podrunner/src/config_init.rs`, fn `unit`), and keeps the kind only when the self-test of the layer that `serve` runs (with the hold and the pinned image, fn `confine_proven`) passes; else `refused` names the cause, and with no other kind the exit is 78 with no file. The review of the diff found that the first form wrote `confine = true` with no self-test, so `config init` exited 0 with a file that `serve` could not use on the host of T-566 (P2, fixed). `cargo test -p podrunner --test config_init` (`a_trusted_podvm_kind_needs_a_proven_confine_layer`: a stand-in podvm that starts no unit gives the refusal "the confine layer that a trusted source needs is not proven here: the run with no layer: the unit did not start ..."; it fails on the code before, which said only `no-tier-served`): 2 passed. The built binary as a user with no root on the namespace rung (podvm `0.2.0-beta.36`, podnet `0.4.0-beta.17`): the refusal names the PID namespace (T-566). Proof level: on a constrained host as a user, for the refusal. A file that passes needs a host where the layer is proven with the hold (the supervise rung of the hosted runners): the lane `serve-incus-kvm` of `user-gate.yml` with a podvm kind is the CI measure of it (T-527).
+
 # T-566: The confine self-test cannot pass on the namespace rung of podvm
 
 **Source:** a prototype of a runner job through `serve` (T-527), 2026-11-20
@@ -13387,7 +13391,7 @@ Measured on 2026-11-20 with the release binary of `main`, podvm `0.2.0-beta.36`,
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -13406,3 +13410,5 @@ Measured on 2026-11-20, podvm `0.2.0-beta.36`, a user with no root, the namespac
 ## Prove
 
 `cargo test -p podrunner-podvm --lib confine` with a stand-in of each rung; `user-gate.yml`, the lane `userns-on`: `serve` with a trusted source on the podvm kind with the layer.
+
+State (2026-11-20, proven on a constrained host as a user): `serve` now names why the layer is not proven (`PodvmUnit::confine_why`, the verdict of the self-test: the first fact that fails). With `[unit.podvm] podnet` and `confine = true` it says "the run with no layer cannot read a process of the host through /proc (a PID namespace)", on the namespace rung and also on the userland rung (`podvm lab run userns-mount-denied`). The measure of the cause (2026-11-20, a user with no root, a host process with a canary): a shell under `podnet pod` (both backends) sees the host process, so podnet adds no PID namespace. On a host with user namespaces podvm takes its namespace rung also under `podnet pod`, and its unit has its own PID 1 (`podvm`): `/proc/PID` of the host is "No such file". In `podvm lab run userns-mount-denied` podvm takes the userland rung; under the netns backend the unit sees the process but gets "Permission denied" on its `environ` (podnet's netns backend puts podvm in a user namespace of its own, so the host process is of a user outside it); under the seccomp backend (rung `interpose`) the open run reads the canary. So the self-test fails where the unit has a PID namespace (the namespace rung) or a user namespace (the netns hold). The message of the verdict names both. Without the hold, the self-test passes on the userland rung (`podrunner-broker-fake --test podvm` with `PODRUNNER_PODVM_CONFINE=1`: the canned job passes). So on a host with user namespaces, a trusted podvm kind with the hold is never `confined`; the hosted runners have no user namespaces for a user, so CI did not show it. The approach stands: a self-test whose canary is a process that the unit can see in its own namespaces (or a proof of the PID namespace), and a boundary record that names what the namespaces hold.

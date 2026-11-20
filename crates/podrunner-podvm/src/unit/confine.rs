@@ -69,6 +69,11 @@ impl PodvmUnit {
         vec!["--podvm-confine".into(), spec]
     }
 
+    /// Why the last [`PodvmUnit::verify_confine`] did not prove the layer.
+    pub fn confine_why(&self) -> Option<&str> {
+        self.confine_why.as_deref()
+    }
+
     /// Prove the confine layer on this host with the pinned image
     /// `reference`. A host process of the uid holds a canary in its
     /// environment. The unit `unit` runs once with no layer, and must read
@@ -76,6 +81,7 @@ impl PodvmUnit {
     /// once with the layer, and must write its working directory and not
     /// read the canary. Then the record says `boundary: confined`.
     pub fn verify_confine(&mut self, reference: &str, unit: UnitId) -> Result<bool, UnitError> {
+        self.confine_why = None;
         if !self.confine {
             return Ok(false);
         }
@@ -95,12 +101,15 @@ impl PodvmUnit {
             let open = self.self_test(reference, &unit, pid)?;
             self.confine = true;
             let held = self.self_test(reference, &unit, pid)?;
-            Ok::<_, UnitError>(proven(open.as_ref(), held.as_ref(), &canary))
+            Ok::<_, UnitError>(verdict(&open, &held, &canary))
         })();
         self.confine = true;
         let _ = victim.kill();
         let _ = victim.wait();
-        let verified = result?;
+        let verdict = result?;
+        // Why the layer is not proven, for the line of `serve`.
+        self.confine_why = verdict.as_ref().err().cloned();
+        let verified = verdict.is_ok();
         if verified {
             self.capability.boundary = Boundary::Confined;
             let proof = self.capability.boundary_proof.take().unwrap_or_default();
@@ -111,7 +120,7 @@ impl PodvmUnit {
 
     /// One run of the self-test: whether the payload wrote its own file,
     /// and what it read of the environment of `pid`.
-    fn self_test(&self, reference: &str, unit: &UnitId, pid: u32) -> Result<Option<(bool, String)>, UnitError> {
+    fn self_test(&self, reference: &str, unit: &UnitId, pid: u32) -> Result<Run, UnitError> {
         let image = self.prepare(reference, &self.platform.clone(), false)?;
         // A unit of the last self-test, and the egress socket of a held
         // driver (T-183).
@@ -130,12 +139,14 @@ impl PodvmUnit {
             mounts: Vec::new(),
             limits: Default::default(),
         };
-        if self.start(&spec).is_err() {
-            return Ok(None);
+        if let Err(e) = self.start(&spec) {
+            // One line: the cause goes into a line of `serve`.
+            let detail = e.detail.split_whitespace().collect::<Vec<_>>().join(" ");
+            return Ok(Err(format!("the unit did not start: {detail}")));
         }
         let work = self.observe(unit)?.unit_root;
         let end = Instant::now() + Duration::from_secs(20);
-        let mut out = None;
+        let mut out = Err("the unit wrote no result in 20 s".to_string());
         while let Some(w) = &work
             && Instant::now() < end
         {
@@ -143,7 +154,7 @@ impl PodvmUnit {
                 && seen.contains("done")
             {
                 let own = std::fs::read_to_string(w.join(OWN)).is_ok_and(|t| t.trim() == "own");
-                out = Some((own, seen));
+                out = Ok((own, seen));
                 break;
             }
             std::thread::sleep(Duration::from_millis(100));
@@ -153,31 +164,51 @@ impl PodvmUnit {
     }
 }
 
+/// One run of the self-test: whether it wrote its own file and what it
+/// read of the canary, else why it gave no result.
+type Run = Result<(bool, String), String>;
+
 /// The verdict of the self-test: the open run read the canary (the check
 /// can see it), and the held run wrote its own file and did not read it.
-fn proven(open: Option<&(bool, String)>, held: Option<&(bool, String)>, canary: &str) -> bool {
-    open.is_some_and(|(_, seen)| seen.contains(canary))
-        && held.is_some_and(|(own, seen)| *own && !seen.contains(canary))
+/// Else the first fact that fails, as one line.
+fn verdict(open: &Run, held: &Run, canary: &str) -> Result<(), String> {
+    match open {
+        Err(why) => return Err(format!("the run with no layer: {why}")),
+        Ok((_, seen)) if !seen.contains(canary) => {
+            return Err("the run with no layer cannot read a process of the host through /proc (a PID namespace of podvm's namespace rung, or the user namespace of the netns hold), so the check proves nothing".into());
+        }
+        Ok(_) => {}
+    }
+    match held {
+        Err(why) => Err(format!("the run with the layer: {why}")),
+        Ok((false, _)) => Err("the layer denies the unit the write of its own working directory".into()),
+        Ok((true, seen)) if seen.contains(canary) => {
+            Err("the run with the layer read the canary: the layer does not hold".into())
+        }
+        Ok(_) => Ok(()),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::proven;
+    use super::verdict;
 
     #[test]
     fn confine_is_proven_only_by_a_check_that_sees_and_a_layer_that_holds() {
         let c = "canary-1";
-        let seen = (true, format!("PODRUNNER_CONFINE_CANARY={c}\ndone\n"));
-        let blind = (true, "done\n".to_string());
-        assert!(proven(Some(&seen), Some(&blind), c));
-        // A plant: the open run sees nothing (a rung with no /proc): no
-        // proof, whatever the held run gives.
-        assert!(!proven(Some(&blind), Some(&blind), c));
+        let seen = Ok((true, format!("PODRUNNER_CONFINE_CANARY={c}\ndone\n")));
+        let blind = Ok((true, "done\n".to_string()));
+        assert_eq!(verdict(&seen, &blind, c), Ok(()));
+        // A plant: the open run sees nothing (a rung with no /proc of the
+        // host): no proof, whatever the held run gives (T-566).
+        assert!(verdict(&blind, &blind, c).unwrap_err().contains("PID namespace"));
         // A plant: the layer is not applied, the held run reads the canary.
-        assert!(!proven(Some(&seen), Some(&seen), c));
+        assert!(verdict(&seen, &seen, c).unwrap_err().contains("read the canary"));
         // The layer denies the own write too: no unit can work under it.
-        assert!(!proven(Some(&seen), Some(&(false, "done\n".into())), c));
-        // A run that did not start proves nothing.
-        assert!(!proven(None, Some(&blind), c) && !proven(Some(&seen), None, c));
+        assert!(verdict(&seen, &Ok((false, "done\n".into())), c).unwrap_err().contains("own working directory"));
+        // A run that did not start proves nothing, and says why.
+        let none = Err("the unit did not start: podvm run: exit 125".to_string());
+        assert!(verdict(&none, &blind, c).unwrap_err().starts_with("the run with no layer: the unit did not start"));
+        assert!(verdict(&seen, &none, c).unwrap_err().starts_with("the run with the layer: the unit did not start"));
     }
 }

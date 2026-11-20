@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**563 entries: 61 open, 48 partial, 17 blocked, 437 done.**
+**563 entries: 59 open, 49 partial, 17 blocked, 438 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 5 | 23 | 6 | 78 | 112 |
-| P2 | 18 | 18 | 8 | 229 | 273 |
+| P2 | 16 | 19 | 8 | 230 | 273 |
 | P3 | 37 | 7 | 3 | 128 | 175 |
-| **All** | 61 | 48 | 17 | 437 | 563 |
+| **All** | 59 | 49 | 17 | 438 | 563 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -609,5 +609,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-562](later.md) | P2 | S | later | release | partial | A release of podrunner has no signed `release-index.json` |
 | [T-563](later.md) | P2 | M | later | feature | open | A unit holds the real values of its secrets, not placeholders that the broker swaps |
 | [T-564](later.md) | P3 | S | later | defect | done | The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there |
-| [T-565](later.md) | P2 | S | later | defect | open | `config init` writes no `confine` for the podvm kind, so a trusted source on a host with no incus gets no kind |
-| [T-566](later.md) | P2 | M | later | defect | open | The confine self-test cannot pass on the namespace rung of podvm |
+| [T-565](later.md) | P2 | S | later | defect | done | `config init` writes no `confine` for the podvm kind, so a trusted source on a host with no incus gets no kind |
+| [T-566](later.md) | P2 | M | later | defect | partial | The confine self-test cannot pass on the namespace rung of podvm |

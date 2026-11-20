@@ -85,6 +85,8 @@ pub struct PodvmUnit {
     podnet: Option<(PathBuf, &'static str)>,
     /// The confine layer of podvm on each `run -d` (T-079).
     confine: bool,
+    /// Why the last self-test of the layer did not prove it (T-566).
+    confine_why: Option<String>,
     /// A kind with the confine layer takes no syscall tier (T-261): podvm
     /// `0.2.0-beta.34` cannot start a payload of `run -d` under both
     /// (COORD-194).
@@ -126,6 +128,7 @@ impl PodvmUnit {
             containers: std::sync::atomic::AtomicU64::new(0),
             podnet: None,
             confine: false,
+            confine_why: None,
             no_tier: false,
             limits: podrunner_unit::limits::Limits::default(),
             tars: None,

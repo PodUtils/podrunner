@@ -41,7 +41,8 @@ fn the_runner_in_a_podvm_unit_runs_a_canned_job() {
         unit = unit.with_confine();
         assert!(
             unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap(),
-            "the confine layer is not proven"
+            "the confine layer is not proven: {:?}",
+            unit.confine_why()
         );
     }
     let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
@@ -116,7 +117,8 @@ fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
     if std::env::var_os("PODRUNNER_PODVM_CONFINE").is_some() {
         podvm_unit = podvm_unit.with_confine();
         let image = env("PODRUNNER_RUNNER_IMAGE");
-        assert!(podvm_unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap(), "not proven");
+        let proven = podvm_unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap();
+        assert!(proven, "not proven: {:?}", podvm_unit.confine_why());
     }
     let unit: Arc<dyn UnitDriver> = Arc::new(podvm_unit);
     let guest = unit.socket_mount().expect("podvm on a rung with containers").to_string();
