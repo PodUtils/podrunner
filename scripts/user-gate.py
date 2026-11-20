@@ -717,6 +717,8 @@ class Lane:
             if hashlib.sha256(body).hexdigest() != want:
                 raise GateError(f"{url}: the SHA-256 is not the pin of images/fake-githome.toml")
             path.write_bytes(body)
+        # serve refuses a program in a directory that others can write.
+        path.parent.chmod(0o755)
         path.chmod(0o755)
         return path
 
