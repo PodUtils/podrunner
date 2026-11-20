@@ -8475,6 +8475,7 @@ In the code (2026-11-18): podvm `0.2.0-beta.32` gives `--podvm-volume-base DIR` 
 
 The containers of a podvm unit on the namespace rung with `--podvm-volume-base` (T-532), or the flag on the supervise and userland rungs (PodUtils/podvm@T-1972, COORD-090, GitHub #300).
 
+State (2026-11-20, COORD-189, PodUtils/podvm#585): PodUtils/podvm@T-1972 is done on podvm `main` (`e93e1fe`): `--podvm-volume-base` on the syscall tier is in `0.2.0-beta.33`, the loader-family half comes with the next beta. On the namespace rung the flag holds since `0.2.0-beta.32` (T-532, T-564).
 
 # T-404: In the local mode the logs of a hook step are in the socket directory that the unit writes
 
@@ -13087,7 +13088,7 @@ State (2026-11-20, `hosted-boot.yml` run 44663656956 at `02cd495`, proven in CI 
 
 ## Blocker
 
-COORD-112 (GitHub #325, to podvm): `run -d --podvm-init=image` on the incus tier runs no command on a `degraded` boot. The next beta of podvm with the fix unblocks it.
+COORD-112 (GitHub #325, to podvm). podvm's answer COORD-212 (PodUtils/podvm#609): the cause was the `Entrypoint ["/sbin/init"]` of the snapshot (`scripts/hosted/oci.py`), which podvm `0.2.0-beta.36` put before the command also with `--podvm-init=image`; a second systemd ran `/sbin/init /bin/sh /out/checks.sh`, printed `Too many arguments.` and exited 1. A `degraded` boot runs the command; a boot that does not come up exits 125 and names the failed units. The fix (PodUtils/podvm@T-2011, podvm `main` `5958c73`): with `--podvm-init=image` the init of the image replaces its Entrypoint. The next beta of podvm unblocks this entry; `$out` is at mode 0777 already.
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -13336,3 +13337,5 @@ Measured on 2026-11-20 with podvm `0.2.0-beta.36`, as a user with no root, on th
 ## Prove
 
 `cargo test -p podrunner-podvm --lib probe::` with the namespace fixture; `podvm lab run bind-denied,getsockname-denied -- podrunner run hello.yml --vnet PODNET` on a host with user namespaces passes.
+
+State (2026-11-20, podvm's COORD-189, PodUtils/podvm#585, ask 3): `run -d -v` binds on the namespace rung since podvm `0.2.0-beta.25` (PodUtils/podvm@T-1920), and `--podvm-volume-base` holds there since `0.2.0-beta.32`; podvm knows of no fact that a container there gets no volume. The claim of the probe ("volumes on the supervise rung only", U19, T-034) is stale. This entry and T-532 (the containers of a unit on the namespace rung) are one change of the probe: do them together. `socket_mount` also serves `serve` (the slots), the hook relay and the podvm unit, and CI runs on the supervise rung only: measure on a host with the namespace rung first.
