@@ -288,6 +288,10 @@ jobs:
           sudo python3 -m venv /opt/user-gate/venv
           sudo sh scripts/retry.sh /opt/user-gate/venv/bin/pip install --quiet jsonschema==4.26.0
           sudo chmod -R a+rX /opt/user-gate/venv
+          # T-527: an address of TEST-NET-1 on the loopback for the fake
+          # GitHub: pod-broker refuses the private range of the runner's
+          # own address (10.x), with no policy that lifts it.
+          sudo ip addr add 192.0.2.10/32 dev lo
       - name: The lane, as a user with no root
         working-directory: /opt/user-gate/src
         env:
@@ -307,7 +311,8 @@ jobs:
           $LAB python3 -I scripts/user-gate.py lane --lane "$LANE" --assets /opt/user-gate/assets \
             --out /opt/user-gate/out --executors "$EXECUTORS" --podvm-lab "${PODVM_LAB:-}" \
             --serve-kinds "${SERVE_KINDS:-}" --want-rung "${WANT_RUNG:-}" \
-            --schema-python "$(test -x /opt/user-gate/venv/bin/python3 && echo /opt/user-gate/venv/bin/python3)"
+            --schema-python "$(test -x /opt/user-gate/venv/bin/python3 && echo /opt/user-gate/venv/bin/python3)" \
+            --broker-address "$(ip -4 -o addr show dev lo | grep -q ' 192.0.2.10/' && echo 192.0.2.10)"
       - name: The results can be read
         if: always()
         run: sudo chmod -R a+rX /opt/user-gate/out

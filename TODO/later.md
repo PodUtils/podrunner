@@ -12196,6 +12196,8 @@ State (2026-11-20, later): `scripts/user-gate.py` has the check `serve:job:KIND`
 
 State (2026-11-20, `user-gate.yml` run 44722827108 at `3038770`): `serve:job:incus` and `serve:job:microvm` failed early (55 s and 20 s), and the gate hid the cause: `show` needed a `.out` file that the serve of the job did not write. The gate now writes it, prints the logs of `serve` and of both fakes, and names whether `serve` ended. Next: read the cause in the next run.
 
+State (2026-11-20, `user-gate.yml` run 44745685573 at `ab645c6`): the egress module refused the fake GitHub on the address of the runner host, which is private on GitHub's runners (`10.x`, a fixed deny of `pod-broker` that no policy lifts): `serve:job:podvm` ended `unit-failed` at `start_s`, and `serve:job:incus` and `serve:job:microvm` gave a report `success` for a job that never ran (a defect of slots: exit 0 of the unit is `success`). The gate now puts `192.0.2.10/32` (TEST-NET-1, not a fixed deny) on `lo` of the lanes that serve, and the fake GitHub listens there (`--broker-address`). The same lanes passed `serve:check:KIND` (the schema; doctor `confined` on podvm), `serve:run:KIND` (no TCP listener), `hello:incus` and `rbg-gate` on incus.
+
 # T-528: No row of the user-path gate copies the gate of rbg
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18

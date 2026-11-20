@@ -195,6 +195,9 @@ class Lane:
         self.want_rung = getattr(a, "want_rung", "") or ""
         # A Python with jsonschema for the check of podrunner.toml (T-507).
         self.schema_python = getattr(a, "schema_python", "") or ""
+        # An address of the host for the fake GitHub that the egress module
+        # takes: pod-broker refuses the private and loopback ranges (T-527).
+        self.broker_address = getattr(a, "broker_address", "") or ""
         for k in self.serve_kinds:
             if k not in ("incus", "microvm", "podvm"):
                 raise SystemExit(f"no serve kind {k!r}")
@@ -800,7 +803,8 @@ class Lane:
         env = self.env(self.home)
         env.pop("NOTIFY_SOCKET", None)
         tier = "untrusted" if kind == "microvm" else "trusted"
-        gh, gh_url = self.started([self.fake("pod-fake-github"), "--listen", f"{self.host_address()}:0"], f"job-{kind}-github", env)
+        address = self.broker_address or self.host_address()
+        gh, gh_url = self.started([self.fake("pod-fake-github"), "--listen", f"{address}:0"], f"job-{kind}-github", env)
         ho, ho_url = self.started([self.fake("pod-fake-githome"), "serve", "--listen", "127.0.0.1:0", "--github", gh_url],
                                   f"job-{kind}-githome", env)
         d = self.work / f"serve-job-{kind}"
@@ -1146,6 +1150,7 @@ def main() -> int:
     ln.add_argument("--serve-kinds", default="", metavar="KINDS")
     ln.add_argument("--want-rung", default="", metavar="RUNG")
     ln.add_argument("--schema-python", default="", metavar="PATH")
+    ln.add_argument("--broker-address", default="", metavar="IP")
     s = sub.add_parser("summary")
     s.add_argument("--lanes", default="")
     s.add_argument("dir")
