@@ -13070,6 +13070,8 @@ State (2026-11-19): podvm `0.2.0-beta.36` boots the init of an image on the incu
 
 State (2026-11-20, COORD-209, PodUtils/podvm#605): on podvm's `main` (`38b766f`, the next beta), `podvm run --rm --podvm-init=image` with no tier boots the init of the image on the first route that the host gives: the namespace rung (a subordinate id range and a delegated cgroup2 subtree, or a user manager of systemd), the runsc tier (gVisor), or the machine tier (QEMU). systemd is PID 1 and each `User=` unit runs as its uid; MariaDB and PostgreSQL answer. `run -d` with the init on the namespace rung is refused by name for now; the machine tier still has an initramfs root. podvm asks: run the snapshot that way on the next beta and say which route a hosted runner takes. Next: a second step of `hosted-boot.yml` with no tier, on that beta.
 
+State (2026-11-20, `hosted-boot.yml` run 44644817156, report-only): the core slice of `ubuntu24-20261116.376.1` (6 layers) loads into the podvm store and imports into incusd 6.0.0; `run -d --podvm-init=image` starts the instance, which stops with exit 1 before the checks write a result (8 device nodes of the image are not made, as podvm says). `podvm logs` gave only "Too many arguments.". The workflow now prints the LXC log and the console of the init (`incus info --show-log`, `incus console --show-log`) before it removes the instance. Next: the run with them.
+
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19

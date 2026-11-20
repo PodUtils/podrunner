@@ -87,7 +87,17 @@ jobs:
             state=$(sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' core" 2>&1)
             case $state in Running*) sleep 10 ;; *) break ;; esac
           done
+          echo "--- podvm logs"
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm logs --podvm-tier=incus core" 2>&1 | tail -n 40
+          # The view of incusd: the LXC log and the console of the init.
+          echo "--- incus list"
+          sudo incus list --format csv -c nsS || true
+          for i in $(sudo incus list --format csv -c n); do
+            echo "--- incus info --show-log $i"
+            sudo incus info --show-log "$i" 2>&1 | tail -n 60
+            echo "--- incus console --show-log $i"
+            sudo incus console --show-log "$i" 2>&1 | tail -n 120
+          done
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus core" || true
           {
             echo "## The boot of the core slice (report-only)"
