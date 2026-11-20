@@ -1084,6 +1084,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-unit"
+version = "0.80.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.80.0#62b8039bd06ff412d42b211c70244d6ef53e2c63"
+dependencies = [
+ "pod-core",
+]
+
+[[package]]
 name = "podrunner"
 version = "0.1.0"
 dependencies = [
@@ -1098,6 +1106,7 @@ dependencies = [
  "pod-services",
  "pod-time",
  "pod-tls",
+ "pod-unit",
  "podrunner-egress",
  "podrunner-fake",
  "podrunner-hook",

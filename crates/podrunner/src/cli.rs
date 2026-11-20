@@ -267,50 +267,45 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
     }
 }
 
-/// A systemd unit for `serve`. It names paths only: no token, no key.
-/// One word of `ExecStart`, as systemd reads it (T-343): a word with a
-/// space or a quote goes in double quotes, and `%` and `$` are doubled. A
-/// control character or a path that is not UTF-8 is refused.
-fn exec_word(flag: &str, p: &Path) -> Result<String, String> {
-    let s = p.to_str().ok_or_else(|| format!("{flag} {}: not UTF-8", p.display()))?;
-    if s.is_empty() || s.chars().any(char::is_control) {
-        return Err(format!("{flag} {s:?}: empty, or with a control character"));
-    }
-    let t = s.replace('%', "%%").replace('$', "$$");
-    match t.chars().any(|c| c.is_whitespace() || matches!(c, '"' | '\'' | '\\' | ';')) {
-        true => Ok(format!("\"{}\"", t.replace('\\', "\\\\").replace('"', "\\\""))),
-        false => Ok(t),
-    }
-}
+/// The lines of the hardening of `pod-unit` that a unit of `serve` cannot
+/// take, each with its reason: `serve` starts the drivers and the jobs, and
+/// a job runs what its build needs.
+const RELAXED: &[(&str, &str)] = &[
+    ("RestrictNamespaces", "podvm and the confine layer of a unit make namespaces"),
+    ("MemoryDenyWriteExecute", "the runner is .NET and a job runs Node.js, which compile code at run time"),
+    ("SystemCallFilter", "a job and a driver (podvm with KVM) make the system calls that they need"),
+    ("SystemCallArchitectures", "a job can run a binary of another architecture of the host (i386 on x86_64)"),
+    ("RestrictAddressFamilies", "a job and podnet use netlink and other families"),
+    ("UMask", "the files of a job keep the modes of a runner of GitHub (umask 0022)"),
+];
 
+/// The user unit of systemd for `serve` (`pod_unit::systemd::render`): it
+/// names paths only, no token and no key. `serve` says READY and STOPPING
+/// (`Type=notify`), drains at a stop with no limit of time, and starts
+/// again after a failure, not after 64 or 78. Each value is one word of
+/// `ExecStart` (T-343); a control character or a path that is not UTF-8 is
+/// refused.
 pub fn print_unit(binary: &Path, config: &Path, state: &Path, watchdog: Option<u32>) -> Result<String, String> {
-    let watchdog = watchdog.map(|w| format!("WatchdogSec={w}\n")).unwrap_or_default();
-    let (binary, config, state) =
-        (exec_word("--binary", binary)?, exec_word("--config", config)?, exec_word("--state", state)?);
-    Ok(format!(
-        "[Unit]
-Description=podrunner: CI jobs in one fresh unit for each job
-After=network-online.target
-
-[Service]
-# serve says READY after its control socket answers, and STOPPING when a
-# stop signal starts the drain (sd_notify).
-Type=notify
-ExecStart={} serve --config {} --state {}
-# SIGTERM starts a drain: serve ends when each job is final.
-KillMode=mixed
-TimeoutStopSec=infinity
-{watchdog}Restart=on-failure
-# 78: a configuration or a credential that cannot be used; a restart does
-# not help (pod-core).
-RestartPreventExitStatus=78
-NoNewPrivileges=yes
-
-[Install]
-WantedBy=default.target
-",
-        binary, config, state
-    ))
+    let utf8 = |flag: &str, p: &Path| -> Result<String, String> {
+        let s = p.to_str().ok_or_else(|| format!("{flag} {}: not UTF-8", p.display()))?;
+        match s.is_empty() || s.chars().any(char::is_control) {
+            true => Err(format!("{flag} {s:?}: empty, or with a control character")),
+            false => Ok(s.to_string()),
+        }
+    };
+    let (program, config, state) = (utf8("--binary", binary)?, utf8("--config", config)?, utf8("--state", state)?);
+    let mut unit = pod_unit::Unit::new("podrunner", Path::new(&program), "podrunner print-unit")
+        .args(["serve", "--config", &config, "--state", &state]);
+    unit.description = "podrunner: CI jobs in one fresh unit for each job".into();
+    unit.start = pod_unit::Start::Notify { watchdog_s: watchdog };
+    // SIGTERM starts a drain: serve ends when each job is final.
+    unit.stop = pod_unit::Stop { drain: true, timeout_s: None };
+    // `podrunner stop` ends serve with 0: it stays down.
+    unit.restart.always = false;
+    for (key, why) in RELAXED {
+        unit.hardening.relax(key, why).map_err(|f| f.to_string())?;
+    }
+    pod_unit::systemd::render(&unit).map_err(|f| f.to_string())
 }
 
 #[cfg(test)]
@@ -400,6 +395,30 @@ mod tests {
         assert!(!unit.contains(canary) && !unit.to_lowercase().contains("token"));
         let unit = print_unit(Path::new("/b"), Path::new("/c"), Path::new("/s"), Some(30)).unwrap();
         assert!(unit.contains("WatchdogSec=30\n"), "{unit}");
+    }
+
+    /// T-576: the unit of `pod-unit`: a drain with no limit of time, a start
+    /// again after a failure only, and each line of the hardening in force
+    /// or relaxed with its reason. A word that looks like a secret is refused.
+    #[test]
+    fn print_unit_is_the_unit_of_pod_unit_with_its_hardening() {
+        let unit = print_unit(Path::new("/b"), Path::new("/c"), Path::new("/s"), None).unwrap();
+        for line in [
+            "Type=notify\n",
+            "KillMode=mixed\n",
+            "TimeoutStopSec=infinity\n",
+            "Restart=on-failure\n",
+            "RestartPreventExitStatus=64 78\n",
+            "NoNewPrivileges=yes\n",
+            "WantedBy=default.target\n",
+        ] {
+            assert!(unit.contains(line), "{line}: {unit}");
+        }
+        assert!(!unit.contains("\nMemoryDenyWriteExecute=") && !unit.contains("\nRestrictNamespaces="), "{unit}");
+        assert_eq!(pod_unit::systemd::audit(&unit, false), Vec::<String>::new(), "{unit}");
+        let secret = format!("/c/ghp_{}", "a1B2c3D4e5F6g7H8i9J0".repeat(2));
+        let e = print_unit(Path::new("/b"), Path::new(&secret), Path::new("/s"), None).unwrap_err();
+        assert!(!e.contains("ghp_"), "{e}");
     }
 
     /// T-343: each value is one word of `ExecStart`; a relative or empty
