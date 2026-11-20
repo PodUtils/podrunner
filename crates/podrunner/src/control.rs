@@ -72,7 +72,7 @@ const EXTRAS: &[(&str, Tier, &str)] = &[
     ("restart-source", Tier::Master, "{\"source\"}: build the source again with its key file of now."),
 ];
 
-/// The catalogue of podrunner: the rows of `pod-control` and [`EXTRAS`].
+/// The catalogue of podrunner: the rows of `pod-control` and `EXTRAS`.
 pub fn catalogue() -> Catalogue {
     let extras = EXTRAS
         .iter()
