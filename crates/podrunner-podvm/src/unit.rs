@@ -452,8 +452,8 @@ impl UnitDriver for PodvmUnit {
     fn container_logs(&self, unit: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {
         self.logs_container(unit, c)
     }
-    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
-        self.logs_unit(unit)
+    fn unit_log(&self, unit: &UnitId) -> Result<podrunner_unit::UnitLog, UnitError> {
+        self.log_unit(unit)
     }
     fn enter(&self, unit: &UnitId, argv: &[String], tty: bool) -> Result<std::process::Command, UnitError> {
         self.enter_unit(unit, argv, tty)

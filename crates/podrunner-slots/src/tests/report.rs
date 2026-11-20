@@ -88,8 +88,9 @@ fn a_runner_that_exits_0_with_no_job_is_no_success() {
     assert!(r.log_tail.as_deref().is_some_and(|t| t.contains("terminated error")), "{r:?}");
     let why = |l: &crate::audit::Entry| l.detail.as_deref().is_some_and(|d| d.contains("no job"));
     assert!(bed.slots.audit_lines().iter().any(|l| l.audit == crate::audit::Kind::Refuse && why(l)), "no audit line");
-    // The runner took a job: its exit 0 stays a success.
-    let r = run(None, &format!("echo '2026-11-20 10:00:00Z: Running job: build'; {exit}; exit 0"));
+    // The runner took a job and it succeeded: its exit 0 stays a success.
+    let ok = "echo '2026-11-20 10:00:09Z: Job build completed with result: Succeeded'";
+    let r = run(None, &format!("echo '2026-11-20 10:00:00Z: Running job: build'; {ok}; {exit}; exit 0"));
     assert_eq!(r.exit_reason, ExitReason::Success, "{r:?}");
     // No line of the runner (a payload that is not the runner): the exit
     // code tells.
@@ -114,7 +115,8 @@ fn a_runner_that_exits_0_after_a_failed_job_is_no_success() {
     assert_eq!(r.exit_reason, ExitReason::Success, "{r:?}");
     assert_eq!(r.log_tail, None, "{r:?}");
     // A step that prints the words is not the line of the runner.
-    let r = run(None, "echo '2026-11-20 10:00:00Z: Running job: build'; echo 'completed with result: Failed'; exit 0");
+    let words = "echo 'completed with result: Failed'";
+    let r = run(None, &format!("{words}; {}", lines_of("Succeeded")));
     assert_eq!(r.exit_reason, ExitReason::Success, "{r:?}");
 }
 
@@ -136,6 +138,62 @@ fn a_forged_running_line_does_not_hide_a_failed_job_and_the_change_has_an_audit_
     let bed = ran(None, &lines_of("Succeeded"));
     assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
     assert!(!bed.slots.audit_lines().iter().any(|l| l.audit == crate::audit::Kind::JobCompleted));
+}
+
+#[test]
+fn a_runner_that_exits_0_after_an_abandoned_job_is_no_success() {
+    // T-569: the listener prints `Abandoned` when the renewal of the lock
+    // of the job ends before the job, and prints no completed line when
+    // the first renewal fails. Both exit 0.
+    let completed = |l: &crate::audit::Entry| l.audit == crate::audit::Kind::JobCompleted;
+    let bed = ran(None, &lines_of("Abandoned"));
+    let r = &bed.slots.reports[0];
+    assert_eq!(r.exit_reason, ExitReason::Failure, "{r:?}");
+    let why = |l: &crate::audit::Entry| l.detail.as_deref().is_some_and(|d| d.ends_with("result: Abandoned"));
+    assert!(bed.slots.audit_lines().iter().any(|l| completed(l) && why(l)), "no audit line");
+    let bed = ran(None, "echo '2026-11-20 10:00:00Z: Running job: build'; exit 0");
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Failure);
+    let why = |l: &crate::audit::Entry| l.detail.as_deref().is_some_and(|d| d.contains("no completed line"));
+    assert!(bed.slots.audit_lines().iter().any(|l| completed(l) && why(l)), "no audit line");
+    // A result that the forge counts as no failure stays a success, and
+    // it does not hide a failure.
+    assert_eq!(run(None, &lines_of("SucceededWithIssues")).exit_reason, ExitReason::Success);
+    let forged = "echo '2026-11-20 10:00:10Z: Job build completed with result: SucceededWithIssues'";
+    assert_eq!(run(None, &format!("{}; {forged}", lines_of("Failed"))).exit_reason, ExitReason::Failure);
+}
+
+#[test]
+fn a_part_line_of_a_process_of_the_job_does_not_hide_the_failed_line() {
+    // T-569: a process of the job writes to the console of the listener
+    // with no new line, so the real `Failed` line ends that line; then it
+    // forges a `Succeeded` line.
+    let lines = "echo '2026-11-20 10:00:00Z: Running job: build'; printf x; \
+                 echo '2026-11-20 10:00:09Z: Job build completed with result: Failed'; \
+                 echo '2026-11-20 10:00:10Z: Job build completed with result: Succeeded'; exit 0";
+    assert_eq!(run(None, lines).exit_reason, ExitReason::Failure);
+}
+
+#[test]
+fn a_log_over_the_bound_tells_a_failure_before_the_cut_and_no_more() {
+    // T-570: slots reads at most the bound of the log. A process of the
+    // job writes more than the bound after the real `Failed` line, then a
+    // forged `Succeeded` line.
+    crate::report::LOG_READ_BOUND.set(1 << 20);
+    let run_line = "echo '2026-11-20 10:00:00Z: Running job: build'";
+    let failed = "echo '2026-11-20 10:00:09Z: Job build completed with result: Failed'";
+    let ok = "echo '2026-11-20 10:00:10Z: Job build completed with result: Succeeded'";
+    let more = "yes 'a line of the job' | head -c 3000000; echo";
+    let r = run(None, &format!("{run_line}; {failed}; {more}; {ok}; exit 0"));
+    assert_eq!(r.exit_reason, ExitReason::Failure, "{r:?}");
+    // The real line after the bound is not read: the exit code tells, and
+    // an audit line names the cut. With no completed line in the part
+    // that was read, a cut log is no failure.
+    let cut = |l: &crate::audit::Entry| l.detail.as_deref().is_some_and(|d| d.contains("bound of 1048576 bytes"));
+    for tail in [failed, "true"] {
+        let bed = ran(None, &format!("{run_line}; {more}; {tail}; exit 0"));
+        assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success, "{tail}");
+        assert!(bed.slots.audit_lines().iter().any(cut), "no audit line of the cut: {tail}");
+    }
 }
 
 fn lines_of(result: &str) -> String {

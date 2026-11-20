@@ -187,8 +187,9 @@ impl Slots {
     /// Read the log of the unit of `key` before its destroy, once, when its
     /// exit code does not tell how the job ended. The runner exits 0 after
     /// a job that the job-started hook ended (T-552), with no job (T-567),
-    /// and after a job that failed or was cancelled (T-568). A unit that
-    /// ended with no step and not well gets `log_tail` (T-497).
+    /// and after a job that failed, was cancelled or was abandoned (T-568,
+    /// T-569). A unit that ended with no step and not well gets `log_tail`
+    /// (T-497). The read has a bound of bytes and of time (T-570).
     pub(crate) fn read_unit_log(&mut self, key: &Key, unit: &podrunner_schema::UnitId, kind: usize) {
         let j = &self.jobs[key];
         // A cancel is no failure. A sandbox has no runner.
@@ -197,26 +198,39 @@ impl Slots {
         if !(early || zero) {
             return;
         }
-        let Ok(log) = self.kinds[kind].driver.unit_logs(unit) else { return };
-        let ended = if early { crate::log_tail::hook_ended(&log) } else { None };
+        let Ok(log) = self.kinds[kind].driver.unit_log(unit) else { return };
+        let mut scan = crate::log_tail::Scan::default();
+        let t0 = std::time::Instant::now();
+        let Ok(read) = log.read_bounded(log_read_max(), LOG_READ_TIME, &mut |b| scan.feed(b)) else { return };
+        scan.end();
+        let cut = match read.cut {
+            None => String::new(),
+            Some(podrunner_unit::Cut::Bytes) => format!(", cut at the bound of {} bytes", log_read_max()),
+            Some(podrunner_unit::Cut::Time) => format!(", cut at the bound of {} s", LOG_READ_TIME.as_secs()),
+        };
+        eprintln!(
+            "podrunner: {unit}: read {} bytes of the unit log in {} ms{cut}",
+            read.bytes,
+            t0.elapsed().as_millis()
+        );
+        let ended = if early { scan.hook.clone() } else { None };
         if let Some(code) = &ended {
             let why = format!("the job-started hook ended the job: {code}");
             self.audit(crate::audit::Kind::JobMismatch, key.0, &key.1, None, Some(why));
         }
-        let idle = early && zero && ended.is_none() && crate::log_tail::runner_took_no_job(&log);
+        // In a cut log, a line of a job can be after the cut.
+        let idle = early && zero && ended.is_none() && read.cut.is_none() && scan.took_no_job();
         if idle {
             let why = "the runner exited 0 with no job: no `Running job:` line in its log";
             eprintln!("podrunner: {unit}: {why}");
             self.audit(crate::audit::Kind::Refuse, key.0, &key.1, None, Some(why.into()));
         }
-        let result = if zero && ended.is_none() && !idle { crate::log_tail::job_result(&log) } else { None };
-        let told = match result {
-            Some(crate::log_tail::JobResult::Failed) => Some((ExitReason::Failure, "Failed")),
-            Some(crate::log_tail::JobResult::Canceled) => Some((ExitReason::Cancelled, "Canceled")),
-            _ => None,
-        };
-        if let Some((_, word)) = told {
-            let why = format!("the runner exited 0 and its log says that the job completed with result: {word}");
+        let told = if zero && ended.is_none() && !idle { told(&scan, read.cut.is_some()) } else { None };
+        if let Some((_, why)) = &told {
+            eprintln!("podrunner: {unit}: {why}");
+            self.audit(crate::audit::Kind::JobCompleted, key.0, &key.1, None, Some(why.clone()));
+        } else if zero && ended.is_none() && read.cut.is_some() {
+            let why = format!("the log of the unit tells no failure of the job before its cut{cut}");
             eprintln!("podrunner: {unit}: {why}");
             self.audit(crate::audit::Kind::JobCompleted, key.0, &key.1, None, Some(why));
         }
@@ -236,7 +250,46 @@ impl Slots {
         // hook) each job counts as early, so each one that failed gets a
         // `log_tail`: such a source has no other log of the job (T-568).
         if early && !matches!(job.reason, Some(ExitReason::Success | ExitReason::Cancelled)) {
-            job.times.log_tail = Some(crate::log_tail::scrub(&log, &job.times.marks));
+            job.times.log_tail = Some(scan.tail(&job.times.marks));
         }
+    }
+}
+
+/// The most bytes of the log of a unit that slots reads for one job
+/// (T-570). The lines that tell the end of a job are short, and the
+/// listener prints `Running job:` before a step runs.
+const LOG_READ_MAX: u64 = 64 << 20;
+
+/// The most time of the read of the log of a unit: the tick waits for it.
+const LOG_READ_TIME: std::time::Duration = std::time::Duration::from_secs(10);
+
+#[cfg(test)]
+thread_local! {
+    /// A smaller bound of bytes for a test of the cut.
+    pub(crate) static LOG_READ_BOUND: std::cell::Cell<u64> = const { std::cell::Cell::new(LOG_READ_MAX) };
+}
+
+fn log_read_max() -> u64 {
+    #[cfg(test)]
+    return LOG_READ_BOUND.get();
+    #[cfg(not(test))]
+    LOG_READ_MAX
+}
+
+/// The exit reason that the log of a runner that exited 0 gives, with why.
+/// A cut log tells only a result that gives a reason.
+fn told(scan: &crate::log_tail::Scan, cut: bool) -> Option<(ExitReason, String)> {
+    let said = "the runner exited 0 and its log says that the job completed with result";
+    match scan.result() {
+        Some(r) => r.reason().map(|reason| (reason, format!("{said}: {r:?}"))),
+        // The listener prints a completed line on each path of a job that
+        // ran on the worker; it prints none when it gave up before the
+        // worker ran it (the first renewal of the lock failed: an
+        // abandoned job, T-569).
+        None if scan.running() && !cut => Some((
+            ExitReason::Failure,
+            "the runner exited 0 after `Running job:` and its log has no completed line of the job".into(),
+        )),
+        None => None,
     }
 }

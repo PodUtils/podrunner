@@ -30,7 +30,8 @@ pub enum Kind {
     HookRefuse,
     /// The runner said that the job completed: the time (a hook event), or
     /// the result in the log of the unit that changed the exit reason
-    /// (T-568). No state change.
+    /// (T-568, T-569), or a log over its bound that tells no failure
+    /// (T-570). No state change.
     JobCompleted,
     JobMismatch,
     PayloadIgnored,

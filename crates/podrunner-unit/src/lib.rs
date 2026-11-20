@@ -10,6 +10,7 @@
 pub mod confine;
 pub mod conformance;
 pub mod limits;
+mod log;
 pub mod mounts;
 pub mod procs;
 pub mod shim;
@@ -28,6 +29,7 @@ pub const EGRESS_SOCKET: &str = "egress.sock";
 pub const LOOPBACK_ALLOW: &str = "PODRUNNER_LOOPBACK_ALLOW";
 /// The name of the control socket in the socket directory of a unit.
 pub const CONTROL_SOCKET: &str = "ctl.sock";
+pub use log::{Cut, LogRead, UnitLog};
 pub use stub::Stub;
 
 /// The use of a unit that its kind measures (T-483).
@@ -135,10 +137,18 @@ pub trait UnitDriver: Send + Sync {
     /// Stop a container and remove it.
     fn container_stop(&self, unit: &UnitId, container: &ContainerId) -> Result<(), UnitError>;
 
-    /// The output of the payload of a unit so far, before `destroy`: it
-    /// tells why a job gave no result. A driver that keeps none refuses.
-    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+    /// The output of the payload of a unit so far, from its start, as a
+    /// stream, before `destroy`: it tells why a job gave no result. The
+    /// core reads it with a bound (`UnitLog::read_bounded`, T-570). A
+    /// driver that keeps none refuses.
+    fn unit_log(&self, unit: &UnitId) -> Result<UnitLog, UnitError> {
         Err(UnitError::new(UnitCode::Unsupported, format!("{}: no output of {unit}", self.kind())))
+    }
+
+    /// All of [`UnitDriver::unit_log`], with no bound: for a test or a
+    /// person.
+    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+        self.unit_log(unit)?.read_all()
     }
 
     /// A command that runs `argv` in the running unit for a person (a shell

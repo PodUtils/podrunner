@@ -7,8 +7,11 @@
 //! file), and masks each word of the log whose hash is one of them. Words
 //! of the shape of a token of GitHub are masked too, from any source.
 
-use podrunner_schema::Credential;
+use podrunner_schema::{Credential, ExitReason};
 use ring::digest::{SHA256, digest};
+
+mod scan;
+pub use scan::Scan;
 
 /// The mask of a scrubbed word.
 pub const MASK: &str = "***";
@@ -103,11 +106,7 @@ pub const HOOK_ENDED: &str = "podrunner-job-started: ended: ";
 /// The code of the last [`HOOK_ENDED`] line of `log`: at most 64 bytes of
 /// `[a-z0-9-]`, else `end`.
 pub fn hook_ended(log: &[u8]) -> Option<String> {
-    let text = String::from_utf8_lossy(log);
-    let rest = text.lines().rev().find_map(|l| l.find(HOOK_ENDED).map(|i| &l[i + HOOK_ENDED.len()..]))?;
-    let code: String =
-        rest.chars().take_while(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-').take(64).collect();
-    Some(if code.is_empty() { "end".into() } else { code })
+    Scan::of(log).hook
 }
 
 /// Lines that only the official runner writes to the log of its unit:
@@ -125,76 +124,62 @@ const JOB_LINES: [&str; 2] = ["Running job: ", " completed with result: "];
 /// `run.sh` exits 0 also when the listener ends with code 1 (a refused
 /// session), so its exit code does not tell that a job ran.
 pub fn runner_took_no_job(log: &[u8]) -> bool {
-    let text = String::from_utf8_lossy(log);
-    RUNNER_LINES.iter().any(|l| text.contains(l)) && !JOB_LINES.iter().any(|l| text.contains(l))
+    Scan::of(log).took_no_job()
 }
 
-/// The result of a job as the runner prints it at the end of the job
-/// (`TaskResult` of actions/runner).
+/// The result of a job as the listener prints it at the end of the job:
+/// each name of `TaskResult` of actions/runner. `TaskResultUtil` makes an
+/// unknown code of the worker `Failed`, so the listener prints only these
+/// names (T-569).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JobResult {
     Succeeded,
+    SucceededWithIssues,
     Failed,
     Canceled,
-    /// `SucceededWithIssues`, `Skipped`, `Abandoned` or a new name.
+    Skipped,
+    /// The renewal of the lock of the job ended before the job: the job
+    /// did not end under this runner (T-569).
+    Abandoned,
+    /// A name of a later runner.
     Other,
+}
+
+impl JobResult {
+    fn of(word: &str) -> JobResult {
+        match word {
+            "Succeeded" => JobResult::Succeeded,
+            "SucceededWithIssues" => JobResult::SucceededWithIssues,
+            "Failed" => JobResult::Failed,
+            "Canceled" => JobResult::Canceled,
+            "Skipped" => JobResult::Skipped,
+            "Abandoned" => JobResult::Abandoned,
+            _ => JobResult::Other,
+        }
+    }
+
+    /// The exit reason that the result gives in place of `success`. A
+    /// result that the forge counts as no failure gives none.
+    pub fn reason(self) -> Option<ExitReason> {
+        match self {
+            JobResult::Failed | JobResult::Abandoned => Some(ExitReason::Failure),
+            JobResult::Canceled => Some(ExitReason::Cancelled),
+            _ => None,
+        }
+    }
 }
 
 /// The shape of the time stamp at the start of a line of `JobDispatcher.cs`
 /// (`{DateTime.UtcNow:u}: `): `0` is a digit.
 const STAMP: &[u8] = b"0000-00-00 00:00:00Z: ";
 
-/// The rest of `line` after the time stamp of the console of the listener.
-/// A line of the trace (`[WORKER ...`) or of a step does not start so.
-fn after_stamp(line: &str) -> Option<&str> {
-    let b = line.as_bytes();
-    let ok = b.len() >= STAMP.len()
-        && STAMP.iter().zip(b).all(|(s, c)| if *s == b'0' { c.is_ascii_digit() } else { s == c });
-    ok.then(|| &line[STAMP.len()..])
-}
-
 /// The result of the job of the runner in `log` (T-568): from the lines
 /// `STAMP: Job NAME completed with result: RESULT` of the listener, where
 /// NAME is the name of the first `STAMP: Running job: NAME` line. `run.sh`
-/// exits 0 whatever the result, so the exit code does not tell.
-///
-/// Each line must start with the time stamp, so the output of a step that
-/// only holds the words is not taken. A process of the job can write a
-/// full line to the console of the listener (`/proc/PID/fd/1`, the route
-/// of the job-started hook). A JIT runner runs one job, and the listener
-/// prints its `Running job:` line before a step runs: the first one
-/// binds. The listener prints one completed line for the job, so each
-/// other one is forged: a `Succeeded` line does not hide another result,
-/// and of the other results the last wins. NAME is compared with no
-/// trailing white space, as the line is.
+/// exits 0 whatever the result, so the exit code does not tell. The rules
+/// are those of [`Scan`].
 pub fn job_result(log: &[u8]) -> Option<JobResult> {
-    let text = String::from_utf8_lossy(log);
-    let mut running: Option<&str> = None;
-    let mut found = None;
-    for line in text.lines().map(str::trim_end) {
-        let Some(rest) = after_stamp(line) else { continue };
-        let Some(job) = running else {
-            running = rest.strip_prefix("Running job: ").map(str::trim_end);
-            continue;
-        };
-        let Some((name, result)) = rest.strip_prefix("Job ").and_then(|r| r.rsplit_once(" completed with result: "))
-        else {
-            continue;
-        };
-        if name.trim_end() != job || result.is_empty() || !result.bytes().all(|c| c.is_ascii_alphabetic()) {
-            continue;
-        }
-        let r = match result {
-            "Succeeded" => JobResult::Succeeded,
-            "Failed" => JobResult::Failed,
-            "Canceled" => JobResult::Canceled,
-            _ => JobResult::Other,
-        };
-        if r != JobResult::Succeeded || found.is_none() {
-            found = Some(r);
-        }
-    }
-    found
+    Scan::of(log).result()
 }
 
 /// `log` with each mark and each token shape masked: its last
@@ -287,7 +272,8 @@ mod tests {
         assert_eq!(of(format!("{run}{}", end("Failed"))), Some(JobResult::Failed));
         assert_eq!(of(format!("{run}{}", end("Canceled"))), Some(JobResult::Canceled));
         assert_eq!(of(format!("{run}{}", end("Succeeded"))), Some(JobResult::Succeeded));
-        assert_eq!(of(format!("{run}{}", end("Abandoned"))), Some(JobResult::Other));
+        assert_eq!(of(format!("{run}{}", end("Abandoned"))), Some(JobResult::Abandoned));
+        assert_eq!(of(format!("{run}{}", end("Later"))), Some(JobResult::Other));
         // Of two results that are not `Succeeded`, the last wins.
         assert_eq!(of(format!("{run}{}{}", end("Canceled"), end("Failed"))), Some(JobResult::Failed));
         // No line of the listener: no result.

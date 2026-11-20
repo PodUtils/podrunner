@@ -171,13 +171,13 @@ impl PodvmUnit {
         Ok(c)
     }
 
-    pub(super) fn logs_unit(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+    /// The stdout of `podvm logs` as a stream (T-570): `podvm logs` writes
+    /// the bytes of the payload to its stdout, and its own text to stderr.
+    pub(super) fn log_unit(&self, unit: &UnitId) -> Result<podrunner_unit::UnitLog, UnitError> {
         let (store, tag, _, _) = self.container_base(unit)?;
-        let (code, out) = self.podvm_in(&store, &["logs".into(), unit.to_string()], &tag, None)?;
-        if code != Some(0) {
-            return Err(UnitError::new(UnitCode::UnknownUnit, unit.to_string()));
-        }
-        Ok(out)
+        let mut cmd = self.command(None);
+        cmd.arg("logs").arg(unit.as_str()).env("PODVM_STORE", store).env(TAG_VAR, tag);
+        podrunner_unit::UnitLog::command(cmd)
     }
 
     pub(super) fn inspect_container(&self, unit: &UnitId, c: &ContainerId) -> Result<ContainerState, UnitError> {

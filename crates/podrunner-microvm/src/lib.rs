@@ -362,10 +362,10 @@ impl UnitDriver for MicrovmUnit {
         serde_json::from_slice::<serde_json::Value>(&text).ok()?.get("oom_kills")?.as_u64()
     }
 
-    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+    fn unit_log(&self, unit: &UnitId) -> Result<podrunner_unit::UnitLog, UnitError> {
         let units = self.units.lock().expect("the units");
         let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;
-        fs::read(r.dir.join("guest.log")).map_err(|e| host("the log of the guest", e))
+        podrunner_unit::UnitLog::file(&r.dir.join("guest.log"))
     }
 
     fn container_start(&self, _: &UnitId, _: &ContainerSpec) -> Result<ContainerId, UnitError> {

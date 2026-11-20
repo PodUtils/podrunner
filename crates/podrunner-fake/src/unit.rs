@@ -476,9 +476,9 @@ impl UnitDriver for FakeUnit {
     fn container_exec(&self, unit: &UnitId, c: &ContainerId, spec: &ExecSpec) -> Result<Exit, UnitError> {
         self.exec_container(unit, c, spec)
     }
-    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+    fn unit_log(&self, unit: &UnitId) -> Result<podrunner_unit::UnitLog, UnitError> {
         let root = root_of(&self.units.lock().expect("the units"), unit, |r| r.root.clone())?;
-        crate::unit_files::log(&root)
+        podrunner_unit::UnitLog::file(&root.join(crate::unit_files::UNIT_LOG))
     }
 
     fn oom_kills(&self, unit: &UnitId) -> Option<u64> {

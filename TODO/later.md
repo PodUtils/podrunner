@@ -13564,7 +13564,7 @@ State (2026-11-20, the review of T-567 and T-568): the first stamped `Running jo
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13578,9 +13578,30 @@ Read on 2026-11-20 in actions/runner at `7e211dc6`: `TaskResult` has `Succeeded`
 
 Map `Abandoned` to `failure` (the job did not succeed; `lost` means a restart of podrunner from `claimed` on, a different cause). Add the case to the test of T-568. When githome or cfb ask for a different code, record the question.
 
+Read on 2026-11-20 in actions/runner at `main` for the work: `TaskResult` (`src/Sdk/DTWebApi/WebApi/TaskResult.cs`) is `Succeeded` 0, `SucceededWithIssues` 1, `Failed` 2, `Canceled` 3, `Skipped` 4, `Abandoned` 5. `JobDispatcher.cs` prints the completed line with `TaskResultUtil.TranslateFromReturnCode(returnCode)` of the worker (an unknown code gives `Failed`), or with `Abandoned` or `Canceled` when the renewal of the lock or the cancel ends first. So the listener prints only these six names. It prints "Running job: NAME" before the first renewal of the lock, and it prints no completed line on three paths after it: the first renewal fails (it returns `Abandoned`), a cancel comes before the worker starts (`Canceled`), and the send of the job to the worker times out (`Failed`). The runner then exits 0.
+
+The rules in `log_tail::JobResult::reason` and `log_tail::scan`:
+
+- `Failed` and `Abandoned` give `failure`, `Canceled` gives `cancelled`. `Succeeded`, `SucceededWithIssues` (the forge counts it as a success), `Skipped` and a name of a later runner keep `success`.
+- The rule of T-568 holds for each result that keeps `success`: such a line does not hide a line that gives a reason. Of the lines that give a reason, the last wins.
+- A stamped `Running job:` line with no completed line of the job, in a log that is not cut (T-570), gives `failure` with an audit line `job-completed`.
+- A record of the listener can end a line: a process of the job can write to the console with no new line, and the real line then ends that line. The scan takes each part of a line that starts with the stamp, not only the start of a line. So a part line and a forged `Succeeded` line do not hide the real `Failed` line.
+
+## Decision
+
+2026-11-20, a call with no ruling: a job with a `Running job:` line and no completed line ends with `failure`, also on the path of a cancel before the worker (the log does not tell it from the other two paths). Before, it was `success`.
+
+2026-11-20, a call with no ruling: `SucceededWithIssues` and `Skipped` keep `success`. `run-report.v1` has no code for a skipped job. When githome or cfb ask for another code, record the question.
+
+State (2026-11-20): done in this worktree. The tests ran on a development host, not in CI and not on a constrained host (level: not run).
+
 ## Prove
 
 `cargo test -p podrunner-slots --lib -- log_tail report`: a fake payload that prints the stamped "Running job: build" and "Job build completed with result: Abandoned" lines and exits 0 gives `failure`.
+
+## Done
+
+2026-11-20, this commit. `cargo test -p podrunner-slots --lib`: 144 passed. New tests: `tests::report::a_runner_that_exits_0_after_an_abandoned_job_is_no_success` (`Abandoned` gives `failure` with an audit line; a `Running job:` line with no completed line gives `failure`; `SucceededWithIssues` stays `success` and a forged `SucceededWithIssues` line hides no `Failed` line), `tests::report::a_part_line_of_a_process_of_the_job_does_not_hide_the_failed_line`, `log_tail::scan::tests::each_result_of_the_runner_gives_its_reason_and_abandoned_is_a_failure`, `log_tail::scan::tests::a_forged_success_of_another_word_hides_no_failure`, `log_tail::scan::tests::a_line_of_the_listener_after_a_part_line_of_a_process_still_tells`. The two tests of `tests::report` fail on the code before (`success`). Two lines of the T-567 and T-568 tests changed: a `Running job:` line with no completed line is now a failure, so their success cases print the `Succeeded` line.
 
 # T-570: The read of the unit log for each runner job has no bound
 
@@ -13589,7 +13610,7 @@ Map `Abandoned` to `failure` (the job did not succeed; `lost` means a restart of
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -13614,9 +13635,28 @@ A read of only the end of the log is not safe for `job_result` by itself (T-568)
 3. A log over the bound: a `Failed` or `Canceled` line in the part that was read still tells. Else the report keeps `success`, and an audit line names the cut log.
 4. When `podvm logs` has no option for a bound, write a COORD issue `(to podvm)`.
 
+## Decision
+
+2026-11-20, a call with no ruling: the bound of the read is 64 MiB and 10 s (`LOG_READ_MAX`, `LOG_READ_TIME` of `crates/podrunner-slots/src/report.rs`). The lines that tell the end of a job are short, and the listener prints `Running job:` before a step runs. The tick waits for the read, so the time bound is short. Change them after the measure of step 1.
+
+State (2026-11-20): steps 2 and 3 are done in this worktree, step 4 waits for podvm, step 1 is not done.
+
+- `UnitDriver::unit_log` (`crates/podrunner-unit/src/lib.rs`) gives the log as a stream from its start (`UnitLog`, `crates/podrunner-unit/src/log.rs`): a file for the fake (`.unit.log`) and the microvm (`guest.log`) kinds, the stdout of `podvm logs` for the podvm and the incus kinds (its stderr is the text of podvm, so it is not part of the log). `unit_logs` reads all of it, for a test or a person.
+- `UnitLog::read_bounded` reads in a thread and gives at most the bound of bytes in at most the bound of time; at a cut it kills `podvm logs`. A code other than 0 of `podvm logs` after a whole read gives no log, as before.
+- `log_tail::Scan` (`crates/podrunner-slots/src/log_tail/scan.rs`) reads the chunks in one pass. It keeps the state of the hook line, of the lines of the runner and of the job, and the last 256 KiB to 512 KiB of the log for `log_tail`. Of a line longer than 8 KiB it reads the first and the last 8 KiB. A kept window that lost its start drops its first word: a part of a credential word does not match its mark.
+- `Slots::read_unit_log` prints the bytes and the time of each read on stderr (`podrunner: UNIT: read N bytes of the unit log in M ms`). In a cut log, a `Failed`, `Canceled` or `Abandoned` line before the cut still tells. Else the reason stays `success`, and an audit line `job-completed` names the cut. A cut log gives no `unit-failed` of T-567 and no `failure` for a `Running job:` line with no completed line (T-569): the line can be after the cut.
+
+What does not hold: `podvm logs` reads all of the log into its own memory before it writes the first byte (`podvm_supervise::logs`; `get_file` of incus on the incus tier), so a log of 1 GiB holds 1 GiB of the host in `podvm logs` for the read. The bound of podrunner stops the read and kills the process.
+
+Tests (they ran on a development host; level: not run): `cargo test -p podrunner-unit --lib log` (3 passed), `tests::report::a_log_over_the_bound_tells_a_failure_before_the_cut_and_no_more` (fails on the code before: the real `Failed` line after the bound gave `failure` and no audit line of the cut), `log_tail::scan::tests::chunks_give_the_scan_of_the_whole_log`, `log_tail::scan::tests::the_kept_end_of_a_long_log_has_its_bound_and_no_part_of_a_word`.
+
 ## Prove
 
 `cargo test -p podrunner-slots --lib -- log_tail report`: a fake payload that writes more than the bound after the real `Failed` line, then a forged `Succeeded` line, gives `failure` and reads no more than the bound. Then the podvm and the incus lanes of `user-gate.yml` give the time of the read in the log of `serve`.
+
+## Blocker
+
+podvm must act (a COORD issue `(to podvm)`, not yet written): `podvm logs CONTAINER` and `podvm logs --podvm-tier=incus NAME` stream the log from its start to stdout, with no copy of all of the log in memory, and take `--limit-bytes N`: stop after the first N bytes and exit 0. podrunner then passes `--limit-bytes` with its bound when `podvm --version` is that version or later. Also open: step 1 (the time of the read on the podvm and the incus lanes of `user-gate.yml`, from the stderr line of `serve`).
 
 # T-573: An image larger than the memory of a microvm guest is not refused
 

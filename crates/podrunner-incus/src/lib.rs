@@ -420,12 +420,14 @@ impl UnitDriver for IncusUnit {
         Ok(Observation { unit_root: Some(r.dir.join("work")), runner_root: None, pids: Vec::new() })
     }
 
-    fn unit_logs(&self, unit: &UnitId) -> Result<Vec<u8>, UnitError> {
+    fn unit_log(&self, unit: &UnitId) -> Result<podrunner_unit::UnitLog, UnitError> {
         let name = {
             let units = self.units.lock().expect("the units");
             units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?.name.clone()
         };
-        self.verb(&["logs"], &name).map_err(|e| UnitError::new(UnitCode::Host, format!("podvm logs: {e}")))
+        let mut cmd = self.podvm();
+        cmd.args(["logs", "--podvm-tier=incus", &name]);
+        podrunner_unit::UnitLog::command(cmd)
     }
 
     /// `podvm exec --podvm-tier=incus` in the instance (T-160). The

@@ -23,12 +23,6 @@ pub(crate) fn root_of<T>(
     units.get(unit).map(root).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))
 }
 
-/// The output of the payload of the unit at `root`.
-pub(crate) fn log(root: &Path) -> Result<Vec<u8>, UnitError> {
-    std::fs::read(root.join(UNIT_LOG))
-        .map_err(|e| UnitError::new(UnitCode::Host, format!("the log of the unit: {}", e.kind())))
-}
-
 /// The count of `OOM_KILLS` of the unit at `root`, if its payload wrote one.
 pub(crate) fn oom_kills(root: &Path) -> Option<u64> {
     std::fs::read_to_string(root.join(OOM_KILLS)).ok()?.trim().parse().ok()
