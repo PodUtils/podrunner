@@ -69,7 +69,14 @@ jobs:
           mkdir -p "$out" && chmod 0777 "$out"
           # The checks run in the instance from the mounted directory: no
           # quoting through sg and podvm.
+          # The first run powered the instance off with no file of the
+          # checks: a marker and a trace tell whether the checks ran, and
+          # the console gets each line too.
           cat > "$out/checks.sh" <<'SH'
+          echo "checks: start as $(id -u) in $(pwd)" > /out/started
+          cat /out/started > /dev/console 2> /dev/null || true
+          exec 2> /out/trace
+          set -x
           systemctl is-system-running > /out/state 2>&1
           systemctl --failed --no-legend --plain > /out/failed 2>&1
           cat /proc/1/comm > /out/pid1
@@ -78,13 +85,14 @@ jobs:
           test -s /etc/machine-id && echo filled > /out/machine-id
           getcap /usr/bin/ping > /out/cap 2>&1
           ls /etc/ssh/ssh_host_*_key > /out/ssh-keys 2>&1
-          true
+          echo "checks: end" > /dev/console 2> /dev/null || true
           SH
-          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name core --podvm-tier=incus --podvm-init=image --podvm-net none -v $out:/out hosted@$SLICE /bin/sh /out/checks.sh" < /dev/null
-          rc=$?
+          # bash -e: a failed run must reach the logs and the summary.
+          rc=0
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name core --podvm-tier=incus --podvm-init=image --podvm-net none -v $out:/out hosted@$SLICE /bin/sh /out/checks.sh" < /dev/null || rc=$?
           state=""
           for _ in $(seq 120); do
-            state=$(sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' core" 2>&1)
+            state=$(sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' core" 2>&1) || true
             case $state in Running*) sleep 10 ;; *) break ;; esac
           done
           echo "--- podvm logs"
@@ -96,14 +104,22 @@ jobs:
             echo "--- incus info --show-log $i"
             sudo incus info --show-log "$i" 2>&1 | tail -n 60
             echo "--- incus console --show-log $i"
-            sudo incus console --show-log "$i" 2>&1 | tail -n 120
+            sudo incus console --show-log "$i" > "$RUNNER_TEMP/console.log" 2>&1 || true
+            echo "($(wc -l < "$RUNNER_TEMP/console.log") lines; the first 150, the failures and the lines of the checks, the last 40)"
+            head -n 150 "$RUNNER_TEMP/console.log"
+            echo "--- the failures and the checks"
+            grep -n -E 'FAILED|Failed|failed|checks:|podvm|Power|poweroff' "$RUNNER_TEMP/console.log" | head -n 80
+            echo "--- the end"
+            tail -n 40 "$RUNNER_TEMP/console.log"
           done
+          echo "--- the files of the checks on the host"
+          ls -la "$out"
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus core" || true
           {
             echo "## The boot of the core slice (report-only)"
             echo
             echo "run: exit $rc; the instance at its end: $state"
-            for f in state pid1 kernel os machine-id cap ssh-keys failed; do
+            for f in started state pid1 kernel os machine-id cap ssh-keys failed trace; do
               echo
               echo "### $f"
               echo '```'

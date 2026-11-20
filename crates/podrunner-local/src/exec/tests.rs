@@ -337,3 +337,109 @@ fn the_work_directory_out_of_the_runner_goes_with_the_run() {
     assert!(!base.join("podrunner-work").exists(), "the work directory stays");
     let _ = std::fs::remove_dir_all(&base);
 }
+
+/// A fake unit with the socket volume of podvm that keeps the spec of its
+/// start and starts nothing.
+struct Mounted(FakeUnit, std::sync::Mutex<Option<podrunner_unit::StartSpec>>);
+
+impl UnitDriver for Mounted {
+    fn kind(&self) -> &str {
+        self.0.kind()
+    }
+    fn probe(&self) -> Result<Capability, podrunner_unit::UnitError> {
+        self.0.probe()
+    }
+    fn socket_mount(&self) -> Option<&str> {
+        Some("/run/podrunner")
+    }
+    fn prepare(&self, r: &str, p: &str, e: bool) -> Result<podrunner_unit::Prepared, podrunner_unit::UnitError> {
+        self.0.prepare(r, p, e)
+    }
+    fn start(&self, spec: &podrunner_unit::StartSpec) -> Result<(), podrunner_unit::UnitError> {
+        let dir = spec.sockets.as_ref().expect("a socket directory");
+        assert!(dir.join(vnet::SHIM).is_file(), "the shim is in the socket directory at the start");
+        *self.1.lock().unwrap() = Some(spec.clone());
+        Err(podrunner_unit::UnitError::new(podrunner_unit::UnitCode::UnitStartFailed, "kept"))
+    }
+    fn signal(&self, u: &podrunner_schema::UnitId, s: podrunner_unit::Signal) -> Result<(), podrunner_unit::UnitError> {
+        self.0.signal(u, s)
+    }
+    fn wait(
+        &self,
+        u: &podrunner_schema::UnitId,
+        t: Duration,
+    ) -> Result<Option<podrunner_unit::Exit>, podrunner_unit::UnitError> {
+        self.0.wait(u, t)
+    }
+    fn destroy(&self, u: &podrunner_schema::UnitId) -> Result<podrunner_unit::Residue, podrunner_unit::UnitError> {
+        self.0.destroy(u)
+    }
+    fn observe(&self, u: &podrunner_schema::UnitId) -> Result<podrunner_unit::Observation, podrunner_unit::UnitError> {
+        self.0.observe(u)
+    }
+    fn container_start(
+        &self,
+        u: &podrunner_schema::UnitId,
+        s: &podrunner_unit::ContainerSpec,
+    ) -> Result<podrunner_unit::ContainerId, podrunner_unit::UnitError> {
+        self.0.container_start(u, s)
+    }
+    fn container_exec(
+        &self,
+        u: &podrunner_schema::UnitId,
+        c: &podrunner_unit::ContainerId,
+        s: &podrunner_unit::ExecSpec,
+    ) -> Result<podrunner_unit::Exit, podrunner_unit::UnitError> {
+        self.0.container_exec(u, c, s)
+    }
+    fn container_logs(
+        &self,
+        u: &podrunner_schema::UnitId,
+        c: &podrunner_unit::ContainerId,
+    ) -> Result<Vec<u8>, podrunner_unit::UnitError> {
+        self.0.container_logs(u, c)
+    }
+    fn container_inspect(
+        &self,
+        u: &podrunner_schema::UnitId,
+        c: &podrunner_unit::ContainerId,
+    ) -> Result<podrunner_unit::ContainerState, podrunner_unit::UnitError> {
+        self.0.container_inspect(u, c)
+    }
+    fn container_stop(
+        &self,
+        u: &podrunner_schema::UnitId,
+        c: &podrunner_unit::ContainerId,
+    ) -> Result<(), podrunner_unit::UnitError> {
+        self.0.container_stop(u, c)
+    }
+}
+
+/// T-561: on podvm's userland rung the loader of the image runs on the
+/// host and opens LD_PRELOAD before the paths of the unit exist, so a shim
+/// at `/run/podrunner` never loads and the runner reaches no broker. The
+/// shim and the forward name the socket directory by its host path, and
+/// the unit mounts it at that same path, so each rung sees one path.
+#[test]
+fn the_vnet_shim_and_its_forward_have_one_path_in_each_rung() {
+    let dir = std::env::temp_dir().join(format!("podrunner-local-vnet-path-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(vnet::SHIM), "").unwrap();
+    let driver =
+        Arc::new(Mounted(FakeUnit::new(&dir.join("units"), capability(), "linux/amd64"), std::sync::Mutex::new(None)));
+    let image = driver.prepare(&format!("img@sha256:{}", "a".repeat(64)), "linux/amd64", false).unwrap();
+    let mut exec = InUnit::new(driver.clone(), image);
+    exec.run_sh = "true".into();
+    exec.vnet = Some(dir.join(vnet::SHIM));
+    let e = exec.run(&JobId::new("a.0").unwrap(), Job::scripts("a", &["true"]), Duration::from_secs(60)).unwrap_err();
+    assert!(e.contains("kept"), "{e}");
+    let spec = driver.1.lock().unwrap().take().expect("a start");
+    let sockets = spec.sockets.clone().expect("a socket directory");
+    let host = sockets.to_str().unwrap();
+    assert_eq!(spec.env["LD_PRELOAD"], format!("{host}/{}", vnet::SHIM));
+    assert_eq!(spec.env["PODNET_VNET_FORWARD"], format!("127.0.0.1:{}=unix:{host}/egress.sock", vnet::PORT));
+    assert!(spec.mounts.contains(&(sockets.clone(), host.to_string())), "{:?}", spec.mounts);
+    assert!(!sockets.exists(), "the socket directory goes with the failed start");
+    let _ = std::fs::remove_dir_all(&dir);
+}

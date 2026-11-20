@@ -102,10 +102,15 @@ unit cannot reach it. Give `--vnet PATH` with `--podvm` (T-220):
   runner image: build it for glibc.
 * The shim reaches the unit in its socket directory: podvm must give the
   socket volume (the rung of its container hooks; `podrunner doctor --run`
-  names it). `--vnet` and `--podnet` exclude each other.
+  names it). The unit mounts that directory at its host path, and
+  `LD_PRELOAD` and the forward name that path: on the userland rung of
+  podvm the loader of the image runs on the host, before a path of the
+  unit exists (T-561). `--vnet` and `--podnet` exclude each other.
 
-Proof level: not run in CI. A user measured the same transport on a host
-that refuses the loopback bind (GitHub #170).
+Proof level: on a constrained host as a user (T-561: `hello.yml` passes
+in `podvm lab run userns-mount-denied,bind-denied,getsockname-denied` as
+a user with no root, on the userland rung). The lane `bind-denied` of
+`user-gate.yml` measures it in CI.
 
 ## What a podvm unit holds
 

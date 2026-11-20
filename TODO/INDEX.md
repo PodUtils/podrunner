@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**560 entries: 61 open, 51 partial, 15 blocked, 433 done.**
+**561 entries: 62 open, 50 partial, 15 blocked, 434 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 6 | 24 | 4 | 78 | 112 |
-| P2 | 17 | 20 | 8 | 226 | 271 |
-| P3 | 37 | 7 | 3 | 127 | 174 |
-| **All** | 61 | 51 | 15 | 433 | 560 |
+| P2 | 17 | 19 | 8 | 227 | 271 |
+| P3 | 38 | 7 | 3 | 127 | 175 |
+| **All** | 62 | 50 | 15 | 434 | 561 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -605,6 +605,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-558](later.md) | P2 | S | later | defect | blocked | The file capabilities of an image are lost through the extract of podcrates and podvm |
 | [T-559](later.md) | P2 | M | later | feature | blocked | An incus VM mode for an image with a kernel |
 | [T-560](later.md) | P3 | S | later | defect | blocked | pod-extract reads only the first gzip member of a layer |
-| [T-561](later.md) | P2 | S | later | defect | partial | `podrunner run --vnet` hangs in the lab that refuses the bind |
+| [T-561](later.md) | P2 | S | later | defect | done | `podrunner run --vnet` hangs in the lab that refuses the bind |
 | [T-562](later.md) | P2 | S | later | release | open | A release of podrunner has no signed `release-index.json` |
 | [T-563](later.md) | P2 | M | later | feature | open | A unit holds the real values of its secrets, not placeholders that the broker swaps |
+| [T-564](later.md) | P3 | S | later | defect | open | The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there |

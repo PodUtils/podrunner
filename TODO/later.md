@@ -13072,6 +13072,8 @@ State (2026-11-20, COORD-209, PodUtils/podvm#605): on podvm's `main` (`38b766f`,
 
 State (2026-11-20, `hosted-boot.yml` run 44644817156, report-only): the core slice of `ubuntu24-20261116.376.1` (6 layers) loads into the podvm store and imports into incusd 6.0.0; `run -d --podvm-init=image` starts the instance, which stops with exit 1 before the checks write a result (8 device nodes of the image are not made, as podvm says). `podvm logs` gave only "Too many arguments.". The workflow now prints the LXC log and the console of the init (`incus info --show-log`, `incus console --show-log`) before it removes the instance. Next: the run with them.
 
+State (2026-11-20, `hosted-boot.yml` run 44659969426 at `5583c93`, report-only, proven in CI on GitHub-hosted runners): systemd of the image is PID 1 in the incus instance and runs the units of the slice (the console shows docker, containerd, php8.3-fpm, sphinxsearch and the user manager of uid 1001 stop); then the instance powers off (`Reached target poweroff.target`) with no file of the checks in `/out`, and `podvm run -d` ends with exit 0 after about 2 minutes. The console tail held only the shutdown. The workflow now writes a start marker and a trace of the checks, sends each line of the checks to the console, and prints the head of the console, its failure lines and the files on the host. Next: the run with them (does podvm run the payload, and does `/out` take its writes).
+
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -13203,7 +13205,7 @@ State (2026-11-19): podcrates `v0.75.0` (COORD-143, PodUtils/podcrates#238, PodU
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -13225,6 +13227,14 @@ The logs of both lanes, read on 2026-11-19: each check before `lab:vnet` passes;
 State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): the bound holds: `lab:vnet` ends after 900 s as `xfail T-561`, and the lane `bind-denied` passes 9 of 9. The log: the unit starts ("unit u-1 starts"), then the runner of the unit takes no job and prints no line; `podrunner run` waits with no bound ("no line for 60 s; the run waits for its job" up to 840 s). Two steps: (a) find the link that fails between the runner of the unit and the broker on its unix socket through the vnet shim (the log of the runner in the unit); (b) a local run ends with a named failure when no runner takes the job within a bound, as `serve` does with `[deadlines] start_s`.
 
 State (2026-11-19, later): step (b) is in: `InUnit::reach` (600 s) ends a job whose runner sends no request to its broker in that time, with the cause "the runner of unit u-N sent no request to its broker in 600 s: it cannot reach the broker" and the end of the output of the unit in the log, not at its `timeout-minutes`. `cargo test -p podrunner-local --lib exec::` (`a_runner_that_reaches_no_broker_ends_the_job_with_its_cause`) passes. Left: step (a), the link that fails under `--vnet` in the lab.
+
+State (2026-11-20, step (a), proven on a constrained host as a user): the cause is the path of the shim. On the userland rung of podvm (the class of the lane: no user namespace with mounts, so `podvm system info` says `supervise`, entered with `userland`), the payload runs through the loader of the image on the host, and that loader opens `LD_PRELOAD` before the interposer of podvm maps a path of the unit. `LD_PRELOAD=/run/podrunner/libpodnet-vnet.so` did not load ("cannot be preloaded"), so the runner connected to `127.0.0.1:3128` with no shim, got EACCES from the lab, and retried with no line. Measured with `podvm run --rm` in that lab: the unit path gives `curl: (7) getsockname() failed with errno 95`; the host path loads the shim and the request reaches the unix socket; a socket directory mounted at its own host path works on the userland rung and on the namespace rung. The fix: the unit mounts its socket directory at its host path too, and `LD_PRELOAD` and `PODNET_VNET_FORWARD` name that path (`crates/podrunner-local/src/exec.rs`).
+
+## Done
+
+2026-11-20, the commit of this entry. `cargo test -p podrunner-local --lib exec::` (`the_vnet_shim_and_its_forward_have_one_path_in_each_rung`; it fails on the code before the fix: `LD_PRELOAD` was `/run/podrunner/libpodnet-vnet.so`): 28 passed. The built binary as a user with no root (`labu`), podvm `0.2.0-beta.36`, podnet `0.4.0-beta.17`, the runner image of `v0.1.0-beta.7`: `podvm lab run userns-mount-denied,bind-denied,getsockname-denied -- podrunner run hello.yml --podvm ... --vnet podnet` hung until the bound of 600 s before the fix ("sent no request to its broker in 600 s") and passes after it (`ok hello`, exit 0). Proof level: on a constrained host as a user. The lane `bind-denied` of `user-gate.yml` gives the CI proof on its next run (`lab:vnet` passes, no xfail).
+
+The review of the diff (an agent that did not write it) found: a socket directory with a space, a comma or a colon (from TMPDIR) would split `LD_PRELOAD` or the forward of the shim and give the same silent hang (P2, new with the host path); `vnet::host_dir` now refuses it, and a socket past `sun_path`, with "set TMPDIR" (`a_socket_directory_that_the_shim_cannot_take_is_refused`, a new function, so no run on the old code). The front of a guest names TMPDIR when its socket path is too long (P3, older). `hosted-boot.yml` under `bash -e`: a failed run, inspect or console no longer ends the step before the logs and the summary, and the marker of the checks does not need `/dev/console`. Not run: the second mount on the namespace rung inside `podrunner run` (T-564), a TMPDIR out of `/tmp`.
 
 # T-562: A release of podrunner has no signed `release-index.json`
 
@@ -13255,6 +13265,8 @@ COORD-145, read on 2026-11-19. The index is written before `SHA256SUMS`, so that
 
 State (2026-11-20): podcrates `v0.78.1` (COORD-146, PodUtils/podcrates#241, PodUtils/podcrates@T-965) makes the verifier the static command `pod-release`, an asset of each release (`pod-release-x86_64-unknown-linux-musl`, in its `SHA256SUMS`). The approach: pin the asset by its SHA-256; `pod-release sums --all dist` in the dry run of `release.yml`; `pod-release verify --repo PodUtils/podrunner --tag "$GITHUB_REF_NAME" --all dist` after `cosign sign-blob` on a tag. Exit 0 when each check holds; 77 a refusal.
 
+State (2026-11-20, read of `release.yml` and of the script release-index.py of podcrates `v0.78.1`): the index names the signer `https://github.com/OWNER/REPO/.github/workflows/release.yml@refs/tags/TAG`, and `pod-release verify --repo --tag` checks that identity. `release.yml` of podrunner runs from a dispatch on `main` and makes the tag in its last step, so the cosign leaf names `release.yml@refs/heads/main`: the index would not verify. Two routes: a release that signs on the ref of the tag (a second dispatch of `release.yml` on the tag after the tag step), or an option of the signer's ref in release-index.py and in `Index::signed_as` (a COORD issue to podcrates). Next: choose the route and ask podcrates if it needs a change.
+
 # T-563: A unit holds the real values of its secrets, not placeholders that the broker swaps
 
 **Source:** podcrates `v0.78.1` (COORD-146, PodUtils/podcrates#241, PodUtils/podcrates@T-100); githome's G-35 (PodUtils/podcrates#223), 2026-11-20
@@ -13282,3 +13294,29 @@ COORD-146, read on 2026-11-20: the `policy` of an offer takes `credentials: [{ "
 
 `cargo test -p podrunner-egress`: a job with a placeholder reaches a stand-in host with the real value in its header, and the job sees only the placeholder in each answer; no audit line and no log line holds the value.
 
+
+# T-564: The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there
+
+**Source:** the measure of T-561, 2026-11-20
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The probe of the podvm kind (`crates/podrunner-podvm/src/probe.rs`) gives `container: hooks`, and so a socket volume (`socket_mount`), only on the rungs `supervise` and `userland`: "podvm gives volumes on the supervise rung". On the namespace rung, `podrunner run --vnet` fails with "--vnet needs the socket volume of podvm". A host with user namespaces whose sandbox refuses the AF_INET bind then has no route.
+
+## Premise
+
+Measured on 2026-11-20 with podvm `0.2.0-beta.36`, as a user with no root, on the namespace rung (`podvm system info`): `podvm run -d -v DIR:DIR` of the runner image writes into DIR, and `podvm run --rm -v DIR:DIR` runs curl under the vnet shim through a unix socket in DIR. Not measured: the container hooks on the namespace rung (a container in a unit of that rung).
+
+## Approach
+
+1. Measure the container hooks in a unit of the namespace rung (`runner-image.yml`, the conformance suite of the podvm kind).
+2. If they hold, give `container: hooks` on the namespace rung; else give the socket volume alone (a new field of the driver, apart from the container route).
+
+## Prove
+
+`cargo test -p podrunner-podvm --lib probe::` with the namespace fixture; `podvm lab run bind-denied,getsockname-denied -- podrunner run hello.yml --vnet PODNET` on a host with user namespaces passes.

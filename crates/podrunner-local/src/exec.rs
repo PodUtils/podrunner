@@ -270,13 +270,21 @@ impl Executor for InUnit {
             end_sockets(&sockets);
             return Err(format!("the egress of {id}: {e}"));
         }
-        // The vnet shim reaches the unit in its socket directory.
+        // The vnet shim reaches the unit in its socket directory, mounted
+        // at its host path too: on podvm's userland rung the loader of the
+        // image runs on the host and opens LD_PRELOAD before a path of the
+        // unit exists, so only a path that is the same on the host and in
+        // the unit holds on each rung (T-561).
         let vnet_mount = match (&self.vnet, &sockets) {
             (Some(lib), Some(dir)) => {
-                let placed = self.driver.socket_mount().map(str::to_string).ok_or_else(|| {
-                    "--vnet needs the socket volume of podvm (the rung of its container hooks; `podrunner doctor --run` names it)"
-                        .to_string()
-                });
+                let placed = self
+                    .driver
+                    .socket_mount()
+                    .ok_or_else(|| {
+                        "--vnet needs the socket volume of podvm (the rung of its container hooks; `podrunner doctor --run` names it)"
+                            .to_string()
+                    })
+                    .and_then(|_| vnet::host_dir(dir));
                 match placed.and_then(|m| vnet::place(lib, dir).map(|()| m)) {
                     Ok(m) => Some(m),
                     Err(e) => {
@@ -295,7 +303,10 @@ impl Executor for InUnit {
                     Ok(f) => Some(f),
                     Err(e) => {
                         end_sockets(&sockets);
-                        return Err(format!("the front of {id}: {e}"));
+                        // A socket path past `sun_path` (107 bytes) comes from TMPDIR.
+                        let long = dir.join(podrunner_unit::EGRESS_SOCKET).as_os_str().len() > 107;
+                        let fix = if long { "; set TMPDIR to a shorter path" } else { "" };
+                        return Err(format!("the front of {id}: {e}{fix}"));
                     }
                 }
             }
@@ -326,6 +337,9 @@ impl Executor for InUnit {
         };
         let run_root = self.run_sh.rsplit_once('/').map_or("/home/runner", |x| x.0).to_string();
         let mut mounts: Vec<_> = work.iter().map(|w| (w.clone(), format!("{run_root}/_work"))).collect();
+        if let (Some(m), Some(dir)) = (&vnet_mount, &sockets) {
+            mounts.push((dir.clone(), m.clone()));
+        }
         let argv = match &self.toolcache {
             Some(dir) => {
                 mounts.push((dir.clone(), format!("{TOOLCACHE_MOUNT}:ro")));

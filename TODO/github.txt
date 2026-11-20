@@ -325,4 +325,4 @@
 319 issue open
 320 issue open
 321 issue open
-322 issue open
+322 issue closed
