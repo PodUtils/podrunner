@@ -86,6 +86,8 @@ pub struct MicrovmUnit {
     /// The directory of the static Docker binaries of the operator: each
     /// guest runs an engine of its own (T-103).
     engine: Option<PathBuf>,
+    /// The guest boots the init of the image (`--podvm-init=image`, T-549).
+    init_image: bool,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -112,7 +114,17 @@ impl MicrovmUnit {
             cred_root: "/podrunner/.runner".into(),
             kept_logs: None,
             engine: None,
+            init_image: false,
         }
+    }
+
+    /// Boot the init of the image as PID 1 of each guest (`[unit.microvm]
+    /// init = "image"`, podvm `0.2.0-beta.37` or later, T-549): podvm runs
+    /// the command beside the init, and the services and the engine of the
+    /// image run. The record says `container: engine`.
+    pub fn with_image_init(mut self, on: bool) -> MicrovmUnit {
+        self.init_image = on;
+        self
     }
 
     /// Run a container engine in each guest, from the static Docker
@@ -174,8 +186,13 @@ impl UnitDriver for MicrovmUnit {
             boundary: Boundary::Guest,
             boundary_proof: None,
             principal: Principal::Distinct,
-            // An engine of its own in each guest, or no route at all.
-            container: if self.engine.is_some() { ContainerRoute::Engine } else { ContainerRoute::None },
+            // An engine of its own in each guest (the operator's, or the
+            // `docker.service` of an image with its init), or no route.
+            container: if self.engine.is_some() || self.init_image {
+                ContainerRoute::Engine
+            } else {
+                ContainerRoute::None
+            },
             net: "none".into(),
             secret_delivery: vec![podrunner_schema::SecretDelivery::Files],
             // The files wait on the disk of the host until the guest copies them.
@@ -249,6 +266,7 @@ impl UnitDriver for MicrovmUnit {
             cpus: self.cpus,
             egress: egress.as_deref(),
             engine: self.engine.as_deref(),
+            init_image: self.init_image,
             // The lesser of the kind and the offer; no flag for a kind with
             // no limit, so an older podvm gets none.
             pids: self.pids.map(|k| spec.limits.pids.map_or(k, |o| o.min(k))),

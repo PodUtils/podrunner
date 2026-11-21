@@ -42,7 +42,7 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     let limits = podrunner_slots::limits::limits_of(u).map_err(|e| fail(Class::Config, format!("[unit.incus] {e}")))?;
     // The init of the image runs the engine of the image: a second engine
     // of podrunner would start its own dockerd beside it (T-543).
-    let init_image = u.init == Some(podrunner_slots::config::IncusInit::Image);
+    let init_image = u.init == Some(podrunner_slots::config::UnitInit::Image);
     if init_image && u.engine.is_some() {
         return Err(fail(Class::Config, "[unit.incus] init = \"image\" runs the engine of the image: remove engine"));
     }
@@ -81,7 +81,7 @@ pub const HOST_DISK_TENTHS: u64 = 34;
 /// image larger than it fails each job at its start.
 pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<(), Failure> {
     let (true, Some(bound)) = (u.root_quota, u.disk_max_bytes) else { return Ok(()) };
-    let Some((p, size)) = crate::pin_size::over(pins, bound) else { return Ok(()) };
+    let Some((p, size)) = crate::pin_size::over(pins, u.init, bound) else { return Ok(()) };
     Err(fail(
         Class::Config,
         format!(
@@ -108,7 +108,7 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
     let mut unit = podrunner_incus::IncusUnit::new(podvm, &state.join("incus"), &images)
         .with_limits(limits)
         .with_root_quota(u.root_quota)
-        .with_image_init(u.init == Some(podrunner_slots::config::IncusInit::Image));
+        .with_image_init(u.init == Some(podrunner_slots::config::UnitInit::Image));
     if let Some(e) = &u.engine {
         unit = unit.with_engine(Path::new(e));
     }

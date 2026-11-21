@@ -3,13 +3,25 @@
 
 use serde::Deserialize;
 
-/// The PID 1 of an incus instance (`[unit.incus] init`).
+/// The PID 1 of a unit: `[unit.KIND] init` of a kind (what it boots) and
+/// `[[pin.payload]] init` of a payload (what it needs). Absent: podvm's
+/// own init. Placement sends a payload only to a kind with the same value
+/// (T-549).
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum IncusInit {
-    /// The init of the image: systemd boots the services of the image.
+pub enum UnitInit {
+    /// The init of the image (`--podvm-init=image`): systemd boots the
+    /// services of the image.
     Image,
+}
+
+/// The name of an init as an audit line and a refusal give it.
+pub fn init_name(init: Option<UnitInit>) -> &'static str {
+    match init {
+        Some(UnitInit::Image) => "init = \"image\"",
+        None => "no init (podvm's own)",
+    }
 }
 
 /// The slots of one unit kind.
@@ -48,11 +60,13 @@ pub struct UnitConfig {
     /// is the lesser of the `disk` of the offer and `disk_max_bytes` (T-482).
     #[serde(default)]
     pub root_quota: bool,
-    /// `incus`: the PID 1 of each instance. `image`: the init of the image
-    /// (systemd of the hosted snapshot) with its own services and engine
-    /// (`--podvm-init=image --podvm-engine`, T-543); absent: podvm's own.
+    /// `incus`, `microvm`: the PID 1 of each unit. `image`: the init of the
+    /// image (systemd of the hosted snapshot) with its own services and
+    /// engine: `--podvm-init=image --podvm-engine` on the incus tier
+    /// (T-543), `--podvm-init=image` on the machine tier (T-549). Absent:
+    /// podvm's own. The other kinds refuse it (T-549).
     #[serde(default)]
-    pub init: Option<IncusInit>,
+    pub init: Option<UnitInit>,
     /// `fake`, with `allow_fake`: the boundary that the fake kind claims and
     /// an enforced hold, for a test of a forge source (T-511). A test only.
     #[serde(default)]

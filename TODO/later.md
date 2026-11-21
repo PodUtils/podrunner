@@ -12900,7 +12900,7 @@ State (2026-11-19): the ruling "The hosted snapshot": the owner accepts each lic
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12914,11 +12914,25 @@ The study, section 2.2 (W-18), read on 2026-11-19.
 
 `[[pin.payload]]` names its labels and `init = "systemd"`; the capability record of a kind has an `init` fact (COORD to podcrates: the field in `pod-job`); `serve` places a job of that label only on a kind with the fact.
 
+## Decision
+
+2026-11-21 (`docs/decisions.md`, T-549): the key is `[[pin.payload]] init = "image"`, the value of `[unit.KIND] init`, not `init = "systemd"`. The fact of the kind stays in podrunner (`placement::Kind::init`, from `[unit.KIND] init`): no field in `pod-job` and no COORD to podcrates. The match is equal in both ways. The incus kind boots the init (`--podvm-init=image --podvm-engine`), the microvm kind boots it on a foreground run of the machine tier (`--podvm-init=image`, podvm `0.2.0-beta.37`), and the podvm kind refuses `init`. The refusal code is `boundary-not-available`. `[[pin.payload]] labels` chooses the payload of a job.
+
 ## Prove
 
 `cargo test -p podrunner-slots`: a job of `ubuntu-latest` with a systemd payload never goes to the podvm kind.
 
 State (2026-11-19, the second study, S-12): a systemd payload goes only to a kind that boots the init of its image; a job of `ubuntu-latest` with the snapshot never goes to the podvm userland kind. the new file images/hosted/pins.toml names the snapshot of each label.
+
+State (2026-11-21): placement by label and by init is done; proven by tests on this machine only. images/hosted/pins.toml (a new file) needs the digest of a captured snapshot (T-555): T-579.
+
+## Done
+
+2026-11-21, this commit. `crates/podrunner-slots/src/unit_config.rs` (`UnitInit`, was `IncusInit`; `init_name`), `config.rs` (`[[pin.payload]] labels` and `init`, `Payload::names_label`, `Pins::first_for`, `check_init`: `init` only on the incus and microvm kinds, a payload with `init` needs a kind with it), `pins.rs` (a label is one word; the signed line covers `init` and `labels`), `placement.rs` (`Kind::init`; the labels of the job choose the payload; the `init` of the payload narrows the kinds, else `boundary-not-available` with the detail for the audit line), `host.rs` (`Kind::init` from `[unit.KIND] init`). `crates/podrunner-microvm/src/{lib,guest}.rs` (`with_image_init`, `--podvm-init=image`, `container: engine`), `crates/podrunner-podvm/src/probe.rs` (`LOWEST_MACHINE_INIT`), `crates/podrunner/src/microvm_kind.rs` (`init` read, not with `engine`, podvm `0.2.0-beta.37`), `pin_size.rs` (the size checks read only the payloads of the `init` of the kind), `podvm_kind.rs`, `serve/guest.rs`, `doctor.rs` (the self-tests use the first payload of the `init` of the kind). Docs: `docs/configuration.md` ("Placement by label and by init"), `docs/decisions.md`, `CHANGES.md`, `schemas/config.v1.json`.
+
+`cargo test -p podrunner-slots -p podrunner-microvm -p podrunner-podvm`: all pass (podrunner-slots 167, podrunner-microvm 18). The five tests of `crates/podrunner-slots/src/tests/placement_init.rs` (`a_systemd_payload_never_goes_to_a_kind_with_no_init`, the refusal detail, the labels, the audit line through the slots, the checks of the file) fail on the old `placement.rs` and with no `check_init`; `a_signed_list_verifies_and_each_change_fails` fails on the old signed line; `the_init_of_the_image_boots_in_a_foreground_guest` (podrunner-microvm) fails with no flag. `cargo test -p podrunner`: all pass; `pin_size::tests::a_kind_is_checked_against_the_pins_of_its_init`, `microvm_kind::tests::plan_takes_the_init_of_the_image_from_beta_37` and the new cases of `check_and_serve_refuse_a_bad_file_with_one_text` fail on the old code.
+
+Level: proven by tests on this machine only; not run in CI and not run on a constrained host as a user (no incus or KVM host with the snapshot here). Finding: T-579 (images/hosted/pins.toml (a new file)).
 
 # T-550: The corpus of the user-path gate records the image of each github.com result
 
@@ -13996,3 +14010,34 @@ Read: `crates/podrunner-slots/src/secrets.rs` (fn `open`), `crates/podrunner-hoo
 ## Prove
 
 `cargo test -p podrunner-hook`: a container of a unit with a bundle gets the mount and the variables; a unit with no bundle gets neither.
+
+# T-579: The pins of the hosted snapshot: images/hosted/pins.toml with the labels and the init of each payload
+
+**Source:** T-549 (the State of S-12 of `docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-21
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The study, section 3.6, names images/hosted/pins.toml (a new file): for each label and arch, the pinned digest of the snapshot and its source `ImageVersion`; it changes only after the conformance runs are green. The file does not exist. With T-549 a host pins the snapshot as a `[[pin.payload]]` with `labels` and `init = "image"`, and the operator must type each one.
+
+## Premise
+
+T-549 is done (2026-11-21): placement reads `labels` and `init` of a pin. `images/hosted/labels.toml` has `release = ""` for each label: no snapshot is captured yet (T-555). Not measured: a digest of a published snapshot.
+
+## Approach
+
+1. images/hosted/pins.toml (a new file): one row for each label and arch (`label`, `arch`, `reference`, `image_version`, `unpacked_bytes`), written by the publish of T-555 after the conformance runs.
+2. `podrunner config init --hosted` (or `install.sh --hosted`) writes each row as a `[[pin.payload]]` with `labels`, `init = "image"` and `unpacked_bytes`, beside the runner payload, and an incus or microvm kind with `init = "image"`.
+3. `scripts/hosted/watch.py` checks that each label of `labels.toml` has a row.
+
+## Prove
+
+`python3 -I scripts/hosted/watch.py --self-test`: a label with no row fails. `cargo test -p podrunner --test config_init`: the file of `config init --hosted` passes `check` and has `init = "image"` and the labels on the snapshot payload.
+
+## Start condition
+
+The first publish of the snapshot (T-555) gives a digest.

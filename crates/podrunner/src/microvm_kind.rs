@@ -25,11 +25,15 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         ("podnet", u.podnet.is_some()),
         ("confine", u.confine),
         ("root_quota", u.root_quota),
-        ("init", u.init.is_some()),
     ] {
         if set {
             return Err(fail(Class::Config, format!("[unit.microvm] {key}: the microvm kind does not read it")));
         }
+    }
+    // The init of the image runs the engine of the image: a second engine
+    // of podrunner would start its own dockerd beside it (T-549).
+    if u.init.is_some() && u.engine.is_some() {
+        return Err(fail(Class::Config, "[unit.microvm] init = \"image\" runs the engine of the image: remove engine"));
     }
     let binary = u.binary.clone().ok_or_else(|| fail(Class::Config, "[unit.microvm] needs binary"))?;
     podrunner_slots::config::check_driver(Path::new(&binary))
@@ -61,7 +65,9 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
     // (T-116).
     let podvm = podrunner_podvm::Podvm { binary: binary.clone().into() };
     // `pids` needs `--pids-limit` of the machine tier (T-488).
-    let lowest = if u.pids.is_some() {
+    let lowest = if u.init.is_some() {
+        podrunner_podvm::probe::LOWEST_MACHINE_INIT
+    } else if u.pids.is_some() {
         podrunner_podvm::probe::LOWEST_GUEST_PIDS
     } else if u.engine.is_some() {
         podrunner_podvm::probe::LOWEST_ENGINE
@@ -98,7 +104,7 @@ pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<
     let mem = u.mem.as_deref().unwrap_or(DEFAULT_MEM);
     // `plan` refuses a `mem` that is not a size.
     let Ok(bytes) = podrunner_unit::limits::size_bytes(mem) else { return Ok(()) };
-    let Some((p, size)) = crate::pin_size::over(pins, largest_image(bytes)) else { return Ok(()) };
+    let Some((p, size)) = crate::pin_size::over(pins, u.init, largest_image(bytes)) else { return Ok(()) };
     Err(fail(
         Class::Config,
         format!(
@@ -120,7 +126,8 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
     let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
     let images = PathBuf::from(u.images.clone().unwrap_or_default());
     let unit = podrunner_microvm::MicrovmUnit::new(podvm, &state.join("microvm"), &images)
-        .with_size(u.mem.as_deref().unwrap_or(DEFAULT_MEM), u.cpus.unwrap_or(2));
+        .with_size(u.mem.as_deref().unwrap_or(DEFAULT_MEM), u.cpus.unwrap_or(2))
+        .with_image_init(u.init == Some(podrunner_slots::config::UnitInit::Image));
     let unit = match &u.engine {
         Some(e) => unit.with_engine(Path::new(e)),
         None => unit,
@@ -171,6 +178,30 @@ mod tests {
         assert!(e.detail.contains("0.2.0-beta.13") && e.detail.contains("0.2.0-beta.14"), "{}", e.detail);
         assert!(super::plan(&unit("0.2.0-beta.13", false)).is_ok(), "no engine: beta.10 is enough");
         assert!(super::plan(&unit("0.2.0-beta.14", true)).is_ok());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-549: `init = "image"` needs the podvm whose machine tier runs the
+    /// command beside the init of the image (`0.2.0-beta.37`).
+    #[test]
+    fn plan_takes_the_init_of_the_image_from_beta_37() {
+        let dir = std::env::temp_dir().join(format!("podrunner-microvm-init-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let fake = dir.join("podvm");
+        let unit = |version: &str| -> podrunner_slots::config::UnitConfig {
+            std::fs::write(&fake, format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n"))
+                .unwrap();
+            std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+            let text = format!(
+                "slots = 1\nbinary = \"{}\"\nimages = \"{}\"\ninit = \"image\"\n",
+                fake.display(),
+                dir.display()
+            );
+            toml::from_str(&text).unwrap()
+        };
+        let e = super::plan(&unit("0.2.0-beta.36")).unwrap_err();
+        assert!(e.detail.contains("0.2.0-beta.37"), "{}", e.detail);
+        assert!(super::plan(&unit("0.2.0-beta.37")).is_ok());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

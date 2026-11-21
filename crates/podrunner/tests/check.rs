@@ -142,8 +142,8 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             format!("{head}[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\nengine = \"/\"\n{pin}"),
             "[unit.incus] engine: no dockerd",
         ),
-        // T-543: the init of the image runs the engine of the image, and the
-        // microvm kind boots no init of an image.
+        // T-543, T-549: the init of the image runs the engine of the image,
+        // and the podvm kind boots no init of an image.
         (
             format!(
                 "{head}[unit.incus]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ninit = \"image\"\nengine = \"/\"\n{pin}"
@@ -151,8 +151,14 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             "remove engine",
         ),
         (
-            format!("{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ninit = \"image\"\n{pin}"),
-            "[unit.microvm] init",
+            format!(
+                "{head}[unit.microvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ninit = \"image\"\nengine = \"/\"\n{pin}"
+            ),
+            "[unit.microvm] init = \"image\" runs the engine of the image: remove engine",
+        ),
+        (
+            format!("{head}[unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ninit = \"image\"\n{pin}"),
+            "[unit.podvm] init: only the incus and the microvm kinds",
         ),
     ];
     for (i, (text, word)) in cases.iter().enumerate() {

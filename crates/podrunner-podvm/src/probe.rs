@@ -74,6 +74,10 @@ pub const LOWEST_INCUS: &str = "0.2.0-beta.13";
 /// The first podvm whose incus tier boots the init of the image as PID 1
 /// (`--podvm-init=image`, PodUtils/podvm@T-1993, T-543).
 pub const LOWEST_INCUS_INIT: &str = "0.2.0-beta.36";
+/// The first podvm whose machine tier runs the command beside the init of
+/// an image whose Entrypoint is its init (`--podvm-init=image`,
+/// PodUtils/podvm@T-2011, T-2048, T-549).
+pub const LOWEST_MACHINE_INIT: &str = "0.2.0-beta.37";
 /// The first podvm whose `exec` into a `run -d` container of the namespace
 /// rung joins its namespaces, where its volumes are (PodUtils/podvm@T-2012,
 /// COORD-113, T-532): a step of a container runs on that rung.

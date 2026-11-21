@@ -19,7 +19,7 @@ fn job(disk: Option<u64>) -> JobOffer {
 
 fn kind(root_disk: Option<u64>) -> Kind {
     let c = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
-    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk }
+    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk, init: None }
 }
 
 /// The configuration of the tests, with a pinned payload of `SIZE` bytes.

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**575 entries: 58 open, 53 partial, 15 blocked, 449 done.**
+**576 entries: 58 open, 53 partial, 15 blocked, 450 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 4 | 25 | 4 | 82 | 115 |
-| P2 | 15 | 20 | 8 | 234 | 277 |
+| P2 | 15 | 20 | 8 | 235 | 278 |
 | P3 | 38 | 8 | 3 | 131 | 180 |
-| **All** | 58 | 53 | 15 | 449 | 575 |
+| **All** | 58 | 53 | 15 | 450 | 576 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -593,7 +593,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-546](later.md) | P2 | M | later | measurement | open | The tests of runner-images (Pester) in a unit |
 | [T-547](later.md) | P2 | L | later | feature | open | The full lane of the hosted snapshot: a boot in each mode on a live host, checks C4 to C8 |
 | [T-548](later.md) | P1 | S | later | chore | done | The licence call of a published hosted image |
-| [T-549](later.md) | P2 | M | later | feature | open | Placement by label and by init: a systemd payload goes only to a kind that boots it |
+| [T-549](later.md) | P2 | M | later | feature | done | Placement by label and by init: a systemd payload goes only to a kind that boots it |
 | [T-550](later.md) | P2 | S | later | chore | open | The corpus of the user-path gate records the image of each github.com result |
 | [T-551](later.md) | P1 | S | later | defect | done | A pinned image larger than the disk bound of its kind is not refused |
 | [T-552](later.md) | P1 | S | later | defect | done | A job that the job-started hook ends with no answer is reported as success |
@@ -623,3 +623,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-576](later.md) | P1 | M | later | chore | partial | Take podcrates `v0.80.0` (COORD-150 of podcrates) |
 | [T-577](later.md) | P3 | S | later | defect | open | A JVM job behind an intercepting proxy of the host does not trust the CA of the proxy |
 | [T-578](later.md) | P3 | S | later | defect | open | A container step of a unit does not trust the CA of its broker |
+| [T-579](later.md) | P2 | S | later | feature | open | The pins of the hosted snapshot: images/hosted/pins.toml with the labels and the init of each payload |

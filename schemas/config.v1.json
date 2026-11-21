@@ -293,16 +293,6 @@
         "forge"
       ]
     },
-    "IncusInit": {
-      "description": "The PID 1 of an incus instance (`[unit.incus] init`).",
-      "oneOf": [
-        {
-          "description": "The init of the image: systemd boots the services of the image.",
-          "type": "string",
-          "const": "image"
-        }
-      ]
-    },
     "Organization": {
       "description": "A configured organization. With an `id`, an offer that carries\n`owner_id` must match it too.",
       "type": "object",
@@ -337,6 +327,25 @@
           "type": "integer",
           "format": "uint64",
           "minimum": 0
+        },
+        "init": {
+          "description": "The PID 1 that the payload needs: `image` for an image that boots\nits own init (systemd). Placement sends it only to a kind with the\nsame `init` (T-549).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnitInit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "labels": {
+          "description": "The `runs-on` labels that this payload serves (no case). An offer\nwith one of them takes a payload that names it, not one with no\nlabels; empty: each offer (T-549).",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          }
         },
         "max_age_s": {
           "description": "The age limit of this pin; the smaller of it and `max_age_s` of\n`[pin]` holds.",
@@ -824,10 +833,10 @@
           "default": null
         },
         "init": {
-          "description": "`incus`: the PID 1 of each instance. `image`: the init of the image\n(systemd of the hosted snapshot) with its own services and engine\n(`--podvm-init=image --podvm-engine`, T-543); absent: podvm's own.",
+          "description": "`incus`, `microvm`: the PID 1 of each unit. `image`: the init of the\nimage (systemd of the hosted snapshot) with its own services and\nengine: `--podvm-init=image --podvm-engine` on the incus tier\n(T-543), `--podvm-init=image` on the machine tier (T-549). Absent:\npodvm's own. The other kinds refuse it (T-549).",
           "anyOf": [
             {
-              "$ref": "#/$defs/IncusInit"
+              "$ref": "#/$defs/UnitInit"
             },
             {
               "type": "null"
@@ -890,6 +899,16 @@
       "additionalProperties": false,
       "required": [
         "slots"
+      ]
+    },
+    "UnitInit": {
+      "description": "The PID 1 of a unit: `[unit.KIND] init` of a kind (what it boots) and\n`[[pin.payload]] init` of a payload (what it needs). Absent: podvm's\nown init. Placement sends a payload only to a kind with the same value\n(T-549).",
+      "oneOf": [
+        {
+          "description": "The init of the image (`--podvm-init=image`): systemd boots the\nservices of the image.",
+          "type": "string",
+          "const": "image"
+        }
       ]
     }
   }

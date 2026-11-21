@@ -89,7 +89,7 @@ fn confined(
     cfg: &Config,
     c: Capability,
 ) -> Result<Capability, String> {
-    let pin = cfg.pin.payload.iter().find(|p| p.arch == std::env::consts::ARCH);
+    let pin = cfg.pin.first_for(std::env::consts::ARCH, u.init);
     let (true, true, Some(pin)) = (name == "podvm", u.confine, pin) else { return Ok(c) };
     let (binary, images) = (u.binary.clone().unwrap_or_default(), u.images.clone().unwrap_or_default());
     crate::podvm_kind::confine_proven(&binary, &images, u.podnet.as_deref(), &pin.reference)?;

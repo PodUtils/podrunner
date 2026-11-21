@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 pub use crate::policy::EgressConfig;
-pub use crate::unit_config::{IncusInit, UnitConfig};
+pub use crate::unit_config::{UnitConfig, UnitInit, init_name};
 
 /// The kind of a source.
 #[cfg_attr(test, derive(schemars::JsonSchema))]
@@ -178,6 +178,16 @@ pub struct Payload {
     /// with `root_quota` (T-571). Absent: not checked.
     #[serde(default)]
     pub unpacked_bytes: Option<u64>,
+    /// The `runs-on` labels that this payload serves (no case). An offer
+    /// with one of them takes a payload that names it, not one with no
+    /// labels; empty: each offer (T-549).
+    #[serde(default)]
+    pub labels: Vec<String>,
+    /// The PID 1 that the payload needs: `image` for an image that boots
+    /// its own init (systemd). Placement sends it only to a kind with the
+    /// same `init` (T-549).
+    #[serde(default)]
+    pub init: Option<UnitInit>,
 }
 
 impl Payload {
@@ -187,6 +197,20 @@ impl Payload {
     pub fn stale(&self, pins: &Pins, now_s: u64) -> bool {
         let limit = self.max_age_s.map_or(pins.max_age_s, |m| m.min(pins.max_age_s));
         self.built_at_s > now_s.saturating_add(crate::pins::SKEW_S) || now_s.saturating_sub(self.built_at_s) > limit
+    }
+
+    /// True when the payload names one of `labels` (GitHub compares a
+    /// label with no case).
+    pub fn names_label(&self, labels: &[String]) -> bool {
+        self.labels.iter().any(|l| labels.iter().any(|o| o.eq_ignore_ascii_case(l)))
+    }
+}
+
+impl Pins {
+    /// The first payload of `arch` that a kind with `init` runs: the image
+    /// of the self-tests of that kind (T-549).
+    pub fn first_for(&self, arch: &str, init: Option<UnitInit>) -> Option<&Payload> {
+        self.payload.iter().find(|p| p.arch == arch && p.init == init)
     }
 }
 
@@ -391,6 +415,7 @@ impl Config {
         }
         crate::pins::check(&self.pin)?;
         crate::pins::verify(&self.pin)?;
+        self.check_init()?;
         let drivers = self.unit.iter().map(|(n, u)| (format!("[unit.{n}] binary"), &u.binary));
         let sidecars = self.source.iter().map(|s| (format!("[[source]] {:?} sidecar", s.name), &s.sidecar));
         let programs = self.source.iter().map(|s| (format!("[[source]] {:?} program", s.name), &s.program));
@@ -405,6 +430,29 @@ impl Config {
             {
                 return Err(format!("{key} is not in driver_dir"));
             }
+        }
+        Ok(())
+    }
+
+    /// `init` of the kinds and of the pins (T-549). Only the incus and the
+    /// microvm kinds boot the init of an image: the `podvm` kind runs
+    /// `run -d` with `--ulimit` and `--podvm-confine`, which podvm refuses
+    /// with an init, and its namespace rung maps one uid. A payload that
+    /// needs an init that no kind boots would refuse each job of its labels.
+    fn check_init(&self) -> Result<(), String> {
+        if let Some((n, _)) =
+            self.unit.iter().find(|(n, u)| u.init.is_some() && !matches!(n.as_str(), "incus" | "microvm"))
+        {
+            return Err(format!("[unit.{n}] init: only the incus and the microvm kinds boot the init of an image"));
+        }
+        if let Some(p) =
+            self.pin.payload.iter().find(|p| p.init.is_some() && !self.unit.values().any(|u| u.init == p.init))
+        {
+            return Err(format!(
+                "[[pin.payload]] {}: {} and no [unit.KIND] boots it: set init = \"image\" on an incus or a microvm kind",
+                p.reference,
+                init_name(p.init)
+            ));
         }
         Ok(())
     }

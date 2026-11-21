@@ -18,6 +18,7 @@ mod jobfile;
 mod journal;
 mod level1;
 mod placement_disk;
+mod placement_init;
 mod refused;
 mod report;
 mod sandbox;

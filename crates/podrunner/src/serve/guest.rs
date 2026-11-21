@@ -21,7 +21,7 @@ pub(super) fn claim(
     state: &Path,
 ) -> (Capability, Option<Retest>) {
     let allowed = cfg.guest_kinds.iter().any(|k| k == name);
-    let pin = cfg.pin.payload.iter().find(|p| p.arch == capability.arch);
+    let pin = cfg.pin.first_for(&capability.arch, u.init);
     let platform = if capability.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let verdict = match (allowed, pin) {
         (true, Some(p)) => guest::self_test(driver, &p.reference, platform, guest::test_ids(), state),

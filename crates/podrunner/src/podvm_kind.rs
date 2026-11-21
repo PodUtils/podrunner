@@ -130,7 +130,7 @@ pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn Unit
     // payload, before a wall limit counts as enforced; the
     // confine layer before the kind says `confined`.
     let arch = std::env::consts::ARCH;
-    if let Some(pin) = cfg.pin.payload.iter().find(|p| p.arch == arch) {
+    if let Some(pin) = cfg.pin.first_for(arch, u.init) {
         if u.confine {
             let id = podrunner_schema::UnitId::parse("u-999999998").expect("a unit id");
             match unit.verify_confine(&pin.reference, id) {

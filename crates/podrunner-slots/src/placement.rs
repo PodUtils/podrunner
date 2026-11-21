@@ -6,7 +6,7 @@ use podrunner_schema::{
     Boundary, Capability, ContainerRoute, EgressHold, JobOffer, LimitMode, Principal, RefusalCode, SecretDelivery, Tier,
 };
 
-use crate::config::{Config, Payload};
+use crate::config::{Config, Payload, UnitInit, init_name};
 
 /// One unit kind of the host, as placement sees it.
 #[derive(Debug, Clone)]
@@ -22,6 +22,9 @@ pub struct Kind {
     /// `disk_max_bytes`, or `u64::MAX` with none; the `disk` limit of an
     /// offer narrows it (T-482). `None`: the kind does not size the root.
     pub root_disk: Option<u64>,
+    /// The PID 1 of a unit (`[unit.KIND] init`): a payload goes only to a
+    /// kind with its own `init` (T-549).
+    pub init: Option<UnitInit>,
 }
 
 /// A refusal of placement, with a detail for the audit line.
@@ -162,6 +165,20 @@ pub fn place_why(
         })?;
     }
     let (pin, payload_ignored) = pick_payload(offer, cfg, now_s)?;
+    // A payload that boots its own init (systemd) goes only to a kind that
+    // boots it, and a payload with no init only to a kind that does not
+    // (T-549): the unit would start and fail at its PID 1.
+    if !c.iter().any(|i| kinds[*i].init == pin.init) {
+        return Err(Refusal {
+            code: RefusalCode::BoundaryNotAvailable,
+            detail: Some(format!(
+                "init: the payload {} needs {}; no kind that meets the job has it",
+                pin.reference,
+                init_name(pin.init)
+            )),
+        });
+    }
+    c.retain(|i| kinds[*i].init == pin.init);
     // A root disk smaller than the image cannot hold it (T-571): the unit
     // would start and fail with no clear cause.
     if let Some(size) = pin.unpacked_bytes {
@@ -206,10 +223,16 @@ fn pick_payload<'a>(offer: &JobOffer, cfg: &'a Config, now_s: u64) -> Result<(&'
         }
         return Ok((pin, false));
     }
+    // The labels of the job choose the payload (T-549): a payload that
+    // names a label of the job comes first; a payload that names labels
+    // serves only them.
+    let named = cfg.pin.payload.iter().any(|p| !p.sandbox && p.arch == offer.arch && p.names_label(&offer.labels));
+    let serves = |p: &Payload| if named { p.names_label(&offer.labels) } else { p.labels.is_empty() };
     let pinned = |reference: &str| {
         cfg.pin.payload.iter().find(|p| {
             !p.sandbox
                 && p.arch == offer.arch
+                && (p.labels.is_empty() || p.names_label(&offer.labels))
                 && podrunner_unit::parse_pinned(&p.reference).is_ok_and(|(_, d)| d == reference)
         })
     };
@@ -219,7 +242,8 @@ fn pick_payload<'a>(offer: &JobOffer, cfg: &'a Config, now_s: u64) -> Result<(&'
         // The first payload of the architecture that is not stale: a pin
         // list keeps the old payload beside the new one (#235).
         None => {
-            let mut of_arch = cfg.pin.payload.iter().filter(|p| !p.sandbox && p.arch == offer.arch).peekable();
+            let mut of_arch =
+                cfg.pin.payload.iter().filter(|p| !p.sandbox && p.arch == offer.arch && serves(p)).peekable();
             let first = *of_arch.peek().ok_or(RefusalCode::PayloadNotPinned)?;
             of_arch.find(|p| !p.stale(&cfg.pin, now_s)).unwrap_or(first)
         }

@@ -113,6 +113,10 @@ pub struct Shape<'a> {
     /// The most processes of the payload (`--pids-limit`, T-488): the init
     /// of the guest puts the command in a cgroup with `pids.max`.
     pub pids: Option<u32>,
+    /// The guest boots the init of the image (`--podvm-init=image`, T-549).
+    /// The machine tier takes it in a foreground run only: this kind runs
+    /// no `run -d`.
+    pub init_image: bool,
 }
 
 /// The variable that gives the guest script the port of the egress
@@ -144,6 +148,9 @@ pub fn run_args(
     a.push(unit_dir.join(REPORT).display().to_string());
     if let Some(n) = shape.pids {
         a.extend(["--pids-limit".into(), n.to_string()]);
+    }
+    if shape.init_image {
+        a.push("--podvm-init=image".into());
     }
     if let Some(engine) = shape.engine {
         a.push("--podvm-engine".into());

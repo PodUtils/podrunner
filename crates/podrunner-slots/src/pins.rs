@@ -13,19 +13,29 @@ use crate::config::Pins;
 const LABEL: &[u8] = b"podrunner pin list v1\n";
 
 /// The bytes that the key signs: the label, the age limit, and each payload
-/// on its own line, in the order of the file. `sandbox` and
-/// `unpacked_bytes` add a word only when set, so that a signature of a list
-/// with neither stays valid.
+/// on its own line, in the order of the file. `sandbox`, `unpacked_bytes`,
+/// `init` and `labels` add words only when set, so that a signature of a
+/// list with none of them stays valid.
 pub fn message(pins: &Pins) -> Vec<u8> {
     let mut m = LABEL.to_vec();
     m.extend_from_slice(format!("max_age_s {}\n", pins.max_age_s).as_bytes());
     for p in &pins.payload {
         let version = p.runner_version.as_deref().unwrap_or("-");
         let age = p.max_age_s.map_or("-".to_string(), |a| a.to_string());
-        // An edit of the file must not change the role of a payload (T-551).
+        // An edit of the file must not change the role of a payload (T-551),
+        // its init or the jobs that it serves (T-549).
         let sandbox = if p.sandbox { " sandbox" } else { "" };
         let size = p.unpacked_bytes.map_or(String::new(), |b| format!(" unpacked {b}"));
-        let line = format!("payload {} {} {} {version} {age}{sandbox}{size}\n", p.arch, p.reference, p.built_at_s);
+        let init = match p.init {
+            Some(crate::config::UnitInit::Image) => " init image",
+            None => "",
+        };
+        // `check` refuses white space in a label: one word each.
+        let labels: String = p.labels.iter().map(|l| format!(" label {l}")).collect();
+        let line = format!(
+            "payload {} {} {} {version} {age}{sandbox}{size}{init}{labels}\n",
+            p.arch, p.reference, p.built_at_s
+        );
         m.extend_from_slice(line.as_bytes());
     }
     m
@@ -73,6 +83,10 @@ pub fn check(pins: &Pins) -> Result<(), String> {
         // One index digest can serve two architectures.
         if !seen.insert((p.arch.as_str(), p.reference.as_str())) {
             return Err(format!("[[pin.payload]] {} ({}) is there two times", p.reference, p.arch));
+        }
+        // A label is one word of the signed line (T-549).
+        if let Some(l) = p.labels.iter().find(|l| l.is_empty() || l.chars().any(char::is_whitespace)) {
+            return Err(format!("[[pin.payload]] {}: label {l:?} is empty or has white space", p.reference));
         }
         if p.max_age_s == Some(0) {
             return Err(format!("[[pin.payload]] {}: max_age_s is 0: the image is stale at once", p.reference));
@@ -145,6 +159,8 @@ mod tests {
                 max_age_s: None,
                 sandbox: false,
                 unpacked_bytes: None,
+                labels: vec![],
+                init: None,
             }],
             signer: None,
             signature: None,
@@ -158,8 +174,9 @@ mod tests {
         let (k, s) = sign(&p, &[7; 32]);
         (p.signer, p.signature) = (Some(k.clone()), Some(s.clone()));
         assert_eq!(verify(&p), Ok(()));
-        // The role and the size of a payload are signed too (T-551).
-        let changes: [fn(&mut Pins); 8] = [
+        // The role and the size of a payload are signed too (T-551), and its
+        // init and its labels (T-549).
+        let changes: [fn(&mut Pins); 11] = [
             |p| p.max_age_s += 1,
             |p| p.payload[0].max_age_s = Some(1),
             |p| p.payload[0].runner_version = Some("2.338.2".into()),
@@ -168,6 +185,9 @@ mod tests {
             |p| p.payload.push(p.payload[0].clone()),
             |p| p.payload[0].sandbox = true,
             |p| p.payload[0].unpacked_bytes = Some(1),
+            |p| p.payload[0].init = Some(crate::config::UnitInit::Image),
+            |p| p.payload[0].labels = vec!["ubuntu-latest".into()],
+            |p| p.payload.push(Payload { labels: vec!["x".into()], ..p.payload[0].clone() }),
         ];
         for change in changes {
             let mut q = p.clone();

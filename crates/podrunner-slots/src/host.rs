@@ -36,6 +36,7 @@ impl Slots {
                     running: units.len() as u32,
                     repos,
                     root_disk: k.cfg.root_quota.then(|| k.cfg.disk_max_bytes.unwrap_or(u64::MAX)),
+                    init: k.cfg.init,
                 }
             })
             .collect()

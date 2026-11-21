@@ -242,6 +242,7 @@ fn a_credential_needs_a_unit_apart_from_the_user_of_podrunner() {
             running: 0,
             repos: vec![],
             root_disk: None,
+            init: None,
         };
         let got = place(&o, podrunner_schema::Tier::Local, &[kind()], &cfg, NOW_UNIX);
         assert_eq!(got.is_ok(), placed, "{boundary:?} {principal:?}: {got:?}");

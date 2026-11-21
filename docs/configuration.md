@@ -53,8 +53,10 @@ runner_dir = "/home/runner"  # the runner directory in the unit; absent: the pat
 podnet = "/usr/local/bin/podnet"      # podvm: hold the egress of each unit with podnet pod (netns: enforced, else seccomp: advisory); absent: unknown
 disk_max_bytes = 10737418240          # the bytes that a unit may write under its root, measured each 30 s; over it the
                                       # unit ends with the exit reason limit; the lesser of it and a disk limit of the offer holds; absent: the limit of the offer, or no measure
-# init = "image"                    # incus only: the init of the image (systemd) is PID 1 of each instance, with the services and the
-                                      # engine of the image (the hosted snapshot, T-543); not with engine; podvm 0.2.0-beta.36 or later
+# init = "image"                    # incus and microvm only: the init of the image (systemd) is PID 1 of each unit, with the services
+                                      # and the engine of the image (the hosted snapshot, T-543, T-549); not with engine; podvm
+                                      # 0.2.0-beta.36 (incus) or 0.2.0-beta.37 (microvm) or later; the kind takes only a payload with
+                                      # init = "image" ("Placement by label and by init")
 # root_quota = true                  # incus only: the pool of incusd holds a size of a root disk (btrfs, zfs, lvm; not dir): each
                                       # instance gets a root disk of the lesser of disk_max_bytes and the disk limit of the offer (64 MiB at
                                       # least), a job past it gets ENOSPC, and the kind says `disk: enforced` (T-482); podvm refuses it on dir;
@@ -102,6 +104,8 @@ unpacked_bytes = 59000000000 # the bytes of the image unpacked (podrunner-manife
                              # unit of it); check and doctor refuse a pin above the root disk of [unit.incus] (root_quota,
                              # disk_max_bytes, T-551) or above (mem - 512 MiB) / 3 of [unit.microvm] (T-573); absent: not
                              # checked
+# labels = ["ubuntu-latest"] # the runs-on labels that this payload serves, no case; absent: each job (T-549)
+# init = "image"             # the payload boots the init of its image (systemd): only a kind with init = "image" takes it
 
 [egress]                     # the egress policy of the operator (T-024, T-107)
 # broker-policy.v1 of pod-broker: the policy of each job. The policy of an offer
@@ -247,6 +251,60 @@ payload (`limit-not-enforceable`); the audit line names both sizes
 A size is whole bytes, or a number with `K`, `M`, `G` or `T`. Set
 `[unit.podvm] mem` large: `RLIMIT_AS` counts the address space, which is
 more than the memory in use.
+
+## Placement by label and by init
+
+The `runs-on` labels of a job choose its payload (T-549). A
+`[[pin.payload]]` with `labels` serves only a job with one of them;
+GitHub compares a label with no case. When a payload of the arch names a
+label of the job, placement takes the first such payload that is not
+stale. Else it takes the first payload with no `labels`. With none, the
+job is `payload-not-pinned`.
+
+A payload with `init = "image"` boots the init of its image (systemd of
+the hosted snapshot). Placement sends it only to a kind with
+`init = "image"`, and a payload with no `init` only to a kind with no
+`init`: the unit would fail at its PID 1. When no kind that meets the job
+has the `init` of its payload, the job is `boundary-not-available`, and
+the audit line names the payload and the `init` that it needs.
+
+| Kind | Boots the init of the image | podvm |
+| --- | --- | --- |
+| `incus` | with `init = "image"`: `--podvm-init=image --podvm-engine` | `0.2.0-beta.36` or later |
+| `microvm` | with `init = "image"`: `--podvm-init=image` on a foreground `run --rm` of the machine tier | `0.2.0-beta.37` or later |
+| `podvm` | no: `check` refuses `init` | podvm refuses an init with `--ulimit` and `--podvm-confine` (exit 125), refuses `run -d` with an init on the runsc and machine tiers, and gives a caller of uid 0 no namespace rung; the namespace rung maps one uid |
+| `fake` | no: `check` refuses `init` | |
+
+`check` refuses a payload with `init = "image"` when no `[unit.KIND]`
+has `init = "image"`, and a label that is empty or has white space. The
+signature of the pin list covers `labels` and `init`. The size checks of
+T-551 and T-573 read only the payloads of the `init` of the kind, and the
+self-tests of a kind use the first payload of its `init`.
+
+```toml
+[unit.incus]
+slots = 2
+binary = "/opt/podrunner/drivers/podvm"
+images = "/var/lib/podrunner/images"
+init = "image"
+
+[unit.podvm]
+slots = 2
+binary = "/opt/podrunner/drivers/podvm"
+images = "/var/lib/podrunner/images"
+
+[pin]
+[[pin.payload]]                          # the hosted snapshot: jobs of these labels, on incus only
+arch = "x86_64"
+reference = "ghcr.io/podutils/podrunner-hosted-runner@sha256:HEX"
+built_at_s = 1763337600
+labels = ["ubuntu-latest", "ubuntu-24.04"]
+init = "image"
+[[pin.payload]]                          # the runner image: each other job, on podvm only
+arch = "x86_64"
+reference = "runner@sha256:HEX"
+built_at_s = 1763337600
+```
 
 ## The floors of the tiers
 
