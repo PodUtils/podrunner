@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**578 entries: 58 open, 53 partial, 15 blocked, 452 done.**
+**579 entries: 59 open, 51 partial, 15 blocked, 454 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 4 | 25 | 4 | 83 | 116 |
+| P1 | 5 | 23 | 4 | 85 | 117 |
 | P2 | 15 | 20 | 8 | 235 | 278 |
 | P3 | 38 | 8 | 3 | 132 | 181 |
-| **All** | 58 | 53 | 15 | 452 | 578 |
+| **All** | 59 | 51 | 15 | 454 | 579 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -550,7 +550,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-503](later.md) | P2 | S | later | feature | done | G-28: the output of `source-conformance` for CI |
 | [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |
 | [T-505](later.md) | P2 | S | later | feature | done | No cap of units for the whole host across its kinds |
-| [T-506](later.md) | P1 | L | later | feature | partial | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
+| [T-506](later.md) | P1 | L | later | feature | done | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
 | [T-507](later.md) | P1 | M | later | feature | done | G-37: an install of `serve` that another program drives, with no prompt |
 | [T-508](later.md) | P1 | S | later | chore | done | COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks |
 | [T-509](later.md) | P1 | M | later | feature | partial | G-38: a test of githome's source in podrunner's CI that blocks a release |
@@ -572,7 +572,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-525](later.md) | P1 | M | later | measurement | done | C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host |
 | [T-526](later.md) | P1 | S | later | chore | done | The incus suite of `runner-image.yml` does not block a release |
 | [T-527](later.md) | P1 | M | later | chore | done | No lane of the user-path gate for the host class of githome's pool |
-| [T-528](later.md) | P1 | S | later | measurement | partial | No row of the user-path gate copies the gate of rbg |
+| [T-528](later.md) | P1 | S | later | measurement | done | No row of the user-path gate copies the gate of rbg |
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
 | [T-530](later.md) | P2 | S | later | feature | done | The job-started hook of a podvm unit cannot ask serve |
 | [T-531](later.md) | P3 | S | later | chore | done | Take rsa 0.10 in the fake broker |
@@ -626,3 +626,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-579](later.md) | P2 | S | later | feature | open | The pins of the hosted snapshot: images/hosted/pins.toml with the labels and the init of each payload |
 | [T-580](later.md) | P3 | S | later | defect | done | The test of the ninth client of the control socket fails under the load of the full suite |
 | [T-581](later.md) | P1 | M | later | chore | done | The readers of podvm's output before the release after `0.2.0-beta.37` (COORD-226 of podvm) |
+| [T-582](later.md) | P1 | S | later | defect | open | `hosted-boot.yml` is green when the guest does not boot |

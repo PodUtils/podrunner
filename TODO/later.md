@@ -11525,7 +11525,7 @@ A key of the host, `max_units` (and, if a measure shows the need, a memory budge
 **Milestone:** later
 **Priority:** P1
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -11555,6 +11555,12 @@ In the code (2026-11-18): `pod-job` `v0.71.0` carries `sandbox { image, command,
 In the code (2026-11-18, later): `a_sandbox_ends_at_its_max_s`: a sandbox with `max_s = 2` whose command sleeps ends with `timeout`. The lane `serve-incus-kvm` of the user-path gate runs a sandbox offer on a real microvm unit (T-527).
 
 State (2026-11-21): the attach over an outbound WebSocket is in the user-path gate, not in `runner-image.yml`: the check `serve:run:ws:microvm` of the lane `serve-incus-kvm` (`scripts/user-gate.py`, `serve_ws`). The gate starts `scripts/ws-echo.py` (a WebSocket echo server, standard library only) on `192.0.2.10` of `lo`. The sandbox offer runs `python3 -I -c` with the text of `scripts/ws-client.py` (python3 is in the runner image). The offer has `policy` `allow` of the host and the port of the echo server only, under the open `[egress] default_policy` of the operator. The client sends `CONNECT` to the egress module of the unit (its `http_proxy`), sends the upgrade in the tunnel, sends a line, reads the echo, holds the connection 5 s, sends a second line, closes, and requires a 403 for the next port of the host. The gate requires the report `success` and a close of 2 messages after 5 s or more in the log of the echo server. A plain request through the proxy loses its `Upgrade` header (`pod-broker` drops it), so a client must use `CONNECT`; `docs/configuration.md`, "The attach of a sandbox", gives the rules. Tests here: `python3 -I scripts/ws-echo.py --self-test` (7 cases: the accept of the sample of RFC 6455, direct, through a stand-in `CONNECT` proxy that allows one port, no upgrade, a proxy that opens a port off the list, a proxy that refuses the port of the URL, the log of the server; in `gate.yml` and `scripts/agent/check.sh`); the server against the WebSocket client of Node 22; `serve_ws` with a faked unit that runs the command of the offer here through a stand-in proxy of the policy; `cargo test -p podrunner-slots tests::sandbox` (`the_allow_list_of_a_sandbox_offer_is_the_way_out_of_its_unit`: under an open ceiling the egress module of the unit gets the allow list of the offer). Not run: the check on a real unit (the lane `serve-incus-kvm` in CI needs KVM and incusd). Next: its first run in `user-gate.yml`.
+
+State (2026-11-21, proven in CI on GitHub-hosted runners, `user-gate.yml` 44858236928 at `a34e5e2`, #338): `serve:run:ws:microvm` passes in the lane `serve-incus-kvm`: "a sandbox on microvm held a WebSocket to 192.0.2.10 for 5.0 s through the egress module: success". The check is in `user-gate.yml`, not in `runner-image.yml` as the Prove says: the lane of a real unit with KVM is there.
+
+## Done
+
+2026-11-21, `115eaa5` and the commits before it (the sandbox offer, `sandbox.rs`, the WebSocket attach through the egress module). `user-gate.yml` 44858236928: `serve:run:microvm` and `serve:run:ws:microvm` pass on a real microvm unit. Proven in CI on GitHub-hosted runners.
 
 # T-507: G-37: an install of `serve` that another program drives, with no prompt
 
@@ -12235,7 +12241,7 @@ State (2026-11-20, proven in CI on GitHub-hosted runners, `user-gate.yml` run 44
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12268,6 +12274,12 @@ State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runn
 State (2026-11-20): the fake GitHub of podcrates serves `run:` steps only, so the workflow of rbg cannot go through `serve`. The local mode has `--incus` (T-123): `scripts/user-gate.py` has the executor `incus`, the lane `serve-incus-kvm` runs `hello:incus` and the row `rbg-gate` on incus with the allow list of the microvm row. Next: its first run.
 
 State (2026-11-21, `user-gate.yml` run 44802979062 at `32e5ea4`; proven in CI on GitHub-hosted runners): the rows `corpus:rbg-gate:{podvm,runner-dir,microvm,incus}` pass on the four executors. The summary table did not give the two times. Now `results.tsv` of a lane has a fifth column `times` (`install-s=N,run-to-first-step-s=N`, or `-`), and `scripts/user-gate-summary.py` (the summary job of `user-gate.yml`; the former `user-gate.py summary`) prints a second table, row x lane, with the cells `FIRST s / INSTALL s`. Proven by `python3 -I scripts/user-gate-summary.py --self-test` (4 cases, two lanes; `gate.yml` and `scripts/agent/check.sh` run it) and `sh scripts/test-install.sh` (16 passed) here; the table of times is not run in CI. Left: a run of `user-gate.yml` that shows both times in its summary.
+
+State (2026-11-21, proven in CI on GitHub-hosted runners, `user-gate.yml` 44858236928 at `a34e5e2`, #338): the rows pass, and the summary gives both times (the seconds to the first step / the install): podvm 28 s / 15 s, runner-dir 1 s / 14 s, microvm 4 s / 22 s (lane `plain`), incus 12 s / 15 s (lane `serve-incus-kvm`).
+
+## Done
+
+2026-11-21, `bb0321f` and the commits before it (the rows of `scripts/corpus/user-gate.tsv`, `scripts/user-gate-summary.py`). `user-gate.yml` 44858236928: each row passes and the summary gives both times. Proven in CI on GitHub-hosted runners.
 
 # T-529: The disk limit of an offer lifts the bound of the operator
 
@@ -12399,6 +12411,8 @@ Tests (they fail on the code before): `probe::tests::the_rungs_with_volumes_and_
 Not known: whether a mount source of the hooks under the runner directory of the runner image is a symbolic link at the start (podvm then refuses the `run -d` with 125); the run of the step tells.
 
 Next: a run of `runner-image.yml` on the commit of this change; read the step of T-532. If it passes, make it blocking, add the test of the Prove where a step swaps a mount source for a link (exit 125, `container-option-refused`), and set this entry and the namespace half of T-403 to `done`.
+
+State (2026-11-21, proven in CI on GitHub-hosted runners, `runner-image.yml` 44853302932 at `6b84ec3`, #338): the report-only step passes on x86_64: "the rung of podvm: namespace", `a_container_job_runs_through_the_hooks_of_a_podvm_unit ... ok` (exit 0, residue 0 processes and 0 files, no refusals). Left: make the step block, and the test where a step swaps a mount source for a link (exit 125, `container-option-refused`).
 
 # T-533: A job of another architecture in a guest of the machine tier
 
@@ -13186,6 +13200,8 @@ The ask was COORD-112 (GitHub #325, to podvm). podvm's answer COORD-212 (PodUtil
 ## Blocker
 
 A run of `hosted-boot.yml` on `main` with podvm `0.2.0-beta.37` (the session that pushes the pin dispatches it): `gh workflow run hosted-boot.yml --repo PodUtils/podrunner --ref main -f digest=sha256:d00306d81d0eee8b5fbba72fc353924df84bb074fd0dcadc60baf3b55fe66f0e` (the amd64 manifest of T-555). The run tells whether the checks of the slice write their results in `/out`.
+
+State (2026-11-21, `hosted-boot.yml` 44853306687 at `6b84ec3`, podvm `0.2.0-beta.37`): no check of the Prove holds. `run -d` exits 125 before the instance exists: podvm refuses a layer of the slice ("the PAX record \"SCHILY.acl.access\" has a newline byte, which the tar reader cuts. The layer is refused whole"). GNU tar `--acls` writes the long text form of an ACL, one entry for each line; a PAX record carries its length, so a newline in a value is valid. The ask to podvm: its tar reader takes a PAX value with a newline (COORD-118, GitHub #339). The run was green with no boot: T-582.
 
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
@@ -14108,3 +14124,28 @@ Find each reader of `podvm inspect`, of a podvm exit code (125, 126, 127) and of
 - No change: `inspect --format '{{.RootfsPath}}'` (a string in each form), `inspect --format '{{.Size}}'` and `inspect IMAGE` of `doctor` (an image is not typed again), the `inspect --format` of the incus kind (the incus tier keeps its fields), `enter` (`podvm exec -t` of a running unit; the pause prints podvm's line), `podvm wait` (stdout only), each non-zero exit of `load`, `run -d`, `extract` and `rm` (all a start failure, 1 or 125), 126 and 127 of a payload (passed through as the exit of the step), `TERM` (podrunner uses no `run -t`), `logs --tail` and `:z` (not used), the memory rule (each microvm gives `--podvm-mem`; T-573), the `podvm: ` lines (no reader of their text).
 
 `cargo test -p podrunner-podvm -p podrunner-hook --all-features`: 33 and 14 passed. The three new tests (`the_state_comes_from_the_typed_inspect_of_a_later_podvm`, `a_dead_launcher_is_seen_in_each_form_of_inspect`, `a_refused_exec_into_an_ended_container_is_not_the_exit_of_the_step`) fail on the code before. Proven by fixtures here; not run with the release after `0.2.0-beta.37`: its gate lanes run in the commit that pins it.
+
+# T-582: `hosted-boot.yml` is green when the guest does not boot
+
+**Source:** `hosted-boot.yml` run 44853306687 at `6b84ec3` (#338), 2026-11-21
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The run ended `success`, but `run -d` exited 125 before the instance existed: no trace, no console marker, `/out/started` absent. A green run with no boot hides the state of T-556 from each reader of the CI.
+
+## Premise
+
+The log of the run, read on 2026-11-21 (the steps of the boot, `rc` 125, "Instance not found").
+
+## Approach
+
+Each boot step of `hosted-boot.yml` fails the job when `rc` is not 0, or when the trace, the console marker or `/out/started` is absent. A step that only reports says so in its name, and the job summary names each check that did not hold.
+
+## Prove
+
+A run of `hosted-boot.yml` with a planted refusal (an image that podvm refuses) ends red, and names the check.
