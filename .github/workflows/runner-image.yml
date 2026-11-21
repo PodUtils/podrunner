@@ -204,7 +204,10 @@ jobs:
         run: |
           set -eu
           sh scripts/retry.sh rustup toolchain install
-          cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture
+          # The swap test of T-403 needs the namespace rung: the step of
+          # T-532 runs it.
+          cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture \
+            --skip a_mount_source_swapped_for_a_link_after_the_check_is_refused
           # T-090: podrunner run runs the suite of the local mode, each job
           # in a fresh podvm unit of the runner image. T-095: each unit is
           # held; it reaches only the fake broker on the loopback.
@@ -279,7 +282,8 @@ jobs:
           timeout 300 cargo test -p podrunner-podvm --test links -- --ignored --nocapture
           # T-079: the same under the confine layer of podvm, proven first.
           PODRUNNER_PODVM_CONFINE=1 timeout 900 cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture
-          PODRUNNER_PODVM_CONFINE=1 cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture
+          PODRUNNER_PODVM_CONFINE=1 cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture \
+            --skip a_mount_source_swapped_for_a_link_after_the_check_is_refused
           sh scripts/measure-podvm-confine.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/confine"
           # T-078: the labels and the run report of podvm.
           timeout 300 cargo test -p podrunner-podvm --test report -- --ignored --nocapture
@@ -666,19 +670,24 @@ jobs:
             | tee -a "$GITHUB_STEP_SUMMARY"
       # T-532: the container job through the hooks of a podvm unit on the
       # namespace rung (the lab of the lane userns-on of user-gate.yml), with
-      # the volume base of the runner directory. The lab changes a sysctl of
-      # the host for each later step, so this step runs podvm last.
-      - name: A container job on the namespace rung of podvm (a measure)
+      # the volume base of the runner directory. It blocks (it passed
+      # report-only in run 44853302932). T-403: a mount source that becomes
+      # a link after the check of podrunner gets exit 125 of podvm and
+      # container-option-refused. The lab changes a sysctl of the host for
+      # each later step, so this step runs podvm last. x86_64 only: the
+      # aarch64 job runs no runner in a podvm unit (each step of the runner
+      # in a podvm unit is x86_64 only).
+      - name: A container job on the namespace rung of podvm
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
-        continue-on-error: true
         run: |
           set -eu
           sh scripts/lab/userns-on.sh -- true
           rung=$("$PODRUNNER_PODVM" probe --json | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["rung"])')
           echo "the rung of podvm: $rung"
           test "$rung" = namespace
-          timeout 1800 cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture \
-            a_container_job_runs_through_the_hooks_of_a_podvm_unit
+          timeout 1800 cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture --test-threads 1 \
+            a_container_job_runs_through_the_hooks_of_a_podvm_unit \
+            a_mount_source_swapped_for_a_link_after_the_check_is_refused
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runner-${{ matrix.arch }}

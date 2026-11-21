@@ -8481,6 +8481,12 @@ State (2026-11-21, not run): podvm `0.2.0-beta.37` is pinned. On the namespace r
 
 Next: when the step of T-532 passes, give the flag on the userland rung as well (`volume_base_args` of `crates/podrunner-podvm/src/unit/containers.rs`) and measure it in the container job of `runner-image.yml`; the supervise rung needs the flag from podvm (a COORD issue when a host of a user takes that rung).
 
+State (2026-11-21, in the code; proven here with unit tests; the namespace rung end to end: not run, it is the step of T-532):
+
+- A finding, fixed in place: on the podvm kind the check of `HookUnit::spec` walked the wrong tree. A driver with a root of its own gives the hooks no host root, so the walk read each source relative to the working directory of podrunner, not to the runner directory of the unit: no link of the job was seen, and a link named `_work` in the working directory refused a good mount. Now `HookUnit::spec` walks only with a host root, and `start_container` of the podvm driver (`no_link`, `crates/podrunner-podvm/src/unit/containers.rs`) refuses a relative source with a link under the runner directory (`container-option-refused`) on each rung, before it makes a missing part (`create_dir_all` followed a link). Test: `unit::containers::tests::a_linked_source_under_the_runner_directory_is_refused`.
+- The refusal of podvm for a link under `--podvm-volume-base` (exit 125, ": the volume is refused: ", measured here, see T-532) is `container-option-refused` (`run_error`); each other end of `run -d` stays `unit-start-failed`. Test: `unit::containers::tests::a_volume_that_podvm_refuses_is_a_refused_option`.
+- The race test of the Prove is `a_mount_source_swapped_for_a_link_after_the_check_is_refused` in the blocking step of T-532 (namespace rung). The supervise and userland rungs still have the race window between the check and the bind.
+
 # T-404: In the local mode the logs of a hook step are in the socket directory that the unit writes
 
 **Source:** the security review of `65ee5e3` by a review agent of this session (read only), 2026-11-17
@@ -12413,6 +12419,10 @@ Not known: whether a mount source of the hooks under the runner directory of the
 Next: a run of `runner-image.yml` on the commit of this change; read the step of T-532. If it passes, make it blocking, add the test of the Prove where a step swaps a mount source for a link (exit 125, `container-option-refused`), and set this entry and the namespace half of T-403 to `done`.
 
 State (2026-11-21, proven in CI on GitHub-hosted runners, `runner-image.yml` 44853302932 at `6b84ec3`, #338): the report-only step passes on x86_64: "the rung of podvm: namespace", `a_container_job_runs_through_the_hooks_of_a_podvm_unit ... ok` (exit 0, residue 0 processes and 0 files, no refusals). Left: make the step block, and the test where a step swaps a mount source for a link (exit 125, `container-option-refused`).
+
+State (2026-11-21, in the code; the swap test and the blocking step: not run): the step "A container job on the namespace rung of podvm" of `runner-image.yml` blocks (no `continue-on-error`, no "(a measure)" in its name) and runs `a_container_job_runs_through_the_hooks_of_a_podvm_unit` and the new `a_mount_source_swapped_for_a_link_after_the_check_is_refused` (`crates/podrunner-broker-fake/tests/podvm.rs`; both use the helper `container_job`). It stays x86_64 only: the aarch64 job runs no runner in a podvm unit. The swap test gives the unit a wrapper of podvm that, at the `run -d` of the job container, replaces the source of `/github/home` with a link to `/` (after the check of podrunner, before podvm opens it); it expects the job `failed`, no step output, the refusal `container-option-refused`, and a driver error with "the volume is refused" and `--podvm-volume-base`. The two earlier runs of `--test podvm` (supervise or userland rung) skip it. Measured here (root, the namespace rung, podvm `0.2.0-beta.37`, a stand-in image): `run -d --podvm-volume-base BASE -v BASE/.../link:/h` exits 125 with "podvm run: -v SRC:/h: the volume is refused: its host path holds a symbolic link under its base BASE (--podvm-volume-base); it resolves to /". The driver now gives that refusal as `container-option-refused` (it gave `unit-start-failed`), see T-403. `cargo test -p podrunner-podvm --lib` (35 passed, 1 ignored), `cargo test -p podrunner-broker-fake --test podvm` (6 ignored: they need podvm and the runner image; not run here).
+
+Next: a run of `runner-image.yml`; when the step passes, set this entry `done` (proven in CI on GitHub-hosted runners).
 
 # T-533: A job of another architecture in a guest of the machine tier
 

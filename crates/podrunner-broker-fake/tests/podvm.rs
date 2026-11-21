@@ -11,7 +11,9 @@
 //! no docker the stand-in of `scripts/runner-stand-in.py`. The second test
 //! (T-035) runs a `container:` job through the hooks: it needs
 //! `PODRUNNER_JOB_IMAGE` (NAME@sha256:HEX, an image with `sh` in the same
-//! store) and podvm on a rung with containers (supervise or userland).
+//! store) and podvm on a rung with containers (supervise, userland, or
+//! namespace from `0.2.0-beta.37`). The third (T-403) swaps a mount
+//! source for a link after the check: it needs the namespace rung.
 
 mod common;
 
@@ -96,12 +98,20 @@ fn the_runner_in_a_podvm_unit_runs_a_canned_job() {
     assert!(residue.is_clean(), "{residue:?}");
 }
 
-/// A `container:` job on the official runner in a podvm unit, through the
-/// relay, the control socket in the socket directory of the unit and the
-/// container verbs of the podvm driver (T-035, step 4).
-#[test]
-#[ignore]
-fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
+/// The end of a `container:` job through the hooks of a podvm unit.
+struct ContainerJob {
+    done: Vec<podrunner_broker_fake::Completion>,
+    logs: String,
+    refusals: Vec<podrunner_schema::RefusalCode>,
+    driver_errors: Vec<String>,
+    residue: podrunner_unit::Residue,
+}
+
+/// Run one `container:` job with `script` on the official runner in a
+/// podvm unit, through the relay, the control socket in the socket
+/// directory of the unit and the container verbs of the podvm driver
+/// (T-035, step 4). `binary` is podvm, or a wrapper of it.
+fn container_job(state: &std::path::Path, binary: PathBuf, script: &str) -> ContainerJob {
     use std::sync::atomic::AtomicBool;
     use std::sync::{Arc, Mutex};
 
@@ -109,10 +119,8 @@ fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
     use podrunner_hook::server::{Unit, bind, serve_until};
     use podrunner_hook::unit::HookUnit;
 
-    let state = std::env::temp_dir().join(format!("podrunner-podvm-hooks-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
-    let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
-    let mut podvm_unit = PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
+    let podvm = Podvm { binary };
+    let mut podvm_unit = PodvmUnit::new(podvm, state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
     // T-079: the unit and each container under the confine layer.
     if std::env::var_os("PODRUNNER_PODVM_CONFINE").is_some() {
         podvm_unit = podvm_unit.with_confine();
@@ -146,8 +154,7 @@ fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
     std::thread::spawn(move || serve_until(listener, u, Arc::new(AtomicBool::new(false))));
 
     let broker = Broker::start().unwrap();
-    let mut job =
-        Job::scripts("in-container", &["echo podrunner-podvm-container-$((6*7)) > marker.txt; cat marker.txt"]);
+    let mut job = Job::scripts("in-container", &[script]);
     job.container = Some(env("PODRUNNER_JOB_IMAGE"));
     broker.queue(job);
     let files = broker
@@ -176,15 +183,66 @@ fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
         std::thread::sleep(Duration::from_millis(100));
     }
     let (done, logs) = (broker.completions(), broker.logs());
-    let refusals = hook.lock().unwrap().refusals.clone();
+    let (refusals, driver_errors) = {
+        let h = hook.lock().unwrap();
+        (h.refusals.clone(), h.driver_errors.clone())
+    };
     let residue = unit.destroy(&id).unwrap();
-    let _ = std::fs::remove_dir_all(&state);
-    println!("exit {exit:?}, residue {residue:?}, refusals {refusals:?}\n{logs}");
+    println!("exit {exit:?}, residue {residue:?}, refusals {refusals:?}, driver errors {driver_errors:?}\n{logs}");
     assert_eq!(done.len(), 1, "{:?}", broker.seen());
-    assert_eq!(done[0].conclusion, "succeeded", "{refusals:?}\n{logs}");
-    assert!(logs.contains("podrunner-podvm-container-42"), "{logs}");
-    assert!(refusals.is_empty(), "{refusals:?}");
-    assert!(residue.is_clean(), "{residue:?}");
+    ContainerJob { done, logs, refusals, driver_errors, residue }
+}
+
+/// A `container:` job on the official runner in a podvm unit (T-035,
+/// step 4; the namespace rung, T-532).
+#[test]
+#[ignore]
+fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
+    let state = std::env::temp_dir().join(format!("podrunner-podvm-hooks-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&state);
+    let script = "echo podrunner-podvm-container-$((6*7)) > marker.txt; cat marker.txt";
+    let j = container_job(&state, PathBuf::from(env("PODRUNNER_PODVM")), script);
+    let _ = std::fs::remove_dir_all(&state);
+    assert_eq!(j.done[0].conclusion, "succeeded", "{:?}\n{}", j.refusals, j.logs);
+    assert!(j.logs.contains("podrunner-podvm-container-42"), "{}", j.logs);
+    assert!(j.refusals.is_empty(), "{:?}", j.refusals);
+    assert!(j.residue.is_clean(), "{:?}", j.residue);
+}
+
+/// T-403, T-532: a step swaps the mount source of `/github/home` for a
+/// symbolic link to `/` after the check of podrunner and before podvm
+/// reads it. A wrapper of podvm makes the swap at the `run -d` of the job
+/// container. On the namespace rung `--podvm-volume-base` holds: podvm
+/// exits 125, the hook refuses with `container-option-refused`, and no
+/// step runs.
+#[test]
+#[ignore]
+fn a_mount_source_swapped_for_a_link_after_the_check_is_refused() {
+    let state = std::env::temp_dir().join(format!("podrunner-podvm-swap-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&state);
+    std::fs::create_dir_all(&state).unwrap();
+    let wrapper = state.join("podvm-swap.sh");
+    // Only a source under the state directory of this test is swapped.
+    let text = format!(
+        "#!/bin/sh\ncase \" $* \" in\n*\" run -d \"*--podvm-volume-base*)\n  for a; do\n    case $a in\n    \
+         {base}/*:/github/home) s=${{a%:/github/home}}; rm -rf \"$s\"; ln -s / \"$s\" ;;\n    esac\n  done ;;\nesac\n\
+         exec {podvm} \"$@\"\n",
+        base = state.display(),
+        podvm = env("PODRUNNER_PODVM"),
+    );
+    std::fs::write(&wrapper, text).unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let j = container_job(&state, wrapper, "echo podrunner-podvm-swap-$((6*7))");
+    let _ = std::fs::remove_dir_all(&state);
+    assert_eq!(j.done[0].conclusion, "failed", "{}", j.logs);
+    assert!(!j.logs.contains("podrunner-podvm-swap-42"), "a step ran: {}", j.logs);
+    let code = podrunner_schema::RefusalCode::ContainerOptionRefused;
+    assert!(j.refusals.contains(&code), "{:?} {:?}", j.refusals, j.driver_errors);
+    let refused =
+        j.driver_errors.iter().any(|e| e.contains("the volume is refused") && e.contains("--podvm-volume-base"));
+    assert!(refused, "not the refusal of podvm: {:?}", j.driver_errors);
+    assert!(j.residue.is_clean(), "{:?}", j.residue);
 }
 
 /// T-175: a runner that gets another job than the placed one: the

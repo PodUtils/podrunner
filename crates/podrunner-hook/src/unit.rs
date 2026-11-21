@@ -83,9 +83,12 @@ impl HookUnit {
         let mut mounts = Vec::new();
         for m in &p.mounts {
             // The job writes the tree under the root: a link in a source
-            // would give a container a path of the host (T-403).
+            // would give a container a path of the host (T-403). A driver
+            // with a root of its own (no host root here) checks the sources
+            // under that root: a walk here would read the working directory.
             let mut at = root.clone();
-            for part in std::path::Path::new(&m.source).components() {
+            let parts = if root.as_os_str().is_empty() { None } else { Some(std::path::Path::new(&m.source)) };
+            for part in parts.into_iter().flat_map(|p| p.components()) {
                 at.push(part);
                 if std::fs::symlink_metadata(&at).is_ok_and(|md| md.file_type().is_symlink()) {
                     return Err(UnitError::new(

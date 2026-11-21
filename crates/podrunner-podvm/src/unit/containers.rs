@@ -113,6 +113,9 @@ impl PodvmUnit {
         for m in &spec.mounts {
             // A relative source is under the runner directory of the unit.
             let source = if m.source.is_absolute() { m.source.clone() } else { runner.join(&m.source) };
+            if !m.source.is_absolute() {
+                no_link(&runner, &m.source)?;
+            }
             // podvm needs the source; docker makes a missing one. Only a
             // directory of the root of this unit is made here.
             if !source.exists() && !m.source.is_absolute() {
@@ -127,7 +130,7 @@ impl PodvmUnit {
         args.extend(spec.argv.iter().cloned());
         let (code, out) = self.podvm_in(&store, &args, &tag, egress.as_deref())?;
         if code != Some(0) {
-            return Err(UnitError::new(UnitCode::UnitStartFailed, format!("podvm run: {}", last_line(&out))));
+            return Err(run_error(code, &out));
         }
         Ok(ContainerId(name))
     }
@@ -209,6 +212,36 @@ fn volume_base_args(rung: Option<&str>, runner: &Path) -> Vec<String> {
     } else {
         Vec::new()
     }
+}
+
+/// Refuse a relative mount source with a symbolic link under the runner
+/// directory, before podrunner makes a missing part: the job writes that
+/// tree (T-403). The hooks see no host path of a podvm unit, so the
+/// driver checks; the volume base of podvm closes the race after this
+/// check.
+fn no_link(runner: &Path, rel: &Path) -> Result<(), UnitError> {
+    let mut at = runner.to_path_buf();
+    for part in rel.components() {
+        at.push(part);
+        if std::fs::symlink_metadata(&at).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err(refused(&format!("the mount source {} holds a symbolic link", rel.display())));
+        }
+    }
+    Ok(())
+}
+
+/// The error of a `run -d` that did not start. A volume that podvm refuses
+/// (exit 125: a symbolic link under `--podvm-volume-base`, made after the
+/// check of podrunner) is a refused option (T-403); each other end is a
+/// start that failed.
+fn run_error(code: Option<i32>, out: &[u8]) -> UnitError {
+    let line = last_line(out);
+    let code = if code == Some(125) && line.contains(": the volume is refused: ") {
+        UnitCode::ContainerOptionRefused
+    } else {
+        UnitCode::UnitStartFailed
+    };
+    UnitError::new(code, format!("podvm run: {line}"))
 }
 
 /// The last line of an output, cut to `LINE` characters with a mark (no
@@ -375,6 +408,42 @@ mod tests {
         for rung in [Some("supervise"), Some("userland"), None] {
             assert!(volume_base_args(rung, runner).is_empty(), "{rung:?}");
         }
+    }
+
+    /// T-403: a link in a mount source under the runner directory is
+    /// refused before podvm runs; a link out of it is not the job's.
+    #[test]
+    fn a_linked_source_under_the_runner_directory_is_refused() {
+        let dir = std::env::temp_dir().join(format!("podrunner-podvm-nolink-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("runner/_work/_temp")).unwrap();
+        std::os::unix::fs::symlink("/", dir.join("runner/_work/_temp/_github_home")).unwrap();
+        let runner = dir.join("runner");
+        assert!(no_link(&runner, Path::new("_work")).is_ok());
+        assert!(no_link(&runner, Path::new("_work/_temp/absent/x")).is_ok());
+        for rel in ["_work/_temp/_github_home", "_work/_temp/_github_home/x"] {
+            let e = no_link(&runner, Path::new(rel)).unwrap_err();
+            assert_eq!(e.code, UnitCode::ContainerOptionRefused, "{rel}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-403: the refusal of podvm `0.2.0-beta.37` for a link under the
+    /// volume base (measured on the namespace rung) is a refused option;
+    /// another exit 125 stays a start that failed.
+    #[test]
+    fn a_volume_that_podvm_refuses_is_a_refused_option() {
+        let out = b"podvm run: -v /u/rootfs/home/runner/_work/_temp/_github_home:/github/home: the volume is refused: \
+                    its host path holds a symbolic link under its base /u/rootfs/home/runner (--podvm-volume-base); \
+                    it resolves to /\n";
+        let e = run_error(Some(125), out);
+        assert_eq!(e.code, UnitCode::ContainerOptionRefused);
+        assert!(e.detail.contains("the volume is refused"), "{}", e.detail);
+        assert_eq!(run_error(Some(1), out).code, UnitCode::UnitStartFailed);
+        assert_eq!(
+            run_error(Some(125), b"podvm run: chroot(2) is denied on this machine\n").code,
+            UnitCode::UnitStartFailed
+        );
     }
 
     /// A refusal of podvm keeps its reason; a longer line shows its cut.
