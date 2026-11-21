@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**577 entries: 59 open, 53 partial, 15 blocked, 450 done.**
+**577 entries: 58 open, 53 partial, 15 blocked, 451 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 4 | 25 | 4 | 82 | 115 |
 | P2 | 15 | 20 | 8 | 235 | 278 |
-| P3 | 39 | 8 | 3 | 131 | 181 |
-| **All** | 59 | 53 | 15 | 450 | 577 |
+| P3 | 38 | 8 | 3 | 132 | 181 |
+| **All** | 58 | 53 | 15 | 451 | 577 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -624,4 +624,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-577](later.md) | P3 | S | later | defect | open | A JVM job behind an intercepting proxy of the host does not trust the CA of the proxy |
 | [T-578](later.md) | P3 | S | later | defect | open | A container step of a unit does not trust the CA of its broker |
 | [T-579](later.md) | P2 | S | later | feature | open | The pins of the hosted snapshot: images/hosted/pins.toml with the labels and the init of each payload |
-| [T-580](later.md) | P3 | S | later | defect | open | The test of the ninth client of the control socket fails under the load of the full suite |
+| [T-580](later.md) | P3 | S | later | defect | done | The test of the ninth client of the control socket fails under the load of the full suite |

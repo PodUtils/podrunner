@@ -143,7 +143,11 @@ fn the_server_of_serve_conforms_to_pod_control_at_each_tier() {
 fn silent_clients_delay_no_answer_and_a_ninth_is_busy() {
     let dir = dir("idle");
     let path = dir.join("ctl.sock");
-    let (_server, incoming) = serve(&path).unwrap();
+    // A silent client keeps its place for the whole test: with the 5 s of
+    // `settings`, a slow host cuts the seven before the ninth asks (T-580).
+    let mut s = settings();
+    s.read_timeout = Duration::from_secs(60);
+    let (_server, incoming) = pod_control::unix::serve(&path, s, catalogue()).unwrap();
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let host = answer(incoming, stop.clone());
     // Seven silent clients hold seven of the eight places.

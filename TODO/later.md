@@ -14051,7 +14051,7 @@ The first publish of the snapshot (T-555) gives a digest.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14068,3 +14068,7 @@ Find the cause with a test that logs the time of each accept and each cut. If th
 ## Prove
 
 `for i in $(seq 20); do cargo test -p podrunner --all-features --lib || break; done`: 20 full runs pass on a loaded host.
+
+## Done
+
+2026-11-21, this commit. The test serves with a `read_timeout` of 60 s, so a silent client keeps its place for the whole test; with the 5 s of `settings`, a slow host cut the seven silent clients before the ninth asked. `cargo test -p podrunner --lib control`: 10 passed. Not run in CI.
