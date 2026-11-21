@@ -1,7 +1,8 @@
 #!/bin/sh
 # The checks of AGENTS.md before each push: fmt, clippy, rustdoc and the
 # tests, the check of the record (cargo todo check), the size of the Rust
-# files (scripts/check-size.py, with its self-test), the commit messages
+# files (scripts/check-size.py, with its self-test), the self-test of the
+# summary of the user-path gate (scripts/user-gate-summary.py), the commit messages
 # (scripts/check-commit-msg.sh, with its self-test), the test of the
 # installer (scripts/test-install.sh), the levels of proof of the newest
 # notes of a release (scripts/check-notes.sh), and the static build
@@ -41,6 +42,8 @@ echo "record $r"; [ "$r" -eq 0 ] || { rc=1; head -20 "$log/record.log"; }
 echo "fuzz $z"; [ "$z" -eq 0 ] || { rc=1; tail -20 "$log/fuzz.log"; }
 { python3 -I scripts/check-size.py && python3 -I scripts/check-size.py --self-test; } > "$log/size.log" 2>&1; s=$?
 echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/size.log" | head -20; }
+python3 -I scripts/user-gate-summary.py --self-test > "$log/gate-summary.log" 2>&1; g=$?
+echo "gate-summary $g"; [ "$g" -eq 0 ] || { rc=1; grep -v "^ok " "$log/gate-summary.log" | head -20; }
 { sh scripts/check-commit-msg.sh --self-test && sh scripts/check-commit-msg.sh --rev HEAD; } > "$log/msg.log" 2>&1; m=$?
 echo "commit-msg $m"; [ "$m" -eq 0 ] || { rc=1; grep -v "^ok" "$log/msg.log" | head -20; }
 # The schema of podrunner.toml (T-479), where python3 has jsonschema; the

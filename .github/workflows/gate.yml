@@ -77,6 +77,9 @@ jobs:
         run: |
           python3 -I scripts/check-size.py
           python3 -I scripts/check-size.py --self-test
+      # T-528: the summary of user-gate.yml on a fixture of two lanes.
+      - name: The summary of the user-path gate
+        run: python3 -I scripts/user-gate-summary.py --self-test
       # T-202: the installer of the local mode against a local fixture, its
       # pins against images/*.toml (a changed pin must fail), and shellcheck
       # of the pinned version (scripts/shellcheck.sh, T-251).

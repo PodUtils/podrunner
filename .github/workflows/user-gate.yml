@@ -17,7 +17,8 @@ name: user-gate
 #   and a run of hello.yml on each executor, and the corpus of real
 #   projects at pinned commits (scripts/corpus/user-gate.tsv) against the
 #   result of github.com.
-# * summary: one table, check x lane, in the summary of the run.
+# * summary: one table, check x lane, in the summary of the run, and one
+#   table, row x lane, with the times of the rows that have them (T-528).
 #
 # release.yml refuses a version with no green run of this workflow on its
 # commit. With the input version, the files have the version of the
@@ -345,9 +346,10 @@ jobs:
       - name: One table, check x lane
         run: |
           set +e
+          python3 -I scripts/user-gate-summary.py --self-test || exit 1
           # The lanes of the matrix of the job lanes: a lane with no results
           # fails the gate.
-          python3 -I scripts/user-gate.py summary --lanes plain,small-tmp,userns-off,userns-on,inherited-fds,proxy-only,proxy-only-dns,bind-denied,serve-incus-kvm results > table.md
+          python3 -I scripts/user-gate-summary.py --lanes plain,small-tmp,userns-off,userns-on,inherited-fds,proxy-only,proxy-only-dns,bind-denied,serve-incus-kvm results > table.md
           rc=$?
           cat table.md | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$rc"

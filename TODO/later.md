@@ -12249,6 +12249,8 @@ State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runn
 
 State (2026-11-20): the fake GitHub of podcrates serves `run:` steps only, so the workflow of rbg cannot go through `serve`. The local mode has `--incus` (T-123): `scripts/user-gate.py` has the executor `incus`, the lane `serve-incus-kvm` runs `hello:incus` and the row `rbg-gate` on incus with the allow list of the microvm row. Next: its first run.
 
+State (2026-11-21, `user-gate.yml` run 44802979062 at `32e5ea4`; proven in CI on GitHub-hosted runners): the rows `corpus:rbg-gate:{podvm,runner-dir,microvm,incus}` pass on the four executors. The summary table did not give the two times. Now `results.tsv` of a lane has a fifth column `times` (`install-s=N,run-to-first-step-s=N`, or `-`), and `scripts/user-gate-summary.py` (the summary job of `user-gate.yml`; the former `user-gate.py summary`) prints a second table, row x lane, with the cells `FIRST s / INSTALL s`. Proven by `python3 -I scripts/user-gate-summary.py --self-test` (4 cases, two lanes; `gate.yml` and `scripts/agent/check.sh` run it) and `sh scripts/test-install.sh` (16 passed) here; the table of times is not run in CI. Left: a run of `user-gate.yml` that shows both times in its summary.
+
 # T-529: The disk limit of an offer lifts the bound of the operator
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18

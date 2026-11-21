@@ -82,8 +82,10 @@ the tools.
     the image archives of a `runner-image.yml` run, the installer with
     its pins, the bundles); `release.yml` and `user-gate.yml` both call
     it (T-205, T-243).
-  * `user-gate.py`: the checks of one lane of the user-path gate, the
-    corpus table `corpus/user-gate.tsv` and the summary (T-243).
+  * `user-gate.py`: the checks of one lane of the user-path gate and the
+    corpus table `corpus/user-gate.tsv` (T-243). `user-gate-summary.py`
+    (with `--self-test`): the table of the results of each lane, and the
+    times of the rows that have them (T-528).
     `test-install.sh` runs a lane on fake assets.
   * `lab/*.sh`: the host classes of the lanes (T-244, `lab/README.md`).
   * `install-pins.py --check FILE`: the block of pins of `install.sh`
@@ -249,7 +251,7 @@ The run has these jobs:
 | --- | --- |
 | `build`, `assets` | The files of the release, made by `scripts/release-assets.sh` as `release.yml` makes them, as the artifact `user-gate-assets`. |
 | `lanes` | One job for each host class, each as a user with no root: `plain`, `small-tmp`, `userns-off`, `userns-on` (the namespace rung of podvm), `inherited-fds`, `proxy-only`, `proxy-only-dns` (`scripts/lab/`), `bind-denied` (`podvm lab run`) and `serve-incus-kvm`. |
-| `summary` | One table, check x lane, in the summary of the run. A failed check or a lane with no results fails it. |
+| `summary` | One table, check x lane, in the summary of the run, and one table, row x lane, with the times of each row that has them: the seconds from the start of `run` to the first step / the time of the install (T-528). A failed check or a lane with no results fails it. |
 
 Each lane runs `scripts/user-gate.py lane`: the quick start of
 `docs/install.md` as it is written (online, from a local HTTP server with

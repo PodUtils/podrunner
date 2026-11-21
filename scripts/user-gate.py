@@ -11,10 +11,9 @@ used as a user, on one host class (a lane of user-gate.yml).
   user-gate.py lane --lane NAME --assets DIR --out DIR [--work DIR]
                     [--executors podvm,runner-dir,microvm] [--no-corpus]
       the checks of one lane, as the user that runs it; OUT/results.tsv
-      gets one line for each check
-  user-gate.py summary [--lanes A,B] DIR
-      one Markdown table (check x lane) of each results.tsv under DIR;
-      exit 1 when a check failed or a lane has no results
+      gets one line for each check (lane, check, result, detail, times)
+
+user-gate-summary.py prints the table of the results of each lane.
 
 A lane needs python3, git, curl, tar and gzip on the host. It takes no
 root: the lab scripts (scripts/lab/) make the user and the host class.
@@ -190,6 +189,8 @@ class Lane:
             if e not in EXECUTORS:
                 raise SystemExit(f"no executor {e!r}")
         self.results: list[tuple[str, str, str]] = []
+        # The times of a corpus row (T-528): check -> NAME -> seconds.
+        self.times: dict[str, dict[str, int]] = {}
         self.serve_kinds = [k for k in (a.serve_kinds or "").split(",") if k]
         # The rung that the class of the lane must give podvm (T-564).
         self.want_rung = getattr(a, "want_rung", "") or ""
@@ -1020,7 +1021,10 @@ class Lane:
         args += self.flags(r["executor"]) + self.token_flags()
         t0 = time.time()
         ok, detail = self.podrunner(args, src, f"{r['id']}-{r['executor']}", r["expect"] == "ok", ROW_TIMEOUT)
-        times = self.gate_times(f"{r['id']}-{r['executor']}", t0)
+        found = self.gate_times(f"{r['id']}-{r['executor']}", t0)
+        if found:
+            self.times[f"corpus:{r['id']}:{r['executor']}"] = found
+        times = " (" + ", ".join(f"{k} {v}" for k, v in sorted(found.items())) + ")" if found else ""
         if r["expect"] == "ok":
             if not ok:
                 raise GateError(f"github.com: success; {detail}{times}")
@@ -1033,7 +1037,7 @@ class Lane:
             raise GateError("the job passes now (an xfail row): set expect to ok in scripts/corpus/user-gate.tsv")
         return "xfail", f"{r['note']} ({detail})"
 
-    def gate_times(self, log: str, t0: float) -> str:
+    def gate_times(self, log: str, t0: float) -> dict[str, int]:
         """The `podrunner-gate-NAME=N` lines of the jobs of a row (the
         stand-in of rbg's gate, T-528): the seconds from the start of `run`
         to the first step, and each other time that a step prints."""
@@ -1041,17 +1045,16 @@ class Lane:
         for job in sorted((self.out / "logs" / log).glob("*/job.log")):
             for m in re.finditer(r"podrunner-gate-([a-z-]+)=(\d+)", job.read_text(errors="replace")):
                 found.setdefault(m.group(1), int(m.group(2)))
-        if not found:
-            return ""
         if "first-step-at" in found:
             found["run-to-first-step-s"] = found.pop("first-step-at") - int(t0)
-        return " (" + ", ".join(f"{k} {v}" for k, v in sorted(found.items())) + ")"
+        return found
 
     def write(self):
         with (self.out / "results.tsv").open("w") as f:
-            f.write("lane\tcheck\tresult\tdetail\n")
+            f.write("lane\tcheck\tresult\tdetail\ttimes\n")
             for name, result, detail in self.results:
-                f.write(f"{self.name}\t{name}\t{result}\t{detail}\n")
+                times = ",".join(f"{k}={v}" for k, v in sorted(self.times.get(name, {}).items())) or "-"
+                f.write(f"{self.name}\t{name}\t{result}\t{detail}\t{times}\n")
 
 
 def lane(a) -> int:
@@ -1111,39 +1114,6 @@ def lane(a) -> int:
     return 1 if failed else 0
 
 
-def summary(a) -> int:
-    results: dict[str, dict[str, tuple[str, str]]] = {}
-    checks: list[str] = []
-    for path in sorted(pathlib.Path(a.dir).rglob("results.tsv")):
-        for line in path.read_text().splitlines()[1:]:
-            name, check, result, detail = (line.split("\t") + ["", "", "", ""])[:4]
-            results.setdefault(name, {})[check] = (result, detail)
-            if check not in checks:
-                checks.append(check)
-    lanes = a.lanes.split(",") if a.lanes else sorted(results)
-    mark = {"pass": "pass", "xfail": "xfail", "skip": "skip", "fail": "**FAIL**"}
-    print("## The user-path gate\n")
-    print("| check | " + " | ".join(lanes) + " |")
-    print("| --- |" + " --- |" * len(lanes))
-    bad = 0
-    for c in checks:
-        cells = []
-        for ln in lanes:
-            r = results.get(ln, {}).get(c)
-            cells.append(mark.get(r[0], r[0]) if r else "-")
-            bad += bool(r and r[0] == "fail")
-        print(f"| `{c}` | " + " | ".join(cells) + " |")
-    missing = [ln for ln in lanes if ln not in results]
-    for ln in missing:
-        print(f"\nThe lane {ln} gave no results.")
-    notes = [(ln, c, d) for ln in lanes for c, (r, d) in results.get(ln, {}).items() if r in ("fail", "xfail")]
-    if notes:
-        print("\n| lane | check | why |\n| --- | --- | --- |")
-        for ln, c, d in notes:
-            print(f"| {ln} | `{c}` | {d.replace('|', '/')} |")
-    return 1 if bad or missing else 0
-
-
 def check(_a) -> int:
     rows, errors = read_table(TABLE)
     try:
@@ -1181,9 +1151,6 @@ def main() -> int:
     ln.add_argument("--want-rung", default="", metavar="RUNG")
     ln.add_argument("--schema-python", default="", metavar="PATH")
     ln.add_argument("--broker-address", default="", metavar="IP")
-    s = sub.add_parser("summary")
-    s.add_argument("--lanes", default="")
-    s.add_argument("dir")
     a = p.parse_args()
     if a.cmd == "doc-commands":
         sets = [tuple(x.split("=", 1)) for x in a.set]
@@ -1193,7 +1160,7 @@ def main() -> int:
             print(e, file=sys.stderr)
             return 1
         return 0
-    return {"check": check, "lane": lane, "summary": summary}[a.cmd](a)
+    return {"check": check, "lane": lane}[a.cmd](a)
 
 
 if __name__ == "__main__":
