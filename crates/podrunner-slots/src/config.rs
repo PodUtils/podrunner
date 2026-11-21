@@ -416,6 +416,7 @@ impl Config {
         crate::pins::check(&self.pin)?;
         crate::pins::verify(&self.pin)?;
         self.check_init()?;
+        crate::unit_config::check_work_folders(&self.unit)?;
         let drivers = self.unit.iter().map(|(n, u)| (format!("[unit.{n}] binary"), &u.binary));
         let sidecars = self.source.iter().map(|s| (format!("[[source]] {:?} sidecar", s.name), &s.sidecar));
         let programs = self.source.iter().map(|s| (format!("[[source]] {:?} program", s.name), &s.program));

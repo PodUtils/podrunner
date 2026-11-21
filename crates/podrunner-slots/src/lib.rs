@@ -35,6 +35,7 @@ pub mod status;
 pub mod trust;
 mod unit_config;
 pub mod usage;
+mod work_folder;
 
 use std::path::Path;
 use std::sync::Arc;

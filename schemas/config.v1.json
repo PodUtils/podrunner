@@ -894,6 +894,14 @@
           "type": "integer",
           "format": "uint32",
           "minimum": 0
+        },
+        "work_folder": {
+          "description": "`incus`, `microvm`: the work folder of the runner in each unit, an\nabsolute path (T-541). podrunner writes it into `.runner` of the\ncredential, so `GITHUB_WORKSPACE` is `FOLDER/REPO/REPO`.\n`/home/runner/work` is the path of a hosted runner. Absent: the\nfolder of the mint (`_work` under the runner root).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "additionalProperties": false,

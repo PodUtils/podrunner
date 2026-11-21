@@ -127,6 +127,12 @@ the tools.
     layers of the distribution and `boot`, no trees of the tools) as an
     OCI layout for `podvm load`; `hosted-boot.yml` boots it under incus
     with the init of the image (T-556).
+  * `hosted/runner-layer.py`: the runner layer of the snapshot (T-541):
+    the official runner at `/home/runner/actions-runner`, its `.env`
+    from the snapshot's `/etc/environment`, the hooks, the credential
+    links and the work folder `/home/runner/work`, as one tar with no
+    time. `hosted-runner.yml` puts it on top of a published snapshot
+    manifest (`oci.py append`) and pushes the runner image.
 * The copies of podcrates scripts (`check-size.py`, `check-static.sh`,
   `cloud-setup.sh`, `fetch-zig.sh`, `pull-image.sh`, `retry.sh`,
   `secrets-report.py`, `check-github-numbers.py`) come from podcrates

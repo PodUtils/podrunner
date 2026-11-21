@@ -1,0 +1,162 @@
+# SPDX-License-Identifier: 0BSD
+# The runner image of the hosted snapshot (T-541): one layer on top of a
+# published snapshot manifest, with no build and no new capture
+# (scripts/hosted/runner-layer.py, oci.py append). The layer holds the
+# official runner of images/runner/runner.toml at
+# /home/runner/actions-runner, its .env and .path from the snapshot's
+# /etc/environment, the hooks and the credential links of
+# images/runner/Dockerfile, and the work folder /home/runner/work. Each
+# other blob stays the blob of the snapshot. With `publish`, the layer,
+# the config and the manifest go to ghcr.io/podutils/podrunner-hosted
+# under the tag IMAGEOS-IMAGEVERSION-runner-VERSION, and the manifest is
+# attested. A unit of it needs `[unit.incus] work_folder =
+# "/home/runner/work"` and `command = ["/home/runner/actions-runner/run.sh"]`
+# (docs/hosted-snapshot.md).
+name: hosted-runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: "The digest of one snapshot manifest of ghcr.io/podutils/podrunner-hosted (sha256:...), amd64 or arm64"
+        required: true
+      publish:
+        description: "Push the runner image to ghcr.io"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  layer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # The publish only: the packages of ghcr.io and the attestation.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The self-tests
+        run: |
+          python3 -I scripts/hosted/runner-layer.py --self-test
+          python3 -I scripts/hosted/oci.py --self-test
+      - name: The base and its environment
+        env:
+          DIGEST: ${{ inputs.digest }}
+        run: |
+          set -eu
+          case $DIGEST in sha256:[0-9a-f]*) [ ${#DIGEST} -eq 71 ] ;; *) echo "not a digest: $DIGEST" >&2; exit 1 ;; esac
+          name=podutils/podrunner-hosted
+          sudo mkdir -p /mnt/w/base /mnt/w/etc
+          sudo chown -R "$(id -u):$(id -g)" /mnt/w
+          cd /mnt/w
+          # The package is public: a token of no login reads it.
+          token=$(curl -fsS "https://ghcr.io/token?service=ghcr.io&scope=repository:$name:pull" |
+            python3 -I -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+          get() {
+            printf 'header = "Authorization: Bearer %s"\n' "$token" |
+              curl -fsSL --retry 3 -K - -H "Accept: application/vnd.oci.image.manifest.v1+json" -o "$2" \
+                "https://ghcr.io/v2/$name/$1"
+            got="sha256:$(sha256sum "$2" | cut -d' ' -f1)"
+            [ "$got" = "$3" ] || { echo "$1: the bytes give $got, not $3" >&2; exit 1; }
+          }
+          get "manifests/$DIGEST" base/manifest.json "$DIGEST"
+          vars="$(python3 -I - base/manifest.json <<'PY'
+          import json, sys
+          m = json.load(open(sys.argv[1]))
+          base = [x["digest"] for x in m["layers"]
+                  if x.get("annotations", {}).get("dev.podrunner.hosted.layer", "").split("-", 1)[-1] == "base"]
+          if len(base) != 1 or m["layers"][-1].get("annotations", {}).get("dev.podrunner.hosted.layer") != "boot":
+              sys.exit("not a snapshot manifest: one base layer and boot last")
+          print(f"config={m['config']['digest']} base={base[0]}")
+          PY
+          )"
+          eval "$vars"
+          get "blobs/$config" base/config.json "$config"
+          # /etc/environment and /etc/passwd of the snapshot are in its base layer.
+          get "blobs/$base" base/base.tar.zst "$base"
+          zstd -dc base/base.tar.zst | tar -x -C etc --no-same-owner --occurrence=1 etc/environment etc/passwd
+          rm -f base/base.tar.zst
+          vars="$(python3 -I - base/config.json <<'PY'
+          import json, sys
+          c = json.load(open(sys.argv[1]))
+          l = c["config"]["Labels"]
+          print(f"arch={c['architecture']} image_os={l['dev.podrunner.hosted.image-os']} "
+                f"image_version={l['dev.podrunner.hosted.image-version']}")
+          PY
+          )"
+          eval "$vars"
+          {
+            echo "ARCH=$arch"
+            echo "IMAGE_OS=$image_os"
+            echo "IMAGE_VERSION=$image_version"
+          } >> "$GITHUB_ENV"
+      - name: The runner layer
+        run: |
+          set -eu
+          cd /mnt/w
+          toml=$GITHUB_WORKSPACE/images/runner/runner.toml
+          version=$(python3 -I -c 'import sys, tomllib; print(tomllib.load(open(sys.argv[1], "rb"))["version"])' "$toml")
+          url=$(python3 -I "$GITHUB_WORKSPACE/scripts/hosted/runner-layer.py" url --runner-toml "$toml" --arch "$ARCH")
+          sh "$GITHUB_WORKSPACE/scripts/retry.sh" curl -qfsSLo runner.tgz "$url"
+          diff_id=$(python3 -I "$GITHUB_WORKSPACE/scripts/hosted/runner-layer.py" make --runner-toml "$toml" --arch "$ARCH" \
+            --tarball runner.tgz --environment etc/etc/environment --passwd etc/etc/passwd \
+            --hook "$GITHUB_WORKSPACE/crates/podrunner-hook/relay/podrunner-hook.sh" \
+            --job-started "$GITHUB_WORKSPACE/images/runner/podrunner-job-started.sh" \
+            --license "$GITHUB_WORKSPACE/images/runner/LICENSE.actions-runner" --out runner.tar)
+          [ "$diff_id" = "sha256:$(sha256sum runner.tar | cut -d' ' -f1)" ]
+          zstd -q -T0 -19 -o runner.tar.zst runner.tar
+          printf 'runner\t%s\tsha256:%s\t%s\t0\n' "$diff_id" "$(sha256sum runner.tar.zst | cut -d' ' -f1)" \
+            "$(stat -c %s runner.tar.zst)" > runner.tsv
+          python3 -I "$GITHUB_WORKSPACE/scripts/hosted/oci.py" append --manifest base/manifest.json \
+            --config base/config.json --layer runner.tsv --out oci "dev.podrunner.runner-version=$version"
+          echo "RUNNER_VERSION=$version" >> "$GITHUB_ENV"
+          {
+            echo "## The runner layer of $IMAGE_OS $IMAGE_VERSION ($ARCH)"
+            echo
+            echo "The runner $version; the layer \`$(cut -f3 runner.tsv)\`, $(cut -f4 runner.tsv) bytes with zstd."
+            echo "The manifest \`$(cat oci/manifest.json.digest)\` (not pushed without \`publish\`)."
+            echo
+            echo '```'
+            tar -tvf runner.tar | grep -E ' home/runner/work/?$| home/runner/actions-runner/?$|hooks/|\.env$|\.path$|\.runner ->'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish to ghcr.io
+        id: publish
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          cd /mnt/w
+          name=podutils/podrunner-hosted
+          # The token of ghcr.io for this repository: masked, in the
+          # environment of this step only. It goes to curl on stdin.
+          REGISTRY_TOKEN=$(printf 'user = "x-access-token:%s"\n' "$GH_TOKEN" |
+            curl -fsS -K - "https://ghcr.io/token?service=ghcr.io&scope=repository:$name:pull,push" |
+            python3 -I -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+          echo "::add-mask::$REGISTRY_TOKEN"
+          export REGISTRY_TOKEN
+          push=$GITHUB_WORKSPACE/scripts/hosted/push-blob.py
+          got=$(python3 -I "$push" https://ghcr.io "$name" runner.tar.zst)
+          [ "$got" = "$(cut -f3 runner.tsv)" ]
+          python3 -I "$push" https://ghcr.io "$name" oci/config.json > /dev/null
+          tag="$IMAGE_OS-$IMAGE_VERSION-runner-$RUNNER_VERSION"
+          digest=$(python3 -I "$push" --manifest https://ghcr.io "$name" "$tag" oci/manifest.json \
+            application/vnd.oci.image.manifest.v1+json)
+          [ "$digest" = "$(cat oci/manifest.json.digest)" ]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "### ghcr.io/$name:$tag" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`ghcr.io/$name@$digest\`" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: inputs.publish
+        with:
+          subject-name: ghcr.io/podutils/podrunner-hosted
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true

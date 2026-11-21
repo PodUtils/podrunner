@@ -12666,7 +12666,7 @@ State (2026-11-19, `hosted-parity.yml` run 44459794216): the first run of the jo
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12683,6 +12683,10 @@ the new file scripts/hosted/runner-layer.sh makes one layer over the snapshot: t
 ## Prove
 
 `runner-image.yml`: a canned job in the base slice on incus sees `GITHUB_WORKSPACE=/home/runner/work/R/R` and `RUNNER_TOOL_CACHE=/opt/hostedtoolcache`, and a `setup-python` job takes the cache path.
+
+The parts that run with no hosted runner: `python3 -I scripts/hosted/runner-layer.py --self-test`, `python3 -I scripts/hosted/oci.py --self-test`, `python3 -I scripts/hosted/slice.py --self-test`, `python3 -I scripts/hosted/boot-checks.py --self-test` and `cargo test -p podrunner-slots work_folder`.
+
+State (2026-11-21, not run on a hosted runner or a unit; the layer of the real runner tarball proven on a development host only): the layer and the work folder are in. `scripts/hosted/runner-layer.py` (Python with a self-test, in place of the shell script of the Approach) makes the layer as one POSIX tar with no time: the runner of `images/runner/runner.toml` at `/home/runner/actions-runner`, checked against its digest, owned by `runner` and its group of the snapshot's `/etc/passwd`; `.env` and `.path` from the snapshot's `/etc/environment` (the five hosted lines are required) with `ACTIONS_RUNNER_HOOK_JOB_STARTED`; the two hooks; the relative links of `.runner`, `.credentials`, `.credentials_rsaparams` and `.podrunner-job` to `/podrunner/.runner/`; the empty `/home/runner/work` (owner `runner`, 0755). It refuses a tarball of another digest, a member or a link out of the root, a special file, a path of the layer in the tarball, a snapshot with no `runner` at `/home/runner`, and an `/etc/environment` line that is not `KEY=VALUE` (by its number, never its value). `oci.py append` puts the layer on top of a published manifest (one more diff id and blob, the labels `dev.podrunner.runner-version` and `dev.podrunner.hosted.base`); `.github/workflows/hosted-runner.yml` reads the base manifest, its config and its base layer (for `/etc/environment` and `/etc/passwd`) from ghcr.io, makes the layer, and with `publish` pushes the tag `IMAGEOS-IMAGEVERSION-runner-VERSION` of the same package and attests it (`docs/decisions.md`, T-541). `slice.py` keeps the layer `runner`, and `hosted-boot.yml` reports its owners, modes, `.env` lines and link in the file `runner` of the checks. podrunner: `[unit.incus] work_folder` and `[unit.microvm] work_folder` (an absolute path; `check` refuses it on another kind and a path with an empty, `.` or `..` part); slots writes it as `workFolder` into `.runner` of the credential before the start (`crates/podrunner-slots/src/work_folder.rs`), and a `.runner` that is not a JSON object refuses the unit with `unit-start-failed`. A run of `make` with the tarball of 2.338.2 (228 MB) and a fixture `/etc/environment` gave a layer of 11,567 members (700 MB) in 9 s, each owned 1001:118. The engine socket of the snapshot is its own `/var/run/docker.sock` by T-543 (`init = "image"` starts no `dockerd` of podrunner). Left: the podvm kind and the runner image keep `_work` (T-590), and the Prove. The runs that prove it: `hosted-runner.yml` with `digest` = the manifest `sha256:d00306d81d0eee8b5fbba72fc353924df84bb074fd0dcadc60baf3b55fe66f0e` of `ubuntu-24.04` (T-555) and `publish = true`; then `hosted-boot.yml` with the digest of the runner image (the file `runner`); then the canned job of the Prove in `runner-image.yml` on incus.
 
 # T-542: The hosted snapshot: a 1:1 capture of the root of a hosted runner, scrubbed, with its kernel layer
 
@@ -14318,3 +14322,31 @@ Read on 2026-11-21: `Bed::tick` (`crates/podrunner-slots/src/tests/mod.rs`) move
 ## Prove
 
 `for i in $(seq 20); do cargo test -p podrunner-slots --all-features --lib || break; done` passes on a loaded host; `cargo test -p podrunner --all-features --test doctor` passes with less than 2 GiB free in `/tmp`.
+
+# T-590: The hosted work folder on the podvm kind and in the runner image
+
+**Source:** the work of T-541, 2026-11-21
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The Approach of T-541 asks that the work folder of each kind with a `runner` home becomes `/home/runner/work`, the runner image too. T-541 gives the key `work_folder` to the incus and the microvm kinds only. The podvm kind, the local mode (`podrunner run`) and the runner image keep `_work` under the runner root, so `GITHUB_WORKSPACE` there is `/home/runner/_work/REPO/REPO`, and a script that names `/home/runner/work` fails in such a unit.
+
+## Premise
+
+Read on 2026-11-21: the hook policy of the podvm kind allows a container mount only under `_work` and `externals` of its runner directory (`crates/podrunner-hook/src/policy.rs` `MOUNT_DIRS`, the work root of `crates/podrunner/src/podvm_kind.rs`); `crates/podrunner-podvm/src/unit/containers.rs` checks `_work` of the runner directory; the local mode mounts `{run_root}/_work` (`crates/podrunner-local/src/exec.rs`, `crates/podrunner-local/src/work.rs`) and its tool cache links into `_work/_tool` (`crates/podrunner-local/src/exec/toolcache.rs`); the fake broker writes `"workFolder": "_work"` (`crates/podrunner-broker-fake/src/files.rs`); `runner-image.yml` names `/home/runner/_work/app`. The scale-set sidecar asks the mint for `WorkFolder: "_work"` (`tools/scaleset-sidecar/sidecar.go`). Not measured: whether a job container of the hooks route works with a work folder out of the runner root.
+
+## Approach
+
+1. The hook policy takes the work folder of its kind (the runner directory and `work_folder`), not `_work` by name; the podvm kind takes `work_folder` and the check of its containers names it.
+2. The local mode runs the runner image with `/home/runner/work` as its work folder: the mount, the tool cache links and the export of the work tree.
+3. The runner image of `images/runner/Dockerfile` gets an empty `/home/runner/work` owned by `runner`; `config init` writes `work_folder = "/home/runner/work"` for each kind of the runner image.
+4. Then `/home/runner/work` becomes the default of each kind with a `runner` home, and `_work` stays for the host and the fake kinds.
+
+## Prove
+
+`cargo test -p podrunner-hook -p podrunner-podvm -p podrunner-local -p podrunner-slots`: a container of the hooks route mounts `/home/runner/work`, and a job of the local mode sees `GITHUB_WORKSPACE=/home/runner/work/app/app`; `runner-image.yml` on each kind: a canned job sees `GITHUB_WORKSPACE=/home/runner/work/R/R`.

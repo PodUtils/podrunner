@@ -8,14 +8,16 @@
 # not exit 0, or when /out/started, /out/trace or the console marker is
 # absent (scripts/hosted/boot-checks.py, T-582); the summary names each
 # check that did not hold. The full snapshot needs about 190 GB in incusd
-# (T-551, T-557), more than a hosted runner has.
+# (T-551, T-557), more than a hosted runner has. A runner image of
+# hosted-runner.yml keeps its runner layer in the slice, and the file
+# `runner` of the checks reports it (T-541).
 name: hosted-boot
 
 on:
   workflow_dispatch:
     inputs:
       digest:
-        description: "The digest of an amd64 manifest of ghcr.io/podutils/podrunner-hosted (sha256:...)"
+        description: "The digest of an amd64 manifest of ghcr.io/podutils/podrunner-hosted (sha256:...): a snapshot, or its runner image (hosted-runner.yml)"
         required: true
 
 permissions:
@@ -87,6 +89,14 @@ jobs:
           test -s /etc/machine-id && echo filled > /out/machine-id
           getcap /usr/bin/ping > /out/cap 2>&1
           ls /etc/ssh/ssh_host_*_key > /out/ssh-keys 2>&1
+          # The runner layer of a runner image (T-541): the owner and the
+          # mode of its paths, the lines of its .env, its credential link.
+          r=/home/runner/actions-runner
+          if [ -d "$r" ]; then
+            stat -c '%n %U:%G %a' "$r" "$r/run.sh" "$r/hooks/podrunner-job-started.sh" /home/runner/work > /out/runner 2>&1
+            grep -E '^(ImageOS|ImageVersion|RUNNER_TOOL_CACHE|AGENT_TOOLSDIRECTORY|ACTIONS_RUNNER_HOOK_JOB_STARTED)=' "$r/.env" >> /out/runner 2>&1
+            readlink "$r/.runner" >> /out/runner 2>&1
+          fi
           echo "checks: end" > /dev/console 2> /dev/null || true
           SH
           # bash -e: a failed run must reach the logs and the summary.

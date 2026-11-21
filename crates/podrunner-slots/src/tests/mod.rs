@@ -28,6 +28,7 @@ mod start;
 mod status;
 mod trust;
 mod usage;
+mod work_folder;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;

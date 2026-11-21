@@ -5,7 +5,8 @@
 # summary of the user-path gate (scripts/user-gate-summary.py), the
 # WebSocket attach of the user-path gate (scripts/ws-echo.py --self-test),
 # the checks of the boot of hosted-boot.yml (scripts/hosted/boot-checks.py
-# --self-test), the commit messages
+# --self-test), the runner layer of the hosted snapshot
+# (scripts/hosted/runner-layer.py --self-test), the commit messages
 # (scripts/check-commit-msg.sh, with its self-test), the test of the
 # installer (scripts/test-install.sh), the levels of proof of the newest
 # notes of a release (scripts/check-notes.sh), and the static build
@@ -51,6 +52,8 @@ timeout 120 python3 -I scripts/ws-echo.py --self-test > "$log/ws.log" 2>&1; w=$?
 echo "ws-echo $w"; [ "$w" -eq 0 ] || { rc=1; grep -v "^ok " "$log/ws.log" | head -20; }
 python3 -I scripts/hosted/boot-checks.py --self-test > "$log/boot-checks.log" 2>&1; b=$?
 echo "boot-checks $b"; [ "$b" -eq 0 ] || { rc=1; grep -v "^ok " "$log/boot-checks.log" | head -20; }
+python3 -I scripts/hosted/runner-layer.py --self-test > "$log/runner-layer.log" 2>&1; rl=$?
+echo "runner-layer $rl"; [ "$rl" -eq 0 ] || { rc=1; head -20 "$log/runner-layer.log"; }
 { sh scripts/check-commit-msg.sh --self-test && sh scripts/check-commit-msg.sh --rev HEAD; } > "$log/msg.log" 2>&1; m=$?
 echo "commit-msg $m"; [ "$m" -eq 0 ] || { rc=1; grep -v "^ok" "$log/msg.log" | head -20; }
 # The schema of podrunner.toml (T-479), where python3 has jsonschema; the

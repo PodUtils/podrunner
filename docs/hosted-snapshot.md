@@ -23,8 +23,8 @@ distribution is on top, and the last layer, `boot`, holds `/boot` and
 `/boot/efi`: the kernel and the initrd of the hosted runner. The config
 names `/sbin/init` as the entrypoint, for a unit that boots the init of
 the image (`[unit.incus] init = "image"`, podvm `--podvm-init=image`).
-No boot of the snapshot has a result yet (T-556), and the image holds no
-runner yet (T-541): a unit of it cannot run a job now.
+No boot of the snapshot has a result yet (T-556). The snapshot holds no
+runner: a unit runs its runner image (below).
 
 ## What is 1:1, and what the scrub changes
 
@@ -48,9 +48,55 @@ fresh (`images/hosted/scrub.toml` names each rule with its reason):
   `/home/runner/.docker/config.json` (the owner's ruling "The snapshot
   keeps the Docker Hub login").
 
-The published image holds no runner. T-541 adds the runner of podrunner
-and its hooks as one more layer on top, at `/home/runner/actions-runner`,
-with the work folder `/home/runner/work`; it is not done yet.
+The published snapshot holds no runner and no `/home/runner/work`.
+
+## The runner image
+
+`.github/workflows/hosted-runner.yml` puts one layer on top of a
+published snapshot manifest (T-541): no build and no new capture. Each
+other blob stays the blob of the snapshot, so a new runner pin makes a
+new runner image in minutes. The tag is
+`IMAGEOS-IMAGEVERSION-runner-VERSION` in the same package, for example
+`ubuntu24-20261116.376.1-runner-2.338.2`; the manifest names its base
+(`dev.podrunner.hosted.base`) and the runner (`dev.podrunner.runner-version`).
+`scripts/hosted/runner-layer.py` makes the layer:
+
+| Path | Owner, mode | What |
+| --- | --- | --- |
+| `/home/runner/actions-runner` | `runner` and its group of the snapshot, as in the tarball | the official runner of `images/runner/runner.toml`, checked against its digest; one path for both archs |
+| `/home/runner/actions-runner/.env`, `.path` | `runner`, 0644 | each line of the snapshot's `/etc/environment` (the hosted `PATH`, `ImageOS`, `ImageVersion`, `RUNNER_TOOL_CACHE=/opt/hostedtoolcache`, `AGENT_TOOLSDIRECTORY`), and `ACTIONS_RUNNER_HOOK_JOB_STARTED`; a JIT runner runs no `config.sh`, and the runner sets each line in the environment of each job |
+| `/home/runner/actions-runner/hooks/` | `runner`, 0755 | the relay of the container hooks and the job-started hook of `images/runner/Dockerfile` |
+| `/home/runner/actions-runner/.runner`, `.credentials`, `.credentials_rsaparams`, `.podrunner-job` | links | relative links to `/podrunner/.runner/`, where the unit writes the credential files |
+| `/home/runner/work` | `runner`, 0755, empty | the hosted work folder |
+
+The layer refuses a tarball of another digest, a member or a link out of
+the runner root, a snapshot with no user `runner` at `/home/runner`, and
+an `/etc/environment` with no line of the hosted environment.
+
+A unit of the runner image needs the runner path and the hosted work
+folder in its kind:
+
+```toml
+[unit.incus]
+slots = 1
+binary = "/opt/podrunner/drivers/podvm"
+images = "/var/lib/podrunner/images"
+init = "image"
+command = ["/home/runner/actions-runner/run.sh"]
+work_folder = "/home/runner/work"
+```
+
+podrunner writes `work_folder` into `.runner` before the start, so a job
+sees `GITHUB_WORKSPACE=/home/runner/work/REPO/REPO` and
+`RUNNER_WORKSPACE=/home/runner/work/REPO`, as on a hosted runner
+(`docs/configuration.md`). The podvm kind keeps `_work` (T-590).
+
+The state (2026-11-21): the layer of the real runner tarball 2.338.2 and
+an `/etc/environment` fixture was made and read back on a development
+host; no runner image is pushed, and no job ran on one (not run). The
+proof: `hosted-runner.yml` with the digest of a snapshot manifest and
+`publish`, then `hosted-boot.yml` with the digest of the runner image
+(the file `runner` of the checks), then the canned job of T-541 on incus.
 
 ## The checks of each capture
 

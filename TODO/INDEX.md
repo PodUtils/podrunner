@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**584 entries: 61 open, 53 partial, 16 blocked, 454 done.**
+**585 entries: 61 open, 54 partial, 16 blocked, 454 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 4 | 25 | 4 | 85 | 118 |
-| P2 | 15 | 20 | 9 | 235 | 279 |
+| P1 | 3 | 26 | 4 | 85 | 118 |
+| P2 | 16 | 20 | 9 | 235 | 280 |
 | P3 | 41 | 8 | 3 | 132 | 184 |
-| **All** | 61 | 53 | 16 | 454 | 584 |
+| **All** | 61 | 54 | 16 | 454 | 585 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -585,7 +585,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-538](later.md) | P1 | L | later | feature | partial | A unit with the toolset of the GitHub-hosted ubuntu-latest, with systemd, checked mechanically |
 | [T-539](later.md) | P1 | M | later | measurement | partial | The probe and the diff of the hosted parity, report-only in CI |
 | [T-540](later.md) | P1 | S | later | chore | partial | A watcher of the hosted image releases and of the label of ubuntu-latest |
-| [T-541](later.md) | P1 | M | later | feature | open | The runner layer of the hosted snapshot, and the hosted work folder /home/runner/work |
+| [T-541](later.md) | P1 | M | later | feature | partial | The runner layer of the hosted snapshot, and the hosted work folder /home/runner/work |
 | [T-542](later.md) | P1 | L | later | feature | partial | The hosted snapshot: a 1:1 capture of the root of a hosted runner, scrubbed, with its kernel layer |
 | [T-543](later.md) | P1 | M | later | feature | blocked | systemd as PID 1 in an incus instance |
 | [T-544](later.md) | P2 | M | later | feature | blocked | systemd as PID 1 and a root on a disk in a microvm guest |
@@ -632,3 +632,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-585](later.md) | P3 | S | later | defect | open | The store of the units of the podvm kind keeps each image that a unit loaded |
 | [T-588](later.md) | P3 | M | later | feature | open | `install_system` of `pod-unit` for a system unit of `serve` |
 | [T-589](later.md) | P3 | S | later | defect | open | Two tests depend on the load and the free disk of the host |
+| [T-590](later.md) | P2 | M | later | feature | open | The hosted work folder on the podvm kind and in the runner image |

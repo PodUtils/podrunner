@@ -26,7 +26,7 @@ import tempfile
 # The marker that checks.sh writes to the console at its start.
 MARKER = "checks: start"
 # The files of the checks that only report, in the order of the summary.
-REPORT = ("state", "pid1", "kernel", "os", "machine-id", "cap", "ssh-keys", "failed")
+REPORT = ("state", "pid1", "kernel", "os", "machine-id", "cap", "ssh-keys", "runner", "failed")
 
 
 def read(path: pathlib.Path) -> str | None:
@@ -88,7 +88,8 @@ def self_test() -> int:
 
     faults = []
     good = {"started": "checks: start as 0 in /\n", "trace": "+ systemctl is-system-running\n",
-            "state": "running\n", "pid1": "systemd\n"}
+            "state": "running\n", "pid1": "systemd\n",
+            "runner": "/home/runner/work runner:docker 755\n"}
     console = "systemd starting\nchecks: start as 0 in /\nchecks: end\n"
 
     def case(name, rc, files, log, want_rc, want, absent=()):
@@ -116,7 +117,8 @@ def self_test() -> int:
         print(f"{'ok' if len(faults) == n else 'FAULT'} {name}")
 
     case("a good boot", 0, good, console, 0,
-         ["Each check holds.", "| podvm run -d exits 0 | pass | exit 0 |", "#### pid1\n\n```\nsystemd\n```"],
+         ["Each check holds.", "| podvm run -d exits 0 | pass | exit 0 |", "#### pid1\n\n```\nsystemd\n```",
+          "#### runner\n\n```\n/home/runner/work runner:docker 755\n```"],
          ["**FAIL**", "::error"])
     case("rc 125 and no trace", 125, {}, None, 1,
          ["| podvm run -d exits 0 | **FAIL** | exit 125 |", "| /out/trace is present | **FAIL** |",

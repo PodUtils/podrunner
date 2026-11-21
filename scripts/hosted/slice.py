@@ -8,9 +8,9 @@
 The full snapshot is about 55 GB on disk; a hosted runner cannot boot it
 under incus (T-557). The slice keeps the layers that boot the system (the
 base, the libraries and the shared files of the distribution, snapd and
-`boot`) and leaves out the trees of the tools (the Android SDK, .NET, the
-JVMs, the tool cache, the other trees of /opt and /usr/local, the stores
-of the engines). It reads the manifest and the config of DIGEST from
+`boot`, and the runner layer of a runner image, T-541) and leaves out
+the trees of the tools (the Android SDK, .NET, the JVMs, the tool cache,
+the other trees of /opt and /usr/local, the stores of the engines). It reads the manifest and the config of DIGEST from
 ghcr.io/podutils/podrunner-hosted with no login (the package is public),
 downloads each kept layer and checks its digest, and writes an OCI layout
 in DIR whose config names only the kept layers, with the ref NAME, as
@@ -28,8 +28,10 @@ REGISTRY = "https://ghcr.io"
 NAME = "podutils/podrunner-hosted"
 MANIFEST = "application/vnd.oci.image.manifest.v1+json"
 CONFIG = "application/vnd.oci.image.config.v1+json"
-# The layers of the slice, by the name that the capture gave each one.
-KEEP = ("base", "boot", "usr-share", "usr-lib", "usr-lib-arch", "snapd")
+
+# The layers of the slice, by the name that the capture gave each one, and
+# the runner layer of a runner image (T-541, oci.py append).
+KEEP = ("base", "boot", "usr-share", "usr-lib", "usr-lib-arch", "snapd", "runner")
 
 
 def kept(layer_name: str) -> bool:
@@ -113,7 +115,7 @@ def self_test() -> int:
     import tempfile
 
     bad = []
-    names = ["00-android-ndk", "21-toolcache-3.12.1", "79-usr-share", "80-usr-lib-arch", "81-base", "boot"]
+    names = ["00-android-ndk", "21-toolcache-3.12.1", "79-usr-share", "80-usr-lib-arch", "81-base", "boot", "runner"]
     data = {n: n.encode() * 3 for n in names}
     manifest = {"schemaVersion": 2, "mediaType": MANIFEST, "config": {},
                 "layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar+zstd", "digest": sha(data[n]),
@@ -123,9 +125,9 @@ def self_test() -> int:
               "history": [{"created_by": n} for n in names]}
     m, c = slice_image(manifest, config)
     got = [lay["annotations"]["dev.podrunner.hosted.layer"] for lay in m["layers"]]
-    if got != ["79-usr-share", "80-usr-lib-arch", "81-base", "boot"]:
+    if got != ["79-usr-share", "80-usr-lib-arch", "81-base", "boot", "runner"]:
         bad.append(f"the kept layers: {got}")
-    if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (2, 3, 4, 5)] or len(c["history"]) != 4:
+    if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (2, 3, 4, 5, 6)] or len(c["history"]) != 5:
         bad.append(f"the config: {c['rootfs']}")
     by_digest = {sha(v): v for v in data.values()}
 

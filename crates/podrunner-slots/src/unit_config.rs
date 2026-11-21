@@ -94,6 +94,38 @@ pub struct UnitConfig {
     /// runs an engine of its own (T-103).
     #[serde(default)]
     pub engine: Option<String>,
+    /// `incus`, `microvm`: the work folder of the runner in each unit, an
+    /// absolute path (T-541). podrunner writes it into `.runner` of the
+    /// credential, so `GITHUB_WORKSPACE` is `FOLDER/REPO/REPO`.
+    /// `/home/runner/work` is the path of a hosted runner. Absent: the
+    /// folder of the mint (`_work` under the runner root).
+    #[serde(default)]
+    pub work_folder: Option<String>,
+}
+
+/// The kinds that take `work_folder`: the runner and its work folder are in
+/// the unit. The podvm kind mounts `_work` of its runner directory for the
+/// container hooks, and its hook policy knows no other folder (T-541).
+const WORK_FOLDER_KINDS: [&str; 3] = ["incus", "microvm", "fake"];
+
+/// `work_folder` of each kind: an absolute path with no empty, `.`, `..`
+/// or control part, on a kind that takes it.
+pub(crate) fn check_work_folders<'a>(
+    units: impl IntoIterator<Item = (&'a String, &'a UnitConfig)>,
+) -> Result<(), String> {
+    for (name, u) in units {
+        let Some(f) = &u.work_folder else { continue };
+        if !WORK_FOLDER_KINDS.contains(&name.as_str()) {
+            return Err(format!("[unit.{name}] work_folder: only the incus and the microvm kinds take it"));
+        }
+        let bad = |p: &str| p.is_empty() || p == "." || p == ".." || p.chars().any(char::is_control);
+        if f.strip_prefix('/').is_none_or(|rest| rest.split('/').any(bad)) {
+            return Err(format!(
+                "[unit.{name}] work_folder {f:?}: give an absolute path, such as \"/home/runner/work\""
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn run_sh() -> Vec<String> {

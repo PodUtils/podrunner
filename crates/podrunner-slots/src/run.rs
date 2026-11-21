@@ -123,6 +123,12 @@ impl Slots {
         let minted = self.jobs.get_mut(key).expect("a minted job");
         minted.minted_ms = Some(now);
         minted.times.marks = crate::log_tail::Marks::of(&credential);
+        // The work folder of the kind (T-541): the hosted path of the snapshot.
+        let folder = self.jobs[key].placement.as_ref().and_then(|p| self.kinds[p.kind].cfg.work_folder.clone());
+        if let Some(Err(why)) = folder.map(|f| crate::work_folder::apply(&mut credential, &f)) {
+            self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("work_folder: {why}")));
+            return self.give_up(key, RefusalCode::UnitStartFailed, now);
+        }
         let j = &self.jobs[key];
         let (p, unit) = (j.placement.clone().expect("a placed job"), j.unit.clone().expect("a unit id"));
         let kind = &self.kinds[p.kind];
