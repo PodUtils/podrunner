@@ -154,8 +154,16 @@ fn silent_clients_delay_no_answer_and_a_ninth_is_busy() {
     assert!(started.elapsed() < Duration::from_secs(1), "{:?}", started.elapsed());
     // Eight silent clients now: a ninth gets busy.
     let _eighth = UnixStream::connect(&path).unwrap();
-    std::thread::sleep(Duration::from_millis(100));
-    let e = call(&path, &Request::Status).unwrap_err();
+    // The server takes the eighth place when it accepts the connection,
+    // which a slow host does late: ask again until the answer is busy.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let e = loop {
+        match call(&path, &Request::Status) {
+            Err(e) => break e,
+            Ok(_) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
+            Ok(v) => panic!("no busy in 10 s: {v}"),
+        }
+    };
     assert_eq!(e.code(), Some(Code::Busy), "{e}");
     drop(idle);
     stop.store(true, std::sync::atomic::Ordering::SeqCst);
