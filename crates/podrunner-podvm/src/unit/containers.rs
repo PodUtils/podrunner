@@ -151,7 +151,7 @@ impl PodvmUnit {
         if let Some(log) = &spec.log {
             std::fs::write(log, &out).map_err(|e| host("the log of a step", e))?;
         }
-        Ok(Exit::Code(code.unwrap_or(-1)))
+        exec_exit(&c.0, code, &out)
     }
 
     pub(super) fn logs_container(&self, unit: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {
@@ -226,21 +226,50 @@ pub(super) fn last_line(out: &[u8]) -> String {
     cut
 }
 
+/// The exit of `podvm exec` into the container `name`. A podvm after
+/// `0.2.0-beta.37` refuses an exec into a container that exited or died
+/// with exit 1 (podvm T-2061); that 1 is not the exit of the step, so the
+/// driver reports a container that stopped. An older podvm runs the exec.
+fn exec_exit(name: &str, code: Option<i32>, out: &[u8]) -> Result<Exit, UnitError> {
+    let refusal = format!("podvm exec: container {name} is not running (");
+    let line = last_line(out);
+    if code == Some(1) && line.starts_with(&refusal) {
+        return Err(UnitError::new(UnitCode::UnitStartFailed, format!("the container stopped: {line}")));
+    }
+    Ok(Exit::Code(code.unwrap_or(-1)))
+}
+
+/// The first container in the output of `podvm inspect`: the JSON array
+/// (or one object) after the lines that podvm writes before it.
+pub(super) fn inspected(out: &[u8]) -> Option<Value> {
+    let text = String::from_utf8_lossy(out);
+    let v: Value = serde_json::from_str(&text[text.find(['[', '{'])?..]).ok()?;
+    let one = if v.is_array() { v.get(0)? } else { &v };
+    one.is_object().then(|| one.clone())
+}
+
+/// True when podvm says that the launcher of the container was killed:
+/// the word `dead` (before `0.2.0-beta.37`) or docker's `State` object.
+pub(super) fn is_dead(c: &Value) -> bool {
+    let state = &c["State"];
+    state == "dead" || state["Status"] == "dead" || state["Dead"] == true
+}
+
 /// The state in the output of `podvm inspect`: `State` and `ExitCode`.
 /// podvm `0.2.0-beta.37` gives `State` as the object of docker
-/// (`Status`, `Running`, `ExitCode`); an older podvm gives the word.
+/// (`Status`, `Running`, `ExitCode`) and `ExitCode` as text; a later podvm
+/// gives `ExitCode` as a number or null (podvm T-2060); an older podvm
+/// gives `State` as the word. A dead container has no exit code: its end
+/// is -1, so a step that waits for its exit does not wait forever.
 fn state_of(out: &[u8]) -> Result<ContainerState, UnitError> {
-    let text = String::from_utf8_lossy(out);
-    let start = text.find('[').ok_or_else(|| UnitError::new(UnitCode::Host, "podvm inspect gave no JSON"))?;
-    let v: Value = serde_json::from_str(&text[start..])
-        .map_err(|_| UnitError::new(UnitCode::Host, "podvm inspect gave no JSON"))?;
-    let c = &v[0];
+    let c = inspected(out).ok_or_else(|| UnitError::new(UnitCode::Host, "podvm inspect gave no JSON"))?;
     let state = &c["State"];
     let running = state.as_str() == Some("running")
         || state["Status"].as_str() == Some("running")
         || state["Running"].as_bool() == Some(true);
     let code = |v: &Value| v.as_str().and_then(|s| s.parse::<i32>().ok()).or_else(|| v.as_i64().map(|n| n as i32));
     let exit = code(&state["ExitCode"]).or_else(|| code(&c["ExitCode"]));
+    let exit = exit.or_else(|| is_dead(&c).then_some(-1));
     Ok(ContainerState { running, exit: if running { None } else { exit.map(Exit::Code) } })
 }
 
@@ -266,6 +295,71 @@ mod tests {
         assert_eq!(state_of(up).unwrap(), ContainerState { running: true, exit: None });
         let done = br#"[{"ExitCode":3,"Name":"c2","State":{"Dead":false,"ExitCode":3,"Pid":0,"Running":false,"Status":"exited"},"Status":"Exited (3)"}]"#;
         assert_eq!(state_of(done).unwrap(), ContainerState { running: false, exit: Some(Exit::Code(3)) });
+    }
+
+    /// T-581: a podvm after `0.2.0-beta.37` gives docker's types (podvm
+    /// T-2060): `ExitCode` and `Pid` are numbers or null, `Labels` is a
+    /// map, `Config` is an object. A dead container has no exit code in
+    /// each form: its end is -1, not a wait with no end.
+    #[test]
+    fn the_state_comes_from_the_typed_inspect_of_a_later_podvm() {
+        let doc = |state: &str, exit: &str| {
+            format!(
+                r#"[{{"Id":"a","Name":"u-1-c0","State":{state},"Status":"x","Pid":77,"LauncherPid":70,"ExitCode":{exit},"RootfsPath":"/s/r","Labels":{{"podrunner.unit":"u-1"}},"Complete.Fixups":"-","Config":{{"Env":["A=1"],"Cmd":["tail","-f","/dev/null"],"Image":"img","WorkingDir":"/w","Labels":{{"podrunner.unit":"u-1"}}}},"End":{{"Reason":"-","RunMs":null}}}}]"#
+            )
+        };
+        let up = doc(r#"{"Status":"running","Running":true,"Dead":false,"ExitCode":null,"Pid":77}"#, "null");
+        assert_eq!(state_of(up.as_bytes()).unwrap(), ContainerState { running: true, exit: None });
+        let done = doc(r#"{"Status":"exited","Running":false,"Dead":false,"ExitCode":3,"Pid":0}"#, "3");
+        assert_eq!(state_of(done.as_bytes()).unwrap(), ContainerState { running: false, exit: Some(Exit::Code(3)) });
+        let created = doc(r#"{"Status":"created","Running":false,"Dead":false,"ExitCode":null,"Pid":0}"#, "null");
+        assert_eq!(state_of(created.as_bytes()).unwrap(), ContainerState { running: false, exit: None });
+        let dead = doc(r#"{"Status":"dead","Running":false,"Dead":true,"ExitCode":null,"Pid":0}"#, "null");
+        assert_eq!(state_of(dead.as_bytes()).unwrap(), ContainerState { running: false, exit: Some(Exit::Code(-1)) });
+        // `0.2.0-beta.37` and an older podvm: a dead container, no code.
+        let dead37 =
+            br#"[{"ExitCode":"-","Name":"c","State":{"Dead":true,"ExitCode":null,"Running":false,"Status":"dead"}}]"#;
+        assert_eq!(state_of(dead37).unwrap().exit, Some(Exit::Code(-1)));
+        let dead_word = br#"[{"Name":"c","State":"dead","ExitCode":"-"}]"#;
+        assert_eq!(state_of(dead_word).unwrap().exit, Some(Exit::Code(-1)));
+    }
+
+    /// T-581: the check of a killed launcher (`launcher_died`) reads each
+    /// form of `State`, after a line that podvm writes before the JSON.
+    #[test]
+    fn a_dead_launcher_is_seen_in_each_form_of_inspect() {
+        let dead = |out: &str| inspected(out.as_bytes()).is_some_and(|c| is_dead(&c));
+        assert!(dead(r#"[{"Name":"u-1","State":"dead"}]"#), "the word");
+        assert!(dead(r#"[{"Name":"u-1","State":{"Status":"dead","Dead":true,"ExitCode":null}}]"#), "docker's object");
+        assert!(
+            dead("u-1: Extracted\n[{\"State\":{\"Status\":\"dead\"},\"Config\":{\"Cmd\":[\"sh\"]}}]"),
+            "a line before"
+        );
+        assert!(dead(r#"{"State":{"Dead":true}}"#), "one object");
+        assert!(!dead(r#"[{"State":{"Status":"exited","Dead":false,"ExitCode":0}}]"#));
+        assert!(!dead(r#"[{"State":"running"}]"#));
+        assert!(!dead("Error: no such container u-1\n"));
+    }
+
+    /// T-581: a podvm after `0.2.0-beta.37` refuses `exec` into a container
+    /// that ended with exit 1 (podvm T-2061). That is a stopped container,
+    /// not a step that exits 1. The exit of a step stays its exit.
+    #[test]
+    fn a_refused_exec_into_an_ended_container_is_not_the_exit_of_the_step() {
+        let refusal =
+            b"podvm exec: container u-1-c0 is not running (exited). Start it with `podvm start u-1-c0`\n".as_slice();
+        let e = exec_exit("u-1-c0", Some(1), refusal).unwrap_err();
+        assert_eq!(e.code, UnitCode::UnitStartFailed);
+        assert!(e.detail.contains("is not running (exited)"), "{}", e.detail);
+        let dead = b"podvm exec: container u-1-c0 is not running (dead). Start it with `podvm start u-1-c0`".as_slice();
+        assert!(exec_exit("u-1-c0", Some(1), dead).is_err());
+        // `0.2.0-beta.37` runs the exec: the step's own exit 1 stays.
+        assert_eq!(exec_exit("u-1-c0", Some(1), b"make: *** [all] Error 1\n").unwrap(), Exit::Code(1));
+        // The text of another container, or another code, is a step's output.
+        assert_eq!(exec_exit("u-1-c1", Some(1), refusal).unwrap(), Exit::Code(1));
+        assert_eq!(exec_exit("u-1-c0", Some(0), refusal).unwrap(), Exit::Code(0));
+        assert_eq!(exec_exit("u-1-c0", Some(126), b"").unwrap(), Exit::Code(126));
+        assert_eq!(exec_exit("u-1-c0", None, b"").unwrap(), Exit::Code(-1));
     }
 
     /// T-532, T-403: a container of the namespace rung binds its volumes

@@ -14080,7 +14080,7 @@ Find the cause with a test that logs the time of each accept and each cut. If th
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14097,3 +14097,14 @@ Find each reader of `podvm inspect`, of a podvm exit code (125, 126, 127) and of
 ## Prove
 
 `cargo test --workspace` with fixtures of the old and the new output; then the gate lanes on the release after `0.2.0-beta.37`.
+
+## Done
+
+2026-11-21, this commit. Each reader, against the code of podvm's `main` (typed.rs of lifecycle, ns.rs of exec, inspect.rs of images and of incus), read on 2026-11-21:
+
+- `state_of` (`crates/podrunner-podvm/src/unit/containers.rs`, `container_inspect`): took the number and the null of `ExitCode` and docker's `State` already. New: a dead container (each form) ends with -1; before, it had no exit, and a container step or the start check of a job container waited with no end.
+- `launcher_died` (`root.rs`): reads `State` through the same parse (`inspected`, `is_dead`), also after a line before the JSON.
+- `exec_container`: a podvm after `0.2.0-beta.37` refuses `exec` into a container that exited or died with exit 1 (PodUtils/podvm@T-2061). The driver gives `UnitStartFailed` with podvm's line, not a step that exits 1. The refusal of the hook says "or it stopped (at its start or later)".
+- No change: `inspect --format '{{.RootfsPath}}'` (a string in each form), `inspect --format '{{.Size}}'` and `inspect IMAGE` of `doctor` (an image is not typed again), the `inspect --format` of the incus kind (the incus tier keeps its fields), `enter` (`podvm exec -t` of a running unit; the pause prints podvm's line), `podvm wait` (stdout only), each non-zero exit of `load`, `run -d`, `extract` and `rm` (all a start failure, 1 or 125), 126 and 127 of a payload (passed through as the exit of the step), `TERM` (podrunner uses no `run -t`), `logs --tail` and `:z` (not used), the memory rule (each microvm gives `--podvm-mem`; T-573), the `podvm: ` lines (no reader of their text).
+
+`cargo test -p podrunner-podvm -p podrunner-hook --all-features`: 33 and 14 passed. The three new tests (`the_state_comes_from_the_typed_inspect_of_a_later_podvm`, `a_dead_launcher_is_seen_in_each_form_of_inspect`, `a_refused_exec_into_an_ended_container_is_not_the_exit_of_the_step`) fail on the code before. Proven by fixtures here; not run with the release after `0.2.0-beta.37`: its gate lanes run in the commit that pins it.

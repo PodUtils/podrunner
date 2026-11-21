@@ -233,7 +233,7 @@ fn a_job_container_that_stops_at_its_start_is_named() {
     let mut u = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.clone());
     let body = call("prepare_job", json!({ "container": container("sh", &["-c", "exit 9"], "/__w"), "services": [] }));
     let e = u.hook(parse(Command::PrepareJob, &body).unwrap()).unwrap_err();
-    assert!(e.why.contains("stopped at its start") && e.why.contains("`tail` and `sh`"), "{e:?}");
+    assert!(e.why.contains("it stopped (at its start or later)") && e.why.contains("`tail` and `sh`"), "{e:?}");
     assert!(e.why.contains("job container"), "{e:?}");
     assert!(u.driver_errors.iter().any(|d| d.contains("UnitStartFailed")), "{:?}", u.driver_errors);
     let _ = fake.destroy(&id);

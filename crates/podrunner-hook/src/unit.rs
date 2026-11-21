@@ -224,7 +224,7 @@ fn refusal(e: &UnitError) -> Refusal {
         UnitCode::ArchMismatch => (RefusalCode::ArchMismatch, "the image is of another platform"),
         UnitCode::UnitStartFailed => (
             RefusalCode::ContainerNotSupported,
-            "a container did not start, or stopped at its start: a job container must live while its steps \
+            "a container did not start, or it stopped (at its start or later): a job container must live while its steps \
              run; with no entry point it runs `tail -f /dev/null`, as on GitHub, so its image needs `tail` and \
              `sh`; the cause of the driver is in the audit",
         ),
