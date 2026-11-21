@@ -27,6 +27,7 @@ pub mod policy;
 mod report;
 mod run;
 pub mod sandbox;
+pub mod secrets;
 mod sources;
 mod spool;
 pub mod state;
@@ -38,6 +39,7 @@ pub mod usage;
 use std::path::Path;
 use std::sync::Arc;
 
+pub use egress_port::Opened;
 pub use engine::{EgressPort, Job, Slots, Source, UnitKind};
 use pod_core::clock::Clock;
 use podrunner_schema::{ExitReason, UnitIds};

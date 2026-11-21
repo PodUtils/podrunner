@@ -234,9 +234,24 @@ const ASK_WAIT: Duration = Duration::from_secs(10);
 
 impl podrunner_slots::EgressPort for EgressOf {
     fn open(&self, unit: &str, policy: &str, socket: &Path) -> Result<usize, String> {
+        self.open_with(unit, policy, Vec::new(), socket).map(|o| o.flagged)
+    }
+    fn open_with(
+        &self,
+        unit: &str,
+        policy: &str,
+        secrets: Vec<(String, podrunner_schema::Secret)>,
+        socket: &Path,
+    ) -> Result<podrunner_slots::Opened, String> {
         let id = podrunner_schema::UnitId::parse(unit).map_err(|e| e.to_string())?;
         let inner = socket.with_file_name("egress-inner.sock");
-        let flagged = self.egress.open(unit, policy, &inner, self.ttl).map_err(|e| e.to_string())?;
+        let values = secrets.iter().fold(podrunner_egress::Secrets::new(), |s, (n, v)| s.with(n, v.expose()));
+        let opened = self.egress.open_with(unit, policy, values, &inner, self.ttl).map_err(|e| e.to_string())?;
+        let out = podrunner_slots::Opened {
+            flagged: opened.flagged,
+            ca_bundle: opened.ca_bundle.map(podrunner_schema::Secret::new),
+            ca_vars: podrunner_egress::tls::ca_vars(),
+        };
         let asks = std::sync::Mutex::new(self.asks.clone());
         let ask: front::Ask = std::sync::Arc::new(move |body: &[u8]| {
             let (tx, rx) = std::sync::mpsc::sync_channel(1);
@@ -251,7 +266,7 @@ impl podrunner_slots::EgressPort for EgressOf {
                 if let Ok(mut m) = self.fronts.lock() {
                     m.insert(unit.to_string(), f);
                 }
-                Ok(flagged)
+                Ok(out)
             }
             Err(e) => {
                 self.egress.close(unit);

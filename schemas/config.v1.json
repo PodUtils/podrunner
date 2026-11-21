@@ -223,6 +223,13 @@
           ],
           "additionalProperties": true,
           "default": null
+        },
+        "secrets": {
+          "description": "The secrets of the host that a credential of a policy names, by\nname (T-563).",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SecretConfig"
+          }
         }
       },
       "additionalProperties": false
@@ -435,6 +442,36 @@
       "required": [
         "owner",
         "repo"
+      ]
+    },
+    "SecretConfig": {
+      "description": "A secret of the host.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "The file of the value (mode 0600 or 0400). One end of line at the\nend is not part of the value. slots reads it at the start of each\nunit, so a new value needs no restart.",
+          "type": "string"
+        },
+        "hosts": {
+          "description": "The hosts that may get the value (as the `host` of a rule): each\nhost of a credential that names the secret is one of them, or under\na `*.NAME` of them.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sources": {
+          "description": "The sources whose offers may name the secret.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "hosts",
+        "sources"
       ]
     },
     "SourceConfig": {

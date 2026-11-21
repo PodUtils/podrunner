@@ -109,6 +109,11 @@ unpacked_bytes = 59000000000 # the bytes of the image unpacked (podrunner-manife
 # (T-410); to take the policies of a source, set { schema = 1, mode = "open" }.
 default_policy = { schema = 1, mode = "allow", allow = [{ host = "*.github.com", ports = [443] }] }
 
+[egress.secrets.github]      # a secret that a credential of a policy names (T-563)
+file = "/etc/podrunner/secrets/github"   # the value, mode 0600 or 0400; read at the start of each unit
+hosts = ["api.github.com"]   # the hosts that may get the value
+sources = ["githome"]        # the sources whose offers may name it
+
 [dns]                        # the resolver of the egress and of a remote mint (pod-dns, T-076)
 doh = true                   # ask DNS over HTTPS (resolvers by their address) when the system and the cache fail
 pins = ["mint.example.org=192.0.2.10"]  # HOST=IP: a pinned name is not asked of the system
@@ -330,6 +335,37 @@ The user-path gate tests this on a microvm unit (`serve:run:ws:microvm`
 of `scripts/user-gate.py`): the client of `scripts/ws-client.py` holds a
 WebSocket to `scripts/ws-echo.py` and gets a 403 for a port that the
 policy of the offer does not name.
+
+## Placeholder credentials
+
+A policy can name `credentials` (`broker-policy.v1` of `pod-broker`): each
+has a `placeholder`, the name of a `secret`, its `hosts` and its places
+(`in`: `header`, `basic`, `query`, `body`). The unit holds the placeholder
+only. The broker of the unit ends the TLS of each tunnel to a host of a
+credential, puts the value of the secret in place of the placeholder, and
+puts the placeholder back in each answer. The value comes from the file of
+`[egress.secrets.NAME]`; it is not in the unit, in the policy, in a line of
+the audit or in the text of an error.
+
+* An offer whose credential names a secret that this host does not hold,
+  a secret that is not for its source, or a host that is not one of the
+  `hosts` of the secret is refused: `egress-policy-unsupported`, and the
+  audit line names the secret and the host.
+* A credential of `default_policy` names a secret of `[egress.secrets]`;
+  `check` refuses another one.
+* A rule can have a `path` (an absolute path, on whole segments): the
+  broker ends the TLS of each tunnel to the host of that rule and checks
+  the path of each request. The path of an offer holds under the path of
+  `default_policy`; the narrower one holds.
+* The broker makes a CA for each job with a credential or a path rule.
+  The unit gets the bundle (that CA, then the CA file of the environment
+  of `serve` and a system bundle of the host) as the credential file
+  `podrunner-broker-ca.pem`, and the ten variables of `pod_broker::ca::env`
+  name it (`SSL_CERT_FILE`, `CURL_CA_BUNDLE`, `REQUESTS_CA_BUNDLE`,
+  `NODE_EXTRA_CA_CERTS`, `GIT_SSL_CAINFO`, `AWS_CA_BUNDLE`, `DENO_CERT`,
+  `HEX_CACERTS_PATH`, `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE`,
+  `CARGO_HTTP_CAINFO`). A host with no CA file refuses such a job. A JVM
+  reads none of them (T-577).
 
 ## The remote mint
 

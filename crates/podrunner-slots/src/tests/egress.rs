@@ -164,9 +164,10 @@ fn with_no_ceiling_an_offer_opens_nothing() {
     assert_eq!(p["mode"], "open", "an open ceiling takes the offer: {p}");
 }
 
-/// T-107: a policy needs a kind with a hold, and no path rule.
+/// T-107: a policy needs a kind with a hold. A path rule is held: the
+/// broker ends TLS (T-524); a path that is not absolute is not.
 #[test]
-fn a_policy_needs_a_hold_and_no_path_rule() {
+fn a_policy_needs_a_hold_and_an_absolute_path() {
     let parse = |p: Value| -> podrunner_schema::JobOffer {
         let line: Value = serde_json::from_str(&offer(0, "j-1", json!({ "policy": p }))).unwrap();
         serde_json::from_value(line["offer"].clone()).unwrap()
@@ -180,10 +181,12 @@ fn a_policy_needs_a_hold_and_no_path_rule() {
     };
     let plain = parse(json!({ "schema": 1, "mode": "open" }));
     let path = parse(json!({ "schema": 1, "mode": "allow", "allow": [{ "host": "a.example", "path": "/x" }] }));
+    let relative = parse(json!({ "schema": 1, "mode": "allow", "allow": [{ "host": "a.example", "path": "x" }] }));
     let cfg = config("");
     assert!(place(&plain, Tier::Trusted, &[kind(EgressHold::Advisory)], &cfg, NOW_UNIX).is_ok());
+    assert!(place(&path, Tier::Trusted, &[kind(EgressHold::Enforced)], &cfg, NOW_UNIX).is_ok());
     assert_eq!(
-        place(&path, Tier::Trusted, &[kind(EgressHold::Enforced)], &cfg, NOW_UNIX).err(),
+        place(&relative, Tier::Trusted, &[kind(EgressHold::Enforced)], &cfg, NOW_UNIX).err(),
         Some(RefusalCode::EgressPolicyUnsupported)
     );
     assert_eq!(
@@ -205,8 +208,10 @@ fn egress_refuses_an_unknown_key_and_a_policy_it_cannot_hold() {
     assert!(parse("default_policy = { schema = 2, mode = \"open\" }").unwrap_err().contains("schema"));
     assert!(parse("default_policy = { schema = 1, mode = \"closed\" }").unwrap_err().contains("mode"));
     let path = "default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\", path = \"/x\" }] }";
-    assert!(parse(path).unwrap_err().contains("a path needs a TLS end"));
+    assert!(parse(path).is_ok(), "a path rule is held (T-524)");
+    let relative = "default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\", path = \"x\" }] }";
+    assert!(parse(relative).unwrap_err().contains("an absolute path"));
     let methods = "default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\", methods = [\"GET\"] }] }";
-    assert!(parse(methods).unwrap_err().contains("a host and ports only"), "#249");
+    assert!(parse(methods).unwrap_err().contains("a host, an absolute path and ports only"), "#249");
     assert!(parse("default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\" }] }").is_ok());
 }

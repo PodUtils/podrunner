@@ -69,6 +69,14 @@ supervise rung, the rung that has volumes and so the container route.
 drivers connect the channel of the guest or the instance to the egress
 socket of the directory.
 
+The credential directory. `credential_dir` names, for a unit id, the
+absolute path where the unit sees its credential files, so that a
+variable can name one: the CA bundle of the broker of a job with a
+placeholder credential or a path rule (T-563). The fake gives the runner
+root of its unit on the host, podvm `/podrunner/.runner`, and microvm and
+incus their runner root. A driver that gives `None` gets no job that needs
+such a file.
+
 ## Errors
 
 Each error has a code and a detail with no credential:

@@ -39,6 +39,12 @@ impl HostTls {
     }
 }
 
+/// The variables that name the CA bundle of a job in its unit: the ten of
+/// `ca::env` of `pod-broker`.
+pub fn ca_vars() -> Vec<String> {
+    pod_broker::ca::env(Path::new("")).into_iter().map(|(k, _)| k.to_string()).collect()
+}
+
 /// The provider of the TLS of podrunner.
 pub fn provider() -> Arc<rustls::crypto::CryptoProvider> {
     Arc::new(rustls::crypto::ring::default_provider())

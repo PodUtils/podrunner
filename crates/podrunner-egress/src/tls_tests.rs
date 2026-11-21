@@ -202,6 +202,28 @@ fn a_job_with_no_credential_gets_no_ca_and_a_missing_value_is_refused() {
     let _ = std::fs::remove_dir_all(d);
 }
 
+/// T-524: a rule with a path holds through the TLS end: the unit gets the
+/// CA bundle with no credential, a request under the path reaches the far
+/// end, and one outside it gets 403 from the broker.
+#[test]
+fn a_path_rule_is_held_by_the_tls_end() {
+    let (e, seen) = egress(Some(roots()));
+    let d = dir("path");
+    let socket = d.join("u-1.sock");
+    let policy = format!(r#"{{"schema":1,"mode":"allow","allow":[{{"host":"{HOST}","path":"/v1"}}]}}"#);
+    let opened = e.open_with("u-1", &policy, Secrets::new(), &socket, Duration::from_secs(600)).unwrap();
+    let bundle = opened.ca_bundle.expect("a CA for a job with a path rule");
+    let get = |path: &str| job_request(&socket, &bundle, &format!("GET {path} HTTP/1.1\r\nHost: {HOST}\r\n\r\n"));
+    let ok = get("/v1/repos");
+    assert!(ok.starts_with("HTTP/1.1 200"), "{ok}");
+    let refused = get("/v2");
+    assert!(refused.starts_with("HTTP/1.1 403"), "{refused}");
+    let far = seen.lock().unwrap().clone();
+    assert!(far.contains("GET /v1/repos") && !far.contains("/v2"), "{far}");
+    e.kill();
+    let _ = std::fs::remove_dir_all(d);
+}
+
 /// The roots of a job: the CA file of the environment, then the first
 /// system bundle with a certificate.
 #[test]

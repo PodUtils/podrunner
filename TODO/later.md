@@ -12077,7 +12077,7 @@ State (2026-11-21, proven in CI on GitHub-hosted runners: `level2.yml` 448029723
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12096,6 +12096,12 @@ When `pod-broker` gives placeholders, pass the placeholders of the offer's polic
 `cargo test -p podrunner-egress` with a policy that has a placeholder.
 
 State (2026-11-20): unblocked. The TLS end of `pod-broker` with placeholder credentials is done in podcrates `v0.78.1` (PodUtils/podcrates@T-100). The placeholders are T-563; this entry keeps the path rules of a policy (`egress-policy-unsupported`).
+
+State (2026-11-21, not run in CI; the tests of the crates pass here): the broker of `serve` and `run` has the TLS end of `pod-broker` (`podrunner_egress::tls::HostTls`, the trust of the host). `unheld_rule` holds a rule with an absolute `path`; `narrow` keeps the narrower path of the offer and of the ceiling on whole segments (no common part: no rule), and keeps the `credentials` of both (T-563); `default_policy` takes a path rule. A unit with a path rule gets the CA bundle of its broker (T-563, step 2).
+
+## Done
+
+2026-11-21, this commit. `cargo test -p podrunner-egress` (`a_path_rule_is_held_by_the_tls_end`: a request under `/v1` reaches the stand-in host through the TLS end, `/v2` gets 403; `the_far_end_gets_the_value_and_the_unit_sees_the_placeholder` for the placeholders). `cargo test -p podrunner-slots` (`the_narrower_path_holds`, `the_credentials_of_both_hold`, `a_policy_needs_a_hold_and_an_absolute_path`, `egress_refuses_an_unknown_key_and_a_policy_it_cannot_hold`; the first two fail on the code before: the path and the credentials were dropped). `docs/non-goals.md` names the row as done. Proof level: not run in CI; the tests of the crates pass here. Not proven: a real client of a unit through a path rule (the lab of real clients is PodUtils/podcrates@T-973).
 
 # T-525: C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host
 
@@ -13373,7 +13379,7 @@ State (2026-11-20, podcrates `v0.79.0`, COORD-149): `pod-release` of `v0.79.0` v
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13394,6 +13400,12 @@ COORD-146, read on 2026-11-20: the `policy` of an offer takes `credentials: [{ "
 `cargo test -p podrunner-egress`: a job with a placeholder reaches a stand-in host with the real value in its header, and the job sees only the placeholder in each answer; no audit line and no log line holds the value.
 
 State (2026-11-20, podcrates `v0.80.0`, T-576): `ca::env` gives ten variables (the six of `pod_tls::BUNDLE_VARS`, then `DENO_CERT`, `HEX_CACERTS_PATH`, `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE`, `CARGO_HTTP_CAINFO`), and a JVM takes the store of `ca::write_trust_store` in `JAVA_TOOL_OPTIONS` by `ca::java_options`; step 2 gives the unit all of them. The list of the CA variables of a unit (`CA_VARS` of `crates/podrunner-local/src/exec/proxy.rs`) is the list of `ca::env` already. The README of `pod-broker`, "Placeholder credentials", gives the setup of the TLS end (`Broker::with_tunnel_end`, `TlsEnd`).
+
+State (2026-11-21, not run in CI; the tests of the crates pass here): (1) `Egress::host` gives the broker its TLS end with the trust of the host (`tls::HostTls::of_host`: the default roots of `pod-tls` and the CA file of the environment); `Egress::open_with` takes the values (`pod_broker::Secrets`) and gives the CA bundle of the job (its CA, then the CA file of the environment and the first system bundle). The values come from `[egress.secrets.NAME]` (`file`, `hosts`, `sources`; `crates/podrunner-slots/src/secrets.rs`), read at the start of each unit; a file open to the group or to others fails the start. (2) The unit gets the bundle as the credential file `podrunner-broker-ca.pem` in the directory that its kind names (`UnitDriver::credential_dir`: fake, podvm, microvm, incus), and the ten variables of `ca::env` name it. The trust store of a JVM (`ca::write_trust_store`, `ca::java_options`) is binary, and a credential file is text: T-577 takes it. (3) An offer whose credential names a secret that the host does not hold, that is not for its source, or that goes to a host outside the `hosts` of the secret is refused with `egress-policy-unsupported`, and the audit names the secret and the host. Calls: `docs/decisions.md` (2026-11-21, T-563).
+
+## Done
+
+2026-11-21, this commit and `ce8d39a` (the TLS end of the module). `cargo test -p podrunner-egress` (`the_far_end_gets_the_value_and_the_unit_sees_the_placeholder`: a unit with the placeholder reaches a stand-in TLS host, which gets the value in `Authorization`; the answer to the unit holds the placeholder and not the value; no line holds the value; it fails on the code before: no TLS end, the load of a credential is refused; `a_job_with_no_credential_gets_no_ca_and_a_missing_value_is_refused`). `cargo test -p podrunner-slots` (`the_unit_holds_the_placeholder_and_trusts_the_ca_of_its_broker`: the unit sees the bundle through `SSL_CERT_FILE` and `CARGO_HTTP_CAINFO`, and no value in its environment or its files; `an_offer_that_names_a_secret_it_may_not_use_is_refused`; both fail on the code before). Proof level: not run in CI; the tests of the crates pass here. Not proven: a real job of githome through `serve` with a placeholder (githome's acceptance of G-35: "a job prints its placeholder; the server gets the real value"), and the clients of a real runner image with the bundle (PodUtils/podcrates@T-973 is the lab of real clients).
 
 
 # T-564: The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there
@@ -13952,3 +13964,31 @@ podcrates `v0.80.0`: `pod_broker::ca::trust_store(ca_pem, roots_pem)` gives a PK
 ## Prove
 
 `cargo test -p podrunner-local --lib proxy::`: a caller with `SSL_CERT_FILE` gives a unit a trust store and `JAVA_TOOL_OPTIONS` that names it; a `java` client in the lane `proxy-only` of `user-gate.yml` reaches a host through the intercepting proxy.
+
+State (2026-11-21): a unit of `serve` whose broker ends TLS (a credential or a path rule, T-563, T-524) gets the CA bundle of its broker as the text credential file `podrunner-broker-ca.pem` and the ten variables of `ca::env` (`crates/podrunner-slots/src/secrets.rs`, fn `open`). A JVM in that unit also needs the trust store of that bundle (`ca::write_trust_store`) and `JAVA_TOOL_OPTIONS` of `ca::java_options`: the same binary credential file as step 1, made in `podrunner_egress::Egress::open_with` beside the bundle.
+
+# T-578: A container step of a unit does not trust the CA of its broker
+
+**Source:** the work of T-563, 2026-11-21
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A unit whose broker ends TLS (a placeholder credential or a path rule, T-563, T-524) gets the CA bundle of its broker in its runner root and the ten variables of `ca::env` in the environment of the runner. A step of a `container:` job, a service container and a Docker action run in a container: the runner gives them neither the variables nor the file. Such a step fails the TLS handshake to each host of a credential or of a path rule.
+
+## Premise
+
+Read: `crates/podrunner-slots/src/secrets.rs` (fn `open`), `crates/podrunner-hook/src` (no CA variable and no CA file goes to a container). Not measured: a container job with a credential through `serve`.
+
+## Approach
+
+1. The container hooks (`podrunner-hook`) mount the CA bundle of the unit read-only into each container and set the ten variables of `ca::env` to its path in the container, when the unit has one.
+2. The engine route of the microvm and incus kinds does the same for `docker run` of the runner.
+
+## Prove
+
+`cargo test -p podrunner-hook`: a container of a unit with a bundle gets the mount and the variables; a unit with no bundle gets neither.

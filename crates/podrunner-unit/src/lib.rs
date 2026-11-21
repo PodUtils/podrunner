@@ -81,6 +81,14 @@ pub trait UnitDriver: Send + Sync {
         None
     }
 
+    /// Where the unit `unit` sees its credential files (an absolute path),
+    /// so that a variable can name one: the CA bundle of its broker
+    /// (T-563). `None`: the kind does not say, and a job that needs such a
+    /// file is refused.
+    fn credential_dir(&self, _unit: &UnitId) -> Option<String> {
+        None
+    }
+
     /// Make an image ready. `reference` names a digest (`NAME@sha256:HEX`);
     /// a tag is refused (`payload-not-pinned`). A `platform` other than the
     /// host's is refused (`arch-mismatch`) unless `emulation` is true and

@@ -25,6 +25,7 @@ use podrunner_unit::shim::{self, Mode};
 use crate::mounts::Mounts;
 
 mod containers;
+mod plants;
 
 /// The planted defects of the fake unit: each one fails the unit
 /// conformance test of its number.
@@ -245,26 +246,6 @@ impl FakeUnit {
     }
 }
 
-impl FakeUnit {
-    /// The plants 19, 21, 22 and 24 at start.
-    fn plant_start(&self, spec: &StartSpec, root: &Path) -> Result<(), UnitError> {
-        let first = spec.credential.files.first().map(|f| f.content.expose().to_string());
-        if self.planted(UnitPlant::SharedHosts) {
-            fs::create_dir_all(root.join("etc")).map_err(|e| host(e, "etc"))?;
-            let _ = std::os::unix::fs::symlink(self.state_dir.join("hosts"), root.join("etc/hosts"));
-        }
-        if self.planted(UnitPlant::CredentialCopy)
-            && let Some(text) = &first
-        {
-            fs::write(self.state_dir.join(format!("copy-{}", spec.unit)), text).map_err(|e| host(e, "a copy"))?;
-        }
-        if self.planted(UnitPlant::ProofCanary) || self.planted(UnitPlant::CredentialInContainers) {
-            *self.seen.lock().expect("the credential seen") = first;
-        }
-        Ok(())
-    }
-}
-
 fn write_private(path: &Path, text: &str, mode: u32) -> Result<(), UnitError> {
     let mut f = fs::OpenOptions::new()
         .write(true)
@@ -280,6 +261,11 @@ fn write_private(path: &Path, text: &str, mode: u32) -> Result<(), UnitError> {
 impl UnitDriver for FakeUnit {
     fn kind(&self) -> &str {
         "fake"
+    }
+
+    fn credential_dir(&self, unit: &UnitId) -> Option<String> {
+        let name = if self.planted(UnitPlant::SharedRoot) { "shared" } else { unit.as_str() };
+        Some(self.state_dir.join("units").join(name).join(".runner-root").display().to_string())
     }
 
     fn probe(&self) -> Result<Capability, UnitError> {

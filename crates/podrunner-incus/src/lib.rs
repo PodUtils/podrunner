@@ -208,6 +208,10 @@ impl UnitDriver for IncusUnit {
         "incus"
     }
 
+    fn credential_dir(&self, _unit: &UnitId) -> Option<String> {
+        Some(self.cred_root.clone())
+    }
+
     fn probe(&self) -> Result<Capability, UnitError> {
         let mut cap = Capability {
             schema: 1,

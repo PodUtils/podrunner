@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**574 entries: 59 open, 53 partial, 15 blocked, 447 done.**
+**575 entries: 58 open, 53 partial, 15 blocked, 449 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 4 | 25 | 4 | 82 | 115 |
-| P2 | 16 | 20 | 8 | 233 | 277 |
-| P3 | 38 | 8 | 3 | 130 | 179 |
-| **All** | 59 | 53 | 15 | 447 | 574 |
+| P2 | 15 | 20 | 8 | 234 | 277 |
+| P3 | 38 | 8 | 3 | 131 | 180 |
+| **All** | 58 | 53 | 15 | 449 | 575 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -568,7 +568,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-521](later.md) | P3 | S | later | defect | open | G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit |
 | [T-522](later.md) | P2 | S | later | docs | done | G-31: the design copies of the schemas have the ids of `pod-job` and other fields |
 | [T-523](later.md) | P2 | M | later | feature | partial | G-34: take the signed release index of `pod-release` |
-| [T-524](later.md) | P3 | M | later | feature | open | G-04 and G-35: the half of podrunner of the placeholders of a policy |
+| [T-524](later.md) | P3 | M | later | feature | done | G-04 and G-35: the half of podrunner of the placeholders of a policy |
 | [T-525](later.md) | P1 | M | later | measurement | done | C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host |
 | [T-526](later.md) | P1 | S | later | chore | done | The incus suite of `runner-image.yml` does not block a release |
 | [T-527](later.md) | P1 | M | later | chore | done | No lane of the user-path gate for the host class of githome's pool |
@@ -607,7 +607,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-560](later.md) | P3 | S | later | defect | blocked | pod-extract reads only the first gzip member of a layer |
 | [T-561](later.md) | P2 | S | later | defect | done | `podrunner run --vnet` hangs in the lab that refuses the bind |
 | [T-562](later.md) | P2 | S | later | release | partial | A release of podrunner has no signed `release-index.json` |
-| [T-563](later.md) | P2 | M | later | feature | open | A unit holds the real values of its secrets, not placeholders that the broker swaps |
+| [T-563](later.md) | P2 | M | later | feature | done | A unit holds the real values of its secrets, not placeholders that the broker swaps |
 | [T-564](later.md) | P3 | S | later | defect | done | The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there |
 | [T-565](later.md) | P2 | S | later | defect | done | `config init` writes no `confine` for the podvm kind, so a trusted source on a host with no incus gets no kind |
 | [T-566](later.md) | P2 | M | later | defect | done | The confine self-test cannot pass on the namespace rung of podvm |
@@ -622,3 +622,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-575](later.md) | P2 | S | later | defect | open | The host facts of a microvm kind with no `mem` name no memory and no CPU |
 | [T-576](later.md) | P1 | M | later | chore | partial | Take podcrates `v0.80.0` (COORD-150 of podcrates) |
 | [T-577](later.md) | P3 | S | later | defect | open | A JVM job behind an intercepting proxy of the host does not trust the CA of the proxy |
+| [T-578](later.md) | P3 | S | later | defect | open | A container step of a unit does not trust the CA of its broker |

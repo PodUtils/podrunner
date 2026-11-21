@@ -221,6 +221,10 @@ impl UnitDriver for PodvmUnit {
         self.volumes.then_some(containers::SOCKET_MOUNT)
     }
 
+    fn credential_dir(&self, _unit: &UnitId) -> Option<String> {
+        Some(CREDENTIAL_DIR.into())
+    }
+
     fn prepare(&self, reference: &str, platform: &str, _emulation: bool) -> Result<Prepared, UnitError> {
         let (_, digest) = parse_pinned(reference)?;
         if platform != self.platform {

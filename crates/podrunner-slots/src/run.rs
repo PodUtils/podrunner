@@ -143,6 +143,7 @@ impl Slots {
         // unit gets it as `sockets`, and the unit sees the guest paths.
         let dir = socket_dir(&self.state_dir, &unit);
         let guest = kind.driver.socket_mount().map(str::to_string);
+        let cred_dir = kind.driver.credential_dir(&unit);
         let seen = |name: &str| match &guest {
             Some(g) => format!("{}/{name}", g.trim_end_matches('/')),
             None => dir.join(name).display().to_string(),
@@ -162,16 +163,26 @@ impl Slots {
             self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(why.into()));
         }
         if let Some(e) = &self.egress {
-            let policy = self.policy_of(key);
+            let offer = self.jobs[key].offer.as_ref().map(|o| &o.policy);
+            let policy = crate::policy::of_job(offer, self.cfg.egress.default_policy.as_ref());
             let socket = dir.join(EGRESS_SOCKET);
-            let opened = e.open(unit.as_str(), &policy, &socket);
-            match opened {
+            let store = &self.cfg.egress.secrets;
+            match crate::secrets::open(e.as_ref(), unit.as_str(), &policy, store, &socket, cred_dir.as_deref()) {
                 Err(why) => {
                     self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("egress: {why}")));
                     return self.give_up(key, RefusalCode::UnitStartFailed, now);
                 }
-                Ok(0) => {}
-                Ok(n) => self.audit(audit::Kind::EgressFlagged, key.0, &key.1, None, Some(format!("{n} rules"))),
+                Ok(o) => {
+                    if o.flagged > 0 {
+                        let n = o.flagged;
+                        self.audit(audit::Kind::EgressFlagged, key.0, &key.1, None, Some(format!("{n} rules")));
+                    }
+                    // The unit trusts the CA of its broker (T-563).
+                    if let Some((file, vars)) = o.ca {
+                        credential.files.push(file);
+                        env.extend(vars);
+                    }
+                }
             }
             // The way out of the unit: a socket of its job alone. No token.
             env.insert("PODRUNNER_EGRESS".into(), format!("http://unix:{}", seen(EGRESS_SOCKET)));
@@ -419,21 +430,6 @@ impl Slots {
         self.report(key);
         let _ = self.sources[key.0].source.release(&key.1);
         self.set(key, State::Reported, now);
-    }
-
-    /// The egress policy of a job: the policy of its offer narrowed by
-    /// `default_policy` of `[egress]` (T-107), else either one, else no
-    /// way out at all.
-    fn policy_of(&self, key: &Key) -> String {
-        let offer = self.jobs[key].offer.as_ref().map(|o| o.policy.clone()).filter(|p| !p.is_empty());
-        let default = self.cfg.egress.default_policy.clone();
-        let (offer, default) = (offer.map(serde_json::Value::Object), default.map(serde_json::Value::Object));
-        // No ceiling allows nothing: an offer only takes away (T-410).
-        match (offer, default) {
-            (Some(o), Some(d)) => crate::policy::narrow(&d, &o).to_string(),
-            (None, Some(p)) => p.to_string(),
-            (_, None) => r#"{"schema":1,"mode":"allow","allow":[]}"#.into(),
-        }
     }
 
     /// When the egress module ended: no capacity, and each running unit

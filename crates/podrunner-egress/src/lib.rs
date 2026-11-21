@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use pod_broker::{Broker, Load, Policy, Secrets, Token};
+use pod_broker::{Broker, Load, Policy, Token};
 use pod_core::{BoxFuture, Class, Failure, Found, Resolve, Source, Stage};
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
@@ -26,6 +26,8 @@ pub mod denials;
 pub mod dns;
 pub mod lines;
 pub mod tls;
+
+pub use pod_broker::Secrets;
 
 /// What [`Egress::open_with`] gives for a job.
 #[derive(Debug, Default)]

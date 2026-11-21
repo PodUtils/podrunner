@@ -21,6 +21,7 @@ mod placement_disk;
 mod refused;
 mod report;
 mod sandbox;
+mod secrets;
 mod spool;
 mod start;
 mod status;

@@ -16,6 +16,10 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `podrunner.toml` | New `[egress.secrets.NAME]`: `file` (the value, mode 0600 or 0400), `hosts` and `sources`. A rule of `default_policy` can have an absolute `path`, and `default_policy` can name `credentials` of a secret of `[egress.secrets]`; `check` refuses another one. `docs/configuration.md`, "Placeholder credentials". | T-563, T-524 |
+| `job-offer.v1` | The `policy` of an offer can have `credentials` (`broker-policy.v1` of `pod-broker`) and a rule with an absolute `path`. A credential that names a secret that the host does not hold, that is not for the source, or that goes to a host outside the `hosts` of the secret is `egress-policy-unsupported`, with the secret and the host in the audit line; a path that is not absolute is too. A path rule was `egress-policy-unsupported`. | T-563, T-524 |
+| unit seam | New `UnitDriver::credential_dir`: where a unit sees its credential files (`docs/contracts/unit-driver.md`, "The credential directory"). | T-563 |
+| command line | `serve`: the broker of a unit ends the TLS of each tunnel to a host of a credential or of a path rule. The unit holds the placeholder; the far end gets the value. The unit gets the CA bundle of its broker as the credential file `podrunner-broker-ca.pem`, named by the ten variables of `pod_broker::ca::env`. | T-563 |
 | control socket | The wire is `pod-control` protocol 1 of podcrates `v0.80.0`: a request `{"schema":1,"id":N,"method":NAME,"params":{...}}`, an answer `{"schema":1,"id":N,"ok":true,"result":...}` or `{"schema":1,"id":N,"ok":false,"error":{"code":CODE,"detail":WORDS}}`. A client of `{"v":1,"op":...}` gets `bad-request`. The ops are methods: `drain` is `drain {"exit":false}`, `stop` is `drain {"exit":true}` (or `stop`), the other ops keep their names with their fields in `params`. New: `methods`, `auth`, `metrics`, `reload` (`unsupported`). A connection can send more than one request; a slow client is cut at 5 s for each line. `docs/cli.md`, "The control socket". | T-576 |
 | command line | `print-unit` writes the user unit of `pod_unit::systemd::render`: new `Wants=network-online.target`, `NotifyAccess=main`, `RestartSec=5`, `RestartPreventExitStatus=64 78` (was 78), the lines of seccomp of the hardening of `pod-unit` (`NoNewPrivileges`, `RestrictSUIDSGID`, `RestrictRealtime`, `LockPersonality`), and each other line as a comment with its reason. A word that looks like a secret exits 64. | T-576 |
 | command line | `run`: a job takes five more CA variables of the environment, each as a CA file in a unit: `AWS_CA_BUNDLE`, `DENO_CERT`, `HEX_CACERTS_PATH`, `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` and `CARGO_HTTP_CAINFO` (the ten of `pod_broker::ca::env` with the five of before). | T-576 |
@@ -79,5 +83,5 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
 <!-- contract docs/contracts/source-driver.md 5700b24d3839fe92012962770699804c9473e901c8bec3dc7d6aa260b3b899d1 -->
-<!-- contract docs/contracts/unit-driver.md 1c1ce27e4fe5d369f94dac4b7a7cddf91956562437546c6f775218e7d6d7416f -->
-<!-- contract schemas/config.v1.json 1ed3159fa2acce85931a15e2760ceee2fce8db5100a46f29d60176c18d9a8c84 -->
+<!-- contract docs/contracts/unit-driver.md 6131abed4890628300deefebaad769e02c652a1edb32e452a740383258883059 -->
+<!-- contract schemas/config.v1.json 50f04d63803b52ca35b411eb62203d5d31b91440efe7ee3b76b9ddcbc81b21d7 -->

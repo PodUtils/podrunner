@@ -393,8 +393,14 @@ impl Slots {
         let set = self.sources[s].cfg.tier;
         let trust = self.cfg.trust_for(&self.sources[s].cfg, &offer.trust_inputs);
         let now_s = (self.now_unix)();
+        // Each credential of the offer names a secret of this host for its
+        // source and its hosts (T-563).
+        let secrets =
+            crate::secrets::check_credentials(&offer.policy, &self.cfg.egress.secrets, Some(&self.sources[s].cfg.name))
+                .map_err(|d| placement::Refusal { code: RefusalCode::EgressPolicyUnsupported, detail: Some(d) });
         match trust
             .map_err(placement::Refusal::from)
+            .and_then(|t| secrets.map(|()| t))
             .and_then(|t| placement::place_why(&offer, set, &self.kind_views(), &self.cfg, t, now_s))
         {
             Ok(p) => {

@@ -161,6 +161,10 @@ impl UnitDriver for MicrovmUnit {
         "microvm"
     }
 
+    fn credential_dir(&self, _unit: &UnitId) -> Option<String> {
+        Some(self.cred_root.clone())
+    }
+
     fn probe(&self) -> Result<Capability, UnitError> {
         Ok(Capability {
             schema: 1,

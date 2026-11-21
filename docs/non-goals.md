@@ -32,7 +32,7 @@ Triggers met by the needs of githome and cfb (the census of T-491, 2026-11-18):
 
 | Item | The need | Entries |
 | --- | --- | --- |
-| The TLS end of the broker: placeholders, path rules | githome's G-04 (its P2 part) and G-35 | T-524 |
+| The TLS end of the broker: placeholders, path rules | githome's G-04 (its P2 part) and G-35 | T-524, T-563 (done: `[egress.secrets]`, `docs/configuration.md`, "Placeholder credentials") |
 | A schema for `podrunner.toml` | githome renders the file (G-37, cfb's R-053): a second reader exists | T-479 (done: `schemas/config.v1.json`), T-507 |
 | Shared caches, a mirror of actions | G-07, G-20, cfb's A-X-01 | T-480, T-528 |
 | Warm units | G-11, G-25, cfb's A-X-01 | T-487 |
