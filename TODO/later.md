@@ -14072,3 +14072,28 @@ Find the cause with a test that logs the time of each accept and each cut. If th
 ## Done
 
 2026-11-21, this commit. The test serves with a `read_timeout` of 60 s, so a silent client keeps its place for the whole test; with the 5 s of `settings`, a slow host cut the seven silent clients before the ninth asked. `cargo test -p podrunner --lib control`: 10 passed. Not run in CI.
+
+# T-581: The readers of podvm's output before the release after `0.2.0-beta.37` (COORD-226 of podvm)
+
+**Source:** PodUtils/podvm#640 (COORD-226, to podrunner), 2026-11-21
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm's `main` (`3f49cf6`, `ed2d002` to `e097e40`) changes what podrunner reads, for the release after `0.2.0-beta.37`: (1) `inspect` gives docker's types (`Pid`, `ExitCode`, `End.*` numbers; `State.Running` a boolean; `Labels` a map; `State` docker's object) and a new `Config` (`Env` without `PODVM_*` and `LD_PRELOAD`, `Cmd`, `Image`, `WorkingDir`, `Labels`); `{{.X}}` of `--format` prints Go style. (2) A refusal after the parse exits 1, not 125 (`rmi` of a referenced image, the gate of `cp`, a refused `load` or `import`); a failure of the store stays 125; E2BIG at `execve` exits 126, not 127. (3) `exec` into an exited or dead container is refused with exit 1. (4) `run -t` sets `TERM=xterm`; `logs --tail all`; `-v ...:z` and `:Z` do nothing. (5) A machine guest with no `--podvm-mem` gets 13/4 of its initrd and 512 MiB. (6) A line that names a forwarded signal starts with `podvm: `.
+
+## Premise
+
+The body of PodUtils/podvm#640, read on 2026-11-21. Not read yet: each reader of podrunner.
+
+## Approach
+
+Find each reader of `podvm inspect`, of a podvm exit code (125, 126, 127) and of `exec` in podrunner (`crates/podrunner-podvm`, `crates/podrunner-incus`, `crates/podrunner-microvm`, `crates/podrunner-local`). Make each reader take the old form and the new form where it costs little, or the new form alone with a version check. Test each with both forms.
+
+## Prove
+
+`cargo test --workspace` with fixtures of the old and the new output; then the gate lanes on the release after `0.2.0-beta.37`.
