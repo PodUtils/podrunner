@@ -19,7 +19,7 @@ use super::Egress;
 const ONLY_A: &str = r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example"}]}"#;
 const ONLY_B: &str = r#"{"schema":1,"mode":"allow","allow":[{"host":"b.example"}]}"#;
 
-struct Public;
+pub(super) struct Public;
 
 impl Resolve for Public {
     fn label(&self) -> String {

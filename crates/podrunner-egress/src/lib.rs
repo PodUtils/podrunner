@@ -4,6 +4,10 @@
 //! socket is the identity of the job, so no token reaches the unit, and
 //! `Proxy-Authorization` of another job gets 407. The unit reaches it as
 //! `http://unix:/PATH`, the form of `podnet pod -x`.
+//!
+//! The broker of a host has its TLS end ([`tls`]): a job holds the
+//! placeholder of a credential, and the broker gives the value of the
+//! secret to the hosts of that credential only.
 
 use std::collections::HashMap;
 use std::io::Read;
@@ -13,7 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use pod_broker::{Broker, Load, Policy, Token};
+use pod_broker::{Broker, Load, Policy, Secrets, Token};
 use pod_core::{BoxFuture, Class, Failure, Found, Resolve, Source, Stage};
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
@@ -21,6 +25,18 @@ use tokio::task::JoinHandle;
 pub mod denials;
 pub mod dns;
 pub mod lines;
+pub mod tls;
+
+/// What [`Egress::open_with`] gives for a job.
+#[derive(Debug, Default)]
+pub struct Opened {
+    /// The count of allow rules under an open suffix (`JobInfo::flagged`).
+    pub flagged: usize,
+    /// The CA bundle that the job trusts (PEM: the CA of its job, then the
+    /// roots of the host), when the broker ends its TLS: a credential or a
+    /// rule with a path.
+    pub ca_bundle: Option<String>,
+}
 
 /// A failure of the egress module, with no byte of a policy or a token.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,6 +89,8 @@ pub struct Egress {
     open: Mutex<HashMap<String, Listener>>,
     alive: Arc<AtomicBool>,
     denials: Arc<denials::Denials>,
+    /// The roots of the bundle of a job (`tls::HostTls::roots_pem`).
+    roots: Option<Vec<u8>>,
 }
 
 /// A token that no unit sees: the listener is the identity of the job.
@@ -83,8 +101,19 @@ fn token() -> Token {
 }
 
 impl Egress {
-    /// The module over `broker`, on a runtime of two threads.
+    /// The module over `broker`, on a runtime of two threads, with no TLS
+    /// end: a credential or a path rule is refused at the load.
     pub fn new(broker: Broker) -> Result<Egress, EgressError> {
+        Egress::build(broker, None)
+    }
+
+    /// The module over `broker` with the TLS end of `tls`.
+    pub fn with_tls(broker: Broker, tls: tls::HostTls) -> Result<Egress, EgressError> {
+        let end = pod_broker::TlsEnd::new(tls::provider(), tls.trust);
+        Egress::build(broker.with_tunnel_end(Arc::new(end)), tls.roots_pem)
+    }
+
+    fn build(broker: Broker, roots: Option<Vec<u8>>) -> Result<Egress, EgressError> {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .thread_name("podrunner-egress")
@@ -98,12 +127,14 @@ impl Egress {
             open: Mutex::new(HashMap::new()),
             alive: Arc::new(AtomicBool::new(true)),
             denials,
+            roots,
         })
     }
 
     /// The module of a host: the resolver `resolve` ([`dns::resolver`]),
     /// and a direct way out (or through `proxy`). With `names_only`, the
     /// broker sends the checked name to `proxy`, which takes names only.
+    /// The broker has the TLS end with the trust of this host.
     pub fn host(
         proxy: Option<pod_proxy::Proxy>,
         names_only: bool,
@@ -111,7 +142,7 @@ impl Egress {
     ) -> Result<Egress, EgressError> {
         let dial = pod_broker::upstream("podrunner", proxy, resolve.clone());
         let settings = pod_broker::Settings { names_upstream: names_only, ..Default::default() };
-        Egress::new(Broker::new(settings, resolve, dial))
+        Egress::with_tls(Broker::new(settings, resolve, dial), tls::HostTls::of_host()?)
     }
 
     /// Ask the way out whether it refuses a name of a non-public address
@@ -129,18 +160,43 @@ impl Egress {
     /// It gives the count of allow rules under an open suffix
     /// (`JobInfo::flagged` of `pod-broker`).
     pub fn open(&self, job: &str, policy: &str, socket: &Path, ttl: Duration) -> Result<usize, EgressError> {
+        self.open_with(job, policy, Secrets::new(), socket, ttl).map(|o| o.flagged)
+    }
+
+    /// [`Egress::open`] with the values of the secrets that the credentials
+    /// of `policy` name. No error text holds a value.
+    pub fn open_with(
+        &self,
+        job: &str,
+        policy: &str,
+        secrets: Secrets,
+        socket: &Path,
+        ttl: Duration,
+    ) -> Result<Opened, EgressError> {
         if !self.alive() {
             return Err(EgressError("egress is down".into()));
         }
         let policy = Policy::from_json(policy).map_err(|e| EgressError(format!("the policy of {job}: {}", e.class)))?;
-        let info = self
-            .broker
-            .load(Load::new(job, token(), ttl, policy))
-            .map_err(|e| EgressError(format!("the load of {job}: {}", e.class)))?;
-        let flagged = info.flagged.len();
+        let mut load = Load::new(job, token(), ttl, policy);
+        load.secrets = secrets;
+        // The words of a usage failure of the load name a secret, never its
+        // value (`pod-broker`: no text of an error holds one).
+        let info =
+            self.broker.load(load).map_err(|e| EgressError(format!("the load of {job}: {}: {}", e.class, e.text())))?;
+        let ca_bundle = match &info.ca_pem {
+            Some(ca) => match tls::bundle(job, ca, self.roots.as_deref()) {
+                Ok(b) => Some(b),
+                Err(e) => {
+                    self.broker.drop_job(job);
+                    return Err(e);
+                }
+            },
+            None => None,
+        };
+        let opened = Opened { flagged: info.flagged.len(), ca_bundle };
         let mut open = self.open.lock().expect("the listeners");
         if open.contains_key(job) {
-            return Ok(flagged);
+            return Ok(opened);
         }
         let _ = std::fs::remove_file(socket);
         let std_listener =
@@ -153,7 +209,7 @@ impl Egress {
             .map_err(|e| EgressError(format!("the socket: {}", e.kind())))?;
         let task = self.rt.spawn(self.broker.clone().serve_unix_job(job.to_string(), listener));
         open.insert(job.to_string(), (socket.to_path_buf(), task));
-        Ok(flagged)
+        Ok(opened)
     }
 
     /// Drop the job: its listener and each of its connections end, and the
@@ -209,3 +265,5 @@ impl Egress {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tls_tests;
