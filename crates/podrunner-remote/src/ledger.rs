@@ -78,9 +78,8 @@ impl Ledger {
     }
 
     /// Write the ledger again with the lines that a later call can need,
-    /// beside the old file, synced, then renamed over it.
+    /// with one atomic replace of `pod_core::files` (T-583).
     fn compact(&mut self, path: &Path, now_s: u64) -> std::io::Result<()> {
-        use std::os::unix::fs::OpenOptionsExt;
         let offered: BTreeSet<&JobId> = self.offers.values().flatten().collect();
         self.minted.retain(|job, (_, t)| offered.contains(job) || t.saturating_add(MINTED_KEPT_S) > now_s);
         let mut lines = Vec::new();
@@ -93,15 +92,16 @@ impl Ledger {
                 lines.push(Line::Start { host: host.clone(), job: job.clone() });
             }
         }
-        let part = path.with_extension("jsonl.part");
-        let mut f = OpenOptions::new().create(true).write(true).truncate(true).mode(0o600).open(&part)?;
+        let mut body = Vec::new();
         for line in &lines {
-            let mut text = serde_json::to_string(line).map_err(std::io::Error::other)?;
-            text.push('\n');
-            f.write_all(text.as_bytes())?;
+            serde_json::to_writer(&mut body, line).map_err(std::io::Error::other)?;
+            body.push(b'\n');
         }
-        f.sync_all()?;
-        std::fs::rename(&part, path)?;
+        let commit = pod_core::files::replace(path, &body, pod_core::files::Mode::Private)?;
+        if let Some(e) = commit.unconfirmed() {
+            // The new ledger is in place; only its name may not survive a power cut.
+            eprintln!("podrunner: {}: the sync of the directory failed: {e}", path.display());
+        }
         self.file = OpenOptions::new().append(true).open(path)?;
         Ok(())
     }
@@ -229,5 +229,9 @@ mod tests {
         drop(l);
         let after = std::fs::read_to_string(&path).unwrap().lines().count();
         assert!(after == 3 && before > 400, "{before} lines, then {after}");
+        // The replace keeps the ledger private and leaves no temporary file.
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        assert_eq!(std::fs::read_dir(&*dir).unwrap().count(), 1);
     }
 }

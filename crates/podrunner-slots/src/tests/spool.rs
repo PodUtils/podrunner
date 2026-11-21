@@ -76,6 +76,11 @@ fn report_spool_keeps_a_refused_report_until_the_source_takes_it() {
     bed.until(20, |s| s.jobs().count() == 1 && super::Bed::all_final(s));
     assert_eq!(bed.slots.spooled(), 1);
     assert_eq!(bed.slots.status().spooled_reports, 1);
+    // The report is a private file, and no temporary file stays (T-583).
+    let files: Vec<_> = std::fs::read_dir(bed.dir.0.join("state/spool")).unwrap().flatten().collect();
+    assert_eq!(files.len(), 1, "{files:?}");
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(files[0].metadata().unwrap().permissions().mode() & 0o777, 0o600);
     let audit = std::fs::read_to_string(bed.dir.0.join("state/audit.jsonl")).unwrap();
     assert!(audit.contains("\"report-spooled\""), "{audit}");
     // The source answers again: the next send takes the report.

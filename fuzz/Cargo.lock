@@ -1283,6 +1283,7 @@ dependencies = [
 name = "podrunner-remote"
 version = "0.1.0"
 dependencies = [
+ "pod-core",
  "pod-tls",
  "podrunner-hook",
  "podrunner-schema",

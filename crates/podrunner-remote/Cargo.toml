@@ -18,8 +18,9 @@ pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.81.0", defa
 rustls = { version = "0.23", default-features = false, features = ["std", "ring"] }
 serde.workspace = true
 serde_json.workspace = true
+# The atomic replace of the ledger (`files::replace`; T-583).
+pod-core.workspace = true
 
 [dev-dependencies]
 libc.workspace = true
-pod-core.workspace = true
 podrunner-fake.workspace = true

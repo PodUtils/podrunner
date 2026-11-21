@@ -5,9 +5,10 @@
 //! file goes when the source takes it. A sidecar that restarts, or a mint
 //! that the host cannot reach for a time, loses no report.
 
-use std::io::Write;
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+
+use pod_core::files::Mode;
 
 use podrunner_schema::JobId;
 use serde::{Deserialize, Serialize};
@@ -62,12 +63,10 @@ impl Slots {
         let dir = self.spool_dir();
         std::fs::create_dir_all(&dir)?;
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700))?;
-        let name = file_name(&entry.source, &entry.job_id);
-        let part = dir.join(format!("{name}.part"));
-        let mut f = std::fs::OpenOptions::new().create(true).write(true).truncate(true).mode(0o600).open(&part)?;
-        f.write_all(&serde_json::to_vec(entry).map_err(std::io::Error::other)?)?;
-        f.sync_all()?;
-        std::fs::rename(&part, dir.join(name))
+        let body = serde_json::to_vec(entry).map_err(std::io::Error::other)?;
+        // One atomic replace (T-583): the retry reads a whole report or none.
+        pod_core::files::replace(&dir.join(file_name(&entry.source, &entry.job_id)), &body, Mode::Private)?;
+        Ok(())
     }
 
     /// Send each spooled report again when its time comes.

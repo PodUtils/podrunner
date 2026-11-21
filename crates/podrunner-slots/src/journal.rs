@@ -117,22 +117,23 @@ pub fn keep_bad(state_dir: &Path, r: &Replay) -> Option<std::path::PathBuf> {
 
 /// Write the journal again with what a later start needs (T-068): the
 /// last line of each open job, and the line with the highest unit number.
-/// The new file is written beside the old one, synced, and renamed over
-/// it: a kill leaves the old journal or the new one.
+/// One atomic replace of `pod_core::files` (T-583): a kill or a power cut
+/// leaves the old journal or the new one, never an empty one.
 pub fn compact(state_dir: &Path, r: &Replay) -> std::io::Result<()> {
     let path = state_dir.join("journal.jsonl");
     if !path.exists() {
         return Ok(());
     }
-    let part = state_dir.join("journal.jsonl.part");
-    let mut f = File::create(&part)?;
+    let mut body = Vec::new();
     let lines = r.highest.iter().filter(|h| !r.open.values().any(|l| l == *h)).chain(r.open.values());
     for line in lines {
-        let mut text = serde_json::to_string(line).map_err(std::io::Error::other)?;
-        text.push('\n');
-        f.write_all(text.as_bytes())?;
+        serde_json::to_writer(&mut body, line).map_err(std::io::Error::other)?;
+        body.push(b'\n');
     }
-    f.sync_all()?;
-    std::fs::rename(&part, &path)?;
-    File::open(state_dir)?.sync_all()
+    let commit = pod_core::files::replace(&path, &body, pod_core::files::Mode::Exact(0o644))?;
+    if let Some(e) = commit.unconfirmed() {
+        // The new journal is in place; only its name may not survive a power cut.
+        eprintln!("podrunner: {}: the sync of the directory failed: {e}", path.display());
+    }
+    Ok(())
 }

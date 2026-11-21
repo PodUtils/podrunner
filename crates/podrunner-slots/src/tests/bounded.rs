@@ -49,7 +49,9 @@ fn bounded_jobs_suppressions_and_journal() {
     assert!(after.contains(&format!("\"u-{}\"", jobs - 1)), "the highest unit: {after}");
     assert!(after.contains("\"reported\""), "{after}");
     assert!(bed.slots.reports.is_empty(), "the restart reported a job again");
-    assert!(!bed.dir.0.join("state/journal.jsonl.part").exists());
+    // The replace leaves no temporary file beside the journal.
+    let names: Vec<_> = std::fs::read_dir(bed.dir.0.join("state")).unwrap().flatten().map(|e| e.file_name()).collect();
+    assert!(!names.iter().any(|n| n.to_string_lossy().starts_with(".journal.jsonl")), "{names:?}");
 }
 
 #[test]
