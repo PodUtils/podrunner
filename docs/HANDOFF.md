@@ -98,6 +98,66 @@ is done.
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
+## Resume here (the session of 2026-11-20 and 2026-11-21)
+
+- In flight, read first:
+  - #341 (`[gh action] requested`, on `a3cf4c0` to `14883d7`): green so
+    far: gate 44874012469, `level2.yml` 44874016083, `runner-image.yml`
+    44874019156 (the container job of the namespace rung now blocks:
+    T-532, T-403), `hosted-snapshot.yml` 44874022336 (a capture with no
+    `--acls`, COORD-228) and `hosted-boot.yml` 44878540271 on that capture
+    (the guest booted: systemd reached `basic.target` and each check of
+    T-582 holds; T-556 is partial, #325 is closed). `user-gate.yml` 44878038200 (on `14883d7`, images of
+    44874019156) was still running. The local agent writes the last line
+    on #341: read it, the digest of the capture is in it.
+  - Not run in CI: `46f7124` (T-590, the work folder `/home/runner/work`
+    on each kind; `images/runner/` changed, so `runner-image.yml` runs
+    first, then `user-gate.yml` with its id) and `e2c9f79` (the fuzz crate
+    after T-590). T-541 needs, in order: `hosted-runner.yml` with the
+    digest of the capture of #341 and `publish=true`, `hosted-boot.yml`
+    with the digest of the runner image, then the canned job of T-541 in
+    `runner-image.yml` on incus. Write one new `[gh action] requested`
+    for all of it (the form of #341).
+- Done in this session, each with its proof level in its entry: T-506
+  (the WebSocket attach of a sandbox, CI), T-507, T-527, T-528 (CI),
+  T-523 (the installer checks `SHA256SUMS` and `release-index.json`), T-524
+  and T-563 (placeholder credentials, with the fixes of an independent
+  security review: the sources and places of a secret, no credential on a
+  kind that runs as the user of `serve`), T-551, T-566, T-567 to T-569,
+  T-571 to T-574, T-576 (podcrates `v0.80.0`), T-580, T-581, T-549.
+  Partial: T-532, T-541, T-545 (one store of the podvm units: a later
+  start 4.9 to 7.5 s against 19 to 25 s, as root on a development host;
+  blocked on a copy-on-write tree of podvm), T-570, T-582, T-583
+  (podcrates `v0.81.0`), T-590.
+- Pins: podcrates `v0.81.0` (COORD-119, #340, closed); podvm
+  `0.2.0-beta.37` (COORD-224).
+- Asks open: COORD-118 (#339, to podvm): the fix of `pod-extract` for a
+  PAX value with a newline is in podcrates (PodUtils/podvm#643); then put
+  `--acls` back in the capture (`scripts/hosted/capture.sh`, the call in
+  `docs/decisions.md`). podvm's `main` after beta.37 changes `inspect`,
+  exit codes and `exec` (COORD-226, PodUtils/podvm#640): T-581 made the
+  readers take both forms; test them on that release.
+- Work order next (`TODO/PROGRESS.md`): T-583 (finish: the CI of the
+  take), T-590, T-541, T-556, T-582, T-532, then T-499, T-509, T-511,
+  T-497, T-553, T-557, T-545, T-578, T-577, T-588, T-589, T-591.
+- Session notes:
+  - This session cannot dispatch a workflow and its pushes start no run:
+    each run needs a new `[gh action] requested` issue.
+  - `user-gate.yml` refuses an `images_run` older than the last change of
+    `images/`: put `runner-image.yml` first and pass its id.
+  - Subagents in worktrees share `CARGO_TARGET_DIR=target`; each touches
+    its sources before a build (`docs/maintenance.md`). Merge their
+    commits one by one; the record files (`TODO/INDEX.md`,
+    `TODO/PROGRESS.md`, `TODO/later.md`) conflict on each merge: take
+    the side of `main` and add the rows of the commit, then
+    `cargo todo counts`.
+  - The disk fills with old test binaries in
+    `target/x86_64-unknown-linux-musl/debug/deps` (42 GB once): remove
+    it when `df` shows less than 5 GB free.
+  - A file `/podrunner/.runner/cred` with a made-up value may be on the
+    host of this session (a test of T-545 made it); it is not a
+    credential.
+
 ## Resume here (the session of 2026-11-19 and 2026-11-20)
 
 - The owner's rulings of this session (`docs/decisions.md`): "The hosted
@@ -120,39 +180,6 @@ is done.
     `hosted-parity.yml` (the probe diff, report-only, and the watcher of
     each label, daily), `hosted-boot.yml` (the core slice under incus,
     report-only). Scripts: `scripts/hosted/`.
-- In flight, read first:
-  - #331 (`[gh action] requested`): gate, `level2`, `runner-image.yml`
-    (with busybox through `pull-base.sh`, T-478), then `user-gate.yml` on
-    its images, on `c3efe9b` and later. Read in `user-gate.yml`:
-    `serve:job:incus`, `serve:job:microvm` (T-527; the last run hid their
-    cause, the gate now prints the logs of `serve` and both fakes),
-    `serve:check:podvm`, `serve:run:podvm`, `serve:job:podvm` in the lane
-    `userns-on` (T-566: the report must say `confined`), the schema of
-    the file of `config init` and no TCP listener of `serve` (T-507), and
-    `hello:incus` with the row `rbg-gate` on incus (T-528).
-  - T-556 (blocked): podvm's answer COORD-212 (PodUtils/podvm#609) fixes
-    the prefix of the Entrypoint `/sbin/init` of the snapshot on its
-    `main` (PodUtils/podvm@T-2011). On its next beta: pin it, dispatch
-    `hosted-boot.yml` with the digest `sha256:d00306d8...` of T-555.
-    T-532 waits for the same beta (PodUtils/podvm@T-2012, `exec` on the
-    namespace rung); then give the hooks on that rung and run the container
-    job in the lane `userns-on`.
-  - T-562: the release index, signed at the tag (the form of podcrates);
-    the dry run is green in CI; the run on a tag is the first test of the
-    next release: read both runs.
-- Done in this session (2026-11-20), each with its proof level in the
-  entry: T-561, T-220, T-350 (CI: `lab:vnet`); T-564 (CI: the lane
-  `userns-on`); T-565 (`config init` writes `command`, `runner_dir`,
-  and `confine` after the self-test); podcrates `v0.79.0` taken
-  (COORD-114, #329). Partial: T-566 (the confine layer proven by the
-  namespaces of the unit, a call in `docs/decisions.md`; `doctor` and
-  `config init` run the self-test), T-527 (a runner job through `serve`
-  passes on podvm on a constrained host), T-507, T-528, T-562.
-  - This session cannot dispatch a workflow: ask the local agent with a
-    `[gh action] requested` issue (#331 is the last). Its pushes start
-    no run either: ask for the gate and `level2.yml` too, and give
-    `user-gate.yml` an `images_run` (the green `runner-image.yml` run
-    44646254235 serves while `images/` is the same).
 - Done in this session: T-525 (C1 to C5 on microvm and incus), T-552
   (a job that the hook ends is `job-mismatch`), T-554 (TypeScript 7 on
   podvm, fixed by podvm beta.36), T-548. Partial: T-539, T-540, T-541
@@ -552,17 +579,14 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
 
 ## Open issues and asks
 
-- GitHub #65, #66, #67: the trackers of the asks of cfb, githome and the
-  CI plan that podrunner owns. Their bodies have the current state
-  (2026-11-15); T-001 holds them.
-- COORD issues open: #110 (COORD-050, to podvm); #111 (COORD-051, to
-  podvm); #189 (COORD-066) to podvm (T-261); #191 (COORD-067, to podcrates, T-283). #290 (COORD-084, to podcrates, T-439) and #291 (COORD-085, to podcrates, T-423). podrunner takes
-  podcrates `v0.70.0`; #214, #215, #288 and #289 close with the take.
-- GitHub #9, #32, #33, #40: wait for the live gates (#74, #75). GitHub
-  #43 waits for podcrates.
-- No question for the owner is open: Q7 (cancel the run of a refused job), the
-  size of a job (apply the values of the offer), Q8 and `limits_required`
-  (settled with githome on #151) on 2026-11-15.
+The audit of 2026-11-21 closed each issue whose subject is done; `TODO/issues.md` has each row. Open:
+
+- In flight: #341 (the runs of `a3cf4c0` to `14883d7`).
+- Asks to podvm not delivered or not taken: #339 (COORD-118, the PAX value of an ACL, the fix in podcrates), #316 and #313 (PodUtils/podvm@T-1994, @T-1998 are not in beta.37), #308 (podvm waits for data of podrunner), #304 and #189 (T-261), #300 (`--podvm-volume-base` off the namespace rung), #296 (ask 5), #277 (T-403).
+- COORD issues with entries not done: #312 (T-553), #184 (T-250), #183 (T-249), #181 (T-248).
+- Defects of the live runs with entries not done: #260 (T-412), #171 (T-229), #149 (T-197), #144 (T-192), #143 (T-180), #140 and #121 (T-169), #138 (T-187), #126 (T-181).
+- Trackers: #43 (T-043), #65, #66, #67, #292 (cfb), #293 (the owner's ruling), #74 and #75 (the live gates), #153 (T-199). #151 is the channel with githome: each entry it maps is done, and podrunner asked there for a root disk of 80 GB (T-551) on 2026-11-20.
+- No question for the owner is open.
 
 ## Talk between sessions
 

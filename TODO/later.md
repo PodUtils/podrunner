@@ -13187,7 +13187,7 @@ State (2026-11-20, `hosted-snapshot.yml` runs 44557874043 and 44557889203, `host
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -13226,14 +13226,6 @@ State (2026-11-21, `hosted-boot.yml` 44853306687 at `6b84ec3`, podvm `0.2.0-beta
 
 State (2026-11-21, the cause and the interim; a new capture: not run): podvm's answer COORD-228 (PodUtils/podvm#644): the refusal comes from `pod-extract` of podcrates, which cuts a PAX value with a newline for each key except `SCHILY.xattr.*`, `path` and `linkpath`. The fix waits for podcrates (PodUtils/podcrates#643, COORD-227) and the podvm release after it. Until then a capture with `--xattrs` and no `--acls` extracts with podvm `0.2.0-beta.37`. The interim call (`docs/decisions.md`): `scripts/hosted/capture.sh` and the round trip of `scripts/hosted/plan.py --self-test` run GNU tar with no `--acls`; the hosted snapshot keeps no ACL record, and the mode bits of each file stay. `scripts/hosted/c1.py` compares no ACL (its comment says so); the scrub reads no ACL record. `python3 -I scripts/hosted/plan.py --self-test`, `c1.py --self-test` and `scrub.py --self-test` pass. `hosted-boot.yml` now fails when the guest does not boot (T-582).
 
-## Blocker
-
-A new capture with no `--acls`, published, then a boot of its digest; both on `main` after this change (the capture fetches its scripts at the commit of the run):
-
-1. `gh workflow run hosted-snapshot.yml --repo PodUtils/podrunner --ref main -f label=ubuntu-24.04 -f publish=true`; the summary of the run names the digest (`ghcr.io/podutils/podrunner-hosted@sha256:...`).
-2. `gh workflow run hosted-boot.yml --repo PodUtils/podrunner --ref main -f digest=sha256:DIGEST` (DIGEST from step 1).
-
-Put `--acls` back with the podvm release that has the fix of `pod-extract` (COORD-228).
 
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
