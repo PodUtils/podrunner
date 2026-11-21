@@ -12164,7 +12164,7 @@ In the code (2026-11-18, the plant): `runner-image.yml` takes the input `plant` 
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12206,6 +12206,9 @@ State (2026-11-20, `user-gate.yml` run 44745685573 at `ab645c6`): the egress mod
 
 State (2026-11-20, proven in CI on GitHub-hosted runners, `user-gate.yml` run 44788390111 at `6a84667` (#332; gate 44788380238 and `level2.yml` 44788384919 green)): with the fake GitHub on `192.0.2.10` of `lo`, `serve:job:incus` (trusted, confined) and `serve:job:microvm` (untrusted, guest) pass: a runner job of githome through `serve` ends `success`, as GitHub says. The lane `serve-incus-kvm` failed on one check: `serve:run:microvm` (the self-test of the guest tier failed once at the first boot of the lane, then passed for `serve:job:microvm`; `no-tier-served`; the gate waited 900 s). T-574 has the defects that this shows.
 
+## Done
+
+2026-11-21, `eb96275` (the fake GitHub on `192.0.2.10` of `lo`) and the commits before it (the lane `serve-incus-kvm`: incusd, KVM, a user in `incus-admin` with no root). `user-gate.yml` 44788390111 at `6a84667`: `serve:job:incus` and `serve:job:microvm` pass; `user-gate.yml` 44802979062 at `32e5ea4`: the lane passes in full. Proven in CI on GitHub-hosted runners.
 
 # T-528: No row of the user-path gate copies the gate of rbg
 
