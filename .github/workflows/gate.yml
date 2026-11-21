@@ -84,6 +84,10 @@ jobs:
       # sandbox check of the user-path gate, against each other.
       - name: The WebSocket attach of the user-path gate
         run: python3 -I scripts/ws-echo.py --self-test
+      # T-582: the checks of the boot of hosted-boot.yml on a good boot, a
+      # run that exits 125 with no trace, and a boot with no marker.
+      - name: The checks of the hosted boot
+        run: python3 -I scripts/hosted/boot-checks.py --self-test
       # T-202: the installer of the local mode against a local fixture, its
       # pins against images/*.toml (a changed pin must fail), and shellcheck
       # of the pinned version (scripts/shellcheck.sh, T-251).

@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: 0BSD
-# The boot of the hosted snapshot in hosted CI (T-556), report-only: the
-# core slice of a published manifest (scripts/hosted/slice.py: the base,
-# the libraries of the distribution and boot, with no trees of the tools)
-# goes into a podvm store and boots in an incus system container with the
-# init of the image (podvm --podvm-init=image). The checks in the
-# instance write their results into a mounted directory; the summary
-# shows them. The full snapshot needs about 190 GB in incusd (T-551,
-# T-557), more than a hosted runner has.
+# The boot of the hosted snapshot in hosted CI (T-556): the core slice of
+# a published manifest (scripts/hosted/slice.py: the base, the libraries
+# of the distribution and boot, with no trees of the tools) goes into a
+# podvm store and boots in an incus system container with the init of the
+# image (podvm --podvm-init=image). The checks in the instance write their
+# results into a mounted directory. The boot step fails when `run -d` does
+# not exit 0, or when /out/started, /out/trace or the console marker is
+# absent (scripts/hosted/boot-checks.py, T-582); the summary names each
+# check that did not hold. The full snapshot needs about 190 GB in incusd
+# (T-551, T-557), more than a hosted runner has.
 name: hosted-boot
 
 on:
@@ -108,22 +110,16 @@ jobs:
             echo "($(wc -l < "$RUNNER_TEMP/console.log") lines; the first 150, the failures and the lines of the checks, the last 40)"
             head -n 150 "$RUNNER_TEMP/console.log"
             echo "--- the failures and the checks"
-            grep -n -E 'FAILED|Failed|failed|checks:|podvm|Power|poweroff' "$RUNNER_TEMP/console.log" | head -n 80
+            grep -n -E 'FAILED|Failed|failed|checks:|podvm|Power|poweroff' "$RUNNER_TEMP/console.log" | head -n 80 || true
             echo "--- the end"
             tail -n 40 "$RUNNER_TEMP/console.log"
           done
           echo "--- the files of the checks on the host"
           ls -la "$out"
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus core" || true
-          {
-            echo "## The boot of the core slice (report-only)"
-            echo
-            echo "run: exit $rc; the instance at its end: $state"
-            for f in started state pid1 kernel os machine-id cap ssh-keys failed trace; do
-              echo
-              echo "### $f"
-              echo '```'
-              cat "$out/$f" 2>/dev/null || echo "(none)"
-              echo '```'
-            done
-          } | tee -a "$GITHUB_STEP_SUMMARY"
+          # The checks that block (T-582): a run with no boot must end red.
+          c=0
+          python3 -I scripts/hosted/boot-checks.py --rc "$rc" --out "$out" \
+            --console "$RUNNER_TEMP/console.log" --state "$state" > "$RUNNER_TEMP/summary.md" || c=$?
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/summary.md"
+          exit "$c"

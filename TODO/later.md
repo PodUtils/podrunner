@@ -14132,7 +14132,7 @@ Find each reader of `podvm inspect`, of a podvm exit code (125, 126, 127) and of
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -14149,6 +14149,10 @@ Each boot step of `hosted-boot.yml` fails the job when `rc` is not 0, or when th
 ## Prove
 
 A run of `hosted-boot.yml` with a planted refusal (an image that podvm refuses) ends red, and names the check.
+
+State (2026-11-21, the checks in the code; the self-test proven here; a red run on a planted refusal: not run): `scripts/hosted/boot-checks.py` holds the checks that block: `run -d` exits 0, `/out/started` and `/out/trace` are present and not empty, and the console log has the marker `checks: start`. It writes the job summary (a table of the checks, then a line that names each check that did not hold, then the files of the checks, report only) and an error annotation for each fault; it exits 1 on a fault. The boot step of `hosted-boot.yml` ends with it, so a run with no boot ends red; the header of the workflow no longer says "report-only"; the `grep` of the console log has `|| true`, so a console with no match does not end the step under `bash -e` before the checks. `python3 -I scripts/hosted/boot-checks.py --self-test` (a good boot, rc 125 with no trace and no console log, no marker, an empty trace: 4 ok) runs in `scripts/agent/check.sh` and in the step "The checks of the hosted boot" of `gate.yml`; both workflows load with `yaml.safe_load`.
+
+Next: a run of `hosted-boot.yml` with an image that podvm refuses (or the digest of run 44853306687, which gave `rc` 125) ends red and names `podvm run -d exits 0` in its summary; then this entry is `done`.
 
 # T-583: Take podcrates `v0.81.0` (COORD-151 of podcrates)
 
