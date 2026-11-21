@@ -14189,7 +14189,7 @@ Next: a run of `hosted-boot.yml` with an image that podvm refuses (or the digest
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -14210,6 +14210,8 @@ The body of PodUtils/podcrates#254, read on 2026-11-21.
 ## Prove
 
 `sh scripts/agent/check.sh` passes; the gate and `level2.yml` are green on the commit of the take.
+
+State (2026-11-21, steps 1 to 4, this branch; proven by the checks here; not run in CI): (1) each podcrates dependency, `Cargo.lock`, `fuzz/Cargo.lock` and `issue-sync.yml` (the workflow of `0707cfa3`, `podcrates_ref: v0.81.0`) name `v0.81.0`. `images/pod-release.toml` pins `pod-release` 0.81.0 (`release-index.py` is the same file); `images/fake-githome.toml` pins `pod-fake-githome` and `pod-fake-github` of `v0.81.0` and the ghcr.io index `sha256:561ea1d1...`. Each SHA-256 of the downloaded asset agrees with the signed `SHA256SUMS`; `pod-release` 0.81.0 verifies that `SHA256SUMS` as `release.yml` of podcrates at `v0.81.0` (the tag `v0.80.0` gives 77); each ghcr.io digest (`pod-fake-githome`, `pod-fake-github`) is the one of the registry. `sh scripts/githome-conformance.sh` with this build: 15 of 15 pass; `scripts/release-assets.sh` `index`, `sums` and `check` fetch the pinned tools and pass. (2) `control::parse` reads the params of `drain` in place (`Drain::deserialize(&r.params)`); `control_tests.rs` writes `line.as_str()`. The test of the ninth client waits until `Server::active()` is 7 after the seven silent clients and after the call, then until it is 8 after the eighth connection; one call then gets `busy`. The `read_timeout` of 60 s (T-580) stays: the count does not stop the cut of a silent client at 5 s. The test alone: 30 of 30 pass; the tests of `control`: 10 of 10 runs pass with 16 threads. (3) `journal::compact` (`Mode::Exact(0o644)`), `Ledger::compact` and the spool (`Mode::Private`) use `pod_core::files::replace`; a failed sync of the directory writes one warning. The tests check the mode 0600 of the ledger and of a spooled report, and that no temporary file stays. A journal of a host with umask 077 is 0644 after a compaction (before: 0600); it holds no credential. (4) `install::install_system` is not small: T-588. Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, the fuzz crate (fmt, clippy, 2 tests) and `cargo todo check` pass; `cargo test --workspace --all-features --no-fail-fast`: 672 passed, 1 failed (`doctor_run_reads_the_run_toml_of_the_user`: the disk of this host had 1 GiB free, and `doctor` correctly refuses a run that needs 2 GiB); that test passes with `TMPDIR` on a tmpfs (5 of 5 in `tests/doctor.rs`). One full run of `podrunner-slots` failed once in `report_spool_survives_a_restart` under load, then passed 5 of 5 runs: T-589. Open: step 5 (the COORD issue), and the gate, `level2.yml` and `user-gate.yml` on the commit of the take (a change of `images/` needs a new run of `runner-image.yml` first).
 
 # T-584: The conformance suite of the podvm kind fails four tests on the namespace rung as root
 
@@ -14260,3 +14262,57 @@ At a load of a new digest, `podvm rmi` each image of the store that no running u
 ## Prove
 
 `cargo test -p podrunner-podvm`: a fake podvm with five images gets `rmi` of the oldest one that no unit uses.
+
+# T-588: `install_system` of `pod-unit` for a system unit of `serve`
+
+**Source:** the take of podcrates `v0.81.0` (T-583), 2026-11-21
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podcrates `v0.81.0` gives `pod_unit::install::install_system` and `remove_system`: they install a unit of the system (systemd, launchd or a Windows service) and start it. podrunner has only `print-unit`, which writes a user unit of systemd (`crates/podrunner/src/cli.rs`, `print_unit`). An operator who wants `serve` as a service of the system writes the unit by hand.
+
+## Premise
+
+Read on 2026-11-21 in install.rs of `pod-unit` (podcrates `v0.81.0`): `install_system(unit, form, places, host)` checks the privilege of the caller (`Host::admin`, else `Class::Refused`), systemd as the manager, the account of the unit (`id -u`; root is refused) and the owner and mode of each file of a secret, before it writes; a unit that does not start is removed. `Unit::system(run_as)` makes the unit a unit of the system (`None`: an account that the manager makes). `probe_system` finds the form; `SystemPlaces::default()` is `/etc/systemd/system` and `/Library/LaunchDaemons`; `install::System` is the real `Host`. Not measured: which account `serve` needs on a host with podvm (KVM, user namespaces), and which lines of `RELAXED` a unit of the system needs.
+
+## Approach
+
+1. Decide the command: `print-unit --system [--user NAME]` (prints the unit of the system) and `install-unit --system` (calls `install_system`), or only the first; record the call in `docs/decisions.md`.
+2. Build the unit with `Unit::system(Some(NAME))` and the hardening of `print_unit`; refuse root as `pod-unit` does.
+3. Test `install_system` with a fake `Host` (the refusal with no privilege, the refusal of root, a unit that does not start is removed).
+4. `docs/install.md`, "An install of serve", names the system unit; `CHANGES.md` has the row.
+
+## Prove
+
+`cargo test -p podrunner --all-features --lib cli`: the tests of the system unit pass; `podrunner print-unit --system --user podrunner` passes `pod_unit::systemd::audit` in a test.
+
+# T-589: Two tests depend on the load and the free disk of the host
+
+**Source:** the take of podcrates `v0.81.0` (T-583), 2026-11-21
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+(1) `tests::spool::report_spool_survives_a_restart` (`crates/podrunner-slots/src/tests/spool.rs`) failed one time in `cargo test -p podrunner-slots -p podrunner-remote --all-features` on a loaded host (other builds at the same time): "not done after 20 ticks" in `Bed::until`. It passed in the next 5 full runs. (2) `doctor_run_reads_the_run_toml_of_the_user` (`crates/podrunner/tests/doctor.rs`) fails when `/tmp` has less than about 2 GiB free: `doctor` correctly says `FAIL scratch-disk` and exits 1. A flaky test hides a real fault of the gate.
+
+## Premise
+
+Read on 2026-11-21: `Bed::tick` (`crates/podrunner-slots/src/tests/mod.rs`) moves the manual clock by 1 s and sleeps 5 ms of real time, so that a fake unit (a real process) can run; 20 ticks give a process 100 ms of real time. 12 calls of `until(20, ...)` in the tests of `podrunner-slots` have the same limit. The test of `doctor` sets `HOME` and `XDG_CONFIG_HOME`, not `TMPDIR`. Not measured: how long a fake unit takes on a loaded host.
+
+## Approach
+
+1. Let `Bed::until` tick until `done` holds or a deadline of real time (10 s) passes, not a count of ticks; keep the count as a limit of the manual clock only where a test needs it.
+2. In the test of `doctor`, give the run `--jobs 1` and assert on the rows the test is about (`runner-dir`), or point `TMPDIR` to a directory whose free space the test does not need to know, and accept the exit 1 of `scratch-disk` only with its row.
+
+## Prove
+
+`for i in $(seq 20); do cargo test -p podrunner-slots --all-features --lib || break; done` passes on a loaded host; `cargo test -p podrunner --all-features --test doctor` passes with less than 2 GiB free in `/tmp`.
