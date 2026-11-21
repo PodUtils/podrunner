@@ -211,15 +211,20 @@ pub(super) fn last_line(out: &[u8]) -> String {
 }
 
 /// The state in the output of `podvm inspect`: `State` and `ExitCode`.
+/// podvm `0.2.0-beta.37` gives `State` as the object of docker
+/// (`Status`, `Running`, `ExitCode`); an older podvm gives the word.
 fn state_of(out: &[u8]) -> Result<ContainerState, UnitError> {
     let text = String::from_utf8_lossy(out);
     let start = text.find('[').ok_or_else(|| UnitError::new(UnitCode::Host, "podvm inspect gave no JSON"))?;
     let v: Value = serde_json::from_str(&text[start..])
         .map_err(|_| UnitError::new(UnitCode::Host, "podvm inspect gave no JSON"))?;
     let c = &v[0];
-    let running = c["State"].as_str() == Some("running");
-    let exit =
-        c["ExitCode"].as_str().and_then(|s| s.parse::<i32>().ok()).or_else(|| c["ExitCode"].as_i64().map(|n| n as i32));
+    let state = &c["State"];
+    let running = state.as_str() == Some("running")
+        || state["Status"].as_str() == Some("running")
+        || state["Running"].as_bool() == Some(true);
+    let code = |v: &Value| v.as_str().and_then(|s| s.parse::<i32>().ok()).or_else(|| v.as_i64().map(|n| n as i32));
+    let exit = code(&state["ExitCode"]).or_else(|| code(&c["ExitCode"]));
     Ok(ContainerState { running, exit: if running { None } else { exit.map(Exit::Code) } })
 }
 
@@ -235,6 +240,16 @@ mod tests {
         let done = br#"[{"Name":"u-1-c0","State":"exited","ExitCode":"3"}]"#;
         assert_eq!(state_of(done).unwrap(), ContainerState { running: false, exit: Some(Exit::Code(3)) });
         assert!(state_of(b"no json").is_err());
+    }
+
+    /// podvm `0.2.0-beta.37` gives `State` as the object of docker, and
+    /// `ExitCode` as a number or `-` (the output of that release).
+    #[test]
+    fn the_state_comes_from_the_docker_object_of_inspect() {
+        let up = br#"[{"ExitCode":"-","Name":"c1","State":{"Dead":false,"ExitCode":null,"Pid":20170,"Running":true,"Status":"running"},"Status":"Up"}]"#;
+        assert_eq!(state_of(up).unwrap(), ContainerState { running: true, exit: None });
+        let done = br#"[{"ExitCode":3,"Name":"c2","State":{"Dead":false,"ExitCode":3,"Pid":0,"Running":false,"Status":"exited"},"Status":"Exited (3)"}]"#;
+        assert_eq!(state_of(done).unwrap(), ContainerState { running: false, exit: Some(Exit::Code(3)) });
     }
 
     /// A refusal of podvm keeps its reason; a longer line shows its cut.

@@ -32,7 +32,8 @@ impl PodvmUnit {
         };
         let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap_or_default();
         let one = if v.is_array() { &v[0] } else { &v };
-        one["State"] == "dead" || one["State"]["Status"] == "dead"
+        // podvm `0.2.0-beta.37` gives `State` as the object of docker.
+        one["State"] == "dead" || one["State"]["Status"] == "dead" || one["State"]["Dead"] == true
     }
 
     /// `RootfsPath` of the container `name` in `store`, when podvm names

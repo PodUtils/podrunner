@@ -49,8 +49,14 @@
 # signal stack (T-554, COORD-202), retries `openat2` on EAGAIN under the
 # syscall tier (T-261, COORD-197) and runs `apt-get install` as `-u 0` on
 # the userland rung.
-version = "0.2.0-beta.36"
+# v0.2.0-beta.37 gives `--podvm-init=image` on each route (T-556), runs the
+# command beside an Entrypoint `/sbin/init` (COORD-112, #325), joins the
+# namespaces of a `run -d` container of the namespace rung at `exec`
+# (T-532, COORD-113, #326), streams `logs` and takes `--limit-bytes N`
+# (T-570, COORD-115, #333), and gives `State` of `inspect` as the object of
+# docker.
+version = "0.2.0-beta.37"
 
 [sha256]
-x86_64 = "3d1b7fe89c9e634d8970d7ff54e40ef6d8df024bc8143c5df34687f0ca96e3e6"
-aarch64 = "db31c455ec27688f77cdb20362436e823a56dba9a93a24d1f1979536af295852"
+x86_64 = "c4b6b55ae0b8cc7e7edba86acedc430df2826f6e4e8d33eb2b94d95535a0a609"
+aarch64 = "0c043c5dc7b8aa72346efd27e6e56961e0f24c638870ed728e7a3422a5daea75"
