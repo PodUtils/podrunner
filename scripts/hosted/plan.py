@@ -214,8 +214,10 @@ def self_test() -> int:
         meta = json.loads((out / "plan.json").read_text())["layers"]
         for m in meta:
             tar = t / (m["list"] + ".tar")
+            # The flags of the capture (capture.sh): no --acls until podvm
+            # takes the fix of pod-extract (COORD-228).
             subprocess.run(
-                ["tar", "-C", str(root), "--format=posix", "--xattrs", "--xattrs-include=*", "--acls", "--sparse",
+                ["tar", "-C", str(root), "--format=posix", "--xattrs", "--xattrs-include=*", "--sparse",
                  "--numeric-owner", "--null", "--no-verbatim-files-from", "--no-recursion", "-T",
                  str(out / m["list"]), "-cf", str(tar)], check=True)
             # -p: a consumer keeps the modes (setuid) as root does by default.

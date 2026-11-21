@@ -88,7 +88,11 @@ layer() {
   name=$1
   shift
   dst="$out/layers/$name.tar.zst"
-  sudo tar --format=posix --xattrs --xattrs-include='*' --acls --sparse --numeric-owner \
+  # No --acls until a podvm release takes the fix of pod-extract (COORD-228,
+  # PodUtils/podvm#644): podvm 0.2.0-beta.37 refuses a PAX value with a
+  # newline in an ACL record. The mode bits of each file stay. Put --acls
+  # back with the podvm release that has the fix.
+  sudo tar --format=posix --xattrs --xattrs-include='*' --sparse --numeric-owner \
     --pax-option=delete=atime,delete=ctime "$@" -cf - |
     tee >(sha256sum | cut -d' ' -f1 > "$dst.diff_id") \
       >(python3 -I "$here/scrub.py" verify --runner-root "${runner_root#/}" --rows "$dst.rows" 2> "$dst.verify"

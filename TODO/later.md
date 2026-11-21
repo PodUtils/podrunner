@@ -13207,11 +13207,18 @@ State (2026-11-21, not run): podvm `0.2.0-beta.37` is pinned (COORD-224, PodUtil
 
 The ask was COORD-112 (GitHub #325, to podvm). podvm's answer COORD-212 (PodUtils/podvm#609): the cause was the `Entrypoint ["/sbin/init"]` of the snapshot (`scripts/hosted/oci.py`), which podvm `0.2.0-beta.36` put before the command also with `--podvm-init=image`; a second systemd ran `/sbin/init /bin/sh /out/checks.sh`, printed `Too many arguments.` and exited 1. A `degraded` boot runs the command; a boot that does not come up exits 125 and names the failed units. The fix (PodUtils/podvm@T-2011, podvm `main` `5958c73`): with `--podvm-init=image` the init of the image replaces its Entrypoint. The next beta of podvm unblocks this entry; `$out` is at mode 0777 already.
 
+State (2026-11-21, `hosted-boot.yml` 44853306687 at `6b84ec3`, podvm `0.2.0-beta.37`): no check of the Prove holds. `run -d` exits 125 before the instance exists: podvm refuses a layer of the slice ("the PAX record \"SCHILY.acl.access\" has a newline byte, which the tar reader cuts. The layer is refused whole"). GNU tar `--acls` writes the long text form of an ACL, one entry for each line; a PAX record carries its length, so a newline in a value is valid. The ask to podvm: its tar reader takes a PAX value with a newline (COORD-118, GitHub #339). The run was green with no boot: T-582.
+
+State (2026-11-21, the cause and the interim; a new capture: not run): podvm's answer COORD-228 (PodUtils/podvm#644): the refusal comes from `pod-extract` of podcrates, which cuts a PAX value with a newline for each key except `SCHILY.xattr.*`, `path` and `linkpath`. The fix waits for podcrates (PodUtils/podcrates#643, COORD-227) and the podvm release after it. Until then a capture with `--xattrs` and no `--acls` extracts with podvm `0.2.0-beta.37`. The interim call (`docs/decisions.md`): `scripts/hosted/capture.sh` and the round trip of `scripts/hosted/plan.py --self-test` run GNU tar with no `--acls`; the hosted snapshot keeps no ACL record, and the mode bits of each file stay. `scripts/hosted/c1.py` compares no ACL (its comment says so); the scrub reads no ACL record. `python3 -I scripts/hosted/plan.py --self-test`, `c1.py --self-test` and `scrub.py --self-test` pass. `hosted-boot.yml` now fails when the guest does not boot (T-582).
+
 ## Blocker
 
-A run of `hosted-boot.yml` on `main` with podvm `0.2.0-beta.37` (the session that pushes the pin dispatches it): `gh workflow run hosted-boot.yml --repo PodUtils/podrunner --ref main -f digest=sha256:d00306d81d0eee8b5fbba72fc353924df84bb074fd0dcadc60baf3b55fe66f0e` (the amd64 manifest of T-555). The run tells whether the checks of the slice write their results in `/out`.
+A new capture with no `--acls`, published, then a boot of its digest; both on `main` after this change (the capture fetches its scripts at the commit of the run):
 
-State (2026-11-21, `hosted-boot.yml` 44853306687 at `6b84ec3`, podvm `0.2.0-beta.37`): no check of the Prove holds. `run -d` exits 125 before the instance exists: podvm refuses a layer of the slice ("the PAX record \"SCHILY.acl.access\" has a newline byte, which the tar reader cuts. The layer is refused whole"). GNU tar `--acls` writes the long text form of an ACL, one entry for each line; a PAX record carries its length, so a newline in a value is valid. The ask to podvm: its tar reader takes a PAX value with a newline (COORD-118, GitHub #339). The run was green with no boot: T-582.
+1. `gh workflow run hosted-snapshot.yml --repo PodUtils/podrunner --ref main -f label=ubuntu-24.04 -f publish=true`; the summary of the run names the digest (`ghcr.io/podutils/podrunner-hosted@sha256:...`).
+2. `gh workflow run hosted-boot.yml --repo PodUtils/podrunner --ref main -f digest=sha256:DIGEST` (DIGEST from step 1).
+
+Put `--acls` back with the podvm release that has the fix of `pod-extract` (COORD-228).
 
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
