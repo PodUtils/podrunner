@@ -116,7 +116,7 @@ mod tests {
     use serde_json::json;
 
     /// T-573: with a microvm kind, `doctor` names the memory of a guest that
-    /// boots the image (3 times it plus 512 MiB), and the refusal of `check`
+    /// boots the image (13/4 times it plus 512 MiB), and the refusal of `check`
     /// with its fix.
     #[test]
     fn doctor_names_the_memory_of_a_pinned_image() {
@@ -134,11 +134,11 @@ mod tests {
         };
         std::fs::write(&file, pin(3_000_000_000)).unwrap();
         let v = super::super::report_with(Some(&file), json!([])).unwrap();
-        assert_eq!(v["pins"][0]["microvm_mem_bytes"], json!(9_536_870_912u64), "{v}");
+        assert_eq!(v["pins"][0]["microvm_mem_bytes"], json!(10_286_870_912u64), "{v}");
         let t = super::super::text(&v);
-        assert!(t.contains(", 3.0 GB unpacked, the microvm kind needs mem of 9.5 GB or more"), "{t}");
+        assert!(t.contains(", 3.0 GB unpacked, the microvm kind needs mem of 10.3 GB or more"), "{t}");
         assert!(t.contains("missing: [unit.microvm] mem: the pin runner@sha256:"), "{t}");
-        assert!(t.contains("fix: set mem = \"9G\" or more"), "{t}");
+        assert!(t.contains("fix: set mem = \"10G\" or more"), "{t}");
         std::fs::write(&file, pin(1_000_000_000)).unwrap();
         let v = super::super::report_with(Some(&file), json!([])).unwrap();
         assert!(!v["missing"].to_string().contains("[unit.microvm] mem"), "{v}");

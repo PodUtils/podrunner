@@ -102,8 +102,8 @@ max_age_s = 2419200          # the age limit of this pin; the smaller of it and 
                              # takes it, at untrusted (a guest); a runner job never does
 unpacked_bytes = 59000000000 # the bytes of the image unpacked (podrunner-manifest.json of a release, T-572; or du -sxb / in a
                              # unit of it); check and doctor refuse a pin above the root disk of [unit.incus] (root_quota,
-                             # disk_max_bytes, T-551) or above (mem - 512 MiB) / 3 of [unit.microvm] (T-573); absent: not
-                             # checked
+                             # disk_max_bytes, T-551) or above (mem - 512 MiB) x 4 / 13 of [unit.microvm] (T-573); absent:
+                             # not checked
 # labels = ["ubuntu-latest"] # the runs-on labels that this payload serves, no case; absent: each job (T-549)
 # init = "image"             # the payload boots the init of its image (systemd): only a kind with init = "image" takes it
 
@@ -168,8 +168,9 @@ binary = "/opt/podrunner/drivers/podvm"  # the released podvm binary
 images = "/var/lib/podrunner/images"     # a podvm store with the pinned images
 mem = "8G"                               # the memory of each guest (default 8G: the initrd of a runner image is about 1.4 GiB);
                                          # podrunner always passes it to podvm. The image is an uncompressed initramfs: podvm needs
-                                         # 3 x unpacked_bytes + 512 MiB (COORD-219). check refuses a pin whose unpacked_bytes is over
-                                         # (mem - 512 MiB) / 3 (T-573), with the fix: mem of at least 3 x N + 512 MiB, in whole GiB
+                                         # 13/4 x unpacked_bytes + 512 MiB (COORD-219). check refuses a pin whose unpacked_bytes is
+                                         # over (mem - 512 MiB) x 4 / 13 (T-573), with the fix: mem of at least 13/4 x N + 512 MiB,
+                                         # in whole GiB
 cpus = 2                                 # its vCPUs (default 2)
 engine = "/opt/podrunner/docker"         # optional: the static Docker binaries; each guest runs an engine
 ```

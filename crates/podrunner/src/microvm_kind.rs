@@ -88,14 +88,19 @@ const GUEST_BASE: u64 = 512 << 20;
 /// The largest image that a guest of `mem` bytes boots (T-573). podvm's
 /// initrd is an uncompressed `newc` cpio: packed and unpacked are each about
 /// the image, and the guest holds both during the unpack. podvm's rule is
-/// `mem = 3 × N + 512 MiB` (COORD-219, `machine/guest/mem.rs` of podvm).
+/// `mem = 13/4 × N + 512 MiB` (COORD-219, `machine/guest/mem.rs` of podvm),
+/// so the bound is `(mem - 512 MiB) × 4 / 13`.
 pub fn largest_image(mem: u64) -> u64 {
-    mem.saturating_sub(GUEST_BASE) / 3
+    let room = mem.saturating_sub(GUEST_BASE);
+    // `room × 4` can overflow: split it at 13, which gives the same floor.
+    room / 13 * 4 + room % 13 * 4 / 13
 }
 
-/// The memory of a guest that boots an image of `size` bytes.
+/// The memory of a guest that boots an image of `size` bytes, rounded up to
+/// a byte: the smallest `mem` whose `largest_image` holds `size`.
 pub fn mem_for(size: u64) -> u64 {
-    size.saturating_mul(3).saturating_add(GUEST_BASE)
+    let need = (u128::from(size) * 13).div_ceil(4) + u128::from(GUEST_BASE);
+    u64::try_from(need).unwrap_or(u64::MAX)
 }
 
 /// Each pin of this architecture fits the memory of a guest (T-573). A guest
@@ -109,7 +114,7 @@ pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<
         Class::Config,
         format!(
             "[unit.microvm] mem: the pin {} unpacks to {}, more than a guest of {mem} ({}) boots; \
-             the root of a guest is an uncompressed initramfs, and podvm needs 3 times the image plus 512 MiB; \
+             the root of a guest is an uncompressed initramfs, and podvm needs 13/4 times the image plus 512 MiB; \
              fix: set mem = \"{}G\" or more, or pin a smaller image (the disk root of podvm, T-1994, \
              removes this bound; no version of podvm has it)",
             p.reference,
@@ -144,17 +149,39 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
 mod tests {
     use std::os::unix::fs::PermissionsExt;
 
-    /// T-573: podvm's measure (COORD-219): an image of 1416 MiB resets a
-    /// guest of 4G and boots at 5G. The bound is `(mem - 512 MiB) / 3`.
+    /// T-573: podvm's curve (COORD-219, experiment 470): each initrd in MiB,
+    /// the guest memory in MiB where it does not boot, the memory where it
+    /// boots, and whether the rule `13/4 × N + 512 MiB` holds it there. The
+    /// rule is podvm's estimate and is above four of the five boot points:
+    /// it refuses them, and this test asserts the rule, not the boot.
     #[test]
-    fn the_largest_image_follows_the_measure_of_podvm() {
+    fn the_largest_image_follows_the_curve_of_podvm() {
+        const MIB: u64 = 1 << 20;
         const GIB: u64 = 1 << 30;
-        let image = 1416 << 20;
-        assert!(image > super::largest_image(4 * GIB));
-        assert!(image <= super::largest_image(5 * GIB));
-        assert_eq!(super::mem_for(image).div_ceil(GIB), 5);
-        assert_eq!(super::largest_image(8 * GIB), 2560 << 20);
+        let curve = [
+            (263, 768, 1024, false),
+            (519, 1536, 1792, false),
+            (1031, 3072, 3328, false),
+            (1416, 4096, 5120, true),
+            (2055, 6400, 6656, false),
+        ];
+        for (n, no_boot, boots, holds) in curve {
+            assert!(n * MIB > super::largest_image(no_boot * MIB), "{n} MiB at {no_boot} MiB");
+            assert_eq!(n * MIB <= super::largest_image(boots * MIB), holds, "{n} MiB at {boots} MiB");
+        }
+        // 13/4 × 1416 + 512 = 5114 MiB; 13/4 × 2055 + 512 = 7190.75 MiB.
+        assert_eq!(super::mem_for(1416 * MIB), 5114 * MIB);
+        assert_eq!(super::mem_for(2055 * MIB), 7190 * MIB + 3 * MIB / 4);
+        assert_eq!(super::mem_for(2055 * MIB).div_ceil(GIB), 8, "the rule of 3 gives 7G");
+        assert!(2055 * MIB > super::largest_image(7 * GIB), "the rule of 3 holds it at 7G");
+        // The bound of 8G is (8192 - 512) × 4 / 13 MiB, rounded down to a byte.
+        let bound = super::largest_image(8 * GIB);
+        assert_eq!(bound, 2_477_865_747);
+        assert!(super::mem_for(bound) <= 8 * GIB && super::mem_for(bound + 1) > 8 * GIB);
         assert_eq!(super::largest_image(1 << 20), 0);
+        let top = u128::from(u64::MAX - (512 << 20)) * 4 / 13;
+        assert_eq!(u128::from(super::largest_image(u64::MAX)), top, "no overflow");
+        assert_eq!(super::mem_for(u64::MAX), u64::MAX);
     }
 
     /// T-116: `plan`, which `check` and `doctor` call, refuses a podvm below

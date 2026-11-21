@@ -304,11 +304,12 @@ fn a_pin_over_the_root_disk_of_the_incus_kind_is_refused() {
 }
 
 /// T-573: the root of a microvm guest is an uncompressed initramfs, and
-/// podvm needs `mem = 3 × N + 512 MiB` for an image of N bytes (COORD-219).
-/// `check` and `serve` refuse a pin of this architecture over
-/// `(mem - 512 MiB) / 3` (8G when absent), with the fix; a pin at the bound
-/// passes, one byte over is refused, and a pin of another architecture
-/// passes. podvm's measure: 1416 MiB resets a guest of 4G and boots at 5G.
+/// podvm needs `mem = 13/4 × N + 512 MiB` for an image of N bytes
+/// (COORD-219). `check` and `serve` refuse a pin of this architecture over
+/// `(mem - 512 MiB) × 4 / 13` (8G when absent), with the fix; a pin at the
+/// bound passes, one byte over is refused, and a pin of another architecture
+/// passes. podvm's curve: 1416 MiB resets a guest of 4G and boots at 5G;
+/// 2055 MiB boots at 6656 MiB, and the rule needs 8G for it.
 #[test]
 fn a_pin_over_the_memory_of_a_microvm_guest_is_refused() {
     use std::os::unix::fs::PermissionsExt;
@@ -340,8 +341,8 @@ fn a_pin_over_the_memory_of_a_microvm_guest_is_refused() {
     for word in [
         "[unit.microvm] mem: the pin runner@sha256:",
         "unpacks to 5.0 GB, more than a guest of 8G (8.6 GB) boots",
-        "the root of a guest is an uncompressed initramfs, and podvm needs 3 times the image plus 512 MiB",
-        "fix: set mem = \"15G\" or more, or pin a smaller image (the disk root of podvm, T-1994,",
+        "the root of a guest is an uncompressed initramfs, and podvm needs 13/4 times the image plus 512 MiB",
+        "fix: set mem = \"16G\" or more, or pin a smaller image (the disk root of podvm, T-1994,",
     ] {
         assert!(text.contains(word), "{word}: {text}");
     }
@@ -349,17 +350,20 @@ fn a_pin_over_the_memory_of_a_microvm_guest_is_refused() {
     let serve = Command::new(BIN).args(["serve", "--config"]).arg(&over).arg("--state").arg(&state).output().unwrap();
     assert_eq!((serve.status.code(), &serve.stderr), (out.status.code(), &out.stderr));
     assert!(!state.join("journal.jsonl").exists());
-    // The bound of 8G is (8192 - 512) / 3 = 2560 MiB.
-    let bound: u64 = 2560 << 20;
+    // The bound of 8G is (8192 - 512) × 4 / 13 MiB, rounded down to a byte.
+    let bound: u64 = 2_477_865_747;
     let measured: u64 = 1416 << 20;
+    let largest: u64 = 2055 << 20;
     let cases = [
-        (1, 5_000_000_000, "mem = \"15G\"", here, 0),
-        (2, 5_000_000_000, "mem = \"14G\"", here, 78),
+        (1, 5_000_000_000, "mem = \"16G\"", here, 0),
+        (2, 5_000_000_000, "mem = \"15G\"", here, 78),
         (3, bound, "", here, 0),
         (4, bound + 1, "", here, 78),
         (5, measured, "mem = \"5G\"", here, 0),
         (6, measured, "mem = \"4G\"", here, 78),
-        (7, 5_000_000_000, "", other, 0),
+        (7, largest, "mem = \"8G\"", here, 0),
+        (8, largest, "mem = \"7G\"", here, 78),
+        (9, 5_000_000_000, "", other, 0),
     ];
     for (i, size, mem, arch, code) in cases {
         let out = check(&file(i, size, mem, arch));

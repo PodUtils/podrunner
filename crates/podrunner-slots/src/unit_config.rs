@@ -78,8 +78,8 @@ pub struct UnitConfig {
     pub confine: bool,
     /// `microvm`: the memory of each guest (`--podvm-mem`, default `8G`)
     /// and its vCPUs (default 2). The image is an uncompressed initramfs:
-    /// podvm needs 3 times the image plus 512 MiB, and `check` refuses a pin
-    /// whose `unpacked_bytes` is over `(mem - 512 MiB) / 3` (T-573).
+    /// podvm needs 13/4 times the image plus 512 MiB, and `check` refuses a
+    /// pin whose `unpacked_bytes` is over `(mem - 512 MiB) × 4 / 13` (T-573).
     /// `podvm`: the memory of each unit (`RLIMIT_AS`);
     /// `incus`: the memory and the CPUs of each instance (T-162).
     #[serde(default)]

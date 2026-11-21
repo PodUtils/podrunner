@@ -375,7 +375,7 @@
           "default": false
         },
         "unpacked_bytes": {
-          "description": "The bytes of the image unpacked (its tree, `du -sxb /` in a unit).\n`check` refuses a pin above the root disk of a kind that runs it\n(T-551) or above `(mem - 512 MiB) / 3` of a microvm guest (T-573), and\nplacement refuses an offer whose `disk` limit is below it on a kind\nwith `root_quota` (T-571). Absent: not checked.",
+          "description": "The bytes of the image unpacked (its tree, `du -sxb /` in a unit).\n`check` refuses a pin above the root disk of a kind that runs it\n(T-551) or above `(mem - 512 MiB) × 4 / 13` of a microvm guest\n(T-573), and placement refuses an offer whose `disk` limit is below it\non a kind with `root_quota` (T-571). Absent: not checked.",
           "type": [
             "integer",
             "null"
@@ -844,7 +844,7 @@
           ]
         },
         "mem": {
-          "description": "`microvm`: the memory of each guest (`--podvm-mem`, default `8G`)\nand its vCPUs (default 2). The image is an uncompressed initramfs:\npodvm needs 3 times the image plus 512 MiB, and `check` refuses a pin\nwhose `unpacked_bytes` is over `(mem - 512 MiB) / 3` (T-573).\n`podvm`: the memory of each unit (`RLIMIT_AS`);\n`incus`: the memory and the CPUs of each instance (T-162).",
+          "description": "`microvm`: the memory of each guest (`--podvm-mem`, default `8G`)\nand its vCPUs (default 2). The image is an uncompressed initramfs:\npodvm needs 13/4 times the image plus 512 MiB, and `check` refuses a\npin whose `unpacked_bytes` is over `(mem - 512 MiB) × 4 / 13` (T-573).\n`podvm`: the memory of each unit (`RLIMIT_AS`);\n`incus`: the memory and the CPUs of each instance (T-162).",
           "type": [
             "string",
             "null"

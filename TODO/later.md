@@ -13782,6 +13782,8 @@ State (2026-11-20): done in this commit. Proven by tests on this machine only; n
 
 State (2026-11-20): podvm answered COORD-116 with COORD-219 (PodUtils/podvm#629). The initrd of podvm is an uncompressed `newc` cpio: packed and unpacked are each about N, and the guest holds both during the unpack. podvm's measure (experiment 463, `kvm.yml` run 43876504275, PodUtils/podvm@T-1922): an initrd of 1416 MiB resets the guest at 4G and boots at 5G, 6G and 8G; podvm's rule is `mem = 3 × N + 512 MiB`. The measure lowered the bound (the note above, "it can only raise the bound", was wrong). New rule: `N ≤ (mem - 512 MiB) / 3` (`microvm_kind::largest_image`, `mem_for`); the fix names a `mem` of at least `3 × N + 512 MiB` in whole GiB, or the disk root of PodUtils/podvm@T-1994 (no version of podvm has it). podrunner keeps its default of 8G and always passes `--podvm-mem` (`docs/decisions.md`). Level: proven by tests here (`cargo test -p podrunner --test check`, `--lib microvm_kind doctor::pins`; each fails on the old rule of half); not run on a KVM host. PodUtils/podvm@T-2047 measures more sizes: T-573 takes those points into `largest_image` when podvm writes them.
 
+State (2026-11-21): podvm amended COORD-219 (PodUtils/podvm#629) with the curve of experiment 470 (`kvm.yml` run 44854125431, QEMU 10.2.1, PodUtils/podvm@T-2047 done). As initrd: no boot at, boots at: 263 MiB: 768, 1024 MiB; 519 MiB: 1536, 1792 MiB; 1031 MiB: 3072, 3328 MiB; 1416 MiB: 4096, 5120 MiB; 2055 MiB: 6400, 6656 MiB. podvm's rule is now `13/4 × N + 512 MiB`, rounded up to 256 MiB (podvm commit 3f49cf6, the release after 0.2.0-beta.37); the rule of 3 was only one step over the boot at 2055 MiB. New bound: `N ≤ (mem - 512 MiB) × 4 / 13` (8G: 2477865747 bytes), with no overflow (`microvm_kind::largest_image`, `mem_for`); the fix names a `mem` of at least `13/4 × N + 512 MiB` in whole GiB. The rule refuses each "no boot at" point, and four of the five "boots at" points (it holds only 1416 MiB at 5120 MiB): it is podvm's estimate, and podvm recommends that refusal. Level: proven by tests here (`cargo test -p podrunner --test check`, `--lib microvm_kind doctor::pins`; each fails on the rule of 3); not run on a KVM host.
+
 ## Done
 
 2026-11-20, this commit. `crates/podrunner/src/pin_size.rs` (new: `gb`, `over`, `kind_fits`, `fits`: one rule for `check`, `serve`, `doctor` and `config init`); `crates/podrunner/src/microvm_kind.rs` (`pins_fit`, `DEFAULT_MEM`); `crates/podrunner/src/incus_kind.rs` (`pins_fit` on `pin_size::over`); `serve::plan` and `doctor` call `pin_size` for each kind; `doctor/pins.rs` (`microvm_mem_bytes`: twice the size); `config_init.rs` refuses a kind whose bound the image exceeds, with the fix in `refused`. The doc comment of `[unit.microvm] mem` said a default of `4G`; the driver uses `8G` (fixed in place, `schemas/config.v1.json`). Docs: `docs/configuration.md`, `docs/cli.md`, `docs/install.md`; the call is in `docs/decisions.md`.
@@ -14041,3 +14043,28 @@ T-549 is done (2026-11-21): placement reads `labels` and `init` of a pin. `image
 ## Start condition
 
 The first publish of the snapshot (T-555) gives a digest.
+
+# T-580: The test of the ninth client of the control socket fails under the load of the full suite
+
+**Source:** the work of T-573, 2026-11-21
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`control::tests::silent_clients_delay_no_answer_and_a_ninth_is_busy` (`crates/podrunner/src/control_tests.rs`) failed one time in `cargo test -p podrunner --all-features` on a loaded host: "no busy in 10 s". It passed three times alone and once in the next full run. A flaky test hides a real fault of the gate.
+
+## Premise
+
+Read on 2026-11-21: the test connects seven silent clients and an eighth, then asks until the answer is `busy`, for at most 10 s. The server cuts a client at 5 s for each line (`crates/podrunner/src/control.rs`, `serve`). Not measured: the cause. Possible: when the server accepts the eighth client late, the seven silent clients reach the deadline of their line first and free their places, so no `busy` comes after 5 s.
+
+## Approach
+
+Find the cause with a test that logs the time of each accept and each cut. If the deadline of the line frees the places, give the test a deadline of the line that is longer than its wait (the settings of `serve` in the test), or connect the eighth client before the wait of 100 ms.
+
+## Prove
+
+`for i in $(seq 20); do cargo test -p podrunner --all-features --lib || break; done`: 20 full runs pass on a loaded host.
