@@ -177,7 +177,8 @@ pub fn parse(line: &[u8]) -> Result<Request, Fault> {
             "status" => no_params(&r.params).map(|()| Request::Status),
             "stop" => no_params(&r.params).map(|()| Request::Stop),
             "drain" => {
-                let d: Drain = serde_json::from_value(r.params).map_err(|_| bad_params())?;
+                // The request wipes its params at its drop: read them in place.
+                let d = Drain::deserialize(&r.params).map_err(|_| bad_params())?;
                 Ok(if d.exit { Request::Stop } else { Request::Drain })
             }
             name => Request::of_extra(name, &r.params),

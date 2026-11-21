@@ -4,15 +4,15 @@
 # asset of the release of podcrates and checks its SHA-256 (the line of the
 # signed SHA256SUMS of that release). The same binary is the index
 # `reference` on ghcr.io, attested (T-553, COORD-142).
-version = "0.80.0"
+version = "0.81.0"
 
 [sha256]
-x86_64 = "a289163d9a80a47eab693d9c37337c79b355fc95595b42be4fc05a0c7b14e9a4"
-aarch64 = "c07748214b12b14cff1a046a7988964aa59f8d05b7cffb9e218f8959695e0a7a"
+x86_64 = "04d10c4e86d2cd234fb37707520082fa21c34601e0a5f14e92ad7d77c2926d28"
+aarch64 = "1136764564dea72e497836051a7b1aeb522b958e7d5995bb7958c3b9900270de"
 # pod-fake-github of the same release: the fake GitHub of a runner job
 # through `serve` in the lane serve-incus-kvm of user-gate.yml (T-527).
-github_x86_64 = "0c00cd82f576f5d21da406806906233ed930cc36173e132bf36e0ed800991364"
-github_aarch64 = "712ecca7dd51e57399ddede0fb686243d44ed090b02e3ecac47613b2577f0f98"
+github_x86_64 = "42d8c59d280f7fc58fff88e5c813f783884e795073483f41896c982d6eec55fd"
+github_aarch64 = "aa68c0fd08c9c1e9a94db35b70c1c268de2ddc00f0f10848060bd29ff112f8ea"
 
 [ghcr]
-reference = "ghcr.io/podutils/pod-fake-githome:v0.80.0@sha256:51fa7080dbe60133310f7fb45893e7ad459ae2e8d0225aaccd9615aa16622977"
+reference = "ghcr.io/podutils/pod-fake-githome:v0.81.0@sha256:561ea1d17878fe0335cc3a39dd7a2adfa91a8bf01e32a5beaebcf6b6e06251c8"

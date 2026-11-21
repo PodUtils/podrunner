@@ -54,7 +54,7 @@ fn each_request_has_its_method_and_the_server_reads_it_back() {
     for req in all {
         let (method, params) = req.method();
         let line = pod_control::wire::request_line(7, method, &params, None);
-        assert_eq!(parse(line.as_bytes()), Ok(req), "{line}");
+        assert_eq!(parse(line.as_bytes()), Ok(req), "{}", line.as_str());
     }
     // `drain` with no params is the drain of pod-control: exit after it.
     assert_eq!(parse(br#"{"schema":1,"id":1,"method":"drain"}"#), Ok(Request::Stop));
@@ -147,32 +147,36 @@ fn silent_clients_delay_no_answer_and_a_ninth_is_busy() {
     // `settings`, a slow host cuts the seven before the ninth asks (T-580).
     let mut s = settings();
     s.read_timeout = Duration::from_secs(60);
-    let (_server, incoming) = pod_control::unix::serve(&path, s, catalogue()).unwrap();
+    let (server, incoming) = pod_control::unix::serve(&path, s, catalogue()).unwrap();
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let host = answer(incoming, stop.clone());
     // Seven silent clients hold seven of the eight places.
     let idle: Vec<UnixStream> = (0..7).map(|_| UnixStream::connect(&path).unwrap()).collect();
-    std::thread::sleep(Duration::from_millis(100));
+    wait_active(&server, 7);
     let started = Instant::now();
     assert_eq!(call(&path, &Request::Capacity).unwrap(), Value::from("done"));
     assert!(started.elapsed() < Duration::from_secs(1), "{:?}", started.elapsed());
-    // Eight silent clients now: a ninth gets busy.
+    // The server gives the place of the call back after the answer, and
+    // takes the place of the eighth when it accepts it: count the places,
+    // so that the ninth asks when eight are held (T-583).
+    wait_active(&server, 7);
     let _eighth = UnixStream::connect(&path).unwrap();
-    // The server takes the eighth place when it accepts the connection,
-    // which a slow host does late: ask again until the answer is busy.
-    let deadline = Instant::now() + Duration::from_secs(10);
-    let e = loop {
-        match call(&path, &Request::Status) {
-            Err(e) => break e,
-            Ok(_) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
-            Ok(v) => panic!("no busy in 10 s: {v}"),
-        }
-    };
+    wait_active(&server, 8);
+    let e = call(&path, &Request::Status).unwrap_err();
     assert_eq!(e.code(), Some(Code::Busy), "{e}");
     drop(idle);
     stop.store(true, std::sync::atomic::Ordering::SeqCst);
     host.join().unwrap();
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Wait until `n` connections hold a place of `server` (10 s at most).
+fn wait_active(server: &pod_control::unix::Server, n: usize) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while server.active() != n {
+        assert!(Instant::now() < deadline, "{} places held, not {n}", server.active());
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
 /// T-184: while the supervisor answers nothing, `status` gets the last

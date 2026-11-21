@@ -19,9 +19,9 @@ podrunner-hook.workspace = true
 podrunner-egress.workspace = true
 # The CA variables of a job (`ca::env`, `ca::CLIENT_VARS`; T-576).
 pod-broker.workspace = true
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.80.0" }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.81.0" }
 pod-core.workspace = true
-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.80.0", default-features = false }
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.81.0", default-features = false }
 serde_json.workspace = true
 libc.workspace = true
 flate2.workspace = true
