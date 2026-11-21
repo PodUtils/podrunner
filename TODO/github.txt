@@ -339,5 +339,5 @@
 333 issue open
 334 issue open
 335 issue closed
-336 issue open
+336 issue closed
 337 issue closed

@@ -11561,7 +11561,7 @@ State (2026-11-21): the attach over an outbound WebSocket is in the user-path ga
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -11592,6 +11592,12 @@ In the code (2026-11-18): step 2: `podrunner config init` writes a `podrunner.to
 In the code (2026-11-18, step 1): `podrunner-install.sh --serve` installs the same files with no `run.toml` and no `hello.yml`, writes `DATA/serve.json` (`podrunner`, `podvm`, `podnet`, `images`, `image`, `runner_version`) and prints the command of `config init`; a second run changes nothing (`sh scripts/test-install.sh`, case `--serve`). The lane `serve-incus-kvm` of the user-path gate (T-527) runs `config init`, `check`, `doctor` and `print-unit` as a user with no root.
 
 State (2026-11-20): the open parts are in. `print-unit` gives a unit that runs as a systemd user unit (`WantedBy=default.target`, no `User=`); `docs/install.md`, "An install of serve", gives the steps of the operator and of the program, with `systemctl --user`. The user-path gate checks the file of `config init` against `schemas/config.v1.json` (`scripts/check-config-schema.py FILE`, in a venv of the lane) and that `serve` holds no TCP socket in LISTEN (`tcp_listeners_of`: the socket inodes of its descriptors against `/proc/net/tcp` and `tcp6`; a planted listener is found). Through the code of the gate as a user with no root on the podvm kind: `serve:check` ("config init, the schema, check, doctor (podvm: confined, hold enforced), print-unit") and `serve:run` ("with no TCP listener") pass. Next: the lanes in CI.
+
+State (2026-11-21, proven in CI on GitHub-hosted runners, `user-gate.yml` 44845109476 and `level2.yml` 44845104820 at `5911ba0` (#336)): with the take of podcrates `v0.80.0` (`print-unit` on `pod-unit`), each lane passes: `serve:check` (the file of `config init` against the schema, `check`, `doctor`, `print-unit`) and `serve:run` (no TCP listener) on podvm, incus and microvm.
+
+## Done
+
+2026-11-21, `c362e4b` and the commits before it (`config init`, `--serve` of the installer, `print-unit` for a systemd user unit, the checks of the gate). `user-gate.yml` 44845109476 and `level2.yml` 44845104820 at `5911ba0` (#336): each lane passes. Proven in CI on GitHub-hosted runners.
 
 # T-508: COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks
 
@@ -13888,6 +13894,8 @@ State (2026-11-20, steps 1 to 5, this branch): (1, 2) each podcrates dependency,
 State (2026-11-20, the review of the take): the unit of `print-unit` keeps `NoNewPrivileges=yes` (as before the take) and adds `RestrictSUIDSGID=yes` of `pod-unit`. Each process of a podvm unit is a child of `serve`, so a job on the userland or the namespace rung cannot make a setuid or setgid file; a hosted runner of GitHub can. Not measured: a job that needs it. If one does, relax the line with its reason, as the six other lines are.
 
 State (2026-11-21): on `main` in `6442f43`, `cac5805`, `c362e4b`, `3aca00b` and `19baf72` (a doc link to a private item). The take is written to podcrates as COORD-117 (GitHub #337). Not run in CI: #336.
+
+State (2026-11-21, proven in CI on GitHub-hosted runners, `user-gate.yml` 44845109476 and `level2.yml` 44845104820 at `5911ba0` (#336)): green. The gate 44845100511 failed once in `silent_clients_delay_no_answer_and_a_ninth_is_busy` (a fixed wait of 100 ms on a slow host); `5e36208` asks until busy. Not run in CI: the gate after `5e36208`.
 
 # T-577: A JVM job behind an intercepting proxy of the host does not trust the CA of the proxy
 

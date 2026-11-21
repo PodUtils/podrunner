@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**574 entries: 59 open, 51 partial, 18 blocked, 446 done.**
+**574 entries: 59 open, 50 partial, 18 blocked, 447 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 4 | 24 | 6 | 81 | 115 |
+| P1 | 4 | 23 | 6 | 82 | 115 |
 | P2 | 16 | 20 | 8 | 233 | 277 |
 | P3 | 38 | 7 | 4 | 130 | 179 |
-| **All** | 59 | 51 | 18 | 446 | 574 |
+| **All** | 59 | 50 | 18 | 447 | 574 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -551,7 +551,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |
 | [T-505](later.md) | P2 | S | later | feature | done | No cap of units for the whole host across its kinds |
 | [T-506](later.md) | P1 | L | later | feature | partial | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
-| [T-507](later.md) | P1 | M | later | feature | partial | G-37: an install of `serve` that another program drives, with no prompt |
+| [T-507](later.md) | P1 | M | later | feature | done | G-37: an install of `serve` that another program drives, with no prompt |
 | [T-508](later.md) | P1 | S | later | chore | done | COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks |
 | [T-509](later.md) | P1 | M | later | feature | partial | G-38: a test of githome's source in podrunner's CI that blocks a release |
 | [T-510](later.md) | P1 | S | later | release | done | G-39: one record of each change of a contract that githome reads |
