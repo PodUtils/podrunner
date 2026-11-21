@@ -1,5 +1,5 @@
 //! The containers of a podvm unit (T-035, step 4): each container is a
-//! podvm container in the store of the units (T-545), with the volumes of the hook
+//! podvm container in the store of its unit (T-545), with the volumes of the hook
 //! tables as `-v`. The podvm verbs: `run -d` for a job container or a
 //! service, `exec -e -w` for a step, `logs`, `inspect`, `rm -f`. Volumes
 //! work in each step on the supervise and userland rungs (U19, T-034),
@@ -30,7 +30,7 @@ fn refused(why: &str) -> UnitError {
 
 /// What the verbs of a container of a unit need.
 struct Base {
-    /// The store of the units.
+    /// The store of the unit.
     store: PathBuf,
     /// The directory of the unit: the environment files go there.
     dir: PathBuf,
@@ -46,7 +46,7 @@ impl PodvmUnit {
         let units = self.units.lock().expect("the units");
         let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;
         let runner = r.rootfs.join(self.runner_dir.trim_start_matches('/'));
-        Ok(Base { store: self.store(), dir: r.dir.clone(), tag: r.tag.clone(), runner, egress: r.egress.clone() })
+        Ok(Base { store: r.store.clone(), dir: r.dir.clone(), tag: r.tag.clone(), runner, egress: r.egress.clone() })
     }
 
     /// `podvm ARGS` in the store `store`, with its status and its output.

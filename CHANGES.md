@@ -16,7 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
-| unit seam | The podvm kind keeps one store of the units (`STATE/store`, was a store for each unit under `STATE/units/ID/store`): it loads and extracts each pinned image once, and each unit is `podvm create` with a tree of its own, then `podvm start`. A unit has no run report of podvm (`run-report.json` and `PodvmUnit::run_report` go). | T-545 |
+| unit seam | The podvm kind on a rung that binds a volume (supervise, userland, namespace) keeps one store of the units (`STATE/store`, was a store for each unit under `STATE/units/ID/store`): it loads and extracts each pinned image once, each unit is `run -d` with a tree of its own, and its credential files stay in `STATE/units/ID/runner-root`, a volume at `/podrunner/.runner`. The run report and `oom_kills` stay. Another rung keeps a store for each unit. | T-545 |
 | `podrunner.toml` | New `[egress.secrets.NAME]`: `file` (the value: a regular file of the user, mode 0600 or 0400, not a symbolic link), `hosts`, `sources` (also for a credential of `default_policy`) and `places` (default `header` and `basic`). A rule of `default_policy` can have an absolute `path`, and `default_policy` can name `credentials` of a secret of `[egress.secrets]`; `check` refuses another one. `docs/configuration.md`, "Placeholder credentials". | T-563, T-524 |
 | `job-offer.v1` | The `policy` of an offer can have `credentials` (`broker-policy.v1` of `pod-broker`) and a rule with an absolute `path`. A credential that names a secret that the host does not hold, that is not for the source, or that goes to a host outside the `hosts` of the secret is `egress-policy-unsupported`, with the secret and the host in the audit line; a path that is not absolute is too. A path rule was `egress-policy-unsupported`. Also refused: an `in` outside the `places` of the secret, a credential of `default_policy` for a job of another source, two placeholders where one holds the other, a path that is not normal (a dot segment, `//`, an escape of a dot or a slash), and a credential on a kind below `confined` with a shared user. | T-563, T-524 |
 | unit seam | New `UnitDriver::credential_dir`: where a unit sees its credential files (`docs/contracts/unit-driver.md`, "The credential directory"). | T-563 |
@@ -86,5 +86,5 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 893e04a8c4625f20b931f9bf6117f867bdb9cf5759b2f94c89191c94aa64bcd3 -->
 <!-- contract docs/contracts/source-driver.md 5700b24d3839fe92012962770699804c9473e901c8bec3dc7d6aa260b3b899d1 -->
-<!-- contract docs/contracts/unit-driver.md 3e1ae2945756a5ef713560d758e06e40161fd2d1f1b361cb145c73484cb1c659 -->
+<!-- contract docs/contracts/unit-driver.md 050ea9b77c5c5ccd467beb482c4bdc98694cd9253ea791e96479f1a83cabbff2 -->
 <!-- contract schemas/config.v1.json bd368b2689841eb62f80e3a6904e5cfbc71a5625ad126433438c19baff19bf0e -->

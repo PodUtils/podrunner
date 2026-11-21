@@ -285,7 +285,7 @@ jobs:
           PODRUNNER_PODVM_CONFINE=1 cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture \
             --skip a_mount_source_swapped_for_a_link_after_the_check_is_refused
           sh scripts/measure-podvm-confine.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/confine"
-          # T-078, T-545: the labels and the image of a unit (podvm inspect).
+          # T-078: the labels and the run report of podvm.
           timeout 300 cargo test -p podrunner-podvm --test report -- --ignored --nocapture
           # T-162: a payload past `memory` and one past `pids` of an offer get an error.
           timeout 300 cargo test -p podrunner-podvm --test limits -- --ignored --nocapture

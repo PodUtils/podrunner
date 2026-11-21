@@ -1,14 +1,15 @@
 //! The one store of the units of a driver (T-545). `STATE/store` holds
 //! each pinned image once: the first unit of a digest loads its tar and
 //! podvm extracts it; each later unit of that digest loads and extracts
-//! nothing. Each unit is a container of its own in that store: `podvm
-//! create` copies the extracted image into a tree of the container
-//! (`<store>/trees/<id>/`, a `FICLONE` where the file system has it), the
-//! driver writes the credential files into that tree, and `podvm start`
-//! starts the payload. podvm never writes the extracted image after the
-//! extraction, so each unit starts from the image as the pin gives it.
-//! The credential files go only into the tree of the unit, never into the
-//! extracted image that the next unit copies.
+//! nothing. Each unit is a container of its own in that store: `podvm run
+//! -d` copies the extracted image into a tree of the container
+//! (`<store>/trees/<id>/`, a `FICLONE` where the file system has it), and
+//! podvm never writes the extracted image after the extraction, so each
+//! unit starts from the image as the pin gives it. The credential files of
+//! a unit stay in its own directory on the host and reach the unit as a
+//! volume at `CREDENTIAL_DIR`: nothing of one unit is in the source of the
+//! next. A rung that binds no volume keeps a store for each unit, with the
+//! credential files in its own extracted image (T-023).
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
@@ -19,8 +20,12 @@ use podrunner_unit::{StartSpec, UnitCode, UnitError};
 
 use super::{PodvmUnit, RUNNER_ROOT, WORKDIR, host, write_private};
 
-/// The directory of the store of the units, under the state directory.
+/// The directory of the store of the units, under the state directory (and
+/// of the store of a unit, under its directory).
 pub(super) const STORE: &str = "store";
+
+/// The directory of the credential files of a unit, under its directory.
+const CREDENTIALS: &str = "runner-root";
 
 impl PodvmUnit {
     /// The store of the units of this driver.
@@ -62,31 +67,67 @@ impl PodvmUnit {
         Ok(root)
     }
 
-    /// `podvm create` of `argv` (it starts with `create`), the credential
-    /// files of `spec` into the tree of the new container, then `podvm
-    /// start` under the hold of `egress`. It gives the tree.
-    pub(super) fn launch(
-        &self,
-        store: &Path,
-        argv: &[&str],
-        spec: &StartSpec,
-        tag: &str,
-        egress: Option<&Path>,
-    ) -> Result<PathBuf, UnitError> {
-        self.podvm(store, argv, None)?;
-        let name = spec.unit.as_str();
-        let tree = own_tree(store, self.inspected_root(store, name))?;
-        let runner_root = tree.join(WORKDIR.trim_start_matches('/')).join(RUNNER_ROOT);
-        fs::create_dir_all(&runner_root).map_err(|e| host("the runner root", e))?;
-        fs::set_permissions(&runner_root, fs::Permissions::from_mode(0o700)).map_err(|e| host("the runner root", e))?;
+    /// The store of a unit in the directory `dir`: the store of the units
+    /// where the rung binds a volume, else a store of its own.
+    pub(super) fn store_of(&self, dir: &Path) -> PathBuf {
+        if self.volumes { self.store() } else { dir.join(STORE) }
+    }
+
+    /// Where the driver writes the credential files of a unit: a directory
+    /// of the unit that is its volume, or the runner root in the extracted
+    /// image of a store of its own.
+    pub(super) fn credential_root(&self, dir: &Path, image_root: &Path) -> PathBuf {
+        if self.volumes {
+            dir.join(CREDENTIALS)
+        } else {
+            image_root.join(WORKDIR.trim_start_matches('/')).join(RUNNER_ROOT)
+        }
+    }
+
+    /// The credential files of `spec` in `root`, at mode 0600 in a
+    /// directory of mode 0700.
+    pub(super) fn place_credentials(&self, root: &Path, spec: &StartSpec) -> Result<(), UnitError> {
+        fs::create_dir_all(root).map_err(|e| host("the runner root", e))?;
+        fs::set_permissions(root, fs::Permissions::from_mode(0o700)).map_err(|e| host("the runner root", e))?;
         for f in &spec.credential.files {
             if !f.name_is_plain() {
                 return Err(UnitError::new(UnitCode::UnitStartFailed, "a credential file name that is not plain"));
             }
-            write_private(&runner_root.join(&f.name), f.content.expose())?;
+            write_private(&root.join(&f.name), f.content.expose())?;
         }
-        self.podvm_held(store, &["start", name], Some(tag), egress)?;
-        Ok(tree)
+        Ok(())
+    }
+
+    /// The tree of a running unit and the host directory of its credential
+    /// files `names`. In the store of the units the tree must be its own;
+    /// in a store of its own it is the tree that `inspect` names, else the
+    /// extracted image. Each file must be there at mode 0600: no unit runs
+    /// with a credential that it cannot read, or that another user can.
+    pub(super) fn root_of_unit(
+        &self,
+        store: &Path,
+        image_root: &Path,
+        inspected: Option<PathBuf>,
+        creds: &Path,
+        names: &[&str],
+    ) -> Result<(PathBuf, PathBuf), UnitError> {
+        let (tree, runner_root) = if self.volumes {
+            (own_tree(store, inspected)?, creds.to_path_buf())
+        } else {
+            let tree = inspected.unwrap_or_else(|| image_root.to_path_buf());
+            let runner_root = tree.join(WORKDIR.trim_start_matches('/')).join(RUNNER_ROOT);
+            (tree, runner_root)
+        };
+        for name in names {
+            let mode = fs::metadata(runner_root.join(name)).map(|m| m.permissions().mode() & 0o777);
+            if mode.ok() != Some(0o600) {
+                return Err(UnitError::new(
+                    UnitCode::UnitStartFailed,
+                    format!("the credential file {name} is not in the runner root of the unit at mode 0600"),
+                ));
+            }
+        }
+        Ok((tree, runner_root))
     }
 }
 

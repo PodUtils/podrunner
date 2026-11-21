@@ -1,14 +1,12 @@
 //! The root of a running podvm unit (T-067). podvm copies the image into a
-//! tree for each container at `create` (PodUtils/podvm@T-1709) and names it
+//! tree for each container at `run` (PodUtils/podvm@T-1709) and names it
 //! in `podvm inspect --format '{{.RootfsPath}}'`; the runner writes in that
 //! tree. The driver takes the tree that `inspect` names, so `observe` and
-//! the volume sources of the hooks follow the unit (T-545: the tree must be
-//! under the store, `store::own_tree`).
+//! the volume sources of the hooks follow the unit (T-545: in the store of
+//! the units the tree must be its own, `store::own_tree`).
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-
-use podrunner_schema::UnitId;
 
 use super::PodvmUnit;
 
@@ -46,21 +44,5 @@ impl PodvmUnit {
         let text = String::from_utf8_lossy(&out.stdout);
         let path = PathBuf::from(text.lines().rev().find(|l| !l.trim().is_empty())?.trim());
         (out.status.success() && path.is_dir()).then_some(path)
-    }
-
-    /// `OomKills` of `podvm inspect` of `unit`, where podvm gives it.
-    pub(super) fn oom_kills_of(&self, unit: &UnitId) -> Option<u64> {
-        let out = self
-            .podvm
-            .command()
-            .args(["inspect", unit.as_str()])
-            .env("PODVM_STORE", self.store())
-            .stdin(Stdio::null())
-            .stderr(Stdio::null())
-            .output()
-            .ok()?;
-        let c = super::containers::inspected(&out.stdout)?;
-        let v = &c["OomKills"];
-        v.as_u64().or_else(|| v.as_str()?.parse().ok())
     }
 }

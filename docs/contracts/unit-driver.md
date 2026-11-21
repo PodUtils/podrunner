@@ -22,7 +22,7 @@ its test, not podrunner at run time.
   (`arch-mismatch`) unless emulation is named and the driver can emulate.
 - `start` gives a fresh root for each unit: no file of an earlier unit is
   in it (the podvm kind: a tree of its own for each unit in one store of
-  the units, T-545). It writes the
+  the units where the rung binds a volume, T-545). It writes the
   credential files into the runner root at mode 0600. No credential goes
   into argv or into the environment. A unit id that is in use is refused
   (`unit-in-use`). The core makes each unit id (`u-` and a counter); a unit

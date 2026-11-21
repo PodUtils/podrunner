@@ -34,7 +34,7 @@ impl PodvmUnit {
         self
     }
 
-    /// The arguments of `create` for the confine layer, for a unit of the
+    /// The arguments of `run` for the confine layer, for a unit of the
     /// extracted image `rootfs`: read in the whole image, write and execute
     /// in the working directory, the runner directory and `/tmp` (each of
     /// the last two that the image has), and in the socket directory `sockets` when it
@@ -44,8 +44,8 @@ impl PodvmUnit {
         if !self.confine {
             return Vec::new();
         }
-        // The driver makes the working directory in the tree of the unit
-        // after `create`; the image need not have it.
+        // podvm makes the working directory of `-w` in the tree of the
+        // unit; the image need not have it.
         let mut own: Vec<&str> = [WORKDIR, self.runner_dir.as_str(), "/tmp"]
             .into_iter()
             .filter(|p| *p == WORKDIR || rootfs.join(p.trim_start_matches('/')).is_dir())
