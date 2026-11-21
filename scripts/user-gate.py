@@ -615,11 +615,13 @@ class Lane:
 
     # The checks of `serve` (T-527): the host class of githome's pool, with
     # incusd and KVM, as a user with no root.
-    def serve_config(self, kind: str) -> pathlib.Path:
-        """`config init` for KIND: a program source (the fake source of the
-        release) at the tier that KIND serves; the microvm kind also gets
-        the pin of a sandbox (T-506) and one sandbox offer."""
-        d = self.work / f"serve-{kind}"
+    def serve_config(self, kind: str, name: str = "", sandbox=None, policy=None, ceiling=None) -> pathlib.Path:
+        """`config init` for KIND in WORK/NAME: a program source (the fake
+        source of the release) at the tier that KIND serves; the microvm
+        kind also gets the pin of a sandbox (T-506) and one sandbox offer
+        (SANDBOX, with the egress POLICY of the offer). CEILING becomes the
+        `[egress] default_policy` of the operator."""
+        d = self.work / (name or f"serve-{kind}")
         d.mkdir(parents=True, exist_ok=True)
         tier = "untrusted" if kind == "microvm" else "trusted"
         script = d / "script"
@@ -633,8 +635,10 @@ class Lane:
                     "repo_visibility": "public", "owner": "example-org", "repo": "app", "run_id": 1,
                     "ref": "refs/pull/1/merge", "workflow_ref": "w",
                 },
-                "sandbox": {"image": self.image, "command": ["sh", "-c", "echo podrunner-sandbox-ok"], "max_s": 600},
+                "sandbox": sandbox or {"image": self.image, "command": ["sh", "-c", "echo podrunner-sandbox-ok"], "max_s": 600},
             }
+            if policy:
+                offer["policy"] = policy
             offers.append(json.dumps({"at_s": 0, "offer": offer}))
         script.write_text("".join(f"{o}\n" for o in offers))
         built = int(time.time())
@@ -650,9 +654,9 @@ class Lane:
             "--podvm", self.data / "bin" / "podvm", "--images", self.data / "images", "--image", self.image,
             "--built-at-s", built, "--kinds", kind, "--host", f"gate-{kind}", "--out", out, "--json",
         ] + self.hold_args(kind)
-        rc, text = self.run(argv, self.env(self.home), d, f"serve-{kind}-init")
+        rc, text = self.run(argv, self.env(self.home), d, f"{d.name}-init")
         if rc:
-            self.show(f"serve-{kind}-init")
+            self.show(f"{d.name}-init")
             raise GateError(f"podrunner config init --kinds {kind}: exit {rc}")
         got = json.loads(text.strip().splitlines()[-1])
         if got.get("kinds") != [kind]:
@@ -665,6 +669,9 @@ class Lane:
             if line not in text:
                 raise GateError(f"config init wrote no pin of {self.image}")
             out.write_text(text.replace(line, line + "sandbox = true\n", 1))
+        if ceiling:
+            with out.open("a") as f:
+                f.write(f"\n[egress]\ndefault_policy = {ceiling}\n")
         return out
 
     def serve_check(self, kind: str) -> str:
@@ -705,10 +712,24 @@ class Lane:
         """`serve` with the kind: it starts, and the microvm kind runs the
         sandbox offer to a report of `success`."""
         cfg = self.work / f"serve-{kind}" / "podrunner.toml"
+        reported, alive, rc = self.serve_until_report(cfg, kind, f"serve-{kind}")
+        if kind != "microvm":
+            if not alive:
+                self.show(f"serve-{kind}", 100)
+                raise GateError(f"serve ended: exit {rc}")
+            return "serve started and stopped on SIGTERM, with no TCP listener"
+        return f"serve ran the sandbox offer in a unit of {kind}: {reported.get('reason')}"
+
+    def serve_until_report(self, cfg: pathlib.Path, kind: str, log_name: str) -> tuple[dict, bool, int]:
+        """`serve` of CFG until the first `reported` line of its journal
+        (the microvm kind), else for 60 s; then SIGTERM. Raise when it
+        served no tier, held a TCP listener, or (microvm) gave no report of
+        `success`. Return the report, whether serve was alive at the end of
+        the wait, and its exit code."""
         state = cfg.parent / "state"
         env = self.env(self.home)
         env.pop("NOTIFY_SOCKET", None)
-        log = self.out / "logs" / f"serve-{kind}.err"
+        log = self.out / "logs" / f"{log_name}.err"
         journal = state / "journal.jsonl"
         with log.open("w") as e:
             p = subprocess.Popen(["podrunner", "serve", "--config", str(cfg), "--state", str(state)], cwd=cfg.parent,
@@ -740,25 +761,63 @@ class Lane:
                     except subprocess.TimeoutExpired:
                         os.killpg(p.pid, signal.SIGKILL)
                         p.wait()
-                self.keep_guest_logs(state, f"serve-{kind}")
+                self.keep_guest_logs(state, log_name)
         if no_tier:
-            self.show(f"serve-{kind}", 200)
+            self.show(log_name, 200)
             drops = [x for x in log.read_text(errors="replace").splitlines() if "drops to none" in x]
             raise GateError(f"serve served no tier: {drops[-1] if drops else 'no-tier-served'}")
         if listening:
             raise GateError(f"serve listens on TCP: {listening}")
-        if kind != "microvm":
-            if not alive:
-                self.show(f"serve-{kind}", 100)
-                raise GateError(f"serve ended: exit {p.returncode}")
-            return "serve started and stopped on SIGTERM, with no TCP listener"
-        if not reported:
-            self.show(f"serve-{kind}", 200)
-            raise GateError("no report of the sandbox offer")
-        if reported.get("reason") != "success" or reported.get("unit_kind") != kind:
-            self.show(f"serve-{kind}", 200)
-            raise GateError(f"the sandbox offer: {reported}")
-        return f"serve ran the sandbox offer in a unit of {kind}: {reported.get('reason')}"
+        if kind == "microvm":
+            if not reported:
+                self.show(log_name, 200)
+                raise GateError("no report of the sandbox offer")
+            if reported.get("reason") != "success" or reported.get("unit_kind") != kind:
+                self.show(log_name, 200)
+                raise GateError(f"the sandbox offer: {reported}")
+        return reported or {}, alive, p.returncode
+
+    def serve_ws(self, kind: str) -> str:
+        """A sandbox that attaches over an outbound WebSocket (T-506): the
+        command of the offer is the text of scripts/ws-client.py, which
+        dials the echo server of scripts/ws-echo.py on an address of the
+        host through the egress module of its unit, holds the connection,
+        and requires a 403 for a port off the allow list. The allow list of
+        the offer names the echo server only; the operator's policy is
+        open."""
+        hold = 5
+        address = self.broker_address or self.host_address()
+        echo, url = self.started([sys.executable, "-I", ROOT / "scripts" / "ws-echo.py", "--listen", f"{address}:0"],
+                                 f"ws-{kind}-echo", self.env(self.home))
+        try:
+            port = int(url.rpartition(":")[2].split("/")[0])
+            # The text of the client with no comment lines: a shorter argv.
+            text = (ROOT / "scripts" / "ws-client.py").read_text().splitlines()
+            client = "\n".join(x for x in text if not x.lstrip().startswith("#")) + "\n"
+            sandbox = {"image": self.image, "command": ["python3", "-I", "-c", client, url, str(hold)], "max_s": 600}
+            policy = {"schema": 1, "mode": "allow", "allow": [{"host": address, "ports": [port]}]}
+            cfg = self.serve_config(kind, f"serve-ws-{kind}", sandbox, policy, '{ schema = 1, mode = "open" }')
+            rc, _ = self.run(["podrunner", "check", "--config", cfg], self.env(self.home), cfg.parent,
+                             f"serve-ws-{kind}-check")
+            if rc:
+                self.show(f"serve-ws-{kind}-check")
+                raise GateError(f"podrunner check of the WebSocket sandbox: exit {rc}")
+            try:
+                reported, _, _ = self.serve_until_report(cfg, kind, f"serve-ws-{kind}")
+            except GateError:
+                # The far end of a failed attach: what reached it.
+                self.show(f"ws-{kind}-echo", 50)
+                raise
+        finally:
+            if echo.poll() is None:
+                os.killpg(echo.pid, signal.SIGTERM)
+                echo.wait(timeout=30)
+        seen = (self.out / "logs" / f"ws-{kind}-echo.err").read_text(errors="replace")
+        held = re.findall(r"^ws-echo: close \S+ after ([0-9.]+) s, 2 messages$", seen, re.M)
+        if not held or float(held[-1]) < hold:
+            self.show(f"ws-{kind}-echo", 50)
+            raise GateError(f"the echo server logged no WebSocket of 2 messages held {hold} s; report {reported}")
+        return f"a sandbox on {kind} held a WebSocket to {address} for {held[-1]} s through the egress module: success"
 
     def keep_guest_logs(self, state: pathlib.Path, log: str):
         """Copy the logs of the guests of serve in STATE to out/logs/LOG:
@@ -814,7 +873,7 @@ class Lane:
         p = subprocess.Popen([str(a) for a in argv], stdout=subprocess.PIPE, stderr=out, env=env, text=True,
                              start_new_session=True)
         line = p.stdout.readline().strip()
-        if not line.startswith("http://"):
+        if not line.startswith(("http://", "ws://")):
             p.kill()
             raise GateError(f"{argv[0]}: no base URL ({line!r})")
         return p, line.rstrip("/")
@@ -1067,6 +1126,7 @@ def lane(a) -> int:
             raise SystemExit("\n".join(errors))
     later = [f"hello:{e}" for e in g.executors] + (["errors"] if "runner-dir" in g.executors else []) + (["rung:podvm", "confine:podvm", "pids:podvm", "pty:podvm", "hold:podvm"] if "podvm" in g.executors else [])
     later += [f"serve:{c}:{k}" for k in g.serve_kinds for c in ("check", "run", "job")]
+    later += ["serve:run:ws:microvm"] if "microvm" in g.serve_kinds else []
     later += [f"corpus:{r['id']}:{r['executor']}" for r in rows if g.wants(r)]
     try:
         if not g.check("serve", g.serve):
@@ -1097,10 +1157,12 @@ def lane(a) -> int:
                 for k in g.serve_kinds:
                     if g.check(f"serve:check:{k}", functools.partial(g.serve_check, k)):
                         g.check(f"serve:run:{k}", functools.partial(g.serve_run, k))
+                        if k == "microvm":
+                            g.check(f"serve:run:ws:{k}", functools.partial(g.serve_ws, k))
                         g.check(f"serve:job:{k}", functools.partial(g.serve_job, k))
                     else:
-                        g.skip(f"serve:run:{k}", "the check of the configuration failed")
-                        g.skip(f"serve:job:{k}", "the check of the configuration failed")
+                        for c in ("run", "run:ws", "job") if k == "microvm" else ("run", "job"):
+                            g.skip(f"serve:{c}:{k}", "the check of the configuration failed")
                 for r in rows:
                     if g.wants(r):
                         g.check(f"corpus:{r['id']}:{r['executor']}", functools.partial(g.corpus_row, r))

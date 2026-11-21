@@ -301,6 +301,36 @@ trust = [
 `podrunner fake-source --script FILE` is a program of this kind over the
 fake source: a forge checks its own program against it.
 
+## The attach of a sandbox
+
+An offer with `sandbox { image, command, idle_s, max_s }` runs `command`
+in a guest of `image`, a `[[pin.payload]]` with `sandbox = true` (T-506).
+The unit has no inbound port. The payload attaches to its source (a
+terminal, an agent task) over an outbound connection, for example a
+WebSocket, through the egress module of the unit. The payload gets the
+module as `http_proxy` and `https_proxy`.
+
+* The client opens a tunnel with `CONNECT HOST:PORT` and then sends the
+  upgrade of the WebSocket (`ws://`) or the TLS handshake (`wss://`) in
+  the tunnel. A plain request through the proxy loses its `Upgrade` and
+  `Connection` headers, so it gets no upgrade.
+* The `policy` of the offer names the host and the port of the URL, for
+  example `{ "schema": 1, "mode": "allow", "allow": [{ "host":
+  "attach.githome.example", "ports": [443] }] }`. The `[egress]
+  default_policy` of the operator must also allow them: `mode = "open"`
+  takes the policy of the offer. A rule holds a host and ports only: an
+  offer with a path rule is refused (`egress-policy-unsupported`).
+* The egress module refuses a private or a loopback address, whatever
+  the policy.
+* The attach is one long tunnel: podrunner sees no idle time in it. The
+  payload ends itself at `idle_s` (`PODRUNNER_IDLE_S`); podrunner ends
+  the unit at `max_s`.
+
+The user-path gate tests this on a microvm unit (`serve:run:ws:microvm`
+of `scripts/user-gate.py`): the client of `scripts/ws-client.py` holds a
+WebSocket to `scripts/ws-echo.py` and gets a 403 for a port that the
+policy of the offer does not name.
+
 ## The remote mint
 
 On a host with no root, a step can read each file of the uid of podrunner

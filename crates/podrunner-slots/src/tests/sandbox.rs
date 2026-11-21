@@ -139,3 +139,47 @@ fn a_sandbox_that_exits_0_stays_a_success_with_a_failed_job_line() {
     );
     assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Success, "{r:?}");
 }
+
+/// The policies that the egress module of each unit got.
+#[derive(Clone, Default)]
+struct Opened(std::sync::Arc<std::sync::Mutex<Vec<String>>>);
+
+impl crate::EgressPort for Opened {
+    fn open(&self, _: &str, policy: &str, _: &std::path::Path) -> Result<usize, String> {
+        self.0.lock().unwrap().push(policy.into());
+        Ok(0)
+    }
+    fn close(&self, _: &str) {}
+    fn alive(&self) -> bool {
+        true
+    }
+}
+
+/// The attach of a sandbox (an outbound WebSocket to a URL of the source)
+/// goes through the egress module of its unit: under an open ceiling of
+/// the operator, the allow list of the offer is the one way out of the
+/// unit (the user-path gate dials it on a real unit, `serve:run:ws`).
+#[test]
+fn the_allow_list_of_a_sandbox_offer_is_the_way_out_of_its_unit() {
+    let guest = capability(Boundary::Guest, Principal::Distinct, EgressHold::Enforced);
+    let rule = json!({ "host": "192.0.2.10", "ports": [8443] });
+    let with = json!({
+        "sandbox": { "image": SANDBOX, "command": ["sh", "-c", "exit 0"] },
+        "policy": { "schema": 1, "mode": "allow", "allow": [rule] },
+    });
+    let open = "[egress]\ndefault_policy = { schema = 1, mode = \"open\" }";
+    let pin = format!(
+        "[[pin.payload]]\narch = \"x86_64\"\nreference = \"{SANDBOX}\"\nbuilt_at_s = {NOW_UNIX}\nsandbox = true"
+    );
+    let seen = Opened::default();
+    let bed = Bed::new(
+        config_pin(open, &pin),
+        vec![("a", "untrusted", None, vec![offer(0, "j-1", with)])],
+        vec![KindSpec { name: "fake", slots: 1, capability: guest, command: sh("exit 9") }],
+    );
+    let mut bed = Bed { slots: bed.slots.with_egress(Box::new(seen.clone())), ..bed };
+    bed.until(60, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.reports[0].exit_reason, podrunner_schema::ExitReason::Success);
+    let opened: Vec<Value> = seen.0.lock().unwrap().iter().map(|p| serde_json::from_str(p).unwrap()).collect();
+    assert_eq!(opened, [json!({ "schema": 1, "mode": "allow", "allow": [rule] })]);
+}
