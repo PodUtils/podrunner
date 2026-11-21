@@ -14149,3 +14149,32 @@ Each boot step of `hosted-boot.yml` fails the job when `rc` is not 0, or when th
 ## Prove
 
 A run of `hosted-boot.yml` with a planted refusal (an image that podvm refuses) ends red, and names the check.
+
+# T-583: Take podcrates `v0.81.0` (COORD-151 of podcrates)
+
+**Source:** PodUtils/podcrates#254 (COORD-151, to all), 2026-11-21
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podcrates `v0.81.0` is out (tag at `0707cfa`). podrunner takes `v0.80.0`. The release asks podrunner first. Two breaking lines: `pod_control::wire::Request` wipes its params at its drop (a move of `r.params` is E0509: use `Drain::deserialize(&r.params)` in `control.rs`), and `wire::request_line` and `wire::answer_line` give `Zeroizing<String>` (write `line.as_str()` in `control_tests.rs`). Also: `silent_clients_delay_no_answer_and_a_ninth_is_busy` fails 6 of 30 runs at `v0.80.0` (PodUtils/podcrates@T-1070: wait until `server.active()` is 7 before the eighth connection); `pod-unit` `install::install_system` for a unit of the system; `replace(path, body, Mode)` for one atomic replace of a file (`journal.rs` `compact` with `Mode::Exact(0o644)`, `ledger.rs` and `spool.rs` with `Mode::Private`); the fakes and `pod-release` of `v0.81.0`.
+
+## Premise
+
+The body of PodUtils/podcrates#254, read on 2026-11-21.
+
+## Approach
+
+1. Each podcrates dependency names `tag = "v0.81.0"`; `issue-sync.yml` at the commit of `v0.81.0` with `podcrates_ref: v0.81.0`; the fakes and `pod-release` of `v0.81.0` in `images/`, each SHA-256 checked against the signed `SHA256SUMS`.
+2. The two breaking lines; the wait on `server.active()` in the test of the ninth client (T-580).
+3. `replace` in `journal.rs`, `ledger.rs` and `spool.rs`.
+4. `print-unit --system` (or a note in `docs/install.md`) with `install::install_system`, if it fits; else a new entry.
+5. The commit of the take as a COORD issue `(to podcrates)`.
+
+## Prove
+
+`sh scripts/agent/check.sh` passes; the gate and `level2.yml` are green on the commit of the take.
