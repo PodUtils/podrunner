@@ -340,4 +340,4 @@
 334 issue open
 335 issue closed
 336 issue open
-337 issue open
+337 issue closed
