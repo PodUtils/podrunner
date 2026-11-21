@@ -209,8 +209,9 @@ is done.
   `errno 11` and a cargo build hangs (COORD-098, #308); give it again when
   podvm fixes them, and set `click-py313` and `rq-lint` to `ok` then. The
   microvm kind reads the
-  OOM kills of a guest from podvm's report (T-515). T-403 waits for
-  COORD-090 (#300). T-496 waits for PodUtils/podvm@T-1968.
+  OOM kills of a guest from podvm's report (T-515). T-403 and T-532
+  wait for their step of `runner-image.yml` (containers on the namespace
+  rung). T-496 waits for PodUtils/podvm@T-1968.
 - podnet `v0.4.0-beta.17` is pinned (COORD-108, PodUtils/podnet#655);
   T-179 is done in CI (COORD-099, #309; #142 closed).
 - Dependabot: #299 (rsa 0.10) is done as T-531.

@@ -73,6 +73,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `podrunner.toml` | `[[pin.payload]] sandbox = true`. | T-506 |
 | `podrunner.toml` | `[unit.fake] claim = "confined" \| "guest"` (with `allow_fake`): a forge tests its program source through `serve` with the fake kind. | T-511 |
 | command line | When the read of the log of a unit fails, `serve` prints `podrunner: UNIT: the log of the unit tells no result of the job: WHY` (the last line of stderr of `podvm logs`) and writes an audit line `job-completed`; the exit code of the runner stays the result. The podvm and the incus kinds pass the bound of the read to `podvm logs --limit-bytes` (podvm `0.2.0-beta.37` or later). | T-570 |
+| unit driver | The podvm kind gives the container hooks on the namespace rung of podvm `0.2.0-beta.37` or later (`exec` joins the container); each container there takes `--podvm-volume-base` of the runner directory. | T-532, T-403 |
 | pins | podvm `0.2.0-beta.37`, podnet `0.4.0-beta.17`. No `--podvm-tier=syscall` yet (it broke Node of `setup-node` and a cargo build, #308; the fix of `0.2.0-beta.36` is measured first). The podvm kind reads `State` of `podvm inspect` as the word or as the object of docker (`0.2.0-beta.37`). | T-405, T-179, T-261, T-554, T-570 |
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->

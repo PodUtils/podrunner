@@ -664,6 +664,21 @@ jobs:
           sg incus-admin -c "PODRUNNER_ACCEPT_KIND=incus PODRUNNER_ACCEPT_OUT='$RUNNER_TEMP/status-incus.jsonl' timeout 3600 cargo test -p podrunner-broker-fake --test accept -- --ignored --nocapture"
           python3 -I scripts/check-status-samples.py "$RUNNER_TEMP/status.v1.schema.json" "$RUNNER_TEMP/status-incus.jsonl" \
             | tee -a "$GITHUB_STEP_SUMMARY"
+      # T-532: the container job through the hooks of a podvm unit on the
+      # namespace rung (the lab of the lane userns-on of user-gate.yml), with
+      # the volume base of the runner directory. The lab changes a sysctl of
+      # the host for each later step, so this step runs podvm last.
+      - name: A container job on the namespace rung of podvm (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        run: |
+          set -eu
+          sh scripts/lab/userns-on.sh -- true
+          rung=$("$PODRUNNER_PODVM" probe --json | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["rung"])')
+          echo "the rung of podvm: $rung"
+          test "$rung" = namespace
+          timeout 1800 cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture \
+            a_container_job_runs_through_the_hooks_of_a_podvm_unit
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: runner-${{ matrix.arch }}

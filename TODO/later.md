@@ -8451,7 +8451,7 @@ Count the late credentials of each host for the life of the mint, and count a cr
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -8473,11 +8473,13 @@ In the code (2026-11-17): `HookUnit::spec` refuses a mount source with a symboli
 
 In the code (2026-11-18): podvm `0.2.0-beta.32` gives `--podvm-volume-base DIR` (a `-v` source under DIR opens with no symbolic link and binds by its descriptor), on the namespace rung only; the userland rung and the guest tiers refuse it. The containers of a podvm unit run on the supervise and userland rungs (U19), so the flag cannot hold the race yet.
 
-## Blocker
-
-The containers of a podvm unit on the namespace rung with `--podvm-volume-base` (T-532), or the flag on the supervise and userland rungs (PodUtils/podvm@T-1972, COORD-090, GitHub #300).
+The wait was for the containers of a podvm unit on the namespace rung with `--podvm-volume-base` (T-532), or the flag on the supervise and userland rungs (PodUtils/podvm@T-1972, COORD-090, GitHub #300).
 
 State (2026-11-20, COORD-189, PodUtils/podvm#585): PodUtils/podvm@T-1972 is done on podvm `main` (`e93e1fe`): `--podvm-volume-base` on the syscall tier is in `0.2.0-beta.33`, the loader-family half comes with the next beta. On the namespace rung the flag holds since `0.2.0-beta.32` (T-532, T-564).
+
+State (2026-11-21, not run): podvm `0.2.0-beta.37` is pinned. On the namespace rung the containers of a podvm unit run through the hooks, and each `run -d` of a container takes `--podvm-volume-base` of the runner directory (T-532; its measure is the step of T-532 in `runner-image.yml`). The flag holds on the userland rung too from `0.2.0-beta.37` (the loader family; the syscall tier from `0.2.0-beta.33`), not on the supervise rung.
+
+Next: when the step of T-532 passes, give the flag on the userland rung as well (`volume_base_args` of `crates/podrunner-podvm/src/unit/containers.rs`) and measure it in the container job of `runner-image.yml`; the supervise rung needs the flag from podvm (a COORD issue when a host of a user takes that rung).
 
 # T-404: In the local mode the logs of a hook step are in the socket directory that the unit writes
 
@@ -12353,7 +12355,7 @@ Move the two files to the API of rsa 0.10 (its `BoxedUint`, the new constructors
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -12375,9 +12377,20 @@ COORD-189, read on 2026-11-18. Not measured: the container suite of the hooks on
 
 State (2026-11-20, the measure; proven on a constrained host as a user): with the hooks given on the namespace rung (podvm `0.2.0-beta.36`, a user with no root), `podrunner-broker-fake --test podvm` runs the canned job, and the container job fails at the `exec` of its first step: "podvm exec: the volume .../rootfs/home/runner/_work:/__w needs the namespace rung; the entry with no chroot has no mount namespace of its own" (exit 125). `exec` is a fresh chroot re-entry, so the volumes of a `run -d` container of that rung are not in the step. The container hooks stay off the namespace rung; its units get the socket volume (T-564). The ask is COORD-113 (GitHub #326, to podvm): `exec` joins the mount namespace of the container.
 
-## Blocker
+The ask was COORD-113 (GitHub #326, to podvm): `exec` into a `run -d` container of the namespace rung must join its mount namespace. podvm's answer COORD-214 (PodUtils/podvm#612): `exec` into a running container of the namespace rung now always joins its namespaces (PodUtils/podvm@T-2012, podvm `main` `27e366b`); before, the probe of the host chose the entry with no chroot on a host that denies chroot to the user. The next beta of podvm unblocks this entry; podvm asks for `a_container_job_runs_through_the_hooks_of_a_podvm_unit` on the lane `userns-on` with it.
 
-COORD-113 (GitHub #326, to podvm): `exec` into a `run -d` container of the namespace rung must join its mount namespace. Then give the hooks on that rung and run the container suite in the lane `userns-on`. podvm's answer COORD-214 (PodUtils/podvm#612): `exec` into a running container of the namespace rung now always joins its namespaces (PodUtils/podvm@T-2012, podvm `main` `27e366b`); before, the probe of the host chose the entry with no chroot on a host that denies chroot to the user. The next beta of podvm unblocks this entry; podvm asks for `a_container_job_runs_through_the_hooks_of_a_podvm_unit` on the lane `userns-on` with it.
+State (2026-11-21, steps 2 and 3 in the code; the container job on the namespace rung: not run): podvm `0.2.0-beta.37` is pinned; it carries PodUtils/podvm@T-2012 (COORD-224, PodUtils/podvm#636).
+
+- `probe::capability` (`crates/podrunner-podvm/src/probe.rs`) gives `container: hooks` on the namespace rung when the probe names `LOWEST_NAMESPACE_EXEC` (`0.2.0-beta.37`) or later; an older podvm keeps `none` there, as before. The local mode follows the probe (`crates/podrunner-local/src/exec/hooks.rs` needs no change).
+- `start_container` (`crates/podrunner-podvm/src/unit/containers.rs`) adds `--podvm-volume-base RUNNER` (the runner directory of the unit) to each `run -d` of a container on the namespace rung: podvm opens each `-v` source under it with `openat2(RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS)` and binds by the descriptor (the race of T-403 on that rung). The supervise and userland rungs get no flag.
+- `docs/unknowns.md`, U19, is corrected.
+- `runner-image.yml` has a step "A container job on the namespace rung of podvm (a measure)" (report-only, the last step that runs podvm): the lab of the lane `userns-on`, a check that the probe gives `namespace`, then `a_container_job_runs_through_the_hooks_of_a_podvm_unit`.
+
+Tests (they fail on the code before): `probe::tests::the_rungs_with_volumes_and_the_rungs_with_containers` (namespace with `0.2.0-beta.37` gives `hooks`, with `0.2.0-beta.36` `none`), `unit::containers::tests::a_container_of_the_namespace_rung_has_the_volume_base` (`cargo test -p podrunner-podvm --lib`: 30 passed).
+
+Not known: whether a mount source of the hooks under the runner directory of the runner image is a symbolic link at the start (podvm then refuses the `run -d` with 125); the run of the step tells.
+
+Next: a run of `runner-image.yml` on the commit of this change; read the step of T-532. If it passes, make it blocking, add the test of the Prove where a step swaps a mount source for a link (exit 125, `container-option-refused`), and set this entry and the namespace half of T-403 to `done`.
 
 # T-533: A job of another architecture in a guest of the machine tier
 

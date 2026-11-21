@@ -201,7 +201,8 @@ jobs:
             executors: podvm,runner-dir
           # The namespace rung of podvm (T-564): no other lane gives it,
           # since the runners restrict user namespaces by AppArmor. The
-          # units get the socket volume there; containers stay off (T-532).
+          # units get the socket volume there, and from podvm 0.2.0-beta.37
+          # the container hooks (T-532; runner-image.yml measures them).
           - lane: userns-on
             lab: sh scripts/lab/userns-on.sh -- sh scripts/lab/nonroot.sh --
             executors: podvm

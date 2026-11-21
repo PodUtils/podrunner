@@ -2,9 +2,13 @@
 //! podvm container in the store of its unit, with the volumes of the hook
 //! tables as `-v`. The podvm verbs: `run -d` for a job container or a
 //! service, `exec -e -w` for a step, `logs`, `inspect`, `rm -f`. Volumes
-//! work in each step on the supervise and userland rungs (U19, T-034);
-//! the probe gives `container: hooks` there (on the namespace rung `exec`
-//! refuses a volume, T-532). Each container
+//! work in each step on the supervise and userland rungs (U19, T-034),
+//! and on the namespace rung from podvm `0.2.0-beta.37`, where `exec`
+//! joins the container (T-532); the probe gives `container: hooks` there.
+//! On the namespace rung each `run -d` takes `--podvm-volume-base` of the
+//! runner directory: podvm opens each source under it with no symbolic
+//! link, so a link that a step makes after the check of the hooks cannot
+//! redirect the bind (T-403). Each container
 //! carries the tag of its unit, so the tree kill of `destroy` reaches it.
 
 use std::path::{Path, PathBuf};
@@ -79,7 +83,7 @@ impl PodvmUnit {
         if self.capability.container != podrunner_schema::ContainerRoute::Hooks {
             return Err(UnitError::new(
                 UnitCode::ContainerNotSupported,
-                "the steps of a container need the supervise or userland rung of podvm",
+                "the steps of a container need the supervise or userland rung of podvm, or its namespace rung from 0.2.0-beta.37",
             ));
         }
         parse_pinned(&spec.image)?;
@@ -102,6 +106,7 @@ impl PodvmUnit {
             args.extend(["-w".into(), w.clone()]);
         }
         args.extend(["-e".into(), format!("{TAG_VAR}={tag}")]);
+        args.extend(volume_base_args(crate::probe::rung(&self.capability), &runner));
         let unit_dir = store.parent().unwrap_or(&store).to_path_buf();
         let (env_args, _env_file) = super::envfile::env_args(&self.podvm, &unit_dir, &spec.env)?;
         args.extend(env_args);
@@ -194,6 +199,18 @@ impl PodvmUnit {
     }
 }
 
+/// `--podvm-volume-base RUNNER` on the namespace rung (podvm `0.2.0-beta.32`
+/// and later; the containers run there from `0.2.0-beta.37`): each `-v`
+/// source under the runner directory opens with no symbolic link (T-403,
+/// T-532). The supervise rung refuses the flag.
+fn volume_base_args(rung: Option<&str>, runner: &Path) -> Vec<String> {
+    if rung == Some("namespace") {
+        vec!["--podvm-volume-base".into(), runner.display().to_string()]
+    } else {
+        Vec::new()
+    }
+}
+
 /// The last line of an output, cut to `LINE` characters with a mark (no
 /// credential is in the output of podvm: the credential goes in files).
 /// A refusal of podvm gives its reason at the end of a long line.
@@ -249,6 +266,21 @@ mod tests {
         assert_eq!(state_of(up).unwrap(), ContainerState { running: true, exit: None });
         let done = br#"[{"ExitCode":3,"Name":"c2","State":{"Dead":false,"ExitCode":3,"Pid":0,"Running":false,"Status":"exited"},"Status":"Exited (3)"}]"#;
         assert_eq!(state_of(done).unwrap(), ContainerState { running: false, exit: Some(Exit::Code(3)) });
+    }
+
+    /// T-532, T-403: a container of the namespace rung binds its volumes
+    /// under the runner directory with no symbolic link; the other rungs
+    /// get no flag.
+    #[test]
+    fn a_container_of_the_namespace_rung_has_the_volume_base() {
+        let runner = Path::new("/u/store/trees/t/rootfs/home/runner");
+        assert_eq!(
+            volume_base_args(Some("namespace"), runner),
+            ["--podvm-volume-base", "/u/store/trees/t/rootfs/home/runner"]
+        );
+        for rung in [Some("supervise"), Some("userland"), None] {
+            assert!(volume_base_args(rung, runner).is_empty(), "{rung:?}");
+        }
     }
 
     /// A refusal of podvm keeps its reason; a longer line shows its cut.

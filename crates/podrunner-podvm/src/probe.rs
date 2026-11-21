@@ -74,6 +74,10 @@ pub const LOWEST_INCUS: &str = "0.2.0-beta.13";
 /// The first podvm whose incus tier boots the init of the image as PID 1
 /// (`--podvm-init=image`, PodUtils/podvm@T-1993, T-543).
 pub const LOWEST_INCUS_INIT: &str = "0.2.0-beta.36";
+/// The first podvm whose `exec` into a `run -d` container of the namespace
+/// rung joins its namespaces, where its volumes are (PodUtils/podvm@T-2012,
+/// COORD-113, T-532): a step of a container runs on that rung.
+pub const LOWEST_NAMESPACE_EXEC: &str = "0.2.0-beta.37";
 /// The first podvm whose `logs` streams and takes `--limit-bytes N`, also
 /// on the incus tier (PodUtils/podvm@T-2046, T-570).
 pub const LOWEST_LOG_LIMIT: &str = "0.2.0-beta.37";
@@ -118,10 +122,10 @@ pub fn capability(probe: &Value, arch: &str) -> Result<Capability, UnitError> {
         principal: Principal::Shared,
         // Containers need volumes in each step: podvm gives them on the
         // supervise and userland rungs (U19, T-034). On the namespace rung
-        // `run -d -v` binds, but `exec` with a volume is refused (no mount
-        // namespace of its own), so a step of a container cannot run there
-        // (T-532); its units still get the socket volume (`has_volumes`).
-        container: if matches!(rung, "supervise" | "userland") { ContainerRoute::Hooks } else { ContainerRoute::None },
+        // `run -d -v` binds, and from `LOWEST_NAMESPACE_EXEC` `exec` joins
+        // the mount namespace of the container (T-532); before, `exec`
+        // refused each volume, and the units got the socket volume only.
+        container: container_route(rung, &v),
         net: "shared-host".into(),
         secret_delivery: vec![SecretDelivery::Files],
         // No tmpfs on a host with no mounts: a directory of mode 0700.
@@ -137,19 +141,38 @@ pub fn capability(probe: &Value, arch: &str) -> Result<Capability, UnitError> {
     })
 }
 
+/// The route of the containers of a podvm unit on `rung` with podvm `v`.
+fn container_route(rung: &str, v: &Version) -> ContainerRoute {
+    let joins = Version::parse(LOWEST_NAMESPACE_EXEC).is_some_and(|low| *v >= low);
+    match rung {
+        "supervise" | "userland" => ContainerRoute::Hooks,
+        "namespace" if joins => ContainerRoute::Hooks,
+        _ => ContainerRoute::None,
+    }
+}
+
+/// The rung of the probe in a capability (`boundary_proof`), with no note
+/// of the hold or of the confine self-test.
+pub fn rung(capability: &Capability) -> Option<&str> {
+    let proof = capability.boundary_proof.as_deref()?.strip_prefix("podvm-probe:")?;
+    Some(proof.split(';').next().unwrap_or("").trim())
+}
+
 /// The rungs where `run -d -v` binds a volume into a unit: the socket
 /// volume of a unit (T-050, T-564; namespace since podvm 0.2.0-beta.25,
 /// COORD-189). The rung is the one of the probe (`boundary_proof`).
 pub fn has_volumes(capability: &Capability) -> bool {
     // The hold and the confine self-test add "; ..." after the rung.
-    let rung = capability.boundary_proof.as_deref().and_then(|p| p.strip_prefix("podvm-probe:"));
-    let rung = rung.map(|r| r.split(';').next().unwrap_or("").trim());
-    matches!(rung, Some("supervise" | "userland" | "namespace"))
+    matches!(rung(capability), Some("supervise" | "userland" | "namespace"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn rung_of(c: &Capability) -> Option<&str> {
+        rung(c)
+    }
 
     fn fixture(name: &str) -> Value {
         let path = format!("{}/tests/probe/{name}.json", env!("CARGO_MANIFEST_DIR"));
@@ -171,15 +194,23 @@ mod tests {
     /// T-564: `run -d -v` binds on the namespace rung since podvm
     /// `0.2.0-beta.25` (COORD-189), so its units get the socket volume.
     /// T-532: a step of a container needs `exec` with a volume, which the
-    /// namespace rung refuses, so the container hooks stay on the
-    /// supervise and userland rungs.
+    /// namespace rung refused before podvm `0.2.0-beta.37`; from it `exec`
+    /// joins the container, so the container hooks are on that rung too.
     #[test]
     fn the_rungs_with_volumes_and_the_rungs_with_containers() {
-        for (rung, hooks) in [("namespace", false), ("userland", true), ("supervise", true)] {
-            let c = capability(&fixture(rung), "x86_64").unwrap();
+        for (rung, version, hooks) in [
+            ("namespace", "0.2.0-beta.36", false),
+            ("namespace", "0.2.0-beta.37", true),
+            ("userland", "0.2.0-beta.5", true),
+            ("supervise", "0.2.0-beta.5", true),
+        ] {
+            let mut probe = fixture(rung);
+            probe["podvm"] = Value::String(version.into());
+            let c = capability(&probe, "x86_64").unwrap();
             assert!(has_volumes(&c), "{rung}");
+            assert_eq!(rung_of(&c), Some(rung));
             let want = if hooks { ContainerRoute::Hooks } else { ContainerRoute::None };
-            assert_eq!(c.container, want, "{rung}");
+            assert_eq!(c.container, want, "{rung} {version}");
         }
         let mut chroot = fixture("namespace");
         chroot["rung"] = Value::String("chroot".into());
@@ -189,6 +220,7 @@ mod tests {
         let mut held = capability(&fixture("supervise"), "x86_64").unwrap();
         held.boundary_proof = Some("podvm-probe:supervise; hold: podnet pod seccomp advisory".into());
         assert!(has_volumes(&held), "{:?}", held.boundary_proof);
+        assert_eq!(rung_of(&held), Some("supervise"));
     }
 
     #[test]

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**574 entries: 59 open, 51 partial, 17 blocked, 447 done.**
+**574 entries: 59 open, 53 partial, 15 blocked, 447 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 4 | 23 | 6 | 82 | 115 |
+| P1 | 4 | 25 | 4 | 82 | 115 |
 | P2 | 16 | 20 | 8 | 233 | 277 |
 | P3 | 38 | 8 | 3 | 130 | 179 |
-| **All** | 59 | 51 | 17 | 447 | 574 |
+| **All** | 59 | 53 | 15 | 447 | 574 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -447,7 +447,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-400](later.md) | P2 | S | later | defect | done | A local composite action of `./../PATH` or a link out of the tree is read |
 | [T-401](later.md) | P3 | S | later | defect | done | A dry run with a runner directory that cannot take the lock says planned |
 | [T-402](later.md) | P2 | S | later | defect | done | The mint forgets a late credential that starts or goes back after its alert |
-| [T-403](later.md) | P1 | M | later | defect | blocked | A mount source of the hooks follows a symbolic link that the job made |
+| [T-403](later.md) | P1 | M | later | defect | partial | A mount source of the hooks follows a symbolic link that the job made |
 | [T-404](later.md) | P1 | M | later | defect | done | In the local mode the logs of a hook step are in the socket directory that the unit writes |
 | [T-405](later.md) | P1 | M | later | defect | done | Secrets of a job and the credential of the proxy go into the argv of podvm |
 | [T-406](later.md) | P1 | M | later | defect | done | The fake broker of the local mode gives the job message to each local process |
@@ -576,7 +576,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
 | [T-530](later.md) | P2 | S | later | feature | done | The job-started hook of a podvm unit cannot ask serve |
 | [T-531](later.md) | P3 | S | later | chore | done | Take rsa 0.10 in the fake broker |
-| [T-532](later.md) | P1 | M | later | feature | blocked | The containers of a podvm unit on the namespace rung, with a volume base |
+| [T-532](later.md) | P1 | M | later | feature | partial | The containers of a podvm unit on the namespace rung, with a volume base |
 | [T-533](later.md) | P2 | M | later | measurement | open | A job of another architecture in a guest of the machine tier |
 | [T-534](later.md) | P2 | S | later | defect | done | The probe of the incus kind claims the kind on a host with no incusd |
 | [T-535](later.md) | P3 | S | later | defect | partial | The tests leave their temporary directories in /tmp |
