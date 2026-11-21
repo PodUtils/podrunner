@@ -198,10 +198,27 @@ impl Slots {
         if !(early || zero) {
             return;
         }
-        let Ok(log) = self.kinds[kind].driver.unit_log(unit) else { return };
         let mut scan = crate::log_tail::Scan::default();
         let t0 = std::time::Instant::now();
-        let Ok(read) = log.read_bounded(log_read_max(), LOG_READ_TIME, &mut |b| scan.feed(b)) else { return };
+        let read = self.kinds[kind]
+            .driver
+            .unit_log(unit)
+            .and_then(|log| log.read_bounded(log_read_max(), LOG_READ_TIME, &mut |b| scan.feed(b)));
+        let read = match read {
+            Ok(read) => read,
+            // A kind that keeps no log has nothing to tell.
+            Err(e) if e.code == podrunner_unit::UnitCode::Unsupported => return,
+            Err(e) => {
+                // The exit code tells; a line names why the log does not
+                // (the incus tier of podvm refuses a log over 64 MiB).
+                let why = format!("the log of the unit tells no result of the job: {e}");
+                eprintln!("podrunner: {unit}: {why}");
+                if zero {
+                    self.audit(crate::audit::Kind::JobCompleted, key.0, &key.1, None, Some(why));
+                }
+                return;
+            }
+        };
         scan.end();
         let cut = match read.cut {
             None => String::new(),

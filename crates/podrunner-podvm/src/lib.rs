@@ -23,7 +23,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use podrunner_schema::Capability;
-use podrunner_unit::{UnitCode, UnitError};
+use podrunner_unit::{UnitCode, UnitError, UnitLog};
 
 /// A podvm binary on this host.
 #[derive(Debug, Clone)]
@@ -83,6 +83,36 @@ impl Podvm {
     /// The version that `podvm probe` gives, or `None`.
     pub fn version(&self) -> Option<probe::Version> {
         probe::Version::parse(self.probe_json().ok()?["podvm"].as_str()?)
+    }
+
+    /// Whether this podvm is `version` or later. The answer of each binary
+    /// for each version is kept.
+    pub fn at_least(&self, version: &str) -> bool {
+        type Seen = std::collections::BTreeMap<(PathBuf, String), bool>;
+        static SEEN: std::sync::Mutex<Seen> = std::sync::Mutex::new(std::collections::BTreeMap::new());
+        let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
+        *seen.entry((self.binary.clone(), version.to_string())).or_insert_with(|| {
+            let low = probe::Version::parse(version).expect("a version");
+            self.version().is_some_and(|v| v >= low)
+        })
+    }
+
+    /// `podvm logs FLAGS NAME` as a stream (T-570), in the environment
+    /// `envs`. A bounded read adds `--limit-bytes N` with its bound when
+    /// this podvm takes it ([`probe::LOWEST_LOG_LIMIT`]): podvm then stops
+    /// by itself and holds no more of the log.
+    pub fn logs(&self, flags: &[&str], name: &str, envs: Vec<(&'static str, std::ffi::OsString)>) -> UnitLog {
+        let limit = self.at_least(probe::LOWEST_LOG_LIMIT);
+        let mut cmd = self.command();
+        cmd.arg("logs").args(flags).envs(envs);
+        let name = name.to_string();
+        UnitLog::limited(move |bound| {
+            if let (true, Some(n)) = (limit, bound) {
+                cmd.arg("--limit-bytes").arg(n.to_string());
+            }
+            cmd.arg(name);
+            cmd
+        })
     }
 
     fn probe_json(&self) -> Result<serde_json::Value, UnitError> {
@@ -161,6 +191,44 @@ mod tests {
                 assert_eq!(e.code, UnitCode::Unsupported);
                 assert!(e.to_string().contains(have) && e.to_string().contains("0.2.0-beta.10"), "{e}");
             }
+        }
+    }
+
+    /// T-570: from podvm `0.2.0-beta.37` a bounded read of the log passes
+    /// its bound (plus one byte) as `--limit-bytes`, before the name; an
+    /// older podvm, and a read with no bound, get no flag.
+    #[test]
+    fn a_bounded_read_of_the_log_passes_its_bound_to_podvm() {
+        use std::os::unix::fs::PermissionsExt;
+        let _one = crate::unit::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
+        for (version, flag) in [("0.2.0-beta.37", true), ("0.2.0-beta.36", false)] {
+            let d = std::env::temp_dir().join(format!("podrunner-podvm-logs-{version}-{}", std::process::id()));
+            std::fs::create_dir_all(&d).unwrap();
+            let f = d.join("podvm");
+            let script = format!(
+                "#!/bin/sh\ncase $1 in probe) echo '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}' ;;\n\
+                 logs) echo \"$*\" >> \"$ARGS\"; n=3000; [ \"$3\" = --limit-bytes ] && n=$4; yes x | head -c $n ;; esac\n"
+            );
+            std::fs::write(&f, script).unwrap();
+            std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o755)).unwrap();
+            let p = Podvm { binary: f };
+            let args = d.join("args");
+            let envs = || vec![("ARGS", args.clone().into_os_string())];
+            let read = p.logs(&["--podvm-tier=incus"], "u-1", envs()).read_bounded(
+                1000,
+                std::time::Duration::from_secs(5),
+                &mut |_| {},
+            );
+            assert_eq!(read.unwrap().cut, Some(podrunner_unit::Cut::Bytes), "{version}");
+            assert_eq!(p.logs(&[], "u-1", envs()).read_all().unwrap().len(), 3000);
+            let seen = std::fs::read_to_string(&args).unwrap();
+            let _ = std::fs::remove_dir_all(&d);
+            let want = if flag {
+                "logs --podvm-tier=incus --limit-bytes 1001 u-1\nlogs u-1\n"
+            } else {
+                "logs --podvm-tier=incus u-1\nlogs u-1\n"
+            };
+            assert_eq!(seen, want, "{version}");
         }
     }
 

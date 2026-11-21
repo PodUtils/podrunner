@@ -13644,13 +13644,13 @@ State (2026-11-21, proven in CI on GitHub-hosted runners: `level2.yml` 448029723
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
 `Slots::read_unit_log` (`crates/podrunner-slots/src/report.rs`) reads the log of the unit for each runner job that exits 0 (T-567, T-568), not only for a unit that failed before its first step (T-497). `finish()` of `crates/podrunner-slots/src/run.rs` calls it in the tick. The read has no bound in time and in memory:
 
-- The podvm and the incus kinds run one `podvm logs` subprocess for each job (`logs_unit` of `crates/podrunner-podvm/src/unit/containers.rs`, `verb` of `crates/podrunner-incus/src/lib.rs`). `Command::output` has no time limit and holds all of the output. The tick waits for it.
+- The podvm and the incus kinds run one `podvm logs` subprocess for each job (`log_unit` of `crates/podrunner-podvm/src/unit/containers.rs`, `verb` of `crates/podrunner-incus/src/lib.rs`). `Command::output` has no time limit and holds all of the output. The tick waits for it.
 - The microvm kind reads all of `guest.log` (`crates/podrunner-microvm/src/lib.rs`), and the fake kind all of `.unit.log`.
 - `hook_ended`, `runner_took_no_job` and `job_result` of `crates/podrunner-slots/src/log_tail.rs` each make a UTF-8 copy of the full log when it is not valid UTF-8, and `scrub` copies the full log before it cuts the tail.
 
@@ -13688,11 +13688,22 @@ Tests (they ran on a development host; level: not run): `cargo test -p podrunner
 
 `cargo test -p podrunner-slots --lib -- log_tail report`: a fake payload that writes more than the bound after the real `Failed` line, then a forged `Succeeded` line, gives `failure` and reads no more than the bound. Then the podvm and the incus lanes of `user-gate.yml` give the time of the read in the log of `serve`.
 
-## Blocker
-
-podvm must act (COORD-115, GitHub #333, written 2026-11-20): `podvm logs CONTAINER` and `podvm logs --podvm-tier=incus NAME` stream the log from its start to stdout, with no copy of all of the log in memory, and take `--limit-bytes N`: stop after the first N bytes and exit 0. podrunner then passes `--limit-bytes` with its bound when `podvm --version` is that version or later. Also open: step 1 (the time of the read on the podvm and the incus lanes of `user-gate.yml`, from the stderr line of `serve`).
+The ask of step 4 was COORD-115 (GitHub #333, written 2026-11-20): `podvm logs CONTAINER` and `podvm logs --podvm-tier=incus NAME` stream the log from its start to stdout, with no copy of all of the log in memory, and take `--limit-bytes N`: stop after the first N bytes and exit 0.
 
 State (2026-11-20, COORD-220, PodUtils/podvm#630): PodUtils/podvm@T-2046 is done on podvm's `main` and ships in `0.2.0-beta.37`. `podvm logs` streams through one buffer of 64 KiB (a log of 200,000,000 bytes: a peak RSS of 4,952 KiB, before 200,160 KiB). `--limit-bytes N` stops after the first N bytes with exit 0; with `-f` it also stops when the container ends. `--podvm-tier=incus` holds the log in memory, 64 MiB at most (a larger log is refused), because the API of incus gives the file whole; it refuses `--tail`. A closed stdout ends `podvm logs` with SIGPIPE (141). Next: pin `0.2.0-beta.37`, pass `--limit-bytes` with the bound of podrunner, and take the exit 141 of a cut as no failure.
+
+State (2026-11-21, step 4 done; the first part of the Prove passes in this sandbox; the lanes of `user-gate.yml`: not run): podvm `0.2.0-beta.37` is pinned.
+
+- `UnitLog::limited` (`crates/podrunner-unit/src/log.rs`) starts the writer at the read. `read_bounded` gives the writer its bound plus one byte, so a log of exactly the bound stays whole and a longer log is cut; `read_all` gives no bound. The bound of the read in podrunner stays: a writer that does not stop is killed at the cut, and its code does not count (a closed stdout gives 141).
+- `Podvm::logs` (`crates/podrunner-podvm/src/lib.rs`) is the one `podvm logs` of the podvm and the incus kinds. It adds `--limit-bytes N` before the name when the probe gives `probe::LOWEST_LOG_LIMIT` (`0.2.0-beta.37`) or later; an older podvm gets no flag.
+- The error of a writer that failed names the last line of its stderr. A read that fails (the incus tier refuses a log over 64 MiB, because podvm reads the file of incus whole) keeps the exit code of the runner, and `Slots::read_unit_log` writes a line and an audit line `job-completed`: "the log of the unit tells no result of the job: ...". Before, the failed read gave no line.
+- Measured in this sandbox with the podvm binary of the release (uid 0, the namespace rung): `logs --limit-bytes 1001` of a log of 100,000 bytes writes 1001 bytes and exits 0; `logs | head -c 10` exits 141.
+
+What does not hold: on the incus kind a log over 64 MiB gives no result from the log (the exit code tells). The ranged read of a file of incus is podvm's ask to podcrates (PodUtils/podvm@T-2046).
+
+Tests (they fail on the code before): `log::tests::a_writer_with_a_bound_gets_one_byte_past_the_bound_of_the_read`, `log::tests::the_error_of_a_writer_names_the_last_line_of_its_stderr`, `log::tests::a_writer_that_a_cut_ends_with_141_is_no_failure` (`cargo test -p podrunner-unit --lib log`: 6 passed), `tests::a_bounded_read_of_the_log_passes_its_bound_to_podvm` (`cargo test -p podrunner-podvm --lib`: 29 passed), `tests::a_bounded_read_of_the_log_gives_podvm_its_bound` (`cargo test -p podrunner-incus --lib`: 18 passed), `tests::report::a_log_that_cannot_be_read_keeps_the_exit_code_and_says_why` (`cargo test -p podrunner-slots --lib -- log_tail report`: 36 passed).
+
+Next: step 1 and the second part of the Prove: a run of `user-gate.yml` (the lanes of the podvm and the incus kinds) gives the line `read N bytes of the unit log in M ms` of `serve`.
 
 # T-573: An image larger than the memory of a microvm guest is not refused
 

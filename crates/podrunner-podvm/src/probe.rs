@@ -74,6 +74,9 @@ pub const LOWEST_INCUS: &str = "0.2.0-beta.13";
 /// The first podvm whose incus tier boots the init of the image as PID 1
 /// (`--podvm-init=image`, PodUtils/podvm@T-1993, T-543).
 pub const LOWEST_INCUS_INIT: &str = "0.2.0-beta.36";
+/// The first podvm whose `logs` streams and takes `--limit-bytes N`, also
+/// on the incus tier (PodUtils/podvm@T-2046, T-570).
+pub const LOWEST_LOG_LIMIT: &str = "0.2.0-beta.37";
 /// The lowest podvm whose incus tier takes `--memory`, `--cpus` and
 /// `--pids-limit` (PodUtils/podvm@T-1897, T-162).
 pub const LOWEST_INCUS_LIMITS: &str = "0.2.0-beta.20";

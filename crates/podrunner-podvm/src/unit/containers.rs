@@ -173,11 +173,10 @@ impl PodvmUnit {
 
     /// The stdout of `podvm logs` as a stream (T-570): `podvm logs` writes
     /// the bytes of the payload to its stdout, and its own text to stderr.
+    /// A bounded read gives its bound to podvm (`Podvm::logs`).
     pub(super) fn log_unit(&self, unit: &UnitId) -> Result<podrunner_unit::UnitLog, UnitError> {
         let (store, tag, _, _) = self.container_base(unit)?;
-        let mut cmd = self.command(None);
-        cmd.arg("logs").arg(unit.as_str()).env("PODVM_STORE", store).env(TAG_VAR, tag);
-        podrunner_unit::UnitLog::command(cmd)
+        Ok(self.podvm.logs(&[], unit.as_str(), vec![("PODVM_STORE", store.into()), (TAG_VAR, tag.into())]))
     }
 
     pub(super) fn inspect_container(&self, unit: &UnitId, c: &ContainerId) -> Result<ContainerState, UnitError> {

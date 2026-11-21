@@ -32,7 +32,8 @@ inspect)
 stop|rm)
   [ -f "$S/$n.pid" ] && { pkill -P "$(cat "$S/$n.pid")"; kill "$(cat "$S/$n.pid")"; } 2>/dev/null
   if [ "$verb" = rm ]; then rm -f "$S/$n".*; else echo "Stopped 143" > "$S/$n.status"; fi ;;
-logs) cat "$S/$n.log" ;;
+logs) case "$*" in *--limit-bytes*) echo "$*" > "$S/$n.logs"; head -c "$3" "$S/$n.log" ;; *) cat "$S/$n.log" ;; esac ;;
+probe) cat "$0.probe" 2>/dev/null ;;
 esac
 "#;
 
@@ -126,6 +127,25 @@ fn the_exit_code_of_the_instance_is_the_exit_of_the_unit() {
     assert_eq!(u.wait(&s.unit, Duration::from_secs(10)).unwrap(), Some(Exit::Code(7)));
     let log = String::from_utf8(u.unit_logs(&s.unit).unwrap()).unwrap();
     assert!(log.contains("the-instance-said-42"), "{log}");
+    assert!(u.destroy(&s.unit).unwrap().is_clean());
+    let _ = fs::remove_dir_all(&d);
+}
+
+/// T-570: podvm `0.2.0-beta.37` takes `--limit-bytes`: a bounded read of
+/// the log of the instance gives podvm its bound, plus one byte.
+#[test]
+fn a_bounded_read_of_the_log_gives_podvm_its_bound() {
+    let (u, d) = driver("logs", "yes a-line | head -c 5000");
+    fs::write(d.join("podvm.probe"), r#"{"podvm":"0.2.0-beta.37","rung":"namespace"}"#).unwrap();
+    let s = spec("u-3");
+    u.start(&s).unwrap();
+    assert_eq!(u.wait(&s.unit, Duration::from_secs(10)).unwrap(), Some(Exit::Code(0)));
+    let mut got = 0;
+    let read = u.unit_log(&s.unit).unwrap().read_bounded(100, Duration::from_secs(5), &mut |b| got += b.len()).unwrap();
+    assert_eq!((read.cut, got), (Some(podrunner_unit::Cut::Bytes), 100));
+    let args = fs::read_to_string(d.join("store").join(format!("{}.logs", u.name(&s.unit)))).unwrap();
+    assert_eq!(args.split_whitespace().collect::<Vec<_>>()[..3], ["--podvm-tier=incus", "--limit-bytes", "101"]);
+    assert_eq!(u.unit_logs(&s.unit).unwrap().len(), 5000, "a read with no bound gets all");
     assert!(u.destroy(&s.unit).unwrap().is_clean());
     let _ = fs::remove_dir_all(&d);
 }

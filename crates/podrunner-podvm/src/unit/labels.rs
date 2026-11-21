@@ -74,13 +74,7 @@ fn tier_args_on(podvm: &crate::Podvm, arch: &str, from: Option<&str>) -> &'stati
 /// Whether `podvm` is `version` or later. The answer of each binary for
 /// each version is kept.
 pub(super) fn at_least(podvm: &crate::Podvm, version: &str) -> bool {
-    type Seen = std::collections::BTreeMap<(std::path::PathBuf, String), bool>;
-    static SEEN: std::sync::Mutex<Seen> = std::sync::Mutex::new(std::collections::BTreeMap::new());
-    let mut seen = SEEN.lock().unwrap_or_else(|e| e.into_inner());
-    *seen.entry((podvm.binary.clone(), version.to_string())).or_insert_with(|| {
-        let low = crate::probe::Version::parse(version).expect("a version");
-        podvm.version().is_some_and(|v| v >= low)
-    })
+    podvm.at_least(version)
 }
 
 impl PodvmUnit {

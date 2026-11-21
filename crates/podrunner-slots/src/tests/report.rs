@@ -196,6 +196,19 @@ fn a_log_over_the_bound_tells_a_failure_before_the_cut_and_no_more() {
     }
 }
 
+#[test]
+fn a_log_that_cannot_be_read_keeps_the_exit_code_and_says_why() {
+    // T-570: the read of the log fails (the incus tier of podvm refuses a
+    // log over 64 MiB; here the fake unit has no log file). The report
+    // keeps the exit code, and an audit line names the failed read.
+    let bed = ran(None, "echo '2026-11-20 10:00:00Z: Running job: build'; rm -f .unit.log; exit 0");
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
+    let said = |l: &crate::audit::Entry| {
+        l.detail.as_deref().is_some_and(|d| d.starts_with("the log of the unit tells no result of the job: "))
+    };
+    assert!(bed.slots.audit_lines().iter().any(said), "{:?}", bed.slots.audit_lines());
+}
+
 fn lines_of(result: &str) -> String {
     format!(
         "echo '2026-11-20 10:00:00Z: Running job: build'; \

@@ -425,9 +425,8 @@ impl UnitDriver for IncusUnit {
             let units = self.units.lock().expect("the units");
             units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?.name.clone()
         };
-        let mut cmd = self.podvm();
-        cmd.args(["logs", "--podvm-tier=incus", &name]);
-        podrunner_unit::UnitLog::command(cmd)
+        // A log over 64 MiB is refused: podvm reads the file of incus whole.
+        Ok(self.podvm.logs(&["--podvm-tier=incus"], &name, vec![("PODVM_STORE", self.images.clone().into())]))
     }
 
     /// `podvm exec --podvm-tier=incus` in the instance (T-160). The
