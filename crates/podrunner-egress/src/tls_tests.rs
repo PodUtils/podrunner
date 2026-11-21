@@ -23,6 +23,8 @@ const SECRET: &str = "made-up-secret-value-T563-e5f6a7b8";
 /// The placeholder that the unit holds.
 const PH: &str = "PODCRED_TEST_TOKEN_0001";
 const HOST: &str = "api.example.com";
+/// A host that no credential names.
+const OTHER: &str = "other.example.com";
 
 fn policy(credential: bool) -> String {
     let credentials = if credential {
@@ -46,7 +48,7 @@ impl Dial for Far {
     }
 
     fn dial<'a>(&'a self, _: &'a Target, _: tokio::time::Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
-        let leaf = self.ca.leaf(&Host::Name(HOST.into())).unwrap();
+        let leaves = [HOST, OTHER].map(|n| (n.to_string(), self.ca.leaf(&Host::Name(n.into())).unwrap())).to_vec();
         let seen = self.seen.clone();
         Box::pin(async move {
             let (ours, theirs) = tokio::io::duplex(64 * 1024);
@@ -54,7 +56,7 @@ impl Dial for Far {
                 .with_safe_default_protocol_versions()
                 .unwrap()
                 .with_no_client_auth()
-                .with_cert_resolver(Arc::new(One(leaf)));
+                .with_cert_resolver(Arc::new(BySni(leaves)));
             config.alpn_protocols = vec![b"http/1.1".to_vec()];
             let acceptor = pod_tls::server::TlsAcceptor::from(Arc::new(config));
             tokio::spawn(async move {
@@ -75,13 +77,14 @@ impl Dial for Far {
     }
 }
 
-/// The one leaf of the far end.
+/// The leaf of the far end for the name of the handshake.
 #[derive(Debug)]
-struct One(Arc<rustls::sign::CertifiedKey>);
+struct BySni(Vec<(String, Arc<rustls::sign::CertifiedKey>)>);
 
-impl rustls::server::ResolvesServerCert for One {
-    fn resolve(&self, _: rustls::server::ClientHello<'_>) -> Option<Arc<rustls::sign::CertifiedKey>> {
-        Some(self.0.clone())
+impl rustls::server::ResolvesServerCert for BySni {
+    fn resolve(&self, hello: rustls::server::ClientHello<'_>) -> Option<Arc<rustls::sign::CertifiedKey>> {
+        let name = hello.server_name()?;
+        self.0.iter().find(|(n, _)| n == name).map(|(_, k)| k.clone())
     }
 }
 
@@ -122,9 +125,14 @@ fn dir(name: &str) -> std::path::PathBuf {
 /// A request of the unit through a CONNECT and its own TLS, which trusts
 /// `bundle`; the answer.
 fn job_request(socket: &std::path::Path, bundle: &str, request: &str) -> String {
+    job_request_to(socket, HOST, bundle, request)
+}
+
+/// [`job_request`] to the host `host`.
+fn job_request_to(socket: &std::path::Path, host: &str, bundle: &str, request: &str) -> String {
     let mut s = UnixStream::connect(socket).unwrap();
     s.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
-    s.write_all(format!("CONNECT {HOST}:443 HTTP/1.1\r\nHost: {HOST}:443\r\n\r\n").as_bytes()).unwrap();
+    s.write_all(format!("CONNECT {host}:443 HTTP/1.1\r\nHost: {host}:443\r\n\r\n").as_bytes()).unwrap();
     let mut r = BufReader::new(s);
     let mut line = String::new();
     r.read_line(&mut line).unwrap();
@@ -133,7 +141,7 @@ fn job_request(socket: &std::path::Path, bundle: &str, request: &str) -> String 
     let s = r.into_inner();
     let mut config = (*trusting(bundle)).clone();
     config.alpn_protocols = vec![b"http/1.1".to_vec()];
-    let name = rustls::pki_types::ServerName::try_from(HOST).unwrap();
+    let name = rustls::pki_types::ServerName::try_from(host.to_string()).unwrap();
     let conn = rustls::ClientConnection::new(Arc::new(config), name).unwrap();
     let mut tls = rustls::StreamOwned::new(conn, s);
     tls.write_all(request.as_bytes()).unwrap();
@@ -199,6 +207,33 @@ fn a_job_with_no_credential_gets_no_ca_and_a_missing_value_is_refused() {
     let err = bare.open_with("u-4", &policy(true), secrets, &d.join("d.sock"), Duration::from_secs(60)).unwrap_err();
     assert!(err.0.contains("no CA file"), "{err}");
     assert!(!d.join("d.sock").exists(), "no listener for a refused job");
+    let _ = std::fs::remove_dir_all(d);
+}
+
+/// The review of T-563: a host that no credential names gets the tunnel as
+/// it is, and so the placeholder, never the value.
+#[test]
+fn a_host_with_no_credential_gets_only_the_placeholder() {
+    let far = Far { ca: JobCa::new("far", Duration::from_secs(600)).unwrap(), seen: Arc::default() };
+    let (far_pem, seen) = (far.ca.pem().to_string(), far.seen.clone());
+    let tls = HostTls { trust: trusting(&far_pem), roots_pem: Some(roots()) };
+    let broker = Broker::new(Settings::default(), Arc::new(super::tests::Public), Arc::new(far));
+    let e = Egress::with_tls(broker, tls).unwrap();
+    let d = dir("other");
+    let socket = d.join("u-1.sock");
+    let policy = format!(
+        r#"{{"schema":1,"mode":"allow","allow":[{{"host":"{HOST}"}},{{"host":"{OTHER}"}}],"credentials":[{{"placeholder":"{PH}","secret":"token","hosts":["{HOST}"]}}]}}"#
+    );
+    let secrets = Secrets::new().with("token", SECRET);
+    e.open_with("u-1", &policy, secrets, &socket, Duration::from_secs(600)).unwrap();
+    // The tunnel to OTHER is not read: the unit checks the leaf of the far
+    // end itself.
+    let request = format!("GET / HTTP/1.1\r\nHost: {OTHER}\r\nAuthorization: Bearer {PH}\r\n\r\n");
+    let answer = job_request_to(&socket, OTHER, &far_pem, &request);
+    let far = seen.lock().unwrap().clone();
+    assert!(far.contains(&format!("Bearer {PH}")) && !far.contains(SECRET), "{far}");
+    assert!(!answer.contains(SECRET), "{answer}");
+    e.kill();
     let _ = std::fs::remove_dir_all(d);
 }
 

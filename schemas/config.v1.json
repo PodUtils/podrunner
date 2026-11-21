@@ -459,8 +459,19 @@
             "type": "string"
           }
         },
+        "places": {
+          "description": "The places of a request where the broker may put the value (`in` of\na credential: `header`, `basic`, `query`, `body`). Default: `header`\nand `basic`. A credential with a wider `in` is refused: a value in a\nbody or a query can reach a host that keeps it and shows it again.",
+          "type": "array",
+          "default": [
+            "header",
+            "basic"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "sources": {
-          "description": "The sources whose offers may name the secret.",
+          "description": "The sources whose offers may name the secret. A credential of\n`default_policy` that names it holds for a job of these sources\nonly; a job of another source is refused.",
           "type": "array",
           "items": {
             "type": "string"

@@ -167,7 +167,8 @@ impl Slots {
             let policy = crate::policy::of_job(offer, self.cfg.egress.default_policy.as_ref());
             let socket = dir.join(EGRESS_SOCKET);
             let store = &self.cfg.egress.secrets;
-            match crate::secrets::open(e.as_ref(), unit.as_str(), &policy, store, &socket, cred_dir.as_deref()) {
+            let of = (unit.as_str(), self.sources[key.0].cfg.name.as_str());
+            match crate::secrets::open(e.as_ref(), of, &policy, store, &socket, cred_dir.as_deref()) {
                 Err(why) => {
                     self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("egress: {why}")));
                     return self.give_up(key, RefusalCode::UnitStartFailed, now);

@@ -112,7 +112,8 @@ default_policy = { schema = 1, mode = "allow", allow = [{ host = "*.github.com",
 [egress.secrets.github]      # a secret that a credential of a policy names (T-563)
 file = "/etc/podrunner/secrets/github"   # the value, mode 0600 or 0400; read at the start of each unit
 hosts = ["api.github.com"]   # the hosts that may get the value
-sources = ["githome"]        # the sources whose offers may name it
+sources = ["githome"]        # the sources whose jobs may get it (also from default_policy)
+places = ["header", "basic"] # the places of the value in a request (the default); also query, body
 
 [dns]                        # the resolver of the egress and of a remote mint (pod-dns, T-076)
 doh = true                   # ask DNS over HTTPS (resolvers by their address) when the system and the cache fail
@@ -352,7 +353,21 @@ the audit or in the text of an error.
   `hosts` of the secret is refused: `egress-policy-unsupported`, and the
   audit line names the secret and the host.
 * A credential of `default_policy` names a secret of `[egress.secrets]`;
-  `check` refuses another one.
+  `check` refuses another one. It holds for a job of the `sources` of its
+  secret only: a job of another source is refused
+  (`egress-policy-unsupported`), and the audit names the secret.
+* The `in` of a credential (none: `header` and `basic`) is in the
+  `places` of its secret, else the offer is refused. A value in a `body`
+  or a `query` can reach a host that keeps the text and shows it again.
+* A job with a credential goes only to a kind whose unit is apart from the
+  user of `serve`: a boundary of `confined` or more, or a distinct user.
+  That user reads the files of the secrets and the memory of the broker.
+* The broker scrubs the value, its percent form, its JSON form and its
+  base64 in each answer. A host that gives back a changed form of the
+  value (a part of it, or another encoding) is not scrubbed: keep `hosts`
+  narrow.
+* A file of a secret is a regular file of the user of `serve`, mode 0600
+  or 0400, and not a symbolic link.
 * A rule can have a `path` (an absolute path, on whole segments): the
   broker ends the TLS of each tunnel to the host of that rule and checks
   the path of each request. The path of an offer holds under the path of

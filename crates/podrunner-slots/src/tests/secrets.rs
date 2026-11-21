@@ -58,23 +58,35 @@ fn credential(secret: &str, host: &str) -> Value {
 /// The configuration with an open ceiling and the secret `token` for the
 /// source `a` and the hosts under `example.com`, in a file of `dir`.
 fn with_secret(dir: &std::path::Path) -> crate::config::Config {
+    with_secret_as(dir, r#"{ schema = 1, mode = "open" }"#, "sources = [\"a\"]")
+}
+
+/// [`with_secret`] with the ceiling `ceiling` and the keys `keys` of the
+/// secret after its file and its hosts.
+fn with_secret_as(dir: &std::path::Path, ceiling: &str, keys: &str) -> crate::config::Config {
     let file = dir.join("token");
     std::fs::write(&file, format!("{VALUE}\n")).unwrap();
     std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600)).unwrap();
     config(&format!(
-        "[egress]\ndefault_policy = {{ schema = 1, mode = \"open\" }}\n\
-         [egress.secrets.token]\nfile = \"{}\"\nhosts = [\"*.example.com\"]\nsources = [\"a\"]",
+        "[egress]\ndefault_policy = {ceiling}\n\
+         [egress.secrets.token]\nfile = \"{}\"\nhosts = [\"*.example.com\"]\n{keys}",
         file.display()
     ))
 }
 
 fn run(offer_with: Value, check: &str) -> (Bed, Tls) {
     let dir = TempDir::new();
-    let tls = Tls::default();
     let cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
+    let (bed, tls) = run_in(with_secret(&dir.0), cap, offer_with, check);
+    drop(dir);
+    (bed, tls)
+}
+
+fn run_in(cfg: crate::config::Config, cap: podrunner_schema::Capability, offer_with: Value, check: &str) -> (Bed, Tls) {
+    let dir = TempDir::new();
+    let tls = Tls::default();
     let kind = KindSpec { name: "fake", slots: 1, capability: cap, command: sh(check) };
-    let bed =
-        Bed::new(with_secret(&dir.0), vec![("a", "trusted", None, vec![offer(0, "j-1", offer_with)])], vec![kind]);
+    let bed = Bed::new(cfg, vec![("a", "trusted", None, vec![offer(0, "j-1", offer_with)])], vec![kind]);
     let mut bed = Bed { slots: bed.slots.with_egress(Box::new(tls.clone())), ..bed };
     bed.until(30, |s| s.jobs().count() == 1 && Bed::all_final(s));
     drop(dir);
@@ -163,4 +175,102 @@ fn the_secrets_of_egress_are_checked() {
         "default_policy = {{ schema = 1, mode = \"open\", credentials = [{{ placeholder = \"{PH}\", secret = \"t\", hosts = [\"a\"] }}] }}"
     );
     assert!(parse(&ceiling).unwrap_err().contains("does not hold"));
+}
+
+/// The review of T-563 (P2-1): a credential of `default_policy` holds for
+/// a job of the sources of its secret only; a job of another source is
+/// refused, and the audit names the secret.
+#[test]
+fn a_credential_of_the_ceiling_is_for_the_sources_of_its_secret_only() {
+    let dir = TempDir::new();
+    let ceiling = format!(
+        r#"{{ schema = 1, mode = "open", credentials = [{{ placeholder = "{PH}", secret = "token", hosts = ["api.example.com"] }}] }}"#
+    );
+    let cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
+    let other = with_secret_as(&dir.0, &ceiling, "sources = [\"other\"]");
+    let (bed, tls) = run_in(other, cap.clone(), json!({}), "exit 0");
+    assert_eq!(bed.slots.reports[0].refusal_code, Some(RefusalCode::EgressPolicyUnsupported));
+    assert!(tls.opened.lock().unwrap().is_empty(), "no unit");
+    let audit = std::fs::read_to_string(bed.dir.0.join("state/audit.jsonl")).unwrap_or_default();
+    assert!(audit.contains("the secret token is not for the source a"), "{audit}");
+    let mine = with_secret_as(&dir.0, &ceiling, "sources = [\"a\"]");
+    let (bed, tls) = run_in(mine, cap, json!({}), "exit 0");
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
+    assert_eq!(tls.opened.lock().unwrap()[0].1.len(), 1, "the job of the source gets the value");
+}
+
+/// The review of T-563 (P2-2): the operator limits the places of a value;
+/// an offer that puts it in a body is refused unless `places` names it.
+#[test]
+fn the_places_of_a_credential_are_the_places_of_its_secret() {
+    let dir = TempDir::new();
+    let open = r#"{ schema = 1, mode = "open" }"#;
+    let mut body = credential("token", "api.example.com");
+    body["policy"]["credentials"][0]["in"] = json!(["header", "body"]);
+    let cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
+    let (bed, _) = run_in(with_secret_as(&dir.0, open, "sources = [\"a\"]"), cap.clone(), body.clone(), "exit 0");
+    assert_eq!(bed.slots.reports[0].refusal_code, Some(RefusalCode::EgressPolicyUnsupported));
+    let audit = std::fs::read_to_string(bed.dir.0.join("state/audit.jsonl")).unwrap_or_default();
+    assert!(audit.contains("does not go in the place body"), "{audit}");
+    let wide = with_secret_as(&dir.0, open, "sources = [\"a\"]\nplaces = [\"header\", \"body\"]");
+    let (bed, _) = run_in(wide, cap, body, "exit 0");
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
+}
+
+/// The review of T-563 (P2-3): a kind whose unit runs as the user of
+/// podrunner (a boundary below `confined` and a shared user) gets no job
+/// with a credential; a distinct user or a confined unit does.
+#[test]
+fn a_credential_needs_a_unit_apart_from_the_user_of_podrunner() {
+    use crate::placement::{Kind, place};
+    let dir = TempDir::new();
+    let cfg = with_secret(&dir.0);
+    let line: Value = serde_json::from_str(&offer(0, "j-1", credential("token", "api.example.com"))).unwrap();
+    let o: podrunner_schema::JobOffer = serde_json::from_value(line["offer"].clone()).unwrap();
+    let plain: Value =
+        serde_json::from_str(&offer(0, "j-2", json!({ "policy": { "schema": 1, "mode": "open" } }))).unwrap();
+    let p: podrunner_schema::JobOffer = serde_json::from_value(plain["offer"].clone()).unwrap();
+    for (boundary, principal, placed) in [
+        (Boundary::Redirect, Principal::Shared, false),
+        (Boundary::Redirect, Principal::Unknown, false),
+        (Boundary::Redirect, Principal::Distinct, true),
+        (Boundary::Confined, Principal::Shared, true),
+    ] {
+        let kind = || Kind {
+            capability: capability(boundary, principal, EgressHold::Advisory),
+            free: 1,
+            running: 0,
+            repos: vec![],
+            root_disk: None,
+        };
+        let got = place(&o, podrunner_schema::Tier::Local, &[kind()], &cfg, NOW_UNIX);
+        assert_eq!(got.is_ok(), placed, "{boundary:?} {principal:?}: {got:?}");
+        if !placed {
+            assert_eq!(got.err(), Some(RefusalCode::EgressPolicyUnsupported));
+        }
+        let plain = place(&p, podrunner_schema::Tier::Local, &[kind()], &cfg, NOW_UNIX);
+        assert!(plain.is_ok(), "no credential: each kind: {plain:?}");
+    }
+}
+
+/// The review of T-563 (P3): a file of a secret that is a symbolic link is
+/// refused; two placeholders where one holds the other are refused before a
+/// unit starts.
+#[test]
+fn a_linked_secret_file_and_placeholders_that_hold_each_other_are_refused() {
+    let dir = TempDir::new();
+    let store = with_secret(&dir.0).egress.secrets;
+    let link = dir.0.join("link");
+    std::os::unix::fs::symlink(dir.0.join("token"), &link).unwrap();
+    let mut linked = store.clone();
+    linked.get_mut("token").unwrap().file = link;
+    let policy = credential("token", "api.example.com")["policy"].to_string();
+    let err = crate::secrets::values(&policy, &linked).unwrap_err();
+    assert!(!err.contains(VALUE) && err.contains("token"), "{err}");
+    assert_eq!(crate::secrets::values(&policy, &store).unwrap().len(), 1);
+    let mut two = credential("token", "api.example.com")["policy"].as_object().unwrap().clone();
+    let longer = json!({ "placeholder": format!("{PH}_MORE"), "secret": "token", "hosts": ["api.example.com"] });
+    two["credentials"].as_array_mut().unwrap().push(longer);
+    let err = crate::secrets::check_credentials(&two, &store, Some("a")).unwrap_err();
+    assert!(err.contains("hold each other"), "{err}");
 }

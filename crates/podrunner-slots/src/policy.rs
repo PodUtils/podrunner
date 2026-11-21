@@ -14,15 +14,15 @@ use serde_json::{Map, Value, json};
 /// Whether a policy has a rule that podrunner cannot hold
 /// (`egress-policy-unsupported`): a field other than `host`, `path` and
 /// `ports`, or a value of another type (`ports` as text, a `path` that is
-/// not absolute), which `narrow` would drop, so the policy would be wider
-/// than its rule (#249). The rule of `pod-broker` has these three.
+/// not a normal path), which `narrow` would drop, so the policy would be
+/// wider than its rule (#249). The rule of `pod-broker` has these three.
 pub fn unheld_rule(policy: &serde_json::Map<String, Value>) -> bool {
     let port = |p: &Value| p.as_u64().is_some_and(|n| (1..=65535).contains(&n));
     rules(&Value::Object(policy.clone())).iter().any(|r| {
         let Some(o) = r.as_object() else { return true };
         o.keys().any(|k| !matches!(k.as_str(), "host" | "path" | "ports"))
             || !o.get("host").is_some_and(Value::is_string)
-            || o.get("path").is_some_and(|p| !p.is_null() && !p.as_str().is_some_and(|p| p.starts_with('/')))
+            || o.get("path").is_some_and(|p| !p.is_null() && !p.as_str().is_some_and(normal_path))
             || o.get("ports").is_some_and(|p| !p.is_null() && !p.as_array().is_some_and(|a| a.iter().all(port)))
     })
 }
@@ -40,6 +40,25 @@ fn open(p: &Value) -> bool {
 fn host(r: &Value) -> String {
     let h = r.get("host").and_then(Value::as_str).unwrap_or("");
     h.strip_suffix('.').unwrap_or(h).to_ascii_lowercase()
+}
+
+/// Whether `p` is a path that `pod-broker` takes as it is (its
+/// `target::normal_path`): absolute, no query, fragment or backslash, a
+/// printable byte or an escape of one, no escape of a dot or a slash, no
+/// dot segment and no empty segment. `narrow` then compares two paths as
+/// text, and the broker refuses none of them when the unit starts.
+fn normal_path(p: &str) -> bool {
+    let b = p.as_bytes();
+    let escapes_fine = b.iter().enumerate().filter(|(_, c)| **c == b'%').all(|(i, _)| {
+        p.get(i + 1..i + 3)
+            .and_then(|h| u8::from_str_radix(h, 16).ok().filter(|_| h.bytes().all(|c| c.is_ascii_hexdigit())))
+            .is_some_and(|x| x > 0x1f && x != 0x7f && !matches!(x, b'.' | b'/' | b'\\'))
+    });
+    p.starts_with('/')
+        && b.iter().all(|c| (0x21..0x7f).contains(c) && !matches!(c, b'?' | b'#' | b'\\'))
+        && escapes_fine
+        && !p.contains("//")
+        && !p.split('/').skip(1).any(|s| s == "." || s == "..")
 }
 
 fn path(r: &Value) -> Option<&str> {
@@ -276,6 +295,11 @@ mod tests {
         for r in [
             json!({ "host": "a", "path": "x" }),
             json!({ "host": "a", "path": ["/x"] }),
+            json!({ "host": "a", "path": "/v1/../admin" }),
+            json!({ "host": "a", "path": "/v1/%2e%2e/admin" }),
+            json!({ "host": "a", "path": "/v1//x" }),
+            json!({ "host": "a", "path": "/v1?x=1" }),
+            json!({ "host": "a", "path": "/v1/%zz" }),
             json!({ "host": "a.example", "methods": ["GET"] }),
             json!({ "host": "a", "Ports": [443] }),
             json!("a.example"),
@@ -293,6 +317,8 @@ mod tests {
             json!({ "host": "a", "ports": [443] }),
             json!({ "host": "a", "path": null }),
             json!({ "host": "a", "path": "/x" }),
+            json!({ "host": "a", "path": "/" }),
+            json!({ "host": "a", "path": "/v1/a%20b" }),
         ] {
             assert!(!unheld(r.clone()), "{r}");
         }
@@ -323,7 +349,9 @@ mod tests {
     }
 
     /// T-563: the credentials of the ceiling and of the offer reach the
-    /// policy of the job, each once; with no ceiling, none.
+    /// policy of the job, each once; with no ceiling, none. The sources and
+    /// the places of each secret are checked on that policy for the source
+    /// of the job (`secrets::check_job`, `tests::secrets`).
     #[test]
     fn the_credentials_of_both_hold() {
         let c = |s: &str| json!({ "placeholder": "PODCRED_TEST_TOKEN_0001", "secret": s, "hosts": ["a.example"] });

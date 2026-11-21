@@ -150,6 +150,17 @@ pub fn place_why(
             k.capability.egress_hold.effective() > EgressHold::None
         })?;
     }
+    // A unit of a job with a credential does not run as the user of
+    // podrunner, who reads the files of the secrets and the memory of the
+    // broker: a kind with its own namespaces or root (`confined` or more),
+    // or with a distinct user (T-563).
+    if crate::secrets::has_credentials(&offer.policy)
+        || cfg.egress.default_policy.as_ref().is_some_and(crate::secrets::has_credentials)
+    {
+        narrow(&mut c, kinds, RefusalCode::EgressPolicyUnsupported, |k| {
+            k.capability.boundary >= Boundary::Confined || k.capability.principal == Principal::Distinct
+        })?;
+    }
     let (pin, payload_ignored) = pick_payload(offer, cfg, now_s)?;
     // A root disk smaller than the image cannot hold it (T-571): the unit
     // would start and fail with no clear cause.
