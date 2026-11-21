@@ -79,6 +79,7 @@ fn a_container_job_runs_through_the_hooks() {
         shared_host_net: false,
         registries: vec!["docker.io".into()],
         work_root,
+        work_dir: "_work".into(),
     };
     let hook =
         Arc::new(Mutex::new(HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.clone()), tmp.join("logs"))));

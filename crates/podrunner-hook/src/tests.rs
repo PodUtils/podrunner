@@ -16,6 +16,7 @@ fn policy() -> Policy {
         shared_host_net: false,
         registries: vec!["docker.io".into(), "ghcr.io".into()],
         work_root: "/home/runner/_work".into(),
+        work_dir: "_work".into(),
     }
 }
 
@@ -305,4 +306,45 @@ fn the_runner_root_is_no_mount_source() {
             "{src}"
         );
     }
+}
+
+/// T-590: a kind with the hosted work folder `/home/runner/work` mounts it
+/// and its parts; `_work`, a name that starts with `work`, a socket and the
+/// runner root are refused, and the externals stay read-only.
+#[test]
+fn the_hosted_work_folder_is_the_mount_source() {
+    let mut p = policy();
+    p.work_root = "/home/runner".into();
+    p.work_dir = "work".into();
+    let hosted = container().to_string().replace("/home/runner/_work", "/home/runner/work");
+    let hosted: Value = serde_json::from_str(&hosted).unwrap();
+    let plan = check(&mut Gate::default(), &p, Command::PrepareJob, &prepare(hosted.clone())).unwrap();
+    let Plan::Prepare { job: Some(job), .. } = plan else { panic!("{plan:?}") };
+    let sources: Vec<&str> = job.mounts.iter().map(|m| m.source.as_str()).collect();
+    let want = ["work", "work/_temp", "work/_actions", "work/_tool", "externals"];
+    assert_eq!(sources, [&want[..], &["work/_temp/_github_home", "work/_temp/_github_workflow"]].concat());
+    let refused = |c: Value, p: &Policy| code(check(&mut Gate::default(), p, Command::PrepareJob, &prepare(c)));
+    for src in [
+        "/home/runner/_work",
+        "/home/runner/_work/_temp",
+        "/home/runner/workx",
+        "/home/runner/work.sock",
+        "/home/runner/work/x.sock",
+        "/home/runner",
+        "/home/runner/.credentials_rsaparams",
+        "/home/runner/work/../bin",
+    ] {
+        let mut c = hosted.clone();
+        c["systemMountVolumes"] = json!([mount(src, "/__w")]);
+        assert_eq!(refused(c, &p), RefusalCode::ContainerOptionRefused, "{src}");
+    }
+    let mut c = hosted.clone();
+    c["systemMountVolumes"] = json!([mount("/home/runner/externals", "/__e")]);
+    assert_eq!(refused(c, &p), RefusalCode::ContainerOptionRefused, "a writable /__e");
+    // A kind of the folder of the mint refuses the hosted folder; an empty
+    // work folder refuses each source of the work folder.
+    p.work_dir = "_work".into();
+    assert_eq!(refused(hosted, &p), RefusalCode::ContainerOptionRefused);
+    p.work_dir = String::new();
+    assert_eq!(refused(container(), &p), RefusalCode::ContainerOptionRefused);
 }

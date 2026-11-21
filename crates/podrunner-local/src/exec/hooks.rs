@@ -43,7 +43,6 @@ impl InUnit {
         message: &Job,
         id: &podrunner_schema::UnitId,
     ) -> Result<Hooks, String> {
-        use podrunner_hook::policy::Policy;
         use podrunner_hook::server::{Unit, bind, serve_until};
         use std::os::unix::fs::PermissionsExt;
         // The socket volume alone is not enough: podvm on the namespace
@@ -63,16 +62,10 @@ impl InUnit {
         std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| format!("the relay: {e}"))?;
         std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755))
             .map_err(|e| format!("the relay: {e}"))?;
-        let policy = Policy {
-            container: podrunner_schema::ContainerRoute::Hooks,
-            shared_host_net: true,
-            registries: registries(message),
-            work_root: "/home/runner".into(),
-        };
         let unit = std::sync::Arc::new(std::sync::Mutex::new(podrunner_hook::unit::HookUnit::new(
             self.driver.clone(),
             id.clone(),
-            policy,
+            policy(message),
             None,
             logs,
         )));
@@ -88,6 +81,19 @@ impl InUnit {
     }
 }
 
+/// The hook policy of a unit of the local mode for the job `message`: the
+/// registries of its images, and the hosted work folder of the runner
+/// (T-590).
+fn policy(message: &Job) -> podrunner_hook::policy::Policy {
+    podrunner_hook::policy::Policy {
+        container: podrunner_schema::ContainerRoute::Hooks,
+        shared_host_net: true,
+        registries: registries(message),
+        work_root: "/home/runner".into(),
+        work_dir: super::workdir::WORK_DIR.into(),
+    }
+}
+
 /// The directory of the logs of the steps of a unit: beside its socket
 /// directory, never in it (T-404).
 fn logs_dir(sockets: &std::path::Path) -> PathBuf {
@@ -96,6 +102,28 @@ fn logs_dir(sockets: &std::path::Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    /// T-590: a job container of the local mode mounts the hosted work
+    /// folder; `_work` of the fake broker is refused.
+    #[test]
+    fn the_hook_policy_mounts_the_hosted_work_folder() {
+        use podrunner_hook::input::{Command, parse};
+        use podrunner_hook::policy::Gate;
+        let image = format!("alpine@sha256:{}", "a".repeat(64));
+        let mut job = podrunner_broker_fake::Job::scripts("a", &["true"]);
+        job.overrides.insert("jobContainer".into(), serde_json::json!(image));
+        let prepare = |source: &str| {
+            let mount =
+                serde_json::json!({ "sourceVolumePath": source, "targetVolumePath": "/__w", "readOnly": false });
+            let c = serde_json::json!({ "image": image, "systemMountVolumes": [mount] });
+            let body = serde_json::json!({ "command": "prepare_job", "args": { "container": c, "services": [] } });
+            Gate::default()
+                .check(&parse(Command::PrepareJob, body.to_string().as_bytes()).unwrap(), &super::policy(&job))
+        };
+        assert!(prepare("/home/runner/work").is_ok());
+        let e = prepare("/home/runner/_work").unwrap_err();
+        assert_eq!(e.code, podrunner_schema::RefusalCode::ContainerOptionRefused);
+    }
+
     /// T-404: the logs are out of the directory that the unit writes.
     #[test]
     fn the_logs_are_out_of_the_socket_directory() {

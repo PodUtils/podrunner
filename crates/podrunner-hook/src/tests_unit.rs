@@ -68,6 +68,7 @@ fn each_command_reaches_the_fake_unit() {
         shared_host_net: false,
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
+        work_dir: "_work".into(),
     };
     let mut u = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.clone());
     let mut hook = |cmd: Command, body: Vec<u8>| u.hook(parse(cmd, &body).unwrap());
@@ -131,6 +132,7 @@ fn the_socket_of_one_unit_reaches_no_container_of_another() {
         shared_host_net: false,
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
+        work_dir: "_work".into(),
     };
     let mut units = Vec::new();
     for name in ["u-1", "u-2"] {
@@ -193,11 +195,30 @@ fn a_linked_mount_source_is_refused() {
         shared_host_net: false,
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
+        work_dir: "_work".into(),
     };
-    let mut u = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.clone());
+    let mut u = HookUnit::new(fake.clone(), id.clone(), policy.clone(), Some(dir.join("runner")), dir.clone());
     let body = call("prepare_job", json!({ "container": container("", &[], "/__w"), "services": [] }));
     let e = u.hook(parse(Command::PrepareJob, &body).unwrap()).unwrap_err();
     assert_eq!(e.code, RefusalCode::ContainerOptionRefused, "{e:?}");
+    // T-590: the same for the hosted work folder `work`: a link in it, or in
+    // a part of it, is refused.
+    std::fs::create_dir_all(dir.join("runner/work")).unwrap();
+    std::os::unix::fs::symlink(dir.join("host"), dir.join("runner/work/_temp")).unwrap();
+    let hosted = Policy { work_dir: "work".into(), ..policy };
+    for (source, refused) in [("/home/runner/work", false), ("/home/runner/work/_temp/_github_home", true)] {
+        let mut u = HookUnit::new(fake.clone(), id.clone(), hosted.clone(), Some(dir.join("runner")), dir.clone());
+        let mut c = container("", &[], "/__w");
+        c["systemMountVolumes"][0]["sourceVolumePath"] = json!(source);
+        let body = call("prepare_job", json!({ "container": c, "services": [] }));
+        let r = u.hook(parse(Command::PrepareJob, &body).unwrap());
+        assert_eq!(
+            r.as_ref().err().map(|e| e.code),
+            refused.then_some(RefusalCode::ContainerOptionRefused),
+            "{source}"
+        );
+        let _ = u.hook(parse(Command::CleanupJob, &call("cleanup_job", json!({}))).unwrap());
+    }
     let _ = fake.destroy(&id);
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -229,6 +250,7 @@ fn a_job_container_that_stops_at_its_start_is_named() {
         shared_host_net: false,
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
+        work_dir: "_work".into(),
     };
     let mut u = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.clone());
     let body = call("prepare_job", json!({ "container": container("sh", &["-c", "exit 9"], "/__w"), "services": [] }));

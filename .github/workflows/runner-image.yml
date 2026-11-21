@@ -220,6 +220,11 @@ jobs:
             --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . \
             --jobs 3 | tee "$RUNNER_TEMP/local-jobs.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local-jobs.txt")" = 8
+          # T-590: the hosted work folder, /home/runner/work/REPO/REPO.
+          timeout 900 cargo run -q -p podrunner -- run crates/podrunner/tests/local/workspace.yml \
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" \
+            | tee "$RUNNER_TEMP/workspace.txt"
+          grep -qx 'ok      workspace' "$RUNNER_TEMP/workspace.txt"
           # T-093: a container: job and a Docker step through the hooks.
           sed "s|IMAGE|$PODRUNNER_RUNNER_IMAGE|" crates/podrunner/tests/local/containers.yml > "$RUNNER_TEMP/containers.yml"
           timeout 1200 cargo run -q -p podrunner -- run "$RUNNER_TEMP/containers.yml" \
@@ -250,7 +255,7 @@ jobs:
           tar_forms() {
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" /bin/bash -c '
             # /tmp, and the workspace path of the failed step (T-096).
-            for b in /tmp /home/runner/_work/app; do
+            for b in /tmp /home/runner/work/app; do
               mkdir -p "$b" && cd "$b" && echo x > f && tar -cf x.tar f && gzip -c x.tar > x.tgz
               m() { rm -rf d && mkdir -p d && if ( eval "$2" ) > /dev/null 2>&1 && test -f d/f; then echo "tar $b $1 ok"; else echo "tar $b $1 failed"; fi; }
               m -C "tar -xf x.tar -C d"
@@ -262,12 +267,12 @@ jobs:
               m cd-z "cd d && tar -xzf ../x.tgz"
             done' 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" "$RUNNER_TEMP/tar.txt"
           }
-          for h in /tmp/d /home/runner/_work/app/d; do rm -rf "$h"; mkdir -p "$h"; done
+          for h in /tmp/d /home/runner/work/app/d; do rm -rf "$h"; mkdir -p "$h"; done
           tar_forms
-          for h in /tmp/d /home/runner/_work/app/d; do
+          for h in /tmp/d /home/runner/work/app/d; do
             if [ -z "$(ls -A "$h")" ]; then echo "tar host $h untouched"; else echo "tar host $h written: $(ls -A "$h" | tr '\n' ' ')"; fi
           done | tee -a "$GITHUB_STEP_SUMMARY" "$RUNNER_TEMP/tar.txt"
-          rm -rf /tmp/d /home/runner/_work/app/d
+          rm -rf /tmp/d /home/runner/work/app/d
           tar_forms
           if grep -E 'failed|written' "$RUNNER_TEMP/tar.txt"; then exit 1; fi
           test "$(grep -c ' ok$' "$RUNNER_TEMP/tar.txt")" = 28
@@ -330,13 +335,17 @@ jobs:
           grep -q '^docker://busybox:1.37.0-musl sha256:' "$RUNNER_TEMP/tags/podrunner-actions.lock"
           grep -qx 'ok      static' "$RUNNER_TEMP/tags.txt"
       # T-324: the base image has make, python3 and libatomic1, which a
-      # podvm job cannot install.
+      # podvm job cannot install. T-590: the empty work folder of a hosted
+      # runner (the job of workspace.yml writes it as runner).
       - name: The tools of the base image in a podvm unit
         if: ${{ !cancelled() }}
         run: |
           set -eu
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" \
             /bin/sh -c 'make --version | head -1 && python3 --version && ls /usr/lib/*/libatomic.so.1 && command -v less'
+          PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" \
+            /bin/sh -c 'test -d /home/runner/work && test -z "$(ls -A /home/runner/work)" && echo work-empty' | tee "$RUNNER_TEMP/work.txt"
+          grep -qx 'work-empty' "$RUNNER_TEMP/work.txt"
       # T-354: a detached podvm unit has a pty: a devpts of its own on the
       # namespace rung (podvm 0.2.0-beta.32, PodUtils/podrunner#216).
       - name: A pty in a podvm unit
@@ -381,7 +390,7 @@ jobs:
           grep -qx 'ok      build' "$RUNNER_TEMP/export.txt"
           find "$RUNNER_TEMP/export/out" -name app -path '*build.0*' | head -1 | xargs cat | grep -qx built-42
       # T-138: --toolcache DIR, read-only in the podvm unit and linked into
-      # _work/_tool: the job finds a tool of the cache and adds a new one.
+      # work/_tool: the job finds a tool of the cache and adds a new one.
       - name: A tool cache in a podvm unit
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
         run: |
@@ -497,6 +506,11 @@ jobs:
             --microvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . \
             | tee "$RUNNER_TEMP/local-microvm.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local-microvm.txt")" = 8
+          # T-590: the hosted work folder in a guest.
+          timeout 900 cargo run -q -p podrunner -- run crates/podrunner/tests/local/workspace.yml \
+            --microvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" \
+            | tee "$RUNNER_TEMP/workspace-microvm.txt"
+          grep -qx 'ok      workspace' "$RUNNER_TEMP/workspace-microvm.txt"
           # T-123: a guest reaches no host but the broker; with --allow the
           # egress module lets the same step reach the host, and it fails.
           guest_egress() {
@@ -627,6 +641,10 @@ jobs:
           sg incus-admin -c "timeout 2400 target/x86_64-unknown-linux-musl/debug/podrunner run crates/podrunner/tests/local/suite.yml --incus '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_IMAGE' --checkout ." \
             | tee "$RUNNER_TEMP/local-incus.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local-incus.txt")" = 8
+          # T-590: the hosted work folder in an instance.
+          sg incus-admin -c "timeout 900 target/x86_64-unknown-linux-musl/debug/podrunner run crates/podrunner/tests/local/workspace.yml --incus '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_IMAGE'" \
+            | tee "$RUNNER_TEMP/workspace-incus.txt"
+          grep -qx 'ok      workspace' "$RUNNER_TEMP/workspace-incus.txt"
       # T-481: the parity suite on the incus kind: the real actions/checkout
       # of 06-actions.yml in an instance (HOME of the runner, T-178); T-485:
       # with an engine, the workflows of containers too. It blocks (green in

@@ -24,8 +24,10 @@ COPY --from=layout --chown=1001:1001 . /home/runner/
 
 # The relay of the container hooks (GitHub #35).
 COPY --chmod=0755 crates/podrunner-hook/relay/podrunner-hook.sh /home/runner/hooks/podrunner-hook.sh
-# The credential files, as in images/runner/Dockerfile: relative links.
-RUN for f in .runner .credentials .credentials_rsaparams .podrunner-job; do ln -s "../../podrunner/.runner/$f" "/home/runner/$f"; done
+# The credential files, as in images/runner/Dockerfile: relative links; the
+# hosted work folder (T-590).
+RUN for f in .runner .credentials .credentials_rsaparams .podrunner-job; do ln -s "../../podrunner/.runner/$f" "/home/runner/$f"; done \
+ && install -d -m 0755 -o 1001 -g 1001 /home/runner/work
 # T-175: the hook ends a job other than the placed one before its first step.
 COPY --chmod=0755 images/runner/podrunner-job-started.sh /home/runner/hooks/podrunner-job-started.sh
 ENV ACTIONS_RUNNER_HOOK_JOB_STARTED=/home/runner/hooks/podrunner-job-started.sh

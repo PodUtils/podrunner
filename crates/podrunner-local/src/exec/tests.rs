@@ -9,7 +9,7 @@ use podrunner_unit::UnitDriver;
 use super::*;
 use crate::drive::Executor;
 
-fn capability() -> Capability {
+pub(super) fn capability() -> Capability {
     serde_json::from_value(serde_json::json!({
         "schema": 1, "kind": "fake", "arch": "x86_64", "boundary": "confined", "principal": "distinct",
         "container": "hooks", "net": "broker", "secret_delivery": ["files"], "credential_store": "private-dir",
@@ -226,15 +226,15 @@ fn a_runner_directory_exports_the_workspace_of_a_job() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// T-138: a tool cache links its tools into `_work/_tool`, then runs the
+/// T-138: a tool cache links its tools into `work/_tool`, then runs the
 /// runner.
 #[test]
 fn a_tool_cache_links_into_the_cache_of_the_runner() {
     let dir = std::env::temp_dir().join(format!("podrunner-local-toolcache-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    let argv = crate::exec::toolcache_argv("/home/runner/run.sh", "/home/runner");
+    let argv = crate::exec::toolcache_argv("/home/runner/run.sh", "/home/runner/work");
     assert_eq!(&argv[..2], ["/bin/sh", "-c"]);
-    assert_eq!(&argv[3..], ["podrunner", "/home/runner/_work/_tool", "/home/runner/run.sh"]);
+    assert_eq!(&argv[3..], ["podrunner", "/home/runner/work/_tool", "/home/runner/run.sh"]);
     // The script on the host, with a stand-in of the mount.
     let script = argv[2].replace(crate::exec::TOOLCACHE_MOUNT, &dir.join("cache").display().to_string());
     std::fs::create_dir_all(dir.join("cache/node/20.0.0/x64")).unwrap();
@@ -340,7 +340,7 @@ fn the_work_directory_out_of_the_runner_goes_with_the_run() {
 
 /// A fake unit with the socket volume of podvm that keeps the spec of its
 /// start and starts nothing.
-struct Mounted(FakeUnit, std::sync::Mutex<Option<podrunner_unit::StartSpec>>);
+pub(super) struct Mounted(pub(super) FakeUnit, pub(super) std::sync::Mutex<Option<podrunner_unit::StartSpec>>);
 
 impl UnitDriver for Mounted {
     fn kind(&self) -> &str {

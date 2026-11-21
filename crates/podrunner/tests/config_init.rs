@@ -68,6 +68,8 @@ fn config_init_writes_a_file_that_check_takes_once() {
     // The runner of the image by its absolute path: a podvm unit runs in
     // /podrunner, where `./run.sh` (the default) is not (T-565).
     assert!(text.contains("command = [\"/home/runner/run.sh\"]"), "{text}");
+    // The hosted work folder of the runner image (T-590).
+    assert!(text.contains("\nwork_folder = \"/home/runner/work\"\n"), "{text}");
     // The same input again changes nothing; another input is refused.
     let o = init(&dir, "auto", &out, &[]);
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));

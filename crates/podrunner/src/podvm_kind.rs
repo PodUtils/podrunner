@@ -26,6 +26,20 @@ pub(crate) fn work_root(name: &str, u: &UnitConfig) -> String {
     }
 }
 
+/// The work folder of the hook policy of the kind `name`, relative to its
+/// work root (T-590): `work` for the hosted path `/home/runner/work`, else
+/// the folder of the mint, `_work`. `check` keeps a podvm folder in its
+/// runner directory.
+pub(crate) fn work_dir(name: &str, u: &UnitConfig) -> String {
+    let root = work_root(name, u);
+    // An empty root: the driver observes the runner root, and the mint
+    // names the folder.
+    let folder = u.work_folder_of(name).filter(|_| !root.is_empty());
+    let rel =
+        folder.as_deref().and_then(|f| f.strip_prefix(root.trim_end_matches('/'))).and_then(|r| r.strip_prefix('/'));
+    rel.filter(|r| !r.is_empty()).unwrap_or(podrunner_hook::policy::MINT_WORK_DIR).to_string()
+}
+
 /// The driver and the record of `[unit.podvm]`.
 /// The checks of `[unit.podvm]` before a build: the binary, the store and
 /// the limits, as the build reads them (`check` gives the same text, #232).
@@ -169,6 +183,27 @@ mod tests {
         assert_eq!(super::work_root("podvm", &unit("")), "/home/runner");
         assert_eq!(super::work_root("podvm", &unit("runner_dir = \"/r\"\n")), "/r");
         assert_eq!(super::work_root("docker", &unit("")), "");
+    }
+
+    /// T-590: the hook policy of a podvm kind mounts its work folder: the
+    /// hosted `work` by default, the key when it is given; a kind whose
+    /// driver observes its root keeps the folder of the mint.
+    #[test]
+    fn the_hook_policy_has_the_work_folder_of_the_kind() {
+        let unit = |name: &str, extra: &str| {
+            let cfg = podrunner_slots::config::Config::parse(&format!(
+                "host = \"h\"\n[unit.{name}]\nslots = 1\ncommand = [\"x\"]\n{extra}[pin]\n"
+            ))
+            .unwrap();
+            cfg.unit[name].clone()
+        };
+        assert_eq!(super::work_dir("podvm", &unit("podvm", "")), "work");
+        assert_eq!(super::work_dir("podvm", &unit("podvm", "work_folder = \"/home/runner/_work\"\n")), "_work");
+        let opt = "runner_dir = \"/opt/r/\"\nwork_folder = \"/opt/r/w/x\"\n";
+        assert_eq!(super::work_dir("podvm", &unit("podvm", opt)), "w/x");
+        assert_eq!(super::work_dir("podvm", &unit("podvm", "runner_dir = \"/opt/r\"\n")), "work");
+        assert_eq!(super::work_dir("docker", &unit("docker", "")), "_work");
+        assert_eq!(super::work_dir("incus", &unit("incus", "")), "_work");
     }
 
     /// #271: an empty command, a relative runner_dir and a registry that is

@@ -94,35 +94,73 @@ pub struct UnitConfig {
     /// runs an engine of its own (T-103).
     #[serde(default)]
     pub engine: Option<String>,
-    /// `incus`, `microvm`: the work folder of the runner in each unit, an
-    /// absolute path (T-541). podrunner writes it into `.runner` of the
-    /// credential, so `GITHUB_WORKSPACE` is `FOLDER/REPO/REPO`.
-    /// `/home/runner/work` is the path of a hosted runner. Absent: the
-    /// folder of the mint (`_work` under the runner root).
+    /// `podvm`, `incus`, `microvm`: the work folder of the runner in each
+    /// unit, an absolute path (T-541, T-590). podrunner writes it into
+    /// `.runner` of the credential, so `GITHUB_WORKSPACE` is
+    /// `FOLDER/REPO/REPO`. Absent: the hosted path `/home/runner/work`
+    /// (`podvm`: `work` in its `runner_dir`). A podvm folder is in its
+    /// `runner_dir`: the container hooks mount only there.
     #[serde(default)]
     pub work_folder: Option<String>,
 }
 
+/// The home of the runner in the runner image and in the hosted snapshot.
+pub const RUNNER_HOME: &str = "/home/runner";
+
+/// The work folder of a hosted runner.
+pub const HOSTED_WORK_FOLDER: &str = "/home/runner/work";
+
+impl UnitConfig {
+    /// The work folder of the runner in a unit of the kind `name` (T-590):
+    /// `work_folder`, else the hosted path on a kind with a runner home,
+    /// else none (the folder of the mint, `_work` under the runner root).
+    pub fn work_folder_of(&self, name: &str) -> Option<String> {
+        let home = self.runner_dir.as_deref().unwrap_or(RUNNER_HOME).trim_end_matches('/');
+        match name {
+            _ if self.work_folder.is_some() => self.work_folder.clone(),
+            "podvm" => Some(format!("{home}/work")),
+            "incus" | "microvm" => Some(HOSTED_WORK_FOLDER.into()),
+            _ => None,
+        }
+    }
+}
+
 /// The kinds that take `work_folder`: the runner and its work folder are in
-/// the unit. The podvm kind mounts `_work` of its runner directory for the
-/// container hooks, and its hook policy knows no other folder (T-541).
-const WORK_FOLDER_KINDS: [&str; 3] = ["incus", "microvm", "fake"];
+/// the unit (the fake kind for the tests).
+const WORK_FOLDER_KINDS: [&str; 4] = ["podvm", "incus", "microvm", "fake"];
+
+/// The parts of a podvm runner directory that are no work folder: the code
+/// of the runner, which a writable mount would give to each container.
+const RUNNER_PARTS: [&str; 3] = ["bin", "externals", "hooks"];
 
 /// `work_folder` of each kind: an absolute path with no empty, `.`, `..`
-/// or control part, on a kind that takes it.
+/// or control part, on a kind that takes it. A podvm folder is a folder in
+/// `runner_dir` (default `/home/runner`): the hook policy mounts only the
+/// work folder and the externals of that directory (T-590).
 pub(crate) fn check_work_folders<'a>(
     units: impl IntoIterator<Item = (&'a String, &'a UnitConfig)>,
 ) -> Result<(), String> {
     for (name, u) in units {
         let Some(f) = &u.work_folder else { continue };
         if !WORK_FOLDER_KINDS.contains(&name.as_str()) {
-            return Err(format!("[unit.{name}] work_folder: only the incus and the microvm kinds take it"));
+            return Err(format!("[unit.{name}] work_folder: only the podvm, the incus and the microvm kinds take it"));
         }
         let bad = |p: &str| p.is_empty() || p == "." || p == ".." || p.chars().any(char::is_control);
         if f.strip_prefix('/').is_none_or(|rest| rest.split('/').any(bad)) {
             return Err(format!(
                 "[unit.{name}] work_folder {f:?}: give an absolute path, such as \"/home/runner/work\""
             ));
+        }
+        if name == "podvm" {
+            let home = u.runner_dir.as_deref().unwrap_or(RUNNER_HOME).trim_end_matches('/');
+            let first = f.strip_prefix(home).and_then(|r| r.strip_prefix('/')).and_then(|r| r.split('/').next());
+            if first.is_none_or(|p| p.starts_with('.') || RUNNER_PARTS.contains(&p)) {
+                return Err(format!(
+                    "[unit.podvm] work_folder {f:?}: give a folder in the runner directory {home:?}, such as \
+                     \"{home}/work\" (not bin, externals, hooks or a name with a leading dot): the container hooks \
+                     mount only there"
+                ));
+            }
         }
     }
     Ok(())

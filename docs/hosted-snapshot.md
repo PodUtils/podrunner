@@ -89,7 +89,9 @@ work_folder = "/home/runner/work"
 podrunner writes `work_folder` into `.runner` before the start, so a job
 sees `GITHUB_WORKSPACE=/home/runner/work/REPO/REPO` and
 `RUNNER_WORKSPACE=/home/runner/work/REPO`, as on a hosted runner
-(`docs/configuration.md`). The podvm kind keeps `_work` (T-590).
+(`docs/configuration.md`). `/home/runner/work` is also the default of the
+podvm, the incus and the microvm kinds, and the local mode uses it in each
+unit (T-590).
 
 The state (2026-11-21): the layer of the real runner tarball 2.338.2 and
 an `/etc/environment` fixture was made and read back on a development

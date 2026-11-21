@@ -41,10 +41,14 @@ RUN useradd --create-home --uid 1001 runner \
 WORKDIR /home/runner
 
 # The tarball of the release, checked against the digest of runner.toml.
+# /home/runner/work is the work folder of a hosted runner: each kind of the
+# image sets it in .runner (T-590), so GITHUB_WORKSPACE is
+# /home/runner/work/REPO/REPO.
 RUN arch=x64; [ "$TARGETARCH" = arm64 ] && arch=arm64; \
     curl -fsSLo runner.tgz "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${arch}-${RUNNER_VERSION}.tar.gz" \
  && echo "${RUNNER_SHA256}  runner.tgz" | sha256sum -c - \
  && tar -xzf runner.tgz && rm runner.tgz \
+ && mkdir -m 0755 /home/runner/work \
  && chown -R runner:runner /home/runner
 
 # The tarball has no licence file; the image carries the MIT licence of

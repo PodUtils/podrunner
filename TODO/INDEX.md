@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**585 entries: 61 open, 54 partial, 16 blocked, 454 done.**
+**586 entries: 61 open, 55 partial, 16 blocked, 454 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 3 | 26 | 4 | 85 | 118 |
-| P2 | 16 | 20 | 9 | 235 | 280 |
-| P3 | 41 | 8 | 3 | 132 | 184 |
-| **All** | 61 | 54 | 16 | 454 | 585 |
+| P2 | 15 | 21 | 9 | 235 | 280 |
+| P3 | 42 | 8 | 3 | 132 | 185 |
+| **All** | 61 | 55 | 16 | 454 | 586 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -632,4 +632,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-585](later.md) | P3 | S | later | defect | open | The store of the units of the podvm kind keeps each image that a unit loaded |
 | [T-588](later.md) | P3 | M | later | feature | open | `install_system` of `pod-unit` for a system unit of `serve` |
 | [T-589](later.md) | P3 | S | later | defect | open | Two tests depend on the load and the free disk of the host |
-| [T-590](later.md) | P2 | M | later | feature | open | The hosted work folder on the podvm kind and in the runner image |
+| [T-590](later.md) | P2 | M | later | feature | partial | The hosted work folder on the podvm kind and in the runner image |
+| [T-591](later.md) | P3 | S | later | defect | open | The unit tests leave directories in /tmp |

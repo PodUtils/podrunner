@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 pub use crate::policy::EgressConfig;
-pub use crate::unit_config::{UnitConfig, UnitInit, init_name};
+pub use crate::unit_config::{HOSTED_WORK_FOLDER, RUNNER_HOME, UnitConfig, UnitInit, init_name};
 
 /// The kind of a source.
 #[cfg_attr(test, derive(schemars::JsonSchema))]

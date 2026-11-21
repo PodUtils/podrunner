@@ -146,6 +146,7 @@ fn container_job(state: &std::path::Path, binary: PathBuf, script: &str) -> Cont
         shared_host_net: true,
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
+        work_dir: "_work".into(),
     };
     let hook = Arc::new(Mutex::new(HookUnit::new(unit.clone(), id.clone(), policy, None, state.join("logs"))));
     std::fs::create_dir_all(state.join("logs")).unwrap();

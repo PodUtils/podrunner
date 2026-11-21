@@ -37,7 +37,15 @@ pub struct Policy {
     /// The directory of the runner in the unit, as the runner names it:
     /// each mount source is under it.
     pub work_root: String,
+    /// The work folder of the runner, relative to `work_root`: `_work`, or
+    /// `work` for the hosted path `/home/runner/work` (T-590). A mount
+    /// source is under it or under the externals of the runner.
+    pub work_dir: String,
 }
+
+/// The work folder of a runner whose `.runner` names no other: `_work` under
+/// the runner root, as the mint writes it.
+pub const MINT_WORK_DIR: &str = "_work";
 
 /// A refusal: a code, and a short reason with no byte of the input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,10 +140,10 @@ fn clean_abs(p: &str) -> bool {
         || p == "/"
 }
 
-/// The directories of the runner whose files a container may mount: its work
-/// directory and its externals; never the runner root, which holds the
-/// runner files (`.credentials_rsaparams`, #227).
-const MOUNT_DIRS: [&str; 2] = ["_work", "externals"];
+/// The externals of the runner. A container may mount files of the work
+/// folder (`Policy::work_dir`) and of the externals only; never the runner
+/// root, which holds the runner files (`.credentials_rsaparams`, #227).
+const EXTERNALS: &str = "externals";
 
 fn env(vars: &BTreeMap<String, String>) -> Result<(), Refusal> {
     if vars.iter().any(|(k, v)| k.is_empty() || k.contains(['=', '\0']) || v.contains('\0')) {
@@ -214,7 +222,8 @@ fn mount(m: &MountVolume, table: &[&str], policy: &Policy) -> Result<Option<Moun
     let source = source.unwrap_or("");
     let root = policy.work_root.trim_end_matches('/');
     let rel = source.strip_prefix(root).and_then(|r| r.strip_prefix('/')).filter(|_| clean_abs(source));
-    let under = |r: &&str| MOUNT_DIRS.iter().any(|d| *r == *d || r.starts_with(&format!("{d}/")));
+    let dirs = [policy.work_dir.trim_matches('/'), EXTERNALS];
+    let under = |r: &&str| dirs.iter().any(|d| !d.is_empty() && (*r == *d || r.starts_with(&format!("{d}/"))));
     let Some(rel) = rel.filter(|r| !r.ends_with(".sock")).filter(under) else {
         return refuse(RefusalCode::ContainerOptionRefused, "a mount source outside the unit");
     };

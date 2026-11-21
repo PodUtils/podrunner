@@ -61,6 +61,9 @@ fn unit(i: &Input, kind: &str) -> String {
     if kind == "podvm" {
         t.push_str(&format!("runner_dir = {}\n", quoted(RUNNER_DIR)));
     }
+    // The hosted work folder of the runner image (T-590): GITHUB_WORKSPACE
+    // is /home/runner/work/REPO/REPO, as on a hosted runner.
+    t.push_str(&format!("work_folder = {}\n", quoted(&format!("{RUNNER_DIR}/work"))));
     if kind == "podvm"
         && let Some(p) = &i.podnet
     {

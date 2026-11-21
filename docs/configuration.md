@@ -57,10 +57,12 @@ disk_max_bytes = 10737418240          # the bytes that a unit may write under it
                                       # and the engine of the image (the hosted snapshot, T-543, T-549); not with engine; podvm
                                       # 0.2.0-beta.36 (incus) or 0.2.0-beta.37 (microvm) or later; the kind takes only a payload with
                                       # init = "image" ("Placement by label and by init")
-# work_folder = "/home/runner/work"  # incus and microvm only: the work folder of the runner in each unit, an absolute path;
-                                      # podrunner writes it as workFolder into .runner before the start, so GITHUB_WORKSPACE is
-                                      # FOLDER/REPO/REPO as on a hosted runner (the runner image of the hosted snapshot, T-541);
-                                      # a .runner that is not a JSON object refuses the unit; absent: _work under the runner root
+# work_folder = "/home/runner/work"  # podvm, incus and microvm only: the work folder of the runner in each unit, an absolute
+                                      # path; podrunner writes it as workFolder into .runner before the start, so GITHUB_WORKSPACE
+                                      # is FOLDER/REPO/REPO as on a hosted runner (T-541, T-590); a .runner that is not a JSON
+                                      # object refuses the unit; absent: /home/runner/work (podvm: work in its runner_dir); podvm:
+                                      # a folder in runner_dir (not bin, externals, hooks or a dot name), as the container hooks
+                                      # mount only there; "/home/runner/_work" gives the folder of the mint
 # root_quota = true                  # incus only: the pool of incusd holds a size of a root disk (btrfs, zfs, lvm; not dir): each
                                       # instance gets a root disk of the lesser of disk_max_bytes and the disk limit of the offer (64 MiB at
                                       # least), a job past it gets ENOSPC, and the kind says `disk: enforced` (T-482); podvm refuses it on dir;

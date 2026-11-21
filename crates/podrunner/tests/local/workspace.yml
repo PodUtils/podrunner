@@ -1,0 +1,16 @@
+# The hosted work folder (T-590): a job in a unit of the runner image sees
+# GITHUB_WORKSPACE=/home/runner/work/REPO/REPO, as on a hosted runner, and
+# runs its steps there. runner-image.yml runs it on each kind of the local
+# mode.
+name: podrunner local workspace
+on: push
+jobs:
+  workspace:
+    runs-on: local
+    steps:
+      - run: |
+          r=${GITHUB_REPOSITORY#*/}
+          test "$GITHUB_WORKSPACE" = "/home/runner/work/$r/$r"
+          test "$PWD" = "$GITHUB_WORKSPACE"
+          case "$RUNNER_TEMP" in /home/runner/work/_temp) ;; *) exit 1 ;; esac
+          echo "workspace-$((6*7))"

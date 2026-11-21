@@ -160,6 +160,7 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
                 shared_host_net: capability.net == "shared-host",
                 registries: u.registries.clone(),
                 work_root: crate::podvm_kind::work_root(name, u),
+                work_dir: crate::podvm_kind::work_dir(name, u),
             },
         );
         // slots measures the disk of a kind with a bound (T-074).

@@ -29,6 +29,7 @@ mod images;
 mod proxy;
 mod toolcache;
 pub mod vnet;
+pub mod workdir;
 
 pub use host::{PASSED, RunnerDir, space_refusal};
 #[cfg(test)]
@@ -235,6 +236,7 @@ impl Executor for InUnit {
             .into_iter()
             .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
             .collect();
+        workdir::set(&mut files, &workdir::work_folder(&self.run_sh))?;
         let mut proxy_env = Vec::new();
         if let (false, Some(dir)) = (fronted, &self.credential_dir) {
             let (env, more) = proxy::unit_env(dir, std::env::vars(), self.egress.is_some())?;
@@ -335,15 +337,15 @@ impl Executor for InUnit {
                 return Err(format!("the work directory: {e}"));
             }
         };
-        let run_root = self.run_sh.rsplit_once('/').map_or("/home/runner", |x| x.0).to_string();
-        let mut mounts: Vec<_> = work.iter().map(|w| (w.clone(), format!("{run_root}/_work"))).collect();
+        let folder = workdir::work_folder(&self.run_sh);
+        let mut mounts: Vec<_> = work.iter().map(|w| (w.clone(), folder.clone())).collect();
         if let (Some(m), Some(dir)) = (&vnet_mount, &sockets) {
             mounts.push((dir.clone(), m.clone()));
         }
         let argv = match &self.toolcache {
             Some(dir) => {
                 mounts.push((dir.clone(), format!("{TOOLCACHE_MOUNT}:ro")));
-                toolcache_argv(&self.run_sh, &run_root)
+                toolcache_argv(&self.run_sh, &folder)
             }
             None => vec![self.run_sh.clone()],
         };

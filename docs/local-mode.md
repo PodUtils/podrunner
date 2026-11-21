@@ -45,6 +45,11 @@ installer puts it in `~/.local/share/podrunner`), the work directory is
 `~/podrunner-work/2.338.2-1a2b3c4d`). Some tools refuse a path with such a
 name: the `send` module of Node gives 404 for it (T-255).
 
+In a unit (`--podvm`, `--microvm`, `--incus`), the work directory is
+`/home/runner/work`, the path of a hosted runner: `GITHUB_WORKSPACE` is
+`/home/runner/work/REPO/REPO` (T-590). `--export`, `--toolcache` and the
+container hooks use the same directory.
+
 On `--runner-dir`, the Pythons of `actions/setup-python` find
 `libpython` at the path of the tool cache of GitHub
 (`/opt/hostedtoolcache`), which a user with no root cannot make. A step
@@ -203,7 +208,7 @@ the entry that closes the gap, or the entry that did the work.
 | Reruns | no | `rerun --failed`, keep artifacts | `--state DIR`, `--rerun DIR [--failed \| --job ID]`, kept results, outputs and artifacts; a changed workflow fails by name | T-135 |
 | Watch, schedules | `--watch` | `--watch`, schedules | `--watch` (a change cancels the run in progress), `--schedule` (the crons of `on.schedule`, UTC) | T-142 |
 | Configuration file | `.actrc`, trust of the project file | `.actrc` | `run.toml` of the user and of the project, with `trusted`; the flags of `.actrc` that podrunner knows | T-143 |
-| Keep a container, bind the tree, tool cache | `--reuse`, `--bind` | `--keep-container`, shared tool cache | `--export DIR` on `--runner-dir` and `--podvm`; `--toolcache DIR` on `--podvm` (a tree of links into `_work/_tool`; the directory is mounted read-only where the rung of podvm has mounts); `--keep-failed` keeps a failed job at its failed step | T-138 |
+| Keep a container, bind the tree, tool cache | `--reuse`, `--bind` | `--keep-container`, shared tool cache | `--export DIR` on `--runner-dir` and `--podvm`; `--toolcache DIR` on `--podvm` (a tree of links into `/home/runner/work/_tool`; the directory is mounted read-only where the rung of podvm has mounts); `--keep-failed` keeps a failed job at its failed step | T-138 |
 | Pause before a step | no | no | `--break JOB:STEP`, `--break-on-failure`: the job waits for Enter; `s` opens a shell in a podvm unit or an incus instance | T-150 |
 | Host check, bug report | `--bug-report` | no | `doctor --run FILE [the options of run]`: each input checked, with its fix | T-153 |
 | Interrupt | cancels and removes | cancels | cancels: each unit is destroyed, the scratch directories go, exit 130 | T-141 |

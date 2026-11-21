@@ -8,6 +8,11 @@ use super::*;
 
 /// The `.runner` that the payload of a unit of a kind with `folder` sees.
 fn seen_runner(folder: Option<&str>) -> (Bed, Option<Value>) {
+    seen_runner_of("fake", folder)
+}
+
+/// The same, on the kind `name`.
+fn seen_runner_of(name: &'static str, folder: Option<&str>) -> (Bed, Option<Value>) {
     let cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
     let out = TempDir::new();
     let copy = out.0.join("runner.json");
@@ -15,7 +20,7 @@ fn seen_runner(folder: Option<&str>) -> (Bed, Option<Value>) {
         config(""),
         vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])],
         vec![KindSpec {
-            name: "fake",
+            name,
             slots: 1,
             capability: cap,
             command: sh(&format!("cp .runner-root/.runner '{}'", copy.display())),
@@ -36,6 +41,23 @@ fn a_kind_with_a_work_folder_gives_the_runner_the_hosted_path() {
     // With no key, the file of the mint stays as it is.
     let (_, runner) = seen_runner(None);
     assert_eq!(runner.expect("the payload saw .runner").get("workFolder"), None);
+}
+
+/// T-590: a kind with a runner home gets the hosted path with no key; the
+/// key comes first.
+#[test]
+fn a_kind_with_a_runner_home_has_the_hosted_work_folder_by_default() {
+    for kind in ["podvm", "incus", "microvm"] {
+        let (_, runner) = seen_runner_of(kind, None);
+        assert_eq!(runner.expect("the payload saw .runner")["workFolder"], "/home/runner/work", "{kind}");
+    }
+    let (_, runner) = seen_runner_of("podvm", Some("/home/runner/_work"));
+    assert_eq!(runner.expect("the payload saw .runner")["workFolder"], "/home/runner/_work");
+    let u = |extra: &str| -> crate::config::UnitConfig { toml::from_str(&format!("slots = 1\n{extra}")).unwrap() };
+    assert_eq!(u("runner_dir = \"/opt/r/\"").work_folder_of("podvm").as_deref(), Some("/opt/r/work"));
+    for kind in ["fake", "docker", "host"] {
+        assert_eq!(u("").work_folder_of(kind), None, "{kind}");
+    }
 }
 
 #[test]
@@ -107,7 +129,8 @@ impl podrunner_source::JobSource for NoRunner {
     }
 }
 
-/// The file: an absolute path on the incus, the microvm or the fake kind.
+/// The file: an absolute path on the podvm, the incus, the microvm or the
+/// fake kind; a podvm folder in its runner directory (T-590).
 #[test]
 fn the_file_holds_the_work_folder_of_a_kind() {
     let check = |unit: &str| {
@@ -116,13 +139,31 @@ fn the_file_holds_the_work_folder_of_a_kind() {
              reference = \"{PIN}\"\nbuilt_at_s = 1\n"
         ))
     };
-    for kind in ["incus", "microvm", "fake"] {
+    for kind in ["podvm", "incus", "microvm", "fake"] {
         assert!(check(&format!("{kind}]\nslots = 1\nwork_folder = \"/home/runner/work\"")).is_ok(), "{kind}");
     }
-    let e = check("podvm]\nslots = 1\nwork_folder = \"/home/runner/work\"").unwrap_err();
-    assert!(e.contains("[unit.podvm] work_folder: only the incus and the microvm kinds"), "{e}");
+    let e = check("docker]\nslots = 1\nwork_folder = \"/home/runner/work\"").unwrap_err();
+    assert!(e.contains("[unit.docker] work_folder: only the podvm, the incus and the microvm kinds"), "{e}");
     for bad in ["work", "/", "/home//work", "/home/runner/../work", "/home/./work", "/home/runner/work\\n"] {
         let e = check(&format!("incus]\nslots = 1\nwork_folder = \"{bad}\"")).unwrap_err();
         assert!(e.contains("[unit.incus] work_folder") && e.contains("give an absolute path"), "{bad}: {e}");
     }
+    // podvm: a folder in its runner directory, not one of the runner.
+    for good in ["runner_dir = \"/opt/r\"\nwork_folder = \"/opt/r/w/x\"", "work_folder = \"/home/runner/_work\""] {
+        assert!(check(&format!("podvm]\nslots = 1\n{good}")).is_ok(), "{good}");
+    }
+    for bad in [
+        "/home/runner",
+        "/home/runnerx/work",
+        "/work",
+        "/home/runner/bin",
+        "/home/runner/externals/x",
+        "/home/runner/hooks",
+        "/home/runner/.runner",
+    ] {
+        let e = check(&format!("podvm]\nslots = 1\nwork_folder = \"{bad}\"")).unwrap_err();
+        assert!(e.contains("give a folder in the runner directory \"/home/runner\""), "{bad}: {e}");
+    }
+    let e = check("podvm]\nslots = 1\nrunner_dir = \"/opt/r\"\nwork_folder = \"/home/runner/work\"").unwrap_err();
+    assert!(e.contains("in the runner directory \"/opt/r\", such as \"/opt/r/work\""), "{e}");
 }

@@ -14330,7 +14330,7 @@ Read on 2026-11-21: `Bed::tick` (`crates/podrunner-slots/src/tests/mod.rs`) move
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -14350,3 +14350,33 @@ Read on 2026-11-21: the hook policy of the podvm kind allows a container mount o
 ## Prove
 
 `cargo test -p podrunner-hook -p podrunner-podvm -p podrunner-local -p podrunner-slots`: a container of the hooks route mounts `/home/runner/work`, and a job of the local mode sees `GITHUB_WORKSPACE=/home/runner/work/app/app`; `runner-image.yml` on each kind: a canned job sees `GITHUB_WORKSPACE=/home/runner/work/R/R`.
+
+The unit tests: `cargo test -p podrunner-hook` (`the_hosted_work_folder_is_the_mount_source`, `a_linked_mount_source_is_refused`), `cargo test -p podrunner-slots work_folder`, `cargo test -p podrunner-local` (`a_unit_of_the_local_mode_has_the_hosted_work_folder`, `the_hook_policy_mounts_the_hosted_work_folder`, `a_tool_cache_links_into_the_cache_of_the_runner`), `cargo test -p podrunner podvm_kind` and `cargo test -p podrunner --test config_init`. The runs: `runner-image.yml` runs `crates/podrunner/tests/local/workspace.yml` on the podvm, the microvm and the incus kinds of the local mode, checks the empty `/home/runner/work` of the image, and runs the container job of T-093 (`containers.yml`) through the hooks with the new folder.
+
+State (2026-11-21, proven by the unit tests on a development host only; `runner-image.yml` not run): steps 1 to 4 are in. The hook policy has `work_dir`, the work folder relative to the runner directory, in place of `_work` by name (`crates/podrunner-hook/src/policy.rs`); each refusal stays, and the link check of T-403 holds for the new folder (the walk of `HookUnit::spec`, and `no_link` with `--podvm-volume-base` of the runner directory in `crates/podrunner-podvm/src/unit/containers.rs`, which names no folder). `UnitConfig::work_folder_of` gives `/home/runner/work` to the incus and the microvm kinds and `RUNNER_DIR/work` to the podvm kind when the key is absent; slots writes it into `.runner`; `serve` gives the podvm hook policy `work` (`crates/podrunner/src/podvm_kind.rs` `work_dir`). `[unit.podvm] work_folder` is new: `check` takes a folder in `runner_dir` only, and refuses the runner directory, `bin`, `externals`, `hooks` and a dot name. The local mode (`crates/podrunner-local/src/exec/workdir.rs`) writes `workFolder = /home/runner/work` into `.runner` of each unit, mounts `--export` there, links `--toolcache` into `work/_tool`, and gives its hook policy `work`. `config init` writes `work_folder = "/home/runner/work"` for each kind. `images/runner/Dockerfile` and `Dockerfile.musl` make the empty `/home/runner/work` owned by `runner`. No ask of podvm: the volume base of podvm is the runner directory, which holds the new folder. Each new test fails on the code before (the old `_work` by name in the policy, the old `run.rs`, `config_init.rs`, `toolcache.rs` and mount of `exec.rs`, the old kinds of `work_folder`). The host, the docker and the fake kinds keep `_work` (`docs/decisions.md`, T-590). Left: the run of `runner-image.yml` (each kind of the local mode, the container job and the image check); then `done`.
+
+# T-591: The unit tests leave directories in /tmp
+
+**Source:** the work of T-590, 2026-11-21
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Each run of `cargo test -p podrunner --all-features` leaves about 20 directories in `/tmp` that a passed test made and did not remove: `podrunner-qa6-runner-TAG-PID` (8), `podrunner-front-PID-ThreadId(N)` (3), `podrunner-podvm-plan-PID`, `podrunner-program-PID`; `cargo test -p podrunner-podvm` and the tier tests leave `podrunner-envfile-PID-ThreadId(N)` and `podrunner-tier-PID`, and the egress tests `podrunner-egress-PID-ThreadId(N)`. A host that runs the gate often fills `/tmp`, and a small `/tmp` is a host class of the user-path gate (T-589: a small `/tmp` fails a test of `doctor`).
+
+## Premise
+
+Read on 2026-11-21 after the test runs of T-590 (the names and the counts in `/tmp`). The makers: `crates/podrunner/src/run_local/qa6_tests.rs` (`runner_dir`), `crates/podrunner/src/serve/front_tests.rs`, `crates/podrunner/src/podvm_kind.rs` (`the_fields_of_a_podvm_unit_are_checked`), `crates/podrunner/tests/program_source.rs`, `crates/podrunner-podvm/src/unit/envfile.rs`, `crates/podrunner-podvm/src/unit/labels.rs`, `crates/podrunner-egress/src/tests.rs`, `crates/podrunner-local/src/front/tests.rs`. Not measured: which of them remove the directory on a pass and leave it only on a failure.
+
+## Approach
+
+1. Give each such test a guard that removes its directory on drop (as `TempDir` of `crates/podrunner-slots/src/tests/mod.rs`), so a pass and a panic both clean up.
+2. Add a check to `scripts/agent/check.sh`: the count of `/tmp/podrunner-*` entries of the run's PID after the tests is zero.
+
+## Prove
+
+`cargo test -p podrunner -p podrunner-podvm -p podrunner-egress -p podrunner-local --all-features` leaves no new `/tmp/podrunner-*` entry (`find /tmp -maxdepth 1 -name 'podrunner-*' -newer STAMP` is empty).
