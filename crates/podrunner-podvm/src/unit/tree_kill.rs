@@ -1,8 +1,6 @@
-//! The proof of the tree kill of a podvm unit on this host (unit test 3),
-//! and the reference of an image that `podvm load` gave.
+//! The proof of the tree kill of a podvm unit on this host (unit test 3).
 
 use std::fs;
-use std::path::Path;
 use std::time::{Duration, Instant};
 
 use podrunner_schema::UnitId;
@@ -61,14 +59,5 @@ impl PodvmUnit {
             self.capability.limits.insert("wall".into(), podrunner_schema::LimitMode::Enforced);
         }
         Ok(verified)
-    }
-
-    /// The reference of the one image of a unit store: `podvm images`
-    /// names the repository and the tag that `load` gave it.
-    pub(super) fn image_reference(&self, store: &Path) -> Option<String> {
-        let out = self.podvm(store, &["images"], None).ok()?;
-        let line = out.lines().nth(1)?;
-        let mut cols = line.split_whitespace();
-        Some(format!("{}:{}", cols.next()?, cols.next()?))
     }
 }

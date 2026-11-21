@@ -82,7 +82,7 @@ fn the_runner_in_a_podvm_unit_runs_a_canned_job() {
     // The output of the runner in the unit, for a failure.
     let unit_log = std::process::Command::new(env("PODRUNNER_PODVM"))
         .args(["logs", "u-1"])
-        .env("PODVM_STORE", state.join("units").join("u-1").join("store"))
+        .env("PODVM_STORE", state.join("store"))
         .output()
         .map(|o| String::from_utf8_lossy(&[o.stdout, o.stderr].concat()).into_owned())
         .unwrap_or_default();
@@ -396,7 +396,7 @@ fn the_runner_runs_under_the_limits_of_the_unit() {
     // The output of the runner in the unit: the cause of a start that failed.
     let unit_log = std::process::Command::new(env("PODRUNNER_PODVM"))
         .args(["logs", "u-3"])
-        .env("PODVM_STORE", state.join("units").join("u-3").join("store"))
+        .env("PODVM_STORE", state.join("store"))
         .output()
         .map(|o| String::from_utf8_lossy(&[o.stdout, o.stderr].concat()).into_owned())
         .unwrap_or_default();

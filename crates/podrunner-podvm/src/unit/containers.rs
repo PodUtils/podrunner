@@ -1,5 +1,5 @@
 //! The containers of a podvm unit (T-035, step 4): each container is a
-//! podvm container in the store of its unit, with the volumes of the hook
+//! podvm container in the store of the units (T-545), with the volumes of the hook
 //! tables as `-v`. The podvm verbs: `run -d` for a job container or a
 //! service, `exec -e -w` for a step, `logs`, `inspect`, `rm -f`. Volumes
 //! work in each step on the supervise and userland rungs (U19, T-034),
@@ -28,14 +28,25 @@ fn refused(why: &str) -> UnitError {
     UnitError::new(UnitCode::ContainerOptionRefused, why)
 }
 
+/// What the verbs of a container of a unit need.
+struct Base {
+    /// The store of the units.
+    store: PathBuf,
+    /// The directory of the unit: the environment files go there.
+    dir: PathBuf,
+    tag: String,
+    /// The host path of the runner directory of the unit: a relative
+    /// mount source is under it.
+    runner: PathBuf,
+    egress: Option<PathBuf>,
+}
+
 impl PodvmUnit {
-    /// The store and the tag of `unit`, and the host path of its runner
-    /// directory: a relative mount source is under it.
-    fn container_base(&self, unit: &UnitId) -> Result<(PathBuf, String, PathBuf, Option<PathBuf>), UnitError> {
+    fn container_base(&self, unit: &UnitId) -> Result<Base, UnitError> {
         let units = self.units.lock().expect("the units");
         let r = units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?;
         let runner = r.rootfs.join(self.runner_dir.trim_start_matches('/'));
-        Ok((r.dir.join("store"), r.tag.clone(), runner, r.egress.clone()))
+        Ok(Base { store: self.store(), dir: r.dir.clone(), tag: r.tag.clone(), runner, egress: r.egress.clone() })
     }
 
     /// `podvm ARGS` in the store `store`, with its status and its output.
@@ -59,26 +70,6 @@ impl PodvmUnit {
         Ok((out.status.code(), [out.stdout, out.stderr].concat()))
     }
 
-    /// The reference that a unit store knows after the load of `tar`: the
-    /// name of `image` with the digest of the manifest of the tar (T-130). An
-    /// image pinned by the digest of an index loads as its platform manifest,
-    /// so `podvm run` of the index digest finds no image.
-    fn loaded_reference(image: &str, tar: &std::path::Path) -> String {
-        let manifest = std::fs::File::open(tar).ok().and_then(|f| {
-            let mut a = tar::Archive::new(f);
-            let mut entry =
-                a.entries().ok()?.flatten().find(|e| e.path().is_ok_and(|p| p.as_os_str() == "index.json"))?;
-            let mut text = String::new();
-            std::io::Read::read_to_string(&mut entry, &mut text).ok()?;
-            let v: serde_json::Value = serde_json::from_str(&text).ok()?;
-            v["manifests"][0]["digest"].as_str().map(str::to_string)
-        });
-        match (image.split_once('@'), manifest) {
-            (Some((name, _)), Some(m)) => format!("{name}@{m}"),
-            _ => image.to_string(),
-        }
-    }
-
     pub(super) fn start_container(&self, unit: &UnitId, spec: &ContainerSpec) -> Result<ContainerId, UnitError> {
         if self.capability.container != podrunner_schema::ContainerRoute::Hooks {
             return Err(UnitError::new(
@@ -91,13 +82,10 @@ impl PodvmUnit {
             return Err(refused("the podvm unit applies no create option"));
         }
         let prepared = podrunner_unit::UnitDriver::prepare(self, &spec.image, &self.platform.clone(), false)?;
-        let (store, tag, runner, egress) = self.container_base(unit)?;
-        let tar = self.tar_of(&prepared.digest);
-        let (code, out) =
-            self.podvm_in(&store, &["load".into(), "-i".into(), tar.display().to_string()], &tag, None)?;
-        if code != Some(0) {
-            return Err(UnitError::new(UnitCode::UnitStartFailed, format!("podvm load: {}", last_line(&out))));
-        }
+        let Base { store, dir, tag, runner, egress } = self.container_base(unit)?;
+        // The image is loaded once into the store of the units, and run by
+        // the digest of its manifest (T-130, T-545).
+        let reference = self.loaded(&store, &self.tar_of(&prepared.digest))?;
         let n = self.containers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let name = format!("{unit}-c{n}");
         let mut args: Vec<String> = ["run", "-d", "--name", &name].map(String::from).to_vec();
@@ -107,8 +95,7 @@ impl PodvmUnit {
         }
         args.extend(["-e".into(), format!("{TAG_VAR}={tag}")]);
         args.extend(volume_base_args(crate::probe::rung(&self.capability), &runner));
-        let unit_dir = store.parent().unwrap_or(&store).to_path_buf();
-        let (env_args, _env_file) = super::envfile::env_args(&self.podvm, &unit_dir, &spec.env)?;
+        let (env_args, _env_file) = super::envfile::env_args(&self.podvm, &dir, &spec.env)?;
         args.extend(env_args);
         for m in &spec.mounts {
             // A relative source is under the runner directory of the unit.
@@ -126,7 +113,7 @@ impl PodvmUnit {
             args.extend(["-v".into(), format!("{}:{}{ro}", source.display(), m.target)]);
         }
         args.extend(self.container_confine_args(&spec.mounts));
-        args.push(Self::loaded_reference(&spec.image, &tar));
+        args.push(reference);
         args.extend(spec.argv.iter().cloned());
         let (code, out) = self.podvm_in(&store, &args, &tag, egress.as_deref())?;
         if code != Some(0) {
@@ -139,14 +126,13 @@ impl PodvmUnit {
         if spec.stdin {
             return Err(refused("stdin"));
         }
-        let (store, tag, _, egress) = self.container_base(unit)?;
+        let Base { store, dir, tag, egress, .. } = self.container_base(unit)?;
         let mut args: Vec<String> = vec!["exec".into()];
         args.extend(super::labels::fixup_args(&self.podvm).iter().map(|a| a.to_string()));
         if let Some(w) = &spec.workdir {
             args.extend(["-w".into(), w.clone()]);
         }
-        let unit_dir = store.parent().unwrap_or(&store).to_path_buf();
-        let (env_args, _env_file) = super::envfile::env_args(&self.podvm, &unit_dir, &spec.env)?;
+        let (env_args, _env_file) = super::envfile::env_args(&self.podvm, &dir, &spec.env)?;
         args.extend(env_args);
         args.push(c.0.clone());
         args.extend(spec.argv.iter().cloned());
@@ -158,7 +144,7 @@ impl PodvmUnit {
     }
 
     pub(super) fn logs_container(&self, unit: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {
-        let (store, tag, _, _) = self.container_base(unit)?;
+        let Base { store, tag, .. } = self.container_base(unit)?;
         let (code, out) = self.podvm_in(&store, &["logs".into(), c.0.clone()], &tag, None)?;
         if code != Some(0) {
             return Err(UnitError::new(UnitCode::UnknownUnit, c.0.clone()));
@@ -169,7 +155,7 @@ impl PodvmUnit {
     /// `podvm logs` of the detached payload of `unit`.
     /// `podvm exec` in the unit, under its hold (T-150).
     pub(super) fn enter_unit(&self, unit: &UnitId, argv: &[String], tty: bool) -> Result<Command, UnitError> {
-        let (store, tag, _, egress) = self.container_base(unit)?;
+        let Base { store, tag, egress, .. } = self.container_base(unit)?;
         let mut c = self.command(egress.as_deref());
         c.args(["exec", "-i"]).args(super::labels::fixup_args(&self.podvm));
         if tty {
@@ -183,12 +169,12 @@ impl PodvmUnit {
     /// the bytes of the payload to its stdout, and its own text to stderr.
     /// A bounded read gives its bound to podvm (`Podvm::logs`).
     pub(super) fn log_unit(&self, unit: &UnitId) -> Result<podrunner_unit::UnitLog, UnitError> {
-        let (store, tag, _, _) = self.container_base(unit)?;
+        let Base { store, tag, .. } = self.container_base(unit)?;
         Ok(self.podvm.logs(&[], unit.as_str(), vec![("PODVM_STORE", store.into()), (TAG_VAR, tag.into())]))
     }
 
     pub(super) fn inspect_container(&self, unit: &UnitId, c: &ContainerId) -> Result<ContainerState, UnitError> {
-        let (store, tag, _, _) = self.container_base(unit)?;
+        let Base { store, tag, .. } = self.container_base(unit)?;
         let (code, out) = self.podvm_in(&store, &["inspect".into(), c.0.clone()], &tag, None)?;
         if code != Some(0) {
             return Err(UnitError::new(UnitCode::UnknownUnit, c.0.clone()));
@@ -197,7 +183,7 @@ impl PodvmUnit {
     }
 
     pub(super) fn stop_container(&self, unit: &UnitId, c: &ContainerId) -> Result<(), UnitError> {
-        let (store, tag, _, _) = self.container_base(unit)?;
+        let Base { store, tag, .. } = self.container_base(unit)?;
         self.podvm_in(&store, &["rm".into(), "-f".into(), c.0.clone()], &tag, None).map(drop)
     }
 }
@@ -457,33 +443,5 @@ mod tests {
         let long = "x".repeat(5000);
         let cut = last_line(long.as_bytes());
         assert!(cut.ends_with(" [cut]") && cut.len() < 1000, "{}", cut.len());
-    }
-}
-
-#[cfg(test)]
-mod loaded_tests {
-    use super::*;
-
-    #[test]
-    fn an_image_of_an_index_runs_by_the_digest_of_its_loaded_manifest() {
-        let dir = std::env::temp_dir().join(format!("podrunner-loaded-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let tar_path = dir.join("i.tar");
-        let index = format!(r#"{{"schemaVersion":2,"manifests":[{{"digest":"sha256:{}"}}]}}"#, "b".repeat(64));
-        let mut b = tar::Builder::new(std::fs::File::create(&tar_path).unwrap());
-        let mut h = tar::Header::new_gnu();
-        h.set_size(index.len() as u64);
-        h.set_mode(0o644);
-        h.set_cksum();
-        b.append_data(&mut h, "index.json", index.as_bytes()).unwrap();
-        b.finish().unwrap();
-        let index_digest = format!("busybox@sha256:{}", "a".repeat(64));
-        assert_eq!(PodvmUnit::loaded_reference(&index_digest, &tar_path), format!("busybox@sha256:{}", "b".repeat(64)));
-        assert_eq!(
-            PodvmUnit::loaded_reference(&index_digest, &dir.join("none.tar")),
-            index_digest,
-            "no tar: the reference stays"
-        );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

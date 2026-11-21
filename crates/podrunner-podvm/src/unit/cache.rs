@@ -1,5 +1,6 @@
 //! The cache of image tars of a podvm driver (T-242). `prepare` saves each
-//! pinned image once as `DIGEST.tar`, and each unit loads it. The local
+//! pinned image once as `DIGEST.tar`, and the store of the units loads it
+//! once (T-545). The local
 //! mode keeps the cache of the user across runs, so a run does not save
 //! the image again: about 300 MB of writes for each run.
 

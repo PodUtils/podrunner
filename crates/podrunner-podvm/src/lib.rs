@@ -4,8 +4,9 @@
 //! not podrunner at run time.
 //!
 //! The driver uses the released podvm binary as it is. Its plan, from the
-//! measured facts of GitHub #23: a store of its own for each unit
-//! (`PODVM_STORE`), the image loaded into it from a saved tar; a tag in the
+//! measured facts of GitHub #23: one store for the units (`PODVM_STORE`)
+//! that loads and extracts each pinned image once from a saved tar, and a
+//! container with a tree of its own for each unit (T-545); a tag in the
 //! environment of each process of the unit, and a scan of `/proc` for the
 //! tree kill, because a grandchild outlives `podvm stop` and `rm -f`;
 //! `DOTNET_EnableWriteXorExecute=0` and no `fsize` limit; the rung read

@@ -146,7 +146,7 @@ fn a_held_runner_reaches_an_allowed_host_and_not_a_denied_one() {
     // The output of the runner in the unit, for a failure.
     let unit_log = std::process::Command::new(env("PODRUNNER_PODVM"))
         .args(["logs", "u-1"])
-        .env("PODVM_STORE", state.join("podvm").join("units").join("u-1").join("store"))
+        .env("PODVM_STORE", state.join("podvm").join("store"))
         .output()
         .map(|o| String::from_utf8_lossy(&[o.stdout, o.stderr].concat()).into_owned())
         .unwrap_or_default();

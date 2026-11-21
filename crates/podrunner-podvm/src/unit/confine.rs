@@ -34,19 +34,21 @@ impl PodvmUnit {
         self
     }
 
-    /// The arguments of `run` for the confine layer, for a unit whose
-    /// rootfs is `rootfs`: read in the whole image, write and execute in
-    /// the working directory, the runner directory and `/tmp` (each one
-    /// that the image has), and in the socket directory `sockets` when it
+    /// The arguments of `create` for the confine layer, for a unit of the
+    /// extracted image `rootfs`: read in the whole image, write and execute
+    /// in the working directory, the runner directory and `/tmp` (each of
+    /// the last two that the image has), and in the socket directory `sockets` when it
     /// is mounted (the hook relay and its sockets). The system directories
     /// of the image are read and execute by default.
     pub(super) fn confine_args(&self, rootfs: &Path, sockets: Option<&str>) -> Vec<String> {
         if !self.confine {
             return Vec::new();
         }
+        // The driver makes the working directory in the tree of the unit
+        // after `create`; the image need not have it.
         let mut own: Vec<&str> = [WORKDIR, self.runner_dir.as_str(), "/tmp"]
             .into_iter()
-            .filter(|p| rootfs.join(p.trim_start_matches('/')).is_dir())
+            .filter(|p| *p == WORKDIR || rootfs.join(p.trim_start_matches('/')).is_dir())
             .collect();
         own.extend(sockets);
         let own = own.join(",");

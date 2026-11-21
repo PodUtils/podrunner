@@ -1,7 +1,8 @@
-//! The podvm unit: a store of its own for each unit (`PODVM_STORE`), the
-//! image loaded into it from a tar that `prepare` saved, the credential
-//! files written into the rootfs that `podvm extract` names, and the
-//! payload started detached. Each process carries the tag of the unit; a
+//! The podvm unit: one store for the units of the driver (`PODVM_STORE`,
+//! T-545) that holds each pinned image once, loaded from a tar that
+//! `prepare` saved; for each unit a container of its own (`podvm create`),
+//! the credential files written into its own tree, and the payload started
+//! (`podvm start`). Each process carries the tag of the unit; a
 //! scan of `/proc` ends the whole tree, because a grandchild outlives
 //! `podvm stop` and `rm -f`. The supervisor of podvm is a subreaper: an
 //! orphan that drops the tag (`setsid env -i`) has it as its parent, so
@@ -16,7 +17,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use podrunner_schema::{Capability, PlainName, UnitId};
+use podrunner_schema::{Capability, UnitId};
 use podrunner_unit::procs::{self, TAG_VAR};
 use podrunner_unit::shim;
 use podrunner_unit::{
@@ -43,6 +44,9 @@ mod hold;
 mod labels;
 mod limits;
 mod root;
+mod store;
+#[cfg(test)]
+mod store_tests;
 
 /// The working directory of the payload in the rootfs.
 const WORKDIR: &str = "/podrunner";
@@ -258,30 +262,12 @@ impl UnitDriver for PodvmUnit {
             return Err(UnitError::new(UnitCode::UnitInUse, spec.unit.to_string()));
         }
         podrunner_unit::mounts::spec(spec)?;
-        let store = dir.join("store");
-        fs::create_dir_all(&store).map_err(|e| host("the unit store", e))?;
-        let tar = self.tar_of(&spec.image.digest);
-        self.podvm(&store, &["load", "-i", &tar.to_string_lossy()], None)?;
-        let reference = self
-            .image_reference(&store)
-            .ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "podvm load gave no image"))?;
-        let out = self.podvm(&store, &["extract", &reference], None)?;
-        let rootfs = PathBuf::from(out.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").trim());
-        if !rootfs.is_dir() {
-            return Err(UnitError::new(UnitCode::UnitStartFailed, "podvm extract names no rootfs"));
-        }
-        let runner_root = rootfs.join(WORKDIR.trim_start_matches('/')).join(RUNNER_ROOT);
-        fs::create_dir_all(&runner_root).map_err(|e| host("the runner root", e))?;
-        fs::set_permissions(&runner_root, fs::Permissions::from_mode(0o700)).map_err(|e| host("the runner root", e))?;
-        for f in &spec.credential.files {
-            if !f.name_is_plain() {
-                return Err(UnitError::new(UnitCode::UnitStartFailed, "a credential file name that is not plain"));
-            }
-            write_private(&runner_root.join(&f.name), f.content.expose())?;
-        }
+        fs::create_dir_all(&dir).map_err(|e| host("the unit directory", e))?;
+        let store = self.store();
+        let reference = self.loaded(&store, &self.tar_of(&spec.image.digest))?;
+        let image_root = self.extracted(&store, &reference)?;
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
-        let mut args: Vec<String> =
-            ["run", "-d", "--name", spec.unit.as_str(), "-w", WORKDIR].map(String::from).to_vec();
+        let mut args: Vec<String> = ["create", "--name", spec.unit.as_str(), "-w", WORKDIR].map(String::from).to_vec();
         // The machine name that the runner gives GitHub is the unit, not the
         // host (T-182): `--hostname` of podvm 0.2.0-beta.22 or later.
         let name = format!("podrunner-{}", spec.unit);
@@ -290,9 +276,8 @@ impl UnitDriver for PodvmUnit {
         if !self.no_tier {
             args.extend(labels::tier_args(&self.podvm).iter().map(|a| a.to_string()));
         }
-        args.extend(["--report".into(), dir.join(labels::REPORT).display().to_string()]);
         let guest = spec.sockets.as_ref().and(self.socket_mount());
-        args.extend(self.confine_args(&rootfs, guest));
+        args.extend(self.confine_args(&image_root, guest));
         let mut env = spec.env.clone();
         env.insert("PODRUNNER_UNIT".into(), spec.unit.to_string());
         env.insert(TAG_VAR.into(), tag.clone());
@@ -318,23 +303,19 @@ impl UnitDriver for PodvmUnit {
         args.extend(spec.argv.iter().cloned());
         let argv: Vec<&str> = args.iter().map(String::as_str).collect();
         let egress = self.egress_of(spec)?;
-        match self.podvm_held(&store, &argv, Some(&tag), egress.as_deref()) {
-            // A rung (or an older podvm) that refuses the name: start again
-            // with no name, and say so.
+        let rootfs = match self.launch(&store, &argv, spec, &tag, egress.as_deref()) {
+            // A rung (or an older podvm) that refuses the name: remove the
+            // container, create it again with no name, and say so.
             Err(e) if e.detail.contains("hostname") => {
                 // No UTS namespace on the namespace rung of beta.25 (T-317).
                 let why = e.detail.lines().next().unwrap_or_default();
                 eprintln!("podrunner: {}: the unit has the host name of the host: {why}", spec.unit);
+                let _ = self.podvm(&store, &["rm", "-f", spec.unit.as_str()], None);
                 let argv: Vec<&str> = labels::no_hostname(&argv, &name);
-                self.podvm_held(&store, &argv, Some(&tag), egress.as_deref())?;
+                self.launch(&store, &argv, spec, &tag, egress.as_deref())?
             }
-            r => {
-                r?;
-            }
-        }
-        // The tree of the running unit (T-067): the copy of a later podvm.
-        let names: Vec<&str> = spec.credential.files.iter().map(|f| f.name.as_str()).collect();
-        let rootfs = root::root_of_unit(&rootfs, self.inspected_root(&store, spec.unit.as_str()), &names)?;
+            r => r?,
+        };
         let waiter = self.waiter(&store, &spec.unit, &tag)?;
         units.insert(spec.unit.clone(), Running { dir, rootfs, tag, waiter, exit: None, egress });
         Ok(())
@@ -372,7 +353,7 @@ impl UnitDriver for PodvmUnit {
                     let waiter = r.waiter.id();
                     let alive = procs::tagged(&r.tag).into_iter().any(|p| p != waiter);
                     match code {
-                        None if alive => r.waiter = self.waiter(&r.dir.join("store"), unit, &r.tag)?,
+                        None if alive => r.waiter = self.waiter(&self.store(), unit, &r.tag)?,
                         _ => {
                             let code = code.unwrap_or(-1);
                             r.exit = Some(if code > 128 { Exit::Signal(code - 128) } else { Exit::Code(code) });
@@ -400,7 +381,7 @@ impl UnitDriver for PodvmUnit {
         // From beta.4 the payload ends with a killed launcher, so no tagged
         // process is left; podvm names the state `dead` then. Read it before
         // the kill, which also ends the launcher.
-        let dead = removed.as_ref().is_some_and(|r| self.launcher_died(&r.dir.join("store"), unit.as_str()));
+        let dead = removed.is_some() && self.launcher_died(&self.store(), unit.as_str());
         let lost = orphans || dead;
         if lost {
             // T-159: the cause of an unknown count, for the log of the job.
@@ -409,6 +390,7 @@ impl UnitDriver for PodvmUnit {
             );
         }
         let left = shim::kill_tree_of_tagged(&tag, KILL_LIMIT);
+        let tree = removed.as_ref().map(|r| r.rootfs.clone());
         if let Some(mut r) = removed {
             let _ = r.waiter.kill();
             let _ = r.waiter.wait();
@@ -416,24 +398,29 @@ impl UnitDriver for PodvmUnit {
         // Each container of the unit by its label, then the unit: also of a
         // start that failed after `run -d`, before its record, and of a
         // replay (#257).
-        let store = dir.join("store");
+        let store = self.store();
         if store.is_dir() {
             self.remove_labeled(&store, unit.as_str());
             let _ = self.podvm(&store, &["rm", "-f", unit.as_str()], None);
         }
-        if dir.exists() {
+        // `rm -f` removes the tree of the unit; a tree that stays is
+        // removed here, and counted when it still stays.
+        let tree = tree.filter(|t| t.exists()).and_then(|t| t.parent().map(Path::to_path_buf));
+        for d in tree.iter().chain(Some(&dir)).filter(|d| d.exists()) {
             // A file that the payload made read-only is still removed.
-            let _ = Command::new("chmod").args(["-R", "u+rwX"]).arg(&dir).status();
-            fs::remove_dir_all(&dir).map_err(|e| host("remove the unit", e))?;
+            let _ = Command::new("chmod").args(["-R", "u+rwX"]).arg(d).status();
+            fs::remove_dir_all(d).map_err(|e| host("remove the unit", e))?;
         }
+        let files = u64::from(dir.exists()) + u64::from(tree.is_some_and(|t| t.exists()));
         let processes = if lost { Count::Unknown } else { Count::Known(left) };
-        Ok(Residue { processes, files: Count::Known(u64::from(dir.exists())) })
+        Ok(Residue { processes, files: Count::Known(files) })
     }
 
     fn oom_kills(&self, unit: &UnitId) -> Option<u64> {
-        // podvm `0.2.0-beta.32`: `oom_kills` of the run report, for a unit
-        // with `--memory` in a delegated cgroup2 subtree.
-        self.run_report(unit)?.get("oom_kills")?.as_u64()
+        // `OomKills` of `inspect`, where podvm gives it (the incus tier of
+        // `0.2.0-beta.33`). `create` takes no `--report`, so the count of
+        // the run report is not there (T-545).
+        self.oom_kills_of(unit)
     }
 
     fn observe(&self, unit: &UnitId) -> Result<Observation, UnitError> {

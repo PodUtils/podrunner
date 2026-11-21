@@ -62,8 +62,10 @@ impl Fixture for Real {
     fn unit(&self) -> UnitId {
         self.ids.next()
     }
+    /// The whole state: the tree of each unit is in the store of the
+    /// units (`STATE/store`, T-545), not in its unit directory.
     fn state_dir(&self) -> Option<PathBuf> {
-        Some(self.state.join("units"))
+        Some(self.state.clone())
     }
 }
 

@@ -20,7 +20,9 @@ its test, not podrunner at run time.
 - `prepare` takes a digest (`NAME@sha256:HEX`), never a tag
   (`payload-not-pinned`). It refuses a platform that is not the host's
   (`arch-mismatch`) unless emulation is named and the driver can emulate.
-- `start` gives a fresh root and a fresh store for each unit. It writes the
+- `start` gives a fresh root for each unit: no file of an earlier unit is
+  in it (the podvm kind: a tree of its own for each unit in one store of
+  the units, T-545). It writes the
   credential files into the runner root at mode 0600. No credential goes
   into argv or into the environment. A unit id that is in use is refused
   (`unit-in-use`). The core makes each unit id (`u-` and a counter); a unit

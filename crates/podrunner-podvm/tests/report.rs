@@ -1,7 +1,8 @@
-//! The labels and the run report of podvm (T-078). A unit that exits 3
-//! leaves podvm's report of its `run -d`: the digest of its image, no
-//! refusal and the label of the unit; the exit code comes from `wait`. A container of the unit carries the label too, and
-//! `destroy` removes it. Ignored by default. Run:
+//! The labels of podvm (T-078) and the image of a unit (T-545). A unit
+//! that exits 3 is a container of the store of the units: `inspect` names
+//! the pinned image by the digest of its manifest and the label of the
+//! unit; the exit code comes from `wait`. A container of the unit carries
+//! the label too, and `destroy` removes it. Ignored by default. Run:
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
 //!   PODRUNNER_PODVM_IMAGE=NAME@sha256:HEX \
@@ -23,7 +24,7 @@ fn env(name: &str) -> String {
 
 #[test]
 #[ignore]
-fn the_run_report_names_the_image_the_exit_and_the_label() {
+fn inspect_names_the_image_the_exit_and_the_label() {
     let state = std::env::temp_dir().join(format!("podrunner-report-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&state);
     let podvm = PathBuf::from(env("PODRUNNER_PODVM"));
@@ -54,15 +55,9 @@ fn the_run_report_names_the_image_the_exit_and_the_label() {
         )
         .ok();
     let exit = unit.wait(&id, Duration::from_secs(60)).unwrap();
-    let mut report = None;
-    for _ in 0..50 {
-        report = unit.run_report(&id);
-        if report.is_some() {
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(100));
-    }
-    let store = state.join("units").join("u-1").join("store");
+    let store = state.join("store");
+    let inspect = Command::new(&podvm).args(["inspect", "u-1"]).env("PODVM_STORE", &store).output().unwrap();
+    let text = String::from_utf8_lossy(&inspect.stdout).into_owned();
     let labeled = |filter: &str| {
         let out = Command::new(&podvm).args(["ps", "-a", "-q", "--filter", filter]).env("PODVM_STORE", &store).output();
         out.map(|o| String::from_utf8_lossy(&o.stdout).split_whitespace().count()).unwrap_or(0)
@@ -71,12 +66,10 @@ fn the_run_report_names_the_image_the_exit_and_the_label() {
     let residue = unit.destroy(&id).unwrap();
     let _ = std::fs::remove_dir_all(&state);
     assert_eq!(exit, Some(Exit::Code(3)));
-    let r = report.expect("podvm wrote no report of the run");
-    assert_eq!(r["image_digest"], image.digest.as_str(), "{r}");
-    // The report of `run -d` ends with the start: the exit comes from
-    // `podvm wait`.
-    assert_eq!((r["detached"].as_bool(), r["refused"].is_null()), (Some(true), true), "{r}");
-    assert!(r["labels"].to_string().contains("podrunner.unit"), "{r}");
+    // The image of the pin, by a digest; the label of the unit.
+    let image = text.split("\"Image\":\"").nth(1).and_then(|t| t.split('"').next()).unwrap_or_default();
+    assert!(image.contains("@sha256:"), "{text}");
+    assert!(text.contains("podrunner.unit=u-1"), "{text}");
     // The unit and its container carry the label.
     assert_eq!(before, 1 + usize::from(container.is_some()), "labeled containers");
     assert!(residue.is_clean(), "{residue:?}");

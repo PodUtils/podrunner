@@ -47,7 +47,7 @@ The payload image is resolved by digest. A tag is refused. A platform that diffe
 
 Postconditions:
 
-1. A fresh root for this unit. No state shared with another unit of the same image. The podvm driver gives each unit its own `PODVM_STORE` under the state directory and loads the image into it, because all containers of one image in one store share one mutable rootfs today.
+1. A fresh root for this unit. No state shared with another unit of the same image. The podvm driver loads each pinned image once into one store of the units (`STATE/store`) and gives each unit a container with a tree of its own (`podvm create`, PodUtils/podvm@T-1709); the credential files go only into that tree (T-545).
 2. `credential_dir` was created by `slots` with mode 0700 and holds the credential files with mode 0600. Before the payload starts, the driver copies the files into `runner_root`, which is the unit's workspace root, with mode 0600 and the owner of the payload. The runner is then started with no credential in argv and none in `env`. There is no operation that puts files into a running unit.
 3. `destroy` removes `credential_dir` and the copies. `credential_store` says whether that is a tmpfs.
 4. A limit in `limits_required` that the driver cannot enforce or report is refused with `limit-not-enforceable`.

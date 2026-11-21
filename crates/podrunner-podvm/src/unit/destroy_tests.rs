@@ -24,7 +24,8 @@ fn a_destroy_with_no_record_removes_the_podvm_unit() {
     std::fs::write(&podvm, body).unwrap();
     std::fs::set_permissions(&podvm, std::fs::Permissions::from_mode(0o755)).unwrap();
     let unit = PodvmUnit::new(crate::Podvm { binary: podvm }, &d.join("state"), &d).unwrap();
-    std::fs::create_dir_all(d.join("state/units/u-3/store")).unwrap();
+    std::fs::create_dir_all(d.join("state/units/u-3")).unwrap();
+    std::fs::create_dir_all(d.join("state/store")).unwrap();
     let residue = unit.destroy(&UnitId::parse("u-3").unwrap()).unwrap();
     let calls = std::fs::read_to_string(&log).unwrap_or_default();
     assert!(calls.lines().any(|l| l.ends_with("rm -f u-3")), "{calls}");

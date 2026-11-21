@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**580 entries: 59 open, 52 partial, 15 blocked, 454 done.**
+**582 entries: 60 open, 52 partial, 16 blocked, 454 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 5 | 24 | 4 | 85 | 118 |
-| P2 | 15 | 20 | 8 | 235 | 278 |
-| P3 | 38 | 8 | 3 | 132 | 181 |
-| **All** | 59 | 52 | 15 | 454 | 580 |
+| P2 | 15 | 20 | 9 | 235 | 279 |
+| P3 | 39 | 8 | 3 | 132 | 182 |
+| **All** | 60 | 52 | 16 | 454 | 582 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -589,7 +589,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-542](later.md) | P1 | L | later | feature | partial | The hosted snapshot: a 1:1 capture of the root of a hosted runner, scrubbed, with its kernel layer |
 | [T-543](later.md) | P1 | M | later | feature | blocked | systemd as PID 1 in an incus instance |
 | [T-544](later.md) | P2 | M | later | feature | blocked | systemd as PID 1 and a root on a disk in a microvm guest |
-| [T-545](later.md) | P2 | M | later | defect | open | The podvm kind loads, extracts and copies the whole image for each unit |
+| [T-545](later.md) | P2 | M | later | defect | blocked | The podvm kind loads, extracts and copies the whole image for each unit |
 | [T-546](later.md) | P2 | M | later | measurement | open | The tests of runner-images (Pester) in a unit |
 | [T-547](later.md) | P2 | L | later | feature | open | The full lane of the hosted snapshot: a boot in each mode on a live host, checks C4 to C8 |
 | [T-548](later.md) | P1 | S | later | chore | done | The licence call of a published hosted image |
@@ -628,3 +628,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-581](later.md) | P1 | M | later | chore | done | The readers of podvm's output before the release after `0.2.0-beta.37` (COORD-226 of podvm) |
 | [T-582](later.md) | P1 | S | later | defect | partial | `hosted-boot.yml` is green when the guest does not boot |
 | [T-583](later.md) | P1 | S | later | chore | open | Take podcrates `v0.81.0` (COORD-151 of podcrates) |
+| [T-584](later.md) | P2 | S | later | defect | open | The conformance suite of the podvm kind fails four tests on the namespace rung as root |
+| [T-585](later.md) | P3 | S | later | defect | open | The store of the units of the podvm kind keeps each image that a unit loaded |

@@ -32,8 +32,9 @@ is done.
   `runner-image.yml` (T-026, T-035). The unit conformance suite passes on
   the fake unit, the podvm driver, the microvm kind and the incus kind.
 - Each podvm unit and container carries the label `podrunner.unit=ID`,
-  and `destroy` removes each one with it; the `run -d` of a unit writes
-  podvm's report (`run_report`) (T-078).
+  and `destroy` removes each one with it (T-078). A unit is `podvm create`
+  and `podvm start` in one store of the units, so it has no run report of
+  podvm (T-545).
 - The egress hold: with `[unit.podvm] podnet`, a podvm unit runs under
   `podnet pod`: the netns hold (`enforced`) where user namespaces and
   `/dev/net/tun` exist, else the seccomp hold (`advisory`) (T-065, T-041).

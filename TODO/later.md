@@ -12816,7 +12816,7 @@ State (2026-11-19, COORD-203, PodUtils/podvm#599): PodUtils/podvm@T-1994 is amen
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -12835,6 +12835,15 @@ First find why each unit has its own store (labels, cleanup, confine). Then use 
 `runner-image.yml`: a measure of the writes and of the start time of a unit of `hosted-core`, before and after.
 
 State (2026-11-20, COORD-209): the podvm kind can boot the init of an image with no incus on the next beta of podvm (the namespace rung with a delegated cgroup2 subtree, or runsc), so the snapshot's systemd is not limited to the incus kind; the run of T-556 measures which route a hosted runner takes.
+
+State (2026-11-21, this commit): the reason of a store for each unit (T-023): before podvm `v0.2.0-beta.5` each container of one image in one store shared one rootfs. From it, `run` and `create` copy the extracted image into `<store>/trees/<id>/` (PodUtils/podvm@T-1709), and podvm never writes the extracted image after the extraction. Labels and cleanup do not need a store for each unit (`destroy` removes by label and by name), and the confine layer reads only the paths of the image. The one obstacle: the driver wrote the credential files into the extracted image before `run -d`, so the copy took them; in a shared store that puts them into the source of each later unit. Now (`crates/podrunner-podvm/src/unit/store.rs`): one store of the units (`STATE/store`); each pinned tar is loaded once (`podvm images --format` names its manifest digest, else `load -i`, then the digest must be there); each unit is `podvm create` by `NAME@MANIFEST-DIGEST`, the credential files go into the tree that `inspect` names, which must be under `<store>/trees/` (else the start fails), then `podvm start` under the hold. The containers of a unit load their image once into the same store. The confine layer always names `/podrunner` (the driver makes it in the tree after `create`). `destroy` removes the tree when `rm -f` leaves it, and counts it. Lost: `create` takes no `--report`, so a unit has no run report of podvm (`run_report` goes; `oom_kills` reads `OomKills` of `inspect`, which beta.37 does not give on this route; the podvm kind gives `--ulimit as=`, not `--memory`, so the count of the report was never set). Tests: `cargo test -p podrunner-podvm --lib` (37 passed); `the_units_of_one_image_load_it_once_and_each_has_a_tree_of_its_own`, `a_unit_with_no_tree_of_its_own_does_not_start` and `the_confine_layer_names_the_working_directory_that_the_image_lacks` fail on the code before.
+
+Measure (2026-11-21, this host, podvm `0.2.0-beta.37` as root, the namespace rung, ext4 with no `FICLONE`; the runner image `runner@sha256:483dd412...`, 307 MB tar, 900 MB extracted; three units in sequence through the driver): before, each start 19 to 25 s and about 2.17 GB of writes (load, extraction, tree); after, the first start 21 s (the same three steps), each later start 4.9 to 7.5 s and about 0.93 GB (the tree only); the store keeps 1.25 GB once. The live tests `report` and `conformance` (busybox) pass as before (the four failures of T-584 are the same on the code before). Level: proven on this host as root, not as a user; `runner-image.yml` and `hosted-core` not run.
+
+## Blocker
+
+podvm (a COORD issue to podvm, not written yet). The tree of each unit is still a full copy on a file system with no `FICLONE` (ext4, the GitHub-hosted runner): a unit of a 55 GB image writes 55 GB at its start. The asks: (1) a copy-on-write tree of a container where the store has no `FICLONE`: an overlayfs upper over the extracted image on the namespace rung (and in a user namespace from Linux 5.11), so `create` writes only the changes of the unit, with `rm` removing the upper; (2) `--report PATH` on `create`, kept in the record and written by `start`, as `run -d --report` writes it; or `OomKills` in `inspect` of a container of the ladder rungs. Unblocks: the measure of `hosted-core` in `runner-image.yml` with (1), and the run report of a unit with (2).
+
 
 # T-546: The tests of runner-images (Pester) in a unit
 
@@ -14199,3 +14208,53 @@ The body of PodUtils/podcrates#254, read on 2026-11-21.
 ## Prove
 
 `sh scripts/agent/check.sh` passes; the gate and `level2.yml` are green on the commit of the take.
+
+# T-584: The conformance suite of the podvm kind fails four tests on the namespace rung as root
+
+**Source:** the measure of T-545, 2026-11-21
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`cargo test -p podrunner-podvm --test conformance -- --ignored` with podvm `0.2.0-beta.37` as root (the namespace rung) and `busybox:1.37.0` fails four tests, on `f677c9b` and with T-545 alike. Tests 14, 20 and 24 (a container of the unit): `container_start` gives `--podvm-volume-base .../rootfs/home/runner: No such file or directory`, because the stand-in image has no runner directory and the namespace rung needs the base to exist. Test 26 (`a-killed-shim-is-not-clean`): "destroy counts 0 processes, but the orphan 4 lives".
+
+## Premise
+
+Measured on 2026-11-21 on a cloud host as root (not as a user). `runner-image.yml` runs the suite as a user on a GitHub-hosted runner, where the rung is not the namespace rung.
+
+## Approach
+
+Tests 14, 20, 24: make the runner directory in the tree of the unit before `--podvm-volume-base` (the tree is the unit's own), or give the suite an image with `/home/runner`. Test 26: find why the orphan of a killed launcher is not tagged or not seen on the namespace rung (its PID namespace), and count it as unknown.
+
+## Prove
+
+The suite passes on the namespace rung: a lane of `runner-image.yml` as root, or a host with user namespaces.
+
+# T-585: The store of the units of the podvm kind keeps each image that a unit loaded
+
+**Source:** the work of T-545, 2026-11-21
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With T-545 the store of the units (`STATE/store`) keeps the blobs and the extraction of each image that a unit or a container of a unit loaded. Nothing removes an image of an old pin, so the store of a long `serve` grows with each new pin and each `container:` image.
+
+## Premise
+
+The code of `crates/podrunner-podvm/src/unit/store.rs`, read on 2026-11-21. The cache of tars keeps four (`unit/cache.rs`); the store has no such rule.
+
+## Approach
+
+At a load of a new digest, `podvm rmi` each image of the store that no running unit uses and whose tar is not in the cache of tars; keep the newest four, as the cache does.
+
+## Prove
+
+`cargo test -p podrunner-podvm`: a fake podvm with five images gets `rmi` of the oldest one that no unit uses.
