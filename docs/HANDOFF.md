@@ -107,14 +107,16 @@ is done.
     T-532, T-403), `hosted-snapshot.yml` 44874022336 (a capture with no
     `--acls`, COORD-228) and `hosted-boot.yml` 44878540271 on that capture
     (the guest booted: systemd reached `basic.target` and each check of
-    T-582 holds; T-556 is partial, #325 is closed). `user-gate.yml` 44878038200 (on `14883d7`, images of
-    44874019156) was still running. The local agent writes the last line
-    on #341: read it, the digest of the capture is in it.
+    T-582 holds; T-556 is partial, #325 is closed), and `user-gate.yml`
+    44878038200 (on `14883d7`, T-541 in the code; images of 44874019156).
+    #341 is closed. The digest of the new capture (amd64,
+    ubuntu-24.04, no `--acls`):
+    `sha256:7054bbffb05bd9ca6e2486704d25cbfed8ff76a2e48dcb33d3c4b02ffbc48dbc`.
   - Not run in CI: `46f7124` (T-590, the work folder `/home/runner/work`
     on each kind; `images/runner/` changed, so `runner-image.yml` runs
     first, then `user-gate.yml` with its id) and `e2c9f79` (the fuzz crate
     after T-590). T-541 needs, in order: `hosted-runner.yml` with the
-    digest of the capture of #341 and `publish=true`, `hosted-boot.yml`
+    digest above and `publish=true`, `hosted-boot.yml`
     with the digest of the runner image, then the canned job of T-541 in
     `runner-image.yml` on incus. Write one new `[gh action] requested`
     for all of it (the form of #341).
