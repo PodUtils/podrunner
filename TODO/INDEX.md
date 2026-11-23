@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**598 entries: 64 open, 59 partial, 17 blocked, 458 done.**
+**600 entries: 65 open, 60 partial, 17 blocked, 458 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 3 | 26 | 3 | 87 | 119 |
+| P1 | 2 | 27 | 3 | 87 | 119 |
 | P2 | 17 | 22 | 10 | 235 | 284 |
-| P3 | 43 | 11 | 4 | 134 | 192 |
-| **All** | 64 | 59 | 17 | 458 | 598 |
+| P3 | 45 | 11 | 4 | 134 | 194 |
+| **All** | 65 | 60 | 17 | 458 | 600 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -597,7 +597,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-550](later.md) | P2 | S | later | chore | open | The corpus of the user-path gate records the image of each github.com result |
 | [T-551](later.md) | P1 | S | later | defect | done | A pinned image larger than the disk bound of its kind is not refused |
 | [T-552](later.md) | P1 | S | later | defect | done | A job that the job-started hook ends with no answer is reported as success |
-| [T-553](later.md) | P1 | M | later | release | open | podrunner and its runner images on ghcr.io, in the form of PodUtils |
+| [T-553](later.md) | P1 | M | later | release | partial | podrunner and its runner images on ghcr.io, in the form of PodUtils |
 | [T-554](later.md) | P1 | S | later | defect | done | The compile of TypeScript 7 hangs on the podvm userland rung with no tier |
 | [T-555](later.md) | P1 | M | later | feature | partial | The publish of the hosted snapshot: hosted-snapshot.yml, the checks C1 to C3, the attested index |
 | [T-556](later.md) | P1 | M | later | measurement | partial | The base slice of the hosted snapshot boots in hosted CI |
@@ -646,3 +646,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-601](later.md) | P3 | S | later | defect | open | A test of the run report failed once under load |
 | [T-602](later.md) | P2 | S | later | defect | blocked | `print-unit` refuses a config path under a directory of `mktemp -d` as a secret |
 | [T-603](later.md) | P3 | S | later | defect | open | The CA directory of a confined container joins the `exec=` list, and a container may remount it writable |
+| [T-604](later.md) | P3 | S | later | feature | open | A runner image release is not on ghcr.io |
+| [T-605](later.md) | P3 | S | later | feature | open | `podrunner-manifest.json` names no ghcr.io reference |

@@ -13090,7 +13090,7 @@ State (2026-11-19): `runner-image.yml` run 44453922354 at `e7e5d4c` (the image w
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -14747,3 +14747,53 @@ The report of the review fixes of T-578, read on 2026-11-23.
 ## Prove
 
 `cargo test -p podrunner-podvm containers`: the CA directory is not in `exec=`; the measure of step 2 in a `runner-image.yml` run, with its result in this entry.
+
+# T-604: A runner image release is not on ghcr.io
+
+**Source:** the work of T-553, 2026-11-23
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`release.yml` pushes the runner images of a podrunner release to `ghcr.io/podutils/podrunner-runner` (T-553). `runner-image-release.yml` (T-499) publishes the images of a new `actions/runner` as release assets only (`vrunner-VERSION-rN`), so a consumer that takes each image from ghcr.io by digest (the owner's ruling "ghcr.io") does not get them there.
+
+## Premise
+
+The report of the work of T-553, read on 2026-11-23.
+
+## Approach
+
+In the job `release` of `runner-image-release.yml`, run `scripts/ghcr.py archives`, `push` and `verify` with the tags `vrunner-VERSION-rN` and `vrunner-VERSION-rN-full` of `ghcr.io/podutils/podrunner-runner`, then attest each index, as `release.yml` does.
+
+## Prove
+
+A publish run of `runner-image-release.yml` pushes both indexes; `gh attestation verify oci://ghcr.io/podutils/podrunner-runner@DIGEST --repo PodUtils/podrunner` passes.
+
+# T-605: `podrunner-manifest.json` names no ghcr.io reference
+
+**Source:** the work of T-553, 2026-11-23
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner-manifest.json` (`scripts/install-pins.py manifest`, T-499) names podvm, podnet and the runner images by version and SHA-256, but not by their ghcr.io references (`[ghcr] reference` of `images/podvm.toml` and `images/podnet.toml`, T-553). A machine that reads the manifest cannot take them from ghcr.io. Also, nothing checks `[ghcr] reference` of `images/fake-githome.toml` against its `version`, as `install-pins.py` now does for podvm and podnet.
+
+## Premise
+
+The report of the work of T-553, read on 2026-11-23.
+
+## Approach
+
+Add an optional `reference` to `podvm`, `podnet` and each runner image of the manifest (the runner image digests are known before the push), and run the form check of `install-pins.py` on `images/fake-githome.toml` too.
+
+## Prove
+
+`python3 -I scripts/install-pins.py --self-test` (or its test in `scripts/test-install.sh`): the manifest has each reference; a reference of another version in `images/fake-githome.toml` is refused.
