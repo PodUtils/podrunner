@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**607 entries: 69 open, 57 partial, 19 blocked, 462 done.**
+**607 entries: 69 open, 57 partial, 18 blocked, 463 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 25 | 3 | 89 | 119 |
-| P2 | 17 | 21 | 11 | 237 | 286 |
+| P2 | 17 | 21 | 10 | 238 | 286 |
 | P3 | 49 | 11 | 5 | 134 | 199 |
-| **All** | 69 | 57 | 19 | 462 | 607 |
+| **All** | 69 | 57 | 18 | 463 | 607 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -648,7 +648,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-603](later.md) | P3 | S | later | defect | open | The CA directory of a confined container joins the `exec=` list, and a container may remount it writable |
 | [T-604](later.md) | P3 | S | later | feature | open | A runner image release is not on ghcr.io |
 | [T-605](later.md) | P3 | S | later | feature | open | `podrunner-manifest.json` names no ghcr.io reference |
-| [T-606](later.md) | P2 | S | later | defect | blocked | `podvm load` refuses the full hosted snapshot (85 layers): 16 locks at most |
+| [T-606](later.md) | P2 | S | later | defect | done | `podvm load` refuses the full hosted snapshot (85 layers): 16 locks at most |
 | [T-607](later.md) | P2 | S | later | defect | open | Two runs of `podrunner run` in two pid namespaces that share `/tmp` meet on one run id |
 | [T-608](later.md) | P3 | S | later | defect | open | A recovery run of `release.yml` on a tag builds the binaries again |
 | [T-609](later.md) | P3 | M | later | defect | open | `podrunner run` cannot run the hosted runner image as a hosted runner |

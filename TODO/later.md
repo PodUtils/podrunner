@@ -10814,6 +10814,8 @@ State (2026-11-23, the fix of the red run): `runner-image.yml` run 45163987810 (
 
 State (2026-11-23, `runner-image.yml` 45216790663 at `075256b`, podvm `0.2.0-beta.37`, proven in CI on GitHub-hosted runners for `cpu_s`): the sample of the use while the instance runs gives `cpu_s` 2 for a load of 2.11 s (the tolerance of T-520 holds), and 1 for each other unit. `PeakMemoryBytes` stays unknown: the incusd of the hosted runner gives no `memory.usage_peak` of a running instance on cgroup v2. The live test now takes only that reason, by name, for the peak (`PEAK_NOT_GIVEN`), and keeps `cpu_s` strict; podvm's record of the use at the stop (COORD-233) gives the peak, and then T-611 makes the peak strict again.
 
+State (2026-11-23, `runner-image.yml` 45231203307 at `f694571`, podvm `0.2.0-beta.38`, proven in CI on GitHub-hosted runners): the incus step is green with the live test of the use (`cpu_s` strict, the peak with its named reason, T-611).
+
 # T-484: A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have
 
 **Source:** GitHub #292 (cfb, "Release files"; PodUtils/podcrates#223, C-2), 2026-11-18
@@ -13296,6 +13298,8 @@ State (2026-11-23, not run): `.github/workflows/hosted-measure.yml` is the measu
 
 State (2026-11-23, `hosted-measure.yml`, proven in CI on GitHub-hosted runners; the boot: not run): run 45156168746 (`place = joined`) lost its runner in the step "Place the store and incusd" (no log: the loop files and LVM over `/` and `/mnt` are the likely cause). Run 45157967635 (`place = store-root`, `full = all`, the capture `sha256:7054bbff...`) on an `ubuntu-24.04` runner with one disk of 155 GB (`/` and `/mnt` gave the same numbers): 60.1 GB used at the start; 15.0 GB used and 139.9 GB free after the step that frees the preinstalled trees (236 s); the pull of the 85 layers took 183 s and 17.0 GB (32.2 GB used); the tar of the layout 70 s. `podvm load` then exited 125 after 9 s: 16 locks at most (T-606). So a standard hosted runner has the room for the pull, and about 114 GiB free for the store and incusd. Left: the load (T-606), the import and the boot, and the class of 72 GB.
 
+State (2026-11-23, `hosted-measure.yml` 45222459418, podvm `0.2.0-beta.38`, the capture `sha256:7054bbff...`): free 139.9 GB after the free step (249 s); the pull of 85 layers 514 s and 17.0 GB; the tar 64 s; the load 92 s, exit 0, with no change of the used bytes of `/` that `df` names (32.2 GB); the import then stops at the sparse record of that capture (T-599). The run on the new capture `sha256:baa8431a...` is next.
+
 # T-558: The file capabilities of an image are lost through the extract of podcrates and podvm
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -14689,6 +14693,8 @@ State (2026-11-23, steps 1 and 2 and the call of step 3; the capture: not run): 
 
 State (2026-11-23, step 3; the capture: not run): podvm `0.2.0-beta.38` (podcrates `v0.82.0`, COORD-232) is pinned. `scripts/hosted/capture.sh` and the round trip of `plan.py --self-test` run GNU tar with `--acls` again, and with no `--sparse`. `scrub.py verify` refuses only a `GNU.sparse.*` record (or a sparse member of the old GNU format); an ACL record passes. Its self-test checks that an ACL record passes; it fails on the old `REFUSED`. The round trip of `plan.py` sets an ACL on a file (`system.posix_acl_access`: the user 1000 may read) and checks that its layer has the record `SCHILY.acl.access`; it fails with no `--acls`. Measured here with GNU tar 1.35 as uid 0: a layer of `--acls` extracts with `0.2.0-beta.38`, and the file has its ACL; `0.2.0-beta.37` refuses the layer ("the PAX record \"SCHILY.acl.access\" has a newline byte"). `--xattrs-include=*` also writes each ACL as `SCHILY.xattr.system.posix_acl_access`, with and with no `--acls`, and both releases set the ACL from that record. `python3 -I scripts/hosted/plan.py --self-test`, `scrub.py --self-test`, `c1.py --self-test`, `sh scripts/hosted/calls.sh` and `sh scripts/shellcheck.sh scripts/hosted/capture.sh` pass. Left: a new `hosted-snapshot.yml` capture (no refused record; the change of the layer sizes) and its boot in `hosted-boot.yml` with `0.2.0-beta.38`.
 
+State (2026-11-23, proven in CI on GitHub-hosted runners): `hosted-snapshot.yml` 45222466116 (`920b333`, `ubuntu-24.04`, image `20261116.133`) captured with `--acls` and with no `--sparse`, C1 0 differences, and published `ghcr.io/podutils/podrunner-hosted@sha256:baa8431a36ba58f3be6d15780a4a2cc0090d90cd1621df3ffe1dee5d841f4909` (attested). The old capture `sha256:7054bbff...` (with `--sparse`) is refused at the import by podvm `0.2.0-beta.38`: "the PAX record \"GNU.sparse.major\" marks a GNU sparse file" (`hosted-measure.yml` 45222459418). Left: the load and the import of the new capture with podvm `0.2.0-beta.38` (`hosted-measure.yml`, `full = all`).
+
 # T-600: The tests of Unix sockets fail when `TMPDIR` is long
 
 **Source:** the work of T-591, 2026-11-23
@@ -14853,7 +14859,7 @@ Add an optional `reference` to `podvm`, `podnet` and each runner image of the ma
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -14873,9 +14879,9 @@ podvm loads an image with more layers than its lock slots (COORD-122, GitHub #34
 
 State (2026-11-23, podvm `0.2.0-beta.38` pinned, COORD-232, PodUtils/podvm#648; the hosted snapshot: not run): the release has the fix of COORD-231 (PodUtils/podvm@T-2068): `load` commits each blob when it is written and holds one staging lock at a time. Measured in this sandbox as uid 0: `podvm load -i` of an OCI archive of 85 small layers stops with "this process already holds 16 locks" on `0.2.0-beta.37` and loads on `0.2.0-beta.38`. podvm did not measure the hosted image of about 16 GiB. Next: `hosted-measure.yml` with `full = all`; the step "Load into the podvm store" must exit 0. Then this entry is `done`, and #344 closes.
 
-## Blocker
+## Done
 
-COORD-122 (GitHub #344, to podvm): `podvm load` takes one lock for each layer and refuses the 17th. podvm's answer COORD-231 (PodUtils/podvm#647): fixed on podvm `main` (`4887fb72`, PodUtils/podvm@T-2068): `load` commits each blob when it is written and holds one staging lock at a time; measured with 40 and 85 small layers as root and as uid 1000. The fix comes with the next beta after `0.2.0-beta.37`; then pin it and run `hosted-measure.yml` with `full = all`.
+2026-11-23: proven in CI on GitHub-hosted runners: `hosted-measure.yml` 45222459418 (`920b333`, podvm `0.2.0-beta.38`, `full = all`, the capture `sha256:7054bbff...`): the step "Load into the podvm store" exits 0 after 92 s with the 85 layers (the run 45157967635 on `0.2.0-beta.37` exited 125). The import of that capture then fails on its GNU sparse record (T-599).
 
 # T-607: Two runs of `podrunner run` in two pid namespaces that share `/tmp` meet on one run id
 
