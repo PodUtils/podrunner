@@ -13263,6 +13263,8 @@ State (2026-11-21, the cause and the interim; a new capture: not run): podvm's a
 
 State (2026-11-23, `hosted-boot.yml` 45150431980 at `486fd2c`, proven in CI on GitHub-hosted runners): the core slice of the capture `sha256:7054bbff...` with the runner layer boots under incus to `degraded`, and each check of T-582 holds. Two units fail: `hibinit-agent.service` (the hibernation agent of EC2, now a `[[mask]]` of `images/hosted/scrub.toml`; a new capture takes it) and `systemd-remount-fs.service`. podvm's `main` takes podcrates `v0.82.0` (COORD-228, PodUtils/podvm#644): it applies a POSIX ACL as `system.posix_acl_*` and refuses a layer with GNU sparse records; the capture uses `--sparse` (T-599). Left: the second step with no tier (COORD-209), the KVM guest, and the planted unmasked unit of the Prove.
 
+State (2026-11-23, podvm `0.2.0-beta.38` pinned; a new capture: not run): the release takes podcrates `v0.82.0`: a layer of GNU tar `--acls` extracts, and each ACL is set as `system.posix_acl_access` or `system.posix_acl_default` (COORD-118, #339). The interim call ends: the capture runs GNU tar with `--acls` again (`docs/decisions.md`, T-556), and `scrub.py verify` takes an ACL record (T-599). The incus tier keeps only the extended attributes `security.capability` and `user.*`, so an ACL of the snapshot does not reach an incus instance; the mode bits stay. A capture of the interim kept each ACL as the record `SCHILY.xattr.system.posix_acl_access` (measured here, T-599). Next: a `hosted-snapshot.yml` capture with `--acls`, then `hosted-boot.yml` on its digest (the core slice boots under incus, and each check of T-582 holds); then the second step with no tier (COORD-209), the KVM guest, and the planted unmasked unit of the Prove.
+
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -13833,6 +13835,8 @@ Tests (they fail on the code before): `log::tests::a_writer_with_a_bound_gets_on
 
 Next: step 1 and the second part of the Prove: a run of `user-gate.yml` (the lanes of the podvm and the incus kinds) gives the line `read N bytes of the unit log in M ms` of `serve`.
 
+State (2026-11-23, podvm `0.2.0-beta.38` pinned; the lanes: not run): `logs --podvm-tier=incus` reads the log of incus in pieces of 64 KiB (PodUtils/podvm@T-2046), so podvm no longer refuses a log over 64 MiB; the bound of the read in podrunner holds. Next: the podvm and the incus lanes of `user-gate.yml` with the release.
+
 # T-573: An image larger than the memory of a microvm guest is not refused
 
 **Source:** the work of T-551, 2026-11-20
@@ -14198,6 +14202,8 @@ Find each reader of `podvm inspect`, of a podvm exit code (125, 126, 127) and of
 - No change: `inspect --format '{{.RootfsPath}}'` (a string in each form), `inspect --format '{{.Size}}'` and `inspect IMAGE` of `doctor` (an image is not typed again), the `inspect --format` of the incus kind (the incus tier keeps its fields), `enter` (`podvm exec -t` of a running unit; the pause prints podvm's line), `podvm wait` (stdout only), each non-zero exit of `load`, `run -d`, `extract` and `rm` (all a start failure, 1 or 125), 126 and 127 of a payload (passed through as the exit of the step), `TERM` (podrunner uses no `run -t`), `logs --tail` and `:z` (not used), the memory rule (each microvm gives `--podvm-mem`; T-573), the `podvm: ` lines (no reader of their text).
 
 `cargo test -p podrunner-podvm -p podrunner-hook --all-features`: 33 and 14 passed. The three new tests (`the_state_comes_from_the_typed_inspect_of_a_later_podvm`, `a_dead_launcher_is_seen_in_each_form_of_inspect`, `a_refused_exec_into_an_ended_container_is_not_the_exit_of_the_step`) fail on the code before. Proven by fixtures here; not run with the release after `0.2.0-beta.37`: its gate lanes run in the commit that pins it.
+
+State (2026-11-23, podvm `0.2.0-beta.38` pinned; measured here as uid 0 on the namespace rung): the readers take the output of the release. `inspect` of a running, an exited and a dead container (its launcher killed) gives the types of docker (`ExitCode` and `Pid` numbers or null, `Labels` a map, `Config` an object); `{{.ExitCode}}` prints `-` for null, `{{.RootfsPath}}` a path, and `{{.Size}}` of an image a number. `exec` into an exited or a dead container exits 1 with "podvm exec: container NAME is not running (exited). Start it with ...", the text that `exec_exit` reads. A volume that `--podvm-volume-base` refuses still exits 125. `unit::containers::tests::the_readers_take_the_output_of_podvm_0_2_0_beta_38` reads the three documents of `crates/podrunner-podvm/tests/inspect/`; no reader changes, so it passes on the code before. No kind passes `--rm` to `run -d` or to `create`, so the removal of such a container at its end reaches no reader. The conformance suite, `report.rs`, `links.rs` and `limits.rs` of `podrunner-podvm` ran here with a busybox image with `/home/runner`: the same result with `0.2.0-beta.37` and `0.2.0-beta.38` (unit tests 24 and 26 and the pids limit fail with each release as uid 0; each other test passes). Not run: the gate lanes on `0.2.0-beta.38` (`runner-image.yml`, `user-gate.yml`).
 
 # T-582: `hosted-boot.yml` is green when the guest does not boot
 
@@ -14665,7 +14671,7 @@ Write the store with `pod_broker::ca::write_trust_store` into the work area of t
 
 ## Premise
 
-The body of PodUtils/podvm#644, read on 2026-11-23: "podcrates `v0.82.0` refuses a layer with GNU sparse files (`GNU.sparse.*`, PodUtils/podcrates@T-1087)". `scripts/hosted/capture.sh:95` has `--sparse`. Not measured: which files of a hosted root are sparse.
+The body of PodUtils/podvm#644, read on 2026-11-23: "podcrates `v0.82.0` refuses a layer with GNU sparse files (`GNU.sparse.*`, PodUtils/podcrates@T-1087)". `scripts/hosted/capture.sh` had `--sparse` (line 95 at `68f73d6`). Not measured: which files of a hosted root are sparse.
 
 ## Approach
 
@@ -14678,6 +14684,8 @@ The body of PodUtils/podvm#644, read on 2026-11-23: "podcrates `v0.82.0` refuses
 `python3 -I scripts/hosted/plan.py --self-test` and `scrub.py --self-test` (a planted sparse file gives no `GNU.sparse.*` record, and a stream with one is refused); the next `hosted-snapshot.yml` capture loads with the podvm release that takes podcrates `v0.82.0`.
 
 State (2026-11-23, steps 1 and 2 and the call of step 3; the capture: not run): `scripts/hosted/capture.sh` and the round trip of `plan.py --self-test` run GNU tar with no `--sparse`; the round trip refuses a `GNU.sparse.*` record in each layer of its plan, with its planted sparse file. `scrub.py verify` refuses a member with a `GNU.sparse.*` record (or a sparse member of the old GNU format) and a member with a `SCHILY.acl.*` record (the interim call of T-556), and names the path and the record. Its self-test makes a real sparse file (`truncate -s 1M` and a write), tars it with GNU tar 1.35 with and with no `--sparse`, and checks that only the stream with `--sparse` has the record and is refused; a planted ACL record is refused too. The self-test failed on the old `scrub.py` (both streams passed). `c1.py` compares the apparent size (`st_size` against the size of the member), not the blocks, so a sparse file stored in full keeps its row; its self-test now has a sparse file. The T-556 call of `docs/decisions.md` says that `--acls` comes back with the podvm release that takes `v0.82.0` and that `--sparse` stays off. `python3 -I scripts/hosted/plan.py --self-test`, `scrub.py --self-test` and `c1.py --self-test` pass; `sh scripts/shellcheck.sh scripts/hosted/capture.sh` passes. Left: the next `hosted-snapshot.yml` capture (the change of the layer sizes, no refused record) and its load with the podvm release that takes `v0.82.0`.
+
+State (2026-11-23, step 3; the capture: not run): podvm `0.2.0-beta.38` (podcrates `v0.82.0`, COORD-232) is pinned. `scripts/hosted/capture.sh` and the round trip of `plan.py --self-test` run GNU tar with `--acls` again, and with no `--sparse`. `scrub.py verify` refuses only a `GNU.sparse.*` record (or a sparse member of the old GNU format); an ACL record passes. Its self-test checks that an ACL record passes; it fails on the old `REFUSED`. The round trip of `plan.py` sets an ACL on a file (`system.posix_acl_access`: the user 1000 may read) and checks that its layer has the record `SCHILY.acl.access`; it fails with no `--acls`. Measured here with GNU tar 1.35 as uid 0: a layer of `--acls` extracts with `0.2.0-beta.38`, and the file has its ACL; `0.2.0-beta.37` refuses the layer ("the PAX record \"SCHILY.acl.access\" has a newline byte"). `--xattrs-include=*` also writes each ACL as `SCHILY.xattr.system.posix_acl_access`, with and with no `--acls`, and both releases set the ACL from that record. `python3 -I scripts/hosted/plan.py --self-test`, `scrub.py --self-test`, `c1.py --self-test`, `sh scripts/hosted/calls.sh` and `sh scripts/shellcheck.sh scripts/hosted/capture.sh` pass. Left: a new `hosted-snapshot.yml` capture (no refused record; the change of the layer sizes) and its boot in `hosted-boot.yml` with `0.2.0-beta.38`.
 
 # T-600: The tests of Unix sockets fail when `TMPDIR` is long
 
@@ -14860,6 +14868,8 @@ podvm loads an image with more layers than its lock slots (COORD-122, GitHub #34
 ## Prove
 
 `hosted-measure.yml` with `full = all`: the step "Load into the podvm store" exits 0.
+
+State (2026-11-23, podvm `0.2.0-beta.38` pinned, COORD-232, PodUtils/podvm#648; the hosted snapshot: not run): the release has the fix of COORD-231 (PodUtils/podvm@T-2068): `load` commits each blob when it is written and holds one staging lock at a time. Measured in this sandbox as uid 0: `podvm load -i` of an OCI archive of 85 small layers stops with "this process already holds 16 locks" on `0.2.0-beta.37` and loads on `0.2.0-beta.38`. podvm did not measure the hosted image of about 16 GiB. Next: `hosted-measure.yml` with `full = all`; the step "Load into the podvm store" must exit 0. Then this entry is `done`, and #344 closes.
 
 ## Blocker
 

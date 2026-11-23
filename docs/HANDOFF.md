@@ -11,7 +11,7 @@ is done.
 - Pins: podcrates `v0.81.0` (`Cargo.toml`; the source wire and the
   credential are `pod_job::source`, the HTTP head is `pod_core::http1`;
   `status.v1` is `pod_job::Status` from podcrates `v0.73.0`);
-  podvm `v0.2.0-beta.37`
+  podvm `v0.2.0-beta.38`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
@@ -133,12 +133,14 @@ is done.
   the report, T-595), COORD-121 (#343, to podcrates: `looks_secret` of
   `pod-unit` reads a path after a dot as a random word, T-602),
   COORD-122 (#344, to podvm: `podvm load` refuses 85 layers, T-606).
-- Asks open from before: COORD-118 (#339): podvm's `main` takes podcrates
-  `v0.82.0` (PodUtils/podvm#644, #645), which applies a POSIX ACL and
-  refuses a GNU sparse record. With the podvm release after beta.37, put
-  `--acls` back in the capture and remove `SCHILY.acl.` from `REFUSED`
-  of `scrub.py` in one change; keep `--sparse` off (T-599). podcrates
-  `v0.82.0` has no COORD message to podrunner yet: take it when it comes.
+- Asks open from before: COORD-118 (#339) and COORD-122 (#344): podvm
+  `0.2.0-beta.38` (COORD-232, PodUtils/podvm#648) has both fixes and is
+  pinned; the capture runs GNU tar with `--acls` again, `scrub.py` takes
+  an ACL record, and `--sparse` stays off (T-599). Close #339 and #344
+  after the runs that prove them: a new `hosted-snapshot.yml` capture
+  that boots in `hosted-boot.yml` (T-556), and `hosted-measure.yml` with
+  `full = all` (T-606). podcrates `v0.82.0` has no COORD message to
+  podrunner yet: take it when it comes.
 - Work order next (`TODO/PROGRESS.md`): the CI of the runs above, T-556, T-509 and T-511 (their records), T-596, T-480,
   then T-594 to T-605 by priority.
 - Session notes:
@@ -224,12 +226,14 @@ is done.
   44349725647 (`e6beea0`) was green: the incus engine ran a container
   (T-485); the `pids` test of T-488 failed on its own guest size (fixed:
   read its next run, then make it blocking).
-- podvm `0.2.0-beta.37` is pinned (release run 44846783317 on `c92ac65`;
-  the bundles of `SHA256SUMS` and of each binary name `nightly.yml` of
-  PodUtils/podvm at that tag). It gives `--podvm-init=image` on each route,
-  `exec` that joins a container of the namespace rung (#326), `logs
-  --limit-bytes` (#333) and `State` of `inspect` as the object of docker
-  (the podvm kind reads both forms). The syscall tier is off again
+- podvm `0.2.0-beta.38` is pinned (release run 45212007696 on `2ae4b41`;
+  `pod-release verify --workflow nightly.yml` of its signed `SHA256SUMS`
+  holds for `podvm-x86_64` and `podvm-aarch64`). It takes podcrates
+  `v0.82.0`: a layer of GNU tar `--acls` extracts (#339), `load` holds
+  one lock at a time (#344), `inspect` gives docker's types (the podvm
+  kind reads them, T-581), `exec` into an ended container is refused by
+  name, and `run -d --rm` removes its container (no kind passes `--rm` to
+  `run -d`). The incus tier keeps no ACL. The syscall tier is off again
   (`SYSCALL_TIER = None`, T-261): under it Node of `setup-node` fails with
   `errno 11` and a cargo build hangs (COORD-098, #308); give it again when
   podvm fixes them, and set `click-py313` and `rq-lint` to `ok` then. The
@@ -385,7 +389,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   from its release, the documents, `env.sh` with the proxy and CA of the
   host); the users `qa1` and `qa2` with no root. The reports are in the
   entries (T-308 and T-316 hold the P3s).
-- podvm `v0.2.0-beta.37` is pinned. On this host (user namespaces)
+- podvm `v0.2.0-beta.38` is pinned. On this host (user namespaces)
   `run -d` of a unit takes the namespace rung, where the job runs as
   `runner` with the host name `podrunner-u-N` (T-317); podrunner keeps
   `TAR_OPTIONS=--no-same-owner` (and two variables that do nothing for
@@ -489,7 +493,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
 - The last green `runner-image.yml` is 44874019156 (`e4627e6`).
 - T-162 (partial, G-12): `[unit.podvm] mem` and `pids` are rlimits;
   `[unit.incus] mem`, `cpus` and `pids` are the keys of the instance
-  (podvm `0.2.0-beta.20` or later, pinned `0.2.0-beta.37`). Next: a
+  (podvm `0.2.0-beta.20` or later, pinned `0.2.0-beta.38`). Next: a
   payload past `pids` and one past `mem` on the podvm and incus kinds.
   `cpus` on the podvm kind waits for the cgroup half
   (PodUtils/podvm@T-1747); COORD-050 (#110) stays open for it.
@@ -539,7 +543,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
 The audits of 2026-11-21 and 2026-11-23 found the record and GitHub in agreement; `TODO/issues.md` has each row. Open:
 
 - New asks of 2026-11-23: #342 (COORD-120, T-595) and #343 (COORD-121, T-602) to podcrates; #344 (COORD-122, T-606) to podvm.
-- Asks to podvm not delivered or not taken: #339 (COORD-118, the PAX value of an ACL, the fix in podcrates), #316 and #313 (PodUtils/podvm@T-1994, @T-1998 are not in beta.37), #308 (podvm waits for data of podrunner), #304 and #189 (T-261), #300 (`--podvm-volume-base` off the namespace rung), #296 (ask 5), #277 (T-403).
+- Asks to podvm not delivered or not taken: #339 (COORD-118, the PAX value of an ACL) and #344 (COORD-122, 85 layers) are in beta.38 and wait for their runs, #316 and #313 (PodUtils/podvm@T-1994, @T-1998 are not in beta.38), #308 (podvm waits for data of podrunner), #304 and #189 (T-261), #300 (`--podvm-volume-base` off the namespace rung), #296 (ask 5), #277 (T-403).
 - COORD issues with entries not done: #312 (T-553), #184 (T-250), #183 (T-249), #181 (T-248).
 - Defects of the live runs with entries not done: #260 (T-412), #171 (T-229), #149 (T-197), #144 (T-192), #143 (T-180), #140 and #121 (T-169), #138 (T-187), #126 (T-181).
 - Trackers: #1 (T-001), #9 (T-009), #32, #33 and #40 (the milestone gates, T-032, T-033, T-040), #43 (T-043), #65, #66, #67, #292 (cfb), #293 (the owner's ruling), #74 and #75 (the live gates), #153 (T-199). #151 is the channel with githome: each entry it maps is done, and podrunner asked there for a root disk of 80 GB (T-551) on 2026-11-20.
