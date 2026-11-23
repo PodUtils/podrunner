@@ -15004,3 +15004,30 @@ The incus step of `runner-image.yml`: `the_use_of_a_known_load_is_the_use_that_t
 ## Blocker
 
 COORD-123 (GitHub #345, to podvm): `inspect` of a stopped incus instance gives no use.
+
+# T-612: Three live tests of the podvm kind fail on a root host
+
+**Source:** the pin of podvm `0.2.0-beta.38`, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On a development host as uid 0, with podvm `0.2.0-beta.37` and `0.2.0-beta.38` alike: (1) the header of `crates/podrunner-podvm/tests/conformance.rs` says that busybox works as the payload, but on the namespace rung unit tests 14, 20 and 24 fail at the start of a container: `--podvm-volume-base .../home/runner: No such file or directory`; (2) unit test 24 says "the dump does not find the blob planted in its own environment" and unit test 26 "destroy counts 0 processes, but the orphan 4 lives"; (3) the pids test of `crates/podrunner-podvm/tests/limits.rs` fails, as `RLIMIT_NPROC` does not hold for root. CI runs these as a user with no root, where they pass, so a root host is a class with no test.
+
+## Premise
+
+The report of the pin of podvm `0.2.0-beta.38`, read on 2026-11-23.
+
+## Approach
+
+1. Say in the header that the image needs `/home/runner`, or let the driver make the runner directory in the tree of the unit before `run -d`.
+2. Reproduce tests 24 and 26 as root and as a user; decide whether the test or the driver is wrong for a root host.
+3. The pids test as uid 0: skip it with a line, or hold the limit by the `pids.max` of the cgroup.
+
+## Prove
+
+`cargo test -p podrunner-podvm --test conformance --test limits -- --ignored` passes as root and as a user with no root on a development host.
