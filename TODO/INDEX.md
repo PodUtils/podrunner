@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**600 entries: 65 open, 60 partial, 17 blocked, 458 done.**
+**601 entries: 65 open, 59 partial, 18 blocked, 459 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 27 | 3 | 87 | 119 |
-| P2 | 17 | 22 | 10 | 235 | 284 |
+| P2 | 17 | 21 | 11 | 236 | 285 |
 | P3 | 45 | 11 | 4 | 134 | 194 |
-| **All** | 65 | 60 | 17 | 458 | 600 |
+| **All** | 65 | 59 | 18 | 459 | 601 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -634,7 +634,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-589](later.md) | P3 | S | later | defect | done | Two tests depend on the load and the free disk of the host |
 | [T-590](later.md) | P2 | M | later | feature | partial | The hosted work folder on the podvm kind and in the runner image |
 | [T-591](later.md) | P3 | S | later | defect | done | The unit tests leave directories in /tmp |
-| [T-592](later.md) | P2 | S | later | defect | partial | The level2 corpus fails on the advisory check of podcrates, which reads the live advisory database |
+| [T-592](later.md) | P2 | S | later | defect | done | The level2 corpus fails on the advisory check of podcrates, which reads the live advisory database |
 | [T-593](later.md) | P1 | S | later | defect | partial | The official runner stops at its start when `no_proxy` holds the entry `::` |
 | [T-594](later.md) | P3 | S | later | defect | open | The image release and `runner-image.yml` each have a copy of the build and the archive of the runner images |
 | [T-595](later.md) | P3 | S | later | defect | blocked | A run report has no reason for a time that it does not know (`start_s`) |
@@ -648,3 +648,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-603](later.md) | P3 | S | later | defect | open | The CA directory of a confined container joins the `exec=` list, and a container may remount it writable |
 | [T-604](later.md) | P3 | S | later | feature | open | A runner image release is not on ghcr.io |
 | [T-605](later.md) | P3 | S | later | feature | open | `podrunner-manifest.json` names no ghcr.io reference |
+| [T-606](later.md) | P2 | S | later | defect | blocked | `podvm load` refuses the full hosted snapshot (85 layers): 16 locks at most |

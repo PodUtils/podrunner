@@ -13268,6 +13268,8 @@ A dispatch-only workflow frees the preinstalled trees of the test runner, uses `
 
 State (2026-11-23, not run): `.github/workflows/hosted-measure.yml` is the measure, dispatch only and report-only, on `ubuntu-24.04`. It is a separate file and not a job of `hosted-snapshot.yml`: that job must capture before any action, and it holds the write permissions of the publish. Its inputs: `digest` (an amd64 manifest, required), `full` (`all` or `slice`), `place` (`joined`: one LVM volume of a loop file on `/` and one on `/mnt` for the store and incusd; `store-root`; `store-mnt`) and `margin` (GiB, default 8). The steps: free the preinstalled trees (the size of each into `freed.tsv`) and the swap file of `/mnt`; place the store and incusd (a bind mount of `/var/lib/incus` before the install); podvm of the pin of `images/podvm.toml` with its SHA-256 and incusd, as `hosted-boot.yml`; the pull (`scripts/hosted/slice.py`, its new flag `--all` keeps each layer); the tar of the layout (`--remove-files`); `podvm load`; the import (`podvm create --podvm-tier=incus --podvm-init=image`: the image and the root of an instance, no start); the boot with the checks only when the file system of incusd and `/` keep the margin. Each step writes a row through `scripts/hosted/space.sh` (an EXIT trap, so a failed step writes it too): its exit code, the seconds, and `df -B1` of `/`, `/mnt` and the file system of incusd; it prints the row into the log too. The report (`if: always()`, with a reserve of 64 MiB on `/`) writes the table, the freed trees, `du -sb` of the store and of incusd and `df -i` into the summary and the artifact `measure-FULL-PLACE`. `python3 -I scripts/hosted/slice.py --self-test` passes; `sh scripts/shellcheck.sh scripts/hosted/space.sh` passes, and `hosted-parity.yml` runs it. Next: the dispatch with the digest of the newest amd64 capture, `full=all`, `place=joined`; then `place=store-root` when the joined volume is too small.
 
+State (2026-11-23, `hosted-measure.yml`, proven in CI on GitHub-hosted runners; the boot: not run): run 45156168746 (`place = joined`) lost its runner in the step "Place the store and incusd" (no log: the loop files and LVM over `/` and `/mnt` are the likely cause). Run 45157967635 (`place = store-root`, `full = all`, the capture `sha256:7054bbff...`) on an `ubuntu-24.04` runner with one disk of 155 GB (`/` and `/mnt` gave the same numbers): 60.1 GB used at the start; 15.0 GB used and 139.9 GB free after the step that frees the preinstalled trees (236 s); the pull of the 85 layers took 183 s and 17.0 GB (32.2 GB used); the tar of the layout 70 s. `podvm load` then exited 125 after 9 s: 16 locks at most (T-606). So a standard hosted runner has the room for the pull, and about 114 GiB free for the store and incusd. Left: the load (T-606), the import and the boot, and the class of 72 GB.
+
 # T-558: The file capabilities of an image are lost through the extract of podcrates and podvm
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -14432,7 +14434,7 @@ State (2026-11-23, proven by the tests on a development host; the step of `gate.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -14453,6 +14455,10 @@ Exclude `deny.yml/deny` in `LIVE` of `scripts/corpus.py`, with its reason, as T-
 State (2026-11-23, in the code; `level2.yml`: not run): `LIVE` names `deny.yml/deny`; the corpus keeps 5 jobs. The output of the script at `59bca1f` is the corpus file (a diff of the two gives nothing).
 
 The corpus unit is a job, not a step: the steps of `deny.yml/deny` that read no live state (licenses, bans, sources and the plant of 0BSD) go out with it. A cut of a job into steps is not in the fake broker; the gate of podrunner runs the same four checks on its own lock.
+
+## Done
+
+2026-11-23: proven in CI on GitHub-hosted runners: `level2.yml` 45156180327 (`9f316b1`, `jobs = all`) ran the 5 jobs of the corpus green, and the push run 45156160003 too. `scripts/corpus.py` at podcrates `59bca1f` gives the corpus file.
 
 # T-593: The official runner stops at its start when `no_proxy` holds the entry `::`
 
@@ -14797,3 +14803,32 @@ Add an optional `reference` to `podvm`, `podnet` and each runner image of the ma
 ## Prove
 
 `python3 -I scripts/install-pins.py --self-test` (or its test in `scripts/test-install.sh`): the manifest has each reference; a reference of another version in `images/fake-githome.toml` is refused.
+
+# T-606: `podvm load` refuses the full hosted snapshot (85 layers): 16 locks at most
+
+**Source:** `hosted-measure.yml` run 45157967635 (`9f316b1`), 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`podvm load` of the full hosted snapshot (`sha256:7054bbff...`, amd64, 85 layers, about 16 GiB) exits 125 after 9 s: "store: this process already holds 16 locks, which is each slot for the descriptors that a fork must close. One more would leak into each child, so the lock is refused". The core slice (6 layers) loads. So no full boot of the snapshot can run under podvm (T-557, T-547).
+
+## Premise
+
+The log of the step "Load into the podvm store" of `hosted-measure.yml` run 45157967635, read on 2026-11-23; podvm `0.2.0-beta.37`.
+
+## Approach
+
+podvm loads an image with more layers than its lock slots (COORD-122, GitHub #344). Pin the release that has the fix, and run `hosted-measure.yml` again.
+
+## Prove
+
+`hosted-measure.yml` with `full = all`: the step "Load into the podvm store" exits 0.
+
+## Blocker
+
+COORD-122 (GitHub #344, to podvm): `podvm load` takes one lock for each layer and refuses the 17th.
