@@ -180,6 +180,7 @@ fn input(rest: &[String]) -> Result<(Input, PathBuf, bool), Out> {
         "--slots",
         "--kinds",
         "--out",
+        "--json",
     ])?;
     let s = |k: &str| o.get(k).map(|p| p.display().to_string());
     let need = |k: &str| o.need(k).map(|p| p.display().to_string());
