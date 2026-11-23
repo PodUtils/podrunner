@@ -10,12 +10,14 @@ use podrunner_schema::ContainerRoute;
 use podrunner_unit::{StartSpec, UnitDriver, UnitId};
 use serde_json::{Value, json};
 
-use crate::hooks::{CA_FILE, Hooks};
+use crate::hooks::{Bundle, Hooks};
 use crate::input::{Command, parse};
 use crate::policy::Policy;
 use crate::server::Unit;
 use crate::unit::{CA_DIR, HookUnit, UnitCa};
 
+/// The name of the bundle among the credential files of a unit.
+const CA_FILE: &str = "podrunner-broker-ca.pem";
 const IMAGE: &str = "node@sha256:0000000000000000000000000000000000000000000000000000000000000000";
 /// A made-up certificate: the containers read it, no TLS takes it.
 const PEM: &str = "-----BEGIN CERTIFICATE-----\nbWFkZS11cA==\n-----END CERTIFICATE-----\n";
@@ -57,6 +59,10 @@ fn container(env: Value) -> Value {
             { "sourceVolumePath": "/home/runner/_work", "targetVolumePath": "/github/workspace", "readOnly": false }
         ],
     })
+}
+
+fn bundle<'a>(file: &'a str, vars: &'a [String]) -> Bundle<'a> {
+    Bundle { file, pem: PEM, vars }
 }
 
 fn started(dir: &std::path::Path) -> (Arc<dyn UnitDriver>, UnitId) {
@@ -156,7 +162,7 @@ fn the_hooks_place_the_bundle_and_remove_it_at_the_close() {
     let hooks = Hooks::default();
     let (socket, logs) = (dir.join("sockets/ctl.sock"), dir.join("sockets.logs"));
     let vars = ["SSL_CERT_FILE".to_string()];
-    hooks.open(fake.clone(), &id, policy(), &socket, &logs, Some((PEM, &vars))).unwrap();
+    hooks.open(fake.clone(), &id, policy(), &socket, &logs, Some(bundle(CA_FILE, &vars))).unwrap();
     let placed = logs.join("ca").join(CA_FILE);
     assert_eq!(std::fs::read_to_string(&placed).unwrap(), PEM);
     assert_eq!(std::fs::metadata(&placed).unwrap().permissions().mode() & 0o777, 0o644);
@@ -168,6 +174,51 @@ fn the_hooks_place_the_bundle_and_remove_it_at_the_close() {
     hooks.open(fake.clone(), &id, policy(), &socket, &logs, None).unwrap();
     assert!(!logs.join("ca").exists());
     hooks.close(&id);
+    let _ = fake.destroy(&id);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The copy keeps the name of the bundle that slots gives (the name of
+/// its credential file); a name that is not a file name is refused, and
+/// leaves no directory of the bundle.
+#[test]
+fn the_copy_keeps_the_name_that_slots_gives() {
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-name-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("sockets")).unwrap();
+    let (fake, id) = started(&dir);
+    let hooks = Hooks::default();
+    let (socket, logs) = (dir.join("sockets/ctl.sock"), dir.join("sockets.logs"));
+    let vars = ["SSL_CERT_FILE".to_string()];
+    hooks.open(fake.clone(), &id, policy(), &socket, &logs, Some(bundle("other-ca.pem", &vars))).unwrap();
+    assert_eq!(std::fs::read_to_string(logs.join("ca/other-ca.pem")).unwrap(), PEM);
+    assert!(!logs.join("ca").join(CA_FILE).exists());
+    hooks.close(&id);
+    for bad in ["", ".", "..", "../x.pem", "a/b.pem"] {
+        let e = hooks.open(fake.clone(), &id, policy(), &socket, &logs, Some(bundle(bad, &vars))).unwrap_err();
+        assert_eq!(e.kind(), std::io::ErrorKind::InvalidInput, "{bad:?}");
+        assert!(!logs.exists(), "{bad:?}: no directory stays");
+        assert!(!dir.join("x.pem").exists());
+    }
+    let _ = fake.destroy(&id);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A socket that does not bind leaves no copy of the bundle: no socket
+/// serves the unit, and no close comes for it.
+#[test]
+fn a_socket_that_does_not_bind_leaves_no_copy_of_the_bundle() {
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-nobind-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let (fake, id) = started(&dir);
+    let hooks = Hooks::default();
+    // The directory of the socket does not exist: the bind fails.
+    let (socket, logs) = (dir.join("absent/ctl.sock"), dir.join("sockets.logs"));
+    let vars = ["SSL_CERT_FILE".to_string()];
+    assert!(hooks.open(fake.clone(), &id, policy(), &socket, &logs, Some(bundle(CA_FILE, &vars))).is_err());
+    assert!(!logs.join("ca").exists(), "the copy stays after a failed bind");
+    assert!(!logs.exists(), "the empty logs directory stays");
     let _ = fake.destroy(&id);
     let _ = std::fs::remove_dir_all(&dir);
 }

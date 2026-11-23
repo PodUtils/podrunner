@@ -40,9 +40,11 @@ Gradle, sbt) reads none of them: the unit also gets the trust store of
 each CA file (PKCS #12, `podrunner-ca.p12` beside them), and
 `JAVA_TOOL_OPTIONS` names it
 (`-Djavax.net.ssl.trustStore=/podrunner/.runner/podrunner-ca.p12
--Djavax.net.ssl.trustStoreType=PKCS12`), then the `JAVA_TOOL_OPTIONS` of
-the environment of podrunner. A step that sets `JAVA_TOOL_OPTIONS`
-replaces the value: add the two options to it (T-577).
+-Djavax.net.ssl.trustStoreType=PKCS12`). The job does not get the
+`JAVA_TOOL_OPTIONS` of the environment of podrunner: it is not one of the
+variables above, and it can hold a password (`-Dhttp.proxyPassword=`). A
+job, a step or `--env` that sets `JAVA_TOOL_OPTIONS` replaces the value:
+add the two options to it (T-577).
 
 A job on `--runner-dir` gets a scratch `HOME` (`_work/_home` of the runner
 directory), which the next job removes. It runs as the user of podrunner,

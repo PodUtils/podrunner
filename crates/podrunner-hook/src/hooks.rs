@@ -13,9 +13,18 @@ use crate::policy::Policy;
 use crate::server::{JobEvent, Unit, bind, serve_until};
 use crate::unit::{HookUnit, UnitCa};
 
-/// The name of the CA bundle of the broker in the directory that the
-/// containers of a unit mount (T-578).
-pub const CA_FILE: &str = "podrunner-broker-ca.pem";
+/// The CA bundle of the broker of a unit, for each container of its job
+/// (T-578).
+#[derive(Debug, Clone, Copy)]
+pub struct Bundle<'a> {
+    /// The name of the bundle among the credential files of the unit: the
+    /// containers see the copy under the same name.
+    pub file: &'a str,
+    /// The bundle (PEM).
+    pub pem: &'a str,
+    /// The variables that name it (`ca::env` of `pod-broker`).
+    pub vars: &'a [String],
+}
 
 struct Open {
     unit: Arc<Mutex<HookUnit>>,
@@ -37,9 +46,9 @@ pub struct Hooks {
 
 impl Hooks {
     /// Serve the socket of `unit` at `socket`. `logs` holds the output of
-    /// each step for a short time. `ca`: the CA bundle (PEM) of the broker
-    /// of the unit and the variables that name it; each container of the
-    /// job gets it read-only from `logs/ca` (T-578).
+    /// each step for a short time. `ca`: the CA bundle of the broker of the
+    /// unit; each container of the job gets it read-only from `logs/ca`
+    /// (T-578).
     pub fn open(
         &self,
         driver: Arc<dyn UnitDriver>,
@@ -47,10 +56,28 @@ impl Hooks {
         policy: Policy,
         socket: &Path,
         logs: &Path,
-        ca: Option<(&str, &[String])>,
+        ca: Option<Bundle<'_>>,
     ) -> std::io::Result<()> {
         std::fs::create_dir_all(logs)?;
-        let ca = ca.map(|(pem, vars)| place_ca(logs, pem, vars)).transpose()?;
+        let opened = self.serve(driver, unit, policy, socket, logs, ca);
+        if opened.is_err() {
+            // No socket serves the unit: no container takes the copy.
+            let _ = std::fs::remove_dir_all(logs.join("ca"));
+            let _ = std::fs::remove_dir(logs);
+        }
+        opened
+    }
+
+    fn serve(
+        &self,
+        driver: Arc<dyn UnitDriver>,
+        unit: &UnitId,
+        policy: Policy,
+        socket: &Path,
+        logs: &Path,
+        ca: Option<Bundle<'_>>,
+    ) -> std::io::Result<()> {
+        let ca = ca.map(|b| place_ca(logs, b)).transpose()?;
         let listener = bind(socket)?;
         let hook = HookUnit::new(driver, unit.clone(), policy, None, logs.to_path_buf()).with_ca(ca);
         let hook = Arc::new(Mutex::new(hook));
@@ -109,14 +136,18 @@ impl Hooks {
     }
 }
 
-/// Write the bundle `pem` to `logs/ca` for the containers of a unit. A
+/// Write the bundle `b` to `logs/ca` for the containers of a unit. A
 /// certificate is no secret: mode 0644, so that a container user of
 /// another uid reads it.
-fn place_ca(logs: &Path, pem: &str, vars: &[String]) -> std::io::Result<UnitCa> {
+fn place_ca(logs: &Path, b: Bundle<'_>) -> std::io::Result<UnitCa> {
     use std::os::unix::fs::PermissionsExt;
+    if b.file.is_empty() || b.file.contains('/') || b.file == "." || b.file == ".." {
+        let why = format!("the name of the CA bundle {:?} is not a file name", b.file);
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, why));
+    }
     let dir = logs.join("ca");
     std::fs::create_dir_all(&dir)?;
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755))?;
-    pod_core::files::replace_private(&dir.join(CA_FILE), pem.as_bytes(), 0o644, false)?;
-    Ok(UnitCa { dir, file: CA_FILE.into(), vars: vars.to_vec() })
+    pod_core::files::replace_private(&dir.join(b.file), b.pem.as_bytes(), 0o644, false)?;
+    Ok(UnitCa { dir, file: b.file.into(), vars: b.vars.to_vec() })
 }
