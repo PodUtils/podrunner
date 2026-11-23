@@ -12,7 +12,11 @@ const IMAGE: &str = "runner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
 /// A fake `podvm` of the incus tier: the state of each instance is a file
 /// in `PODVM_STORE`. `run -d -i` keeps stdin and argv and runs BODY in the
-/// background; `inspect`, `stop`, `rm -f` and `logs` act on that state.
+/// background, with `B` the prefix of the files of the instance;
+/// `inspect`, `stop`, `rm -f` and `logs` act on that state. `inspect`
+/// gives the use of `B.use` (CPU, peak, OOM kills; or a fixed one) while
+/// the instance runs, and `-` after, as incusd; with the file `podvm.old` it refuses the fields
+/// of the use, as a podvm before `0.2.0-beta.33`.
 const FAKE: &str = r#"#!/bin/sh
 S=$PODVM_STORE; mkdir -p "$S"
 verb=$1; shift
@@ -23,15 +27,26 @@ run)
   cat > "$S/$name.stdin"
   printf '%s\n' "$@" > "$S/$name.argv"
   echo "Running 0" > "$S/$name.status"
-  ( sh -c "$BODY" > "$S/$name.log" 2>&1; echo "Stopped $?" > "$S/$name.status" ) </dev/null >/dev/null 2>&1 &
+  export B="$S/$name"
+  # The status file changes by a rename: a read never sees it empty.
+  ( sh -c "$BODY" > "$S/$name.log" 2>&1; echo "Stopped $?" > "$S/$name.tmp"; mv "$S/$name.tmp" "$S/$name.status" ) </dev/null >/dev/null 2>&1 &
   echo $! > "$S/$name.pid"
   echo "$name" ;;
 inspect)
   [ -f "$S/$n.status" ] || { echo "no instance $n" >&2; exit 1; }
-  case "$*" in *CpuSeconds*) echo "12.25 104857601" ;; *) cat "$S/$n.status" ;; esac ;;
+  case "$*" in *CpuSeconds*) [ -f "$0.old" ] && { echo "no field CpuSeconds" >&2; exit 2; } ;; esac
+  read -r st code < "$S/$n.status"
+  # As incusd: a use only while the instance runs.
+  use="- -"; [ "$st" = Running ] && { use="12.25 104857601"; [ -f "$S/$n.use" ] && use=$(cat "$S/$n.use"); }
+  case "$*" in
+  *Status*CpuSeconds*) echo "$st $code $use" ;;
+  *CpuSeconds*) echo "$use" ;;
+  *OomKills*) set -- $use; echo "${3:--}" ;;
+  *) echo "$st $code" ;;
+  esac ;;
 stop|rm)
   [ -f "$S/$n.pid" ] && { pkill -P "$(cat "$S/$n.pid")"; kill "$(cat "$S/$n.pid")"; } 2>/dev/null
-  if [ "$verb" = rm ]; then rm -f "$S/$n".*; else echo "Stopped 143" > "$S/$n.status"; fi ;;
+  if [ "$verb" = rm ]; then rm -f "$S/$n".*; else echo "Stopped 143" > "$S/$n.tmp"; mv "$S/$n.tmp" "$S/$n.status"; fi ;;
 logs) case "$*" in *--limit-bytes*) echo "$*" > "$S/$n.logs"; head -c "$3" "$S/$n.log" ;; *) cat "$S/$n.log" ;; esac ;;
 probe) cat "$0.probe" 2>/dev/null ;;
 esac
@@ -435,3 +450,5 @@ fn the_init_of_the_image_boots_with_its_own_engine() {
     assert_eq!(cap.container, podrunner_schema::ContainerRoute::Engine);
     let _ = std::fs::remove_dir_all(&d);
 }
+
+mod usage;

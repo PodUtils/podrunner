@@ -187,3 +187,15 @@ pub fn instance_name(state_dir: &Path, unit: &str) -> String {
     }
     format!("podrunner-{h:016x}-{unit}")
 }
+
+/// Make the work directory: mode 0777, so the mapped user of the instance
+/// writes in it. Its parent, the unit directory, is 0700: no other user of
+/// the host reaches it.
+pub(crate) fn make_work(unit_dir: &std::path::Path, work: &std::path::Path) -> Result<(), podrunner_unit::UnitError> {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    let host = |e| crate::host("the work directory", e);
+    fs::create_dir_all(work).map_err(host)?;
+    fs::set_permissions(unit_dir, fs::Permissions::from_mode(0o700)).map_err(host)?;
+    fs::set_permissions(work, fs::Permissions::from_mode(0o777)).map_err(host)
+}

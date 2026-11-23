@@ -76,7 +76,9 @@ socket of the directory.
 The use of a unit. A driver whose processes are not on the host (the
 incus kind) answers `usage` before `destroy`: the CPU time and the peak
 memory of the unit, each a value or the reason that there is none
-(T-483). The run report gives `unknown` with that reason. Another driver
+(T-483). The incus kind keeps the highest values that the reads of the
+state of the instance in `wait` saw while it ran, also for `oom_kills`:
+incusd gives none of a stopped instance. The run report gives `unknown` with that reason. Another driver
 gives none, and slots samples the processes of `observe`.
 
 The credential directory. `credential_dir` names, for a unit id, the
