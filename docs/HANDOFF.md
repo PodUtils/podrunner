@@ -136,7 +136,7 @@ is done.
 - Asks open: COORD-118 (#339, to podvm): the fix of `pod-extract` for a
   PAX value with a newline is in podcrates (PodUtils/podvm#643); then put
   `--acls` back in the capture (`scripts/hosted/capture.sh`, the call in
-  `docs/decisions.md`). podvm's `main` after beta.37 changes `inspect`,
+  `docs/decisions.md`). Keep `--sparse` off (T-599). podvm's `main` after beta.37 changes `inspect`,
   exit codes and `exec` (COORD-226, PodUtils/podvm#640): T-581 made the
   readers take both forms; test them on that release.
 - Work order next (`TODO/PROGRESS.md`): T-583 (finish: the CI of the

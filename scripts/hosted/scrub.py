@@ -13,9 +13,10 @@ the members of a layer for GNU tar (`--null --no-verbatim-files-from
 --no-recursion -T`): each path of the root that no rule drops, and each
 fixed path from the fix tree (`--directory=FIX`), so a dropped or an old
 file never enters a blob. `verify` reads a tar stream (pass 3 and C2): a
-dropped path, a fixed path with other content, or a file of a scan root
-with a credential pattern that no rule covers fails it. It names the path
-and the pattern, never the match.
+dropped path, a fixed path with other content, a file of a scan root
+with a credential pattern that no rule covers, or a member with a GNU
+sparse record or an ACL record fails it. It names the path and the
+pattern, never the match.
 """
 
 import argparse
@@ -176,6 +177,23 @@ def cmd_list(rules: Rules, root: pathlib.Path, fix: pathlib.Path, w) -> None:
     w.write(b"".join(p.encode() + b"\0" for p in sorted(fixed | extra)))
 
 
+# The PAX records that a layer must not have. pod-extract of podcrates
+# v0.82.0 refuses a layer with a GNU sparse record whole, so the capture
+# runs GNU tar with no --sparse (T-599). The capture writes no ACL record
+# until it takes --acls again (the interim call of T-556); remove the ACL
+# prefix in the same change.
+REFUSED = ("GNU.sparse.", "SCHILY.acl.")
+
+
+def refused_record(m: tarfile.TarInfo) -> str | None:
+    for k in m.pax_headers:
+        for prefix in REFUSED:
+            if k.startswith(prefix):
+                return prefix + "*"
+    # A sparse member of the old GNU format has no PAX record.
+    return "GNU.sparse.*" if m.issparse() else None
+
+
 def cmd_verify(rules: Rules, stream, rows=None) -> list[str]:
     """The findings of a layer stream; with `rows`, the row of each member
     for check C1 (c1.py)."""
@@ -188,6 +206,10 @@ def cmd_verify(rules: Rules, stream, rows=None) -> list[str]:
             if rows is not None:
                 rows.write(row_of_member(m) + "\n")
             path = m.name.removeprefix("./").rstrip("/")
+            refused = refused_record(m)
+            if refused:
+                bad.append(f"{path}: a {refused} record, which podvm refuses")
+                continue
             if rules.dropped(path):
                 bad.append(f"{path}: a dropped path is in the stream")
                 continue
@@ -300,11 +322,62 @@ def self_test() -> int:
             bad.append("a skipped tree is scanned")
         if any("made-up" in f for f in found + raw):
             bad.append("a finding prints a secret")
+        bad += self_test_records(rules, t)
     for b in bad:
         print(f"self-test: {b}")
     if not bad:
         print("scrub.py: self-test passes")
     return 1 if bad else 0
+
+
+def self_test_records(rules: Rules, t: pathlib.Path) -> list[str]:
+    """A real sparse file through GNU tar with and with no `--sparse`, and
+    a planted ACL record."""
+    import io
+    import subprocess
+
+    bad = []
+    # An ACL record: the interim call of T-556 writes none.
+    b = io.BytesIO()
+    with tarfile.open(fileobj=b, mode="w", format=tarfile.PAX_FORMAT) as w:
+        ti = tarfile.TarInfo("usr/bin/acl")
+        ti.pax_headers = {"SCHILY.acl.access": "user::rw-\ngroup::r--\nother::r--\n"}
+        w.addfile(ti, io.BytesIO())
+    b.seek(0)
+    found = cmd_verify(rules, b)
+    if not any("usr/bin/acl: a SCHILY.acl" in x for x in found):
+        bad.append(f"records: a stream with an ACL record passes: {found}")
+    src = t / "sparse"
+    (src / "usr/bin").mkdir(parents=True)
+    f = src / "usr/bin/holes"
+    subprocess.run(["truncate", "-s", "1M", str(f)], check=True)
+    with open(f, "ab") as w:
+        w.write(b"end")
+
+    def gnu_tar(*flags) -> bytes:
+        return subprocess.run(
+            ["tar", "-C", str(src), "--format=posix", "--xattrs", "--xattrs-include=*", *flags,
+             "--numeric-owner", "-cf", "-", "usr/bin/holes"], check=True, capture_output=True).stdout
+
+    def keys(stream: bytes) -> set[str]:
+        with tarfile.open(fileobj=io.BytesIO(stream), mode="r|*") as tar:
+            return {k for m in tar for k in m.pax_headers}
+
+    sparse, full = gnu_tar("--sparse"), gnu_tar()
+    if not any(k.startswith("GNU.sparse.") for k in keys(sparse)):
+        # A file system with no holes gives no sparse file to GNU tar.
+        if f.stat().st_blocks * 512 >= f.stat().st_size:
+            print("scrub.py: self-test: no holes in the file system of TMPDIR; the GNU.sparse case is not run")
+            return bad
+        bad.append("records: GNU tar --sparse wrote no GNU.sparse record")
+    found = cmd_verify(rules, io.BytesIO(sparse))
+    if not any("usr/bin/holes: a GNU.sparse" in x for x in found):
+        bad.append(f"records: a stream with a GNU.sparse record passes: {found}")
+    if any(k.startswith("GNU.sparse.") for k in keys(full)):
+        bad.append("records: GNU tar with no --sparse wrote a GNU.sparse record")
+    if found := cmd_verify(rules, io.BytesIO(full)):
+        bad.append(f"records: the sparse file stored in full fails: {found}")
+    return bad
 
 
 def main() -> int:

@@ -78,8 +78,10 @@ sudo mkdir -p "$view"
 mountpoint -q "$view" || sudo mount --bind / "$view"
 sudo mount --make-private "$view"
 
-sudo python3 -I "$here/scrub.py" fix --root "$view" --out "$out/fix" --runner-root "${runner_root#/}" > "$out/fixed.txt"
-sudo python3 -I "$here/scrub.py" list --root "$view" --fix "$out/fix" --runner-root "${runner_root#/}" > "$out/members"
+# shellcheck disable=SC2024 # OUT belongs to the caller, who writes the file.
+sudo python3 -I "$here/scrub.py" fix--root "$view" --out "$out/fix" --runner-root "${runner_root#/}" > "$out/fixed.txt"
+# shellcheck disable=SC2024 # OUT belongs to the caller, who writes the file.
+sudo python3 -I "$here/scrub.py" list--root "$view" --fix "$out/fix" --runner-root "${runner_root#/}" > "$out/members"
 sudo python3 -I "$here/plan.py" --root "$view" --members "$out/members" --out "$out/plan" \
   --manifest "$out/expected.tsv" | tee "$out/plan.tsv"
 
@@ -92,7 +94,9 @@ layer() {
   # PodUtils/podvm#644): podvm 0.2.0-beta.37 refuses a PAX value with a
   # newline in an ACL record. The mode bits of each file stay. Put --acls
   # back with the podvm release that has the fix.
-  sudo tar --format=posix --xattrs --xattrs-include='*' --sparse --numeric-owner \
+  # No --sparse: pod-extract of podcrates v0.82.0 refuses a GNU sparse
+  # record (T-599). A sparse file costs its full size in the layer.
+  sudo tar --format=posix --xattrs --xattrs-include='*' --numeric-owner \
     --pax-option=delete=atime,delete=ctime "$@" -cf - |
     tee >(sha256sum | cut -d' ' -f1 > "$dst.diff_id") \
       >(python3 -I "$here/scrub.py" verify --runner-root "${runner_root#/}" --rows "$dst.rows" 2> "$dst.verify"

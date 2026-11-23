@@ -156,6 +156,7 @@ def write(out_dir: pathlib.Path, layers: list[dict]) -> None:
 
 def self_test() -> int:
     import subprocess
+    import tarfile
     import tempfile
 
     bad = []
@@ -215,11 +216,15 @@ def self_test() -> int:
         for m in meta:
             tar = t / (m["list"] + ".tar")
             # The flags of the capture (capture.sh): no --acls until podvm
-            # takes the fix of pod-extract (COORD-228).
+            # takes the fix of pod-extract (COORD-228), and no --sparse
+            # (T-599).
             subprocess.run(
-                ["tar", "-C", str(root), "--format=posix", "--xattrs", "--xattrs-include=*", "--sparse",
+                ["tar", "-C", str(root), "--format=posix", "--xattrs", "--xattrs-include=*",
                  "--numeric-owner", "--null", "--no-verbatim-files-from", "--no-recursion", "-T",
                  str(out / m["list"]), "-cf", str(tar)], check=True)
+            with tarfile.open(tar) as tf:
+                if any(k.startswith("GNU.sparse.") for ti in tf for k in ti.pax_headers):
+                    bad.append(f"round trip: a GNU.sparse record in {m['list']}")
             # -p: a consumer keeps the modes (setuid) as root does by default.
             subprocess.run(["tar", "-C", str(got), "-p", "--xattrs", "--xattrs-include=*", "-xf", str(tar)], check=True)
         expect = dict(files) | {"etc/machine-id": b""}
