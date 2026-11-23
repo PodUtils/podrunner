@@ -14964,3 +14964,33 @@ Name a layer of the tool cache by its last two parts (`toolcache-Python-3.12.16`
 ## Prove
 
 `python3 -I scripts/hosted/plan.py --self-test`: two tools of one version give two layers with the name of each tool.
+
+# T-611: The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus
+
+**Source:** the work of T-483, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+(1) The incus kind takes the use of a unit (`CpuSeconds`, `PeakMemoryBytes`, `OomKills`) on each read of its state while the instance runs (T-483), as incusd gives nothing once the instance stops. The last tick before the stop is not counted: up to about 1 s of each busy CPU. A short job on many CPUs (4 CPUs busy for 3 s) can then fall outside the tolerance of T-520 (20 % or 1 s). (2) No live test checks the exit reason `limit` after an OOM kill on incus: `a_payload_past_the_memory_limit_gets_an_error` (`crates/podrunner-incus/tests/limits.rs`) checks the exit only.
+
+## Premise
+
+The report of the work of T-483 and the code of podvm `v0.2.0-beta.37` it names, read on 2026-11-23.
+
+## Approach
+
+1. podvm records the use at the end of the command of an instance (COORD-123, GitHub #345); then `usage` reads it for a stopped instance and the sample of each tick stays as the fallback.
+2. In `limits.rs`, assert `oom_kills > 0` for the unit past the memory limit before its destroy.
+
+## Prove
+
+The incus step of `runner-image.yml`: `the_use_of_a_known_load_is_the_use_that_the_kind_gives` with a load on 4 CPUs within the tolerance, and the OOM kill counted for the unit past the memory limit.
+
+## Blocker
+
+COORD-123 (GitHub #345, to podvm): `inspect` of a stopped incus instance gives no use.

@@ -491,7 +491,7 @@ impl UnitDriver for IncusUnit {
 fn no_container() -> UnitError {
     UnitError::new(
         UnitCode::ContainerNotSupported,
-        "the incus kind has no container route yet: the engine of T-103 comes later",
+        "the incus kind takes no container hooks: a job reaches containers through the engine in its instance (`engine`)",
     )
 }
 
