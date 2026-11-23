@@ -1,0 +1,499 @@
+name: runner-image-release
+
+# The runner image release (T-499 step 1, githome's G-23): the runner
+# images of a new release of actions/runner, with no new podrunner binary.
+# GitHub refuses a runner that is too old, so each release of
+# actions/runner needs its images within 14 days.
+#
+# The schedule only reads: the job `detect` fails when the newest release
+# of actions/runner has no runner image (not the pin of
+# images/runner/runner.toml and no image release). A red run is the alarm.
+#
+# A dispatch on main takes runner_version (empty: the newest release of
+# actions/runner) and checks the SHA-256 of each Linux tarball: the release
+# notes give it, and the digest of the asset in the API must agree. It
+# builds the images `runner` and `runner-full` of each architecture as
+# runner-image.yml builds them (images/runner/Dockerfile,
+# scripts/build-image.sh, the archive that `podvm load -i` takes), proves
+# each image, and writes runner-images.json, release-index.json and
+# SHA256SUMS (scripts/runner-release.py, scripts/release-assets.sh).
+# publish is false by default: a dry run that tags and publishes nothing.
+#
+# With publish true, the run makes the tag vrunner-VERSION-rN at its commit
+# and starts this workflow on the tag with images_run set to its own id
+# (a tag that GITHUB_TOKEN pushes starts no workflow; a dispatch does).
+# The run on the tag waits for that run to end green, takes its files,
+# signs SHA256SUMS as this workflow at the tag (pod-release verify
+# --workflow runner-image-release.yml), attests each file, and publishes a
+# prerelease that is not "latest". The tag is not a version of podrunner:
+# pod-release reads no version from it, so no updater takes it as one.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_version:
+        description: "The version X.Y.Z of actions/runner (empty: its newest release)"
+        required: false
+        default: ""
+      revision:
+        description: "N of the tag vrunner-VERSION-rN: 1, or more for a new build of the same runner"
+        required: false
+        default: "1"
+      publish:
+        description: "Tag and publish the release (false: a dry run that publishes nothing)"
+        required: false
+        type: boolean
+        default: false
+      images_run:
+        description: "The run on the tag only: the id of the run whose files it publishes (the workflow sets it)"
+        required: false
+        default: ""
+  schedule:
+    - cron: "17 4 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runner-image-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The newest actions/runner has a runner image
+        run: |
+          set -eu
+          # Each try writes the file again.
+          get() { sh scripts/retry.sh sh -c 'f=$1; shift; "$@" > "$f"' get "$@"; }
+          get "$RUNNER_TEMP/runner.json" gh api 'repos/actions/runner/releases?per_page=30'
+          get "$RUNNER_TEMP/own.json" gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | {tag_name, draft}'
+          rc=0
+          python3 -I scripts/runner-release.py detect "$RUNNER_TEMP/runner.json" "$RUNNER_TEMP/own.json" \
+            images/runner/runner.toml > "$RUNNER_TEMP/detect.txt" || rc=$?
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/detect.txt"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::$(tail -n 1 "$RUNNER_TEMP/detect.txt")"
+            exit 1
+          fi
+
+  # The release of actions/runner, the SHA-256 of each tarball, and the
+  # runner.toml of that release (the artifact pin-runner).
+  pin:
+    if: github.event_name == 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.pin.outputs.version }}
+      tag: ${{ steps.pin.outputs.tag }}
+      released_at_s: ${{ steps.pin.outputs.released_at_s }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION_IN: ${{ inputs.runner_version }}
+      REVISION: ${{ inputs.revision }}
+      PUBLISH: ${{ inputs.publish }}
+      IMAGES_RUN: ${{ inputs.images_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The release of actions/runner and the SHA-256 of its tarballs
+        id: pin
+        run: |
+          set -eu -o pipefail
+          [ -z "$IMAGES_RUN" ] || { echo "images_run is for the run on the tag only"; exit 1; }
+          # Each try writes the file again.
+          get() { sh scripts/retry.sh sh -c 'f=$1; shift; "$@" > "$f"' get "$@"; }
+          version=$VERSION_IN
+          if [ -z "$version" ]; then
+            get "$RUNNER_TEMP/runner.json" gh api 'repos/actions/runner/releases?per_page=30'
+            version=$(python3 -I scripts/runner-release.py newest "$RUNNER_TEMP/runner.json")
+          fi
+          # The tag checks the form of the version before it goes into a URL.
+          tag=$(python3 -I scripts/runner-release.py tag "$version" "$REVISION")
+          get "$RUNNER_TEMP/release.json" gh api "repos/actions/runner/releases/tags/v$version"
+          mkdir -p "$RUNNER_TEMP/pin"
+          python3 -I scripts/runner-release.py pin "$version" "$RUNNER_TEMP/release.json" "$RUNNER_TEMP/pin/runner.toml" \
+            | tee -a "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ "$PUBLISH" = true ]; then
+            [ "$GITHUB_REF" = refs/heads/main ] || { echo "publish runs on main only, not on $GITHUB_REF"; exit 1; }
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" > /dev/null 2>&1; then
+              echo "the tag $tag exists: a tag never moves; give another revision"
+              exit 1
+            fi
+          fi
+          {
+            echo "the runner: $version, the tag: $tag, publish: $PUBLISH"
+            echo
+            echo '```diff'
+            diff -u images/runner/runner.toml "$RUNNER_TEMP/pin/runner.toml" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pin-runner
+          path: ${{ runner.temp }}/pin/runner.toml
+          if-no-files-found: error
+          retention-days: 14
+
+  # T-082: the NuGet advisories of the new runner against the reviewed list.
+  # A report: GitHub makes the new runner necessary, so a new advisory
+  # does not stop the images; the notes of the release name the result.
+  audit:
+    needs: pin
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    continue-on-error: true
+    outputs:
+      state: ${{ steps.audit.outputs.state }}
+    env:
+      VERSION: ${{ needs.pin.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Clone the runner tag
+        run: |
+          set -eu
+          sh scripts/retry.sh git clone -q --depth 1 --branch "v$VERSION" https://github.com/actions/runner.git "$RUNNER_TEMP/runner-src"
+          echo "RUNNER_SRC=$RUNNER_TEMP/runner-src" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: ${{ env.RUNNER_SRC }}/src/global.json
+      - name: The advisories of the runner against the reviewed list
+        id: audit
+        run: |
+          set -eu -o pipefail
+          if sh scripts/runner-audit.sh "$RUNNER_SRC" images/runner/advisories.txt | tee -a "$GITHUB_STEP_SUMMARY"; then
+            echo "state=the same as the reviewed list" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=not the reviewed list: read the job audit of the run" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The images of each architecture, as runner-image.yml builds them, and
+  # the proof that each one works.
+  build:
+    needs: pin
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            platform: linux/amd64
+            runs-on: ubuntu-24.04
+          - arch: aarch64
+            platform: linux/arm64
+            runs-on: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 120
+    env:
+      VERSION: ${{ needs.pin.outputs.version }}
+      ARCH: ${{ matrix.arch }}
+      PLATFORM: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pin-runner
+          path: ${{ runner.temp }}/pin
+      # The Dockerfile checks the tarball against this SHA-256.
+      - name: The runner of the release in images/runner/runner.toml
+        id: pin
+        run: |
+          set -eu
+          cp "$RUNNER_TEMP/pin/runner.toml" images/runner/runner.toml
+          python3 -I - "$ARCH" "$VERSION" >> "$GITHUB_OUTPUT" <<'PY'
+          import sys, tomllib
+          pin = tomllib.load(open("images/runner/runner.toml", "rb"))
+          assert pin["version"] == sys.argv[2], (pin["version"], sys.argv[2])
+          print("sha256=" + pin["sha256"][sys.argv[1]])
+          PY
+      - name: Build the OCI archive
+        id: build
+        env:
+          SHA256: ${{ steps.pin.outputs.sha256 }}
+        run: |
+          set -eu
+          docker buildx create --use --name podrunner --driver-opt network=host > /dev/null
+          sh scripts/build-image.sh images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
+            --build-arg "RUNNER_VERSION=$VERSION" --build-arg "RUNNER_SHA256=$SHA256" \
+            --output "type=oci,dest=$RUNNER_TEMP/oci.tar" .
+          mkdir oci && tar -xf "$RUNNER_TEMP/oci.tar" -C oci
+          digest=$(python3 -I -c 'import json; print(json.load(open("oci/index.json"))["manifests"][0]["digest"])')
+          echo "the image: runner@$digest (runner $VERSION, $ARCH)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      # The archive of runner-image.yml: the ref name in the index, and the
+      # files of the layout only, with no directory entry.
+      - name: Import into a podvm store
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -eu
+          eval "$(python3 -I - "$ARCH" <<'PY'
+          import sys, tomllib
+          pin = tomllib.load(open("images/podvm.toml", "rb"))
+          print(f"podvm_version={pin['version']} podvm_sha256={pin['sha256'][sys.argv[1]]}")
+          PY
+          )"
+          sh scripts/retry.sh curl -qfsSLo "$RUNNER_TEMP/podvm" \
+            "https://github.com/PodUtils/podvm/releases/download/v$podvm_version/podvm-$ARCH"
+          echo "$podvm_sha256  $RUNNER_TEMP/podvm" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/podvm"
+          test "$(id -u)" -ne 0
+          export PODVM_STORE="$RUNNER_TEMP/store"
+          python3 -I - oci "runner:$VERSION" <<'PY'
+          import json, sys
+          p = sys.argv[1] + "/index.json"
+          d = json.load(open(p))
+          d["manifests"][0].setdefault("annotations", {})["org.opencontainers.image.ref.name"] = sys.argv[2]
+          json.dump(d, open(p, "w"))
+          PY
+          (cd oci && find . -type f | sed 's#^\./##' | sort | tar -cf "../runner-$ARCH.tar" --no-recursion -T -)
+          sha256sum "runner-$ARCH.tar" | tee "runner-$ARCH.tar.sha256"
+          "$RUNNER_TEMP/podvm" probe 2>&1 | sed -n 2p
+          "$RUNNER_TEMP/podvm" load -i "runner-$ARCH.tar"
+          {
+            echo "PODRUNNER_PODVM=$RUNNER_TEMP/podvm"
+            echo "PODRUNNER_PODVM_IMAGES=$PODVM_STORE"
+            echo "PODRUNNER_RUNNER_IMAGE=runner@$DIGEST"
+          } >> "$GITHUB_ENV"
+      # The runner files and the version of the release in the image. The
+      # deps file of the listener names its version; on x86_64 the listener
+      # also starts and prints it (a clean environment: a proxy variable of
+      # the host must not reach it).
+      - name: The runner of the release is in the image
+        run: |
+          set -eu
+          check="test -x /home/runner/run.sh && test -x /home/runner/hooks/podrunner-hook.sh && grep -q '\"Runner.Listener/$VERSION\"' /home/runner/bin/Runner.Listener.deps.json && echo the runner $VERSION is in the image"
+          PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" /bin/sh -c "$check"
+          if [ "$ARCH" = x86_64 ]; then
+            out=$(PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" \
+              /usr/bin/env -i HOME=/home/runner PATH=/usr/bin:/bin /home/runner/bin/Runner.Listener --version)
+            echo "Runner.Listener --version: $out"
+            printf '%s\n' "$out" | grep -qx "$VERSION"
+          fi
+      # T-026: the step of runner-image.yml with the least cost: the podvm
+      # driver runs the image with the JIT files of the fake broker, and the
+      # runner takes one canned job and completes it. T-590: podrunner run
+      # runs one job in a fresh podvm unit, in the hosted work folder.
+      - name: The runner in a podvm unit runs a canned job
+        if: matrix.arch == 'x86_64'
+        run: |
+          set -eu -o pipefail
+          sh scripts/retry.sh rustup toolchain install
+          timeout 1200 cargo test -p podrunner-broker-fake --test podvm -- --ignored --nocapture --exact \
+            the_runner_in_a_podvm_unit_runs_a_canned_job
+          timeout 900 cargo run -q -p podrunner -- run crates/podrunner/tests/local/workspace.yml \
+            --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" \
+            | tee "$RUNNER_TEMP/workspace.txt"
+          grep -qx 'ok      workspace' "$RUNNER_TEMP/workspace.txt"
+          echo "the canned job and the job of podrunner run: ok" >> "$GITHUB_STEP_SUMMARY"
+      # T-129: the larger image, as runner-image.yml builds it. On x86_64 a
+      # job of `runs-on: ubuntu-latest` uses its tools; on aarch64 one
+      # command in it.
+      - name: The larger runner image
+        env:
+          SHA256: ${{ steps.pin.outputs.sha256 }}
+        run: |
+          set -eu -o pipefail
+          sh scripts/build-image.sh images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
+            --build-arg "RUNNER_VERSION=$VERSION" --build-arg "RUNNER_SHA256=$SHA256" \
+            --build-arg "EXTRA_PACKAGES=$(cat images/runner/full.txt)" \
+            --output "type=oci,dest=$RUNNER_TEMP/full.tar" .
+          mkdir -p "$RUNNER_TEMP/full" && tar -xf "$RUNNER_TEMP/full.tar" -C "$RUNNER_TEMP/full"
+          digest=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["manifests"][0]["digest"])' "$RUNNER_TEMP/full/index.json")
+          python3 -I - "$RUNNER_TEMP/full" "runner:full" <<'PY'
+          import json, sys
+          p = sys.argv[1] + "/index.json"
+          d = json.load(open(p))
+          d["manifests"][0].setdefault("annotations", {})["org.opencontainers.image.ref.name"] = sys.argv[2]
+          json.dump(d, open(p, "w"))
+          PY
+          (cd "$RUNNER_TEMP/full" && find . -type f | sed 's#^\./##' | sort | tar -cf "$GITHUB_WORKSPACE/runner-full-$ARCH.tar" --no-recursion -T -)
+          sha256sum "runner-full-$ARCH.tar" > "runner-full-$ARCH.tar.sha256"
+          PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" load -i "runner-full-$ARCH.tar"
+          PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "runner@$digest" \
+            /bin/sh -c "grep -q '\"Runner.Listener/$VERSION\"' /home/runner/bin/Runner.Listener.deps.json && python3 --version && cmake --version | head -1"
+          if [ "$ARCH" = x86_64 ]; then
+            printf 'on: push\njobs:\n  tools:\n    runs-on: ubuntu-latest\n    steps:\n      - run: python3 --version && node --version && make --version | head -1 && cmake --version | head -1 && zip -v | head -2\n' > "$RUNNER_TEMP/full/w.yml"
+            timeout 900 cargo run -q -p podrunner -- run "$RUNNER_TEMP/full/w.yml" \
+              --podvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --platform "ubuntu-latest=runner@$digest" | tee "$RUNNER_TEMP/full.txt"
+            grep -qx 'ok      tools' "$RUNNER_TEMP/full.txt"
+          fi
+          echo "the larger image: runner@$digest, $(du -m "runner-full-$ARCH.tar" | cut -f1) MiB" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runner-${{ matrix.arch }}
+          path: |
+            runner-${{ matrix.arch }}.tar
+            runner-${{ matrix.arch }}.tar.sha256
+            runner-full-${{ matrix.arch }}.tar
+            runner-full-${{ matrix.arch }}.tar.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  # runner-images.json, release-index.json (signer: this workflow at the
+  # tag) and SHA256SUMS, checked by pod-release with no signature.
+  assemble:
+    needs: [pin, audit, build]
+    if: ${{ !cancelled() && needs.pin.result == 'success' && needs.build.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TAG: ${{ needs.pin.outputs.tag }}
+      RELEASED_AT: ${{ needs.pin.outputs.released_at_s }}
+      AUDIT: ${{ needs.audit.outputs.state }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: pin-runner
+          path: ${{ runner.temp }}/pin
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: runner-*
+          path: dist
+          merge-multiple: true
+      - name: The manifest, the index and SHA256SUMS
+        run: |
+          set -eu
+          cp "$RUNNER_TEMP/pin/runner.toml" images/runner/runner.toml
+          (cd dist && sha256sum -c ./*.sha256)
+          python3 -I scripts/runner-release.py manifest --tag "$TAG" --images images --assets dist \
+            --commit "$GITHUB_SHA" --released-at "$RELEASED_AT" --audit "$AUDIT" --out dist/runner-images.json
+          (cd dist && sha256sum runner-images.json > runner-images.json.sha256)
+          # A release asset has at most 2 GiB.
+          for f in dist/*; do
+            size=$(stat -c %s "$f")
+            echo "$(basename "$f"): $((size >> 20)) MiB"
+            [ "$size" -lt 2147483648 ] || { echo "$f is 2 GiB or more: GitHub refuses it"; exit 1; }
+          done
+          export RELEASE_WORKFLOW=runner-image-release.yml
+          sh scripts/release-assets.sh index "${TAG#v}" dist
+          sh scripts/release-assets.sh sums dist
+          sh scripts/release-assets.sh check dist
+          python3 -I scripts/runner-release.py notes dist/runner-images.json "$RUNNER_TEMP/notes.md" \
+            --run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          cat "$RUNNER_TEMP/notes.md" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runner-images-release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  # publish: the tag of this commit, then this workflow on the tag.
+  tag:
+    needs: [pin, assemble]
+    if: inputs.publish && !startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+    env:
+      TAG: ${{ needs.pin.outputs.tag }}
+      VERSION: ${{ needs.pin.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+      - name: The tag, and the run on the tag
+        run: |
+          set -eu
+          git -c user.name=Azathothas -c user.email=ajamx101@gmail.com tag -a "$TAG" -m "runner images of actions/runner $VERSION"
+          git push origin "$TAG"
+          gh workflow run runner-image-release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG" -f images_run="$GITHUB_RUN_ID"
+          echo "the tag $TAG; runner-image-release.yml runs on it, which signs and publishes" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # The run on the tag: the signer of SHA256SUMS, and so of
+  # release-index.json, is this workflow at the tag.
+  release:
+    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/vrunner-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      IMAGES_RUN: ${{ inputs.images_run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The run that made the tag: this workflow, dispatched on main at the
+      # commit of the tag, and green. It ends after its job tag.
+      - name: The files of the run that made the tag
+        run: |
+          set -eu
+          case $IMAGES_RUN in '' | *[!0-9]*) echo "images_run must be the id of a run"; exit 1 ;; esac
+          for i in $(seq 1 90); do
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$IMAGES_RUN" > "$RUNNER_TEMP/run.json"
+            [ "$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$RUNNER_TEMP/run.json")" = completed ] && break
+            [ "$i" -lt 90 ] || { echo "the run $IMAGES_RUN did not end in 45 minutes"; exit 1; }
+            sleep 30
+          done
+          python3 -I - "$RUNNER_TEMP/run.json" "$GITHUB_SHA" <<'PY'
+          import json, sys
+          r = json.load(open(sys.argv[1]))
+          want = {"path": ".github/workflows/runner-image-release.yml", "event": "workflow_dispatch",
+                  "head_branch": "main", "head_sha": sys.argv[2], "conclusion": "success"}
+          bad = {k: r.get(k) for k, v in want.items() if r.get(k) != v}
+          if bad:
+              sys.exit(f"the run {r.get('id')} is not a green run of this workflow on main at {sys.argv[2]}: {bad}")
+          PY
+          sh scripts/retry.sh gh run download "$IMAGES_RUN" --repo "$GITHUB_REPOSITORY" -n runner-images-release -D dist
+          tag=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["tag"])' dist/runner-images.json)
+          [ "$tag" = "$GITHUB_REF_NAME" ] || { echo "runner-images.json names $tag, not $GITHUB_REF_NAME"; exit 1; }
+          (cd dist && sha256sum -c ./*.sha256)
+          sh scripts/release-assets.sh check dist
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        with:
+          cosign-release: v3.1.4
+      - name: The signature of SHA256SUMS
+        run: |
+          set -eu
+          (cd dist && cosign sign-blob --yes --bundle SHA256SUMS.sigstore.json SHA256SUMS)
+          workflow="https://github.com/$GITHUB_REPOSITORY/.github/workflows/runner-image-release.yml@$GITHUB_REF"
+          check() {
+            cosign verify-blob --bundle dist/SHA256SUMS.sigstore.json --certificate-identity "$workflow" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com "$1"
+          }
+          check dist/SHA256SUMS
+          awk 'NR == 1 { $0 = (substr($0, 1, 1) == "0" ? "1" : "0") substr($0, 2) } { print }' dist/SHA256SUMS \
+            > "$RUNNER_TEMP/changed"
+          if check "$RUNNER_TEMP/changed"; then echo "a changed copy verified"; exit 1; fi
+          RELEASE_WORKFLOW=runner-image-release.yml sh scripts/release-assets.sh verify "$GITHUB_REF_NAME" dist
+          echo "SHA256SUMS and release-index.json signed by $workflow; a changed copy fails"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/runner-*.tar
+            dist/runner-images.json
+            dist/release-index.json
+      - name: Publish a prerelease of the tag
+        run: |
+          set -eu
+          version=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["runner"]["version"])' dist/runner-images.json)
+          python3 -I scripts/runner-release.py notes dist/runner-images.json "$RUNNER_TEMP/notes.md" \
+            --run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$IMAGES_RUN"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --prerelease --latest=false \
+            --title "runner images of actions/runner $version ($GITHUB_REF_NAME)" --notes-file "$RUNNER_TEMP/notes.md" dist/*
