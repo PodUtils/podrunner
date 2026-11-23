@@ -14908,7 +14908,7 @@ State (2026-11-23, podvm `0.2.0-beta.38` pinned, COORD-232, PodUtils/podvm#648; 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14927,6 +14927,10 @@ Add the inode of `/proc/self/ns/pid` (or a random suffix) to the run id, and cou
 `cargo test -p podrunner --all-features --lib run_local::stale`: two runs of one pid in two namespaces get two ids, and a directory of another namespace is not ended.
 
 State (2026-11-23, proven in this sandbox by unit tests, as uid 0 and as uid 65534; not run in CI or on a constrained host as a user): `run_id` is `NS-PID-N`, NS the inode of `/proc/self/ns/pid`; `dead_runs` counts a run as dead only when its NS is the one of this run, its pid is not this pid, and `/proc/PID` is not there. A name with no NS (`PID`, `PID-N` of an older release) is never ended. When `/proc/self` is not the pid of the run, the name is `xNANOS-PID-N` and the run ends no other run (`docs/decisions.md`, T-607). Tests: `a_run_is_named_by_its_namespace_pid_and_count` and `the_directories_of_dead_runs_are_found` (the namespace is an input), and `two_namespaces_of_pid_1_do_not_meet`, which runs the test binary two times as pid 1 of a new pid namespace (`unshare -rp --fork --mount-proc`, no root; a host that refuses it skips with a line). On the code before the change, that test fails: both children have the id `1-0`, and each finds the two directories of the live parent as dead. A planted defect (no check of the namespace in `dead_runs`) fails three tests. The debug binary, with a `TMPDIR` that holds a dead run of this namespace, one of another namespace and one of the old form: `podrunner run` removes the first only.
+
+## Done
+
+2026-11-23, `e263cbd`: `run_local/stale.rs`: the run id is `NS-PID-N` (NS: the inode of `/proc/self/ns/pid`); the probe and the run directories use it; `dead_runs` ends a dead run of the same pid namespace only; a name with no NS (an older release) is never ended; with no `/proc` of its own namespace a run ends no other run. Proven on a development host: `cargo test -p podrunner --all-features --lib run_local::stale` (9 passed): `a_run_is_named_by_its_namespace_pid_and_count`, `the_directories_of_dead_runs_are_found`, `the_probe_of_a_dead_run_is_removed`, and `two_namespaces_of_pid_1_do_not_meet` (two children as pid 1 under `unshare -rp --fork --mount-proc`, as uid 0 and as uid 65534, 30 of 30 runs); on the code before, both children were `1-0` and ended the directories of the live parent. A debug `podrunner run` removed only the dead run of its own namespace. Not run in CI (an Ubuntu 24.04 runner restricts the user namespaces of a user; the test then prints a skip line).
 
 # T-608: A recovery run of `release.yml` on a tag builds the binaries again
 
@@ -15089,3 +15093,53 @@ The import of the full hosted snapshot (85 layers, about 16 GiB of blobs) into i
 
 State (2026-11-23, step 1, not run): `.github/workflows/hosted-measure.yml` has the place `btrfs`, now the default of the input `place`. The step "Place the store and incusd" makes one btrfs (`mkfs.btrfs -d single -m single`) over a loop file on `/` (its free bytes less the margin and 2 GiB, as `joined`) and one on `/mnt`, mounts it at `/srv/btrfs`, and puts the podvm store and `/var/lib/incus` (a bind mount) on it. The step "podvm and incusd" gives incusd a preseed of `incus admin init`: the network and the profile of `--minimal`, and the pool `default` with the `btrfs` driver and `source` `/srv/btrfs/pool` (incusd 6.0.0 makes that subvolume itself; lxc/incus:internal/server/storage/drivers/driver_btrfs.go at `v6.0.0` refuses a directory that is not a subvolume). podvm makes no pool of its own: at `v0.2.0-beta.38`, PodUtils/podvm:crates/podvm/src/incus/run.rs imports the unified tarball by `POST /1.0/images` and makes the instance with the root disk of the default profile. The columns of incusd of `scripts/hosted/space.sh` are `df -B1` of `/srv/btrfs` at each step; `space.sh` adds `btrfs filesystem usage -b` to `pool.txt` when the pool is on btrfs, and the report adds those lines and `btrfs filesystem du -s --raw` of the images and the instances of the pool (`du -sb` counts a shared block two times). The place `joined` stays as it was; its input description says that its run 45156168746 lost its runner. The measure of step 1 needs no answer of podvm to COORD-124: the bytes of `/` and of the btrfs at the step import tell a full disk from another fault of the create. `python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))' .github/workflows/hosted-measure.yml`, `sh scripts/shellcheck.sh scripts/hosted/space.sh` and `sh scripts/hosted/calls.sh` pass. Next: the dispatch with `place = btrfs`, `full = all` and the capture `sha256:baa8431a...`.
 
+
+# T-614: The probe of `--export` and `--log-dir` has the pid only and follows a link
+
+**Source:** the work of T-607, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`export_dir` (`crates/podrunner/src/run_local/routes.rs`) writes the probe `.podrunner-probe-{pid}` into the directory of `--export` and `--log-dir`. Two runs as pid 1 in two containers that share one such directory remove the probe of each other, and `remove_file` then fails the run with ENOENT. Also `std::fs::write` follows a link at that name.
+
+## Premise
+
+The report of the work of T-607, read on 2026-11-23.
+
+## Approach
+
+Name the probe by `stale::run_id()` (it has the pid namespace since T-607), and make it with `create_new` and `O_NOFOLLOW`. A test of two names of one pid, and a test where the name is a link.
+
+## Prove
+
+`cargo test -p podrunner --all-features --lib run_local::routes`: a probe of another run of the same pid stays; a link at the name is refused and its target is not written.
+
+# T-615: One `TMPDIR` that two hosts share can mistake a live run for a dead one
+
+**Source:** the work of T-607, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The run id of the local mode is `NS-PID-N` since T-607. The inode of a pid namespace is unique on one kernel only: two hosts that share one `TMPDIR` (NFS, a shared home) can give the same NS and pid, and then a run ends the units and directories of a live run of the other host.
+
+## Premise
+
+The report of the work of T-607, read on 2026-11-23; not measured.
+
+## Approach
+
+Add the boot id (`/proc/sys/kernel/random/boot_id`, short form) to the id, and end a run only of the same boot; or say in `docs/local-mode.md` that one `TMPDIR` is for one host. A table test with two boot ids.
+
+## Prove
+
+`cargo test -p podrunner --all-features --lib run_local::stale`: a dead-looking run of another boot is not ended.

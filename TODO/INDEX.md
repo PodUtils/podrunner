@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**608 entries: 68 open, 57 partial, 18 blocked, 465 done.**
+**610 entries: 69 open, 57 partial, 18 blocked, 466 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 90 | 119 |
-| P2 | 16 | 22 | 10 | 239 | 287 |
-| P3 | 49 | 11 | 5 | 134 | 199 |
-| **All** | 68 | 57 | 18 | 465 | 608 |
+| P2 | 15 | 22 | 10 | 240 | 287 |
+| P3 | 51 | 11 | 5 | 134 | 201 |
+| **All** | 69 | 57 | 18 | 466 | 610 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -649,10 +649,12 @@ acceptance, later The crate dependencies later than v1.
 | [T-604](later.md) | P3 | S | later | feature | open | A runner image release is not on ghcr.io |
 | [T-605](later.md) | P3 | S | later | feature | open | `podrunner-manifest.json` names no ghcr.io reference |
 | [T-606](later.md) | P2 | S | later | defect | done | `podvm load` refuses the full hosted snapshot (85 layers): 16 locks at most |
-| [T-607](later.md) | P2 | S | later | defect | open | Two runs of `podrunner run` in two pid namespaces that share `/tmp` meet on one run id |
+| [T-607](later.md) | P2 | S | later | defect | done | Two runs of `podrunner run` in two pid namespaces that share `/tmp` meet on one run id |
 | [T-608](later.md) | P3 | S | later | defect | open | A recovery run of `release.yml` on a tag builds the binaries again |
 | [T-609](later.md) | P3 | M | later | defect | open | `podrunner run` cannot run the hosted runner image as a hosted runner |
 | [T-610](later.md) | P3 | S | later | defect | open | A layer of the tool cache of the snapshot names the version only |
 | [T-611](later.md) | P3 | S | later | defect | blocked | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
 | [T-612](later.md) | P3 | S | later | defect | open | Three live tests of the podvm kind fail on a root host |
 | [T-613](later.md) | P2 | M | later | measurement | partial | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
+| [T-614](later.md) | P3 | S | later | defect | open | The probe of `--export` and `--log-dir` has the pid only and follows a link |
+| [T-615](later.md) | P3 | S | later | defect | open | One `TMPDIR` that two hosts share can mistake a live run for a dead one |
