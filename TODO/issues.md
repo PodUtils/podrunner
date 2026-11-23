@@ -335,7 +335,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #336 | [gh action] requested | closed (on `5911ba0`: `level2.yml` 44845104820 and `user-gate.yml` 44845109476 green; the gate 44845100511 red on a timed test, fixed in `5e36208`) | T-576, T-507 |
 | #337 | COORD-117: the take of podcrates v0.80.0 (to podcrates) | closed (podcrates recorded the take in PodUtils/podcrates#250) | T-576 |
 | #338 | [gh action] requested | closed (on `6b84ec3` and `a34e5e2`: gate 44853296563, `level2.yml` 44853299646, `runner-image.yml` 44853302932, `hosted-boot.yml` 44853306687 (green with no boot, T-582) and `user-gate.yml` 44858236928 green) | T-506, T-528, T-532, T-556, T-563, T-524, T-570, T-576, T-582 |
-| #339 | COORD-118: the tar reader takes a PAX value with a newline (SCHILY.acl.access) (to podvm) | open (the fix is in podvm `0.2.0-beta.38`, pinned; the capture uses `--acls` again (T-599); closes with the next capture) | T-556 |
+| #339 | COORD-118: the tar reader takes a PAX value with a newline (SCHILY.acl.access) (to podvm) | closed (the fix is in podvm `0.2.0-beta.38`, pinned in `ef5db7f`; the capture uses `--acls` again, T-599; the proof of the next capture is in T-556) | T-556 |
 | #340 | COORD-119: the take of podcrates v0.81.0 (to podcrates) | closed (podcrates recorded the take in PodUtils/podcrates#254) | T-583 |
 | #342 | COORD-120: run-report.v1 allows no reason for a time that the report does not know (start_s) (to podcrates) | open (the ask) | T-595 |
 | #343 | COORD-121: pod-unit refuses a path after a dot as "a long random word" (a config under mktemp -d) (to podcrates) | open (the ask) | T-602 |
