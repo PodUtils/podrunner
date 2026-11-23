@@ -32,6 +32,7 @@ jobs:
       - name: The probe parses; the diff and the scrub pass their self-tests
         run: |
           sh -n scripts/hosted/probe.sh
+          sh scripts/shellcheck.sh scripts/hosted/space.sh
           python3 -I scripts/hosted/diff.py --self-test
           python3 -I scripts/hosted/scrub.py --self-test
           python3 -I scripts/hosted/plan.py --self-test

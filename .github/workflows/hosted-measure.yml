@@ -1,0 +1,275 @@
+# SPDX-License-Identifier: 0BSD
+# The measure of the disk of a full boot of the hosted snapshot on a
+# standard hosted runner (T-557). The job frees the preinstalled trees of
+# the runner, puts the podvm store and incusd on / and /mnt (or on one
+# volume of both), pulls the snapshot (all layers or the core slice of
+# scripts/hosted/slice.py), loads it into the podvm store and imports it
+# into incusd (podvm create, as hosted-boot.yml runs it). It boots the
+# image only when the file system of incusd and / keep the margin after
+# the import. Each step writes the free space (df -B1 of /, /mnt and the
+# file system of incusd) and its time (scripts/hosted/space.sh); the
+# report runs also after a failed step and goes into the summary and an
+# artifact. Report-only: the aim is the numbers. A separate file, not a
+# job of hosted-snapshot.yml: the capture must run before any action, and
+# its job holds the write permissions of the publish.
+name: hosted-measure
+
+on:
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: "The digest of an amd64 manifest of ghcr.io/podutils/podrunner-hosted (sha256:...)"
+        required: true
+        default: ""
+      full:
+        description: "all: each layer of the snapshot; slice: the core slice of hosted-boot.yml"
+        required: true
+        default: all
+        type: choice
+        options: [all, slice]
+      place:
+        description: "joined: the store and incusd on one volume of / and /mnt; store-root: the store on /, incusd on /mnt; store-mnt: the store on /mnt, incusd on /"
+        required: true
+        default: joined
+        type: choice
+        options: [joined, store-root, store-mnt]
+      margin:
+        description: "The free GiB that the file system of incusd and / must keep after the import for the boot"
+        required: true
+        default: "8"
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Start the record
+        env:
+          DIGEST: ${{ inputs.digest }}
+          FULL: ${{ inputs.full }}
+          PLACE: ${{ inputs.place }}
+          MARGIN: ${{ inputs.margin }}
+        run: |
+          set -eu
+          case $DIGEST in sha256:[0-9a-f]*) [ ${#DIGEST} -eq 71 ] ;; *) echo "not a digest: $DIGEST" >&2; exit 1 ;; esac
+          case $MARGIN in '' | *[!0-9]*) echo "not a number of GiB: $MARGIN" >&2; exit 1 ;; esac
+          M=$RUNNER_TEMP/measure
+          mkdir -p "$M"
+          echo "M=$M" >> "$GITHUB_ENV"
+          # A reserve on /: the report removes it first, so that it can
+          # write on a full disk.
+          fallocate -l 64M "$M/reserve"
+          {
+            echo "inputs: digest=$DIGEST full=$FULL place=$PLACE margin=$MARGIN"
+            echo "image: ${ImageOS:-} ${ImageVersion:-}"
+            echo "cpus: $(nproc)"
+            free -b
+            lsblk -b -o NAME,SIZE,TYPE,MOUNTPOINTS
+            df -B1 / /mnt
+            swapon --show --bytes || true
+          } > "$M/info.txt" 2>&1
+          cat "$M/info.txt"
+          sh scripts/hosted/space.sh mark "$M" start 0
+      - name: Free the preinstalled trees
+        run: |
+          set -eu
+          trap 'sh scripts/hosted/space.sh mark "$M" free $?' EXIT
+          # The trees of the tools of the runner image: no step of this
+          # job uses them. The size of each goes into the record.
+          : > "$M/freed.tsv"
+          for d in /usr/local/lib/android /usr/share/dotnet /opt/hostedtoolcache /opt/ghc /usr/local/.ghcup \
+            /usr/lib/jvm /usr/share/swift /usr/local/share/powershell /usr/local/share/chromium \
+            /usr/local/share/boost /usr/local/lib/node_modules /opt/microsoft /opt/google /opt/az \
+            /opt/pipx /usr/share/miniconda /usr/local/aws-cli /usr/local/aws-sam-cli /usr/lib/google-cloud-sdk \
+            /usr/local/julia*; do
+            [ -e "$d" ] || continue
+            b=$(sudo du -sb "$d" | cut -f1)
+            sudo rm -rf "$d"
+            printf '%s\t%s\n' "$d" "$b" >> "$M/freed.tsv"
+          done
+          docker system prune -af > /dev/null || true
+          printf 'docker images\t-\n' >> "$M/freed.tsv"
+          # The swap file of /mnt.
+          sudo swapoff -a || true
+          sudo rm -f /mnt/swapfile
+          awk -F'\t' '{ printf "%s %.1f GiB\n", $1, $2 / 1073741824 }' "$M/freed.tsv"
+      - name: Place the store and incusd
+        env:
+          PLACE: ${{ inputs.place }}
+        run: |
+          set -eu
+          trap 'sh scripts/hosted/space.sh mark "$M" place $?' EXIT
+          me="$(id -u):$(id -g)"
+          case $PLACE in
+          joined)
+            # One ext4 volume of LVM over a loop file on / and one on /mnt.
+            # / keeps 6 GiB for the runner and the record.
+            r=$(( $(df -B1 --output=avail / | sed -n 2p) - (6 << 30) ))
+            m=$(( $(df -B1 --output=avail /mnt | sed -n 2p) - (1 << 30) ))
+            sudo fallocate -l "$r" /var/tmp/joined-root.img
+            sudo fallocate -l "$m" /mnt/joined-mnt.img
+            l1=$(sudo losetup -f --show /var/tmp/joined-root.img)
+            l2=$(sudo losetup -f --show /mnt/joined-mnt.img)
+            sudo pvcreate -q "$l1" "$l2"
+            sudo vgcreate -q measure "$l1" "$l2"
+            sudo lvcreate -q -y -l 100%FREE -n joined measure
+            sudo mkfs.ext4 -q -m 0 /dev/measure/joined
+            sudo mkdir -p /srv/joined
+            sudo mount /dev/measure/joined /srv/joined
+            work=/srv/joined/w incusd=/srv/joined/incus pool=/srv/joined
+            ;;
+          store-root) work=/var/tmp/measure-w incusd=/mnt/incus pool=/mnt/incus ;;
+          store-mnt) work=/mnt/w incusd="" pool=/var/lib/incus ;;
+          *) echo "no place $PLACE" >&2; exit 1 ;;
+          esac
+          sudo mkdir -p "$work"
+          sudo chown "$me" "$work"
+          # incusd keeps its images and its storage pool in /var/lib/incus:
+          # a bind mount before the install puts them on the chosen file
+          # system.
+          if [ -n "$incusd" ]; then
+            sudo mkdir -p "$incusd" /var/lib/incus
+            sudo mount --bind "$incusd" /var/lib/incus
+          fi
+          { echo "W=$work"; echo "PODVM_STORE=$work/store"; echo "POOL=$pool"; } >> "$GITHUB_ENV"
+          df -B1 / /mnt "$pool"
+      - name: podvm and incusd
+        run: |
+          set -eu
+          trap 'sh scripts/hosted/space.sh mark "$M" incusd $?' EXIT
+          eval "$(python3 -I - <<'PY'
+          import tomllib
+          pin = tomllib.load(open("images/podvm.toml", "rb"))
+          print(f"podvm_version={pin['version']} podvm_sha256={pin['sha256']['x86_64']}")
+          PY
+          )"
+          sh scripts/retry.sh curl -qfsSLo "$RUNNER_TEMP/podvm" \
+            "https://github.com/PodUtils/podvm/releases/download/v$podvm_version/podvm-x86_64"
+          echo "$podvm_sha256  $RUNNER_TEMP/podvm" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/podvm"
+          sh scripts/retry.sh sudo apt-get -qq update
+          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus dnsmasq-base
+          sudo incus admin init --minimal
+          sudo usermod -aG incus-admin "$(id -un)"
+          sudo incus storage list | tee -a "$M/info.txt"
+      - name: Pull the snapshot
+        env:
+          DIGEST: ${{ inputs.digest }}
+          FULL: ${{ inputs.full }}
+        run: |
+          set -eu
+          trap 'sh scripts/hosted/space.sh mark "$M" pull $?' EXIT
+          if [ "$FULL" = all ]; then set -- --all --ref hosted:full; else set -- --ref hosted:core; fi
+          dig=$(python3 -I scripts/hosted/slice.py --digest "$DIGEST" "$@" --out "$W/layout")
+          echo "IMAGE=hosted@$dig" >> "$GITHUB_ENV"
+          du -sb "$W/layout" | tee -a "$M/info.txt"
+      - name: Tar the layout
+        run: |
+          set -eu
+          trap 'sh scripts/hosted/space.sh mark "$M" tar $?' EXIT
+          # --remove-files: the layout and the tar are not both on the disk.
+          (cd "$W/layout" && find . -type f | sed 's#^\./##' | sort |
+            tar -cf "$W/image.tar" --no-recursion --remove-files -T -)
+          rm -rf "$W/layout"
+          ls -l "$W/image.tar"
+      - name: Load into the podvm store
+        run: |
+          set -eu
+          trap 'sh scripts/hosted/space.sh mark "$M" load $?' EXIT
+          "$RUNNER_TEMP/podvm" load -i "$W/image.tar"
+          rm -f "$W/image.tar"
+      - name: Import into incusd
+        run: |
+          set -eu
+          trap 'sh scripts/hosted/space.sh mark "$M" import $?' EXIT
+          # create imports the image and makes the root of an instance in
+          # the pool, with no start.
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $RUNNER_TEMP/podvm create --name measure --podvm-tier=incus --podvm-init=image --podvm-net none $IMAGE /bin/true" < /dev/null
+          sudo incus list --format csv -c nsS | tee -a "$M/info.txt"
+      - name: Boot when it fits
+        env:
+          MARGIN: ${{ inputs.margin }}
+        run: |
+          set -eu
+          need=$((MARGIN << 30))
+          pf=$(df -B1 --output=avail "$POOL" | sed -n 2p)
+          rf=$(df -B1 --output=avail / | sed -n 2p)
+          if [ "$pf" -lt "$need" ] || [ "$rf" -lt "$need" ]; then
+            echo "No boot: free $pf bytes for incusd and $rf on /, the margin is $need" | tee -a "$M/info.txt"
+            sh scripts/hosted/space.sh mark "$M" boot-skipped 0
+            exit 0
+          fi
+          trap 'sh scripts/hosted/space.sh mark "$M" boot $?' EXIT
+          podvm=$RUNNER_TEMP/podvm
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus measure" || true
+          out=$RUNNER_TEMP/out
+          mkdir -p "$out" && chmod 0777 "$out"
+          cat > "$out/checks.sh" <<'SH'
+          echo "checks: start as $(id -u)" > /out/started
+          systemctl is-system-running > /out/state 2>&1
+          systemctl --failed --no-legend --plain > /out/failed 2>&1
+          df -B1 / > /out/df 2>&1
+          SH
+          rc=0
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name measure --podvm-tier=incus --podvm-init=image --podvm-net none -v $out:/out $IMAGE /bin/sh /out/checks.sh" < /dev/null || rc=$?
+          state=""
+          for _ in $(seq 120); do
+            state=$(sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' measure" 2>&1) || true
+            case $state in Running*) sleep 10 ;; *) break ;; esac
+          done
+          {
+            echo "boot: run -d exit $rc, state $state"
+            for f in started state failed df; do echo "--- $f"; cat "$out/$f" 2> /dev/null || echo "(absent)"; done
+          } | tee -a "$M/info.txt"
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus measure" || true
+          [ "$rc" -eq 0 ] && [ -s "$out/started" ]
+      - name: The report
+        if: always()
+        env:
+          PLACE: ${{ inputs.place }}
+        run: |
+          set -u
+          M=${M:-$RUNNER_TEMP/measure}
+          mkdir -p "$M"
+          rm -f "$M/reserve"
+          # The use of the store and of incusd, tree by tree.
+          {
+            [ -n "${PODVM_STORE:-}" ] && timeout 900 sudo du -sb "$PODVM_STORE"/* 2>&1
+            timeout 900 sudo du -sb /var/lib/incus/images /var/lib/incus/storage-pools 2>&1
+          } > "$M/du.txt" || true
+          # The inodes: a file system can be full of files before bytes.
+          df -i / /mnt "${POOL:-/}" >> "$M/du.txt" 2>&1 || true
+          {
+            echo "## The measure of a boot of the hosted snapshot (T-557)"
+            echo
+            echo '```'
+            head -n 3 "$M/info.txt"
+            echo '```'
+            echo
+            if [ "$PLACE" = joined ]; then
+              echo "The place is joined: from the step place on, a loop file fills / and /mnt, and the columns of incusd give the volume of the store and of incusd."
+              echo
+            fi
+            sh scripts/hosted/space.sh report "$M"
+            echo
+            echo "### Freed trees"
+            echo
+            awk -F'\t' '$2 != "-" { s += $2; printf "- `%s`: %.1f GiB\n", $1, $2 / 1073741824 } END { printf "\nTotal: %.1f GiB\n", s / 1073741824 }' "$M/freed.tsv" 2> /dev/null
+            echo
+            echo "### The use of the store and of incusd (du -sb), and the inodes (df -i)"
+            echo
+            echo '```'
+            cat "$M/du.txt" 2> /dev/null
+            echo '```'
+          } > "$M/summary.md"
+          cat "$M/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          cat "$M/summary.md"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: measure-${{ inputs.full }}-${{ inputs.place }}
+          path: ${{ runner.temp }}/measure
