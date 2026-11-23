@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**593 entries: 63 open, 58 partial, 16 blocked, 456 done.**
+**593 entries: 62 open, 59 partial, 16 blocked, 456 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 4 | 25 | 3 | 87 | 119 |
+| P1 | 3 | 26 | 3 | 87 | 119 |
 | P2 | 16 | 22 | 9 | 235 | 282 |
 | P3 | 42 | 11 | 4 | 132 | 189 |
-| **All** | 63 | 58 | 16 | 456 | 593 |
+| **All** | 62 | 59 | 16 | 456 | 593 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -635,7 +635,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-590](later.md) | P2 | M | later | feature | partial | The hosted work folder on the podvm kind and in the runner image |
 | [T-591](later.md) | P3 | S | later | defect | open | The unit tests leave directories in /tmp |
 | [T-592](later.md) | P2 | S | later | defect | partial | The level2 corpus fails on the advisory check of podcrates, which reads the live advisory database |
-| [T-593](later.md) | P1 | S | later | defect | open | The official runner stops at its start when `no_proxy` holds the entry `::` |
+| [T-593](later.md) | P1 | S | later | defect | partial | The official runner stops at its start when `no_proxy` holds the entry `::` |
 | [T-594](later.md) | P3 | S | later | defect | open | The image release and `runner-image.yml` each have a copy of the build and the archive of the runner images |
 | [T-595](later.md) | P3 | S | later | defect | blocked | A run report has no reason for a time that it does not know (`start_s`) |
 | [T-596](later.md) | P2 | S | later | defect | open | A container of `podrunner run` gets no CA file of the caller |
