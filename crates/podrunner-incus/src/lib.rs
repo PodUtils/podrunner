@@ -471,9 +471,13 @@ impl UnitDriver for IncusUnit {
     }
 
     fn oom_kills(&self, unit: &UnitId) -> Option<u64> {
-        // podvm `0.2.0-beta.33`: `OomKills` of the state of the instance.
-        let out = self.verb(&["inspect", "--format", "{{.OomKills}}"], &self.name(unit)).ok()?;
-        String::from_utf8_lossy(&out).trim().parse().ok()
+        // podvm `0.2.0-beta.33`: `OomKills` of the metrics of incusd, which
+        // has none of a stopped instance: the count that `wait` kept.
+        let state = self.state(&self.name(unit));
+        let mut units = self.units.lock().expect("the units");
+        let Some(r) = units.get_mut(unit) else { return state?.oom_kills };
+        state.iter().for_each(|s| r.kept.take(s));
+        r.kept.oom_kills()
     }
 
     fn container_inspect(&self, _: &UnitId, _: &ContainerId) -> Result<ContainerState, UnitError> {

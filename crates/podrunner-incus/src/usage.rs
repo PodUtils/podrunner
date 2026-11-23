@@ -12,9 +12,10 @@
 
 use podrunner_unit::UnitUsage;
 
-/// The template of one read of the state: the status, the exit code and
-/// the use.
-pub(crate) const STATE: &str = "{{.Status}} {{.ExitCode}} {{.CpuSeconds}} {{.PeakMemoryBytes}}";
+/// The template of one read of the state: the status, the exit code, the
+/// use and the OOM kills. incusd gives no metrics of a stopped instance
+/// either, so podvm prints `-` for its `OomKills` too.
+pub(crate) const STATE: &str = "{{.Status}} {{.ExitCode}} {{.CpuSeconds}} {{.PeakMemoryBytes}} {{.OomKills}}";
 /// The template of a podvm before `0.2.0-beta.33`: no fields of the use.
 pub(crate) const STATUS: &str = "{{.Status}} {{.ExitCode}}";
 
@@ -25,6 +26,8 @@ pub(crate) struct State {
     pub(crate) code: Option<i32>,
     /// The use, or why there is none.
     pub(crate) usage: UnitUsage,
+    /// The OOM kills of the instance, where incusd gave a count.
+    pub(crate) oom_kills: Option<u64>,
 }
 
 impl State {
@@ -40,8 +43,10 @@ pub(crate) fn state(text: &str, with_use: bool) -> Option<State> {
     let status = words.next()?.to_string();
     // A running instance has `-` for its exit code.
     let code = words.next().and_then(|c| c.parse().ok());
-    let usage = if with_use { parse(&words.collect::<Vec<_>>().join(" ")) } else { failed() };
-    Some(State { status, code, usage })
+    let rest: Vec<&str> = words.collect();
+    let usage = if with_use { parse(&rest.iter().take(2).copied().collect::<Vec<_>>().join(" ")) } else { failed() };
+    let oom_kills = rest.get(2).and_then(|n| n.parse().ok()).filter(|_| with_use);
+    Some(State { status, code, usage, oom_kills })
 }
 
 /// The reason of a field that no read of a running instance saw.
@@ -51,11 +56,11 @@ const NO_SAMPLE: &str = "the instance ended before a read of its use";
 /// CPU time and peak (both only grow while the instance runs), or the
 /// reason of the last read of the running instance that gave none.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct Kept(UnitUsage);
+pub(crate) struct Kept(UnitUsage, Option<u64>);
 
 impl Default for Kept {
     fn default() -> Kept {
-        Kept(UnitUsage { cpu_s: Err(NO_SAMPLE.into()), peak_memory_bytes: Err(NO_SAMPLE.into()) })
+        Kept(UnitUsage { cpu_s: Err(NO_SAMPLE.into()), peak_memory_bytes: Err(NO_SAMPLE.into()) }, None)
     }
 }
 
@@ -75,10 +80,16 @@ impl Kept {
         }
         one(&mut self.0.cpu_s, &s.usage.cpu_s, s.running());
         one(&mut self.0.peak_memory_bytes, &s.usage.peak_memory_bytes, s.running());
+        self.1 = self.1.max(s.oom_kills);
     }
 
     pub(crate) fn usage(&self) -> UnitUsage {
         self.0.clone()
+    }
+
+    /// The highest count of OOM kills that a read saw (T-515).
+    pub(crate) fn oom_kills(&self) -> Option<u64> {
+        self.1
     }
 }
 
@@ -129,9 +140,10 @@ mod tests {
         let s = read("Running - 2.500 4096\n");
         assert_eq!((s.status.as_str(), s.code, s.running()), ("Running", None, true));
         assert_eq!(s.usage, UnitUsage { cpu_s: Ok(3), peak_memory_bytes: Ok(4096) });
-        let s = read("Stopped 7 - -");
-        assert_eq!((s.code, s.running()), (Some(7), false));
+        let s = read("Stopped 7 - - -");
+        assert_eq!((s.code, s.running(), s.oom_kills), (Some(7), false, None));
         assert!(s.usage.cpu_s.is_err());
+        assert_eq!(read("Running - 1 2 3").oom_kills, Some(3));
         // The template of an old podvm: the reason names the version.
         let s = state("Running -", false).unwrap();
         assert!(s.usage.cpu_s.is_err_and(|e| e.contains("0.2.0-beta.33")));
@@ -151,6 +163,12 @@ mod tests {
         // A podvm that keeps the use of a stopped instance gives the last.
         k.take(&read("Stopped 0 3.5 6000"));
         assert_eq!(k.usage(), UnitUsage { cpu_s: Ok(4), peak_memory_bytes: Ok(6000) });
+        // The OOM kills: the highest count; a `-` erases none.
+        assert_eq!(k.oom_kills(), None);
+        for text in ["Running - 1 1 0", "Running - 1 1 2", "Stopped 0 - - -"] {
+            k.take(&read(text));
+        }
+        assert_eq!(k.oom_kills(), Some(2));
     }
 
     #[test]

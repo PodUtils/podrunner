@@ -103,3 +103,21 @@ fn a_podvm_with_no_fields_of_the_use_still_ends_the_unit() {
     assert!(u.destroy(&s.unit).unwrap().is_clean());
     let _ = fs::remove_dir_all(&d);
 }
+
+/// T-515 on incus: incusd gives no metrics of a stopped instance, so the
+/// count of OOM kills is the highest that a read of the running instance
+/// saw.
+#[test]
+fn the_oom_kills_are_kept_from_the_reads_while_the_instance_ran() {
+    let (u, d) = driver("use-oom", HOLD);
+    let s = spec("u-5");
+    u.start(&s).unwrap();
+    let f = files(&u, &d, &s.unit);
+    fs::write(format!("{f}.use"), "1 4096 2").unwrap();
+    assert_eq!(u.wait(&s.unit, Duration::ZERO).unwrap(), None);
+    end_payload(&f);
+    assert_eq!(u.wait(&s.unit, Duration::from_secs(10)).unwrap(), Some(Exit::Code(3)));
+    assert_eq!(u.oom_kills(&s.unit), Some(2));
+    assert!(u.destroy(&s.unit).unwrap().is_clean());
+    let _ = fs::remove_dir_all(&d);
+}
