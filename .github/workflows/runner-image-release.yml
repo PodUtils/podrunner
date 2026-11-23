@@ -280,12 +280,10 @@ jobs:
           set -eu
           check="test -x /home/runner/run.sh && test -x /home/runner/hooks/podrunner-hook.sh && grep -q '\"Runner.Listener/$VERSION\"' /home/runner/bin/Runner.Listener.deps.json && echo the runner $VERSION is in the image"
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" /bin/sh -c "$check"
-          if [ "$ARCH" = x86_64 ]; then
-            out=$(PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "$PODRUNNER_RUNNER_IMAGE" \
-              /usr/bin/env -i HOME=/home/runner PATH=/usr/bin:/bin /home/runner/bin/Runner.Listener --version)
-            echo "Runner.Listener --version: $out"
-            printf '%s\n' "$out" | grep -qx "$VERSION"
-          fi
+          # No Runner.Listener --version here: .runner and .credentials of
+          # the image are links to the credential files of a unit, and the
+          # runner reads .credentials at its start (run 45156174559). The
+          # canned job of the next step runs the runner itself.
       # T-026: the step of runner-image.yml with the least cost: the podvm
       # driver runs the image with the JIT files of the fake broker, and the
       # runner takes one canned job and completes it. T-590: podrunner run
