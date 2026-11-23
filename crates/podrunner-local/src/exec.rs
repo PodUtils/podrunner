@@ -26,6 +26,7 @@ mod errors;
 mod hooks;
 mod host;
 mod images;
+mod noproxy;
 mod proxy;
 mod toolcache;
 pub mod vnet;

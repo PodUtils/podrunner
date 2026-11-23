@@ -343,31 +343,11 @@ pub(crate) fn host_env(
         PASSED.iter().filter_map(|k| vars.get(*k).filter(|v| !v.is_empty()).map(|v| (*k, v.clone()))).collect();
     out.extend(node_proxy(&out));
     out.push(("HOME", home.display().to_string()));
-    let no_proxy = no_proxy(&vars);
+    let (no_proxy, dropped) = super::noproxy::job_list(&vars);
+    super::noproxy::name_dropped(&dropped);
     out.push(("NO_PROXY", no_proxy.clone()));
     out.push(("no_proxy", no_proxy));
     out
-}
-
-/// The `NO_PROXY` of a job: the loopback, then the entries of each variable
-/// of `pod_proxy` that `vars` sets, once each. Both variables join, as a
-/// tool of the job can read either one.
-pub(crate) fn no_proxy(vars: &std::collections::BTreeMap<String, String>) -> String {
-    let mut list = vec!["127.0.0.1".to_string(), "localhost".to_string(), "::1".to_string()];
-    for k in pod_proxy::env::NO_PROXY_VARS_UPPER_FIRST {
-        list.extend(
-            vars.get(k)
-                .into_iter()
-                .flat_map(|v| v.split(','))
-                .map(str::trim)
-                // The runner aborts at an entry `::` (a null host in its parser).
-                .filter(|v| !v.is_empty() && !v.chars().all(|c| c == ':'))
-                .map(String::from),
-        );
-    }
-    let mut seen = std::collections::BTreeSet::new();
-    list.retain(|v| seen.insert(v.clone()));
-    list.join(",")
 }
 
 /// End the process group of `leader`: TERM, then KILL after 5 s.
