@@ -12389,7 +12389,7 @@ Move the two files to the API of rsa 0.10 (its `BoxedUint`, the new constructors
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12431,6 +12431,10 @@ State (2026-11-21, proven in CI on GitHub-hosted runners, `runner-image.yml` 448
 State (2026-11-21, in the code; the swap test and the blocking step: not run): the step "A container job on the namespace rung of podvm" of `runner-image.yml` blocks (no `continue-on-error`, no "(a measure)" in its name) and runs `a_container_job_runs_through_the_hooks_of_a_podvm_unit` and the new `a_mount_source_swapped_for_a_link_after_the_check_is_refused` (`crates/podrunner-broker-fake/tests/podvm.rs`; both use the helper `container_job`). It stays x86_64 only: the aarch64 job runs no runner in a podvm unit. The swap test gives the unit a wrapper of podvm that, at the `run -d` of the job container, replaces the source of `/github/home` with a link to `/` (after the check of podrunner, before podvm opens it); it expects the job `failed`, no step output, the refusal `container-option-refused`, and a driver error with "the volume is refused" and `--podvm-volume-base`. The two earlier runs of `--test podvm` (supervise or userland rung) skip it. Measured here (root, the namespace rung, podvm `0.2.0-beta.37`, a stand-in image): `run -d --podvm-volume-base BASE -v BASE/.../link:/h` exits 125 with "podvm run: -v SRC:/h: the volume is refused: its host path holds a symbolic link under its base BASE (--podvm-volume-base); it resolves to /". The driver now gives that refusal as `container-option-refused` (it gave `unit-start-failed`), see T-403. `cargo test -p podrunner-podvm --lib` (35 passed, 1 ignored), `cargo test -p podrunner-broker-fake --test podvm` (6 ignored: they need podvm and the runner image; not run here).
 
 Next: a run of `runner-image.yml`; when the step passes, set this entry `done` (proven in CI on GitHub-hosted runners).
+
+## Done
+
+2026-11-23: proven in CI on GitHub-hosted runners: the blocking step "A container job on the namespace rung of podvm" of `runner-image.yml` 45147894869 (`9d9e38e`) passed on x86_64: `a_container_job_runs_through_the_hooks_of_a_podvm_unit` and `a_mount_source_swapped_for_a_link_after_the_check_is_refused` (exit 125 of podvm, `container-option-refused`) on the rung `namespace`, podvm `0.2.0-beta.37`.
 
 # T-533: A job of another architecture in a guest of the machine tier
 
@@ -14370,7 +14374,7 @@ State (2026-11-23, proven by the unit tests on a loaded development host; not ru
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -14394,6 +14398,10 @@ Read on 2026-11-21: the hook policy of the podvm kind allows a container mount o
 The unit tests: `cargo test -p podrunner-hook` (`the_hosted_work_folder_is_the_mount_source`, `a_linked_mount_source_is_refused`), `cargo test -p podrunner-slots work_folder`, `cargo test -p podrunner-local` (`a_unit_of_the_local_mode_has_the_hosted_work_folder`, `the_hook_policy_mounts_the_hosted_work_folder`, `a_tool_cache_links_into_the_cache_of_the_runner`), `cargo test -p podrunner podvm_kind` and `cargo test -p podrunner --test config_init`. The runs: `runner-image.yml` runs `crates/podrunner/tests/local/workspace.yml` on the podvm, the microvm and the incus kinds of the local mode, checks the empty `/home/runner/work` of the image, and runs the container job of T-093 (`containers.yml`) through the hooks with the new folder.
 
 State (2026-11-21, proven by the unit tests on a development host only; `runner-image.yml` not run): steps 1 to 4 are in. The hook policy has `work_dir`, the work folder relative to the runner directory, in place of `_work` by name (`crates/podrunner-hook/src/policy.rs`); each refusal stays, and the link check of T-403 holds for the new folder (the walk of `HookUnit::spec`, and `no_link` with `--podvm-volume-base` of the runner directory in `crates/podrunner-podvm/src/unit/containers.rs`, which names no folder). `UnitConfig::work_folder_of` gives `/home/runner/work` to the incus and the microvm kinds and `RUNNER_DIR/work` to the podvm kind when the key is absent; slots writes it into `.runner`; `serve` gives the podvm hook policy `work` (`crates/podrunner/src/podvm_kind.rs` `work_dir`). `[unit.podvm] work_folder` is new: `check` takes a folder in `runner_dir` only, and refuses the runner directory, `bin`, `externals`, `hooks` and a dot name. The local mode (`crates/podrunner-local/src/exec/workdir.rs`) writes `workFolder = /home/runner/work` into `.runner` of each unit, mounts `--export` there, links `--toolcache` into `work/_tool`, and gives its hook policy `work`. `config init` writes `work_folder = "/home/runner/work"` for each kind. `images/runner/Dockerfile` and `Dockerfile.musl` make the empty `/home/runner/work` owned by `runner`. No ask of podvm: the volume base of podvm is the runner directory, which holds the new folder. Each new test fails on the code before (the old `_work` by name in the policy, the old `run.rs`, `config_init.rs`, `toolcache.rs` and mount of `exec.rs`, the old kinds of `work_folder`). The host, the docker and the fake kinds keep `_work` (`docs/decisions.md`, T-590). Left: the run of `runner-image.yml` (each kind of the local mode, the container job and the image check); then `done`.
+
+## Done
+
+2026-11-23: proven in CI on GitHub-hosted runners: `runner-image.yml` 45147894869 (`9d9e38e`, with `46f7124` and `e2c9f79`) is green on x86_64 and aarch64: the runner image builds with the empty `/home/runner/work`, the canned job and the container job run through the hooks in a podvm unit, the export of a workspace and the tool cache of a podvm unit pass, the microvm and incus kinds pass their suites and the parity suites, and the container job on the namespace rung passes.
 
 # T-591: The unit tests leave directories in /tmp
 

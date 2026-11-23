@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**601 entries: 65 open, 59 partial, 18 blocked, 459 done.**
+**601 entries: 65 open, 57 partial, 18 blocked, 461 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 2 | 27 | 3 | 87 | 119 |
-| P2 | 17 | 21 | 11 | 236 | 285 |
+| P1 | 2 | 26 | 3 | 88 | 119 |
+| P2 | 17 | 20 | 11 | 237 | 285 |
 | P3 | 45 | 11 | 4 | 134 | 194 |
-| **All** | 65 | 59 | 18 | 459 | 601 |
+| **All** | 65 | 57 | 18 | 461 | 601 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -576,7 +576,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-529](later.md) | P2 | S | later | defect | done | The disk limit of an offer lifts the bound of the operator |
 | [T-530](later.md) | P2 | S | later | feature | done | The job-started hook of a podvm unit cannot ask serve |
 | [T-531](later.md) | P3 | S | later | chore | done | Take rsa 0.10 in the fake broker |
-| [T-532](later.md) | P1 | M | later | feature | partial | The containers of a podvm unit on the namespace rung, with a volume base |
+| [T-532](later.md) | P1 | M | later | feature | done | The containers of a podvm unit on the namespace rung, with a volume base |
 | [T-533](later.md) | P2 | M | later | measurement | open | A job of another architecture in a guest of the machine tier |
 | [T-534](later.md) | P2 | S | later | defect | done | The probe of the incus kind claims the kind on a host with no incusd |
 | [T-535](later.md) | P3 | S | later | defect | partial | The tests leave their temporary directories in /tmp |
@@ -632,7 +632,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-585](later.md) | P3 | S | later | defect | open | The store of the units of the podvm kind keeps each image that a unit loaded |
 | [T-588](later.md) | P3 | M | later | feature | partial | `install_system` of `pod-unit` for a system unit of `serve` |
 | [T-589](later.md) | P3 | S | later | defect | done | Two tests depend on the load and the free disk of the host |
-| [T-590](later.md) | P2 | M | later | feature | partial | The hosted work folder on the podvm kind and in the runner image |
+| [T-590](later.md) | P2 | M | later | feature | done | The hosted work folder on the podvm kind and in the runner image |
 | [T-591](later.md) | P3 | S | later | defect | done | The unit tests leave directories in /tmp |
 | [T-592](later.md) | P2 | S | later | defect | done | The level2 corpus fails on the advisory check of podcrates, which reads the live advisory database |
 | [T-593](later.md) | P1 | S | later | defect | partial | The official runner stops at its start when `no_proxy` holds the entry `::` |
