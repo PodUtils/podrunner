@@ -93,12 +93,25 @@ sees `GITHUB_WORKSPACE=/home/runner/work/REPO/REPO` and
 podvm, the incus and the microvm kinds, and the local mode uses it in each
 unit (T-590).
 
-The state (2026-11-21): the layer of the real runner tarball 2.338.2 and
-an `/etc/environment` fixture was made and read back on a development
-host; no runner image is pushed, and no job ran on one (not run). The
-proof: `hosted-runner.yml` with the digest of a snapshot manifest and
-`publish`, then `hosted-boot.yml` with the digest of the runner image
-(the file `runner` of the checks), then the canned job of T-541 on incus.
+The state (2026-11-23): `hosted-runner.yml` published the runner image
+`sha256:b1d895f4...` of the capture `ubuntu24-20261116.133.1`, and
+`hosted-boot.yml` booted its core slice with the runner layer under incus
+(proven in CI on GitHub-hosted runners). No job ran in it yet (T-541).
+
+`hosted-boot.yml` with the digest of a runner image then runs a canned job
+in the slice, through the slots of podrunner on the incus kind above
+(`crates/podrunner-broker-fake/tests/hosted.rs`). The job must see
+`GITHUB_WORKSPACE=/home/runner/work/app/app`,
+`RUNNER_TOOL_CACHE=/opt/hostedtoolcache` and the `ImageOS` of the
+snapshot from `.env`, and `actions/setup-python` must take the Python of
+the tool cache with no download. For it the slice keeps the tool cache of
+one Python (`slice.py --keep`, the input `python`, 3.12 by default). The
+input `plant = work-folder` gives the kind `/home/runner/_work`: that run
+must end red.
+
+```sh
+gh workflow run hosted-boot.yml -f digest=sha256:DIGEST
+```
 
 ## The checks of each capture
 

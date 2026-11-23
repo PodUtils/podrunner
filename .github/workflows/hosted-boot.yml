@@ -10,7 +10,13 @@
 # check that did not hold. The full snapshot needs about 190 GB in incusd
 # (T-551, T-557), more than a hosted runner has. A runner image of
 # hosted-runner.yml keeps its runner layer in the slice, and the file
-# `runner` of the checks reports it (T-541).
+# `runner` of the checks reports it (T-541). Then a canned job runs in it
+# through the slots of podrunner on the incus kind with `init = "image"`
+# (crates/podrunner-broker-fake/tests/hosted.rs): the job must see the
+# hosted work folder, the tool cache and the .env of the layer, and
+# actions/setup-python must take the Python of the tool cache. The slice
+# keeps the tool cache of that one Python for it. A snapshot with no runner
+# layer boots, and the canned job is skipped with the reason.
 name: hosted-boot
 
 on:
@@ -19,6 +25,14 @@ on:
       digest:
         description: "The digest of an amd64 manifest of ghcr.io/podutils/podrunner-hosted (sha256:...): a snapshot, or its runner image (hosted-runner.yml)"
         required: true
+      python:
+        description: "The Python of the tool cache that the slice keeps and that setup-python asks for (3.N)"
+        default: "3.12"
+      plant:
+        description: "A planted defect that must make the run red: none, or work-folder (the kind gives /home/runner/_work)"
+        type: choice
+        default: none
+        options: [none, work-folder]
 
 permissions:
   contents: read
@@ -32,16 +46,33 @@ jobs:
       - name: The core slice
         env:
           DIGEST: ${{ inputs.digest }}
+          PYTHON: ${{ inputs.python }}
         run: |
           set -eu
           case $DIGEST in sha256:[0-9a-f]*) [ ${#DIGEST} -eq 71 ] ;; *) echo "not a digest: $DIGEST" >&2; exit 1 ;; esac
+          case $PYTHON in 3.[0-9] | 3.[0-9][0-9]) ;; *) echo "python is 3.N, not: $PYTHON" >&2; exit 1 ;; esac
           df -h / /mnt
           # /mnt belongs to root on a hosted runner: a work directory of the
           # user of the job.
           sudo mkdir -p /mnt/w
           sudo chown "$(id -u):$(id -g)" /mnt/w
-          dig=$(python3 -I scripts/hosted/slice.py --digest "$DIGEST" --ref hosted:core --out /mnt/w/slice)
+          # T-541: the tool cache of one Python and its parent directory, for
+          # the setup-python step of the canned job.
+          dig=$(python3 -I scripts/hosted/slice.py --digest "$DIGEST" --ref hosted:core --out /mnt/w/slice \
+            --keep opt-hostedtoolcache --keep "toolcache-$PYTHON.*" --layers /mnt/w/layers)
           echo "SLICE=$dig" >> "$GITHUB_ENV"
+          echo "the kept layers: $(tr '\n' ' ' < /mnt/w/layers)"
+          # ImageOS of the snapshot, from the labels of its config.
+          os=$(python3 -I - /mnt/w/slice <<'PY'
+          import json, pathlib, sys
+          d = pathlib.Path(sys.argv[1])
+          blob = lambda digest: json.loads((d / "blobs/sha256" / digest[7:]).read_text())
+          m = blob(json.loads((d / "index.json").read_text())["manifests"][0]["digest"])
+          print(blob(m["config"]["digest"]).get("config", {}).get("Labels", {}).get("dev.podrunner.hosted.image-os", ""))
+          PY
+          )
+          case $os in *[!a-z0-9-]*) echo "not an ImageOS: $os" >&2; exit 1 ;; esac
+          echo "IMAGE_OS=$os" >> "$GITHUB_ENV"
           (cd /mnt/w/slice && find . -type f | sed 's#^\./##' | sort | tar -cf /mnt/w/slice.tar --no-recursion -T -)
           rm -rf /mnt/w/slice
           ls -l /mnt/w/slice.tar
@@ -133,3 +164,48 @@ jobs:
             --console "$RUNNER_TEMP/console.log" --state "$state" > "$RUNNER_TEMP/summary.md" || c=$?
           tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/summary.md"
           exit "$c"
+      # T-541: the canned job in the runner layer, through the slots of
+      # podrunner on the incus kind that boots the init of the image, as
+      # docs/hosted-snapshot.md configures it. The fake broker serves the
+      # job and the tarball of setup-python through the egress socket of
+      # the unit; the instance has no NIC.
+      - name: The canned job in the runner layer
+        env:
+          PYTHON: ${{ inputs.python }}
+          PLANT: ${{ inputs.plant }}
+          # actions/setup-python v7.1.0.
+          SETUP_PYTHON: 6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        run: |
+          set -euo pipefail
+          if ! grep -qx runner /mnt/w/layers; then
+            echo "No canned job: the manifest has no layer \`runner\`. Give the digest of a runner image of hosted-runner.yml (T-541)." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if ! grep -q "^toolcache-$PYTHON\." /mnt/w/layers; then
+            echo "::error title=hosted-boot::the slice has no layer toolcache-$PYTHON.*: give a python of the tool cache of the snapshot"
+            exit 1
+          fi
+          case $PLANT in none | work-folder) ;; *) echo "plant is none or work-folder, not: $PLANT" >&2; exit 1 ;; esac
+          sh scripts/retry.sh rustup toolchain install
+          export CARGO_TARGET_DIR=/mnt/w/target
+          cargo test -p podrunner-broker-fake --test hosted --no-run
+          actions=$RUNNER_TEMP/actions
+          mkdir -p "$actions/actions_setup-python"
+          sh scripts/retry.sh curl -qfsSLo "$actions/actions_setup-python/$SETUP_PYTHON.tar.gz" \
+            "https://codeload.github.com/actions/setup-python/tar.gz/$SETUP_PYTHON"
+          # The summary gets the lines of the job also when the test fails.
+          rc=0
+          sg incus-admin -c "PODRUNNER_PODVM='$RUNNER_TEMP/podvm' PODRUNNER_PODVM_IMAGES=/mnt/w/store \
+            PODRUNNER_HOSTED_IMAGE='hosted@$SLICE' PODRUNNER_HOSTED_PYTHON='$PYTHON' PODRUNNER_HOSTED_IMAGE_OS='$IMAGE_OS' \
+            PODRUNNER_HOSTED_ACTIONS='$actions' PODRUNNER_HOSTED_SETUP_PYTHON='$SETUP_PYTHON' PODRUNNER_PLANT='$PLANT' \
+            CARGO_TARGET_DIR=/mnt/w/target timeout 1800 cargo test -p podrunner-broker-fake --test hosted -- --ignored --nocapture" \
+            < /dev/null 2>&1 | tee "$RUNNER_TEMP/hosted-job.txt" || rc=$?
+          {
+            echo "## The canned job in the runner layer"
+            echo
+            echo '```'
+            grep -E 'Z hosted-[a-z-]+=|^test result' "$RUNNER_TEMP/hosted-job.txt" || echo "(no line of the job)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
