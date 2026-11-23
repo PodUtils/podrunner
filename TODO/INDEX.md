@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**590 entries: 62 open, 56 partial, 16 blocked, 456 done.**
+**593 entries: 63 open, 58 partial, 16 blocked, 456 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 4 | 25 | 3 | 87 | 119 |
-| P2 | 15 | 22 | 9 | 235 | 281 |
-| P3 | 42 | 9 | 4 | 132 | 187 |
-| **All** | 62 | 56 | 16 | 456 | 590 |
+| P2 | 16 | 22 | 9 | 235 | 282 |
+| P3 | 42 | 11 | 4 | 132 | 189 |
+| **All** | 63 | 58 | 16 | 456 | 593 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -621,8 +621,8 @@ acceptance, later The crate dependencies later than v1.
 | [T-574](later.md) | P1 | S | later | defect | done | One failed self-test of the guest tier takes the microvm kind out of `serve` for a day, with no cause |
 | [T-575](later.md) | P2 | S | later | defect | open | The host facts of a microvm kind with no `mem` name no memory and no CPU |
 | [T-576](later.md) | P1 | M | later | chore | partial | Take podcrates `v0.80.0` (COORD-150 of podcrates) |
-| [T-577](later.md) | P3 | S | later | defect | open | A JVM job behind an intercepting proxy of the host does not trust the CA of the proxy |
-| [T-578](later.md) | P3 | S | later | defect | open | A container step of a unit does not trust the CA of its broker |
+| [T-577](later.md) | P3 | S | later | defect | partial | A JVM job behind an intercepting proxy of the host does not trust the CA of the proxy |
+| [T-578](later.md) | P3 | S | later | defect | partial | A container step of a unit does not trust the CA of its broker |
 | [T-579](later.md) | P2 | S | later | feature | open | The pins of the hosted snapshot: images/hosted/pins.toml with the labels and the init of each payload |
 | [T-580](later.md) | P3 | S | later | defect | done | The test of the ninth client of the control socket fails under the load of the full suite |
 | [T-581](later.md) | P1 | M | later | chore | done | The readers of podvm's output before the release after `0.2.0-beta.37` (COORD-226 of podvm) |
@@ -638,3 +638,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-593](later.md) | P1 | S | later | defect | open | The official runner stops at its start when `no_proxy` holds the entry `::` |
 | [T-594](later.md) | P3 | S | later | defect | open | The image release and `runner-image.yml` each have a copy of the build and the archive of the runner images |
 | [T-595](later.md) | P3 | S | later | defect | blocked | A run report has no reason for a time that it does not know (`start_s`) |
+| [T-596](later.md) | P2 | S | later | defect | open | A container of `podrunner run` gets no CA file of the caller |
+| [T-597](later.md) | P3 | S | later | defect | open | A container of a unit gets the CA bundle of its broker, but no trust store of a JVM |
+| [T-598](later.md) | P3 | S | later | defect | open | A job on `--runner-dir` behind an intercepting proxy gives a JVM no trust store |

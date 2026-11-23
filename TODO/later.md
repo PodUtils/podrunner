@@ -14014,7 +14014,7 @@ State (2026-11-21, proven in CI on GitHub-hosted runners, `user-gate.yml` 448451
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -14045,7 +14045,7 @@ State (2026-11-23, steps 1 to 3 proven by the unit tests on a development host; 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -14511,3 +14511,78 @@ Ask podcrates (COORD-120) to allow a reason for each time of the report that can
 ## Blocker
 
 COORD-120 (GitHub #342, to podcrates): the schema of `run-report.v1` allows no reason for a time.
+
+# T-596: A container of `podrunner run` gets no CA file of the caller
+
+**Source:** the work of T-578, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On a host whose only way out is an intercepting proxy, `podrunner run` gives the CA files of the caller to the runner only (`crates/podrunner-local/src/exec/proxy.rs`, fn `unit_env`). A `container:` job, a service container or a Docker action of the local mode runs through the hooks (`crates/podrunner-local/src/exec/hooks.rs`, fn `hooks`) with no CA file and no variable of `ca::env`, so each TLS handshake through the proxy fails in the container. `serve` gives its containers the bundle of the broker since T-578.
+
+## Premise
+
+The report of the work of T-578, read on 2026-11-23.
+
+## Approach
+
+Join the CA files of `unit_env` into one PEM bundle, write it beside the logs directory as `Hooks::open` does for `serve`, and give it to `HookUnit::with_ca`.
+
+## Prove
+
+`cargo test -p podrunner-local hooks`: a container of a unit of a caller with `SSL_CERT_FILE` gets the mount and the variables; a caller with no CA file gives neither.
+
+# T-597: A container of a unit gets the CA bundle of its broker, but no trust store of a JVM
+
+**Source:** the work of T-578, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`HookUnit::spec` (`crates/podrunner-hook/src/unit.rs`) mounts only the PEM bundle of the broker into a container (T-578). A JVM in the container reads its own trust store, so a Java step in a `container:` job still fails the TLS handshake to a host of a credential or of a path rule. The runner gets the trust store since T-577.
+
+## Premise
+
+The report of the work of T-578, read on 2026-11-23.
+
+## Approach
+
+Put `podrunner-broker-ca.p12` beside the bundle in `LOGS/ca`, and set `JAVA_TOOL_OPTIONS` of `ca::java_options` to name `/__podrunner/podrunner-broker-ca.p12` unless the job sets it.
+
+## Prove
+
+`cargo test -p podrunner-hook`: a container of a unit with a trust store gets the file and `JAVA_TOOL_OPTIONS`; a value of the job stays.
+
+# T-598: A job on `--runner-dir` behind an intercepting proxy gives a JVM no trust store
+
+**Source:** the work of T-577, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`host_env` (`crates/podrunner-local/src/exec/host.rs`) gives the CA paths of the caller to a job on `--runner-dir`, but no trust store and no `JAVA_TOOL_OPTIONS`. The units of the local mode get both since T-577. A Java job on `--runner-dir` behind an intercepting proxy fails the TLS handshake.
+
+## Premise
+
+The report of the work of T-577, read on 2026-11-23.
+
+## Approach
+
+Write the store with `pod_broker::ca::write_trust_store` into the work area of the runner (for example `_work/_home`), and add `JAVA_TOOL_OPTIONS` of `ca::java_options` before a value of the caller.
+
+## Prove
+
+`cargo test -p podrunner-local host`: a caller with `SSL_CERT_FILE` gives a job on `--runner-dir` a trust store and `JAVA_TOOL_OPTIONS` that names it.

@@ -363,4 +363,10 @@ GitHub-hosted runners; its notes say so.
   date by the time of its files, not by their content. A build after a
   build of another worktree can take the other sources. Touch the sources
   of the tree before each build:
-  `find crates -name '*.rs' -exec touch {} +`.
+  `find crates -name '*.rs' -exec touch {} +`. The touch does not stop a
+  build of another worktree between the touch and the build: agents saw
+  false compile errors and stale artifacts of a path crate. When two
+  agents build at the same time and the disk holds it (a debug target is
+  about 9 GB), give each worktree a target directory of its own
+  (`CARGO_TARGET_DIR=/workspace/podrunner/target-NAME`, which
+  `.git/info/exclude` keeps out of the tree with `/target-*/`).
