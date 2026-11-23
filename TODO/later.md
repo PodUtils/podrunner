@@ -13849,6 +13849,8 @@ Next: step 1 and the second part of the Prove: a run of `user-gate.yml` (the lan
 
 State (2026-11-23, podvm `0.2.0-beta.38` pinned; the lanes: not run): `logs --podvm-tier=incus` reads the log of incus in pieces of 64 KiB (PodUtils/podvm@T-2046), so podvm no longer refuses a log over 64 MiB; the bound of the read in podrunner holds. Next: the podvm and the incus lanes of `user-gate.yml` with the release.
 
+State (2026-11-23, `user-gate.yml` 45276522625 at `f694571`, podvm `0.2.0-beta.38`, proven in CI on GitHub-hosted runners): each lane of the user-path gate is green, `serve-incus-kvm` and the podvm rows of each lane too, with the log of the incus tier read in pieces with no 64 MiB bound (podvm `0.2.0-beta.38`).
+
 # T-573: An image larger than the memory of a microvm guest is not refused
 
 **Source:** the work of T-551, 2026-11-20
@@ -14513,7 +14515,7 @@ The corpus unit is a job, not a step: the steps of `deny.yml/deny` that read no 
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -14534,6 +14536,10 @@ Measured on 2026-11-23 on a development host: `env -i HOME=/tmp PATH=/usr/bin:/b
 `cargo test -p podrunner-local proxy`: the table of `no_proxy` entries; a run of `podrunner run --runner-dir` with `https_proxy` and `no_proxy=::` on the official runner reaches its first step; the lane `proxy-only` of `user-gate.yml` with `::` in `no_proxy` passes.
 
 State (2026-11-23, proven by the tests on a development host as root with the official runner 2.338.2; `level2.yml` and the lane `proxy-only` of `user-gate.yml`: not run): the class is each entry of colons only after the trim (`::`, `:`, `:::`, ` :: `, a tab or a no-break space around it). `RunnerWebProxy` at v2.338.2 splits the entry at `:` with no empty part, so such an entry has a null host. `Runner.Listener --version` with `https_proxy` (or only `http_proxy`) stops on it in `no_proxy`, and in `NO_PROXY` when `no_proxy` is empty. It takes `::1`, `[::]`, `[::1]`, `::/0`, `:80`, `a:80`, `x:`, `:x`, `::ffff:1.2.3.4`, `.`, `*`, `a,,b` and spaces around a name. `crates/podrunner-local/src/exec/noproxy.rs` has the one function (`job_list`, `runner_cannot_read`) for the two places that give the proxy of the host to a runner: `host_env` (`--runner-dir`) and `unit_env` (a unit of `run` with the network of the host). It drops each such entry, keeps each other entry in its order, and names each dropped entry once for each process on stderr. The commit of T-573 dropped the entry with no line and no table. `serve` puts no `NO_PROXY` of the host into the environment of a unit, and `--vnet` sets an empty `NO_PROXY`. Not measured: whether podvm gives its own environment to a payload. The clients of podrunner read such an entry as the address `::` only (`pod_proxy`, a test): the DoH resolver and the upstream of the egress module take an explicit proxy and read no `NO_PROXY`. Tests: `cargo test -p podrunner-local proxy` (10, with 3 new); `cargo test -p podrunner --test local_proxy -- --ignored` (1 new: two jobs on the official runner with a closed loopback proxy, `no_proxy=::` and `NO_PROXY= :: ,intra.example`; one line on stderr). The table test fails on the code before (no dropped entry), and the run fails there for the missing line; with the filter removed, the run fails with the `ArgumentNullException` of the runner. `scripts/lab/proxy-only.sh` adds `::` to `NO_PROXY` and `no_proxy` (the lanes `proxy-only` and `proxy-only-dns`). Left: the run of `level2.yml` and `user-gate.yml`; then `done`.
+
+## Done
+
+2026-11-23: proven in CI on GitHub-hosted runners and in the user-path gate: `level2.yml` 45163987766 (`551d5d8`) runs `--test local_proxy` (two jobs of the official runner with `no_proxy=::` and `NO_PROXY=' :: ,intra.example'`: each job ends ok, a step sees no `::`, one stderr line); `user-gate.yml` 45276522625 (`f694571`, images of `runner-image.yml` 45231203307) passes its lanes `proxy-only` and `proxy-only-dns`, whose lab script sets `::` in `NO_PROXY` and `no_proxy`, on `--runner-dir` and `--podvm`, as a user with no root behind an intercepting proxy. The table test `cargo test -p podrunner-local proxy` holds the class (an entry of colons only after a trim).
 
 # T-594: The image release and `runner-image.yml` each have a copy of the build and the archive of the runner images
 

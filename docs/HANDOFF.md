@@ -100,59 +100,52 @@ is done.
 
 ## Resume here (the session of 2026-11-23)
 
-- In flight, read first (on `551d5d8` or later):
-  - `runner-image.yml` 45163987810 (`551d5d8`): the first run with the
-    CA mount of a container (T-578, the live test with a bundle on the
-    namespace rung), the usage test of a real incus instance (T-483), and
-    `local_proxy` of `level2.yml` (T-593). When it is green, dispatch
-    `user-gate.yml` with `images_run` of it: the lanes `proxy-only` and
-    `proxy-only-dns` now hold `::` in `no_proxy` (T-593).
-  - `runner-image-release.yml` 45164009824: the dry run of T-499 on the
-    pin 2.338.2 (the earlier run 45156174559 failed only on a check of
-    `Runner.Listener --version`, now removed).
-  - The release dry run of T-553 (`release.yml` with no version) after
-    `runner-image.yml` is green at the same HEAD. A fix of the review of
-    T-553 is in work on a branch (a probe of the push before the tag, a
-    job `push` with the write permissions, `--source-ref`).
-- This session can dispatch a workflow with the MCP tool
+- State at the end (`main` at `26f95bd` or later): podvm
+  `0.2.0-beta.38` is pinned (COORD-232). Green on it: `runner-image.yml`
+  45231203307 (`f694571`), `user-gate.yml` 45276522625 (each lane), the
+  gate, `level2.yml`, the dry run of `release.yml` 45276528105 (T-553:
+  the images of ghcr.io built, nothing pushed) and of
+  `runner-image-release.yml` 45164009824 (T-499). The hosted capture with
+  `--acls` and no `--sparse` is
+  `ghcr.io/podutils/podrunner-hosted@sha256:baa8431a36ba58f3be6d15780a4a2cc0090d90cd1621df3ffe1dee5d841f4909`
+  (C1 0 differences; its slice boots, `hosted-boot.yml` 45276447058).
+- This session dispatches workflows with the MCP tool
   `actions_run_trigger`; no `[gh action] requested` issue is necessary
-  (the owner, 2026-11-23).
+  (the owner, 2026-11-23). A push that changes a crate of the units starts
+  `runner-image.yml` (about 2.5 hours): cancel the older run when a newer
+  run covers the same images.
 - Done in this session, each with its proof in its entry: T-583, T-582,
-  T-592, T-590, T-532, T-541 (CI: the runner image
-  `ghcr.io/podutils/podrunner-hosted@sha256:b1d895f4619fb3e1e5f3a4bcd3f61a77296ffe515acf660848a3d7e30c2aa43e`
-  runs a job of `serve` under incus with the hosted paths and the tool
-  cache); T-589, T-591 (development host). Partial,
-  with the proof that is left in each entry: T-588 (`print-unit
-  --system`, `install-unit --system`), T-577 and T-578 (the CA of a JVM
-  and of a container), T-483 and T-497 (the reasons of the report),
-  T-499 (`runner-image-release.yml`; its dry run 45164009824 is green), T-553 (podrunner on ghcr.io),
-  T-556, T-557 (a hosted runner of 155 GB has 139.9 GB free; the load
-  waits for T-606), T-593 (the runner stops on a `no_proxy` entry `::`),
-  T-599 (no `--sparse` in the capture).
-- New asks: COORD-120 (#342, to podcrates: a reason of an absent time of
-  the report, T-595), COORD-121 (#343, to podcrates: `looks_secret` of
-  `pod-unit` reads a path after a dot as a random word, T-602),
-  COORD-122 (#344, to podvm: `podvm load` refuses 85 layers, T-606).
-- Asks open from before: COORD-118 (#339) and COORD-122 (#344): podvm
-  `0.2.0-beta.38` (COORD-232, PodUtils/podvm#648) has both fixes and is
-  pinned; the capture runs GNU tar with `--acls` again, `scrub.py` takes
-  an ACL record, and `--sparse` stays off (T-599). Close #339 and #344
-  after the runs that prove them: a new `hosted-snapshot.yml` capture
-  that boots in `hosted-boot.yml` (T-556), and `hosted-measure.yml` with
-  `full = all` (T-606). podcrates `v0.82.0` has no COORD message to
-  podrunner yet: take it when it comes.
-- Work order next (`TODO/PROGRESS.md`): the CI of the runs above, T-556, T-509 and T-511 (their records), T-596, T-480,
-  then T-594 to T-605 by priority.
+  T-592, T-590, T-532, T-541 (a job of `serve` in the hosted runner image
+  under incus sees the hosted paths and takes the tool cache), T-599,
+  T-606, T-593 (CI); T-589, T-591 (development host).
+- Partial, with what is left in each entry: T-588 (a start of `serve` in
+  a unit of the system), T-577 (a `java` client in the lane
+  `proxy-only`), T-578 (step 2, the engine route), T-596 (a live
+  `container:` job through a proxy), T-483 (the peak waits for podvm's
+  beta after beta.38: T-611), T-497, T-499 (a publish run with a new
+  `actions/runner`; the installer), T-553 (the run with a version and
+  the run on a tag), T-556 (`systemd-remount-fs.service`, the KVM
+  guest), T-557 (the import of the full snapshot fills a `dir` pool:
+  T-613).
+- Asks open: COORD-120 (#342) and COORD-121 (#343) to podcrates;
+  COORD-123 (#345, answered: fixed on podvm's `main`, T-611 waits for the
+  beta after beta.38) and COORD-124 (#346, the hidden error of a create)
+  to podvm. podcrates `v0.82.0` is out (podvm and podnet take it); no
+  COORD message to podrunner yet: take it when it comes.
+- Work order next (`TODO/PROGRESS.md`): T-613 (a btrfs pool for the full
+  boot), T-602 and T-595 when podcrates answers, T-611 with the next
+  podvm beta, T-607, T-597, T-598, T-603, T-609, T-610, T-612, then the
+  work order of `TODO/PROGRESS.md`.
 - Session notes:
   - Agents in parallel worktrees: give each a target directory of its
-    own outside the tree (`/workspace/target-NAME`), and a copy of the
-    runner directory: the lock of `/workspace/runner` makes a parallel
-    runner test fail. A shared target gave false compile errors and
-    stale test binaries.
+    own outside the tree (`/workspace/target-NAME`) and a copy of the
+    runner directory.
   - Do not commit while `check.sh` runs: it records no tree that changed
-    during the checks, and the pre-push hook then refuses the push.
-  - `check.sh` and the gate run the tests with a `TMPDIR` of their own
-    (`prt-XXXXXX`, no dot: T-602) and fail on an entry left there.
+    during the checks, and the pre-push hook then refuses the push. A
+    change of only `TODO/` after a recorded tree needs no new check.
+  - `issue-sync.yml` reopens an issue that the record marks open: when
+    another session closes an issue of this repository, mark it closed in
+    `TODO/issues.md` and `TODO/github.txt` in the same hour.
   - The 99 reports of an outside author (#155 to #287) have the label
     `confirmed`, so `issue-sync.yml` writes their state.
 
