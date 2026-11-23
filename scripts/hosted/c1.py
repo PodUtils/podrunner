@@ -131,6 +131,12 @@ def self_test() -> int:
             with open(os.path.join(root, p), "wb") as f:
                 f.write(c)
         os.chmod(os.path.join(root, "usr/bin/setuid"), 0o4755)
+        # A sparse file, stored in full (no --sparse, T-599): its row has
+        # the apparent size, not the blocks.
+        with open(os.path.join(root, "usr/bin/holes"), "wb") as f:
+            f.truncate(1 << 20)
+            f.seek(0, os.SEEK_END)
+            f.write(b"end")
         os.link(os.path.join(root, "usr/bin/tool"), os.path.join(root, "usr/bin/tool2"))
         os.symlink("tool", os.path.join(root, "usr/bin/alias"))
         os.mkfifo(os.path.join(root, "etc/fifo"))
@@ -162,6 +168,8 @@ def self_test() -> int:
                 return {r.split("\t")[0]: r.split("\t") for r in (row_of_member(ti) for ti in tf)}
         lower = layer(lambda p: p.startswith("etc"))
         upper = layer(lambda p: p.startswith("usr"))
+        if upper["usr/bin/holes"][5] != str((1 << 20) + 3):
+            bad.append(f"the size of a sparse file: {upper['usr/bin/holes'][5]}")
         found = compare(expected, [lower, upper])
         if found:
             bad.append(f"a whole capture: {found}")

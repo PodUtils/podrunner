@@ -112,6 +112,10 @@ stops the capture; nothing is pushed.
   layer stream, each changed file with its new content, each masked unit
   masked, and no credential pattern in the state of the machine that no
   rule covers. A finding names a path and a pattern, never a value.
+- No refused record (`scripts/hosted/scrub.py verify`): no `GNU.sparse.*`
+  record, which podvm refuses (T-599), and no `SCHILY.acl.*` record (the
+  interim call of T-556). The capture runs GNU tar with no `--sparse` and
+  no `--acls`; a sparse file costs its full size in the layer.
 - The layer table, the record of the image (`snapshot.json`) and the
   findings are the artifacts of the run.
 
