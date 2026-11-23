@@ -8,6 +8,8 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 const PREFIXES: &[&str] = &["podrunner-run-units-", "podrunner-run-tree-"];
+/// The probe of `TMPDIR` of a run ([`tmp_ok`]); a dead run can leave it.
+const PROBE: &str = "podrunner-probe-";
 
 /// The directories of this run: each one is removed when the run returns.
 pub(super) struct Gone(pub(super) Vec<PathBuf>);
@@ -22,13 +24,30 @@ impl Drop for Gone {
 
 /// The temporary directory of the run: it must exist and take a
 /// directory, or each later step fails with a path only (T-323 F14). The
-/// probe has the name of the run `id`, so two runs of one process and the
-/// probe of a killed run of the same pid do not meet.
+/// probe has the name of the run `id`, so two runs of one process do not
+/// meet. A killed run can leave its probe, and a later run can get the same
+/// pid and count (pid reuse in a container): a directory of this user at
+/// that name, not a link, is removed and the probe is made once more.
 fn tmp_ok(tmp: &Path, id: &str) -> Result<(), String> {
-    let probe = tmp.join(format!("podrunner-probe-{id}"));
-    std::fs::create_dir(&probe)
-        .map(|()| drop(std::fs::remove_dir(&probe)))
-        .map_err(|e| format!("TMPDIR {}: {e}: set TMPDIR to a directory that you can write", tmp.display()))
+    let probe = tmp.join(format!("{PROBE}{id}"));
+    let fault =
+        |e: std::io::Error| format!("TMPDIR {}: {e}: set TMPDIR to a directory that you can write", tmp.display());
+    match std::fs::create_dir(&probe) {
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && own_dir(&probe) => {
+            std::fs::remove_dir(&probe).map_err(fault)?;
+            std::fs::create_dir(&probe).map_err(fault)?
+        }
+        r => r.map_err(fault)?,
+    }
+    let _ = std::fs::remove_dir(&probe);
+    Ok(())
+}
+
+/// Whether `path` is a directory of this user, not a link.
+fn own_dir(path: &Path) -> bool {
+    // SAFETY: getuid has no failure.
+    let uid = unsafe { libc::getuid() };
+    std::fs::symlink_metadata(path).is_ok_and(|m| m.is_dir() && m.uid() == uid)
 }
 
 /// The tree directory and the units directory of the run `pid` under
@@ -58,14 +77,15 @@ fn live_podrunner(pid: u32) -> bool {
     std::path::Path::new(&format!("/proc/{pid}")).exists()
 }
 
-/// The directories of dead runs of this user in `tmp`.
+/// The directories of dead runs of this user in `tmp`, and the probe that
+/// a dead run left.
 pub(super) fn dead_runs(tmp: &Path, uid: u32, me: u32) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(tmp) else { return Vec::new() };
     entries
         .flatten()
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().into_owned();
-            let id = PREFIXES.iter().find_map(|p| name.strip_prefix(p))?;
+            let id = PREFIXES.iter().chain([&PROBE]).find_map(|p| name.strip_prefix(p))?;
             let pid: u32 = id.split_once('-').map_or(id, |(p, _)| p).parse().ok()?;
             let meta = std::fs::symlink_metadata(e.path()).ok()?;
             (meta.is_dir() && meta.uid() == uid && pid != me && !live_podrunner(pid)).then(|| e.path())
@@ -96,7 +116,11 @@ pub(super) fn end_dead_runs(dry: bool) {
     }
     // SAFETY: getuid has no failure.
     let uid = unsafe { libc::getuid() };
-    for dir in dead_runs(&std::env::temp_dir(), uid, std::process::id()) {
+    end_dead_runs_in(&std::env::temp_dir(), uid, std::process::id());
+}
+
+fn end_dead_runs_in(tmp: &Path, uid: u32, me: u32) {
+    for dir in dead_runs(tmp, uid, me) {
         let mut units = Vec::new();
         units_of(&dir, 3, &mut units);
         let mut ended = 0;
@@ -193,6 +217,50 @@ mod tests {
         let got = run_dirs(&tmp, "7-1");
         let _ = std::fs::remove_dir_all(&tmp);
         got.unwrap();
+    }
+
+    /// A killed run leaves its probe; a later run whose pid and count are
+    /// the same (pid reuse in a container) removes it and goes on. A link
+    /// at the name of the probe stays a fault, and nothing goes through it.
+    #[test]
+    fn a_probe_that_a_killed_run_of_this_id_left_is_removed() {
+        let tmp = std::env::temp_dir().join(format!("podrunner-probe-left-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join("podrunner-probe-7-3")).unwrap();
+        std::fs::create_dir_all(tmp.join("elsewhere")).unwrap();
+        std::os::unix::fs::symlink(tmp.join("elsewhere"), tmp.join("podrunner-probe-7-4")).unwrap();
+        let got = run_dirs(&tmp, "7-3");
+        let left = tmp.join("podrunner-probe-7-3").exists();
+        let link = tmp_ok(&tmp, "7-4");
+        let elsewhere = tmp.join("elsewhere").is_dir();
+        let _ = std::fs::remove_dir_all(&tmp);
+        got.unwrap();
+        assert!(!left, "the probe of the killed run stays");
+        assert!(link.unwrap_err().contains("set TMPDIR"), "a link at the name of the probe is taken");
+        assert!(elsewhere, "the target of the link is gone");
+    }
+
+    /// The probe of a dead run is a file of that run: the next run removes
+    /// it. One of this process, a file, or a link, stays.
+    #[test]
+    fn the_probe_of_a_dead_run_is_removed() {
+        let tmp = std::env::temp_dir().join(format!("podrunner-stale-probe-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        let me = std::process::id();
+        let dead = tmp.join("podrunner-probe-4194305-2");
+        std::fs::create_dir_all(&dead).unwrap();
+        std::fs::create_dir_all(tmp.join(format!("podrunner-probe-{me}-4"))).unwrap();
+        std::fs::write(tmp.join("podrunner-probe-4194306-1"), "x").unwrap();
+        std::os::unix::fs::symlink(&dead, tmp.join("podrunner-probe-4194307-1")).unwrap();
+        // SAFETY: getuid has no failure.
+        let uid = unsafe { libc::getuid() };
+        let found = dead_runs(&tmp, uid, me);
+        end_dead_runs_in(&tmp, uid, me);
+        let (gone, mine) = (!dead.exists(), tmp.join(format!("podrunner-probe-{me}-4")).is_dir());
+        let _ = std::fs::remove_dir_all(&tmp);
+        assert_eq!(found, [dead]);
+        assert!(gone, "the probe of a dead run stays");
+        assert!(mine, "the probe of this process is gone");
     }
 
     /// T-323 F14: a TMPDIR that is not there is named.
