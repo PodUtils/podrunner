@@ -156,10 +156,24 @@ of a host of the incus or podvm kind").
 load and the import of a snapshot on a standard hosted runner (T-557):
 
 ```sh
-gh workflow run hosted-measure.yml -f digest=sha256:DIGEST -f full=all -f place=joined
+gh workflow run hosted-measure.yml -f digest=sha256:DIGEST -f full=all -f place=btrfs
 ```
 
-`place=joined` puts the store and incusd on one LVM volume of a loop file
-on `/` and one on `/mnt`; `store-root` and `store-mnt` keep the two file
-systems apart. The summary and the artifact give the free space and the
-time at each step.
+The places:
+
+* `btrfs` (the default): one btrfs over a loop file on `/` and one on
+  `/mnt` (data and metadata `single`) holds the store and incusd. incusd
+  takes it as its default pool with the `btrfs` driver (a preseed of
+  `incus admin init`). The pool keeps the image as a subvolume and the
+  root of the instance as its snapshot, so the two share their blocks
+  (T-613).
+* `joined`: one LVM ext4 volume over the same two loop files, and a pool
+  of the `dir` driver. Its first run lost its runner.
+* `store-root` and `store-mnt`: the two file systems stay apart, and the
+  pool has the `dir` driver. A `dir` pool copies the tree for the image
+  and again for the instance: the full snapshot does not fit (T-613).
+
+podvm makes no pool: the instance takes the root disk of the default
+profile. The summary and the artifact give the free space and the time
+at each step; with `btrfs`, the columns of incusd are `df -B1` of the
+btrfs, and `pool.txt` has `btrfs filesystem usage -b` at each step.

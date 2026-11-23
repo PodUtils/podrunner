@@ -129,10 +129,13 @@ the tools.
     with the init of the image (T-556). `--all` keeps each layer.
   * `hosted/space.sh`: the free space (`df -B1` of `/`, `/mnt` and the
     file system of incusd) and the time at each step, as a TSV row and a
-    Markdown table. `hosted-measure.yml` (dispatch only, report-only)
-    frees the preinstalled trees, pulls a snapshot (all layers or the
-    slice), loads it into podvm, imports it into incusd and boots it only
-    when the margin stays (T-557).
+    Markdown table; on a btrfs, also `btrfs filesystem usage -b` in
+    `pool.txt`. `hosted-measure.yml` (dispatch only, report-only) frees
+    the preinstalled trees, puts the store and incusd on a place (`btrfs`:
+    one btrfs over `/` and `/mnt` with a pool of the `btrfs` driver,
+    T-613; `joined`; `store-root`; `store-mnt`), pulls a snapshot (all
+    layers or the slice), loads it into podvm, imports it into incusd and
+    boots it only when the margin stays (T-557).
   * `hosted/calls.sh`: each subcommand that a shell script of the
     snapshot gives to `scrub.py` is one that `scrub.py` takes (T-599).
   * `hosted/runner-layer.py`: the runner layer of the snapshot (T-541):

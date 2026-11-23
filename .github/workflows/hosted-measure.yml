@@ -2,7 +2,8 @@
 # The measure of the disk of a full boot of the hosted snapshot on a
 # standard hosted runner (T-557). The job frees the preinstalled trees of
 # the runner, puts the podvm store and incusd on / and /mnt (or on one
-# volume of both), pulls the snapshot (all layers or the core slice of
+# volume of both: LVM ext4, or btrfs with a pool of the btrfs driver),
+# pulls the snapshot (all layers or the core slice of
 # scripts/hosted/slice.py), loads it into the podvm store and imports it
 # into incusd (podvm create, as hosted-boot.yml runs it). It boots the
 # image only when the file system of incusd and / keep the margin after
@@ -28,11 +29,11 @@ on:
         type: choice
         options: [all, slice]
       place:
-        description: "joined: the store and incusd on one volume of / and /mnt; store-root: the store on /, incusd on /mnt; store-mnt: the store on /mnt, incusd on /"
+        description: "btrfs: the store and incusd on one btrfs of / and /mnt, a pool of the btrfs driver; joined: the store and incusd on one LVM ext4 volume of / and /mnt (its run 45156168746 lost its runner); store-root: the store on /, incusd on /mnt; store-mnt: the store on /mnt, incusd on /"
         required: true
-        default: joined
+        default: btrfs
         type: choice
-        options: [joined, store-root, store-mnt]
+        options: [btrfs, joined, store-root, store-mnt]
       margin:
         description: "The free GiB that the file system of incusd and / must keep after the import for the boot"
         required: true
@@ -127,6 +128,31 @@ jobs:
             sudo mount /dev/measure/joined /srv/joined
             work=/srv/joined/w incusd=/srv/joined/incus pool=/srv/joined
             ;;
+          btrfs)
+            # One btrfs over a loop file on / and one on /mnt, data and
+            # metadata single: no second copy of a block. A pool of the
+            # btrfs driver keeps the image as a subvolume and the root of
+            # an instance as its snapshot (shared blocks); a pool of the
+            # dir driver copies the tree for each (T-613). / keeps the
+            # margin of the boot and 2 GiB, as for joined.
+            command -v mkfs.btrfs > /dev/null || {
+              sh scripts/retry.sh sudo apt-get -qq update
+              sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends btrfs-progs
+            }
+            r=$(( $(df -B1 --output=avail / | sed -n 2p) - ((MARGIN + 2) << 30) ))
+            m=$(( $(df -B1 --output=avail /mnt | sed -n 2p) - (1 << 30) ))
+            sudo fallocate -l "$r" /var/tmp/btrfs-root.img
+            sudo fallocate -l "$m" /mnt/btrfs-mnt.img
+            l1=$(sudo losetup -f --show /var/tmp/btrfs-root.img)
+            l2=$(sudo losetup -f --show /mnt/btrfs-mnt.img)
+            sudo mkfs.btrfs -q -f -L measure -d single -m single "$l1" "$l2"
+            sudo mkdir -p /srv/btrfs
+            sudo mount -o "device=$l1,device=$l2" "$l1" /srv/btrfs
+            sudo btrfs filesystem show /srv/btrfs | tee -a "$M/info.txt"
+            # incusd makes the subvolume of the pool (/srv/btrfs/pool)
+            # itself: it refuses a directory that is not a subvolume.
+            work=/srv/btrfs/w incusd=/srv/btrfs/incus pool=/srv/btrfs
+            ;;
           store-root) work=/var/tmp/measure-w incusd=/mnt/incus pool=/mnt/incus ;;
           store-mnt) work=/mnt/w incusd="" pool=/var/lib/incus ;;
           *) echo "no place $PLACE" >&2; exit 1 ;;
@@ -145,6 +171,8 @@ jobs:
           sudo mkdir -p "$pool"
           df -B1 / /mnt "$pool"
       - name: podvm and incusd
+        env:
+          PLACE: ${{ inputs.place }}
         run: |
           set -eu
           trap 'sh scripts/hosted/space.sh mark "$M" incusd $?' EXIT
@@ -160,7 +188,38 @@ jobs:
           chmod 0755 "$RUNNER_TEMP/podvm"
           sh scripts/retry.sh sudo apt-get -qq update
           sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus dnsmasq-base
-          sudo incus admin init --minimal
+          if [ "$PLACE" = btrfs ]; then
+            # The preseed of --minimal, with a pool of the btrfs driver on
+            # the btrfs of the place step. podvm puts the instance on the
+            # root disk of the default profile, so this pool holds the
+            # image and the instance.
+            sudo incus admin init --preseed <<YAML
+          networks:
+          - name: incusbr0
+            type: bridge
+            config:
+              ipv4.address: auto
+              ipv6.address: auto
+          storage_pools:
+          - name: default
+            driver: btrfs
+            config:
+              source: $POOL/pool
+          profiles:
+          - name: default
+            devices:
+              root:
+                type: disk
+                path: /
+                pool: default
+              eth0:
+                type: nic
+                name: eth0
+                network: incusbr0
+          YAML
+          else
+            sudo incus admin init --minimal
+          fi
           sudo usermod -aG incus-admin "$(id -un)"
           sudo incus storage list | tee -a "$M/info.txt"
       - name: Pull the snapshot
@@ -250,6 +309,15 @@ jobs:
           } > "$M/du.txt" || true
           # The inodes: a file system can be full of files before bytes.
           df -i / /mnt "${POOL:-/}" >> "$M/du.txt" 2>&1 || true
+          # du counts a block that two subvolumes share two times: btrfs
+          # gives the exclusive and the shared bytes.
+          if [ "$PLACE" = btrfs ] && [ -n "${POOL:-}" ]; then
+            {
+              timeout 900 sudo btrfs filesystem du -s --raw /var/lib/incus/storage-pools/default/images \
+                /var/lib/incus/storage-pools/default/containers
+              sudo btrfs filesystem usage -b "$POOL"
+            } >> "$M/du.txt" 2>&1 || true
+          fi
           {
             echo "## The measure of a boot of the hosted snapshot (T-557)"
             echo
@@ -257,10 +325,16 @@ jobs:
             head -n 3 "$M/info.txt" 2> /dev/null || echo "(no info.txt: the first step failed)"
             echo '```'
             echo
-            if [ "$PLACE" = joined ]; then
+            case $PLACE in
+            joined)
               echo "The place is joined: from the step place on, a loop file fills / and /mnt, and the columns of incusd give the volume of the store and of incusd."
               echo
-            fi
+              ;;
+            btrfs)
+              echo "The place is btrfs: from the step place on, a loop file fills / and /mnt, and the columns of incusd give the btrfs of the store and of incusd (df -B1). pool.txt has btrfs filesystem usage -b at each step."
+              echo
+              ;;
+            esac
             sh scripts/hosted/space.sh report "$M"
             echo
             echo "### Freed trees"
@@ -272,6 +346,14 @@ jobs:
             echo '```'
             cat "$M/du.txt" 2> /dev/null
             echo '```'
+            if [ "$PLACE" = btrfs ]; then
+              echo
+              echo "### The btrfs at each step (btrfs filesystem usage -b)"
+              echo
+              echo '```'
+              grep -E '^---|Device size|Device allocated|Used:|Free \(estimated\)|Data,|Metadata,' "$M/pool.txt" 2> /dev/null
+              echo '```'
+            fi
           } > "$M/summary.md"
           cat "$M/summary.md" >> "$GITHUB_STEP_SUMMARY"
           cat "$M/summary.md"

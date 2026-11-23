@@ -10,7 +10,9 @@
 # the free bytes (df -B1) of /, /mnt and the file system of incusd (POOL,
 # default /var/lib/incus; "-" while the path is absent).
 # It prints the row too: the log keeps it when the disk is full. It adds
-# the view of incusd (incus storage info) to DIR/pool.txt.
+# the view of incusd (incus storage info) to DIR/pool.txt, and, when POOL
+# is on btrfs, btrfs filesystem usage -b: df of a btrfs does not give the
+# data, the metadata and the unallocated bytes apart (T-613).
 # report writes the table in Markdown, in GiB.
 set -eu
 cmd=${1:-}
@@ -49,6 +51,9 @@ mark)
     printf '%s\n' "$line" >> "$dir/space.tsv"
     if command -v incus > /dev/null 2>&1; then
         { echo "--- $step"; sudo -n incus storage info default --bytes 2>&1 | head -n 20; } >> "$dir/pool.txt" || true
+    fi
+    if [ -e "$pool" ] && [ "$(stat -f -c %T "$pool" 2> /dev/null)" = btrfs ]; then
+        { echo "--- $step: btrfs filesystem usage -b $pool"; sudo -n btrfs filesystem usage -b "$pool" 2>&1 | head -n 30; } >> "$dir/pool.txt" || true
     fi
     ;;
 report)
