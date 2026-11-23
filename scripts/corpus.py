@@ -23,6 +23,7 @@ LIVE = {
     "upstream.yml/sources": "it compares the pins with the live upstream repositories",
     "secrets.yml/secrets": "it scans the whole history against the allowlist of podcrates, and verifies found secrets on the network",
     "plants.yml/plants": "it applies the plants of podcrates, which its own upkeep keeps current",
+    "deny.yml/deny": "it checks the lock against the live advisory database, which adds advisories each day",
 }
 
 

@@ -14157,7 +14157,7 @@ Find each reader of `podvm inspect`, of a podvm exit code (125, 126, 127) and of
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -14180,6 +14180,10 @@ State (2026-11-21, the checks in the code; the self-test proven here; a red run 
 Next: a run of `hosted-boot.yml` with an image that podvm refuses (or the digest of run 44853306687, which gave `rc` 125) ends red and names `podvm run -d exits 0` in its summary; then this entry is `done`.
 
 State (2026-11-21, `hosted-boot.yml` 44878540271, #341): the checks of `boot-checks.py` run in CI and hold on a real boot. Not run: a red run on a planted refusal.
+
+## Done
+
+2026-11-23: proven in CI on GitHub-hosted runners. `hosted-boot.yml` 45148177346 (`9d9e38e`) on the capture with `--acls` (`sha256:d00306d8...`, which podvm `0.2.0-beta.37` refuses: the PAX record `SCHILY.acl.access` with a newline) ended red: the summary names `podvm run -d exits 0` (exit 125), `/out/started is present`, `/out/trace is present` and `the console has the marker` as checks that did not hold. `hosted-boot.yml` 44878540271 on a capture that boots was green (#341).
 
 # T-583: Take podcrates `v0.81.0` (COORD-151 of podcrates)
 
@@ -14381,3 +14385,30 @@ Read on 2026-11-21 after the test runs of T-590 (the names and the counts in `/t
 ## Prove
 
 `cargo test -p podrunner -p podrunner-podvm -p podrunner-egress -p podrunner-local --all-features` leaves no new `/tmp/podrunner-*` entry (`find /tmp -maxdepth 1 -name 'podrunner-*' -newer STAMP` is empty).
+
+# T-592: The level2 corpus fails on the advisory check of podcrates, which reads the live advisory database
+
+**Source:** `level2.yml` run 45147900990 (`9d9e38e`), 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The corpus job of `level2.yml` failed on `deny.yml/deny` only: `cargo deny --locked check advisories` of podcrates `59bca1f` gave RUSTSEC-2026-0592 (`url` 2.5.8, a stack overflow in `Url::origin()` on nested `blob:` URLs; `boon` of the dev dependencies of `pod-job` holds it). The pinned tree did not change; the advisory database did. The result of this job changes with the day, not with the runner, as for the jobs of T-196. podrunner's own lock has no `url`, so the gate of podrunner does not get the advisory.
+
+## Premise
+
+The log of the job `corpus` of run 45147900990, read on 2026-11-23. The other jobs of the corpus passed.
+
+## Approach
+
+Exclude `deny.yml/deny` in `LIVE` of `scripts/corpus.py`, with its reason, as T-196 did for the jobs that read live state, and write the corpus again from podcrates `59bca1f`.
+
+## Prove
+
+`python3 -I scripts/corpus.py DIR` at podcrates `59bca1f` gives `crates/podrunner-broker-fake/corpus/podcrates.json` (the check of `level2.yml` diffs it), and the corpus job of the next `level2.yml` run passes.
+
+State (2026-11-23, in the code; `level2.yml`: not run): `LIVE` names `deny.yml/deny`; the corpus keeps 5 jobs. The output of the script at `59bca1f` is the corpus file (a diff of the two gives nothing).

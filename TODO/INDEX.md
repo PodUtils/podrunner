@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**586 entries: 61 open, 55 partial, 15 blocked, 455 done.**
+**587 entries: 61 open, 55 partial, 15 blocked, 456 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 3 | 26 | 3 | 86 | 118 |
-| P2 | 15 | 21 | 9 | 235 | 280 |
+| P1 | 3 | 25 | 3 | 87 | 118 |
+| P2 | 15 | 22 | 9 | 235 | 281 |
 | P3 | 42 | 8 | 3 | 132 | 185 |
-| **All** | 61 | 55 | 15 | 455 | 586 |
+| **All** | 61 | 55 | 15 | 456 | 587 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -626,7 +626,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-579](later.md) | P2 | S | later | feature | open | The pins of the hosted snapshot: images/hosted/pins.toml with the labels and the init of each payload |
 | [T-580](later.md) | P3 | S | later | defect | done | The test of the ninth client of the control socket fails under the load of the full suite |
 | [T-581](later.md) | P1 | M | later | chore | done | The readers of podvm's output before the release after `0.2.0-beta.37` (COORD-226 of podvm) |
-| [T-582](later.md) | P1 | S | later | defect | partial | `hosted-boot.yml` is green when the guest does not boot |
+| [T-582](later.md) | P1 | S | later | defect | done | `hosted-boot.yml` is green when the guest does not boot |
 | [T-583](later.md) | P1 | S | later | chore | done | Take podcrates `v0.81.0` (COORD-151 of podcrates) |
 | [T-584](later.md) | P2 | S | later | defect | open | The conformance suite of the podvm kind fails four tests on the namespace rung as root |
 | [T-585](later.md) | P3 | S | later | defect | open | The store of the units of the podvm kind keeps each image that a unit loaded |
@@ -634,3 +634,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-589](later.md) | P3 | S | later | defect | open | Two tests depend on the load and the free disk of the host |
 | [T-590](later.md) | P2 | M | later | feature | partial | The hosted work folder on the podvm kind and in the runner image |
 | [T-591](later.md) | P3 | S | later | defect | open | The unit tests leave directories in /tmp |
+| [T-592](later.md) | P2 | S | later | defect | partial | The level2 corpus fails on the advisory check of podcrates, which reads the live advisory database |

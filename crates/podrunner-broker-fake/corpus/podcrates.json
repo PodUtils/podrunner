@@ -195,50 +195,6 @@
    ]
   },
   {
-   "id": "deny.yml/deny",
-   "env": [
-    [
-     "DENY_VERSION",
-     "0.20.2"
-    ],
-    [
-     "DENY_SHA256",
-     "9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f"
-    ]
-   ],
-   "steps": [
-    {
-     "checkout": {
-      "fetch_depth": 1
-     }
-    },
-    {
-     "name": "cargo-deny, from its release, checked by its SHA-256",
-     "run": "set -eu\nname=\"cargo-deny-$DENY_VERSION-x86_64-unknown-linux-musl\"\nsh scripts/retry.sh curl -qfsSL -o \"$RUNNER_TEMP/deny.tgz\" \\\n  \"https://github.com/EmbarkStudios/cargo-deny/releases/download/$DENY_VERSION/$name.tar.gz\"\necho \"$DENY_SHA256  $RUNNER_TEMP/deny.tgz\" | sha256sum -c -\ntar -xzf \"$RUNNER_TEMP/deny.tgz\" -C \"$RUNNER_TEMP\"\ninstall -m 0755 \"$RUNNER_TEMP/$name/cargo-deny\" \"$HOME/.cargo/bin/cargo-deny\"\ncargo deny --version\n",
-     "if": "",
-     "env": []
-    },
-    {
-     "name": "Advisories, licenses, bans and sources",
-     "run": "cargo deny --locked check advisories licenses bans sources",
-     "if": "",
-     "env": []
-    },
-    {
-     "name": "Licenses and sources with all features",
-     "run": "cargo deny --locked --all-features check licenses sources",
-     "if": "",
-     "env": []
-    },
-    {
-     "name": "A denied license fails",
-     "run": "set -u\nsed \"/\\\"0BSD\\\",/d\" deny.toml > \"$RUNNER_TEMP/deny.toml\"\nif cargo deny --locked --config \"$RUNNER_TEMP/deny.toml\" check licenses > \"$RUNNER_TEMP/plant.log\" 2>&1; then\n  echo \"the check passed with 0BSD denied\"\n  exit 1\nfi\ngrep -m1 'failed to satisfy license requirements' \"$RUNNER_TEMP/plant.log\"\n",
-     "if": "",
-     "env": []
-    }
-   ]
-  },
-  {
    "id": "live.yml/live",
    "env": [
     [
@@ -320,6 +276,10 @@
   {
    "id": "ci.yml/all",
    "reason": "the job has needs"
+  },
+  {
+   "id": "deny.yml/deny",
+   "reason": "it checks the lock against the live advisory database, which adds advisories each day"
   },
   {
    "id": "fuzz.yml/fuzz",
