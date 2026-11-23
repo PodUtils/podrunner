@@ -3,6 +3,7 @@
 //! one second and waits a few milliseconds of real time for them.
 
 mod assigned;
+mod bed;
 mod bounded;
 mod cancel;
 mod config;
@@ -50,6 +51,9 @@ use crate::{Slots, Source, UnitKind};
 
 pub(crate) const PIN: &str = "runner@sha256:1111111111111111111111111111111111111111111111111111111111111111";
 pub(crate) const NOW_UNIX: u64 = 1_800_000_000;
+/// The real time that `Bed::until` gives the processes of a fake unit
+/// after its ticks.
+const REAL: Duration = Duration::from_secs(10);
 
 pub(crate) struct TempDir(pub PathBuf);
 
@@ -226,15 +230,34 @@ impl Bed {
         std::thread::sleep(Duration::from_millis(5));
     }
 
-    /// Tick until `done` holds, up to `max` ticks; give the ticks.
+    /// Tick until `done` holds; give the seconds of the manual clock. The
+    /// clock moves by `max` seconds at most. Then the slots tick on a
+    /// clock that stays, until `done` holds or `REAL` passes: a fake unit
+    /// is a real process, and a loaded host can need more real time than
+    /// the ticks give (T-589).
     pub fn until(&mut self, max: u32, done: impl Fn(&Slots) -> bool) -> u32 {
+        self.until_within(max, REAL, done)
+    }
+
+    pub fn until_within(&mut self, max: u32, real: Duration, done: impl Fn(&Slots) -> bool) -> u32 {
         for n in 0..max {
             if done(&self.slots) {
                 return n;
             }
             self.tick();
         }
-        panic!("not done after {max} ticks: {:#?}", self.states());
+        let end = std::time::Instant::now() + real;
+        while std::time::Instant::now() < end {
+            if done(&self.slots) {
+                return max;
+            }
+            self.slots.tick();
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        if done(&self.slots) {
+            return max;
+        }
+        panic!("not done after {max} ticks and {real:?} of real time: {:#?}", self.states());
     }
 
     pub fn states(&self) -> Vec<(String, State)> {

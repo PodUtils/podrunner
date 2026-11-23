@@ -67,16 +67,28 @@ fn doctor_run_reads_the_run_toml_of_the_user() {
     std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
     std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
     std::fs::write(dir.join("config/podrunner/run.toml"), "runner-dir = \"../../runner\"\n").unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_podrunner"))
-        .args(["doctor", "--run", "w.yml"])
-        .current_dir(&dir)
-        .env("XDG_CONFIG_HOME", dir.join("config"))
-        .env("HOME", &dir)
-        .output()
-        .unwrap();
-    let text = String::from_utf8_lossy(&out.stdout);
-    assert_eq!(out.status.code(), Some(0), "{text}{}", String::from_utf8_lossy(&out.stderr));
-    assert!(text.contains("ok   runner-dir"), "{text}");
+    // The free space of the scratch disk is a fact of the host, not of
+    // this test (T-589): a TMPDIR that is not there fails that row as a
+    // small `/tmp` does.
+    for tmp in [dir.clone(), dir.join("missing")] {
+        let out = Command::new(env!("CARGO_BIN_EXE_podrunner"))
+            .args(["doctor", "--run", "w.yml"])
+            .current_dir(&dir)
+            .env("XDG_CONFIG_HOME", dir.join("config"))
+            .env("HOME", &dir)
+            .env("TMPDIR", &tmp)
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(text.contains("ok   runner-dir"), "{text}");
+        let failed: Vec<&str> = text.lines().filter(|l| l.starts_with("FAIL")).collect();
+        assert!(failed.iter().all(|l| l.starts_with("FAIL scratch-disk:")), "{text}");
+        let code = if failed.is_empty() { 0 } else { 1 };
+        assert_eq!(out.status.code(), Some(code), "{text}{}", String::from_utf8_lossy(&out.stderr));
+        if tmp.ends_with("missing") {
+            assert_eq!(failed.len(), 1, "{text}");
+        }
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }
 
