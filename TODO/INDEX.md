@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**603 entries: 67 open, 57 partial, 18 blocked, 461 done.**
+**603 entries: 66 open, 58 partial, 18 blocked, 461 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 26 | 3 | 88 | 119 |
-| P2 | 18 | 20 | 11 | 237 | 286 |
+| P2 | 17 | 21 | 11 | 237 | 286 |
 | P3 | 46 | 11 | 4 | 134 | 195 |
-| **All** | 67 | 57 | 18 | 461 | 603 |
+| **All** | 66 | 58 | 18 | 461 | 603 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -638,7 +638,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-593](later.md) | P1 | S | later | defect | partial | The official runner stops at its start when `no_proxy` holds the entry `::` |
 | [T-594](later.md) | P3 | S | later | defect | open | The image release and `runner-image.yml` each have a copy of the build and the archive of the runner images |
 | [T-595](later.md) | P3 | S | later | defect | blocked | A run report has no reason for a time that it does not know (`start_s`) |
-| [T-596](later.md) | P2 | S | later | defect | open | A container of `podrunner run` gets no CA file of the caller |
+| [T-596](later.md) | P2 | S | later | defect | partial | A container of `podrunner run` gets no CA file of the caller |
 | [T-597](later.md) | P3 | S | later | defect | open | A container of a unit gets the CA bundle of its broker, but no trust store of a JVM |
 | [T-598](later.md) | P3 | S | later | defect | open | A job on `--runner-dir` behind an intercepting proxy gives a JVM no trust store |
 | [T-599](later.md) | P2 | S | later | defect | open | The capture of the hosted snapshot writes GNU sparse records, which the next podvm refuses |
