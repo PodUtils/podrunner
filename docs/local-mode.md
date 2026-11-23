@@ -112,6 +112,16 @@ for the base image and 4 GiB for the larger one, for each job at a time
 `unit u-N starts` names it. `podrunner doctor --run` gives the need of the
 image of the run (T-325).
 
+Each run keeps its files in two directories of `TMPDIR`,
+`podrunner-run-tree-ID` and `podrunner-run-units-ID`, at mode 0700, and
+removes them when it ends. `ID` is `NS-PID-N`: the inode of the pid
+namespace of the run (`/proc/self/ns/pid`), its pid, and a count. When a
+run was killed, the next run of the same user in the same pid namespace
+ends the units of the dead run, removes its directories, and writes one
+line for each. A run of another pid namespace (another container that
+shares `TMPDIR`) is never ended. A directory of an older release (`PID`
+or `PID-N`) stays: remove it by hand (T-312, T-607).
+
 ## A host that refuses each AF_INET bind
 
 On a host whose sandbox refuses `bind(2)` (and `connect(2)`) of AF_INET,
