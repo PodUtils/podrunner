@@ -6,21 +6,22 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 use podrunner_source::conformance::{self, Fixture};
 use podrunner_source::{JobSource, WireSource};
+use scratch::Scratch;
+
+mod scratch;
 
 /// The podrunner binary of this build: `fake-source` is a command of it.
 fn binary() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_BIN_EXE_podrunner"))
 }
 
-/// A script of three offers that are due at once: the source tests need
-/// two or more on the first `next`.
-fn script() -> String {
+/// A script of three offers that are due at once, in `dir`: the source
+/// tests need two or more on the first `next`.
+fn script(dir: &std::path::Path) -> String {
     // One file for each call: the tests run at the same time, and a write
     // of a shared file gives a source a script cut short.
     static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("podrunner-program-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join(format!("script-{n}.jsonl"));
     let line = |job: &str| {
         format!(
@@ -31,9 +32,9 @@ fn script() -> String {
     path.to_str().unwrap().to_string()
 }
 
-fn spawn() -> (Child, ChildStdin, ChildStdout) {
+fn spawn(dir: &std::path::Path) -> (Child, ChildStdin, ChildStdout) {
     let mut c = Command::new(binary())
-        .args(["fake-source", "--script", &script()])
+        .args(["fake-source", "--script", &script(dir)])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -43,20 +44,21 @@ fn spawn() -> (Child, ChildStdin, ChildStdout) {
     (c, i, o)
 }
 
-/// A program source behind `SidecarSource::program`, as `serve` builds it.
-struct Program;
+/// A program source behind `SidecarSource::program`, as `serve` builds it,
+/// with its scripts in a directory of the test.
+struct Program(std::path::PathBuf);
 
 impl Fixture for Program {
     fn fresh(&self) -> Box<dyn JobSource> {
         Box::new(podrunner_mint::SidecarSource::program(
             binary().to_str().unwrap(),
-            vec!["fake-source".into(), "--script".into(), script()],
+            vec!["fake-source".into(), "--script".into(), script(&self.0)],
             vec![],
             "program:test",
         ))
     }
     fn exchange(&self, line: &[u8]) -> String {
-        let (mut c, mut i, o) = spawn();
+        let (mut c, mut i, o) = spawn(&self.0);
         i.write_all(line).unwrap();
         i.write_all(b"\n").unwrap();
         let mut reply = String::new();
@@ -69,7 +71,8 @@ impl Fixture for Program {
 
 #[test]
 fn a_program_source_passes_the_source_tests() {
-    let results = conformance::run(&Program, &[]);
+    let dir = Scratch::new("program");
+    let results = conformance::run(&Program(dir.to_path_buf()), &[]);
     for r in &results {
         println!("{r}");
     }
@@ -78,7 +81,8 @@ fn a_program_source_passes_the_source_tests() {
 
 #[test]
 fn the_wire_reaches_the_fake_source_of_a_program() {
-    let (mut c, i, o) = spawn();
+    let dir = Scratch::new("program");
+    let (mut c, i, o) = spawn(&dir);
     let mut s = WireSource::new(BufReader::new(o), i);
     let h = s.hello("podrunner", "0").unwrap();
     assert_eq!(h.source, "fake-program");
@@ -90,7 +94,8 @@ fn the_wire_reaches_the_fake_source_of_a_program() {
 /// program that ends with no answer (T-104).
 #[test]
 fn source_conformance_passes_a_source_and_fails_an_echo() {
-    let script = script();
+    let dir = Scratch::new("program");
+    let script = script(&dir);
     let run = |args: &[&str]| Command::new(binary()).arg("source-conformance").arg("--").args(args).output().unwrap();
     let ok = run(&[binary().to_str().unwrap(), "fake-source", "--script", &script]);
     let text = String::from_utf8_lossy(&ok.stdout);
@@ -108,7 +113,8 @@ fn source_conformance_passes_a_source_and_fails_an_echo() {
 /// the totals.
 #[test]
 fn source_conformance_json_is_a_line_for_each_test() {
-    let script = script();
+    let dir = Scratch::new("program");
+    let script = script(&dir);
     let out = Command::new(binary())
         .args(["source-conformance", "--json", "--"])
         .arg(binary())

@@ -1,29 +1,25 @@
 //! The checks of a user QA of `v0.1.0-beta.7` (GitHub #203 to #212).
 
-use std::path::PathBuf;
-
 use super::*;
+use crate::scratch::Scratch;
 
 fn args(a: &[&str]) -> Vec<String> {
     a.iter().map(|s| s.to_string()).collect()
 }
 
 /// A new directory for one test.
-fn scratch(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("podrunner-qa6-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn scratch(tag: &str) -> Scratch {
+    Scratch::new(&format!("qa6-{tag}"))
 }
 
 /// An unpacked runner for a dry run, which checks the runner directory
-/// (T-345).
-pub(super) fn runner_dir(tag: &str) -> String {
-    let dir = std::env::temp_dir().join(format!("podrunner-qa6-runner-{tag}-{}", std::process::id()));
+/// (T-345). It goes at the drop.
+pub(super) fn runner_dir(tag: &str) -> Scratch {
+    let dir = Scratch::new(&format!("qa6-runner-{tag}"));
     std::fs::create_dir_all(dir.join("bin")).unwrap();
     std::fs::write(dir.join("run.sh"), "").unwrap();
     std::fs::write(dir.join("bin/Runner.Listener"), "").unwrap();
-    dir.display().to_string()
+    dir
 }
 
 const WORKFLOW: &str = "on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps: [{run: a}]\n";
@@ -72,7 +68,8 @@ fn the_secrets_of_the_tree_are_checked_in_a_dry_run() {
     let w = dir.join("w.yml").display().to_string();
     let t = tree.display().to_string();
     let secrets = tree.join(".secrets");
-    let r = runner_dir("secrets");
+    let runner = runner_dir("secrets");
+    let r = runner.text().to_string();
     let dry = || run(&args(&[&w, "--runner-dir", &r, "--dry-run", "--no-cache", "--checkout", &t]));
     let set = |text: &str, mode: u32| {
         std::fs::write(&secrets, text).unwrap();
@@ -266,7 +263,8 @@ fn a_checkout_with_the_text_of_the_directory_stays() {
     let dir = scratch("dircheckout");
     std::fs::write(dir.join("a.yml"), WORKFLOW).unwrap();
     let d = dir.display().to_string();
-    let r = runner_dir("dircheckout");
+    let runner = runner_dir("dircheckout");
+    let r = runner.text().to_string();
     for a in [vec!["--checkout", d.as_str(), d.as_str()], vec![d.as_str(), "--checkout", d.as_str()]] {
         let mut a = a.clone();
         a.extend(["--runner-dir", r.as_str(), "--dry-run", "--no-cache"]);
@@ -300,7 +298,8 @@ fn a_pull_request_is_filtered_on_its_base_branch() {
     )
     .unwrap();
     let (w, p) = (dir.join("w.yml").display().to_string(), dir.join("p.json").display().to_string());
-    let r = runner_dir("prbase");
+    let runner = runner_dir("prbase");
+    let r = runner.text().to_string();
     let out =
         run(&args(&[&w, "--runner-dir", &r, "--dry-run", "--no-cache", "--event", "pull_request", "--event-path", &p]));
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
@@ -329,7 +328,8 @@ fn the_paths_of_a_run_by_their_use() {
     std::fs::create_dir_all(&store).unwrap();
     std::fs::set_permissions(&store, std::fs::Permissions::from_mode(0o555)).unwrap();
     let s = store.display().to_string();
-    let r = runner_dir("pathuse");
+    let runner = runner_dir("pathuse");
+    let r = runner.text().to_string();
     let out = run(&args(&[&w, "--runner-dir", &r, "--dry-run", "--no-cache", "--offline", "--actions", &s]));
     assert_eq!(out.code, 0, "{}{}", out.stdout, out.stderr);
     // SAFETY: geteuid has no failure.
@@ -360,7 +360,8 @@ fn the_actions_of_a_called_workflow_are_pinned() {
     let (w, t, store) =
         (dir.join("w.yml").display().to_string(), tree.display().to_string(), dir.join("store").display().to_string());
     std::fs::create_dir_all(dir.join("store")).unwrap();
-    let r = runner_dir("called");
+    let runner = runner_dir("called");
+    let r = runner.text().to_string();
     let out = run(&args(&[
         &w,
         "--runner-dir",
@@ -417,8 +418,15 @@ fn a_repository_with_dot_dot_is_refused_before_a_fetch() {
         std::fs::write(&file, flow).unwrap();
         let store = dir.join("store").display().to_string();
         let w = file.display().to_string();
-        let out =
-            run(&args(&[&w, "--dry-run", "--no-cache", "--actions", &store, "--runner-dir", &runner_dir("dotdot")]));
+        let out = run(&args(&[
+            &w,
+            "--dry-run",
+            "--no-cache",
+            "--actions",
+            &store,
+            "--runner-dir",
+            runner_dir("dotdot").text(),
+        ]));
         assert_ne!(out.code, 0, "{i}: {}{}", out.stdout, out.stderr);
         assert!(out.stderr.contains("not a name"), "{i}: {}", out.stderr);
     }

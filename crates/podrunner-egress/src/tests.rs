@@ -7,7 +7,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::SocketAddr;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -61,11 +61,37 @@ fn egress() -> Egress {
     Egress::new(Broker::new(Settings::default(), Arc::new(Public), Arc::new(Echo))).unwrap()
 }
 
-fn dir() -> PathBuf {
-    let d =
-        std::env::temp_dir().join(format!("podrunner-egress-{}-{:?}", std::process::id(), std::thread::current().id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+/// The directory of one test: it goes at the drop, after a pass and after
+/// a panic (T-591).
+pub(crate) struct Scratch(PathBuf);
+
+impl Scratch {
+    /// A new empty directory `podrunner-NAME-PID-N` in the temp directory.
+    pub(crate) fn new(name: &str) -> Scratch {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let p = std::env::temp_dir().join(format!("podrunner-{name}-{}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&p);
+        std::fs::create_dir_all(&p).unwrap();
+        Scratch(p)
+    }
+}
+
+impl std::ops::Deref for Scratch {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn dir() -> Scratch {
+    Scratch::new("egress")
 }
 
 /// The status of the answer to `request` on the socket, and the stream.
@@ -119,7 +145,6 @@ fn each_unit_has_a_listener_of_its_job_with_no_token() {
         "CONNECT b.example:443 HTTP/1.1\r\nHost: b.example:443\r\nProxy-Authorization: Bearer token-of-u-1\r\n\r\n";
     assert_eq!(ask(&b, with_a).0, 407);
     assert_eq!(Egress::proxy_url(&a), format!("http://unix:{}", a.display()));
-    let _ = std::fs::remove_dir_all(d);
 }
 
 #[test]
@@ -136,7 +161,6 @@ fn a_close_and_a_kill_end_the_listeners() {
     assert!(!e.alive());
     assert!(!b.exists());
     assert!(e.open("u-3", ONLY_A, &d.join("u-3.sock"), Duration::from_secs(60)).is_err());
-    let _ = std::fs::remove_dir_all(d);
 }
 
 #[test]
@@ -152,7 +176,6 @@ fn a_bad_policy_is_refused_and_named_without_its_text() {
         )
         .unwrap_err();
     assert!(!err.0.contains("secret-host-77"), "{err}");
-    let _ = std::fs::remove_dir_all(d);
 }
 
 /// A CONNECT proxy on the loopback that answers each request with `status`.
@@ -289,7 +312,6 @@ fn ip_literal_reset_and_the_names_mode() {
         }
         e.kill();
     }
-    let _ = std::fs::remove_dir_all(d);
 }
 
 /// A resolver of a host whose names resolve only through its proxy: it
@@ -336,5 +358,4 @@ fn names_upstream_with_no_resolver() {
     let (status, _) = ask(&socket, &connect("b.example:443"));
     assert_eq!(status, 403, "a denied name stays refused");
     e.kill();
-    let _ = std::fs::remove_dir_all(d);
 }

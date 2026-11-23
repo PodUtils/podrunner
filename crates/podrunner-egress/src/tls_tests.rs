@@ -116,10 +116,8 @@ fn roots() -> Vec<u8> {
     JobCa::new("roots", Duration::from_secs(600)).unwrap().pem().as_bytes().to_vec()
 }
 
-fn dir(name: &str) -> std::path::PathBuf {
-    let d = std::env::temp_dir().join(format!("podrunner-egress-tls-{name}-{}", std::process::id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+fn dir(name: &str) -> crate::tests::Scratch {
+    crate::tests::Scratch::new(&format!("egress-tls-{name}"))
 }
 
 /// A request of the unit through a CONNECT and its own TLS, which trusts
@@ -191,7 +189,6 @@ fn the_far_end_gets_the_value_and_the_unit_sees_the_placeholder() {
     e.close("u-1");
     let lines = format!("{:?}", e.take_lines());
     assert!(!lines.contains(SECRET), "{lines}");
-    let _ = std::fs::remove_dir_all(d);
 }
 
 /// A job with no credential and no path gets no CA; a credential with no
@@ -213,7 +210,6 @@ fn a_job_with_no_credential_gets_no_ca_and_a_missing_value_is_refused() {
     let err = bare.open_with("u-4", &policy(true), secrets, &d.join("d.sock"), Duration::from_secs(60)).unwrap_err();
     assert!(err.0.contains("no CA file"), "{err}");
     assert!(!d.join("d.sock").exists(), "no listener for a refused job");
-    let _ = std::fs::remove_dir_all(d);
 }
 
 /// The review of T-563: a host that no credential names gets the tunnel as
@@ -240,7 +236,6 @@ fn a_host_with_no_credential_gets_only_the_placeholder() {
     assert!(far.contains(&format!("Bearer {PH}")) && !far.contains(SECRET), "{far}");
     assert!(!answer.contains(SECRET), "{answer}");
     e.kill();
-    let _ = std::fs::remove_dir_all(d);
 }
 
 /// T-524: a rule with a path holds through the TLS end: the unit gets the
@@ -262,7 +257,6 @@ fn a_path_rule_is_held_by_the_tls_end() {
     let far = seen.lock().unwrap().clone();
     assert!(far.contains("GET /v1/repos") && !far.contains("/v2"), "{far}");
     e.kill();
-    let _ = std::fs::remove_dir_all(d);
 }
 
 /// The roots of a job: the CA file of the environment, then the first
@@ -280,5 +274,4 @@ fn the_roots_are_the_file_of_the_environment_and_a_system_bundle() {
     let got = String::from_utf8(got).unwrap();
     assert!(got.starts_with(a.pem()) && got.ends_with(b.pem()), "{got}");
     assert_eq!(super::tls::roots_pem(None, std::slice::from_ref(&empty)), None);
-    let _ = std::fs::remove_dir_all(d);
 }

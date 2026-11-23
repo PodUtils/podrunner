@@ -68,8 +68,7 @@ mod tests {
 
     #[test]
     fn a_datagram_reaches_a_path_and_an_abstract_name() {
-        let dir = std::env::temp_dir().join(format!("podrunner-notify-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::scratch::Scratch::new("notify");
         let path = dir.join("notify.sock");
         let rx = UnixDatagram::bind(&path).unwrap();
         send_to(path.to_str().unwrap(), "READY=1").unwrap();

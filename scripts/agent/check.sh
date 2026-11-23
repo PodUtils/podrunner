@@ -11,8 +11,9 @@
 # (scripts/runner-release.py --self-test), the commit messages
 # (scripts/check-commit-msg.sh, with its self-test), the test of the
 # installer (scripts/test-install.sh), the levels of proof of the newest
-# notes of a release (scripts/check-notes.sh), and the static build
-# of x86_64 musl (scripts/check-static.sh). Print each exit code and the
+# notes of a release (scripts/check-notes.sh), the static build of
+# x86_64 musl (scripts/check-static.sh), and that the tests leave no
+# entry in their temp directory. Print each exit code and the
 # first faults; exit 1 on a fault. With the argument notest, the tests are
 # skipped. A full run (the tests and PODRUNNER_RUNNER_DIR) that passes
 # writes the tree that it checked into .work/agent/checked-trees:
@@ -36,6 +37,15 @@ tree_now() {
     return "$e"
 }
 tree=$(tree_now)
+# Print each entry that the tests left in the directory $1; exit 1 if
+# there is one.
+tmp_left() {
+    left=$(ls -A "$1") || return 1
+    [ -z "$left" ] && return 0
+    echo "the tests left these entries in their temp directory:"
+    echo "$left" | head -20
+    return 1
+}
 cargo fmt --all --check > "$log/fmt.log" 2>&1; f=$?
 echo "fmt $f"; [ "$f" -eq 0 ] || { rc=1; head -20 "$log/fmt.log"; }
 cargo clippy --workspace --all-targets --all-features -- -D warnings > "$log/clippy.log" 2>&1; c=$?
@@ -85,9 +95,15 @@ t=x86_64-unknown-linux-musl
     sh scripts/check-static.sh "target/$t/release/podrunner"; } > "$log/static.log" 2>&1; st=$?
 echo "static $st"; [ "$st" -eq 0 ] || { rc=1; tail -20 "$log/static.log"; }
 if [ "${1:-}" != notest ]; then
-    timeout 1800 cargo test --workspace --all-features > "$log/test.log" 2>&1; t=$?
+    # The tests get a temp directory of their own (T-591): other runs on
+    # the host do not add to it, and each test removes what it makes.
+    tmp=$(mktemp -d "${TMPDIR:-/tmp}/prt.XXXXXX") || exit 1
+    TMPDIR=$tmp timeout 1800 cargo test --workspace --all-features > "$log/test.log" 2>&1; t=$?
     # Not "failed": each summary line has "0 failed" and would hide the cause.
     echo "test $t"; [ "$t" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|^error|^failures:|^---- " "$log/test.log" | head -30; }
+    tmp_left "$tmp"; l=$?
+    echo "tmp-left $l"; [ "$l" -eq 0 ] || rc=1
+    rm -rf "${tmp:?}"
     # The suites of level2.yml that need the official runner (T-256): with
     # PODRUNNER_RUNNER_DIR (an unpacked release of actions/runner), else a
     # line that says that they did not run.

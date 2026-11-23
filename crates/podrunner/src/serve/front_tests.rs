@@ -2,19 +2,14 @@
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use super::{Ask, Bounds, CONTROL, serve};
+use crate::scratch::Scratch;
 
-fn dir() -> PathBuf {
-    let d = std::env::temp_dir()
-        .join(format!("podrunner-front-{}-{:?}", std::process::id(), std::thread::current().id()))
-        .join("x");
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).unwrap();
-    d
+fn dir() -> Scratch {
+    Scratch::new("front")
 }
 
 /// An egress module that answers each connection with its first line.
