@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**608 entries: 68 open, 56 partial, 19 blocked, 465 done.**
+**608 entries: 68 open, 57 partial, 18 blocked, 465 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 90 | 119 |
-| P2 | 16 | 21 | 11 | 239 | 287 |
+| P2 | 16 | 22 | 10 | 239 | 287 |
 | P3 | 49 | 11 | 5 | 134 | 199 |
-| **All** | 68 | 56 | 19 | 465 | 608 |
+| **All** | 68 | 57 | 18 | 465 | 608 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -655,4 +655,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-610](later.md) | P3 | S | later | defect | open | A layer of the tool cache of the snapshot names the version only |
 | [T-611](later.md) | P3 | S | later | defect | blocked | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
 | [T-612](later.md) | P3 | S | later | defect | open | Three live tests of the podvm kind fail on a root host |
-| [T-613](later.md) | P2 | M | later | measurement | blocked | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
+| [T-613](later.md) | P2 | M | later | measurement | partial | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
