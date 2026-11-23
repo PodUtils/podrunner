@@ -58,11 +58,16 @@
 # (T-532, COORD-113, #326), streams `logs` and takes `--limit-bytes N`
 # (T-570, COORD-115, #333), and gives `State` of `inspect` as the object of
 # docker.
-version = "0.2.0-beta.37"
+# v0.2.0-beta.38 takes podcrates v0.82.0: a layer of GNU tar `--acls`
+# extracts (COORD-118, #339) and a layer with GNU sparse records is refused
+# (T-599); `load` of an image of 85 layers holds one lock at a time
+# (COORD-122, #344, T-606); `inspect` gives docker's types (T-581); `run -d
+# --rm` and `create --rm` remove the container at its end (COORD-232).
+version = "0.2.0-beta.38"
 
 [sha256]
-x86_64 = "c4b6b55ae0b8cc7e7edba86acedc430df2826f6e4e8d33eb2b94d95535a0a609"
-aarch64 = "0c043c5dc7b8aa72346efd27e6e56961e0f24c638870ed728e7a3422a5daea75"
+x86_64 = "1b48e9d85eeff3e6cfad5a85ed56875b6f1ba73da433196e12335b0340795142"
+aarch64 = "a047c4437760cf9fb80ba9f477ac4d22fe11f4476221cdfad116d3ddee036540"
 
 [ghcr]
-reference = "ghcr.io/podutils/podvm:v0.2.0-beta.37@sha256:35a5ae36279372431bb67fcf734c329a10e95a1fe2bf4e130bd6012861fbc658"
+reference = "ghcr.io/podutils/podvm:v0.2.0-beta.38@sha256:352bbca63a94591dd79c52dddd61a1f42e188b24bc19c73c1b5c6dd1b7ce97ba"

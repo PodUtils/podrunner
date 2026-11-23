@@ -430,7 +430,7 @@ impl UnitDriver for IncusUnit {
             let units = self.units.lock().expect("the units");
             units.get(unit).ok_or_else(|| UnitError::new(UnitCode::UnknownUnit, unit.to_string()))?.name.clone()
         };
-        // A log over 64 MiB is refused: podvm reads the file of incus whole.
+        // A podvm before `0.2.0-beta.38` reads the file of incus whole: 64 MiB at most.
         Ok(self.podvm.logs(&["--podvm-tier=incus"], &name, vec![("PODVM_STORE", self.images.clone().into())]))
     }
 

@@ -223,7 +223,8 @@ impl Slots {
             Err(e) if e.code == podrunner_unit::UnitCode::Unsupported => return,
             Err(e) => {
                 // The exit code tells; a line names why the log does not
-                // (the incus tier of podvm refuses a log over 64 MiB).
+                // (the incus tier of a podvm before `0.2.0-beta.38` refuses a
+                // log over 64 MiB).
                 let why = format!("the log of the unit tells no result of the job: {e}");
                 eprintln!("podrunner: {unit}: {why}");
                 if zero {
