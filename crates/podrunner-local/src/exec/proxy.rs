@@ -61,7 +61,8 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
         env.push((k.to_string(), v));
     }
     if env.iter().any(|(k, _)| k.to_ascii_lowercase().ends_with("_proxy") && k != "NODE_USE_ENV_PROXY") {
-        let no = super::host::no_proxy(&vars);
+        let (no, dropped) = super::noproxy::job_list(&vars);
+        super::noproxy::name_dropped(&dropped);
         env.push(("NO_PROXY".into(), no.clone()));
         env.push(("no_proxy".into(), no));
     }

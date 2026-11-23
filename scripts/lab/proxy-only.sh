@@ -83,6 +83,8 @@ sudo -u "$user" curl -fsS -m 30 -x "$proxy" --cacert "$ca" -o /dev/null https://
     { echo "lab proxy-only: $user does not reach github.com through the proxy" >&2; exit 70; }
 echo "lab proxy-only: $user reaches the network through 127.0.0.1:$port only (a CA of its own${auth:+, a login}${LAB_NO_DNS:+, no resolver})" >&2
 export HTTPS_PROXY="$proxy" HTTP_PROXY="$proxy" https_proxy="$proxy" http_proxy="$proxy"
-export NO_PROXY=127.0.0.1,localhost,::1 no_proxy=127.0.0.1,localhost,::1
+# The entry `::` is in the NO_PROXY of a sandbox of an agent; the official
+# runner stops at its start on it, so the lane keeps it (T-593).
+export NO_PROXY=127.0.0.1,localhost,::1,:: no_proxy=127.0.0.1,localhost,::1,::
 export SSL_CERT_FILE="$ca" NODE_EXTRA_CA_CERTS="$ca" GIT_SSL_CAINFO="$ca" REQUESTS_CA_BUNDLE="$ca" CURL_CA_BUNDLE="$ca"
 exec "$@"

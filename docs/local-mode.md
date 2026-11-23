@@ -24,6 +24,9 @@ case forms), `SSL_CERT_DIR`, and the ten CA variables of
 `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` and `CARGO_HTTP_CAINFO`. A JVM reads
 none of them (T-577). Its
 `NO_PROXY` always holds the loopback, where the broker of the run is.
+It does not hold an entry of colons only (`::`, `:`): such an entry has no
+host, and the official runner stops at its start on it. One line on stderr
+names each such entry once for the run (T-593).
 `podrunner doctor --run` names the variables that a job takes. Set each
 one before the run; give another variable with `--env NAME=VALUE`. With a
 proxy variable, a job also gets `NODE_USE_ENV_PROXY=1`, so that `fetch` of
