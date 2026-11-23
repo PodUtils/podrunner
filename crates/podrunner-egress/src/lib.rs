@@ -38,6 +38,9 @@ pub struct Opened {
     /// roots of the host), when the broker ends its TLS: a credential or a
     /// rule with a path.
     pub ca_bundle: Option<String>,
+    /// The same bundle as a PKCS #12 trust store for a JVM (T-577), which
+    /// reads no PEM file.
+    pub trust_store: Option<Vec<u8>>,
 }
 
 /// A failure of the egress module, with no byte of a policy or a token.
@@ -185,17 +188,20 @@ impl Egress {
         // value (`pod-broker`: no text of an error holds one).
         let info =
             self.broker.load(load).map_err(|e| EgressError(format!("the load of {job}: {}: {}", e.class, e.text())))?;
-        let ca_bundle = match &info.ca_pem {
-            Some(ca) => match tls::bundle(job, ca, self.roots.as_deref()) {
-                Ok(b) => Some(b),
-                Err(e) => {
-                    self.broker.drop_job(job);
-                    return Err(e);
+        let (ca_bundle, trust_store) = match &info.ca_pem {
+            Some(ca) => {
+                let roots = self.roots.as_deref();
+                match tls::bundle(job, ca, roots).and_then(|b| Ok((b, tls::trust_store(job, ca, roots)?))) {
+                    Ok((b, s)) => (Some(b), Some(s)),
+                    Err(e) => {
+                        self.broker.drop_job(job);
+                        return Err(e);
+                    }
                 }
-            },
-            None => None,
+            }
+            None => (None, None),
         };
-        let opened = Opened { flagged: info.flagged.len(), ca_bundle };
+        let opened = Opened { flagged: info.flagged.len(), ca_bundle, trust_store };
         let mut open = self.open.lock().expect("the listeners");
         if open.contains_key(job) {
             return Ok(opened);

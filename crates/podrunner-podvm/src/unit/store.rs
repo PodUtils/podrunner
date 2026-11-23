@@ -15,7 +15,7 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
-use podrunner_schema::PlainName;
+use podrunner_schema::{FileBytes, PlainName};
 use podrunner_unit::{StartSpec, UnitCode, UnitError};
 
 use super::{PodvmUnit, RUNNER_ROOT, WORKDIR, host, write_private};
@@ -93,7 +93,8 @@ impl PodvmUnit {
             if !f.name_is_plain() {
                 return Err(UnitError::new(UnitCode::UnitStartFailed, "a credential file name that is not plain"));
             }
-            write_private(&root.join(&f.name), f.content.expose())?;
+            let bytes = f.bytes().map_err(|e| UnitError::new(UnitCode::UnitStartFailed, e))?;
+            write_private(&root.join(&f.name), &bytes)?;
         }
         Ok(())
     }

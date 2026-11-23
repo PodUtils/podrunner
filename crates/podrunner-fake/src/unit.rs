@@ -13,7 +13,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use podrunner_schema::{Capability, PlainName, TreeKill, UnitId};
+use podrunner_schema::{Capability, FileBytes, PlainName, TreeKill, UnitId};
 use podrunner_unit::{
     ContainerId, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue, Signal,
     StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
@@ -246,14 +246,14 @@ impl FakeUnit {
     }
 }
 
-fn write_private(path: &Path, text: &str, mode: u32) -> Result<(), UnitError> {
+fn write_private(path: &Path, bytes: &[u8], mode: u32) -> Result<(), UnitError> {
     let mut f = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .mode(mode)
         .open(path)
         .map_err(|e| host(e, "a credential file"))?;
-    f.write_all(text.as_bytes()).map_err(|e| host(e, "a credential file"))?;
+    f.write_all(bytes).map_err(|e| host(e, "a credential file"))?;
     // The umask can take bits away from the mode of open(2), not add them.
     fs::set_permissions(path, fs::Permissions::from_mode(mode)).map_err(|e| host(e, "a credential file"))
 }
@@ -317,7 +317,8 @@ impl UnitDriver for FakeUnit {
             if !f.name_is_plain() {
                 return Err(UnitError::new(UnitCode::UnitStartFailed, "a credential file name that is not plain"));
             }
-            write_private(&runner_root.join(&f.name), f.content.expose(), mode)?;
+            let bytes = f.bytes().map_err(|e| UnitError::new(UnitCode::UnitStartFailed, e))?;
+            write_private(&runner_root.join(&f.name), &bytes, mode)?;
         }
         self.plant_start(spec, &root)?;
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());

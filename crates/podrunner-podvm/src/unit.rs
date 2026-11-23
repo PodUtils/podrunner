@@ -202,14 +202,14 @@ impl PodvmUnit {
     }
 }
 
-fn write_private(path: &Path, text: &str) -> Result<(), UnitError> {
+fn write_private(path: &Path, bytes: &[u8]) -> Result<(), UnitError> {
     let mut f = fs::OpenOptions::new()
         .write(true)
         .create_new(true)
         .mode(0o600)
         .open(path)
         .map_err(|e| host("a credential file", e))?;
-    f.write_all(text.as_bytes()).map_err(|e| host("a credential file", e))?;
+    f.write_all(bytes).map_err(|e| host("a credential file", e))?;
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(|e| host("a credential file", e))
 }
 

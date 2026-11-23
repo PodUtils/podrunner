@@ -7,7 +7,7 @@ use std::io::Write;
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::Path;
 
-use podrunner_schema::{Credential, PlainName};
+use podrunner_schema::{Credential, FileBytes, PlainName};
 use podrunner_unit::{UnitCode, UnitError};
 
 /// Where the guest sees the credential directory (a 9p mount, read-only).
@@ -206,7 +206,8 @@ pub(crate) fn write_credentials(dir: &Path, credential: &Credential) -> Result<(
             .mode(0o600)
             .open(dir.join(&f.name))
             .map_err(|e| host("a credential file", e))?;
-        out.write_all(f.content.expose().as_bytes()).map_err(|e| host("a credential file", e))?;
+        let bytes = f.bytes().map_err(|e| UnitError::new(UnitCode::UnitStartFailed, e))?;
+        out.write_all(&bytes).map_err(|e| host("a credential file", e))?;
     }
     Ok(())
 }

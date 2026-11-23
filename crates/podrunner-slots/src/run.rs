@@ -188,10 +188,10 @@ impl Slots {
                     }
                     // The unit trusts the CA of its broker (T-563), and each
                     // container of its job too (T-578).
-                    if let Some((file, vars)) = o.ca {
-                        unit_ca = Some((file.content.expose().to_string(), vars.iter().map(|v| v.0.clone()).collect()));
-                        credential.files.push(file);
-                        env.extend(vars);
+                    if let Some(t) = o.ca {
+                        unit_ca = Some(t.bundle);
+                        credential.files.extend(t.files);
+                        env.extend(t.env);
                     }
                 }
             }

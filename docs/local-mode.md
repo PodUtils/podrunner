@@ -21,8 +21,8 @@ case forms), `SSL_CERT_DIR`, and the ten CA variables of
 `pod_broker::ca::env` of podcrates: `SSL_CERT_FILE`, `CURL_CA_BUNDLE`,
 `REQUESTS_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`, `GIT_SSL_CAINFO`,
 `AWS_CA_BUNDLE`, `DENO_CERT`, `HEX_CACERTS_PATH`,
-`CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` and `CARGO_HTTP_CAINFO`. A JVM reads
-none of them (T-577). Its
+`CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` and `CARGO_HTTP_CAINFO`. A JVM on
+`--runner-dir` reads none of them. Its
 `NO_PROXY` always holds the loopback, where the broker of the run is.
 `podrunner doctor --run` names the variables that a job takes. Set each
 one before the run; give another variable with `--env NAME=VALUE`. With a
@@ -32,7 +32,14 @@ Node uses the proxy, and a `node20` action runs on Node 24, as on GitHub
 
 A job in a podvm unit with no `--podnet` (the unit has the network of the
 host) takes the same proxy variables; each CA file goes into the unit as a
-file of the runner, and its variable names that file.
+file of the runner, and its variable names that file. A JVM (Maven,
+Gradle, sbt) reads none of them: the unit also gets the trust store of
+each CA file (PKCS #12, `podrunner-ca.p12` beside them), and
+`JAVA_TOOL_OPTIONS` names it
+(`-Djavax.net.ssl.trustStore=/podrunner/.runner/podrunner-ca.p12
+-Djavax.net.ssl.trustStoreType=PKCS12`), then the `JAVA_TOOL_OPTIONS` of
+the environment of podrunner. A step that sets `JAVA_TOOL_OPTIONS`
+replaces the value: add the two options to it (T-577).
 
 A job on `--runner-dir` gets a scratch `HOME` (`_work/_home` of the runner
 directory), which the next job removes. It runs as the user of podrunner,

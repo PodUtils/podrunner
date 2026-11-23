@@ -6,7 +6,7 @@ use std::path::Path;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use podrunner_schema::{Credential, PlainName};
+use podrunner_schema::{Credential, FileBytes, PlainName};
 use podrunner_unit::{UnitCode, UnitError};
 
 /// Where the instance sees the work directory of the unit (a `disk`
@@ -157,7 +157,8 @@ pub fn credential_stream(credential: &Credential) -> Result<Vec<u8>, UnitError> 
         }
         out.extend_from_slice(f.name.as_bytes());
         out.push(b' ');
-        out.extend_from_slice(STANDARD.encode(f.content.expose().as_bytes()).as_bytes());
+        let bytes = f.bytes().map_err(|e| UnitError::new(UnitCode::UnitStartFailed, e))?;
+        out.extend_from_slice(STANDARD.encode(bytes).as_bytes());
         out.push(b'\n');
     }
     Ok(out)

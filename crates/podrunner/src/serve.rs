@@ -252,6 +252,9 @@ impl podrunner_slots::EgressPort for EgressOf {
             flagged: opened.flagged,
             ca_bundle: opened.ca_bundle.map(podrunner_schema::Secret::new),
             ca_vars: podrunner_egress::tls::ca_vars(),
+            trust_store: opened
+                .trust_store
+                .map(|s| (s, podrunner_egress::tls::java_options as podrunner_slots::JavaOptions)),
         };
         let asks = std::sync::Mutex::new(self.asks.clone());
         let ask: front::Ask = std::sync::Arc::new(move |body: &[u8]| {

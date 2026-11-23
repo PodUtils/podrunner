@@ -64,6 +64,9 @@ fn default_places() -> Vec<String> {
 /// unit.
 pub const CA_FILE: &str = "podrunner-broker-ca.pem";
 
+/// The name of the trust store of that bundle for a JVM (T-577).
+pub const STORE_FILE: &str = "podrunner-broker-ca.p12";
+
 /// The check of the secrets of `[egress]`.
 pub(crate) fn check_store(store: &BTreeMap<String, SecretConfig>) -> Result<(), String> {
     let fine = |c: char| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '-');
@@ -236,11 +239,22 @@ fn wipe(mut bytes: Vec<u8>) {
 }
 
 /// What a unit gets from its egress module: the count of flagged rules,
-/// and the CA bundle of its broker as a credential file with the variables
-/// that name it.
+/// and the trust of its broker.
 pub(crate) struct ForUnit {
     pub flagged: usize,
-    pub ca: Option<(CredentialFile, Vec<(String, String)>)>,
+    pub ca: Option<UnitTrust>,
+}
+
+/// The trust of the broker of a unit whose broker ends TLS.
+pub(crate) struct UnitTrust {
+    /// The credential files: the bundle, then the trust store of a JVM.
+    pub files: Vec<CredentialFile>,
+    /// The variables of the unit: each of `ca::env` names the bundle, and
+    /// `JAVA_TOOL_OPTIONS` names the store.
+    pub env: Vec<(String, String)>,
+    /// The bundle (PEM) and the variables that name it, for each container
+    /// of the job (T-578).
+    pub bundle: (String, Vec<String>),
 }
 
 /// Open the egress of `unit` of the source `source` with `policy` and the
@@ -261,13 +275,27 @@ pub(crate) fn open(
     let p: Map<String, Value> = serde_json::from_str(policy).map_err(|_| "the policy is not JSON".to_string())?;
     check_credentials(&p, store, Some(source))?;
     let secrets = values(policy, store)?;
-    let Opened { flagged, ca_bundle, ca_vars } = egress.open_with(unit, policy, secrets, socket)?;
+    let Opened { flagged, ca_bundle, ca_vars, trust_store } = egress.open_with(unit, policy, secrets, socket)?;
     let Some(bundle) = ca_bundle else { return Ok(ForUnit { flagged, ca: None }) };
     let Some(dir) = cred_dir else {
         egress.close(unit);
         return Err("the unit kind does not say where its unit sees its credential files: no CA bundle".into());
     };
-    let path = format!("{}/{CA_FILE}", dir.trim_end_matches('/'));
-    let env = ca_vars.into_iter().map(|k| (k, path.clone())).collect();
-    Ok(ForUnit { flagged, ca: Some((CredentialFile { name: CA_FILE.into(), content: bundle }, env)) })
+    let dir = dir.trim_end_matches('/');
+    let path = format!("{dir}/{CA_FILE}");
+    let mut env: Vec<(String, String)> = ca_vars.iter().map(|k| (k.clone(), path.clone())).collect();
+    let pem = (bundle.expose().to_string(), ca_vars);
+    let mut files = vec![CredentialFile { name: CA_FILE.into(), content: bundle }];
+    if let Some((store, options)) = trust_store {
+        // A path that a JVM cannot take (a space): the other clients still
+        // trust the bundle.
+        match options(std::path::Path::new(&format!("{dir}/{STORE_FILE}")), None) {
+            Ok(value) => {
+                files.push(podrunner_schema::binary_file(STORE_FILE, &store));
+                env.push(("JAVA_TOOL_OPTIONS".into(), value));
+            }
+            Err(why) => eprintln!("podrunner: {unit}: no trust store for a JVM: {why}"),
+        }
+    }
+    Ok(ForUnit { flagged, ca: Some(UnitTrust { files, env, bundle: pem }) })
 }

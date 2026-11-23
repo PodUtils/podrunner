@@ -1287,6 +1287,7 @@ dependencies = [
 name = "podrunner-schema"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "pod-job",
  "schemars",
  "serde",

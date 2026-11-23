@@ -75,6 +75,9 @@ fn the_credential_files_are_private_and_a_name_that_is_not_plain_is_refused() {
     let f = d.join("cred/.runner");
     assert_eq!(fs::metadata(&f).unwrap().permissions().mode() & 0o777, 0o600);
     assert!(fs::read_to_string(f).unwrap().contains(CANARY));
+    // A binary file is written as its bytes (T-577).
+    let binary = fs::read(d.join("cred").join(podrunner_unit::conformance::BINARY_FILE)).unwrap();
+    assert_eq!(binary, podrunner_unit::conformance::BINARY_BYTES);
     let mut bad = canary_credential();
     bad.files[0].name = "../x".into();
     assert_eq!(guest::write_credentials(&d.join("bad"), &bad).unwrap_err().code, UnitCode::UnitStartFailed);
