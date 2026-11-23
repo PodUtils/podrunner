@@ -1,6 +1,9 @@
 # The podnet release that holds the egress of a podvm unit (`podnet pod`,
 # T-065). runner-image.yml downloads it and checks the SHA-256 of the
-# binary of its architecture.
+# binary of its architecture. `[ghcr] reference` is the index of the same
+# release on ghcr.io (T-553, COORD-142; for v0.4.0-beta.17 from
+# PodUtils/podnet#656); a new version needs a new one
+# (scripts/install-pins.py refuses a reference of another tag).
 # v0.4.0-beta.7 and later dial ::ffff:127.0.0.1 direct in the seccomp hold
 # (T-077).
 # v0.4.0-beta.10 and later take `--loopback-rules`: the seccomp hold of the
@@ -15,3 +18,6 @@ version = "0.4.0-beta.17"
 [sha256]
 x86_64 = "d0b72b9bfe2473afef360e41c8a830a003239c8695535bef0f4bbd20486ab1f5"
 aarch64 = "e8c37a1d100d169c6e3240b2df33ffb9ec584d94c47ca959a970d8df7f327d71"
+
+[ghcr]
+reference = "ghcr.io/podutils/podnet:v0.4.0-beta.17@sha256:65ed77accd95c9574e2f162d7d70e6c0d9a3c9daa292858f47dc00d87ae246e3"

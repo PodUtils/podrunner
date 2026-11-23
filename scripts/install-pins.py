@@ -40,6 +40,12 @@ def toml_pin(path: pathlib.Path) -> tuple[str, dict[str, str]]:
     for a in ARCHES:
         if not HEX.match(d["sha256"][a]):
             sys.exit(f"{path}: the sha256 of {a} is not 64 hex digits")
+    # T-553: the index of the same release on ghcr.io, when the project
+    # publishes one. A new version with the reference of the old one fails.
+    ref = d.get("ghcr", {}).get("reference")
+    form = rf"^ghcr\.io/podutils/[a-z0-9-]+:v{re.escape(d['version'])}@sha256:[0-9a-f]{{64}}$"
+    if ref is not None and not re.match(form, ref):
+        sys.exit(f"{path}: [ghcr] reference {ref!r} is not ghcr.io/podutils/NAME:v{d['version']}@sha256:HEX")
     return d["version"], d["sha256"]
 
 

@@ -25,6 +25,16 @@ name: release
 # signs, verifies with pod-release and publishes. A dry run writes the
 # index and checks it with pod-release, with no signature.
 #
+# T-553 (the owner's ruling "ghcr.io"; the form of COORD-142 of
+# podcrates): the job image makes ghcr.io/podutils/podrunner:TAG, one
+# FROM scratch image of each built binary under one index, and the runner
+# images of the release (the archives of the runner-image.yml run, as
+# they are) at ghcr.io/podutils/podrunner-runner:TAG and TAG-full. Each
+# run builds them and runs the x86_64 image in podvm; only the run on the
+# tag pushes, reads each index back, compares each pulled binary with its
+# asset, and attests each index in the registry. The job release puts the
+# digests into the notes.
+#
 # T-243: a version needs a green user-gate.yml run of the same commit: the
 # user-path gate installs and uses the files that this workflow makes, with
 # the same script (scripts/release-assets.sh). The input no_user_gate
@@ -203,6 +213,247 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # T-553: the images on ghcr.io (scripts/ghcr.py writes each as an OCI
+  # layout and pushes it with scripts/hosted/push-blob.py). A dry run, and
+  # a run with a version before its tag, build and check them and push
+  # nothing: a broken image fails before the tag. The run on the tag pushes
+  # before the job release, so that no release goes out with no images.
+  image:
+    needs: [check, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      # The image archives of the runner-image.yml run.
+      actions: read
+      # The push, on the tag only.
+      packages: write
+      # actions/attest-build-provenance with push-to-registry, on the tag.
+      id-token: write
+      attestations: write
+    outputs:
+      podrunner: ${{ steps.push.outputs.podrunner }}
+      runner: ${{ steps.push.outputs.runner }}
+      runner_full: ${{ steps.push.outputs.runner_full }}
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      IMAGES: ${{ needs.check.outputs.images }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: podrunner-*-linux-musl
+          path: dist
+          merge-multiple: true
+      - name: The images, as OCI layouts
+        run: |
+          set -eu -o pipefail
+          tag="v$VERSION"
+          case $GITHUB_REF in
+            refs/tags/v*) [ "$GITHUB_REF_NAME" = "$tag" ] || { echo "the tag $GITHUB_REF_NAME is not $tag"; exit 1; } ;;
+          esac
+          (cd dist && sha256sum -c ./podrunner-*.sha256)
+          oci=$RUNNER_TEMP/oci
+          x=x86_64=dist/podrunner-x86_64-unknown-linux-musl
+          y=aarch64=dist/podrunner-aarch64-unknown-linux-musl
+          python3 -I scripts/ghcr.py binary --name podrunner --tag "$tag" --revision "$GITHUB_SHA" --out "$oci/podrunner" "$x" "$y"
+          python3 -I scripts/ghcr.py check-binary --name podrunner "$oci/podrunner" "$x" "$y"
+          if [ -n "$IMAGES" ]; then
+            sh scripts/release-assets.sh images "$IMAGES" images
+            python3 -I scripts/ghcr.py archives --tag "$tag" --revision "$GITHUB_SHA" --out "$oci/runner" \
+              x86_64=images/runner-x86_64.tar aarch64=images/runner-aarch64.tar
+            set --
+            for a in x86_64 aarch64; do
+              [ ! -f "images/runner-full-$a.tar" ] || set -- "$@" "$a=images/runner-full-$a.tar"
+            done
+            [ $# -eq 0 ] || python3 -I scripts/ghcr.py archives --tag "$tag-full" --revision "$GITHUB_SHA" \
+              --out "$oci/runner-full" "$@"
+          else
+            echo "no green runner-image.yml run: the runner images are not built (a dry run only)"
+          fi
+          {
+            echo "### The images of $tag"
+            echo
+            echo "| Image | Tag | Index digest |"
+            echo "| --- | --- | --- |"
+            for name in podrunner runner runner-full; do
+              [ -d "$oci/$name" ] || continue
+              # The tag and the digest of the index of the layout.
+              python3 -I - "$oci/$name/index.json" "$name" <<'PY'
+          import json, sys
+          d = json.load(open(sys.argv[1]))["manifests"][0]
+          print(f"| {sys.argv[2]} | `{d['annotations']['org.opencontainers.image.ref.name']}` | `{d['digest']}` |")
+          PY
+            done
+            echo
+            case $GITHUB_REF in refs/tags/v*) echo "The run on the tag pushes them." ;; *) echo "Not the run on a tag: nothing is pushed." ;; esac
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      # The entrypoint and the format: podvm of images/podvm.toml loads the
+      # x86_64 image and runs it, before any push.
+      - name: The x86_64 image runs in podvm
+        run: |
+          set -eu
+          eval "$(python3 -I - <<'PY'
+          import tomllib
+          pin = tomllib.load(open("images/podvm.toml", "rb"))
+          print(f"podvm_version={pin['version']} podvm_sha256={pin['sha256']['x86_64']}")
+          PY
+          )"
+          sh scripts/retry.sh curl -qfsSLo "$RUNNER_TEMP/podvm" \
+            "https://github.com/PodUtils/podvm/releases/download/v$podvm_version/podvm-x86_64"
+          echo "$podvm_sha256  $RUNNER_TEMP/podvm" | sha256sum -c -
+          chmod 0755 "$RUNNER_TEMP/podvm"
+          test "$(id -u)" -ne 0
+          python3 -I scripts/ghcr.py podvm-archive --arch x86_64 --ref "podrunner:$VERSION" "$RUNNER_TEMP/oci/podrunner" \
+            "$RUNNER_TEMP/podrunner-x86_64.tar"
+          export PODVM_STORE="$RUNNER_TEMP/store"
+          "$RUNNER_TEMP/podvm" load -i "$RUNNER_TEMP/podrunner-x86_64.tar"
+          out=$("$RUNNER_TEMP/podvm" run --rm "podrunner:$VERSION" --version)
+          echo "$out"
+          case $out in "podrunner $VERSION ("*) ;; *) echo "the image does not run podrunner $VERSION"; exit 1 ;; esac
+      # Each index read back from ghcr.io (the manifest of each platform
+      # from the index that the registry gives), and each binary pulled by
+      # docker and compared with its asset. The login stays for
+      # actions/attest.
+      - name: Push to ghcr.io, and read back
+        id: push
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -eu -o pipefail
+          oci=$RUNNER_TEMP/oci
+          # A token of ghcr.io for one package: masked, in the environment
+          # of one command only. GH_TOKEN goes to curl on stdin.
+          token() {
+            printf 'user = "x-access-token:%s"\n' "$GH_TOKEN" |
+              curl -fsS -K - "https://ghcr.io/token?service=ghcr.io&scope=repository:$1:pull,push" |
+              python3 -I -c 'import json,sys; print(json.load(sys.stdin)["token"])'
+          }
+          rows=$RUNNER_TEMP/ghcr-images.md
+          {
+            echo
+            echo "## The images, by digest"
+            echo
+            echo "Each \`podrunner\` image is \`FROM scratch\`, with the asset at \`/usr/local/bin/podrunner\` as its entrypoint."
+            echo "The runner images are the image archives of this release, as \`podvm load -i\` takes them."
+            echo "Pull by digest: \`docker pull IMAGE@DIGEST\` or \`podvm pull IMAGE@DIGEST\`."
+            echo "Check the provenance of an index: \`gh attestation verify oci://IMAGE@DIGEST --repo $GITHUB_REPOSITORY\`."
+            echo
+            echo "| Image | Platform | Digest | Asset | SHA-256 of the asset |"
+            echo "| --- | --- | --- | --- | --- |"
+          } > "$rows"
+          printf '%s\n' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for name in podrunner runner runner-full; do
+            [ -d "$oci/$name" ] || continue
+            case $name in
+              podrunner) repo=podutils/podrunner ;;
+              *) repo=podutils/podrunner-runner ;;
+            esac
+            t=$(token "$repo")
+            echo "::add-mask::$t"
+            digest=$(REGISTRY_TOKEN=$t python3 -I scripts/ghcr.py push --registry https://ghcr.io --repo "$repo" "$oci/$name")
+            REGISTRY_TOKEN=$t python3 -I scripts/ghcr.py verify --registry https://ghcr.io --repo "$repo" "$oci/$name" \
+              > "$RUNNER_TEMP/$name.rows"
+            ref=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["manifests"][0]["annotations"]["org.opencontainers.image.ref.name"])' \
+              "$oci/$name/index.json")
+            # The rows on descriptor 3: a command of the loop that reads
+            # stdin does not take them.
+            while read -r platform d <&3; do
+              if [ "$platform" = each ]; then
+                [ "$d" = "$digest" ] || { echo "ghcr.io/$repo:$ref is $d, not $digest"; exit 1; }
+                echo "| \`ghcr.io/$repo:$ref\` | each | \`$d\` | | |" >> "$rows"
+                continue
+              fi
+              case $platform in
+                linux/amd64) arch=x86_64 ;;
+                linux/arm64) arch=aarch64 ;;
+                *) echo "ghcr.io/$repo:$ref: no platform $platform in a release"; exit 1 ;;
+              esac
+              case $name in
+                podrunner)
+                  asset=podrunner-$arch-unknown-linux-musl
+                  want=$(sha256sum < "dist/$asset" | cut -d' ' -f1)
+                  docker pull -q --platform "$platform" "ghcr.io/$repo@$d" > /dev/null
+                  c=$(docker create --platform "$platform" "ghcr.io/$repo@$d")
+                  docker cp "$c:/usr/local/bin/podrunner" "$RUNNER_TEMP/pulled"
+                  docker rm "$c" > /dev/null
+                  got=$(sha256sum < "$RUNNER_TEMP/pulled" | cut -d' ' -f1)
+                  [ "$got" = "$want" ] || { echo "ghcr.io/$repo@$d: the binary is not $asset ($got, not $want)"; exit 1; }
+                  echo "ghcr.io/$repo@$d ($platform): $asset, sha256 $got" ;;
+                *)
+                  asset=$name-$arch.tar
+                  want=$(sha256sum < "images/$asset" | cut -d' ' -f1) ;;
+              esac
+              echo "| | $platform | \`$d\` | \`$asset\` | \`$want\` |" >> "$rows"
+            done 3< "$RUNNER_TEMP/$name.rows"
+            echo "$(echo "$name" | tr - _)=$digest" >> "$GITHUB_OUTPUT"
+            echo "ghcr.io/$repo:$ref: $digest"
+          done
+          cat "$rows" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          subject-name: ghcr.io/podutils/podrunner
+          subject-digest: ${{ steps.push.outputs.podrunner }}
+          push-to-registry: true
+          # A storage record is not part of the form, and needs
+          # artifact-metadata: write.
+          create-storage-record: false
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: startsWith(github.ref, 'refs/tags/v') && steps.push.outputs.runner != ''
+        with:
+          subject-name: ghcr.io/podutils/podrunner-runner
+          subject-digest: ${{ steps.push.outputs.runner }}
+          push-to-registry: true
+          create-storage-record: false
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        if: startsWith(github.ref, 'refs/tags/v') && steps.push.outputs.runner_full != ''
+        with:
+          subject-name: ghcr.io/podutils/podrunner-runner
+          subject-digest: ${{ steps.push.outputs.runner_full }}
+          push-to-registry: true
+          create-storage-record: false
+      # A consumer pulls with no login. A new package of ghcr.io can be
+      # private: a warning tells an admin of PodUtils to set it public.
+      - name: The provenance of each index, and a read with no login
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          PODRUNNER: ${{ steps.push.outputs.podrunner }}
+          RUNNER: ${{ steps.push.outputs.runner }}
+          RUNNER_FULL: ${{ steps.push.outputs.runner_full }}
+        run: |
+          set -eu
+          for pair in "podrunner podutils/podrunner $PODRUNNER" "runner podutils/podrunner-runner $RUNNER" \
+            "runner-full podutils/podrunner-runner $RUNNER_FULL"; do
+            # shellcheck disable=SC2086 # three words
+            set -- $pair
+            [ $# -eq 3 ] || continue
+            gh attestation verify "oci://ghcr.io/$2@$3" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml"
+          done
+          docker logout ghcr.io
+          for pair in "podrunner podutils/podrunner" "runner podutils/podrunner-runner" "runner-full podutils/podrunner-runner"; do
+            # shellcheck disable=SC2086 # two words
+            set -- $pair
+            [ -d "$RUNNER_TEMP/oci/$1" ] || continue
+            t=$(curl -fsS "https://ghcr.io/token?service=ghcr.io&scope=repository:$2:pull" |
+              python3 -I -c 'import json,sys; print(json.load(sys.stdin)["token"])') || t=""
+            if [ -n "$t" ] && REGISTRY_TOKEN=$t python3 -I scripts/ghcr.py verify --registry https://ghcr.io --repo "$2" \
+              "$RUNNER_TEMP/oci/$1" > /dev/null; then
+              echo "ghcr.io/$2 ($1): it pulls with no login"
+            else
+              echo "::warning::ghcr.io/$2 does not pull with no login: an admin of PodUtils sets the package to public"
+            fi
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: ghcr-images
+          path: ${{ runner.temp }}/ghcr-images.md
+          if-no-files-found: error
+
   # T-562: release-index.json of each file, checked with pod-release with
   # no signature; a changed index must fail. In a dry run, and before the
   # tag of a version: a fault here must not leave a tag with no release.
@@ -231,7 +482,7 @@ jobs:
   # A version: the tag of this commit, then this workflow on the tag (a tag
   # that GITHUB_TOKEN pushes starts no workflow; a dispatch does).
   tag:
-    needs: [check, build, assets, dry]
+    needs: [check, build, assets, image, dry]
     if: inputs.version != '' && !startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -259,7 +510,7 @@ jobs:
   # The run on the tag (T-562): the signer of SHA256SUMS, and so of
   # release-index.json, is this workflow at the tag.
   release:
-    needs: [check, build, assets]
+    needs: [check, build, assets, image]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -274,10 +525,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The files of the release only: the rows of the job image go into
+      # the notes, not into dist.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          pattern: podrunner-*-linux-musl
           path: dist
           merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: local-mode
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ghcr-images
+          path: ${{ runner.temp }}/ghcr
       - name: The binaries are static and match their sums
         run: |
           set -eu
@@ -327,5 +589,8 @@ jobs:
           set -eu
           notes="docs/releases/v$VERSION.md"
           [ -f "$notes" ] || { echo "no $notes: write the notes of the release first"; exit 1; }
+          # T-553: the digests of the images on ghcr.io after the notes.
+          cat "$notes" "$RUNNER_TEMP/ghcr/ghcr-images.md" > "$RUNNER_TEMP/notes.md"
+          grep -q '^## The images, by digest$' "$RUNNER_TEMP/notes.md"
           gh release create "$GITHUB_REF_NAME" --verify-tag --prerelease --title "podrunner $GITHUB_REF_NAME" \
-            --notes-file "$notes" dist/*
+            --notes-file "$RUNNER_TEMP/notes.md" dist/*

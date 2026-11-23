@@ -367,6 +367,41 @@ x86_64 and 210 MiB on aarch64, the larger image about 460 MiB on x86_64; a
 bundle about 530 MiB on x86_64 and 360 MiB on aarch64. A release asset has
 at most 2 GiB; the job `assets` fails on a larger file.
 
+## podrunner on ghcr.io
+
+A release also publishes its binaries and its runner images on ghcr.io
+(T-553), in the form of each project of PodUtils:
+
+| Image | What it is |
+| --- | --- |
+| `ghcr.io/podutils/podrunner:vVERSION` | One index of `linux/amd64` and `linux/arm64`. Each image has no base (`FROM scratch`): the release asset `podrunner-ARCH-unknown-linux-musl` at `/usr/local/bin/podrunner` with the same SHA-256, an empty `/tmp`, and `podrunner` as the entrypoint |
+| `ghcr.io/podutils/podrunner-runner:vVERSION` | The base runner image of the release: `runner-ARCH.tar` with its bytes as they are. The digest of each platform is the digest that the installer and `podrunner-manifest.json` pin |
+| `ghcr.io/podutils/podrunner-runner:vVERSION-full` | The larger runner image, from `runner-full-ARCH.tar` |
+
+The notes of the release give the digest of each index and of each
+platform ("The images, by digest"). A tag can move in a registry; a digest
+cannot. Pin the digest. Check the provenance of an index (set `DIGEST` to
+the digest of the index):
+
+```sh
+gh attestation verify oci://ghcr.io/podutils/podrunner@sha256:DIGEST --repo PodUtils/podrunner
+```
+
+Take the binary from the image with docker, and compare it with the
+release asset:
+
+```sh
+docker create --name podrunner-copy ghcr.io/podutils/podrunner@sha256:DIGEST
+docker cp podrunner-copy:/usr/local/bin/podrunner ./podrunner
+docker rm podrunner-copy
+sha256sum ./podrunner
+```
+
+`sha256sum` must give the line of `podrunner-ARCH-unknown-linux-musl` in
+`SHA256SUMS` of the release. `crane export` and `podvm pull` also take
+the image by its digest. The installer and the offline bundle still take
+the GitHub release assets.
+
 ## The test
 
 `sh scripts/test-install.sh` runs the installer against small fake assets

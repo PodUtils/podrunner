@@ -3,7 +3,8 @@
 # The test of the installer (T-202) against a local fixture: small fake
 # assets with their own pins, served from a directory (file:// of
 # PODRUNNER_MIRROR). No network. The cases: the pins of the tree agree
-# with images/*.toml, and a changed pin fails; a copy with no pins of a
+# with images/*.toml, and a changed pin fails; a ghcr.io reference of
+# another version fails; a copy with no pins of a
 # release refuses; a fresh install; a second run that downloads nothing
 # (its mirror is empty); a corrupt asset fails by name and leaves no file;
 # a changed binary is replaced; a file of the user stays; the offline
@@ -39,6 +40,17 @@ sed 's/^PODVM_VERSION=.*/PODVM_VERSION="0.0.1"/' "$root/scripts/install.sh" > "$
 if python3 -I "$root/scripts/install-pins.py" --check "$t/planted.sh" > "$t/out"; then fail "a planted pin passed the check"; fi
 grep -q 'want PODVM_VERSION=' "$t/out" || fail "the check does not name the pin"
 ok "the pins of the tree agree; a changed pin fails"
+# T-553: a new version of podvm with the ghcr.io reference of the old one
+# fails.
+mkdir -p "$t/stale"
+cp -R "$root/images/." "$t/stale/"
+grep -q '^reference = "ghcr.io/podutils/podvm:v' "$t/stale/podvm.toml" || fail "images/podvm.toml has no [ghcr] reference"
+sed 's/^version = ".*"/version = "0.0.1"/' "$root/images/podvm.toml" > "$t/stale/podvm.toml"
+if python3 -I "$root/scripts/install-pins.py" --images "$t/stale" --check "$root/scripts/install.sh" > "$t/out" 2>&1; then
+    fail "a ghcr.io reference of another version passed"
+fi
+grep -q 'reference' "$t/out" || fail "the check does not name the reference"
+ok "a ghcr.io reference of another version fails"
 
 # The fixture: fake binaries, a runner tarball and image archives.
 a=$t/assets
