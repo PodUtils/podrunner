@@ -126,7 +126,13 @@ the tools.
   * `hosted/slice.py`: the core slice of a published snapshot (the
     layers of the distribution and `boot`, no trees of the tools) as an
     OCI layout for `podvm load`; `hosted-boot.yml` boots it under incus
-    with the init of the image (T-556).
+    with the init of the image (T-556). `--all` keeps each layer.
+  * `hosted/space.sh`: the free space (`df -B1` of `/`, `/mnt` and the
+    file system of incusd) and the time at each step, as a TSV row and a
+    Markdown table. `hosted-measure.yml` (dispatch only, report-only)
+    frees the preinstalled trees, pulls a snapshot (all layers or the
+    slice), loads it into podvm, imports it into incusd and boots it only
+    when the margin stays (T-557).
   * `hosted/runner-layer.py`: the runner layer of the snapshot (T-541):
     the official runner at `/home/runner/actions-runner`, its `.env`
     from the snapshot's `/etc/environment`, the hooks, the credential

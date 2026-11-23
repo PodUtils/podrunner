@@ -130,3 +130,15 @@ the incus kind needs the extracted tree and about 2.4 times it in incusd
 (T-551). Give its pin `unpacked_bytes`: `check` refuses it above the
 root disk of the incus kind (`docs/install.md`, "The disk and the sysctls
 of a host of the incus or podvm kind").
+
+`.github/workflows/hosted-measure.yml` measures the disk of the pull, the
+load and the import of a snapshot on a standard hosted runner (T-557):
+
+```sh
+gh workflow run hosted-measure.yml -f digest=sha256:DIGEST -f full=all -f place=joined
+```
+
+`place=joined` puts the store and incusd on one LVM volume of a loop file
+on `/` and one on `/mnt`; `store-root` and `store-mnt` keep the two file
+systems apart. The summary and the artifact give the free space and the
+time at each step.

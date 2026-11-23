@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: 0BSD
 """The core slice of a published hosted snapshot (T-556).
 
-    python3 -I scripts/hosted/slice.py --digest sha256:HEX --ref NAME --out DIR
+    python3 -I scripts/hosted/slice.py --digest sha256:HEX --ref NAME --out DIR [--all]
     python3 -I scripts/hosted/slice.py --self-test
 
 The full snapshot is about 55 GB on disk; a hosted runner cannot boot it
@@ -14,7 +14,9 @@ the other trees of /opt and /usr/local, the stores of the engines). It reads the
 ghcr.io/podutils/podrunner-hosted with no login (the package is public),
 downloads each kept layer and checks its digest, and writes an OCI layout
 in DIR whose config names only the kept layers, with the ref NAME, as
-`podvm load -i` takes it after a tar of its files.
+`podvm load -i` takes it after a tar of its files. With `--all` the
+layout keeps each layer: the full snapshot, for the measure of the disk
+(hosted-measure.yml, T-557).
 """
 
 import argparse
@@ -65,16 +67,17 @@ class Registry:
             return ("sha256:" + h.hexdigest()).encode()
 
 
-def slice_image(manifest: dict, config: dict) -> tuple[dict, dict]:
+def slice_image(manifest: dict, config: dict, keep_all: bool = False) -> tuple[dict, dict]:
     """The manifest and the config of the slice (the layers to fetch are
-    those of the new manifest)."""
+    those of the new manifest). KEEP_ALL keeps each layer."""
     layers = manifest["layers"]
     diff_ids = config["rootfs"]["diff_ids"]
     history = config.get("history", [])
     if len(layers) != len(diff_ids):
         raise ValueError(f"{len(layers)} layers and {len(diff_ids)} diff ids")
-    keep = [i for i, lay in enumerate(layers) if kept(lay.get("annotations", {}).get("dev.podrunner.hosted.layer", ""))]
-    names = [layers[i]["annotations"]["dev.podrunner.hosted.layer"] for i in keep]
+    keep = [i for i, lay in enumerate(layers)
+            if keep_all or kept(lay.get("annotations", {}).get("dev.podrunner.hosted.layer", ""))]
+    names = [layers[i].get("annotations", {}).get("dev.podrunner.hosted.layer", "") for i in keep]
     for want in ("base", "boot"):
         if not any(n == want or n.endswith("-" + want) for n in names):
             raise ValueError(f"no layer {want} in the manifest")
@@ -129,6 +132,10 @@ def self_test() -> int:
         bad.append(f"the kept layers: {got}")
     if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (2, 3, 4, 5, 6)] or len(c["history"]) != 5:
         bad.append(f"the config: {c['rootfs']}")
+    m, c = slice_image(manifest, config, keep_all=True)
+    if len(m["layers"]) != len(names) or c["rootfs"]["diff_ids"] != config["rootfs"]["diff_ids"]:
+        bad.append(f"--all keeps {len(m['layers'])} of {len(names)} layers")
+    m, c = slice_image(manifest, config)
     by_digest = {sha(v): v for v in data.values()}
 
     def fetch(d, path):
@@ -173,6 +180,7 @@ def main() -> int:
     ap.add_argument("--digest", required=True)
     ap.add_argument("--ref", required=True)
     ap.add_argument("--out", type=pathlib.Path, required=True)
+    ap.add_argument("--all", action="store_true", help="keep each layer (the full snapshot)")
     a = ap.parse_args()
     reg = Registry()
     raw = reg.get(f"manifests/{a.digest}", MANIFEST)
@@ -182,7 +190,7 @@ def main() -> int:
     config_raw = reg.get(f"blobs/{manifest['config']['digest']}")
     if sha(config_raw) != manifest["config"]["digest"]:
         raise ValueError("the config has other bytes than its digest")
-    m, c = slice_image(manifest, json.loads(config_raw))
+    m, c = slice_image(manifest, json.loads(config_raw), keep_all=a.all)
     size = sum(lay["size"] for lay in m["layers"])
     print(f"slice: {len(m['layers'])} of {len(manifest['layers'])} layers, {size >> 20} MiB", file=sys.stderr)
     dig = write_layout(a.out, m, c, a.ref, lambda d, p: reg.get(f"blobs/{d}", out=p).decode())
