@@ -138,8 +138,9 @@ impl Hooks {
 
 /// Write the bundle `b` to `logs/ca` for the containers of a unit. A
 /// certificate is no secret: mode 0644, so that a container user of
-/// another uid reads it.
-fn place_ca(logs: &Path, b: Bundle<'_>) -> std::io::Result<UnitCa> {
+/// another uid reads it. `podrunner run` writes its bundle with it too
+/// (T-596).
+pub fn place_ca(logs: &Path, b: Bundle<'_>) -> std::io::Result<UnitCa> {
     use std::os::unix::fs::PermissionsExt;
     if b.file.is_empty() || b.file.contains('/') || b.file == "." || b.file == ".." {
         let why = format!("the name of the CA bundle {:?} is not a file name", b.file);
