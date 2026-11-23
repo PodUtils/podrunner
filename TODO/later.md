@@ -14898,3 +14898,53 @@ Measure the reproducibility (two builds of one commit in CI, compare the SHA-256
 ## Prove
 
 Two builds of one commit in a CI run give the same SHA-256 of each binary, or a dry recovery run takes the binaries of the earlier run; `release.yml` passes `check` with an older green gate run.
+
+# T-609: `podrunner run` cannot run the hosted runner image as a hosted runner
+
+**Source:** the work of T-541, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The local mode takes the work folder from the directory of `run.sh` (`crates/podrunner-local/src/exec/workdir.rs`): a runner at `/home/runner/actions-runner/run.sh` (the runner layer of the hosted snapshot, T-541) gets `/home/runner/actions-runner/work`, not the hosted `/home/runner/work`. The local mode also has no way to boot the init of an image (`init = "image"` of `serve`, T-549) for `--incus` and `--microvm`. So `podrunner run` cannot run a job in the hosted runner image as a hosted runner does.
+
+## Premise
+
+The report of the work of T-541, read on 2026-11-23.
+
+## Approach
+
+Take `/home/runner/work` when the runner root is under `/home/runner`, or add a work-folder option; add an option of the init of the image for `--incus` and `--microvm`, as `[unit.KIND] init` does. A test of the folder; a `runner-image.yml` step later.
+
+## Prove
+
+`cargo test -p podrunner-local workdir`: a runner at `/home/runner/actions-runner/run.sh` gets `/home/runner/work`; a test of the init option on the command line.
+
+# T-610: A layer of the tool cache of the snapshot names the version only
+
+**Source:** the work of T-541, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A rule with `each` of `scripts/hosted/plan.py` names a layer by the last part of its path only (`toolcache-3.12.16`). Two tools with the same version directory (Python and PyPy) then go into one layer, and a selection by tool (as `hosted-boot.yml` of T-541 needs with `slice.py --keep`) can match only the version.
+
+## Premise
+
+The report of the work of T-541, read on 2026-11-23.
+
+## Approach
+
+Name a layer of the tool cache by its last two parts (`toolcache-Python-3.12.16`), with a case of two tools of one version in the self-test of `plan.py`; `hosted-boot.yml` keeps `toolcache-Python-$PYTHON.*`. The names change at the next capture only; the content stays.
+
+## Prove
+
+`python3 -I scripts/hosted/plan.py --self-test`: two tools of one version give two layers with the name of each tool.

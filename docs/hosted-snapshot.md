@@ -23,8 +23,9 @@ distribution is on top, and the last layer, `boot`, holds `/boot` and
 `/boot/efi`: the kernel and the initrd of the hosted runner. The config
 names `/sbin/init` as the entrypoint, for a unit that boots the init of
 the image (`[unit.incus] init = "image"`, podvm `--podvm-init=image`).
-No boot of the snapshot has a result yet (T-556). The snapshot holds no
-runner: a unit runs its runner image (below).
+The core slice boots under incus to `degraded` (`hosted-boot.yml`
+45150431980, T-556); the full snapshot does not load yet (T-606). The
+snapshot holds no runner: a unit runs its runner image (below).
 
 ## What is 1:1, and what the scrub changes
 

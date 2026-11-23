@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**603 entries: 66 open, 58 partial, 18 blocked, 461 done.**
+**605 entries: 68 open, 58 partial, 18 blocked, 461 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 26 | 3 | 88 | 119 |
 | P2 | 17 | 21 | 11 | 237 | 286 |
-| P3 | 46 | 11 | 4 | 134 | 195 |
-| **All** | 66 | 58 | 18 | 461 | 603 |
+| P3 | 48 | 11 | 4 | 134 | 197 |
+| **All** | 68 | 58 | 18 | 461 | 605 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -651,3 +651,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-606](later.md) | P2 | S | later | defect | blocked | `podvm load` refuses the full hosted snapshot (85 layers): 16 locks at most |
 | [T-607](later.md) | P2 | S | later | defect | open | Two runs of `podrunner run` in two pid namespaces that share `/tmp` meet on one run id |
 | [T-608](later.md) | P3 | S | later | defect | open | A recovery run of `release.yml` on a tag builds the binaries again |
+| [T-609](later.md) | P3 | M | later | defect | open | `podrunner run` cannot run the hosted runner image as a hosted runner |
+| [T-610](later.md) | P3 | S | later | defect | open | A layer of the tool cache of the snapshot names the version only |
