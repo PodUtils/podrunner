@@ -1,5 +1,8 @@
 # The podvm release that the image pipeline imports the runner image with
 # (T-030), and the SHA-256 of each binary, from its release (`.sha256`).
+# `[ghcr] reference` is the index of the same release on ghcr.io, from the
+# notes of the release (T-553, COORD-142); a new version needs a new one
+# (scripts/install-pins.py refuses a reference of another tag).
 # The podvm driver needs v0.2.0-beta.5 or later: a tree for each container
 # (T-064), absolute links in the rootfs (T-061), `:ro` on `exec` (T-062),
 # labels and the run report (T-078).
@@ -60,3 +63,6 @@ version = "0.2.0-beta.37"
 [sha256]
 x86_64 = "c4b6b55ae0b8cc7e7edba86acedc430df2826f6e4e8d33eb2b94d95535a0a609"
 aarch64 = "0c043c5dc7b8aa72346efd27e6e56961e0f24c638870ed728e7a3422a5daea75"
+
+[ghcr]
+reference = "ghcr.io/podutils/podvm:v0.2.0-beta.37@sha256:35a5ae36279372431bb67fcf734c329a10e95a1fe2bf4e130bd6012861fbc658"

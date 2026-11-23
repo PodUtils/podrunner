@@ -239,6 +239,30 @@ checks the release with `pod-release verify`, and publishes it. Read both
 runs. A dry run (no version) writes the index and checks it with
 `pod-release sums`.
 
+The job `image` puts the release on ghcr.io (T-553, the owner's ruling
+"ghcr.io", the form of COORD-142): `ghcr.io/podutils/podrunner` (one
+`FROM scratch` image of each binary under one index) and
+`ghcr.io/podutils/podrunner-runner` (the image archives of the
+`runner-image.yml` run, tags `vVERSION` and `vVERSION-full`).
+`scripts/ghcr.py` writes each image and checks each binary against its
+asset. Each run builds the images and runs the x86_64 image in podvm; a
+dry run and the run with a version push nothing. Read the table of
+digests and "nothing is pushed" in the summary of the job. The run on the
+tag pushes before the job `release`, reads each index back, compares each
+binary that docker pulls with its asset, and attests each index in the
+registry. The job `release` then adds the section "The images, by digest"
+to the notes of the release. After the release:
+
+- A warning "does not pull with no login" names a new package that is
+  private. An admin of PodUtils sets it to public once.
+- The COORD issue of the hand-off names the digest of each index beside
+  the SHA-256 of each asset (COORD-142, item 5).
+
+A new podvm or podnet pin in `images/podvm.toml` or `images/podnet.toml`
+also takes its `[ghcr] reference` (the index digest from the notes of
+that release). `scripts/install-pins.py` refuses a reference of another
+version.
+
 ### The user-path gate
 
 `user-gate.yml` takes a commit and two optional inputs: `images_run`, the
