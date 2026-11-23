@@ -13304,6 +13304,8 @@ State (2026-11-23, `hosted-measure.yml`, proven in CI on GitHub-hosted runners; 
 
 State (2026-11-23, `hosted-measure.yml` 45222459418, podvm `0.2.0-beta.38`, the capture `sha256:7054bbff...`): free 139.9 GB after the free step (249 s); the pull of 85 layers 514 s and 17.0 GB; the tar 64 s; the load 92 s, exit 0, with no change of the used bytes of `/` that `df` names (32.2 GB); the import then stops at the sparse record of that capture (T-599). The run on the new capture `sha256:baa8431a...` is next.
 
+State (2026-11-23, `hosted-measure.yml` 45276440474 at `f694571`, podvm `0.2.0-beta.38`, the capture `sha256:baa8431a...`, `place = store-root`, proven in CI on GitHub-hosted runners): free 139.9 GB after the free step (254 s); the pull of 85 layers 207 s and 17.0 GB; the tar 70 s; the load 93 s, exit 0; the image imports into incusd 6.0.0, and the create of the instance then fails: "POST /1.0/instances: the response body is larger than allowed" (COORD-124, GitHub #346). During the import and the create, the used bytes of `/` grew from 32.2 GB to 152.3 GB (2.6 GB free): the full snapshot in a pool of the `dir` driver needs about 120 GB. The answer of the measure: a standard hosted runner of 145 GB holds the pull and the load, not the import into a `dir` pool. Next (T-613): a pool that shares blocks (btrfs on a loop file over `/` and `/mnt`), or a larger runner.
+
 # T-558: The file capabilities of an image are lost through the extract of podcrates and podvm
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -14673,7 +14675,7 @@ Write the store with `pod_broker::ca::write_trust_store` into the work area of t
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14698,6 +14700,12 @@ State (2026-11-23, steps 1 and 2 and the call of step 3; the capture: not run): 
 State (2026-11-23, step 3; the capture: not run): podvm `0.2.0-beta.38` (podcrates `v0.82.0`, COORD-232) is pinned. `scripts/hosted/capture.sh` and the round trip of `plan.py --self-test` run GNU tar with `--acls` again, and with no `--sparse`. `scrub.py verify` refuses only a `GNU.sparse.*` record (or a sparse member of the old GNU format); an ACL record passes. Its self-test checks that an ACL record passes; it fails on the old `REFUSED`. The round trip of `plan.py` sets an ACL on a file (`system.posix_acl_access`: the user 1000 may read) and checks that its layer has the record `SCHILY.acl.access`; it fails with no `--acls`. Measured here with GNU tar 1.35 as uid 0: a layer of `--acls` extracts with `0.2.0-beta.38`, and the file has its ACL; `0.2.0-beta.37` refuses the layer ("the PAX record \"SCHILY.acl.access\" has a newline byte"). `--xattrs-include=*` also writes each ACL as `SCHILY.xattr.system.posix_acl_access`, with and with no `--acls`, and both releases set the ACL from that record. `python3 -I scripts/hosted/plan.py --self-test`, `scrub.py --self-test`, `c1.py --self-test`, `sh scripts/hosted/calls.sh` and `sh scripts/shellcheck.sh scripts/hosted/capture.sh` pass. Left: a new `hosted-snapshot.yml` capture (no refused record; the change of the layer sizes) and its boot in `hosted-boot.yml` with `0.2.0-beta.38`.
 
 State (2026-11-23, proven in CI on GitHub-hosted runners): `hosted-snapshot.yml` 45222466116 (`920b333`, `ubuntu-24.04`, image `20261116.133`) captured with `--acls` and with no `--sparse`, C1 0 differences, and published `ghcr.io/podutils/podrunner-hosted@sha256:baa8431a36ba58f3be6d15780a4a2cc0090d90cd1621df3ffe1dee5d841f4909` (attested). The old capture `sha256:7054bbff...` (with `--sparse`) is refused at the import by podvm `0.2.0-beta.38`: "the PAX record \"GNU.sparse.major\" marks a GNU sparse file" (`hosted-measure.yml` 45222459418). Left: the load and the import of the new capture with podvm `0.2.0-beta.38` (`hosted-measure.yml`, `full = all`).
+
+State (2026-11-23): the new capture `sha256:baa8431a...` loads with podvm `0.2.0-beta.38` (93 s) and its image imports into incusd with no refusal of a record (`hosted-measure.yml` 45276440474); its core slice boots (`hosted-boot.yml` 45276447058).
+
+## Done
+
+2026-11-23: proven in CI on GitHub-hosted runners: the capture of `hosted-snapshot.yml` 45222466116 (`--acls`, no `--sparse`) gives `sha256:baa8431a36ba58f3be6d15780a4a2cc0090d90cd1621df3ffe1dee5d841f4909`, C1 0 differences; podvm `0.2.0-beta.38` loads all 85 layers and imports them (no record refused), where the old capture with `--sparse` is refused at the import (`hosted-measure.yml` 45222459418); `scrub.py` refuses a `GNU.sparse.*` record and `calls.sh` checks the calls of `capture.sh`.
 
 # T-600: The tests of Unix sockets fail when `TMPDIR` is long
 
@@ -15044,3 +15052,33 @@ The report of the pin of podvm `0.2.0-beta.38`, read on 2026-11-23.
 ## Prove
 
 `cargo test -p podrunner-podvm --test conformance --test limits -- --ignored` passes as root and as a user with no root on a development host.
+
+# T-613: The full hosted snapshot does not fit the storage pool of incusd on a hosted runner
+
+**Source:** `hosted-measure.yml` 45276440474, 2026-11-23
+**Category:** measurement
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+The import of the full hosted snapshot (85 layers, about 16 GiB of blobs) into incusd 6.0.0 with a pool of the `dir` driver on `/` takes about 120 GB of `/` on a standard hosted runner of 155 GB: 2.6 GB stay free, and the create of the instance fails. So no full boot of the snapshot (T-547) runs in hosted CI with that pool. The error of the create is hidden behind a size bound of podvm's client (COORD-124).
+
+## Premise
+
+`hosted-measure.yml` 45276440474 (`f694571`, podvm `0.2.0-beta.38`), read on 2026-11-23: `space: import` row, used bytes of `/` 32.2 GB to 152.3 GB.
+
+## Approach
+
+1. Measure a pool that shares blocks: a btrfs file system on a loop file over the free space of `/` and `/mnt` (as the place `joined` of `hosted-measure.yml`, but btrfs, not LVM ext4), given to incusd as a `btrfs` pool; record the bytes of the import and whether the create and the boot fit.
+2. If no pool fits: the full boot runs in a live lane (a larger host), and hosted CI boots the slice only (T-556).
+
+## Prove
+
+`hosted-measure.yml` with the new place and `full = all`: the rows of the import and the boot, recorded in this entry with the run.
+
+## Blocker
+
+COORD-124 (GitHub #346, to podvm): the error of the create is hidden; the measure of step 1 needs the real error to tell space from another fault.

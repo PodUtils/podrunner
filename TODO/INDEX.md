@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**607 entries: 69 open, 57 partial, 18 blocked, 463 done.**
+**608 entries: 68 open, 57 partial, 19 blocked, 464 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 25 | 3 | 89 | 119 |
-| P2 | 17 | 21 | 10 | 238 | 286 |
+| P2 | 16 | 21 | 11 | 239 | 287 |
 | P3 | 49 | 11 | 5 | 134 | 199 |
-| **All** | 69 | 57 | 18 | 463 | 607 |
+| **All** | 68 | 57 | 19 | 464 | 608 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -641,7 +641,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-596](later.md) | P2 | S | later | defect | partial | A container of `podrunner run` gets no CA file of the caller |
 | [T-597](later.md) | P3 | S | later | defect | open | A container of a unit gets the CA bundle of its broker, but no trust store of a JVM |
 | [T-598](later.md) | P3 | S | later | defect | open | A job on `--runner-dir` behind an intercepting proxy gives a JVM no trust store |
-| [T-599](later.md) | P2 | S | later | defect | open | The capture of the hosted snapshot writes GNU sparse records, which the next podvm refuses |
+| [T-599](later.md) | P2 | S | later | defect | done | The capture of the hosted snapshot writes GNU sparse records, which the next podvm refuses |
 | [T-600](later.md) | P3 | S | later | defect | open | The tests of Unix sockets fail when `TMPDIR` is long |
 | [T-601](later.md) | P3 | S | later | defect | open | A test of the run report failed once under load |
 | [T-602](later.md) | P2 | S | later | defect | blocked | `print-unit` refuses a config path under a directory of `mktemp -d` as a secret |
@@ -655,3 +655,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-610](later.md) | P3 | S | later | defect | open | A layer of the tool cache of the snapshot names the version only |
 | [T-611](later.md) | P3 | S | later | defect | blocked | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
 | [T-612](later.md) | P3 | S | later | defect | open | Three live tests of the podvm kind fail on a root host |
+| [T-613](later.md) | P2 | M | later | measurement | blocked | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
