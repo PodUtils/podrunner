@@ -1,8 +1,10 @@
 //! The units of a run that died (T-312): a SIGKILL of podrunner leaves its
-//! podvm units running and its directories `podrunner-run-units-PID` and
-//! `podrunner-run-tree-PID` in `TMPDIR`. The next run of the same user
-//! ends each process of those units (by the tag of each unit, as `destroy`
-//! finds them) and removes the directories, and says so.
+//! podvm units running and its directories `podrunner-run-units-ID` and
+//! `podrunner-run-tree-ID` in `TMPDIR`. The next run of the same user in
+//! the same pid namespace ends each process of those units (by the tag of
+//! each unit, as `destroy` finds them) and removes the directories, and
+//! says so. `ID` is `NS-PID-N` ([`run_id`]): two containers that share
+//! `TMPDIR` can each have a run as pid 1 (T-607).
 
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -10,6 +12,24 @@ use std::path::{Path, PathBuf};
 const PREFIXES: &[&str] = &["podrunner-run-units-", "podrunner-run-tree-"];
 /// The probe of `TMPDIR` of a run ([`tmp_ok`]); a dead run can leave it.
 const PROBE: &str = "podrunner-probe-";
+
+/// A process as `/proc` sees it: the inode of its pid namespace
+/// (`/proc/self/ns/pid`) and its pid in that namespace.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Here {
+    ns: u64,
+    pid: u32,
+}
+
+/// This process, or `None` when `/proc` is not the one of its pid
+/// namespace (no `/proc`, or a mount of another namespace): a pid of
+/// `/proc` then names another process, so no run counts as dead.
+fn here() -> Option<Here> {
+    let pid = std::process::id();
+    let seen: u32 = std::fs::read_link("/proc/self").ok()?.to_str()?.parse().ok()?;
+    let ns = std::fs::metadata("/proc/self/ns/pid").ok()?.ino();
+    (seen == pid).then_some(Here { ns, pid })
+}
 
 /// The directories of this run: each one is removed when the run returns.
 pub(super) struct Gone(pub(super) Vec<PathBuf>);
@@ -50,7 +70,7 @@ fn own_dir(path: &Path) -> bool {
     std::fs::symlink_metadata(path).is_ok_and(|m| m.is_dir() && m.uid() == uid)
 }
 
-/// The tree directory and the units directory of the run `pid` under
+/// The tree directory and the units directory of the run `id` under
 /// `tmp`, each new at 0700 (T-407, #250): a name that another user made
 /// first, or a link, is refused, so no write of the run follows it.
 /// A `tmp` that cannot take a directory is named first (T-323 F14). `id`
@@ -63,12 +83,37 @@ pub(super) fn run_dirs(tmp: &Path, id: &str) -> Result<(PathBuf, PathBuf), Strin
     Ok((tree, units))
 }
 
-/// The name of a run: the pid and a count of the runs of this process
-/// (`PID-N`): two runs of one process (the tests) get two directories, and
-/// a dead run is found by its pid.
+/// The name of a run of this process ([`name`]).
 pub(super) fn run_id() -> String {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-    format!("{}-{}", std::process::id(), NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+    name(here(), NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+}
+
+/// The name of the run `n` of the process `here`: `NS-PID-N`. Two runs of
+/// one process (the tests) get two names, two runs of one pid in two pid
+/// namespaces too, and a dead run is found by its namespace and pid. With
+/// no `here`, the name starts with `x` and the time in nanoseconds: it is
+/// unique, and [`owner`] gives no process for it, so no run ends it.
+fn name(here: Option<Here>, n: u32) -> String {
+    match here {
+        Some(Here { ns, pid }) => format!("{ns}-{pid}-{n}"),
+        None => {
+            let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+            format!("x{:x}-{}-{n}", t.as_nanos(), std::process::id())
+        }
+    }
+}
+
+/// The process of the run `id` ([`name`]). A name of another form (a name
+/// of an older release, `PID` or `PID-N`, which has no namespace) gives
+/// none: its run can be live in another pid namespace.
+fn owner(id: &str) -> Option<Here> {
+    let mut parts = id.split('-').map(|s| (!s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())).then_some(s));
+    let (ns, pid, _n) = (parts.next()??, parts.next()??, parts.next()??);
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(Here { ns: ns.parse().ok()?, pid: pid.parse().ok()? })
 }
 
 /// Whether a process `pid` lives. Any process counts, not only one named
@@ -78,17 +123,20 @@ fn live_podrunner(pid: u32) -> bool {
 }
 
 /// The directories of dead runs of this user in `tmp`, and the probe that
-/// a dead run left.
-pub(super) fn dead_runs(tmp: &Path, uid: u32, me: u32) -> Vec<PathBuf> {
+/// a dead run left. A run is dead when its namespace is the one of `me`,
+/// its pid is not the one of `me`, and no process has its pid. With no
+/// `me`, no run is dead.
+fn dead_runs(tmp: &Path, uid: u32, me: Option<Here>) -> Vec<PathBuf> {
+    let Some(me) = me else { return Vec::new() };
     let Ok(entries) = std::fs::read_dir(tmp) else { return Vec::new() };
     entries
         .flatten()
         .filter_map(|e| {
             let name = e.file_name().to_string_lossy().into_owned();
-            let id = PREFIXES.iter().chain([&PROBE]).find_map(|p| name.strip_prefix(p))?;
-            let pid: u32 = id.split_once('-').map_or(id, |(p, _)| p).parse().ok()?;
+            let run = owner(PREFIXES.iter().chain([&PROBE]).find_map(|p| name.strip_prefix(p))?)?;
             let meta = std::fs::symlink_metadata(e.path()).ok()?;
-            (meta.is_dir() && meta.uid() == uid && pid != me && !live_podrunner(pid)).then(|| e.path())
+            let dead = run.ns == me.ns && run.pid != me.pid && !live_podrunner(run.pid);
+            (meta.is_dir() && meta.uid() == uid && dead).then(|| e.path())
         })
         .collect()
 }
@@ -116,10 +164,10 @@ pub(super) fn end_dead_runs(dry: bool) {
     }
     // SAFETY: getuid has no failure.
     let uid = unsafe { libc::getuid() };
-    end_dead_runs_in(&std::env::temp_dir(), uid, std::process::id());
+    end_dead_runs_in(&std::env::temp_dir(), uid, here());
 }
 
-fn end_dead_runs_in(tmp: &Path, uid: u32, me: u32) {
+fn end_dead_runs_in(tmp: &Path, uid: u32, me: Option<Here>) {
     for dir in dead_runs(tmp, uid, me) {
         let mut units = Vec::new();
         units_of(&dir, 3, &mut units);
@@ -145,42 +193,90 @@ fn end_dead_runs_in(tmp: &Path, uid: u32, me: u32) {
 mod tests {
     use super::*;
 
+    /// The process of a test: pid namespace 77 (made up), this pid.
+    fn me() -> Here {
+        Here { ns: 77, pid: std::process::id() }
+    }
+
     /// #237: a dry run leaves the directories of a dead run.
     #[test]
     fn a_dry_run_leaves_a_dead_run() {
-        let dead = std::env::temp_dir().join("podrunner-run-units-4194307");
+        let ns = here().map_or(77, |h| h.ns);
+        let dead = std::env::temp_dir().join(format!("podrunner-run-units-{ns}-4194307-0"));
         std::fs::create_dir_all(dead.join("default/units/u-1")).unwrap();
         end_dead_runs(true);
         assert!(dead.is_dir(), "a dry run removed the files of a dead run");
         let _ = std::fs::remove_dir_all(&dead);
     }
 
-    /// A directory of a dead run is found; one of a live podrunner, of
-    /// this process or of another name is not.
+    /// T-607: the name of a run has the pid namespace, so two runs of one
+    /// pid in two namespaces get two names; each name gives its process
+    /// back. A name with no process (no `/proc` of this namespace) gives
+    /// none, and so does each name of another form.
+    #[test]
+    fn a_run_is_named_by_its_namespace_pid_and_count() {
+        let (a, b) = (Here { ns: 4026531836, pid: 1 }, Here { ns: 4026532266, pid: 1 });
+        assert_eq!(name(Some(a), 0), "4026531836-1-0");
+        assert_ne!(name(Some(a), 0), name(Some(b), 0));
+        assert_ne!(name(Some(a), 0), name(Some(a), 1));
+        assert_eq!((owner(&name(Some(a), 0)), owner(&name(Some(b), 7))), (Some(a), Some(b)));
+        let none = name(None, 3);
+        assert!(none.starts_with('x') && none.ends_with(&format!("-{}-3", std::process::id())), "{none}");
+        assert_eq!(owner(&none), None);
+        for id in ["", "7", "7-0", "1-7-0-9", "1--0", "-7-0", "+1-7-0", "1-7-0 ", "1-x-0", "18446744073709551616-7-0"] {
+            assert_eq!(owner(id), None, "{id:?}");
+        }
+        assert_eq!(owner("18446744073709551615-4294967295-0").map(|h| h.pid), Some(u32::MAX));
+        assert_eq!(owner("1-4294967296-0"), None);
+        if let Some(h) = here() {
+            assert_eq!((owner(&run_id()), h.pid), (Some(h), std::process::id()));
+        }
+    }
+
+    /// A directory of a dead run of this pid namespace is found and ended;
+    /// one of a live process, of this process, of another namespace
+    /// (T-607), of another form or of another name is not.
     #[test]
     fn the_directories_of_dead_runs_are_found() {
         let tmp = std::env::temp_dir().join(format!("podrunner-stale-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
+        let pid = std::process::id();
         // A pid that no process has: above the maximum of the kernel.
-        let dead = tmp.join("podrunner-run-units-4194305");
+        let dead = tmp.join("podrunner-run-units-77-4194305-0");
         std::fs::create_dir_all(dead.join("default/units/u-1")).unwrap();
-        std::fs::create_dir_all(tmp.join("podrunner-run-tree-4194306")).unwrap();
-        std::fs::create_dir_all(tmp.join(format!("podrunner-run-units-{}", std::process::id()))).unwrap();
-        std::fs::create_dir_all(tmp.join("other-4194305")).unwrap();
-        // The names `PID-N` of a run: a dead pid is found, this one is not.
-        std::fs::create_dir_all(tmp.join("podrunner-run-tree-4194307-2")).unwrap();
-        std::fs::create_dir_all(tmp.join(format!("podrunner-run-tree-{}-3", std::process::id()))).unwrap();
+        let other_ns = tmp.join("podrunner-run-units-78-4194305-0");
+        std::fs::create_dir_all(other_ns.join("default/units/u-1")).unwrap();
+        for d in [
+            "podrunner-run-tree-77-4194306-1".to_string(),
+            format!("podrunner-run-units-77-{pid}-0"),
+            format!("podrunner-run-tree-77-{pid}-3"),
+            "podrunner-run-tree-77-1-0".into(),
+            "podrunner-run-tree-78-4194306-1".into(),
+            "podrunner-run-tree-4194307".into(),
+            "podrunner-run-tree-4194307-2".into(),
+            "podrunner-run-tree-77-4194307-2-9".into(),
+            "podrunner-run-tree-x1f-4194307-0".into(),
+            "other-77-4194305-0".into(),
+        ] {
+            std::fs::create_dir_all(tmp.join(d)).unwrap();
+        }
         // SAFETY: getuid has no failure.
         let uid = unsafe { libc::getuid() };
-        let mut got = dead_runs(&tmp, uid, std::process::id());
+        let mut got = dead_runs(&tmp, uid, Some(me()));
         got.sort();
-        let names = [tmp.join("podrunner-run-tree-4194306"), tmp.join("podrunner-run-tree-4194307-2"), dead.clone()];
-        assert_eq!(got, names);
-        assert!(dead_runs(&tmp, uid + 1, std::process::id()).is_empty(), "another user");
+        assert_eq!(got, [tmp.join("podrunner-run-tree-77-4194306-1"), dead.clone()]);
+        assert!(dead_runs(&tmp, uid + 1, Some(me())).is_empty(), "another user");
+        assert!(dead_runs(&tmp, uid, None).is_empty(), "no /proc of this namespace");
         let mut units = Vec::new();
         units_of(&dead, 3, &mut units);
         assert_eq!(units, [(dead.join("default"), "u-1".to_string())]);
+        end_dead_runs_in(&tmp, uid, Some(me()));
+        let (gone, kept) = (!dead.exists(), other_ns.join("default/units/u-1").is_dir());
+        let left = std::fs::read_dir(&tmp).unwrap().count();
         let _ = std::fs::remove_dir_all(&tmp);
+        assert!(gone, "the directory of a dead run stays");
+        assert!(kept, "the directory of a run of another pid namespace is gone");
+        assert_eq!(left, 10, "only the two dead runs go");
     }
 
     /// T-407, #250: a directory of the run that another user made, or a
@@ -241,26 +337,30 @@ mod tests {
     }
 
     /// The probe of a dead run is a file of that run: the next run removes
-    /// it. One of this process, a file, or a link, stays.
+    /// it. One of this process, of another pid namespace, a file, or a
+    /// link, stays.
     #[test]
     fn the_probe_of_a_dead_run_is_removed() {
         let tmp = std::env::temp_dir().join(format!("podrunner-stale-probe-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&tmp);
-        let me = std::process::id();
-        let dead = tmp.join("podrunner-probe-4194305-2");
+        let pid = std::process::id();
+        let dead = tmp.join("podrunner-probe-77-4194305-2");
         std::fs::create_dir_all(&dead).unwrap();
-        std::fs::create_dir_all(tmp.join(format!("podrunner-probe-{me}-4"))).unwrap();
-        std::fs::write(tmp.join("podrunner-probe-4194306-1"), "x").unwrap();
-        std::os::unix::fs::symlink(&dead, tmp.join("podrunner-probe-4194307-1")).unwrap();
+        std::fs::create_dir_all(tmp.join(format!("podrunner-probe-77-{pid}-4"))).unwrap();
+        std::fs::create_dir_all(tmp.join("podrunner-probe-78-4194305-2")).unwrap();
+        std::fs::write(tmp.join("podrunner-probe-77-4194306-1"), "x").unwrap();
+        std::os::unix::fs::symlink(&dead, tmp.join("podrunner-probe-77-4194307-1")).unwrap();
         // SAFETY: getuid has no failure.
         let uid = unsafe { libc::getuid() };
-        let found = dead_runs(&tmp, uid, me);
-        end_dead_runs_in(&tmp, uid, me);
-        let (gone, mine) = (!dead.exists(), tmp.join(format!("podrunner-probe-{me}-4")).is_dir());
+        let found = dead_runs(&tmp, uid, Some(me()));
+        end_dead_runs_in(&tmp, uid, Some(me()));
+        let gone = !dead.exists();
+        let mine = tmp.join(format!("podrunner-probe-77-{pid}-4")).is_dir();
+        let other = tmp.join("podrunner-probe-78-4194305-2").is_dir();
         let _ = std::fs::remove_dir_all(&tmp);
         assert_eq!(found, [dead]);
         assert!(gone, "the probe of a dead run stays");
-        assert!(mine, "the probe of this process is gone");
+        assert!(mine && other, "the probe of this process or of another pid namespace is gone");
     }
 
     /// T-323 F14: a TMPDIR that is not there is named.
@@ -271,3 +371,7 @@ mod tests {
         assert!(e.starts_with("TMPDIR /nonexistent/podrunner-tmp: ") && e.contains("set TMPDIR"), "{e}");
     }
 }
+
+#[cfg(test)]
+#[path = "stale_ns_tests.rs"]
+mod ns_tests;

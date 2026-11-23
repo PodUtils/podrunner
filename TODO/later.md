@@ -14926,6 +14926,8 @@ Add the inode of `/proc/self/ns/pid` (or a random suffix) to the run id, and cou
 
 `cargo test -p podrunner --all-features --lib run_local::stale`: two runs of one pid in two namespaces get two ids, and a directory of another namespace is not ended.
 
+State (2026-11-23, proven in this sandbox by unit tests, as uid 0 and as uid 65534; not run in CI or on a constrained host as a user): `run_id` is `NS-PID-N`, NS the inode of `/proc/self/ns/pid`; `dead_runs` counts a run as dead only when its NS is the one of this run, its pid is not this pid, and `/proc/PID` is not there. A name with no NS (`PID`, `PID-N` of an older release) is never ended. When `/proc/self` is not the pid of the run, the name is `xNANOS-PID-N` and the run ends no other run (`docs/decisions.md`, T-607). Tests: `a_run_is_named_by_its_namespace_pid_and_count` and `the_directories_of_dead_runs_are_found` (the namespace is an input), and `two_namespaces_of_pid_1_do_not_meet`, which runs the test binary two times as pid 1 of a new pid namespace (`unshare -rp --fork --mount-proc`, no root; a host that refuses it skips with a line). On the code before the change, that test fails: both children have the id `1-0`, and each finds the two directories of the live parent as dead. A planted defect (no check of the namespace in `dead_runs`) fails three tests. The debug binary, with a `TMPDIR` that holds a dead run of this namespace, one of another namespace and one of the old form: `podrunner run` removes the first only.
+
 # T-608: A recovery run of `release.yml` on a tag builds the binaries again
 
 **Source:** the review fixes of T-553, 2026-11-23
