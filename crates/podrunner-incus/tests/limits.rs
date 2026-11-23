@@ -115,6 +115,18 @@ fn the_use_of_a_known_load_is_the_use_that_the_kind_gives() {
     let want = load.ceil();
     let tolerance = (want * 0.2).max(1.0);
     assert!((cpu as f64 - want).abs() <= tolerance, "cpu_s {cpu} for {load:.2} s of CPU of the load");
-    let peak = usage.peak_memory_bytes.unwrap_or_else(|e| panic!("peak unknown: {e}"));
-    assert!(peak.div_ceil(1 << 20) >= 64, "peak_rss_mib {} under the 64 MiB buffer", peak.div_ceil(1 << 20));
+    match usage.peak_memory_bytes {
+        Ok(peak) => {
+            assert!(peak.div_ceil(1 << 20) >= 64, "peak_rss_mib {} under the 64 MiB buffer", peak.div_ceil(1 << 20))
+        }
+        // The incusd of a hosted runner gives no peak of a running instance
+        // on cgroup v2 (runner-image.yml 45216790663). Only that reason
+        // passes, by name; podvm's record of the use at the stop gives the
+        // peak (COORD-233), and then this arm goes (T-611).
+        Err(why) if why == PEAK_NOT_GIVEN => println!("peak_memory_bytes: unknown ({why}), T-611"),
+        Err(why) => panic!("peak unknown: {why}"),
+    }
 }
+
+/// The one reason of an unknown peak that the test takes (T-611).
+const PEAK_NOT_GIVEN: &str = "incusd gave no PeakMemoryBytes of the instance";
