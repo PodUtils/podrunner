@@ -366,15 +366,18 @@ fn a_pool_with_quotas_gives_each_instance_a_sized_root() {
 }
 
 /// T-483: the CPU time and the peak memory of an instance come from the
-/// state of incusd, rounded up to whole seconds; a gone instance gives none.
+/// state of incusd, rounded up to whole seconds; a gone instance gives
+/// `unknown` with a reason.
 #[test]
 fn the_use_of_an_instance_comes_from_incusd() {
     let (u, d) = driver("usage", "sleep 30");
     let s = spec("u-1");
     u.start(&s).unwrap();
-    assert_eq!(u.usage(&s.unit), Some(podrunner_unit::UnitUsage { cpu_s: 13, peak_memory_bytes: 104857601 }));
+    assert_eq!(u.usage(&s.unit), Some(podrunner_unit::UnitUsage { cpu_s: Ok(13), peak_memory_bytes: Ok(104857601) }));
     u.destroy(&s.unit).unwrap();
-    assert_eq!(u.usage(&s.unit), None);
+    let gone = u.usage(&s.unit).unwrap();
+    assert!(gone.cpu_s.as_ref().is_err_and(|e| e.contains("inspect")), "{gone:?}");
+    assert!(gone.peak_memory_bytes.is_err(), "{gone:?}");
     let _ = std::fs::remove_dir_all(&d);
 }
 

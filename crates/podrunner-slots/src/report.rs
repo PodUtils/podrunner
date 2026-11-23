@@ -119,8 +119,16 @@ impl Slots {
         r.claim_to_first_step_s = j.claimed_ms.zip(j.first_step_ms).map(|(c, f)| f.saturating_sub(c) / 1000);
         r.job_images = j.images.clone();
         // The use of the unit, when a unit ran (T-108).
-        r.cpu_s = unit_ran.then(|| j.usage.report().0);
-        r.peak_rss_mib = unit_ran.then(|| j.usage.report().1);
+        if unit_ran {
+            let [(cpu, cpu_why), (peak, peak_why)] = j.usage.report();
+            r.cpu_s = Some(cpu);
+            r.peak_rss_mib = Some(peak);
+            for (field, why) in [("cpu_s", cpu_why), ("peak_rss_mib", peak_why)] {
+                if let Some(why) = why {
+                    r.unknown_reasons.insert(field.into(), why);
+                }
+            }
+        }
         // The architecture of the unit (T-514), and the real job that its
         // runner got when it was not the run of the offer (T-493).
         r.arch = j.placement.as_ref().map(|p| self.kinds[p.kind].capability.arch.clone());
