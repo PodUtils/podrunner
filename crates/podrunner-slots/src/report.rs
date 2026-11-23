@@ -147,12 +147,11 @@ impl Slots {
             };
             r.runner_version = self.cfg.pin.payload.iter().find(pinned).and_then(|x| x.runner_version.clone());
         }
-        if unit_ran && j.first_step_ms.is_none() {
-            // No `started` event of the source and no container hook came:
-            // a `program` source with no hook sends none, also for a job
-            // that ran its steps (T-568).
-            r.unknown_reasons.insert("start_s".into(), "no first-step event came for the job".into());
-        }
+        // A unit with no first step has no `start_s` and no reason: the
+        // schema takes a reason only for a measured field. No `started`
+        // event of the source and no container hook came: a `program`
+        // source with no hook sends none, also for a job that ran its steps
+        // (T-568).
         r.log_tail = j.times.log_tail.clone();
         if unit_ran {
             let unknown = || Residual::Unknown(podrunner_schema::report::Unknown::Unknown);
@@ -170,6 +169,12 @@ impl Slots {
                 r.unknown_reasons.insert("net_rx_bytes".into(), "the host has no egress module".into());
                 r.unknown_reasons.insert("net_tx_bytes".into(), "the host has no egress module".into());
             }
+            // podrunner gives no shared cache to a job yet (T-480).
+            let no_cache = "no cache: podrunner gives no shared cache to a job (T-480)";
+            r.cache_read_bytes = Some(unknown());
+            r.cache_written_bytes = Some(unknown());
+            r.unknown_reasons.insert("cache_read_bytes".into(), no_cache.into());
+            r.unknown_reasons.insert("cache_written_bytes".into(), no_cache.into());
         }
         r.assigned = j.assigned.as_ref().zip(j.real.as_ref()).map(|(v, real)| Assigned {
             run_id: real.run_id,

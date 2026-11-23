@@ -11287,6 +11287,8 @@ State (2026-11-18): `log_tail` is filled for a unit that started and ended with 
 
 State (2026-11-19): `gate.yml` run 44432274968 failed once in `a_report_has_its_times_its_image_and_its_measures_or_a_reason`: `run_s` was 31, not 30 (the bed ticks each second, and on a slow host the unit starts a tick late). The test takes 30 to 32 s now.
 
+State (2026-11-23, the commit that names T-497): `cache_read_bytes` and `cache_written_bytes` of a unit that ran are `unknown` with the reason "no cache: podrunner gives no shared cache to a job (T-480)" until T-480 lands. The report gave `start_s` a reason in `unknown_reasons`, which `run-report.v1` of `pod-job` `v0.81.0` refuses (a reason only for a measured field, `MEASURED`; `RunReport::check` and the `propertyNames` of the schema): a unit with no first step has no `start_s` and no reason now. Test: `tests::report::a_report_has_its_times_its_image_and_its_measures_or_a_reason` and two more reports of the fake unit (a failure with `log_tail`, a `limit`) check that each measured field is a count or `unknown` with its reason, and that `RunReport::check` passes; it failed on the code before (`cache_read_bytes` absent). Level: proven here with the fake unit. Open: the cache bytes (T-480); `cpu_s` and `peak_rss_mib` on real incus instances (T-483).
+
 # T-498: G-22: a rotation of the key of a program source with no drain
 
 **Source:** githome's G-22 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
