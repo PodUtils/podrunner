@@ -93,15 +93,8 @@ pub fn write_env_file(
 mod tests {
     use super::*;
 
-    fn dir() -> PathBuf {
-        let d = std::env::temp_dir().join(format!(
-            "podrunner-envfile-{}-{:?}",
-            std::process::id(),
-            std::thread::current().id()
-        ));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
-        d
+    fn dir() -> crate::scratch::Scratch {
+        crate::scratch::Scratch::new("envfile")
     }
 
     /// T-405: with a podvm that takes the file, no value is in the argv

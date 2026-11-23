@@ -126,7 +126,18 @@ jobs:
       - name: Toolchain
         run: sh scripts/retry.sh rustup toolchain install
       - name: Test
-        run: cargo test --locked --workspace --all-features
+        run: |
+          set -eu
+          # The tests get a TMPDIR of their own and leave nothing in it
+          # (T-591).
+          tmp=$(mktemp -d)
+          TMPDIR=$tmp cargo test --locked --workspace --all-features
+          left=$(ls -A "$tmp")
+          if [ -n "$left" ]; then
+            echo "the tests left these entries in their temp directory:"
+            echo "$left"
+            exit 1
+          fi
       # T-509 (githome's G-38): the source of githome (the pinned
       # pod-fake-githome of podcrates, images/fake-githome.toml) passes each
       # test of source-conformance; a red gate blocks release.yml.

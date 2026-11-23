@@ -21,6 +21,8 @@ pub mod podvm_kind;
 pub mod program_source;
 pub mod run_config;
 pub mod run_local;
+#[cfg(test)]
+mod scratch;
 pub mod serve;
 pub mod text;
 pub mod tiers;

@@ -16,6 +16,8 @@
 //! driver.
 
 pub mod probe;
+#[cfg(test)]
+mod scratch;
 mod unit;
 
 pub use unit::envfile::write_env_file;

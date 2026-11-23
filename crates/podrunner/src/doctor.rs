@@ -349,8 +349,7 @@ mod tests {
     /// incus kind for it, and, as `check`, an image over the root disk.
     #[test]
     fn doctor_names_the_disk_of_a_pinned_image() {
-        let dir = std::env::temp_dir().join(format!("podrunner-doctor-disk-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::scratch::Scratch::new("doctor-disk");
         let file = dir.join("podrunner.toml");
         let pin = |size: u64| {
             format!(
@@ -385,8 +384,7 @@ mod tests {
     #[test]
     fn doctor_knows_the_microvm_and_incus_kinds() {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::env::temp_dir().join(format!("podrunner-doctor-guest-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::scratch::Scratch::new("doctor-guest");
         // A fake podvm whose probe names a version that each kind takes.
         let fake = dir.join("podvm");
         std::fs::write(&fake, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.14\",\"rung\":\"userland\"}'\n").unwrap();
@@ -426,8 +424,7 @@ mod tests {
 
     #[test]
     fn doctor_reads_the_kinds_and_the_tiers_of_the_file() {
-        let dir = std::env::temp_dir().join(format!("podrunner-doctor-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::scratch::Scratch::new("doctor");
         let file = dir.join("podrunner.toml");
         let arch = std::env::consts::ARCH;
         std::fs::write(

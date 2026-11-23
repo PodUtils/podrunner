@@ -150,11 +150,11 @@ pub(super) fn orphaned(live: &[String]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    /// A stand-in podvm whose probe gives `version` and `rung`.
-    fn stand_in(version: &str, rung: &str) -> crate::Podvm {
+    use crate::scratch::Scratch;
+
+    /// A stand-in podvm in `d` whose probe gives `version` and `rung`.
+    fn stand_in(d: &std::path::Path, version: &str, rung: &str) -> crate::Podvm {
         use std::os::unix::fs::PermissionsExt;
-        let d = std::env::temp_dir().join(format!("podrunner-tier-{}", std::process::id()));
-        std::fs::create_dir_all(&d).unwrap();
         let bin = d.join(format!("podvm-{version}-{rung}"));
         let probe = format!("{{\"podvm\":\"{version}\",\"rung\":\"{rung}\"}}");
         std::fs::write(&bin, format!("#!/bin/sh\necho '{probe}'\n")).unwrap();
@@ -168,9 +168,9 @@ mod tests {
     #[test]
     fn the_socket_mount_follows_the_rungs_with_volumes() {
         use podrunner_unit::UnitDriver;
-        let state = std::env::temp_dir().join(format!("podrunner-sockmount-{}", std::process::id()));
+        let state = Scratch::new("sockmount");
         for (rung, mount) in [("namespace", true), ("userland", true), ("supervise", true), ("chroot", false)] {
-            let mut unit = crate::PodvmUnit::new(stand_in("0.2.0-beta.36", rung), &state, &state).unwrap();
+            let mut unit = crate::PodvmUnit::new(stand_in(&state, "0.2.0-beta.36", rung), &state, &state).unwrap();
             assert_eq!(unit.socket_mount().is_some(), mount, "{rung}");
             // The hold and a verified confine add to the proof (the review
             // of T-564): the socket mount stays.
@@ -179,7 +179,6 @@ mod tests {
                 Some(format!("{proof}; hold: podnet pod seccomp advisory; podvm --podvm-confine, verified"));
             assert_eq!(unit.socket_mount().is_some(), mount, "{rung}, held and confined");
         }
-        let _ = std::fs::remove_dir_all(&state);
     }
 
     /// T-261: the syscall tier on the userland rung of podvm beta.34 or
@@ -187,13 +186,16 @@ mod tests {
     /// while `SYSCALL_TIER` is `None` (COORD-098).
     #[test]
     fn the_syscall_tier_holds_the_userland_rung_of_x86_64_only() {
-        assert!(super::tier_args_on(&stand_in("0.2.0-beta.34", "userland"), "x86_64", super::SYSCALL_TIER).is_empty());
+        let d = Scratch::new("tier");
+        assert!(
+            super::tier_args_on(&stand_in(&d, "0.2.0-beta.34", "userland"), "x86_64", super::SYSCALL_TIER).is_empty()
+        );
         let on = |p: &crate::Podvm, arch: &str| super::tier_args_on(p, arch, Some("0.2.0-beta.34"));
-        assert_eq!(on(&stand_in("0.2.0-beta.34", "userland"), "x86_64"), ["--podvm-tier=syscall"]);
-        assert!(on(&stand_in("0.2.0-beta.34", "userland"), "aarch64").is_empty());
-        assert!(on(&stand_in("0.2.0-beta.34", "namespace"), "x86_64").is_empty());
+        assert_eq!(on(&stand_in(&d, "0.2.0-beta.34", "userland"), "x86_64"), ["--podvm-tier=syscall"]);
+        assert!(on(&stand_in(&d, "0.2.0-beta.34", "userland"), "aarch64").is_empty());
+        assert!(on(&stand_in(&d, "0.2.0-beta.34", "namespace"), "x86_64").is_empty());
         // beta.33 broke the absolute links of a unit under the tier.
-        assert!(on(&stand_in("0.2.0-beta.33", "userland"), "x86_64").is_empty());
+        assert!(on(&stand_in(&d, "0.2.0-beta.33", "userland"), "x86_64").is_empty());
     }
 
     /// T-159: a process that ended after the list is no orphan.

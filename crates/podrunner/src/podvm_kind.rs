@@ -212,8 +212,7 @@ mod tests {
     fn the_fields_of_a_podvm_unit_are_checked() {
         use std::os::unix::fs::PermissionsExt;
         // A podvm that answers its version (`plan` asks it, #262).
-        let dir = std::env::temp_dir().join(format!("podrunner-podvm-plan-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::scratch::Scratch::new("podvm-plan");
         let fake = dir.join("podvm");
         std::fs::write(&fake, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.21\",\"rung\":\"userland\"}'\n").unwrap();
         std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();

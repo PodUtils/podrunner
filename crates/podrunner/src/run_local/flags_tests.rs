@@ -155,7 +155,8 @@ fn the_nits_of_the_user_run() {
             "on: push\njobs:\n  db:\n    runs-on: x\n    services:\n      r:\n        image: {pin}\n    steps: [{{run: a}}]\n"
         ),
     );
-    let r = super::qa6_tests::runner_dir("nits");
+    let runner = super::qa6_tests::runner_dir("nits");
+    let r = runner.text().to_string();
     let out = run(&args(&[&w, "--runner-dir", &r, "--dry-run", "--no-cache"]));
     assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
     assert!(out.stdout.contains("failure db:") && out.stdout.contains("needs containers"), "{}", out.stdout);
@@ -383,7 +384,8 @@ fn a_file_that_is_not_a_workflow_is_named() {
 fn a_dry_run_writes_no_state() {
     let (dir, w) = workflow("dry-state", "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n");
     let st = dir.join("st").display().to_string();
-    let r = super::qa6_tests::runner_dir("dry-state");
+    let runner = super::qa6_tests::runner_dir("dry-state");
+    let r = runner.text().to_string();
     let out = run(&args(&[&w, "--runner-dir", &r, "--dry-run", "--json", "--no-cache", "--state", &st]));
     assert_eq!(out.code, 0, "{}", out.stderr);
     assert!(out.stdout.contains(r#""result":"planned""#), "{}", out.stdout);

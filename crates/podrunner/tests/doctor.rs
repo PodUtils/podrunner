@@ -4,6 +4,10 @@
 
 use std::process::Command;
 
+use scratch::Scratch;
+
+mod scratch;
+
 #[test]
 fn doctor_runs_the_probe_rows_in_children_of_the_binary() {
     let out = Command::new(env!("CARGO_BIN_EXE_podrunner")).args(["doctor", "--json"]).output().unwrap();
@@ -25,8 +29,7 @@ fn doctor_runs_the_probe_rows_in_children_of_the_binary() {
 /// fails names its fix and the exit is 1.
 #[test]
 fn doctor_run_checks_the_inputs_of_a_local_run() {
-    let dir = std::env::temp_dir().join(format!("podrunner-doctor-run-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = Scratch::new("doctor-run");
     std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
     std::fs::write(dir.join("runner/run.sh"), "").unwrap();
     std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
@@ -59,8 +62,7 @@ fn doctor_run_checks_the_inputs_of_a_local_run() {
 /// does, so the installer can check the run that it configured.
 #[test]
 fn doctor_run_reads_the_run_toml_of_the_user() {
-    let dir = std::env::temp_dir().join(format!("podrunner-doctor-toml-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = Scratch::new("doctor-toml");
     std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
     std::fs::create_dir_all(dir.join("config/podrunner")).unwrap();
     std::fs::write(dir.join("runner/run.sh"), "").unwrap();
@@ -70,12 +72,12 @@ fn doctor_run_reads_the_run_toml_of_the_user() {
     // The free space of the scratch disk is a fact of the host, not of
     // this test (T-589): a TMPDIR that is not there fails that row as a
     // small `/tmp` does.
-    for tmp in [dir.clone(), dir.join("missing")] {
+    for tmp in [dir.to_path_buf(), dir.join("missing")] {
         let out = Command::new(env!("CARGO_BIN_EXE_podrunner"))
             .args(["doctor", "--run", "w.yml"])
             .current_dir(&dir)
             .env("XDG_CONFIG_HOME", dir.join("config"))
-            .env("HOME", &dir)
+            .env("HOME", &*dir)
             .env("TMPDIR", &tmp)
             .output()
             .unwrap();
@@ -96,9 +98,7 @@ fn doctor_run_reads_the_run_toml_of_the_user() {
 /// window, and the runner of this build.
 #[test]
 fn doctor_names_the_runner_of_each_pin_and_its_age() {
-    let dir = std::env::temp_dir().join(format!("podrunner-doctor-pins-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = Scratch::new("doctor-pins");
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
     let config = format!(
         "host = \"h\"\n[pin]\n[[pin.payload]]\narch = \"x86_64\"\nreference = \"runner@sha256:{}\"\n\
@@ -127,8 +127,7 @@ fn doctor_names_the_runner_of_each_pin_and_its_age() {
 #[test]
 fn doctor_runs_the_self_test_of_the_confine_layer() {
     use std::os::unix::fs::PermissionsExt;
-    let dir = std::env::temp_dir().join(format!("podrunner-doctor-confine-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = Scratch::new("doctor-confine");
     std::fs::create_dir_all(dir.join("store")).unwrap();
     let podvm = dir.join("podvm");
     std::fs::write(&podvm, "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.36\", \"rung\": \"namespace\"}'\n").unwrap();

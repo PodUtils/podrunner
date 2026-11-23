@@ -329,6 +329,7 @@ fn a_replay_destroy_removes_the_instance_of_the_old_name() {
     let residue = u.destroy(&UnitId::parse("u-1").unwrap()).unwrap();
     assert!(!d.join("store").join(format!("{old}.status")).exists(), "the old instance is removed");
     assert_eq!(residue.processes, Count::Known(0));
+    let _ = fs::remove_dir_all(&d);
 }
 
 /// T-482: with `root_quota` the root disk of an instance gets the lesser of
