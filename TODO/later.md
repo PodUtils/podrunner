@@ -14328,7 +14328,7 @@ State (2026-11-23, the review of the commit; proven by the unit tests on a devel
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14348,6 +14348,10 @@ Read on 2026-11-21: `Bed::tick` (`crates/podrunner-slots/src/tests/mod.rs`) move
 `for i in $(seq 20); do cargo test -p podrunner-slots --all-features --lib || break; done` passes on a loaded host; `cargo test -p podrunner --all-features --test doctor` passes with less than 2 GiB free in `/tmp`.
 
 State (2026-11-23, proven by the unit tests on a loaded development host; not run in CI): the root cause of (1): `Bed::until` gave a fake unit (a real process) 5 ms of real time for each tick, and nothing more. `Bed::until` now moves the manual clock by `max` seconds at most, then ticks the slots on a clock that stays, until `done` holds or 10 s of real time pass (`until_within` takes another real limit). The return value stays the seconds of the manual clock, so the tests that count seconds (`g12_a_job_past_its_wall_time_ends`, `a_cancel_destroys_its_unit_within_60_s`) keep their bound. New tests in `crates/podrunner-slots/src/tests/bed.rs`: `a_slow_unit_ends_after_the_ticks_of_its_clock` (a unit that ends only after the 20th tick; it fails on the old loop with "not done after 20 ticks") and `a_condition_that_never_holds_fails_at_its_deadline`. For (2), `doctor_run_reads_the_run_toml_of_the_user` sets `TMPDIR`, asserts the `runner-dir` row, accepts a `FAIL` row of `scratch-disk` only, and asserts exit 1 exactly when such a row is there; a second run with a `TMPDIR` that is not there fails that row as a small `/tmp` does. The old test failed with `TMPDIR` on a tmpfs of 200 MiB. Proof: 20 runs of the lib tests of `podrunner-slots` (176 tests each) passed with 4 busy loops and other builds on 4 CPUs (load 9 to 10); `cargo test -p podrunner --all-features --test doctor` (5 tests) passed with `TMPDIR` on a tmpfs of 200 MiB and on the disk of the host.
+
+## Done
+
+2026-11-23, `61229e0`: `Bed::until` moves the manual clock by `max` seconds at most, then ticks the slots with the clock stopped until the condition holds or 10 s of real time pass (`until_within` takes another limit); the doctor test sets `TMPDIR` and accepts exit 1 only with its `FAIL scratch-disk` row. Proven on a development host: 20 of 20 runs of `cargo test -p podrunner-slots --all-features --lib` (176 tests) passed under 4 busy loops on 4 CPUs (load 9 to 10); `cargo test -p podrunner --all-features --test doctor` (5) passed with `TMPDIR` on a 200 MiB tmpfs. The new test `a_slow_unit_ends_after_the_ticks_of_its_clock` fails on the old loop.
 
 # T-590: The hosted work folder on the podvm kind and in the runner image
 
@@ -14388,7 +14392,7 @@ State (2026-11-21, proven by the unit tests on a development host only; `runner-
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14408,6 +14412,10 @@ Read on 2026-11-21 after the test runs of T-590 (the names and the counts in `/t
 `cargo test -p podrunner -p podrunner-podvm -p podrunner-egress -p podrunner-local --all-features` leaves no new `/tmp/podrunner-*` entry (`find /tmp -maxdepth 1 -name 'podrunner-*' -newer STAMP` is empty).
 
 State (2026-11-23, proven by the tests on a development host; the step of `gate.yml` not run in CI): measured with `TMPDIR` set to a new empty directory. Before the change, a pass of the four crates left 20 entries: `podrunner-qa6-runner-TAG-PID` (8), `podrunner-front-PID-ThreadId(N)` (3), `podrunner-envfile-PID-ThreadId(N)` (3), `podrunner-egress-PID-ThreadId(N)`, `podrunner-podvm-plan-PID`, `podrunner-program-PID`, `podrunner-tier-PID`; a pass of the workspace also left `podrunner-incus-legacy-PID-N` (`a_replay_destroy_removes_the_instance_of_the_old_name`). Each test reads `TMPDIR` (`std::env::temp_dir()`); no test helper names `/tmp`. Each such test now holds a guard `Scratch` that removes its directory at the drop, after a pass and after a panic: `crates/podrunner/src/scratch.rs` (the lib tests), `crates/podrunner/tests/scratch/mod.rs` (`program_source`, `doctor`), `crates/podrunner-podvm/src/scratch.rs`, and `Scratch` of `crates/podrunner-egress/src/tests.rs`. The tests of `control`, `hooks`, `notify`, `doctor` and the TLS tests of `podrunner-egress`, which left a directory on a panic only, take the guard too. The test of incus removes its directory as the other tests of its file do. `scripts/agent/check.sh` and the Test step of `gate.yml` run `cargo test --workspace` with a `TMPDIR` of their own and fail when an entry stays in it (`tmp_left`; it fails on a planted entry and on a directory that is not there). After the change, `cargo test --workspace --all-features` (694 passed, 0 failed, 55 ignored) left its `TMPDIR` empty. Not covered: the suites of the runner in `check.sh` (`PODRUNNER_RUNNER_DIR`) run with the `TMPDIR` of the host, and other tests of the four crates still remove their directory at the end of a pass only.
+
+## Done
+
+2026-11-23, `e2bed05`: a `Scratch` guard removes the directory of each such test on drop (a pass and a panic), and `check.sh` and the test step of `gate.yml` run the workspace tests with a `TMPDIR` of their own and fail on an entry left there (`tmp_left`). Proven on a development host: `cargo test --workspace --all-features` (694 passed) with a new empty `TMPDIR` left it empty; before the change the four crates of the Prove left 20 entries. `tmp_left` fails on a planted entry. The step of `gate.yml` runs on the next push.
 
 # T-592: The level2 corpus fails on the advisory check of podcrates, which reads the live advisory database
 
@@ -14622,3 +14630,54 @@ The body of PodUtils/podvm#644, read on 2026-11-23: "podcrates `v0.82.0` refuses
 ## Prove
 
 `python3 -I scripts/hosted/plan.py --self-test` and `scrub.py --self-test` (a planted sparse file gives no `GNU.sparse.*` record, and a stream with one is refused); the next `hosted-snapshot.yml` capture loads with the podvm release that takes podcrates `v0.82.0`.
+
+# T-600: The tests of Unix sockets fail when `TMPDIR` is long
+
+**Source:** the work of T-591, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With `TMPDIR` of about 90 characters, 13 tests of the `podrunner` lib fail at `bind` or `connect`: the path of the socket is longer than the 108 bytes of `sun_path`. The tests are in `crates/podrunner/src/control_tests.rs` (6), `crates/podrunner/src/doctor.rs` (`doctor_knows_the_microvm_and_incus_kinds`), `crates/podrunner/src/hooks/tests.rs` (2), `crates/podrunner/src/notify.rs` and `crates/podrunner/src/serve/front_tests.rs` (3). A host with a long `TMPDIR` is a host class: a test there fails for the host, not for the code. The same limit can reach `serve` and `run` when their state or socket directory is long; whether each gives a clear error is not known.
+
+## Premise
+
+The report of the work of T-591, read on 2026-11-23 (the tests ran with `TMPDIR` in the scratch directory of a session).
+
+## Approach
+
+1. The tests put each socket in a short directory of their own (for example `pod_testkit::host::socket_dir` of podcrates, if it has one, or a directory under `/tmp` with a short name and a guard).
+2. Find each place where `serve` and `run` bind a socket under a directory of the user, and make a path over the limit fail with one line that names the path and the limit.
+
+## Prove
+
+`TMPDIR=$(mktemp -d /tmp/$(printf 'x%.0s' $(seq 80)).XXXX) cargo test -p podrunner --all-features --lib` passes; a test gives `serve` a state directory over the limit and gets the error line.
+
+# T-601: A test of the run report failed once under load
+
+**Source:** the work of T-589, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`tests::report::a_report_has_its_times_its_image_and_its_measures_or_a_reason` (`crates/podrunner-slots/src/tests/report.rs`) failed one time under load (4 busy loops, load 9 to 10) in a build of the branch of T-483 and T-497. It passed in 20 runs of the build of T-589. The test reads `run_s` in a window of 30 to 32 s (T-497), and the unit ticks with the bed. T-589 changed `Bed::until`; whether the window still depends on the real time of the host is not known.
+
+## Premise
+
+The report of the work of T-589, read on 2026-11-23.
+
+## Approach
+
+Run the test in a loop under load on `main` after T-589 (`for i in $(seq 50); do cargo test -p podrunner-slots --all-features --lib report || break; done` with busy loops). If it fails, find the race and make the time of the unit come from the manual clock only.
+
+## Prove
+
+50 of 50 runs of `cargo test -p podrunner-slots --all-features --lib report` pass under 4 busy loops on 4 CPUs.
