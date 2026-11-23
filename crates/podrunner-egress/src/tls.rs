@@ -69,6 +69,19 @@ pub fn roots_pem(env: Option<&Path>, system: &[PathBuf]) -> Option<Vec<u8>> {
     (!out.is_empty()).then_some(out)
 }
 
+/// The trust store of the bundle of a job for a JVM (T-577): the CA of
+/// the job and `roots` in PKCS #12.
+pub(crate) fn trust_store(job: &str, ca_pem: &str, roots: Option<&[u8]>) -> Result<Vec<u8>, EgressError> {
+    let roots = roots.ok_or_else(|| EgressError(format!("{job}: no roots for its trust store")))?;
+    pod_broker::ca::trust_store(ca_pem, roots).map_err(|e| EgressError(format!("the trust store of {job}: {e}")))
+}
+
+/// The value of `JAVA_TOOL_OPTIONS` that names the trust store at `store`
+/// in a unit, before the value `job` of the job (`ca::java_options`).
+pub fn java_options(store: &Path, job: Option<&str>) -> Result<String, String> {
+    pod_broker::ca::java_options(store, job)
+}
+
 /// The bundle of a job: the PEM of its CA, then `roots`.
 pub(crate) fn bundle(job: &str, ca_pem: &str, roots: Option<&[u8]>) -> Result<String, EgressError> {
     let Some(roots) = roots else {

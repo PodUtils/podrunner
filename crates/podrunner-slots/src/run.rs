@@ -169,6 +169,7 @@ impl Slots {
             let why = "egress: the policy of the offer opens nothing with no [egress] default_policy (T-410)";
             self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(why.into()));
         }
+        let mut unit_ca: Option<(String, Vec<String>)> = None;
         if let Some(e) = &self.egress {
             let offer = self.jobs[key].offer.as_ref().map(|o| &o.policy);
             let policy = crate::policy::of_job(offer, self.cfg.egress.default_policy.as_ref());
@@ -185,10 +186,12 @@ impl Slots {
                         let n = o.flagged;
                         self.audit(audit::Kind::EgressFlagged, key.0, &key.1, None, Some(format!("{n} rules")));
                     }
-                    // The unit trusts the CA of its broker (T-563).
-                    if let Some((file, vars)) = o.ca {
-                        credential.files.push(file);
-                        env.extend(vars);
+                    // The unit trusts the CA of its broker (T-563), and each
+                    // container of its job too (T-578).
+                    if let Some(t) = o.ca {
+                        unit_ca = Some(t.bundle);
+                        credential.files.extend(t.files);
+                        env.extend(t.env);
                     }
                 }
             }
@@ -205,7 +208,8 @@ impl Slots {
             self.close_sockets(&unit);
             return self.give_up(key, RefusalCode::ImageStale, now);
         }
-        match self.open_hooks(p.kind, &unit, &dir, guest.as_deref()) {
+        let ca = unit_ca.as_ref().map(|(pem, vars)| (pem.as_str(), vars.as_slice()));
+        match self.open_hooks(p.kind, &unit, &dir, guest.as_deref(), ca) {
             Ok(vars) => env.extend(vars),
             Err(why) => {
                 self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("hooks: {why}")));

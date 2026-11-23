@@ -19,6 +19,7 @@ impl podrunner_slots::hooks::HookPort for HooksOf {
         unit: &podrunner_schema::UnitId,
         socket: &Path,
         guest: Option<&str>,
+        ca: Option<(&str, &[String])>,
     ) -> Result<std::collections::BTreeMap<String, String>, String> {
         use std::os::unix::fs::PermissionsExt;
         let policy = self.policies.get(kind).cloned().ok_or("no hook policy of this kind")?;
@@ -28,10 +29,10 @@ impl podrunner_slots::hooks::HookPort for HooksOf {
         std::fs::create_dir_all(dir).map_err(|e| io("the socket directory", e))?;
         std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| io("the relay", e))?;
         std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755)).map_err(|e| io("the relay", e))?;
-        // The output of the steps stays out of the directory that the unit
-        // sees.
+        // The output of the steps and the CA bundle of the containers stay
+        // out of the directory that the unit sees.
         let logs = dir.with_extension("logs");
-        self.hooks.open(driver, unit, policy, socket, &logs).map_err(|e| io("the control socket", e))?;
+        self.hooks.open(driver, unit, policy, socket, &logs, ca).map_err(|e| io("the control socket", e))?;
         // A unit that sees the directory at `guest` gets the guest paths.
         let seen = |p: &Path| match (guest, p.file_name()) {
             (Some(g), Some(name)) => format!("{}/{}", g.trim_end_matches('/'), name.to_string_lossy()),

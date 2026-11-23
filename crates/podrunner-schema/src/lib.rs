@@ -14,7 +14,7 @@ pub use pod_job::{KindStatus, PinStatus, SourceStatus, Status};
 
 mod secret;
 
-pub use secret::{Credential, CredentialFile, PlainName, Secret};
+pub use secret::{BINARY_MARK, Credential, CredentialFile, FileBytes, PlainName, Secret, binary_file};
 
 #[cfg(test)]
 mod tests {

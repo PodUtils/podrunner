@@ -23,8 +23,10 @@ its test, not podrunner at run time.
 - `start` gives a fresh root for each unit: no file of an earlier unit is
   in it (the podvm kind: a tree of its own for each unit in one store of
   the units where the rung binds a volume, T-545). It writes the
-  credential files into the runner root at mode 0600. No credential goes
-  into argv or into the environment. A unit id that is in use is refused
+  credential files into the runner root at mode 0600. A binary file (a
+  trust store, T-577) comes as a NUL, `base64:` and its bytes in base64;
+  the driver writes the bytes (`podrunner_schema::FileBytes`). No
+  credential goes into argv or into the environment. A unit id that is in use is refused
   (`unit-in-use`). The core makes each unit id (`u-` and a counter); a unit
   id never derives from a job id.
 - `signal` reaches each process of the unit (the whole tree).
@@ -111,7 +113,7 @@ with a grandchild, a marker file in the working directory.
 | 3 | `destroy-reaches-a-setsid-grandchild` | After `destroy`, no process of a tree with a `setsid` grandchild lives, and the count is 0. |
 | 4 | `prepare-refuses-a-foreign-platform` | A foreign platform with no emulation is `arch-mismatch`. |
 | 5 | `a-fresh-root-for-each-unit` | Two units have two roots; a file of one is not in the other. |
-| 6 | `credential-files-at-mode-0600` | Each credential file is in the runner root, mode 0600, with its content. |
+| 6 | `credential-files-at-mode-0600` | Each credential file is in the runner root, mode 0600, with its content (a binary file with its bytes). |
 | 7 | `no-credential-in-argv-or-environment` | No process of the unit holds the credential in argv or environment (the environment is readable: a positive control). |
 | 8 | `wait-gives-the-exit-code` | `wait` gives the exit code of the top process. |
 | 9 | `term-ends-the-unit` | After `signal term`, `wait` gives an exit. |

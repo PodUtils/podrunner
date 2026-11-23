@@ -21,6 +21,13 @@ const CA_VARS: [&str; 10] = {
 /// The variables and the CA files of a unit.
 pub(crate) type UnitEnv = (Vec<(String, String)>, Vec<CredentialFile>);
 
+/// The trust store of the CA files of the caller for a JVM (T-577): a JVM
+/// reads none of `CA_VARS`.
+pub(crate) const STORE_FILE: &str = "podrunner-ca.p12";
+
+/// The variable of the options of each JVM: it names the trust store.
+const JAVA_OPTIONS: &str = "JAVA_TOOL_OPTIONS";
+
 /// The environment of a unit and its CA files, from the variables `vars` of
 /// the caller; `dir` is where the unit sees its credential files. A `held`
 /// unit takes the CA files only: its hold gives it its way out, and the
@@ -28,7 +35,7 @@ pub(crate) type UnitEnv = (Vec<(String, String)>, Vec<CredentialFile>);
 pub(crate) fn unit_env(dir: &str, vars: impl Iterator<Item = (String, String)>, held: bool) -> Result<UnitEnv, String> {
     let (env, files) = all_env(dir, vars)?;
     Ok(match held {
-        true => (env.into_iter().filter(|(k, _)| CA_VARS.contains(&k.as_str())).collect(), files),
+        true => (env.into_iter().filter(|(k, _)| CA_VARS.contains(&k.as_str()) || k == JAVA_OPTIONS).collect(), files),
         false => (env, files),
     })
 }
@@ -38,6 +45,8 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
     let mut env = Vec::new();
     let mut files: Vec<CredentialFile> = Vec::new();
     let mut by_path: BTreeMap<String, String> = BTreeMap::new();
+    // Each CA file once, for the trust store of a JVM.
+    let mut pem = String::new();
     for k in PASSED.iter().filter(|k| **k != "PATH" && **k != "SSL_CERT_DIR") {
         let Some(v) = vars.get(*k) else { continue };
         if !CA_VARS.contains(k) {
@@ -48,6 +57,8 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
             Some(n) => n.clone(),
             None => {
                 let text = std::fs::read_to_string(v).map_err(|e| format!("{k}={v}: {e}"))?;
+                pem.push_str(&text);
+                pem.push('\n');
                 let n = format!("podrunner-ca-{}.crt", by_path.len());
                 files.push(CredentialFile { name: n.clone(), content: Secret::new(text) });
                 by_path.insert(v.clone(), n.clone());
@@ -55,6 +66,16 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
             }
         };
         env.push((k.to_string(), format!("{dir}/{name}")));
+    }
+    if !pem.is_empty() {
+        match java_trust(dir, &pem, vars.get(JAVA_OPTIONS).map(String::as_str)) {
+            Ok((store, options)) => {
+                files.push(store);
+                env.push((JAVA_OPTIONS.into(), options));
+            }
+            // The other clients of the job still trust the CA files.
+            Err(why) => eprintln!("podrunner: no trust store of the CA files for a JVM: {why}"),
+        }
     }
     let view: Vec<(&str, String)> = env.iter().map(|(k, v)| (k.as_str(), v.clone())).collect();
     if let Some((k, v)) = super::host::node_proxy(&view) {
@@ -66,6 +87,17 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
         env.push(("no_proxy".into(), no));
     }
     Ok((env, files))
+}
+
+/// The trust store of the CA files `pem` in the unit (`dir`), and the
+/// value of `JAVA_TOOL_OPTIONS` that names it before the value `caller` of
+/// the caller (T-577).
+fn java_trust(dir: &str, pem: &str, caller: Option<&str>) -> Result<(CredentialFile, String), String> {
+    // The CA files hold the CA of the proxy and the roots of the caller:
+    // the store takes each certificate of them in order.
+    let der = pod_broker::ca::trust_store("", pem.as_bytes())?;
+    let options = pod_broker::ca::java_options(std::path::Path::new(&format!("{dir}/{STORE_FILE}")), caller)?;
+    Ok((podrunner_schema::binary_file(STORE_FILE, &der), options))
 }
 
 /// The variables of a unit that do not come from the caller. A podvm unit
@@ -186,6 +218,56 @@ mod tests {
         assert!(env.iter().any(|(k, v)| k == "CARGO_HTTP_CAINFO" && v == "/d/podrunner-ca-0.crt"), "{env:?}");
         assert!(env.iter().any(|(k, v)| k == "DENO_CERT" && v == "/d/podrunner-ca-0.crt"), "{env:?}");
         let _ = std::fs::remove_file(&ca);
+    }
+
+    /// T-577: a caller with a CA file gives a unit the trust store of each
+    /// CA file for a JVM, and `JAVA_TOOL_OPTIONS` that names it before the
+    /// value of the caller.
+    #[test]
+    fn a_caller_with_a_ca_file_gives_a_unit_a_trust_store() {
+        use podrunner_schema::FileBytes;
+        let dir = std::env::temp_dir().join(format!("podrunner-proxy-jvm-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Made-up certificates: the store holds their bytes; no TLS reads them.
+        let (one, two) = (dir.join("one.crt"), dir.join("two.crt"));
+        std::fs::write(&one, "-----BEGIN CERTIFICATE-----\nAQID\n-----END CERTIFICATE-----\n").unwrap();
+        std::fs::write(&two, "-----BEGIN CERTIFICATE-----\nBAUG\n-----END CERTIFICATE-----").unwrap();
+        let (p1, p2) = (one.display().to_string(), two.display().to_string());
+        let given = |pairs: &[(&str, &str)]| -> Vec<(String, String)> {
+            pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        };
+        let store = "/podrunner/.runner/podrunner-ca.p12";
+        let want = format!("-Djavax.net.ssl.trustStore={store} -Djavax.net.ssl.trustStoreType=PKCS12");
+        let vars = given(&[("SSL_CERT_FILE", &p1), ("NODE_EXTRA_CA_CERTS", &p2), ("JAVA_TOOL_OPTIONS", "-Xmx1g")]);
+        for held in [false, true] {
+            let (env, files) = unit_env("/podrunner/.runner", vars.clone().into_iter(), held).unwrap();
+            let get = |k: &str| env.iter().find(|(n, _)| n == k).map(|(_, v)| v.clone());
+            assert_eq!(get("JAVA_TOOL_OPTIONS"), Some(format!("{want} -Xmx1g")), "held: {held}");
+            let names: Vec<&str> = files.iter().map(|f| f.name.as_str()).collect();
+            assert_eq!(names, ["podrunner-ca-0.crt", "podrunner-ca-1.crt", STORE_FILE], "held: {held}");
+            let der = files[2].bytes().unwrap();
+            let has = |n: &[u8]| der.windows(n.len()).any(|w| w == n);
+            assert!(has(&[0x04, 0x03, 1, 2, 3]) && has(&[0x04, 0x03, 4, 5, 6]), "each CA file: {der:02x?}");
+        }
+        // No value of the caller: the store alone.
+        let (env, _) = unit_env("/d", given(&[("SSL_CERT_FILE", &p1)]).into_iter(), false).unwrap();
+        let java = env.iter().find(|(k, _)| k == "JAVA_TOOL_OPTIONS").map(|(_, v)| v.as_str());
+        let alone = "-Djavax.net.ssl.trustStore=/d/podrunner-ca.p12 -Djavax.net.ssl.trustStoreType=PKCS12";
+        assert_eq!(java, Some(alone));
+        // No CA file: no store, and the options of the caller stay out.
+        let (env, files) = unit_env("/d", given(&[("JAVA_TOOL_OPTIONS", "-Xmx1g")]).into_iter(), false).unwrap();
+        assert!(env.is_empty() && files.is_empty(), "{env:?}");
+        // A CA file with no certificate, or a directory with a space (the JVM
+        // splits the variable at each space): the CA files, and no store.
+        let empty = dir.join("empty.crt");
+        std::fs::write(&empty, "").unwrap();
+        let e = empty.display().to_string();
+        for (d, path) in [("/d", e.as_str()), ("/a b", p1.as_str())] {
+            let (env, files) = unit_env(d, given(&[("SSL_CERT_FILE", path)]).into_iter(), false).unwrap();
+            assert!(env.iter().all(|(k, _)| k != "JAVA_TOOL_OPTIONS"), "{d} {path}: {env:?}");
+            assert_eq!(files.len(), 1, "{d} {path}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// T-328: the log names each refused host; the hosts are a list.

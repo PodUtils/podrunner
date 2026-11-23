@@ -26,7 +26,9 @@ pub trait HookPort: Send {
     /// the start; give the environment that the unit needs.
     /// `guest`: where the unit sees the directory of `socket`, when the
     /// driver mounts it (`UnitDriver::socket_mount`); the environment then
-    /// names the guest paths.
+    /// names the guest paths. `ca`: the CA bundle (PEM) of the broker of
+    /// the unit and the variables that name it, which each container of
+    /// the job takes too (T-578).
     fn open(
         &self,
         kind: &str,
@@ -34,6 +36,7 @@ pub trait HookPort: Send {
         unit: &UnitId,
         socket: &Path,
         guest: Option<&str>,
+        ca: Option<(&str, &[String])>,
     ) -> Result<BTreeMap<String, String>, String>;
     fn close(&self, unit: &UnitId);
     /// The refusals and the job hooks of `unit` since the last call.
@@ -59,13 +62,14 @@ impl Slots {
         unit: &UnitId,
         dir: &std::path::Path,
         guest: Option<&str>,
+        ca: Option<(&str, &[String])>,
     ) -> Result<BTreeMap<String, String>, String> {
         let k = &self.kinds[kind];
         let Some(h) = &self.hooks else { return Ok(BTreeMap::new()) };
         if k.capability.container != ContainerRoute::Hooks {
             return Ok(BTreeMap::new());
         }
-        h.open(&k.name, k.driver.clone(), unit, &dir.join(crate::run::CONTROL_SOCKET), guest)
+        h.open(&k.name, k.driver.clone(), unit, &dir.join(crate::run::CONTROL_SOCKET), guest, ca)
     }
 
     pub(crate) fn close_hooks(&self, unit: &UnitId) {

@@ -86,9 +86,10 @@ fn the_credentials_go_on_stdin_and_never_into_argv() {
     assert!(!stdin.contains(CANARY), "the stream is base64: {stdin}");
     for line in stdin.lines() {
         let (file, b64) = line.split_once(' ').unwrap();
-        let plain = String::from_utf8(STANDARD_DECODE.decode(b64).unwrap()).unwrap();
+        let plain = STANDARD_DECODE.decode(b64).unwrap();
         let want = s.credential.files.iter().find(|f| f.name == file).unwrap();
-        assert_eq!(plain, want.content.expose());
+        // A binary file goes as its bytes (T-577).
+        assert_eq!(plain, podrunner_schema::FileBytes::bytes(want).unwrap().as_ref());
     }
     assert_eq!(stdin.lines().count(), s.credential.files.len());
     let words: Vec<&str> = argv.lines().collect();

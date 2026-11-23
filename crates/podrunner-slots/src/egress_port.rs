@@ -2,6 +2,10 @@
 
 use podrunner_schema::Secret;
 
+/// The value of `JAVA_TOOL_OPTIONS` that names a trust store at a path of
+/// the unit, before a value of the job (`pod_broker::ca::java_options`).
+pub type JavaOptions = fn(&std::path::Path, Option<&str>) -> Result<String, String>;
+
 /// What the module gives for a unit.
 #[derive(Debug, Default)]
 pub struct Opened {
@@ -14,6 +18,9 @@ pub struct Opened {
     /// The variables that name the bundle in the unit (`ca::env` of
     /// `pod-broker`).
     pub ca_vars: Vec<String>,
+    /// The same bundle as a PKCS #12 trust store for a JVM (T-577), and the
+    /// value of `JAVA_TOOL_OPTIONS` that names it.
+    pub trust_store: Option<(Vec<u8>, JavaOptions)>,
 }
 
 /// The egress module as slots sees it (`podrunner-egress` behind it): one

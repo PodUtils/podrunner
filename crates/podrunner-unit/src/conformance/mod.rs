@@ -26,6 +26,10 @@ pub use procs::{alive, holds_text};
 /// or environment may hold.
 pub const CANARY: &str = "podrunner-canary-0f9c2d71";
 
+/// The binary credential file of [`canary_credential`] and its bytes.
+pub const BINARY_FILE: &str = "podrunner-canary.p12";
+pub const BINARY_BYTES: [u8; 6] = [0x30, 0x82, 0x00, 0xff, 0xfe, b'\n'];
+
 /// The behaviour of a payload, which the fixture turns into argv.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Behaviour {
@@ -183,6 +187,9 @@ pub fn canary_credential() -> Credential {
         files: vec![
             CredentialFile { name: ".runner".into(), content: Secret::new(format!("{{\"agentName\":\"{CANARY}\"}}")) },
             CredentialFile { name: ".credentials".into(), content: Secret::new(format!("{{\"token\":\"{CANARY}\"}}")) },
+            // A binary file (a trust store, T-577): the driver writes its
+            // bytes, with a NUL and bytes that are not UTF-8.
+            podrunner_schema::binary_file(BINARY_FILE, &BINARY_BYTES),
         ],
     }
 }

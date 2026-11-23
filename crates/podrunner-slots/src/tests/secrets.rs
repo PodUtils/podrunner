@@ -18,14 +18,31 @@ const VALUE: &str = "made-up-secret-value-T563-slots-c9d0";
 const PH: &str = "PODCRED_TEST_TOKEN_0001";
 const BUNDLE: &str = "-----BEGIN CERTIFICATE-----\nmade-up-ca-of-the-job\n-----END CERTIFICATE-----\n";
 
+/// The bytes of a made-up trust store, with a NUL and a byte that is not
+/// UTF-8 (T-577).
+const STORE: [u8; 4] = [0x30, 0x82, 0x00, 0xff];
+
+/// A made-up value of `JAVA_TOOL_OPTIONS`: the real one is
+/// `pod_broker::ca::java_options`, behind the seam.
+fn java(store: &std::path::Path, _: Option<&str>) -> Result<String, String> {
+    Ok(format!("-Dstore={}", store.display()))
+}
+
 /// The policy and the secrets (name, value) of each unit.
 type Seen = Arc<Mutex<Vec<(String, Vec<(String, String)>)>>>;
 
 /// A module with a TLS end: it keeps the policy and the secrets of each
-/// unit, and gives a made-up bundle to a policy with a credential.
+/// unit, and gives a made-up bundle and trust store to a policy with a
+/// credential.
 #[derive(Clone, Default)]
 struct Tls {
     opened: Seen,
+    /// The value of `JAVA_TOOL_OPTIONS` fails: a path that a JVM cannot take.
+    no_java: bool,
+}
+
+fn no_java(_: &std::path::Path, _: Option<&str>) -> Result<String, String> {
+    Err("a made-up refusal".into())
 }
 
 impl EgressPort for Tls {
@@ -42,7 +59,10 @@ impl EgressPort for Tls {
         let shown = secrets.iter().map(|(n, v)| (n.clone(), v.expose().to_string())).collect();
         self.opened.lock().unwrap().push((policy.into(), shown));
         let ca = policy.contains("credentials").then(|| Secret::new(BUNDLE));
-        Ok(Opened { flagged: 0, ca_bundle: ca, ca_vars: vec!["SSL_CERT_FILE".into(), "CARGO_HTTP_CAINFO".into()] })
+        let options: crate::JavaOptions = if self.no_java { no_java } else { java };
+        let trust_store = ca.as_ref().map(|_| (STORE.to_vec(), options));
+        let ca_vars = vec!["SSL_CERT_FILE".into(), "CARGO_HTTP_CAINFO".into()];
+        Ok(Opened { flagged: 0, ca_bundle: ca, ca_vars, trust_store })
     }
     fn close(&self, _: &str) {}
     fn alive(&self) -> bool {
@@ -83,8 +103,17 @@ fn run(offer_with: Value, check: &str) -> (Bed, Tls) {
 }
 
 fn run_in(cfg: crate::config::Config, cap: podrunner_schema::Capability, offer_with: Value, check: &str) -> (Bed, Tls) {
+    run_with(cfg, cap, offer_with, check, Tls::default())
+}
+
+fn run_with(
+    cfg: crate::config::Config,
+    cap: podrunner_schema::Capability,
+    offer_with: Value,
+    check: &str,
+    tls: Tls,
+) -> (Bed, Tls) {
     let dir = TempDir::new();
-    let tls = Tls::default();
     let kind = KindSpec { name: "fake", slots: 1, capability: cap, command: sh(check) };
     let bed = Bed::new(cfg, vec![("a", "trusted", None, vec![offer(0, "j-1", offer_with)])], vec![kind]);
     let mut bed = Bed { slots: bed.slots.with_egress(Box::new(tls.clone())), ..bed };
@@ -112,6 +141,77 @@ fn the_unit_holds_the_placeholder_and_trusts_the_ca_of_its_broker() {
     assert_eq!(*secrets, [("token".to_string(), VALUE.to_string())], "the value of the file, with no end of line");
     let audit = std::fs::read_to_string(bed.dir.0.join("state/audit.jsonl")).unwrap_or_default();
     assert!(!audit.contains(VALUE), "{audit}");
+}
+
+/// T-577: the unit gets the trust store of the bundle as a binary
+/// credential file beside it, and `JAVA_TOOL_OPTIONS` names it. A path that
+/// a JVM cannot take gives no store and no variable; the bundle stays.
+#[test]
+fn the_unit_gets_the_trust_store_of_its_broker_for_a_jvm() {
+    let check = "d=$(dirname \"$SSL_CERT_FILE\"); s=\"$d/podrunner-broker-ca.p12\"; \
+         test \"$JAVA_TOOL_OPTIONS\" = \"-Dstore=$s\" && test \"$(od -An -tx1 \"$s\" | tr -d ' \\n')\" = 308200ff \
+         && test \"$(stat -c %a \"$s\")\" = 600";
+    let (bed, _) = run(credential("token", "api.example.com"), check);
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success, "{:?}", bed.slots.reports[0]);
+    let check = "grep -q made-up-ca-of-the-job \"$SSL_CERT_FILE\" && test -z \"${JAVA_TOOL_OPTIONS-}\" \
+         && ! test -e \"$(dirname \"$SSL_CERT_FILE\")/podrunner-broker-ca.p12\"";
+    let dir = TempDir::new();
+    let cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
+    let tls = Tls { no_java: true, ..Tls::default() };
+    let (bed, _) = run_with(with_secret(&dir.0), cap, credential("token", "api.example.com"), check, tls);
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success, "{:?}", bed.slots.reports[0]);
+    // No credential: no store.
+    let plain = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "api.example.com" }] } });
+    let (bed, _) = run(plain, "test -z \"${JAVA_TOOL_OPTIONS-}\"");
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
+}
+
+/// The CA bundle and the variables that each open of the hooks got.
+type HookCa = Arc<Mutex<Vec<Option<(String, Vec<String>)>>>>;
+
+/// Hooks that keep what each unit gives its containers (T-578).
+#[derive(Clone, Default)]
+struct Hooks(HookCa);
+
+impl crate::hooks::HookPort for Hooks {
+    fn open(
+        &self,
+        _: &str,
+        _: Arc<dyn podrunner_unit::UnitDriver>,
+        _: &podrunner_schema::UnitId,
+        _: &std::path::Path,
+        _: Option<&str>,
+        ca: Option<(&str, &[String])>,
+    ) -> Result<std::collections::BTreeMap<String, String>, String> {
+        self.0.lock().unwrap().push(ca.map(|(pem, vars)| (pem.to_string(), vars.to_vec())));
+        Ok(Default::default())
+    }
+    fn close(&self, _: &podrunner_schema::UnitId) {}
+    fn take(&self, _: &podrunner_schema::UnitId) -> (Vec<RefusalCode>, Vec<crate::hooks::HookEvent>) {
+        Default::default()
+    }
+}
+
+/// T-578: the containers of a unit whose broker ends TLS get the bundle of
+/// that broker and the variables that name it; a unit with no bundle
+/// gives its containers neither.
+#[test]
+fn the_containers_of_a_unit_get_the_bundle_of_its_broker() {
+    let plain = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "api.example.com" }] } });
+    let vars = ["SSL_CERT_FILE", "CARGO_HTTP_CAINFO"].map(String::from).to_vec();
+    for (with, want) in [(credential("token", "api.example.com"), Some((BUNDLE.to_string(), vars))), (plain, None)] {
+        let dir = TempDir::new();
+        let mut cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
+        cap.container = podrunner_schema::ContainerRoute::Hooks;
+        let kind = KindSpec { name: "fake", slots: 1, capability: cap, command: sh("exit 0") };
+        let bed = Bed::new(with_secret(&dir.0), vec![("a", "trusted", None, vec![offer(0, "j-1", with)])], vec![kind]);
+        let mut bed = Bed { slots: bed.slots.with_egress(Box::new(Tls::default())), ..bed };
+        let hooks = Hooks::default();
+        bed.slots.set_hooks(Box::new(hooks.clone()));
+        bed.until(30, |s| s.jobs().count() == 1 && Bed::all_final(s));
+        assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success, "{:?}", bed.slots.reports[0]);
+        assert_eq!(*hooks.0.lock().unwrap(), [want]);
+    }
 }
 
 #[test]

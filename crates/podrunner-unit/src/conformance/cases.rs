@@ -196,7 +196,8 @@ fn credential_files_at_mode_0600(fx: &dyn Fixture) -> Result<Outcome, String> {
         if meta.permissions().mode() & 0o777 != 0o600 {
             return Err(format!("{} has mode {:o}, not 600", f.name, meta.permissions().mode() & 0o777));
         }
-        if std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", f.name))? != f.content.expose() {
+        let want = podrunner_schema::FileBytes::bytes(&f)?;
+        if std::fs::read(&path).map_err(|e| format!("{}: {e}", f.name))? != want.as_ref() {
             return Err(format!("{} does not hold the credential", f.name));
         }
     }

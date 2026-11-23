@@ -70,6 +70,22 @@ exits 4. A job hook of the runner posts `POST /v1/job_state` with
 `{"event": "job-started"}` or `{"event": "job-completed"}`. One request
 for each connection; a body of at most 1 MiB; no chunked body.
 
+## The CA bundle of the broker
+
+When the broker of a unit ends TLS (a credential or a rule with a path,
+T-563, T-524), each container of the job (the job container, each
+service and each container action) trusts the CA bundle of that broker,
+as the unit does (T-578):
+
+- The host writes the bundle at mode 0644 to a directory beside the
+  logs of the steps, out of the socket directory of the unit. The
+  container mounts that directory read-only at `/__podrunner`.
+- Each of the ten variables of `pod_broker::ca::env` names
+  `/__podrunner/podrunner-broker-ca.pem`. A variable that the job sets
+  for the container keeps the value of the job.
+- A unit with no bundle gives its containers no mount and no variable.
+- The close of the socket removes the bundle.
+
 ## Refusals
 
 The host checks each call (`crates/podrunner-hook/src/policy.rs`): a step

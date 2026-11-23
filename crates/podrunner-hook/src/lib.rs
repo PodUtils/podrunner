@@ -17,6 +17,8 @@ pub const RELAY: &str = include_str!("../relay/podrunner-hook.sh");
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_ca;
+#[cfg(test)]
 mod tests_server;
 #[cfg(test)]
 mod tests_unit;

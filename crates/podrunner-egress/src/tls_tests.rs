@@ -175,6 +175,12 @@ fn the_far_end_gets_the_value_and_the_unit_sees_the_placeholder() {
     let bundle = opened.ca_bundle.expect("a CA for a job with a credential");
     assert!(bundle.matches("BEGIN CERTIFICATE").count() >= 2, "the CA of the job and the roots");
     assert!(!bundle.contains(SECRET));
+    // T-577: the trust store of a JVM holds each certificate of the bundle.
+    let store = opened.trust_store.expect("a trust store with the bundle");
+    for cert in pod_tls::bundle::pem_certificates(bundle.as_bytes()).unwrap() {
+        assert!(store.windows(cert.len()).any(|w| w == cert.as_ref()), "each certificate of the bundle");
+    }
+    assert!(!store.windows(SECRET.len()).any(|w| w == SECRET.as_bytes()));
     let request = format!("GET /user HTTP/1.1\r\nHost: {HOST}\r\nAuthorization: Bearer {PH}\r\n\r\n");
     let answer = job_request(&socket, &bundle, &request);
     let far = seen.lock().unwrap().clone();
@@ -195,7 +201,7 @@ fn a_job_with_no_credential_gets_no_ca_and_a_missing_value_is_refused() {
     let (e, _) = egress(Some(roots()));
     let d = dir("refuse");
     let none = e.open_with("u-1", &policy(false), Secrets::new(), &d.join("a.sock"), Duration::from_secs(60)).unwrap();
-    assert!(none.ca_bundle.is_none());
+    assert!(none.ca_bundle.is_none() && none.trust_store.is_none());
     let err =
         e.open_with("u-2", &policy(true), Secrets::new(), &d.join("b.sock"), Duration::from_secs(60)).unwrap_err();
     assert!(err.0.contains("token"), "names the secret: {err}");
