@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**593 entries: 62 open, 59 partial, 16 blocked, 456 done.**
+**594 entries: 63 open, 59 partial, 16 blocked, 456 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 3 | 26 | 3 | 87 | 119 |
-| P2 | 16 | 22 | 9 | 235 | 282 |
+| P2 | 17 | 22 | 9 | 235 | 283 |
 | P3 | 42 | 11 | 4 | 132 | 189 |
-| **All** | 62 | 59 | 16 | 456 | 593 |
+| **All** | 63 | 59 | 16 | 456 | 594 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -641,3 +641,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-596](later.md) | P2 | S | later | defect | open | A container of `podrunner run` gets no CA file of the caller |
 | [T-597](later.md) | P3 | S | later | defect | open | A container of a unit gets the CA bundle of its broker, but no trust store of a JVM |
 | [T-598](later.md) | P3 | S | later | defect | open | A job on `--runner-dir` behind an intercepting proxy gives a JVM no trust store |
+| [T-599](later.md) | P2 | S | later | defect | open | The capture of the hosted snapshot writes GNU sparse records, which the next podvm refuses |

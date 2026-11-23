@@ -9,7 +9,7 @@
 #   [[drop]]  the path is not in any layer
 #   [[fix]]   the path is in its layer with new content (empty, or text),
 #             with the owner and the mode of the live file
-#   [[mask]]  a unit of systemd that cannot work outside Azure: a link to
+#   [[mask]]  a unit of systemd that cannot work outside its cloud: a link to
 #             /dev/null in etc/systemd/system, in the fix tree
 #   [[scan]]  where the scan of credential patterns looks (C2); a match
 #             that no drop, fix or allow covers fails the capture
@@ -148,6 +148,10 @@ reason = "dropped with opt/primer"
 [[mask]]
 unit = "walinuxagent.service"
 reason = "it needs the Azure wire server"
+
+[[mask]]
+unit = "hibinit-agent.service"
+reason = "the hibernation agent of EC2: it needs the metadata service of AWS, and it fails in a unit (hosted-boot.yml 45150431980)"
 
 [[scan]]
 path = "etc/**"

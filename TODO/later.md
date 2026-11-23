@@ -12694,6 +12694,8 @@ The parts that run with no hosted runner: `python3 -I scripts/hosted/runner-laye
 
 State (2026-11-21, not run on a hosted runner or a unit; the layer of the real runner tarball proven on a development host only): the layer and the work folder are in. `scripts/hosted/runner-layer.py` (Python with a self-test, in place of the shell script of the Approach) makes the layer as one POSIX tar with no time: the runner of `images/runner/runner.toml` at `/home/runner/actions-runner`, checked against its digest, owned by `runner` and its group of the snapshot's `/etc/passwd`; `.env` and `.path` from the snapshot's `/etc/environment` (the five hosted lines are required) with `ACTIONS_RUNNER_HOOK_JOB_STARTED`; the two hooks; the relative links of `.runner`, `.credentials`, `.credentials_rsaparams` and `.podrunner-job` to `/podrunner/.runner/`; the empty `/home/runner/work` (owner `runner`, 0755). It refuses a tarball of another digest, a member or a link out of the root, a special file, a path of the layer in the tarball, a snapshot with no `runner` at `/home/runner`, and an `/etc/environment` line that is not `KEY=VALUE` (by its number, never its value). `oci.py append` puts the layer on top of a published manifest (one more diff id and blob, the labels `dev.podrunner.runner-version` and `dev.podrunner.hosted.base`); `.github/workflows/hosted-runner.yml` reads the base manifest, its config and its base layer (for `/etc/environment` and `/etc/passwd`) from ghcr.io, makes the layer, and with `publish` pushes the tag `IMAGEOS-IMAGEVERSION-runner-VERSION` of the same package and attests it (`docs/decisions.md`, T-541). `slice.py` keeps the layer `runner`, and `hosted-boot.yml` reports its owners, modes, `.env` lines and link in the file `runner` of the checks. podrunner: `[unit.incus] work_folder` and `[unit.microvm] work_folder` (an absolute path; `check` refuses it on another kind and a path with an empty, `.` or `..` part); slots writes it as `workFolder` into `.runner` of the credential before the start (`crates/podrunner-slots/src/work_folder.rs`), and a `.runner` that is not a JSON object refuses the unit with `unit-start-failed`. A run of `make` with the tarball of 2.338.2 (228 MB) and a fixture `/etc/environment` gave a layer of 11,567 members (700 MB) in 9 s, each owned 1001:118. The engine socket of the snapshot is its own `/var/run/docker.sock` by T-543 (`init = "image"` starts no `dockerd` of podrunner). Left: the podvm kind and the runner image keep `_work` (T-590), and the Prove. The runs that prove it: `hosted-runner.yml` with `digest` = the manifest `sha256:d00306d81d0eee8b5fbba72fc353924df84bb074fd0dcadc60baf3b55fe66f0e` of `ubuntu-24.04` (T-555) and `publish = true`; then `hosted-boot.yml` with the digest of the runner image (the file `runner`); then the canned job of the Prove in `runner-image.yml` on incus.
 
+State (2026-11-23, proven in CI on GitHub-hosted runners): `hosted-runner.yml` 45147905920 (`9d9e38e`) put the runner layer on the capture `sha256:7054bbff...` (amd64, no `--acls`) and published `ghcr.io/podutils/podrunner-hosted@sha256:b1d895f4619fb3e1e5f3a4bcd3f61a77296ffe515acf660848a3d7e30c2aa43e`, attested. `hosted-boot.yml` 45150431980 (`486fd2c`) booted its core slice with the layer `runner` under incus: each check holds, the state is `degraded`; the file `runner` shows `/home/runner/actions-runner`, `run.sh`, the hook and `/home/runner/work` owned `runner:runner` at 0755, the `.env` lines `ImageVersion`, `ImageOS`, `AGENT_TOOLSDIRECTORY`, `RUNNER_TOOL_CACHE=/opt/hostedtoolcache` and `ACTIONS_RUNNER_HOOK_JOB_STARTED`, and the link `.runner` to `../../../podrunner/.runner/.runner`. Left: the canned job of the Prove (`GITHUB_WORKSPACE`, `RUNNER_TOOL_CACHE`, `setup-python`) in the slice on incus.
+
 # T-542: The hosted snapshot: a 1:1 capture of the root of a hosted runner, scrubbed, with its kernel layer
 
 **Source:** the hosted-snapshot study of T-538 (`docs/reports/hosted-snapshot-2026-11-19.md`), 2026-11-19
@@ -13233,6 +13235,7 @@ State (2026-11-21, `hosted-boot.yml` 44853306687 at `6b84ec3`, podvm `0.2.0-beta
 
 State (2026-11-21, the cause and the interim; a new capture: not run): podvm's answer COORD-228 (PodUtils/podvm#644): the refusal comes from `pod-extract` of podcrates, which cuts a PAX value with a newline for each key except `SCHILY.xattr.*`, `path` and `linkpath`. The fix waits for podcrates (PodUtils/podcrates#643, COORD-227) and the podvm release after it. Until then a capture with `--xattrs` and no `--acls` extracts with podvm `0.2.0-beta.37`. The interim call (`docs/decisions.md`): `scripts/hosted/capture.sh` and the round trip of `scripts/hosted/plan.py --self-test` run GNU tar with no `--acls`; the hosted snapshot keeps no ACL record, and the mode bits of each file stay. `scripts/hosted/c1.py` compares no ACL (its comment says so); the scrub reads no ACL record. `python3 -I scripts/hosted/plan.py --self-test`, `c1.py --self-test` and `scrub.py --self-test` pass. `hosted-boot.yml` now fails when the guest does not boot (T-582).
 
+State (2026-11-23, `hosted-boot.yml` 45150431980 at `486fd2c`, proven in CI on GitHub-hosted runners): the core slice of the capture `sha256:7054bbff...` with the runner layer boots under incus to `degraded`, and each check of T-582 holds. Two units fail: `hibinit-agent.service` (the hibernation agent of EC2, now a `[[mask]]` of `images/hosted/scrub.toml`; a new capture takes it) and `systemd-remount-fs.service`. podvm's `main` takes podcrates `v0.82.0` (COORD-228, PodUtils/podvm#644): it applies a POSIX ACL as `system.posix_acl_*` and refuses a layer with GNU sparse records; the capture uses `--sparse` (T-599). Left: the second step with no tier (COORD-209), the KVM guest, and the planted unmasked unit of the Prove.
 
 # T-557: Measure: can a standard hosted runner hold a full boot of the snapshot
 
@@ -14588,3 +14591,30 @@ Write the store with `pod_broker::ca::write_trust_store` into the work area of t
 ## Prove
 
 `cargo test -p podrunner-local host`: a caller with `SSL_CERT_FILE` gives a job on `--runner-dir` a trust store and `JAVA_TOOL_OPTIONS` that names it.
+
+# T-599: The capture of the hosted snapshot writes GNU sparse records, which the next podvm refuses
+
+**Source:** podvm's amendment of COORD-228 (PodUtils/podvm#644), 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/hosted/capture.sh` runs GNU tar with `--sparse`. For a sparse file, GNU tar in the format `posix` writes `GNU.sparse.*` PAX records. podcrates `v0.82.0` (`pod-extract`) refuses a layer with such records (PodUtils/podcrates@T-1087), and podvm's `main` takes `v0.82.0` for the release after `0.2.0-beta.37`. So with that pin, a capture that holds a sparse file gives a layer that podvm refuses whole, as the ACL records did (T-556, T-582).
+
+## Premise
+
+The body of PodUtils/podvm#644, read on 2026-11-23: "podcrates `v0.82.0` refuses a layer with GNU sparse files (`GNU.sparse.*`, PodUtils/podcrates@T-1087)". `scripts/hosted/capture.sh:95` has `--sparse`. Not measured: which files of a hosted root are sparse.
+
+## Approach
+
+1. Drop `--sparse` from the capture and from the round trip of `scripts/hosted/plan.py --self-test`: GNU tar then stores the data of a sparse file in full, which `pod-extract` reads. Measure the change of the layer sizes on the next capture.
+2. A check of each layer stream refuses a `GNU.sparse.*` record (`scripts/hosted/scrub.py`, the check of a layer stream), with a planted sparse file in its self-test.
+3. With the podvm release that takes `v0.82.0`, put `--acls` back (the call of T-556 in `docs/decisions.md`).
+
+## Prove
+
+`python3 -I scripts/hosted/plan.py --self-test` and `scrub.py --self-test` (a planted sparse file gives no `GNU.sparse.*` record, and a stream with one is refused); the next `hosted-snapshot.yml` capture loads with the podvm release that takes podcrates `v0.82.0`.
