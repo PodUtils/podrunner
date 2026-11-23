@@ -224,6 +224,57 @@ base and the full image (`file`, `sha256`, the manifest `digest`,
 architecture. `podrunner doctor --config FILE` names the runner of each pin
 of the file, its age and its window, and warns in the last 7 days of it.
 
+## A newer runner image
+
+A release of `actions/runner` gets its runner images in a release of its
+own, with no new podrunner binary (T-499): the tag is
+`vrunner-RUNNER_VERSION-rN`, a prerelease. Its files are
+`runner-ARCH.tar`, `runner-full-ARCH.tar`, the manifest
+`runner-images.json` (the `runner` object has the form of
+`podrunner-manifest.json`), a `.sha256` of each, `release-index.json`,
+`SHA256SUMS` and `SHA256SUMS.sigstore.json`. The signer is
+`runner-image-release.yml` at the tag, not `release.yml`.
+
+The installer and `podrunner` do not look for such a release. To take one,
+download its files and check them (set `TAG` and `ARCH`):
+
+```sh
+base="https://github.com/PodUtils/podrunner/releases/download/$TAG"
+for f in SHA256SUMS SHA256SUMS.sigstore.json release-index.json runner-images.json "runner-$ARCH.tar"; do
+  curl -fsSLO "$base/$f"
+done
+sha256sum -c --ignore-missing SHA256SUMS
+pod-release verify --repo PodUtils/podrunner --tag "$TAG" --workflow runner-image-release.yml .
+```
+
+With no `pod-release`, use `cosign verify-blob` with the identity
+`https://github.com/PodUtils/podrunner/.github/workflows/runner-image-release.yml@refs/tags/TAG`.
+
+Load the image into the store of the installer:
+
+```sh
+PODVM_STORE=~/.local/share/podrunner/images ~/.local/share/podrunner/bin/podvm load -i "runner-$ARCH.tar"
+```
+
+The notes of the release and `runner-images.json`
+(`runner.images.ARCH.base.digest`) give the manifest digest of the image.
+For the larger image, use `runner-full-ARCH.tar` and the `full` digest.
+Then use the image:
+
+- `podrunner run`: give `--image runner@DIGEST`, or set
+  `image = "runner@DIGEST"` in `run.toml`. Remove the marker line (the
+  first line) of `run.toml` first: else the next run of the installer
+  writes the image of its release again.
+- `podrunner serve`: add a `[[pin.payload]]` for each architecture to
+  `podrunner.toml` (the notes of the release give each one, with
+  `reference`, `built_at_s`, `runner_version` and `unpacked_bytes`), and
+  sign the pin list again with `podrunner pin-sign`.
+  `podrunner doctor --config FILE` names the runner of each pin and its
+  age.
+- `--runner-dir`: this executor runs the runner tarball, not an image.
+  Unpack the tarball of the release of `actions/runner`, after a check of
+  its SHA-256 against `runner.tarball_sha256` of `runner-images.json`.
+
 ## The offline bundle
 
 The release attaches `podrunner-bundle-x86_64.tar.gz` and
@@ -257,7 +308,8 @@ of an image archive are gzip already.
 Each has a `.sha256` file and a build provenance attestation. The image
 archives come from the green `runner-image.yml` run of the tagged commit:
 the suites of that run passed on those images (`.github/workflows/release.yml`,
-job `assets`). The sizes, from the artifacts of runner-image run
+job `assets`). A runner image release (`vrunner-VERSION-rN`) has the
+image archives only ("A newer runner image"). The sizes, from the artifacts of runner-image run
 43704601731 (the tag `v0.1.0-beta.6`): the base image about 300 MiB on
 x86_64 and 210 MiB on aarch64, the larger image about 460 MiB on x86_64; a
 bundle about 530 MiB on x86_64 and 360 MiB on aarch64. A release asset has

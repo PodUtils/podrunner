@@ -280,6 +280,68 @@ with the assets of a run in `DIR`:
 sh scripts/lab/nonroot.sh -- python3 -I scripts/user-gate.py lane --lane plain --assets DIR --out OUT
 ```
 
+## A runner image release
+
+GitHub refuses a runner that is too old. Publish the runner images of
+each new release of `actions/runner` within 14 days of it, with no new
+podrunner binary (T-499, githome's G-23).
+`.github/workflows/runner-image-release.yml` does this.
+
+The daily schedule of the workflow only reads. Its job `detect` fails when
+the newest release of `actions/runner` (not a draft, not a prerelease) has
+no runner image: it is not the pin of `images/runner/runner.toml`, and no
+image release has it. The error line names the version and the days that
+are left. A red run of `detect` is the order to dispatch the workflow.
+
+Dispatch it on `main` ("A run of a workflow"). Do a dry run first:
+
+```sh
+gh workflow run runner-image-release.yml --repo PodUtils/podrunner --ref main -f runner_version=X.Y.Z
+```
+
+`runner_version` empty takes the newest release of `actions/runner`. The
+dry run tags and publishes nothing. Read these jobs:
+
+| Job | What to read |
+| --- | --- |
+| `pin` | The version, the tag, and the diff of `images/runner/runner.toml`. The SHA-256 of each Linux tarball comes from the notes of the release; the digest of the asset in the API must agree. A prerelease is refused. |
+| `audit` | The NuGet advisories of the runner against `images/runner/advisories.txt` (T-082). A report only: `runner-images.json` and the notes name the result. |
+| `build` | For each architecture: the digest of `runner` and `runner-full`; the runner files and the version in each image after `podvm load -i`; on x86_64 the canned job of the fake broker in a podvm unit, `podrunner run` of `crates/podrunner/tests/local/workspace.yml`, and a job of `runs-on: ubuntu-latest` on `runner-full`. |
+| `assemble` | `runner-images.json`, `release-index.json` and `SHA256SUMS`, checked by `pod-release sums`, and the notes of the release in the summary. The artifact `runner-images-release` holds the files. |
+
+Then publish:
+
+```sh
+gh workflow run runner-image-release.yml --repo PodUtils/podrunner --ref main -f runner_version=X.Y.Z -f publish=true
+```
+
+That run builds and proves the images again, makes the tag
+`vrunner-X.Y.Z-rN` (`revision`, default 1) at its commit, and starts the
+workflow on the tag with `images_run` set to its own id. The run on the tag
+waits for that run to end green, takes its files (no new build: the
+published digests are the proven ones), signs `SHA256SUMS` as
+`runner-image-release.yml` at the tag, checks the release with
+`pod-release verify --workflow runner-image-release.yml`, attests each
+file, and publishes a prerelease that is not "latest". Read both runs.
+
+A tag never moves. For a new build of the same runner, give
+`-f revision=2`.
+
+| File | What it is |
+| --- | --- |
+| `runner-ARCH.tar`, `runner-full-ARCH.tar` | The base and the larger runner image, as `podvm load -i` takes them (the format of `release.yml`) |
+| `runner-images.json` | The manifest: `schema` 1, `kind` `runner-images`, `tag`, `commit`, `runner` (the form of `runner` of `podrunner-manifest.json`, with `released_at_s`), `podvm` and `podnet` of the proof, `advisories` |
+| `*.sha256` | The SHA-256 of each file |
+| `release-index.json`, `SHA256SUMS`, `SHA256SUMS.sigstore.json` | The index and the signed sums (T-562); the signer is `runner-image-release.yml` at the tag |
+
+The tag is not a version of podrunner: `release.yml`, the installer and
+`pod-release` read no version from it. After the release, commit the diff
+of the job `pin` into `images/runner/runner.toml` (and
+`images/runner/advisories.txt` when `audit` names a change), so that
+`runner-image.yml` runs its full suites on the new runner and the next
+podrunner release pins it. The level of proof of an image release is CI on
+GitHub-hosted runners; its notes say so.
+
 ## This sandbox
 
 * The egress is an HTTPS proxy with an allowlist: GitHub, crates.io, the

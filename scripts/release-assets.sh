@@ -38,8 +38,13 @@
 #       pod-release verify of the signed DIR (SHA256SUMS.sigstore.json) as
 #       release.yml of GITHUB_REPOSITORY at TAG; another tag and a changed
 #       SHA256SUMS must fail with 77 (T-562)
+#
+# RELEASE_WORKFLOW names the workflow that signs (default release.yml):
+# index writes it into the identity of the index, and verify checks it.
+# The runner image release (T-499) is runner-image-release.yml.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
+workflow=${RELEASE_WORKFLOW:-release.yml}
 die() {
     echo "release-assets: $*" >&2
     exit 1
@@ -172,7 +177,8 @@ case $cmd in
             commit=$(git -C "$root" rev-parse HEAD)
             date=$(git -C "$root" log -1 --format=%ct HEAD)
             python3 -I "$tools/release-index.py" --project "${GITHUB_REPOSITORY:-PodUtils/podrunner}" \
-                --version "v$version" --dir . --date "$date" --commit "$commit" --out release-index.json "$@"
+                --version "v$version" --dir . --date "$date" --commit "$commit" --workflow "$workflow" \
+                --out release-index.json "$@"
         )
         echo "release-index.json: v$version, $(grep -c '"sha256"' "$dir/release-index.json") files"
         ;;
@@ -202,10 +208,10 @@ case $cmd in
         tag=$1 dir=$2
         tools=$(podcrates_tools)
         repo=${GITHUB_REPOSITORY:-PodUtils/podrunner}
-        "$tools/pod-release" verify --repo "$repo" --tag "$tag" --all "$dir"
+        "$tools/pod-release" verify --repo "$repo" --workflow "$workflow" --tag "$tag" --all "$dir"
         # The planted defects: another tag, and a changed SHA256SUMS, give 77.
         rc=0
-        "$tools/pod-release" verify --repo "$repo" --tag v0.0.0 --all "$dir" > /dev/null 2>&1 || rc=$?
+        "$tools/pod-release" verify --repo "$repo" --workflow "$workflow" --tag v0.0.0 --all "$dir" > /dev/null 2>&1 || rc=$?
         [ "$rc" -eq 77 ] || die "the tag v0.0.0 gave exit $rc of pod-release verify, not 77"
         tmp=$(mktemp -d)
         for f in "$dir"/*; do
@@ -213,10 +219,10 @@ case $cmd in
         done
         awk 'NR == 1 { $0 = (substr($0, 1, 1) == "0" ? "1" : "0") substr($0, 2) } { print }' "$dir/SHA256SUMS" > "$tmp/SHA256SUMS"
         rc=0
-        "$tools/pod-release" verify --repo "$repo" --tag "$tag" --all "$tmp" > /dev/null 2>&1 || rc=$?
+        "$tools/pod-release" verify --repo "$repo" --workflow "$workflow" --tag "$tag" --all "$tmp" > /dev/null 2>&1 || rc=$?
         rm -rf "$tmp"
         [ "$rc" -eq 77 ] || die "a changed SHA256SUMS gave exit $rc of pod-release verify, not 77"
-        echo "pod-release verify: $repo $tag holds; another tag and a changed SHA256SUMS fail (77)"
+        echo "pod-release verify: $repo $workflow $tag holds; another tag and a changed SHA256SUMS fail (77)"
         ;;
     sums)
         [ $# -eq 1 ] || usage
