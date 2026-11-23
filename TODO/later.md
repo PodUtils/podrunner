@@ -14416,3 +14416,5 @@ Exclude `deny.yml/deny` in `LIVE` of `scripts/corpus.py`, with its reason, as T-
 `python3 -I scripts/corpus.py DIR` at podcrates `59bca1f` gives `crates/podrunner-broker-fake/corpus/podcrates.json` (the check of `level2.yml` diffs it), and the corpus job of the next `level2.yml` run passes.
 
 State (2026-11-23, in the code; `level2.yml`: not run): `LIVE` names `deny.yml/deny`; the corpus keeps 5 jobs. The output of the script at `59bca1f` is the corpus file (a diff of the two gives nothing).
+
+The corpus unit is a job, not a step: the steps of `deny.yml/deny` that read no live state (licenses, bans, sources and the plant of 0BSD) go out with it. A cut of a job into steps is not in the fake broker; the gate of podrunner runs the same four checks on its own lock.

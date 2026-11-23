@@ -55,8 +55,11 @@ jobs:
           MARGIN: ${{ inputs.margin }}
         run: |
           set -eu
-          case $DIGEST in sha256:[0-9a-f]*) [ ${#DIGEST} -eq 71 ] ;; *) echo "not a digest: $DIGEST" >&2; exit 1 ;; esac
-          case $MARGIN in '' | *[!0-9]*) echo "not a number of GiB: $MARGIN" >&2; exit 1 ;; esac
+          hex=${DIGEST#sha256:}
+          case $DIGEST:$hex in sha256:*:*[!0-9a-f]* | sha256:*:) echo "not a digest: $DIGEST" >&2; exit 1 ;; sha256:*) ;; *) echo "not a digest: $DIGEST" >&2; exit 1 ;; esac
+          [ ${#hex} -eq 64 ] || { echo "not a digest of 64 hex digits: $DIGEST" >&2; exit 1; }
+          # No leading zero: the shell reads 08 as a bad octal number.
+          case $MARGIN in '' | *[!0-9]* | 0?*) echo "not a number of GiB: $MARGIN" >&2; exit 1 ;; esac
           M=$RUNNER_TEMP/measure
           mkdir -p "$M"
           echo "M=$M" >> "$GITHUB_ENV"
@@ -100,6 +103,7 @@ jobs:
       - name: Place the store and incusd
         env:
           PLACE: ${{ inputs.place }}
+          MARGIN: ${{ inputs.margin }}
         run: |
           set -eu
           trap 'sh scripts/hosted/space.sh mark "$M" place $?' EXIT
@@ -107,8 +111,9 @@ jobs:
           case $PLACE in
           joined)
             # One ext4 volume of LVM over a loop file on / and one on /mnt.
-            # / keeps 6 GiB for the runner and the record.
-            r=$(( $(df -B1 --output=avail / | sed -n 2p) - (6 << 30) ))
+            # / keeps the margin of the boot and 2 GiB for the runner and
+            # the record, so that the boot step can run.
+            r=$(( $(df -B1 --output=avail / | sed -n 2p) - ((MARGIN + 2) << 30) ))
             m=$(( $(df -B1 --output=avail /mnt | sed -n 2p) - (1 << 30) ))
             sudo fallocate -l "$r" /var/tmp/joined-root.img
             sudo fallocate -l "$m" /mnt/joined-mnt.img
@@ -136,6 +141,8 @@ jobs:
             sudo mount --bind "$incusd" /var/lib/incus
           fi
           { echo "W=$work"; echo "PODVM_STORE=$work/store"; echo "POOL=$pool"; } >> "$GITHUB_ENV"
+          # incusd makes /var/lib/incus at its install, after this step.
+          sudo mkdir -p "$pool"
           df -B1 / /mnt "$pool"
       - name: podvm and incusd
         run: |
@@ -247,7 +254,7 @@ jobs:
             echo "## The measure of a boot of the hosted snapshot (T-557)"
             echo
             echo '```'
-            head -n 3 "$M/info.txt"
+            head -n 3 "$M/info.txt" 2> /dev/null || echo "(no info.txt: the first step failed)"
             echo '```'
             echo
             if [ "$PLACE" = joined ]; then
