@@ -22,7 +22,7 @@ pub(crate) fn source_restart(rest: &[String]) -> Result<Out, Out> {
 /// lock of the state directory (GitHub #54). A timeout is exit 75.
 pub(crate) fn stop_wait(rest: &[String]) -> Result<Out, Out> {
     let o = opts(rest)?;
-    o.only(&["--state", "--timeout"])?;
+    o.only(&["--state", "--timeout", "--wait"])?;
     let state = o.get("--state").ok_or_else(|| err(Class::Usage, format!("stop --wait needs --state\n{USAGE}")))?;
     let timeout = match o.get("--timeout") {
         None => None,

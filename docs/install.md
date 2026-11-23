@@ -102,6 +102,41 @@ the schema of the file, no TCP listener of `serve`, and a runner job
 through `serve` on podvm (T-527, T-566); the lanes measure them in CI
 next. `systemctl --user` of the unit is not run.
 
+### A unit of the system
+
+A host can run `serve` as a unit of the system in place of a user unit
+(T-588). The unit runs as an account with no privilege (`--user NAME`,
+default `podrunner`), not as root. Do these steps as root. Make the
+account, give it the groups of `/dev/kvm` and of the socket of incusd,
+and give it a range in `/etc/subuid` and `/etc/subgid`. Put the
+configuration where the account can read it:
+
+```sh
+podrunner print-unit --system --user podrunner --config /etc/podrunner/podrunner.toml \
+  --state /var/lib/podrunner > podrunner.service      # read it first
+podrunner install-unit --system --user podrunner --config /etc/podrunner/podrunner.toml \
+  --state /var/lib/podrunner
+```
+
+`install-unit --system` writes `/etc/systemd/system/podrunner.service`,
+then enables and starts it. It refuses a caller that is not root (77), an
+account of uid 0 (64), and a file of the same name that podrunner did not
+write (78). A unit that does not start is removed. With `--state
+/var/lib/NAME`, systemd makes the state directory for the account (mode
+0700). With another `--state`, make the directory and give it to the
+account first. `remove-unit --system` stops and removes the unit; the
+state and the configuration stay.
+
+The unit has `Delegate=yes` and `DelegateSubgroup=serve` (systemd 254 or
+later): podvm makes the cgroup of a unit beside the cgroup of `serve`.
+The lines of the hardening that `serve` cannot take are comments with
+their reasons (`docs/decisions.md`, T-588).
+
+Proof level: the text of the unit, the audit of `pod-unit` and each step
+of the install against a fake host in the unit tests; `systemd-analyze
+verify` of the unit on a development host. Not run: a start of `serve` in
+a unit of the system on a host.
+
 ### The disk and the sysctls of a host of the incus or podvm kind
 
 The root disk of an incus instance is `disk_max_bytes` when the pool

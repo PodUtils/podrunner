@@ -2,13 +2,16 @@
 //! `pod-core` (64 to 80): 64 usage, 69 a socket that does not answer, 78 a
 //! configuration that cannot be used, 80 a kind that this build has not.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use pod_core::failure::Class;
 
 use crate::control::{self, Request};
 use crate::text::display;
 use crate::verbs::{audit_verify, human, stop_wait};
+
+mod unit;
+pub use unit::{print_system_unit, print_unit};
 
 /// The version line: the version of the crate and the commit of the tree.
 pub fn version() -> String {
@@ -36,7 +39,12 @@ pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
   audit verify (--state DIR | --file FILE) [--anchor SEQ:HASH]
                                                     check the chain of audit.jsonl
   print-unit --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]
-                                                    a service unit, with no credential
+                                                    a user unit of systemd, with no credential
+  print-unit --system [--user NAME] --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]
+                                                    a unit of the system that runs as NAME (podrunner)
+  install-unit --system [--user NAME] --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]
+                                                    install that unit and start it (as root)
+  remove-unit --system                              stop and remove the unit of the system (as root)
   pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
   mint-serve --config FILE                          the remote mint (on a machine with no unit)
   fake-source [--script FILE]                       a fake source on stdio (for a test of a program source)
@@ -70,7 +78,7 @@ pub(crate) struct Opts {
     pub(crate) flags: Vec<String>,
 }
 
-const FLAGS: [&str; 2] = ["--json", "--wait"];
+const FLAGS: [&str; 3] = ["--json", "--wait", "--system"];
 
 pub(crate) fn opts(args: &[String]) -> Result<Opts, Out> {
     let mut o = Opts { values: Vec::new(), flags: Vec::new() };
@@ -97,9 +105,12 @@ impl Opts {
         self.get(name).ok_or_else(|| err(Class::Usage, format!("{name} is necessary\n{USAGE}")))
     }
 
+    /// Each option and each flag is one of `allowed`: a flag of another
+    /// command is refused, not ignored (`serve --system`).
     pub(crate) fn only(&self, allowed: &[&str]) -> Result<(), Out> {
-        match self.values.iter().find(|(k, _)| !allowed.contains(&k.as_str())) {
-            Some((k, _)) => Err(err(Class::Usage, format!("an unknown option {}\n{USAGE}", display(k)))),
+        let names = self.values.iter().map(|(k, _)| k).chain(&self.flags);
+        match names.into_iter().find(|k| !allowed.contains(&k.as_str())) {
+            Some(k) => Err(err(Class::Usage, format!("an unknown option {}\n{USAGE}", display(k)))),
             None => Ok(()),
         }
     }
@@ -147,7 +158,7 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
         "stop" if rest.iter().any(|a| a == "--wait") => stop_wait(rest),
         "status" | "drain" | "stop" | "clear-degraded" | "resume" => {
             let o = opts(rest)?;
-            o.only(&["--state", "--socket", "--source"])?;
+            o.only(&["--state", "--socket", "--source", "--json"])?;
             let source = o.get("--source").map(|s| s.display().to_string());
             let req = match (cmd.as_str(), source) {
                 ("drain", Some(source)) => Request::DrainSource { source },
@@ -177,38 +188,13 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
         }
         "doctor" => {
             let o = opts(rest)?;
-            o.only(&["--config"])?;
+            o.only(&["--config", "--json"])?;
             let v = crate::doctor::report(o.get("--config").as_deref()).map_err(|f| err(f.class, f.detail))?;
             if o.flags.contains(&"--json".into()) { Ok(ok(format!("{v}\n"))) } else { Ok(ok(crate::doctor::text(&v))) }
         }
-        "print-unit" => {
-            let o = opts(rest)?;
-            o.only(&["--config", "--state", "--binary", "--watchdog"])?;
-            let binary = o.get("--binary").unwrap_or_else(|| PathBuf::from("/usr/local/bin/podrunner"));
-            let watchdog = match o.get("--watchdog") {
-                None => None,
-                Some(w) => Some(
-                    w.to_str()
-                        .and_then(|w| w.parse::<u32>().ok())
-                        .filter(|w| *w > 0)
-                        .ok_or_else(|| err(Class::Usage, "--watchdog needs a number of seconds"))?,
-                ),
-            };
-            // A unit file of a configuration that is not there would fail at
-            // its start, not here (T-339).
-            let config = o.need("--config")?;
-            if !config.is_file() {
-                return Err(err(Class::NotFound, format!("--config {}: no such file", config.display())));
-            }
-            // `ExecStart` runs an absolute path (T-343).
-            if !binary.is_absolute() {
-                return Err(err(
-                    Class::Usage,
-                    format!("--binary {:?}: not an absolute path", binary.display().to_string()),
-                ));
-            }
-            print_unit(&binary, &config, &o.need("--state")?, watchdog).map(ok).map_err(|e| err(Class::Usage, e))
-        }
+        "print-unit" => unit::print(rest),
+        "install-unit" => unit::install(rest),
+        "remove-unit" => unit::remove(rest),
         "config" => match rest.split_first() {
             Some((sub, rest)) if sub == "init" => crate::config_init::init(rest),
             _ => Err(err(Class::Usage, format!("config needs init\n{USAGE}"))),
@@ -265,47 +251,6 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
         }
         other => Err(err(Class::Usage, format!("an unknown command {:?}\n{USAGE}", display(other)))),
     }
-}
-
-/// The lines of the hardening of `pod-unit` that a unit of `serve` cannot
-/// take, each with its reason: `serve` starts the drivers and the jobs, and
-/// a job runs what its build needs.
-const RELAXED: &[(&str, &str)] = &[
-    ("RestrictNamespaces", "podvm and the confine layer of a unit make namespaces"),
-    ("MemoryDenyWriteExecute", "the runner is .NET and a job runs Node.js, which compile code at run time"),
-    ("SystemCallFilter", "a job and a driver (podvm with KVM) make the system calls that they need"),
-    ("SystemCallArchitectures", "a job can run a binary of another architecture of the host (i386 on x86_64)"),
-    ("RestrictAddressFamilies", "a job and podnet use netlink and other families"),
-    ("UMask", "the files of a job keep the modes of a runner of GitHub (umask 0022)"),
-];
-
-/// The user unit of systemd for `serve` (`pod_unit::systemd::render`): it
-/// names paths only, no token and no key. `serve` says READY and STOPPING
-/// (`Type=notify`), drains at a stop with no limit of time, and starts
-/// again after a failure, not after 64 or 78. Each value is one word of
-/// `ExecStart` (T-343); a control character or a path that is not UTF-8 is
-/// refused.
-pub fn print_unit(binary: &Path, config: &Path, state: &Path, watchdog: Option<u32>) -> Result<String, String> {
-    let utf8 = |flag: &str, p: &Path| -> Result<String, String> {
-        let s = p.to_str().ok_or_else(|| format!("{flag} {}: not UTF-8", p.display()))?;
-        match s.is_empty() || s.chars().any(char::is_control) {
-            true => Err(format!("{flag} {s:?}: empty, or with a control character")),
-            false => Ok(s.to_string()),
-        }
-    };
-    let (program, config, state) = (utf8("--binary", binary)?, utf8("--config", config)?, utf8("--state", state)?);
-    let mut unit = pod_unit::Unit::new("podrunner", Path::new(&program), "podrunner print-unit")
-        .args(["serve", "--config", &config, "--state", &state]);
-    unit.description = "podrunner: CI jobs in one fresh unit for each job".into();
-    unit.start = pod_unit::Start::Notify { watchdog_s: watchdog };
-    // SIGTERM starts a drain: serve ends when each job is final.
-    unit.stop = pod_unit::Stop { drain: true, timeout_s: None };
-    // `podrunner stop` ends serve with 0: it stays down.
-    unit.restart.always = false;
-    for (key, why) in RELAXED {
-        unit.hardening.relax(key, why).map_err(|f| f.to_string())?;
-    }
-    pod_unit::systemd::render(&unit).map_err(|f| f.to_string())
 }
 
 #[cfg(test)]
@@ -365,7 +310,7 @@ mod tests {
         std::fs::write(&cfg, format!("host = \"h\"\n[pin]\n{body}")).unwrap();
         std::fs::write(&seed, "07".repeat(32)).unwrap();
         std::fs::set_permissions(&seed, std::fs::Permissions::from_mode(0o640)).unwrap();
-        let a = |c: &Path, s: &Path| {
+        let a = |c: &std::path::Path, s: &std::path::Path| {
             args(&["pin-sign", "--config", c.to_str().unwrap(), "--seed-file", s.to_str().unwrap()])
         };
         assert_eq!(run(&a(&cfg, &seed)).code, 78);
@@ -375,67 +320,6 @@ mod tests {
         let signed = format!("host = \"h\"\n[pin]\n{}{body}", o.stdout);
         podrunner_slots::config::Config::parse(&signed).unwrap();
         assert!(podrunner_slots::config::Config::parse(&signed.replace("built_at_s = 1", "built_at_s = 2")).is_err());
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn print_unit_holds_no_credential() {
-        let canary = "podrunner-canary-0f9c2d71";
-        let unit = print_unit(
-            Path::new("/usr/local/bin/podrunner"),
-            Path::new("/etc/podrunner.toml"),
-            Path::new("/var/lib/podrunner"),
-            None,
-        )
-        .unwrap();
-        assert!(unit.contains("Type=notify") && !unit.contains("WatchdogSec"));
-        assert!(unit.contains(
-            "ExecStart=/usr/local/bin/podrunner serve --config /etc/podrunner.toml --state /var/lib/podrunner"
-        ));
-        assert!(!unit.contains(canary) && !unit.to_lowercase().contains("token"));
-        let unit = print_unit(Path::new("/b"), Path::new("/c"), Path::new("/s"), Some(30)).unwrap();
-        assert!(unit.contains("WatchdogSec=30\n"), "{unit}");
-    }
-
-    /// T-576: the unit of `pod-unit`: a drain with no limit of time, a start
-    /// again after a failure only, and each line of the hardening in force
-    /// or relaxed with its reason. A word that looks like a secret is refused.
-    #[test]
-    fn print_unit_is_the_unit_of_pod_unit_with_its_hardening() {
-        let unit = print_unit(Path::new("/b"), Path::new("/c"), Path::new("/s"), None).unwrap();
-        for line in [
-            "Type=notify\n",
-            "KillMode=mixed\n",
-            "TimeoutStopSec=infinity\n",
-            "Restart=on-failure\n",
-            "RestartPreventExitStatus=64 78\n",
-            "NoNewPrivileges=yes\n",
-            "WantedBy=default.target\n",
-        ] {
-            assert!(unit.contains(line), "{line}: {unit}");
-        }
-        assert!(!unit.contains("\nMemoryDenyWriteExecute=") && !unit.contains("\nRestrictNamespaces="), "{unit}");
-        assert_eq!(pod_unit::systemd::audit(&unit, false), Vec::<String>::new(), "{unit}");
-        let secret = format!("/c/ghp_{}", "a1B2c3D4e5F6g7H8i9J0".repeat(2));
-        let e = print_unit(Path::new("/b"), Path::new(&secret), Path::new("/s"), None).unwrap_err();
-        assert!(!e.contains("ghp_"), "{e}");
-    }
-
-    /// T-343: each value is one word of `ExecStart`; a relative or empty
-    /// binary and a control character are refused.
-    #[test]
-    fn print_unit_quotes_each_value() {
-        let unit = print_unit(Path::new("/b"), Path::new("/c d/r%.toml"), Path::new("/s\"q$"), None).unwrap();
-        assert!(unit.contains("ExecStart=/b serve --config \"/c d/r%%.toml\" --state \"/s\\\"q$$\"\n"), "{unit}");
-        assert!(print_unit(Path::new("/b"), Path::new("/c\nx"), Path::new("/s"), None).is_err());
-        let dir = std::env::temp_dir().join(format!("podrunner-print-unit-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("c.toml"), "").unwrap();
-        let c = dir.join("c.toml").display().to_string();
-        for b in ["./x", ""] {
-            let out = run(&["print-unit", "--config", &c, "--state", "/s", "--binary", b].map(String::from));
-            assert_eq!(out.code, 64, "{b:?}: {}", out.stderr);
-        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 
