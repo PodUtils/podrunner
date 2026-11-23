@@ -368,5 +368,6 @@ GitHub-hosted runners; its notes say so.
   false compile errors and stale artifacts of a path crate. When two
   agents build at the same time and the disk holds it (a debug target is
   about 9 GB), give each worktree a target directory of its own
-  (`CARGO_TARGET_DIR=/workspace/podrunner/target-NAME`, which
-  `.git/info/exclude` keeps out of the tree with `/target-*/`).
+  (`CARGO_TARGET_DIR=/workspace/target-NAME`, outside the tree:
+  `check-size.py` reads each `.rs` file under the tree, also generated
+  ones of a build).
