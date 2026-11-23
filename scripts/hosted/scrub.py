@@ -15,8 +15,8 @@ fixed path from the fix tree (`--directory=FIX`), so a dropped or an old
 file never enters a blob. `verify` reads a tar stream (pass 3 and C2): a
 dropped path, a fixed path with other content, a file of a scan root
 with a credential pattern that no rule covers, or a member with a GNU
-sparse record or an ACL record fails it. It names the path and the
-pattern, never the match.
+sparse record fails it. It names the path and the pattern, never the
+match.
 """
 
 import argparse
@@ -179,10 +179,10 @@ def cmd_list(rules: Rules, root: pathlib.Path, fix: pathlib.Path, w) -> None:
 
 # The PAX records that a layer must not have. pod-extract of podcrates
 # v0.82.0 refuses a layer with a GNU sparse record whole, so the capture
-# runs GNU tar with no --sparse (T-599). The capture writes no ACL record
-# until it takes --acls again (the interim call of T-556); remove the ACL
-# prefix in the same change.
-REFUSED = ("GNU.sparse.", "SCHILY.acl.")
+# runs GNU tar with no --sparse (T-599). An ACL record (`SCHILY.acl.*`,
+# from --acls) passes: podvm 0.2.0-beta.38 sets it as
+# system.posix_acl_* (T-556).
+REFUSED = ("GNU.sparse.",)
 
 
 def refused_record(m: tarfile.TarInfo) -> str | None:
@@ -332,21 +332,21 @@ def self_test() -> int:
 
 def self_test_records(rules: Rules, t: pathlib.Path) -> list[str]:
     """A real sparse file through GNU tar with and with no `--sparse`, and
-    a planted ACL record."""
+    an ACL record, which passes."""
     import io
     import subprocess
 
     bad = []
-    # An ACL record: the interim call of T-556 writes none.
+    # An ACL record of --acls, one entry on each line: podvm
+    # 0.2.0-beta.38 sets it, so the check takes it (T-556, T-599).
     b = io.BytesIO()
     with tarfile.open(fileobj=b, mode="w", format=tarfile.PAX_FORMAT) as w:
         ti = tarfile.TarInfo("usr/bin/acl")
         ti.pax_headers = {"SCHILY.acl.access": "user::rw-\ngroup::r--\nother::r--\n"}
         w.addfile(ti, io.BytesIO())
     b.seek(0)
-    found = cmd_verify(rules, b)
-    if not any("usr/bin/acl: a SCHILY.acl" in x for x in found):
-        bad.append(f"records: a stream with an ACL record passes: {found}")
+    if found := cmd_verify(rules, b):
+        bad.append(f"records: a stream with an ACL record fails: {found}")
     src = t / "sparse"
     (src / "usr/bin").mkdir(parents=True)
     f = src / "usr/bin/holes"

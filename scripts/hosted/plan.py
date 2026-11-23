@@ -155,6 +155,7 @@ def write(out_dir: pathlib.Path, layers: list[dict]) -> None:
 
 
 def self_test() -> int:
+    import struct
     import subprocess
     import tarfile
     import tempfile
@@ -188,6 +189,18 @@ def self_test() -> int:
             xattr = True
         except OSError:
             xattr = False
+        # An ACL beside the mode bits, in the binary form of the kernel: the
+        # user 1000 may read. GNU tar --acls writes it as the PAX record
+        # SCHILY.acl.access, which podvm 0.2.0-beta.38 sets (T-556).
+        entries = [(0x01, 6, 0xFFFFFFFF), (0x02, 4, 1000), (0x04, 4, 0xFFFFFFFF), (0x10, 4, 0xFFFFFFFF),
+                   (0x20, 4, 0xFFFFFFFF)]
+        try:
+            os.setxattr(root / "usr/bin/tool", "system.posix_acl_access",
+                        struct.pack("<I", 2) + b"".join(struct.pack("<HHI", *e) for e in entries))
+            acl = True
+        except OSError:
+            acl = False
+        acl_records = []
         (fix / "etc").mkdir(parents=True)
         (fix / "etc/machine-id").write_bytes(b"")
         names = []
@@ -215,18 +228,20 @@ def self_test() -> int:
         meta = json.loads((out / "plan.json").read_text())["layers"]
         for m in meta:
             tar = t / (m["list"] + ".tar")
-            # The flags of the capture (capture.sh): no --acls until podvm
-            # takes the fix of pod-extract (COORD-228), and no --sparse
-            # (T-599).
+            # The flags of the capture (capture.sh): --acls, and no
+            # --sparse (T-599).
             subprocess.run(
-                ["tar", "-C", str(root), "--format=posix", "--xattrs", "--xattrs-include=*",
+                ["tar", "-C", str(root), "--format=posix", "--xattrs", "--xattrs-include=*", "--acls",
                  "--numeric-owner", "--null", "--no-verbatim-files-from", "--no-recursion", "-T",
                  str(out / m["list"]), "-cf", str(tar)], check=True)
             with tarfile.open(tar) as tf:
                 if any(k.startswith("GNU.sparse.") for ti in tf for k in ti.pax_headers):
                     bad.append(f"round trip: a GNU.sparse record in {m['list']}")
+                acl_records += [ti.name for ti in tf if "SCHILY.acl.access" in ti.pax_headers]
             # -p: a consumer keeps the modes (setuid) as root does by default.
             subprocess.run(["tar", "-C", str(got), "-p", "--xattrs", "--xattrs-include=*", "-xf", str(tar)], check=True)
+        if acl and acl_records != ["usr/bin/tool"]:
+            bad.append(f"round trip: the ACL records are {acl_records}, not usr/bin/tool (--acls)")
         expect = dict(files) | {"etc/machine-id": b""}
         for p, c in expect.items():
             if (got / p).read_bytes() != c:
@@ -254,7 +269,8 @@ def self_test() -> int:
     for b in bad:
         print(f"self-test: {b}")
     if not bad:
-        print("plan.py: self-test passes" + ("" if xattr else " (no user xattrs on this file system)"))
+        print("plan.py: self-test passes" + ("" if xattr else " (no user xattrs on this file system)")
+              + ("" if acl else " (no ACLs on this file system)"))
     return 1 if bad else 0
 
 

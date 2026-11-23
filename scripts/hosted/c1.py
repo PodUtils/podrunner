@@ -21,8 +21,8 @@ import sys
 import tarfile
 
 # The extended attributes that a job sees: file capabilities and the
-# attributes of a user. The capture writes no ACL record until podvm takes
-# the fix of pod-extract (COORD-228); an ACL is not compared here.
+# attributes of a user. An ACL travels as a PAX ACL record (`SCHILY.acl.*`,
+# T-556); it is not compared here.
 def kept(name: str) -> bool:
     return name == "security.capability" or name.startswith("user.")
 
