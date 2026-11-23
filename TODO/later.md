@@ -14188,7 +14188,7 @@ State (2026-11-21, `hosted-boot.yml` 44878540271, #341): the checks of `boot-che
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -14215,6 +14215,10 @@ State (2026-11-21, steps 1 to 4, this branch; proven by the checks here; not run
 State (2026-11-21): on `main` in `f0dad16` and `ef8df01`; the take is written to podcrates as COORD-119 (GitHub #340). Not run in CI: #341.
 
 State (2026-11-21, proven in CI on GitHub-hosted runners: gate 44874012469, `level2.yml` 44874016083, `runner-image.yml` 44874019156 and `user-gate.yml` 44878038200, #341): green on the take.
+
+## Done
+
+2026-11-23: the take is on `main` in `f0dad16` and `ef8df01`; the COORD issue is COORD-119 (#340, closed). Proven in CI on GitHub-hosted runners: gate 44874012469, `level2.yml` 44874016083, `runner-image.yml` 44874019156 and `user-gate.yml` 44878038200 (#341). `install_system` is T-588; the flaky tests are T-589.
 
 # T-584: The conformance suite of the podvm kind fails four tests on the namespace rung as root
 

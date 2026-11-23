@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**586 entries: 61 open, 56 partial, 15 blocked, 454 done.**
+**586 entries: 61 open, 55 partial, 15 blocked, 455 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 3 | 27 | 3 | 85 | 118 |
+| P1 | 3 | 26 | 3 | 86 | 118 |
 | P2 | 15 | 21 | 9 | 235 | 280 |
 | P3 | 42 | 8 | 3 | 132 | 185 |
-| **All** | 61 | 56 | 15 | 454 | 586 |
+| **All** | 61 | 55 | 15 | 455 | 586 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -627,7 +627,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-580](later.md) | P3 | S | later | defect | done | The test of the ninth client of the control socket fails under the load of the full suite |
 | [T-581](later.md) | P1 | M | later | chore | done | The readers of podvm's output before the release after `0.2.0-beta.37` (COORD-226 of podvm) |
 | [T-582](later.md) | P1 | S | later | defect | partial | `hosted-boot.yml` is green when the guest does not boot |
-| [T-583](later.md) | P1 | S | later | chore | partial | Take podcrates `v0.81.0` (COORD-151 of podcrates) |
+| [T-583](later.md) | P1 | S | later | chore | done | Take podcrates `v0.81.0` (COORD-151 of podcrates) |
 | [T-584](later.md) | P2 | S | later | defect | open | The conformance suite of the podvm kind fails four tests on the namespace rung as root |
 | [T-585](later.md) | P3 | S | later | defect | open | The store of the units of the podvm kind keeps each image that a unit loaded |
 | [T-588](later.md) | P3 | M | later | feature | open | `install_system` of `pod-unit` for a system unit of `serve` |
