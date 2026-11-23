@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**605 entries: 68 open, 58 partial, 18 blocked, 461 done.**
+**605 entries: 68 open, 57 partial, 18 blocked, 462 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 2 | 26 | 3 | 88 | 119 |
+| P1 | 2 | 25 | 3 | 89 | 119 |
 | P2 | 17 | 21 | 11 | 237 | 286 |
 | P3 | 48 | 11 | 4 | 134 | 197 |
-| **All** | 68 | 58 | 18 | 461 | 605 |
+| **All** | 68 | 57 | 18 | 462 | 605 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -585,7 +585,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-538](later.md) | P1 | L | later | feature | partial | A unit with the toolset of the GitHub-hosted ubuntu-latest, with systemd, checked mechanically |
 | [T-539](later.md) | P1 | M | later | measurement | partial | The probe and the diff of the hosted parity, report-only in CI |
 | [T-540](later.md) | P1 | S | later | chore | partial | A watcher of the hosted image releases and of the label of ubuntu-latest |
-| [T-541](later.md) | P1 | M | later | feature | partial | The runner layer of the hosted snapshot, and the hosted work folder /home/runner/work |
+| [T-541](later.md) | P1 | M | later | feature | done | The runner layer of the hosted snapshot, and the hosted work folder /home/runner/work |
 | [T-542](later.md) | P1 | L | later | feature | partial | The hosted snapshot: a 1:1 capture of the root of a hosted runner, scrubbed, with its kernel layer |
 | [T-543](later.md) | P1 | M | later | feature | blocked | systemd as PID 1 in an incus instance |
 | [T-544](later.md) | P2 | M | later | feature | blocked | systemd as PID 1 and a root on a disk in a microvm guest |

@@ -118,13 +118,14 @@ is done.
   `actions_run_trigger`; no `[gh action] requested` issue is necessary
   (the owner, 2026-11-23).
 - Done in this session, each with its proof in its entry: T-583, T-582,
-  T-592, T-590, T-532 (CI); T-589, T-591 (development host). Partial,
+  T-592, T-590, T-532, T-541 (CI: the runner image
+  `ghcr.io/podutils/podrunner-hosted@sha256:b1d895f4619fb3e1e5f3a4bcd3f61a77296ffe515acf660848a3d7e30c2aa43e`
+  runs a job of `serve` under incus with the hosted paths and the tool
+  cache); T-589, T-591 (development host). Partial,
   with the proof that is left in each entry: T-588 (`print-unit
   --system`, `install-unit --system`), T-577 and T-578 (the CA of a JVM
   and of a container), T-483 and T-497 (the reasons of the report),
-  T-499 (`runner-image-release.yml`), T-541 (the runner image
-  `ghcr.io/podutils/podrunner-hosted@sha256:b1d895f4619fb3e1e5f3a4bcd3f61a77296ffe515acf660848a3d7e30c2aa43e`
-  boots under incus; left: the canned job), T-553 (podrunner on ghcr.io),
+  T-499 (`runner-image-release.yml`; its dry run 45164009824 is green), T-553 (podrunner on ghcr.io),
   T-556, T-557 (a hosted runner of 155 GB has 139.9 GB free; the load
   waits for T-606), T-593 (the runner stops on a `no_proxy` entry `::`),
   T-599 (no `--sparse` in the capture).
@@ -138,8 +139,7 @@ is done.
   `--acls` back in the capture and remove `SCHILY.acl.` from `REFUSED`
   of `scrub.py` in one change; keep `--sparse` off (T-599). podcrates
   `v0.82.0` has no COORD message to podrunner yet: take it when it comes.
-- Work order next (`TODO/PROGRESS.md`): the CI of the runs above, T-541
-  (the canned job), T-556, T-509 and T-511 (their records), T-596, T-480,
+- Work order next (`TODO/PROGRESS.md`): the CI of the runs above, T-556, T-509 and T-511 (their records), T-596, T-480,
   then T-594 to T-605 by priority.
 - Session notes:
   - Agents in parallel worktrees: give each a target directory of its
