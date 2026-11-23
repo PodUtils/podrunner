@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**597 entries: 63 open, 59 partial, 17 blocked, 458 done.**
+**598 entries: 64 open, 59 partial, 17 blocked, 458 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 3 | 26 | 3 | 87 | 119 |
 | P2 | 17 | 22 | 10 | 235 | 284 |
-| P3 | 42 | 11 | 4 | 134 | 191 |
-| **All** | 63 | 59 | 17 | 458 | 597 |
+| P3 | 43 | 11 | 4 | 134 | 192 |
+| **All** | 64 | 59 | 17 | 458 | 598 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -645,3 +645,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-600](later.md) | P3 | S | later | defect | open | The tests of Unix sockets fail when `TMPDIR` is long |
 | [T-601](later.md) | P3 | S | later | defect | open | A test of the run report failed once under load |
 | [T-602](later.md) | P2 | S | later | defect | blocked | `print-unit` refuses a config path under a directory of `mktemp -d` as a secret |
+| [T-603](later.md) | P3 | S | later | defect | open | The CA directory of a confined container joins the `exec=` list, and a container may remount it writable |

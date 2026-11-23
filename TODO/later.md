@@ -14719,3 +14719,29 @@ Measured on 2026-11-23 with the debug build of `main`: the command above exits 6
 ## Blocker
 
 COORD-121 (GitHub #343, to podcrates): `looks_secret` of `pod-unit` reads a path after a dot as one word.
+
+# T-603: The CA directory of a confined container joins the `exec=` list, and a container may remount it writable
+
+**Source:** the review of T-578, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+(1) On a podvm unit with `confine`, `container_confine_args` (`crates/podrunner-podvm/src/unit/containers.rs`) puts each read-only mount into the `exec=` list of `--podvm-confine`, so the files of the CA directory at `/__podrunner` (T-578) are executable in the container. (2) In the user namespace of the namespace rung, a container with full capabilities may remount the read-only bind of the CA directory as writable, and change the bundle that the other containers of the same unit read. The job controls its containers already, so the harm stays in the unit; podvm's notes say only that it keeps the flags that the kernel locks. Not measured.
+
+## Premise
+
+The report of the review fixes of T-578, read on 2026-11-23.
+
+## Approach
+
+1. Leave a read-only mount that is not a source of the job (the CA directory) out of `exec=`; a test of `container_confine_args`.
+2. Measure in `runner-image.yml` (the namespace rung): a container runs `mount -o remount,rw /__podrunner`; if it works, ask podvm by a COORD issue for a locked read-only bind, or give each container a copy of its own.
+
+## Prove
+
+`cargo test -p podrunner-podvm containers`: the CA directory is not in `exec=`; the measure of step 2 in a `runner-image.yml` run, with its result in this entry.
