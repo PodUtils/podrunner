@@ -20,6 +20,7 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # a word prefix ("go1.24.1", "jq-1.7.1", "v22.1.0") and colour codes go.
 esc=$(printf '\033')
 ver() {
+  # shellcheck disable=SC2020 # each of the five bytes becomes a newline.
   "$@" 2>&1 </dev/null | sed "s/$esc\[[0-9;]*m//g" | sed -n '1,6p' | tr ' ,()"' '\n\n\n\n\n' |
     sed -n 's/^[A-Za-z]*-\{0,1\}v\{0,1\}\([0-9][0-9]*\(\.[0-9A-Za-z+~-]*\)\{1,\}\)$/\1/p' | sed -n 1p
 }
@@ -113,7 +114,10 @@ tool() {
       [ -d "$d" ] || continue
       n=${d%/}
       n=${n##*/}
-      vs=$(ls "$d" 2>/dev/null | grep -v '\.complete$' | sort | tr '\n' ' ' | sed 's/ $//')
+      vs=$(for e in "$d"*; do
+        b=${e##*/}
+        case $b in *.complete | '*') ;; *) printf '%s\n' "$b" ;; esac
+      done | sort | tr '\n' ' ' | sed 's/ $//')
       out "toolcache.$n" "$vs"
     done
   fi
@@ -168,7 +172,10 @@ tool() {
   fi
 
   # The limits of the user and of the kernel.
+  # dash and bash, the sh of each hosted label, both give -n and -u.
+  # shellcheck disable=SC3045
   out ulimit.nofile "$(ulimit -n)"
+  # shellcheck disable=SC3045
   out ulimit.nproc "$(ulimit -u 2>/dev/null)"
   for k in vm.max_map_count fs.inotify.max_user_watches fs.inotify.max_user_instances fs.file-max \
     kernel.pid_max net.core.somaxconn vm.swappiness kernel.unprivileged_userns_clone \
@@ -190,7 +197,7 @@ tool() {
   done
   if [ -r /proc/swaps ]; then
     s=$(sed -n '2,$p' /proc/swaps | wc -l)
-    [ "$s" -gt 0 ] && out swap on || out swap off
+    if [ "$s" -gt 0 ]; then out swap on; else out swap off; fi
   fi
   if [ -d /proc/sys/fs/binfmt_misc ]; then
     for b in /proc/sys/fs/binfmt_misc/*; do
