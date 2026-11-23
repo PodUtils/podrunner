@@ -14681,3 +14681,33 @@ Run the test in a loop under load on `main` after T-589 (`for i in $(seq 50); do
 ## Prove
 
 50 of 50 runs of `cargo test -p podrunner-slots --all-features --lib report` pass under 4 busy loops on 4 CPUs.
+
+# T-602: `print-unit` refuses a config path under a directory of `mktemp -d` as a secret
+
+**Source:** the check of the session, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`podrunner print-unit --config /tmp/tmp.Ab3dEf9kQ2/serve-config/podrunner.toml --state /tmp/state` exits 64 with "argument 3 looks like a secret (a long random word)". The check is `looks_secret` of `pod-unit` (podcrates `v0.81.0`): it splits a word at a `.`, and splits a run at `/` only when the run starts with `/`, so the run after the dot (`Ab3dEf9kQ2/serve-config/podrunner`) is one long mixed word. An operator who keeps the config or the state of `serve` under a directory of `mktemp -d` (or a dot directory with a random name) cannot print or install its unit. The unit tests of `cli::unit` failed the same way when `check.sh` gave them `TMPDIR=$(mktemp -d)` (T-591).
+
+## Premise
+
+Measured on 2026-11-23 with the debug build of `main`: the command above exits 64; the same file under `/tmp/u.config/MyProject2024/podrunner-configs/` exits 0. `secret.rs` of `pod-unit` at `0707cfa`, fn `runs` and `random`, read on 2026-11-23.
+
+## Approach
+
+1. podcrates splits a path at each `/` also after a dot (COORD-121, GitHub #343). Take the tag, and add the command above as a test of `cli::unit`.
+2. Meanwhile `check.sh` and the test step of `gate.yml` make their `TMPDIR` with no dot in its name (`prt-XXXXXX`).
+
+## Prove
+
+`cargo test -p podrunner --all-features --lib cli::unit` passes with `TMPDIR` under `/tmp/tmp.XXXXXXXXXX`; the command of the Problem exits 0.
+
+## Blocker
+
+COORD-121 (GitHub #343, to podcrates): `looks_secret` of `pod-unit` reads a path after a dot as one word.
