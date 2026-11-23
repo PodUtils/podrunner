@@ -3,6 +3,7 @@
 """The core slice of a published hosted snapshot (T-556).
 
     python3 -I scripts/hosted/slice.py --digest sha256:HEX --ref NAME --out DIR [--all]
+        [--keep GLOB]... [--layers FILE]
     python3 -I scripts/hosted/slice.py --self-test
 
 The full snapshot is about 55 GB on disk; a hosted runner cannot boot it
@@ -16,10 +17,16 @@ downloads each kept layer and checks its digest, and writes an OCI layout
 in DIR whose config names only the kept layers, with the ref NAME, as
 `podvm load -i` takes it after a tar of its files. With `--all` the
 layout keeps each layer: the full snapshot, for the measure of the disk
-(hosted-measure.yml, T-557).
+(hosted-measure.yml, T-557). Each `--keep GLOB` keeps the layers whose
+name (with no NN- prefix) matches GLOB too, for example the tool cache of
+one Python (`toolcache-3.12.*`) for the canned job of hosted-boot.yml
+(T-541). A GLOB that matches no layer is a note on stderr, not an error:
+the caller checks the names in FILE (`--layers`), one kept name on each
+line, with no NN- prefix.
 """
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import pathlib
@@ -36,10 +43,14 @@ CONFIG = "application/vnd.oci.image.config.v1+json"
 KEEP = ("base", "boot", "usr-share", "usr-lib", "usr-lib-arch", "snapd", "runner")
 
 
-def kept(layer_name: str) -> bool:
+def bare(layer_name: str) -> str:
     # A capture names a layer NN-NAME; boot has no number.
-    bare = layer_name.split("-", 1)[1] if layer_name[:2].isdigit() else layer_name
-    return bare in KEEP
+    return layer_name.split("-", 1)[1] if layer_name[:2].isdigit() else layer_name
+
+
+def kept(layer_name: str, extra: tuple[str, ...] = ()) -> bool:
+    b = bare(layer_name)
+    return b in KEEP or any(fnmatch.fnmatchcase(b, g) for g in extra)
 
 
 def sha(data: bytes) -> str:
@@ -67,19 +78,21 @@ class Registry:
             return ("sha256:" + h.hexdigest()).encode()
 
 
-def slice_image(manifest: dict, config: dict, keep_all: bool = False) -> tuple[dict, dict]:
+def slice_image(manifest: dict, config: dict, keep_all: bool = False,
+                extra: tuple[str, ...] = ()) -> tuple[dict, dict]:
     """The manifest and the config of the slice (the layers to fetch are
-    those of the new manifest). KEEP_ALL keeps each layer."""
+    those of the new manifest). KEEP_ALL keeps each layer; EXTRA holds
+    globs of more names to keep."""
     layers = manifest["layers"]
     diff_ids = config["rootfs"]["diff_ids"]
     history = config.get("history", [])
     if len(layers) != len(diff_ids):
         raise ValueError(f"{len(layers)} layers and {len(diff_ids)} diff ids")
     keep = [i for i, lay in enumerate(layers)
-            if keep_all or kept(lay.get("annotations", {}).get("dev.podrunner.hosted.layer", ""))]
-    names = [layers[i].get("annotations", {}).get("dev.podrunner.hosted.layer", "") for i in keep]
+            if keep_all or kept(lay.get("annotations", {}).get("dev.podrunner.hosted.layer", ""), extra)]
+    full = [layers[i].get("annotations", {}).get("dev.podrunner.hosted.layer", "") for i in keep]
     for want in ("base", "boot"):
-        if not any(n == want or n.endswith("-" + want) for n in names):
+        if not any(n == want or n.endswith("-" + want) for n in full):
             raise ValueError(f"no layer {want} in the manifest")
     new_config = dict(config)
     new_config["rootfs"] = {"type": "layers", "diff_ids": [diff_ids[i] for i in keep]}
@@ -88,6 +101,17 @@ def slice_image(manifest: dict, config: dict, keep_all: bool = False) -> tuple[d
     new_manifest = dict(manifest)
     new_manifest["layers"] = [layers[i] for i in keep]
     return new_manifest, new_config
+
+
+def names(manifest: dict) -> list[str]:
+    """The name of each layer of MANIFEST, with no NN- prefix."""
+    return [bare(lay.get("annotations", {}).get("dev.podrunner.hosted.layer", "")) for lay in manifest["layers"]]
+
+
+def unmatched(manifest: dict, extra: tuple[str, ...]) -> list[str]:
+    """Each glob of EXTRA that matches no layer of MANIFEST."""
+    have = names(manifest)
+    return [g for g in extra if not any(fnmatch.fnmatchcase(n, g) for n in have)]
 
 
 def write_layout(out: pathlib.Path, manifest: dict, config: dict, ref: str, fetch) -> str:
@@ -118,23 +142,38 @@ def self_test() -> int:
     import tempfile
 
     bad = []
-    names = ["00-android-ndk", "21-toolcache-3.12.1", "79-usr-share", "80-usr-lib-arch", "81-base", "boot", "runner"]
-    data = {n: n.encode() * 3 for n in names}
+    fixture = ["00-android-ndk", "21-toolcache-3.12.1", "22-toolcache-3.13.2", "56-opt-hostedtoolcache",
+              "79-usr-share", "80-usr-lib-arch", "81-base", "boot", "runner"]
+    data = {n: n.encode() * 3 for n in fixture}
     manifest = {"schemaVersion": 2, "mediaType": MANIFEST, "config": {},
                 "layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar+zstd", "digest": sha(data[n]),
-                            "size": len(data[n]), "annotations": {"dev.podrunner.hosted.layer": n}} for n in names]}
+                            "size": len(data[n]), "annotations": {"dev.podrunner.hosted.layer": n}} for n in fixture]}
     config = {"architecture": "amd64", "os": "linux",
-              "rootfs": {"type": "layers", "diff_ids": ["sha256:" + str(i) * 64 for i in range(len(names))]},
-              "history": [{"created_by": n} for n in names]}
+              "rootfs": {"type": "layers", "diff_ids": ["sha256:" + str(i) * 64 for i in range(len(fixture))]},
+              "history": [{"created_by": n} for n in fixture]}
     m, c = slice_image(manifest, config)
     got = [lay["annotations"]["dev.podrunner.hosted.layer"] for lay in m["layers"]]
     if got != ["79-usr-share", "80-usr-lib-arch", "81-base", "boot", "runner"]:
         bad.append(f"the kept layers: {got}")
-    if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (2, 3, 4, 5, 6)] or len(c["history"]) != 5:
+    if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (4, 5, 6, 7, 8)] or len(c["history"]) != 5:
         bad.append(f"the config: {c['rootfs']}")
+    # T-541: --keep adds the tool cache of one Python and its parent layer,
+    # in the order of the manifest, and no other version.
+    keep = ("opt-hostedtoolcache", "toolcache-3.12.*")
+    m, c = slice_image(manifest, config, extra=keep)
+    if names(m) != ["toolcache-3.12.1", "opt-hostedtoolcache", "usr-share", "usr-lib-arch", "base", "boot", "runner"]:
+        bad.append(f"the kept layers with --keep: {names(m)}")
+    if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (1, 3, 4, 5, 6, 7, 8)]:
+        bad.append(f"the config with --keep: {c['rootfs']}")
+    if unmatched(manifest, keep) or unmatched(manifest, ("toolcache-3.9.*", "base")) != ["toolcache-3.9.*"]:
+        bad.append("the globs that match no layer")
+    # A glob does not match a part of a name, and no case is ignored.
+    m, _ = slice_image(manifest, config, extra=("3.12.1", "TOOLCACHE-3.13.2"))
+    if "toolcache-3.12.1" in names(m) or "toolcache-3.13.2" in names(m):
+        bad.append(f"a part of a name or another case is kept: {names(m)}")
     m, c = slice_image(manifest, config, keep_all=True)
-    if len(m["layers"]) != len(names) or c["rootfs"]["diff_ids"] != config["rootfs"]["diff_ids"]:
-        bad.append(f"--all keeps {len(m['layers'])} of {len(names)} layers")
+    if len(m["layers"]) != len(fixture) or c["rootfs"]["diff_ids"] != config["rootfs"]["diff_ids"]:
+        bad.append(f"--all keeps {len(m['layers'])} of {len(fixture)} layers")
     m, c = slice_image(manifest, config)
     by_digest = {sha(v): v for v in data.values()}
 
@@ -181,6 +220,10 @@ def main() -> int:
     ap.add_argument("--ref", required=True)
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--all", action="store_true", help="keep each layer (the full snapshot)")
+    ap.add_argument("--keep", action="append", default=[], metavar="GLOB",
+                    help="keep the layers whose name (no NN- prefix) matches GLOB too")
+    ap.add_argument("--layers", type=pathlib.Path, metavar="FILE",
+                    help="write the name of each kept layer (no NN- prefix), one on each line")
     a = ap.parse_args()
     reg = Registry()
     raw = reg.get(f"manifests/{a.digest}", MANIFEST)
@@ -190,9 +233,14 @@ def main() -> int:
     config_raw = reg.get(f"blobs/{manifest['config']['digest']}")
     if sha(config_raw) != manifest["config"]["digest"]:
         raise ValueError("the config has other bytes than its digest")
-    m, c = slice_image(manifest, json.loads(config_raw), keep_all=a.all)
+    extra = tuple(a.keep)
+    m, c = slice_image(manifest, json.loads(config_raw), keep_all=a.all, extra=extra)
+    for g in unmatched(manifest, extra):
+        print(f"slice: --keep {g}: no layer of the manifest matches it", file=sys.stderr)
     size = sum(lay["size"] for lay in m["layers"])
     print(f"slice: {len(m['layers'])} of {len(manifest['layers'])} layers, {size >> 20} MiB", file=sys.stderr)
+    if a.layers:
+        a.layers.write_text("".join(n + "\n" for n in names(m)))
     dig = write_layout(a.out, m, c, a.ref, lambda d, p: reg.get(f"blobs/{d}", out=p).decode())
     print(dig)
     return 0
