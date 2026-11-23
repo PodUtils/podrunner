@@ -241,7 +241,18 @@ pub fn job_message_with(base: &str, request: u64, job: &Job, token: &str, hold: 
             s("graphql_url", "https://api.github.com/graphql"), s("podrunner_broker", base),
             // The scripts of podrunner send it to the broker (T-406).
             s("podrunner_token", token), s("podrunner_hold", hold),
-        ] } },
+        ] },
+            // The runner expands an expression only when each context that
+            // its schema names is a key here (`IsSupersetOf` in its
+            // TemplateEvaluator): with no `strategy` or `matrix`, an
+            // action's input default stays an expression and the step
+            // fails (T-541). The values of a job with no matrix on GitHub.
+            "strategy": { "t": 2, "d": [
+                { "k": "fail-fast", "v": true }, { "k": "job-index", "v": 0 },
+                { "k": "job-total", "v": 1 }, { "k": "max-parallel", "v": 1 },
+            ] },
+            "matrix": null, "needs": { "t": 2, "d": [] }, "vars": { "t": 2, "d": [] },
+        },
         "steps": steps,
         // GitHub masks each secret of a job; the password of the registry
         // comes from a secret.
@@ -352,5 +363,31 @@ mod tests {
         assert_eq!(get("event_name"), Some(json!("pull_request")), "the run gives its event (T-114)");
         assert_eq!(get("podrunner_broker"), Some(json!("http://b/")), "the broker stays");
         assert_eq!(get("api_url"), Some(json!("https://api.github.com")), "the API of GitHub, as on GitHub");
+    }
+
+    /// T-541: the runner expands an expression of an action's input default
+    /// (`input-default-context`) and of a step (`step-with`, `step-env`) only
+    /// when each context of the schema is a key of the job's context data.
+    /// A job with no matrix gets them as on GitHub.
+    #[test]
+    fn the_context_data_has_each_context_that_the_runner_expands_with() {
+        let m = job_message("http://127.0.0.1:1/", 1, &Job::scripts("j", &["true"]));
+        let c = m["contextData"].as_object().unwrap();
+        for name in ["github", "strategy", "matrix", "needs", "vars"] {
+            assert!(c.contains_key(name), "no {name}: {:?}", c.keys().collect::<Vec<_>>());
+        }
+        assert!(c["matrix"].is_null(), "a job with no matrix: {}", c["matrix"]);
+        let s = c["strategy"]["d"].as_array().unwrap();
+        let get = |k: &str| s.iter().find(|e| e["k"] == k).map(|e| e["v"].clone());
+        assert_eq!(get("fail-fast"), Some(json!(true)));
+        assert_eq!(get("job-index"), Some(json!(0)));
+        assert_eq!(get("job-total"), Some(json!(1)));
+        assert_eq!(get("max-parallel"), Some(json!(1)));
+        // A run gives its own matrix over the canned one.
+        let mut j = Job::scripts("j", &["true"]);
+        j.overrides.insert("contextData".into(), json!({ "matrix": { "t": 2, "d": [{ "k": "os", "v": "a" }] } }));
+        let m = job_message("http://127.0.0.1:1/", 1, &j);
+        assert_eq!(m["contextData"]["matrix"]["d"][0]["v"], "a");
+        assert_eq!(m["contextData"]["strategy"]["t"], 2, "the canned strategy stays");
     }
 }

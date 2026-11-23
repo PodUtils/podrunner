@@ -48,6 +48,94 @@ fn the_official_runner_runs_a_canned_job_offline() {
     assert!(!dir.join("_work/app/app/second.txt").exists());
 }
 
+/// An action with expression defaults, in the form of `actions/setup-python`
+/// (T-541). The composite step reads the inputs through expressions too.
+const DEFAULTS: &str = r#"name: defaults
+inputs:
+  token:
+    default: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+  total:
+    default: ${{ strategy.job-total }}
+  matrix:
+    default: ${{ toJSON(matrix) }}
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        T: ${{ inputs.token }}
+        N: ${{ inputs.total }}
+        M: ${{ inputs.matrix }}
+      run: |
+        echo "defaults-token-length=${#T}"
+        echo "defaults-total=$N"
+        echo "defaults-matrix=$M"
+        test "${#T}" -gt 0 && test "$N" = 1 && test "$M" = null
+        echo "defaults-ok-$((6*7))"
+"#;
+
+/// T-541: a step `uses:` of an action whose inputs have expression
+/// defaults. The runner evaluates each default with the context data of
+/// the job message, and the canned job of the fake broker has each context
+/// that the schema of the default names (`strategy`, `matrix`).
+#[test]
+#[ignore]
+fn an_action_input_takes_its_expression_default() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::path::PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    const SHA: &str = "5410000000000000000000000000000000000541";
+    let actions = std::env::temp_dir().join(format!("podrunner-t541-{}", std::process::id()));
+    let _gone = Gone(actions.clone());
+    let top = actions.join("work/example-org-defaults-5410000");
+    std::fs::create_dir_all(&top).unwrap();
+    std::fs::write(top.join("action.yml"), DEFAULTS).unwrap();
+    let out = actions.join(podrunner_broker_fake::actions::archive_name("example-org/defaults", SHA));
+    std::fs::create_dir_all(out.parent().unwrap()).unwrap();
+    let tar = std::process::Command::new("tar")
+        .arg("-czf")
+        .arg(&out)
+        .arg("-C")
+        .arg(actions.join("work"))
+        .arg(top.file_name().unwrap())
+        .status()
+        .unwrap();
+    assert!(tar.success());
+    let broker = Broker::start().unwrap();
+    broker.serve_actions(&actions, Default::default());
+    let mut job = Job::scripts("defaults", &[]);
+    let reference = serde_json::json!({
+        "type": "repository", "repositoryType": "GitHub", "name": "example-org/defaults", "ref": SHA
+    });
+    job.overrides.insert(
+        "steps".into(),
+        serde_json::json!([{
+            "type": "action", "reference": reference, "id": "00000000-0000-0000-0000-000000000100",
+            "name": "defaults", "contextName": "defaults", "displayName": "defaults", "condition": "success()",
+            "inputs": { "type": 2, "map": [] },
+        }]),
+    );
+    broker.queue(job);
+    let _ = std::fs::remove_dir_all(dir.join("_work"));
+    run_once(&dir, &broker, &[]);
+    std::thread::sleep(Duration::from_millis(100));
+    let done = broker.completions();
+    let logs = broker.logs();
+    assert!(!logs.contains("The template is not valid"), "{logs}");
+    assert_eq!(done.len(), 1, "{:?}", broker.seen());
+    assert_eq!(done[0].conclusion, "succeeded", "{done:?}\n{logs}");
+    assert!(logs.contains("defaults-total=1") && logs.contains("defaults-matrix=null"), "{logs}");
+    assert!(logs.contains("defaults-ok-42"), "{logs}");
+}
+
+/// Removes its directory at the drop, also on a panic.
+struct Gone(std::path::PathBuf);
+
+impl Drop for Gone {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 /// T-066: a "version too old" answer of the broker gives exit 7 with the
 /// variable of the start environment of slots, and another code with no
 /// variable (the plant).
