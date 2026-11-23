@@ -100,6 +100,10 @@ jobs:
             python3 -I "scripts/hosted/$s.py" --self-test
           done
           timeout 120 python3 -I scripts/hosted/push-blob.py --self-test
+          # The subcommands that capture.sh gives to scrub.py, and the
+          # shell of the hosted scripts.
+          sh scripts/hosted/calls.sh
+          sh scripts/shellcheck.sh scripts/hosted/*.sh
       # T-499: the runner image release: the SHA-256 of the notes of
       # actions/runner, the tag, the alarm of a runner with no image, and
       # the manifest and the notes of a fixture archive.

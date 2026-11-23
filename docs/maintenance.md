@@ -133,6 +133,8 @@ the tools.
     frees the preinstalled trees, pulls a snapshot (all layers or the
     slice), loads it into podvm, imports it into incusd and boots it only
     when the margin stays (T-557).
+  * `hosted/calls.sh`: each subcommand that a shell script of the
+    snapshot gives to `scrub.py` is one that `scrub.py` takes (T-599).
   * `hosted/runner-layer.py`: the runner layer of the snapshot (T-541):
     the official runner at `/home/runner/actions-runner`, its `.env`
     from the snapshot's `/etc/environment`, the hooks, the credential

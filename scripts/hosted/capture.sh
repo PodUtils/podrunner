@@ -79,9 +79,9 @@ mountpoint -q "$view" || sudo mount --bind / "$view"
 sudo mount --make-private "$view"
 
 # shellcheck disable=SC2024 # OUT belongs to the caller, who writes the file.
-sudo python3 -I "$here/scrub.py" fix--root "$view" --out "$out/fix" --runner-root "${runner_root#/}" > "$out/fixed.txt"
+sudo python3 -I "$here/scrub.py" fix --root "$view" --out "$out/fix" --runner-root "${runner_root#/}" > "$out/fixed.txt"
 # shellcheck disable=SC2024 # OUT belongs to the caller, who writes the file.
-sudo python3 -I "$here/scrub.py" list--root "$view" --fix "$out/fix" --runner-root "${runner_root#/}" > "$out/members"
+sudo python3 -I "$here/scrub.py" list --root "$view" --fix "$out/fix" --runner-root "${runner_root#/}" > "$out/members"
 sudo python3 -I "$here/plan.py" --root "$view" --members "$out/members" --out "$out/plan" \
   --manifest "$out/expected.tsv" | tee "$out/plan.tsv"
 
