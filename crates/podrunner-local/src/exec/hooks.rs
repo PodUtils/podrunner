@@ -42,6 +42,7 @@ impl InUnit {
         dir: &std::path::Path,
         message: &Job,
         id: &podrunner_schema::UnitId,
+        ca: Option<&str>,
     ) -> Result<Hooks, String> {
         use podrunner_hook::server::{Unit, bind, serve_until};
         use std::os::unix::fs::PermissionsExt;
@@ -52,24 +53,32 @@ impl InUnit {
             return Err("the job needs containers, and this unit kind has no container hooks here; run it with --microvm and --engine".into());
         };
         let dir = dir.to_path_buf();
+        let relay = dir.join("podrunner-hook.sh");
+        std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| format!("the relay: {e}"))?;
+        std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755))
+            .map_err(|e| format!("the relay: {e}"))?;
         // The logs of the steps stay out of the socket directory, which the
         // unit writes: a link there would make the host write a file of the
         // user (T-404), as `serve` keeps them.
         let logs = logs_dir(&dir);
         // A name that another user made first is refused (T-407).
         crate::work::private_dir(&logs)?;
-        let relay = dir.join("podrunner-hook.sh");
-        std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| format!("the relay: {e}"))?;
-        std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755))
-            .map_err(|e| format!("the relay: {e}"))?;
-        let unit = std::sync::Arc::new(std::sync::Mutex::new(podrunner_hook::unit::HookUnit::new(
-            self.driver.clone(),
-            id.clone(),
-            policy(message),
-            None,
-            logs,
-        )));
-        let listener = bind(&dir.join("ctl.sock")).map_err(|e| format!("the control socket: {e}"))?;
+        // Each container trusts the CA files of the caller, as the runner
+        // does: the copy is out of the socket directory, as `serve` keeps
+        // it (T-596).
+        let vars = super::proxy::container_vars();
+        let bundle = |pem| podrunner_hook::hooks::Bundle { file: super::proxy::CONTAINER_CA, pem, vars: &vars };
+        let opened = || -> Result<_, String> {
+            let ca = ca.map(|pem| podrunner_hook::hooks::place_ca(&logs, bundle(pem))).transpose();
+            let ca = ca.map_err(|e| format!("the CA bundle of the containers: {e}"))?;
+            Ok((ca, bind(&dir.join("ctl.sock")).map_err(|e| format!("the control socket: {e}"))?))
+        };
+        let (ca, listener) = opened().inspect_err(|_| {
+            // No socket serves the unit: no container takes the copy.
+            let _ = std::fs::remove_dir_all(&logs);
+        })?;
+        let hook = podrunner_hook::unit::HookUnit::new(self.driver.clone(), id.clone(), policy(message), None, logs);
+        let unit = std::sync::Arc::new(std::sync::Mutex::new(hook.with_ca(ca)));
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (u, s): (std::sync::Arc<std::sync::Mutex<dyn Unit>>, _) = (unit.clone(), stop.clone());
         let thread = std::thread::spawn(move || serve_until(listener, u, s));
@@ -122,6 +131,149 @@ mod tests {
         assert!(prepare("/home/runner/work").is_ok());
         let e = prepare("/home/runner/_work").unwrap_err();
         assert_eq!(e.code, podrunner_schema::RefusalCode::ContainerOptionRefused);
+    }
+
+    /// A made-up certificate: the containers read it, no TLS takes it.
+    const ONE: &str = "-----BEGIN CERTIFICATE-----\nbWFkZS11cA==\n-----END CERTIFICATE-----\n";
+    const TWO: &str = "-----BEGIN CERTIFICATE-----\nb3RoZXI=\n-----END CERTIFICATE-----";
+    const IMAGE: &str = "node@sha256:0000000000000000000000000000000000000000000000000000000000000000";
+
+    /// The hooks of a unit of `podrunner run` for a caller with the
+    /// variables `vars`; a container step that prints the bundle and each
+    /// CA variable; the output and the record of the container.
+    fn container_step(dir: &std::path::Path, vars: &[(&str, String)], job_env: serde_json::Value) -> (String, String) {
+        use podrunner_hook::input::{Command, parse};
+        use podrunner_hook::server::Unit;
+        use podrunner_unit::UnitDriver;
+        let vars = vars.iter().map(|(k, v)| (k.to_string(), v.clone()));
+        let (_, _, ca) = super::super::proxy::unit_env("/podrunner/.runner", vars, false).unwrap();
+        let fake = podrunner_fake::FakeUnit::new(&dir.join("units"), super::super::tests::capability(), "linux/amd64");
+        let driver = std::sync::Arc::new(super::super::tests::Mounted(fake, std::sync::Mutex::new(None)));
+        let image = driver.prepare(IMAGE, "linux/amd64", false).unwrap();
+        let id = podrunner_schema::UnitId::parse("u-1").unwrap();
+        let start = podrunner_unit::StartSpec {
+            unit: id.clone(),
+            image: image.clone(),
+            argv: vec!["sleep".into(), "30".into()],
+            env: Default::default(),
+            credential: Default::default(),
+            sockets: None,
+            mounts: Vec::new(),
+            limits: Default::default(),
+        };
+        driver.0.start(&start).unwrap();
+        let exec = super::InUnit::new(driver.clone(), image);
+        let mut job = podrunner_broker_fake::Job::scripts("a", &["true"]);
+        job.overrides.insert("jobContainer".into(), serde_json::json!(IMAGE));
+        let sockets = dir.join("sockets");
+        std::fs::create_dir_all(&sockets).unwrap();
+        let hooks = exec.hooks(&sockets, &job, &id, ca.as_deref()).unwrap();
+        let names = super::super::proxy::container_vars().join(" ");
+        let script = format!(r#"cat "${{SSL_CERT_FILE:-/nothing}}" 2>/dev/null; echo; printenv {names}; true"#);
+        let c = serde_json::json!({
+            "image": IMAGE, "entryPoint": "sh", "entryPointArgs": ["-c", script],
+            "environmentVariables": job_env, "portMappings": [], "userMountVolumes": [], "systemMountVolumes": [],
+        });
+        let body = serde_json::json!({ "command": "run_container_step", "responseFile": "/home/runner/_work/_temp/r.json", "args": c, "state": {} });
+        let out =
+            hooks.unit.lock().unwrap().hook(parse(Command::RunContainerStep, body.to_string().as_bytes()).unwrap());
+        let out = String::from_utf8(out.unwrap().output).unwrap();
+        let root = driver.observe(&id).unwrap().unit_root.unwrap();
+        let record = std::fs::read_to_string(root.join("containers/c-0/spec")).unwrap();
+        // The copy is beside the socket directory, and goes with the hooks.
+        let copy = super::logs_dir(&sockets).join("ca").join(super::super::proxy::CONTAINER_CA);
+        if ca.is_some() {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&copy).unwrap().permissions().mode() & 0o777, 0o644);
+        }
+        assert!(hooks.stop().is_empty());
+        assert!(!copy.exists() && !super::logs_dir(&sockets).exists(), "the stop removes the copy");
+        let _ = driver.destroy(&id);
+        (out, record)
+    }
+
+    /// T-596: a container of a unit of a caller with a CA file gets one
+    /// bundle of each CA file, read-only at `/__podrunner`, and the ten
+    /// variables name it. A link, a file at mode 0600, a path with a space
+    /// and two variables of one file give each file once; a file with no
+    /// certificate stays out.
+    #[test]
+    fn a_container_of_a_caller_with_a_ca_file_gets_the_mount_and_the_variables() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("podrunner-local-ca-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("a b")).unwrap();
+        let (one, two, empty, link) =
+            (dir.join("a b/one.pem"), dir.join("two.pem"), dir.join("empty.pem"), dir.join("link.pem"));
+        std::fs::write(&one, ONE).unwrap();
+        std::fs::set_permissions(&one, std::fs::Permissions::from_mode(0o600)).unwrap();
+        std::fs::write(&two, TWO).unwrap();
+        std::fs::write(&empty, "").unwrap();
+        std::os::unix::fs::symlink(&one, &link).unwrap();
+        let p = |f: &std::path::Path| f.display().to_string();
+        let vars = [
+            ("SSL_CERT_FILE", p(&link)),
+            ("NODE_EXTRA_CA_CERTS", p(&link)),
+            ("CURL_CA_BUNDLE", p(&one)),
+            ("GIT_SSL_CAINFO", p(&two)),
+            ("REQUESTS_CA_BUNDLE", p(&empty)),
+        ];
+        let (out, record) = container_step(&dir, &vars, serde_json::json!({}));
+        let host = dir.join("sockets.logs/ca/podrunner-ca.pem");
+        assert!(record.contains(&format!("mount {} /__podrunner ro\n", host.parent().unwrap().display())), "{record}");
+        // The fake maps `/__podrunner` to its source: the step reads the bundle.
+        assert!(out.starts_with(&format!("{ONE}{TWO}\n\n")), "each file once, in order: {out}");
+        let lines: Vec<&str> = out.lines().filter(|l| l.starts_with('/')).collect();
+        assert_eq!(lines, vec![host.to_str().unwrap(); 10], "{out}");
+        // A value that the job sets stays.
+        let (out, _) = container_step(&dir, &vars, serde_json::json!({ "SSL_CERT_FILE": "/job/ca.pem" }));
+        assert!(out.contains("\n/job/ca.pem\n"), "{out}");
+        assert_eq!(out.lines().filter(|l| *l == host.to_str().unwrap()).count(), 9, "{out}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-596: a caller with no CA file (or with only a file with no
+    /// certificate) gives a container no mount and no variable.
+    #[test]
+    fn a_container_of_a_caller_with_no_ca_file_gets_neither() {
+        let dir = std::env::temp_dir().join(format!("podrunner-local-noca-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("empty.pem"), "").unwrap();
+        let empty = dir.join("empty.pem").display().to_string();
+        let proxy = [("HTTPS_PROXY", "http://127.0.0.1:3128".to_string())];
+        for vars in [&proxy[..], &[("SSL_CERT_FILE", empty)]] {
+            let (out, record) = container_step(&dir, vars, serde_json::json!({}));
+            assert_eq!(out, "\n", "{vars:?}");
+            assert!(!record.contains("/__podrunner"), "{record}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-596: a socket that does not bind leaves no copy of the bundle.
+    #[test]
+    fn a_socket_that_does_not_bind_leaves_no_copy() {
+        let dir = std::env::temp_dir().join(format!("podrunner-local-ca-nobind-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let fake = podrunner_fake::FakeUnit::new(&dir.join("units"), super::super::tests::capability(), "linux/amd64");
+        let driver = std::sync::Arc::new(super::super::tests::Mounted(fake, std::sync::Mutex::new(None)));
+        let image = podrunner_unit::UnitDriver::prepare(&*driver, IMAGE, "linux/amd64", false).unwrap();
+        let exec = super::InUnit::new(driver, image);
+        let mut job = podrunner_broker_fake::Job::scripts("a", &["true"]);
+        job.overrides.insert("jobContainer".into(), serde_json::json!(IMAGE));
+        let id = podrunner_schema::UnitId::parse("u-1").unwrap();
+        // The socket directory does not exist: the relay fails. A directory
+        // at the path of the socket: the bind fails.
+        let sockets = dir.join("sockets");
+        assert!(exec.hooks(&sockets, &job, &id, Some(ONE)).is_err());
+        assert!(!super::logs_dir(&sockets).exists(), "no directory of the logs stays");
+        std::fs::create_dir_all(&sockets).unwrap();
+        std::fs::create_dir_all(sockets.join("ctl.sock/x")).unwrap();
+        let e = exec.hooks(&sockets, &job, &id, Some(ONE)).err().unwrap();
+        assert!(e.contains("the control socket"), "{e}");
+        assert!(!super::logs_dir(&sockets).exists(), "the copy stays after a failed bind");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// T-404: the logs are out of the directory that the unit writes.

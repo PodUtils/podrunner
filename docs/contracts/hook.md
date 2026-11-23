@@ -94,6 +94,14 @@ as the unit does (T-578):
 - A socket that does not bind leaves no copy. The close of the socket
   removes the copy.
 
+`podrunner run` does the same for a unit that takes the CA files of the
+caller (a unit with the network of the host, T-596). The bundle is each
+CA file of the ten variables once, in the order of the variables (a link
+and its target are one file); a file with no certificate stays out, and
+one line on stderr names it. The copy is `LOGS/ca/podrunner-ca.pem`, and
+each of the ten variables names `/__podrunner/podrunner-ca.pem`. A caller
+with no CA file gives the containers no mount and no variable.
+
 ## Refusals
 
 The host checks each call (`crates/podrunner-hook/src/policy.rs`): a step

@@ -46,6 +46,14 @@ variables above, and it can hold a password (`-Dhttp.proxyPassword=`). A
 job, a step or `--env` that sets `JAVA_TOOL_OPTIONS` replaces the value:
 add the two options to it (T-577).
 
+A container of such a unit (a `container:` job, a service, a Docker
+action) gets one bundle of the CA files, read-only at
+`/__podrunner/podrunner-ca.pem`, and each of the ten CA variables names
+it, unless the job sets the variable for the container (T-596). The
+bundle holds each CA file once. A CA file with no certificate stays out
+of the bundle and of the trust store, and one line on stderr names it.
+The containers get no trust store of a JVM.
+
 A job on `--runner-dir` gets a scratch `HOME` (`_work/_home` of the runner
 directory), which the next job removes. It runs as the user of podrunner,
 with the files and the network of that user: it is not a unit.

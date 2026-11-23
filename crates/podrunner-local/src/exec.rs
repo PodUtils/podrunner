@@ -238,10 +238,10 @@ impl Executor for InUnit {
             .map(|(name, text)| CredentialFile { name, content: Secret::new(text) })
             .collect();
         workdir::set(&mut files, &workdir::work_folder(&self.run_sh))?;
-        let mut proxy_env = Vec::new();
+        let (mut proxy_env, mut proxy_ca) = (Vec::new(), None);
         if let (false, Some(dir)) = (fronted, &self.credential_dir) {
-            let (env, more) = proxy::unit_env(dir, std::env::vars(), self.egress.is_some())?;
-            proxy_env = env;
+            let (env, more, ca) = proxy::unit_env(dir, std::env::vars(), self.egress.is_some())?;
+            (proxy_env, proxy_ca) = (env, ca);
             files.extend(more);
         }
         // One socket directory for each unit: the container hooks and the
@@ -316,7 +316,7 @@ impl Executor for InUnit {
             _ => None,
         };
         let hooks = match (containers, &sockets) {
-            (true, Some(dir)) => match self.hooks(dir, &message_copy, &id) {
+            (true, Some(dir)) => match self.hooks(dir, &message_copy, &id, proxy_ca.as_deref()) {
                 Ok(h) => Some(h),
                 Err(e) => {
                     end_sockets(&sockets);
