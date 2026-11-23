@@ -14426,3 +14426,84 @@ Exclude `deny.yml/deny` in `LIVE` of `scripts/corpus.py`, with its reason, as T-
 State (2026-11-23, in the code; `level2.yml`: not run): `LIVE` names `deny.yml/deny`; the corpus keeps 5 jobs. The output of the script at `59bca1f` is the corpus file (a diff of the two gives nothing).
 
 The corpus unit is a job, not a step: the steps of `deny.yml/deny` that read no live state (licenses, bans, sources and the plant of 0BSD) go out with it. A cut of a job into steps is not in the fake broker; the gate of podrunner runs the same four checks on its own lock.
+
+# T-593: The official runner stops at its start when `no_proxy` holds the entry `::`
+
+**Source:** the work of T-499, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`actions/runner` 2.338.2 stops at its start with `System.ArgumentNullException` (`Regex.IsMatch(String input)` in the constructor of `RunnerWebProxy`) when `https_proxy` is set and `no_proxy` (or `NO_PROXY`) holds the bare entry `::`. The entries `::1`, `localhost` and CIDR ranges do not. A host with such a `no_proxy` (the cloud sandbox of the sessions of PodUtils has one) cannot start the runner on `--runner-dir`, or in a unit that gets the proxy variables of the host. The run then fails before the first step, with a .NET stack trace and no line of podrunner that names the cause.
+
+## Premise
+
+Measured on 2026-11-23 on a development host: `env -i HOME=/tmp PATH=/usr/bin:/bin https_proxy=http://127.0.0.1:9 no_proxy=:: ./bin/Runner.Listener --version` gives the exception; `no_proxy=::1` and `no_proxy=localhost` give `2.338.2`.
+
+## Approach
+
+1. Where podrunner gives the proxy variables to a runner (the local mode: `crates/podrunner-local/src/exec/proxy.rs`, `host.rs`, `vnet.rs`; `serve` and each kind that passes the proxy of the host), drop a bare `::` entry from `no_proxy` and `NO_PROXY` (an IPv6 address with no host part matches no host), and keep each other entry in its order. One function for each place, with a table test of the entries: `::`, `::1`, `[::1]`, `::/0`, an empty entry, spaces, a value of only `::`.
+2. A line on stderr names the dropped entry once.
+3. The lane `proxy-only` of `user-gate.yml` (`scripts/lab/`) sets `::` in `no_proxy`, so the user-path gate keeps the host class.
+
+## Prove
+
+`cargo test -p podrunner-local proxy`: the table of `no_proxy` entries; a run of `podrunner run --runner-dir` with `https_proxy` and `no_proxy=::` on the official runner reaches its first step; the lane `proxy-only` of `user-gate.yml` with `::` in `no_proxy` passes.
+
+# T-594: The image release and `runner-image.yml` each have a copy of the build and the archive of the runner images
+
+**Source:** the work of T-499, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`.github/workflows/runner-image-release.yml` (T-499) copies the steps of `runner-image.yml` that build the OCI image, write the ref name into the index, and make the archive of the files only. The two copies can drift apart, and an image release can then give an archive that `podvm load -i` or the installer reads in another way than the archive of `runner-image.yml`.
+
+## Premise
+
+The report of the work of T-499, read on 2026-11-23.
+
+## Approach
+
+Move the steps into one script (for example `scripts/runner-image-archive.sh OCI_TAR REF OUT`) and call it from both workflows. A run of `runner-image.yml` and a dry run of `runner-image-release.yml` prove it.
+
+## Prove
+
+`sh scripts/shellcheck.sh` of the new script; `runner-image.yml` and a dry run of `runner-image-release.yml` are green, and each archive loads with `podvm load -i`.
+
+# T-595: A run report has no reason for a time that it does not know (`start_s`)
+
+**Source:** the work of T-497, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+slots put a reason for `start_s` into `unknown_reasons` when no first-step event came for the job. `run-report.v1` of `pod-job` (podcrates `v0.81.0`) allows a key of `unknown_reasons` only for a field of `MEASURED` (`cpu_s`, `peak_rss_mib`, `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes`, `cache_read_bytes`, `cache_written_bytes`; `report.rs` of `pod-job` and the `propertyNames` of its `json_schema.rs`). So each report of a unit with no first step broke the schema, and a strict source refuses it. T-497 dropped that reason (`23d0040`). githome (G-19) now gets no time and no reason for it.
+
+## Premise
+
+`report.rs` and `json_schema.rs` of `pod-job`, podcrates at `0707cfa` (`v0.81.0`), read on 2026-11-23.
+
+## Approach
+
+Ask podcrates (COORD-120) to allow a reason for each time of the report that can be absent (`prepare_s`, `start_s`, `run_s`, `destroy_s`, `claim_to_first_step_s`), in `MEASURED` or in a second list. Take the tag, then give the reason again.
+
+## Prove
+
+`cargo test -p podrunner-slots report`: a report of a unit with no first step has `start_s` absent and its reason, and `RunReport::check()` passes.
+
+## Blocker
+
+COORD-120 (GitHub #342, to podcrates): the schema of `run-report.v1` allows no reason for a time.
