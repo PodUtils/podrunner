@@ -14842,3 +14842,53 @@ podvm loads an image with more layers than its lock slots (COORD-122, GitHub #34
 ## Blocker
 
 COORD-122 (GitHub #344, to podvm): `podvm load` takes one lock for each layer and refuses the 17th.
+
+# T-607: Two runs of `podrunner run` in two pid namespaces that share `/tmp` meet on one run id
+
+**Source:** the review fixes of T-553, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`run_id` (`crates/podrunner/src/run_local/stale.rs`) is `PID-N`. Two containers of one uid that share `/tmp` (a CI host, a bind of `/tmp`) can both run as pid 1 and give the run id `1-0`: `private_dir` then makes the directory of the other run new under it. Also, `live_podrunner` reads `/proc/PID`, so a live run of another pid namespace looks dead, and `end_dead_runs` ends its units and removes its directories.
+
+## Premise
+
+The report of the review fixes of T-553, read on 2026-11-23; not measured.
+
+## Approach
+
+Add the inode of `/proc/self/ns/pid` (or a random suffix) to the run id, and count a directory as dead only when its pid namespace is this one. A table test of names; a test with two run ids of one pid and two namespaces.
+
+## Prove
+
+`cargo test -p podrunner --all-features --lib run_local::stale`: two runs of one pid in two namespaces get two ids, and a directory of another namespace is not ended.
+
+# T-608: A recovery run of `release.yml` on a tag builds the binaries again
+
+**Source:** the review fixes of T-553, 2026-11-23
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When a step of the run on a tag fails after the tag, the recovery is a dispatch of `release.yml` on the tag (`docs/maintenance.md`, "A release"). That run builds the binaries again with cargo-zigbuild; whether the build is reproducible is not measured. A new build can give other assets and other index digests on ghcr.io: the tag of the package then moves, and the earlier index stays with its attestation. Also, the job `check` takes the newest completed `gate.yml` run of the commit: a failed gate run after the tag blocks the recovery.
+
+## Premise
+
+The report of the review fixes of T-553, read on 2026-11-23.
+
+## Approach
+
+Measure the reproducibility (two builds of one commit in CI, compare the SHA-256), or let the run on the tag take the binaries of the run with the version by its run id. Let `check` accept a green `gate.yml` run of the commit, not only the newest one, or say the limit in the recovery text.
+
+## Prove
+
+Two builds of one commit in a CI run give the same SHA-256 of each binary, or a dry recovery run takes the binaries of the earlier run; `release.yml` passes `check` with an older green gate run.
