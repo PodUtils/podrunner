@@ -14283,7 +14283,7 @@ At a load of a new digest, `podvm rmi` each image of the store that no running u
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
