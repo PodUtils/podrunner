@@ -57,6 +57,8 @@ struct Running {
     /// `signal(Kill)` removed the instance: its end is that signal.
     killed: bool,
     exit: Option<Exit>,
+    /// The use that the reads of the state saw while the instance ran.
+    kept: usage::Kept,
 }
 
 /// The incus unit driver.
@@ -85,7 +87,7 @@ pub struct IncusUnit {
     init_image: bool,
 }
 
-fn host(what: &str, e: std::io::Error) -> UnitError {
+pub(crate) fn host(what: &str, e: std::io::Error) -> UnitError {
     UnitError::new(UnitCode::Host, format!("{what}: {}", e.kind()))
 }
 
@@ -177,23 +179,17 @@ impl IncusUnit {
         if out.status.success() { Ok(out.stdout) } else { Err(tail(&out.stderr)) }
     }
 
-    /// The CPU time and the peak memory of the instance, from the state of
-    /// incusd (podvm `0.2.0-beta.33`, `CpuSeconds` and `PeakMemoryBytes`),
-    /// or why there is none.
-    fn instance_usage(&self, name: &str) -> podrunner_unit::UnitUsage {
-        match self.verb(&["inspect", "--format", usage::FORMAT], name) {
-            Ok(out) => usage::parse(&String::from_utf8_lossy(&out)),
-            Err(_) => usage::failed(),
+    /// The state of the instance, with its use (T-483): `None` when incusd
+    /// has no such instance. The use costs no process of its own: podvm
+    /// reads it from incusd on each `inspect`. A podvm before
+    /// `0.2.0-beta.33` refuses its fields: then a second read gives the
+    /// status, and the use is the reason.
+    fn state(&self, name: &str) -> Option<usage::State> {
+        let read = |format: &str| self.verb(&["inspect", "--format", format], name).ok();
+        match read(usage::STATE) {
+            Some(out) => usage::state(&String::from_utf8_lossy(&out), true),
+            None => usage::state(&String::from_utf8_lossy(&read(usage::STATUS)?), false),
         }
-    }
-
-    /// The state of the instance: `None` when incusd has no such instance.
-    fn state(&self, name: &str) -> Option<(String, Option<i32>)> {
-        let out = self.verb(&["inspect", "--format", "{{.Status}} {{.ExitCode}}"], name).ok()?;
-        let text = String::from_utf8_lossy(&out);
-        let mut words = text.split_whitespace();
-        let status = words.next()?.to_string();
-        Some((status, words.next().and_then(|c| c.parse().ok())))
     }
 
     /// Remove the instance, and count what is left of it.
@@ -284,7 +280,7 @@ impl UnitDriver for IncusUnit {
             .ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "the image is not prepared"))?;
         let stream = credential_stream(&spec.credential)?;
         let work = dir.join("work");
-        make_work(&dir, &work)?;
+        guest::make_work(&dir, &work)?;
         let name = self.name(&spec.unit);
         let fail = |why: String| {
             let _ = self.verb(&["rm", "-f"], &name);
@@ -350,7 +346,7 @@ impl UnitDriver for IncusUnit {
         if !out.status.success() || !matches!(wrote, Some(Ok(()))) {
             return Err(fail(format!("podvm run -d: {}", tail(&out.stderr))));
         }
-        units.insert(spec.unit.clone(), Running { dir, name, killed: false, exit: None });
+        units.insert(spec.unit.clone(), Running { dir, name, killed: false, exit: None, kept: Default::default() });
         Ok(())
     }
 
@@ -381,17 +377,22 @@ impl UnitDriver for IncusUnit {
                 }
                 (r.name.clone(), r.killed)
             };
-            let exit = match self.state(&name) {
-                Some((status, _)) if status == "Running" => None,
-                Some((_, code)) => Some(Exit::Code(code.unwrap_or(-1))),
+            let state = self.state(&name);
+            let exit = match &state {
+                Some(s) if s.running() => None,
+                Some(s) => Some(Exit::Code(s.code.unwrap_or(-1))),
                 None if killed => Some(Exit::Signal(9)),
                 None => Some(Exit::Code(-1)),
             };
+            // Each read is a sample of the use: incusd gives none after the
+            // stop. The last sample is at most one read (one tick of slots,
+            // or `POLL`) before the stop, so `cpu_s` can count that time
+            // of each busy CPU less (T-520).
+            if let Some(r) = self.units.lock().expect("the units").get_mut(unit) {
+                state.iter().for_each(|s| r.kept.take(s));
+                r.exit = r.exit.or(exit);
+            }
             if exit.is_some() {
-                let mut units = self.units.lock().expect("the units");
-                if let Some(r) = units.get_mut(unit) {
-                    r.exit = exit;
-                }
                 return Ok(exit);
             }
             if Instant::now() >= end {
@@ -460,8 +461,13 @@ impl UnitDriver for IncusUnit {
     }
     fn usage(&self, unit: &UnitId) -> Option<podrunner_unit::UnitUsage> {
         // The processes of an instance are not on the host: the kind always
-        // answers, with a value or a reason.
-        Some(self.instance_usage(&self.name(unit)))
+        // answers, with a value or a reason. One more read: the instance can
+        // still run, or a podvm can keep the use of a stopped one.
+        let state = self.state(&self.name(unit));
+        let mut units = self.units.lock().expect("the units");
+        let Some(r) = units.get_mut(unit) else { return Some(state.map_or_else(usage::failed, |s| s.usage)) };
+        state.iter().for_each(|s| r.kept.take(s));
+        Some(r.kept.usage())
     }
 
     fn oom_kills(&self, unit: &UnitId) -> Option<u64> {
@@ -476,16 +482,6 @@ impl UnitDriver for IncusUnit {
     fn container_stop(&self, _: &UnitId, _: &ContainerId) -> Result<(), UnitError> {
         Err(no_container())
     }
-}
-
-/// Make the work directory: mode 0777, so the mapped user of the instance
-/// writes in it. Its parent, the unit directory, is 0700: no other user of
-/// the host reaches it.
-fn make_work(unit_dir: &Path, work: &Path) -> Result<(), UnitError> {
-    use std::os::unix::fs::PermissionsExt;
-    fs::create_dir_all(work).map_err(|e| host("the work directory", e))?;
-    fs::set_permissions(unit_dir, fs::Permissions::from_mode(0o700)).map_err(|e| host("the work directory", e))?;
-    fs::set_permissions(work, fs::Permissions::from_mode(0o777)).map_err(|e| host("the work directory", e))
 }
 
 fn no_container() -> UnitError {

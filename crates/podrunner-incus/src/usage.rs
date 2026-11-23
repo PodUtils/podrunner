@@ -1,13 +1,86 @@
 //! The CPU time and the peak memory of an instance (T-483), from
-//! `podvm inspect --format '{{.CpuSeconds}} {{.PeakMemoryBytes}}'` of the
-//! incus tier (podvm `0.2.0-beta.33` and later). podvm prints `-` for a
+//! `podvm inspect --format '... {{.CpuSeconds}} {{.PeakMemoryBytes}}'` of
+//! the incus tier (podvm `0.2.0-beta.33` and later). podvm prints `-` for a
 //! value that incusd did not give. A podvm before `0.2.0-beta.33` refuses
 //! the template, so `inspect` fails.
+//!
+//! The instance stops when its command ends (`guest-hold --run` of podvm
+//! is its PID 1), and incusd gives no CPU time and no peak of a stopped
+//! instance: podvm prints `-` for each. So each read of the state while
+//! the instance runs is also a sample, and the driver keeps the use that
+//! the samples saw ([`Kept`]).
 
 use podrunner_unit::UnitUsage;
 
-/// The template that `inspect` renders.
-pub(crate) const FORMAT: &str = "{{.CpuSeconds}} {{.PeakMemoryBytes}}";
+/// The template of one read of the state: the status, the exit code and
+/// the use.
+pub(crate) const STATE: &str = "{{.Status}} {{.ExitCode}} {{.CpuSeconds}} {{.PeakMemoryBytes}}";
+/// The template of a podvm before `0.2.0-beta.33`: no fields of the use.
+pub(crate) const STATUS: &str = "{{.Status}} {{.ExitCode}}";
+
+/// One read of the state of an instance.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct State {
+    pub(crate) status: String,
+    pub(crate) code: Option<i32>,
+    /// The use, or why there is none.
+    pub(crate) usage: UnitUsage,
+}
+
+impl State {
+    pub(crate) fn running(&self) -> bool {
+        self.status == "Running"
+    }
+}
+
+/// The state from the output of `inspect` with [`STATE`] (`with_use`) or
+/// [`STATUS`]; `None` when it has no status.
+pub(crate) fn state(text: &str, with_use: bool) -> Option<State> {
+    let mut words = text.split_whitespace();
+    let status = words.next()?.to_string();
+    // A running instance has `-` for its exit code.
+    let code = words.next().and_then(|c| c.parse().ok());
+    let usage = if with_use { parse(&words.collect::<Vec<_>>().join(" ")) } else { failed() };
+    Some(State { status, code, usage })
+}
+
+/// The reason of a field that no read of a running instance saw.
+const NO_SAMPLE: &str = "the instance ended before a read of its use";
+
+/// The use that the reads of the state of one instance saw: the highest
+/// CPU time and peak (both only grow while the instance runs), or the
+/// reason of the last read of the running instance that gave none.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Kept(UnitUsage);
+
+impl Default for Kept {
+    fn default() -> Kept {
+        Kept(UnitUsage { cpu_s: Err(NO_SAMPLE.into()), peak_memory_bytes: Err(NO_SAMPLE.into()) })
+    }
+}
+
+impl Kept {
+    /// Take one read. A value always counts (a podvm that keeps the use of
+    /// a stopped instance gives the last one); a reason counts only while
+    /// the instance runs and no value is kept, so the `-` of a stopped
+    /// instance erases nothing.
+    pub(crate) fn take(&mut self, s: &State) {
+        fn one(kept: &mut Result<u64, String>, new: &Result<u64, String>, running: bool) {
+            match (&*kept, new) {
+                (Ok(k), Ok(v)) => *kept = Ok((*k).max(*v)),
+                (Err(_), Ok(v)) => *kept = Ok(*v),
+                (Err(_), Err(why)) if running => *kept = Err(why.clone()),
+                _ => {}
+            }
+        }
+        one(&mut self.0.cpu_s, &s.usage.cpu_s, s.running());
+        one(&mut self.0.peak_memory_bytes, &s.usage.peak_memory_bytes, s.running());
+    }
+
+    pub(crate) fn usage(&self) -> UnitUsage {
+        self.0.clone()
+    }
+}
 
 /// The use of an instance from the output of `inspect` with [`FORMAT`]:
 /// each field is its value, or why there is none.
@@ -46,6 +119,51 @@ fn number(word: Option<&str>, name: &str) -> Result<f64, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn read(text: &str) -> State {
+        state(text, true).unwrap()
+    }
+
+    #[test]
+    fn a_read_of_the_state_gives_the_status_the_code_and_the_use() {
+        let s = read("Running - 2.500 4096\n");
+        assert_eq!((s.status.as_str(), s.code, s.running()), ("Running", None, true));
+        assert_eq!(s.usage, UnitUsage { cpu_s: Ok(3), peak_memory_bytes: Ok(4096) });
+        let s = read("Stopped 7 - -");
+        assert_eq!((s.code, s.running()), (Some(7), false));
+        assert!(s.usage.cpu_s.is_err());
+        // The template of an old podvm: the reason names the version.
+        let s = state("Running -", false).unwrap();
+        assert!(s.usage.cpu_s.is_err_and(|e| e.contains("0.2.0-beta.33")));
+        assert_eq!(state(" \n", true), None);
+    }
+
+    #[test]
+    fn the_kept_use_is_the_highest_of_the_reads_of_a_running_instance() {
+        let mut k = Kept::default();
+        for text in ["Running - - -", "Running - 1.5 5000", "Running - 2.25 3000"] {
+            k.take(&read(text));
+        }
+        assert_eq!(k.usage(), UnitUsage { cpu_s: Ok(3), peak_memory_bytes: Ok(5000) });
+        // The `-` of the stopped instance erases nothing.
+        k.take(&read("Stopped 0 - -"));
+        assert_eq!(k.usage(), UnitUsage { cpu_s: Ok(3), peak_memory_bytes: Ok(5000) });
+        // A podvm that keeps the use of a stopped instance gives the last.
+        k.take(&read("Stopped 0 3.5 6000"));
+        assert_eq!(k.usage(), UnitUsage { cpu_s: Ok(4), peak_memory_bytes: Ok(6000) });
+    }
+
+    #[test]
+    fn no_read_with_a_value_gives_a_reason() {
+        let mut k = Kept::default();
+        k.take(&read("Stopped 0 - -"));
+        assert_eq!(k.usage().cpu_s, Err(NO_SAMPLE.into()), "no read of the running instance");
+        k.take(&read("Running - - 12"));
+        assert_eq!(k.usage().cpu_s, Err("incusd gave no CpuSeconds of the instance".into()));
+        assert_eq!(k.usage().peak_memory_bytes, Ok(12));
+        k.take(&read("Stopped 0 - -"));
+        assert_eq!(k.usage().cpu_s, Err("incusd gave no CpuSeconds of the instance".into()), "kept");
+    }
 
     #[test]
     fn both_values_are_read_and_rounded_up() {
