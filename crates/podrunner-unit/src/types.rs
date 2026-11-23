@@ -178,10 +178,12 @@ pub struct Observation {
 pub struct ContainerId(pub String);
 
 /// A directory of the unit in a container. The hook checks (GitHub #35)
-/// give only sources under the runner directory of the unit.
+/// give only sources under the runner directory of the unit; the hooks add
+/// one directory that the host made, the CA bundle of the broker (T-578).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContainerMount {
-    /// A path in the unit root.
+    /// A path in the unit root, or the absolute path of a directory that
+    /// the host made out of the reach of the job.
     pub source: std::path::PathBuf,
     /// A path in the container.
     pub target: String,

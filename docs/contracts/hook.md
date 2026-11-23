@@ -77,14 +77,22 @@ T-563, T-524), each container of the job (the job container, each
 service and each container action) trusts the CA bundle of that broker,
 as the unit does (T-578):
 
-- The host writes the bundle at mode 0644 to a directory beside the
-  logs of the steps, out of the socket directory of the unit. The
-  container mounts that directory read-only at `/__podrunner`.
+- The host writes a copy of the bundle at mode 0644 to `LOGS/ca`, under
+  the name of its credential file (`podrunner-broker-ca.pem`). LOGS is the
+  directory of the output of the steps (`SOCKETS.logs`, beside the socket
+  directory SOCKETS of the unit). The unit does not see LOGS. The
+  directory `LOGS/ca` has mode 0755 and holds the copy only.
+- Each container mounts `LOGS/ca` read-only at `/__podrunner`, by its
+  host path. On the namespace rung of podvm this path is out of
+  `--podvm-volume-base` (the runner directory of the unit): podvm opens a
+  source under the base with no symbolic link, and binds a source out of
+  it by its path (podvm `0.2.0-beta.37`, measured as a user with no root).
 - Each of the ten variables of `pod_broker::ca::env` names
   `/__podrunner/podrunner-broker-ca.pem`. A variable that the job sets
   for the container keeps the value of the job.
 - A unit with no bundle gives its containers no mount and no variable.
-- The close of the socket removes the bundle.
+- A socket that does not bind leaves no copy. The close of the socket
+  removes the copy.
 
 ## Refusals
 

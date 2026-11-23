@@ -41,9 +41,9 @@ import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARCHES = {"x86_64": "linux-x64", "aarch64": "linux-arm64"}
-VERSION = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
-HEX = re.compile(r"^[0-9a-f]{64}$")
-TAG = re.compile(r"^vrunner-((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))-r([1-9][0-9]*)$")
+# Each check is a full match: `$` of `re.match` takes a trailing newline.
+VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
+TAG = re.compile(r"vrunner-((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))-r([1-9][0-9]*)")
 # The days from a release of actions/runner to its runner image (G-23).
 TARGET_DAYS = 14
 DAY = 24 * 3600
@@ -78,7 +78,7 @@ def key(version: str) -> tuple[int, ...]:
 
 def newest(rels: list[dict]) -> dict:
     stable = [r for r in rels if not r.get("draft") and not r.get("prerelease")
-              and VERSION.match(r.get("tag_name", "").removeprefix("v"))]
+              and VERSION.fullmatch(r.get("tag_name", "").removeprefix("v"))]
     if not stable:
         raise Fault("no release of actions/runner that is not a draft or a prerelease")
     return max(stable, key=lambda r: key(r["tag_name"][1:]))
@@ -93,7 +93,7 @@ def epoch(iso: str) -> int:
 def tarball_sums(version: str, rel: dict) -> dict[str, str]:
     """The SHA-256 of each Linux tarball: the one of the release notes. When
     the API names the digest of the asset too, both must agree."""
-    if not VERSION.match(version):
+    if not VERSION.fullmatch(version):
         raise Fault(f"{version!r} is not a version X.Y.Z")
     if rel.get("tag_name") != f"v{version}":
         raise Fault(f"the release is {rel.get('tag_name')!r}, not v{version}")
@@ -131,7 +131,7 @@ def runner_toml(version: str, sums: dict[str, str]) -> str:
 
 def tag(version: str, revision: str) -> str:
     t = f"vrunner-{version}-r{revision}"
-    if not TAG.match(t):
+    if not TAG.fullmatch(t):
         raise Fault(f"{t!r} is not vrunner-X.Y.Z-rN")
     return t
 
@@ -142,7 +142,7 @@ def detect(rels: list[dict], own: list[dict], pinned: str, now: int) -> tuple[in
     age = (now - epoch(r["published_at"])) // DAY if r.get("published_at") else None
     images = []
     for o in own:
-        m = TAG.match(o.get("tag_name", ""))
+        m = TAG.fullmatch(o.get("tag_name", ""))
         if m and m[1] == version and not o.get("draft"):
             images.append(m[0])
     images.sort()
@@ -161,13 +161,13 @@ def detect(rels: list[dict], own: list[dict], pinned: str, now: int) -> tuple[in
 
 def manifest(tag_name: str, images: pathlib.Path, assets: pathlib.Path, commit: str, released_at: int,
              audit: str = "") -> dict:
-    if not TAG.match(tag_name):
+    if not TAG.fullmatch(tag_name):
         raise Fault(f"{tag_name!r} is not vrunner-X.Y.Z-rN")
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise Fault(f"--commit {commit!r}: give 40 lowercase hex digits")
     p = pins_module()
     version, sums = p.toml_pin(images / "runner" / "runner.toml")
-    if version != TAG.match(tag_name)[1]:
+    if version != TAG.fullmatch(tag_name)[1]:
         raise Fault(f"{tag_name}: the runner of {images}/runner/runner.toml is {version}")
 
     def image(name: str) -> dict:
@@ -300,6 +300,11 @@ def self_test() -> int:
     check("tag", tag("2.339.0", "1") == "vrunner-2.339.0-r1")
     refused("a bad revision", lambda: tag("2.339.0", "0"), "not vrunner")
     refused("a bad version", lambda: tag("2.339", "1"), "not vrunner")
+    # `$` of `re.match` takes a trailing newline: each check is a full match.
+    refused("a version with a newline", lambda: tag("2.339.0\n", "1"), "not vrunner")
+    refused("a revision with a newline", lambda: tag("2.339.0", "1\n"), "not vrunner")
+    refused("a version of the notes with a newline", lambda: tarball_sums("2.338.2\n", rel("2.338.2\n")), "not a version")
+    check("newest: a tag with a newline is no release", newest(rels + [rel("2.341.0\n")])["tag_name"] == "v2.338.10")
 
     now = epoch("2026-11-23T00:00:00Z")
     rc, lines = detect([rel("2.338.2")], [], "2.338.2", now)
@@ -311,6 +316,8 @@ def self_test() -> int:
     check("detect: an image release", rc == 0 and "vrunner-2.339.0-r1" in lines[2], "\n".join(lines))
     rc, _ = detect([rel("2.339.0")], [{"tag_name": "vrunner-2.339.0-r1", "draft": True}], "2.338.2", now)
     check("detect: a draft is no image release", rc == 1)
+    rc, _ = detect([rel("2.339.0")], [{"tag_name": "vrunner-2.339.0-r1\n", "draft": False}], "2.338.2", now)
+    check("detect: a tag with a newline is no image release", rc == 1)
 
     with tempfile.TemporaryDirectory() as d:
         d = pathlib.Path(d)

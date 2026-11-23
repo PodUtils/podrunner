@@ -54,8 +54,10 @@ on:
 permissions:
   contents: read
 
+# A schedule has a group of its own: in a shared group a new pending run
+# cancels the pending one, and a schedule could cancel a queued publish.
 concurrency:
-  group: runner-image-release-${{ github.ref }}
+  group: runner-image-release-${{ github.event_name == 'schedule' && 'schedule' || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -413,13 +415,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: true
-      - name: The tag, and the run on the tag
+      - name: The tag
         run: |
           set -eu
           git -c user.name=Azathothas -c user.email=ajamx101@gmail.com tag -a "$TAG" -m "runner images of actions/runner $VERSION"
           git push origin "$TAG"
-          gh workflow run runner-image-release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG" -f images_run="$GITHUB_RUN_ID"
+      # A failed dispatch keeps this run green: the run on the tag takes the
+      # files of a green run only, so the dispatch by hand still works.
+      - name: The run on the tag
+        id: dispatch
+        continue-on-error: true
+        run: |
+          set -eu
+          sh scripts/retry.sh gh workflow run runner-image-release.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG" \
+            -f images_run="$GITHUB_RUN_ID"
           echo "the tag $TAG; runner-image-release.yml runs on it, which signs and publishes" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: The dispatch by hand
+        if: steps.dispatch.outcome == 'failure'
+        run: |
+          set -eu
+          cmd="gh workflow run runner-image-release.yml --repo $GITHUB_REPOSITORY --ref $TAG -f images_run=$GITHUB_RUN_ID"
+          echo "::error::the tag $TAG has no run on it: dispatch it by hand: $cmd"
+          printf 'The tag %s has no run on it. Dispatch it by hand (docs/maintenance.md):\n\n    %s\n' "$TAG" "$cmd" >> "$GITHUB_STEP_SUMMARY"
 
   # The run on the tag: the signer of SHA256SUMS, and so of
   # release-index.json, is this workflow at the tag.

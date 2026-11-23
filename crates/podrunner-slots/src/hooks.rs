@@ -20,15 +20,26 @@ pub enum HookEvent {
     JobCompleted,
 }
 
+/// The CA bundle of the broker of a unit, for each container of its job
+/// (T-578).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ContainerCa<'a> {
+    /// The name of the bundle among the credential files of the unit.
+    pub file: &'a str,
+    /// The bundle (PEM).
+    pub pem: &'a str,
+    /// The variables that name it.
+    pub vars: &'a [String],
+}
+
 /// The control sockets of the units of a host.
 pub trait HookPort: Send {
     /// Serve the socket of `unit` (a unit of kind `kind`) at `socket`, before
     /// the start; give the environment that the unit needs.
     /// `guest`: where the unit sees the directory of `socket`, when the
     /// driver mounts it (`UnitDriver::socket_mount`); the environment then
-    /// names the guest paths. `ca`: the CA bundle (PEM) of the broker of
-    /// the unit and the variables that name it, which each container of
-    /// the job takes too (T-578).
+    /// names the guest paths. `ca`: the CA bundle of the broker of the
+    /// unit, which each container of the job takes too (T-578).
     fn open(
         &self,
         kind: &str,
@@ -36,7 +47,7 @@ pub trait HookPort: Send {
         unit: &UnitId,
         socket: &Path,
         guest: Option<&str>,
-        ca: Option<(&str, &[String])>,
+        ca: Option<ContainerCa<'_>>,
     ) -> Result<BTreeMap<String, String>, String>;
     fn close(&self, unit: &UnitId);
     /// The refusals and the job hooks of `unit` since the last call.
@@ -62,7 +73,7 @@ impl Slots {
         unit: &UnitId,
         dir: &std::path::Path,
         guest: Option<&str>,
-        ca: Option<(&str, &[String])>,
+        ca: Option<ContainerCa<'_>>,
     ) -> Result<BTreeMap<String, String>, String> {
         let k = &self.kinds[kind];
         let Some(h) = &self.hooks else { return Ok(BTreeMap::new()) };

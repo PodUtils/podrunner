@@ -24,8 +24,10 @@ const MIN_WORD: usize = 12;
 const MIN_VALUE: usize = 8;
 
 /// The files of a unit that hold no secret: the name and the pool of the
-/// runner, and the job that podrunner placed (T-175).
-const PUBLIC_FILES: [&str; 2] = [".runner", ".podrunner-job"];
+/// runner, the job that podrunner placed (T-175), and the CA bundle of the
+/// broker and its trust store (T-563, T-577). A job that prints a
+/// certificate prints no credential.
+const PUBLIC_FILES: [&str; 4] = [".runner", ".podrunner-job", crate::secrets::CA_FILE, crate::secrets::STORE_FILE];
 
 /// The hashes of the long words of the credential of one job.
 #[derive(Debug, Clone, Default)]
@@ -236,6 +238,23 @@ mod tests {
         c.files.push(CredentialFile { name: ".runner".into(), content: Secret::new(r#"{"agentName":"runner-u-1"}"#) });
         let s = scrub(b"client fake-client of runner-u-1\n", &Marks::of(&c));
         assert_eq!(s, "client *** of runner-u-1\n");
+    }
+
+    /// The CA bundle of the broker and its trust store are public: a job
+    /// that prints a certificate of the bundle keeps its text, and the
+    /// value of a credential is still masked.
+    #[test]
+    fn the_ca_bundle_and_its_trust_store_are_not_marks() {
+        let line = "MIIBszCCAVmgAwIBAgIUQ2FuYXJ5LW1hZGUtdXAtY2VydA";
+        let pem = format!("-----BEGIN CERTIFICATE-----\n{line}\n-----END CERTIFICATE-----\n");
+        let mut c = cred(r#"{"data":{"token":"canary-made-up-Qz81hX0pLm"}}"#);
+        c.files.push(CredentialFile { name: crate::secrets::CA_FILE.into(), content: Secret::new(pem) });
+        c.files.push(podrunner_schema::binary_file(crate::secrets::STORE_FILE, line.as_bytes()));
+        let store = podrunner_schema::binary_file("x", line.as_bytes()).content.expose().to_string();
+        let word = store.trim_start_matches(|ch: char| !ch.is_ascii_alphanumeric()).trim_start_matches("base64:");
+        let log = format!("{line}\n{word}\ntoken canary-made-up-Qz81hX0pLm\n");
+        let s = scrub(log.as_bytes(), &Marks::of(&c));
+        assert_eq!(s, format!("{line}\n{word}\ntoken ***\n"));
     }
 
     #[test]

@@ -19,7 +19,7 @@ impl podrunner_slots::hooks::HookPort for HooksOf {
         unit: &podrunner_schema::UnitId,
         socket: &Path,
         guest: Option<&str>,
-        ca: Option<(&str, &[String])>,
+        ca: Option<podrunner_slots::hooks::ContainerCa<'_>>,
     ) -> Result<std::collections::BTreeMap<String, String>, String> {
         use std::os::unix::fs::PermissionsExt;
         let policy = self.policies.get(kind).cloned().ok_or("no hook policy of this kind")?;
@@ -32,6 +32,7 @@ impl podrunner_slots::hooks::HookPort for HooksOf {
         // The output of the steps and the CA bundle of the containers stay
         // out of the directory that the unit sees.
         let logs = dir.with_extension("logs");
+        let ca = ca.map(|c| podrunner_hook::hooks::Bundle { file: c.file, pem: c.pem, vars: c.vars });
         self.hooks.open(driver, unit, policy, socket, &logs, ca).map_err(|e| io("the control socket", e))?;
         // A unit that sees the directory at `guest` gets the guest paths.
         let seen = |p: &Path| match (guest, p.file_name()) {

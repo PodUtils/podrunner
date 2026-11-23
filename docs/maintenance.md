@@ -330,6 +330,21 @@ published digests are the proven ones), signs `SHA256SUMS` as
 `pod-release verify --workflow runner-image-release.yml`, attests each
 file, and publishes a prerelease that is not "latest". Read both runs.
 
+The job `tag` tries the dispatch on the tag up to 5 times
+(`scripts/retry.sh`). When each try fails, the run stays green, an error
+line and its summary give the command, and the tag has no release.
+Dispatch the workflow on the tag by hand, with the id of the run that made
+the tag (RUN_ID):
+
+```sh
+gh workflow run runner-image-release.yml --repo PodUtils/podrunner --ref vrunner-X.Y.Z-rN -f images_run=RUN_ID
+```
+
+The run on the tag takes the files of a green run only. A second run on
+the tag fails at `gh release create`, as the release exists. The daily
+schedule has a concurrency group of its own, so it does not cancel a
+dispatch that waits.
+
 A tag never moves. For a new build of the same runner, give
 `-f revision=2`.
 

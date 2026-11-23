@@ -98,6 +98,10 @@ fn the_runner_in_a_podvm_unit_runs_a_canned_job() {
     assert!(residue.is_clean(), "{residue:?}");
 }
 
+/// The text of the CA bundle that each container of [`container_job`]
+/// reads: no certificate, no TLS takes it.
+const CA_TEXT: &str = "podrunner-made-up-ca-of-the-test\n";
+
 /// The end of a `container:` job through the hooks of a podvm unit.
 struct ContainerJob {
     done: Vec<podrunner_broker_fake::Completion>,
@@ -148,8 +152,21 @@ fn container_job(state: &std::path::Path, binary: PathBuf, script: &str) -> Cont
         work_root: "/home/runner".into(),
         work_dir: "_work".into(),
     };
-    let hook = Arc::new(Mutex::new(HookUnit::new(unit.clone(), id.clone(), policy, None, state.join("logs"))));
-    std::fs::create_dir_all(state.join("logs")).unwrap();
+    // T-578: a CA bundle in a directory of the host out of the runner
+    // directory (the volume base of the namespace rung), as the hooks of
+    // serve place it. Each container mounts it at /__podrunner.
+    let ca_dir = state.join("logs/ca");
+    std::fs::create_dir_all(&ca_dir).unwrap();
+    std::fs::write(ca_dir.join("podrunner-broker-ca.pem"), CA_TEXT).unwrap();
+    std::fs::set_permissions(&ca_dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::set_permissions(ca_dir.join("podrunner-broker-ca.pem"), std::fs::Permissions::from_mode(0o644)).unwrap();
+    let ca = podrunner_hook::unit::UnitCa {
+        dir: ca_dir,
+        file: "podrunner-broker-ca.pem".into(),
+        vars: vec!["SSL_CERT_FILE".into()],
+    };
+    let hook = HookUnit::new(unit.clone(), id.clone(), policy, None, state.join("logs")).with_ca(Some(ca));
+    let hook = Arc::new(Mutex::new(hook));
     let listener = bind(&sockets.join("ctl.sock")).unwrap();
     let u: Arc<Mutex<dyn Unit>> = hook.clone();
     std::thread::spawn(move || serve_until(listener, u, Arc::new(AtomicBool::new(false))));
@@ -201,11 +218,14 @@ fn container_job(state: &std::path::Path, binary: PathBuf, script: &str) -> Cont
 fn a_container_job_runs_through_the_hooks_of_a_podvm_unit() {
     let state = std::env::temp_dir().join(format!("podrunner-podvm-hooks-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&state);
-    let script = "echo podrunner-podvm-container-$((6*7)) > marker.txt; cat marker.txt";
+    // T-578: the step reads the CA bundle of the hooks by its variable.
+    let script = "echo podrunner-podvm-container-$((6*7)) > marker.txt; cat marker.txt; echo \"ca=$SSL_CERT_FILE\"; cat \"$SSL_CERT_FILE\"";
     let j = container_job(&state, PathBuf::from(env("PODRUNNER_PODVM")), script);
     let _ = std::fs::remove_dir_all(&state);
     assert_eq!(j.done[0].conclusion, "succeeded", "{:?}\n{}", j.refusals, j.logs);
     assert!(j.logs.contains("podrunner-podvm-container-42"), "{}", j.logs);
+    assert!(j.logs.contains("ca=/__podrunner/podrunner-broker-ca.pem"), "{}", j.logs);
+    assert!(j.logs.contains(CA_TEXT.trim_end()), "the step did not read the CA bundle: {}", j.logs);
     assert!(j.refusals.is_empty(), "{:?}", j.refusals);
     assert!(j.residue.is_clean(), "{:?}", j.residue);
 }

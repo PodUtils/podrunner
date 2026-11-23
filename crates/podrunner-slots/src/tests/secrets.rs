@@ -167,7 +167,7 @@ fn the_unit_gets_the_trust_store_of_its_broker_for_a_jvm() {
 }
 
 /// The CA bundle and the variables that each open of the hooks got.
-type HookCa = Arc<Mutex<Vec<Option<(String, Vec<String>)>>>>;
+type HookCa = Arc<Mutex<Vec<Option<(String, String, Vec<String>)>>>>;
 
 /// Hooks that keep what each unit gives its containers (T-578).
 #[derive(Clone, Default)]
@@ -181,9 +181,9 @@ impl crate::hooks::HookPort for Hooks {
         _: &podrunner_schema::UnitId,
         _: &std::path::Path,
         _: Option<&str>,
-        ca: Option<(&str, &[String])>,
+        ca: Option<crate::hooks::ContainerCa<'_>>,
     ) -> Result<std::collections::BTreeMap<String, String>, String> {
-        self.0.lock().unwrap().push(ca.map(|(pem, vars)| (pem.to_string(), vars.to_vec())));
+        self.0.lock().unwrap().push(ca.map(|c| (c.file.to_string(), c.pem.to_string(), c.vars.to_vec())));
         Ok(Default::default())
     }
     fn close(&self, _: &podrunner_schema::UnitId) {}
@@ -199,7 +199,10 @@ impl crate::hooks::HookPort for Hooks {
 fn the_containers_of_a_unit_get_the_bundle_of_its_broker() {
     let plain = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "api.example.com" }] } });
     let vars = ["SSL_CERT_FILE", "CARGO_HTTP_CAINFO"].map(String::from).to_vec();
-    for (with, want) in [(credential("token", "api.example.com"), Some((BUNDLE.to_string(), vars))), (plain, None)] {
+    for (with, want) in [
+        (credential("token", "api.example.com"), Some((crate::secrets::CA_FILE.to_string(), BUNDLE.to_string(), vars))),
+        (plain, None),
+    ] {
         let dir = TempDir::new();
         let mut cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
         cap.container = podrunner_schema::ContainerRoute::Hooks;

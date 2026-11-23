@@ -68,7 +68,7 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
         env.push((k.to_string(), format!("{dir}/{name}")));
     }
     if !pem.is_empty() {
-        match java_trust(dir, &pem, vars.get(JAVA_OPTIONS).map(String::as_str)) {
+        match java_trust(dir, &pem) {
             Ok((store, options)) => {
                 files.push(store);
                 env.push((JAVA_OPTIONS.into(), options));
@@ -91,13 +91,14 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
 }
 
 /// The trust store of the CA files `pem` in the unit (`dir`), and the
-/// value of `JAVA_TOOL_OPTIONS` that names it before the value `caller` of
-/// the caller (T-577).
-fn java_trust(dir: &str, pem: &str, caller: Option<&str>) -> Result<(CredentialFile, String), String> {
+/// value of `JAVA_TOOL_OPTIONS` that names it (T-577). The value of the
+/// caller is not in `PASSED` and stays out: it can hold a password (for
+/// example `-Dhttp.proxyPassword=`). A job sets its own value.
+fn java_trust(dir: &str, pem: &str) -> Result<(CredentialFile, String), String> {
     // The CA files hold the CA of the proxy and the roots of the caller:
     // the store takes each certificate of them in order.
     let der = pod_broker::ca::trust_store("", pem.as_bytes())?;
-    let options = pod_broker::ca::java_options(std::path::Path::new(&format!("{dir}/{STORE_FILE}")), caller)?;
+    let options = pod_broker::ca::java_options(std::path::Path::new(&format!("{dir}/{STORE_FILE}")), None)?;
     Ok((podrunner_schema::binary_file(STORE_FILE, &der), options))
 }
 
@@ -222,8 +223,9 @@ mod tests {
     }
 
     /// T-577: a caller with a CA file gives a unit the trust store of each
-    /// CA file for a JVM, and `JAVA_TOOL_OPTIONS` that names it before the
-    /// value of the caller.
+    /// CA file for a JVM, and `JAVA_TOOL_OPTIONS` that names it. The value
+    /// of the caller is not in `PASSED`: it stays out of the unit (it can
+    /// hold `-Dhttp.proxyPassword=`).
     #[test]
     fn a_caller_with_a_ca_file_gives_a_unit_a_trust_store() {
         use podrunner_schema::FileBytes;
@@ -239,11 +241,13 @@ mod tests {
         };
         let store = "/podrunner/.runner/podrunner-ca.p12";
         let want = format!("-Djavax.net.ssl.trustStore={store} -Djavax.net.ssl.trustStoreType=PKCS12");
-        let vars = given(&[("SSL_CERT_FILE", &p1), ("NODE_EXTRA_CA_CERTS", &p2), ("JAVA_TOOL_OPTIONS", "-Xmx1g")]);
+        let secret = "-Dhttp.proxyPassword=made-up-value";
+        let vars = given(&[("SSL_CERT_FILE", &p1), ("NODE_EXTRA_CA_CERTS", &p2), ("JAVA_TOOL_OPTIONS", secret)]);
         for held in [false, true] {
             let (env, files) = unit_env("/podrunner/.runner", vars.clone().into_iter(), held).unwrap();
             let get = |k: &str| env.iter().find(|(n, _)| n == k).map(|(_, v)| v.clone());
-            assert_eq!(get("JAVA_TOOL_OPTIONS"), Some(format!("{want} -Xmx1g")), "held: {held}");
+            assert_eq!(get("JAVA_TOOL_OPTIONS"), Some(want.clone()), "held: {held}");
+            assert!(env.iter().all(|(_, v)| !v.contains("made-up-value")), "held: {held}: {env:?}");
             let names: Vec<&str> = files.iter().map(|f| f.name.as_str()).collect();
             assert_eq!(names, ["podrunner-ca-0.crt", "podrunner-ca-1.crt", STORE_FILE], "held: {held}");
             let der = files[2].bytes().unwrap();

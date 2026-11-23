@@ -8,7 +8,8 @@
 //! On the namespace rung each `run -d` takes `--podvm-volume-base` of the
 //! runner directory: podvm opens each source under it with no symbolic
 //! link, so a link that a step makes after the check of the hooks cannot
-//! redirect the bind (T-403). Each container
+//! redirect the bind (T-403); a source out of it (the CA directory of the
+//! hooks, T-578) binds by its path. Each container
 //! carries the tag of its unit, so the tree kill of `destroy` reaches it.
 
 use std::path::{Path, PathBuf};
@@ -16,7 +17,9 @@ use std::process::{Command, Stdio};
 
 use podrunner_schema::UnitId;
 use podrunner_unit::procs::TAG_VAR;
-use podrunner_unit::{ContainerId, ContainerSpec, ContainerState, ExecSpec, Exit, UnitCode, UnitError, parse_pinned};
+use podrunner_unit::{
+    ContainerId, ContainerMount, ContainerSpec, ContainerState, ExecSpec, Exit, UnitCode, UnitError, parse_pinned,
+};
 use serde_json::Value;
 
 use super::{PodvmUnit, host};
@@ -97,21 +100,7 @@ impl PodvmUnit {
         args.extend(volume_base_args(crate::probe::rung(&self.capability), &runner));
         let (env_args, _env_file) = super::envfile::env_args(&self.podvm, &dir, &spec.env)?;
         args.extend(env_args);
-        for m in &spec.mounts {
-            // A relative source is under the runner directory of the unit.
-            let source = if m.source.is_absolute() { m.source.clone() } else { runner.join(&m.source) };
-            if !m.source.is_absolute() {
-                no_link(&runner, &m.source)?;
-            }
-            // podvm needs the source; docker makes a missing one. Only a
-            // directory of the root of this unit is made here.
-            if !source.exists() && !m.source.is_absolute() {
-                std::fs::create_dir_all(&source).map_err(|e| host("a volume source", e))?;
-            }
-            podrunner_unit::mounts::host_path(&source, UnitCode::ContainerOptionRefused)?;
-            let ro = if m.read_only { ":ro" } else { "" };
-            args.extend(["-v".into(), format!("{}:{}{ro}", source.display(), m.target)]);
-        }
+        args.extend(volume_args(&runner, &spec.mounts)?);
         args.extend(self.container_confine_args(&spec.mounts));
         args.push(reference);
         args.extend(spec.argv.iter().cloned());
@@ -198,6 +187,32 @@ fn volume_base_args(rung: Option<&str>, runner: &Path) -> Vec<String> {
     } else {
         Vec::new()
     }
+}
+
+/// The `-v` of each mount of a container. A relative source is under the
+/// runner directory of the unit, the volume base of the namespace rung.
+/// An absolute source is a directory that the host made out of the reach
+/// of the job (the CA bundle of the hooks, T-578): podvm binds a source
+/// out of `--podvm-volume-base` by its path, as with no base (podvm
+/// `0.2.0-beta.37`, `beneath` of `userns/host.rs`; measured on the
+/// namespace rung).
+fn volume_args(runner: &Path, mounts: &[ContainerMount]) -> Result<Vec<String>, UnitError> {
+    let mut args = Vec::new();
+    for m in mounts {
+        let source = if m.source.is_absolute() { m.source.clone() } else { runner.join(&m.source) };
+        if !m.source.is_absolute() {
+            no_link(runner, &m.source)?;
+        }
+        // podvm needs the source; docker makes a missing one. Only a
+        // directory of the root of this unit is made here.
+        if !source.exists() && !m.source.is_absolute() {
+            std::fs::create_dir_all(&source).map_err(|e| host("a volume source", e))?;
+        }
+        podrunner_unit::mounts::host_path(&source, UnitCode::ContainerOptionRefused)?;
+        let ro = if m.read_only { ":ro" } else { "" };
+        args.extend(["-v".into(), format!("{}:{}{ro}", source.display(), m.target)]);
+    }
+    Ok(args)
 }
 
 /// Refuse a relative mount source with a symbolic link under the runner
@@ -394,6 +409,41 @@ mod tests {
         for rung in [Some("supervise"), Some("userland"), None] {
             assert!(volume_base_args(rung, runner).is_empty(), "{rung:?}");
         }
+    }
+
+    /// T-578: on the namespace rung the CA directory of the hooks is a
+    /// `-v` beside `--podvm-volume-base`, by its host path, out of the
+    /// runner directory: a directory of the job cannot replace it. A
+    /// relative source stays under the base.
+    #[test]
+    fn the_ca_directory_of_the_hooks_is_a_volume_out_of_the_base() {
+        let dir = std::env::temp_dir().join(format!("podrunner-podvm-ca-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let (runner, ca) = (dir.join("rootfs/home/runner"), dir.join("egress/u-1.logs/ca"));
+        std::fs::create_dir_all(&runner).unwrap();
+        std::fs::create_dir_all(&ca).unwrap();
+        let mounts = [
+            ContainerMount { source: "work".into(), target: "/__w".into(), read_only: false },
+            ContainerMount { source: ca.clone(), target: "/__podrunner".into(), read_only: true },
+        ];
+        let base = volume_base_args(Some("namespace"), &runner);
+        assert_eq!(base, ["--podvm-volume-base".to_string(), runner.display().to_string()]);
+        let v = volume_args(&runner, &mounts).unwrap();
+        assert_eq!(
+            v,
+            [
+                "-v".to_string(),
+                format!("{}:/__w", runner.join("work").display()),
+                "-v".to_string(),
+                format!("{}:/__podrunner:ro", ca.display()),
+            ]
+        );
+        assert!(!ca.starts_with(&runner), "the CA directory is out of the volume base");
+        // A missing absolute source is not made here: the host made it.
+        let gone = [ContainerMount { source: dir.join("gone"), target: "/x".into(), read_only: true }];
+        assert!(volume_args(&runner, &gone).is_ok());
+        assert!(!dir.join("gone").exists());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// T-403: a link in a mount source under the runner directory is

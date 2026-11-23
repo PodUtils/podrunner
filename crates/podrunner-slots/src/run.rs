@@ -208,7 +208,11 @@ impl Slots {
             self.close_sockets(&unit);
             return self.give_up(key, RefusalCode::ImageStale, now);
         }
-        let ca = unit_ca.as_ref().map(|(pem, vars)| (pem.as_str(), vars.as_slice()));
+        let ca = unit_ca.as_ref().map(|(pem, vars)| crate::hooks::ContainerCa {
+            file: crate::secrets::CA_FILE,
+            pem: pem.as_str(),
+            vars: vars.as_slice(),
+        });
         match self.open_hooks(p.kind, &unit, &dir, guest.as_deref(), ca) {
             Ok(vars) => env.extend(vars),
             Err(why) => {
