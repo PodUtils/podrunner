@@ -272,8 +272,9 @@ mod tests {
         assert_eq!(sh("echo some").read_all().unwrap(), b"some\n");
     }
 
-    /// The error of a writer that failed names its reason: podvm's incus
-    /// tier refuses a log over 64 MiB with a line on stderr.
+    /// The error of a writer that failed names its reason: the incus tier of
+    /// a podvm before `0.2.0-beta.38` refuses a log over 64 MiB with a line
+    /// on stderr.
     #[test]
     fn the_error_of_a_writer_names_the_last_line_of_its_stderr() {
         let script = "echo some; echo 'podvm logs: u-1: the answer is over 67108864 bytes' >&2; exit 1";

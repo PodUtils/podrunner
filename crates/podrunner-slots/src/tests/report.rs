@@ -227,8 +227,8 @@ fn a_log_over_the_bound_tells_a_failure_before_the_cut_and_no_more() {
 
 #[test]
 fn a_log_that_cannot_be_read_keeps_the_exit_code_and_says_why() {
-    // T-570: the read of the log fails (the incus tier of podvm refuses a
-    // log over 64 MiB; here the fake unit has no log file). The report
+    // T-570: the read of the log fails (the incus tier of a podvm before
+    // `0.2.0-beta.38` refuses a log over 64 MiB; here the fake unit has no log file). The report
     // keeps the exit code, and an audit line names the failed read.
     let bed = ran(None, "echo '2026-11-20 10:00:00Z: Running job: build'; rm -f .unit.log; exit 0");
     assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
