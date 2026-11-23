@@ -21,9 +21,11 @@ impl Drop for Gone {
 }
 
 /// The temporary directory of the run: it must exist and take a
-/// directory, or each later step fails with a path only (T-323 F14).
-fn tmp_ok(tmp: &Path) -> Result<(), String> {
-    let probe = tmp.join(format!("podrunner-probe-{}", std::process::id()));
+/// directory, or each later step fails with a path only (T-323 F14). The
+/// probe has the name of the run `id`, so two runs of one process and the
+/// probe of a killed run of the same pid do not meet.
+fn tmp_ok(tmp: &Path, id: &str) -> Result<(), String> {
+    let probe = tmp.join(format!("podrunner-probe-{id}"));
     std::fs::create_dir(&probe)
         .map(|()| drop(std::fs::remove_dir(&probe)))
         .map_err(|e| format!("TMPDIR {}: {e}: set TMPDIR to a directory that you can write", tmp.display()))
@@ -35,7 +37,7 @@ fn tmp_ok(tmp: &Path) -> Result<(), String> {
 /// A `tmp` that cannot take a directory is named first (T-323 F14). `id`
 /// is [`run_id`].
 pub(super) fn run_dirs(tmp: &Path, id: &str) -> Result<(PathBuf, PathBuf), String> {
-    tmp_ok(tmp)?;
+    tmp_ok(tmp, id)?;
     let (tree, units) = (tmp.join(format!("{}{id}", PREFIXES[1])), tmp.join(format!("{}{id}", PREFIXES[0])));
     podrunner_local::work::private_dir(&tree)?;
     podrunner_local::work::private_dir(&units)?;
@@ -180,11 +182,24 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
     }
 
+    /// Two runs of one process (the tests run in parallel), or a probe
+    /// that a killed run of the same pid left, do not make the check of
+    /// TMPDIR fail: the probe has the name of the run.
+    #[test]
+    fn a_probe_of_another_run_of_this_pid_is_no_fault() {
+        let tmp = std::env::temp_dir().join(format!("podrunner-probe-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join(format!("podrunner-probe-{}", std::process::id()))).unwrap();
+        let got = run_dirs(&tmp, "7-1");
+        let _ = std::fs::remove_dir_all(&tmp);
+        got.unwrap();
+    }
+
     /// T-323 F14: a TMPDIR that is not there is named.
     #[test]
     fn a_missing_tmpdir_is_named() {
-        assert!(tmp_ok(&std::env::temp_dir()).is_ok());
-        let e = tmp_ok(Path::new("/nonexistent/podrunner-tmp")).unwrap_err();
+        assert!(tmp_ok(&std::env::temp_dir(), &run_id()).is_ok());
+        let e = tmp_ok(Path::new("/nonexistent/podrunner-tmp"), "7-2").unwrap_err();
         assert!(e.starts_with("TMPDIR /nonexistent/podrunner-tmp: ") && e.contains("set TMPDIR"), "{e}");
     }
 }
