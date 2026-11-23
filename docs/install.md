@@ -118,19 +118,36 @@ podrunner install-unit --system --user podrunner --config /etc/podrunner/podrunn
   --state /var/lib/podrunner
 ```
 
-`install-unit --system` writes `/etc/systemd/system/podrunner.service`,
-then enables and starts it. It refuses a caller that is not root (77), an
-account of uid 0 (64), and a file of the same name that podrunner did not
-write (78). A unit that does not start is removed. With `--state
-/var/lib/NAME`, systemd makes the state directory for the account (mode
-0700). With another `--state`, make the directory and give it to the
-account first. `remove-unit --system` stops and removes the unit; the
-state and the configuration stay.
+Give `--config` and `--state` as absolute paths: systemd starts `serve`
+in `/`. `install-unit --system` writes
+`/etc/systemd/system/podrunner.service`, then enables and starts it. It
+refuses a caller that is not root (77), an account that the host does
+not know (66), an account of uid 0 (64), and a file of the same name that
+podrunner did not write (78). A unit that does not start is removed.
 
-The unit has `Delegate=yes` and `DelegateSubgroup=serve` (systemd 254 or
-later): podvm makes the cgroup of a unit beside the cgroup of `serve`.
-The lines of the hardening that `serve` cannot take are comments with
-their reasons (`docs/decisions.md`, T-588).
+With `--state /var/lib/NAME`, the unit has `StateDirectory=NAME`: at each
+start, systemd makes the directory, gives it and each file in it to the
+account, and sets mode 0700. Do not name a directory that another
+service uses, such as `/var/lib/incus`. With another `--state`, make the
+directory and give it to the account first. `remove-unit --system` stops
+and removes the unit; the state and the configuration stay.
+
+The control socket (`STATE/ctl.sock`) has mode 0600 and the uid of the
+account. Talk to `serve` as the account, not as root:
+
+```sh
+sudo -u podrunner podrunner status --state /var/lib/podrunner
+```
+
+The unit has `Delegate=yes` and `DelegateSubgroup=serve`: podvm makes the
+cgroup of a unit beside the cgroup of `serve`. `DelegateSubgroup=` needs
+systemd 254 or later. An older systemd ignores it, and podvm then holds
+no CPU limit; `install-unit` says so on stderr. The lines of the
+hardening that `serve` cannot take are comments with their reasons
+(`docs/decisions.md`, T-588). The unit keeps `NoNewPrivileges=yes`: a
+job of the podvm kind or of a runner directory cannot use `sudo`. A
+guest of the microvm kind and an instance of the incus kind are not
+under it, and `sudo` works there.
 
 Proof level: the text of the unit, the audit of `pod-unit` and each step
 of the install against a fake host in the unit tests; `systemd-analyze
