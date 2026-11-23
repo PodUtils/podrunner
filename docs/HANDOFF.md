@@ -90,8 +90,9 @@ is done.
   directory), so its hold is `enforced` and it serves `trusted` jobs
   (T-105, T-109).
 - Each report carries `cpu_s` and `peak_rss_mib`
-  (`crates/podrunner-slots/src/usage.rs`, T-108); the incus kind gives
-  `unknown`.
+  (`crates/podrunner-slots/src/usage.rs`, T-108); the incus kind reads
+  both from `podvm inspect` of the instance (T-483), and an `unknown`
+  value has its reason in `unknown_reasons`.
 - A musl build of the official runner (`scripts/runner-musl.sh`,
   `runner-musl.yml`) runs the canned jobs in Alpine on x86_64 and
   aarch64, and in a podvm unit on x86_64 (T-081).

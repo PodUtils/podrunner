@@ -6,8 +6,9 @@
 //! unit (`observe`) at each tick. The CPU time of a process is the highest
 //! `utime + stime` that a tick saw, so a process that ended still counts
 //! with its last sample. The peak memory is the highest sum of `VmRSS` of
-//! one tick. A kind whose processes are not on the host (`incus`) shows no
-//! process: its report says `unknown`. For a guest of the `microvm` kind
+//! one tick. A kind whose processes are not on the host (`incus`) measures
+//! the unit itself (`UnitDriver::usage`, T-483): each value, or `unknown`
+//! with its reason. For a guest of the `microvm` kind
 //! the process is the emulator, which holds the memory of the guest.
 
 use std::collections::BTreeMap;
@@ -51,18 +52,28 @@ impl Usage {
     }
 
     /// `cpu_s` and `peak_rss_mib` of the report: the use of the kind, else
-    /// the samples; `unknown` when neither saw the unit.
-    pub fn report(&self) -> (Residual, Residual) {
-        if let Some(k) = self.kind {
-            return (Residual::Count(k.cpu_s), Residual::Count(k.peak_memory_bytes.div_ceil(1 << 20)));
+    /// the samples; `unknown` with its reason when neither has a value.
+    pub fn report(&self) -> [Measure; 2] {
+        if let Some(k) = &self.kind {
+            return [measure(&k.cpu_s), measure(&k.peak_memory_bytes.clone().map(|b| b.div_ceil(1 << 20)))];
         }
         if !self.seen {
-            let unknown = Residual::Unknown(podrunner_schema::report::Unknown::Unknown);
-            return (unknown, unknown);
+            let why = || Err("no sample saw a process of the unit on the host".to_string());
+            return [measure(&why()), measure(&why())];
         }
         let hz = clock_ticks();
         let ticks: u64 = self.ticks.values().sum();
-        (Residual::Count(ticks.div_ceil(hz)), Residual::Count(self.peak_kib.div_ceil(1024)))
+        [(Residual::Count(ticks.div_ceil(hz)), None), (Residual::Count(self.peak_kib.div_ceil(1024)), None)]
+    }
+}
+
+/// A measured field of the report, and the reason when it is `unknown`.
+pub type Measure = (Residual, Option<String>);
+
+fn measure(v: &Result<u64, String>) -> Measure {
+    match v {
+        Ok(n) => (Residual::Count(*n), None),
+        Err(why) => (Residual::Unknown(podrunner_schema::report::Unknown::Unknown), Some(why.clone())),
     }
 }
 
@@ -114,12 +125,16 @@ impl Slots {
 mod tests {
 
     /// T-483: the use that a kind measured holds over the samples, in MiB
-    /// rounded up.
+    /// rounded up; a field that the kind could not measure is `unknown`
+    /// with the reason of the kind.
     #[test]
     fn the_use_of_the_kind_holds() {
         let mut u = Usage::default();
-        u.of_kind(podrunner_unit::UnitUsage { cpu_s: 13, peak_memory_bytes: (100 << 20) + 1 });
-        assert_eq!(u.report(), (Residual::Count(13), Residual::Count(101)));
+        u.of_kind(podrunner_unit::UnitUsage { cpu_s: Ok(13), peak_memory_bytes: Ok((100 << 20) + 1) });
+        assert_eq!(u.report(), [(Residual::Count(13), None), (Residual::Count(101), None)]);
+        u.of_kind(podrunner_unit::UnitUsage { cpu_s: Ok(2), peak_memory_bytes: Err("no peak".into()) });
+        let unknown = Residual::Unknown(podrunner_schema::report::Unknown::Unknown);
+        assert_eq!(u.report(), [(Residual::Count(2), None), (unknown, Some("no peak".into()))]);
     }
 
     use super::*;
@@ -138,7 +153,7 @@ mod tests {
         }
         let _ = child.kill();
         let _ = child.wait();
-        let (cpu, rss) = u.report();
+        let [(cpu, _), (rss, _)] = u.report();
         assert!(matches!(cpu, Residual::Count(n) if n >= 1), "{cpu:?}");
         assert!(matches!(rss, Residual::Count(n) if n >= 1), "{rss:?}");
     }
@@ -147,7 +162,9 @@ mod tests {
     fn no_process_is_unknown_never_zero() {
         let mut u = Usage::default();
         u.sample(&[]);
-        let (cpu, rss) = u.report();
+        let [(cpu, cpu_why), (rss, rss_why)] = u.report();
         assert!(matches!(cpu, Residual::Unknown(_)) && matches!(rss, Residual::Unknown(_)));
+        // `unknown` always has its reason (T-497).
+        assert!(cpu_why.is_some() && rss_why.is_some());
     }
 }

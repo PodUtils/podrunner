@@ -24,6 +24,7 @@
 //! `confined`, the floor of `trusted`, never `guest`.
 
 mod guest;
+mod usage;
 
 use std::collections::HashMap;
 use std::fs;
@@ -177,14 +178,13 @@ impl IncusUnit {
     }
 
     /// The CPU time and the peak memory of the instance, from the state of
-    /// incusd (podvm `0.2.0-beta.33`, `CpuSeconds` and `PeakMemoryBytes`).
-    fn instance_usage(&self, name: &str) -> Option<podrunner_unit::UnitUsage> {
-        let out = self.verb(&["inspect", "--format", "{{.CpuSeconds}} {{.PeakMemoryBytes}}"], name).ok()?;
-        let text = String::from_utf8_lossy(&out);
-        let mut words = text.split_whitespace();
-        let cpu: f64 = words.next()?.parse().ok().filter(|c: &f64| c.is_finite() && *c >= 0.0)?;
-        let peak: u64 = words.next()?.parse().ok()?;
-        Some(podrunner_unit::UnitUsage { cpu_s: cpu.ceil() as u64, peak_memory_bytes: peak })
+    /// incusd (podvm `0.2.0-beta.33`, `CpuSeconds` and `PeakMemoryBytes`),
+    /// or why there is none.
+    fn instance_usage(&self, name: &str) -> podrunner_unit::UnitUsage {
+        match self.verb(&["inspect", "--format", usage::FORMAT], name) {
+            Ok(out) => usage::parse(&String::from_utf8_lossy(&out)),
+            Err(_) => usage::failed(),
+        }
     }
 
     /// The state of the instance: `None` when incusd has no such instance.
@@ -459,7 +459,9 @@ impl UnitDriver for IncusUnit {
         Err(no_container())
     }
     fn usage(&self, unit: &UnitId) -> Option<podrunner_unit::UnitUsage> {
-        self.instance_usage(&self.name(unit))
+        // The processes of an instance are not on the host: the kind always
+        // answers, with a value or a reason.
+        Some(self.instance_usage(&self.name(unit)))
     }
 
     fn oom_kills(&self, unit: &UnitId) -> Option<u64> {

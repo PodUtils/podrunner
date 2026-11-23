@@ -32,13 +32,15 @@ pub const CONTROL_SOCKET: &str = "ctl.sock";
 pub use log::{Cut, LogRead, UnitLog};
 pub use stub::Stub;
 
-/// The use of a unit that its kind measures (T-483).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// The use of a unit that its kind measures (T-483). Each field is the
+/// value, or why the kind has none: the report says `unknown` with that
+/// reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnitUsage {
     /// The CPU time, in whole seconds rounded up.
-    pub cpu_s: u64,
+    pub cpu_s: Result<u64, String>,
     /// The peak memory, in bytes.
-    pub peak_memory_bytes: u64,
+    pub peak_memory_bytes: Result<u64, String>,
 }
 pub use types::{
     ContainerId, ContainerMount, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue,
@@ -117,8 +119,9 @@ pub trait UnitDriver: Send + Sync {
     fn observe(&self, unit: &UnitId) -> Result<Observation, UnitError>;
 
     /// The CPU time and the peak memory of a unit whose processes are not
-    /// on the host (an incus instance, T-483), before `destroy`. A kind
-    /// whose processes slots samples on the host gives none.
+    /// on the host (an incus instance, T-483), before `destroy`: each a
+    /// value or the reason for none. A kind whose processes slots samples
+    /// on the host gives none.
     fn usage(&self, _unit: &UnitId) -> Option<UnitUsage> {
         None
     }

@@ -119,8 +119,16 @@ impl Slots {
         r.claim_to_first_step_s = j.claimed_ms.zip(j.first_step_ms).map(|(c, f)| f.saturating_sub(c) / 1000);
         r.job_images = j.images.clone();
         // The use of the unit, when a unit ran (T-108).
-        r.cpu_s = unit_ran.then(|| j.usage.report().0);
-        r.peak_rss_mib = unit_ran.then(|| j.usage.report().1);
+        if unit_ran {
+            let [(cpu, cpu_why), (peak, peak_why)] = j.usage.report();
+            r.cpu_s = Some(cpu);
+            r.peak_rss_mib = Some(peak);
+            for (field, why) in [("cpu_s", cpu_why), ("peak_rss_mib", peak_why)] {
+                if let Some(why) = why {
+                    r.unknown_reasons.insert(field.into(), why);
+                }
+            }
+        }
         // The architecture of the unit (T-514), and the real job that its
         // runner got when it was not the run of the offer (T-493).
         r.arch = j.placement.as_ref().map(|p| self.kinds[p.kind].capability.arch.clone());
@@ -139,12 +147,11 @@ impl Slots {
             };
             r.runner_version = self.cfg.pin.payload.iter().find(pinned).and_then(|x| x.runner_version.clone());
         }
-        if unit_ran && j.first_step_ms.is_none() {
-            // No `started` event of the source and no container hook came:
-            // a `program` source with no hook sends none, also for a job
-            // that ran its steps (T-568).
-            r.unknown_reasons.insert("start_s".into(), "no first-step event came for the job".into());
-        }
+        // A unit with no first step has no `start_s` and no reason: the
+        // schema takes a reason only for a measured field. No `started`
+        // event of the source and no container hook came: a `program`
+        // source with no hook sends none, also for a job that ran its steps
+        // (T-568).
         r.log_tail = j.times.log_tail.clone();
         if unit_ran {
             let unknown = || Residual::Unknown(podrunner_schema::report::Unknown::Unknown);
@@ -162,6 +169,12 @@ impl Slots {
                 r.unknown_reasons.insert("net_rx_bytes".into(), "the host has no egress module".into());
                 r.unknown_reasons.insert("net_tx_bytes".into(), "the host has no egress module".into());
             }
+            // podrunner gives no shared cache to a job yet (T-480).
+            let no_cache = "no cache: podrunner gives no shared cache to a job (T-480)";
+            r.cache_read_bytes = Some(unknown());
+            r.cache_written_bytes = Some(unknown());
+            r.unknown_reasons.insert("cache_read_bytes".into(), no_cache.into());
+            r.unknown_reasons.insert("cache_written_bytes".into(), no_cache.into());
         }
         r.assigned = j.assigned.as_ref().zip(j.real.as_ref()).map(|(v, real)| Assigned {
             run_id: real.run_id,

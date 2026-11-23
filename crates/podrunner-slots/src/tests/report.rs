@@ -34,9 +34,10 @@ fn a_report_has_its_times_its_image_and_its_measures_or_a_reason() {
     for (name, v) in [("prepare_s", r.prepare_s), ("run_s", r.run_s), ("destroy_s", r.destroy_s)] {
         assert!(v.is_some(), "{name}: {r:?}");
     }
-    // The fake unit runs no job: no first step, so no start_s, with a reason.
+    // The fake unit runs no job: no first step, so no start_s. The schema
+    // takes a reason only for a measured field.
     assert_eq!(r.start_s, None);
-    assert_eq!(r.unknown_reasons.get("start_s").map(String::as_str), Some("no first-step event came for the job"));
+    assert!(!r.unknown_reasons.contains_key("start_s"), "{r:?}");
     // The disk check comes each 30 s of the manual clock; the bed ticks
     // each second, and on a slow host the unit can start a tick late.
     assert!(r.run_s.is_some_and(|s| (30..=32).contains(&s)), "the unit ran 30 s until the disk check: {:?}", r.run_s);
@@ -45,10 +46,37 @@ fn a_report_has_its_times_its_image_and_its_measures_or_a_reason() {
     // No egress module on this host: unknown, with the reason.
     assert!(matches!(r.net_rx_bytes, Some(Residual::Unknown(_))));
     assert_eq!(r.unknown_reasons.get("net_rx_bytes").map(String::as_str), Some("the host has no egress module"));
+    each_measure_or_its_reason(&r);
     // No disk bound: no disk check, so unknown with its reason.
     let r = run(None, "exit 0");
     assert!(matches!(r.disk_peak_bytes, Some(Residual::Unknown(_))));
     assert!(r.unknown_reasons.contains_key("disk_peak_bytes"));
+    // No shared cache yet (T-480): unknown with its reason.
+    assert!(matches!(r.cache_read_bytes, Some(Residual::Unknown(_))), "{r:?}");
+    assert!(r.unknown_reasons.get("cache_written_bytes").is_some_and(|w| w.contains("T-480")), "{r:?}");
+    each_measure_or_its_reason(&r);
+}
+
+/// Each measured field of the report of a unit that ran is a count, or
+/// `unknown` with its reason; the report passes the rules of `pod-job`.
+fn each_measure_or_its_reason(r: &podrunner_schema::RunReport) {
+    let fields = [
+        ("cpu_s", r.cpu_s),
+        ("peak_rss_mib", r.peak_rss_mib),
+        ("disk_peak_bytes", r.disk_peak_bytes),
+        ("net_rx_bytes", r.net_rx_bytes),
+        ("net_tx_bytes", r.net_tx_bytes),
+        ("cache_read_bytes", r.cache_read_bytes),
+        ("cache_written_bytes", r.cache_written_bytes),
+    ];
+    for (name, v) in fields {
+        match v {
+            Some(Residual::Count(_)) => {}
+            Some(Residual::Unknown(_)) => assert!(r.unknown_reasons.contains_key(name), "{name} has no reason: {r:?}"),
+            None => panic!("{name} is absent: {r:?}"),
+        }
+    }
+    r.check().unwrap();
 }
 
 #[test]
@@ -59,6 +87,7 @@ fn a_unit_that_fails_before_a_step_gives_a_scrubbed_log_tail() {
     let tail = r.log_tail.as_deref().expect("a log tail");
     assert!(tail.contains("before") && tail.contains("after") && tail.contains("clientId"), "{tail}");
     assert!(!tail.contains("fake-client"), "the canary of the credential is in the tail: {tail}");
+    each_measure_or_its_reason(&r);
     // A unit that ends well gives none.
     assert_eq!(run(None, "echo fine; exit 0").log_tail, None);
 }
@@ -230,6 +259,7 @@ fn a_job_that_failed_after_an_oom_kill_ends_with_limit() {
     // ended a process of the unit; the job failed after it.
     let r = run(None, &format!("echo 1 > {}; exit 3", podrunner_fake::OOM_KILLS));
     assert_eq!(r.exit_reason, ExitReason::Limit, "{r:?}");
+    each_measure_or_its_reason(&r);
     // No OOM kill: the failure stays a failure of the unit.
     let r = run(None, &format!("echo 0 > {}; exit 3", podrunner_fake::OOM_KILLS));
     assert_ne!(r.exit_reason, ExitReason::Limit, "{r:?}");
