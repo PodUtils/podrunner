@@ -19,8 +19,7 @@ is done.
   official runner v2.338.2 (`images/runner/runner.toml`). Last beta of
   podrunner: `v0.1.0-beta.7` (release run 44066276664, `129310e`).
 - The record: `cargo todo check` gives the counts. The last green
-  `runner-image.yml` run is 43704601731 (`88cc4d7`, the tag
-  `v0.1.0-beta.6`): the podvm suites,
+  `runner-image.yml` run is 44874019156 (`e4627e6`): the podvm suites,
   the held tests, the local suite on each kind, the parity suite in
   guests with an engine, the microvm kind on real guests, and the incus
   suite on real instances.
@@ -406,7 +405,7 @@ COORD-086 (GitHub #293) relays it to podcrates, with four asks (A1 to A4).
 - No release: the P1 entries T-403 and T-405 are open, and a round of
   adversarial QA on the current `main` is due (`docs/qa-brief.md`).
 
-## The release of `v0.1.0-beta.7` (in flight)
+## The release of `v0.1.0-beta.7` (released 2026-11-17)
 
 The rules: `AGENTS.md`, section 12, and `docs/maintenance.md`, "A
 release". A release needs a green gate, `runner-image.yml`, `level2.yml`
@@ -428,7 +427,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   from its release, the documents, `env.sh` with the proxy and CA of the
   host); the users `qa1` and `qa2` with no root. The reports are in the
   entries (T-308 and T-316 hold the P3s).
-- podvm `v0.2.0-beta.27` is pinned. On this host (user namespaces)
+- podvm `v0.2.0-beta.37` is pinned. On this host (user namespaces)
   `run -d` of a unit takes the namespace rung, where the job runs as
   `runner` with the host name `podrunner-u-N` (T-317); podrunner keeps
   `TAR_OPTIONS=--no-same-owner` (and two variables that do nothing for
@@ -529,12 +528,10 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   `v0.1.0-beta.6`, except T-169 (the cancel of a refused run), which is on
   `main` after the tag, with T-198 (the limits of an offer). The next beta
   carries both; then point #74, #75 and githome (#151) at it.
-- The last green `runner-image.yml` is 43704601731 (`88cc4d7`, the tag
-  `v0.1.0-beta.6`): the static image, the job-started hook of T-175, and
-  the runner under `[unit.podvm] mem` (T-162).
+- The last green `runner-image.yml` is 44874019156 (`e4627e6`).
 - T-162 (partial, G-12): `[unit.podvm] mem` and `pids` are rlimits;
   `[unit.incus] mem`, `cpus` and `pids` are the keys of the instance
-  (podvm `0.2.0-beta.20` or later, pinned `0.2.0-beta.27`). Next: a
+  (podvm `0.2.0-beta.20` or later, pinned `0.2.0-beta.37`). Next: a
   payload past `pids` and one past `mem` on the podvm and incus kinds.
   `cpus` on the podvm kind waits for the cgroup half
   (PodUtils/podvm@T-1747); COORD-050 (#110) stays open for it.
@@ -546,8 +543,8 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   no count of processes: ...`). Conformance test 26 prints it on purpose.
   Read it at the next real failure.
 - The live gates: GitHub #74 (LIVE-1, the remote mint and the App key)
-  and #75 (LIVE-2, the unit host and the test jobs) name `v0.1.0-beta.6`
-  and the runner-image run 43704601731 of its tag; the App needs
+  and #75 (LIVE-2, the unit host and the test jobs) name `v0.1.0-beta.7`;
+  the App needs
   "Actions: read and write" (Q7). Read their comments;
   fix each defect they find.
 - A cloud session can dispatch a workflow with the MCP tool
@@ -574,7 +571,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
 
 | Who | What | Entries |
 | --- | --- | --- |
-| podvm | `run -d --hostname` (#115, fixed on podvm `main`), the user of the image and binds of `run -d` (#196), the memo on descriptor 17 (#197), the machine tier of a user with no root (#198) | T-182, T-300, T-309, T-317, T-291 |
+| podvm | the fix of `pod-extract` for a PAX value with a newline (#339), the steps of the hosted snapshot (#313, #316: PodUtils/podvm@T-1998, @T-1994), the syscall tier (#189, #304, #308) | T-556, T-543, T-544, T-261 |
 | LIVE-1 and LIVE-2 | the report of GitHub #75, and a new run on the next beta | T-032, T-033, T-040 |
 | podcrates | `pod-unit`, `pod-release` (none planned for v1) | T-043 |
 | actions/runner | a release with `Microsoft.AspNetCore.WebUtilities` 8.0.34 or later | T-082 |
@@ -587,7 +584,7 @@ The audit of 2026-11-21 closed each issue whose subject is done; `TODO/issues.md
 - Asks to podvm not delivered or not taken: #339 (COORD-118, the PAX value of an ACL, the fix in podcrates), #316 and #313 (PodUtils/podvm@T-1994, @T-1998 are not in beta.37), #308 (podvm waits for data of podrunner), #304 and #189 (T-261), #300 (`--podvm-volume-base` off the namespace rung), #296 (ask 5), #277 (T-403).
 - COORD issues with entries not done: #312 (T-553), #184 (T-250), #183 (T-249), #181 (T-248).
 - Defects of the live runs with entries not done: #260 (T-412), #171 (T-229), #149 (T-197), #144 (T-192), #143 (T-180), #140 and #121 (T-169), #138 (T-187), #126 (T-181).
-- Trackers: #43 (T-043), #65, #66, #67, #292 (cfb), #293 (the owner's ruling), #74 and #75 (the live gates), #153 (T-199). #151 is the channel with githome: each entry it maps is done, and podrunner asked there for a root disk of 80 GB (T-551) on 2026-11-20.
+- Trackers: #1 (T-001), #9 (T-009), #32, #33 and #40 (the milestone gates, T-032, T-033, T-040), #43 (T-043), #65, #66, #67, #292 (cfb), #293 (the owner's ruling), #74 and #75 (the live gates), #153 (T-199). #151 is the channel with githome: each entry it maps is done, and podrunner asked there for a root disk of 80 GB (T-551) on 2026-11-20.
 - No question for the owner is open.
 
 ## Talk between sessions
