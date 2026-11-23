@@ -241,19 +241,46 @@ checks the release with `pod-release verify`, and publishes it. Read both
 runs. A dry run (no version) writes the index and checks it with
 `pod-release sums`.
 
-The job `image` puts the release on ghcr.io (T-553, the owner's ruling
-"ghcr.io", the form of COORD-142): `ghcr.io/podutils/podrunner` (one
-`FROM scratch` image of each binary under one index) and
-`ghcr.io/podutils/podrunner-runner` (the image archives of the
-`runner-image.yml` run, tags `vVERSION` and `vVERSION-full`).
-`scripts/ghcr.py` writes each image and checks each binary against its
-asset. Each run builds the images and runs the x86_64 image in podvm; a
-dry run and the run with a version push nothing. Read the table of
-digests and "nothing is pushed" in the summary of the job. The run on the
-tag pushes before the job `release`, reads each index back, compares each
-binary that docker pulls with its asset, and attests each index in the
-registry. The job `release` then adds the section "The images, by digest"
-to the notes of the release. After the release:
+The jobs `image`, `probe` and `push` put the release on ghcr.io (T-553,
+the owner's ruling "ghcr.io", the form of COORD-142):
+`ghcr.io/podutils/podrunner` (one `FROM scratch` image of each binary
+under one index) and `ghcr.io/podutils/podrunner-runner` (the image
+archives of the `runner-image.yml` run, tags `vVERSION` and
+`vVERSION-full`). `scripts/ghcr.py` writes each image and checks each
+binary against its asset. In each run, the job `image` builds the images
+and runs the x86_64 image in podvm, with read permissions only; a dry run
+and the run with a version push nothing. Read the table of digests and
+"nothing is pushed" in the summary of the job. Before the tag, the job `probe` of the run with a version
+proves that `GITHUB_TOKEN` can push to both packages, with no lasting
+change (`scripts/ghcr.py probe-push`: a token of `pull,push`, then a blob
+upload that opens and is cancelled). A refusal stops the run before the
+tag: an admin of PodUtils gives this repository the write access of the
+package (the settings of the package, "Manage Actions access"), then
+dispatch the run with the version again. The job `push` of the run on the
+tag makes the same layouts again, pushes only when their digests are the
+digests of the job `image`, reads each index back, compares each binary
+that docker pulls with its asset, and attests each index in the registry.
+The job `release` then adds the section "The images, by digest" to the
+notes of the release.
+
+A step of the run on the tag can still fail after the tag exists (the
+attestation, the read back, the publish). A tag never moves: dispatch
+the workflow on the tag again ("A run of a workflow"):
+
+```sh
+gh workflow run release.yml --repo PodUtils/podrunner --ref vX.Y.Z-beta.N
+```
+
+Give no `version`: the run on a tag refuses one and takes the version of
+the tag. Give `-f no_user_gate="REASON"` again when the release had one.
+The run checks the same conditions at the commit of the tag, builds
+again, and pushes again: a blob that the registry has is not sent again,
+and the same files give the same digests. When the build gives other
+bytes, the tag on ghcr.io names the new index, and the notes, the assets
+and the images of that run agree. `gh release create` refuses a second
+release of a tag, and deletes its draft when an upload fails: when a
+release or a draft of the tag exists, do not run again; ask the owner.
+After the release:
 
 - A warning "does not pull with no login" names a new package that is
   private. An admin of PodUtils sets it to public once.

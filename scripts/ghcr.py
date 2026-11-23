@@ -6,6 +6,8 @@
     python3 -I scripts/ghcr.py archives --tag TAG --revision SHA --out DIR ARCH=ARCHIVE...
     python3 -I scripts/ghcr.py check-binary --name NAME DIR ARCH=FILE...
     python3 -I scripts/ghcr.py podvm-archive --arch ARCH --ref REF DIR OUT.tar
+    python3 -I scripts/ghcr.py layouts --tag TAG --revision SHA --out DIR DIST [IMAGES]
+    GH_TOKEN=... python3 -I scripts/ghcr.py probe-push --registry URL --repo NAME [--repo NAME]...
     REGISTRY_TOKEN=... python3 -I scripts/ghcr.py push --registry URL --repo NAME DIR
     REGISTRY_TOKEN=... python3 -I scripts/ghcr.py verify --registry URL --repo NAME DIR
     python3 -I scripts/ghcr.py --self-test
@@ -27,6 +29,19 @@ its `/usr/local/bin/NAME` with FILE by SHA-256. `podvm-archive` writes
 the image of one ARCH of DIR as the archive that `podvm load -i` takes,
 with the ref name REF, and prints its manifest digest.
 
+`layouts` writes the layouts of a release into DIR: `podrunner` from
+DIST/podrunner-ARCH-unknown-linux-musl (checked as `check-binary` does),
+and with IMAGES, `runner` from IMAGES/runner-ARCH.tar and `runner-full`
+(tag TAG-full) from each IMAGES/runner-full-ARCH.tar. It prints one line
+`NAME DIGEST` for each layout. The same files give the same lines, so a
+second job can make the layouts again and compare them.
+
+`probe-push` proves that the login GH_TOKEN can push to each NAME, with
+no lasting change, before a tag exists: a token of the registry with the
+scope `pull,push` for NAME (the token service of ghcr.io), then a blob
+upload that opens (POST) and is cancelled (DELETE). A registry that does
+not cancel keeps the empty upload until it expires; that is no fault.
+
 `push` sends each blob, each manifest by its digest and the index at TAG
 (`scripts/hosted/push-blob.py`). `verify` reads TAG back: the registry
 must give the index of DIR, each manifest that its index names with the
@@ -35,6 +50,7 @@ each platform: `PLATFORM DIGEST` (the platform of the index is `each`).
 The token of the registry comes from the environment, never from argv.
 """
 
+import base64
 import gzip
 import hashlib
 import importlib.util
@@ -45,6 +61,7 @@ import pathlib
 import re
 import sys
 import tarfile
+import urllib.parse
 
 
 def _load(name: str, file: str, where: str = "hosted"):
@@ -63,6 +80,7 @@ TAG = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$")
 NAME = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 REVISION = re.compile(r"^[0-9a-f]{40}$")
 DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+REPO = re.compile(r"^[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)+$")
 
 
 def sha(data: bytes) -> str:
@@ -297,6 +315,61 @@ def verify(reg, repo: str, d: pathlib.Path) -> list[str]:
     return rows
 
 
+def layouts(tag: str, revision: str, dist: pathlib.Path, images: pathlib.Path | None, out: pathlib.Path) -> list[str]:
+    files = [(a, dist / f"podrunner-{a}-unknown-linux-musl") for a in ("x86_64", "aarch64")]
+    rows = [f"podrunner {binary('podrunner', tag, revision, files, out / 'podrunner')}"]
+    print("\n".join(check_binary("podrunner", out / "podrunner", files)), file=sys.stderr)
+    if images is not None:
+        runner = [(a, images / f"runner-{a}.tar") for a in ("x86_64", "aarch64")]
+        rows.append(f"runner {archives(tag, revision, runner, out / 'runner')}")
+        full = [(a, images / f"runner-full-{a}.tar") for a in ("x86_64", "aarch64")]
+        full = [(a, f) for a, f in full if f.is_file()]
+        if full:
+            rows.append(f"runner-full {archives(f'{tag}-full', revision, full, out / 'runner-full')}")
+    return rows
+
+
+def why(r) -> str:
+    """The codes and messages of the errors in the body of a registry answer."""
+    try:
+        errs = json.loads(r.read_body).get("errors") or []
+        return "; ".join(f"{e.get('code')}: {e.get('message')}" for e in errs)[:300]
+    except (ValueError, AttributeError):
+        return ""
+
+
+def registry_token(base: str, repo: str, login: str, scope: str) -> str:
+    """A token of the registry BASE for REPO with SCOPE, from the GitHub
+    login LOGIN (as `docker login` gets one from ghcr.io)."""
+    reg = pb.Registry(base, None)
+    basic = base64.b64encode(f"x-access-token:{login}".encode()).decode()
+    q = urllib.parse.urlencode({"service": urllib.parse.urlsplit(base).hostname, "scope": f"repository:{repo}:{scope}"},
+                               safe=":,/")
+    r = reg.request("GET", f"/token?{q}", headers={"Authorization": f"Basic {basic}"})
+    if r.status != 200:
+        raise RuntimeError(f"{repo}: the registry gives no token of {scope} (HTTP {r.status}) {why(r)}".rstrip())
+    try:
+        token = json.loads(r.read_body)["token"]
+    except (ValueError, KeyError, TypeError):
+        token = None
+    if not isinstance(token, str) or not token:
+        raise RuntimeError(f"{repo}: the answer of the token service has no token")
+    return token
+
+
+def probe_push(base: str, repo: str, login: str) -> str:
+    """Open a blob upload to REPO and cancel it: the login can push."""
+    reg = pb.Registry(base, registry_token(base, repo, login, "pull,push"))
+    r = reg.request("POST", f"/v2/{repo}/blobs/uploads/", headers={"Content-Length": "0"})
+    loc = r.getheader("Location")
+    if r.status != 202 or not loc:
+        raise RuntimeError(f"{repo}: no upload opens (HTTP {r.status}): this login cannot push to it {why(r)}".rstrip())
+    d = reg.request("DELETE", loc).status
+    if d in (200, 202, 204):
+        return f"{repo}: an upload opens and is cancelled: this login can push"
+    return f"{repo}: an upload opens: this login can push (the cancel gives HTTP {d}; the upload expires)"
+
+
 def podvm_archive(d: pathlib.Path, arch: str, ref: str, out: pathlib.Path) -> str:
     """The archive of the ARCH image of D that `podvm load -i` takes: its
     manifest with the ref name REF, and only the blobs that it names."""
@@ -329,11 +402,27 @@ def main(a: list[str]) -> int:
     if a[:1] == ["podvm-archive"] and len(a) == 7 and a[1:4:2] == ["--arch", "--ref"]:
         print(podvm_archive(pathlib.Path(a[5]), a[2], a[4], pathlib.Path(a[6])))
         return 0
+    if a[:1] == ["layouts"] and len(a) in (8, 9) and a[1:6:2] == ["--tag", "--revision", "--out"]:
+        images = pathlib.Path(a[8]) if len(a) == 9 else None
+        print("\n".join(layouts(a[2], a[4], pathlib.Path(a[7]), images, pathlib.Path(a[6]))))
+        return 0
+    if a[:1] == ["probe-push"] and len(a) >= 5 and len(a) % 2 == 1 and a[1] == "--registry" \
+            and set(a[3::2]) == {"--repo"}:
+        repos = a[4::2]
+        for r in repos:
+            if not REPO.match(r):
+                raise ValueError(f"{r!r} is not a repository of a registry")
+        login = os.environ.get("GH_TOKEN")
+        if not login:
+            raise ValueError("GH_TOKEN is not set: probe-push needs the login that pushes")
+        for r in repos:
+            print(probe_push(a[2], r, login))
+        return 0
     if a[:2] == ["check-binary", "--name"] and len(a) >= 5:
         print("\n".join(check_binary(a[2], pathlib.Path(a[3]), pairs(a[4:]))))
         return 0
     if a[:1] in (["push"], ["verify"]) and len(a) == 6 and a[1:4:2] == ["--registry", "--repo"]:
-        if not re.match(r"^[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)+$", a[4]):
+        if not REPO.match(a[4]):
             raise ValueError(f"{a[4]!r} is not a repository of a registry")
         reg = pb.Registry(a[2], os.environ.get("REGISTRY_TOKEN"))
         if a[0] == "push":
@@ -341,7 +430,7 @@ def main(a: list[str]) -> int:
         else:
             print("\n".join(verify(reg, a[4], pathlib.Path(a[5]))))
         return 0
-    print("\n".join(__doc__.strip().splitlines()[2:9]), file=sys.stderr)
+    print("\n".join(__doc__.strip().splitlines()[2:11]), file=sys.stderr)
     return 2
 
 
