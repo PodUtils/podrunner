@@ -49,12 +49,20 @@ struct Fake {
     admin: bool,
     uid: &'static str,
     start_fails: bool,
+    /// The first line of `systemctl --version`.
+    version: &'static str,
     ran: RefCell<Vec<String>>,
 }
 
 impl Fake {
     fn new() -> Fake {
-        Fake { admin: true, uid: "990", start_fails: false, ran: RefCell::new(Vec::new()) }
+        Fake {
+            admin: true,
+            uid: "990",
+            start_fails: false,
+            version: "systemd 255 (255.4-1)",
+            ran: RefCell::new(Vec::new()),
+        }
     }
 
     fn ran(&self) -> Vec<String> {
@@ -71,6 +79,7 @@ impl Host for Fake {
             ("id", _) if self.uid.is_empty() => (1, String::new()),
             ("id", _) => (0, format!("{}\n", self.uid)),
             ("systemctl", Some("restart")) if self.start_fails => (1, String::new()),
+            ("systemctl", Some("--version")) => (0, format!("{}\n+PAM -SELINUX\n", self.version)),
             _ => (0, String::new()),
         };
         Ok(Ran { code: Some(code), stdout, stderr: if code == 0 { String::new() } else { format!("{line}: failed") } })
@@ -135,6 +144,7 @@ fn print_unit_is_the_unit_of_pod_unit_with_its_hardening() {
     }
     assert!(!unit.contains("\nMemoryDenyWriteExecute=") && !unit.contains("\nRestrictNamespaces="), "{unit}");
     assert!(!unit.contains("User=") && !unit.contains("Delegate"), "{unit}");
+    assert!(!unit.contains("\nLockPersonality=") && unit.contains(": LockPersonality=yes\n"), "{unit}");
     assert_eq!(pod_unit::systemd::audit(&unit, false), Vec::<String>::new(), "{unit}");
     let secret = format!("/c/ghp_{}", "a1B2c3D4e5F6g7H8i9J0".repeat(2));
     let e = print_unit(Path::new("/b"), Path::new(&secret), Path::new("/s"), None).unwrap_err();
@@ -183,7 +193,14 @@ fn print_unit_system_passes_the_audit_of_a_unit_of_the_system() {
     ] {
         assert!(unit.contains(line), "{line}: {unit}");
     }
-    for key in ["PrivateDevices", "ProtectControlGroups", "ProtectClock", "PrivateTmp", "RestrictNamespaces"] {
+    for key in [
+        "PrivateDevices",
+        "ProtectControlGroups",
+        "ProtectClock",
+        "PrivateTmp",
+        "RestrictNamespaces",
+        "LockPersonality",
+    ] {
         assert!(!unit.contains(&format!("\n{key}=")), "{key}: {unit}");
         assert!(unit.contains(&format!(": {key}=")), "{key} has no reason: {unit}");
     }
@@ -239,14 +256,24 @@ fn the_state_directory_of_systemd_is_one_name_under_var_lib() {
         ("/var/libx/podrunner", None),
         ("/srv/podrunner", None),
         ("var/lib/podrunner", None),
+        // A name that pod-unit refuses: the operator makes the directory.
+        ("/var/lib/-x", None),
+        ("/var/lib/.x", None),
+        ("/var/lib/a b", None),
+        ("/var/lib/a@b", None),
     ] {
         assert_eq!(state_name(Path::new(state)).as_deref(), name, "{state}");
     }
     let unit = print_system_unit(Path::new("/b"), Path::new("/c"), Path::new("/srv/state"), None, "ci").unwrap();
     assert!(!unit.contains("StateDirectory"), "{unit}");
     // A name that systemd cannot hold is no state directory of systemd.
-    let unit = print_system_unit(Path::new("/b"), Path::new("/c"), Path::new("/var/lib/-x"), None, "ci");
-    assert!(unit.is_err(), "{unit:?}");
+    let unit = print_system_unit(Path::new("/b"), Path::new("/c"), Path::new("/var/lib/-x"), None, "ci").unwrap();
+    assert!(!unit.contains("StateDirectory"), "{unit}");
+    let long = format!("/var/lib/{}", "a".repeat(64));
+    let unit = print_system_unit(Path::new("/b"), Path::new("/c"), Path::new(&long), None, "ci").unwrap();
+    assert!(unit.contains(&format!("StateDirectory={}\n", "a".repeat(64))), "{unit}");
+    let longer = format!("/var/lib/{}", "a".repeat(65));
+    assert_eq!(state_name(Path::new(&longer)), None);
 }
 
 /// T-588: `install-unit --system` writes the unit of `print-unit --system`
@@ -267,9 +294,11 @@ fn install_unit_writes_and_starts_the_unit_of_the_system() {
             "id -u podrunner",
             "systemctl daemon-reload",
             "systemctl enable podrunner.service",
-            "systemctl restart podrunner.service"
+            "systemctl restart podrunner.service",
+            "systemctl --version"
         ]
     );
+    assert!(out.stderr.is_empty(), "{}", out.stderr);
     let host = Fake::new();
     let out = remove_on(&args(&["--system"]), &d.places(), &host).unwrap_or_else(|o| panic!("{}", o.stderr));
     assert!(out.stdout.contains("removed"), "{}", out.stdout);
@@ -357,5 +386,57 @@ fn each_command_of_a_unit_has_its_help() {
         assert!(out.stdout.contains(want), "{cmd}: {}", out.stdout);
         let out = run(&args(&[cmd, "--help"]));
         assert!(out.stdout.contains(want), "{cmd}: {}", out.stdout);
+    }
+}
+
+/// T-588: `ExecStart` runs in `/` (a unit of the system) or in the home (a
+/// user unit), so a relative `--config` or `--state` is refused (64).
+#[test]
+fn a_relative_config_or_state_is_refused() {
+    let d = Dir::new("relative");
+    let c = d.config();
+    // A relative file that is there: the directory of the test.
+    let rel = "Cargo.toml";
+    assert!(Path::new(rel).is_file());
+    for system in [false, true] {
+        for (config, state) in
+            [(rel, "/var/lib/podrunner"), (c.as_str(), "state"), (c.as_str(), "./s"), (c.as_str(), "")]
+        {
+            let mut a = args(&["print-unit", "--config", config, "--state", state]);
+            if system {
+                a.push("--system".into());
+            }
+            let out = run(&a);
+            assert_eq!(out.code, 64, "{a:?}: {}", out.stdout);
+            assert!(out.stderr.contains("absolute"), "{a:?}: {}", out.stderr);
+        }
+    }
+    let host = Fake::new();
+    let out = install_on(&args(&["--system", "--config", rel, "--state", "/var/lib/p"]), &d.places(), &host);
+    assert_eq!(out.err().expect("refused").code, 64);
+    let out = install_on(&args(&["--system", "--config", &c, "--state", "p"]), &d.places(), &host);
+    assert_eq!(out.err().expect("refused").code, 64);
+    assert!(host.ran().is_empty() && !d.unit_file().exists(), "{:?}", host.ran());
+    assert!(print_unit(Path::new("/b"), Path::new("c"), Path::new("/s"), None).is_err());
+    assert!(print_system_unit(Path::new("/b"), Path::new("/c"), Path::new("s"), None, "ci").is_err());
+}
+
+/// T-588: `DelegateSubgroup=` needs systemd 254: an install on an older
+/// systemd says that podvm then holds no CPU limit.
+#[test]
+fn install_unit_names_a_systemd_older_than_254() {
+    for (version, warns) in [
+        ("systemd 253 (253.5-1)", true),
+        ("systemd 249 (249.11-0ubuntu3)", true),
+        ("systemd 254 (254)", false),
+        ("systemd 257 (257.9-1)", false),
+        ("no version", true),
+    ] {
+        let d = Dir::new("version");
+        let host = Fake { version, ..Fake::new() };
+        let out =
+            install_on(&system_args(&d.config(), &[]), &d.places(), &host).unwrap_or_else(|o| panic!("{}", o.stderr));
+        assert_eq!(out.code, 0);
+        assert_eq!(out.stderr.contains("DelegateSubgroup"), warns, "{version}: {}", out.stderr);
     }
 }

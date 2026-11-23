@@ -29,13 +29,17 @@ const RELAXED: &[(&str, &str)] = &[
     ("SystemCallArchitectures", "a job can run a binary of another architecture of the host (i386 on x86_64)"),
     ("RestrictAddressFamilies", "a job and podnet use netlink and other families"),
     ("UMask", "the files of a job keep the modes of a runner of GitHub (umask 0022)"),
+    ("LockPersonality", "a job can run setarch or linux32 for a build of i386, which sets the personality"),
 ];
 
 /// The lines that only a unit of the system has, which `serve` cannot take.
 /// A user unit has none of them, and `serve` runs in such a unit. The unit
 /// keeps `NoNewPrivileges`, `AmbientCapabilities`, `RestrictSUIDSGID`,
-/// `ProtectKernelModules`, `RestrictRealtime`, `LockPersonality` and
-/// `RemoveIPC`.
+/// `ProtectKernelModules`, `RestrictRealtime` and `RemoveIPC`.
+/// `NoNewPrivileges` and `RestrictSUIDSGID` stop `sudo` only in a process of
+/// the host: a guest of the microvm kind has its own kernel, an instance of
+/// the incus kind is a child of incusd, and a unit of the podvm kind maps
+/// one uid, so `sudo` there fails also with no such line (T-317).
 const RELAXED_SYSTEM: &[(&str, &str)] = &[
     (
         "CapabilityBoundingSet",
@@ -101,7 +105,35 @@ fn install_on(rest: &[String], places: &SystemPlaces, host: &dyn Host) -> Result
     let unit =
         system_unit(&spec.binary, &spec.config, &spec.state, spec.watchdog, user).map_err(|e| err(Class::Usage, e))?;
     let said = pod_unit::install::install_system(&unit, Form::Systemd, places, host).map_err(failed)?;
-    Ok(ok(said.join("\n") + "\n"))
+    let mut out = ok(said.join("\n") + "\n");
+    if let Some(warning) = old_systemd(host) {
+        out.stderr = format!("podrunner: {warning}\n");
+    }
+    Ok(out)
+}
+
+/// The first systemd with `DelegateSubgroup=`. An older one ignores the
+/// line: podvm then makes no cgroup of a unit, and holds no CPU limit.
+const SUBGROUP_FROM: u32 = 254;
+
+/// A warning when `systemctl --version` names a systemd older than
+/// [`SUBGROUP_FROM`], or no version.
+fn old_systemd(host: &dyn Host) -> Option<String> {
+    let ran = host.run("systemctl", &["--version"], None).ok()?;
+    let version = ran.stdout.lines().next().and_then(|l| l.strip_prefix("systemd ")).and_then(|l| {
+        let n = l.split_whitespace().next()?;
+        n.parse::<u32>().ok()
+    });
+    match version {
+        Some(v) if v >= SUBGROUP_FROM => None,
+        Some(v) => Some(format!(
+            "systemd {v} ignores DelegateSubgroup= (systemd {SUBGROUP_FROM} or later): podvm holds no CPU limit"
+        )),
+        None => Some(format!(
+            "systemctl --version names no version: DelegateSubgroup= needs systemd {SUBGROUP_FROM} or later, else \
+             podvm holds no CPU limit"
+        )),
+    }
 }
 
 /// `remove-unit` with the places and the host of a test: only a file with
@@ -153,6 +185,7 @@ fn spec(o: &Opts, cmd: &str, need_system: bool) -> Result<Spec, Out> {
     // A unit file of a configuration that is not there would fail at its
     // start, not here (T-339).
     let config = o.need("--config")?;
+    absolute("--config", &config).map_err(|e| err(Class::Usage, e))?;
     if !config.is_file() {
         return Err(err(Class::NotFound, format!("--config {}: no such file", config.display())));
     }
@@ -160,7 +193,21 @@ fn spec(o: &Opts, cmd: &str, need_system: bool) -> Result<Spec, Out> {
     if !binary.is_absolute() {
         return Err(err(Class::Usage, format!("--binary {:?}: not an absolute path", binary.display().to_string())));
     }
-    Ok(Spec { binary, config, state: o.need("--state")?, watchdog, account })
+    let state = o.need("--state")?;
+    absolute("--state", &state).map_err(|e| err(Class::Usage, e))?;
+    Ok(Spec { binary, config, state, watchdog, account })
+}
+
+/// systemd starts `serve` in `/` (a unit of the system) or in the home (a
+/// user unit), not in the directory of the caller.
+fn absolute(flag: &str, path: &Path) -> Result<(), String> {
+    match path.is_absolute() {
+        true => Ok(()),
+        false => Err(format!(
+            "{flag} {:?}: not an absolute path; systemd starts serve in / or in the home, not here",
+            path.display().to_string()
+        )),
+    }
 }
 
 /// The account of a unit of the system: a name with no privilege. root and
@@ -219,12 +266,20 @@ fn system_unit(binary: &Path, config: &Path, state: &Path, watchdog: Option<u32>
     Ok(unit)
 }
 
+/// A name that `StateDirectory=` of pod-unit takes: 1 to 64 of
+/// `A-Z a-z 0-9 _ . -`, not first `.` or `-`.
+fn state_ok(name: &str) -> bool {
+    let fine = |b: u8| b.is_ascii_alphanumeric() || b"_.-".contains(&b);
+    (1..=64).contains(&name.len()) && name.bytes().all(fine) && !name.starts_with(['.', '-'])
+}
+
 /// NAME of a state directory `/var/lib/NAME`; None for each other path,
 /// which the operator makes.
 fn state_name(state: &Path) -> Option<String> {
     let mut parts = state.strip_prefix("/var/lib").ok()?.components();
     match (parts.next(), parts.next()) {
-        (Some(Component::Normal(name)), None) => name.to_str().map(str::to_string),
+        // A name that pod-unit refuses: the operator makes the directory.
+        (Some(Component::Normal(name)), None) => name.to_str().filter(|n| state_ok(n)).map(str::to_string),
         _ => None,
     }
 }
@@ -238,6 +293,8 @@ fn unit(binary: &Path, config: &Path, state: &Path, watchdog: Option<u32>) -> Re
         }
     };
     let (program, config, state) = (utf8("--binary", binary)?, utf8("--config", config)?, utf8("--state", state)?);
+    absolute("--config", Path::new(&config))?;
+    absolute("--state", Path::new(&state))?;
     let mut unit = Unit::new(NAME, Path::new(&program), MARK).args(["serve", "--config", &config, "--state", &state]);
     unit.description = "podrunner: CI jobs in one fresh unit for each job".into();
     unit.start = pod_unit::Start::Notify { watchdog_s: watchdog };
