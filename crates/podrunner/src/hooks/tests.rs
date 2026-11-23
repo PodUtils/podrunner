@@ -69,7 +69,7 @@ fn a_unit_reaches_its_socket_through_the_relay() {
     };
     let hooks = HooksOf::new([("fake".to_string(), policy)].into());
     let socket = dir.join("ctl").join("u-1.ctl");
-    let env = hooks.open("fake", fake.clone(), &id, &socket, None).unwrap();
+    let env = hooks.open("fake", fake.clone(), &id, &socket, None, None).unwrap();
     assert!(env["ACTIONS_RUNNER_CONTAINER_HOOKS"].ends_with("podrunner-hook.sh"));
 
     // A container action that builds is refused, and the refusal comes back.
@@ -100,7 +100,7 @@ fn a_unit_reaches_its_socket_through_the_relay() {
     assert!(!socket.exists());
     // A unit that sees its socket directory at a guest path gets the guest
     // paths in its environment (a podvm unit: the directory is a volume).
-    let guest = hooks.open("fake", fake.clone(), &id, &socket, Some("/run/podrunner")).unwrap();
+    let guest = hooks.open("fake", fake.clone(), &id, &socket, Some("/run/podrunner"), None).unwrap();
     assert_eq!(guest["PODRUNNER_CTL"], format!("/run/podrunner/{}", socket.file_name().unwrap().to_string_lossy()));
     assert_eq!(guest["ACTIONS_RUNNER_CONTAINER_HOOKS"], "/run/podrunner/podrunner-hook.sh");
     hooks.close(&id);
@@ -127,7 +127,7 @@ fn close_returns_while_a_client_holds_half_a_request() {
     };
     let hooks = Arc::new(HooksOf::new([("fake".to_string(), policy)].into()));
     let socket = dir.join("ctl").join("u-2.ctl");
-    hooks.open("fake", fake, &id, &socket, None).unwrap();
+    hooks.open("fake", fake, &id, &socket, None, None).unwrap();
     let mut half = std::os::unix::net::UnixStream::connect(&socket).unwrap();
     half.write_all(b"POST /hook HTTP/1.1\r\nContent-Length: 100\r\n\r\n{").unwrap();
     let (tx, rx) = std::sync::mpsc::channel();

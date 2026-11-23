@@ -35,6 +35,7 @@ impl HookPort for Seen {
         unit: &UnitId,
         socket: &std::path::Path,
         _guest: Option<&str>,
+        _ca: Option<(&str, &[String])>,
     ) -> Result<std::collections::BTreeMap<String, String>, String> {
         self.opened.lock().unwrap().push(format!("{kind} {unit}"));
         Ok([("PODRUNNER_CTL".to_string(), socket.display().to_string())].into())

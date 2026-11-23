@@ -447,7 +447,10 @@ the audit or in the text of an error.
   `NODE_EXTRA_CA_CERTS`, `GIT_SSL_CAINFO`, `AWS_CA_BUNDLE`, `DENO_CERT`,
   `HEX_CACERTS_PATH`, `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE`,
   `CARGO_HTTP_CAINFO`). A host with no CA file refuses such a job. A JVM
-  reads none of them (T-577).
+  reads none of them (T-577). Each container of the job (a `container:`
+  job, a service, a Docker action) of a kind with `container: hooks`
+  gets the bundle read-only at `/__podrunner/podrunner-broker-ca.pem`
+  and the same ten variables (T-578, `docs/contracts/hook.md`).
 
 ## The remote mint
 

@@ -11,12 +11,17 @@ use podrunner_unit::{UnitDriver, UnitId};
 
 use crate::policy::Policy;
 use crate::server::{JobEvent, Unit, bind, serve_until};
-use crate::unit::HookUnit;
+use crate::unit::{HookUnit, UnitCa};
+
+/// The name of the CA bundle of the broker in the directory that the
+/// containers of a unit mount (T-578).
+pub const CA_FILE: &str = "podrunner-broker-ca.pem";
 
 struct Open {
     unit: Arc<Mutex<HookUnit>>,
     stop: Arc<AtomicBool>,
     socket: PathBuf,
+    logs: PathBuf,
     /// Gets a message when the thread ends.
     done: std::sync::mpsc::Receiver<()>,
 }
@@ -32,7 +37,9 @@ pub struct Hooks {
 
 impl Hooks {
     /// Serve the socket of `unit` at `socket`. `logs` holds the output of
-    /// each step for a short time.
+    /// each step for a short time. `ca`: the CA bundle (PEM) of the broker
+    /// of the unit and the variables that name it; each container of the
+    /// job gets it read-only from `logs/ca` (T-578).
     pub fn open(
         &self,
         driver: Arc<dyn UnitDriver>,
@@ -40,10 +47,13 @@ impl Hooks {
         policy: Policy,
         socket: &Path,
         logs: &Path,
+        ca: Option<(&str, &[String])>,
     ) -> std::io::Result<()> {
         std::fs::create_dir_all(logs)?;
+        let ca = ca.map(|(pem, vars)| place_ca(logs, pem, vars)).transpose()?;
         let listener = bind(socket)?;
-        let hook = Arc::new(Mutex::new(HookUnit::new(driver, unit.clone(), policy, None, logs.to_path_buf())));
+        let hook = HookUnit::new(driver, unit.clone(), policy, None, logs.to_path_buf()).with_ca(ca);
+        let hook = Arc::new(Mutex::new(hook));
         let stop: Arc<AtomicBool> = Arc::default();
         let (u, s): (Arc<Mutex<dyn Unit>>, _) = (hook.clone(), stop.clone());
         let (end, done) = std::sync::mpsc::channel();
@@ -51,7 +61,7 @@ impl Hooks {
             serve_until(listener, u, s);
             let _ = end.send(());
         })?;
-        let open = Open { unit: hook, stop, socket: socket.to_path_buf(), done };
+        let open = Open { unit: hook, stop, socket: socket.to_path_buf(), logs: logs.to_path_buf(), done };
         self.open.lock().expect("the sockets").insert(unit.to_string(), open);
         Ok(())
     }
@@ -92,5 +102,21 @@ impl Hooks {
             eprintln!("podrunner: {unit}: the hook thread did not end in {CLOSE_WAIT:?}: it is left");
         }
         let _ = std::fs::remove_file(&o.socket);
+        // The logs of the steps are gone; a step that still runs keeps its
+        // log, and the directory with it.
+        let _ = std::fs::remove_dir_all(o.logs.join("ca"));
+        let _ = std::fs::remove_dir(&o.logs);
     }
+}
+
+/// Write the bundle `pem` to `logs/ca` for the containers of a unit. A
+/// certificate is no secret: mode 0644, so that a container user of
+/// another uid reads it.
+fn place_ca(logs: &Path, pem: &str, vars: &[String]) -> std::io::Result<UnitCa> {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = logs.join("ca");
+    std::fs::create_dir_all(&dir)?;
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755))?;
+    pod_core::files::replace_private(&dir.join(CA_FILE), pem.as_bytes(), 0o644, false)?;
+    Ok(UnitCa { dir, file: CA_FILE.into(), vars: vars.to_vec() })
 }

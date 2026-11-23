@@ -16,6 +16,23 @@ use crate::server::{Answer, JobEvent, Unit};
 /// The `PATH` after the prepended paths of a step.
 const BASE_PATH: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 
+/// Where each container of the job sees the CA bundle of the broker of its
+/// unit (T-578): a directory of its own, read-only, outside each mount
+/// table of the runner.
+pub const CA_DIR: &str = "/__podrunner";
+
+/// The CA bundle of the broker of a unit (T-578): a container of the job
+/// trusts it as the unit does.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnitCa {
+    /// A host directory that holds the bundle and nothing of the job.
+    pub dir: PathBuf,
+    /// The name of the bundle in `dir`.
+    pub file: String,
+    /// The variables that name the bundle (`ca::env` of `pod-broker`).
+    pub vars: Vec<String>,
+}
+
 /// The hooks of one unit.
 pub struct HookUnit {
     driver: Arc<dyn UnitDriver>,
@@ -28,6 +45,9 @@ pub struct HookUnit {
     /// A host directory for the output of each step.
     logs: PathBuf,
     gate: Gate,
+    /// The CA bundle of the broker, when the broker ends the TLS of the
+    /// job.
+    ca: Option<UnitCa>,
     job: Option<ContainerId>,
     services: Vec<ContainerId>,
     steps: u64,
@@ -59,6 +79,7 @@ impl HookUnit {
             host_root,
             logs,
             gate,
+            ca: None,
             job: None,
             services: vec![],
             steps: 0,
@@ -67,6 +88,13 @@ impl HookUnit {
             driver_errors: vec![],
             images: vec![],
         }
+    }
+
+    /// Give each container of the job the CA bundle `ca` of the broker of
+    /// the unit.
+    pub fn with_ca(mut self, ca: Option<UnitCa>) -> HookUnit {
+        self.ca = ca;
+        self
     }
 
     /// Keep the digest of the image of `p` (the checks pinned it).
@@ -103,10 +131,21 @@ impl HookUnit {
                 read_only: m.read_only,
             });
         }
+        let mut env = p.env.clone();
+        // The host made the directory of the bundle: it is not a path of the
+        // job, so it has no walk for a link. A value of the job keeps its
+        // priority, as in the unit.
+        if let Some(ca) = &self.ca {
+            mounts.push(ContainerMount { source: ca.dir.clone(), target: CA_DIR.into(), read_only: true });
+            let path = format!("{CA_DIR}/{}", ca.file);
+            for v in &ca.vars {
+                env.entry(v.clone()).or_insert_with(|| path.clone());
+            }
+        }
         Ok(ContainerSpec {
             image: p.image.clone(),
             argv: p.argv.clone(),
-            env: p.env.clone(),
+            env,
             workdir: p.workdir.clone(),
             mounts,
             options: p.options.clone(),

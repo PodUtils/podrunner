@@ -114,6 +114,54 @@ fn the_unit_holds_the_placeholder_and_trusts_the_ca_of_its_broker() {
     assert!(!audit.contains(VALUE), "{audit}");
 }
 
+/// The CA bundle and the variables that each open of the hooks got.
+type HookCa = Arc<Mutex<Vec<Option<(String, Vec<String>)>>>>;
+
+/// Hooks that keep what each unit gives its containers (T-578).
+#[derive(Clone, Default)]
+struct Hooks(HookCa);
+
+impl crate::hooks::HookPort for Hooks {
+    fn open(
+        &self,
+        _: &str,
+        _: Arc<dyn podrunner_unit::UnitDriver>,
+        _: &podrunner_schema::UnitId,
+        _: &std::path::Path,
+        _: Option<&str>,
+        ca: Option<(&str, &[String])>,
+    ) -> Result<std::collections::BTreeMap<String, String>, String> {
+        self.0.lock().unwrap().push(ca.map(|(pem, vars)| (pem.to_string(), vars.to_vec())));
+        Ok(Default::default())
+    }
+    fn close(&self, _: &podrunner_schema::UnitId) {}
+    fn take(&self, _: &podrunner_schema::UnitId) -> (Vec<RefusalCode>, Vec<crate::hooks::HookEvent>) {
+        Default::default()
+    }
+}
+
+/// T-578: the containers of a unit whose broker ends TLS get the bundle of
+/// that broker and the variables that name it; a unit with no bundle
+/// gives its containers neither.
+#[test]
+fn the_containers_of_a_unit_get_the_bundle_of_its_broker() {
+    let plain = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "api.example.com" }] } });
+    let vars = ["SSL_CERT_FILE", "CARGO_HTTP_CAINFO"].map(String::from).to_vec();
+    for (with, want) in [(credential("token", "api.example.com"), Some((BUNDLE.to_string(), vars))), (plain, None)] {
+        let dir = TempDir::new();
+        let mut cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
+        cap.container = podrunner_schema::ContainerRoute::Hooks;
+        let kind = KindSpec { name: "fake", slots: 1, capability: cap, command: sh("exit 0") };
+        let bed = Bed::new(with_secret(&dir.0), vec![("a", "trusted", None, vec![offer(0, "j-1", with)])], vec![kind]);
+        let mut bed = Bed { slots: bed.slots.with_egress(Box::new(Tls::default())), ..bed };
+        let hooks = Hooks::default();
+        bed.slots.set_hooks(Box::new(hooks.clone()));
+        bed.until(30, |s| s.jobs().count() == 1 && Bed::all_final(s));
+        assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success, "{:?}", bed.slots.reports[0]);
+        assert_eq!(*hooks.0.lock().unwrap(), [want]);
+    }
+}
+
 #[test]
 fn a_job_with_no_credential_gets_no_bundle() {
     let plain = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "api.example.com" }] } });
