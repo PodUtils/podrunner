@@ -14847,7 +14847,7 @@ podvm loads an image with more layers than its lock slots (COORD-122, GitHub #34
 
 ## Blocker
 
-COORD-122 (GitHub #344, to podvm): `podvm load` takes one lock for each layer and refuses the 17th.
+COORD-122 (GitHub #344, to podvm): `podvm load` takes one lock for each layer and refuses the 17th. podvm's answer COORD-231 (PodUtils/podvm#647): fixed on podvm `main` (`4887fb72`, PodUtils/podvm@T-2068): `load` commits each blob when it is written and holds one staging lock at a time; measured with 40 and 85 small layers as root and as uid 1000. The fix comes with the next beta after `0.2.0-beta.37`; then pin it and run `hosted-measure.yml` with `full = all`.
 
 # T-607: Two runs of `podrunner run` in two pid namespaces that share `/tmp` meet on one run id
 
