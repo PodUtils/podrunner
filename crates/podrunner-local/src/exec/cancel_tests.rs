@@ -1,9 +1,10 @@
 //! T-639: a cancel of a job whose container step blocks ends within the
 //! bound of a plain job: the unit goes with its containers before the hooks
-//! stop, so the stop does not wait for the step.
+//! stop, so the stop does not wait for the step. A hook call that the first
+//! destroy does not end gets a line of the log, and a second destroy.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use pod_actions_workflow::JobResult;
@@ -15,51 +16,69 @@ use podrunner_unit::{ContainerId, ContainerSpec, ContainerState, ExecSpec, Exit,
 use super::InUnit;
 use crate::drive::Executor;
 
-/// The fake unit with a socket mount, so that the job gets its hooks.
-struct Hooked(FakeUnit);
+/// The fake unit with a socket mount, so that the job gets its hooks. It
+/// counts its destroys, and it can hold each `container_start` for a time
+/// that no destroy shortens (a call in `podvm run -d`).
+struct Hooked {
+    unit: FakeUnit,
+    destroys: AtomicUsize,
+    hold: Option<(Duration, Arc<AtomicBool>)>,
+}
+
+impl Hooked {
+    fn new(unit: FakeUnit) -> Hooked {
+        Hooked { unit, destroys: AtomicUsize::new(0), hold: None }
+    }
+}
 
 impl UnitDriver for Hooked {
     fn kind(&self) -> &str {
-        self.0.kind()
+        self.unit.kind()
     }
     fn probe(&self) -> Result<podrunner_schema::Capability, UnitError> {
-        self.0.probe()
+        self.unit.probe()
     }
     fn socket_mount(&self) -> Option<&str> {
         Some("/run/podrunner")
     }
     fn prepare(&self, r: &str, p: &str, e: bool) -> Result<podrunner_unit::Prepared, UnitError> {
-        self.0.prepare(r, p, e)
+        self.unit.prepare(r, p, e)
     }
     fn start(&self, spec: &podrunner_unit::StartSpec) -> Result<(), UnitError> {
-        self.0.start(spec)
+        self.unit.start(spec)
     }
     fn signal(&self, u: &UnitId, s: podrunner_unit::Signal) -> Result<(), UnitError> {
-        self.0.signal(u, s)
+        self.unit.signal(u, s)
     }
     fn wait(&self, u: &UnitId, t: Duration) -> Result<Option<Exit>, UnitError> {
-        self.0.wait(u, t)
+        self.unit.wait(u, t)
     }
     fn destroy(&self, u: &UnitId) -> Result<podrunner_unit::Residue, UnitError> {
-        self.0.destroy(u)
+        self.destroys.fetch_add(1, Ordering::SeqCst);
+        self.unit.destroy(u)
     }
     fn observe(&self, u: &UnitId) -> Result<podrunner_unit::Observation, UnitError> {
-        self.0.observe(u)
+        self.unit.observe(u)
     }
     fn container_start(&self, u: &UnitId, s: &ContainerSpec) -> Result<ContainerId, UnitError> {
-        self.0.container_start(u, s)
+        if let Some((time, entered)) = &self.hold {
+            entered.store(true, Ordering::SeqCst);
+            std::thread::sleep(*time);
+            return Err(UnitError::new(podrunner_unit::UnitCode::UnitStartFailed, "held"));
+        }
+        self.unit.container_start(u, s)
     }
     fn container_exec(&self, u: &UnitId, c: &ContainerId, s: &ExecSpec) -> Result<Exit, UnitError> {
-        self.0.container_exec(u, c, s)
+        self.unit.container_exec(u, c, s)
     }
     fn container_logs(&self, u: &UnitId, c: &ContainerId) -> Result<Vec<u8>, UnitError> {
-        self.0.container_logs(u, c)
+        self.unit.container_logs(u, c)
     }
     fn container_inspect(&self, u: &UnitId, c: &ContainerId) -> Result<ContainerState, UnitError> {
-        self.0.container_inspect(u, c)
+        self.unit.container_inspect(u, c)
     }
     fn container_stop(&self, u: &UnitId, c: &ContainerId) -> Result<(), UnitError> {
-        self.0.container_stop(u, c)
+        self.unit.container_stop(u, c)
     }
 }
 
@@ -77,19 +96,14 @@ fn with_mark(mark: &str) -> Vec<String> {
     out
 }
 
-#[test]
-fn a_cancel_ends_a_job_whose_container_step_blocks() {
-    let dir = std::env::temp_dir().join(format!("podrunner-local-cancel-step-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+/// A job with one container step that blocks: the runner of the unit posts
+/// it to the control socket of the unit as the relay posts it. The cancel
+/// comes when `running()` says that the step runs; the answer is the
+/// executor, its job, the flag of the stop and the mark of the step.
+fn blocked(dir: &std::path::Path, driver: Arc<dyn UnitDriver>, mark: &str) -> (InUnit, Job, Arc<AtomicBool>) {
     let image = format!("node@sha256:{}", "0".repeat(64));
-    let driver: Arc<dyn UnitDriver> =
-        Arc::new(Hooked(FakeUnit::new(&dir.join("units"), super::tests::capability(), "linux/amd64")));
     let prepared = driver.prepare(&image, "linux/amd64", false).unwrap();
-    let mut exec = InUnit::new(driver.clone(), prepared);
-    // The runner of the unit: one container step that blocks, posted to
-    // the control socket of the unit as the relay posts it.
-    let mark = format!("podrunner-t639-{}", std::process::id());
+    let mut exec = InUnit::new(driver, prepared);
     let step = serde_json::json!({
         "command": "run_container_step", "responseFile": "", "state": {},
         "args": {
@@ -114,6 +128,23 @@ fn a_cancel_ends_a_job_whose_container_step_blocks() {
     exec.set_stop(stop.clone());
     let mut job = Job::scripts("a", &["true"]);
     job.overrides.insert("jobContainer".into(), serde_json::json!(image));
+    (exec, job, stop)
+}
+
+fn scratch(name: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("podrunner-local-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+#[test]
+fn a_cancel_ends_a_job_whose_container_step_blocks() {
+    let dir = scratch("cancel-step");
+    let driver: Arc<dyn UnitDriver> =
+        Arc::new(Hooked::new(FakeUnit::new(&dir.join("units"), super::tests::capability(), "linux/amd64")));
+    let mark = format!("podrunner-t639-{}", std::process::id());
+    let (mut exec, job, stop) = blocked(&dir, driver, &mark);
     // The cancel comes when the step runs.
     let (m, s) = (mark.clone(), stop.clone());
     let cancel = std::thread::spawn(move || {
@@ -134,5 +165,41 @@ fn a_cancel_ends_a_job_whose_container_step_blocks() {
     // unit; the step alone would take 60 s.
     assert!(took < Duration::from_secs(30), "{took:?}");
     assert!(with_mark(&mark).is_empty(), "the step of the container ended: {:?}", with_mark(&mark));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A hook call that no destroy ends (it is in `podvm run -d`): the log says
+/// that the run did not wait for it, with no "refused" in front, and the
+/// log says that the refusals of the call are not in it. The unit is
+/// destroyed once more after the stop of the hooks, as the call can start a
+/// container after the first destroy.
+#[test]
+fn a_hook_call_that_no_destroy_ends_is_named_and_the_unit_is_destroyed_again() {
+    let dir = scratch("cancel-held");
+    let entered = Arc::new(AtomicBool::new(false));
+    let mut hooked = Hooked::new(FakeUnit::new(&dir.join("units"), super::tests::capability(), "linux/amd64"));
+    hooked.hold = Some((Duration::from_secs(4), entered.clone()));
+    let hooked = Arc::new(hooked);
+    let (mut exec, job, stop) = blocked(&dir, hooked.clone(), "podrunner-t639-held");
+    let cancel = {
+        let entered = entered.clone();
+        std::thread::spawn(move || {
+            let t = Instant::now();
+            while !entered.load(Ordering::SeqCst) && t.elapsed() < Duration::from_secs(20) {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            stop.store(true, Ordering::SeqCst);
+        })
+    };
+    let end = exec.run(&JobId::new("a.0").unwrap(), job, Duration::from_secs(600));
+    cancel.join().unwrap();
+    assert!(matches!(end, Ok(ref e) if matches!(e.result, JobResult::Cancelled)), "{:?}", end.map(|e| e.result));
+    let log = &exec.logs[0].1;
+    assert!(log.contains("\npodrunner: a hook call did not end in 1 s; the run does not wait for it"), "{log}");
+    assert!(!log.contains("refused: a hook call did not end"), "{log}");
+    assert!(log.contains("\npodrunner: a hook call still holds the unit: "), "{log}");
+    assert_eq!(hooked.destroys.load(Ordering::SeqCst), 2, "one destroy before the stop of the hooks, one after");
+    // The held call ends: nothing of the job writes in the directory.
+    std::thread::sleep(Duration::from_secs(4));
     let _ = std::fs::remove_dir_all(&dir);
 }

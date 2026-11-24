@@ -7,8 +7,9 @@ use podrunner_broker_fake::Job;
 use super::InUnit;
 use super::images::registries;
 
-/// The longest wait for the hook server at the end of a job.
-const STOP_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
+/// The longest wait for the hook server at the end of a job (short in a
+/// test, which holds a hook call on purpose).
+const STOP_WAIT: std::time::Duration = std::time::Duration::from_secs(if cfg!(test) { 1 } else { 10 });
 
 /// The container hooks of one unit (T-093): the relay and the control
 /// socket in its socket directory, served by a thread until [`Hooks::stop`].
@@ -21,9 +22,9 @@ pub(super) struct Hooks {
 }
 
 impl Hooks {
-    /// End the server; the refusals of the hook calls. A hook call that
-    /// still runs after [`STOP_WAIT`] stays behind: the run does not wait
-    /// for it (T-639).
+    /// End the server; one line of the log for each refusal of a hook call
+    /// and for each cause of the driver. A hook call that still runs after
+    /// [`STOP_WAIT`] stays behind: the run does not wait for it (T-639).
     pub(super) fn stop(self) -> Vec<String> {
         self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
         // The server checks its flag at each connection: wake it.
@@ -42,14 +43,29 @@ impl Hooks {
             }
         };
         let _ = std::fs::remove_dir_all(logs_dir(&self.dir));
-        // A call that still runs holds the unit: no wait for it either.
-        if let Ok(u) = self.unit.try_lock() {
-            out.extend(u.refusals.iter().map(|r| format!("{r:?}")));
-            // The cause of each refusal of the driver, for the log of the run.
-            out.extend(u.driver_errors.iter().map(|e| format!("the driver: {e}")));
-        }
+        out.extend(lines(&self.unit));
         out
     }
+}
+
+/// The refusals and the driver errors of the hook calls of a unit, as lines
+/// of the log. A call that still runs holds the unit: no wait for it, and
+/// one line says that the log has no refusal of it.
+fn lines(unit: &std::sync::Mutex<podrunner_hook::unit::HookUnit>) -> Vec<String> {
+    use std::sync::TryLockError;
+    let u = match unit.try_lock() {
+        Ok(u) => u,
+        // A hook call that panicked: its record is still true.
+        Err(TryLockError::Poisoned(p)) => p.into_inner(),
+        Err(TryLockError::WouldBlock) => {
+            return vec![
+                "a hook call still holds the unit: its refusals and its driver errors are not in this log".into(),
+            ];
+        }
+    };
+    let refused = u.refusals.iter().map(|r| format!("a hook call was refused: {r:?}"));
+    // The cause of each refusal of the driver.
+    refused.chain(u.driver_errors.iter().map(|e| format!("a hook call failed in the driver: {e}"))).collect()
 }
 
 impl InUnit {
@@ -127,6 +143,35 @@ fn logs_dir(sockets: &std::path::Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+    /// T-639: a unit that a hook call holds gives one line that says so; a
+    /// free unit gives one line for each refusal and each driver error.
+    #[test]
+    fn the_lines_of_a_unit_that_a_hook_call_holds_say_so() {
+        let dir = std::env::temp_dir().join(format!("podrunner-local-hook-lines-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let driver =
+            std::sync::Arc::new(podrunner_fake::FakeUnit::new(&dir, super::super::tests::capability(), "linux/amd64"));
+        let id = podrunner_schema::UnitId::parse("u-1").unwrap();
+        let mut hook = podrunner_hook::unit::HookUnit::new(driver, id, super::policy(&job()), None, dir.join("logs"));
+        hook.refusals.push(podrunner_schema::RefusalCode::ContainerOptionRefused);
+        hook.driver_errors.push("no engine".into());
+        let unit = std::sync::Mutex::new(hook);
+        let free = super::lines(&unit);
+        assert_eq!(free.len(), 2, "{free:?}");
+        assert!(free[0].starts_with("a hook call was refused: ContainerOptionRefused"), "{free:?}");
+        assert_eq!(free[1], "a hook call failed in the driver: no engine");
+        let held = unit.lock().unwrap();
+        let busy = super::lines(&unit);
+        drop(held);
+        assert_eq!(busy.len(), 1, "{busy:?}");
+        assert!(busy[0].starts_with("a hook call still holds the unit: "), "{busy:?}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn job() -> podrunner_broker_fake::Job {
+        podrunner_broker_fake::Job::scripts("a", &["true"])
+    }
+
     /// T-590: a job container of the local mode mounts the hosted work
     /// folder; `_work` of the fake broker is refused.
     #[test]

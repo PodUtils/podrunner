@@ -10,6 +10,7 @@ use std::path::PathBuf;
 pub use errors::{BIND_FIX, broker_error};
 use errors::{Gone, start_error};
 use hooks::Hooks;
+use log::{pump, record, tail};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -26,6 +27,7 @@ mod errors;
 mod hooks;
 mod host;
 mod images;
+mod log;
 mod noproxy;
 mod proxy;
 mod toolcache;
@@ -139,38 +141,6 @@ pub const NO_ROUTE: &str = "podrunner: the fake broker has no route for ";
 /// A sink of the live lines of a run: the job and a part of its log
 /// (T-134).
 pub type Live = Arc<dyn Fn(&JobId, &str) + Send + Sync>;
-
-/// Give the new text of each log blob to the live sink.
-fn pump(live: &Option<Live>, job: &JobId, broker: &Broker) {
-    if let Some(l) = live {
-        for (_, text) in broker.take_new() {
-            l(job, &text);
-        }
-    }
-}
-
-/// The end of a job: the last live lines, the blobs of the job (its step
-/// logs and summaries, T-134), and its log.
-fn record(
-    live: &Option<Live>,
-    blobs: &mut Vec<(JobId, Vec<(String, String)>)>,
-    job: &JobId,
-    broker: &Broker,
-) -> String {
-    pump(live, job, broker);
-    blobs.push((job.clone(), broker.blobs()));
-    job_log(broker)
-}
-
-/// The log of a job: the logs that the runner uploaded, and one line for
-/// each request that the broker had no route for (T-145).
-fn job_log(broker: &Broker) -> String {
-    let mut log = broker.logs();
-    for m in broker.missing() {
-        log.push_str(&format!("\n{NO_ROUTE}{m}"));
-    }
-    log
-}
 
 impl Executor for InUnit {
     fn take_logs(&mut self) -> Vec<(JobId, String)> {
@@ -418,9 +388,15 @@ impl Executor for InUnit {
         // A job that did not end can hold a hook call on its container step
         // until the container ends: the unit and its containers go first,
         // so the stop of the hooks waits for no step (T-639).
+        let had_hooks = hooks.is_some();
         let first = matches!(waited, Ok(None)).then(destroy);
         let refusals = hooks.map(Hooks::stop).unwrap_or_default();
-        let residue = first.unwrap_or_else(destroy);
+        // A hook call that was in `podvm run -d` at the first destroy can
+        // start a container after it: destroy again (it is idempotent).
+        let residue = match first {
+            Some(r) if !had_hooks => r,
+            _ => destroy(),
+        };
         end_sockets(&sockets);
         // The workspaces of the job, also of a failed one (T-138).
         let exported = match (&work, &self.export) {
@@ -435,7 +411,7 @@ impl Executor for InUnit {
         let residue = residue?;
         let mut log = record(&self.live, &mut self.blobs, job, &broker);
         for r in &refusals {
-            log.push_str(&format!("\npodrunner: a hook call was refused: {r}"));
+            log.push_str(&format!("\npodrunner: {r}"));
         }
         if let Some(o) = output {
             log.push_str(&format!("\npodrunner: the end of the output of unit {id}:\n{o}"));
@@ -486,12 +462,6 @@ pub fn needs_containers(message: &Job) -> bool {
         .and_then(|s| s.as_array())
         .is_some_and(|s| s.iter().any(|s| s["reference"]["type"] == "containerRegistry"));
     o.contains_key("jobContainer") || o.contains_key("jobServiceContainers") || docker
-}
-
-/// The last 8 KiB of an output, as text.
-fn tail(out: &[u8]) -> String {
-    let start = out.len().saturating_sub(8 * 1024);
-    String::from_utf8_lossy(&out[start..]).into_owned()
 }
 
 #[cfg(test)]
