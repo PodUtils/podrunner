@@ -15316,7 +15316,7 @@ sh scripts/test-install.sh
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15340,3 +15340,7 @@ t=$(mktemp -d /tmp/long-prefix-XXXXXXXXXXXXXXXXXXXXXXXX); TMPDIR=$t cargo test -
 ```
 
 The tests of `own::tests` and `the_short_egress_directory_goes_when_the_unit_ends` fail on the code before the change. The last `ls` prints nothing.
+
+## Done
+
+2026-11-24: `0289a04`. `own::end_socket_dir` removes the directory of the unit and then the empty short root; it leaves a link, a file and a directory of another user. `close_sockets` and `Slots::reconcile` call it. `TempDir` of the slots tests and the `Bed` of `crates/podrunner/tests/serve.rs` remove the short root at the drop. Tests: `own::tests::the_short_root_goes_when_no_unit_directory_is_left_in_it`, `a_link_at_the_name_of_the_root_is_not_touched`, `a_directory_of_another_user_is_refused_and_not_touched` (as root only), `the_root_in_the_state_directory_stays` and `tests::egress::the_short_egress_directory_goes_when_the_unit_ends`; the first three and the last fail on the code before the change. `cargo test --workspace --all-features` with `TMPDIR` 50 characters long and `PODRUNNER_RUNNER_DIR` set: 770 passed, 0 failed, 61 ignored, and the temp directory is empty (before: more than 100 entries); with the default `mktemp -d` name: empty. `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo todo check` pass. Level: proven on a development host; not run in CI.
