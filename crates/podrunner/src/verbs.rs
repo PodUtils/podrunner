@@ -4,15 +4,14 @@
 use pod_core::failure::Class;
 use serde_json::Value;
 
-use crate::cli::{Opts, Out, USAGE, err, ok, opts};
+use crate::cli::{Opts, Out, err, ok, opts};
 use crate::control::{self, Error, Request};
 use crate::text::display;
 
 /// `source restart --name NAME`: `serve` builds the source again from its
 /// table, with its key file of now, and keeps its jobs (T-498).
 pub(crate) fn source_restart(rest: &[String]) -> Result<Out, Out> {
-    let o = opts(rest)?;
-    o.only(&["--name", "--state", "--socket"])?;
+    let o = opts("source restart", rest)?;
     let source = o.need("--name")?.display().to_string();
     let value = control::call(&o.socket()?, &Request::RestartSource { source }).map_err(|e| control_failure(&o, e))?;
     Ok(ok(format!("{value}\n")))
@@ -21,9 +20,8 @@ pub(crate) fn source_restart(rest: &[String]) -> Result<Out, Out> {
 /// `stop --wait`: ask for the stop, then wait until no `serve` holds the
 /// lock of the state directory (GitHub #54). A timeout is exit 75.
 pub(crate) fn stop_wait(rest: &[String]) -> Result<Out, Out> {
-    let o = opts(rest)?;
-    o.only(&["--state", "--timeout", "--wait"])?;
-    let state = o.get("--state").ok_or_else(|| err(Class::Usage, format!("stop --wait needs --state\n{USAGE}")))?;
+    let o = opts("stop", rest)?;
+    let state = o.need("--state")?;
     let timeout = match o.get("--timeout") {
         None => None,
         Some(t) => Some(std::time::Duration::from_secs(
@@ -74,12 +72,14 @@ pub(crate) fn stop_wait(rest: &[String]) -> Result<Out, Out> {
 /// `audit verify`: walk the chain of an audit file (GitHub #59). A break
 /// is exit 76; the anchor is `SEQ:HASH` from the copy at the source.
 pub(crate) fn audit_verify(rest: &[String]) -> Result<Out, Out> {
-    let o = opts(rest)?;
-    o.only(&["--state", "--file", "--anchor"])?;
+    let o = opts("audit verify", rest)?;
     let file = match (o.get("--file"), o.get("--state")) {
         (Some(f), _) => f,
         (None, Some(d)) => d.join("audit.jsonl"),
-        (None, None) => return Err(err(Class::Usage, format!("--state or --file is necessary\n{USAGE}"))),
+        (None, None) => {
+            let usage = crate::manual::usage("audit verify");
+            return Err(err(Class::Usage, format!("--state or --file is necessary\n{usage}")));
+        }
     };
     let anchor = o.get("--anchor").map(|a| a.display().to_string());
     let anchor = match anchor.as_deref().map(|a| a.split_once(':')) {

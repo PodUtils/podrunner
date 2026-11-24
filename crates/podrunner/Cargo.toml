@@ -31,6 +31,8 @@ pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.82.1", defa
 pod-control = { git = "https://github.com/PodUtils/podcrates", tag = "v0.82.1" }
 # The systemd unit of `print-unit` (T-576, T-507).
 pod-unit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.82.1" }
+# The help and the manual from one model of the commands (T-248, T-627).
+pod-manual = { git = "https://github.com/PodUtils/podcrates", tag = "v0.82.1", features = ["core"] }
 pod-actions-expr.workspace = true
 pod-actions-workflow.workspace = true
 podrunner-fake.workspace = true

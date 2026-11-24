@@ -255,7 +255,7 @@ fn a_run_refuses_a_missing_toolcache_before_a_unit() {
 
 /// The command line of `run` as a contract (T-245).
 #[path = "contract_tests.rs"]
-mod contract;
+pub(crate) mod contract;
 
 /// #226: `run DIR --checkout DIR` keeps the value of `--checkout`.
 #[test]

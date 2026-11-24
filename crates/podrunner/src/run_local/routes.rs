@@ -13,7 +13,7 @@ use podrunner_local::dispatch::Dispatch;
 use podrunner_local::drive::Executor;
 use podrunner_local::exec::{InUnit, RunnerDir};
 
-use super::{Args, Class, Out, USAGE, arch, fail, guest, policy};
+use super::{Args, Class, Out, arch, fail, guest, policy, usage};
 
 /// The settings that each executor of the run takes.
 pub(super) struct Common {
@@ -135,7 +135,7 @@ pub(super) fn build(a: &Args, c: &Common, state: &Path) -> Result<Box<dyn Execut
     // With no --platform too, the dispatch refuses a label of Windows, of
     // macOS or of another architecture by name (T-230).
     if a.platforms.is_empty() {
-        let default = default.ok_or_else(|| fail(Class::Usage, super::USAGE))?;
+        let default = default.ok_or_else(|| fail(Class::Usage, super::usage()))?;
         return Ok(Box::new(Dispatch::new(Vec::new(), Some(default))));
     }
     let mut routes = Vec::new();
@@ -155,7 +155,7 @@ fn in_podvm(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
     use podrunner_podvm::{Podvm, PodvmUnit};
     use podrunner_unit::UnitDriver;
     let (Some(binary), Some(images), Some(image)) = (&a.podvm, &a.images, &a.image) else {
-        return Err(fail(Class::Usage, USAGE));
+        return Err(fail(Class::Usage, usage()));
     };
     // A binary that is not there, by its flag (T-339).
     if !binary.is_file() {

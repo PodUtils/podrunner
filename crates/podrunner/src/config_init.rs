@@ -160,28 +160,7 @@ fn payload(i: &Input) -> String {
 }
 
 fn input(rest: &[String]) -> Result<(Input, PathBuf, bool), Out> {
-    let o = opts(rest)?;
-    o.only(&[
-        "--host",
-        "--source",
-        "--program",
-        "--arg",
-        "--key-file",
-        "--tier",
-        "--org",
-        "--user",
-        "--podvm",
-        "--images",
-        "--podnet",
-        "--image",
-        "--built-at-s",
-        "--runner-version",
-        "--unpacked-bytes",
-        "--slots",
-        "--kinds",
-        "--out",
-        "--json",
-    ])?;
+    let o = opts("config init", rest)?;
     let s = |k: &str| o.get(k).map(|p| p.display().to_string());
     let need = |k: &str| o.need(k).map(|p| p.display().to_string());
     let all = |k: &str| o.values.iter().filter(|(n, _)| n == k).map(|(_, v)| v.clone()).collect::<Vec<_>>();

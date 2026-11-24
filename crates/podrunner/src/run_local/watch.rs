@@ -148,7 +148,7 @@ pub fn repeat(args: &[String]) -> Out {
         rest.extend(["--event".into(), "schedule".into()]);
     }
     let Some(file) = rest.first().filter(|f| !f.starts_with('-')).map(PathBuf::from) else {
-        return fail(Class::Usage, format!("run needs a workflow FILE\n{}", super::USAGE));
+        return fail(Class::Usage, format!("run needs a workflow FILE\n{}", super::usage()));
     };
     let tree = rest
         .iter()

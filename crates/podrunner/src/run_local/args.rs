@@ -158,7 +158,7 @@ pub(super) fn with_usage(e: String) -> String {
         || e.starts_with("a second file")
         || e == "the workflow file is necessary";
     match form {
-        true => format!("{e}\n{}", super::USAGE),
+        true => format!("{e}\n{}", super::usage()),
         false => e,
     }
 }
@@ -172,8 +172,14 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
         match x.as_str() {
             "--runner-dir" => a.runner_dir = Some(PathBuf::from(value()?)),
             "--podvm" => a.podvm = Some(PathBuf::from(value()?)),
-            "--microvm" => a.guest = Some((true, PathBuf::from(value()?))),
-            "--incus" => a.guest = Some((false, PathBuf::from(value()?))),
+            // Two guest kinds are refused, not the last one taken (T-627).
+            "--microvm" | "--incus" => {
+                let microvm = x == "--microvm";
+                if a.guest.as_ref().is_some_and(|(m, _)| *m != microvm) {
+                    return Err("one of --podvm, --microvm and --incus".into());
+                }
+                a.guest = Some((microvm, PathBuf::from(value()?)));
+            }
             "--engine" => a.engine = Some(PathBuf::from(value()?)),
             "--job" => a.jobs.push(value()?),
             "--protected" => a.protected.push(value()?),
@@ -364,6 +370,11 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     if a.podvm.is_some() && a.guest.is_some() {
         return Err("one of --podvm, --microvm and --incus".into());
     }
+    // A dry run runs no job to view, also with no executor (T-323 F20,
+    // T-627).
+    if a.web.is_some() && a.dry_run {
+        return Err("--web and --dry-run exclude each other: a dry run runs no job to view".into());
+    }
     let kind = a.podvm.is_some() || a.guest.is_some();
     // These run no job: they need no executor.
     if a.list || a.graph || a.validate || (a.dry_run && a.runner_dir.is_none() && !kind) {
@@ -404,13 +415,14 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     if !a.environment_allow.is_empty() && a.podnet.is_none() && a.vnet.is_none() && a.guest.is_none() {
         return Err("--environment-allow needs an egress hold: --podnet with --podvm, or --microvm or --incus".into());
     }
+    // The clash of two holds first: it names both flags.
+    if a.vnet.is_some() && a.podnet.is_some() {
+        return Err("--vnet and --podnet exclude each other: the vnet holds the egress of the unit".into());
+    }
     if a.podnet.is_some() && a.podvm.is_none() {
         return Err("--podnet needs --podvm".into());
     }
-    // A dry run runs no job to view, and `*` is no hold (T-323 F20, F24).
-    if a.web.is_some() && a.dry_run {
-        return Err("--web and --dry-run exclude each other: a dry run runs no job to view".into());
-    }
+    // `*` is no hold (T-323 F24).
     if let Some(h) = a.allow.iter().find(|h| h.trim() == "*" || h.trim().is_empty()) {
         return Err(format!("--allow {h:?}: not a host; a hold of each host is no hold: give each host"));
     }
@@ -418,9 +430,6 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     // is not taken with it (T-220).
     if a.vnet.is_some() && a.podvm.is_none() {
         return Err("--vnet needs --podvm".into());
-    }
-    if a.vnet.is_some() && a.podnet.is_some() {
-        return Err("--vnet and --podnet exclude each other: the vnet holds the egress of the unit".into());
     }
     // A guest has no NIC: the egress module holds --allow with no podnet.
     if !a.allow.is_empty() && a.podnet.is_none() && a.vnet.is_none() && a.guest.is_none() {

@@ -18,44 +18,10 @@ pub fn version() -> String {
     format!("podrunner {} ({})\n", env!("PODRUNNER_VERSION"), env!("PODRUNNER_COMMIT"))
 }
 
-pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
-
-  serve --config FILE --state DIR [--socket PATH]   run the slots
-  check --config FILE [--here]                      check a configuration; start nothing
-  status [--json] (--state DIR | --socket PATH)     the state of the slots
-  drain (--state DIR | --socket PATH)               take no new job
-  drain --source NAME (--state DIR | --socket PATH) one source takes no new job
-  resume --source NAME (--state DIR | --socket PATH)
-                                                    the source takes jobs again
-  stop (--state DIR | --socket PATH)                drain, then end
-  stop --wait --state DIR [--timeout SECONDS]       ... and wait until serve ends
-  clear-degraded (--state DIR | --socket PATH)      start jobs again after a residue
-  config init --source NAME --program PATH --podvm PATH --images STORE --image REF --built-at-s N --out FILE ...
-                                                    a podrunner.toml from the kinds of this host
-  source restart --name NAME (--state DIR | --socket PATH)
-                                                    build one source again (a new key), keep its jobs
-  doctor [--config FILE] [--json]                   the inputs of a host check
-  doctor [--json] --run FILE [the options of run]   the checks of a local run
-  audit verify (--state DIR | --file FILE) [--anchor SEQ:HASH]
-                                                    check the chain of audit.jsonl
-  print-unit --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]
-                                                    a user unit of systemd, with no credential
-  print-unit --system [--user NAME] --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]
-                                                    a unit of the system that runs as NAME (podrunner)
-  install-unit --system [--user NAME] --config FILE --state DIR [--binary PATH] [--watchdog SECONDS]
-                                                    install that unit and start it (as root)
-  remove-unit --system                              stop and remove the unit of the system (as root)
-  pin-sign --config FILE --seed-file FILE           the signer and the signature of [pin]
-  mint-serve --config FILE                          the remote mint (on a machine with no unit)
-  fake-source [--script FILE]                       a fake source on stdio (for a test of a program source)
-  source-conformance [--json] -- PROGRAM ARGS...    the source tests against a source program
-  image verify --tarball FILE --arch ARCH           check actions-runner-linux-*.tar.gz against its pin
-  run (FILE | DIR) (--runner-dir DIR | (--podvm PATH [--podnet PATH] | --microvm PATH [--engine DIR] | --incus PATH)
-      --images STORE --image NAME@sha256:HEX) [OPTION...]
-                                                    run the jobs of a workflow; each option: podrunner run --help
-  version | --version                               the version
-  help [COMMAND] | COMMAND --help | --help          this text, or the options of one command
-";
+/// The text of `podrunner --help`, from the model (`crate::manual`).
+pub fn usage() -> String {
+    crate::manual::root_help()
+}
 
 /// The result of a command: the exit code, stdout, stderr.
 pub struct Out {
@@ -72,27 +38,37 @@ pub(crate) fn err(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
 }
 
-/// The options of a command: `--name VALUE` pairs and `--flag` words.
+/// The options of a command: the pairs of a name and its value, and the
+/// flags with no value.
 pub(crate) struct Opts {
+    /// The command, as `crate::manual` names it.
+    pub(crate) path: &'static str,
     pub(crate) values: Vec<(String, String)>,
     pub(crate) flags: Vec<String>,
 }
 
-const FLAGS: [&str; 4] = ["--json", "--wait", "--system", "--here"];
-
-pub(crate) fn opts(args: &[String]) -> Result<Opts, Out> {
-    let mut o = Opts { values: Vec::new(), flags: Vec::new() };
+/// The options of the command `path`: each flag and its rules come from the
+/// model, so the parser and the help cannot differ. A flag of another
+/// command is refused, not ignored (`serve --system`).
+pub(crate) fn opts(path: &'static str, args: &[String]) -> Result<Opts, Out> {
+    let cmd = crate::manual::find(path).expect("a command of the model");
+    let usage = || crate::manual::usage(path);
+    let mut o = Opts { path, values: Vec::new(), flags: Vec::new() };
     let mut it = args.iter();
     while let Some(a) = it.next() {
-        if FLAGS.contains(&a.as_str()) {
-            o.flags.push(a.clone());
-        } else if a.starts_with("--") {
-            let v = it.next().ok_or_else(|| err(Class::Usage, format!("{a} needs a value\n{USAGE}")))?;
-            o.values.push((a.clone(), v.clone()));
-        } else {
-            return Err(err(Class::Usage, format!("an unknown argument {:?}\n{USAGE}", display(a))));
+        match cmd.flags.iter().find(|f| f.is(a)) {
+            Some(f) if f.value.is_none() => o.flags.push(f.spelling()),
+            Some(f) => {
+                let v = it.next().ok_or_else(|| err(Class::Usage, format!("{a} needs a value\n{}", usage())))?;
+                o.values.push((f.spelling(), v.clone()));
+            }
+            None if a.starts_with('-') => {
+                return Err(err(Class::Usage, format!("an unknown option {}\n{}", display(a), usage())));
+            }
+            None => return Err(err(Class::Usage, format!("an unknown argument {:?}\n{}", display(a), usage()))),
         }
     }
+    o.rules(cmd)?;
     Ok(o)
 }
 
@@ -101,25 +77,47 @@ impl Opts {
         self.values.iter().find(|(k, _)| k == name).map(|(_, v)| PathBuf::from(v))
     }
 
-    pub(crate) fn need(&self, name: &str) -> Result<PathBuf, Out> {
-        self.get(name).ok_or_else(|| err(Class::Usage, format!("{name} is necessary\n{USAGE}")))
+    pub(crate) fn has(&self, name: &str) -> bool {
+        self.flags.iter().chain(self.values.iter().map(|(k, _)| k)).any(|k| k == name)
     }
 
-    /// Each option and each flag is one of `allowed`: a flag of another
-    /// command is refused, not ignored (`serve --system`).
-    pub(crate) fn only(&self, allowed: &[&str]) -> Result<(), Out> {
-        let names = self.values.iter().map(|(k, _)| k).chain(&self.flags);
-        match names.into_iter().find(|k| !allowed.contains(&k.as_str())) {
-            Some(k) => Err(err(Class::Usage, format!("an unknown option {}\n{USAGE}", display(k)))),
-            None => Ok(()),
+    pub(crate) fn need(&self, name: &str) -> Result<PathBuf, Out> {
+        self.get(name)
+            .ok_or_else(|| err(Class::Usage, format!("{name} is necessary\n{}", crate::manual::usage(self.path))))
+    }
+
+    /// The rules of the command in the model.
+    fn rules(&self, cmd: &crate::manual::Cmd) -> Result<(), Out> {
+        use crate::manual::R;
+        let usage = || crate::manual::usage(self.path);
+        for r in cmd.rules {
+            let why = match r {
+                R::Excludes(l) if l.iter().filter(|f| self.has(f)).count() > 1 => {
+                    format!("{} exclude each other", l.join(", "))
+                }
+                R::Needs(f, l) if self.has(f) && !l.iter().all(|n| self.has(n)) => {
+                    format!("{f} needs {}", l.join(" and "))
+                }
+                R::NeedsOne(f, l) if self.has(f) && !l.iter().any(|n| self.has(n)) => {
+                    format!("{f} needs one of {}", l.join(", "))
+                }
+                R::OneOf(l) if l.iter().filter(|f| self.has(f)).count() != 1 => {
+                    format!("give one of {}", l.join(", "))
+                }
+                _ => continue,
+            };
+            return Err(err(Class::Usage, format!("{why}\n{}", usage())));
         }
+        Ok(())
     }
 
     pub(crate) fn socket(&self) -> Result<PathBuf, Out> {
         match (self.get("--socket"), self.get("--state")) {
             (Some(s), _) => Ok(s),
             (None, Some(d)) => Ok(crate::serve::socket_of(&d)),
-            (None, None) => Err(err(Class::Usage, format!("--state or --socket is necessary\n{USAGE}"))),
+            (None, None) => {
+                Err(err(Class::Usage, format!("--state or --socket is necessary\n{}", crate::manual::usage(self.path))))
+            }
         }
     }
 }
@@ -132,16 +130,15 @@ pub fn run(args: &[String]) -> Out {
 }
 
 fn run_inner(args: &[String]) -> Result<Out, Out> {
-    let Some((cmd, rest)) = args.split_first() else { return Err(err(Class::Usage, USAGE)) };
+    let Some((cmd, rest)) = args.split_first() else { return Err(err(Class::Usage, usage())) };
     if let Some(o) = crate::help::answer(cmd, rest) {
         return Ok(o);
     }
     match cmd.as_str() {
         "--version" | "-V" => Ok(ok(version())),
-        "--help" | "-h" => Ok(ok(USAGE.into())),
+        "man" => Ok(crate::manual::man(rest)),
         "serve" => {
-            let o = opts(rest)?;
-            o.only(&["--config", "--state", "--socket"])?;
+            let o = opts("serve", rest)?;
             let state = o.need("--state")?;
             let socket = o.get("--socket").unwrap_or_else(|| crate::serve::socket_of(&state));
             // As PID 1 of a container, a parent reaps the orphans (T-180).
@@ -150,24 +147,27 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             Ok(ok(String::new()))
         }
         "check" => {
-            let o = opts(rest)?;
-            o.only(&["--config", "--here"])?;
+            let o = opts("check", rest)?;
             let here = o.flags.contains(&"--here".into());
             let said = crate::mint_serve::check_any(&o.need("--config")?, here).map_err(|f| err(f.class, f.detail))?;
             Ok(ok(said.into()))
         }
         "stop" if rest.iter().any(|a| a == "--wait") => stop_wait(rest),
         "status" | "drain" | "stop" | "clear-degraded" | "resume" => {
-            let o = opts(rest)?;
-            o.only(&["--state", "--socket", "--source", "--json"])?;
+            let path = crate::manual::find(cmd).map_or("status", |c| c.path);
+            let o = opts(path, rest)?;
             let source = o.get("--source").map(|s| s.display().to_string());
-            let req = match (cmd.as_str(), source) {
+            let req = match (path, source) {
                 ("drain", Some(source)) => Request::DrainSource { source },
                 ("resume", Some(source)) => Request::ResumeSource { source },
                 ("stop", Some(source)) => Request::StopSource { source },
-                ("resume", None) => return Err(err(Class::Usage, format!("resume needs --source\n{USAGE}"))),
-                (_, Some(_)) => return Err(err(Class::Usage, format!("{cmd} takes no --source\n{USAGE}"))),
-                ("status", None) => Request::Status,
+                ("resume", None) => {
+                    return Err(err(
+                        Class::Usage,
+                        format!("resume needs --source\n{}", crate::manual::usage("resume")),
+                    ));
+                }
+                ("status", _) => Request::Status,
                 ("drain", None) => Request::Drain,
                 ("stop", None) => Request::Stop,
                 _ => Request::ClearDegraded,
@@ -188,8 +188,7 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             Ok(crate::run_local::doctor(&rest))
         }
         "doctor" => {
-            let o = opts(rest)?;
-            o.only(&["--config", "--json"])?;
+            let o = opts("doctor", rest)?;
             let v = crate::doctor::report(o.get("--config").as_deref()).map_err(|f| err(f.class, f.detail))?;
             if o.flags.contains(&"--json".into()) { Ok(ok(format!("{v}\n"))) } else { Ok(ok(crate::doctor::text(&v))) }
         }
@@ -198,25 +197,24 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
         "remove-unit" => unit::remove(rest),
         "config" => match rest.split_first() {
             Some((sub, rest)) if sub == "init" => crate::config_init::init(rest),
-            _ => Err(err(Class::Usage, format!("config needs init\n{USAGE}"))),
+            _ => Err(err(Class::Usage, format!("config needs init\n{}", crate::manual::usage("config init")))),
         },
         "source" => match rest.split_first() {
             Some((sub, rest)) if sub == "restart" => crate::verbs::source_restart(rest),
-            _ => Err(err(Class::Usage, format!("source needs restart\n{USAGE}"))),
+            _ => Err(err(Class::Usage, format!("source needs restart\n{}", crate::manual::usage("source restart")))),
         },
         "audit" => match rest.split_first() {
             Some((sub, rest)) if sub == "verify" => audit_verify(rest),
-            _ => Err(err(Class::Usage, format!("audit needs verify\n{USAGE}"))),
+            _ => Err(err(Class::Usage, format!("audit needs verify\n{}", crate::manual::usage("audit verify")))),
         },
         "image" => match rest.split_first() {
             Some((sub, rest)) if sub == "verify" => {
-                let o = opts(rest)?;
-                o.only(&["--tarball", "--arch"])?;
+                let o = opts("image verify", rest)?;
                 let arch = o.need("--arch")?.display().to_string();
                 let arch = crate::image::arch_of(&arch).map_err(|e| err(Class::Usage, e))?;
                 crate::image::verify(&o.need("--tarball")?, arch).map(ok).map_err(|e| err(Class::Config, e))
             }
-            _ => Err(err(Class::Usage, format!("image needs verify\n{USAGE}"))),
+            _ => Err(err(Class::Usage, format!("image needs verify\n{}", crate::manual::usage("image verify")))),
         },
         "run" => {
             // The flags of the configuration files go first (T-143).
@@ -227,22 +225,23 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             }
         }
         "source-conformance" => {
+            // The flags come before `--`; the program and its arguments after.
+            opts("source-conformance", &rest[..rest.iter().position(|a| a == "--").unwrap_or(rest.len())])?;
             let (text, passed) = crate::program_source::source_conformance(rest).map_err(|f| err(f.class, f.detail))?;
             Ok(Out { code: if passed { 0 } else { 1 }, stdout: text, stderr: String::new() })
         }
         "fake-source" => {
+            opts("fake-source", rest)?;
             crate::program_source::fake_source(rest).map_err(|f| err(f.class, f.detail))?;
             Ok(ok(String::new()))
         }
         "mint-serve" => {
-            let o = opts(rest)?;
-            o.only(&["--config"])?;
+            let o = opts("mint-serve", rest)?;
             crate::mint_serve::run(&o.need("--config")?).map_err(|f| err(f.class, f.detail))?;
             Ok(ok(String::new()))
         }
         "pin-sign" => {
-            let o = opts(rest)?;
-            o.only(&["--config", "--seed-file"])?;
+            let o = opts("pin-sign", rest)?;
             let config = o.need("--config")?;
             let text = std::fs::read_to_string(&config)
                 .map_err(|e| err(Class::Config, format!("the configuration {}: {e}", config.display())))?;
@@ -251,7 +250,7 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             let (signer, signature) = podrunner_slots::pins::sign(&pins, &seed);
             Ok(ok(format!("signer = \"{signer}\"\nsignature = \"{signature}\"\n")))
         }
-        other => Err(err(Class::Usage, format!("an unknown command {:?}\n{USAGE}", display(other)))),
+        other => Err(err(Class::Usage, format!("an unknown command {:?}\n{}", display(other), usage()))),
     }
 }
 

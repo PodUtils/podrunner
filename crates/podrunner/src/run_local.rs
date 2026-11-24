@@ -44,7 +44,10 @@ use crate::cli::Out;
 use args::{Args, parse};
 use secrets::{run_files, secrets};
 
-pub const USAGE: &str = "usage: podrunner run (FILE | DIR) (--runner-dir DIR | (--podvm PATH | --microvm PATH [--engine DIR] | --incus PATH [--engine DIR]) --images STORE --image NAME@sha256:HEX)\n         [--podnet PATH | --vnet PATH] [--allow HOST]... [--platform LABEL=NAME@sha256:HEX|host]... [--actions DIR] [--offline | --frozen] [--artifacts DIR] [--cache DIR | --no-cache] [--secret NAME]... [--secret-file FILE] [--github-token-env NAME] [--job ID]... [--matrix KEY=VALUE]... [--list | --graph | --validate | --dry-run] [-q] [--json] [--log-dir DIR] [--environment-secret-file NAME=FILE]... [--environment-var-file NAME=FILE]... [--environment-allow NAME=HOST]... [--protected NAME]... [--approve NAME]... [--export DIR] [--toolcache DIR] [--local-repository OWNER/REPO@REF=DIR]... [--action-server URL] [--oidc-issuer URL] [--oidc-keys FILE] [--watch | --schedule] [--no-config] [--changed-since REF] [--web IP:PORT] [--jobs N] [--break JOB:STEP]... [--break-on-failure | --keep-failed] [--checkout DIR [--checkout-head] [--with-git | --no-git]] [--event NAME] [--event-path FILE] [--force-event] [--remote NAME] [--ref REF] [--sha SHA] [--repository OWNER/REPO] [--actor NAME] [--var NAME=VALUE]... [--input NAME=VALUE]... [--var-file FILE] [--input-file FILE] [--env NAME=VALUE]... [--env-file FILE] [--state DIR] [--rerun DIR [--failed | --job ID]... [--refresh]]";
+/// The usage of `run`, for an error of its command line.
+pub fn usage() -> String {
+    crate::manual::usage("run")
+}
 
 fn fail(class: Class, msg: impl Into<String>) -> Out {
     Out { code: class.exit_code(), stdout: String::new(), stderr: format!("podrunner: {}\n", msg.into()) }
@@ -476,6 +479,13 @@ pub fn run(args: &[String]) -> Out {
 #[cfg(test)]
 mod flags_tests;
 #[cfg(test)]
-mod qa6_tests;
+pub(crate) mod qa6_tests;
+
+/// The refusal of the parser of `run` for `args`, for the tests of the
+/// model (`crate::manual`).
+#[cfg(test)]
+pub(crate) fn refusal(args: &[String]) -> Option<String> {
+    parse(args).err()
+}
 #[cfg(test)]
 mod tests;

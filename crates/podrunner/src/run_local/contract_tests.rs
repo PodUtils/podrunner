@@ -1,14 +1,13 @@
-//! The command line of `run` as a contract (T-245): each flag that the
-//! usage names is a flag of the parser, each flag of the parser is in the
-//! usage, and `docs/cli.md` names the same flags as the usage.
+//! The command line of `run` as a contract (T-245, T-627): each flag of the
+//! model (`crate::manual`) is a flag of the parser, with or without a
+//! value as the model says, and each flag of the parser is in the model.
 
 use std::collections::BTreeSet;
 
 use super::*;
-use crate::run_local::USAGE;
 
 /// The flags of a text: each `--NAME`.
-fn flags(text: &str) -> BTreeSet<String> {
+pub(crate) fn flags(text: &str) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     let b = text.as_bytes();
     let mut i = 0;
@@ -26,41 +25,35 @@ fn flags(text: &str) -> BTreeSet<String> {
 
 /// The flags that `run_config::expand` and `watch::repeat` take before
 /// the parser.
-const BEFORE_THE_PARSER: [&str; 3] = ["--no-config", "--watch", "--schedule"];
+pub(crate) const BEFORE_THE_PARSER: [&str; 3] = ["--no-config", "--watch", "--schedule"];
 
-/// The long forms of a short flag of the usage.
-const LONG_FORMS: [&str; 1] = ["--quiet"];
+/// The flags of `run` in the model, with whether each takes a value.
+fn model() -> Vec<(String, bool)> {
+    crate::manual::find("run").expect("run").flags.iter().map(|f| (f.spelling(), f.value.is_some())).collect()
+}
+
+/// The flags of the parser: each arm `"--NAME" =>` or `"-x" | "--NAME" =>`.
+pub(crate) fn parser_flags() -> BTreeSet<String> {
+    let source = include_str!("args.rs");
+    let mut out: BTreeSet<String> = source.lines().filter(|l| l.contains("\" =>")).flat_map(flags).collect();
+    out.extend(BEFORE_THE_PARSER.iter().map(|s| s.to_string()));
+    out
+}
 
 #[test]
-fn each_flag_of_the_usage_is_a_flag_of_the_parser() {
-    for f in flags(USAGE) {
+fn each_flag_of_the_model_is_a_flag_of_the_parser() {
+    for (f, value) in model() {
         if BEFORE_THE_PARSER.contains(&f.as_str()) {
             continue;
         }
         let e = parse(&["w.yml".to_string(), f.clone()]).err().unwrap_or_default();
         assert!(!e.starts_with("an unknown option"), "{f}: {e}");
+        assert_eq!(e.ends_with("needs a value"), value, "{f}: {e}");
     }
 }
 
 #[test]
-fn each_flag_of_the_parser_is_in_the_usage() {
-    let usage = flags(USAGE);
-    // Each arm of the parser: `"--NAME" =>` or `"-x" | "--NAME" =>`.
-    let source = include_str!("args.rs");
-    for line in source.lines().filter(|l| l.contains("\" =>")) {
-        for f in flags(line) {
-            assert!(
-                usage.contains(&f) || LONG_FORMS.contains(&f.as_str()),
-                "{f} is a flag of the parser, not of the usage"
-            );
-        }
-    }
-}
-
-#[test]
-fn the_documents_name_the_flags_of_the_usage() {
-    let cli = include_str!("../../../../docs/cli.md");
-    let row = cli.lines().find(|l| l.starts_with("| `podrunner run (FILE")).expect("the row of run in docs/cli.md");
-    let synopsis = row.split("` |").next().unwrap_or(row);
-    assert_eq!(flags(synopsis), flags(USAGE), "docs/cli.md and the usage of run differ");
+fn each_flag_of_the_parser_is_in_the_model() {
+    let model: BTreeSet<String> = model().into_iter().map(|(f, _)| f).collect();
+    assert_eq!(parser_flags(), model, "the parser of run and the model differ");
 }

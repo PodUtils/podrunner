@@ -1019,6 +1019,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-manual"
+version = "0.82.1"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.82.1#0d7832b992b701ef1805496fe49375bb97543b0c"
+dependencies = [
+ "libc",
+ "pod-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "pod-proxy"
 version = "0.82.1"
 source = "git+https://github.com/PodUtils/podcrates?tag=v0.82.1#0d7832b992b701ef1805496fe49375bb97543b0c"
@@ -1105,6 +1116,7 @@ dependencies = [
  "pod-core",
  "pod-dns",
  "pod-hostprobe",
+ "pod-manual",
  "pod-proxy",
  "pod-services",
  "pod-time",

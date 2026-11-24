@@ -374,13 +374,13 @@ fn install_unit_needs_system_and_keeps_a_file_of_another_program() {
     assert_eq!(std::fs::read_to_string(d.unit_file()).unwrap(), "[Service]\nExecStart=/bin/other\n");
 }
 
-/// T-588: the help of each command of a unit comes from the usage.
+/// T-588: the help of each command of a unit comes from the model.
 #[test]
 fn each_command_of_a_unit_has_its_help() {
     for (cmd, want) in [
-        ("print-unit", "usage: podrunner print-unit --system [--user NAME]"),
-        ("install-unit", "usage: podrunner install-unit --system [--user NAME]"),
-        ("remove-unit", "usage: podrunner remove-unit --system"),
+        ("print-unit", "Usage: podrunner print-unit [--system [--user NAME]]"),
+        ("install-unit", "Usage: podrunner install-unit --system [--user NAME]"),
+        ("remove-unit", "Usage: podrunner remove-unit --system"),
     ] {
         let out = run(&args(&["help", cmd]));
         assert_eq!(out.code, 0, "{cmd}: {}", out.stderr);

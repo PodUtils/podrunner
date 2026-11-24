@@ -15,101 +15,31 @@
 
 use std::path::{Component, Path, PathBuf};
 
-/// The keys that a project file may set: they reach no resource of the
-/// host. `var-file`, `input-file` and `env-file` must stay in the project.
-const SAFE: &[&str] = &[
-    "event",
-    "var",
-    "input",
-    "env",
-    "matrix",
-    "job",
-    "protected",
-    "remote",
-    "actor",
-    "repository",
-    "quiet",
-    "json",
-    "no-cache",
-    "offline",
-    "frozen",
-    "checkout-head",
-    "with-git",
-    "no-git",
-    "force-event",
-    "var-file",
-    "input-file",
-    "env-file",
-];
+use crate::manual::Key;
 
-/// The keys of the file of the user, or of a trusted project: they name
-/// binaries, stores, hosts, secrets or approvals of the host.
-const HOST: &[&str] = &[
-    "runner-dir",
-    "podvm",
-    "microvm",
-    "incus",
-    "engine",
-    "images",
-    "image",
-    "podnet",
-    "allow",
-    "actions",
-    "artifacts",
-    "cache",
-    "secret",
-    "secret-file",
-    "github-token-env",
-    "log-dir",
-    "state",
-    "export",
-    "local-repository",
-    "action-server",
-    "oidc-issuer",
-    "oidc-keys",
-    "environment-secret-file",
-    "environment-var-file",
-    "environment-allow",
-    "approve",
-    "platform",
-    "checkout",
-    "ref",
-    "sha",
-    "event-path",
-    "jobs",
-    "web",
-    "toolcache",
-];
+/// The keys of a file come from the flags of `run` in the model
+/// (`crate::manual`): each flag with a key is a key of the same name.
+fn class(key: &str) -> Key {
+    crate::manual::run_key(key).unwrap_or(Key::No)
+}
 
-/// The flags of run that are not keys: each one asks for one run of its
-/// own (a view, a loop, a rerun) (T-277).
-const NOT_KEYS: &str = "list, graph, validate, dry-run, watch, schedule, rerun, failed, refresh, no-config, break, break-on-failure, keep-failed, changed-since";
+/// A project file may set it: it reaches no resource of the host.
+/// `var-file`, `input-file` and `env-file` must stay in the project.
+fn safe(key: &str) -> bool {
+    matches!(class(key), Key::Safe | Key::SafePath)
+}
 
-/// The keys whose value is a path: a relative path is read from the
-/// directory of the project (the project file) or of the file (the user
-/// file).
-const PATHS: &[&str] = &[
-    "toolcache",
-    "runner-dir",
-    "podvm",
-    "microvm",
-    "incus",
-    "engine",
-    "images",
-    "actions",
-    "artifacts",
-    "cache",
-    "secret-file",
-    "log-dir",
-    "state",
-    "export",
-    "oidc-keys",
-    "event-path",
-    "var-file",
-    "input-file",
-    "env-file",
-    "checkout",
-];
+/// Only the file of the user, or of a trusted project, sets it: it names a
+/// binary, a store, a host, a secret or an approval of the host.
+fn host(key: &str) -> bool {
+    matches!(class(key), Key::Host | Key::HostPath)
+}
+
+/// A relative path is read from the directory of the project (the project
+/// file) or of the file (the user file).
+fn path_key(key: &str) -> bool {
+    matches!(class(key), Key::SafePath | Key::HostPath)
+}
 
 /// The flags of `.actrc` that podrunner takes: those of the same name.
 const ACTRC: &[&str] = &["secret-file", "var", "env", "input", "var-file", "env-file", "input-file", "secret"];
@@ -153,10 +83,11 @@ fn flags_of(text: &str, name: &str, base: &Path, project: bool, trusted: bool) -
         if key == "trusted" && !project {
             continue;
         }
-        let safe = SAFE.contains(&key.as_str());
-        if !safe && !HOST.contains(&key.as_str()) {
+        let safe = safe(key);
+        if !safe && !host(key) {
             return Err(format!(
-                "{name}: `{key}` is not a key of run (each key is a flag of run with no --, but for {NOT_KEYS})"
+                "{name}: `{key}` is not a key of run (each key is a flag of run with no --, but for {})",
+                crate::manual::not_keys()
             ));
         }
         if project && !safe && !trusted {
@@ -171,7 +102,7 @@ fn flags_of(text: &str, name: &str, base: &Path, project: bool, trusted: bool) -
                 toml::Value::Integer(i) => i.to_string(),
                 _ => return Err(format!("{name}: `{key}` takes a string, a list or a table")),
             };
-            match PATHS.contains(&key.as_str()) {
+            match path_key(key) {
                 true => path_value(key, &s, base, project && !trusted),
                 false => Ok(s),
             }
@@ -221,7 +152,7 @@ fn actrc(
             f => f.trim_start_matches('-').to_string(),
         };
         let value = it.next_if(|v| !v.starts_with('-'));
-        let host = HOST.contains(&key.as_str());
+        let host = host(&key);
         match (ACTRC.contains(&key.as_str()), value) {
             // A secret of `.actrc` is NAME=VALUE or NAME; podrunner takes NAME only.
             (true, Some(v)) if key == "secret" && v.contains('=') => {
@@ -234,7 +165,7 @@ fn actrc(
             }
             // A file of an untrusted project stays in the project, as in
             // run.toml (T-292).
-            (true, Some(v)) if PATHS.contains(&key.as_str()) && !trusted => match project {
+            (true, Some(v)) if path_key(&key) && !trusted => match project {
                 Some(base) => out.extend([
                     format!("--{key}"),
                     path_value(&key, &v, base, true).map_err(|e| format!("{name}: {e}"))?,

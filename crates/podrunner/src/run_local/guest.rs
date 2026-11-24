@@ -12,7 +12,7 @@ use super::{Args, Class, Out, arch, fail, policy};
 
 pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
     let (Some((microvm, binary)), Some(images), Some(image)) = (&a.guest, &a.images, &a.image) else {
-        return Err(fail(Class::Usage, super::USAGE));
+        return Err(fail(Class::Usage, super::usage()));
     };
     if !binary.is_file() {
         let flag = if *microvm { "--microvm" } else { "--incus" };

@@ -156,3 +156,18 @@ fn a_trusted_path_is_read_from_the_directory_of_the_file() {
     assert_eq!(trusted_path("~/proj", dir, Some(Path::new("/home/u"))), Path::new("/home/u/proj"));
     assert_eq!(trusted_path("/abs", dir, None), Path::new("/abs"));
 }
+
+/// T-627: each flag of run with a key in the model is a key: `vnet` was
+/// none, and a relative `podnet` or `vnet` is read from the directory of
+/// the file, as `podvm` is.
+#[test]
+fn the_keys_come_from_the_model() {
+    let base = Path::new("/home/u/.config/podrunner");
+    for key in ["podnet", "vnet"] {
+        let got = flags_of(&format!("{key} = \"bin/podnet\"\n"), "f", base, false, true).unwrap();
+        assert_eq!(got, [format!("--{key}"), "/home/u/.config/podrunner/bin/podnet".to_string()]);
+        assert!(flags_of(&format!("{key} = \"p\"\n"), "f", base, true, false).is_err(), "{key}: not of a project");
+    }
+    let e = flags_of("keep-failed = true\n", "f", base, false, true).unwrap_err();
+    assert!(e.contains("not a key of run") && e.contains("keep-failed"), "{e}");
+}

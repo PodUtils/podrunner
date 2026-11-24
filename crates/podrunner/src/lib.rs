@@ -12,6 +12,7 @@ pub mod image;
 pub mod incus_kind;
 pub mod init;
 pub mod lock;
+mod manual;
 pub mod microvm_kind;
 pub mod mint_serve;
 pub mod notify;

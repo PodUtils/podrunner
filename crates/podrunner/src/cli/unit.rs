@@ -8,7 +8,7 @@ use std::path::{Component, Path, PathBuf};
 use pod_core::failure::Class;
 use pod_unit::{Form, Host, Removed, SystemPlaces, Unit};
 
-use super::{Opts, Out, USAGE, err, ok, opts};
+use super::{Opts, Out, err, ok, opts};
 
 /// The name of the unit: `podrunner.service`.
 const NAME: &str = "podrunner";
@@ -78,7 +78,7 @@ struct Spec {
 
 /// `print-unit [--system [--user NAME]] ...`.
 pub(super) fn print(rest: &[String]) -> Result<Out, Out> {
-    let spec = spec(&opts(rest)?, "print-unit", false)?;
+    let spec = spec(&opts("print-unit", rest)?, "print-unit", false)?;
     let text = match &spec.account {
         None => print_unit(&spec.binary, &spec.config, &spec.state, spec.watchdog),
         Some(user) => print_system_unit(&spec.binary, &spec.config, &spec.state, spec.watchdog, user),
@@ -100,7 +100,7 @@ pub(super) fn remove(rest: &[String]) -> Result<Out, Out> {
 /// checks the privilege, systemd, and the uid of the account (root is
 /// refused) before it writes; a unit that does not start is removed.
 fn install_on(rest: &[String], places: &SystemPlaces, host: &dyn Host) -> Result<Out, Out> {
-    let spec = spec(&opts(rest)?, "install-unit", true)?;
+    let spec = spec(&opts("install-unit", rest)?, "install-unit", true)?;
     let user = spec.account.as_deref().unwrap_or(ACCOUNT);
     let unit =
         system_unit(&spec.binary, &spec.config, &spec.state, spec.watchdog, user).map_err(|e| err(Class::Usage, e))?;
@@ -139,10 +139,9 @@ fn old_systemd(host: &dyn Host) -> Option<String> {
 /// `remove-unit` with the places and the host of a test: only a file with
 /// the mark of podrunner is removed. The state directory stays.
 fn remove_on(rest: &[String], places: &SystemPlaces, host: &dyn Host) -> Result<Out, Out> {
-    let o = opts(rest)?;
-    o.only(&["--system"])?;
+    let o = opts("remove-unit", rest)?;
     if !o.flags.iter().any(|f| f == "--system") {
-        return Err(err(Class::Usage, format!("remove-unit needs --system\n{USAGE}")));
+        return Err(err(Class::Usage, format!("remove-unit needs --system\n{}", crate::manual::usage("remove-unit"))));
     }
     // The name and the mark find the file; the program is no part of it.
     let unit = Unit::new(NAME, Path::new("/usr/local/bin/podrunner"), MARK).system(Some(ACCOUNT));
@@ -158,16 +157,20 @@ fn failed(f: pod_core::Failure) -> Out {
 
 /// The options of `cmd`. `need_system`: `--system` is necessary.
 fn spec(o: &Opts, cmd: &str, need_system: bool) -> Result<Spec, Out> {
-    o.only(&["--config", "--state", "--binary", "--watchdog", "--user", "--system"])?;
     let system = o.flags.iter().any(|f| f == "--system");
     if need_system && !system {
         return Err(err(
             Class::Usage,
-            format!("{cmd} needs --system; for a user unit, give the text of print-unit to systemctl --user\n{USAGE}"),
+            format!(
+                "{cmd} needs --system; for a user unit, give the text of print-unit to systemctl --user\n{}",
+                crate::manual::usage(o.path)
+            ),
         ));
     }
     let account = match (system, o.get("--user")) {
-        (false, Some(_)) => return Err(err(Class::Usage, format!("--user needs --system\n{USAGE}"))),
+        (false, Some(_)) => {
+            return Err(err(Class::Usage, format!("--user needs --system\n{}", crate::manual::usage(o.path))));
+        }
         (false, None) => None,
         (true, None) => Some(ACCOUNT.to_string()),
         (true, Some(u)) => Some(account(&u.display().to_string()).map_err(|e| err(Class::Usage, e))?),

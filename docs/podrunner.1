@@ -1,0 +1,1264 @@
+.TH PODRUNNER 1 "" "podrunner" "podrunner manual"
+.nh
+.ad l
+.SH NAME
+podrunner \- A static launcher that runs CI jobs in one fresh unit for each
+job
+.SH SYNOPSIS
+\fBpodrunner COMMAND [OPTION...]\fR
+.PP
+\fBRun the slots:\fR
+.TP
+\fBserve\fR
+Run the slots: one tick each second, and the control socket
+.TP
+\fBcheck\fR
+Check a configuration as serve does before it starts, and start nothing
+.TP
+\fBconfig\fR
+Write a configuration file
+.TP
+\fBdoctor\fR
+The inputs of a host check, or the checks of a local run
+.TP
+\fBprint\-unit\fR
+Print a unit of systemd for serve, with no credential
+.TP
+\fBinstall\-unit\fR
+Install the unit of the system and start it, as root
+.TP
+\fBremove\-unit\fR
+Stop and remove the unit of the system, as root
+.PP
+\fBControl a serve:\fR
+.TP
+\fBstatus\fR
+The state of the slots of serve
+.TP
+\fBdrain\fR
+Take no new job; the jobs in flight go on
+.TP
+\fBresume\fR
+The source takes jobs again
+.TP
+\fBstop\fR
+Drain, then end when each job is final
+.TP
+\fBclear\-degraded\fR
+Start jobs again after a residue
+.TP
+\fBsource\fR
+Control one source of serve
+.PP
+\fBRun a workflow on this host:\fR
+.TP
+\fBrun\fR
+Run the jobs of a workflow on this host, with no forge
+.PP
+\fBCheck and sign:\fR
+.TP
+\fBaudit\fR
+Check the audit file of serve
+.TP
+\fBimage\fR
+Check a file of the official runner
+.TP
+\fBpin\-sign\fR
+Print the signer and the signature of the pin list
+.PP
+\fBThe mint and the source programs:\fR
+.TP
+\fBmint\-serve\fR
+Run the remote mint, on a machine with no unit
+.TP
+\fBfake\-source\fR
+A fake source on stdio, for a test of a program source
+.TP
+\fBsource\-conformance\fR
+Run the tests of the source wire against a source program
+.PP
+\fBRead the manual:\fR
+.TP
+\fBman\fR
+Print the manual: through a pager on a terminal, else as text
+.TP
+\fBversion\fR
+Print the version and the commit
+.PP
+\fBOptions:\fR
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print the version.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help.
+.SH DESCRIPTION
+podrunner runs CI jobs. For each job it starts one fresh unit, runs the
+official runner once in it, and destroys the unit.
+.PP
+serve takes jobs from the sources of a configuration file. run runs the jobs
+of one workflow file on this host, with no forge.
+.SH COMMANDS
+.SS "podrunner serve"
+Run the slots: one tick each second, and the control socket.
+.PP
+SIGTERM and SIGINT start the drain of stop.
+.PP
+Usage: \fBpodrunner serve \-\-config FILE \-\-state DIR [\-\-socket PATH]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-config\fR \fIFILE\fR
+The configuration file of serve (podrunner.toml).
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory of serve. Its control socket is DIR/ctl.sock.
+.TP
+\fB\-\-socket\fR \fIPATH\fR
+The control socket. Default: DIR/ctl.sock.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner check"
+Check a configuration as serve does before it starts, and start nothing.
+.PP
+Usage: \fBpodrunner check \-\-config FILE [\-\-here]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-config\fR \fIFILE\fR
+The configuration file of serve or of mint\-serve.
+.TP
+\fB\-\-here\fR
+Fail when a unit kind of the file cannot run on this host.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner status"
+The state of the slots of serve.
+.PP
+Usage: \fBpodrunner status [\-\-json] (\-\-state DIR | \-\-socket PATH)\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-json\fR
+Print the status as JSON (status.v1).
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory of serve. Its control socket is DIR/ctl.sock.
+.TP
+\fB\-\-socket\fR \fIPATH\fR
+The control socket of serve.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give one of \-\-state, \-\-socket.
+.SS "podrunner drain"
+Take no new job; the jobs in flight go on.
+.PP
+Usage: \fBpodrunner drain [\-\-source NAME] (\-\-state DIR | \-\-socket PATH)\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-source\fR \fINAME\fR
+Only the source NAME of the configuration.
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory of serve. Its control socket is DIR/ctl.sock.
+.TP
+\fB\-\-socket\fR \fIPATH\fR
+The control socket of serve.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give one of \-\-state, \-\-socket.
+.SS "podrunner resume"
+The source takes jobs again.
+.PP
+A stopped source is built again from its table first.
+.PP
+Usage: \fBpodrunner resume \-\-source NAME (\-\-state DIR | \-\-socket PATH)\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-source\fR \fINAME\fR
+Only the source NAME of the configuration.
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory of serve. Its control socket is DIR/ctl.sock.
+.TP
+\fB\-\-socket\fR \fIPATH\fR
+The control socket of serve.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give one of \-\-state, \-\-socket.
+.SS "podrunner stop"
+Drain, then end when each job is final.
+.PP
+With \-\-wait, stop also waits until serve has ended. A timeout exits 75.
+.PP
+Usage: \fBpodrunner stop ([\-\-source NAME] (\-\-state DIR | \-\-socket PATH) | \-\-wait \-\-state DIR [\-\-timeout SECONDS])\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-source\fR \fINAME\fR
+Only the source NAME of the configuration.
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory of serve. Its control socket is DIR/ctl.sock.
+.TP
+\fB\-\-socket\fR \fIPATH\fR
+The control socket of serve.
+.TP
+\fB\-\-wait\fR
+Wait until serve has ended: the lock of DIR is free.
+.TP
+\fB\-\-timeout\fR \fISECONDS\fR
+The longest wait of \-\-wait.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give one of \-\-state, \-\-socket.
+.PP
+\-\-timeout needs \-\-wait.
+.PP
+\-\-wait needs \-\-state.
+.PP
+Give only one of \-\-wait, \-\-source.
+.SS "podrunner clear\-degraded"
+Start jobs again after a residue.
+.PP
+Usage: \fBpodrunner clear\-degraded (\-\-state DIR | \-\-socket PATH)\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory of serve. Its control socket is DIR/ctl.sock.
+.TP
+\fB\-\-socket\fR \fIPATH\fR
+The control socket of serve.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give one of \-\-state, \-\-socket.
+.SS "podrunner config"
+Write a configuration file.
+.PP
+Usage: \fBpodrunner config COMMAND [OPTION...]\fR
+.PP
+\fBCommands:\fR
+.TP
+\fBinit\fR
+Write a podrunner.toml for serve from the unit kinds of this host
+.PP
+\fBOptions:\fR
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner config init"
+Write a podrunner.toml for serve from the unit kinds of this host.
+.PP
+A second run with the same input changes nothing. A file OUT with another text
+exits 77.
+.PP
+When no unit kind runs on this host, or check refuses the file, the exit is
+78.
+.PP
+Usage: \fBpodrunner config init \-\-source NAME \-\-program PATH [\-\-arg ARG]... [\-\-key\-file FILE] [\-\-tier trusted|untrusted] [\-\-org LOGIN]... [\-\-user LOGIN]... \-\-podvm PATH \-\-images STORE [\-\-podnet PATH] \-\-image NAME@sha256:HEX \-\-built\-at\-s N [\-\-runner\-version V] [\-\-unpacked\-bytes N] [\-\-slots N] [\-\-kinds auto|LIST] [\-\-host NAME] \-\-out FILE [\-\-json]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-source\fR \fINAME\fR
+The name of the program source.
+.TP
+\fB\-\-program\fR \fIPATH\fR
+The source program.
+.TP
+\fB\-\-arg\fR \fIARG\fR
+An argument of the program.
+.TP
+\fB\-\-key\-file\fR \fIFILE\fR
+The key file of the program.
+.TP
+\fB\-\-tier\fR \fITIER\fR
+The tier of the source: trusted or untrusted. Default: trusted.
+.TP
+\fB\-\-org\fR \fILOGIN\fR
+An organization that the source serves.
+.TP
+\fB\-\-user\fR \fILOGIN\fR
+A user that the source serves.
+.TP
+\fB\-\-podvm\fR \fIPATH\fR
+The podvm binary.
+.TP
+\fB\-\-images\fR \fISTORE\fR
+The image store of podvm.
+.TP
+\fB\-\-podnet\fR \fIPATH\fR
+The podnet binary: the egress hold of the podvm kind.
+.TP
+\fB\-\-image\fR \fINAME@sha256:HEX\fR
+The runner image, pinned by digest.
+.TP
+\fB\-\-built\-at\-s\fR \fIN\fR
+The build time of the image, in seconds since 1970.
+.TP
+\fB\-\-runner\-version\fR \fIV\fR
+The version of the runner in the image.
+.TP
+\fB\-\-unpacked\-bytes\fR \fIN\fR
+The size of the image when it is unpacked.
+.TP
+\fB\-\-slots\fR \fIN\fR
+The slots of each unit kind. Default: 1.
+.TP
+\fB\-\-kinds\fR \fILIST\fR
+auto, or a comma list of microvm, incus and podvm. Default: auto.
+.TP
+\fB\-\-host\fR \fINAME\fR
+The name of the host. Default: the host name of the kernel.
+.TP
+\fB\-\-out\fR \fIFILE\fR
+The file to write, at mode 0600.
+.TP
+\fB\-\-json\fR
+Print one line of JSON: the file, the kinds, the refused kinds, and whether it
+changed.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner source"
+Control one source of serve.
+.PP
+Usage: \fBpodrunner source COMMAND [OPTION...]\fR
+.PP
+\fBCommands:\fR
+.TP
+\fBrestart\fR
+Build one source again with a new key, and keep its jobs
+.PP
+\fBOptions:\fR
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner source restart"
+Build one source again with a new key, and keep its jobs.
+.PP
+Usage: \fBpodrunner source restart \-\-name NAME (\-\-state DIR | \-\-socket PATH)\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-name\fR \fINAME\fR
+The source to build again.
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory of serve. Its control socket is DIR/ctl.sock.
+.TP
+\fB\-\-socket\fR \fIPATH\fR
+The control socket of serve.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give one of \-\-state, \-\-socket.
+.SS "podrunner doctor"
+The inputs of a host check, or the checks of a local run.
+.PP
+With \-\-run, doctor takes each option of run: podrunner run \-\-help.
+.PP
+Usage: \fBpodrunner doctor [\-\-config FILE] [\-\-json] | [\-\-json] \-\-run FILE [OPTION...]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-config\fR \fIFILE\fR
+The configuration file of serve: check its unit kinds and sources too.
+.TP
+\fB\-\-json\fR
+Print JSON.
+.TP
+\fB\-\-run\fR \fIFILE\fR
+The workflow file of a local run: check the host for it.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give only one of \-\-config, \-\-run.
+.SS "podrunner audit"
+Check the audit file of serve.
+.PP
+Usage: \fBpodrunner audit COMMAND [OPTION...]\fR
+.PP
+\fBCommands:\fR
+.TP
+\fBverify\fR
+Check the chain of audit.jsonl
+.PP
+\fBOptions:\fR
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner audit verify"
+Check the chain of audit.jsonl.
+.PP
+A lost, changed or torn line exits 76.
+.PP
+Usage: \fBpodrunner audit verify (\-\-state DIR | \-\-file FILE) [\-\-anchor SEQ:HASH]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory: check DIR/audit.jsonl.
+.TP
+\fB\-\-file\fR \fIFILE\fR
+The audit file to check.
+.TP
+\fB\-\-anchor\fR \fISEQ:HASH\fR
+The seq of a line and the prev of the next line in the copy at the source.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give one of \-\-state, \-\-file.
+.SS "podrunner print\-unit"
+Print a unit of systemd for serve, with no credential.
+.PP
+With no \-\-system, the unit is a user unit.
+.PP
+Usage: \fBpodrunner print\-unit [\-\-system [\-\-user NAME]] \-\-config FILE \-\-state DIR [\-\-binary PATH] [\-\-watchdog SECONDS]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-system\fR
+A unit of the system, not a user unit.
+.TP
+\fB\-\-user\fR \fINAME\fR
+With \-\-system: the account that runs serve. Default: podrunner.
+.TP
+\fB\-\-config\fR \fIFILE\fR
+The configuration file, as an absolute path.
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory, as an absolute path.
+.TP
+\fB\-\-binary\fR \fIPATH\fR
+The absolute path of podrunner in the unit. Default: /usr/local/bin/podrunner.
+.TP
+\fB\-\-watchdog\fR \fISECONDS\fR
+The watchdog of systemd: serve tells systemd at half of this time.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+\-\-user needs \-\-system.
+.SS "podrunner install\-unit"
+Install the unit of the system and start it, as root.
+.PP
+Usage: \fBpodrunner install\-unit \-\-system [\-\-user NAME] \-\-config FILE \-\-state DIR [\-\-binary PATH] [\-\-watchdog SECONDS]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-system\fR
+A unit of the system, not a user unit.
+.TP
+\fB\-\-user\fR \fINAME\fR
+With \-\-system: the account that runs serve. Default: podrunner.
+.TP
+\fB\-\-config\fR \fIFILE\fR
+The configuration file, as an absolute path.
+.TP
+\fB\-\-state\fR \fIDIR\fR
+The state directory, as an absolute path.
+.TP
+\fB\-\-binary\fR \fIPATH\fR
+The absolute path of podrunner in the unit. Default: /usr/local/bin/podrunner.
+.TP
+\fB\-\-watchdog\fR \fISECONDS\fR
+The watchdog of systemd: serve tells systemd at half of this time.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner remove\-unit"
+Stop and remove the unit of the system, as root.
+.PP
+The state directory and the configuration stay.
+.PP
+Usage: \fBpodrunner remove\-unit \-\-system\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-system\fR
+The unit of the system.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner pin\-sign"
+Print the signer and the signature of the pin list.
+.PP
+Usage: \fBpodrunner pin\-sign \-\-config FILE \-\-seed\-file FILE\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-config\fR \fIFILE\fR
+The configuration file of serve (podrunner.toml).
+.TP
+\fB\-\-seed\-file\fR \fIFILE\fR
+The seed: 64 hex digits, mode 0600.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner mint\-serve"
+Run the remote mint, on a machine with no unit.
+.PP
+Usage: \fBpodrunner mint\-serve \-\-config FILE\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-config\fR \fIFILE\fR
+The configuration file of the mint.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner fake\-source"
+A fake source on stdio, for a test of a program source.
+.PP
+It ends when stdin ends.
+.PP
+Usage: \fBpodrunner fake\-source [\-\-script FILE]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-script\fR \fIFILE\fR
+The script of the fake source.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner source\-conformance"
+Run the tests of the source wire against a source program.
+.PP
+Exit 0 when each test passes, else 1.
+.PP
+Usage: \fBpodrunner source\-conformance [\-\-json] \-\- PROGRAM [ARG...]\fR
+.PP
+\fBArguments:\fR
+.TP
+\fIPROGRAM\fR
+The source program.
+.TP
+\fI[ARG]...\fR
+The arguments of the program.
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-json\fR
+Print one JSON object for each line.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner image"
+Check a file of the official runner.
+.PP
+Usage: \fBpodrunner image COMMAND [OPTION...]\fR
+.PP
+\fBCommands:\fR
+.TP
+\fBverify\fR
+Check actions\-runner\-linux\-ARCH\-VERSION.tar.gz against its pin
+.PP
+\fBOptions:\fR
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner image verify"
+Check actions\-runner\-linux\-ARCH\-VERSION.tar.gz against its pin.
+.PP
+Usage: \fBpodrunner image verify \-\-tarball FILE \-\-arch ARCH\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-tarball\fR \fIFILE\fR
+The release tarball of the official runner.
+.TP
+\fB\-\-arch\fR \fIARCH\fR
+x64 or arm64. x86_64 and aarch64 are the same.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner run"
+Run the jobs of a workflow on this host, with no forge.
+.PP
+Each option is in https://github.com/PodUtils/podrunner/blob/main/docs/cli.md,
+in the row of podrunner run.
+.PP
+A key of run.toml is an option with no dashes. Exit 0, or 1 when a job failed.
+.PP
+Usage: \fBpodrunner run (FILE | DIR) (\-\-runner\-dir DIR | (\-\-podvm PATH [\-\-podnet PATH | \-\-vnet PATH] | \-\-microvm PATH [\-\-engine DIR] | \-\-incus PATH [\-\-engine DIR]) \-\-images STORE \-\-image NAME@sha256:HEX) [OPTION...]\fR
+.PP
+\fBArguments:\fR
+.TP
+\fIFILE\fR
+The workflow file, or a directory of workflow files.
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-runner\-dir\fR \fIDIR\fR
+An unpacked release of the official runner. Each job runs in it as the user of
+podrunner.
+.TP
+\fB\-\-podvm\fR \fIPATH\fR
+The podvm binary. Each job runs in a fresh podvm unit.
+.TP
+\fB\-\-podnet\fR \fIPATH\fR
+With \-\-podvm: hold each unit under podnet pod.
+.TP
+\fB\-\-vnet\fR \fIPATH\fR
+With \-\-podvm: run the runner of each unit under the vnet shim of this
+podnet.
+.TP
+\fB\-\-microvm\fR \fIPATH\fR
+The podvm binary. Each job runs in a fresh guest of the microvm kind.
+.TP
+\fB\-\-incus\fR \fIPATH\fR
+The podvm binary. Each job runs in a fresh incus instance.
+.TP
+\fB\-\-engine\fR \fIDIR\fR
+With \-\-microvm or \-\-incus: the container engine of each guest.
+.TP
+\fB\-\-images\fR \fISTORE\fR
+The image store of podvm.
+.TP
+\fB\-\-image\fR \fINAME@sha256:HEX\fR
+The runner image of each unit, pinned by digest.
+.TP
+\fB\-\-allow\fR \fIHOST\fR
+A host that a step can reach through the egress module.
+.TP
+\fB\-\-platform\fR \fILABEL=TARGET\fR
+Map a label of runs\-on to a runner image NAME@sha256:HEX, or to host.
+.TP
+\fB\-\-actions\fR \fIDIR\fR
+The store of the actions. Default: XDG_CACHE_HOME/podrunner/actions.
+.TP
+\fB\-\-offline\fR
+Use the lock file and the store only, and fetch nothing.
+.TP
+\fB\-\-frozen\fR
+Refuse a change of the lock file.
+.TP
+\fB\-\-artifacts\fR \fIDIR\fR
+Keep the artifacts of the run in DIR.
+.TP
+\fB\-\-cache\fR \fIDIR\fR
+The store of the cache service. Default: XDG_CACHE_HOME/podrunner/cache.
+.TP
+\fB\-\-no\-cache\fR
+No cache: each lookup is a miss, and each save is refused.
+.TP
+\fB\-\-secret\fR \fINAME\fR
+A secret from the variable NAME of the environment. A value in argv is
+refused.
+.TP
+\fB\-\-secret\-file\fR \fIFILE\fR
+A file of secrets, one NAME=VALUE on each line, at mode 0600 or less.
+.TP
+\fB\-\-github\-token\-env\fR \fINAME\fR
+Give the token of the variable NAME to each job whose permissions are not
+empty.
+.TP
+\fB\-\-job\fR \fIID\fR
+Run the job ID and each job that it needs. With \-\-rerun: run that job again.
+.TP
+\fB\-\-matrix\fR \fIKEY=VALUE\fR
+Keep only the matrix cells with this value.
+.TP
+\fB\-\-list\fR
+Print each job with its name, runs\-on and needs.
+.TP
+\fB\-\-graph\fR
+Print the stages of needs and each edge.
+.TP
+\fB\-\-validate\fR
+Parse the file and print each warning.
+.TP
+\fB\-\-dry\-run\fR
+Resolve the pins and build the job message of each cell, with no unit.
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+Do not write the new lines of each job log to stderr.
+.TP
+\fB\-\-json\fR
+Write one JSON object for each log line and for the end of each job.
+.TP
+\fB\-\-log\-dir\fR \fIDIR\fR
+Keep the logs of each job in DIR.
+.TP
+\fB\-\-environment\-secret\-file\fR \fINAME=FILE\fR
+The secrets of the environment NAME, from FILE at mode 0600.
+.TP
+\fB\-\-environment\-var\-file\fR \fINAME=FILE\fR
+The vars of the environment NAME, from FILE.
+.TP
+\fB\-\-environment\-allow\fR \fINAME=HOST\fR
+A host that the jobs of the environment NAME can reach.
+.TP
+\fB\-\-protected\fR \fINAME\fR
+Mark the environment NAME as protected: its jobs need an approval.
+.TP
+\fB\-\-approve\fR \fINAME\fR
+Approve the protected environment NAME.
+.TP
+\fB\-\-export\fR \fIDIR\fR
+Copy the workspace of each job to DIR/JOB.N after the job.
+.TP
+\fB\-\-toolcache\fR \fIDIR\fR
+With \-\-podvm: a tool cache, read\-only in each unit.
+.TP
+\fB\-\-local\-repository\fR \fIOWNER/REPO@REF=DIR\fR
+Serve the files of DIR as that reference of an action.
+.TP
+\fB\-\-action\-server\fR \fIURL\fR
+The forge of the actions in place of https://github.com.
+.TP
+\fB\-\-oidc\-issuer\fR \fIURL\fR
+The issuer of the OIDC tokens. Default: https://oidc.podrunner.invalid.
+.TP
+\fB\-\-oidc\-keys\fR \fIFILE\fR
+Write the public keys of the OIDC tokens to FILE.
+.TP
+\fB\-\-watch\fR
+Run again after each change of the tree or of the workflow file.
+.TP
+\fB\-\-schedule\fR
+Run at each time of the crons of on.schedule, again and again.
+.TP
+\fB\-\-no\-config\fR
+Read no configuration file.
+.TP
+\fB\-\-changed\-since\fR \fIREF\fR
+The changed files for the paths filters: the files that differ from REF.
+.TP
+\fB\-\-web\fR \fIIP:PORT\fR
+Serve a web view of the run on an address of the loopback.
+.TP
+\fB\-\-jobs\fR \fIN\fR
+With a unit kind: run up to N jobs at a time, each in its own unit. Default:
+1.
+.TP
+\fB\-\-break\fR \fIJOB:STEP\fR
+Pause before the step STEP of the job JOB.
+.TP
+\fB\-\-break\-on\-failure\fR
+Pause after the first failed step of each job.
+.TP
+\fB\-\-keep\-failed\fR
+The same as \-\-break\-on\-failure.
+.TP
+\fB\-\-checkout\fR \fIDIR\fR
+The tree of actions/checkout. Default: the git tree of the current directory.
+.TP
+\fB\-\-checkout\-head\fR
+With \-\-checkout: the committed files of HEAD only.
+.TP
+\fB\-\-with\-git\fR
+With \-\-checkout: give the checkout a .git, and fail out of a git tree.
+.TP
+\fB\-\-no\-git\fR
+With \-\-checkout: give the checkout no .git.
+.TP
+\fB\-\-event\fR \fINAME\fR
+The event of the run. Default: push.
+.TP
+\fB\-\-event\-path\fR \fIFILE\fR
+The JSON payload of the event.
+.TP
+\fB\-\-force\-event\fR
+Run the workflow also when its on: does not take the event.
+.TP
+\fB\-\-remote\fR \fINAME\fR
+The git remote that gives github.repository. Default: origin.
+.TP
+\fB\-\-ref\fR \fIREF\fR
+The value of github.ref.
+.TP
+\fB\-\-sha\fR \fISHA\fR
+The value of github.sha: 40 or 64 hex digits.
+.TP
+\fB\-\-repository\fR \fIOWNER/REPO\fR
+The value of github.repository.
+.TP
+\fB\-\-actor\fR \fINAME\fR
+The value of github.actor.
+.TP
+\fB\-\-var\fR \fINAME=VALUE\fR
+A value of vars.
+.TP
+\fB\-\-input\fR \fINAME=VALUE\fR
+A value of inputs.
+.TP
+\fB\-\-var\-file\fR \fIFILE\fR
+A file of vars, in the syntax of GITHUB_ENV.
+.TP
+\fB\-\-input\-file\fR \fIFILE\fR
+A file of inputs, in the syntax of GITHUB_ENV.
+.TP
+\fB\-\-env\fR \fINAME=VALUE\fR
+A variable of the environment of each job.
+.TP
+\fB\-\-env\-file\fR \fIFILE\fR
+A file of variables of each job, in the syntax of GITHUB_ENV.
+.TP
+\fB\-\-state\fR \fIDIR\fR
+Keep the run in DIR: its state, its logs and its artifacts.
+.TP
+\fB\-\-rerun\fR \fIDIR\fR
+Run the failed cells of the run in DIR again, and each job after them.
+.TP
+\fB\-\-failed\fR
+With \-\-rerun: run the failed cells, not the jobs of \-\-job.
+.TP
+\fB\-\-refresh\fR
+With \-\-rerun: accept a workflow that changed since the run.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give only one of \-\-podvm, \-\-microvm, \-\-incus.
+.PP
+Give only one of \-\-podnet, \-\-vnet.
+.PP
+\-\-podnet needs \-\-podvm.
+.PP
+\-\-vnet needs \-\-podvm.
+.PP
+\-\-toolcache needs \-\-podvm.
+.PP
+\-\-engine needs one of \-\-microvm, \-\-incus.
+.PP
+Give only one of \-\-list, \-\-graph, \-\-validate, \-\-dry\-run.
+.PP
+Give only one of \-\-watch, \-\-schedule.
+.PP
+Give only one of \-\-web, \-\-dry\-run.
+.PP
+Give only one of \-\-offline, \-\-frozen.
+.PP
+Give only one of \-\-cache, \-\-no\-cache.
+.PP
+\-\-checkout\-head needs \-\-checkout.
+.PP
+\-\-with\-git needs \-\-checkout.
+.PP
+\-\-no\-git needs \-\-checkout.
+.PP
+Give only one of \-\-with\-git, \-\-no\-git.
+.PP
+\-\-failed needs \-\-rerun.
+.PP
+\-\-refresh needs \-\-rerun.
+.PP
+Give only one of \-\-failed, \-\-job.
+.SS "podrunner man"
+Print the manual: through a pager on a terminal, else as text.
+.PP
+A SECTION is a command, such as run or config init, or environment or
+exit\-status.
+.PP
+Usage: \fBpodrunner man [SECTION...] [\-\-no\-pager | \-\-json | \-\-roff]\fR
+.PP
+\fBArguments:\fR
+.TP
+\fI[SECTION]...\fR
+A command or a topic of the manual.
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-no\-pager\fR
+Print the text with no pager.
+.TP
+\fB\-\-json\fR
+Print the manual as JSON.
+.TP
+\fB\-\-roff\fR
+Print the manual as a man page (man 7).
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give only one of \-\-json, \-\-roff.
+.SS "podrunner version"
+Print the version and the commit.
+.PP
+Usage: \fBpodrunner version [OPTIONS]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SH "ENVIRONMENT"
+\fBThe local mode:\fR
+.TP
+\fBHOME\fR
+The home: the place of the user files and stores of run when XDG is not set.
+Used by: run.
+.TP
+\fBXDG_CONFIG_HOME\fR
+The directory of the user file podrunner/run.toml. Used by: run.
+.TP
+\fBXDG_CACHE_HOME\fR
+The directory of the default stores of run: actions, cache and concurrency.
+Used by: run.
+.TP
+\fBGIT_TERMINAL_PROMPT\fR
+Set to 0 for each call of git: git asks for no password. Used by: run.
+podrunner sets it and does not read it.
+.PP
+\fBserve and its sources:\fR
+.TP
+\fBNOTIFY_SOCKET\fR
+The socket of systemd: serve sends READY=1 and STOPPING=1 to it. Used by:
+serve.
+.TP
+\fBWATCHDOG_USEC\fR
+The watchdog of systemd: serve sends WATCHDOG=1 at half of it. Used by: serve.
+.TP
+\fBWATCHDOG_PID\fR
+The process that the watchdog of systemd watches. Used by: serve.
+.TP
+\fBGITHUB_ACTIONS_FORCE_GHES\fR
+When it is set, a source takes its forge as GitHub Enterprise Server, as
+actions/scaleset does. Used by: serve.
+.PP
+\fBThe unit kinds:\fR
+.TP
+\fBPODVM_STORE\fR
+The image store of podvm, set for each call of podvm. podrunner sets it and
+does not read it.
+.TP
+\fBPODVM_INCUS_SOCKET\fR
+The socket of incusd, as podvm finds it. Used by: doctor.
+.TP
+\fBINCUS_DIR\fR
+With no PODVM_INCUS_SOCKET: the directory of the socket of incusd. Used by:
+doctor.
+.TP
+\fBPODRUNNER_UNIT_TAG\fR
+The tag of a unit of the host kinds: it finds each process of the unit.
+podrunner sets it and does not read it.
+.TP
+\fBPODRUNNER_CONFINE_CANARY\fR
+The mark of the process that the self\-test of the confine layer starts. Used
+by: serve. podrunner sets it and does not read it.
+.PP
+\fBThe pager:\fR
+.TP
+\fBPAGER\fR
+The pager of the manual on a terminal. An empty value or cat writes the text
+with no pager. Used by: man.
+.TP
+\fBTERM\fR
+With no PAGER, less is used only when TERM names a terminal that is not dumb.
+Used by: man.
+.TP
+\fBPATH\fR
+The directories where the probe looks for less. Used by: man.
+.TP
+\fBLINES\fR
+The lines of a screen of the built\-in pager, when the terminal size is not
+known. Used by: man.
+.TP
+\fBLESS\fR
+The options of less. When it is not set, the pager sets FRX. Used by: man.
+podrunner reads it and sets it.
+.SH "FILES"
+.TP
+\fBDIR/ctl.sock\fR
+The control socket of serve, at mode 0600, in its state directory.
+.TP
+\fBDIR/serve.lock\fR
+The lock of the state directory: one serve at a time.
+.TP
+\fBDIR/audit.jsonl\fR
+The audit file of serve: a chain of lines.
+.TP
+\fBpodrunner\-actions.lock\fR
+The pins of the actions and images of a workflow, beside the workflow file.
+.TP
+\fB\&.secrets\fR
+The secrets of a local run, in the checkout tree or the current directory.
+.SH "THE KEYS OF RUN.TOML"
+XDG_CONFIG_HOME/podrunner/run.toml of the user, then .podrunner/run.toml of
+the project. Each key is a flag of run with no dashes. A flag of the command
+line wins.
+.TP
+\fBrunner\-dir\fR
+Value: DIR. Flag: \-\-runner\-dir. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBpodvm\fR
+Value: PATH. Flag: \-\-podvm. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBpodnet\fR
+Value: PATH. Flag: \-\-podnet. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBvnet\fR
+Value: PATH. Flag: \-\-vnet. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBmicrovm\fR
+Value: PATH. Flag: \-\-microvm. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBincus\fR
+Value: PATH. Flag: \-\-incus. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBengine\fR
+Value: DIR. Flag: \-\-engine. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBimages\fR
+Value: STORE. Flag: \-\-images. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBimage\fR
+Value: NAME@sha256:HEX. Flag: \-\-image. Set by: the user file, or the file of
+a trusted project.
+.TP
+\fBallow\fR
+Value: HOST. Flag: \-\-allow. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBplatform\fR
+Value: LABEL=TARGET. Flag: \-\-platform. Set by: the user file, or the file of
+a trusted project.
+.TP
+\fBactions\fR
+Value: DIR. Flag: \-\-actions. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBoffline\fR
+Value: true. Flag: \-\-offline. Set by: each file.
+.TP
+\fBfrozen\fR
+Value: true. Flag: \-\-frozen. Set by: each file.
+.TP
+\fBartifacts\fR
+Value: DIR. Flag: \-\-artifacts. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBcache\fR
+Value: DIR. Flag: \-\-cache. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBno\-cache\fR
+Value: true. Flag: \-\-no\-cache. Set by: each file.
+.TP
+\fBsecret\fR
+Value: NAME. Flag: \-\-secret. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBsecret\-file\fR
+Value: FILE. Flag: \-\-secret\-file. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBgithub\-token\-env\fR
+Value: NAME. Flag: \-\-github\-token\-env. Set by: the user file, or the file
+of a trusted project.
+.TP
+\fBjob\fR
+Value: ID. Flag: \-\-job. Set by: each file.
+.TP
+\fBmatrix\fR
+Value: KEY=VALUE. Flag: \-\-matrix. Set by: each file.
+.TP
+\fBquiet\fR
+Value: true. Flag: \-\-quiet. Set by: each file.
+.TP
+\fBjson\fR
+Value: true. Flag: \-\-json. Set by: each file.
+.TP
+\fBlog\-dir\fR
+Value: DIR. Flag: \-\-log\-dir. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBenvironment\-secret\-file\fR
+Value: NAME=FILE. Flag: \-\-environment\-secret\-file. Set by: the user file,
+or the file of a trusted project.
+.TP
+\fBenvironment\-var\-file\fR
+Value: NAME=FILE. Flag: \-\-environment\-var\-file. Set by: the user file, or
+the file of a trusted project.
+.TP
+\fBenvironment\-allow\fR
+Value: NAME=HOST. Flag: \-\-environment\-allow. Set by: the user file, or the
+file of a trusted project.
+.TP
+\fBprotected\fR
+Value: NAME. Flag: \-\-protected. Set by: each file.
+.TP
+\fBapprove\fR
+Value: NAME. Flag: \-\-approve. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBexport\fR
+Value: DIR. Flag: \-\-export. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBtoolcache\fR
+Value: DIR. Flag: \-\-toolcache. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBlocal\-repository\fR
+Value: OWNER/REPO@REF=DIR. Flag: \-\-local\-repository. Set by: the user file,
+or the file of a trusted project.
+.TP
+\fBaction\-server\fR
+Value: URL. Flag: \-\-action\-server. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBoidc\-issuer\fR
+Value: URL. Flag: \-\-oidc\-issuer. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBoidc\-keys\fR
+Value: FILE. Flag: \-\-oidc\-keys. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBweb\fR
+Value: IP:PORT. Flag: \-\-web. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBjobs\fR
+Value: N. Flag: \-\-jobs. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBcheckout\fR
+Value: DIR. Flag: \-\-checkout. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBcheckout\-head\fR
+Value: true. Flag: \-\-checkout\-head. Set by: each file.
+.TP
+\fBwith\-git\fR
+Value: true. Flag: \-\-with\-git. Set by: each file.
+.TP
+\fBno\-git\fR
+Value: true. Flag: \-\-no\-git. Set by: each file.
+.TP
+\fBevent\fR
+Value: NAME. Flag: \-\-event. Set by: each file.
+.TP
+\fBevent\-path\fR
+Value: FILE. Flag: \-\-event\-path. Set by: the user file, or the file of a
+trusted project.
+.TP
+\fBforce\-event\fR
+Value: true. Flag: \-\-force\-event. Set by: each file.
+.TP
+\fBremote\fR
+Value: NAME. Flag: \-\-remote. Set by: each file.
+.TP
+\fBref\fR
+Value: REF. Flag: \-\-ref. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBsha\fR
+Value: SHA. Flag: \-\-sha. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBrepository\fR
+Value: OWNER/REPO. Flag: \-\-repository. Set by: each file.
+.TP
+\fBactor\fR
+Value: NAME. Flag: \-\-actor. Set by: each file.
+.TP
+\fBvar\fR
+Value: NAME=VALUE. Flag: \-\-var. Set by: each file.
+.TP
+\fBinput\fR
+Value: NAME=VALUE. Flag: \-\-input. Set by: each file.
+.TP
+\fBvar\-file\fR
+Value: FILE. Flag: \-\-var\-file. Set by: each file.
+.TP
+\fBinput\-file\fR
+Value: FILE. Flag: \-\-input\-file. Set by: each file.
+.TP
+\fBenv\fR
+Value: NAME=VALUE. Flag: \-\-env. Set by: each file.
+.TP
+\fBenv\-file\fR
+Value: FILE. Flag: \-\-env\-file. Set by: each file.
+.TP
+\fBstate\fR
+Value: DIR. Flag: \-\-state. Set by: the user file, or the file of a trusted
+project.
+.SH "EXIT STATUS"
+.TP
+\fB0\fR (success)
+The command did its work.
+.TP
+\fB1\fR (failed)
+A job of run failed, a check of doctor \-\-run failed, or a test of
+source\-conformance failed.
+.TP
+\fB64\fR (usage)
+A value of the command line cannot be used.
+.TP
+\fB66\fR (notfound)
+A path or a name does not exist.
+.TP
+\fB69\fR (unavailable)
+A service or a path is not available.
+.TP
+\fB75\fR (tempfail, timeout)
+A service refused for now. A later try can work. A wait ended at its time
+limit.
+.TP
+\fB76\fR (protocol)
+The far end broke the protocol.
+.TP
+\fB77\fR (refused)
+The far end refused the credentials or the identity.
+.TP
+\fB78\fR (config, revoked, suite)
+A configuration cannot be used. A credential that worked is gone. A restart
+does not help. The far end and this end have no protocol or suite in common.
+.TP
+\fB80\fR (unsupported)
+The host, the build or the far end does not support the action.
+.TP
+\fB130\fR (interrupted)
+A signal ended a local run.
+.SH "SEE ALSO"
+https://github.com/PodUtils/podrunner/blob/main/docs/cli.md
