@@ -122,11 +122,15 @@ type batch struct {
 	members map[string]string
 }
 
+// batchRun: the result of a run in a batch. at: the time that the read
+// of its run object began. A final result serves only the jobs that came
+// before at: a later job can be of a re-run.
 type batchRun struct {
 	in    trustInputs
 	whole bool
 	st    lookupState
 	why   string
+	at    time.Time
 }
 
 func newBatch(ctx context.Context) *batch {
@@ -150,16 +154,19 @@ func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trus
 	return in, whole
 }
 
-// lookupIn gives the trust inputs of a run, once for each run of a batch,
-// for the jobs that came at `since` or before. A lookup that did not end
-// keeps what it learned for a later batch; the inputs are then unknown.
+// lookupIn gives the trust inputs of a run for a job that came at
+// `since`. A batch reads each run once for the jobs that came before the
+// read; a job that came after it gets a read of its own. A result with no
+// final answer serves each job of the batch: it classes no job, and the
+// run waits for its retry. A lookup that did not end keeps what it
+// learned for a later batch; the inputs are then unknown.
 func (t *trust) lookupIn(b *batch, owner, repo string, run int64, messageEvent string, since time.Time) (trustInputs, bool, lookupState, string) {
-	if r, ok := b.runs[run]; ok {
+	if r, ok := b.runs[run]; ok && (r.st != final || r.at.After(since)) {
 		return r.in, r.whole, r.st, r.why
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	in, whole, err := t.read(b, owner, repo, run, messageEvent, since)
+	in, whole, at, err := t.read(b, owner, repo, run, messageEvent, since)
 	st, why := final, ""
 	switch {
 	case err == nil:
@@ -170,22 +177,24 @@ func (t *trust) lookupIn(b *batch, owner, repo string, run int64, messageEvent s
 	default:
 		st, why = retry, strings.TrimPrefix(err.Error(), errNoAnswer.Error()+": ")
 	}
-	b.runs[run] = batchRun{in, whole, st, why}
+	b.runs[run] = batchRun{in, whole, st, why, at}
 	return in, whole, st, why
 }
 
-// read gives the inputs of a run from its run object: only it names the
-// attempt.
-func (t *trust) read(b *batch, owner, repo string, run int64, messageEvent string, since time.Time) (trustInputs, bool, error) {
+// read gives the inputs of a run from its run object (only it names the
+// attempt), and the time that the read of the object began.
+func (t *trust) read(b *batch, owner, repo string, run int64, messageEvent string, since time.Time) (trustInputs, bool, time.Time, error) {
 	unknown := trustInputs{event: eventWord(messageEvent), headIsFork: "unknown", actorClass: "unknown", visibility: "unknown"}
-	r, err := t.runObject(b, owner, repo, run, since)
+	r, at, err := t.runObject(b, owner, repo, run, since)
 	if err != nil || r == nil {
-		return unknown, false, err
+		return unknown, false, at, err
 	}
 	attempt, counted := r["run_attempt"].(float64)
+	// The key is the attempt of an object read after the job came: the
+	// inputs of an older attempt never serve the job.
 	key := runKey{run, int64(attempt)}
 	if v, ok := t.cache[key]; ok && counted && time.Since(v.at) < cacheTTL {
-		return v.in, true, nil
+		return v.in, true, at, nil
 	}
 	out := unknown
 	if e, ok := r["event"].(string); ok {
@@ -199,13 +208,13 @@ func (t *trust) read(b *batch, owner, repo string, run int64, messageEvent strin
 	// this one (a re-run). Each must have the class: the stricter wins.
 	out.actorClass, err = t.classOf(b, owner, r["actor"])
 	if err != nil {
-		return unknown, false, err
+		return unknown, false, at, err
 	}
 	switch v, ok := r["triggering_actor"]; {
 	case ok && v != nil:
 		c, err := t.classOf(b, owner, v)
 		if err != nil {
-			return unknown, false, err
+			return unknown, false, at, err
 		}
 		out.actorClass = stricter(out.actorClass, c)
 	case counted && attempt > 1:
@@ -219,33 +228,34 @@ func (t *trust) read(b *batch, owner, repo string, run int64, messageEvent strin
 		}
 		t.cache[key] = keptInputs{out, time.Now()}
 	}
-	return out, whole, nil
+	return out, whole, at, nil
 }
 
-// runObject gives the run object, or nil for a final answer with none. A
-// run object from a read that began after the job came is used again
-// with no call: a re-run comes as new jobs, after its attempt exists. Else
-// it is a conditional read when the run was read before.
-func (t *trust) runObject(b *batch, owner, repo string, run int64, since time.Time) (map[string]any, error) {
+// runObject gives the run object, or nil for a final answer with none,
+// and the time that its read began. A run object from a read that began
+// after the job came is used again with no call: a re-run comes as new
+// jobs, after its attempt exists. Else it is a conditional read when the
+// run was read before.
+func (t *trust) runObject(b *batch, owner, repo string, run int64, since time.Time) (map[string]any, time.Time, error) {
 	seen, ok := t.runs[run]
 	if ok && seen.at.After(since) && time.Since(seen.at) < partialTTL {
-		return seen.obj, nil
+		return seen.obj, seen.at, nil
 	}
 	at := time.Now()
 	status, r, etag, err := t.get(b.ctx, fmt.Sprintf("/repos/%s/%s/actions/runs/%d", url.PathEscape(owner), url.PathEscape(repo), run), seen.etag)
 	switch {
 	case err != nil:
-		return nil, err
+		return nil, at, err
 	case status == http.StatusNotModified && seen.obj != nil:
 		r, etag = seen.obj, seen.etag
 	case status != http.StatusOK || r == nil:
-		return nil, nil
+		return nil, at, nil
 	}
 	if t.runs == nil || len(t.runs) >= cacheMax {
 		t.runs = map[int64]seenRun{}
 	}
 	t.runs[run] = seenRun{etag, r, at}
-	return r, nil
+	return r, at, nil
 }
 
 // classOf gives the class of one actor object of a run. The batch keeps

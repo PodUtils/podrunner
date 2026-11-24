@@ -439,6 +439,10 @@ organization, the membership of its actor and its triggering actor
   minutes): the class of each login, and the run object for the jobs that
   came before its read began. A re-run comes as new jobs, so a new job
   always gets a new read of its run.
+* A job is classed only by a run object whose read began after the job
+  came. When the first job of a run in a `next` uses a kept run object,
+  a later job of the run that came after that read gets a read of its
+  own (with the ETag), and does not take the result of the first job.
 * The read of a run that the sidecar read before sends its ETag
   (`If-None-Match`). GitHub answers 304 when the run did not change; a
   304 does not count against the rate limit of GitHub or the budget.
