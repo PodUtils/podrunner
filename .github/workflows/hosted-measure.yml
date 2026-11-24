@@ -29,7 +29,7 @@ on:
         type: choice
         options: [all, slice]
       place:
-        description: "btrfs: the store and incusd on one btrfs of / and /mnt, a pool of the btrfs driver; joined: the store and incusd on one LVM ext4 volume of / and /mnt (its run 45156168746 lost its runner); store-root: the store on /, incusd on /mnt; store-mnt: the store on /mnt, incusd on /"
+        description: "btrfs: the store and incusd on one btrfs over a loop file on / and one on /mnt (one file when /mnt is on /), a pool of the btrfs driver; joined: the store and incusd on one LVM ext4 volume of / and /mnt; store-root: the store on /, incusd on /mnt; store-mnt: the store on /mnt, incusd on /"
         required: true
         default: btrfs
         type: choice
@@ -109,45 +109,59 @@ jobs:
           set -eu
           trap 'sh scripts/hosted/space.sh mark "$M" place $?' EXIT
           me="$(id -u):$(id -g)"
+          # The loop files of joined and btrfs: one on / and one on /mnt.
+          # / keeps the margin of the boot and 2 GiB for the runner and
+          # the record. On some hosted images /mnt is a directory of /
+          # (one dm device, cow-root): a second file then takes the same
+          # free bytes again, / fills, and the runner is lost (T-613).
+          # Then make one file on / only.
+          loops() {
+            r=$(( $(df -B1 --output=avail / | sed -n 2p) - ((MARGIN + 2) << 30) ))
+            sudo fallocate -l "$r" "/var/tmp/$1-root.img"
+            devs=$(sudo losetup -f --show "/var/tmp/$1-root.img")
+            if [ "$(stat -c %d /)" = "$(stat -c %d /mnt)" ]; then
+              echo "loops: /mnt is on the file system of /: one loop file of $r bytes" | tee -a "$M/info.txt"
+              return 0
+            fi
+            m=$(( $(df -B1 --output=avail /mnt | sed -n 2p) - (1 << 30) ))
+            sudo fallocate -l "$m" "/mnt/$1-mnt.img"
+            devs="$devs $(sudo losetup -f --show "/mnt/$1-mnt.img")"
+            echo "loops: $r bytes on / and $m bytes on /mnt" | tee -a "$M/info.txt"
+          }
           case $PLACE in
           joined)
-            # One ext4 volume of LVM over a loop file on / and one on /mnt.
-            # / keeps the margin of the boot and 2 GiB for the runner and
-            # the record, so that the boot step can run.
-            r=$(( $(df -B1 --output=avail / | sed -n 2p) - ((MARGIN + 2) << 30) ))
-            m=$(( $(df -B1 --output=avail /mnt | sed -n 2p) - (1 << 30) ))
-            sudo fallocate -l "$r" /var/tmp/joined-root.img
-            sudo fallocate -l "$m" /mnt/joined-mnt.img
-            l1=$(sudo losetup -f --show /var/tmp/joined-root.img)
-            l2=$(sudo losetup -f --show /mnt/joined-mnt.img)
-            sudo pvcreate -q "$l1" "$l2"
-            sudo vgcreate -q measure "$l1" "$l2"
+            # One ext4 volume of LVM over the loop files.
+            loops joined
+            # shellcheck disable=SC2086 # $devs is a list of devices
+            sudo pvcreate -q $devs
+            # shellcheck disable=SC2086
+            sudo vgcreate -q measure $devs
             sudo lvcreate -q -y -l 100%FREE -n joined measure
-            sudo mkfs.ext4 -q -m 0 /dev/measure/joined
+            # No discard: it punches holes in the loop files, and the
+            # reserve of / is then not real.
+            sudo mkfs.ext4 -q -m 0 -E nodiscard /dev/measure/joined
             sudo mkdir -p /srv/joined
             sudo mount /dev/measure/joined /srv/joined
             work=/srv/joined/w incusd=/srv/joined/incus pool=/srv/joined
             ;;
           btrfs)
-            # One btrfs over a loop file on / and one on /mnt, data and
-            # metadata single: no second copy of a block. A pool of the
-            # btrfs driver keeps the image as a subvolume and the root of
-            # an instance as its snapshot (shared blocks); a pool of the
-            # dir driver copies the tree for each (T-613). / keeps the
-            # margin of the boot and 2 GiB, as for joined.
+            # One btrfs over the loop files, data and metadata single: no
+            # second copy of a block. A pool of the btrfs driver keeps the
+            # image as a subvolume and the root of an instance as its
+            # snapshot (shared blocks); a pool of the dir driver copies
+            # the tree for each (T-613).
             command -v mkfs.btrfs > /dev/null || {
               sh scripts/retry.sh sudo apt-get -qq update
               sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends btrfs-progs
             }
-            r=$(( $(df -B1 --output=avail / | sed -n 2p) - ((MARGIN + 2) << 30) ))
-            m=$(( $(df -B1 --output=avail /mnt | sed -n 2p) - (1 << 30) ))
-            sudo fallocate -l "$r" /var/tmp/btrfs-root.img
-            sudo fallocate -l "$m" /mnt/btrfs-mnt.img
-            l1=$(sudo losetup -f --show /var/tmp/btrfs-root.img)
-            l2=$(sudo losetup -f --show /mnt/btrfs-mnt.img)
-            sudo mkfs.btrfs -q -f -L measure -d single -m single "$l1" "$l2"
+            loops btrfs
+            # -K: no discard, as for joined.
+            # shellcheck disable=SC2086
+            sudo mkfs.btrfs -q -f -K -L measure -d single -m single $devs
             sudo mkdir -p /srv/btrfs
-            sudo mount -o "device=$l1,device=$l2" "$l1" /srv/btrfs
+            # shellcheck disable=SC2086
+            set -- $devs
+            sudo mount -o "$(printf 'device=%s,' "$@" | sed 's/,$//')" "$1" /srv/btrfs
             sudo btrfs filesystem show /srv/btrfs | tee -a "$M/info.txt"
             # incusd makes the subvolume of the pool (/srv/btrfs/pool)
             # itself: it refuses a directory that is not a subvolume.

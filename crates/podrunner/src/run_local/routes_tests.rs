@@ -1,0 +1,59 @@
+//! The probe of `--export` and `--log-dir` (T-614).
+
+use super::probe;
+use crate::scratch::Scratch;
+
+/// The names that a probe takes, one after the other.
+fn names(list: &'static [&'static str]) -> impl FnMut() -> String {
+    let mut it = list.iter();
+    move || it.next().expect("a probe asked for more names than the test gives").to_string()
+}
+
+/// T-614: two runs of one pid (in two containers) share the directory: the
+/// probe of one run leaves the probe file of the other in place.
+#[test]
+fn a_probe_leaves_the_probe_of_another_run() {
+    let dir = Scratch::new("probe-other");
+    let other = dir.join(".podrunner-probe-4026532266-1-0");
+    std::fs::write(&other, b"").unwrap();
+    probe(&dir, names(&["4026531836-1-0"])).unwrap();
+    assert!(other.is_file(), "the probe removed the probe file of another run");
+    assert!(!dir.join(".podrunner-probe-4026531836-1-0").exists(), "the probe stayed");
+}
+
+/// T-614: a link at the name of the probe is not followed: its target is
+/// not written, and the link stays. The probe takes the next name.
+#[test]
+fn a_probe_follows_no_link() {
+    let dir = Scratch::new("probe-link");
+    let out = Scratch::new("probe-link-out");
+    let target = out.join("target");
+    let link = dir.join(".podrunner-probe-a");
+    std::os::unix::fs::symlink(&target, &link).unwrap();
+    probe(&dir, names(&["a", "b"])).unwrap();
+    assert!(!target.exists(), "the probe wrote through a link");
+    assert!(link.symlink_metadata().unwrap().file_type().is_symlink(), "the link went");
+    assert!(!dir.join(".podrunner-probe-b").exists(), "the probe stayed");
+}
+
+/// T-614: when each name is taken, the probe fails and writes nothing.
+#[test]
+fn a_probe_with_no_free_name_fails() {
+    let dir = Scratch::new("probe-full");
+    let out = Scratch::new("probe-full-out");
+    let target = out.join("target");
+    for n in ["a", "b", "c", "d"] {
+        std::os::unix::fs::symlink(&target, dir.join(format!(".podrunner-probe-{n}"))).unwrap();
+    }
+    let e = probe(&dir, names(&["a", "b", "c", "d"])).unwrap_err();
+    assert_eq!(e.kind(), std::io::ErrorKind::AlreadyExists, "{e}");
+    assert!(!target.exists(), "the probe wrote through a link");
+}
+
+/// T-614: a probe of an empty directory leaves it empty.
+#[test]
+fn a_probe_leaves_nothing() {
+    let dir = Scratch::new("probe-empty");
+    probe(&dir, names(&["a"])).unwrap();
+    assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+}

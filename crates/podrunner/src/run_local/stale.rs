@@ -4,7 +4,8 @@
 //! the same pid namespace ends each process of those units (by the tag of
 //! each unit, as `destroy` finds them) and removes the directories, and
 //! says so. `ID` is `NS-PID-N` ([`run_id`]): two containers that share
-//! `TMPDIR` can each have a run as pid 1 (T-607).
+//! `TMPDIR` can each have a run as pid 1 (T-607), and NS has the boot id,
+//! so two hosts that share it do not meet (T-615).
 
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -13,8 +14,8 @@ const PREFIXES: &[&str] = &["podrunner-run-units-", "podrunner-run-tree-"];
 /// The probe of `TMPDIR` of a run ([`tmp_ok`]); a dead run can leave it.
 const PROBE: &str = "podrunner-probe-";
 
-/// A process as `/proc` sees it: the inode of its pid namespace
-/// (`/proc/self/ns/pid`) and its pid in that namespace.
+/// A process as `/proc` sees it: the key of its pid namespace ([`ns_key`])
+/// and its pid in that namespace.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Here {
     ns: u64,
@@ -23,12 +24,26 @@ struct Here {
 
 /// This process, or `None` when `/proc` is not the one of its pid
 /// namespace (no `/proc`, or a mount of another namespace): a pid of
-/// `/proc` then names another process, so no run counts as dead.
+/// `/proc` then names another process, so no run counts as dead. Also
+/// `None` with no boot id: then a run of another host is not known.
 fn here() -> Option<Here> {
     let pid = std::process::id();
     let seen: u32 = std::fs::read_link("/proc/self").ok()?.to_str()?.parse().ok()?;
-    let ns = std::fs::metadata("/proc/self/ns/pid").ok()?.ino();
-    (seen == pid).then_some(Here { ns, pid })
+    let inode = std::fs::metadata("/proc/self/ns/pid").ok()?.ino();
+    let boot = std::fs::read_to_string("/proc/sys/kernel/random/boot_id").ok()?;
+    (seen == pid).then(|| Here { ns: ns_key(inode, boot.trim()), pid })
+}
+
+/// The key of a pid namespace: its inode and the boot id of the kernel.
+/// An inode is unique on one kernel only: two hosts that share one
+/// `TMPDIR` (NFS, a shared home) can give one inode and one pid (T-615).
+/// FNV-1a of 64 bits: a fixed key for each pair, the same in each release.
+fn ns_key(inode: u64, boot: &str) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in boot.bytes().chain([0]).chain(inode.to_le_bytes()) {
+        h = (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
 }
 
 /// The directories of this run: each one is removed when the run returns.
@@ -231,6 +246,29 @@ mod tests {
         if let Some(h) = here() {
             assert_eq!((owner(&run_id()), h.pid), (Some(h), std::process::id()));
         }
+    }
+
+    /// T-615: one pid namespace inode of two boots (two hosts that share
+    /// one TMPDIR) gives two keys, so a run of the other host is not dead.
+    #[test]
+    fn a_run_of_another_boot_is_not_dead() {
+        let (a, b) = ("0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0", "1f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0");
+        let inode = 4026531836;
+        assert_ne!(ns_key(inode, a), ns_key(inode, b));
+        assert_ne!(ns_key(inode, a), ns_key(inode + 1, a));
+        assert_eq!(ns_key(inode, a), ns_key(inode, a));
+        let tmp = crate::scratch::Scratch::new("stale-boot");
+        let other = Here { ns: ns_key(inode, b), pid: 4194305 };
+        let dir = tmp.join(format!("podrunner-run-units-{}", name(Some(other), 0)));
+        std::fs::create_dir_all(dir.join("default/units/u-1")).unwrap();
+        // SAFETY: getuid has no failure.
+        let uid = unsafe { libc::getuid() };
+        let me = Here { ns: ns_key(inode, a), pid: std::process::id() };
+        assert!(dead_runs(&tmp, uid, Some(me)).is_empty(), "a run of another boot counts as dead");
+        end_dead_runs_in(&tmp, uid, Some(me));
+        assert!(dir.join("default/units/u-1").is_dir(), "a run of another boot is gone");
+        let same = Here { ns: ns_key(inode, b), pid: std::process::id() };
+        assert_eq!(dead_runs(&tmp, uid, Some(same)), [dir], "a dead run of the same boot is not found");
     }
 
     /// A directory of a dead run of this pid namespace is found and ended;

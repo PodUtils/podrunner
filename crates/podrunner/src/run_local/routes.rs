@@ -47,11 +47,34 @@ fn export_dir(a: &Args) -> Result<(), Out> {
         let Some(dir) = dir else { continue };
         let bad = |e: std::io::Error| fail(Class::Config, format!("{flag} {}: {e}", dir.display()));
         std::fs::create_dir_all(dir).map_err(bad)?;
-        let probe = dir.join(format!(".podrunner-probe-{}", std::process::id()));
-        std::fs::write(&probe, b"").map_err(bad)?;
-        std::fs::remove_file(&probe).map_err(bad)?;
+        probe(dir, super::stale::run_id).map_err(bad)?;
     }
     Ok(())
+}
+
+/// Make and remove one new probe file in `dir`, named by `id` (the run id,
+/// which has the pid namespace): two runs of one pid in two containers
+/// that share `dir` get two names (T-614). The make is `create_new` with
+/// `O_NOFOLLOW`, so a file or a link at the name is not written; then the
+/// probe takes the next name, up to four.
+fn probe(dir: &Path, mut id: impl FnMut() -> String) -> std::io::Result<()> {
+    use std::os::unix::fs::OpenOptionsExt;
+    let mut last = None;
+    for _ in 0..4 {
+        let probe = dir.join(format!(".podrunner-probe-{}", id()));
+        let made = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(&probe);
+        match made {
+            Ok(_) => return std::fs::remove_file(&probe),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = Some(e),
+            Err(e) => return Err(e),
+        }
+    }
+    Err(last.unwrap_or_else(|| std::io::Error::from(std::io::ErrorKind::AlreadyExists)))
 }
 
 fn host(a: &Args, c: &Common) -> Result<Box<dyn Executor>, Out> {
@@ -189,3 +212,7 @@ fn module(a: &Args) -> Result<(std::sync::Arc<podrunner_egress::Egress>, String)
         .quiet();
     Ok((std::sync::Arc::new(e), policy(&a.allow)))
 }
+
+#[cfg(test)]
+#[path = "routes_tests.rs"]
+mod tests;
