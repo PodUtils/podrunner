@@ -97,6 +97,20 @@ pub(super) fn image_in_store(podvm: &Path, store: &Path, image: &str) -> Result<
     }
 }
 
+/// The tar of `image` in the image cache of the user, when there is one,
+/// is whole: a cut or changed tar fails each run that loads it (T-630).
+pub(super) fn cached_tar(dir: &Path, image: &str) -> Result<String, String> {
+    let digest = image.rsplit_once('@').map_or(image, |(_, d)| d);
+    let tar = dir.join(podrunner_podvm::tar_name(digest));
+    if !tar.is_file() {
+        return Ok(format!("{}: no tar of {image} yet; the first run saves it", dir.display()));
+    }
+    match podrunner_podvm::tar_fault(&tar) {
+        None => Ok(format!("{} is whole", tar.display())),
+        Some(fault) => Err(format!("{} is not whole ({fault}); fix: rm {}", tar.display(), tar.display())),
+    }
+}
+
 /// The egress hold of the units of the run (T-226).
 pub(super) fn hold(a: &Args) -> String {
     match (&a.podvm, &a.guest, &a.podnet, &a.runner_dir) {
@@ -285,6 +299,9 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
             if let (Some(image), true) = (&a.image, store.is_dir()) {
                 out.push(check("image", image_in_store(&b, store, image)));
             }
+            if let (Some(image), Ok(dir)) = (&a.image, super::actions::user_cache("image-tars")) {
+                out.push(check("image-cache", cached_tar(&dir, image)));
+            }
         }
     }
     if matches!(a.guest, Some((true, _))) {
@@ -382,5 +399,58 @@ mod rung_tests {
         let info30 = info.replace("beta.27", "beta.30");
         assert!(super::rung_text("namespace", &info30).contains("a PID namespace of its own"));
         assert_eq!(super::rung("no such line"), None);
+    }
+}
+
+#[cfg(test)]
+mod cache_tests {
+    fn sha(b: &[u8]) -> String {
+        ring::digest::digest(&ring::digest::SHA256, b).as_ref().iter().map(|b| format!("{b:02x}")).collect()
+    }
+
+    /// A ustar entry of `name` with `data`.
+    fn entry(name: &str, data: &[u8]) -> Vec<u8> {
+        let mut h = vec![0u8; 512];
+        h[..name.len()].copy_from_slice(name.as_bytes());
+        h[100..108].copy_from_slice(b"0000644\0");
+        h[124..136].copy_from_slice(format!("{:011o}\0", data.len()).as_bytes());
+        h[136..148].copy_from_slice(b"00000000000\0");
+        h[156] = b'0';
+        h[257..263].copy_from_slice(b"ustar\0");
+        h[263..265].copy_from_slice(b"00");
+        h[148..156].copy_from_slice(b"        ");
+        let sum: u32 = h.iter().map(|b| u32::from(*b)).sum();
+        h[148..156].copy_from_slice(format!("{sum:06o}\0 ").as_bytes());
+        h.extend_from_slice(data);
+        h.resize(512 + data.len().div_ceil(512) * 512, 0);
+        h
+    }
+
+    /// T-630: `doctor --run` names a tar of the image cache that is not
+    /// whole, and its fix; a whole tar and no tar pass.
+    #[test]
+    fn the_doctor_names_a_tar_of_the_cache_that_is_not_whole() {
+        let dir = crate::scratch::Scratch::new("t630-doctor");
+        let image = format!("runner@sha256:{}", "1".repeat(64));
+        assert!(super::cached_tar(&dir, &image).unwrap().contains("no tar of runner@sha256:111"));
+        let (config, layer) = (b"{}".to_vec(), vec![7u8; 3000]);
+        let manifest = format!(
+            r#"{{"config":{{"digest":"sha256:{}"}},"layers":[{{"digest":"sha256:{}"}}]}}"#,
+            sha(&config),
+            sha(&layer)
+        );
+        let index = format!(r#"{{"manifests":[{{"digest":"sha256:{}"}}]}}"#, sha(manifest.as_bytes()));
+        let mut tar = Vec::new();
+        for blob in [&config[..], &layer[..], manifest.as_bytes()] {
+            tar.extend(entry(&format!("blobs/sha256/{}", sha(blob)), blob));
+        }
+        tar.extend(entry("index.json", index.as_bytes()));
+        tar.extend([0u8; 1024]);
+        let file = dir.join(format!("{}.tar", "1".repeat(64)));
+        std::fs::write(&file, &tar).unwrap();
+        assert!(super::cached_tar(&dir, &image).unwrap().ends_with("is whole"));
+        std::fs::write(&file, &tar[..2000]).unwrap();
+        let e = super::cached_tar(&dir, &image).unwrap_err();
+        assert!(e.contains("is not whole (") && e.ends_with(&format!("fix: rm {}", file.display())), "{e}");
     }
 }

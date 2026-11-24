@@ -15696,7 +15696,7 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15716,6 +15716,10 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 ## Prove
 
 `cargo test -p podrunner-podvm --lib unit::cache` with a test: a truncated tar in the cache, a fake `podvm` whose `load` fails on it, and the run saves the image again and ends `ok`. It fails before the change. A test of `doctor --run` with a truncated tar names the file.
+
+## Done
+
+2026-11-24 (commit: this one, "podvm: a tar of the image cache that is not whole is saved again (T-630)"): `crates/podrunner-podvm/src/unit/cache.rs`: fn `tar_fault` reads a tar to its end and names its fault (a read error, a cut entry, no `index.json`, a blob whose SHA-256 is not its name, a blob of the index or the manifest that is not there; each byte of the tar is shown as printable ASCII). fn `cached` (the start of a unit and of a container) loads the tar; when the load fails and the tar has a fault, it removes the tar, saves the image again from the reference that `prepare` took, and loads once more; when that fails, the cause ends with `the tar PATH of the image cache is not whole (FAULT); fix: rm PATH`. A whole tar whose load fails keeps the error of the load, and the tar stays. The save was already atomic (`DIGEST.part-PID`, then a rename); a save that fails now removes its part file, and `prune` removes a part file older than an hour. `doctor --run` has the check `image-cache` (fn `cached_tar`). `docs/local-mode.md`, "The image cache". Tests: `unit::cache_tests::a_tar_of_the_cache_that_is_not_whole_is_saved_again` (a changed byte and a truncated tar: the start saves again and runs) and `unit::cache_tests::a_tar_that_stays_bad_names_the_file_and_the_fix` failed before the change (`... names no manifest`, no new save); `unit::cache::tests::the_fault_of_a_tar`, `run_local::doctor::cache_tests::the_doctor_names_a_tar_of_the_cache_that_is_not_whole`. `cargo test -p podrunner-podvm --lib`: 45 passed, 1 ignored. The built binary as the user `labdns` (no root): `doctor --run hello.yml --podvm FAKE --images STORE --image runner@sha256:1...` with 5000 random bytes as the tar prints `FAIL image-cache: .../image-tars/1....tar is not whole (it does not unpack: ...); fix: rm ...`. Level: the recovery of a run is proven with a fake podvm only (no real podvm on this host); the doctor check is proven on this host as a user with no root.
 
 
 # T-631: `run --changed-since` passes a ref that starts with `-` to git as an option

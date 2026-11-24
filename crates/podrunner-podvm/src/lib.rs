@@ -21,7 +21,7 @@ mod scratch;
 mod unit;
 
 pub use unit::envfile::write_env_file;
-pub use unit::{CREDENTIAL_DIR, PodvmUnit};
+pub use unit::{CREDENTIAL_DIR, PodvmUnit, tar_fault, tar_name};
 
 use std::path::PathBuf;
 use std::process::Command;

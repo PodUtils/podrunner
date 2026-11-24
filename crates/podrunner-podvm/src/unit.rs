@@ -29,6 +29,9 @@ use crate::Podvm;
 
 mod cache;
 #[cfg(test)]
+mod cache_tests;
+pub use cache::{tar_fault, tar_name};
+#[cfg(test)]
 mod destroy_tests;
 mod tree_kill;
 /// Each test that writes a fake podvm and runs it holds this: a fork in
@@ -106,6 +109,8 @@ pub struct PodvmUnit {
     limits: podrunner_unit::limits::Limits,
     /// The cache of image tars, else `STATE/images` (T-242).
     tars: Option<PathBuf>,
+    /// The reference that `prepare` took for each digest (T-630).
+    saved: Mutex<HashMap<String, String>>,
 }
 
 fn host(what: &str, e: std::io::Error) -> UnitError {
@@ -140,6 +145,7 @@ impl PodvmUnit {
             no_tier: false,
             limits: podrunner_unit::limits::Limits::default(),
             tars: None,
+            saved: Mutex::new(HashMap::new()),
         })
     }
 
@@ -242,19 +248,11 @@ impl UnitDriver for PodvmUnit {
             ));
         }
         let tar = self.tar_of(digest);
+        // A start saves the image again from this reference when its tar
+        // in the cache is not whole (T-630).
+        self.saved.lock().expect("the saved images").insert(digest.to_string(), reference.to_string());
         if !tar.exists() {
-            fs::create_dir_all(tar.parent().expect("a directory")).map_err(|e| host("the image cache", e))?;
-            let part = tar.with_extension(format!("part-{}", std::process::id()));
-            let save = |u: &PodvmUnit| u.podvm(&u.images, &["save", "-o", &part.to_string_lossy(), reference], None);
-            if let Err(first) = save(self) {
-                // An image that a digest pins and that the store does not
-                // have yet (a `container:` job of `serve`, T-177): pull it
-                // once by its digest, then save it.
-                self.podvm(&self.images, &["pull", "-q", "--platform", platform, reference], None)
-                    .map_err(|e| UnitError::new(e.code, format!("{}; then podvm pull: {}", first.detail, e.detail)))?;
-                save(self)?;
-            }
-            fs::rename(&part, &tar).map_err(|e| host("the image cache", e))?;
+            self.save_tar(reference, platform, &tar)?;
         }
         Ok(Prepared { digest: digest.to_string(), platform: platform.into() })
     }
@@ -268,7 +266,7 @@ impl UnitDriver for PodvmUnit {
         podrunner_unit::mounts::spec(spec)?;
         fs::create_dir_all(&dir).map_err(|e| host("the unit directory", e))?;
         let store = self.store_of(&dir);
-        let reference = self.loaded(&store, &self.tar_of(&spec.image.digest))?;
+        let reference = self.cached(&store, &spec.image.digest)?;
         let image_root = self.extracted(&store, &reference)?;
         let creds = self.credential_root(&dir, &image_root);
         self.place_credentials(&creds, spec)?;

@@ -133,6 +133,24 @@ that share `TMPDIR` are not told apart. Give each such host its own
 `TMPDIR`. A directory of an older release stays: remove it by hand
 (T-312, T-607, T-615).
 
+### The image cache
+
+The first podvm run of an image saves it from the store of `--images` as
+`~/.cache/podrunner/image-tars/DIGEST.tar` (`$XDG_CACHE_HOME` when it is
+set), about 300 MB for the base image. Each later run loads that tar and
+saves nothing. The cache keeps the four tars that runs used last, and
+removes the others at the start of a run. A save writes
+`DIGEST.part-PID` and renames it at its end; a part file older than an
+hour is of a save that stopped, and a run removes it (T-242, T-630).
+
+A tar that does not load and is not whole (a cut save, a full disk, a
+change on the disk) is removed, and the run saves and loads the image
+again, once. When that fails too, the error names the tar and the fix
+`rm PATH`. `podrunner doctor --run` checks the tar of `--image` (the
+SHA-256 of each blob, and each blob that the manifest names) and says
+`FAIL image-cache: PATH is not whole (...); fix: rm PATH`. To clear the
+cache, remove the directory: the next run saves the image again.
+
 ## A host that refuses each AF_INET bind
 
 On a host whose sandbox refuses `bind(2)` (and `connect(2)`) of AF_INET,

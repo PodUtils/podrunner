@@ -88,7 +88,7 @@ impl PodvmUnit {
         let Base { store, dir, tag, runner, egress } = self.container_base(unit)?;
         // The image is loaded once into the store of the units, and run by
         // the digest of its manifest (T-130, T-545).
-        let reference = self.loaded(&store, &self.tar_of(&prepared.digest))?;
+        let reference = self.cached(&store, &prepared.digest)?;
         let n = self.containers.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let name = format!("{unit}-c{n}");
         let mut args: Vec<String> = ["run", "-d", "--name", &name].map(String::from).to_vec();
