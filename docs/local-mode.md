@@ -145,10 +145,13 @@ hour is of a save that stopped, and a run removes it (T-242, T-630).
 
 A tar that does not load and is not whole (a cut save, a full disk, a
 change on the disk) is removed, and the run saves and loads the image
-again, once. When that fails too, the error names the tar and the fix
-`rm PATH`. `podrunner doctor --run` checks the tar of `--image` (the
+again, once. Runs that share the cache repair a tar one at a time (a
+lock on `DIGEST.lock`), and a run loads a tar that another run saved
+again; it does not remove it. When that fails too, the error names the
+tar and the fix `rm PATH`. `podrunner doctor --run` checks the tar of `--image` (the
 SHA-256 of each blob, and each blob that the manifest names) and says
-`FAIL image-cache: PATH is not whole (...); fix: rm PATH`. To clear the
+`FAIL image-cache: PATH is not whole (...); fix: rm PATH`; an `--image`
+with no `@sha256:` digest has no tar in the cache, and the check says so. To clear the
 cache, remove the directory: the next run saves the image again.
 
 ## A host that refuses each AF_INET bind

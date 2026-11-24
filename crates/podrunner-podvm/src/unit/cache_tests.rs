@@ -56,6 +56,7 @@ case "$1" in
 probe) echo '{{"podvm":"0.2.0-beta.37","rung":"userland"}}' ;;
 save) cp {d}/src.tar "$3" ;;
 load) [ ! -f {d}/xfsz ] || kill -s XFSZ $$
+  [ ! -f {d}/other ] || {{ rm {d}/other; cp {d}/good.tar "$3.o"; mv "$3.o" "$3"; echo "Error: blob: digest mismatch" >&2; exit 1; }}
   [ ! -f {d}/no-space ] || {{ echo "Error: no space left on device" >&2; exit 1; }}
   cmp -s "$3" {d}/good.tar || {{ echo "Error: blob: digest mismatch" >&2; exit 1; }}
   echo "runner@{manifest}" >> "$S/images.txt" ;;
@@ -172,5 +173,23 @@ fn a_load_that_sigxfsz_ends_names_the_limit_and_the_fix() {
     assert!(e.detail.contains("ulimit -f") && e.detail.contains("fix: ulimit -f unlimited"), "{e}");
     assert!(!e.detail.contains("exit -1"), "{e}");
     assert!(tar.is_file());
+    let _ = unit.destroy(&spec().unit);
+}
+
+/// Two runs that share the cache: while the load of this run fails on a
+/// tar that is not whole, another run saves the tar again. This run loads
+/// the new tar; it does not remove it and does not save it again.
+#[test]
+fn a_tar_that_another_run_saved_again_is_loaded_not_removed() {
+    let _one = super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
+    let d = crate::scratch::Scratch::new("t630-race");
+    let (unit, tar) = prepared(&d);
+    let mut bytes = std::fs::read(&tar).unwrap();
+    bytes[1024 + 10 * 1024] ^= 0xff;
+    std::fs::write(&tar, &bytes).unwrap();
+    std::fs::write(d.join("other"), "").unwrap();
+    unit.start(&spec()).unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(count(&d, "save "), 1);
+    assert!(std::fs::read(&tar).unwrap() == std::fs::read(d.join("good.tar")).unwrap());
     let _ = unit.destroy(&spec().unit);
 }

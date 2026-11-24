@@ -337,31 +337,54 @@ pub(super) fn events(on: &Node) -> Vec<String> {
 fn changed(a: &Args, since: &str) -> Result<Vec<String>, String> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| ".".into());
     let dir = a.checkout.as_deref().unwrap_or(&cwd);
-    let git = |args: &[&str]| {
+    // Err(Ok(stderr)): git failed; Err(Err(text)): git did not start.
+    let git = |args: &[&str]| -> Result<Vec<String>, Result<String, String>> {
         let out = Command::new("git")
             .arg("-C")
             .arg(dir)
             .args(args)
             .output()
-            .map_err(|e| format!("--changed-since: git: {e}"))?;
+            .map_err(|e| Err(format!("--changed-since: git: {e}")))?;
         if !out.status.success() {
-            return Err(format!("--changed-since {since}: {}", String::from_utf8_lossy(&out.stderr).trim()));
+            return Err(Ok(String::from_utf8_lossy(&out.stderr).trim().to_string()));
         }
         Ok(String::from_utf8_lossy(&out.stdout).lines().map(str::to_string).collect::<Vec<_>>())
     };
+    let named =
+        |e: Result<String, String>| e.map_or_else(|text| text, |stderr| format!("--changed-since {since}: {stderr}"));
     super::args::git_value("--changed-since", since.to_string())?;
     // `--end-of-options` (git 2.24) is the second guard; an older git
     // refuses it, and the check above holds there.
-    let mut files = git(&["diff", "--name-only", "--end-of-options", since, "--"])
-        .or_else(|e| if e.contains("end-of-options") { git(&["diff", "--name-only", since, "--"]) } else { Err(e) })?;
-    files.extend(git(&["ls-files", "--others", "--exclude-standard", "--full-name"])?);
+    let mut files = match git(&["diff", "--name-only", "--end-of-options", since, "--"]) {
+        Err(Ok(stderr)) if old_git(&stderr, since) => git(&["diff", "--name-only", since, "--"]),
+        r => r,
+    }
+    .map_err(named)?;
+    files.extend(git(&["ls-files", "--others", "--exclude-standard", "--full-name"]).map_err(named)?);
     files.sort();
     files.dedup();
     Ok(files)
 }
 
+/// The stderr of git names the word `--end-of-options` that an older git
+/// refuses. git echoes the ref, so the ref is out of the text first: a ref
+/// with that word in its name is not an older git.
+fn old_git(stderr: &str, since: &str) -> bool {
+    stderr.replace(since, "").contains("end-of-options")
+}
+
 #[cfg(test)]
 mod changed_tests {
+    /// T-631: only the stderr of git, with no echo of the ref, tells an
+    /// older git.
+    #[test]
+    fn an_older_git_is_told_by_its_stderr_only() {
+        assert!(super::old_git("fatal: unrecognized argument: --end-of-options", "HEAD"));
+        let since = "no-end-of-options";
+        let stderr = format!("fatal: ambiguous argument '{since}': unknown revision or path not in the working tree.");
+        assert!(!super::old_git(&stderr, since));
+    }
+
     /// T-430: a new file that git does not ignore is a changed file; an
     /// ignored one is not.
     #[test]

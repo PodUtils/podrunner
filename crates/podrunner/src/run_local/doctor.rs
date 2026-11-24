@@ -77,7 +77,13 @@ pub(super) fn image_in_store(podvm: &Path, store: &Path, image: &str) -> Result<
 /// The tar of `image` in the image cache of the user, when there is one,
 /// is whole: a cut or changed tar fails each run that loads it (T-630).
 pub(super) fn cached_tar(dir: &Path, image: &str) -> Result<String, String> {
-    let digest = image.rsplit_once('@').map_or(image, |(_, d)| d);
+    // The cache keeps a tar by its digest: with no digest, "no tar yet"
+    // would be false.
+    let Some(digest) = image.rsplit_once('@').map(|(_, d)| d).filter(|d| d.starts_with("sha256:")) else {
+        return Err(format!(
+            "{image} names no digest; the cache keeps a tar by its digest; fix: give --image NAME@sha256:HEX"
+        ));
+    };
     let tar = dir.join(podrunner_podvm::tar_name(digest));
     if !tar.is_file() {
         return Ok(format!("{}: no tar of {image} yet; the first run saves it", dir.display()));
@@ -410,6 +416,11 @@ mod cache_tests {
         let dir = crate::scratch::Scratch::new("t630-doctor");
         let image = format!("runner@sha256:{}", "1".repeat(64));
         assert!(super::cached_tar(&dir, &image).unwrap().contains("no tar of runner@sha256:111"));
+        // An image with no digest has no tar in the cache by its name.
+        for bare in ["runner:latest", "runner", "runner@sha512:00"] {
+            let e = super::cached_tar(&dir, bare).unwrap_err();
+            assert!(e.contains(&format!("{bare} names no digest")) && e.contains("NAME@sha256:HEX"), "{e}");
+        }
         let (config, layer) = (b"{}".to_vec(), vec![7u8; 3000]);
         let manifest = format!(
             r#"{{"config":{{"digest":"sha256:{}"}},"layers":[{{"digest":"sha256:{}"}}]}}"#,

@@ -74,10 +74,17 @@ impl PodvmUnit {
     /// image is saved and loaded again, once.
     pub(super) fn cached(&self, store: &Path, digest: &str) -> Result<String, UnitError> {
         let tar = self.tar_of(digest);
+        let before = file_id(&tar);
         let first = match self.loaded(store, &tar) {
             Ok(r) => return Ok(r),
             Err(e) => e,
         };
+        // Runs that share the cache repair a tar one at a time, and a run
+        // never removes the tar that another run has just saved.
+        let _lock = lock(&tar);
+        if file_id(&tar) != before && tar_fault(&tar).is_none() {
+            return self.loaded(store, &tar);
+        }
         let Some(fault) = tar_fault(&tar) else { return Err(first) };
         let named = |detail: String| {
             let t = tar.display();
@@ -94,6 +101,21 @@ impl PodvmUnit {
             .and_then(|()| self.loaded(store, &tar))
             .map_err(|e| named(format!("{}; it was saved again, and: {}", first.detail, e.detail)))
     }
+}
+
+/// The device and the inode of `path`: a save again gives a new inode.
+fn file_id(path: &Path) -> Option<(u64, u64)> {
+    use std::os::unix::fs::MetadataExt;
+    fs::metadata(path).ok().map(|m| (m.dev(), m.ino()))
+}
+
+/// An exclusive lock on `DIGEST.lock` beside `tar`, held until the file
+/// drops. With no lock (a file system that refuses it), the repair runs
+/// with no lock.
+fn lock(tar: &Path) -> Option<fs::File> {
+    let f = fs::File::options().create(true).truncate(false).write(true).open(tar.with_extension("lock")).ok()?;
+    f.lock().ok()?;
+    Some(f)
 }
 
 /// Why `tar` is not a whole image tar: it does not read to its end, it has
