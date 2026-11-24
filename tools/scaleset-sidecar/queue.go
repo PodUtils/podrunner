@@ -86,21 +86,26 @@ func (s *sidecar) next(capacity int, wait time.Duration) map[string]any {
 		}
 	}
 	gaveUp := s.GivenUp
-	events = append(events, s.offerQueued(capacity)...)
+	// One time limit for the cancels and the lookups: the cancels take at
+	// most half of it, so a slow endpoint does not stop the offers.
+	ctx, cancel := context.WithTimeout(s.ctx, nextBudget)
+	defer cancel()
+	retry, stop := context.WithTimeout(ctx, nextBudget/2)
+	s.retryCancels(retry)
+	stop()
+	events = append(events, s.offerQueued(ctx, capacity)...)
 	s.keepHeld()
 	s.report(s.GivenUp != gaveUp)
 	return map[string]any{"reply": "events", "events": events}
 }
 
 // offerQueued offers at most `capacity` queued jobs, in the order of the
-// queue, in the time nextBudget.
-func (s *sidecar) offerQueued(capacity int) []any {
+// queue, in the time of ctx.
+func (s *sidecar) offerQueued(ctx context.Context, capacity int) []any {
 	events := []any{}
 	if capacity <= 0 || len(s.queue) == 0 {
 		return events
 	}
-	ctx, cancel := context.WithTimeout(s.ctx, nextBudget)
-	defer cancel()
 	b := newBatch(ctx)
 	rest := make([]queued, 0, len(s.queue))
 	runs := map[int64]bool{}

@@ -57,8 +57,10 @@ type sidecar struct {
 	// messages of one job name it by its runner request, or only by its
 	// jobId (T-166).
 	byJobID map[string]string
-	// The runs that the sidecar cancelled (T-169).
-	cancelled map[int64]bool
+	// The runs that the sidecar cancelled (T-169), and the cancels that
+	// wait for a retry (T-623).
+	cancelled   map[int64]bool
+	cancelRetry []*cancelTry
 	// The next call of each run with no final answer (queue.go).
 	waits map[int64]*retryWait
 	// The counts of the status line (report): the offers whose lookup gave
