@@ -148,8 +148,11 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
     again after a kill of the sidecar.
   - T-622 (P3): a status field for the counts of the sidecar queue; it
     needs a COORD issue to podcrates, which is not written yet.
-  - T-623 (P2, done): a failed cancel of a refused run is tried again.
-  - T-624 (P3): the P3 findings of the trust lookups.
+  - T-623 (P2, done): a failed cancel of a refused run is tried again;
+    the review fixes (the 409 texts, the attempt of a re-run, the share
+    of the budget, the lines at a stop) are in the same entry.
+  - T-624 (P3): the P3 findings of the trust lookups; item 1 is done
+    with T-623.
   - T-616 (P3), T-618 (waits for cfb).
 - Asks open to podvm: COORD-123 (#345, T-611), COORD-124 (#346, T-613),
   COORD-125 (#347, T-613), COORD-127 (#349, T-613). T-611 and T-613 need
