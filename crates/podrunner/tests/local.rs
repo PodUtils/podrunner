@@ -5,6 +5,8 @@
 //!
 //!   PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test local -- --ignored
 
+mod scratch;
+
 /// The tests of this file share one runner directory: one runs at a time.
 static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -341,8 +343,8 @@ fn a_rerun_keeps_a_call_that_passed() {
 fn a_checkout_with_a_ref_gives_the_commit_of_the_ref() {
     let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
     let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
-    let scratch = std::env::temp_dir().join(format!("podrunner-local-ref-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&scratch);
+    // The directory goes at the drop, also after a panic.
+    let scratch = scratch::Scratch::new("local-ref");
     let repo = scratch.join("repo");
     std::fs::create_dir_all(&repo).unwrap();
     let git = |a: &[&str]| {
@@ -380,5 +382,4 @@ fn a_checkout_with_a_ref_gives_the_commit_of_the_ref() {
     assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
     assert!(out.stdout.lines().any(|l| l == "ok      co"), "{}", out.stdout);
     assert!(out.stdout.lines().any(|l| l.starts_with("failure bad")), "{}", out.stdout);
-    let _ = std::fs::remove_dir_all(&scratch);
 }
