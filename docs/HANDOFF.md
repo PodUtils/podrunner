@@ -148,7 +148,7 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
     again after a kill of the sidecar.
   - T-622 (P3): a status field for the counts of the sidecar queue; it
     needs a COORD issue to podcrates, which is not written yet.
-  - T-623 (P2): `cancelRefused` never tries a failed cancel again.
+  - T-623 (P2, done): a failed cancel of a refused run is tried again.
   - T-624 (P3): the P3 findings of the trust lookups.
   - T-616 (P3), T-618 (waits for cfb).
 - Asks open to podvm: COORD-123 (#345, T-611), COORD-124 (#346, T-613),
@@ -156,13 +156,12 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
   the next podvm beta after beta.38.
 - The work order next (`TODO/PROGRESS.md`):
   1. Read the CI on `c54953b`.
-  2. T-623 (P2).
-  3. The `v0.1.0-beta.8` path: the gates T-243, T-244 and T-246 (a new
+  2. The `v0.1.0-beta.8` path: the gates T-243, T-244 and T-246 (a new
      round of adversarial QA on the current `main`), then the checklist
      of `docs/maintenance.md`, "A release". A release moves 19 asks of
      githome and 11 clauses of cfb to "in a release".
-  4. T-480, T-487, T-516, T-500.
-  5. The local P3 code: T-598, T-597, T-616, T-603 step 1, T-610, T-609
+  3. T-480, T-487, T-516, T-500.
+  4. The local P3 code: T-598, T-597, T-616, T-603 step 1, T-610, T-609
      (it needs the option `--run-sh` or a root from the image, see its
      Approach).
 - The tally of the recon of 2026-11-24 (T-617 recounted it for the

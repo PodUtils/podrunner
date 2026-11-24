@@ -15440,7 +15440,7 @@ Read: `SourceStatus` of `pod_job` (podcrates `v0.82.1`, `deny_unknown_fields`), 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15459,6 +15459,10 @@ Read: `tools/scaleset-sidecar/cancel.go`, `tools/scaleset-sidecar/calls.go` (`ge
 ## Prove
 
 `go test ./...` in `tools/scaleset-sidecar` (a test in `cancel_test.go` that fails before the change).
+
+## Done
+
+2026-11-24, `0f3d9b6`. `cancelRefused` marks a run only after a 202, or a 409 that says the run is complete or cancelled. A final answer (a 404, a 403 of a permission, a 401 of a PAT) settles the run with a line. Each other answer (a 5xx, a 429, a 403 of a rate limit, a 408, another 409, a 401, no answer) goes to a list of at most 256 cancels. `next` tries them again with the waits of `queue.go` (5 s, doubled, at most 60 s), inside half of `nextBudget` and before the offers, and gives each one up after 30 minutes with a line that names the run. `post` drops the installation token at a 401. A PAT 401 is not tried again (T-624 item 5 gives the new token). Each call counts in the trust budget. `cancelretry_test.go` has 7 tests; all 7 fail on the code before the change (502 then 202, 401 then 202 with a new token, a PAT 401, the age limit, the list bound, the budget of `next` with a slow endpoint, the answers of the endpoint). `CGO_ENABLED=1 go test -race -count=3 ./...` passes in both Go modules; the static builds pass `scripts/check-static.sh`; `cargo test --workspace --all-features` with the runner passes (779 passed, 63 ignored); the three ignored suites of the gate pass. Level: not run against GitHub; proven only with the fake API.
 
 # T-624: Faults and limits of the scale-set trust lookups that end a job with no specific cause
 
