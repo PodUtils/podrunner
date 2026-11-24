@@ -63,11 +63,18 @@
 # (T-599); `load` of an image of 85 layers holds one lock at a time
 # (COORD-122, #344, T-606); `inspect` gives docker's types (T-581); `run -d
 # --rm` and `create --rm` remove the container at its end (COORD-232).
-version = "0.2.0-beta.38"
+# v0.2.0-beta.39 keeps podcrates v0.82.0: `inspect` of a stopped instance
+# of the incus tier gives `CpuSeconds`, `PeakMemoryBytes` and `OomKills`
+# (COORD-123, #345, T-611), and the OOM killer no longer takes its init;
+# an image that cannot fit in a `dir` pool is refused before the import
+# with one line that names the free space and the need (COORD-124, #346,
+# T-613); exit 126 and 127 of a command, signals of a foreground run, and
+# one import of one image for parallel runs on the incus tier.
+version = "0.2.0-beta.39"
 
 [sha256]
-x86_64 = "1b48e9d85eeff3e6cfad5a85ed56875b6f1ba73da433196e12335b0340795142"
-aarch64 = "a047c4437760cf9fb80ba9f477ac4d22fe11f4476221cdfad116d3ddee036540"
+x86_64 = "9a774b624d3c21636317d50e3c12723b8bb3206e5ad2c7fdab2ffe5739af94c6"
+aarch64 = "ad7164b6e11fb870c0e473fa25785da74989dbed110075c84771d6b09d1639df"
 
 [ghcr]
-reference = "ghcr.io/podutils/podvm:v0.2.0-beta.38@sha256:352bbca63a94591dd79c52dddd61a1f42e188b24bc19c73c1b5c6dd1b7ce97ba"
+reference = "ghcr.io/podutils/podvm:v0.2.0-beta.39@sha256:863fe15b21d7c282534617899674c0ac243c1845914191424d04ba4905005e77"

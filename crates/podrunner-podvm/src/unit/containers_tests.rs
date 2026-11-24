@@ -49,7 +49,7 @@ fn the_state_comes_from_the_typed_inspect_of_a_later_podvm() {
     assert_eq!(state_of(dead_word).unwrap().exit, Some(Exit::Code(-1)));
 }
 
-/// T-581: the output of the pinned podvm `0.2.0-beta.38` (`tests/inspect/`,
+/// T-581: the output of podvm `0.2.0-beta.38` (`tests/inspect/`,
 /// measured as uid 0 on the namespace rung; the store is `/s`): a running,
 /// an exited and a dead container (its launcher killed), each field with
 /// docker's type. The state, the check of a killed launcher and the
