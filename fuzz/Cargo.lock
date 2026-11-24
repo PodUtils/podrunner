@@ -1276,6 +1276,7 @@ dependencies = [
  "libc",
  "podrunner-schema",
  "podrunner-unit",
+ "ring",
  "serde_json",
  "tar",
 ]
