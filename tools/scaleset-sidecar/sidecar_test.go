@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -67,29 +65,6 @@ func TestTheTrustBudgetThrottles(t *testing.T) {
 	in, ok := tr.lookup("o", "r", 2, "push")
 	if ok || in.actorClass != "unknown" || tr.Throttled != 1 {
 		t.Fatalf("%v %v %d", in, ok, tr.Throttled)
-	}
-}
-
-// A personal account is refused at the start: repo-scope-refused.
-func TestAPersonalAccountIsRefused(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.HasSuffix(r.URL.Path, "/access_tokens"):
-			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"token":"t","expires_at":"2099-01-01T00:00:00Z"}`))
-		case r.URL.Path == "/orgs/example-org":
-			_, _ = w.Write([]byte(`{"login":"example-org"}`))
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	defer ts.Close()
-	tr := &trust{api: ts.URL, installation: 7, cache: map[int64]trustInputs{}, signer: &signer{cached: "a.b.c", until: farFuture}}
-	if err := tr.organization("example-org"); err != nil {
-		t.Fatal(err)
-	}
-	if err := tr.organization("alice"); err == nil || !strings.HasPrefix(err.Error(), "repo-scope-refused") {
-		t.Fatalf("%v", err)
 	}
 }
 

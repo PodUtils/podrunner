@@ -64,6 +64,11 @@ type sidecar struct {
 }
 
 func newSidecar(ctx context.Context, o options, signer *signer) (*sidecar, error) {
+	t := &trust{api: o.apiURL, installation: o.installationID, signer: signer, pat: o.pat, cache: map[int64]trustInputs{}, budget: o.trustBudget}
+	// The scope first: a refused scope gets no scale set on GitHub.
+	if err := t.scope(o.configURL, o.personalAccount); err != nil {
+		return nil, err
+	}
 	var client *scaleset.Client
 	var err error
 	if o.pat {
@@ -94,12 +99,6 @@ func newSidecar(ctx context.Context, o options, signer *signer) (*sidecar, error
 	session, err := client.MessageSessionClient(ctx, set.ID, "podrunner")
 	if err != nil {
 		return nil, fmt.Errorf("the message session: %s", statusOf(err))
-	}
-	t := &trust{api: o.apiURL, installation: o.installationID, signer: signer, pat: o.pat, cache: map[int64]trustInputs{}, budget: o.trustBudget}
-	owner := strings.TrimSuffix(o.configURL, "/")
-	owner = owner[strings.LastIndex(owner, "/")+1:]
-	if err := t.organization(owner); err != nil {
-		return nil, err
 	}
 	p := newPoller(session)
 	go p.run(ctx)

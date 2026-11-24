@@ -134,3 +134,26 @@ func TestTheTrustInputsOfARun(t *testing.T) {
 		}
 	}
 }
+
+// T-504: an owner that the script names in users is a personal account:
+// GitHub answers 404 for it under /orgs. Each other owner is an
+// organization.
+func TestAUserOfTheScriptIsNoOrganization(t *testing.T) {
+	s := script()
+	s.Users = []string{"Alice"}
+	ts, _ := start(t, s)
+	for path, want := range map[string]int{
+		"/api/v3/orgs/example-org": 200,
+		"/api/v3/orgs/alice":       404,
+		"/api/v3/orgs/ALICE":       404,
+	} {
+		resp, err := http.Get(ts.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != want {
+			t.Errorf("%s: %d, not %d", path, resp.StatusCode, want)
+		}
+	}
+}

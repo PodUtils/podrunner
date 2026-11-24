@@ -30,9 +30,7 @@ pub fn scaleset(s: &podrunner_slots::config::SourceConfig) -> Result<podrunner_m
         "-arch".into(),
         s.arch.clone(),
     ];
-    if s.operator_controlled {
-        args.push("-operator-controlled".into());
-    }
+    args.extend(crate::serve::flags(s));
     podrunner_slots::config::check_driver(Path::new(&get(&s.sidecar)))
         .map_err(|e| fail(Class::Config, format!("[[source]] {} sidecar: {e}", s.name)))?;
     Ok(podrunner_mint::SidecarSource::with_token(&get(&s.sidecar), args, token, &format!("sidecar:{}", s.name)))

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -41,12 +42,16 @@ type trust struct {
 	api          string
 	installation int64
 	// pat: the token of descriptor 3 is the token of the lookups (T-174).
-	pat     bool
-	signer  *signer
-	token   string
-	expires time.Time
-	cache   map[int64]trustInputs
-	http    http.Client
+	pat bool
+	// personal: the scale set is of a repository of the personal account
+	// `account` (T-504). It has no members: see lookup.
+	personal bool
+	account  string
+	signer   *signer
+	token    string
+	expires  time.Time
+	cache    map[int64]trustInputs
+	http     http.Client
 	// The lookups of the hour that runs, and its start: a lookup past the
 	// budget is not made, and its inputs are "unknown" (throttled).
 	budget    int
@@ -139,7 +144,16 @@ func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trus
 	if a, ok := r["actor"].(map[string]any); ok {
 		actor, _ = a["login"].(string)
 	}
-	if actor != "" && !strings.ContainsAny(actor, "/?#") {
+	switch {
+	case actor == "":
+	case t.personal:
+		// A personal account has no members (T-504): only the account
+		// itself is a member. A collaborator is outside: deny by default.
+		out.actorClass = "outside"
+		if strings.EqualFold(actor, owner) && strings.EqualFold(owner, t.account) {
+			out.actorClass = "member"
+		}
+	case !strings.ContainsAny(actor, "/?#"):
 		switch code, _ := t.get(fmt.Sprintf("/orgs/%s/members/%s", owner, actor)); code {
 		case http.StatusNoContent:
 			out.actorClass = "member"
@@ -154,18 +168,54 @@ func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trus
 	return out, whole
 }
 
-// organization checks that the owner of the scale set is an organization
-// (call C3): a personal account is refused (repo-scope-refused).
-func (t *trust) organization(owner string) error {
+// The refusal of a personal account with the opt-in off (call C3, T-504).
+const personalOff = "repo-scope-refused: %s is not an organization (a personal account needs Administration: write; " +
+	"to serve it, set allow_personal_account = true in its [[source]])"
+
+// scope checks the config URL before the sidecar asks GitHub for a scale
+// set (call C3): the URL of an organization; with personal (T-504), also
+// the URL of a repository of a personal account. A repository of an
+// organization is refused: its scale set needs Administration: write.
+func (t *trust) scope(configURL string, personal bool) error {
+	parts := []string{""}
+	if u, err := url.Parse(strings.Trim(configURL, "/")); err == nil {
+		parts = strings.Split(strings.Trim(u.Path, "/"), "/")
+	}
+	if parts[0] == "" || len(parts) > 2 || strings.EqualFold(parts[0], "enterprises") {
+		return fmt.Errorf("repo-scope-refused: %s is not the URL of an organization or of a repository", configURL)
+	}
+	owner := parts[0]
+	org, err := t.organization(owner)
+	switch {
+	case err != nil:
+		return err
+	case org && len(parts) == 2:
+		return fmt.Errorf("repo-scope-refused: %s/%s is a repository of an organization: give config_url the URL "+
+			"of the organization (a repository scale set needs Administration: write)", owner, parts[1])
+	case org:
+		return nil
+	case !personal:
+		return fmt.Errorf(personalOff, owner)
+	case len(parts) == 1:
+		return fmt.Errorf("repo-scope-refused: %s is a personal account: give config_url the URL of one of its "+
+			"repositories (https://github.com/%s/REPO)", owner, owner)
+	}
+	t.personal, t.account = true, owner
+	return nil
+}
+
+// organization tells whether the owner is an organization: GitHub answers
+// 404 for a personal account.
+func (t *trust) organization(owner string) (bool, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	switch code, v := t.get("/orgs/" + owner); {
+	switch code, v := t.get("/orgs/" + url.PathEscape(owner)); {
 	case code == http.StatusOK && v != nil:
-		return nil
+		return true, nil
 	case code == http.StatusNotFound:
-		return fmt.Errorf("repo-scope-refused: %s is not an organization (a personal account needs Administration: write)", owner)
+		return false, nil
 	default:
-		return fmt.Errorf("the organization %s: HTTP %d", owner, code)
+		return false, fmt.Errorf("the organization %s: HTTP %d", owner, code)
 	}
 }
 

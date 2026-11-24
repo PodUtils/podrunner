@@ -67,7 +67,8 @@ pub struct TierConfig {
     pub organizations: Vec<Organization>,
     /// Personal accounts whose repositories the operator trusts (T-191): a
     /// forge with repositories of a person (a `program` source). The
-    /// GitHub scale set refuses a personal account at its start (call C3).
+    /// GitHub scale set refuses a personal account at its start (call C3)
+    /// unless its source sets `allow_personal_account` (T-504).
     #[serde(default)]
     pub users: Vec<Organization>,
     #[serde(default)]

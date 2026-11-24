@@ -37,6 +37,9 @@ type Job struct {
 type Script struct {
 	ScaleSetName string `json:"scaleSetName"`
 	Jobs         []Job  `json:"jobs"`
+	// Users: the owners that are personal accounts, not organizations
+	// (podrunner T-504).
+	Users []string `json:"users"`
 }
 
 func readScript(path string) (*Script, error) {

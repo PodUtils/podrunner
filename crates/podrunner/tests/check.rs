@@ -371,3 +371,46 @@ fn a_pin_over_the_memory_of_a_microvm_guest_is_refused() {
     }
     let _ = std::fs::remove_dir_all(&d);
 }
+
+/// T-504 (the owner's Q13): `allow_personal_account` of a scale-set source
+/// is off by default. With it on, `check` passes and prints one line that
+/// names the extra permission of the App, "Administration: write"; with
+/// it absent or false, no line.
+#[test]
+fn check_names_the_extra_permission_of_a_personal_account() {
+    use std::os::unix::fs::PermissionsExt;
+    let d = dir("personal");
+    let token = d.join("user.token");
+    std::fs::write(&token, "made-up-token\n").unwrap();
+    std::fs::set_permissions(&token, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let arch = std::env::consts::ARCH;
+    for (i, (key, line)) in
+        [("", false), ("allow_personal_account = false\n", false), ("allow_personal_account = true\n", true)]
+            .into_iter()
+            .enumerate()
+    {
+        let file = d.join(format!("{i}.toml"));
+        std::fs::write(
+            &file,
+            format!(
+                "host = \"h\"\nallow_fake = true\n[[source]]\nname = \"alice-app\"\nkind = \"github-scaleset\"\n\
+                 tier = \"trusted\"\narch = \"{arch}\"\nsidecar = \"/bin/true\"\n\
+                 config_url = \"https://github.com/alice/app\"\nscale_set = \"s\"\ntoken_file = \"{}\"\n{key}\
+                 [unit.fake]\nslots = 1\nclaim = \"confined\"\n[trust]\nusers = [{{ login = \"alice\" }}]\n[pin]\n",
+                token.display()
+            ),
+        )
+        .unwrap();
+        let out = Command::new(BIN).args(["check", "--config"]).arg(&file).output().unwrap();
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(0), "{i}: {err}");
+        let named: Vec<&str> = err.lines().filter(|l| l.contains("Administration: write")).collect();
+        if line {
+            assert_eq!(named.len(), 1, "{err}");
+            assert!(named[0].starts_with("podrunner: [[source]] alice-app: allow_personal_account"), "{err}");
+        } else {
+            assert!(named.is_empty(), "{i}: {err}");
+        }
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}

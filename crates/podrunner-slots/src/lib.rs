@@ -45,6 +45,7 @@ pub use engine::{EgressPort, Job, Slots, Source, UnitKind};
 use pod_core::clock::Clock;
 use podrunner_schema::{ExitReason, UnitIds};
 pub use run::egress_dir;
+pub use sources::{PERSONAL_PERMISSION, check_personal, personal_note};
 
 use crate::config::Config;
 use crate::state::{Line, State};

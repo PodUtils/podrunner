@@ -66,6 +66,12 @@ pub struct SourceConfig {
     /// 0400 or 0600) in place of the App (T-174).
     #[serde(default)]
     pub token_file: Option<String>,
+    /// `github-scaleset`: serve a repository of a personal account
+    /// (`config_url` names the repository; T-504, the owner's Q13). Off by
+    /// default: the sidecar refuses a personal account (`repo-scope-refused`,
+    /// call C3). The App needs "Administration: write" on the repository.
+    #[serde(default)]
+    pub allow_personal_account: bool,
     /// `remote`: the address of the mint (`host:port`), the pin of its key
     /// (`sha256/BASE64`), and the certificate of this host (its key is
     /// `key_file`, a P-256 key at mode 0600).
@@ -369,6 +375,7 @@ impl Config {
             if s.kind == SourceKind::GithubScaleset {
                 crate::sources::check_scaleset(s)?;
             }
+            crate::sources::check_personal(s)?;
             if s.kind == SourceKind::Remote {
                 let missing = [
                     ("mint", &s.mint),

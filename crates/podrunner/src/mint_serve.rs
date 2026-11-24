@@ -83,6 +83,7 @@ impl MintConfig {
         if c.host.is_empty() {
             return Err("no [[host]]: no unit host can reach the mint".into());
         }
+        podrunner_slots::check_personal(&c.source)?;
         // The mint computes the tier too: it refuses what serve refuses.
         c.trust.check()?;
         if let Some(t) = &c.source.trust {
@@ -147,6 +148,7 @@ pub fn check(config: &Path) -> Result<MintConfig, Failure> {
     if let Some(t) = &c.source.trust {
         notes.extend(podrunner_slots::trust::table_notes("[source] trust", t));
     }
+    notes.extend(podrunner_slots::personal_note(&c.source).map(|n| n.replacen("[[source]]", "[source]", 1)));
     for line in notes {
         eprintln!("podrunner: {line}");
     }

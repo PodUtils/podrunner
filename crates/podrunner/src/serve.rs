@@ -41,7 +41,7 @@ mod host;
 mod restart;
 #[path = "serve/sources.rs"]
 mod sources;
-pub(crate) use sources::{private_file, source_of};
+pub(crate) use sources::{flags, private_file, source_of};
 
 /// Check each part of `cfg` that has no side effect (GitHub #58): each
 /// source is built and not called, and each unit kind has its driver
@@ -85,6 +85,10 @@ pub fn check(path: &Path) -> Result<Config, Failure> {
     }
     // An opt-in of trust gets a line in each check and at each start.
     for line in cfg.trust_notes() {
+        eprintln!("podrunner: {line}");
+    }
+    // The extra permission of the App of a personal account (T-504).
+    for line in cfg.source.iter().filter_map(podrunner_slots::personal_note) {
         eprintln!("podrunner: {line}");
     }
     Ok(cfg)

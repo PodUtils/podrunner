@@ -84,13 +84,18 @@ pub(crate) fn scaleset(
         "-app-id".into(),
         get(&s.app_id),
     ];
-    if s.operator_controlled {
-        args.push("-operator-controlled".into());
-    }
+    args.extend(flags(s));
     podrunner_slots::config::check_driver(Path::new(&get(&s.sidecar)))
         .map_err(|e| fail(Class::Config, format!("[[source]] {} sidecar: {e}", s.name)))?;
     let caller = format!("sidecar:{}", s.name);
     Ok(podrunner_mint::SidecarSource::new(&get(&s.sidecar), args, Arc::new(std::sync::Mutex::new(signer)), &caller))
+}
+
+/// The flags of the opt-ins of a scale-set source: the full report, and a
+/// repository of a personal account (T-504).
+pub(crate) fn flags(s: &podrunner_slots::config::SourceConfig) -> Vec<String> {
+    let on = [(s.operator_controlled, "-operator-controlled"), (s.allow_personal_account, "-personal-account")];
+    on.into_iter().filter(|(set, _)| *set).map(|(_, flag)| flag.to_string()).collect()
 }
 
 /// The source of a `[[source]]` table, behind `mint` (GitHub #27): mint
@@ -118,4 +123,25 @@ pub(crate) fn source_of(
         SourceKind::Program => Box::new(crate::program_source::program(s)?),
     };
     Ok(Box::new(podrunner_mint::Mint::new(&s.name, source)))
+}
+
+#[cfg(test)]
+mod tests {
+    /// T-504: the sidecar serves a personal account only with the key on.
+    #[test]
+    fn the_sidecar_gets_the_opt_ins_of_its_source() {
+        let source = |keys: &str| -> podrunner_slots::config::SourceConfig {
+            toml::from_str(&format!(
+                "name = \"s\"\nkind = \"github-scaleset\"\ntier = \"trusted\"\narch = \"x86_64\"\n{keys}"
+            ))
+            .unwrap()
+        };
+        assert!(super::flags(&source("")).is_empty());
+        assert!(super::flags(&source("allow_personal_account = false\n")).is_empty());
+        assert_eq!(super::flags(&source("allow_personal_account = true\n")), ["-personal-account"]);
+        assert_eq!(
+            super::flags(&source("operator_controlled = true\nallow_personal_account = true\n")),
+            ["-operator-controlled", "-personal-account"]
+        );
+    }
 }

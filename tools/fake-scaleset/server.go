@@ -113,8 +113,13 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.Contains(p, "/members/"):
 		s.member(w, p)
 	case strings.Contains(p, "/orgs/") && !strings.Contains(strings.SplitN(p, "/orgs/", 2)[1], "/"):
-		// Each owner of the script is an organization.
-		reply(w, http.StatusOK, map[string]any{"login": p[strings.LastIndex(p, "/")+1:], "type": "Organization"})
+		// Each owner is an organization, but a user of the script.
+		login := p[strings.LastIndex(p, "/")+1:]
+		if s.isUser(login) {
+			reply(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+			return
+		}
+		reply(w, http.StatusOK, map[string]any{"login": login, "type": "Organization"})
 	case strings.HasPrefix(p, "/tenant/1/_apis/runtime/runnergroups"):
 		reply(w, http.StatusOK, map[string]any{"count": 1, "value": []map[string]any{{"id": 1, "name": "default", "isDefaultGroup": true}}})
 	case strings.HasPrefix(p, "/tenant/1/_apis/runtime/runnerscalesets"):
@@ -372,6 +377,15 @@ func (s *server) workflowRun(w http.ResponseWriter, p string) {
 		// `visibility` is null, and only `private` tells it (T-167).
 		"repository": map[string]any{"id": 1, "full_name": j.Owner + "/" + j.Repo, "name": j.Repo, "owner": map[string]any{"login": j.Owner}, "visibility": nil, "private": j.Visibility != "public"},
 	})
+}
+
+func (s *server) isUser(login string) bool {
+	for _, u := range s.script.Users {
+		if strings.EqualFold(u, login) {
+			return true
+		}
+	}
+	return false
 }
 
 // GET .../orgs/ORG/members/USER: 204 for a member, 404 else.

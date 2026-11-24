@@ -498,6 +498,11 @@
       "description": "One source instance: one set of one tier, one architecture, one host.",
       "type": "object",
       "properties": {
+        "allow_personal_account": {
+          "description": "`github-scaleset`: serve a repository of a personal account\n(`config_url` names the repository; T-504, the owner's Q13). Off by\ndefault: the sidecar refuses a personal account (`repo-scope-refused`,\ncall C3). The App needs \"Administration: write\" on the repository.",
+          "type": "boolean",
+          "default": false
+        },
         "api_url": {
           "type": [
             "string",
@@ -736,7 +741,7 @@
           }
         },
         "users": {
-          "description": "Personal accounts whose repositories the operator trusts (T-191): a\nforge with repositories of a person (a `program` source). The\nGitHub scale set refuses a personal account at its start (call C3).",
+          "description": "Personal accounts whose repositories the operator trusts (T-191): a\nforge with repositories of a person (a `program` source). The\nGitHub scale set refuses a personal account at its start (call C3)\nunless its source sets `allow_personal_account` (T-504).",
           "type": "array",
           "default": [],
           "items": {

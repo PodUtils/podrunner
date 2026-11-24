@@ -42,6 +42,8 @@ installation_id = 678
 key_file = "/etc/podrunner/app.pem"
 # token_file = "/etc/podrunner/org.token"  # ... or a fine-grained token of the organization (mode 0400
                              # or 0600) in place of the three; the sidecar gets it on its descriptor 3
+# allow_personal_account = true  # github-scaleset only; default false: config_url may name a repository of a
+                             # personal account; the App needs "Administration: write" (below, T-504)
 
 [unit.podvm]                 # one table for each unit kind: fake, podvm, microvm, incus
 slots = 2
@@ -76,8 +78,8 @@ min_boundary = "confined"
 
 [trust]                      # the tier rule (crates/podrunner-tier)
 organizations = [{ login = "example-org", id = 11 }]
-users = [{ login = "example-user" }]   # repositories of a person, for a forge that has them
-                             # (a `program` source); the GitHub scale set takes organizations only
+users = [{ login = "example-user" }]   # repositories of a person: a `program` source of a forge that has
+                             # them, or a github-scaleset source with allow_personal_account (T-504)
 trusted_public = [{ owner = "example-org", repo = "open-tool" }]
 extra_events = ["release"]   # more events of a trusted job: only workflow_run, issue_comment,
                              # release, repository_dispatch (the owner, Q5) and pull_request_target
@@ -329,6 +331,63 @@ built_at_s = 1763337600
 | `untrusted` | `guest` | A fork job is hostile code. |
 | `trusted` | `redirect` (default `confined`) | DR-4: `redirect` is a choice of the operator. The file must then have a signed pin list (`podrunner pin-sign`), set `repository`, keep `same_principal_ok = false` and set `slots` on each `trusted` source (T-045 has the other mitigations). |
 | `local` | `none` | Only the configuration marks a set `local`; its jobs run at `local` with no tier rule, and only a `fake` source can be `local` (call C14). |
+
+## A repository of a personal account
+
+A `github-scaleset` source serves an organization: `config_url` is the URL
+of the organization (call C3, DR-9). The sidecar refuses a personal
+account at its start, before it asks GitHub for a scale set
+(`repo-scope-refused`, exit 78). It also refuses the URL of a repository
+of an organization: use the URL of the organization.
+
+`allow_personal_account = true` (T-504, the owner's ruling Q13) lets the
+source serve one repository of a personal account. It is off by default.
+
+```toml
+[[source]]
+name = "alice-app"
+kind = "github-scaleset"
+tier = "trusted"
+arch = "x86_64"
+sidecar = "scaleset-sidecar"
+config_url = "https://github.com/alice/app"   # the repository, not the account
+scale_set = "podrunner"
+app_id = "12345"
+installation_id = 678
+key_file = "/etc/podrunner/app.pem"
+allow_personal_account = true
+
+[trust]
+users = [{ login = "alice" }]   # the account is the owner of a trusted job
+```
+
+* The App needs the repository permission "Administration: write", in
+  addition to "Actions: read" and "Metadata: read". GitHub gives the
+  registration token of a repository scale set only with it
+  (`POST /repos/{owner}/{repo}/actions/runners/registration-token`). The
+  same permission lets a leaked key change the settings, the
+  collaborators and the deploy keys of the repository
+  (`docs/security/residuals.md`, R10). A personal account has no members,
+  so the App needs no "Members: read". A fine-grained token
+  (`token_file`) needs the same repository permissions.
+* `check`, `serve` and `mint-serve` print one line on stderr for each
+  source with the key: `podrunner: [[source]] NAME:
+  allow_personal_account: ...` names the permission. `doctor` gives the
+  source the field `extra_permission` and says `the App needs
+  Administration: write` in its line.
+* `actor_class` is `member` only for the account itself (the actor is the
+  owner of the repository and of the URL). Each other actor is `outside`:
+  a collaborator, a bot and an app. A job of a collaborator is not
+  trusted: a push of a collaborator is `event-not-allowed`, and a pull
+  request of a collaborator from a fork goes to a guest at `untrusted`.
+  Deny by default: GitHub gives a personal account no list of members,
+  and a collaborator can be added with one click.
+* The tier rule needs the account in `users` (or in the `users` of the
+  trust table of the source) for a trusted job.
+* With the key on and the URL of an organization, the source serves the
+  organization as with the key off. The URL of an account with no
+  repository is refused: the scale set of a personal account is of one
+  repository.
 
 ## The case table of the tier rule
 

@@ -8,7 +8,8 @@
 //
 //	podrunner-source-github-scaleset -config-url URL -api-url URL
 //	    -installation-id N -scale-set NAME -source NAME -arch x86_64
-//	    -app-id ID [-operator-controlled] [-wait-deadline-s 600]
+//	    -app-id ID [-operator-controlled] [-personal-account]
+//	    [-wait-deadline-s 600]
 package main
 
 import (
@@ -30,13 +31,13 @@ const lineMax = 1 << 20
 type options struct {
 	configURL, apiURL, scaleSet, source, arch, appID string
 	installationID                                   int64
-	operatorControlled, pat                          bool
+	operatorControlled, pat, personalAccount         bool
 	waitDeadlineS, trustBudget                       int
 }
 
 func main() {
 	var o options
-	flag.StringVar(&o.configURL, "config-url", "", "the organization URL of the scale set")
+	flag.StringVar(&o.configURL, "config-url", "", "the organization URL of the scale set, or with -personal-account the URL of a repository")
 	flag.StringVar(&o.apiURL, "api-url", "https://api.github.com", "the base URL of the GitHub REST API")
 	flag.Int64Var(&o.installationID, "installation-id", 0, "the installation of the App")
 	flag.StringVar(&o.scaleSet, "scale-set", "", "the name of the scale set")
@@ -44,6 +45,7 @@ func main() {
 	flag.StringVar(&o.arch, "arch", "x86_64", "the architecture of the set")
 	flag.StringVar(&o.appID, "app-id", "", "the id of the GitHub App: the iss of each JWT")
 	flag.BoolVar(&o.operatorControlled, "operator-controlled", false, "the operator controls the source")
+	flag.BoolVar(&o.personalAccount, "personal-account", false, "serve a repository of a personal account (allow_personal_account; the App needs Administration: write)")
 	flag.BoolVar(&o.pat, "pat", false, "a fine-grained token of the organization on descriptor 3, in place of the App")
 	flag.IntVar(&o.waitDeadlineS, "wait-deadline-s", 600, "the wait deadline of each offer")
 	flag.IntVar(&o.trustBudget, "trust-budget", 1000, "the most trust lookups of one hour")

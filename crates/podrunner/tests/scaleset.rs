@@ -4,7 +4,10 @@
 //! member job that GitHub assigns with no JobAvailable runs too (T-166).
 //! Design source test 3 for the sidecar: the credential (the fake service
 //! plants a canary in the JIT configuration) reaches the unit, and is in no
-//! stderr of the sidecar, no file of the state and no report.
+//! stderr of the sidecar, no file of the state and no report. T-504: a
+//! repository of a personal account runs a job only with
+//! `allow_personal_account` (`-personal-account`); else the sidecar ends
+//! with `repo-scope-refused`.
 //! Ignored by default: it needs the Go binaries.
 //!
 //!   PODRUNNER_FAKE_SCALESET=PATH PODRUNNER_SCALESET_SIDECAR=PATH \
@@ -41,6 +44,12 @@ const SCRIPT: &str = r#"{"scaleSetName":"podrunner","jobs":[
 /// runner of that job (T-175).
 const ASSIGNED: &str = r#"{"scaleSetName":"podrunner","jobs":[
  {"requestId":13,"jobId":"c","owner":"example-org","repo":"app","workflowRunId":103,"event":"push","actor":"alice","actorIsMember":true,"visibility":"private","labels":["podrunner"],"assignedOnly":true}]}"#;
+/// T-504: a repository of the personal account alice. A job of alice is a
+/// job of a member; a job of a collaborator (bob) is not, also when the
+/// fake says that he is a member of an organization.
+const PERSONAL: &str = r#"{"scaleSetName":"podrunner","users":["alice"],"jobs":[
+ {"requestId":21,"jobId":"p","owner":"alice","repo":"app","workflowRunId":201,"event":"push","actor":"alice","visibility":"private","labels":["podrunner"]},
+ {"requestId":22,"jobId":"q","owner":"alice","repo":"app","workflowRunId":202,"event":"push","actor":"bob","actorIsMember":true,"visibility":"private","labels":["podrunner"]}]}"#;
 
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
@@ -70,23 +79,52 @@ impl Run {
     }
 }
 
-fn run(tag: &str, script: &str, want: usize) -> Run {
-    let dir = std::env::temp_dir().join(format!("podrunner-e2e-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+/// The child of the fake service. A drop ends it: after a failed assert
+/// too, else it holds the stderr of the test open.
+struct Fake(std::process::Child);
+
+impl Drop for Fake {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+/// The fake scale-set service with `script`: the child and its base URL.
+fn fake(dir: &std::path::Path, script: &str, record: &std::path::Path) -> (Fake, String) {
     std::fs::write(dir.join("script.json"), script).unwrap();
-    let record = dir.join("record.jsonl");
     let mut fake = Command::new(env("PODRUNNER_FAKE_SCALESET"))
         .args(["-listen", "127.0.0.1:0", "-script"])
         .arg(dir.join("script.json"))
         .arg("-record")
-        .arg(&record)
+        .arg(record)
         .stdout(Stdio::piped())
         .spawn()
         .unwrap();
     let mut url = String::new();
     std::io::BufReader::new(fake.stdout.take().unwrap()).read_line(&mut url).unwrap();
-    let url = url.trim().to_string();
+    (Fake(fake), url.trim().to_string())
+}
+
+/// The scope of a run: the path of its config URL, and the opt-in of a
+/// personal account (T-504).
+struct Scope {
+    path: &'static str,
+    personal: bool,
+}
+
+const ORG: Scope = Scope { path: "example-org", personal: false };
+
+fn run(tag: &str, script: &str, want: usize) -> Run {
+    run_in(tag, script, want, ORG)
+}
+
+fn run_in(tag: &str, script: &str, want: usize, scope: Scope) -> Run {
+    let dir = std::env::temp_dir().join(format!("podrunner-e2e-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let record = dir.join("record.jsonl");
+    let (fake, url) = fake(&dir, script, &record);
 
     let clock = Arc::new(ManualClock::new());
     let pem = Command::new("openssl").args(["genrsa", "-traditional", "2048"]).output().unwrap().stdout;
@@ -94,9 +132,9 @@ fn run(tag: &str, script: &str, want: usize) -> Run {
     // The sidecar sets iat from the clock of the host: sign reads the same.
     let unix = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
     let signer = Arc::new(Mutex::new(Signer::new(key, "4242", clock.clone(), Box::new(unix))));
-    let args = [
+    let mut args = [
         "-config-url",
-        &format!("{url}/example-org"),
+        &format!("{url}/{}", scope.path),
         "-api-url",
         &format!("{url}/api/v3"),
         "-installation-id",
@@ -113,6 +151,9 @@ fn run(tag: &str, script: &str, want: usize) -> Run {
     ]
     .map(String::from)
     .to_vec();
+    if scope.personal {
+        args.push("-personal-account".into());
+    }
     // A wrapper keeps the stderr of the sidecar for the scan; descriptor 3
     // (sign) passes through exec.
     let wrapper = dir.join("sidecar.sh");
@@ -128,11 +169,12 @@ fn run(tag: &str, script: &str, want: usize) -> Run {
     }
     let sidecar = SidecarSource::new(wrapper.to_str().unwrap(), args, signer.clone(), "sidecar:org-trusted");
     let source_cfg: SourceConfig = serde_json::from_value(serde_json::json!({
-        "name": "org-trusted", "kind": "github-scaleset", "tier": "trusted", "arch": "x86_64", "operator_controlled": true
+        "name": "org-trusted", "kind": "github-scaleset", "tier": "trusted", "arch": "x86_64", "operator_controlled": true,
+        "allow_personal_account": scope.personal
     }))
     .unwrap();
     let mut cfg = Config::parse(&format!(
-        "host = \"host-a\"\nallow_fake = true\n[trust]\norganizations = [{{ login = \"example-org\" }}]\n[pin]\n[[pin.payload]]\narch = \"x86_64\"\nreference = \"{PIN}\"\nbuilt_at_s = {NOW}\n"
+        "host = \"host-a\"\nallow_fake = true\n[trust]\norganizations = [{{ login = \"example-org\" }}]\nusers = [{{ login = \"alice\" }}]\n[pin]\n[[pin.payload]]\narch = \"x86_64\"\nreference = \"{PIN}\"\nbuilt_at_s = {NOW}\n"
     ))
     .unwrap();
     cfg.source.push(source_cfg.clone());
@@ -177,8 +219,7 @@ fn run(tag: &str, script: &str, want: usize) -> Run {
             break;
         }
     }
-    let _ = fake.kill();
-    let _ = fake.wait();
+    drop(fake);
     Run { dir, reports: slots.reports.iter().cloned().collect(), record, stderr, signer }
 }
 
@@ -214,4 +255,75 @@ fn an_assigned_job_runs_with_no_acquire() {
     assert_eq!(job.exit_reason, ExitReason::Success, "{job:?}");
     assert!(r.acquires().is_empty(), "{:?}", r.acquires());
     let _ = std::fs::remove_dir_all(&r.dir);
+}
+
+/// T-504: with the opt-in, a repository of a personal account serves the
+/// job of the account; the push of a collaborator is `outside`, so it is
+/// refused (`event-not-allowed`) and never acquired.
+#[test]
+#[ignore]
+fn a_personal_account_with_the_opt_in_runs_the_job_of_the_account() {
+    let r = run_in("personal", PERSONAL, 2, Scope { path: "alice/app", personal: true });
+    let own = r.by_job("21");
+    assert_eq!(own.exit_reason, ExitReason::Success, "{own:?}");
+    assert_eq!(r.by_job("22").refusal_code, Some(RefusalCode::EventNotAllowed));
+    let acquired = r.acquires();
+    assert_eq!(acquired.len(), 1, "one acquire: {acquired:?}");
+    let _ = std::fs::remove_dir_all(&r.dir);
+}
+
+/// T-504: with no opt-in, the sidecar refuses the repository of a personal
+/// account at its start (78, `repo-scope-refused`), names the key, and asks
+/// GitHub for no scale set.
+#[test]
+#[ignore]
+fn a_personal_account_with_no_opt_in_is_refused() {
+    let dir = std::env::temp_dir().join(format!("podrunner-e2e-refused-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let record = dir.join("record.jsonl");
+    let (fake, url) = fake(&dir, PERSONAL, &record);
+    for (i, path) in ["alice/app", "alice"].into_iter().enumerate() {
+        // The wrapper keeps the stderr and the exit code of the sidecar;
+        // descriptor 3 (the token) passes to it.
+        let (wrapper, stderr, code) =
+            (dir.join(format!("w{i}.sh")), dir.join(format!("{i}.err")), dir.join(format!("{i}.code")));
+        std::fs::write(
+            &wrapper,
+            format!(
+                "#!/bin/sh\n'{}' \"$@\" 2>>'{}'\nc=$?\necho $c >'{}'\nexit $c\n",
+                env("PODRUNNER_SCALESET_SIDECAR"),
+                stderr.display(),
+                code.display()
+            ),
+        )
+        .unwrap();
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let args = ["-config-url", &format!("{url}/{path}"), "-api-url", &format!("{url}/api/v3"), "-pat"]
+            .into_iter()
+            .chain(["-scale-set", "podrunner", "-source", "alice-app", "-arch", "x86_64"])
+            .map(String::from)
+            .collect();
+        let mut source =
+            SidecarSource::with_token(wrapper.to_str().unwrap(), args, "made-up-token".into(), "sidecar:alice-app");
+        assert!(podrunner_source::JobSource::hello(&mut source, "podrunner", "0").is_err(), "{path}");
+        for _ in 0..100 {
+            if code.exists() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let err = std::fs::read_to_string(&stderr).unwrap_or_default();
+        assert_eq!(std::fs::read_to_string(&code).unwrap_or_default().trim(), "78", "{path}: {err}");
+        assert!(err.contains("repo-scope-refused: alice is not an organization"), "{path}: {err}");
+        assert!(err.contains("allow_personal_account = true"), "{path}: {err}");
+        assert!(!err.contains("made-up-token"), "{path}: {err}");
+    }
+    drop(fake);
+    let text = std::fs::read_to_string(&record).unwrap_or_default();
+    assert!(!text.contains("runnerscalesets") && !text.contains("registration"), "{text}");
+    let _ = std::fs::remove_dir_all(&dir);
 }

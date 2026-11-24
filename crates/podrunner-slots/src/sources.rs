@@ -6,7 +6,7 @@ use podrunner_schema::JobId;
 use podrunner_source::{JobSource, SourceCode, SourceError};
 use serde_json::{Map, Value};
 
-use crate::config::SourceConfig;
+use crate::config::{SourceConfig, SourceKind};
 
 /// One source instance.
 pub struct Source {
@@ -80,6 +80,34 @@ pub(crate) fn check_scaleset(s: &SourceConfig) -> Result<(), String> {
     }
 }
 
+/// The opt-in of a personal account (T-504) is a key of a scale-set source
+/// only: another kind has no scale set.
+pub fn check_personal(s: &SourceConfig) -> Result<(), String> {
+    if s.allow_personal_account && s.kind != SourceKind::GithubScaleset {
+        return Err(format!("[[source]] {:?}: allow_personal_account is for a github-scaleset source", s.name));
+    }
+    Ok(())
+}
+
+/// The extra permission of the App that `allow_personal_account` needs.
+pub const PERSONAL_PERMISSION: &str = "Administration: write";
+
+/// The line that `check`, `serve` and `mint-serve` print for a source with
+/// `allow_personal_account` (T-504, the owner's Q13), after the name of the
+/// table.
+pub fn personal_note(s: &SourceConfig) -> Option<String> {
+    s.allow_personal_account.then(|| {
+        format!(
+            "[[source]] {}: allow_personal_account: a repository of a personal account may register a runner \
+             scale set. The GitHub App (or the token) needs the extra repository permission \"{PERSONAL_PERMISSION}\": \
+             GitHub gives the registration token of a repository scale set only with it, and it also lets a leaked \
+             key change the settings, the collaborators and the deploy keys of the repository. The account is the \
+             only member: the job of a collaborator is not trusted",
+            s.name
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use crate::config::Config;
@@ -90,6 +118,32 @@ mod tests {
              kind = \"github-scaleset\"\ntier = \"trusted\"\narch = \"x86_64\"\nsidecar = \"/bin/true\"\n\
              config_url = \"https://github.com/o\"\nscale_set = \"s\"\n{keys}[pin]\n"
         ))
+    }
+
+    /// T-504 (the owner's Q13): a personal account is an opt-in of a
+    /// `github-scaleset` source, off by default; `check` names the extra
+    /// permission of the App when it is on.
+    #[test]
+    fn a_personal_account_is_an_opt_in_of_a_scaleset_source() {
+        let app = "installation_id = 1\napp_id = \"1\"\nkey_file = \"/k\"\n";
+        for keys in [app.to_string(), format!("{app}allow_personal_account = false\n")] {
+            let c = file(&keys).unwrap();
+            assert!(!c.source[0].allow_personal_account, "{keys}");
+            assert_eq!(super::personal_note(&c.source[0]), None, "{keys}");
+        }
+        let c = file(&format!("{app}allow_personal_account = true\n")).unwrap();
+        let note = super::personal_note(&c.source[0]).unwrap();
+        assert!(note.starts_with("[[source]] s: allow_personal_account"), "{note}");
+        assert!(note.contains("\"Administration: write\"") && note.contains("only member"), "{note}");
+        assert!(file(&format!("{app}allow_personal_account = \"yes\"\n")).is_err());
+        // Another kind of source has no scale set: the key is refused.
+        let fake = "host = \"h\"\nallow_fake = true\n[[source]]\nname = \"f\"\nkind = \"fake\"\ntier = \"trusted\"\n\
+                    arch = \"x86_64\"\nallow_personal_account = true\n[pin]\n";
+        let err = Config::parse(fake).unwrap_err();
+        assert!(err.contains("allow_personal_account is for a github-scaleset source"), "{err}");
+        assert!(
+            Config::parse(&fake.replace("allow_personal_account = true", "allow_personal_account = false")).is_ok()
+        );
     }
 
     #[test]

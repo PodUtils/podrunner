@@ -209,9 +209,14 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
             let need = podrunner_slots::placement::needed_hold(s.tier);
             let served =
                 caps.iter().any(|c| c.arch == s.arch && c.boundary >= floor && c.egress_hold.effective() >= need);
-            tiers.push(json!({
+            let mut row = json!({
                 "source": s.name, "tier": s.tier, "served": served, "floor": floor, "hold": need,
-            }));
+            });
+            // The extra permission of the App of a personal account (T-504).
+            if s.allow_personal_account {
+                row["extra_permission"] = json!(podrunner_slots::PERSONAL_PERMISSION);
+            }
+            tiers.push(row);
             if !served {
                 // Why for each kind (T-194): an emulated host, for example,
                 // has no confine layer and no hold.
@@ -291,7 +296,11 @@ pub fn text(v: &Value) -> String {
     for s in v["sources"].as_array().into_iter().flatten() {
         let word = |f: &str| display(s[f].as_str().unwrap_or("?"));
         let served = if s["served"] == json!(true) { "served" } else { "not served" };
-        out.push_str(&format!("source {}: tier {}, {served}\n", word("source"), word("tier")));
+        let extra = match s["extra_permission"].as_str() {
+            Some(p) => format!("; the App needs {} (allow_personal_account)", display(p)),
+            None => String::new(),
+        };
+        out.push_str(&format!("source {}: tier {}, {served}{extra}\n", word("source"), word("tier")));
     }
     if let Some(r) = v["runner_of_this_build"].as_str() {
         out.push_str(&format!("runner of this build: {}\n", display(r)));
@@ -450,6 +459,38 @@ mod tests {
         // With no file, doctor says what it did not read.
         let bare = report_with(None, json!([])).unwrap();
         assert!(text(&bare).contains("missing: --config"), "{}", text(&bare));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-504: a scale-set source with `allow_personal_account` names the
+    /// extra permission of the App; with the key off it names none.
+    #[test]
+    fn doctor_names_the_extra_permission_of_a_personal_account() {
+        let dir = crate::scratch::Scratch::new("doctor-personal");
+        let file = dir.join("podrunner.toml");
+        let arch = std::env::consts::ARCH;
+        for (key, want) in
+            [("", false), ("allow_personal_account = false\n", false), ("allow_personal_account = true\n", true)]
+        {
+            std::fs::write(
+                &file,
+                format!(
+                    "host = \"h\"\n[[source]]\nname = \"alice-app\"\nkind = \"github-scaleset\"\ntier = \"trusted\"\n\
+                     arch = \"{arch}\"\nsidecar = \"/bin/true\"\nconfig_url = \"https://github.com/alice/app\"\n\
+                     scale_set = \"s\"\ntoken_file = \"/t\"\n{key}[trust]\nusers = [{{ login = \"alice\" }}]\n[pin]\n"
+                ),
+            )
+            .unwrap();
+            let v = report_with(Some(&file), json!([])).unwrap();
+            let row = &v["sources"][0];
+            let named =
+                text(&v).contains("source alice-app: tier trusted, not served; the App needs Administration: write");
+            assert_eq!(
+                (row.get("extra_permission"), named),
+                (want.then_some(&json!("Administration: write")), want),
+                "{key}"
+            );
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
