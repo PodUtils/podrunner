@@ -85,7 +85,9 @@ extra_events = ["release"]   # more events of a trusted job: only workflow_run, 
                              # owner, a head that is not a fork, an actor member. A pull_request_target
                              # job runs the workflow of the base branch of its pull request and gets
                              # the secrets of the repository: check and serve print one line that
-                             # names this opt-in (T-518)
+                             # names this opt-in (T-518). For an event that is not a pull request
+                             # the head is the repository of the run: head_is_fork is always no, and
+                             # only the actor and the owner guard the job (residual R9)
 
 [deadlines]                  # seconds; these are the defaults
 prepare_s = 600
@@ -339,6 +341,11 @@ rule of its own runs each row against it.
 `head_is_fork` of a job is `yes` when the head is another repository than
 the repository of the job, not the `fork` flag of the head
 (`docs/contracts/source-driver.md`).
+
+For an event that is not a pull request (`workflow_run`, `issue_comment`,
+`repository_dispatch`, `release`), the head is the repository of the run,
+so `head_is_fork` is `no`. Only the actor and the owner guard a job of
+these events from `extra_events` (`docs/security/residuals.md`, R9).
 
 `docs/design/examples/tier-cases.json` has the same file name and another
 format. It is the design copy (call C17): it predates the rulings Q5 and

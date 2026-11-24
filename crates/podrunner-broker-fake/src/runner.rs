@@ -63,6 +63,23 @@ pub fn start_runner_in(
     spawn(dir, work, broker, env, console, std::process::Stdio::inherit())
 }
 
+/// Remove the pages and the blocks that a killed runner left in `_diag`
+/// (T-273): the runner refuses a file of them that exists ("already
+/// exists"), and a broker gives each run the same ids. An entry that stays
+/// is an error: the runner would fail with a worse message.
+pub fn clear_diag(dir: &Path) -> Result<(), String> {
+    for d in ["pages", "blocks"] {
+        let path = dir.join("_diag").join(d);
+        match std::fs::remove_dir_all(&path) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                return Err(format!("{}: remove it: {}", path.display(), e.kind()));
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 fn spawn(
     dir: &Path,
     work: &Path,
@@ -72,11 +89,7 @@ fn spawn(
     stderr: std::process::Stdio,
 ) -> Result<std::process::Child, String> {
     use std::os::unix::process::CommandExt;
-    // A killed run leaves its pages and blocks, and the fake broker gives
-    // each run the same ids: the runner refuses a file of them that exists.
-    for d in ["pages", "blocks"] {
-        let _ = std::fs::remove_dir_all(dir.join("_diag").join(d));
-    }
+    clear_diag(dir)?;
     for (name, mut content) in broker.runner_files("runner-u-1") {
         if name == ".runner" {
             let mut v: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
@@ -173,6 +186,24 @@ mod tests {
         assert_eq!(std::fs::metadata(&f).unwrap().permissions().mode() & 0o777, 0o600);
         assert_eq!(std::fs::read_to_string(&f).unwrap(), "new");
         let _ = std::fs::remove_file(&f);
+    }
+
+    /// T-518: a page directory that cannot be removed stops the start; a
+    /// stale one is removed before `run.sh` runs.
+    #[test]
+    fn a_stale_diag_entry_is_removed_and_one_that_stays_is_an_error() {
+        let dir = std::env::temp_dir().join(format!("podrunner-diag-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("_diag/blocks")).unwrap();
+        std::fs::write(dir.join("_diag/blocks/old"), "x").unwrap();
+        std::fs::write(dir.join("_diag/pages"), "not a directory").unwrap();
+        let broker = Broker::start().unwrap();
+        let e = start_runner(&dir, &broker, &[]).unwrap_err();
+        assert!(e.contains("_diag/pages") && e.contains("remove it"), "{e}");
+        std::fs::remove_file(dir.join("_diag/pages")).unwrap();
+        clear_diag(&dir).unwrap();
+        assert!(!dir.join("_diag/blocks").exists());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// T-331: the console does not claim GitHub.

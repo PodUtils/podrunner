@@ -130,7 +130,7 @@ differs, the parser is the contract (T-188):
 
 | Field | The parser takes |
 | --- | --- |
-| `trust_inputs.head_is_fork` | `yes`, `no` or `unknown` (not a boolean). `yes` when the repository of the head is another repository than the repository of the job (another id; with no id, another `owner/repo` in any case); `no` when it is the same; `unknown` when one of the two is not known. Do not send the `fork` flag of the head: a pull request can come from the root of a fork network (`fork` false), and a push to a fork has the fork as its head (`fork` true) |
+| `trust_inputs.head_is_fork` | `yes`, `no` or `unknown` (not a boolean). `yes` when the repository of the head is another repository than the repository of the job (another id; with no id, another `owner/repo` in any case); `no` when it is the same; `unknown` when one of the two is not known. For an event that is not a pull request, the head is the repository of the run, so the value is `no` (`workflow_run`, `issue_comment`, `repository_dispatch`, `release`; a push to a fork gives the fork as the repository of the job). Do not send the `fork` flag of the head: a pull request can come from the root of a fork network (`fork` false), and a push to a fork has the fork as its head (`fork` true) |
 | `trust_inputs.actor_class` | `member`, `outside` or `unknown` (not `external`) |
 | `trust_inputs.run_id` | a number |
 | `limits`, `limits_required` | the names `wall`, `cpu`, `memory`, `pids`, `disk` |

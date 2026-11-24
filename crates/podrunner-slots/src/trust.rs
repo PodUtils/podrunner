@@ -19,7 +19,8 @@ use crate::config::{Config, SourceConfig, SourceKind};
 // The list comes first: serde also reads an empty array as a table.
 pub enum SourceTrust {
     /// One table for each forge.
-    ByForge(Vec<ForgeTrust>),
+    // `check` refuses an empty list: the schema says so too.
+    ByForge(#[cfg_attr(test, schemars(length(min = 1)))] Vec<ForgeTrust>),
     /// One table for each offer of the source.
     One(TierConfig),
 }

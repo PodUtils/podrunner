@@ -680,7 +680,8 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/ForgeTrust"
-          }
+          },
+          "minItems": 1
         },
         {
           "description": "One table for each offer of the source.",

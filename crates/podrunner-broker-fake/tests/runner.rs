@@ -330,6 +330,8 @@ fn the_job_started_hook_sends_a_head_that_is_not_the_base_as_a_fork() {
         ),
         ("no ids, other names", pr(repo(None, "x/app", true), Some(repo(None, "example-org/app", false))), Some(true)),
         ("no base", pr(repo(Some(1), "up/app", true), None), None),
+        // GitHub gives a null head repository when the fork is deleted.
+        ("a deleted fork", pr("null".to_string(), Some(repo(Some(2), "example-org/app", false))), None),
         ("no pull request", "{}".to_string(), None),
     ] {
         std::fs::write(&event, body).unwrap();

@@ -66,11 +66,6 @@ fn run(dir: &std::path::Path, s: &mut LocalSource, job: &JobId) -> (JobResult, V
     let broker = Broker::start().unwrap();
     broker.queue(s.broker_job(job).unwrap());
     let _ = std::fs::remove_dir_all(dir.join("_work"));
-    // A killed run leaves its pages and blocks; the runner refuses a file
-    // of them that exists, as `exec/host.rs` knows.
-    for d in ["pages", "blocks"] {
-        let _ = std::fs::remove_dir_all(dir.join("_diag").join(d));
-    }
     run_once(dir, &broker, &[]);
     let done = broker.completions();
     assert_eq!(done.len(), 1, "{:?}", broker.seen());

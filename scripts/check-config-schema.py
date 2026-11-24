@@ -81,7 +81,13 @@ def main() -> int:
         bad += [f"{DOC.relative_to(ROOT)}:{line}: {e}" for e in errors(part, doc)]
     if "--self-test" in sys.argv[1:]:
         example = tomllib.loads(EXAMPLE.read_text())
-        for what, plant in (("an unknown key", {"slotz": 1}), ("a wrong type", {"max_units": "two"})):
+        # `check` refuses an empty list of forge tables (T-518).
+        empty = [{**example["source"][0], "trust": []}]
+        for what, plant in (
+            ("an unknown key", {"slotz": 1}),
+            ("a wrong type", {"max_units": "two"}),
+            ("an empty list of forge tables", {"source": empty}),
+        ):
             if not errors(whole, {**example, **plant}):
                 bad.append(f"self-test: {what} passes the schema")
     for b in bad:

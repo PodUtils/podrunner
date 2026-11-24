@@ -235,10 +235,8 @@ impl RunnerDir {
         broker.queue(message);
         // Each job starts in a fresh work directory (T-146).
         crate::work::clear(&self.work)?;
-        // The pages of a runner that a signal ended make the next runner
-        // fail ("The file ... already exists", T-273).
-        crate::work::clear(&self.dir.join("_diag").join("pages"))?;
-        crate::work::clear(&self.dir.join("_diag").join("blocks"))?;
+        // The start of the runner clears the pages and the blocks that a
+        // signal left (`podrunner_broker_fake::runner::clear_diag`, T-273).
         prune_diag(&self.dir);
         // A scratch home for each job: a step must not change the home of
         // the user (T-266); the next job clears it with the work directory.

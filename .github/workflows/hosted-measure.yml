@@ -273,10 +273,22 @@ jobs:
       - name: Import into incusd
         run: |
           set -eu
-          trap 'sh scripts/hosted/space.sh mark "$M" import $?' EXIT
+          # The use of the disk every 15 s: the create can fill it, and a
+          # failed run must show the peak.
+          while sleep 15; do date +%T; df -B1 /srv/btrfs 2> /dev/null || df -B1 /; [ -d /srv/btrfs ] && sudo btrfs filesystem usage -b /srv/btrfs | sed -n 1,25p; done > "$M/import-trace.txt" 2>&1 &
+          trace=$!
+          stop() {
+            st=$?
+            kill "$trace" 2> /dev/null || true
+            sh scripts/hosted/space.sh mark "$M" import "$st"
+          }
+          trap stop EXIT
           # create imports the image and makes the root of an instance in
           # the pool, with no start.
-          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $RUNNER_TEMP/podvm create --name measure --podvm-tier=incus --podvm-init=image --podvm-net none $IMAGE /bin/true" < /dev/null
+          rc=0
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $RUNNER_TEMP/podvm create --name measure --podvm-tier=incus --podvm-init=image --podvm-net none $IMAGE /bin/true" < /dev/null || rc=$?
+          echo "import: podvm create exit $rc" | tee -a "$M/info.txt"
+          [ "$rc" -eq 0 ] || exit "$rc"
           sudo incus list --format csv -c nsS | tee -a "$M/info.txt"
       - name: Boot when it fits
         env:
@@ -329,6 +341,11 @@ jobs:
             [ -n "${PODVM_STORE:-}" ] && timeout 900 sudo du -sb "$PODVM_STORE"/* 2>&1
             timeout 900 sudo du -sb /var/lib/incus/images /var/lib/incus/storage-pools 2>&1
           } > "$M/du.txt" || true
+          # The state of incusd after a failed import: its log, the kernel
+          # messages of btrfs and the images that it holds.
+          { sudo journalctl -u incus --no-pager -n 200; } > "$M/incus-journal.txt" 2>&1 || true
+          sudo dmesg 2>&1 | grep -i btrfs | tail -50 > "$M/dmesg-btrfs.txt" || true
+          { sudo ls -l /var/lib/incus/images; } > "$M/incus-images.txt" 2>&1 || true
           # The inodes: a file system can be full of files before bytes.
           df -i / /mnt "${POOL:-/}" >> "$M/du.txt" 2>&1 || true
           # du counts a block that two subvolumes share two times: btrfs
@@ -368,6 +385,14 @@ jobs:
             echo '```'
             cat "$M/du.txt" 2> /dev/null
             echo '```'
+            for f in import-trace.txt incus-images.txt dmesg-btrfs.txt incus-journal.txt; do
+              echo
+              echo "### $f (the end)"
+              echo
+              echo '```'
+              tail -n 40 "$M/$f" 2> /dev/null || echo "(absent)"
+              echo '```'
+            done
             if [ "$PLACE" = btrfs ]; then
               echo
               echo "### The btrfs at each step (btrfs filesystem usage -b)"
