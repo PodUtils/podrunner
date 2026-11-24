@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -52,9 +55,12 @@ type trust struct {
 	token     string
 	expires   time.Time
 	cache     map[runKey]trustInputs
-	http      http.Client
-	// The lookups of the hour that runs, and its start: a lookup past the
-	// budget is not made, and its inputs are "unknown" (throttled).
+	// The last run object of each run id and its ETag: a read of a run
+	// that did not change is a 304, which GitHub does not count.
+	runs map[int64]seenRun
+	http http.Client
+	// The calls of GitHub in the hour that runs, and its start: a lookup
+	// past the budget is not made, and its inputs are "unknown" (deny).
 	budget    int
 	used      int
 	hourStart time.Time
@@ -65,19 +71,81 @@ type trust struct {
 // can be another account (T-504 review).
 type runKey struct{ run, attempt int64 }
 
-// A lookup that GitHub does not answer must not hold the wire.
-const lookupTimeout = 30 * time.Second
+type seenRun struct {
+	etag string
+	obj  map[string]any
+}
+
+// The caches hold at most this many runs: a flood of runs must not grow
+// the memory of the sidecar.
+const cacheMax = 4096
+
+// A call of GitHub must not hold the wire: one call, and the lookups of
+// one `next`, end well inside the reply limit of the mint (15 s,
+// REPLY_LIMIT of crates/podrunner-mint/src/sidecar.rs).
+var (
+	lookupTimeout = 5 * time.Second
+	nextBudget    = 10 * time.Second
+)
+
+// errPending: a call did not end in its time. The job stays queued: it
+// is not refused and not lost.
+var errPending = errors.New("the lookup did not end in its time")
+
+// errThrottled: the budget of the hour is spent.
+var errThrottled = errors.New("the trust budget of the hour is spent")
+
+// batch holds the lookups of one `next`: each run is read once, and each
+// login is looked up once, for all its jobs.
+type batch struct {
+	ctx     context.Context
+	runs    map[int64]batchRun
+	members map[string]string
+}
+
+type batchRun struct {
+	in    trustInputs
+	whole bool
+}
+
+func newBatch(ctx context.Context) *batch {
+	return &batch{ctx: ctx, runs: map[int64]batchRun{}, members: map[string]string{}}
+}
 
 func newTrust(o options, signer *signer) *trust {
 	api := o.apiURL
 	if api == "" {
 		api = apiURLOf(o.configURL)
 	}
-	return &trust{api: api, installation: o.installationID, signer: signer, pat: o.pat, budget: o.trustBudget,
-		http: http.Client{Timeout: lookupTimeout}}
+	// A slash at the end would double the slash of each path.
+	return &trust{api: strings.TrimRight(api, "/"), installation: o.installationID, signer: signer, pat: o.pat,
+		budget: o.trustBudget, http: http.Client{Timeout: lookupTimeout}}
 }
 
-func (t *trust) installationToken() (string, error) {
+// spend counts one call of GitHub in the budget of the hour. With gate,
+// a call past the budget is refused.
+func (t *trust) spend(gate bool) bool {
+	if time.Since(t.hourStart) >= time.Hour {
+		t.hourStart, t.used = time.Now(), 0
+	}
+	if gate && t.budget > 0 && t.used >= t.budget {
+		t.Throttled++
+		return false
+	}
+	t.used++
+	return true
+}
+
+// failed gives errPending for a call that did not end in its time.
+func failed(ctx context.Context, err error) error {
+	var ne net.Error
+	if ctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()) {
+		return errPending
+	}
+	return err
+}
+
+func (t *trust) installationToken(ctx context.Context) (string, error) {
 	if t.pat {
 		return t.signer.pat()
 	}
@@ -88,11 +156,16 @@ func (t *trust) installationToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/app/installations/%d/access_tokens", t.api, t.installation), nil)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost,
+		fmt.Sprintf("%s/app/installations/%d/access_tokens", t.api, t.installation), nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	req.Header.Set("Accept", "application/vnd.github+json")
+	t.spend(false)
 	resp, err := t.http.Do(req)
 	if err != nil {
+		if failed(ctx, err) == errPending {
+			return "", errPending
+		}
 		return "", fmt.Errorf("the installation token: no answer")
 	}
 	defer resp.Body.Close()
@@ -110,47 +183,89 @@ func (t *trust) installationToken() (string, error) {
 	return t.token, nil
 }
 
-func (t *trust) get(path string) (int, map[string]any) {
-	token, err := t.installationToken()
+// get makes one GET of the REST API in the budget. With etag, GitHub
+// answers 304 when the object did not change: a 304 is not counted.
+func (t *trust) get(ctx context.Context, path, etag string) (int, map[string]any, string, error) {
+	token, err := t.installationToken(ctx)
 	if err != nil {
-		return 0, nil
+		return 0, nil, "", err
 	}
-	req, _ := http.NewRequest(http.MethodGet, t.api+path, nil)
+	if !t.spend(true) {
+		return 0, nil, "", errThrottled
+	}
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, t.api+path, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")
+	if etag != "" {
+		req.Header.Set("If-None-Match", etag)
+	}
 	resp, err := t.http.Do(req)
 	if err != nil {
-		return 0, nil
+		return 0, nil, "", failed(ctx, err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotModified {
+		t.used--
+		return resp.StatusCode, nil, etag, nil
+	}
 	var v map[string]any
-	_ = json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&v)
-	return resp.StatusCode, v
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&v); err != nil && failed(ctx, err) == errPending {
+		return 0, nil, "", errPending
+	}
+	return resp.StatusCode, v, resp.Header.Get("ETag"), nil
 }
 
-// lookup gives the trust inputs of a run; ok is false when a part is
-// unknown. A failed lookup is not kept: the next job tries again. The run
-// object is read for each job: only it names the attempt.
+// lookup gives the trust inputs of a run in a batch of its own; ok is
+// false when a part is unknown.
 func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trustInputs, bool) {
+	in, whole, _ := t.lookupIn(newBatch(context.Background()), owner, repo, run, messageEvent)
+	return in, whole
+}
+
+// lookupIn gives the trust inputs of a run, once for each run of a batch.
+// pending is true when a call did not end in the time of the batch: the
+// job stays queued. A failed lookup is not kept: a later batch tries
+// again.
+func (t *trust) lookupIn(b *batch, owner, repo string, run int64, messageEvent string) (in trustInputs, whole, pending bool) {
+	if r, ok := b.runs[run]; ok {
+		return r.in, r.whole, false
+	}
+	if b.ctx.Err() != nil {
+		return in, false, true
+	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	in, whole, err := t.read(b, owner, repo, run, messageEvent)
+	if err == errPending {
+		return in, false, true
+	}
+	b.runs[run] = batchRun{in, whole}
+	return in, whole, false
+}
+
+// read reads the run object: only it names the attempt. It is a
+// conditional read when the run was read before.
+func (t *trust) read(b *batch, owner, repo string, run int64, messageEvent string) (trustInputs, bool, error) {
 	unknown := trustInputs{event: eventWord(messageEvent), headIsFork: "unknown", actorClass: "unknown", visibility: "unknown"}
-	if time.Since(t.hourStart) >= time.Hour {
-		t.hourStart, t.used = time.Now(), 0
-	}
-	if t.budget > 0 && t.used >= t.budget {
-		t.Throttled++
-		return unknown, false
-	}
-	t.used++
-	status, r := t.get(fmt.Sprintf("/repos/%s/%s/actions/runs/%d", url.PathEscape(owner), url.PathEscape(repo), run))
-	if status != http.StatusOK || r == nil {
-		return unknown, false
+	seen := t.runs[run]
+	status, r, etag, err := t.get(b.ctx, fmt.Sprintf("/repos/%s/%s/actions/runs/%d", url.PathEscape(owner), url.PathEscape(repo), run), seen.etag)
+	switch {
+	case err != nil:
+		return unknown, false, err
+	case status == http.StatusNotModified && seen.obj != nil:
+		r = seen.obj
+	case status != http.StatusOK || r == nil:
+		return unknown, false, nil
+	case etag != "":
+		if t.runs == nil || len(t.runs) >= cacheMax {
+			t.runs = map[int64]seenRun{}
+		}
+		t.runs[run] = seenRun{etag, r}
 	}
 	attempt, counted := r["run_attempt"].(float64)
 	key := runKey{run, int64(attempt)}
 	if v, ok := t.cache[key]; ok && counted {
-		return v, true
+		return v, true, nil
 	}
 	out := unknown
 	if e, ok := r["event"].(string); ok {
@@ -162,51 +277,65 @@ func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trus
 	}
 	// The actor triggered the first attempt; the triggering actor started
 	// this one (a re-run). Each must have the class: the stricter wins.
-	classes := map[string]string{}
-	out.actorClass = t.classOf(owner, r["actor"], classes)
-	if v, ok := r["triggering_actor"]; ok && v != nil {
-		out.actorClass = stricter(out.actorClass, t.classOf(owner, v, classes))
+	out.actorClass, err = t.classOf(b, owner, r["actor"])
+	if err != nil {
+		return unknown, false, err
+	}
+	switch v, ok := r["triggering_actor"]; {
+	case ok && v != nil:
+		c, err := t.classOf(b, owner, v)
+		if err != nil {
+			return unknown, false, err
+		}
+		out.actorClass = stricter(out.actorClass, c)
+	case counted && attempt > 1:
+		// A re-run with no triggering actor names no one who started it.
+		out.actorClass = "unknown"
 	}
 	whole := out.headIsFork != "unknown" && out.actorClass != "unknown" && out.visibility != "unknown"
 	if whole && counted {
-		if t.cache == nil {
+		if t.cache == nil || len(t.cache) >= cacheMax {
 			t.cache = map[runKey]trustInputs{}
 		}
 		t.cache[key] = out
 	}
-	return out, whole
+	return out, whole, nil
 }
 
-// classOf gives the class of one actor object of a run. done keeps the
-// class of each login of this run: one lookup for each login.
-func (t *trust) classOf(owner string, v any, done map[string]string) string {
+// classOf gives the class of one actor object of a run. The batch keeps
+// the class of each login: one lookup for each login.
+func (t *trust) classOf(b *batch, owner string, v any) (string, error) {
 	a, _ := v.(map[string]any)
 	login, _ := a["login"].(string)
 	switch {
 	case login == "":
-		return "unknown"
+		return "unknown", nil
 	case t.personal:
 		// A personal account has no members (T-504): only the account
 		// itself is a member. A collaborator is outside: deny by default.
 		if asciiFold(owner, t.account) && t.isAccount(a, login) {
-			return "member"
+			return "member", nil
 		}
-		return "outside"
+		return "outside", nil
 	case strings.ContainsAny(login, "/?#"):
-		return "unknown"
+		return "unknown", nil
 	}
-	if c, ok := done[login]; ok {
-		return c
+	key := owner + "/" + login
+	if c, ok := b.members[key]; ok {
+		return c, nil
 	}
 	c := "unknown"
-	switch code, _ := t.get(fmt.Sprintf("/orgs/%s/members/%s", url.PathEscape(owner), url.PathEscape(login))); code {
-	case http.StatusNoContent:
+	code, _, _, err := t.get(b.ctx, fmt.Sprintf("/orgs/%s/members/%s", url.PathEscape(owner), url.PathEscape(login)), "")
+	switch {
+	case err == errPending:
+		return "", err
+	case code == http.StatusNoContent:
 		c = "member"
-	case http.StatusNotFound:
+	case code == http.StatusNotFound:
 		c = "outside"
 	}
-	done[login] = c
-	return c
+	b.members[key] = c
+	return c, nil
 }
 
 // isAccount: the id names the account when the run and the scope give

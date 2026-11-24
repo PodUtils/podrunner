@@ -25,6 +25,8 @@ struct Pair {
     sidecar: Child,
     /// The base URL of the fake service.
     url: String,
+    /// The directory of the script of this pair.
+    dir: std::path::PathBuf,
 }
 
 impl Drop for Pair {
@@ -33,6 +35,7 @@ impl Drop for Pair {
         let _ = self.sidecar.wait();
         let _ = self.fake.kill();
         let _ = self.fake.wait();
+        let _ = std::fs::remove_dir_all(&self.dir);
     }
 }
 
@@ -43,13 +46,14 @@ fn env(name: &str) -> String {
 /// A sidecar on a fresh fake, its stdio, and a sign that answers each
 /// request with a made-up token.
 fn pair() -> (Pair, ChildStdin, ChildStdout) {
-    // One script file for each pair: the tests run at the same time, and a
-    // write of a shared file gives a fake a script cut short.
+    // One directory for each pair: the tests run at the same time, a write
+    // of a shared file gives a fake a script cut short, and the drop of a
+    // pair removes its own directory only.
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("podrunner-scaleset-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("podrunner-scaleset-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let script = dir.join(format!("script-{n}.json"));
+    let script = dir.join("script.json");
     std::fs::write(&script, SCRIPT).unwrap();
     let mut fake = Command::new(env("PODRUNNER_FAKE_SCALESET"))
         .args(["-listen", "127.0.0.1:0", "-script"])
@@ -83,7 +87,7 @@ fn pair() -> (Pair, ChildStdin, ChildStdout) {
     let mut sidecar = cmd.spawn().unwrap();
     drop(theirs);
     let (stdin, stdout) = (sidecar.stdin.take().unwrap(), sidecar.stdout.take().unwrap());
-    (Pair { fake, sidecar, url }, stdin, stdout)
+    (Pair { fake, sidecar, url, dir }, stdin, stdout)
 }
 
 /// A JobSource that keeps its processes alive while it lives.

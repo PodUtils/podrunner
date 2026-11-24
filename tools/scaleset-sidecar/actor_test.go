@@ -96,3 +96,25 @@ func TestTheAccountIsItsIdOrItsASCIILogin(t *testing.T) {
 		}
 	}
 }
+
+// C of the second T-504 review: a re-run (attempt 2) with no triggering
+// actor names no one who started it: the class is unknown, also when
+// the actor is the account or a member.
+func TestAReRunWithNoTriggeringActorIsUnknown(t *testing.T) {
+	f, ts := newFakeGitHub(t)
+	f.run("1", runObject(user("alice", 1), "", 2))
+	f.run("2", runObject(user("alice", 1), "null", 2))
+	f.run("3", runObject(user("alice", 1), "", 1))
+	f.run("4", runObject(user("alice", 1), "", 0))
+	for _, c := range []struct{ url, owner string }{{"https://github.com/alice/app", "alice"}, {"https://github.com/example-org", "example-org"}} {
+		tr := scopeTrust(ts.URL)
+		if err := tr.scope(c.url, c.owner == "alice"); err != nil {
+			t.Fatal(err)
+		}
+		for run, want := range map[int64]string{1: "unknown", 2: "unknown", 3: "member", 4: "member"} {
+			if in, _ := tr.lookup(c.owner, "app", run, "push"); in.actorClass != want {
+				t.Errorf("%s, run %d: %+v, want %s", c.owner, run, in, want)
+			}
+		}
+	}
+}

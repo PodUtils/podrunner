@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -115,7 +116,7 @@ func asciiFold(a, b string) bool {
 func (t *trust) owner(owner string) (typ, login string, id int64, err error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	code, v := t.get("/users/" + url.PathEscape(owner))
+	code, v, _, _ := t.get(context.Background(), "/users/"+url.PathEscape(owner), "")
 	switch {
 	case code == http.StatusOK && v != nil:
 		typ, _ = v["type"].(string)

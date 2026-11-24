@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -36,12 +37,16 @@ func (s *sidecar) cancelRefused(j *job, reason string) {
 }
 
 // post makes one POST of the REST API with the token of the installation;
-// its HTTP status, or 0 with no answer.
+// its HTTP status, or 0 with no answer. It is counted in the budget, and
+// never refused by it: a refused job must free the scale set.
 func (t *trust) post(path string) int {
-	token, err := t.installationToken()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	token, err := t.installationToken(context.Background())
 	if err != nil {
 		return 0
 	}
+	t.spend(false)
 	req, _ := http.NewRequest(http.MethodPost, t.api+path, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")

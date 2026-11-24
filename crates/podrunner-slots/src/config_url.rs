@@ -23,6 +23,32 @@ fn name_ok(s: &str) -> bool {
         && s.bytes().all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.'))
 }
 
+/// A host that Go's `url.Parse` (of the sidecar and of `actions/scaleset`)
+/// and a URL parser of the WHATWG both take: a name with `_` or a name
+/// that is not ASCII (an IDN) is a host of GHES; an escape, a space and
+/// the other marks are not. A port is digits.
+fn host_ok(host: &str) -> bool {
+    let (name, port) = match host.strip_prefix('[') {
+        Some(rest) => match rest.split_once(']') {
+            Some((ip, port))
+                if !ip.is_empty() && ip.bytes().all(|c| c.is_ascii_hexdigit() || c == b':' || c == b'.') =>
+            {
+                (ip, port)
+            }
+            _ => return false,
+        },
+        None => match host.rfind(':') {
+            Some(i) => (&host[..i], &host[i..]),
+            None => (host, ""),
+        },
+    };
+    let port_ok = port.is_empty()
+        || port.strip_prefix(':').is_some_and(|p| !p.is_empty() && p.bytes().all(|c| c.is_ascii_digit()));
+    !name.is_empty()
+        && port_ok
+        && name.bytes().all(|c| !c.is_ascii() || c.is_ascii_alphanumeric() || b"-._~!$&'()*+,;=:".contains(&c))
+}
+
 fn parts(url: &str) -> Result<Parts<'_>, String> {
     let not = || format!("config_url {url:?} is not the URL of an organization or of a repository");
     // A query, a fragment or a user passes a split of the path; the scale
@@ -39,7 +65,7 @@ fn parts(url: &str) -> Result<Parts<'_>, String> {
     if host.contains('@') {
         return Err(format!("config_url {url:?}: give the URL with no query, no fragment and no user"));
     }
-    if host.is_empty() || !host.bytes().all(|c| c.is_ascii_alphanumeric() || b".-:[]".contains(&c)) {
+    if !host_ok(host) {
         return Err(not());
     }
     let segments: Vec<&str> = path.trim_matches('/').split('/').collect();
@@ -55,13 +81,19 @@ fn parts(url: &str) -> Result<Parts<'_>, String> {
     Ok(Parts { scheme, host, segments })
 }
 
+/// `GITHUB_ACTIONS_FORCE_GHES` of this process: set, also empty, is GHES
+/// (`os.LookupEnv` of `actions/scaleset`). The sidecar inherits the
+/// environment of `serve`, so the two agree when both read it there.
+fn force_ghes() -> bool {
+    std::env::var_os("GITHUB_ACTIONS_FORCE_GHES").is_some()
+}
+
 /// The REST API that `actions/scaleset` sends its calls to for a config
 /// URL (`gitHubAPIURL` of its `config.go`): `api.HOST` on github.com and on
-/// `*.ghe.com`, else `HOST/api/v3` (GHES). The sidecar inherits the
-/// environment, so `GITHUB_ACTIONS_FORCE_GHES` counts here too.
-fn api_of(p: &Parts) -> String {
+/// `*.ghe.com`, else `HOST/api/v3` (GHES, or each host with `ghes`).
+fn api_of(p: &Parts, ghes: bool) -> String {
     let (scheme, host) = (p.scheme.to_ascii_lowercase(), p.host);
-    let hosted = std::env::var_os("GITHUB_ACTIONS_FORCE_GHES").is_none()
+    let hosted = !ghes
         && (["github.com", "www.github.com", "github.localhost"].iter().any(|h| host.eq_ignore_ascii_case(h))
             || host.ends_with(".ghe.com"));
     match hosted {
@@ -72,11 +104,12 @@ fn api_of(p: &Parts) -> String {
 }
 
 /// The `-api-url` of the sidecar: `api_url`, else the API of `config_url`.
+/// A slash at the end goes: `check` compares the API with none.
 pub fn api_url(s: &SourceConfig) -> String {
     let url = s.config_url.as_deref().unwrap_or_default();
     match (&s.api_url, parts(url)) {
-        (Some(a), _) => a.clone(),
-        (None, Ok(p)) => api_of(&p),
+        (Some(a), _) => a.trim_end_matches('/').to_string(),
+        (None, Ok(p)) => api_of(&p, force_ghes()),
         (None, Err(_)) => "https://api.github.com".into(),
     }
 }
@@ -93,7 +126,7 @@ pub fn check(s: &SourceConfig) -> Result<(), String> {
             s.name
         ));
     }
-    let want = api_of(&p);
+    let want = api_of(&p, force_ghes());
     if let Some(a) = &s.api_url
         && !a.trim_end_matches('/').eq_ignore_ascii_case(&want)
     {
@@ -141,5 +174,52 @@ mod tests {
         assert_eq!(api_url(&source("https://github.com/o", Some("https://x"))), "https://x");
         let err = check(&source("https://ghes.example/o", Some("https://api.github.com"))).unwrap_err();
         assert!(err.contains("\"https://ghes.example/api/v3\""), "{err}");
+    }
+
+    /// The class of a refusal of `config_url`, as the Go test names it.
+    fn refusal(r: &Result<Parts<'_>, String>) -> &'static str {
+        match r {
+            Ok(_) => "",
+            Err(e) if e.contains("no query") => "query",
+            Err(e) if e.contains("no .git") => "git",
+            Err(e) if e.contains("is not the URL") => "not",
+            Err(_) => "other",
+        }
+    }
+
+    /// F of the second T-504 review: `parts` and the API agree with the
+    /// table that the sidecar reads too (`tools/config-url-cases.json`).
+    #[test]
+    fn the_shared_table_of_config_urls() {
+        let table: serde_json::Value =
+            serde_json::from_str(include_str!("../../../tools/config-url-cases.json")).unwrap();
+        let cases = table["cases"].as_array().unwrap();
+        assert!(cases.len() > 30);
+        let mut wrong = Vec::new();
+        for c in cases {
+            let url = c["url"].as_str().unwrap();
+            let r = parts(url);
+            if refusal(&r) != c["refuse"].as_str().unwrap() {
+                wrong.push(format!("{url}: {:?}", r.as_ref().err()));
+                continue;
+            }
+            let Ok(p) = r else { continue };
+            if p.segments.len() as u64 != c["parts"].as_u64().unwrap() {
+                wrong.push(format!("{url}: {} parts", p.segments.len()));
+            }
+            for (ghes, key) in [(false, "api"), (true, "ghes_api")] {
+                if api_of(&p, ghes) != c[key].as_str().unwrap() {
+                    wrong.push(format!("{url}: {key} {}", api_of(&p, ghes)));
+                }
+            }
+            // check takes the URL with no api_url; an api_url with a slash
+            // at its end is that API, and the sidecar gets it with none.
+            let api = format!("{}/", api_of(&p, false));
+            let s = source(url, Some(&api));
+            if check(&s).is_err() || api_url(&s) != api_of(&p, false) {
+                wrong.push(format!("{url}: check {:?}, api_url {}", check(&s), api_url(&s)));
+            }
+        }
+        assert!(wrong.is_empty(), "{wrong:#?}");
     }
 }

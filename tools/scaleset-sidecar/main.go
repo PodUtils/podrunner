@@ -48,7 +48,7 @@ func main() {
 	flag.BoolVar(&o.personalAccount, "personal-account", false, "serve a repository of a personal account (allow_personal_account; the App needs Administration: write)")
 	flag.BoolVar(&o.pat, "pat", false, "a fine-grained token of the organization on descriptor 3, in place of the App")
 	flag.IntVar(&o.waitDeadlineS, "wait-deadline-s", 600, "the wait deadline of each offer")
-	flag.IntVar(&o.trustBudget, "trust-budget", 1000, "the most trust lookups of one hour")
+	flag.IntVar(&o.trustBudget, "trust-budget", 1000, "the most calls of GitHub of one hour for the trust lookups (each call that GitHub counts; a 304 is not counted); past it a job is refused; 0: no budget")
 	flag.Parse()
 	if o.configURL == "" || (o.installationID == 0 && !o.pat) || o.scaleSet == "" || o.source == "" {
 		fmt.Fprintln(os.Stderr, "podrunner-source-github-scaleset: -config-url, -installation-id (or -pat), -scale-set and -source are necessary")

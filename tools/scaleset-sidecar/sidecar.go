@@ -338,7 +338,9 @@ func decodeJIT(encoded string) ([]map[string]string, error) {
 }
 
 // next gives the events of the messages that the poller found, and at
-// most `capacity` offers. It waits at most `wait` (T-164).
+// most `capacity` offers. It waits at most `wait` (T-164). The lookups
+// of the offers have the time nextBudget: a job whose lookup does not
+// end in it stays queued, with the jobs behind it, for a later `next`.
 func (s *sidecar) next(capacity int, wait time.Duration) map[string]any {
 	events := []any{}
 	msgs, err := s.poll.take(capacity, wait)
@@ -365,11 +367,18 @@ func (s *sidecar) next(capacity int, wait time.Duration) map[string]any {
 			}
 		}
 	}
+	ctx, cancel := context.WithTimeout(s.ctx, nextBudget)
+	defer cancel()
+	b := newBatch(ctx)
 	for capacity > 0 && len(s.queue) > 0 {
 		q := s.queue[0]
+		offer, ok := s.offer(b, q.id, &q.base)
+		if !ok {
+			break
+		}
 		s.queue = s.queue[1:]
 		s.jobs[q.id] = q.job
-		events = append(events, map[string]any{"event": "offer", "offer": q.offer})
+		events = append(events, map[string]any{"event": "offer", "offer": offer})
 		capacity--
 	}
 	return map[string]any{"reply": "events", "events": events}
@@ -385,11 +394,12 @@ func (s *sidecar) forget(id string) {
 	}
 }
 
-// queued is an offer that waits for capacity.
+// queued is a job that waits for capacity. Its lookup is made when the
+// capacity takes it: a message can hold the jobs of a large matrix.
 type queued struct {
-	id    string
-	job   *job
-	offer map[string]any
+	id   string
+	job  *job
+	base scaleset.JobMessageBase
 }
 
 // idOf gives the job id of the wire of a message: the id of its offer
@@ -428,14 +438,18 @@ func (s *sidecar) enqueue(b *scaleset.JobMessageBase, assigned bool) {
 	}
 	j := &job{request: b.RunnerRequestID, assigned: assigned && b.RunnerRequestID == 0, state: offered,
 		owner: b.OwnerName, repo: b.RepositoryName, run: b.WorkflowRunID}
-	s.queue = append(s.queue, queued{id: id, job: j, offer: s.offer(id, b)})
+	s.queue = append(s.queue, queued{id: id, job: j, base: *b})
 }
 
 // offer builds job-offer.v1 from the message of a job and the trust
-// lookup. It has no tier and no payload.
-func (s *sidecar) offer(id string, a *scaleset.JobMessageBase) map[string]any {
-	t, ok := s.trust.lookup(a.OwnerName, a.RepositoryName, a.WorkflowRunID, a.EventName)
-	if !ok {
+// lookup of the batch. It has no tier and no payload. ok is false when
+// the lookup did not end in the time of the batch.
+func (s *sidecar) offer(b *batch, id string, a *scaleset.JobMessageBase) (map[string]any, bool) {
+	t, whole, pending := s.trust.lookupIn(b, a.OwnerName, a.RepositoryName, a.WorkflowRunID, a.EventName)
+	if pending {
+		return nil, false
+	}
+	if !whole {
 		s.TrustLookupFailed++
 	}
 	labels := a.RequestLabels
@@ -450,7 +464,7 @@ func (s *sidecar) offer(id string, a *scaleset.JobMessageBase) map[string]any {
 			"repo_visibility": t.visibility, "owner": a.OwnerName, "repo": a.RepositoryName,
 			"run_id": a.WorkflowRunID, "ref": "", "workflow_ref": a.JobWorkflowRef,
 		},
-	}
+	}, true
 }
 
 // closeSession ends the message session of the scale set, so that the next

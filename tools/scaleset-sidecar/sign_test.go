@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"syscall"
@@ -61,7 +62,7 @@ func TestTheTokenOfTheOrganizationComesOnce(t *testing.T) {
 	s := newSigner(ours, "")
 	tr := &trust{signer: s, pat: true}
 	for i := 0; i < 2; i++ {
-		tok, err := tr.installationToken()
+		tok, err := tr.installationToken(context.Background())
 		if err != nil || tok != "made-up-pat-77" {
 			t.Fatal(tok, err)
 		}

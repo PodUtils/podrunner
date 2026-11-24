@@ -57,14 +57,17 @@ func TestTheEventsOfTheTierRule(t *testing.T) {
 	}
 }
 
-// Past the budget of the hour, a lookup is not made: the inputs are
-// unknown, and the count of throttled lookups grows.
+// Past the budget of the hour, a call is not made: the inputs are
+// unknown (deny), and the count of throttled calls grows. The token of
+// the installation is a call too.
 func TestTheTrustBudgetThrottles(t *testing.T) {
-	tr := &trust{api: "http://127.0.0.1:1", budget: 1, signer: newSigner(nil, "1")}
-	tr.lookup("o", "r", 1, "push")
-	in, ok := tr.lookup("o", "r", 2, "push")
-	if ok || in.actorClass != "unknown" || tr.Throttled != 1 {
-		t.Fatalf("%v %v %d", in, ok, tr.Throttled)
+	f, ts := newFakeGitHub(t)
+	f.run("1", runObject(user("alice", 1), "", 1))
+	tr := scopeTrust(ts.URL)
+	tr.budget = 1
+	in, ok := tr.lookup("example-org", "app", 1, "push")
+	if ok || in.actorClass != "unknown" || tr.Throttled != 1 || f.runReads != 0 {
+		t.Fatalf("%v %v %d, %d reads", in, ok, tr.Throttled, f.runReads)
 	}
 }
 

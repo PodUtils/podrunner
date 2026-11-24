@@ -345,12 +345,26 @@ the owner.
 `check` refuses a `config_url` that no scale set serves (exit 78): a
 query, a fragment or a user in it, a `.git` at the end, more than two
 parts, an enterprise, or a part that is not a name of GitHub (letters,
-digits, `-`, `_`, `.`). `api_url` is the API that `actions/scaleset`
+digits, `-`, `_`, `.`). The host can have `_` and letters that are not
+ASCII (an IDN), as on GitHub Enterprise Server
+(`https://ghes_corp.example/org`); a space, an escape (`%`), a mark such
+as `^` or `{`, and a port that is not digits are refused.
+`tools/config-url-cases.json` has each form: the tests of `check` and of
+the sidecar read it. `api_url` is the API that `actions/scaleset`
 sends its calls to for `config_url`: `https://api.github.com` for
 github.com, `https://api.HOST` for `HOST.ghe.com`, `https://HOST/api/v3`
 for GitHub Enterprise Server. With no `api_url`, the sidecar gets that
 API; an `api_url` that is not it is refused (exit 78), as the lookups of
-the sidecar would go to another host than the scale set.
+the sidecar would go to another host than the scale set. `check` and the
+sidecar remove a slash at the end of `api_url`.
+
+With the variable `GITHUB_ACTIONS_FORCE_GHES` set (any value, also
+empty), `actions/scaleset` takes each host for GitHub Enterprise Server:
+the API is `https://HOST/api/v3`, also for github.com. `check` reads the
+variable from its own environment, and the sidecar from its own (the
+environment of `serve` or `mint-serve`, which it inherits). Set it, or
+leave it out, in both: a `check` with it and a `serve` without it (or the
+reverse) compare `api_url` against two different APIs.
 
 `allow_personal_account = true` (T-504, the owner's ruling Q13) lets the
 source serve one repository of a personal account. It is off by default.
@@ -407,6 +421,47 @@ users = [{ login = "alice" }]   # the account is the owner of a trusted job
   URL of an account or of an organization (one part, exit 78:
   `allow_personal_account needs the URL of a repository of a personal
   account`). An organization needs no key.
+
+## The trust lookups of the scale-set sidecar
+
+The sidecar reads the trust inputs of each job from GitHub: the run object
+(`GET /repos/OWNER/REPO/actions/runs/RUN`, "Actions: read") and, for an
+organization, the membership of its actor and its triggering actor
+(`GET /orgs/OWNER/members/LOGIN`, "Members: read").
+
+* A job waits in the queue of the sidecar until a `next` has capacity for
+  it. Only then is its lookup made: a message with a matrix of 200 jobs
+  costs no call until the jobs are taken.
+* One `next` reads each run once and looks up each login once, for all
+  its jobs. The inputs are kept for each run id and `run_attempt`.
+* The read of a run that the sidecar read before sends its ETag
+  (`If-None-Match`). GitHub answers 304 when the run did not change; a
+  304 does not count against the rate limit of GitHub or the budget.
+* Each call has a time limit of 5 s, and the lookups of one `next` have
+  10 s: a `next` answers inside the reply limit of `serve` (15 s). A job
+  whose lookup does not end in that time stays queued, with the jobs
+  behind it; the next `next` takes it. It is not refused and not lost.
+* A run with `run_attempt` above 1 and no `triggering_actor` (a re-run
+  that names no one who started it) has the class `unknown`.
+
+The budget of the hour (the flag `-trust-budget` of the sidecar; default
+1000, 0 for no budget; `serve` does not set the flag) counts each call of GitHub that GitHub counts: the
+token of the installation, each read of a run that is not a 304, and each
+lookup of membership. A call past the budget is not made: the inputs of
+its job are `unknown`, and the job is refused (deny). A matrix of N jobs
+of one run costs at most one read for each `next` that offers its jobs,
+plus two lookups of membership for each attempt: at most N + 2 calls,
+also at a capacity of 1. The default covers three matrices of 256 jobs
+(the most that GitHub gives one matrix) in one hour, or about 330 runs of
+one job each in an organization (the run and two memberships).
+
+The design (`docs/design/SPEC.md`, section 6.3, "GitHub trust inputs")
+says that the source keeps the jobs that it resolved when the budget is
+spent. This is not so: the attempt of a run is known only from a read of
+it, and a re-run can change its triggering actor, so a spent budget
+refuses each new job, also of a run that the sidecar read before. The
+design also says the source caches the run object by `run_id`: it keeps
+the ETag and the object by run id, and the inputs by run id and attempt.
 
 ## The case table of the tier rule
 

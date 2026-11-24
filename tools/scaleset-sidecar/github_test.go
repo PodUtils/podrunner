@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // fakeGitHub is a REST API for the scope and the trust lookups. An owner
@@ -22,6 +23,12 @@ type fakeGitHub struct {
 	status int
 	// The lookups of membership and of the owner.
 	memberLookups, ownerLookups int
+	// delay: the time of each answer. etags: a run has an ETag, and an
+	// If-None-Match of it gets 304.
+	delay time.Duration
+	etags bool
+	// The reads of a run (200), its 304 answers, and each request.
+	runReads, notModified, requests int
 }
 
 func newFakeGitHub(t *testing.T) (*fakeGitHub, *httptest.Server) {
@@ -45,7 +52,12 @@ func (f *fakeGitHub) run(id, object string) {
 
 func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
+	delay := f.delay
+	f.mu.Unlock()
+	time.Sleep(delay)
+	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.requests++
 	p := r.URL.Path
 	last := p[strings.LastIndex(p, "/")+1:]
 	owner := func() {
@@ -73,6 +85,16 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	case strings.Contains(p, "/actions/runs/"):
 		if v, ok := f.runs[last]; ok {
+			tag := `"` + strconv.Itoa(len(v)) + "-" + strconv.Itoa(int(crc(v))) + `"`
+			if f.etags && r.Header.Get("If-None-Match") == tag {
+				f.notModified++
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			if f.etags {
+				w.Header().Set("ETag", tag)
+			}
+			f.runReads++
 			_, _ = w.Write([]byte(v))
 		} else {
 			w.WriteHeader(http.StatusNotFound)
@@ -103,4 +125,13 @@ func user(login string, id int) string {
 		return `{"login":"` + login + `"}`
 	}
 	return `{"login":"` + login + `","id":` + strconv.Itoa(id) + `}`
+}
+
+// crc is a small sum of a run object for its ETag.
+func crc(s string) uint32 {
+	var h uint32 = 2166136261
+	for i := 0; i < len(s); i++ {
+		h = (h ^ uint32(s[i])) * 16777619
+	}
+	return h
 }

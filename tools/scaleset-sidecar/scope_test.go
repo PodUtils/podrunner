@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -130,32 +131,34 @@ func TestTheMemberOfAPersonalAccountIsTheAccount(t *testing.T) {
 	}
 }
 
-// A lookup that GitHub does not answer ends: the sidecar does not hang on
-// one call.
+// A lookup that GitHub does not answer ends at the time limit of a call,
+// and its job stays queued: it is not refused (unknown) and not lost.
 func TestTheLookupsHaveATimeout(t *testing.T) {
-	tr := newTrust(options{apiURL: "http://127.0.0.1:1", trustBudget: 1}, nil)
-	if tr.http.Timeout != 30*time.Second {
-		t.Errorf("the timeout is %v", tr.http.Timeout)
+	f, ts := newFakeGitHub(t)
+	f.run("1", runObject(user("alice", 1), "", 1))
+	defer func(d time.Duration) { lookupTimeout = d }(lookupTimeout)
+	lookupTimeout = 200 * time.Millisecond
+	tr := newTrust(options{apiURL: ts.URL + "/", installationID: 7}, &signer{cached: "a.b.c", until: farFuture})
+	f.delay = 3 * time.Second
+	start := time.Now()
+	_, _, pending := tr.lookupIn(newBatch(context.Background()), "example-org", "app", 1, "push")
+	if took := time.Since(start); !pending || took > time.Second {
+		t.Fatalf("pending %v after %v", pending, took)
+	}
+	// The API of newTrust has no slash at its end (D of the review).
+	if tr.api != ts.URL {
+		t.Errorf("the API is %s", tr.api)
+	}
+	f.delay = 0
+	if in, ok := tr.lookup("example-org", "app", 1, "push"); !ok || in.actorClass != "member" {
+		t.Fatalf("%+v %v", in, ok)
 	}
 }
 
 // F2 of the T-504 review: the lookups go to the API that actions/scaleset
-// derives from the config URL (gitHubAPIURL of its config.go).
+// derives from the config URL (gitHubAPIURL of its config.go); the forms
+// are in TestTheSharedTableOfConfigURLs.
 func TestTheAPIOfTheConfigURL(t *testing.T) {
-	for in, want := range map[string]string{
-		"https://github.com/org":            "https://api.github.com",
-		"https://GitHub.com/org/repo/":      "https://api.GitHub.com",
-		"https://www.github.com/org":        "https://api.github.com",
-		"https://tenant.ghe.com/org":        "https://api.tenant.ghe.com",
-		"https://ghes.example/org":          "https://ghes.example/api/v3",
-		"http://127.0.0.1:8080/example-org": "http://127.0.0.1:8080/api/v3",
-		"https://github.localhost/org/repo": "https://api.github.localhost",
-		"https://tenant.GHE.COM/org":        "https://tenant.GHE.COM/api/v3",
-	} {
-		if got := apiURLOf(in); got != want {
-			t.Errorf("%s: %s, want %s", in, got, want)
-		}
-	}
 	if tr := newTrust(options{configURL: "https://www.github.com/org"}, nil); tr.api != "https://api.github.com" {
 		t.Errorf("the default: %s", tr.api)
 	}
