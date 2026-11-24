@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**613 entries: 69 open, 57 partial, 18 blocked, 469 done.**
+**613 entries: 68 open, 57 partial, 18 blocked, 470 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 90 | 119 |
-| P2 | 15 | 22 | 10 | 241 | 288 |
+| P2 | 14 | 22 | 10 | 242 | 288 |
 | P3 | 51 | 11 | 5 | 136 | 203 |
-| **All** | 69 | 57 | 18 | 469 | 613 |
+| **All** | 68 | 57 | 18 | 470 | 613 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -659,5 +659,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-614](later.md) | P3 | S | later | defect | done | The probe of `--export` and `--log-dir` has the pid only and follows a link |
 | [T-615](later.md) | P3 | S | later | defect | done | One `TMPDIR` that two hosts share can mistake a live run for a dead one |
 | [T-616](later.md) | P3 | S | later | defect | open | A container of a unit of the local mode gets the CA bundle of the caller, but no trust store of a JVM |
-| [T-617](later.md) | P2 | S | later | docs | open | The hand-written state of GitHub #65, #66 and the comment on #292 is stale |
+| [T-617](later.md) | P2 | S | later | docs | done | The hand-written state of GitHub #65, #66 and the comment on #292 is stale |
 | [T-618](later.md) | P3 | S | later | research | open | R-052 of cfb is named nowhere |
