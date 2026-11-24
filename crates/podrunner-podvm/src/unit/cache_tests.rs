@@ -55,7 +55,8 @@ arg() {{ k=$1; shift; while [ $# -gt 0 ]; do [ "$1" = "$k" ] && {{ echo "$2"; re
 case "$1" in
 probe) echo '{{"podvm":"0.2.0-beta.37","rung":"userland"}}' ;;
 save) cp {d}/src.tar "$3" ;;
-load) [ ! -f {d}/no-space ] || {{ echo "Error: no space left on device" >&2; exit 1; }}
+load) [ ! -f {d}/xfsz ] || kill -s XFSZ $$
+  [ ! -f {d}/no-space ] || {{ echo "Error: no space left on device" >&2; exit 1; }}
   cmp -s "$3" {d}/good.tar || {{ echo "Error: blob: digest mismatch" >&2; exit 1; }}
   echo "runner@{manifest}" >> "$S/images.txt" ;;
 images) cat "$S/images.txt" 2>/dev/null ;;
@@ -154,6 +155,22 @@ fn a_tar_that_stays_bad_names_the_file_and_the_fix() {
     let e = unit.start(&spec()).unwrap_err();
     assert!(e.detail.contains("no space left on device") && !e.detail.contains("rm "), "{e}");
     assert_eq!(count(&d, "save "), 1);
+    assert!(tar.is_file());
+    let _ = unit.destroy(&spec().unit);
+}
+
+/// T-632: a podvm that a signal ends gives the signal in the cause, and
+/// SIGXFSZ gives the limit and its fix; the tar of the cache stays.
+#[test]
+fn a_load_that_sigxfsz_ends_names_the_limit_and_the_fix() {
+    let _one = super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
+    let d = crate::scratch::Scratch::new("t632-xfsz");
+    let (unit, tar) = prepared(&d);
+    std::fs::write(d.join("xfsz"), "").unwrap();
+    let e = unit.start(&spec()).unwrap_err();
+    assert!(e.detail.starts_with("podvm load: ended by SIGXFSZ"), "{e}");
+    assert!(e.detail.contains("ulimit -f") && e.detail.contains("fix: ulimit -f unlimited"), "{e}");
+    assert!(!e.detail.contains("exit -1"), "{e}");
     assert!(tar.is_file());
     let _ = unit.destroy(&spec().unit);
 }

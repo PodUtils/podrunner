@@ -191,14 +191,14 @@ impl PodvmUnit {
         let out = cmd.output().map_err(|e| host("podvm", e))?;
         if !out.status.success() {
             let verb = args.first().copied().unwrap_or("");
-            return Err(UnitError::new(
-                UnitCode::UnitStartFailed,
-                format!(
-                    "podvm {verb}: exit {}: {}",
-                    out.status.code().unwrap_or(-1),
-                    containers::last_line(&out.stderr)
-                ),
-            ));
+            let line = containers::last_line(&out.stderr);
+            // A signal has no exit code: name it (SIGXFSZ, T-632).
+            let why = match podrunner_unit::signal::ended_by(&out.status) {
+                Some(s) if line.is_empty() => format!("podvm {verb}: {s}"),
+                Some(s) => format!("podvm {verb}: {s}: {line}"),
+                None => format!("podvm {verb}: exit {}: {line}", out.status.code().unwrap_or(-1)),
+            };
+            return Err(UnitError::new(UnitCode::UnitStartFailed, why));
         }
         Ok(String::from_utf8_lossy(&out.stdout).into_owned())
     }

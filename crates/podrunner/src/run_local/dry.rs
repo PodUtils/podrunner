@@ -6,6 +6,9 @@ use super::Args;
 
 /// The first path of the run that the run could not use, by its flag.
 pub(super) fn paths(a: &Args) -> Result<(), String> {
+    // The runner and a podvm load end by SIGXFSZ under a small limit of
+    // file size; refuse before the first unit, as doctor does (T-632).
+    super::doctor::file_size_limit().map_err(|e| format!("the limit of file size (ulimit -f) is {e}"))?;
     if let Some(dir) = &a.runner_dir {
         if !dir.join("run.sh").is_file() || !dir.join("bin/Runner.Listener").is_file() {
             return Err(format!("--runner-dir {}: no unpacked runner (run.sh, bin/Runner.Listener)", dir.display()));

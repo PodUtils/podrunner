@@ -15760,7 +15760,7 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15778,6 +15778,10 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 ## Prove
 
 `cargo test -p podrunner-podvm --lib` with a test: a fake `podvm` that ends by SIGXFSZ gives a cause that names SIGXFSZ and `ulimit -f`. `cargo test -p podrunner --test local` with a test: `RLIMIT_FSIZE` set small makes `run --dry-run` exit 78. Each fails before the change.
+
+## Done
+
+2026-11-24 (commit: this one, "unit: name the signal of a podvm call, and refuse a small ulimit -f before a run (T-632)"): `crates/podrunner-unit/src/signal.rs`, fn `ended_by`: the one text of a child that a signal ended (`ended by SIGKILL (9)`; SIGXFSZ: `ended by SIGXFSZ: a limit of file size (ulimit -f) is too small; fix: ulimit -f unlimited`). The podvm driver (each `podvm VERB` call, and `podvm probe`) and the host driver (fn `signal_reason`) use it: `podvm load: exit -1: ` is now `podvm load: ended by SIGXFSZ: ...; fix: ulimit -f unlimited`. `run` and its dry run run the check `file_size_limit` of `doctor --run` before the first unit (`run_local/dry.rs`, fn `paths`) and refuse with exit 78: `the limit of file size (ulimit -f) is N bytes: the runner dies by SIGXFSZ; fix: ulimit -f unlimited`. The test is in `crates/podrunner/tests/doctor.rs`, not in `tests/local.rs` (that file runs only with `--ignored`). Tests: `unit::cache_tests::a_load_that_sigxfsz_ends_names_the_limit_and_the_fix` (a fake podvm whose load ends by SIGXFSZ; it failed before with `podvm load: exit -1: `), `run_refuses_a_small_limit_of_file_size` of `cargo test -p podrunner --test doctor` (a child with `RLIMIT_FSIZE` of 100000 KiB: exit 78 with the fix; it failed before with exit 0), `signal::tests::a_signal_is_named_and_sigxfsz_has_its_fix`. The built binary as the user `labdns` (no root) after `ulimit -f 100000` (dash: 51200000 bytes): `run hello.yml --runner-dir r --dry-run` and `run hello.yml --podvm FAKE --images S --image runner@sha256:1...` each print the line above and exit 78; `doctor --run` gives the same fix. Level: proven on this host as a user with no root for the refusal; the text of a podvm load that SIGXFSZ ends is proven with a fake podvm only (no real podvm on this host).
 
 
 # T-633: QA round 6, agent A: the P3 findings of the installer and the install documents

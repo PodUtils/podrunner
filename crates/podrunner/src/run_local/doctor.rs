@@ -25,7 +25,7 @@ fn check(name: &'static str, r: Result<String, String>) -> Check {
 
 /// The limit of file size: .NET maps its code through a large memfd, so a
 /// small limit ends the runner by SIGXFSZ (T-144).
-fn file_size_limit() -> Result<String, String> {
+pub(super) fn file_size_limit() -> Result<String, String> {
     let mut r = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
     // SAFETY: getrlimit writes into the struct that this function owns.
     if unsafe { libc::getrlimit(libc::RLIMIT_FSIZE, &mut r) } != 0 {

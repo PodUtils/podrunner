@@ -362,14 +362,10 @@ fn end_group(leader: u32) {
     unsafe { libc::kill(-pgid, libc::SIGKILL) };
 }
 
-/// The reason of a runner that a signal ended, with a word on SIGXFSZ (a
-/// limit of file size, T-144).
+/// The reason of a runner that a signal ended, with the cause and the fix
+/// of SIGXFSZ (a limit of file size, T-144).
 fn signal_reason(status: &std::process::ExitStatus) -> Option<String> {
-    use std::os::unix::process::ExitStatusExt;
-    match status.signal()? {
-        libc::SIGXFSZ => Some("the runner ended by SIGXFSZ: a limit of file size (ulimit -f) is too small".into()),
-        s => Some(format!("the runner ended by signal {s}")),
-    }
+    podrunner_unit::signal::ended_by(status).map(|s| format!("the runner {s}"))
 }
 
 #[cfg(test)]

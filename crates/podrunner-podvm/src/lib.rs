@@ -125,7 +125,10 @@ impl Podvm {
         if !out.status.success() {
             return Err(UnitError::new(
                 UnitCode::Host,
-                format!("podvm probe: exit {}", out.status.code().unwrap_or(-1)),
+                match podrunner_unit::signal::ended_by(&out.status) {
+                    Some(s) => format!("podvm probe: {s}"),
+                    None => format!("podvm probe: exit {}", out.status.code().unwrap_or(-1)),
+                },
             ));
         }
         serde_json::from_slice(&out.stdout)

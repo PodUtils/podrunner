@@ -14,6 +14,7 @@ mod log;
 pub mod mounts;
 pub mod procs;
 pub mod shim;
+pub mod signal;
 mod stub;
 mod types;
 

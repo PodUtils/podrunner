@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**632 entries: 77 open, 60 partial, 15 blocked, 480 done.**
+**632 entries: 76 open, 60 partial, 15 blocked, 481 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 3 | 91 | 120 |
-| P2 | 19 | 22 | 9 | 248 | 298 |
+| P2 | 18 | 22 | 9 | 249 | 298 |
 | P3 | 57 | 12 | 3 | 139 | 211 |
-| **All** | 77 | 60 | 15 | 480 | 632 |
+| **All** | 76 | 60 | 15 | 481 | 632 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -674,7 +674,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-629](later.md) | P2 | M | later | defect | open | `config init` and `doctor --config` offer the microvm kind on a host with no KVM |
 | [T-630](later.md) | P2 | S | later | defect | done | A corrupt or truncated tar in the image cache fails each later `run`, and no message names the file |
 | [T-631](later.md) | P2 | S | later | defect | done | `run --changed-since` passes a ref that starts with `-` to git as an option |
-| [T-632](later.md) | P2 | S | later | defect | open | A small `ulimit -f` ends a podvm unit with an empty cause, and `run` names neither the limit nor the fix |
+| [T-632](later.md) | P2 | S | later | defect | done | A small `ulimit -f` ends a podvm unit with an empty cause, and `run` names neither the limit nor the fix |
 | [T-633](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of the installer and the install documents |
 | [T-634](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of the flags of `podrunner run` |
 | [T-635](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |

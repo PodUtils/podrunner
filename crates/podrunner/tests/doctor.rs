@@ -154,3 +154,41 @@ fn doctor_runs_the_self_test_of_the_confine_layer() {
     assert_eq!(v["sources"][0]["served"], false, "{v}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-632: a small limit of file size ends the runner and a podvm load by
+/// SIGXFSZ. `run` (and its dry run) refuses it before the first unit, with
+/// the fix that `doctor --run` gives; with no limit the dry run plans.
+#[test]
+fn run_refuses_a_small_limit_of_file_size() {
+    use std::os::unix::process::CommandExt;
+    let dir = Scratch::new("t632-fsize");
+    std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
+    std::fs::write(dir.join("runner/run.sh"), "").unwrap();
+    std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    let run = |limit: Option<u64>| {
+        let mut c = Command::new(env!("CARGO_BIN_EXE_podrunner"));
+        c.args(["run", "w.yml", "--runner-dir", "runner", "--dry-run", "--no-config"]).current_dir(&*dir);
+        if let Some(bytes) = limit {
+            // SAFETY: setrlimit is safe to call between fork and exec.
+            unsafe {
+                c.pre_exec(move || {
+                    let mut r = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+                    libc::getrlimit(libc::RLIMIT_FSIZE, &mut r);
+                    r.rlim_cur = bytes;
+                    match libc::setrlimit(libc::RLIMIT_FSIZE, &r) {
+                        0 => Ok(()),
+                        _ => Err(std::io::Error::last_os_error()),
+                    }
+                });
+            }
+        }
+        c.output().unwrap()
+    };
+    let out = run(Some(100_000 * 1024));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(78), "{err}");
+    assert!(err.contains("ulimit -f") && err.contains("SIGXFSZ") && err.contains("fix: ulimit -f unlimited"), "{err}");
+    let out = run(None);
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+}
