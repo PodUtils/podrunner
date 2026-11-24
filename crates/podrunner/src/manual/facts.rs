@@ -67,8 +67,18 @@ fn variables() -> Vec<VarGroup> {
         VarGroup { name: "The local mode".into(), vars: run },
         VarGroup { name: "serve and its sources".into(), vars: serve },
         VarGroup { name: "The unit kinds".into(), vars: units },
-        pod_manual::pager::variables(),
+        pager(),
     ]
+}
+
+/// The group of the pager of `pod-manual`, with the rule of the value of
+/// `PAGER` that its text does not give.
+fn pager() -> VarGroup {
+    let mut group = pod_manual::pager::variables();
+    for v in group.vars.iter_mut().filter(|v| v.names.iter().any(|n| n == "PAGER")) {
+        v.meaning.push_str(" The value is split at white space and run with no shell: it takes no quoted argument.");
+    }
+    group
 }
 
 fn exits() -> Vec<Exit> {

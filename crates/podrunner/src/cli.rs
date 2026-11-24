@@ -88,27 +88,10 @@ impl Opts {
 
     /// The rules of the command in the model.
     fn rules(&self, cmd: &crate::manual::Cmd) -> Result<(), Out> {
-        use crate::manual::R;
-        let usage = || crate::manual::usage(self.path);
-        for r in cmd.rules {
-            let why = match r {
-                R::Excludes(l) if l.iter().filter(|f| self.has(f)).count() > 1 => {
-                    format!("{} exclude each other", l.join(", "))
-                }
-                R::Needs(f, l) if self.has(f) && !l.iter().all(|n| self.has(n)) => {
-                    format!("{f} needs {}", l.join(" and "))
-                }
-                R::NeedsOne(f, l) if self.has(f) && !l.iter().any(|n| self.has(n)) => {
-                    format!("{f} needs one of {}", l.join(", "))
-                }
-                R::OneOf(l) if l.iter().filter(|f| self.has(f)).count() != 1 => {
-                    format!("give one of {}", l.join(", "))
-                }
-                _ => continue,
-            };
-            return Err(err(Class::Usage, format!("{why}\n{}", usage())));
+        match crate::manual::broken_rule(cmd, &|f| self.has(f)) {
+            Some(why) => Err(err(Class::Usage, format!("{why}\n{}", crate::manual::usage(self.path)))),
+            None => Ok(()),
         }
-        Ok(())
     }
 
     pub(crate) fn socket(&self) -> Result<PathBuf, Out> {

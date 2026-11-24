@@ -981,7 +981,8 @@ by: serve. podrunner sets it and does not read it.
 .TP
 \fBPAGER\fR
 The pager of the manual on a terminal. An empty value or cat writes the text
-with no pager. Used by: man.
+with no pager. The value is split at white space and run with no shell: it
+takes no quoted argument. Used by: man.
 .TP
 \fBTERM\fR
 With no PAGER, less is used only when TERM names a terminal that is not dumb.

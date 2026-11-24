@@ -52,7 +52,7 @@ pub fn fake_source(args: &[String]) -> Result<(), Failure> {
             std::fs::read_to_string(file).map_err(|e| fail(Class::NotFound, format!("the script {file}: {}", e)))?
         }
         [] => String::new(),
-        _ => return Err(fail(Class::Usage, "usage: podrunner fake-source [--script FILE]")),
+        _ => return Err(fail(Class::Usage, crate::manual::usage("fake-source"))),
     };
     let script = podrunner_fake::parse_script(&script).map_err(|e| fail(Class::Config, format!("the script: {e}")))?;
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
@@ -157,7 +157,7 @@ pub fn source_conformance(args: &[String]) -> Result<(String, bool), Failure> {
 fn source_conformance_in(args: &[String], limit: std::time::Duration, json: bool) -> Result<(String, bool), Failure> {
     let rest = match args.split_first() {
         Some((dash, rest)) if dash == "--" && !rest.is_empty() => rest,
-        _ => return Err(fail(Class::Usage, "usage: podrunner source-conformance [--json] -- PROGRAM ARGS...")),
+        _ => return Err(fail(Class::Usage, crate::manual::usage("source-conformance"))),
     };
     let tests = podrunner_source::conformance::tests();
     let mut lines: Vec<String> = Vec::new();

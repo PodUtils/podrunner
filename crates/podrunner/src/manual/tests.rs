@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use pod_manual::check::{ParserCommand, ParserFlag, assert_none, exit_codes, flags, generated, help, model, texts};
 use pod_manual::{roff, scan};
 
-use super::{R, all, find, manual};
+use super::{R, all, find, manual, usage};
 use crate::cli::run;
 use crate::run_local::qa6_tests::contract::{BEFORE_THE_PARSER, flags as long_flags, parser_flags};
 
@@ -202,13 +202,31 @@ fn the_rules_of_the_model_hold() {
         (&["stop", "--wait", "--state", "d", "--source", "x"], "--wait, --source exclude each other"),
         (&["print-unit", "--user", "u", "--config", "/c", "--state", "/s"], "--user needs --system"),
         (&["audit", "verify", "--state", "d", "--file", "f"], "give one of --state, --file"),
-        (&["man", "--json", "--roff"], "--json"),
+        (&["man", "--json", "--roff"], "--json, --roff exclude each other"),
         (&["status", "--source", "x", "--state", "d"], "an unknown option --source"),
     ] {
         let o = run(&args(a));
         assert_eq!(o.code, 64, "{a:?}: {}", o.stderr);
         assert!(o.stderr.contains(why), "{a:?}: {}", o.stderr);
     }
+}
+
+/// T-627: the usage of each source program is the one of the model, not a
+/// second text.
+#[test]
+fn the_source_programs_print_the_usage_of_the_model() {
+    for (a, path) in [(&["fake-source", "--bogus"][..], "fake-source"), (&["source-conformance"], "source-conformance")] {
+        let o = run(&args(a));
+        assert_eq!(o.code, 64, "{a:?}: {}", o.stderr);
+        assert!(o.stderr.contains(&usage(path)), "{a:?}: {}", o.stderr);
+    }
+}
+
+/// T-627: the text of `PAGER` tells how the value is run.
+#[test]
+fn the_pager_variable_says_how_it_is_run() {
+    let text = serde_json::to_string(&manual().facts).unwrap();
+    assert!(text.contains("split at white space and run with no shell"), "{text}");
 }
 
 /// Each flag that a usage names is a flag of its command.

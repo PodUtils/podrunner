@@ -127,6 +127,20 @@ pub(crate) fn usage(path: &str) -> String {
     }
 }
 
+/// The first rule of `cmd` that the flags break, as a sentence. `has` tells
+/// whether the command line has a flag (`--NAME`).
+pub(crate) fn broken_rule(cmd: &Cmd, has: &dyn Fn(&str) -> bool) -> Option<String> {
+    cmd.rules.iter().find_map(|r| match r {
+        R::Excludes(l) if l.iter().filter(|f| has(f)).count() > 1 => {
+            Some(format!("{} exclude each other", l.join(", ")))
+        }
+        R::Needs(f, l) if has(f) && !l.iter().all(|n| has(n)) => Some(format!("{f} needs {}", l.join(" and "))),
+        R::NeedsOne(f, l) if has(f) && !l.iter().any(|n| has(n)) => Some(format!("{f} needs one of {}", l.join(", "))),
+        R::OneOf(l) if l.iter().filter(|f| has(f)).count() != 1 => Some(format!("give one of {}", l.join(", "))),
+        _ => None,
+    })
+}
+
 /// The text of `podrunner --help`.
 pub(crate) fn root_help() -> String {
     pod_manual::help::render(manual(), &[]).unwrap_or_default()
@@ -204,8 +218,11 @@ pub(crate) fn man(rest: &[String]) -> crate::cli::Out {
     let c = find("man").expect("the command man");
     let mut req = pod_manual::Request::default();
     let mut words = Vec::new();
+    let mut given = Vec::new();
     for a in rest {
-        match c.flags.iter().find(|f| f.is(a)).map(|f| f.long) {
+        let known = c.flags.iter().find(|f| f.is(a)).map(|f| f.long);
+        given.extend(known.map(|l| format!("--{l}")));
+        match known {
             Some("no-pager") => req.no_pager = true,
             Some("json") => req.json = true,
             Some("roff") => req.roff = true,
@@ -219,6 +236,9 @@ pub(crate) fn man(rest: &[String]) -> crate::cli::Out {
             // Each name of a section is lowercase: `man RUN` is `man run`.
             _ => words.push(a.to_ascii_lowercase()),
         }
+    }
+    if let Some(why) = broken_rule(c, &|f| given.iter().any(|g| g == f)) {
+        return crate::cli::err(Class::Usage, format!("{why}\n{}", usage("man")));
     }
     req.section = (!words.is_empty()).then(|| words.join(" "));
     let tty = pod_manual::pager::Tty::probed();
