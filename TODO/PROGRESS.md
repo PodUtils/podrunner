@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 633 entries: 77 open, 60 partial, 15 blocked, 481 done.
+`TODO/INDEX.md` holds 633 entries: 77 open, 59 partial, 16 blocked, 481 done.
 
 ## State
 
@@ -31,8 +31,9 @@
   proven by unit and fake tests: not run against GitHub. Open from them:
   T-621 (a live lane), T-622, T-624. T-623 (the retry of a failed cancel) and T-625 (the attempt of a cancel of a job offered past the limits) are done. T-613 is partial: it waits
   for podvm (COORD-125 #347 ask 1, COORD-127 #349) and its next beta after
-  beta.39. T-611 is partial: the incus step of the next `runner-image.yml`
-  run proves it on podvm beta.39.
+  beta.39. T-611 is blocked: on podvm beta.39 a stopped incus instance gave
+  no peak and 0 OOM kills (runner-image 45359834173, COORD-128 #350); the
+  live test takes that reason by name meanwhile.
 - Keep this section short. Write the current state only; git keeps the
   history.
 

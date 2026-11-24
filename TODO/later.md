@@ -15079,7 +15079,7 @@ During the move two names exist: the snapshot of before has `toolcache-3.12.16`,
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -15100,6 +15100,13 @@ The report of the work of T-483 and the code of podvm `v0.2.0-beta.37` it names,
 The incus step of `runner-image.yml` (`cargo test -p podrunner-incus --test limits -- --ignored --nocapture`): `the_use_of_a_known_load_is_the_use_that_the_kind_gives` with a load on 4 CPUs within the tolerance, and the OOM kill counted for the unit past the memory limit.
 
 State (2026-11-24, the pin of podvm `0.2.0-beta.39`, the commit that names T-611): podvm `0.2.0-beta.39` carries the fix of COORD-123 (COORD-233, PodUtils/podvm#649; COORD-238, PodUtils/podvm#654): the init of `run -d` reads the cgroup of the instance after each process of it ended and writes `/.podvm/usage`, and `inspect` of a stopped instance reads it; the values stay `-` with `--podvm-init=image`, after a forced stop, and for an instance of an older podvm. The OOM killer of an instance no longer takes its init (PodUtils/podvm@T-2077). Step 1 of the Approach needs no new code: `Kept::take` (`crates/podrunner-incus/src/usage.rs`) takes a value of each read, also of a stopped instance, and keeps the highest, so the record of the stop gives the last tick, the peak and the OOM kills. New: `the_use_at_the_stop_is_the_record_of_podvm` (`crates/podrunner-incus/src/tests/usage.rs`): the fake podvm gives a running instance no peak (as the incusd of a hosted runner on cgroup v2) and the stopped one the record that PodUtils/podvm#649 measured (`3.321 135741440 1`); the kind gives `cpu_s` 4, the peak 135741440 and 1 OOM kill. It passes on the code before (T-483 took a value of a stopped read), and fails on a planted defect (`take` skips each read of a stopped instance: `cpu_s` 3 and no peak). Steps 2 and 3: `crates/podrunner-incus/tests/limits.rs` has no arm `PEAK_NOT_GIVEN` (an unknown peak fails the test), the load burns about 3 s in each of 4 processes at one time, and the unit past the memory limit must count an OOM kill before its destroy. The comments of the kind and `docs/contracts/source-driver.md` name the record. Level: the parse and the keep proven here with a fake podvm (`cargo test -p podrunner-incus --lib`, 35 passed); on real instances not run (this host has no incus): the Prove is the incus step of the next `runner-image.yml` run.
+
+State (2026-11-24, blocked; the commit that names COORD-128): the live proof failed on podvm `0.2.0-beta.39` at `runner-image.yml` run 45359834173 (on `aab63e5`, a hosted `ubuntu-24.04` runner, incus of apt, cgroup v2): `the_use_of_a_known_load_is_the_use_that_the_kind_gives` failed with `peak unknown: incusd gave no PeakMemoryBytes of the instance` (`cpu_s` 6 for 6.92 s of the load: within the tolerance), and `a_payload_past_the_memory_limit_gets_an_error` with `no OOM kill counted under 256 MiB: Some(0)`. podvm beta.39 does not give the record of the use at the stop on that host. Asked as COORD-128 (#350). `crates/podrunner-incus/tests/limits.rs` takes the relaxed arm again: an unknown peak passes only with the reason `PEAK_NOT_GIVEN`, and 0 OOM kills pass only, each when the raw `inspect` of the stopped instance shows `-` for its peak; each prints the reason (`NO_RECORD`, which names COORD-128 #350). The load of 4 processes stays. Each unit prints the raw `podvm inspect --format '{{.Status}} {{.ExitCode}} {{.CpuSeconds}} {{.PeakMemoryBytes}} {{.OomKills}}' --podvm-tier=incus NAME` of the stopped instance before its destroy, for the evidence of COORD-128. Level: not run (this host has no incus); the next incus step of `runner-image.yml` runs it.
+
+## Blocker
+
+podvm must act on COORD-128 (PodUtils/podrunner#350): the record of the use at the stop of an incus instance (`/.podvm/usage`), with the peak and the OOM kills of a child of the command, on a hosted runner. A podvm release with that fix and a green incus step of `runner-image.yml` with the strict peak and an OOM kill counted unblock the entry; then the arms of `PEAK_NOT_GIVEN` and of 0 OOM kills go.
+
 
 # T-612: Three live tests of the podvm kind fail on a root host
 

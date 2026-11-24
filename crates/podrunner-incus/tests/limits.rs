@@ -43,12 +43,53 @@ const LOAD: &str = "dd if=/dev/zero of=/dev/null bs=64M count=1 2>/dev/null || e
 
 /// The exit of `script` in a fresh unit with `limits`.
 fn run(n: u32, script: &str, limits: Limits) -> Option<Exit> {
-    run_with_usage(n, script, limits).0
+    run_with_usage(n, script, limits).exit
+}
+
+/// The reason of an unknown peak and of no OOM kill that the tests take,
+/// by name: podvm `0.2.0-beta.39` gave no record of the use at the stop
+/// on a hosted runner (runner-image.yml 45359834173, COORD-128 #350,
+/// T-611). The record of the stopped instance (its raw `inspect`) must
+/// show it: `-` for its peak.
+const PEAK_NOT_GIVEN: &str = "incusd gave no PeakMemoryBytes of the instance";
+const NO_RECORD: &str = "podvm 0.2.0-beta.39 gave no record of the use at the stop (COORD-128 #350, T-611)";
+
+/// What a unit gave: its exit, its log, its use and OOM kills (before the
+/// destroy), and the raw `inspect` of the stopped instance.
+struct Ran {
+    exit: Option<Exit>,
+    log: String,
+    usage: Option<UnitUsage>,
+    oom: Option<u64>,
+    raw: String,
+}
+
+impl Ran {
+    /// The stopped instance has no record of the use: its peak is `-`.
+    fn no_record(&self) -> bool {
+        self.raw.split_whitespace().nth(3) == Some("-")
+    }
+}
+
+/// The raw state of the instance NAME, for the evidence of COORD-128: the
+/// template of the kind (`usage::STATE`).
+fn raw_inspect(name: &str) -> String {
+    let format = "{{.Status}} {{.ExitCode}} {{.CpuSeconds}} {{.PeakMemoryBytes}} {{.OomKills}}";
+    let out = std::process::Command::new(env("PODRUNNER_PODVM"))
+        .args(["inspect", "--format", format, "--podvm-tier=incus", name])
+        .env("PODVM_STORE", env("PODRUNNER_PODVM_IMAGES"))
+        .stdin(std::process::Stdio::null())
+        .output()
+        .unwrap();
+    let text =
+        format!("{}{}", String::from_utf8_lossy(&out.stdout).trim(), String::from_utf8_lossy(&out.stderr).trim());
+    println!("raw: podvm inspect --format '{format}' --podvm-tier=incus {name}: {:?}: {text}", out.status.code());
+    text
 }
 
 /// The exit, the log, the use and the OOM kills (before the destroy) of
 /// `script` in a fresh unit with `limits`.
-fn run_with_usage(n: u32, script: &str, limits: Limits) -> (Option<Exit>, String, Option<UnitUsage>, Option<u64>) {
+fn run_with_usage(n: u32, script: &str, limits: Limits) -> Ran {
     let state = std::env::temp_dir().join(format!("podrunner-incus-limits-{}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&state);
     let unit = IncusUnit::new(
@@ -74,11 +115,12 @@ fn run_with_usage(n: u32, script: &str, limits: Limits) -> (Option<Exit>, String
     let log = String::from_utf8_lossy(&unit.unit_logs(&id).unwrap_or_default()).to_string();
     let usage = unit.usage(&id);
     let oom = unit.oom_kills(&id);
+    let raw = raw_inspect(&podrunner_incus::instance_name(&state, id.as_str()));
     let residue = unit.destroy(&id).unwrap();
     let _ = std::fs::remove_dir_all(&state);
     println!("unit {n} {limits:?}: {exit:?} {usage:?} oom_kills {oom:?}\n{log}");
     assert!(residue.is_clean(), "{residue:?}");
-    (exit, log, usage, oom)
+    Ran { exit, log, usage, oom, raw }
 }
 
 /// The seconds of one word of `times` (`0m2.980s` of dash or bash).
@@ -92,10 +134,14 @@ fn secs(word: &str) -> f64 {
 fn a_payload_past_the_memory_limit_gets_an_error() {
     assert_eq!(run(1, MEMORY, Limits::default()), Some(Exit::Code(11)), "the control: 1 GiB passes with no limit");
     let held = Limits { memory_bytes: Some(256 << 20), ..Limits::default() };
-    let (exit, _, _, oom) = run_with_usage(2, MEMORY, held);
-    assert_eq!(exit, Some(Exit::Code(0)), "1 GiB must fail under 256 MiB");
+    let ran = run_with_usage(2, MEMORY, held);
+    assert_eq!(ran.exit, Some(Exit::Code(0)), "1 GiB must fail under 256 MiB");
     // The exit reason `limit` of slots needs the count (T-515, T-611).
-    assert!(oom.is_some_and(|n| n > 0), "no OOM kill counted under 256 MiB: {oom:?}");
+    match ran.oom {
+        Some(n) if n > 0 => {}
+        Some(0) if ran.no_record() => println!("oom_kills 0 under 256 MiB: {NO_RECORD}; raw: {}", ran.raw),
+        oom => panic!("no OOM kill counted under 256 MiB: {oom:?}; raw: {}", ran.raw),
+    }
 }
 
 #[test]
@@ -110,7 +156,8 @@ fn a_payload_past_the_pids_limit_gets_an_error() {
 #[test]
 #[ignore]
 fn the_use_of_a_known_load_is_the_use_that_the_kind_gives() {
-    let (exit, log, usage, _) = run_with_usage(5, LOAD, Limits::default());
+    let ran = run_with_usage(5, LOAD, Limits::default());
+    let (exit, log, usage) = (ran.exit, &ran.log, ran.usage.clone());
     assert_eq!(exit, Some(Exit::Code(0)), "the load ran: {log}");
     // The CPU time of the load, as the shell in the instance counted it.
     let line = log.lines().skip_while(|l| *l != "podrunner-times").nth(2).unwrap_or_else(|| panic!("no times: {log}"));
@@ -125,6 +172,13 @@ fn the_use_of_a_known_load_is_the_use_that_the_kind_gives() {
     assert!((cpu as f64 - want).abs() <= tolerance, "cpu_s {cpu} for {load:.2} s of CPU of the load");
     // The incusd of a hosted runner gives no peak of a running instance
     // on cgroup v2; the record of podvm at the stop gives it (T-611).
-    let peak = usage.peak_memory_bytes.unwrap_or_else(|e| panic!("peak unknown: {e}"));
-    assert!(peak.div_ceil(1 << 20) >= 64, "peak_rss_mib {} under the 64 MiB buffer", peak.div_ceil(1 << 20));
+    match usage.peak_memory_bytes {
+        Ok(peak) => {
+            assert!(peak.div_ceil(1 << 20) >= 64, "peak_rss_mib {} under the 64 MiB buffer", peak.div_ceil(1 << 20))
+        }
+        Err(why) if why == PEAK_NOT_GIVEN && ran.no_record() => {
+            println!("peak_memory_bytes: unknown ({why}): {NO_RECORD}; raw: {}", ran.raw)
+        }
+        Err(why) => panic!("peak unknown: {why}; raw: {}", ran.raw),
+    }
 }
