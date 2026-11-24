@@ -11940,7 +11940,7 @@ The call in `docs/decisions.md`; `cargo todo check`.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11959,7 +11959,11 @@ The owner ruled Q12 on 2026-11-24 ("Yes, opt-in", `docs/decisions.md`).
 3. Publish the case table as the release asset `tier-cases.json` (T-511), made from `crates/podrunner-tier/tests/cases.json` and the event lists of the code; a test holds the file in step with the code. The table names each event of the offer, with the opt-in off and on.
 ## Prove
 
-`cargo test -p podrunner-tier`; the release assets list `tier-cases.json`.
+`cargo test -p podrunner-tier`; `cargo test -p podrunner-slots trust`; `cargo test -p podrunner --test check_trust`; `sh scripts/test-install.sh` (the assets of `scripts/release-assets.sh` list `tier-cases.json`).
+
+## Done
+
+2026-11-24, commit `363d765` (the record: `c3124d2` and the commit that names this Done). The key: `pull_request_target` in `extra_events` of `[trust]`, of a `[[source]] trust` table (also of each forge) and of the file of `mint-serve`, off by default. A job of the event is trusted with the facts of each trusted job: a configured owner, a head that is not a fork (`head_repository.fork` of the run object; a read of the runs of a public repository on 2026-11-24 shows the fork of the pull request there for this event), an actor `member`. A fork, an outsider, a bot and an unknown fact stay `event-not-allowed`, also on an untrusted set; an agent's job runs in a guest (T-106); `other` and `unknown` stay refused. `check`, `serve` and `mint-serve` print one line for each table that lists it. A flaw fixed on the way: the file of `mint-serve` took `other` and `unknown` in `extra_events`; it refuses them now (78). The rule is the trait `TrustRule` with `DefaultRule` (`crates/podrunner-tier/src/lib.rs`); `cases::published` writes `crates/podrunner-tier/tier-cases.json` (77 rows, each event by name with the opt-in off and on) and `cases::conformance` runs it against any rule; `scripts/release-assets.sh` attaches it, `release.yml` attests it. Results: `cargo test -p podrunner-tier` 12 passed (7 rows of the table, 4 tests and `check_trust` failed on the code before); `cargo test --workspace --all-features` 760 passed, 0 failed, 60 ignored; `sh scripts/test-install.sh` 17 passed (before: "no tier-cases.json with its .sha256"). The built binary as `labdns` (`sudo -u labdns`, `HOME=/home/labdns`): `podrunner check --config FILE` with the key prints the line and exits 0; with `other` beside it, exits 78. Level: proven on this machine with the tests and the built binary as a user with no root; not yet run in CI on GitHub-hosted runners, and no release attaches `tier-cases.json` yet.
 
 # T-519: G-03: no document says that a step of the job can read the credential of its runner
 

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**613 entries: 70 open, 57 partial, 18 blocked, 468 done.**
+**613 entries: 69 open, 57 partial, 18 blocked, 469 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 90 | 119 |
-| P2 | 16 | 22 | 10 | 240 | 288 |
+| P2 | 15 | 22 | 10 | 241 | 288 |
 | P3 | 51 | 11 | 5 | 136 | 203 |
-| **All** | 70 | 57 | 18 | 468 | 613 |
+| **All** | 69 | 57 | 18 | 469 | 613 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -562,7 +562,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-515](later.md) | P2 | M | later | defect | partial | G-12: a unit past its memory limit does not end with the exit reason `limit` |
 | [T-516](later.md) | P2 | S | later | feature | open | G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine |
 | [T-517](later.md) | P3 | S | later | docs | open | G-09: the engine of a guest is a directory of the host, not a part of the payload image |
-| [T-518](later.md) | P2 | M | later | feature | open | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
+| [T-518](later.md) | P2 | M | later | feature | done | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
 | [T-519](later.md) | P3 | S | later | docs | done | G-03: no document says that a step of the job can read the credential of its runner |
 | [T-520](later.md) | P3 | S | later | measurement | partial | G-06: no test of `cpu_s` against a known load, and no tolerance in the contract |
 | [T-521](later.md) | P3 | S | later | defect | open | G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit |
