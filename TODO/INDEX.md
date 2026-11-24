@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**613 entries: 68 open, 57 partial, 18 blocked, 470 done.**
+**614 entries: 68 open, 58 partial, 18 blocked, 470 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 2 | 24 | 3 | 90 | 119 |
+| P1 | 2 | 25 | 3 | 90 | 120 |
 | P2 | 14 | 22 | 10 | 242 | 288 |
 | P3 | 51 | 11 | 5 | 136 | 203 |
-| **All** | 68 | 57 | 18 | 470 | 613 |
+| **All** | 68 | 58 | 18 | 470 | 614 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -661,3 +661,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-616](later.md) | P3 | S | later | defect | open | A container of a unit of the local mode gets the CA bundle of the caller, but no trust store of a JVM |
 | [T-617](later.md) | P2 | S | later | docs | done | The hand-written state of GitHub #65, #66 and the comment on #292 is stale |
 | [T-618](later.md) | P3 | S | later | research | open | R-052 of cfb is named nowhere |
+| [T-619](later.md) | P1 | S | later | chore | partial | Take podcrates `v0.82.1` (COORD-152 of podcrates) |

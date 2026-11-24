@@ -253,6 +253,9 @@ pub fn print_system_unit(
 
 fn system_unit(binary: &Path, config: &Path, state: &Path, watchdog: Option<u32>, user: &str) -> Result<Unit, String> {
     let mut unit = unit(binary, config, state, watchdog)?.system(Some(user));
+    // The account is the service account of serve, not a person's: a stop
+    // can remove its IPC (`RemoveIPC=yes`).
+    unit.hardening.service_account();
     for (key, why) in RELAXED_SYSTEM {
         unit.hardening.relax(key, why).map_err(|f| f.to_string())?;
     }

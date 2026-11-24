@@ -152,9 +152,9 @@ jobs:
           set -eu
           # The tests get a TMPDIR of their own and leave nothing in it
           # (T-591).
-          # No dot in the name: pod-unit reads a path after a dot as one
-          # word, and a random suffix there looks like a secret (T-602).
-          tmp=$(mktemp -d /tmp/prt-XXXXXX)
+          # The default name (tmp.XXXXXXXXXX) has a dot and a random word:
+          # a unit under it must pass the secret check of pod-unit (T-602).
+          tmp=$(mktemp -d)
           TMPDIR=$tmp cargo test --locked --workspace --all-features
           left=$(ls -A "$tmp")
           if [ -n "$left" ]; then

@@ -132,13 +132,13 @@ fn print_unit_holds_no_credential() {
 fn print_unit_is_the_unit_of_pod_unit_with_its_hardening() {
     let unit = print_unit(Path::new("/b"), Path::new("/c"), Path::new("/s"), None).unwrap();
     for line in [
-        "Type=notify\n",
-        "KillMode=mixed\n",
-        "TimeoutStopSec=infinity\n",
-        "Restart=on-failure\n",
-        "RestartPreventExitStatus=64 78\n",
-        "NoNewPrivileges=yes\n",
-        "WantedBy=default.target\n",
+        "\nType=notify\n",
+        "\nKillMode=mixed\n",
+        "\nTimeoutStopSec=infinity\n",
+        "\nRestart=on-failure\n",
+        "\nRestartPreventExitStatus=64 78\n",
+        "\nNoNewPrivileges=yes\n",
+        "\nWantedBy=default.target\n",
     ] {
         assert!(unit.contains(line), "{line}: {unit}");
     }
@@ -177,20 +177,21 @@ fn print_unit_system_passes_the_audit_of_a_unit_of_the_system() {
     let unit = out.stdout;
     assert_eq!(pod_unit::systemd::audit(&unit, true), Vec::<String>::new(), "{unit}");
     for line in [
-        "User=podrunner\n",
-        "Type=notify\n",
-        "KillMode=mixed\n",
-        "Restart=on-failure\n",
-        "NoNewPrivileges=yes\n",
-        "AmbientCapabilities=\n",
-        "ProtectKernelModules=yes\n",
-        "RemoveIPC=yes\n",
-        "Delegate=yes\n",
-        "DelegateSubgroup=serve\n",
-        "StateDirectory=podrunner\n",
-        "StateDirectoryMode=0700\n",
-        "WantedBy=multi-user.target\n",
+        "\nUser=podrunner\n",
+        "\nType=notify\n",
+        "\nKillMode=mixed\n",
+        "\nRestart=on-failure\n",
+        "\nNoNewPrivileges=yes\n",
+        "\nAmbientCapabilities=\n",
+        "\nProtectKernelModules=yes\n",
+        "\nRemoveIPC=yes\n",
+        "\nDelegate=yes\n",
+        "\nDelegateSubgroup=serve\n",
+        "\nStateDirectory=podrunner\n",
+        "\nStateDirectoryMode=0700\n",
+        "\nWantedBy=multi-user.target\n",
     ] {
+        // A line in force, not the text of a relaxed comment.
         assert!(unit.contains(line), "{line}: {unit}");
     }
     for key in [
@@ -438,5 +439,31 @@ fn install_unit_names_a_systemd_older_than_254() {
             install_on(&system_args(&d.config(), &[]), &d.places(), &host).unwrap_or_else(|o| panic!("{}", o.stderr));
         assert_eq!(out.code, 0);
         assert_eq!(out.stderr.contains("DelegateSubgroup"), warns, "{version}: {}", out.stderr);
+    }
+}
+
+/// T-602 (COORD-121, #343): a path under a directory of `mktemp -d`
+/// (`tmp.XXXXXXXXXX`) or under a dot directory with a random name is no
+/// secret: `print-unit` takes it (exit 0), also with `--system`.
+#[test]
+fn print_unit_takes_a_config_under_a_directory_of_mktemp() {
+    // The command of the report: print_unit does not read the file.
+    let config = Path::new("/tmp/tmp.Ab3dEf9kQ2/serve-config/podrunner.toml");
+    let unit = print_unit(Path::new("/usr/local/bin/podrunner"), config, Path::new("/tmp/state"), None);
+    assert!(
+        unit.as_ref().is_ok_and(|u| u.contains("--config /tmp/tmp.Ab3dEf9kQ2/serve-config/podrunner.toml")),
+        "{unit:?}"
+    );
+    let d = Dir::new("mktemp");
+    for dir in ["tmp.Ab3dEf9kQ2/serve-config", ".Xy7Qp2Lm9R/podrunner-configs"] {
+        let file = d.0.join(dir).join("podrunner.toml");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, "").unwrap();
+        let (c, s) = (file.display().to_string(), d.0.join(dir).join("state").display().to_string());
+        let out = run(&args(&["print-unit", "--config", &c, "--state", &s]));
+        assert_eq!(out.code, 0, "{c}: {}", out.stderr);
+        assert!(out.stdout.contains(&format!("--config {c} --state {s}\n")), "{}", out.stdout);
+        let out = run(&args(&["print-unit", "--system", "--config", &c, "--state", "/var/lib/podrunner"]));
+        assert_eq!(out.code, 0, "--system {c}: {}", out.stderr);
     }
 }

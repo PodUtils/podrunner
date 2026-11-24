@@ -15268,3 +15268,39 @@ cargo todo check
 The record names R-052 with its text or with the line "asked on #292"; each request of cfb's answer has an entry.
 
 State (2026-11-24): the ask is on GitHub #292, in the one comment of podrunner (comment 6970292728, edited on 2026-11-24). cfb has not answered. The entry stays open until it does; until then R-052 counts as none for the work order.
+
+# T-619: Take podcrates `v0.82.1` (COORD-152 of podcrates)
+
+**Source:** PodUtils/podcrates#257 (COORD-152, to all), 2026-11-24
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+podcrates `v0.82.1` is out (tag at `0d7832b`). `v0.82.0` has a tag but no release: no signed `SHA256SUMS`, no assets, no images. podrunner takes `v0.81.0`. The release asks podrunner first. For podrunner: a unit of the system with `User=NAME` writes `RemoveIPC=yes` as a relaxed comment, unless the program calls `Hardening::service_account()` after `.system(Some(user))` (PodUtils/podcrates@T-1107, @T-1110); else `print_unit_system_passes_the_audit_of_a_unit_of_the_system` fails. A unit that restarts after each end writes `StartLimitInterval=0` (PodUtils/podcrates@T-1108). `pod_core::Class` has `Permission` (71) and `Suite` (78): an exhaustive `match` needs two arms. `run-report.v1` takes a reason for an absent time (`pod_job::report::TIMES`, PodUtils/podcrates@T-1098: the answer to COORD-120, T-595). The check of a secret of `pod-unit` splits a path at each `/` and `.` (PodUtils/podcrates@T-1104: the answer to COORD-121, T-602). `pod-control` has one deadline for a call back and holds `Server::active` at `Settings::clients` (PodUtils/podcrates@T-1073, PodUtils/podcrates@T-1070). The job message of `pod-fake-github` has four more keys of `contextData` (PodUtils/podcrates@T-1122). New binaries of the fakes and of `pod-release`. The issue asks each consumer to write the commit of its take as a COORD issue `(to podcrates)`.
+
+## Premise
+
+Read on 2026-11-24: the body of PodUtils/podcrates#257, PodUtils/podcrates:docs/releases/v0.82.0.md and PodUtils/podcrates:docs/releases/v0.82.1.md at the tag, the signed `SHA256SUMS` of the release, and the index of `ghcr.io/podutils/pod-fake-githome:v0.82.1` in the registry. The body of the release has no section "The images, by digest": the digest of the index comes from the registry. `git ls-remote` gives the commit `0d7832b992b701ef1805496fe49375bb97543b0c` for `v0.82.1^{}`.
+
+## Approach
+
+1. Each podcrates dependency names `tag = "v0.82.1"` (`Cargo.toml`, the member crates, `Cargo.lock`, `fuzz/Cargo.lock`); `issue-sync.yml` at the commit of the tag with `podcrates_ref: v0.82.1`. `images/fake-githome.toml` and `images/pod-release.toml` pin the assets of `v0.82.1`: each SHA-256 against the signed `SHA256SUMS`, the signature with `pod-release verify`, the ghcr.io index against the registry, and `release-index.py` hashed at the tag.
+2. `system_unit` of `crates/podrunner/src/cli/unit.rs` calls `unit.hardening.service_account()`. The test of the audit matches whole lines: the old test found the text `RemoveIPC=yes` in the relaxed comment, and passed on the defect.
+3. Check each other break: a `match` on `Class`, the exit codes of `docs/cli.md`, a golden unit, and the tests of `control` (the ninth client).
+4. T-595 and T-602 on the tag.
+5. The commit of the take as a COORD issue `(to podcrates)`.
+
+## Prove
+
+```sh
+cargo test -p podrunner --all-features --lib cli::unit
+cargo test --workspace --all-features
+sh scripts/githome-conformance.sh target/x86_64-unknown-linux-musl/debug/podrunner
+sh scripts/test-install.sh
+```
+
+`print_unit_system_passes_the_audit_of_a_unit_of_the_system` passes, and fails with no call of `service_account()`.

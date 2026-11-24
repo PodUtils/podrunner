@@ -101,9 +101,9 @@ echo "static $st"; [ "$st" -eq 0 ] || { rc=1; tail -20 "$log/static.log"; }
 if [ "${1:-}" != notest ]; then
     # The tests get a temp directory of their own (T-591): other runs on
     # the host do not add to it, and each test removes what it makes.
-    # No dot in the name: pod-unit reads a path after a dot as one word,
-    # and a random suffix there looks like a secret (T-602).
-    tmp=$(mktemp -d "${TMPDIR:-/tmp}/prt-XXXXXX") || exit 1
+    # The default name (tmp.XXXXXXXXXX) has a dot and a random word: a
+    # unit under it must pass the secret check of pod-unit (T-602).
+    tmp=$(mktemp -d) || exit 1
     TMPDIR=$tmp timeout 1800 cargo test --workspace --all-features > "$log/test.log" 2>&1; t=$?
     # Not "failed": each summary line has "0 failed" and would hide the cause.
     echo "test $t"; [ "$t" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|^error|^failures:|^---- " "$log/test.log" | head -30; }
