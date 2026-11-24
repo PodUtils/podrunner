@@ -81,6 +81,7 @@ fn config_init_refuses_the_microvm_kind_with_no_kvm() {
             .unwrap()
     };
     let only = init("microvm", "a.toml");
+    let both = init("microvm,podvm", "c.toml");
     // An incusd that takes a connection: the incus kind serves the source.
     let _incusd = std::os::unix::net::UnixListener::bind(dir.join("incus.socket")).unwrap();
     let auto = init("auto", "b.toml");
@@ -92,6 +93,10 @@ fn config_init_refuses_the_microvm_kind_with_no_kvm() {
     assert_eq!(only.status.code(), Some(78), "{}", text(&only));
     assert!(text(&only).contains("microvm: /dev/kvm: "), "{}", text(&only));
     assert!(!dir.join("a.toml").exists());
+    // check refuses the podvm kind alone (no hold), and the text names the
+    // kind that the probe refused.
+    assert_eq!(both.status.code(), Some(78), "{}", text(&both));
+    assert!(text(&both).contains("no-tier-served") && text(&both).contains("; kind microvm: not here: /dev/kvm: "));
     // auto: the kind is in `refused` with its reason, and not in the file.
     let v: serde_json::Value = match auto.status.code() {
         Some(0) => serde_json::from_slice(&auto.stdout).unwrap(),
