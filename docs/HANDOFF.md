@@ -94,7 +94,9 @@ milestones M-A, M-B and L2 hold. M-C and M-D wait for the live gates.
 `TODO/PROGRESS.md` has the order. After the release it names T-480, T-487,
 T-516 and T-500, then the local P3 entries. githome and cfb come first (the
 owner, 2026-11-18, `docs/decisions.md`). A release moves 19 asks of githome
-and 11 clauses of cfb to "in a release". Open entries that need a decision
+and 11 clauses of cfb to "in a release". Left after beta.8: of 41 asks of
+githome, 11 partial and 7 open; of 38 clauses of cfb, 6 partial and 6 open.
+T-512 waits for these. Open entries that need a decision
 of the owner: none (`TODO/PROGRESS.md`, "Questions for the owner").
 
 ## Open asks to other projects
@@ -130,7 +132,8 @@ state of each.
   - #312 (COORD-102, T-553): publish on `ghcr.io`. It closes when the
     release publishes there.
   - #183 (COORD-064, T-249): the shared installer core. #184 (COORD-065,
-    T-250): the issue sync of the record (blocked).
+    T-250): the issue sync of the record runs. The step of the
+    hand-written State column is left (T-250 is partial).
   - T-622 needs a COORD issue to podcrates (a `queue` object in the source
     reply and in `SourceStatus`). It is not written.
 - podnet: no ask is open.
