@@ -199,12 +199,12 @@ grep -qx "image = \"runner@$digest\"" "$toml" || fail "run.toml has no image"
 grep -qx "podvm = \"$d/bin/podvm\"" "$toml" || fail "run.toml has no podvm"
 grep -q 'user namespaces: yes' "$t/out" || fail "no line of the user namespaces"
 grep -q 'next, in the tree of your project: .* run .github/workflows/ci.yml --checkout .' "$t/out" || fail "no next command"
-[ -z "$(find "$t/home" -name '*.part')" ] || fail "a partial file stays"
+[ -z "$(find "$t/home" -name '*.part*')" ] || fail "a partial file stays"
 [ "$(loads)" = 1 ] || fail "the image was loaded $(loads) times"
-grep -qx "verify --repo PodUtils/podrunner --tag v9.9.9-test $d/downloads/release" "$t/verify.log" ||
+grep -qx "verify --repo PodUtils/podrunner --tag v9.9.9-test $d/downloads/run\.[A-Za-z0-9]*/release" "$t/verify.log" ||
     fail "pod-release verify was not called with the signer of the release"
 grep -q 'ok      this installer is podrunner-install.sh of SHA256SUMS of v9.9.9-test' "$t/out" || fail "no check of the installer"
-[ ! -e "$d/downloads/release" ] || fail "the files of the release stay in downloads"
+[ -z "$(find "$d/downloads" -mindepth 1 -maxdepth 1 -name 'run.*')" ] || fail "the files of the release stay in downloads"
 ok "a fresh install"
 
 # 4. A second run with an empty mirror: it downloads nothing.
@@ -276,7 +276,13 @@ ok "SHA256SUMS and release-index.json of the release: a changed asset, a changed
 mirror=file://$a
 echo changed >> "$d/bin/podvm"
 echo partial > "$d/bin/podnet.part"
+echo partial > "$d/bin/podnet.part.old"
+echo partial > "$d/bin/podnet.part.live"
+python3 -I -c 'import os, sys, time; t = time.time() - 7200; os.utime(sys.argv[1], (t, t))' "$d/bin/podnet.part.old"
 run home || fail "the repair"
+[ ! -f "$d/bin/podnet.part.old" ] || fail "the partial file of an hour ago stays"
+[ -f "$d/bin/podnet.part.live" ] || fail "the partial file of a live run is removed"
+rm -f "$d/bin/podnet.part.live"
 grep -q "fetch   podvm-$arch" "$t/out" || fail "the changed podvm was not fetched again"
 [ "$(sum "$d/bin/podvm")" = "$(sum "$a/podvm-$arch")" ] || fail "podvm was not replaced"
 [ ! -f "$d/bin/podnet.part" ] || fail "the partial file stays"
@@ -326,7 +332,7 @@ sh "$root/scripts/make-bundle.sh" "$installer" "$arch" "$a" "$t/dist" > /dev/nul
 run offline --bundle "$t/dist/podrunner-bundle-$arch.tar.gz" || fail "the install from the bundle archive"
 grep -q 'fetch' "$t/out" && fail "the bundle install fetched"
 [ -f "$t/offline/.local/share/podrunner/runner/2.0.0/run.sh" ] || fail "the bundle install has no runner"
-[ ! -d "$t/offline/.local/share/podrunner/downloads/bundle" ] || fail "the unpacked bundle stays"
+[ -z "$(find "$t/offline/.local/share/podrunner/downloads" -mindepth 1 -maxdepth 1 -name 'run.*')" ] || fail "the unpacked bundle stays"
 ok "the offline bundle, as an archive"
 
 mkdir -p "$t/unpacked"
@@ -424,16 +430,19 @@ mkdir -p "$t/cut"
 printf '#!/bin/sh\n: > "%s/cut/ready"\nexec sleep 60\n' "$t" > "$t/cut/gzip"
 chmod 0755 "$t/cut/gzip"
 mirror=file://$a
-cut() { # NAME SIGNAL: start the install in the home $t/NAME, stop it with SIGNAL in the unpack
+held() { # NAME: start the install in the home $t/NAME; it waits in the unpack
     rm -f "$t/cut/ready"
     mkdir -p "$t/$1"
     env -u XDG_DATA_HOME -u XDG_CONFIG_HOME HOME="$t/$1" PATH="$t/cut:$t/verify:/usr/bin:/bin" PODRUNNER_MIRROR="$mirror" \
         python3 -I -c 'import os, signal, sys; signal.signal(signal.SIGINT, signal.SIG_DFL); os.setsid(); os.execvp("sh", ["sh", sys.argv[1]])' \
-        "$installer" > "$t/out" 2>&1 &
+        "$installer" > "$t/out-held" 2>&1 &
     pid=$!
     i=0
     while [ ! -f "$t/cut/ready" ] && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
     [ -f "$t/cut/ready" ] || fail "$1: the install did not reach the unpack"
+}
+cut() { # NAME SIGNAL: start the install in the home $t/NAME, stop it with SIGNAL in the unpack
+    held "$1"
     python3 -I -c 'import os, signal, sys; os.killpg(int(sys.argv[1]), getattr(signal, "SIG" + sys.argv[2]))' "$pid" "$2"
     if wait "$pid"; then fail "$1: the install cut by $2 exited 0"; fi
 }
@@ -446,16 +455,32 @@ u=$t/cut-kill/.local/share/podrunner/runner
 # The owner of a live run: the boot, the PID namespace and a live PID.
 sleep 60 &
 live=$!
-mkdir -p "$u/.unpack.live" "$u/.unpack.fresh" "$u/.unpack.old"
+mkdir -p "$u/.unpack.live" "$u/.unpack.fresh" "$u/.unpack.old" "$u/.unpack.reused"
 printf '%s %s\n%s\n' "$(cat /proc/sys/kernel/random/boot_id)" "$(readlink /proc/self/ns/pid)" "$live" > "$u/.unpack.live/.podrunner-owner"
 python3 -I -c 'import os, sys, time; t = time.time() - 7200; os.utime(sys.argv[1], (t, t))' "$u/.unpack.old"
+# A live PID in an owner file of two days ago: another process took the PID.
+cp "$u/.unpack.live/.podrunner-owner" "$u/.unpack.reused/.podrunner-owner"
+python3 -I -c 'import os, sys, time; t = time.time() - 172800; os.utime(sys.argv[1], (t, t))' "$u/.unpack.reused/.podrunner-owner"
 run cut-kill || fail "the run after the cut"
 kill "$live"
 left=$(cd "$u" && find . -maxdepth 1 -name '.unpack.*' | sort | tr '\n' ' ')
 [ "$left" = "./.unpack.fresh ./.unpack.live " ] || fail "after the run: $left (want ./.unpack.fresh ./.unpack.live)"
 [ -f "$u/2.0.0/run.sh" ] && [ ! -e "$u/2.0.0/.podrunner-owner" ] || fail "the run after the cut has no runner"
 grep -q "removed .*/.unpack.old: a run that stopped left it" "$t/out" || fail "the run does not name the removed directory"
+grep -q "removed .*/.unpack.reused: a run that stopped left it" "$t/out" || fail "a PID of a day ago keeps its directory"
 ok "a cut run: INT leaves no .unpack.*; the next run removes the directory of a KILL"
+
+# 11c. Two installers in one HOME (two containers): the end of the second
+# removes none of the files of the first, which waits in its unpack.
+held two
+dl=$t/two/.local/share/podrunner/downloads
+[ -n "$(find "$dl" -name SHA256SUMS)" ] || fail "the first installer has no files of the release (the case tests nothing)"
+run two || fail "a second installer beside a live one"
+[ -n "$(find "$dl" -name SHA256SUMS)" ] || fail "the end of the second installer removed the files of the release of the first"
+python3 -I -c 'import os, signal, sys; os.killpg(int(sys.argv[1]), signal.SIGINT)' "$pid"
+if wait "$pid"; then fail "the first installer cut by INT exited 0"; fi
+[ -z "$(find "$dl" -mindepth 1 -maxdepth 1 -name 'run.*')" ] || fail "the first installer left $(find "$dl" -mindepth 1 -maxdepth 1 -name 'run.*')"
+ok "two installers in one HOME each remove only their own files"
 
 # 12. The scripts pass shellcheck of the pinned version (T-251): the same
 # version in CI and on the host of an agent, never skipped.

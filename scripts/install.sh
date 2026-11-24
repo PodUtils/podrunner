@@ -162,17 +162,19 @@ close_up() { # DIR
 }
 close_up "$bin"
 close_up "$data/bin"
-# A partial file of an earlier run that stopped is never used.
+# A partial file of an earlier run that stopped is never used. Each run
+# writes its own (NAME.part.RUN), and a download writes it the whole time,
+# so a part file that did not change for an hour is of a run that stopped.
 rm -f "$bin/podrunner.part" "$data"/bin/*.part "$downloads"/*.part
+find "$bin" "$data/bin" "$downloads" -maxdepth 1 -name '*.part.*' -mmin +60 -exec rm -f {} + 2> /dev/null || true
 
 # The temporary files of this run go at its end, also at a signal (T-249).
 # A KILL runs no trap: the next run removes what it left (below).
-tmp="" part="" unpacked=0
+tmp="" part="" runtmp=""
 cleanup() {
     [ -z "$tmp" ] || rm -rf "$tmp"
     [ -z "$part" ] || rm -f "$part"
-    rm -rf "$downloads/release"
-    [ "$unpacked" = 0 ] || rm -rf "$downloads/bundle"
+    rm -rf "$runtmp"
 }
 trap cleanup EXIT
 trap 'exit 130' INT
@@ -186,7 +188,11 @@ case $owner in " "* | *" ") owner=unknown ;; esac
 unpack_stale() { # DIR: true when no live run owns DIR
     m=$1/.podrunner-owner
     if [ -f "$m" ] && [ "$owner" != unknown ] && [ "$(sed -n 1p "$m")" = "$owner" ]; then
-        if kill -0 "$(sed -n 2p "$m")" 2> /dev/null; then return 1; fi
+        # A PID that is alive a day after its run started is of another
+        # process that took the PID again.
+        if kill -0 "$(sed -n 2p "$m")" 2> /dev/null && [ -z "$(find "$m" -maxdepth 0 -mmin +1440)" ]; then
+            return 1
+        fi
         return 0
     fi
     # Another boot or namespace, or no owner file: an unpack takes
@@ -194,22 +200,25 @@ unpack_stale() { # DIR: true when no live run owns DIR
     [ -f "$m" ] || m=$1
     [ -n "$(find "$m" -maxdepth 0 -mmin +60)" ]
 }
-for old in "$data"/runner/.unpack.*; do
+for old in "$data"/runner/.unpack.* "$downloads"/run.*; do
     if [ -d "$old" ] && unpack_stale "$old"; then
         rm -rf "$old"
         say "ok      removed $old: a run that stopped left it"
     fi
 done
+# The files of the release and of the bundle of this run: two installers
+# that share a HOME (two containers, where a PID can be the same) each
+# remove only their own.
+runtmp=$(mktemp -d "$downloads/run.XXXXXXXX") || die "cannot make a directory in $downloads"
+printf '%s\n%s\n' "$owner" "$$" > "$runtmp/.podrunner-owner"
 
 if [ -n "$bundle" ] && [ -f "$bundle" ]; then
     # Unpack the archive of a bundle once; a second run unpacks it again.
-    rm -rf "$downloads/bundle"
-    mkdir -p "$downloads/bundle"
-    gzip -dc < "$bundle" | tar -xf - -C "$downloads/bundle" || die "$bundle: not a bundle (.tar.gz)"
-    set -- "$downloads"/bundle/*/PODRUNNER-BUNDLE
+    mkdir -p "$runtmp/bundle"
+    gzip -dc < "$bundle" | tar -xf - -C "$runtmp/bundle" || die "$bundle: not a bundle (.tar.gz)"
+    set -- "$runtmp"/bundle/*/PODRUNNER-BUNDLE
     [ -f "$1" ] || die "$bundle: no PODRUNNER-BUNDLE in it: not a bundle of a release"
     bundle=$(dirname "$1")
-    unpacked=1
 elif [ -n "$bundle" ]; then
     [ -f "$bundle/PODRUNNER-BUNDLE" ] || die "$bundle: no PODRUNNER-BUNDLE in it: not a bundle of a release"
 fi
@@ -249,7 +258,7 @@ fetch() {
 # of that release. A file of the release goes to its place only when
 # SHA256SUMS names its pin and the index names its SHA-256. pod-release
 # (no network) or cosign checks the signature when one is on PATH.
-rel=$downloads/release
+rel=$runtmp/release
 rel_read=0
 release_sums() {
     [ "$rel_read" = 0 ] || return 0
@@ -306,7 +315,7 @@ get() {
         say "ok      $2 (present)"
         return 0
     fi
-    part="$3.part"
+    part="$3.part.${runtmp##*.}"
     rm -f "$part"
     if [ -n "$bundle" ]; then
         [ -f "$bundle/$2" ] || die "$2: not in the bundle $bundle (download it from the release into that directory)"
@@ -362,9 +371,11 @@ if [ -f "$runner_dir/.podrunner-install" ] && [ "$(cat "$runner_dir/.podrunner-i
 else
     tgz="actions-runner-linux-$rarch-$RUNNER_VERSION.tar.gz"
     get runner "$tgz" "$downloads/$tgz"
-    tmp=$data/runner/.unpack.$$
-    rm -rf "$tmp" "$runner_dir"
-    mkdir -p "$tmp"
+    rm -rf "$runner_dir"
+    mkdir -p "$data/runner" || die "cannot make $data/runner"
+    tmp=$(mktemp -d "$data/runner/.unpack.XXXXXXXX") || die "cannot make a directory in $data/runner"
+    # mktemp gives 0700; the runner directory keeps the mode of the umask.
+    chmod "$(printf '%o' $((0777 & ~0$(umask))))" "$tmp" || die "cannot set the mode of $tmp"
     printf '%s\n%s\n' "$owner" "$$" > "$tmp/.podrunner-owner"
     gzip -dc < "$downloads/$tgz" | tar -xf - -C "$tmp" || die "$tgz: the unpack failed"
     printf '%s\n' "$runner_sum" > "$tmp/.podrunner-install"
@@ -403,8 +414,7 @@ else
     load_image image "runner-$arch.tar"
     image=$(pin DIGEST_image) image_bytes=$(pin UNPACKED_image)
 fi
-[ "$unpacked" = 0 ] || rm -rf "$downloads/bundle"
-rm -rf "$rel"
+rm -rf "$runtmp/bundle" "$rel"
 
 # An install for `serve` (T-507): a program (githome's CLI) reads
 # serve.json and runs `podrunner config init`; no file of the local mode.
