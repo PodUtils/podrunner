@@ -147,11 +147,28 @@ impl Slots {
             };
             r.runner_version = self.cfg.pin.payload.iter().find(pinned).and_then(|x| x.runner_version.clone());
         }
-        // A unit with no first step has no `start_s` and no reason: the
-        // schema takes a reason only for a measured field. No `started`
-        // event of the source and no container hook came: a `program`
-        // source with no hook sends none, also for a job that ran its steps
-        // (T-568).
+        // Each absent time of `TIMES` gets the reason of its first absent
+        // end (T-595): githome reads why a time is not there (G-19).
+        let gone = |ms: Option<u64>, why: &'static str| ms.is_none().then_some(why);
+        let claim = gone(j.claimed_ms, "the job was not claimed");
+        let start = gone(j.started_ms, "the unit did not start");
+        // A `program` source with no hook sends no `started` event, also
+        // for a job that ran its steps (T-568).
+        let step = gone(j.first_step_ms, "no first step: no started event of the source and no container hook came");
+        let run_start = gone(j.first_step_ms.or(j.started_ms), "the unit did not start");
+        let end = gone(j.times.ended_ms, "the unit did not end before the report");
+        let destroy = gone(j.times.destroyed_ms, "the unit was not destroyed before the report");
+        for (field, time, why) in [
+            ("claim_to_first_step_s", r.claim_to_first_step_s, claim.or(step)),
+            ("prepare_s", r.prepare_s, claim.or(start)),
+            ("start_s", r.start_s, start.or(step)),
+            ("run_s", r.run_s, run_start.or(end)),
+            ("destroy_s", r.destroy_s, end.or(destroy)),
+        ] {
+            if let (None, Some(why)) = (time, why) {
+                r.unknown_reasons.insert(field.into(), why.into());
+            }
+        }
         r.log_tail = j.times.log_tail.clone();
         if unit_ran {
             let unknown = || Residual::Unknown(podrunner_schema::report::Unknown::Unknown);

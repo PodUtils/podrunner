@@ -68,6 +68,13 @@ fn g05_an_arm64_job_is_not_claimed() {
     bed.until(10, |s| s.jobs().count() == 1 && Bed::all_final(s));
     assert_eq!(bed.slots.reports[0].refusal_code, Some(RefusalCode::ArchMismatch));
     assert!(bed.slots.audit_lines().iter().all(|a| a.audit != crate::audit::Kind::Claim));
+    // No claim: each time is absent, with its reason (T-595).
+    let r = &bed.slots.reports[0];
+    for time in podrunner_schema::report::TIMES {
+        let why = r.unknown_reasons.get(time).map(String::as_str);
+        assert!(why.is_some_and(|w| w.contains("not claimed") || w.contains("did not")), "{time}: {r:?}");
+    }
+    r.check().unwrap();
 }
 
 /// G-08: one withdraw for each job past `wait_deadline_s`; a withdrawn job

@@ -34,10 +34,12 @@ fn a_report_has_its_times_its_image_and_its_measures_or_a_reason() {
     for (name, v) in [("prepare_s", r.prepare_s), ("run_s", r.run_s), ("destroy_s", r.destroy_s)] {
         assert!(v.is_some(), "{name}: {r:?}");
     }
-    // The fake unit runs no job: no first step, so no start_s. The schema
-    // takes a reason only for a measured field.
+    // The fake unit runs no job: no first step, so no start_s, and the
+    // reason says why (T-595, `pod_job::report::TIMES`).
     assert_eq!(r.start_s, None);
-    assert!(!r.unknown_reasons.contains_key("start_s"), "{r:?}");
+    assert!(r.unknown_reasons.get("start_s").is_some_and(|w| w.contains("first step")), "{r:?}");
+    assert_eq!(r.claim_to_first_step_s, None);
+    assert!(r.unknown_reasons.contains_key("claim_to_first_step_s"), "{r:?}");
     // The disk check comes each 30 s of the manual clock; the bed ticks
     // each second, and on a slow host the unit can start a tick late.
     assert!(r.run_s.is_some_and(|s| (30..=32).contains(&s)), "the unit ran 30 s until the disk check: {:?}", r.run_s);
@@ -75,6 +77,18 @@ fn each_measure_or_its_reason(r: &podrunner_schema::RunReport) {
             Some(Residual::Unknown(_)) => assert!(r.unknown_reasons.contains_key(name), "{name} has no reason: {r:?}"),
             None => panic!("{name} is absent: {r:?}"),
         }
+    }
+    // Each absent time has its reason; a present time has none (T-595).
+    let times = [
+        ("claim_to_first_step_s", r.claim_to_first_step_s),
+        ("prepare_s", r.prepare_s),
+        ("start_s", r.start_s),
+        ("run_s", r.run_s),
+        ("destroy_s", r.destroy_s),
+    ];
+    assert_eq!(times.map(|(name, _)| name), podrunner_schema::report::TIMES);
+    for (name, v) in times {
+        assert_eq!(v.is_none(), r.unknown_reasons.contains_key(name), "{name}: {r:?}");
     }
     r.check().unwrap();
 }

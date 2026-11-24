@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `run-report.v1` | Each absent time of `pod_job::report::TIMES` (`claim_to_first_step_s`, `prepare_s`, `start_s`, `run_s`, `destroy_s`) has its reason in `unknown_reasons`: the job was not claimed, the unit did not start, no first step (no `started` event of the source and no container hook), the unit did not end or was not destroyed before the report. A present time has no reason. `run-report.v1` of podcrates `v0.82.1` takes these keys; the schema id stays `v1`. | T-595 |
 | command line | `print-unit`, `install-unit`: a `--config` or `--state` under a directory of `mktemp -d` (`/tmp/tmp.Ab3dEf9kQ2/...`) or under a dot directory with a random name is no secret (exit 0, was 64), with `pod-unit` of podcrates `v0.82.1`. `print-unit --system` keeps `RemoveIPC=yes` in force for its account. | T-602, T-619 |
 | release assets | `release.yml` checks and verifies the assets with `pod-release` of podcrates `v0.82.1`; the gate runs `source-conformance` against `pod-fake-githome` of `v0.82.1` (`ghcr.io/podutils/pod-fake-githome:v0.82.1`). | T-619 |
 | source wire | `trust_inputs.head_is_fork`: for an event that is not a pull request (`workflow_run`, `issue_comment`, `repository_dispatch`, `release`) the head is the repository of the run, so the value is `no`; the contract says so, and residual R9 names the consequence (T-518) | T-518 |
