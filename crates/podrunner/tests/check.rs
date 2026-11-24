@@ -54,8 +54,11 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
     // A podvm that answers its version, as `check` and `serve` ask it (#262).
     let fake = |name: &str, version: &str| {
         let f = d.join(name);
-        std::fs::write(&f, format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n")).unwrap();
-        std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o755)).unwrap();
+        podrunner_unit::program_file::write(
+            &f,
+            format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n"),
+        )
+        .unwrap();
         f.display().to_string()
     };
     let (podvm, old) = (fake("podvm", "0.2.0-beta.21"), fake("podvm-old", "0.1.0-beta.12"));
@@ -251,11 +254,13 @@ fn check_reads_a_mint_file_as_the_mint_does() {
 /// root size or of another architecture.
 #[test]
 fn a_pin_over_the_root_disk_of_the_incus_kind_is_refused() {
-    use std::os::unix::fs::PermissionsExt;
     let d = dir("disk");
     let podvm = d.join("podvm");
-    std::fs::write(&podvm, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.36\",\"rung\":\"userland\"}'\n").unwrap();
-    std::fs::set_permissions(&podvm, std::fs::Permissions::from_mode(0o755)).unwrap();
+    podrunner_unit::program_file::write(
+        &podvm,
+        "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.36\",\"rung\":\"userland\"}'\n",
+    )
+    .unwrap();
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
     let here = std::env::consts::ARCH;
     let other = if here == "x86_64" { "aarch64" } else { "x86_64" };
@@ -312,11 +317,13 @@ fn a_pin_over_the_root_disk_of_the_incus_kind_is_refused() {
 /// 2055 MiB boots at 6656 MiB, and the rule needs 8G for it.
 #[test]
 fn a_pin_over_the_memory_of_a_microvm_guest_is_refused() {
-    use std::os::unix::fs::PermissionsExt;
     let d = dir("mem");
     let podvm = d.join("podvm");
-    std::fs::write(&podvm, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.36\",\"rung\":\"userland\"}'\n").unwrap();
-    std::fs::set_permissions(&podvm, std::fs::Permissions::from_mode(0o755)).unwrap();
+    podrunner_unit::program_file::write(
+        &podvm,
+        "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.36\",\"rung\":\"userland\"}'\n",
+    )
+    .unwrap();
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
     let here = std::env::consts::ARCH;
     let other = if here == "x86_64" { "aarch64" } else { "x86_64" };

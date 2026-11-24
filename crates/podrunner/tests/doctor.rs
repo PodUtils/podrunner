@@ -126,12 +126,14 @@ fn doctor_names_the_runner_of_each_pin_and_its_age() {
 /// trusted source is not served.
 #[test]
 fn doctor_runs_the_self_test_of_the_confine_layer() {
-    use std::os::unix::fs::PermissionsExt;
     let dir = Scratch::new("doctor-confine");
     std::fs::create_dir_all(dir.join("store")).unwrap();
     let podvm = dir.join("podvm");
-    std::fs::write(&podvm, "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.36\", \"rung\": \"namespace\"}'\n").unwrap();
-    std::fs::set_permissions(&podvm, std::fs::Permissions::from_mode(0o755)).unwrap();
+    podrunner_unit::program_file::write(
+        &podvm,
+        "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.36\", \"rung\": \"namespace\"}'\n",
+    )
+    .unwrap();
     let config = format!(
         "host = \"h\"\nallow_fake = true\n[[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"trusted\"\narch = \"{arch}\"\n\
          [unit.podvm]\nslots = 1\nbinary = \"{podvm}\"\nimages = \"{store}\"\nconfine = true\n\
@@ -210,9 +212,8 @@ fn the_host_route_is_not_refused_under_a_limit_of_file_size() {
 
 /// A stand-in podvm in `dir` whose store holds IMAGE of `size` bytes.
 fn podvm_of_size(dir: &std::path::Path, size: u64) -> String {
-    use std::os::unix::fs::PermissionsExt;
     let p = dir.join("podvm");
-    std::fs::write(
+    podrunner_unit::program_file::write(
         &p,
         format!(
             "#!/bin/sh\ncase \"$1\" in probe) echo '{{\"podvm\":\"0.2.0-beta.39\",\"rung\":\"userland\"}}';; \
@@ -220,7 +221,6 @@ fn podvm_of_size(dir: &std::path::Path, size: u64) -> String {
         ),
     )
     .unwrap();
-    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
     std::fs::create_dir_all(dir.join("store")).unwrap();
     p.display().to_string()
 }

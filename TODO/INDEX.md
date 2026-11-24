@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**641 entries: 79 open, 60 partial, 14 blocked, 488 done.**
+**641 entries: 78 open, 60 partial, 14 blocked, 489 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 2 | 92 | 120 |
 | P2 | 16 | 23 | 8 | 255 | 302 |
-| P3 | 62 | 11 | 4 | 139 | 216 |
-| **All** | 79 | 60 | 14 | 488 | 641 |
+| P3 | 61 | 11 | 4 | 140 | 216 |
+| **All** | 78 | 60 | 14 | 489 | 641 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -688,4 +688,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-643](later.md) | P3 | S | later | defect | open | The local checkout names the keys of `with:` that the stand-in does not take |
 | [T-644](later.md) | P2 | S | later | chore | open | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
 | [T-645](later.md) | P3 | S | later | chore | open | The man page of the model under groff and mandoc, and in the assets of a release |
-| [T-646](later.md) | P3 | M | later | defect | open | Tests that write a program and start it while other tests fork |
+| [T-646](later.md) | P3 | M | later | defect | done | Tests that write a program and start it while other tests fork |

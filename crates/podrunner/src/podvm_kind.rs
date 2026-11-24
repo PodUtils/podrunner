@@ -210,12 +210,14 @@ mod tests {
     /// not a host fail `check`, not the start of a job.
     #[test]
     fn the_fields_of_a_podvm_unit_are_checked() {
-        use std::os::unix::fs::PermissionsExt;
         // A podvm that answers its version (`plan` asks it, #262).
         let dir = crate::scratch::Scratch::new("podvm-plan");
         let fake = dir.join("podvm");
-        std::fs::write(&fake, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.21\",\"rung\":\"userland\"}'\n").unwrap();
-        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+        podrunner_unit::program_file::write(
+            &fake,
+            "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.21\",\"rung\":\"userland\"}'\n",
+        )
+        .unwrap();
         let plan = |extra: &str| {
             let cfg = podrunner_slots::config::Config::parse(&format!(
                 "host = \"h\"\n[unit.podvm]\nslots = 1\nbinary = \"{}\"\nimages = \"/\"\n{extra}\n[pin]\n",

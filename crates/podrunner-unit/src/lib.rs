@@ -13,6 +13,7 @@ pub mod limits;
 mod log;
 pub mod mounts;
 pub mod procs;
+pub mod program_file;
 pub mod shim;
 pub mod signal;
 mod stub;

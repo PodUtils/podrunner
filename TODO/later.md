@@ -16255,7 +16255,7 @@ From the work of T-627: `pod-manual` of podcrates `v0.82.1` has `PodUtils/podcra
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16274,3 +16274,7 @@ I reproduced the mechanism with a stand-alone program (a thread that writes and 
 ## Prove
 
 `for i in $(seq 50); do cargo test -p podrunner --lib || break; done` and the same for each integration binary changed, then `cargo todo check`.
+
+## Done
+
+2026-11-24, the commit that names T-646. The cause: a fork in another thread copies each descriptor of the process, also one with `O_CLOEXEC`, and the child holds the write descriptor of the script until its own exec. A temp file, a sync, a close and a rename in the process do not close the window: the copy holds the inode, not the name. `crates/podrunner-unit/src/program_file.rs` (`podrunner_unit::program_file::write`) opens the write descriptor only in a forked child that forks nothing: the child creates a new temp file (`O_EXCL`), sets the mode 0755 with `fchmod`, writes, syncs and closes it; the parent reaps the child and renames the file into place (a link at the path is replaced, not followed). Each site of the Problem uses it (18 writes in `crates/podrunner/src/doctor/tests.rs`, `src/run_local/flags_tests.rs`, `src/podvm_kind.rs`, `src/microvm_kind.rs`, `src/serve/host.rs`, `src/program_source.rs`, `tests/kvm_kind.rs`, `tests/serve_incus.rs`, `tests/config_init.rs`, `tests/run_signal.rs`, `tests/doctor.rs`, `tests/check.rs`), and so do the two writes of the relay of the hooks in the product (`crates/podrunner/src/hooks/mod.rs` and `crates/podrunner-local/src/exec/hooks.rs`). The product does not start the relay itself (the runner does), so no try again on ETXTBSY is necessary. The proof: `program_file::tests::a_program_written_while_threads_fork_starts_each_time` writes and starts 1000 scripts while three threads fork `true`. With `std::fs::write` and a chmod, 13 to 24 of 1000 starts failed with ETXTBSY (4 runs); with a write, a sync and a rename in the process, 130 to 160 of 1000 failed (4 runs); with the helper, 0 of 1000 in 50 runs. Two more tests: the mode 0755 over an old file at 0600, a link at the path, an empty program, no temp file left; a missing directory, a directory at the path, a path with no file name and a read-only directory are refused and leave nothing. Loops: `cargo test -p podrunner --lib` 50 of 50 passed; `cargo test -p podrunner --test check --test config_init --test doctor --test kvm_kind --test run_signal --test serve_incus` 20 of 20 passed; `cargo test -p podrunner-unit --lib` and `cargo test -p podrunner-local --lib hooks` 20 of 20 passed. Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR` (833 passed, 0 failed, 64 ignored; TMPDIR empty after), `cargo todo check`. Level: proven on this host in the test suites; not run on GitHub-hosted runners.

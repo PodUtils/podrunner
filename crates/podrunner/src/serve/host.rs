@@ -73,8 +73,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("podrunner-host-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let bin = dir.join("podnet");
-        std::fs::write(&bin, "#!/bin/sh\necho 'podnet 9.8.7 (abc)'\n").unwrap();
-        std::fs::set_permissions(&bin, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        podrunner_unit::program_file::write(&bin, "#!/bin/sh\necho 'podnet 9.8.7 (abc)'\n").unwrap();
         assert_eq!(podnet_version(&bin).as_deref(), Some("9.8.7"));
         assert_eq!(podnet_version(&dir.join("none")), None);
         std::fs::remove_dir_all(&dir).unwrap();

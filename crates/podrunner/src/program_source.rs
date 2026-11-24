@@ -207,14 +207,12 @@ mod tests {
     /// limit, and leaves no process and no thread that waits on it.
     #[test]
     fn a_program_that_never_answers_leaves_no_process() {
-        use std::os::unix::fs::PermissionsExt;
         // A script, as a program of a user often is: its process is the
         // interpreter, and it has a child (#258, the review).
         let dir = std::env::temp_dir().join(format!("podrunner-conformance-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let script = dir.join("never");
-        std::fs::write(&script, "#!/bin/sh\nsleep 307\n").unwrap();
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        podrunner_unit::program_file::write(&script, "#!/bin/sh\nsleep 307\n").unwrap();
         let args = ["--".to_string(), script.display().to_string()];
         let (text, passed) = super::source_conformance_in(&args, std::time::Duration::from_millis(500), false).unwrap();
         assert!(!passed && text.contains("FAIL"), "{text}");

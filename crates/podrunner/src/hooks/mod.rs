@@ -21,14 +21,14 @@ impl podrunner_slots::hooks::HookPort for HooksOf {
         guest: Option<&str>,
         ca: Option<podrunner_slots::hooks::ContainerCa<'_>>,
     ) -> Result<std::collections::BTreeMap<String, String>, String> {
-        use std::os::unix::fs::PermissionsExt;
         let policy = self.policies.get(kind).cloned().ok_or("no hook policy of this kind")?;
         let dir = socket.parent().ok_or("a socket with no directory")?;
         let relay = dir.join("podrunner-hook.sh");
         let io = |what: &str, e: std::io::Error| format!("{what}: {}", e);
         std::fs::create_dir_all(dir).map_err(|e| io("the socket directory", e))?;
-        std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| io("the relay", e))?;
-        std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755)).map_err(|e| io("the relay", e))?;
+        // A fork of another thread must not hold the relay open for write
+        // when the runner starts it (T-646).
+        podrunner_unit::program_file::write(&relay, podrunner_hook::RELAY).map_err(|e| io("the relay", e))?;
         // The output of the steps and the CA bundle of the containers stay
         // out of the directory that the unit sees.
         let logs = dir.with_extension("logs");

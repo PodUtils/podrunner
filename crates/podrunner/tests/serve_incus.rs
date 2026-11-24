@@ -15,8 +15,11 @@ fn serve_with_no_incusd_runs_no_incus_kind() {
     std::fs::create_dir_all(dir.join("store")).unwrap();
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
     let podvm = dir.join("podvm");
-    std::fs::write(&podvm, "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.32\", \"rung\": \"namespace\"}'\n").unwrap();
-    std::fs::set_permissions(&podvm, std::fs::Permissions::from_mode(0o755)).unwrap();
+    podrunner_unit::program_file::write(
+        &podvm,
+        "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.32\", \"rung\": \"namespace\"}'\n",
+    )
+    .unwrap();
     std::fs::write(dir.join("script"), "").unwrap();
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 100;
     let config = format!(

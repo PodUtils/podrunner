@@ -10,12 +10,10 @@ mod scratch;
 
 #[test]
 fn a_second_signal_says_that_the_stop_goes_on() {
-    use std::os::unix::fs::PermissionsExt;
     let dir = Scratch::new("run-signal");
     // A runner that never reaches its broker: the job runs until the cancel.
     std::fs::create_dir_all(dir.join("r/bin")).unwrap();
-    std::fs::write(dir.join("r/run.sh"), "#!/bin/sh\nexec sleep 30\n").unwrap();
-    std::fs::set_permissions(dir.join("r/run.sh"), std::fs::Permissions::from_mode(0o755)).unwrap();
+    podrunner_unit::program_file::write(dir.join("r/run.sh"), "#!/bin/sh\nexec sleep 30\n").unwrap();
     std::fs::write(dir.join("r/bin/Runner.Listener"), "").unwrap();
     std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: sleep 30\n")
         .unwrap();

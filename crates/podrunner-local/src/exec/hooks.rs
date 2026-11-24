@@ -77,7 +77,6 @@ impl InUnit {
         ca: Option<&str>,
     ) -> Result<Hooks, String> {
         use podrunner_hook::server::{Unit, bind, serve_until};
-        use std::os::unix::fs::PermissionsExt;
         // The socket volume alone is not enough: podvm on the namespace
         // rung has it, and no container step (T-564, T-532).
         let routed = self.driver.probe().is_ok_and(|c| c.container == podrunner_schema::ContainerRoute::Hooks);
@@ -86,9 +85,9 @@ impl InUnit {
         };
         let dir = dir.to_path_buf();
         let relay = dir.join("podrunner-hook.sh");
-        std::fs::write(&relay, podrunner_hook::RELAY).map_err(|e| format!("the relay: {e}"))?;
-        std::fs::set_permissions(&relay, std::fs::Permissions::from_mode(0o755))
-            .map_err(|e| format!("the relay: {e}"))?;
+        // A fork of another thread must not hold the relay open for write
+        // when the runner starts it (T-646).
+        podrunner_unit::program_file::write(&relay, podrunner_hook::RELAY).map_err(|e| format!("the relay: {e}"))?;
         // The logs of the steps stay out of the socket directory, which the
         // unit writes: a link there would make the host write a file of the
         // user (T-404), as `serve` keeps them.

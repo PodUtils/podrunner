@@ -11,8 +11,11 @@ const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 /// A stand-in of podvm: `probe --json` names a version and a rung.
 fn podvm(dir: &Path) -> PathBuf {
     let p = dir.join("podvm");
-    std::fs::write(&p, "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.32\", \"rung\": \"namespace\"}'\n").unwrap();
-    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    podrunner_unit::program_file::write(
+        &p,
+        "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.32\", \"rung\": \"namespace\"}'\n",
+    )
+    .unwrap();
     p
 }
 
@@ -99,8 +102,7 @@ fn a_trusted_podvm_kind_needs_a_proven_confine_layer() {
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
     let podnet = dir.join("podnet");
     let doctor = r#"{"netns":{"level":"enforced"},"seccomp":{"level":"advisory"}}"#;
-    std::fs::write(&podnet, format!("#!/bin/sh\necho '{doctor}'\n")).unwrap();
-    std::fs::set_permissions(&podnet, std::fs::Permissions::from_mode(0o755)).unwrap();
+    podrunner_unit::program_file::write(&podnet, format!("#!/bin/sh\necho '{doctor}'\n")).unwrap();
     let out = dir.join("podrunner.toml");
     let o = init(&dir, "podvm", &out, &["--podnet", podnet.to_str().unwrap()]);
     let err = String::from_utf8_lossy(&o.stderr);

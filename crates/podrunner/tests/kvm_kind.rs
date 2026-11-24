@@ -31,8 +31,7 @@ fn podvm(dir: &Path) -> String {
          echo '{{\"podvm\": \"0.2.0-beta.36\", \"rung\": \"namespace\"}}'\n",
         dir.join("verbs").display()
     );
-    std::fs::write(&p, script).unwrap();
-    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    podrunner_unit::program_file::write(&p, script).unwrap();
     p.display().to_string()
 }
 

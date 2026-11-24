@@ -192,15 +192,13 @@ fn a_missing_file_of_a_flag_names_the_flag() {
 /// names the egress hold of the run.
 #[test]
 fn doctor_checks_the_image_of_the_store_and_names_the_hold() {
-    use std::os::unix::fs::PermissionsExt;
     let (dir, w) = workflow("image", "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n");
     let podvm = dir.join("podvm");
-    std::fs::write(
+    podrunner_unit::program_file::write(
         &podvm,
         "#!/bin/sh\ncase \"$1\" in probe) echo '{\"podvm\":\"0.2.0-beta.22\",\"rung\":\"userland\"}';; inspect) [ \"$2\" = have@sha256:0000000000000000000000000000000000000000000000000000000000000000 ];; esac\n",
     )
     .unwrap();
-    std::fs::set_permissions(&podvm, std::fs::Permissions::from_mode(0o755)).unwrap();
     let store = dir.join("store");
     std::fs::create_dir_all(&store).unwrap();
     let (p, s) = (podvm.display().to_string(), store.display().to_string());

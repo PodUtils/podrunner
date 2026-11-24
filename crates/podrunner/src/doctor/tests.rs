@@ -66,12 +66,14 @@ fn a_missing_tool_is_named() {
 /// T-113: the guest kinds give their record through their probe.
 #[test]
 fn doctor_knows_the_microvm_and_incus_kinds() {
-    use std::os::unix::fs::PermissionsExt;
     let dir = crate::scratch::Scratch::new("doctor-guest");
     // A fake podvm whose probe names a version that each kind takes.
     let fake = dir.join("podvm");
-    std::fs::write(&fake, "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.14\",\"rung\":\"userland\"}'\n").unwrap();
-    std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+    podrunner_unit::program_file::write(
+        &fake,
+        "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.14\",\"rung\":\"userland\"}'\n",
+    )
+    .unwrap();
     let u = |extra: &str| -> podrunner_slots::config::UnitConfig {
         toml::from_str(&format!("slots = 1\nbinary = \"{}\"\nimages = \"{}\"\n{extra}", fake.display(), dir.display()))
             .unwrap()
@@ -95,12 +97,11 @@ fn doctor_knows_the_microvm_and_incus_kinds() {
     // T-181: the podvm kind with podnet gives the hold of `podnet pod
     // doctor`, as `serve` does; with none, `unknown`.
     let podnet = dir.join("podnet");
-    std::fs::write(
+    podrunner_unit::program_file::write(
         &podnet,
         "#!/bin/sh\necho '{\"seccomp\":{\"level\":\"advisory\"},\"netns\":{\"level\":\"none\"}}'\n",
     )
     .unwrap();
-    std::fs::set_permissions(&podnet, std::fs::Permissions::from_mode(0o755)).unwrap();
     let held = capability("podvm", &u(&format!("podnet = \"{}\"", podnet.display()))).unwrap();
     assert_eq!(held.egress_hold, podrunner_schema::EgressHold::Advisory);
     assert_eq!(capability("podvm", &u("")).unwrap().egress_hold, podrunner_schema::EgressHold::Unknown);

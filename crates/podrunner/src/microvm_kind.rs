@@ -147,7 +147,6 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
 
 #[cfg(test)]
 mod tests {
-    use std::os::unix::fs::PermissionsExt;
 
     /// T-573: podvm's curve (COORD-219, experiment 470): each initrd in MiB,
     /// the guest memory in MiB where it does not boot, the memory where it
@@ -194,9 +193,11 @@ mod tests {
         std::fs::write(engine.join("dockerd"), "").unwrap();
         let fake = dir.join("podvm");
         let unit = |version: &str, with_engine: bool| -> podrunner_slots::config::UnitConfig {
-            std::fs::write(&fake, format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n"))
-                .unwrap();
-            std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+            podrunner_unit::program_file::write(
+                &fake,
+                format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n"),
+            )
+            .unwrap();
             let e = if with_engine { format!("engine = \"{}\"\n", engine.display()) } else { String::new() };
             toml::from_str(&format!("slots = 1\nbinary = \"{}\"\nimages = \"{}\"\n{e}", fake.display(), dir.display()))
                 .unwrap()
@@ -216,9 +217,11 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let fake = dir.join("podvm");
         let unit = |version: &str| -> podrunner_slots::config::UnitConfig {
-            std::fs::write(&fake, format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n"))
-                .unwrap();
-            std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+            podrunner_unit::program_file::write(
+                &fake,
+                format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n"),
+            )
+            .unwrap();
             let text = format!(
                 "slots = 1\nbinary = \"{}\"\nimages = \"{}\"\ninit = \"image\"\n",
                 fake.display(),
