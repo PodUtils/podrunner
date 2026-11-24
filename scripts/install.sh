@@ -181,9 +181,11 @@ trap 'exit 129' HUP
 # The owner of an unpack directory: the boot and the PID namespace of this
 # run, then its PID. A PID means a process only in its own namespace.
 owner="$(cat /proc/sys/kernel/random/boot_id 2> /dev/null || true) $(readlink /proc/self/ns/pid 2> /dev/null || true)"
+# With no boot id or no namespace, a PID tells nothing: only the age holds.
+case $owner in " "* | *" ") owner=unknown ;; esac
 unpack_stale() { # DIR: true when no live run owns DIR
     m=$1/.podrunner-owner
-    if [ -f "$m" ] && [ "$owner" != " " ] && [ "$(sed -n 1p "$m")" = "$owner" ]; then
+    if [ -f "$m" ] && [ "$owner" != unknown ] && [ "$(sed -n 1p "$m")" = "$owner" ]; then
         if kill -0 "$(sed -n 2p "$m")" 2> /dev/null; then return 1; fi
         return 0
     fi
