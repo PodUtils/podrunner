@@ -3988,6 +3988,8 @@ State (2026-11-16, round 3): two agents with a fresh context, as `qa1` and `qa2`
 
 State (2026-11-24, since 2026-11-17): rounds 4 and 5 (`docs/HANDOFF.md`, "The release of `v0.1.0-beta.7`"). Round 4: agent B found T-318 to T-323 and T-203 (each P1 and P2 done); agent A (user `qa3`) stopped before its report and gave no findings, so round 4 had one agent. Round 5 ran on the files of user-gate 44025228142 (`a238f8d`, podvm `v0.2.0-beta.30`), with the users `qa6` and `qa7` with no root and the kit `/srv/qa-kit` (the files of a user-gate run, podvm from its release, the documents, `env.sh` with the proxy and the CA of the host): agent 1 found no P1 and seven P2 (each done; P3: T-331), agent 2 found no P1 and six P2 (each done; P3: T-339); T-324 to T-338 are the P2 of the round (T-326 by a call: no compiler in the base image). `v0.1.0-beta.7` was released on 2026-11-17 (release run 44066276664 on `129310e`); the online quick start from the release URL passed as `qa6`. A user QA of beta.7 after the release gave T-340 to T-393. The user-gate run 45276522625 on `f694571` is green in all nine lanes. Open: QA round 6 for `v0.1.0-beta.8` with two blind agents, on the kit of a `user-gate.yml` run before the release URL exists (`docs/qa-brief.md`, "A round before the release URL exists"); each P1 and P2 of it blocks the release. Level: proven on a constrained host as a user for rounds 1 to 5; round 6 is not run.
 
+State (2026-11-24, round 6): round 6 ran on the candidate `0.1.0-beta.8` (user-gate run 45354505741 on `21aa8c4`). Agent A (user `qa8`): no P1 and seven P2: P2-1 is in T-249 (State line), P2-2 is T-627, P2-3 is T-628, P2-4 is T-629, P2-5 is T-630, P2-6 is T-631 and P2-7 is T-632. The P3 entries are T-633 (installer), T-634 (the flags of `run`), T-635 (`check`, `config init`, `doctor`) and T-636 (signals); the areas that the round did not test are T-637. Agent B has not reported. Each P2 blocks the release. Level: proven on a constrained host as a user.
+
 
 # T-247: The notes of a release name the level of the proof of each claim
 
@@ -4047,6 +4049,9 @@ The ruling "Discipline" (`docs/decisions.md`, 2026-11-15). Take `pod-manual` whe
 
 2026-11-15: podcrates: `pod-manual` in the first tag after part 1 of `pod-lab` (PodUtils/podcrates#181), with the needs of COORD-062 (GitHub #181).
 
+State (2026-11-24, QA round 6, agent A): `podrunner man` does not exist in `0.1.0-beta.8`, and the synopses of `--help` differ from `docs/cli.md`. T-627 gives the verb and the check of the help from the hand-written table now, as a release blocker; this entry replaces the source with `pod-manual` later.
+
+
 # T-249: The installer on each host class, and the shared core of podcrates
 
 **Source:** the ruling "Installer" of the owner (2026-11-15, PodUtils/podcrates#182); COORD-064 (GitHub #183)
@@ -4074,6 +4079,9 @@ The ruling "Installer" (`docs/decisions.md`): one POSIX installer for each proje
 ## Prove
 
 `sh scripts/test-install.sh` runs each shell and the cut run; `user-gate.yml` (T-243) runs the installer in each lab with a limit of time.
+
+State (2026-11-24, QA round 6, agent A, P2-1, a release blocker of beta.8): an interrupted install (INT, TERM or KILL) leaves `~/.local/share/podrunner/runner/.unpack.PID` directories of 36 to 635 MB each. No later run removes them. `scripts/install.sh` has no `trap` (the unpack in `tmp=$data/runner/.unpack.$$`), and `docs/install.md` says: "A partial or wrong download fails ... and leaves no file in place". Approach: add a `trap` for EXIT, INT, TERM and HUP that removes the temporary directories and files of the run, and at start remove each `.unpack.*` directory whose PID is not alive. Prove: a case of `scripts/test-install.sh` that sends TERM in the middle of the unpack and then checks that no `.unpack.*` stays, and that a stale directory of a dead PID goes at the next run. It fails before the change.
+
 
 # T-250: The state of each issue comes from the record by a tool
 
@@ -15579,3 +15587,351 @@ Give `release.yml` the input `images_run`, with the rules of `user-gate.yml`: a 
 ## Prove
 
 `actionlint .github/workflows/release.yml .github/workflows/user-gate.yml` passes; a test in `scripts/test-install.sh` runs the shared script of the rule with a fake `gh` and a repository of two commits: it accepts an older run when only a file outside `images/` changed, and it refuses when `images/runner/runner.toml` changed; a dry run of `release.yml` on a docs-only commit with `-f images_run=RUN` reports the images of RUN.
+
+
+# T-627: `podrunner man` does not exist, and the help of `run` and `config init` lacks flags that `docs/cli.md` lists
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podrunner man --no-pager` prints "an unknown command 'man'" and exits 64. The ruling of 2026-11-15 (T-248) needs `podrunner man` with `--no-pager` and `--json`, and a help from one model. T-248 is blocked on `pod-manual` of podcrates, so a release has neither the manual nor a check of the help.
+
+The help also differs from `docs/cli.md`:
+
+- The synopsis of `run` in the top-level `--help` lacks `--vnet`, the form `--incus PATH [--engine DIR]` and the choice `--podnet|--vnet`. `podrunner run --help` has the flags, and they equal the row of `docs/cli.md`.
+- `podrunner config init --help` omits `--arg`, `--key-file`, `--tier`, `--org`, `--user`, `--podnet`, `--runner-version`, `--unpacked-bytes`, `--slots`, `--kinds`, `--host` and `--json`. `docs/cli.md` lists them.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+1. Add `podrunner man` now, from the hand-written help of `crates/podrunner/src/help.rs`, with `--no-pager` and `--json`. T-248 replaces the source of the text later with `pod-manual`; the verb and its output keep their form.
+2. Give the usage of each command one table of options (the table that `crates/podrunner/src/run_local/args.rs` parses). Build the synopsis in the top-level help, `run --help`, `config init --help` and `podrunner man` from that table, so that a flag cannot be in the parser and not in the help.
+3. Add a test that reads the options of the row of each command in `docs/cli.md` and fails when `--help` of that command lacks one of them.
+
+## Prove
+
+`cargo test -p podrunner --lib help` with a new test that compares the flags of `docs/cli.md` with `--help` of `run` and `config init` (it fails before the change: `--vnet`, `--arg`, `--key-file` and others are missing). `cargo run -q -p podrunner -- man --no-pager` exits 0 and prints the page; with `--json` it prints JSON.
+
+
+# T-628: `podrunner image verify --arch x64` is refused, and the error lists no valid value
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner image verify --tarball FILE --arch x64` (and `arm64`) fails with `no pin for the architecture "x64"` and exit 78. `docs/cli.md` says ARCH is `x64` or `arm64`. Only `x86_64` and `aarch64` work, and the error lists no valid value. T-344 (done) says that the error "says when the file is a runner image". That does not hold: `--tarball runner-x86_64.tar --arch x86_64` says only that the SHA-256 differs.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+1. In `crates/podrunner/src/image.rs`, fn `verify`: accept `x64` and `x86_64`, `arm64` and `aarch64`, with one mapping, and list the valid values in the error ("no pin for the architecture ...; use x64 or arm64").
+2. Say in the SHA-256 error when the file is a runner image: the name matches `runner-ARCH.tar`, or the file is an uncompressed tar with `manifest.json` or `oci-layout` (not a gzip file). Give the fix: check it with `sha256sum -c` and its `.sha256` file.
+3. Make `docs/cli.md` and the code name the same values.
+
+## Prove
+
+`cargo test -p podrunner --lib image` with new tests: `verify` with `x64` and `arm64` reaches the SHA-256 check; an unknown arch names the valid values; an uncompressed tar named `runner-x86_64.tar` gets the message "a runner image". Each test fails before the change.
+
+
+# T-629: `config init` and `doctor --config` offer the microvm kind on a host with no KVM
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On a host with no `/dev/kvm`:
+
+`podrunner config init --source local --program /bin/true --podvm ... --images ... --image runner@sha256:d0f1... --built-at-s 1795503727 --out ci.toml --json` prints `{"kinds":["microvm","podvm"],"refused":[incus ...]}`, writes `[unit.microvm]` and exits 0. With `--kinds microvm`, `refused` is empty. `podrunner doctor --config ci.toml` shows `kvm: no`, and also `kind microvm: boundary guest, hold enforced` and `source local: served`. `docs/cli.md` says that the kinds are those "that this host can run (the probe of doctor)". The error comes only at `serve`, after about 30 s (`no-tier-served`), and after podvm tried to fetch QEMU into `~/.local/share/podvm/tools`.
+
+Related: `podrunner stop --wait --state DIR --timeout 20` before the socket of `serve` exists prints "serve did not end in time: a job is not final" and exits 75, but no job exists.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+1. Make the probe of `crates/podrunner/src/doctor.rs` (the `/dev/kvm` open, the `capability` of `microvm`) and `config init` (`crates/podrunner/src/config_init.rs`, the list `KINDS`) share one function. A kind that the probe cannot run goes to `refused` with its reason ("no /dev/kvm"), and `--kinds microvm` on such a host exits 78.
+2. `doctor --config` and `check` mark a kind that the probe refuses, and a source that only that kind serves is not "served" (`crates/podrunner/src/tiers.rs`, fn `served`, takes the probe into account).
+3. Probe before any fetch: no QEMU download when the probe of KVM fails.
+4. `stop --wait` with no live socket and no job in the state directory exits 0 and says "no serve runs".
+
+## Prove
+
+`cargo test -p podrunner --test config_init` with a test whose host has no KVM (the probe is a seam): the `microvm` kind is in `refused`, and `--kinds microvm` exits 78. `cargo test -p podrunner --test doctor` with a test: `doctor --config` marks `microvm` as not runnable. Each fails before the change.
+
+
+# T-630: A corrupt or truncated tar in the image cache fails each later `run`, and no message names the file
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A corrupt or truncated `~/.cache/podrunner/image-tars/DIGEST.tar` (307 MB, not documented) makes each later `podrunner run` fail: `unit-start-failed: podvm load: exit 1: ... digest mismatch`, or "does not unpack: unexpected EOF", exit 1. No fix is named. `podrunner doctor --run` says `ok image`. Only `rm` of the file fixes it.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+1. In `crates/podrunner-podvm/src/unit/cache.rs` and the load step of the unit: when `podvm load` fails on a tar of the cache with a digest or unpack error, remove that tar, save the image again and load once more. If it fails again, name the file and the fix.
+2. Write the tar under a temporary name and rename it only after the save ends (the rename exists; check it covers a cut by a signal and a full disk).
+3. `doctor --run` checks the size of each tar of the cache against the image (or reads its digest) and says which file is bad.
+4. Document the cache directory and its pruning in `docs/cli.md` and `docs/local-mode.md`.
+
+## Prove
+
+`cargo test -p podrunner-podvm --lib unit::cache` with a test: a truncated tar in the cache, a fake `podvm` whose `load` fails on it, and the run saves the image again and ends `ok`. It fails before the change. A test of `doctor --run` with a truncated tar names the file.
+
+
+# T-631: `run --changed-since` passes a ref that starts with `-` to git as an option
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner run ci.yml --changed-since '--output=/home/qa8/w/INJECT' --dry-run` exits 0 and creates or truncates the file `INJECT`. `-p` is also accepted. The value goes to `git diff --name-only` with no `--end-of-options`. `--remote '--upload-pack=x'` is refused correctly.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+1. In `crates/podrunner/src/run_local/args.rs` (the arm of `--changed-since`) refuse a value that starts with `-` with exit 64 and the flag name.
+2. In `crates/podrunner/src/run_local/context.rs`, fn `changed`: pass `--end-of-options` before the ref (`git diff --name-only --end-of-options REF --`) as a second guard. Check the other `git` calls of the file for a value of the user that can start with `-` (`--ref`, `--sha`, `--checkout`).
+
+## Prove
+
+`cargo test -p podrunner --lib run_local` with a test: `--changed-since --output=FILE` exits 64 and creates no file. It fails before the change.
+
+
+# T-632: A small `ulimit -f` ends a podvm unit with an empty cause, and `run` names neither the limit nor the fix
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`ulimit -f 100000; podrunner run hello.yml` prints `failure hello: start u-1: unit-start-failed: podvm load: exit -1: ` (the cause is empty) and exits 1. `podrunner doctor --run` says `FAIL file-size-limit ... fix: ulimit -f unlimited`. `run --dry-run` says "planned" and exits 0. `docs/cli.md` says that a SIGXFSZ "fails its job by name (T-144)". T-144 (done) names it only for the host driver (`crates/podrunner-local/src/exec/host.rs`); the podvm path does not.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+1. In the podvm unit (`crates/podrunner-podvm/src/unit/`), when a child of `podvm` ends by a signal, give the signal in the cause, and for SIGXFSZ give "a limit of file size (ulimit -f) is too small; fix: ulimit -f unlimited", as `signal_reason` does in `crates/podrunner-local/src/exec/host.rs`. Put the one function in a shared place.
+2. `run` runs the check `file_size_limit` of `crates/podrunner/src/run_local/doctor.rs` before it starts a unit and refuses with exit 78 and the fix. `--dry-run` reports the same refusal.
+
+## Prove
+
+`cargo test -p podrunner-podvm --lib` with a test: a fake `podvm` that ends by SIGXFSZ gives a cause that names SIGXFSZ and `ulimit -f`. `cargo test -p podrunner --test local` with a test: `RLIMIT_FSIZE` set small makes `run --dry-run` exit 78. Each fails before the change.
+
+
+# T-633: QA round 6, agent A: the P3 findings of the installer and the install documents
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Findings of the installer and of `install-unit` (agent A, P3). Each line has the command and the expectation.
+
+- No uninstall is documented. After use, `~/.local/share/podvm`, `~/.cache/podrunner` and `~/.config/podrunner` stay. Expect: `docs/install.md` lists each path that podrunner and podvm write, and the command that removes it.
+- The "a first run:" and "next" lines of `scripts/install.sh` print paths with no quotes. Run with a `HOME` that has a space. Expect: a line that a shell can run as printed.
+- A failed download gives one generic line ("the installer takes no file of a release with no SHA256SUMS") for a 404, a wrong CA (curl exit 77), a dead port, and a proxy 405 when `NO_PROXY` lacks `127.0.0.1`. Expect: one line for each cause, with the fix (the CA file, the proxy variable).
+- `podrunner serve` creates an empty `~/.config/podrunner`. After a `--podnet` run, `/tmp/podnet-netns-inbound-UID/*.sock` stays. Expect: no empty directory, and no socket after a run ends.
+- `podrunner install-unit` as a user that is not root says "or as an administrator on Windows". Expect: a line for the host (Linux: `--user` or root).
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+Edit `scripts/install.sh`, `docs/install.md`, and the `install-unit` message in `crates/podrunner/src`; one test in `scripts/test-install.sh` for each line that can be tested (the quote of the paths, the message of each download failure with a fake server).
+
+## Prove
+
+`sh scripts/test-install.sh` with a new case for the paths with a space and for the failure messages; `cargo todo check`.
+
+
+# T-634: QA round 6, agent A: the P3 findings of the flags of `podrunner run`
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Findings of the flags and the exit codes of `podrunner run` (agent A, P3). Each line has the command and the expectation.
+
+- `--ref ''`, `--actor ''`, `--github-token-env ''` and `--checkout ''` are accepted (the other flags refuse an empty value). Expect: exit 64 with the flag name. `--artifacts ''` reports `/: Permission denied`; expect the same refusal.
+- `--matrix nosuch=a` and `--job nosuch --list` are accepted with no message (`--job nosuch --dry-run` exits 64). Expect: exit 64 for an axis or a job that the workflow does not have.
+- `--secret-file FILE` accepts mode 0700. `docs/cli.md` says 0600 or less. Expect: refuse a mode with an execute bit.
+- An option file that the user cannot read (a file of another user with mode 0600, `/etc/shadow`) exits 78 "Permission denied"; a file that does not exist exits 64; `docs/cli.md` says 66 is "cannot be read". Expect: 66 for a file that exists and cannot be read.
+- `run --microvm PATH` with no KVM exits 69, and `docs/cli.md` gives 69 as a control socket. Expect: a code and a message for "no KVM" (see T-629).
+- `run LINK` where LINK is a symlink outside the project: exit 64 for a file and 66 for a directory; for a file the message says "leads out of the project (PATH)" with the path of the project. Expect: one code and a message that names the link.
+- `run --dry-run` does not check `--state` (`--state /` passes), and it accepts `--podvm /bin/true` and `--incus PATH` with no incusd as "planned". Expect: the same checks as the run.
+- `run --validate` of a workflow with `actions/checkout` outside a git tree demands `--checkout` (64). Expect: `--validate` needs no tree.
+- `timeout-minutes: 99999999` is valid with no warning. `docs/cli.md` says at most 5 days. Expect: a warning or a refusal.
+- An option error prints the whole usage; `doctor --bogus` says "--bogus needs a value"; `--version x` ignores `x`. Expect: one line with the flag, and a pointer to `--help`; `--version x` exits 64.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+Edit the parser `crates/podrunner/src/run_local/args.rs` and the checks of `crates/podrunner/src/run_local/` for each line. One unit test or one case of `crates/podrunner/tests/local.rs` for each line, which fails before the change.
+
+## Prove
+
+`cargo test -p podrunner --lib run_local` and `cargo test -p podrunner --test local` with a case for each line; `cargo todo check`.
+
+
+# T-635: QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor`
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Findings of `podrunner check`, `config init` and `doctor` (agent A, P3). Each line has the command and the expectation.
+
+- `check` accepts `slots = 0`, `work_folder` on `[unit.fake]` (CHANGES of T-541 says another kind refuses it), and `root_quota = true` on `[unit.podvm]`. Expect: exit 78 for each, with the key.
+- `config init` accepts `--slots 0`, `--org ''`, `--org 'a b'` and `--host ''`. Expect: exit 64 with the flag.
+- `doctor` prints "372 of 30 days: stale". Expect: a line that a reader understands (the age of the image in days and the limit in days).
+- `config init --kinds podvm` with a trusted source says `no-tier-served` and does not name `--podnet`. Expect: the message names `--podnet`.
+- `doctor --run` names the proxy variables of the job only for `--runner-dir`, not for the podvm form; it does not check that the file of `SSL_CERT_FILE` exists (the run then fails with exit 1); it does not flag `NO_PROXY` with `::` (only `run` warns). Expect: the same checks as `run`.
+- `doctor --run /nonexistent.yml` prints the lock path `/podrunner-actions.lock`. Expect: a refusal for a missing file, or a lock path in the state directory.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+Edit `crates/podrunner/src/config_init.rs`, `crates/podrunner/src/tiers.rs`, `crates/podrunner/src/doctor.rs`, `crates/podrunner/src/run_local/doctor.rs` and the checks of the `check` command (`crates/podrunner-slots/src/config.rs` for the keys). One test for each line.
+
+## Prove
+
+`cargo test -p podrunner --test config_init`, `cargo test -p podrunner --test check` and `cargo test -p podrunner --test doctor` with a case for each line; `cargo todo check`.
+
+
+# T-636: QA round 6, agent A: the P3 findings of signals and of the end of a run
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Findings of the signal handling of `podrunner run` on a podvm unit (agent A, P3). Each line has the command and the expectation.
+
+- Three SIGINT 0.3 s apart (`docs/cli.md`: the third ends the run at once) give exit 130, but the podvm unit stays alive (about 1 GB in `TMPDIR`) and no message says it. The next run in the same `TMPDIR` cleans it; a run with another `TMPDIR` does not. Expect: the third signal removes the unit, or prints its path and the command that removes it.
+- The cleanup after the first signal takes 14 to 17 s on podvm. Expect: a line that says that the run waits for the unit, and a bound on the time.
+- SIGHUP prints no "stopping" line. Expect: the same line as for SIGINT and SIGTERM.
+- The `--web` view stays a few seconds after one SIGINT. Expect: it ends with the run.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+Edit the signal path of `crates/podrunner/src/run_local/` (the handler that counts the signals) and the stop of `crates/podrunner-podvm/src/unit/`. A test with a fake unit that sleeps in the stop: three signals leave no unit directory.
+
+## Prove
+
+`cargo test -p podrunner --test local` with a case for the third signal and for SIGHUP; `cargo todo check`.
+
+
+# T-637: QA round 6, agent A: the areas that the round did not test
+
+**Source:** QA round 6, agent A (qa8), 2026-11-24
+**Category:** measurement
+**Milestone:** later
+**Priority:** P3
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Agent A of round 6 did not test these areas. A later round or a live lane must test each one, and the result goes into the record.
+
+- The kinds that need KVM or incus (`microvm`, `incus`).
+- `serve` jobs, and the hosted lanes.
+- `--engine`, `services:` and Dockerfile actions.
+- The online install from the release URL, and the check of signatures.
+- `busybox sh` and aarch64.
+- ghcr.io (the runner image from the registry).
+- `install-unit --system`, and `systemctl --user`.
+- `--vnet`.
+- The 600 s timeout, `--schedule` and `--break`.
+- `--protected` and `--approve`, OIDC, reusable workflows, composite and Docker actions, `actions/cache` and artifacts.
+- A real full disk, and a tiny `TMPDIR`.
+
+## Premise
+
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+Give each area to a lane of `user-gate.yml` (T-243, T-244) where a lane exists, and to the brief of the next round (`docs/qa-brief.md`) where none exists. Agent B of the same round may cover some of them: remove each area that a report covers.
+
+## Prove
+
+`grep -n 'T-637' docs/qa-brief.md TODO/later.md`: the entry stays open until each area has a report or a lane that ran; then `cargo todo check`.

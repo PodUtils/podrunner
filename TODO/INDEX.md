@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**621 entries: 70 open, 59 partial, 15 blocked, 477 done.**
+**632 entries: 81 open, 59 partial, 15 blocked, 477 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 1 | 25 | 3 | 91 | 120 |
-| P2 | 16 | 22 | 9 | 245 | 292 |
-| P3 | 52 | 12 | 3 | 139 | 206 |
-| **All** | 70 | 59 | 15 | 477 | 621 |
+| P2 | 22 | 22 | 9 | 245 | 298 |
+| P3 | 57 | 12 | 3 | 139 | 211 |
+| **All** | 81 | 59 | 15 | 477 | 632 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -669,3 +669,14 @@ acceptance, later The crate dependencies later than v1.
 | [T-624](later.md) | P3 | M | later | defect | open | Faults and limits of the scale-set trust lookups that end a job with no specific cause |
 | [T-625](later.md) | P2 | S | later | defect | done | The attempt of a refused job of the past-limit path: a lost cancel |
 | [T-626](later.md) | P2 | S | later | release | open | `release.yml` needs a green `runner-image.yml` run of the release commit, with no `images_run` input |
+| [T-627](later.md) | P2 | M | later | defect | open | `podrunner man` does not exist, and the help of `run` and `config init` lacks flags that `docs/cli.md` lists |
+| [T-628](later.md) | P2 | S | later | defect | open | `podrunner image verify --arch x64` is refused, and the error lists no valid value |
+| [T-629](later.md) | P2 | M | later | defect | open | `config init` and `doctor --config` offer the microvm kind on a host with no KVM |
+| [T-630](later.md) | P2 | S | later | defect | open | A corrupt or truncated tar in the image cache fails each later `run`, and no message names the file |
+| [T-631](later.md) | P2 | S | later | defect | open | `run --changed-since` passes a ref that starts with `-` to git as an option |
+| [T-632](later.md) | P2 | S | later | defect | open | A small `ulimit -f` ends a podvm unit with an empty cause, and `run` names neither the limit nor the fix |
+| [T-633](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of the installer and the install documents |
+| [T-634](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of the flags of `podrunner run` |
+| [T-635](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |
+| [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
+| [T-637](later.md) | P3 | L | later | measurement | open | QA round 6, agent A: the areas that the round did not test |
