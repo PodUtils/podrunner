@@ -6,6 +6,34 @@ order, the questions), `docs/maintenance.md`, `docs/development.md` and
 `docs/decisions.md`. Keep this page current: remove a line when its work
 is done.
 
+## The release commit of `v0.1.0-beta.8`
+
+The release commit is made (`release: the notes of v0.1.0-beta.8; CHANGES
+of the tag`). `docs/releases/v0.1.0-beta.8.md` has the notes, with the
+level of the proof of each claim; `CHANGES.md` has the section
+`## v0.1.0-beta.8` and an empty `## next`. `scripts/check-notes.sh
+--latest` and `cargo todo check` pass. No run on this commit exists:
+the level of its claims in CI is "not run" until the runs below are
+green. Do these steps, in this order:
+
+1. Dispatch `runner-image.yml` on the release commit (`release.yml`
+   needs a green run at the same commit, T-626).
+2. Dispatch `user-gate.yml` with `version=0.1.0-beta.8`.
+3. Read the gate and `level2.yml` on the same commit.
+4. Fill the placeholders `RUN-GATE`, `RUN-LEVEL2`, `RUN-IMAGE` and
+   `RUN-USERGATE` of the notes with the ids of these runs. A commit that
+   changes the notes changes the commit that `release.yml` checks: the
+   four runs must be green at the commit that `release.yml` runs on.
+5. Run `release.yml` with no version (the dry run), and read it (the job
+   `image`, the index, `pod-release sums`).
+6. Run `release.yml` with `version=0.1.0-beta.8`, and read both runs
+   (`docs/maintenance.md`, "A release").
+
+A P1 or P2 finding in these runs blocks the release. The notes name what
+no run proved (the sidecar against GitHub, the incus peak memory, the
+microvm and incus kinds on a user host, T-639 on podvm, the online
+install from the release URL, aarch64 on a user host, the live gates).
+
 ## Where podrunner stands
 
 - Pins: podcrates `v0.82.1` (`Cargo.toml`, T-619; the source wire and the
