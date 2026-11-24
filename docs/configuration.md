@@ -153,6 +153,15 @@ it claims `guest`, and `serve` takes the claim only for a kind on
 entry of `guest_kinds` other than the default `microvm` must name a
 `[unit.NAME]` table: `check` refuses another name.
 
+On a host where `/dev/kvm` does not open for reading and writing, the kind
+does not run (T-629): `serve` prints `podrunner: [unit.microvm]: not
+here: /dev/kvm: ...` at its start, runs no self-test (so podvm fetches no
+QEMU), and serves the other kinds, as it does for an incus kind with no
+incusd (T-534). `check` prints the same line and counts the kind out: a
+file whose sources only this kind serves exits 78 (`no-tier-served`).
+`config init` refuses the kind, and `doctor --config` says `kind
+microvm: not served on this host`.
+
 `serve` runs the self-test at its start, then each day and on a change
 of the driver file. A test with no verdict (a unit did not start, did
 not end in 60 s, or wrote no result) runs once more at once. If it again

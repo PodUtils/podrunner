@@ -127,6 +127,13 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
     let mut retests = Vec::new();
     let mut policies = std::collections::BTreeMap::new();
     for (name, u) in &cfg.unit {
+        // A kind that this host cannot run: no unit and no self-test of it
+        // (with no KVM, podvm would fetch QEMU); each other kind runs
+        // (T-534, T-629).
+        if let Err(why) = crate::tiers::here(name) {
+            eprintln!("podrunner: [unit.{name}]: not here: {why}");
+            continue;
+        }
         let (driver, capability): (Arc<dyn podrunner_unit::UnitDriver>, Capability) = match name.as_str() {
             "fake" => {
                 let cap = fake_capability_of(u);
@@ -140,14 +147,7 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
             }
             "podvm" => crate::podvm_kind::build(u, &cfg, state)?,
             "microvm" => crate::microvm_kind::build(u, state)?,
-            "incus" => match crate::doctor::incusd() {
-                Ok(()) => crate::incus_kind::build(u, state)?,
-                // No incusd: no incus kind, and each other kind runs (T-534).
-                Err(why) => {
-                    eprintln!("podrunner: [unit.incus]: not here: {why}");
-                    continue;
-                }
-            },
+            "incus" => crate::incus_kind::build(u, state)?,
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }

@@ -36,21 +36,36 @@ pub(crate) fn stop_wait(rest: &[String]) -> Result<Out, Out> {
     if !state.is_dir() {
         return Err(err(Class::Unavailable, format!("--state {}: not a directory", state.display())));
     }
-    match control::call(&crate::serve::socket_of(&state), &Request::Stop) {
-        Ok(_) => {}
-        Err(Error::Remote(f)) => return Err(refused(&f)),
-        // No socket: serve may be gone already; the lock says.
-        Err(_) => {}
-    }
     let started = std::time::Instant::now();
+    let mut sent = false;
     loop {
+        // No socket: serve is gone, or it holds the lock and has not opened
+        // its socket yet (its start); ask again until it has one (T-629).
+        if !sent {
+            match control::call(&crate::serve::socket_of(&state), &Request::Stop) {
+                Ok(_) => sent = true,
+                Err(Error::Remote(f)) => return Err(refused(&f)),
+                Err(_) => {}
+            }
+        }
         match crate::lock::is_free(&state) {
-            Ok(true) => return Ok(ok("stopped\n".into())),
+            Ok(true) if sent => return Ok(ok("stopped\n".into())),
+            Ok(true) => return Ok(ok("no serve runs\n".into())),
             Ok(false) => {}
             Err(e) => return Err(err(Class::Unavailable, format!("the lock of the state directory: {}", e))),
         }
         if timeout.is_some_and(|t| started.elapsed() >= t) {
-            return Err(err(Class::Timeout, "serve did not end in time: a job is not final"));
+            return Err(match sent {
+                true => err(Class::Timeout, "serve did not end in time: a job is not final"),
+                false => err(
+                    Class::Unavailable,
+                    format!(
+                        "serve has no control socket yet (it holds the lock of {} and starts): the stop did not \
+                         reach it; run stop --wait again",
+                        state.display()
+                    ),
+                ),
+            });
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }

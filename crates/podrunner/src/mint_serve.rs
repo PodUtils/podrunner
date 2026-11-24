@@ -125,7 +125,11 @@ pub fn check_any(path: &Path) -> Result<&'static str, Failure> {
         check(path)?;
         return Ok("the mint configuration is usable (a file of mint-serve)\n");
     }
-    crate::serve::check(path)?;
+    let cfg = crate::serve::check(path)?;
+    // The line of `serve` at its start for a kind that it drops (T-629).
+    for (name, why) in crate::tiers::away(&cfg) {
+        eprintln!("podrunner: [unit.{name}]: not here: {why}");
+    }
     Ok("the configuration is usable (a file of serve)\n")
 }
 

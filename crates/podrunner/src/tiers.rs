@@ -25,20 +25,48 @@ pub fn served(cfg: &Config) -> Result<(), Failure> {
         _ => EgressHold::Enforced,
     };
     let arch = std::env::consts::ARCH;
+    // A kind that this host cannot run serves nothing: `serve` drops it.
+    let away = away(cfg);
     let served = cfg.source.iter().any(|s| {
         let (floor, need) = (cfg.floor(s.tier), podrunner_slots::placement::needed_hold(s.tier));
-        cfg.unit.iter().any(|(n, u)| {
+        cfg.unit.iter().filter(|(n, _)| !away.iter().any(|(a, _)| a == *n)).any(|(n, u)| {
             let kind_arch = if n == "fake" { fake_capability().arch } else { arch.to_string() };
             kind_arch == s.arch && best(n, u) >= floor && hold(n, u).effective() >= need
         })
     });
     if !cfg.source.is_empty() && !served {
+        let why: String = away.iter().map(|(n, w)| format!(" ([unit.{n}] not here: {w})")).collect();
         return Err(fail(
             Class::Config,
-            "no-tier-served: no unit kind meets the floor and the egress hold of a source on this host",
+            format!("no-tier-served: no unit kind meets the floor and the egress hold of a source on this host{why}"),
         ));
     }
     Ok(())
+}
+
+/// This host can run the kind `name` (T-629): the microvm kind needs
+/// `/dev/kvm`, the incus kind an incusd that takes a connection of this
+/// user (T-534). `config init`, `doctor`, `check` and `serve` ask the same
+/// question, so none of them offers a kind that `serve` drops.
+pub fn here(name: &str) -> Result<(), String> {
+    match name {
+        "microvm" => kvm(),
+        "incus" => crate::doctor::incusd(),
+        _ => Ok(()),
+    }
+}
+
+/// The kinds of `cfg` that this host cannot run, each with its reason.
+pub fn away(cfg: &Config) -> Vec<(String, String)> {
+    cfg.unit.keys().filter_map(|n| here(n).err().map(|w| (n.clone(), w))).collect()
+}
+
+/// `/dev/kvm` opens for reading and writing: a guest needs it, and with
+/// no KVM podvm would fetch QEMU and boot nothing.
+pub fn kvm() -> Result<(), String> {
+    std::fs::OpenOptions::new().read(true).write(true).open("/dev/kvm").map(drop).map_err(|e| {
+        format!("/dev/kvm: {e}: the microvm kind needs KVM (a host with KVM, and a user that can open /dev/kvm)")
+    })
 }
 
 /// A line for each payload built after the clock `now_s` of this host

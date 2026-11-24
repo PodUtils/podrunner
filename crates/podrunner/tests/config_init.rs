@@ -61,7 +61,13 @@ fn config_init_writes_a_file_that_check_takes_once() {
     assert_eq!(v["changed"], true, "{v}");
     assert!(v["kinds"].as_array().unwrap().contains(&"incus".into()), "{v}");
     assert_eq!(std::fs::metadata(&out).unwrap().permissions().mode() & 0o777, 0o600);
-    let check = Command::new(BIN).args(["check", "--config"]).arg(&out).output().unwrap();
+    // check asks the same incusd (T-629).
+    let check = Command::new(BIN)
+        .args(["check", "--config"])
+        .arg(&out)
+        .env("PODVM_INCUS_SOCKET", dir.join("incus.socket"))
+        .output()
+        .unwrap();
     assert!(check.status.success(), "{}", String::from_utf8_lossy(&check.stderr));
     let text = std::fs::read_to_string(&out).unwrap();
     assert!(!text.contains("made-up-key") && !text.contains("listen"), "{text}");
@@ -130,7 +136,13 @@ fn the_unpacked_bytes_of_the_image_land_in_the_pin() {
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
     let text = std::fs::read_to_string(&out).unwrap();
     assert!(text.contains("\nunpacked_bytes = 1500000000\n"), "{text}");
-    let check = Command::new(BIN).args(["check", "--config"]).arg(&out).output().unwrap();
+    // check asks the same incusd (T-629).
+    let check = Command::new(BIN)
+        .args(["check", "--config"])
+        .arg(&out)
+        .env("PODVM_INCUS_SOCKET", dir.join("incus.socket"))
+        .output()
+        .unwrap();
     assert!(check.status.success(), "{}", String::from_utf8_lossy(&check.stderr));
     let _ = std::fs::remove_dir_all(&dir);
 }
