@@ -1,7 +1,7 @@
 //! The tree of a checkout of the same repository with `ref:` (T-640): the
 //! commit of the ref in the local git, as GitHub gives it, not the working
 //! tree. The run resolves each ref before its first job and keeps the
-//! answer in its pins under [`key`].
+//! answer in its pins under `key`.
 
 use std::path::{Path, PathBuf};
 
