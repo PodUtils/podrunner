@@ -5,6 +5,8 @@ use pod_actions_workflow::{Kind, Node, Step as WorkflowStep};
 
 use std::collections::BTreeMap;
 
+use crate::tree::refs::ask;
+
 /// The script of the stand-in for the step `s`, and what it checks out.
 pub(super) fn stand_in(
     s: &WorkflowStep,
@@ -37,16 +39,67 @@ pub(super) fn stand_in(
     };
     let target = crate::store::checkout_target(s.with.as_ref(), self_repo).map_err(|e| format!("line {line}: {e}"))?;
     match &target {
-        None => Ok((checkout_script(&path, None, level), "the local tree".to_string())),
+        None => same_repo(with("ref"), &path, level, pins, line),
         Some(t) if level > 0 => Err(format!(
             "line {line}: the checkout of `{t}` with `submodules`: the store keeps no submodule of another repository"
         )),
         Some(t) => {
             let sha = pins.get(t).ok_or_else(|| format!("line {line}: the checkout of `{t}` is not pinned"))?;
             let repo = t.split('@').next().unwrap_or(t);
-            Ok((checkout_script(&path, Some((repo, sha)), 0), format!("{t} at {sha}")))
+            Ok((checkout_script(&path, Route::Other(repo, sha), 0), format!("{t} at {sha}")))
         }
     }
+}
+
+/// A checkout of the same repository: the local tree, or with `ref:` the
+/// commit that the run resolved in the local git (T-640). A ref with no
+/// commit fails the step with its reason, as GitHub fails it.
+fn same_repo(
+    node: Option<&Node>,
+    path: &str,
+    level: u32,
+    pins: &BTreeMap<String, String>,
+    line: u32,
+) -> Result<(String, String), String> {
+    use crate::tree::refs::{Ask, key};
+    let tree = |what: String| Ok((checkout_script(path, Route::Tree, level), what));
+    let r = match ask(node) {
+        Ask::Default => return tree("the local tree".into()),
+        Ask::Expression(e) => return tree(format!("the local tree; `ref: {e}` is an expression")),
+        Ask::Bad(why) => return Ok((fail_script(&why), why)),
+        Ask::Ref(r) => r,
+    };
+    match pins.get(&key(&r)).map(String::as_str) {
+        Some("") => tree(format!("the local tree, the commit of `ref: {r}`")),
+        Some(why) if why.starts_with('!') => Ok((fail_script(&why[1..]), why[1..].to_string())),
+        Some(_) if level > 0 => Err(format!(
+            "line {line}: the checkout of `ref: {r}` with `submodules`: the stand-in gives submodules only in the local tree"
+        )),
+        Some(sha) => Ok((checkout_script(path, Route::Commit(sha), 0), format!("ref {r} at {sha}"))),
+        None => {
+            let why = format!(
+                "`ref: {r}`: the run resolved no commit for it; fix: give --checkout DIR, a git tree that has it"
+            );
+            Ok((fail_script(&why), why))
+        }
+    }
+}
+
+/// A step that fails with one line on stderr. The text goes in single
+/// quotes; it holds no expression (an expression stays the local tree).
+fn fail_script(why: &str) -> String {
+    let why = why.replace('\'', "'\\''").replace("${{", "$ {{");
+    format!("echo 'podrunner: the checkout with {why}' >&2\nexit 1")
+}
+
+/// Where the stand-in takes its tarball from.
+enum Route<'a> {
+    /// The local tree.
+    Tree,
+    /// A commit of the local git (T-640).
+    Commit(&'a str),
+    /// The tree of `OWNER/REPO` at its commit from the store (T-133).
+    Other(&'a str, &'a str),
 }
 
 /// The stand-in of `actions/checkout` in the local mode (T-092): the
@@ -54,21 +107,24 @@ pub(super) fn stand_in(
 /// it) into the workspace, or into `path` in it. No `tar -C` and no
 /// `tar -z`: in a podvm unit GNU `tar -C DIR` failed to open an existing
 /// DIR (T-093).
-/// With `other` (`OWNER/REPO` and its commit, T-133), the tarball of that
-/// commit from the store, with its top directory stripped. The local tree
-/// keeps the submodules to the depth `level` (T-425).
-fn checkout_script(path: &str, other: Option<(&str, &str)>, level: u32) -> String {
+/// With another repository (`OWNER/REPO` and its commit, T-133), the
+/// tarball of that commit from the store, with its top directory
+/// stripped. The local tree keeps the submodules to the depth `level`
+/// (T-425).
+fn checkout_script(path: &str, route: Route, level: u32) -> String {
+    use podrunner_broker_fake::actions::{CHECKOUT, archive_name, checkout_at};
     let dest = if path.is_empty() { "$GITHUB_WORKSPACE".to_string() } else { format!("$GITHUB_WORKSPACE/{path}") };
-    let (route, strip) = match other {
-        None => (podrunner_broker_fake::actions::CHECKOUT.to_string(), ""),
-        Some((repo, sha)) => {
-            (format!("_actions/{}", podrunner_broker_fake::actions::archive_name(repo, sha)), " --strip-components=1")
-        }
+    let (url, strip) = match route {
+        Route::Tree => (CHECKOUT.to_string(), ""),
+        Route::Commit(sha) => (checkout_at(sha), ""),
+        Route::Other(repo, sha) => (format!("_actions/{}", archive_name(repo, sha)), " --strip-components=1"),
     };
-    let script = CHECKOUT_SCRIPT.replace("DEST", &dest).replace("ROUTE", &route).replace("STRIP", strip);
-    match other {
-        None => script + &SUBMODULES.replace("LIST", crate::tree::SUBMODULES).replace("LEVEL", &level.to_string()),
-        Some(_) => script,
+    let script = CHECKOUT_SCRIPT.replace("DEST", &dest).replace("ROUTE", &url).replace("STRIP", strip);
+    match route {
+        Route::Tree => {
+            script + &SUBMODULES.replace("LIST", crate::tree::SUBMODULES).replace("LEVEL", &level.to_string())
+        }
+        _ => script,
     }
 }
 
@@ -128,3 +184,6 @@ if [ -f "$m" ]; then
   done < "$m"
   rm -f "$m"
 fi"#;
+
+#[cfg(test)]
+mod tests;

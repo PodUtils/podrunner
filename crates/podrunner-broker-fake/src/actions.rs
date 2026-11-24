@@ -56,6 +56,22 @@ fn resolve(base: &str, body: &Value, pins: &BTreeMap<String, String>) -> Value {
 /// stand-in of `actions/checkout` reads it.
 pub const CHECKOUT: &str = "_checkout.tar.gz";
 
+/// The path of the tarball of a commit of the local git on this broker
+/// (T-640): the stand-in of a checkout with `ref:` reads it.
+pub fn checkout_at(commit: &str) -> String {
+    format!("_checkout/{commit}.tar.gz")
+}
+
+/// The file of that tarball, beside the tarball of the local tree.
+pub fn checkout_file(commit: &str) -> String {
+    format!("tree-{commit}.tar.gz")
+}
+
+/// A full commit id of SHA-1 or SHA-256: no other name reaches the disk.
+fn commit_id(s: &str) -> bool {
+    matches!(s.len(), 40 | 64) && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
 /// The answer to a request of the actions, or `None` for another route.
 /// `tree` is the tarball of the local tree.
 pub fn route(
@@ -78,6 +94,14 @@ pub fn route(
             }
             None => Some((404, Vec::new())),
         },
+        ("GET", p) if p.starts_with("/_checkout/") => {
+            let commit = p.strip_prefix("/_checkout/").and_then(|r| r.strip_suffix(".tar.gz")).filter(|c| commit_id(c));
+            let file = commit.zip(tree.and_then(Path::parent)).map(|(c, d)| d.join(checkout_file(c)));
+            match file.map(std::fs::read) {
+                Some(Ok(bytes)) => Some((200, bytes)),
+                _ => Some((404, Vec::new())),
+            }
+        }
         ("POST", p) if p.starts_with("/actions/build/") && p.ends_with("/runnerresolve/actions") => {
             json(resolve(base, body, pins))
         }
@@ -156,6 +180,16 @@ mod tests {
             (200, b"tree".to_vec())
         );
         assert_eq!(route("GET", "/_checkout.tar.gz", &Value::Null, "", None, &BTreeMap::new(), None).unwrap().0, 404);
+        // The tree of a commit of the local git (T-640), beside it; no other
+        // name of the directory.
+        std::fs::write(dir.join(checkout_file(&sha)), b"at").unwrap();
+        let get = |p: &str| route("GET", p, &Value::Null, "", None, &BTreeMap::new(), Some(&tree)).unwrap();
+        assert_eq!(get(&format!("/{}", checkout_at(&sha))), (200, b"at".to_vec()));
+        for bad in
+            ["/_checkout/../tree.tar.gz", "/_checkout/aaaa.tar.gz", &format!("/_checkout/{}.tar.gz", "A".repeat(40))]
+        {
+            assert_eq!(get(bad).0, 404, "{bad}");
+        }
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

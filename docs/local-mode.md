@@ -239,6 +239,7 @@ the entry that closes the gap, or the entry that did the work.
 | `--local-repository`, another forge | yes | yes | yes: a made-up commit of the directory, never in the lock; `--action-server URL` for any git server | T-139 |
 | `actions/checkout` of the local tree | copy of the working tree | local checkout of the changes | the working tree with its changes, not the ignored files; `--checkout-head`; a `.git` in a git tree (`--no-git` leaves it out) | T-092, T-133, T-267 |
 | Checkout of another repository | real action | `--remote-checkout` | from the store at the commit of the lock | T-133 |
+| `actions/checkout` of the same repository with `ref:` | real action | local checkout | the commit of the ref in the local git of `--checkout` (a branch, a tag, a remote branch such as `origin/main`, a commit id), with a `.git` at that commit; the local tree when the ref is the commit of HEAD; a ref with no commit fails its step with the name and the fix (`git fetch origin REF`); a ref that starts with `-` fails it too; an expression (`${{ }}`) gives the local tree with one line on stderr; `--dry-run` names each ref; no submodules for another commit | T-640 |
 | `./` local actions | yes | yes | yes | T-092 |
 | Docker actions by image | yes | yes | yes, pinned by digest, through the hooks | T-093, T-098 |
 | Dockerfile actions (`docker build`) | yes | yes | yes, in a `microvm` guest with an engine (`--engine DIR`); refused on the other unit kinds; a Dockerfile action on `--podvm` fails at its step today, not before the job (T-237) | T-124 |

@@ -8,6 +8,7 @@
 mod actions;
 mod args;
 mod artifact_dir;
+mod checkout;
 mod composites;
 mod concurrency;
 mod containers;
@@ -312,32 +313,12 @@ pub fn run(args: &[String]) -> Out {
     };
     // Each return removes both, also an early refusal (T-323 F38).
     let _gone = stale::Gone(vec![scratch.clone(), state.clone()]);
-    source.set_pins(guest::mirror_pins(&a, &pins, source.workflow(), &state));
-    let tree = match &a.checkout {
-        None => None,
-        Some(dir) => match podrunner_local::tree::tarball(
-            dir,
-            &scratch,
-            podrunner_local::tree::Options {
-                head: a.checkout_head,
-                with_git: a.with_git || (!a.no_git && podrunner_local::tree::is_git_top(dir)),
-                exclude: run_files(&a, dir),
-            },
-        ) {
-            Ok(t) => {
-                // Each checkout of each job downloads the tree: a guest takes
-                // it through its channel, which is slow for a large tree.
-                let mib = std::fs::metadata(&t).map(|m| m.len() >> 20).unwrap_or(0);
-                if mib >= 100 {
-                    eprintln!(
-                        "podrunner: the tree of --checkout is {mib} MiB; each checkout of a job downloads it: ignore its large files in .gitignore, or give --checkout-head"
-                    );
-                }
-                Some(t)
-            }
-            Err(e) => return fail(Class::Config, format!("--checkout {}: {e}", dir.display())),
-        },
+    // The local tree, and the commit of each `ref:` of the same repository (T-640).
+    let tree = match checkout::trees(&a, source.workflow(), &facts.repository, &scratch, &mut pins) {
+        Ok(t) => t,
+        Err(e) => return fail(Class::Config, e),
     };
+    source.set_pins(guest::mirror_pins(&a, &pins, source.workflow(), &state));
     // The artifacts stay in the state of the run, so that a rerun job reads
     // the artifact of a kept job; a rerun replaces what it uploads again.
     let kept = artifact_dir::dir(&a, state_dir.as_deref(), &scratch);

@@ -332,3 +332,53 @@ fn a_rerun_keeps_a_call_that_passed() {
     assert!(out.stdout.lines().any(|l| l.starts_with("ok") && l.ends_with("bad")), "{}", out.stdout);
     let _ = std::fs::remove_dir_all(&scratch);
 }
+
+/// T-640: a checkout of the same repository with `ref:` gives the commit of
+/// the ref in the local git (with its `.git` at that commit), not the
+/// working tree; a ref with no commit fails its step with the name.
+#[test]
+#[ignore]
+fn a_checkout_with_a_ref_gives_the_commit_of_the_ref() {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
+    let scratch = std::env::temp_dir().join(format!("podrunner-local-ref-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&scratch);
+    let repo = scratch.join("repo");
+    std::fs::create_dir_all(&repo).unwrap();
+    let git = |a: &[&str]| {
+        let o = std::process::Command::new("git").arg("-C").arg(&repo).args(a).output().unwrap();
+        assert!(o.status.success(), "{a:?}: {}", String::from_utf8_lossy(&o.stderr));
+        String::from_utf8(o.stdout).unwrap().trim().to_string()
+    };
+    let commit = ["-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "c"];
+    git(&["init", "-q", "-b", "main"]);
+    std::fs::write(repo.join("a.txt"), "main\n").unwrap();
+    git(&["add", "a.txt"]);
+    git(&commit);
+    let main = git(&["rev-parse", "HEAD"]);
+    git(&["checkout", "-q", "-b", "feature"]);
+    std::fs::write(repo.join("a.txt"), "feature\n").unwrap();
+    git(&["add", "a.txt"]);
+    git(&commit);
+    std::fs::write(
+        repo.join("co.yml"),
+        format!(
+            "on: push\njobs:\n  co:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        \
+             with: {{ref: main, path: other}}\n      - run: test \"$(cat other/a.txt)\" = main && test \"$(git -C other \
+             rev-parse HEAD)\" = {main}\n      - uses: actions/checkout@v4\n      - run: test \"$(cat a.txt)\" = feature\n  \
+             bad:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: nosuch\n"
+        ),
+    )
+    .unwrap();
+    let args: Vec<String> = ["run", repo.join("co.yml").to_str().unwrap(), "--runner-dir", &dir, "--checkout"]
+        .iter()
+        .map(|s| s.to_string())
+        .chain([repo.display().to_string()])
+        .collect();
+    let out = podrunner::cli::run(&args);
+    println!("{}{}", out.stdout, out.stderr);
+    assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
+    assert!(out.stdout.lines().any(|l| l == "ok      co"), "{}", out.stdout);
+    assert!(out.stdout.lines().any(|l| l.starts_with("failure bad")), "{}", out.stdout);
+    let _ = std::fs::remove_dir_all(&scratch);
+}

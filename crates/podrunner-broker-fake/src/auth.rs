@@ -76,7 +76,9 @@ pub(crate) fn need(method: &str, path: &str) -> Option<Need> {
             Some(Need::Either)
         }
         // The tree of the job: the checkout script sends the job token.
-        ("GET", p) if p.strip_prefix('/') == Some(crate::actions::CHECKOUT) => Some(Need::Either),
+        ("GET", p) if p.strip_prefix('/') == Some(crate::actions::CHECKOUT) || p.starts_with("/_checkout/") => {
+            Some(Need::Either)
+        }
         // The results, the cache and the artifacts: the Worker and the
         // clients of the actions send the job token.
         ("POST", p) if p.starts_with("/twirp/") => Some(Need::Either),
@@ -249,6 +251,7 @@ pub(crate) mod tests {
         assert_eq!(need("PUT", "/blobs/step-1"), None, "a blob URL has its own signature");
         assert_eq!(need("GET", crate::feed::PATH), Some(Need::Either));
         assert_eq!(need("GET", "/_checkout.tar.gz"), Some(Need::Either));
+        assert_eq!(need("GET", &format!("/{}", crate::actions::checkout_at(&"a".repeat(40)))), Some(Need::Either));
         assert_eq!(need("GET", "/_podrunner/hold/build.0"), None, "a hold takes its key in the path");
         let key = format!("/_podrunner/hold/{}/build.0", auth.hold);
         assert_eq!(auth.hold_path(&key), Some(Ok("/_podrunner/hold/build.0".to_string())));
