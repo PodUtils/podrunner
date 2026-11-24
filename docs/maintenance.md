@@ -419,6 +419,25 @@ of the job `pin` into `images/runner/runner.toml` (and
 podrunner release pins it. The level of proof of an image release is CI on
 GitHub-hosted runners; its notes say so.
 
+## Subagents
+
+The ruling of the owner of 2026-11-24 (`docs/decisions.md`, "Subagents"):
+the lead session delegates, so that its own context stays small.
+
+| Work | Model and effort |
+| --- | --- |
+| Implementation | Opus 5.5, medium or high |
+| Recon and plain bug fixes | Sonnet 5.5, high |
+| Reviews | Opus 5.5, medium |
+| Blind tests and QA tests | Sonnet 5.5, high |
+
+* Give each subagent the rules of `AGENTS.md` in its brief: the web
+  services (section 4), the record (section 10) and the style (section 5).
+* Run one cargo build at a time. Agents in parallel each get a worktree
+  of their own and a target directory of their own (see "This sandbox").
+* The lead session reads the result of each subagent against the code
+  before it records a claim.
+
 ## This sandbox
 
 * The egress is an HTTPS proxy with an allowlist: GitHub, crates.io, the

@@ -98,6 +98,36 @@ is done.
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
+## Resume here (the session of 2026-11-24)
+
+- The ruling "Subagents" of 2026-11-24 (`docs/decisions.md`;
+  `docs/maintenance.md`, "Subagents"): the lead session delegates.
+  Implementation goes to Opus 5.5 at medium or high effort, recon and
+  plain bug fixes to Sonnet 5.5 at high effort, reviews to Opus 5.5 at
+  medium effort, blind tests and QA tests to Sonnet 5.5 at high effort.
+  One cargo build at a time still holds: agents in parallel each need a
+  worktree and a target directory of their own.
+- The tally of the recon of 2026-11-24 (not recounted in the record;
+  T-617 recounts it for the trackers). githome, G-01 to G-41: 4 asks are
+  in beta.7, 19 are done on `main` and not released, 11 are partial, 7
+  are open. cfb: 10 asks are in a release, 15 are on `main`, 6 are
+  partial, 7 are open; R-052 is named nowhere (T-618); W11 and W14 are
+  dropped.
+- The new entries of this session: T-616 (the local mode: a container
+  gets no trust store of a JVM, with T-597), T-617 (the state of #65,
+  #66 and the comment on #292 is stale), T-618 (R-052). T-518 (Q12) and
+  T-504 (Q13) are `blocked` on questions for the owner
+  (`TODO/PROGRESS.md`).
+- The plan, in this order:
+  1. `v0.1.0-beta.8` first: the gates T-243, T-244 and T-246, with a new
+     round of adversarial QA on the current `main`
+     (`docs/maintenance.md`, "A release").
+  2. Then T-480, T-487, T-516 and T-500; T-518 when the owner answers
+     Q12.
+  3. Then the local P3 code: T-598, T-597 (with T-616), T-603 step 1,
+     T-610, T-609 (it needs the option `--run-sh` or a root from the
+     image, see its Approach).
+
 ## Resume here (the session of 2026-11-23 and 2026-11-24)
 
 - State at the end (`main` at `3c04e60` or later, the tree clean, no
@@ -128,8 +158,8 @@ is done.
   `actions/runner`; the installer), T-553 (the run with a version and
   the run on a tag), T-556 (`systemd-remount-fs.service`, the KVM
   guest), T-557 and T-613 (the full snapshot does not fit a `dir` pool
-  of a hosted runner; the places `joined` and `btrfs` lose the runner in
-  their place step: keep more free on `/`).
+  of a hosted runner; the loss of the runner in the place step has its
+  cause, see the work order).
 - Asks open: COORD-120 (#342, T-595) and COORD-121 (#343, T-602) to
   podcrates, no answer yet. COORD-123 (#345, T-611) and COORD-124 (#346,
   T-613) to podvm: both answered and fixed on podvm's `main` for the beta
@@ -137,11 +167,14 @@ is done.
   of T-483 strict again (T-611) and run `hosted-measure.yml` (T-613).
   podcrates `v0.82.0` is out (podvm and podnet take it); no COORD message
   to podrunner yet: take it when it comes.
-- Work order next (`TODO/PROGRESS.md`): T-613 (the loop file on `/`
-  keeps 20 GiB free, then `place = btrfs` again), the next beta of podvm
-  (T-611, T-613), T-602 and T-595 when podcrates answers, T-614, T-615,
-  T-597, T-598, T-603, T-609, T-610, T-612, then the work order of
-  `TODO/PROGRESS.md`.
+- Work order next (`TODO/PROGRESS.md`): T-613 (the cause is found: on
+  the hosted image `/mnt` is a directory of `/`, so the loop file is one
+  file, made with no discard, mounted `nodiscard`, with `fstrim.timer`
+  stopped; `hosted-measure.yml` 45313526131 on `3dde258` is in progress;
+  a further run of `place = btrfs` is necessary on the commit with
+  `nodiscard`, `7ad6721` or later), the next beta of podvm (T-611,
+  T-613), T-602 and T-595 when podcrates answers, T-597, T-598, T-603,
+  T-609, T-610, T-612, then the work order of `TODO/PROGRESS.md`.
 - Session notes:
   - Agents in parallel worktrees: give each a target directory of its
     own outside the tree (`/workspace/target-NAME`) and a copy of the

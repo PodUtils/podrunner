@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**610 entries: 67 open, 57 partial, 18 blocked, 468 done.**
+**613 entries: 68 open, 57 partial, 20 blocked, 468 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 90 | 119 |
-| P2 | 15 | 22 | 10 | 240 | 287 |
-| P3 | 49 | 11 | 5 | 136 | 201 |
-| **All** | 67 | 57 | 18 | 468 | 610 |
+| P2 | 15 | 22 | 11 | 240 | 288 |
+| P3 | 50 | 11 | 6 | 136 | 203 |
+| **All** | 68 | 57 | 20 | 468 | 613 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -548,7 +548,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-501](later.md) | P2 | S | later | feature | done | G-26: a drain and a stop of one source |
 | [T-502](later.md) | P2 | S | later | feature | done | G-27: a cancel ends its unit in a bounded time, with a conformance test |
 | [T-503](later.md) | P2 | S | later | feature | done | G-28: the output of `source-conformance` for CI |
-| [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |
+| [T-504](later.md) | P3 | M | later | feature | blocked | G-29: a GitHub source for the repositories of a personal account |
 | [T-505](later.md) | P2 | S | later | feature | done | No cap of units for the whole host across its kinds |
 | [T-506](later.md) | P1 | L | later | feature | done | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
 | [T-507](later.md) | P1 | M | later | feature | done | G-37: an install of `serve` that another program drives, with no prompt |
@@ -562,7 +562,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-515](later.md) | P2 | M | later | defect | partial | G-12: a unit past its memory limit does not end with the exit reason `limit` |
 | [T-516](later.md) | P2 | S | later | feature | open | G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine |
 | [T-517](later.md) | P3 | S | later | docs | open | G-09: the engine of a guest is a directory of the host, not a part of the payload image |
-| [T-518](later.md) | P2 | M | later | feature | open | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
+| [T-518](later.md) | P2 | M | later | feature | blocked | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
 | [T-519](later.md) | P3 | S | later | docs | done | G-03: no document says that a step of the job can read the credential of its runner |
 | [T-520](later.md) | P3 | S | later | measurement | partial | G-06: no test of `cpu_s` against a known load, and no tolerance in the contract |
 | [T-521](later.md) | P3 | S | later | defect | open | G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit |
@@ -658,3 +658,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-613](later.md) | P2 | M | later | measurement | partial | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
 | [T-614](later.md) | P3 | S | later | defect | done | The probe of `--export` and `--log-dir` has the pid only and follows a link |
 | [T-615](later.md) | P3 | S | later | defect | done | One `TMPDIR` that two hosts share can mistake a live run for a dead one |
+| [T-616](later.md) | P3 | S | later | defect | open | A container of a unit of the local mode gets the CA bundle of the caller, but no trust store of a JVM |
+| [T-617](later.md) | P2 | S | later | docs | open | The hand-written state of GitHub #65, #66 and the comment on #292 is stale |
+| [T-618](later.md) | P3 | S | later | research | open | R-052 of cfb is named nowhere |

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 610 entries: 67 open, 57 partial, 18 blocked, 468 done.
+`TODO/INDEX.md` holds 613 entries: 68 open, 57 partial, 20 blocked, 468 done.
 
 ## State
 
@@ -53,11 +53,39 @@ The local mode against act and runner.server (`docs/local-mode.md`) has no open 
 
 Partial, closed by their gates: T-001 (closes with GitHub #1), T-009 (the live rows wait for T-040).
 
-Blocked: T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates).
+Blocked: T-032, T-033, T-040 (the live gates: GitHub #74 and #75), T-082 (a runner release with WebUtilities 8.0.34), T-043 (crates of podcrates), T-518 (Q12), T-504 (Q13).
 
 ## Questions for the owner
 
-None is open. The owner ruled Q10 (retention on ghcr.io: keep each version) and Q11 (the snapshot keeps the Docker Hub login; the per-machine values are made fresh) on 2026-11-19 (`docs/decisions.md`).
+Two questions are open: Q12 (T-518) and Q13 (T-504). The entry of each is `blocked` until the owner rules. The ruling goes into `docs/decisions.md`.
+
+### Q12: the trust rule of githome's G-13 against the ruling Q5
+
+Entry: T-518 (githome's G-13, GitHub #66). The ruling Q5 of 2026-11-13 ("Yes, with limits") lets an operator add `workflow_run`, `issue_comment`, `release` and `repository_dispatch` to the events of a trusted job. It never trusts `pull_request_target`, `other` and `unknown`. G-13 asks for each event of GitHub by name, with `pull_request_target` from the base branch, a swappable trust rule, and a published table of cases.
+
+Options:
+
+1. Keep Q5. Put the rule behind a trait (DR-3 keeps each seam swappable) and publish `crates/podrunner-tier/tests/cases.json` as the release asset `tier-cases.json` (T-511). Tell githome that `pull_request_target` runs in the untrusted tier.
+2. Let the operator list `pull_request_target` in `[trust] extra_events`, with the facts of Q5 (a configured owner, no fork, an actor `member`). A workflow of this event runs with secrets and can check out the code of the pull request, so a trusted unit then runs code of an author who is not a member.
+3. Let the operator list any event by name. This changes the closed list of Q5 into an open list.
+
+Recommendation: option 1. The trait and the asset need no change of Q5. The risk of `pull_request_target` is the reason of Q5, and githome loses nothing: its jobs of that event still run, in the untrusted tier.
+
+### Q13: a GitHub source for a personal account (githome's G-29)
+
+Entry: T-504 (githome's G-29, GitHub #292). The ruling C3 (DR-9) of 2026-11-11 limits GitHub sources to an organization. A repository of a personal account is refused (`repo-scope-refused`): its scale set needs "Administration: write". G-29 (P3) asks for a repository scale set of a personal account as a second path beside githome. R-051 does not need it.
+
+Options:
+
+1. Keep DR-9. Tell githome that a personal account goes through githome's source, not through the GitHub scale set.
+2. Add an opt-in of the operator. The default stays DR-9. `check` and `doctor` name the permission that the opt-in needs. T-504 first measures that permission.
+3. Lift DR-9: the GitHub source takes a personal account with no opt-in.
+
+Recommendation: option 2. The opt-in keeps the safe default, and the owner already accepted each ask of githome (2026-11-18). The call is P3, so T-504 runs after the P2 work.
+
+### Answered
+
+The owner ruled Q10 (retention on ghcr.io: keep each version) and Q11 (the snapshot keeps the Docker Hub login; the per-machine values are made fresh) on 2026-11-19 (`docs/decisions.md`).
 
 Before Q10: the owner ruled Q9 on 2026-11-17 (`docs/decisions.md`).
 

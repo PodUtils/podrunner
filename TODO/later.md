@@ -11492,7 +11492,7 @@ githome's comment on GitHub #292, read on 2026-11-18.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -11510,6 +11510,10 @@ githome's comment on GitHub #292, read on 2026-11-18. DR-9 is a ruling of 2026-1
 ## Prove
 
 `cargo test -p podrunner --test scaleset`: a repository URL of a personal account with the opt-in serves a job of the fake scale set; without it, `repo-scope-refused`.
+
+## Blocker
+
+The owner must answer Q13 (`TODO/PROGRESS.md`, "Questions for the owner"): may an operator turn on a GitHub source for a personal account, against the ruling C3 (DR-9)? The recommendation is an opt-in that is off by default. The entry runs when the owner rules; the ruling goes into `docs/decisions.md`.
 
 # T-505: No cap of units for the whole host across its kinds
 
@@ -11707,6 +11711,8 @@ State (2026-11-19, later): `pod-fake-githome` `0.76.0` passes the 15 tests.
 State (2026-11-19, later): `pod-fake-githome` `0.77.0` passes the 15 tests.
 
 State (2026-11-20): `pod-fake-githome` `0.78.1` passes the 15 tests.
+
+State (2026-11-24, read in the code and the runs; proven in CI on GitHub-hosted runners): the lanes cover Approach 1 in part and Approach 2 in full. Covered: (a) `source-conformance` against `pod-fake-githome source` is a step of `gate.yml` (`scripts/githome-conformance.sh`, 15 tests), and `release.yml` needs a green gate; (b) `scripts/user-gate.py` starts the pinned `pod-fake-github` and `pod-fake-githome serve --github`, runs `config init --source githome --program pod-fake-githome`, and `serve` with one job through the control API: the check `serve:job:KIND` ends `success` for `podvm` in the lane `userns-on`, and for `incus` (trusted) and `microvm` (untrusted) in the lane `serve-incus-kvm` (`user-gate.yml` runs 44788390111 at `6a84667` and 44802979062 at `32e5ea4`; the second is green in every lane); (c) `release.yml` refuses a version with no green `user-gate.yml` run at its commit, unless the input `no_user_gate` names a reason (T-243). Not covered: the job of the check is one `echo` step in a guest with no engine, so no job of githome runs on `microvm` with `engine` (a `container:` job, `services:`, a Docker action; T-516 has the proof of `docker build` and Docker-in-Docker); and the source is the fake of podcrates, not githome's released `githome source` with its core. This entry stays `partial` until a job with an engine runs through `serve` on `microvm` in the lane.
 
 # T-510: G-39: one record of each change of a contract that githome reads
 
@@ -11937,7 +11943,7 @@ The call in `docs/decisions.md`; `cargo todo check`.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -11954,6 +11960,10 @@ Compare each clause of G-13 with Q5. A clause that needs a change of Q5 becomes 
 ## Prove
 
 `cargo test -p podrunner-tier`; the release assets list `tier-cases.json`.
+
+## Blocker
+
+The owner must answer Q12 (`TODO/PROGRESS.md`, "Questions for the owner"): G-13 asks that an operator can trust `pull_request_target`, and the ruling Q5 of 2026-11-13 never trusts it. The recommendation is to keep Q5. The trait of the trust rule and the asset `tier-cases.json` need no change of Q5. A session can do them before the answer; the entry then stays `blocked` for the clause on `pull_request_target`.
 
 # T-519: G-03: no document says that a step of the job can read the credential of its runner
 
@@ -14978,6 +14988,8 @@ The report of the work of T-541, read on 2026-11-23.
 
 Take `/home/runner/work` when the runner root is under `/home/runner`, or add a work-folder option; add an option of the init of the image for `--incus` and `--microvm`, as `[unit.KIND] init` does. A test of the folder; a `runner-image.yml` step later.
 
+The runner root has no way in either. `InUnit.run_sh` (`crates/podrunner-local/src/exec.rs:51`) is set only to its default `/home/runner/run.sh` (`crates/podrunner-local/src/exec.rs:110`) and by tests; no option of `podrunner run` sets it, and `--runner-dir` is the host route. So `podrunner run` cannot name `/home/runner/actions-runner/run.sh`, and the rule of the folder above has no input. Add the option `--run-sh PATH` (it sets `InUnit.run_sh`, and `workdir::run_root` derives the work folder from it), or derive the root from the image. A test on the command line: `--run-sh /home/runner/actions-runner/run.sh` gives `InUnit.run_sh` that value.
+
 ## Prove
 
 `cargo test -p podrunner-local workdir`: a runner at `/home/runner/actions-runner/run.sh` gets `/home/runner/work`; a test of the init option on the command line.
@@ -15002,6 +15014,8 @@ The report of the work of T-541, read on 2026-11-23.
 ## Approach
 
 Name a layer of the tool cache by its last two parts (`toolcache-Python-3.12.16`), with a case of two tools of one version in the self-test of `plan.py`; `hosted-boot.yml` keeps `toolcache-Python-$PYTHON.*`. The names change at the next capture only; the content stays.
+
+During the move two names exist: the snapshot of before has `toolcache-3.12.16`, and the next capture has `toolcache-Python-3.12.16`. Two places of `.github/workflows/hosted-boot.yml` name the layer: the `--keep` glob of `slice.py` (`--keep "toolcache-$PYTHON.*"`) and the check `grep -q "^toolcache-$PYTHON\."` that stops the job when the slice has no such layer. Both must accept the old and the new name, for example `toolcache-$PYTHON.*` and `toolcache-Python-$PYTHON.*`. With the new glob only, `slice.py --keep` keeps no layer of the old snapshot (a `--keep` that matches no layer is a note, not an error), and the check then fails the job. Remove the old glob when the pinned snapshot has the new names.
 
 ## Prove
 
@@ -15057,7 +15071,7 @@ The report of the pin of podvm `0.2.0-beta.38`, read on 2026-11-23.
 
 ## Approach
 
-1. Say in the header that the image needs `/home/runner`, or let the driver make the runner directory in the tree of the unit before `run -d`.
+1. Say in the header that the image needs `/home/runner`, or let the driver make the runner directory in the tree of the unit before `run -d`. The header of `crates/podrunner-podvm/tests/conformance.rs` says that busybox works as the payload, but CI runs these tests with the runner image, which has `/home/runner`; busybox has none, so the three tests fail with it on the namespace rung. Make the header and the test agree: name the runner image as the payload, or make the directory.
 2. Reproduce tests 24 and 26 as root and as a user; decide whether the test or the driver is wrong for a root host.
 3. The pids test as uid 0: skip it with a line, or hold the limit by the `pids.max` of the cgroup.
 
@@ -15154,3 +15168,91 @@ Add the boot id (`/proc/sys/kernel/random/boot_id`, short form) to the id, and e
 ## Done
 
 2026-11-24, `3dde258` and `7ad6721`: NS of the run id `NS-PID-N` is a key (FNV-1a of 64 bits) of the host and the inode of the pid namespace. `3dde258` used the boot id; `7ad6721` uses the machine id (`/etc/machine-id`, 32 hex digits), because with the boot id the directories of a run killed before a reboot of this host stayed for ever. Only with no machine id does the key use the boot id; with neither, `here()` gives `None` and the run ends no other run. The limit: two hosts with one copied machine id that share `TMPDIR` are not told apart (`docs/local-mode.md`, `docs/decisions.md`). Proven on a development host: `cargo test -p podrunner --all-features --lib -- run_local::stale` (12 passed, 1 ignored): `a_run_of_an_earlier_boot_is_dead`, `a_run_of_another_machine_is_not_dead` and `with_no_machine_id_the_boot_id_separates_two_hosts` (`run_local/stale_key_tests.rs`) fail on the key of the boot id only. Also proven through the built binary as a user with no root (`labdns`): `podrunner run hello.yml --runner-dir ... --export DIR --log-dir DIR` with a private `TMPDIR`, exit 0; the directory of a dead pid with the key of this machine went (one line "the files of a run that died are gone"), and the one with the key of another machine id stayed.
+
+
+# T-616: A container of a unit of the local mode gets the CA bundle of the caller, but no trust store of a JVM
+
+**Source:** the recon of 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The sibling of T-597 in `podrunner run`. The local mode gives the runner a PKCS #12 trust store and `JAVA_TOOL_OPTIONS` (`java_trust` in `crates/podrunner-local/src/exec/proxy.rs`, T-577). A container of the container hooks gets the PEM bundle only: `unit_env` returns the combined PEM, `crates/podrunner-local/src/exec/hooks.rs` passes it to `podrunner_hook::hooks::place_ca` as a `Bundle` (a file name, a PEM and the ten variables of `ca::env`), and `place_ca` writes that one file to `LOGS/ca`. No store and no `JAVA_TOOL_OPTIONS` reach the container. A Java step in a `container:` job of `podrunner run` behind an intercepting proxy then fails the TLS handshake.
+
+## Premise
+
+`crates/podrunner-local/src/exec/proxy.rs` (`unit_env`, `all_env`, `java_trust`), `crates/podrunner-local/src/exec/hooks.rs` and `crates/podrunner-hook/src/hooks.rs` (`Bundle`, `place_ca`), read on 2026-11-24. Not measured with a JVM in a container.
+
+## Approach
+
+After T-597 (the store beside the bundle in `LOGS/ca`, in the code that `serve` and `run` share), make the store from the combined PEM of the caller in `Bundle` or `place_ca`, name it `podrunner-ca.p12` as the local mode names its store, and set `JAVA_TOOL_OPTIONS` of `ca::java_options` for the container to `/__podrunner/podrunner-ca.p12`. A value that the job sets for the container stays. When the store cannot be made, the container keeps the bundle and one line names the cause, as for the runner.
+
+## Prove
+
+`cargo test -p podrunner-local --lib exec`: a caller with `SSL_CERT_FILE` gives the container of a unit the store beside the bundle and `JAVA_TOOL_OPTIONS` that names it; a value of the job stays.
+
+# T-617: The hand-written state of GitHub #65, #66 and the comment on #292 is stale
+
+**Source:** the recon of 2026-11-24
+**Category:** docs
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+githome and cfb read these pages first, and they read an old state. The bodies of GitHub #65 and #66 say "State read: 2026-11-18, at podrunner `main` `a817f6f`", with podvm `v0.2.0-beta.33`. The podrunner comment on GitHub #292 (the comment of 2026-11-18 that starts "podrunner status") was last edited on 2026-11-18. The body of #66 checks G-09 and G-13 under "Done" while T-516 (a CI proof of `docker build` and Docker-in-Docker) and T-518 (each event by name, a swappable rule, a published table of cases) are open; the text of each line names the open part, the box says done.
+
+## Premise
+
+The bodies and the comments of GitHub #65, #66 and #292, read on 2026-11-24 through the mirror; T-492 (done) states the rule "change the bodies at each change of state of an ask". The census tally of the recon of 2026-11-24 is: githome (G-01 to G-41): 4 asks are in beta.7, 19 are done on `main` and not released, 11 are partial, 7 are open. cfb: 10 asks are in a release, 15 are on `main`, 6 are partial, 7 are open; R-052 is named nowhere (T-618); W11 and W14 are dropped by cfb (Q-12). This entry did not recount them: a session recounts from the record before it writes them.
+
+## Approach
+
+Amend each page from the record, by the rule of T-492: the hand-written part of #65 and #66 (the generated block stays), and the comment of podrunner on #292 (the one comment of podrunner; edit it, post no second). Give the state read as the date, the commit of `main` and the last release. Give the counts of the tally. Take a box of #66 as checked only when the ask is done in full: G-09 and G-13 are not (T-516, T-518, and for G-13 the question Q12). Write to GitHub with the MCP tools. Record the commit, and the date of each edit, in the Done section.
+
+## Prove
+
+```sh
+curl -qfsS "https://forge.web.pkgforge.dev/github/repos/PodUtils/podrunner/issues/66?n=$RANDOM" | grep -o 'State read:[^(]*'
+cargo todo check
+```
+
+The "State read" date of #65 and #66 is the date of the edit; the box of G-09 and G-13 agrees with T-516 and T-518; the comment on #292 has the counts.
+
+# T-618: R-052 of cfb is named nowhere
+
+**Source:** the recon of 2026-11-24
+**Category:** research
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The census of cfb's asks lists the rulings R-051 to R-054 (`docs/reports/census-2026-11-18.md:212`). R-052 has no text: the row says "unknown: R-052 is named nowhere in #292, #65, podcrates#35 or the record". The record maps R-051, R-053 and R-054, so a ruling of cfb may be lost, and T-617 must count it.
+
+## Premise
+
+Read on 2026-11-24 through the mirror: the three comments of GitHub #292, the body and the comments of #65, the comments of #66 and the body and the comments of podcrates#35 hold no "R-052"; the record holds it in the row of the census only. A search of the issues of PodUtils through the mirror did not run (the route does not exist). cfb is away until podrunner is complete.
+
+## Approach
+
+1. Ask cfb in the podrunner comment on GitHub #292 (the one comment of podrunner; edit it): what is R-052?
+2. Until cfb answers, treat R-052 as none for the work order, and write "R-052: asked on #292, no answer" in the row of #292 in `TODO/issues.md`.
+3. When cfb answers with an ask, make one entry for each request (Source: GitHub #292), and add its id to the row of #292.
+
+## Prove
+
+```sh
+grep -rn 'R-052' TODO docs/reports/census-2026-11-18.md
+cargo todo check
+```
+
+The record names R-052 with its text or with the line "asked on #292"; each request of cfb's answer has an entry.
