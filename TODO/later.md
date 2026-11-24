@@ -15428,3 +15428,30 @@ Read: `SourceStatus` of `pod_job` (podcrates `v0.82.1`, `deny_unknown_fields`), 
 ## Prove
 
 `cargo test -p podrunner-slots --lib status` and `go test ./...` in `tools/scaleset-sidecar`.
+
+# T-623: A cancel of a refused run that fails is never tried again
+
+**Source:** the work on the third review of T-504, 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`cancelRefused` of `tools/scaleset-sidecar/cancel.go` sets `cancelled[run]` before its POST, and `post` gives only a status. A cancel that gets a 5xx, a 429, a 401 or no answer is logged and never tried again: the refused job stays assigned to the scale set, which counts it as busy (the cause of Q7). `post` also keeps an installation token that GitHub answered 401 for, where `get` drops it.
+
+## Premise
+
+Read: `tools/scaleset-sidecar/cancel.go`, `tools/scaleset-sidecar/calls.go` (`get` drops the token at a 401). Not measured: how often a cancel fails at GitHub.
+
+## Approach
+
+1. Mark the run cancelled only after a 202, or a 409 (the run ended already); keep each other answer in a list of cancels to try again, with the retry of `queue.go` (5 s, doubled, at most 60 s) and a limit of attempts, from `next`.
+2. `post` drops the token at a 401, as `get` does.
+3. A test: a fake API that answers the first POST 502 and the second 202; the run is cancelled once, at the second.
+
+## Prove
+
+`go test ./...` in `tools/scaleset-sidecar` (a test in `cancel_test.go` that fails before the change).

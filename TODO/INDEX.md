@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**617 entries: 69 open, 57 partial, 16 blocked, 475 done.**
+**618 entries: 70 open, 57 partial, 16 blocked, 475 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 91 | 120 |
-| P2 | 15 | 22 | 9 | 243 | 289 |
+| P2 | 16 | 22 | 9 | 243 | 290 |
 | P3 | 51 | 11 | 4 | 139 | 205 |
-| **All** | 69 | 57 | 16 | 475 | 617 |
+| **All** | 70 | 57 | 16 | 475 | 618 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -665,3 +665,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-620](later.md) | P3 | S | later | defect | done | A long state path leaves an empty `podrunner-HASH` directory in the temp directory |
 | [T-621](later.md) | P2 | S | later | measurement | open | A kill of the scale-set sidecar with queued jobs: does GitHub send them again |
 | [T-622](later.md) | P3 | S | later | feature | open | The status of a scale-set source has no counts of the queue of its sidecar |
+| [T-623](later.md) | P2 | S | later | defect | open | A cancel of a refused run that fails is never tried again |
