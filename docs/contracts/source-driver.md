@@ -36,7 +36,7 @@ source is the trait `JobSource` of `crates/podrunner-source/src/lib.rs`;
 | `audit` | `line` | `done` |
 | `withdraw` | `job_id`, `reason` | `done` |
 | `release` | `job_id` | `done` |
-| `assigned` | `job_id` (of the offer), `real`: `run_id`, `job_name`, `event`, `repository`, `actor`; optional `head_repository`, `head_is_fork`, `job_id` (the number of the job at the forge) | `keep`: `trust_inputs` (of `job-offer.v1`); or `end`: `code`, `detail` |
+| `assigned` | `job_id` (of the offer), `real`: `run_id`, `job_name`, `event`, `repository`, `actor`; optional `head_repository` (`OWNER/REPO` of the head of a pull request), `head_is_fork` (true when the head is another repository than `repository`, as `trust_inputs.head_is_fork` below), `job_id` (the number of the job at the forge) | `keep`: `trust_inputs` (of `job-offer.v1`); or `end`: `code`, `detail` |
 
 The order of one job: `offer` (an event of `next`), `ack`, `claim`,
 `mint`, then `report` and `release`. `withdraw` ends an offer that
@@ -130,7 +130,7 @@ differs, the parser is the contract (T-188):
 
 | Field | The parser takes |
 | --- | --- |
-| `trust_inputs.head_is_fork` | `yes`, `no` or `unknown` (not a boolean) |
+| `trust_inputs.head_is_fork` | `yes`, `no` or `unknown` (not a boolean). `yes` when the repository of the head is another repository than the repository of the job (another id; with no id, another `owner/repo` in any case); `no` when it is the same; `unknown` when one of the two is not known. Do not send the `fork` flag of the head: a pull request can come from the root of a fork network (`fork` false), and a push to a fork has the fork as its head (`fork` true) |
 | `trust_inputs.actor_class` | `member`, `outside` or `unknown` (not `external`) |
 | `trust_inputs.run_id` | a number |
 | `limits`, `limits_required` | the names `wall`, `cpu`, `memory`, `pids`, `disk` |

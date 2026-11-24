@@ -131,11 +131,7 @@ func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trus
 	if e, ok := r["event"].(string); ok {
 		out.event = eventWord(e)
 	}
-	if h, ok := r["head_repository"].(map[string]any); ok {
-		if f, ok := h["fork"].(bool); ok {
-			out.headIsFork = map[bool]string{true: "yes", false: "no"}[f]
-		}
-	}
+	out.headIsFork = headIsFork(r)
 	if rp, ok := r["repository"].(map[string]any); ok {
 		out.visibility = visibilityOf(rp)
 	}
@@ -187,6 +183,31 @@ func visibilityOf(rp map[string]any) string {
 		return "private"
 	case ok:
 		return "public"
+	}
+	return "unknown"
+}
+
+// headIsFork tells whether the head of a run is another repository than
+// its base. Not `head_repository.fork`: a pull request can come from any
+// repository of the fork network, also from its root (fork=false), and a
+// push to a fork has its own repository as the head (fork=true).
+func headIsFork(r map[string]any) string {
+	head, _ := r["head_repository"].(map[string]any)
+	base, _ := r["repository"].(map[string]any)
+	if head == nil || base == nil {
+		return "unknown"
+	}
+	fork := map[bool]string{true: "yes", false: "no"}
+	hid, hok := head["id"].(float64)
+	bid, bok := base["id"].(float64)
+	if hok && bok {
+		return fork[hid != bid]
+	}
+	// GitHub names do not care about case.
+	hn, _ := head["full_name"].(string)
+	bn, _ := base["full_name"].(string)
+	if hn != "" && bn != "" {
+		return fork[!strings.EqualFold(hn, bn)]
 	}
 	return "unknown"
 }

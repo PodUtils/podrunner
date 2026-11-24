@@ -359,12 +359,18 @@ func (s *server) workflowRun(w http.ResponseWriter, p string) {
 		reply(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
 		return
 	}
+	// The head of a fork is another repository than the base: another id
+	// and another name, as on github.com.
+	head := map[string]any{"id": 1, "full_name": j.Owner + "/" + j.Repo, "fork": false}
+	if j.HeadIsFork {
+		head = map[string]any{"id": 2, "full_name": "fork-owner/" + j.Repo, "fork": true}
+	}
 	reply(w, http.StatusOK, map[string]any{
 		"id": run, "event": j.Event, "actor": map[string]any{"login": j.Actor},
-		"head_repository": map[string]any{"fork": j.HeadIsFork},
+		"head_repository": head,
 		// The repository of a run is a minimal one on github.com:
 		// `visibility` is null, and only `private` tells it (T-167).
-		"repository": map[string]any{"name": j.Repo, "owner": map[string]any{"login": j.Owner}, "visibility": nil, "private": j.Visibility != "public"},
+		"repository": map[string]any{"id": 1, "full_name": j.Owner + "/" + j.Repo, "name": j.Repo, "owner": map[string]any{"login": j.Owner}, "visibility": nil, "private": j.Visibility != "public"},
 	})
 }
 

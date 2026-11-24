@@ -156,3 +156,10 @@ fn each_forge_of_a_source_has_its_own_list() {
     let twice = r#"trust = [{ forge = "a.example" }, { forge = "A.example" }]"#;
     assert!(Config::parse(&two_sources(twice)).unwrap_err().contains("named twice"));
 }
+
+/// An empty list of forges is not a table with no owner: `check` refuses it.
+#[test]
+fn an_empty_list_of_forges_is_refused() {
+    let e = Config::parse(&two_sources("trust = []")).unwrap_err();
+    assert!(e.contains("[[source]] githome") && e.contains("names no forge"), "{e}");
+}

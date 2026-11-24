@@ -7464,7 +7464,7 @@ The report and its logs (not in the repository), read on 2026-11-17; the triage 
 
 ## Approach
 
-In `crates/podrunner-broker-fake/src/runner.rs` (the console relay at `:114`), put each console line in the log of the job (`--log-dir`) and show on stderr only a warning or an error line, as on podvm. Give the runner a machine name `podrunner-host` (`--name` of the config of the runner directory) so that the host name does not leak.
+In `crates/podrunner-broker-fake/src/runner.rs` (the console relay at `:119`), put each console line in the log of the job (`--log-dir`) and show on stderr only a warning or an error line, as on podvm. Give the runner a machine name `podrunner-host` (`--name` of the config of the runner directory) so that the host name does not leak.
 
 ## Prove
 

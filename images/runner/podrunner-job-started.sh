@@ -31,9 +31,15 @@ ask='
 const http = require("http"), fs = require("fs");
 const e = process.env;
 let head_repository, head_is_fork;
+// A fork is a head that is not the base: not head.repo.fork, as a pull
+// request can come from the root of the fork network.
 try {
   const pr = JSON.parse(fs.readFileSync(e.GITHUB_EVENT_PATH, "utf8")).pull_request;
-  if (pr && pr.head && pr.head.repo) { head_repository = pr.head.repo.full_name; head_is_fork = !!pr.head.repo.fork; }
+  const h = pr && pr.head && pr.head.repo, b = pr && pr.base && pr.base.repo;
+  if (h) head_repository = h.full_name;
+  if (h && b && typeof h.id === "number" && typeof b.id === "number") head_is_fork = h.id !== b.id;
+  else if (h && b && typeof h.full_name === "string" && typeof b.full_name === "string" && h.full_name && b.full_name)
+    head_is_fork = h.full_name.toLowerCase() !== b.full_name.toLowerCase();
 } catch (_) {}
 const body = JSON.stringify({
   run_id: Number(e.GITHUB_RUN_ID), job_name: e.GITHUB_JOB || "", event: e.GITHUB_EVENT_NAME || "",

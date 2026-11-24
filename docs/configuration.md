@@ -83,8 +83,9 @@ extra_events = ["release"]   # more events of a trusted job: only workflow_run, 
                              # release, repository_dispatch (the owner, Q5) and pull_request_target
                              # (Q12); default none. Each needs the facts of a trusted job: a configured
                              # owner, a head that is not a fork, an actor member. A pull_request_target
-                             # job gets the secrets of the repository: check and serve print one line
-                             # that names this opt-in (T-518)
+                             # job runs the workflow of the base branch of its pull request and gets
+                             # the secrets of the repository: check and serve print one line that
+                             # names this opt-in (T-518)
 
 [deadlines]                  # seconds; these are the defaults
 prepare_s = 600
@@ -326,6 +327,22 @@ built_at_s = 1763337600
 | `untrusted` | `guest` | A fork job is hostile code. |
 | `trusted` | `redirect` (default `confined`) | DR-4: `redirect` is a choice of the operator. The file must then have a signed pin list (`podrunner pin-sign`), set `repository`, keep `same_principal_ok = false` and set `slots` on each `trusted` source (T-045 has the other mitigations). |
 | `local` | `none` | Only the configuration marks a set `local`; its jobs run at `local` with no tier rule, and only a `fake` source can be `local` (call C14). |
+
+## The case table of the tier rule
+
+The release asset `tier-cases.json` is the case table of the tier rule
+(T-518): each row gives the trust lists, the tier of the set, the facts of
+a job and the result. Its source is `crates/podrunner-tier/tier-cases.json`,
+made from `crates/podrunner-tier/tests/cases.json`. A forge with a trust
+rule of its own runs each row against it.
+
+`head_is_fork` of a job is `yes` when the head is another repository than
+the repository of the job, not the `fork` flag of the head
+(`docs/contracts/source-driver.md`).
+
+`docs/design/examples/tier-cases.json` has the same file name and another
+format. It is the design copy (call C17): it predates the rulings Q5 and
+Q12 and refuses each `pull_request_target`. Do not use it as the table.
 
 ## A program source
 

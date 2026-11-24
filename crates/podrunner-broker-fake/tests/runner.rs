@@ -286,3 +286,70 @@ fn the_job_started_hook_asks_through_the_egress_socket() {
     let _ = std::fs::remove_file(&job);
     let _ = std::fs::remove_file(&sock);
 }
+
+/// The hook sends `head_is_fork` true when the head of the pull request is
+/// another repository than its base, by id (else by name, in any case): a
+/// pull request from the root of a fork network has a head with `fork`
+/// false. It sends none when it cannot tell. The hook runs alone here, with
+/// the node of the runner.
+#[test]
+#[ignore]
+fn the_job_started_hook_sends_a_head_that_is_not_the_base_as_a_fork() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::path::PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let script = include_str!("../../../images/runner/podrunner-job-started.sh");
+    std::fs::create_dir_all(dir.join("hooks")).unwrap();
+    let hook = dir.join("hooks/podrunner-job-started.sh");
+    std::fs::write(&hook, script).unwrap();
+    let job = dir.join(".podrunner-job");
+    std::fs::write(&job, "example-org/app 2\n").unwrap();
+    let event = dir.join("podrunner-event.json");
+    let repo = |id: Option<u64>, name: &str, fork: bool| match id {
+        Some(id) => format!(r#"{{"id":{id},"full_name":"{name}","fork":{fork}}}"#),
+        None => format!(r#"{{"full_name":"{name}","fork":{fork}}}"#),
+    };
+    let pr = |head: String, base: Option<String>| match base {
+        Some(b) => format!(r#"{{"pull_request":{{"head":{{"repo":{head}}},"base":{{"repo":{b}}}}}}}"#),
+        None => format!(r#"{{"pull_request":{{"head":{{"repo":{head}}}}}}}"#),
+    };
+    for (why, body, want) in [
+        (
+            "the root of the network into a fork",
+            pr(repo(Some(1), "up/app", false), Some(repo(Some(2), "example-org/app", true))),
+            Some(true),
+        ),
+        (
+            "a branch of the base, which is a fork",
+            pr(repo(Some(2), "example-org/app", true), Some(repo(Some(2), "example-org/app", true))),
+            Some(false),
+        ),
+        (
+            "no ids, one name in another case",
+            pr(repo(None, "Example-Org/App", false), Some(repo(None, "example-org/app", false))),
+            Some(false),
+        ),
+        ("no ids, other names", pr(repo(None, "x/app", true), Some(repo(None, "example-org/app", false))), Some(true)),
+        ("no base", pr(repo(Some(1), "up/app", true), None), None),
+        ("no pull request", "{}".to_string(), None),
+    ] {
+        std::fs::write(&event, body).unwrap();
+        let (port, seen) = front_stand_in(r#"{"verdict":"keep"}"#);
+        let out = std::process::Command::new("sh")
+            .arg(&hook)
+            .env_clear()
+            .env("GITHUB_REPOSITORY", "example-org/app")
+            .env("GITHUB_RUN_ID", "1")
+            .env("GITHUB_EVENT_NAME", "pull_request_target")
+            .env("GITHUB_EVENT_PATH", &event)
+            .env("HTTP_PROXY", format!("http://127.0.0.1:{port}"))
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "{why}: {out:?}");
+        let asked = seen.lock().unwrap().clone();
+        assert_eq!(asked.len(), 1, "{why}: {asked:?}");
+        let body: serde_json::Value = serde_json::from_str(asked[0].split("\n\n").last().unwrap()).unwrap();
+        assert_eq!(body["head_is_fork"].as_bool(), want, "{why}: {body}");
+    }
+    let _ = std::fs::remove_file(&job);
+    let _ = std::fs::remove_file(&event);
+}

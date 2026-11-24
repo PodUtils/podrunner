@@ -41,7 +41,9 @@ fn stderr(o: &Output) -> String {
     String::from_utf8_lossy(&o.stderr).into_owned()
 }
 
-/// The line of the opt-in names the event, the facts and the risk.
+/// The line of the opt-in names the event, the facts and the risk. The
+/// workflow comes from the base branch of the pull request, not the default
+/// branch.
 fn names_the_opt_in(text: &str, table: &str) -> bool {
     text.lines().any(|l| {
         l.starts_with("podrunner: ")
@@ -50,6 +52,8 @@ fn names_the_opt_in(text: &str, table: &str) -> bool {
             && l.contains("not a fork")
             && l.contains("member")
             && l.contains("secrets")
+            && l.contains("base branch of the pull request")
+            && !l.contains("default branch")
     })
 }
 
@@ -119,6 +123,30 @@ fn check_names_the_opt_in_of_pull_request_target_in_a_file_of_the_mint() {
         let o = check(&f, &mint_file(&d.0, &format!("extra_events = [\"{bad}\"]\n")));
         assert_eq!(o.status.code(), Some(78), "{bad}: {}", stderr(&o));
         assert!(stderr(&o).contains("can never be trusted"), "{bad}: {}", stderr(&o));
+    }
+    assert!(!d.0.join("state").exists(), "check made the state directory");
+}
+
+/// A remote mint serves one forge: `check` refuses a `[source] trust` list
+/// of one table for each forge, as `mint-serve` does at its start, and
+/// takes one table.
+#[test]
+fn check_refuses_a_mint_trust_for_each_forge() {
+    let d = dir("mint-forge");
+    std::fs::write(d.0.join("cert.pem"), "made-up certificate\n").unwrap();
+    std::fs::write(d.0.join("key.pem"), "made-up key\n").unwrap();
+    std::fs::set_permissions(d.0.join("key.pem"), std::fs::Permissions::from_mode(0o600)).unwrap();
+    let f = d.0.join("mint.toml");
+    let with = |trust: &str| mint_file(&d.0, "").replace("arch = \"x86_64\"\n", &format!("arch = \"x86_64\"\n{trust}"));
+    let one = "trust = { organizations = [{ login = \"example-org\" }] }\n";
+    let o = check(&f, &with(one));
+    assert_eq!(o.status.code(), Some(0), "{}", stderr(&o));
+    for list in
+        ["trust = [{ forge = \"github.com\", organizations = [{ login = \"example-org\" }] }]\n", "trust = []\n"]
+    {
+        let o = check(&f, &with(list));
+        assert_eq!(o.status.code(), Some(78), "{list}: {}", stderr(&o));
+        assert!(stderr(&o).contains("one trust table, not one for each forge"), "{list}: {}", stderr(&o));
     }
     assert!(!d.0.join("state").exists(), "check made the state directory");
 }

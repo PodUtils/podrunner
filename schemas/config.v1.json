@@ -676,15 +676,15 @@
       "description": "The trust lists of one source.",
       "anyOf": [
         {
-          "description": "One table for each offer of the source.",
-          "$ref": "#/$defs/TierConfig"
-        },
-        {
           "description": "One table for each forge.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/ForgeTrust"
           }
+        },
+        {
+          "description": "One table for each offer of the source.",
+          "$ref": "#/$defs/TierConfig"
         }
       ]
     },

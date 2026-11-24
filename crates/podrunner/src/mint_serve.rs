@@ -69,6 +69,8 @@ fn revoke_after() -> usize {
     podrunner_remote::gate::Reconcile::default().revoke_after
 }
 
+const ONE_TABLE: &str = "[source] trust: a remote mint takes one trust table, not one for each forge";
+
 impl MintConfig {
     pub fn parse(text: &str) -> Result<MintConfig, String> {
         let c: MintConfig = toml::from_str(text).map_err(|e| e.to_string())?;
@@ -85,6 +87,11 @@ impl MintConfig {
         c.trust.check()?;
         if let Some(t) = &c.source.trust {
             podrunner_slots::trust::table_check(t).map_err(|e| format!("[source] trust: {e}"))?;
+            // A remote mint serves one source of one forge (T-494): `check`
+            // refuses here what `run` cannot use.
+            if matches!(t, podrunner_slots::trust::SourceTrust::ByForge(_)) {
+                return Err(ONE_TABLE.into());
+            }
         }
         let mut pins = std::collections::BTreeSet::new();
         for h in &c.host {
@@ -171,9 +178,7 @@ pub fn run(config: &Path) -> Result<(), Failure> {
     let trust = match &c.source.trust {
         None => c.trust.clone(),
         Some(podrunner_slots::trust::SourceTrust::One(t)) => t.clone(),
-        Some(podrunner_slots::trust::SourceTrust::ByForge(_)) => {
-            return Err(fail(Class::Config, "a remote mint takes one trust table, not one for each forge"));
-        }
+        Some(podrunner_slots::trust::SourceTrust::ByForge(_)) => return Err(fail(Class::Config, ONE_TABLE)),
     };
     let gate = Gate::new(source, c.source.tier, trust, ledger, hosts, audit).with_reconcile(Box::new(now), reconcile);
     let keys: Vec<HostKey> = c

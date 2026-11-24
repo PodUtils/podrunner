@@ -321,3 +321,42 @@ fn assigned_keeps_a_job_of_the_owner_and_ends_another() {
     }
     assert!(matches!(s.assigned(&job, &real("someone-else/x".into(), false)).unwrap(), Assigned::End { .. }));
 }
+
+/// The fake does not keep the fork fact of the offer for a real job that
+/// gives none: the offer can be of another run and another event. A head
+/// repository of the real job tells the fact by its name.
+#[test]
+fn assigned_keeps_no_fork_fact_of_the_offer() {
+    use podrunner_schema::Fact;
+    use podrunner_source::{Assigned, RealJob};
+    let line = r#"{"at_s":0,"offer":{"job_id":"j-1","source":"fake-1","labels":["x"],"arch":"x86_64","wait_deadline_s":60,"trust_inputs":{"event":"push","head_is_fork":"no","actor_class":"member","repo_visibility":"private","owner":"example-org","repo":"app","run_id":1,"ref":"refs/heads/main","workflow_ref":"w"}}}"#;
+    let mut s = FakeSource::new("fake-1", Arc::new(ManualClock::new()), parse_script(line).unwrap());
+    s.next(1, Duration::ZERO).unwrap();
+    let job = JobId::new("j-1").unwrap();
+    s.ack(&job).unwrap();
+    s.claim(&job, "r").unwrap();
+    let real = |event: &str, head: Option<&str>, fork: Option<bool>| RealJob {
+        run_id: 99,
+        job_name: "test".into(),
+        event: event.into(),
+        repository: "example-org/app".into(),
+        head_repository: head.map(String::from),
+        head_is_fork: fork,
+        actor: "a".into(),
+        job_id: None,
+    };
+    for (why, r, want) in [
+        ("another event, no fact", real("pull_request_target", None, None), Fact::Unknown),
+        ("the same event, no fact", real("push", None, None), Fact::Unknown),
+        ("a head of another name", real("pull_request_target", Some("up/app"), None), Fact::Yes),
+        ("the base in another case", real("pull_request_target", Some("Example-Org/App"), None), Fact::No),
+        ("an empty head", real("pull_request", Some(""), None), Fact::Unknown),
+        ("the fact of the hook", real("pull_request_target", Some("up/app"), Some(true)), Fact::Yes),
+        ("the fact of the hook, no head", real("pull_request", None, Some(false)), Fact::No),
+    ] {
+        match s.assigned(&job, &r).unwrap() {
+            Assigned::Keep(t) => assert_eq!(t.head_is_fork, want, "{why}"),
+            other => panic!("{why}: {other:?}"),
+        }
+    }
+}

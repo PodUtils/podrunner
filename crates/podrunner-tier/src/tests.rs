@@ -229,6 +229,17 @@ fn an_agent_needs_a_guest_and_a_bot_is_never_trusted() {
     assert_eq!(compute(&job(ActorClass::Bot, Event::Push), &cfg), Err(RefusalCode::EventNotAllowed));
     // An agent's job never runs on a trusted set.
     assert_eq!(intake(&job(ActorClass::Agent, Event::Push), &cfg, Tier::Trusted), Err(RefusalCode::TierMismatch));
+    // An agent's job from a fork or an unknown head never goes to a guest,
+    // with each extra event listed: the job of an extra event holds the
+    // secrets. Only a fork `pull_request` (no secrets) does, as for each
+    // actor.
+    let mut every = table().config;
+    every.extra_events = EXTRA_EVENTS.to_vec();
+    for t in each_input().iter().filter(|t| t.actor_class == ActorClass::Agent && t.head_is_fork != Fact::No) {
+        if compute(t, &every) == Ok(Tier::Untrusted) {
+            assert!(t.event == Event::PullRequest && t.head_is_fork == Fact::Yes, "{t:?}");
+        }
+    }
 }
 
 /// T-191: a repository of a listed user is trusted as one of a listed
@@ -389,7 +400,7 @@ fn the_harness_passes_the_default_rule_and_finds_each_planted_rule() {
             DefaultRule.compute(&t, &cfg)
         }
     }
-    let plants: [(&str, Plant); 5] = [
+    let plants: [(&str, Plant); 6] = [
         ("pull_request_target with no opt-in", Plant(|_, c| c.extra_events.push(Event::PullRequestTarget))),
         (
             "the opt-in reads a fork as no fork",
@@ -412,6 +423,14 @@ fn the_harness_passes_the_default_rule_and_finds_each_planted_rule() {
             Plant(|t, _| {
                 if t.event == Event::PullRequestTarget && t.head_is_fork == Fact::Yes {
                     t.event = Event::PullRequest;
+                }
+            }),
+        ),
+        (
+            "an agent's job from a fork or an unknown head reads as no fork",
+            Plant(|t, _| {
+                if t.actor_class == ActorClass::Agent {
+                    t.head_is_fork = Fact::No;
                 }
             }),
         ),

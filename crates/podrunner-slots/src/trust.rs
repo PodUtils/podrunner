@@ -16,11 +16,12 @@ use crate::config::{Config, SourceConfig, SourceKind};
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(untagged)]
+// The list comes first: serde also reads an empty array as a table.
 pub enum SourceTrust {
-    /// One table for each offer of the source.
-    One(TierConfig),
     /// One table for each forge.
     ByForge(Vec<ForgeTrust>),
+    /// One table for each offer of the source.
+    One(TierConfig),
 }
 
 /// The lists of one forge of a source.
@@ -105,6 +106,9 @@ impl Config {
                 None => {}
                 Some(SourceTrust::One(t)) => t.check().map_err(named)?,
                 Some(SourceTrust::ByForge(forges)) => {
+                    if forges.is_empty() {
+                        return Err(named("trust: the list names no forge".into()));
+                    }
                     for (i, f) in forges.iter().enumerate() {
                         if f.forge.is_empty() || forges[..i].iter().any(|g| g.forge == f.forge) {
                             return Err(named(format!("trust: the forge {:?} is empty or named twice", f.forge)));

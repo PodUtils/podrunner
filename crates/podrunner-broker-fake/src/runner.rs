@@ -72,6 +72,11 @@ fn spawn(
     stderr: std::process::Stdio,
 ) -> Result<std::process::Child, String> {
     use std::os::unix::process::CommandExt;
+    // A killed run leaves its pages and blocks, and the fake broker gives
+    // each run the same ids: the runner refuses a file of them that exists.
+    for d in ["pages", "blocks"] {
+        let _ = std::fs::remove_dir_all(dir.join("_diag").join(d));
+    }
     for (name, mut content) in broker.runner_files("runner-u-1") {
         if name == ".runner" {
             let mut v: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;

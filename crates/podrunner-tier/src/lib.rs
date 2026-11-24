@@ -10,14 +10,19 @@
 //!   `merge_group`, or an event of [`EXTRA_EVENTS`] that `extra_events`
 //!   lists.
 //! - `untrusted` when the job is not trusted, the event is `pull_request`,
-//!   and the head is a fork; or when an agent made the change (T-106).
+//!   and the head is a fork; or when an agent made the change and the job
+//!   has each other fact of a trusted job (T-106).
 //! - Else `event-not-allowed`: this holds `other`, each `unknown` value,
 //!   an event of [`EXTRA_EVENTS`] that `extra_events` does not list, a
-//!   `pull_request_target` from a fork, a pull request from the same
-//!   repository by an actor that is not a member, and an event of a public
-//!   repository that is not listed.
+//!   `pull_request_target` from a fork, an agent's job of another event
+//!   from a fork, a pull request from the same repository by an actor that
+//!   is not a member, and an event of a public repository that is not
+//!   listed.
 //! - `local` is never computed: only the configuration marks a set
 //!   `local`.
+//!
+//! The head is a fork when the repository of the head is not the
+//! repository of the job (`head_is_fork`, `docs/contracts/source-driver.md`).
 //!
 //! The intake check: a computed tier less trusted than the tier of the set
 //! is `tier-mismatch`. A job more trusted than its set runs under the
@@ -77,10 +82,13 @@ pub struct TierConfig {
 const TRUSTED_EVENTS: [Event; 5] =
     [Event::Push, Event::PullRequest, Event::WorkflowDispatch, Event::Schedule, Event::MergeGroup];
 
-/// The events that the operator may add (the owner, Q5 and Q12). On GitHub
-/// each runs the workflow of the default branch, not of a pull request,
-/// with the secrets of the repository.
-/// `other` and `unknown` are never trusted.
+/// The events that the operator may add (the owner, Q5 and Q12). Each runs
+/// with the secrets of the repository. On GitHub, `pull_request_target`
+/// runs the workflow of the base branch of the pull request (any branch
+/// that a pull request can target). `workflow_run`, `issue_comment` and
+/// `repository_dispatch` run the workflow of the default branch. `release`
+/// runs the workflow of the commit of its tag. `other` and `unknown` are
+/// never trusted.
 pub const EXTRA_EVENTS: [Event; 5] =
     [Event::WorkflowRun, Event::IssueComment, Event::Release, Event::RepositoryDispatch, Event::PullRequestTarget];
 
@@ -106,9 +114,9 @@ impl TierConfig {
         }
         vec![
             "extra_events: pull_request_target is trusted (the owner, Q12): a job of this event is trusted when its \
-             owner is configured, its head is not a fork and its actor is a member. Its workflow comes from the \
-             default branch and gets the secrets of the repository: a step that runs the code of the pull request \
-             runs it with those secrets"
+             owner is configured, its head is not a fork and its actor (who triggered the event) is a member. Its \
+             workflow comes from the base branch of the pull request and gets the secrets of the repository: a \
+             step that runs the code of the pull request runs it with those secrets"
                 .into(),
         ]
     }
@@ -175,8 +183,8 @@ impl TrustRule for DefaultRule {
         };
         let allowed_event = TRUSTED_EVENTS.contains(&t.event)
             || (EXTRA_EVENTS.contains(&t.event) && cfg.extra_events.contains(&t.event));
-        // For `pull_request_target`, `head_is_fork` is the repository of
-        // the head of the pull request (`head_repository` of the run).
+        // For a pull request, the head is the repository of its branch:
+        // `head_is_fork` is yes when that is not this repository.
         let trusted = visible
             && configured_owner(t, cfg)
             && t.head_is_fork == Fact::No
@@ -186,9 +194,16 @@ impl TrustRule for DefaultRule {
             return Ok(Tier::Trusted);
         }
         // A change that an agent made runs as untrusted code, in a guest,
-        // also in the repository of a configured owner (T-106). A bot is
-        // never trusted: it falls through to the rules below.
-        if t.actor_class == ActorClass::Agent && visible && configured_owner(t, cfg) && allowed_event {
+        // also in the repository of a configured owner (T-106). Only with a
+        // head of this repository: an extra event from a fork holds the
+        // secrets, and a guest must not get them. A bot is never trusted:
+        // it falls through to the rules below.
+        if t.actor_class == ActorClass::Agent
+            && visible
+            && configured_owner(t, cfg)
+            && t.head_is_fork == Fact::No
+            && allowed_event
+        {
             return Ok(Tier::Untrusted);
         }
         // Only a fork `pull_request` goes to a guest: GitHub gives it no

@@ -1502,6 +1502,331 @@
         "users": []
       },
       "expect": "event-not-allowed",
+      "name": "pull_request_target from a fork by an agent on the untrusted set, opt-in",
+      "set": "untrusted",
+      "trust_inputs": {
+        "actor_class": "agent",
+        "event": "pull_request_target",
+        "head_is_fork": "yes",
+        "owner": "example-org",
+        "ref": "refs/heads/main",
+        "repo": "app",
+        "repo_visibility": "private",
+        "run_id": 1,
+        "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+      }
+    },
+    {
+      "config": {
+        "extra_events": [
+          "pull_request_target"
+        ],
+        "organizations": [
+          {
+            "id": 11,
+            "login": "example-org"
+          }
+        ],
+        "trusted_public": [
+          {
+            "id": 33,
+            "owner": "example-org",
+            "repo": "open-tool"
+          }
+        ],
+        "users": []
+      },
+      "expect": "event-not-allowed",
+      "name": "pull_request_target by an agent, fork unknown, on the untrusted set, opt-in",
+      "set": "untrusted",
+      "trust_inputs": {
+        "actor_class": "agent",
+        "event": "pull_request_target",
+        "head_is_fork": "unknown",
+        "owner": "example-org",
+        "ref": "refs/heads/main",
+        "repo": "app",
+        "repo_visibility": "private",
+        "run_id": 1,
+        "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+      }
+    },
+    {
+      "config": {
+        "extra_events": [
+          "workflow_run",
+          "issue_comment",
+          "release",
+          "repository_dispatch",
+          "pull_request_target"
+        ],
+        "organizations": [
+          {
+            "id": 11,
+            "login": "example-org"
+          }
+        ],
+        "trusted_public": [
+          {
+            "id": 33,
+            "owner": "example-org",
+            "repo": "open-tool"
+          }
+        ],
+        "users": []
+      },
+      "expect": "event-not-allowed",
+      "name": "workflow_run from a fork by an agent on the untrusted set, each extra event listed",
+      "set": "untrusted",
+      "trust_inputs": {
+        "actor_class": "agent",
+        "event": "workflow_run",
+        "head_is_fork": "yes",
+        "owner": "example-org",
+        "ref": "refs/heads/main",
+        "repo": "app",
+        "repo_visibility": "private",
+        "run_id": 1,
+        "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+      }
+    },
+    {
+      "config": {
+        "extra_events": [
+          "workflow_run",
+          "issue_comment",
+          "release",
+          "repository_dispatch",
+          "pull_request_target"
+        ],
+        "organizations": [
+          {
+            "id": 11,
+            "login": "example-org"
+          }
+        ],
+        "trusted_public": [
+          {
+            "id": 33,
+            "owner": "example-org",
+            "repo": "open-tool"
+          }
+        ],
+        "users": []
+      },
+      "expect": "event-not-allowed",
+      "name": "issue_comment from a fork by an agent on the untrusted set, each extra event listed",
+      "set": "untrusted",
+      "trust_inputs": {
+        "actor_class": "agent",
+        "event": "issue_comment",
+        "head_is_fork": "yes",
+        "owner": "example-org",
+        "ref": "refs/heads/main",
+        "repo": "app",
+        "repo_visibility": "private",
+        "run_id": 1,
+        "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+      }
+    },
+    {
+      "config": {
+        "extra_events": [
+          "workflow_run",
+          "issue_comment",
+          "release",
+          "repository_dispatch",
+          "pull_request_target"
+        ],
+        "organizations": [
+          {
+            "id": 11,
+            "login": "example-org"
+          }
+        ],
+        "trusted_public": [
+          {
+            "id": 33,
+            "owner": "example-org",
+            "repo": "open-tool"
+          }
+        ],
+        "users": []
+      },
+      "expect": "event-not-allowed",
+      "name": "release from a fork by an agent on the untrusted set, each extra event listed",
+      "set": "untrusted",
+      "trust_inputs": {
+        "actor_class": "agent",
+        "event": "release",
+        "head_is_fork": "yes",
+        "owner": "example-org",
+        "ref": "refs/heads/main",
+        "repo": "app",
+        "repo_visibility": "private",
+        "run_id": 1,
+        "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+      }
+    },
+    {
+      "config": {
+        "extra_events": [
+          "workflow_run",
+          "issue_comment",
+          "release",
+          "repository_dispatch",
+          "pull_request_target"
+        ],
+        "organizations": [
+          {
+            "id": 11,
+            "login": "example-org"
+          }
+        ],
+        "trusted_public": [
+          {
+            "id": 33,
+            "owner": "example-org",
+            "repo": "open-tool"
+          }
+        ],
+        "users": []
+      },
+      "expect": "event-not-allowed",
+      "name": "repository_dispatch from a fork by an agent on the untrusted set, each extra event listed",
+      "set": "untrusted",
+      "trust_inputs": {
+        "actor_class": "agent",
+        "event": "repository_dispatch",
+        "head_is_fork": "yes",
+        "owner": "example-org",
+        "ref": "refs/heads/main",
+        "repo": "app",
+        "repo_visibility": "private",
+        "run_id": 1,
+        "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+      }
+    },
+    {
+      "config": {
+        "extra_events": [],
+        "organizations": [
+          {
+            "id": 11,
+            "login": "example-org"
+          }
+        ],
+        "trusted_public": [
+          {
+            "id": 33,
+            "owner": "example-org",
+            "repo": "open-tool"
+          }
+        ],
+        "users": []
+      },
+      "expect": "event-not-allowed",
+      "name": "push by an agent, fork unknown, on the untrusted set",
+      "set": "untrusted",
+      "trust_inputs": {
+        "actor_class": "agent",
+        "event": "push",
+        "head_is_fork": "unknown",
+        "owner": "example-org",
+        "ref": "refs/heads/main",
+        "repo": "app",
+        "repo_visibility": "private",
+        "run_id": 1,
+        "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+      }
+    },
+    {
+      "config": {
+        "extra_events": [],
+        "organizations": [
+          {
+            "id": 11,
+            "login": "example-org"
+          }
+        ],
+        "trusted_public": [
+          {
+            "id": 33,
+            "owner": "example-org",
+            "repo": "open-tool"
+          }
+        ],
+        "users": []
+      },
+      "expect": "untrusted",
+      "name": "fork pull request by an agent",
+      "set": "untrusted",
+      "trust_inputs": {
+        "actor_class": "agent",
+        "event": "pull_request",
+        "head_is_fork": "yes",
+        "owner": "example-org",
+        "ref": "refs/heads/main",
+        "repo": "app",
+        "repo_visibility": "private",
+        "run_id": 1,
+        "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+      }
+    },
+    {
+      "config": {
+        "extra_events": [],
+        "organizations": [
+          {
+            "id": 11,
+            "login": "example-org"
+          }
+        ],
+        "trusted_public": [
+          {
+            "id": 33,
+            "owner": "example-org",
+            "repo": "open-tool"
+          }
+        ],
+        "users": []
+      },
+      "expect": "event-not-allowed",
+      "name": "pull request by an agent, fork unknown",
+      "set": "untrusted",
+      "trust_inputs": {
+        "actor_class": "agent",
+        "event": "pull_request",
+        "head_is_fork": "unknown",
+        "owner": "example-org",
+        "ref": "refs/heads/main",
+        "repo": "app",
+        "repo_visibility": "private",
+        "run_id": 1,
+        "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+      }
+    },
+    {
+      "config": {
+        "extra_events": [
+          "pull_request_target"
+        ],
+        "organizations": [
+          {
+            "id": 11,
+            "login": "example-org"
+          }
+        ],
+        "trusted_public": [
+          {
+            "id": 33,
+            "owner": "example-org",
+            "repo": "open-tool"
+          }
+        ],
+        "users": []
+      },
+      "expect": "event-not-allowed",
       "name": "pull_request_target, owner not configured, opt-in",
       "set": "trusted",
       "trust_inputs": {
