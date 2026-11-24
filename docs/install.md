@@ -99,8 +99,8 @@ Proof level: `podrunner-install.sh --serve`, `config init`, `check`,
 runners as a user with no root (the lane `serve-incus-kvm` of
 `user-gate.yml`, on incus and microvm). On a constrained host as a user:
 the schema of the file, no TCP listener of `serve`, and a runner job
-through `serve` on podvm (T-527, T-566); the lanes measure them in CI
-next. `systemctl --user` of the unit is not run.
+through `serve` on podvm (T-527, T-566). Not run: `systemctl --user` of
+the unit.
 
 ### A unit of the system
 
@@ -265,7 +265,7 @@ cosign verify-blob --bundle SHA256SUMS.sigstore.json \
 sha256sum -c --ignore-missing SHA256SUMS
 ```
 
-From the next release, each release also has `release-index.json` (T-562,
+Each release from `v0.1.0-beta.8` also has `release-index.json` (T-562,
 githome's G-34): the tag, the commit, and each file with its SHA-256,
 size and target. `SHA256SUMS` names it, so the one signature covers it,
 and the signer is `release.yml` at the tag of the release. The verifier
@@ -369,17 +369,14 @@ of an image archive are gzip already.
 | `runner-ARCH.tar` | The base runner image, as `podvm load -i` takes it; load it into the store of the installer (`PODVM_STORE=~/.local/share/podrunner/images`), as `podvm` with no `PODVM_STORE` uses another store |
 | `runner-full-ARCH.tar` | The larger runner image |
 | `podrunner-bundle-ARCH.tar.gz` | The offline bundle |
-| `tier-cases.json` | The case table of the tier rule (T-518): each row gives the trust lists, the tier of the set, the facts of a job and the result. A forge with a trust rule of its own runs each row against it. `crates/podrunner-tier` (`cases::conformance`) runs it against a Rust rule. Its source is `crates/podrunner-tier/tier-cases.json`. `docs/design/examples/tier-cases.json` is the design copy, of another format: it predates the rulings Q5 and Q12 |
+| `tier-cases.json` | The case table of the tier rule (T-518): each row gives the trust lists, the tier of the set, the facts of a job and the result. A forge with a trust rule of its own runs each row against it. `crates/podrunner-tier` (`cases::conformance`) runs it against a Rust rule. Its source is `crates/podrunner-tier/tier-cases.json`. `docs/design/examples/tier-cases.json` is the design copy, of another format: it has no `extra_events` and refuses `pull_request_target` and `workflow_run` (Q5, Q12) |
 
 Each has a `.sha256` file and a build provenance attestation. The image
 archives come from the green `runner-image.yml` run of the tagged commit:
 the suites of that run passed on those images (`.github/workflows/release.yml`,
 job `assets`). A runner image release (`vrunner-VERSION-rN`) has the
-image archives only ("A newer runner image"). The sizes, from the artifacts of runner-image run
-43704601731 (the tag `v0.1.0-beta.6`): the base image about 300 MiB on
-x86_64 and 210 MiB on aarch64, the larger image about 460 MiB on x86_64; a
-bundle about 530 MiB on x86_64 and 360 MiB on aarch64. A release asset has
-at most 2 GiB; the job `assets` fails on a larger file.
+image archives only ("A newer runner image"). A release asset has at most
+2 GiB; the job `assets` fails on a larger file.
 
 ## podrunner on ghcr.io
 

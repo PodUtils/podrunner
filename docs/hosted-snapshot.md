@@ -23,8 +23,9 @@ distribution is on top, and the last layer, `boot`, holds `/boot` and
 `/boot/efi`: the kernel and the initrd of the hosted runner. The config
 names `/sbin/init` as the entrypoint, for a unit that boots the init of
 the image (`[unit.incus] init = "image"`, podvm `--podvm-init=image`).
-The core slice boots under incus to `degraded` (`hosted-boot.yml`
-45150431980, T-556); the full snapshot does not load yet (T-606). The
+The core slice boots under incus to `degraded` (`hosted-boot.yml`, T-556).
+The full snapshot loads with podvm `0.2.0-beta.38` or later (T-606), and
+does not fit the pool of incusd on a standard hosted runner (T-613). The
 snapshot holds no runner: a unit runs its runner image (below).
 
 ## What is 1:1, and what the scrub changes
@@ -94,12 +95,11 @@ sees `GITHUB_WORKSPACE=/home/runner/work/REPO/REPO` and
 podvm, the incus and the microvm kinds, and the local mode uses it in each
 unit (T-590).
 
-The state (2026-11-23): `hosted-runner.yml` published the runner image
-`sha256:b1d895f4...` of the capture `ubuntu24-20261116.133.1`, and
-`hosted-boot.yml` booted its core slice with the runner layer under incus
-(proven in CI on GitHub-hosted runners). No job ran in it yet (T-541).
+Proof level: in CI on GitHub-hosted runners, `hosted-runner.yml` publishes
+the runner image, and `hosted-boot.yml` boots its core slice with the runner
+layer under incus and runs a canned job in it (T-541).
 
-`hosted-boot.yml` with the digest of a runner image then runs a canned job
+`hosted-boot.yml` with the digest of a runner image runs that canned job
 in the slice, through the slots of podrunner on the incus kind above
 (`crates/podrunner-broker-fake/tests/hosted.rs`). The job must see
 `GITHUB_WORKSPACE=/home/runner/work/app/app`,

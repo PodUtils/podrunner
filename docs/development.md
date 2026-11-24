@@ -5,9 +5,8 @@ of each session; `docs/maintenance.md` has the procedures.
 
 ## The proof of a change (the owner, 2026-11-17)
 
-Users found more than 60 defects in `v0.1.0-beta.7` and in the fixes of
-one day, four of them in fixes of that day. Green checks did not find
-them. Each change of code keeps these rules before its push:
+Green checks do not find the defects that a user finds. Each change of
+code keeps these rules before its push:
 
 1. **A test that fails before the change.** Write the test first, run it
    on the code before the change, and see it fail. A test that passes
@@ -18,8 +17,8 @@ them. Each change of code keeps these rules before its push:
    limit; a file at mode 0644 and 0600; a run as root and as a user
    with no root.
 3. **The path of a user.** A change that a user sees runs once through
-   the built binary, as a user with no root (`sudo -u labdns`), with the
-   command of the report. The record names the level of the proof.
+   the built binary, as a user with no root, with the command of the
+   report. The record names the level of the proof.
 4. **A review of the diff.** Before the push of a batch, a review agent
    that did not write the code reads the diff for defects of the same
    class, and each finding becomes an entry.
@@ -42,15 +41,15 @@ checks of `fuzz/`, the size of the Rust files, the check of the commit
 messages and the static build. The tests run with a `TMPDIR` of their
 own, and the check fails when they leave an entry there: a test removes
 each directory that it makes, also on a panic (a guard that removes it
-at the drop). CI runs the same on
-each push (`.github/workflows/gate.yml`).
+at the drop). CI runs the same on each push (`.github/workflows/gate.yml`).
 
 A full run of `check.sh` (the tests, with `PODRUNNER_RUNNER_DIR`) that
 passes records the tree that it checked in `.work/agent/checked-trees`.
-`.githooks/pre-push` refuses a push of a tree that is not recorded. A
-change of only `TODO/` after a recorded tree needs only `cargo todo
-check`, which the hook runs. A change of Markdown needs a full run: tests
-compile `docs/cli.md` and `docs/contracts/`.
+`.githooks/pre-push` refuses a push of a tree that is not recorded. Do not
+edit the tree while `check.sh` runs: the tree then differs from the
+recorded one. A change of only `TODO/` after a recorded tree needs only
+`cargo todo check`, which the hook runs. A change of Markdown needs a full
+run: tests compile `docs/cli.md` and `docs/contracts/`.
 
 ## Toolchain
 

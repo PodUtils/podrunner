@@ -39,11 +39,9 @@ subset of Azure Pipelines YAML:
 The cost is the cost of a second local mode. It shares the units, the
 egress module, the hooks and the drive loop with the first one.
 
-## Recommendation
+## Decision
 
-Do not build it now. The local mode of GitHub workflows has open entries
-(parallel jobs, the unit parts of T-138, a debugger). No user of
-podrunner asked for Azure Pipelines. If the owner wants it, the first step
-is a measure: the Azure Pipelines agent in a podvm unit against a fake
-broker with one canned message, as T-026 did for the GitHub runner. The
-question is Q6 of `TODO/PROGRESS.md`.
+The local mode runs GitHub Actions workflows only (the owner, Q6, 2026-11-14,
+`docs/decisions.md`). A user ask for Azure Pipelines reopens it. The first
+step is a measure: the Azure Pipelines agent in a podvm unit against a fake
+broker with one canned message, as T-026 did for the GitHub runner.

@@ -44,8 +44,8 @@ not serve G-09.
 * The hooks stay the route of `container:` jobs and Docker actions on the
   podvm kind.
 
-No shim answers the Engine API, so no `pod-dockerapi`. The only crate
-change is the value `engine` of `ContainerRoute` (step 3c).
+No shim answers the Engine API, so no `pod-dockerapi`. `ContainerRoute` has
+the value `engine`.
 
 ## The engine in a guest
 
@@ -64,30 +64,21 @@ binaries (`docs/configuration.md`, "The microvm kind"). For each guest:
 * The runner gets `DOCKER_HOST` of that socket. The runner image has
   `iptables` (nft) for the bridge rules of `dockerd`.
 
-The incus kind refuses `engine`.
+The incus kind takes `engine` too: each instance runs an engine of its own
+(`docs/configuration.md`, "The incus kind"; T-485).
 
-## Steps
+## The proof
 
-1. The census and this design. Done.
-2. A guest with no NIC and one host channel from podvm (GitHub #83,
-   PodUtils/podvm@T-1751), shared with T-037. Done: podvm
-   `v0.2.0-beta.10`.
-3. The engine in the `microvm` kind:
-   1. The measure (`scripts/measure-engine.sh`) and the guest kernel of an
-      engine from podvm (GitHub #92, `--podvm-engine`). Done: podvm
-      `v0.2.0-beta.14`; `dockerd` runs with `overlay2`, and on a
-      user-defined network one container reaches another by its name
-      (runner-image run 43514371042).
-   2. The code: `[unit.microvm] engine`, the mount, `dockerd` in the guest
-      script and `DOCKER_HOST` for the runner. Done:
-      `crates/podrunner-microvm/tests/engine.rs` runs a container as the
-      user `runner` on a network in a real guest (runner-image run
-      43524984859).
-   3. Done: the kind with an engine says `container: engine` in `probe`,
-      and placement gives a job that needs an engine
-      (`UnitNeed::container_engine` of `pod-job`) only to such a kind
-      (GitHub #91).
-4. Done in part: the step "The parity suite in guests with an engine" of
-   `runner-image.yml` runs a `services:` job, a job container and a
-   Dockerfile action of the official runner in a guest. Open: a
-   Docker-in-Docker step and a `docker build` step (T-516).
+- The measure `scripts/measure-engine.sh` runs `dockerd` with `overlay2` in
+  a guest, and one container reaches another by name on a user-defined
+  network.
+- `crates/podrunner-microvm/tests/engine.rs` runs a container as the user
+  `runner` on a network in a real guest.
+- The kind with an engine says `container: engine` in `probe`. Placement
+  gives a job that needs an engine (`UnitNeed::container_engine` of
+  `pod-job`) only to such a kind (GitHub #91).
+- The step "The parity suite in guests with an engine" of `runner-image.yml`
+  runs a `services:` job, a job container and a Dockerfile action of the
+  official runner in a guest, and in an incus instance with an engine.
+- Not proven in CI: a Docker-in-Docker step and a `docker build` step
+  (T-516).

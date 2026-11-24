@@ -525,7 +525,7 @@ once when a job passes the limits: the jobs in the queue, the age of the
 oldest, the jobs with no final answer, the calls past the budget
 (`throttled`), the final answers with no facts (`failed`), the jobs past
 the limits (`given up`), and the available and assigned jobs that GitHub
-counts for the set. `status.v1` has no field for them yet (T-622).
+counts for the set. `status.v1` has no field for them (T-622).
 
 The queue is in memory only, and GitHub deleted the message of each job
 in it. A stop, a crash or a kill of the sidecar loses the queued jobs,
@@ -563,8 +563,9 @@ so `head_is_fork` is `no`. Only the actor and the owner guard a job of
 these events from `extra_events` (`docs/security/residuals.md`, R9).
 
 `docs/design/examples/tier-cases.json` has the same file name and another
-format. It is the design copy (call C17): it predates the rulings Q5 and
-Q12 and refuses each `pull_request_target`. Do not use it as the table.
+format. It is the design copy (call C17): it has no `extra_events` and
+refuses `pull_request_target` and `workflow_run` (Q5, Q12). Do not use it as
+the table.
 
 ## A program source
 

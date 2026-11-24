@@ -224,10 +224,10 @@ says so, and the take goes through `THIRD_PARTY.md`.
 
 ## The features
 
-The column "podrunner now" gives the state of `main`. The last column names
-the entry that closes the gap, or the entry that did the work.
+The column "podrunner" gives the state of `main`. The last column names the
+entry that did the work or that closes the gap.
 
-| Feature | act | runner.server | podrunner now | Entry |
+| Feature | act | runner.server | podrunner | Entry |
 | --- | --- | --- | --- | --- |
 | `needs`, outputs, `if:`, matrix with `include` and `exclude` | yes | yes | yes | T-087, T-088 |
 | `fail-fast`, job `continue-on-error` | yes | yes | yes | T-117 |
@@ -242,7 +242,7 @@ the entry that closes the gap, or the entry that did the work.
 | `actions/checkout` of the same repository with `ref:` | real action | local checkout | the commit of the ref in the local git of `--checkout` (a branch, a tag, a remote branch such as `origin/main`, a commit id), with a `.git` at that commit; the local tree when the ref is the commit of HEAD; a ref with no commit fails its step with the name and the fix (`git fetch origin REF`); a ref that starts with `-` fails it too; an expression (`${{ }}`) gives the local tree with one line on stderr; `--dry-run` names each ref; no submodules for another commit | T-640 |
 | `./` local actions | yes | yes | yes | T-092 |
 | Docker actions by image | yes | yes | yes, pinned by digest, through the hooks | T-093, T-098 |
-| Dockerfile actions (`docker build`) | yes | yes | yes, in a `microvm` guest with an engine (`--engine DIR`); refused on the other unit kinds; a Dockerfile action on `--podvm` fails at its step today, not before the job (T-237) | T-124 |
+| Dockerfile actions (`docker build`) | yes | yes | yes, in a `microvm` guest with an engine (`--engine DIR`); refused on the other unit kinds; a Dockerfile action on `--podvm` fails at its step, not before the job (T-237) | T-124 |
 | `container:` | yes | yes | yes, pinned by digest | T-093 |
 | `services:` with health checks | yes | yes | yes, in a `microvm` guest with an engine: a service answers by `localhost` and by its name; refused on the other executors | T-123, T-124 |
 | Images by tag, pull | yes, `--pull` | yes | yes: `podvm pull` into the store, pinned by the lock; the units never pull | T-130 |
@@ -279,13 +279,13 @@ the entry that closes the gap, or the entry that did the work.
 | Privileged containers, host binds, cap add | flags, with a policy | yes | refused by the hook policy; privileged work runs in the engine of the unit | T-124 |
 | Azure Pipelines YAML | no | a subset | no: it needs the Azure Pipelines agent (`docs/azure-pipelines.md`, Q6) | T-148 |
 
-## The faults that the study reproduced
+## Faults that the study found
 
 | Fault | In podrunner | Entry |
 | --- | --- | --- |
-| .NET dies with SIGXFSZ under a small file size limit, with W^X on | fixed: each executor sets `DOTNET_EnableWriteXorExecute=0`; a runner that SIGXFSZ ends fails its job with the limit named | T-144 |
-| The artifact step fails with ECONNRESET, then 403: no route of the results service | fixed: the ArtifactService is served (T-119); a route that the fake broker does not serve is named in the job log and on stderr | T-145 |
-| A rerun fails with EACCES on files that a container wrote as another uid | fixed: `_work` gets its write bits back before the removal, and a failure fails the job with the path | T-146 |
+| .NET dies with SIGXFSZ under a small file size limit, with W^X on | each executor sets `DOTNET_EnableWriteXorExecute=0`; a runner that SIGXFSZ ends fails its job with the limit named | T-144 |
+| The artifact step fails with ECONNRESET, then 403: no route of the results service | the ArtifactService is served (T-119); a route that the fake broker does not serve is named in the job log and on stderr | T-145 |
+| A rerun fails with EACCES on files that a container wrote as another uid | `_work` gets its write bits back before the removal, and a failure fails the job with the path | T-146 |
 
 The study's conformance suite has defects (T-046) and no licence. The
 parity suite of T-147 (`crates/podrunner/tests/local/parity`) is its
@@ -300,8 +300,8 @@ runner directory in `runner-image.yml`.
 - `services:` and Dockerfile actions need the `microvm` kind with an
   engine (KVM and QEMU, or podvm's own QEMU).
 - A job of another architecture fails by name (T-151).
-- No user has run the local mode on the real workflows of other projects
-  yet. GitHub #153 asks a user agent for that run (T-199).
+- A user agent has not run the local mode on the real workflows of other
+  projects (GitHub #153, T-199, blocked).
 
 ## Where podrunner exceeds them
 
@@ -337,15 +337,3 @@ runner directory in `runner-image.yml`.
   kernel and no NIC; with `--incus`, in a system container of incus.
 - **Integrity.** Artifacts and cache entries carry their digest; the cache
   keeps the scope of a ref (T-119, T-120).
-
-## Generic work for podcrates
-
-Each ask goes to podcrates as a COORD issue when its entry starts:
-
-- the resolve of an action reference and a store of tarballs by digest
-  (T-118), for example `pod-actions-store`;
-- the artifact and cache services of the results API (T-119, T-120), for
-  example `pod-actions-results`;
-- the filters of `on:` and the expansion of a called workflow, in
-  `pod-actions-workflow` (T-125, T-131);
-- the registry client `pod-oci` for images by tag (T-130).

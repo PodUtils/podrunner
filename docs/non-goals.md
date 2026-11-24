@@ -4,17 +4,16 @@ v1 cuts these items (GitHub #10, T-010). Nothing of v1 depends on them.
 Each has a trigger that brings it back; a request that meets a trigger
 opens its own issue.
 
-The owner ruled on 2026-11-18 that podrunner accommodates each need and
-ask of githome and cfb (`docs/decisions.md`, "githome and cfb first"): a
-row that one of their needs names is lifted. The census of T-491
-(`docs/reports/census-2026-11-18.md`) moved each such row to "Triggers that
-are met", with its entry.
+A row that a need of githome or cfb names is lifted (`docs/decisions.md`,
+"githome and cfb first"). The census of T-491
+(`docs/reports/census-2026-11-18.md`) lists each such row under "Triggers
+that are met", with its entry.
 
 | Item | Trigger |
 | --- | --- |
 | Bridges for Gitea, Forgejo, GitLab Runner | An ask names one of those forges as a target. cfb's A-X-01 names Forgejo and GitLab; cfb defers them past this milestone (Q-12 d, R-054 on GitHub #292): a project on such a forge comes back as an ask through githome. |
 | A `docker` unit kind | The owner names a Docker or Podman host with no KVM (call C7, DR-13). |
-| The `host` kind, and a `local` tier for forge jobs | The owner names a dedicated machine. Now `local` serves only a `fake` source (call C14). The `incus` kind: its trigger is met (G-02 names Incus): T-105. |
+| The `host` kind, and a `local` tier for forge jobs | The owner names a dedicated machine. `local` serves only a `fake` source (call C14). |
 | `credential_delivery: socket` (the strong form of G-03) | A forge names a runner that takes its credential from a socket. |
 | Port claims and a lock of a service for the whole host | A workflow of the owner needs `services:` on H0. |
 | `pod-dockerapi` | Its trigger is met: githome's G-09 names `services:`, `docker build` and Docker-in-Docker (the owner, 2026-11-13). The census (`docs/container-engine.md`) finds that Docker-in-Docker needs the whole Engine API, so T-103 runs a real engine inside a guest, not a shim and not a socket of the host. |
@@ -28,7 +27,7 @@ are met", with its entry.
 
 Triggers that are met: the `forge-contract` source (githome has code: T-101, the `program` source kind), the `incus` kind (T-105), `pod-dockerapi` (T-103), and the local mode (done: T-046).
 
-Triggers met by the needs of githome and cfb (the census of T-491, 2026-11-18):
+Triggers met by the needs of githome and cfb (the census of T-491):
 
 | Item | The need | Entries |
 | --- | --- | --- |

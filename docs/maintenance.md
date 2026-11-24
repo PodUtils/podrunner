@@ -198,29 +198,27 @@ branch (`docs/decisions.md`, Dependabot).
 
 ## A run of a workflow
 
-A push to `main` starts `gate.yml` and `secrets.yml`. Dispatch a workflow
-with the GitHub MCP tool `actions_run_trigger`, and read the run with
-`actions_list` and `actions_get`, or through the mirror.
+A push to `main` starts `gate.yml` and `secrets.yml`. A push of `docs/` or
+`TODO/` only starts no other workflow; `runner-image.yml` and `level2.yml`
+start on their paths. A newer push cancels a queued gate run. Dispatch a
+workflow with the GitHub MCP tool `actions_run_trigger`, and read the run
+with `actions_list` and `actions_get`, or through the mirror. No
+`[gh action] requested` issue is needed (the owner, 2026-11-23).
 
-When the account of the session cannot start a run (no run starts for
-its push, or the dispatch is refused), ask the local agent of the owner:
-write an issue of this repository titled `[gh action] requested` (the
-form of PodUtils/podvm#387). Its body says why, gives one `sh` block that
-dispatches each workflow and watches it, and asks for the run ids or the
-line where the block stopped. The local agent runs the block once and
-answers on the issue. Read the runs, then close the issue. Each request is
-a new issue: the local agent does not read a comment on an issue that is
-there already (the owner, 2026-11-15). When a request changes, close the
-old issue and open a new one. The same holds for an answer to another project: a
-new COORD issue, not a comment on an older one.
+A push that changes a crate of the units, `images/` or a measure script
+starts `runner-image.yml` (about 2.5 hours; its x86_64 job has a limit of
+150 minutes). Cancel an older run (`cancel_workflow_run`) when a newer run
+covers the same images.
 
 ## A release
 
-A request for a release (`[gh action] requested` with `release.yml`)
-comes only after each step below holds on the commit of the release
-(`AGENTS.md`, section 12; T-243 to T-247):
+Dispatch `release.yml` only after each step below holds on the commit of
+the release (`AGENTS.md`, section 12; T-243 to T-247):
 
-1. The gate, `runner-image.yml` and `level2.yml` are green.
+1. The gate, `runner-image.yml` and `level2.yml` are green. `release.yml`
+   reads the runs whose `head_sha` is the commit that it runs on, for the
+   gate, `user-gate.yml` and `runner-image.yml`: a later commit needs the
+   runs again (T-626).
 2. The user-path gate (`user-gate.yml`, T-243) is green: it takes the
    files that the release will publish, byte for byte, installs them with
    the installer as a user, runs `doctor --run`, and runs the corpus of
@@ -305,9 +303,8 @@ files (empty: the version of `Cargo.toml` with `-gate.RUN_ID`). Give the
 version of the release to test the files with the version that the release
 writes into them.
 
-Dispatch it as each workflow ("A run of a workflow": the MCP tool
-`actions_run_trigger`, or a `[gh action] requested` issue with this
-block):
+Dispatch it as each workflow ("A run of a workflow"). The same dispatch
+with `gh`:
 
 ```sh
 gh workflow run user-gate.yml --repo PodUtils/podrunner --ref main -f version=X.Y.Z-beta.N
@@ -454,10 +451,10 @@ the lead session delegates, so that its own context stays small.
   build of another worktree can take the other sources. Touch the sources
   of the tree before each build:
   `find crates -name '*.rs' -exec touch {} +`. The touch does not stop a
-  build of another worktree between the touch and the build: agents saw
-  false compile errors and stale artifacts of a path crate. When two
+  build of another worktree between the touch and the build, which can
+  give false compile errors and stale artifacts of a path crate. When two
   agents build at the same time and the disk holds it (a debug target is
   about 9 GB), give each worktree a target directory of its own
   (`CARGO_TARGET_DIR=/workspace/target-NAME`, outside the tree:
   `check-size.py` reads each `.rs` file under the tree, also generated
-  ones of a build).
+  ones of a build). Remove the directory and the worktree after the merge.
