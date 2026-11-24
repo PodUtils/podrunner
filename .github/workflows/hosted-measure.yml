@@ -279,7 +279,12 @@ jobs:
           trace=$!
           stop() {
             st=$?
+            # The loop leaves its sleep and its sudo children: take their
+            # pids first, then end the loop, then the children.
+            kids=$(pgrep -P "$trace" 2> /dev/null || true)
             kill "$trace" 2> /dev/null || true
+            # shellcheck disable=SC2086 # $kids is a list of pids
+            [ -z "$kids" ] || kill $kids 2> /dev/null || true
             sh scripts/hosted/space.sh mark "$M" import "$st"
           }
           trap stop EXIT
@@ -303,8 +308,50 @@ jobs:
             sh scripts/hosted/space.sh mark "$M" boot-skipped 0
             exit 0
           fi
-          trap 'sh scripts/hosted/space.sh mark "$M" boot $?' EXIT
+          # The monitor of incusd runs as root; its command line has the
+          # bracket so that pkill does not match its own sudo.
+          stop_monitor() { sudo pkill -f '[i]ncus monitor' 2> /dev/null || true; }
+          stop() {
+            st=$?
+            stop_monitor
+            sh scripts/hosted/space.sh mark "$M" boot "$st"
+          }
+          trap stop EXIT
           podvm=$RUNNER_TEMP/podvm
+          # The instance that create made: start it by incus itself, before
+          # podvm run removes it. A failed boot of podvm run leaves no
+          # console and no log, so this start keeps them. Each command
+          # can fail: the file is the record, not a check.
+          name=$(sudo incus list --format csv -c n 2> /dev/null | sed -n 1p) || true
+          name=${name:-measure}
+          d=$M/boot-diag.txt
+          {
+            echo "## instance $name"
+            sudo incus start "$name" || true
+            state=""
+            for _ in $(seq 24); do
+              state=$(timeout 20 sudo incus exec "$name" -- systemctl is-system-running 2>&1) || true
+              case $state in running | degraded) break ;; esac
+              sleep 5
+            done
+            echo "## systemctl is-system-running"
+            echo "$state"
+            echo "## systemctl --failed"
+            timeout 20 sudo incus exec "$name" -- systemctl --failed --no-pager 2>&1 || true
+            echo "## journalctl -b -n 200"
+            timeout 30 sudo incus exec "$name" -- journalctl -b --no-pager -n 200 2>&1 || true
+            echo "## incus console --show-log"
+            sudo incus console --show-log "$name" 2>&1 || true
+            echo "## incus info --show-log"
+            sudo incus info --show-log "$name" 2>&1 || true
+            echo "## incus config show --expanded"
+            sudo incus config show "$name" --expanded 2>&1 || true
+            echo "## incus storage show default"
+            sudo incus storage show default 2>&1 || true
+            echo "## dmesg | tail -n 80"
+            sudo dmesg 2>&1 | tail -n 80 || true
+          } > "$d" 2>&1 || true
+          sudo incus stop -f "$name" > /dev/null 2>&1 || true
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus measure" || true
           out=$RUNNER_TEMP/out
           mkdir -p "$out" && chmod 0777 "$out"
@@ -314,6 +361,10 @@ jobs:
           systemctl --failed --no-legend --plain > /out/failed 2>&1
           df -B1 / > /out/df 2>&1
           SH
+          # The events of incusd around the run of podvm.
+          # shellcheck disable=SC2024 # the file is the user's, by intent
+          sudo incus monitor --pretty > "$M/incus-monitor.txt" 2>&1 &
+          mon=$!
           rc=0
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name measure --podvm-tier=incus --podvm-init=image --podvm-net none -v $out:/out $IMAGE /bin/sh /out/checks.sh" < /dev/null || rc=$?
           state=""
@@ -325,6 +376,8 @@ jobs:
             echo "boot: run -d exit $rc, state $state"
             for f in started state failed df; do echo "--- $f"; cat "$out/$f" 2> /dev/null || echo "(absent)"; done
           } | tee -a "$M/info.txt"
+          stop_monitor
+          kill "$mon" 2> /dev/null || true
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus measure" || true
           [ "$rc" -eq 0 ] && [ -s "$out/started" ]
       - name: The report
@@ -344,7 +397,7 @@ jobs:
           # The state of incusd after a failed import: its log, the kernel
           # messages of btrfs and the images that it holds.
           { sudo journalctl -u incus --no-pager -n 200; } > "$M/incus-journal.txt" 2>&1 || true
-          sudo dmesg 2>&1 | grep -i btrfs | tail -50 > "$M/dmesg-btrfs.txt" || true
+          sudo dmesg 2>&1 | grep -iE 'btrfs|apparmor|lxc|idmap|overlay|cgroup' | tail -50 > "$M/dmesg-btrfs.txt" || true
           { sudo ls -l /var/lib/incus/images; } > "$M/incus-images.txt" 2>&1 || true
           # The inodes: a file system can be full of files before bytes.
           df -i / /mnt "${POOL:-/}" >> "$M/du.txt" 2>&1 || true
@@ -391,6 +444,14 @@ jobs:
               echo
               echo '```'
               tail -n 40 "$M/$f" 2> /dev/null || echo "(absent)"
+              echo '```'
+            done
+            for f in boot-diag.txt incus-monitor.txt; do
+              echo
+              echo "### $f (the end)"
+              echo
+              echo '```'
+              tail -n 60 "$M/$f" 2> /dev/null || echo "(absent)"
               echo '```'
             done
             if [ "$PLACE" = btrfs ]; then
