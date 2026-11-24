@@ -35,8 +35,8 @@ func eventWord(e string) string {
 }
 
 // trust reads the run object (repository "Actions: read") and the
-// membership of the actor (organization "Members: read"), with the token
-// of the installation. The result is kept for each run id.
+// membership of its actors (organization "Members: read"), with the token
+// of the installation. The result is kept for each attempt of a run.
 type trust struct {
 	mu           sync.Mutex
 	api          string
@@ -45,19 +45,36 @@ type trust struct {
 	pat bool
 	// personal: the scale set is of a repository of the personal account
 	// `account` (T-504). It has no members: see lookup.
-	personal bool
-	account  string
-	signer   *signer
-	token    string
-	expires  time.Time
-	cache    map[int64]trustInputs
-	http     http.Client
+	personal  bool
+	account   string
+	accountID int64
+	signer    *signer
+	token     string
+	expires   time.Time
+	cache     map[runKey]trustInputs
+	http      http.Client
 	// The lookups of the hour that runs, and its start: a lookup past the
 	// budget is not made, and its inputs are "unknown" (throttled).
 	budget    int
 	used      int
 	hourStart time.Time
 	Throttled int
+}
+
+// runKey: a re-run keeps the run id and the actor; its triggering actor
+// can be another account (T-504 review).
+type runKey struct{ run, attempt int64 }
+
+// A lookup that GitHub does not answer must not hold the wire.
+const lookupTimeout = 30 * time.Second
+
+func newTrust(o options, signer *signer) *trust {
+	api := o.apiURL
+	if api == "" {
+		api = apiURLOf(o.configURL)
+	}
+	return &trust{api: api, installation: o.installationID, signer: signer, pat: o.pat, budget: o.trustBudget,
+		http: http.Client{Timeout: lookupTimeout}}
 }
 
 func (t *trust) installationToken() (string, error) {
@@ -112,13 +129,11 @@ func (t *trust) get(path string) (int, map[string]any) {
 }
 
 // lookup gives the trust inputs of a run; ok is false when a part is
-// unknown. A failed lookup is not kept: the next job tries again.
+// unknown. A failed lookup is not kept: the next job tries again. The run
+// object is read for each job: only it names the attempt.
 func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trustInputs, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if v, ok := t.cache[run]; ok {
-		return v, true
-	}
 	unknown := trustInputs{event: eventWord(messageEvent), headIsFork: "unknown", actorClass: "unknown", visibility: "unknown"}
 	if time.Since(t.hourStart) >= time.Hour {
 		t.hourStart, t.used = time.Now(), 0
@@ -128,9 +143,14 @@ func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trus
 		return unknown, false
 	}
 	t.used++
-	status, r := t.get(fmt.Sprintf("/repos/%s/%s/actions/runs/%d", owner, repo, run))
+	status, r := t.get(fmt.Sprintf("/repos/%s/%s/actions/runs/%d", url.PathEscape(owner), url.PathEscape(repo), run))
 	if status != http.StatusOK || r == nil {
 		return unknown, false
+	}
+	attempt, counted := r["run_attempt"].(float64)
+	key := runKey{run, int64(attempt)}
+	if v, ok := t.cache[key]; ok && counted {
+		return v, true
 	}
 	out := unknown
 	if e, ok := r["event"].(string); ok {
@@ -140,83 +160,72 @@ func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trus
 	if rp, ok := r["repository"].(map[string]any); ok {
 		out.visibility = visibilityOf(rp)
 	}
-	actor := ""
-	if a, ok := r["actor"].(map[string]any); ok {
-		actor, _ = a["login"].(string)
-	}
-	switch {
-	case actor == "":
-	case t.personal:
-		// A personal account has no members (T-504): only the account
-		// itself is a member. A collaborator is outside: deny by default.
-		out.actorClass = "outside"
-		if strings.EqualFold(actor, owner) && strings.EqualFold(owner, t.account) {
-			out.actorClass = "member"
-		}
-	case !strings.ContainsAny(actor, "/?#"):
-		switch code, _ := t.get(fmt.Sprintf("/orgs/%s/members/%s", owner, actor)); code {
-		case http.StatusNoContent:
-			out.actorClass = "member"
-		case http.StatusNotFound:
-			out.actorClass = "outside"
-		}
+	// The actor triggered the first attempt; the triggering actor started
+	// this one (a re-run). Each must have the class: the stricter wins.
+	classes := map[string]string{}
+	out.actorClass = t.classOf(owner, r["actor"], classes)
+	if v, ok := r["triggering_actor"]; ok && v != nil {
+		out.actorClass = stricter(out.actorClass, t.classOf(owner, v, classes))
 	}
 	whole := out.headIsFork != "unknown" && out.actorClass != "unknown" && out.visibility != "unknown"
-	if whole {
-		t.cache[run] = out
+	if whole && counted {
+		if t.cache == nil {
+			t.cache = map[runKey]trustInputs{}
+		}
+		t.cache[key] = out
 	}
 	return out, whole
 }
 
-// The refusal of a personal account with the opt-in off (call C3, T-504).
-const personalOff = "repo-scope-refused: %s is not an organization (a personal account needs Administration: write; " +
-	"to serve it, set allow_personal_account = true in its [[source]])"
-
-// scope checks the config URL before the sidecar asks GitHub for a scale
-// set (call C3): the URL of an organization; with personal (T-504), also
-// the URL of a repository of a personal account. A repository of an
-// organization is refused: its scale set needs Administration: write.
-func (t *trust) scope(configURL string, personal bool) error {
-	parts := []string{""}
-	if u, err := url.Parse(strings.Trim(configURL, "/")); err == nil {
-		parts = strings.Split(strings.Trim(u.Path, "/"), "/")
-	}
-	if parts[0] == "" || len(parts) > 2 || strings.EqualFold(parts[0], "enterprises") {
-		return fmt.Errorf("repo-scope-refused: %s is not the URL of an organization or of a repository", configURL)
-	}
-	owner := parts[0]
-	org, err := t.organization(owner)
+// classOf gives the class of one actor object of a run. done keeps the
+// class of each login of this run: one lookup for each login.
+func (t *trust) classOf(owner string, v any, done map[string]string) string {
+	a, _ := v.(map[string]any)
+	login, _ := a["login"].(string)
 	switch {
-	case err != nil:
-		return err
-	case org && len(parts) == 2:
-		return fmt.Errorf("repo-scope-refused: %s/%s is a repository of an organization: give config_url the URL "+
-			"of the organization (a repository scale set needs Administration: write)", owner, parts[1])
-	case org:
-		return nil
-	case !personal:
-		return fmt.Errorf(personalOff, owner)
-	case len(parts) == 1:
-		return fmt.Errorf("repo-scope-refused: %s is a personal account: give config_url the URL of one of its "+
-			"repositories (https://github.com/%s/REPO)", owner, owner)
+	case login == "":
+		return "unknown"
+	case t.personal:
+		// A personal account has no members (T-504): only the account
+		// itself is a member. A collaborator is outside: deny by default.
+		if asciiFold(owner, t.account) && t.isAccount(a, login) {
+			return "member"
+		}
+		return "outside"
+	case strings.ContainsAny(login, "/?#"):
+		return "unknown"
 	}
-	t.personal, t.account = true, owner
-	return nil
+	if c, ok := done[login]; ok {
+		return c
+	}
+	c := "unknown"
+	switch code, _ := t.get(fmt.Sprintf("/orgs/%s/members/%s", url.PathEscape(owner), url.PathEscape(login))); code {
+	case http.StatusNoContent:
+		c = "member"
+	case http.StatusNotFound:
+		c = "outside"
+	}
+	done[login] = c
+	return c
 }
 
-// organization tells whether the owner is an organization: GitHub answers
-// 404 for a personal account.
-func (t *trust) organization(owner string) (bool, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	switch code, v := t.get("/orgs/" + url.PathEscape(owner)); {
-	case code == http.StatusOK && v != nil:
-		return true, nil
-	case code == http.StatusNotFound:
-		return false, nil
-	default:
-		return false, fmt.Errorf("the organization %s: HTTP %d", owner, code)
+// isAccount: the id names the account when the run and the scope give
+// one; a login can change hands after a rename.
+func (t *trust) isAccount(a map[string]any, login string) bool {
+	if id, ok := a["id"].(float64); ok && t.accountID != 0 {
+		return int64(id) == t.accountID
 	}
+	return asciiFold(login, t.account)
+}
+
+// stricter gives the class that trusts less: unknown, then outside.
+func stricter(a, b string) string {
+	for _, c := range []string{"unknown", "outside"} {
+		if a == c || b == c {
+			return c
+		}
+	}
+	return "member"
 }
 
 // visibilityOf reads the visibility of a repository. The repository of a
@@ -257,7 +266,7 @@ func headIsFork(r map[string]any) string {
 	hn, _ := head["full_name"].(string)
 	bn, _ := base["full_name"].(string)
 	if hn != "" && bn != "" {
-		return fork[!strings.EqualFold(hn, bn)]
+		return fork[!asciiFold(hn, bn)]
 	}
 	return "unknown"
 }

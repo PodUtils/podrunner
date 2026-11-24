@@ -38,7 +38,7 @@ type options struct {
 func main() {
 	var o options
 	flag.StringVar(&o.configURL, "config-url", "", "the organization URL of the scale set, or with -personal-account the URL of a repository")
-	flag.StringVar(&o.apiURL, "api-url", "https://api.github.com", "the base URL of the GitHub REST API")
+	flag.StringVar(&o.apiURL, "api-url", "", "the base URL of the GitHub REST API (default: the API of -config-url, as actions/scaleset derives it)")
 	flag.Int64Var(&o.installationID, "installation-id", 0, "the installation of the App")
 	flag.StringVar(&o.scaleSet, "scale-set", "", "the name of the scale set")
 	flag.StringVar(&o.source, "source", "", "the name of the source in podrunner.toml")

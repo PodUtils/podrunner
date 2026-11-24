@@ -84,6 +84,9 @@ impl MintConfig {
             return Err("no [[host]]: no unit host can reach the mint".into());
         }
         podrunner_slots::check_personal(&c.source)?;
+        if c.source.kind == SourceKind::GithubScaleset {
+            podrunner_slots::check_scaleset(&c.source).map_err(|e| e.replacen("[[source]]", "[source]", 1))?;
+        }
         // The mint computes the tier too: it refuses what serve refuses.
         c.trust.check()?;
         if let Some(t) = &c.source.trust {
@@ -232,5 +235,27 @@ mod tests {
         assert!(MintConfig::parse(&file("allow_fake = true", &slots)).unwrap_err().contains("two slot counts"));
         let remote = file("allow_fake = true", &host).replace("kind = \"fake\"", "kind = \"remote\"");
         assert!(MintConfig::parse(&remote).unwrap_err().contains("unit host"));
+    }
+
+    /// The T-504 review: the mint checks the `config_url` of its scale-set
+    /// source as `serve` does.
+    #[test]
+    fn the_mint_checks_the_config_url_of_its_scale_set() {
+        let host = format!("[[host]]\nname = \"h1\"\npin = \"{PIN}\"\nslots = 2\n");
+        let scaleset = |keys: &str| {
+            file("", &host).replace(
+                "kind = \"fake\"",
+                &format!(
+                    "kind = \"github-scaleset\"\nsidecar = \"/bin/true\"\nscale_set = \"s\"\ntoken_file = \"t\"\n{keys}"
+                ),
+            )
+        };
+        assert!(MintConfig::parse(&scaleset("config_url = \"https://github.com/alice/app\"")).is_ok());
+        let err =
+            MintConfig::parse(&scaleset("config_url = \"https://github.com/alice\"\nallow_personal_account = true"))
+                .unwrap_err();
+        assert!(err.starts_with("[source] \"src\": allow_personal_account needs the URL of a repository"), "{err}");
+        let err = MintConfig::parse(&scaleset("config_url = \"https://github.com/alice/app.git\"")).unwrap_err();
+        assert!(err.contains(".git"), "{err}");
     }
 }

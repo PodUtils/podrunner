@@ -64,7 +64,7 @@ type sidecar struct {
 }
 
 func newSidecar(ctx context.Context, o options, signer *signer) (*sidecar, error) {
-	t := &trust{api: o.apiURL, installation: o.installationID, signer: signer, pat: o.pat, cache: map[int64]trustInputs{}, budget: o.trustBudget}
+	t := newTrust(o, signer)
 	// The scope first: a refused scope gets no scale set on GitHub.
 	if err := t.scope(o.configURL, o.personalAccount); err != nil {
 		return nil, err

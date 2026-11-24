@@ -55,7 +55,9 @@ fn stopped() -> SourceError {
     SourceError::new(SourceCode::Unavailable, "the operator stopped this source")
 }
 
-pub(crate) fn check_scaleset(s: &SourceConfig) -> Result<(), String> {
+/// The keys of a `github-scaleset` source, and its `config_url` with its
+/// `api_url` (`crate::config_url`).
+pub fn check_scaleset(s: &SourceConfig) -> Result<(), String> {
     let app = [
         ("installation_id", s.installation_id.is_some()),
         ("app_id", s.app_id.is_some()),
@@ -76,7 +78,7 @@ pub(crate) fn check_scaleset(s: &SourceConfig) -> Result<(), String> {
     }
     match need.iter().find(|(_, set)| !*set) {
         Some((key, _)) => Err(format!("[[source]] {:?}: a github-scaleset source needs {key}", s.name)),
-        None => Ok(()),
+        None => crate::config_url::check(s),
     }
 }
 
@@ -102,7 +104,8 @@ pub fn personal_note(s: &SourceConfig) -> Option<String> {
              scale set. The GitHub App (or the token) needs the extra repository permission \"{PERSONAL_PERMISSION}\": \
              GitHub gives the registration token of a repository scale set only with it, and it also lets a leaked \
              key change the settings, the collaborators and the deploy keys of the repository. The account is the \
-             only member: the job of a collaborator is not trusted",
+             only member: a run that a collaborator triggers or re-runs is not trusted, but a run that the \
+             account triggers on the code of a collaborator is (residual R11)",
             s.name
         )
     })
@@ -116,7 +119,7 @@ mod tests {
         Config::parse(&format!(
             "host = \"h\"\n[trust]\norganizations = [{{ login = \"o\" }}]\n[[source]]\nname = \"s\"\n\
              kind = \"github-scaleset\"\ntier = \"trusted\"\narch = \"x86_64\"\nsidecar = \"/bin/true\"\n\
-             config_url = \"https://github.com/o\"\nscale_set = \"s\"\n{keys}[pin]\n"
+             config_url = \"https://github.com/o/r\"\nscale_set = \"s\"\n{keys}[pin]\n"
         ))
     }
 
@@ -134,7 +137,10 @@ mod tests {
         let c = file(&format!("{app}allow_personal_account = true\n")).unwrap();
         let note = super::personal_note(&c.source[0]).unwrap();
         assert!(note.starts_with("[[source]] s: allow_personal_account"), "{note}");
-        assert!(note.contains("\"Administration: write\"") && note.contains("only member"), "{note}");
+        assert!(
+            note.contains("\"Administration: write\"") && note.contains("re-runs") && note.contains("R11"),
+            "{note}"
+        );
         assert!(file(&format!("{app}allow_personal_account = \"yes\"\n")).is_err());
         // Another kind of source has no scale set: the key is refused.
         let fake = "host = \"h\"\nallow_fake = true\n[[source]]\nname = \"f\"\nkind = \"fake\"\ntier = \"trusted\"\n\

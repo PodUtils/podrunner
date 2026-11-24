@@ -7,7 +7,8 @@
 //! stderr of the sidecar, no file of the state and no report. T-504: a
 //! repository of a personal account runs a job only with
 //! `allow_personal_account` (`-personal-account`); else the sidecar ends
-//! with `repo-scope-refused`.
+//! with `repo-scope-refused`. A re-run by a collaborator is not trusted,
+//! and an owner that does not exist is refused (the T-504 review).
 //! Ignored by default: it needs the Go binaries.
 //!
 //!   PODRUNNER_FAKE_SCALESET=PATH PODRUNNER_SCALESET_SIDECAR=PATH \
@@ -47,9 +48,12 @@ const ASSIGNED: &str = r#"{"scaleSetName":"podrunner","jobs":[
 /// T-504: a repository of the personal account alice. A job of alice is a
 /// job of a member; a job of a collaborator (bob) is not, also when the
 /// fake says that he is a member of an organization.
-const PERSONAL: &str = r#"{"scaleSetName":"podrunner","users":["alice"],"jobs":[
+/// A re-run of a run of alice by bob keeps the actor alice: the triggering
+/// actor bob makes it a job of a collaborator.
+const PERSONAL: &str = r#"{"scaleSetName":"podrunner","users":["alice"],"missing":["ghost"],"jobs":[
  {"requestId":21,"jobId":"p","owner":"alice","repo":"app","workflowRunId":201,"event":"push","actor":"alice","visibility":"private","labels":["podrunner"]},
- {"requestId":22,"jobId":"q","owner":"alice","repo":"app","workflowRunId":202,"event":"push","actor":"bob","actorIsMember":true,"visibility":"private","labels":["podrunner"]}]}"#;
+ {"requestId":22,"jobId":"q","owner":"alice","repo":"app","workflowRunId":202,"event":"push","actor":"bob","actorIsMember":true,"visibility":"private","labels":["podrunner"]},
+ {"requestId":23,"jobId":"r","owner":"alice","repo":"app","workflowRunId":203,"event":"push","actor":"alice","triggeringActor":"bob","runAttempt":2,"visibility":"private","labels":["podrunner"]}]}"#;
 
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
@@ -259,14 +263,16 @@ fn an_assigned_job_runs_with_no_acquire() {
 
 /// T-504: with the opt-in, a repository of a personal account serves the
 /// job of the account; the push of a collaborator is `outside`, so it is
-/// refused (`event-not-allowed`) and never acquired.
+/// refused (`event-not-allowed`) and never acquired. A re-run by a
+/// collaborator is refused too.
 #[test]
 #[ignore]
 fn a_personal_account_with_the_opt_in_runs_the_job_of_the_account() {
-    let r = run_in("personal", PERSONAL, 2, Scope { path: "alice/app", personal: true });
+    let r = run_in("personal", PERSONAL, 3, Scope { path: "alice/app", personal: true });
     let own = r.by_job("21");
     assert_eq!(own.exit_reason, ExitReason::Success, "{own:?}");
     assert_eq!(r.by_job("22").refusal_code, Some(RefusalCode::EventNotAllowed));
+    assert_eq!(r.by_job("23").refusal_code, Some(RefusalCode::EventNotAllowed));
     let acquired = r.acquires();
     assert_eq!(acquired.len(), 1, "one acquire: {acquired:?}");
     let _ = std::fs::remove_dir_all(&r.dir);
@@ -274,7 +280,8 @@ fn a_personal_account_with_the_opt_in_runs_the_job_of_the_account() {
 
 /// T-504: with no opt-in, the sidecar refuses the repository of a personal
 /// account at its start (78, `repo-scope-refused`), names the key, and asks
-/// GitHub for no scale set.
+/// GitHub for no scale set. An owner that does not exist is refused (78)
+/// and named, with the key on and off: it is no personal account.
 #[test]
 #[ignore]
 fn a_personal_account_with_no_opt_in_is_refused() {
@@ -283,47 +290,62 @@ fn a_personal_account_with_no_opt_in_is_refused() {
     std::fs::create_dir_all(&dir).unwrap();
     let record = dir.join("record.jsonl");
     let (fake, url) = fake(&dir, PERSONAL, &record);
-    for (i, path) in ["alice/app", "alice"].into_iter().enumerate() {
-        // The wrapper keeps the stderr and the exit code of the sidecar;
-        // descriptor 3 (the token) passes to it.
-        let (wrapper, stderr, code) =
-            (dir.join(format!("w{i}.sh")), dir.join(format!("{i}.err")), dir.join(format!("{i}.code")));
-        std::fs::write(
-            &wrapper,
-            format!(
-                "#!/bin/sh\n'{}' \"$@\" 2>>'{}'\nc=$?\necho $c >'{}'\nexit $c\n",
-                env("PODRUNNER_SCALESET_SIDECAR"),
-                stderr.display(),
-                code.display()
-            ),
-        )
-        .unwrap();
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
-        }
-        let args = ["-config-url", &format!("{url}/{path}"), "-api-url", &format!("{url}/api/v3"), "-pat"]
-            .into_iter()
-            .chain(["-scale-set", "podrunner", "-source", "alice-app", "-arch", "x86_64"])
-            .map(String::from)
-            .collect();
-        let mut source =
-            SidecarSource::with_token(wrapper.to_str().unwrap(), args, "made-up-token".into(), "sidecar:alice-app");
-        assert!(podrunner_source::JobSource::hello(&mut source, "podrunner", "0").is_err(), "{path}");
-        for _ in 0..100 {
-            if code.exists() {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(50));
-        }
-        let err = std::fs::read_to_string(&stderr).unwrap_or_default();
-        assert_eq!(std::fs::read_to_string(&code).unwrap_or_default().trim(), "78", "{path}: {err}");
-        assert!(err.contains("repo-scope-refused: alice is not an organization"), "{path}: {err}");
-        assert!(err.contains("allow_personal_account = true"), "{path}: {err}");
+    let cases = [
+        ("alice/app", false, "repo-scope-refused: alice is not an organization", "allow_personal_account = true"),
+        ("alice", false, "repo-scope-refused: alice is not an organization", "allow_personal_account = true"),
+        ("ghost/app", true, "repo-scope-refused: the owner ghost of config_url does not exist", "HTTP 404"),
+        ("ghost", false, "repo-scope-refused: the owner ghost of config_url does not exist", "HTTP 404"),
+    ];
+    for (i, (path, personal, want, word)) in cases.into_iter().enumerate() {
+        let (code, err) = refused(&dir, i, &format!("{url}/{path}"), &url, personal);
+        assert_eq!(code, "78", "{path}: {err}");
+        assert!(err.contains(want) && err.contains(word), "{path}: {err}");
         assert!(!err.contains("made-up-token"), "{path}: {err}");
     }
     drop(fake);
     let text = std::fs::read_to_string(&record).unwrap_or_default();
     assert!(!text.contains("runnerscalesets") && !text.contains("registration"), "{text}");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// One start of the sidecar with a token that must end it: its exit code
+/// and its stderr.
+fn refused(dir: &std::path::Path, i: usize, config_url: &str, url: &str, personal: bool) -> (String, String) {
+    // The wrapper keeps the stderr and the exit code of the sidecar;
+    // descriptor 3 (the token) passes to it.
+    let (wrapper, stderr, code) =
+        (dir.join(format!("w{i}.sh")), dir.join(format!("{i}.err")), dir.join(format!("{i}.code")));
+    std::fs::write(
+        &wrapper,
+        format!(
+            "#!/bin/sh\n'{}' \"$@\" 2>>'{}'\nc=$?\necho $c >'{}'\nexit $c\n",
+            env("PODRUNNER_SCALESET_SIDECAR"),
+            stderr.display(),
+            code.display()
+        ),
+    )
+    .unwrap();
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    let mut args: Vec<String> = ["-config-url", config_url, "-api-url", &format!("{url}/api/v3"), "-pat"]
+        .into_iter()
+        .chain(["-scale-set", "podrunner", "-source", "alice-app", "-arch", "x86_64"])
+        .map(String::from)
+        .collect();
+    if personal {
+        args.push("-personal-account".into());
+    }
+    let mut source =
+        SidecarSource::with_token(wrapper.to_str().unwrap(), args, "made-up-token".into(), "sidecar:alice-app");
+    assert!(podrunner_source::JobSource::hello(&mut source, "podrunner", "0").is_err(), "{config_url}");
+    for _ in 0..100 {
+        if code.exists() {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    let err = std::fs::read_to_string(&stderr).unwrap_or_default();
+    (std::fs::read_to_string(&code).unwrap_or_default().trim().to_string(), err)
 }

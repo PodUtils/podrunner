@@ -72,7 +72,7 @@ pub(crate) fn scaleset(
         "-config-url".to_string(),
         get(&s.config_url),
         "-api-url".into(),
-        s.api_url.clone().unwrap_or_else(|| "https://api.github.com".into()),
+        podrunner_slots::config_url::api_url(s),
         "-installation-id".into(),
         s.installation_id.unwrap_or(0).to_string(),
         "-scale-set".into(),

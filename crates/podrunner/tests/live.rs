@@ -37,7 +37,7 @@ fn env(name: &str) -> String {
 /// scale-set service with its message queue ("Self-hosted runners: read and
 /// write"), the run
 /// object ("Actions: read"), the member check ("Members: read"), and the
-/// organization record (public metadata).
+/// record of the owner, its type (public metadata, `/users/OWNER`).
 fn route_allowed(path: &str) -> bool {
     let parts: Vec<&str> = path.trim_start_matches('/').split('/').collect();
     match parts.as_slice() {
@@ -48,7 +48,7 @@ fn route_allowed(path: &str) -> bool {
         ["tenant", ..] | ["queue", ..] => true,
         ["repos", _, _, "actions", "runs", _] => true,
         ["orgs", _, "members", _] => true,
-        ["orgs", _] => true,
+        ["users", _] => true,
         _ => false,
     }
 }

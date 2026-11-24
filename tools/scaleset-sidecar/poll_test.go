@@ -61,7 +61,7 @@ func stubSidecar(t *testing.T, st *stubSession) *sidecar {
 	t.Cleanup(cancel)
 	p := newPoller(st)
 	go p.run(ctx)
-	tr := &trust{api: "http://127.0.0.1:1", cache: map[int64]trustInputs{}, signer: newSigner(nil, "1")}
+	tr := &trust{api: "http://127.0.0.1:1", signer: newSigner(nil, "1")}
 	return &sidecar{o: options{source: "s"}, ctx: ctx, poll: p, trust: tr, jobs: map[string]*job{}, byJobID: map[string]string{}}
 }
 

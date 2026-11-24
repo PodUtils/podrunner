@@ -209,14 +209,13 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
             let need = podrunner_slots::placement::needed_hold(s.tier);
             let served =
                 caps.iter().any(|c| c.arch == s.arch && c.boundary >= floor && c.egress_hold.effective() >= need);
-            let mut row = json!({
+            // The extra permissions of the App: of a personal account (T-504).
+            let extra: Vec<&str> =
+                s.allow_personal_account.then_some(podrunner_slots::PERSONAL_PERMISSION).into_iter().collect();
+            tiers.push(json!({
                 "source": s.name, "tier": s.tier, "served": served, "floor": floor, "hold": need,
-            });
-            // The extra permission of the App of a personal account (T-504).
-            if s.allow_personal_account {
-                row["extra_permission"] = json!(podrunner_slots::PERSONAL_PERMISSION);
-            }
-            tiers.push(row);
+                "extra_permissions": extra,
+            }));
             if !served {
                 // Why for each kind (T-194): an emulated host, for example,
                 // has no confine layer and no hold.
@@ -296,9 +295,11 @@ pub fn text(v: &Value) -> String {
     for s in v["sources"].as_array().into_iter().flatten() {
         let word = |f: &str| display(s[f].as_str().unwrap_or("?"));
         let served = if s["served"] == json!(true) { "served" } else { "not served" };
-        let extra = match s["extra_permission"].as_str() {
-            Some(p) => format!("; the App needs {} (allow_personal_account)", display(p)),
-            None => String::new(),
+        let extra: Vec<String> =
+            s["extra_permissions"].as_array().into_iter().flatten().filter_map(|p| p.as_str()).map(display).collect();
+        let extra = match extra.is_empty() {
+            true => String::new(),
+            false => format!("; the App needs {} (allow_personal_account)", extra.join(", ")),
         };
         out.push_str(&format!("source {}: tier {}, {served}{extra}\n", word("source"), word("tier")));
     }
@@ -463,7 +464,7 @@ mod tests {
     }
 
     /// T-504: a scale-set source with `allow_personal_account` names the
-    /// extra permission of the App; with the key off it names none.
+    /// extra permission of the App; with the key off the list is empty.
     #[test]
     fn doctor_names_the_extra_permission_of_a_personal_account() {
         let dir = crate::scratch::Scratch::new("doctor-personal");
@@ -485,11 +486,8 @@ mod tests {
             let row = &v["sources"][0];
             let named =
                 text(&v).contains("source alice-app: tier trusted, not served; the App needs Administration: write");
-            assert_eq!(
-                (row.get("extra_permission"), named),
-                (want.then_some(&json!("Administration: write")), want),
-                "{key}"
-            );
+            let list = if want { json!(["Administration: write"]) } else { json!([]) };
+            assert_eq!((&row["extra_permissions"], named), (&list, want), "{key}");
         }
         let _ = std::fs::remove_dir_all(&dir);
     }

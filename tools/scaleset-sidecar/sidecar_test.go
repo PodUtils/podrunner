@@ -60,7 +60,7 @@ func TestTheEventsOfTheTierRule(t *testing.T) {
 // Past the budget of the hour, a lookup is not made: the inputs are
 // unknown, and the count of throttled lookups grows.
 func TestTheTrustBudgetThrottles(t *testing.T) {
-	tr := &trust{api: "http://127.0.0.1:1", cache: map[int64]trustInputs{}, budget: 1, signer: newSigner(nil, "1")}
+	tr := &trust{api: "http://127.0.0.1:1", budget: 1, signer: newSigner(nil, "1")}
 	tr.lookup("o", "r", 1, "push")
 	in, ok := tr.lookup("o", "r", 2, "push")
 	if ok || in.actorClass != "unknown" || tr.Throttled != 1 {

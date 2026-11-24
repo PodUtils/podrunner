@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -154,6 +155,46 @@ func TestAUserOfTheScriptIsNoOrganization(t *testing.T) {
 		resp.Body.Close()
 		if resp.StatusCode != want {
 			t.Errorf("%s: %d, not %d", path, resp.StatusCode, want)
+		}
+	}
+}
+
+// The T-504 review: /users/OWNER gives the type of an owner, as GitHub
+// does; an owner of missing does not exist (404). A run gives its attempt
+// and its triggering actor (the actor when the script names none).
+func TestTheTypeOfAnOwnerAndTheAttemptOfARun(t *testing.T) {
+	s := script()
+	s.Users = []string{"Alice"}
+	s.Missing = []string{"ghost"}
+	s.Jobs[0].TriggeringActor, s.Jobs[0].RunAttempt = "mallory", 2
+	ts, _ := start(t, s)
+	get := func(path string) (int, map[string]any) {
+		resp, err := http.Get(ts.URL + path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		var v map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&v)
+		return resp.StatusCode, v
+	}
+	for path, want := range map[string]string{
+		"/api/v3/users/example-org": "Organization",
+		"/api/v3/users/alice":       "User",
+		"/api/v3/users/ALICE":       "User",
+		"/api/v3/users/ghost":       "",
+		"/api/v3/orgs/ghost":        "",
+	} {
+		code, v := get(path)
+		if typ, _ := v["type"].(string); typ != want || (want == "") != (code == http.StatusNotFound) {
+			t.Errorf("%s: %d %v, want %q", path, code, v, want)
+		}
+	}
+	for run, want := range map[string][2]any{"101": {"mallory", 2.0}, "102": {"mallory", 1.0}} {
+		_, v := get("/api/v3/repos/example-org/app/actions/runs/" + run)
+		trig, _ := v["triggering_actor"].(map[string]any)
+		if trig["login"] != want[0] || v["run_attempt"] != want[1] {
+			t.Errorf("run %s: %v", run, v)
 		}
 	}
 }

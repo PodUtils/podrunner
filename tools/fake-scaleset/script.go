@@ -21,6 +21,12 @@ type Job struct {
 	HeadIsFork    bool     `json:"headIsFork"`
 	Visibility    string   `json:"visibility"`
 	ActorIsMember bool     `json:"actorIsMember"`
+	// TriggeringActor: the account that started this attempt of the run (a
+	// re-run); the actor when empty. Its membership is the membership of
+	// the actor of the same login in the script.
+	TriggeringActor string `json:"triggeringActor"`
+	// RunAttempt: the attempt of the run; 1 when 0.
+	RunAttempt int `json:"runAttempt"`
 	// Cancel: the job ends with result "canceled" after it is assigned and
 	// before it starts.
 	Cancel bool `json:"cancel"`
@@ -40,6 +46,8 @@ type Script struct {
 	// Users: the owners that are personal accounts, not organizations
 	// (podrunner T-504).
 	Users []string `json:"users"`
+	// Missing: the owners that do not exist on GitHub (404).
+	Missing []string `json:"missing"`
 }
 
 func readScript(path string) (*Script, error) {

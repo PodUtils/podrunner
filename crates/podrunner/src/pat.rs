@@ -21,7 +21,7 @@ pub fn scaleset(s: &podrunner_slots::config::SourceConfig) -> Result<podrunner_m
         "-config-url".to_string(),
         get(&s.config_url),
         "-api-url".into(),
-        s.api_url.clone().unwrap_or_else(|| "https://api.github.com".into()),
+        podrunner_slots::config_url::api_url(s),
         "-pat".into(),
         "-scale-set".into(),
         get(&s.scale_set),

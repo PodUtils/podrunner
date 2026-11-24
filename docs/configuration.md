@@ -338,7 +338,19 @@ A `github-scaleset` source serves an organization: `config_url` is the URL
 of the organization (call C3, DR-9). The sidecar refuses a personal
 account at its start, before it asks GitHub for a scale set
 (`repo-scope-refused`, exit 78). It also refuses the URL of a repository
-of an organization: use the URL of the organization.
+of an organization (use the URL of the organization), and an owner that
+does not exist on GitHub (`GET /users/OWNER` answers 404); the text names
+the owner.
+
+`check` refuses a `config_url` that no scale set serves (exit 78): a
+query, a fragment or a user in it, a `.git` at the end, more than two
+parts, an enterprise, or a part that is not a name of GitHub (letters,
+digits, `-`, `_`, `.`). `api_url` is the API that `actions/scaleset`
+sends its calls to for `config_url`: `https://api.github.com` for
+github.com, `https://api.HOST` for `HOST.ghe.com`, `https://HOST/api/v3`
+for GitHub Enterprise Server. With no `api_url`, the sidecar gets that
+API; an `api_url` that is not it is refused (exit 78), as the lookups of
+the sidecar would go to another host than the scale set.
 
 `allow_personal_account = true` (T-504, the owner's ruling Q13) lets the
 source serve one repository of a personal account. It is off by default.
@@ -373,21 +385,28 @@ users = [{ login = "alice" }]   # the account is the owner of a trusted job
 * `check`, `serve` and `mint-serve` print one line on stderr for each
   source with the key: `podrunner: [[source]] NAME:
   allow_personal_account: ...` names the permission. `doctor` gives the
-  source the field `extra_permission` and says `the App needs
+  source the list `extra_permissions` (`["Administration: write"]`; an
+  empty list with the key off) and says `the App needs
   Administration: write` in its line.
-* `actor_class` is `member` only for the account itself (the actor is the
-  owner of the repository and of the URL). Each other actor is `outside`:
-  a collaborator, a bot and an app. A job of a collaborator is not
-  trusted: a push of a collaborator is `event-not-allowed`, and a pull
-  request of a collaborator from a fork goes to a guest at `untrusted`.
-  Deny by default: GitHub gives a personal account no list of members,
-  and a collaborator can be added with one click.
+* `actor_class` is `member` only when the actor of the run and its
+  triggering actor are each the account itself (by the id of the
+  account when the run gives ids, else by the login in an ASCII case
+  fold), and the run is of a repository of the account. Each other actor
+  is `outside`: a collaborator, a bot and an app. A run that a
+  collaborator triggers is not trusted: a push of a collaborator is
+  `event-not-allowed`, a re-run by a collaborator of a run of the account
+  too, and a pull request of a collaborator from a fork goes to a guest
+  at `untrusted`. Deny by default: GitHub gives a personal account no
+  list of members, and a collaborator can be added with one click.
+* The actor is the account that triggered the run, not the author of the
+  code: a merge or an "Update branch" of the account on the code of a
+  collaborator runs trusted (`docs/security/residuals.md`, R11).
 * The tier rule needs the account in `users` (or in the `users` of the
   trust table of the source) for a trusted job.
-* With the key on and the URL of an organization, the source serves the
-  organization as with the key off. The URL of an account with no
-  repository is refused: the scale set of a personal account is of one
-  repository.
+* With the key on, `config_url` names a repository: `check` refuses the
+  URL of an account or of an organization (one part, exit 78:
+  `allow_personal_account needs the URL of a repository of a personal
+  account`). An organization needs no key.
 
 ## The case table of the tier rule
 

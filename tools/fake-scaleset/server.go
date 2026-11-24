@@ -112,14 +112,9 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.workflowRun(w, p)
 	case strings.Contains(p, "/members/"):
 		s.member(w, p)
-	case strings.Contains(p, "/orgs/") && !strings.Contains(strings.SplitN(p, "/orgs/", 2)[1], "/"):
-		// Each owner is an organization, but a user of the script.
-		login := p[strings.LastIndex(p, "/")+1:]
-		if s.isUser(login) {
-			reply(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
-			return
-		}
-		reply(w, http.StatusOK, map[string]any{"login": login, "type": "Organization"})
+	case strings.Contains(p, "/orgs/") && !strings.Contains(strings.SplitN(p, "/orgs/", 2)[1], "/"),
+		strings.Contains(p, "/users/") && !strings.Contains(strings.SplitN(p, "/users/", 2)[1], "/"):
+		s.owner(w, p)
 	case strings.HasPrefix(p, "/tenant/1/_apis/runtime/runnergroups"):
 		reply(w, http.StatusOK, map[string]any{"count": 1, "value": []map[string]any{{"id": 1, "name": "default", "isDefaultGroup": true}}})
 	case strings.HasPrefix(p, "/tenant/1/_apis/runtime/runnerscalesets"):
@@ -370,8 +365,16 @@ func (s *server) workflowRun(w http.ResponseWriter, p string) {
 	if j.HeadIsFork {
 		head = map[string]any{"id": 2, "full_name": "fork-owner/" + j.Repo, "fork": true}
 	}
+	triggering, attempt := j.TriggeringActor, j.RunAttempt
+	if triggering == "" {
+		triggering = j.Actor
+	}
+	if attempt == 0 {
+		attempt = 1
+	}
 	reply(w, http.StatusOK, map[string]any{
 		"id": run, "event": j.Event, "actor": map[string]any{"login": j.Actor},
+		"triggering_actor": map[string]any{"login": triggering}, "run_attempt": attempt,
 		"head_repository": head,
 		// The repository of a run is a minimal one on github.com:
 		// `visibility` is null, and only `private` tells it (T-167).
@@ -379,8 +382,22 @@ func (s *server) workflowRun(w http.ResponseWriter, p string) {
 	})
 }
 
-func (s *server) isUser(login string) bool {
-	for _, u := range s.script.Users {
+// GET .../users/OWNER and .../orgs/OWNER: each owner is an organization,
+// but a user of the script (a personal account; 404 under /orgs) and an
+// owner of missing (404).
+func (s *server) owner(w http.ResponseWriter, p string) {
+	login := p[strings.LastIndex(p, "/")+1:]
+	user := in(s.script.Users, login)
+	if in(s.script.Missing, login) || (user && strings.Contains(p, "/orgs/")) {
+		reply(w, http.StatusNotFound, map[string]string{"message": "Not Found"})
+		return
+	}
+	typ := map[bool]string{true: "User", false: "Organization"}[user]
+	reply(w, http.StatusOK, map[string]any{"login": login, "type": typ})
+}
+
+func in(list []string, login string) bool {
+	for _, u := range list {
 		if strings.EqualFold(u, login) {
 			return true
 		}

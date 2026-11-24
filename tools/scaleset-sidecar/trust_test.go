@@ -40,7 +40,7 @@ func TestTheHeadIsAForkWhenItIsNotTheBase(t *testing.T) {
 				w.WriteHeader(http.StatusNotFound)
 			}
 		}))
-		tr := &trust{api: ts.URL, installation: 7, cache: map[int64]trustInputs{}, signer: &signer{cached: "a.b.c", until: farFuture}}
+		tr := &trust{api: ts.URL, installation: 7, signer: &signer{cached: "a.b.c", until: farFuture}}
 		in, _ := tr.lookup("org", "b", 5, "pull_request_target")
 		ts.Close()
 		if in.headIsFork != c.want {

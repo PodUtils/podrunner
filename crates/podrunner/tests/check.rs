@@ -414,3 +414,67 @@ fn check_names_the_extra_permission_of_a_personal_account() {
     }
     let _ = std::fs::remove_dir_all(&d);
 }
+
+/// The T-504 review: `check` refuses a `config_url` that no scale set
+/// serves (78), and an `api_url` that is not the API that actions/scaleset
+/// derives from `config_url`: the sidecar sends its lookups there.
+#[test]
+fn check_refuses_a_config_url_that_no_scale_set_serves() {
+    use std::os::unix::fs::PermissionsExt;
+    let d = dir("config-url");
+    let token = d.join("user.token");
+    std::fs::write(&token, "made-up-token\n").unwrap();
+    std::fs::set_permissions(&token, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let arch = std::env::consts::ARCH;
+    let personal = "allow_personal_account = true\n";
+    let cases = [
+        ("https://github.com/alice/app.git", personal, Some(".git")),
+        ("https://github.com/alice/APP.GIT", personal, Some(".git")),
+        ("https://github.com/alice/app?tab=x", personal, Some("no query")),
+        ("https://github.com/alice/app#readme", personal, Some("no query")),
+        ("https://github.com/o?x=1", "", Some("no query")),
+        ("https://user@github.com/o", "", Some("no query")),
+        ("https://github.com/alice", personal, Some("allow_personal_account needs the URL of a repository")),
+        ("https://github.com/enterprises/e", "", Some("not the URL of an organization or of a repository")),
+        ("https://github.com/alice/app/extra", personal, Some("not the URL of an organization or of a repository")),
+        ("https://github.com/alice/..", personal, Some("not the URL of an organization or of a repository")),
+        ("https://github.com/al%2Fice/app", personal, Some("not the URL of an organization or of a repository")),
+        ("https://github.com/alice/${{ github.repository }}", personal, Some("not the URL")),
+        ("github.com/o", "", Some("not the URL")),
+        ("", "", Some("not the URL")),
+        ("https://ghes.example/o", "api_url = \"https://api.github.com\"\n", Some("api_url")),
+        ("https://github.com/o", "api_url = \"https://ghes.example/api/v3\"\n", Some("api_url")),
+        // The forms that a scale set serves.
+        ("https://github.com/alice/app", personal, None),
+        ("https://github.com/Alice/app.js/", personal, None),
+        ("https://github.com/o", "", None),
+        ("https://github.com/alice/app", "", None),
+        ("https://ghes.example/o", "api_url = \"https://ghes.example/api/v3/\"\n", None),
+        ("https://www.github.com/o", "api_url = \"https://api.github.com\"\n", None),
+        ("https://tenant.ghe.com/o", "api_url = \"https://api.tenant.ghe.com\"\n", None),
+    ];
+    for (i, (url, keys, want)) in cases.into_iter().enumerate() {
+        let file = d.join(format!("{i}.toml"));
+        std::fs::write(
+            &file,
+            format!(
+                "host = \"h\"\nallow_fake = true\n[[source]]\nname = \"s\"\nkind = \"github-scaleset\"\n\
+                 tier = \"trusted\"\narch = \"{arch}\"\nsidecar = \"/bin/true\"\nconfig_url = {url:?}\n\
+                 scale_set = \"s\"\ntoken_file = \"{}\"\n{keys}[unit.fake]\nslots = 1\nclaim = \"confined\"\n\
+                 [trust]\nusers = [{{ login = \"alice\" }}]\n[pin]\n",
+                token.display()
+            ),
+        )
+        .unwrap();
+        let out = Command::new(BIN).args(["check", "--config"]).arg(&file).output().unwrap();
+        let err = String::from_utf8_lossy(&out.stderr);
+        match want {
+            Some(word) => {
+                assert_eq!(out.status.code(), Some(78), "{url} {keys}: {err}");
+                assert!(err.contains(word) && err.contains("config_url"), "{url} {keys}: {err}");
+            }
+            None => assert_eq!(out.status.code(), Some(0), "{url} {keys}: {err}"),
+        }
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}

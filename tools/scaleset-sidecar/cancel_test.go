@@ -32,7 +32,7 @@ func TestARefusedJobCancelsItsRunOnce(t *testing.T) {
 	defer ts.Close()
 	st := newStub()
 	s := stubSidecar(t, st)
-	s.trust = &trust{api: ts.URL, installation: 7, cache: map[int64]trustInputs{}, signer: &signer{cached: "a.b.c", until: farFuture}}
+	s.trust = &trust{api: ts.URL, installation: 7, signer: &signer{cached: "a.b.c", until: farFuture}}
 	waitPoll(t, st)
 	job := func(id string, run int64) *scaleset.JobAssigned {
 		return &scaleset.JobAssigned{JobMessageBase: scaleset.JobMessageBase{JobID: id, OwnerName: "o", RepositoryName: "r", WorkflowRunID: run}}
