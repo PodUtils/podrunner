@@ -83,14 +83,6 @@ pub fn files(top: &Path) -> Result<Vec<PathBuf>, String> {
         .collect())
 }
 
-/// The tar of the files of the submodule `s` at its recorded commit, with
-/// its path as the prefix (`--checkout-head`).
-pub fn archive(top: &Path, s: &Sub) -> Result<Vec<u8>, String> {
-    let prefix = format!("{}/", s.path.display());
-    git(&top.join(&s.path), &["archive", "--format=tar", &format!("--prefix={prefix}"), &s.commit])
-        .map_err(|e| format!("the submodule {}: {e}; fix: git submodule update --init --recursive", s.path.display()))
-}
-
 /// The text of [`LIST`]. A path with a line end is left out: the stand-in
 /// reads one line for each submodule.
 pub fn list_text(subs: &[Sub]) -> String {

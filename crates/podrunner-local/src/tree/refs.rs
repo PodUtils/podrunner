@@ -74,13 +74,25 @@ pub fn resolve(dir: &Path, r: &str) -> Result<String, String> {
         ));
     }
     let spec = format!("{r}^{{commit}}");
-    match super::git(dir, &["rev-parse", "--verify", "--quiet", "--end-of-options", &spec]) {
+    match rev_parse(&spec, &|args| super::git(dir, args)) {
         Ok(o) => Ok(String::from_utf8_lossy(&o).trim().to_string()),
         Err(_) => Err(format!(
             "`ref: {r}` is not a commit of the local git of {}; fix: git fetch origin {r}, or give another ref",
             dir.display()
         )),
     }
+}
+
+/// The answer of a call of git: its output, or its failure.
+type Git = Result<Vec<u8>, String>;
+
+/// `git rev-parse --verify` of `spec` through `git`. `--end-of-options` is
+/// the second guard; `rev-parse` took it after git 2.24, and an older git
+/// fails on it with no text (`--quiet`), so a failure tries again with no
+/// guard. The first guard holds there: `spec` does not start with `-`.
+fn rev_parse(spec: &str, git: &dyn Fn(&[&str]) -> Git) -> Git {
+    let verify = ["rev-parse", "--verify", "--quiet"];
+    git(&[&verify[..], &["--end-of-options", spec]].concat()).or_else(|_| git(&[&verify[..], &[spec]].concat()))
 }
 
 /// The commit of HEAD in the git of `dir`, if it has one.
@@ -100,16 +112,10 @@ pub fn tarball(dir: &Path, scratch: &Path, commit: &str, o: &super::Options) -> 
     let mut b = tar::Builder::new(flate2::write::GzEncoder::new(file, flate2::Compression::default()));
     b.follow_symlinks(false);
     let o = super::Options { head: true, ..o.clone() };
-    let tar = super::git(dir, &["archive", "--format=tar", "--end-of-options", commit])?;
-    let mut a = tar::Archive::new(tar.as_slice());
-    for entry in a.entries().map_err(fail)? {
-        let mut entry = entry.map_err(fail)?;
-        let mut h = entry.header().clone();
-        let path = entry.path().map_err(fail)?.into_owned();
-        if !super::left_out(&path, &o) {
-            b.append_data(&mut h, path, &mut entry).map_err(fail)?;
-        }
-    }
+    // A checkout, not `git archive`: no `export-ignore`, no memory of the whole tar.
+    let files = super::commit_tree(dir, scratch, commit)?;
+    super::append_tree(&mut b, &files.root, Path::new(""), &o)?;
+    drop(files);
     if o.with_git && super::is_git_top(dir) {
         let git = super::git_copy(dir, scratch)?;
         let clone = git.parent().expect("the clone").to_path_buf();
@@ -202,6 +208,71 @@ mod tests {
         // The index fits the files; the secrets file stays out (T-276).
         assert_eq!(g(&out, &["status", "--porcelain"]), "D .secrets");
         assert!(!scratch.join("git-clone").exists());
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// A git older than 2.31 fails `rev-parse` on `--end-of-options` with no
+    /// text: the ref resolves with no guard of git (the first guard holds).
+    #[test]
+    fn an_older_git_resolves_a_ref_with_no_end_of_options() {
+        let dir = std::env::temp_dir().join(format!("podrunner-tree-oldgit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let g = |a: &[&str]| String::from_utf8(super::super::git(&dir, a).unwrap()).unwrap().trim().to_string();
+        g(&["init", "-q", "-b", "main"]);
+        g(&["-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", "x"]);
+        let head = g(&["rev-parse", "HEAD"]);
+        let old = |args: &[&str]| match args.contains(&"--end-of-options") {
+            true => Err("git: fatal".to_string()),
+            false => super::super::git(&dir, args),
+        };
+        let got = rev_parse("main^{commit}", &old).unwrap();
+        assert_eq!(String::from_utf8(got).unwrap().trim(), head);
+        // A ref that is not there fails with the guard and without it.
+        assert!(rev_parse("nosuch^{commit}", &old).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-640: the tree of a ref is the checkout of its commit. `git archive`
+    /// applies `export-ignore` and `export-subst` of `.gitattributes`: the
+    /// tree would miss files that GitHub gives and would change a text.
+    #[test]
+    fn the_tree_of_a_ref_ignores_the_export_attributes_of_the_commit() {
+        let base = std::env::temp_dir().join(format!("podrunner-tree-attrs-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let dir = base.join("repo");
+        std::fs::create_dir_all(dir.join("docs")).unwrap();
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        let g = |d: &Path, a: &[&str]| String::from_utf8(super::super::git(d, a).unwrap()).unwrap().trim().to_string();
+        g(&dir, &["init", "-q", "-b", "main"]);
+        std::fs::write(dir.join(".gitattributes"), "docs export-ignore\ntest.sh export-ignore\nid.txt export-subst\n")
+            .unwrap();
+        std::fs::write(dir.join("docs/guide.md"), "guide").unwrap();
+        std::fs::write(dir.join("test.sh"), "#!/bin/sh\n").unwrap();
+        std::fs::write(dir.join("id.txt"), "$Format:%H$").unwrap();
+        std::fs::write(dir.join("sub/s.txt"), "s").unwrap();
+        std::os::unix::fs::symlink("s.txt", dir.join("sub/link")).unwrap();
+        g(&dir, &["add", "-A"]);
+        g(&dir, &["-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "one"]);
+        let main = g(&dir, &["rev-parse", "HEAD"]);
+        let scratch = base.join("scratch");
+        let all = files(&tarball(&dir, &scratch, &main, &super::super::Options::default()).unwrap());
+        for f in ["docs/guide.md", "test.sh", ".gitattributes", "sub/s.txt"] {
+            assert!(all.contains_key(f), "{f}: {:?}", all.keys());
+        }
+        assert_eq!(all.get("id.txt").map(String::as_str), Some("$Format:%H$"), "no export-subst");
+        // A directory of the tree gets its own files, as with `git archive`.
+        let sub = files(&tarball(&dir.join("sub"), &scratch, &main, &super::super::Options::default()).unwrap());
+        assert_eq!(sub.keys().map(String::as_str).collect::<Vec<_>>(), ["link", "s.txt"], "{sub:?}");
+        // The scratch space holds the tarball only.
+        let left: Vec<_> = std::fs::read_dir(&scratch).unwrap().flatten().map(|e| e.file_name()).collect();
+        assert!(left.iter().all(|n| n.to_string_lossy().ends_with(".tar.gz")), "{left:?}");
+        // `--checkout-head` is the same tree.
+        let head =
+            super::super::tarball(&dir, &base.join("head"), super::super::Options { head: true, ..Default::default() })
+                .unwrap();
+        let head = files(&head);
+        assert!(head.contains_key("docs/guide.md") && head.contains_key("test.sh"), "{:?}", head.keys());
         let _ = std::fs::remove_dir_all(&base);
     }
 }

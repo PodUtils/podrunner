@@ -66,17 +66,93 @@ fn plain_files(dir: &Path, rel: &Path, out: &mut Vec<(PathBuf, bool)>) {
 }
 
 fn git(dir: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
+    git_with(dir, args, &[])
+}
+
+/// [`git`] with more variables in its environment.
+fn git_with(dir: &Path, args: &[&str], env: &[(&str, &std::ffi::OsStr)]) -> Result<Vec<u8>, String> {
     let out = Command::new("git")
         .arg("-C")
         .arg(dir)
         .args(args)
         .env("GIT_TERMINAL_PROMPT", "0")
+        .envs(env.iter().copied())
         .output()
         .map_err(|e| format!("git: {e}"))?;
     if !out.status.success() {
         return Err(format!("git {}: {}", args.join(" "), String::from_utf8_lossy(&out.stderr).trim()));
     }
     Ok(out.stdout)
+}
+
+/// The files of a commit, written into a directory of the scratch space;
+/// the directory goes with the value.
+pub(crate) struct CommitTree {
+    base: PathBuf,
+    /// The directory of the checkout `dir` in it: the whole tree, or its
+    /// subdirectory when `dir` is one.
+    pub root: PathBuf,
+}
+
+impl Drop for CommitTree {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.base);
+    }
+}
+
+/// Write the files of `commit` (`HEAD`, or a full commit id) of the git that
+/// holds `dir` into `scratch`, as `git checkout` writes them, through a
+/// temporary index (the index of the user stays). `git archive` is not used:
+/// it applies `export-ignore` and `export-subst` of `.gitattributes`, so its
+/// tree can differ from the checkout of GitHub, and it gives the whole tar in
+/// memory (T-640). A subdirectory of the tree gets its own files, as it does
+/// with `git archive`.
+pub(crate) fn commit_tree(dir: &Path, scratch: &Path, commit: &str) -> Result<CommitTree, String> {
+    static COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let hex = commit.bytes().all(|b| b.is_ascii_hexdigit());
+    if commit != "HEAD" && !(hex && (7..=64).contains(&commit.len())) {
+        return Err(format!("{commit:?} is not a commit id"));
+    }
+    std::fs::create_dir_all(scratch).map_err(|e| format!("{}: {e}", scratch.display()))?;
+    let n = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let base = scratch
+        .canonicalize()
+        .map_err(|e| format!("{}: {e}", scratch.display()))?
+        .join(format!("commit-tree-{}-{n}", std::process::id()));
+    let mut tree = CommitTree { root: base.join("files"), base };
+    std::fs::create_dir_all(&tree.root).map_err(|e| format!("{}: {e}", tree.root.display()))?;
+    let index = tree.base.join("index");
+    let env: [(&str, &std::ffi::OsStr); 1] = [("GIT_INDEX_FILE", index.as_os_str())];
+    // A sparse checkout of the user does not shrink the commit.
+    git_with(dir, &["-c", "core.sparseCheckout=false", "read-tree", commit], &env)?;
+    git_with(dir, &["checkout-index", "-a", "-f", "-q", &format!("--prefix={}/", tree.root.display())], &env)?;
+    let prefix = String::from_utf8_lossy(&git(dir, &["rev-parse", "--show-prefix"])?).trim().to_string();
+    tree.root = tree.root.join(prefix);
+    Ok(tree)
+}
+
+/// Add each directory and file under `root` to `b` under `prefix`, except
+/// the files that [`left_out`] names; each link after the other files.
+fn append_tree<W: std::io::Write>(
+    b: &mut tar::Builder<W>,
+    root: &Path,
+    prefix: &Path,
+    o: &Options,
+) -> Result<(), String> {
+    let mut all = Vec::new();
+    plain_files(root, Path::new(""), &mut all);
+    let mut list = Vec::new();
+    let fail = |e: std::io::Error| format!("{}: {e}", root.display());
+    for (f, is_dir) in all.into_iter().filter(|(f, _)| !left_out(&prefix.join(f), o)) {
+        match is_dir {
+            true => b.append_dir(prefix.join(&f), root.join(&f)).map_err(fail)?,
+            false => list.push(f),
+        }
+    }
+    for f in links_last(root, list) {
+        b.append_path_with_name(root.join(&f), prefix.join(&f)).map_err(fail)?;
+    }
+    Ok(())
 }
 
 /// Whether `dir` is the top of a git tree: only a checkout of the top gets
@@ -183,42 +259,18 @@ pub fn tarball(dir: &Path, scratch: &Path, o: Options) -> Result<PathBuf, String
         if !dir.is_dir() {
             return Err(format!("{}: not a directory", dir.display()));
         }
-        let mut all = Vec::new();
-        plain_files(dir, Path::new(""), &mut all);
-        let mut list = Vec::new();
-        for (f, is_dir) in all.into_iter().filter(|(f, _)| !left_out(f, &o)) {
-            match is_dir {
-                true => b.append_dir(&f, dir.join(&f)).map_err(fail)?,
-                false => list.push(f),
-            }
-        }
-        for f in links_last(dir, list) {
-            add(&mut b, &f)?;
-        }
+        append_tree(&mut b, dir, Path::new(""), &o)?;
     } else if o.head {
-        let head = git(dir, &["archive", "--format=tar", "HEAD"])?;
-        let mut a = tar::Archive::new(head.as_slice());
-        for entry in a.entries().map_err(fail)? {
-            let mut entry = entry.map_err(fail)?;
-            let mut h = entry.header().clone();
-            let path = entry.path().map_err(fail)?.into_owned();
-            if left_out(&path, &o) {
-                continue;
-            }
-            b.append_data(&mut h, path, &mut entry).map_err(fail)?;
+        {
+            let head = commit_tree(dir, scratch, "HEAD")?;
+            append_tree(&mut b, &head.root, Path::new(""), &o)?;
         }
         // The files of each submodule at the commit that HEAD records.
         for s in submodules::list(dir, true)?.iter().filter(|s| s.ready) {
-            let tar = submodules::archive(dir, s)?;
-            let mut a = tar::Archive::new(tar.as_slice());
-            for entry in a.entries().map_err(fail)? {
-                let mut entry = entry.map_err(fail)?;
-                let mut h = entry.header().clone();
-                let path = entry.path().map_err(fail)?.into_owned();
-                if !left_out(&path, &o) {
-                    b.append_data(&mut h, path, &mut entry).map_err(fail)?;
-                }
-            }
+            let sub = commit_tree(&dir.join(&s.path), scratch, &s.commit).map_err(|e| {
+                format!("the submodule {}: {e}; fix: git submodule update --init --recursive", s.path.display())
+            })?;
+            append_tree(&mut b, &sub.root, &s.path, &o)?;
         }
     } else {
         // A committed lock stays at its state on disk, as each tracked
