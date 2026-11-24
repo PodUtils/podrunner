@@ -264,6 +264,19 @@ fn escaped(u: &Unit) -> Result<u32, String> {
     pid.ok_or_else(|| "no pid".into())
 }
 
+/// True when the orphan of [`Behaviour::Escape`] has made its last exec:
+/// its argv[0] is `sleep`. Before that it is `setsid` or `env`, which still
+/// carry the tag, and a read of `environ` during an exec gives an empty
+/// environment. An empty environment alone is then no proof that the tag
+/// is gone. A host that hides the argv gives no answer: the caller checks
+/// the environment only.
+fn settled(pid: u32) -> bool {
+    match std::fs::read(format!("/proc/{pid}/cmdline")) {
+        Ok(c) => c.split(|b| *b == 0).next().is_some_and(|a| a.rsplit(|b| *b == b'/').next() == Some(b"sleep")),
+        Err(e) => e.kind() == std::io::ErrorKind::PermissionDenied,
+    }
+}
+
 /// Design test 3, an orphan that drops the tag of its unit (`env -i`) and
 /// leaves its session (`setsid`): `destroy` ends it and counts 0 (T-063).
 fn an_orphan_with_no_tag(fx: &dyn Fixture) -> Result<Outcome, String> {
@@ -271,13 +284,14 @@ fn an_orphan_with_no_tag(fx: &dyn Fixture) -> Result<Outcome, String> {
     let orphan = escaped(&u)?;
     // A positive control: the orphan lives and shows no tag: its
     // environment is empty, or the host cannot read it (a confined unit
-    // is not dumpable). The pid file can come before the exec of `env -i`:
-    // wait for it.
+    // is not dumpable). The pid file can come before the last exec of the
+    // orphan (`setsid`, `env`, `sleep`): wait for it, with the argv as the
+    // proof, because a read of `environ` during an exec is empty too.
     let no_tag = |pid: u32| match std::fs::read(format!("/proc/{pid}/environ")) {
         Ok(e) => e.is_empty(),
         Err(e) => e.kind() == std::io::ErrorKind::PermissionDenied,
     };
-    if !until(|| alive(orphan) && no_tag(orphan)) {
+    if !until(|| alive(orphan) && settled(orphan) && no_tag(orphan)) {
         return Ok(Outcome::Skip("no orphan is alive on the host: a pid namespace, or the unit could not start it (a confined unit denies `env -i`)".into()));
     }
     let seen = until(|| u.observe().is_ok_and(|o| o.pids.contains(&orphan)));
@@ -307,7 +321,9 @@ fn a_killed_shim_is_not_clean(fx: &dyn Fixture) -> Result<Outcome, String> {
     // `start` can end a launcher before it reports the start.
     std::fs::write(root(&u.observe()?)?.join(GO), "").map_err(|e| format!("write {GO}: {e}"))?;
     let orphan = escaped(&u)?;
-    if !alive(orphan) {
+    // An orphan that still runs `setsid` or `env` has the tag: `destroy`
+    // would end it by the tag, and the test would pass for a bad reason.
+    if !until(|| alive(orphan) && settled(orphan)) {
         return Ok(Outcome::Skip("no orphan is alive on the host: a pid namespace, or the unit could not start it (a confined unit denies `env -i`)".into()));
     }
     // The kill of the parent can come just after the pid file (a parent
@@ -374,5 +390,26 @@ mod tests {
         let script = super::super::KILL_PARENT_AFTER_GO;
         assert!(script.contains(&format!("[ ! -e {GO} ]")), "{script}");
         assert!(script.find(GO) < script.find("kill -9"), "{script}");
+    }
+
+    /// T-382: a process that still runs `env` is not settled; the same
+    /// process after its exec of `sleep` is.
+    #[test]
+    fn an_orphan_is_settled_after_its_last_exec() {
+        let mut c = std::process::Command::new("sh").args(["-c", "exec env -i sleep 30"]).spawn().unwrap();
+        let pid = c.id();
+        assert!(until(|| settled(pid)), "the process does not reach sleep");
+        let mut other = std::process::Command::new("sh")
+            .args(["-c", "exec cat"])
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let pid_cat = other.id();
+        assert!(until(|| std::fs::read(format!("/proc/{pid_cat}/cmdline")).is_ok_and(|c| c.starts_with(b"cat"))));
+        assert!(!settled(pid_cat));
+        let _ = c.kill();
+        let _ = other.kill();
+        let _ = c.wait();
+        let _ = other.wait();
     }
 }

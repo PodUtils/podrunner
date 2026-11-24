@@ -7886,6 +7886,8 @@ State (2026-11-17): six runs of the suite of `podrunner-fake` at one time on thi
 
 2026-11-17: the cause, from a second failure in the check of a push (`TagOnly passes test 25`): the plant `TagOnly` ends the tagged processes, but the shim ends its children when the payload ends; under load the shim ran before its own kill and ended the untagged orphan, so the plant passed the test that it must fail. The plant now ends the shim first (`podrunner-fake/src/unit.rs`), so the orphan stays. Proof: the suite of `check.sh` passes; the race is in the plant, not in a driver.
 
+2026-11-24: a third failure (`TagOnly passes test 25`) had a second cause, in the test, not in the plant. A read of `/proc/PID/environ` during an exec is empty, so the test took an orphan that still ran `setsid` or `env` (with the tag) for an orphan with no tag. `observe` then showed it by its tag, and `destroy` ended it by its tag. The test now waits until the argv of the orphan is `sleep` (the last exec) before its positive control (`settled` in `podrunner-unit/src/conformance/design.rs`); test 26 waits the same way. A real driver must still end an orphan with no tag: the checks after the wait are the same. Proof: 24 runs of `each_unit_plant_fails_its_test` in three loops at once under 4 busy loops passed; 160 runs of test 25 with the plant under 6 busy loops and a poll of 200 us passed (before the change, 4 of 40 such runs took an orphan that still ran `setsid` or `env` for ready); the unit test `an_orphan_is_settled_after_its_last_exec` passes.
+
 # T-383: A container mount can name the runner root or a file of it
 
 **Source:** GitHub #227 (a user who read the code of `v0.1.0-beta.7`, 2026-11-17)
