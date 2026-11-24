@@ -23,34 +23,11 @@ fn check(name: &'static str, r: Result<String, String>) -> Check {
     }
 }
 
-/// The limit of file size: .NET maps its code through a large memfd, so a
-/// small limit ends the runner by SIGXFSZ (T-144).
-pub(super) fn file_size_limit() -> Result<String, String> {
-    let mut r = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
-    // SAFETY: getrlimit writes into the struct that this function owns.
-    if unsafe { libc::getrlimit(libc::RLIMIT_FSIZE, &mut r) } != 0 {
-        return Err("getrlimit failed".into());
-    }
-    if r.rlim_cur == libc::RLIM_INFINITY || r.rlim_cur >= 4 << 30 {
-        return Ok("no small limit".into());
-    }
-    Err(format!("{} bytes: the runner dies by SIGXFSZ; fix: ulimit -f unlimited", r.rlim_cur))
-}
-
 /// The scratch disk of a run: a podvm unit unpacks its image under TMPDIR,
 /// about eight times the size of the image in the store (2.4 GiB for the
 /// base image), for each job at a time (T-325); at least 2 GiB.
 fn need(a: &Args) -> u64 {
-    let size = || {
-        let (podvm, store, image) = (a.podvm.as_ref()?, a.images.as_ref()?, a.image.as_ref()?);
-        let out = std::process::Command::new(podvm)
-            .args(["inspect", "--format", "{{.Size}}", image])
-            .env("PODVM_STORE", store)
-            .stdin(std::process::Stdio::null())
-            .output()
-            .ok()?;
-        String::from_utf8(out.stdout).ok()?.trim().parse::<u64>().ok()
-    };
+    let size = || super::dry::image_size(a, a.image.as_ref().filter(|_| a.podvm.is_some())?);
     (size().map_or(0, |s| s * 8)).max(2 << 30) * a.parallel.max(1) as u64
 }
 
@@ -159,7 +136,7 @@ pub(super) fn proxy_line(vars: impl Iterator<Item = (String, String)>) -> String
 
 pub(super) fn checks(a: &Args) -> Vec<Check> {
     let mut out = vec![
-        check("file-size-limit", file_size_limit()),
+        check("file-size-limit", super::dry::file_size_limit(a)),
         check("scratch-disk", free_disk(&std::env::temp_dir(), need(a))),
     ];
     out.push(check(

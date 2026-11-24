@@ -155,40 +155,134 @@ fn doctor_runs_the_self_test_of_the_confine_layer() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// T-632: a small limit of file size ends the runner and a podvm load by
-/// SIGXFSZ. `run` (and its dry run) refuses it before the first unit, with
-/// the fix that `doctor --run` gives; with no limit the dry run plans.
-#[test]
-fn run_refuses_a_small_limit_of_file_size() {
+/// A child of the binary in `dir` with the limit of file size `limit`
+/// (soft, hard); None keeps the limit of this process.
+fn limited(dir: &std::path::Path, args: &[&str], limit: Option<(u64, u64)>) -> std::process::Output {
     use std::os::unix::process::CommandExt;
-    let dir = Scratch::new("t632-fsize");
+    let mut c = Command::new(env!("CARGO_BIN_EXE_podrunner"));
+    c.args(args).current_dir(dir).env("XDG_CACHE_HOME", dir.join("cache"));
+    if let Some((soft, hard)) = limit {
+        // SAFETY: setrlimit is safe to call between fork and exec.
+        unsafe {
+            c.pre_exec(move || {
+                let r = libc::rlimit { rlim_cur: soft, rlim_max: hard };
+                match libc::setrlimit(libc::RLIMIT_FSIZE, &r) {
+                    0 => Ok(()),
+                    _ => Err(std::io::Error::last_os_error()),
+                }
+            });
+        }
+    }
+    c.output().unwrap()
+}
+
+/// The hard limit of file size of this process: a child cannot raise it.
+fn hard_limit() -> u64 {
+    let mut r = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+    // SAFETY: getrlimit writes into the struct that this function owns.
+    unsafe { libc::getrlimit(libc::RLIMIT_FSIZE, &mut r) };
+    r.rlim_max
+}
+
+const GIB: u64 = 1 << 30;
+
+/// T-632, T-144: the runner of `--runner-dir` runs with W^X off, so a
+/// limit of file size does not stop it. `ulimit -f 1048576` (1 GiB) does
+/// not refuse its dry run, and a smaller limit only warns.
+#[test]
+fn the_host_route_is_not_refused_under_a_limit_of_file_size() {
+    let dir = Scratch::new("t632-fsize-host");
     std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
     std::fs::write(dir.join("runner/run.sh"), "").unwrap();
     std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
     std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
-    let run = |limit: Option<u64>| {
-        let mut c = Command::new(env!("CARGO_BIN_EXE_podrunner"));
-        c.args(["run", "w.yml", "--runner-dir", "runner", "--dry-run", "--no-config"]).current_dir(&*dir);
-        if let Some(bytes) = limit {
-            // SAFETY: setrlimit is safe to call between fork and exec.
-            unsafe {
-                c.pre_exec(move || {
-                    let mut r = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
-                    libc::getrlimit(libc::RLIMIT_FSIZE, &mut r);
-                    r.rlim_cur = bytes;
-                    match libc::setrlimit(libc::RLIMIT_FSIZE, &r) {
-                        0 => Ok(()),
-                        _ => Err(std::io::Error::last_os_error()),
-                    }
-                });
-            }
-        }
-        c.output().unwrap()
-    };
-    let out = run(Some(100_000 * 1024));
+    let args = ["run", "w.yml", "--runner-dir", "runner", "--dry-run", "--no-config"];
+    let hard = hard_limit();
+    for soft in [GIB, 100_000 * 1024] {
+        let out = limited(&dir, &args, Some((soft.min(hard), hard)));
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(0), "{soft}: {err}");
+        assert!(err.contains("warning: the limit of file size (ulimit -f) is"), "{soft}: {err}");
+    }
+    let out = limited(&dir, &args, None);
+    assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+}
+
+/// A stand-in podvm in `dir` whose store holds IMAGE of `size` bytes.
+fn podvm_of_size(dir: &std::path::Path, size: u64) -> String {
+    use std::os::unix::fs::PermissionsExt;
+    let p = dir.join("podvm");
+    std::fs::write(
+        &p,
+        format!(
+            "#!/bin/sh\ncase \"$1\" in probe) echo '{{\"podvm\":\"0.2.0-beta.39\",\"rung\":\"userland\"}}';; \
+             inspect) [ \"$2\" = --format ] && echo {size}; exit 0;; esac\n"
+        ),
+    )
+    .unwrap();
+    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+    std::fs::create_dir_all(dir.join("store")).unwrap();
+    p.display().to_string()
+}
+
+const IMAGE: &str = "runner@sha256:1111111111111111111111111111111111111111111111111111111111111111";
+
+/// T-632: a podvm unit saves and loads the tar of its image, so a limit
+/// below the size of the image (plus a margin) refuses the run, with the
+/// size and the fix; a limit above it does not refuse.
+#[test]
+fn a_podvm_route_is_refused_under_a_limit_below_its_image() {
+    let dir = Scratch::new("t632-fsize-podvm");
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    let p = podvm_of_size(&dir, 300_000_000);
+    let args = ["run", "w.yml", "--podvm", &p, "--images", "store", "--image", IMAGE, "--dry-run", "--no-config"];
+    let hard = hard_limit();
+    if hard < GIB {
+        eprintln!("skip: the hard limit of file size of this process is {hard} bytes");
+        return;
+    }
+    let out = limited(&dir, &args, Some((200_000_000, hard)));
     let err = String::from_utf8_lossy(&out.stderr);
     assert_eq!(out.status.code(), Some(78), "{err}");
-    assert!(err.contains("ulimit -f") && err.contains("SIGXFSZ") && err.contains("fix: ulimit -f unlimited"), "{err}");
-    let out = run(None);
+    assert!(
+        err.contains("the limit of file size (ulimit -f) is 200000000 bytes")
+            && err.contains("the image runner@sha256:1111")
+            && err.contains("300000000 bytes")
+            && err.contains("SIGXFSZ")
+            && err.contains("fix: ulimit -f"),
+        "{err}"
+    );
+    assert!(!err.contains("root"), "{err}");
+    // 1 GiB holds an image of 300 MB: the threshold is from the image.
+    let out = limited(&dir, &args, Some((GIB, hard)));
     assert_eq!(out.status.code(), Some(0), "{}", String::from_utf8_lossy(&out.stderr));
+    // The tar of the image cache gives the size when it is there.
+    let tars = dir.join("cache/podrunner/image-tars");
+    std::fs::create_dir_all(&tars).unwrap();
+    let tar = std::fs::File::create(tars.join(&IMAGE[IMAGE.len() - 64..]).with_extension("tar")).unwrap();
+    tar.set_len(2 * GIB).unwrap();
+    let out = limited(&dir, &args, Some((GIB, hard)));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(78), "{err}");
+    assert!(err.contains(&format!("{} bytes", 2 * GIB)), "{err}");
+}
+
+/// T-632: when the hard limit of file size is below what the route needs,
+/// only root can raise it; the text says so and names `--runner-dir`.
+#[test]
+fn a_hard_limit_below_the_image_names_root_and_the_host_route() {
+    let dir = Scratch::new("t632-fsize-hard");
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    let p = podvm_of_size(&dir, 300_000_000);
+    let args = ["run", "w.yml", "--podvm", &p, "--images", "store", "--image", IMAGE, "--dry-run", "--no-config"];
+    let out = limited(&dir, &args, Some((200_000_000, 200_000_000)));
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(78), "{err}");
+    assert!(
+        err.contains("the hard limit is 200000000 bytes")
+            && err.contains("only root can raise")
+            && err.contains("--runner-dir"),
+        "{err}"
+    );
+    assert!(!err.contains("fix: ulimit -f unlimited"), "{err}");
 }

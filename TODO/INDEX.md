@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**632 entries: 76 open, 60 partial, 15 blocked, 481 done.**
+**633 entries: 77 open, 60 partial, 15 blocked, 481 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 3 | 91 | 120 |
 | P2 | 18 | 22 | 9 | 249 | 298 |
-| P3 | 57 | 12 | 3 | 139 | 211 |
-| **All** | 76 | 60 | 15 | 481 | 632 |
+| P3 | 58 | 12 | 3 | 139 | 212 |
+| **All** | 77 | 60 | 15 | 481 | 633 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -680,3 +680,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-635](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |
 | [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
 | [T-637](later.md) | P3 | L | later | measurement | open | QA round 6, agent A: the areas that the round did not test |
+| [T-638](later.md) | P3 | S | later | defect | open | The user-path gate has no lane with a hard limit of file size of 1 GiB |

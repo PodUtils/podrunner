@@ -15779,6 +15779,10 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 
 `cargo test -p podrunner-podvm --lib` with a test: a fake `podvm` that ends by SIGXFSZ gives a cause that names SIGXFSZ and `ulimit -f`. `cargo test -p podrunner --test local` with a test: `RLIMIT_FSIZE` set small makes `run --dry-run` exit 78. Each fails before the change.
 
+## Correction
+
+2026-11-24, a review of the diff before the push: the refusal of a limit of file size below 4 GiB held for each route, also `--runner-dir`, where T-144 turns W^X off so that the runner works under `ulimit -f 1048576`; the text "the runner dies by SIGXFSZ" was false for that route. The fix (`run_local/dry.rs`, fn `file_size_limit`): only the routes that load an image (`--podvm`, `--microvm`, `--incus`) refuse, with a threshold from the image (the tar of the image cache, else `podvm inspect --format {{.Size}}`, an unknown size counts as 1 GiB; the size and a quarter and 64 MiB, five times the size for the initrd of the microvm tier); the host route only warns. A hard limit below the threshold says that only root can raise it and names `--runner-dir`. Tests that failed before (exit 78 with the old text): `the_host_route_is_not_refused_under_a_limit_of_file_size`, `a_podvm_route_is_refused_under_a_limit_below_its_image`, `a_hard_limit_below_the_image_names_root_and_the_host_route` of `cargo test -p podrunner --test doctor`; `run_local::dry::fsize_tests::the_verdict_of_a_limit_of_file_size`. The built binary as the user `labdns` (no root): `ulimit -f 1048576; podrunner run hello.yml --runner-dir runner --dry-run` prints the warning and `planned a`, exit 0; a stand-in podvm with an image of 300000000 bytes under `ulimit -S -f 100000` exits 78 with `fix: ulimit -f unlimited`, and under `ulimit -f 100000` (soft and hard) exits 78 with "only root can raise it" and `--runner-dir`. Level: proven on this host as a user with no root; the threshold of a real podvm and image is not run. T-638 adds the lane of the user-path gate.
+
 ## Done
 
 2026-11-24 (commit: this one, "unit: name the signal of a podvm call, and refuse a small ulimit -f before a run (T-632)"): `crates/podrunner-unit/src/signal.rs`, fn `ended_by`: the one text of a child that a signal ended (`ended by SIGKILL (9)`; SIGXFSZ: `ended by SIGXFSZ: a limit of file size (ulimit -f) is too small; fix: ulimit -f unlimited`). The podvm driver (each `podvm VERB` call, and `podvm probe`) and the host driver (fn `signal_reason`) use it: `podvm load: exit -1: ` is now `podvm load: ended by SIGXFSZ: ...; fix: ulimit -f unlimited`. `run` and its dry run run the check `file_size_limit` of `doctor --run` before the first unit (`run_local/dry.rs`, fn `paths`) and refuse with exit 78: `the limit of file size (ulimit -f) is N bytes: the runner dies by SIGXFSZ; fix: ulimit -f unlimited`. The test is in `crates/podrunner/tests/doctor.rs`, not in `tests/local.rs` (that file runs only with `--ignored`). Tests: `unit::cache_tests::a_load_that_sigxfsz_ends_names_the_limit_and_the_fix` (a fake podvm whose load ends by SIGXFSZ; it failed before with `podvm load: exit -1: `), `run_refuses_a_small_limit_of_file_size` of `cargo test -p podrunner --test doctor` (a child with `RLIMIT_FSIZE` of 100000 KiB: exit 78 with the fix; it failed before with exit 0), `signal::tests::a_signal_is_named_and_sigxfsz_has_its_fix`. The built binary as the user `labdns` (no root) after `ulimit -f 100000` (dash: 51200000 bytes): `run hello.yml --runner-dir r --dry-run` and `run hello.yml --podvm FAKE --images S --image runner@sha256:1...` each print the line above and exit 78; `doctor --run` gives the same fix. Level: proven on this host as a user with no root for the refusal; the text of a podvm load that SIGXFSZ ends is proven with a fake podvm only (no real podvm on this host).
@@ -15953,3 +15957,31 @@ Give each area to a lane of `user-gate.yml` (T-243, T-244) where a lane exists, 
 ## Prove
 
 `grep -n 'T-637' docs/qa-brief.md TODO/later.md`: the entry stays open until each area has a report or a lane that ran; then `cargo todo check`.
+
+
+# T-638: The user-path gate has no lane with a hard limit of file size of 1 GiB
+
+**Source:** A review of T-632, 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The refusal of T-632 held for each route at 4 GiB and stopped `--runner-dir` under `ulimit -f 1048576`, a host class that T-144 fixed. No lane of the user-path gate has a limit of file size, so CI did not see it. A host class of a report is a lane (AGENTS.md, section 12).
+
+## Premise
+
+Read `.github/workflows/user-gate.yml` (the matrix of lanes) and `scripts/lab/` on 2026-11-24. No lane sets `RLIMIT_FSIZE`. Not run.
+
+## Approach
+
+1. Add a lab script `fsize.sh` beside `scripts/lab/nonroot.sh`: it sets the soft and the hard limit of file size to 1 GiB (`ulimit -f 1048576` in bash, or `prlimit`) and runs its command.
+2. Add the lane `fsize-1g` to `user-gate.yml`: the new script, then `sh scripts/lab/nonroot.sh --`, executors `podvm,runner-dir`.
+3. Expect: `--runner-dir` runs the corpus; `--podvm` runs when the image is below the threshold of `run_local/dry.rs` (fn `file_size_limit`), else `run` exits 78 with "only root can raise it" and `--runner-dir`; `doctor --run` gives the same verdict.
+
+## Prove
+
+`gh workflow run user-gate.yml --ref main`; the lane `fsize-1g` of that run is green, and its table shows the row of each executor.
