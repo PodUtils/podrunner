@@ -15585,7 +15585,7 @@ Read: `tools/scaleset-sidecar/cancel.go`, `queue.go`, `sidecar.go`, `trust.go` a
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15602,6 +15602,10 @@ Give `release.yml` the input `images_run`, with the rules of `user-gate.yml`: a 
 ## Prove
 
 `actionlint .github/workflows/release.yml .github/workflows/user-gate.yml` passes; a test in `scripts/test-install.sh` runs the shared script of the rule with a fake `gh` and a repository of two commits: it accepts an older run when only a file outside `images/` changed, and it refuses when `images/runner/runner.toml` changed; a dry run of `release.yml` on a docs-only commit with `-f images_run=RUN` reports the images of RUN.
+
+## Done
+
+2026-11-24, the commit that names T-626. `scripts/images-run.sh RUN` holds the rule of the runner-image.yml run: digits only; the run is `.github/workflows/runner-image.yml` with the conclusion `success`; a run of another commit serves only when `git diff --quiet` of `images/` (less `images/fake-githome.toml`, `images/pod-release.toml` and `images/hosted`) finds no change, and the script fetches that commit into a shallow checkout; an empty RUN takes the green run of HEAD (exit 3 when there is none). The step `p` of `user-gate.yml` and the job `check` of `release.yml` call it; `release.yml` has the input `images_run` (a dry run with no value and no run continues with no images, as before). The job `tag` gives the run on the tag `-f images_run=` with the run that its job `check` took, and the run on the tag checks it again at the tag. The summary of the job `check` and the section "The images, by digest" of the notes name the run. `docs/maintenance.md`, "A release", item 2, and the dispatch again on a tag, give the rule. Proof: `sh scripts/images-run.sh --self-test` (13 cases with a fake `gh` and a repository of three commits: a green run of the same commit; of an older commit with only `docs/` and the excluded files changed; refused when `images/runner/runner.toml` changed; a red run; a run with no conclusion; another workflow; a commit that the checkout cannot fetch; a run that the API does not know; a value with a space, an expression, a path; no value with and with no green run) passes. Four planted defects each fail it: no `git diff` check, no check of the conclusion, no check of the path, no exclusion of `images/hosted`. `sh scripts/test-install.sh` runs the self-test and shellcheck of the script (20 passed). Both workflows load as YAML; shellcheck 0.11.0 of each `run:` block of both workflows finds nothing in the changed blocks. Not run: `actionlint` (not on this host), and a dispatch of `release.yml` on GitHub. Level: not run on GitHub-hosted runners.
 
 
 # T-627: `podrunner man` does not exist, and the help of `run` and `config init` lacks flags that `docs/cli.md` lists

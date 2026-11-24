@@ -77,33 +77,8 @@ jobs:
             "$have" | "$have"-*) ;;
             *) echo "the version $version does not name the version $have of Cargo.toml"; exit 1 ;;
           esac
-          if [ -n "$IMAGES_RUN" ]; then
-            case $IMAGES_RUN in *[!0-9]*) echo "images_run is the id of a run (digits)"; exit 1 ;; esac
-            got=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$IMAGES_RUN" --jq '"\(.path) \(.head_sha) \(.conclusion)"')
-            # The image is built from images/ only: a green run of an older
-            # commit serves when images/ is the same at both commits.
-            # shellcheck disable=SC2086 # three words: path, sha, conclusion
-            set -- $got
-            if [ "$1 $3" != ".github/workflows/runner-image.yml success" ]; then
-              echo "run $IMAGES_RUN is not a green runner-image.yml run: $got"; exit 1
-            fi
-            if [ "$2" != "$sha" ]; then
-              git fetch -q --depth=200 origin "$2" ||
-                { echo "run $IMAGES_RUN is of $2, which this checkout cannot fetch"; exit 1; }
-              # images/fake-githome.toml pins a test tool (T-509),
-              # images/pod-release.toml the tools of the index (T-562), and
-              # images/hosted/ holds the rules of the snapshot (T-539, T-542):
-              # none of them is in the runner image.
-              git diff --quiet "$2" "$sha" -- images/ ':(exclude)images/fake-githome.toml' ':(exclude)images/pod-release.toml' ':(exclude)images/hosted' ||
-                { echo "run $IMAGES_RUN is of $2, and images/ changed since: run runner-image.yml on $sha"; exit 1; }
-              echo "run $IMAGES_RUN is of $2; images/ is the same at $sha"
-            fi
-            images=$IMAGES_RUN
-          else
-            images=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/runner-image.yml/runs?head_sha=$sha&status=success" \
-              --jq '.workflow_runs[0].id // empty')
-          fi
-          [ -n "$images" ] || { echo "no green runner-image.yml run at $sha: dispatch it on this commit first"; exit 1; }
+          # The rule of images_run, the same in release.yml (T-626).
+          images=$(sh scripts/images-run.sh "$IMAGES_RUN")
           echo "the files of $version at $sha; the images of runner-image.yml run $images" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "images=$images" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"

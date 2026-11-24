@@ -9,7 +9,8 @@
 # (its mirror is empty); a corrupt asset fails by name and leaves no file;
 # a changed binary is replaced; a file of the user stays; the offline
 # bundle, as an archive and from its directory; --full. The assets of a
-# release from scripts/release-assets.sh; an install from a local HTTP
+# release from scripts/release-assets.sh; the rule of images_run
+# (scripts/images-run.sh); an install from a local HTTP
 # server; a lane of the user-path gate (scripts/user-gate.py, T-243) on the
 # fake assets, and a lane with a missing asset that fails.
 #
@@ -388,6 +389,12 @@ assert len(m["podrunner"]["files"][arch]["sha256"]) == 64, m
 EOF
 ok "the assets of a release (scripts/release-assets.sh)"
 
+# 9b. The rule of the runner-image.yml run of release.yml and user-gate.yml
+# (T-626): a green run of an older commit serves only when images/ is the
+# same; a red run, another workflow and a changed images/ are refused.
+sh "$root/scripts/images-run.sh" --self-test > "$t/out" 2>&1 || fail "the rule of images_run"
+ok "the rule of images_run (scripts/images-run.sh)"
+
 # 10. An install from a local HTTP server, through curl.
 python3 -I -c 'import functools, http.server, sys
 s = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(http.server.SimpleHTTPRequestHandler, directory=sys.argv[1]))
@@ -486,7 +493,7 @@ ok "two installers in one HOME each remove only their own files"
 # version in CI and on the host of an agent, never skipped.
 sh "$root/scripts/shellcheck.sh" "$root/scripts/install.sh" "$root/scripts/make-bundle.sh" \
     "$root/scripts/test-install.sh" "$root/scripts/release-assets.sh" "$root/scripts/shellcheck.sh" \
-    "$root/scripts/githome-conformance.sh" \
+    "$root/scripts/githome-conformance.sh" "$root/scripts/images-run.sh" \
     "$root"/scripts/lab/*.sh || fail "shellcheck"
 ok "shellcheck"
 echo "test-install: $pass passed"

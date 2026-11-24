@@ -216,27 +216,38 @@ Dispatch `release.yml` only after each step below holds on the commit of
 the release (`AGENTS.md`, section 12; T-243 to T-247):
 
 1. The gate, `runner-image.yml` and `level2.yml` are green. `release.yml`
-   reads the runs whose `head_sha` is the commit that it runs on, for the
-   gate, `user-gate.yml` and `runner-image.yml`: a later commit needs the
-   runs again (T-626).
-2. The user-path gate (`user-gate.yml`, T-243) is green: it takes the
+   reads the runs of the gate and of `user-gate.yml` whose `head_sha` is
+   the commit that it runs on: a later commit needs these runs again.
+2. The runner images come from one green `runner-image.yml` run (T-626).
+   Give its id in the input `images_run` of `release.yml`, as for
+   `user-gate.yml`. With no `images_run`, `release.yml` takes the green
+   run of its commit. A run of an older commit serves only when `images/`
+   is the same at both commits. The files that are not in the runner
+   image do not count: `images/fake-githome.toml`,
+   `images/pod-release.toml` and `images/hosted/`.
+   `scripts/images-run.sh` holds this rule, and both workflows call it.
+   Thus a commit of `docs/` or `TODO/` only needs no new
+   `runner-image.yml` run.
+3. The user-path gate (`user-gate.yml`, T-243) is green: it takes the
    files that the release will publish, byte for byte, installs them with
    the installer as a user, runs `doctor --run`, and runs the corpus of
    real projects on each executor, on each host lane (T-244).
-3. The adversarial QA (T-246): two or more agents with a fresh context
+4. The adversarial QA (T-246): two or more agents with a fresh context
    get only the notes of the release, the documents and the built
    binaries, on a constrained host (this sandbox has an egress proxy
    only), and try to break podrunner as a user. Each finding is an entry;
    a P1 or P2 finding blocks the release.
-4. The notes of the release say, for each claim, the level of its proof:
+5. The notes of the release say, for each claim, the level of its proof:
    CI, a constrained host, or not run.
-5. `CHANGES.md` has a section of the tag of the release: rename
+6. `CHANGES.md` has a section of the tag of the release: rename
    `## next` to it (T-510). Each commit that changes a contract adds its
    row under `## next` in the same commit. `scripts/check-notes.sh`
    refuses the notes of a release with no such section.
 
 The run with a version makes the tag and starts `release.yml` on the tag
-(T-562). That second run builds the files again, writes
+(T-562), with `images_run` set to the run that its job `check` took. The
+summary of the job `check` and the notes of the release name that run.
+That second run builds the files again, writes
 `release-index.json`, signs `SHA256SUMS` as `release.yml` at the tag,
 checks the release with `pod-release verify`, and publishes it. Read both
 runs. A dry run (no version) writes the index and checks it with
@@ -273,7 +284,9 @@ gh workflow run release.yml --repo PodUtils/podrunner --ref vX.Y.Z-beta.N
 ```
 
 Give no `version`: the run on a tag refuses one and takes the version of
-the tag. Give `-f no_user_gate="REASON"` again when the release had one.
+the tag. Give `-f images_run=RUN` with the run of the summary of the job
+`check` of the first run. Give `-f no_user_gate="REASON"` again when the
+release had one.
 The run checks the same conditions at the commit of the tag, builds
 again, and pushes again: a blob that the registry has is not sent again,
 and the same files give the same digests. When the build gives other

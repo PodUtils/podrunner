@@ -30,9 +30,11 @@ The notes cite these runs of the code `dd88c33`, all green: `level2.yml`
 commit.
 
 `release.yml` reads the runs with `head_sha` equal to the commit that it
-runs on: the gate, `user-gate.yml` and `runner-image.yml` must be green at
-that commit (T-626 is open: no `images_run` input). A later commit, also
-one of `TODO/` or `docs/`, needs the runs again. Make no commit after the
+runs on: the gate and `user-gate.yml` must be green at that commit. A later
+commit, also one of `TODO/` or `docs/`, needs these runs again. The runner
+images come from the input `images_run` (T-626): a green
+`runner-image.yml` run of an older commit serves when `images/` is the
+same (`docs/maintenance.md`, "A release"). Make no commit after the
 commit of the runs, until the release is made. Do these steps:
 
 1. Run `sh scripts/agent/check.sh` with `PODRUNNER_RUNNER_DIR`, then push
@@ -41,9 +43,11 @@ commit of the runs, until the release is made. Do these steps:
 2. Dispatch `runner-image.yml` (about 2.5 hours), `level2.yml` and
    `user-gate.yml` with `version=0.1.0-beta.8` on that commit.
 3. When the four runs are green, dispatch `release.yml` with no version
-   (the dry run). Read its jobs `check`, `build`, `assets`, `image` and
+   (the dry run), and with `images_run` when the `runner-image.yml` run is
+   of an older commit. Read its jobs `check`, `build`, `assets`, `image` and
    `dry` (the index and the check of `SHA256SUMS` by `pod-release`).
-4. Dispatch `release.yml` with `version=0.1.0-beta.8`. It makes the tag and
+4. Dispatch `release.yml` with `version=0.1.0-beta.8` and the same
+   `images_run`. It makes the tag and
    starts `release.yml` on the tag. Read both runs (`docs/maintenance.md`,
    "A release").
 5. After the release: name the tag on GitHub #292 and #151 (cfb asked for

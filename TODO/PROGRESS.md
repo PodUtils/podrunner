@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 641 entries: 80 open, 60 partial, 14 blocked, 487 done.
+`TODO/INDEX.md` holds 641 entries: 79 open, 60 partial, 14 blocked, 488 done.
 
 ## State
 
@@ -39,8 +39,8 @@ then take the next one.
    `v0.1.0-beta.8`"). Next: push `main`; on the final commit dispatch
    `runner-image.yml` and `user-gate.yml` (`version=0.1.0-beta.8`,
    `images_run=45390017489`); then the dry run of `release.yml`; then
-   `release.yml` with `version=0.1.0-beta.8`. T-626 would let `release.yml`
-   take an image run of an earlier commit. The gates are T-243, T-244 and
+   `release.yml` with `version=0.1.0-beta.8`. Give each `release.yml` run
+   the same `images_run`. The gates are T-243, T-244 and
    T-246 (partial) and the checklist of `docs/maintenance.md`, "A release".
 2. T-512 (P0): after the release, write `githome: complete in vTAG` on #292
    and #151 only when each ask G-01 to G-41 is in a release. It is not:

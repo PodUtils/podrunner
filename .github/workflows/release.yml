@@ -8,14 +8,17 @@ name: release
 # each, and a build provenance attestation of each.
 #
 # T-202: the release also attaches the assets of the local mode: the
-# runner image archives (runner-ARCH.tar, runner-full-ARCH.tar) of the
-# green runner-image.yml run of the same commit, the installer with the
+# runner image archives (runner-ARCH.tar, runner-full-ARCH.tar) of a
+# green runner-image.yml run, the installer with the
 # pins of the release (podrunner-install.sh, scripts/install-pins.py) and
 # one offline bundle for each architecture (podrunner-bundle-ARCH.tar.gz,
 # scripts/make-bundle.sh). The images are the ones that the suites of
 # runner-image.yml passed on; a build here would give an image that no
-# suite ran. A release needs that run: dispatch runner-image.yml on the
-# commit first.
+# suite ran. A release needs that run (T-626, scripts/images-run.sh, the
+# rule of user-gate.yml too): the input images_run, else the green run of
+# the same commit. A run of an older commit serves when images/ is the
+# same at both commits. The run with a version gives the id of the run to
+# the run on the tag.
 #
 # T-562: the signer of SHA256SUMS and of release-index.json is this
 # workflow at the tag, as pod-release verify --tag checks it (the form of
@@ -56,6 +59,10 @@ on:
         description: "Release with no green user-gate.yml run: the reason (the notes must say 'user-path gate: not run')"
         required: false
         default: ""
+      images_run:
+        description: "The id of a green runner-image.yml run (of an older commit when images/ is the same); empty: the green run of this commit"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -81,6 +88,7 @@ jobs:
     env:
       VERSION: ${{ inputs.version }}
       NO_USER_GATE: ${{ inputs.no_user_gate }}
+      IMAGES_RUN: ${{ inputs.images_run }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,17 +150,18 @@ jobs:
           # The version of each file: a dry run names the version of
           # Cargo.toml with -dry.
           echo "version=${VERSION:-$have-dry}" >> "$GITHUB_OUTPUT"
-          # T-202: the runner images come from the green runner-image.yml run
-          # of this commit.
-          images=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/runner-image.yml/runs?head_sha=$sha&status=success" \
-            --jq '.workflow_runs[0].id // empty')
+          # T-202, T-626: the runner images come from the run of images_run,
+          # else from the green runner-image.yml run of this commit. The
+          # rule is the one of user-gate.yml. Exit 3: no value and no run;
+          # a dry run continues with no images.
+          rc=0
+          images=$(sh scripts/images-run.sh "$IMAGES_RUN") || rc=$?
+          case $rc in
+            0) echo "the runner images of $sha: runner-image.yml run $images" | tee -a "$GITHUB_STEP_SUMMARY" ;;
+            3) [ -z "$VERSION" ] || exit 1 ;;
+            *) exit 1 ;;
+          esac
           echo "images=$images" >> "$GITHUB_OUTPUT"
-          if [ -z "$images" ]; then
-            echo "no green runner-image.yml run at $sha: dispatch it on this commit first"
-            [ -z "$VERSION" ] || exit 1
-          else
-            echo "the runner images: runner-image.yml run $images"
-          fi
 
   build:
     needs: check
@@ -405,7 +414,7 @@ jobs:
             echo "## The images, by digest"
             echo
             echo "Each \`podrunner\` image is \`FROM scratch\`, with the asset at \`/usr/local/bin/podrunner\` as its entrypoint."
-            echo "The runner images are the image archives of this release, as \`podvm load -i\` takes them."
+            echo "The runner images are the image archives of this release (runner-image.yml run $IMAGES), as \`podvm load -i\` takes them."
             echo "Pull by digest: \`docker pull IMAGE@DIGEST\` or \`podvm pull IMAGE@DIGEST\`."
             echo "Check the provenance of an index: \`gh attestation verify oci://IMAGE@DIGEST --repo $GITHUB_REPOSITORY\`."
             echo
@@ -561,6 +570,7 @@ jobs:
     env:
       VERSION: ${{ inputs.version }}
       NO_USER_GATE: ${{ inputs.no_user_gate }}
+      IMAGES: ${{ needs.check.outputs.images }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -572,8 +582,10 @@ jobs:
           git -c user.name=Azathothas -c user.email=ajamx101@gmail.com tag -a "v$VERSION" -m "podrunner v$VERSION"
           git push origin "v$VERSION"
           # The run on the tag checks the same conditions: it gets the
-          # reason of a release with no user-path gate too.
-          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "v$VERSION" -f no_user_gate="$NO_USER_GATE"
+          # reason of a release with no user-path gate, and the run of the
+          # runner images that this run checked (T-626).
+          gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "v$VERSION" -f no_user_gate="$NO_USER_GATE" \
+            -f images_run="$IMAGES"
           echo "the tag v$VERSION; release.yml runs on it, which signs and publishes"
 
   # The run on the tag (T-562): the signer of SHA256SUMS, and so of

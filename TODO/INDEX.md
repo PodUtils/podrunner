@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**641 entries: 80 open, 60 partial, 14 blocked, 487 done.**
+**641 entries: 79 open, 60 partial, 14 blocked, 488 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 2 | 92 | 120 |
-| P2 | 17 | 23 | 8 | 254 | 302 |
+| P2 | 16 | 23 | 8 | 255 | 302 |
 | P3 | 62 | 11 | 4 | 139 | 216 |
-| **All** | 80 | 60 | 14 | 487 | 641 |
+| **All** | 79 | 60 | 14 | 488 | 641 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -668,7 +668,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-623](later.md) | P2 | S | later | defect | done | A cancel of a refused run that fails is never tried again |
 | [T-624](later.md) | P3 | M | later | defect | open | Faults and limits of the scale-set trust lookups that end a job with no specific cause |
 | [T-625](later.md) | P2 | S | later | defect | done | The attempt of a refused job of the past-limit path: a lost cancel |
-| [T-626](later.md) | P2 | S | later | release | open | `release.yml` needs a green `runner-image.yml` run of the release commit, with no `images_run` input |
+| [T-626](later.md) | P2 | S | later | release | done | `release.yml` needs a green `runner-image.yml` run of the release commit, with no `images_run` input |
 | [T-627](later.md) | P2 | M | later | defect | done | `podrunner man` does not exist, and the help of `run` and `config init` lacks flags that `docs/cli.md` lists |
 | [T-628](later.md) | P2 | S | later | defect | done | `podrunner image verify --arch x64` is refused, and the error lists no valid value |
 | [T-629](later.md) | P2 | M | later | defect | done | `config init` and `doctor --config` offer the microvm kind on a host with no KVM |
