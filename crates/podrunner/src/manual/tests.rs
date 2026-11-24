@@ -215,7 +215,8 @@ fn the_rules_of_the_model_hold() {
 /// second text.
 #[test]
 fn the_source_programs_print_the_usage_of_the_model() {
-    for (a, path) in [(&["fake-source", "--bogus"][..], "fake-source"), (&["source-conformance"], "source-conformance")] {
+    for (a, path) in [(&["fake-source", "--bogus"][..], "fake-source"), (&["source-conformance"], "source-conformance")]
+    {
         let o = run(&args(a));
         assert_eq!(o.code, 64, "{a:?}: {}", o.stderr);
         assert!(o.stderr.contains(&usage(path)), "{a:?}: {}", o.stderr);
