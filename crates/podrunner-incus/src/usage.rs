@@ -6,15 +6,18 @@
 //!
 //! The instance stops when its command ends (`guest-hold --run` of podvm
 //! is its PID 1), and incusd gives no CPU time and no peak of a stopped
-//! instance: podvm prints `-` for each. So each read of the state while
-//! the instance runs is also a sample, and the driver keeps the use that
-//! the samples saw ([`Kept`]).
+//! instance. podvm `0.2.0-beta.39` gives, for a stopped instance, the
+//! record that its init wrote after the end of each process of the
+//! instance (T-611, PodUtils/podvm#649); an older podvm, a forced stop and
+//! `--podvm-init=image` give `-`. So each read of the state while the
+//! instance runs is also a sample, and the driver keeps the highest of
+//! the samples and of the record ([`Kept`]).
 
 use podrunner_unit::UnitUsage;
 
 /// The template of one read of the state: the status, the exit code, the
-/// use and the OOM kills. incusd gives no metrics of a stopped instance
-/// either, so podvm prints `-` for its `OomKills` too.
+/// use and the OOM kills. The `OomKills` of a stopped instance come from
+/// the record of podvm `0.2.0-beta.39`, as its use does.
 pub(crate) const STATE: &str = "{{.Status}} {{.ExitCode}} {{.CpuSeconds}} {{.PeakMemoryBytes}} {{.OomKills}}";
 /// The template of a podvm before `0.2.0-beta.33`: no fields of the use.
 pub(crate) const STATUS: &str = "{{.Status}} {{.ExitCode}}";

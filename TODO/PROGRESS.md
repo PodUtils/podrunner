@@ -1,13 +1,13 @@
 # Progress
 
-`TODO/INDEX.md` holds 621 entries: 70 open, 58 partial, 16 blocked, 477 done.
+`TODO/INDEX.md` holds 621 entries: 70 open, 59 partial, 15 blocked, 477 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered
   DR-1 to DR-7 and GitHub #8 (`docs/decisions.md`); DR-7 is yes
   (2026-11-13): the live gates run on GitHub #74 and #75.
-- Pins: podcrates `v0.82.1`, podvm `v0.2.0-beta.38`, podnet
+- Pins: podcrates `v0.82.1`, podvm `v0.2.0-beta.39`, podnet
   `v0.4.0-beta.17`, runner v2.338.2. Last beta: `v0.1.0-beta.7`
   (release run 44066276664, `129310e`).
 - The owner, 2026-11-18 (`docs/decisions.md`, "githome and cfb first"):
@@ -30,8 +30,9 @@
 - The sidecar changes of T-504 and T-518 (the opt-ins of Q12 and Q13) are
   proven by unit and fake tests: not run against GitHub. Open from them:
   T-621 (a live lane), T-622, T-624. T-623 (the retry of a failed cancel) and T-625 (the attempt of a cancel of a job offered past the limits) are done. T-613 is partial: it waits
-  for podvm (COORD-125 #347, COORD-127 #349) and its next beta after
-  beta.38.
+  for podvm (COORD-125 #347 ask 1, COORD-127 #349) and its next beta after
+  beta.39. T-611 is partial: the incus step of the next `runner-image.yml`
+  run proves it on podvm beta.39.
 - Keep this section short. Write the current state only; git keeps the
   history.
 

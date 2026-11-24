@@ -1,6 +1,8 @@
 //! T-483: the incus kind keeps the use that incusd gave while the instance
 //! ran. The instance stops when its command ends, and incusd gives no use
-//! of a stopped instance: a read at `usage` time alone gives `-`.
+//! of a stopped instance: a podvm before `0.2.0-beta.39` gives `-` for it.
+//! T-611: podvm `0.2.0-beta.39` gives the record of its init for a stopped
+//! instance, and the kind takes it over the samples.
 
 use std::time::Instant;
 
@@ -118,6 +120,28 @@ fn the_oom_kills_are_kept_from_the_reads_while_the_instance_ran() {
     end_payload(&f);
     assert_eq!(u.wait(&s.unit, Duration::from_secs(10)).unwrap(), Some(Exit::Code(3)));
     assert_eq!(u.oom_kills(&s.unit), Some(2));
+    assert!(u.destroy(&s.unit).unwrap().is_clean());
+    let _ = fs::remove_dir_all(&d);
+}
+
+/// T-611: incusd of a hosted runner gives no peak of a running instance
+/// (cgroup v2), and the last sample is up to one tick before the stop. The
+/// record of podvm `0.2.0-beta.39` at the stop gives the peak, the last
+/// tick and the OOM kills, as PodUtils/podvm#649 measured them.
+#[test]
+fn the_use_at_the_stop_is_the_record_of_podvm() {
+    let (u, d) = driver("use-record", HOLD);
+    let s = spec("u-6");
+    u.start(&s).unwrap();
+    let f = files(&u, &d, &s.unit);
+    fs::write(format!("{f}.use"), "2.25 - 0").unwrap();
+    assert_eq!(u.wait(&s.unit, Duration::ZERO).unwrap(), None);
+    fs::write(format!("{f}.record"), "3.321 135741440 1").unwrap();
+    end_payload(&f);
+    assert_eq!(u.wait(&s.unit, Duration::from_secs(10)).unwrap(), Some(Exit::Code(3)));
+    let want = UnitUsage { cpu_s: Ok(4), peak_memory_bytes: Ok(135_741_440) };
+    assert_eq!(u.usage(&s.unit), Some(want));
+    assert_eq!(u.oom_kills(&s.unit), Some(1));
     assert!(u.destroy(&s.unit).unwrap().is_clean());
     let _ = fs::remove_dir_all(&d);
 }

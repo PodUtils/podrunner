@@ -11,7 +11,7 @@ is done.
 - Pins: podcrates `v0.82.1` (`Cargo.toml`, T-619; the source wire and the
   credential are `pod_job::source`, the HTTP head is `pod_core::http1`;
   `status.v1` is `pod_job::Status` from podcrates `v0.73.0`);
-  podvm `v0.2.0-beta.38`
+  podvm `v0.2.0-beta.39`
   (`images/podvm.toml`; the podvm kind takes `probe::LOWEST` and later,
   the microvm kind `LOWEST_GUEST` (beta.10), the incus kind
   `LOWEST_INCUS` (beta.13), and an engine of the microvm kind needs
@@ -157,9 +157,12 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
   - T-624 (P3): the P3 findings of the trust lookups; item 1 is done
     with T-623.
   - T-616 (P3), T-618 (waits for cfb).
-- Asks open to podvm: COORD-123 (#345, T-611), COORD-124 (#346, T-613),
-  COORD-125 (#347, T-613), COORD-127 (#349, T-613). T-611 and T-613 need
-  the next podvm beta after beta.38.
+- Asks open to podvm: COORD-123 (#345, T-611) and COORD-124 (#346,
+  T-613) are in the pinned `0.2.0-beta.39` (the lead closes them after
+  their runs); COORD-125 (#347, T-613: ask 2 in beta.39, ask 1 in work)
+  and COORD-127 (#349, T-613: fixed on podvm's `main`, COORD-239, for the
+  beta after beta.39). T-611 waits for the incus step of the next
+  `runner-image.yml` run.
 - The work order next (`TODO/PROGRESS.md`):
   1. Read the CI on `c54953b`.
   2. The `v0.1.0-beta.8` path: the gates T-243, T-244 and T-246 (a new
@@ -207,17 +210,17 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
 - Partial, with what is left in each entry: T-588 (a start of `serve` in
   a unit of the system), T-577 (a `java` client in the lane
   `proxy-only`), T-578 (step 2, the engine route), T-596 (a live
-  `container:` job through a proxy), T-483 (the peak waits for podvm's
-  beta after beta.38: T-611), T-497, T-499 (a publish run with a new
+  `container:` job through a proxy), T-483 (the peak is strict again on
+  podvm beta.39; the next `runner-image.yml` run proves it: T-611), T-497, T-499 (a publish run with a new
   `actions/runner`; the installer), T-553 (the run with a version and
   the run on a tag), T-556 (`systemd-remount-fs.service`, the KVM
   guest), T-557 and T-613 (the full snapshot does not fit a `dir` pool
   of a hosted runner; the loss of the runner in the place step has its
   cause, see the work order).
 - COORD-123 (#345, T-611) and COORD-124 (#346, T-613) to podvm: both
-  answered and fixed on podvm's `main` for the beta after beta.38
-  (COORD-233, COORD-236): pin that beta, then make the peak of T-483
-  strict again (T-611) and run `hosted-measure.yml` (T-613).
+  are in podvm `0.2.0-beta.39`, pinned (COORD-233, COORD-236, COORD-238).
+  The peak of T-483 is strict again (T-611); next: the incus step of
+  `runner-image.yml` and a run of `hosted-measure.yml` (T-613).
 - The work order next: see the section of 2026-11-24 above.
 - Session notes:
   - Agents in parallel worktrees: give each a target directory of its
@@ -306,10 +309,13 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
   44349725647 (`e6beea0`) was green: the incus engine ran a container
   (T-485); the `pids` test of T-488 failed on its own guest size (fixed:
   read its next run, then make it blocking).
-- podvm `0.2.0-beta.38` is pinned (release run 45212007696 on `2ae4b41`;
+- podvm `0.2.0-beta.39` is pinned (release run 45353882402 on `a43c947`;
   `pod-release verify --workflow nightly.yml` of its signed `SHA256SUMS`
-  holds for `podvm-x86_64` and `podvm-aarch64`). It takes podcrates
-  `v0.82.0`: a layer of GNU tar `--acls` extracts (#339), `load` holds
+  holds for `podvm-x86_64` and `podvm-aarch64`, Rekor entry 4073272661).
+  It keeps podcrates `v0.82.0`. It gives the use of a stopped incus
+  instance (#345, T-611), refuses an image that cannot fit in a `dir`
+  pool with the free space and the need (#346, T-613), and has no fix of
+  #349 (COORD-239: for the next beta). Since `0.2.0-beta.38`: a layer of GNU tar `--acls` extracts (#339), `load` holds
   one lock at a time (#344), `inspect` gives docker's types (the podvm
   kind reads them, T-581), `exec` into an ended container is refused by
   name, and `run -d --rm` removes its container (no kind passes `--rm` to
@@ -469,7 +475,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
   from its release, the documents, `env.sh` with the proxy and CA of the
   host); the users `qa1` and `qa2` with no root. The reports are in the
   entries (T-308 and T-316 hold the P3s).
-- podvm `v0.2.0-beta.38` is pinned. On this host (user namespaces)
+- podvm `v0.2.0-beta.39` is pinned. On this host (user namespaces)
   `run -d` of a unit takes the namespace rung, where the job runs as
   `runner` with the host name `podrunner-u-N` (T-317); podrunner keeps
   `TAR_OPTIONS=--no-same-owner` (and two variables that do nothing for
@@ -573,7 +579,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
 - The last green `runner-image.yml` is 44874019156 (`e4627e6`).
 - T-162 (partial, G-12): `[unit.podvm] mem` and `pids` are rlimits;
   `[unit.incus] mem`, `cpus` and `pids` are the keys of the instance
-  (podvm `0.2.0-beta.20` or later, pinned `0.2.0-beta.38`). Next: a
+  (podvm `0.2.0-beta.20` or later, pinned `0.2.0-beta.39`). Next: a
   payload past `pids` and one past `mem` on the podvm and incus kinds.
   `cpus` on the podvm kind waits for the cgroup half
   (PodUtils/podvm@T-1747); COORD-050 (#110) stays open for it.

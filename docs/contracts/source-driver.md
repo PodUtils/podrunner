@@ -67,10 +67,12 @@ How a job ends at the source (T-200):
   whose processes are on the host sample them at each tick, so a process
   that ends between two ticks can count up to one tick less. The incus
   kind reads the time of incusd at each tick while the instance runs
-  (incusd gives none of a stopped instance), so it can count up to one
-  tick of each busy CPU less. `peak_rss_mib` is the highest sum of the
-  resident memory of one sample (or the highest peak of incusd), in MiB
-  rounded up. A kind that cannot measure a field gives `unknown` with a reason.
+  (incusd gives none of a stopped instance), and at the stop the record
+  of the init of podvm `0.2.0-beta.39` or later (the whole time and the
+  peak of the instance). With an older podvm it can count up to one tick
+  of each busy CPU less. `peak_rss_mib` is the highest sum of the
+  resident memory of one sample (or the highest peak of incusd and of
+  the record of podvm), in MiB rounded up. A kind that cannot measure a field gives `unknown` with a reason.
 
 podrunner writes and syncs the `claimed` line of its journal before it
 sends `claim` (GitHub #55). After a death between the two, the restart

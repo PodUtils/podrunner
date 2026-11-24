@@ -308,8 +308,13 @@ jobs:
           # create imports the image and makes the root of an instance in
           # the pool, with no start.
           rc=0
-          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $RUNNER_TEMP/podvm create --name measure --podvm-tier=incus --podvm-init=image --podvm-net none $IMAGE /bin/true" < /dev/null || rc=$?
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $RUNNER_TEMP/podvm create --name measure --podvm-tier=incus --podvm-init=image --podvm-net none $IMAGE /bin/true" < /dev/null 2> "$M/import-stderr.txt" || rc=$?
+          cat "$M/import-stderr.txt" >&2
           echo "import: podvm create exit $rc" | tee -a "$M/info.txt"
+          # podvm 0.2.0-beta.39 gives the need of the image and the free
+          # space of a pool of the dir driver: a refusal before the import,
+          # a warning, or a line after an answer over its bound (COORD-124).
+          grep -E '(warning:|incus tier:).*(free|need)' "$M/import-stderr.txt" | sed 's/^/import: /' | tee -a "$M/info.txt" || true
           [ "$rc" -eq 0 ] || exit "$rc"
           timeout 60 sudo incus list --format csv -c nsS | tee -a "$M/info.txt"
       - name: Boot when it fits
@@ -465,7 +470,7 @@ jobs:
             echo '```'
             cat "$M/du.txt" 2> /dev/null
             echo '```'
-            for f in import-trace.txt incus-images.txt dmesg-btrfs.txt incus-journal.txt; do
+            for f in import-stderr.txt import-trace.txt incus-images.txt dmesg-btrfs.txt incus-journal.txt; do
               echo
               echo "### $f (the end)"
               echo

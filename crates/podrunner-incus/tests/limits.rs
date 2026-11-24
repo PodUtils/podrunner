@@ -2,9 +2,11 @@
 //! allocates past `memory` and one that forks past `pids` get an error,
 //! and the same payload with no limit passes (the control). In an
 //! instance the payload is root, so the keys of incus (a cgroup) hold, not
-//! rlimits: the kernel ends a process past `memory`. The use of a payload
-//! of a known load is the use that the kind gives (T-483). Ignored by
-//! default: it needs podvm `v0.2.0-beta.33` or later and an incusd. Run:
+//! rlimits: the kernel ends a process past `memory`, and the kind counts
+//! the OOM kill. The use of a payload of a known load is the use that the
+//! kind gives (T-483, T-611). Ignored by default: it needs podvm
+//! `v0.2.0-beta.39` or later (the record of the use at the stop) and an
+//! incusd. Run:
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
 //!   PODRUNNER_PODVM_IMAGE=NAME@sha256:HEX \
@@ -32,19 +34,21 @@ const MEMORY: &str = "dd if=/dev/zero of=/dev/null bs=1M count=1 2>/dev/null || 
 /// 1000 processes at one time: exit 12 when each fork passed.
 const FORKS: &str = "i=0; while [ $i -lt 1000 ]; do sleep 30 & i=$((i+1)); done; exit 12";
 
-/// 64 MiB in one buffer, then about 3 s of CPU in one process; then the
-/// CPU time of the children of the shell (`times`, its second line).
+/// 64 MiB in one buffer, then about 3 s of CPU in each of 4 processes at
+/// one time (T-611: the last tick of 4 busy CPUs); then the CPU time of
+/// the children of the shell (`times`, its second line).
 const LOAD: &str = "dd if=/dev/zero of=/dev/null bs=64M count=1 2>/dev/null || exit 10; \
-    timeout 3 sh -c 'while :; do :; done'; echo podrunner-times; times; exit 0";
+    for i in 1 2 3 4; do timeout 3 sh -c 'while :; do :; done' & done; wait; \
+    echo podrunner-times; times; exit 0";
 
 /// The exit of `script` in a fresh unit with `limits`.
 fn run(n: u32, script: &str, limits: Limits) -> Option<Exit> {
     run_with_usage(n, script, limits).0
 }
 
-/// The exit, the log and the use (before the destroy) of `script` in a
-/// fresh unit with `limits`.
-fn run_with_usage(n: u32, script: &str, limits: Limits) -> (Option<Exit>, String, Option<UnitUsage>) {
+/// The exit, the log, the use and the OOM kills (before the destroy) of
+/// `script` in a fresh unit with `limits`.
+fn run_with_usage(n: u32, script: &str, limits: Limits) -> (Option<Exit>, String, Option<UnitUsage>, Option<u64>) {
     let state = std::env::temp_dir().join(format!("podrunner-incus-limits-{}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&state);
     let unit = IncusUnit::new(
@@ -69,11 +73,12 @@ fn run_with_usage(n: u32, script: &str, limits: Limits) -> (Option<Exit>, String
     let exit = unit.wait(&id, Duration::from_secs(120)).unwrap();
     let log = String::from_utf8_lossy(&unit.unit_logs(&id).unwrap_or_default()).to_string();
     let usage = unit.usage(&id);
+    let oom = unit.oom_kills(&id);
     let residue = unit.destroy(&id).unwrap();
     let _ = std::fs::remove_dir_all(&state);
-    println!("unit {n} {limits:?}: {exit:?} {usage:?}\n{log}");
+    println!("unit {n} {limits:?}: {exit:?} {usage:?} oom_kills {oom:?}\n{log}");
     assert!(residue.is_clean(), "{residue:?}");
-    (exit, log, usage)
+    (exit, log, usage, oom)
 }
 
 /// The seconds of one word of `times` (`0m2.980s` of dash or bash).
@@ -87,7 +92,10 @@ fn secs(word: &str) -> f64 {
 fn a_payload_past_the_memory_limit_gets_an_error() {
     assert_eq!(run(1, MEMORY, Limits::default()), Some(Exit::Code(11)), "the control: 1 GiB passes with no limit");
     let held = Limits { memory_bytes: Some(256 << 20), ..Limits::default() };
-    assert_eq!(run(2, MEMORY, held), Some(Exit::Code(0)), "1 GiB must fail under 256 MiB");
+    let (exit, _, _, oom) = run_with_usage(2, MEMORY, held);
+    assert_eq!(exit, Some(Exit::Code(0)), "1 GiB must fail under 256 MiB");
+    // The exit reason `limit` of slots needs the count (T-515, T-611).
+    assert!(oom.is_some_and(|n| n > 0), "no OOM kill counted under 256 MiB: {oom:?}");
 }
 
 #[test]
@@ -102,12 +110,12 @@ fn a_payload_past_the_pids_limit_gets_an_error() {
 #[test]
 #[ignore]
 fn the_use_of_a_known_load_is_the_use_that_the_kind_gives() {
-    let (exit, log, usage) = run_with_usage(5, LOAD, Limits::default());
+    let (exit, log, usage, _) = run_with_usage(5, LOAD, Limits::default());
     assert_eq!(exit, Some(Exit::Code(0)), "the load ran: {log}");
     // The CPU time of the load, as the shell in the instance counted it.
     let line = log.lines().skip_while(|l| *l != "podrunner-times").nth(2).unwrap_or_else(|| panic!("no times: {log}"));
     let load: f64 = line.split_whitespace().map(secs).sum();
-    assert!(load >= 2.0, "the load burned {load:.2} s of CPU, not about 3 s");
+    assert!(load >= 2.0, "the load burned {load:.2} s of CPU, not about 3 s on each CPU");
     let usage = usage.expect("the incus kind gives the use of its units");
     let cpu = usage.cpu_s.unwrap_or_else(|e| panic!("cpu_s unknown: {e}"));
     // The tolerance of the contract (T-520): 20 % or 1 s, the larger, of
@@ -115,18 +123,8 @@ fn the_use_of_a_known_load_is_the_use_that_the_kind_gives() {
     let want = load.ceil();
     let tolerance = (want * 0.2).max(1.0);
     assert!((cpu as f64 - want).abs() <= tolerance, "cpu_s {cpu} for {load:.2} s of CPU of the load");
-    match usage.peak_memory_bytes {
-        Ok(peak) => {
-            assert!(peak.div_ceil(1 << 20) >= 64, "peak_rss_mib {} under the 64 MiB buffer", peak.div_ceil(1 << 20))
-        }
-        // The incusd of a hosted runner gives no peak of a running instance
-        // on cgroup v2 (runner-image.yml 45216790663). Only that reason
-        // passes, by name; podvm's record of the use at the stop gives the
-        // peak (COORD-233), and then this arm goes (T-611).
-        Err(why) if why == PEAK_NOT_GIVEN => println!("peak_memory_bytes: unknown ({why}), T-611"),
-        Err(why) => panic!("peak unknown: {why}"),
-    }
+    // The incusd of a hosted runner gives no peak of a running instance
+    // on cgroup v2; the record of podvm at the stop gives it (T-611).
+    let peak = usage.peak_memory_bytes.unwrap_or_else(|e| panic!("peak unknown: {e}"));
+    assert!(peak.div_ceil(1 << 20) >= 64, "peak_rss_mib {} under the 64 MiB buffer", peak.div_ceil(1 << 20));
 }
-
-/// The one reason of an unknown peak that the test takes (T-611).
-const PEAK_NOT_GIVEN: &str = "incusd gave no PeakMemoryBytes of the instance";

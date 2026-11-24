@@ -24,6 +24,7 @@
 //! `confined`, the floor of `trusted`, never `guest`.
 
 mod guest;
+mod stderr;
 mod usage;
 
 use std::collections::HashMap;
@@ -42,6 +43,8 @@ use podrunner_unit::{
     ContainerId, ContainerSpec, ContainerState, Count, ExecSpec, Exit, Observation, Prepared, Residue, Signal,
     StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
+
+use stderr::tail;
 
 pub use guest::{
     CHANNEL_PORT_VAR, EGRESS_PORT, ENGINE_MOUNT, SCRIPT, WORK_MOUNT, credential_stream, instance_name, run_args,
@@ -89,13 +92,6 @@ pub struct IncusUnit {
 
 pub(crate) fn host(what: &str, e: std::io::Error) -> UnitError {
     UnitError::new(UnitCode::Host, format!("{what}: {}", e.kind()))
-}
-
-/// The last bytes of the output of a failed `podvm` call.
-fn tail(b: &[u8]) -> String {
-    let s = String::from_utf8_lossy(b);
-    let s = s.trim();
-    s[s.len().saturating_sub(400)..].to_string()
 }
 
 impl IncusUnit {
@@ -385,9 +381,10 @@ impl UnitDriver for IncusUnit {
                 None => Some(Exit::Code(-1)),
             };
             // Each read is a sample of the use: incusd gives none after the
-            // stop. The last sample is at most one read (one tick of slots,
-            // or `POLL`) before the stop, so `cpu_s` can count that time
-            // of each busy CPU less (T-520).
+            // stop. The read of the stop gives the record of podvm
+            // `0.2.0-beta.39` (T-611); with an older podvm the last sample
+            // is up to one read (one tick of slots, or `POLL`) before the
+            // stop, so `cpu_s` can count that time of each busy CPU less.
             if let Some(r) = self.units.lock().expect("the units").get_mut(unit) {
                 state.iter().for_each(|s| r.kept.take(s));
                 r.exit = r.exit.or(exit);
@@ -472,7 +469,8 @@ impl UnitDriver for IncusUnit {
 
     fn oom_kills(&self, unit: &UnitId) -> Option<u64> {
         // podvm `0.2.0-beta.33`: `OomKills` of the metrics of incusd, which
-        // has none of a stopped instance: the count that `wait` kept.
+        // has none of a stopped instance; `0.2.0-beta.39`: also the record
+        // of the stop. The highest count that a read saw.
         let state = self.state(&self.name(unit));
         let mut units = self.units.lock().expect("the units");
         let Some(r) = units.get_mut(unit) else { return state?.oom_kills };

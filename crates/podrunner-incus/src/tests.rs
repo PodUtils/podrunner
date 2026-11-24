@@ -15,14 +15,18 @@ const IMAGE: &str = "runner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 /// background, with `B` the prefix of the files of the instance;
 /// `inspect`, `stop`, `rm -f` and `logs` act on that state. `inspect`
 /// gives the use of `B.use` (CPU, peak, OOM kills; or a fixed one) while
-/// the instance runs, and `-` after, as incusd; with the file `podvm.old` it refuses the fields
-/// of the use, as a podvm before `0.2.0-beta.33`.
+/// the instance runs, as incusd. After the stop it gives `B.record`, the
+/// record of the init of podvm `0.2.0-beta.39` (T-611), or `-` for each
+/// field, as an older podvm. With the file `podvm.old` it refuses the
+/// fields of the use, as a podvm before `0.2.0-beta.33`; with the file
+/// `podvm.refuse`, `run` writes it to stderr and exits 125.
 const FAKE: &str = r#"#!/bin/sh
 S=$PODVM_STORE; mkdir -p "$S"
 verb=$1; shift
 for n; do :; done
 case "$verb" in
 run)
+  [ -f "$0.refuse" ] && { cat "$0.refuse" >&2; exit 125; }
   name=$4
   cat > "$S/$name.stdin"
   printf '%s\n' "$@" > "$S/$name.argv"
@@ -36,8 +40,9 @@ inspect)
   [ -f "$S/$n.status" ] || { echo "no instance $n" >&2; exit 1; }
   case "$*" in *CpuSeconds*) [ -f "$0.old" ] && { echo "no field CpuSeconds" >&2; exit 2; } ;; esac
   read -r st code < "$S/$n.status"
-  # As incusd: a use only while the instance runs.
+  # As incusd: a use while the instance runs; after, the record of podvm.
   use="- -"; [ "$st" = Running ] && { use="12.25 104857601"; [ -f "$S/$n.use" ] && use=$(cat "$S/$n.use"); }
+  [ "$st" != Running ] && [ -f "$S/$n.record" ] && use=$(cat "$S/$n.record")
   case "$*" in
   *Status*CpuSeconds*) echo "$st $code $use" ;;
   *CpuSeconds*) echo "$use" ;;
@@ -451,4 +456,5 @@ fn the_init_of_the_image_boots_with_its_own_engine() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+mod stderr;
 mod usage;
