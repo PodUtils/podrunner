@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**641 entries: 80 open, 59 partial, 15 blocked, 487 done.**
+**641 entries: 80 open, 60 partial, 14 blocked, 487 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 2 | 92 | 120 |
-| P2 | 17 | 22 | 9 | 254 | 302 |
+| P2 | 17 | 23 | 8 | 254 | 302 |
 | P3 | 62 | 11 | 4 | 139 | 216 |
-| **All** | 80 | 59 | 15 | 487 | 641 |
+| **All** | 80 | 60 | 14 | 487 | 641 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -297,7 +297,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-247](later.md) | P2 | S | later | release | done | The notes of a release name the level of the proof of each claim |
 | [T-248](later.md) | P1 | M | later | feature | done | The help and the manual of podrunner from the shared crate of PodUtils |
 | [T-249](later.md) | P1 | M | later | feature | partial | The installer on each host class, and the shared core of podcrates |
-| [T-250](later.md) | P2 | S | later | chore | blocked | The state of each issue comes from the record by a tool |
+| [T-250](later.md) | P2 | S | later | chore | partial | The state of each issue comes from the record by a tool |
 | [T-251](later.md) | P1 | S | later | defect | done | The gate and the host of an agent run shellcheck of other versions |
 | [T-252](later.md) | P2 | S | later | chore | open | No workflow is linted before it runs |
 | [T-253](later.md) | P1 | S | later | defect | done | The faults of the first run of the user-path gate |

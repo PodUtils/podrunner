@@ -4094,7 +4094,7 @@ State (2026-11-24, partial; commit "scripts: the installer keeps the files of an
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -4112,9 +4112,7 @@ Take the workflow and the check of podcrates when they are out; give it the map 
 
 `cargo todo check` fails on an open issue whose entries are all done; the workflow writes the block of a test issue.
 
-## Blocker
-
-2026-11-15: podcrates: the workflow and the check of PodUtils/podcrates@T-703 (PodUtils/podcrates#183).
+State (2026-11-24): the workflow and the check of podcrates are out and in use. `pod-todo` of podcrates `v0.82.1` has the kinds coord, request, deferred, tracker and reference, and `issue_rules = "on"` in `TODO/todo.toml` makes `cargo todo check` fail on an open issue whose entries are all done. `.github/workflows/issue-sync.yml` (T-264) writes the block of each issue from the record, and closes or opens an issue by its entries. Left: drop the hand-written text of the State column of `TODO/issues.md` (the last step of the Approach).
 
 # T-260: An expression in the image of a service or a job container fails the job
 
