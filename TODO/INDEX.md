@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**637 entries: 81 open, 59 partial, 16 blocked, 481 done.**
+**639 entries: 79 open, 59 partial, 16 blocked, 485 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 3 | 91 | 120 |
-| P2 | 21 | 22 | 9 | 249 | 301 |
-| P3 | 59 | 11 | 4 | 139 | 213 |
-| **All** | 81 | 59 | 16 | 481 | 637 |
+| P2 | 18 | 22 | 9 | 253 | 302 |
+| P3 | 60 | 11 | 4 | 139 | 214 |
+| **All** | 79 | 59 | 16 | 485 | 639 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -671,7 +671,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-626](later.md) | P2 | S | later | release | open | `release.yml` needs a green `runner-image.yml` run of the release commit, with no `images_run` input |
 | [T-627](later.md) | P2 | M | later | defect | open | `podrunner man` does not exist, and the help of `run` and `config init` lacks flags that `docs/cli.md` lists |
 | [T-628](later.md) | P2 | S | later | defect | done | `podrunner image verify --arch x64` is refused, and the error lists no valid value |
-| [T-629](later.md) | P2 | M | later | defect | open | `config init` and `doctor --config` offer the microvm kind on a host with no KVM |
+| [T-629](later.md) | P2 | M | later | defect | done | `config init` and `doctor --config` offer the microvm kind on a host with no KVM |
 | [T-630](later.md) | P2 | S | later | defect | done | A corrupt or truncated tar in the image cache fails each later `run`, and no message names the file |
 | [T-631](later.md) | P2 | S | later | defect | done | `run --changed-since` passes a ref that starts with `-` to git as an option |
 | [T-632](later.md) | P2 | S | later | defect | done | A small `ulimit -f` ends a podvm unit with an empty cause, and `run` names neither the limit nor the fix |
@@ -681,7 +681,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
 | [T-637](later.md) | P3 | L | later | measurement | open | QA round 6, agent A: the areas that the round did not test |
 | [T-638](later.md) | P3 | S | later | defect | open | The user-path gate has no lane with a hard limit of file size of 1 GiB |
-| [T-639](later.md) | P2 | M | later | defect | open | Ctrl-C does not cancel a `container:` job in a long step on `--podvm` |
-| [T-640](later.md) | P2 | M | later | defect | open | `actions/checkout` with `ref:` on the same repository is silently ignored in the local mode |
-| [T-641](later.md) | P2 | S | later | defect | open | `check` accepts the `config_url` of an organization with `.git` at the end |
+| [T-639](later.md) | P2 | M | later | defect | done | Ctrl-C does not cancel a `container:` job in a long step on `--podvm` |
+| [T-640](later.md) | P2 | M | later | defect | done | `actions/checkout` with `ref:` on the same repository is silently ignored in the local mode |
+| [T-641](later.md) | P2 | S | later | defect | done | `check` accepts the `config_url` of an organization with `.git` at the end |
 | [T-642](later.md) | P3 | M | later | defect | open | QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts |
+| [T-643](later.md) | P3 | S | later | defect | open | The local checkout names the keys of `with:` that the stand-in does not take |
+| [T-644](later.md) | P2 | S | later | chore | open | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |

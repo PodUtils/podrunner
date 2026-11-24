@@ -15675,7 +15675,7 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15702,6 +15702,9 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 
 `cargo test -p podrunner --test config_init` with a test whose host has no KVM (the probe is a seam): the `microvm` kind is in `refused`, and `--kinds microvm` exits 78. `cargo test -p podrunner --test doctor` with a test: `doctor --config` marks `microvm` as not runnable. Each fails before the change.
 
+## Done
+
+2026-11-24, `886445e`, `01c173c` and `612088e`. One probe, `crates/podrunner/src/tiers.rs` fn `here` (the microvm kind needs `/dev/kvm` that opens for reading and writing; the incus kind an incusd), answers for `config init` (through `doctor::capability`), `doctor --config`, `check` and `serve`. `config init` refuses the microvm kind with the reason (`--kinds microvm` alone: 78; a refusal of `check` names the refused kinds). `doctor --config` prints `kind microvm: not served on this host: WHY`, and the source is `not served`. `check` and `serve` count the kind out (`no-tier-served` names it, 78 in 0 s); with another kind, `serve` drops the kind with one line and starts no self-test, so podvm fetches no QEMU (the decision: as `serve` treats an incus kind with no incusd, T-534; `check` now does the same for both kinds). `stop --wait` with no `serve` says `no serve runs` (0); while `serve` holds the lock with no control socket it asks again, and a timeout before the socket exits 69 with `serve has no control socket yet` (69 is "a control socket that does not answer" in `docs/cli.md`). The tests of `crates/podrunner/tests/kvm_kind.rs` (4) fail before the change on this host (no `/dev/kvm`): `config init` wrote `[unit.microvm]`, doctor said `boundary guest`, `check` said usable, `serve` listed the kind, and `stop --wait` gave 75 "a job is not final"; on a host with KVM each test checks the other side. `cargo test --workspace --all-features` (807 passed, 0 failed, 64 ignored, an empty TMPDIR after). The built binary as `labdns` (no root, no KVM): `config init --kinds microvm` 78 with the reason and no file, `doctor --config`, `check` and `serve` as above (`serve` 78 after 0 s, no podvm verb run, no `~/.local/share/podvm`), `stop --wait` 0 and 69. Level: proven on a constrained host as a user (a stand-in of podvm; not the release podvm).
 
 # T-630: A corrupt or truncated tar in the image cache fails each later `run`, and no message names the file
 
@@ -16022,7 +16025,7 @@ Read `.github/workflows/user-gate.yml` (the matrix of lanes) and `scripts/lab/` 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16045,6 +16048,9 @@ Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM
 
 `cargo test -p podrunner-local cancel` with a new test: a fake unit that keeps a container-like process outside its tag; a cancel ends the job within the bound. A lane of `user-gate.yml` (T-243): `podrunner run c2.yml --checkout . --podvm PATH ...` with `kill -INT` after 10 s ends in less than 60 s with exit 130 and no process of the unit; run it as a user with no root, then `cargo todo check`.
 
+## Done
+
+2026-11-24, `fd4c928`. The cause: `Hooks::stop` (`crates/podrunner-local/src/exec/hooks.rs`) joined the thread of the hook server, which served the call of the container step (`podvm exec` into the `run -d` container) until the step ended; the unit was destroyed only after it. Now `exec.rs` destroys the unit with its containers (podvm `rm -f` by the label, and the kill of the tagged processes, the `podvm exec` too) first when the job did not end (a cancel, a timeout, a runner that reached no broker), and then stops the hooks; the stop waits at most 10 s for the thread and does not wait for the lock of the hook unit. A cancel waits for no result (the grace of 5 s). A second SIGINT or SIGTERM prints `podrunner: stopping: already stopping; a third signal ends podrunner at once` (`crates/podrunner-local/src/cancel.rs`). No change of podvm is necessary: no COORD. `exec::cancel_tests::a_cancel_ends_a_job_whose_container_step_blocks` (the fake unit with hooks; a container step `sleep 60` posted to the control socket as the relay posts it; a cancel when the step runs) took 60.1 s and failed before the change, and ends in 1.1 s with `cancelled` and no process of the step after it. `crates/podrunner/tests/run_signal.rs` failed before the change (no line at the second signal) and passes. The user-gate lane on podvm of the Prove is T-644. Level: proven in tests with the fake unit on this host; not run on podvm (no podvm and no KVM on this host).
 
 # T-640: `actions/checkout` with `ref:` on the same repository is silently ignored in the local mode
 
@@ -16053,7 +16059,7 @@ Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16074,6 +16080,9 @@ Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM
 
 `cargo test -p podrunner-local checkout` and `cargo test -p podrunner --test local` with a case on a repository with two branches: `ref: main` while HEAD is `feature` gives the tree of `main` (it fails before the change: it gives `feature`); a ref that does not exist fails with its name. `cargo run -q -p podrunner -- run co.yml --checkout . --dry-run` names the ignored keys; then `cargo todo check`.
 
+## Done
+
+2026-11-24, `2a55cd9`. `crates/podrunner/src/run_local/checkout.rs` resolves each `ref:` of a checkout of the same repository (also with `repository:` of the same repository, and in the local called workflows) in the git of `--checkout` with `git rev-parse --verify --quiet --end-of-options REF^{commit}` (`crates/podrunner-local/src/tree/refs.rs`) before the first job. A ref at HEAD keeps the local tree (`--checkout-head` as before); another commit goes to the job as the tarball of `git archive` (`tree-SHA.tar.gz` beside the tree, the route `_checkout/SHA.tar.gz` of the fake broker with the job token), with the files that the tree leaves out left out and a `.git` at that commit. A ref with no commit, a ref that starts with `-` (never passed to git) and a ref that is not text fail the step with the name and the fix (`git fetch origin REF`); an expression keeps the local tree with one line on stderr; `--dry-run` names each ref; `submodules` with another commit is refused. The test `message::checkout::tests::a_ref_of_the_same_repository_takes_its_commit` failed before the change (the script took `_checkout.tar.gz`); `tree::refs::tests` covers a branch, a tag, `refs/heads/main`, a full and a short commit id, `origin/main` of a clone, a ref that does not exist, `--output=FILE` (no file made), an empty ref and a range. `cargo test -p podrunner --test local -- --ignored a_checkout_with_a_ref_gives_the_commit_of_the_ref` passes on runner 2.338.2. The built binary as `labdns` with the command of the report (`main` and `feature`, HEAD `feature`, `ref: main` with `path: other`, `--runner-dir`): `other` holds the tree of `main` and `git -C other rev-parse HEAD` is the commit of `main`; a tag and an expression too; `ref: nosuch` and `ref: --output=/tmp/INJECT640` fail their step and make no file; `--dry-run` names each. The keys of item 3 of the Approach (`fetch-depth` and the others) and the row of `docs/cli.md` are T-643. Level: proven on a constrained host as a user (`--runner-dir`; not run on `--podvm`).
 
 # T-641: `check` accepts the `config_url` of an organization with `.git` at the end
 
@@ -16082,7 +16091,7 @@ Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16101,6 +16110,9 @@ Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM
 
 `cargo test -p podrunner --test check_config_url` (the new URLs fail before the change) and `cargo test -p podrunner-slots config_url`; `go test ./...` in `tools/scaleset-sidecar` with the new case; then `cargo todo check`.
 
+## Done
+
+2026-11-24, `7200402`. `crates/podrunner-slots/src/config_url.rs` and `tools/scaleset-sidecar/scope.go` refuse a `.git` at the end of the last part also for one part (the organization), with the same class of text ("with no .git"); the name `.git` alone is refused too. `tools/config-url-cases.json` has six new rows (`acme.git`, `ACME.GIT/`, a GHES organization `acme.Git`, `.git`, `alice/.git`, and `acme.github` that stays served); `crates/podrunner/tests/check_config_url.rs` has `https://github.com/acme.git` and `https://github.com/ACME.GIT` (78, ".git"). Before the change `cargo test -p podrunner-slots config_url`, `cargo test -p podrunner --test check_config_url` and `go test -race` of the sidecar failed on the new rows; after it they pass. The ignored suites of the gate (`-p podrunner-source --test scaleset`, `-p podrunner --test scaleset`, `-p podrunner --test live --include-ignored`) pass against static builds of the fake service and of the sidecar. Level: proven in tests on this host (the built binary through the test of `check`); not run on GitHub-hosted runners yet.
 
 # T-642: QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts
 
@@ -16135,3 +16147,56 @@ Edit `docs/examples/podrunner.toml` and `docs/fakes.md` (and the check of the ex
 ## Prove
 
 `cargo test -p podrunner --test check`, `cargo test -p podrunner --test doctor`, `cargo test -p podrunner-local` and `cargo test -p podrunner-slots` with a case for each line that a test can hold; `grep -n 'schema' docs/fakes.md` shows the example with `"schema":1`; then `cargo todo check`.
+
+# T-643: The local checkout names the keys of `with:` that the stand-in does not take
+
+**Source:** T-640 (item 3 and item 4 of its Approach), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The stand-in of `actions/checkout` in the local mode takes `path`, `submodules`, `repository` and `ref` (T-640). It ignores `fetch-depth`, `sparse-checkout`, `sparse-checkout-cone-mode`, `clean`, `filter`, `lfs`, `token`, `ssh-key` and `persist-credentials` with no line. A job that needs the full history (`fetch-depth: 0`) or a sparse tree gets another tree than on GitHub, and nothing says so. `docs/cli.md` (the row of `run`) does not say what the stand-in does with `ref:` and with these keys.
+
+## Premise
+
+From the work of T-640: I read `crates/podrunner-local/src/message/checkout.rs` (it reads `path`, `submodules`, `repository` and `ref` only) and `docs/cli.md`. I did not run a job with these keys.
+
+## Approach
+
+1. In `crates/podrunner/src/run_local/checkout.rs`, scan each checkout step for the keys that the stand-in ignores, and print one line on stderr for each key (once per run), also with `--dry-run`: the key, and what the job gets (for example, the local tree has the whole `.git` with `--with-git`, else no `.git`).
+2. Name the same in the display of the step (`crates/podrunner-local/src/message/checkout.rs`).
+3. `docs/cli.md`: the row of `run` says what the stand-in does with `ref:` (T-640) and with each key of item 1.
+
+## Prove
+
+`cargo test -p podrunner-local checkout` with a case for each key, and `cargo run -q -p podrunner -- run co.yml --checkout . --dry-run` on a workflow with `fetch-depth: 0` names the key; then `cargo todo check`.
+
+# T-644: A lane of the user-path gate: Ctrl-C of a `container:` job on podvm
+
+**Source:** T-639 (its Prove), 2026-11-24
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-639 fixed the cancel of a `container:` job in a long step on `--podvm`: the unit and its containers go before the hooks stop. The test of the fix runs on the fake unit. No lane runs the command of the report (QA round 6, agent B) on podvm: `podrunner run c2.yml --checkout . --podvm PATH ...` with `container: image: node:22-slim` and a step `sleep 600`, `kill -INT` after the step starts, an end in less than 60 s with exit 130 and no process of the unit. The hooks of `serve` (`crates/podrunner/src/hooks`) were not read for the same order of a stop and a destroy.
+
+## Premise
+
+From the work of T-639: the host of the session has no podvm and no KVM, so the fix is not run on podvm. I did not read the path of `serve`.
+
+## Approach
+
+1. Add the lane to `.github/workflows/user-gate.yml` (T-243): the workflow of the report, the signal after the line `started`, the bound of 60 s, exit 130, no process with the tag of the unit and no container of podvm after the end.
+2. Read the stop of the hooks of `serve` at a cancel and at a timeout of a job with a container step; if the same wait is there, fix it with a test as in T-639.
+
+## Prove
+
+`sh scripts/agent/check.sh` and a run of `user-gate.yml` with the lane green; `cargo test -p podrunner-local cancel` for the code of the local mode; then `cargo todo check`.
