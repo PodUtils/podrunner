@@ -21,7 +21,7 @@ pub fn version() -> String {
 pub const USAGE: &str = "usage: podrunner COMMAND [OPTION...]
 
   serve --config FILE --state DIR [--socket PATH]   run the slots
-  check --config FILE                               check a configuration; start nothing
+  check --config FILE [--here]                      check a configuration; start nothing
   status [--json] (--state DIR | --socket PATH)     the state of the slots
   drain (--state DIR | --socket PATH)               take no new job
   drain --source NAME (--state DIR | --socket PATH) one source takes no new job
@@ -78,7 +78,7 @@ pub(crate) struct Opts {
     pub(crate) flags: Vec<String>,
 }
 
-const FLAGS: [&str; 3] = ["--json", "--wait", "--system"];
+const FLAGS: [&str; 4] = ["--json", "--wait", "--system", "--here"];
 
 pub(crate) fn opts(args: &[String]) -> Result<Opts, Out> {
     let mut o = Opts { values: Vec::new(), flags: Vec::new() };
@@ -151,8 +151,9 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
         }
         "check" => {
             let o = opts(rest)?;
-            o.only(&["--config"])?;
-            let said = crate::mint_serve::check_any(&o.need("--config")?).map_err(|f| err(f.class, f.detail))?;
+            o.only(&["--config", "--here"])?;
+            let here = o.flags.contains(&"--here".into());
+            let said = crate::mint_serve::check_any(&o.need("--config")?, here).map_err(|f| err(f.class, f.detail))?;
             Ok(ok(said.into()))
         }
         "stop" if rest.iter().any(|a| a == "--wait") => stop_wait(rest),

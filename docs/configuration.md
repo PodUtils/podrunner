@@ -157,8 +157,12 @@ On a host where `/dev/kvm` does not open for reading and writing, the kind
 does not run (T-629): `serve` prints `podrunner: [unit.microvm]: not
 here: /dev/kvm: ...` at its start, runs no self-test (so podvm fetches no
 QEMU), and serves the other kinds, as it does for an incus kind with no
-incusd (T-534). `check` prints the same line and counts the kind out: a
-file whose sources only this kind serves exits 78 (`no-tier-served`).
+incusd (T-534). `check` prints the same line and counts the kind in, so
+its verdict is the same on each host (a build machine checks the file of a
+serve host); `check --here` and `serve` count it out: a file whose sources
+only this kind serves exits 75 (`no-tier-served`), as the kind can come
+later (the unit of systemd starts `serve` again, and does not stop after
+75).
 `config init` refuses the kind, and `doctor --config` says `kind
 microvm: not served on this host`.
 

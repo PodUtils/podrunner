@@ -46,8 +46,9 @@ pub(crate) use sources::{flags, private_file, source_of};
 /// Check each part of `cfg` that has no side effect (GitHub #58): each
 /// source is built and not called, and each unit kind has its driver
 /// file. No state directory, no unit, no network. `serve` runs it before
-/// `build`, so `check` and `serve` refuse a file with the same text.
-pub fn plan(cfg: &Config) -> Result<(), Failure> {
+/// `build`, so `check` and `serve` refuse a file with the same text. With
+/// `here` false, a kind that this host cannot run still counts (T-629).
+pub fn plan(cfg: &Config, here: bool) -> Result<(), Failure> {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     resolve(cfg)?;
     if let Some(url) = &cfg.upstream_proxy {
@@ -69,17 +70,19 @@ pub fn plan(cfg: &Config) -> Result<(), Failure> {
     }
     // A pinned image larger than the bound of a kind (T-551, T-573).
     crate::pin_size::fits(cfg)?;
-    crate::tiers::served(cfg)?;
+    crate::tiers::served(cfg, here)?;
     Ok(())
 }
 
-/// Read and check the configuration at `path`: what `check` prints.
-pub fn check(path: &Path) -> Result<Config, Failure> {
+/// Read and check the configuration at `path`: what `check` prints. `here`
+/// is false for `check`, which gives the same verdict on each host, and
+/// true for `serve` and `check --here` (T-629).
+pub fn check(path: &Path, here: bool) -> Result<Config, Failure> {
     crate::tiers::file_closed(path)?;
     let text = std::fs::read_to_string(path)
         .map_err(|e| fail(Class::Config, format!("the configuration {}: {e}", path.display())))?;
     let cfg = Config::parse(&text).map_err(|e| fail(Class::Config, e))?;
-    plan(&cfg)?;
+    plan(&cfg, here)?;
     for line in crate::tiers::future_pins(&cfg, now_unix()) {
         eprintln!("podrunner: {line}");
     }
@@ -370,7 +373,7 @@ pub fn socket_of(state: &Path) -> PathBuf {
 pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     // A configuration that cannot be used fails before the state directory
     // is made (T-339 item 19).
-    let cfg = check(config)?;
+    let cfg = check(config, true)?;
     crate::tiers::state_path(&cfg, state)?;
     let _lock = crate::lock::StateLock::take(state)?;
     let tools = host::tools(&cfg);

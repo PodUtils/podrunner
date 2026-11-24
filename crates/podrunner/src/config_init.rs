@@ -255,7 +255,7 @@ pub(crate) fn init(rest: &[String]) -> Result<Out, Out> {
     let cfg = Config::parse(&body).map_err(|e| err(Class::Config, format!("the file would not parse: {e}")))?;
     // The kinds that the probe refused explain a refusal of check (T-629).
     let not_here: String = refused.iter().map(|(k, w)| format!("; kind {k}: not here: {w}")).collect();
-    crate::serve::plan(&cfg)
+    crate::serve::plan(&cfg, true)
         .map_err(|f| err(f.class, format!("check refuses the file: {}{}", f.detail, display(&not_here))))?;
     match std::fs::read_to_string(&out) {
         Ok(old) if old == body => return Ok(ok(say(false))),

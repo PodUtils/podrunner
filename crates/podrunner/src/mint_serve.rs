@@ -119,13 +119,14 @@ pub fn is_mint_file(text: &str) -> bool {
 }
 
 /// `podrunner check`: a file of `mint-serve` as the mint reads it, else a
-/// file of `serve` (T-171). The text of the answer.
-pub fn check_any(path: &Path) -> Result<&'static str, Failure> {
+/// file of `serve` (T-171). The text of the answer. `here` makes the
+/// verdict of a file of `serve` strict for this host (T-629).
+pub fn check_any(path: &Path, here: bool) -> Result<&'static str, Failure> {
     if is_mint_file(&std::fs::read_to_string(path).unwrap_or_default()) {
         check(path)?;
         return Ok("the mint configuration is usable (a file of mint-serve)\n");
     }
-    let cfg = crate::serve::check(path)?;
+    let cfg = crate::serve::check(path, here)?;
     // The line of `serve` at its start for a kind that it drops (T-629).
     for (name, why) in crate::tiers::away(&cfg) {
         eprintln!("podrunner: [unit.{name}]: not here: {why}");

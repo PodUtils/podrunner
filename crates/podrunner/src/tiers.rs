@@ -11,7 +11,21 @@ use crate::serve::{Failure, fail, fake_capability};
 /// claim, so a self-test of `serve` can only lower it. A kind also needs
 /// the egress hold of the tier, as placement does (#280): a podvm kind
 /// has a hold only with `podnet`, and then at best `enforced`.
-pub fn served(cfg: &Config) -> Result<(), Failure> {
+///
+/// With `here` false (`check`), each kind counts: the verdict is the same
+/// on each host, so a build machine can validate the file of a serve host
+/// (T-629). With `here` true (`serve`, `config init`), a kind that this
+/// host cannot run counts out, as `serve` drops it. A file that a kind of
+/// another host would serve is then a temporary failure (75): the kind can
+/// come later (udev gives `/dev/kvm` after the start of the unit), and a
+/// supervisor starts `serve` again. A file that no kind serves is 78.
+pub fn served(cfg: &Config, here: bool) -> Result<(), Failure> {
+    verdict(cfg, if here { away(cfg) } else { Vec::new() })
+}
+
+/// [`served`] with the kinds that this host cannot run given (none: the
+/// verdict of `check`).
+fn verdict(cfg: &Config, away: Vec<(String, String)>) -> Result<(), Failure> {
     let best = |name: &str, u: &podrunner_slots::config::UnitConfig| match name {
         "fake" => crate::serve::fake_capability_of(u).boundary,
         "podvm" if u.confine => Boundary::Confined,
@@ -25,23 +39,31 @@ pub fn served(cfg: &Config) -> Result<(), Failure> {
         _ => EgressHold::Enforced,
     };
     let arch = std::env::consts::ARCH;
-    // A kind that this host cannot run serves nothing: `serve` drops it.
-    let away = away(cfg);
-    let served = cfg.source.iter().any(|s| {
-        let (floor, need) = (cfg.floor(s.tier), podrunner_slots::placement::needed_hold(s.tier));
-        cfg.unit.iter().filter(|(n, _)| !away.iter().any(|(a, _)| a == *n)).any(|(n, u)| {
-            let kind_arch = if n == "fake" { fake_capability().arch } else { arch.to_string() };
-            kind_arch == s.arch && best(n, u) >= floor && hold(n, u).effective() >= need
+    let meets = |skip: &[(String, String)]| {
+        cfg.source.iter().any(|s| {
+            let (floor, need) = (cfg.floor(s.tier), podrunner_slots::placement::needed_hold(s.tier));
+            cfg.unit.iter().filter(|(n, _)| !skip.iter().any(|(a, _)| a == *n)).any(|(n, u)| {
+                let kind_arch = if n == "fake" { fake_capability().arch } else { arch.to_string() };
+                kind_arch == s.arch && best(n, u) >= floor && hold(n, u).effective() >= need
+            })
         })
-    });
-    if !cfg.source.is_empty() && !served {
-        let why: String = away.iter().map(|(n, w)| format!(" ([unit.{n}] not here: {w})")).collect();
-        return Err(fail(
-            Class::Config,
-            format!("no-tier-served: no unit kind meets the floor and the egress hold of a source on this host{why}"),
-        ));
+    };
+    let refuse = |class, why: &str, tail: &str| {
+        Err(fail(
+            class,
+            format!(
+                "no-tier-served: no unit kind meets the floor and the egress hold of a source on this host{why}{tail}"
+            ),
+        ))
+    };
+    if cfg.source.is_empty() || meets(&away) {
+        return Ok(());
     }
-    Ok(())
+    let why: String = away.iter().map(|(n, w)| format!(" ([unit.{n}] not here: {w})")).collect();
+    if meets(&[]) {
+        return refuse(Class::TempFail, &why, "; the kind can come later, so a supervisor starts serve again");
+    }
+    refuse(Class::Config, &why, "")
 }
 
 /// This host can run the kind `name` (T-629): the microvm kind needs
@@ -125,6 +147,35 @@ pub fn state_path(cfg: &podrunner_slots::config::Config, state: &std::path::Path
 
 #[cfg(test)]
 mod tests {
+    /// T-629: a kind that only another host runs gives 75 (a later start
+    /// can work), a file that no kind serves gives 78, and with no kind
+    /// away the file is served.
+    #[test]
+    fn a_kind_that_this_host_lacks_is_temporary_and_a_kind_that_none_has_is_not() {
+        let file = |units: &str| {
+            podrunner_slots::config::Config::parse(&format!(
+                "host = \"h\"\nallow_fake = true\n[[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"local\"\n\
+                 arch = \"{}\"\n{units}[pin]\n",
+                std::env::consts::ARCH
+            ))
+            .unwrap()
+        };
+        let away = || vec![("microvm".to_string(), "/dev/kvm: no".to_string())];
+        let only = file("[unit.microvm]\nslots = 1\nbinary = \"/b\"\nimages = \"/\"\n");
+        assert!(super::verdict(&only, Vec::new()).is_ok());
+        let f = super::verdict(&only, away()).unwrap_err();
+        assert_eq!(f.class.exit_code(), 75, "{}", f.detail);
+        assert!(f.detail.contains("no-tier-served") && f.detail.contains("[unit.microvm] not here: /dev/kvm: no"));
+        // The fake kind serves it: nothing to wait for.
+        let both = file("[unit.fake]\nslots = 1\n[unit.microvm]\nslots = 1\nbinary = \"/b\"\nimages = \"/\"\n");
+        assert!(super::verdict(&both, away()).is_ok());
+        // No kind at all: 78, with or without a kind away.
+        let none = file("");
+        for a in [Vec::new(), away()] {
+            assert_eq!(super::verdict(&none, a).unwrap_err().class.exit_code(), 78);
+        }
+    }
+
     /// T-409: a configuration that another user can write is refused.
     #[test]
     fn a_configuration_that_others_can_write_is_refused() {

@@ -117,6 +117,8 @@ fn doctor_and_check_count_out_the_microvm_kind_with_no_kvm() {
     if kvm() {
         assert!(text(&doctor).contains("kind microvm: boundary guest"), "{}", text(&doctor));
         assert_eq!(check.status.code(), Some(0), "{}", text(&check));
+        let here = Command::new(BIN).args(["check", "--here", "--config"]).arg(&f).output().unwrap();
+        assert_eq!(here.status.code(), Some(0), "{}", text(&here));
         return;
     }
     let d = text(&doctor);
@@ -124,13 +126,20 @@ fn doctor_and_check_count_out_the_microvm_kind_with_no_kvm() {
     assert!(!d.contains("kind microvm: boundary"), "{d}");
     assert!(d.contains("source local: tier local, not served"), "{d}");
     assert!(d.contains("(no unit kind of x86_64 runs on this host)") || std::env::consts::ARCH != "x86_64", "{d}");
-    // check refuses the file as serve does: no other kind serves the source.
-    assert_eq!(check.status.code(), Some(78), "{}", text(&check));
-    assert!(text(&check).contains("no-tier-served") && text(&check).contains("[unit.microvm] not here: /dev/kvm: "));
+    // check gives the verdict of each host (a build machine validates the
+    // file of a serve host): the kind counts, and its line is on stderr.
+    assert_eq!(check.status.code(), Some(0), "{}", text(&check));
+    assert!(String::from_utf8_lossy(&check.stderr).contains("podrunner: [unit.microvm]: not here: /dev/kvm: "));
+    // check --here and serve refuse the file: no other kind serves it. serve
+    // ends with 75, not 78: the kind can come later (udev), and a supervisor
+    // starts serve again.
+    let here = Command::new(BIN).args(["check", "--here", "--config"]).arg(&f).output().unwrap();
+    assert_eq!(here.status.code(), Some(75), "{}", text(&here));
+    assert!(text(&here).contains("no-tier-served") && text(&here).contains("[unit.microvm] not here: /dev/kvm: "));
     let state = dir.join("state");
     let t = Instant::now();
     let serve = Command::new(BIN).args(["serve", "--config"]).arg(&f).arg("--state").arg(&state).output().unwrap();
-    assert_eq!((serve.status.code(), text(&serve)), (Some(78), text(&check)));
+    assert_eq!((serve.status.code(), text(&serve)), (Some(75), text(&here)));
     assert!(t.elapsed() < Duration::from_secs(10));
     assert!(!dir.join("verbs").exists(), "{:?}", std::fs::read_to_string(dir.join("verbs")));
 }
