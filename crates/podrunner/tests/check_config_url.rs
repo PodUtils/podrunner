@@ -61,6 +61,8 @@ fn check_refuses_a_config_url_that_no_scale_set_serves() {
     let cases = [
         ("https://github.com/alice/app.git", personal, Some(".git")),
         ("https://github.com/alice/APP.GIT", personal, Some(".git")),
+        ("https://github.com/acme.git", "", Some(".git")),
+        ("https://github.com/ACME.GIT", "", Some(".git")),
         ("https://github.com/alice/app?tab=x", personal, Some("no query")),
         ("https://github.com/alice/app#readme", personal, Some("no query")),
         ("https://github.com/o?x=1", "", Some("no query")),

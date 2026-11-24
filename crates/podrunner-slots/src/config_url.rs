@@ -72,11 +72,12 @@ fn parts(url: &str) -> Result<Parts<'_>, String> {
     if segments.len() > 2 || segments[0].eq_ignore_ascii_case("enterprises") || !segments.iter().all(|s| name_ok(s)) {
         return Err(not());
     }
-    if let [_, repo] = segments.as_slice()
-        && repo.len() > 4
-        && repo[repo.len() - 4..].eq_ignore_ascii_case(".git")
-    {
-        return Err(format!("config_url {url:?}: give the URL of the repository with no .git"));
+    // The last part is the repository, or the organization when it is
+    // the only part: the scale set refuses a `.git` on each (T-641).
+    let last = segments[segments.len() - 1];
+    if last.len() >= 4 && last[last.len() - 4..].eq_ignore_ascii_case(".git") {
+        let of = if segments.len() == 2 { "repository" } else { "organization" };
+        return Err(format!("config_url {url:?}: give the URL of the {of} with no .git"));
     }
     Ok(Parts { scheme, host, segments })
 }

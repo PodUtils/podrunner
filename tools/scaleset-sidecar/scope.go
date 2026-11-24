@@ -68,8 +68,14 @@ func urlParts(configURL string) ([]string, error) {
 	if len(parts) == 0 {
 		return nil, fmt.Errorf("repo-scope-refused: %q is not the URL of an organization or of a repository", configURL)
 	}
-	if len(parts) == 2 && len(parts[1]) > 4 && asciiFold(parts[1][len(parts[1])-4:], ".git") {
-		return nil, fmt.Errorf("repo-scope-refused: %q: give config_url the URL of the repository with no .git", configURL)
+	// The last part is the repository, or the organization when it is the
+	// only part: the scale set refuses a .git on each (T-641).
+	if last := parts[len(parts)-1]; len(last) >= 4 && asciiFold(last[len(last)-4:], ".git") {
+		of := "organization"
+		if len(parts) == 2 {
+			of = "repository"
+		}
+		return nil, fmt.Errorf("repo-scope-refused: %q: give config_url the URL of the %s with no .git", configURL, of)
 	}
 	return parts, nil
 }
