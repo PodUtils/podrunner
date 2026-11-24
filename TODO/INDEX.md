@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**639 entries: 79 open, 59 partial, 16 blocked, 485 done.**
+**640 entries: 79 open, 59 partial, 15 blocked, 487 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 0 | 26 | 3 | 91 | 120 |
-| P2 | 18 | 22 | 9 | 253 | 302 |
-| P3 | 60 | 11 | 4 | 139 | 214 |
-| **All** | 79 | 59 | 16 | 485 | 639 |
+| P1 | 0 | 26 | 2 | 92 | 120 |
+| P2 | 17 | 22 | 9 | 254 | 302 |
+| P3 | 61 | 11 | 4 | 139 | 215 |
+| **All** | 79 | 59 | 15 | 487 | 640 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -295,7 +295,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-245](later.md) | P2 | S | later | chore | partial | The command line as a contract |
 | [T-246](later.md) | P1 | S | later | release | partial | An adversarial QA before each release |
 | [T-247](later.md) | P2 | S | later | release | done | The notes of a release name the level of the proof of each claim |
-| [T-248](later.md) | P1 | M | later | feature | blocked | The help and the manual of podrunner from the shared crate of PodUtils |
+| [T-248](later.md) | P1 | M | later | feature | done | The help and the manual of podrunner from the shared crate of PodUtils |
 | [T-249](later.md) | P1 | M | later | feature | partial | The installer on each host class, and the shared core of podcrates |
 | [T-250](later.md) | P2 | S | later | chore | blocked | The state of each issue comes from the record by a tool |
 | [T-251](later.md) | P1 | S | later | defect | done | The gate and the host of an agent run shellcheck of other versions |
@@ -669,7 +669,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-624](later.md) | P3 | M | later | defect | open | Faults and limits of the scale-set trust lookups that end a job with no specific cause |
 | [T-625](later.md) | P2 | S | later | defect | done | The attempt of a refused job of the past-limit path: a lost cancel |
 | [T-626](later.md) | P2 | S | later | release | open | `release.yml` needs a green `runner-image.yml` run of the release commit, with no `images_run` input |
-| [T-627](later.md) | P2 | M | later | defect | open | `podrunner man` does not exist, and the help of `run` and `config init` lacks flags that `docs/cli.md` lists |
+| [T-627](later.md) | P2 | M | later | defect | done | `podrunner man` does not exist, and the help of `run` and `config init` lacks flags that `docs/cli.md` lists |
 | [T-628](later.md) | P2 | S | later | defect | done | `podrunner image verify --arch x64` is refused, and the error lists no valid value |
 | [T-629](later.md) | P2 | M | later | defect | done | `config init` and `doctor --config` offer the microvm kind on a host with no KVM |
 | [T-630](later.md) | P2 | S | later | defect | done | A corrupt or truncated tar in the image cache fails each later `run`, and no message names the file |
@@ -687,3 +687,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-642](later.md) | P3 | M | later | defect | open | QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts |
 | [T-643](later.md) | P3 | S | later | defect | open | The local checkout names the keys of `with:` that the stand-in does not take |
 | [T-644](later.md) | P2 | S | later | chore | open | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
+| [T-645](later.md) | P3 | S | later | chore | open | The man page of the model under groff and mandoc, and in the assets of a release |

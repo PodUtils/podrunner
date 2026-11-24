@@ -4027,7 +4027,7 @@ Each claim of the notes names its level: CI on GitHub-hosted runners, a lane of 
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -4045,11 +4045,11 @@ The ruling "Discipline" (`docs/decisions.md`, 2026-11-15). Take `pod-manual` whe
 
 `cargo test -p podrunner --lib the_help_comes_from_the_table`: the help of each command and the man page come from the table, and a change of the table changes both; `podrunner man --no-pager` and `podrunner man --json` answer; the test of the facts fails on a variable that has no fact.
 
-## Blocker
-
-2026-11-15: podcrates: `pod-manual` in the first tag after part 1 of `pod-lab` (PodUtils/podcrates#181), with the needs of COORD-062 (GitHub #181).
-
 State (2026-11-24, QA round 6, agent A): `podrunner man` does not exist in `0.1.0-beta.8`, and the synopses of `--help` differ from `docs/cli.md`. T-627 gives the verb and the check of the help from the hand-written table now, as a release blocker; this entry replaces the source with `pod-manual` later.
+
+## Done
+
+2026-11-24, `fc1e52f`, with T-627. `pod-manual` is in podcrates `v0.82.1`, the pinned tag (its workspace has the crate), so the Blocker is gone. podrunner takes it with the feature `core` (the exit codes of the failure classes). The model is one table of the commands in `crates/podrunner/src/manual/`: the parser of each command but `run` reads its flags and rules from it; the parser of `run` stays a hand-written match, and two tests hold it to the model both ways (each flag, with or without a value, and each rule); the keys of `run.toml` come from the flags of `run` (`run_config` reads the class of each key from the model, and the man page has the table `run-toml`); the help, `podrunner man` (`--no-pager`, `--json`, `--roff`) and `docs/podrunner.1` come from it. The variables are three groups of facts and the group of the pager; the exit codes are 0, 1, 130 and the classes 64 to 80 that the code gives. The Prove names a test `the_help_comes_from_the_table`; the tests are `manual::tests::the_help_of_each_command_comes_from_the_model` (the about and the usage of each command in its help), `manual::tests::man_answers_as_text_and_json`, and `manual::tests::each_variable_of_the_code_is_a_fact`, which fails on a planted variable with no fact. Not taken: the errors through `pod_manual::error::fault` (a refusal keeps the form of podrunner), and `check::examples` (the model has no examples). Level: proven on a constrained host as a user (T-627); not run on GitHub-hosted runners yet.
 
 
 # T-249: The installer on each host class, and the shared core of podcrates
@@ -15103,10 +15103,11 @@ State (2026-11-24, the pin of podvm `0.2.0-beta.39`, the commit that names T-611
 
 State (2026-11-24, blocked; the commit that names COORD-128): the live proof failed on podvm `0.2.0-beta.39` at `runner-image.yml` run 45359834173 (on `aab63e5`, a hosted `ubuntu-24.04` runner, incus of apt, cgroup v2): `the_use_of_a_known_load_is_the_use_that_the_kind_gives` failed with `peak unknown: incusd gave no PeakMemoryBytes of the instance` (`cpu_s` 6 for 6.92 s of the load: within the tolerance), and `a_payload_past_the_memory_limit_gets_an_error` with `no OOM kill counted under 256 MiB: Some(0)`. podvm beta.39 does not give the record of the use at the stop on that host. Asked as COORD-128 (#350). `crates/podrunner-incus/tests/limits.rs` takes the relaxed arm again: an unknown peak passes only with the reason `PEAK_NOT_GIVEN`, and 0 OOM kills pass only, each when the raw `inspect` of the stopped instance shows `-` for its peak; each prints the reason (`NO_RECORD`, which names COORD-128 #350). The load of 4 processes stays. Each unit prints the raw `podvm inspect --format '{{.Status}} {{.ExitCode}} {{.CpuSeconds}} {{.PeakMemoryBytes}} {{.OomKills}}' --podvm-tier=incus NAME` of the stopped instance before its destroy, for the evidence of COORD-128. Level: not run (this host has no incus); the next incus step of `runner-image.yml` runs it.
 
+State (2026-11-24, `runner-image.yml` 45377942699 on `a6f1718`, podvm `0.2.0-beta.39`, proven in CI on GitHub-hosted runners): the incus step is green with the relaxed check (an unknown peak with the reason `PEAK_NOT_GIVEN`, 0 OOM kills with `NO_RECORD`). podvm answered COORD-128 (#350) with COORD-244 (PodUtils/podvm#660, PodUtils/podvm@T-2086, read through the mirror): on a hosted runner the AppArmor profile of incus refused the cgroup mount of the init at `/.podvm/.meter`, so each value of `/.podvm/usage` was null; the init now also opens the cgroup mounts that LXC made in the instance. podvm `kvm.yml` run 45384508724 on `88e1a0d` gives the record of the stop on cgroup v2: `13.270 136134656 0 0` for the load, `0.160 268435456 1 0` for the payload under 256 MiB. The fix is on podvm `main` at `88e1a0d`, not in a release: the newest tag is `v0.2.0-beta.39` (2026-11-24); it comes with `0.2.0-beta.40`.
+
 ## Blocker
 
-podvm must act on COORD-128 (PodUtils/podrunner#350): the record of the use at the stop of an incus instance (`/.podvm/usage`), with the peak and the OOM kills of a child of the command, on a hosted runner. A podvm release with that fix and a green incus step of `runner-image.yml` with the strict peak and an OOM kill counted unblock the entry; then the arms of `PEAK_NOT_GIVEN` and of 0 OOM kills go.
-
+podvm acted on COORD-128 (PodUtils/podrunner#350) with COORD-244 (PodUtils/podvm#660): the fix of the record of the stop is on podvm `main` at `88e1a0d`. The entry waits for the release `0.2.0-beta.40` (podvm names its tag in a COORD). Then: pin it in `images/podvm.toml`, remove the arms of `PEAK_NOT_GIVEN` and of 0 OOM kills from `crates/podrunner-incus/tests/limits.rs`, and see the incus step of `runner-image.yml` green with the strict peak and an OOM kill counted.
 
 # T-612: Three live tests of the podvm kind fail on a root host
 
@@ -15610,7 +15611,7 @@ Give `release.yml` the input `images_run`, with the rules of `user-gate.yml`: a 
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15635,6 +15636,9 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 
 `cargo test -p podrunner --lib help` with a new test that compares the flags of `docs/cli.md` with `--help` of `run` and `config init` (it fails before the change: `--vnet`, `--arg`, `--key-file` and others are missing). `cargo run -q -p podrunner -- man --no-pager` exits 0 and prints the page; with `--json` it prints JSON.
 
+## Done
+
+2026-11-24, `fc1e52f`. `pod-manual` is in podcrates `v0.82.1` (the pinned tag), so the source of the text is the shared crate now, not the hand-written help (T-248 is done with it). `crates/podrunner/src/manual.rs` and `crates/podrunner/src/manual/` hold one static table of the commands (path, usage, notes, arguments, each flag with its value and one line, the rules between flags; the flags of `run` with the key of `run.toml` of each), the variables of the environment and the exit codes. `pod-manual` makes from it the help of each command (`COMMAND --help`, `help COMMAND`, both with `--json`), the top-level help (the commands in six groups), `podrunner man [SECTION...] [--no-pager | --json | --roff]` (through `PAGER`, else `less` with `LESS=FRX`, else a built-in pager, only when stdin and stdout are a terminal) and `docs/podrunner.1`. `cli::USAGE`, `run_local::USAGE` and the text of `help.rs` are gone: a usage error prints the usage of its command from the model. The parser of each command but `run` (`cli::opts`) takes its flags and its rules from the model. The tests: `help::t627_tests::the_help_names_each_flag_of_the_documents` failed before the change (`man`: "an unknown command", 64; `config init --help` had no `--arg`); `manual::tests` (14) checks the text rules and the model (`check::texts`, `check::model`), the help of each command (`check::help`, and its about and usage), the model against the parser (`check::flags`: the arms of the dispatch, the arms of the parser of `run` and a probe of each other command), the rules of `run` against its parser (each pair of an exclusion, each need), the rules of the other commands, each `--NAME` that `cli.rs`, `verbs.rs`, `cli/unit.rs` and `config_init.rs` read, the usage of each command, `docs/podrunner.1` (`PODRUNNER_WRITE_SCHEMAS=1` writes it), the flags of each row of `docs/cli.md` against the model, the variables (both ways, with a planted read) and the exit codes (both ways); `run_local::qa6_tests::contract` compares the parser of `run` with the model. These failed on the code when the work found them, and the code was fixed: `--microvm` with `--incus` took the last kind; `--web` with `--dry-run` passed with no executor; `vnet` was no key of `run.toml`, and a relative `podnet` or `vnet` was not read from the directory of the file (`run_config::tests::the_keys_come_from_the_model` failed before); `man RUN` was refused. `docs/cli.md` rows of `drain`, `stop`, `resume`, `clear-degraded` and `source restart` name `(--state DIR | --socket PATH)` in place of `...`, and it has the rows of `man`, `help` and `version`. Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR` (824 passed, 0 failed, 64 ignored; TMPDIR empty after), `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --workspace`, the fuzz check, `sh scripts/test-install.sh` (19 passed), `cargo todo check`. The built binary as `labdns`: `podrunner man --no-pager | head` (exit 0), `podrunner man --json | python3 -m json.tool | head`, `podrunner run --help` (the usage names `--vnet`, `--incus PATH [--engine DIR]` and `--podnet PATH | --vnet PATH`), `podrunner config init --help` (each of its 19 flags); `man check` under `script` pages through `less`. The man page under groff and mandoc, and the page in the release assets, are T-645. Level: proven on a constrained host as a user (the built binary as `labdns`); not run on GitHub-hosted runners yet.
 
 # T-628: `podrunner image verify --arch x64` is refused, and the error lists no valid value
 
@@ -16212,3 +16216,29 @@ From the work of T-639: the host of the session has no podvm and no KVM, so the 
 ## Prove
 
 `sh scripts/agent/check.sh` and a run of `user-gate.yml` with the lane green; `cargo test -p podrunner-local cancel` for the code of the local mode; then `cargo todo check`.
+
+# T-645: The man page of the model under groff and mandoc, and in the assets of a release
+
+**Source:** T-627 (its Done), 2026-11-24
+**Category:** chore
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`docs/podrunner.1` comes from the model of the commands (T-627, T-248), and a test holds it equal to the model. No check renders it with groff and mandoc, so a request of roff that a reader does not take is not found. A release does not carry the page, so a user with no tree gets it only from `podrunner man --roff`.
+
+## Premise
+
+From the work of T-627: `pod-manual` of podcrates `v0.82.1` has `PodUtils/podcrates:scripts/check-man.sh` (it renders `BINARY man --roff` with groff and mandoc and finds each flag as a word). I did not run it: this host has neither groff nor mandoc in the checks of the gate. I did not read `release.yml` for a place of the page.
+
+## Approach
+
+1. Run `PodUtils/podcrates:scripts/check-man.sh` of `v0.82.1` (fetched by its tag, as the gate fetches the scripts of podcrates) against the static binary in the gate, with groff and mandoc installed in that job.
+2. Add `podrunner.1` to the assets of `release.yml` and to `scripts/install.sh` (to `~/.local/share/man/man1`), with its row in `CHANGES.md`.
+
+## Prove
+
+`sh scripts/agent/check.sh`, a gate run with the step of the man page green, and a dry run of `release.yml` that lists `podrunner.1`.
