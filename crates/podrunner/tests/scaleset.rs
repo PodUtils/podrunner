@@ -159,19 +159,18 @@ fn run_in(tag: &str, script: &str, want: usize, scope: Scope) -> Run {
         args.push("-personal-account".into());
     }
     // A wrapper keeps the stderr of the sidecar for the scan; descriptor 3
-    // (sign) passes through exec.
+    // (sign) passes through exec. `sh` reads the wrapper: a program that a
+    // test wrote cannot start while the fork of a parallel test holds it
+    // open for a write (ETXTBSY).
     let wrapper = dir.join("sidecar.sh");
     let stderr = dir.join("sidecar.err");
     std::fs::write(
         &wrapper,
-        format!("#!/bin/sh\nexec '{}' \"$@\" 2>>'{}'\n", env("PODRUNNER_SCALESET_SIDECAR"), stderr.display()),
+        format!("exec '{}' \"$@\" 2>>'{}'\n", env("PODRUNNER_SCALESET_SIDECAR"), stderr.display()),
     )
     .unwrap();
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
-    }
-    let sidecar = SidecarSource::new(wrapper.to_str().unwrap(), args, signer.clone(), "sidecar:org-trusted");
+    let args = [vec![wrapper.display().to_string()], args].concat();
+    let sidecar = SidecarSource::new("sh", args, signer.clone(), "sidecar:org-trusted");
     let source_cfg: SourceConfig = serde_json::from_value(serde_json::json!({
         "name": "org-trusted", "kind": "github-scaleset", "tier": "trusted", "arch": "x86_64", "operator_controlled": true,
         "allow_personal_account": scope.personal
@@ -315,37 +314,42 @@ fn refused(dir: &std::path::Path, i: usize, config_url: &str, url: &str, persona
     // descriptor 3 (the token) passes to it.
     let (wrapper, stderr, code) =
         (dir.join(format!("w{i}.sh")), dir.join(format!("{i}.err")), dir.join(format!("{i}.code")));
+    // `sh` reads the wrapper: a program that this test wrote cannot start
+    // while the fork of a parallel test holds it open for a write (ETXTBSY).
     std::fs::write(
         &wrapper,
         format!(
-            "#!/bin/sh\n'{}' \"$@\" 2>>'{}'\nc=$?\necho $c >'{}'\nexit $c\n",
+            "'{}' \"$@\" 2>>'{}'\nc=$?\necho $c >'{}'\nexit $c\n",
             env("PODRUNNER_SCALESET_SIDECAR"),
             stderr.display(),
             code.display()
         ),
     )
     .unwrap();
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
-    }
-    let mut args: Vec<String> = ["-config-url", config_url, "-api-url", &format!("{url}/api/v3"), "-pat"]
+    let mut args: Vec<String> = [&*wrapper.display().to_string(), "-config-url", config_url]
         .into_iter()
+        .chain(["-api-url", &format!("{url}/api/v3"), "-pat"])
         .chain(["-scale-set", "podrunner", "-source", "alice-app", "-arch", "x86_64"])
         .map(String::from)
         .collect();
     if personal {
         args.push("-personal-account".into());
     }
-    let mut source =
-        SidecarSource::with_token(wrapper.to_str().unwrap(), args, "made-up-token".into(), "sidecar:alice-app");
-    assert!(podrunner_source::JobSource::hello(&mut source, "podrunner", "0").is_err(), "{config_url}");
+    let mut source = SidecarSource::with_token("sh", args, "made-up-token".into(), "sidecar:alice-app");
+    // The error must come from the end of a sidecar that ran, not from a
+    // start that failed ("the sidecar: ...").
+    let e = podrunner_source::JobSource::hello(&mut source, "podrunner", "0").unwrap_err();
+    assert!(!e.detail.starts_with("the sidecar: "), "{config_url}: the sidecar did not start: {}", e.detail);
+    // The wrapper writes the code after the sidecar ended: wait for its text.
+    let mut text = String::new();
     for _ in 0..100 {
-        if code.exists() {
+        text = std::fs::read_to_string(&code).unwrap_or_default();
+        if text.ends_with('\n') {
             break;
         }
         std::thread::sleep(Duration::from_millis(50));
     }
+    assert!(text.ends_with('\n'), "{config_url}: no exit code of the sidecar");
     let err = std::fs::read_to_string(&stderr).unwrap_or_default();
-    (std::fs::read_to_string(&code).unwrap_or_default().trim().to_string(), err)
+    (text.trim().to_string(), err)
 }

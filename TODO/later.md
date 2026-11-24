@@ -16242,3 +16242,30 @@ From the work of T-627: `pod-manual` of podcrates `v0.82.1` has `PodUtils/podcra
 ## Prove
 
 `sh scripts/agent/check.sh`, a gate run with the step of the man page green, and a dry run of `release.yml` that lists `podrunner.1`.
+
+# T-646: Tests that write a program and start it while other tests fork
+
+**Source:** the flaky test of T-504 (`a_personal_account_with_no_opt_in_is_refused`, gate run 45390017762), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A test that writes a script, sets its mode and starts it can fail with ETXTBSY ("Text file busy"). A fork of a parallel test thread holds the write descriptor of the script until its exec. The start of the script then fails. The sidecar tests of `crates/podrunner/tests/scaleset.rs` had this defect (fixed with `sh WRAPPER`). The same pattern is in the sites below, where a fake podvm, a fake podnet or a script of a test is a program that the code under test starts: `crates/podrunner/src/doctor/tests.rs`, `src/run_local/flags_tests.rs`, `src/podvm_kind.rs`, `src/microvm_kind.rs`, `src/serve/host.rs`, `src/program_source.rs`, and `crates/podrunner/tests/kvm_kind.rs`, `serve_incus.rs`, `config_init.rs`, `run_signal.rs`, `doctor.rs`, `check.rs`. `src/hooks/mod.rs` writes the relay of the hooks the same way in the product.
+
+## Premise
+
+I reproduced the mechanism with a stand-alone program (a thread that writes and starts scripts, three threads that fork `true`: 87 of 3000 starts failed with ETXTBSY). I did not reproduce a failure of the sites above in a loop; I did not read each one for a parallel fork in its binary. `crates/podrunner-podvm` already holds the writes under one lock (`FAKE_PODVM`, `tests/pull.rs` `ONE`) and tries a probe again on ETXTBSY.
+
+## Approach
+
+1. For each site, find out whether another test of the same binary forks while the script is written. A test with no parallel fork needs no change.
+2. Where the test starts the script itself, run it as `sh SCRIPT`. Where the code under test starts it, write it once for the binary (a shared fixture) or hold one lock for the writes and the starts, as `FAKE_PODVM` does.
+3. For the relay of the hooks, decide whether the product needs a try again on ETXTBSY.
+
+## Prove
+
+`for i in $(seq 50); do cargo test -p podrunner --lib || break; done` and the same for each integration binary changed, then `cargo todo check`.
