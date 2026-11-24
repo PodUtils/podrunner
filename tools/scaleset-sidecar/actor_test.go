@@ -34,9 +34,11 @@ func TestTheTriggeringActorHasTheClassToo(t *testing.T) {
 			t.Errorf("organization, run %d: %+v, want %s", run, in, want)
 		}
 	}
-	// One login is one lookup of membership, also for both fields.
+	// One login is one lookup of membership, also for both fields. A login
+	// not seen before: the class of a login is kept for a time.
 	f.memberLookups = 0
-	f.run("6", runObject(user("alice", 1), user("alice", 1), 1))
+	f.members["carol"] = true
+	f.run("6", runObject(user("carol", 4), user("carol", 4), 1))
 	if in, _ := org.lookup("example-org", "app", 6, "push"); in.actorClass != "member" || f.memberLookups != 1 {
 		t.Errorf("run 6: %+v, %d lookups", in, f.memberLookups)
 	}

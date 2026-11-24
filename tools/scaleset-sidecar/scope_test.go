@@ -139,17 +139,17 @@ func TestTheLookupsHaveATimeout(t *testing.T) {
 	defer func(d time.Duration) { lookupTimeout = d }(lookupTimeout)
 	lookupTimeout = 200 * time.Millisecond
 	tr := newTrust(options{apiURL: ts.URL + "/", installationID: 7}, &signer{cached: "a.b.c", until: farFuture})
-	f.delay = 3 * time.Second
+	f.setDelay(3 * time.Second)
 	start := time.Now()
-	_, _, pending := tr.lookupIn(newBatch(context.Background()), "example-org", "app", 1, "push")
-	if took := time.Since(start); !pending || took > time.Second {
-		t.Fatalf("pending %v after %v", pending, took)
+	_, _, st, why := tr.lookupIn(newBatch(context.Background()), "example-org", "app", 1, "push", time.Now())
+	if took := time.Since(start); st != retry || why != "timeout" || took > time.Second {
+		t.Fatalf("state %v (%s) after %v", st, why, took)
 	}
 	// The API of newTrust has no slash at its end (D of the review).
 	if tr.api != ts.URL {
 		t.Errorf("the API is %s", tr.api)
 	}
-	f.delay = 0
+	f.setDelay(0)
 	if in, ok := tr.lookup("example-org", "app", 1, "push"); !ok || in.actorClass != "member" {
 		t.Fatalf("%+v %v", in, ok)
 	}

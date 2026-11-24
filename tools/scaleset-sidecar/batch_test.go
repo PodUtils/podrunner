@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"os"
 	"regexp"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
@@ -19,6 +22,7 @@ func lookupSidecar(t *testing.T, st *stubSession, api string) *sidecar {
 	p := newPoller(st)
 	go p.run(ctx)
 	tr := scopeTrust(api)
+	tr.http.Timeout = lookupTimeout
 	if err := tr.scope("https://github.com/example-org", false); err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +69,7 @@ func offerClasses(t *testing.T, rep map[string]any) []string {
 func TestAMatrixOfOneRunAnswersInsideTheReplyLimit(t *testing.T) {
 	f, ts := newFakeGitHub(t)
 	f.run("5", runObject(user("alice", 1), user("alice", 1), 1))
-	f.delay = 100 * time.Millisecond
+	f.setDelay(100 * time.Millisecond)
 	st := newStub()
 	s := lookupSidecar(t, st, ts.URL)
 	waitPoll(t, st)
@@ -154,7 +158,7 @@ func TestTheLookupsOfANextHaveATimeBudget(t *testing.T) {
 		runs[i] = int64(100 + i)
 		f.run(strconv.Itoa(100+i), runObject(user("alice", 1), "", 1))
 	}
-	f.delay = 100 * time.Millisecond
+	f.setDelay(100 * time.Millisecond)
 	st := newStub()
 	s := lookupSidecar(t, st, ts.URL)
 	waitPoll(t, st)
@@ -199,16 +203,14 @@ func TestAHungLookupLeavesItsJobQueued(t *testing.T) {
 	st := newStub()
 	s := lookupSidecar(t, st, ts.URL)
 	waitPoll(t, st)
-	f.delay = 2 * time.Second
+	f.setDelay(2 * time.Second)
 	st.put <- jobsOf(1, 7, 7)
 	start := time.Now()
 	rep := s.handle([]byte(`{"schema":1,"op":"next","capacity":2,"wait_s":5}`))
 	if got := offers(rep); len(got) != 0 || time.Since(start) > time.Second || len(s.queue) != 2 || s.TrustLookupFailed != 0 {
 		t.Fatalf("%v after %v, %d queued, %d failed", got, time.Since(start), len(s.queue), s.TrustLookupFailed)
 	}
-	f.mu.Lock()
-	f.delay = 0
-	f.mu.Unlock()
+	f.setDelay(0)
 	rep = s.handle([]byte(`{"schema":1,"op":"next","capacity":2,"wait_s":0}`))
 	if got := offerClasses(t, rep); len(got) != 2 || got[0] != "member" || got[1] != "member" {
 		t.Fatalf("%v", rep)
@@ -216,7 +218,11 @@ func TestAHungLookupLeavesItsJobQueued(t *testing.T) {
 }
 
 // The time of the lookups of one `next`, and of one call, stay inside the
-// reply limit of the mint, with room for the rest of the call.
+// reply limit of the mint, with room for the rest of the call. A real
+// `next` is timed with the limits of the sidecar: against a sign module
+// that answers after the budget, and against a GitHub that never answers
+// (P3-8 of the third T-504 review: the read of the sign channel had no
+// time limit, and `next` waited for sign).
 func TestTheBudgetOfANextIsInsideTheReplyLimit(t *testing.T) {
 	src, err := os.ReadFile("../../crates/podrunner-mint/src/sidecar.rs")
 	if err != nil {
@@ -231,4 +237,55 @@ func TestTheBudgetOfANextIsInsideTheReplyLimit(t *testing.T) {
 	if nextBudget+3*time.Second > limit || lookupTimeout > nextBudget {
 		t.Fatalf("the budget %v and the call limit %v against the reply limit %v", nextBudget, lookupTimeout, limit)
 	}
+	for _, c := range []struct {
+		name string
+		sign time.Duration
+		gh   time.Duration
+	}{{"a slow sign", nextBudget + 20*time.Second, 0}, {"a hung GitHub", 100 * time.Millisecond, time.Minute}} {
+		f, ts := newFakeGitHub(t)
+		f.run("5", runObject(user("alice", 1), "", 1))
+		st := newStub()
+		s := lookupSidecar(t, st, ts.URL)
+		f.setDelay(c.gh)
+		// No installation token from the scope: the lookup asks sign.
+		s.trust.signer, s.trust.token = newSigner(slowSign(t, c.sign), "1"), ""
+		waitPoll(t, st)
+		st.put <- jobsOf(1, 5)
+		done := make(chan time.Duration, 1)
+		go func() {
+			start := time.Now()
+			s.handle([]byte(`{"schema":1,"op":"next","capacity":1,"wait_s":5}`))
+			done <- time.Since(start)
+		}()
+		select {
+		case took := <-done:
+			if took > nextBudget+time.Second {
+				t.Errorf("%s: next took %v", c.name, took)
+			}
+		case <-time.After(limit - 3*time.Second):
+			t.Fatalf("%s: next did not answer in %v", c.name, limit-3*time.Second)
+		}
+	}
+}
+
+// slowSign is the descriptor 3 of a sign module that answers each request
+// after d.
+func slowSign(t *testing.T, d time.Duration) *os.File {
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ours, theirs := os.NewFile(uintptr(fds[0]), "ours"), os.NewFile(uintptr(fds[1]), "theirs")
+	t.Cleanup(func() { ours.Close(); theirs.Close() })
+	go func() {
+		r := bufio.NewReader(theirs)
+		for {
+			if _, err := r.ReadBytes('\n'); err != nil {
+				return
+			}
+			time.Sleep(d)
+			fmt.Fprintf(theirs, "{\"token\":\"a.b.c\",\"exp\":%d}\n", time.Now().Unix()+500)
+		}
+	}()
+	return ours
 }

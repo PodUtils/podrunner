@@ -29,6 +29,47 @@ type fakeGitHub struct {
 	etags bool
 	// The reads of a run (200), its 304 answers, and each request.
 	runReads, notModified, requests int
+	// slow: the time of each answer for one run id. script: the answers
+	// of a path (its last part: a run id, a login, "access_tokens"), used
+	// once each in order before the normal answer.
+	slow   map[string]time.Duration
+	script map[string][]reply
+	// The POSTs that cancel a run.
+	cancels int
+}
+
+// reply is one scripted answer: a status and its headers.
+type reply struct {
+	code   int
+	header map[string]string
+}
+
+// setDelay sets the time of each answer under the lock: the handler reads
+// it in another goroutine.
+func (f *fakeGitHub) setDelay(d time.Duration) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.delay = d
+}
+
+// answer scripts the next answers of a path.
+func (f *fakeGitHub) answer(last string, rs ...reply) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.script[last] = append(f.script[last], rs...)
+}
+
+// slowRun sets the time of each answer for one run.
+func (f *fakeGitHub) slowRun(id string, d time.Duration) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.slow[id] = d
+}
+
+func (f *fakeGitHub) cancelCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.cancels
 }
 
 func newFakeGitHub(t *testing.T) (*fakeGitHub, *httptest.Server) {
@@ -37,6 +78,8 @@ func newFakeGitHub(t *testing.T) (*fakeGitHub, *httptest.Server) {
 		ids:     map[string]int{"example-org": 100, "alice": 1, "kate": 2, "mallory": 3},
 		members: map[string]bool{"alice": true},
 		runs:    map[string]string{},
+		slow:    map[string]time.Duration{},
+		script:  map[string][]reply{},
 	}
 	ts := httptest.NewServer(http.HandlerFunc(f.serve))
 	t.Cleanup(ts.Close)
@@ -51,15 +94,35 @@ func (f *fakeGitHub) run(id, object string) {
 }
 
 func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
+	p := r.URL.Path
+	last := p[strings.LastIndex(p, "/")+1:]
 	f.mu.Lock()
 	delay := f.delay
+	if strings.Contains(p, "/actions/runs/") && f.slow[last] != 0 {
+		delay = f.slow[last]
+	}
 	f.mu.Unlock()
-	time.Sleep(delay)
+	select {
+	case <-time.After(delay):
+	case <-r.Context().Done():
+		return
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.requests++
-	p := r.URL.Path
-	last := p[strings.LastIndex(p, "/")+1:]
+	if r.Method == http.MethodPost && last == "cancel" {
+		f.cancels++
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	if rs := f.script[last]; len(rs) > 0 {
+		f.script[last] = rs[1:]
+		for k, v := range rs[0].header {
+			w.Header().Set(k, v)
+		}
+		w.WriteHeader(rs[0].code)
+		return
+	}
 	owner := func() {
 		f.ownerLookups++
 		typ, ok := f.owners[strings.ToLower(last)]

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**615 entries: 67 open, 57 partial, 16 blocked, 475 done.**
+**617 entries: 69 open, 57 partial, 16 blocked, 475 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 91 | 120 |
-| P2 | 14 | 22 | 9 | 243 | 288 |
-| P3 | 50 | 11 | 4 | 139 | 204 |
-| **All** | 67 | 57 | 16 | 475 | 615 |
+| P2 | 15 | 22 | 9 | 243 | 289 |
+| P3 | 51 | 11 | 4 | 139 | 205 |
+| **All** | 69 | 57 | 16 | 475 | 617 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -663,3 +663,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-618](later.md) | P3 | S | later | research | open | R-052 of cfb is named nowhere |
 | [T-619](later.md) | P1 | S | later | chore | done | Take podcrates `v0.82.1` (COORD-152 of podcrates) |
 | [T-620](later.md) | P3 | S | later | defect | done | A long state path leaves an empty `podrunner-HASH` directory in the temp directory |
+| [T-621](later.md) | P2 | S | later | measurement | open | A kill of the scale-set sidecar with queued jobs: does GitHub send them again |
+| [T-622](later.md) | P3 | S | later | feature | open | The status of a scale-set source has no counts of the queue of its sidecar |

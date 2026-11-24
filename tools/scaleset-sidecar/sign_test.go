@@ -28,7 +28,7 @@ func TestATokenGivenAgainKeepsItsOwnExp(t *testing.T) {
 		}
 	}()
 	s := newSigner(ours, "1")
-	tok, err := s.token(1)
+	tok, err := s.token(context.Background())
 	if err != nil || tok != "a.b.c" {
 		t.Fatal(tok, err)
 	}
@@ -74,5 +74,47 @@ func TestTheTokenOfTheOrganizationComesOnce(t *testing.T) {
 	case again := <-asked:
 		t.Fatalf("asked again: %q", again)
 	default:
+	}
+}
+
+// P3-8 of the third T-504 review: a wait for sign ends with its context.
+// The late reply of that request is not the reply of the next one: sign
+// answers in order, and the sidecar drops it.
+func TestALateReplyOfSignIsNotTheNextReply(t *testing.T) {
+	defer func(d time.Duration) { signWait = d }(signWait)
+	signWait = 200 * time.Millisecond
+	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ours, theirs := os.NewFile(uintptr(fds[0]), "ours"), os.NewFile(uintptr(fds[1]), "theirs")
+	defer ours.Close()
+	defer theirs.Close()
+	go func() {
+		r := bufio.NewReader(theirs)
+		for n := 1; ; n++ {
+			if _, err := r.ReadBytes('\n'); err != nil {
+				return
+			}
+			if n == 1 {
+				time.Sleep(400 * time.Millisecond)
+			}
+			fmt.Fprintf(theirs, "{\"token\":\"t%d\",\"exp\":%d}\n", n, time.Now().Unix()+500)
+		}
+	}()
+	s := newSigner(ours, "1")
+	start := time.Now()
+	if tok, err := s.token(context.Background()); err == nil || time.Since(start) > time.Second {
+		t.Fatalf("the first: %q %v after %v", tok, err, time.Since(start))
+	}
+	// A context that has ended ends the wait for the lock too.
+	done, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := s.token(done); err == nil {
+		t.Fatal("an ended context got a token")
+	}
+	time.Sleep(300 * time.Millisecond)
+	if tok, err := s.token(context.Background()); err != nil || tok != "t2" {
+		t.Fatalf("the second: %q %v", tok, err)
 	}
 }

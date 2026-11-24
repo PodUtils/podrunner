@@ -293,7 +293,8 @@ jobs:
           set -eu
           test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
           go vet ./...
-          go test ./...
+          # The race detector needs cgo; the build below stays static.
+          CGO_ENABLED=1 go test -race ./...
           go build -o "$RUNNER_TEMP/fake-scaleset" .
           sh "$GITHUB_WORKSPACE/scripts/check-static.sh" "$RUNNER_TEMP/fake-scaleset"
       - name: The scale-set sidecar
@@ -302,7 +303,8 @@ jobs:
           set -eu
           test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
           go vet ./...
-          go test ./...
+          # The race detector needs cgo; the build below stays static.
+          CGO_ENABLED=1 go test -race ./...
           go build -o "$RUNNER_TEMP/scaleset-sidecar" .
           sh "$GITHUB_WORKSPACE/scripts/check-static.sh" "$RUNNER_TEMP/scaleset-sidecar"
       - name: Toolchain

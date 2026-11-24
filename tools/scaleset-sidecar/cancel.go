@@ -46,7 +46,7 @@ func (t *trust) post(path string) int {
 	if err != nil {
 		return 0
 	}
-	t.spend(false)
+	t.spend(false, false)
 	req, _ := http.NewRequest(http.MethodPost, t.api+path, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")

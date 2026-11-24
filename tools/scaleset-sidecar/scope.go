@@ -116,8 +116,10 @@ func asciiFold(a, b string) bool {
 func (t *trust) owner(owner string) (typ, login string, id int64, err error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	code, v, _, _ := t.get(context.Background(), "/users/"+url.PathEscape(owner), "")
+	code, v, _, err := t.get(context.Background(), "/users/"+url.PathEscape(owner), "")
 	switch {
+	case err != nil && code == 0:
+		return "", "", 0, fmt.Errorf("the owner %s: %w", owner, err)
 	case code == http.StatusOK && v != nil:
 		typ, _ = v["type"].(string)
 		login, _ = v["login"].(string)

@@ -15367,3 +15367,60 @@ The tests of `own::tests` and `the_short_egress_directory_goes_when_the_unit_end
 ## Done
 
 2026-11-24: `0289a04`. `own::end_socket_dir` removes the directory of the unit and then the empty short root; it leaves a link, a file and a directory of another user. `close_sockets` and `Slots::reconcile` call it. `TempDir` of the slots tests and the `Bed` of `crates/podrunner/tests/serve.rs` remove the short root at the drop. Tests: `own::tests::the_short_root_goes_when_no_unit_directory_is_left_in_it`, `a_link_at_the_name_of_the_root_is_not_touched`, `a_directory_of_another_user_is_refused_and_not_touched` (as root only), `the_root_in_the_state_directory_stays` and `tests::egress::the_short_egress_directory_goes_when_the_unit_ends`; the first three and the last fail on the code before the change. `cargo test --workspace --all-features` with `TMPDIR` 50 characters long and `PODRUNNER_RUNNER_DIR` set: 770 passed, 0 failed, 61 ignored, and the temp directory is empty (before: more than 100 entries); with the default `mktemp -d` name: empty. `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings` and `cargo todo check` pass. Level: proven on a development host; not run in CI.
+
+# T-621: A kill of the scale-set sidecar with queued jobs: does GitHub send them again
+
+**Source:** the third review of T-504 (P2-4), 2026-11-24
+**Category:** measurement
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The poller of the scale-set sidecar deletes each message at GitHub before its jobs go into the queue (`tools/scaleset-sidecar/poll.go`), and the queue is in memory only. A stop, a crash or a kill of the sidecar (also the kill at the reply limit of `serve`) loses each queued job unless GitHub sends it again. `actions/scaleset` `v0.5.0` documents no second delivery of a `JobAvailable` and no time limit of an acquire. If GitHub does not send them again, the jobs stay queued at GitHub until its own time limit, and no runner of the set takes them.
+
+## Premise
+
+Read: `tools/scaleset-sidecar/poll.go`, `tools/scaleset-sidecar/queue.go`, `session_client.go` and `types.go` of `actions/scaleset` `v0.5.0` (no redelivery, no acquire deadline). The sidecar now names each queued job at its end and the jobs that GitHub counts at the start of a session (`sessionStartLine`). Not measured: what github.com does.
+
+## Approach
+
+1. A live lane: a trusted set with `slots = 0` (no capacity), a matrix of 4 jobs, then a kill (SIGKILL) of the sidecar while the 4 jobs are queued; `serve` starts it again.
+2. Record the line of the start of the session (the counts of GitHub), whether a `JobAvailable` of each job comes again, and in what time. Then give the set capacity and record which jobs run.
+3. When GitHub does not send them again: delete each message only after its jobs are offered or ended (a message that is not deleted comes again), or keep the queue in the state directory; write the call in `docs/decisions.md`.
+
+## Prove
+
+`cargo test -p podrunner --test live -- --ignored`, in the live workflow with the kill of the sidecar.
+
+## Start condition
+
+The live gates run against github.com (T-032, LIVE-2 on GitHub #75).
+
+# T-622: The status of a scale-set source has no counts of the queue of its sidecar
+
+**Source:** the third review of T-504 (P2-1), 2026-11-24
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The scale-set sidecar keeps jobs in its queue while their trust lookup has no final answer, and counts the calls past the budget, the final answers with no facts and the jobs past the limits. It writes these counts on stderr only. `podrunner status` (`status.v1`) shows the offers with `unknown` inputs (`trust_unknown`) and the refusals, but not the jobs that the sidecar holds, the age of the oldest, or the calls past the budget. A forge that reads `status --json` (githome, cfb) cannot see a queue that grows.
+
+## Premise
+
+Read: `SourceStatus` of `pod_job` (podcrates `v0.82.1`, `deny_unknown_fields`), the `events` reply of `pod_job::source` (`deny_unknown_fields`), `crates/podrunner-slots/src/status.rs`. A new field of the reply of `next` or of `SourceStatus` needs a change of podcrates. Not measured.
+
+## Approach
+
+1. A COORD issue to podcrates: an optional object `queue` in the reply `events` (`held`, `oldest_s`, `pending`, `throttled`, `failed`, `given_up`) and the same optional object in `SourceStatus`.
+2. Take the tag; the sidecar sends the object with each `events`; `Slots::status` gives the last one of each source.
+
+## Prove
+
+`cargo test -p podrunner-slots --lib status` and `go test ./...` in `tools/scaleset-sidecar`.

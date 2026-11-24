@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -54,16 +51,18 @@ type trust struct {
 	signer    *signer
 	token     string
 	expires   time.Time
-	cache     map[runKey]trustInputs
-	// The last run object of each run id and its ETag: a read of a run
-	// that did not change is a 304, which GitHub does not count.
-	runs map[int64]seenRun
-	http http.Client
+	// The inputs of each attempt of a run, the last run object of each run
+	// id with its ETag, and the class of each login: each with its time.
+	cache   map[runKey]keptInputs
+	runs    map[int64]seenRun
+	members map[string]keptClass
+	http    http.Client
 	// The calls of GitHub in the hour that runs, and its start: a lookup
-	// past the budget is not made, and its inputs are "unknown" (deny).
+	// past the budget is not made, and its job waits (calls.go).
 	budget    int
 	used      int
 	hourStart time.Time
+	spentSaid bool
 	Throttled int
 }
 
@@ -71,29 +70,49 @@ type trust struct {
 // can be another account (T-504 review).
 type runKey struct{ run, attempt int64 }
 
+// seenRun: a run object, its ETag, and the time its read began.
 type seenRun struct {
 	etag string
 	obj  map[string]any
+	at   time.Time
 }
 
-// The caches hold at most this many runs: a flood of runs must not grow
-// the memory of the sidecar.
+type keptInputs struct {
+	in trustInputs
+	at time.Time
+}
+
+type keptClass struct {
+	class string
+	at    time.Time
+}
+
+// The caches hold at most this many runs and logins: a flood of runs must
+// not grow the memory of the sidecar.
 const cacheMax = 4096
 
-// A call of GitHub must not hold the wire: one call, and the lookups of
-// one `next`, end well inside the reply limit of the mint (15 s,
-// REPLY_LIMIT of crates/podrunner-mint/src/sidecar.rs).
+// The time that a result stays usable. The inputs of an attempt hold its
+// membership classes: a member who leaves the organization must not stay
+// a member. A run object and the class of a login are the parts of a
+// lookup that a `next` gives the next one: short.
 var (
-	lookupTimeout = 5 * time.Second
-	nextBudget    = 10 * time.Second
+	cacheTTL   = 10 * time.Minute
+	partialTTL = 2 * time.Minute
 )
 
-// errPending: a call did not end in its time. The job stays queued: it
-// is not refused and not lost.
-var errPending = errors.New("the lookup did not end in its time")
+// lookupState: how the lookup of a run ended in one `next`.
+type lookupState int
 
-// errThrottled: the budget of the hour is spent.
-var errThrottled = errors.New("the trust budget of the hour is spent")
+const (
+	// final: GitHub answered; the inputs can hold unknown.
+	final lookupState = iota
+	// retry: a call gave no final answer: an attempt.
+	retry
+	// throttled: the budget of the hour is spent; no call was made.
+	throttled
+	// notReached: the time of the `next` ended first.
+	notReached
+)
 
 // batch holds the lookups of one `next`: each run is read once, and each
 // login is looked up once, for all its jobs.
@@ -106,6 +125,8 @@ type batch struct {
 type batchRun struct {
 	in    trustInputs
 	whole bool
+	st    lookupState
+	why   string
 }
 
 func newBatch(ctx context.Context) *batch {
@@ -122,150 +143,49 @@ func newTrust(o options, signer *signer) *trust {
 		budget: o.trustBudget, http: http.Client{Timeout: lookupTimeout}}
 }
 
-// spend counts one call of GitHub in the budget of the hour. With gate,
-// a call past the budget is refused.
-func (t *trust) spend(gate bool) bool {
-	if time.Since(t.hourStart) >= time.Hour {
-		t.hourStart, t.used = time.Now(), 0
-	}
-	if gate && t.budget > 0 && t.used >= t.budget {
-		t.Throttled++
-		return false
-	}
-	t.used++
-	return true
-}
-
-// failed gives errPending for a call that did not end in its time.
-func failed(ctx context.Context, err error) error {
-	var ne net.Error
-	if ctx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()) {
-		return errPending
-	}
-	return err
-}
-
-func (t *trust) installationToken(ctx context.Context) (string, error) {
-	if t.pat {
-		return t.signer.pat()
-	}
-	if t.token != "" && time.Until(t.expires) > 5*time.Minute {
-		return t.token, nil
-	}
-	jwt, err := t.signer.token(t.installation)
-	if err != nil {
-		return "", err
-	}
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost,
-		fmt.Sprintf("%s/app/installations/%d/access_tokens", t.api, t.installation), nil)
-	req.Header.Set("Authorization", "Bearer "+jwt)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	t.spend(false)
-	resp, err := t.http.Do(req)
-	if err != nil {
-		if failed(ctx, err) == errPending {
-			return "", errPending
-		}
-		return "", fmt.Errorf("the installation token: no answer")
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("the installation token: HTTP %d", resp.StatusCode)
-	}
-	var v struct {
-		Token     string    `json:"token"`
-		ExpiresAt time.Time `json:"expires_at"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&v); err != nil || v.Token == "" {
-		return "", fmt.Errorf("the installation token: no token")
-	}
-	t.token, t.expires = v.Token, v.ExpiresAt
-	return t.token, nil
-}
-
-// get makes one GET of the REST API in the budget. With etag, GitHub
-// answers 304 when the object did not change: a 304 is not counted.
-func (t *trust) get(ctx context.Context, path, etag string) (int, map[string]any, string, error) {
-	token, err := t.installationToken(ctx)
-	if err != nil {
-		return 0, nil, "", err
-	}
-	if !t.spend(true) {
-		return 0, nil, "", errThrottled
-	}
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, t.api+path, nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	if etag != "" {
-		req.Header.Set("If-None-Match", etag)
-	}
-	resp, err := t.http.Do(req)
-	if err != nil {
-		return 0, nil, "", failed(ctx, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotModified {
-		t.used--
-		return resp.StatusCode, nil, etag, nil
-	}
-	var v map[string]any
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&v); err != nil && failed(ctx, err) == errPending {
-		return 0, nil, "", errPending
-	}
-	return resp.StatusCode, v, resp.Header.Get("ETag"), nil
-}
-
 // lookup gives the trust inputs of a run in a batch of its own; ok is
-// false when a part is unknown.
+// false when a part is unknown or the lookup did not end.
 func (t *trust) lookup(owner, repo string, run int64, messageEvent string) (trustInputs, bool) {
-	in, whole, _ := t.lookupIn(newBatch(context.Background()), owner, repo, run, messageEvent)
+	in, whole, _, _ := t.lookupIn(newBatch(context.Background()), owner, repo, run, messageEvent, time.Now())
 	return in, whole
 }
 
-// lookupIn gives the trust inputs of a run, once for each run of a batch.
-// pending is true when a call did not end in the time of the batch: the
-// job stays queued. A failed lookup is not kept: a later batch tries
-// again.
-func (t *trust) lookupIn(b *batch, owner, repo string, run int64, messageEvent string) (in trustInputs, whole, pending bool) {
+// lookupIn gives the trust inputs of a run, once for each run of a batch,
+// for the jobs that came at `since` or before. A lookup that did not end
+// keeps what it learned for a later batch; the inputs are then unknown.
+func (t *trust) lookupIn(b *batch, owner, repo string, run int64, messageEvent string, since time.Time) (trustInputs, bool, lookupState, string) {
 	if r, ok := b.runs[run]; ok {
-		return r.in, r.whole, false
-	}
-	if b.ctx.Err() != nil {
-		return in, false, true
+		return r.in, r.whole, r.st, r.why
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	in, whole, err := t.read(b, owner, repo, run, messageEvent)
-	if err == errPending {
-		return in, false, true
+	in, whole, err := t.read(b, owner, repo, run, messageEvent, since)
+	st, why := final, ""
+	switch {
+	case err == nil:
+	case errors.Is(err, errThrottled):
+		st, why = throttled, err.Error()
+	case errors.Is(err, errNotReached):
+		return in, false, notReached, err.Error()
+	default:
+		st, why = retry, strings.TrimPrefix(err.Error(), errNoAnswer.Error()+": ")
 	}
-	b.runs[run] = batchRun{in, whole}
-	return in, whole, false
+	b.runs[run] = batchRun{in, whole, st, why}
+	return in, whole, st, why
 }
 
-// read reads the run object: only it names the attempt. It is a
-// conditional read when the run was read before.
-func (t *trust) read(b *batch, owner, repo string, run int64, messageEvent string) (trustInputs, bool, error) {
+// read gives the inputs of a run from its run object: only it names the
+// attempt.
+func (t *trust) read(b *batch, owner, repo string, run int64, messageEvent string, since time.Time) (trustInputs, bool, error) {
 	unknown := trustInputs{event: eventWord(messageEvent), headIsFork: "unknown", actorClass: "unknown", visibility: "unknown"}
-	seen := t.runs[run]
-	status, r, etag, err := t.get(b.ctx, fmt.Sprintf("/repos/%s/%s/actions/runs/%d", url.PathEscape(owner), url.PathEscape(repo), run), seen.etag)
-	switch {
-	case err != nil:
+	r, err := t.runObject(b, owner, repo, run, since)
+	if err != nil || r == nil {
 		return unknown, false, err
-	case status == http.StatusNotModified && seen.obj != nil:
-		r = seen.obj
-	case status != http.StatusOK || r == nil:
-		return unknown, false, nil
-	case etag != "":
-		if t.runs == nil || len(t.runs) >= cacheMax {
-			t.runs = map[int64]seenRun{}
-		}
-		t.runs[run] = seenRun{etag, r}
 	}
 	attempt, counted := r["run_attempt"].(float64)
 	key := runKey{run, int64(attempt)}
-	if v, ok := t.cache[key]; ok && counted {
-		return v, true, nil
+	if v, ok := t.cache[key]; ok && counted && time.Since(v.at) < cacheTTL {
+		return v.in, true, nil
 	}
 	out := unknown
 	if e, ok := r["event"].(string); ok {
@@ -295,11 +215,37 @@ func (t *trust) read(b *batch, owner, repo string, run int64, messageEvent strin
 	whole := out.headIsFork != "unknown" && out.actorClass != "unknown" && out.visibility != "unknown"
 	if whole && counted {
 		if t.cache == nil || len(t.cache) >= cacheMax {
-			t.cache = map[runKey]trustInputs{}
+			t.cache = map[runKey]keptInputs{}
 		}
-		t.cache[key] = out
+		t.cache[key] = keptInputs{out, time.Now()}
 	}
 	return out, whole, nil
+}
+
+// runObject gives the run object, or nil for a final answer with none. A
+// run object from a read that began after the job came is used again
+// with no call: a re-run comes as new jobs, after its attempt exists. Else
+// it is a conditional read when the run was read before.
+func (t *trust) runObject(b *batch, owner, repo string, run int64, since time.Time) (map[string]any, error) {
+	seen, ok := t.runs[run]
+	if ok && seen.at.After(since) && time.Since(seen.at) < partialTTL {
+		return seen.obj, nil
+	}
+	at := time.Now()
+	status, r, etag, err := t.get(b.ctx, fmt.Sprintf("/repos/%s/%s/actions/runs/%d", url.PathEscape(owner), url.PathEscape(repo), run), seen.etag)
+	switch {
+	case err != nil:
+		return nil, err
+	case status == http.StatusNotModified && seen.obj != nil:
+		r, etag = seen.obj, seen.etag
+	case status != http.StatusOK || r == nil:
+		return nil, nil
+	}
+	if t.runs == nil || len(t.runs) >= cacheMax {
+		t.runs = map[int64]seenRun{}
+	}
+	t.runs[run] = seenRun{etag, r, at}
+	return r, nil
 }
 
 // classOf gives the class of one actor object of a run. The batch keeps
@@ -324,10 +270,14 @@ func (t *trust) classOf(b *batch, owner string, v any) (string, error) {
 	if c, ok := b.members[key]; ok {
 		return c, nil
 	}
+	if m, ok := t.members[key]; ok && time.Since(m.at) < partialTTL {
+		b.members[key] = m.class
+		return m.class, nil
+	}
 	c := "unknown"
 	code, _, _, err := t.get(b.ctx, fmt.Sprintf("/orgs/%s/members/%s", url.PathEscape(owner), url.PathEscape(login)), "")
 	switch {
-	case err == errPending:
+	case err != nil:
 		return "", err
 	case code == http.StatusNoContent:
 		c = "member"
@@ -335,6 +285,10 @@ func (t *trust) classOf(b *batch, owner string, v any) (string, error) {
 		c = "outside"
 	}
 	b.members[key] = c
+	if t.members == nil || len(t.members) >= cacheMax {
+		t.members = map[string]keptClass{}
+	}
+	t.members[key] = keptClass{c, time.Now()}
 	return c, nil
 }
 

@@ -433,33 +433,80 @@ organization, the membership of its actor and its triggering actor
   it. Only then is its lookup made: a message with a matrix of 200 jobs
   costs no call until the jobs are taken.
 * One `next` reads each run once and looks up each login once, for all
-  its jobs. The inputs are kept for each run id and `run_attempt`.
+  its jobs. The inputs are kept for each run id and `run_attempt` for
+  10 minutes.
+* A `next` keeps what its lookups learned for the next `next` (2
+  minutes): the class of each login, and the run object for the jobs that
+  came before its read began. A re-run comes as new jobs, so a new job
+  always gets a new read of its run.
 * The read of a run that the sidecar read before sends its ETag
   (`If-None-Match`). GitHub answers 304 when the run did not change; a
   304 does not count against the rate limit of GitHub or the budget.
-* Each call has a time limit of 5 s, and the lookups of one `next` have
-  10 s: a `next` answers inside the reply limit of `serve` (15 s). A job
-  whose lookup does not end in that time stays queued, with the jobs
-  behind it; the next `next` takes it. It is not refused and not lost.
+* Each call has a time limit of 4 s, and the lookups of one `next` have
+  5 s: a `next` answers well inside the reply limit of `serve` (15 s), and
+  `serve` calls its sources in turn, so one slow source delays the others
+  only a little. A run whose calls take longer ends over some `next`
+  calls.
 * A run with `run_attempt` above 1 and no `triggering_actor` (a re-run
   that names no one who started it) has the class `unknown`.
+
+Only a final answer of GitHub gives `unknown`: a 404, a 403 of a missing
+permission, a body that is not JSON, or a run object with no field. Each
+other answer is no answer: no reply in the time of the call, a 5xx, a 429,
+a 403 with `Retry-After` or `X-RateLimit-Remaining: 0`, a 401 (the sidecar
+gets a new installation token), a network fault, and a fault of the token
+or of `sign`. Then the job stays queued, the jobs behind it are offered,
+and its run gets no call until its retry (5 s, then double, at most 60 s).
+The order of the offers binds no job to a runner: GitHub gives a runner of
+the scale set any queued job of the set (T-175).
+
+A job is not kept for ever. After 10 calls of its run with no final
+answer, or 65 minutes from the first `next` that got none, it is offered
+with `unknown` inputs, as for a final answer with no facts: a trusted set
+refuses it, and the sidecar cancels its run (`docs/decisions.md`, Q7).
+The sidecar names the job, the count of attempts and the last cause on
+stderr. `podrunner status` counts such an offer in `trust_unknown` of the
+source, and the refusal in `refused`.
 
 The budget of the hour (the flag `-trust-budget` of the sidecar; default
 1000, 0 for no budget; `serve` does not set the flag) counts each call of GitHub that GitHub counts: the
 token of the installation, each read of a run that is not a 304, and each
-lookup of membership. A call past the budget is not made: the inputs of
-its job are `unknown`, and the job is refused (deny). A matrix of N jobs
-of one run costs at most one read for each `next` that offers its jobs,
-plus two lookups of membership for each attempt: at most N + 2 calls,
-also at a capacity of 1. The default covers three matrices of 256 jobs
-(the most that GitHub gives one matrix) in one hour, or about 330 runs of
-one job each in an organization (the run and two memberships).
+lookup of membership. A call that got no answer in its time is counted
+too: GitHub can have received it. A call past the budget is not made: its
+job stays queued until the next hour of the budget (inside the limit of
+65 minutes above), the sidecar says once in the hour that the budget is
+spent, and no run is cancelled for it. A read with an ETag can use a tenth
+more than the budget: its 304 is free, so the jobs of known runs go on
+while the runs of others spent the budget. A matrix of N jobs of one run
+costs at most one read for each `next` that offers its jobs, plus two
+lookups of membership for each attempt: at most N + 2 calls, also at a
+capacity of 1. The default covers three matrices of 256 jobs (the most
+that GitHub gives one matrix) in one hour, or about 330 runs of one job
+each in an organization (the run and two memberships).
+
+The sidecar writes its counts on stderr, which `serve` passes on to its
+own log, at most once a minute while a job has no final answer, and at
+once when a job passes the limits: the jobs in the queue, the age of the
+oldest, the jobs with no final answer, the calls past the budget
+(`throttled`), the final answers with no facts (`failed`), the jobs past
+the limits (`given up`), and the available and assigned jobs that GitHub
+counts for the set. `status.v1` has no field for them yet (T-622).
+
+The queue is in memory only, and GitHub deleted the message of each job
+in it. A stop, a crash or a kill of the sidecar loses the queued jobs,
+unless GitHub sends them again: the scale-set API of `actions/scaleset`
+`v0.5.0` documents no second delivery and no time limit of an acquire
+(T-621 measures it). At its end the sidecar names each queued job and its
+run on stderr. At the start of its message session it names the jobs that
+GitHub counts for the set (available, acquired, assigned) when there are
+some: this sidecar holds none of them.
 
 The design (`docs/design/SPEC.md`, section 6.3, "GitHub trust inputs")
 says that the source keeps the jobs that it resolved when the budget is
-spent. This is not so: the attempt of a run is known only from a read of
-it, and a re-run can change its triggering actor, so a spent budget
-refuses each new job, also of a run that the sidecar read before. The
+spent. The sidecar keeps the jobs of a run that it read with an ETag (the
+tenth above), and the inputs of an attempt for 10 minutes; each other new
+job waits for the next hour of the budget. The attempt of a run is known
+only from a read of it, and a re-run can change its triggering actor. The
 design also says the source caches the run object by `run_id`: it keeps
 the ETag and the object by run id, and the inputs by run id and attempt.
 

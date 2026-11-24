@@ -10,8 +10,8 @@ import (
 	"os"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -59,8 +59,18 @@ type sidecar struct {
 	byJobID map[string]string
 	// The runs that the sidecar cancelled (T-169).
 	cancelled map[int64]bool
-	// The counts of status.
-	TrustLookupFailed int
+	// The next call of each run with no final answer (queue.go).
+	waits map[int64]*retryWait
+	// The counts of the status line (report): the offers whose lookup gave
+	// a final answer with no facts, and those past the limits.
+	TrustLookupFailed, GivenUp int
+	lastReport                 time.Time
+	lastCounts                 [3]int
+	// The statistics of the last message of GitHub.
+	stats *scaleset.RunnerScaleSetStatistic
+	// The names of the queued jobs, for the end of the sidecar.
+	heldMu sync.Mutex
+	held   []string
 }
 
 func newSidecar(ctx context.Context, o options, signer *signer) (*sidecar, error) {
@@ -74,14 +84,14 @@ func newSidecar(ctx context.Context, o options, signer *signer) (*sidecar, error
 	if o.pat {
 		// T-174: a fine-grained token of the organization, from descriptor 3.
 		var tok string
-		if tok, err = signer.pat(); err != nil {
+		if tok, err = signer.pat(ctx); err != nil {
 			return nil, err
 		}
 		client, err = scaleset.NewClientWithPersonalAccessToken(scaleset.NewClientWithPersonalAccessTokenConfig{GitHubConfigURL: o.configURL, PersonalAccessToken: tok})
 	} else {
 		client, err = scaleset.NewClientWithJWTProvider(
 			scaleset.ClientWithJWTProviderConfig{GitHubConfigURL: o.configURL, InstallationID: o.installationID},
-			scaleset.JWTProviderFunc(func(ctx context.Context) (string, error) { return signer.token(o.installationID) }),
+			scaleset.JWTProviderFunc(signer.token),
 		)
 	}
 	if err != nil {
@@ -99,6 +109,9 @@ func newSidecar(ctx context.Context, o options, signer *signer) (*sidecar, error
 	session, err := client.MessageSessionClient(ctx, set.ID, "podrunner")
 	if err != nil {
 		return nil, fmt.Errorf("the message session: %s", statusOf(err))
+	}
+	if l := sessionStartLine(session.Session().Statistics); l != "" {
+		logf("%s", l)
 	}
 	p := newPoller(session)
 	go p.run(ctx)
@@ -337,53 +350,6 @@ func decodeJIT(encoded string) ([]map[string]string, error) {
 	return files, nil
 }
 
-// next gives the events of the messages that the poller found, and at
-// most `capacity` offers. It waits at most `wait` (T-164). The lookups
-// of the offers have the time nextBudget: a job whose lookup does not
-// end in it stays queued, with the jobs behind it, for a later `next`.
-func (s *sidecar) next(capacity int, wait time.Duration) map[string]any {
-	events := []any{}
-	msgs, err := s.poll.take(capacity, wait)
-	if err != nil && len(s.queue) == 0 {
-		return errorReply(codeOf(err), statusOf(err))
-	}
-	for _, msg := range msgs {
-		for _, a := range msg.JobAvailableMessages {
-			s.enqueue(&a.JobMessageBase, false)
-		}
-		for _, a := range msg.JobAssignedMessages {
-			s.enqueue(&a.JobMessageBase, true)
-		}
-		for _, st := range msg.JobStartedMessages {
-			events = append(events, map[string]any{"event": "started", "job_id": s.idOf(&st.JobMessageBase), "runner_name": st.RunnerName})
-		}
-		for _, c := range msg.JobCompletedMessages {
-			id := s.idOf(&c.JobMessageBase)
-			delete(s.byJobID, c.JobID)
-			if c.Result == "canceled" || c.Result == "cancelled" {
-				events = append(events, map[string]any{"event": "cancel", "job_id": id})
-			} else {
-				events = append(events, map[string]any{"event": "completed", "job_id": id, "result": c.Result})
-			}
-		}
-	}
-	ctx, cancel := context.WithTimeout(s.ctx, nextBudget)
-	defer cancel()
-	b := newBatch(ctx)
-	for capacity > 0 && len(s.queue) > 0 {
-		q := s.queue[0]
-		offer, ok := s.offer(b, q.id, &q.base)
-		if !ok {
-			break
-		}
-		s.queue = s.queue[1:]
-		s.jobs[q.id] = q.job
-		events = append(events, map[string]any{"event": "offer", "offer": offer})
-		capacity--
-	}
-	return map[string]any{"reply": "events", "events": events}
-}
-
 // forget removes the job `id` and its jobId.
 func (s *sidecar) forget(id string) {
 	delete(s.jobs, id)
@@ -394,82 +360,12 @@ func (s *sidecar) forget(id string) {
 	}
 }
 
-// queued is a job that waits for capacity. Its lookup is made when the
-// capacity takes it: a message can hold the jobs of a large matrix.
-type queued struct {
-	id   string
-	job  *job
-	base scaleset.JobMessageBase
-}
-
-// idOf gives the job id of the wire of a message: the id of its offer
-// when its jobId is known, else its runner request, else `a-JOBID`.
-func (s *sidecar) idOf(b *scaleset.JobMessageBase) string {
-	if id, ok := s.byJobID[b.JobID]; ok && b.JobID != "" {
-		return id
-	}
-	if b.RunnerRequestID != 0 {
-		return strconv.FormatInt(b.RunnerRequestID, 10)
-	}
-	return "a-" + b.JobID
-}
-
-// enqueue queues the offer of a JobAvailable or a JobAssigned message.
-// A job that is known by its jobId (a redelivery, or the JobAssigned of
-// a job that this sidecar acquired) is not offered again.
-func (s *sidecar) enqueue(b *scaleset.JobMessageBase, assigned bool) {
-	if b.JobID != "" && s.byJobID[b.JobID] != "" {
-		return
-	}
-	id := s.idOf(b)
-	if assigned && b.RunnerRequestID == 0 && (b.JobID == "" || !jobIDPattern.MatchString(id)) {
-		return // no id that the wire can carry
-	}
-	if s.jobs[id] != nil {
-		return
-	}
-	for _, q := range s.queue {
-		if q.id == id {
-			return
-		}
-	}
-	if b.JobID != "" {
-		s.byJobID[b.JobID] = id
-	}
-	j := &job{request: b.RunnerRequestID, assigned: assigned && b.RunnerRequestID == 0, state: offered,
-		owner: b.OwnerName, repo: b.RepositoryName, run: b.WorkflowRunID}
-	s.queue = append(s.queue, queued{id: id, job: j, base: *b})
-}
-
-// offer builds job-offer.v1 from the message of a job and the trust
-// lookup of the batch. It has no tier and no payload. ok is false when
-// the lookup did not end in the time of the batch.
-func (s *sidecar) offer(b *batch, id string, a *scaleset.JobMessageBase) (map[string]any, bool) {
-	t, whole, pending := s.trust.lookupIn(b, a.OwnerName, a.RepositoryName, a.WorkflowRunID, a.EventName)
-	if pending {
-		return nil, false
-	}
-	if !whole {
-		s.TrustLookupFailed++
-	}
-	labels := a.RequestLabels
-	if labels == nil {
-		labels = []string{}
-	}
-	return map[string]any{
-		"schema": 1, "job_id": id, "source": s.o.source, "labels": labels, "arch": s.o.arch,
-		"wait_deadline_s": s.o.waitDeadlineS,
-		"trust_inputs": map[string]any{
-			"event": t.event, "head_is_fork": t.headIsFork, "actor_class": t.actorClass,
-			"repo_visibility": t.visibility, "owner": a.OwnerName, "repo": a.RepositoryName,
-			"run_id": a.WorkflowRunID, "ref": "", "workflow_ref": a.JobWorkflowRef,
-		},
-	}, true
-}
-
 // closeSession ends the message session of the scale set, so that the next
 // sidecar gets no 409 "already has an active session" (T-168).
 func (s *sidecar) closeSession() {
+	if l := s.heldLine(); l != "" {
+		logf("%s", l)
+	}
 	if s.closer == nil {
 		return
 	}
