@@ -184,7 +184,7 @@
 178 issue closed
 179 issue closed
 180 issue closed
-181 issue open
+181 issue closed
 182 issue closed
 183 issue open
 184 issue open

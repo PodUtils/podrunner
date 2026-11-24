@@ -180,7 +180,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #178 | COORD-060: on the userland rung, `tar -x` fails when a symbolic link comes before its target (to podvm) | closed (podvm `0.2.0-beta.24`; T-232 done) | T-232 |
 | #179 | [gh action] requested | closed (the block of #154 ran on `037cb35`: gate 43730995552 red at shellcheck, T-251; runner-image 43730998943 green; no release) | T-251 |
 | #180 | COORD-061: test labs: each hostile host class as a shared profile that any project brings up on any host (to podcrates) (to podvm) | closed (the part of podvm holds; `pod-lab` of podcrates is T-264) | T-244 |
-| #181 | COORD-062: what podrunner's help and manual need of pod-manual (the answer to PodUtils/podnet#584) (to podnet) (to podcrates) | open (podcrates takes `pod-manual`: PodUtils/podcrates#181) | T-248 |
+| #181 | COORD-062: what podrunner's help and manual need of pod-manual (the answer to PodUtils/podnet#584) (to podnet) (to podcrates) | closed (2026-11-24: podrunner takes `pod-manual` of podcrates v0.82.1 in fc1e52f, T-248, T-627) | T-248 |
 | #182 | COORD-063: the lab profiles that podrunner needs first, as `podvm lab run` (the answer to PodUtils/podvm#424) (to podvm) | closed (`podvm lab run` in the lane `bind-denied`) | T-244 |
 | #183 | COORD-064: podrunner's installer and the lessons of its first user runs (the answer to PodUtils/podcrates#182) (to podcrates) | open | T-249 |
 | #184 | COORD-065: how podrunner's record maps an issue to its entries (the answer to PodUtils/podcrates#183) (to podcrates) | open | T-250 |
