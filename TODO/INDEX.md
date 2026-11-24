@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**614 entries: 68 open, 57 partial, 16 blocked, 473 done.**
+**615 entries: 69 open, 57 partial, 16 blocked, 473 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 91 | 120 |
 | P2 | 14 | 22 | 9 | 243 | 288 |
-| P3 | 51 | 11 | 4 | 137 | 203 |
-| **All** | 68 | 57 | 16 | 473 | 614 |
+| P3 | 52 | 11 | 4 | 137 | 204 |
+| **All** | 69 | 57 | 16 | 473 | 615 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -662,3 +662,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-617](later.md) | P2 | S | later | docs | done | The hand-written state of GitHub #65, #66 and the comment on #292 is stale |
 | [T-618](later.md) | P3 | S | later | research | open | R-052 of cfb is named nowhere |
 | [T-619](later.md) | P1 | S | later | chore | done | Take podcrates `v0.82.1` (COORD-152 of podcrates) |
+| [T-620](later.md) | P3 | S | later | defect | open | A long state path leaves an empty `podrunner-HASH` directory in the temp directory |

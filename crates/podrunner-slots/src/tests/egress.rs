@@ -116,6 +116,24 @@ fn a_long_state_directory_gets_a_short_egress_directory() {
     assert_eq!(other, crate::run::egress_dir(&deep), "the same directory each time");
 }
 
+/// T-620: the short egress directory of a long state path is not a
+/// residue: it goes with its last unit.
+#[test]
+fn the_short_egress_directory_goes_when_the_unit_ends() {
+    let outer = TempDir::new();
+    let deep = TempDir(outer.0.join("d".repeat(70)));
+    std::fs::create_dir_all(&deep.0).unwrap();
+    let short = crate::run::egress_dir(&deep.0.join("state"));
+    assert!(!short.starts_with(&deep.0), "the state path takes the short directory: {}", short.display());
+    let cfg = config("");
+    let src = vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])];
+    let kind = vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }];
+    let mut bed = Bed::in_dir(cfg, src, kind, deep, Bed::clock());
+    bed.until(30, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
+    assert!(!short.exists(), "no residue in the temp directory: {}", short.display());
+}
+
 /// T-107: the policy of an offer is narrowed by the ceiling of the
 /// operator: it takes away, never adds.
 #[test]

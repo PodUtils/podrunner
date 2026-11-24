@@ -69,6 +69,12 @@ impl Bed {
 
 impl Drop for Bed {
     fn drop(&mut self) {
+        // A serve that a test kills leaves its socket directories. A long
+        // state path puts them in the temp directory (T-620).
+        let short = podrunner_slots::egress_dir(&self.state());
+        if !short.starts_with(&self.dir) {
+            let _ = std::fs::remove_dir_all(short);
+        }
         let _ = std::fs::remove_dir_all(&self.dir);
     }
 }

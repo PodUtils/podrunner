@@ -15308,3 +15308,35 @@ sh scripts/test-install.sh
 ## Done
 
 2026-11-24: `a100a40` (the take, T-602) and `632de1a` (T-595). (1) Each podcrates dependency, `Cargo.lock`, `fuzz/Cargo.lock` and `issue-sync.yml` (the workflow of `0d7832b`, `podcrates_ref: v0.82.1`) name `v0.82.1`; the lock adds `base64` of `pod-unit`. `images/pod-release.toml` and `images/fake-githome.toml` pin the assets of `v0.82.1`: each SHA-256 agrees with the signed `SHA256SUMS`; `pod-release` 0.82.1 verifies it as `release.yml` of podcrates at the tag (12 files); the ghcr.io index `sha256:d1cc9063...` is the one of the registry, and its layers hold the pinned binaries; `release-index.py` is the same file. (2) `system_unit` calls `unit.hardening.service_account()`; the test of the audit matches whole lines, and it failed on `RemoveIPC=yes` with no call. (3) No `match` on `Class` in podrunner, and no crate that it uses gives 71 or 78: the exit codes of `docs/cli.md` stay. The unit restarts on failure only: no `StartLimitInterval=0`, no golden change. The test of the ninth client: 30 of 30; the tests of `control`: 10 of 10 runs. (4) T-595 and T-602 done. Checks: fmt, clippy, the fuzz crate (clippy, 2 tests), `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR`: 765 passed, 0 failed, 61 ignored; `sh scripts/githome-conformance.sh`: 15 of 15; `sh scripts/test-install.sh`: 17 passed; `cargo todo check`. Level: proven by the checks here; not run in CI. Open: step 5, the COORD issue `(to podcrates)` after the push, and the gate, `level2.yml`, `runner-image.yml` and `user-gate.yml` on the commit of the take (a change of `images/` needs a new run of `runner-image.yml` first).
+
+# T-620: A long state path leaves an empty `podrunner-HASH` directory in the temp directory
+
+**Source:** the work of `scripts/agent/check.sh`, 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/agent/check.sh` failed at `tmp-left`: the tests left the entry `podrunner-1f792ad316f745cc` in their temp directory. `egress_dir` of `crates/podrunner-slots/src/run.rs` takes the short directory `TMPDIR/podrunner-HASH` (FNV-64 of the state path) for the socket directories of the units when `STATE/egress/u-N/egress.sock` would pass the socket path limit. Nothing removed it: `close_sockets` and the restart replay removed the directory of the unit only. In production, each `serve` or `run` with a long state path left one empty directory in the temp directory for each state path. In the tests, the state path is under the temp directory (`podrunner-slots-PID-N/state`, `podrunner-serve-NAME-PID/state`), so a long `TMPDIR` or a long pid made each test of the slots leave one directory (765 tests, hundreds of entries with `TMPDIR` 50 characters long). The name moves with the pid: the leak shows at some runs only. `mktemp -d` (a100a40) made the default `TMPDIR` 4 characters longer, and a test of the slots with a 7 digit pid then passed the limit.
+
+## Premise
+
+Read: `egress_dir`, `own_root` (it makes the root 0700, refuses a link, a file and a directory of another user), the callers of `socket_dir`. Measured on a development host: `cargo test --workspace --all-features` with `TMPDIR` 50 characters long left more than 100 entries in `TMPDIR` (16 with a unit directory in them: a unit that a test does not destroy); with a short `TMPDIR`, none. After step 1 alone, one entry was left, from `a_second_serve_is_refused_before_the_replay` (a SIGKILL of `serve` leaves its unit directories; step 2 covers it). Not measured: a host with a second user that owns the name. Two states with the same FNV-64 hash would share one root, with the same unit names; the chance is 2^-64 and `own_root` refuses a root of another user, so the result of a made-up collision is a refused unit, not a use of the directory.
+
+## Approach
+
+1. `own::end_socket_dir` removes the directory of the unit, and then the short root with `remove_dir` (an empty directory only; a root that holds a unit of the same state stays). It works only on a root that is a directory of this user and not a link. `close_sockets` and the replay of `Slots::reconcile` call it. `STATE/egress` stays.
+2. A test that makes a directory removes it at the drop: `TempDir` of the slots tests removes the short root of its state; the `Bed` of `crates/podrunner/tests/serve.rs` does the same after it killed a `serve` (`podrunner_slots::egress_dir` is public for it).
+
+## Prove
+
+```sh
+cargo test -p podrunner-slots --all-features --lib own::tests
+cargo test -p podrunner-slots --all-features --lib the_short_egress_directory_goes_when_the_unit_ends
+t=$(mktemp -d /tmp/long-prefix-XXXXXXXXXXXXXXXXXXXXXXXX); TMPDIR=$t cargo test --workspace --all-features; ls -A $t
+```
+
+The tests of `own::tests` and `the_short_egress_directory_goes_when_the_unit_ends` fail on the code before the change. The last `ls` prints nothing.

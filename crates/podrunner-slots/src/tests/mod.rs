@@ -72,6 +72,9 @@ impl TempDir {
 
 impl Drop for TempDir {
     fn drop(&mut self) {
+        // The short egress directory of a long state path is in the temp
+        // directory, not here (T-620).
+        let _ = std::fs::remove_dir_all(crate::run::egress_dir(&self.0.join("state")));
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }

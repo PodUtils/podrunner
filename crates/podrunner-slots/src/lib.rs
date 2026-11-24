@@ -44,6 +44,7 @@ pub use egress_port::{JavaOptions, Opened};
 pub use engine::{EgressPort, Job, Slots, Source, UnitKind};
 use pod_core::clock::Clock;
 use podrunner_schema::{ExitReason, UnitIds};
+pub use run::egress_dir;
 
 use crate::config::Config;
 use crate::state::{Line, State};
@@ -116,7 +117,7 @@ impl Slots {
                 if !clean {
                     self.degraded = Some(format!("the restart could not end {unit}"));
                 }
-                let _ = std::fs::remove_dir_all(run::socket_dir(&self.state_dir, unit));
+                own::end_socket_dir(&self.state_dir, unit);
             }
             let s = self.sources.iter().position(|x| x.cfg.name == source);
             if let Some(s) = s

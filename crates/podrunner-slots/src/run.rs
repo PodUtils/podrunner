@@ -30,7 +30,7 @@ impl Slots {
         if let Some(e) = &self.egress {
             e.close(unit.as_str());
         }
-        let _ = std::fs::remove_dir_all(socket_dir(&self.state_dir, unit));
+        crate::own::end_socket_dir(&self.state_dir, unit);
     }
 }
 
@@ -45,7 +45,7 @@ pub(crate) fn socket_dir(state: &std::path::Path, unit: &podrunner_schema::UnitI
 /// The directory of the socket directories: `STATE/egress`, or, when a
 /// socket path there would be too long, a short directory of this state
 /// directory under the temporary directory.
-pub(crate) fn egress_dir(state: &std::path::Path) -> std::path::PathBuf {
+pub fn egress_dir(state: &std::path::Path) -> std::path::PathBuf {
     let dir = state.join("egress");
     if dir.as_os_str().len() + "/u-18446744073709551615/egress.sock".len() <= SOCKET_PATH_MAX {
         return dir;
