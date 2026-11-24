@@ -20,7 +20,7 @@ its test, not podrunner at run time.
 - `prepare` takes a digest (`NAME@sha256:HEX`), never a tag
   (`payload-not-pinned`). It refuses a platform that is not the host's
   (`arch-mismatch`) unless emulation is named and the driver can emulate.
-- `start` gives a fresh root for each unit: no file of an earlier unit is
+- `start` gives a fresh root for each unit: no file of a previous unit is
   in it (the podvm kind: a tree of its own for each unit in one store of
   the units where the rung binds a volume, T-545). It writes the
   credential files into the runner root at mode 0600. A binary file (a
@@ -134,7 +134,7 @@ with a grandchild, a marker file in the working directory.
 | 22 | `no-credential-in-the-outputs` | The probe record (with `boundary_proof`), the observation and the residue hold no credential. |
 | 23 | `probe-starts-no-process` | Two probes leave no child process (run alone: it sees each child of the test process). |
 | 24 | `a-proc-dump-of-a-step-holds-no-credential` | With `container: hooks`: a step that dumps `/proc/*/cmdline` and `/proc/*/environ` finds a blob of its own environment (a positive control) and no credential (run alone). |
-| 25 | `destroy-reaches-an-orphan-with-no-tag` | An orphan with `setsid env -i` (no tag, a session of its own) is in `observe`, ends at `destroy`, and the count is 0. |
+| 25 | `destroy-reaches-an-orphan-with-no-tag` | An orphan with `setsid env -i` (no tag, its own session) is in `observe`, ends at `destroy`, and the count is 0. |
 | 26 | `a-killed-shim-is-not-clean` | The payload kills the parent of its top process with SIGKILL: `destroy` does not count 0 while the orphan lives. |
 | 27 | `a-confined-unit-reads-no-other-root` | With `boundary: confined` or more: a unit reads no marker of a root next to its own, and writes and reads its own root (a positive control). A kind that claims less skips it. |
 

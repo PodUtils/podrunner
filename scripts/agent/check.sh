@@ -1,7 +1,9 @@
 #!/bin/sh
 # The checks of AGENTS.md before each push: fmt, clippy, rustdoc and the
 # tests, the check of the record (cargo todo check), the size of the Rust
-# files (scripts/check-size.py, with its self-test), the self-test of the
+# files (scripts/check-size.py, with its self-test), the stale and narrative
+# text of the documents (scripts/check-docs.py, with its self-test), the
+# self-test of the
 # summary of the user-path gate (scripts/user-gate-summary.py), the
 # WebSocket attach of the user-path gate (scripts/ws-echo.py --self-test),
 # the checks of the boot of hosted-boot.yml (scripts/hosted/boot-checks.py
@@ -59,6 +61,8 @@ echo "record $r"; [ "$r" -eq 0 ] || { rc=1; head -20 "$log/record.log"; }
 echo "fuzz $z"; [ "$z" -eq 0 ] || { rc=1; tail -20 "$log/fuzz.log"; }
 { python3 -I scripts/check-size.py && python3 -I scripts/check-size.py --self-test; } > "$log/size.log" 2>&1; s=$?
 echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/size.log" | head -20; }
+{ python3 -I scripts/check-docs.py && python3 -I scripts/check-docs.py --self-test; } > "$log/docs.log" 2>&1; dc=$?
+echo "docs $dc"; [ "$dc" -eq 0 ] || { rc=1; grep -v "^ok \|^check-docs:" "$log/docs.log" | head -20; }
 python3 -I scripts/user-gate-summary.py --self-test > "$log/gate-summary.log" 2>&1; g=$?
 echo "gate-summary $g"; [ "$g" -eq 0 ] || { rc=1; grep -v "^ok " "$log/gate-summary.log" | head -20; }
 timeout 120 python3 -I scripts/ws-echo.py --self-test > "$log/ws.log" 2>&1; w=$?

@@ -169,7 +169,7 @@ the tools.
 
 * **podcrates**: a COORD issue of this repository titled
   `COORD-NNN: subject (to podcrates)`, as below. A direct message to the
-  session of podcrates is also allowed (the owner, 2026-11-18); the COORD
+  podcrates session is also allowed (the owner, 2026-11-18); the COORD
   issue keeps the record. Each ask
   for a crate goes there. podcrates writes each ask as an entry, answers
   with its id, and releases a tag. podrunner takes the crate by that tag

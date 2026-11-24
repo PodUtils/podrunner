@@ -77,6 +77,10 @@ jobs:
         run: |
           python3 -I scripts/check-size.py
           python3 -I scripts/check-size.py --self-test
+      - name: The stale and narrative text of the documents
+        run: |
+          python3 -I scripts/check-docs.py
+          python3 -I scripts/check-docs.py --self-test
       # T-528: the summary of user-gate.yml on a fixture of two lanes.
       - name: The summary of the user-path gate
         run: python3 -I scripts/user-gate-summary.py --self-test

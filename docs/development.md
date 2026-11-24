@@ -37,8 +37,11 @@ cargo todo check
 ```
 
 `sh scripts/agent/check.sh` runs them, rustdoc with `-D warnings`, the
-checks of `fuzz/`, the size of the Rust files, the check of the commit
-messages and the static build. The tests run with a `TMPDIR` of their
+checks of `fuzz/`, the size of the Rust files, the stale and narrative
+text of the documents (`scripts/check-docs.py`: a narrative marker, a
+stale pin, a missing path, a long `docs/HANDOFF.md`; a line with
+`<!-- ok: REASON -->` is exempt), the check of the commit messages and the
+static build. The tests run with a `TMPDIR` of their
 own, and the check fails when they leave an entry there: a test removes
 each directory that it makes, also on a panic (a guard that removes it
 at the drop). CI runs the same on each push (`.github/workflows/gate.yml`).

@@ -19,7 +19,7 @@ its service (`service_of`, T-145).
 | --- | --- | --- |
 | Credential files | `.runner`, `.credentials`, `.credentials_rsaparams` in the runner root (`files.rs`) | the broker URL, the OAuth client, and the RSA key that signs its assertion |
 | OAuth | `POST /_apis/oauth2/token` | the client assertion; the answer is the access token of the runner |
-| Broker session | `POST /session`, `DELETE /session` | the session of the runner, with its agent and its version |
+| Broker session | `POST /session`, `DELETE /session` | the runner session, with its agent and its version |
 | Broker messages | `GET /message` (a long poll) | the job request; a runner that is too old gets `RunnerVersionTooOld` |
 | Run service | `POST /acquirejob`, `POST /renewjob`, `POST /completejob` | the job message; the lock of the job; the conclusion, the step results and the outputs |
 | Results: steps | `POST /twirp/github.actions.results.api.v1.WorkflowStepUpdateService/WorkflowStepsUpdate` | the state of each step |
