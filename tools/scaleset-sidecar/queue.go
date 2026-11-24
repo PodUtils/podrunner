@@ -87,7 +87,8 @@ func (s *sidecar) next(capacity int, wait time.Duration) map[string]any {
 	}
 	gaveUp := s.GivenUp
 	// One time limit for the cancels and the lookups: the cancels take at
-	// most half of it, so a slow endpoint does not stop the offers.
+	// most half of it, so a slow endpoint does not stop the offers. While
+	// retries are due, the offers can get only the other half.
 	ctx, cancel := context.WithTimeout(s.ctx, nextBudget)
 	defer cancel()
 	retry, stop := context.WithTimeout(ctx, nextBudget/2)
@@ -149,6 +150,8 @@ func (s *sidecar) offerOf(b *batch, q *queued) map[string]any {
 		if !whole {
 			s.TrustLookupFailed++
 		}
+		q.job.attempt = in.attempt
+		s.dropOlderCancels(run, in.attempt)
 		return s.offerWith(q, in)
 	case notReached:
 		return s.pastLimit(q, now)

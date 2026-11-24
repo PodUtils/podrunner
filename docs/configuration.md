@@ -457,7 +457,8 @@ organization, the membership of its actor and its triggering actor
 Only a final answer of GitHub gives `unknown`: a 404, a 403 of a missing
 permission, a body that is not JSON, or a run object with no field. Each
 other answer is no answer: no reply in the time of the call, a 5xx, a 429,
-a 403 with `Retry-After` or `X-RateLimit-Remaining: 0`, a 401 (the sidecar
+a 403 with `Retry-After`, `X-RateLimit-Remaining: 0` or a message that
+names a rate limit, a 401 (the sidecar
 gets a new installation token), a network fault, and a fault of the token
 or of `sign`. Then the job stays queued, the jobs behind it are offered,
 and its run gets no call until its retry (5 s, then double, at most 60 s).
@@ -471,6 +472,23 @@ refuses it, and the sidecar cancels its run (`docs/decisions.md`, Q7).
 The sidecar names the job, the count of attempts and the last cause on
 stderr. `podrunner status` counts such an offer in `trust_unknown` of the
 source, and the refusal in `refused`.
+
+The cancel of a refused run (Q7) ends at a 202, or at a 409 whose message
+says that the run is completed. Each other 409 (a run that GitHub did not
+queue, a run that is not in progress) and each answer with no final meaning (a
+5xx, a 429, a 403 of a rate limit, a 401 of an App, no answer) keeps the
+cancel in a list of at most 256. A 404, a 403 of a missing permission and
+a 401 of a PAT end it with a line. Each `next` tries the due cancels again
+before its offers, in at most half of its time: while retries are due, the
+lookups of the offers get only the other half (about 2.5 s). The cancel
+endpoint takes a run id, not an attempt, so a retry reads the run first
+(with its ETag): it ends the cancel with no POST when the run is completed
+or another attempt runs, and the offer of a job of a newer attempt ends it
+at once. The waits are 5 s, then double, at most 60 s, and at most
+5 minutes after 4 calls; past 30 minutes the cancel is given up with a
+line that names the run. The retries use at most a fifth of the trust
+budget of the hour; past it they wait for the next hour, with one line.
+A stop of the sidecar names each cancel that is still in the list.
 
 The budget of the hour (the flag `-trust-budget` of the sidecar; default
 1000, 0 for no budget; `serve` does not set the flag) counts each call of GitHub that GitHub counts: the

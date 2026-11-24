@@ -38,10 +38,11 @@ type fakeGitHub struct {
 	cancels int
 }
 
-// reply is one scripted answer: a status and its headers.
+// reply is one scripted answer: a status, its headers and its body.
 type reply struct {
 	code   int
 	header map[string]string
+	body   string
 }
 
 // setDelay sets the time of each answer under the lock: the handler reads
@@ -121,6 +122,7 @@ func (f *fakeGitHub) serve(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set(k, v)
 		}
 		w.WriteHeader(rs[0].code)
+		_, _ = w.Write([]byte(rs[0].body))
 		return
 	}
 	owner := func() {

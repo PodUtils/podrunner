@@ -36,9 +36,10 @@ type job struct {
 	state    jobState
 	// The runner of the JIT configuration: a release removes it.
 	runner int64
-	// The run of the job, to cancel it after a refusal (T-169).
-	owner, repo string
-	run         int64
+	// The run of the job and its attempt (0 when not known), to cancel it
+	// after a refusal (T-169, T-623).
+	owner, repo  string
+	run, attempt int64
 }
 
 type sidecar struct {
@@ -57,9 +58,9 @@ type sidecar struct {
 	// messages of one job name it by its runner request, or only by its
 	// jobId (T-166).
 	byJobID map[string]string
-	// The runs that the sidecar cancelled (T-169), and the cancels that
-	// wait for a retry (T-623).
-	cancelled   map[int64]bool
+	// The attempts of runs that the sidecar cancelled (T-169), and the
+	// cancels that wait for a retry (T-623).
+	cancelled   map[runKey]bool
 	cancelRetry []*cancelTry
 	// The next call of each run with no final answer (queue.go).
 	waits map[int64]*retryWait
@@ -70,9 +71,11 @@ type sidecar struct {
 	lastCounts                 [3]int
 	// The statistics of the last message of GitHub.
 	stats *scaleset.RunnerScaleSetStatistic
-	// The names of the queued jobs, for the end of the sidecar.
-	heldMu sync.Mutex
-	held   []string
+	// The names of the queued jobs and the lines of the pending cancels,
+	// for the end of the sidecar.
+	heldMu   sync.Mutex
+	held     []string
+	pendings []string
 }
 
 func newSidecar(ctx context.Context, o options, signer *signer) (*sidecar, error) {
@@ -366,6 +369,12 @@ func (s *sidecar) forget(id string) {
 // sidecar gets no 409 "already has an active session" (T-168).
 func (s *sidecar) closeSession() {
 	if l := s.heldLine(); l != "" {
+		logf("%s", l)
+	}
+	s.heldMu.Lock()
+	pendings := s.pendings
+	s.heldMu.Unlock()
+	for _, l := range pendings {
 		logf("%s", l)
 	}
 	if s.closer == nil {

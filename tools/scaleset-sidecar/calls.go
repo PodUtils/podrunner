@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -55,9 +56,7 @@ func logf(format string, a ...any) {
 // a call past the budget is refused. A conditional read can use a tenth
 // more: its 304 is free, so the runs known before go on.
 func (t *trust) spend(gate, conditional bool) bool {
-	if time.Since(t.hourStart) >= time.Hour {
-		t.hourStart, t.used, t.spentSaid = time.Now(), 0, false
-	}
+	t.roll()
 	limit := t.budget
 	if conditional {
 		limit += t.budget / 10
@@ -72,7 +71,18 @@ func (t *trust) spend(gate, conditional bool) bool {
 		return false
 	}
 	t.used++
+	if t.cancelling {
+		t.cancelUsed++
+	}
 	return true
+}
+
+// roll starts the next hour of the budget when the hour ended.
+func (t *trust) roll() {
+	if time.Since(t.hourStart) >= time.Hour {
+		t.hourStart, t.used, t.spentSaid = time.Now(), 0, false
+		t.cancelUsed, t.cancelSaid = 0, false
+	}
 }
 
 func (t *trust) installationToken(ctx context.Context) (string, error) {
@@ -120,6 +130,12 @@ func rateLimited(h http.Header) bool {
 	return h.Get("Retry-After") != "" || h.Get("X-RateLimit-Remaining") == "0"
 }
 
+// rateLimitMessage: the message of a 403 of a rate limit. GitHub can send
+// a 403 of a secondary rate limit with no header of a rate limit (T-624).
+func rateLimitMessage(msg string) bool {
+	return strings.Contains(strings.ToLower(msg), "rate limit")
+}
+
 // get makes one GET of the REST API in the budget. With etag, GitHub
 // answers 304 when the object did not change: a 304 is not counted. An
 // error is errNoAnswer, errThrottled or errNotReached: each other answer
@@ -150,6 +166,9 @@ func (t *trust) get(ctx context.Context, path, etag string) (int, map[string]any
 	switch {
 	case code == http.StatusNotModified:
 		t.used--
+		if t.cancelling {
+			t.cancelUsed--
+		}
 		return code, nil, etag, nil
 	case code == http.StatusUnauthorized:
 		// The installation token ended or was revoked: get a new one.
@@ -167,6 +186,9 @@ func (t *trust) get(ctx context.Context, path, etag string) (int, map[string]any
 			return 0, nil, "", failed(ctx, err)
 		}
 		v = nil
+	}
+	if m, _ := v["message"].(string); code == http.StatusForbidden && rateLimitMessage(m) {
+		return code, nil, "", noAnswer("HTTP 403")
 	}
 	return code, v, resp.Header.Get("ETag"), nil
 }

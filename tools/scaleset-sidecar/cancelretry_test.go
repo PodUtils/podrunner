@@ -12,31 +12,56 @@ import (
 
 // cancelAPI is a fake GitHub for the cancel endpoint: it answers the
 // calls in turn with `codes` (the last one repeats), and it gives a new
-// installation token for each request of one.
+// installation token for each request of one. A read of a run gives its
+// attempt and status (with an ETag), and alice is a member of o.
 type cancelAPI struct {
-	mu     sync.Mutex
-	codes  []int
-	body   string
-	delay  time.Duration
-	posts  int
-	tokens int
-	auths  []string
-	srv    *httptest.Server
+	mu      sync.Mutex
+	codes   []int
+	body    string
+	delay   time.Duration
+	attempt int
+	status  string
+	started string
+	posts   int
+	tokens  int
+	reads   int
+	auths   []string
+	srv     *httptest.Server
 }
 
 func newCancelAPI(t *testing.T, codes ...int) *cancelAPI {
-	a := &cancelAPI{codes: codes}
+	a := &cancelAPI{codes: codes, attempt: 1, status: "in_progress"}
 	a.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		a.mu.Lock()
-		if strings.HasSuffix(r.URL.Path, "/access_tokens") {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/access_tokens"):
 			a.tokens++
 			n := a.tokens
 			a.mu.Unlock()
 			w.WriteHeader(http.StatusCreated)
 			fmt.Fprintf(w, `{"token":"t%d","expires_at":"2099-01-01T00:00:00Z"}`, n)
 			return
-		}
-		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/cancel") {
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/repos/o/r/actions/runs/"):
+			v := fmt.Sprintf(`{"event":"push","run_attempt":%d,"status":%q,"run_started_at":%q,"actor":{"login":"alice"},`+
+				`"triggering_actor":{"login":"alice"},"repository":{"id":1,"private":true},"head_repository":{"id":1}}`,
+				a.attempt, a.status, a.started)
+			a.mu.Unlock()
+			tag := fmt.Sprintf(`"%d"`, crc(v))
+			if r.Header.Get("If-None-Match") == tag {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			a.mu.Lock()
+			a.reads++
+			a.mu.Unlock()
+			w.Header().Set("ETag", tag)
+			_, _ = w.Write([]byte(v))
+			return
+		case r.Method == http.MethodGet && r.URL.Path == "/orgs/o/members/alice":
+			a.mu.Unlock()
+			w.WriteHeader(http.StatusNoContent)
+			return
+		case r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/cancel"):
 			a.mu.Unlock()
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -58,6 +83,24 @@ func newCancelAPI(t *testing.T, codes ...int) *cancelAPI {
 	return a
 }
 
+// set changes the attempt and the status of the run (a re-run, an end).
+func (a *cancelAPI) set(attempt int, status string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.attempt, a.status = attempt, status
+}
+
+// calls gives each request that GitHub counts: the posts, the tokens and
+// the reads that are not a 304.
+func (a *cancelAPI) calls() int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.posts + a.tokens + a.reads
+}
+
+// isCancelled: the attempt of the run is settled.
+func isCancelled(s *sidecar, run, attempt int64) bool { return s.cancelled[runKey{run, attempt}] }
+
 func (a *cancelAPI) count() (posts, tokens int) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -66,9 +109,9 @@ func (a *cancelAPI) count() (posts, tokens int) {
 
 // fastRetries shortens the waits and the age limit of the cancels.
 func fastRetries(t *testing.T, age time.Duration) {
-	a, b, c, d := retryFirst, retryMax, cancelMaxAge, cancelListMax
-	retryFirst, retryMax, cancelMaxAge = 10*time.Millisecond, 20*time.Millisecond, age
-	t.Cleanup(func() { retryFirst, retryMax, cancelMaxAge, cancelListMax = a, b, c, d })
+	a, b, c, d, e := retryFirst, retryMax, cancelMaxAge, cancelListMax, cancelSlowMax
+	retryFirst, retryMax, cancelMaxAge, cancelSlowMax = 10*time.Millisecond, 20*time.Millisecond, age, 20*time.Millisecond
+	t.Cleanup(func() { retryFirst, retryMax, cancelMaxAge, cancelListMax, cancelSlowMax = a, b, c, d, e })
 }
 
 func cancelSidecar(t *testing.T, api *cancelAPI) *sidecar {
@@ -93,7 +136,13 @@ func nextUntil(t *testing.T, s *sidecar, cond func() bool) {
 	t.Fatal("the condition did not hold in 3 s")
 }
 
-func refusedJob() *job { return &job{owner: "o", repo: "r", run: 5} }
+// conflict is a 409 of the cancel endpoint as GitHub writes it: each one
+// names the operation in its documentation_url.
+func conflict(msg string) string {
+	return `{"message":"` + msg + `","documentation_url":"https://docs.github.com/rest/actions/workflow-runs#cancel-a-workflow-run","status":"409"}`
+}
+
+func refusedJob() *job { return &job{owner: "o", repo: "r", run: 5, attempt: 1} }
 
 // T-623: a cancel that GitHub answers 502 is tried again by a later
 // `next`, and the run is marked at the 202 only.
@@ -102,12 +151,12 @@ func TestACancelThatFailsIsTriedAgain(t *testing.T) {
 	api := newCancelAPI(t, 502, 202)
 	s := cancelSidecar(t, api)
 	s.cancelRefused(refusedJob(), "tier-mismatch")
-	if p, _ := api.count(); p != 1 || s.cancelled[5] {
-		t.Fatalf("after the 502: %d posts, cancelled %v", p, s.cancelled[5])
+	if p, _ := api.count(); p != 1 || isCancelled(s, 5, 1) {
+		t.Fatalf("after the 502: %d posts, cancelled %v", p, isCancelled(s, 5, 1))
 	}
 	nextUntil(t, s, func() bool { p, _ := api.count(); return p >= 2 })
-	if !s.cancelled[5] || len(s.cancelRetry) != 0 {
-		t.Fatalf("after the 202: cancelled %v, list %d", s.cancelled[5], len(s.cancelRetry))
+	if !isCancelled(s, 5, 1) || len(s.cancelRetry) != 0 {
+		t.Fatalf("after the 202: cancelled %v, list %d", isCancelled(s, 5, 1), len(s.cancelRetry))
 	}
 	// Marked once: another refused job of the run, and more `next`, call nothing.
 	s.cancelRefused(refusedJob(), "tier-mismatch")
@@ -120,7 +169,8 @@ func TestACancelThatFailsIsTriedAgain(t *testing.T) {
 }
 
 // T-623: the other answers. A 429 and no answer are tried again; a 409
-// that says the run is complete ends the cancel; a 404 is final.
+// that says the run is completed ends the cancel; each other 409 of the
+// endpoint (with its real text) is tried again; a 404 is final.
 func TestTheAnswersOfTheCancelEndpoint(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -130,8 +180,12 @@ func TestTheAnswersOfTheCancelEndpoint(t *testing.T) {
 		done  bool
 	}{
 		{"429 then 202", []int{429, 202}, "", 2, true},
-		{"409 complete", []int{409}, `{"message":"Cannot cancel a workflow run that is completed."}`, 1, true},
-		{"409 other", []int{409, 202}, `{"message":"busy"}`, 2, true},
+		{"409 completed", []int{409}, conflict("Cannot cancel a workflow run that is completed."), 1, true},
+		{"409 not queued yet", []int{409, 202}, conflict("Cannot cancel a workflow run that has not been queued yet."), 2, true},
+		{"409 re-run not queued yet", []int{409, 202}, conflict("Cannot cancel a workflow re-run that has not yet queued."), 2, true},
+		{"409 not in progress", []int{409, 202}, conflict("Cannot cancel a workflow run that is not in progress."), 2, true},
+		{"403 secondary limit with no header", []int{403, 202},
+			`{"message":"You have exceeded a secondary rate limit. Please wait a few minutes before you try again."}`, 2, true},
 		{"404 is final", []int{404}, "", 1, true},
 		{"403 permission is final", []int{403}, `{"message":"Resource not accessible by integration"}`, 1, true},
 	}
@@ -146,8 +200,8 @@ func TestTheAnswersOfTheCancelEndpoint(t *testing.T) {
 				nextOnce(s)
 				time.Sleep(15 * time.Millisecond)
 			}
-			if p, _ := api.count(); p != c.posts || s.cancelled[5] != c.done {
-				t.Fatalf("%d posts, cancelled %v", p, s.cancelled[5])
+			if p, _ := api.count(); p != c.posts || isCancelled(s, 5, 1) != c.done {
+				t.Fatalf("%d posts, cancelled %v", p, isCancelled(s, 5, 1))
 			}
 		})
 	}
@@ -162,8 +216,8 @@ func TestACancelThatGetsA401TakesANewToken(t *testing.T) {
 	nextUntil(t, s, func() bool { p, _ := api.count(); return p >= 2 })
 	api.mu.Lock()
 	defer api.mu.Unlock()
-	if api.tokens != 2 || api.auths[0] != "Bearer t1" || api.auths[1] != "Bearer t2" || !s.cancelled[5] {
-		t.Fatalf("tokens %d, auths %v, cancelled %v", api.tokens, api.auths, s.cancelled[5])
+	if api.tokens != 2 || api.auths[0] != "Bearer t1" || api.auths[1] != "Bearer t2" || !isCancelled(s, 5, 1) {
+		t.Fatalf("tokens %d, auths %v, cancelled %v", api.tokens, api.auths, isCancelled(s, 5, 1))
 	}
 }
 
@@ -200,7 +254,7 @@ func TestACancelIsGivenUpPastTheAgeLimit(t *testing.T) {
 		}
 	})
 	p, _ := api.count()
-	if strings.Count(out, "given up") != 1 || !strings.Contains(out, "run 5 of o/r") || len(s.cancelRetry) != 0 || p < 2 {
+	if strings.Count(out, "given up") != 1 || !strings.Contains(out, "run 5 (attempt 1) of o/r") || len(s.cancelRetry) != 0 || p < 2 {
 		t.Fatalf("%d posts, list %d, log %q", p, len(s.cancelRetry), out)
 	}
 	time.Sleep(100 * time.Millisecond)
@@ -238,6 +292,7 @@ func TestARetryOfACancelStaysInTheBudgetOfNext(t *testing.T) {
 	api.delay = 5 * time.Second
 	api.mu.Unlock()
 	time.Sleep(30 * time.Millisecond)
+	step := s.cancelRetry[0].step
 	start := time.Now()
 	nextOnce(s)
 	took := time.Since(start)
@@ -247,7 +302,11 @@ func TestARetryOfACancelStaysInTheBudgetOfNext(t *testing.T) {
 	if took > nextBudget+200*time.Millisecond {
 		t.Fatalf("next took %v, the budget is %v", took, nextBudget)
 	}
-	if s.cancelled[5] || len(s.cancelRetry) != 1 {
-		t.Fatalf("a call that the time ended is no answer: cancelled %v, list %d", s.cancelled[5], len(s.cancelRetry))
+	if isCancelled(s, 5, 1) || len(s.cancelRetry) != 1 {
+		t.Fatalf("a call that the time ended is no answer: cancelled %v, list %d", isCancelled(s, 5, 1), len(s.cancelRetry))
+	}
+	// Review P3: the cut call is no try, and its wait does not grow.
+	if c := s.cancelRetry[0]; c.tries != 1 || c.step != step {
+		t.Fatalf("after the cut call: %d tries, the step %v (was %v)", c.tries, c.step, step)
 	}
 }

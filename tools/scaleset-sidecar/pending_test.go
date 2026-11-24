@@ -124,6 +124,9 @@ func TestAnAnswerThatIsNotFinalKeepsTheJobQueued(t *testing.T) {
 		{"429 of the run", "5", reply{code: 429, header: map[string]string{"Retry-After": "1"}}},
 		{"403 of a secondary limit", "5", reply{code: 403, header: map[string]string{"Retry-After": "60"}}},
 		{"403 of the hourly limit", "5", reply{code: 403, header: map[string]string{"X-RateLimit-Remaining": "0"}}},
+		// T-624 item 1: GitHub can send it with no header.
+		{"403 of a secondary limit with no header", "5", reply{code: 403,
+			body: `{"message":"You have exceeded a secondary rate limit. Please wait a few minutes before you try again."}`}},
 		{"401 of an old token", "5", reply{code: 401}},
 		{"502 of the membership", "alice", reply{code: 502}},
 		{"500 of the token", "access_tokens", reply{code: 500}},

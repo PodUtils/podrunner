@@ -15,6 +15,9 @@ import (
 // job-offer.v1, and "unknown" when the lookup failed.
 type trustInputs struct {
 	event, headIsFork, actorClass, visibility string
+	// attempt: the run_attempt of the run object, 0 when not known. Not
+	// on the wire: a cancel of a refused job names its attempt (T-623).
+	attempt int64
 }
 
 // The events that the tier rule names; another is "other".
@@ -64,6 +67,11 @@ type trust struct {
 	hourStart time.Time
 	spentSaid bool
 	Throttled int
+	// The calls of the retries of cancels in the hour: they have a share
+	// of the budget, so the offers keep their lookups (T-623).
+	cancelUsed int
+	cancelling bool
+	cancelSaid bool
 }
 
 // runKey: a re-run keeps the run id and the actor; its triggering actor
@@ -197,6 +205,7 @@ func (t *trust) read(b *batch, owner, repo string, run int64, messageEvent strin
 		return v.in, true, at, nil
 	}
 	out := unknown
+	out.attempt = int64(attempt)
 	if e, ok := r["event"].(string); ok {
 		out.event = eventWord(e)
 	}
