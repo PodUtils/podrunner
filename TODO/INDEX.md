@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**620 entries: 70 open, 57 partial, 16 blocked, 477 done.**
+**621 entries: 70 open, 58 partial, 16 blocked, 477 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 2 | 24 | 3 | 91 | 120 |
-| P2 | 15 | 22 | 9 | 245 | 291 |
+| P1 | 1 | 25 | 3 | 91 | 120 |
+| P2 | 16 | 22 | 9 | 245 | 292 |
 | P3 | 52 | 11 | 4 | 139 | 206 |
-| **All** | 70 | 57 | 16 | 477 | 620 |
+| **All** | 70 | 58 | 16 | 477 | 621 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -415,7 +415,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-368](later.md) | P3 | S | later | defect | open | The two executors give a different console |
 | [T-369](later.md) | P3 | S | later | defect | open | The installer names no command to add its binary directory to PATH |
 | [T-370](later.md) | P3 | S | later | defect | open | A run does not say which configuration files it read |
-| [T-371](later.md) | P1 | M | later | defect | open | The user gate has no lane of a host with DNS only through an authenticated proxy |
+| [T-371](later.md) | P1 | M | later | defect | partial | The user gate has no lane of a host with DNS only through an authenticated proxy |
 | [T-372](later.md) | P1 | M | later | release | partial | The user gate checks success paths only |
 | [T-373](later.md) | P2 | S | later | defect | done | `--runner-dir` writes the runner files, a private key with them, at mode 0644 |
 | [T-374](later.md) | P2 | S | later | defect | done | `--state` writes the outputs of the jobs into a file that each user can read |
@@ -668,3 +668,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-623](later.md) | P2 | S | later | defect | done | A cancel of a refused run that fails is never tried again |
 | [T-624](later.md) | P3 | M | later | defect | open | Faults and limits of the scale-set trust lookups that end a job with no specific cause |
 | [T-625](later.md) | P2 | S | later | defect | done | The attempt of a refused job of the past-limit path: a lost cancel |
+| [T-626](later.md) | P2 | S | later | release | open | `release.yml` needs a green `runner-image.yml` run of the release commit, with no `images_run` input |

@@ -45,3 +45,56 @@ release; P2: a user needs a work-around; P3: a nit), the command, its
 output, and what you expected. Then the list of what you could not test,
 and why. The lead session makes an entry of each finding; a P1 or a P2
 blocks the release.
+
+## A round before the release URL exists
+
+When the release is not published, the lead session builds the kit from a
+run of `user-gate.yml` (T-246). The files of that run are the files that
+the release will publish, byte for byte.
+
+The kit:
+
+1. The files of the release: `gh run download RUN -n user-gate-assets`
+   into the kit directory (the binaries, the image archives, the installer
+   with its pins, the bundles, `SHA256SUMS`).
+2. podvm and podnet: their releases, at the versions that `images/podvm.toml`
+   and `images/podnet.toml` pin.
+3. The documents of the commit of the run: `README.md` and `docs/`.
+4. One `env.sh` with the proxy and the CA bundle of the host. The agent
+   sources it before each command.
+5. The notes of the release candidate (`CHANGES.md`, section `## next`,
+   and the draft notes).
+
+The users:
+
+* Make one user for each agent with `useradd`, each with its own home and
+  its own work directory. Two agents never share a user, a directory or a
+  port.
+* Each user has no root. Run the agent through `scripts/lab/nonroot.sh`:
+  the process must show `CapEff` 0 in `/proc/self/status`.
+
+The install route (the notes of a release say the online route, which needs
+the release URL). Give the agent one of these:
+
+* The offline bundle: `sh podrunner-install.sh --bundle DIR`.
+* A mirror with the paths of the release:
+  `python3 -m http.server PORT --bind 127.0.0.1` in the kit directory, then
+  `PODRUNNER_MIRROR=http://127.0.0.1:PORT` with the installer.
+
+The agents:
+
+* Start two or more blind QA agents with a fresh context (the ruling
+  "Subagents" of `docs/decisions.md`: Sonnet at high effort). Each gets this
+  page, the kit and the quick start of the notes, and nothing of the work of
+  the session.
+* Each agent follows "The rules" and "The steps" above with the kit in
+  place of the release URL.
+* Each finding has a severity (P1, P2 or P3), the command, its output, and
+  what the agent expected. The lead session makes an entry of each finding.
+  A P1 or a P2 blocks the release.
+* The record of the round names the run of `user-gate.yml`, the kit, the
+  agents, and the entries of the findings (T-246).
+
+A round with this kit does not test the online install from the release
+URL. The lead session runs that step as a user with no root after the
+release, and the notes say so.

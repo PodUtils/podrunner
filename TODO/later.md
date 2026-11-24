@@ -3877,6 +3877,8 @@ State (2026-11-15, the first draft): `.github/workflows/user-gate.yml` (dispatch
 
 State (2026-11-15, the first run): user-gate 43743490768 on `f0fd5f2` (podvm beta.22): in each of the four lanes the install from the bundle and from a mirror, the quick start, `doctor --run` and `hello` on podvm and on a runner directory passed. The corpus failed: the links of tar on podvm (T-232, T-253), the made-up token (T-254), the rate limit of the API (T-253), and express on `--runner-dir` (T-255); `--microvm` refused the binary of the install (T-253). Next: the run on the fixes and podvm beta.24.
 
+State (2026-11-24, since 2026-11-17): the gate has nine lanes (`plain`, `small-tmp`, `userns-off`, `userns-on`, `inherited-fds`, `proxy-only`, `proxy-only-dns`, `bind-denied`, `serve-incus-kvm`) and the checks `errors` (T-372), `rung`, `confine`, `pids`, `pty`, `hold:podvm`, `lab:vnet` and `serve:job`; the summary gives the times of each row (T-528); the install checks each file against `SHA256SUMS` and `release-index.json` (T-523); `images_run` takes an older `runner-image.yml` run when `images/` is the same. The last run is user-gate 45276522625 on `f694571` (2026-11-23): the jobs `prepare`, `build` (x86_64 and aarch64), `assets`, the nine lanes and `summary` all succeeded. Level: proven in CI on GitHub-hosted runners. Open: the planted defect of the Prove (the defect of T-217 put back on a branch, a red run); a user-gate run on the commit of `v0.1.0-beta.8` (`docs/decisions.md`, "beta.8"); a lane on aarch64. Not run on a constrained host as a user, but by the QA rounds of T-246.
+
 
 # T-244: The host lanes of the user-path gate
 
@@ -3922,6 +3924,8 @@ State (2026-11-15, the lanes): `user-gate.yml` (T-243) has the lanes `plain` (`n
 State (2026-11-15, podvm beta.24): podvm `0.2.0-beta.24` has `podvm lab run`, `lab check` and `lab profiles` (PodUtils/podvm#430) and is pinned. The lane `bind-denied` of `user-gate.yml` installs as a user with no root, then runs `podvm lab check bind-denied,getsockname-denied`, `doctor --run` (it must say `FAIL loopback` with a fix) and `podrunner run` (it must fail and name the bind and its fix; an xfail of T-220, which fails the lane when the run passes) in that lab (`scripts/user-gate.py --podvm-lab`). Measured here with podvm beta.24 and a build of this tree: each part of the lab holds, and doctor and the run give those lines. Next: the first run of the gate; `userns-off`, `small-tmp` and `inherited-fds` from `podvm lab run` in place of the scripts; `proxy-only` (podnet).
 
 State (2026-11-17): the part of podvm is done: `podvm lab run` and `lab check` in the lane `bind-denied`, green in user-gate 44051472680; GitHub #180 and #182 closed (PodUtils/podvm#466). The rest is the crate `pod-lab` of podcrates, which T-264 takes with the next tag of podcrates.
+
+State (2026-11-24, since 2026-11-17): each host class has its lane in `user-gate.yml`: `plain`, `small-tmp`, `userns-off`, `userns-on` (the namespace rung of podvm), `inherited-fds`, `proxy-only`, `proxy-only-dns` (no resolver, a proxy with a login; T-371), `bind-denied` (`podvm lab run`) and `serve-incus-kvm`. All nine are green in user-gate 45276522625 on `f694571` (2026-11-23); level: proven in CI on GitHub-hosted runners. Open: a lane on aarch64; the take of the crate `pod-lab` (T-264, partial); a new lane for each new host class that a QA round finds.
 
 
 # T-245: The command line as a contract
@@ -3981,6 +3985,8 @@ The record of each release names the QA run and its findings: `grep -n 'adversar
 State (2026-11-16): the first QA, two agents on `12cb64e` on this sandbox (`--runner-dir` only; no image of podvm, no installer before the release), found 2 P1, 11 P2 and 7 groups of P3: T-265 to T-284. The release of `v0.1.0-beta.7` waits for them and for a second QA. 2026-11-16: the second QA (two new agents, new users, the release build of `f5d1de7` with the version `0.1.0-beta.7`) found 9 P2 and many P3: T-287 to T-298; each P2 is fixed. The third QA runs on `0305f3c`.
 
 State (2026-11-16, round 3): two agents with a fresh context, as `qa1` and `qa2` with no root, on the release files of `12a1300` (user-gate 43816078517) with podvm `0.2.0-beta.24`, behind a proxy that intercepts TLS, no KVM. Agent A: T-300 to T-308 (P1: T-300, T-302) and T-260. Agent B: T-309 to T-316 (P1: T-309), and B-03 is T-302. The lead session: T-301 and T-317 (podvm `0.2.0-beta.25`). The release waits for each P1 and P2 of them.
+
+State (2026-11-24, since 2026-11-17): rounds 4 and 5 (`docs/HANDOFF.md`, "The release of `v0.1.0-beta.7`"). Round 4: agent B found T-318 to T-323 and T-203 (each P1 and P2 done); agent A (user `qa3`) stopped before its report and gave no findings, so round 4 had one agent. Round 5 ran on the files of user-gate 44025228142 (`a238f8d`, podvm `v0.2.0-beta.30`), with the users `qa6` and `qa7` with no root and the kit `/srv/qa-kit` (the files of a user-gate run, podvm from its release, the documents, `env.sh` with the proxy and the CA of the host): agent 1 found no P1 and seven P2 (each done; P3: T-331), agent 2 found no P1 and six P2 (each done; P3: T-339); T-324 to T-338 are the P2 of the round (T-326 by a call: no compiler in the base image). `v0.1.0-beta.7` was released on 2026-11-17 (release run 44066276664 on `129310e`); the online quick start from the release URL passed as `qa6`. A user QA of beta.7 after the release gave T-340 to T-393. The user-gate run 45276522625 on `f694571` is green in all nine lanes. Open: QA round 6 for `v0.1.0-beta.8` with two blind agents, on the kit of a `user-gate.yml` run before the release URL exists (`docs/qa-brief.md`, "A round before the release URL exists"); each P1 and P2 of it blocks the release. Level: proven on a constrained host as a user for rounds 1 to 5; round 6 is not run.
 
 
 # T-247: The notes of a release name the level of the proof of each claim
@@ -7030,6 +7036,8 @@ In the code (2026-11-17): step 2, the fix in podrunner: an egress module with a 
 
 In the code (2026-11-18): step 1, the root fix: podcrates `v0.70.0` (PodUtils/podcrates@T-862) sends an allowed name with no local address to the upstream in the names mode, and podrunner takes the tag. Test `names_upstream_with_no_resolver` (`podrunner-egress`): a resolver with no address for each name, an upstream that takes names: the allowed name gets a tunnel, a denied name gets 403. Open: the lane of T-371 and the line of `doctor`.
 
+State (2026-11-24): the lane `proxy-only-dns` of T-371 is green in user-gate 45276522625 on `f694571` (proven in CI on GitHub-hosted runners). Open: the line of `doctor` ("the system resolver has no address for github.com; names go through the proxy"), and a proxy that refuses a CONNECT to the address of a DoH server.
+
 # T-352: `image verify` cannot verify the runner image of the release
 
 **Source:** a user QA report of `v0.1.0-beta.7` (2026-11-17), finding F2; the triage of the report against `main` at `b752051`
@@ -7527,7 +7535,7 @@ The report and its logs (not in the repository), read on 2026-11-17; the triage 
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -7544,6 +7552,8 @@ Add a lane `proxy-only-dns` (or options of `proxy-only.sh`): no working resolver
 ## Prove
 
 `cargo test -p podrunner`; The lane fails on `b752051` (F1) and passes after the fix.
+
+State (2026-11-24): the lane `proxy-only-dns` is in `.github/workflows/user-gate.yml` (`LAB_NO_DNS=1 LAB_PROXY_AUTH=1 sh scripts/lab/proxy-only.sh`, executors `podvm` and `runner-dir`; commit `5b2d69a`). It is green in user-gate 45276522625 on `f694571` (jobs list read from the API on 2026-11-24): the corpus and `hold:podvm` pass in it (proven in CI on GitHub-hosted runners). Left: (1) the demand that the lane fails on `b752051` has no run; (2) the Approach asks for `image verify` of the real release asset in the lane, and `scripts/user-gate.py` has no such check (T-352 is open). Set `done` when a run of the lane on the code of `b752051` is red (a branch with the code before `5b2d69a`), and the check of (2) is in the lane or moved to T-352.
 
 # T-372: The user gate checks success paths only
 
@@ -15542,3 +15552,28 @@ Read: `tools/scaleset-sidecar/cancel.go`, `queue.go`, `sidecar.go`, `trust.go` a
 ## Done
 
 2026-11-24, `51d81a4`. `dropOlderCancels` skips a cancel with attempt 0. A job keeps `since` (the time that it came). `attemptOf(run, since)` gives the attempt of the kept run object only when its read began after the job came, else 0; `cancelRefused` checks `cancelled` only for an attempt that is not 0. `markCancelled` sets no key of attempt 0: it keeps the time of the cancel (`cancelledAt`), which covers each job of the run that came before it (so the jobs of one run that are refused with no attempt make one POST, as before), and the memory of both is bounded (4096). A cancel keeps the arrival of its job. `judgeAttempt` of the retry takes the running attempt as the refused one when it is attempt 1, or when `run_started_at` is not after the arrival of the job. A start later than the arrival by more than 2 minutes is a re-run: the cancel ends with a line and no POST. A start inside the 2 minutes, absent, or not valid is not known: one more read, then a line and no POST. The call is in the row of T-623 in `docs/decisions.md`. The log lines name an attempt 0 "unknown". `cancelattempt_test.go` has 5 tests (9 cases); all fail on `bbc9392` (with the field `job.since` added to it so that the tests build): a cancel with attempt 0 stays when a job of attempt 1 is offered; a stale kept run object gives no attempt (2 cases fail: a `cancelled` key of it skips the cancel, and a failed POST keeps its attempt for the retry; the control case with a read after the job came holds); `cancelled[{R,0}]` is never set (a 202 and a 404); an absent or not valid `run_started_at`, a start inside the margin, and a re-run that began after the arrival but before the refusal give no POST (4 cases); the log lines say "unknown". `CGO_ENABLED=1 go test -race -count=3 ./...` passes in both Go modules (70 tests in the sidecar); gofmt and go vet are clean; the static builds pass `scripts/check-static.sh`; `cargo fmt`, clippy, and `cargo test --workspace --all-features` with the runner pass (779 passed, 63 ignored; the TMPDIR is empty after); the three ignored suites of the gate pass; the fuzz check and `scripts/test-install.sh` (17) pass. Level: not run against GitHub; proven with the fake API only.
+
+# T-626: `release.yml` needs a green `runner-image.yml` run of the release commit, with no `images_run` input
+
+**Source:** the session of 2026-11-24, in the preparation of `v0.1.0-beta.8` (`docs/decisions.md`, "beta.8")
+**Category:** release
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The job `check` of `.github/workflows/release.yml` reads the runs of `runner-image.yml` with `head_sha` equal to the release commit and `status=success`. It has no `images_run` input. A release commit that changes only documents or the record has no such run, so a release needs a new `runner-image.yml` run on it, which takes about 2.5 hours. `.github/workflows/user-gate.yml` has the input `images_run` (the id of a green `runner-image.yml` run), and it accepts a run of an older commit when `images/` is the same at both commits. Each docs-only release commit costs a new `runner-image.yml` run for `release.yml`, and `user-gate.yml` needs none.
+
+## Premise
+
+I read the job `check` of `release.yml` (the `gh api` call of `runner-image.yml/runs?head_sha=$sha&status=success`, and `[ -z "$VERSION" ] || exit 1` when it finds none) and the step `p` of the job `prepare` of `user-gate.yml` (the check of `images_run`: the path of the run, its conclusion, and `git diff --quiet RUN_SHA SHA -- images/` with the exclusions `images/fake-githome.toml`, `images/pod-release.toml` and `images/hosted`), both on 2026-11-24. I did not run either workflow for this entry.
+
+## Approach
+
+Give `release.yml` the input `images_run`, with the rules of `user-gate.yml`: a number (digits only); the run is `.github/workflows/runner-image.yml` with the conclusion `success`; when its `head_sha` is not the release commit, `images/` is the same at both commits (the same `git diff --quiet` with the same exclusions, one place for the list of the exclusions: a script of `scripts/` that both workflows call, so that the two cannot differ); an empty input keeps today's rule (the green run of the release commit). The run with a version and the run on the tag (the dispatch on the ref of the tag) use the same input, and the notes of the release name the run. Write the rule in `docs/maintenance.md`, "A release".
+
+## Prove
+
+`actionlint .github/workflows/release.yml .github/workflows/user-gate.yml` passes; a test in `scripts/test-install.sh` runs the shared script of the rule with a fake `gh` and a repository of two commits: it accepts an older run when only a file outside `images/` changed, and it refuses when `images/runner/runner.toml` changed; a dry run of `release.yml` on a docs-only commit with `-f images_run=RUN` reports the images of RUN.
