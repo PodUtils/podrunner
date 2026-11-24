@@ -37,6 +37,12 @@ extern "C" fn on_signal(sig: libc::c_int) {
         // SAFETY: write is async-signal-safe.
         unsafe { libc::write(2, m.as_ptr().cast(), m.len()) };
     }
+    if n == 1 && sig != libc::SIGHUP {
+        // A second signal is not lost: say that the stop goes on (T-639).
+        let m = b"podrunner: stopping: already stopping; a third signal ends podrunner at once\n";
+        // SAFETY: write is async-signal-safe.
+        unsafe { libc::write(2, m.as_ptr().cast(), m.len()) };
+    }
     if n >= 2 {
         // SAFETY: _exit is async-signal-safe.
         unsafe { libc::_exit(130) };

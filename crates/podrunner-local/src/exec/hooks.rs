@@ -7,6 +7,9 @@ use podrunner_broker_fake::Job;
 use super::InUnit;
 use super::images::registries;
 
+/// The longest wait for the hook server at the end of a job.
+const STOP_WAIT: std::time::Duration = std::time::Duration::from_secs(10);
+
 /// The container hooks of one unit (T-093): the relay and the control
 /// socket in its socket directory, served by a thread until [`Hooks::stop`].
 pub(super) struct Hooks {
@@ -18,21 +21,34 @@ pub(super) struct Hooks {
 }
 
 impl Hooks {
-    /// End the server; the refusals of the hook calls.
+    /// End the server; the refusals of the hook calls. A hook call that
+    /// still runs after [`STOP_WAIT`] stays behind: the run does not wait
+    /// for it (T-639).
     pub(super) fn stop(self) -> Vec<String> {
         self.stop.store(true, std::sync::atomic::Ordering::SeqCst);
         // The server checks its flag at each connection: wake it.
         let _ = std::os::unix::net::UnixStream::connect(self.dir.join("ctl.sock"));
-        let _ = self.thread.join();
+        let t = std::time::Instant::now();
+        while !self.thread.is_finished() && t.elapsed() < STOP_WAIT {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let mut out: Vec<String> = match self.thread.is_finished() {
+            true => {
+                let _ = self.thread.join();
+                Vec::new()
+            }
+            false => {
+                vec![format!("a hook call did not end in {} s; the run does not wait for it", STOP_WAIT.as_secs())]
+            }
+        };
         let _ = std::fs::remove_dir_all(logs_dir(&self.dir));
-        self.unit
-            .lock()
-            .map(|u| {
-                let codes = u.refusals.iter().map(|r| format!("{r:?}"));
-                // The cause of each refusal of the driver, for the log of the run.
-                codes.chain(u.driver_errors.iter().map(|e| format!("the driver: {e}"))).collect()
-            })
-            .unwrap_or_default()
+        // A call that still runs holds the unit: no wait for it either.
+        if let Ok(u) = self.unit.try_lock() {
+            out.extend(u.refusals.iter().map(|r| format!("{r:?}")));
+            // The cause of each refusal of the driver, for the log of the run.
+            out.extend(u.driver_errors.iter().map(|e| format!("the driver: {e}")));
+        }
+        out
     }
 }
 

@@ -400,10 +400,9 @@ impl Executor for InUnit {
         // Still running at the limit: end the unit (destroy below).
         let timed_out = matches!(waited, Ok(None)) && !unreached;
         let t = Instant::now();
-        while broker.completions().is_empty() && t.elapsed() < self.grace {
+        while !cancelled && broker.completions().is_empty() && t.elapsed() < self.grace {
             std::thread::sleep(Duration::from_millis(50));
         }
-        let refusals = hooks.map(Hooks::stop).unwrap_or_default();
         // No result: keep the end of the output of the unit, before it goes.
         let output = match broker.completions().is_empty() {
             true => self.driver.unit_logs(&id).map(|o| tail(&o)).ok(),
@@ -412,8 +411,16 @@ impl Executor for InUnit {
         // The hosts that the egress policy of the unit refused, before the
         // grant ends: the log names them.
         let denied = self.egress.as_ref().map(|(e, _)| e.denials(id.as_str())).unwrap_or_default();
-        crate::enter::forget(job.as_str());
-        let residue = self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"));
+        let destroy = || {
+            crate::enter::forget(job.as_str());
+            self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"))
+        };
+        // A job that did not end can hold a hook call on its container step
+        // until the container ends: the unit and its containers go first,
+        // so the stop of the hooks waits for no step (T-639).
+        let first = matches!(waited, Ok(None)).then(destroy);
+        let refusals = hooks.map(Hooks::stop).unwrap_or_default();
+        let residue = first.unwrap_or_else(destroy);
         end_sockets(&sockets);
         // The workspaces of the job, also of a failed one (T-138).
         let exported = match (&work, &self.export) {
@@ -487,5 +494,7 @@ fn tail(out: &[u8]) -> String {
     String::from_utf8_lossy(&out[start..]).into_owned()
 }
 
+#[cfg(test)]
+mod cancel_tests;
 #[cfg(test)]
 mod tests;
