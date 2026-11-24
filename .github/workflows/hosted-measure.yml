@@ -81,7 +81,9 @@ jobs:
       - name: Free the preinstalled trees
         run: |
           set -eu
-          trap 'sh scripts/hosted/space.sh mark "$M" free $?' EXIT
+          # A failed mark must not change the exit code of the step.
+          end() { st=$?; sh scripts/hosted/space.sh mark "$M" free "$st" || true; exit "$st"; }
+          trap end EXIT
           # The trees of the tools of the runner image: no step of this
           # job uses them. The size of each goes into the record.
           : > "$M/freed.tsv"
@@ -107,7 +109,9 @@ jobs:
           MARGIN: ${{ inputs.margin }}
         run: |
           set -eu
-          trap 'sh scripts/hosted/space.sh mark "$M" place $?' EXIT
+          # A failed mark must not change the exit code of the step.
+          end() { st=$?; sh scripts/hosted/space.sh mark "$M" place "$st" || true; exit "$st"; }
+          trap end EXIT
           me="$(id -u):$(id -g)"
           # The loop files of joined and btrfs: one on / and one on /mnt.
           # / keeps the margin of the boot and 2 GiB for the runner and
@@ -197,7 +201,9 @@ jobs:
           PLACE: ${{ inputs.place }}
         run: |
           set -eu
-          trap 'sh scripts/hosted/space.sh mark "$M" incusd $?' EXIT
+          # A failed mark must not change the exit code of the step.
+          end() { st=$?; sh scripts/hosted/space.sh mark "$M" incusd "$st" || true; exit "$st"; }
+          trap end EXIT
           eval "$(python3 -I - <<'PY'
           import tomllib
           pin = tomllib.load(open("images/podvm.toml", "rb"))
@@ -250,7 +256,9 @@ jobs:
           FULL: ${{ inputs.full }}
         run: |
           set -eu
-          trap 'sh scripts/hosted/space.sh mark "$M" pull $?' EXIT
+          # A failed mark must not change the exit code of the step.
+          end() { st=$?; sh scripts/hosted/space.sh mark "$M" pull "$st" || true; exit "$st"; }
+          trap end EXIT
           if [ "$FULL" = all ]; then set -- --all --ref hosted:full; else set -- --ref hosted:core; fi
           dig=$(python3 -I scripts/hosted/slice.py --digest "$DIGEST" "$@" --out "$W/layout")
           echo "IMAGE=hosted@$dig" >> "$GITHUB_ENV"
@@ -258,7 +266,9 @@ jobs:
       - name: Tar the layout
         run: |
           set -eu
-          trap 'sh scripts/hosted/space.sh mark "$M" tar $?' EXIT
+          # A failed mark must not change the exit code of the step.
+          end() { st=$?; sh scripts/hosted/space.sh mark "$M" tar "$st" || true; exit "$st"; }
+          trap end EXIT
           # --remove-files: the layout and the tar are not both on the disk.
           (cd "$W/layout" && find . -type f | sed 's#^\./##' | sort |
             tar -cf "$W/image.tar" --no-recursion --remove-files -T -)
@@ -267,7 +277,9 @@ jobs:
       - name: Load into the podvm store
         run: |
           set -eu
-          trap 'sh scripts/hosted/space.sh mark "$M" load $?' EXIT
+          # A failed mark must not change the exit code of the step.
+          end() { st=$?; sh scripts/hosted/space.sh mark "$M" load "$st" || true; exit "$st"; }
+          trap end EXIT
           "$RUNNER_TEMP/podvm" load -i "$W/image.tar"
           rm -f "$W/image.tar"
       - name: Import into incusd
@@ -285,7 +297,9 @@ jobs:
             kill "$trace" 2> /dev/null || true
             # shellcheck disable=SC2086 # $kids is a list of pids
             [ -z "$kids" ] || kill $kids 2> /dev/null || true
-            sh scripts/hosted/space.sh mark "$M" import "$st"
+            # A failed mark must not change the exit code of the step.
+            sh scripts/hosted/space.sh mark "$M" import "$st" || true
+            exit "$st"
           }
           trap stop EXIT
           # create imports the image and makes the root of an instance in
@@ -296,6 +310,7 @@ jobs:
           [ "$rc" -eq 0 ] || exit "$rc"
           sudo incus list --format csv -c nsS | tee -a "$M/info.txt"
       - name: Boot when it fits
+        timeout-minutes: 30
         env:
           MARGIN: ${{ inputs.margin }}
         run: |
@@ -314,7 +329,8 @@ jobs:
           stop() {
             st=$?
             stop_monitor
-            sh scripts/hosted/space.sh mark "$M" boot "$st"
+            sh scripts/hosted/space.sh mark "$M" boot "$st" || true
+            exit "$st"
           }
           trap stop EXIT
           podvm=$RUNNER_TEMP/podvm
@@ -322,15 +338,17 @@ jobs:
           # podvm run removes it. A failed boot of podvm run leaves no
           # console and no log, so this start keeps them. Each command
           # can fail: the file is the record, not a check.
-          name=$(sudo incus list --format csv -c n 2> /dev/null | sed -n 1p) || true
+          # The instance of this step only (podvm names it after --name):
+          # incusd can hold others.
+          name=$(timeout 60 sudo incus list --format csv -c n 2> /dev/null | grep -F measure | head -n 1) || true
           name=${name:-measure}
           d=$M/boot-diag.txt
           {
             echo "## instance $name"
-            sudo incus start "$name" || true
+            timeout 60 sudo incus start "$name" || true
             state=""
             for _ in $(seq 24); do
-              state=$(timeout 20 sudo incus exec "$name" -- systemctl is-system-running 2>&1) || true
+              state=$(timeout 20 sudo incus exec "$name" -- systemctl is-system-running 2> /dev/null | head -n 1) || true
               case $state in running | degraded) break ;; esac
               sleep 5
             done
@@ -341,17 +359,17 @@ jobs:
             echo "## journalctl -b -n 200"
             timeout 30 sudo incus exec "$name" -- journalctl -b --no-pager -n 200 2>&1 || true
             echo "## incus console --show-log"
-            sudo incus console --show-log "$name" 2>&1 || true
+            timeout 60 sudo incus console --show-log "$name" 2>&1 || true
             echo "## incus info --show-log"
-            sudo incus info --show-log "$name" 2>&1 || true
+            timeout 60 sudo incus info --show-log "$name" 2>&1 || true
             echo "## incus config show --expanded"
-            sudo incus config show "$name" --expanded 2>&1 || true
+            timeout 60 sudo incus config show "$name" --expanded 2>&1 || true
             echo "## incus storage show default"
-            sudo incus storage show default 2>&1 || true
+            timeout 60 sudo incus storage show default 2>&1 || true
             echo "## dmesg | tail -n 80"
             sudo dmesg 2>&1 | tail -n 80 || true
           } > "$d" 2>&1 || true
-          sudo incus stop -f "$name" > /dev/null 2>&1 || true
+          timeout 60 sudo incus stop -f "$name" > /dev/null 2>&1 || true
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus measure" || true
           out=$RUNNER_TEMP/out
           mkdir -p "$out" && chmod 0777 "$out"
@@ -369,7 +387,7 @@ jobs:
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name measure --podvm-tier=incus --podvm-init=image --podvm-net none -v $out:/out $IMAGE /bin/sh /out/checks.sh" < /dev/null || rc=$?
           state=""
           for _ in $(seq 120); do
-            state=$(sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' measure" 2>&1) || true
+            state=$(sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' measure" 2> /dev/null | head -n 1) || true
             case $state in Running*) sleep 10 ;; *) break ;; esac
           done
           {
