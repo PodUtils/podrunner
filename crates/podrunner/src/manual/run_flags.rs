@@ -141,3 +141,9 @@ pub(crate) fn key(name: &str) -> Option<Key> {
 pub(crate) fn not_keys() -> String {
     RUN.iter().filter(|f| f.key == Key::No).map(|f| f.long).collect::<Vec<_>>().join(", ")
 }
+
+/// Whether the flag `name` (no dashes) takes a value; a name that no flag
+/// has takes one.
+pub(crate) fn takes_value(name: &str) -> bool {
+    RUN.iter().find(|f| f.long == name).is_none_or(|f| f.value.is_some())
+}

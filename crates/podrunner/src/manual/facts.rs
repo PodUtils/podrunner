@@ -114,7 +114,12 @@ fn run_toml() -> Table {
         key: "run-toml".into(),
         heading: "THE KEYS OF RUN.TOML".into(),
         about: "XDG_CONFIG_HOME/podrunner/run.toml of the user, then .podrunner/run.toml of the project. Each key is \
-                a flag of run with no dashes. A flag of the command line wins."
+                a flag of run with no dashes. The flags of the files go before those of the command line. An executor of the \
+                command line (--runner-dir, --podvm, --microvm, --incus) replaces the executor of the files. It also \
+                drops each key of the files that belongs to another executor. A flag of the command line drops each \
+                key of the files that the flag excludes: with vnet in a file and --podnet on the command line, \
+                podnet is used. A flag that takes one value has its last value, so the command line wins. A flag that \
+                can repeat takes the values of the files and of the command line."
             .into(),
         columns: vec!["Key".into(), "Value".into(), "Flag".into(), "Set by".into()],
         rows: rows.collect(),

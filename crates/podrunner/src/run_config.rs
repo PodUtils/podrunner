@@ -1,7 +1,9 @@
 //! The configuration files of `podrunner run` (T-143). Each key of a file
 //! is a flag of `run` with no `--`; the flags of the files go before those
-//! of the command line, so a flag of the command line wins, and an executor
-//! of the command line replaces the executor of the files (T-303). The order: the
+//! of the command line, so a flag of the command line wins; an executor of
+//! the command line replaces the executor of the files and drops their keys
+//! of another executor, and a flag of the command line drops the key of the
+//! files that it excludes (T-303, T-627). The order: the
 //! file of the user (`$XDG_CONFIG_HOME/podrunner/run.toml`, or
 //! `~/.config/podrunner/run.toml`), then the file of the project
 //! (`.podrunner/run.toml` in `--checkout DIR`, or in the current
@@ -247,7 +249,7 @@ pub fn expand(args: &[String]) -> Result<Vec<String>, String> {
     for n in notes {
         eprintln!("podrunner: {n}");
     }
-    let flags = executor_of_command_line(flags, args);
+    let flags = command_line_wins(flags, args);
     // The workflow FILE stays first.
     let mut out = Vec::with_capacity(flags.len() + args.len());
     let (file, rest) = match args.split_first() {
@@ -272,25 +274,63 @@ fn trusted_path(p: &str, dir: &Path, home: Option<&Path>) -> PathBuf {
 /// The executor flags; each one takes a value.
 const EXECUTOR: &[&str] = &["--runner-dir", "--podvm", "--microvm", "--incus"];
 
-/// An executor of the command line replaces the executor of the files
-/// (T-303): the files lose their executor flags, and with `--runner-dir`
-/// also the keys of a unit kind.
-fn executor_of_command_line(flags: Vec<String>, args: &[String]) -> Vec<String> {
-    let given = |f: &str| args.iter().any(|a| a == f);
-    if !EXECUTOR.iter().any(|f| given(f)) {
-        return flags;
-    }
-    let unit_keys: &[&str] = if given("--runner-dir") { &["--images", "--image", "--podnet", "--engine"] } else { &[] };
+/// The command line wins over the files (T-303, T-627). An executor of the
+/// command line replaces the executor of the files and drops each key of
+/// the files that belongs to another executor. For the other flags, a flag
+/// of the command line drops the key of the files that it excludes; a
+/// key of the files with the same name stays, and the parser takes the last.
+fn command_line_wins(flags: Vec<String>, args: &[String]) -> Vec<String> {
+    let given: Vec<&str> = args.iter().map(String::as_str).filter(|a| a.starts_with("--")).collect();
+    let executors: Vec<&str> = EXECUTOR.iter().copied().filter(|f| given.contains(f)).collect();
     let mut out = Vec::with_capacity(flags.len());
     let mut it = flags.into_iter();
     while let Some(f) = it.next() {
-        if EXECUTOR.contains(&f.as_str()) || unit_keys.contains(&f.as_str()) {
-            it.next();
+        let drop = (!executors.is_empty() && (EXECUTOR.contains(&f.as_str()) || of_other_executor(&f, &executors)))
+            || excluded_by(&f, &given);
+        let value = crate::manual::run_key_takes_value(f.trim_start_matches("--"));
+        if drop {
+            if value {
+                it.next();
+            }
             continue;
         }
         out.push(f);
+        if value {
+            out.extend(it.next());
+        }
     }
     out
+}
+
+/// The keys that only a unit kind can have, and no key of `--runner-dir`
+/// has: the image keys. The other keys of a unit kind come from the rules
+/// of the model (`Needs`, `NeedsOne`).
+const UNIT_IMAGE_KEYS: &[&str] = &["--images", "--image"];
+
+/// Whether the key `flag` of a file belongs to no executor in `given`: a
+/// key that needs an executor needs one of `given`, and an image key needs
+/// a unit kind.
+fn of_other_executor(flag: &str, given: &[&str]) -> bool {
+    use crate::manual::R;
+    for r in crate::manual::run_rules() {
+        if let R::Needs(f, needs) | R::NeedsOne(f, needs) = r
+            && *f == flag
+            && needs.iter().all(|n| EXECUTOR.contains(n))
+        {
+            return !needs.iter().any(|n| given.contains(n));
+        }
+    }
+    UNIT_IMAGE_KEYS.contains(&flag) && given == ["--runner-dir"]
+}
+
+/// Whether a flag of the command line `given` is in a rule of exclusion
+/// with `flag`: the flag of the file loses.
+fn excluded_by(flag: &str, given: &[&str]) -> bool {
+    use crate::manual::R;
+    crate::manual::run_rules().iter().any(|r| match r {
+        R::Excludes(group) => group.contains(&flag) && group.iter().any(|g| *g != flag && given.contains(g)),
+        _ => false,
+    })
 }
 
 #[cfg(test)]

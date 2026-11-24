@@ -1015,8 +1015,15 @@ The pins of the actions and images of a workflow, beside the workflow file.
 The secrets of a local run, in the checkout tree or the current directory.
 .SH "THE KEYS OF RUN.TOML"
 XDG_CONFIG_HOME/podrunner/run.toml of the user, then .podrunner/run.toml of
-the project. Each key is a flag of run with no dashes. A flag of the command
-line wins.
+the project. Each key is a flag of run with no dashes. The flags of the files
+go before those of the command line. An executor of the command line
+(\-\-runner\-dir, \-\-podvm, \-\-microvm, \-\-incus) replaces the executor of
+the files. It also drops each key of the files that belongs to another
+executor. A flag of the command line drops each key of the files that the flag
+excludes: with vnet in a file and \-\-podnet on the command line, podnet is
+used. A flag that takes one value has its last value, so the command line
+wins. A flag that can repeat takes the values of the files and of the command
+line.
 .TP
 \fBrunner\-dir\fR
 Value: DIR. Flag: \-\-runner\-dir. Set by: the user file, or the file of a

@@ -17,7 +17,12 @@ mod run_flags;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use run_flags::{Key, key as run_key, not_keys};
+pub(crate) use run_flags::{Key, key as run_key, not_keys, takes_value as run_key_takes_value};
+
+/// The rules between the flags of `run`.
+pub(crate) fn run_rules() -> &'static [R] {
+    run_flags::RULES
+}
 
 /// One command of the table.
 pub(crate) struct Cmd {

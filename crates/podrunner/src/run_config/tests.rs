@@ -129,9 +129,9 @@ fn an_executor_of_the_command_line_replaces_the_one_of_the_files() {
         "--allow",
         "x.example",
     ]);
-    let got = executor_of_command_line(file.clone(), &s(&["w.yml", "--runner-dir", "/r"]));
+    let got = command_line_wins(file.clone(), &s(&["w.yml", "--runner-dir", "/r"]));
     assert_eq!(got, s(&["--quiet", "--allow", "x.example"]));
-    let got = executor_of_command_line(file.clone(), &s(&["w.yml", "--microvm", "/m"]));
+    let got = command_line_wins(file.clone(), &s(&["w.yml", "--microvm", "/m"]));
     assert_eq!(
         got,
         s(&[
@@ -144,7 +144,66 @@ fn an_executor_of_the_command_line_replaces_the_one_of_the_files() {
             "x.example"
         ])
     );
-    assert_eq!(executor_of_command_line(file.clone(), &s(&["w.yml", "--quiet"])), file, "no executor: the file stays");
+    assert_eq!(command_line_wins(file.clone(), &s(&["w.yml", "--quiet"])), file, "no executor: the file stays");
+}
+
+const DIGEST: &str = "r@sha256:0000000000000000000000000000000000000000000000000000000000000000";
+
+/// T-627, T-303: the executor of the command line drops each key of the
+/// files that belongs to another executor.
+#[test]
+fn the_executor_of_the_command_line_drops_the_keys_of_other_executors() {
+    let all = s(&[
+        "--podvm",
+        "/b/podvm",
+        "--podnet",
+        "/n",
+        "--vnet",
+        "/v",
+        "--toolcache",
+        "/t",
+        "--engine",
+        "/e",
+        "--images",
+        "/i",
+        "--image",
+        DIGEST,
+        "--quiet",
+    ]);
+    // A file with podvm and vnet, and --runner-dir: no key of a unit stays.
+    let got = command_line_wins(
+        s(&["--podvm", "/b/podvm", "--vnet", "/v", "--toolcache", "/t"]),
+        &s(&["--runner-dir", "/r"]),
+    );
+    assert!(got.is_empty(), "{got:?}");
+    let got = command_line_wins(all.clone(), &s(&["w.yml", "--runner-dir", "/r"]));
+    assert_eq!(got, s(&["--quiet"]));
+    // --microvm and --incus: podnet, vnet and toolcache need podvm.
+    for kind in ["--microvm", "--incus"] {
+        let got = command_line_wins(all.clone(), &s(&["w.yml", kind, "/m"]));
+        assert_eq!(got, s(&["--engine", "/e", "--images", "/i", "--image", DIGEST, "--quiet"]), "{kind}");
+    }
+    // --podvm: engine needs --microvm or --incus.
+    let got = command_line_wins(all.clone(), &s(&["w.yml", "--podvm", "/p"]));
+    assert_eq!(
+        got,
+        s(&["--podnet", "/n", "--vnet", "/v", "--toolcache", "/t", "--images", "/i", "--image", DIGEST, "--quiet"])
+    );
+}
+
+/// T-627: of two flags that exclude each other, the one of the command
+/// line drops the one of the files; a flag with no value does not take the
+/// next word.
+#[test]
+fn a_flag_of_the_command_line_drops_the_file_flag_that_it_excludes() {
+    let got = command_line_wins(s(&["--vnet", "/v", "--quiet"]), &s(&["w.yml", "--podnet", "/n"]));
+    assert_eq!(got, s(&["--quiet"]));
+    let got = command_line_wins(s(&["--offline", "--quiet"]), &s(&["w.yml", "--frozen"]));
+    assert_eq!(got, s(&["--quiet"]));
+    let got = command_line_wins(s(&["--web", "127.0.0.1:0", "--quiet"]), &s(&["w.yml", "--dry-run"]));
+    assert_eq!(got, s(&["--quiet"]));
+    let got = command_line_wins(s(&["--podnet", "/n"]), &s(&["w.yml", "--podnet", "/m"]));
+    assert_eq!(got, s(&["--podnet", "/n"]), "the same flag: the parser takes the last");
 }
 
 /// T-314: `trusted` reads a relative path from the directory of the file.
