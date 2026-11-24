@@ -36,7 +36,8 @@ fn a_probe_follows_no_link() {
     assert!(!dir.join(".podrunner-probe-b").exists(), "the probe stayed");
 }
 
-/// T-614: when each name is taken, the probe fails and writes nothing.
+/// T-614: when each name is taken, the probe fails and writes nothing. The
+/// text names the last probe path and says which files to remove.
 #[test]
 fn a_probe_with_no_free_name_fails() {
     let dir = Scratch::new("probe-full");
@@ -47,6 +48,9 @@ fn a_probe_with_no_free_name_fails() {
     }
     let e = probe(&dir, names(&["a", "b", "c", "d"])).unwrap_err();
     assert_eq!(e.kind(), std::io::ErrorKind::AlreadyExists, "{e}");
+    let last = dir.join(".podrunner-probe-d");
+    assert!(e.to_string().starts_with(&format!("{}: ", last.display())), "{e}");
+    assert!(e.to_string().contains("remove the .podrunner-probe-* files"), "{e}");
     assert!(!target.exists(), "the probe wrote through a link");
 }
 

@@ -128,6 +128,9 @@ jobs:
             devs="$devs $(sudo losetup -f --show "/mnt/$1-mnt.img")"
             echo "loops: $r bytes on / and $m bytes on /mnt" | tee -a "$M/info.txt"
           }
+          # The weekly trim of the image trims each mount, also the loop
+          # file systems below: stop it for the run.
+          sudo systemctl stop fstrim.timer 2> /dev/null || true
           case $PLACE in
           joined)
             # One ext4 volume of LVM over the loop files.
@@ -141,7 +144,9 @@ jobs:
             # reserve of / is then not real.
             sudo mkfs.ext4 -q -m 0 -E nodiscard /dev/measure/joined
             sudo mkdir -p /srv/joined
+            # ext4 has no discard at mount unless an option asks for it.
             sudo mount /dev/measure/joined /srv/joined
+            findmnt -no OPTIONS /srv/joined | tee -a "$M/info.txt"
             work=/srv/joined/w incusd=/srv/joined/incus pool=/srv/joined
             ;;
           btrfs)
@@ -161,7 +166,10 @@ jobs:
             sudo mkdir -p /srv/btrfs
             # shellcheck disable=SC2086
             set -- $devs
-            sudo mount -o "$(printf 'device=%s,' "$@" | sed 's/,$//')" "$1" /srv/btrfs
+            # nodiscard: btrfs since Linux 6.2 turns on discard=async at
+            # mount on a device with discard (a loop device has it).
+            sudo mount -o "nodiscard,$(printf 'device=%s,' "$@" | sed 's/,$//')" "$1" /srv/btrfs
+            findmnt -no OPTIONS /srv/btrfs | tee -a "$M/info.txt"
             sudo btrfs filesystem show /srv/btrfs | tee -a "$M/info.txt"
             # incusd makes the subvolume of the pool (/srv/btrfs/pool)
             # itself: it refuses a directory that is not a subvolume.

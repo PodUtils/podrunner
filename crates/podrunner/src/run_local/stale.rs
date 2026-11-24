@@ -4,8 +4,8 @@
 //! the same pid namespace ends each process of those units (by the tag of
 //! each unit, as `destroy` finds them) and removes the directories, and
 //! says so. `ID` is `NS-PID-N` ([`run_id`]): two containers that share
-//! `TMPDIR` can each have a run as pid 1 (T-607), and NS has the boot id,
-//! so two hosts that share it do not meet (T-615).
+//! `TMPDIR` can each have a run as pid 1 (T-607), and NS has the machine
+//! id, so two hosts that share it do not meet (T-615).
 
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -25,25 +25,38 @@ struct Here {
 /// This process, or `None` when `/proc` is not the one of its pid
 /// namespace (no `/proc`, or a mount of another namespace): a pid of
 /// `/proc` then names another process, so no run counts as dead. Also
-/// `None` with no boot id: then a run of another host is not known.
+/// `None` with no machine id and no boot id ([`ns_key`]): then a run of
+/// another host is not known.
 fn here() -> Option<Here> {
     let pid = std::process::id();
     let seen: u32 = std::fs::read_link("/proc/self").ok()?.to_str()?.parse().ok()?;
     let inode = std::fs::metadata("/proc/self/ns/pid").ok()?.ino();
-    let boot = std::fs::read_to_string("/proc/sys/kernel/random/boot_id").ok()?;
-    (seen == pid).then(|| Here { ns: ns_key(inode, boot.trim()), pid })
+    let machine = std::fs::read_to_string("/etc/machine-id").ok();
+    let boot = std::fs::read_to_string("/proc/sys/kernel/random/boot_id").ok();
+    let ns = ns_key(inode, machine.as_deref(), boot.as_deref())?;
+    (seen == pid).then_some(Here { ns, pid })
 }
 
-/// The key of a pid namespace: its inode and the boot id of the kernel.
-/// An inode is unique on one kernel only: two hosts that share one
-/// `TMPDIR` (NFS, a shared home) can give one inode and one pid (T-615).
-/// FNV-1a of 64 bits: a fixed key for each pair, the same in each release.
-fn ns_key(inode: u64, boot: &str) -> u64 {
+/// The key of a pid namespace: FNV-1a of 64 bits of the machine id and
+/// the inode, a fixed key for each pair. An inode is unique on one kernel
+/// only: two hosts that share one `TMPDIR` (NFS, a shared home) can give
+/// one inode and one pid, and their machine ids differ (T-615). The
+/// machine id stays over a reboot, so a run of an earlier boot of this
+/// machine is found dead; a pid that a new process took only keeps it.
+/// With no machine id (no file, or not 32 hex digits), the boot id; with
+/// neither, `None`. Two hosts with one copied machine id are one host.
+fn ns_key(inode: u64, machine: Option<&str>, boot: Option<&str>) -> Option<u64> {
+    let machine = machine.map(str::trim).filter(|m| m.len() == 32 && m.bytes().all(|b| b.is_ascii_hexdigit()));
+    let (tag, id) = match (machine, boot.map(str::trim).filter(|b| !b.is_empty())) {
+        (Some(m), _) => (b'm', m),
+        (None, Some(b)) => (b'b', b),
+        (None, None) => return None,
+    };
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in boot.bytes().chain([0]).chain(inode.to_le_bytes()) {
+    for b in [tag].into_iter().chain(id.bytes()).chain([0]).chain(inode.to_le_bytes()) {
         h = (h ^ u64::from(b)).wrapping_mul(0x0000_0100_0000_01b3);
     }
-    h
+    Some(h)
 }
 
 /// The directories of this run: each one is removed when the run returns.
@@ -248,29 +261,6 @@ mod tests {
         }
     }
 
-    /// T-615: one pid namespace inode of two boots (two hosts that share
-    /// one TMPDIR) gives two keys, so a run of the other host is not dead.
-    #[test]
-    fn a_run_of_another_boot_is_not_dead() {
-        let (a, b) = ("0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0", "1f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0");
-        let inode = 4026531836;
-        assert_ne!(ns_key(inode, a), ns_key(inode, b));
-        assert_ne!(ns_key(inode, a), ns_key(inode + 1, a));
-        assert_eq!(ns_key(inode, a), ns_key(inode, a));
-        let tmp = crate::scratch::Scratch::new("stale-boot");
-        let other = Here { ns: ns_key(inode, b), pid: 4194305 };
-        let dir = tmp.join(format!("podrunner-run-units-{}", name(Some(other), 0)));
-        std::fs::create_dir_all(dir.join("default/units/u-1")).unwrap();
-        // SAFETY: getuid has no failure.
-        let uid = unsafe { libc::getuid() };
-        let me = Here { ns: ns_key(inode, a), pid: std::process::id() };
-        assert!(dead_runs(&tmp, uid, Some(me)).is_empty(), "a run of another boot counts as dead");
-        end_dead_runs_in(&tmp, uid, Some(me));
-        assert!(dir.join("default/units/u-1").is_dir(), "a run of another boot is gone");
-        let same = Here { ns: ns_key(inode, b), pid: std::process::id() };
-        assert_eq!(dead_runs(&tmp, uid, Some(same)), [dir], "a dead run of the same boot is not found");
-    }
-
     /// A directory of a dead run of this pid namespace is found and ended;
     /// one of a live process, of this process, of another namespace
     /// (T-607), of another form or of another name is not.
@@ -413,3 +403,7 @@ mod tests {
 #[cfg(test)]
 #[path = "stale_ns_tests.rs"]
 mod ns_tests;
+
+#[cfg(test)]
+#[path = "stale_key_tests.rs"]
+mod key_tests;

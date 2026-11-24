@@ -56,10 +56,11 @@ fn export_dir(a: &Args) -> Result<(), Out> {
 /// which has the pid namespace): two runs of one pid in two containers
 /// that share `dir` get two names (T-614). The make is `create_new` with
 /// `O_NOFOLLOW`, so a file or a link at the name is not written; then the
-/// probe takes the next name, up to four.
+/// probe takes the next name, up to four. When each name is taken, the
+/// text names the last one and the files to remove.
 fn probe(dir: &Path, mut id: impl FnMut() -> String) -> std::io::Result<()> {
     use std::os::unix::fs::OpenOptionsExt;
-    let mut last = None;
+    let mut last = dir.join(".podrunner-probe-");
     for _ in 0..4 {
         let probe = dir.join(format!(".podrunner-probe-{}", id()));
         let made = std::fs::OpenOptions::new()
@@ -70,11 +71,15 @@ fn probe(dir: &Path, mut id: impl FnMut() -> String) -> std::io::Result<()> {
             .open(&probe);
         match made {
             Ok(_) => return std::fs::remove_file(&probe),
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = Some(e),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = probe,
             Err(e) => return Err(e),
         }
     }
-    Err(last.unwrap_or_else(|| std::io::Error::from(std::io::ErrorKind::AlreadyExists)))
+    let text = format!(
+        "{}: the file exists, and so do the 3 probe names before it: remove the .podrunner-probe-* files of the directory",
+        last.display()
+    );
+    Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, text))
 }
 
 fn host(a: &Args, c: &Common) -> Result<Box<dyn Executor>, Out> {

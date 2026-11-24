@@ -114,15 +114,24 @@ image of the run (T-325).
 
 Each run keeps its files in two directories of `TMPDIR`,
 `podrunner-run-tree-ID` and `podrunner-run-units-ID`, at mode 0700, and
-removes them when it ends. `ID` is `NS-PID-N`: a key of the pid
-namespace of the run (its inode, `/proc/self/ns/pid`, and the boot id of
-the kernel, `/proc/sys/kernel/random/boot_id`), its pid, and a count.
-When a run was killed, the next run of the same user in the same pid
-namespace of the same boot ends the units of the dead run, removes its
-directories, and writes one line for each. A run of another pid namespace
-(another container that shares `TMPDIR`) or of another host (a `TMPDIR`
-on NFS or in a shared home) is never ended. A directory of an older
-release stays: remove it by hand (T-312, T-607, T-615).
+removes them when it ends. `ID` is `NS-PID-N`: a key of the host and of
+the pid namespace of the run, its pid, and a count. The key is FNV-1a of
+the machine id (`/etc/machine-id`) and the inode of the pid namespace
+(`/proc/self/ns/pid`). When there is no machine id (no file, or not 32
+hex digits), the key uses the boot id of the kernel
+(`/proc/sys/kernel/random/boot_id`). With neither, the name is
+`xNANOS-PID-N`, and the run ends no other run.
+
+When a run was killed, the next run of the same user with the same key
+ends the units of the dead run, removes its directories, and writes one
+line for each. The machine id stays the same after a reboot, so a run
+that was killed before a reboot of this host is also found and removed.
+A run of another pid namespace (another container that shares `TMPDIR`)
+or of another host (a `TMPDIR` on NFS or in a shared home) is never
+ended. A limit: two hosts with one copied machine id (a cloned image)
+that share `TMPDIR` are not told apart. Give each such host its own
+`TMPDIR`. A directory of an older release stays: remove it by hand
+(T-312, T-607, T-615).
 
 ## A host that refuses each AF_INET bind
 
