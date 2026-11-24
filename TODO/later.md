@@ -11492,7 +11492,7 @@ githome's comment on GitHub #292, read on 2026-11-18.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -11504,16 +11504,13 @@ githome's comment on GitHub #292, read on 2026-11-18. DR-9 is a ruling of 2026-1
 
 ## Approach
 
-1. Measure the permission that a repository scale set needs.
-2. An opt-in of the operator, with the permission named in `check` and `doctor`; the default stays DR-9. Record the call in `docs/decisions.md`; ask the owner if the opt-in changes DR-9.
+The owner ruled Q13 on 2026-11-24 ("Yes, opt-in off by default", `docs/decisions.md`).
 
+1. Measure the permission that a repository scale set needs.
+2. An opt-in of the operator, off by default: with it, a GitHub source serves the repositories of a personal account. `check` and `doctor` name the extra permission of the App, "Administration: write". Without it, the refusal of C3 (DR-9, `repo-scope-refused`) stays.
 ## Prove
 
 `cargo test -p podrunner --test scaleset`: a repository URL of a personal account with the opt-in serves a job of the fake scale set; without it, `repo-scope-refused`.
-
-## Blocker
-
-The owner must answer Q13 (`TODO/PROGRESS.md`, "Questions for the owner"): may an operator turn on a GitHub source for a personal account, against the ruling C3 (DR-9)? The recommendation is an opt-in that is off by default. The entry runs when the owner rules; the ruling goes into `docs/decisions.md`.
 
 # T-505: No cap of units for the whole host across its kinds
 
@@ -11943,7 +11940,7 @@ The call in `docs/decisions.md`; `cargo todo check`.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -11955,15 +11952,14 @@ The census read G-13 on GitHub #66 and the ruling Q5 (`docs/decisions.md`).
 
 ## Approach
 
-Compare each clause of G-13 with Q5. A clause that needs a change of Q5 becomes a question for the owner with a recommendation (`TODO/PROGRESS.md`). Put the trust rule behind a trait (the ruling of DR-3: each seam stays swappable). Attach `cases.json` to each release with T-511.
+The owner ruled Q12 on 2026-11-24 ("Yes, opt-in", `docs/decisions.md`).
 
+1. The operator may list `pull_request_target` in `[trust] extra_events`, as the four events of Q5. A job of that event is then trusted with the facts of each trusted job: a configured owner, a head that is not a fork (`head_is_fork` of the run object is the repository of the head of the pull request), and an actor `member`. With the key, a job of a fork and a job of an actor that is not a member stay refused (`event-not-allowed`). Without it, nothing changes. `other` and `unknown` are never trusted. `check` names the opt-in.
+2. Put the trust rule behind a trait (the ruling of DR-3: each seam stays swappable), with the case table as its conformance harness.
+3. Publish the case table as the release asset `tier-cases.json` (T-511), made from `crates/podrunner-tier/tests/cases.json` and the event lists of the code; a test holds the file in step with the code. The table names each event of the offer, with the opt-in off and on.
 ## Prove
 
 `cargo test -p podrunner-tier`; the release assets list `tier-cases.json`.
-
-## Blocker
-
-The owner must answer Q12 (`TODO/PROGRESS.md`, "Questions for the owner"): G-13 asks that an operator can trust `pull_request_target`, and the ruling Q5 of 2026-11-13 never trusts it. The recommendation is to keep Q5. The trait of the trust rule and the asset `tier-cases.json` need no change of Q5. A session can do them before the answer; the entry then stays `blocked` for the clause on `pull_request_target`.
 
 # T-519: G-03: no document says that a step of the job can read the credential of its runner
 

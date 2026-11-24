@@ -115,15 +115,15 @@ is done.
   dropped.
 - The new entries of this session: T-616 (the local mode: a container
   gets no trust store of a JVM, with T-597), T-617 (the state of #65,
-  #66 and the comment on #292 is stale), T-618 (R-052). T-518 (Q12) and
-  T-504 (Q13) are `blocked` on questions for the owner
-  (`TODO/PROGRESS.md`).
+  #66 and the comment on #292 is stale), T-618 (R-052). The owner ruled
+  Q12 and Q13 on 2026-11-24 (`docs/decisions.md`): T-518 and T-504 are
+  `open`, each an opt-in that is off by default.
 - The plan, in this order:
   1. `v0.1.0-beta.8` first: the gates T-243, T-244 and T-246, with a new
      round of adversarial QA on the current `main`
      (`docs/maintenance.md`, "A release").
-  2. Then T-480, T-487, T-516 and T-500; T-518 when the owner answers
-     Q12.
+  2. Then T-480, T-487, T-516 and T-500; T-518 (the ruling Q12), then
+     T-504 (the ruling Q13).
   3. Then the local P3 code: T-598, T-597 (with T-616), T-603 step 1,
      T-610, T-609 (it needs the option `--run-sh` or a root from the
      image, see its Approach).

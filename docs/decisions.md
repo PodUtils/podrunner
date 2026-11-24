@@ -14,6 +14,8 @@ at the tag `v0.41.0`.
 
 | Date | Area | Ruling |
 | --- | --- | --- |
+| 2026-11-24 | Q12 (T-518, githome G-13) | "Yes, opt-in". The operator may trust `pull_request_target`: with `pull_request_target` in `[trust] extra_events`, a job of that event is trusted with the facts of each trusted job (a configured owner, a head that is not a fork, an actor `member`). GitHub runs the workflow of the default branch for this event, with the secrets of the repository. The default adds no event. This changes Q5 for `pull_request_target` only. The rule now in force: the operator may add `workflow_run`, `issue_comment`, `release`, `repository_dispatch` and `pull_request_target` (`[trust] extra_events`), each with the facts of a trusted job; `other` and `unknown` are never trusted. |
+| 2026-11-24 | Q13 (T-504, githome G-29) | "Yes, opt-in off by default". The operator may turn on a GitHub source for the repositories of a personal account. The refusal of C3 (DR-9, `repo-scope-refused`) stays the default. `check` and `doctor` name the extra permission of the App, "Administration: write". |
 | 2026-11-24 | Subagents | "rather than filling your context & risking forgetting things, please prefer using subagents: opus 5.5 at medium/high effort for implementation; sonnet 5.5 high for recon or straightforward bug fixes; opus 5.5 medium for reviews; sonnet 5.5 high for blind/QA tests". The lead session delegates work and keeps its own context small. Implementation goes to Opus 5.5 at medium or high effort. Recon and plain bug fixes go to Sonnet 5.5 at high effort. Reviews go to Opus 5.5 at medium effort. Blind tests and QA tests go to Sonnet 5.5 at high effort. The rule "one cargo build at a time" still holds: agents in parallel each need their own worktree and their own target directory (`docs/maintenance.md`, "Subagents"). |
 | 2026-11-19 | The snapshot keeps the Docker Hub login | "keep docker hub login, replace/regenerate entropy bits like machine id or similar since every new github runner has these things changed". The snapshot keeps `/home/runner/.docker/config.json` as the hosted runner has it. The capture resets each per-machine value that a new hosted runner gets fresh: `/etc/machine-id` is empty (a new id at each boot), the SSH host keys are dropped and made again at boot (`ssh-keygen -A`), the random seed and the cloud-init and waagent state are dropped. (T-542) |
 | 2026-11-19 | Retention on ghcr.io | "keep ghcr retention": podrunner deletes no version of a package on ghcr.io; each published version stays. (T-555) |
@@ -60,7 +62,6 @@ at the tag `v0.41.0`.
 | 2026-11-13 | Q4 (T-098) | "the common sense rule is to be github actions compat, so yes allow it". A Docker action runs in a job with no `container:` and no `services:`: the hooks accept `run_container_step` before `prepare_job`. The rule for a choice between two forms: the behaviour of GitHub Actions. |
 | 2026-11-13 | beta.2 | Release `v0.1.0-beta.2` when the gate and `runner-image.yml` of `main` are green. Its notes say that no job of real github.com ran yet. |
 | 2026-11-13 | G-09 and DR-8 (githome, #36 ruling 4) | G-09 keeps `services:`, `docker build` and Docker-in-Docker (the owner, through githome on GitHub #66 and #77). G-09 is the ask that DR-8 names as its condition to bring an engine back. The engine runs inside the unit (a guest of podvm's machine tier, or a system container of incus), never as a socket of the host. T-103 writes the census of the verbs (DR-17) and the design. The hooks stay the route of `container:` jobs and Docker actions. |
-| 2026-11-13 | Q5 (T-102) | "Yes, with limits". The operator may add `workflow_run`, `issue_comment`, `release` and `repository_dispatch` to the events of a trusted job (`[trust] extra_events`). Each needs the facts of a trusted job (a configured owner, no fork, an actor `member`). `pull_request_target`, `other` and `unknown` are never trusted. The default adds none. |
 | 2026-11-14 | Q6 (T-148) | "No, not now": the local mode runs GitHub Actions workflows only, not Azure Pipelines YAML. A user ask reopens it (`docs/azure-pipelines.md`). |
 | 2026-11-14 | U15 (C10, DR-16) | "Alternate payload allowed": a payload other than the official runner can report a third-party runner version string to github.com. T-161 plans it. It supersedes C10. |
 | 2026-11-14 | beta.5 | Release `v0.1.0-beta.5` and point LIVE-1 (#74) and LIVE-2 (#75) at it. Amend each stale comment of the open issues; add no history. |
@@ -80,7 +81,7 @@ C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 | --- | --- | --- |
 | 2026-11-11 | C1 (DR-3) | The scale-set client is a Go sidecar over `actions/scaleset` (MIT, public preview), not a Rust port of its six endpoints (T-029). |
 | 2026-11-11 | C2 (DR-8) | The container route: the official container hooks first. `docker build` and Dockerfile actions are refused by name (`build-not-supported`). |
-| 2026-11-11 | C3 (DR-9) | GitHub sources are of an organization only. A repository of a personal account is refused (`repo-scope-refused`): it needs "Administration: write". |
+| 2026-11-11 | C3 (DR-9) | GitHub sources are of an organization only. A repository of a personal account is refused (`repo-scope-refused`): it needs "Administration: write". Q13 of 2026-11-24 adds an opt-in of the operator (T-504); the refusal stays the default. |
 | 2026-11-11 | C4 (DR-10) | The Go sidecar and the runner payloads (the .NET runner, `bash`, `curl` in the unit image) are user content. The released `podrunner` binary stays static musl. The sidecar is a static Go binary (`CGO_ENABLED=0`). |
 | 2026-11-11 | C5 (DR-11) | The one egress proxy lives in podrunner as a module over `pod-broker` (T-024). podvm's `--net broker` (PodUtils/podvm@T-1665) stays a second host of the same crate. |
 | 2026-11-11 | C6 (DR-12) | The name `podrunner` stays. `PodUtils/podci` is released, or becomes the name of the CLI. |
@@ -171,17 +172,13 @@ C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 ## Questions for the owner
 
 `TODO/PROGRESS.md`, "Questions for the owner", has each open question
-with its options and its recommendation. Two are open.
-
-| Id | Date | Entry | Question | Recommendation |
-| --- | --- | --- | --- | --- |
-| Q12 | 2026-11-24 | T-518 (githome G-13) | G-13 asks for the trust rule of each event by name, with `pull_request_target` from the base branch. The ruling Q5 of 2026-11-13 never trusts `pull_request_target`, `other` and `unknown`, and allows four extra events. May an operator trust `pull_request_target`? | No. Keep Q5. Do the parts that need no ruling: a trait for the rule (DR-3) and `tier-cases.json` as a release asset. |
-| Q13 | 2026-11-24 | T-504 (githome G-29) | G-29 asks for a GitHub source for the repositories of a personal account. The ruling C3 (DR-9) refuses it (`repo-scope-refused`): it needs "Administration: write". May an operator turn it on? | Yes, as an opt-in that is off by default. `check` and `doctor` name the permission. DR-9 stays the default. |
+with its recommendation. None is open.
 
 ## Superseded
 
 | Date | Ruling | Superseded by |
 | --- | --- | --- |
+| 2026-11-13 | Q5 (T-102): "Yes, with limits". The operator may add `workflow_run`, `issue_comment`, `release` and `repository_dispatch` to the events of a trusted job (`[trust] extra_events`), each with the facts of a trusted job (a configured owner, no fork, an actor `member`). `pull_request_target`, `other` and `unknown` are never trusted. The default adds none. | 2026-11-24, Q12: `pull_request_target` is an opt-in too. The rest of Q5 holds, in the row of Q12. |
 | 2026-11-09 | Priority: "priority is first podvm, podnet, podssh projects, cfb & githome can wait"; the asks of cfb and githome wait behind the work of podvm, podnet and podssh. | 2026-11-18, githome and cfb first. |
 | 2026-11-11 | DR-7 (GitHub #7): not now; no test organization and no App. | 2026-11-13, DR-7 yes. |
 | 2026-11-11 | DR-7 again: still not now. | 2026-11-13, DR-7 yes. |
