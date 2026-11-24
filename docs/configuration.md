@@ -80,7 +80,11 @@ users = [{ login = "example-user" }]   # repositories of a person, for a forge t
                              # (a `program` source); the GitHub scale set takes organizations only
 trusted_public = [{ owner = "example-org", repo = "open-tool" }]
 extra_events = ["release"]   # more events of a trusted job: only workflow_run, issue_comment,
-                             # release and repository_dispatch (the owner, Q5); default none
+                             # release, repository_dispatch (the owner, Q5) and pull_request_target
+                             # (Q12); default none. Each needs the facts of a trusted job: a configured
+                             # owner, a head that is not a fork, an actor member. A pull_request_target
+                             # job gets the secrets of the repository: check and serve print one line
+                             # that names this opt-in (T-518)
 
 [deadlines]                  # seconds; these are the defaults
 prepare_s = 600

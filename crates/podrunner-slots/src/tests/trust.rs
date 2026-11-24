@@ -82,8 +82,52 @@ fn a_global_list_shared_with_a_program_source_is_refused() {
     let any = job("x").trust_inputs;
     assert_eq!(c.trust_for(&c.source[0], &any).unwrap().users[0].login, "carol");
     assert_eq!(c.trust_for(&c.source[1], &any).unwrap().users[0].login, "alice");
-    let bad = two_sources("trust = { extra_events = [\"pull_request_target\"] }");
+    let bad = two_sources("trust = { extra_events = [\"other\"] }");
     assert!(Config::parse(&bad).unwrap_err().contains("[[source]] githome"));
+}
+
+/// T-518 (the owner, Q12): a trust table may list `pull_request_target`,
+/// the global one, the one of a source and the one of a forge; `other` and
+/// `unknown` stay refused in each. A job of the event is trusted only with
+/// the list that names it.
+#[test]
+fn a_trust_table_may_list_pull_request_target() {
+    let own = r#"trust = { users = [{ login = "carol" }], extra_events = ["pull_request_target"] }"#;
+    let c = Config::parse(&two_sources(own)).unwrap();
+    let forges =
+        r#"trust = [{ forge = "github.com", users = [{ login = "carol" }], extra_events = ["pull_request_target"] }]"#;
+    let by_forge = Config::parse(&two_sources(forges)).unwrap();
+    // `check` names each table that opts in, and no other.
+    let notes = c.trust_notes();
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert!(notes[0].starts_with("[[source]] githome trust: extra_events: pull_request_target"), "{notes:?}");
+    let notes = by_forge.trust_notes();
+    assert!(notes.len() == 1 && notes[0].contains("of the forge github.com"), "{notes:?}");
+    assert!(
+        Config::parse(&two_sources("trust = { users = [{ login = \"carol\" }] }")).unwrap().trust_notes().is_empty()
+    );
+    for bad in [
+        r#"trust = { extra_events = ["pull_request_target", "unknown"] }"#,
+        r#"trust = [{ forge = "github.com", extra_events = ["other"] }]"#,
+    ] {
+        assert!(Config::parse(&two_sources(bad)).unwrap_err().contains("can never be trusted"), "{bad}");
+    }
+    // The pins of `config`: the file of two sources has none.
+    let pins = config("");
+    let mut j = job("carol");
+    j.trust_inputs.event = podrunner_schema::offer::Event::PullRequestTarget;
+    let on = c.trust_for(&c.source[0], &j.trust_inputs).unwrap();
+    assert_eq!(place_for(&j, Tier::Trusted, &kinds(), &pins, on, NOW_UNIX).map(|p| p.tier), Ok(Tier::Trusted));
+    let off = users(&["carol"]);
+    assert_eq!(
+        place_for(&j, Tier::Trusted, &kinds(), &pins, &off, NOW_UNIX).map(|p| p.tier),
+        Err(RefusalCode::EventNotAllowed)
+    );
+    j.trust_inputs.head_is_fork = podrunner_schema::Fact::Yes;
+    assert_eq!(
+        place_for(&j, Tier::Untrusted, &kinds(), &pins, on, NOW_UNIX).map(|p| p.tier),
+        Err(RefusalCode::EventNotAllowed)
+    );
 }
 
 /// T-494 step 2: one source carries two forges; an offer takes the list of

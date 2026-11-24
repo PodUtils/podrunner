@@ -650,6 +650,7 @@ jobs:
             dist/scaleset-sidecar-*-linux-musl
             dist/podrunner-install.sh
             dist/podrunner-manifest.json
+            dist/tier-cases.json
             dist/podrunner-bundle-*.tar.gz
             dist/runner-*.tar
             dist/release-index.json

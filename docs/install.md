@@ -356,6 +356,7 @@ of an image archive are gzip already.
 | `runner-ARCH.tar` | The base runner image, as `podvm load -i` takes it; load it into the store of the installer (`PODVM_STORE=~/.local/share/podrunner/images`), as `podvm` with no `PODVM_STORE` uses another store |
 | `runner-full-ARCH.tar` | The larger runner image |
 | `podrunner-bundle-ARCH.tar.gz` | The offline bundle |
+| `tier-cases.json` | The case table of the tier rule (T-518): each row gives the trust lists, the tier of the set, the facts of a job and the result. A forge with a trust rule of its own runs each row against it. `crates/podrunner-tier` (`cases::conformance`) runs it against a Rust rule |
 
 Each has a `.sha256` file and a build provenance attestation. The image
 archives come from the green `runner-image.yml` run of the tagged commit:

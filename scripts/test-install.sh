@@ -347,7 +347,7 @@ ok "the offline bundle, from its directory, with --prefix and --full"
 # 9. The assets of a release, as release.yml and user-gate.yml make them.
 RELEASE_ASSETS_IMAGES=$t/images sh "$root/scripts/release-assets.sh" local-mode 9.9.9-test "$a" "$t/rel" > "$t/out" 2>&1 ||
     fail "release-assets.sh local-mode"
-for f in podrunner-install.sh podrunner-manifest.json podrunner-bundle-x86_64.tar.gz podrunner-bundle-aarch64.tar.gz "runner-$arch.tar" "runner-full-$arch.tar"; do
+for f in podrunner-install.sh podrunner-manifest.json podrunner-bundle-x86_64.tar.gz podrunner-bundle-aarch64.tar.gz "runner-$arch.tar" "runner-full-$arch.tar" tier-cases.json; do
     if [ ! -f "$t/rel/$f" ] || [ ! -f "$t/rel/$f.sha256" ]; then
         fail "release-assets.sh: no $f with its .sha256"
     fi
@@ -360,9 +360,11 @@ cp "$a"/podrunner-*-unknown-linux-musl "$t/rel/"
 index "$t/rel"
 sh "$root/scripts/release-assets.sh" sums "$t/rel" > "$t/out" 2>&1 || fail "release-assets.sh sums"
 (cd "$t/rel" && sha256sum -c --quiet SHA256SUMS) || fail "SHA256SUMS does not check"
-for f in podrunner-install.sh podrunner-manifest.json "runner-$arch.tar"; do
+for f in podrunner-install.sh podrunner-manifest.json "runner-$arch.tar" tier-cases.json; do
     grep -q "  $f\$" "$t/rel/SHA256SUMS" || fail "SHA256SUMS has no line of $f"
 done
+# T-518: the case table of the release is the one of the tree.
+cmp -s "$t/rel/tier-cases.json" "$root/crates/podrunner-tier/tier-cases.json" || fail "release-assets.sh: not the tier-cases.json of the tree"
 ! grep -q '\.sha256$' "$t/rel/SHA256SUMS" || fail "SHA256SUMS lists a .sha256 file"
 python3 -I - "$t/rel/podrunner-manifest.json" "$arch" <<'EOF' || fail "release-assets.sh: the manifest"
 import json, sys

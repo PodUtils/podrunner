@@ -81,6 +81,11 @@ impl MintConfig {
         if c.host.is_empty() {
             return Err("no [[host]]: no unit host can reach the mint".into());
         }
+        // The mint computes the tier too: it refuses what serve refuses.
+        c.trust.check()?;
+        if let Some(t) = &c.source.trust {
+            podrunner_slots::trust::table_check(t).map_err(|e| format!("[source] trust: {e}"))?;
+        }
         let mut pins = std::collections::BTreeSet::new();
         for h in &c.host {
             let pin = Pin::parse(&h.pin).map_err(|e| format!("[[host]] {:?}: {e}", h.name))?;
@@ -131,6 +136,13 @@ pub fn check(config: &Path) -> Result<MintConfig, Failure> {
         ));
     }
     let c = MintConfig::parse(&text).map_err(|e| fail(Class::Config, e))?;
+    let mut notes = c.trust.notes().into_iter().map(|n| format!("[trust] {n}")).collect::<Vec<_>>();
+    if let Some(t) = &c.source.trust {
+        notes.extend(podrunner_slots::trust::table_notes("[source] trust", t));
+    }
+    for line in notes {
+        eprintln!("podrunner: {line}");
+    }
     source_of(&c.source, Arc::new(SystemClock), std::time::Instant::now(), None)?;
     private_file("the key file of the mint", &c.key_file)?;
     std::fs::read(&c.cert_file).map_err(|e| fail(Class::Config, format!("the certificate: {}", e)))?;

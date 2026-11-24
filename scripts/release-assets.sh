@@ -16,8 +16,9 @@
 #       GH_TOKEN), checked against their .sha256 files, into DIST
 #   sh scripts/release-assets.sh local-mode VERSION DIST OUT
 #       the installer with the pins of VERSION, the manifest of the
-#       release, the bundles of x86_64 and aarch64 and the image archives,
-#       each with its .sha256, into OUT;
+#       release, the bundles of x86_64 and aarch64, the image archives and
+#       the case table of the tier rule (tier-cases.json, T-518), each with
+#       its .sha256, into OUT;
 #       DIST holds the binaries and the image archives; the pins of
 #       podvm, podnet and the runner come from images/ (a test gives
 #       another directory in RELEASE_ASSETS_IMAGES)
@@ -153,8 +154,12 @@ case $cmd in
             --manifest "$out/podrunner-manifest.json"
         for a in x86_64 aarch64; do sh scripts/make-bundle.sh "$out/podrunner-install.sh" "$a" "$dist" "$out"; done
         cp "$dist"/runner-*.tar "$dist"/runner-*.tar.sha256 "$out/"
+        # The case table of the tier rule, for a forge that runs it against
+        # its own rule (T-518); a test of podrunner-tier holds it in step.
+        cp crates/podrunner-tier/tier-cases.json "$out/tier-cases.json"
         (cd "$out" && sha256sum podrunner-install.sh > podrunner-install.sh.sha256 &&
-            sha256sum podrunner-manifest.json > podrunner-manifest.json.sha256 && sha256sum -c ./*.sha256)
+            sha256sum podrunner-manifest.json > podrunner-manifest.json.sha256 &&
+            sha256sum tier-cases.json > tier-cases.json.sha256 && sha256sum -c ./*.sha256)
         # A release asset has at most 2 GiB.
         for f in "$out"/*; do
             size=$(stat -c %s "$f")

@@ -83,6 +83,10 @@ pub fn check(path: &Path) -> Result<Config, Failure> {
     for line in crate::tiers::future_pins(&cfg, now_unix()) {
         eprintln!("podrunner: {line}");
     }
+    // An opt-in of trust gets a line in each check and at each start.
+    for line in cfg.trust_notes() {
+        eprintln!("podrunner: {line}");
+    }
     Ok(cfg)
 }
 

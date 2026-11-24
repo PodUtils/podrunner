@@ -81,6 +81,18 @@ impl Config {
         }
     }
 
+    /// A line for each opt-in of each trust table, after the name of the
+    /// table: `check` and `serve` print them (T-518).
+    pub fn trust_notes(&self) -> Vec<String> {
+        let mut out = self.trust.notes().into_iter().map(|n| format!("[trust] {n}")).collect::<Vec<_>>();
+        for s in &self.source {
+            if let Some(t) = &s.trust {
+                out.extend(table_notes(&format!("[[source]] {} trust", s.name), t));
+            }
+        }
+        out
+    }
+
     /// Each list is valid, each forge of a source is named once, and no
     /// `program` source shares the global list with another source: a
     /// `program` source can carry the jobs of a forge that is not GitHub,
@@ -115,5 +127,25 @@ impl Config {
             ));
         }
         Ok(())
+    }
+}
+
+/// The lines of the opt-ins of the trust table of one source, named `name`.
+pub fn table_notes(name: &str, t: &SourceTrust) -> Vec<String> {
+    match t {
+        SourceTrust::One(t) => t.notes().into_iter().map(|n| format!("{name}: {n}")).collect(),
+        SourceTrust::ByForge(forges) => forges
+            .iter()
+            .flat_map(|f| f.lists.notes().into_iter().map(move |n| format!("{name} of the forge {}: {n}", f.forge)))
+            .collect(),
+    }
+}
+
+/// Each list of the trust table of one source is valid (the check of a
+/// table that a mint reads).
+pub fn table_check(t: &SourceTrust) -> Result<(), String> {
+    match t {
+        SourceTrust::One(t) => t.check(),
+        SourceTrust::ByForge(forges) => forges.iter().try_for_each(|f| f.lists.check()),
     }
 }

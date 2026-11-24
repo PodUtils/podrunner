@@ -713,7 +713,7 @@
       "type": "object",
       "properties": {
         "extra_events": {
-          "description": "More events that a trusted job may come from: only those of\n[`EXTRA_EVENTS`] (the owner, Q5).",
+          "description": "More events that a trusted job may come from: only those of\n[`EXTRA_EVENTS`] (the owner, Q5 and Q12).",
           "type": "array",
           "default": [],
           "items": {

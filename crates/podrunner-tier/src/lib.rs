@@ -4,14 +4,16 @@
 //! default.
 //!
 //! - `trusted` when each holds: the repository is private or internal, or
-//!   is in `trusted_public`; the owner is a configured organization; the
-//!   head is not a fork; the actor is a member; the event is `push`,
-//!   `pull_request`, `workflow_dispatch`, `schedule` or `merge_group`.
+//!   is in `trusted_public`; the owner is a configured organization or
+//!   user; the head is not a fork; the actor is a member; the event is
+//!   `push`, `pull_request`, `workflow_dispatch`, `schedule` or
+//!   `merge_group`, or an event of [`EXTRA_EVENTS`] that `extra_events`
+//!   lists.
 //! - `untrusted` when the job is not trusted, the event is `pull_request`,
-//!   and the head is a fork.
-//! - Else `event-not-allowed`: this holds `pull_request_target`,
-//!   `workflow_run`, `issue_comment`, `release`, `repository_dispatch`,
-//!   `other`, each `unknown` value, a pull request from the same
+//!   and the head is a fork; or when an agent made the change (T-106).
+//! - Else `event-not-allowed`: this holds `other`, each `unknown` value,
+//!   an event of [`EXTRA_EVENTS`] that `extra_events` does not list, a
+//!   `pull_request_target` from a fork, a pull request from the same
 //!   repository by an actor that is not a member, and an event of a public
 //!   repository that is not listed.
 //! - `local` is never computed: only the configuration marks a set
@@ -20,6 +22,10 @@
 //! The intake check: a computed tier less trusted than the tier of the set
 //! is `tier-mismatch`. A job more trusted than its set runs under the
 //! stricter tier of the set. Both refusals come before the claim.
+//!
+//! [`TrustRule`] is the seam (DR-3): [`DefaultRule`] is this rule, and
+//! [`cases::conformance`] runs the published case table (`tier-cases.json`)
+//! against any rule.
 
 use podrunner_schema::offer::{ActorClass, Event, TrustInputs, Visibility};
 use podrunner_schema::{Fact, RefusalCode, Tier};
@@ -62,7 +68,7 @@ pub struct TierConfig {
     #[serde(default)]
     pub trusted_public: Vec<PublicRepo>,
     /// More events that a trusted job may come from: only those of
-    /// [`EXTRA_EVENTS`] (the owner, Q5).
+    /// [`EXTRA_EVENTS`] (the owner, Q5 and Q12).
     #[serde(default)]
     pub extra_events: Vec<Event>,
 }
@@ -71,19 +77,40 @@ pub struct TierConfig {
 const TRUSTED_EVENTS: [Event; 5] =
     [Event::Push, Event::PullRequest, Event::WorkflowDispatch, Event::Schedule, Event::MergeGroup];
 
-/// The events that the operator may add (the owner, Q5, 2026-11-13). On
-/// GitHub each runs the code of the default branch, not of a pull request.
-/// `pull_request_target`, `other` and `unknown` are never trusted.
-pub const EXTRA_EVENTS: [Event; 4] =
-    [Event::WorkflowRun, Event::IssueComment, Event::Release, Event::RepositoryDispatch];
+/// The events that the operator may add (the owner, Q5 and Q12). On GitHub
+/// each runs the workflow of the default branch, not of a pull request,
+/// with the secrets of the repository.
+/// `other` and `unknown` are never trusted.
+pub const EXTRA_EVENTS: [Event; 5] =
+    [Event::WorkflowRun, Event::IssueComment, Event::Release, Event::RepositoryDispatch, Event::PullRequestTarget];
+
+/// The name of an event as the offer and `podrunner.toml` write it.
+pub fn event_name(e: Event) -> String {
+    serde_json::to_value(e).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_else(|| format!("{e:?}"))
+}
 
 impl TierConfig {
     /// Refuse an extra event that is not in [`EXTRA_EVENTS`].
     pub fn check(&self) -> Result<(), String> {
         match self.extra_events.iter().find(|e| !EXTRA_EVENTS.contains(e)) {
-            Some(e) => Err(format!("[trust] extra_events: {e:?} can never be trusted")),
+            Some(e) => Err(format!("[trust] extra_events: {} can never be trusted", event_name(*e))),
             None => Ok(()),
         }
+    }
+
+    /// The opt-ins of this table that an operator must know of, one line
+    /// each, after the name of the table: `pull_request_target` (Q12).
+    pub fn notes(&self) -> Vec<String> {
+        if !self.extra_events.contains(&Event::PullRequestTarget) {
+            return Vec::new();
+        }
+        vec![
+            "extra_events: pull_request_target is trusted (the owner, Q12): a job of this event is trusted when its \
+             owner is configured, its head is not a fork and its actor is a member. Its workflow comes from the \
+             default branch and gets the secrets of the repository: a step that runs the code of the pull request \
+             runs it with those secrets"
+                .into(),
+        ]
     }
 }
 
@@ -109,33 +136,73 @@ fn listed_public(t: &TrustInputs, cfg: &TierConfig) -> bool {
     cfg.trusted_public.iter().any(|r| same(&r.owner, &t.owner) && same(&r.repo, &t.repo) && same_id(t.repo_id, r.id))
 }
 
-/// The tier of a job, or `event-not-allowed`.
+/// The rule of trust, a seam that can be swapped (DR-3). A rule computes
+/// the tier of a job from its facts and the trust lists; the intake check
+/// is the same for each rule. `cases::conformance` checks a rule against
+/// the published case table.
+pub trait TrustRule: Send + Sync {
+    /// The tier of a job, or the refusal (`event-not-allowed`).
+    fn compute(&self, t: &TrustInputs, cfg: &TierConfig) -> Result<Tier, RefusalCode>;
+
+    /// The tier that a job of a set with the tier `set` runs under, or the
+    /// refusal. A set marked `local` runs each job at `local`, with no rule.
+    fn intake(&self, t: &TrustInputs, cfg: &TierConfig, set: Tier) -> Result<Tier, RefusalCode> {
+        // A local set serves a source of the operator, never a forge: the
+        // configuration refuses a forge source on a local set (call C14).
+        if set == Tier::Local {
+            return Ok(Tier::Local);
+        }
+        let computed = self.compute(t, cfg)?;
+        if rank(computed) < rank(set) {
+            return Err(RefusalCode::TierMismatch);
+        }
+        // A job more trusted than its set runs under the stricter tier.
+        Ok(set)
+    }
+}
+
+/// The rule of this module: the rule of the design (SPEC §6.3) with the
+/// extra events of the owner (Q5, Q12) and the agent rule (T-106).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DefaultRule;
+
+impl TrustRule for DefaultRule {
+    fn compute(&self, t: &TrustInputs, cfg: &TierConfig) -> Result<Tier, RefusalCode> {
+        let visible = match t.repo_visibility {
+            Visibility::Private | Visibility::Internal => true,
+            Visibility::Public => listed_public(t, cfg),
+            Visibility::Unknown => false,
+        };
+        let allowed_event = TRUSTED_EVENTS.contains(&t.event)
+            || (EXTRA_EVENTS.contains(&t.event) && cfg.extra_events.contains(&t.event));
+        // For `pull_request_target`, `head_is_fork` is the repository of
+        // the head of the pull request (`head_repository` of the run).
+        let trusted = visible
+            && configured_owner(t, cfg)
+            && t.head_is_fork == Fact::No
+            && t.actor_class == ActorClass::Member
+            && allowed_event;
+        if trusted {
+            return Ok(Tier::Trusted);
+        }
+        // A change that an agent made runs as untrusted code, in a guest,
+        // also in the repository of a configured owner (T-106). A bot is
+        // never trusted: it falls through to the rules below.
+        if t.actor_class == ActorClass::Agent && visible && configured_owner(t, cfg) && allowed_event {
+            return Ok(Tier::Untrusted);
+        }
+        // Only a fork `pull_request` goes to a guest: GitHub gives it no
+        // secret. A fork `pull_request_target` holds the secrets.
+        if t.event == Event::PullRequest && t.head_is_fork == Fact::Yes {
+            return Ok(Tier::Untrusted);
+        }
+        Err(RefusalCode::EventNotAllowed)
+    }
+}
+
+/// The tier of a job by [`DefaultRule`], or `event-not-allowed`.
 pub fn compute(t: &TrustInputs, cfg: &TierConfig) -> Result<Tier, RefusalCode> {
-    let visible = match t.repo_visibility {
-        Visibility::Private | Visibility::Internal => true,
-        Visibility::Public => listed_public(t, cfg),
-        Visibility::Unknown => false,
-    };
-    let allowed_event =
-        TRUSTED_EVENTS.contains(&t.event) || (EXTRA_EVENTS.contains(&t.event) && cfg.extra_events.contains(&t.event));
-    let trusted = visible
-        && configured_owner(t, cfg)
-        && t.head_is_fork == Fact::No
-        && t.actor_class == ActorClass::Member
-        && allowed_event;
-    if trusted {
-        return Ok(Tier::Trusted);
-    }
-    // A change that an agent made runs as untrusted code, in a guest, also
-    // in the repository of a configured owner (T-106). A bot is never
-    // trusted: it falls through to the rules below.
-    if t.actor_class == ActorClass::Agent && visible && configured_owner(t, cfg) && allowed_event {
-        return Ok(Tier::Untrusted);
-    }
-    if t.event == Event::PullRequest && t.head_is_fork == Fact::Yes {
-        return Ok(Tier::Untrusted);
-    }
-    Err(RefusalCode::EventNotAllowed)
+    DefaultRule.compute(t, cfg)
 }
 
 /// The order of trust: `untrusted` < `trusted` < `local`.
@@ -147,21 +214,12 @@ fn rank(t: Tier) -> u8 {
     }
 }
 
-/// The tier that a job of a set with the tier `set` runs under, or the
-/// refusal. A set marked `local` runs each job at `local`, with no rule.
+/// The intake of a job by [`DefaultRule`].
 pub fn intake(t: &TrustInputs, cfg: &TierConfig, set: Tier) -> Result<Tier, RefusalCode> {
-    // A local set serves a source of the operator, never a forge: the
-    // configuration refuses a forge source on a local set (call C14).
-    if set == Tier::Local {
-        return Ok(Tier::Local);
-    }
-    let computed = compute(t, cfg)?;
-    if rank(computed) < rank(set) {
-        return Err(RefusalCode::TierMismatch);
-    }
-    // A job more trusted than its set runs under the stricter tier.
-    Ok(set)
+    DefaultRule.intake(t, cfg, set)
 }
+
+pub mod cases;
 
 #[cfg(test)]
 mod tests;
