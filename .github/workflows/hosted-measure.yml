@@ -283,6 +283,9 @@ jobs:
           "$RUNNER_TEMP/podvm" load -i "$W/image.tar"
           rm -f "$W/image.tar"
       - name: Import into incusd
+        # A bound for a hung incusd or podvm, not a measure: the full
+        # import of the snapshot unpacks about 57 GB three times.
+        timeout-minutes: 180
         run: |
           set -eu
           # The use of the disk every 15 s: the create can fill it, and a
@@ -308,9 +311,11 @@ jobs:
           sg incus-admin -c "PODVM_STORE=$PODVM_STORE $RUNNER_TEMP/podvm create --name measure --podvm-tier=incus --podvm-init=image --podvm-net none $IMAGE /bin/true" < /dev/null || rc=$?
           echo "import: podvm create exit $rc" | tee -a "$M/info.txt"
           [ "$rc" -eq 0 ] || exit "$rc"
-          sudo incus list --format csv -c nsS | tee -a "$M/info.txt"
+          timeout 60 sudo incus list --format csv -c nsS | tee -a "$M/info.txt"
       - name: Boot when it fits
-        timeout-minutes: 30
+        # The sum of the time limits of the commands below is about
+        # 38 min; the step ends before the job.
+        timeout-minutes: 45
         env:
           MARGIN: ${{ inputs.margin }}
         run: |
@@ -340,20 +345,22 @@ jobs:
           # can fail: the file is the record, not a check.
           # The instance of this step only (podvm names it after --name):
           # incusd can hold others.
-          name=$(timeout 60 sudo incus list --format csv -c n 2> /dev/null | grep -F measure | head -n 1) || true
+          name=$(timeout 60 sudo incus list --format csv -c n 2> /dev/null | grep -Fx measure | head -n 1) || true
           name=${name:-measure}
           d=$M/boot-diag.txt
           {
             echo "## instance $name"
             timeout 60 sudo incus start "$name" || true
-            state=""
-            for _ in $(seq 24); do
+            # The progress text of incus start has no newline at its end.
+            echo
+            echo "## systemctl is-system-running, one line for each poll"
+            t0=$(date +%s)
+            for _ in $(seq 12); do
               state=$(timeout 20 sudo incus exec "$name" -- systemctl is-system-running 2> /dev/null | head -n 1) || true
+              echo "$(($(date +%s) - t0)) s: ${state:-(no answer)}"
               case $state in running | degraded) break ;; esac
               sleep 5
             done
-            echo "## systemctl is-system-running"
-            echo "$state"
             echo "## systemctl --failed"
             timeout 20 sudo incus exec "$name" -- systemctl --failed --no-pager 2>&1 || true
             echo "## journalctl -b -n 200"
@@ -370,7 +377,7 @@ jobs:
             sudo dmesg 2>&1 | tail -n 80 || true
           } > "$d" 2>&1 || true
           timeout 60 sudo incus stop -f "$name" > /dev/null 2>&1 || true
-          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus measure" || true
+          timeout 120 sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus measure" || true
           out=$RUNNER_TEMP/out
           mkdir -p "$out" && chmod 0777 "$out"
           cat > "$out/checks.sh" <<'SH'
@@ -384,10 +391,12 @@ jobs:
           sudo incus monitor --pretty > "$M/incus-monitor.txt" 2>&1 &
           mon=$!
           rc=0
-          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name measure --podvm-tier=incus --podvm-init=image --podvm-net none -v $out:/out $IMAGE /bin/sh /out/checks.sh" < /dev/null || rc=$?
+          timeout 600 sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name measure --podvm-tier=incus --podvm-init=image --podvm-net none -v $out:/out $IMAGE /bin/sh /out/checks.sh" < /dev/null || rc=$?
           state=""
-          for _ in $(seq 120); do
-            state=$(sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' measure" 2> /dev/null | head -n 1) || true
+          # A deadline, not a count: each inspect can take its 30 s.
+          end=$(($(date +%s) + 600))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            state=$(timeout 30 sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' measure" 2> /dev/null | head -n 1) || true
             case $state in Running*) sleep 10 ;; *) break ;; esac
           done
           {
@@ -396,7 +405,7 @@ jobs:
           } | tee -a "$M/info.txt"
           stop_monitor
           kill "$mon" 2> /dev/null || true
-          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus measure" || true
+          timeout 120 sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm rm -f --podvm-tier=incus measure" || true
           [ "$rc" -eq 0 ] && [ -s "$out/started" ]
       - name: The report
         if: always()
