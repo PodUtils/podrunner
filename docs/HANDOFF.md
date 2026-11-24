@@ -101,6 +101,11 @@ is done.
 
 ## Resume here (the session of 2026-11-24)
 
+State at the end: `main` at `c54953b`, pushed, the tree clean. Level of the
+sidecar changes of T-504 and T-518: not run against GitHub (proven by unit
+and fake tests only). Read first: the CI runs on `c54953b` (the gate with
+`go test -race`, `level2.yml`, `runner-image.yml`).
+
 - The ruling "Subagents" of 2026-11-24 (`docs/decisions.md`;
   `docs/maintenance.md`, "Subagents"): the lead session delegates.
   Implementation goes to Opus 5.5 at medium or high effort, recon and
@@ -108,26 +113,69 @@ is done.
   medium effort, blind tests and QA tests to Sonnet 5.5 at high effort.
   One cargo build at a time still holds: agents in parallel each need a
   worktree and a target directory of their own.
-- The tally of the recon of 2026-11-24 (not recounted in the record;
-  T-617 recounts it for the trackers). githome, G-01 to G-41: 4 asks are
-  in beta.7, 19 are done on `main` and not released, 11 are partial, 7
-  are open. cfb: 10 asks are in a release, 15 are on `main`, 6 are
-  partial, 7 are open; R-052 is named nowhere (T-618); W11 and W14 are
+- Pushed in this session, each with its entry:
+  - T-613 (partial), the cause and the fixes: on the hosted image `/mnt` is
+    a directory of `/`, so the loop file is one file, made with no discard,
+    mounted `nodiscard`, with `fstrim.timer` stopped; traces, boot
+    diagnostics and time limits in `hosted-measure.yml`. Measures:
+    45313526131 (`full` = all): three copies of the image fill the btrfs
+    (COORD-125, #347). 45324301659 and 45333131256 (slice on btrfs): the
+    import fits and the boot fails, because podvm's readiness check of
+    `--podvm-init=image` returns at "offline" with no retry (COORD-127,
+    #349). 45327334399 (slice on the store root, a `dir` pool): it boots.
+  - T-614 and T-615 (done): the probe of `--export` and the run key (the
+    machine id, else the boot id).
+  - T-617 (done): the trackers #65, #66, #292 and #151 are amended. T-618:
+    R-052 is asked on #292 (open, it waits for cfb).
+  - The rulings of the owner (`docs/decisions.md`): Q12 (`pull_request_target`
+    is an opt-in), Q13 (a personal account is an opt-in) and "Subagents".
+  - T-518 (done, opt-in): the `TrustRule` trait and the asset
+    `tier-cases.json`. `head_is_fork` is true when the head repository is
+    not the base repository. An agent job needs `head_is_fork = no`. R8 and
+    R9 of `docs/security/residuals.md`. githome is told on #151.
+  - T-504 (done, opt-in `allow_personal_account`): `triggering_actor` and
+    `run_attempt` are checked; the API URL comes from `config_url`; the
+    owner type comes from `/users`. The queue of the sidecar: the lookups
+    run in the time of `next`, a pending job blocks no job behind it,
+    there are give-up limits, and each call has a budget with an ETag
+    (R10 to R12). Four reviews found real P1 and P2 defects (the last at
+    `c850c9d`).
+  - podcrates `v0.82.1` is taken (T-619). COORD-126 (#348) is closed.
+    #342 and #343 are closed (T-595, T-602).
+  - T-620 (done): the short egress directory goes with its last unit.
+- Open from this session:
+  - T-621 (P2): a live lane that learns if GitHub sends the queued jobs
+    again after a kill of the sidecar.
+  - T-622 (P3): a status field for the counts of the sidecar queue; it
+    needs a COORD issue to podcrates, which is not written yet.
+  - T-623 (P2): `cancelRefused` never tries a failed cancel again.
+  - T-624 (P3): the P3 findings of the trust lookups.
+  - T-616 (P3), T-618 (waits for cfb).
+- Asks open to podvm: COORD-123 (#345, T-611), COORD-124 (#346, T-613),
+  COORD-125 (#347, T-613), COORD-127 (#349, T-613). T-611 and T-613 need
+  the next podvm beta after beta.38.
+- The work order next (`TODO/PROGRESS.md`):
+  1. Read the CI on `c54953b`.
+  2. T-623 (P2).
+  3. The `v0.1.0-beta.8` path: the gates T-243, T-244 and T-246 (a new
+     round of adversarial QA on the current `main`), then the checklist
+     of `docs/maintenance.md`, "A release". A release moves 19 asks of
+     githome and 11 clauses of cfb to "in a release".
+  4. T-480, T-487, T-516, T-500.
+  5. The local P3 code: T-598, T-597, T-616, T-603 step 1, T-610, T-609
+     (it needs the option `--run-sh` or a root from the image, see its
+     Approach).
+- The tally of the recon of 2026-11-24 (T-617 recounted it for the
+  trackers). githome, G-01 to G-41: 4 asks are in beta.7, 19 are done on
+  `main` and not released, 11 are partial, 7 are open. cfb: 10 asks are in
+  a release, 15 are on `main`, 6 are partial, 7 are open; W11 and W14 are
   dropped.
-- The new entries of this session: T-616 (the local mode: a container
-  gets no trust store of a JVM, with T-597), T-617 (the state of #65,
-  #66 and the comment on #292 is stale), T-618 (R-052). The owner ruled
-  Q12 and Q13 on 2026-11-24 (`docs/decisions.md`): T-518 and T-504 are
-  `open`, each an opt-in that is off by default.
-- The plan, in this order:
-  1. `v0.1.0-beta.8` first: the gates T-243, T-244 and T-246, with a new
-     round of adversarial QA on the current `main`
-     (`docs/maintenance.md`, "A release").
-  2. Then T-480, T-487, T-516 and T-500; T-518 (the ruling Q12), then
-     T-504 (the ruling Q13).
-  3. Then the local P3 code: T-598, T-597 (with T-616), T-603 step 1,
-     T-610, T-609 (it needs the option `--run-sh` or a root from the
-     image, see its Approach).
+- Session notes:
+  - A review round for each trust change: each review of T-504 and T-518
+    found real P1 and P2 defects.
+  - A `check.sh` run must not overlap an agent that edits the tree.
+  - `issue-sync.yml` reopens an issue that the record marks open: record
+    each close in `TODO/issues.md` and `TODO/github.txt` at once.
 
 ## Resume here (the session of 2026-11-23 and 2026-11-24)
 
@@ -161,21 +209,11 @@ is done.
   guest), T-557 and T-613 (the full snapshot does not fit a `dir` pool
   of a hosted runner; the loss of the runner in the place step has its
   cause, see the work order).
-- COORD-120 (#342, T-595) and COORD-121 (#343, T-602): podcrates
-  answered in `v0.82.1` (T-619); both entries are done. Close #342 and
-  #343, and write the take as a COORD issue `(to podcrates)` after the
-  push. COORD-123 (#345, T-611) and COORD-124 (#346,
-  T-613) to podvm: both answered and fixed on podvm's `main` for the beta
-  after beta.38 (COORD-233, COORD-236): pin that beta, then make the peak
-  of T-483 strict again (T-611) and run `hosted-measure.yml` (T-613).
-- Work order next (`TODO/PROGRESS.md`): T-613 (the cause is found: on
-  the hosted image `/mnt` is a directory of `/`, so the loop file is one
-  file, made with no discard, mounted `nodiscard`, with `fstrim.timer`
-  stopped; `hosted-measure.yml` 45313526131 on `3dde258` is in progress;
-  a further run of `place = btrfs` is necessary on the commit with
-  `nodiscard`, `7ad6721` or later), the next beta of podvm (T-611,
-  T-613), T-602 and T-595 when podcrates answers, T-597, T-598, T-603,
-  T-609, T-610, T-612, then the work order of `TODO/PROGRESS.md`.
+- COORD-123 (#345, T-611) and COORD-124 (#346, T-613) to podvm: both
+  answered and fixed on podvm's `main` for the beta after beta.38
+  (COORD-233, COORD-236): pin that beta, then make the peak of T-483
+  strict again (T-611) and run `hosted-measure.yml` (T-613).
+- The work order next: see the section of 2026-11-24 above.
 - Session notes:
   - Agents in parallel worktrees: give each a target directory of its
     own outside the tree (`/workspace/target-NAME`) and a copy of the
@@ -579,7 +617,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
 
 The audits of 2026-11-21 and 2026-11-23 found the record and GitHub in agreement; `TODO/issues.md` has each row. Open:
 
-- Asks of 2026-11-23: #342 (COORD-120, T-595) and #343 (COORD-121, T-602) to podcrates are answered by `v0.82.1` (T-619): close them after the push; #344 (COORD-122, T-606) to podvm.
+- Asks of 2026-11-23 and 2026-11-24: #344 (COORD-122, T-606), #345 (COORD-123, T-611), #346 (COORD-124, T-613), #347 (COORD-125, T-613) and #349 (COORD-127, T-613) to podvm.
 - Asks to podvm not delivered or not taken: #339 (COORD-118, the PAX value of an ACL) and #344 (COORD-122, 85 layers) are in beta.38 and wait for their runs, #316 and #313 (PodUtils/podvm@T-1994, @T-1998 are not in beta.38), #308 (podvm waits for data of podrunner), #304 and #189 (T-261), #300 (`--podvm-volume-base` off the namespace rung), #296 (ask 5), #277 (T-403).
 - COORD issues with entries not done: #312 (T-553), #184 (T-250), #183 (T-249), #181 (T-248).
 - Defects of the live runs with entries not done: #260 (T-412), #171 (T-229), #149 (T-197), #144 (T-192), #143 (T-180), #140 and #121 (T-169), #138 (T-187), #126 (T-181).
