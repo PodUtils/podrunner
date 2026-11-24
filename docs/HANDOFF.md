@@ -98,26 +98,28 @@ is done.
 - The run report names `claim_to_first_step_s`, `job_images` and the exit
   reason `limit` (T-075, T-074).
 
-## Resume here (the session of 2026-11-23)
+## Resume here (the session of 2026-11-23 and 2026-11-24)
 
-- State at the end (`main` at `26f95bd` or later): podvm
-  `0.2.0-beta.38` is pinned (COORD-232). Green on it: `runner-image.yml`
-  45231203307 (`f694571`), `user-gate.yml` 45276522625 (each lane), the
-  gate, `level2.yml`, the dry run of `release.yml` 45276528105 (T-553:
-  the images of ghcr.io built, nothing pushed) and of
-  `runner-image-release.yml` 45164009824 (T-499). The hosted capture with
-  `--acls` and no `--sparse` is
+- State at the end (`main` at `3c04e60` or later, the tree clean, no
+  worktree and no agent in work): podvm `0.2.0-beta.38` is pinned
+  (COORD-232). Green on `3c04e60`: the gate, `level2.yml`,
+  `runner-image.yml` 45291991112, `secrets.yml`. Green on `f694571`:
+  `user-gate.yml` 45276522625 (each lane), the dry run of `release.yml`
+  45276528105 (T-553). The dry run of `runner-image-release.yml`
+  45164009824 is green (T-499). The hosted capture with `--acls` and no
+  `--sparse` is
   `ghcr.io/podutils/podrunner-hosted@sha256:baa8431a36ba58f3be6d15780a4a2cc0090d90cd1621df3ffe1dee5d841f4909`
-  (C1 0 differences; its slice boots, `hosted-boot.yml` 45276447058).
+  (C1 0 differences; its slice boots, `hosted-boot.yml` 45276447058); its
+  runner image of before is `sha256:b1d895f4...` (T-541).
 - This session dispatches workflows with the MCP tool
   `actions_run_trigger`; no `[gh action] requested` issue is necessary
   (the owner, 2026-11-23). A push that changes a crate of the units starts
-  `runner-image.yml` (about 2.5 hours): cancel the older run when a newer
+  `runner-image.yml` (about 2.5 hours): cancel an older run when a newer
   run covers the same images.
 - Done in this session, each with its proof in its entry: T-583, T-582,
   T-592, T-590, T-532, T-541 (a job of `serve` in the hosted runner image
   under incus sees the hosted paths and takes the tool cache), T-599,
-  T-606, T-593 (CI); T-589, T-591 (development host).
+  T-606, T-593 (CI); T-589, T-591, T-607 (development host).
 - Partial, with what is left in each entry: T-588 (a start of `serve` in
   a unit of the system), T-577 (a `java` client in the lane
   `proxy-only`), T-578 (step 2, the engine route), T-596 (a live
@@ -125,29 +127,37 @@ is done.
   beta after beta.38: T-611), T-497, T-499 (a publish run with a new
   `actions/runner`; the installer), T-553 (the run with a version and
   the run on a tag), T-556 (`systemd-remount-fs.service`, the KVM
-  guest), T-557 (the import of the full snapshot fills a `dir` pool:
-  T-613).
-- Asks open: COORD-120 (#342) and COORD-121 (#343) to podcrates;
-  COORD-123 (#345, answered: fixed on podvm's `main`, T-611 waits for the
-  beta after beta.38) and COORD-124 (#346, the hidden error of a create)
-  to podvm. podcrates `v0.82.0` is out (podvm and podnet take it); no
-  COORD message to podrunner yet: take it when it comes.
-- Work order next (`TODO/PROGRESS.md`): T-613 (a btrfs pool for the full
-  boot), T-602 and T-595 when podcrates answers, T-611 with the next
-  podvm beta, T-607, T-597, T-598, T-603, T-609, T-610, T-612, then the
-  work order of `TODO/PROGRESS.md`.
+  guest), T-557 and T-613 (the full snapshot does not fit a `dir` pool
+  of a hosted runner; the places `joined` and `btrfs` lose the runner in
+  their place step: keep more free on `/`).
+- Asks open: COORD-120 (#342, T-595) and COORD-121 (#343, T-602) to
+  podcrates, no answer yet. COORD-123 (#345, T-611) and COORD-124 (#346,
+  T-613) to podvm: both answered and fixed on podvm's `main` for the beta
+  after beta.38 (COORD-233, COORD-236): pin that beta, then make the peak
+  of T-483 strict again (T-611) and run `hosted-measure.yml` (T-613).
+  podcrates `v0.82.0` is out (podvm and podnet take it); no COORD message
+  to podrunner yet: take it when it comes.
+- Work order next (`TODO/PROGRESS.md`): T-613 (the loop file on `/`
+  keeps 20 GiB free, then `place = btrfs` again), the next beta of podvm
+  (T-611, T-613), T-602 and T-595 when podcrates answers, T-614, T-615,
+  T-597, T-598, T-603, T-609, T-610, T-612, then the work order of
+  `TODO/PROGRESS.md`.
 - Session notes:
   - Agents in parallel worktrees: give each a target directory of its
     own outside the tree (`/workspace/target-NAME`) and a copy of the
-    runner directory.
+    runner directory; remove both, and the worktree, after the merge.
   - Do not commit while `check.sh` runs: it records no tree that changed
     during the checks, and the pre-push hook then refuses the push. A
     change of only `TODO/` after a recorded tree needs no new check.
   - `issue-sync.yml` reopens an issue that the record marks open: when
     another session closes an issue of this repository, mark it closed in
-    `TODO/issues.md` and `TODO/github.txt` in the same hour.
+    `TODO/issues.md` and `TODO/github.txt` in the same hour (#339 was
+    reopened once).
   - The 99 reports of an outside author (#155 to #287) have the label
     `confirmed`, so `issue-sync.yml` writes their state.
+  - The remote branch `claude/admiring-albattani-8ad4sr` and its local
+    copy are of the harness, not of this project: `AGENTS.md` keeps the
+    work on `main`.
 
 ## Resume here (the session of 2026-11-19 and 2026-11-20)
 
