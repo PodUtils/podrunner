@@ -2,74 +2,36 @@
 # (T-030), and the SHA-256 of each binary, from its release (`.sha256`).
 # `[ghcr] reference` is the index of the same release on ghcr.io, from the
 # notes of the release (T-553, COORD-142); a new version needs a new one
-# (scripts/install-pins.py refuses a reference of another tag).
-# The podvm driver needs v0.2.0-beta.5 or later: a tree for each container
-# (T-064), absolute links in the rootfs (T-061), `:ro` on `exec` (T-062),
-# labels and the run report (T-078).
-# v0.2.0-beta.6 carries the aarch64 interposer objects (T-051); beta.7 the
-# fortified opens of glibc in the interposer (T-096); beta.8 the fixes of
-# podvm's QA pass; beta.9 the owners of the image in a guest of the
-# machine tier, `--podvm-net none` and `--podvm-channel` (T-037); beta.10
-# the channel on `pod-link` with its socket in a directory of mode 0700,
-# and stdin for an incus instance that stays (`run -d -i`, T-105); beta.11
-# keeps the proxy variables of a guest with no NIC (PodUtils/podvm#311);
-# beta.12 no NIC and one channel on the incus tier; beta.13 that channel
-# as a socket file and a relay, with no proxy device (T-109); beta.14
-# --podvm-engine for a container engine in a guest (T-103); beta.17 a glibc
-# 2.34 image with no libdl.so.2 where chroot is denied (T-156,
-# PodUtils/podvm#351); beta.18 refuses a foreign platform of the machine
-# tier by name (T-151, PodUtils/podvm#366); beta.19 a detached run of a
-# static image where chroot is denied (T-158, PodUtils/podvm#376), one
-# image for a tag and a digest of one manifest, and `save --platform`
-# (T-163, PodUtils/podvm#375); beta.20 the limits of an incus instance
-# (`--memory`, `--cpus`, `--pids-limit`, T-162, PodUtils/podvm#382);
-# beta.21 a `:ro` volume on the detached run of a static image where
-# chroot is denied (T-158, PodUtils/podvm#391); beta.22 `--hostname` of
-# `run` (T-182, PodUtils/podvm#402), name resolution under `--podvm-confine`
-# (T-181, PodUtils/podvm#396) and an attestation of each binary (GitHub
-# #168); beta.24 the memo descriptor 17 under a supervisor (T-227,
-# PodUtils/podvm#421), the links of tar on the userland rung (T-232,
-# PodUtils/podvm#423) and `podvm lab run` (T-244, PodUtils/podvm#430);
-# beta.25 a volume of a foreground run that keeps the namespace rung (T-261,
-# PodUtils/podvm#439) and the cause of an early end of a guest of the
-# machine tier (T-291, PodUtils/podvm#444); beta.26 the memo on descriptor
-# 17 checked before each use (T-309, PodUtils/podvm#450) and `--hostname`
-# of `run -d` on the namespace rung (T-182, PodUtils/podvm#448); beta.27
-# the payload of `run -d` as the `USER` of the image on that rung (T-317);
-# beta.30 a PID namespace and a `/proc` of its own for `run -d` on that
-# rung (T-318, PodUtils/podvm#458); beta.32 `--podvm-volume-base` (T-403,
-# PodUtils/podrunner#277), `exec --env-file` (T-405), a devpts of the unit
-# (T-354, #216), the syscall tier on the userland rung (T-261, #189) and the
-# cgroup leaf of `run -d` (#110, COORD-185, PodUtils/podvm#572).
-# v0.2.0-beta.33 carries `--env-file0` (T-405), the path of a unix socket in
-# the syscall tier (T-261, COORD-190), and on the incus tier
-# `--storage-opt size=N` (T-482) and the CPU time, the peak memory and the
-# OOM kills in `inspect` (T-483) (COORD-187, PodUtils/podvm#583).
-# v0.2.0-beta.34 resolves an absolute link of a unit under the syscall tier
-# (T-261, COORD-192) and gives the OOM kills of a machine guest (T-515).
-# v0.2.0-beta.36 runs the init of the image as PID 1 on the incus tier
-# (`--podvm-init=image`, T-543, COORD-200), keeps a Go program off podvm's
-# signal stack (T-554, COORD-202), retries `openat2` on EAGAIN under the
-# syscall tier (T-261, COORD-197) and runs `apt-get install` as `-u 0` on
-# the userland rung.
-# v0.2.0-beta.37 gives `--podvm-init=image` on each route (T-556), runs the
-# command beside an Entrypoint `/sbin/init` (COORD-112, #325), joins the
-# namespaces of a `run -d` container of the namespace rung at `exec`
-# (T-532, COORD-113, #326), streams `logs` and takes `--limit-bytes N`
-# (T-570, COORD-115, #333), and gives `State` of `inspect` as the object of
-# docker.
-# v0.2.0-beta.38 takes podcrates v0.82.0: a layer of GNU tar `--acls`
-# extracts (COORD-118, #339) and a layer with GNU sparse records is refused
-# (T-599); `load` of an image of 85 layers holds one lock at a time
-# (COORD-122, #344, T-606); `inspect` gives docker's types (T-581); `run -d
-# --rm` and `create --rm` remove the container at its end (COORD-232).
-# v0.2.0-beta.39 keeps podcrates v0.82.0: `inspect` of a stopped instance
-# of the incus tier gives `CpuSeconds`, `PeakMemoryBytes` and `OomKills`
-# (COORD-123, #345, T-611), and the OOM killer no longer takes its init;
-# an image that cannot fit in a `dir` pool is refused before the import
-# with one line that names the free space and the need (COORD-124, #346,
-# T-613); exit 126 and 127 of a command, signals of a foreground run, and
-# one import of one image for parallel runs on the incus tier.
+# (scripts/install-pins.py refuses a reference of another tag). The lowest
+# podvm of each kind is in crates/podrunner-podvm/src/probe.rs.
+#
+# The lowest version for each feature that podrunner uses:
+# - 0.2.0-beta.5: a tree for each container, absolute links in the rootfs,
+#   `:ro` on `exec`, labels and the run report.
+# - beta.9: the owners of the image in a guest of the machine tier,
+#   `--podvm-net none` and `--podvm-channel`.
+# - beta.13: no NIC and one channel on the incus tier (a socket file and a
+#   relay).
+# - beta.14: `--podvm-engine` (a container engine in a guest).
+# - beta.20: the limits of an incus instance (`--memory`, `--cpus`,
+#   `--pids-limit`).
+# - beta.22: `--hostname` of `run` and name resolution under
+#   `--podvm-confine`; an attestation of each binary.
+# - beta.30: a PID namespace and a `/proc` for `run -d` on the namespace
+#   rung.
+# - beta.32: `--podvm-volume-base`, `exec --env-file` and the cgroup leaf of
+#   `run -d`.
+# - beta.33: `--env-file0`; on the incus tier `--storage-opt size=N` and
+#   the CPU time, the peak memory and the OOM kills in `inspect`.
+# - beta.36: `--podvm-init=image` (the init of the image as PID 1 on the
+#   incus tier).
+# - beta.37: `State` of `inspect` as the object of docker, and `logs` with
+#   `--limit-bytes`.
+# - beta.38: a layer of GNU tar `--acls` extracts, `inspect` gives the types
+#   of docker, and `run -d --rm` removes the container at its end.
+# - beta.39: `inspect` of a stopped incus instance gives the CPU time, the
+#   peak memory and the OOM kills; an image that does not fit in a `dir`
+#   pool is refused before the import; one import for parallel runs.
 version = "0.2.0-beta.39"
 
 [sha256]
