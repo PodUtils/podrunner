@@ -123,6 +123,7 @@ fn doctor_and_check_count_out_the_microvm_kind_with_no_kvm() {
     assert!(d.contains("kind microvm: not served on this host: /dev/kvm: "), "{d}");
     assert!(!d.contains("kind microvm: boundary"), "{d}");
     assert!(d.contains("source local: tier local, not served"), "{d}");
+    assert!(d.contains("(no unit kind of x86_64 runs on this host)") || std::env::consts::ARCH != "x86_64", "{d}");
     // check refuses the file as serve does: no other kind serves the source.
     assert_eq!(check.status.code(), Some(78), "{}", text(&check));
     assert!(text(&check).contains("no-tier-served") && text(&check).contains("[unit.microvm] not here: /dev/kvm: "));

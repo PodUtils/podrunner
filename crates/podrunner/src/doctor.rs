@@ -234,7 +234,11 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
                         format!("{}: {}", c.kind, w.join(", "))
                     })
                     .collect();
-                let why = if why.is_empty() { format!("no unit kind of {}", s.arch) } else { why.join("; ") };
+                let why = if why.is_empty() {
+                    format!("no unit kind of {} runs on this host", s.arch)
+                } else {
+                    why.join("; ")
+                };
                 missing.push(format!(
                     "[[source]] {}: no unit kind meets the floor and the hold of its tier ({why})",
                     s.name
