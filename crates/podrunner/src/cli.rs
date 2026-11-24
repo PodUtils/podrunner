@@ -212,7 +212,8 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
                 let o = opts(rest)?;
                 o.only(&["--tarball", "--arch"])?;
                 let arch = o.need("--arch")?.display().to_string();
-                crate::image::verify(&o.need("--tarball")?, &arch).map(ok).map_err(|e| err(Class::Config, e))
+                let arch = crate::image::arch_of(&arch).map_err(|e| err(Class::Usage, e))?;
+                crate::image::verify(&o.need("--tarball")?, arch).map(ok).map_err(|e| err(Class::Config, e))
             }
             _ => Err(err(Class::Usage, format!("image needs verify\n{USAGE}"))),
         },
@@ -352,6 +353,22 @@ mod tests {
         assert!(o.stderr.contains("broken at seq 3"), "{}", o.stderr);
         assert_eq!(run(&args(&["audit", "verify", "--state", &state, "--anchor", "x"])).code, 64);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-628: `image verify --arch` takes x64 and arm64; another value is
+    /// a usage error that names the valid ones.
+    #[test]
+    fn image_verify_takes_the_names_of_actions_runner() {
+        let f = std::env::temp_dir().join(format!("podrunner-t628-{}.tar.gz", std::process::id()));
+        std::fs::write(&f, b"abc").unwrap();
+        let t = f.display().to_string();
+        for arch in ["x64", "arm64", "x86_64", "aarch64"] {
+            let o = run(&args(&["image", "verify", "--tarball", &t, "--arch", arch]));
+            assert!(o.code == 78 && o.stderr.contains("its SHA-256 is"), "{arch}: {}", o.stderr);
+        }
+        let o = run(&args(&["image", "verify", "--tarball", &t, "--arch", "riscv64"]));
+        assert!(o.code == 64 && o.stderr.contains("use x64 or arm64"), "{}", o.stderr);
+        let _ = std::fs::remove_file(&f);
     }
 
     #[test]

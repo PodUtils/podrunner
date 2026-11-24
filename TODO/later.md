@@ -15631,7 +15631,7 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15650,6 +15650,10 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 ## Prove
 
 `cargo test -p podrunner --lib image` with new tests: `verify` with `x64` and `arm64` reaches the SHA-256 check; an unknown arch names the valid values; an uncompressed tar named `runner-x86_64.tar` gets the message "a runner image". Each test fails before the change.
+
+## Done
+
+2026-11-24 (commit: this one, "image: verify takes x64 and arm64, and names a runner image of a release (T-628)"): fn `image::arch_of` maps `x64` and `x86_64` to `x86_64`, `arm64` and `aarch64` to `aarch64`; another value exits 64 (a usage error, was 78) with `no pin for the architecture "riscv64": use x64 or arm64 (or x86_64, aarch64)`. The T-344 test read only the first MiB for `oci-layout` or `index.json`; a release sorts the entries of `runner-ARCH.tar`, so its blobs come first and the check never saw the index. fn `is_image` now takes the name `runner-*.tar`, or walks the headers of the tar (it seeks over the data) for `oci-layout`, `index.json`, `blobs/sha256/` or `manifest.json` (`docker save`), also with `./`; the message says "this file is a runner image of a release (runner-ARCH.tar), not the tarball of actions/runner" and gives `sha256sum -c runner-ARCH.tar.sha256`. `docs/cli.md` names the values. Tests: `image::tests::each_name_of_an_architecture_reaches_the_check`, `image::tests::the_runner_image_of_a_release_is_named`, `cli::tests::image_verify_takes_the_names_of_actions_runner`; the first two failed before the change. `cargo test -p podrunner --lib image`: 13 passed. The built binary as the user `labdns` (no root): `image verify --tarball actions-runner-linux-x64-2.338.2.tar.gz --arch x64` exits 0 (and `x86_64`); `--arch arm64` reaches the SHA-256 check (78); `--arch riscv64` exits 64 with the valid values; a sorted OCI tar named `runner-x86_64.tar` and the same tar as `img.tar` each get the line of a runner image. Level: proven on this host as a user with no root (a made OCI tar, not the asset of a release).
 
 
 # T-629: `config init` and `doctor --config` offer the microvm kind on a host with no KVM

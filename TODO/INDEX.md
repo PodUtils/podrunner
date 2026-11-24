@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**632 entries: 79 open, 60 partial, 15 blocked, 478 done.**
+**632 entries: 78 open, 60 partial, 15 blocked, 479 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 3 | 91 | 120 |
-| P2 | 21 | 22 | 9 | 246 | 298 |
+| P2 | 20 | 22 | 9 | 247 | 298 |
 | P3 | 57 | 12 | 3 | 139 | 211 |
-| **All** | 79 | 60 | 15 | 478 | 632 |
+| **All** | 78 | 60 | 15 | 479 | 632 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -670,7 +670,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-625](later.md) | P2 | S | later | defect | done | The attempt of a refused job of the past-limit path: a lost cancel |
 | [T-626](later.md) | P2 | S | later | release | open | `release.yml` needs a green `runner-image.yml` run of the release commit, with no `images_run` input |
 | [T-627](later.md) | P2 | M | later | defect | open | `podrunner man` does not exist, and the help of `run` and `config init` lacks flags that `docs/cli.md` lists |
-| [T-628](later.md) | P2 | S | later | defect | open | `podrunner image verify --arch x64` is refused, and the error lists no valid value |
+| [T-628](later.md) | P2 | S | later | defect | done | `podrunner image verify --arch x64` is refused, and the error lists no valid value |
 | [T-629](later.md) | P2 | M | later | defect | open | `config init` and `doctor --config` offer the microvm kind on a host with no KVM |
 | [T-630](later.md) | P2 | S | later | defect | open | A corrupt or truncated tar in the image cache fails each later `run`, and no message names the file |
 | [T-631](later.md) | P2 | S | later | defect | done | `run --changed-since` passes a ref that starts with `-` to git as an option |
