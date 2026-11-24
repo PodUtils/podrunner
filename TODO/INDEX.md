@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**615 entries: 68 open, 57 partial, 16 blocked, 474 done.**
+**615 entries: 67 open, 57 partial, 16 blocked, 475 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 91 | 120 |
 | P2 | 14 | 22 | 9 | 243 | 288 |
-| P3 | 51 | 11 | 4 | 138 | 204 |
-| **All** | 68 | 57 | 16 | 474 | 615 |
+| P3 | 50 | 11 | 4 | 139 | 204 |
+| **All** | 67 | 57 | 16 | 475 | 615 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -548,7 +548,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-501](later.md) | P2 | S | later | feature | done | G-26: a drain and a stop of one source |
 | [T-502](later.md) | P2 | S | later | feature | done | G-27: a cancel ends its unit in a bounded time, with a conformance test |
 | [T-503](later.md) | P2 | S | later | feature | done | G-28: the output of `source-conformance` for CI |
-| [T-504](later.md) | P3 | M | later | feature | open | G-29: a GitHub source for the repositories of a personal account |
+| [T-504](later.md) | P3 | M | later | feature | done | G-29: a GitHub source for the repositories of a personal account |
 | [T-505](later.md) | P2 | S | later | feature | done | No cap of units for the whole host across its kinds |
 | [T-506](later.md) | P1 | L | later | feature | done | G-36: a sandbox unit: a payload that the source names, for an agent task or a web terminal |
 | [T-507](later.md) | P1 | M | later | feature | done | G-37: an install of `serve` that another program drives, with no prompt |

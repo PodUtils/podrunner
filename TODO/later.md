@@ -11492,7 +11492,7 @@ githome's comment on GitHub #292, read on 2026-11-18.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11511,6 +11511,15 @@ The owner ruled Q13 on 2026-11-24 ("Yes, opt-in off by default", `docs/decisions
 ## Prove
 
 `cargo test -p podrunner --test scaleset`: a repository URL of a personal account with the opt-in serves a job of the fake scale set; without it, `repo-scope-refused`.
+
+## Done
+
+2026-11-24, `119669d`. Level: proven on a development host (the fake scale-set service and the built binary as a user with no root); no live GitHub run.
+
+1. The measure of the permission: GitHub gives the registration token of a repository scale set (`POST /repos/{owner}/{repo}/actions/runners/registration-token`, the call of `actions/scaleset` for a repository URL) only with the repository permission "Administration: write" (the table "Permissions required for GitHub Apps"); an organization needs "Self-hosted runners: write" of the organization. The same permission also changes the collaborators and the deploy keys of the repository: residual R10.
+2. `[[source]] allow_personal_account` (default `false`, a `github-scaleset` source only; another kind exits 78). On: the sidecar gets `-personal-account`, `config_url` names the repository (`https://github.com/alice/app`), and `actor_class` is `member` only for the account itself; each collaborator, bot and app is `outside` (deny by default; `docs/decisions.md`). Off: `repo-scope-refused: alice is not an organization (a personal account needs Administration: write; to serve it, set allow_personal_account = true in its [[source]])`, exit 78. The sidecar now checks the scope before it asks GitHub for a scale set, reads the owner from the URL (a repository URL named the repository before), and refuses the URL of a repository of an organization. `check`, `serve` and `mint-serve` print one line that names "Administration: write"; `doctor` gives the source `extra_permission` and names it in its line. `docs/configuration.md` ("A repository of a personal account"), `docs/cli.md`, `schemas/config.v1.json`, `CHANGES.md`, residual R10.
+
+Tests (each failed before: a compile error, the unknown key, or the old binaries): `go test` of `tools/scaleset-sidecar` (`TestTheScopeOfTheConfigURL`: 11 URLs with the key on and off, and a lookup with no answer is no refusal; `TestTheMemberOfAPersonalAccountIsTheAccount`: no lookup of membership for a personal account, an organization as before) and of `tools/fake-scaleset` (`TestAUserOfTheScriptIsNoOrganization`); `cargo test -p podrunner --test scaleset -- --ignored` with the static Go binaries: 4 pass (with the key the job of alice runs and the push of a collaborator is `event-not-allowed` and never acquired; with no key the sidecar ends 78 with the text of the key for the URL of the repository and of the account, and asks for no scale set; both failed on the binaries of `f4a603e`); `cargo test -p podrunner-slots personal`, `-p podrunner --lib` (`the_sidecar_gets_the_opt_ins_of_its_source`, `doctor_names_the_extra_permission_of_a_personal_account`), `--test check check_names_the_extra_permission_of_a_personal_account` (absent and false: no line; true: one line). `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR`: 774 passed, 0 failed, 63 ignored; fmt, clippy, the fuzz check, `scripts/test-install.sh` (17) and `cargo todo check` pass. The built binary as `labdns`: `check` exits 0 with the key absent, false and true, and prints the line only with true; the key on a `fake` source exits 78; `doctor` says `the App needs Administration: write (allow_personal_account)` only with the key.
 
 # T-505: No cap of units for the whole host across its kinds
 
