@@ -101,6 +101,13 @@ is done.
 
 ## Resume here (the session of 2026-11-24)
 
+QA round 6 for `0.1.0-beta.8` is complete (T-246): agent A found 7 P2
+and agent B found 4 (its P2-1 is T-629, and T-639, T-640 and T-641 are
+new); both agents cleaned their users. The blockers of beta.8 now: T-627,
+T-629, T-639, T-640 and T-641. Batch 1 (T-631, T-249 part, T-628, T-630,
+T-632 and the lane of T-638) is done and pushed at `a6f1718`. The P3
+entries are T-633 to T-636 and T-642; the untested areas are T-637.
+
 State at the end: `main` at `c54953b`, pushed, the tree clean. Level of the
 sidecar changes of T-504 and T-518: not run against GitHub (proven by unit
 and fake tests only). Read first: the CI runs on `c54953b` (the gate with
@@ -157,12 +164,15 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
   - T-624 (P3): the P3 findings of the trust lookups; item 1 is done
     with T-623.
   - T-616 (P3), T-618 (waits for cfb).
-- Asks open to podvm: COORD-123 (#345, T-611) and COORD-124 (#346,
-  T-613) are in the pinned `0.2.0-beta.39` (the lead closes them after
-  their runs); COORD-125 (#347, T-613: ask 2 in beta.39, ask 1 in work)
-  and COORD-127 (#349, T-613: fixed on podvm's `main`, COORD-239, for the
-  beta after beta.39). T-611 waits for the incus step of the next
-  `runner-image.yml` run.
+- Asks open to podvm: COORD-124 (#346, T-613) is in the pinned
+  `0.2.0-beta.39` (the lead closes it after its run); COORD-125 (#347,
+  T-613: ask 2 in beta.39; ask 1 fixed on podvm's `main` at `cd51868e`,
+  COORD-242, PodUtils/podvm#658, not in a release, for the beta after
+  beta.39), COORD-127 (#349, T-613: fixed on podvm's `main`, COORD-239,
+  for the beta after beta.39) and COORD-128 (#350, T-611: beta.39 gives no
+  PeakMemoryBytes and 0 OomKills for an ended incus instance on a hosted
+  runner, run 45359834173). T-611 is blocked on COORD-128; the live test
+  takes that reason by name meanwhile.
 - The work order next (`TODO/PROGRESS.md`):
   1. Read the CI on `c54953b`.
   2. The `v0.1.0-beta.8` path: the gates T-243, T-244 and T-246 (a new
@@ -210,17 +220,19 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
 - Partial, with what is left in each entry: T-588 (a start of `serve` in
   a unit of the system), T-577 (a `java` client in the lane
   `proxy-only`), T-578 (step 2, the engine route), T-596 (a live
-  `container:` job through a proxy), T-483 (the peak is strict again on
-  podvm beta.39; the next `runner-image.yml` run proves it: T-611), T-497, T-499 (a publish run with a new
+  `container:` job through a proxy), T-483 (the peak stays "not given" by name
+  until COORD-128, #350, is fixed: T-611 is blocked), T-497, T-499 (a publish run with a new
   `actions/runner`; the installer), T-553 (the run with a version and
   the run on a tag), T-556 (`systemd-remount-fs.service`, the KVM
   guest), T-557 and T-613 (the full snapshot does not fit a `dir` pool
   of a hosted runner; the loss of the runner in the place step has its
   cause, see the work order).
-- COORD-123 (#345, T-611) and COORD-124 (#346, T-613) to podvm: both
-  are in podvm `0.2.0-beta.39`, pinned (COORD-233, COORD-236, COORD-238).
-  The peak of T-483 is strict again (T-611); next: the incus step of
-  `runner-image.yml` and a run of `hosted-measure.yml` (T-613).
+- COORD-123 (#345) and COORD-124 (#346, T-613) to podvm: both are in
+  podvm `0.2.0-beta.39`, pinned (COORD-233, COORD-236, COORD-238). The run
+  45359834173 of `runner-image.yml` showed that beta.39 gives no peak and
+  no OOM count for an ended incus instance on a hosted runner: T-611 is
+  blocked on COORD-128 (#350), and the live test takes the peak by name
+  meanwhile; next: a run of `hosted-measure.yml` (T-613).
 - The work order next: see the section of 2026-11-24 above.
 - Session notes:
   - Agents in parallel worktrees: give each a target directory of its
@@ -312,8 +324,9 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
 - podvm `0.2.0-beta.39` is pinned (release run 45353882402 on `a43c947`;
   `pod-release verify --workflow nightly.yml` of its signed `SHA256SUMS`
   holds for `podvm-x86_64` and `podvm-aarch64`, Rekor entry 4073272661).
-  It keeps podcrates `v0.82.0`. It gives the use of a stopped incus
-  instance (#345, T-611), refuses an image that cannot fit in a `dir`
+  It keeps podcrates `v0.82.0`. It was to give the use of a stopped incus
+  instance (#345), but a hosted runner gives no peak and no OOM count
+  (#350, COORD-128, T-611: blocked), refuses an image that cannot fit in a `dir`
   pool with the free space and the need (#346, T-613), and has no fix of
   #349 (COORD-239: for the next beta). Since `0.2.0-beta.38`: a layer of GNU tar `--acls` extracts (#339), `load` holds
   one lock at a time (#344), `inspect` gives docker's types (the podvm
@@ -628,7 +641,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
 
 The audits of 2026-11-21 and 2026-11-23 found the record and GitHub in agreement; `TODO/issues.md` has each row. Open:
 
-- Asks of 2026-11-23 and 2026-11-24: #344 (COORD-122, T-606), #345 (COORD-123, T-611), #346 (COORD-124, T-613), #347 (COORD-125, T-613) and #349 (COORD-127, T-613) to podvm.
+- Asks of 2026-11-23 and 2026-11-24: #344 (COORD-122, T-606), #345 (COORD-123, T-611), #346 (COORD-124, T-613), #347 (COORD-125, T-613), #349 (COORD-127, T-613) and #350 (COORD-128, T-611) to podvm. Answers: COORD-239 (#349, PodUtils/podvm#655): fixed on podvm's `main` for the next beta; COORD-242 (#347, PodUtils/podvm#658): ask 1 fixed on podvm's `main` at `cd51868e` for the next beta (one tree, a gzip upload), ask 2 in beta.39.
 - Asks to podvm not delivered or not taken: #339 (COORD-118, the PAX value of an ACL) and #344 (COORD-122, 85 layers) are in beta.38 and wait for their runs, #316 and #313 (PodUtils/podvm@T-1994, @T-1998 are not in beta.38), #308 (podvm waits for data of podrunner), #304 and #189 (T-261), #300 (`--podvm-volume-base` off the namespace rung), #296 (ask 5), #277 (T-403).
 - COORD issues with entries not done: #312 (T-553), #184 (T-250), #183 (T-249), #181 (T-248).
 - Defects of the live runs with entries not done: #260 (T-412), #171 (T-229), #149 (T-197), #144 (T-192), #143 (T-180), #140 and #121 (T-169), #138 (T-187), #126 (T-181).

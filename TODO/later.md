@@ -3988,7 +3988,7 @@ State (2026-11-16, round 3): two agents with a fresh context, as `qa1` and `qa2`
 
 State (2026-11-24, since 2026-11-17): rounds 4 and 5 (`docs/HANDOFF.md`, "The release of `v0.1.0-beta.7`"). Round 4: agent B found T-318 to T-323 and T-203 (each P1 and P2 done); agent A (user `qa3`) stopped before its report and gave no findings, so round 4 had one agent. Round 5 ran on the files of user-gate 44025228142 (`a238f8d`, podvm `v0.2.0-beta.30`), with the users `qa6` and `qa7` with no root and the kit `/srv/qa-kit` (the files of a user-gate run, podvm from its release, the documents, `env.sh` with the proxy and the CA of the host): agent 1 found no P1 and seven P2 (each done; P3: T-331), agent 2 found no P1 and six P2 (each done; P3: T-339); T-324 to T-338 are the P2 of the round (T-326 by a call: no compiler in the base image). `v0.1.0-beta.7` was released on 2026-11-17 (release run 44066276664 on `129310e`); the online quick start from the release URL passed as `qa6`. A user QA of beta.7 after the release gave T-340 to T-393. The user-gate run 45276522625 on `f694571` is green in all nine lanes. Open: QA round 6 for `v0.1.0-beta.8` with two blind agents, on the kit of a `user-gate.yml` run before the release URL exists (`docs/qa-brief.md`, "A round before the release URL exists"); each P1 and P2 of it blocks the release. Level: proven on a constrained host as a user for rounds 1 to 5; round 6 is not run.
 
-State (2026-11-24, round 6): round 6 ran on the candidate `0.1.0-beta.8` (user-gate run 45354505741 on `21aa8c4`). Agent A (user `qa8`): no P1 and seven P2: P2-1 is in T-249 (State line), P2-2 is T-627, P2-3 is T-628, P2-4 is T-629, P2-5 is T-630, P2-6 is T-631 and P2-7 is T-632. The P3 entries are T-633 (installer), T-634 (the flags of `run`), T-635 (`check`, `config init`, `doctor`) and T-636 (signals); the areas that the round did not test are T-637. Agent B has not reported. Each P2 blocks the release. Level: proven on a constrained host as a user.
+State (2026-11-24, round 6): round 6 ran on the candidate `0.1.0-beta.8` (user-gate run 45354505741 on `21aa8c4`). Agent A (user `qa8`): no P1 and seven P2: P2-1 is in T-249 (State line), P2-2 is T-627, P2-3 is T-628, P2-4 is T-629, P2-5 is T-630, P2-6 is T-631 and P2-7 is T-632. The P3 entries are T-633 (installer), T-634 (the flags of `run`), T-635 (`check`, `config init`, `doctor`) and T-636 (signals); the areas that the round did not test are T-637. Agent B (user `qa9`): no P1; P2s T-639 (Ctrl-C and a `container:` job), T-640 (`checkout` `ref:`), T-641 (`.git` of an organization `config_url`) and its P2-1 in T-629 (no new entry); the P3 entries are T-642 and lines in T-633, T-635 and T-636; the areas that it did not test are in T-637. The round is complete: both agents cleaned their users. Each P2 blocks the release. Level: proven on a constrained host as a user.
 
 
 # T-247: The notes of a release name the level of the proof of each claim
@@ -15179,6 +15179,9 @@ State (2026-11-24, the second review of `3715fa1`, not run): the time limits of 
 
 State (2026-11-24, the pin of podvm `0.2.0-beta.39`, the commit that names T-611 and T-613, not run): podvm `0.2.0-beta.39` (COORD-238, PodUtils/podvm#654) has the fix of COORD-124 (COORD-236, PodUtils/podvm#652, PodUtils/podvm@T-2078): before an import into a pool of the `dir` driver, podvm compares the need of the image with the free space of the pool and of the images of incusd, and refuses with exit 125 and one line that names the pool, its free space and the need; below about 1.3 times the need it gives a line `warning: ...`; after an answer of incusd over its bound of 64 MiB, one more line names the free space, the inodes and the need. A btrfs pool gets no check before the import, only the line after a failure. It also has ask 2 of COORD-125 (#347, PodUtils/podvm@T-2082): a cut upload gives the error of incusd and the free space, not SIGPIPE (exit 141). Ask 1 of COORD-125 (three copies on one file system) is in work at podvm. COORD-127 (#349) is not in `0.2.0-beta.39`: podvm answered with COORD-239 (PodUtils/podvm#655): `systemctl is-system-running` gives `offline` before PID 1 makes `/run/systemd/system`, and podvm took it as final; the fix (PodUtils/podvm@T-2083, `a3f34d7e` on podvm's `main`, for the beta after `0.2.0-beta.39`) asks again each 0.5 s while it gives `offline`, `unknown`, `initializing` or `starting`, up to 180 s (`PODVM_INIT_BOOT_TIMEOUT`, 1 to 3600 s); `degraded` is up, with one line of the failed units. At the bound podvm exits 125 and the instance stays: a failed `start` of the incus kind removes the instance of its name with `podvm rm -f` (`crates/podrunner-incus/src/lib.rs`, the closure `fail`), and the boot step of `hosted-measure.yml` removes `measure`. No code of podrunner parsed the old text "the response body is larger than allowed". The incus kind kept the last 400 bytes of stderr, cut in a line (and in a character: a panic on a multi-byte character at the cut); now `crates/podrunner-incus/src/stderr.rs` keeps the last whole lines up to 1024 bytes, and a longer last line keeps its end at a character (`cargo test -p podrunner-incus --lib tests::stderr`: 3 tests; two failed on the code before, one with the panic). The step "Import into incusd" of `hosted-measure.yml` writes the stderr of `podvm create` to `import-stderr.txt` (the report shows its end), and adds each line of podvm with the free space or the need to `info.txt` as `import: ...`. The pin of `hosted-measure.yml` is `images/podvm.toml`. Next: a run of `place = store-root` with `full = all` (the need and the free space in one line before the import); the run of `place = btrfs` with `full = slice` waits for the beta after `0.2.0-beta.39` (COORD-127).
 
+State (2026-11-24, COORD-242, PodUtils/podvm#658, not run): podvm answered ask 1 of COORD-125 (#347). It is fixed on podvm's `main` at `cd51868e` (PodUtils/podvm@T-2085, partial there), and it is not in a release: the latest tag of podvm is `v0.2.0-beta.39`, so the fix comes in the beta after it, as the fix of COORD-127 (#349) does. The cause was that the incus tier extracted the tree of the image into the store for each import, incusd kept the upload in `/var/lib/incus/images` and unpacked it into the pool: the blobs (17 GB), the tree (57 GB), the upload (57 GB) and the volume of the image (57 GB), about 188 GB on one file system. The fix: (1) the incus tier extracts the tree only for an import; (2) after the upload, also after a failed import, podvm removes the tree that the import extracted (not a tree that was in the store before, and not where another process holds the image), before the create; (3) where incusd's images have less than three times the tree free, the upload is gzip (blocks of 2 MiB, up to eight threads; about a third of the tree; about 90 MB/s on four threads, an estimate of podvm); (4) the check of room (PodUtils/podvm@T-2078) counts these copies. Podvm's estimate for our image is about 95 GB at the peak (17 GB of blobs, 57 GB of tree and about 21 GB of gzip), with about 11 min of gzip, against 188 GB. Next: pin the beta after `0.2.0-beta.39` when it exists, then run `hosted-measure.yml` with `full = all` on `place = btrfs` and on `place = store-root`, and record the bytes and the time of the import and whether the boot fits (podvm's next step, a stream of the layers as one tar asked of podcrates in COORD-241, needs no tree at all; the peak on the disk does not change).
+
+
 # T-614: The probe of `--export` and `--log-dir` has the pid only and follows a link
 
 **Source:** the work of T-607, 2026-11-23
@@ -15682,6 +15685,8 @@ On a host with no `/dev/kvm`:
 
 Related: `podrunner stop --wait --state DIR --timeout 20` before the socket of `serve` exists prints "serve did not end in time: a job is not final" and exits 75, but no job exists.
 
+Agent B of the same round (user `qa9`, no `/dev/kvm`) found the same defect with a `fake` source: `config init --source fake ... --json` prints `"kinds":["microvm","podvm"]`, and `--kinds microvm` alone exits 0. `check` says usable. `doctor --config` says `kvm: no` and lists "kind microvm: boundary guest". `serve` runs the self-test of the guest, and podvm fetches QEMU 11.1.3 (25 MiB, an unexpected fetch on a host with no network except the proxy); the socket of `serve` comes after 50 to 90 s, and then the log says "the claim of guest drops to none: no verdict". So the fetch of QEMU (item 3 of the Approach) is also seen with the `fake` source, not only with `local`.
+
 ## Premise
 
 Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
@@ -15823,6 +15828,8 @@ Findings of the installer and of `install-unit` (agent A, P3). Each line has the
 - A failed download gives one generic line ("the installer takes no file of a release with no SHA256SUMS") for a 404, a wrong CA (curl exit 77), a dead port, and a proxy 405 when `NO_PROXY` lacks `127.0.0.1`. Expect: one line for each cause, with the fix (the CA file, the proxy variable).
 - `podrunner serve` creates an empty `~/.config/podrunner`. After a `--podnet` run, `/tmp/podnet-netns-inbound-UID/*.sock` stays. Expect: no empty directory, and no socket after a run ends.
 - `podrunner install-unit` as a user that is not root says "or as an administrator on Windows". Expect: a line for the host (Linux: `--user` or root).
+- Agent B (qa9) confirms the `/tmp/podnet-netns-inbound-UID/32771.sock` that each `--podnet` run leaves (it is reused by the next run).
+- Agent B: `install.sh --serve` prints `--built-at-s N (N: built_at_s of podrunner-manifest.json)`, but the offline bundle has no `podrunner-manifest.json` and `serve.json` has no `built_at_s`. Expect: the line gives a value that the bundle holds, or the bundle holds the file.
 
 ## Premise
 
@@ -15893,6 +15900,8 @@ Findings of `podrunner check`, `config init` and `doctor` (agent A, P3). Each li
 - `config init --kinds podvm` with a trusted source says `no-tier-served` and does not name `--podnet`. Expect: the message names `--podnet`.
 - `doctor --run` names the proxy variables of the job only for `--runner-dir`, not for the podvm form; it does not check that the file of `SSL_CERT_FILE` exists (the run then fails with exit 1); it does not flag `NO_PROXY` with `::` (only `run` warns). Expect: the same checks as `run`.
 - `doctor --run /nonexistent.yml` prints the lock path `/podrunner-actions.lock`. Expect: a refusal for a missing file, or a lock path in the state directory.
+- Agent B (qa9) confirms the line of `config init --kinds podvm`: for a trusted source it is accepted and `check` says usable; `serve` says `no-tier-served: no unit kind meets the floor of a source` and `status` says "hold unknown", with no word on the missing `--podnet` (`docs/configuration.md`: "a trusted podvm kind needs `--podnet`"). Expect: `check` and `config init` name `--podnet`.
+- Agent B: the example of `docs/configuration.md` with `sidecar = "scaleset-sidecar"` and `driver_dir` gives exit 78 "sidecar is not an absolute path"; `[unit.podvm] binary` must be inside `driver_dir` (`binary is not in driver_dir`); a key from `openssl genrsa` (OpenSSL 3, PKCS#8) gives "the key file holds no PKCS#1 key", and no document says PKCS#1 (`openssl genrsa -traditional`). Expect: an example that `check` accepts, and the key format in the text and in the error.
 
 ## Premise
 
@@ -15924,6 +15933,7 @@ Findings of the signal handling of `podrunner run` on a podvm unit (agent A, P3)
 - The cleanup after the first signal takes 14 to 17 s on podvm. Expect: a line that says that the run waits for the unit, and a bound on the time.
 - SIGHUP prints no "stopping" line. Expect: the same line as for SIGINT and SIGTERM.
 - The `--web` view stays a few seconds after one SIGINT. Expect: it ends with the run.
+- Agent B (qa9): after a third SIGINT on a `container:` job (T-639), the next run cleans `podrunner-run-units-NS-PID-0` and `podrunner-run-tree-...`, but not `/tmp/podrunner-local-unit-PID-u-1` (a stale `ctl.sock` and `podrunner-hook.sh`) and not `/tmp/podrunner-local-unit-PID-u-1.logs/ca/podrunner-ca.pem` (the old name pattern has no NS key). `docs/local-mode.md` says that a run keeps only two directories. Expect: the cleanup knows the two names, and the third signal does not leave them.
 
 ## Premise
 
@@ -15952,7 +15962,7 @@ Edit the signal path of `crates/podrunner/src/run_local/` (the handler that coun
 Agent A of round 6 did not test these areas. A later round or a live lane must test each one, and the result goes into the record.
 
 - The kinds that need KVM or incus (`microvm`, `incus`).
-- `serve` jobs, and the hosted lanes.
+- The hosted lanes (agent B ran `serve` with a fake job through podvm, so `serve` jobs of the fake source are covered; a real forge is not).
 - `--engine`, `services:` and Dockerfile actions.
 - The online install from the release URL, and the check of signatures.
 - `busybox sh` and aarch64.
@@ -15960,12 +15970,13 @@ Agent A of round 6 did not test these areas. A later round or a live lane must t
 - `install-unit --system`, and `systemctl --user`.
 - `--vnet`.
 - The 600 s timeout, `--schedule` and `--break`.
-- `--protected` and `--approve`, OIDC, reusable workflows, composite and Docker actions, `actions/cache` and artifacts.
+- `--protected` and `--approve`, OIDC, reusable workflows with secrets, and Docker actions (agent B ran composite actions, artifacts v4, `actions/cache` and one remote reusable workflow).
 - A real full disk, and a tiny `TMPDIR`.
+- Agent B (qa9) did not test these: `microvm`, `incus`, `--engine`, `services:` and Dockerfile actions, the hosted lanes; `--full`; the online install and the signatures; `--vnet`; a real forge or a real scale set; `--web`, `--watch`, `--schedule`, `--jobs N`, `--break`, OIDC, `--protected`, `--export`, `--toolcache`, reusable workflows with secrets; the comparison with runs on github.com; `systemd --user`.
 
 ## Premise
 
-Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again. Agent B (user `qa9`) reported its "Not tested" list the same day; the line marked "Agent B" above adds it, and an area that agent B ran is cut from the lines of agent A.
 
 ## Approach
 
@@ -16002,3 +16013,125 @@ Read `.github/workflows/user-gate.yml` (the matrix of lanes) and `scripts/lab/` 
 ## Prove
 
 `gh workflow run user-gate.yml --ref main`; the lane `fsize-1g` of that run is green, and its table shows the row of each executor.
+
+
+# T-639: Ctrl-C does not cancel a `container:` job in a long step on `--podvm`
+
+**Source:** QA round 6, agent B (qa9), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A workflow with `container: image: node:22-slim` and a step `echo started; sleep 600`, run as `podrunner run c2.yml --checkout . --podvm ...`, does not end at SIGINT. The first SIGINT prints "stopping: the running job ends and its unit goes (a third signal ends podrunner at once)". Then nothing ends for more than 5 minutes: the `sleep` keeps running in the container. A second SIGINT and a SIGTERM do nothing that the user can see. The job ends only when the `sleep` ends (about 10.5 min), and the result is `cancelled incontainer`.
+
+For comparison: a plain podvm job cancels in 16 to 20 s with exit 130, and a `container:` job that gets the signal during the start of its container cancels in 18 s. `docs/local-mode.md` says "Interrupt ... cancels: each unit is destroyed ... exit 130". A third SIGINT leaves the unit, its processes and its temporary directories (T-636, P3-3 of the report).
+
+## Premise
+
+Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again. T-141 and T-502 (both done) test a cancel on the fake unit and on a plain payload only; no test cancels a job that runs in a container of the unit.
+
+## Approach
+
+1. Find which call blocks after the signal: the wait loop of `crates/podrunner-local/src/exec.rs` reads the flag of `crate::cancel::stopped` each second and then calls `destroy`; `destroy` of `crates/podrunner-podvm/src/unit.rs` ends the tagged processes with `kill_tree_of_tagged` of `crates/podrunner-unit/src/shim.rs`. A process of the container may be outside the tag (the engine of the unit starts it), so the kill does not reach it, or `podvm wait` stays on the container. Trace each step with a time stamp (a `PODRUNNER_TRACE` line) on a run with the workflow above.
+2. At the cancel, end the container before the unit: call the container verbs of `crates/podrunner-podvm/src/unit/containers.rs` (stop, then remove, by the label `podrunner.unit=ID`) with a bound of `grace_s`, then kill what stays.
+3. Bound the whole cancel: the time from the first signal to the exit is at most `grace_s` plus `destroy_s`, for a plain job and for a `container:` job; print one line when the bound is spent.
+4. A second SIGINT or SIGTERM during the wait prints "stopping: already stopping; a third signal ends podrunner at once".
+
+## Prove
+
+`cargo test -p podrunner-local cancel` with a new test: a fake unit that keeps a container-like process outside its tag; a cancel ends the job within the bound. A lane of `user-gate.yml` (T-243): `podrunner run c2.yml --checkout . --podvm PATH ...` with `kill -INT` after 10 s ends in less than 60 s with exit 130 and no process of the unit; run it as a user with no root, then `cargo todo check`.
+
+
+# T-640: `actions/checkout` with `ref:` on the same repository is silently ignored in the local mode
+
+**Source:** QA round 6, agent B (qa9), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A repository has `main` (4b5a9ca) and `feature` (972756e), and HEAD is `feature`. A step `uses: actions/checkout@v4` with `with: {ref: main, path: other}`, run as `podrunner run co.yml --checkout . --runner-dir $RD`, puts 972756e (the working tree) in `other`. No warning appears. On GitHub the tree is `main`. A job that diffs against the base branch gets the wrong tree and reports success. `docs/local-mode.md` says that the stand-in gives the local working tree (or HEAD with `--checkout-head`); it does not say that `ref:` is ignored. `run --dry-run` says nothing.
+
+## Premise
+
+Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4`. Level: proven on a constrained host as a user. I read the report and grepped the code: `crates/podrunner-local/src/message/checkout.rs` reads `path` and `submodules` of the step, and takes the tree of the store only when `checkout_target` (`pod-actions-store` of podcrates) names another repository; for the same repository it returns no target and the stand-in gives the local tree. I did not run the commands again. T-439 resolves the `ref` of another repository only.
+
+## Approach
+
+1. In `crates/podrunner-local/src/message/checkout.rs`, when the step has a `ref` that is not empty and `repository` is absent or names the local repository, resolve the ref in the local git (`crates/podrunner-local/src/localrepo.rs`, `crates/podrunner-local/src/tree.rs`): the tarball of that commit (`git archive`, as `--checkout-head`), not the working tree. A ref that is the commit of HEAD or the branch that is checked out keeps the working tree with its changes.
+2. A ref that the local repository does not resolve fails the job with one line that names the ref and says that `git fetch` of it is necessary (no silent fallback).
+3. Other `with:` keys that change the tree (`fetch-depth`, `sparse-checkout`, `clean`, `token`, `persist-credentials`) get one line in the log when the stand-in ignores them, and `--dry-run` lists the same lines.
+4. `docs/local-mode.md` and `docs/cli.md` (the row of the checkout) say what the stand-in does with `ref:` and with each key of step 3.
+
+## Prove
+
+`cargo test -p podrunner-local checkout` and `cargo test -p podrunner --test local` with a case on a repository with two branches: `ref: main` while HEAD is `feature` gives the tree of `main` (it fails before the change: it gives `feature`); a ref that does not exist fails with its name. `cargo run -q -p podrunner -- run co.yml --checkout . --dry-run` names the ignored keys; then `cargo todo check`.
+
+
+# T-641: `check` accepts the `config_url` of an organization with `.git` at the end
+
+**Source:** QA round 6, agent B (qa9), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`config_url = "https://github.com/acme.git"` (a `github-scaleset` source, the key `allow_personal_account` off) gives `check` usable and exit 0. `docs/configuration.md` says that `check` refuses a `.git` at the end (exit 78). `https://github.com/alice/app.git` is refused correctly. The refusal of a `.git` is in T-504 (done), but it holds for a URL of two parts only.
+
+## Premise
+
+Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4`. Level: proven on a constrained host as a user. I read the report and grepped the code: `crates/podrunner-slots/src/config_url.rs` tests the `.git` only in the case `[_, repo]` (two parts), and `tools/scaleset-sidecar/scope.go` does the same (`len(parts) == 2`). I did not run the commands again.
+
+## Approach
+
+1. In `crates/podrunner-slots/src/config_url.rs`, refuse a `.git` at the end of the last part for one part too (the name of an organization), with the same message. Do the same in `tools/scaleset-sidecar/scope.go`, so that the sidecar refuses it with `repo-scope-refused` when `check` is not run.
+2. Add the URLs `https://github.com/acme.git` and `https://github.com/ACME.GIT` to the table of `crates/podrunner/tests/check_config_url.rs` (each exits 78 and names ".git"), and one case to the Go test of the scope.
+
+## Prove
+
+`cargo test -p podrunner --test check_config_url` (the new URLs fail before the change) and `cargo test -p podrunner-slots config_url`; `go test ./...` in `tools/scaleset-sidecar` with the new case; then `cargo todo check`.
+
+
+# T-642: QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts
+
+**Source:** QA round 6, agent B (qa9), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Findings of agent B that no P3 entry of agent A holds (P3, user `qa9`). Each line has the command and the expectation.
+
+- `docs/examples/podrunner.toml` says "a working example (a fake source and fake units)" and "runs the jobs of a fake source", but it gets no job: no key supplies a script. Only `kind = "program"` with `podrunner fake-source --script` gives jobs. Expect: the example gives a job, or the text says what it does.
+- The offer example of `docs/fakes.md` lacks `"schema":1` and `trust_inputs`. The audit gives `refuse ... code event-not-allowed ... detail "bad-request: missing field schema"` (the code misleads); a trusted source needs `trust_inputs`; the `started` event must name the real runner name `podrunner-vm-u-N` (the host name and the unit counter are not documented); a wrong name gives `job-mismatch` with no detail. Expect: a working example, the rule of the runner name, and a detail on `job-mismatch`.
+- The output of the steps of a `container:` job is not live: it appears at the end of the step, and stderr says "no line for 60 s; the run waits for its job". `docs/cli.md` says live lines with `--runner-dir` and `--podvm`. Expect: live lines, or the text says that a container step prints at its end.
+- On a host with a proxy and no `NODE_EXTRA_CA_CERTS` in the environment of the caller, `actions/setup-go` and `actions/setup-python` fail with "self-signed certificate in certificate chain" (podvm and host). `doctor --run` prints `ok proxy` and nothing about Node. `export NODE_EXTRA_CA_CERTS=$SSL_CERT_FILE` fixes it. Expect: `doctor --run` prints the hint when the proxy has its own CA, and `run` sets the variable from `SSL_CERT_FILE` or says why not. The first `setup-python` with a made-up token gets a 404 from raw.githubusercontent.com; the message names `--github-token-env NAME`, which works.
+- After a `job-mismatch` the unit is destroyed in about 4 s, and `status` says `degraded u-N left Unknown processes and Known(0) files`; the log says `destroy u-1: no count of processes: orphans false, launcher dead true, tagged []`. Jobs wait until `clear-degraded`. The text reads as a leak when it is a missing count. Expect: a text that says "no count", and no degraded state when the launcher is dead and no process is tagged.
+- The wrong-value error `unknown variant 'bogus', expected one of ... other, unknown` lists values that are then refused. The `check` line of `pull_request_target` names "(the owner, Q12)", not R8, and `docs/configuration.md` does not cite R8 (R9 to R11 are cited). Duplicates and already trusted events in `extra_events` are accepted with no message. Expect: the list holds the values that are accepted; the line cites R8; a duplicate and a trusted event get one line.
+- The stand-in of `actions/checkout` prints its whole shell script in the log (with `t="***"`); GitHub prints "Run actions/checkout@v4". `runner.environment` is empty (GitHub: `github-hosted` or `self-hosted`). Expect: the log line of GitHub, and `self-hosted`.
+- `status` once said "busy: the program did not answer in time" while `serve` waited on its source. Expect: a text that names the source and the wait.
+
+## Premise
+
+Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM, no incus, an HTTPS proxy), a blind test of the candidate 0.1.0-beta.8 at `21aa8c4` (the files of `user-gate.yml` run 45354505741). Level: proven on a constrained host as a user. I read the report and grepped the code for the places in the Approach; I did not run the commands again.
+
+## Approach
+
+Edit `docs/examples/podrunner.toml` and `docs/fakes.md` (and the check of the example in the tests); `crates/podrunner-local/src/message/checkout.rs` (the log of the stand-in) and `crates/podrunner-local/src/message.rs` (the context `runner`); `crates/podrunner/src/run_local/logs.rs` (the wait line) and the live path of `crates/podrunner-local/src/exec.rs` for the container steps; `crates/podrunner/src/run_local/doctor.rs` (the hint of Node); `crates/podrunner-podvm/src/unit.rs` (the text and the state after a destroy with a dead launcher and no tagged process); `crates/podrunner-tier/src/lib.rs`, `crates/podrunner-slots/src/trust.rs` and `docs/configuration.md` (the text of the wrong value, R8, the duplicates); `crates/podrunner-mint/src/sidecar.rs` (the text of `status`). One test or one check of the text for each line.
+
+## Prove
+
+`cargo test -p podrunner --test check`, `cargo test -p podrunner --test doctor`, `cargo test -p podrunner-local` and `cargo test -p podrunner-slots` with a case for each line that a test can hold; `grep -n 'schema' docs/fakes.md` shows the example with `"schema":1`; then `cargo todo check`.

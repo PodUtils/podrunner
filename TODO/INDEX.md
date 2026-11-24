@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**633 entries: 77 open, 59 partial, 16 blocked, 481 done.**
+**637 entries: 81 open, 59 partial, 16 blocked, 481 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 3 | 91 | 120 |
-| P2 | 18 | 22 | 9 | 249 | 298 |
-| P3 | 58 | 11 | 4 | 139 | 212 |
-| **All** | 77 | 59 | 16 | 481 | 633 |
+| P2 | 21 | 22 | 9 | 249 | 301 |
+| P3 | 59 | 11 | 4 | 139 | 213 |
+| **All** | 81 | 59 | 16 | 481 | 637 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -681,3 +681,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
 | [T-637](later.md) | P3 | L | later | measurement | open | QA round 6, agent A: the areas that the round did not test |
 | [T-638](later.md) | P3 | S | later | defect | open | The user-path gate has no lane with a hard limit of file size of 1 GiB |
+| [T-639](later.md) | P2 | M | later | defect | open | Ctrl-C does not cancel a `container:` job in a long step on `--podvm` |
+| [T-640](later.md) | P2 | M | later | defect | open | `actions/checkout` with `ref:` on the same repository is silently ignored in the local mode |
+| [T-641](later.md) | P2 | S | later | defect | open | `check` accepts the `config_url` of an organization with `.git` at the end |
+| [T-642](later.md) | P3 | M | later | defect | open | QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts |
