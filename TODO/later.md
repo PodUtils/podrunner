@@ -15502,3 +15502,43 @@ Read: `tools/scaleset-sidecar/calls.go`, `tools/scaleset-sidecar/queue.go`, `too
 ## Prove
 
 `CGO_ENABLED=1 go test -race ./...` in `tools/scaleset-sidecar`, with a test for each item that fails before its change.
+
+# T-625: The attempt of a refused job of the past-limit path: a lost cancel
+
+**Source:** the review of `c27096a` (the review fixes of T-623), 2026-11-24
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A review of `c27096a` found two P2 faults and some P3 faults in the attempt of a cancel of a job that is offered past the limits (its run was never read, so its attempt is 0). All are in `tools/scaleset-sidecar/`.
+
+1. `dropOlderCancels` (`cancel.go`, called from `offerOf` in `queue.go`) ends each cancel of the run with `c.attempt < attempt`. A cancel with attempt 0 (unknown) is older than each attempt. When a job of attempt 1 of the same run is offered, the cancel ends with no POST. The refused job stays queued and keeps the scale set busy.
+2. The fallback `attemptOf` of `cancelRefused` reads `trust.runs[run]`, which has no age limit. A stale object of attempt 1 gives attempt 1 for a job of attempt 2 that is offered past the limits. (a) When `cancelled[{R,1}]` is set, `cancelRefused` returns at once with no POST. (b) Else the first POST fails, the retry reads attempt 2, which is not 1, and the cancel ends.
+3. The refusal time `c.first` is the local `time.Now()`. `startedAfter` compares it with `run_started_at` of GitHub, so a clock that is not exact, or a long wait past the limits, gives a wrong answer.
+4. `startedAfter` takes a `run_started_at` that is absent or not valid as "before", so the retry takes the running attempt, which can be a re-run that podrunner accepted.
+5. A final answer for a cancel with attempt 0 sets `cancelled[{run,0}]`, which then skips each later refusal of that run with an unknown attempt.
+6. The log lines print attempt 0.
+
+## Premise
+
+Read: `tools/scaleset-sidecar/cancel.go`, `queue.go`, `sidecar.go`, `trust.go` and the cancel tests at `bbc9392`; the review text of the owner. Not measured: the clock skew of a real host, the `run_started_at` of a real run.
+
+## Approach
+
+1. `dropOlderCancels` skips a cancel with attempt 0. The read of the retry decides.
+2. A job keeps the time that it came (`since`). `attemptOf` gives the attempt of the kept run object only when its read began after the job came (as `runObject` does); else 0. An attempt 0 has no `cancelled` check, and `markCancelled` records no key for attempt 0.
+3. A cancel keeps the arrival of its job. The retry takes the running attempt as the refused one when it is attempt 1 (a first attempt is no re-run), or when `run_started_at` is not after the arrival. A `run_started_at` more than 2 minutes after the arrival is a re-run: the cancel ends with no POST. A value inside the 2 minutes, absent, or not valid is not known: the cancel keeps its entry for one more read, then ends with a line, and sends no POST.
+4. The log lines name an attempt 0 "unknown".
+5. Tests that fail on `bbc9392`: a cancel with attempt 0 is not dropped when a job of attempt 1 is offered; a stale kept run object gives no attempt for a job that came after its read; `cancelled[{R,0}]` is never set; an absent `run_started_at` does not make the retry take a re-run; the arrival of the job, not the refusal time, sets the bound.
+
+## Prove
+
+`CGO_ENABLED=1 go test -race -count=3 ./...` in `tools/scaleset-sidecar`; `cargo todo check`.
+
+## Done
+
+2026-11-24, `4d54e1b`. `dropOlderCancels` skips a cancel with attempt 0. A job keeps `since` (the time that it came). `attemptOf(run, since)` gives the attempt of the kept run object only when its read began after the job came, else 0; `cancelRefused` checks `cancelled` only for an attempt that is not 0. `markCancelled` sets no key of attempt 0: it keeps the time of the cancel (`cancelledAt`), which covers each job of the run that came before it (so the jobs of one run that are refused with no attempt make one POST, as before), and the memory of both is bounded (4096). A cancel keeps the arrival of its job. `judgeAttempt` of the retry takes the running attempt as the refused one when it is attempt 1, or when `run_started_at` is not after the arrival of the job. A start later than the arrival by more than 2 minutes is a re-run: the cancel ends with a line and no POST. A start inside the 2 minutes, absent, or not valid is not known: one more read, then a line and no POST. The call is in the row of T-623 in `docs/decisions.md`. The log lines name an attempt 0 "unknown". `cancelattempt_test.go` has 5 tests (9 cases); all fail on `bbc9392` (with the field `job.since` added to it so that the tests build): a cancel with attempt 0 stays when a job of attempt 1 is offered; a stale kept run object gives no attempt (2 cases fail: a `cancelled` key of it skips the cancel, and a failed POST keeps its attempt for the retry; the control case with a read after the job came holds); `cancelled[{R,0}]` is never set (a 202 and a 404); an absent or not valid `run_started_at`, a start inside the margin, and a re-run that began after the arrival but before the refusal give no POST (4 cases); the log lines say "unknown". `CGO_ENABLED=1 go test -race -count=3 ./...` passes in both Go modules (70 tests in the sidecar); gofmt and go vet are clean; the static builds pass `scripts/check-static.sh`; `cargo fmt`, clippy, and `cargo test --workspace --all-features` with the runner pass (779 passed, 63 ignored; the TMPDIR is empty after); the three ignored suites of the gate pass; the fuzz check and `scripts/test-install.sh` (17) pass. Level: not run against GitHub; proven with the fake API only.

@@ -151,6 +151,9 @@ and fake tests only). Read first: the CI runs on `c54953b` (the gate with
   - T-623 (P2, done): a failed cancel of a refused run is tried again;
     the review fixes (the 409 texts, the attempt of a re-run, the share
     of the budget, the lines at a stop) are in the same entry.
+  - T-625 (P2, done): the attempt of a cancel of a job offered past the
+    limits (a dropped cancel, a stale run object, a clock, an absent
+    start).
   - T-624 (P3): the P3 findings of the trust lookups; item 1 is done
     with T-623.
   - T-616 (P3), T-618 (waits for cfb).

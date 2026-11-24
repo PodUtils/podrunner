@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -41,16 +42,34 @@ const (
 	// cancelCallsMax: the most calls of one retry (a token, the read of
 	// the run, the POST).
 	cancelCallsMax = 3
+	// skewMargin: the clock of this host is not the clock of GitHub. A
+	// `run_started_at` that is later than the arrival of the job by more
+	// than this is a re-run; one inside it is not known.
+	skewMargin = 2 * time.Minute
+	// cancelledMax bounds the memory of the cancelled attempts.
+	cancelledMax = 4096
 )
 
 // cancelTry is a cancel that has not ended. attempt: the attempt of the
 // refused job, 0 when not known (the first read of the run sets it).
+// since: when the job came; a re-run starts later. unsure: a read could not
+// tell whether the attempt that runs is the refused one.
 type cancelTry struct {
 	run, attempt int64
 	owner, repo  string
 	first, at    time.Time
+	since        time.Time
 	step         time.Duration
 	tries        int
+	unsure       bool
+}
+
+// attemptName: the attempt for a log line.
+func attemptName(n int64) string {
+	if n == 0 {
+		return "unknown"
+	}
+	return strconv.FormatInt(n, 10)
 }
 
 // cancelOutcome: what an answer of the cancel endpoint means.
@@ -102,9 +121,18 @@ func (s *sidecar) cancelRefused(j *job, reason string) {
 	attempt := j.attempt
 	if attempt == 0 {
 		// A job offered past the limits has no attempt of its own.
-		attempt = s.trust.attemptOf(j.run)
+		attempt = s.trust.attemptOf(j.run, j.since)
 	}
-	if s.cancelled[runKey{j.run, attempt}] {
+	now := time.Now()
+	since := j.since
+	if since.IsZero() {
+		since = now
+	}
+	switch {
+	case attempt != 0 && s.cancelled[runKey{j.run, attempt}]:
+		return
+	case attempt == 0 && !j.since.IsZero() && j.since.Before(s.cancelledAt[j.run]):
+		// A cancel of the run after this job came covered its attempt.
 		return
 	}
 	for _, c := range s.cancelRetry {
@@ -112,7 +140,7 @@ func (s *sidecar) cancelRefused(j *job, reason string) {
 			return
 		}
 	}
-	c := &cancelTry{run: j.run, attempt: attempt, owner: j.owner, repo: j.repo, first: time.Now()}
+	c := &cancelTry{run: j.run, attempt: attempt, owner: j.owner, repo: j.repo, first: now, since: since}
 	ctx, cancel := context.WithTimeout(s.ctx, lookupTimeout)
 	defer cancel()
 	if !s.tryCancel(ctx, c, reason) {
@@ -162,7 +190,7 @@ func (s *sidecar) logCancel(c *cancelTry, why string, code int, out cancelOutcom
 	case cancelFinal:
 		more = "; it is not tried again"
 	}
-	logf("cancel the run %d (attempt %d) of %s/%s: %s: HTTP %d%s", c.run, c.attempt, c.owner, c.repo, why, code, more)
+	logf("cancel the run %d (attempt %s) of %s/%s: %s: HTTP %d%s", c.run, attemptName(c.attempt), c.owner, c.repo, why, code, more)
 }
 
 // again sets the next time of a cancel that got no final answer, or
@@ -194,9 +222,16 @@ func (s *sidecar) giveUpPastAge(c *cancelTry, now time.Time) bool {
 	return true
 }
 
+// markCancelled settles an attempt. An attempt that is not known gets no
+// key: it would stop the cancels of each other attempt of the run. The
+// time of the cancel stands for it: it covers the jobs that came before.
 func (s *sidecar) markCancelled(c *cancelTry) {
-	if s.cancelled == nil {
-		s.cancelled = map[runKey]bool{}
+	if s.cancelled == nil || s.cancelledAt == nil || len(s.cancelled)+len(s.cancelledAt) >= cancelledMax {
+		s.cancelled, s.cancelledAt = map[runKey]bool{}, map[int64]time.Time{}
+	}
+	if c.attempt == 0 {
+		s.cancelledAt[c.run] = time.Now()
+		return
 	}
 	s.cancelled[runKey{c.run, c.attempt}] = true
 }
@@ -211,8 +246,8 @@ func (s *sidecar) keepCancel(c *cancelTry) {
 }
 
 func (s *sidecar) giveUpCancel(c *cancelTry, now time.Time) {
-	logf("cancel the run %d (attempt %d) of %s/%s: given up after %d calls over %s: the refused job may keep the scale set busy",
-		c.run, c.attempt, c.owner, c.repo, c.tries, now.Sub(c.first).Round(time.Second))
+	logf("cancel the run %d (attempt %s) of %s/%s: given up after %d calls over %s: the refused job may keep the scale set busy",
+		c.run, attemptName(c.attempt), c.owner, c.repo, c.tries, now.Sub(c.first).Round(time.Second))
 }
 
 // retryCancels makes the calls that are due, in the time of ctx and in the
@@ -253,20 +288,37 @@ func (s *sidecar) retryCancel(ctx context.Context, c *cancelTry) bool {
 	case obj != nil:
 		n, _ := obj["run_attempt"].(float64)
 		attempt := int64(n)
-		if c.attempt == 0 && !startedAfter(obj, c.first) {
-			// The attempt that runs began before the refusal: it is the
-			// refused one.
-			c.attempt = attempt
-		}
 		status, _ := obj["status"].(string)
+		if c.attempt == 0 && status != "completed" {
+			switch judgeAttempt(obj, attempt, c.since) {
+			case attemptRerun:
+				logf("cancel the run %d (attempt unknown) of %s/%s: the attempt %d began after the job came: the cancel ends",
+					c.run, c.owner, c.repo, attempt)
+				return true
+			case attemptUnsure:
+				if c.unsure {
+					logf("cancel the run %d (attempt unknown) of %s/%s: it is not known whether the attempt %s that runs holds the "+
+						"refused job: the cancel ends with no call, and the job may keep the scale set busy",
+						c.run, c.owner, c.repo, attemptName(attempt))
+					return true
+				}
+				c.unsure = true
+				c.tries++
+				return s.again(c)
+			}
+			c.attempt = attempt
+			if attempt != 0 && s.cancelled[runKey{c.run, attempt}] {
+				return true
+			}
+		}
 		switch {
-		case attempt != 0 && attempt != c.attempt:
+		case attempt != 0 && c.attempt != 0 && attempt != c.attempt:
 			logf("cancel the run %d (attempt %d) of %s/%s: the attempt %d runs now: the cancel ends",
 				c.run, c.attempt, c.owner, c.repo, attempt)
 			return true
 		case status == "completed":
-			logf("cancel the run %d (attempt %d) of %s/%s: the run is completed: the cancel ends",
-				c.run, c.attempt, c.owner, c.repo)
+			logf("cancel the run %d (attempt %s) of %s/%s: the run is completed: the cancel ends",
+				c.run, attemptName(c.attempt), c.owner, c.repo)
 			s.markCancelled(c)
 			return true
 		}
@@ -275,25 +327,51 @@ func (s *sidecar) retryCancel(ctx context.Context, c *cancelTry) bool {
 	return s.tryCancel(ctx, c, "")
 }
 
-// startedAfter: the attempt of the run object began after t (a re-run).
-func startedAfter(obj map[string]any, t time.Time) bool {
+// attemptVerdict: whether the attempt that runs holds the refused job.
+type attemptVerdict int
+
+const (
+	attemptMine attemptVerdict = iota
+	attemptRerun
+	attemptUnsure
+)
+
+// judgeAttempt tells whether the run object is of the refused job, which
+// came at `since` (a re-run begins after that). Attempt 1 is no re-run. A
+// start that is not after the arrival is the refused attempt. A start
+// later than the arrival and the skew is a re-run. Else, also with no
+// valid `run_started_at`, it is not known, and the cancel sends no POST: a
+// cancel of a re-run that podrunner accepted is the harm to avoid (Q7).
+func judgeAttempt(obj map[string]any, attempt int64, since time.Time) attemptVerdict {
+	if attempt == 1 {
+		return attemptMine
+	}
 	v, _ := obj["run_started_at"].(string)
 	at, err := time.Parse(time.RFC3339, v)
-	return err == nil && at.After(t)
+	switch {
+	case err != nil:
+		return attemptUnsure
+	case !at.After(since):
+		return attemptMine
+	case at.After(since.Add(skewMargin)):
+		return attemptRerun
+	}
+	return attemptUnsure
 }
 
 // dropOlderCancels ends the cancels of older attempts of a run when a job
 // of `attempt` is offered: podrunner can take that job, and a cancel of
-// the run would cancel it.
+// the run would cancel it. A cancel with no attempt stays: it is not known
+// to be older, and the read of its retry decides.
 func (s *sidecar) dropOlderCancels(run, attempt int64) {
 	if attempt == 0 || len(s.cancelRetry) == 0 {
 		return
 	}
 	kept := make([]*cancelTry, 0, len(s.cancelRetry))
 	for _, c := range s.cancelRetry {
-		if c.run == run && c.attempt < attempt {
-			logf("cancel the run %d (attempt %d) of %s/%s: a job of the attempt %d is offered: the cancel ends",
-				c.run, c.attempt, c.owner, c.repo, attempt)
+		if c.run == run && c.attempt != 0 && c.attempt < attempt {
+			logf("cancel the run %d (attempt %s) of %s/%s: a job of the attempt %d is offered: the cancel ends",
+				c.run, attemptName(c.attempt), c.owner, c.repo, attempt)
 			continue
 		}
 		kept = append(kept, c)
@@ -307,8 +385,8 @@ func (s *sidecar) dropOlderCancels(run, attempt int64) {
 func (s *sidecar) keepPending() {
 	lines := make([]string, 0, len(s.cancelRetry))
 	for _, c := range s.cancelRetry {
-		lines = append(lines, fmt.Sprintf("the cancel of the run %d (attempt %d) of %s/%s ends with the sidecar; calls: %d; "+
-			"the refused job may keep the scale set busy", c.run, c.attempt, c.owner, c.repo, c.tries))
+		lines = append(lines, fmt.Sprintf("the cancel of the run %d (attempt %s) of %s/%s ends with the sidecar; calls: %d; "+
+			"the refused job may keep the scale set busy", c.run, attemptName(c.attempt), c.owner, c.repo, c.tries))
 	}
 	s.heldMu.Lock()
 	s.pendings = lines
@@ -361,11 +439,17 @@ func (t *trust) runNow(ctx context.Context, owner, repo string, run int64) (map[
 	return obj, err
 }
 
-// attemptOf gives the attempt of the last run object read, 0 when none.
-func (t *trust) attemptOf(run int64) int64 {
+// attemptOf gives the attempt of the last run object read, when its read
+// began after the job came (an older object can be of an earlier attempt);
+// else 0.
+func (t *trust) attemptOf(run int64, since time.Time) int64 {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	n, _ := t.runs[run].obj["run_attempt"].(float64)
+	seen := t.runs[run]
+	if !seen.at.After(since) {
+		return 0
+	}
+	n, _ := seen.obj["run_attempt"].(float64)
 	return int64(n)
 }
 

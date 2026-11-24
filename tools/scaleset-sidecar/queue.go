@@ -256,9 +256,10 @@ func (s *sidecar) enqueue(b *scaleset.JobMessageBase, assigned bool) {
 	if b.JobID != "" {
 		s.byJobID[b.JobID] = id
 	}
+	now := time.Now()
 	j := &job{request: b.RunnerRequestID, assigned: assigned && b.RunnerRequestID == 0, state: offered,
-		owner: b.OwnerName, repo: b.RepositoryName, run: b.WorkflowRunID}
-	s.queue = append(s.queue, queued{id: id, job: j, base: *b, since: time.Now()})
+		owner: b.OwnerName, repo: b.RepositoryName, run: b.WorkflowRunID, since: now}
+	s.queue = append(s.queue, queued{id: id, job: j, base: *b, since: now})
 }
 
 // dropQueued removes the queued job of a JobCompleted message: GitHub

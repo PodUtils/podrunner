@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 619 entries: 70 open, 57 partial, 16 blocked, 476 done.
+`TODO/INDEX.md` holds 620 entries: 70 open, 57 partial, 16 blocked, 477 done.
 
 ## State
 
@@ -29,7 +29,7 @@
   the next entry.
 - The sidecar changes of T-504 and T-518 (the opt-ins of Q12 and Q13) are
   proven by unit and fake tests: not run against GitHub. Open from them:
-  T-621 (a live lane), T-622, T-624. T-623 (the retry of a failed cancel) is done. T-613 is partial: it waits
+  T-621 (a live lane), T-622, T-624. T-623 (the retry of a failed cancel) and T-625 (the attempt of a cancel of a job offered past the limits) are done. T-613 is partial: it waits
   for podvm (COORD-125 #347, COORD-127 #349) and its next beta after
   beta.38.
 - Keep this section short. Write the current state only; git keeps the

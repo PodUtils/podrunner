@@ -40,6 +40,9 @@ type job struct {
 	// after a refusal (T-169, T-623).
 	owner, repo  string
 	run, attempt int64
+	// since: when the job came. A run object that was read before it says
+	// nothing of the job's attempt.
+	since time.Time
 }
 
 type sidecar struct {
@@ -60,7 +63,10 @@ type sidecar struct {
 	byJobID map[string]string
 	// The attempts of runs that the sidecar cancelled (T-169), and the
 	// cancels that wait for a retry (T-623).
-	cancelled   map[runKey]bool
+	cancelled map[runKey]bool
+	// cancelledAt: the time of the last cancel of a run whose attempt was
+	// not known.
+	cancelledAt map[int64]time.Time
 	cancelRetry []*cancelTry
 	// The next call of each run with no final answer (queue.go).
 	waits map[int64]*retryWait
