@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**632 entries: 80 open, 59 partial, 15 blocked, 478 done.**
+**632 entries: 79 open, 60 partial, 15 blocked, 478 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 1 | 25 | 3 | 91 | 120 |
+| P1 | 0 | 26 | 3 | 91 | 120 |
 | P2 | 21 | 22 | 9 | 246 | 298 |
 | P3 | 57 | 12 | 3 | 139 | 211 |
-| **All** | 80 | 59 | 15 | 478 | 632 |
+| **All** | 79 | 60 | 15 | 478 | 632 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -296,7 +296,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-246](later.md) | P1 | S | later | release | partial | An adversarial QA before each release |
 | [T-247](later.md) | P2 | S | later | release | done | The notes of a release name the level of the proof of each claim |
 | [T-248](later.md) | P1 | M | later | feature | blocked | The help and the manual of podrunner from the shared crate of PodUtils |
-| [T-249](later.md) | P1 | M | later | feature | open | The installer on each host class, and the shared core of podcrates |
+| [T-249](later.md) | P1 | M | later | feature | partial | The installer on each host class, and the shared core of podcrates |
 | [T-250](later.md) | P2 | S | later | chore | blocked | The state of each issue comes from the record by a tool |
 | [T-251](later.md) | P1 | S | later | defect | done | The gate and the host of an agent run shellcheck of other versions |
 | [T-252](later.md) | P2 | S | later | chore | open | No workflow is linted before it runs |

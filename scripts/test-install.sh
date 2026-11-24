@@ -415,6 +415,48 @@ if python3 -I "$root/scripts/user-gate-summary.py" --lanes local,bad "$t" > "$t/
 grep -q '^| `install:full` | pass | \*\*FAIL\*\* |$' "$t/out" || fail "the summary does not show the failed check"
 ok "a lane of the user-path gate; a lane with a missing asset fails"
 
+# 11b. A cut run (T-249): INT in the middle of the unpack of the runner
+# leaves no `.unpack.*`; KILL leaves one, and the next run removes it. A
+# directory of a live run stays; one with no owner file goes after an
+# hour. The cut run is the leader of its own process group with INT at
+# its default, as a run in a terminal is.
+mkdir -p "$t/cut"
+printf '#!/bin/sh\n: > "%s/cut/ready"\nexec sleep 60\n' "$t" > "$t/cut/gzip"
+chmod 0755 "$t/cut/gzip"
+mirror=file://$a
+cut() { # NAME SIGNAL: start the install in the home $t/NAME, stop it with SIGNAL in the unpack
+    rm -f "$t/cut/ready"
+    mkdir -p "$t/$1"
+    env -u XDG_DATA_HOME -u XDG_CONFIG_HOME HOME="$t/$1" PATH="$t/cut:$t/verify:/usr/bin:/bin" PODRUNNER_MIRROR="$mirror" \
+        python3 -I -c 'import os, signal, sys; signal.signal(signal.SIGINT, signal.SIG_DFL); os.setsid(); os.execvp("sh", ["sh", sys.argv[1]])' \
+        "$installer" > "$t/out" 2>&1 &
+    pid=$!
+    i=0
+    while [ ! -f "$t/cut/ready" ] && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+    [ -f "$t/cut/ready" ] || fail "$1: the install did not reach the unpack"
+    python3 -I -c 'import os, signal, sys; os.killpg(int(sys.argv[1]), getattr(signal, "SIG" + sys.argv[2]))' "$pid" "$2"
+    if wait "$pid"; then fail "$1: the install cut by $2 exited 0"; fi
+}
+cut cut-int INT
+u=$t/cut-int/.local/share/podrunner/runner
+[ -z "$(find "$u" -maxdepth 1 -name '.unpack.*')" ] || fail "the install cut by INT left $(find "$u" -maxdepth 1 -name '.unpack.*')"
+cut cut-kill KILL
+u=$t/cut-kill/.local/share/podrunner/runner
+[ -n "$(find "$u" -maxdepth 1 -name '.unpack.*')" ] || fail "the install cut by KILL left no .unpack.* (the case tests nothing)"
+# The owner of a live run: the boot, the PID namespace and a live PID.
+sleep 60 &
+live=$!
+mkdir -p "$u/.unpack.live" "$u/.unpack.fresh" "$u/.unpack.old"
+printf '%s %s\n%s\n' "$(cat /proc/sys/kernel/random/boot_id)" "$(readlink /proc/self/ns/pid)" "$live" > "$u/.unpack.live/.podrunner-owner"
+python3 -I -c 'import os, sys, time; t = time.time() - 7200; os.utime(sys.argv[1], (t, t))' "$u/.unpack.old"
+run cut-kill || fail "the run after the cut"
+kill "$live"
+left=$(cd "$u" && find . -maxdepth 1 -name '.unpack.*' | sort | tr '\n' ' ')
+[ "$left" = "./.unpack.fresh ./.unpack.live " ] || fail "after the run: $left (want ./.unpack.fresh ./.unpack.live)"
+[ -f "$u/2.0.0/run.sh" ] && [ ! -e "$u/2.0.0/.podrunner-owner" ] || fail "the run after the cut has no runner"
+grep -q "removed .*/.unpack.old: a run that stopped left it" "$t/out" || fail "the run does not name the removed directory"
+ok "a cut run: INT leaves no .unpack.*; the next run removes the directory of a KILL"
+
 # 12. The scripts pass shellcheck of the pinned version (T-251): the same
 # version in CI and on the host of an agent, never skipped.
 sh "$root/scripts/shellcheck.sh" "$root/scripts/install.sh" "$root/scripts/make-bundle.sh" \

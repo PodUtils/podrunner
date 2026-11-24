@@ -204,6 +204,12 @@ not apply to it.
 - A file goes to its place only after its SHA-256 agrees with its pin. A
   partial or wrong download fails with the name of the file and both
   digests, and leaves no file in place.
+- A run that a signal stops (INT, TERM or HUP) removes its temporary
+  files and its directory `DATA/runner/.unpack.PID` before it exits
+  (T-249). A KILL runs no cleanup: the next run removes each
+  `.unpack.PID` directory whose run is not alive (its owner file names
+  the boot, the PID namespace and the PID), or that did not change for an
+  hour (the run was on another host or in another PID namespace).
 - A second run checks each binary against its pin, the marker of the runner
   directory, and the image in the store (`podvm inspect`, then
   `podvm verify`). It downloads only what is missing or wrong. A run that

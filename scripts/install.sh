@@ -165,7 +165,40 @@ close_up "$data/bin"
 # A partial file of an earlier run that stopped is never used.
 rm -f "$bin/podrunner.part" "$data"/bin/*.part "$downloads"/*.part
 
-unpacked=0
+# The temporary files of this run go at its end, also at a signal (T-249).
+# A KILL runs no trap: the next run removes what it left (below).
+tmp="" part="" unpacked=0
+cleanup() {
+    [ -z "$tmp" ] || rm -rf "$tmp"
+    [ -z "$part" ] || rm -f "$part"
+    rm -rf "$downloads/release"
+    [ "$unpacked" = 0 ] || rm -rf "$downloads/bundle"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+# The owner of an unpack directory: the boot and the PID namespace of this
+# run, then its PID. A PID means a process only in its own namespace.
+owner="$(cat /proc/sys/kernel/random/boot_id 2> /dev/null || true) $(readlink /proc/self/ns/pid 2> /dev/null || true)"
+unpack_stale() { # DIR: true when no live run owns DIR
+    m=$1/.podrunner-owner
+    if [ -f "$m" ] && [ "$owner" != " " ] && [ "$(sed -n 1p "$m")" = "$owner" ]; then
+        if kill -0 "$(sed -n 2p "$m")" 2> /dev/null; then return 1; fi
+        return 0
+    fi
+    # Another boot or namespace, or no owner file: an unpack takes
+    # minutes, so a directory that did not change for an hour is stale.
+    [ -f "$m" ] || m=$1
+    [ -n "$(find "$m" -maxdepth 0 -mmin +60)" ]
+}
+for old in "$data"/runner/.unpack.*; do
+    if [ -d "$old" ] && unpack_stale "$old"; then
+        rm -rf "$old"
+        say "ok      removed $old: a run that stopped left it"
+    fi
+done
+
 if [ -n "$bundle" ] && [ -f "$bundle" ]; then
     # Unpack the archive of a bundle once; a second run unpacks it again.
     rm -rf "$downloads/bundle"
@@ -330,12 +363,12 @@ else
     tmp=$data/runner/.unpack.$$
     rm -rf "$tmp" "$runner_dir"
     mkdir -p "$tmp"
-    gzip -dc < "$downloads/$tgz" | tar -xf - -C "$tmp" || {
-        rm -rf "$tmp"
-        die "$tgz: the unpack failed"
-    }
+    printf '%s\n%s\n' "$owner" "$$" > "$tmp/.podrunner-owner"
+    gzip -dc < "$downloads/$tgz" | tar -xf - -C "$tmp" || die "$tgz: the unpack failed"
     printf '%s\n' "$runner_sum" > "$tmp/.podrunner-install"
+    rm -f "$tmp/.podrunner-owner"
     mv "$tmp" "$runner_dir"
+    tmp=""
     rm -f "$downloads/$tgz"
     say "ok      the runner $RUNNER_VERSION in $runner_dir"
 fi
