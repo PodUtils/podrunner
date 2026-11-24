@@ -15095,6 +15095,8 @@ State (2026-11-23, step 1, not run): `.github/workflows/hosted-measure.yml` has 
 
 State (2026-11-24, `hosted-measure.yml` 45290761196 at `1323073`, `place = btrfs`, proven in CI on GitHub-hosted runners): the runner was lost in the step "Place the store and incusd" (no log; the steps after it stayed pending), as the place `joined` lost its runner in run 45156168746. Both places make a loop file over the free space of `/` less the margin and 2 GiB, so a `/` with about 10 GiB free is the likely cause, not LVM or btrfs. podvm's answer to COORD-124 (COORD-236, PodUtils/podvm#652): the pool was full; incusd put one line of `tar` for each file that it could not write into its error, over the bound of 64 MiB of podvm's client. Fixed on podvm `main` (`abe21868`, PodUtils/podvm@T-2078) for the beta after `0.2.0-beta.38`: before an import podvm compares the need (about twice the tree where the pool and the images of incusd share one file system) with the free space of a `dir` pool and refuses with one line; after an answer over the bound it names the pool, its free space and the need. Next: the loop file on `/` keeps 20 GiB free (or the btrfs takes only `/mnt` plus a smaller file on `/`), then the run of `place = btrfs` again; with the next beta of podvm, `place = store-root` gives the need and the free space in one line.
 
+State (2026-11-24, `3dde258` and `7ad6721`, not run): the cause of the lost runner is known. On the hosted image `/mnt` is a directory of `/` (one dm device, `cow-root`), so the two loop files took the same free bytes two times and `/` filled; the annotation of the runner of run 45290761196 was `No space left on device` for its diag log. `3dde258` makes one loop file on `/` when `/` and `/mnt` have one device, and makes the file systems with no discard. `7ad6721` mounts the btrfs with `nodiscard` (btrfs since Linux 6.2 turns on `discard=async` at mount on a device with discard, and a loop device has it), writes the mount options of the place into `info.txt`, and stops `fstrim.timer` for the run; ext4 has no discard at mount by default. Run 45313526131 of `place = btrfs` at `3dde258` was dispatched (in progress at this write). Next: read run 45313526131, then a run of `place = btrfs` at `7ad6721`.
+
 # T-614: The probe of `--export` and `--log-dir` has the pid only and follows a link
 
 **Source:** the work of T-607, 2026-11-23
@@ -15102,7 +15104,7 @@ State (2026-11-24, `hosted-measure.yml` 45290761196 at `1323073`, `place = btrfs
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15120,6 +15122,10 @@ Name the probe by `stale::run_id()` (it has the pid namespace since T-607), and 
 
 `cargo test -p podrunner --all-features --lib run_local::routes`: a probe of another run of the same pid stays; a link at the name is refused and its target is not written.
 
+## Done
+
+2026-11-24, `3dde258` and `7ad6721`: `run_local/routes.rs` `probe` names the probe `.podrunner-probe-ID` by the run id (with the key of the pid namespace), makes it with `create_new`, `O_NOFOLLOW` and mode 0600, and takes the next name when a file or a link is at the name, up to four; when the four are taken, the text names the last probe path and says to remove the `.podrunner-probe-*` files (`7ad6721`). Proven on a development host: `cargo test -p podrunner --all-features --lib -- run_local::routes` (4 passed): `a_probe_leaves_the_probe_of_another_run`, `a_probe_follows_no_link`, `a_probe_with_no_free_name_fails` (asserts the text; it fails on the code before) and `a_probe_leaves_nothing`. Also proven through the built binary as a user with no root (`labdns`): `podrunner run hello.yml --runner-dir ... --export DIR --log-dir DIR`, exit 0, no probe left in either directory.
+
 # T-615: One `TMPDIR` that two hosts share can mistake a live run for a dead one
 
 **Source:** the work of T-607, 2026-11-23
@@ -15127,7 +15133,7 @@ Name the probe by `stale::run_id()` (it has the pid namespace since T-607), and 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15144,3 +15150,7 @@ Add the boot id (`/proc/sys/kernel/random/boot_id`, short form) to the id, and e
 ## Prove
 
 `cargo test -p podrunner --all-features --lib run_local::stale`: a dead-looking run of another boot is not ended.
+
+## Done
+
+2026-11-24, `3dde258` and `7ad6721`: NS of the run id `NS-PID-N` is a key (FNV-1a of 64 bits) of the host and the inode of the pid namespace. `3dde258` used the boot id; `7ad6721` uses the machine id (`/etc/machine-id`, 32 hex digits), because with the boot id the directories of a run killed before a reboot of this host stayed for ever. Only with no machine id does the key use the boot id; with neither, `here()` gives `None` and the run ends no other run. The limit: two hosts with one copied machine id that share `TMPDIR` are not told apart (`docs/local-mode.md`, `docs/decisions.md`). Proven on a development host: `cargo test -p podrunner --all-features --lib -- run_local::stale` (12 passed, 1 ignored): `a_run_of_an_earlier_boot_is_dead`, `a_run_of_another_machine_is_not_dead` and `with_no_machine_id_the_boot_id_separates_two_hosts` (`run_local/stale_key_tests.rs`) fail on the key of the boot id only. Also proven through the built binary as a user with no root (`labdns`): `podrunner run hello.yml --runner-dir ... --export DIR --log-dir DIR` with a private `TMPDIR`, exit 0; the directory of a dead pid with the key of this machine went (one line "the files of a run that died are gone"), and the one with the key of another machine id stayed.

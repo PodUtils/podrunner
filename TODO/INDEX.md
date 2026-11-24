@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**610 entries: 69 open, 57 partial, 18 blocked, 466 done.**
+**610 entries: 67 open, 57 partial, 18 blocked, 468 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 2 | 24 | 3 | 90 | 119 |
 | P2 | 15 | 22 | 10 | 240 | 287 |
-| P3 | 51 | 11 | 5 | 134 | 201 |
-| **All** | 69 | 57 | 18 | 466 | 610 |
+| P3 | 49 | 11 | 5 | 136 | 201 |
+| **All** | 67 | 57 | 18 | 468 | 610 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -656,5 +656,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-611](later.md) | P3 | S | later | defect | blocked | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
 | [T-612](later.md) | P3 | S | later | defect | open | Three live tests of the podvm kind fail on a root host |
 | [T-613](later.md) | P2 | M | later | measurement | partial | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
-| [T-614](later.md) | P3 | S | later | defect | open | The probe of `--export` and `--log-dir` has the pid only and follows a link |
-| [T-615](later.md) | P3 | S | later | defect | open | One `TMPDIR` that two hosts share can mistake a live run for a dead one |
+| [T-614](later.md) | P3 | S | later | defect | done | The probe of `--export` and `--log-dir` has the pid only and follows a link |
+| [T-615](later.md) | P3 | S | later | defect | done | One `TMPDIR` that two hosts share can mistake a live run for a dead one |
