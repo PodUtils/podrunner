@@ -349,7 +349,11 @@ fn changed(a: &Args, since: &str) -> Result<Vec<String>, String> {
         }
         Ok(String::from_utf8_lossy(&out.stdout).lines().map(str::to_string).collect::<Vec<_>>())
     };
-    let mut files = git(&["diff", "--name-only", since, "--"])?;
+    super::args::git_value("--changed-since", since.to_string())?;
+    // `--end-of-options` (git 2.24) is the second guard; an older git
+    // refuses it, and the check above holds there.
+    let mut files = git(&["diff", "--name-only", "--end-of-options", since, "--"])
+        .or_else(|e| if e.contains("end-of-options") { git(&["diff", "--name-only", since, "--"]) } else { Err(e) })?;
     files.extend(git(&["ls-files", "--others", "--exclude-standard", "--full-name"])?);
     files.sort();
     files.dedup();
@@ -379,6 +383,12 @@ mod changed_tests {
         std::fs::write(dir.join("x.log"), "l").unwrap();
         let a = super::Args { checkout: Some(dir.join("sub")), ..super::Args::default() };
         assert_eq!(super::changed(&a, "HEAD").unwrap(), ["a.txt", "sub/new.rs"]);
+        // T-631: a value that starts with `-` is never an option of git,
+        // also when no parse of the flags checked it.
+        let file = dir.join("INJECT");
+        let e = super::changed(&a, &format!("--output={}", file.display())).unwrap_err();
+        assert!(e.contains("starts with '-'"), "{e}");
+        assert!(!file.exists(), "git wrote the file of --output");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

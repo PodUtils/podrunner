@@ -15719,7 +15719,7 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15737,6 +15737,10 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 ## Prove
 
 `cargo test -p podrunner --lib run_local` with a test: `--changed-since --output=FILE` exits 64 and creates no file. It fails before the change.
+
+## Done
+
+2026-11-24 (commit: this one, "run_local: refuse a git value that starts with a dash (T-631)"): `--changed-since` and `--remote` refuse a value that starts with `-` with exit 64 and the flag (`run_local/args.rs`, fn `git_value`); the expansion of `run.toml` goes through the same parse. fn `changed` checks the value again and gives git `--end-of-options` before the ref; a git older than 2.24 refuses that word, and then the diff runs with no such word (the check above holds). The calls of the other flags give git no value of the user as an argument: `--checkout` is the value of `-C`; `--ref`, `--sha`, `--repository` and `--actor` go only to the `github` context; `--local-repository` and the `uses:` fetch do not run git. The clone of `--with-git` (`podrunner-local/src/tree.rs`, fn `git_copy`) puts `--` before its paths. Tests: `run_local::flags_tests::a_git_value_that_starts_with_a_dash_is_refused` (the parse and a dry run with `--output=FILE`: exit 64, no file) and `run_local::context::changed_tests::a_new_file_is_a_changed_file` (fn `changed` alone with `--output=FILE`: an error, no file); each failed before the change (the file `INJECT` was written). The built binary as the user `labdns` (no root): `podrunner run ci.yml --runner-dir /r --changed-since --output=DIR/INJECT --dry-run` prints `--changed-since --output=...: starts with '-'; give a ref or a name, not an option of git`, exit 64, no file; `--remote -p` the same. Level: proven on this host as a user with no root (not on a constrained lab host).
 
 
 # T-632: A small `ulimit -f` ends a podvm unit with an empty cause, and `run` names neither the limit nor the fix

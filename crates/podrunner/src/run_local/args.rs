@@ -105,6 +105,15 @@ pub(super) fn pair(v: &str) -> Result<(String, String), String> {
     Ok((k.to_string(), v.to_string()))
 }
 
+/// A value that goes to git as a ref or a name: git reads a value that
+/// starts with `-` as an option (`--output=FILE` writes a file, T-631).
+pub(super) fn git_value(flag: &str, v: String) -> Result<String, String> {
+    match v.starts_with('-') {
+        true => Err(format!("{flag} {v}: starts with '-'; give a ref or a name, not an option of git")),
+        false => Ok(v),
+    }
+}
+
 #[path = "checkout_root.rs"]
 mod checkout_root;
 pub(super) use checkout_root::{calls_root, default_checkout};
@@ -194,7 +203,7 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             // A failed job keeps its unit: the pause after the failed step,
             // with a shell in the unit (T-138, T-150).
             "--break-on-failure" | "--keep-failed" => a.breaks.on_failure = true,
-            "--changed-since" => a.changed_since = Some(value()?),
+            "--changed-since" => a.changed_since = Some(git_value(x, value()?)?),
             "--web" => a.web = Some(super::web::parse_addr(&value()?)?),
             "--approve" => a.approved.push(value()?),
             "--environment-secret-file" | "--environment-var-file" | "--environment-allow" => {
@@ -276,7 +285,7 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             "--event" => a.event = value()?,
             "--event-path" => a.event_path = Some(PathBuf::from(value()?)),
             "--force-event" => a.force_event = true,
-            "--remote" => a.remote = Some(value()?),
+            "--remote" => a.remote = Some(git_value(x, value()?)?),
             "--ref" => a.git_ref = Some(value()?),
             "--sha" => a.sha = Some(value()?),
             "--repository" => a.repository = Some(value()?),

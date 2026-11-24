@@ -420,3 +420,25 @@ fn validate_reads_the_minutes() {
     assert_eq!(run(&args(&[&w, "--validate"])).code, 0);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-631: a value of `--changed-since` or `--remote` that starts with `-`
+/// is an option of git, not a ref: the parse refuses it, and a dry run
+/// writes no file.
+#[test]
+fn a_git_value_that_starts_with_a_dash_is_refused() {
+    for flag in ["--changed-since", "--remote"] {
+        for value in ["--output=/nonexistent/f", "-p", "-"] {
+            let e = parse(&args(&["w.yml", "--runner-dir", "/r", flag, value])).unwrap_err();
+            assert!(e.contains(&format!("{flag} {value}: starts with '-'")), "{e}");
+        }
+        assert!(parse(&args(&["w.yml", "--runner-dir", "/r", flag, "main"])).is_ok());
+    }
+    let dir = crate::scratch::Scratch::new("t631");
+    let w = dir.join("w.yml");
+    std::fs::write(&w, "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    let file = dir.join("INJECT");
+    let (w, out) = (w.display().to_string(), format!("--output={}", file.display()));
+    let r = run(&args(&[&w, "--runner-dir", "/r", "--changed-since", &out, "--dry-run"]));
+    assert_eq!(r.code, 64, "{}{}", r.stdout, r.stderr);
+    assert!(!file.exists(), "git wrote the file of --output");
+}

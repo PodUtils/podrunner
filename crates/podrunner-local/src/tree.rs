@@ -111,7 +111,8 @@ fn git_copy(dir: &Path, scratch: &Path) -> Result<PathBuf, String> {
     let _ = std::fs::remove_dir_all(&clone);
     let top = String::from_utf8_lossy(&git(dir, &["rev-parse", "--show-toplevel"])?).trim().to_string();
     let target = clone.display().to_string();
-    git(Path::new("."), &["clone", "-q", "--no-checkout", "--no-hardlinks", &top, &target])?;
+    // `--`: a path never reads as an option (T-631).
+    git(Path::new("."), &["clone", "-q", "--no-checkout", "--no-hardlinks", "--", &top, &target])?;
     git(&clone, &["reset", "-q"])?;
     Ok(clone.join(".git"))
 }
