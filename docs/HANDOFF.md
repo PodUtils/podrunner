@@ -8,7 +8,7 @@ is done.
 
 ## Where podrunner stands
 
-- Pins: podcrates `v0.81.0` (`Cargo.toml`; the source wire and the
+- Pins: podcrates `v0.82.1` (`Cargo.toml`, T-619; the source wire and the
   credential are `pod_job::source`, the HTTP head is `pod_core::http1`;
   `status.v1` is `pod_job::Status` from podcrates `v0.73.0`);
   podvm `v0.2.0-beta.38`
@@ -91,7 +91,8 @@ is done.
 - Each report carries `cpu_s` and `peak_rss_mib`
   (`crates/podrunner-slots/src/usage.rs`, T-108); the incus kind reads
   both from `podvm inspect` of the instance (T-483), and an `unknown`
-  value has its reason in `unknown_reasons`.
+  value has its reason in `unknown_reasons`, as each absent time has
+  (T-595).
 - A musl build of the official runner (`scripts/runner-musl.sh`,
   `runner-musl.yml`) runs the canned jobs in Alpine on x86_64 and
   aarch64, and in a podvm unit on x86_64 (T-081).
@@ -160,13 +161,13 @@ is done.
   guest), T-557 and T-613 (the full snapshot does not fit a `dir` pool
   of a hosted runner; the loss of the runner in the place step has its
   cause, see the work order).
-- Asks open: COORD-120 (#342, T-595) and COORD-121 (#343, T-602) to
-  podcrates, no answer yet. COORD-123 (#345, T-611) and COORD-124 (#346,
+- COORD-120 (#342, T-595) and COORD-121 (#343, T-602): podcrates
+  answered in `v0.82.1` (T-619); both entries are done. Close #342 and
+  #343, and write the take as a COORD issue `(to podcrates)` after the
+  push. COORD-123 (#345, T-611) and COORD-124 (#346,
   T-613) to podvm: both answered and fixed on podvm's `main` for the beta
   after beta.38 (COORD-233, COORD-236): pin that beta, then make the peak
   of T-483 strict again (T-611) and run `hosted-measure.yml` (T-613).
-  podcrates `v0.82.0` is out (podvm and podnet take it); no COORD message
-  to podrunner yet: take it when it comes.
 - Work order next (`TODO/PROGRESS.md`): T-613 (the cause is found: on
   the hosted image `/mnt` is a directory of `/`, so the loop file is one
   file, made with no discard, mounted `nodiscard`, with `fstrim.timer`
@@ -578,7 +579,7 @@ with no P1 or P2 finding (`docs/qa-brief.md`, T-246).
 
 The audits of 2026-11-21 and 2026-11-23 found the record and GitHub in agreement; `TODO/issues.md` has each row. Open:
 
-- New asks of 2026-11-23: #342 (COORD-120, T-595) and #343 (COORD-121, T-602) to podcrates; #344 (COORD-122, T-606) to podvm.
+- Asks of 2026-11-23: #342 (COORD-120, T-595) and #343 (COORD-121, T-602) to podcrates are answered by `v0.82.1` (T-619): close them after the push; #344 (COORD-122, T-606) to podvm.
 - Asks to podvm not delivered or not taken: #339 (COORD-118, the PAX value of an ACL) and #344 (COORD-122, 85 layers) are in beta.38 and wait for their runs, #316 and #313 (PodUtils/podvm@T-1994, @T-1998 are not in beta.38), #308 (podvm waits for data of podrunner), #304 and #189 (T-261), #300 (`--podvm-volume-base` off the namespace rung), #296 (ask 5), #277 (T-403).
 - COORD issues with entries not done: #312 (T-553), #184 (T-250), #183 (T-249), #181 (T-248).
 - Defects of the live runs with entries not done: #260 (T-412), #171 (T-229), #149 (T-197), #144 (T-192), #143 (T-180), #140 and #121 (T-169), #138 (T-187), #126 (T-181).

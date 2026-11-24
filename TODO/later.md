@@ -14587,7 +14587,7 @@ Move the steps into one script (for example `scripts/runner-image-archive.sh OCI
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -14605,9 +14605,9 @@ Ask podcrates (COORD-120) to allow a reason for each time of the report that can
 
 `cargo test -p podrunner-slots report`: a report of a unit with no first step has `start_s` absent and its reason, and `RunReport::check()` passes.
 
-## Blocker
+## Done
 
-COORD-120 (GitHub #342, to podcrates): the schema of `run-report.v1` allows no reason for a time.
+2026-11-24: `632de1a`, on the take of podcrates `v0.82.1` (T-619, `a100a40`; PodUtils/podcrates@T-1098 answers COORD-120). Each absent time of `pod_job::report::TIMES` has the reason of its first absent end in `unknown_reasons`: the job was not claimed, the unit did not start, no first step, the unit did not end or was not destroyed before the report. A present time has no reason. `a_report_has_its_times_its_image_and_its_measures_or_a_reason` asks for the reason of `start_s` and of `claim_to_first_step_s`; it failed on the code before the change at the assert of `start_s`. Its helper checks each time of `TIMES` and `RunReport::check`; `g05_an_arm64_job_is_not_claimed` checks a refused report. `cargo test -p podrunner-slots --all-features`: 181 passed. Proven by the tests here; not run in CI. Close #342 after the push.
 
 # T-596: A container of `podrunner run` gets no CA file of the caller
 
@@ -14785,7 +14785,7 @@ Run the test in a loop under load on `main` after T-589 (`for i in $(seq 50); do
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -14804,9 +14804,9 @@ Measured on 2026-11-23 with the debug build of `main`: the command above exits 6
 
 `cargo test -p podrunner --all-features --lib cli::unit` passes with `TMPDIR` under `/tmp/tmp.XXXXXXXXXX`; the command of the Problem exits 0.
 
-## Blocker
+## Done
 
-COORD-121 (GitHub #343, to podcrates): `looks_secret` of `pod-unit` reads a path after a dot as one word.
+2026-11-24: `a100a40`, the take of podcrates `v0.82.1` (T-619; PodUtils/podcrates@T-1104 answers COORD-121). `print_unit_takes_a_config_under_a_directory_of_mktemp` runs the command of the Problem and a config under a dot directory with a random name, also with `--system`; on `v0.81.0` it failed ("argument 3 looks like a secret (a long random word)"), on `v0.82.1` it passes. `scripts/agent/check.sh` and the test step of `.github/workflows/gate.yml` use the default name of `mktemp -d` again (no `prt-XXXXXX`), so each full test run proves it: `cargo test --workspace --all-features` with `TMPDIR=/tmp/tmp.rP1QCPSz1t` gave 765 passed, 0 failed, 61 ignored. The built binary runs the command of the Problem with exit 0 as root and as a user with no root. Level: proven on this host as a user; not run in CI. Close #343 after the push.
 
 # T-603: The CA directory of a confined container joins the `exec=` list, and a container may remount it writable
 
@@ -15276,7 +15276,7 @@ State (2026-11-24): the ask is on GitHub #292, in the one comment of podrunner (
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -15304,3 +15304,7 @@ sh scripts/test-install.sh
 ```
 
 `print_unit_system_passes_the_audit_of_a_unit_of_the_system` passes, and fails with no call of `service_account()`.
+
+## Done
+
+2026-11-24: `a100a40` (the take, T-602) and `632de1a` (T-595). (1) Each podcrates dependency, `Cargo.lock`, `fuzz/Cargo.lock` and `issue-sync.yml` (the workflow of `0d7832b`, `podcrates_ref: v0.82.1`) name `v0.82.1`; the lock adds `base64` of `pod-unit`. `images/pod-release.toml` and `images/fake-githome.toml` pin the assets of `v0.82.1`: each SHA-256 agrees with the signed `SHA256SUMS`; `pod-release` 0.82.1 verifies it as `release.yml` of podcrates at the tag (12 files); the ghcr.io index `sha256:d1cc9063...` is the one of the registry, and its layers hold the pinned binaries; `release-index.py` is the same file. (2) `system_unit` calls `unit.hardening.service_account()`; the test of the audit matches whole lines, and it failed on `RemoveIPC=yes` with no call. (3) No `match` on `Class` in podrunner, and no crate that it uses gives 71 or 78: the exit codes of `docs/cli.md` stay. The unit restarts on failure only: no `StartLimitInterval=0`, no golden change. The test of the ninth client: 30 of 30; the tests of `control`: 10 of 10 runs. (4) T-595 and T-602 done. Checks: fmt, clippy, the fuzz crate (clippy, 2 tests), `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR`: 765 passed, 0 failed, 61 ignored; `sh scripts/githome-conformance.sh`: 15 of 15; `sh scripts/test-install.sh`: 17 passed; `cargo todo check`. Level: proven by the checks here; not run in CI. Open: step 5, the COORD issue `(to podcrates)` after the push, and the gate, `level2.yml`, `runner-image.yml` and `user-gate.yml` on the commit of the take (a change of `images/` needs a new run of `runner-image.yml` first).

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**614 entries: 68 open, 58 partial, 18 blocked, 470 done.**
+**614 entries: 68 open, 57 partial, 16 blocked, 473 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 2 | 25 | 3 | 90 | 120 |
-| P2 | 14 | 22 | 10 | 242 | 288 |
-| P3 | 51 | 11 | 5 | 136 | 203 |
-| **All** | 68 | 58 | 18 | 470 | 614 |
+| P1 | 2 | 24 | 3 | 91 | 120 |
+| P2 | 14 | 22 | 9 | 243 | 288 |
+| P3 | 51 | 11 | 4 | 137 | 203 |
+| **All** | 68 | 57 | 16 | 473 | 614 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -637,14 +637,14 @@ acceptance, later The crate dependencies later than v1.
 | [T-592](later.md) | P2 | S | later | defect | done | The level2 corpus fails on the advisory check of podcrates, which reads the live advisory database |
 | [T-593](later.md) | P1 | S | later | defect | done | The official runner stops at its start when `no_proxy` holds the entry `::` |
 | [T-594](later.md) | P3 | S | later | defect | open | The image release and `runner-image.yml` each have a copy of the build and the archive of the runner images |
-| [T-595](later.md) | P3 | S | later | defect | blocked | A run report has no reason for a time that it does not know (`start_s`) |
+| [T-595](later.md) | P3 | S | later | defect | done | A run report has no reason for a time that it does not know (`start_s`) |
 | [T-596](later.md) | P2 | S | later | defect | partial | A container of `podrunner run` gets no CA file of the caller |
 | [T-597](later.md) | P3 | S | later | defect | open | A container of a unit gets the CA bundle of its broker, but no trust store of a JVM |
 | [T-598](later.md) | P3 | S | later | defect | open | A job on `--runner-dir` behind an intercepting proxy gives a JVM no trust store |
 | [T-599](later.md) | P2 | S | later | defect | done | The capture of the hosted snapshot writes GNU sparse records, which the next podvm refuses |
 | [T-600](later.md) | P3 | S | later | defect | open | The tests of Unix sockets fail when `TMPDIR` is long |
 | [T-601](later.md) | P3 | S | later | defect | open | A test of the run report failed once under load |
-| [T-602](later.md) | P2 | S | later | defect | blocked | `print-unit` refuses a config path under a directory of `mktemp -d` as a secret |
+| [T-602](later.md) | P2 | S | later | defect | done | `print-unit` refuses a config path under a directory of `mktemp -d` as a secret |
 | [T-603](later.md) | P3 | S | later | defect | open | The CA directory of a confined container joins the `exec=` list, and a container may remount it writable |
 | [T-604](later.md) | P3 | S | later | feature | open | A runner image release is not on ghcr.io |
 | [T-605](later.md) | P3 | S | later | feature | open | `podrunner-manifest.json` names no ghcr.io reference |
@@ -661,4 +661,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-616](later.md) | P3 | S | later | defect | open | A container of a unit of the local mode gets the CA bundle of the caller, but no trust store of a JVM |
 | [T-617](later.md) | P2 | S | later | docs | done | The hand-written state of GitHub #65, #66 and the comment on #292 is stale |
 | [T-618](later.md) | P3 | S | later | research | open | R-052 of cfb is named nowhere |
-| [T-619](later.md) | P1 | S | later | chore | partial | Take podcrates `v0.82.1` (COORD-152 of podcrates) |
+| [T-619](later.md) | P1 | S | later | chore | done | Take podcrates `v0.82.1` (COORD-152 of podcrates) |
