@@ -14,7 +14,7 @@ const LABEL: &[u8] = b"podrunner pin list v1\n";
 
 /// The bytes that the key signs: the label, the age limit, and each payload
 /// on its own line, in the order of the file. `sandbox`, `unpacked_bytes`,
-/// `init` and `labels` add words only when set, so that a signature of a
+/// `init`, `assignment_hook` and `labels` add words only when set. A signature of a
 /// list with none of them stays valid.
 pub fn message(pins: &Pins) -> Vec<u8> {
     let mut m = LABEL.to_vec();
@@ -31,9 +31,10 @@ pub fn message(pins: &Pins) -> Vec<u8> {
             None => "",
         };
         // `check` refuses white space in a label: one word each.
+        let hook = if p.assignment_hook { " assignment-hook" } else { "" };
         let labels: String = p.labels.iter().map(|l| format!(" label {l}")).collect();
         let line = format!(
-            "payload {} {} {} {version} {age}{sandbox}{size}{init}{labels}\n",
+            "payload {} {} {} {version} {age}{sandbox}{size}{init}{hook}{labels}\n",
             p.arch, p.reference, p.built_at_s
         );
         m.extend_from_slice(line.as_bytes());
@@ -87,6 +88,9 @@ pub fn check(pins: &Pins) -> Result<(), String> {
         // A label is one word of the signed line (T-549).
         if let Some(l) = p.labels.iter().find(|l| l.is_empty() || l.chars().any(char::is_whitespace)) {
             return Err(format!("[[pin.payload]] {}: label {l:?} is empty or has white space", p.reference));
+        }
+        if p.assignment_hook && p.sandbox {
+            return Err(format!("[[pin.payload]] {}: a sandbox has no runner assignment hook", p.reference));
         }
         if p.max_age_s == Some(0) {
             return Err(format!("[[pin.payload]] {}: max_age_s is 0: the image is stale at once", p.reference));
@@ -156,6 +160,7 @@ mod tests {
                 reference: "r@sha256:00".into(),
                 built_at_s: 7,
                 runner_version: None,
+                assignment_hook: false,
                 max_age_s: None,
                 sandbox: false,
                 unpacked_bytes: None,
@@ -176,7 +181,7 @@ mod tests {
         assert_eq!(verify(&p), Ok(()));
         // The role and the size of a payload are signed too (T-551), and its
         // init and its labels (T-549).
-        let changes: [fn(&mut Pins); 11] = [
+        let changes: [fn(&mut Pins); 12] = [
             |p| p.max_age_s += 1,
             |p| p.payload[0].max_age_s = Some(1),
             |p| p.payload[0].runner_version = Some("2.338.2".into()),
@@ -184,6 +189,7 @@ mod tests {
             |p| p.payload[0].reference.push('1'),
             |p| p.payload.push(p.payload[0].clone()),
             |p| p.payload[0].sandbox = true,
+            |p| p.payload[0].assignment_hook = true,
             |p| p.payload[0].unpacked_bytes = Some(1),
             |p| p.payload[0].init = Some(crate::config::UnitInit::Image),
             |p| p.payload[0].labels = vec!["ubuntu-latest".into()],

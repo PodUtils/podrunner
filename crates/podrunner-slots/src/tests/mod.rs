@@ -233,6 +233,12 @@ impl Bed {
     }
 
     /// One tick: the clock moves by one second.
+    /// Model a driver that runs a verified hook before job steps.
+    fn attest_assignment_hook(&mut self) {
+        let job = self.slots.jobs.values_mut().find(|j| j.state == State::Started).expect("a started job");
+        job.placement.as_mut().expect("a placed job").assignment_hook = true;
+    }
+
     pub fn tick(&mut self) {
         self.slots.tick();
         self.clock.advance(Duration::from_secs(1));

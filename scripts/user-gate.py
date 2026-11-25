@@ -1056,7 +1056,8 @@ class Lane:
             if rc:
                 self.show(f"{name}-init")
                 raise GateError(f"config init --kinds {kind}: exit {rc}")
-            text = cfg.read_text() + '\n[egress]\ndefault_policy = { schema = 1, mode = "open" }\n'
+            text = (cfg.read_text() + 'assignment_hook = true\n\n[egress]\n'
+                    'default_policy = { schema = 1, mode = "open" }\n')
             if warm:
                 text = text.replace(f"[unit.{kind}]\n", f"[unit.{kind}]\nwarm = 1\n", 1)
             cfg.write_text(text)

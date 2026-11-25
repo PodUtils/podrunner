@@ -120,7 +120,11 @@ impl Slots {
         let key = self
             .jobs
             .iter()
-            .find(|(_, j)| j.unit.as_ref() == Some(unit) && j.state == State::Started)
+            .find(|(_, j)| {
+                j.unit.as_ref() == Some(unit)
+                    && j.state == State::Started
+                    && j.placement.as_ref().is_some_and(|p| p.assignment_hook)
+            })
             .map(|(k, _)| k.clone());
         if let Some(key) = key {
             self.set(&key, State::Running, now);

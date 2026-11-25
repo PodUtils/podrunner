@@ -237,13 +237,9 @@ fn the_control_socket_of_serve_conforms_to_pod_control() {
     assert!(!socket.exists(), "serve left its socket");
 }
 
-/// T-660: a fake unit, with no `started` event of its source and no
-/// container hook, marks its first step as the job-started hook of the
-/// runner image does: `POST http://control.podrunner.test/v1/started` at
-/// its egress socket. `serve` journals the job `running` after `claimed`
-/// and before `ended`.
+/// A process outside the pinned runner image cannot mark a job started.
 #[test]
-fn the_mark_of_a_unit_at_its_egress_socket_journals_its_first_step() {
+fn the_mark_of_a_fake_unit_does_not_journal_a_first_step() {
     let bed = Bed::new("mark", 1);
     let mark = bed.dir.join("mark.py");
     std::fs::write(
@@ -259,7 +255,7 @@ fn the_mark_of_a_unit_at_its_egress_socket_journals_its_first_step() {
         "command = [\"sleep\", \"1\"]",
         &format!("command = [\"sh\", \"-c\", \"sleep 2; python3 -I {} >&2; sleep 2\"]", mark.display()),
     );
-    let open = "[egress]\ndefault_policy = { schema = 1, mode = \"open\" }\n";
+    let open = "assignment_hook = true\n[egress]\ndefault_policy = { schema = 1, mode = \"open\" }\n";
     std::fs::write(bed.dir.join("podrunner.toml"), format!("{config}{open}")).unwrap();
     let mut serve = bed.serve(None);
     let t = Instant::now();
@@ -272,9 +268,8 @@ fn the_mark_of_a_unit_at_its_egress_socket_journals_its_first_step() {
     let journal = bed.journal();
     let at = |s: &str| journal.find(&format!("\"state\":\"{s}\"")).unwrap_or(usize::MAX);
     assert!(
-        at("claimed") < at("running") && at("running") < at("ended"),
+        at("claimed") < at("ended") && at("running") == usize::MAX,
         "{journal}\n{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert_eq!(journal.matches("\"state\":\"running\"").count(), 1, "{journal}");
 }

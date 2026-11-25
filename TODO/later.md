@@ -16876,7 +16876,7 @@ proven in CI on GitHub-hosted runners.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -16892,9 +16892,31 @@ Read on 2026-11-25: `ACTIONS_RUNNER_HOOK_JOB_STARTED` is set only by `images/run
 2. For a unit whose payload has no hook, the front answers each question with `end` and the code `no-hook`, and the slots take no mark; the `started` check of the source stays the only proof (T-175).
 3. Tests: a unit with no hook asks `assigned` for another run that the source keeps, then a `started` of the placed job that names another runner ends the unit.
 
+## Decision
+
+The pin carries `assignment_hook`. The pin signature covers the flag.
+The selected driver must use the runner from that image. An enabled hook
+waits for a verdict before every job so that the first accepted verdict
+comes before the first step. Requests from units without a declared hook
+return `no-hook`. They cannot change the job state.
+
 ## Prove
 
-`cargo test -p podrunner-slots first_step` with the case of step 3.
+```sh
+cargo test --locked -p podrunner-slots
+cargo test --locked -p podrunner --test serve the_mark_of_a_fake_unit_does_not_journal_a_first_step
+cargo test --locked -p podrunner-broker-fake --test runner the_job_started_hook_marks_the_first_step_of_its_own_job -- --ignored
+```
+
+The user-path gate enables the flag for the verified runner image. Its
+warm Incus and microvm rows prove the matched runner path.
+
+State (2026-11-25). The new regression failed before the guard. All 252
+slots tests passed with the guard, including the cache checks for the
+ref, repository and hook. The executable fake-kind test passed. The
+official runner passed the hook cases with a verdict and with the
+control front unavailable. Guest proof waits for the next image run and
+user-path gate.
 
 
 # T-664: Take podcrates `v0.84.0` (COORD-155 of podcrates)

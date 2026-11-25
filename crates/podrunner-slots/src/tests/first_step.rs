@@ -67,6 +67,7 @@ fn the_mark_of_the_hook_gives_the_running_line_and_the_first_step() {
     let port = Marking::default();
     let mut bed = bed(&port, vec![offer(0, "j-1", json!({}))], "sleep 2");
     bed.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.attest_assignment_hook();
     // A mark of a unit with no job in `started` (a warm unit before its
     // claim) changes nothing.
     port.marks.lock().unwrap().push(UnitId::parse("u-999").unwrap());
@@ -100,6 +101,7 @@ fn a_kept_question_is_the_first_step() {
     let port = Marking::default();
     let mut bed = bed(&port, vec![offer(0, "j-1", json!({}))], "sleep 300");
     bed.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.attest_assignment_hook();
     let real = json!({"run_id": 2, "job_name": "t", "event": "push", "repository": "example-org/app",
         "head_is_fork": false, "actor": "a"});
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
@@ -144,6 +146,7 @@ fn a_started_of_another_runner_after_the_mark_ends_the_unit() {
     let port = Marking::default();
     let mut bed = bed(&port, placed_elsewhere(6), "sleep 300");
     bed.until(5, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.attest_assignment_hook();
     port.marks.lock().unwrap().push(unit_of(&bed));
     bed.tick();
     assert_eq!(bed.state("j-1"), Some(State::Running));
@@ -159,6 +162,7 @@ fn a_keep_of_the_placed_run_then_a_started_of_another_runner_ends_the_unit() {
     let port = Marking::default();
     let mut bed = bed(&port, placed_elsewhere(8), "sleep 300");
     bed.until(5, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.attest_assignment_hook();
     assert_eq!(ask(&mut bed, &port, 1), r#"{"verdict":"keep"}"#);
     assert_eq!(bed.state("j-1"), Some(State::Running));
     bed.until(40, Bed::all_final);
@@ -174,6 +178,7 @@ fn a_kept_job_runs_on_when_the_placed_job_starts_elsewhere() {
     let port = Marking::default();
     let mut bed = bed(&port, placed_elsewhere(8), "sleep 2");
     bed.until(5, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.attest_assignment_hook();
     assert_eq!(ask(&mut bed, &port, 2), r#"{"verdict":"keep"}"#);
     bed.until(400, Bed::all_final);
     assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
@@ -192,9 +197,23 @@ fn the_runner_of_the_unit_on_another_job_still_ends_the_unit_after_the_mark() {
     ];
     let mut bed = bed(&port, lines, "sleep 300");
     bed.until(5, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.attest_assignment_hook();
     port.marks.lock().unwrap().push(unit_of(&bed));
     bed.tick();
     assert_eq!(bed.state("j-1"), Some(State::Running));
     bed.until(40, Bed::all_final);
     assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::JobMismatch);
+}
+
+#[test]
+fn an_unverified_payload_cannot_submit_a_hook_update() {
+    let port = Marking::default();
+    let mut bed = bed(&port, vec![offer(0, "j-1", json!({}))], "sleep 300");
+    bed.until(5, |s| s.jobs().any(|j| j.state == State::Started));
+    port.marks.lock().unwrap().push(unit_of(&bed));
+    assert_eq!(ask(&mut bed, &port, 1), crate::assigned::Verdict::End { code: "no-hook".into() }.body());
+    let job = bed.slots.jobs().next().unwrap();
+    assert_eq!(job.state, State::Started);
+    assert_eq!(job.reason, None);
+    assert_eq!(job.assigned, None);
 }

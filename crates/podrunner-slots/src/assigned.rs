@@ -6,7 +6,7 @@
 //! trusted unit. The answer of a unit is given once and kept: a step of the
 //! job that asks again gets the same answer.
 
-use podrunner_schema::{ExitReason, UnitId};
+use podrunner_schema::{ExitReason, JobId, UnitId};
 use podrunner_source::{Assigned, RealJob, SourceCode};
 
 use crate::audit;
@@ -64,19 +64,23 @@ impl Slots {
     pub(crate) fn answer_questions(&mut self) {
         let questions = self.egress.as_ref().map(|e| e.questions()).unwrap_or_default();
         for (unit, body, reply) in questions {
-            let verdict = match serde_json::from_slice::<RealJob>(&body) {
-                Ok(real) => self.assigned(&unit, &real),
-                Err(_) => Verdict::end("bad-request"),
+            let mut first = false;
+            let verdict = match self.assignment_key(&unit) {
+                Ok(key) => match serde_json::from_slice::<RealJob>(&body) {
+                    Ok(real) => {
+                        first = self.jobs[&key].assigned.is_none();
+                        self.assign(&key, &real)
+                    }
+                    Err(_) => Verdict::end("bad-request"),
+                },
+                Err(end) => end,
             };
-            // The hook asks before the first step and sends no mark after
-            // `keep` (T-660).
             if verdict == Verdict::Keep {
-                let now = self.now();
-                self.first_step(&unit, now);
+                self.first_step(&unit, self.now());
             }
-            // The hook waits a bounded time, then ends the job and drops its
-            // end of the channel: the job then ends as the hook said.
-            if let Err(std::sync::mpsc::TrySendError::Disconnected(_)) = reply.try_send(verdict.body()) {
+            let reply = reply.try_send(verdict.body());
+            // Only the first answer can be the verdict that the hook needs.
+            if first && matches!(reply, Err(std::sync::mpsc::TrySendError::Disconnected(_))) {
                 self.late(&unit);
             }
         }
@@ -92,19 +96,34 @@ impl Slots {
         }
     }
 
-    /// The answer for the unit `unit`, whose runner got the job `real`.
-    pub fn assigned(&mut self, unit: &UnitId, real: &RealJob) -> Verdict {
-        let now = self.now();
-        let key = self
+    fn assignment_key(&self, unit: &UnitId) -> Result<(usize, JobId), Verdict> {
+        let Some((key, job)) = self
             .jobs
             .iter()
             .find(|(_, j)| j.unit.as_ref() == Some(unit) && matches!(j.state, State::Started | State::Running))
-            .map(|(k, _)| k.clone());
-        let Some(key) = key else { return Verdict::end("unknown-unit") };
-        if let Some(v) = &self.jobs[&key].assigned {
+        else {
+            return Err(Verdict::end("unknown-unit"));
+        };
+        if !job.placement.as_ref().is_some_and(|p| p.assignment_hook) {
+            return Err(Verdict::end("no-hook"));
+        }
+        Ok(key.clone())
+    }
+
+    /// The answer for the unit `unit`, whose runner got the job `real`.
+    pub fn assigned(&mut self, unit: &UnitId, real: &RealJob) -> Verdict {
+        match self.assignment_key(unit) {
+            Ok(key) => self.assign(&key, real),
+            Err(end) => end,
+        }
+    }
+
+    fn assign(&mut self, key: &(usize, JobId), real: &RealJob) -> Verdict {
+        let now = self.now();
+        if let Some(v) = &self.jobs[key].assigned {
             return v.clone();
         }
-        let verdict = self.decide(&key, real);
+        let verdict = self.decide(key, real);
         let detail = format!(
             "run {} of {}: {}",
             real.run_id,
@@ -115,11 +134,11 @@ impl Slots {
             }
         );
         self.audit(audit::Kind::Assigned, key.0, &key.1, None, Some(detail));
-        let offered = self.jobs[&key].offer.as_ref().is_some_and(|o| {
+        let offered = self.jobs[key].offer.as_ref().is_some_and(|o| {
             let t = &o.trust_inputs;
             t.run_id == real.run_id && real.repository.eq_ignore_ascii_case(&format!("{}/{}", t.owner, t.repo))
         });
-        if let Some(j) = self.jobs.get_mut(&key) {
+        if let Some(j) = self.jobs.get_mut(key) {
             j.assigned = Some(verdict.clone());
             if !offered {
                 j.real = Some(real.clone());

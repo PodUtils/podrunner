@@ -28,6 +28,7 @@ fn cached(with: Value) -> (Bed, UnitId) {
         }],
     );
     bed.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.attest_assignment_hook();
     let j = bed.slots.jobs().next().expect("a job");
     assert!(j.times.cache.is_some(), "the job has a cache");
     let unit = j.unit.clone().expect("a unit");
@@ -82,11 +83,11 @@ fn a_job_of_another_run_keeps_a_ro_cache_of_its_own_scope() {
 
 /// P2-A of the review of T-480 and T-653: a job of another run keeps
 /// `rw` only on a unit whose payload is known to carry the job-started
-/// hook (T-663). No pin and no kind says so: also a push of another run
-/// to the same ref of the same repository id does not keep `rw`.
+/// hook (T-663). Both the ref and the repository id also have to match.
 #[test]
 fn a_job_of_another_run_never_keeps_rw_with_no_fact_of_the_hook() {
-    let (bed, _) = cached(json!({ "trust_inputs": { "repo_id": 42 } }));
+    let (mut bed, _) = cached(json!({ "trust_inputs": { "repo_id": 42 } }));
+    bed.slots.jobs.values_mut().next().unwrap().placement.as_mut().unwrap().assignment_hook = false;
     let key = (0, podrunner_schema::JobId::new("j-1").unwrap());
     let mut facts = bed.slots.jobs().next().unwrap().offer.clone().unwrap().trust_inputs;
     facts.run_id = 4;
@@ -94,6 +95,10 @@ fn a_job_of_another_run_never_keeps_rw_with_no_fact_of_the_hook() {
     job.git_ref = Some(facts.git_ref.clone());
     job.repo_id = Some(42);
     assert!(!bed.slots.cache_holds(&key, &job, &facts), "rw for another run");
+    bed.attest_assignment_hook();
+    assert!(bed.slots.cache_holds(&key, &job, &facts), "verified hook and matching facts");
+    job.repo_id = Some(7);
+    assert!(!bed.slots.cache_holds(&key, &job, &facts), "the repository id changed");
 }
 
 /// T-653: `plain` refuses a ref of the hook over `REF_MAX` bytes or with a

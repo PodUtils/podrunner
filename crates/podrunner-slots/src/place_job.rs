@@ -30,7 +30,8 @@ impl Slots {
             .and_then(|t| secrets.map(|()| t))
             .and_then(|t| placement::place_why(&offer, set, &self.kind_views(), &self.cfg, t, now_s))
         {
-            Ok(p) => {
+            Ok(mut p) => {
+                p.assignment_hook &= self.kinds[p.kind].driver.uses_payload_runner();
                 let tier = format!("{:?}", p.tier).to_lowercase();
                 self.audit(audit::Kind::Tier, s, &key.1, None, Some(tier));
                 if p.payload_ignored {

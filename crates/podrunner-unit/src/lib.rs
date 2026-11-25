@@ -78,6 +78,11 @@ pub trait UnitDriver: Send + Sync {
     /// The unit kind, as in the capability record.
     fn kind(&self) -> &str;
 
+    /// This driver runs the runner from the selected payload image.
+    fn uses_payload_runner(&self) -> bool {
+        false
+    }
+
     /// The capability record of this kind on this host. Two calls give the
     /// same record. A field that the driver cannot prove is `unknown`.
     fn probe(&self) -> Result<Capability, UnitError>;

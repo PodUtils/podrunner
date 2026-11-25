@@ -224,6 +224,10 @@ impl UnitDriver for PodvmUnit {
         "podvm"
     }
 
+    fn uses_payload_runner(&self) -> bool {
+        true
+    }
+
     fn probe(&self) -> Result<Capability, UnitError> {
         Ok(self.capability.clone())
     }

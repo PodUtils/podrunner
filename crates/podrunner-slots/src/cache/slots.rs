@@ -17,13 +17,6 @@ use crate::audit;
 use crate::engine::Slots;
 use crate::state::State;
 
-/// Whether the payload of a unit is known to carry the job-started hook of
-/// the runner image. No pin and no kind says so (T-663): on a unit with no
-/// hook, a step asks first with the ref and the repository id that it
-/// chooses. So a job of another run gets no `rw` cache back (T-653,
-/// `docs/decisions.md`).
-const PAYLOAD_HOOK_KNOWN: bool = false;
-
 impl Slots {
     /// The cache of a placed job at its start: its mount, with its
     /// variables in `env`. None when the job gets no cache.
@@ -137,7 +130,7 @@ impl Slots {
         let (Some(g), Some(offer), Some(p)) = (&j.times.cache, &j.offer, &j.placement) else { return true };
         let mounts = self.cache_mounts(p.kind);
         let source = &self.sources[key.0].cfg.name;
-        super::holds(cfg, g, source, offer, real, facts, p.tier, mounts, PAYLOAD_HOOK_KNOWN)
+        super::holds(cfg, g, source, offer, real, facts, p.tier, mounts, p.assignment_hook)
     }
 
     /// After the destroy of the unit of `key`: give the thread the count

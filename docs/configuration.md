@@ -112,6 +112,7 @@ arch = "x86_64"
 reference = "runner@sha256:HEX"
 built_at_s = 1763337600      # the time of the build, Unix seconds; a time after the clock is stale
 runner_version = "2.338.2"   # the official runner in the image
+# assignment_hook = true    # the job-started hook asks for a verdict before each job
 max_age_s = 2419200          # the age limit of this pin; the smaller of it and [pin] max_age_s holds
 # sandbox = true             # the image of a sandbox unit (T-506): only an offer with sandbox.image of this digest
                              # takes it, at untrusted (a guest); a runner job never does
@@ -351,12 +352,10 @@ of the broker) keeps its value.
 
 The forge can give the runner of a job a queued job of another run
 (T-493). podrunner made the cache of the unit for the offer. A job of
-another run with a `rw` cache ends before its first step with the code
-`cache-mismatch`, as a mount is not lowered after the start. The rule
-that keeps `rw` (the ref and the repository id of the hook are the ones
-of the facts, and the ref writes) holds only on a unit whose payload is
-known to carry the job-started hook, and no unit is known as such yet
-(T-653, T-663). A job of another
+another run keeps a `rw` cache only when the job-started hook gives the
+same ref and repository id as the source, the ref allows writes, and the
+pin declares `assignment_hook = true` (T-653, T-663). A different result
+ends the job before its first step with `cache-mismatch`. A job of another
 run with a `ro` cache keeps it only when the event of the hook is the
 event of the trust facts that its source gives (`keep`), the hook names
 no head of a fork, and the facts give the same scope; else it ends with
@@ -429,7 +428,11 @@ the audit line names the payload and the `init` that it needs.
 
 `check` refuses a payload with `init = "image"` when no `[unit.KIND]`
 has `init = "image"`, and a label that is empty or has white space. The
-signature of the pin list covers `labels` and `init`. The size checks of
+signature of the pin list covers `labels`, `init` and `assignment_hook`.
+Set `assignment_hook = true` when the pinned image and the runner command
+run a job-started hook that waits for an assignment verdict before each
+job. The default is false. The fake kind runs its own command and cannot
+use the payload's hook. The size checks of
 T-551 and T-573 read only the payloads of the `init` of the kind, and the
 self-tests of a kind use the first payload of its `init`.
 

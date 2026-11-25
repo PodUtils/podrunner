@@ -269,9 +269,9 @@ fn the_job_started_hook_marks_the_first_step_of_its_own_job() {
     std::fs::set_permissions(&hook, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
     let job = dir.join(".podrunner-job");
     std::fs::write(&job, "Example-Org/App 1\n").unwrap();
-    for answers in [true, false] {
+    for (strict, answers) in [(false, true), (false, false), (true, true), (true, false)] {
         let (port, seen) = if answers {
-            front_stand_in(r#"{"ok":true}"#)
+            front_stand_in(if strict { r#"{"verdict":"keep"}"# } else { r#"{"ok":true}"# })
         } else {
             // A port with no listener: the connection is refused.
             let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -284,6 +284,7 @@ fn the_job_started_hook_marks_the_first_step_of_its_own_job() {
             ("ACTIONS_RUNNER_HOOK_JOB_STARTED", hook.display().to_string()),
             ("HTTP_PROXY", format!("http://localhost:{port}")),
             ("http_proxy", format!("http://localhost:{port}")),
+            ("PODRUNNER_ASSIGNMENT_HOOK", if strict { "1" } else { "0" }.into()),
             ("NO_PROXY", "127.0.0.1".to_string()),
             ("no_proxy", "127.0.0.1".to_string()),
             ("NODE_USE_ENV_PROXY", "1".to_string()),
@@ -291,15 +292,18 @@ fn the_job_started_hook_marks_the_first_step_of_its_own_job() {
         run_once(&dir, &broker, &env);
         std::thread::sleep(Duration::from_millis(100));
         let done = broker.completions();
-        assert_eq!(done[0].conclusion, "succeeded", "{answers}: {done:?} {}", broker.logs());
-        assert!(dir.join("_work/app/app/marker.txt").exists(), "{answers}: the step ran");
+        let succeeds = !strict || answers;
+        assert_eq!(done[0].conclusion, if succeeds { "succeeded" } else { "failed" }, "{done:?} {}", broker.logs());
+        assert_eq!(dir.join("_work/app/app/marker.txt").exists(), succeeds);
         let asked: Vec<String> = seen.lock().unwrap().clone();
         assert_eq!(asked.len(), usize::from(answers), "one mark: {asked:?}");
-        if answers {
+        if strict && answers {
+            assert!(asked[0].starts_with("POST http://control.podrunner.test/v1/assigned "), "{asked:?}");
+        } else if answers {
             assert!(asked[0].starts_with("POST http://control.podrunner.test/v1/started "), "{asked:?}");
             assert!(asked[0].ends_with("\n{}"), "no fact of the job: {asked:?}");
         }
-        assert!(!broker.logs().contains("podrunner: this runner was placed"), "{}", broker.logs());
+        assert_eq!(broker.logs().contains("podrunner: this runner was placed"), !succeeds, "{}", broker.logs());
     }
     let _ = std::fs::remove_file(&job);
 }

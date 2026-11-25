@@ -400,6 +400,11 @@
         "arch": {
           "type": "string"
         },
+        "assignment_hook": {
+          "description": "The runner hook requests an assignment verdict before any job step.",
+          "type": "boolean",
+          "default": false
+        },
         "built_at_s": {
           "description": "The time of the build, in seconds of the Unix epoch.",
           "type": "integer",

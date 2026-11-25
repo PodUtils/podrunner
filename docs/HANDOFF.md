@@ -22,9 +22,8 @@ In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 1. Build the runner image with the proxy fix in T-660. Use its green run
    for `user-gate.yml`. Both `serve:warm:incus` and `serve:warm:microvm`
    must pass before the lift in T-487.
-2. T-663 (P2, a fact of the payload hook). Then the `rw` restore of a job of
-   another run turns on (T-653: `PAYLOAD_HOOK_KNOWN` of
-   `crates/podrunner-slots/src/cache/slots.rs`).
+2. Verify the signed `assignment_hook` pin in the same user-path run
+   (T-663). The warm rows exercise it on Incus and microvm.
 3. The statement of G-09 on #66 (T-516 is done; check T-517 first: it is
    open, so the line names it as left).
 4. The work order of `TODO/PROGRESS.md`.

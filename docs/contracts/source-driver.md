@@ -90,16 +90,17 @@ scale-set sidecar releases only a runner that it registered itself.
 The forge, not the source, picks the queued job that a runner takes: a
 runner of a just-in-time configuration can get a job of another run of
 the same repository (T-175, githome's G-15). The job-started hook of the
-runner image compares the run of the job with the run of the offer. When
-they differ, `serve` sends `assigned` with the facts of the real job
+runner image asks `serve` for a verdict before each job when the pin
+sets `assignment_hook = true`. When the runs differ, `serve` sends
+`assigned` with the facts of the real job
 (T-493). A source answers `keep` with the trust facts of the real job, as
 it reads them from the forge; podrunner computes the tier of those facts
 and runs the job only when it is the tier of the unit (a job of a fork
 never runs in a trusted unit). The hook sends the `ref` and the
-`repo_id` of the real job when the runner has them. A job with a `rw`
-cache (`[cache]`) ends with the code `cache-mismatch`: the rule that
-keeps `rw` holds only on a unit whose payload is known to carry the hook
-(T-653, T-663). A job with a `ro` cache keeps it only when the
+`repo_id` of the real job when the runner has them. A job of another
+run keeps a `rw` cache only when the ref and repository id of the hook
+agree with the source and the ref allows writes (T-653, T-663).
+A job with a `ro` cache keeps it only when the
 event of the hook is the event of those facts, the hook names no head of
 a fork, and the facts give the same scope; else the code is
 `cache-mismatch`. The facts of `keep` give the `ref`,
@@ -107,10 +108,10 @@ the `repo_id` and the event of the real job; a source that does not know
 one gives it empty, never the value of the offer. Else, and on `end`, the
 job ends before its first step with an annotation that names the code. A source with no
 `assigned` answers `bad-request`, and the job ends as before. No answer
-within 10 s ends the job with the code `source-unavailable`. For a job of
-the run of the offer, the hook sends no question: it marks the first step
-of the job at the same front (`POST /v1/started`, no fact of the job).
-A mark that fails does not end the job.
+within 10 s ends the job with the code `source-unavailable`. For a job
+of the run of the offer, `serve` answers `keep` directly. The first
+verdict is final. The control front returns `no-hook` for a unit whose
+payload lacks the required hook.
 
 `serve` sends `hello` with `host` to each source at its start (T-495,
 githome's G-17), so that a source offers no job that the host must refuse.

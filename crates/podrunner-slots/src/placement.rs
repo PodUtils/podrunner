@@ -53,6 +53,8 @@ pub struct Placement {
     pub boundary: Boundary,
     /// The pinned reference of the payload.
     pub payload: String,
+    /// The pin declares a runner hook that checks the job before its first step.
+    pub assignment_hook: bool,
     /// True when the offer named a payload that placement did not take
     /// (an audit line `payload-ignored`).
     pub payload_ignored: bool,
@@ -216,7 +218,14 @@ pub fn place_why(
     let first = *c.iter().find(|i| free(&kinds[**i])).ok_or(RefusalCode::NoSlotOfKind)?;
     let warm = c.iter().find(|i| free(&kinds[**i]) && kinds[**i].warm.contains(&pin.reference));
     let kind = warm.copied().unwrap_or(first);
-    Ok(Placement { kind, tier, boundary, payload: pin.reference.clone(), payload_ignored })
+    Ok(Placement {
+        kind,
+        tier,
+        boundary,
+        payload: pin.reference.clone(),
+        assignment_hook: pin.assignment_hook,
+        payload_ignored,
+    })
 }
 
 /// The payload of the pin list for the architecture of the offer.

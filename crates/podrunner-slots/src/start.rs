@@ -146,6 +146,9 @@ impl Slots {
             // `log_tail::job_result` reads that log (T-568).
             ("ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT".to_string(), "false".to_string()),
         ]);
+        if p.assignment_hook {
+            env.insert("PODRUNNER_ASSIGNMENT_HOOK".into(), "1".into());
+        }
         crate::sandbox::env(j.offer.as_ref(), &mut env);
         // One socket directory for each unit: its egress socket, its
         // control socket and the relay. A driver that mounts it into the

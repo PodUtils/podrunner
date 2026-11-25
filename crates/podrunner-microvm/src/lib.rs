@@ -187,6 +187,10 @@ impl UnitDriver for MicrovmUnit {
         "microvm"
     }
 
+    fn uses_payload_runner(&self) -> bool {
+        true
+    }
+
     fn credential_dir(&self, _unit: &UnitId) -> Option<String> {
         Some(self.cred_root.clone())
     }

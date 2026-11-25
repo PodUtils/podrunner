@@ -13,8 +13,8 @@
 # mode), there is nothing to compare.
 # For a job of the placed run, the hook marks the first step at the same
 # front (POST /v1/started, T-660): serve journals the job `running`, the
-# start of `claim_to_first_step_s` on each kind. A mark that fails does not
-# end the job.
+# start of `claim_to_first_step_s` on each kind. With the assignment
+# hook enabled, every job needs a verdict before its first step.
 # A fixed PATH and no options of node from the environment of the job.
 PATH=/usr/bin:/bin
 export PATH
@@ -24,7 +24,12 @@ case $0 in
   *) root=.. ;;
 esac
 want_file="$root/.podrunner-job"
-[ -f "$want_file" ] || exit 0
+strict=${PODRUNNER_ASSIGNMENT_HOOK:-0}
+if [ ! -f "$want_file" ]; then
+  [ "$strict" != 1 ] && exit 0
+  echo "The runner has no placed job" >&2
+  exit 1
+fi
 want=$(tr 'A-Z' 'a-z' < "$want_file")
 got=$(printf '%s %s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" | tr 'A-Z' 'a-z')
 
@@ -96,7 +101,7 @@ node=""
 for n in "$root/externals/node24/bin/node" "$root/externals/node20/bin/node"; do
   if [ -x "$n" ]; then node=$n; break; fi
 done
-if [ "$got" = "$want" ]; then
+if [ "$got" = "$want" ] && [ "$strict" != 1 ]; then
   if [ -n "$node" ]; then "$node" -e "$ask" started >/dev/null 2>&1 || :; fi
   exit 0
 fi

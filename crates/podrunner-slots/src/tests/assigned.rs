@@ -22,6 +22,7 @@ fn running() -> (Bed, UnitId) {
         }],
     );
     bed.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.attest_assignment_hook();
     let unit = bed.slots.jobs().next().and_then(|j| j.unit.clone()).expect("a unit");
     (bed, unit)
 }
@@ -130,6 +131,7 @@ fn a_question_of_the_egress_socket_is_answered_at_the_tick() {
         );
         let mut bed = Bed { slots: bed.slots.with_egress(Box::new(port.clone())), ..bed };
         bed.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+        bed.attest_assignment_hook();
         bed.tick();
         let rx = port.answer.lock().unwrap().take().expect("a question");
         assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap(), want);
@@ -223,6 +225,7 @@ fn a_late_answer_records_the_end_of_the_hook() {
     );
     let mut bed = Bed { slots: bed.slots.with_egress(Box::new(port.clone())), ..bed };
     bed.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    bed.attest_assignment_hook();
     // The hook gave up: its end of the channel is gone.
     drop(port.answer.lock().unwrap().take());
     bed.tick();

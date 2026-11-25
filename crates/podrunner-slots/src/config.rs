@@ -169,6 +169,9 @@ pub struct Payload {
     /// The version of the official runner in the image (`2.338.2`).
     #[serde(default)]
     pub runner_version: Option<String>,
+    /// The runner hook requests an assignment verdict before any job step.
+    #[serde(default)]
+    pub assignment_hook: bool,
     /// The age limit of this pin; the smaller of it and `max_age_s` of
     /// `[pin]` holds.
     #[serde(default)]

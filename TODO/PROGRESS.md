@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 666 entries: 87 open, 58 partial, 13 blocked, 508 done.
+`TODO/INDEX.md` holds 666 entries: 86 open, 59 partial, 13 blocked, 508 done.
 
 ## State
 
@@ -37,10 +37,10 @@
   destroy waits for each killed process (T-661). `runner-image.yml` run
   45588130722 on `988df4f3` passed both warm suites and the separate suite
   steps (T-662).
-- A job of another run with a `rw` cache ends with `cache-mismatch`: the hook
-  sends the ref and the repository id (T-653, done), but the rule stays off
-  (`PAYLOAD_HOOK_KNOWN = false`) until T-663 (P2, open) gives the fact that
-  a payload carries the hook.
+- The signed `assignment_hook` pin enables assignment checks for a runner
+  that obtains a verdict before its first step (T-663). A job of another
+  run can keep a `rw` cache only when its verified ref and repository match
+  the cache grant. Guest proof waits for the user-path gate.
 - The sidecar of the scale set, with the opt-ins of Q12 (T-518) and Q13
   (T-504), has unit and fake tests only. It did not run against GitHub.
   Open: T-621 (a live lane), T-622, T-624.
@@ -58,8 +58,8 @@ then take the next one.
    mark. Build the runner image with the proxy fix in T-660. Use that
    green run for the next user-path gate. Both `serve:warm:incus` and
    `serve:warm:microvm` must pass before the lift in T-487.
-2. T-663 (P2). Then the `rw` restore of a job of another run turns on
-   (`PAYLOAD_HOOK_KNOWN`), and T-480 (partial; T-654) goes on.
+2. T-663 (P2) uses the same guest proof. Then take T-654 and the rest of
+   the cache work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10
