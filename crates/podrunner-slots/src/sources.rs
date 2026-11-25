@@ -82,6 +82,16 @@ pub fn check_scaleset(s: &SourceConfig) -> Result<(), String> {
     }
 }
 
+/// A source name is a key of the journal and of the audit lines: it is
+/// not empty and has no control character, and `@` starts the names of
+/// the host (`@warm`, T-487).
+pub fn check_name(name: &str) -> Result<(), String> {
+    if name.is_empty() || name.starts_with('@') || name.chars().any(char::is_control) {
+        return Err(format!("[[source]] {name:?}: the name is empty, starts with @ or has a control character"));
+    }
+    Ok(())
+}
+
 /// The opt-in of a personal account (T-504) is a key of a scale-set source
 /// only: another kind has no scale set.
 pub fn check_personal(s: &SourceConfig) -> Result<(), String> {

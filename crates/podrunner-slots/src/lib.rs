@@ -8,6 +8,7 @@ pub mod assigned;
 pub mod audit;
 pub mod cache;
 pub mod config;
+mod config_checks;
 pub mod config_url;
 pub mod disk;
 mod driver;

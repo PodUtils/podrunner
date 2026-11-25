@@ -47,3 +47,23 @@ fn a_bad_pin_payload_is_refused_by_name() {
     assert!(p.stale(&ok.pin, NOW_UNIX - 86_400));
     assert!(!p.stale(&ok.pin, NOW_UNIX) && !p.stale(&ok.pin, NOW_UNIX - 60));
 }
+
+/// T-487: the journal keeps the warm units of the host under the source
+/// `@warm`, so a source name that starts with `@`, an empty name, and a
+/// name with a control character are refused.
+#[test]
+fn a_source_name_of_the_host_or_with_a_control_character_is_refused() {
+    let parse = |name: &str| {
+        // TOML takes DEL only as an escape.
+        let name = serde_json::to_string(name).unwrap().replace('\u{7f}', "\\u007f");
+        let source = format!("[[source]]\nname = {name}\nkind = \"fake\"\ntier = \"trusted\"\narch = \"x86_64\"\n");
+        Config::parse(&format!("host = \"h\"\nallow_fake = true\n{source}[pin]\n"))
+    };
+    for bad in ["@warm", "@", "", "a\nb", "a\u{7f}", "a\tb"] {
+        let e = parse(bad).unwrap_err();
+        assert!(e.contains("[[source]]") && e.contains("name"), "{bad:?}: {e}");
+    }
+    for ok in ["a", "a@b", "github-trusted", "Ünïcode"] {
+        parse(ok).unwrap();
+    }
+}

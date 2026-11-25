@@ -28,7 +28,7 @@ guest_kinds = ["microvm"]    # the kinds whose claim of guest may hold, after th
 driver_dir = "/opt/podrunner/drivers"  # each binary and sidecar is in it; absolute paths only
 
 [[source]]                   # one set: one tier, one architecture, this host
-name = "org-trusted"
+name = "org-trusted"         # unique; not empty, no control character, and not "@" first (the host's own lines)
 kind = "github-scaleset"     # or "fake", "remote" (the remote mint, below), or "program" (below)
 tier = "trusted"             # "untrusted", "trusted" or "local"
 arch = "x86_64"              # or "aarch64"
