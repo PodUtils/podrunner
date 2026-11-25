@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 649 entries: 83 open, 57 partial, 14 blocked, 495 done.
+`TODO/INDEX.md` holds 649 entries: 83 open, 56 partial, 14 blocked, 496 done.
 
 ## State
 
@@ -34,40 +34,37 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. The take of podcrates `v0.83.0` and podvm `0.2.0-beta.40`: push it; read the gate, `level2.yml` and `runner-image.yml` on its commit
-   (the incus step proves T-611 and closes #345 and #350); dispatch
-   `hosted-measure.yml` for T-613 (`place = btrfs` with `full = slice` and
-   `full = all`; `place = store-root` with `full = all`); write COORD-129
-   `(to podcrates)` and the answer to COORD-246 of podvm.
-2. T-512 (P0): write `githome: complete in vTAG` on #292 and #151 only
+1. T-512 (P0): write `githome: complete in vTAG` on #292 and #151 only
    when each ask G-01 to G-41 is in a release. It is not: githome has 41
    asks, 25 in a release, 10 partial, 6 open; cfb has 38 clauses, 26 in a
    release, 6 partial, 6 open. Name the tag `v0.1.0-beta.8` on #292 and
    #151 now.
-3. The open asks of githome and cfb: T-480 (cache directory by trust),
-   T-487 (warm units), T-516 (CI proof of `docker build` and
-   Docker-in-Docker), T-500 (runner image for cfb; partial). Then T-517,
+2. The open asks of githome and cfb: T-480 (cache directory by trust;
+   partial, the second and third reviews are fixed; its follow-ups are
+   T-653, blocked on COORD-130 (#352), and T-654), T-487 (warm units),
+   T-516 (CI proof of `docker build` and Docker-in-Docker), T-500 (runner image for cfb; partial). Then T-517,
    T-521 and the partial entries T-497, T-499, T-509, T-511, T-515 and
    T-520.
-4. The local P3 entries: T-598, T-597, T-616, T-603 (step 1), T-610,
+3. The local P3 entries: T-598, T-597, T-616, T-603 (step 1), T-610,
    T-609. The follow-ups of QA round 6: T-638, T-643, T-644, T-645. The P3
    groups of the QA rounds: T-308, T-316, T-323, T-331, T-339, T-633 to
    T-637, T-642.
-5. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
+4. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
    T-175 (partial; its step on the test organization is next).
-6. The local mode: T-204, T-229, T-242 (partial), T-161
+5. The local mode: T-204, T-229, T-242 (partial), T-161
    (partial; next, the measure of a third-party runner).
-7. The hosted snapshot: T-539, T-542, T-555, T-540, T-557, T-556, T-579,
-   T-547, T-546, T-550. T-613 (partial): the measures of item 1.
-8. The incus kind: T-482, T-483 (COORD-187), T-481. T-261 (partial): the
+6. The hosted snapshot: T-539, T-542, T-555, T-540, T-557, T-556, T-579,
+   T-547, T-546, T-550. T-613 (partial): the line of COORD-124 (#346).
+7. The incus kind: T-482, T-483 (COORD-187), T-481. T-261 (partial): the
    syscall tier stays off until podvm fixes it (#308, #304, #189). T-403
    (partial) waits for COORD-090 (#300).
 
 Waits:
 
-- CI on the commit of the pin of podvm `0.2.0-beta.40`: T-611 (COORD-123,
-  #345; COORD-128, #350), T-613 (COORD-124, #346; COORD-125, #347;
-  COORD-127, #349).
+- Podvm: T-613 (COORD-124, #346): a run of `hosted-measure.yml` that gives
+  the line of the free space and the need.
+- Podcrates: T-653 (COORD-130, #352): a tag with the fields `ref` and
+  `repo_id` of `RealJob`.
 - The live gates (GitHub #74, #75): T-032, T-033, T-040.
 - Other projects: T-543 and T-544 (COORD-103, #313; COORD-106, #316),
   T-558 to T-560 (COORD-106, COORD-107, #317), T-496 (COORD-089, #296 ask

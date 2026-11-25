@@ -348,10 +348,11 @@
 342 issue closed
 343 issue closed
 344 issue closed
-345 issue open
+345 issue closed
 346 issue open
-347 issue open
+347 issue closed
 348 issue closed
 349 issue closed
-350 issue open
-351 issue open
+350 issue closed
+351 issue closed
+352 issue open

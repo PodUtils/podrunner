@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**649 entries: 83 open, 57 partial, 14 blocked, 495 done.**
+**649 entries: 83 open, 56 partial, 14 blocked, 496 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 95 | 121 |
 | P2 | 18 | 21 | 9 | 258 | 306 |
-| P3 | 64 | 12 | 3 | 140 | 219 |
-| **All** | 83 | 57 | 14 | 495 | 649 |
+| P3 | 64 | 11 | 3 | 141 | 219 |
+| **All** | 83 | 56 | 14 | 496 | 649 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -653,7 +653,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-608](later.md) | P3 | S | later | defect | open | A recovery run of `release.yml` on a tag builds the binaries again |
 | [T-609](later.md) | P3 | M | later | defect | open | `podrunner run` cannot run the hosted runner image as a hosted runner |
 | [T-610](later.md) | P3 | S | later | defect | open | A layer of the tool cache of the snapshot names the version only |
-| [T-611](later.md) | P3 | S | later | defect | partial | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
+| [T-611](later.md) | P3 | S | later | defect | done | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
 | [T-612](later.md) | P3 | S | later | defect | open | Three live tests of the podvm kind fail on a root host |
 | [T-613](later.md) | P2 | M | later | measurement | partial | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
 | [T-614](later.md) | P3 | S | later | defect | done | The probe of `--export` and `--log-dir` has the pid only and follows a link |
