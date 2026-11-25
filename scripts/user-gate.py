@@ -199,6 +199,8 @@ class Lane:
         # An address of the host for the fake GitHub that the egress module
         # takes: pod-broker refuses the private and loopback ranges (T-527).
         self.broker_address = getattr(a, "broker_address", "") or ""
+        # T-487: the binary of the warm proof (the feature warm-ci).
+        self.warm_binary = getattr(a, "warm_binary", "") or ""
         for k in self.serve_kinds:
             if k not in ("incus", "microvm", "podvm"):
                 raise SystemExit(f"no serve kind {k!r}")
@@ -954,6 +956,108 @@ class Lane:
             raise GateError(f"the job through serve on {kind}: {ended}; report {report or 'none'}, GitHub conclusion {conclusion}")
         return f"a runner job of githome through serve on {kind} ({tier}, {report.get('boundary')}): success, as GitHub says"
 
+    def serve_warm(self, kind: str) -> str:
+        """T-487, the acceptance of G-11 and G-25: two runner jobs of
+        githome's fake source through `serve` on KIND with no warm unit,
+        then two with `warm = 1`, each phase one `serve` of the binary of
+        the warm proof (`--warm-binary`: the feature warm-ci, with
+        PODRUNNER_WARM_CI=1). Each warm job takes a warm unit (an audit line
+        `warm-take`), and its `claim_to_first_step_s` (claimed to running,
+        from the journal) is less than that of each cold job."""
+        cold = self.warm_phase(kind, False)
+        warm = self.warm_phase(kind, True)
+        if max(warm) >= min(cold):
+            raise GateError(f"claim_to_first_step_s on {kind}: warm {warm} is not less than cold {cold}")
+        self.times[f"serve:warm:{kind}"] = {"cold-1-s": cold[0], "cold-2-s": cold[1], "warm-1-s": warm[0], "warm-2-s": warm[1]}
+        return f"claim_to_first_step_s on {kind}: cold {cold}, warm {warm}"
+
+    def warm_phase(self, kind: str, warm: bool) -> list[int]:
+        """Two jobs through one `serve`; their `claim_to_first_step_s`."""
+        import urllib.request
+        name = f"warm-{kind}-{'warm' if warm else 'cold'}"
+        env = self.env(self.home, PODRUNNER_WARM_CI="1")
+        env.pop("NOTIFY_SOCKET", None)
+        tier = "untrusted" if kind == "microvm" else "trusted"
+        address = self.broker_address or self.host_address()
+        gh, gh_url = self.started([self.fake("pod-fake-github"), "--listen", f"{address}:0"], f"{name}-github", env)
+        ho, ho_url = self.started([self.fake("pod-fake-githome"), "serve", "--listen", "127.0.0.1:0", "--github", gh_url],
+                                  f"{name}-githome", env)
+        d = self.work / name
+        shutil.rmtree(d, ignore_errors=True)
+        d.mkdir(parents=True)
+        cfg, state = d / "podrunner.toml", d / "state"
+        procs = [gh, ho]
+        try:
+            rc, _ = self.run([
+                "podrunner", "config", "init", "--source", "githome", "--program", self.fake("pod-fake-githome"),
+                "--arg", "source", "--arg", "--server", "--arg", ho_url, "--tier", tier, "--org", "example-org",
+                "--podvm", self.data / "bin" / "podvm", "--images", self.data / "images", "--image", self.image,
+                "--built-at-s", self.built_at(), "--kinds", kind, "--host", f"gate-{name}", "--out", cfg, "--json",
+            ], env, d, f"{name}-init")
+            if rc:
+                self.show(f"{name}-init")
+                raise GateError(f"config init --kinds {kind}: exit {rc}")
+            text = cfg.read_text() + '\n[egress]\ndefault_policy = { schema = 1, mode = "open" }\n'
+            if warm:
+                text = text.replace(f"[unit.{kind}]\n", f"[unit.{kind}]\nwarm = 1\n", 1)
+            cfg.write_text(text)
+            serve = subprocess.Popen([self.warm_binary, "serve", "--config", str(cfg), "--state", str(state)], cwd=d,
+                                     env=env, stdout=subprocess.DEVNULL,
+                                     stderr=(self.out / "logs" / f"{name}-serve.err").open("w"), start_new_session=True)
+            procs.append(serve)
+
+            def lines(file: str) -> list[dict]:
+                f = state / file
+                return [json.loads(x) for x in f.read_text().splitlines() if x.strip()] if f.is_file() else []
+
+            def wait(what: str, done, limit: int = 900):
+                end = time.monotonic() + limit
+                while time.monotonic() < end and serve.poll() is None:
+                    if done():
+                        return
+                    time.sleep(2)
+                self.show(f"{name}-serve", 120)
+                raise GateError(f"{name}: {what}: not in {limit} s (serve exit {serve.poll()})")
+
+            def ready() -> int:
+                return sum(1 for x in lines("journal.jsonl") if x.get("source") == "@warm" and x.get("state") == "started")
+
+            for i in (1, 2):
+                if warm:
+                    wait(f"warm unit {i} ready", lambda n=i: ready() >= n)
+                job = json.dumps({"repository": "example-org/app", "tier": tier,
+                                  "steps": [f"echo podrunner-warm-{i}-$((6*7))"]}).encode()
+                req = urllib.request.Request(f"{ho_url}/_fake/jobs", data=job, method="POST",
+                                             headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(req, timeout=30).read()
+                wait(f"the report of job {i}",
+                     lambda n=i: len(json.loads(urllib.request.urlopen(f"{ho_url}/_fake/reports", timeout=30).read())) >= n)
+            reports = json.loads(urllib.request.urlopen(f"{ho_url}/_fake/reports", timeout=30).read())
+            journal, audit = lines("journal.jsonl"), lines("audit.jsonl")
+        finally:
+            for p in reversed(procs):
+                if p.poll() is None:
+                    os.killpg(p.pid, signal.SIGTERM)
+                    try:
+                        p.wait(timeout=120)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(p.pid, signal.SIGKILL)
+                        p.wait()
+            self.keep_guest_logs(state, f"{name}-serve")
+        bad = [r["report"] for r in reports if r["report"].get("exit_reason") != "success"]
+        if bad:
+            raise GateError(f"{name}: a job did not end in success: {bad}")
+        times = []
+        for job in dict.fromkeys(x["job_id"] for x in journal if x.get("source") != "@warm"):
+            at = {x["state"]: x["t_ms"] for x in journal if x["job_id"] == job and x.get("source") != "@warm"}
+            if "claimed" not in at or "running" not in at:
+                raise GateError(f"{name}: job {job} has no claimed or running line: {sorted(at)}")
+            times.append(-(-(at["running"] - at["claimed"]) // 1000))
+        takes = [x for x in audit if x.get("audit") == "warm-take"]
+        if len(times) != 2 or len(takes) != (2 if warm else 0):
+            raise GateError(f"{name}: {len(times)} jobs and {len(takes)} warm-take lines")
+        return times
+
     def hold_args(self, kind: str) -> list:
         """The hold of a trusted podvm kind: podnet of the install."""
         return ["--podnet", self.data / "bin" / "podnet"] if kind == "podvm" else []
@@ -1127,6 +1231,8 @@ def lane(a) -> int:
     later = [f"hello:{e}" for e in g.executors] + (["errors"] if "runner-dir" in g.executors else []) + (["rung:podvm", "confine:podvm", "pids:podvm", "pty:podvm", "hold:podvm"] if "podvm" in g.executors else [])
     later += [f"serve:{c}:{k}" for k in g.serve_kinds for c in ("check", "run", "job")]
     later += ["serve:run:ws:microvm"] if "microvm" in g.serve_kinds else []
+    warm_kinds = [k for k in g.serve_kinds if k in ("microvm", "incus")] if g.warm_binary else []
+    later += [f"serve:warm:{k}" for k in warm_kinds]
     later += [f"corpus:{r['id']}:{r['executor']}" for r in rows if g.wants(r)]
     try:
         if not g.check("serve", g.serve):
@@ -1160,9 +1266,13 @@ def lane(a) -> int:
                         if k == "microvm":
                             g.check(f"serve:run:ws:{k}", functools.partial(g.serve_ws, k))
                         g.check(f"serve:job:{k}", functools.partial(g.serve_job, k))
+                        if k in warm_kinds:
+                            g.check(f"serve:warm:{k}", functools.partial(g.serve_warm, k))
                     else:
                         for c in ("run", "run:ws", "job") if k == "microvm" else ("run", "job"):
                             g.skip(f"serve:{c}:{k}", "the check of the configuration failed")
+                        if k in warm_kinds:
+                            g.skip(f"serve:warm:{k}", "the check of the configuration failed")
                 for r in rows:
                     if g.wants(r):
                         g.check(f"corpus:{r['id']}:{r['executor']}", functools.partial(g.corpus_row, r))
@@ -1213,6 +1323,7 @@ def main() -> int:
     ln.add_argument("--want-rung", default="", metavar="RUNG")
     ln.add_argument("--schema-python", default="", metavar="PATH")
     ln.add_argument("--broker-address", default="", metavar="IP")
+    ln.add_argument("--warm-binary", default="", metavar="PATH")
     a = p.parse_args()
     if a.cmd == "doc-commands":
         sets = [tuple(x.split("=", 1)) for x in a.set]

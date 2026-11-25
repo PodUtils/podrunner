@@ -192,6 +192,35 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+/// T-487: a build with the feature `warm-ci` takes warm units only with
+/// `PODRUNNER_WARM_CI=1` (the CI proof); with no variable it refuses them.
+#[cfg(feature = "warm-ci")]
+#[test]
+fn the_ci_build_takes_warm_units_only_with_its_variable() {
+    let d = dir("warm-ci");
+    let file = d.join("warm.toml");
+    // The case of `check_and_serve_refuse_a_bad_file_with_one_text`.
+    let text = format!(
+        "host = \"h\"\n[trust]\norganizations = [{{ login = \"o\" }}]\n\
+         [unit.incus]\nslots = 2\nbinary = \"/bin/true\"\nimages = \"/\"\nwarm = 1\n[pin]\n\
+         [[pin.payload]]\narch = \"x86_64\"\nreference = \"runner@sha256:{}\"\nbuilt_at_s = 1800000000\n",
+        "1".repeat(64)
+    );
+    std::fs::write(&file, text).unwrap();
+    let gate = "warm units are not in this build";
+    let run = |on: bool| {
+        let mut c = Command::new(BIN);
+        c.args(["check", "--config"]).arg(&file).env_remove("PODRUNNER_WARM_CI");
+        if on {
+            c.env("PODRUNNER_WARM_CI", "1");
+        }
+        String::from_utf8_lossy(&c.output().unwrap().stderr).to_string()
+    };
+    assert!(run(false).contains(gate), "{}", run(false));
+    assert!(!run(true).contains(gate), "{}", run(true));
+    let _ = std::fs::remove_dir_all(&d);
+}
+
 /// The TOML blocks of the documents use only keys that exist: a block may
 /// leave out a key or hold an example value, but it names no key that the
 /// type refuses as unknown.

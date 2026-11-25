@@ -11,6 +11,11 @@ publish.workspace = true
 name = "podrunner"
 path = "src/main.rs"
 
+[features]
+# The CI proof of warm units (T-487, `serve:warm` of user-gate.yml): never
+# in a release build.
+warm-ci = ["podrunner-slots/warm-ci"]
+
 [dependencies]
 libc.workspace = true
 pod-core.workspace = true

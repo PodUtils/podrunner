@@ -81,8 +81,9 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     # The x86_64 job runs each podvm suite twice, the guest tests, the
     # parity suite in guests with an engine and the measures: up to about
-    # 120 minutes on a hosted runner.
-    timeout-minutes: 150
+    # 120 minutes on a hosted runner; the warm suites of the microvm and
+    # the incus kinds (T-487) add about 30 more.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -487,7 +488,10 @@ jobs:
         run: |
           set -eu
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 3600 \
-            cargo test -p podrunner-microvm --test conformance -- --ignored --nocapture
+            cargo test -p podrunner-microvm --test conformance -- --ignored --nocapture the_microvm_unit_passes_its_tests --exact
+          # T-487: the same tests through warm guests, with 28 to 32.
+          PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 3600 \
+            cargo test -p podrunner-microvm --test conformance -- --ignored --nocapture the_microvm_unit_passes_its_tests_through_warm_units
           # T-036: a guest with no NIC passes the guest self-test.
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 600 \
             cargo test -p podrunner-microvm --test selftest -- --ignored --nocapture
@@ -627,7 +631,9 @@ jobs:
             | tee -a "$GITHUB_STEP_SUMMARY" || echo "incus measure: failed" | tee -a "$GITHUB_STEP_SUMMARY"
           # T-105 step 2: the unit tests of the incus kind on real instances.
           cargo test -p podrunner-incus --test conformance --no-run
-          sg incus-admin -c "PODRUNNER_PLANT='$PLANT' PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 1800 cargo test -p podrunner-incus --test conformance -- --ignored --nocapture"
+          sg incus-admin -c "PODRUNNER_PLANT='$PLANT' PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 1800 cargo test -p podrunner-incus --test conformance -- --ignored --nocapture the_incus_unit_passes_its_tests --exact"
+          # T-487: the same tests through warm instances, with 29, 31 and 32.
+          sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 1800 cargo test -p podrunner-incus --test conformance -- --ignored --nocapture the_incus_unit_passes_its_tests_through_warm_units"
           # T-109: no NIC, and the egress socket as the one way out.
           cargo test -p podrunner-incus --test egress --no-run
           sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 600 cargo test -p podrunner-incus --test egress -- --ignored --nocapture"

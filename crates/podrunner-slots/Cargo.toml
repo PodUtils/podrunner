@@ -7,6 +7,10 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[features]
+# The CI proof of warm units (T-487): never in a release build.
+warm-ci = []
+
 [dependencies]
 ring.workspace = true
 pod-core.workspace = true
