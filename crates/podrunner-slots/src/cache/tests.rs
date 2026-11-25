@@ -180,8 +180,7 @@ fn a_cache_counts_the_bytes_of_the_run_and_follows_no_link() {
     assert!(data.join("a/b").is_dir() && data.join("npm").is_dir());
     assert!(!outside.join("store").exists(), "the host made a directory through a link");
     std::fs::write(data.join("npm/new"), "123").unwrap();
-    assert_eq!(store::written_since(&data, since), 3);
-    assert_eq!(store::size(&data), 8, "a link is not followed");
+    assert_eq!(store::measure(&data, since), (8, 3), "a link is not followed");
     assert_eq!(std::fs::metadata(root.join(id)).unwrap().permissions().mode() & 0o777, 0o700);
     // The data of a scope that is a link is refused.
     let linked = "fedcba9876543210fedcba9876543210";
@@ -206,22 +205,23 @@ fn the_bound_removes_whole_caches_and_keeps_the_used_ones() {
     std::fs::set_permissions(data.join("ro"), std::fs::Permissions::from_mode(0o555)).unwrap();
     let mut c = cfg("").unwrap();
     (c.max_bytes, c.total_bytes) = (150, 250);
+    let n = |id: &str| store::size(&root.join(id).join("data"));
     // `a` was used last; `b` is the oldest, `c` is in use.
     let used = BTreeSet::from([ids[2].clone()]);
-    let gone = store::bound(&root, &c, &used, &ids[0], SystemTime::now());
+    let gone = store::bound(&root, &c, &used, &ids[0], n(&ids[0]), SystemTime::now());
     let names: Vec<_> = gone.iter().map(|(id, why)| (&id[..1], *why)).collect();
     assert_eq!(names, [("b", "above [cache] total_bytes"), ("d", "above [cache] total_bytes")]);
     assert!(root.join(&ids[0]).is_dir() && root.join(&ids[2]).is_dir());
     // Above `max_bytes`, the cache of the job is emptied whole.
     std::fs::write(root.join(&ids[0]).join("data/g"), vec![0u8; 100]).unwrap();
-    let gone = store::bound(&root, &c, &used, &ids[0], SystemTime::now());
+    let gone = store::bound(&root, &c, &used, &ids[0], n(&ids[0]), SystemTime::now());
     assert_eq!(gone, [(ids[0].clone(), "above [cache] max_bytes")]);
     assert!(!root.join(&ids[0]).exists());
     // A cache with no use in `max_age_s` goes; one in use stays.
     let late = SystemTime::now() + Duration::from_secs(c.max_age_s + 10);
     let (data, _) = store::open(&root, &ids[1], "s\n", std::iter::empty()).unwrap();
     drop(data);
-    let gone = store::bound(&root, &c, &used, &ids[1], late);
+    let gone = store::bound(&root, &c, &used, &ids[1], n(&ids[1]), late);
     assert_eq!(gone, [(ids[1].clone(), "no use in [cache] max_age_s")]);
     assert!(root.join(&ids[2]).is_dir());
     let _ = std::fs::remove_dir_all(&d);

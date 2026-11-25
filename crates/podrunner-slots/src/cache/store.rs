@@ -129,16 +129,23 @@ pub fn size(dir: &Path) -> u64 {
     n
 }
 
-/// The bytes of the files under `dir` whose status changed at or after
-/// `since`: a job cannot set the `ctime` of a file back.
-pub fn written_since(dir: &Path, since: SystemTime) -> u64 {
-    let mut n = 0u64;
+/// The bytes of the files under `dir`, and of those whose status changed
+/// at or after `since`: a job cannot set the `ctime` of a file back. One
+/// walk: a cache can hold many files.
+pub fn measure(dir: &Path, since: SystemTime) -> (u64, u64) {
+    let (mut all, mut new) = (0u64, 0u64);
     let changed = |m: &std::fs::Metadata| {
         let (s, ns) = (u64::try_from(m.ctime()).unwrap_or(0), u32::try_from(m.ctime_nsec()).unwrap_or(0));
         UNIX_EPOCH + Duration::new(s, ns)
     };
-    walk(dir, |m| n = n.saturating_add(if changed(m) >= since { m.len() } else { 0 }), |_| {});
-    n
+    let count = |m: &std::fs::Metadata| {
+        all = all.saturating_add(m.len());
+        if changed(m) >= since {
+            new = new.saturating_add(m.len());
+        }
+    };
+    walk(dir, count, |_| {});
+    (all, new)
 }
 
 /// The bytes of the cache at `dir` after its last `rw` job, else its size.
@@ -160,8 +167,8 @@ fn remove(dir: &Path) -> io::Result<()> {
     std::fs::remove_dir_all(dir)
 }
 
-/// The bound of the directory `root` after a `rw` job of the cache `just`:
-/// `just` is emptied above `max_bytes`; then each cache with no use in
+/// The bound of the directory `root` after a `rw` job of the cache `just`
+/// of `n` bytes: `just` is emptied above `max_bytes`; then each cache with no use in
 /// `max_age_s` goes, and the caches with the oldest use go while the
 /// directory is above `total_bytes`. A cache of `used` stays. Each cache
 /// that went, with why.
@@ -170,6 +177,7 @@ pub fn bound(
     cfg: &CacheConfig,
     used: &BTreeSet<String>,
     just: &str,
+    n: u64,
     now: SystemTime,
 ) -> Vec<(String, &'static str)> {
     let mut gone = Vec::new();
@@ -178,7 +186,6 @@ pub fn bound(
             gone.push((id.to_string(), why));
         }
     };
-    let n = size(&root.join(just).join(DATA));
     if n > cfg.max_bytes && !used.contains(just) {
         take(just, "above [cache] max_bytes");
     } else {

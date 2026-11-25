@@ -277,13 +277,13 @@ impl Slots {
         if g.mode != Mode::Rw {
             return;
         }
-        let written = store::written_since(&g.data, g.since);
+        let (bytes, written) = store::measure(&g.data, g.since);
         if let Some(c) = self.jobs.get_mut(key).and_then(|j| j.times.cache.as_mut()) {
             c.written = written;
         }
         let used: std::collections::BTreeSet<String> = self.cache_in_use(key).map(|(id, _)| id).collect();
         let now = std::time::SystemTime::now();
-        for (id, why) in store::bound(&g.root, &cfg, &used, &g.id, now) {
+        for (id, why) in store::bound(&g.root, &cfg, &used, &g.id, bytes, now) {
             eprintln!("podrunner: the cache {id} is removed: {why}");
         }
     }
