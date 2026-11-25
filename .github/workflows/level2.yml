@@ -103,3 +103,48 @@ jobs:
         run: |
           PODRUNNER_RUNNER_DIR="$RUNNER_TEMP/runner" PODRUNNER_CORPUS_SRC="$RUNNER_TEMP/podcrates" PODRUNNER_CORPUS_JOBS="$JOBS" \
             cargo test -p podrunner-broker-fake --test corpus -- --ignored --nocapture
+
+  # T-516: the jobs of tests/local/parity/10-docker-build.yml and
+  # 11-docker-dind.yml on github.com. The steps and the services are the
+  # text of the parity workflows; a test of crates/podrunner/tests/parity.rs
+  # compares them.
+  docker-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - run: |
+          d=$(mktemp -d)
+          printf '%s\n' 'FROM mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec' \
+            'RUN echo "built-$((6*7))" > /marker' 'CMD ["cat", "/marker"]' > "$d/Dockerfile"
+          # No network: the engine of an incus instance has no default bridge.
+          docker build -q --network none -t parity-build:10 "$d"
+          out=$(docker run --rm --network none parity-build:10)
+          echo "$out"
+          test "$out" = "built-$((6*7))"
+
+  docker-dind:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      dind:
+        image: mirror.gcr.io/library/docker@sha256:aa3df78ecf320f5fafdce71c659f1629e96e9de0968305fe1de670e0ca9176ce
+        ports: ['2375:2375']
+        env:
+          # No TLS: the step reaches the inner engine on the loopback only.
+          DOCKER_TLS_CERTDIR: ""
+          # The root of a guest is an initramfs: runc of the inner engine
+          # cannot pivot_root there.
+          DOCKER_RAMDISK: "true"
+        options: --privileged --health-cmd "docker info" --health-interval 2s --health-retries 90
+    steps:
+      - run: |
+          inner="docker -H tcp://127.0.0.1:2375"
+          # The inner engine is the one of the image, not the engine of the unit.
+          test "$($inner version --format '{{.Server.Version}}')" = 27.5.1
+          test "$($inner info --format '{{.ID}}')" != "$(docker info --format '{{.ID}}')"
+          docker pull -q mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          docker tag mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec parity-dind:11
+          docker save parity-dind:11 | $inner load -q
+          out=$($inner run --rm --network none parity-dind:11 sh -c 'echo "in-dind-$((6*7))"')
+          echo "$out"
+          test "$out" = "in-dind-$((6*7))"

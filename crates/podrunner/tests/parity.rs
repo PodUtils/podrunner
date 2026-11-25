@@ -3,7 +3,8 @@
 //! is PARTIAL only while the entry that closes it is open in the record,
 //! and only in the jobs that need that entry; after that entry is done, the
 //! same failure is FAIL. A plant (a wrong value of a check) gives FAIL.
-//! Ignored by default.
+//! The run of the suite is ignored by default; the checks of its text are
+//! not.
 //!
 //!   PODRUNNER_RUNNER_DIR=DIR cargo test -p podrunner --test parity -- --ignored --nocapture
 //!
@@ -27,7 +28,7 @@ const SUITE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/local/parity");
 type Gap = Option<(&'static str, &'static [&'static str])>;
 
 /// Each workflow, its gap, and whether it needs a container route.
-const ROWS: [(&str, Gap, bool); 9] = [
+const ROWS: [(&str, Gap, bool); 11] = [
     ("01-exit.yml", None, false),
     ("02-expressions.yml", None, false),
     ("03-matrix.yml", None, false),
@@ -37,7 +38,14 @@ const ROWS: [(&str, Gap, bool); 9] = [
     ("07-artifacts.yml", None, false),
     ("08-cache.yml", None, false),
     ("09-dockerfile.yml", None, true),
+    ("10-docker-build.yml", None, true),
+    ("11-docker-dind.yml", None, true),
 ];
+
+/// The jobs of the suite that `level2.yml` runs on github.com (T-516):
+/// the file, its job, and the job of `level2.yml`.
+const HOSTED: [(&str, &str, &str); 2] =
+    [("10-docker-build.yml", "build", "docker-build"), ("11-docker-dind.yml", "dind", "docker-dind")];
 
 #[derive(Debug, PartialEq)]
 enum Verdict {
@@ -147,4 +155,58 @@ fn the_parity_suite_gives_one_verdict_for_each_workflow() {
     }
     let _ = std::fs::remove_dir_all(&scratch);
     assert!(bad.is_empty(), "FAIL: {bad:?}");
+}
+
+/// The lines of a job of a workflow (two spaces of indent under `jobs:`),
+/// with no `runs-on` and no `timeout-minutes`: the two keys that differ on
+/// github.com.
+fn job_body(text: &str, job: &str) -> Vec<String> {
+    let head = format!("  {job}:");
+    let at = text.lines().position(|l| l == head).unwrap_or_else(|| panic!("no job {job}"));
+    let mut body: Vec<String> = text
+        .lines()
+        .skip(at + 1)
+        .take_while(|l| l.is_empty() || l.starts_with("   "))
+        .filter(|l| !["runs-on:", "timeout-minutes:"].iter().any(|k| l.trim_start().starts_with(k)))
+        .map(str::to_string)
+        .collect();
+    while body.last().is_some_and(|l| l.is_empty()) {
+        body.pop();
+    }
+    body
+}
+
+/// T-516: the github.com side of the parity is the same text. A change of
+/// a workflow of the suite that `level2.yml` does not follow fails here.
+#[test]
+fn the_hosted_jobs_of_level2_are_the_jobs_of_the_suite() {
+    let hosted = std::fs::read_to_string(Path::new(ROOT).join(".github/workflows/level2.yml")).unwrap();
+    for (name, job, twin) in HOSTED {
+        let suite = std::fs::read_to_string(Path::new(SUITE).join(name)).unwrap();
+        let ours = job_body(&suite, job);
+        assert!(ours.iter().any(|l| l.trim_start().starts_with("- run:")), "{name}: no step");
+        assert_eq!(ours, job_body(&hosted, twin), "{name} job {job} and level2.yml job {twin}");
+    }
+}
+
+/// Each workflow of the suite has a row, and each one is valid for
+/// `podrunner run --validate` with no warning (no unit, no network).
+#[test]
+fn each_workflow_of_the_suite_has_a_row_and_is_valid() {
+    let mut files: Vec<String> = std::fs::read_dir(SUITE)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.ends_with(".yml"))
+        .collect();
+    files.sort();
+    let rows: Vec<String> = ROWS.iter().map(|r| r.0.to_string()).collect();
+    assert_eq!(files, rows, "the rows of the suite");
+    for name in rows {
+        let path = Path::new(SUITE).join(&name).display().to_string();
+        let out = podrunner::cli::run(&["run".into(), path, "--validate".into(), "--no-config".into()]);
+        assert_eq!(out.code, 0, "{name}: {}{}", out.stdout, out.stderr);
+        // An unknown key is a warning only: here it is a defect of the suite.
+        assert!(!out.stdout.contains("warning:"), "{name}: {}", out.stdout);
+    }
 }

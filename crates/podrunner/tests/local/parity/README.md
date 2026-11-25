@@ -1,6 +1,6 @@
 # The parity suite of the local mode (T-147)
 
-Nine workflows of rising scope. `crates/podrunner/tests/parity.rs` runs
+Eleven workflows of rising scope. `crates/podrunner/tests/parity.rs` runs
 each one with `podrunner run` and gives one verdict for each:
 
 * PASS: each job of the workflow is `ok`.
@@ -28,3 +28,10 @@ action by commit and by the digest of its tar (T-118); the test runs with
 | `07-artifacts.yml` | an artifact round trip with a check of its content | |
 | `08-cache.yml` | a cache round trip: the exact key and a restore key | |
 | `09-dockerfile.yml` | a Dockerfile action that builds and gives an output | engine |
+| `10-docker-build.yml` | a step that runs `docker build` and `docker run` itself | engine |
+| `11-docker-dind.yml` | a privileged `docker:dind` service: an image goes in by `docker load`, and a container runs in it | engine |
+
+The jobs of 10 and 11 run on github.com too, as the jobs `docker-build`
+and `docker-dind` of `.github/workflows/level2.yml`. The test
+`the_hosted_jobs_of_level2_are_the_jobs_of_the_suite` of `parity.rs`
+makes sure that the two texts are the same.

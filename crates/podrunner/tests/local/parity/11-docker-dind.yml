@@ -1,0 +1,34 @@
+# Docker-in-Docker (T-516, G-09): a privileged `docker:dind` service is a
+# second engine in a container of the engine of the unit. The step reaches
+# it by a port of localhost, loads an image into it from the engine of the
+# unit (no pull in the inner engine), and runs a container in it. It needs
+# an engine in the unit. The job `docker-dind` of level2.yml runs the same
+# text on github.com.
+name: parity docker-in-docker
+on: push
+jobs:
+  dind:
+    runs-on: local
+    services:
+      dind:
+        image: mirror.gcr.io/library/docker@sha256:aa3df78ecf320f5fafdce71c659f1629e96e9de0968305fe1de670e0ca9176ce
+        ports: ['2375:2375']
+        env:
+          # No TLS: the step reaches the inner engine on the loopback only.
+          DOCKER_TLS_CERTDIR: ""
+          # The root of a guest is an initramfs: runc of the inner engine
+          # cannot pivot_root there.
+          DOCKER_RAMDISK: "true"
+        options: --privileged --health-cmd "docker info" --health-interval 2s --health-retries 90
+    steps:
+      - run: |
+          inner="docker -H tcp://127.0.0.1:2375"
+          # The inner engine is the one of the image, not the engine of the unit.
+          test "$($inner version --format '{{.Server.Version}}')" = 27.5.1
+          test "$($inner info --format '{{.ID}}')" != "$(docker info --format '{{.ID}}')"
+          docker pull -q mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          docker tag mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec parity-dind:11
+          docker save parity-dind:11 | $inner load -q
+          out=$($inner run --rm --network none parity-dind:11 sh -c 'echo "in-dind-$((6*7))"')
+          echo "$out"
+          test "$out" = "in-dind-$((6*7))"

@@ -1,0 +1,19 @@
+# A step that runs `docker build` and `docker run` itself (T-516, G-09):
+# the Dockerfile is made in the step, and the image of the build prints
+# a value that the build computed. It needs an engine in the unit. The
+# job `docker-build` of level2.yml runs the same text on github.com.
+name: parity docker build
+on: push
+jobs:
+  build:
+    runs-on: local
+    steps:
+      - run: |
+          d=$(mktemp -d)
+          printf '%s\n' 'FROM mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec' \
+            'RUN echo "built-$((6*7))" > /marker' 'CMD ["cat", "/marker"]' > "$d/Dockerfile"
+          # No network: the engine of an incus instance has no default bridge.
+          docker build -q --network none -t parity-build:10 "$d"
+          out=$(docker run --rm --network none parity-build:10)
+          echo "$out"
+          test "$out" = "built-$((6*7))"
