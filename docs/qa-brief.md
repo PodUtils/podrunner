@@ -83,10 +83,10 @@ the release URL). Give the agent one of these:
 
 The agents:
 
-* Start two or more blind QA agents with a fresh context (the ruling
-  "Subagents" of `docs/decisions.md`: Sonnet at high effort). Each gets this
-  page, the kit and the quick start of the notes, and nothing of the work of
-  the session.
+* Start two or more blind QA testers with the
+  [Housekeeper role](hosted-sessions.md#lead-and-workers) and a fresh
+  context. Give each tester only this page, the kit and the quick start
+  of the notes.
 * Each agent follows "The rules" and "The steps" above with the kit in
   place of the release URL.
 * Each finding has a severity (P1, P2 or P3), the command, its output, and

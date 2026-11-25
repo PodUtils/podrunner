@@ -7,9 +7,10 @@ the tools.
 
 ## Start of a session
 
-1. Follow [Cold start](cold-start.md).
-2. Make sure that the branch is `main` and that the tree is clean:
-   `git status`, `git log --oneline -5`.
+1. Follow [Cold start](cold-start.md). See
+   [Hosted sessions](hosted-sessions.md) for each harness and host.
+2. In the lead checkout, run `git status` and `git log --oneline -5`.
+   Check that the branch is `main` and the tree is clean.
 3. Run `sh scripts/cloud-setup.sh --runner` on a new Linux host.
    Load `. ./scripts/cloud-env.sh` in each shell. The installer keeps the
    tools and runner under `.work/tools/dev` unless you set `PODRUNNER_TOOLS`.
@@ -452,22 +453,15 @@ GitHub-hosted runners; its notes say so.
 
 ## Subagents
 
-The ruling of the owner of 2026-11-24 (`docs/decisions.md`, "Subagents"):
-the lead session delegates, so that its own context stays small.
+Follow the ruling [Hosted sessions and worker roles](decisions.md#in-force).
+Give each worker [a fresh brief](hosted-sessions.md#the-brief-of-a-worker).
 
-| Work | Model and effort |
-| --- | --- |
-| Implementation | Opus 5.5, medium or high |
-| Recon and plain bug fixes | Sonnet 5.5, high |
-| Reviews | Opus 5.5, medium |
-| Blind tests and QA tests | Sonnet 5.5, high |
-
-* Give each subagent the rules of `AGENTS.md` in its brief: the web
-  services (section 4), the record (section 10) and the style (section 5).
-* Run one cargo build at a time. Agents in parallel each get a worktree
-  of their own and a target directory of their own (see "This sandbox").
-* The lead session reads the result of each subagent against the code
-  before it records a claim.
+| Role | Assignment | Claude Code | Codex |
+| --- | --- | --- | --- |
+| Lead | Coordination, routing, review, the merge on `main`, the record, the push | The model of the session | The model of the session |
+| Implementer | Implementation, reviews and other work that needs deeper reasoning | Opus 5.5, medium or high | GPT-6.2 Sol, high or xhigh |
+| Housekeeper | Housekeeping, recon, basic fixes, QA and blind tests | Sonnet 5.5, high | GPT-6.2 Sol, medium |
+| Advisor | The hardest or apparently impossible tasks, and advice to the lead | Fable 5.2, high | GPT-6.2 Astra, high |
 
 ## This sandbox
 
@@ -478,17 +472,18 @@ the lead session delegates, so that its own context stays small.
   when a build fails with "No space left on device".
 * If `git rev-parse --is-shallow-repository` prints `true`, run
   `git fetch --unshallow origin main` before you read a history range.
-* Agents in worktrees (`.claude/worktrees/`) can share one target
-  directory (`CARGO_TARGET_DIR=/workspace/podrunner/target`): the lock of
-  cargo then runs one build at a time. Cargo finds a path crate up to
-  date by the time of its files, not by their content. A build after a
-  build of another worktree can take the other sources. Touch the sources
-  of the tree before each build:
-  `find crates -name '*.rs' -exec touch {} +`. The touch does not stop a
-  build of another worktree between the touch and the build, which can
-  give false compile errors and stale artifacts of a path crate. When two
-  agents build at the same time and the disk holds it (a debug target is
-  about 9 GB), give each worktree a target directory of its own
-  (`CARGO_TARGET_DIR=/workspace/target-NAME`, outside the tree:
-  `check-size.py` reads each `.rs` file under the tree, also generated
-  ones of a build). Remove the directory and the worktree after the merge.
+* Give each worker its own target directory outside the checkout when
+  there is enough disk space. Run one Cargo build at a time with the
+  session lock in [the worker brief](hosted-sessions.md#the-brief-of-a-worker).
+* To share a target between worktrees, set `CARGO_TARGET_DIR` to the
+  absolute path of the lead checkout's target. Take the session lock
+  before you touch the source files and keep it until the build ends.
+  Run this from the worktree, with the session lock path in `CARGO_LOCK`:
+
+  ```sh
+  flock "$CARGO_LOCK" sh -c 'find crates -name "*.rs" -exec touch {} + && cargo build -p CRATE'
+  ```
+
+  Replace `CRATE` with the crate of the task. Cargo uses file timestamps
+  to check path dependencies. The touch makes Cargo rebuild sources
+  from this checkout after a build in another worktree.
