@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 668 entries: 84 open, 56 partial, 13 blocked, 515 done.
+`TODO/INDEX.md` holds 669 entries: 84 open, 57 partial, 13 blocked, 515 done.
 
 ## State
 
@@ -69,6 +69,8 @@ then take the next one.
    `serve:warm:microvm` must pass before the lift in T-487.
 2. T-663 (P2) uses the same guest proof. Then take the rest of the cache
    work in T-480.
+   In parallel, run the hosted rootless Podman and FUSE probe requested
+   in COORD-203 (T-674).
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10

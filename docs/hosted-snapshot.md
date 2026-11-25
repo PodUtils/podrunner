@@ -114,6 +114,16 @@ must end red.
 gh workflow run hosted-boot.yml -f digest=sha256:DIGEST
 ```
 
+Set `rootless_podman=true` to run the offline Podman and FUSE probe on
+the core slice (T-674). The workflow enables engine nesting, loads a
+pinned Alpine archive in the instance and checks the guest exit and
+the `runner` transcript. The `rootless-podman` artifact has the log and
+exit code.
+
+```sh
+gh workflow run hosted-boot.yml -f digest=sha256:DIGEST -f rootless_podman=true
+```
+
 ## The checks of each capture
 
 `.github/workflows/hosted-snapshot.yml` runs the capture as the first step

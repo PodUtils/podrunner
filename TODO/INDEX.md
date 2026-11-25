@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**668 entries: 84 open, 56 partial, 13 blocked, 515 done.**
+**669 entries: 84 open, 57 partial, 13 blocked, 515 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 97 | 122 |
-| P2 | 17 | 22 | 8 | 268 | 315 |
+| P2 | 17 | 23 | 8 | 268 | 316 |
 | P3 | 66 | 11 | 3 | 148 | 228 |
-| **All** | 84 | 56 | 13 | 515 | 668 |
+| **All** | 84 | 57 | 13 | 515 | 669 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -716,3 +716,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-671](bootstrap.md) | P3 | S | M0 | chore | done | Update the TOML parser dependencies |
 | [T-672](later.md) | P2 | M | later | feature | open | G-09: bundle the Docker engine in runner-full |
 | [T-673](later.md) | P3 | S | later | defect | done | Warm unit tests depend on host memory |
+| [T-674](later.md) | P2 | S | later | measurement | partial | Prove offline rootless Podman and FUSE in the hosted snapshot |

@@ -33,6 +33,10 @@ on:
         type: choice
         default: none
         options: [none, work-folder]
+      rootless_podman:
+        description: "Run the offline rootless Podman and FUSE overlay probe as runner (T-674)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -93,7 +97,25 @@ jobs:
           sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus dnsmasq-base
           sudo incus admin init --minimal
           sudo usermod -aG incus-admin "$(id -un)"
+      - name: Prepare the offline Podman probe
+        if: ${{ inputs.rootless_podman }}
+        run: |
+          set -eu
+          out=$RUNNER_TEMP/out
+          mkdir -p "$out" && chmod 0777 "$out"
+          script=$out/476-incus-rootless-podman.sh
+          sh scripts/retry.sh curl -qfsSLo "$script" \
+            https://raw.githubusercontent.com/PodUtils/podvm/0b87fa92f81340af8b96c4508439b229949ac686/experiments/476-incus-rootless-podman.sh
+          printf '%s  %s\n' 6505a840565d0e67f4424ffbbdc1d330064a2e057e0bdca74f24d32dc33f2530 "$script" | sha256sum -c
+          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends podman
+          image=mirror.gcr.io/library/alpine@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+          sh scripts/retry.sh sudo podman pull --platform linux/amd64 "$image"
+          sudo podman tag "$image" localhost/podvm-476:alpine
+          sudo podman save --format oci-archive -o "$out/workload.oci.tar" localhost/podvm-476:alpine
+          sudo chmod a+r "$script" "$out/workload.oci.tar"
       - name: Boot the slice with the init of the image
+        env:
+          ROOTLESS_PODMAN: ${{ inputs.rootless_podman }}
         run: |
           set -u
           export PODVM_STORE=/mnt/w/store
@@ -130,9 +152,19 @@ jobs:
           fi
           echo "checks: end" > /dev/console 2> /dev/null || true
           SH
+          engine=
+          if [ "$ROOTLESS_PODMAN" = true ]; then
+            engine=--podvm-engine
+            cat >> "$out/checks.sh" <<'SH'
+          sh /out/476-incus-rootless-podman.sh /out/workload.oci.tar localhost/podvm-476:alpine > /out/476.log 2>&1
+          rc=$?
+          printf '%s\n' "$rc" > /out/476.exit
+          exit "$rc"
+          SH
+          fi
           # bash -e: a failed run must reach the logs and the summary.
           rc=0
-          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name core --podvm-tier=incus --podvm-init=image --podvm-net none -v $out:/out hosted@$SLICE /bin/sh /out/checks.sh" < /dev/null || rc=$?
+          sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm run -d -i --name core --podvm-tier=incus --podvm-init=image $engine --podvm-net none -v $out:/out hosted@$SLICE /bin/sh /out/checks.sh" < /dev/null || rc=$?
           state=""
           for _ in $(seq 120); do
             state=$(sg incus-admin -c "PODVM_STORE=$PODVM_STORE $podvm inspect --podvm-tier=incus --format '{{.Status}} {{.ExitCode}}' core" 2>&1) || true
@@ -163,7 +195,26 @@ jobs:
           python3 -I scripts/hosted/boot-checks.py --rc "$rc" --out "$out" \
             --console "$RUNNER_TEMP/console.log" --state "$state" > "$RUNNER_TEMP/summary.md" || c=$?
           tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/summary.md"
+          if [ "$ROOTLESS_PODMAN" = true ]; then
+            if [ -f "$out/476.log" ]; then cat "$out/476.log"; fi
+            if printf '%s\n' "$state" | grep -Fxq 'Stopped 0' \
+              && grep -Fxq 0 "$out/476.exit" \
+              && grep -Fxq 'PASS: runner used rootless Podman offline and read and wrote through fuse-overlayfs' "$out/476.log"; then
+              echo 'Rootless Podman and FUSE overlay passed as runner.' | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo '::error title=hosted-boot::the rootless Podman proof needs Stopped 0, exit 0 and the PASS transcript'
+              c=1
+            fi
+          fi
           exit "$c"
+      - name: The rootless Podman transcript
+        if: ${{ always() && inputs.rootless_podman }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rootless-podman
+          path: |
+            ${{ runner.temp }}/out/476.log
+            ${{ runner.temp }}/out/476.exit
       # T-541: the canned job in the runner layer, through the slots of
       # podrunner on the incus kind that boots the init of the image, as
       # docs/hosted-snapshot.md configures it. The fake broker serves the

@@ -17120,3 +17120,28 @@ Set the available memory explicitly in the shared fake test harness. The pressur
 ## Done
 
 2026-11-25, the commit that names T-673. Fake test beds supply their own memory reading. The 30 warm tests passed, including the cases that inject memory pressure and verify retirement of a free unit.
+
+# T-674: Prove offline rootless Podman and FUSE in the hosted snapshot
+
+**Source:** COORD-203, PodUtils/podvm#599 comment 7163223003, 2026-11-25
+**Category:** measurement
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+Hosted boots establish systemd and `/dev/fuse`. PodUtils/podvm@T-1996 also needs a `runner` workload in offline rootless Podman and a FUSE overlay read and write inside the instance.
+
+## Premise
+
+Hosted boot run 45276447058 confirmed systemd and a machine ID. Hosted measure run 45521078992 confirmed `/dev/fuse`. Podvm supplied experiment 476 at `0b87fa92f81340af8b96c4508439b229949ac686`, SHA-256 `6505a840565d0e67f4424ffbbdc1d330064a2e057e0bdca74f24d32dc33f2530`, and the digest of the snapshot to test.
+
+## Approach
+
+The opt-in `rootless_podman` of `hosted-boot.yml` verifies the pinned probe and prepares a tagged Alpine OCI archive. It boots with engine nesting and no NIC. The probe enters `runner`'s user namespace and exercises copy-up through a real FUSE mount. The host checks the guest exit and publishes its transcript.
+
+## Prove
+
+`gh workflow run hosted-boot.yml -f digest=sha256:baa8431a36ba58f3be6d15780a4a2cc0090d90cd1621df3ffe1dee5d841f4909 -f rootless_podman=true`. Require the instance state `Stopped 0` and the transcript's `PASS` line.
