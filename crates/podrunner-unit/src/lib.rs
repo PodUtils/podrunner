@@ -32,6 +32,17 @@ pub const EGRESS_SOCKET: &str = "egress.sock";
 pub const LOOPBACK_ALLOW: &str = "PODRUNNER_LOOPBACK_ALLOW";
 /// The name of the control socket in the socket directory of a unit.
 pub const CONTROL_SOCKET: &str = "ctl.sock";
+
+/// Location of the Docker binaries in a runner payload (T-672).
+pub const PAYLOAD_ENGINE_DIR: &str = "/usr/local/lib/podrunner/engine";
+
+/// Select the engine of a pinned payload in the driver-owned guest script.
+pub fn payload_engine_script(script: &str, mount: &str) -> String {
+    format!(
+        "if [ ! -x '{PAYLOAD_ENGINE_DIR}/dockerd' ]; then\n  echo 'podrunner: the payload has no bundled engine' >&2\n  exit 95\nfi\n{}",
+        script.replace(mount, PAYLOAD_ENGINE_DIR),
+    )
+}
 pub use log::{Cut, LogRead, UnitLog};
 pub use stub::Stub;
 
@@ -80,6 +91,11 @@ pub trait UnitDriver: Send + Sync {
 
     /// This driver runs the runner from the selected payload image.
     fn uses_payload_runner(&self) -> bool {
+        false
+    }
+
+    /// The engine can start only from a payload that carries its binaries.
+    fn engine_needs_payload(&self) -> bool {
         false
     }
 

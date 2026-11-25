@@ -340,6 +340,7 @@ fn a_credential_needs_a_unit_apart_from_the_user_of_podrunner() {
         (Boundary::Confined, Principal::Shared, true),
     ] {
         let kind = || Kind {
+            engine_needs_payload: false,
             capability: capability(boundary, principal, EgressHold::Advisory),
             free: 1,
             running: 0,

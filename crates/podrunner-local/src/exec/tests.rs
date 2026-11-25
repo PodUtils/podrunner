@@ -118,6 +118,19 @@ fn a_runner_directory_refuses_a_job_with_containers() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[test]
+fn a_selected_guest_route_without_an_engine_refuses_a_container_job() {
+    let mut exec = InUnit::new(
+        Arc::new(podrunner_unit::Stub),
+        podrunner_unit::Prepared { digest: format!("sha256:{}", "a".repeat(64)), platform: "linux/amd64".into() },
+    );
+    exec.guest = true;
+    let mut job = Job::scripts("test", &["true"]);
+    job.overrides.insert("jobContainer".into(), serde_json::json!("alpine"));
+    let e = exec.run(&JobId::new("a.0").unwrap(), job, Duration::from_secs(30)).unwrap_err();
+    assert!(e.contains("selected guest image") && e.contains("--engine DIR"), "{e}");
+}
+
 /// A second run on a runner directory that another process holds fails at
 /// once (T-274); the executors of one process share the lock.
 #[test]

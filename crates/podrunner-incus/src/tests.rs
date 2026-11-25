@@ -329,6 +329,7 @@ fn the_limits_become_the_keys_of_the_instance() {
         runner_root: "/podrunner/.runner",
         limits: &limits,
         engine: None,
+        payload_engine: false,
         init_image: false,
         stdin: true,
     };
@@ -378,6 +379,7 @@ fn a_pool_with_quotas_gives_each_instance_a_sized_root() {
             runner_root: "/r",
             limits: l,
             engine: None,
+            payload_engine: false,
             init_image: false,
             stdin: true,
         };
@@ -427,11 +429,18 @@ fn an_engine_directory_gives_each_instance_an_engine() {
         runner_root: "/r",
         limits: &Limits::default(),
         engine: Some(std::path::Path::new("/opt/engine")),
+        payload_engine: false,
         init_image: false,
         stdin: true,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--podvm-engine -v /opt/engine:/podrunner-engine:ro"), "{a}");
+    assert!(!a.contains(podrunner_unit::PAYLOAD_ENGINE_DIR));
+    let bundled = crate::guest::Instance { engine: None, payload_engine: true, ..i };
+    let args = run_args(&bundled, &[], &Default::default(), &[]);
+    assert!(args.iter().any(|arg| arg == "--podvm-engine"));
+    assert!(args.iter().any(|arg| arg.contains(&format!("{}/dockerd", podrunner_unit::PAYLOAD_ENGINE_DIR))));
+    assert!(!args.windows(2).any(|v| v[0] == "-v" && v[1].contains("/podrunner-engine")));
     assert!(crate::guest::SCRIPT.contains("--bridge=none"));
     let (u, d) = driver("engine", "true");
     assert_eq!(u.probe().unwrap().container, podrunner_schema::ContainerRoute::None);
@@ -456,6 +465,7 @@ fn the_init_of_the_image_boots_with_its_own_engine() {
         runner_root: "/r",
         limits: &Limits::default(),
         engine: None,
+        payload_engine: false,
         init_image: true,
         stdin: true,
     };

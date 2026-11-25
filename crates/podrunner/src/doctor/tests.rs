@@ -89,11 +89,15 @@ fn doctor_knows_the_microvm_and_incus_kinds() {
     // T-534: no incusd, no incus kind.
     let incusd = dir.join("incus.socket");
     let _ = std::fs::remove_file(&incusd);
-    assert!(capability_at("incus", &u(""), &incusd).unwrap_err().starts_with("incusd: "));
+    assert!(capability_at("incus", &u(""), &incusd, &Default::default()).unwrap_err().starts_with("incusd: "));
     let _listen = std::os::unix::net::UnixListener::bind(&incusd).unwrap();
-    let i = capability_at("incus", &u(""), &incusd).unwrap();
+    let i = capability_at("incus", &u(""), &incusd, &Default::default()).unwrap();
     assert_eq!((i.kind.as_str(), i.boundary), ("incus", podrunner_schema::Boundary::Confined));
-    assert!(capability_at("incus", &u("podnet = \"/bin/true\""), &incusd).unwrap_err().contains("podnet"));
+    assert!(
+        capability_at("incus", &u("podnet = \"/bin/true\""), &incusd, &Default::default())
+            .unwrap_err()
+            .contains("podnet")
+    );
     // T-181: the podvm kind with podnet gives the hold of `podnet pod
     // doctor`, as `serve` does; with none, `unknown`.
     let podnet = dir.join("podnet");

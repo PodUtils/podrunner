@@ -32,7 +32,7 @@ mod stderr;
 mod usage;
 mod warm;
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -92,6 +92,7 @@ pub struct IncusUnit {
     /// The directory of the static Docker binaries: each instance runs an
     /// engine of its own (T-485).
     engine: Option<PathBuf>,
+    payload_engines: BTreeSet<String>,
     /// The init of the image is PID 1 (`[unit.incus] init = "image"`, T-543).
     init_image: bool,
 }
@@ -117,6 +118,7 @@ impl IncusUnit {
             limits: Default::default(),
             root_quota: false,
             engine: None,
+            payload_engines: BTreeSet::new(),
             init_image: false,
         }
     }
@@ -136,6 +138,12 @@ impl IncusUnit {
     /// instance stays unprivileged. The record says `container: engine`.
     pub fn with_engine(mut self, dir: &Path) -> IncusUnit {
         self.engine = Some(dir.to_path_buf());
+        self
+    }
+
+    /// The digests of payloads that carry the guest engine.
+    pub fn with_payload_engines(mut self, digests: BTreeSet<String>) -> Self {
+        self.payload_engines = digests;
         self
     }
 
@@ -210,6 +218,10 @@ impl UnitDriver for IncusUnit {
         true
     }
 
+    fn engine_needs_payload(&self) -> bool {
+        self.engine.is_none() && !self.init_image && !self.payload_engines.is_empty()
+    }
+
     fn credential_dir(&self, _unit: &UnitId) -> Option<String> {
         Some(self.cred_root.clone())
     }
@@ -224,7 +236,7 @@ impl UnitDriver for IncusUnit {
             boundary: Boundary::Confined,
             boundary_proof: Some("incus system container".into()),
             principal: Principal::Distinct,
-            container: if self.engine.is_some() || self.init_image {
+            container: if self.engine.is_some() || self.init_image || self.engine_needs_payload() {
                 ContainerRoute::Engine
             } else {
                 ContainerRoute::None

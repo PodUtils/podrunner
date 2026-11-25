@@ -5,7 +5,9 @@
 use std::path::Path;
 
 use podrunner_podvm::Podvm;
-use podrunner_podvm::probe::{LOWEST, LOWEST_ENGINE, LOWEST_ENGINE_INCUS, LOWEST_GUEST, LOWEST_INCUS};
+use podrunner_podvm::probe::{
+    LOWEST, LOWEST_ENGINE, LOWEST_ENGINE_INCUS, LOWEST_GUEST, LOWEST_IMAGE_LABELS, LOWEST_INCUS,
+};
 
 use super::Args;
 
@@ -226,13 +228,21 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
             },
         ));
     }
+    let guest_engine = super::guest::has_engine(a);
     let (binary, lowest, flag) = match (&a.podvm, &a.guest) {
         (Some(b), _) => (Some(b.clone()), LOWEST, "--podvm"),
         (None, Some((true, b))) => {
-            (Some(b.clone()), if a.engine.is_some() { LOWEST_ENGINE } else { LOWEST_GUEST }, "--microvm")
+            let lowest = if a.engine.is_some() {
+                LOWEST_ENGINE
+            } else if guest_engine {
+                LOWEST_IMAGE_LABELS
+            } else {
+                LOWEST_GUEST
+            };
+            (Some(b.clone()), lowest, "--microvm")
         }
         (None, Some((false, b))) => {
-            (Some(b.clone()), if a.engine.is_some() { LOWEST_ENGINE_INCUS } else { LOWEST_INCUS }, "--incus")
+            (Some(b.clone()), if guest_engine { LOWEST_ENGINE_INCUS } else { LOWEST_INCUS }, "--incus")
         }
         _ => (None, LOWEST, ""),
     };

@@ -77,7 +77,7 @@ fn read(tool: &Path, args: &[&str]) -> Result<Value, String> {
 
 /// The capability record of the unit kind `name`, through its driver.
 pub(crate) fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) -> Result<Capability, String> {
-    capability_at(name, u, &incusd_socket())
+    capability_at(name, u, &incusd_socket(), &Default::default())
 }
 
 /// A podvm kind with `confine`: the self-test of the layer with the
@@ -119,7 +119,12 @@ fn connect_incusd(socket: &Path) -> Result<(), String> {
 }
 
 /// The record of a kind, with the socket of incusd at `incusd`.
-fn capability_at(name: &str, u: &podrunner_slots::config::UnitConfig, incusd: &Path) -> Result<Capability, String> {
+fn capability_at(
+    name: &str,
+    u: &podrunner_slots::config::UnitConfig,
+    incusd: &Path,
+    engines: &std::collections::BTreeSet<String>,
+) -> Result<Capability, String> {
     use podrunner_unit::UnitDriver;
     match name {
         "fake" => Ok(crate::serve::fake_capability_of(u)),
@@ -141,21 +146,16 @@ fn capability_at(name: &str, u: &podrunner_slots::config::UnitConfig, incusd: &P
         // `guest_kinds` and after the self-test of GitHub #36.
         "microvm" => {
             crate::tiers::kvm()?;
-            crate::microvm_kind::plan(u).map_err(|f| f.detail)?;
-            let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
-            let images = std::path::PathBuf::from(u.images.clone().unwrap_or_default());
             let state = std::env::temp_dir().join("podrunner-doctor");
-            podrunner_microvm::MicrovmUnit::new(podvm, &state, &images).probe().map_err(|e| e.to_string())
+            crate::microvm_kind::build(u, &state, engines.clone()).map(|(_, cap)| cap).map_err(|f| f.detail)
         }
         "incus" => {
-            crate::incus_kind::plan(u).map_err(|f| f.detail)?;
+            let state = std::env::temp_dir().join("podrunner-doctor");
+            let (_, cap) = crate::incus_kind::build(u, &state, engines.clone()).map_err(|f| f.detail)?;
             // The probe of the kind reads only the version of podvm: an
             // incusd must also take a connection of this user (T-534).
             connect_incusd(incusd)?;
-            let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
-            let images = std::path::PathBuf::from(u.images.clone().unwrap_or_default());
-            let state = std::env::temp_dir().join("podrunner-doctor");
-            podrunner_incus::IncusUnit::new(podvm, &state, &images).probe().map_err(|e| e.to_string())
+            Ok(cap)
         }
         other => Err(format!("no driver of the kind {other} in this build")),
     }
@@ -188,7 +188,8 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
         let cfg = Config::parse(&text).map_err(|e| fail(Class::Config, e))?;
         let mut caps = Vec::new();
         for (name, u) in &cfg.unit {
-            match capability(name, u).and_then(|c| confined(name, u, &cfg, c)) {
+            let engines = cfg.pin.payload_engine_digests(std::env::consts::ARCH);
+            match capability_at(name, u, &incusd_socket(), &engines).and_then(|c| confined(name, u, &cfg, c)) {
                 Ok(c) => {
                     kinds.push(json!({ "kind": name, "capability": c }));
                     caps.push(c);

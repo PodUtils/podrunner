@@ -298,6 +298,15 @@ jobs:
           # T-062: a step through exec cannot write the externals (:ro).
           sh scripts/measure-container-verbs.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/verbs" | tee "$RUNNER_TEMP/verbs.txt"
           grep -qx 'externals-read-only ok' "$RUNNER_TEMP/verbs.txt"
+      - name: A writable and a read-only cache on the Podvm kind (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          PODRUNNER_PODVM_CONFINE=1 PODRUNNER_PODVM_CACHE_PROOF=1 timeout 600 \
+            cargo test -p podrunner-podvm --test conformance -- --ignored --nocapture \
+            | tee "$RUNNER_TEMP/podvm-cache.txt"
+          grep '^cache proof:' "$RUNNER_TEMP/podvm-cache.txt" >> "$GITHUB_STEP_SUMMARY"
       # T-221: a CPU limit of a podvm unit needs a cgroup v2 subtree that the
       # host delegates to the user: a transient service of systemd with
       # Delegate=yes gives one to the user of the job. podvm makes its leaf
@@ -426,6 +435,7 @@ jobs:
           set -o pipefail
           sh scripts/build-image.sh images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
             --build-arg "RUNNER_VERSION=$VERSION" --build-arg "RUNNER_SHA256=$SHA256" \
+            --build-arg INCLUDE_DOCKER_ENGINE=1 \
             --build-arg "EXTRA_PACKAGES=$(cat images/runner/full.txt)" \
             --output "type=oci,dest=$RUNNER_TEMP/full.tar" .
           echo "the larger image: $(du -m "$RUNNER_TEMP/full.tar" | cut -f1) MiB (the archive)" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -442,8 +452,15 @@ jobs:
           PY
           (cd "$RUNNER_TEMP/full" && find . -type f | sed 's#^\./##' | sort | tar -cf ../full-load.tar --no-recursion -T -)
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" load -i "$RUNNER_TEMP/full-load.tar"
+          echo "PODRUNNER_RUNNER_FULL_IMAGE=runner@$digest" >> "$GITHUB_ENV"
           if [ "$ARCH" != x86_64 ]; then
-            PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "runner@$digest" /bin/sh -c 'python3 --version && cmake --version | head -1'
+            PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "runner@$digest" /bin/sh -ec '
+              python3 --version
+              cmake --version | head -1
+              for tool in docker dockerd; do
+                "/usr/local/lib/podrunner/engine/$tool" --version | grep -F "Docker version 29.9.2,"
+              done
+            '
           else
           printf 'on: push\njobs:\n  tools:\n    runs-on: ubuntu-latest\n    steps:\n      - run: python3 --version && node --version && make --version | head -1 && cmake --version | head -1 && zip -v | head -2\n' > "$RUNNER_TEMP/full/w.yml"
           timeout 900 cargo run -q -p podrunner -- run "$RUNNER_TEMP/full/w.yml" \
@@ -747,6 +764,41 @@ jobs:
           sg incus-admin -c "PODRUNNER_PARITY_ROUTES=$routes PODRUNNER_PARITY_UNIT='$unit' timeout 3600 cargo test -p podrunner --test parity -- --ignored --nocapture" \
             | tee "$RUNNER_TEMP/parity-incus.txt"
           grep -q '^parity 06-actions.yml PASS' "$RUNNER_TEMP/parity-incus.txt"
+      # T-672: the engine in the full payload, with no host engine directory.
+      - name: The Docker engine bundled in the full image
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' && steps.full.outcome == 'success' && steps.incus.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          cargo build -q -p podrunner
+          binary="$PWD/target/x86_64-unknown-linux-musl/debug/podrunner"
+          hub="--allow registry-1.docker.io --allow auth.docker.io --allow production.cloudflare.docker.com"
+          hub="$hub --allow docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com"
+          hub="$hub --allow production.cloudfront.docker.com --allow mirror.gcr.io"
+          hub="$hub --allow docker-images-prod.s3.dualstack.us-east-1.amazonaws.com"
+          probe="$RUNNER_TEMP/bundled-engine.yml"
+          cat > "$probe" <<'YML'
+          on: push
+          jobs:
+            engine:
+              runs-on: local
+              steps:
+                - run: |
+                    test "$DOCKER_HOST" = unix:///run/podrunner-docker.sock
+                    test "$(docker version --format '{{.Server.Version}}')" = 29.9.2
+          YML
+          for kind in microvm incus; do
+            for workflow in "$probe" crates/podrunner/tests/local/parity/10-docker-build.yml crates/podrunner/tests/local/parity/11-docker-dind.yml; do
+              case "$workflow" in
+                "$probe") job=engine ;;
+                *docker-build.yml) job=build ;;
+                *docker-dind.yml) job=dind ;;
+              esac
+              sg incus-admin -c "timeout 1800 '$binary' run '$workflow' --no-config --$kind '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_FULL_IMAGE' $hub" \
+                | tee "$RUNNER_TEMP/bundled-$kind-$job.txt"
+              grep -qx "ok      $job" "$RUNNER_TEMP/bundled-$kind-$job.txt"
+              echo "Bundled Docker $kind $job PASS" | tee -a "$GITHUB_STEP_SUMMARY"
+            done
+          done
       # T-525: C1 to C5 on the incus kind (incus from the step before).
       - name: C1 to C5 on the incus kind (a measure)
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}

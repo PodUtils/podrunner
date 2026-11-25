@@ -13,7 +13,16 @@ fn job(with: serde_json::Value) -> JobOffer {
 }
 
 fn kind(c: Capability) -> Kind {
-    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk: None, init: None, warm: vec![] }
+    Kind {
+        engine_needs_payload: false,
+        capability: c,
+        free: 1,
+        running: 0,
+        repos: vec![],
+        root_disk: None,
+        init: None,
+        warm: vec![],
+    }
 }
 
 fn confined() -> Capability {
@@ -229,6 +238,7 @@ fn a_required_limit_that_no_kind_enforces_is_refused() {
 fn a_shared_principal_runs_one_unit_at_a_time() {
     let shared = capability(Boundary::Confined, Principal::Shared, EgressHold::Advisory);
     let busy = Kind {
+        engine_needs_payload: false,
         capability: shared.clone(),
         free: 1,
         running: 1,

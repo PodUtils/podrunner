@@ -38,6 +38,7 @@ impl Slots {
                     .collect();
                 Kind {
                     capability: k.capability.clone(),
+                    engine_needs_payload: k.driver.engine_needs_payload(),
                     free: k.cfg.slots.saturating_sub(units.len() as u32).min(host_free),
                     running: units.len() as u32,
                     repos,

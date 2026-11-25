@@ -100,6 +100,8 @@ pub struct Instance<'a> {
     /// The directory of the static Docker binaries: each instance runs an
     /// engine of its own (T-485).
     pub engine: Option<&'a Path>,
+    /// The selected payload contains the guest engine.
+    pub payload_engine: bool,
     /// The init of the image is PID 1 (systemd of the hosted snapshot),
     /// with its own services and engine (T-543).
     pub init_image: bool,
@@ -116,7 +118,8 @@ pub const ENGINE_MOUNT: &str = "/podrunner-engine";
 /// one channel to it (T-109). The argv of the payload goes to the script
 /// as positional parameters: no word of it is quoted again.
 pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String>, argv: &[String]) -> Vec<String> {
-    let Instance { name, reference, work, egress, runner_root, limits, engine, init_image, stdin } = *i;
+    let Instance { name, reference, work, egress, runner_root, limits, engine, payload_engine, init_image, stdin } = *i;
+    let payload_engine = payload_engine && engine.is_none() && !init_image;
     let mut a: Vec<String> = ["run", "-d", "-i", "--name", name, "--podvm-tier=incus", "--podvm-net", "none"]
         .into_iter()
         .filter(|w| stdin || *w != "-i")
@@ -146,6 +149,8 @@ pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String
         a.push("--podvm-engine".into());
         a.push("-v".into());
         a.push(format!("{}:{ENGINE_MOUNT}:ro", engine.display()));
+    } else if payload_engine {
+        a.push("--podvm-engine".into());
     }
     if let Some(egress) = egress {
         a.push("--podvm-channel".into());
@@ -162,7 +167,9 @@ pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String
         a.push(format!("{k}={v}"));
     }
     a.push(reference.into());
-    a.extend(["/bin/sh", "-c", SCRIPT, "podrunner", runner_root].map(String::from));
+    let script =
+        if payload_engine { podrunner_unit::payload_engine_script(SCRIPT, ENGINE_MOUNT) } else { SCRIPT.into() };
+    a.extend(["/bin/sh".into(), "-c".into(), script, "podrunner".into(), runner_root.into()]);
     a.extend(argv.iter().cloned());
     a
 }

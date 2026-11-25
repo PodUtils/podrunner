@@ -37,11 +37,14 @@ pub(super) fn refusals(a: &Args, hooks: impl FnOnce() -> bool) -> BTreeMap<Strin
         (Some(_), None) if !hooks() => {
             Some("the job needs containers, and podvm gives no container hooks on this host (`podrunner doctor --run` names it): run it with --microvm and --engine (a host with /dev/kvm)".to_string())
         }
-        (None, Some((true, _))) if a.engine.is_none() => {
-            Some("the job needs containers: a guest of --microvm runs them with --engine DIR".to_string())
+        (None, Some((true, _))) if !super::guest::has_engine(a) => {
+            Some(format!(
+                "the job needs containers: --microvm needs an image with an engine and podvm {} or later, or --engine DIR",
+                podrunner_podvm::probe::LOWEST_IMAGE_LABELS
+            ))
         }
-        (None, Some((false, _))) if a.engine.is_none() => {
-            Some("the job needs containers: an instance of --incus runs them with --engine DIR".to_string())
+        (None, Some((false, _))) if !super::guest::has_engine(a) => {
+            Some("the job needs containers: --incus needs an image with an engine or --engine DIR".to_string())
         }
         _ => None,
     };

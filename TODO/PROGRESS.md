@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 669 entries: 84 open, 53 partial, 13 blocked, 519 done.
+`TODO/INDEX.md` holds 669 entries: 82 open, 54 partial, 13 blocked, 520 done.
 
 ## State
 
@@ -31,10 +31,10 @@
   `runner-image.yml` 45564676018; `level2.yml` 45564676057 on github.com
   twins). T-517 chooses to bundle the engine in `runner-full`. Implementing
   the bundled path (T-672) and the live check (T-040) remain.
-- Warm units (T-487) are enabled for fake, Incus and microvm. The live
-  suites in runner-image run 45607875181 and both warm rows in user-gate
-  run 45616132409 passed. Incus went from 14 s cold to 2 s warm, and
-  microvm from 6 s to 3 s, for each of the two jobs per phase.
+- Warm units (T-487) are enabled for fake, Incus and microvm. The
+  installed binary passed both warm rows in user-gate run 45626716848.
+  Incus first steps were 14 and 14 s cold, then 2 and 2 s warm. Microvm
+  first steps were 6 and 6 s cold, then 2 and 3 s warm.
 - The `assignment_hook` payload flag enabled the runner's assignment
   verdict and first-step marks on both guests (T-660, T-663). A job of
   another run can keep a `rw` cache when its verified ref and repository
@@ -58,8 +58,8 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Run the user-path gate with the release binary and confirm both warm
-   rows, including the recorded unit start mode of each job.
+1. Finish the bundled Docker guest proof (T-672) and the low-space
+   Incus diagnostic (T-613).
 2. Take the rest of the cache work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
@@ -79,7 +79,7 @@ then take the next one.
    T-175 (partial; its step on the test organization is next).
 7. The local mode: T-204, T-229, T-242 (partial), T-161
    (partial; next, the measure of a third-party runner).
-8. The hosted snapshot: T-539, T-542, T-555, T-540, T-557, T-556, T-579,
+8. The hosted snapshot: T-539, T-542, T-555, T-540, T-556, T-579,
    T-547, T-546, T-550. T-613 (partial): the line of COORD-124 (#346).
 9. The incus kind: T-482 (COORD-187), T-481. T-261 (partial): the
     syscall tier stays off until podvm fixes it (#308, #304, #189). T-403

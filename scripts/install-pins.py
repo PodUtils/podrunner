@@ -117,7 +117,7 @@ def manifest(images: pathlib.Path, release: str, assets: pathlib.Path) -> str:
             "file": f,
             "sha256": v[f"{kind}_{a}"],
             "digest": v[f"{kind}_digest_{a}"],
-            "built_at_s": image_created(assets / f),
+            **image_metadata(assets / f),
             "unpacked_bytes": int(v[f"{kind}_unpacked_{a}"]),
         }
 
@@ -138,9 +138,8 @@ def manifest(images: pathlib.Path, release: str, assets: pathlib.Path) -> str:
     return json.dumps(doc, indent=2, sort_keys=True) + "\n"
 
 
-def image_created(path: pathlib.Path) -> int | None:
-    """The `created` time of the image config of an archive, in seconds of
-    the Unix epoch, or None: the `built_at_s` of a pin of it."""
+def image_metadata(path: pathlib.Path) -> dict:
+    """The build time and optional Docker engine declaration from OCI config."""
     with tarfile.open(path) as t:
         names = {m.lstrip("./"): m for m in t.getnames()}
 
@@ -152,13 +151,18 @@ def image_created(path: pathlib.Path) -> int | None:
         index = json.load(t.extractfile(names["index.json"]))
         manifest = blob(index["manifests"][0]["digest"]) if index.get("manifests") else None
         config = blob(manifest["config"]["digest"]) if manifest and "config" in manifest else None
-    created = (config or {}).get("created")
-    if not isinstance(created, str):
-        return None
-    try:
-        return int(datetime.datetime.fromisoformat(created.replace("Z", "+00:00")).timestamp())
-    except ValueError:
-        return None
+    config = config or {}
+    result = {"built_at_s": None}
+    created = config.get("created")
+    if isinstance(created, str):
+        try:
+            result["built_at_s"] = int(datetime.datetime.fromisoformat(created.replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            pass
+    labels = (config.get("config") or {}).get("Labels") or {}
+    if labels.get("io.podutils.podrunner.engine") == "1":
+        result["container_engine"] = True
+    return result
 
 
 def image_unpacked(path: pathlib.Path) -> int:

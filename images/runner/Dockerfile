@@ -51,6 +51,17 @@ RUN arch=x64; [ "$TARGETARCH" = arm64 ] && arch=arm64; \
  && mkdir -m 0755 /home/runner/work \
  && chown -R runner:runner /home/runner
 
+# The full profile carries its own Docker Engine (T-672). The build inputs
+# are mounted for installation so the base image stays small.
+ARG INCLUDE_DOCKER_ENGINE=0
+RUN --mount=type=bind,source=images/runner/install-engine.sh,target=/run/install-engine.sh \
+    --mount=type=bind,source=images/runner/LICENSE.docker-engine,target=/run/LICENSE.docker-engine \
+    if [ "$INCLUDE_DOCKER_ENGINE" = 1 ]; then \
+        sh /run/install-engine.sh "$TARGETARCH" /usr/local/lib/podrunner/engine \
+     && install -Dm0644 /run/LICENSE.docker-engine /usr/share/doc/podrunner-docker-engine/copyright; \
+    fi
+LABEL io.podutils.podrunner.engine=$INCLUDE_DOCKER_ENGINE
+
 # The tarball has no licence file; the image carries the MIT licence of
 # the official runner (THIRD_PARTY.md).
 COPY images/runner/LICENSE.actions-runner /home/runner/LICENSE.actions-runner

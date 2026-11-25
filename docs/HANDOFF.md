@@ -19,9 +19,9 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. Repeat the user-path gate with the release binary for the warm pool.
-2. Take the remaining cache work in T-480 and the hosted probe in T-674.
-3. Bundle the Docker engine in `runner-full` (T-672) and follow the work
+1. Verify the bundled Docker engine on both hosted guest kinds (T-672).
+2. Take the remaining cache work in T-480.
+3. Verify the low-space Incus diagnostic (T-613) and follow the work
    order of `TODO/PROGRESS.md`.
 
 ## The release `v0.1.0-beta.8`
@@ -57,18 +57,20 @@ Proven in CI on GitHub-hosted runners:
   kind and the incus kind.
 - The hosted snapshot: published, public and attested on `ghcr.io`, with
   C1 and C2 on each capture. A canned job runs in its runner image through
-  the incus kind (`docs/hosted-snapshot.md`). The full snapshot does not
-  fit the pool of incusd on a standard hosted runner (T-613).
+  the incus kind (`docs/hosted-snapshot.md`). The full snapshot booted on
+  a standard hosted runner with Btrfs and `dir` pools (T-557).
 - The local mode, `serve`, the sources, the tier rule, the egress hold, the
   installer and the offline bundle. `TODO/INDEX.md` has the entry of each.
 - A `docker build` step and a `docker:dind` service on the microvm and incus
   kinds (T-516: `runner-image.yml` 45564676018; `level2.yml` 45564676057 on
   github.com twins).
+- The hosted core slice passed the rootless Podman and FUSE overlay probe
+  as `runner` with no NIC (T-674, hosted-boot run 45623615056).
 - The cache of `serve` (T-480) has fake-unit and stub-podvm proof. The
   warm pool (T-487) passed the Incus and microvm warm suites in
-  runner-image run 45607875181 and both warm rows in user-gate run
-  45616132409. The user gate verified the assignment hook and the
-  first-step marks on both kinds (T-660, T-663).
+  runner-image run 45607875181 and both warm rows with the installed
+  binary in user-gate run 45626716848. The gate verified the assignment
+  hook and the first-step marks on both kinds (T-660, T-663).
 
 Proven on a constrained host as a user: QA round 6 on the candidate files
 (two agents, no root, no KVM, an HTTPS proxy). The notes list the fixes

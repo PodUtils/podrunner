@@ -219,6 +219,46 @@ fn check_accepts_warm_incus_with_stdin_on_exec() {
     assert!(got.status.success(), "{}", String::from_utf8_lossy(&got.stderr));
 }
 
+#[test]
+fn check_requires_the_podvm_version_for_a_bundled_engine() {
+    let d = dir("bundled-engine");
+    for (kind, previous, minimum) in
+        [("microvm", "0.2.0-beta.13", "0.2.0-beta.14"), ("incus", "0.2.0-beta.31", "0.2.0-beta.32")]
+    {
+        let check = |version: &str, bundled: bool| {
+            let podvm = d.join(format!("{kind}-{version}-{bundled}"));
+            podrunner_unit::program_file::write(
+                &podvm,
+                format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n"),
+            )
+            .unwrap();
+            let file = d.join("engine.toml");
+            std::fs::write(
+                &file,
+                format!(
+                    "host = \"h\"\n[unit.{kind}]\nslots = 1\nbinary = \"{}\"\nimages = \"/\"\n[pin]\n\
+                     [[pin.payload]]\narch = \"{}\"\nreference = \"runner@sha256:{}\"\nbuilt_at_s = 1800000000\n\
+                     container_engine = {bundled}\n",
+                    podvm.display(),
+                    std::env::consts::ARCH,
+                    "1".repeat(64)
+                ),
+            )
+            .unwrap();
+            Command::new(BIN).args(["check", "--config"]).arg(file).output().unwrap()
+        };
+        let old = check(previous, true);
+        let detail = String::from_utf8_lossy(&old.stderr);
+        assert_eq!(old.status.code(), Some(80), "{kind}: {detail}");
+        assert!(detail.contains(minimum), "{kind}: {detail}");
+        let pinned = check(minimum, true);
+        assert!(pinned.status.success(), "{kind}: {}", String::from_utf8_lossy(&pinned.stderr));
+        let base = check(previous, false);
+        assert!(base.status.success(), "{kind}: {}", String::from_utf8_lossy(&base.stderr));
+    }
+    std::fs::remove_dir_all(&d).unwrap();
+}
+
 /// The TOML blocks of the documents use only keys that exist: a block may
 /// leave out a key or hold an example value, but it names no key that the
 /// type refuses as unknown.

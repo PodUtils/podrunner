@@ -80,7 +80,16 @@ fn a_flagged_allow_rule_is_an_audit_line() {
 #[test]
 fn a_kind_with_no_hold_gets_no_trusted_job() {
     let none = capability(Boundary::Confined, Principal::Distinct, EgressHold::None);
-    let k = Kind { capability: none, free: 1, running: 0, repos: vec![], root_disk: None, init: None, warm: vec![] };
+    let k = Kind {
+        engine_needs_payload: false,
+        capability: none,
+        free: 1,
+        running: 0,
+        repos: vec![],
+        root_disk: None,
+        init: None,
+        warm: vec![],
+    };
     let line: Value = serde_json::from_str(&offer(0, "j-1", json!({}))).unwrap();
     let o = serde_json::from_value(line["offer"].clone()).unwrap();
     assert_eq!(place(&o, Tier::Trusted, &[k], &config(""), NOW_UNIX), Err(RefusalCode::HoldNotAvailable));
@@ -191,6 +200,7 @@ fn a_policy_needs_a_hold_and_an_absolute_path() {
         serde_json::from_value(line["offer"].clone()).unwrap()
     };
     let kind = |hold| Kind {
+        engine_needs_payload: false,
         capability: capability(Boundary::Confined, Principal::Distinct, hold),
         free: 1,
         running: 0,

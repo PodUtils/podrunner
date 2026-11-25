@@ -310,6 +310,7 @@ jobs:
           set -eu -o pipefail
           sh scripts/build-image.sh images/runner/Dockerfile --platform "$PLATFORM" --provenance=false --sbom=false \
             --build-arg "RUNNER_VERSION=$VERSION" --build-arg "RUNNER_SHA256=$SHA256" \
+            --build-arg INCLUDE_DOCKER_ENGINE=1 \
             --build-arg "EXTRA_PACKAGES=$(cat images/runner/full.txt)" \
             --output "type=oci,dest=$RUNNER_TEMP/full.tar" .
           mkdir -p "$RUNNER_TEMP/full" && tar -xf "$RUNNER_TEMP/full.tar" -C "$RUNNER_TEMP/full"
@@ -326,6 +327,11 @@ jobs:
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" load -i "runner-full-$ARCH.tar"
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "runner@$digest" \
             /bin/sh -c "grep -q '\"Runner.Listener/$VERSION\"' /home/runner/bin/Runner.Listener.deps.json && python3 --version && cmake --version | head -1"
+          PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "runner@$digest" /bin/sh -ec '
+            for tool in docker dockerd; do
+              "/usr/local/lib/podrunner/engine/$tool" --version | grep -F "Docker version 29.9.2,"
+            done
+          '
           if [ "$ARCH" = x86_64 ]; then
             printf 'on: push\njobs:\n  tools:\n    runs-on: ubuntu-latest\n    steps:\n      - run: python3 --version && node --version && make --version | head -1 && cmake --version | head -1 && zip -v | head -2\n' > "$RUNNER_TEMP/full/w.yml"
             timeout 900 cargo run -q -p podrunner -- run "$RUNNER_TEMP/full/w.yml" \

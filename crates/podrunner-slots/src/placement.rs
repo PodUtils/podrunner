@@ -12,6 +12,8 @@ use crate::config::{Config, Payload, UnitInit, init_name};
 #[derive(Debug, Clone)]
 pub struct Kind {
     pub capability: Capability,
+    /// The engine capability depends on the selected payload.
+    pub engine_needs_payload: bool,
     /// The slots of the kind that are free now.
     pub free: u32,
     /// The units of the kind that run now.
@@ -185,6 +187,9 @@ pub fn place_why(
         });
     }
     c.retain(|i| kinds[*i].init == pin.init);
+    if (need.container || need.container_engine) && !pin.container_engine {
+        narrow(&mut c, kinds, RefusalCode::ContainerNotSupported, |k| !k.engine_needs_payload)?;
+    }
     // A root disk smaller than the image cannot hold it (T-571): the unit
     // would start and fail with no clear cause.
     if let Some(size) = pin.unpacked_bytes {

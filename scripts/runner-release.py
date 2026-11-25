@@ -175,7 +175,7 @@ def manifest(tag_name: str, images: pathlib.Path, assets: pathlib.Path, commit: 
         if not f.is_file():
             raise Fault(f"{f}: missing: the image release needs it")
         return {"file": name, "sha256": p.sha256(f), "digest": p.image_digest(f),
-                "built_at_s": p.image_created(f), "unpacked_bytes": p.image_unpacked(f)}
+                **p.image_metadata(f), "unpacked_bytes": p.image_unpacked(f)}
 
     return {
         "schema": 1,
@@ -237,6 +237,20 @@ def notes(doc: dict, run: str) -> str:
                 f"built_at_s = {i['built_at_s']}", f'runner_version = "{r["version"]}"',
                 f"unpacked_bytes = {i['unpacked_bytes']}", ""]
     out[-1] = "```"
+    full = [(arch, kinds["full"]) for arch, kinds in r["images"].items() if kinds["full"].get("container_engine")]
+    if full:
+        out += [
+            "",
+            "For a guest with bundled Docker, load `runner-full-ARCH.tar` and use its pin below.",
+            "Use the full pin in place of the base pin for that architecture, or add a label to select it.",
+            "",
+            "```toml",
+        ]
+        for a, i in full:
+            out += ["[[pin.payload]]", f'arch = "{a}"', f'reference = "runner@{i["digest"]}"',
+                    f"built_at_s = {i['built_at_s']}", f'runner_version = "{r["version"]}"',
+                    f"unpacked_bytes = {i['unpacked_bytes']}", "container_engine = true", ""]
+        out[-1] = "```"
     out += [
         "",
         "## The level of proof",
@@ -326,7 +340,7 @@ def self_test() -> int:
         for n in ("podvm", "podnet"):
             (d / "images" / f"{n}.toml").write_text(f'version = "1.0.0"\n[sha256]\nx86_64 = "{a}"\naarch64 = "{b}"\n')
 
-        def archive(path: pathlib.Path, ref: str) -> None:
+        def archive(path: pathlib.Path, ref: str, engine: bool = False) -> None:
             def blob(data: bytes) -> tuple[str, bytes]:
                 import hashlib
 
@@ -338,7 +352,10 @@ def self_test() -> int:
                 info.size = 5
                 lt.addfile(info, io.BytesIO(b"echo\n"))
             layer = blob(layer_buf.getvalue())
-            config = blob(b'{"created": "2026-11-20T00:00:00Z"}')
+            cfg = {"created": "2026-11-20T00:00:00Z"}
+            if engine:
+                cfg["config"] = {"Labels": {"io.podutils.podrunner.engine": "1"}}
+            config = blob(json.dumps(cfg).encode())
             man = blob(json.dumps({"config": {"digest": config[0]}, "layers": [
                 {"mediaType": "application/vnd.oci.image.layer.v1.tar", "digest": layer[0]}]}).encode())
             index = json.dumps({"schemaVersion": 2, "manifests": [
@@ -351,16 +368,21 @@ def self_test() -> int:
 
         for arch in ARCHES:
             archive(d / f"runner-{arch}.tar", "runner:2.339.0")
-            archive(d / f"runner-full-{arch}.tar", "runner:full")
+            archive(d / f"runner-full-{arch}.tar", "runner:full", engine=arch == "x86_64")
         doc = manifest("vrunner-2.339.0-r1", d / "images", d, "c" * 40, 1763337600)
         base = doc["runner"]["images"]["aarch64"]["base"]
         check("manifest", doc["runner"]["version"] == "2.339.0" and base["unpacked_bytes"] == 5
               and base["built_at_s"] == epoch("2026-11-20T00:00:00Z") and base["digest"].startswith("sha256:")
               and doc["podvm"]["version"] == "1.0.0" and doc["advisories"] == "not run", json.dumps(doc))
+        check("engine metadata from archive config",
+              "container_engine" not in base
+              and "container_engine" not in doc["runner"]["images"]["aarch64"]["full"]
+              and doc["runner"]["images"]["x86_64"]["full"].get("container_engine") is True, json.dumps(doc))
         doc["advisories"] = "the same as the reviewed list"
         text = notes(doc, "")
         check("notes", f'reference = "runner@{base["digest"]}"' in text and "--workflow runner-image-release.yml" in text
-              and "unpacked_bytes = 5" in text and text.count("[[pin.payload]]") == 2
+              and "unpacked_bytes = 5" in text and text.count("[[pin.payload]]") == 3
+              and text.count("container_engine = true") == 1
               and "advisories.txt`: the same as the reviewed list" in text, text)
         refused("manifest: another runner", lambda: manifest("vrunner-2.338.2-r1", d / "images", d, "c" * 40, 0), "2.339.0")
         (d / "runner-full-aarch64.tar").unlink()

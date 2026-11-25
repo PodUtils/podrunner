@@ -24,9 +24,10 @@ distribution is on top, and the last layer, `boot`, holds `/boot` and
 names `/sbin/init` as the entrypoint, for a unit that boots the init of
 the image (`[unit.incus] init = "image"`, podvm `--podvm-init=image`).
 The core slice boots under incus to `degraded` (`hosted-boot.yml`, T-556).
-The full snapshot loads with podvm `0.2.0-beta.38` or later (T-606), and
-does not fit the pool of incusd on a standard hosted runner (T-613). The
-snapshot holds no runner: a unit runs its runner image (below).
+The full snapshot loads with podvm `0.2.0-beta.38` or later (T-606).
+Podvm `0.2.0-beta.40` imported and booted it on standard Ubuntu 24.04
+hosted runners with Btrfs and `dir` pools (T-557). Use its runner image
+to run a job (below).
 
 ## What is 1:1, and what the scrub changes
 
@@ -180,8 +181,12 @@ The places:
 * `joined`: one LVM ext4 volume over the same two loop files, and a pool
   of the `dir` driver. Its first run lost its runner.
 * `store-root` and `store-mnt`: the two file systems stay apart, and the
-  pool has the `dir` driver. A `dir` pool copies the tree for the image
-  and again for the instance: the full snapshot does not fit (T-613).
+  pool has the `dir` driver. The full `store-root` run 45521078992 used
+  about 119.3 GB after import. The full `btrfs` run 45521073386 used
+  about 103.8 GB at boot. Both boots passed (T-557, T-613).
+* `dir-small`: use `full=slice` to verify the import refusal on an
+  isolated 2 GiB `dir` pool. The workflow shows the free and required
+  space and checks that Incus created no instance (T-613).
 
 podvm makes no pool: the instance takes the root disk of the default
 profile. The summary and the artifact give the free space and the time

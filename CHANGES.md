@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `podrunner.toml`, runner images and release manifests | The Ubuntu full runner image bundles Docker Engine 29.9.2 for Incus and microVM guests. `container_engine = true` declares it in a payload pin and is covered by the pin signature. Local runs read the selected image's OCI label, and a configured engine directory overrides the bundle. Both release manifests expose the optional declaration. | T-672 |
 | GitHub scale-set source | An operator-controlled source requests one rerun of a failed first-attempt job after `cache-mismatch` when GitHub confirms it ran on the minted runner. | T-654 |
 | command line | `podrunner image build --recipe FILE --out ARCHIVE [--arch ARCH]` builds a pinned runner image with Docker Buildx. It writes an OCI archive and prints its payload pin. | T-500 |
 | `podrunner.toml`, runner image | A pin can declare `assignment_hook = true` for a runner that checks each job before the first step. The pin signature covers the declaration. A unit without that hook gets `no-hook` for assignment requests. | T-663 |
@@ -149,4 +150,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md 0f43d75790e248ee82e1ae12675d917352c0734520f6bedf5ed0642fdd4abea4 -->
 <!-- contract docs/contracts/source-driver.md bbd80c030766a84621eb6b75bee65d5bde4cae18d3f1f98ec230a43b6498ed26 -->
 <!-- contract docs/contracts/unit-driver.md 95465c8377fcc3f5bb7d7065232eabdcf823aef0483a2385d2aa2320622e680c -->
-<!-- contract schemas/config.v1.json e7f5cb44d74a3715057fe2a3d1597fbb1cfc04ecea246287e4b980a23d25f9a8 -->
+<!-- contract schemas/config.v1.json d114ff65c723ee10fa688e6f8e2062b4d47918b28352b4b0066073afc4babde2 -->

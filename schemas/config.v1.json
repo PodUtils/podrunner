@@ -411,6 +411,11 @@
           "format": "uint64",
           "minimum": 0
         },
+        "container_engine": {
+          "description": "The payload carries the Docker engine binaries for a guest.",
+          "type": "boolean",
+          "default": false
+        },
         "init": {
           "description": "The PID 1 that the payload needs: `image` for an image that boots\nits own init (systemd). Placement sends it only to a kind with the\nsame `init` (T-549).",
           "anyOf": [

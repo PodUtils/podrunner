@@ -60,6 +60,8 @@ pub const LOWEST_GUEST: &str = "0.2.0-beta.10";
 /// The lowest podvm of the `microvm` kind with an engine: `--podvm-engine`
 /// (T-103, T-112).
 pub const LOWEST_ENGINE: &str = "0.2.0-beta.14";
+/// The first podvm whose image inspect exposes the OCI configuration labels.
+pub const LOWEST_IMAGE_LABELS: &str = "0.2.0-beta.19";
 
 /// The first podvm that holds a limit of processes in a machine guest
 /// (`--pids-limit` on the machine tier, PodUtils/podvm@T-1967, T-488).

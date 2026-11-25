@@ -17,7 +17,7 @@ use crate::serve::{Failure, fail};
 /// Check `[unit.incus]`: the podvm binary, its version (`podvm probe
 /// --json`, which reads no state) and the store of the images. `mem`,
 /// `cpus` and `pids` are the limits of each instance (T-162).
-pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
+pub fn plan(u: &UnitConfig, payload_engine: bool) -> Result<(), Failure> {
     // The keys of the podvm kind: this kind reads none of them (T-111).
     for (key, set) in [
         ("registries", !u.registries.is_empty()),
@@ -59,7 +59,7 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         podrunner_podvm::probe::LOWEST_INCUS_WARM
     } else if init_image {
         podrunner_podvm::probe::LOWEST_INCUS_INIT
-    } else if u.engine.is_some() {
+    } else if u.engine.is_some() || payload_engine {
         podrunner_podvm::probe::LOWEST_ENGINE_INCUS
     } else if limits.is_empty() {
         podrunner_podvm::probe::LOWEST_INCUS
@@ -100,8 +100,12 @@ pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<
 }
 
 /// The driver and the record of `[unit.incus]`.
-pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
-    plan(u)?;
+pub fn build(
+    u: &UnitConfig,
+    state: &Path,
+    payload_engines: std::collections::BTreeSet<String>,
+) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
+    plan(u, !payload_engines.is_empty())?;
     let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
     let images = PathBuf::from(u.images.clone().unwrap_or_default());
     let mut limits =
@@ -109,6 +113,7 @@ pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capab
     limits.disk_bytes = u.disk_max_bytes.filter(|_| u.root_quota);
     let mut unit = podrunner_incus::IncusUnit::new(podvm, &state.join("incus"), &images)
         .with_limits(limits)
+        .with_payload_engines(payload_engines)
         .with_root_quota(u.root_quota)
         .with_image_init(u.init == Some(podrunner_slots::config::UnitInit::Image));
     if let Some(e) = &u.engine {

@@ -285,7 +285,8 @@ binary (T-499). It holds `schema` (1); `podrunner`: the version and, for
 each architecture, the file and its SHA-256; `runner`: the version of the
 official runner, the SHA-256 of each tarball, and for each architecture the
 base and the full image (`file`, `sha256`, the manifest `digest`,
-`built_at_s` and `unpacked_bytes`, or `null`); `podvm` and `podnet`: the version and the SHA-256 of each
+`built_at_s`, `unpacked_bytes` and `container_engine` when the archive
+bundles Docker, or `null` for an absent image); `podvm` and `podnet`: the version and the SHA-256 of each
 architecture. `podrunner doctor --config FILE` names the runner of each pin
 of the file, its age and its window, and warns in the last 7 days of it.
 
@@ -324,6 +325,8 @@ PODVM_STORE=~/.local/share/podrunner/images ~/.local/share/podrunner/bin/podvm l
 The notes of the release and `runner-images.json`
 (`runner.images.ARCH.base.digest`) give the manifest digest of the image.
 For the larger image, use `runner-full-ARCH.tar` and the `full` digest.
+For an engine-enabled full archive, the manifest gives
+`container_engine = true` for the corresponding `serve` pin.
 Then use the image:
 
 - `podrunner run`: give `--image runner@DIGEST`, or set
@@ -351,9 +354,10 @@ profile = "full"
 packages = ["ninja-build"]
 ```
 
-Save the recipe as `runner.toml`. Use `profile = "base"` for the base
-runner image. The default is `base`. The extra packages are Ubuntu
-package names. The command prints a payload pin for the image.
+Save the recipe as `runner.toml`. The `full` profile includes Docker
+Engine for Incus and microVM. The default `base` profile is the base
+runner image. The extra packages are Ubuntu package names. The command
+prints a payload pin for the image.
 
 ```sh
 podrunner image build --recipe runner.toml --out runner-local.tar > payload.toml

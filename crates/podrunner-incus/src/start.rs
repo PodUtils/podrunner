@@ -6,7 +6,7 @@ use std::fs;
 use std::io::Write;
 use std::process::Stdio;
 
-use podrunner_unit::{StartSpec, UnitCode, UnitError};
+use podrunner_unit::{StartSpec, UnitCode, UnitDriver, UnitError};
 
 use crate::guest::{self, credential_stream, run_args};
 use crate::stderr::tail;
@@ -79,6 +79,7 @@ impl IncusUnit {
                 egress: egress.as_deref(),
                 runner_root: &self.cred_root,
                 engine: self.engine.as_deref(),
+                payload_engine: self.engine_needs_payload() && self.payload_engines.contains(&spec.image.digest),
                 init_image: self.init_image,
                 limits: &self.applied(&spec.limits),
                 stdin: !warm,

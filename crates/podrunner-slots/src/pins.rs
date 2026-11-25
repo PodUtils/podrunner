@@ -14,8 +14,8 @@ const LABEL: &[u8] = b"podrunner pin list v1\n";
 
 /// The bytes that the key signs: the label, the age limit, and each payload
 /// on its own line, in the order of the file. `sandbox`, `unpacked_bytes`,
-/// `init`, `assignment_hook` and `labels` add words only when set. A signature of a
-/// list with none of them stays valid.
+/// `init`, `assignment_hook`, `container_engine` and `labels` add words
+/// only when set. A signature of a list with none of them stays valid.
 pub fn message(pins: &Pins) -> Vec<u8> {
     let mut m = LABEL.to_vec();
     m.extend_from_slice(format!("max_age_s {}\n", pins.max_age_s).as_bytes());
@@ -32,9 +32,10 @@ pub fn message(pins: &Pins) -> Vec<u8> {
         };
         // `check` refuses white space in a label: one word each.
         let hook = if p.assignment_hook { " assignment-hook" } else { "" };
+        let engine = if p.container_engine { " container-engine" } else { "" };
         let labels: String = p.labels.iter().map(|l| format!(" label {l}")).collect();
         let line = format!(
-            "payload {} {} {} {version} {age}{sandbox}{size}{init}{hook}{labels}\n",
+            "payload {} {} {} {version} {age}{sandbox}{size}{init}{hook}{engine}{labels}\n",
             p.arch, p.reference, p.built_at_s
         );
         m.extend_from_slice(line.as_bytes());
@@ -75,8 +76,9 @@ pub fn check(pins: &Pins) -> Result<(), String> {
         return Err("[pin] max_age_s is 0: each image is stale at once".into());
     }
     let mut seen = std::collections::BTreeSet::new();
+    let mut engines = std::collections::BTreeMap::new();
     for p in &pins.payload {
-        podrunner_unit::parse_pinned(&p.reference).map_err(|e| format!("[[pin.payload]]: {e}"))?;
+        let (_, digest) = podrunner_unit::parse_pinned(&p.reference).map_err(|e| format!("[[pin.payload]]: {e}"))?;
         // Placement picks a payload by these names only (#270).
         if !matches!(p.arch.as_str(), "x86_64" | "aarch64") {
             return Err(format!("[[pin.payload]] {}: arch {:?} is not x86_64 or aarch64", p.reference, p.arch));
@@ -91,6 +93,18 @@ pub fn check(pins: &Pins) -> Result<(), String> {
         }
         if p.assignment_hook && p.sandbox {
             return Err(format!("[[pin.payload]] {}: a sandbox has no runner assignment hook", p.reference));
+        }
+        if p.container_engine && (p.sandbox || p.init.is_some()) {
+            return Err(format!(
+                "[[pin.payload]] {}: container_engine needs a runner payload with no init",
+                p.reference
+            ));
+        }
+        if engines.insert((p.arch.as_str(), digest), p.container_engine).is_some_and(|old| old != p.container_engine) {
+            return Err(format!(
+                "[[pin.payload]] {}: aliases of {digest} on {} disagree on container_engine",
+                p.reference, p.arch
+            ));
         }
         if p.max_age_s == Some(0) {
             return Err(format!("[[pin.payload]] {}: max_age_s is 0: the image is stale at once", p.reference));
@@ -161,6 +175,7 @@ mod tests {
                 built_at_s: 7,
                 runner_version: None,
                 assignment_hook: false,
+                container_engine: false,
                 max_age_s: None,
                 sandbox: false,
                 unpacked_bytes: None,
@@ -173,6 +188,27 @@ mod tests {
     }
 
     #[test]
+    fn aliases_of_a_payload_agree_on_its_engine() {
+        let mut pin = pins();
+        pin.payload[0].reference = format!("runner@sha256:{}", "0".repeat(64));
+        let mut alias = pin.payload[0].clone();
+        let (_, digest) = podrunner_unit::parse_pinned(&alias.reference).unwrap();
+        alias.reference = format!("alias@{digest}");
+        pin.payload.push(alias);
+        assert!(check(&pin).is_ok(), "legacy aliases agree");
+        pin.payload[0].container_engine = true;
+        assert!(check(&pin).unwrap_err().contains("disagree on container_engine"));
+        pin.payload[1].container_engine = true;
+        assert!(check(&pin).is_ok(), "both aliases enable the engine");
+        pin.payload[1].sandbox = true;
+        assert!(check(&pin).unwrap_err().contains("runner payload with no init"));
+        pin.payload[1].sandbox = false;
+        pin.payload[1].arch = "aarch64".into();
+        pin.payload[1].container_engine = false;
+        assert!(check(&pin).is_ok(), "an index can resolve to different payloads by architecture");
+    }
+
+    #[test]
     fn a_signed_list_verifies_and_each_change_fails() {
         let mut p = pins();
         assert_eq!(verify(&p), Ok(()));
@@ -181,7 +217,7 @@ mod tests {
         assert_eq!(verify(&p), Ok(()));
         // The role and the size of a payload are signed too (T-551), and its
         // init and its labels (T-549).
-        let changes: [fn(&mut Pins); 12] = [
+        let changes: [fn(&mut Pins); 13] = [
             |p| p.max_age_s += 1,
             |p| p.payload[0].max_age_s = Some(1),
             |p| p.payload[0].runner_version = Some("2.338.2".into()),
@@ -190,6 +226,7 @@ mod tests {
             |p| p.payload.push(p.payload[0].clone()),
             |p| p.payload[0].sandbox = true,
             |p| p.payload[0].assignment_hook = true,
+            |p| p.payload[0].container_engine = true,
             |p| p.payload[0].unpacked_bytes = Some(1),
             |p| p.payload[0].init = Some(crate::config::UnitInit::Image),
             |p| p.payload[0].labels = vec!["ubuntu-latest".into()],

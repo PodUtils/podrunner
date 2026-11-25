@@ -29,11 +29,11 @@ on:
         type: choice
         options: [all, slice]
       place:
-        description: "btrfs: the store and incusd on one btrfs over a loop file on / and one on /mnt (one file when /mnt is on /), a pool of the btrfs driver; joined: the store and incusd on one LVM ext4 volume of / and /mnt; store-root: the store on /, incusd on /mnt; store-mnt: the store on /mnt, incusd on /"
+        description: "btrfs: the store and incusd on Btrfs; joined: both on LVM ext4; store-root: store on /, incusd on /mnt; store-mnt: store on /mnt, incusd on /; dir-small: prove import refusal with a 2 GiB dir pool and the core slice"
         required: true
         default: btrfs
         type: choice
-        options: [btrfs, joined, store-root, store-mnt]
+        options: [btrfs, joined, store-root, store-mnt, dir-small]
       margin:
         description: "The free GiB that the file system of incusd and / must keep after the import for the boot"
         required: true
@@ -59,6 +59,10 @@ jobs:
           hex=${DIGEST#sha256:}
           case $DIGEST:$hex in sha256:*:*[!0-9a-f]* | sha256:*:) echo "not a digest: $DIGEST" >&2; exit 1 ;; sha256:*) ;; *) echo "not a digest: $DIGEST" >&2; exit 1 ;; esac
           [ ${#hex} -eq 64 ] || { echo "not a digest of 64 hex digits: $DIGEST" >&2; exit 1; }
+          if [ "$PLACE" = dir-small ] && [ "$FULL" != slice ]; then
+            echo "dir-small needs full=slice" >&2
+            exit 1
+          fi
           # No leading zero: the shell reads 08 as a bad octal number.
           case $MARGIN in '' | *[!0-9]* | 0?*) echo "not a number of GiB: $MARGIN" >&2; exit 1 ;; esac
           M=$RUNNER_TEMP/measure
@@ -181,6 +185,14 @@ jobs:
             ;;
           store-root) work=/var/tmp/measure-w incusd=/mnt/incus pool=/mnt/incus ;;
           store-mnt) work=/mnt/w incusd="" pool=/var/lib/incus ;;
+          dir-small)
+            # The store keeps its normal disk. Constrain only incusd.
+            sudo fallocate -l 2G /var/tmp/measure-dir.img
+            sudo mkfs.ext4 -q -F -m 0 -E nodiscard /var/tmp/measure-dir.img
+            sudo mkdir -p /srv/measure-dir
+            sudo mount -o loop /var/tmp/measure-dir.img /srv/measure-dir
+            work=/var/tmp/measure-w incusd=/srv/measure-dir/incus pool=/srv/measure-dir/incus
+            ;;
           *) echo "no place $PLACE" >&2; exit 1 ;;
           esac
           sudo mkdir -p "$work"
@@ -286,6 +298,8 @@ jobs:
         # A bound for a hung incusd or podvm, not a measure: the full
         # import of the snapshot unpacks about 57 GB three times.
         timeout-minutes: 180
+        env:
+          PLACE: ${{ inputs.place }}
         run: |
           set -eu
           # The use of the disk every 15 s: the create can fill it, and a
@@ -315,9 +329,18 @@ jobs:
           # space of a pool of the dir driver: a refusal before the import,
           # a warning, or a line after an answer over its bound (COORD-124).
           grep -E '(warning:|incus tier:).*(free|need)' "$M/import-stderr.txt" | sed 's/^/import: /' | tee -a "$M/info.txt" || true
+          if [ "$PLACE" = dir-small ]; then
+            test "$rc" -eq 125
+            diag=$(grep -E ' has [^;]+ free and .+ needs at least .+: incusd would fill it' "$M/import-stderr.txt")
+            printf '%s\n' "$diag" | tee -a "$GITHUB_STEP_SUMMARY"
+            instances=$(timeout 60 sudo incus list --format csv -c n)
+            if printf '%s\n' "$instances" | grep -Fxq measure; then exit 1; fi
+            exit 0
+          fi
           [ "$rc" -eq 0 ] || exit "$rc"
           timeout 60 sudo incus list --format csv -c nsS | tee -a "$M/info.txt"
       - name: Boot when it fits
+        if: ${{ inputs.place != 'dir-small' }}
         # The sum of the time limits of the commands below is about
         # 38 min; the step ends before the job.
         timeout-minutes: 45

@@ -2,7 +2,7 @@
 //! floor of a tier, or that names a `fake` part with no `allow_fake`, is
 //! refused. An unknown key is refused.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use podrunner_schema::{Boundary, Tier};
 use podrunner_tier::TierConfig;
@@ -172,6 +172,9 @@ pub struct Payload {
     /// The runner hook requests an assignment verdict before any job step.
     #[serde(default)]
     pub assignment_hook: bool,
+    /// The payload carries the Docker engine binaries for a guest.
+    #[serde(default)]
+    pub container_engine: bool,
     /// The age limit of this pin; the smaller of it and `max_age_s` of
     /// `[pin]` holds.
     #[serde(default)]
@@ -216,6 +219,15 @@ impl Payload {
 }
 
 impl Pins {
+    /// The payload engine digests of one architecture.
+    pub fn payload_engine_digests(&self, arch: &str) -> BTreeSet<String> {
+        self.payload
+            .iter()
+            .filter(|p| p.arch == arch && p.container_engine)
+            .filter_map(|p| podrunner_unit::parse_pinned(&p.reference).ok().map(|(_, digest)| digest.to_string()))
+            .collect()
+    }
+
     /// The first payload of `arch` that a kind with `init` runs: the image
     /// of the self-tests of that kind (T-549).
     pub fn first_for(&self, arch: &str, init: Option<UnitInit>) -> Option<&Payload> {

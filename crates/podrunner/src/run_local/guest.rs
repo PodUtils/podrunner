@@ -49,12 +49,19 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
         warm: None,
         warm_max_age_s: None,
     };
-    let built = if *microvm { crate::microvm_kind::build(&u, state) } else { crate::incus_kind::build(&u, state) };
-    let (driver, _) = built.map_err(|e| fail(e.class, e.detail))?;
+    let payload_engines = a.engine.is_none().then(|| payload_engine(a, image)).flatten();
+    let payload_engines = payload_engines.into_iter().collect();
+    let built = if *microvm {
+        crate::microvm_kind::build(&u, state, payload_engines)
+    } else {
+        crate::incus_kind::build(&u, state, payload_engines)
+    };
+    let (driver, cap) = built.map_err(|e| fail(e.class, e.detail))?;
     let platform = if arch() == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let prepared = driver.prepare(image, platform, false).map_err(|e| fail(Class::Config, format!("{image}: {e}")))?;
     let mut exec = InUnit::new(driver, prepared);
     exec.guest = true;
+    exec.guest_engine = cap.container == podrunner_schema::ContainerRoute::Engine;
     if !a.allow.is_empty() || !a.environment_allow.is_empty() {
         // The proxy of the environment is the way out of the module (T-233).
         let up = podrunner_local::fetch::env_proxy("github.com").map_err(|e| fail(Class::Config, e))?;
@@ -67,22 +74,38 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
     Ok(exec)
 }
 
+fn payload_engine(a: &Args, image: &str) -> Option<String> {
+    let (_, binary) = a.guest.as_ref()?;
+    let store = a.images.as_deref()?;
+    podrunner_podvm::Podvm { binary: binary.clone() }.payload_engine_digest(store, image)
+}
+
+pub(super) fn has_engine(a: &Args) -> bool {
+    a.engine.is_some()
+        || a.image
+            .iter()
+            .chain(a.platforms.iter().map(|(_, image)| image))
+            .any(|image| payload_engine(a, image).is_some())
+}
+
 /// The OCI layout of the mirror of the run (T-157), under the state of the
 /// units, so that the end of the run removes it.
 pub(super) fn mirror_dir(state: &std::path::Path) -> std::path::PathBuf {
     state.join("mirror")
 }
 
-/// The pins of the job messages. With `--engine`, each pinned image of
-/// Docker Hub goes into the mirror, and a message names its manifest. When
-/// the mirror fails, the engine pulls through the egress policy.
+/// The pins of the job messages. With a guest engine, each pinned image of
+/// Docker Hub goes into the mirror, and a message names its manifest.
 pub(super) fn mirror_pins(
     a: &Args,
     pins: &std::collections::BTreeMap<String, String>,
     w: &pod_actions_workflow::Workflow,
     state: &std::path::Path,
 ) -> std::collections::BTreeMap<String, String> {
-    let (Some(_), Some((_, binary)), Some(store)) = (&a.engine, &a.guest, &a.images) else { return pins.clone() };
+    let (Some((_, binary)), Some(store)) = (&a.guest, &a.images) else { return pins.clone() };
+    if !has_engine(a) {
+        return pins.clone();
+    }
     let platform = if arch() == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let pull =
         podrunner_local::images::PodvmPull { binary: binary.clone(), store: store.clone(), platform: platform.into() };

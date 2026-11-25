@@ -18,6 +18,8 @@ const RUNNER_LICENSE: &str = include_str!("../../../../images/runner/LICENSE.act
 const START_HOOK: &str = include_str!("../../../../images/runner/podrunner-job-started.sh");
 const CONTAINER_HOOK: &str = include_str!("../../../podrunner-hook/relay/podrunner-hook.sh");
 const BUILD_SCRIPT: &str = include_str!("../../../../scripts/build-image.sh");
+const ENGINE_INSTALL: &str = include_str!("../../../../images/runner/install-engine.sh");
+const ENGINE_LICENSE: &str = include_str!("../../../../images/runner/LICENSE.docker-engine");
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -72,6 +74,8 @@ fn stage(root: &Path) -> io::Result<()> {
         ("images/runner/Dockerfile", DOCKERFILE),
         ("images/runner/LICENSE.actions-runner", RUNNER_LICENSE),
         ("images/runner/podrunner-job-started.sh", START_HOOK),
+        ("images/runner/install-engine.sh", ENGINE_INSTALL),
+        ("images/runner/LICENSE.docker-engine", ENGINE_LICENSE),
         ("crates/podrunner-hook/relay/podrunner-hook.sh", CONTAINER_HOOK),
     ] {
         let path = root.join(path);
@@ -106,7 +110,9 @@ pub(crate) fn run(args: &[String]) -> Result<Out, Out> {
         None => arch_of(std::env::consts::ARCH),
     }
     .map_err(|e| err(Class::Usage, e))?;
-    let packages = read_recipe(&recipe_path).and_then(|r| r.packages()).map_err(|e| err(Class::Config, e))?;
+    let recipe = read_recipe(&recipe_path).map_err(|e| err(Class::Config, e))?;
+    let packages = recipe.packages().map_err(|e| err(Class::Config, e))?;
+    let full = matches!(recipe.profile, Profile::Full);
     match out.symlink_metadata() {
         Ok(_) => return Err(err(Class::CantCreate, format!("{} already exists", out.display()))),
         Err(e) if e.kind() == io::ErrorKind::NotFound => (),
@@ -133,6 +139,8 @@ pub(crate) fn run(args: &[String]) -> Result<Out, Out> {
         .arg(format!("RUNNER_SHA256={sha256}"))
         .arg("--build-arg")
         .arg(format!("EXTRA_PACKAGES={packages}"))
+        .arg("--build-arg")
+        .arg(format!("INCLUDE_DOCKER_ENGINE={}", u8::from(full)))
         .arg(".")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -160,10 +168,14 @@ pub(crate) fn run(args: &[String]) -> Result<Out, Out> {
         .as_secs();
     fs::File::open(&archive).and_then(|file| file.sync_all()).map_err(io_error)?;
     fs::hard_link(&archive, &out).map_err(io_error)?;
-    Ok(ok(format!(
+    let mut payload_pin = format!(
         "[[pin.payload]]\narch = \"{arch}\"\nreference = \"{reference}\"\nbuilt_at_s = {built_at}\nrunner_version = \"{}\"\nassignment_hook = true\n",
         pin.version
-    )))
+    );
+    if full {
+        payload_pin.push_str("container_engine = true\n");
+    }
+    Ok(ok(payload_pin))
 }
 
 #[cfg(test)]

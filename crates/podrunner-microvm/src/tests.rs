@@ -49,7 +49,8 @@ pub(crate) fn spec(unit: &str) -> StartSpec {
 fn the_argv_holds_the_tier_the_size_and_a_read_only_volume_and_no_credential() {
     let env = BTreeMap::from([("A".to_string(), "1".to_string())]);
     let argv = vec!["/home/runner/run.sh".to_string(), "a b".to_string()];
-    let shape = Shape { mem: "4G", cpus: 2, egress: None, engine: None, pids: None, init_image: false };
+    let shape =
+        Shape { mem: "4G", cpus: 2, egress: None, engine: None, payload_engine: false, pids: None, init_image: false };
     let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/home/runner", &[], &env, &argv);
     let s = a.join(" ");
     for want in ["run --rm --podvm-tier=machine --podvm-net none", "--podvm-mem 4G", "--podvm-cpus 2", "-e A=1"] {
@@ -150,6 +151,7 @@ fn an_egress_socket_is_the_one_channel_and_the_proxy_of_the_payload() {
         cpus: 2,
         egress: Some(Path::new("/s/sockets/egress.sock")),
         engine: None,
+        payload_engine: false,
         pids: None,
         init_image: false,
     };
@@ -162,6 +164,20 @@ fn an_egress_socket_is_the_one_channel_and_the_proxy_of_the_payload() {
         "no proxy variable that podvm rewrites: {s}"
     );
     assert_eq!(s.matches("--podvm-channel").count(), 1);
+}
+
+#[test]
+fn a_bundled_engine_in_a_guest_requires_no_host_engine_mount() {
+    let shape =
+        Shape { mem: "8G", cpus: 2, egress: None, engine: None, payload_engine: true, pids: None, init_image: false };
+    let args = |shape| run_args(IMAGE, Path::new("/s/u-1"), shape, "/home/runner", &[], &BTreeMap::new(), &[]);
+    let a = args(&shape);
+    assert!(a.iter().any(|arg| arg == "--podvm-engine"));
+    assert!(a.iter().any(|arg| arg.contains(&format!("{}/dockerd", podrunner_unit::PAYLOAD_ENGINE_DIR))));
+    assert!(!a.windows(2).any(|v| v[0] == "-v" && v[1].contains(ENGINE_MOUNT)));
+    let args = args(&Shape { engine: Some(Path::new("/host/engine")), ..shape });
+    assert!(args.iter().any(|arg| arg == "/host/engine:/podrunner-engine:ro"));
+    assert!(!args.iter().any(|arg| arg.contains(podrunner_unit::PAYLOAD_ENGINE_DIR)));
 }
 
 #[test]
@@ -183,7 +199,7 @@ fn the_mount_check_takes_only_the_table_of_the_unit() {
     let a = run_args(
         IMAGE,
         Path::new("/s/u-1"),
-        &Shape { mem: "4G", cpus: 2, egress: None, engine: None, pids: None, init_image: false },
+        &Shape { mem: "4G", cpus: 2, egress: None, engine: None, payload_engine: false, pids: None, init_image: false },
         "/r",
         &[],
         &BTreeMap::new(),
@@ -196,7 +212,8 @@ fn the_mount_check_takes_only_the_table_of_the_unit() {
 /// T-405: with an environment file, the argv names the file and no value.
 #[test]
 fn an_environment_file_keeps_the_values_out_of_the_argv() {
-    let shape = Shape { mem: "4G", cpus: 2, egress: None, engine: None, pids: None, init_image: false };
+    let shape =
+        Shape { mem: "4G", cpus: 2, egress: None, engine: None, payload_engine: false, pids: None, init_image: false };
     let rest = BTreeMap::from([("KEY".to_string(), "a\nb".to_string())]);
     let a =
         run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", &["--env-file".into(), "/s/u-1/env-1".into()], &rest, &[]);
@@ -212,6 +229,7 @@ fn an_engine_is_a_read_only_mount_and_the_flag_of_podvm() {
         cpus: 2,
         egress: None,
         engine: Some(Path::new("/opt/docker")),
+        payload_engine: false,
         pids: None,
         init_image: false,
     };
@@ -231,7 +249,7 @@ fn an_engine_is_a_read_only_mount_and_the_flag_of_podvm() {
     let none = run_args(
         IMAGE,
         Path::new("/s/u-1"),
-        &Shape { mem: "4G", cpus: 2, egress: None, engine: None, pids: None, init_image: false },
+        &Shape { mem: "4G", cpus: 2, egress: None, engine: None, payload_engine: false, pids: None, init_image: false },
         "/r",
         &[],
         &BTreeMap::new(),
@@ -357,7 +375,15 @@ fn the_runs_of_a_podvm_are_listed_before_its_pid_is_free() {
 /// record says `enforced`; with none, no flag and no claim.
 #[test]
 fn a_limit_of_processes_goes_to_the_guest() {
-    let shape = Shape { mem: "1G", cpus: 1, egress: None, engine: None, pids: Some(64), init_image: false };
+    let shape = Shape {
+        mem: "1G",
+        cpus: 1,
+        egress: None,
+        engine: None,
+        payload_engine: false,
+        pids: Some(64),
+        init_image: false,
+    };
     let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", &[], &BTreeMap::new(), &[]).join(" ");
     assert!(a.contains("--pids-limit 64"), "{a}");
     let none = Shape { pids: None, ..shape };
@@ -377,7 +403,8 @@ fn a_limit_of_processes_goes_to_the_guest() {
 /// and the kind reads the OOM kills of the guest from it.
 #[test]
 fn the_oom_kills_of_a_guest_come_from_the_report_of_podvm() {
-    let shape = Shape { mem: "1G", cpus: 1, egress: None, engine: None, pids: None, init_image: false };
+    let shape =
+        Shape { mem: "1G", cpus: 1, egress: None, engine: None, payload_engine: false, pids: None, init_image: false };
     let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", &[], &BTreeMap::new(), &[]).join(" ");
     assert!(a.contains("--report /s/u-1/run-report.json"), "{a}");
     let d = std::env::temp_dir().join(format!("podrunner-microvm-oom-{}", std::process::id()));
@@ -397,7 +424,8 @@ fn the_oom_kills_of_a_guest_come_from_the_report_of_podvm() {
 /// `docker.service`. With no init, no flag.
 #[test]
 fn the_init_of_the_image_boots_in_a_foreground_guest() {
-    let shape = Shape { mem: "1G", cpus: 1, egress: None, engine: None, pids: None, init_image: true };
+    let shape =
+        Shape { mem: "1G", cpus: 1, egress: None, engine: None, payload_engine: false, pids: None, init_image: true };
     let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", &[], &BTreeMap::new(), &[]).join(" ");
     let head = a.split(" /bin/sh ").next().unwrap();
     assert!(head.starts_with("run --rm --podvm-tier=machine") && head.contains("--podvm-init=image"), "{head}");

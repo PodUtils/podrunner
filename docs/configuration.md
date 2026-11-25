@@ -216,12 +216,21 @@ pulls through the egress channel. The runner image needs `iptables`
 (`services:`, a Dockerfile action) only to such a kind (T-103, GitHub #91).
 The incus kind takes `engine` too (T-485).
 
+The full runner image bundles the engine (T-672). Copy
+`container_engine = true` into its `[[pin.payload]]` when building a pin
+from release metadata. The pin signature covers the key. For `serve`,
+Incus requires podvm `0.2.0-beta.32` or later and microVM requires
+`0.2.0-beta.14` or later. A configured `engine` directory overrides it.
+Place a label on the full pin when the same architecture has a base pin.
+Placement selects the payload by the existing label rule and checks its
+engine capability before accepting a container job.
+
 ## The incus kind
 
 A system container of the incus tier of podvm for each job (T-105): its
 own init, root file system and network namespace, and the kernel of the
 host. It claims `confined`, the floor of `trusted`, so it never serves an
-`untrusted` job. With no `engine` it has no container route. With
+`untrusted` job. The full runner image can supply its engine. With
 `engine` (podvm `v0.2.0-beta.32` or later, `LOWEST_ENGINE_INCUS`), each
 instance runs an engine of its own, as a guest of the microvm kind does
 (T-485): podvm sets `security.nesting` and the intercepts of `mknod` and

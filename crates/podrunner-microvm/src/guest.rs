@@ -121,6 +121,8 @@ pub struct Shape<'a> {
     /// The directory of the static Docker binaries: the guest runs an
     /// engine of its own (`--podvm-engine`, T-103).
     pub engine: Option<&'a Path>,
+    /// The selected payload contains the guest engine.
+    pub payload_engine: bool,
     /// The most processes of the payload (`--pids-limit`, T-488): the init
     /// of the guest puts the command in a cgroup with `pids.max`.
     pub pids: Option<u32>,
@@ -163,10 +165,13 @@ pub fn run_args(
     if shape.init_image {
         a.push("--podvm-init=image".into());
     }
+    let payload_engine = shape.payload_engine && shape.engine.is_none() && !shape.init_image;
     if let Some(engine) = shape.engine {
         a.push("--podvm-engine".into());
         a.push("-v".into());
         a.push(format!("{}:{ENGINE_MOUNT}:ro", engine.display()));
+    } else if payload_engine {
+        a.push("--podvm-engine".into());
     }
     if let Some(egress) = shape.egress {
         a.push("--podvm-channel".into());
@@ -185,7 +190,9 @@ pub fn run_args(
         a.push(format!("{k}={v}"));
     }
     a.push(reference.into());
-    let script = SCRIPT.replace("'MOUNT_CHECK'", &format!("'{MOUNT_CHECK}'"));
+    let script =
+        if payload_engine { podrunner_unit::payload_engine_script(SCRIPT, ENGINE_MOUNT) } else { SCRIPT.into() };
+    let script = script.replace("'MOUNT_CHECK'", &format!("'{MOUNT_CHECK}'"));
     a.extend(["/bin/sh".to_string(), "-c".into(), script, "podrunner".into(), runner_root.into()]);
     a.extend(argv.iter().cloned());
     a

@@ -49,6 +49,17 @@ impl Podvm {
         c
     }
 
+    /// The digest of a pinned image in this store that declares a bundled engine.
+    pub fn payload_engine_digest(&self, store: &std::path::Path, reference: &str) -> Option<String> {
+        let (_, digest) = podrunner_unit::parse_pinned(reference).ok()?;
+        let args = ["inspect", "--format", "{{json .Config.Labels}}", reference];
+        let out = output_of(self.command().env("PODVM_STORE", store).args(args)).ok()?;
+        (out.status.success()
+            && serde_json::from_slice::<serde_json::Value>(&out.stdout)
+                .is_ok_and(|labels| labels["io.podutils.podrunner.engine"].as_str() == Some("1")))
+        .then(|| digest.to_string())
+    }
+
     /// Run `podvm probe --json` and map it.
     pub fn probe(&self) -> Result<Capability, UnitError> {
         probe::capability(&self.probe_json()?, std::env::consts::ARCH)

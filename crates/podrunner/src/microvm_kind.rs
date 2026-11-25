@@ -17,7 +17,7 @@ use crate::serve::{Failure, fail};
 /// Check `[unit.microvm]`: the podvm binary, its version (`podvm probe
 /// --json`, which reads no state), the store of the images and the engine
 /// directory.
-pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
+pub fn plan(u: &UnitConfig, payload_engine: bool) -> Result<(), Failure> {
     // The keys of the podvm kind: this kind reads none of them (T-111).
     for (key, set) in [
         ("registries", !u.registries.is_empty()),
@@ -69,7 +69,7 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         podrunner_podvm::probe::LOWEST_MACHINE_INIT
     } else if u.pids.is_some() {
         podrunner_podvm::probe::LOWEST_GUEST_PIDS
-    } else if u.engine.is_some() {
+    } else if u.engine.is_some() || payload_engine {
         podrunner_podvm::probe::LOWEST_ENGINE
     } else {
         podrunner_podvm::probe::LOWEST_GUEST
@@ -126,12 +126,17 @@ pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<
 }
 
 /// The driver and the record of `[unit.microvm]`.
-pub fn build(u: &UnitConfig, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
-    plan(u)?;
+pub fn build(
+    u: &UnitConfig,
+    state: &Path,
+    payload_engines: std::collections::BTreeSet<String>,
+) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
+    plan(u, !payload_engines.is_empty())?;
     let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
     let images = PathBuf::from(u.images.clone().unwrap_or_default());
     let unit = podrunner_microvm::MicrovmUnit::new(podvm, &state.join("microvm"), &images)
         .with_size(u.mem.as_deref().unwrap_or(DEFAULT_MEM), u.cpus.unwrap_or(2))
+        .with_payload_engines(payload_engines)
         .with_image_init(u.init == Some(podrunner_slots::config::UnitInit::Image));
     let unit = match &u.engine {
         Some(e) => unit.with_engine(Path::new(e)),
@@ -202,10 +207,10 @@ mod tests {
             toml::from_str(&format!("slots = 1\nbinary = \"{}\"\nimages = \"{}\"\n{e}", fake.display(), dir.display()))
                 .unwrap()
         };
-        let e = super::plan(&unit("0.2.0-beta.13", true)).unwrap_err();
+        let e = super::plan(&unit("0.2.0-beta.13", true), false).unwrap_err();
         assert!(e.detail.contains("0.2.0-beta.13") && e.detail.contains("0.2.0-beta.14"), "{}", e.detail);
-        assert!(super::plan(&unit("0.2.0-beta.13", false)).is_ok(), "no engine: beta.10 is enough");
-        assert!(super::plan(&unit("0.2.0-beta.14", true)).is_ok());
+        assert!(super::plan(&unit("0.2.0-beta.13", false), false).is_ok(), "no engine: beta.10 is enough");
+        assert!(super::plan(&unit("0.2.0-beta.14", true), false).is_ok());
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -229,9 +234,9 @@ mod tests {
             );
             toml::from_str(&text).unwrap()
         };
-        let e = super::plan(&unit("0.2.0-beta.36")).unwrap_err();
+        let e = super::plan(&unit("0.2.0-beta.36"), false).unwrap_err();
         assert!(e.detail.contains("0.2.0-beta.37"), "{}", e.detail);
-        assert!(super::plan(&unit("0.2.0-beta.37")).is_ok());
+        assert!(super::plan(&unit("0.2.0-beta.37"), false).is_ok());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

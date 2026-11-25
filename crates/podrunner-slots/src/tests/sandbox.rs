@@ -15,7 +15,16 @@ fn job(with: serde_json::Value) -> JobOffer {
 }
 
 fn kind(c: Capability) -> Kind {
-    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk: None, init: None, warm: vec![] }
+    Kind {
+        engine_needs_payload: false,
+        capability: c,
+        free: 1,
+        running: 0,
+        repos: vec![],
+        root_disk: None,
+        init: None,
+        warm: vec![],
+    }
 }
 
 /// The configuration with the image of a sandbox pinned before the runner.

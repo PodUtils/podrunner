@@ -28,7 +28,7 @@
 mod guest;
 mod warm;
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -90,6 +90,7 @@ pub struct MicrovmUnit {
     /// The directory of the static Docker binaries of the operator: each
     /// guest runs an engine of its own (T-103).
     engine: Option<PathBuf>,
+    payload_engines: BTreeSet<String>,
     /// The guest boots the init of the image (`--podvm-init=image`, T-549).
     init_image: bool,
 }
@@ -118,6 +119,7 @@ impl MicrovmUnit {
             cred_root: "/podrunner/.runner".into(),
             kept_logs: None,
             engine: None,
+            payload_engines: BTreeSet::new(),
             init_image: false,
         }
     }
@@ -136,6 +138,12 @@ impl MicrovmUnit {
     /// `DOCKER_HOST`; the socket stays in the guest.
     pub fn with_engine(mut self, dir: &Path) -> MicrovmUnit {
         self.engine = Some(dir.to_path_buf());
+        self
+    }
+
+    /// The digests of payloads that carry the guest engine.
+    pub fn with_payload_engines(mut self, digests: BTreeSet<String>) -> Self {
+        self.payload_engines = digests;
         self
     }
 
@@ -191,6 +199,10 @@ impl UnitDriver for MicrovmUnit {
         true
     }
 
+    fn engine_needs_payload(&self) -> bool {
+        self.engine.is_none() && !self.init_image && !self.payload_engines.is_empty()
+    }
+
     fn credential_dir(&self, _unit: &UnitId) -> Option<String> {
         Some(self.cred_root.clone())
     }
@@ -206,7 +218,7 @@ impl UnitDriver for MicrovmUnit {
             principal: Principal::Distinct,
             // An engine of its own in each guest (the operator's, or the
             // `docker.service` of an image with its init), or no route.
-            container: if self.engine.is_some() || self.init_image {
+            container: if self.engine.is_some() || self.init_image || self.engine_needs_payload() {
                 ContainerRoute::Engine
             } else {
                 ContainerRoute::None
@@ -418,6 +430,7 @@ impl MicrovmUnit {
             cpus: applied.cpus.unwrap_or(self.cpus),
             egress: egress.as_deref(),
             engine: self.engine.as_deref(),
+            payload_engine: self.engine_needs_payload() && self.payload_engines.contains(&spec.image.digest),
             init_image: self.init_image,
             pids: applied.pids,
         };

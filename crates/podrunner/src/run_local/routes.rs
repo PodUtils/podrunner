@@ -113,7 +113,7 @@ fn unit(a: &Args, c: &Common, image: &str, state: &Path) -> Result<Box<dyn Execu
     e.checkout = c.checkout.clone();
     e.export = a.export.clone();
     e.toolcache = a.toolcache.clone();
-    if a.engine.is_some() && c.mirror.is_dir() {
+    if e.guest_engine && c.mirror.is_dir() {
         e.mirror = Some(Arc::new(podrunner_local::mirror::Mirror::new(c.mirror.clone())));
     }
     // The egress policy of each environment (T-136).

@@ -49,14 +49,25 @@ the value `engine`.
 
 ## The engine in a guest
 
-`[unit.microvm] engine = DIR` names a directory of the static Docker
-binaries (`docs/configuration.md`, "The microvm kind"). For each guest:
+The full runner image carries Docker Engine for Incus and microVM guests
+(T-672). Load `runner-full-ARCH.tar` into the Podvm store. Local `run`
+detects the engine of the digest selected by `--image` or `--platform`.
+Local microVM detection requires podvm `0.2.0-beta.19` or later for the
+OCI label inspection.
+For `serve`, set `container_engine = true` in the full image's
+`[[pin.payload]]`. The signature of the pin list covers the declaration.
+If both profiles are present, use a label to select the full payload for
+container jobs.
+
+`[unit.microvm] engine = DIR` and `[unit.incus] engine = DIR` override the
+bundled binaries with an operator directory. `--engine DIR` does the
+same for local `run`. In a microVM guest:
 
 * The kind passes `--podvm-engine` (podvm `v0.2.0-beta.14` or later):
   podvm loads the modules of the pinned guest kernel that an engine needs
   (bridge, veth, overlay, netfilter), mounts cgroup2 and brings `lo` up.
-* The guest mounts DIR read-only at `/podrunner-engine`, in the mount
-  table of the unit (`MOUNT_CHECK`).
+* The guest uses the engine in `/usr/local/lib/podrunner/engine` or mounts
+  the operator directory read-only at `/podrunner-engine`.
 * The guest script starts `dockerd` as root with `DOCKER_RAMDISK=true`
   (the root of a guest is an initramfs, so runc cannot `pivot_root`). The
   socket is `/run/podrunner-docker.sock`, in the guest only. `dockerd`
@@ -64,8 +75,9 @@ binaries (`docs/configuration.md`, "The microvm kind"). For each guest:
 * The runner gets `DOCKER_HOST` of that socket. The runner image has
   `iptables` (nft) for the bridge rules of `dockerd`.
 
-The incus kind takes `engine` too: each instance runs an engine of its own
-(`docs/configuration.md`, "The incus kind"; T-485).
+The Incus instance uses the same socket inside its own root filesystem.
+An image selected with `init = "image"` starts its services through its
+own init (`docs/configuration.md`, "The incus kind").
 
 ## The proof
 

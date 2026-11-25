@@ -12,8 +12,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use podrunner_podvm::{Podvm, PodvmUnit};
 use podrunner_schema::{UnitId, UnitIds};
-use podrunner_unit::UnitDriver;
 use podrunner_unit::conformance::{self, Behaviour, Fixture, Outcome};
+use podrunner_unit::{Exit, StartSpec, UnitDriver};
 
 struct Real {
     unit: PodvmUnit,
@@ -77,6 +77,45 @@ fn podrunner_fake_escape(after: &str) -> String {
     format!("(setsid env -i sleep 300 & echo $! > {f}.part); read p < {f}.part; echo $p > {f}; {after}exec sleep 300")
 }
 
+/// A push writes a cache and a second unit can read it with a read-only
+/// grant. The host keeps only the first unit's output.
+fn cache_mounts(unit: &PodvmUnit, state: &std::path::Path, image: &str) {
+    assert!(unit.probe().unwrap().mount_modes.iter().any(|mode| mode == "ro"));
+    let dir = state.join("cache-proof");
+    std::fs::create_dir_all(&dir).unwrap();
+    let prepared = unit.prepare(image, "linux/amd64", false).unwrap();
+    let mounted = |id: &str, target: &str, script: &str| {
+        let unit_id = UnitId::parse(id).unwrap();
+        let spec = StartSpec {
+            unit: unit_id.clone(),
+            image: prepared.clone(),
+            argv: sh(script),
+            env: Default::default(),
+            credential: Default::default(),
+            sockets: None,
+            mounts: vec![(dir.clone(), target.to_string())],
+            limits: Default::default(),
+        };
+        unit.start(&spec).unwrap();
+        let exit = unit.wait(&unit_id, std::time::Duration::from_secs(120)).unwrap();
+        let log = unit.unit_logs(&unit_id).unwrap_or_default();
+        let residue = unit.destroy(&unit_id).unwrap();
+        assert!(residue.is_clean(), "{residue:?}");
+        assert_eq!(exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&log));
+    };
+    mounted("u-996", "/podrunner-cache", "printf from-push > /podrunner-cache/from-push");
+    mounted(
+        "u-997",
+        "/podrunner-cache:ro",
+        r#"test "$(cat /podrunner-cache/from-push)" = from-push || exit 10
+            if (printf from-pr > /podrunner-cache/from-pr) 2>/dev/null; then exit 11; fi"#,
+    );
+    assert_eq!(std::fs::read_to_string(dir.join("from-push")).unwrap(), "from-push");
+    assert!(!dir.join("from-pr").exists());
+    std::fs::remove_dir_all(&dir).unwrap();
+    println!("cache proof: RW persisted and the RO unit read without changing the host");
+}
+
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
 }
@@ -100,6 +139,11 @@ fn the_podvm_unit_passes_its_tests() {
         let proven = unit.verify_confine(&image, UnitId::parse("u-998").unwrap()).unwrap();
         assert!(proven, "the confine layer is not proven: {:?}", unit.confine_why());
         assert_eq!(unit.probe().unwrap().boundary, podrunner_schema::Boundary::Confined);
+        if std::env::var_os("PODRUNNER_PODVM_CACHE_PROOF").is_some() {
+            cache_mounts(&unit, &state, &image);
+            let _ = std::fs::remove_dir_all(&state);
+            return;
+        }
     }
     // The self-test of the tree kill; test 17 then holds the claim to test 3.
     assert!(unit.verify_tree_kill(&image, UnitId::parse("u-999").unwrap()).unwrap(), "the tree kill is not proven");

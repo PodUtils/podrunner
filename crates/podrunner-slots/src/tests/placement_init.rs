@@ -18,7 +18,16 @@ fn job(labels: &[&str]) -> JobOffer {
 
 fn kind(init: Option<UnitInit>) -> Kind {
     let c = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
-    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk: None, init, warm: vec![] }
+    Kind {
+        engine_needs_payload: false,
+        capability: c,
+        free: 1,
+        running: 0,
+        repos: vec![],
+        root_disk: None,
+        init,
+        warm: vec![],
+    }
 }
 
 /// The runner payload of the tests (no labels, no init) and the snapshot,
@@ -124,4 +133,32 @@ fn the_file_holds_the_init_of_the_kinds_and_of_the_pins() {
     let e = parse("[unit.incus]\nslots = 1\ninit = \"image\"", "init = \"image\"\nlabels = [\"a b\"]").unwrap_err();
     assert!(e.contains("label \"a b\" is empty or has white space"), "{e}");
     assert!(parse("", "init = \"systemd\"").is_err(), "one value: image");
+}
+
+#[test]
+fn a_guest_container_route_requires_the_selected_payload_engine_or_a_host_override() {
+    let mut cfg = config("");
+    let full = format!("runner-full@sha256:{}", "2".repeat(64));
+    cfg.pin.payload.push(Payload {
+        reference: full.clone(),
+        labels: vec!["docker".into()],
+        container_engine: true,
+        ..cfg.pin.payload[0].clone()
+    });
+    let mut guest = kind(None);
+    guest.capability.container = podrunner_schema::ContainerRoute::Engine;
+    guest.engine_needs_payload = true;
+    let place_on = |labels: &[&str], need, k: &Kind| {
+        let mut j = job(labels);
+        j.unit_need = serde_json::from_value(need).unwrap();
+        place(&j, Tier::Trusted, std::slice::from_ref(k), &cfg, NOW_UNIX).map(|p| p.payload)
+    };
+    assert_eq!(place_on(&[], json!(null), &guest), Ok(PIN.into()));
+    for need in [json!({"container": true}), json!({"container_engine": true})] {
+        assert_eq!(place_on(&[], need.clone(), &guest), Err(RefusalCode::ContainerNotSupported));
+        assert_eq!(place_on(&["docker"], need.clone(), &guest), Ok(full.clone()));
+        let mut overridden = guest.clone();
+        overridden.engine_needs_payload = false;
+        assert_eq!(place_on(&[], need, &overridden), Ok(PIN.into()));
+    }
 }

@@ -84,6 +84,8 @@ pub struct InUnit {
     /// [`crate::front`] on its egress socket; no container hooks (a guest
     /// runs its containers in its own engine).
     pub guest: bool,
+    /// The chosen guest route supplies an engine for its runner.
+    pub guest_engine: bool,
     /// The registry of the pinned images for the engine of a guest (T-157).
     pub mirror: Option<Arc<podrunner_broker_fake::mirror::Mirror>>,
     /// The stop flag of the next job (T-132).
@@ -124,6 +126,7 @@ impl InUnit {
             live: None,
             blobs: Vec::new(),
             guest: false,
+            guest_engine: false,
             mirror: None,
             stop: None,
             export: None,
@@ -167,6 +170,11 @@ impl Executor for InUnit {
         use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
         // One count for the process: the units of parallel jobs (T-132)
         // never share an id, a socket directory or an egress grant.
+        if self.guest && !self.guest_engine && needs_containers(&message) {
+            return Err(
+                "the selected guest image needs the bundled Docker engine or --engine DIR for container work".into()
+            );
+        }
         let src = docker::Sources { store: self.actions.as_deref(), pins: &self.pins, tree: self.checkout.as_deref() };
         docker::build_refusal(&message, &src).filter(|_| !self.guest).map_or(Ok(()), Err)?;
         let n = NEXT_UNIT.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;

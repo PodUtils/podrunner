@@ -61,12 +61,13 @@ pub fn plan(cfg: &Config, here: bool) -> Result<(), Failure> {
     for s in &cfg.source {
         drop(source_of(s, clock.clone(), clock.now(), None)?);
     }
+    let payload_engine = !cfg.pin.payload_engine_digests(std::env::consts::ARCH).is_empty();
     for (name, u) in &cfg.unit {
         match name.as_str() {
             "fake" => {}
             "podvm" => crate::podvm_kind::plan(u)?,
-            "microvm" => crate::microvm_kind::plan(u)?,
-            "incus" => crate::incus_kind::plan(u)?,
+            "microvm" => crate::microvm_kind::plan(u, payload_engine)?,
+            "incus" => crate::incus_kind::plan(u, payload_engine)?,
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }
@@ -130,6 +131,7 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
             revoked: false,
         });
     }
+    let engines = cfg.pin.payload_engine_digests(std::env::consts::ARCH);
     let mut kinds = Vec::new();
     let mut retests = Vec::new();
     let mut policies = std::collections::BTreeMap::new();
@@ -153,8 +155,8 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
                 (Arc::new(FakeUnit::new(&state.join("fake"), cap.clone(), platform)), cap)
             }
             "podvm" => crate::podvm_kind::build(u, &cfg, state)?,
-            "microvm" => crate::microvm_kind::build(u, state)?,
-            "incus" => crate::incus_kind::build(u, state)?,
+            "microvm" => crate::microvm_kind::build(u, state, engines.clone())?,
+            "incus" => crate::incus_kind::build(u, state, engines.clone())?,
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }
