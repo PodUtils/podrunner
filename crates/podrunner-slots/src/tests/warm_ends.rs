@@ -48,6 +48,46 @@ fn each_reason_ends_a_free_warm_unit() {
     }
 }
 
+/// Retesting a kind replaces its old free units with units of the new capability.
+#[test]
+fn a_capability_change_keeps_the_replacement_warm_unit() {
+    let mut bed = warm_bed(2, 1, vec![], "");
+    bed.until(4, |s| ready(s) == 1);
+    let first = warm_ids(&bed.slots);
+    bed.slots.kinds[0].capability.boundary = podrunner_schema::Boundary::Redirect;
+    bed.tick();
+    bed.until(8, |s| ready(s) == 1);
+    let replacement = warm_ids(&bed.slots);
+    assert_ne!(replacement, first);
+    bed.tick();
+    assert_eq!(warm_ids(&bed.slots), replacement);
+}
+
+/// A failed row waits without holding back another row of the same kind.
+#[test]
+fn a_row_in_backoff_does_not_hold_back_other_labels() {
+    let mut bed = warm_bed(2, 1, vec![], "");
+    bed.slots.kinds[0].cfg.warm =
+        Some(crate::config::WarmCount::ByLabel([("*".to_string(), 1), ("cpu".to_string(), 1)].into()));
+    bed.slots.cfg.pin.payload[0].labels = vec!["cpu".into()];
+    bed.tick();
+    assert!(bed.slots.warm.backoff.contains_key(&(0, "*".into())));
+    assert!(bed.slots.status().kinds[0].warm.as_ref().unwrap().paused_reason.is_none());
+    bed.until(8, |s| ready(s) == 1);
+    assert_eq!(bed.slots.warm.units.values().next().unwrap().row, "cpu");
+}
+
+/// The whole unsigned range of the configuration has a defined age in ms.
+#[test]
+fn a_large_warm_max_age_does_not_wrap_in_milliseconds() {
+    let mut bed = warm_bed(2, 1, vec![], "");
+    bed.slots.kinds[0].cfg.warm_max_age_s = Some(u64::MAX);
+    bed.until(4, |s| ready(s) == 1);
+    let unit = warm_ids(&bed.slots);
+    bed.tick();
+    assert_eq!(warm_ids(&bed.slots), unit);
+}
+
 /// A unit whose top process ended is destroyed, and its row backs off.
 #[test]
 fn a_warm_unit_that_ended_is_destroyed_and_the_row_backs_off() {

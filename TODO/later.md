@@ -10997,7 +10997,7 @@ A test of slots with a fake source and a fake egress sink: an allowed and a deni
 **Milestone:** later
 **Priority:** P2
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -11027,6 +11027,26 @@ State: the findings of the review are fixed (the module doc of the limits; the C
 ## Prove
 
 The measure of step 1 before and after (`claim_to_first_step_s` of the run report); the conformance suite of `crates/podrunner-unit` on a warm unit (no file of an earlier job, no credential before the mint).
+
+## Done
+
+2026-11-25. The live warm conformance suites for Incus and microvm passed
+in runner-image run 45607875181. User-gate run 45616132409, job
+139216899838 on `565050f0`, passed both warm rows as a user without
+root. Two Incus jobs reached the first step in 14 s each cold and
+2 s each warm. Two microvm jobs reached it in 6 s each cold and
+3 s each warm. The lane required a `warm-take` for each warm job and
+compared the summed millisecond readings. The commit that closes this
+entry enables the same code in the release binary. The gate launches
+that binary directly, and the Incus version check covers `exec -i`
+starting at podvm `0.2.0-beta.39`.
+
+The release tests cover the replacement of idle units after a kind's
+capability changes, independent label refill during backoff, and an age
+that exceeds the millisecond counter. Each failed on the old code. The
+pool counts the default microvm memory and `check` rejects a shared
+principal or an incompatible labelled payload.
+
 
 # T-488: G-12: the microvm kind enforces no limit of processes
 
@@ -16786,7 +16806,7 @@ podvm takes a saved state for a run with a channel and a pids limit.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -16828,6 +16848,15 @@ The hook now uses a request agent dedicated to its selected connection.
 The official-runner test with the environment proxy enabled failed
 before the change and passed after it. The guest proof needs a new
 runner image and user-path run.
+
+## Done
+
+2026-11-25. Runner-image run 45607875181 built the proxy fix. User-gate
+run 45616132409, job 139216899838 on `565050f0`, passed both guest
+warm rows, which require a first-step mark for each of two cold and
+two warm jobs on each kind. This proves the path using the official
+runner inside real Incus and microvm guests.
+
 
 # T-661: The destroy of a unit counts a killed process that still ends as gone
 
@@ -16909,7 +16938,7 @@ proven in CI on GitHub-hosted runners.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -16950,6 +16979,15 @@ ref, repository and hook. The executable fake-kind test passed. The
 official runner passed the hook cases with a verdict and with the
 control front unavailable. Guest proof waits for the next image run and
 user-path gate.
+
+## Done
+
+2026-11-25. The unit and official-runner checks above passed. The
+verified payload of runner-image run 45607875181 ran with
+`assignment_hook = true` on real Incus and microvm guests in the
+passing job 139216899838 of user-gate run 45616132409 (`565050f0`).
+Both cold and both warm jobs of each kind obtained a verdict and
+reported their first step.
 
 
 # T-664: Take podcrates `v0.84.0` (COORD-155 of podcrates)

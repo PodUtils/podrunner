@@ -19,14 +19,10 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. Build the runner image with the proxy fix in T-660. Use its green run
-   for `user-gate.yml`. Both `serve:warm:incus` and `serve:warm:microvm`
-   must pass before the lift in T-487.
-2. Verify the signed `assignment_hook` pin in the same user-path run
-   (T-663). The warm rows exercise it on Incus and microvm.
-3. The statement of G-09 on #66. T-516 has its CI proof, T-517 records the
-   delivery decision, and T-672 tracks the engine bundled in `runner-full`.
-4. The work order of `TODO/PROGRESS.md`.
+1. Repeat the user-path gate with the release binary for the warm pool.
+2. Take the remaining cache work in T-480 and the hosted probe in T-674.
+3. Bundle the Docker engine in `runner-full` (T-672) and follow the work
+   order of `TODO/PROGRESS.md`.
 
 ## The release `v0.1.0-beta.8`
 
@@ -68,12 +64,11 @@ Proven in CI on GitHub-hosted runners:
 - A `docker build` step and a `docker:dind` service on the microvm and incus
   kinds (T-516: `runner-image.yml` 45564676018; `level2.yml` 45564676057 on
   github.com twins).
-- The cache of `serve` (T-480) with the fake unit and the fake podvm: unit
-  tests and the fake slots, not a live kind. Warm units (T-487): the
-  conformance cases 28 to 32 on the fake kind and the live warm suites of
-  microvm and Incus in runner-image run 45588130722. Both warm rows in
-  user-gate run 45599688848 lacked a first-step mark. T-660 has the proxy
-  fix and the pending guest proof.
+- The cache of `serve` (T-480) has fake-unit and stub-podvm proof. The
+  warm pool (T-487) passed the Incus and microvm warm suites in
+  runner-image run 45607875181 and both warm rows in user-gate run
+  45616132409. The user gate verified the assignment hook and the
+  first-step marks on both kinds (T-660, T-663).
 
 Proven on a constrained host as a user: QA round 6 on the candidate files
 (two agents, no root, no KVM, an HTTPS proxy). The notes list the fixes
@@ -85,17 +80,13 @@ milestones M-A, M-B and L2 hold. M-C and M-D wait for the live gates.
 ## The work order
 
 `TODO/PROGRESS.md` has the order. After the proof of the new head it names
-T-663, T-512, T-500, T-672 and the local P3 entries.
+T-480, T-674, T-512, T-672 and the local P3 entries.
 githome and cfb come first (the owner, 2026-11-18, `docs/decisions.md`).
 githome: 41 asks, 25 in a release (4 in beta.7, 21 in beta.8), 10 partial, 6
 open. cfb: 38 clauses, 26 in a release (15 in beta.7, 11 in beta.8), 6
 partial, 6 open (the trackers #66 and #151). T-512 waits for these. Open
 entries that need a decision of the owner: none (`TODO/PROGRESS.md`,
 "Questions for the owner").
-
-Warm units are in the code and refused in a release build (exit 78, "not in
-this build"). A CI build with the cargo feature `warm-ci` and the variable
-`PODRUNNER_WARM_CI=1` takes them for the lane of the user gate (T-487).
 
 ## Open asks to other projects
 

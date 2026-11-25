@@ -149,8 +149,24 @@ impl Slots {
             return Some("the egress module ended".into());
         }
         let now = self.now();
-        let wait = self.warm.backoff.iter().find(|((k, _), (_, at, _))| *k == kind && *at > now);
-        if let Some(((_, row), (fails, at, _))) = wait {
+        let now_s = (self.now_unix)();
+        let mut earliest = None;
+        for row in self.warm_pending_rows(kind) {
+            let key = (kind, row.clone());
+            let pending = self
+                .warm
+                .backoff
+                .get(&key)
+                .filter(|(_, at, pin)| *at > now && *pin == self.warm_payload(kind, &row, now_s).ok());
+            let Some((fails, at, _)) = pending else {
+                earliest = None;
+                break;
+            };
+            if earliest.as_ref().is_none_or(|(_, _, first)| at < first) {
+                earliest = Some((row, *fails, *at));
+            }
+        }
+        if let Some((row, fails, at)) = earliest {
             let s = (at - now).div_ceil(1000);
             return Some(format!("the row {row:?} failed to boot {fails} times in a row; the next try in {s} s"));
         }

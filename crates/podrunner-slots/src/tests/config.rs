@@ -70,17 +70,18 @@ fn a_source_name_of_the_host_or_with_a_control_character_is_refused() {
 
 /// T-487: the keys of warm units. Each row needs a payload that a unit of
 /// its kind runs, the rows fit `slots` and `max_units`, and only the fake,
-/// the microvm and the incus kinds take them. Until the proof in CI, a
-/// valid file with warm units is refused too.
+/// the microvm and the incus kinds take them.
 #[test]
-fn the_warm_keys_are_checked_and_refused_in_this_build() {
+fn the_warm_keys_accept_pinned_rows_within_their_limits() {
     let pin = |labels: &str, extra: &str| {
         format!(
             "[[pin.payload]]\narch = \"x86_64\"\nreference = \"{PIN}\"\nbuilt_at_s = {NOW_UNIX}\nlabels = {labels}\n{extra}\n"
         )
     };
     let parse = |top: &str, unit: &str, pins: &str| {
-        Config::parse(&format!("host = \"h\"\nallow_fake = true\n{top}\n[unit.fake]\n{unit}\n[pin]\n{pins}"))
+        Config::parse(&format!(
+            "host = \"h\"\nallow_fake = true\n{top}\n[unit.fake]\nclaim = \"confined\"\n{unit}\n[pin]\n{pins}"
+        ))
     };
     let refused = |top: &str, unit: &str, pins: &str, want: &str| {
         let e = parse(top, unit, pins).unwrap_err();
@@ -100,19 +101,24 @@ fn the_warm_keys_are_checked_and_refused_in_this_build() {
     );
     let e = Config::parse(&init).unwrap_err();
     assert!(e.contains("[unit.microvm] warm: no [[pin.payload]] with no init"), "{e}");
+    let labelled_init = init.replace("warm = 1", "warm = { cpu = 1 }").replace("labels = []", r#"labels = ["cpu"]"#);
+    let unlabelled = any.replace(&"1".repeat(64), &"2".repeat(64));
+    let e = Config::parse(&format!("{labelled_init}{unlabelled}")).unwrap_err();
+    assert!(e.contains("[unit.microvm] warm: no [[pin.payload]] with no init"), "{e}");
+    assert!(e.contains(r#"serves the label "cpu""#), "{e}");
     refused("", "slots = 3\nwarm = { \"Cpu\" = 1, \"cpu\" = 1 }", &pin("[\"cpu\"]", ""), "two times");
     refused("", "slots = 3\nwarm = { \"\" = 1 }", &any, "empty");
     refused("", "slots = 3\nwarm = 1\nwarm_max_age_s = 0", &any, "warm_max_age_s = 0");
     refused("warm_reserve = \"1X\"", "slots = 1", &any, "warm_reserve");
     refused("warm_reserve = \"0\"", "slots = 1", &any, "warm_reserve");
+    let shared = format!("host = {:?}\nallow_fake = true\n[unit.fake]\nslots = 1\nwarm = 1\n[pin]\n{any}", "h");
+    assert!(Config::parse(&shared).unwrap_err().contains("shared principal"));
+    assert!(Config::parse(&shared.replace("warm = 1", "warm = 0")).is_ok());
     let podvm = format!("host = \"h\"\n[unit.podvm]\nslots = 2\nwarm = 1\n[pin]\n{any}");
     assert!(Config::parse(&podvm).unwrap_err().contains("T-656"));
-    // A valid file: refused until warm units are in this build.
-    let gate = "warm units are not in this build";
-    refused("max_units = 2", "slots = 2\nwarm = 2", &any, gate);
+    parse("max_units = 2", "slots = 2\nwarm = 2", &any).unwrap();
     let cpu = pin("[\"cpu\"]", "").replace(&"1".repeat(64), &"2".repeat(64));
-    refused("", "slots = 3\nwarm = { \"*\" = 1, \"CPU\" = 2 }", &format!("{any}{cpu}"), gate);
-    // No warm unit: the keys hold.
+    parse("", "slots = 3\nwarm = { \"*\" = 1, \"CPU\" = 2 }", &format!("{any}{cpu}")).unwrap();
     parse("warm_reserve = \"512M\"", "slots = 2\nwarm = 0\nwarm_max_age_s = 60", &any).unwrap();
     parse("", "slots = 2\nwarm = { \"cpu\" = 0 }", &any).unwrap();
 }

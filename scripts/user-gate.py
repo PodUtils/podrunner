@@ -247,8 +247,6 @@ class Lane:
         # An address of the host for the fake GitHub that the egress module
         # takes: pod-broker refuses the private and loopback ranges (T-527).
         self.broker_address = getattr(a, "broker_address", "") or ""
-        # T-487: the binary of the warm proof (the feature warm-ci).
-        self.warm_binary = getattr(a, "warm_binary", "") or ""
         for k in self.serve_kinds:
             if k not in ("incus", "microvm", "podvm"):
                 raise SystemExit(f"no serve kind {k!r}")
@@ -1007,9 +1005,8 @@ class Lane:
     def serve_warm(self, kind: str) -> str:
         """T-487, the acceptance of G-11 and G-25: two runner jobs of
         githome's fake source through `serve` on KIND with no warm unit,
-        then two with `warm = 1`, each phase one `serve` of the binary of
-        the warm proof (`--warm-binary`: the feature warm-ci, with
-        PODRUNNER_WARM_CI=1). Each warm job takes a warm unit (an audit line
+        then two with `warm = 1`, each phase one `serve` of the installed
+        podrunner binary. Each warm job takes a warm unit (an audit line
         `warm-take`), and the sum of the times from the claim to the first
         step (claimed to running, in ms of the journal; the job-started hook
         marks the first step on each kind, T-660) of the warm jobs is less
@@ -1034,7 +1031,7 @@ class Lane:
         to out/logs/NAME-serve.err."""
         import urllib.request
         name = f"warm-{kind}-{'warm' if warm else 'cold'}"
-        env = self.env(self.home, PODRUNNER_WARM_CI="1")
+        env = self.env(self.home)
         env.pop("NOTIFY_SOCKET", None)
         tier = "untrusted" if kind == "microvm" else "trusted"
         address = self.broker_address or self.host_address()
@@ -1058,10 +1055,11 @@ class Lane:
                 raise GateError(f"config init --kinds {kind}: exit {rc}")
             text = (cfg.read_text() + 'assignment_hook = true\n\n[egress]\n'
                     'default_policy = { schema = 1, mode = "open" }\n')
+            text = text.replace('[[source]]\n', '[[source]]\noperator_controlled = true\n', 1)
             if warm:
                 text = text.replace(f"[unit.{kind}]\n", f"[unit.{kind}]\nwarm = 1\n", 1)
             cfg.write_text(text)
-            serve = subprocess.Popen([self.warm_binary, "serve", "--config", str(cfg), "--state", str(state)], cwd=d,
+            serve = subprocess.Popen(["podrunner", "serve", "--config", str(cfg), "--state", str(state)], cwd=d,
                                      env=env, stdout=subprocess.DEVNULL,
                                      stderr=(self.out / "logs" / f"{name}-serve.err").open("w"), start_new_session=True)
             procs.append(serve)
@@ -1113,6 +1111,10 @@ class Lane:
         bad = [r["report"] for r in reports if r["report"].get("exit_reason") != "success"]
         if bad:
             raise GateError(f"{name}: a job did not end in success: {bad}")
+        expected_start = "warm" if warm else "cold"
+        starts = [r["report"].get("unit", {}).get("start") for r in reports]
+        if starts != [expected_start, expected_start]:
+            raise GateError(f"{name}: expected two {expected_start} starts, got {starts}")
         times = phase_times(name, kind, journal)
         takes = [x for x in audit if x.get("audit") == "warm-take"]
         if len(times) != 2 or len(takes) != (2 if warm else 0):
@@ -1292,7 +1294,7 @@ def lane(a) -> int:
     later = [f"hello:{e}" for e in g.executors] + (["errors"] if "runner-dir" in g.executors else []) + (["rung:podvm", "confine:podvm", "pids:podvm", "pty:podvm", "hold:podvm"] if "podvm" in g.executors else [])
     later += [f"serve:{c}:{k}" for k in g.serve_kinds for c in ("check", "run", "job")]
     later += ["serve:run:ws:microvm"] if "microvm" in g.serve_kinds else []
-    warm_kinds = [k for k in g.serve_kinds if k in ("microvm", "incus")] if g.warm_binary else []
+    warm_kinds = [k for k in g.serve_kinds if k in ("microvm", "incus")]
     later += [f"serve:warm:{k}" for k in warm_kinds]
     later += [f"corpus:{r['id']}:{r['executor']}" for r in rows if g.wants(r)]
     try:
@@ -1387,7 +1389,6 @@ def main() -> int:
     ln.add_argument("--want-rung", default="", metavar="RUNG")
     ln.add_argument("--schema-python", default="", metavar="PATH")
     ln.add_argument("--broker-address", default="", metavar="IP")
-    ln.add_argument("--warm-binary", default="", metavar="PATH")
     a = p.parse_args()
     if a.cmd == "doc-commands":
         sets = [tuple(x.split("=", 1)) for x in a.set]

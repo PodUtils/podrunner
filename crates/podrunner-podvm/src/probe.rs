@@ -74,6 +74,8 @@ pub const LOWEST_INCUS: &str = "0.2.0-beta.13";
 /// The first podvm whose incus tier boots the init of the image as PID 1
 /// (`--podvm-init=image`, PodUtils/podvm@T-1993, T-543).
 pub const LOWEST_INCUS_INIT: &str = "0.2.0-beta.36";
+/// The first podvm that gives an Incus warm claim its stdin through `exec -i` (T-487).
+pub const LOWEST_INCUS_WARM: &str = "0.2.0-beta.39";
 /// The first podvm whose machine tier runs the command beside the init of
 /// an image whose Entrypoint is its init (`--podvm-init=image`,
 /// PodUtils/podvm@T-2011, T-2048, T-549).

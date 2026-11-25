@@ -62,6 +62,7 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
         f.display().to_string()
     };
     let (podvm, old) = (fake("podvm", "0.2.0-beta.21"), fake("podvm-old", "0.1.0-beta.12"));
+    let before_warm = fake("podvm-before-warm", "0.2.0-beta.38");
     let open = d.join("podnet-open");
     std::fs::write(&open, "").unwrap();
     std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o777)).unwrap();
@@ -163,14 +164,14 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             format!("{head}[unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ninit = \"image\"\n{pin}"),
             "[unit.podvm] init: only the incus and the microvm kinds",
         ),
-        // T-487: warm units wait for their proof in CI.
+        // T-487: an Incus claim needs stdin on exec.
         (
             format!(
-                "{head}[unit.incus]\nslots = 2\nbinary = \"/bin/true\"\nimages = \"/\"\nwarm = 1\n{pin}\
+                "{head}[unit.incus]\nslots = 2\nbinary = \"{before_warm}\"\nimages = \"/\"\nwarm = 1\n{pin}\
                  [[pin.payload]]\narch = \"x86_64\"\nreference = \"runner@sha256:{}\"\nbuilt_at_s = 1800000000\n",
                 "1".repeat(64)
             ),
-            "warm units are not in this build",
+            "0.2.0-beta.39",
         ),
     ];
     for (i, (text, word)) in cases.iter().enumerate() {
@@ -192,33 +193,30 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
-/// T-487: a build with the feature `warm-ci` takes warm units only with
-/// `PODRUNNER_WARM_CI=1` (the CI proof); with no variable it refuses them.
-#[cfg(feature = "warm-ci")]
 #[test]
-fn the_ci_build_takes_warm_units_only_with_its_variable() {
-    let d = dir("warm-ci");
+fn check_accepts_warm_incus_with_stdin_on_exec() {
+    let d = dir("warm-incus");
+    let podvm = d.join("podvm");
+    podrunner_unit::program_file::write(
+        &podvm,
+        "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.39\",\"rung\":\"userland\"}'\n",
+    )
+    .unwrap();
     let file = d.join("warm.toml");
-    // The case of `check_and_serve_refuse_a_bad_file_with_one_text`.
-    let text = format!(
-        "host = \"h\"\n[trust]\norganizations = [{{ login = \"o\" }}]\n\
-         [unit.incus]\nslots = 2\nbinary = \"/bin/true\"\nimages = \"/\"\nwarm = 1\n[pin]\n\
-         [[pin.payload]]\narch = \"x86_64\"\nreference = \"runner@sha256:{}\"\nbuilt_at_s = 1800000000\n",
-        "1".repeat(64)
-    );
-    std::fs::write(&file, text).unwrap();
-    let gate = "warm units are not in this build";
-    let run = |on: bool| {
-        let mut c = Command::new(BIN);
-        c.args(["check", "--config"]).arg(&file).env_remove("PODRUNNER_WARM_CI");
-        if on {
-            c.env("PODRUNNER_WARM_CI", "1");
-        }
-        String::from_utf8_lossy(&c.output().unwrap().stderr).to_string()
-    };
-    assert!(run(false).contains(gate), "{}", run(false));
-    assert!(!run(true).contains(gate), "{}", run(true));
-    let _ = std::fs::remove_dir_all(&d);
+    std::fs::write(
+        &file,
+        format!(
+            "host = \"h\"\n[unit.incus]\nslots = 2\nbinary = \"{}\"\nimages = \"/\"\nwarm = 1\n[pin]\n\
+             [[pin.payload]]\narch = \"{}\"\nreference = \"runner@sha256:{}\"\nbuilt_at_s = 1800000000\n",
+            podvm.display(),
+            std::env::consts::ARCH,
+            "1".repeat(64)
+        ),
+    )
+    .unwrap();
+    let got = Command::new(BIN).args(["check", "--config"]).arg(&file).output().unwrap();
+    std::fs::remove_dir_all(&d).unwrap();
+    assert!(got.status.success(), "{}", String::from_utf8_lossy(&got.stderr));
 }
 
 /// The TOML blocks of the documents use only keys that exist: a block may

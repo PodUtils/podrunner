@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 669 entries: 84 open, 57 partial, 13 blocked, 515 done.
+`TODO/INDEX.md` holds 669 entries: 84 open, 54 partial, 13 blocked, 518 done.
 
 ## State
 
@@ -29,21 +29,14 @@
   `runner-image.yml` 45564676018; `level2.yml` 45564676057 on github.com
   twins). T-517 chooses to bundle the engine in `runner-full`. Implementing
   the bundled path (T-672) and the live check (T-040) remain.
-- Warm units (T-487, partial): the seam, the fake, microvm and incus kinds,
-  the pool and the report and status fields (T-657) are in the code. A
-  release build refuses a `warm` key (exit 78, "not in this build"); only a
-  CI build with the feature `warm-ci` takes it. The lift waits for the rows
-  `serve:warm:incus` and `serve:warm:microvm` of `user-gate.yml`.
-- The first step of a job on a kind with no container hook comes from the
-  job-started hook of the runner image (`/v1/started`, T-660, partial until
-  a run of `user-gate.yml` shows it on incus and microvm). The unit
-  destroy waits for each killed process (T-661). `runner-image.yml` run
-  45588130722 on `988df4f3` passed both warm suites and the separate suite
-  steps (T-662).
-- The signed `assignment_hook` pin enables assignment checks for a runner
-  that obtains a verdict before its first step (T-663). A job of another
-  run can keep a `rw` cache only when its verified ref and repository match
-  the cache grant. Guest proof waits for the user-path gate.
+- Warm units (T-487) are enabled for fake, Incus and microvm. The live
+  suites in runner-image run 45607875181 and both warm rows in user-gate
+  run 45616132409 passed. Incus went from 14 s cold to 2 s warm, and
+  microvm from 6 s to 3 s, for each of the two jobs per phase.
+- The `assignment_hook` payload flag enabled the runner's assignment
+  verdict and first-step marks on both guests (T-660, T-663). A job of
+  another run can keep a `rw` cache when its verified ref and repository
+  match the cache grant.
 - The signed release assets of podrunner `v0.1.0-beta.8` and podcrates
   `v0.84.0` supply the source test tools and fakes on both architectures
   (T-511). The podcrates OCI provenance covers matching executables.
@@ -63,14 +56,10 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. The warm rows of user-gate run 45599688848 failed on the first-step
-   mark. Build the runner image with the proxy fix in T-660. Use that
-   green run for the next user-path gate. Both `serve:warm:incus` and
-   `serve:warm:microvm` must pass before the lift in T-487.
-2. T-663 (P2) uses the same guest proof. Then take the rest of the cache
-   work in T-480.
-   In parallel, run the hosted rootless Podman and FUSE probe requested
-   in COORD-203 (T-674).
+1. Run the user-path gate with the release binary and confirm both warm
+   rows, including the recorded unit start mode of each job.
+2. Take the rest of the cache work in T-480. In parallel, run the hosted
+   rootless Podman and FUSE probe requested in COORD-203 (T-674).
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10
@@ -97,7 +86,6 @@ then take the next one.
 
 Waits:
 
-- A runner image and user-path run with the proxy fix (T-660, T-487).
 - Podvm: T-613 (COORD-124, #346): a run of `hosted-measure.yml` that gives
   the line of the free space and the need. T-658 (COORD-132, #354) and
   T-659 (COORD-133, #355): a podvm release.

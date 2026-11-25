@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**669 entries: 84 open, 57 partial, 13 blocked, 515 done.**
+**669 entries: 84 open, 54 partial, 13 blocked, 518 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 97 | 122 |
-| P2 | 17 | 23 | 8 | 268 | 316 |
+| P2 | 17 | 20 | 8 | 271 | 316 |
 | P3 | 66 | 11 | 3 | 148 | 228 |
-| **All** | 84 | 57 | 13 | 515 | 669 |
+| **All** | 84 | 54 | 13 | 518 | 669 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -531,7 +531,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-484](later.md) | P2 | S | later | release | done | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
 | [T-485](later.md) | P1 | M | later | feature | done | The incus kind has no container route, though G-02 asks for an engine in the system container |
 | [T-486](later.md) | P1 | M | later | feature | done | G-04: the egress verdicts of a unit do not reach the source of the job |
-| [T-487](later.md) | P2 | L | later | feature | partial | G-11: warm units from a pinned golden image |
+| [T-487](later.md) | P2 | L | later | feature | done | G-11: warm units from a pinned golden image |
 | [T-488](later.md) | P2 | M | later | feature | done | G-12: the microvm kind enforces no limit of processes |
 | [T-489](later.md) | P3 | S | later | chore | partial | githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version |
 | [T-490](later.md) | P1 | L | later | research | done | Settle each open unknown of `docs/unknowns.md` |
@@ -702,10 +702,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-657](later.md) | P2 | S | later | feature | done | Warm and cold units in the run report and the status |
 | [T-658](later.md) | P3 | S | later | feature | open | A warm incus instance fits an offer with lower limits |
 | [T-659](later.md) | P3 | M | later | feature | open | A cold guest of the microvm kind from a saved state |
-| [T-660](later.md) | P2 | S | later | defect | partial | The first step of a job on a kind with no container hook |
+| [T-660](later.md) | P2 | S | later | defect | done | The first step of a job on a kind with no container hook |
 | [T-661](later.md) | P2 | S | later | defect | done | The destroy of a unit counts a killed process that still ends as gone |
 | [T-662](later.md) | P2 | S | later | defect | done | One failed suite of the microvm and incus steps hides the next suites |
-| [T-663](later.md) | P2 | M | later | defect | partial | A step of a unit with no job-started hook can ask `assigned` for a run that it does not run |
+| [T-663](later.md) | P2 | M | later | defect | done | A step of a unit with no job-started hook can ask `assigned` for a run that it does not run |
 | [T-664](later.md) | P1 | S | later | chore | done | Take podcrates `v0.84.0` (COORD-155 of podcrates) |
 | [T-665](later.md) | P3 | S | later | defect | done | The warm status counts a reserved unit as ready and hides the warm units of a kind that has target 0 |
 | [T-666](later.md) | P3 | S | later | defect | done | The serve test of stop --wait can see serve not yet ended |

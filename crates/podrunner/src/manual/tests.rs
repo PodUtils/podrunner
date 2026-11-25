@@ -311,13 +311,7 @@ fn sources() -> Vec<(PathBuf, String)> {
 /// in the code.
 #[test]
 fn each_variable_of_the_code_is_a_fact() {
-    // Only a build with the feature warm-ci reads PODRUNNER_WARM_CI (the CI
-    // proof of T-487): a release build has no such variable.
-    assert_none(pod_manual::check::variables(
-        manual(),
-        &sources(),
-        &["PODRUNNER_WARM_CI", "PODRUNNER_ASSIGNMENT_HOOK"],
-    ));
+    assert_none(pod_manual::check::variables(manual(), &sources(), &["PODRUNNER_ASSIGNMENT_HOOK"]));
     // A planted read of a variable with no fact is a finding.
     let mut planted = sources();
     planted.push((PathBuf::from("planted.rs"), "fn f() { std::env::var(\"PODRUNNER_PLANTED\"); }".into()));

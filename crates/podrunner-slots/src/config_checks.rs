@@ -71,6 +71,9 @@ impl Config {
             if !matches!(name.as_str(), "fake" | "microvm" | "incus") {
                 return Err(format!("[unit.{name}] warm: only the fake, the microvm and the incus kinds (T-656)"));
             }
+            if name == "fake" && u.claim.is_none() {
+                return Err(format!("[unit.{name}] warm: a shared principal cannot keep warm units"));
+            }
             let mut sum: u64 = 0;
             for (i, (label, n)) in rows.iter().enumerate() {
                 if label.is_empty() || label.chars().any(char::is_control) {
@@ -97,9 +100,6 @@ impl Config {
         {
             return Err(format!("warm: {total} warm units, over max_units = {m}"));
         }
-        if total > 0 && !warm_ci() {
-            return Err("[unit.KIND] warm: warm units are not in this build (T-487)".into());
-        }
         Ok(())
     }
 
@@ -107,18 +107,13 @@ impl Config {
     /// `label`, by the label rule of placement (`*`: a payload with no
     /// label).
     fn warm_payload(&self, label: &str, init: Option<crate::config::UnitInit>) -> bool {
-        let mut p = self.pin.payload.iter().filter(|p| !p.sandbox && p.init == init);
-        if label == crate::unit_config::ANY_LABEL {
-            p.any(|p| p.labels.is_empty())
-        } else {
-            p.any(|p| p.names_label(&[label.to_string()]) || p.labels.is_empty())
-        }
+        let labels: Vec<_> = (label != crate::unit_config::ANY_LABEL).then(|| label.to_string()).into_iter().collect();
+        let payloads = self.pin.payload.iter().filter(|p| !p.sandbox);
+        payloads.clone().any(|p| {
+            p.init == init
+                && (p.names_label(&labels)
+                    || (p.labels.is_empty()
+                        && !payloads.clone().any(|other| other.arch == p.arch && other.names_label(&labels))))
+        })
     }
-}
-
-/// The CI proof of T-487 (the check `serve:warm` of `user-gate.yml`) runs
-/// `serve` of a build with the feature `warm-ci` and `PODRUNNER_WARM_CI=1`.
-/// A release build has no such feature: it refuses each warm unit.
-fn warm_ci() -> bool {
-    cfg!(feature = "warm-ci") && std::env::var_os("PODRUNNER_WARM_CI").is_some_and(|v| v == "1")
 }

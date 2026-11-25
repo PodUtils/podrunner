@@ -257,6 +257,37 @@ cpus = 2                                 # its CPUs (limits.cpu)
 pids = 4096                              # its processes (limits.processes)
 ```
 
+## Warm units (G-11, G-25)
+
+`serve` can keep booted units ready for one job from a pinned payload
+(T-487). The pool supports the `microvm` and `incus` kinds. Tests can
+also use a `fake` kind with an explicit `claim`. Incus needs podvm
+`0.2.0-beta.39` or later for warm claims. The pool is off by default.
+
+```toml
+warm_reserve = "1G"
+
+[unit.microvm]
+slots = 3
+warm = { "*" = 1, "linux-build" = 1 }
+warm_max_age_s = 3600
+```
+
+`warm` accepts a count for the unlabelled payload, or a table of counts
+per label with `"*"` for the unlabelled payload. Each row resolves to a
+payload with the kind's init mode. The counts fit the kind's `slots` and
+the host's `max_units`, if set. The default maximum age is 3600
+seconds. A refill leaves at least `warm_reserve` of free host memory
+when the host reports it. The default is `1G`. When free memory falls
+below that reserve, the pool retires idle units, starting with the newest.
+
+A compatible ready unit takes one job, receives that job's credentials and
+egress policy at claim, and is destroyed when the job finishes. The
+payload and applied limits must match. A job that cannot use a ready unit
+starts cold. The audit records `warm-take` and `warm-miss`, and the report
+gives `unit.start` as `warm` or `cold`. `podrunner status` shows booting
+and ready units. A global `drain` or `stop` retires the pool.
+
 ## The limits of a unit (G-12)
 
 Each unit gets the lesser of the value of the offer (`memory` in bytes,

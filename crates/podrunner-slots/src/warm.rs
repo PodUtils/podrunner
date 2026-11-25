@@ -32,6 +32,7 @@ const PAUSE_MS: u64 = 3_600_000;
 #[derive(Debug, Clone)]
 pub(crate) struct Warm {
     pub kind: usize,
+    pub capability: Capability,
     /// The label of its row (`*`: no label).
     pub row: String,
     /// The pinned reference that it booted.
@@ -92,20 +93,13 @@ pub(crate) struct Pool {
     /// The failures in a row of a row, the time of its next refill, and
     /// the payload that the row resolved to then: a new pin ends the wait.
     pub backoff: BTreeMap<(usize, String), (u32, u64, Option<String>)>,
-    /// The record of each kind at its first warm unit: a change ends them.
-    pub caps: BTreeMap<usize, Capability>,
     /// The memory that the host has free now (bytes), when it can tell.
     pub mem_probe: Box<dyn Fn() -> Option<u64> + Send>,
 }
 
 impl Default for Pool {
     fn default() -> Pool {
-        Pool {
-            units: BTreeMap::new(),
-            backoff: BTreeMap::new(),
-            caps: BTreeMap::new(),
-            mem_probe: Box::new(available_memory),
-        }
+        Pool { units: BTreeMap::new(), backoff: BTreeMap::new(), mem_probe: Box::new(available_memory) }
     }
 }
 
@@ -164,7 +158,7 @@ impl Slots {
                 self.warm_line(&unit, w.kind, State::Started, now);
                 let boot = now.saturating_sub(w.made_ms).div_ceil(1000);
                 self.audit_host(&unit, format!("ready boot_s={boot}"));
-            } else if now.saturating_sub(w.made_ms) > self.cfg.deadlines.start_s * 1000 {
+            } else if now.saturating_sub(w.made_ms) > self.cfg.deadlines.start_s.saturating_mul(1000) {
                 self.end_warm(&unit, End::BootTimeout, now);
             }
         }
@@ -190,9 +184,9 @@ impl Slots {
                 Some(End::Drain)
             } else if *seen > count {
                 Some(End::Config)
-            } else if now.saturating_sub(w.made_ms) > age_s * 1000 {
+            } else if now.saturating_sub(w.made_ms) > age_s.saturating_mul(1000) {
                 Some(End::Age)
-            } else if self.warm.caps.get(&w.kind).is_some_and(|c| *c != k.capability) {
+            } else if w.capability != k.capability {
                 Some(End::Capability)
             } else {
                 match self.warm_payload(w.kind, &w.row, now_s) {
@@ -247,27 +241,47 @@ impl Slots {
         let running_total: u32 = views.iter().map(|k| k.running).sum();
         let now_s = (self.now_unix)();
         for (kind, view) in views.iter().enumerate() {
-            let rows = self.kinds[kind].cfg.warm_rows();
-            let have = |row: &str| self.warm.units.values().filter(|w| w.kind == kind && w.row == row).count() as u32;
-            let Some((row, _)) = rows.into_iter().find(|(r, n)| have(r) < *n) else { continue };
-            let key = (kind, row.clone());
-            let seen = self.warm.backoff.get(&key).map(|(_, _, p)| p.clone());
-            if seen.is_some_and(|p| p != self.warm_payload(kind, &row, now_s).ok()) {
-                self.warm.backoff.remove(&key);
-            }
             let k = &self.kinds[kind];
+            let rows = self.warm_pending_rows(kind);
+            if rows.is_empty() {
+                continue;
+            }
             // Counted again for each kind: a unit made for an earlier kind
             // in this tick holds a unit of `max_units` too.
             let free_total = self.warm.units.values().filter(|w| w.reserved.is_none()).count() as u32;
             let in_slots = view.running + self.warm_free(kind) < k.cfg.slots;
             let in_host = self.cfg.max_units.is_none_or(|m| running_total + free_total < m);
-            let due = self.warm.backoff.get(&key).is_none_or(|(_, at, _)| now >= *at);
             let unit_mem = crate::limits::limits_of(&k.cfg).ok().and_then(|l| l.memory_bytes).unwrap_or(0);
             let room = (self.warm.mem_probe)().is_none_or(|a| a >= unit_mem.saturating_add(self.warm_reserve()));
-            if in_slots && in_host && due && room {
+            if !in_slots || !in_host || !room {
+                continue;
+            }
+            for row in rows {
+                let key = (kind, row.clone());
+                if let Some((_, at, pin)) = self.warm.backoff.get(&key) {
+                    if *pin != self.warm_payload(kind, &row, now_s).ok() {
+                        self.warm.backoff.remove(&key);
+                    } else if now < *at {
+                        continue;
+                    }
+                }
                 self.warm_one(kind, row, now);
+                break;
             }
         }
+    }
+
+    /// Rows whose targets are not yet met.
+    pub(crate) fn warm_pending_rows(&self, kind: usize) -> Vec<String> {
+        self.kinds[kind]
+            .cfg
+            .warm_rows()
+            .into_iter()
+            .filter_map(|(row, count)| {
+                let have = self.warm.units.values().filter(|w| w.kind == kind && w.row == row).count();
+                (have < count as usize).then_some(row)
+            })
+            .collect()
     }
 
     /// Boot one warm unit of `row` on the kind `kind`.
@@ -284,10 +298,10 @@ impl Slots {
         };
         let unit = self.ids.next();
         let k = &self.kinds[kind];
-        self.warm.caps.entry(kind).or_insert_with(|| k.capability.clone());
         let limits = k.driver.applied_limits(&Limits::default());
         let w = Warm {
             kind,
+            capability: k.capability.clone(),
             row: row.clone(),
             payload: payload.clone(),
             made_ms: now,

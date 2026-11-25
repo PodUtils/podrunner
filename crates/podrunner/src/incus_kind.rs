@@ -55,7 +55,9 @@ pub fn plan(u: &UnitConfig) -> Result<(), Failure> {
         podrunner_unit::mounts::host_path(Path::new(e), podrunner_unit::UnitCode::UnitStartFailed)
             .map_err(|e| fail(Class::Config, format!("[unit.incus] engine: {}", e.detail)))?;
     }
-    let lowest = if init_image {
+    let lowest = if !u.warm_rows().is_empty() {
+        podrunner_podvm::probe::LOWEST_INCUS_WARM
+    } else if init_image {
         podrunner_podvm::probe::LOWEST_INCUS_INIT
     } else if u.engine.is_some() {
         podrunner_podvm::probe::LOWEST_ENGINE_INCUS

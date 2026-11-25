@@ -183,7 +183,11 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
         if u.disk_max_bytes.is_some() {
             capability.limits.entry("disk".into()).or_insert(podrunner_schema::LimitMode::Reported);
         }
-        kinds.push(UnitKind { name: name.clone(), cfg: u.clone(), driver, capability });
+        let mut unit_cfg = u.clone();
+        if name == "microvm" && unit_cfg.mem.is_none() {
+            unit_cfg.mem = Some(crate::microvm_kind::DEFAULT_MEM.into());
+        }
+        kinds.push(UnitKind { name: name.clone(), cfg: unit_cfg, driver, capability });
     }
     let ttl = Duration::from_secs(cfg.deadlines.running_s + cfg.deadlines.grace_s + cfg.deadlines.destroy_s);
     let proxy = match &cfg.upstream_proxy {
