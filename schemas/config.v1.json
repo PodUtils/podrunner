@@ -129,6 +129,14 @@
         "null"
       ],
       "default": null
+    },
+    "warm_reserve": {
+      "description": "The memory that warm units leave free (T-487): a size, default `1G`.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
     }
   },
   "additionalProperties": false,
@@ -971,6 +979,27 @@
           "format": "uint32",
           "minimum": 0
         },
+        "warm": {
+          "description": "The warm units of the kind (T-487): a count for an offer with no\nlabel of a payload, or a table of `runs-on` label to count (`*`: no\nsuch label). Each holds a slot of the kind and a unit of\n`max_units`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WarmCount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "warm_max_age_s": {
+          "description": "A warm unit older than this ends and is made again (default 3600).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        },
         "work_folder": {
           "description": "`podvm`, `incus`, `microvm`: the work folder of the runner in each\nunit, an absolute path (T-541, T-590). podrunner writes it into\n`.runner` of the credential, so `GITHUB_WORKSPACE` is\n`FOLDER/REPO/REPO`. Absent: the hosted path `/home/runner/work`\n(`podvm`: `work` in its `runner_dir`). A podvm folder is in its\n`runner_dir`: the container hooks mount only there.",
           "type": [
@@ -992,6 +1021,24 @@
           "description": "The init of the image (`--podvm-init=image`): systemd boots the\nservices of the image.",
           "type": "string",
           "const": "image"
+        }
+      ]
+    },
+    "WarmCount": {
+      "description": "`[unit.KIND] warm`: one count, or a count for each label.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0
+          }
         }
       ]
     }

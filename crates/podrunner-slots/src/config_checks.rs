@@ -1,5 +1,5 @@
 //! The checks of `podrunner.toml` that span its tables: the init of the
-//! kinds and of the pins, and the mitigations of DR-4.
+//! kinds and of the pins, the mitigations of DR-4, and the warm units.
 
 use podrunner_schema::Tier;
 
@@ -50,5 +50,68 @@ impl Config {
             return Err(format!("[[source]] {:?}: a trusted source at redirect needs slots (DR-4)", s.name));
         }
         Ok(())
+    }
+
+    /// The warm units (T-487). Each row resolves to a pinned payload that
+    /// a unit of its kind runs; the rows of a kind fit its slots, and the
+    /// rows of the host fit `max_units`.
+    pub(crate) fn check_warm(&self) -> Result<(), String> {
+        if let Some(r) = &self.warm_reserve {
+            podrunner_unit::limits::size_bytes(r).map_err(|e| format!("warm_reserve: {e}"))?;
+        }
+        let mut total: u64 = 0;
+        for (name, u) in &self.unit {
+            if u.warm_max_age_s == Some(0) {
+                return Err(format!("[unit.{name}] warm_max_age_s = 0: a warm unit would end at once"));
+            }
+            let rows = u.warm_rows();
+            if rows.is_empty() {
+                continue;
+            }
+            if !matches!(name.as_str(), "fake" | "microvm" | "incus") {
+                return Err(format!("[unit.{name}] warm: only the fake, the microvm and the incus kinds (T-656)"));
+            }
+            let mut sum: u64 = 0;
+            for (i, (label, n)) in rows.iter().enumerate() {
+                if label.is_empty() || label.chars().any(char::is_control) {
+                    return Err(format!("[unit.{name}] warm: the label {label:?} is empty or has a control character"));
+                }
+                if rows[..i].iter().any(|(l, _)| l.eq_ignore_ascii_case(label)) {
+                    return Err(format!("[unit.{name}] warm: the label {label:?} is there two times (no case)"));
+                }
+                if !self.warm_payload(label, u.init) {
+                    return Err(format!(
+                        "[unit.{name}] warm: no [[pin.payload]] with {} serves the label {label:?}",
+                        init_name(u.init)
+                    ));
+                }
+                sum += u64::from(*n);
+            }
+            if sum > u64::from(u.slots) {
+                return Err(format!("[unit.{name}] warm: {sum} warm units, over slots = {}", u.slots));
+            }
+            total += sum;
+        }
+        if let Some(m) = self.max_units
+            && total > u64::from(m)
+        {
+            return Err(format!("warm: {total} warm units, over max_units = {m}"));
+        }
+        if total > 0 {
+            return Err("[unit.KIND] warm: warm units are not in this build (T-487)".into());
+        }
+        Ok(())
+    }
+
+    /// A pinned payload (not a sandbox) with `init` serves the warm row of
+    /// `label`, by the label rule of placement (`*`: a payload with no
+    /// label).
+    fn warm_payload(&self, label: &str, init: Option<crate::config::UnitInit>) -> bool {
+        let mut p = self.pin.payload.iter().filter(|p| !p.sandbox && p.init == init);
+        if label == crate::unit_config::ANY_LABEL {
+            p.any(|p| p.labels.is_empty())
+        } else {
+            p.any(|p| p.names_label(&[label.to_string()]) || p.labels.is_empty())
+        }
     }
 }

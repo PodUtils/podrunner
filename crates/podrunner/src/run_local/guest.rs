@@ -45,6 +45,9 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
         pids: None,
         engine: a.engine.as_ref().map(|e| e.display().to_string()),
         work_folder: None,
+        // `run` makes no warm unit: one job, one unit.
+        warm: None,
+        warm_max_age_s: None,
     };
     let built = if *microvm { crate::microvm_kind::build(&u, state) } else { crate::incus_kind::build(&u, state) };
     let (driver, _) = built.map_err(|e| fail(e.class, e.detail))?;

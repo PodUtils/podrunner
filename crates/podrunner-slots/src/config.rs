@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 pub use crate::policy::EgressConfig;
-pub use crate::unit_config::{HOSTED_WORK_FOLDER, RUNNER_HOME, UnitConfig, UnitInit, init_name};
+pub use crate::unit_config::{HOSTED_WORK_FOLDER, RUNNER_HOME, UnitConfig, UnitInit, WarmCount, init_name};
 
 /// The kind of a source.
 #[cfg_attr(test, derive(schemars::JsonSchema))]
@@ -312,6 +312,9 @@ pub struct Config {
     /// The cache of `serve` (T-480); none: no job gets a cache.
     #[serde(default)]
     pub cache: Option<crate::cache::CacheConfig>,
+    /// The memory that warm units leave free (T-487): a size, default `1G`.
+    #[serde(default)]
+    pub warm_reserve: Option<String>,
 }
 
 pub use crate::driver::check_driver;
@@ -427,6 +430,7 @@ impl Config {
         crate::pins::check(&self.pin)?;
         crate::pins::verify(&self.pin)?;
         self.check_init()?;
+        self.check_warm()?;
         crate::unit_config::check_work_folders(&self.unit)?;
         let drivers = self.unit.iter().map(|(n, u)| (format!("[unit.{n}] binary"), &u.binary));
         let sidecars = self.source.iter().map(|s| (format!("[[source]] {:?} sidecar", s.name), &s.sidecar));

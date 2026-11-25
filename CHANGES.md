@@ -26,6 +26,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `podrunner.toml` | A guest of `[unit.microvm]` gets the lesser of `cpus` and the `cpu` of the offer (it got the `cpus` of the kind); its memory stays `mem` (T-655). | T-487 |
 | `podrunner.toml` | `check` refuses a `[[source]]` name that is empty, starts with `@` or has a control character (exit 78): the journal keeps the host's own lines under `@` names. | T-487 |
 | unit driver | New operations `warm`, `warm_ready` and `claim`, and `applied_limits` (each with a default: `unsupported`, or no limit): a warm unit runs no job until its claim gives it the credential, the environment and the argv. The tests 28 to 32 of the conformance suite (a kind with no warm unit skips them), and `run_warm` runs each test through warm units. The fake kind has warm units. `serve` makes none yet. | T-487 |
+| `podrunner.toml` | `config.v1` has the keys of warm units: `[unit.KIND] warm` (a count, or a table of label to count), `warm_max_age_s` and the top-level `warm_reserve`. `check` refuses each file with a warm unit (exit 78: "warm units are not in this build") until the proof in CI. | T-487 |
 | command line | `run` and `serve`: the relay of the container hooks writes its program file in a child process, so a start of the file does not fail at random with `Text file busy` (ETXTBSY) while another thread forks. | T-646 |
 
 ## v0.1.0-beta.8
@@ -140,4 +141,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md 0f43d75790e248ee82e1ae12675d917352c0734520f6bedf5ed0642fdd4abea4 -->
 <!-- contract docs/contracts/source-driver.md 13875da50a66ad167ae70a19313631222f3cf6c61bf21afde7eedcf322c970d1 -->
 <!-- contract docs/contracts/unit-driver.md 908d7cb8c3d009512cbd85c0e6973d82b934cdec28ad3c9acaee1bd9f0c810c0 -->
-<!-- contract schemas/config.v1.json dcd94a6104b4b40e2f71128311e6d2420f3c84ea114f5f187d28de8a2b77abce -->
+<!-- contract schemas/config.v1.json 6635528e08614c6399d813f12113b5cdc505ba701027069a310bb425abb1b848 -->

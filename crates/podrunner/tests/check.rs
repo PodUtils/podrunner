@@ -163,6 +163,15 @@ fn check_and_serve_refuse_a_bad_file_with_one_text() {
             format!("{head}[unit.podvm]\nslots = 1\nbinary = \"/bin/true\"\nimages = \"/\"\ninit = \"image\"\n{pin}"),
             "[unit.podvm] init: only the incus and the microvm kinds",
         ),
+        // T-487: warm units wait for their proof in CI.
+        (
+            format!(
+                "{head}[unit.incus]\nslots = 2\nbinary = \"/bin/true\"\nimages = \"/\"\nwarm = 1\n{pin}\
+                 [[pin.payload]]\narch = \"x86_64\"\nreference = \"runner@sha256:{}\"\nbuilt_at_s = 1800000000\n",
+                "1".repeat(64)
+            ),
+            "warm units are not in this build",
+        ),
     ];
     for (i, (text, word)) in cases.iter().enumerate() {
         let file = d.join(format!("{i}.toml"));

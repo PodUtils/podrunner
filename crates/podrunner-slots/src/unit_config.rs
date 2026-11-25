@@ -102,7 +102,28 @@ pub struct UnitConfig {
     /// `runner_dir`: the container hooks mount only there.
     #[serde(default)]
     pub work_folder: Option<String>,
+    /// The warm units of the kind (T-487): a count for an offer with no
+    /// label of a payload, or a table of `runs-on` label to count (`*`: no
+    /// such label). Each holds a slot of the kind and a unit of
+    /// `max_units`.
+    #[serde(default)]
+    pub warm: Option<WarmCount>,
+    /// A warm unit older than this ends and is made again (default 3600).
+    #[serde(default)]
+    pub warm_max_age_s: Option<u64>,
 }
+
+/// `[unit.KIND] warm`: one count, or a count for each label.
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(untagged)]
+pub enum WarmCount {
+    Count(u32),
+    ByLabel(std::collections::BTreeMap<String, u32>),
+}
+
+/// The label of a warm row for an offer with no label of a payload.
+pub const ANY_LABEL: &str = "*";
 
 /// The home of the runner in the runner image and in the hosted snapshot.
 pub const RUNNER_HOME: &str = "/home/runner";
@@ -111,6 +132,19 @@ pub const RUNNER_HOME: &str = "/home/runner";
 pub const HOSTED_WORK_FOLDER: &str = "/home/runner/work";
 
 impl UnitConfig {
+    /// The warm rows of the kind: each label (`*` for none) and its count
+    /// above 0.
+    pub fn warm_rows(&self) -> Vec<(String, u32)> {
+        match &self.warm {
+            None => Vec::new(),
+            Some(WarmCount::Count(n)) => vec![(ANY_LABEL.to_string(), *n)],
+            Some(WarmCount::ByLabel(m)) => m.iter().map(|(l, n)| (l.clone(), *n)).collect(),
+        }
+        .into_iter()
+        .filter(|(_, n)| *n > 0)
+        .collect()
+    }
+
     /// The work folder of the runner in a unit of the kind `name` (T-590):
     /// `work_folder`, else the hosted path on a kind with a runner home,
     /// else none (the folder of the mint, `_work` under the runner root).
