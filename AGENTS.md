@@ -84,8 +84,11 @@ everything must be statically compiled." (the owner, 2026-11-05)
   the harness (web search, web fetch, `gh api`) only when the service
   fails; a 429 or a 503 is temporary: wait and try again first (the
   owner, 2026-11-16). Give this rule to each subagent in its brief.
-* For writes to GitHub (a comment, the close of an issue, the dispatch of
-  a workflow), use the MCP tools of GitHub.
+* For issue and comment writes, use the MCP tools of GitHub. For a
+  workflow dispatch, first check the workflow and try direct dispatch
+  with GitHub MCP or an authenticated `gh`. Use a `[gh action] requested`
+  issue only after the direct paths fail. Follow
+  [A run of a workflow](docs/maintenance.md#a-run-of-a-workflow).
 * To read another project, read its repository on GitHub or a local
   clone in the scratchpad. Do not push to it.
 

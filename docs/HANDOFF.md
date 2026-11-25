@@ -180,9 +180,9 @@ its entries is not done: `TODO/issues.md` has the other open issues.
   did not record. A change of only `TODO/` after a recorded tree needs
   `cargo todo check`. A change of Markdown needs a full run: tests compile
   `docs/cli.md` and `docs/contracts/`.
-- Dispatch a workflow with the MCP tool `actions_run_trigger`. No
-  `[gh action] requested` issue is needed (the owner, 2026-11-23). A push
-  that changes a crate of the units or `images/` starts `runner-image.yml`
+- Try direct workflow dispatch before you use a `[gh action] requested`
+  issue. Follow [A run of a workflow](maintenance.md#a-run-of-a-workflow).
+  A push that changes a crate of the units or `images/` starts `runner-image.yml`
   (about 2.5 hours): batch the pushes, and cancel an older run when a newer
   one covers the same images (`docs/maintenance.md`, "A run of a workflow").
 - Issues and the record: each new issue becomes entries, and

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**663 entries: 89 open, 59 partial, 13 blocked, 502 done.**
+**664 entries: 89 open, 59 partial, 13 blocked, 503 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 96 | 122 |
-| P2 | 18 | 24 | 8 | 263 | 313 |
+| P2 | 18 | 24 | 8 | 264 | 314 |
 | P3 | 70 | 11 | 3 | 141 | 225 |
-| **All** | 89 | 59 | 13 | 502 | 663 |
+| **All** | 89 | 59 | 13 | 503 | 664 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -711,3 +711,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-666](later.md) | P3 | S | later | defect | open | The serve test of stop --wait can see serve not yet ended |
 | [T-667](bootstrap.md) | P2 | S | M0 | chore | done | One cold start for hosted sessions |
 | [T-668](core.md) | P2 | M | M-A | defect | open | The unit shim waits for an orphan on a host without the proc children file |
+| [T-669](bootstrap.md) | P2 | S | M0 | chore | done | Load the hosted shell and try direct workflow dispatch |

@@ -10,8 +10,9 @@ sh scripts/cloud-setup.sh --runner
 cargo todo check
 ```
 
-The setup installs tools and the Actions runner. Load
-`scripts/cloud-env.sh` again in each new shell. Use
+The setup installs tools and the Actions runner. The Claude Code Cloud
+hook loads the environment for new shells. In Codex, load
+`scripts/cloud-env.sh` in each new shell. Use
 `cargo build --release -p podrunner` to build the product.
 
 Read [the handoff](HANDOFF.md), [the rules](../AGENTS.md) and
@@ -20,6 +21,7 @@ shown in [Maintenance](maintenance.md). Read the watcher logs
 `.work/watch.log` and `.work/runs.log`.
 If the Actions mirror refuses a read, use
 `gh run list --repo PodUtils/podrunner --branch main`.
+For a manual run, follow [A run of a workflow](maintenance.md#a-run-of-a-workflow).
 
 Run `sh scripts/agent/check.sh` before each push. Run it as an
 unprivileged user on the Linux host. The driver tests require a view of

@@ -309,3 +309,47 @@ The QA bundle passed its checksums and matched the binary's manual.
 with the normal file owners: 929 workspace tests, 26 runner tests,
 20 installer checks, and the static build. The process cleanup delay on
 this kernel is T-668.
+
+# T-669: Load the hosted shell and try direct workflow dispatch
+
+**Source:** PodUtils/podssh@a13fef752 and the owner's dispatch instruction
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Claude Code Cloud starts the watchers but still needs to load the tool
+environment for new shell commands. A session can have GitHub CLI access
+when the GitHub MCP tool for workflow dispatch is unavailable.
+
+## Premise
+
+PodSSH uses the Claude Code Cloud environment file to load its tool
+environment. Podrunner has one tool environment for both providers.
+
+## Approach
+
+Load the shared tool environment through the Claude Code Cloud hook.
+Tell both providers to check the workflow and try direct dispatch.
+Check for a matching run before retrying an unclear dispatch.
+
+## Prove
+
+Test the hook with a temporary environment file. Load the file in a new
+shell. Check the pinned Cargo and Actions runner. Check a quoted checkout
+path and a failed startup. Run `sh scripts/agent/check.sh`.
+
+## Done
+
+2026-11-25, this commit. The hook test loaded Cargo and the pinned
+runner from the generated environment file. It preserved the shell
+directory and handled an apostrophe in a checkout path. A simulated
+startup failure printed recovery steps and still loaded the tool
+environment. The local hook left the environment file alone.
+`gh workflow run secrets.yml --repo PodUtils/podrunner --ref main`
+started run 45594457418. GitHub reported success.
+`docker-init -sg -- sh scripts/agent/check.sh` passed with 929 workspace
+tests and 26 Actions runner tests.
