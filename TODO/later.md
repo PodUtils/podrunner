@@ -16670,7 +16670,7 @@ Read `pod-job` of podcrates `v0.83.0` on 2026-11-25: `UnitFields` and `KindStatu
 
 ## Blocker
 
-podcrates: the fields of step 1 in `pod-job`. The COORD issue `(to podcrates)` with the text of the design of T-487 unblocks the entry when its tag comes.
+podcrates: the fields of step 1 in `pod-job`, asked by COORD-131 (GitHub #353). The tag of podcrates with the fields unblocks the entry.
 
 # T-658: A warm incus instance fits an offer with lower limits
 
@@ -16688,6 +16688,8 @@ A warm incus instance boots with the limits of its kind. An offer that asks for 
 ## Premise
 
 Read from the design of T-487 and podvm `incus/verbs.rs` on 2026-11-25. Not measured: the share of offers of githome below the limits of the kind.
+
+Asked of podvm by COORD-132 (GitHub #354), 2026-11-25.
 
 ## Approach
 
@@ -16718,6 +16720,8 @@ Each guest of the microvm kind boots (about 30 s: an uncompressed initramfs of a
 ## Premise
 
 Read podvm `machine/guest/state.rs` (`state::refusal`) on 2026-11-25. Not measured: the start of a guest from a saved state.
+
+Asked of podvm by COORD-133 (GitHub #355), 2026-11-25.
 
 ## Approach
 
