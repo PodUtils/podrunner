@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**657 entries: 85 open, 59 partial, 15 blocked, 498 done.**
+**658 entries: 86 open, 59 partial, 15 blocked, 498 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 95 | 121 |
-| P2 | 16 | 24 | 10 | 260 | 310 |
+| P2 | 17 | 24 | 10 | 260 | 311 |
 | P3 | 68 | 11 | 3 | 141 | 223 |
-| **All** | 85 | 59 | 15 | 498 | 657 |
+| **All** | 86 | 59 | 15 | 498 | 658 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -705,3 +705,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-660](later.md) | P2 | S | later | defect | partial | The first step of a job on a kind with no container hook |
 | [T-661](later.md) | P2 | S | later | defect | done | The destroy of a unit counts a killed process that still ends as gone |
 | [T-662](later.md) | P2 | S | later | defect | partial | One failed suite of the microvm and incus steps hides the next suites |
+| [T-663](later.md) | P2 | M | later | defect | open | A step of a unit with no job-started hook can ask `assigned` for a run that it does not run |

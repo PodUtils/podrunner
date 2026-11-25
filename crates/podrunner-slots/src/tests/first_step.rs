@@ -109,49 +109,75 @@ fn a_kept_question_is_the_first_step() {
     assert_eq!(bed.state("j-1"), Some(State::Running));
 }
 
-/// The first mark wins. A `started` of the placed job that names another
-/// runner after the mark is a swap: the runner of this unit took a job of
-/// the placed run (its hook marked it), and the placed job runs elsewhere.
-/// The unit runs on, with an audit line.
-#[test]
-fn a_started_of_another_runner_after_the_mark_is_a_swap_and_the_unit_runs_on() {
-    let port = Marking::default();
-    let lines = vec![
+/// The offer `j-1`, then at `at_s` a `started` of `j-1` that names another
+/// runner.
+fn placed_elsewhere(at_s: u64) -> Vec<String> {
+    vec![
         offer(0, "j-1", json!({})),
-        r#"{"at_s":6,"started":{"job_id":"j-1","runner_name":"someone-else"}}"#.to_string(),
-    ];
-    let mut bed = bed(&port, lines, "sleep 2");
+        format!(r#"{{"at_s":{at_s},"started":{{"job_id":"j-1","runner_name":"someone-else"}}}}"#),
+    ]
+}
+
+/// The question of the hook of the unit for the run `run_id` of the
+/// repository of the offer, answered at one tick.
+fn ask(bed: &mut Bed, port: &Marking, run_id: u64) -> String {
+    let real = json!({"run_id": run_id, "job_name": "t", "event": "push", "repository": "example-org/app",
+        "head_is_fork": false, "actor": "a"});
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    port.asks.lock().unwrap().push((unit_of(bed), serde_json::to_vec(&real).unwrap(), tx));
+    bed.tick();
+    rx.try_recv().unwrap()
+}
+
+fn swap_line(bed: &Bed) -> bool {
+    bed.slots.audit_lines().iter().any(|a| {
+        a.audit == crate::audit::Kind::Assigned && a.detail.as_deref().is_some_and(|d| d.contains("another runner"))
+    })
+}
+
+/// Fail closed: a step of the job can send the mark, so a mark is no proof
+/// that the runner of the unit took its own job. A `started` of the placed
+/// job that names another runner after the mark ends the unit (the design
+/// test 10 of the source contract); a swap in the placed run ends too.
+#[test]
+fn a_started_of_another_runner_after_the_mark_ends_the_unit() {
+    let port = Marking::default();
+    let mut bed = bed(&port, placed_elsewhere(6), "sleep 300");
     bed.until(5, |s| s.jobs().any(|j| j.state == State::Started));
     port.marks.lock().unwrap().push(unit_of(&bed));
     bed.tick();
     assert_eq!(bed.state("j-1"), Some(State::Running));
-    bed.until(400, Bed::all_final);
-    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
-    let swap = bed.slots.audit_lines().iter().any(|a| {
-        a.audit == crate::audit::Kind::Assigned && a.detail.as_deref().is_some_and(|d| d.contains("another runner"))
-    });
-    assert!(swap, "an audit line names the swap");
+    bed.until(40, Bed::all_final);
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::JobMismatch);
+    assert!(!swap_line(&bed));
 }
 
-/// T-493: `keep` of a job of another run, then the source says that the
-/// placed job started on another runner: the kept job runs on.
+/// A question that names the run of the offer gets `keep` with no call of
+/// the source: it is no proof either, and the unit ends.
+#[test]
+fn a_keep_of_the_placed_run_then_a_started_of_another_runner_ends_the_unit() {
+    let port = Marking::default();
+    let mut bed = bed(&port, placed_elsewhere(8), "sleep 300");
+    bed.until(5, |s| s.jobs().any(|j| j.state == State::Started));
+    assert_eq!(ask(&mut bed, &port, 1), r#"{"verdict":"keep"}"#);
+    assert_eq!(bed.state("j-1"), Some(State::Running));
+    bed.until(40, Bed::all_final);
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::JobMismatch);
+    assert!(!swap_line(&bed));
+}
+
+/// T-493: `keep` of a job of another run, whose facts the source vouched
+/// for, then the source says that the placed job started on another
+/// runner: the kept job runs on, with an audit line.
 #[test]
 fn a_kept_job_runs_on_when_the_placed_job_starts_elsewhere() {
     let port = Marking::default();
-    let lines = vec![
-        offer(0, "j-1", json!({})),
-        r#"{"at_s":8,"started":{"job_id":"j-1","runner_name":"someone-else"}}"#.to_string(),
-    ];
-    let mut bed = bed(&port, lines, "sleep 2");
+    let mut bed = bed(&port, placed_elsewhere(8), "sleep 2");
     bed.until(5, |s| s.jobs().any(|j| j.state == State::Started));
-    let real = json!({"run_id": 2, "job_name": "t", "event": "push", "repository": "example-org/app",
-        "head_is_fork": false, "actor": "a"});
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    port.asks.lock().unwrap().push((unit_of(&bed), serde_json::to_vec(&real).unwrap(), tx));
-    bed.tick();
-    assert_eq!(rx.try_recv().unwrap(), r#"{"verdict":"keep"}"#);
+    assert_eq!(ask(&mut bed, &port, 2), r#"{"verdict":"keep"}"#);
     bed.until(400, Bed::all_final);
     assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
+    assert!(swap_line(&bed), "an audit line names the placed job on another runner");
 }
 
 /// The design test 10 of the source contract holds after a mark: a

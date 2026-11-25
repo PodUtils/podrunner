@@ -43,17 +43,17 @@ impl Slots {
             }
             return;
         }
-        if j.state == State::Running {
-            // The runner of this unit took a job first, and the job-started
-            // hook kept it: a job of the placed run, or one that `assigned`
-            // kept (T-493). The placed job runs on another runner; this
-            // unit runs on (T-660).
-            let why = "the placed job started on another runner; the unit runs the job that its hook kept";
+        // Fail closed: a mark of a hook or a `running` state is no proof,
+        // as a step of the job can send both. Only a job of another run
+        // whose facts the source vouched for (`keep` of T-493: `real` is
+        // set only on that path) explains a placed job on another runner.
+        if j.real.is_some() && j.assigned == Some(crate::assigned::Verdict::Keep) {
+            let why =
+                "the placed job started on another runner; the unit runs the job of another run that the source kept";
             self.audit(audit::Kind::Assigned, s, job, None, Some(why.into()));
             return;
         }
-        // The forge gave the job to another runner before this unit took
-        // one: this unit must not run.
+        // The forge gave the job to another runner: this unit must not run.
         self.audit(audit::Kind::JobMismatch, s, job, None, None);
         self.end(&key, ExitReason::JobMismatch, Signal::Kill, now);
     }

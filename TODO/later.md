@@ -16755,7 +16755,7 @@ podvm takes a saved state for a run with a channel and a pids limit.
 
 The rows `serve:warm:incus` and `serve:warm:microvm` of the user-gate run 45561226739 failed in their cold phase: "job j-1 has no claimed or running line: ['claimed','destroyed','ended','matched','minted','offered','reported','started']". The journal wrote `running` only at the job-started container hook (`read_hooks` of `crates/podrunner-slots/src/hooks.rs`, only for a kind with `container: hooks`, the podvm kind) and at a `started` event of the source (`on_started` of `crates/podrunner-slots/src/run.rs`). The incus and the microvm kinds have no container hook, and `pod-fake-githome` sends `started` only on a call of its control API. So the run report of each job on incus and microvm had no `claim_to_first_step_s`: githome's G-25 asks for the start time of a warm and of a cold unit, and G-11 for a short time from the claim to the first step.
 
-A related case: `on_started` checks the runner name only in the state `started`. After a mark of a hook, the runner of the unit runs a job that its hook kept, so a `started` of the placed job that names another runner is a swap, not a foreign runner in this unit.
+A related case: `on_started` checks the runner name only in the state `started`. A mark must not switch that check off: a step of the job can send the mark.
 
 ## Premise
 
@@ -16765,11 +16765,11 @@ Read on 2026-11-25: the job-started hook of the runner image (`images/runner/pod
 
 1. The hook: for a job of the placed run, `POST http://control.podrunner.test/v1/started` with the body `{}` (no fact of the job) through the proxy of the unit or `PODRUNNER_EGRESS`, at most 3 s; each result exits 0.
 2. The front of `serve` (`crates/podrunner/src/serve/front.rs`, `egress_of.rs`): the route `/v1/started` answers at once and queues the unit of its socket; `EgressPort::first_steps` gives the queue to the slots.
-3. The slots: each tick moves the job of a marked unit from `started` to `running` (`first_step` of `crates/podrunner-slots/src/hooks.rs`); `keep` of a question of the hook is the first step of a job of another run. The first mark wins. In `running`, a `started` that names another runner is a swap: an audit line, and the unit runs on.
+3. The slots: each tick moves the job of a marked unit from `started` to `running` (`first_step` of `crates/podrunner-slots/src/hooks.rs`); `keep` of a question of the hook is the first step of a job of another run. The first mark wins. A mark sets only `running` and its time. A `started` of the placed job that names another runner ends the unit in `started` and in `running` (fail closed); only a job of another run that the source kept runs on, with an audit line.
 4. The check `serve:warm` of `scripts/user-gate.py` keeps claimed to running as its measure (`phase_times`), also prints claimed to ended, names the missing line and the kind, and keeps `journal.jsonl` and `audit.jsonl` of each phase in `out/logs`.
 5. The call is in `docs/decisions.md`.
 
-State: steps 1 to 5 are in the code (2026-11-25, the commit that names T-660). Tests that failed before the change: `tests::first_step` of `podrunner-slots` (2: the mark gives one line `running` and `claim_to_first_step_s`, with the logic of the slots off; `keep` is the first step), `the_mark_of_a_unit_at_its_egress_socket_journals_its_first_step` of `crates/podrunner/tests/serve.rs` (a fake unit posts the mark through `serve`; no line `running` on the old code), and `the_job_started_hook_marks_the_first_step_of_its_own_job` with the official runner 2.338.2 (no mark with the old hook). `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR`: 913 passed, 0 failed, 67 ignored; the 8 tests of `--test runner -- --ignored` passed. Level: proven here with the official runner and fakes; not run on a real incus or microvm unit. The review of `c656697` found two P2: (1) one shared queue of 64 for the marks and for the questions of all units, so a job that posted in a loop made the mark or the question of another unit get lost (its job then ended by `start_s` or with `source-unavailable`); now each unit holds at most one mark and one question in flight (`a_unit_that_marks_in_a_loop_loses_no_mark_of_another_unit`, `a_unit_that_asks_in_a_loop_takes_no_place_of_another_unit` of `crates/podrunner/src/serve/front_tests.rs`, both failed on `c656697`); (2) a `started` of the placed job that named another runner ended a unit in `running`, also a job kept by T-493 or a swap in the placed run; now it gives an audit line `assigned` and the unit runs on, and only in `started` it ends the unit (`a_started_of_another_runner_after_the_mark_is_a_swap_and_the_unit_runs_on`, `a_kept_job_runs_on_when_the_placed_job_starts_elsewhere` of `tests::first_step`, both failed on `c656697`; `the_runner_of_the_unit_on_another_job_still_ends_the_unit_after_the_mark` holds the design test 10). Next: `runner-image.yml` (the runner image changes), then `user-gate.yml` with `images_run` on the lane `serve-incus-kvm`: the rows `serve:warm:incus` and `serve:warm:microvm` show the first step on both kinds.
+State: steps 1 to 5 are in the code (2026-11-25, the commit that names T-660). Tests that failed before the change: `tests::first_step` of `podrunner-slots` (2: the mark gives one line `running` and `claim_to_first_step_s`, with the logic of the slots off; `keep` is the first step), `the_mark_of_a_unit_at_its_egress_socket_journals_its_first_step` of `crates/podrunner/tests/serve.rs` (a fake unit posts the mark through `serve`; no line `running` on the old code), and `the_job_started_hook_marks_the_first_step_of_its_own_job` with the official runner 2.338.2 (no mark with the old hook). `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR`: 913 passed, 0 failed, 67 ignored; the 8 tests of `--test runner -- --ignored` passed. Level: proven here with the official runner and fakes; not run on a real incus or microvm unit. The review of `c656697` found two P2: (1) one shared queue of 64 for the marks and for the questions of all units, so a job that posted in a loop made the mark or the question of another unit get lost (its job then ended by `start_s` or with `source-unavailable`); now each unit holds at most one mark and one question in flight (`a_unit_that_marks_in_a_loop_loses_no_mark_of_another_unit`, `a_unit_that_asks_in_a_loop_takes_no_place_of_another_unit` of `crates/podrunner/src/serve/front_tests.rs`, both failed on `c656697`); (2) a `started` of the placed job that named another runner ended a unit in `running`, also a job kept by T-493 or a swap in the placed run; now it gives an audit line `assigned` and the unit runs on, and only in `started` it ends the unit (`a_started_of_another_runner_after_the_mark_is_a_swap_and_the_unit_runs_on`, `a_kept_job_runs_on_when_the_placed_job_starts_elsewhere` of `tests::first_step`, both failed on `c656697`; `the_runner_of_the_unit_on_another_job_still_ends_the_unit_after_the_mark` holds the design test 10). The review of `caaaa2d` found one P2: a step of the job can send the mark or a `keep` of the run of the offer, so the run-on after `running` switched off the design test 10 on a unit with no job-started hook; now a `started` of the placed job that names another runner ends the unit in each state, and only a job of another run that the source kept runs on (`a_started_of_another_runner_after_the_mark_ends_the_unit` and `a_keep_of_the_placed_run_then_a_started_of_another_runner_ends_the_unit` of `tests::first_step`, both failed on `caaaa2d`; `a_kept_job_runs_on_when_the_placed_job_starts_elsewhere` keeps the exception). The same review found T-663. Next: `runner-image.yml` (the runner image changes), then `user-gate.yml` with `images_run` on the lane `serve-incus-kvm`: the rows `serve:warm:incus` and `serve:warm:microvm` show the first step on both kinds.
 
 ## Prove
 
@@ -16850,4 +16850,31 @@ python3 -c 'import yaml; yaml.safe_load(open(".github/workflows/runner-image.yml
 Then a run of `runner-image.yml` shows each suite as a step.
 
 State (2026-11-25, the commit that names T-662): the steps are split; the YAML loads; actionlint is not on this host. Open: a run of `runner-image.yml`.
+
+# T-663: A step of a unit with no job-started hook can ask `assigned` for a run that it does not run
+
+**Source:** the review of `caaaa2d` (T-660), 2026-11-25
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`serve` answers the first question of a unit (`POST http://control.podrunner.test/v1/assigned`, T-493) and keeps the answer. On the runner image, the job-started hook asks before the first step with the facts of the real job. A unit with no such hook (the host kind, the fake kind with an unpacked runner, a payload that is not the runner image) asks nothing, so a step of its job can ask first, with the facts of another run that the source keeps (a trusted run of the same tier). The job then counts as a job of another run that the source vouched for: a `started` of the placed job that names another runner does not end the unit (T-660, `on_started` of `crates/podrunner-slots/src/run.rs`), and the job, which may be a job of a fork, runs on in a unit minted for the placed job.
+
+## Premise
+
+Read on 2026-11-25: `ACTIONS_RUNNER_HOOK_JOB_STARTED` is set only by `images/runner/Dockerfile`, `images/runner/Dockerfile.musl` and the hosted snapshot. Not measured: which kinds of githome and cfb run a payload with no hook.
+
+## Approach
+
+1. podrunner knows whether the payload of a unit has the job-started hook: a fact of the pin of the payload (the runner image and the hosted snapshot have it), or a fact of the kind.
+2. For a unit whose payload has no hook, the front answers each question with `end` and the code `no-hook`, and the slots take no mark; the `started` check of the source stays the only proof (T-175).
+3. Tests: a unit with no hook asks `assigned` for another run that the source keeps, then a `started` of the placed job that names another runner ends the unit.
+
+## Prove
+
+`cargo test -p podrunner-slots first_step` with the case of step 3.
 
