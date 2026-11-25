@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| GitHub scale-set source | An operator-controlled source requests one rerun of a failed first-attempt job after `cache-mismatch` when GitHub confirms it ran on the minted runner. | T-654 |
 | command line | `podrunner image build --recipe FILE --out ARCHIVE [--arch ARCH]` builds a pinned runner image with Docker Buildx. It writes an OCI archive and prints its payload pin. | T-500 |
 | `podrunner.toml`, runner image | A pin can declare `assignment_hook = true` for a runner that checks each job before the first step. The pin signature covers the declaration. A unit without that hook gets `no-hook` for assignment requests. | T-663 |
 | source wire | The name of a credential file may hold no space, no control byte and no DEL (it held no `/`, `\`, NUL, `.` or `..` before): the mint refuses another name with `credential-unavailable`. The names of podrunner and of the runner (`.runner`, `.credentials`, `.credentials_rsaparams`, `jitconfig`) pass. | T-487 |

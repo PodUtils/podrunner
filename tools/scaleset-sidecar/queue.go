@@ -95,6 +95,11 @@ func (s *sidecar) next(capacity int, wait time.Duration) map[string]any {
 	s.retryCancels(retry)
 	stop()
 	events = append(events, s.offerQueued(ctx, capacity)...)
+	if len(s.reruns) > 0 {
+		rerunCtx, stopRerun := context.WithTimeout(ctx, nextBudget/4)
+		s.rerunMismatches(rerunCtx, time.Now())
+		stopRerun()
+	}
 	s.keepHeld()
 	s.report(s.GivenUp != gaveUp)
 	return map[string]any{"reply": "events", "events": events}

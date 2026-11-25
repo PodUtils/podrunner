@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 668 entries: 85 open, 57 partial, 13 blocked, 513 done.
+`TODO/INDEX.md` holds 668 entries: 84 open, 57 partial, 13 blocked, 514 done.
 
 ## State
 
@@ -47,8 +47,9 @@
 - The image recipe command built a full OCI image with an extra package.
   The imported digest ran a workflow on the test host as a user (T-500).
 - The sidecar of the scale set, with the opt-ins of Q12 (T-518) and Q13
-  (T-504), has unit and fake tests only. It did not run against GitHub.
-  Open: T-621 (a live lane), T-622, T-624.
+  (T-504), has unit and fake tests only. T-654 covers a single retry of
+  a first-attempt job that ended with `cache-mismatch`. The live lane
+  is T-621. T-622 and T-624 also remain open.
 - The state of each issue comes from the record by a tool; the step of the
   hand-written State column is open (T-250, partial).
 - Keep this page short. Write the current state only; git keeps the
@@ -63,8 +64,8 @@ then take the next one.
    mark. Build the runner image with the proxy fix in T-660. Use that
    green run for the next user-path gate. Both `serve:warm:incus` and
    `serve:warm:microvm` must pass before the lift in T-487.
-2. T-663 (P2) uses the same guest proof. Then take T-654 and the rest of
-   the cache work in T-480.
+2. T-663 (P2) uses the same guest proof. Then take the rest of the cache
+   work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10

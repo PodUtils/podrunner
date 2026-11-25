@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**668 entries: 85 open, 57 partial, 13 blocked, 513 done.**
+**668 entries: 84 open, 57 partial, 13 blocked, 514 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 97 | 122 |
 | P2 | 17 | 23 | 8 | 267 | 315 |
-| P3 | 67 | 11 | 3 | 147 | 228 |
-| **All** | 85 | 57 | 13 | 513 | 668 |
+| P3 | 66 | 11 | 3 | 148 | 228 |
+| **All** | 84 | 57 | 13 | 514 | 668 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -696,7 +696,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-651](later.md) | P3 | S | later | feature | open | The cache in the containers of a `container:` job |
 | [T-652](later.md) | P2 | S | later | defect | open | The disk check of a unit walks its root in the tick |
 | [T-653](later.md) | P2 | M | later | feature | done | The ref and the repository id of a job of another run, for its cache |
-| [T-654](later.md) | P3 | M | later | feature | open | A job that ended with `cache-mismatch` runs again |
+| [T-654](later.md) | P3 | M | later | feature | done | A job that ended with `cache-mismatch` runs again |
 | [T-655](later.md) | P3 | M | later | feature | open | A guest of the microvm kind keeps the memory of its kind for an offer that asks less |
 | [T-656](later.md) | P3 | M | later | feature | open | Warm units of the podvm kind |
 | [T-657](later.md) | P2 | S | later | feature | done | Warm and cold units in the run report and the status |

@@ -19,6 +19,7 @@ type jobState struct {
 	Job
 	offered, acquired, assigned, started, completed bool
 	runner                                          string
+	runnerID                                        int
 	requeues                                        int
 	result                                          string
 }
@@ -108,6 +109,10 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reply(w, http.StatusCreated, map[string]any{"token": "fake-registration", "expires_at": time.Now().Add(time.Hour).UTC()})
 	case strings.HasSuffix(p, "/actions/runner-registration"):
 		reply(w, http.StatusCreated, map[string]any{"url": s.base + "/tenant/1/", "token": adminToken()})
+	case r.Method == http.MethodGet && strings.HasSuffix(p, "/attempts/1/jobs"):
+		s.workflowJobs(w, p)
+	case r.Method == http.MethodPost && strings.Contains(p, "/actions/jobs/") && strings.HasSuffix(p, "/rerun"):
+		s.rerunWorkflowJob(w, p)
 	case strings.Contains(p, "/actions/runs/"):
 		s.workflowRun(w, p)
 	case strings.Contains(p, "/members/"):
@@ -263,7 +268,8 @@ func (s *server) nextMessage() map[string]any {
 			j.runner = s.runners[s.startedCount()]
 			j.started = true
 			m := s.msgBase(j, "JobStarted")
-			m["runnerName"], m["runnerId"] = j.runner, s.startedCount()
+			j.runnerID = s.startedCount()
+			m["runnerName"], m["runnerId"] = j.runner, j.runnerID
 			body = append(body, m)
 		case j.assigned && !j.started && j.requeues < j.Requeue:
 			// No runner took the job: it is offered again.
@@ -275,7 +281,7 @@ func (s *server) nextMessage() map[string]any {
 		case j.started && j.result != "":
 			j.completed = true
 			m := s.msgBase(j, "JobCompleted")
-			m["result"], m["runnerName"] = j.result, j.runner
+			m["result"], m["runnerName"], m["runnerId"] = j.result, j.runner, j.runnerID
 			body = append(body, m)
 		}
 	}
@@ -373,7 +379,7 @@ func (s *server) workflowRun(w http.ResponseWriter, p string) {
 		attempt = 1
 	}
 	reply(w, http.StatusOK, map[string]any{
-		"id": run, "event": j.Event, "actor": map[string]any{"login": j.Actor},
+		"id": run, "status": s.runStatus(j.Owner, j.Repo, run), "event": j.Event, "actor": map[string]any{"login": j.Actor},
 		"triggering_actor": map[string]any{"login": triggering}, "run_attempt": attempt,
 		"head_repository": head,
 		// The repository of a run is a minimal one on github.com:

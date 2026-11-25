@@ -15612,9 +15612,9 @@ Review fix, 2026-11-24, `c27096a`. A review of `0f3d9b6` found that each 409 of 
 The fourth review of the sidecar change of T-504 found six faults of the trust lookups of `tools/scaleset-sidecar`. Each one is P3: none gives a trusted set a job that it must refuse, but each one can end a job with `unknown`, cancel a healthy run, or keep a job with no line.
 
 1. `rateLimited` (`tools/scaleset-sidecar/calls.go:119`) knows a 403 of a rate limit only by `Retry-After` or `X-RateLimit-Remaining: 0`. GitHub can send a 403 of a secondary rate limit with neither header. That 403 is then a final answer (a missing permission): the job gets `unknown`, a trusted set refuses it, and its run is cancelled.
-2. A job whose lookup only gets `notReached` (`tools/scaleset-sidecar/queue.go:148`) never sets `pending`: it never counts as pending in the line of the counts, and `pastLimit` never gives it up. A `next` whose budget a slow run before it spends each time can keep it for ever with no line.
-3. A 5xx outage of GitHub that is longer than about 6 minutes (`tools/scaleset-sidecar/queue.go:150`: 10 attempts with the retry of 5 s doubled to 60 s) gives up the jobs of healthy runs with `unknown`, and Q7 cancels these runs. The cancel can also fail (T-623).
-4. A throttled job (`tools/scaleset-sidecar/queue.go:153`) gives up at 65 minutes (`pendingMax`). When a flood of runs spends the budget early in each hour, a job that waits behind it can miss two windows and is given up, and its run is cancelled.
+2. A job whose lookup only gets `notReached` (`tools/scaleset-sidecar/queue.go:153`) never sets `pending`: it never counts as pending in the line of the counts, and `pastLimit` never gives it up. A `next` whose budget a slow run before it spends each time can keep it for ever with no line.
+3. A 5xx outage of GitHub that is longer than about 6 minutes (`tools/scaleset-sidecar/queue.go:155`: 10 attempts with the retry of 5 s doubled to 60 s) gives up the jobs of healthy runs with `unknown`, and Q7 cancels these runs. The cancel can also fail (T-623).
+4. A throttled job (`tools/scaleset-sidecar/queue.go:158`) gives up at 65 minutes (`pendingMax`). When a flood of runs spends the budget early in each hour, a job that waits behind it can miss two windows and is given up, and its run is cancelled.
 5. With a PAT (T-174), a 401 clears `t.token` (`tools/scaleset-sidecar/calls.go:156`), which does nothing: `installationToken` takes the token from `signer.pat`, which keeps `patToken` (`tools/scaleset-sidecar/sign.go:146`). A revoked PAT gets a 401 for each call, and each job is given up after about 6 minutes with the cause `HTTP 401` and no line that names the token.
 6. `ask` writes the request to the sign channel with no deadline (`tools/scaleset-sidecar/sign.go:69`). When podrunner does not read descriptor 3 and the socket buffer is full, the `Write` blocks, and `next` does not answer inside the reply limit: the time limit of 5 s (`signWait`) does not stop a write.
 
@@ -16593,7 +16593,7 @@ Read on 2026-11-25: `RealJob` of `pod-job` `v0.83.0` (the file `source/event.rs`
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16609,9 +16609,17 @@ Read from the code on 2026-11-25. Not measured: the share of such jobs. The scal
 2. The source (the sidecar of `github-scaleset`, `tools/scaleset-sidecar`) runs the failed job again once (`POST /repos/OWNER/REPO/actions/jobs/JOB_ID/rerun`), with a limit of one re-run for each job, and writes an audit line.
 3. A test of the sidecar with the fake of GitHub (`tools/fake-scaleset`): a job that ended with `cache-mismatch` runs again once; a second end does not.
 
+## Decision
+
+Use the numeric runner ID from GitHub's JIT response to find the failed job of the reported run. The scale-set job GUID and workflow job key do not identify the REST job. Require the source's scope and a completed first attempt. After one POST, the sidecar records its HTTP status and drops the request. A transport error can lose the response to an accepted request.
+
 ## Prove
 
-`cd tools/scaleset-sidecar && go test -run Rerun ./...` and `cargo test -p podrunner-slots cache_assigned`.
+`cd tools/scaleset-sidecar && PODRUNNER_FAKE_SCALESET=PATH go test -run Rerun ./...` with the compiled `tools/fake-scaleset`, and `cargo test -p podrunner-slots cache_assigned`.
+
+## Done
+
+2026-11-25, the commit that names T-654. The pinned Go 1.27.3 race suites passed in both Go modules and their binaries passed the static check. The sidecar on `tools/fake-scaleset` requested exactly one rerun and the fake returned attempt 2. The REST fixture also checked matching on the second page among jobs with the same name, scope refusal, and suppression after a newer attempt. The four `cache_assigned` tests passed. Level: fake and unit tests. The live scale-set lane belongs to T-621.
 
 # T-655: A guest of the microvm kind keeps the memory of its kind for an offer that asks less
 

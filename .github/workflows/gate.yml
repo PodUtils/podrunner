@@ -307,6 +307,8 @@ jobs:
           sh "$GITHUB_WORKSPACE/scripts/check-static.sh" "$RUNNER_TEMP/fake-scaleset"
       - name: The scale-set sidecar
         working-directory: tools/scaleset-sidecar
+        env:
+          PODRUNNER_FAKE_SCALESET: ${{ runner.temp }}/fake-scaleset
         run: |
           set -eu
           test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }

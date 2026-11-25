@@ -35,7 +35,8 @@ type job struct {
 	assigned bool
 	state    jobState
 	// The runner of the JIT configuration: a release removes it.
-	runner int64
+	runner      int64
+	rerunQueued bool
 	// The run of the job and its attempt (0 when not known), to cancel it
 	// after a refusal (T-169, T-623).
 	owner, repo  string
@@ -68,6 +69,7 @@ type sidecar struct {
 	// not known.
 	cancelledAt map[int64]time.Time
 	cancelRetry []*cancelTry
+	reruns      []rerunMismatch
 	// The next call of each run with no final answer (queue.go).
 	waits map[int64]*retryWait
 	// The counts of the status line (report): the offers whose lookup gave
@@ -271,7 +273,11 @@ func (s *sidecar) handle(line []byte) map[string]any {
 		}
 		s.forget(jobID)
 		return map[string]any{"reply": "done"}
-	default: // report, audit: the scale set has no place for them.
+	case "report":
+		report, _ := req["report"].(map[string]any)
+		s.queueMismatchRerun(jobID, report, time.Now())
+		return map[string]any{"reply": "done"}
+	default: // audit
 		return map[string]any{"reply": "done"}
 	}
 }

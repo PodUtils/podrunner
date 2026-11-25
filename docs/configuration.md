@@ -361,6 +361,13 @@ event of the trust facts that its source gives (`keep`), the hook names
 no head of a fork, and the facts give the same scope; else it ends with
 `cache-mismatch`.
 
+An operator-controlled `github-scaleset` source may request one rerun
+after `cache-mismatch` (T-654). It waits for the workflow to finish and
+looks up the failed job by the runner ID that GitHub returned at mint.
+The request applies to a job in the first attempt of the run. The
+source needs the existing `Actions: read and write` permission and logs
+the HTTP status of its request.
+
 The `podvm` kind on a rung with volumes and the `fake` kind mount the
 cache. The `microvm` and `incus` kinds mount no host directory: their
 jobs get no cache (T-648). The steps of a `container:` job do not see it
