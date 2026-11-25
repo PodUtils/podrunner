@@ -11342,13 +11342,28 @@ The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-j
 
 A size for each kind: a quota or a sized file system for the work directory and the writable layer (podvm, incus `size` of the root device, a sized disk of a guest). Ask podvm by a COORD issue where podvm must give it. Keep the measure as a second path.
 
+For a machine guest with Podvm's future writable-root quota, put
+`/podrunner-work` on that guest filesystem so the workspace and the
+writable layer share the limit. The warm readiness marker can use a
+separate root-owned control share before the job starts. Match the quota
+of a warm guest to the offer's applied bound, or start it cold. Keep
+measured accounting for configurations using the existing host share.
+The hosted proof needs a workflow that writes to both `/tmp` and the
+workspace and reaches one combined quota.
+
 ## Prove
 
 `cargo test -p podrunner-unit` (the conformance suite) and a job on real units in `runner-image.yml` that writes past `disk` fails with `ENOSPC` on each kind.
 
 ## Blocker
 
-podvm must act for the other kinds: ask 5 of COORD-089 (GitHub #296), PodUtils/podvm@T-1968 (open): a sized disk of a machine guest, and on the namespace rung a sized work directory (podvm proposes a tmpfs with `size=`, memory and not disk). The incus kind has its size since podvm `0.2.0-beta.33` (T-482, `[unit.incus] root_quota`).
+Ask 5 of COORD-089 (GitHub #296), PodUtils/podvm@T-1968, waits for
+PodUtils/podvm@T-1994 to provide a writable disk root on the machine tier.
+On the namespace rung it waits for PodUtils/podvm#667 and a hosted runner
+where the user-namespace tmpfs mount succeeds. The namespace quota is
+memory-backed. Experiment 474 proved the Incus root quota (T-482).
+Podvm confirmed these dependencies in COORD-187, PodUtils/podvm#583,
+comment 7163202548 on 2026-11-25.
 # T-497: G-19: more facts of a job in the run report
 
 **Source:** githome's G-19 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
