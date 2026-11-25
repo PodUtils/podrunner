@@ -170,3 +170,35 @@ fn the_script_takes_the_claim_before_the_channel_and_the_engine() {
     assert!(!run_claim().success(), "a second claim");
     let _ = fs::remove_dir_all(&t);
 }
+
+/// A stream that a name broke (the old frame ended the files at a line
+/// `.`): the script of the claim ends with no `go` and sources nothing; a
+/// stream with fewer files than its count ends too.
+#[test]
+fn a_broken_stream_of_a_claim_gives_no_go() {
+    let t = dir("frame");
+    let (claim, root) = (t.join("claim"), t.join("root"));
+    let mark = t.join("pwned");
+    let env = format!("echo pwned > {}\nset --\n", mark.display());
+    let run = |stream: &str| {
+        let script = CLAIM_SCRIPT.replace(CLAIM_DIR, &claim.display().to_string());
+        let mut p = std::process::Command::new("sh")
+            .args(["-c", &script, "podrunner", &root.display().to_string()])
+            .stdin(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        p.stdin.take().unwrap().write_all(stream.as_bytes()).unwrap();
+        let ok = p.wait().unwrap().success();
+        let go = claim.join("go").exists();
+        let _ = fs::remove_dir_all(&claim);
+        (ok, go)
+    };
+    // The name "a\n." of a source: its "." line, then a line of its own.
+    let broken = format!("2\na\n. eA==\nexport X=1 eA==\n{env}");
+    assert_eq!(run(&broken), (false, false), "a name \".\" ends the claim");
+    assert_eq!(run(&format!("3\n.runner eA==\n{env}")), (false, false), "fewer files than the count");
+    assert_eq!(run(&format!("x\n{env}")), (false, false), "no count");
+    assert!(!mark.exists(), "nothing of the stream ran");
+    let _ = fs::remove_dir_all(&t);
+}

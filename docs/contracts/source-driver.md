@@ -42,6 +42,12 @@ The order of one job: `offer` (an event of `next`), `ack`, `claim`,
 `mint`, then `report` and `release`. `withdraw` ends an offer that
 podrunner does not claim (a `wait` refusal at `wait_deadline_s`).
 
+Each file of a `credential` has a plain name: 1 to 64 bytes, not `.` or
+`..`, with no `/`, no `\`, no space, no control byte and no DEL. The
+mint refuses a credential with no files or with another name
+(`credential-unavailable`): a unit script reads the names line by line
+and word by word.
+
 How a job ends at the source (T-200):
 
 * `withdraw` with a reason ends an offer that podrunner does not claim.

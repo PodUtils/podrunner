@@ -962,17 +962,21 @@ class Lane:
         then two with `warm = 1`, each phase one `serve` of the binary of
         the warm proof (`--warm-binary`: the feature warm-ci, with
         PODRUNNER_WARM_CI=1). Each warm job takes a warm unit (an audit line
-        `warm-take`), and its `claim_to_first_step_s` (claimed to running,
-        from the journal) is less than that of each cold job."""
+        `warm-take`), and the sum of the times from the claim to the first
+        step (claimed to running, in ms of the journal) of the warm jobs is
+        less than that of the cold jobs: a sum of two in ms does not fail on
+        one job whose time rounds to the same second."""
         cold = self.warm_phase(kind, False)
         warm = self.warm_phase(kind, True)
-        if max(warm) >= min(cold):
-            raise GateError(f"claim_to_first_step_s on {kind}: warm {warm} is not less than cold {cold}")
-        self.times[f"serve:warm:{kind}"] = {"cold-1-s": cold[0], "cold-2-s": cold[1], "warm-1-s": warm[0], "warm-2-s": warm[1]}
-        return f"claim_to_first_step_s on {kind}: cold {cold}, warm {warm}"
+        secs = [-(-ms // 1000) for ms in cold + warm]
+        if sum(warm) >= sum(cold):
+            raise GateError(f"claim to first step on {kind} (ms): warm {warm} is not less than cold {cold}")
+        self.times[f"serve:warm:{kind}"] = {"cold-1-s": secs[0], "cold-2-s": secs[1], "warm-1-s": secs[2], "warm-2-s": secs[3]}
+        return f"claim_to_first_step_s on {kind}: cold {secs[:2]}, warm {secs[2:]}"
 
     def warm_phase(self, kind: str, warm: bool) -> list[int]:
-        """Two jobs through one `serve`; their `claim_to_first_step_s`."""
+        """Two jobs through one `serve`; their times from the claim to the
+        first step, in ms."""
         import urllib.request
         name = f"warm-{kind}-{'warm' if warm else 'cold'}"
         env = self.env(self.home, PODRUNNER_WARM_CI="1")
@@ -1052,7 +1056,7 @@ class Lane:
             at = {x["state"]: x["t_ms"] for x in journal if x["job_id"] == job and x.get("source") != "@warm"}
             if "claimed" not in at or "running" not in at:
                 raise GateError(f"{name}: job {job} has no claimed or running line: {sorted(at)}")
-            times.append(-(-(at["running"] - at["claimed"]) // 1000))
+            times.append(at["running"] - at["claimed"])
         takes = [x for x in audit if x.get("audit") == "warm-take"]
         if len(times) != 2 or len(takes) != (2 if warm else 0):
             raise GateError(f"{name}: {len(times)} jobs and {len(takes)} warm-take lines")

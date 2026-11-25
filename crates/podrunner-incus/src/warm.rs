@@ -37,21 +37,25 @@ pub const WARM_VAR: &str = "PODRUNNER_WARM";
 pub const CLAIM_DIR: &str = "/podrunner-claim";
 
 /// The script of the claim, as root in the instance. `$1` is the runner
-/// root. stdin holds one line `NAME BASE64` for each credential file, a
-/// line `.`, then `env.sh`. `mkdir` of the claim directory fails when it
-/// is there: one claim.
+/// root. stdin holds the count N of the credential files, then N lines
+/// `NAME BASE64`, then `env.sh`: the count frames the stream, so no name
+/// can end the files early and put a line of its own into `env.sh`. A
+/// name `.`, `..`, empty or with `/` ends the claim. `mkdir` of the claim
+/// directory fails when it is there: one claim.
 pub const CLAIM_SCRIPT: &str = r#"set -eu
 root=$1
 mkdir -p "$root"
 umask 077
 mkdir /podrunner-claim
-while read -r n b; do
-  case "$n" in
-  .) break ;;
-  ''|..|*/*) exit 97 ;;
-  esac
+read -r count
+case "$count" in ''|*[!0-9]*) exit 97 ;; esac
+i=0
+while [ "$i" -lt "$count" ]; do
+  read -r n b || exit 97
+  case "$n" in ''|.|..|*/*) exit 97 ;; esac
   printf '%s' "$b" | base64 -d > "$root/$n"
   chmod 0600 "$root/$n"
+  i=$((i + 1))
 done
 cat > /podrunner-claim/env.sh
 : > /podrunner-claim/go.tmp
@@ -61,10 +65,11 @@ mv /podrunner-claim/go.tmp /podrunner-claim/go
 /// The longest time of the `podvm exec` of a claim.
 const CLAIM_LIMIT: Duration = Duration::from_secs(120);
 
-/// The stdin of the claim: the credential lines, `.`, then `script`.
+/// The stdin of the claim: the count of the files, their lines, then
+/// `script`. `credential_stream` refuses a name that is not plain.
 pub fn claim_stream(credential: &Credential, script: &str) -> Result<Vec<u8>, UnitError> {
-    let mut out = credential_stream(credential)?;
-    out.extend_from_slice(b".\n");
+    let mut out = format!("{}\n", credential.files.len()).into_bytes();
+    out.extend(credential_stream(credential)?);
     out.extend_from_slice(script.as_bytes());
     Ok(out)
 }

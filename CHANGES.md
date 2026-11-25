@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| source wire | The name of a credential file may hold no space, no control byte and no DEL (it held no `/`, `\`, NUL, `.` or `..` before): the mint refuses another name with `credential-unavailable`. The names of podrunner and of the runner (`.runner`, `.credentials`, `.credentials_rsaparams`, `jitconfig`) pass. | T-487 |
 | pins | podcrates `v0.83.0`: `release.yml` verifies the assets with `pod-release` `0.83.0`, and the gate runs `source-conformance` against `pod-fake-githome` of `v0.83.0` (`ghcr.io/podutils/pod-fake-githome:v0.83.0`), which answers `assigned` with the fork fact of the real job alone. The exit codes of podrunner do not change. | T-647 |
 | pins, `run-report.v1` | podvm `0.2.0-beta.40`. The incus kind gets `cpu_s`, `peak_rss_mib` and the OOM kills of a stopped instance from the record of podvm also on a host with AppArmor and cgroup v2 (a hosted ubuntu-24.04 runner), where `0.2.0-beta.39` gave none (COORD-128, #350); `docs/contracts/source-driver.md` names the version. `[unit.incus] init = "image"` waits while systemd gives `offline` (`PODVM_INIT_BOOT_TIMEOUT`, 180 s by default; COORD-127, #349). An import keeps one tree of the image and sends gzip where the images of incusd lack room (COORD-125, #347). | T-611, T-613, T-647 |
 | release assets | `release.yml` takes the input `images_run` (a green `runner-image.yml` run, of an older commit when `images/` is the same), with the rule of `user-gate.yml` (`scripts/images-run.sh`); the summary of the job `check` and the notes of the release name the run of the runner images. | T-626 |
@@ -139,6 +140,6 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 0f43d75790e248ee82e1ae12675d917352c0734520f6bedf5ed0642fdd4abea4 -->
-<!-- contract docs/contracts/source-driver.md 13875da50a66ad167ae70a19313631222f3cf6c61bf21afde7eedcf322c970d1 -->
+<!-- contract docs/contracts/source-driver.md 0d9fe59a1492ebb0626092e413c9cf7eb0056912bac7eb487be25c9ef93c1fb5 -->
 <!-- contract docs/contracts/unit-driver.md 95465c8377fcc3f5bb7d7065232eabdcf823aef0483a2385d2aa2320622e680c -->
 <!-- contract schemas/config.v1.json 6635528e08614c6399d813f12113b5cdc505ba701027069a310bb425abb1b848 -->

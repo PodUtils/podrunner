@@ -137,8 +137,9 @@ mod tests {
         assert!(conformance::not_passed(&results).is_empty(), "{results:#?}");
     }
 
-    /// A source that revokes at its second call.
-    struct Revoking(u32);
+    /// A source that revokes at its second call; its mint gives one file of
+    /// the name of its second field, or none.
+    struct Revoking(u32, Option<&'static str>);
 
     impl JobSource for Revoking {
         fn hello(&mut self, _: &str, _: &str) -> Result<Hello, SourceError> {
@@ -159,7 +160,11 @@ mod tests {
             Ok(())
         }
         fn mint(&mut self, _: &JobId, _: &str) -> Result<Credential, SourceError> {
-            Ok(Credential::default())
+            let file = |n: &str| podrunner_schema::CredentialFile {
+                name: n.into(),
+                content: podrunner_schema::Secret::new("x"),
+            };
+            Ok(Credential { files: self.1.iter().map(|n| file(n)).collect() })
         }
         fn report(&mut self, _: &JobId, _: &Map<String, Value>) -> Result<(), SourceError> {
             Ok(())
@@ -177,7 +182,7 @@ mod tests {
 
     #[test]
     fn a_revocation_is_final_and_names_no_secret() {
-        let mut m = Mint::new("app-key-of-org-a", Box::new(Revoking(0)));
+        let mut m = Mint::new("app-key-of-org-a", Box::new(Revoking(0, None)));
         m.hello("p", "0").unwrap();
         let e = m.hello("p", "0").unwrap_err();
         assert_eq!(e.code, SourceCode::SourceRevoked);
@@ -192,8 +197,21 @@ mod tests {
 
     #[test]
     fn a_credential_with_no_files_is_refused() {
-        let mut m = Mint::new("k", Box::new(Revoking(0)));
+        let mut m = Mint::new("k", Box::new(Revoking(0, None)));
         let job = JobId::new("j").unwrap();
         assert_eq!(m.mint(&job, "r").unwrap_err().code, SourceCode::CredentialUnavailable);
+    }
+
+    /// A name that holds a newline, a space or a control byte would change
+    /// the frame of the stream of a unit script: the mint refuses it.
+    #[test]
+    fn a_name_with_a_newline_is_refused() {
+        let job = JobId::new("j").unwrap();
+        for bad in ["x\n.", "a b", "a\u{7f}"] {
+            let mut m = Mint::new("k", Box::new(Revoking(0, Some(bad))));
+            assert_eq!(m.mint(&job, "r").unwrap_err().code, SourceCode::CredentialUnavailable, "{bad:?}");
+        }
+        let mut m = Mint::new("k", Box::new(Revoking(0, Some(".runner"))));
+        assert_eq!(m.mint(&job, "r").unwrap().files.len(), 1);
     }
 }

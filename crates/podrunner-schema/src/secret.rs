@@ -44,21 +44,42 @@ impl FileBytes for CredentialFile {
 
 /// The check of the name of a credential file.
 pub trait PlainName {
-    /// True when the name is a plain file name: no `/`, no `..`, and not
-    /// empty.
+    /// True when the name is a plain file name: not empty, at most 64
+    /// bytes, not `.` or `..`, no `/` or `\`, and no space, control byte
+    /// or DEL. A unit script reads the names line by line and word by word:
+    /// a newline or a space in a name would change its frame.
     fn name_is_plain(&self) -> bool;
 }
 
 impl PlainName for CredentialFile {
     fn name_is_plain(&self) -> bool {
         let n = self.name.as_str();
-        !n.is_empty() && n.len() <= 64 && n != "." && n != ".." && !n.contains(['/', '\\', '\0'])
+        !n.is_empty()
+            && n.len() <= 64
+            && n != "."
+            && n != ".."
+            && !n.contains(['/', '\\'])
+            && !n.bytes().any(|b| b <= 0x20 || b == 0x7f)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The names of the mint and of podrunner pass; a name with a byte
+    /// that can change the frame of a unit script does not.
+    #[test]
+    fn a_plain_name_has_no_space_and_no_control_byte() {
+        let plain = |n: &str| CredentialFile { name: n.into(), content: Secret::new("x") }.name_is_plain();
+        for n in [".runner", ".credentials", ".credentials_rsaparams", "jitconfig", ".podrunner-job", "a;b"] {
+            assert!(plain(n), "{n}");
+        }
+        for n in ["", ".", "..", "a/b", "a\\b", "a\0b", "x\n.", "a b", "a\tb", "a\rb", "a\u{7f}", "a\u{1b}"] {
+            assert!(!plain(n), "{n:?}");
+        }
+        assert!(!plain(&"a".repeat(65)));
+    }
 
     #[test]
     fn debug_prints_no_secret() {
