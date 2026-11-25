@@ -5,8 +5,8 @@
 //! rlimits: the kernel ends a process past `memory`, and the kind counts
 //! the OOM kill. The use of a payload of a known load is the use that the
 //! kind gives (T-483, T-611). Ignored by default: it needs podvm
-//! `v0.2.0-beta.39` or later (the record of the use at the stop) and an
-//! incusd. Run:
+//! `v0.2.0-beta.40` or later (the record of the use at the stop, also on a
+//! host with AppArmor and cgroup v2) and an incusd. Run:
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
 //!   PODRUNNER_PODVM_IMAGE=NAME@sha256:HEX \
@@ -46,16 +46,9 @@ fn run(n: u32, script: &str, limits: Limits) -> Option<Exit> {
     run_with_usage(n, script, limits).exit
 }
 
-/// The reason of an unknown peak and of no OOM kill that the tests take,
-/// by name: podvm `0.2.0-beta.39` gave no record of the use at the stop
-/// on a hosted runner (runner-image.yml 45359834173, COORD-128 #350,
-/// T-611). The record of the stopped instance (its raw `inspect`) must
-/// show it: `-` for its peak.
-const PEAK_NOT_GIVEN: &str = "incusd gave no PeakMemoryBytes of the instance";
-const NO_RECORD: &str = "podvm 0.2.0-beta.39 gave no record of the use at the stop (COORD-128 #350, T-611)";
-
 /// What a unit gave: its exit, its log, its use and OOM kills (before the
-/// destroy), and the raw `inspect` of the stopped instance.
+/// destroy), and the raw `inspect` of the stopped instance (the evidence
+/// of a failure).
 struct Ran {
     exit: Option<Exit>,
     log: String,
@@ -64,15 +57,8 @@ struct Ran {
     raw: String,
 }
 
-impl Ran {
-    /// The stopped instance has no record of the use: its peak is `-`.
-    fn no_record(&self) -> bool {
-        self.raw.split_whitespace().nth(3) == Some("-")
-    }
-}
-
-/// The raw state of the instance NAME, for the evidence of COORD-128: the
-/// template of the kind (`usage::STATE`).
+/// The raw state of the instance NAME, with the template of the kind
+/// (`usage::STATE`): the evidence for a failure of the record of the stop.
 fn raw_inspect(name: &str) -> String {
     let format = "{{.Status}} {{.ExitCode}} {{.CpuSeconds}} {{.PeakMemoryBytes}} {{.OomKills}}";
     let out = std::process::Command::new(env("PODRUNNER_PODVM"))
@@ -137,11 +123,7 @@ fn a_payload_past_the_memory_limit_gets_an_error() {
     let ran = run_with_usage(2, MEMORY, held);
     assert_eq!(ran.exit, Some(Exit::Code(0)), "1 GiB must fail under 256 MiB");
     // The exit reason `limit` of slots needs the count (T-515, T-611).
-    match ran.oom {
-        Some(n) if n > 0 => {}
-        Some(0) if ran.no_record() => println!("oom_kills 0 under 256 MiB: {NO_RECORD}; raw: {}", ran.raw),
-        oom => panic!("no OOM kill counted under 256 MiB: {oom:?}; raw: {}", ran.raw),
-    }
+    assert!(ran.oom.is_some_and(|n| n > 0), "no OOM kill counted under 256 MiB: {:?}; raw: {}", ran.oom, ran.raw);
 }
 
 #[test]
@@ -173,13 +155,6 @@ fn the_use_of_a_known_load_is_the_use_that_the_kind_gives() {
     assert!((cpu as f64 - load).abs() <= tolerance, "cpu_s {cpu} for {load:.2} s of CPU of the load");
     // The incusd of a hosted runner gives no peak of a running instance
     // on cgroup v2; the record of podvm at the stop gives it (T-611).
-    match usage.peak_memory_bytes {
-        Ok(peak) => {
-            assert!(peak.div_ceil(1 << 20) >= 64, "peak_rss_mib {} under the 64 MiB buffer", peak.div_ceil(1 << 20))
-        }
-        Err(why) if why == PEAK_NOT_GIVEN && ran.no_record() => {
-            println!("peak_memory_bytes: unknown ({why}): {NO_RECORD}; raw: {}", ran.raw)
-        }
-        Err(why) => panic!("peak unknown: {why}; raw: {}", ran.raw),
-    }
+    let peak = usage.peak_memory_bytes.unwrap_or_else(|e| panic!("peak unknown: {e}; raw: {}", ran.raw));
+    assert!(peak.div_ceil(1 << 20) >= 64, "peak_rss_mib {} under the 64 MiB buffer", peak.div_ceil(1 << 20));
 }

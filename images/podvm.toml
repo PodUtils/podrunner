@@ -32,11 +32,15 @@
 # - beta.39: `inspect` of a stopped incus instance gives the CPU time, the
 #   peak memory and the OOM kills; an image that does not fit in a `dir`
 #   pool is refused before the import; one import for parallel runs.
-version = "0.2.0-beta.39"
+# - beta.40: that record also on a host with AppArmor and cgroup v2 (a
+#   hosted runner); `--podvm-init=image` waits while systemd is `offline`
+#   (`PODVM_INIT_BOOT_TIMEOUT`); an import keeps one tree and sends gzip
+#   where the images of incusd lack room.
+version = "0.2.0-beta.40"
 
 [sha256]
-x86_64 = "9a774b624d3c21636317d50e3c12723b8bb3206e5ad2c7fdab2ffe5739af94c6"
-aarch64 = "ad7164b6e11fb870c0e473fa25785da74989dbed110075c84771d6b09d1639df"
+x86_64 = "05be17194d0a6ee757f57e7a5cf5e897f73b303efba4c19b68b97b65e47ce422"
+aarch64 = "dcfc914ecbb7fcb8cb8b983a438130f691234f5a68d1db6e08cc15398670aaa3"
 
 [ghcr]
-reference = "ghcr.io/podutils/podvm:v0.2.0-beta.39@sha256:863fe15b21d7c282534617899674c0ac243c1845914191424d04ba4905005e77"
+reference = "ghcr.io/podutils/podvm:v0.2.0-beta.40@sha256:31f5f9494bda68c4ab8f2aeb8a2295c7c5da6f944f3416ce29ebac304ba0c9a1"

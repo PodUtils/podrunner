@@ -7,7 +7,7 @@ it as `podrunner-install.sh`, with the pins of that release.
 ## Quick start
 
 Use a release that attaches `podrunner-install.sh`. Set `VERSION` to its
-version (for example `0.1.0-beta.7`):
+version (for example `0.1.0-beta.8`):
 
 ```sh
 curl -fsSLO "https://github.com/PodUtils/podrunner/releases/download/vVERSION/podrunner-install.sh"

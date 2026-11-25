@@ -2760,7 +2760,7 @@ In `runner-image.yml`, after the build, write the list of the packages of each i
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2782,6 +2782,10 @@ A `runner-image.yml` run of the commit uploads `runner-ARCH` and `runner-full-AR
 ```sh
 sh podrunner-install.sh && podrunner run "$HOME/.local/share/podrunner/hello.yml"
 ```
+
+## Done
+
+2026-11-25: the release `v0.1.0-beta.8`, `release.yml` 45459310537 (the run with the version on `main` at `93e1710`: `check`, `probe`, `build`, `assets`, `image`, `dry` and `tag` green) and 45466841655 (the run on the tag `v0.1.0-beta.8` at `93e1710`: `check`, `build`, `assets`, `image`, `push` and `release` green); the job `check` took `user-gate.yml` 45443730436 (`version=0.1.0-beta.8`) and `runner-image.yml` 45435461556, both on `93e1710`. The release has 29 files, among them `podrunner-install.sh`, `runner-ARCH.tar`, `runner-full-ARCH.tar` and `podrunner-bundle-ARCH.tar.gz` for x86_64 and aarch64, each with its `.sha256`, and `SHA256SUMS` names each (read through the mirror of the API and with `pod-release verify`). The lanes of `user-gate.yml` 45443730436 installed these files, byte for byte, as a user with no root, online from a local server with the paths of the release and from the bundle with no network, and ran `hello.yml`. Level: proven in CI on GitHub-hosted runners. The QA of the release (2026-11-25, a blind agent as user `qa8`: no root, no KVM, a proxy that intercepts TLS) found no P1 and no P2: the online quick start of the notes from the release URL installs in 32.6 s, `podrunner --version` gives `podrunner 0.1.0-beta.8 (93e171097bee)`, `hello.yml` passes in 25 s and a project with a checkout in 67 s. Level of the install from the release URL: proven on a constrained host as a user.
 
 # T-206: `--platform` turns off each later check of the flags of `run`
 
@@ -3879,6 +3883,7 @@ State (2026-11-15, the first run): user-gate 43743490768 on `f0fd5f2` (podvm bet
 
 State (2026-11-24, since 2026-11-17): the gate has nine lanes (`plain`, `small-tmp`, `userns-off`, `userns-on`, `inherited-fds`, `proxy-only`, `proxy-only-dns`, `bind-denied`, `serve-incus-kvm`) and the checks `errors` (T-372), `rung`, `confine`, `pids`, `pty`, `hold:podvm`, `lab:vnet` and `serve:job`; the summary gives the times of each row (T-528); the install checks each file against `SHA256SUMS` and `release-index.json` (T-523); `images_run` takes an older `runner-image.yml` run when `images/` is the same. The last run is user-gate 45276522625 on `f694571` (2026-11-23): the jobs `prepare`, `build` (x86_64 and aarch64), `assets`, the nine lanes and `summary` all succeeded. Level: proven in CI on GitHub-hosted runners. Open: the planted defect of the Prove (the defect of T-217 put back on a branch, a red run); a user-gate run on the commit of `v0.1.0-beta.8` (`docs/decisions.md`, "beta.8"); a lane on aarch64. Not run on a constrained host as a user, but by the QA rounds of T-246.
 
+State (2026-11-25, the release `v0.1.0-beta.8`; proven in CI on GitHub-hosted runners): `user-gate.yml` 45443730436 with `version=0.1.0-beta.8` on `93e1710`, the release commit, is green in the nine lanes; the job `check` of `release.yml` 45459310537 read it ("the user-path gate at 93e1710...: green"), and the run on the tag 45466841655 published the release. Open: the planted defect of the Prove (a red run), and a lane on aarch64.
 
 # T-244: The host lanes of the user-path gate
 
@@ -3927,6 +3932,7 @@ State (2026-11-17): the part of podvm is done: `podvm lab run` and `lab check` i
 
 State (2026-11-24, since 2026-11-17): each host class has its lane in `user-gate.yml`: `plain`, `small-tmp`, `userns-off`, `userns-on` (the namespace rung of podvm), `inherited-fds`, `proxy-only`, `proxy-only-dns` (no resolver, a proxy with a login; T-371), `bind-denied` (`podvm lab run`) and `serve-incus-kvm`. All nine are green in user-gate 45276522625 on `f694571` (2026-11-23); level: proven in CI on GitHub-hosted runners. Open: a lane on aarch64; the take of the crate `pod-lab` (T-264, partial); a new lane for each new host class that a QA round finds.
 
+State (2026-11-25, the release `v0.1.0-beta.8`; proven in CI on GitHub-hosted runners): the nine lanes are green in `user-gate.yml` 45443730436 on `93e1710`, the commit of the release. Open: a lane on aarch64; the take of `pod-lab` (T-264, partial); a lane for each new host class that a QA round finds.
 
 # T-245: The command line as a contract
 
@@ -3990,6 +3996,7 @@ State (2026-11-24, since 2026-11-17): rounds 4 and 5 (`docs/releases/v0.1.0-beta
 
 State (2026-11-24, round 6): round 6 ran on the candidate `0.1.0-beta.8` (user-gate run 45354505741 on `21aa8c4`). Agent A (user `qa8`): no P1 and seven P2: P2-1 is in T-249 (State line), P2-2 is T-627, P2-3 is T-628, P2-4 is T-629, P2-5 is T-630, P2-6 is T-631 and P2-7 is T-632. The P3 entries are T-633 (installer), T-634 (the flags of `run`), T-635 (`check`, `config init`, `doctor`) and T-636 (signals); the areas that the round did not test are T-637. Agent B (user `qa9`): no P1; P2s T-639 (Ctrl-C and a `container:` job), T-640 (`checkout` `ref:`), T-641 (`.git` of an organization `config_url`) and its P2-1 in T-629 (no new entry); the P3 entries are T-642 and lines in T-633, T-635 and T-636; the areas that it did not test are in T-637. The round is complete: both agents cleaned their users. Each P2 blocks the release. Level: proven on a constrained host as a user.
 
+State (2026-11-25, the release `v0.1.0-beta.8`, `release.yml` 45459310537 and 45466841655 on `93e1710`): the release went out after round 6, with no P1 and each P2 of it done (T-627 to T-632, T-639 to T-641, the State line of T-249). The entry stays open for each next release: a round with two blind agents before each request for a release, and a QA of the published release from the release URL as a user.
 
 # T-247: The notes of a release name the level of the proof of each claim
 
@@ -10847,7 +10854,7 @@ State (2026-11-24, the pin of podvm `0.2.0-beta.39`, not run): `inspect` of a st
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -10870,6 +10877,10 @@ A dry run of `release.yml` makes both files, and the step of the check passes on
 In the code (2026-11-18): `sh scripts/release-assets.sh sums DIR` writes `DIR/SHA256SUMS` of each asset (not the `.sha256` files; case 12 of `sh scripts/test-install.sh` checks it). The job `release` of `release.yml` writes it over `dist`, signs it with `cosign sign-blob --bundle SHA256SUMS.sigstore.json` (the cosign installer and `v3.1.4` of podcrates), checks the signature with the identity of the workflow at the ref of the dispatch, and checks that a changed copy fails; both files go into the release. `docs/install.md` names the check. Left: the first release that runs it (the signing needs the token of a release run), and step 3 (the installer checks the sums file when `cosign` exists).
 
 State (2026-11-20): T-523 does step 3: the installer checks each file of the release against `SHA256SUMS`, and the signature with `pod-release` or `cosign` when one is on `PATH` (proven by the test of the installer only). Left: the first release that runs it.
+
+## Done
+
+2026-11-25: the release `v0.1.0-beta.8`, `release.yml` 45459310537 (the run with the version on `main` at `93e1710`: `check`, `probe`, `build`, `assets`, `image`, `dry` and `tag` green) and 45466841655 (the run on the tag `v0.1.0-beta.8` at `93e1710`: `check`, `build`, `assets`, `image`, `push` and `release` green); the job `check` took `user-gate.yml` 45443730436 (`version=0.1.0-beta.8`) and `runner-image.yml` 45435461556, both on `93e1710`. The release has `SHA256SUMS` and `SHA256SUMS.sigstore.json`; the run on the tag signed it as `release.yml@refs/tags/v0.1.0-beta.8` and checked the signature. Checked again here: `pod-release verify --repo PodUtils/podrunner --tag v0.1.0-beta.8 DIR` (`pod-release` 0.83.0) on `SHA256SUMS`, its bundle, `release-index.json`, the x86_64 binary and the installer gives exit 0 (Rekor entry 4085445803, `SHA256SUMS` `93a4e457...`). Step 3 is T-523. Level: proven in CI on GitHub-hosted runners. The QA of the release (2026-11-25, a blind agent as user `qa8`: no root, no KVM, a proxy that intercepts TLS) found no P1 and no P2: each of the 14 lines of `SHA256SUMS` holds on the downloaded assets (proven on a constrained host as a user); that host had no `cosign` and no `pod-release`, so the signature was checked on this host only.
 
 # T-485: The incus kind has no container route, though G-02 asks for an engine in the system container
 
@@ -11384,6 +11395,8 @@ State (2026-11-23, step 1 in the code; not run): `.github/workflows/runner-image
 State (2026-11-23, the review of `c0ac75e`; not run in CI): `scripts/runner-release.py` checks each version and each tag with a full match (`fullmatch`): `$` of `re.match` took a trailing newline, so `vrunner-2.339.0-r1` and a newline passed as a tag. The self-test has five new cases (a version, a revision, a version of the notes, the newest release and an image release with a newline); four of them fail on the code before. `runner-image-release.yml`: a schedule has a concurrency group of its own (`runner-image-release-schedule`), so it cannot cancel a dispatch that waits in the group of `main`. The job `tag` pushes the tag in one step, and dispatches the run on the tag in a second step with `scripts/retry.sh` and `continue-on-error`; when each try fails, the run stays green (the run on the tag takes the files of a green run only), and a third step writes an error line and the command of the dispatch by hand to the summary (`docs/maintenance.md`, "A runner image release"). Test: `python3 -I scripts/runner-release.py --self-test` passes. Not proven: a run of `runner-image-release.yml` (dry run, then publish) proves the workflow.
 
 State (2026-11-23, the dry run, proven in CI on GitHub-hosted runners): `runner-image-release.yml` 45164009824 (`551d5d8`, no inputs: the pin 2.338.2, `publish` false) is green: `pin` gives `vrunner-2.338.2-r1` and the pin of `images/runner/runner.toml`; the build of x86_64 and of aarch64 loads each image with `podvm load -i`, "the runner 2.338.2 is in the image", and on x86_64 the canned job in a podvm unit passes (`test result: ok. 1 passed`); `assemble` writes the files (`runner-x86_64` 871929058 bytes, `runner-aarch64` 683853135 bytes) and "pod-release sums: each file and the index hold; a changed index fails (77)". The dry run 45156174559 before it failed only on the check of `Runner.Listener --version`, now removed. Left: a publish run with a new `actions/runner` (none is newer than 2.338.2 today), and the installer that takes an image release (step of the State above).
+
+State (2026-11-25, the release `v0.1.0-beta.8`, `release.yml` 45459310537 and 45466841655 on `93e1710`; proven in CI on GitHub-hosted runners): step 2 holds in a release: the release has `podrunner-manifest.json` with its `.sha256`, named in the signed `SHA256SUMS`. The QA of the release as user `qa8` (2026-11-25): the digests of the runner images in the manifest are those of ghcr.io and of the notes, and the online install of the notes passes (proven on a constrained host as a user). Left: a publish run of `runner-image-release.yml` with a new `actions/runner` (none is newer than 2.338.2 on 2026-11-25), and the installer that takes an image release.
 
 # T-500: G-24: a runner image with the software that cfb's gates need
 
@@ -12133,7 +12146,7 @@ Do not edit the copy. Add a line to `docs/design-issues.md` and to the README of
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12160,6 +12173,10 @@ State (2026-11-20): unblocked. PodUtils/podcrates@T-104 and PodUtils/podcrates@T
 State (2026-11-20, the check of the installer): before the first download of a file of the podrunner release (the binary, a runner image archive), `scripts/install.sh` downloads `SHA256SUMS` and `release-index.json` of the release. A file goes to its place only when `SHA256SUMS` gives its pin and the index names its SHA-256; `SHA256SUMS` must give the SHA-256 of the index, the index must name the tag, and an installer that runs from a file must be `podrunner-install.sh` of `SHA256SUMS`. With `pod-release` on `PATH` it runs `pod-release verify --repo PodUtils/podrunner --tag vVERSION` on the three files (no network); else with `cosign`, `cosign verify-blob` with the signer `release.yml` at the tag; with neither, a `warn` line. Each failure exits 1 and names the file. An install from a bundle reads no `SHA256SUMS`. There is no opt-out. `user-gate.yml` writes `release-index.json` and `SHA256SUMS` of its assets (`release-assets.sh index`, `sums`, `check`), as the job `dry` of `release.yml` does. Proven here (not on a constrained host, not in CI): case 6 of `sh scripts/test-install.sh` (16 passed, no network) refuses a changed asset, a `SHA256SUMS` with another SHA-256, no `SHA256SUMS`, no index, an index with no line of the binary, a signature that a fake `pod-release` refuses (77), and a changed installer; the install with no verifier passes with the `warn` line; a planted removal of the check of `SHA256SUMS` or of the index fails the test. Measured here on the signed release `v0.78.1` of podcrates with the pinned `pod-release` of `images/pod-release.toml`: `pod-release verify --repo PodUtils/podcrates --tag v0.78.1 DIR` on a directory with only `SHA256SUMS`, `SHA256SUMS.sigstore.json` and `release-index.json` (the shape that the installer makes) gives 0 (the signature and the index hold, each other file is `missing`, not an error), and a changed `SHA256SUMS` gives 77. Not run: the check on a signed release of podrunner (the first run of `release.yml` on a tag), `cosign verify-blob` on a real release, and the lanes of `user-gate.yml` with the index step.
 
 State (2026-11-21, proven in CI on GitHub-hosted runners: `level2.yml` 44802972349 and `user-gate.yml` 44802979062 at `32e5ea4`, #335): each lane of `user-gate.yml` writes `release-index.json` and `SHA256SUMS` of its assets and installs through the new checks. Not run: a signed release of podrunner.
+
+## Done
+
+2026-11-25: the release `v0.1.0-beta.8`, `release.yml` 45459310537 (the run with the version on `main` at `93e1710`: `check`, `probe`, `build`, `assets`, `image`, `dry` and `tag` green) and 45466841655 (the run on the tag `v0.1.0-beta.8` at `93e1710`: `check`, `build`, `assets`, `image`, `push` and `release` green); the job `check` took `user-gate.yml` 45443730436 (`version=0.1.0-beta.8`) and `runner-image.yml` 45435461556, both on `93e1710`. The index is signed through `SHA256SUMS` and lists each asset (T-562). The check of the installer ran in each lane of `user-gate.yml` 45443730436 on the files of the release. The shape of the check of the installer (only `SHA256SUMS`, `SHA256SUMS.sigstore.json` and `release-index.json`, plus the binary and the installer) on the signed release: `pod-release verify --repo PodUtils/podrunner --tag v0.1.0-beta.8 DIR` gives exit 0 (3 files checked, the others `missing`). Level: proven in CI on GitHub-hosted runners; the verify of the signed release on this host. Not run: `cosign verify-blob` on the release. The QA of the release (2026-11-25, a blind agent as user `qa8`: no root, no KVM, a proxy that intercepts TLS) found no P1 and no P2: the online install of the notes ran the check of the installer against the signed release, and the attestation of the binary verifies offline (`gh attestation verify --bundle`, the certificate names `release.yml@refs/tags/v0.1.0-beta.8`, run 45466841655). Level of the install with its check: proven on a constrained host as a user.
 
 # T-524: G-04 and G-35: the half of podrunner of the placeholders of a policy
 
@@ -13175,7 +13192,7 @@ State (2026-11-19): `runner-image.yml` run 44453922354 at `e7e5d4c` (the image w
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -13206,6 +13223,10 @@ State (2026-11-23, the level: not run in CI; a part on a development host): `.gi
 State (2026-11-23, the findings of an independent review; the level: not run in CI, a part on a development host): (1, P2) the first push to ghcr.io could fail after the tag (the permission of a package, a package that is not linked to the repository), which leaves a tag with no release. The new job `probe` of the run with a version (`packages: write`, before the job `tag`) runs `scripts/ghcr.py probe-push` for both packages: a registry token of `pull,push`, then a blob upload that opens and is cancelled. `docs/maintenance.md`, A release, says how to recover when a step of the run on the tag fails after the tag: dispatch `release.yml` on the tag again, with no version. (2, P3) the job `image` has read permissions only; the new job `push` (on the tag, `needs: image`; `release` needs it) makes the layouts again with `scripts/ghcr.py layouts`, pushes only when each digest is the digest of `image`, attests and verifies; `GH_TOKEN` is set on each step that needs it. (3, P3) `gh attestation verify` takes `--source-ref "$GITHUB_REF"`. (4, P3) the runner image archives go to `$RUNNER_TEMP/runner-images`, not to `images/` of the checkout. (5, P3) each refusal case of the self-test names its exact error type and text; a KeyError or another text fails it. (6, P3) `run_local/stale.rs`: a probe of `TMPDIR` that a killed run of the same pid and count left is removed and made again; the probe of a dead pid goes with the other directories of a dead run. Proven on a development host: `python3 -I scripts/ghcr.py --self-test` (the probe against the registry in memory: a login that can push leaves no upload, blob or manifest; a login of pull only, a wrong login, an answer with no token are refused; a planted defect in each check fails it); `probe-push` against ghcr.io with a made-up login fails with HTTP 403 `DENIED`; `layouts` gives the same lines for the same files; `cargo test -p podrunner --all-features --lib run_local::stale`: 7 passed. Not run: the job `probe` with `GITHUB_TOKEN` against ghcr.io (the next run with a version), whether ghcr.io cancels an upload (DELETE), the job `push`, `--source-ref` in a real verify, and a dispatch on a tag after a failure.
 
 State (2026-11-23, the dry run, proven in CI on GitHub-hosted runners): `release.yml` 45276528105 (`f694571`, no version) is green: the job `image` builds the index of `podrunner` (linux/amd64 `sha256:1a7e4237...`, linux/arm64 `sha256:5f1ebe7c...`), each binary agrees with its asset by SHA-256, the x86_64 image runs in podvm (`podrunner 0.1.0-dry (f694571a0512)`), the runner images `runner` and `runner-full` come from the green `runner-image.yml` run (`runner-full` `v0.1.0-dry-full` `sha256:a2dba92f...`), and "Not the run on a tag: nothing is pushed"; `probe`, `push`, `tag` and `release` are skipped, as a dry run must. Left: the run with a version (the job `probe`), and the run on the tag (the push, the attestation, the read with no login, the notes).
+
+## Done
+
+2026-11-25: the release `v0.1.0-beta.8`, `release.yml` 45459310537 (the run with the version on `main` at `93e1710`: `check`, `probe`, `build`, `assets`, `image`, `dry` and `tag` green) and 45466841655 (the run on the tag `v0.1.0-beta.8` at `93e1710`: `check`, `build`, `assets`, `image`, `push` and `release` green); the job `check` took `user-gate.yml` 45443730436 (`version=0.1.0-beta.8`) and `runner-image.yml` 45435461556, both on `93e1710`. `probe` proved the push of `GITHUB_TOKEN` before the tag; `push` pushed `ghcr.io/podutils/podrunner:v0.1.0-beta.8` (`sha256:a247b4c4...`, linux/amd64 and linux/arm64), `ghcr.io/podutils/podrunner-runner:v0.1.0-beta.8` (`sha256:d5a8898f...`) and `v0.1.0-beta.8-full` (`sha256:791315df...`), checked each binary against its asset and attested each index; the notes have "The images, by digest". Read here with no login: ghcr.io gives the same index digests for `podrunner` and `podrunner-runner` (both packages are public). The pins of `images/podvm.toml`, `images/podnet.toml` and `images/fake-githome.toml` have their `reference` (step 2). Step 3: the comment on #312 (COORD-102) that names each index digest beside the SHA-256 of each asset is a write to GitHub of the lead session; #312 closes with it. Level: proven in CI on GitHub-hosted runners. The QA of the release (2026-11-25, a blind agent as user `qa8`: no root, no KVM, a proxy that intercepts TLS) found no P1 and no P2: `ghcr.io/podutils/podrunner`, `podrunner-runner` and `podrunner-runner` `-full` of `v0.1.0-beta.8` are public, and their digests are those of the notes and of `podrunner-manifest.json` (proven on a constrained host as a user).
 
 # T-554: The compile of TypeScript 7 hangs on the podvm userland rung with no tier
 
@@ -13513,7 +13534,7 @@ CI (2026-11-20): `user-gate.yml` run 44664120384 at `f084c4c` (images of `runner
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -13542,6 +13563,10 @@ State (2026-11-20, the route of podcrates): `release.yml` with a version builds 
 CI (2026-11-20, `release.yml` run 44698975325 at `85ace56`, a dry run; proven in CI on GitHub-hosted runners): the job `dry` writes `release-index.json` of the four binaries, `pod-release sums --all` checks five files with no signature, and a changed index gives 77. `assets` was skipped (no `runner-image.yml` run of that commit), so the image archives were not in it. Not run: a run on a tag (the signature, `release-assets.sh verify`, the publish).
 
 State (2026-11-20, podcrates `v0.79.0`, COORD-149): `pod-release` of `v0.79.0` verifies a bundle of Rekor v2 and an RFC 3161 timestamp beside Rekor v1, so a release that cosign signs with Rekor v2 verifies; `images/pod-release.toml` pins it (release-index.py is the same). `release-assets.sh verify` with it holds on the signed release `v0.78.1` of podcrates.
+
+## Done
+
+2026-11-25: the release `v0.1.0-beta.8`, `release.yml` 45459310537 (the run with the version on `main` at `93e1710`: `check`, `probe`, `build`, `assets`, `image`, `dry` and `tag` green) and 45466841655 (the run on the tag `v0.1.0-beta.8` at `93e1710`: `check`, `build`, `assets`, `image`, `push` and `release` green); the job `check` took `user-gate.yml` 45443730436 (`version=0.1.0-beta.8`) and `runner-image.yml` 45435461556, both on `93e1710`. The release has `release-index.json`, named in the signed `SHA256SUMS`; the run on the tag ran `pod-release verify --repo --tag --all` before the publish. `pod-release verify --repo PodUtils/podrunner --tag v0.1.0-beta.8 DIR` (`pod-release` 0.83.0) on the downloaded files gives exit 0: the signer is `release.yml` at the tag, and the index holds. Level: proven in CI on GitHub-hosted runners. The QA of the release (2026-11-25, a blind agent as user `qa8`: no root, no KVM, a proxy that intercepts TLS) found no P1 and no P2: `release-index.json` agrees with `SHA256SUMS` and names the tag commit `93e1710` (proven on a constrained host as a user).
 
 # T-563: A unit holds the real values of its secrets, not placeholders that the broker swaps
 
@@ -15079,7 +15104,7 @@ During the move two names exist: the snapshot of before has `toolcache-3.12.16`,
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** partial
 
 ## Problem
 
@@ -15105,9 +15130,7 @@ State (2026-11-24, blocked; the commit that names COORD-128): the live proof fai
 
 State (2026-11-24, `runner-image.yml` 45377942699 on `a6f1718`, podvm `0.2.0-beta.39`, proven in CI on GitHub-hosted runners): the incus step is green with the relaxed check (an unknown peak with the reason `PEAK_NOT_GIVEN`, 0 OOM kills with `NO_RECORD`). podvm answered COORD-128 (#350) with COORD-244 (PodUtils/podvm#660, PodUtils/podvm@T-2086, read through the mirror): on a hosted runner the AppArmor profile of incus refused the cgroup mount of the init at `/.podvm/.meter`, so each value of `/.podvm/usage` was null; the init now also opens the cgroup mounts that LXC made in the instance. podvm `kvm.yml` run 45384508724 on `88e1a0d` gives the record of the stop on cgroup v2: `13.270 136134656 0 0` for the load, `0.160 268435456 1 0` for the payload under 256 MiB. The fix is on podvm `main` at `88e1a0d`, not in a release: the newest tag is `v0.2.0-beta.39` (2026-11-24); it comes with `0.2.0-beta.40`.
 
-## Blocker
-
-podvm acted on COORD-128 (PodUtils/podrunner#350) with COORD-244 (PodUtils/podvm#660): the fix of the record of the stop is on podvm `main` at `88e1a0d`. The entry waits for the release `0.2.0-beta.40` (podvm names its tag in a COORD). Then: pin it in `images/podvm.toml`, remove the arms of `PEAK_NOT_GIVEN` and of 0 OOM kills from `crates/podrunner-incus/tests/limits.rs`, and see the incus step of `runner-image.yml` green with the strict peak and an OOM kill counted.
+State (2026-11-25, the pin of podvm `0.2.0-beta.40`, the commit that names T-647): podvm `0.2.0-beta.40` (COORD-246, PodUtils/podvm#662; release run 45436996748 on `e6bf9aeb`) carries the answer to COORD-128 (#350, COORD-244, PodUtils/podvm@T-2086): on a host with AppArmor and cgroup v2 the init takes the cgroup mounts that the instance has from its start, so `inspect --podvm-tier=incus` of a stopped instance gives `CpuSeconds`, `PeakMemoryBytes` (the `memory.peak` of the cgroup of the instance) and `OomKills`. podvm measured it on a hosted ubuntu-24.04 runner in the job `incus` of its `kvm.yml` run 45405003660 on the release commit (a load of 13.22 s gives `13.270 136134656 0`; an OOM kill of a child under `--memory 256m` gives `OomKills` 1). `crates/podrunner-incus/tests/limits.rs` has no relaxed arm: no `PEAK_NOT_GIVEN`, no `NO_RECORD`, no `Ran::no_record`; an unknown peak and 0 OOM kills under 256 MiB each fail the test, and each failure prints the raw `inspect` of the stopped instance. The failure before is `runner-image.yml` 45359834173 on `aab63e5` (podvm beta.39, the strict check: `peak unknown` and `no OOM kill counted under 256 MiB: Some(0)`). Level: not run (this host has no incus); the Prove is the incus step of the next `runner-image.yml` run on the commit of the pin.
 
 # T-612: Three live tests of the podvm kind fail on a root host
 
@@ -15182,6 +15205,7 @@ State (2026-11-24, the pin of podvm `0.2.0-beta.39`, the commit that names T-611
 
 State (2026-11-24, COORD-242, PodUtils/podvm#658, not run): podvm answered ask 1 of COORD-125 (#347). It is fixed on podvm's `main` at `cd51868e` (PodUtils/podvm@T-2085, partial there), and it is not in a release: the latest tag of podvm is `v0.2.0-beta.39`, so the fix comes in the beta after it, as the fix of COORD-127 (#349) does. The cause was that the incus tier extracted the tree of the image into the store for each import, incusd kept the upload in `/var/lib/incus/images` and unpacked it into the pool: the blobs (17 GB), the tree (57 GB), the upload (57 GB) and the volume of the image (57 GB), about 188 GB on one file system. The fix: (1) the incus tier extracts the tree only for an import; (2) after the upload, also after a failed import, podvm removes the tree that the import extracted (not a tree that was in the store before, and not where another process holds the image), before the create; (3) where incusd's images have less than three times the tree free, the upload is gzip (blocks of 2 MiB, up to eight threads; about a third of the tree; about 90 MB/s on four threads, an estimate of podvm); (4) the check of room (PodUtils/podvm@T-2078) counts these copies. Podvm's estimate for our image is about 95 GB at the peak (17 GB of blobs, 57 GB of tree and about 21 GB of gzip), with about 11 min of gzip, against 188 GB. Next: pin the beta after `0.2.0-beta.39` when it exists, then run `hosted-measure.yml` with `full = all` on `place = btrfs` and on `place = store-root`, and record the bytes and the time of the import and whether the boot fits (podvm's next step, a stream of the layers as one tar asked of podcrates in COORD-241, needs no tree at all; the peak on the disk does not change).
 
+State (2026-11-25, the pin of podvm `0.2.0-beta.40`, the commit that names T-647, not run): podvm `0.2.0-beta.40` (COORD-246, PodUtils/podvm#662) carries ask 1 of COORD-125 (#347, PodUtils/podvm@T-2085: `create` and `run` of the incus tier extract the tree only for an import and remove it after the upload, also after a failed import; the upload is gzip where the images of incusd have less than three times the tree free; the check of the room of a `dir` pool counts these copies, and a run of an image that incus has is checked against the room of the pool too) and COORD-127 (#349, PodUtils/podvm@T-2083: `--podvm-init=image` asks `systemctl is-system-running` again while it gives `offline`, `unknown`, `initializing` or `starting`, up to `PODVM_INIT_BOOT_TIMEOUT`, 180 s by default; `degraded` runs the command with one line of the failed units). `images/podvm.toml` pins it, so `hosted-measure.yml` takes it. The measures to dispatch on the commit of the pin: (1) `hosted-measure.yml` with `place = btrfs` and `full = slice` (the boot of COORD-127: the step "Boot when it fits" must pass); (2) `place = btrfs` and `full = all` (the bytes and the time of the import with one tree and gzip, and whether the create and the boot fit; COORD-125); (3) `place = store-root` and `full = all` (the line of the free space and the need before the import, COORD-124). Record the rows of each run here; then #347 and #349 close, and #346 with the third.
 
 # T-614: The probe of `--export` and `--log-dir` has the pid only and follows a link
 
@@ -15918,6 +15942,7 @@ Findings of `podrunner check`, `config init` and `doctor` (agent A, P3). Each li
 - `doctor --run /nonexistent.yml` prints the lock path `/podrunner-actions.lock`. Expect: a refusal for a missing file, or a lock path in the state directory.
 - Agent B (qa9) confirms the line of `config init --kinds podvm`: for a trusted source it is accepted and `check` says usable; `serve` says `no-tier-served: no unit kind meets the floor of a source` and `status` says "hold unknown", with no word on the missing `--podnet` (`docs/configuration.md`: "a trusted podvm kind needs `--podnet`"). Expect: `check` and `config init` name `--podnet`.
 - Agent B: the example of `docs/configuration.md` with `sidecar = "scaleset-sidecar"` and `driver_dir` gives exit 78 "sidecar is not an absolute path"; `[unit.podvm] binary` must be inside `driver_dir` (`binary is not in driver_dir`); a key from `openssl genrsa` (OpenSSL 3, PKCS#8) gives "the key file holds no PKCS#1 key", and no document says PKCS#1 (`openssl genrsa -traditional`). Expect: an example that `check` accepts, and the key format in the text and in the error.
+- The QA of the release `v0.1.0-beta.8` (user `qa8`, 2026-11-25): a bare `podrunner doctor` after the install prints the probes, then `missing: --config: no unit kind and no source were read`, and exits 0; the quick start of `docs/install.md` does not name `--config` or `--run`. Expect: the line names `doctor --run FILE` and `doctor --config FILE`, and the quick start agrees.
 
 ## Premise
 
@@ -16278,3 +16303,43 @@ I reproduced the mechanism with a stand-alone program (a thread that writes and 
 ## Done
 
 2026-11-24, the commit that names T-646. The cause: a fork in another thread copies each descriptor of the process, also one with `O_CLOEXEC`, and the child holds the write descriptor of the script until its own exec. A temp file, a sync, a close and a rename in the process do not close the window: the copy holds the inode, not the name. `crates/podrunner-unit/src/program_file.rs` (`podrunner_unit::program_file::write`) opens the write descriptor only in a forked child that forks nothing: the child creates a new temp file (`O_EXCL`), sets the mode 0755 with `fchmod`, writes, syncs and closes it; the parent reaps the child and renames the file into place (a link at the path is replaced, not followed). Each site of the Problem uses it (18 writes in `crates/podrunner/src/doctor/tests.rs`, `src/run_local/flags_tests.rs`, `src/podvm_kind.rs`, `src/microvm_kind.rs`, `src/serve/host.rs`, `src/program_source.rs`, `tests/kvm_kind.rs`, `tests/serve_incus.rs`, `tests/config_init.rs`, `tests/run_signal.rs`, `tests/doctor.rs`, `tests/check.rs`), and so do the two writes of the relay of the hooks in the product (`crates/podrunner/src/hooks/mod.rs` and `crates/podrunner-local/src/exec/hooks.rs`). The product does not start the relay itself (the runner does), so no try again on ETXTBSY is necessary. The proof: `program_file::tests::a_program_written_while_threads_fork_starts_each_time` writes and starts 1000 scripts while three threads fork `true`. With `std::fs::write` and a chmod, 13 to 24 of 1000 starts failed with ETXTBSY (4 runs); with a write, a sync and a rename in the process, 130 to 160 of 1000 failed (4 runs); with the helper, 0 of 1000 in 50 runs. Two more tests: the mode 0755 over an old file at 0600, a link at the path, an empty program, no temp file left; a missing directory, a directory at the path, a path with no file name and a read-only directory are refused and leave nothing. Loops: `cargo test -p podrunner --lib` 50 of 50 passed; `cargo test -p podrunner --test check --test config_init --test doctor --test kvm_kind --test run_signal --test serve_incus` 20 of 20 passed; `cargo test -p podrunner-unit --lib` and `cargo test -p podrunner-local --lib hooks` 20 of 20 passed. Checks: `cargo fmt --all --check`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR` (833 passed, 0 failed, 64 ignored; TMPDIR empty after), `cargo todo check`. Level: proven on this host in the test suites; not run on GitHub-hosted runners.
+
+# T-647: Take podcrates `v0.83.0` and podvm `0.2.0-beta.40` (COORD-154 of podcrates, COORD-246 of podvm)
+
+**Source:** PodUtils/podcrates#259 (COORD-154, to all) and PodUtils/podvm#662 (COORD-246, to podrunner), 2026-11-24
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podcrates `v0.83.0` is out (tag commit `5fd6fb7`), with signed `SHA256SUMS`, assets and images. For podrunner it names no open ask and no break: `pod-fake-githome` answers `assigned` with the fork fact of the real job alone (PodUtils/podcrates@T-1160), and the documentation of `head_is_fork` of `pod-job` says the same; `pod_core::Class` has `CantCreate` (73) and `Internal` (70) at the end of `Class::ALL` (PodUtils/podcrates@T-1235); the error texts of `pod-proxy`, `pod-dns`, `pod-tls`, `pod-ws`, `pod-warp`, `pod-cloudflare`, `pod-wormhole`, `pod-hold` and `pod-unit` change; `pod-unit` has `Unit::NAME_MAX` (200) and `Removed::of_named`; PodUtils/podcrates:scripts/agent/runs.py is the shared watcher of the runs of Actions (PodUtils/podcrates@T-1213). The issue asks each consumer to write the commit of its take as a COORD issue `(to podcrates)`. podvm `0.2.0-beta.40` is out (release run 45436996748 on `e6bf9aeb`, podcrates `v0.82.1`): it delivers COORD-128 (#350: the record of the use at the stop on a host with AppArmor and cgroup v2), COORD-127 (#349: `--podvm-init=image` waits while systemd gives `offline`) and ask 1 of COORD-125 (#347: one tree for an import, and gzip).
+
+## Premise
+
+Read on 2026-11-25 through the mirror: the bodies of PodUtils/podcrates#259 and PodUtils/podvm#662, PodUtils/podcrates:docs/releases/v0.83.0.md at `5fd6fb7`, the bodies of both releases with their sections "The images, by digest". `git ls-remote` gives `5fd6fb7e3495d5e9a591e36c5752e268309f6e4a` for `v0.83.0^{}`. The index of `ghcr.io/podutils/pod-fake-githome:v0.83.0` and of `ghcr.io/podutils/podvm:v0.2.0-beta.40` read from ghcr.io with no login. Not measured here: an incus instance and a hosted runner (the live steps of T-611 and T-613).
+
+## Approach
+
+1. Each podcrates dependency names `tag = "v0.83.0"` (`Cargo.toml`, the member crates, `Cargo.lock`, `fuzz/Cargo.lock`); `issue-sync.yml` at `5fd6fb7` with `podcrates_ref: v0.83.0`; `images/fake-githome.toml` and `images/pod-release.toml` pin the assets of `v0.83.0`, each SHA-256 checked against the signed `SHA256SUMS` with the pinned `pod-release`.
+2. `images/podvm.toml` pins `0.2.0-beta.40` (the two SHA-256 from its signed `SHA256SUMS`, checked with `pod-release verify --workflow nightly.yml`; the `[ghcr] reference`); `scripts/install-pins.py` writes the pins of `scripts/install.sh`.
+3. Check each break: a `match` on `Class` and the exit codes of the manual; the tests that match an error text of a changed crate; `scripts/githome-conformance.sh` with the new fake.
+4. T-611: `crates/podrunner-incus/tests/limits.rs` strict again. T-613: the measures to dispatch.
+5. The commit of the take as COORD-129 `(to podcrates)`, and the answer to COORD-246.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+sh scripts/githome-conformance.sh target/x86_64-unknown-linux-musl/debug/podrunner
+sh scripts/test-install.sh
+python3 -I scripts/install-pins.py --check scripts/install.sh
+python3 -I scripts/check-docs.py --self-test
+sh scripts/check-notes.sh --latest
+```
+
+## Done
+
+2026-11-25: the commit that names T-647. (1) Each podcrates dependency, `Cargo.lock` and `fuzz/Cargo.lock` name `v0.83.0` (the lock changes only the version and the source of each `pod-` crate); `issue-sync.yml` runs the workflow of `5fd6fb7` with `podcrates_ref: v0.83.0`. `pod-release` 0.82.1 (the pin before, its SHA-256 checked) verifies the release `v0.83.0` of podcrates as `release.yml` at the tag (Rekor entry 4082038184, 12 files; another tag gives 77); each of the six pinned SHA-256 (fake-githome, fake-github and pod-release, x86_64 and aarch64) is its line of that `SHA256SUMS`. The index `sha256:f7d5f623...` is the one of ghcr.io for `pod-fake-githome:v0.83.0`, and its two layers hold the pinned binaries. `release-index.py` at `5fd6fb7` has the pinned `script_sha256`. (2) `images/podvm.toml` pins `0.2.0-beta.40`: `pod-release` 0.83.0 and 0.82.1 each verify its `SHA256SUMS` as `nightly.yml` at the tag (Rekor entry 4087035775; the tag `v0.2.0-beta.39` gives 77), and the two binaries agree with it; the index `sha256:31f5f949...` is the one of ghcr.io. `install-pins.py --check scripts/install.sh` passes. (3) No source of podrunner names `Class::CantCreate` or `Class::Internal`, and of the crates of podcrates only `pod-release` gives one (podrunner does not link it): `CLASS_CODES` of `crates/podrunner/src/manual/facts.rs` stays, and `each_exit_code_has_a_fact` passes with 15 classes. No test matches an old error text of a changed crate. `sh scripts/githome-conformance.sh`: 15 of 15 against `pod-fake-githome` 0.83.0. No code of podrunner uses `runs.py`, `usage::Mounts` or `Unit::NAME_MAX`. (4) T-611 and T-613 have their State. (5) In the same work: `scripts/check-notes.sh --latest` refused each row under `## next` after a release (it failed on the rows of this take: "rows are left under \"## next\": move them to \"## v0.1.0-beta.8\""), so the gate was red at the first change after a release; now only the check of the notes of a release before its tag (the call of `release.yml` with the file of the notes) refuses them: `--latest` gives 0, and `sh scripts/check-notes.sh docs/releases/v0.1.0-beta.8.md` still gives 1. `scripts/check-docs.py` has the rule `example` (the QA of the release found `docs/install.md` with the example `0.1.0-beta.7`): it failed on that line, `docs/install.md` names `0.1.0-beta.8`, and two new cases of the self-test fail with the rule planted off. Checks: `cargo fmt --all --check`; `cargo clippy --workspace --all-targets --all-features -- -D warnings`; the fuzz crate (fmt, clippy, 2 tests); `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR` and a `mktemp -d` `TMPDIR`: 833 passed, 0 failed, 64 ignored, the `TMPDIR` empty after; `sh scripts/test-install.sh`: 20 passed; `python3 -I scripts/check-docs.py` and its self-test; `python3 -I scripts/user-gate.py check`; `cargo todo check`. Level: proven by the checks on this host; not run in CI. Open: COORD-129 `(to podcrates)` and the answer to COORD-246 (writes to GitHub of the lead session), then the gate, `level2.yml` and `runner-image.yml` on the commit.

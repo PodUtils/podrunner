@@ -8,8 +8,9 @@
 //! is its PID 1), and incusd gives no CPU time and no peak of a stopped
 //! instance. podvm `0.2.0-beta.39` gives, for a stopped instance, the
 //! record that its init wrote after the end of each process of the
-//! instance (T-611, PodUtils/podvm#649); an older podvm, a forced stop and
-//! `--podvm-init=image` give `-`. So each read of the state while the
+//! instance (T-611, PodUtils/podvm#649); on a host with AppArmor and
+//! cgroup v2, `0.2.0-beta.40` and later (COORD-128). An older podvm, a
+//! forced stop and `--podvm-init=image` give `-`. So each read of the state while the
 //! instance runs is also a sample, and the driver keeps the highest of
 //! the samples and of the record ([`Kept`]).
 

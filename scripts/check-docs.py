@@ -21,6 +21,10 @@ Rules (AGENTS.md section 5: no narrative, no history):
             (images/podnet.toml). One sentence is the scope.
   path      A `.github/workflows/NAME.yml` or a `scripts/PATH` that a
             document names does not exist.
+  example   A version of podrunner (the major and minor of the newest
+            notes in docs/releases/) after "for example" is not the
+            version of the newest notes. One sentence is the scope; a
+            sentence that names podvm or podnet is not read.
 
 A scan that reads fewer than MIN_FILES files is a fault: a scan of nothing
 proves nothing.
@@ -67,6 +71,9 @@ PODCRATES_VER = re.compile(r"\bv?0\.\d+\.\d+\b(?!-|`?\s+(?:and|or) later)")
 PIN_WORD = re.compile(r"\bpin(?:s|ned|ning)?\b", re.IGNORECASE)
 PODVM_VER = re.compile(r"\b0\.2\.0-beta\.(\d+)\b")
 PODNET_VER = re.compile(r"\b0\.4\.0-beta\.(\d+)\b")
+EXAMPLE_WORD = re.compile(r"\bfor example\b", re.IGNORECASE)
+OTHER_TOOL = re.compile(r"\bpod(?:vm|net)\b", re.IGNORECASE)
+NOTES = re.compile(r"^v(\d+)\.(\d+)\.(\d+)(?:-beta\.(\d+))?\.md$")
 USER_WORKFLOW = re.compile(r"\brun\s+$")  # a workflow of the user project
 WORKFLOW = re.compile(r"\.github/workflows/([A-Za-z0-9_.-]+?\.ya?ml)\b")
 SCRIPT = re.compile(r"(?<![A-Za-z0-9_./-])scripts/[A-Za-z0-9_./-]+(?![A-Za-z0-9_./*<>{$-])")
@@ -117,6 +124,38 @@ def podcrates_tag(root: Path) -> str | None:
     return m.group(1) if m else None
 
 
+def newest_release(root: Path) -> tuple[int, int, str] | None:
+    """The major, the minor and the version of the newest notes of a release."""
+    best = None
+    notes = root / "docs/releases"
+    for p in notes.iterdir() if notes.is_dir() else []:
+        m = NOTES.match(p.name)
+        if not m:
+            continue
+        beta = int(m.group(4)) if m.group(4) is not None else sys.maxsize
+        key = (int(m.group(1)), int(m.group(2)), int(m.group(3)), beta)
+        if best is None or key > best[0]:
+            best = (key, p.name[1:-3])
+    return (best[0][0], best[0][1], best[1]) if best else None
+
+
+def examples(rel, i, raw, newest) -> list[str]:
+    """A version of podrunner after "for example" that is not the newest release."""
+    if not newest:
+        return []
+    major, minor, want = newest
+    ver = re.compile(rf"\bv?{major}\.{minor}\.\d+(?:-beta\.\d+)?\b")
+    out = []
+    for sent in SENTENCE.split(HTML_COMMENT.sub(" ", raw)):
+        at = EXAMPLE_WORD.search(sent)
+        if not at or OTHER_TOOL.search(sent):
+            continue
+        for m in ver.finditer(sent, at.end()):
+            if m.group(0).lstrip("v") != want:
+                out.append(f"{rel}:{i}: example: podrunner {m.group(0)}, the newest notes are v{want}")
+    return out
+
+
 def check(root: Path, min_files: int) -> list[str]:
     files = doc_files(root)
     faults = []
@@ -125,6 +164,7 @@ def check(root: Path, min_files: int) -> list[str]:
     crates = podcrates_tag(root)
     podvm = read_pin(root / "images/podvm.toml", "version")
     podnet = read_pin(root / "images/podnet.toml", "version")
+    newest = newest_release(root)
     for rel in files:
         lines = (root / rel).read_text(encoding="utf-8", errors="replace").splitlines()
         if rel == HANDOFF:
@@ -146,6 +186,7 @@ def check(root: Path, min_files: int) -> list[str]:
                     faults.append(f"{rel}:{i}: narrative: '{m.group(0)}': {raw.strip()[:100]}")
             if not ok:
                 faults += pins(rel, i, raw, crates, podvm, podnet)
+                faults += examples(rel, i, raw, newest)
         for i, raw in enumerate(lines, 1):
             faults += paths(root, rel, i, raw)
     return faults
@@ -195,8 +236,8 @@ def tree(root: Path, files: dict[str, str]) -> None:
 
 
 CONTROL = {
-    "Cargo.toml": '[workspace.dependencies]\npod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.82.1" }\n',
-    "images/podvm.toml": 'version = "0.2.0-beta.39"\n',
+    "Cargo.toml": '[workspace.dependencies]\npod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.83.0" }\n',
+    "images/podvm.toml": 'version = "0.2.0-beta.40"\n',
     "images/podnet.toml": 'version = "0.4.0-beta.17"\n',
     ".github/workflows/gate.yml": "on: push\n",
     "scripts/check-size.py": "",
@@ -204,12 +245,15 @@ CONTROL = {
     "README.md": "Run `scripts/check-size.py`. See .github/workflows/gate.yml.\n",
     "docs/HANDOFF.md": "# State\n\nOne line.\n",
     "docs/a.md": "# A\n\nThe tool runs a job.\n",
-    "docs/b.md": "# B\n\nPodcrates is at v0.82.1. The podvm pin is 0.2.0-beta.39.\n",
+    "docs/b.md": "# B\n\nPodcrates is at v0.83.0. The podvm pin is 0.2.0-beta.40.\n",
     "docs/c.md": "# C\n\nThe podnet pin is 0.4.0-beta.17. See scripts/hosted/. Needs podcrates `v0.16.0` and later.\n\n`podrunner run .github/workflows/ci.yml`\n",
     "docs/d.md": "# D\n\nDo not run `we added` this.\n\n```sh\nwe was added here\n```\n\nOne item <!-- ok: kept on purpose, we say -->\n",
     "docs/decisions.md": '# Decisions\n\nThe owner says "we use what is needed". The rule is set.\n',
     "docs/design/x.md": "we was added\n",
     "docs/releases/x.md": "we was added\n",
+    "docs/releases/v0.1.0-beta.9.md": "# R\n",
+    "docs/releases/v0.1.0-beta.10.md": "# R\n",
+    "docs/e.md": "# E\n\nSet VERSION (for example `0.1.0-beta.10`). For example, podvm `0.2.0-beta.3` is old.\n",
     "docs/reports/x.md": "we was added\n",
 }
 
@@ -241,10 +285,12 @@ def self_test() -> int:
         ("narrative in README", with_({"README.md": "We build it.\n"}), "README.md:1: narrative: 'We'"),
         ("narrative outside the owner's quote", with_({"docs/decisions.md": '# D\n\n"We use it." Then we ran it.\n'}), "docs/decisions.md:3: narrative: 'we'"),
         ("a marker with no reason", with_({"docs/a.md": "# A\n\nWe run it <!-- ok: -->\n"}), "narrative: 'We'"),
-        ("a stale podcrates tag", with_({"docs/b.md": "# B\n\nPodcrates is at v0.80.0.\n"}), "docs/b.md:3: pin: podcrates v0.80.0, Cargo.toml has v0.82.1"),
+        ("a stale podcrates tag", with_({"docs/b.md": "# B\n\nPodcrates is at v0.80.0.\n"}), "docs/b.md:3: pin: podcrates v0.80.0, Cargo.toml has v0.83.0"),
         ("a stale podcrates tag in a code span", with_({"docs/b.md": "# B\n\nThe podcrates tag is `v0.80.0`.\n"}), "pin: podcrates v0.80.0"),
-        ("a stale podvm pin", with_({"docs/b.md": "# B\n\nThe pinned podvm is 0.2.0-beta.12.\n"}), "docs/b.md:3: pin: podvm 0.2.0-beta.12, images/podvm.toml has 0.2.0-beta.39"),
+        ("a stale podvm pin", with_({"docs/b.md": "# B\n\nThe pinned podvm is 0.2.0-beta.12.\n"}), "docs/b.md:3: pin: podvm 0.2.0-beta.12, images/podvm.toml has 0.2.0-beta.40"),
         ("a stale podnet pin", with_({"docs/c.md": "# C\n\nThe pinned podnet is `0.4.0-beta.3`.\n"}), "docs/c.md:3: pin: podnet 0.4.0-beta.3"),
+        ("an old podrunner version as an example", with_({"docs/e.md": "# E\n\nSet VERSION (for example `0.1.0-beta.9`):\n"}), "docs/e.md:3: example: podrunner 0.1.0-beta.9, the newest notes are v0.1.0-beta.10"),
+        ("an old podrunner tag as an example", with_({"docs/e.md": "# E\n\nFor example v0.1.0-beta.2 is a tag.\n"}), "example: podrunner v0.1.0-beta.2"),
         ("a missing workflow", with_({"docs/a.md": "# A\n\nSee `.github/workflows/gone.yml`.\n"}), "docs/a.md:3: path: .github/workflows/gone.yml does not exist"),
         ("a missing script", with_({"docs/a.md": "# A\n\nRun `sh scripts/gone.sh` now.\n"}), "docs/a.md:3: path: scripts/gone.sh does not exist"),
         ("a missing script directory", with_({"docs/a.md": "# A\n\nSee scripts/nodir/.\n"}), "path: scripts/nodir/ does not exist"),

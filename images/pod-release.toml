@@ -3,10 +3,10 @@
 # of its tag) and the static verifier pod-release of that release (the
 # lines of its signed SHA256SUMS). scripts/release-assets.sh fetches both
 # and checks each SHA-256. Neither is in the runner image.
-version = "0.82.1"
-commit = "0d7832b992b701ef1805496fe49375bb97543b0c"
+version = "0.83.0"
+commit = "5fd6fb7e3495d5e9a591e36c5752e268309f6e4a"
 script_sha256 = "32726ae339de11b25a3903dd794120fe75a4fd894ae030ed3fb9be8a30d264c1"
 
 [sha256]
-x86_64 = "a4807d35fbd98d9cb433c6fcb1d08ebc2edab4e50d0f8588bb49cd072d052cda"
-aarch64 = "d1cc3ba49b4eb66560cf12e8aded44fe1717bfc4c10f2a757b22bd17ef29cfbf"
+x86_64 = "cfd288fbbe22421ae1382b49b7e6b7633859d763b4afbe28e20a207b64d02449"
+aarch64 = "5f12d2f0280994924872ba586eff9433f95dc422a4681e22a1e2e480cc9fb328"

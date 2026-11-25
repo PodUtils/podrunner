@@ -10,59 +10,38 @@ its work is done. Git keeps the history.
 
 | What | Pin | Where |
 | --- | --- | --- |
-| podcrates | `v0.82.1` | `Cargo.toml` (one tag for each `pod-` crate) |
-| podvm | `v0.2.0-beta.39` | `images/podvm.toml`; the lowest podvm of each kind is in `crates/podrunner-podvm/src/probe.rs` |
+| podcrates | `v0.83.0` | `Cargo.toml` (one tag for each `pod-` crate) |
+| podvm | `v0.2.0-beta.40` | `images/podvm.toml`; the lowest podvm of each kind is in `crates/podrunner-podvm/src/probe.rs` |
 | podnet | `v0.4.0-beta.17` | `images/podnet.toml` |
 | official runner | `v2.338.2` | `images/runner/runner.toml` |
-| last release | `v0.1.0-beta.7` | tag; no later tag exists |
+| last release | `v0.1.0-beta.8` | tag on `93e1710`; `release.yml` 45459310537 and 45466841655 |
 
-## The release of `v0.1.0-beta.8`
+## The release `v0.1.0-beta.8`
 
-`docs/releases/v0.1.0-beta.8.md` has the notes, with the level of proof of
-each claim. `CHANGES.md` has the section `## v0.1.0-beta.8` and an empty
-`## next`. The release commit is the commit `release: the notes of
-v0.1.0-beta.8 cite the runs of dd88c33, the code of the release`.
+Released on 2026-11-24 from `93e1710`. `release.yml` 45459310537 (the run
+with the version: the checks, the probe of ghcr.io and the tag) and
+45466841655 (the run on the tag: the signature, the push to ghcr.io and
+the publish) are green. The job `check` took `user-gate.yml` 45443730436
+and `runner-image.yml` 45435461556 of that commit. The release has the
+signed `SHA256SUMS` and `release-index.json` (`pod-release verify` holds),
+and `ghcr.io/podutils/podrunner` and `ghcr.io/podutils/podrunner-runner`
+with the tag `v0.1.0-beta.8` are public. `docs/releases/v0.1.0-beta.8.md`
+has the notes, with the level of proof of each claim.
 
-The notes cite these runs of the code `dd88c33`, all green: `level2.yml`
-45413571282, `runner-image.yml` 45413234684, `user-gate.yml` with
-`version=0.1.0-beta.8` 45413256290, and the gate on `c5c6b12` 45413638800
-(the record only differs from `dd88c33`). No run exists on the release
-commit.
+Open after the release (writes to GitHub of the lead session):
 
-`release.yml` reads the runs with `head_sha` equal to the commit that it
-runs on: the gate and `user-gate.yml` must be green at that commit. A later
-commit, also one of `TODO/` or `docs/`, needs these runs again. The runner
-images come from the input `images_run` (T-626): a green
-`runner-image.yml` run of an older commit serves when `images/` is the
-same (`docs/maintenance.md`, "A release"). Make no commit after the
-commit of the runs, until the release is made. Do these steps:
-
-1. Run `sh scripts/agent/check.sh` with `PODRUNNER_RUNNER_DIR`, then push
-   `main`. The push starts `gate.yml` and `secrets.yml`. A push of `docs/`
-   and `TODO/` only starts no other workflow.
-2. Dispatch `runner-image.yml` (about 2.5 hours), `level2.yml` and
-   `user-gate.yml` with `version=0.1.0-beta.8` on that commit.
-3. When the four runs are green, dispatch `release.yml` with no version
-   (the dry run), and with `images_run` when the `runner-image.yml` run is
-   of an older commit. Read its jobs `check`, `build`, `assets`, `image` and
-   `dry` (the index and the check of `SHA256SUMS` by `pod-release`).
-4. Dispatch `release.yml` with `version=0.1.0-beta.8` and the same
-   `images_run`. It makes the tag and
-   starts `release.yml` on the tag. Read both runs (`docs/maintenance.md`,
-   "A release").
-5. After the release: name the tag on GitHub #292 and #151 (cfb asked for
-   it; T-512 gives the line `githome: complete in vTAG`), and change
-   `TODO/PROGRESS.md`.
-
-A P1 or P2 finding in these runs blocks the release. QA round 6 (T-246)
-found no P1; each P2 is fixed (T-627 to T-632, T-639 to T-641, part of
-T-249).
+1. Name the tag on GitHub #292 and #151 (T-512 gives the line
+   `githome: complete in vTAG` only when each ask is in a release).
+2. The comment on #312 (COORD-102, T-553) with the digest of each index
+   beside the SHA-256 of each asset; then close #312.
 
 The notes, "What is not proven", list what no run proves: the sidecar
 against real GitHub, the peak memory of an incus instance (T-611), the
 microvm and incus kinds on the host of a user, the online install from the
-release URL, the first signature and the first push to `ghcr.io`, aarch64
-on a host of a user, and the live gates.
+release URL, aarch64 on a host of a user, and the live gates. The QA of
+the release as a user with no root, no KVM and a proxy (2026-11-25) found
+no P1 and no P2, and passed the online install from the release URL
+(T-205); its P3 findings are in T-635 and T-642.
 
 ## What is proven
 
@@ -97,10 +76,10 @@ milestones M-A, M-B and L2 hold. M-C and M-D wait for the live gates.
 
 `TODO/PROGRESS.md` has the order. After the release it names T-480, T-487,
 T-516 and T-500, then the local P3 entries. githome and cfb come first (the
-owner, 2026-11-18, `docs/decisions.md`). A release moves 19 asks of githome
-and 11 clauses of cfb to "in a release". Left after beta.8: of 41 asks of
-githome, 11 partial and 7 open; of 38 clauses of cfb, 6 partial and 6 open.
-T-512 waits for these. Open entries that need a decision
+owner, 2026-11-18, `docs/decisions.md`). githome: 41 asks, 25 in a release
+(4 in beta.7, 21 in beta.8), 10 partial, 6 open. cfb: 38 clauses, 26 in a
+release (15 in beta.7, 11 in beta.8), 6 partial, 6 open (the trackers #66
+and #151). T-512 waits for these. Open entries that need a decision
 of the owner: none (`TODO/PROGRESS.md`, "Questions for the owner").
 
 ## Open asks to other projects
@@ -108,18 +87,19 @@ of the owner: none (`TODO/PROGRESS.md`, "Questions for the owner").
 Each ask is a COORD issue of this repository. `TODO/issues.md` has the
 state of each.
 
-- podvm, for the incus tier and the hosted snapshot:
-  - #345 (COORD-123, T-611): the use of a stopped instance. In beta.39,
-    pinned. #350 (COORD-128, T-611): beta.39 gives no peak and no OOM count
-    on a hosted runner. The fix is on podvm `main` for `0.2.0-beta.40`,
-    which is not tagged. T-611 is blocked; the live test takes that reason
-    by name.
-  - #346 (COORD-124, T-613): the check of the space before an import. In
-    beta.39, pinned. The issue stays open until T-613 is done.
-  - #347 (COORD-125, T-613): ask 2 is in beta.39. Ask 1 (three copies of the
-    image) is on podvm `main`, for the beta after beta.39.
-  - #349 (COORD-127, T-613): the readiness check of `--podvm-init=image`.
-    Fixed on podvm `main`, for the beta after beta.39.
+- podvm, for the incus tier and the hosted snapshot (each delivered in
+  `0.2.0-beta.40`, pinned; COORD-246, PodUtils/podvm#662):
+  - #345 (COORD-123) and #350 (COORD-128), T-611: the use of a stopped
+    instance, also on a host with AppArmor. `limits.rs` is strict again.
+    Both close when the incus step of `runner-image.yml` on the commit of
+    the pin is green.
+  - #349 (COORD-127), T-613: the boot of `--podvm-init=image`. Closes when
+    `hosted-measure.yml` with `place = btrfs` and `full = slice` boots.
+  - #347 (COORD-125), T-613: one tree for an import, and gzip. Closes when
+    `hosted-measure.yml` with `place = btrfs` and `full = all` is green.
+  - #346 (COORD-124), T-613: the check of the space. Closes when
+    `hosted-measure.yml` with `place = store-root` and `full = all` gives
+    the line of the free space and the need.
   - #313 and #316 (T-543, T-544, T-556, T-558, T-559): the init and the
     kernel on the machine tier and an incus VM mode. podvm names the order
     of the steps; the issues close when podrunner takes each ask.
@@ -133,8 +113,9 @@ state of each.
     rung. #277 (T-403, T-405): a `-v` source and the environment. #296
     (ask 5).
 - podcrates:
-  - #312 (COORD-102, T-553): publish on `ghcr.io`. It closes when the
-    release publishes there.
+  - #312 (COORD-102, T-553): publish on `ghcr.io`. Done in
+    `v0.1.0-beta.8`; it closes with the comment that names the digests.
+  - COORD-129 (not written): the take of podcrates `v0.83.0` (T-647).
   - #183 (COORD-064, T-249): the shared installer core. #184 (COORD-065,
     T-250): the issue sync of the record runs. The step of the
     hand-written State column is left (T-250 is partial).

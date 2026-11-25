@@ -8,7 +8,9 @@
 # A release after the base of CHANGES.md also needs its section there.
 #
 #   sh scripts/check-notes.sh NOTES
-#   sh scripts/check-notes.sh --latest   the notes of the newest version
+#   sh scripts/check-notes.sh --latest   the notes of the newest version;
+#                                        rows under "## next" are the
+#                                        changes after it, not a fault
 #   sh scripts/check-notes.sh --stamp    stamp the contract files in CHANGES.md
 set -eu
 die() {
@@ -35,7 +37,9 @@ fi
 if [ "$(grep '^<!-- contract ' "$changes")" != "$(stamp)" ]; then
     die "$changes: a contract file changed (docs/contracts, schemas): add its row under \"## next\", then run sh scripts/check-notes.sh --stamp"
 fi
+latest=
 if [ "$notes" = --latest ]; then
+    latest=1
     root=$(cd "$(dirname "$0")/.." && pwd)
     notes=$(printf '%s\n' "$root"/docs/releases/v*.md | sort -V | tail -n 1)
 fi
@@ -47,14 +51,16 @@ done
 open=$(sed -n '/^## What is not proven$/,/^## /p' "$notes" | sed '1d;/^## /d' | grep -c '[^[:space:]]' || true)
 [ "$open" -gt 0 ] || die "$notes: the section \"What is not proven\" is empty: write what no run proved"
 # CHANGES.md (T-510): the notes of a release after the base of the file
-# need a section of their tag, and no row left under "## next".
+# need a section of their tag, and no row left under "## next" (the check
+# of the notes of a release before its tag; with --latest the release is
+# out, and its rows under "## next" are the changes after it).
 version=$(basename "$notes" .md)
 # shellcheck disable=SC2016 # the backticks are Markdown.
 base=$(sed -n 's/.*The base is `\(v[^`]*\)`.*/\1/p' "$changes" | head -n 1)
 [ -n "$base" ] || die "$changes: no base version"
 if [ "$version" != "$base" ] && [ "$(printf '%s\n%s\n' "$base" "$version" | sort -V | tail -n 1)" = "$version" ]; then
     grep -qx "## $version" "$changes" || die "$changes: no section \"## $version\": rename \"## next\" to the tag of the release"
-    left=$(sed -n '/^## next$/,/^## /p' "$changes" | grep -c '^| [^-]' || true)
+    [ -n "$latest" ] && left=0 || left=$(sed -n '/^## next$/,/^## /p' "$changes" | grep -c '^| [^-]' || true)
     [ "$left" -le 1 ] || die "$changes: rows are left under \"## next\": move them to \"## $version\""
 fi
 echo "check-notes: $notes names the level of its proof"

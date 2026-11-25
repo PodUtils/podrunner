@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**641 entries: 78 open, 60 partial, 14 blocked, 489 done.**
+**642 entries: 78 open, 56 partial, 13 blocked, 495 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 0 | 26 | 2 | 92 | 120 |
-| P2 | 16 | 23 | 8 | 255 | 302 |
-| P3 | 61 | 11 | 4 | 140 | 216 |
-| **All** | 78 | 60 | 14 | 489 | 641 |
+| P1 | 0 | 24 | 2 | 95 | 121 |
+| P2 | 16 | 20 | 8 | 258 | 302 |
+| P3 | 61 | 12 | 3 | 140 | 216 |
+| **All** | 78 | 56 | 13 | 495 | 642 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -252,7 +252,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-202](later.md) | P1 | M | later | feature | done | One installer and one offline bundle for the local mode |
 | [T-203](later.md) | P2 | S | later | defect | done | A local checkout with no --checkout fails with a 404 |
 | [T-204](later.md) | P3 | S | later | chore | open | The packages of the image archives and their sources |
-| [T-205](later.md) | P1 | S | later | release | partial | The release attaches the assets of the local mode |
+| [T-205](later.md) | P1 | S | later | release | done | The release attaches the assets of the local mode |
 | [T-206](later.md) | P2 | S | later | defect | done | `--platform` turns off each later check of the flags of `run` |
 | [T-207](later.md) | P3 | S | later | defect | done | The refusal of an executor of `run` does not name the flag that clashes |
 | [T-208](later.md) | P2 | S | later | defect | done | No command has its own help, and a short option of `run` becomes a file |
@@ -528,7 +528,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-481](later.md) | P2 | S | later | measurement | partial | The checkout of a job on the incus kind is proven by a test of the script only |
 | [T-482](later.md) | P2 | M | later | defect | partial | The incus kind bounds no disk of the root of an instance |
 | [T-483](later.md) | P2 | M | later | defect | partial | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
-| [T-484](later.md) | P2 | S | later | release | partial | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
+| [T-484](later.md) | P2 | S | later | release | done | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
 | [T-485](later.md) | P1 | M | later | feature | done | The incus kind has no container route, though G-02 asks for an engine in the system container |
 | [T-486](later.md) | P1 | M | later | feature | done | G-04: the egress verdicts of a unit do not reach the source of the job |
 | [T-487](later.md) | P2 | L | later | feature | open | G-11: warm units from a pinned golden image |
@@ -567,7 +567,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-520](later.md) | P3 | S | later | measurement | partial | G-06: no test of `cpu_s` against a known load, and no tolerance in the contract |
 | [T-521](later.md) | P3 | S | later | defect | open | G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit |
 | [T-522](later.md) | P2 | S | later | docs | done | G-31: the design copies of the schemas have the ids of `pod-job` and other fields |
-| [T-523](later.md) | P2 | M | later | feature | partial | G-34: take the signed release index of `pod-release` |
+| [T-523](later.md) | P2 | M | later | feature | done | G-34: take the signed release index of `pod-release` |
 | [T-524](later.md) | P3 | M | later | feature | done | G-04 and G-35: the half of podrunner of the placeholders of a policy |
 | [T-525](later.md) | P1 | M | later | measurement | done | C1 to C5: the acceptance of A-X-01 through `serve` on real units in CI, and the results of githome's host |
 | [T-526](later.md) | P1 | S | later | chore | done | The incus suite of `runner-image.yml` does not block a release |
@@ -597,7 +597,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-550](later.md) | P2 | S | later | chore | open | The corpus of the user-path gate records the image of each github.com result |
 | [T-551](later.md) | P1 | S | later | defect | done | A pinned image larger than the disk bound of its kind is not refused |
 | [T-552](later.md) | P1 | S | later | defect | done | A job that the job-started hook ends with no answer is reported as success |
-| [T-553](later.md) | P1 | M | later | release | partial | podrunner and its runner images on ghcr.io, in the form of PodUtils |
+| [T-553](later.md) | P1 | M | later | release | done | podrunner and its runner images on ghcr.io, in the form of PodUtils |
 | [T-554](later.md) | P1 | S | later | defect | done | The compile of TypeScript 7 hangs on the podvm userland rung with no tier |
 | [T-555](later.md) | P1 | M | later | feature | partial | The publish of the hosted snapshot: hosted-snapshot.yml, the checks C1 to C3, the attested index |
 | [T-556](later.md) | P1 | M | later | measurement | partial | The base slice of the hosted snapshot boots in hosted CI |
@@ -606,7 +606,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-559](later.md) | P2 | M | later | feature | blocked | An incus VM mode for an image with a kernel |
 | [T-560](later.md) | P3 | S | later | defect | blocked | pod-extract reads only the first gzip member of a layer |
 | [T-561](later.md) | P2 | S | later | defect | done | `podrunner run --vnet` hangs in the lab that refuses the bind |
-| [T-562](later.md) | P2 | S | later | release | partial | A release of podrunner has no signed `release-index.json` |
+| [T-562](later.md) | P2 | S | later | release | done | A release of podrunner has no signed `release-index.json` |
 | [T-563](later.md) | P2 | M | later | feature | done | A unit holds the real values of its secrets, not placeholders that the broker swaps |
 | [T-564](later.md) | P3 | S | later | defect | done | The podvm kind gives no socket volume on the namespace rung, so `--vnet` and the container hooks are refused there |
 | [T-565](later.md) | P2 | S | later | defect | done | `config init` writes no `confine` for the podvm kind, so a trusted source on a host with no incus gets no kind |
@@ -653,7 +653,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-608](later.md) | P3 | S | later | defect | open | A recovery run of `release.yml` on a tag builds the binaries again |
 | [T-609](later.md) | P3 | M | later | defect | open | `podrunner run` cannot run the hosted runner image as a hosted runner |
 | [T-610](later.md) | P3 | S | later | defect | open | A layer of the tool cache of the snapshot names the version only |
-| [T-611](later.md) | P3 | S | later | defect | blocked | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
+| [T-611](later.md) | P3 | S | later | defect | partial | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
 | [T-612](later.md) | P3 | S | later | defect | open | Three live tests of the podvm kind fail on a root host |
 | [T-613](later.md) | P2 | M | later | measurement | partial | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
 | [T-614](later.md) | P3 | S | later | defect | done | The probe of `--export` and `--log-dir` has the pid only and follows a link |
@@ -689,3 +689,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-644](later.md) | P2 | S | later | chore | open | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
 | [T-645](later.md) | P3 | S | later | chore | open | The man page of the model under groff and mandoc, and in the assets of a release |
 | [T-646](later.md) | P3 | M | later | defect | done | Tests that write a program and start it while other tests fork |
+| [T-647](later.md) | P1 | S | later | chore | done | Take podcrates `v0.83.0` and podvm `0.2.0-beta.40` (COORD-154 of podcrates, COORD-246 of podvm) |
