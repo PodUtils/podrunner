@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**657 entries: 85 open, 60 partial, 15 blocked, 497 done.**
+**657 entries: 85 open, 59 partial, 15 blocked, 498 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 95 | 121 |
-| P2 | 16 | 25 | 10 | 259 | 310 |
+| P2 | 16 | 24 | 10 | 260 | 310 |
 | P3 | 68 | 11 | 3 | 141 | 223 |
-| **All** | 85 | 60 | 15 | 497 | 657 |
+| **All** | 85 | 59 | 15 | 498 | 657 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -560,7 +560,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-513](later.md) | P3 | S | later | chore | done | Two file locks of the local mode that `pod_core::lock` cannot hold yet |
 | [T-514](later.md) | P2 | S | later | feature | done | G-05 and G-06: the run report names no architecture |
 | [T-515](later.md) | P2 | M | later | defect | partial | G-12: a unit past its memory limit does not end with the exit reason `limit` |
-| [T-516](later.md) | P2 | S | later | feature | partial | G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine |
+| [T-516](later.md) | P2 | S | later | feature | done | G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine |
 | [T-517](later.md) | P3 | S | later | docs | open | G-09: the engine of a guest is a directory of the host, not a part of the payload image |
 | [T-518](later.md) | P2 | M | later | feature | done | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
 | [T-519](later.md) | P3 | S | later | docs | done | G-03: no document says that a step of the job can read the credential of its runner |

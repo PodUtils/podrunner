@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 657 entries: 85 open, 60 partial, 15 blocked, 497 done.
+`TODO/INDEX.md` holds 657 entries: 85 open, 59 partial, 15 blocked, 498 done.
 
 ## State
 
@@ -21,6 +21,9 @@
 - The `microvm` kind and the `incus` kind (no NIC, one channel) pass on real
   guests and instances. A guest with an engine runs `services:`, a job
   container and Docker actions (T-103, T-124, T-157).
+- A `docker build` step and a `docker:dind` service pass in a guest and in
+  an incus instance, proven in CI on GitHub-hosted runners (T-516). The
+  statement of G-09 on GitHub #66 waits for the lead.
 - The sidecar of the scale set, with the opt-ins of Q12 (T-518) and Q13
   (T-504), has unit and fake tests only. It did not run against GitHub.
   Open: T-621 (a live lane), T-622, T-624.
@@ -42,7 +45,7 @@ then take the next one.
 2. The open asks of githome and cfb: T-480 (cache directory by trust;
    partial, the second and third reviews are fixed; its follow-ups are
    T-653, blocked on COORD-130 (#352), and T-654), T-487 (warm units),
-   T-516 (CI proof of `docker build` and Docker-in-Docker), T-500 (runner image for cfb; partial). Then T-517,
+   T-500 (runner image for cfb; partial). Then T-517,
    T-521 and the partial entries T-497, T-499, T-509, T-511, T-515 and
    T-520.
 3. The local P3 entries: T-598, T-597, T-616, T-603 (step 1), T-610,

@@ -11985,7 +11985,7 @@ State (2026-11-23, the commit that names T-515): the incus kind read `OomKills` 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12004,6 +12004,10 @@ Add a parity workflow `10-docker-build.yml` (a `docker build` of a small Dockerf
 `runner-image.yml`: the parity step of the engine passes with the two new workflows.
 
 State (2026-11-25, the commit that names T-516; not run in CI): `crates/podrunner/tests/local/parity/10-docker-build.yml` (a step makes a Dockerfile, runs `docker build` and `docker run` of the result; the image prints a value that the build computed) and `11-docker-dind.yml` (a privileged `docker:dind` service of the pinned `mirror.gcr.io/library/docker` 27.5.1 by digest, on a port of `localhost`; the step checks that the inner engine is not the engine of the unit, loads busybox into it by `docker save` and `docker load`, and runs a container in it). `parity.rs` has a row for each, with a container route, so the steps "The parity suite in guests with an engine" and "The parity suite on the incus kind" of `runner-image.yml` run them, and a `FAIL` fails the step; with `--runner-dir` (`level2.yml`) each gives `SKIP`. The github.com side: the jobs `docker-build` and `docker-dind` of `level2.yml` run on `ubuntu-24.04` with the same text; the new test `the_hosted_jobs_of_level2_are_the_jobs_of_the_suite` compares the two texts, and `each_workflow_of_the_suite_has_a_row_and_is_valid` checks that each file of the suite has a row and passes `podrunner run --validate` with no warning (both failed on a plant: a changed option in `level2.yml`, an unknown key in 10). The call: the engine route takes `--privileged`, as the guest or the unprivileged instance is the boundary (`docs/decisions.md`, T-516); a nested engine in a guest of the `microvm` kind needs `DOCKER_RAMDISK=true`, and the inner engine cannot pull through the egress (`docs/container-engine.md`, "Docker-in-Docker"). Open: a green run of `runner-image.yml` and of `level2.yml` with the new jobs; the inner engine in an unprivileged incus instance is not measured.
+
+## Done
+
+2026-11-25: the commit that names T-516 (`88f778b`, the parity workflows and the jobs of `level2.yml`). `runner-image.yml` run 45564676018 on `88f778b`: `parity 10-docker-build.yml PASS` and `parity 11-docker-dind.yml PASS` on the `microvm` kind (the step "The parity suite in guests with an engine") and on the incus kind (the step "The parity suite on the incus kind"). `level2.yml` run 45564676057 on `88f778b` is green, with its jobs `docker-build` and `docker-dind` (the github.com side, `ubuntu-24.04`) green. So the inner engine in an unprivileged incus instance passes too. Level: proven in CI on GitHub-hosted runners; not run on a constrained host as a user. The statement of G-09 on GitHub #66 waits for the lead.
 
 # T-517: G-09: the engine of a guest is a directory of the host, not a part of the payload image
 
