@@ -307,42 +307,53 @@ the mode:
 | --- | --- |
 | The tier `untrusted` (a fork, an agent, a sandbox) | none, also when the offer asks for `rw` |
 | `push`, `workflow_dispatch`, `repository_dispatch` or `schedule` on a ref of `write_refs`, or with `rw` in its offer, with a head that is not a fork (`head_is_fork` is `no`) | `rw` |
-| Each other job of the tier `trusted` or `local` (a pull request of the same repository, a push to another branch, `pull_request_target`) | `ro` |
-| A second `rw` job of a cache while one runs | `ro` |
+| Each other job of the tier `trusted` or `local` (a pull request of the same repository, a push to another branch, `pull_request_target`) | `ro` on a kind that proves a read-only mount, else none |
+| A second `rw` job of a cache while one runs | as the line above |
 
 `write_refs` names refs, not the default branch: with the default
 `["refs/heads/main"]`, a push to a branch named `main` writes, also in a
 repository whose default branch is another one. Set `write_refs` to the
 default branches of the repositories, or let the source say `rw`.
 
-A `ro` cache is a guard between the jobs of one tier, not a boundary. On
-a kind that mounts it read-only, a write fails. The podvm kind gives
-`mount_modes` `rw` only (its boundary is `redirect`): podvm does not prove
-a `:ro` volume read-only, so there a `ro` job can write, unless the
-confine layer (`--podvm-confine`) refuses the write. The tier is the boundary: a job of the tier
-`untrusted` gets no cache. The unit gets the variables `PODRUNNER_CACHE`
-(the path) and `PODRUNNER_CACHE_MODE` (`rw` or `ro`). A `rw` job also gets
-each variable of `env`, which names a directory under the cache; a `ro`
-job gets none, because a tool writes in the directory of its variable and
-fails on a read-only one (T-650). A variable that podrunner sets (the CA
-bundle of the broker) keeps its value. A step that writes its cache can
-test `PODRUNNER_CACHE_MODE` first. `env` refuses each name that loads
-code or settings into the processes of a job, or that podrunner or the
-runner sets: `PATH`, `HOME`, `SHELL`, `ENV`, `BASH_ENV`, `IFS`, `PS4`,
-`PROMPT_COMMAND`, `TMPDIR`, `NODE_OPTIONS`, `NODE_PATH`,
-`JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`, `JDK_JAVA_OPTIONS`, `PYTHONPATH`,
-`PYTHONSTARTUP`, `PYTHONHOME`, `PERL5LIB`, `PERL5OPT`, `RUBYOPT`,
-`RUBYLIB`, and each name that starts with `PODRUNNER_`, `GITHUB_`,
-`ACTIONS_`, `RUNNER_`, `LD_` or `GIT_`, in any case. `RUNNER_TOOL_CACHE`
-is allowed: the runner reads its tool cache from it. `check` exits 78 on
-such a name.
+A job that would get `ro` gets the cache only on a kind whose capability
+lists `ro` in `mount_modes`: there a write to the cache fails. Else its
+writes would reach the cache that the next `rw` job, of a higher trust,
+reads. The `fake` kind lists `ro` (a `:ro` mount is a copy). The `podvm`
+kind lists `ro` only with `confine = true`, when a run of the confine
+self-test reads a `:ro` volume and its write does not reach the host;
+else `serve` writes a line at the start, and such a job gets no cache.
+The audit line `cache` of each job gives `rw`, `ro`, or `none` and a code
+(`untrusted`, `no-mount`, `no-ro-mount`, `bad-key`, `offer-off`,
+`open-failed`). The tier is the boundary: a job of the tier `untrusted`
+gets no cache.
+
+The unit gets the variables `PODRUNNER_CACHE` (the path) and
+`PODRUNNER_CACHE_MODE` (`rw` or `ro`). A `rw` job also gets each variable
+of `env`, which names a directory under the cache; a `ro` job gets none,
+because a tool writes in the directory of its variable and fails on a
+read-only one (T-650). A step that writes its cache can test
+`PODRUNNER_CACHE_MODE` first. `env` takes only these names, in this
+case: `npm_config_cache`, `NPM_CONFIG_CACHE`, `YARN_CACHE_FOLDER`,
+`PNPM_STORE_DIR`, `BUN_INSTALL_CACHE_DIR`, `PLAYWRIGHT_BROWSERS_PATH`,
+`PUPPETEER_CACHE_DIR`, `CYPRESS_CACHE_FOLDER`, `ELECTRON_CACHE`,
+`RUNNER_TOOL_CACHE`, `PIP_CACHE_DIR`, `UV_CACHE_DIR`, `POETRY_CACHE_DIR`,
+`GOMODCACHE`, `GOCACHE`, `CCACHE_DIR`, `SCCACHE_DIR`, `DENO_DIR`,
+`COMPOSER_CACHE_DIR`, `NUGET_PACKAGES` and `ZIG_GLOBAL_CACHE_DIR`. Each
+names only the cache directory of a tool. A name that makes a tool load
+its settings or code from a directory (`XDG_CONFIG_HOME`, `CARGO_HOME`,
+`GEM_HOME`, `GRADLE_USER_HOME`, `LD_PRELOAD`) is not a cache. `check`
+exits 78 on another name. A variable that podrunner sets (the CA bundle
+of the broker) keeps its value.
 
 The forge can give the runner of a job a queued job of another run
-(T-493). podrunner made the cache of the unit for the offer: the real job
-keeps it only when the trust facts that its source gives (`keep`) give
-the same scope and a mode that is not lower. The `rw` of an offer is the
-word of the source on the run of the offer only. Else the job ends
-before its first step with the code `cache-mismatch`.
+(T-493). podrunner made the cache of the unit for the offer. A job of
+another run with a `rw` cache ends before its first step with the code
+`cache-mismatch`: the job-started hook does not send the ref of the real
+job, and a mount is not lowered after the start (T-653). A job of another
+run with a `ro` cache keeps it only when the event of the hook is the
+event of the trust facts that its source gives (`keep`), the hook names
+no head of a fork, and the facts give the same scope; else it ends with
+`cache-mismatch`.
 
 The `podvm` kind on a rung with volumes and the `fake` kind mount the
 cache. The `microvm` and `incus` kinds mount no host directory: their
@@ -354,19 +365,33 @@ its source, forge, owner, repository, the id of the repository (when the
 source gives it: a repository made again with the same name gets a new
 cache), tier and key, and its time is the last use. One `serve` holds
 the directory (a lock on `DIR/lock`): a second `serve` with the same
-`dir` does not start. While a `rw` job runs, `serve` measures its cache
-every 30 s; above `max_bytes`, the job ends with `limit` (the cache is on
-the file system of `dir`, by default the one of the state). After a `rw`
-job, a cache above `max_bytes` is emptied; then each cache with no use in
-`max_age_s` goes, and the caches with the oldest use go while the
-directory is above `total_bytes`. A cache that a job uses stays. `serve`
-writes a line for each cache that goes. Each walk and each removal of a
-cache runs on a thread of its own, not in the loop of the jobs: a cache
-that goes is first renamed to `DIR/trash-ID-N`. The report of a `rw` job
-waits for the walk of its cache.
+`dir` does not start. The lock is `flock`: on NFS it holds only on one
+host when the mount locks locally (NFSv3 `nolock`, `local_lock=flock`),
+so do not give two hosts the same `dir`. The count of the bytes that a
+job wrote uses the time of the last status change of each file; a file
+system with a coarse time (NFS, some FUSE file systems) can count a file
+of the last job too.
+
+While a `rw` job runs, `serve` measures its cache every 30 s; above
+`max_bytes`, the job ends with `limit`. The measure is a sample, not a
+quota: a job can write more than `max_bytes` in 30 s, up to the free
+space of the file system of `dir` (by default the one of the state). Put
+`dir` on a file system of its own, or give it a quota of the file
+system. After a `rw` job, a cache above `max_bytes` is emptied; then each
+cache with no use in `max_age_s` goes, and the caches with the oldest use
+go while the directory is above `total_bytes`. A cache that a job uses
+stays. `serve` writes a line for each cache that goes. Each walk of a
+cache runs on a thread of its own, and each removal on a second thread,
+not in the loop of the jobs: a cache that goes is first renamed to
+`DIR/trash-ID-N`, and the next start of `serve` removes each trash that a
+stop left. A `rw` job frees its slot at the destroy of its unit; its
+report waits for the walk of its cache at most `[deadlines] report_s`,
+and its cache stays in use until the walk ends. A panic of a thread of
+the caches stops `serve`.
 
 The run report gives `cache_written_bytes`: the bytes of the files that
-the job wrote in its cache, and 0 for a `ro` cache or no cache.
+the job wrote in its cache, and 0 for a `ro` cache or no cache. When the
+walk does not end in `report_s`, it is `unknown` with a reason.
 `cache_read_bytes` is 0 with no cache, and else `unknown`: the host does
 not count the reads of a mount (T-649).
 

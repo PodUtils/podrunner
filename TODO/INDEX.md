@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**647 entries: 82 open, 57 partial, 13 blocked, 495 done.**
+**649 entries: 83 open, 57 partial, 14 blocked, 495 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 95 | 121 |
-| P2 | 18 | 21 | 8 | 258 | 305 |
-| P3 | 63 | 12 | 3 | 140 | 218 |
-| **All** | 82 | 57 | 13 | 495 | 647 |
+| P2 | 18 | 21 | 9 | 258 | 306 |
+| P3 | 64 | 12 | 3 | 140 | 219 |
+| **All** | 83 | 57 | 14 | 495 | 649 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -695,3 +695,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-650](later.md) | P2 | M | later | feature | open | A tool that writes its cache in a job with a read-only cache |
 | [T-651](later.md) | P3 | S | later | feature | open | The cache in the containers of a `container:` job |
 | [T-652](later.md) | P2 | S | later | defect | open | The disk check of a unit walks its root in the tick |
+| [T-653](later.md) | P2 | M | later | feature | blocked | The ref and the repository id of a job of another run, for its cache |
+| [T-654](later.md) | P3 | M | later | feature | open | A job that ended with `cache-mismatch` runs again |

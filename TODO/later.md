@@ -16494,3 +16494,62 @@ Read from the code on 2026-11-25. Not measured: the time of a walk of a unit roo
 ## Prove
 
 `cargo test -p podrunner-slots tests::placement_disk` and the new test of step 3.
+
+# T-653: The ref and the repository id of a job of another run, for its cache
+
+**Source:** the second review of T-480, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+The forge can give the runner of a job with a cache a queued job of another run (T-493). The job-started hook (`images/runner/podrunner-job-started.sh`) sends the run, the job, the event, the repository, the head and the actor of the real job (`RealJob` of `pod-job`), not its ref and not the id of its repository, although the runner has `GITHUB_REF` and `GITHUB_REPOSITORY_ID`. The `rw` of such a job rested on the `ref` of the facts of `keep` only: a source that copies the ref of the offer kept a push to a feature branch with `rw` on the scope of the default branch. The second review of T-480 closed it: a job of another run never keeps a `rw` cache, and ends with `cache-mismatch`. The cost: when a push to the default branch and a job with the same labels are queued, the forge can give the second one to the runner of the push, and that job ends.
+
+## Premise
+
+Read on 2026-11-25: `RealJob` of `pod-job` `v0.83.0` (the file `source/event.rs` of `pod-job` in podcrates) has `deny_unknown_fields` and no field of the ref or of the repository id, so the hook cannot send them before podcrates adds them. Not measured: how often the forge gives a runner a job of another run with the same labels.
+
+## Approach
+
+1. A COORD issue `(to podcrates)`: `RealJob` gains `git_ref` (serde name `ref`, the full ref, `GITHUB_REF`) and `repo_id` (`GITHUB_REPOSITORY_ID`, a number), each optional, so that an older hook stays valid. The text of the issue: "podrunner asks for two optional fields of `RealJob` (`pod-job`): `ref` (string, the full ref of the job, `GITHUB_REF` of the runner, at most 256 bytes, no control character) and `repo_id` (integer, `GITHUB_REPOSITORY_ID`). The job-started hook of podrunner sends them for a job of another run; `serve` compares them with the facts of `keep` before a job of another run keeps a `rw` cache (T-480, T-653). The schema of `RealJob` and its example change; no other field changes. Please tag a release with them."
+2. When podcrates has them: the hook sends `GITHUB_REF` and `GITHUB_REPOSITORY_ID`; `plain` of `crates/podrunner-slots/src/assigned.rs` bounds the ref.
+3. `holds` of `crates/podrunner-slots/src/cache.rs` gives `rw` back to a job of another run only when the ref of the hook is the ref of the facts, the ref is in `write_refs` or the source said `rw` for that ref, and the repository id of the hook is the one of the facts and of the grant.
+4. Tests: a push of another run to the default branch keeps `rw`; a push of another run to another branch, a ref of the hook that differs from the facts, and a repository id that differs each end with `cache-mismatch`.
+
+## Prove
+
+`cargo test -p podrunner-slots cache_assigned` and `cargo test -p podrunner-slots cache::tests`.
+
+## Blocker
+
+podcrates: `RealJob` of `pod-job` needs the fields `ref` and `repo_id` (the COORD issue of step 1; the lead session posts it). A tag of podcrates with them unblocks the entry.
+
+# T-654: A job that ended with `cache-mismatch` runs again
+
+**Source:** the second review of T-480, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A job of another run that the forge gives to the runner of a job with a `rw` cache ends before its first step with the code `cache-mismatch` (T-480, T-653). The job is correct; only its place was wrong. Its run fails, and a person must run it again.
+
+## Premise
+
+Read from the code on 2026-11-25. Not measured: the share of such jobs. The scale set of GitHub (the sidecar of the source `github-scaleset`) can run a failed job again through the API of GitHub; podrunner does not use that call now.
+
+## Approach
+
+1. The run report of such a job names the code `cache-mismatch` in `assigned`; the source reads it.
+2. The source (the sidecar of `github-scaleset`, `tools/scaleset-sidecar`) runs the failed job again once (`POST /repos/OWNER/REPO/actions/jobs/JOB_ID/rerun`), with a limit of one re-run for each job, and writes an audit line.
+3. A test of the sidecar with the fake of GitHub (`tools/fake-scaleset`): a job that ended with `cache-mismatch` runs again once; a second end does not.
+
+## Prove
+
+`cd tools/scaleset-sidecar && go test -run Rerun ./...` and `cargo test -p podrunner-slots cache_assigned`.

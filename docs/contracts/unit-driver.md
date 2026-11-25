@@ -82,12 +82,15 @@ incusd gives none of a stopped instance. The run report gives `unknown` with tha
 gives none, and slots samples the processes of `observe`.
 
 The host directories. A driver whose `host_mounts` is true mounts each
-directory of `StartSpec::mounts` at its path in the unit, and a path with
-`:ro` read-only; another driver refuses a start with one. `serve` gives
-the cache of a job (T-480) only to such a kind. The podvm driver gives
-`-v` on a rung with volumes; the fake links a read-write directory into
-the root of its unit and copies a read-only one, and points each variable
-of the target to it.
+directory of `StartSpec::mounts` at its path in the unit; another driver
+refuses a start with one. `serve` gives the cache of a job (T-480) only
+to such a kind. A path with `:ro` is read-only only where the capability
+lists `ro` in `mount_modes`: `serve` gives a job that would read a cache
+no cache on another kind. The podvm driver gives `-v` on a rung with
+volumes, and lists `ro` only when a run of the confine self-test reads a
+`:ro` volume and its write does not reach the host. The fake links a
+read-write directory into the root of its unit and copies a read-only
+one (it lists `ro`), and points each variable of the target to it.
 
 The credential directory. `credential_dir` names, for a unit id, the
 absolute path where the unit sees its credential files, so that a
