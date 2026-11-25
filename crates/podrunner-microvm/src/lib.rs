@@ -38,6 +38,7 @@ use podrunner_podvm::Podvm;
 use podrunner_schema::{
     Boundary, Capability, ContainerRoute, CredentialStore, EgressHold, Fact, Principal, TreeKill, UnitId,
 };
+use podrunner_unit::limits::Limits;
 use podrunner_unit::procs::{self, TAG_VAR};
 use podrunner_unit::{
     ContainerId, ContainerSpec, ContainerState, Count, EGRESS_SOCKET, ExecSpec, Exit, Observation, Prepared, Residue,
@@ -155,6 +156,16 @@ impl MicrovmUnit {
         self
     }
 
+    /// The CPUs and the processes of a guest for an offer: the lesser of
+    /// the kind and the offer (T-198). The memory stays the size of the
+    /// kind: the guest holds the unpacked image in it (T-573). No pids for
+    /// a kind with no limit, so an older podvm gets no flag.
+    fn applied(&self, job: &Limits) -> Limits {
+        let kind = Limits { cpus: Some(self.cpus), pids: self.pids, ..Limits::default() };
+        let l = kind.lesser(&Limits { memory_bytes: None, disk_bytes: None, ..*job });
+        Limits { cpus: l.cpus.map(|c| c.max(1)), pids: self.pids.and(l.pids), ..Limits::default() }
+    }
+
     fn unit_dir(&self, unit: &UnitId) -> PathBuf {
         self.state_dir.join("units").join(unit.as_str())
     }
@@ -261,15 +272,14 @@ impl UnitDriver for MicrovmUnit {
         }
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
         let egress = spec.sockets.as_ref().map(|s| s.join(EGRESS_SOCKET));
+        let applied = self.applied(&spec.limits);
         let shape = Shape {
             mem: &self.mem,
-            cpus: self.cpus,
+            cpus: applied.cpus.unwrap_or(self.cpus),
             egress: egress.as_deref(),
             engine: self.engine.as_deref(),
             init_image: self.init_image,
-            // The lesser of the kind and the offer; no flag for a kind with
-            // no limit, so an older podvm gets none.
-            pids: self.pids.map(|k| spec.limits.pids.map_or(k, |o| o.min(k))),
+            pids: applied.pids,
         };
         // The file stays in the directory of the unit until `destroy`.
         let (env_file, env) = podrunner_podvm::write_env_file(&self.podvm, &dir, &spec.env)?;

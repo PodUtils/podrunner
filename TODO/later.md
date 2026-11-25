@@ -16571,3 +16571,30 @@ Read from the code on 2026-11-25. Not measured: the share of such jobs. The scal
 ## Prove
 
 `cd tools/scaleset-sidecar && go test -run Rerun ./...` and `cargo test -p podrunner-slots cache_assigned`.
+
+# T-655: A guest of the microvm kind keeps the memory of its kind for an offer that asks less
+
+**Source:** the review of the design of T-487 (finding F2), 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The ruling "Apply offer values" (T-198) gives each unit the lesser of the limit of its kind and the limit of its offer. A guest of the `microvm` kind gets the lesser of `cpus` and `pids`, but always the `mem` of its kind: the guest holds the unpacked initramfs of the image in its memory, and podvm needs 13/4 times the image plus 512 MiB to boot it (T-573). An offer that asks for less memory (a small size of githome) gets more than it asked.
+
+## Premise
+
+Read from `crates/podrunner-microvm/src/lib.rs` (`applied`) and T-573 on 2026-11-25. Not measured: the boot floor of each pinned image, and the memory that a job uses on top of it.
+
+## Approach
+
+1. Compute the boot floor of a payload from its `unpacked_bytes` (13/4 times it plus 512 MiB) at `prepare`.
+2. Give the guest the larger of the boot floor and the lesser of the kind and the offer; the record says which value the job got.
+3. A unit test of the argv for an offer below the floor, between the floor and the kind, and above the kind.
+
+## Prove
+
+`cargo test -p podrunner-microvm --lib a_guest_gets_the_lesser` with a case for the memory.

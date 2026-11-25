@@ -411,3 +411,31 @@ fn the_init_of_the_image_boots_in_a_foreground_guest() {
     let u = u.with_image_init(true);
     assert_eq!(u.probe().unwrap().container, ContainerRoute::Engine);
 }
+
+/// The CPUs and the processes of a guest are the lesser of the kind and
+/// the offer (T-198); the memory stays the size of the kind, because the
+/// guest holds the unpacked image in it (T-573).
+#[test]
+fn a_guest_gets_the_lesser_cpus_and_processes_of_the_offer() {
+    let (u, d) = driver("lesser", "printf '%s\\n' \"$@\" > \"$(dirname \"$0\")/argv\"");
+    let u = u.with_size("4G", 4).with_pids(100);
+    let argv = |unit: &str, limits: Limits| {
+        let mut s = spec(unit);
+        s.limits = limits;
+        u.start(&s).unwrap();
+        assert_eq!(u.wait(&s.unit, Duration::from_secs(10)).unwrap(), Some(Exit::Code(0)));
+        assert!(u.destroy(&s.unit).unwrap().is_clean());
+        fs::read_to_string(d.join("argv")).unwrap().lines().map(String::from).collect::<Vec<_>>()
+    };
+    let has = |a: &[String], flag: &str, v: &str| a.windows(2).any(|w| w[0] == flag && w[1] == v);
+    let small = Limits { memory_bytes: Some(1 << 30), cpus: Some(2), pids: Some(50), disk_bytes: None };
+    let a = argv("u-1", small);
+    assert!(has(&a, "--podvm-cpus", "2") && has(&a, "--pids-limit", "50"), "{a:?}");
+    assert!(has(&a, "--podvm-mem", "4G"), "the memory of the kind: {a:?}");
+    let large = Limits { memory_bytes: Some(64 << 30), cpus: Some(64), pids: Some(1 << 20), disk_bytes: None };
+    let a = argv("u-2", large);
+    assert!(has(&a, "--podvm-cpus", "4") && has(&a, "--pids-limit", "100"), "{a:?}");
+    let a = argv("u-3", Limits::default());
+    assert!(has(&a, "--podvm-cpus", "4") && has(&a, "--pids-limit", "100"), "{a:?}");
+    let _ = fs::remove_dir_all(&d);
+}

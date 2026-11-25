@@ -261,7 +261,10 @@ pids = 4096                              # its processes (limits.processes)
 Each unit gets the lesser of the value of the offer (`memory` in bytes,
 `cpu` in milli-cores, rounded up to whole CPUs, `pids`) and the value of
 its kind (the keys below); a value that one side has alone holds (the
-owner, 2026-11-15, T-198). The `podvm` kind enforces `memory` and `pids` (and `cpu` where the host delegates a cgroup to the user),
+owner, 2026-11-15, T-198). The one exception: a guest of the `microvm`
+kind always gets the `mem` of its kind, because the guest holds the
+unpacked image in its memory (T-573); its `cpus` and `pids` are the
+lesser. The `podvm` kind enforces `memory` and `pids` (and `cpu` where the host delegates a cgroup to the user),
 the `incus` kind `memory`, `cpu` and `pids`, and the `microvm` kind the
 `memory` and `cpu` of its guest, and `pids` with `[unit.microvm] pids`; placement refuses an offer that needs a
 limit that no kind enforces (`limit-not-enforceable`).
@@ -275,7 +278,7 @@ payload (`limit-not-enforceable`); the audit line names both sizes
 | --- | --- | --- | --- |
 | `podvm` | `RLIMIT_AS` of the payload (`--ulimit as=`); .NET gets a heap limit and a region range of three quarters | `--cpus` in a leaf of a cgroup v2 subtree that the host delegates to the user (a systemd user session; podvm `0.2.0-beta.23` or later, T-221); refused elsewhere, with the reason | `RLIMIT_NPROC` (`--ulimit nproc=`); it counts each process of the user, also of other units of that user |
 | `incus` | `limits.memory` (podvm `0.2.0-beta.20` or later) | `limits.cpu` | `limits.processes` |
-| `microvm` | the memory of the guest | its vCPUs | `pids.max` of the cgroup of the payload in the guest (`--pids-limit`, podvm `0.2.0-beta.32` or later, T-488); with no `pids` of the kind, none |
+| `microvm` | the memory of the guest; the `memory` of an offer does not lower it | its vCPUs | `pids.max` of the cgroup of the payload in the guest (`--pids-limit`, podvm `0.2.0-beta.32` or later, T-488); with no `pids` of the kind, none |
 
 A size is whole bytes, or a number with `K`, `M`, `G` or `T`. Set
 `[unit.podvm] mem` large: `RLIMIT_AS` counts the address space, which is
