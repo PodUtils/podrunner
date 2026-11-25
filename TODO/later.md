@@ -10992,7 +10992,7 @@ A test of slots with a fake source and a fake egress sink: an allowed and a deni
 **Milestone:** later
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11004,9 +11004,20 @@ Read from GitHub #65 and #66 on 2026-11-18. Not measured: the time of a cold sta
 
 ## Approach
 
-1. Measure `claim_to_first_step_s` of each kind in `runner-image.yml` and on cfb's first host.
-2. Design: a warm unit is fresh (no job ran in it), from the pinned image, with no credential and no egress until a claim; each unit still runs one job and is destroyed. Decide the count of warm units for each kind and what a warm unit holds of the host (memory of a guest).
-3. Build it behind `UnitDriver` (a `prepare` before the claim), with the unit tests of a fresh unit.
+The design (reviewed 2026-11-25, with the amendments of its review):
+
+1. Measure the cold start: the steps "C1 to C5" of `runner-image.yml` print `claim_to_first_step_s`, `prepare_s` and `start_s` of each job of the microvm and the incus kind (`measure` lines in the summary). `claim_to_first_step_s` rounds up as the other times.
+2. The model: a warm unit is a unit that `start` would make, with nothing of a job. It boots from the pinned digest of its kind; its top process is a script that waits; it holds no credential, no job environment, no job argv, and its egress socket leads nowhere until the claim. At the claim, podrunner delivers the credential, the environment and the argv, and opens the egress policy of the job behind the same socket. The unit then runs that one job and is destroyed. No snapshot: podvm refuses a saved state with `--podvm-channel`, `--pids-limit` and `--podvm-engine`, and incus has no such route.
+3. The seam (a new module `warm` of `podrunner-unit`): `WarmSpec` (unit, image, sockets, unit variables only), `ClaimSpec` (argv, env, credential, limits), and the operations `warm`, `warm_ready`, `claim` and `applied_limits` of `UnitDriver`, each with a default (`unsupported`; `applied_limits` gives none). The env.sh form: `export 'K'='V'` and `set -- 'A1' ...`, each value in single quotes. `docs/contracts/unit-driver.md` gets the operations; the conformance suite runs tests 1 to 27 through a `Warmed` adapter (`run_warm`) and adds cases 28 to 32 (no credential before the claim, one claim, an unclaimed unit destroys clean, a claim runs its own argv and env, no file of an ended unit). The fake kind gets plants that fail each new case.
+4. The kinds: fake (tests), microvm, then incus; the podvm kind later (T-656). microvm: the warm script waits for `/mnt/podrunner-cred/.podrunner-claim/go` BEFORE the engine block of its script, so `dockerd` starts after the claim with the CA variables of the job. incus: `podvm run -d` with no `-i`; the claim goes by `podvm exec -i` into a 0700 directory of the instance. Both kinds keep match-or-cold for the limits: a warm unit fits an offer only when `applied_limits(offer)` equals the limits of the unit, else the job starts cold with an audit line `warm-miss`. No in-guest `pids.max` path.
+5. Egress: `EgressPort::hold` serves the front of a unit with no job; `open_with` on a unit with a front keeps it (fixed: a second open removed the socket).
+6. slots (`warm.rs`, `warm_take.rs`): a pool for each kind and label row. The refill resolves its payload through the rule of `pick_payload` at each refill with the clock; no unit when it fails, and the ends `pin` and `stale` count toward the backoff of the row (60 s doubling to 1 h; 3 failures pause the row). A warm unit holds one slot of its kind and one unit of `max_units`; the capacity that a source gets stays `slots - running`; a job that finds only warm units that do not fit evicts the oldest one. `warm_reserve` (default `1G`) keeps memory free: under it the newest warm units end. The journal keeps a warm unit under the source `@warm` (source names may not start with `@`).
+7. The take (P2-1, P2-2, P2-3 of the review): a reserved warm unit ends only by `failed` or `boot-timeout`; when it ends, the reservation goes and the job starts cold (`ids.next()`). Each check that can fail (the stale pin, the work folder, the hooks, the socket directory) runs before the take; the `@warm` line goes final at the take; each failure after the take goes through one `fail_warm`, which destroys the unit. Once `source.claim` ran for a warm unit, the unit never goes back to the pool.
+8. Configuration: `[unit.KIND] warm` (an integer, or a table of label to count with `*` for no label), `warm_max_age_s` (3600), top-level `warm_reserve`. `check` refuses a sum over `slots` or `max_units`, a kind with `principal: shared`, a row with no payload. Until the CI proof, `check` and the load refuse `warm > 0` with "warm units are not in this build" (78); the section "Warm units" of `docs/configuration.md` and the CHANGES row come with the lift. `stop` and `drain` end each warm unit.
+9. The report and the status: `unit.start` (`cold` or `warm`), `unit.warm_s`, `unit.boot_s`, `KindStatus.warm` and `Status.warm_units` need a tag of podcrates (T-657). Until then, the audit lines `warm-take` and `warm-miss` carry the facts to the source.
+10. CI: the warm conformance on microvm and incus, and a `serve` lane with `warm = 1` that runs two jobs cold and two warm and asserts that the warm `claim_to_first_step_s` is less (the acceptance of G-11 and G-25).
+
+State: the findings of the review are fixed (the module doc of the limits; the CPUs of a microvm guest, T-655; the rounding of `claim_to_first_step_s`; the second open of an egress; the reserved `@` of a source name), and step 1 is in CI. Next: the seam (step 3).
 
 ## Prove
 
@@ -16598,3 +16609,125 @@ Read from `crates/podrunner-microvm/src/lib.rs` (`applied`) and T-573 on 2026-11
 ## Prove
 
 `cargo test -p podrunner-microvm --lib a_guest_gets_the_lesser` with a case for the memory.
+
+# T-656: Warm units of the podvm kind
+
+**Source:** the design of T-487, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-487 gives warm units to the fake, the microvm and the incus kinds. The podvm kind gets none: a unit of the podvm kind starts in about a second, its units share one uid, and the hold of its egress (`podnet pod -x`) is not proven for a unit that waits with no job.
+
+## Premise
+
+Read from the design of T-487 and `crates/podrunner-podvm` on 2026-11-25. Not measured: the cold start of the podvm kind on a host of cfb or githome.
+
+## Approach
+
+1. Measure `claim_to_first_step_s` of the podvm kind; take the entry only when the cold start is more than a few seconds.
+2. Refuse warm units on a kind with `principal: shared`, and give them only to a kind at `confined` or above, with test 27 of the warm conformance.
+3. Prove the hold of `podnet pod -x` for a unit that waits before its claim.
+
+## Prove
+
+`cargo test -p podrunner-podvm warm` and the warm conformance of the podvm kind in `runner-image.yml`.
+
+## Start condition
+
+T-487 is done, and the measure of step 1 of this entry shows a cold start of more than 5 s.
+
+# T-657: Warm and cold units in the run report and the status
+
+**Source:** githome's G-25 (GitHub #292): "the start time in the report (G-19). Acceptance: the report shows the start of a warm unit and of a cold unit"; the design of T-487, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`run-report.v1` and `status.v1` of `pod-job` (podcrates) have no field for the start of a unit (warm or cold), the time that a unit waited warm, its boot time, and the warm units of a kind. G-25 asks the report to show the start of a warm and of a cold unit.
+
+## Premise
+
+Read `pod-job` of podcrates `v0.83.0` on 2026-11-25: `UnitFields` and `KindStatus` have no such field.
+
+## Approach
+
+1. Ask podcrates (a COORD issue) for `UnitFields.start` (`cold` or `warm`), `UnitFields.warm_s`, `UnitFields.boot_s`, `KindStatus.warm` (`target`, `booting`, `ready`, `paused_reason`) and `Status.warm_units`, each optional.
+2. Take the tag; fill the fields in `crates/podrunner-slots/src/report.rs` and `status.rs`.
+3. Tests: the report of a warm job has `unit.start = warm`, `warm_s` and `boot_s`; the report of a cold job has `cold`.
+
+## Prove
+
+`cargo test -p podrunner-slots warm_report`.
+
+## Blocker
+
+podcrates: the fields of step 1 in `pod-job`. The COORD issue `(to podcrates)` with the text of the design of T-487 unblocks the entry when its tag comes.
+
+# T-658: A warm incus instance fits an offer with lower limits
+
+**Source:** the design of T-487, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A warm incus instance boots with the limits of its kind. An offer that asks for less memory, CPU or processes (githome's sizes) does not fit it, and the job starts cold (`warm-miss limits`). incus can change the limits of a running instance; podvm has no verb for it.
+
+## Premise
+
+Read from the design of T-487 and podvm `incus/verbs.rs` on 2026-11-25. Not measured: the share of offers of githome below the limits of the kind.
+
+## Approach
+
+1. Ask podvm (a COORD issue) for `podvm update --podvm-tier=incus NAME [--memory BYTES] [--cpus N] [--pids-limit N]`.
+2. At the claim, set the lesser limits of the offer on the warm instance before the first byte of the job; a failure destroys the unit and the job starts cold.
+
+## Prove
+
+`cargo test -p podrunner-incus warm` with a case for an offer with lower limits.
+
+## Start condition
+
+podvm has the verb of step 1 in a release.
+
+# T-659: A cold guest of the microvm kind from a saved state
+
+**Source:** the design of T-487, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each guest of the microvm kind boots (about 30 s: an uncompressed initramfs of about 1.4 GiB). podvm can save and load the state of a machine, but refuses a saved state for a run with `--podvm-channel`, `--pids-limit` or `--podvm-engine`, and each unit of podrunner has a channel.
+
+## Premise
+
+Read podvm `machine/guest/state.rs` (`state::refusal`) on 2026-11-25. Not measured: the start of a guest from a saved state.
+
+## Approach
+
+1. Ask podvm (a COORD issue) for a saved state that takes the channel and the pids limit with the run.
+2. Start each cold guest from a state that ran no job, with the seed and the time of its run.
+
+## Prove
+
+`cargo test -p podrunner-microvm --test conformance -- --ignored` from a saved state in `runner-image.yml`.
+
+## Start condition
+
+podvm takes a saved state for a run with a channel and a pids limit.

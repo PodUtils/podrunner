@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**650 entries: 84 open, 56 partial, 14 blocked, 496 done.**
+**654 entries: 86 open, 57 partial, 15 blocked, 496 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 95 | 121 |
-| P2 | 18 | 21 | 9 | 258 | 306 |
-| P3 | 65 | 11 | 3 | 141 | 220 |
-| **All** | 84 | 56 | 14 | 496 | 650 |
+| P2 | 17 | 22 | 10 | 258 | 307 |
+| P3 | 68 | 11 | 3 | 141 | 223 |
+| **All** | 86 | 57 | 15 | 496 | 654 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -531,7 +531,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-484](later.md) | P2 | S | later | release | done | A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have |
 | [T-485](later.md) | P1 | M | later | feature | done | The incus kind has no container route, though G-02 asks for an engine in the system container |
 | [T-486](later.md) | P1 | M | later | feature | done | G-04: the egress verdicts of a unit do not reach the source of the job |
-| [T-487](later.md) | P2 | L | later | feature | open | G-11: warm units from a pinned golden image |
+| [T-487](later.md) | P2 | L | later | feature | partial | G-11: warm units from a pinned golden image |
 | [T-488](later.md) | P2 | M | later | feature | done | G-12: the microvm kind enforces no limit of processes |
 | [T-489](later.md) | P3 | S | later | chore | partial | githome and cfb read `cpu_s` and `peak_rss_mib`: a change of a field of the run report needs a new version |
 | [T-490](later.md) | P1 | L | later | research | done | Settle each open unknown of `docs/unknowns.md` |
@@ -698,3 +698,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-653](later.md) | P2 | M | later | feature | blocked | The ref and the repository id of a job of another run, for its cache |
 | [T-654](later.md) | P3 | M | later | feature | open | A job that ended with `cache-mismatch` runs again |
 | [T-655](later.md) | P3 | M | later | feature | open | A guest of the microvm kind keeps the memory of its kind for an offer that asks less |
+| [T-656](later.md) | P3 | M | later | feature | open | Warm units of the podvm kind |
+| [T-657](later.md) | P2 | S | later | feature | blocked | Warm and cold units in the run report and the status |
+| [T-658](later.md) | P3 | S | later | feature | open | A warm incus instance fits an offer with lower limits |
+| [T-659](later.md) | P3 | M | later | feature | open | A cold guest of the microvm kind from a saved state |
