@@ -89,6 +89,14 @@ fn each_measure_or_its_reason(r: &podrunner_schema::RunReport) {
     for (name, v) in times {
         assert_eq!(v.is_none(), r.unknown_reasons.contains_key(name), "{name}: {r:?}");
     }
+    // The times of the unit too, when a unit ran (T-657).
+    if let Some(u) = &r.unit {
+        let unit_times = [("boot_s", u.boot_s), ("warm_s", u.warm_s)];
+        assert_eq!(unit_times.map(|(name, _)| name), podrunner_schema::report::UNIT_TIMES);
+        for (name, v) in unit_times {
+            assert_eq!(v.is_none(), r.unknown_reasons.contains_key(name), "{name}: {r:?}");
+        }
+    }
     r.check().unwrap();
 }
 

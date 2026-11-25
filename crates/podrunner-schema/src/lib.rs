@@ -7,10 +7,10 @@
 pub use pod_job::{
     ARCHES, Assigned, Boundary, Cache, CacheMode, Capability, ContainerRoute, CredentialStore, EgressHold, ExitReason,
     Fact, IdError, JOB_ID_MAX, JobId, JobOffer, LimitMode, Principal, PublicReport, RefusalCode, Residual, RunReport,
-    SCHEMA, SecretDelivery, Tier, TreeKill, UnitFields, UnitId, UnitIds, Verdict, capability, offer, report,
+    SCHEMA, SecretDelivery, Tier, TreeKill, UnitFields, UnitId, UnitIds, UnitStart, Verdict, capability, offer, report,
 };
 /// `status.v1` (podcrates `v0.73.0`, T-508): the status of a host.
-pub use pod_job::{KindStatus, PinStatus, SourceStatus, Status};
+pub use pod_job::{KindStatus, PinStatus, SourceStatus, Status, WarmStatus};
 
 mod secret;
 

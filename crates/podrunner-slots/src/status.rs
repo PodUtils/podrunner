@@ -8,7 +8,7 @@ use crate::state::State;
 
 /// The types of `status.v1` are `pod_job`'s (podcrates `v0.73.0`, T-508):
 /// one form for podrunner and each reader (githome's G-31).
-pub use podrunner_schema::{KindStatus, PinStatus, SourceStatus, Status};
+pub use podrunner_schema::{KindStatus, PinStatus, SourceStatus, Status, WarmStatus};
 
 /// The age of the file `path` from its time of change, in seconds.
 pub(crate) fn key_age_s(path: &str, now_unix: u64) -> Option<u64> {
@@ -73,7 +73,8 @@ impl Slots {
             .kinds
             .iter()
             .zip(&views)
-            .map(|(k, v)| KindStatus {
+            .enumerate()
+            .map(|(i, (k, v))| KindStatus {
                 name: k.name.clone(),
                 // A shared principal runs one unit at a time unless
                 // `same_principal_ok` (placement): the slots that it has
@@ -85,7 +86,7 @@ impl Slots {
                 },
                 busy: v.running,
                 probe: k.capability.clone(),
-                warm: None,
+                warm: self.warm_status(i),
             })
             .collect();
         let now = (self.now_unix)();
@@ -112,7 +113,7 @@ impl Slots {
             sources,
             kinds,
             pins,
-            warm_units: 0,
+            warm_units: self.warm_units() as u32,
             // A unit ended and was reported, and the source never said
             // that the job completed (no retry of a lost job).
             ended_without_completion: self
@@ -121,6 +122,43 @@ impl Slots {
                 .filter(|j| j.state == State::Reported && j.unit.is_some() && !j.completed)
                 .count() as u64,
         }
+    }
+
+    /// The warm units of the kind `kind` (T-657): none when its
+    /// configuration keeps none.
+    fn warm_status(&self, kind: usize) -> Option<WarmStatus> {
+        let target: u32 = self.kinds[kind].cfg.warm_rows().iter().map(|(_, n)| n).sum();
+        if target == 0 {
+            return None;
+        }
+        let units = self.warm.units.values().filter(|w| w.kind == kind);
+        let ready = units.clone().filter(|w| w.ready_ms.is_some()).count() as u32;
+        let booting = units.count() as u32 - ready;
+        Some(WarmStatus { target, booting, ready, paused_reason: self.warm_paused(kind) })
+    }
+
+    /// Why the refill boots no new warm unit of `kind` now (`warm_refill`).
+    fn warm_paused(&self, kind: usize) -> Option<String> {
+        if self.draining {
+            return Some("the host drains".into());
+        }
+        if self.degraded.is_some() {
+            return Some("the host is degraded".into());
+        }
+        if self.egress_down {
+            return Some("the egress module ended".into());
+        }
+        let now = self.now();
+        let wait = self.warm.backoff.iter().find(|((k, _), (_, at, _))| *k == kind && *at > now);
+        if let Some(((_, row), (fails, at, _))) = wait {
+            let s = (at - now).div_ceil(1000);
+            return Some(format!("the row {row:?} failed to boot {fails} times in a row; the next try in {s} s"));
+        }
+        let unit_mem = crate::limits::limits_of(&self.kinds[kind].cfg).ok().and_then(|l| l.memory_bytes).unwrap_or(0);
+        if (self.warm.mem_probe)().is_some_and(|a| a < unit_mem.saturating_add(self.warm_reserve())) {
+            return Some("the free memory of the host is under the memory of a unit and warm_reserve".into());
+        }
+        None
     }
 
     /// True when no kind meets the floor of the tier of any source.

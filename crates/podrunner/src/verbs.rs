@@ -126,6 +126,15 @@ pub(crate) fn human(v: &Value) -> String {
             s(&p["principal"]),
             s(&p["egress_hold"])
         ));
+        // The warm units of the kind (T-657).
+        let w = &k["warm"];
+        if w.is_object() {
+            out.push_str(&format!("  warm target {} ready {} booting {}", w["target"], w["ready"], w["booting"]));
+            if !w["paused_reason"].is_null() {
+                out.push_str(&format!("  paused: {}", s(&w["paused_reason"])));
+            }
+            out.push('\n');
+        }
     }
     for p in v["pins"].as_array().into_iter().flatten() {
         out.push_str(&format!("pin {} {} age {} s\n", s(&p["arch"]), s(&p["reference"]), p["age_s"]));

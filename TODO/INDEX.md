@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**659 entries: 86 open, 59 partial, 14 blocked, 500 done.**
+**659 entries: 86 open, 59 partial, 13 blocked, 501 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 96 | 122 |
-| P2 | 17 | 24 | 9 | 261 | 311 |
+| P2 | 17 | 24 | 8 | 262 | 311 |
 | P3 | 68 | 11 | 3 | 141 | 223 |
-| **All** | 86 | 59 | 14 | 500 | 659 |
+| **All** | 86 | 59 | 13 | 501 | 659 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -699,7 +699,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-654](later.md) | P3 | M | later | feature | open | A job that ended with `cache-mismatch` runs again |
 | [T-655](later.md) | P3 | M | later | feature | open | A guest of the microvm kind keeps the memory of its kind for an offer that asks less |
 | [T-656](later.md) | P3 | M | later | feature | open | Warm units of the podvm kind |
-| [T-657](later.md) | P2 | S | later | feature | blocked | Warm and cold units in the run report and the status |
+| [T-657](later.md) | P2 | S | later | feature | done | Warm and cold units in the run report and the status |
 | [T-658](later.md) | P3 | S | later | feature | open | A warm incus instance fits an offer with lower limits |
 | [T-659](later.md) | P3 | M | later | feature | open | A cold guest of the microvm kind from a saved state |
 | [T-660](later.md) | P2 | S | later | defect | partial | The first step of a job on a kind with no container hook |

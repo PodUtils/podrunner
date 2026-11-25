@@ -1,6 +1,8 @@
 //! The run report of a job (`run-report.v1` of `pod-job`).
 
-use podrunner_schema::{Assigned, ExitReason, JobId, Residual, RunReport, UnitFields, Verdict as AssignedVerdict};
+use podrunner_schema::{
+    Assigned, ExitReason, JobId, Residual, RunReport, UnitFields, UnitStart, Verdict as AssignedVerdict,
+};
 use podrunner_unit::Count;
 
 use crate::engine::Slots;
@@ -33,6 +35,17 @@ pub struct Times {
     pub log_tail: Option<String>,
     /// The cache of the job (T-480).
     pub cache: Option<crate::cache::Grant>,
+    /// The warm unit that the job took (T-657); none for a cold unit.
+    pub warm: Option<WarmTimes>,
+}
+
+/// The times of a warm unit, in ms of the slots: its start, the ready mark
+/// of its script (none when the job took it before), and the take.
+#[derive(Debug, Clone, Copy)]
+pub struct WarmTimes {
+    pub made_ms: u64,
+    pub ready_ms: Option<u64>,
+    pub taken_ms: u64,
 }
 
 impl Times {
@@ -42,6 +55,25 @@ impl Times {
             crate::state::State::Ended => self.ended_ms = self.ended_ms.or(Some(now)),
             crate::state::State::Destroyed => self.destroyed_ms = self.destroyed_ms.or(Some(now)),
             _ => {}
+        }
+    }
+}
+
+/// The reason of each absent time of the unit (`UNIT_TIMES`, T-657).
+fn unit_reasons(warm: Option<&WarmTimes>, r: &mut RunReport) {
+    let (warm_why, boot_why) = match warm {
+        None => (
+            Some("a cold unit: it did not wait warm"),
+            Some("a cold unit gives no ready mark of its script; start_s includes its boot"),
+        ),
+        Some(w) if w.ready_ms.is_none() => {
+            (None, Some("the job took the warm unit before the ready mark of its script"))
+        }
+        Some(_) => (None, None),
+    };
+    for (field, why) in [("warm_s", warm_why), ("boot_s", boot_why)] {
+        if let Some(why) = why {
+            r.unknown_reasons.insert(field.into(), why.into());
         }
     }
 }
@@ -106,9 +138,11 @@ impl Slots {
                     payload: podrunner_unit::parse_pinned(&p.payload).map(|(_, d)| d.to_string()).unwrap_or_default(),
                     residual_processes: residual(r.processes),
                     residual_files: residual(r.files),
-                    start: None,
-                    warm_s: None,
-                    boot_s: None,
+                    start: Some(if j.times.warm.is_some() { UnitStart::Warm } else { UnitStart::Cold }),
+                    // The wait from the ready mark to the take: 0 for a
+                    // unit that the job took while it booted.
+                    warm_s: j.times.warm.map(|w| w.ready_ms.map_or(0, |r| w.taken_ms.saturating_sub(r).div_ceil(1000))),
+                    boot_s: j.times.warm.and_then(|w| secs(Some(w.made_ms), w.ready_ms)),
                 })
             }
             _ => None,
@@ -179,6 +213,9 @@ impl Slots {
             }
         }
         r.log_tail = j.times.log_tail.clone();
+        if unit_ran {
+            unit_reasons(j.times.warm.as_ref(), &mut r);
+        }
         if unit_ran {
             let unknown = || Residual::Unknown(podrunner_schema::report::Unknown::Unknown);
             r.disk_peak_bytes = Some(j.times.disk_peak.map_or_else(unknown, Residual::Count));

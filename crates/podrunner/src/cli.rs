@@ -370,4 +370,22 @@ mod tests {
         let text = human(&v);
         assert!(text.contains("a\\x1b[2J") && !text.contains('\u{1b}'), "{text}");
     }
+
+    /// T-657: the status for a person shows the warm units of a kind, and
+    /// escapes the reason of a pause.
+    #[test]
+    fn status_for_a_person_shows_the_warm_units() {
+        let probe = serde_json::json!({ "boundary": "guest", "principal": "distinct", "egress_hold": "enforced" });
+        let kind = |warm: serde_json::Value| serde_json::json!({ "name": "k", "slots": 2, "busy": 0, "probe": probe, "warm": warm });
+        let v = serde_json::json!({ "host": "h", "draining": false, "degraded": null, "no_tier_served": false,
+            "sources": [], "pins": [], "kinds": [
+                kind(serde_json::json!({ "target": 2, "ready": 1, "booting": 1 })),
+                kind(serde_json::json!({ "target": 1, "ready": 0, "booting": 0, "paused_reason": "row \u{1b}[2J" })),
+                kind(serde_json::Value::Null),
+            ] });
+        let text = human(&v);
+        assert!(text.contains("  warm target 2 ready 1 booting 1\n"), "{text}");
+        assert!(text.contains("  warm target 1 ready 0 booting 0  paused: row \\x1b[2J\n"), "{text}");
+        assert_eq!(text.matches("warm target").count(), 2, "{text}");
+    }
 }

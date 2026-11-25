@@ -237,6 +237,7 @@ pub fn metrics_of(status: &Value) -> Metrics {
     let kinds = status["kinds"].as_array().map(Vec::as_slice).unwrap_or_default();
     m.gauges.insert("slots".into(), kinds.iter().map(|k| num(&k["slots"])).sum());
     m.gauges.insert("busy".into(), kinds.iter().map(|k| num(&k["busy"])).sum());
+    m.gauges.insert("warm_units".into(), num(&status["warm_units"]));
     let empty = Map::new();
     for s in status["sources"].as_array().map(Vec::as_slice).unwrap_or_default() {
         for (state, n) in s["jobs"].as_object().unwrap_or(&empty) {

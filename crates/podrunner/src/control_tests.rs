@@ -235,7 +235,7 @@ fn serve_keeps_a_live_socket_and_a_file_and_replaces_a_stale_socket() {
 #[test]
 fn the_metrics_of_a_status() {
     let status = json!({
-        "draining": true, "degraded": "a unit leaked", "no_tier_served": false, "units": 2,
+        "draining": true, "degraded": "a unit leaked", "no_tier_served": false, "units": 2, "warm_units": 1,
         "spooled_reports": 1, "ended_without_completion": 4,
         "kinds": [{ "slots": 2, "busy": 1 }, { "slots": 3, "busy": 2 }],
         "sources": [
@@ -246,6 +246,7 @@ fn the_metrics_of_a_status() {
     let m = metrics_of(&status);
     assert_eq!((m.gauges["draining"], m.gauges["degraded"], m.gauges["no_tier_served"]), (1, 1, 0));
     assert_eq!((m.gauges["slots"], m.gauges["busy"], m.gauges["units"]), (5, 3, 2));
+    assert_eq!(m.gauges["warm_units"], 1, "T-657");
     assert_eq!((m.gauges["jobs_running"], m.gauges["jobs_done"]), (3, 5));
     assert_eq!((m.counters["refused_tier"], m.counters["ended_without_completion"]), (2, 4));
     assert!(m.prometheus("podrunner").contains("podrunner_busy 3\n"));

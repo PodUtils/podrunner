@@ -219,7 +219,7 @@ impl Slots {
         }
     }
 
-    fn warm_reserve(&self) -> u64 {
+    pub(crate) fn warm_reserve(&self) -> u64 {
         let r = self.cfg.warm_reserve.as_deref().map(podrunner_unit::limits::size_bytes);
         r.and_then(Result::ok).unwrap_or(RESERVE)
     }

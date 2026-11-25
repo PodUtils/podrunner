@@ -34,6 +34,7 @@ mod trust;
 mod usage;
 mod warm;
 mod warm_ends;
+mod warm_report;
 mod work_folder;
 
 use std::collections::BTreeMap;

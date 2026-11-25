@@ -109,6 +109,7 @@ impl Slots {
         self.audit_host(&unit, format!("taken job={}", key.1));
         if let Some(j) = self.jobs.get_mut(key) {
             j.warm = true;
+            j.times.warm = Some(crate::report::WarmTimes { made_ms: w.made_ms, ready_ms: w.ready_ms, taken_ms: now });
         }
         true
     }

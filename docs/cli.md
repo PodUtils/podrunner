@@ -81,7 +81,7 @@ The codes: `bad-request`, `not-utf8`, `too-long`, `unknown-method`,
 | `methods` | read | none | The methods that the caller can call, with its tier. |
 | `auth` | read | `{"token"}` | `refused`: `serve` has no master token. |
 | `status` | read | none | `status.v1`. |
-| `metrics` | read | none | Gauges (`slots`, `busy`, `units`, `draining`, `degraded`, `no_tier_served`, `spooled_reports`, `jobs_STATE`) and counters (`refused_WHY`, `ended_without_completion`). |
+| `metrics` | read | none | Gauges (`slots`, `busy`, `units`, `warm_units`, `draining`, `degraded`, `no_tier_served`, `spooled_reports`, `jobs_STATE`) and counters (`refused_WHY`, `ended_without_completion`). |
 | `reload` | master | none | `unsupported`: `restart-source` builds one source again. |
 | `drain` | operate | `{"exit": BOOL}` | `exit: false` (`podrunner drain`): take no new job. `exit: true`, the default (`podrunner stop`): take no new job, then exit after the last job. |
 | `stop` | operate | none | As `drain` with `exit: true`. |
