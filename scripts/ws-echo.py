@@ -17,6 +17,7 @@ import base64
 import hashlib
 import os
 import pathlib
+import shutil
 import socket
 import subprocess
 import sys
@@ -147,7 +148,16 @@ def proxy(sock, allowed, deny_status):
 
 
 def self_test() -> int:
+    # The logs of the servers go in a directory of the test; it goes at
+    # the end, so a run leaves no file in TMPDIR.
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="ws-echo-"))
+    try:
+        return self_test_in(tmp)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def self_test_in(tmp: pathlib.Path) -> int:
     logs = {name: (tmp / f"{name}.log").open("w+") for name in ("good", "plain")}
     good, good_url = listen("127.0.0.1:0")
     plain, plain_url = listen("127.0.0.1:0")
