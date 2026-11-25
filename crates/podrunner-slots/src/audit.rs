@@ -44,6 +44,9 @@ pub enum Kind {
     Limit,
     /// The runner of a unit got a job of another run: the answer (T-493).
     Assigned,
+    /// The cache of a job at its start: `rw`, `ro`, or `none` and a code
+    /// (T-480).
+    Cache,
 }
 
 /// One audit line.

@@ -1,15 +1,19 @@
 //! T-480: the mode, the scope, the table `[cache]` and the bound of the
 //! directory, at the edges of each input.
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::os::unix::fs::PermissionsExt;
+use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
 
 use podrunner_schema::{JobOffer, Tier};
 use serde_json::{Value, json};
 
-use super::store::{self, Mode};
-use super::{CacheConfig, decide, scope};
+use super::store::{self, Mode, Uses};
+use super::{CacheConfig, Mounts, decide, scope};
+
+/// A kind that mounts a host directory and holds `:ro`.
+const BOTH: Mounts = Mounts { host: true, ro: true };
 
 fn offer(with: Value) -> JobOffer {
     let step: Value = serde_json::from_str(&crate::tests::offer(0, "j-1", with)).unwrap();
@@ -25,7 +29,7 @@ fn cfg(text: &str) -> Result<CacheConfig, String> {
 }
 
 fn mode(tier: Tier, with: Value) -> Result<(Mode, String), &'static str> {
-    decide(&cfg("").unwrap(), tier, &offer(with), true)
+    decide(&cfg("").unwrap(), tier, &offer(with), BOTH).map_err(|n| n.why)
 }
 
 #[test]
@@ -63,7 +67,16 @@ fn only_a_trusted_job_of_a_writing_event_on_a_write_ref_writes() {
 fn an_untrusted_job_a_kind_with_no_mounts_and_a_bad_key_get_no_cache() {
     let rw = json!({ "cache": { "key": "default", "mode": "rw" } });
     assert!(mode(Tier::Untrusted, rw.clone()).unwrap_err().contains("untrusted"));
-    assert!(decide(&cfg("").unwrap(), Tier::Trusted, &offer(rw), false).unwrap_err().contains("T-648"));
+    let no_mount = Mounts { host: false, ro: true };
+    assert_eq!(decide(&cfg("").unwrap(), Tier::Trusted, &offer(rw.clone()), no_mount).unwrap_err().code, "no-mount");
+    // P2-C of the review: a kind that does not prove `:ro` gives a job
+    // that would read no cache; a writer keeps `rw`.
+    let rw_only = Mounts { host: true, ro: false };
+    let pr = offer(json!({ "trust_inputs": { "event": "pull_request" }, "cache": { "key": "k", "mode": "rw" } }));
+    assert_eq!(decide(&cfg("").unwrap(), Tier::Trusted, &pr, rw_only).unwrap_err().code, "no-ro-mount");
+    let asked_ro = offer(json!({ "cache": { "key": "k", "mode": "ro" } }));
+    assert_eq!(decide(&cfg("").unwrap(), Tier::Trusted, &asked_ro, rw_only).unwrap_err().code, "no-ro-mount");
+    assert_eq!(decide(&cfg("").unwrap(), Tier::Trusted, &offer(json!({})), rw_only).map(|d| d.0), Ok(Mode::Rw));
     let none = json!({ "cache": { "key": "k", "mode": "none" } });
     assert!(mode(Tier::Trusted, none).is_err());
     let ro = json!({ "cache": { "key": "k", "mode": "ro" } });
@@ -144,6 +157,25 @@ fn the_table_refuses_each_bad_value() {
         "env = { ENV = \"x\" }",
         "env = { NODE_OPTIONS = \"x\" }",
         "env = { JAVA_TOOL_OPTIONS = \"x\" }",
+        // A variable that makes a tool load its settings or code from the
+        // cache (the second review of T-480): only a known cache variable.
+        "env = { XDG_CONFIG_HOME = \"x\" }",
+        "env = { XDG_DATA_HOME = \"x\" }",
+        "env = { PYTHONUSERBASE = \"x\" }",
+        "env = { GEM_PATH = \"x\" }",
+        "env = { GEM_HOME = \"x\" }",
+        "env = { CARGO_HOME = \"x\" }",
+        "env = { RUSTUP_HOME = \"x\" }",
+        "env = { npm_config_userconfig = \"x\" }",
+        "env = { npm_config_prefix = \"x\" }",
+        "env = { npm_config_globalconfig = \"x\" }",
+        "env = { GOPATH = \"x\" }",
+        "env = { GOFLAGS = \"x\" }",
+        "env = { MAVEN_OPTS = \"x\" }",
+        "env = { GRADLE_OPTS = \"x\" }",
+        "env = { GRADLE_USER_HOME = \"x\" }",
+        "env = { NPM_CONFIG_CACHE_X = \"x\" }",
+        "env = { runner_tool_cache = \"x\" }",
         "env = { RUNNER_TEMP = \"x\" }",
         "env = { 1X = \"x\" }",
         "env = { \"A-B\" = \"x\" }",
@@ -165,7 +197,14 @@ fn the_table_refuses_each_bad_value() {
     let c = cfg(good).unwrap();
     assert_eq!(c.env.len(), 3);
     // With no write ref, only a source that says `rw` gives a writer.
-    assert_eq!(decide(&c, Tier::Trusted, &offer(json!({})), true).map(|d| d.0), Ok(Mode::Ro));
+    assert_eq!(decide(&c, Tier::Trusted, &offer(json!({})), BOTH).map(|d| d.0), Ok(Mode::Ro));
+    // Each cache variable of githome's G-20 is taken.
+    let g20 = "env = { npm_config_cache = \"npm\", PNPM_STORE_DIR = \"pnpm\", BUN_INSTALL_CACHE_DIR = \"bun\", \
+               PLAYWRIGHT_BROWSERS_PATH = \"pw\", RUNNER_TOOL_CACHE = \"tool\" }";
+    assert_eq!(cfg(g20).unwrap().env.len(), 5);
+    for name in super::ENV_NAMES {
+        assert!(cfg(&format!("env = {{ {name} = \"x\" }}")).is_ok(), "{name}");
+    }
 }
 
 fn tmp(name: &str) -> std::path::PathBuf {
@@ -225,15 +264,16 @@ fn the_bound_removes_whole_caches_and_keeps_the_used_ones() {
     (c.max_bytes, c.total_bytes) = (150, 250);
     let n = |id: &str| store::size(&root.join(id).join("data"));
     // The tick renames each cache of the plan; the thread removes it.
-    let bound = |used: &BTreeSet<String>, just: &str, n: u64, now: SystemTime| {
-        let gone = store::bound(&root, &c, used, just, n, now);
+    let bound = |used: &[&str], just: &str, n: u64, now: SystemTime| {
+        let uses = uses_of(used, just);
+        let gone = store::bound(&root, &c, &uses, just, 0, n, now);
         for (id, _) in &gone {
             store::remove(&store::evict(&root, id).unwrap()).unwrap();
         }
         gone
     };
     // `a` was used last; `b` is the oldest, `c` is in use.
-    let used = BTreeSet::from([ids[2].clone()]);
+    let used = [ids[2].as_str()];
     let gone = bound(&used, &ids[0], n(&ids[0]), SystemTime::now());
     let names: Vec<_> = gone.iter().map(|(id, why)| (&id[..1], *why)).collect();
     assert_eq!(names, [("b", "above [cache] total_bytes"), ("d", "above [cache] total_bytes")]);
@@ -250,10 +290,61 @@ fn the_bound_removes_whole_caches_and_keeps_the_used_ones() {
     let gone = bound(&used, &ids[1], n(&ids[1]), late);
     assert_eq!(gone, [(ids[1].clone(), "no use in [cache] max_age_s")]);
     assert!(root.join(&ids[2]).is_dir());
-    // A trash that a stop left goes at the next bound.
+    // The thread of the removals takes each trash that a stop left.
     let left = store::evict(&root, &ids[2]).unwrap();
-    store::bound(&root, &c, &BTreeSet::new(), &ids[3], 0, SystemTime::now());
-    assert!(!left.exists());
+    assert_eq!(store::trash(&root), [left]);
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// The scopes `used`, and `just`, which its ending job holds.
+fn uses_of(used: &[&str], just: &str) -> Mutex<Uses> {
+    let mut u = Uses::default();
+    let mut held: BTreeMap<String, u32> = used.iter().map(|id| (id.to_string(), 1)).collect();
+    *held.entry(just.to_string()).or_default() += 1;
+    u.set_held(held);
+    Mutex::new(u)
+}
+
+/// A P3 of the second review of T-480: the thread writes no count of a
+/// scope that a job took after its walk began (a new `rw` job removed the
+/// count), and empties no cache that another job holds.
+#[test]
+fn the_bound_writes_no_count_of_a_scope_that_a_job_took() {
+    let d = tmp("race");
+    let root = d.join("cache");
+    let (a, b) = ("a".repeat(32), "b".repeat(32));
+    for id in [&a, &b] {
+        let (data, _) = store::open(&root, id, "s\n", Mode::Rw, std::iter::empty()).unwrap();
+        std::fs::write(data.join("f"), vec![0u8; 100]).unwrap();
+    }
+    let mut c = cfg("").unwrap();
+    (c.max_bytes, c.total_bytes) = (50, 1000);
+    let count = |id: &str| std::fs::read_to_string(root.join(id).join("bytes")).ok();
+    // A new `rw` job took `a` after the end of the job of `a` was sent.
+    let uses = uses_of(&[], &a);
+    let stamp = uses.lock().unwrap().stamp(&a);
+    uses.lock().unwrap().take(&a);
+    let gone = store::bound(&root, &c, &uses, &a, stamp, 100, SystemTime::now());
+    assert!(gone.is_empty(), "{gone:?}");
+    assert_eq!(count(&a), None, "a count of a cache that a job writes");
+    // With no other holder, the count is written; `b` gets its own.
+    let uses = uses_of(&[], &a);
+    (c.max_bytes, c.total_bytes) = (1000, 1000);
+    store::bound(&root, &c, &uses, &a, stamp, 100, SystemTime::now());
+    assert_eq!((count(&a).as_deref(), count(&b).as_deref()), (Some("100"), Some("100")));
+    // A scope in use gets no count from a walk.
+    std::fs::remove_file(root.join(&b).join("bytes")).unwrap();
+    store::bound(&root, &c, &uses_of(&[&b], &a), &a, stamp, 100, SystemTime::now());
+    assert_eq!(count(&b), None);
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// A trash that another removal took first is gone: no false line
+/// "the removal failed".
+#[test]
+fn the_removal_of_a_trash_that_is_gone_is_done() {
+    let d = tmp("gone");
+    assert!(store::remove(&d.join("trash-x")).is_ok());
     let _ = std::fs::remove_dir_all(&d);
 }
 
@@ -275,4 +366,53 @@ fn the_removal_follows_no_link() {
     store::open_up(&shut);
     assert_eq!(std::fs::metadata(&shut).unwrap().permissions().mode() & 0o777, 0o700);
     let _ = std::fs::remove_dir_all(&d);
+}
+
+/// P2-A of the second review of T-480: a job of another run keeps a `ro`
+/// cache of its scope only when the hook gives the event of its facts and
+/// no head of a fork; it never keeps `rw`.
+#[test]
+fn a_job_of_another_run_keeps_only_a_ro_cache_of_its_event_with_no_fork() {
+    let c = cfg("").unwrap();
+    let pr = offer(json!({ "trust_inputs": { "event": "pull_request", "ref": "refs/pull/7/merge" } }));
+    let facts = |event: &str| {
+        let mut t = pr.trust_inputs.clone();
+        t.run_id = 2;
+        t.event = serde_json::from_value(json!(event)).unwrap();
+        t
+    };
+    let real = |event: &str, fork: Option<bool>| podrunner_source::RealJob {
+        run_id: 2,
+        job_name: "test".into(),
+        event: event.into(),
+        repository: "example-org/app".into(),
+        head_repository: None,
+        head_is_fork: fork,
+        actor: "a".into(),
+        job_id: None,
+    };
+    let grant = |mode: Mode, t: &podrunner_schema::offer::TrustInputs| store::Grant {
+        id: super::scope_of("s", t, Tier::Trusted, "default").0,
+        root: "/r".into(),
+        data: "/r/d".into(),
+        mode,
+        since: SystemTime::now(),
+        written: None,
+    };
+    let holds = |g: &store::Grant, r: &podrunner_source::RealJob, f: &podrunner_schema::offer::TrustInputs, m| {
+        super::holds(&c, g, "s", &pr, r, f, Tier::Trusted, m)
+    };
+    let ro = grant(Mode::Ro, &pr.trust_inputs);
+    let f = facts("pull_request");
+    assert!(holds(&ro, &real("pull_request", Some(false)), &f, BOTH));
+    assert!(holds(&ro, &real("pull_request", None), &f, BOTH), "the hook does not know the head");
+    assert!(!holds(&ro, &real("pull_request", Some(true)), &f, BOTH), "a head of a fork");
+    assert!(!holds(&ro, &real("pull_request_target", Some(false)), &f, BOTH), "another event than the facts");
+    assert!(!holds(&ro, &real("pull_request", Some(false)), &f, Mounts { host: true, ro: false }));
+    // A `rw` grant never holds: the source can give the ref of the offer.
+    let push = offer(json!({}));
+    let mut pf = push.trust_inputs.clone();
+    pf.run_id = 4;
+    let rw = grant(Mode::Rw, &push.trust_inputs);
+    assert!(!super::holds(&c, &rw, "s", &push, &real("push", Some(false)), &pf, Tier::Trusted, BOTH));
 }

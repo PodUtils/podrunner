@@ -86,8 +86,10 @@ pub trait UnitDriver: Send + Sync {
     }
 
     /// The kind mounts the host directories of a start
-    /// (`StartSpec::mounts`), with `:ro` held read-only. False: a start
-    /// with one is refused, so `serve` gives such a kind no cache (T-480).
+    /// (`StartSpec::mounts`). A `:ro` mount is held read-only only where
+    /// the capability lists `ro` in `mount_modes`: else `serve` gives no
+    /// cache to a job that would read one. False: a start with a mount is
+    /// refused, so `serve` gives such a kind no cache (T-480).
     fn host_mounts(&self) -> bool {
         false
     }

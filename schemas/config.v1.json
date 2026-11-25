@@ -160,7 +160,7 @@
           "default": null
         },
         "env": {
-          "description": "A variable of the runner and a relative path under the cache, for\nexample `npm_config_cache = \"npm\"`. Only a `rw` job gets them. A name\nthat loads code (`LD_*`, `NODE_OPTIONS`) or that podrunner or the\nrunner sets is refused; `RUNNER_TOOL_CACHE` is allowed.",
+          "description": "A variable of the runner and a relative path under the cache, for\nexample `npm_config_cache = \"npm\"`. Only a `rw` job gets them. Only\na known cache variable is taken (`npm_config_cache`,\n`PLAYWRIGHT_BROWSERS_PATH`, `RUNNER_TOOL_CACHE` and more).",
           "type": "object",
           "additionalProperties": {
             "type": "string"

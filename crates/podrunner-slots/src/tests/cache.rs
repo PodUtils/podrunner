@@ -27,6 +27,13 @@ exit 0"#
     )
 }
 
+/// A capability of the fake unit that holds `:ro` (a copy of the cache).
+fn ro_capability(boundary: Boundary) -> podrunner_schema::Capability {
+    let mut cap = capability(boundary, Principal::Distinct, EgressHold::Enforced);
+    cap.mount_modes = vec!["ro".into(), "rw".into()];
+    cap
+}
+
 fn files_under(dir: &std::path::Path) -> Vec<String> {
     let mut out = Vec::new();
     for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
@@ -69,7 +76,7 @@ fn an_untrusted_write_is_not_read_by_a_trusted_job_and_a_pull_request_does_not_w
         vec![KindSpec {
             name: "fake",
             slots: 1,
-            capability: capability(Boundary::Guest, Principal::Distinct, EgressHold::Enforced),
+            capability: ro_capability(Boundary::Guest),
             command: sh(&script(&out)),
         }],
         dir,
@@ -196,4 +203,114 @@ fn a_second_serve_on_one_cache_directory_is_refused() {
     assert!(second.to_string().contains("in use"), "{second}");
     drop(first);
     assert!(start("c").is_ok());
+}
+
+/// A push, then a pull request of the same repository, on a kind whose
+/// capability names `modes`; the files that the pull request saw.
+fn pull_request_on(modes: &[&str]) -> (String, String) {
+    let dir = TempDir::new();
+    let out = dir.0.join("out");
+    std::fs::create_dir_all(&out).unwrap();
+    let cfg = config("[cache]");
+    let mut cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
+    cap.mount_modes = modes.iter().map(|m| m.to_string()).collect();
+    let pr = offer(
+        30,
+        "j-3",
+        json!({ "trust_inputs": { "run_id": 3, "event": "pull_request", "ref": "refs/pull/7/merge" } }),
+    );
+    let push = offer(0, "j-1", json!({}));
+    let pr_script = format!(
+        r#"run=$(cut -d' ' -f2 .runner-root/.podrunner-job)
+case $run in
+1) echo push > "$PODRUNNER_CACHE/from-push" ;;
+3) echo "${{PODRUNNER_CACHE_MODE:-none}}" > {out}/pr-mode ;;
+esac
+exit 0"#,
+        out = out.display()
+    );
+    let mut bed = Bed::in_dir(
+        cfg,
+        vec![("t", "trusted", None, vec![push, pr])],
+        vec![KindSpec { name: "fake", slots: 1, capability: cap, command: sh(&pr_script) }],
+        dir,
+        Bed::clock(),
+    );
+    bed.until(120, |s| s.jobs().count() == 2 && Bed::all_final(s));
+    let read = |name: &str| std::fs::read_to_string(out.join(name)).unwrap_or_default();
+    let audit = bed.slots.audit_lines().iter().filter(|a| a.job_id.as_str() == "j-3").filter_map(|a| a.detail.clone());
+    (read("pr-mode"), audit.collect::<Vec<_>>().join(" "))
+}
+
+/// P2-C of the review of T-480: a kind that does not prove a `:ro` mount
+/// read-only (podvm with no proven confine layer) gives a job that would
+/// get `ro` no cache: its writes would reach the cache that the next push
+/// to the default branch reads.
+#[test]
+fn a_pull_request_gets_no_cache_on_a_kind_with_no_proven_ro_mount() {
+    let (mode, audit) = pull_request_on(&["rw"]);
+    assert_eq!(mode, "none\n", "no cache on a kind with no proven ro mount");
+    assert!(audit.contains("no-ro-mount"), "{audit}");
+    let (mode, _) = pull_request_on(&["ro", "rw"]);
+    assert_eq!(mode, "ro\n", "a proven ro mount");
+}
+
+/// P2-B of the review of T-480: a `rw` job whose count of the cache is
+/// not back holds no slot of its kind: its unit is gone.
+#[test]
+fn a_rw_job_that_waits_for_its_count_holds_no_slot() {
+    let n = 20_000;
+    let script =
+        format!("mkdir -p \"$PODRUNNER_CACHE/t\" && cd \"$PODRUNNER_CACHE/t\" && seq 1 {n} | xargs touch; exit 0");
+    let mut bed = Bed::new(
+        config("[cache]"),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", json!({})), offer(0, "j-2", json!({}))])],
+        vec![KindSpec {
+            name: "fake",
+            slots: 1,
+            capability: capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory),
+            command: sh(&script),
+        }],
+    );
+    let mut seen = false;
+    let end = std::time::Instant::now() + Duration::from_secs(120);
+    while !(bed.slots.jobs().count() == 2 && Bed::all_final(&bed.slots)) {
+        assert!(std::time::Instant::now() < end, "{:?}", bed.states());
+        bed.tick();
+        if bed.slots.jobs().any(|j| j.state == crate::state::State::Destroyed) {
+            seen = true;
+            let next = bed.slots.jobs().any(|j| j.id.as_str() == "j-2" && j.unit.is_some());
+            assert!(bed.slots.kind_views()[0].free == 1 || next, "{:?}", bed.states());
+        }
+    }
+    assert!(seen, "no job waited for its count");
+    for r in &bed.slots.reports {
+        assert!(matches!(r.cache_written_bytes, Some(Residual::Count(_))), "{r:?}");
+    }
+}
+
+/// P2-B of the second review of T-480: the report of a `rw` job waits
+/// for the count of its cache at most `[deadlines] report_s`, then says
+/// `unknown` with a reason; its scope stays in use until the count is
+/// back, so no bound removes it.
+#[test]
+fn the_report_of_a_rw_job_waits_for_its_count_at_most_report_s() {
+    let cfg = config("[deadlines]\nreport_s = 5\n[cache]");
+    let mut bed = one_job(cfg, "echo x > \"$PODRUNNER_CACHE/f\"");
+    let gate = bed.slots.cache_worker.as_ref().unwrap().gate.clone();
+    let held = gate.lock().unwrap();
+    bed.until(60, |s| s.jobs().any(|j| j.state == crate::state::State::Destroyed));
+    let waited = bed.until(20, Bed::all_final);
+    assert!(waited >= 4, "the report did not wait: {waited} ticks");
+    let r = bed.slots.reports[0].clone();
+    assert!(matches!(r.cache_written_bytes, Some(Residual::Unknown(_))), "{r:?}");
+    assert!(r.unknown_reasons.get("cache_written_bytes").is_some_and(|w| w.contains("report_s")), "{r:?}");
+    let id = bed.slots.jobs().next().unwrap().times.cache.clone().unwrap().id;
+    bed.tick();
+    let w = bed.slots.cache_worker.as_ref().unwrap();
+    assert_eq!(w.uses().holders(&id), 1, "the scope is in use until its count is back");
+    drop(held);
+    bed.until(30, |s| s.cache_worker.as_ref().is_some_and(|w| w.ending.is_empty()));
+    bed.tick();
+    assert_eq!(bed.slots.cache_worker.as_ref().unwrap().uses().holders(&id), 0);
 }

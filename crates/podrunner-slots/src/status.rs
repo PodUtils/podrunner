@@ -106,7 +106,7 @@ impl Slots {
             degraded: self.degraded.clone(),
             no_tier_served: self.no_tier_served(),
             max_units: self.cfg.max_units,
-            units: self.jobs.values().filter(|j| j.unit.is_some() && !j.state.is_final()).count() as u32,
+            units: self.jobs.values().filter(|j| j.holds_unit()).count() as u32,
             spooled_reports: self.spooled(),
             sources,
             kinds,

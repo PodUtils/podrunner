@@ -20,7 +20,10 @@ fn cached(with: Value) -> (Bed, UnitId) {
         vec![KindSpec {
             name: "fake",
             slots: 1,
-            capability: capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory),
+            capability: Capability {
+                mount_modes: vec!["ro".into(), "rw".into()],
+                ..capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory)
+            },
             command: sh("exec sleep 300"),
         }],
     );
@@ -73,4 +76,17 @@ fn a_job_of_another_run_keeps_a_ro_cache_of_its_own_scope() {
     let pr = json!({ "trust_inputs": { "event": "pull_request", "ref": "refs/pull/7/merge" } });
     assert_eq!(ask(pr.clone(), real("example-org/app", 2, "pull_request")), Verdict::Keep);
     assert_eq!(ask(pr, real("example-org/lib", 3, "pull_request")), end("cache-mismatch"));
+}
+
+/// P2-A of the review of T-480: the hook does not send the ref of the
+/// real job, so a source that gives the ref of the offer in `keep` would
+/// keep a push to another branch with `rw` on the scope of the default
+/// branch. A job of another run never keeps `rw`.
+#[test]
+fn a_job_of_another_run_never_keeps_rw() {
+    let (bed, _) = cached(json!({}));
+    let key = (0, podrunner_schema::JobId::new("j-1").unwrap());
+    let mut facts = bed.slots.jobs().next().unwrap().offer.clone().unwrap().trust_inputs;
+    facts.run_id = 4;
+    assert!(!bed.slots.cache_holds(&key, &real("example-org/app", 4, "push"), &facts), "rw for another run");
 }

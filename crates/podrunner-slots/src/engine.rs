@@ -225,7 +225,9 @@ impl Slots {
             .sum();
         let mine =
             |pred: fn(State) -> bool| self.jobs.values().filter(|j| j.source == s && pred(j.state)).count() as u32;
-        let held = mine(|st| !st.is_final() && st != State::Offered);
+        // A job whose unit is gone waits only for its report (the count of
+        // its cache): it holds no slot.
+        let held = mine(|st| !st.is_final() && st != State::Offered && st != State::Destroyed);
         let waiting = mine(|st| st == State::Offered);
         let limit = src.cfg.slots.map(|n| n.saturating_sub(held)).unwrap_or(u32::MAX);
         free.min(limit).saturating_sub(waiting)

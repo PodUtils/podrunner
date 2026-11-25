@@ -7,13 +7,14 @@
 //! that goes is first renamed to a trash name in the tick, then removed
 //! off the tick.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::CString;
 use std::io;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt};
 use std::path::{Component, Path, PathBuf};
+use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::CacheConfig;
@@ -47,8 +48,52 @@ pub struct Grant {
     /// changed at or after it was written in the run. The clock of the
     /// files is coarser than the clock of the process.
     pub since: SystemTime,
-    /// The bytes that the job wrote, after its end.
-    pub written: u64,
+    /// The bytes that the job wrote, once counted: 0 for `ro` at the
+    /// start, and the count of the thread after the end of a `rw` job.
+    pub written: Option<u64>,
+}
+
+/// The scopes that jobs hold, shared by the tick and the thread of the
+/// caches. The tick counts the holders of each scope; the thread writes
+/// the `bytes` of a scope only while no other job holds it and no job
+/// opened it since its walk began (a new `rw` job removes `bytes`).
+#[derive(Debug, Default)]
+pub struct Uses {
+    held: BTreeMap<String, u32>,
+    opened: BTreeMap<String, u64>,
+}
+
+impl Uses {
+    /// The holders of each scope, from the jobs of the tick.
+    pub fn set_held(&mut self, held: BTreeMap<String, u32>) {
+        self.held = held;
+    }
+
+    /// A job takes the scope `id`, before its open.
+    pub fn take(&mut self, id: &str) {
+        *self.held.entry(id.to_string()).or_default() += 1;
+        *self.opened.entry(id.to_string()).or_default() += 1;
+    }
+
+    /// The number of holders of `id`.
+    pub fn holders(&self, id: &str) -> u32 {
+        self.held.get(id).copied().unwrap_or(0)
+    }
+
+    /// The number of opens of `id`: a walk compares it before a write.
+    pub fn stamp(&self, id: &str) -> u64 {
+        self.opened.get(id).copied().unwrap_or(0)
+    }
+}
+
+/// Write `n` as the count of the scope `id` under `root` when at most
+/// `holders` jobs hold it and no job opened it since `stamp`; the lock
+/// keeps a new open out until the write ends.
+fn write_count(root: &Path, uses: &Mutex<Uses>, id: &str, holders: u32, stamp: u64, n: u64) {
+    let u = uses.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if u.holders(id) <= holders && u.stamp(id) == stamp {
+        let _ = std::fs::write(root.join(id).join(BYTES), n.to_string());
+    }
 }
 
 const DATA: &str = "data";
@@ -99,7 +144,8 @@ pub fn open<'a>(
     let made = mine(&data, 0o755)?;
     // A `rw` job changes the count: with none, a bound walks the cache, also
     // after a stop in the job. A new cache of a `ro` job has its count, so
-    // that no bound walks a cache that only `ro` jobs use.
+    // that no bound walks a cache that only `ro` jobs use: a `ro` job is
+    // only on a kind that proves its mount read-only.
     if mode == Mode::Rw {
         match std::fs::remove_file(dir.join(BYTES)) {
             Err(e) if e.kind() != io::ErrorKind::NotFound => return Err(e),
@@ -227,17 +273,9 @@ pub fn measure(dir: &Path, since: SystemTime) -> (u64, u64) {
     (all, new)
 }
 
-/// The bytes of the cache at `dir` after its last `rw` job, else its size,
-/// which is kept when `keep` (no job uses it).
-fn bytes_of(dir: &Path, keep: bool) -> u64 {
-    let bytes = std::fs::read_to_string(dir.join(BYTES)).ok().and_then(|s| s.trim().parse().ok());
-    bytes.unwrap_or_else(|| {
-        let n = size(&dir.join(DATA));
-        if keep {
-            let _ = std::fs::write(dir.join(BYTES), n.to_string());
-        }
-        n
-    })
+/// The count of the cache at `dir`, if it has one.
+fn count_of(dir: &Path) -> Option<u64> {
+    std::fs::read_to_string(dir.join(BYTES)).ok().and_then(|s| s.trim().parse().ok())
 }
 
 /// Give the owner the bits of the directory `d` again, and follow no link
@@ -262,10 +300,19 @@ pub fn open_up(d: &Path) {
 }
 
 /// Remove the cache at `dir`. A job can take the write bit of a directory
-/// away; the owner gives it back first.
+/// away; the owner gives it back first. A cache that is gone is removed.
 pub fn remove(dir: &Path) -> io::Result<()> {
     walk(dir, |_| {}, open_up);
-    std::fs::remove_dir_all(dir)
+    match std::fs::remove_dir_all(dir) {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        r => r,
+    }
+}
+
+/// Each trash under `root`: a cache that a stop of `serve` left renamed.
+pub fn trash(root: &Path) -> Vec<PathBuf> {
+    let names = std::fs::read_dir(root).into_iter().flatten().flatten();
+    names.filter(|e| e.file_name().to_string_lossy().starts_with(TRASH)).map(|e| e.path()).collect()
 }
 
 /// Rename the cache `id` under `root` to a trash name, for a removal off
@@ -278,40 +325,52 @@ pub fn evict(root: &Path, id: &str) -> io::Result<PathBuf> {
 }
 
 /// The bound of the directory `root` after a `rw` job of the cache `just`
-/// of `n` bytes: `just` is emptied above `max_bytes`; then each cache with
-/// no use in `max_age_s` goes, and the caches with the oldest use go while
-/// the directory is above `total_bytes`. A cache of `used` stays. Each
-/// cache to remove, with why: the tick removes it when no job took it
-/// since. A trash that a stop left is removed here.
+/// of `n` bytes, which the job opened at the stamp `stamp`: `just` is
+/// emptied above `max_bytes`; then each cache with no use in `max_age_s`
+/// goes, and the caches with the oldest use go while the directory is
+/// above `total_bytes`. A cache that a job holds stays. Each cache to
+/// remove, with why: the tick removes it when no job took it since.
 pub fn bound(
     root: &Path,
     cfg: &CacheConfig,
-    used: &BTreeSet<String>,
+    uses: &Mutex<Uses>,
     just: &str,
+    stamp: u64,
     n: u64,
     now: SystemTime,
 ) -> Vec<(String, &'static str)> {
+    let lock = || uses.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let mut gone = Vec::new();
     let mut take = |id: &str, why: &'static str| gone.push((id.to_string(), why));
-    if n > cfg.max_bytes && !used.contains(just) {
+    // The job of `just` holds it until the tick reads this result.
+    let emptied = n > cfg.max_bytes && lock().holders(just) <= 1;
+    if emptied {
         take(just, "above [cache] max_bytes");
     } else {
-        let _ = std::fs::write(root.join(just).join(BYTES), n.to_string());
+        write_count(root, uses, just, 1, stamp, n);
     }
+    // `just` counts as used when a job other than its own holds it.
+    let used: BTreeSet<String> = {
+        let u = lock();
+        let mine = |id: &str| u32::from(id == just);
+        u.held.iter().filter(|(id, n)| **n > mine(id)).map(|(id, _)| id.clone()).collect()
+    };
     let mut all = Vec::new();
     for e in std::fs::read_dir(root).into_iter().flatten().flatten() {
         let id = e.file_name().to_string_lossy().into_owned();
-        if id.starts_with(TRASH) {
-            let _ = remove(&e.path());
-            continue;
-        }
         let ours = id.len() == 32 && id.bytes().all(|b| b.is_ascii_hexdigit());
-        if !ours || !e.metadata().is_ok_and(|m| m.is_dir()) || used.contains(&id) {
+        if !ours || !e.metadata().is_ok_and(|m| m.is_dir()) || used.contains(&id) || (emptied && id == just) {
             continue;
         }
         let dir = e.path();
         let last = std::fs::metadata(dir.join(SCOPE)).and_then(|m| m.modified()).unwrap_or(UNIX_EPOCH);
-        all.push((last, id, bytes_of(&dir, true)));
+        let bytes = count_of(&dir).unwrap_or_else(|| {
+            let stamp = lock().stamp(&id);
+            let n = size(&dir.join(DATA));
+            write_count(root, uses, &id, 0, stamp, n);
+            n
+        });
+        all.push((last, id, bytes));
     }
     all.sort();
     let max_age = Duration::from_secs(cfg.max_age_s);
@@ -320,7 +379,8 @@ pub fn bound(
     for (_, id, _) in old {
         take(&id, "no use in [cache] max_age_s");
     }
-    let in_use: u64 = used.iter().map(|id| bytes_of(&root.join(id), false)).sum();
+    let in_use: u64 =
+        used.iter().map(|id| root.join(id)).map(|d| count_of(&d).unwrap_or_else(|| size(&d.join(DATA)))).sum();
     let mut total = in_use.saturating_add(kept.iter().map(|(_, _, b)| *b).sum());
     kept.reverse();
     while total > cfg.total_bytes {

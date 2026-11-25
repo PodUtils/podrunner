@@ -8,10 +8,11 @@ use std::path::PathBuf;
 
 use podrunner_schema::ExitReason;
 use podrunner_schema::offer::TrustInputs;
+use podrunner_source::RealJob;
 use podrunner_unit::Signal;
 
 use super::worker::{Done, Task};
-use super::{Grant, Key, MOUNT, Mode, decide, scope, store};
+use super::{Grant, Key, MOUNT, Mode, Mounts, NO_RO_MOUNT, NoCache, decide, scope, store};
 use crate::audit;
 use crate::engine::Slots;
 use crate::state::State;
@@ -20,32 +21,47 @@ impl Slots {
     /// The cache of a placed job at its start: its mount, with its
     /// variables in `env`. None when the job gets no cache.
     pub(crate) fn cache_start(&mut self, key: &Key, env: &mut BTreeMap<String, String>) -> Vec<(PathBuf, String)> {
-        let (Some(cfg), Some(w), Some(j)) = (&self.cfg.cache, &self.cache_worker, self.jobs.get(key)) else {
+        let (Some(cfg), Some(_), Some(j)) = (&self.cfg.cache, &self.cache_worker, self.jobs.get(key)) else {
             return Vec::new();
         };
         let (Some(offer), Some(p), Some(unit)) = (&j.offer, &j.placement, &j.unit) else { return Vec::new() };
-        let mounts = self.kinds[p.kind].driver.host_mounts();
-        let (mut mode, k) = match decide(cfg, p.tier, offer, mounts) {
+        let (cfg, offer, unit) = (cfg.clone(), offer.clone(), unit.clone());
+        let mounts = self.cache_mounts(p.kind);
+        let mut decided = decide(&cfg, p.tier, &offer, mounts);
+        let tier = p.tier;
+        if let Ok((mode, k)) = &mut decided {
+            let id = scope(&self.sources[key.0].cfg.name, &offer, tier, k).0;
+            // One writer of a cache at a time: the bytes of a job are its own.
+            if *mode == Mode::Rw && self.cache_writer(key, &id) {
+                *mode = Mode::Ro;
+                if !mounts.ro {
+                    decided = Err(NO_RO_MOUNT);
+                }
+            }
+        }
+        let (mode, k) = match decided {
             Ok(d) => d,
-            Err(why) => {
+            Err(NoCache { code, why }) => {
                 eprintln!("podrunner: {unit}: no cache: {why}");
+                self.audit(audit::Kind::Cache, key.0, &key.1, None, Some(format!("none {code}")));
                 return Vec::new();
             }
         };
-        let (id, text) = scope(&self.sources[key.0].cfg.name, offer, p.tier, &k);
-        // One writer of a cache at a time: the bytes of a job are its own.
-        if mode == Mode::Rw && self.cache_in_use(key).any(|(i, m)| i == id && m == Mode::Rw) {
-            mode = Mode::Ro;
-        }
+        let (id, text) = scope(&self.sources[key.0].cfg.name, &offer, tier, &k);
+        let Some(w) = self.cache_worker.as_ref() else { return Vec::new() };
         let root = w.root.clone();
+        // The thread writes no count of a scope that a job took.
+        w.uses().take(&id);
         let (data, since) = match store::open(&root, &id, &text, mode, cfg.env.values().map(String::as_str)) {
             Ok(d) => d,
             Err(e) => {
                 eprintln!("podrunner: {unit}: no cache: {}: {e}", root.display());
+                self.audit(audit::Kind::Cache, key.0, &key.1, None, Some("none open-failed".into()));
                 return Vec::new();
             }
         };
         eprintln!("podrunner: {unit}: the cache {id} ({}), {}", mode.as_str(), text.trim_end());
+        self.audit(audit::Kind::Cache, key.0, &key.1, None, Some(mode.as_str().into()));
         env.insert("PODRUNNER_CACHE".into(), MOUNT.into());
         env.insert("PODRUNNER_CACHE_MODE".into(), mode.as_str().into());
         // A tool writes in the directory of its variable: in a `ro` cache
@@ -58,49 +74,80 @@ impl Slots {
             }
         }
         let target = if mode == Mode::Ro { format!("{MOUNT}:ro") } else { MOUNT.to_string() };
-        let grant = Grant { id, root, data: data.clone(), mode, since, written: 0 };
+        let written = (mode == Mode::Ro).then_some(0);
+        let grant = Grant { id, root, data: data.clone(), mode, since, written };
         if let Some(j) = self.jobs.get_mut(key) {
             j.times.cache = Some(grant);
         }
         vec![(data, target)]
     }
 
-    /// The caches of the jobs other than `key` that have not ended. A job
-    /// whose end the thread measures still holds its cache.
-    fn cache_in_use<'a>(&'a self, key: &'a Key) -> impl Iterator<Item = (String, Mode)> + 'a {
-        let open = self.jobs.iter().filter(move |(k, j)| *k != key && !j.state.is_final());
-        open.filter_map(|(_, j)| j.times.cache.as_ref().map(|g| (g.id.clone(), g.mode)))
+    /// What the kind `kind` proves of a host directory.
+    fn cache_mounts(&self, kind: usize) -> Mounts {
+        let k = &self.kinds[kind];
+        Mounts::of(k.driver.as_ref(), &k.capability)
     }
 
-    /// Whether the cache of the job `key` holds for the real job of
+    /// Whether a job other than `key` writes the cache `id` now. A job
+    /// whose unit is gone does not write, also while its count runs.
+    fn cache_writer(&self, key: &Key, id: &str) -> bool {
+        self.jobs.iter().any(|(k, j)| {
+            k != key
+                && !j.state.is_final()
+                && j.state != State::Destroyed
+                && j.times.cache.as_ref().is_some_and(|g| g.id == id && g.mode == Mode::Rw)
+        })
+    }
+
+    /// The holders of each scope, other than `but`: each job that has not
+    /// ended with a cache, and each job whose count is not back.
+    fn cache_holders(&self, but: Option<&Key>) -> BTreeMap<String, u32> {
+        let mut held = BTreeMap::<String, u32>::new();
+        let ending = self.cache_worker.as_ref().map(|w| &w.ending);
+        for (k, j) in &self.jobs {
+            let counted = ending.is_some_and(|e| e.contains_key(k));
+            if Some(k) == but || counted || j.state.is_final() {
+                continue;
+            }
+            if let Some(g) = &j.times.cache {
+                *held.entry(g.id.clone()).or_default() += 1;
+            }
+        }
+        for (k, id) in ending.into_iter().flatten() {
+            if Some(k) != but {
+                *held.entry(id.clone()).or_default() += 1;
+            }
+        }
+        held
+    }
+
+    /// Whether the cache of the job `key` holds for the real job `real` of
     /// `facts` that the forge gave its runner (T-493).
-    pub(crate) fn cache_holds(&self, key: &Key, facts: &TrustInputs) -> bool {
+    pub(crate) fn cache_holds(&self, key: &Key, real: &RealJob, facts: &TrustInputs) -> bool {
         let (Some(cfg), Some(j)) = (&self.cfg.cache, self.jobs.get(key)) else { return true };
         let (Some(g), Some(offer), Some(p)) = (&j.times.cache, &j.offer, &j.placement) else { return true };
-        let mounts = self.kinds[p.kind].driver.host_mounts();
-        super::holds(cfg, g, &self.sources[key.0].cfg.name, offer, facts, p.tier, mounts)
+        let mounts = self.cache_mounts(p.kind);
+        super::holds(cfg, g, &self.sources[key.0].cfg.name, offer, real, facts, p.tier, mounts)
     }
 
-    /// After the destroy of the unit of `key`: give the thread the measure
-    /// of a `rw` cache and the bound. True when the report waits for it.
+    /// After the destroy of the unit of `key`: give the thread the count
+    /// of a `rw` cache and the bound. True when the report waits for it,
+    /// at most `[deadlines] report_s`; the job holds no slot meanwhile.
     pub(crate) fn cache_end(&mut self, key: &Key) -> bool {
         let Some(cfg) = self.cfg.cache.clone() else { return false };
         let Some(g) = self.jobs.get(key).and_then(|j| j.times.cache.clone()) else { return false };
-        if g.mode != Mode::Rw {
+        let Some(w) = self.cache_worker.as_mut().filter(|_| g.mode == Mode::Rw) else { return false };
+        let (id, stamp) = (g.id.clone(), w.uses().stamp(&g.id));
+        let now = std::time::SystemTime::now();
+        if !w.send(Task::End { key: key.clone(), grant: g, cfg: Box::new(cfg), stamp, now }) {
             return false;
         }
-        let used: BTreeSet<String> = self.cache_in_use(key).map(|(id, _)| id).collect();
-        let Some(w) = self.cache_worker.as_mut() else { return false };
-        let task =
-            Task::End { key: key.clone(), grant: g, cfg: Box::new(cfg), used, now: std::time::SystemTime::now() };
-        if !w.send(task) {
-            return false;
-        }
-        w.ending.insert(key.clone());
+        w.ending.insert(key.clone(), id);
         true
     }
 
-    /// Each tick: read the results of the thread, and give it the measure
+    /// Each tick: read the results of the thread, report each job whose
+    /// count did not come in `report_s`, and give the thread the measure
     /// of each running `rw` cache every [`crate::disk::CHECK_MS`].
     pub(crate) fn cache_tick(&mut self, now: u64) {
         let Some(w) = self.cache_worker.as_ref() else { return };
@@ -110,8 +157,25 @@ impl Slots {
                 Done::End { key, written, gone } => self.cache_ended(&key, written, gone, now),
             }
         }
+        let wait = self.cfg.deadlines.report_s.saturating_mul(1000);
+        let late: Vec<Key> = self
+            .jobs
+            .iter()
+            .filter(|(k, j)| {
+                j.state == State::Destroyed
+                    && now.saturating_sub(j.since_ms) >= wait
+                    && self.cache_worker.as_ref().is_some_and(|w| w.ending.contains_key(*k))
+            })
+            .map(|(k, _)| k.clone())
+            .collect();
+        for key in late {
+            eprintln!("podrunner: {}: the count of the cache is late: the report says unknown", key.1);
+            self.reported(&key, now);
+        }
+        let held = self.cache_holders(None);
         let Some(max) = self.cfg.cache.as_ref().map(|c| c.max_bytes) else { return };
         let Some(w) = self.cache_worker.as_mut() else { return };
+        w.uses().set_held(held);
         if now < w.next_ms {
             return;
         }
@@ -139,21 +203,21 @@ impl Slots {
         }
     }
 
-    /// The thread measured the end of the job `key`: its bytes go to the
-    /// report, and each cache to remove that no job took since goes to the
+    /// The thread counted the end of the job `key`: its bytes go to the
+    /// report, and each cache to remove that no job holds goes to the
     /// trash.
     fn cache_ended(&mut self, key: &Key, written: u64, gone: Vec<(String, &'static str)>, now: u64) {
         if let Some(c) = self.jobs.get_mut(key).and_then(|j| j.times.cache.as_mut()) {
-            c.written = written;
+            c.written = Some(written);
         }
-        let used: BTreeSet<String> = self.cache_in_use(key).map(|(id, _)| id).collect();
+        let used: BTreeSet<String> = self.cache_holders(Some(key)).into_keys().collect();
         if let Some(w) = self.cache_worker.as_mut() {
             w.ending.remove(key);
             for (id, why) in gone.into_iter().filter(|(id, _)| !used.contains(id)) {
                 match store::evict(&w.root, &id) {
                     Ok(trash) => {
                         eprintln!("podrunner: the cache {id} is removed: {why}");
-                        let _ = w.send(Task::Remove(trash));
+                        w.remove(trash);
                     }
                     Err(e) => eprintln!("podrunner: the cache {id} stays: {e}"),
                 }

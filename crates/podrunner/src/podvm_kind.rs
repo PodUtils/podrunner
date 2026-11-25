@@ -164,6 +164,12 @@ pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn Unit
         }
     }
     let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
+    // T-480: a `ro` cache needs a mount that the kind holds read-only.
+    if cfg.cache.is_some() && unit.host_mounts() && !cap.mount_modes.iter().any(|m| m == "ro") {
+        eprintln!(
+            "podrunner: [unit.podvm]: a read-only mount is not proven (the confine self-test proves it): a job that would read the cache gets none"
+        );
+    }
     Ok((Arc::new(unit), cap))
 }
 

@@ -1,22 +1,25 @@
-//! The thread of the caches (T-480): each walk and each removal of a cache
-//! runs here, off the tick. A cache can hold many files; a walk in the tick
-//! would hold the answers to the units, the heartbeats and the limits.
+//! The threads of the caches (T-480): each walk of a cache runs on one
+//! thread, and each removal on a second one, off the tick. A cache can hold
+//! many files; a walk in the tick would hold the answers to the units, the
+//! heartbeats and the limits, and a removal would hold the count of the
+//! end of a job. A panic of a thread ends `serve` in a release build
+//! (`panic = "abort"`); in a debug build the thread ends, and each report
+//! that waits for it goes out after `[deadlines] report_s`.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
-use std::sync::mpsc;
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::SystemTime;
 
-use super::{CacheConfig, Grant, Key, store};
+use super::{CacheConfig, Grant, Key, Uses, store};
 
-/// A work of the thread.
+/// A work of the thread of the walks.
 pub(crate) enum Task {
     /// The bytes of the cache of a running `rw` job, up to `max`.
     Size { key: Key, data: PathBuf, max: u64 },
     /// The end of a `rw` job: its bytes, then the bound of the directory.
-    End { key: Key, grant: Grant, cfg: Box<CacheConfig>, used: BTreeSet<String>, now: SystemTime },
-    /// Remove a cache that the tick renamed to a trash name.
-    Remove(PathBuf),
+    /// `stamp`: the opens of its scope when the tick sent it.
+    End { key: Key, grant: Grant, cfg: Box<CacheConfig>, stamp: u64, now: SystemTime },
 }
 
 /// A result of the thread.
@@ -33,70 +36,100 @@ pub(crate) enum Done {
     },
 }
 
-/// The thread, the lock of the directory and the jobs whose result is
-/// not back.
+/// The threads, the lock of the directory, the scopes in use and the jobs
+/// whose result is not back.
 pub(crate) struct Worker {
     tx: mpsc::Sender<Task>,
     rx: mpsc::Receiver<Done>,
+    trash: mpsc::Sender<PathBuf>,
     pub(crate) root: PathBuf,
+    pub(crate) uses: Arc<Mutex<Uses>>,
     pub(crate) sizing: BTreeSet<Key>,
-    pub(crate) ending: BTreeSet<Key>,
+    /// The scope of each `rw` job whose count is not back: the scope stays
+    /// in use, also after the report of the job.
+    pub(crate) ending: BTreeMap<Key, String>,
     /// The time of the next measure of the caches of the running jobs.
     pub(crate) next_ms: u64,
+    /// A test holds it to hold the thread of the walks.
+    #[cfg(test)]
+    pub(crate) gate: Arc<Mutex<()>>,
     _lock: std::fs::File,
 }
 
 impl Worker {
-    /// Lock the directory `root` and start the thread.
+    /// Lock the directory `root`, start the threads, and remove each trash
+    /// that a stop left.
     pub(crate) fn start(root: PathBuf) -> std::io::Result<Worker> {
         let lock = store::lock(&root)?;
+        let uses = Arc::new(Mutex::new(Uses::default()));
         let (tx, tasks) = mpsc::channel::<Task>();
         let (done, rx) = mpsc::channel::<Done>();
+        let shared = uses.clone();
+        let gate = Arc::new(Mutex::new(()));
+        let held = gate.clone();
         std::thread::Builder::new().name("podrunner-cache".into()).spawn(move || {
             for task in tasks {
-                if let Some(d) = run(task) {
-                    let _ = done.send(d);
+                let _held = held.lock();
+                if done.send(run(task, &shared)).is_err() {
+                    return;
                 }
             }
         })?;
-        Ok(Worker { tx, rx, root, sizing: BTreeSet::new(), ending: BTreeSet::new(), next_ms: 0, _lock: lock })
+        let (trash, removals) = mpsc::channel::<PathBuf>();
+        std::thread::Builder::new().name("podrunner-cache-rm".into()).spawn(move || {
+            for dir in removals {
+                if let Err(e) = store::remove(&dir) {
+                    eprintln!("podrunner: {}: the removal failed: {e}", dir.display());
+                }
+            }
+        })?;
+        for left in store::trash(&root) {
+            let _ = trash.send(left);
+        }
+        Ok(Worker {
+            tx,
+            rx,
+            trash,
+            root,
+            uses,
+            sizing: BTreeSet::new(),
+            ending: BTreeMap::new(),
+            next_ms: 0,
+            #[cfg(test)]
+            gate,
+            _lock: lock,
+        })
     }
 
-    /// Give the thread a task; false when the thread is gone.
+    /// Give the thread of the walks a task; false when it is gone.
     pub(crate) fn send(&self, task: Task) -> bool {
         self.tx.send(task).is_ok()
+    }
+
+    /// Give the thread of the removals a cache that the tick renamed.
+    pub(crate) fn remove(&self, trash: PathBuf) {
+        let _ = self.trash.send(trash);
     }
 
     /// Each result that is back.
     pub(crate) fn done(&self) -> Vec<Done> {
         self.rx.try_iter().collect()
     }
+
+    /// The scopes in use, under the lock.
+    pub(crate) fn uses(&self) -> std::sync::MutexGuard<'_, Uses> {
+        self.uses.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 }
 
-/// One task. A panic of a walk gives a result with no bytes, so that no
-/// job waits for ever.
-fn run(task: Task) -> Option<Done> {
-    let guarded = |f: &dyn Fn() -> Done, fallback: Done| {
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or(fallback)
-    };
+/// One task of the thread of the walks.
+fn run(task: Task, uses: &Mutex<Uses>) -> Done {
     match task {
-        Task::Size { key, data, max } => Some(guarded(
-            &|| Done::Size { key: key.clone(), bytes: store::size_to(&data, max) },
-            Done::Size { key: key.clone(), bytes: 0 },
-        )),
-        Task::End { key, grant, cfg, used, now } => Some(guarded(
-            &|| {
-                let (bytes, written) = store::measure(&grant.data, grant.since);
-                let gone = store::bound(&grant.root, &cfg, &used, &grant.id, bytes, now);
-                Done::End { key: key.clone(), written, gone }
-            },
-            Done::End { key: key.clone(), written: 0, gone: Vec::new() },
-        )),
-        Task::Remove(trash) => {
-            if let Err(e) = store::remove(&trash) {
-                eprintln!("podrunner: {}: the removal failed: {e}", trash.display());
-            }
-            None
+        Task::Size { key, data, max } => Done::Size { key, bytes: store::size_to(&data, max) },
+        Task::End { key, grant, cfg, stamp, now } => {
+            let (bytes, written) = store::measure(&grant.data, grant.since);
+            let gone = store::bound(&grant.root, &cfg, uses, &grant.id, stamp, bytes, now);
+            Done::End { key, written, gone }
         }
     }
 }

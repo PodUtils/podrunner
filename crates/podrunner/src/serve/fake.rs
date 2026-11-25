@@ -20,7 +20,8 @@ pub fn fake_capability() -> Capability {
         net: "shared-host".into(),
         secret_delivery: vec![SecretDelivery::Files],
         credential_store: CredentialStore::PrivateDir,
-        mount_modes: vec!["rw".into()],
+        // A `:ro` mount of a fake unit is a copy: no write reaches the host.
+        mount_modes: vec!["ro".into(), "rw".into()],
         rootfs_fresh: Fact::Yes,
         tree_kill: TreeKill::Verified,
         limits: [("wall".to_string(), LimitMode::Enforced)].into(),

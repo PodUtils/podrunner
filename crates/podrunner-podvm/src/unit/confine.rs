@@ -5,7 +5,9 @@
 //! only after [`PodvmUnit::verify_confine`] on this host: an unconfined
 //! unit reads the environment of a host process of the uid through
 //! `/proc`, and a confined one writes its working directory and does not
-//! read it (`scripts/measure-podvm-confine.sh`).
+//! read it (`scripts/measure-podvm-confine.sh`). The record lists the mount
+//! mode `ro` only when the confined run also read a `:ro` host volume and
+//! its write there did not reach the host (the cache of T-480).
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -24,6 +26,11 @@ const OWN: &str = "podrunner-confine-own";
 /// The variable that a unit of the self-test reads in its own environment.
 const MARK: &str = "PODRUNNER_CONFINE_SELF";
 const MARK_VALUE: &str = "podrunner-confine-self";
+/// The `:ro` volume of the confined run, its file and the file of its write.
+const RO_TARGET: &str = "/podrunner-confine-ro";
+const RO_FILE: &str = "mark";
+const RO_VALUE: &str = "podrunner-confine-ro-read";
+const RO_WRITE: &str = "write";
 
 impl PodvmUnit {
     /// Give each unit the confine layer of podvm. The record changes only
@@ -98,8 +105,17 @@ impl PodvmUnit {
     /// read the canary. Then the record says `boundary: confined`.
     pub fn verify_confine(&mut self, reference: &str, unit: UnitId) -> Result<bool, UnitError> {
         self.confine_why = None;
+        self.capability.mount_modes = vec!["rw".into()];
         if !self.confine {
             return Ok(false);
+        }
+        // A rung with volumes binds the cache: the confined run proves a
+        // `:ro` volume read-only.
+        let ro = self.volumes.then(|| self.state_dir.join("confine-ro"));
+        if let Some(dir) = &ro {
+            let _ = std::fs::remove_dir_all(dir);
+            std::fs::create_dir_all(dir).map_err(|e| super::host("the ro volume of the confine self-test", e))?;
+            std::fs::write(dir.join(RO_FILE), RO_VALUE).map_err(|e| super::host("the ro volume", e))?;
         }
         let canary = format!("podrunner-confine-canary-{}", std::process::id());
         let mut victim = Command::new("sleep")
@@ -114,15 +130,27 @@ impl PodvmUnit {
         let pid = victim.id();
         let result = (|| {
             self.confine = false;
-            let open = self.self_test(reference, &unit, pid)?;
+            let open = self.self_test(reference, &unit, pid, None)?;
             self.confine = true;
-            let held = self.self_test(reference, &unit, pid)?;
-            Ok::<_, UnitError>(verdict(&open, &held, &canary))
+            let held = self.self_test(reference, &unit, pid, None)?;
+            let verdict = verdict(&open, &held, &canary);
+            // A third run, so that a rung that refuses the volume keeps the
+            // proof of the layer.
+            let ro_held = match ro.as_deref() {
+                Some(d) if verdict.is_ok() => {
+                    ro_verdict(&self.self_test(reference, &unit, pid, Some(d))?, d.join(RO_WRITE).exists())
+                }
+                _ => false,
+            };
+            Ok::<_, UnitError>((verdict, ro_held))
         })();
         self.confine = true;
         let _ = victim.kill();
         let _ = victim.wait();
-        let verdict = result?;
+        if let Some(dir) = &ro {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+        let (verdict, ro_held) = result?;
         // Why the layer is not proven, for the line of `serve`.
         self.confine_why = verdict.as_ref().err().cloned();
         let verified = verdict.is_ok();
@@ -134,13 +162,17 @@ impl PodvmUnit {
                 Proof::Namespaces => " (the namespaces of the unit hide the processes of the host)",
             };
             self.capability.boundary_proof = Some(format!("{proof}; podvm --podvm-confine, verified{how}"));
+            if ro_held {
+                self.capability.mount_modes = vec!["ro".into(), "rw".into()];
+            }
         }
         Ok(verified)
     }
 
     /// One run of the self-test: whether the payload wrote its own file,
-    /// and what it read of the environment of `pid`.
-    fn self_test(&self, reference: &str, unit: &UnitId, pid: u32) -> Result<Run, UnitError> {
+    /// and what it read of the environment of `pid` (and of the `:ro`
+    /// volume of the host directory `ro`, which it also tries to write).
+    fn self_test(&self, reference: &str, unit: &UnitId, pid: u32, ro: Option<&Path>) -> Result<Run, UnitError> {
         let image = self.prepare(reference, &self.platform.clone(), false)?;
         // A unit of the last self-test, and the egress socket of a held
         // driver (T-183).
@@ -150,9 +182,16 @@ impl PodvmUnit {
         // its own shell (`/proc/$$`; `/proc/self` of a unit of the namespace
         // rung names another process) and not the canary is held by its
         // namespaces (T-566), not blind.
+        let ro_step = if ro.is_some() {
+            format!(
+                "cat {RO_TARGET}/{RO_FILE} >> {SEEN} 2>/dev/null; echo >> {SEEN}; echo w > {RO_TARGET}/{RO_WRITE} 2>/dev/null; "
+            )
+        } else {
+            String::new()
+        };
         let script = format!(
             "echo own > {OWN}; tr '\\0' '\\n' < /proc/{pid}/environ > {SEEN} 2>/dev/null; \
-             tr '\\0' '\\n' < /proc/$$/environ 2>/dev/null | grep '^{MARK}=' >> {SEEN}; echo done >> {SEEN}; exec sleep 60"
+             tr '\\0' '\\n' < /proc/$$/environ 2>/dev/null | grep '^{MARK}=' >> {SEEN}; {ro_step}echo done >> {SEEN}; exec sleep 60"
         );
         let spec = StartSpec {
             unit: unit.clone(),
@@ -161,7 +200,7 @@ impl PodvmUnit {
             env: [(MARK.to_string(), MARK_VALUE.to_string())].into(),
             credential: Default::default(),
             sockets: held.as_ref().map(|h| h.dir.clone()),
-            mounts: Vec::new(),
+            mounts: ro.map(|d| vec![(d.to_path_buf(), format!("{RO_TARGET}:ro"))]).unwrap_or_default(),
             limits: Default::default(),
         };
         if let Err(e) = self.start(&spec) {
@@ -192,6 +231,12 @@ impl PodvmUnit {
 /// One run of the self-test: whether it wrote its own file and what it
 /// read of the canary, else why it gave no result.
 type Run = Result<(bool, String), String>;
+
+/// Whether the confined run `held` read the `:ro` volume, so that it was
+/// there, and its write did not reach the host (`wrote`).
+fn ro_verdict(held: &Run, wrote: bool) -> bool {
+    matches!(held, Ok((true, seen)) if seen.contains(RO_VALUE)) && !wrote
+}
 
 /// What proves that a unit cannot read a process of the host.
 #[derive(Debug, PartialEq)]
@@ -229,7 +274,20 @@ fn verdict(open: &Run, held: &Run, canary: &str) -> Result<Proof, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{MARK, MARK_VALUE, Proof, verdict};
+    use super::{MARK, MARK_VALUE, Proof, RO_VALUE, ro_verdict, verdict};
+
+    /// P2-C of the second review of T-480: `ro` is in the record only when
+    /// the confined run read the volume and did not write the host.
+    #[test]
+    fn a_ro_mount_is_proven_only_by_a_read_and_a_refused_write() {
+        let read = Ok((true, format!("{RO_VALUE}\ndone\n")));
+        assert!(ro_verdict(&read, false));
+        // The write reached the host: the layer does not hold `:ro`.
+        assert!(!ro_verdict(&read, true));
+        // No volume to read: a failed write proves nothing.
+        assert!(!ro_verdict(&Ok((true, "done\n".into())), false));
+        assert!(!ro_verdict(&Err("the unit did not start".into()), false));
+    }
 
     #[test]
     fn confine_is_proven_only_by_a_check_that_sees_and_a_layer_that_holds() {

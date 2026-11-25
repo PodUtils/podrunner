@@ -8,10 +8,18 @@ use crate::config::SourceConfig;
 use crate::engine::{Job, Slots};
 use crate::placement::Kind;
 
+impl Job {
+    /// The job holds a slot of its kind: its unit is there. A destroyed
+    /// job that waits for the count of its cache holds none.
+    pub(crate) fn holds_unit(&self) -> bool {
+        self.unit.is_some() && !self.state.is_final() && self.state != crate::state::State::Destroyed
+    }
+}
+
 impl Slots {
     pub(crate) fn kind_views(&self) -> Vec<Kind> {
         // The cap of the host across its kinds (T-505).
-        let running = self.jobs.values().filter(|j| j.unit.is_some() && !j.state.is_final()).count() as u32;
+        let running = self.jobs.values().filter(|j| j.holds_unit()).count() as u32;
         let host_free = self.cfg.max_units.map_or(u32::MAX, |m| m.saturating_sub(running));
         self.kinds
             .iter()
@@ -20,9 +28,7 @@ impl Slots {
                 let units: Vec<&Job> = self
                     .jobs
                     .values()
-                    .filter(|j| {
-                        j.unit.is_some() && !j.state.is_final() && j.placement.as_ref().is_some_and(|p| p.kind == i)
-                    })
+                    .filter(|j| j.holds_unit() && j.placement.as_ref().is_some_and(|p| p.kind == i))
                     .collect();
                 let repos = units
                     .iter()

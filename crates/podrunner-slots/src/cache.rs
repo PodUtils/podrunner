@@ -4,8 +4,8 @@
 //! job of the tier `untrusted` gets none; only a job of the events that
 //! write the scope of the default branch on GitHub writes, on a ref of
 //! `write_refs` (or when its source says `rw`) with no head of a fork; each
-//! other job reads it.
-//! The `cache` of an offer can only lower the mode.
+//! other job reads it, on a kind that proves a read-only mount, and gets
+//! none on another kind. The `cache` of an offer can only lower the mode.
 
 mod slots;
 mod store;
@@ -20,7 +20,7 @@ use podrunner_schema::offer::{Event, TrustInputs};
 use podrunner_schema::{CacheMode, Fact, JobId, JobOffer, Residual, RunReport, Tier};
 use serde::Deserialize;
 
-pub use store::{Grant, Mode};
+pub use store::{Grant, Mode, Uses};
 pub(crate) use worker::Worker;
 
 type Key = (usize, JobId);
@@ -73,9 +73,9 @@ struct RawCache {
     #[serde(default = "key")]
     key: String,
     /// A variable of the runner and a relative path under the cache, for
-    /// example `npm_config_cache = "npm"`. Only a `rw` job gets them. A name
-    /// that loads code (`LD_*`, `NODE_OPTIONS`) or that podrunner or the
-    /// runner sets is refused; `RUNNER_TOOL_CACHE` is allowed.
+    /// example `npm_config_cache = "npm"`. Only a `rw` job gets them. Only
+    /// a known cache variable is taken (`npm_config_cache`,
+    /// `PLAYWRIGHT_BROWSERS_PATH`, `RUNNER_TOOL_CACHE` and more).
     #[serde(default)]
     env: BTreeMap<String, String>,
 }
@@ -138,46 +138,41 @@ pub fn key_ok(k: &str) -> bool {
     !k.is_empty() && k.len() <= KEY_MAX && !k.chars().any(char::is_control)
 }
 
-/// The names that `[cache] env` refuses: each loads code or settings into
-/// the processes of a job, or is a value of the runner. A cache is written
-/// by jobs, so it is no place for them.
-const DENIED: [&str; 21] = [
-    "PATH",
-    "HOME",
-    "SHELL",
-    "ENV",
-    "BASH_ENV",
-    "IFS",
-    "PS4",
-    "PROMPT_COMMAND",
-    "TMPDIR",
-    "NODE_OPTIONS",
-    "NODE_PATH",
-    "JAVA_TOOL_OPTIONS",
-    "_JAVA_OPTIONS",
-    "JDK_JAVA_OPTIONS",
-    "PYTHONPATH",
-    "PYTHONSTARTUP",
-    "PYTHONHOME",
-    "PERL5LIB",
-    "PERL5OPT",
-    "RUBYOPT",
-    "RUBYLIB",
+/// The names that `[cache] env` takes: each names only the cache
+/// directory of a tool. A name that makes a tool load its settings or
+/// code from a directory (`XDG_CONFIG_HOME`, `CARGO_HOME`, `GEM_HOME`,
+/// `GRADLE_USER_HOME`, `LD_*`) is not a cache, so no list of refused names
+/// is complete. A tool reads the name in this case only.
+pub const ENV_NAMES: [&str; 21] = [
+    "npm_config_cache",
+    "NPM_CONFIG_CACHE",
+    "YARN_CACHE_FOLDER",
+    "PNPM_STORE_DIR",
+    "BUN_INSTALL_CACHE_DIR",
+    "PLAYWRIGHT_BROWSERS_PATH",
+    "PUPPETEER_CACHE_DIR",
+    "CYPRESS_CACHE_FOLDER",
+    "ELECTRON_CACHE",
+    // The runner reads its tool cache from it (githome's G-20).
+    "RUNNER_TOOL_CACHE",
+    "PIP_CACHE_DIR",
+    "UV_CACHE_DIR",
+    "POETRY_CACHE_DIR",
+    "GOMODCACHE",
+    "GOCACHE",
+    "CCACHE_DIR",
+    "SCCACHE_DIR",
+    "DENO_DIR",
+    "COMPOSER_CACHE_DIR",
+    "NUGET_PACKAGES",
+    "ZIG_GLOBAL_CACHE_DIR",
 ];
-const DENIED_PREFIX: [&str; 6] = ["PODRUNNER_", "GITHUB_", "ACTIONS_", "RUNNER_", "LD_", "GIT_"];
 
-/// A variable of `[cache] env`: a name of the shell that does not set a
-/// value of podrunner or of the runner, and a plain relative path.
+/// A variable of `[cache] env`: a name of [`ENV_NAMES`] and a plain
+/// relative path.
 fn env_ok(name: &str, path: &str) -> Result<(), &'static str> {
-    let mut chars = name.chars();
-    let shell = chars.next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
-    let upper = name.to_ascii_uppercase();
-    // The runner reads its tool cache from this variable (githome's G-20).
-    let tool_cache = upper == "RUNNER_TOOL_CACHE";
-    let denied = DENIED.contains(&upper.as_str()) || DENIED_PREFIX.iter().any(|p| upper.starts_with(p));
-    if !shell || (denied && !tool_cache) {
-        return Err("not a name of a variable, or a name that loads code or that podrunner or the runner sets");
+    if !ENV_NAMES.contains(&name) {
+        return Err("not a cache variable that podrunner knows (docs/configuration.md lists them)");
     }
     let p = Path::new(path);
     let parts = path.split('/').all(|p| !p.is_empty() && p != "." && p != "..");
@@ -192,9 +187,41 @@ fn writes(e: Event) -> bool {
     matches!(e, Event::Push | Event::WorkflowDispatch | Event::RepositoryDispatch | Event::Schedule)
 }
 
-/// The mode and the key of a job of `tier` on a kind that mounts (or not)
-/// a host directory, or why it gets no cache.
-pub fn decide(cfg: &CacheConfig, tier: Tier, offer: &JobOffer, mounts: bool) -> Result<(Mode, String), &'static str> {
+/// What a kind proves of the host directories of a start.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Mounts {
+    /// The kind mounts a host directory (`UnitDriver::host_mounts`).
+    pub host: bool,
+    /// The kind holds a `:ro` mount read-only: its capability lists the
+    /// mode `ro` in `mount_modes`.
+    pub ro: bool,
+}
+
+impl Mounts {
+    /// The mounts of a kind with the driver `driver` and the record `cap`.
+    pub fn of(driver: &dyn podrunner_unit::UnitDriver, cap: &podrunner_schema::Capability) -> Mounts {
+        Mounts { host: driver.host_mounts(), ro: cap.mount_modes.iter().any(|m| m == "ro") }
+    }
+}
+
+/// Why a job gets no cache: a code for the audit line, and a text for the
+/// operator.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoCache {
+    pub code: &'static str,
+    pub why: &'static str,
+}
+
+/// A `ro` job on a kind with no proven read-only mount: its writes would
+/// reach the cache that the next `rw` job, of a higher trust, reads.
+pub(crate) const NO_RO_MOUNT: NoCache = NoCache {
+    code: "no-ro-mount",
+    why: "the job would get ro, and the kind does not prove a read-only mount (mount_modes has no ro)",
+};
+
+/// The mode and the key of a job of `tier` on a kind with `mounts`, or
+/// why it gets no cache.
+pub fn decide(cfg: &CacheConfig, tier: Tier, offer: &JobOffer, mounts: Mounts) -> Result<(Mode, String), NoCache> {
     let asked = offer.cache.as_ref();
     let key = asked.map_or(cfg.key.as_str(), |c| c.key.as_str());
     decide_facts(cfg, tier, &offer.trust_inputs, key, asked.map(|c| c.mode), mounts)
@@ -208,20 +235,21 @@ fn decide_facts(
     t: &TrustInputs,
     key: &str,
     asked: Option<CacheMode>,
-    mounts: bool,
-) -> Result<(Mode, String), &'static str> {
+    mounts: Mounts,
+) -> Result<(Mode, String), NoCache> {
+    let no = |code, why| Err(NoCache { code, why });
     if tier == Tier::Untrusted {
-        return Err("a job of the tier untrusted gets no cache");
+        return no("untrusted", "a job of the tier untrusted gets no cache");
     }
-    if !mounts {
-        return Err("the kind mounts no host directory (T-648)");
+    if !mounts.host {
+        return no("no-mount", "the kind mounts no host directory (T-648)");
     }
     if !key_ok(key) {
-        return Err("the key of the offer is empty, longer than 128 bytes or has a control character");
+        return no("bad-key", "the key of the offer is empty, longer than 128 bytes or has a control character");
     }
     let rw_asked = asked == Some(CacheMode::ReadWrite);
     let mode = match asked {
-        Some(CacheMode::Off) => return Err("the offer asks for no cache"),
+        Some(CacheMode::Off) => return no("offer-off", "the offer asks for no cache"),
         Some(CacheMode::ReadOnly) => Mode::Ro,
         // A head of a fork never writes: the tier rule keeps a fork out of
         // `trusted`, and this holds also where no rule set the tier.
@@ -230,27 +258,42 @@ fn decide_facts(
         }
         _ => Mode::Ro,
     };
+    if mode == Mode::Ro && !mounts.ro {
+        return Err(NO_RO_MOUNT);
+    }
     Ok((mode, key.to_string()))
 }
 
 /// Whether the cache `grant` of a job of `offer` holds for the real job
-/// of `facts`, when the forge gave the runner a job of another run
-/// (T-493): its scope is the same and its mode is not lower. The `rw` of
-/// an offer is the word of the source on the run of the offer only.
+/// `real` of the facts `facts`, when the forge gave the runner a job of
+/// another run (T-493). A `rw` grant never holds: the hook does not send
+/// the ref of the real job (T-653), and a mount is not lowered after the
+/// start. A `ro` grant holds when the event of the hook is the event of
+/// the facts, the hook names no head of a fork, and the facts give the
+/// same scope.
+#[allow(clippy::too_many_arguments)]
 pub fn holds(
     cfg: &CacheConfig,
     grant: &Grant,
     source: &str,
     offer: &JobOffer,
+    real: &podrunner_source::RealJob,
     facts: &TrustInputs,
     tier: Tier,
-    mounts: bool,
+    mounts: Mounts,
 ) -> bool {
+    if grant.mode == Mode::Rw || real.head_is_fork.is_some_and(|f| f) {
+        return false;
+    }
+    let event = serde_json::to_value(facts.event).ok();
+    if event.as_ref().and_then(|v| v.as_str()) != Some(real.event.as_str()) {
+        return false;
+    }
     let asked = offer.cache.as_ref();
     let key = asked.map_or(cfg.key.as_str(), |c| c.key.as_str());
     let mode = asked.map(|c| c.mode).filter(|m| *m != CacheMode::ReadWrite);
     match decide_facts(cfg, tier, facts, key, mode, mounts) {
-        Ok((m, k)) => !(grant.mode == Mode::Rw && m == Mode::Ro) && scope_of(source, facts, tier, &k).0 == grant.id,
+        Ok((_, k)) => scope_of(source, facts, tier, &k).0 == grant.id,
         Err(_) => false,
     }
 }
@@ -291,8 +334,16 @@ pub(crate) fn report(grant: Option<&Grant>, r: &mut RunReport) {
         r.cache_written_bytes = Some(Residual::Count(0));
         return;
     };
-    r.cache_read_bytes = Some(Residual::Unknown(podrunner_schema::report::Unknown::Unknown));
+    let unknown = || Some(Residual::Unknown(podrunner_schema::report::Unknown::Unknown));
+    r.cache_read_bytes = unknown();
     let why = "the host does not count the reads of a mounted cache (T-649)";
     r.unknown_reasons.insert("cache_read_bytes".into(), why.into());
-    r.cache_written_bytes = Some(Residual::Count(g.written));
+    match g.written {
+        Some(n) => r.cache_written_bytes = Some(Residual::Count(n)),
+        None => {
+            r.cache_written_bytes = unknown();
+            let why = "the thread of the caches gave no count in [deadlines] report_s after the destroy";
+            r.unknown_reasons.insert("cache_written_bytes".into(), why.into());
+        }
+    }
 }
