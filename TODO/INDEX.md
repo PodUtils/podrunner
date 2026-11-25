@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**666 entries: 85 open, 58 partial, 13 blocked, 510 done.**
+**667 entries: 85 open, 58 partial, 13 blocked, 511 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 97 | 122 |
-| P2 | 16 | 24 | 8 | 266 | 314 |
-| P3 | 68 | 11 | 3 | 145 | 227 |
-| **All** | 85 | 58 | 13 | 510 | 666 |
+| P2 | 17 | 24 | 8 | 266 | 315 |
+| P3 | 67 | 11 | 3 | 146 | 227 |
+| **All** | 85 | 58 | 13 | 511 | 667 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -561,7 +561,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-514](later.md) | P2 | S | later | feature | done | G-05 and G-06: the run report names no architecture |
 | [T-515](later.md) | P2 | M | later | defect | partial | G-12: a unit past its memory limit does not end with the exit reason `limit` |
 | [T-516](later.md) | P2 | S | later | feature | done | G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine |
-| [T-517](later.md) | P3 | S | later | docs | open | G-09: the engine of a guest is a directory of the host, not a part of the payload image |
+| [T-517](later.md) | P3 | S | later | docs | done | G-09: the engine of a guest is a directory of the host, not a part of the payload image |
 | [T-518](later.md) | P2 | M | later | feature | done | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
 | [T-519](later.md) | P3 | S | later | docs | done | G-03: no document says that a step of the job can read the credential of its runner |
 | [T-520](later.md) | P3 | S | later | measurement | partial | G-06: no test of `cpu_s` against a known load, and no tolerance in the contract |
@@ -714,3 +714,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-669](bootstrap.md) | P2 | S | M0 | chore | done | Load the hosted shell and try direct workflow dispatch |
 | [T-670](bootstrap.md) | P3 | S | M0 | chore | done | Update the TruffleHog image to 3.100.0 |
 | [T-671](bootstrap.md) | P3 | S | M0 | chore | done | Update the TOML parser dependencies |
+| [T-672](later.md) | P2 | M | later | feature | open | G-09: bundle the Docker engine in runner-full |

@@ -12020,7 +12020,7 @@ State (2026-11-25, the commit that names T-516; not run in CI): `crates/podrunne
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12034,9 +12034,17 @@ The census read `docs/container-engine.md` and `crates/podrunner-microvm`. Not m
 
 Decide: ship the engine in `runner-full` and keep `engine = DIR` as an override, or keep the directory. Record the call in `docs/decisions.md` and give it to githome on GitHub #151.
 
+## Decision
+
+Bundle the engine in `runner-full` and preserve the directory override. An offline user can import one digest-pinned image. Record the choice in `docs/decisions.md` and track the image, the guest wiring and its parities in T-672.
+
 ## Prove
 
 The call in `docs/decisions.md`; `cargo todo check`.
+
+## Done
+
+2026-11-25, the commit that names T-517 records the delivery decision. `cargo todo check` agrees. T-672 tracks the implementation and its guest proof. The live check remains T-040.
 
 # T-518: G-13: each event by name, a rule of trust that can be swapped, and a published table of cases
 
@@ -17037,3 +17045,28 @@ after it releases the lock.
 at once after `stop --wait`. It waits up to five seconds for a successful
 process exit. The targeted executable test passed, including the timeout
 with exit 75.
+
+# T-672: G-09: bundle the Docker engine in runner-full
+
+**Source:** githome G-09 on GitHub #66 and the decision in T-517, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+An operator who imports `runner-full` on an offline host needs a separate directory of Docker binaries for jobs with a guest engine.
+
+## Premise
+
+`docs/container-engine.md` documents the engine directory for MicroVM and Incus guests. `runner-image.yml` 45564676018 on `88f778b` proved Docker build and Docker-in-Docker with that directory on both kinds (T-516). The hosted snapshot already starts its own engine. The bundled path has no guest proof yet.
+
+## Approach
+
+Build both architectures of `runner-full` with a checksum-pinned Docker engine. Make placement take the engine capability of the chosen payload into account and enable the guest's engine setup for that payload. Keep the host directory override and start only a socket in the guest. Run the existing Docker build and Docker-in-Docker workflows against the bundled engine, including from the imported OCI archive.
+
+## Prove
+
+`cargo test -p podrunner-slots placement` exercises engine placement with both image profiles and a configured override. The Docker build and Docker-in-Docker parity jobs of `runner-image.yml` pass on MicroVM and Incus with the bundled binaries.

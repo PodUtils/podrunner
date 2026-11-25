@@ -24,8 +24,8 @@ In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
    must pass before the lift in T-487.
 2. Verify the signed `assignment_hook` pin in the same user-path run
    (T-663). The warm rows exercise it on Incus and microvm.
-3. The statement of G-09 on #66 (T-516 is done; check T-517 first: it is
-   open, so the line names it as left).
+3. The statement of G-09 on #66. T-516 has its CI proof, T-517 records the
+   delivery decision, and T-672 tracks the engine bundled in `runner-full`.
 4. The work order of `TODO/PROGRESS.md`.
 
 ## The release `v0.1.0-beta.8`
@@ -85,7 +85,7 @@ milestones M-A, M-B and L2 hold. M-C and M-D wait for the live gates.
 ## The work order
 
 `TODO/PROGRESS.md` has the order. After the proof of the new head it names
-T-663, T-512, T-500, T-517 and the local P3 entries.
+T-663, T-512, T-500, T-672 and the local P3 entries.
 githome and cfb come first (the owner, 2026-11-18, `docs/decisions.md`).
 githome: 41 asks, 25 in a release (4 in beta.7, 21 in beta.8), 10 partial, 6
 open. cfb: 38 clauses, 26 in a release (15 in beta.7, 11 in beta.8), 6

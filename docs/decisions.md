@@ -80,6 +80,7 @@ C13 to C16 are rulings since 2026-11-11 ("Confirm, keep swappable").
 
 | Date | Call | What |
 | --- | --- | --- |
+| 2026-11-25 | T-517 (githome G-09) | Bundle a pinned Docker engine in `runner-full` for microvm and Incus so an offline operator can carry one payload archive. Keep `engine = DIR` as an explicit override. Keep `runner-base` small and let the hosted snapshot use its own engine. Placement must know whether the selected payload can start an engine before handing it a job that needs one. The engine runs inside the unit and uses the unit's egress. Enable the bundled path after the guest Docker build and Docker-in-Docker proofs in T-672. |
 | 2026-11-11 | C1 (DR-3) | The scale-set client is a Go sidecar over `actions/scaleset` (MIT, public preview), not a Rust port of its six endpoints (T-029). |
 | 2026-11-11 | C2 (DR-8) | The container route: the official container hooks first. `docker build` and Dockerfile actions are refused by name (`build-not-supported`). |
 | 2026-11-11 | C3 (DR-9) | GitHub sources are of an organization only. A repository of a personal account is refused (`repo-scope-refused`): it needs "Administration: write". Q13 of 2026-11-24 adds an opt-in of the operator (T-504); the refusal stays the default. |

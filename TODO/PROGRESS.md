@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 666 entries: 85 open, 58 partial, 13 blocked, 510 done.
+`TODO/INDEX.md` holds 667 entries: 85 open, 58 partial, 13 blocked, 511 done.
 
 ## State
 
@@ -24,8 +24,8 @@
 - A `docker build` step and a `docker:dind` service pass in a guest and in
   an incus instance, proven in CI on GitHub-hosted runners (T-516,
   `runner-image.yml` 45564676018; `level2.yml` 45564676057 on github.com
-  twins). The G-09 line of GitHub #66 names T-516 as open; T-517 (the
-  engine as a part of the payload image) and the live check (T-040) stay.
+  twins). T-517 chooses to bundle the engine in `runner-full`. Implementing
+  the bundled path (T-672) and the live check (T-040) remain.
 - Warm units (T-487, partial): the seam, the fake, microvm and incus kinds,
   the pool and the report and status fields (T-657) are in the code. A
   release build refuses a `warm` key (exit 78, "not in this build"); only a
@@ -68,10 +68,11 @@ then take the next one.
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10
    partial, 6 open; cfb has 38 clauses, 26 in a release, 6 partial, 6 open.
    The comments of podrunner on #292 and #151 name `v0.1.0-beta.8`. Then
-   T-500 (runner image for cfb; partial), T-517, T-521 and the partial
+   T-500 (runner image for cfb; partial), T-672, T-521 and the partial
    entries T-497, T-499, T-509, T-515 and T-520.
-4. The statement of G-09 on #66 (the docker build and Docker-in-Docker
-   proof is in CI; T-517 is open).
+4. Keep the G-09 line on #66 current with the CI proof of Docker build
+   and Docker-in-Docker, the bundled engine (T-672), and the live check
+   (T-040).
 5. The local P3 entries: T-655, T-656, T-658, T-659, T-598, T-597,
    T-616, T-603 (step 1), T-610, T-609. The follow-ups of QA round 6: T-638,
    T-643, T-644, T-645. The P3 groups of the QA rounds: T-308, T-316, T-323,
