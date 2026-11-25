@@ -124,6 +124,29 @@ fn the_fake_unit_passes_each_test() {
     }
 }
 
+/// T-487: through warm units the fake passes each test, and the plants
+/// of a start fail their tests also when the unit is claimed.
+#[test]
+fn the_fake_unit_passes_each_test_through_warm_units() {
+    for (route, skipped) in [(ContainerRoute::None, &[14, 20, 27][..]), (ContainerRoute::Hooks, &[13, 27][..])] {
+        let fx = UnitFixture::new(route, None);
+        let parallel: Vec<u32> = uc::tests().into_iter().map(|t| t.0).filter(|n| !uc::ALONE.contains(n)).collect();
+        for r in uc::run_warm(&fx, &parallel) {
+            if skipped.contains(&r.number) {
+                assert!(matches!(r.outcome, Outcome::Skip(_)), "{r}");
+            } else {
+                assert_eq!(r.outcome, Outcome::Pass, "{route:?} warm: {r}");
+            }
+        }
+    }
+    use UnitPlant::*;
+    for (n, plant) in [(5, SharedRoot), (6, LooseMode), (7, CredentialInEnv), (16, StartTwice), (21, CredentialCopy)] {
+        let fx = UnitFixture::new(ContainerRoute::None, Some(plant));
+        let r = uc::run_warm(&fx, &[n]).remove(0);
+        assert!(matches!(r.outcome, Outcome::Fail(_)), "{plant:?} passes test {n} through warm units: {r}");
+    }
+}
+
 /// T-042: a confined fake passes each test, the test 27 of the `confined`
 /// boundary included. With no Landlock on the host, `confined` is refused.
 #[test]
@@ -176,6 +199,11 @@ fn each_unit_plant_fails_its_test() {
         (25, TagOnly),
         (26, ShimDeathIgnored),
         (27, ClaimsConfined),
+        (28, WarmCredential),
+        (29, ClaimTwice),
+        (30, WarmLeak),
+        (31, ClaimBootArgv),
+        (32, SharedRoot),
     ];
     assert_eq!(plants.len() + uc::ALONE.len(), uc::tests().len());
     for (n, plant) in plants {

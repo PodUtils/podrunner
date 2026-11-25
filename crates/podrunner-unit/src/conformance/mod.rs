@@ -1,4 +1,4 @@
-//! The conformance suite of the unit seam: the tests 1 to 27 of
+//! The conformance suite of the unit seam: the tests 1 to 32 of
 //! `docs/contracts/unit-driver.md`. A driver passes when each test that
 //! applies to it passes. Each test has a planted defect that fails it (the
 //! drivers of the fakes, GitHub #20) and a correct input that passes it.
@@ -9,6 +9,8 @@
 mod cases;
 mod design;
 mod procs;
+mod warm;
+mod warmed;
 
 use std::fmt;
 use std::path::PathBuf;
@@ -21,6 +23,7 @@ use crate::UnitDriver;
 
 pub use design::ALONE;
 pub use procs::{alive, holds_text};
+pub use warmed::{WarmFixture, Warmed};
 
 /// The canary of the credential files: a made-up value that no output, argv
 /// or environment may hold.
@@ -130,7 +133,7 @@ impl fmt::Display for Report {
 }
 
 fn all() -> impl Iterator<Item = &'static cases::Case> {
-    cases::CASES.iter().chain(design::CASES.iter())
+    cases::CASES.iter().chain(design::CASES.iter()).chain(warm::CASES.iter())
 }
 
 /// The number and the name of each test, in order.
@@ -150,6 +153,12 @@ pub fn run(fixture: &dyn Fixture, only: &[u32]) -> Vec<Report> {
             Report { number: c.number, name: c.name, outcome }
         })
         .collect()
+}
+
+/// [`run`] with each unit made warm, then claimed (T-487): a unit of a
+/// warm pool keeps each rule of a unit of `start`.
+pub fn run_warm(fixture: &dyn Fixture, only: &[u32]) -> Vec<Report> {
+    run(&WarmFixture::new(fixture), only)
 }
 
 /// Run `f` on a thread of its own and wait up to `limit` for its value.

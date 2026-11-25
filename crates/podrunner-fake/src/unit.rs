@@ -26,67 +26,9 @@ use crate::mounts::Mounts;
 
 mod containers;
 mod plants;
+mod warm;
 
-/// The planted defects of the fake unit: each one fails the unit
-/// conformance test of its number.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UnitPlant {
-    /// 1: each probe gives another record.
-    ProbeDrifts,
-    /// 2: a tag is accepted.
-    AcceptTag,
-    /// 3: destroy kills the top process only.
-    KillTopOnly,
-    /// 4: a foreign platform is accepted.
-    AcceptForeign,
-    /// 5: each unit gets the same root.
-    SharedRoot,
-    /// 6: the credential files have mode 0644.
-    LooseMode,
-    /// 7: the credential goes into the environment.
-    CredentialInEnv,
-    /// 8: wait gives exit code 0.
-    WrongCode,
-    /// 9: signal does nothing.
-    DeafSignal,
-    /// 10: destroy kills nothing.
-    NoKill,
-    /// 11: destroy keeps the files.
-    KeepFiles,
-    /// 12: destroy counts nothing (`unknown`).
-    UnknownResidue,
-    /// 13: a container starts with no route.
-    ContainerWithNoRoute,
-    /// 14: exec accepts stdin.
-    AcceptStdin,
-    /// 15: a second destroy fails.
-    DestroyOnce,
-    /// 16: a unit id in use starts again.
-    StartTwice,
-    /// 17: probe claims a verified tree kill, and destroy kills the top
-    /// process only.
-    FalseTreeKill,
-    /// 18: probe writes a file in the state directory.
-    ProbeWritesFile,
-    /// 19: each unit gets one shared `/etc/hosts`.
-    SharedHosts,
-    /// 20: the processes of a container do not carry the tag of the unit.
-    UntaggedContainer,
-    /// 21: start keeps a copy of the credential outside the unit root.
-    CredentialCopy,
-    /// 22: probe gives the credential of the last unit in `boundary_proof`.
-    ProofCanary,
-    /// 23: probe leaves a process.
-    ProbeSpawns,
-    /// 24: the credential goes into the environment of each container.
-    CredentialInContainers,
-    /// 25: no shim: destroy finds the processes by their tag only.
-    TagOnly,
-    /// 26: destroy counts 0 processes after its shim was killed.
-    ShimDeathIgnored,
-    /// 27: the record claims `confined`, and no rule applies.
-    ClaimsConfined,
-}
+pub use plants::UnitPlant;
 
 struct Running {
     root: PathBuf,
@@ -98,6 +40,8 @@ struct Running {
     containers: HashMap<ContainerId, (Child, PathBuf, Mounts)>,
     /// The socket directory of the unit: a confined container reaches it.
     sockets: Option<PathBuf>,
+    /// A warm unit (T-487): claimed or not; `None` for a unit of `start`.
+    claimed: Option<bool>,
 }
 
 /// The `fake` unit driver.
@@ -113,6 +57,8 @@ pub struct FakeUnit {
     tags: Mutex<Vec<String>>,
     /// The first credential file of the last start (plants 22 and 24).
     seen: Mutex<Option<String>>,
+    /// The credential of the last claim (plant 28).
+    last_claim: Mutex<Option<podrunner_schema::Credential>>,
     /// The Landlock ABI of a `confined` fake (T-042).
     confined: Option<u32>,
 }
@@ -157,6 +103,7 @@ impl FakeUnit {
             containers: AtomicU64::new(0),
             tags: Mutex::new(Vec::new()),
             seen: Mutex::new(None),
+            last_claim: Mutex::new(None),
             confined: None,
         }
     }
@@ -246,6 +193,54 @@ impl FakeUnit {
     }
 }
 
+impl FakeUnit {
+    /// The root and the runner root (0700) of a unit; true when the runner
+    /// root is new.
+    fn make_root(&self, unit: &UnitId) -> Result<(PathBuf, PathBuf, bool), UnitError> {
+        let name = if self.planted(UnitPlant::SharedRoot) { "shared" } else { unit.as_str() };
+        let root = self.state_dir.join("units").join(name);
+        let runner_root = root.join(".runner-root");
+        let fresh = !runner_root.exists();
+        fs::create_dir_all(&runner_root).map_err(|e| host(e, "the unit root"))?;
+        fs::set_permissions(&runner_root, fs::Permissions::from_mode(0o700)).map_err(|e| host(e, "the runner root"))?;
+        Ok((root, runner_root, fresh))
+    }
+
+    /// The credential files in the runner root, at mode 0600.
+    fn write_credential(&self, runner_root: &Path, credential: &podrunner_schema::Credential) -> Result<(), UnitError> {
+        let mode = if self.planted(UnitPlant::LooseMode) { 0o644 } else { 0o600 };
+        for f in &credential.files {
+            if !f.name_is_plain() {
+                return Err(UnitError::new(UnitCode::UnitStartFailed, "a credential file name that is not plain"));
+            }
+            let bytes = f.bytes().map_err(|e| UnitError::new(UnitCode::UnitStartFailed, e))?;
+            write_private(&runner_root.join(&f.name), &bytes, mode)?;
+        }
+        Ok(())
+    }
+
+    /// The top process of a unit, with its tag, in its root.
+    fn launch(
+        &self,
+        unit: &UnitId,
+        root: PathBuf,
+        runner_root: PathBuf,
+        argv: &[String],
+        mut env: Vec<(String, String)>,
+        sockets: Option<PathBuf>,
+    ) -> Result<Running, UnitError> {
+        let tag = procs::tag_of(&self.state_dir, unit.as_str());
+        self.tags.lock().expect("the tags").push(tag.clone());
+        env.push(("PODRUNNER_UNIT".into(), unit.to_string()));
+        env.push((TAG_VAR.into(), tag.clone()));
+        // The output of the payload, for `unit_logs`: in the root, so that
+        // destroy removes it.
+        let log = root.join(UNIT_LOG);
+        let child = self.spawn(argv, &root, &env, Some(&log), self.shimmed(), Some((&root, sockets.as_deref())))?;
+        Ok(Running { root, runner_root, tag, child, exit: None, containers: HashMap::new(), sockets, claimed: None })
+    }
+}
+
 fn write_private(path: &Path, bytes: &[u8], mode: u32) -> Result<(), UnitError> {
     let mut f = fs::OpenOptions::new()
         .write(true)
@@ -311,48 +306,33 @@ impl UnitDriver for FakeUnit {
         if units.contains_key(&spec.unit) && !self.planted(UnitPlant::StartTwice) {
             return Err(UnitError::new(UnitCode::UnitInUse, spec.unit.to_string()));
         }
-        let name = if self.planted(UnitPlant::SharedRoot) { "shared" } else { spec.unit.as_str() };
-        let root = self.state_dir.join("units").join(name);
-        let runner_root = root.join(".runner-root");
-        let fresh = !runner_root.exists();
-        fs::create_dir_all(&runner_root).map_err(|e| host(e, "the unit root"))?;
-        fs::set_permissions(&runner_root, fs::Permissions::from_mode(0o700)).map_err(|e| host(e, "the runner root"))?;
-        let mode = if self.planted(UnitPlant::LooseMode) { 0o644 } else { 0o600 };
-        for f in spec.credential.files.iter().filter(|_| fresh) {
-            if !f.name_is_plain() {
-                return Err(UnitError::new(UnitCode::UnitStartFailed, "a credential file name that is not plain"));
-            }
-            let bytes = f.bytes().map_err(|e| UnitError::new(UnitCode::UnitStartFailed, e))?;
-            write_private(&runner_root.join(&f.name), &bytes, mode)?;
+        let (root, runner_root, fresh) = self.make_root(&spec.unit)?;
+        if fresh {
+            self.write_credential(&runner_root, &spec.credential)?;
         }
         self.plant_start(spec, &root)?;
-        let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
-        self.tags.lock().expect("the tags").push(tag.clone());
         let mut env: Vec<(String, String)> = spec.env.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
-        env.push(("PODRUNNER_UNIT".into(), spec.unit.to_string()));
-        env.push((TAG_VAR.into(), tag.clone()));
         if self.planted(UnitPlant::CredentialInEnv)
             && let Some(f) = spec.credential.files.first()
         {
             env.push(("PODRUNNER_PLANTED_CREDENTIAL".into(), f.content.expose().to_string()));
         }
         crate::unit_mounts::place(&root, &spec.mounts, &mut env)?;
-        // The output of the payload, for `unit_logs`: in the root, so that
-        // destroy removes it.
-        let log = root.join(UNIT_LOG);
-        let child =
-            self.spawn(&spec.argv, &root, &env, Some(&log), self.shimmed(), Some((&root, spec.sockets.as_deref())))?;
-        let run = Running {
-            root,
-            runner_root,
-            tag,
-            child,
-            exit: None,
-            containers: HashMap::new(),
-            sockets: spec.sockets.clone(),
-        };
+        let run = self.launch(&spec.unit, root, runner_root, &spec.argv, env, spec.sockets.clone())?;
         units.insert(spec.unit.clone(), run);
         Ok(())
+    }
+
+    fn warm(&self, spec: &podrunner_unit::warm::WarmSpec) -> Result<(), UnitError> {
+        self.warm_unit(spec)
+    }
+
+    fn warm_ready(&self, unit: &UnitId) -> Result<bool, UnitError> {
+        self.warm_ready_of(unit)
+    }
+
+    fn claim(&self, unit: &UnitId, spec: &podrunner_unit::warm::ClaimSpec) -> Result<(), UnitError> {
+        self.claim_unit(unit, spec)
     }
 
     fn signal(&self, unit: &UnitId, signal: Signal) -> Result<(), UnitError> {
@@ -432,7 +412,8 @@ impl UnitDriver for FakeUnit {
             let _ = r.child.kill();
             let _ = r.child.wait();
         }
-        if !self.planted(UnitPlant::KeepFiles) {
+        let leak = self.planted(UnitPlant::WarmLeak) && r.claimed == Some(false);
+        if !self.planted(UnitPlant::KeepFiles) && !leak {
             fs::remove_dir_all(&r.root)
                 .or_else(|e| if r.root.exists() { Err(e) } else { Ok(()) })
                 .map_err(|e| host(e, "remove"))?;

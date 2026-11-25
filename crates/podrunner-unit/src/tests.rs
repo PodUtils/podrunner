@@ -37,12 +37,24 @@ fn the_harness_fails_each_test_on_the_stub() {
     let fx = StubFixture { stub: Stub, ids: UnitIds::default() };
     let results = conformance::run(&fx, &[]);
     let numbers: Vec<u32> = results.iter().map(|r| r.number).collect();
-    assert_eq!(numbers, (1..=27).collect::<Vec<_>>());
+    assert_eq!(numbers, (1..=32).collect::<Vec<_>>());
     for r in &results {
         assert!(matches!(r.outcome, Outcome::Fail(_)), "{r}");
         assert!(r.to_string().starts_with(&format!("unit {:2} {}: FAIL", r.number, r.name)), "{r}");
     }
-    assert_eq!(conformance::not_passed(&results).len(), 27);
+    assert_eq!(conformance::not_passed(&results).len(), 32);
+}
+
+/// Through warm units, the stub starts no unit: each test of a unit fails
+/// (T-487).
+#[test]
+fn the_harness_through_warm_units_fails_on_the_stub() {
+    let fx = StubFixture { stub: Stub, ids: UnitIds::default() };
+    let results = conformance::run_warm(&fx, &[3, 5, 6, 7, 16, 21]);
+    for r in &results {
+        assert!(matches!(r.outcome, Outcome::Fail(_)), "{r}");
+    }
+    assert_eq!(results.len(), 6);
 }
 
 #[test]

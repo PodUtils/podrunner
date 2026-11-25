@@ -52,7 +52,7 @@ fn files(dir: &Path) -> Vec<(PathBuf, u64)> {
 }
 
 /// The files under `dir` that hold `text`.
-fn holding(dir: &Path, text: &str) -> Vec<PathBuf> {
+pub(super) fn holding(dir: &Path, text: &str) -> Vec<PathBuf> {
     files(dir)
         .into_iter()
         .filter(|(p, _)| std::fs::read(p).is_ok_and(|b| b.windows(text.len()).any(|w| w == text.as_bytes())))

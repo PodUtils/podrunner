@@ -29,6 +29,17 @@ its test, not podrunner at run time.
   credential goes into argv or into the environment. A unit id that is in use is refused
   (`unit-in-use`). The core makes each unit id (`u-` and a counter); a unit
   id never derives from a job id.
+- `warm` starts a unit with no job (T-487): the root and the top process
+  that `start` would give, with no credential, no job environment and no
+  job argv. Its egress socket leads nowhere until the claim. A unit id that
+  is in use is refused (`unit-in-use`). `warm_ready` is true when the top
+  process waits for its claim; `wait` gives its end. `claim` gives a warm
+  unit its one job: the credential files at mode 0600, the environment and
+  the argv. A second claim, and a claim of a unit of `start`, are
+  `unit-in-use`; an unknown id is `unknown-unit`. A warm unit takes no
+  mount. `applied_limits` gives the limits that `start` applies for an
+  offer; a warm unit fits an offer only when the limits of the offer give
+  the limits of the unit. A kind with no warm unit gives `unsupported`.
 - `signal` reaches each process of the unit (the whole tree).
 - `wait` waits up to a time limit for the end of the top process.
 - `destroy` ends each process and removes each file of the unit, then
@@ -51,6 +62,9 @@ its test, not podrunner at run time.
 | `probe` | none | the capability record |
 | `prepare` | a pinned reference, a platform, emulation yes or no | the digest and the platform |
 | `start` | the unit id, the prepared image, argv, environment, credential | none |
+| `warm` | the unit id, the prepared image, the socket directory, the variables of the unit | none |
+| `warm_ready` | the unit id | ready, or not yet |
+| `claim` | the unit id, argv, environment, credential, the limits of the offer | none |
 | `signal` | the unit id, `term` or `kill` | none |
 | `wait` | the unit id, a time limit | the exit, or none |
 | `destroy` | the unit id | the residue counts |
@@ -110,7 +124,8 @@ Each error has a code and a detail with no credential:
 ## Tests
 
 `crates/podrunner-unit/src/conformance/` runs these tests against a
-driver. Each test has a planted defect that fails it and a correct input
+driver. `run_warm` runs them through warm units: each unit is made with
+`warm`, waits for `warm_ready`, and gets the rest of its start by `claim`. Each test has a planted defect that fails it and a correct input
 that passes it. A test that does not apply to the kind (no container
 route) reports `skip` with the reason. A guest kind needs one host process
 for tests 3 and 7, not three (`docs/decisions.md`, "The unit tests 3 and 7
@@ -148,6 +163,11 @@ with a grandchild, a marker file in the working directory.
 | 25 | `destroy-reaches-an-orphan-with-no-tag` | An orphan with `setsid env -i` (no tag, its own session) is in `observe`, ends at `destroy`, and the count is 0. |
 | 26 | `a-killed-shim-is-not-clean` | The payload kills the parent of its top process with SIGKILL: `destroy` does not count 0 while the orphan lives. |
 | 27 | `a-confined-unit-reads-no-other-root` | With `boundary: confined` or more: a unit reads no marker of a root next to its own, and writes and reads its own root (a positive control). A kind that claims less skips it. |
+| 28 | `a-warm-unit-holds-no-credential` | Before its claim, no file of the state directory or the runner root, no process and no observation of a warm unit holds the credential; after the claim, the files are there at mode 0600 (a positive control). A kind with no warm unit skips 28 to 32. |
+| 29 | `a-warm-unit-is-claimed-once` | A second claim, and a claim of a unit of `start`, are `unit-in-use`; a claim of an unknown id is `unknown-unit`. |
+| 30 | `an-unclaimed-warm-unit-destroys-clean` | A warm unit with no claim ends at `destroy` with no process, no file and a count of 0. |
+| 31 | `a-claim-runs-its-own-argv-and-env` | `wait` gives the exit code of the argv of the claim; where the processes are on the host, one holds a variable of the claim. |
+| 32 | `a-warm-unit-has-no-file-of-an-ended-unit` | A warm unit that waited while another unit wrote a file and ended gets another root, with no file of that unit. |
 
 The numbers of the tests follow this page. The design contract numbers its
 tests in another order; the next table maps them (T-053).

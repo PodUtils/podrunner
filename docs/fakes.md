@@ -45,6 +45,12 @@ root and reads the system directories. The fake applies no
 mount and no create option; it writes them to the file `spec` of the
 container directory, one on each line, for the tests of the hooks.
 
+A warm unit (T-487) has the top process `sh`, which waits in the root
+of the unit until the claim writes `.podrunner-claim/go`; the claim
+writes the credential files at mode 0600 and `.podrunner-claim/env.sh`
+(the environment and the argv of the job) first. The waiter then runs
+the argv of the job in place of itself.
+
 The behaviours of a payload are argv (`payload` of the crate): exit with a
 code, sleep, a `setsid` child with a grandchild, a marker file. A test
 gives other behaviours as argv of its own.
@@ -80,6 +86,11 @@ gives other behaviours as argv of its own.
 | 25 | no shim: destroy finds the processes by their tag only |
 | 26 | destroy counts 0 processes after its shim was killed |
 | 27 | the record claims `confined`, and no rule applies |
+| 28 | a warm unit gets the credential files of the last claim |
+| 29 | a claimed unit takes a second claim |
+| 30 | the destroy of an unclaimed warm unit keeps its root |
+| 31 | a claim runs a fixed argv, not the argv of the claim |
+| 32 | each unit gets the same root (the plant of test 5) |
 
 | Source test | Plant |
 | --- | --- |

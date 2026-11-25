@@ -18,6 +18,7 @@ pub mod shim;
 pub mod signal;
 mod stub;
 mod types;
+pub mod warm;
 
 pub use podrunner_schema::{Capability, Credential, UnitId};
 
@@ -53,10 +54,13 @@ use std::time::Duration;
 
 /// The operations of the unit seam, in the order of the contract. A test
 /// compares them with `docs/contracts/unit-driver.md`.
-pub const OPERATIONS: [&str; 12] = [
+pub const OPERATIONS: [&str; 15] = [
     "probe",
     "prepare",
     "start",
+    "warm",
+    "warm_ready",
+    "claim",
     "signal",
     "wait",
     "destroy",
@@ -112,6 +116,35 @@ pub trait UnitDriver: Send + Sync {
     /// runner root at mode 0600, and the top process. No credential goes
     /// into argv or the environment. A unit id that is in use is refused.
     fn start(&self, spec: &StartSpec) -> Result<(), UnitError>;
+
+    /// Start a unit with no job (T-487): as `start`, with no credential, no
+    /// job environment and no job argv; its top process waits for the
+    /// claim. A unit id that is in use is refused (`unit-in-use`).
+    fn warm(&self, spec: &warm::WarmSpec) -> Result<(), UnitError> {
+        Err(UnitError::new(UnitCode::Unsupported, format!("{}: no warm unit {}", self.kind(), spec.unit)))
+    }
+
+    /// True once the top process of a warm unit waits for its claim.
+    /// `wait` still gives the end of the top process.
+    fn warm_ready(&self, unit: &UnitId) -> Result<bool, UnitError> {
+        Err(UnitError::new(UnitCode::Unsupported, format!("{}: no warm unit {unit}", self.kind())))
+    }
+
+    /// Give a warm unit its one job: the credential files at mode 0600,
+    /// the environment and the argv. A second claim, or a claim of a unit
+    /// of `start`, is `unit-in-use`; an unknown id is `unknown-unit`.
+    fn claim(&self, unit: &UnitId, spec: &warm::ClaimSpec) -> Result<(), UnitError> {
+        let _ = spec;
+        Err(UnitError::new(UnitCode::Unsupported, format!("{}: no warm unit {unit}", self.kind())))
+    }
+
+    /// The limits that `start` gives a unit for an offer with `job`. A warm
+    /// unit has the limits of `applied_limits(&Limits::default())`, and
+    /// fits a job only when both are equal. Default: none.
+    fn applied_limits(&self, job: &limits::Limits) -> limits::Limits {
+        let _ = job;
+        limits::Limits::default()
+    }
 
     /// Send a signal to each process of the unit (the whole tree).
     fn signal(&self, unit: &UnitId, signal: Signal) -> Result<(), UnitError>;

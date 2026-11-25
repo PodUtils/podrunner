@@ -77,7 +77,7 @@ impl Unit<'_> {
     }
 }
 
-fn spec(fx: &dyn Fixture, id: UnitId, behaviour: Behaviour) -> Result<StartSpec, String> {
+pub(super) fn spec(fx: &dyn Fixture, id: UnitId, behaviour: Behaviour) -> Result<StartSpec, String> {
     let image = fx.driver().prepare(&fx.image(), &fx.platform(), false).map_err(|e| err("prepare", e))?;
     let env = BTreeMap::from([("PODRUNNER_UNIT".to_string(), id.to_string())]);
     Ok(StartSpec {
@@ -103,7 +103,11 @@ pub(super) fn root(o: &Observation) -> Result<&Path, String> {
     o.unit_root.as_deref().ok_or_else(|| "observe gives no unit root".to_string())
 }
 
-fn refused(what: &str, got: Result<impl std::fmt::Debug, UnitError>, code: UnitCode) -> Result<Outcome, String> {
+pub(super) fn refused(
+    what: &str,
+    got: Result<impl std::fmt::Debug, UnitError>,
+    code: UnitCode,
+) -> Result<Outcome, String> {
     match got {
         Err(e) if e.code == code => Ok(Outcome::Pass),
         Err(e) => Err(format!("{what}: refused with {e}, not {}", code.as_str())),
@@ -138,7 +142,7 @@ fn prepare_refuses_a_tag(fx: &dyn Fixture) -> Result<Outcome, String> {
 /// The processes of a unit that the host sees: the top, a child and a
 /// grandchild; for a kind that claims a guest, the processes of its
 /// emulator only (the guest kernel holds the rest, and ends with it).
-fn host_pids(fx: &dyn Fixture) -> usize {
+pub(super) fn host_pids(fx: &dyn Fixture) -> usize {
     match fx.driver().probe() {
         Ok(c) if c.boundary == podrunner_schema::Boundary::Guest => 1,
         _ => 3,
