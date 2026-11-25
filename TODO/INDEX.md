@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**655 entries: 85 open, 59 partial, 15 blocked, 496 done.**
+**657 entries: 85 open, 60 partial, 15 blocked, 497 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 95 | 121 |
-| P2 | 16 | 24 | 10 | 258 | 308 |
+| P2 | 16 | 25 | 10 | 259 | 310 |
 | P3 | 68 | 11 | 3 | 141 | 223 |
-| **All** | 85 | 59 | 15 | 496 | 655 |
+| **All** | 85 | 60 | 15 | 497 | 657 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -703,3 +703,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-658](later.md) | P3 | S | later | feature | open | A warm incus instance fits an offer with lower limits |
 | [T-659](later.md) | P3 | M | later | feature | open | A cold guest of the microvm kind from a saved state |
 | [T-660](later.md) | P2 | S | later | defect | partial | The first step of a job on a kind with no container hook |
+| [T-661](later.md) | P2 | S | later | defect | done | The destroy of a unit counts a killed process that still ends as gone |
+| [T-662](later.md) | P2 | S | later | defect | partial | One failed suite of the microvm and incus steps hides the next suites |

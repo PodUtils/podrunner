@@ -5,8 +5,10 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::time::{Duration, Instant};
 
 use podrunner_schema::UnitId;
+use podrunner_unit::procs;
 use podrunner_unit::warm::{ClaimSpec, WarmSpec, env_sh};
 use podrunner_unit::{StartSpec, UnitCode, UnitError};
 
@@ -87,6 +89,26 @@ impl FakeUnit {
         super::write_private(&dir.join("env.sh"), script.as_bytes(), 0o600)?;
         // `go` comes last, by a rename: the waiter sees a whole claim.
         super::write_private(&dir.join("go.tmp"), b"", 0o600)?;
-        fs::rename(dir.join("go.tmp"), dir.join("go")).map_err(|e| host(e, "the claim"))
+        fs::rename(dir.join("go.tmp"), dir.join("go")).map_err(|e| host(e, "the claim"))?;
+        // The claim ends when the waiter runs the job: a
+        // read of the unit then sees the job, not the waiter and its `sleep`
+        // and `rm` (a false pass of test 7 with the plant `CredentialInEnv`).
+        let tag = self.with_unit(unit, |r| Ok(r.tag.clone()))?;
+        let end = Instant::now() + CLAIM_LIMIT;
+        while Instant::now() < end && procs::tagged(&tag).into_iter().any(waits) {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        Ok(())
     }
 }
+
+/// The time that a claim waits for the waiter to run the job.
+const CLAIM_LIMIT: Duration = Duration::from_secs(10);
+
+/// True when the process is the waiter before its `exec`.
+fn waits(pid: u32) -> bool {
+    fs::read(format!("/proc/{pid}/cmdline")).is_ok_and(|c| c.windows(GO.len()).any(|w| w == GO.as_bytes()))
+}
+
+/// The file of the claim that the argv of the waiter names.
+const GO: &str = ".podrunner-claim/go";

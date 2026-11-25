@@ -22,7 +22,7 @@ use podrunner_schema::{Credential, CredentialFile, Secret, UnitId};
 use crate::UnitDriver;
 
 pub use design::ALONE;
-pub use procs::{alive, holds_text};
+pub use procs::{alive, describe, holds_text};
 pub use warmed::{WarmFixture, Warmed};
 
 /// The canary of the credential files: a made-up value that no output, argv

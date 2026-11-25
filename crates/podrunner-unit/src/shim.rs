@@ -12,9 +12,9 @@
 use std::collections::HashMap;
 use std::process::Command;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use crate::procs::{kill, tagged};
+use crate::procs::{kill_until_gone, tagged};
 
 /// What the shim does when its payload ends.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -202,34 +202,14 @@ pub fn tree_of_tagged(tag: &str) -> Vec<u32> {
 /// SIGKILL to each process of [`tree_of_tagged`] until none is left or the
 /// limit ends. Give the count left.
 pub fn kill_tree_of_tagged(tag: &str, limit: Duration) -> u64 {
-    let end = Instant::now() + limit;
-    loop {
-        let pids = tree_of_tagged(tag);
-        if pids.is_empty() || Instant::now() >= end {
-            return pids.len() as u64;
-        }
-        for p in pids {
-            kill(p, libc::SIGKILL);
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    kill_until_gone(|| tree_of_tagged(tag), limit)
 }
 
 /// SIGKILL to each process of the unit until none is left or the limit
 /// ends; the shim lives, so each orphan comes back to it. Give the count
 /// left.
 pub fn kill_unit(shim: u32, tag: Option<&str>, limit: Duration) -> u64 {
-    let end = Instant::now() + limit;
-    loop {
-        let pids = unit_pids(shim, tag);
-        if pids.is_empty() || Instant::now() >= end {
-            return pids.len() as u64;
-        }
-        for p in pids {
-            kill(p, libc::SIGKILL);
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    }
+    kill_until_gone(|| unit_pids(shim, tag), limit)
 }
 
 /// The end of the descriptors that the shim closes with no close_range:
@@ -243,6 +223,7 @@ fn fallback_bound(soft: libc::rlim_t) -> i32 {
 mod tests {
     use super::*;
     use crate::conformance::alive;
+    use std::time::Instant;
 
     /// #281: the fallback reaches the limit of the process, not 4096.
     #[test]

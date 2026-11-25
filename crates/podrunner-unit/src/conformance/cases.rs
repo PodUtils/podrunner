@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use podrunner_schema::{ContainerRoute, TreeKill, UnitId};
 
-use super::{Behaviour, CANARY, Fixture, MARKER, Outcome, alive, canary_credential, holds_text};
+use super::{Behaviour, CANARY, Fixture, MARKER, Outcome, alive, canary_credential, describe, holds_text};
 use crate::{ContainerSpec, ExecSpec, Exit, Observation, Signal, StartSpec, UnitCode, UnitError, parse_pinned};
 
 type Run = fn(&dyn Fixture) -> Result<Outcome, String>;
@@ -159,7 +159,8 @@ fn destroy_reaches_a_setsid_grandchild(fx: &dyn Fixture) -> Result<Outcome, Stri
     let residue = fx.driver().destroy(&u.id).map_err(|e| err("destroy", e))?;
     let left: Vec<u32> = pids.iter().copied().filter(|p| alive(*p)).collect();
     if !left.is_empty() {
-        return Err(format!("processes {left:?} live after destroy"));
+        let why: Vec<String> = left.iter().map(|p| format!("{p}: {}", describe(*p))).collect();
+        return Err(format!("processes {left:?} live after destroy: {}", why.join(" | ")));
     }
     if !residue.processes.is_zero() {
         return Err(format!("destroy counts {:?} processes, not 0", residue.processes));
@@ -254,7 +255,7 @@ fn destroy_ends_each_process(fx: &dyn Fixture) -> Result<Outcome, String> {
     }
     fx.driver().destroy(&u.id).map_err(|e| err("destroy", e))?;
     match pids.iter().find(|p| alive(**p)) {
-        Some(p) => Err(format!("process {p} lives after destroy")),
+        Some(p) => Err(format!("process {p} lives after destroy: {}", describe(*p))),
         None => Ok(Outcome::Pass),
     }
 }

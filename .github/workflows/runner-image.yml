@@ -482,41 +482,74 @@ jobs:
           sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends qemu-system-arm qemu-efi-aarch64
           sh scripts/measure-foreign.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/foreign" | tee -a "$GITHUB_STEP_SUMMARY"
       # T-037: the unit tests of the acceptance of the microvm kind on real
-      # guests (KVM from the step before). A check.
+      # guests (KVM from the step before). A check. Each suite is a step of
+      # its own: a failure does not hide the result of the next suite.
       - name: The microvm kind passes its unit tests
         if: matrix.arch == 'x86_64'
         run: |
           set -eu
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 3600 \
             cargo test -p podrunner-microvm --test conformance -- --ignored --nocapture the_microvm_unit_passes_its_tests --exact
-          # T-487: the same tests through warm guests, with 28 to 32.
+      # T-487: the same tests through warm guests, with 28 to 32.
+      - name: The microvm kind passes its unit tests through warm guests
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 3600 \
             cargo test -p podrunner-microvm --test conformance -- --ignored --nocapture the_microvm_unit_passes_its_tests_through_warm_units
-          # T-036: a guest with no NIC passes the guest self-test.
+      # T-036: a guest with no NIC passes the guest self-test.
+      - name: A guest with no NIC passes the guest self-test
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 600 \
             cargo test -p podrunner-microvm --test selftest -- --ignored --nocapture
-          # T-488: a limit of processes in a guest.
+      # T-488: a limit of processes in a guest.
+      - name: A limit of processes in a guest
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 900 \
             cargo test -p podrunner-microvm --test pids -- --ignored --nocapture
-          # T-037 step 3: the official runner in a guest takes a canned job
-          # of the fake broker through the one channel of the guest.
+      # T-037 step 3: the official runner in a guest takes a canned job of
+      # the fake broker through the one channel of the guest.
+      - name: The runner in a guest takes a job of the fake broker
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
           timeout 900 cargo test -p podrunner-broker-fake --test microvm -- --ignored --nocapture
-          # T-037: the acceptance of GitHub #37, a fork pull request through
-          # slots into a guest, and a container need refused.
+      # T-037: the acceptance of GitHub #37, a fork pull request through
+      # slots into a guest, and a container need refused.
+      - name: A fork pull request goes through the slots into a guest
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
           timeout 1200 cargo test -p podrunner-broker-fake --test untrusted -- --ignored --nocapture
-          # T-123: podrunner run, each job in a fresh guest with no NIC; the
-          # front of the egress socket gives the fake broker.
+      # T-123: podrunner run, each job in a fresh guest with no NIC; the
+      # front of the egress socket gives the fake broker.
+      - name: The local suite on the microvm kind
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
           timeout 2400 cargo run -q -p podrunner -- run crates/podrunner/tests/local/suite.yml \
             --microvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" --checkout . \
             | tee "$RUNNER_TEMP/local-microvm.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local-microvm.txt")" = 8
-          # T-590: the hosted work folder in a guest.
+      # T-590: the hosted work folder in a guest.
+      - name: The hosted work folder in a guest
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
           timeout 900 cargo run -q -p podrunner -- run crates/podrunner/tests/local/workspace.yml \
             --microvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" \
             | tee "$RUNNER_TEMP/workspace-microvm.txt"
           grep -qx 'ok      workspace' "$RUNNER_TEMP/workspace-microvm.txt"
-          # T-123: a guest reaches no host but the broker; with --allow the
-          # egress module lets the same step reach the host, and it fails.
+      # T-123: a guest reaches no host but the broker; with --allow the
+      # egress module lets the same step reach the host, and it fails.
+      - name: A guest reaches no host but the broker
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -eu
           guest_egress() {
             timeout 900 cargo run -q -p podrunner -- run crates/podrunner/tests/local/egress.yml \
               --microvm "$PODRUNNER_PODVM" --images "$PODRUNNER_PODVM_IMAGES" --image "$PODRUNNER_RUNNER_IMAGE" "$@" || true
@@ -616,9 +649,8 @@ jobs:
       - name: The runner image as a system container of incus
         # It runs after a failed step too: the incus kind does not depend on
         # the microvm kind.
+        id: incus
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
-        env:
-          PLANT: ${{ inputs.plant || 'none' }}
         run: |
           set -eu
           sh scripts/retry.sh sudo apt-get -qq update
@@ -629,29 +661,63 @@ jobs:
           # A measure: its failure does not end the step.
           sg incus-admin -c "sh scripts/measure-incus.sh '$PODRUNNER_PODVM' '$PODRUNNER_PODVM_IMAGES' '$PODRUNNER_RUNNER_IMAGE' '$RUNNER_TEMP/incus'" \
             | tee -a "$GITHUB_STEP_SUMMARY" || echo "incus measure: failed" | tee -a "$GITHUB_STEP_SUMMARY"
-          # T-105 step 2: the unit tests of the incus kind on real instances.
+      # T-105 step 2: the unit tests of the incus kind on real instances.
+      # Each suite is a step of its own: a failure does not hide the result
+      # of the next suite. Each needs the setup of incus above.
+      - name: The incus kind passes its unit tests
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' && steps.incus.outcome == 'success' }}
+        env:
+          PLANT: ${{ inputs.plant || 'none' }}
+        run: |
+          set -eu
           cargo test -p podrunner-incus --test conformance --no-run
           sg incus-admin -c "PODRUNNER_PLANT='$PLANT' PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 1800 cargo test -p podrunner-incus --test conformance -- --ignored --nocapture the_incus_unit_passes_its_tests --exact"
-          # T-487: the same tests through warm instances, with 29, 31 and 32.
+      # T-487: the same tests through warm instances, with 29, 31 and 32.
+      - name: The incus kind passes its unit tests through warm instances
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' && steps.incus.outcome == 'success' }}
+        run: |
+          set -eu
+          cargo test -p podrunner-incus --test conformance --no-run
           sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 1800 cargo test -p podrunner-incus --test conformance -- --ignored --nocapture the_incus_unit_passes_its_tests_through_warm_units"
-          # T-109: no NIC, and the egress socket as the one way out.
+      # T-109: no NIC, and the egress socket as the one way out.
+      - name: An incus instance has no NIC and one way out
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' && steps.incus.outcome == 'success' }}
+        run: |
+          set -eu
           cargo test -p podrunner-incus --test egress --no-run
           sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 600 cargo test -p podrunner-incus --test egress -- --ignored --nocapture"
-          # T-162: the keys of the instance hold past `memory` and `pids`.
+      # T-162: the keys of the instance hold past `memory` and `pids`.
+      - name: The limits of an incus instance
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' && steps.incus.outcome == 'success' }}
+        run: |
+          set -eu
           cargo test -p podrunner-incus --test limits --no-run
           sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' timeout 600 cargo test -p podrunner-incus --test limits -- --ignored --nocapture"
-          # T-485: an engine in an instance (the engine directory of the
-          # step of the guest engine).
+      # T-485: an engine in an instance (the engine directory of the step
+      # of the guest engine).
+      - name: An engine in an incus instance
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' && steps.incus.outcome == 'success' }}
+        run: |
+          set -eu
           if [ -x "$RUNNER_TEMP/engine-dir/dockerd" ]; then
             cargo test -p podrunner-incus --test engine --no-run
             sg incus-admin -c "PODRUNNER_PODVM_IMAGE='$PODRUNNER_RUNNER_IMAGE' PODRUNNER_ENGINE_DIR='$RUNNER_TEMP/engine-dir' timeout 900 cargo test -p podrunner-incus --test engine -- --ignored --nocapture"
           fi
-          # T-123: podrunner run, each job in a fresh incus instance.
+      # T-123: podrunner run, each job in a fresh incus instance.
+      - name: The local suite on the incus kind
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' && steps.incus.outcome == 'success' }}
+        run: |
+          set -eu
           cargo build -q -p podrunner
           sg incus-admin -c "timeout 2400 target/x86_64-unknown-linux-musl/debug/podrunner run crates/podrunner/tests/local/suite.yml --incus '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_IMAGE' --checkout ." \
             | tee "$RUNNER_TEMP/local-incus.txt"
           test "$(grep -c '^ok ' "$RUNNER_TEMP/local-incus.txt")" = 8
-          # T-590: the hosted work folder in an instance.
+      # T-590: the hosted work folder in an instance.
+      - name: The hosted work folder in an incus instance
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' && steps.incus.outcome == 'success' }}
+        run: |
+          set -eu
+          cargo build -q -p podrunner
           sg incus-admin -c "timeout 900 target/x86_64-unknown-linux-musl/debug/podrunner run crates/podrunner/tests/local/workspace.yml --incus '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_IMAGE'" \
             | tee "$RUNNER_TEMP/workspace-incus.txt"
           grep -qx 'ok      workspace' "$RUNNER_TEMP/workspace-incus.txt"

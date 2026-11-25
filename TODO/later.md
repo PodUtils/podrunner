@@ -16778,3 +16778,72 @@ python3 -I scripts/user-gate.py --self-test
 ```
 
 Then `user-gate.yml` on the lane `serve-incus-kvm`: each job of `serve:warm:incus` and `serve:warm:microvm` has a line `running`.
+
+# T-661: The destroy of a unit counts a killed process that still ends as gone
+
+**Source:** `runner-image.yml` run 45564676018 (2026-11-25), the live conformance test 10 `destroy-ends-each-process` of the `microvm` kind through warm units
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The run gave `unit 10 destroy-ends-each-process: FAIL: process 56792 lives after destroy`. `kill_tagged` of `crates/podrunner-unit/src/procs.rs` sends SIGKILL to each process of `tagged(tag)` (a scan of `/proc/*/environ` for `PODRUNNER_UNIT_TAG`) and stops when `tagged` is empty. A killed process frees its memory map first (QEMU frees the RAM of its guest), and then its `environ` reads empty: `tagged` drops it while its state is still R, S or D, not Z. Destroy then returns, and `alive` of the test finds the process. The residue says 0 processes for a process that runs. `kill_tree_of_tagged` and `kill_unit` of `crates/podrunner-unit/src/shim.rs` have the same loop.
+
+## Premise
+
+Read on 2026-11-25: the log of the run (the failure is in the warm phase only; the other cases passed), `procs.rs`, `shim.rs`, and each caller: `crates/podrunner-microvm/src/lib.rs` (destroy), `crates/podrunner-podvm/src/unit.rs` (destroy, by `kill_tree_of_tagged`), `crates/podrunner-fake/src/unit.rs` (destroy and drop, by `kill_unit` and `kill_tagged`), `crates/podrunner-fake/src/unit/containers.rs`. The incus kind does not use these functions. The other callers of `tagged` send a signal once (`signal`, the stale runs of `crates/podrunner/src/run_local/stale.rs`), or read the processes (`observe`); none of them takes an empty list as the end of a kill. The state of process 56792 at the failure was not measured: the test printed only its pid.
+
+## Approach
+
+1. `kill_until_gone` of `procs.rs`: the one kill loop. It keeps each pid that it signalled with its start time (field 22 of `/proc/PID/stat`), and stops only when the list is empty and each signalled pid is gone, a zombie, or a new process (another start time). At the limit, a signalled pid that still runs counts as left.
+2. `kill_tagged`, `kill_tree_of_tagged` and `kill_unit` use it. The loop takes its view of the host (`Probe`: the list, the stat, the kill, the end and the pause) so a test gives its own.
+3. The conformance tests 3, 10 and 30 print the stat, the Name, State and PPid of the status, and the wchan of each process that lives after destroy.
+
+## Prove
+
+```sh
+cargo test -p podrunner-unit procs::
+cargo test -p podrunner-unit conformance::procs
+cargo test -p podrunner-fake
+```
+
+Then `runner-image.yml`: the step "The microvm kind passes its unit tests through warm guests" passes.
+
+## Done
+
+2026-11-25: the commit that names T-661. Tests that failed before the change (the loop with the old stop, a plant): `a_signalled_process_that_leaves_the_list_but_runs_counts_at_the_limit`, `the_wait_ends_when_the_signalled_process_ends` and `a_reused_pid_is_not_the_signalled_process` of `crates/podrunner-unit/src/procs_tests.rs`. Level: proven in unit tests with a probe of the test on this host; the live conformance on the `microvm` kind is not run. A process that freed its memory map before the first scan of destroy is not in the list, and destroy does not wait for it; the print of test 10 shows such a case. Found in the same work, and fixed: the plant test `the_fake_unit_passes_each_test_through_warm_units` of `crates/podrunner-fake/src/tests.rs` failed in 4 of 24 parallel runs on the code before ("CredentialInEnv passes test 7 through warm units"): the claim of a warm fake unit returned before its waiter ran the job, and test 7 read the waiter, its `sleep` and its `rm` (three processes, no credential). The claim of `crates/podrunner-fake/src/unit/warm.rs` now waits, at most 10 s, until no tagged process has the argv of the waiter; 32 of 32 parallel runs passed.
+
+# T-662: One failed suite of the microvm and incus steps hides the next suites
+
+**Source:** the review of `runner-image.yml` after run 45564676018 (2026-11-25)
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The step "The microvm kind passes its unit tests" of `.github/workflows/runner-image.yml` ran nine suites under `set -eu`: the conformance (cold and warm), the guest self-test, the limit of processes (T-488), the two tests of the fake broker in a guest, and `suite.yml`, `workspace.yml` and `egress.yml` of `podrunner run`. In run 45564676018 the warm conformance failed (T-661), and the eight suites after it did not run. The step "The runner image as a system container of incus" has the same form: seven suites after the setup of incus.
+
+## Premise
+
+Read on 2026-11-25: the workflow and the log of the run. The later steps of the job run with `if: ${{ !cancelled() }}`.
+
+## Approach
+
+Give each suite a step of its own. The first microvm step keeps its condition; each next one runs with `!cancelled()`. The incus setup step has the id `incus`, and each incus suite runs when that step passed. Each step keeps its environment (`PLANT` for the conformance of incus).
+
+## Prove
+
+```sh
+python3 -c 'import yaml; yaml.safe_load(open(".github/workflows/runner-image.yml"))'
+```
+
+Then a run of `runner-image.yml` shows each suite as a step.
+
+State (2026-11-25, the commit that names T-662): the steps are split; the YAML loads; actionlint is not on this host. Open: a run of `runner-image.yml`.
+

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 655 entries: 85 open, 59 partial, 15 blocked, 496 done.
+`TODO/INDEX.md` holds 657 entries: 85 open, 60 partial, 15 blocked, 497 done.
 
 ## State
 
@@ -61,6 +61,7 @@ then take the next one.
 
 Waits:
 
+- A run of `runner-image.yml` with the split steps (T-662).
 - Podvm: T-613 (COORD-124, #346): a run of `hosted-measure.yml` that gives
   the line of the free space and the need.
 - Podcrates: T-653 (COORD-130, #352): a tag with the fields `ref` and

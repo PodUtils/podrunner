@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use super::cases::{Case, Unit, begin, err, host_pids, refused, root, spec, until};
 use super::design::holding;
-use super::{Behaviour, CANARY, Fixture, MARKER, Outcome, alive, canary_credential, holds_text};
+use super::{Behaviour, CANARY, Fixture, MARKER, Outcome, alive, canary_credential, describe, holds_text};
 use crate::warm::{ClaimSpec, split, wait_ready};
 use crate::{Exit, UnitCode};
 
@@ -119,7 +119,7 @@ fn an_unclaimed_warm_unit_destroys_clean(fx: &dyn Fixture) -> Result<Outcome, St
         return Err(format!("destroy counts {residue:?}, not 0 and 0"));
     }
     if let Some(p) = o.pids.iter().find(|p| alive(**p)) {
-        return Err(format!("process {p} lives after destroy"));
+        return Err(format!("process {p} lives after destroy: {}", describe(*p)));
     }
     match o.unit_root.iter().chain(o.runner_root.iter()).find(|p| p.exists()) {
         Some(p) => Err(format!("{} is there after destroy", p.display())),
