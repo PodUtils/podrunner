@@ -13,7 +13,8 @@ const IMAGE: &str = "runner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 /// A fake `podvm` of the incus tier: the state of each instance is a file
 /// in `PODVM_STORE`. `run -d -i` keeps stdin and argv and runs BODY in the
 /// background, with `B` the prefix of the files of the instance;
-/// `inspect`, `stop`, `rm -f` and `logs` act on that state. `inspect`
+/// `inspect`, `stop`, `rm -f` and `logs` act on that state; `exec` keeps
+/// its stdin (`B.claim`) and argv (`B.exec`). `inspect`
 /// gives the use of `B.use` (CPU, peak, OOM kills; or a fixed one) while
 /// the instance runs, as incusd. After the stop it gives `B.record`, the
 /// record of the init of podvm `0.2.0-beta.39` (T-611), or `-` for each
@@ -27,7 +28,7 @@ for n; do :; done
 case "$verb" in
 run)
   [ -f "$0.refuse" ] && { cat "$0.refuse" >&2; exit 125; }
-  name=$4
+  name=; p=; for a; do [ "$p" = --name ] && name=$a; p=$a; done
   cat > "$S/$name.stdin"
   printf '%s\n' "$@" > "$S/$name.argv"
   echo "Running 0" > "$S/$name.status"
@@ -54,6 +55,12 @@ stop|rm)
   if [ "$verb" = rm ]; then rm -f "$S/$n".*; else echo "Stopped 143" > "$S/$n.tmp"; mv "$S/$n.tmp" "$S/$n.status"; fi ;;
 logs) case "$*" in *--limit-bytes*) echo "$*" > "$S/$n.logs"; head -c "$3" "$S/$n.log" ;; *) cat "$S/$n.log" ;; esac ;;
 probe) cat "$0.probe" 2>/dev/null ;;
+exec)
+  name=$3
+  cat > "$S/$name.claim"
+  printf '%s\n' "$@" > "$S/$name.exec"
+  [ -f "$0.noexec" ] && { echo "the claim failed" >&2; exit 1; }
+  exit 0 ;;
 esac
 "#;
 
@@ -237,7 +244,9 @@ fn the_name_is_one_incus_takes() {
 /// that the `fetch` of Node takes the proxy; a value of the job stays.
 #[test]
 fn the_guest_script_gives_node_the_proxy() {
-    let head = &crate::guest::SCRIPT[..crate::guest::SCRIPT.find("fi\n").unwrap() + 3];
+    let script = crate::guest::SCRIPT;
+    let channel = &script[script.find("# The channel to the egress socket").unwrap()..];
+    let head = &channel[..channel.find("fi\n").unwrap() + 3];
     let run = |pre: &str| {
         let out = std::process::Command::new("sh")
             .args(["-c", &format!("{pre} set -- /x; {head} echo \"$NODE_USE_ENV_PROXY $HTTPS_PROXY\"")])
@@ -321,6 +330,7 @@ fn the_limits_become_the_keys_of_the_instance() {
         limits: &limits,
         engine: None,
         init_image: false,
+        stdin: true,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--memory 2147483648 --cpus 2 --pids-limit 256"), "{a}");
@@ -369,6 +379,7 @@ fn a_pool_with_quotas_gives_each_instance_a_sized_root() {
             limits: l,
             engine: None,
             init_image: false,
+            stdin: true,
         };
         run_args(&i, &[], &Default::default(), &[]).join(" ")
     }
@@ -417,6 +428,7 @@ fn an_engine_directory_gives_each_instance_an_engine() {
         limits: &Limits::default(),
         engine: Some(std::path::Path::new("/opt/engine")),
         init_image: false,
+        stdin: true,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--podvm-engine -v /opt/engine:/podrunner-engine:ro"), "{a}");
@@ -445,6 +457,7 @@ fn the_init_of_the_image_boots_with_its_own_engine() {
         limits: &Limits::default(),
         engine: None,
         init_image: true,
+        stdin: true,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--podvm-init=image --podvm-engine"), "{a}");
@@ -458,3 +471,4 @@ fn the_init_of_the_image_boots_with_its_own_engine() {
 
 mod stderr;
 mod usage;
+mod warm;

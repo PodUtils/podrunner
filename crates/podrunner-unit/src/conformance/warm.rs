@@ -137,13 +137,16 @@ fn a_claim_runs_its_own_argv_and_env(fx: &dyn Fixture) -> Result<Outcome, String
         Ok(x) => x,
         Err(skip) => return Ok(skip),
     };
+    // A guest, or an incus instance (its processes belong to incusd),
+    // shows no process of the unit to read.
+    let on_host = host_pids(fx) != 1 && !u.observe()?.pids.is_empty();
     let d = fx.driver();
     d.claim(&u.id, &claim).map_err(|e| err("claim", e))?;
     match d.wait(&u.id, READY).map_err(|e| err("wait", e))? {
         Some(Exit::Code(7)) => {}
         other => return Err(format!("wait gives {other:?}, not the exit code 7 of the argv of the claim")),
     }
-    if host_pids(fx) == 1 {
+    if !on_host {
         return Ok(Outcome::Pass);
     }
     let (v, mut claim) = match warm_unit(fx, Behaviour::Sleep)? {

@@ -3,8 +3,12 @@
 //! to podrunner, so the tests that count processes of the host (3, 7, 10)
 //! do not apply. The credential files exist only in the instance (the
 //! guest script writes them at mode 0600), so test 6, which reads them on
-//! the host, does not apply either. 27 proves the claim `confined`. Ignored by default: it
-//! needs podvm `v0.2.0-beta.10` or later and an incusd.
+//! the host, does not apply either. 27 proves the claim `confined`.
+//! `the_incus_unit_passes_its_tests_through_warm_units` runs the same
+//! tests through warm instances (T-487), with 29, 31 and 32: 28 reads the
+//! credential files on the host, and 30 counts processes of the host.
+//! Ignored by default: it needs podvm `v0.2.0-beta.39` or later (`exec -i`)
+//! and an incusd.
 //!
 //!   PODRUNNER_PODVM=PATH PODRUNNER_PODVM_IMAGES=STORE \
 //!   PODRUNNER_PODVM_IMAGE=runner@sha256:HEX \
@@ -87,9 +91,22 @@ fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
 }
 
+/// The warm tests of the kind.
+const WARM_TESTS: [u32; 3] = [29, 31, 32];
+
 #[test]
 #[ignore]
 fn the_incus_unit_passes_its_tests() {
+    passes(false);
+}
+
+#[test]
+#[ignore]
+fn the_incus_unit_passes_its_tests_through_warm_units() {
+    passes(true);
+}
+
+fn passes(warm: bool) {
     let state = std::env::temp_dir().join(format!("podrunner-incus-{}", std::process::id()));
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
     let unit = IncusUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES")));
@@ -102,11 +119,13 @@ fn the_incus_unit_passes_its_tests() {
     });
     let fx: Arc<dyn Fixture + Send + Sync> = real.clone();
     let mut failed = Vec::new();
-    for n in TESTS {
+    let tests = TESTS.iter().copied().chain(WARM_TESTS.into_iter().filter(|_| warm));
+    for n in tests {
         let name = conformance::tests().into_iter().find(|(m, _)| *m == n).map(|(_, s)| s).unwrap_or("?");
         println!("incus {n:2} {name}: running");
         real.made.lock().unwrap().clear();
-        let r = conformance::run_bounded(fx.clone(), n, Duration::from_secs(300)).expect("a test");
+        let run = if warm { conformance::run_bounded_warm } else { conformance::run_bounded };
+        let r = run(fx.clone(), n, Duration::from_secs(300)).expect("a test");
         println!("{r}");
         if matches!(r.outcome, Outcome::Fail(_)) {
             failed.push(n);

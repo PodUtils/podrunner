@@ -20,16 +20,20 @@
 //! other user of the host out. The script sets the proxy variables of the
 //! payload from `PODRUNNER_CHANNEL_PORT` (T-109).
 //!
+//! A warm instance (T-487, `warm.rs`) starts with no stdin and waits; its
+//! claim comes on the stdin of one `podvm exec -i`.
+//!
 //! A system container shares the kernel of the host: the kind claims
 //! `confined`, the floor of `trusted`, never `guest`.
 
 mod guest;
+mod start;
 mod stderr;
 mod usage;
+mod warm;
 
 use std::collections::HashMap;
 use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Mutex;
@@ -62,6 +66,8 @@ struct Running {
     exit: Option<Exit>,
     /// The use that the reads of the state saw while the instance ran.
     kept: usage::Kept,
+    /// A warm unit (T-487): claimed or not; `None` for a unit of `start`.
+    claimed: Option<bool>,
 }
 
 /// The incus unit driver.
@@ -258,92 +264,23 @@ impl UnitDriver for IncusUnit {
     }
 
     fn start(&self, spec: &StartSpec) -> Result<(), UnitError> {
-        // The self-check of the guest refuses a mount that it does not know.
-        if !spec.mounts.is_empty() {
-            return Err(UnitError::new(UnitCode::UnitStartFailed, "this kind mounts no host directory (T-138)"));
-        }
-        let mut units = self.units.lock().expect("the units");
-        let dir = self.unit_dir(&spec.unit);
-        if units.contains_key(&spec.unit) || dir.exists() {
-            return Err(UnitError::new(UnitCode::UnitInUse, spec.unit.to_string()));
-        }
-        let reference = self
-            .references
-            .lock()
-            .expect("the references")
-            .get(&spec.image.digest)
-            .cloned()
-            .ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "the image is not prepared"))?;
-        let stream = credential_stream(&spec.credential)?;
-        let work = dir.join("work");
-        guest::make_work(&dir, &work)?;
-        let name = self.name(&spec.unit);
-        let fail = |why: String| {
-            let _ = self.verb(&["rm", "-f"], &name);
-            let _ = fs::remove_dir_all(&dir);
-            UnitError::new(UnitCode::UnitStartFailed, why)
-        };
-        let egress = spec.sockets.as_ref().map(|s| s.join(podrunner_unit::EGRESS_SOCKET));
-        // Each host path of a -v or a channel of podvm (#275).
-        if let Some(e) = [Some(work.as_path()), egress.as_deref()]
-            .into_iter()
-            .flatten()
-            .find_map(|p| podrunner_unit::mounts::host_path(p, UnitCode::UnitStartFailed).err())
-        {
-            let _ = fs::remove_dir_all(&dir);
-            return Err(e);
-        }
-        // podvm mounts the socket file into the instance, whose root is a
-        // mapped id: the file must take its connect. The socket directory
-        // of the unit (mode 0700) keeps each other user of the host out.
-        if let Some(e) = egress.as_deref().filter(|e| e.exists()) {
-            use std::os::unix::fs::PermissionsExt;
-            if let Err(why) = fs::set_permissions(e, fs::Permissions::from_mode(0o666)) {
-                let _ = fs::remove_dir_all(&dir);
-                return Err(host("the egress socket", why));
-            }
-        }
-        // podvm reads the file before `run -d` returns; it goes with the
-        // directory of the unit.
-        let (env_file, env) = match podrunner_podvm::write_env_file(&self.podvm, &dir, &spec.env) {
-            Ok(x) => x,
-            Err(e) => {
-                let _ = fs::remove_dir_all(&dir);
-                return Err(e);
-            }
-        };
-        let args = run_args(
-            &guest::Instance {
-                name: &name,
-                reference: &reference,
-                work: &work,
-                egress: egress.as_deref(),
-                runner_root: &self.cred_root,
-                engine: self.engine.as_deref(),
-                init_image: self.init_image,
-                limits: &{
-                    let mut l = self.limits.lesser(&spec.limits);
-                    l.disk_bytes = l.disk_bytes.filter(|_| self.root_quota);
-                    l
-                },
-            },
-            &env_file,
-            &env,
-            &spec.argv,
-        );
-        let mut child =
-            match self.podvm().args(&args).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn() {
-                Ok(c) => c,
-                Err(e) => return Err(fail(format!("podvm run: {}", e.kind()))),
-            };
-        // `run -d` reads all of stdin before it makes the instance.
-        let wrote = child.stdin.take().map(|mut i| i.write_all(&stream));
-        let out = child.wait_with_output().map_err(|e| fail(format!("podvm run: {}", e.kind())))?;
-        if !out.status.success() || !matches!(wrote, Some(Ok(()))) {
-            return Err(fail(format!("podvm run -d: {}", tail(&out.stderr))));
-        }
-        units.insert(spec.unit.clone(), Running { dir, name, killed: false, exit: None, kept: Default::default() });
-        Ok(())
+        self.launch(spec, None)
+    }
+
+    fn warm(&self, spec: &podrunner_unit::warm::WarmSpec) -> Result<(), UnitError> {
+        self.warm_unit(spec)
+    }
+
+    fn warm_ready(&self, unit: &UnitId) -> Result<bool, UnitError> {
+        self.warm_ready_of(unit)
+    }
+
+    fn claim(&self, unit: &UnitId, spec: &podrunner_unit::warm::ClaimSpec) -> Result<(), UnitError> {
+        self.claim_unit(unit, spec)
+    }
+
+    fn applied_limits(&self, job: &podrunner_unit::limits::Limits) -> podrunner_unit::limits::Limits {
+        self.applied(job)
     }
 
     fn signal(&self, unit: &UnitId, signal: Signal) -> Result<(), UnitError> {

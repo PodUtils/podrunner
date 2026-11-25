@@ -23,6 +23,20 @@ pub const WORK_MOUNT: &str = "/podrunner-work";
 /// instance once the script has it open.
 pub const SCRIPT: &str = r#"set -eu
 root=$1; shift
+# A warm instance (T-487) waits for its claim: `podvm exec` writes the
+# credential files, then the environment and the argv of the job into a
+# 0700 directory of the instance, then `go`. The script reads them before
+# the channel and the engine, so dockerd gets the variables of the job.
+if [ "${PODRUNNER_WARM:-}" = 1 ]; then
+  : > /podrunner-work/.podrunner-warm
+  while [ ! -e /podrunner-claim/go ]; do sleep 0.1; done
+  rm -f /podrunner-work/.podrunner-warm
+  unset PODRUNNER_WARM
+  . /podrunner-claim/env.sh
+  # The directory stays: a second claim cannot make it again.
+  rm -f /podrunner-claim/env.sh
+  exec </dev/null
+fi
 # The channel to the egress socket: the proxy of the payload.
 if [ -n "${PODRUNNER_CHANNEL_PORT:-}" ]; then
   u=http://127.0.0.1:$PODRUNNER_CHANNEL_PORT
@@ -89,6 +103,9 @@ pub struct Instance<'a> {
     /// The init of the image is PID 1 (systemd of the hosted snapshot),
     /// with its own services and engine (T-543).
     pub init_image: bool,
+    /// The credential files come on stdin (`-i`); a warm instance gets
+    /// them by its claim (T-487).
+    pub stdin: bool,
 }
 
 /// Where the instance sees the engine directory, read-only.
@@ -99,9 +116,12 @@ pub const ENGINE_MOUNT: &str = "/podrunner-engine";
 /// one channel to it (T-109). The argv of the payload goes to the script
 /// as positional parameters: no word of it is quoted again.
 pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String>, argv: &[String]) -> Vec<String> {
-    let Instance { name, reference, work, egress, runner_root, limits, engine, init_image } = *i;
-    let mut a: Vec<String> =
-        ["run", "-d", "-i", "--name", name, "--podvm-tier=incus", "--podvm-net", "none"].map(String::from).to_vec();
+    let Instance { name, reference, work, egress, runner_root, limits, engine, init_image, stdin } = *i;
+    let mut a: Vec<String> = ["run", "-d", "-i", "--name", name, "--podvm-tier=incus", "--podvm-net", "none"]
+        .into_iter()
+        .filter(|w| stdin || *w != "-i")
+        .map(String::from)
+        .collect();
     // The limits of the instance (T-162): incus `limits.memory`,
     // `limits.cpu` and `limits.processes`.
     if let Some(m) = limits.memory_bytes {
