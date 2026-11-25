@@ -353,3 +353,38 @@ environment. The local hook left the environment file alone.
 started run 45594457418. GitHub reported success.
 `docker-init -sg -- sh scripts/agent/check.sh` passed with 929 workspace
 tests and 26 Actions runner tests.
+
+# T-670: Update the TruffleHog image to 3.100.0
+
+**Source:** Dependabot GitHub #357
+**Category:** chore
+**Milestone:** M0
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The credential scan uses TruffleHog 3.99.9. Dependabot proposes 3.100.0.
+
+## Premise
+
+The parent manifest supplies Linux amd64 and arm64. The `secrets` and
+`gate` checks on the proposed pin passed in CI.
+
+## Approach
+
+Set the tag and the parent manifest digest in the Dockerfile.
+
+## Prove
+
+```sh
+docker buildx imagetools inspect docker.io/trufflesecurity/trufflehog:3.100.0
+sh scripts/agent/check.sh
+```
+
+## Done
+
+2026-11-25, this commit. The registry returned the pinned digest and both
+platforms. The `secrets` workflow tested the proposed pin in GitHub-hosted
+CI on `f827c854`.
