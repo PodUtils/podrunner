@@ -26,6 +26,7 @@
 //! no help of the host.
 
 mod guest;
+mod warm;
 
 use std::collections::HashMap;
 use std::fs;
@@ -58,6 +59,8 @@ struct Running {
     tag: String,
     child: Child,
     exit: Option<Exit>,
+    /// A warm unit (T-487): claimed or not; `None` for a unit of `start`.
+    claimed: Option<bool>,
 }
 
 /// The microvm unit driver.
@@ -239,79 +242,23 @@ impl UnitDriver for MicrovmUnit {
     }
 
     fn start(&self, spec: &StartSpec) -> Result<(), UnitError> {
-        // The self-check of the guest refuses a mount that it does not know.
-        if !spec.mounts.is_empty() {
-            return Err(UnitError::new(UnitCode::UnitStartFailed, "this kind mounts no host directory (T-138)"));
-        }
-        let mut units = self.units.lock().expect("the units");
-        let dir = self.unit_dir(&spec.unit);
-        if units.contains_key(&spec.unit) || dir.exists() {
-            return Err(UnitError::new(UnitCode::UnitInUse, spec.unit.to_string()));
-        }
-        let reference = self
-            .references
-            .lock()
-            .expect("the references")
-            .get(&spec.image.digest)
-            .cloned()
-            .ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "the image is not prepared"))?;
-        let (cred, work) = (dir.join("cred"), dir.join("work"));
-        // Each host path of a -v or a channel of podvm (#275).
-        let paths = [Some(dir.as_path()), self.engine.as_deref(), spec.sockets.as_deref()];
-        if let Some(e) = paths
-            .into_iter()
-            .flatten()
-            .find_map(|p| podrunner_unit::mounts::host_path(p, UnitCode::UnitStartFailed).err())
-        {
-            let _ = fs::remove_dir_all(&dir);
-            return Err(e);
-        }
-        if let Err(e) = guest::make_work(&dir, &work).and_then(|()| guest::write_credentials(&cred, &spec.credential)) {
-            let _ = fs::remove_dir_all(&dir);
-            return Err(e);
-        }
-        let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
-        let egress = spec.sockets.as_ref().map(|s| s.join(EGRESS_SOCKET));
-        let applied = self.applied(&spec.limits);
-        let shape = Shape {
-            mem: &self.mem,
-            cpus: applied.cpus.unwrap_or(self.cpus),
-            egress: egress.as_deref(),
-            engine: self.engine.as_deref(),
-            init_image: self.init_image,
-            pids: applied.pids,
-        };
-        // The file stays in the directory of the unit until `destroy`.
-        let (env_file, env) = podrunner_podvm::write_env_file(&self.podvm, &dir, &spec.env)?;
-        let args = run_args(&reference, &dir, &shape, &self.cred_root, &env_file, &env, &spec.argv);
-        // The output of the guest: `unit_logs` reads it before `destroy`.
-        let log = fs::File::create(dir.join("guest.log")).map_err(|e| host("the log of the guest", e))?;
-        let log2 = log.try_clone().map_err(|e| host("the log of the guest", e))?;
-        let mut cmd = Command::new(&self.podvm.binary);
-        // No file that podvm or QEMU makes for the unit (the socket of the
-        // channel too) is open to another user of the host.
-        // SAFETY: umask is async-signal-safe and changes only the child.
-        unsafe {
-            use std::os::unix::process::CommandExt;
-            cmd.pre_exec(|| {
-                libc::umask(0o077);
-                Ok(())
-            });
-        }
-        let child = cmd
-            .args(&args)
-            .env("PODVM_STORE", &self.images)
-            .env(TAG_VAR, &tag)
-            .stdin(Stdio::null())
-            .stdout(log)
-            .stderr(log2)
-            .spawn()
-            .map_err(|e| {
-                let _ = fs::remove_dir_all(&dir);
-                host("podvm run", e)
-            })?;
-        units.insert(spec.unit.clone(), Running { dir, tag, child, exit: None });
-        Ok(())
+        self.launch(spec, None)
+    }
+
+    fn warm(&self, spec: &podrunner_unit::warm::WarmSpec) -> Result<(), UnitError> {
+        self.warm_unit(spec)
+    }
+
+    fn warm_ready(&self, unit: &UnitId) -> Result<bool, UnitError> {
+        self.warm_ready_of(unit)
+    }
+
+    fn claim(&self, unit: &UnitId, spec: &podrunner_unit::warm::ClaimSpec) -> Result<(), UnitError> {
+        self.claim_unit(unit, spec)
+    }
+
+    fn applied_limits(&self, job: &Limits) -> Limits {
+        self.applied(job)
     }
 
     fn signal(&self, unit: &UnitId, signal: Signal) -> Result<(), UnitError> {
@@ -425,8 +372,89 @@ fn no_container() -> UnitError {
     )
 }
 
+impl MicrovmUnit {
+    /// Boot the guest of `spec`; `claimed` is `Some(false)` for a warm unit.
+    fn launch(&self, spec: &StartSpec, claimed: Option<bool>) -> Result<(), UnitError> {
+        // The self-check of the guest refuses a mount that it does not know.
+        if !spec.mounts.is_empty() {
+            return Err(UnitError::new(UnitCode::UnitStartFailed, "this kind mounts no host directory (T-138)"));
+        }
+        let mut units = self.units.lock().expect("the units");
+        let dir = self.unit_dir(&spec.unit);
+        if units.contains_key(&spec.unit) || dir.exists() {
+            return Err(UnitError::new(UnitCode::UnitInUse, spec.unit.to_string()));
+        }
+        let reference = self
+            .references
+            .lock()
+            .expect("the references")
+            .get(&spec.image.digest)
+            .cloned()
+            .ok_or_else(|| UnitError::new(UnitCode::UnitStartFailed, "the image is not prepared"))?;
+        let (cred, work) = (dir.join("cred"), dir.join("work"));
+        // Each host path of a -v or a channel of podvm (#275).
+        let paths = [Some(dir.as_path()), self.engine.as_deref(), spec.sockets.as_deref()];
+        if let Some(e) = paths
+            .into_iter()
+            .flatten()
+            .find_map(|p| podrunner_unit::mounts::host_path(p, UnitCode::UnitStartFailed).err())
+        {
+            let _ = fs::remove_dir_all(&dir);
+            return Err(e);
+        }
+        if let Err(e) = guest::make_work(&dir, &work).and_then(|()| guest::write_credentials(&cred, &spec.credential)) {
+            let _ = fs::remove_dir_all(&dir);
+            return Err(e);
+        }
+        let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
+        let egress = spec.sockets.as_ref().map(|s| s.join(EGRESS_SOCKET));
+        let applied = self.applied(&spec.limits);
+        let shape = Shape {
+            mem: &self.mem,
+            cpus: applied.cpus.unwrap_or(self.cpus),
+            egress: egress.as_deref(),
+            engine: self.engine.as_deref(),
+            init_image: self.init_image,
+            pids: applied.pids,
+        };
+        // The file stays in the directory of the unit until `destroy`.
+        let (env_file, env) = podrunner_podvm::write_env_file(&self.podvm, &dir, &spec.env)?;
+        let args = run_args(&reference, &dir, &shape, &self.cred_root, &env_file, &env, &spec.argv);
+        // The output of the guest: `unit_logs` reads it before `destroy`.
+        let log = fs::File::create(dir.join("guest.log")).map_err(|e| host("the log of the guest", e))?;
+        let log2 = log.try_clone().map_err(|e| host("the log of the guest", e))?;
+        let mut cmd = Command::new(&self.podvm.binary);
+        // No file that podvm or QEMU makes for the unit (the socket of the
+        // channel too) is open to another user of the host.
+        // SAFETY: umask is async-signal-safe and changes only the child.
+        unsafe {
+            use std::os::unix::process::CommandExt;
+            cmd.pre_exec(|| {
+                libc::umask(0o077);
+                Ok(())
+            });
+        }
+        let child = cmd
+            .args(&args)
+            .env("PODVM_STORE", &self.images)
+            .env(TAG_VAR, &tag)
+            .stdin(Stdio::null())
+            .stdout(log)
+            .stderr(log2)
+            .spawn()
+            .map_err(|e| {
+                let _ = fs::remove_dir_all(&dir);
+                host("podvm run", e)
+            })?;
+        units.insert(spec.unit.clone(), Running { dir, tag, child, exit: None, claimed });
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_warm;
 
 /// The run directories that the podvm process `pid` made in the store
 /// `images` (`machine/run-PID-*`).

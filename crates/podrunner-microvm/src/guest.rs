@@ -44,6 +44,17 @@ if ! awk 'MOUNT_CHECK' /proc/mounts; then
   echo "podrunner: a host mount of the guest is outside the table of the unit" >&2
   exit 96
 fi
+# A warm guest (T-487) waits for its claim: the environment and the argv
+# of the job come in env.sh, before the engine starts, so dockerd gets the
+# variables of the job. The claim directory is no regular file: the copy
+# below skips it.
+if [ "${PODRUNNER_WARM:-}" = 1 ]; then
+  : > /podrunner-work/.podrunner-warm
+  while [ ! -e /mnt/podrunner-cred/.podrunner-claim/go ]; do sleep 0.1; done
+  rm -f /podrunner-work/.podrunner-warm
+  unset PODRUNNER_WARM
+  . /mnt/podrunner-cred/.podrunner-claim/env.sh
+fi
 # The channel to the egress socket: the proxy of the payload. The script
 # sets the variables in the guest, as podvm rewrites a loopback proxy
 # variable of its own -e to the gateway of a NIC that this guest lacks.

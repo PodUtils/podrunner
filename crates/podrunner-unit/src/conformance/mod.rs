@@ -185,6 +185,18 @@ pub fn run_bounded(fixture: Arc<dyn Fixture + Send + Sync>, number: u32, limit: 
     Some(Report { number, name, outcome })
 }
 
+/// [`run_bounded`] through warm units (T-487).
+pub fn run_bounded_warm(fixture: Arc<dyn Fixture + Send + Sync>, number: u32, limit: Duration) -> Option<Report> {
+    let case = all().find(|c| c.number == number)?;
+    let (name, run) = (case.name, case.run);
+    let outcome = bounded(limit, move || match run(&WarmFixture::new(&*fixture)) {
+        Ok(o) => o,
+        Err(why) => Outcome::Fail(why),
+    })
+    .unwrap_or_else(|| Outcome::Fail(format!("no end in {} s: the test hangs", limit.as_secs())));
+    Some(Report { number, name, outcome })
+}
+
 /// The numbers of the tests that did not pass (a skip is not a pass).
 pub fn not_passed(results: &[Report]) -> Vec<u32> {
     results.iter().filter(|r| r.outcome != Outcome::Pass).map(|r| r.number).collect()

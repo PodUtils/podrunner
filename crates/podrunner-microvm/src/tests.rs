@@ -6,10 +6,10 @@ use podrunner_unit::conformance::{CANARY, canary_credential};
 
 use super::*;
 
-const IMAGE: &str = "runner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+pub(crate) const IMAGE: &str = "runner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 /// A fresh directory of the test.
-fn dir(name: &str) -> PathBuf {
+pub(crate) fn dir(name: &str) -> PathBuf {
     static N: AtomicU32 = AtomicU32::new(0);
     let d = std::env::temp_dir().join(format!(
         "podrunner-microvm-{name}-{}-{}",
@@ -22,7 +22,7 @@ fn dir(name: &str) -> PathBuf {
 }
 
 /// A driver over a fake `podvm` that runs `body` and ignores its argv.
-fn driver(name: &str, body: &str) -> (MicrovmUnit, PathBuf) {
+pub(crate) fn driver(name: &str, body: &str) -> (MicrovmUnit, PathBuf) {
     let d = dir(name);
     let fake = d.join("podvm");
     fs::write(&fake, format!("#!/bin/sh\n{body}\n")).unwrap();
@@ -32,7 +32,7 @@ fn driver(name: &str, body: &str) -> (MicrovmUnit, PathBuf) {
     (u, d)
 }
 
-fn spec(unit: &str) -> StartSpec {
+pub(crate) fn spec(unit: &str) -> StartSpec {
     StartSpec {
         unit: UnitId::parse(unit).unwrap(),
         image: Prepared { digest: format!("sha256:{}", "a".repeat(64)), platform: String::new() },
