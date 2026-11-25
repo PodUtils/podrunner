@@ -265,11 +265,16 @@ fn decide_facts(
 
 /// Whether the cache `grant` of a job of `offer` holds for the real job
 /// `real` of the facts `facts`, when the forge gave the runner a job of
-/// another run (T-493). A `rw` grant never holds: the hook does not send
-/// the ref of the real job (T-653), and a mount is not lowered after the
-/// start. A `ro` grant holds when the event of the hook is the event of
-/// the facts, the hook names no head of a fork, and the facts give the
-/// same scope.
+/// another run (T-493). Each grant needs the event of the hook equal to
+/// the event of the facts, no head of a fork from the hook, and the same
+/// scope from the facts. A `rw` grant also needs `hooked` (the payload of
+/// the unit carries the job-started hook: on a unit with no hook, a step
+/// asks first with the facts that it chooses, T-663), the ref of the hook
+/// equal to the ref of the facts, a ref that writes (in `write_refs`, or
+/// the source said `rw` for that ref), and the repository id of the hook
+/// equal to the one of the facts and of the grant (T-653). A mount is not
+/// lowered after the start, so a `rw` grant that does not hold ends the
+/// job.
 #[allow(clippy::too_many_arguments)]
 pub fn holds(
     cfg: &CacheConfig,
@@ -280,8 +285,9 @@ pub fn holds(
     facts: &TrustInputs,
     tier: Tier,
     mounts: Mounts,
+    hooked: bool,
 ) -> bool {
-    if grant.mode == Mode::Rw || real.head_is_fork.is_some_and(|f| f) {
+    if real.head_is_fork.is_some_and(|f| f) {
         return false;
     }
     let event = serde_json::to_value(facts.event).ok();
@@ -290,11 +296,27 @@ pub fn holds(
     }
     let asked = offer.cache.as_ref();
     let key = asked.map_or(cfg.key.as_str(), |c| c.key.as_str());
-    let mode = asked.map(|c| c.mode).filter(|m| *m != CacheMode::ReadWrite);
+    let mut mode = asked.map(|c| c.mode).filter(|m| *m != CacheMode::ReadWrite);
+    if grant.mode == Mode::Rw {
+        if !hooked || !same_ref_and_repository(offer, real, facts) {
+            return false;
+        }
+        // The `rw` of the source names the ref of its offer only.
+        if asked.is_some_and(|c| c.mode == CacheMode::ReadWrite) && offer.trust_inputs.git_ref == facts.git_ref {
+            mode = Some(CacheMode::ReadWrite);
+        }
+    }
     match decide_facts(cfg, tier, facts, key, mode, mounts) {
-        Ok((_, k)) => scope_of(source, facts, tier, &k).0 == grant.id,
+        Ok((m, k)) => (grant.mode == Mode::Ro || m == Mode::Rw) && scope_of(source, facts, tier, &k).0 == grant.id,
         Err(_) => false,
     }
+}
+
+/// The hook gives a ref and a repository id, the ref is the ref of the
+/// facts, and the id is the one of the facts and of the offer (the grant).
+fn same_ref_and_repository(offer: &JobOffer, real: &podrunner_source::RealJob, facts: &TrustInputs) -> bool {
+    let (Some(r), Some(id)) = (real.git_ref.as_deref(), real.repo_id) else { return false };
+    r == facts.git_ref && facts.repo_id == Some(id) && offer.trust_inputs.repo_id == Some(id)
 }
 
 /// The scope of a cache, as the operator reads it, and its id: the first

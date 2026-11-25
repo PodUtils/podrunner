@@ -16,7 +16,7 @@ use std::time::Duration;
 
 pub use event::Assigned;
 pub use pipe::{Exchange, Stream, Wire, WireSource, serve_line};
-pub use pod_job::source::{Event, HostFacts, KindFacts, Offer, RealJob, SourceCode, SourceError};
+pub use pod_job::source::{Event, HostFacts, KindFacts, Offer, REF_MAX, RealJob, SourceCode, SourceError, ref_fault};
 use podrunner_schema::{Credential, JobId};
 use serde_json::{Map, Value};
 

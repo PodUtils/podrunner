@@ -247,6 +247,8 @@ fn the_job_started_hook_asks_serve_for_a_job_of_another_run() {
             asked[0].contains(r#""run_id":1"#) && asked[0].contains(r#""repository":"example-org/app""#),
             "{asked:?}"
         );
+        // T-653: the ref and the repository id of the job, for its cache.
+        assert!(asked[0].contains(r#""ref":"refs/heads/main""#) && asked[0].contains(r#""repo_id":4242"#), "{asked:?}");
         assert_eq!(broker.logs().contains("tier-mismatch"), !ok, "{}", broker.logs());
     }
     let _ = std::fs::remove_file(&job);
@@ -402,4 +404,62 @@ fn the_job_started_hook_sends_a_head_that_is_not_the_base_as_a_fork() {
     }
     let _ = std::fs::remove_file(&job);
     let _ = std::fs::remove_file(&event);
+}
+
+/// T-653: the hook sends `GITHUB_REF` as `ref` and `GITHUB_REPOSITORY_ID`
+/// as `repo_id`, each only when it is set and in the bounds of the wire (a
+/// ref of at most 256 bytes with no control character, a whole number).
+/// The hook runs alone here, with the node of the runner.
+#[test]
+#[ignore]
+fn the_job_started_hook_sends_the_ref_and_the_repository_id_in_their_bounds() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::path::PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let script = include_str!("../../../images/runner/podrunner-job-started.sh");
+    std::fs::create_dir_all(dir.join("hooks")).unwrap();
+    let hook = dir.join("hooks/podrunner-job-started.sh");
+    std::fs::write(&hook, script).unwrap();
+    let job = dir.join(".podrunner-job");
+    std::fs::write(&job, "example-org/app 2\n").unwrap();
+    let long = format!("refs/heads/{}", "b".repeat(245));
+    let longer = format!("{long}b");
+    for (why, git_ref, id, want_ref, want_id) in [
+        ("both set", Some("refs/heads/main"), Some("4242"), Some("refs/heads/main"), Some(4242)),
+        ("neither set", None, None, None, None),
+        ("both empty", Some(""), Some(""), None, None),
+        ("a ref of 256 bytes", Some(long.as_str()), Some("1"), Some(long.as_str()), Some(1)),
+        ("a ref of 257 bytes", Some(longer.as_str()), Some("1"), None, Some(1)),
+        ("a tab in the ref", Some("refs/heads/a\tb"), Some("1"), None, Some(1)),
+        ("a C1 control in the ref", Some("refs/heads/\u{85}"), Some("1"), None, Some(1)),
+        ("an expression as the ref", Some("${{ github.ref }}"), Some("1"), Some("${{ github.ref }}"), Some(1)),
+        ("an id that is not a number", Some("refs/heads/main"), Some("12a"), Some("refs/heads/main"), None),
+        ("a negative id", Some("refs/heads/main"), Some("-1"), Some("refs/heads/main"), None),
+        ("an id past 2^53", Some("refs/heads/main"), Some("9007199254740993"), Some("refs/heads/main"), None),
+    ] {
+        let (port, seen) = front_stand_in(r#"{"verdict":"keep"}"#);
+        let mut cmd = std::process::Command::new("sh");
+        cmd.arg(&hook)
+            .env_clear()
+            .env("GITHUB_REPOSITORY", "example-org/app")
+            .env("GITHUB_RUN_ID", "1")
+            .env("GITHUB_EVENT_NAME", "push")
+            .env("HTTP_PROXY", format!("http://127.0.0.1:{port}"));
+        if let Some(r) = git_ref {
+            cmd.env("GITHUB_REF", r);
+        }
+        if let Some(i) = id {
+            cmd.env("GITHUB_REPOSITORY_ID", i);
+        }
+        let out = cmd.output().unwrap();
+        assert!(out.status.success(), "{why}: {out:?}");
+        let asked = seen.lock().unwrap().clone();
+        assert_eq!(asked.len(), 1, "{why}: {asked:?}");
+        let body: serde_json::Value = serde_json::from_str(asked[0].split("\n\n").last().unwrap()).unwrap();
+        assert_eq!(body["ref"].as_str(), want_ref, "{why}: {body}");
+        assert_eq!(body["repo_id"].as_u64(), want_id, "{why}: {body}");
+        // The wire of pod-job takes the body.
+        serde_json::from_value::<podrunner_source::RealJob>(body.clone())
+            .unwrap_or_else(|e| panic!("{why}: {e}: {body}"));
+    }
+    let _ = std::fs::remove_file(&job);
 }

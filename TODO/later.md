@@ -16537,7 +16537,7 @@ Read from the code on 2026-11-25. Not measured: the time of a walk of a unit roo
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** blocked
+**Status:** done
 
 ## Problem
 
@@ -16554,13 +16554,17 @@ Read on 2026-11-25: `RealJob` of `pod-job` `v0.83.0` (the file `source/event.rs`
 3. `holds` of `crates/podrunner-slots/src/cache.rs` gives `rw` back to a job of another run only when the ref of the hook is the ref of the facts, the ref is in `write_refs` or the source said `rw` for that ref, and the repository id of the hook is the one of the facts and of the grant.
 4. Tests: a push of another run to the default branch keeps `rw`; a push of another run to another branch, a ref of the hook that differs from the facts, and a repository id that differs each end with `cache-mismatch`.
 
+## Decision
+
+`docs/decisions.md`, the call of 2026-11-25 on T-653: the rule of step 3 holds only on a unit whose payload is known to carry the job-started hook of the runner image. On a unit with no hook, a step asks `assigned` first with the ref and the repository id that it chooses (T-663). No pin and no kind says that a payload carries the hook, so `serve` takes no unit as such (`PAYLOAD_HOOK_KNOWN`), and a job of another run with a `rw` cache still ends with `cache-mismatch`. Step 1 of T-663 (the fact of the hook) turns the rule on.
+
 ## Prove
 
 `cargo test -p podrunner-slots cache_assigned` and `cargo test -p podrunner-slots cache::tests`.
 
-## Blocker
+## Done
 
-podcrates: `RealJob` of `pod-job` needs the fields `ref` and `repo_id` (COORD-130, GitHub #352, is the issue of step 1). A tag of podcrates with them unblocks the entry.
+2026-11-25, the commit that names T-653 after `72cd0ab` (the take of podcrates `v0.84.0`, T-664; not pushed; level: unit tests, the fake slots and the official runner 2.338.2 with the hook, not run in CI). Step 1: COORD-130 (#352) is answered by podcrates `v0.84.0` (PodUtils/podcrates@T-1362). Step 2: the hook (`images/runner/podrunner-job-started.sh`) sends `GITHUB_REF` as `ref` (absent when unset, empty, over 256 bytes or with a control character) and `GITHUB_REPOSITORY_ID` as `repo_id` (absent when it is not a whole number of at most 2^53 - 1); `plain` of `crates/podrunner-slots/src/assigned.rs` refuses a ref with a fault of `ref_fault` (`bad-request`). Step 3: `holds` of `crates/podrunner-slots/src/cache.rs` with `hooked` (the Decision). Step 4, tests that failed before the change: `cache::tests::a_job_of_another_run_keeps_rw_only_on_the_ref_and_the_repository_of_its_facts` (a push of another run to the default branch keeps `rw`; a push to another branch, a ref of the hook that differs from the facts or has another case, no ref, a repository id that differs or is absent, facts of another id, a head of a fork, another event, an event that does not write, and a `rw` of the source for another ref each do not; with no fact of the hook none does), `tests::cache_assigned::a_ref_of_the_hook_past_its_bound_is_a_bad_request` (257 bytes, a new line, a DEL and a C1 control; 256 bytes pass), and with the runner, `the_job_started_hook_asks_serve_for_a_job_of_another_run` (the question has `ref` and `repo_id` of the job of the fake broker) and `the_job_started_hook_sends_the_ref_and_the_repository_id_in_their_bounds` (11 cases of the bounds; each body passes the wire of `pod-job`). `tests::cache_assigned::a_job_of_another_run_never_keeps_rw_with_no_fact_of_the_hook` fails with `PAYLOAD_HOOK_KNOWN` set to true (the planted defect).
 
 # T-654: A job that ended with `cache-mismatch` runs again
 
@@ -16870,7 +16874,7 @@ Read on 2026-11-25: `ACTIONS_RUNNER_HOOK_JOB_STARTED` is set only by `images/run
 
 ## Approach
 
-1. podrunner knows whether the payload of a unit has the job-started hook: a fact of the pin of the payload (the runner image and the hosted snapshot have it), or a fact of the kind.
+1. podrunner knows whether the payload of a unit has the job-started hook: a fact of the pin of the payload (the runner image and the hosted snapshot have it), or a fact of the kind. The same fact turns on the `rw` of a job of another run (T-653: `PAYLOAD_HOOK_KNOWN` of `crates/podrunner-slots/src/cache/slots.rs` becomes the fact of the unit).
 2. For a unit whose payload has no hook, the front answers each question with `end` and the code `no-hook`, and the slots take no mark; the `started` check of the source stays the only proof (T-175).
 3. Tests: a unit with no hook asks `assigned` for another run that the source keeps, then a `started` of the placed job that names another runner ends the unit.
 

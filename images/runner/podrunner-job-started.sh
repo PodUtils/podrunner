@@ -46,9 +46,17 @@ try {
   else if (h && b && typeof h.full_name === "string" && typeof b.full_name === "string" && h.full_name && b.full_name)
     head_is_fork = h.full_name.toLowerCase() !== b.full_name.toLowerCase();
 } catch (_) {}
+// The ref and the repository id of the job, for its cache (T-653): absent
+// when unset or out of the bounds of the wire (256 bytes, no control
+// character; a whole number).
+const r = e.GITHUB_REF;
+const git_ref = r && Buffer.byteLength(r) <= 256 && !/[\u0000-\u001f\u007f-\u009f]/.test(r) ? r : undefined;
+const id = /^[0-9]{1,16}$/.test(e.GITHUB_REPOSITORY_ID || "") ? Number(e.GITHUB_REPOSITORY_ID) : NaN;
+const repo_id = Number.isSafeInteger(id) ? id : undefined;
 const body = JSON.stringify({
   run_id: Number(e.GITHUB_RUN_ID), job_name: e.GITHUB_JOB || "", event: e.GITHUB_EVENT_NAME || "",
-  repository: e.GITHUB_REPOSITORY || "", head_repository, head_is_fork, actor: e.GITHUB_ACTOR || ""
+  repository: e.GITHUB_REPOSITORY || "", head_repository, head_is_fork, actor: e.GITHUB_ACTOR || "",
+  ref: git_ref, repo_id
 });
 const end = (code) => { if (mark) process.exit(0); console.log(code); process.exit(3); };
 // The proxy of the unit, else the egress socket of PODRUNNER_EGRESS.

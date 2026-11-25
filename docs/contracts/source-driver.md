@@ -95,9 +95,11 @@ they differ, `serve` sends `assigned` with the facts of the real job
 (T-493). A source answers `keep` with the trust facts of the real job, as
 it reads them from the forge; podrunner computes the tier of those facts
 and runs the job only when it is the tier of the unit (a job of a fork
-never runs in a trusted unit). A job with a `rw` cache (`[cache]`)
-ends with the code `cache-mismatch`: the hook does not send the ref of
-the real job (T-653). A job with a `ro` cache keeps it only when the
+never runs in a trusted unit). The hook sends the `ref` and the
+`repo_id` of the real job when the runner has them. A job with a `rw`
+cache (`[cache]`) ends with the code `cache-mismatch`: the rule that
+keeps `rw` holds only on a unit whose payload is known to carry the hook
+(T-653, T-663). A job with a `ro` cache keeps it only when the
 event of the hook is the event of those facts, the hook names no head of
 a fork, and the facts give the same scope; else the code is
 `cache-mismatch`. The facts of `keep` give the `ref`,

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 659 entries: 86 open, 59 partial, 15 blocked, 499 done.
+`TODO/INDEX.md` holds 659 entries: 86 open, 59 partial, 14 blocked, 500 done.
 
 ## State
 
@@ -43,8 +43,8 @@ then take the next one.
    release, 6 partial, 6 open. The comments of podrunner on #292 and
    #151 name `v0.1.0-beta.8`.
 2. The open asks of githome and cfb: T-480 (cache directory by trust;
-   partial, the second and third reviews are fixed; its follow-ups are
-   T-653, blocked on COORD-130 (#352), and T-654), T-487 (warm units),
+   partial, the second and third reviews are fixed; the `rw` of a job of
+   another run waits for the fact of the hook of T-663; T-654), T-487 (warm units),
    T-500 (runner image for cfb; partial). Then T-517,
    T-521 and the partial entries T-497, T-499, T-509, T-511, T-515 and
    T-520.
@@ -67,8 +67,6 @@ Waits:
 - A run of `runner-image.yml` with the split steps (T-662).
 - Podvm: T-613 (COORD-124, #346): a run of `hosted-measure.yml` that gives
   the line of the free space and the need.
-- Podcrates: T-653 (COORD-130, #352): a tag with the fields `ref` and
-  `repo_id` of `RealJob`.
 - The live gates (GitHub #74, #75): T-032, T-033, T-040.
 - Other projects: T-543 and T-544 (COORD-103, #313; COORD-106, #316),
   T-558 to T-560 (COORD-106, COORD-107, #317), T-496 (COORD-089, #296 ask

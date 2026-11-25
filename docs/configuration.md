@@ -352,8 +352,11 @@ of the broker) keeps its value.
 The forge can give the runner of a job a queued job of another run
 (T-493). podrunner made the cache of the unit for the offer. A job of
 another run with a `rw` cache ends before its first step with the code
-`cache-mismatch`: the job-started hook does not send the ref of the real
-job, and a mount is not lowered after the start (T-653). A job of another
+`cache-mismatch`, as a mount is not lowered after the start. The rule
+that keeps `rw` (the ref and the repository id of the hook are the ones
+of the facts, and the ref writes) holds only on a unit whose payload is
+known to carry the job-started hook, and no unit is known as such yet
+(T-653, T-663). A job of another
 run with a `ro` cache keeps it only when the event of the hook is the
 event of the trust facts that its source gives (`keep`), the hook names
 no head of a fork, and the facts give the same scope; else it ends with

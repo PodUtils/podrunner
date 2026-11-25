@@ -49,11 +49,14 @@ fn clean_code(code: &str) -> String {
     if ok { code.into() } else { "source-refused".into() }
 }
 
+/// Each text of the real job is bounded and has no control character; the
+/// ref has the bound of the wire (`REF_MAX`, T-653).
 fn plain(real: &RealJob) -> bool {
     let texts = [&real.job_name, &real.event, &real.repository, &real.actor];
     let head = real.head_repository.iter();
     texts.into_iter().chain(head).all(|s| s.len() <= FACT_MAX && !s.chars().any(char::is_control))
         && real.repository.split('/').count() == 2
+        && real.git_ref.as_deref().is_none_or(|r| podrunner_source::ref_fault(r).is_none())
 }
 
 impl Slots {

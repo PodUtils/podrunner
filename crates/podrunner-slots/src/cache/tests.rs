@@ -405,7 +405,7 @@ fn a_job_of_another_run_keeps_only_a_ro_cache_of_its_event_with_no_fork() {
         written: None,
     };
     let holds = |g: &store::Grant, r: &podrunner_source::RealJob, f: &podrunner_schema::offer::TrustInputs, m| {
-        super::holds(&c, g, "s", &pr, r, f, Tier::Trusted, m)
+        super::holds(&c, g, "s", &pr, r, f, Tier::Trusted, m, true)
     };
     let ro = grant(Mode::Ro, &pr.trust_inputs);
     let f = facts("pull_request");
@@ -414,10 +414,87 @@ fn a_job_of_another_run_keeps_only_a_ro_cache_of_its_event_with_no_fork() {
     assert!(!holds(&ro, &real("pull_request", Some(true)), &f, BOTH), "a head of a fork");
     assert!(!holds(&ro, &real("pull_request_target", Some(false)), &f, BOTH), "another event than the facts");
     assert!(!holds(&ro, &real("pull_request", Some(false)), &f, Mounts { host: true, ro: false }));
-    // A `rw` grant never holds: the source can give the ref of the offer.
+    // A `rw` grant needs the ref and the repository id of the hook.
     let push = offer(json!({}));
     let mut pf = push.trust_inputs.clone();
     pf.run_id = 4;
     let rw = grant(Mode::Rw, &push.trust_inputs);
-    assert!(!super::holds(&c, &rw, "s", &push, &real("push", Some(false)), &pf, Tier::Trusted, BOTH));
+    assert!(!super::holds(&c, &rw, "s", &push, &real("push", Some(false)), &pf, Tier::Trusted, BOTH, true));
+}
+
+/// T-653: a job of another run gets a `rw` cache back only when the hook
+/// gives the ref of the facts, that ref writes (in `write_refs`, or the
+/// source said `rw` for it), and the repository id of the hook is the one
+/// of the facts and of the grant; and only on a unit whose payload is
+/// known to carry the hook (`hooked`, T-663).
+#[test]
+fn a_job_of_another_run_keeps_rw_only_on_the_ref_and_the_repository_of_its_facts() {
+    let c = cfg("").unwrap();
+    let main = "refs/heads/main";
+    let push = offer(json!({ "trust_inputs": { "repo_id": 42 } }));
+    let grant = |o: &JobOffer| store::Grant {
+        id: super::scope_of("s", &o.trust_inputs, Tier::Trusted, "default").0,
+        root: "/r".into(),
+        data: "/r/d".into(),
+        mode: Mode::Rw,
+        since: SystemTime::now(),
+        written: None,
+    };
+    // The facts of `keep`: another run of the same repository.
+    let facts = |git_ref: &str, repo_id: Option<u64>| {
+        let mut t = push.trust_inputs.clone();
+        t.run_id = 4;
+        t.git_ref = git_ref.into();
+        t.repo_id = repo_id;
+        t
+    };
+    let real = |git_ref: Option<&str>, repo_id: Option<u64>| podrunner_source::RealJob {
+        run_id: 4,
+        job_name: "test".into(),
+        event: "push".into(),
+        repository: "example-org/app".into(),
+        head_repository: None,
+        head_is_fork: None,
+        actor: "a".into(),
+        job_id: None,
+        git_ref: git_ref.map(String::from),
+        repo_id,
+    };
+    let holds = |o: &JobOffer, r: &podrunner_source::RealJob, f: &podrunner_schema::offer::TrustInputs, hooked| {
+        super::holds(&c, &grant(o), "s", o, r, f, Tier::Trusted, BOTH, hooked)
+    };
+    let f = facts(main, Some(42));
+    assert!(holds(&push, &real(Some(main), Some(42)), &f, true), "a push of another run to the default branch");
+    assert!(!holds(&push, &real(Some(main), Some(42)), &f, false), "no fact of the hook of the payload");
+    let other = "refs/heads/feature";
+    assert!(!holds(&push, &real(Some(other), Some(42)), &facts(other, Some(42)), true), "a push to another branch");
+    assert!(!holds(&push, &real(Some(other), Some(42)), &f, true), "a ref of the hook that is not the facts'");
+    assert!(!holds(&push, &real(Some("refs/heads/Main"), Some(42)), &f, true), "a ref in another case");
+    assert!(!holds(&push, &real(None, Some(42)), &f, true), "no ref of the hook");
+    assert!(!holds(&push, &real(Some(main), Some(43)), &f, true), "a repository id of the hook that differs");
+    assert!(!holds(&push, &real(Some(main), None), &f, true), "no repository id of the hook");
+    assert!(!holds(&push, &real(Some(main), Some(43)), &facts(main, Some(43)), true), "facts of another repository id");
+    assert!(!holds(&push, &real(Some(main), Some(42)), &facts(main, None), true), "facts with no repository id");
+    let mut pr = real(Some(main), Some(42));
+    pr.head_is_fork = Some(true);
+    assert!(!holds(&push, &pr, &f, true), "a head of a fork");
+    let mut pre = real(Some(main), Some(42));
+    pre.event = "pull_request".into();
+    assert!(!holds(&push, &pre, &f, true), "another event than the facts");
+    let mut prf = facts(main, Some(42));
+    prf.event = serde_json::from_value(json!("pull_request")).unwrap();
+    pre.event = "pull_request".into();
+    assert!(!holds(&push, &pre, &prf, true), "an event that does not write");
+    // The source said `rw` for the ref of its offer, not for another ref.
+    let rel = "refs/heads/release";
+    let said =
+        offer(json!({ "trust_inputs": { "repo_id": 42, "ref": rel }, "cache": { "key": "default", "mode": "rw" } }));
+    let fr = |r: &str| {
+        let mut t = said.trust_inputs.clone();
+        t.run_id = 4;
+        t.git_ref = r.into();
+        t
+    };
+    assert!(holds(&said, &real(Some(rel), Some(42)), &fr(rel), true), "rw of the source for this ref");
+    assert!(!holds(&said, &real(Some(other), Some(42)), &fr(other), true), "rw of the source for another ref");
 }

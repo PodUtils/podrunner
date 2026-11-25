@@ -235,6 +235,8 @@ pub fn job_message_with(base: &str, request: u64, job: &Job, token: &str, hold: 
         "contextData": { "github": { "t": 2, "d": [
             s("repository", "example-org/app"), s("workflow", "podrunner"), s("job", &job.name),
             s("run_id", &job.run_id.unwrap_or(request).to_string()), s("event_name", "push"),
+            // The job-started hook sends them for a cache (T-653).
+            s("ref", "refs/heads/main"), s("repository_id", "4242"),
             // A job reaches the API of GitHub as on GitHub; the scripts of
             // podrunner reach this broker by `podrunner_broker` (T-293).
             s("server_url", "https://github.com"), s("api_url", "https://api.github.com"),

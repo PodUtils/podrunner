@@ -80,15 +80,37 @@ fn a_job_of_another_run_keeps_a_ro_cache_of_its_own_scope() {
     assert_eq!(ask(pr, real("example-org/lib", 3, "pull_request")), end("cache-mismatch"));
 }
 
-/// P2-A of the review of T-480: the hook does not send the ref of the
-/// real job, so a source that gives the ref of the offer in `keep` would
-/// keep a push to another branch with `rw` on the scope of the default
-/// branch. A job of another run never keeps `rw`.
+/// P2-A of the review of T-480 and T-653: a job of another run keeps
+/// `rw` only on a unit whose payload is known to carry the job-started
+/// hook (T-663). No pin and no kind says so: also a push of another run
+/// to the same ref of the same repository id does not keep `rw`.
 #[test]
-fn a_job_of_another_run_never_keeps_rw() {
-    let (bed, _) = cached(json!({}));
+fn a_job_of_another_run_never_keeps_rw_with_no_fact_of_the_hook() {
+    let (bed, _) = cached(json!({ "trust_inputs": { "repo_id": 42 } }));
     let key = (0, podrunner_schema::JobId::new("j-1").unwrap());
     let mut facts = bed.slots.jobs().next().unwrap().offer.clone().unwrap().trust_inputs;
     facts.run_id = 4;
-    assert!(!bed.slots.cache_holds(&key, &real("example-org/app", 4, "push"), &facts), "rw for another run");
+    let mut job = real("example-org/app", 4, "push");
+    job.git_ref = Some(facts.git_ref.clone());
+    job.repo_id = Some(42);
+    assert!(!bed.slots.cache_holds(&key, &job, &facts), "rw for another run");
+}
+
+/// T-653: `plain` refuses a ref of the hook over `REF_MAX` bytes or with a
+/// control character, as the wire does.
+#[test]
+fn a_ref_of_the_hook_past_its_bound_is_a_bad_request() {
+    for (why, r) in [
+        ("257 bytes", "r".repeat(podrunner_source::REF_MAX + 1)),
+        ("a new line", "refs/heads/main\nx".into()),
+        ("a DEL", "refs/heads/\u{7f}".into()),
+        ("a C1 control", "refs/heads/\u{85}".into()),
+    ] {
+        let mut job = real("example-org/app", 2, "pull_request");
+        job.git_ref = Some(r);
+        assert_eq!(ask(json!({}), job), end("bad-request"), "{why}");
+    }
+    let mut job = real("example-org/app", 2, "pull_request");
+    job.git_ref = Some("r".repeat(podrunner_source::REF_MAX));
+    assert_ne!(ask(json!({}), job), end("bad-request"), "a ref at its bound");
 }
