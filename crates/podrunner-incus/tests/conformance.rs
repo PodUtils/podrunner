@@ -107,7 +107,10 @@ fn the_incus_unit_passes_its_tests_through_warm_units() {
 }
 
 fn passes(warm: bool) {
-    let state = std::env::temp_dir().join(format!("podrunner-incus-{}", std::process::id()));
+    // A state of its own for each mode: the ids, the dirs and the process
+    // tags of the two tests do not meet when they run in one process.
+    let mode = if warm { "warm" } else { "cold" };
+    let state = std::env::temp_dir().join(format!("podrunner-incus-{}-{mode}", std::process::id()));
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
     let unit = IncusUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES")));
     let real = Arc::new(Real {
