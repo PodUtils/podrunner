@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 669 entries: 84 open, 54 partial, 13 blocked, 518 done.
+`TODO/INDEX.md` holds 669 entries: 84 open, 53 partial, 13 blocked, 519 done.
 
 ## State
 
@@ -21,6 +21,8 @@
 - The `microvm` kind and the `incus` kind (no NIC, one channel) pass on real
   guests and instances. A guest with an engine runs `services:`, a job
   container and Docker actions (T-103, T-124, T-157).
+- The hosted Incus snapshot ran rootless Podman offline as `runner`,
+  including FUSE overlay copy-up, in hosted-boot run 45623615056 (T-674).
 - Incus CPU and peak memory passed the strict limits test (T-483).
   Podvm proved the Btrfs quota in experiment 474. The Podrunner job
   report for a root quota failure remains T-482.
@@ -58,8 +60,7 @@ then take the next one.
 
 1. Run the user-path gate with the release binary and confirm both warm
    rows, including the recorded unit start mode of each job.
-2. Take the rest of the cache work in T-480. In parallel, run the hosted
-   rootless Podman and FUSE probe requested in COORD-203 (T-674).
+2. Take the rest of the cache work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10

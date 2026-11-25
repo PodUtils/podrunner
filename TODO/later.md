@@ -11357,13 +11357,16 @@ workspace and reaches one combined quota.
 
 ## Blocker
 
-Ask 5 of COORD-089 (GitHub #296), PodUtils/podvm@T-1968, waits for
-PodUtils/podvm@T-1994 to provide a writable disk root on the machine tier.
-On the namespace rung it waits for PodUtils/podvm#667 and a hosted runner
-where the user-namespace tmpfs mount succeeds. The namespace quota is
-memory-backed. Experiment 474 proved the Incus root quota (T-482).
-Podvm confirmed these dependencies in COORD-187, PodUtils/podvm#583,
-comment 7163202548 on 2026-11-25.
+Ask 5 of COORD-089 (GitHub #296) waits for PodUtils/podvm@T-1968 to
+enter a capped writable root on the machine tier and expose the bound
+to podrunner. Podvm measured an ext4-backed overlay in QEMU TCG on
+`4eff714b`: 4 MiB passed; a 96 MiB write stopped at 52,969,472 bytes
+with `ENOSPC`. This overlay can precede the immutable disk root of
+PodUtils/podvm@T-1994. Podrunner can place the workspace on that writable
+root when the product path is available. The namespace rung waits for
+PodUtils/podvm#667 and a host that allows the memory-backed tmpfs mount.
+Experiment 474 proved the Incus root quota (T-482). See COORD-187,
+PodUtils/podvm#583, updated at 2026-11-25T13:37 UTC.
 # T-497: G-19: more facts of a job in the run report
 
 **Source:** githome's G-19 on GitHub #292 (2026-11-18); the ruling of the owner of 2026-11-18 (each need of githome and cfb)
@@ -17181,7 +17184,7 @@ Set the available memory explicitly in the shared fake test harness. The pressur
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -17198,3 +17201,15 @@ The opt-in `rootless_podman` of `hosted-boot.yml` verifies the pinned probe and 
 ## Prove
 
 `gh workflow run hosted-boot.yml -f digest=sha256:baa8431a36ba58f3be6d15780a4a2cc0090d90cd1621df3ffe1dee5d841f4909 -f rootless_podman=true`. Require the instance state `Stopped 0` and the transcript's `PASS` line.
+
+## Done
+
+2026-11-25, commit `52f6e789`. GitHub-hosted run 45623615056,
+job 139237931039, ran the pinned experiment as `runner` in the Incus
+snapshot with no NIC. Podvm showed `Stopped 0` and the probe exited 0.
+The transcript ends with
+`PASS: runner used rootless Podman offline and read and wrote through fuse-overlayfs`.
+Artifact `rootless-podman` (15028623059) contains the transcript and exit
+file. Systemd reported degraded after systemd-remount-fs.service failed.
+The local gate passed 935 workspace tests and 26 official-runner tests.
+The default and opt-in workflow scripts passed Bash syntax checks.
