@@ -31,6 +31,8 @@ architecture.
 
 ## Build
 
+For a new Linux development session, follow [Cold start](docs/cold-start.md).
+
 ```sh
 cargo build --release
 sh scripts/check-static.sh target/x86_64-unknown-linux-musl/release/podrunner

@@ -1589,3 +1589,35 @@ A release run of `release.yml` with no version (the dry run) builds and checks e
 
 2026-11-13, this commit. `release.yml` builds, checks, hashes and attests `scaleset-sidecar-TARGET` beside `podrunner-TARGET`, and publishes the notes of `docs/releases/` (one file for each version). `docs/releases/v0.1.0-beta.2.md` holds the notes of the next beta.
 
+
+# T-668: The unit shim waits for an orphan on a host without the proc children file
+
+**Source:** T-063
+**Category:** defect
+**Milestone:** M-A
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The shim in end-with-payload mode can wait for a live orphan after
+its payload ends.
+
+## Premise
+
+On Codex Linux, `/proc/thread-self/children` is absent. The shim takes
+the blocking wait path. The test child ran for 300 seconds before the
+test of the shim passed.
+
+## Approach
+
+Check for a safe fallback to find and stop the child on this host.
+Give the regression test a bound that distinguishes cleanup from
+the fixture's natural exit.
+
+## Prove
+
+Run `cargo test --locked -p podrunner-unit shim::tests` on a host
+without `/proc/thread-self/children`. The orphan cleanup test must
+return within its bound.

@@ -1,30 +1,87 @@
 #!/bin/sh
-# Make a Linux host or a cloud session ready for the static builds: the
-# musl targets of rustup, zig and cargo-zigbuild. Each step is skipped when
-# its tool is there. The versions are the ones of the CI workflows.
-#
-#   sh scripts/cloud-setup.sh [TARGET...]
-#
-# With no TARGET, it adds x86_64-unknown-linux-musl.
+# SPDX-License-Identifier: 0BSD
+# Install the pinned tools on a Linux host. Load cloud-env.sh in each shell.
+#   sh scripts/cloud-setup.sh [--runner] [TARGET...]
 set -eu
-here=$(cd "$(dirname "$0")" && pwd)
-ZIG_VERSION=${ZIG_VERSION:-0.16.0}
-ZIG_SHA256=${ZIG_SHA256:-70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00}
-ZIGBUILD_VERSION=${ZIGBUILD_VERSION:-0.23.4}
-tools=${PODRUNNER_TOOLS:-$HOME/.local/podrunner}
+CDPATH='' cd "$(dirname "$0")/.."
+# shellcheck source=scripts/cloud-env.sh
+. ./scripts/cloud-env.sh
+umask 077
 
+[ "$(uname -s)" = Linux ] || { echo "cloud-setup: Linux only" >&2; exit 2; }
+case $(uname -m) in
+    x86_64)
+        arch=x86_64
+        runner_arch=x64
+        zig_sha=70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+        rustup_sha=b1c8cb14e30889e7e2999e6b69e62d9e9b9ffc0f4df8180564d306d9680e6c55
+        ;;
+    aarch64)
+        arch=aarch64
+        runner_arch=arm64
+        zig_sha=ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17
+        rustup_sha=9f608c142e0e38a78957d0661ba1dfaf0b6fb37184cfaa4b9a0aa57af6184282
+        ;;
+    *) echo "cloud-setup: unsupported host architecture" >&2; exit 2 ;;
+esac
+with_runner=0
+if [ "${1:-}" = --runner ]; then
+    with_runner=1
+    shift
+fi
 [ "$#" -gt 0 ] || set -- x86_64-unknown-linux-musl
-rustup target add "$@"
 
-if ! command -v zig > /dev/null 2>&1; then
-    mkdir -p "$tools"
-    sh "$here/fetch-zig.sh" "$ZIG_VERSION" "$ZIG_SHA256" "$tools/zig.tar.xz"
-    tar -xJf "$tools/zig.tar.xz" -C "$tools"
-    rm -f "$tools/zig.tar.xz"
-    mkdir -p "$HOME/.local/bin"
-    ln -sf "$tools/zig-x86_64-linux-$ZIG_VERSION/zig" "$HOME/.local/bin/zig"
+for tool in cc curl file flock git python3 readelf sha256sum tar timeout xz; do
+    command -v "$tool" > /dev/null || { echo "cloud-setup: install $tool" >&2; exit 1; }
+done
+mkdir -p "$PODRUNNER_TOOLS/bin"
+exec 9>"$PODRUNNER_TOOLS/setup.lock"
+flock -w 600 9
+
+stage=$(mktemp -d "$PODRUNNER_TOOLS/setup.XXXXXXXX")
+trap 'rm -rf -- "$stage"' EXIT
+trap 'exit 1' HUP INT TERM
+download() {
+    curl -qfsSL --proto '=https' --proto-redir '=https' --retry 2 --max-time 180 -o "$2" "$1" </dev/null
+    printf '%s  %s\n' "$3" "$2" | sha256sum -c -
+}
+
+if ! command -v rustup >/dev/null 2>&1; then
+    url=https://static.rust-lang.org/rustup/archive/1.29.3/$arch-unknown-linux-gnu/rustup-init
+    download "$url" "$stage/rustup-init" "$rustup_sha"
+    chmod u+x "$stage/rustup-init"
+    timeout 60 "$stage/rustup-init" -y --no-modify-path --default-toolchain none </dev/null
 fi
-if ! cargo zigbuild --version > /dev/null 2>&1; then
-    cargo install --locked --quiet cargo-zigbuild --version "$ZIGBUILD_VERSION"
+# Rustup reads the channel, components and default targets from rust-toolchain.toml.
+if ! RUSTUP_AUTO_INSTALL=0 rustup which cargo >/dev/null 2>&1; then
+    timeout 600 rustup toolchain install --no-self-update </dev/null
 fi
-echo "cloud-setup: ready ($(zig version 2> /dev/null || echo 'zig not on PATH: add $HOME/.local/bin'))"
+timeout 600 rustup target add "$@" </dev/null
+
+zig_version=${ZIG_VERSION:-0.16.0}
+zig_sha=${ZIG_SHA256:-$zig_sha}
+zigbuild_version=${ZIGBUILD_VERSION:-0.23.4}
+if [ "$(zig version 2>/dev/null || :)" != "$zig_version" ]; then
+    ZIG_ARCH=$arch sh scripts/fetch-zig.sh "$zig_version" "$zig_sha" "$stage/zig.tar.xz"
+    tar -xJf "$stage/zig.tar.xz" -C "$PODRUNNER_TOOLS"
+    ln -sf "$PODRUNNER_TOOLS/zig-$arch-linux-$zig_version/zig" "$PODRUNNER_TOOLS/bin/zig"
+fi
+if [ "$(cargo-zigbuild --version 2>/dev/null || :)" != "cargo-zigbuild $zigbuild_version" ]; then
+    timeout 900 cargo install --locked --quiet cargo-zigbuild --version "$zigbuild_version" </dev/null
+fi
+
+if [ "$with_runner" -eq 1 ] && [ ! -x "$podrunner_runner_cache/bin/Runner.Listener" ]; then
+    version=$podrunner_runner_version
+    sum=$(sed -n "s/^$arch = \"\([0-9a-f]*\)\"$/\1/p" images/runner/runner.toml)
+    url=https://github.com/actions/runner/releases/download/v$version/actions-runner-linux-$runner_arch-$version.tar.gz
+    download "$url" "$stage/runner.tar.gz" "$sum"
+    mkdir "$stage/runner"
+    tar -xzf "$stage/runner.tar.gz" -C "$stage/runner"
+    test -x "$stage/runner/bin/Runner.Listener"
+    mv -T "$stage/runner" "$podrunner_runner_cache"
+fi
+
+printf 'cloud-setup: %s, Zig %s, %s\n' "$(rustc --version)" "$(zig version)" "$(cargo-zigbuild --version)"
+if [ "$with_runner" -eq 1 ]; then
+    printf 'cloud-setup: Actions runner %s in %s\n' "$podrunner_runner_version" "$podrunner_runner_cache"
+fi

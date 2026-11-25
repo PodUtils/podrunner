@@ -260,3 +260,52 @@ and the static check of both targets). The release run 42942338772 of
 provenance attestation. The downloaded x86_64 file matches its SHA-256,
 `sh scripts/check-static.sh` passes it (1361752 bytes), and `--version`
 prints `podrunner 0.1.0 (6df082637281)`.
+
+# T-667: One cold start for hosted sessions
+
+**Source:** PodUtils/podvm@2d36b238, PodUtils/podvm@c5ea23c3 and PodUtils/podnet@46c7181c
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The first commands depend on the session provider. A Linux host without
+Rustup cannot run the tool setup. Outside testers need a binary and
+manual from the same build.
+
+## Premise
+
+Podvm uses one session script for Git setup and the two watchers.
+Podrunner has a pinned Zig downloader and a separate push gate.
+
+## Approach
+
+Use one startup script for both providers. Install and activate the
+pinned Rust tools and runner on a new host. Link the cold start to the
+work order. Pack the candidate, its manual and their checksums.
+Check the digest of each watcher and keep checkouts with unpublished
+commits on their current branch.
+Put the installer fixture's host marker in its scratch directory so
+the fixture gate can run with a read-only home directory.
+
+## Prove
+
+Run `sh scripts/cloud-setup.sh --runner`, `sh scripts/session-start.sh`,
+`sh .claude/session-start.sh`, `cargo todo check` and
+`sh scripts/agent/check.sh`. Run `sh scripts/qa-bundle.sh BINARY OUTPUT_DIR`
+with the candidate. Run `sha256sum -c SHA256SUMS` in the output directory.
+
+## Done
+
+2026-11-25, this commit. Both startup entry points ran on Codex Linux.
+The startup replaced a damaged watcher file by its pin. It kept an
+unpublished commit on its branch and moved a clean detached checkout
+to main. The tool setup ran twice with the pinned Actions runner.
+The QA bundle passed its checksums and matched the binary's manual.
+`docker-init -sg -- sh scripts/agent/check.sh` passed on the cloud host
+with the normal file owners: 929 workspace tests, 26 runner tests,
+20 installer checks, and the static build. The process cleanup delay on
+this kernel is T-668.

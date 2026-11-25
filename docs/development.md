@@ -64,7 +64,7 @@ run: tests compile `docs/cli.md` and `docs/contracts/`.
 * The default target is `x86_64-unknown-linux-musl` (`.cargo/config.toml`):
   `cargo build --release` gives a static binary.
 * aarch64 and each C dependency build with zig: `sh scripts/cloud-setup.sh`,
-  `export PATH="$HOME/.local/bin:$PATH"`, then
+  `. ./scripts/cloud-env.sh`, then
   `cargo zigbuild --release --target aarch64-unknown-linux-musl -p podrunner`.
 * `sh scripts/check-static.sh BINARY` proves a static binary.
 * Set `CARGO_BUILD_JOBS=4`. Run one cargo build at a time.

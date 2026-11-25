@@ -10,6 +10,7 @@ used as a user, on one host class (a lane of user-gate.yml).
       print the commands of the sh blocks of a section of a document
   user-gate.py lane --lane NAME --assets DIR --out DIR [--work DIR]
                     [--executors podvm,runner-dir,microvm] [--no-corpus]
+                    [--confine-marker-dir DIR]
       the checks of one lane, as the user that runs it; OUT/results.tsv
       gets one line for each check (lane, check, result, detail, times)
   user-gate.py --self-test
@@ -230,6 +231,7 @@ class Lane:
         self.assets = pathlib.Path(a.assets).resolve()
         self.work = pathlib.Path(a.work or pathlib.Path.home() / "user-gate").resolve()
         self.out = pathlib.Path(a.out).resolve()
+        self.confine_marker_dir = pathlib.Path(a.confine_marker_dir).resolve() if a.confine_marker_dir else pathlib.Path.home()
         self.executors = [e for e in a.executors.split(",") if e]
         for e in self.executors:
             if e not in EXECUTORS:
@@ -474,9 +476,9 @@ class Lane:
 
     def confine(self, executor: str):
         """A static binary of a job (Go 1.20 makes raw system calls) writes
-        an absolute path of the home of the user: the file must not come on
-        the host (the third QA, finding A1, T-300)."""
-        mark = pathlib.Path.home() / "podrunner-gate-escaped"
+        an absolute path of the host. The file must stay in the unit
+        (the third QA, finding A1, T-300)."""
+        mark = self.confine_marker_dir / "podrunner-gate-escaped"
         mark.unlink(missing_ok=True)
         src = self.work / "confine"
         shutil.rmtree(src, ignore_errors=True)
@@ -1376,6 +1378,7 @@ def main() -> int:
     ln.add_argument("--assets", required=True)
     ln.add_argument("--out", required=True)
     ln.add_argument("--work")
+    ln.add_argument("--confine-marker-dir", help="host directory for the confinement marker (default: user home)")
     ln.add_argument("--executors", default="podvm,runner-dir")
     ln.add_argument("--no-corpus", action="store_true")
     ln.add_argument("--podvm-lab", default="", metavar="PROFILES")

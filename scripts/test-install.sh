@@ -414,7 +414,9 @@ ok "an install from a local HTTP server"
 # docs/install.md online, the bundle offline, --full, and a run of
 # hello.yml with each executor. A lane with no larger image fails.
 python3 -I "$root/scripts/user-gate.py" check > "$t/out" 2>&1 || fail "user-gate.py check"
+mkdir "$t/host"
 python3 -I "$root/scripts/user-gate.py" lane --lane local --assets "$t/rel" --out "$t/lane-out" --work "$t/lane" --no-corpus \
+    --confine-marker-dir "$t/host" \
     > "$t/out" 2>&1 || fail "a lane of the user-path gate"
 python3 -I "$root/scripts/user-gate-summary.py" --lanes local "$t/lane-out" > "$t/out" 2>&1 || fail "the summary of the lane"
 # shellcheck disable=SC2016 # the backticks are Markdown.
@@ -422,6 +424,7 @@ grep -q '^| `install:full` | pass |$' "$t/out" || fail "the summary has no insta
 mkdir -p "$t/rel-bad"
 for f in "$t/rel"/*; do case $f in *runner-full-*) ;; *) ln -s "$f" "$t/rel-bad/" ;; esac; done
 if python3 -I "$root/scripts/user-gate.py" lane --lane bad --assets "$t/rel-bad" --out "$t/lane-bad" --work "$t/lane" --no-corpus \
+    --confine-marker-dir "$t/host" \
     > "$t/out" 2>&1; then fail "a lane with no larger image passed"; fi
 if python3 -I "$root/scripts/user-gate-summary.py" --lanes local,bad "$t" > "$t/out" 2>&1; then fail "the summary of a failed lane passed"; fi
 # shellcheck disable=SC2016

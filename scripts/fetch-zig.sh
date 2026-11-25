@@ -1,5 +1,5 @@
 #!/bin/sh
-# Download zig for x86_64 Linux. ziglang.org asks CI not to hard-code it,
+# Download Zig for Linux. ziglang.org asks CI not to hard-code it,
 # so the file comes from the community mirrors of scripts/zig-mirrors.txt
 # in a random order, then from ziglang.org last. Each download is checked
 # against the pinned SHA-256; a mirror that serves other bytes is passed
@@ -7,7 +7,7 @@
 #
 #   sh scripts/fetch-zig.sh VERSION SHA256 OUT [MIRRORS]
 #
-# ZIG_SOURCE names the project in each request to a mirror (default
+# ZIG_ARCH selects the host architecture (default x86_64). ZIG_SOURCE names the project in each request to a mirror (default
 # podrunner), as the mirrors ask. ZIG_ORIGIN replaces the download directory
 # of ziglang.org (a plant: a name that does not resolve). It needs a POSIX
 # shell, curl or wget, sha256sum, awk, sort and cut.
@@ -23,7 +23,7 @@ if [ -z "$version" ] || [ -z "$sum" ] || [ -z "$out" ] || [ ! -f "$mirrors" ]; t
     echo "usage: fetch-zig.sh VERSION SHA256 OUT [MIRRORS] (got '$*')" >&2
     exit 64
 fi
-file="zig-x86_64-linux-$version.tar.xz"
+file="zig-${ZIG_ARCH:-x86_64}-linux-$version.tar.xz"
 
 # One URL: the file with the pinned bytes, or nothing.
 take() {
