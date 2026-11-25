@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**666 entries: 88 open, 58 partial, 13 blocked, 507 done.**
+**666 entries: 87 open, 58 partial, 13 blocked, 508 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 96 | 122 |
 | P2 | 17 | 23 | 8 | 266 | 314 |
-| P3 | 70 | 11 | 3 | 143 | 227 |
-| **All** | 88 | 58 | 13 | 507 | 666 |
+| P3 | 69 | 11 | 3 | 144 | 227 |
+| **All** | 87 | 58 | 13 | 508 | 666 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -708,7 +708,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-663](later.md) | P2 | M | later | defect | open | A step of a unit with no job-started hook can ask `assigned` for a run that it does not run |
 | [T-664](later.md) | P1 | S | later | chore | done | Take podcrates `v0.84.0` (COORD-155 of podcrates) |
 | [T-665](later.md) | P3 | S | later | defect | open | The warm status counts a reserved unit as ready and hides the warm units of a kind that has target 0 |
-| [T-666](later.md) | P3 | S | later | defect | open | The serve test of stop --wait can see serve not yet ended |
+| [T-666](later.md) | P3 | S | later | defect | done | The serve test of stop --wait can see serve not yet ended |
 | [T-667](bootstrap.md) | P2 | S | M0 | chore | done | One cold start for hosted sessions |
 | [T-668](core.md) | P2 | M | M-A | defect | done | The unit shim waits for an orphan on a host without the proc children file |
 | [T-669](bootstrap.md) | P2 | S | M0 | chore | done | Load the hosted shell and try direct workflow dispatch |

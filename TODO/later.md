@@ -16960,7 +16960,7 @@ cargo test -p podrunner-slots warm_report
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16981,3 +16981,16 @@ Read on 2026-11-25: the test asserts at once after `stop --wait` gives 0. Not me
 ```sh
 cargo test -p podrunner --test serve stop_wait
 ```
+
+## Correction
+
+2026-11-25. `stop --wait` polls the state lock after the stop request.
+The lock defines completion in `docs/cli.md`. The process can still exit
+after it releases the lock.
+
+## Done
+
+2026-11-25, this commit. The test checks that it can acquire the state lock
+at once after `stop --wait`. It waits up to five seconds for a successful
+process exit. The targeted executable test passed, including the timeout
+with exit 75.

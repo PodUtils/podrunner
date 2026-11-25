@@ -159,10 +159,11 @@ fn stop_wait_returns_after_serve_ends_and_times_out_with_75() {
     assert_eq!(short.status.code(), Some(75), "{short:?}");
     let full = bed.cli(&["stop", "--wait"]);
     assert_eq!(full.status.code(), Some(0), "{full:?}");
-    // It returned after serve ended, not at the reply.
-    assert!(serve.try_wait().unwrap().is_some());
+    let lock = std::fs::OpenOptions::new().write(true).open(bed.state().join("serve.lock")).unwrap();
+    lock.try_lock().expect("stop returned before serve released its state lock");
     assert!(t.elapsed() >= Duration::from_secs(1));
-    let _ = serve.wait();
+    let status = wait_exit(&mut serve, Duration::from_secs(5)).expect("serve did not exit after releasing its lock");
+    assert!(status.success(), "{status:?}");
 }
 
 /// Each file under `dir` that holds `text`.
