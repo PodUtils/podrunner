@@ -67,6 +67,8 @@ pub struct Job {
     pub times: crate::report::Times,
     /// Its egress lines at its source (T-486).
     pub egress: crate::egress_lines::EgressCount,
+    /// Its unit was a warm unit (T-487).
+    pub warm: bool,
 }
 
 /// The supervisor of the slots.
@@ -111,6 +113,8 @@ pub struct Slots {
     pub(crate) disk_next_ms: u64,
     /// The thread and the lock of the caches, with a `[cache]` (T-480).
     pub(crate) cache_worker: Option<crate::cache::Worker>,
+    /// The warm units of the host (T-487).
+    pub(crate) warm: crate::warm::Pool,
 }
 
 impl Slots {
@@ -142,6 +146,7 @@ impl Slots {
         self.cache_tick(now);
         self.sample_usage();
         self.progress(now);
+        self.warm_tick(now);
         for s in 0..self.sources.len() {
             self.poll(s, now);
         }
@@ -163,6 +168,8 @@ impl Slots {
         let due: Vec<usize> =
             self.guest.iter().filter(|(i, r)| r.due(now) && views[**i].running == 0).map(|(i, _)| *i).collect();
         for i in due {
+            // The test runs a unit beside the slots: a warm unit makes way.
+            self.warm_make_way(i, now);
             let r = self.guest.get_mut(&i).expect("a retest");
             let verdict = if r.allowed {
                 let scratch = self.state_dir.clone();
@@ -207,7 +214,7 @@ impl Slots {
     }
 
     /// The offers that a source can take now.
-    fn capacity(&self, s: usize) -> u32 {
+    pub(crate) fn capacity(&self, s: usize) -> u32 {
         let src = &self.sources[s];
         if self.draining
             || self.degraded.is_some()
@@ -369,6 +376,7 @@ impl Slots {
             real: None,
             times: Default::default(),
             egress: Default::default(),
+            warm: false,
         };
         self.jobs.insert(key.clone(), job);
         self.set(&key, State::Offered, now);

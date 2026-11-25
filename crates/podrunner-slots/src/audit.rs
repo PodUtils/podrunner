@@ -47,6 +47,13 @@ pub enum Kind {
     /// The cache of a job at its start: `rw`, `ro`, or `none` and a code
     /// (T-480).
     Cache,
+    /// A warm unit of the host (T-487): its start, its ready mark, its
+    /// take, its end with the reason. To `audit.jsonl` only.
+    Warm,
+    /// A job took a warm unit: the unit, its kind, its wait and its boot.
+    WarmTake,
+    /// A job of a kind with warm units got a cold unit, and why.
+    WarmMiss,
 }
 
 /// One audit line.

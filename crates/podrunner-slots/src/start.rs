@@ -65,6 +65,8 @@ impl Slots {
         // nothing.
         if !self.set(key, State::Claimed, now) || self.journal.sync().is_err() {
             self.degraded = Some("the journal cannot be written".into());
+            // No claim went to the source: a warm unit goes back untouched.
+            self.unreserve(key);
             if let Some(j) = self.jobs.get_mut(key) {
                 j.unit = None;
                 j.placement = None;
@@ -77,8 +79,10 @@ impl Slots {
                 self.audit(audit::Kind::Claim, key.0, &key.1, None, None);
                 self.mint(key, now);
             }
-            // Another runner has the job, or the source gave it up.
+            // Another runner has the job, or the source gave it up. The
+            // source had the runner name of a warm unit: it ends (P2-2).
             Err(_) => {
+                self.drop_reserved(key, now);
                 if let Some(j) = self.jobs.get_mut(key) {
                     j.unit = None;
                     j.placement = None;
@@ -160,6 +164,16 @@ impl Slots {
             self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("the socket directory: {}", e.kind())));
             return self.give_up(key, RefusalCode::UnitStartFailed, now);
         }
+        // The age of the payload again at the start (GitHub #30): a claim
+        // can wait long enough for a pin to pass its limit.
+        let now_s = (self.now_unix)();
+        let pinned = |x: &crate::config::Payload| {
+            x.reference == p.payload || podrunner_unit::parse_pinned(&x.reference).is_ok_and(|(_, d)| d == p.payload)
+        };
+        if self.cfg.pin.payload.iter().any(|x| pinned(x) && x.stale(&self.cfg.pin, now_s)) {
+            self.close_sockets(&unit);
+            return self.give_up(key, RefusalCode::ImageStale, now);
+        }
         if self.egress.is_some()
             && self.cfg.egress.default_policy.is_none()
             && self.jobs[key].offer.as_ref().is_some_and(|o| !o.policy.is_empty())
@@ -196,16 +210,6 @@ impl Slots {
             // The way out of the unit: a socket of its job alone. No token.
             env.insert("PODRUNNER_EGRESS".into(), format!("http://unix:{}", seen(EGRESS_SOCKET)));
         }
-        // The age of the payload again at the start (GitHub #30): a claim
-        // can wait long enough for a pin to pass its limit.
-        let now_s = (self.now_unix)();
-        let pinned = |x: &crate::config::Payload| {
-            x.reference == p.payload || podrunner_unit::parse_pinned(&x.reference).is_ok_and(|(_, d)| d == p.payload)
-        };
-        if self.cfg.pin.payload.iter().any(|x| pinned(x) && x.stale(&self.cfg.pin, now_s)) {
-            self.close_sockets(&unit);
-            return self.give_up(key, RefusalCode::ImageStale, now);
-        }
         let ca = unit_ca.as_ref().map(|(pem, vars)| crate::hooks::ContainerCa {
             file: crate::secrets::CA_FILE,
             pem: pem.as_str(),
@@ -228,21 +232,32 @@ impl Slots {
             .unwrap_or_default();
         // The cache of the job, kept apart by trust (T-480).
         let mounts = self.cache_start(key, &mut env);
+        // The take of a warm unit (T-487): after each check that can fail;
+        // from here each failure destroys it with the job (P2-3).
+        let warm = self.take_warm(key, now);
         let kind = &self.kinds[p.kind];
-        let started = kind.driver.prepare(&p.payload, &format!("linux/{arch}"), false).and_then(|image| {
-            kind.driver.start(&StartSpec {
-                unit: unit.clone(),
-                image,
-                argv: crate::sandbox::argv(self.jobs[key].offer.as_ref(), &kind.cfg.command),
-                env,
-                credential,
-                // Each driver gets the directory: the microvm kind bridges
-                // its egress socket into the guest (T-107).
-                sockets: Some(dir.clone()),
-                mounts,
-                limits: job_limits,
+        let argv = crate::sandbox::argv(self.jobs[key].offer.as_ref(), &kind.cfg.command);
+        let started = if warm && !mounts.is_empty() {
+            Err(podrunner_unit::UnitError::new(podrunner_unit::UnitCode::UnitStartFailed, "a warm unit takes no mount"))
+        } else if warm {
+            let spec = podrunner_unit::warm::ClaimSpec { argv, env, credential, limits: job_limits };
+            kind.driver.claim(&unit, &spec)
+        } else {
+            kind.driver.prepare(&p.payload, &format!("linux/{arch}"), false).and_then(|image| {
+                kind.driver.start(&StartSpec {
+                    unit: unit.clone(),
+                    image,
+                    argv,
+                    env,
+                    credential,
+                    // Each driver gets the directory: the microvm kind
+                    // bridges its egress socket into the guest (T-107).
+                    sockets: Some(dir.clone()),
+                    mounts,
+                    limits: job_limits,
+                })
             })
-        });
+        };
         let driver = kind.driver.clone();
         match started {
             Ok(()) => {
@@ -267,6 +282,7 @@ impl Slots {
     /// End a claimed job with no unit: report the refusal, then release
     /// it, so that the source knows the refusal at the release (T-200).
     pub(crate) fn give_up(&mut self, key: &Key, code: RefusalCode, now: u64) {
+        self.drop_reserved(key, now);
         if let Some(j) = self.jobs.get_mut(key) {
             j.refusal = Some(code);
             j.reason = Some(ExitReason::Refused);

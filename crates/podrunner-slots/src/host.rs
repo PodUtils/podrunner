@@ -43,6 +43,13 @@ impl Slots {
                     repos,
                     root_disk: k.cfg.root_quota.then(|| k.cfg.disk_max_bytes.unwrap_or(u64::MAX)),
                     init: k.cfg.init,
+                    warm: self
+                        .warm
+                        .units
+                        .values()
+                        .filter(|w| w.kind == i && w.reserved.is_none())
+                        .map(|w| w.payload.clone())
+                        .collect(),
                 }
             })
             .collect()

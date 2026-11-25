@@ -36,7 +36,8 @@ impl Slots {
                 if p.payload_ignored {
                     self.audit(audit::Kind::PayloadIgnored, s, &key.1, None, None);
                 }
-                let unit = self.ids.next();
+                // A free warm unit that fits, else a cold one (T-487).
+                let unit = self.unit_for(key, &p, &offer, now);
                 let runner = format!("podrunner-{}-{unit}", self.cfg.host);
                 if let Some(j) = self.jobs.get_mut(key) {
                     j.placement = Some(p);

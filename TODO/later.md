@@ -11017,7 +11017,7 @@ The design (reviewed 2026-11-25, with the amendments of its review):
 9. The report and the status: `unit.start` (`cold` or `warm`), `unit.warm_s`, `unit.boot_s`, `KindStatus.warm` and `Status.warm_units` need a tag of podcrates (T-657). Until then, the audit lines `warm-take` and `warm-miss` carry the facts to the source.
 10. CI: the warm conformance on microvm and incus, and a `serve` lane with `warm = 1` that runs two jobs cold and two warm and asserts that the warm `claim_to_first_step_s` is less (the acceptance of G-11 and G-25).
 
-State: the findings of the review are fixed (the module doc of the limits; the CPUs of a microvm guest, T-655; the rounding of `claim_to_first_step_s`; the second open of an egress; the reserved `@` of a source name), and step 1 is in CI. Next: the seam (step 3).
+State: the findings of the review are fixed (the module doc of the limits; the CPUs of a microvm guest, T-655; the rounding of `claim_to_first_step_s`; the second open of an egress; the reserved `@` of a source name), and step 1 is in CI. Done: the seam and the conformance tests 28 to 32 (`run_warm`), the warm units of the fake kind, the keys of `podrunner.toml` (refused in this build), the hold of the egress, and the pool of slots with its take (`serve` stops only with no warm unit left). The stale check of a start now comes before the open of the egress, for a cold unit too. Next: the microvm kind (step 4), then incus, then the CI lane and the lift of the refusal.
 
 ## Prove
 

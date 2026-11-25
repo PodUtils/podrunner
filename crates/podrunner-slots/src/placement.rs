@@ -25,6 +25,10 @@ pub struct Kind {
     /// The PID 1 of a unit (`[unit.KIND] init`): a payload goes only to a
     /// kind with its own `init` (T-549).
     pub init: Option<UnitInit>,
+    /// The payload of each free warm unit of the kind (T-487): among the
+    /// kinds that meet a job, one with a warm unit of its payload comes
+    /// first.
+    pub warm: Vec<String>,
 }
 
 /// A refusal of placement, with a detail for the audit line.
@@ -209,7 +213,9 @@ pub fn place_why(
                 _ => true,
             }
     };
-    let kind = *c.iter().find(|i| free(&kinds[**i])).ok_or(RefusalCode::NoSlotOfKind)?;
+    let first = *c.iter().find(|i| free(&kinds[**i])).ok_or(RefusalCode::NoSlotOfKind)?;
+    let warm = c.iter().find(|i| free(&kinds[**i]) && kinds[**i].warm.contains(&pin.reference));
+    let kind = warm.copied().unwrap_or(first);
     Ok(Placement { kind, tier, boundary, payload: pin.reference.clone(), payload_ignored })
 }
 
@@ -223,11 +229,6 @@ fn pick_payload<'a>(offer: &JobOffer, cfg: &'a Config, now_s: u64) -> Result<(&'
         }
         return Ok((pin, false));
     }
-    // The labels of the job choose the payload (T-549): a payload that
-    // names a label of the job comes first; a payload that names labels
-    // serves only them.
-    let named = cfg.pin.payload.iter().any(|p| !p.sandbox && p.arch == offer.arch && p.names_label(&offer.labels));
-    let serves = |p: &Payload| if named { p.names_label(&offer.labels) } else { p.labels.is_empty() };
     let pinned = |reference: &str| {
         cfg.pin.payload.iter().find(|p| {
             !p.sandbox
@@ -239,17 +240,33 @@ fn pick_payload<'a>(offer: &JobOffer, cfg: &'a Config, now_s: u64) -> Result<(&'
     let from_offer = offer.payload.as_deref().filter(|_| cfg.payload_from_offer);
     let chosen = match from_offer {
         Some(digest) => pinned(digest).ok_or(RefusalCode::PayloadNotPinned)?,
-        // The first payload of the architecture that is not stale: a pin
-        // list keeps the old payload beside the new one (#235).
-        None => {
-            let mut of_arch =
-                cfg.pin.payload.iter().filter(|p| !p.sandbox && p.arch == offer.arch && serves(p)).peekable();
-            let first = *of_arch.peek().ok_or(RefusalCode::PayloadNotPinned)?;
-            of_arch.find(|p| !p.stale(&cfg.pin, now_s)).unwrap_or(first)
-        }
+        None => return pick_pinned(cfg, &offer.arch, &offer.labels, now_s).map(|p| (p, offer.payload.is_some())),
     };
     if chosen.stale(&cfg.pin, now_s) {
         return Err(RefusalCode::ImageStale);
     }
-    Ok((chosen, offer.payload.is_some() && from_offer.is_none()))
+    Ok((chosen, false))
+}
+
+/// The payload of the pin list for `arch` and the `runs-on` labels (T-549:
+/// a payload that names a label of the job comes first; a payload that
+/// names labels serves only them): the
+/// first one that is not stale (a pin list keeps the old payload beside the
+/// new one, #235). A warm unit of a label row gets its payload by the same
+/// rule (T-487).
+pub(crate) fn pick_pinned<'a>(
+    cfg: &'a Config,
+    arch: &str,
+    labels: &[String],
+    now_s: u64,
+) -> Result<&'a Payload, RefusalCode> {
+    let named = cfg.pin.payload.iter().any(|p| !p.sandbox && p.arch == arch && p.names_label(labels));
+    let serves = |p: &Payload| if named { p.names_label(labels) } else { p.labels.is_empty() };
+    let mut of_arch = cfg.pin.payload.iter().filter(|p| !p.sandbox && p.arch == arch && serves(p)).peekable();
+    let first = *of_arch.peek().ok_or(RefusalCode::PayloadNotPinned)?;
+    let chosen = of_arch.find(|p| !p.stale(&cfg.pin, now_s)).unwrap_or(first);
+    if chosen.stale(&cfg.pin, now_s) {
+        return Err(RefusalCode::ImageStale);
+    }
+    Ok(chosen)
 }

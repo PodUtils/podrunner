@@ -59,6 +59,9 @@ pub struct FakeUnit {
     seen: Mutex<Option<String>>,
     /// The credential of the last claim (plant 28).
     last_claim: Mutex<Option<podrunner_schema::Credential>>,
+    /// The limits that the kind applies to an offer, as a real kind does
+    /// (T-487: a warm unit fits only an offer with the same).
+    limits: Option<podrunner_unit::limits::Limits>,
     /// The Landlock ABI of a `confined` fake (T-042).
     confined: Option<u32>,
 }
@@ -104,6 +107,7 @@ impl FakeUnit {
             tags: Mutex::new(Vec::new()),
             seen: Mutex::new(None),
             last_claim: Mutex::new(None),
+            limits: None,
             confined: None,
         }
     }
@@ -117,6 +121,12 @@ impl FakeUnit {
         self.capability.boundary_proof = Some(podrunner_unit::confine::proof(abi));
         self.confined = Some(abi);
         Ok(self)
+    }
+
+    /// Apply the lesser of `limits` and an offer, as a real kind does.
+    pub fn with_limits(mut self, limits: podrunner_unit::limits::Limits) -> FakeUnit {
+        self.limits = Some(limits);
+        self
     }
 
     pub fn with_plant(mut self, plant: UnitPlant) -> FakeUnit {
@@ -325,6 +335,10 @@ impl UnitDriver for FakeUnit {
 
     fn warm(&self, spec: &podrunner_unit::warm::WarmSpec) -> Result<(), UnitError> {
         self.warm_unit(spec)
+    }
+
+    fn applied_limits(&self, job: &podrunner_unit::limits::Limits) -> podrunner_unit::limits::Limits {
+        self.limits.map(|k| k.lesser(job)).unwrap_or_default()
     }
 
     fn warm_ready(&self, unit: &UnitId) -> Result<bool, UnitError> {

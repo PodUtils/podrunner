@@ -13,7 +13,7 @@ fn job(with: serde_json::Value) -> JobOffer {
 }
 
 fn kind(c: Capability) -> Kind {
-    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk: None, init: None }
+    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk: None, init: None, warm: vec![] }
 }
 
 fn confined() -> Capability {
@@ -235,6 +235,7 @@ fn a_shared_principal_runs_one_unit_at_a_time() {
         repos: vec!["example-org/app".into()],
         root_disk: None,
         init: None,
+        warm: vec![],
     };
     assert_eq!(
         place(&job(json!({})), Tier::Trusted, std::slice::from_ref(&busy), &config(""), NOW_UNIX),

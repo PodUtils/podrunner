@@ -348,7 +348,8 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
             ping = Instant::now();
         }
         calls.answer_waiting(&mut control::AsHost(&mut sup), Duration::from_millis(50));
-        if sup.stop && sup.slots.jobs().all(|j| j.state.is_final()) {
+        // The drain ends each warm unit on a tick (T-487): none is left.
+        if sup.stop && sup.slots.jobs().all(|j| j.state.is_final()) && sup.slots.warm_units() == 0 {
             // The drop of the server removes the socket.
             drop(server);
             return Ok(());

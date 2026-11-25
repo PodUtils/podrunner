@@ -18,7 +18,7 @@ fn job(labels: &[&str]) -> JobOffer {
 
 fn kind(init: Option<UnitInit>) -> Kind {
     let c = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
-    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk: None, init }
+    Kind { capability: c, free: 1, running: 0, repos: vec![], root_disk: None, init, warm: vec![] }
 }
 
 /// The runner payload of the tests (no labels, no init) and the snapshot,

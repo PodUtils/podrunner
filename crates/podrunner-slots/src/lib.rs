@@ -40,6 +40,8 @@ pub mod status;
 pub mod trust;
 mod unit_config;
 pub mod usage;
+mod warm;
+mod warm_take;
 mod work_folder;
 
 use std::path::Path;
@@ -108,6 +110,7 @@ impl Slots {
             spool_next_ms: 0,
             disk_next_ms: 0,
             cache_worker,
+            warm: Default::default(),
         };
         s.reconcile(replay.open);
         Ok(s)
