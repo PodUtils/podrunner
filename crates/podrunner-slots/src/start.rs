@@ -191,6 +191,7 @@ impl Slots {
             match crate::secrets::open(e.as_ref(), of, &policy, store, &socket, cred_dir.as_deref()) {
                 Err(why) => {
                     self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("egress: {why}")));
+                    self.close_sockets(&unit);
                     return self.give_up(key, RefusalCode::UnitStartFailed, now);
                 }
                 Ok(o) => {

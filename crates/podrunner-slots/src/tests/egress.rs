@@ -235,3 +235,29 @@ fn egress_refuses_an_unknown_key_and_a_policy_it_cannot_hold() {
     assert!(parse(methods).unwrap_err().contains("a host, an absolute path and ports only"), "#249");
     assert!(parse("default_policy = { schema = 1, mode = \"allow\", allow = [{ host = \"a\" }] }").is_ok());
 }
+
+/// A failed open of the egress removes the socket directory of the unit.
+#[test]
+fn a_failed_open_of_the_egress_leaves_no_socket_directory() {
+    struct Refuse;
+    impl EgressPort for Refuse {
+        fn open(&self, _: &str, _: &str, _: &std::path::Path) -> Result<usize, String> {
+            Err("no".into())
+        }
+        fn close(&self, _: &str) {}
+        fn alive(&self) -> bool {
+            true
+        }
+    }
+    let bed = Bed::new(
+        config(OPEN),
+        vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])],
+        vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }],
+    );
+    let mut bed = Bed { slots: bed.slots.with_egress(Box::new(Refuse)), ..bed };
+    bed.until(30, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.jobs().next().unwrap().refusal, Some(RefusalCode::UnitStartFailed));
+    let dir = crate::start::egress_dir(&bed.slots.state_dir);
+    let left: Vec<_> = std::fs::read_dir(&dir).map(|d| d.flatten().map(|e| e.path()).collect()).unwrap_or_default();
+    assert!(left.is_empty(), "{left:?}");
+}

@@ -327,3 +327,22 @@ fn the_tier_rules_are_the_same_with_a_warm_pool() {
     let j = bed.slots.jobs().next().unwrap();
     assert_eq!((j.placement.as_ref().unwrap().kind, j.warm), (1, true), "the kind with the warm unit");
 }
+
+/// The refill of one tick counts the units that it made: two kinds that
+/// each need a warm unit do not pass `max_units` together.
+#[test]
+fn one_refill_of_two_kinds_stays_inside_max_units() {
+    let kinds = vec![
+        KindSpec { name: "a", slots: 2, capability: confined(), command: sh("sleep 300") },
+        KindSpec { name: "b", slots: 2, capability: confined(), command: sh("sleep 300") },
+    ];
+    let lines = vec![offer(0, "j-1", json!({}))];
+    let mut bed = Bed::new(config("max_units = 2"), vec![("a", "trusted", None, lines)], kinds);
+    bed.until(30, |s| s.jobs().any(|j| j.state == State::Started));
+    for k in 0..2 {
+        bed.slots.kinds[k].cfg.warm = Some(WarmCount::Count(1));
+    }
+    bed.tick();
+    let running: u32 = bed.slots.kind_views().iter().map(|k| k.running).sum();
+    assert_eq!(running + bed.slots.warm_units() as u32, 2, "one job and one warm unit");
+}

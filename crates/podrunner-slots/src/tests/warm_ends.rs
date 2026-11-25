@@ -270,3 +270,34 @@ fn each_failure_of_a_start_destroys_the_warm_unit() {
         assert!(!bed.slots.warm.units.values().any(|w| w.reserved.is_some()), "{what}");
     }
 }
+
+/// With no warm unit, the pool reads no memory probe.
+#[test]
+fn no_warm_unit_reads_no_memory_probe() {
+    let mut bed = warm_bed(2, 0, vec![], "");
+    let reads = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let r = reads.clone();
+    bed.slots.warm.mem_probe = Box::new(move || {
+        r.fetch_add(1, Ordering::SeqCst);
+        Some(u64::MAX)
+    });
+    for _ in 0..3 {
+        bed.tick();
+    }
+    assert_eq!(reads.load(Ordering::SeqCst), 0);
+}
+
+/// A paused row refills on the next tick when the operator pins a new
+/// payload for it.
+#[test]
+fn a_new_pin_ends_the_backoff_of_a_row() {
+    let mut bed = warm_bed(2, 1, vec![], "");
+    bed.slots.cfg.pin.payload[0].arch = "aarch64".into();
+    bed.until(400, |s| s.warm.backoff.get(&(0, "*".to_string())).is_some_and(|b| b.0 == 3));
+    let mut p = bed.slots.cfg.pin.payload[0].clone();
+    p.arch = "x86_64".into();
+    p.reference = format!("new@sha256:{}", "3".repeat(64));
+    bed.slots.cfg.pin.payload.push(p);
+    bed.tick();
+    assert_eq!(bed.slots.warm_units(), 1, "the row boots with the new pin");
+}
