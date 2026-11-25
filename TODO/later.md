@@ -16831,7 +16831,7 @@ Then `runner-image.yml`: the step "The microvm kind passes its unit tests throug
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -16853,7 +16853,12 @@ python3 -c 'import yaml; yaml.safe_load(open(".github/workflows/runner-image.yml
 
 Then a run of `runner-image.yml` shows each suite as a step.
 
-State (2026-11-25, the commit that names T-662): the steps are split; the YAML loads; actionlint is not on this host. Open: a run of `runner-image.yml`.
+## Done
+
+2026-11-25, `50864797`: the workflow gives each suite its own step.
+`runner-image.yml` run 45588130722 on `988df4f3` passed the separate cold,
+warm, local and parity steps for microvm and Incus on x86_64. Level:
+proven in CI on GitHub-hosted runners.
 
 # T-663: A step of a unit with no job-started hook can ask `assigned` for a run that it does not run
 

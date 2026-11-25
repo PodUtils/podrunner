@@ -19,26 +19,20 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. After the push of `72cd0ab`, `3391edc` and `f2716a1`: run
-   `runner-image.yml` on the new head (the commit changes the job-started
-   hook of the runner image). Cancel run 45577976751 of `f6a9a94` when it
-   still runs. When it is green, dispatch `user-gate.yml` with `images_run`
-   set to that run. The rows `serve:warm:incus` and `serve:warm:microvm`
-   must pass. Then lift the refusal of warm units (T-487, its State
-   section has the steps).
-2. Close #352 (COORD-130), #353 (COORD-131) and #356 (COORD-134) when
-   `gate.yml`, `level2.yml` and `runner-image.yml` on the new head are
-   green. Write the close in `TODO/issues.md` and `TODO/github.txt` first.
-3. Apply Dependabot #357 (trufflehog 3.100.0, `images/trufflehog`) and
-   #358 (toml 1.2.2). Each is its own commit on `main` with green checks;
+1. Read `user-gate.yml` run 45599688848 on `cd28ca7c`, with images from
+   runner-image run 45588130722 on `988df4f3`. The rows `serve:warm:incus`
+   and `serve:warm:microvm` must pass. Then lift the refusal of warm units
+   (T-487, its State section has the steps).
+2. Apply Dependabot #357 (trufflehog 3.100.0, `images/trufflehog`) and
+   #358 (toml 1.2.3). Each is its own commit on `main` with green checks;
    then close the pull request with a link (`docs/maintenance.md`,
    "Dependabot").
-4. T-663 (P2, a fact of the payload hook). Then the `rw` restore of a job of
+3. T-663 (P2, a fact of the payload hook). Then the `rw` restore of a job of
    another run turns on (T-653: `PAYLOAD_HOOK_KNOWN` of
    `crates/podrunner-slots/src/cache/slots.rs`).
-5. The statement of G-09 on #66 (T-516 is done; check T-517 first: it is
+4. The statement of G-09 on #66 (T-516 is done; check T-517 first: it is
    open, so the line names it as left).
-6. The work order of `TODO/PROGRESS.md`.
+5. The work order of `TODO/PROGRESS.md`.
 
 ## The release `v0.1.0-beta.8`
 
@@ -82,9 +76,9 @@ Proven in CI on GitHub-hosted runners:
   github.com twins).
 - The cache of `serve` (T-480) with the fake unit and the fake podvm: unit
   tests and the fake slots, not a live kind. Warm units (T-487): the
-  conformance cases 28 to 32 on the fake kind; the live warm suites of
-  microvm and incus and the lane `serve:warm:KIND` of `user-gate.yml` have
-  not passed yet (T-660 gives the first-step mark that the lane needs).
+  conformance cases 28 to 32 on the fake kind and the live warm suites of
+  microvm and Incus in runner-image run 45588130722. The `serve:warm:KIND`
+  rows of `user-gate.yml` wait for run 45599688848 (T-660).
 
 Proven on a constrained host as a user: QA round 6 on the candidate files
 (two agents, no root, no KVM, an HTTPS proxy). The notes list the fixes
@@ -137,9 +131,6 @@ state of each.
 - podcrates:
   - #312 (COORD-102, T-553): publish on `ghcr.io`. Done in
     `v0.1.0-beta.8`; it closes with the comment that names the digests.
-  - #352 (COORD-130, T-653), #353 (COORD-131, T-657) and #356 (COORD-134,
-    T-664): `v0.84.0` answers them and is taken. Each closes when CI on the
-    new head is green (item 1 of "Next").
   - #183 (COORD-064, T-249): the shared installer core. #184 (COORD-065,
     T-250): the issue sync of the record runs. The step of the
     hand-written State column is left (T-250 is partial).

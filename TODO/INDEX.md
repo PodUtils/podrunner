@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**664 entries: 89 open, 59 partial, 13 blocked, 503 done.**
+**664 entries: 89 open, 58 partial, 13 blocked, 504 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 96 | 122 |
-| P2 | 18 | 24 | 8 | 264 | 314 |
+| P2 | 18 | 23 | 8 | 265 | 314 |
 | P3 | 70 | 11 | 3 | 141 | 225 |
-| **All** | 89 | 59 | 13 | 503 | 664 |
+| **All** | 89 | 58 | 13 | 504 | 664 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -704,7 +704,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-659](later.md) | P3 | M | later | feature | open | A cold guest of the microvm kind from a saved state |
 | [T-660](later.md) | P2 | S | later | defect | partial | The first step of a job on a kind with no container hook |
 | [T-661](later.md) | P2 | S | later | defect | done | The destroy of a unit counts a killed process that still ends as gone |
-| [T-662](later.md) | P2 | S | later | defect | partial | One failed suite of the microvm and incus steps hides the next suites |
+| [T-662](later.md) | P2 | S | later | defect | done | One failed suite of the microvm and incus steps hides the next suites |
 | [T-663](later.md) | P2 | M | later | defect | open | A step of a unit with no job-started hook can ask `assigned` for a run that it does not run |
 | [T-664](later.md) | P1 | S | later | chore | done | Take podcrates `v0.84.0` (COORD-155 of podcrates) |
 | [T-665](later.md) | P3 | S | later | defect | open | The warm status counts a reserved unit as ready and hides the warm units of a kind that has target 0 |

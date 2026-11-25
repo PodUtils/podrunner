@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 664 entries: 89 open, 59 partial, 13 blocked, 503 done.
+`TODO/INDEX.md` holds 664 entries: 89 open, 58 partial, 13 blocked, 504 done.
 
 ## State
 
@@ -34,9 +34,9 @@
 - The first step of a job on a kind with no container hook comes from the
   job-started hook of the runner image (`/v1/started`, T-660, partial until
   a run of `user-gate.yml` shows it on incus and microvm). The unit
-  destroy waits for each killed process (T-661, done; live proof in the
-  next `runner-image.yml`). T-662 (the split steps) is partial until a run
-  shows them.
+  destroy waits for each killed process (T-661). `runner-image.yml` run
+  45588130722 on `988df4f3` passed both warm suites and the separate suite
+  steps (T-662).
 - A job of another run with a `rw` cache ends with `cache-mismatch`: the hook
   sends the ref and the repository id (T-653, done), but the rule stays off
   (`PAYLOAD_HOOK_KNOWN = false`) until T-663 (P2, open) gives the fact that
@@ -54,13 +54,10 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. The proof of the push of `72cd0ab` to `f2716a1`: `runner-image.yml` on
-   the new head (cancel an older run that covers the same images); then
-   `user-gate.yml` with `images_run` set to that green run: the rows
-   `serve:warm:incus` and `serve:warm:microvm` must pass (T-660, T-487).
-   Then the lift of T-487 (its State section has the steps). When `gate`,
-   `level2.yml` and `runner-image.yml` on the new head are green, close
-   #352, #353 and #356 (the record first).
+1. `user-gate.yml` run 45599688848 on `cd28ca7c` uses the green
+   runner-image run 45588130722. The rows `serve:warm:incus` and
+   `serve:warm:microvm` must pass (T-660, T-487). Then lift the refusal of
+   warm units (T-487, its State section has the steps).
 2. T-663 (P2). Then the `rw` restore of a job of another run turns on
    (`PAYLOAD_HOOK_KNOWN`), and T-480 (partial; T-654) goes on.
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -71,7 +68,7 @@ then take the next one.
    T-500 (runner image for cfb; partial), T-517, T-521 and the partial
    entries T-497, T-499, T-509, T-511, T-515 and T-520.
 4. Dependabot: #357 (trufflehog 3.100.0, `images/trufflehog`) and #358
-   (toml 1.2.2): each as its own commit on `main` with green checks, then
+   (toml 1.2.3): each as its own commit on `main` with green checks, then
    close the pull request with a link (`docs/maintenance.md`, "Dependabot").
 5. The statement of G-09 on #66 (the docker build and Docker-in-Docker
    proof is in CI; T-517 is open).
@@ -91,8 +88,7 @@ then take the next one.
 
 Waits:
 
-- A run of `runner-image.yml` and `user-gate.yml` on the new head (T-660,
-  T-662, T-487; item 1).
+- The warm rows of `user-gate.yml` run 45599688848 (T-660, T-487; item 1).
 - Podvm: T-613 (COORD-124, #346): a run of `hosted-measure.yml` that gives
   the line of the free space and the need. T-658 (COORD-132, #354) and
   T-659 (COORD-133, #355): a podvm release.
