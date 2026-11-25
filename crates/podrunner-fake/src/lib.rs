@@ -10,6 +10,7 @@ mod mounts;
 mod source;
 mod unit;
 mod unit_files;
+mod unit_mounts;
 
 pub use podrunner_unit::procs::{TAG_VAR, tag_of, tagged};
 pub use source::{FakeSource, SourcePlant, Step, What, canned_credential, parse_script};

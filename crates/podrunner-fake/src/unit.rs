@@ -263,6 +263,11 @@ impl UnitDriver for FakeUnit {
         "fake"
     }
 
+    /// A confined fake mounts nothing: its rules hold the root of a unit.
+    fn host_mounts(&self) -> bool {
+        self.confined.is_none()
+    }
+
     fn credential_dir(&self, unit: &UnitId) -> Option<String> {
         let name = if self.planted(UnitPlant::SharedRoot) { "shared" } else { unit.as_str() };
         Some(self.state_dir.join("units").join(name).join(".runner-root").display().to_string())
@@ -331,6 +336,7 @@ impl UnitDriver for FakeUnit {
         {
             env.push(("PODRUNNER_PLANTED_CREDENTIAL".into(), f.content.expose().to_string()));
         }
+        crate::unit_mounts::place(&root, &spec.mounts, &mut env)?;
         // The output of the payload, for `unit_logs`: in the root, so that
         // destroy removes it.
         let log = root.join(UNIT_LOG);

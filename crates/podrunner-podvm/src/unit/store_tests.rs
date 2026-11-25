@@ -170,7 +170,35 @@ fn the_confine_layer_names_the_working_directory_that_the_image_lacks() {
     let unit = unit.with_confine();
     let image = d.join("image");
     std::fs::create_dir_all(image.join("tmp")).unwrap();
-    let args = unit.confine_args(&image, None);
+    let args = unit.confine_args(&image, None, &[]);
     assert_eq!(args, ["--podvm-confine", "read=/;write=/podrunner,/tmp;exec=/podrunner,/tmp"]);
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// T-480: a rung with volumes mounts the cache of a job, `:ro` as it is;
+/// the confine layer lets the unit write a read-write cache and execute
+/// from each cache. A rung with no volume mounts none.
+#[test]
+fn the_cache_of_a_job_is_a_volume_and_the_confine_layer_names_it() {
+    let _one = super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
+    let (unit, d) = driver("cache", "userland", false);
+    assert!(unit.host_mounts());
+    let host = d.join("cache/data");
+    let s = StartSpec { mounts: vec![(host.clone(), "/podrunner-cache:ro".into())], ..spec(1) };
+    unit.start(&s).unwrap();
+    let calls = std::fs::read_to_string(d.join("calls")).unwrap();
+    assert!(calls.contains(&format!("-v {}:/podrunner-cache:ro ", host.display())), "{calls}");
+    let _ = unit.destroy(&s.unit);
+    let unit = unit.with_confine();
+    let image = d.join("image");
+    std::fs::create_dir_all(image.join("tmp")).unwrap();
+    let ro = unit.confine_args(&image, None, &s.mounts);
+    assert_eq!(ro, ["--podvm-confine", "read=/;write=/podrunner,/tmp;exec=/podrunner,/tmp,/podrunner-cache"]);
+    let rw = unit.confine_args(&image, Some("/podrunner/sockets"), &[(host, "/podrunner-cache".into())]);
+    let own = "/podrunner,/tmp,/podrunner/sockets,/podrunner-cache";
+    assert_eq!(rw, ["--podvm-confine".to_string(), format!("read=/;write={own};exec={own}")]);
+    let _ = std::fs::remove_dir_all(&d);
+    let (chroot, d) = driver("cache-chroot", "chroot", false);
+    assert!(!chroot.host_mounts());
     let _ = std::fs::remove_dir_all(&d);
 }

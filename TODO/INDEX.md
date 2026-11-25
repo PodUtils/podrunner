@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**642 entries: 78 open, 56 partial, 13 blocked, 495 done.**
+**646 entries: 81 open, 57 partial, 13 blocked, 495 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 95 | 121 |
-| P2 | 16 | 20 | 8 | 258 | 302 |
-| P3 | 61 | 12 | 3 | 140 | 216 |
-| **All** | 78 | 56 | 13 | 495 | 642 |
+| P2 | 17 | 21 | 8 | 258 | 304 |
+| P3 | 63 | 12 | 3 | 140 | 218 |
+| **All** | 81 | 57 | 13 | 495 | 646 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -524,7 +524,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-477](later.md) | P3 | S | later | defect | done | An audit line that fails half way leaves a fragment, and the next line joins it |
 | [T-478](later.md) | P2 | S | later | defect | done | The build of the runner image fails when public.ecr.aws refuses the pull of its base image |
 | [T-479](later.md) | P2 | M | later | feature | done | A JSON Schema of `podrunner.toml` for a program that writes the file |
-| [T-480](later.md) | P2 | L | later | feature | open | A cache directory of the host, kept apart by trust (cfb and githome G-07) |
+| [T-480](later.md) | P2 | L | later | feature | partial | A cache directory of the host, kept apart by trust (cfb and githome G-07) |
 | [T-481](later.md) | P2 | S | later | measurement | partial | The checkout of a job on the incus kind is proven by a test of the script only |
 | [T-482](later.md) | P2 | M | later | defect | partial | The incus kind bounds no disk of the root of an instance |
 | [T-483](later.md) | P2 | M | later | defect | partial | The incus kind reports `unknown` for the CPU time and the peak memory of a job |
@@ -690,3 +690,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-645](later.md) | P3 | S | later | chore | open | The man page of the model under groff and mandoc, and in the assets of a release |
 | [T-646](later.md) | P3 | M | later | defect | done | Tests that write a program and start it while other tests fork |
 | [T-647](later.md) | P1 | S | later | chore | done | Take podcrates `v0.83.0` and podvm `0.2.0-beta.40` (COORD-154 of podcrates, COORD-246 of podvm) |
+| [T-648](later.md) | P2 | M | later | feature | open | The cache of `serve` on the microvm and incus kinds |
+| [T-649](later.md) | P3 | M | later | measurement | open | The bytes that a job reads from its cache |
+| [T-650](later.md) | P2 | M | later | feature | open | A tool that writes its cache in a job with a read-only cache |
+| [T-651](later.md) | P3 | S | later | feature | open | The cache in the containers of a `container:` job |

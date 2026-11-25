@@ -85,6 +85,13 @@ pub trait UnitDriver: Send + Sync {
         None
     }
 
+    /// The kind mounts the host directories of a start
+    /// (`StartSpec::mounts`), with `:ro` held read-only. False: a start
+    /// with one is refused, so `serve` gives such a kind no cache (T-480).
+    fn host_mounts(&self) -> bool {
+        false
+    }
+
     /// Where the unit `unit` sees its credential files (an absolute path),
     /// so that a variable can name one: the CA bundle of its broker
     /// (T-563). `None`: the kind does not say, and a job that needs such a

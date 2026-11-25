@@ -10726,7 +10726,7 @@ The issue of cfb, read on 2026-11-18. The parser refuses an unknown key (`deny_u
 **Milestone:** later
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10738,9 +10738,20 @@ The crate half is githome's G-32 on PodUtils/podcrates#223 (the fields of `pod-j
 
 ## Approach
 
-1. Take cfb's measure for each gate as the baseline: `claim_to_first_step_s` of the run report, the time of the install steps on a cold unit, and the time with a restore. The ruling of 2026-11-18 lifts the trigger of the non-goal, so the work does not wait for the measure.
-2. A cache directory for each repository and trust class on the host, mounted read-write only into a trusted job of the default branch, read-only into each other trusted job, and into no untrusted job until a decision says otherwise. Each kind needs its own mount (a disk device of incus, a 9p mount of the guest).
-3. A test: a file that an untrusted job writes is absent from the cache of the next trusted job.
+The design (2026-11-25). It follows the rules of GitHub for its own cache (the page "Dependency caching" of the documents of GitHub Actions, read on 2026-11-25): a run reads the scope of its ref and of the default branch; only `push`, `workflow_dispatch`, `repository_dispatch` and `schedule` (of the events of `job-offer.v1`) write the scope of the default branch; another event of the default branch (`pull_request_target`, `workflow_run`, `issue_comment`) reads it and does not write it; a pull request writes only the scope of its merge ref; a repository has 10 GB, and the cache that was used last a long time ago goes first.
+
+1. What is there. The local mode serves the cache service v2 of `actions/cache` (T-120, `crates/podrunner-broker-fake/src/cache.rs`), one store for each user. A job of `serve` uses the cache service of GitHub itself, and podrunner does not see it. `serve` reads no `cache` of an offer, gives a unit no host directory (`StartSpec::mounts` is empty in `crates/podrunner-slots/src/run.rs`), and its report gives the cache bytes as `unknown` (T-497).
+2. The table `[cache]` of `podrunner.toml` turns the cache of `serve` on. Its keys: `dir` (an absolute path; default `STATE/cache`), `max_bytes` (the most bytes of one cache; default 10 GiB, the default of a repository on GitHub), `total_bytes` (the most bytes of the directory; default 50 GiB), `max_age_s` (a cache with no use in this time goes; default 7 days, as GitHub), `write_refs` (the refs whose jobs write; default `["refs/heads/main"]`), `key` (the key when an offer gives none; default `default`), and `env` (a variable of the runner and a path under the cache, for example `npm_config_cache = "npm"`).
+3. The mode of a job. podrunner computes it from the facts of the job; the `cache` of an offer can only make it lower:
+   - `none` for each job of the tier `untrusted` (a fork, an agent, a sandbox), with no `[cache]`, on a kind that mounts no host directory, and for a key that is empty, longer than 128 bytes or has a control character.
+   - `rw` for a job of the tier `trusted` or `local` with one of the four events that write on GitHub and `head_is_fork` `no`, when its `ref` is in `write_refs` or its offer gives `rw` (a source knows the default branch of its repository; podrunner does not).
+   - `ro` for each other job of the tier `trusted` or `local`: a pull request of the same repository, a push to another branch, `pull_request_target`.
+   - One `rw` job of a cache at a time: a second one gets `ro`, so that the bytes of one job are its own.
+4. The scope. One directory for each source, forge, repository (in lower case: GitHub has no case in these names), tier and key: `DIR/ID/data`, with ID the first 32 hex digits of the SHA-256 of the five values. A key with `..`, `/` or an expression is only bytes of the hash. The file `DIR/ID/scope` names the five values for the operator; its time is the last use.
+5. The unit sees `data` at `/podrunner-cache`: read-only for `ro` (`-v DIR:/podrunner-cache:ro` of podvm). With `--podvm-confine`, a `rw` cache is in `write=` and `exec=`, and a `ro` cache in `exec=` only (a browser of Playwright runs from it). The variables of the runner: `PODRUNNER_CACHE` (the path), `PODRUNNER_CACHE_MODE` (`rw` or `ro`), and each variable of `env`, whose directory podrunner makes. The podvm kind (a rung with volumes) and the fake kind mount it (`UnitDriver::host_mounts`); the microvm and incus kinds mount no host directory (T-138), so their jobs get `none` (T-648).
+6. The report. With no cache, both counts are 0. With a cache, `cache_written_bytes` is the sum of the sizes of the files of the cache whose status changed in the run (their `ctime`), and 0 for `ro`; `cache_read_bytes` is `unknown` with a reason: the host does not count the reads of a mount (T-649).
+7. The bound. After a `rw` job, a cache above `max_bytes` is emptied whole: a part of a tool's cache (a browser of Playwright) does not work. Then each cache with no use in `max_age_s` goes, and while the directory is above `total_bytes`, the cache with the oldest use goes. A cache that a job uses stays. podrunner never removes one file alone, and never follows a link of a job.
+8. The test of G-07: a file that an untrusted job writes is absent from the cache of the next trusted job; a pull request of the same repository reads the cache of a push and does not change it; an offer of an untrusted job that asks `rw` gets no cache.
 
 The census of T-491 (2026-11-18): no gate of cfb needs bun (Q-13). The base line is the row of T-528.
 
@@ -10750,7 +10761,14 @@ Each cache is scoped by source, forge, repository, tier and `key`: no cache is s
 
 ## Prove
 
-The test of G-07 above, on each kind in `runner-image.yml`, and cfb's measure again with the cache.
+```sh
+cargo test -p podrunner-slots cache
+cargo test -p podrunner-podvm the_cache_of_a_job_is_a_volume_and_the_confine_layer_names_it
+```
+
+Then the test of G-07 on each kind in `runner-image.yml`, and cfb's measure again with the cache (the row of T-528).
+
+State (2026-11-25, the commit that names T-480): steps 2 to 8 of the Approach are in the code on the podvm and fake kinds: `crates/podrunner-slots/src/cache.rs` (the table, the mode, the scope, the report), `crates/podrunner-slots/src/cache/store.rs` (the directory and the bound), `UnitDriver::host_mounts`, the `-v` and the `--podvm-confine` lists of the podvm driver, and the mounts of the fake unit (`crates/podrunner-fake/src/unit_mounts.rs`). Tests: `tests::cache::an_untrusted_write_is_not_read_by_a_trusted_job_and_a_pull_request_does_not_write` (a push writes and its `cache_written_bytes` is 5; a fork pull request whose offer asks `rw` gets no variable and writes nothing in the cache; a pull request of the same repository reads the file of the push with `ro` and its write does not reach the cache; the next push sees only the file of the push), `tests::cache::a_job_with_no_cache_reads_and_writes_0_bytes`, and six unit tests of the edges (each event and tier, a key of 0, 128 and 129 bytes, a control character, `..`, `/` and an expression as a key, the case of a name, each bad value of the table, a link that a job put where the host makes a directory or counts bytes, a directory with no write bit, the three bounds), and `tests::secrets::a_variable_of_the_cache_does_not_replace_the_ca_bundle` (a variable of `env` named `SSL_CERT_FILE` kept the CA bundle of the broker; it failed with the variable of the cache put over it). Each test failed before: the configuration refused `[cache]`, and the report gave `unknown`. Plants: the tier `untrusted` with the mode of a trusted job fails the test at the variable of the fork; the tier `untrusted` with `rw` fails it at the file of the fork in the directory; a pull request with `rw` fails it at the mode of the pull request; the confine lists with no cache fail the test of the podvm driver. As a user with no root (`sudo -u labdns`), the built binary, `serve` with a fake source and the fake kind (`claim = "confined"`) and `[cache] env = { npm_config_cache = "npm" }`: the push got `rw` and wrote `from-push`; the pull request got `ro`, read it, and its write did not reach the cache; the next push saw `from-push` and `npm`; `bytes` is 5; the directories are 0700 (cache, scope) and 0755 (data), of the user. The fake kind of `serve` cannot claim `guest` on this host (the self-test of the guest refuses it), so the run of the fork is proven by the test only. Level: proven here with the fake unit and the stub of podvm; not run on a real unit of podvm. Left: the run on a real unit of podvm in `runner-image.yml` (a `ro` cache refuses a write in the unit), cfb's measure (T-528), the microvm and incus kinds (T-648), the bytes read (T-649), a writable layer of a `ro` job (T-650), the containers of a `container:` job (T-651).
 
 # T-481: The checkout of a job on the incus kind is proven by a test of the script only
 
@@ -16343,3 +16361,106 @@ sh scripts/check-notes.sh --latest
 ## Done
 
 2026-11-25: the commit that names T-647. (1) Each podcrates dependency, `Cargo.lock` and `fuzz/Cargo.lock` name `v0.83.0` (the lock changes only the version and the source of each `pod-` crate); `issue-sync.yml` runs the workflow of `5fd6fb7` with `podcrates_ref: v0.83.0`. `pod-release` 0.82.1 (the pin before, its SHA-256 checked) verifies the release `v0.83.0` of podcrates as `release.yml` at the tag (Rekor entry 4082038184, 12 files; another tag gives 77); each of the six pinned SHA-256 (fake-githome, fake-github and pod-release, x86_64 and aarch64) is its line of that `SHA256SUMS`. The index `sha256:f7d5f623...` is the one of ghcr.io for `pod-fake-githome:v0.83.0`, and its two layers hold the pinned binaries. `release-index.py` at `5fd6fb7` has the pinned `script_sha256`. (2) `images/podvm.toml` pins `0.2.0-beta.40`: `pod-release` 0.83.0 and 0.82.1 each verify its `SHA256SUMS` as `nightly.yml` at the tag (Rekor entry 4087035775; the tag `v0.2.0-beta.39` gives 77), and the two binaries agree with it; the index `sha256:31f5f949...` is the one of ghcr.io. `install-pins.py --check scripts/install.sh` passes. (3) No source of podrunner names `Class::CantCreate` or `Class::Internal`, and of the crates of podcrates only `pod-release` gives one (podrunner does not link it): `CLASS_CODES` of `crates/podrunner/src/manual/facts.rs` stays, and `each_exit_code_has_a_fact` passes with 15 classes. No test matches an old error text of a changed crate. `sh scripts/githome-conformance.sh`: 15 of 15 against `pod-fake-githome` 0.83.0. No code of podrunner uses `runs.py`, `usage::Mounts` or `Unit::NAME_MAX`. (4) T-611 and T-613 have their State. (5) In the same work: `scripts/check-notes.sh --latest` refused each row under `## next` after a release (it failed on the rows of this take: "rows are left under \"## next\": move them to \"## v0.1.0-beta.8\""), so the gate was red at the first change after a release; now only the check of the notes of a release before its tag (the call of `release.yml` with the file of the notes) refuses them: `--latest` gives 0, and `sh scripts/check-notes.sh docs/releases/v0.1.0-beta.8.md` still gives 1. `scripts/check-docs.py` has the rule `example` (the QA of the release found `docs/install.md` with the example `0.1.0-beta.7`): it failed on that line, `docs/install.md` names `0.1.0-beta.8`, and two new cases of the self-test fail with the rule planted off. Checks: `cargo fmt --all --check`; `cargo clippy --workspace --all-targets --all-features -- -D warnings`; the fuzz crate (fmt, clippy, 2 tests); `cargo test --workspace --all-features` with `PODRUNNER_RUNNER_DIR` and a `mktemp -d` `TMPDIR`: 833 passed, 0 failed, 64 ignored, the `TMPDIR` empty after; `sh scripts/test-install.sh`: 20 passed; `python3 -I scripts/check-docs.py` and its self-test; `python3 -I scripts/user-gate.py check`; `cargo todo check`. Level: proven by the checks on this host; not run in CI. Open: COORD-129 `(to podcrates)` and the answer to COORD-246 (writes to GitHub of the lead session), then the gate, `level2.yml` and `runner-image.yml` on the commit.
+
+# T-648: The cache of `serve` on the microvm and incus kinds
+
+**Source:** T-480, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The cache of `serve` (T-480) is a host directory that a unit mounts at `/podrunner-cache`. The microvm and incus kinds refuse each host directory of a start ("this kind mounts no host directory (T-138)", `crates/podrunner-microvm/src/lib.rs` and `crates/podrunner-incus/src/lib.rs`), so a job on them gets the mode `none`. cfb plans the incus kind for each trusted job (P-3), and githome's G-20 asks for the cache on each kind.
+
+## Premise
+
+Read from the code on 2026-11-25. Not measured: a share of a directory into a guest of the machine tier or into an incus instance.
+
+## Approach
+
+1. A COORD issue `(to podvm)`: `-v HOST:PATH[:ro]` on the machine tier (a share of virtiofs or 9p of the guest) and on the incus tier (a disk device of the instance with `readonly=true` for `:ro`), with the `ro` held by the host, not by the guest.
+2. When podvm has it: each driver gives `host_mounts` true, passes the mounts of the spec, and the self-check of the guest knows `/podrunner-cache`.
+3. A test of each kind on real guests in `runner-image.yml`: a `ro` cache refuses a write in the guest.
+
+## Prove
+
+The suite of each kind in `runner-image.yml` with a cache, and `cargo test -p podrunner-slots tests::cache`.
+
+# T-649: The bytes that a job reads from its cache
+
+**Source:** T-480, 2026-11-25
+**Category:** measurement
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome's G-19 and G-20 ask for the bytes read from and written to the cache in the report. With a cache, `serve` gives `cache_written_bytes` (the files whose status changed in the run), and `cache_read_bytes` is `unknown`: the host does not count the reads of a mounted directory. The access time of a file is not a count: a mount with `relatime` or `noatime` changes it rarely or never.
+
+## Premise
+
+Read from the code of T-480 on 2026-11-25. Not measured.
+
+## Approach
+
+Ask podvm, by a COORD issue, for the bytes read from each volume of a unit in its run report (`--report`): the share of the machine tier and the disk device of incus see each read. Until then, the field stays `unknown` with its reason.
+
+## Prove
+
+`cargo test -p podrunner-slots tests::cache` with a report of podvm that gives the bytes read of the volume of the cache.
+
+# T-650: A tool that writes its cache in a job with a read-only cache
+
+**Source:** T-480, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A job with the mode `ro` (a pull request of the same repository) sees the cache read-only. Some tools write into their cache on each run: npm writes its index, and `actions/setup-node` writes a new version into `RUNNER_TOOL_CACHE`. Such a step fails or warns in a `ro` job. GitHub gives a pull request a scope of its own merge ref that it can write, and the scope of the base branch to read.
+
+## Premise
+
+Read on 2026-11-25: the page "Dependency caching" of the documents of GitHub Actions. Not measured: npm 12 and pnpm with a read-only cache.
+
+## Approach
+
+1. Measure npm, pnpm and Playwright with a read-only cache in a unit of the podvm kind (the row of T-528).
+2. Give a `ro` job a writable layer over the cache that the destroy removes: an overlay mount of podvm (`-v HOST:PATH:overlay`, a COORD issue `(to podvm)`), or a copy that shares the blocks of the file system (`FICLONE`) where the host has one. The cache on the host stays as it was.
+
+## Prove
+
+`cargo test -p podrunner-slots tests::cache`, and the row of T-528 as a pull request with a cache.
+
+# T-651: The cache in the containers of a `container:` job
+
+**Source:** T-480, 2026-11-25
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The cache of `serve` (T-480) is in the unit at `/podrunner-cache`, and the variables of `[cache] env` are in the environment of the runner. A job with `container:` runs its steps in a container of the unit (the hooks), and that container has neither the directory nor the variables.
+
+## Premise
+
+Read from the code on 2026-11-25 (`crates/podrunner-slots/src/hooks.rs`, the mount of the CA bundle of T-578). Not measured.
+
+## Approach
+
+The hooks add the cache of the unit to each container of the job, as they add the CA bundle: a `ContainerMount` of the directory of the cache with its mode (`read_only` for `ro`), and the variables with the path in the container.
+
+## Prove
+
+`cargo test -p podrunner-slots tests::hooks` with a cache, and a `container:` job of the parity suite with a cache.

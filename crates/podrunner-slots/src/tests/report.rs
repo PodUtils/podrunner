@@ -53,9 +53,8 @@ fn a_report_has_its_times_its_image_and_its_measures_or_a_reason() {
     let r = run(None, "exit 0");
     assert!(matches!(r.disk_peak_bytes, Some(Residual::Unknown(_))));
     assert!(r.unknown_reasons.contains_key("disk_peak_bytes"));
-    // No shared cache yet (T-480): unknown with its reason.
-    assert!(matches!(r.cache_read_bytes, Some(Residual::Unknown(_))), "{r:?}");
-    assert!(r.unknown_reasons.get("cache_written_bytes").is_some_and(|w| w.contains("T-480")), "{r:?}");
+    // No `[cache]`: the job read and wrote no cache (T-480).
+    assert_eq!((r.cache_read_bytes, r.cache_written_bytes), (Some(Residual::Count(0)), Some(Residual::Count(0))));
     each_measure_or_its_reason(&r);
 }
 

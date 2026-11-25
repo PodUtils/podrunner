@@ -235,6 +235,10 @@ impl UnitDriver for PodvmUnit {
         self.volumes.then_some(containers::SOCKET_MOUNT)
     }
 
+    fn host_mounts(&self) -> bool {
+        self.volumes
+    }
+
     fn credential_dir(&self, _unit: &UnitId) -> Option<String> {
         Some(CREDENTIAL_DIR.into())
     }
@@ -283,7 +287,7 @@ impl UnitDriver for PodvmUnit {
         }
         args.extend(["--report".into(), dir.join(labels::REPORT).display().to_string()]);
         let guest = spec.sockets.as_ref().and(self.socket_mount());
-        args.extend(self.confine_args(&image_root, guest));
+        args.extend(self.confine_args(&image_root, guest, &spec.mounts));
         let mut env = spec.env.clone();
         env.insert("PODRUNNER_UNIT".into(), spec.unit.to_string());
         env.insert(TAG_VAR.into(), tag.clone());

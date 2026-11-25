@@ -6,6 +6,7 @@
 
 pub mod assigned;
 pub mod audit;
+pub mod cache;
 pub mod config;
 pub mod config_url;
 pub mod disk;

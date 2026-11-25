@@ -378,3 +378,17 @@ fn a_linked_secret_file_and_placeholders_that_hold_each_other_are_refused() {
     let err = crate::secrets::check_credentials(&two, &store, Some("a")).unwrap_err();
     assert!(err.contains("hold each other"), "{err}");
 }
+
+/// T-480: a variable of `[cache] env` does not take the place of a variable
+/// of the CA bundle of the broker.
+#[test]
+fn a_variable_of_the_cache_does_not_replace_the_ca_bundle() {
+    let dir = TempDir::new();
+    let mut cfg = with_secret(&dir.0);
+    let text = format!("dir = \"{}\"\nenv = {{ SSL_CERT_FILE = \"x\", X_CACHE = \"x\" }}", dir.0.join("c").display());
+    cfg.cache = Some(toml::from_str(&text).unwrap());
+    let cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory);
+    let check = "grep -q made-up-ca-of-the-job \"$SSL_CERT_FILE\" && test \"$X_CACHE\" = \"$PODRUNNER_CACHE/x\"";
+    let (bed, _) = run_in(cfg, cap, credential("token", "api.example.com"), check);
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success, "{:?}", bed.slots.reports[0]);
+}

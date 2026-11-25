@@ -16,6 +16,9 @@ slots = 1
 slots = 1
 command = ["sh", "-c", "echo the unit runs; sleep 1"]
 
+# [cache]                    # a cache of the host for each repository and tier (T-480)
+# env = { npm_config_cache = "npm" }
+
 [trust]
 organizations = [{ login = "example-org" }]
 

@@ -281,6 +281,59 @@ A size is whole bytes, or a number with `K`, `M`, `G` or `T`. Set
 `[unit.podvm] mem` large: `RLIMIT_AS` counts the address space, which is
 more than the memory in use.
 
+## The cache of a job (G-07, G-20)
+
+With a `[cache]` table, `serve` gives each job a cache directory of the
+host that its unit sees at `/podrunner-cache` (T-480). Each cache is kept
+apart by source, forge, repository, tier and key: no two repositories
+share one, and a job never reads what a job of a lower trust wrote.
+
+```toml
+[cache]
+dir = "/var/cache/podrunner"      # default: STATE/cache
+max_bytes = 10737418240           # the most bytes of one cache (10 GiB)
+total_bytes = 53687091200         # the most bytes of the directory (50 GiB)
+max_age_s = 604800                # a cache with no use in 7 days goes
+write_refs = ["refs/heads/main"]  # the default branch of each repository
+key = "default"                   # the key when the offer gives none
+env = { npm_config_cache = "npm", PLAYWRIGHT_BROWSERS_PATH = "ms-playwright" }
+```
+
+The mode of a job follows the rules of GitHub for its own cache. The
+`cache` of an offer (`{ key, mode }`) gives the key and can only lower
+the mode:
+
+| Job | Mode |
+| --- | --- |
+| The tier `untrusted` (a fork, an agent, a sandbox) | none, also when the offer asks for `rw` |
+| `push`, `workflow_dispatch`, `repository_dispatch` or `schedule` on a ref of `write_refs`, or with `rw` in its offer, with a head that is not a fork (`head_is_fork` is `no`) | `rw` |
+| Each other job of the tier `trusted` or `local` (a pull request of the same repository, a push to another branch, `pull_request_target`) | `ro` |
+| A second `rw` job of a cache while one runs | `ro` |
+
+A `ro` cache is read-only in the unit: a write fails, and the cache stays
+as it was. The unit gets the variables `PODRUNNER_CACHE` (the path),
+`PODRUNNER_CACHE_MODE` (`rw` or `ro`) and each variable of `env`, which
+names a directory under the cache. A variable that podrunner sets (the CA
+bundle of the broker) keeps its value. A step that writes its cache can test
+`PODRUNNER_CACHE_MODE` first.
+
+The `podvm` kind on a rung with volumes and the `fake` kind mount the
+cache. The `microvm` and `incus` kinds mount no host directory: their
+jobs get no cache (T-648). The steps of a `container:` job do not see it
+(T-651).
+
+On the host, each cache is `DIR/ID/data`; the file `DIR/ID/scope` names
+its source, forge, owner, repository, tier and key, and its time is the
+last use. After a `rw` job, a cache above `max_bytes` is emptied; then
+each cache with no use in `max_age_s` goes, and the caches with the
+oldest use go while the directory is above `total_bytes`. A cache that a
+job uses stays. `serve` writes a line for each cache that goes.
+
+The run report gives `cache_written_bytes`: the bytes of the files that
+the job wrote in its cache, and 0 for a `ro` cache or no cache.
+`cache_read_bytes` is 0 with no cache, and else `unknown`: the host does
+not count the reads of a mount (T-649).
+
 ## Placement by label and by init
 
 The `runs-on` labels of a job choose its payload (T-549). A

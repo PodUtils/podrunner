@@ -9,6 +9,17 @@
       "type": "boolean",
       "default": false
     },
+    "cache": {
+      "description": "The cache of `serve` (T-480); none: no job gets a cache.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CacheConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "deadlines": {
       "$ref": "#/$defs/Deadlines"
     },
@@ -135,6 +146,65 @@
         "confined",
         "guest"
       ]
+    },
+    "CacheConfig": {
+      "description": "The table `[cache]`.",
+      "type": "object",
+      "properties": {
+        "dir": {
+          "description": "The directory of the caches: an absolute path; default `STATE/cache`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "env": {
+          "description": "A variable of the runner and a relative path under the cache, for\nexample `npm_config_cache = \"npm\"`.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "key": {
+          "description": "The key of a job whose offer gives none. Default `default`.",
+          "type": "string",
+          "default": "default"
+        },
+        "max_age_s": {
+          "description": "A cache with no use in this time goes. Default 7 days.",
+          "type": "integer",
+          "format": "uint64",
+          "default": 604800,
+          "minimum": 0
+        },
+        "max_bytes": {
+          "description": "The most bytes of one cache; above it, the cache is emptied after\nits next `rw` job. Default 10 GiB.",
+          "type": "integer",
+          "format": "uint64",
+          "default": 10737418240,
+          "minimum": 0
+        },
+        "total_bytes": {
+          "description": "The most bytes of the directory; above it, the caches with the\noldest use go. Default 50 GiB.",
+          "type": "integer",
+          "format": "uint64",
+          "default": 53687091200,
+          "minimum": 0
+        },
+        "write_refs": {
+          "description": "The refs whose jobs write the cache (the default branch of each\nrepository). Default `[\"refs/heads/main\"]`.",
+          "type": "array",
+          "default": [
+            "refs/heads/main"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "Deadlines": {
       "description": "The time limit of each state, in seconds.",

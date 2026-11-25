@@ -7,7 +7,7 @@
 //! `/proc`, and a confined one writes its working directory and does not
 //! read it (`scripts/measure-podvm-confine.sh`).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -39,8 +39,15 @@ impl PodvmUnit {
     /// in the working directory, the runner directory and `/tmp` (each of
     /// the last two that the image has), and in the socket directory `sockets` when it
     /// is mounted (the hook relay and its sockets). The system directories
-    /// of the image are read and execute by default.
-    pub(super) fn confine_args(&self, rootfs: &Path, sockets: Option<&str>) -> Vec<String> {
+    /// of the image are read and execute by default. A host directory of
+    /// `mounts` (the cache, T-480) is in `exec=`, and in `write=` unless it
+    /// is `:ro`: a browser of Playwright runs from a cache.
+    pub(super) fn confine_args(
+        &self,
+        rootfs: &Path,
+        sockets: Option<&str>,
+        mounts: &[(PathBuf, String)],
+    ) -> Vec<String> {
         if !self.confine {
             return Vec::new();
         }
@@ -51,8 +58,12 @@ impl PodvmUnit {
             .filter(|p| *p == WORKDIR || rootfs.join(p.trim_start_matches('/')).is_dir())
             .collect();
         own.extend(sockets);
-        let own = own.join(",");
-        vec!["--podvm-confine".into(), format!("read=/;write={own};exec={own}")]
+        let read_only = mounts.iter().filter_map(|(_, t)| t.strip_suffix(":ro"));
+        let mut exec = own.clone();
+        own.extend(mounts.iter().map(|(_, t)| t.as_str()).filter(|t| !t.ends_with(":ro")));
+        exec.extend(own.iter().skip(exec.len()).copied().chain(read_only));
+        let (own, exec) = (own.join(","), exec.join(","));
+        vec!["--podvm-confine".into(), format!("read=/;write={own};exec={exec}")]
     }
 
     /// The arguments of `run` for the confine layer of a container: read in

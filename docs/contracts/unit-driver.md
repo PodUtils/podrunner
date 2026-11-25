@@ -81,6 +81,14 @@ state of the instance in `wait` saw while it ran, also for `oom_kills`:
 incusd gives none of a stopped instance. The run report gives `unknown` with that reason. Another driver
 gives none, and slots samples the processes of `observe`.
 
+The host directories. A driver whose `host_mounts` is true mounts each
+directory of `StartSpec::mounts` at its path in the unit, and a path with
+`:ro` read-only; another driver refuses a start with one. `serve` gives
+the cache of a job (T-480) only to such a kind. The podvm driver gives
+`-v` on a rung with volumes; the fake links a read-write directory into
+the root of its unit and copies a read-only one, and points each variable
+of the target to it.
+
 The credential directory. `credential_dir` names, for a unit id, the
 absolute path where the unit sees its credential files, so that a
 variable can name one: the CA bundle of the broker of a job with a

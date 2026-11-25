@@ -221,7 +221,6 @@ impl Slots {
                 return self.give_up(key, RefusalCode::UnitStartFailed, now);
             }
         }
-        let kind = &self.kinds[p.kind];
         // The limits of the offer: the driver applies the lesser of each and
         // the limit of its kind (T-198, the owner, 2026-11-15).
         let job_limits = self.jobs[key]
@@ -229,6 +228,9 @@ impl Slots {
             .as_ref()
             .map(|o| podrunner_unit::limits::Limits::of_offer(&o.limits))
             .unwrap_or_default();
+        // The cache of the job, kept apart by trust (T-480).
+        let mounts = self.cache_start(key, &mut env);
+        let kind = &self.kinds[p.kind];
         let started = kind.driver.prepare(&p.payload, &format!("linux/{arch}"), false).and_then(|image| {
             kind.driver.start(&StartSpec {
                 unit: unit.clone(),
@@ -239,7 +241,7 @@ impl Slots {
                 // Each driver gets the directory: the microvm kind bridges
                 // its egress socket into the guest (T-107).
                 sockets: Some(dir.clone()),
-                mounts: Vec::new(),
+                mounts,
                 limits: job_limits,
             })
         });
@@ -441,6 +443,7 @@ impl Slots {
             }
             self.audit(audit::Kind::Destroy, key.0, &key.1, None, None);
             self.close_sockets(u);
+            self.cache_end(key);
         }
         self.set(key, State::Destroyed, now);
         self.report(key);

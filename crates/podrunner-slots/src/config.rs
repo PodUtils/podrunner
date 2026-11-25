@@ -309,13 +309,16 @@ pub struct Config {
     /// `slots` of each kind only.
     #[serde(default)]
     pub max_units: Option<u32>,
+    /// The cache of `serve` (T-480); none: no job gets a cache.
+    #[serde(default)]
+    pub cache: Option<crate::cache::CacheConfig>,
 }
 
 pub use crate::driver::check_driver;
 
 pub use crate::floors::{default_floor, lowest_floor};
 
-fn tier_name(t: Tier) -> &'static str {
+pub(crate) fn tier_name(t: Tier) -> &'static str {
     match t {
         Tier::Untrusted => "untrusted",
         Tier::Trusted => "trusted",

@@ -31,6 +31,8 @@ pub struct Times {
     /// The scrubbed end of the log of a unit that failed before its first
     /// step.
     pub log_tail: Option<String>,
+    /// The cache of the job (T-480).
+    pub cache: Option<crate::cache::Grant>,
 }
 
 impl Times {
@@ -186,12 +188,7 @@ impl Slots {
                 r.unknown_reasons.insert("net_rx_bytes".into(), "the host has no egress module".into());
                 r.unknown_reasons.insert("net_tx_bytes".into(), "the host has no egress module".into());
             }
-            // podrunner gives no shared cache to a job yet (T-480).
-            let no_cache = "no cache: podrunner gives no shared cache to a job (T-480)";
-            r.cache_read_bytes = Some(unknown());
-            r.cache_written_bytes = Some(unknown());
-            r.unknown_reasons.insert("cache_read_bytes".into(), no_cache.into());
-            r.unknown_reasons.insert("cache_written_bytes".into(), no_cache.into());
+            crate::cache::report(j.times.cache.as_ref(), &mut r);
         }
         r.assigned = j.assigned.as_ref().zip(j.real.as_ref()).map(|(v, real)| Assigned {
             run_id: real.run_id,
