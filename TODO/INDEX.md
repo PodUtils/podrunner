@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**667 entries: 85 open, 57 partial, 13 blocked, 512 done.**
+**668 entries: 85 open, 57 partial, 13 blocked, 513 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 97 | 122 |
 | P2 | 17 | 23 | 8 | 267 | 315 |
-| P3 | 67 | 11 | 3 | 146 | 227 |
-| **All** | 85 | 57 | 13 | 512 | 667 |
+| P3 | 67 | 11 | 3 | 147 | 228 |
+| **All** | 85 | 57 | 13 | 513 | 668 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -715,3 +715,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-670](bootstrap.md) | P3 | S | M0 | chore | done | Update the TruffleHog image to 3.100.0 |
 | [T-671](bootstrap.md) | P3 | S | M0 | chore | done | Update the TOML parser dependencies |
 | [T-672](later.md) | P2 | M | later | feature | open | G-09: bundle the Docker engine in runner-full |
+| [T-673](later.md) | P3 | S | later | defect | done | Warm unit tests depend on host memory |

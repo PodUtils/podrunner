@@ -228,7 +228,9 @@ impl Bed {
         // it, also across a restart of the slots.
         let c = clock.clone();
         let unix = Box::new(move || c.wall().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs()));
-        let slots = Slots::start(cfg, &dir.0.join("state"), clock.clone(), unix, srcs, ks).unwrap();
+        let mut slots = Slots::start(cfg, &dir.0.join("state"), clock.clone(), unix, srcs, ks).unwrap();
+        // The fake unit tests model memory pressure by setting this probe.
+        slots.warm.mem_probe = Box::new(|| Some(u64::MAX));
         Bed { slots, clock, dir }
     }
 

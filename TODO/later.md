@@ -17078,3 +17078,32 @@ Build both architectures of `runner-full` with a checksum-pinned Docker engine. 
 ## Prove
 
 `cargo test -p podrunner-slots placement` exercises engine placement with both image profiles and a configured override. The Docker build and Docker-in-Docker parity jobs of `runner-image.yml` pass on MicroVM and Incus with the bundled binaries.
+
+# T-673: Warm unit tests depend on host memory
+
+**Source:** the local pre-push gate during the full image build, 2026-11-25
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The fake warm unit tests read the memory available to the host and can stop booting fixtures under concurrent build load.
+
+## Premise
+
+The pre-push workspace tests failed in 27 warm cases while BuildKit was exporting a full image. The memory cgroup reached its 16 GiB limit. The same tree passed all 30 warm tests after the image build ended. `crates/podrunner-slots/src/warm.rs` reads host and cgroup memory and reserves room before booting a warm unit.
+
+## Approach
+
+Set the available memory explicitly in the shared fake test harness. The pressure tests set their own lower readings.
+
+## Prove
+
+`cargo test -p podrunner-slots --all-features --lib warm`.
+
+## Done
+
+2026-11-25, the commit that names T-673. Fake test beds supply their own memory reading. The 30 warm tests passed, including the cases that inject memory pressure and verify retirement of a free unit.
