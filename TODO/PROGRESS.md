@@ -44,6 +44,8 @@
 - The signed release assets of podrunner `v0.1.0-beta.8` and podcrates
   `v0.84.0` supply the source test tools and fakes on both architectures
   (T-511). The podcrates OCI provenance covers matching executables.
+- The image recipe command and the hosted package comparison are ready
+  for the full-image import and workflow proof (T-500).
 - The sidecar of the scale set, with the opt-ins of Q12 (T-518) and Q13
   (T-504), has unit and fake tests only. It did not run against GitHub.
   Open: T-621 (a live lane), T-622, T-624.

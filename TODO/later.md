@@ -11460,9 +11460,13 @@ The census of T-491 (2026-11-18): cfb keeps `podrunner image build` (Q-12 b), so
 
 A Playwright test of a gate passes in a unit with no download of the system libraries (`runner-image.yml`).
 
+`cargo test -p podrunner image` checks the recipe and the runner pin. Build a full image with an extra package using `podrunner image build --recipe runner.toml --out runner-local.tar`. Import the archive with `podvm load -i runner-local.tar` and run a workflow with the printed digest using `podrunner run --podvm PATH --images STORE --image REFERENCE workflow.yml`.
+
 State (2026-11-19, `user-gate.yml` run 44462524454): on the microvm executor the row `rbg-gate` passed the install and `tsc` of TypeScript 7, then Chromium of Playwright failed: `libglib-2.0.so.0` is not in `runner-full`. `images/runner/full.txt` now holds the libraries that `playwright install-deps chromium` installs on Ubuntu 24.04 (`libglib2.0-0t64`, `libnss3`, `libgbm1` and the others). The hosted snapshot (T-542) is the full answer; this is the step for the kinds that run `runner-full`. Next: the row on microvm with the new image.
 
 State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): with the libraries of Chromium in `runner-full`, the page of Playwright 1.64.1 opens in headless Chromium on the microvm executor (the row `rbg-gate`). Left: the published list of the software of `runner-full` against `ubuntu-24.04` (the hosted parity of T-539 gives it), and `podrunner image build` from a recipe (cfb's Q-12 b).
+
+State (2026-11-25, the commit that names T-500): `hosted-parity.yml` run 45430139082 publishes `probe-runner-full`, `probe-ubuntu-24.04` and `gap`. The CLI builds the pinned base or full profile and extra Ubuntu packages, writes an OCI archive and prints a payload pin. The 15 image tests and 14 manual tests passed. The executable refused an invalid package and preserved an existing destination. Buildx exported the full-profile image with `ninja-build` and the archive validator rejected its `blobs/sha256/` directory header. The validator now skips directory headers. The regression failed in the old validator and all seven cache tests passed with the fix. The full-image import and workflow proof is in progress.
 
 # T-501: G-26: a drain and a stop of one source
 

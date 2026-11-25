@@ -9,6 +9,8 @@ use std::path::Path;
 
 use serde::Deserialize;
 
+pub(crate) mod build;
+
 /// The pin file of the runner, as built in.
 pub const RUNNER_TOML: &str = include_str!("../../../images/runner/runner.toml");
 

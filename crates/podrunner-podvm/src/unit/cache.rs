@@ -138,6 +138,10 @@ pub fn tar_fault(tar: &Path) -> Option<String> {
             Ok(e) => e,
             Err(e) => return Some(format!("it does not unpack: {}", plain(&e.to_string()))),
         };
+        // OCI exporters can write directory headers beside their blobs.
+        if e.header().entry_type().is_dir() {
+            continue;
+        }
         let path = e.path().map(|p| p.to_string_lossy().trim_start_matches("./").to_string()).unwrap_or_default();
         // A name of the tar goes into a line of a terminal.
         let shown = plain(&path);
@@ -218,6 +222,24 @@ fn prune(dir: &Path, keep: usize) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_archive_accepts_a_blob_directory_header_from_buildx() {
+        let dir = crate::scratch::Scratch::new("oci-blob-directory");
+        let tar = dir.join("i.tar");
+        super::super::cache_tests::write_image(&tar);
+        let mut header = tar::Header::new_ustar();
+        let name = b"blobs/sha256/";
+        header.as_ustar_mut().unwrap().name[..name.len()].copy_from_slice(name);
+        header.set_entry_type(tar::EntryType::Directory);
+        header.set_mode(0o755);
+        header.set_size(0);
+        header.set_cksum();
+        let mut archive = header.as_bytes().to_vec();
+        archive.extend(std::fs::read(&tar).unwrap());
+        std::fs::write(&tar, archive).unwrap();
+        assert_eq!(super::tar_fault(&tar), None);
+    }
+
     /// T-630: a whole tar has no fault; a cut one, a changed blob and a
     /// missing layer each have one; a temporary tar of a save that
     /// stopped goes at the prune.

@@ -7,7 +7,7 @@ use pod_manual::{Exit, Facts, FileFact, Table, Use, Var, VarGroup};
 use super::Key;
 
 /// The exit codes of the failure classes that podrunner gives.
-pub(crate) const CLASS_CODES: &[i32] = &[64, 66, 69, 75, 76, 77, 78, 80];
+pub(crate) const CLASS_CODES: &[i32] = &[64, 65, 66, 69, 70, 73, 75, 76, 77, 78, 80];
 
 fn var(names: &[&str], used_by: &str, usage: Use, meaning: &str) -> Var {
     Var { usage, used_by: used_by.into(), ..Var::reads(names, meaning) }

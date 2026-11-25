@@ -340,6 +340,32 @@ Then use the image:
   Unpack the tarball of the release of `actions/runner`, after a check of
   its SHA-256 against `runner.tarball_sha256` of `runner-images.json`.
 
+## Build a runner image
+
+Use a Docker Buildx builder with the OCI exporter. Set
+`BUILDX_BUILDER` to select a builder of that kind. The command uses the
+Ubuntu base and the runner tarball pinned by this build of podrunner.
+
+```toml
+profile = "full"
+packages = ["ninja-build"]
+```
+
+Save the recipe as `runner.toml`. Use `profile = "base"` for the base
+runner image. The default is `base`. The extra packages are Ubuntu
+package names. The command prints a payload pin for the image.
+
+```sh
+podrunner image build --recipe runner.toml --out runner-local.tar > payload.toml
+podvm load -i runner-local.tar
+```
+
+For local mode, give `podrunner run` the reference from the pin with
+`--image`. For `serve`, add the pin to its configuration and sign the
+pin list again. Review the published runner-full comparison in the
+`hosted-parity` workflow's `gap` artifact for a list of differences from
+the hosted Ubuntu image.
+
 ## The offline bundle
 
 The release attaches `podrunner-bundle-x86_64.tar.gz` and

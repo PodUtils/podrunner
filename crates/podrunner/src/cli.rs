@@ -191,13 +191,14 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             _ => Err(err(Class::Usage, format!("audit needs verify\n{}", crate::manual::usage("audit verify")))),
         },
         "image" => match rest.split_first() {
+            Some((sub, rest)) if sub == "build" => crate::image::build::run(rest),
             Some((sub, rest)) if sub == "verify" => {
                 let o = opts("image verify", rest)?;
                 let arch = o.need("--arch")?.display().to_string();
                 let arch = crate::image::arch_of(&arch).map_err(|e| err(Class::Usage, e))?;
                 crate::image::verify(&o.need("--tarball")?, arch).map(ok).map_err(|e| err(Class::Config, e))
             }
-            _ => Err(err(Class::Usage, format!("image needs verify\n{}", crate::manual::usage("image verify")))),
+            _ => Err(err(Class::Usage, format!("image needs build or verify\n{}", crate::manual::usage("image")))),
         },
         "run" => {
             // The flags of the configuration files go first (T-143).

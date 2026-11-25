@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| command line | `podrunner image build --recipe FILE --out ARCHIVE [--arch ARCH]` builds a pinned runner image with Docker Buildx. It writes an OCI archive and prints its payload pin. | T-500 |
 | `podrunner.toml`, runner image | A pin can declare `assignment_hook = true` for a runner that checks each job before the first step. The pin signature covers the declaration. A unit without that hook gets `no-hook` for assignment requests. | T-663 |
 | source wire | The name of a credential file may hold no space, no control byte and no DEL (it held no `/`, `\`, NUL, `.` or `..` before): the mint refuses another name with `credential-unavailable`. The names of podrunner and of the runner (`.runner`, `.credentials`, `.credentials_rsaparams`, `jitconfig`) pass. | T-487 |
 | pins, `run-report.v1`, `status.v1`, source wire | podcrates `v0.84.0`: `release.yml` verifies the assets with `pod-release` `0.84.0`, and the gate runs `source-conformance` against `pod-fake-githome` of `v0.84.0` (`ghcr.io/podutils/pod-fake-githome:v0.84.0`). `RealJob` of the question `assigned` takes the optional `ref` and `repo_id`; `unit` of `run-report.v1` takes the optional `start`, `warm_s` and `boot_s`; `status.v1` takes `warm` of a kind and `warm_units`. The exit codes of podrunner do not change. | T-664 |

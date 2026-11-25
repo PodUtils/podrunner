@@ -61,7 +61,7 @@ Run the jobs of a workflow on this host, with no forge
 Check the audit file of serve
 .TP
 \fBimage\fR
-Check a file of the official runner
+Build a runner image or check the official runner tarball
 .TP
 \fBpin\-sign\fR
 Print the signer and the signature of the pin list
@@ -580,16 +580,39 @@ Print one JSON object for each line.
 \fB\-h\fR, \fB\-\-help\fR
 Print the help of this command.
 .SS "podrunner image"
-Check a file of the official runner.
+Build a runner image or check the official runner tarball.
 .PP
 Usage: \fBpodrunner image COMMAND [OPTION...]\fR
 .PP
 \fBCommands:\fR
 .TP
+\fBbuild\fR
+Build an OCI runner image from a TOML recipe
+.TP
 \fBverify\fR
 Check actions\-runner\-linux\-ARCH\-VERSION.tar.gz against its pin
 .PP
 \fBOptions:\fR
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.SS "podrunner image build"
+Build an OCI runner image from a TOML recipe.
+.PP
+Requires Docker Buildx with the OCI exporter. Prints a payload pin on success.
+.PP
+Usage: \fBpodrunner image build \-\-recipe FILE \-\-out ARCHIVE [\-\-arch ARCH]\fR
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-recipe\fR \fIFILE\fR
+A TOML recipe with the base or full profile and extra Ubuntu packages.
+.TP
+\fB\-\-out\fR \fIARCHIVE\fR
+Write the OCI archive to a new file.
+.TP
+\fB\-\-arch\fR \fIARCH\fR
+x64 or arm64. Defaults to the architecture of this host.
 .TP
 \fB\-h\fR, \fB\-\-help\fR
 Print the help of this command.
@@ -1243,11 +1266,20 @@ source\-conformance failed.
 \fB64\fR (usage)
 A value of the command line cannot be used.
 .TP
+\fB65\fR (data)
+An input was there, and its content is wrong.
+.TP
 \fB66\fR (notfound)
 A path or a name does not exist.
 .TP
 \fB69\fR (unavailable)
 A service or a path is not available.
+.TP
+\fB70\fR (internal)
+A fault occurred inside the tool, or a session ended before its end.
+.TP
+\fB73\fR (cantcreate)
+An output file or directory cannot be made or written.
 .TP
 \fB75\fR (tempfail, timeout)
 A service refused for now. A later try can work. A wait ended at its time
