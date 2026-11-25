@@ -11,6 +11,10 @@
 # against the tier of the unit, and answers keep or end. No answer, no
 # proxy or no node ends the job (fail closed). With no file (the local
 # mode), there is nothing to compare.
+# For a job of the placed run, the hook marks the first step at the same
+# front (POST /v1/started, T-660): serve journals the job `running`, the
+# start of `claim_to_first_step_s` on each kind. A mark that fails does not
+# end the job.
 # A fixed PATH and no options of node from the environment of the job.
 PATH=/usr/bin:/bin
 export PATH
@@ -23,13 +27,14 @@ want_file="$root/.podrunner-job"
 [ -f "$want_file" ] || exit 0
 want=$(tr 'A-Z' 'a-z' < "$want_file")
 got=$(printf '%s %s\n' "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" | tr 'A-Z' 'a-z')
-[ "$got" = "$want" ] && exit 0
 
 # The question: the facts of this job, as JSON, to serve. Exit 0 is keep;
-# else the line on stdout is the code.
+# else the line on stdout is the code. With the argument `started`: the
+# mark of the first step, and exit 0 on each answer.
 ask='
 const http = require("http"), fs = require("fs");
 const e = process.env;
+const mark = process.argv[1] === "started";
 let head_repository, head_is_fork;
 // A fork is a head that is not the base: not head.repo.fork, as a pull
 // request can come from the root of the fork network.
@@ -45,7 +50,7 @@ const body = JSON.stringify({
   run_id: Number(e.GITHUB_RUN_ID), job_name: e.GITHUB_JOB || "", event: e.GITHUB_EVENT_NAME || "",
   repository: e.GITHUB_REPOSITORY || "", head_repository, head_is_fork, actor: e.GITHUB_ACTOR || ""
 });
-const end = (code) => { console.log(code); process.exit(3); };
+const end = (code) => { if (mark) process.exit(0); console.log(code); process.exit(3); };
 // The proxy of the unit, else the egress socket of PODRUNNER_EGRESS.
 let to;
 const named = e.HTTP_PROXY || e.http_proxy || e.HTTPS_PROXY || e.https_proxy;
@@ -57,14 +62,17 @@ if (named) {
 } else {
   end("no-proxy");
 }
+// The mark carries no fact of the job: the front knows its unit.
+const sent = mark ? "{}" : body;
 const req = http.request({
-  ...to, method: "POST", timeout: 15000,
-  path: "http://control.podrunner.test/v1/assigned",
-  headers: { "Host": "control.podrunner.test", "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }
+  ...to, method: "POST", timeout: mark ? 3000 : 15000,
+  path: "http://control.podrunner.test/v1/" + (mark ? "started" : "assigned"),
+  headers: { "Host": "control.podrunner.test", "Content-Type": "application/json", "Content-Length": Buffer.byteLength(sent) }
 }, (res) => {
   let d = "";
   res.on("data", (c) => { d += c; });
   res.on("end", () => {
+    if (mark) process.exit(0);
     let v;
     try { v = JSON.parse(d); } catch (_) { end("bad-answer"); }
     if (v.verdict === "keep") process.exit(0);
@@ -73,12 +81,16 @@ const req = http.request({
 });
 req.on("timeout", () => { req.destroy(); end("source-unavailable"); });
 req.on("error", () => end("no-answer"));
-req.end(body);
+req.end(sent);
 '
 node=""
 for n in "$root/externals/node24/bin/node" "$root/externals/node20/bin/node"; do
   if [ -x "$n" ]; then node=$n; break; fi
 done
+if [ "$got" = "$want" ]; then
+  if [ -n "$node" ]; then "$node" -e "$ask" started >/dev/null 2>&1 || :; fi
+  exit 0
+fi
 code="no-node"
 if [ -n "$node" ]; then
   code=$("$node" -e "$ask" 2>/dev/null) && exit 0

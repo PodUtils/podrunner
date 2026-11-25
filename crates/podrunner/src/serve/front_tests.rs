@@ -25,7 +25,7 @@ fn inner(path: &std::path::Path) {
 }
 
 fn echo_ask() -> Ask {
-    Arc::new(|body: &[u8]| format!("{{\"len\":{}}}", body.len()))
+    Arc::new(|route: &str, body: &[u8]| format!("{{\"route\":\"{route}\",\"len\":{}}}", body.len()))
 }
 
 fn talk(path: &std::path::Path, bytes: &[u8]) -> String {
@@ -49,7 +49,11 @@ fn a_question_is_answered_and_each_other_request_goes_to_the_module() {
     );
     let out = talk(&d.join("egress.sock"), q.as_bytes());
     assert!(out.starts_with("HTTP/1.1 200 OK"), "{out}");
-    assert!(out.ends_with(&format!("{{\"len\":{}}}", body.len())), "{out}");
+    assert!(out.ends_with(&format!("{{\"route\":\"/v1/assigned\",\"len\":{}}}", body.len())), "{out}");
+    // The mark of the first step is the other route (T-660).
+    let mark = format!("POST http://{CONTROL}/v1/started HTTP/1.1\r\nContent-Length: 2\r\n\r\n{{}}");
+    let out = talk(&d.join("egress.sock"), mark.as_bytes());
+    assert!(out.starts_with("HTTP/1.1 200 OK") && out.ends_with(r#"{"route":"/v1/started","len":2}"#), "{out}");
     // Another path of the control host is refused; so is a CONNECT to it.
     let other = format!("POST http://{CONTROL}/v1/other HTTP/1.1\r\nContent-Length: 0\r\n\r\n");
     assert!(talk(&d.join("egress.sock"), other.as_bytes()).starts_with("HTTP/1.1 404"));
@@ -125,6 +129,14 @@ fn the_egress_port_of_serve_carries_the_questions_of_a_unit() {
     assert!(out.starts_with("HTTP/1.1 200") && out.ends_with(r#"{"verdict":"keep"}"#), "{out}");
     let out = talk(&socket, b"CONNECT b.example:443 HTTP/1.1\r\nHost: b.example:443\r\n\r\n");
     assert!(out.starts_with("HTTP/1.1 403"), "the policy of the module: {out}");
+    // T-660: the mark of the first step is answered at once and names the
+    // unit of the socket, whatever its body says.
+    assert!(port.first_steps().is_empty());
+    let mark = format!("POST http://{CONTROL}/v1/started HTTP/1.1\r\nContent-Length: 14\r\n\r\n{{\"unit\":\"u-9\"}}");
+    let out = talk(&socket, mark.as_bytes());
+    assert!(out.starts_with("HTTP/1.1 200") && out.ends_with(r#"{"ok":true}"#), "{out}");
+    assert_eq!(port.first_steps(), [podrunner_schema::UnitId::parse("u-1").unwrap()]);
+    assert!(port.questions().is_empty(), "a mark is no question");
     port.close("u-1");
     assert!(!socket.exists(), "the front goes at the close");
 }

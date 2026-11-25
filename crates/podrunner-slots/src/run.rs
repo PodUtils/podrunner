@@ -34,11 +34,15 @@ impl Slots {
             return;
         }
         let Some(j) = self.jobs.get(&key) else { return };
-        if j.state != State::Started {
+        // A hook can mark the first step before this event: the runner
+        // name is still checked (T-660).
+        if !matches!(j.state, State::Started | State::Running) {
             return;
         }
         if j.runner_name.as_deref() == Some(runner) {
-            self.set(&key, State::Running, now);
+            if j.state == State::Started {
+                self.set(&key, State::Running, now);
+            }
             return;
         }
         // The forge gave the job to another runner: this unit must not run.

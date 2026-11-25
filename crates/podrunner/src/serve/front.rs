@@ -1,7 +1,8 @@
 //! The front of the egress socket of a unit of `serve` (T-493). The unit
 //! sees one socket, where its proxy variables point. A request for
-//! [`CONTROL`] is a question of the job-started hook of the runner image
-//! (`POST /v1/assigned`), which `serve` answers; each other request goes
+//! [`CONTROL`] is a call of the job-started hook of the runner image: a
+//! question (`POST /v1/assigned`), which `serve` answers, or the mark of
+//! the first step (`POST /v1/started`, T-660); each other request goes
 //! unchanged to the egress module on its own socket, which holds the
 //! policy of the job. The front reads a bounded head within a time limit,
 //! and serves a bounded count of connections (the lessons of T-412).
@@ -24,8 +25,12 @@ const HEAD_MAX: usize = 64 * 1024;
 /// The longest body of a question.
 const BODY_MAX: usize = 64 * 1024;
 
-/// The answer of `serve` to the body of a question: a JSON text.
-pub type Ask = Arc<dyn Fn(&[u8]) -> String + Send + Sync>;
+/// The routes of the control host.
+pub const ROUTES: [&str; 2] = ["/v1/assigned", "/v1/started"];
+
+/// The answer of `serve` to a call: the route (one of [`ROUTES`]) and the
+/// body give a JSON text.
+pub type Ask = Arc<dyn Fn(&str, &[u8]) -> String + Send + Sync>;
 
 /// The bounds of a front.
 #[derive(Debug, Clone, Copy)]
@@ -109,11 +114,11 @@ fn read_head(conn: &UnixStream) -> std::io::Result<Option<Head>> {
     Ok(Some(Head { first, raw_first, lines, rest }))
 }
 
-/// A question to `serve`: `POST /v1/assigned` with a JSON body.
+/// A call to `serve`: `POST` of a route of [`ROUTES`] with a JSON body.
 fn question(conn: &UnixStream, method: &str, target: &str, head: &Head, ask: &Ask) -> std::io::Result<()> {
     let path = target.split_once("://").and_then(|(_, t)| t.find('/').map(|i| &t[i..])).unwrap_or("/");
-    if method != "POST" || path != "/v1/assigned" {
-        return answer(conn, "404 Not Found", r#"{"error":"POST /v1/assigned only"}"#);
+    if method != "POST" || !ROUTES.contains(&path) {
+        return answer(conn, "404 Not Found", r#"{"error":"POST /v1/assigned or /v1/started only"}"#);
     }
     let length = String::from_utf8_lossy(&head.lines)
         .lines()
@@ -130,7 +135,7 @@ fn question(conn: &UnixStream, method: &str, target: &str, head: &Head, ask: &As
         (&*conn).read_exact(&mut more)?;
         body.extend_from_slice(&more);
     }
-    answer(conn, "200 OK", &ask(&body))
+    answer(conn, "200 OK", &ask(path, &body))
 }
 
 /// Join the connection of the unit and the egress module, both ways, and

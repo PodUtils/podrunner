@@ -12,6 +12,8 @@ used as a user, on one host class (a lane of user-gate.yml).
                     [--executors podvm,runner-dir,microvm] [--no-corpus]
       the checks of one lane, as the user that runs it; OUT/results.tsv
       gets one line for each check (lane, check, result, detail, times)
+  user-gate.py --self-test
+      check the parts that need no host (the times of `serve:warm`)
 
 user-gate-summary.py prints the table of the results of each lane.
 
@@ -65,6 +67,50 @@ HELLO_XFAIL: dict[str, str] = {}
 
 class GateError(Exception):
     pass
+
+
+def phase_times(name: str, kind: str, journal: list[dict]) -> list[tuple[int, int]]:
+    """The times of each job of a phase of `serve:warm` (T-487), from the
+    journal lines of `serve`, in ms: claimed to running (the first step:
+    the mark of the job-started hook, T-660) and claimed to ended. The lines
+    of the warm units (`@warm`) are not jobs. A missing line fails with its
+    name and the kind."""
+    times = []
+    jobs = [x for x in journal if x.get("source") != "@warm"]
+    for job in dict.fromkeys(x["job_id"] for x in jobs):
+        at = {}
+        for x in jobs:
+            if x["job_id"] == job:
+                at.setdefault(x["state"], x["t_ms"])
+        missing = [s for s in ("claimed", "running", "ended") if s not in at]
+        if missing:
+            why = " (no first step: no mark of the job-started hook reached serve)" if "running" in missing else ""
+            raise GateError(f"{name}: job {job} on {kind} has no {' and no '.join(missing)} line{why}; "
+                            f"its lines: {sorted(at)}")
+        times.append((at["running"] - at["claimed"], at["ended"] - at["claimed"]))
+    return times
+
+
+def self_test() -> int:
+    """The parts of the gate that need no host."""
+    def line(job, state, t, source="githome"):
+        return {"source": source, "job_id": job, "state": state, "t_ms": t}
+    good = [line("w-0", "started", 1, "@warm")] + [
+        line(j, s, t0 + d) for j, t0 in (("j-1", 100), ("j-2", 500))
+        for s, d in (("claimed", 0), ("minted", 5), ("started", 10), ("running", 40), ("ended", 90))]
+    assert phase_times("p", "incus", good) == [(40, 90), (40, 90)], phase_times("p", "incus", good)
+    # A second line of a state (a replay) does not move its first time.
+    assert phase_times("p", "incus", good + [line("j-1", "running", 999)]) == [(40, 90), (40, 90)]
+    for gone, words in (("running", ["no running line", "on microvm", "job-started hook", "j-2"]),
+                        ("claimed", ["no claimed line", "on microvm"]), ("ended", ["no ended line"])):
+        try:
+            phase_times("p", "microvm", [x for x in good if not (x["job_id"] == "j-2" and x["state"] == gone)])
+        except GateError as e:
+            assert all(w in str(e) for w in words), (gone, str(e))
+        else:
+            raise AssertionError(f"no {gone} line passed")
+    print("user-gate: self-test passed")
+    return 0
 
 
 def tcp_listeners_of(pid: int) -> list[str]:
@@ -963,20 +1009,27 @@ class Lane:
         the warm proof (`--warm-binary`: the feature warm-ci, with
         PODRUNNER_WARM_CI=1). Each warm job takes a warm unit (an audit line
         `warm-take`), and the sum of the times from the claim to the first
-        step (claimed to running, in ms of the journal) of the warm jobs is
-        less than that of the cold jobs: a sum of two in ms does not fail on
-        one job whose time rounds to the same second."""
+        step (claimed to running, in ms of the journal; the job-started hook
+        marks the first step on each kind, T-660) of the warm jobs is less
+        than that of the cold jobs: a sum of two in ms does not fail on one
+        job whose time rounds to the same second. The detail also gives the
+        times from the claim to the end."""
         cold = self.warm_phase(kind, False)
         warm = self.warm_phase(kind, True)
-        secs = [-(-ms // 1000) for ms in cold + warm]
-        if sum(warm) >= sum(cold):
-            raise GateError(f"claim to first step on {kind} (ms): warm {warm} is not less than cold {cold}")
+        step = [t[0] for t in cold + warm]
+        secs = [-(-ms // 1000) for ms in step]
+        ends = [-(-t[1] // 1000) for t in cold + warm]
+        if sum(step[2:]) >= sum(step[:2]):
+            raise GateError(f"claim to first step on {kind} (ms): warm {step[2:]} is not less than cold {step[:2]}")
         self.times[f"serve:warm:{kind}"] = {"cold-1-s": secs[0], "cold-2-s": secs[1], "warm-1-s": secs[2], "warm-2-s": secs[3]}
-        return f"claim_to_first_step_s on {kind}: cold {secs[:2]}, warm {secs[2:]}"
+        return (f"claim_to_first_step_s on {kind}: cold {secs[:2]}, warm {secs[2:]}; "
+                f"claim to end (s): cold {ends[:2]}, warm {ends[2:]}")
 
-    def warm_phase(self, kind: str, warm: bool) -> list[int]:
-        """Two jobs through one `serve`; their times from the claim to the
-        first step, in ms."""
+    def warm_phase(self, kind: str, warm: bool) -> list[tuple[int, int]]:
+        """Two jobs through one `serve`; the times of each from the claim
+        to the first step and to the end, in ms (`phase_times`). The journal
+        and the audit of `serve` go to out/logs/NAME-serve, and its stderr
+        to out/logs/NAME-serve.err."""
         import urllib.request
         name = f"warm-{kind}-{'warm' if warm else 'cold'}"
         env = self.env(self.home, PODRUNNER_WARM_CI="1")
@@ -1039,6 +1092,12 @@ class Lane:
             reports = json.loads(urllib.request.urlopen(f"{ho_url}/_fake/reports", timeout=30).read())
             journal, audit = lines("journal.jsonl"), lines("audit.jsonl")
         finally:
+            # Before the kill: the lines of a failed phase as it stood.
+            kept = self.out / "logs" / f"{name}-serve"
+            kept.mkdir(parents=True, exist_ok=True)
+            for f in ("journal.jsonl", "audit.jsonl"):
+                if (state / f).is_file():
+                    shutil.copy(state / f, kept / f)
             for p in reversed(procs):
                 if p.poll() is None:
                     os.killpg(p.pid, signal.SIGTERM)
@@ -1051,12 +1110,7 @@ class Lane:
         bad = [r["report"] for r in reports if r["report"].get("exit_reason") != "success"]
         if bad:
             raise GateError(f"{name}: a job did not end in success: {bad}")
-        times = []
-        for job in dict.fromkeys(x["job_id"] for x in journal if x.get("source") != "@warm"):
-            at = {x["state"]: x["t_ms"] for x in journal if x["job_id"] == job and x.get("source") != "@warm"}
-            if "claimed" not in at or "running" not in at:
-                raise GateError(f"{name}: job {job} has no claimed or running line: {sorted(at)}")
-            times.append(at["running"] - at["claimed"])
+        times = phase_times(name, kind, journal)
         takes = [x for x in audit if x.get("audit") == "warm-take"]
         if len(times) != 2 or len(takes) != (2 if warm else 0):
             raise GateError(f"{name}: {len(times)} jobs and {len(takes)} warm-take lines")
@@ -1308,6 +1362,8 @@ def check(_a) -> int:
 
 
 def main() -> int:
+    if sys.argv[1:] == ["--self-test"]:
+        return self_test()
     p = argparse.ArgumentParser(description="The user-path gate (T-243).")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("check")

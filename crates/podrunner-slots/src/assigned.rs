@@ -65,6 +65,12 @@ impl Slots {
                 Ok(real) => self.assigned(&unit, &real),
                 Err(_) => Verdict::end("bad-request"),
             };
+            // The hook asks before the first step and sends no mark after
+            // `keep` (T-660).
+            if verdict == Verdict::Keep {
+                let now = self.now();
+                self.first_step(&unit, now);
+            }
             // The hook waits a bounded time, then ends the job and drops its
             // end of the channel: the job then ends as the hook said.
             if let Err(std::sync::mpsc::TrySendError::Disconnected(_)) = reply.try_send(verdict.body()) {

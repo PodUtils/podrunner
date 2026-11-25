@@ -105,7 +105,10 @@ the `repo_id` and the event of the real job; a source that does not know
 one gives it empty, never the value of the offer. Else, and on `end`, the
 job ends before its first step with an annotation that names the code. A source with no
 `assigned` answers `bad-request`, and the job ends as before. No answer
-within 10 s ends the job with the code `source-unavailable`.
+within 10 s ends the job with the code `source-unavailable`. For a job of
+the run of the offer, the hook sends no question: it marks the first step
+of the job at the same front (`POST /v1/started`, no fact of the job).
+A mark that fails does not end the job.
 
 `serve` sends `hello` with `host` to each source at its start (T-495,
 githome's G-17), so that a source offers no job that the host must refuse.
@@ -165,8 +168,12 @@ The mint withdraws an offer that does not parse with the reason
 | `started` | `job_id`, `runner_name` | The forge says that a runner took the job. |
 
 `next` with `capacity` N gives N offers or fewer. podrunner moves a unit
-from `started` to `running` only when the `started` event names the
-runner name of the unit (`job-mismatch` else).
+from `started` to `running` at the first of three marks: a `started`
+event that names the runner name of the unit, the job-started container
+hook, or the mark of the job-started hook of the runner image (T-660).
+That move starts the run and ends `claim_to_first_step_s`, so a source
+that sends no `started` still gets the time. A `started` event that names
+another runner ends the unit (`job-mismatch`), also after another mark.
 
 ## Errors
 

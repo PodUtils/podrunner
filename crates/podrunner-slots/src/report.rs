@@ -155,8 +155,12 @@ impl Slots {
         let claim = gone(j.claimed_ms, "the job was not claimed");
         let start = gone(j.started_ms, "the unit did not start");
         // A `program` source with no hook sends no `started` event, also
-        // for a job that ran its steps (T-568).
-        let step = gone(j.first_step_ms, "no first step: no started event of the source and no container hook came");
+        // for a job that ran its steps (T-568); a payload with no
+        // job-started hook of the runner image sends no mark (T-660).
+        let step = gone(
+            j.first_step_ms,
+            "no first step: no started event of the source, no container hook and no mark of the job-started hook came",
+        );
         let run_start = gone(j.first_step_ms.or(j.started_ms), "the unit did not start");
         let end = gone(j.times.ended_ms, "the unit did not end before the report");
         let destroy = gone(j.times.destroyed_ms, "the unit was not destroyed before the report");

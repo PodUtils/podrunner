@@ -252,6 +252,54 @@ fn the_job_started_hook_asks_serve_for_a_job_of_another_run() {
     let _ = std::fs::remove_file(&job);
 }
 
+/// T-660: for a job of the placed run, the hook marks the first step at
+/// the front of the unit (`POST /v1/started`, with no fact of the job), and
+/// the job runs. A front that does not answer does not end the job.
+#[test]
+#[ignore]
+fn the_job_started_hook_marks_the_first_step_of_its_own_job() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = std::path::PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let script = include_str!("../../../images/runner/podrunner-job-started.sh");
+    std::fs::create_dir_all(dir.join("hooks")).unwrap();
+    let hook = dir.join("hooks/podrunner-job-started.sh");
+    std::fs::write(&hook, script).unwrap();
+    std::fs::set_permissions(&hook, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    let job = dir.join(".podrunner-job");
+    std::fs::write(&job, "Example-Org/App 1\n").unwrap();
+    for answers in [true, false] {
+        let (port, seen) = if answers {
+            front_stand_in(r#"{"ok":true}"#)
+        } else {
+            // A port with no listener: the connection is refused.
+            let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            (l.local_addr().unwrap().port(), Default::default())
+        };
+        let broker = Broker::start().unwrap();
+        broker.queue(Job::scripts("own", &["echo step > marker.txt"]));
+        let _ = std::fs::remove_dir_all(dir.join("_work"));
+        let env = [
+            ("ACTIONS_RUNNER_HOOK_JOB_STARTED", hook.display().to_string()),
+            ("HTTP_PROXY", format!("http://127.0.0.1:{port}")),
+            ("NO_PROXY", "127.0.0.1,localhost".to_string()),
+            ("no_proxy", "127.0.0.1,localhost".to_string()),
+        ];
+        run_once(&dir, &broker, &env);
+        std::thread::sleep(Duration::from_millis(100));
+        let done = broker.completions();
+        assert_eq!(done[0].conclusion, "succeeded", "{answers}: {done:?} {}", broker.logs());
+        assert!(dir.join("_work/app/app/marker.txt").exists(), "{answers}: the step ran");
+        let asked: Vec<String> = seen.lock().unwrap().clone();
+        assert_eq!(asked.len(), usize::from(answers), "one mark: {asked:?}");
+        if answers {
+            assert!(asked[0].starts_with("POST http://control.podrunner.test/v1/started "), "{asked:?}");
+            assert!(asked[0].ends_with("\n{}"), "no fact of the job: {asked:?}");
+        }
+        assert!(!broker.logs().contains("podrunner: this runner was placed"), "{}", broker.logs());
+    }
+    let _ = std::fs::remove_file(&job);
+}
+
 /// T-530: a podvm unit has no proxy variable; the hook asks through the
 /// egress socket that `PODRUNNER_EGRESS` names, and `keep` runs the job.
 #[test]

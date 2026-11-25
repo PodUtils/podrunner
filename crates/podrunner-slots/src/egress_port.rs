@@ -66,4 +66,9 @@ pub trait EgressPort: Send {
     fn questions(&self) -> Vec<crate::assigned::Question> {
         Vec::new()
     }
+    /// The units whose job-started hook marked the first step of their job
+    /// since the last call (`POST /v1/started`, T-660).
+    fn first_steps(&self) -> Vec<podrunner_schema::UnitId> {
+        Vec::new()
+    }
 }

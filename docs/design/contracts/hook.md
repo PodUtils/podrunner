@@ -78,7 +78,7 @@ Refusals happen in `prepare_job`, which may block for the bounded wait. Job-leve
 
 ## Two more hook points
 
-`ACTIONS_RUNNER_HOOK_JOB_STARTED` and `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` need no flags (Documented, ADR 1751). `start` sets both to relay scripts of the image that post `{"event":"job-started"}` and `{"event":"job-completed"}` to `POST /v1/job_state` on the control socket. The first moves the job from `started` to `running` and is the measurement point of `claim_to_first_step_s`. The second records the time and changes no state. For a payload that is not the official runner, `running` is set when `start` returns.
+`ACTIONS_RUNNER_HOOK_JOB_STARTED` and `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` need no flags (Documented, ADR 1751). `start` sets both to relay scripts of the image that post `{"event":"job-started"}` and `{"event":"job-completed"}` to `POST /v1/job_state` on the control socket. The first moves the job from `started` to `running` and is the measurement point of `claim_to_first_step_s`. The second records the time and changes no state. A kind with no control socket (no container hooks) gets the first step from the job-started hook of the runner image: it posts to `POST http://control.podrunner.test/v1/started` at the egress socket of its unit (T-660). A payload with no job-started hook has no `running` line, and the report gives the reason of the absent `claim_to_first_step_s`.
 
 ## Example
 

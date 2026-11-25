@@ -28,6 +28,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | `podrunner.toml` | `check` refuses a `[[source]]` name that is empty, starts with `@` or has a control character (exit 78): the journal keeps the host's own lines under `@` names. | T-487 |
 | unit driver | New operations `warm`, `warm_ready` and `claim`, and `applied_limits` (each with a default: `unsupported`, or no limit): a warm unit runs no job until its claim gives it the credential, the environment and the argv. The tests 28 to 32 of the conformance suite (a kind with no warm unit skips them), and `run_warm` runs each test through warm units. The fake kind has warm units. `serve` makes none yet. | T-487 |
 | `podrunner.toml` | `config.v1` has the keys of warm units: `[unit.KIND] warm` (a count, or a table of label to count), `warm_max_age_s` and the top-level `warm_reserve`. `check` refuses each file with a warm unit (exit 78: "warm units are not in this build") until the proof in CI. | T-487 |
+| source wire, `run-report.v1`, runner image | The job-started hook of the runner image marks the first step of a job of the placed run at the egress socket of its unit (`POST http://control.podrunner.test/v1/started`, the body `{}`); `serve` journals the job `running` at the next tick, and `keep` of the question of a job of another run is its first step. A job on the incus, the microvm and the fake kind, and of a source that sends no `started`, now gets `claim_to_first_step_s` (it was absent, with the reason "no first step: ..."; the reason now also names the mark of the hook). A `started` event that names another runner ends the unit with `job-mismatch` also after the mark of a hook (it changed nothing). A mark that fails does not end the job. | T-660 |
 | command line | `run` and `serve`: the relay of the container hooks writes its program file in a child process, so a start of the file does not fail at random with `Text file busy` (ETXTBSY) while another thread forks. | T-646 |
 
 ## v0.1.0-beta.8
@@ -140,6 +141,6 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 0f43d75790e248ee82e1ae12675d917352c0734520f6bedf5ed0642fdd4abea4 -->
-<!-- contract docs/contracts/source-driver.md 0d9fe59a1492ebb0626092e413c9cf7eb0056912bac7eb487be25c9ef93c1fb5 -->
+<!-- contract docs/contracts/source-driver.md cc2130764efd7601a5a0a59a468756d9cf14b644a56d7a68f92ac35a1b7ff6ba -->
 <!-- contract docs/contracts/unit-driver.md 95465c8377fcc3f5bb7d7065232eabdcf823aef0483a2385d2aa2320622e680c -->
 <!-- contract schemas/config.v1.json 6635528e08614c6399d813f12113b5cdc505ba701027069a310bb425abb1b848 -->

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**654 entries: 85 open, 58 partial, 15 blocked, 496 done.**
+**655 entries: 85 open, 59 partial, 15 blocked, 496 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 95 | 121 |
-| P2 | 16 | 23 | 10 | 258 | 307 |
+| P2 | 16 | 24 | 10 | 258 | 308 |
 | P3 | 68 | 11 | 3 | 141 | 223 |
-| **All** | 85 | 58 | 15 | 496 | 654 |
+| **All** | 85 | 59 | 15 | 496 | 655 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -702,3 +702,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-657](later.md) | P2 | S | later | feature | blocked | Warm and cold units in the run report and the status |
 | [T-658](later.md) | P3 | S | later | feature | open | A warm incus instance fits an offer with lower limits |
 | [T-659](later.md) | P3 | M | later | feature | open | A cold guest of the microvm kind from a saved state |
+| [T-660](later.md) | P2 | S | later | defect | partial | The first step of a job on a kind with no container hook |

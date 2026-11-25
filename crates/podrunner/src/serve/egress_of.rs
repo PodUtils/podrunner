@@ -14,6 +14,9 @@ pub(super) struct EgressOf {
     ttl: Duration,
     asks: std::sync::mpsc::SyncSender<podrunner_slots::assigned::Question>,
     asked: std::sync::Mutex<std::sync::mpsc::Receiver<podrunner_slots::assigned::Question>>,
+    /// The units whose hook marked the first step of their job (T-660).
+    steps: std::sync::mpsc::SyncSender<podrunner_schema::UnitId>,
+    stepped: std::sync::Mutex<std::sync::mpsc::Receiver<podrunner_schema::UnitId>>,
     fronts: std::sync::Mutex<std::collections::HashMap<String, front::Front>>,
 }
 
@@ -21,7 +24,18 @@ impl EgressOf {
     pub(super) fn new(egress: podrunner_egress::Egress, ttl: Duration) -> EgressOf {
         // A bounded queue: a unit that asks too much gets `end`.
         let (asks, asked) = std::sync::mpsc::sync_channel(64);
-        EgressOf { egress, ttl, asks, asked: std::sync::Mutex::new(asked), fronts: Default::default() }
+        // A mark that finds the queue full is lost: the slots read the
+        // queue each tick, and a job has one first step.
+        let (steps, stepped) = std::sync::mpsc::sync_channel(64);
+        EgressOf {
+            egress,
+            ttl,
+            asks,
+            asked: std::sync::Mutex::new(asked),
+            steps,
+            stepped: std::sync::Mutex::new(stepped),
+            fronts: Default::default(),
+        }
     }
 
     /// The front of the socket of `unit`: a question goes to slots, each
@@ -30,8 +44,15 @@ impl EgressOf {
     fn front(&self, id: &podrunner_schema::UnitId, socket: &Path) -> Result<(), String> {
         let inner = socket.with_file_name("egress-inner.sock");
         let asks = std::sync::Mutex::new(self.asks.clone());
+        let steps = std::sync::Mutex::new(self.steps.clone());
         let unit = id.clone();
-        let ask: front::Ask = std::sync::Arc::new(move |body: &[u8]| {
+        let ask: front::Ask = std::sync::Arc::new(move |route: &str, body: &[u8]| {
+            if route == "/v1/started" {
+                // The hook does not wait for the tick: the slots journal
+                // the mark at the next tick.
+                let _ = steps.lock().map(|s| s.try_send(unit.clone()));
+                return r#"{"ok":true}"#.to_string();
+            }
             let (tx, rx) = std::sync::mpsc::sync_channel(1);
             let sent = asks.lock().map(|a| a.try_send((unit.clone(), body.to_vec(), tx)).is_ok()).unwrap_or(false);
             match sent.then(|| rx.recv_timeout(ASK_WAIT).ok()).flatten() {
@@ -107,5 +128,8 @@ impl podrunner_slots::EgressPort for EgressOf {
     }
     fn questions(&self) -> Vec<podrunner_slots::assigned::Question> {
         self.asked.lock().map(|r| r.try_iter().collect()).unwrap_or_default()
+    }
+    fn first_steps(&self) -> Vec<podrunner_schema::UnitId> {
+        self.stepped.lock().map(|r| r.try_iter().collect()).unwrap_or_default()
     }
 }

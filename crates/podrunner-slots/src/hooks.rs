@@ -92,8 +92,13 @@ impl Slots {
     /// Read the hooks of each live unit: an audit line `hook-refuse` for
     /// each refusal, and `job-started` moves `started` to `running` once.
     pub(crate) fn hook_events(&mut self, now: u64) {
-        // The job-started hook of a unit asks through its egress socket.
+        // The job-started hook of a unit asks through its egress socket, or
+        // marks the first step of its own job there.
         self.answer_questions();
+        let steps = self.egress.as_ref().map(|e| e.first_steps()).unwrap_or_default();
+        for unit in steps {
+            self.first_step(&unit, now);
+        }
         self.forward_egress();
         let live: Vec<(usize, podrunner_schema::JobId)> = self
             .jobs
@@ -103,6 +108,22 @@ impl Slots {
             .collect();
         for key in live {
             self.read_hooks(&key, now);
+        }
+    }
+
+    /// The job-started hook of `unit` ran (T-660): the job of the unit moves
+    /// from `started` to `running` once. The first mark wins: the container
+    /// hook, the `started` event of the source, or this one. A unit with no
+    /// job in `started` (a warm unit before its claim, a job that ended)
+    /// changes nothing.
+    pub(crate) fn first_step(&mut self, unit: &UnitId, now: u64) {
+        let key = self
+            .jobs
+            .iter()
+            .find(|(_, j)| j.unit.as_ref() == Some(unit) && j.state == State::Started)
+            .map(|(k, _)| k.clone());
+        if let Some(key) = key {
+            self.set(&key, State::Running, now);
         }
     }
 

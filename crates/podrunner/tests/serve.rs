@@ -235,3 +235,45 @@ fn the_control_socket_of_serve_conforms_to_pod_control() {
     assert!(wait_exit(&mut serve, Duration::from_secs(30)).is_some_and(|s| s.success()), "serve did not end");
     assert!(!socket.exists(), "serve left its socket");
 }
+
+/// T-660: a fake unit, with no `started` event of its source and no
+/// container hook, marks its first step as the job-started hook of the
+/// runner image does: `POST http://control.podrunner.test/v1/started` at
+/// its egress socket. `serve` journals the job `running` after `claimed`
+/// and before `ended`.
+#[test]
+fn the_mark_of_a_unit_at_its_egress_socket_journals_its_first_step() {
+    let bed = Bed::new("mark", 1);
+    let mark = bed.dir.join("mark.py");
+    std::fs::write(
+        &mark,
+        "import os, socket\n\
+         s = socket.socket(socket.AF_UNIX)\n\
+         s.connect(os.environ['PODRUNNER_EGRESS'][len('http://unix:'):])\n\
+         s.sendall(b'POST http://control.podrunner.test/v1/started HTTP/1.1\\r\\nContent-Length: 2\\r\\n\\r\\n{}')\n\
+         print(s.recv(4096).decode())\n",
+    )
+    .unwrap();
+    let config = std::fs::read_to_string(bed.dir.join("podrunner.toml")).unwrap().replace(
+        "command = [\"sleep\", \"1\"]",
+        &format!("command = [\"sh\", \"-c\", \"sleep 2; python3 -I {} >&2; sleep 2\"]", mark.display()),
+    );
+    let open = "[egress]\ndefault_policy = { schema = 1, mode = \"open\" }\n";
+    std::fs::write(bed.dir.join("podrunner.toml"), format!("{config}{open}")).unwrap();
+    let mut serve = bed.serve(None);
+    let t = Instant::now();
+    while !bed.journal().contains("\"ended\"") {
+        assert!(t.elapsed() < Duration::from_secs(30), "no end: {}", bed.journal());
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    serve.kill().unwrap();
+    let out = serve.wait_with_output().unwrap();
+    let journal = bed.journal();
+    let at = |s: &str| journal.find(&format!("\"state\":\"{s}\"")).unwrap_or(usize::MAX);
+    assert!(
+        at("claimed") < at("running") && at("running") < at("ended"),
+        "{journal}\n{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(journal.matches("\"state\":\"running\"").count(), 1, "{journal}");
+}

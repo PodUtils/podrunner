@@ -84,6 +84,10 @@ jobs:
       # T-528: the summary of user-gate.yml on a fixture of two lanes.
       - name: The summary of the user-path gate
         run: python3 -I scripts/user-gate-summary.py --self-test
+      # T-660: the times of serve:warm from a journal, and the message of a
+      # missing line.
+      - name: The parts of the user-path gate with no host
+        run: python3 -I scripts/user-gate.py --self-test
       # T-506: the WebSocket echo server and the attach client of the
       # sandbox check of the user-path gate, against each other.
       - name: The WebSocket attach of the user-path gate
