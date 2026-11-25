@@ -103,6 +103,10 @@ fn a_scope_is_one_source_forge_repository_tier_and_key() {
     ] {
         assert_ne!(other, base);
     }
+    // A repository made again with the same name has another id.
+    let with_id = |n: u64| offer(json!({ "trust_inputs": { "repo_id": n } }));
+    let (one, two) = (id("a", &with_id(1), Tier::Trusted, "k"), id("a", &with_id(2), Tier::Trusted, "k"));
+    assert!(one != two && one != base && two != base);
     // GitHub has no case in the names of an owner, a repository and a host.
     let upper = offer(json!({ "trust_inputs": { "owner": "Example-Org", "repo": "App", "forge": "GitHub.com" } }));
     assert_eq!(id("a", &upper, Tier::Trusted, "k"), base);
@@ -131,6 +135,16 @@ fn the_table_refuses_each_bad_value() {
         "env = { github_token = \"x\" }",
         "env = { ACTIONS_RUNTIME_TOKEN = \"x\" }",
         "env = { PATH = \"bin\" }",
+        // A variable that loads code or settings into each process of the
+        // job: a cache is not a place for them.
+        "env = { LD_PRELOAD = \"x\" }",
+        "env = { ld_library_path = \"x\" }",
+        "env = { HOME = \"x\" }",
+        "env = { BASH_ENV = \"x\" }",
+        "env = { ENV = \"x\" }",
+        "env = { NODE_OPTIONS = \"x\" }",
+        "env = { JAVA_TOOL_OPTIONS = \"x\" }",
+        "env = { RUNNER_TEMP = \"x\" }",
         "env = { 1X = \"x\" }",
         "env = { \"A-B\" = \"x\" }",
         "env = { \"\" = \"x\" }",
@@ -169,23 +183,27 @@ fn a_cache_counts_the_bytes_of_the_run_and_follows_no_link() {
     std::fs::create_dir_all(&outside).unwrap();
     std::fs::write(outside.join("big"), vec![0u8; 4096]).unwrap();
     let id = "0123456789abcdef0123456789abcdef";
-    let (data, _) = store::open(&root, id, "s\n", ["npm"].into_iter()).unwrap();
+    let (data, _) = store::open(&root, id, "s\n", Mode::Rw, ["npm"].into_iter()).unwrap();
     std::fs::write(data.join("old"), "12345").unwrap();
     // A job of an earlier run put links where the paths of `env` go.
     std::os::unix::fs::symlink(&outside, data.join("pnpm")).unwrap();
     std::os::unix::fs::symlink(outside.join("big"), data.join("link-to-big")).unwrap();
     std::thread::sleep(Duration::from_millis(20));
-    let (again, since) = store::open(&root, id, "s\n", ["npm", "pnpm/store", "a/b"].into_iter()).unwrap();
+    let (again, since) = store::open(&root, id, "s\n", Mode::Rw, ["npm", "pnpm/store", "a/b"].into_iter()).unwrap();
     assert_eq!(again, data);
     assert!(data.join("a/b").is_dir() && data.join("npm").is_dir());
     assert!(!outside.join("store").exists(), "the host made a directory through a link");
     std::fs::write(data.join("npm/new"), "123").unwrap();
     assert_eq!(store::measure(&data, since), (8, 3), "a link is not followed");
     assert_eq!(std::fs::metadata(root.join(id)).unwrap().permissions().mode() & 0o777, 0o700);
+    // A new cache has its count: no bound walks a cache of `ro` jobs.
+    let fresh = "00112233445566778899aabbccddeeff";
+    store::open(&root, fresh, "s\n", Mode::Ro, std::iter::empty()).unwrap();
+    assert_eq!(std::fs::read_to_string(root.join(fresh).join("bytes")).unwrap(), "0");
     // The data of a scope that is a link is refused.
     let linked = "fedcba9876543210fedcba9876543210";
     std::os::unix::fs::symlink(&outside, root.join(linked)).unwrap();
-    assert!(store::open(&root, linked, "s\n", std::iter::empty()).is_err());
+    assert!(store::open(&root, linked, "s\n", Mode::Rw, std::iter::empty()).is_err());
     let _ = std::fs::remove_dir_all(&d);
 }
 
@@ -195,34 +213,66 @@ fn the_bound_removes_whole_caches_and_keeps_the_used_ones() {
     let root = d.join("cache");
     let ids = ["a", "b", "c", "d"].map(|c| c.repeat(32));
     for (i, id) in ids.iter().enumerate() {
-        let (data, _) = store::open(&root, id, "s\n", std::iter::empty()).unwrap();
+        let (data, _) = store::open(&root, id, "s\n", Mode::Rw, std::iter::empty()).unwrap();
         std::fs::write(data.join("f"), vec![0u8; 100]).unwrap();
         std::thread::sleep(Duration::from_millis(15 * (i as u64 + 1)));
     }
     // A job took the write bit of a directory away.
-    let (data, _) = store::open(&root, &ids[0], "s\n", ["ro"].into_iter()).unwrap();
+    let (data, _) = store::open(&root, &ids[0], "s\n", Mode::Rw, ["ro"].into_iter()).unwrap();
     std::fs::write(data.join("ro/f"), "x").unwrap();
     std::fs::set_permissions(data.join("ro"), std::fs::Permissions::from_mode(0o555)).unwrap();
     let mut c = cfg("").unwrap();
     (c.max_bytes, c.total_bytes) = (150, 250);
     let n = |id: &str| store::size(&root.join(id).join("data"));
+    // The tick renames each cache of the plan; the thread removes it.
+    let bound = |used: &BTreeSet<String>, just: &str, n: u64, now: SystemTime| {
+        let gone = store::bound(&root, &c, used, just, n, now);
+        for (id, _) in &gone {
+            store::remove(&store::evict(&root, id).unwrap()).unwrap();
+        }
+        gone
+    };
     // `a` was used last; `b` is the oldest, `c` is in use.
     let used = BTreeSet::from([ids[2].clone()]);
-    let gone = store::bound(&root, &c, &used, &ids[0], n(&ids[0]), SystemTime::now());
+    let gone = bound(&used, &ids[0], n(&ids[0]), SystemTime::now());
     let names: Vec<_> = gone.iter().map(|(id, why)| (&id[..1], *why)).collect();
     assert_eq!(names, [("b", "above [cache] total_bytes"), ("d", "above [cache] total_bytes")]);
     assert!(root.join(&ids[0]).is_dir() && root.join(&ids[2]).is_dir());
     // Above `max_bytes`, the cache of the job is emptied whole.
     std::fs::write(root.join(&ids[0]).join("data/g"), vec![0u8; 100]).unwrap();
-    let gone = store::bound(&root, &c, &used, &ids[0], n(&ids[0]), SystemTime::now());
+    let gone = bound(&used, &ids[0], n(&ids[0]), SystemTime::now());
     assert_eq!(gone, [(ids[0].clone(), "above [cache] max_bytes")]);
     assert!(!root.join(&ids[0]).exists());
     // A cache with no use in `max_age_s` goes; one in use stays.
     let late = SystemTime::now() + Duration::from_secs(c.max_age_s + 10);
-    let (data, _) = store::open(&root, &ids[1], "s\n", std::iter::empty()).unwrap();
+    let (data, _) = store::open(&root, &ids[1], "s\n", Mode::Rw, std::iter::empty()).unwrap();
     drop(data);
-    let gone = store::bound(&root, &c, &used, &ids[1], n(&ids[1]), late);
+    let gone = bound(&used, &ids[1], n(&ids[1]), late);
     assert_eq!(gone, [(ids[1].clone(), "no use in [cache] max_age_s")]);
     assert!(root.join(&ids[2]).is_dir());
+    // A trash that a stop left goes at the next bound.
+    let left = store::evict(&root, &ids[2]).unwrap();
+    store::bound(&root, &c, &BTreeSet::new(), &ids[3], 0, SystemTime::now());
+    assert!(!left.exists());
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// The owner gets the bits of a directory back by its own name: a link
+/// that a job put there is not followed.
+#[test]
+fn the_removal_follows_no_link() {
+    let d = tmp("nofollow");
+    let outside = d.join("outside");
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o750)).unwrap();
+    std::os::unix::fs::symlink(&outside, d.join("link")).unwrap();
+    store::open_up(&d.join("link"));
+    assert_eq!(std::fs::metadata(&outside).unwrap().permissions().mode() & 0o777, 0o750);
+    // A directory with no bit at all gets them back.
+    let shut = d.join("shut");
+    std::fs::create_dir(&shut).unwrap();
+    std::fs::set_permissions(&shut, std::fs::Permissions::from_mode(0o000)).unwrap();
+    store::open_up(&shut);
+    assert_eq!(std::fs::metadata(&shut).unwrap().permissions().mode() & 0o777, 0o700);
     let _ = std::fs::remove_dir_all(&d);
 }

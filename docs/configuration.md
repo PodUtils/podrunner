@@ -310,12 +310,38 @@ the mode:
 | Each other job of the tier `trusted` or `local` (a pull request of the same repository, a push to another branch, `pull_request_target`) | `ro` |
 | A second `rw` job of a cache while one runs | `ro` |
 
-A `ro` cache is read-only in the unit: a write fails, and the cache stays
-as it was. The unit gets the variables `PODRUNNER_CACHE` (the path),
-`PODRUNNER_CACHE_MODE` (`rw` or `ro`) and each variable of `env`, which
-names a directory under the cache. A variable that podrunner sets (the CA
-bundle of the broker) keeps its value. A step that writes its cache can test
-`PODRUNNER_CACHE_MODE` first.
+`write_refs` names refs, not the default branch: with the default
+`["refs/heads/main"]`, a push to a branch named `main` writes, also in a
+repository whose default branch is another one. Set `write_refs` to the
+default branches of the repositories, or let the source say `rw`.
+
+A `ro` cache is a guard between the jobs of one tier, not a boundary. On
+a kind that mounts it read-only, a write fails; the podvm rungs `userland`
+and `supervise` mount each volume read-write (`mount_modes` is `rw`), so
+there a `ro` job can write. The tier is the boundary: a job of the tier
+`untrusted` gets no cache. The unit gets the variables `PODRUNNER_CACHE`
+(the path) and `PODRUNNER_CACHE_MODE` (`rw` or `ro`). A `rw` job also gets
+each variable of `env`, which names a directory under the cache; a `ro`
+job gets none, because a tool writes in the directory of its variable and
+fails on a read-only one (T-650). A variable that podrunner sets (the CA
+bundle of the broker) keeps its value. A step that writes its cache can
+test `PODRUNNER_CACHE_MODE` first. `env` refuses each name that loads
+code or settings into the processes of a job, or that podrunner or the
+runner sets: `PATH`, `HOME`, `SHELL`, `ENV`, `BASH_ENV`, `IFS`, `PS4`,
+`PROMPT_COMMAND`, `TMPDIR`, `NODE_OPTIONS`, `NODE_PATH`,
+`JAVA_TOOL_OPTIONS`, `_JAVA_OPTIONS`, `JDK_JAVA_OPTIONS`, `PYTHONPATH`,
+`PYTHONSTARTUP`, `PYTHONHOME`, `PERL5LIB`, `PERL5OPT`, `RUBYOPT`,
+`RUBYLIB`, and each name that starts with `PODRUNNER_`, `GITHUB_`,
+`ACTIONS_`, `RUNNER_`, `LD_` or `GIT_`, in any case. `RUNNER_TOOL_CACHE`
+is allowed: the runner reads its tool cache from it. `check` exits 78 on
+such a name.
+
+The forge can give the runner of a job a queued job of another run
+(T-493). podrunner made the cache of the unit for the offer: the real job
+keeps it only when the trust facts that its source gives (`keep`) give
+the same scope and a mode that is not lower. The `rw` of an offer is the
+word of the source on the run of the offer only. Else the job ends
+before its first step with the code `cache-mismatch`.
 
 The `podvm` kind on a rung with volumes and the `fake` kind mount the
 cache. The `microvm` and `incus` kinds mount no host directory: their
@@ -323,11 +349,20 @@ jobs get no cache (T-648). The steps of a `container:` job do not see it
 (T-651).
 
 On the host, each cache is `DIR/ID/data`; the file `DIR/ID/scope` names
-its source, forge, owner, repository, tier and key, and its time is the
-last use. After a `rw` job, a cache above `max_bytes` is emptied; then
-each cache with no use in `max_age_s` goes, and the caches with the
-oldest use go while the directory is above `total_bytes`. A cache that a
-job uses stays. `serve` writes a line for each cache that goes.
+its source, forge, owner, repository, the id of the repository (when the
+source gives it: a repository made again with the same name gets a new
+cache), tier and key, and its time is the last use. One `serve` holds
+the directory (a lock on `DIR/lock`): a second `serve` with the same
+`dir` does not start. While a `rw` job runs, `serve` measures its cache
+every 30 s; above `max_bytes`, the job ends with `limit` (the cache is on
+the file system of `dir`, by default the one of the state). After a `rw`
+job, a cache above `max_bytes` is emptied; then each cache with no use in
+`max_age_s` goes, and the caches with the oldest use go while the
+directory is above `total_bytes`. A cache that a job uses stays. `serve`
+writes a line for each cache that goes. Each walk and each removal of a
+cache runs on a thread of its own, not in the loop of the jobs: a cache
+that goes is first renamed to `DIR/trash-ID-N`. The report of a `rw` job
+waits for the walk of its cache.
 
 The run report gives `cache_written_bytes`: the bytes of the files that
 the job wrote in its cache, and 0 for a `ro` cache or no cache.

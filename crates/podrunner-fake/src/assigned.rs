@@ -1,7 +1,9 @@
 //! The answer of the `fake` source to `assigned` (T-493): a job of the
 //! owner of the offer is kept, with the actor and the visibility of the
 //! offer, and the event, the run and the fork fact of the real job; a job
-//! of another owner ends with `not-of-this-source`.
+//! of another owner ends with `not-of-this-source`. A fact that the fake
+//! does not know of the real job (the ref of another run, the id of
+//! another repository) is empty, not the fact of the offer.
 
 use podrunner_schema::Fact;
 use podrunner_schema::offer::{Event as ForgeEvent, TrustInputs};
@@ -19,6 +21,12 @@ pub(crate) fn answer(offer: &Offer, real: &RealJob) -> Assigned {
     };
     if !owner.eq_ignore_ascii_case(&t.owner) {
         return end("not-of-this-source", "the job is of another owner");
+    }
+    if !repo.eq_ignore_ascii_case(&t.repo) {
+        t.repo_id = None;
+    }
+    if real.run_id != t.run_id {
+        t.git_ref.clear();
     }
     t.repo = repo.to_string();
     t.run_id = real.run_id;

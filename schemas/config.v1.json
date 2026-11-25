@@ -160,7 +160,7 @@
           "default": null
         },
         "env": {
-          "description": "A variable of the runner and a relative path under the cache, for\nexample `npm_config_cache = \"npm\"`.",
+          "description": "A variable of the runner and a relative path under the cache, for\nexample `npm_config_cache = \"npm\"`. Only a `rw` job gets them. A name\nthat loads code (`LD_*`, `NODE_OPTIONS`) or that podrunner or the\nrunner sets is refused; `RUNNER_TOOL_CACHE` is allowed.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -194,7 +194,7 @@
           "minimum": 0
         },
         "write_refs": {
-          "description": "The refs whose jobs write the cache (the default branch of each\nrepository). Default `[\"refs/heads/main\"]`.",
+          "description": "The refs whose jobs write the cache (the default branch of each\nrepository). Default `[\"refs/heads/main\"]`: a branch named `main`,\nalso where the default branch is another one.",
           "type": "array",
           "default": [
             "refs/heads/main"

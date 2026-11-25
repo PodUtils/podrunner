@@ -109,6 +109,8 @@ pub struct Slots {
     pub(crate) spool_next_ms: u64,
     /// The time of the next measure of the disk of the units (T-074).
     pub(crate) disk_next_ms: u64,
+    /// The thread and the lock of the caches, with a `[cache]` (T-480).
+    pub(crate) cache_worker: Option<crate::cache::Worker>,
 }
 
 impl Slots {
@@ -137,6 +139,7 @@ impl Slots {
         self.retest_guests(now);
         self.hook_events(now);
         self.check_disks(now);
+        self.cache_tick(now);
         self.sample_usage();
         self.progress(now);
         for s in 0..self.sources.len() {

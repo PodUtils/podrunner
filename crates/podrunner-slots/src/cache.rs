@@ -7,20 +7,21 @@
 //! other job reads it.
 //! The `cache` of an offer can only lower the mode.
 
+mod slots;
 mod store;
 #[cfg(test)]
 mod tests;
+mod worker;
 
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
 
-use podrunner_schema::offer::Event;
+use podrunner_schema::offer::{Event, TrustInputs};
 use podrunner_schema::{CacheMode, Fact, JobId, JobOffer, Residual, RunReport, Tier};
 use serde::Deserialize;
 
-use crate::engine::Slots;
-
 pub use store::{Grant, Mode};
+pub(crate) use worker::Worker;
 
 type Key = (usize, JobId);
 
@@ -64,14 +65,17 @@ struct RawCache {
     #[serde(default = "max_age_s")]
     max_age_s: u64,
     /// The refs whose jobs write the cache (the default branch of each
-    /// repository). Default `["refs/heads/main"]`.
+    /// repository). Default `["refs/heads/main"]`: a branch named `main`,
+    /// also where the default branch is another one.
     #[serde(default = "write_refs")]
     write_refs: Vec<String>,
     /// The key of a job whose offer gives none. Default `default`.
     #[serde(default = "key")]
     key: String,
     /// A variable of the runner and a relative path under the cache, for
-    /// example `npm_config_cache = "npm"`.
+    /// example `npm_config_cache = "npm"`. Only a `rw` job gets them. A name
+    /// that loads code (`LD_*`, `NODE_OPTIONS`) or that podrunner or the
+    /// runner sets is refused; `RUNNER_TOOL_CACHE` is allowed.
     #[serde(default)]
     env: BTreeMap<String, String>,
 }
@@ -134,6 +138,34 @@ pub fn key_ok(k: &str) -> bool {
     !k.is_empty() && k.len() <= KEY_MAX && !k.chars().any(char::is_control)
 }
 
+/// The names that `[cache] env` refuses: each loads code or settings into
+/// the processes of a job, or is a value of the runner. A cache is written
+/// by jobs, so it is no place for them.
+const DENIED: [&str; 21] = [
+    "PATH",
+    "HOME",
+    "SHELL",
+    "ENV",
+    "BASH_ENV",
+    "IFS",
+    "PS4",
+    "PROMPT_COMMAND",
+    "TMPDIR",
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "JAVA_TOOL_OPTIONS",
+    "_JAVA_OPTIONS",
+    "JDK_JAVA_OPTIONS",
+    "PYTHONPATH",
+    "PYTHONSTARTUP",
+    "PYTHONHOME",
+    "PERL5LIB",
+    "PERL5OPT",
+    "RUBYOPT",
+    "RUBYLIB",
+];
+const DENIED_PREFIX: [&str; 6] = ["PODRUNNER_", "GITHUB_", "ACTIONS_", "RUNNER_", "LD_", "GIT_"];
+
 /// A variable of `[cache] env`: a name of the shell that does not set a
 /// value of podrunner or of the runner, and a plain relative path.
 fn env_ok(name: &str, path: &str) -> Result<(), &'static str> {
@@ -141,8 +173,11 @@ fn env_ok(name: &str, path: &str) -> Result<(), &'static str> {
     let shell = chars.next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
         && chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
     let upper = name.to_ascii_uppercase();
-    if !shell || ["PODRUNNER_", "GITHUB_", "ACTIONS_"].iter().any(|p| upper.starts_with(p)) || upper == "PATH" {
-        return Err("not a name of a variable, or a name that podrunner or the runner sets");
+    // The runner reads its tool cache from this variable (githome's G-20).
+    let tool_cache = upper == "RUNNER_TOOL_CACHE";
+    let denied = DENIED.contains(&upper.as_str()) || DENIED_PREFIX.iter().any(|p| upper.starts_with(p));
+    if !shell || (denied && !tool_cache) {
+        return Err("not a name of a variable, or a name that loads code or that podrunner or the runner sets");
     }
     let p = Path::new(path);
     let parts = path.split('/').all(|p| !p.is_empty() && p != "." && p != "..");
@@ -160,20 +195,32 @@ fn writes(e: Event) -> bool {
 /// The mode and the key of a job of `tier` on a kind that mounts (or not)
 /// a host directory, or why it gets no cache.
 pub fn decide(cfg: &CacheConfig, tier: Tier, offer: &JobOffer, mounts: bool) -> Result<(Mode, String), &'static str> {
+    let asked = offer.cache.as_ref();
+    let key = asked.map_or(cfg.key.as_str(), |c| c.key.as_str());
+    decide_facts(cfg, tier, &offer.trust_inputs, key, asked.map(|c| c.mode), mounts)
+}
+
+/// [`decide`] on the facts `t`, the key `key` and the mode that a source
+/// asked (none: the rule alone).
+fn decide_facts(
+    cfg: &CacheConfig,
+    tier: Tier,
+    t: &TrustInputs,
+    key: &str,
+    asked: Option<CacheMode>,
+    mounts: bool,
+) -> Result<(Mode, String), &'static str> {
     if tier == Tier::Untrusted {
         return Err("a job of the tier untrusted gets no cache");
     }
     if !mounts {
         return Err("the kind mounts no host directory (T-648)");
     }
-    let asked = offer.cache.as_ref();
-    let key = asked.map_or(cfg.key.as_str(), |c| c.key.as_str());
     if !key_ok(key) {
         return Err("the key of the offer is empty, longer than 128 bytes or has a control character");
     }
-    let t = &offer.trust_inputs;
-    let rw_asked = asked.is_some_and(|c| c.mode == CacheMode::ReadWrite);
-    let mode = match asked.map(|c| c.mode) {
+    let rw_asked = asked == Some(CacheMode::ReadWrite);
+    let mode = match asked {
         Some(CacheMode::Off) => return Err("the offer asks for no cache"),
         Some(CacheMode::ReadOnly) => Mode::Ro,
         // A head of a fork never writes: the tier rule keeps a fork out of
@@ -186,14 +233,43 @@ pub fn decide(cfg: &CacheConfig, tier: Tier, offer: &JobOffer, mounts: bool) -> 
     Ok((mode, key.to_string()))
 }
 
+/// Whether the cache `grant` of a job of `offer` holds for the real job
+/// of `facts`, when the forge gave the runner a job of another run
+/// (T-493): its scope is the same and its mode is not lower. The `rw` of
+/// an offer is the word of the source on the run of the offer only.
+pub fn holds(
+    cfg: &CacheConfig,
+    grant: &Grant,
+    source: &str,
+    offer: &JobOffer,
+    facts: &TrustInputs,
+    tier: Tier,
+    mounts: bool,
+) -> bool {
+    let asked = offer.cache.as_ref();
+    let key = asked.map_or(cfg.key.as_str(), |c| c.key.as_str());
+    let mode = asked.map(|c| c.mode).filter(|m| *m != CacheMode::ReadWrite);
+    match decide_facts(cfg, tier, facts, key, mode, mounts) {
+        Ok((m, k)) => !(grant.mode == Mode::Rw && m == Mode::Ro) && scope_of(source, facts, tier, &k).0 == grant.id,
+        Err(_) => false,
+    }
+}
+
 /// The scope of a cache, as the operator reads it, and its id: the first
 /// 32 hex digits of its SHA-256. Each part has its length before it, so no
 /// two scopes give the same bytes.
 pub fn scope(source: &str, offer: &JobOffer, tier: Tier, key: &str) -> (String, String) {
-    let t = &offer.trust_inputs;
+    scope_of(source, &offer.trust_inputs, tier, key)
+}
+
+/// [`scope`] on the facts `t`. The id of the repository, when the source
+/// gives it, is a part: a repository made again with the same name does
+/// not get the cache of the old one.
+fn scope_of(source: &str, t: &TrustInputs, tier: Tier, key: &str) -> (String, String) {
     let forge = t.forge.as_deref().unwrap_or("github.com").to_ascii_lowercase();
     let tier = crate::config::tier_name(tier);
-    let parts = [source, &forge, &t.owner.to_ascii_lowercase(), &t.repo.to_ascii_lowercase(), tier, key];
+    let repo_id = t.repo_id.map(|n| n.to_string()).unwrap_or_default();
+    let parts = [source, &forge, &t.owner.to_ascii_lowercase(), &t.repo.to_ascii_lowercase(), &repo_id, tier, key];
     let mut bytes = Vec::new();
     for p in parts {
         bytes.extend((p.len() as u64).to_le_bytes());
@@ -202,7 +278,8 @@ pub fn scope(source: &str, offer: &JobOffer, tier: Tier, key: &str) -> (String, 
     let hash = ring::digest::digest(&ring::digest::SHA256, &bytes);
     let id: String = hash.as_ref()[..16].iter().map(|b| format!("{b:02x}")).collect();
     let text = serde_json::json!({
-        "source": source, "forge": forge, "owner": parts[2], "repo": parts[3], "tier": tier, "key": key
+        "source": source, "forge": forge, "owner": parts[2], "repo": parts[3], "repo_id": t.repo_id,
+        "tier": tier, "key": key
     });
     (id, text.to_string() + "\n")
 }
@@ -218,73 +295,4 @@ pub(crate) fn report(grant: Option<&Grant>, r: &mut RunReport) {
     let why = "the host does not count the reads of a mounted cache (T-649)";
     r.unknown_reasons.insert("cache_read_bytes".into(), why.into());
     r.cache_written_bytes = Some(Residual::Count(g.written));
-}
-
-impl Slots {
-    /// The cache of a placed job at its start: its mount, with its
-    /// variables in `env`. None when the job gets no cache.
-    pub(crate) fn cache_start(&mut self, key: &Key, env: &mut BTreeMap<String, String>) -> Vec<(PathBuf, String)> {
-        let (Some(cfg), Some(j)) = (&self.cfg.cache, self.jobs.get(key)) else { return Vec::new() };
-        let (Some(offer), Some(p), Some(unit)) = (&j.offer, &j.placement, &j.unit) else { return Vec::new() };
-        let mounts = self.kinds[p.kind].driver.host_mounts();
-        let (mut mode, k) = match decide(cfg, p.tier, offer, mounts) {
-            Ok(d) => d,
-            Err(why) => {
-                eprintln!("podrunner: {unit}: no cache: {why}");
-                return Vec::new();
-            }
-        };
-        let (id, text) = scope(&self.sources[key.0].cfg.name, offer, p.tier, &k);
-        // One writer of a cache at a time: the bytes of a job are its own.
-        if mode == Mode::Rw && self.cache_in_use(key).any(|(i, m)| i == id && m == Mode::Rw) {
-            mode = Mode::Ro;
-        }
-        let root = cfg.dir.clone().unwrap_or_else(|| self.state_dir.join("cache"));
-        let (data, since) = match store::open(&root, &id, &text, cfg.env.values().map(String::as_str)) {
-            Ok(d) => d,
-            Err(e) => {
-                eprintln!("podrunner: {unit}: no cache: {}: {e}", root.display());
-                return Vec::new();
-            }
-        };
-        eprintln!("podrunner: {unit}: the cache {id} ({}), {}", mode.as_str(), text.trim_end());
-        env.insert("PODRUNNER_CACHE".into(), MOUNT.into());
-        env.insert("PODRUNNER_CACHE_MODE".into(), mode.as_str().into());
-        // A variable that podrunner set before (the CA bundle of the
-        // broker) stays.
-        for (name, path) in &cfg.env {
-            env.entry(name.clone()).or_insert_with(|| format!("{MOUNT}/{path}"));
-        }
-        let target = if mode == Mode::Ro { format!("{MOUNT}:ro") } else { MOUNT.to_string() };
-        let grant = Grant { id, root, data: data.clone(), mode, since, written: 0 };
-        if let Some(j) = self.jobs.get_mut(key) {
-            j.times.cache = Some(grant);
-        }
-        vec![(data, target)]
-    }
-
-    /// The caches of the jobs other than `key` that have not ended.
-    fn cache_in_use<'a>(&'a self, key: &'a Key) -> impl Iterator<Item = (String, Mode)> + 'a {
-        let open = self.jobs.iter().filter(move |(k, j)| *k != key && !j.state.is_final());
-        open.filter_map(|(_, j)| j.times.cache.as_ref().map(|g| (g.id.clone(), g.mode)))
-    }
-
-    /// After the destroy of the unit of `key`: the bytes that its job
-    /// wrote, then the bound of the directory.
-    pub(crate) fn cache_end(&mut self, key: &Key) {
-        let Some(cfg) = self.cfg.cache.clone() else { return };
-        let Some(g) = self.jobs.get(key).and_then(|j| j.times.cache.clone()) else { return };
-        if g.mode != Mode::Rw {
-            return;
-        }
-        let (bytes, written) = store::measure(&g.data, g.since);
-        if let Some(c) = self.jobs.get_mut(key).and_then(|j| j.times.cache.as_mut()) {
-            c.written = written;
-        }
-        let used: std::collections::BTreeSet<String> = self.cache_in_use(key).map(|(id, _)| id).collect();
-        let now = std::time::SystemTime::now();
-        for (id, why) in store::bound(&g.root, &cfg, &used, &g.id, bytes, now) {
-            eprintln!("podrunner: the cache {id} is removed: {why}");
-        }
-    }
 }

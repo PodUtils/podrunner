@@ -19,6 +19,7 @@ case $run in
 2) echo "${{PODRUNNER_CACHE:-none}} ${{npm_config_cache:-none}}" > {out}/fork-env
    echo evil > "${{PODRUNNER_CACHE:-{out}}}/evil" ;;
 3) cat "$PODRUNNER_CACHE/from-push" > {out}/pr-saw; echo "$PODRUNNER_CACHE_MODE" > {out}/pr-mode
+   echo "${{npm_config_cache:-none}}" > {out}/pr-env
    echo pr > "$PODRUNNER_CACHE/from-pr" ;;
 4) ls -A "$PODRUNNER_CACHE" > {out}/last ;;
 esac
@@ -81,6 +82,8 @@ fn an_untrusted_write_is_not_read_by_a_trusted_job_and_a_pull_request_does_not_w
     assert_eq!((read("push-mode"), read("push-env")), ("rw\n".into(), "ok\n".into()), "the push writes");
     assert_eq!(read("fork-env"), "none none\n", "the fork gets no cache");
     assert_eq!((read("pr-saw"), read("pr-mode")), ("push\n".into(), "ro\n".into()), "the pull request reads");
+    // A tool writes in the directory of its variable: a `ro` job gets none.
+    assert_eq!(read("pr-env"), "none\n", "no variable of [cache] env for ro");
     assert_eq!(read("last").lines().collect::<Vec<_>>(), ["from-push", "npm"], "the next push");
     let report = |job: &str| bed.slots.reports.iter().find(|r| r.job_id.as_str() == job).cloned().unwrap();
     let written = |job: &str| report(job).cache_written_bytes;
@@ -109,4 +112,88 @@ fn a_job_with_no_cache_reads_and_writes_0_bytes() {
     let r = &bed.slots.reports[0];
     assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Success, "{r:?}");
     assert_eq!((r.cache_read_bytes, r.cache_written_bytes), (Some(Residual::Count(0)), Some(Residual::Count(0))));
+}
+
+fn one_job(cfg: Config, script: &str) -> Bed {
+    Bed::new(
+        cfg,
+        vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])],
+        vec![KindSpec {
+            name: "fake",
+            slots: 1,
+            capability: capability(Boundary::Confined, Principal::Distinct, EgressHold::Advisory),
+            command: sh(script),
+        }],
+    )
+}
+
+/// A `rw` job that fills its cache above `max_bytes` while it runs ends
+/// with `limit`: the cache is on the file system of the state.
+#[test]
+fn a_rw_job_above_max_bytes_ends_while_it_runs() {
+    let cfg = config("[cache]\nmax_bytes = 1000\ntotal_bytes = 1000");
+    let mut bed = one_job(cfg, "head -c 4096 /dev/zero > \"$PODRUNNER_CACHE/big\"; exec sleep 300");
+    bed.until(90, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    let r = &bed.slots.reports[0];
+    assert_eq!(r.exit_reason, podrunner_schema::ExitReason::Limit, "{r:?}");
+    let line = bed.slots.audit_lines().iter().find(|a| a.audit == crate::audit::Kind::Limit).expect("a limit line");
+    assert_eq!(line.detail.as_deref(), Some("cache"));
+}
+
+/// The walk and the removal of a large cache at the end of its job run
+/// off the tick: the tick answers the questions of the units and keeps
+/// the limits.
+#[test]
+fn the_end_of_a_large_cache_does_not_hold_the_tick() {
+    let n = 40_000;
+    let cfg = config("[cache]\nmax_bytes = 1\ntotal_bytes = 1");
+    let script =
+        format!("mkdir \"$PODRUNNER_CACHE/t\" && cd \"$PODRUNNER_CACHE/t\" && seq 1 {n} | xargs touch && echo x > x");
+    let mut bed = one_job(cfg, &script);
+    let mut longest = Duration::ZERO;
+    let end = std::time::Instant::now() + Duration::from_secs(120);
+    while !(bed.slots.jobs().count() == 1 && Bed::all_final(&bed.slots)) {
+        assert!(std::time::Instant::now() < end, "{:?}", bed.states());
+        let t = std::time::Instant::now();
+        bed.slots.tick();
+        longest = longest.max(t.elapsed());
+        // The clock stays: the deadline of the start does not end a slow
+        // write of the tree.
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(bed.slots.reports[0].exit_reason, podrunner_schema::ExitReason::Success);
+    // The cost of one walk of a tree of the same size, for this host.
+    let probe = TempDir::new();
+    for i in 0..n {
+        std::fs::File::create(probe.0.join(i.to_string())).unwrap();
+    }
+    let t = std::time::Instant::now();
+    crate::disk::bytes_under(&probe.0);
+    let walk = t.elapsed();
+    assert!(longest < walk, "the longest tick {longest:?}, one walk {walk:?}");
+    // The cache goes off the tick.
+    let cache = bed.dir.0.join("state/cache");
+    let gone = || std::fs::read_dir(&cache).unwrap().flatten().all(|e| e.file_name() == "lock");
+    let wait = std::time::Instant::now() + Duration::from_secs(60);
+    while !gone() && std::time::Instant::now() < wait {
+        bed.slots.tick();
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert!(gone(), "{:?}", std::fs::read_dir(&cache).unwrap().flatten().map(|e| e.file_name()).collect::<Vec<_>>());
+}
+
+/// Two `serve` processes on one `[cache] dir` would remove a cache that
+/// the other one gives to a job.
+#[test]
+fn a_second_serve_on_one_cache_directory_is_refused() {
+    let dir = TempDir::new();
+    let cfg = || config(&format!("[cache]\ndir = \"{}\"", dir.0.join("cache").display()));
+    let start = |state: &str| {
+        Slots::start(cfg(), &dir.0.join(state), Bed::clock(), Box::new(|| NOW_UNIX), Vec::new(), Vec::new())
+    };
+    let first = start("a").expect("the first serve");
+    let second = start("b").err().expect("the second serve is refused");
+    assert!(second.to_string().contains("in use"), "{second}");
+    drop(first);
+    assert!(start("c").is_ok());
 }

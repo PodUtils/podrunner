@@ -151,6 +151,9 @@ impl Slots {
             Ok(Assigned::Keep(facts)) => {
                 let trust = self.cfg.trust_for(&self.sources[key.0].cfg, &facts);
                 match trust.and_then(|t| podrunner_tier::intake(&facts, t, tier)) {
+                    // The cache of the unit was made for the offer: the
+                    // real job keeps it only on its own facts (T-480).
+                    Ok(_) if !self.cache_holds(key, &facts) => Verdict::end("cache-mismatch"),
                     Ok(_) => Verdict::Keep,
                     Err(_) => Verdict::end("tier-mismatch"),
                 }

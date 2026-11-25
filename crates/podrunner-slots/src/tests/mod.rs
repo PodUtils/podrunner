@@ -6,6 +6,7 @@ mod assigned;
 mod bed;
 mod bounded;
 mod cache;
+mod cache_assigned;
 mod cancel;
 mod config;
 mod config_schema;

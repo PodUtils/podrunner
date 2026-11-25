@@ -76,6 +76,10 @@ impl Slots {
         journal::compact(state_dir, &replay)?;
         let journal = journal::Journal::open(state_dir)?;
         let audit = audit::Audit::open(state_dir)?;
+        let cache_worker = match &cfg.cache {
+            Some(c) => Some(cache::Worker::start(c.dir.clone().unwrap_or_else(|| state_dir.join("cache")))?),
+            None => None,
+        };
         let mut s = Slots {
             cfg,
             origin: clock.now(),
@@ -100,6 +104,7 @@ impl Slots {
             hooks: None,
             spool_next_ms: 0,
             disk_next_ms: 0,
+            cache_worker,
         };
         s.reconcile(replay.open);
         Ok(s)

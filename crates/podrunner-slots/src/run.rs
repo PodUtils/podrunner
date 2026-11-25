@@ -443,9 +443,19 @@ impl Slots {
             }
             self.audit(audit::Kind::Destroy, key.0, &key.1, None, None);
             self.close_sockets(u);
-            self.cache_end(key);
+            // The thread of the caches measures a `rw` cache; the report
+            // waits for its bytes (`cache_tick`).
+            if self.cache_end(key) {
+                self.set(key, State::Destroyed, now);
+                return;
+            }
         }
         self.set(key, State::Destroyed, now);
+        self.reported(key, now);
+    }
+
+    /// Report a destroyed job, and release it.
+    pub(crate) fn reported(&mut self, key: &Key, now: u64) {
         self.report(key);
         let _ = self.sources[key.0].source.release(&key.1);
         self.set(key, State::Reported, now);

@@ -89,8 +89,12 @@ they differ, `serve` sends `assigned` with the facts of the real job
 (T-493). A source answers `keep` with the trust facts of the real job, as
 it reads them from the forge; podrunner computes the tier of those facts
 and runs the job only when it is the tier of the unit (a job of a fork
-never runs in a trusted unit). Else, and on `end`, the job ends before
-its first step with an annotation that names the code. A source with no
+never runs in a trusted unit). A job with a cache (`[cache]`) keeps it
+only when those facts give the same scope and a mode that is not lower;
+else the code is `cache-mismatch`. The facts of `keep` give the `ref`,
+the `repo_id` and the event of the real job; a source that does not know
+one gives it empty, never the value of the offer. Else, and on `end`, the
+job ends before its first step with an annotation that names the code. A source with no
 `assigned` answers `bad-request`, and the job ends as before. No answer
 within 10 s ends the job with the code `source-unavailable`.
 
