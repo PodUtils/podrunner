@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 667 entries: 85 open, 58 partial, 13 blocked, 511 done.
+`TODO/INDEX.md` holds 667 entries: 85 open, 57 partial, 13 blocked, 512 done.
 
 ## State
 
@@ -44,8 +44,8 @@
 - The signed release assets of podrunner `v0.1.0-beta.8` and podcrates
   `v0.84.0` supply the source test tools and fakes on both architectures
   (T-511). The podcrates OCI provenance covers matching executables.
-- The image recipe command and the hosted package comparison are ready
-  for the full-image import and workflow proof (T-500).
+- The image recipe command built a full OCI image with an extra package.
+  The imported digest ran a workflow on the test host as a user (T-500).
 - The sidecar of the scale set, with the opt-ins of Q12 (T-518) and Q13
   (T-504), has unit and fake tests only. It did not run against GitHub.
   Open: T-621 (a live lane), T-622, T-624.
@@ -70,7 +70,7 @@ then take the next one.
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10
    partial, 6 open; cfb has 38 clauses, 26 in a release, 6 partial, 6 open.
    The comments of podrunner on #292 and #151 name `v0.1.0-beta.8`. Then
-   T-500 (runner image for cfb; partial), T-672, T-521 and the partial
+   T-672, T-521 and the partial
    entries T-497, T-499, T-509, T-515 and T-520.
 4. Keep the G-09 line on #66 current with the CI proof of Docker build
    and Docker-in-Docker, the bundled engine (T-672), and the live check

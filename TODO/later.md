@@ -11440,7 +11440,7 @@ State (2026-11-25, the release `v0.1.0-beta.8`, `release.yml` 45459310537 and 45
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -11467,6 +11467,10 @@ State (2026-11-19, `user-gate.yml` run 44462524454): on the microvm executor the
 State (2026-11-19, `user-gate.yml` run 44506794088 at `582e827` (images of `runner-image.yml` run 44496659830, podvm `0.2.0-beta.36`; proven on a constrained host as a user)): with the libraries of Chromium in `runner-full`, the page of Playwright 1.64.1 opens in headless Chromium on the microvm executor (the row `rbg-gate`). Left: the published list of the software of `runner-full` against `ubuntu-24.04` (the hosted parity of T-539 gives it), and `podrunner image build` from a recipe (cfb's Q-12 b).
 
 State (2026-11-25, the commit that names T-500): `hosted-parity.yml` run 45430139082 publishes `probe-runner-full`, `probe-ubuntu-24.04` and `gap`. The CLI builds the pinned base or full profile and extra Ubuntu packages, writes an OCI archive and prints a payload pin. The 15 image tests and 14 manual tests passed. The executable refused an invalid package and preserved an existing destination. Buildx exported the full-profile image with `ninja-build` and the archive validator rejected its `blobs/sha256/` directory header. The validator now skips directory headers. The regression failed in the old validator and all seven cache tests passed with the fix. The full-image import and workflow proof is in progress.
+
+## Done
+
+2026-11-25, `02f35854` and the proof commit. As a user on the test host, `podrunner image build --recipe runner.toml --out runner-local.tar` built `profile = "full"` with `packages = ["ninja-build"]`. The BuildKit builder used the host's session proxy and a temporary CA secret for the tarball download. `podvm load -i runner-local.tar` imported the archive. The printed pin matched the OCI manifest digest `sha256:b1e50d2ee871907f02aca871d9b5d2ca56d2e0cd93fc962e4ec1ef0b28d4ca36`, x86_64, runner 2.338.2 and the assignment hook declaration. `podrunner run --no-config prove.yml --podvm PATH --images STORE --image REFERENCE` finished the workflow with `ninja --version` printing `1.11.1` and the check for `libnss3.so` passing. Hosted package comparison and Chromium evidence are in runs 45430139082 and 44506794088.
 
 # T-501: G-26: a drain and a stop of one source
 
