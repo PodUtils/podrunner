@@ -212,6 +212,8 @@ fn assigned_needs_a_claim(fx: &dyn Fixture) -> Result<(), String> {
         head_is_fork: Some(false),
         actor: "conformance".into(),
         job_id: None,
+        git_ref: None,
+        repo_id: None,
     };
     let (mut s, job) = offered(fx)?;
     let before = match s.assigned(&job, &real) {

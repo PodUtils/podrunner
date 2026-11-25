@@ -393,6 +393,8 @@ fn a_job_of_another_run_keeps_only_a_ro_cache_of_its_event_with_no_fork() {
         head_is_fork: fork,
         actor: "a".into(),
         job_id: None,
+        git_ref: None,
+        repo_id: None,
     };
     let grant = |mode: Mode, t: &podrunner_schema::offer::TrustInputs| store::Grant {
         id: super::scope_of("s", t, Tier::Trusted, "default").0,

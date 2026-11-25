@@ -44,6 +44,8 @@ fn real(repository: &str, run_id: u64, event: &str) -> RealJob {
         head_is_fork: Some(false),
         actor: "a".into(),
         job_id: None,
+        git_ref: None,
+        repo_id: None,
     }
 }
 

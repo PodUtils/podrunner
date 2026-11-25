@@ -339,6 +339,8 @@ fn assigned_keeps_a_job_of_the_owner_and_ends_another() {
         head_is_fork: Some(fork),
         actor: "a".into(),
         job_id: None,
+        git_ref: None,
+        repo_id: None,
     };
     match s.assigned(&job, &real(format!("{owner}/other"), true)).unwrap() {
         Assigned::Keep(t) => {
@@ -374,6 +376,8 @@ fn assigned_keeps_no_fork_fact_of_the_offer() {
         head_is_fork: fork,
         actor: "a".into(),
         job_id: None,
+        git_ref: None,
+        repo_id: None,
     };
     for (why, r, want) in [
         ("another event, no fact", real("pull_request_target", None, None), Fact::Unknown),

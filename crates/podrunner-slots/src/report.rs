@@ -106,6 +106,9 @@ impl Slots {
                     payload: podrunner_unit::parse_pinned(&p.payload).map(|(_, d)| d.to_string()).unwrap_or_default(),
                     residual_processes: residual(r.processes),
                     residual_files: residual(r.files),
+                    start: None,
+                    warm_s: None,
+                    boot_s: None,
                 })
             }
             _ => None,

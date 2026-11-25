@@ -85,6 +85,7 @@ impl Slots {
                 },
                 busy: v.running,
                 probe: k.capability.clone(),
+                warm: None,
             })
             .collect();
         let now = (self.now_unix)();
@@ -111,6 +112,7 @@ impl Slots {
             sources,
             kinds,
             pins,
+            warm_units: 0,
             // A unit ended and was reported, and the source never said
             // that the job completed (no retry of a lost job).
             ended_without_completion: self

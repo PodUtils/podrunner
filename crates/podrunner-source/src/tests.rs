@@ -107,6 +107,8 @@ fn a_request_round_trips_with_its_schema() {
                 head_is_fork: None,
                 actor: "a".into(),
                 job_id: None,
+                git_ref: None,
+                repo_id: None,
             },
         },
     ];

@@ -10,7 +10,7 @@ its work is done. Git keeps the history.
 
 | What | Pin | Where |
 | --- | --- | --- |
-| podcrates | `v0.83.0` | `Cargo.toml` (one tag for each `pod-` crate) |
+| podcrates | `v0.84.0` | `Cargo.toml` (one tag for each `pod-` crate) |
 | podvm | `v0.2.0-beta.40` | `images/podvm.toml`; the lowest podvm of each kind is in `crates/podrunner-podvm/src/probe.rs` |
 | podnet | `v0.4.0-beta.17` | `images/podnet.toml` |
 | official runner | `v2.338.2` | `images/runner/runner.toml` |
@@ -115,7 +115,7 @@ state of each.
 - podcrates:
   - #312 (COORD-102, T-553): publish on `ghcr.io`. Done in
     `v0.1.0-beta.8`; it closes with the comment that names the digests.
-  - COORD-129 (not written): the take of podcrates `v0.83.0` (T-647).
+  - COORD-134, to write: the take of podcrates `v0.84.0` (T-664).
   - #183 (COORD-064, T-249): the shared installer core. #184 (COORD-065,
     T-250): the issue sync of the record runs. The step of the
     hand-written State column is left (T-250 is partial).

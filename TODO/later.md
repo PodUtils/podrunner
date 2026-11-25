@@ -16878,3 +16878,39 @@ Read on 2026-11-25: `ACTIONS_RUNNER_HOOK_JOB_STARTED` is set only by `images/run
 
 `cargo test -p podrunner-slots first_step` with the case of step 3.
 
+
+# T-664: Take podcrates `v0.84.0` (COORD-155 of podcrates)
+
+**Source:** PodUtils/podcrates#260 (COORD-155, to all), 2026-11-25
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podcrates `v0.84.0` is out (tag commit `ca1d3e3`), with signed `SHA256SUMS`, assets and images. Its section "podrunner" answers two asks of podrunner, and both are breaking (new fields of public structs). PodUtils/podcrates@T-1362 (COORD-130, #352): `pod_job::source::RealJob` has the optional fields `git_ref` (the wire name `ref`; at most 256 bytes, `REF_MAX`, no control character, `ref_fault`) and `repo_id` (`u64`); a field that is `None` is not on the wire. PodUtils/podcrates@T-1370 (COORD-131, #353): `UnitFields` has `start` (`UnitStart`: `cold` or `warm`), `warm_s` and `boot_s`; `unknown_reasons` can name `boot_s` and `warm_s` (`UNIT_TIMES`); `KindStatus` has `warm` (`WarmStatus`: `target`, `booting`, `ready`, `paused_reason`); `Status` has `warm_units` (default 0). Also: `Class::Data` (65) of `pod-core` is new; the workspace dependency `h2` of podcrates is the fork `pod-h2` (MIT); `pod-extract` has `flatten`. The issue asks each consumer to write the commit of its take as a COORD issue `(to podcrates)`.
+
+## Premise
+
+Read on 2026-11-25 through the mirror: the body of PodUtils/podcrates#260. `git ls-remote` gives `ca1d3e3b94f3ea2fed94915e76fd44709915b90f` for `v0.84.0^{}`. The source of `pod-job` at the tag (`source/event.rs`, `report.rs`, `status.rs`). The index of `ghcr.io/podutils/pod-fake-githome:v0.84.0` read from ghcr.io with no login. Not measured here: CI on the commit of the take.
+
+## Approach
+
+1. Each podcrates dependency names `tag = "v0.84.0"` (`Cargo.toml`, the member crates, `Cargo.lock` and `fuzz/Cargo.lock` by `cargo update -w`); `issue-sync.yml` at `ca1d3e3` with `podcrates_ref: v0.84.0`; `images/fake-githome.toml` and `images/pod-release.toml` pin the assets of `v0.84.0`, each SHA-256 checked against the signed `SHA256SUMS` with the pinned `pod-release`.
+2. Each struct literal of `RealJob` gets `git_ref: None, repo_id: None`; `UnitFields` gets `start: None, warm_s: None, boot_s: None`; `KindStatus` gets `warm: None`; `Status` gets `warm_units: 0`. T-653 and T-657 fill them.
+3. Check each break: a `match` on `Class` and the exit codes of the manual; `scripts/githome-conformance.sh` with the new fake.
+4. The commit of the take as COORD-134 `(to podcrates)`.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+sh scripts/githome-conformance.sh target/x86_64-unknown-linux-musl/debug/podrunner
+python3 -I scripts/check-docs.py
+```
+
+## Done
+
+2026-11-25, the commit that names T-664 (not pushed; level: proven on a development host, not run in CI). `pod-release` 0.83.0 (the pin before, SHA-256 `cfd288fb...`) verifies the signed `SHA256SUMS` of `v0.84.0` as `release.yml` at the tag (Rekor entry 4097081649; `release-index.json` names 11 files; the tag `v0.83.0` gives 77); each of the six pinned SHA-256 is its line there. The ghcr.io index of `pod-fake-githome:v0.84.0` is `sha256:aca43d0c...`, and the layer of each platform holds the pinned binary. `release-index.py` at `ca1d3e3` is the same file as at `5fd6fb7`. `Cargo.lock` changes the version and source of each `pod-` crate, and `h2` of crates.io becomes `pod-h2` 0.4.20 of the tag (MIT, `deny.toml` allows it). No source of podrunner names `Class::Data`, so the exit codes of the manual stay. `scripts/githome-conformance.sh` with `pod-fake-githome` 0.84.0: 15 of 15. `cargo test -p podrunner-slots -p podrunner-source -p podrunner-fake -p podrunner-schema --all-features` passed.

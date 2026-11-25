@@ -1,13 +1,13 @@
 # Progress
 
-`TODO/INDEX.md` holds 658 entries: 86 open, 59 partial, 15 blocked, 498 done.
+`TODO/INDEX.md` holds 659 entries: 86 open, 59 partial, 15 blocked, 499 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered DR-1
   to DR-7 and GitHub #8 (`docs/decisions.md`). DR-7 is yes: the live gates
   run on GitHub #74 and #75.
-- Pins: podcrates `v0.83.0`, podvm `v0.2.0-beta.40`, podnet `v0.4.0-beta.17`,
+- Pins: podcrates `v0.84.0`, podvm `v0.2.0-beta.40`, podnet `v0.4.0-beta.17`,
   runner v2.338.2. Last release: `v0.1.0-beta.8` (tag on `93e1710`;
   `release.yml` 45459310537 and 45466841655; `docs/HANDOFF.md`, "The
   release `v0.1.0-beta.8`"). The QA of the release as a user found no P1
