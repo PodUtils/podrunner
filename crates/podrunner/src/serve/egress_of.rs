@@ -12,28 +12,43 @@ use super::front;
 pub(super) struct EgressOf {
     egress: podrunner_egress::Egress,
     ttl: Duration,
-    asks: std::sync::mpsc::SyncSender<podrunner_slots::assigned::Question>,
+    asks: Sender,
     asked: std::sync::Mutex<std::sync::mpsc::Receiver<podrunner_slots::assigned::Question>>,
-    /// The units whose hook marked the first step of their job (T-660).
-    steps: std::sync::mpsc::SyncSender<podrunner_schema::UnitId>,
-    stepped: std::sync::Mutex<std::sync::mpsc::Receiver<podrunner_schema::UnitId>>,
+    /// The units with a question in flight: one each, so a unit that asks
+    /// in a loop takes no place of another unit (T-660).
+    in_flight: Shared<std::collections::HashSet<String>>,
+    /// The units whose hook marked the first step of their job, each once
+    /// (T-660): the size is bounded by the units, not by a queue that one
+    /// unit can fill.
+    steps: Shared<Vec<podrunner_schema::UnitId>>,
     fronts: std::sync::Mutex<std::collections::HashMap<String, front::Front>>,
+}
+
+type Shared<T> = std::sync::Arc<std::sync::Mutex<T>>;
+type Sender = std::sync::mpsc::Sender<podrunner_slots::assigned::Question>;
+
+/// The place of a unit in `in_flight`, given back at its drop.
+struct InFlight(Shared<std::collections::HashSet<String>>, String);
+
+impl Drop for InFlight {
+    fn drop(&mut self) {
+        if let Ok(mut m) = self.0.lock() {
+            m.remove(&self.1);
+        }
+    }
 }
 
 impl EgressOf {
     pub(super) fn new(egress: podrunner_egress::Egress, ttl: Duration) -> EgressOf {
-        // A bounded queue: a unit that asks too much gets `end`.
-        let (asks, asked) = std::sync::mpsc::sync_channel(64);
-        // A mark that finds the queue full is lost: the slots read the
-        // queue each tick, and a job has one first step.
-        let (steps, stepped) = std::sync::mpsc::sync_channel(64);
+        // No bound of its own: each unit has one question in flight at most.
+        let (asks, asked) = std::sync::mpsc::channel();
         EgressOf {
             egress,
             ttl,
             asks,
             asked: std::sync::Mutex::new(asked),
-            steps,
-            stepped: std::sync::Mutex::new(stepped),
+            in_flight: Default::default(),
+            steps: Default::default(),
             fronts: Default::default(),
         }
     }
@@ -44,17 +59,28 @@ impl EgressOf {
     fn front(&self, id: &podrunner_schema::UnitId, socket: &Path) -> Result<(), String> {
         let inner = socket.with_file_name("egress-inner.sock");
         let asks = std::sync::Mutex::new(self.asks.clone());
-        let steps = std::sync::Mutex::new(self.steps.clone());
+        let (in_flight, steps) = (self.in_flight.clone(), self.steps.clone());
         let unit = id.clone();
         let ask: front::Ask = std::sync::Arc::new(move |route: &str, body: &[u8]| {
             if route == "/v1/started" {
                 // The hook does not wait for the tick: the slots journal
                 // the mark at the next tick.
-                let _ = steps.lock().map(|s| s.try_send(unit.clone()));
+                if let Ok(mut s) = steps.lock()
+                    && !s.contains(&unit)
+                {
+                    s.push(unit.clone());
+                }
                 return r#"{"ok":true}"#.to_string();
             }
+            // The hook asks once, before the first step of the job: a
+            // second question in flight is a step of the job.
+            let first = in_flight.lock().is_ok_and(|mut m| m.insert(unit.to_string()));
+            if !first {
+                return r#"{"verdict":"end","code":"question-in-flight"}"#.to_string();
+            }
+            let _place = InFlight(in_flight.clone(), unit.to_string());
             let (tx, rx) = std::sync::mpsc::sync_channel(1);
-            let sent = asks.lock().map(|a| a.try_send((unit.clone(), body.to_vec(), tx)).is_ok()).unwrap_or(false);
+            let sent = asks.lock().map(|a| a.send((unit.clone(), body.to_vec(), tx)).is_ok()).unwrap_or(false);
             match sent.then(|| rx.recv_timeout(ASK_WAIT).ok()).flatten() {
                 Some(answer) => answer,
                 None => r#"{"verdict":"end","code":"source-unavailable"}"#.to_string(),
@@ -118,6 +144,9 @@ impl podrunner_slots::EgressPort for EgressOf {
         if let Ok(mut m) = self.fronts.lock() {
             m.remove(unit);
         }
+        if let Ok(mut s) = self.steps.lock() {
+            s.retain(|u| u.as_str() != unit);
+        }
         self.egress.close(unit);
     }
     fn alive(&self) -> bool {
@@ -130,6 +159,6 @@ impl podrunner_slots::EgressPort for EgressOf {
         self.asked.lock().map(|r| r.try_iter().collect()).unwrap_or_default()
     }
     fn first_steps(&self) -> Vec<podrunner_schema::UnitId> {
-        self.stepped.lock().map(|r| r.try_iter().collect()).unwrap_or_default()
+        self.steps.lock().map(|mut s| std::mem::take(&mut *s)).unwrap_or_default()
     }
 }

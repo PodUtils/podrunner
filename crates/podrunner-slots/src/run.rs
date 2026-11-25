@@ -34,8 +34,6 @@ impl Slots {
             return;
         }
         let Some(j) = self.jobs.get(&key) else { return };
-        // A hook can mark the first step before this event: the runner
-        // name is still checked (T-660).
         if !matches!(j.state, State::Started | State::Running) {
             return;
         }
@@ -45,7 +43,17 @@ impl Slots {
             }
             return;
         }
-        // The forge gave the job to another runner: this unit must not run.
+        if j.state == State::Running {
+            // The runner of this unit took a job first, and the job-started
+            // hook kept it: a job of the placed run, or one that `assigned`
+            // kept (T-493). The placed job runs on another runner; this
+            // unit runs on (T-660).
+            let why = "the placed job started on another runner; the unit runs the job that its hook kept";
+            self.audit(audit::Kind::Assigned, s, job, None, Some(why.into()));
+            return;
+        }
+        // The forge gave the job to another runner before this unit took
+        // one: this unit must not run.
         self.audit(audit::Kind::JobMismatch, s, job, None, None);
         self.end(&key, ExitReason::JobMismatch, Signal::Kill, now);
     }

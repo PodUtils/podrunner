@@ -173,7 +173,12 @@ event that names the runner name of the unit, the job-started container
 hook, or the mark of the job-started hook of the runner image (T-660).
 That move starts the run and ends `claim_to_first_step_s`, so a source
 that sends no `started` still gets the time. A `started` event that names
-another runner ends the unit (`job-mismatch`), also after another mark.
+another runner ends the unit (`job-mismatch`) while the job is `started`.
+After a mark of a hook, the runner of the unit runs a job that its hook
+kept (a job of the placed run, or a job of another run with `keep`): the
+placed job runs on another runner, and the unit runs on with an audit
+line `assigned`. A `started` that names the runner of the unit with
+another job id ends the unit in each state.
 
 ## Errors
 
