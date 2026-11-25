@@ -140,5 +140,5 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 0f43d75790e248ee82e1ae12675d917352c0734520f6bedf5ed0642fdd4abea4 -->
 <!-- contract docs/contracts/source-driver.md 13875da50a66ad167ae70a19313631222f3cf6c61bf21afde7eedcf322c970d1 -->
-<!-- contract docs/contracts/unit-driver.md 908d7cb8c3d009512cbd85c0e6973d82b934cdec28ad3c9acaee1bd9f0c810c0 -->
+<!-- contract docs/contracts/unit-driver.md 95465c8377fcc3f5bb7d7065232eabdcf823aef0483a2385d2aa2320622e680c -->
 <!-- contract schemas/config.v1.json 6635528e08614c6399d813f12113b5cdc505ba701027069a310bb425abb1b848 -->

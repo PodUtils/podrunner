@@ -63,7 +63,7 @@ its test, not podrunner at run time.
 | `prepare` | a pinned reference, a platform, emulation yes or no | the digest and the platform |
 | `start` | the unit id, the prepared image, argv, environment, credential | none |
 | `warm` | the unit id, the prepared image, the socket directory, the variables of the unit | none |
-| `warm_ready` | the unit id | ready, or not yet |
+| `warm_ready` | the unit id | true when the top process waits for the claim |
 | `claim` | the unit id, argv, environment, credential, the limits of the offer | none |
 | `signal` | the unit id, `term` or `kill` | none |
 | `wait` | the unit id, a time limit | the exit, or none |
