@@ -16,32 +16,49 @@ its work is done. Git keeps the history.
 | official runner | `v2.338.2` | `images/runner/runner.toml` |
 | last release | `v0.1.0-beta.8` | tag on `93e1710`; `release.yml` 45459310537 and 45466841655 |
 
+## Next
+
+In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
+
+1. After the push of `72cd0ab`, `3391edc` and `f2716a1`: run
+   `runner-image.yml` on the new head (the commit changes the job-started
+   hook of the runner image). Cancel run 45577976751 of `f6a9a94` when it
+   still runs. When it is green, dispatch `user-gate.yml` with `images_run`
+   set to that run. The rows `serve:warm:incus` and `serve:warm:microvm`
+   must pass. Then lift the refusal of warm units (T-487, its State
+   section has the steps).
+2. Close #352 (COORD-130), #353 (COORD-131) and #356 (COORD-134) when
+   `gate.yml`, `level2.yml` and `runner-image.yml` on the new head are
+   green. Write the close in `TODO/issues.md` and `TODO/github.txt` first.
+3. Apply Dependabot #357 (trufflehog 3.100.0, `images/trufflehog`) and
+   #358 (toml 1.2.2). Each is its own commit on `main` with green checks;
+   then close the pull request with a link (`docs/maintenance.md`,
+   "Dependabot").
+4. T-663 (P2, a fact of the payload hook). Then the `rw` restore of a job of
+   another run turns on (T-653: `PAYLOAD_HOOK_KNOWN` of
+   `crates/podrunner-slots/src/cache/slots.rs`).
+5. The statement of G-09 on #66 (T-516 is done; check T-517 first: it is
+   open, so the line names it as left).
+6. The work order of `TODO/PROGRESS.md`.
+
 ## The release `v0.1.0-beta.8`
 
-Released on 2026-11-24 from `93e1710`. `release.yml` 45459310537 (the run
-with the version: the checks, the probe of ghcr.io and the tag) and
-45466841655 (the run on the tag: the signature, the push to ghcr.io and
-the publish) are green. The job `check` took `user-gate.yml` 45443730436
-and `runner-image.yml` 45435461556 of that commit. The release has the
-signed `SHA256SUMS` and `release-index.json` (`pod-release verify` holds),
-and `ghcr.io/podutils/podrunner` and `ghcr.io/podutils/podrunner-runner`
-with the tag `v0.1.0-beta.8` are public. `docs/releases/v0.1.0-beta.8.md`
-has the notes, with the level of proof of each claim.
+Released on 2026-11-24 from `93e1710`: `release.yml` 45459310537 (the
+checks, the probe of ghcr.io and the tag) and 45466841655 (the signature,
+the push to ghcr.io and the publish) are green. The job `check` took
+`user-gate.yml` 45443730436 and `runner-image.yml` 45435461556. The signed
+`SHA256SUMS` and `release-index.json` verify, and the two images on
+`ghcr.io/podutils` with the tag are public. `docs/releases/v0.1.0-beta.8.md`
+has the notes, with the level of proof of each claim, and "What is not
+proven". The QA of the release as a user (no root, no KVM, a proxy) found no
+P1 and no P2; its P3 findings are in T-635 and T-642.
 
-Open after the release (writes to GitHub of the lead session):
+Open after the release (writes to GitHub):
 
 1. Name the tag on GitHub #292 and #151 (T-512 gives the line
    `githome: complete in vTAG` only when each ask is in a release).
 2. The comment on #312 (COORD-102, T-553) with the digest of each index
    beside the SHA-256 of each asset; then close #312.
-
-The notes, "What is not proven", list what no run proves: the sidecar
-against real GitHub, the peak memory of an incus instance (T-611), the
-microvm and incus kinds on the host of a user, the online install from the
-release URL, aarch64 on a host of a user, and the live gates. The QA of
-the release as a user with no root, no KVM and a proxy (2026-11-25) found
-no P1 and no P2, and passed the online install from the release URL
-(T-205); its P3 findings are in T-635 and T-642.
 
 ## What is proven
 
@@ -50,20 +67,25 @@ Levels follow `AGENTS.md`, section 12.
 Proven in CI on GitHub-hosted runners:
 
 - The gate, `level2.yml` (the official runner against the fake broker),
-  `runner-image.yml` (the podvm suites, the held tests, the local suite and
-  the parity suite on each kind, the microvm kind on real guests, the incus
-  suite on real instances) and `user-gate.yml` (the files of a release as a
-  user with no root, in nine lanes). The notes name the runs.
-- The unit conformance suite on the fake unit, the podvm driver, the microvm
-  kind and the incus kind. A canned job and a `container:` job of the
-  official runner on podvm.
+  `runner-image.yml` (the podvm suites, the parity suite on each kind, the
+  microvm kind on real guests, the incus suite on real instances) and
+  `user-gate.yml` (the files of a release as a user, in nine lanes). The
+  unit conformance suite on the fake unit, the podvm driver, the microvm
+  kind and the incus kind.
 - The hosted snapshot: published, public and attested on `ghcr.io`, with
-  C1 (0 differences) and C2 (no secret) on each capture. A canned job runs
-  in its runner image through the incus kind (`docs/hosted-snapshot.md`).
-  The full snapshot does not fit the pool of incusd on a standard hosted
-  runner (T-613).
+  C1 and C2 on each capture. A canned job runs in its runner image through
+  the incus kind (`docs/hosted-snapshot.md`). The full snapshot does not
+  fit the pool of incusd on a standard hosted runner (T-613).
 - The local mode, `serve`, the sources, the tier rule, the egress hold, the
   installer and the offline bundle. `TODO/INDEX.md` has the entry of each.
+- A `docker build` step and a `docker:dind` service on the microvm and incus
+  kinds (T-516: `runner-image.yml` 45564676018; `level2.yml` 45564676057 on
+  github.com twins).
+- The cache of `serve` (T-480) with the fake unit and the fake podvm: unit
+  tests and the fake slots, not a live kind. Warm units (T-487): the
+  conformance cases 28 to 32 on the fake kind; the live warm suites of
+  microvm and incus and the lane `serve:warm:KIND` of `user-gate.yml` have
+  not passed yet (T-660 gives the first-step mark that the lane needs).
 
 Proven on a constrained host as a user: QA round 6 on the candidate files
 (two agents, no root, no KVM, an HTTPS proxy). The notes list the fixes
@@ -74,35 +96,36 @@ milestones M-A, M-B and L2 hold. M-C and M-D wait for the live gates.
 
 ## The work order
 
-`TODO/PROGRESS.md` has the order. After the release it names T-480, T-487,
-T-516 and T-500, then the local P3 entries. githome and cfb come first (the
-owner, 2026-11-18, `docs/decisions.md`). githome: 41 asks, 25 in a release
-(4 in beta.7, 21 in beta.8), 10 partial, 6 open. cfb: 38 clauses, 26 in a
-release (15 in beta.7, 11 in beta.8), 6 partial, 6 open (the trackers #66
-and #151). T-512 waits for these. Open entries that need a decision
-of the owner: none (`TODO/PROGRESS.md`, "Questions for the owner").
+`TODO/PROGRESS.md` has the order. After the proof of the new head it names
+T-663, T-512, T-500, T-517 and the local P3 entries (T-665 among them).
+githome and cfb come first (the owner, 2026-11-18, `docs/decisions.md`).
+githome: 41 asks, 25 in a release (4 in beta.7, 21 in beta.8), 10 partial, 6
+open. cfb: 38 clauses, 26 in a release (15 in beta.7, 11 in beta.8), 6
+partial, 6 open (the trackers #66 and #151). T-512 waits for these. Open
+entries that need a decision of the owner: none (`TODO/PROGRESS.md`,
+"Questions for the owner").
+
+Warm units are in the code and refused in a release build (exit 78, "not in
+this build"). A CI build with the cargo feature `warm-ci` and the variable
+`PODRUNNER_WARM_CI=1` takes them for the lane of the user gate (T-487).
 
 ## Open asks to other projects
 
 Each ask is a COORD issue of this repository. `TODO/issues.md` has the
 state of each.
 
-- podvm, for the incus tier and the hosted snapshot (each delivered in
-  `0.2.0-beta.40`, pinned; COORD-246, PodUtils/podvm#662):
-  - #345 (COORD-123) and #350 (COORD-128), T-611: the use of a stopped
-    instance, also on a host with AppArmor. `limits.rs` is strict again.
-    Both close when the incus step of `runner-image.yml` on the commit of
-    the pin is green.
-  - #349 (COORD-127), T-613: the boot of `--podvm-init=image`. Closes when
-    `hosted-measure.yml` with `place = btrfs` and `full = slice` boots.
-  - #347 (COORD-125), T-613: one tree for an import, and gzip. Closes when
-    `hosted-measure.yml` with `place = btrfs` and `full = all` is green.
+- podvm, for the incus tier and the hosted snapshot (`0.2.0-beta.40`,
+  pinned; COORD-246, PodUtils/podvm#662):
   - #346 (COORD-124), T-613: the check of the space. Closes when
     `hosted-measure.yml` with `place = store-root` and `full = all` gives
     the line of the free space and the need.
   - #313 and #316 (T-543, T-544, T-556, T-558, T-559): the init and the
     kernel on the machine tier and an incus VM mode. podvm names the order
     of the steps; the issues close when podrunner takes each ask.
+- podvm, for warm units (T-487):
+  - #354 (COORD-132, T-658): change the limits of a running incus instance.
+    #355 (COORD-133, T-659): a saved state for a run with a channel and a
+    pids limit. Both wait for a podvm release.
 - podvm, for the confined kinds and the syscall tier:
   - #308, #304 and #189 (T-261): the syscall tier is off
     (`SYSCALL_TIER = None`): under it Node of `setup-node` fails with
@@ -115,7 +138,9 @@ state of each.
 - podcrates:
   - #312 (COORD-102, T-553): publish on `ghcr.io`. Done in
     `v0.1.0-beta.8`; it closes with the comment that names the digests.
-  - COORD-134, to write: the take of podcrates `v0.84.0` (T-664).
+  - #352 (COORD-130, T-653), #353 (COORD-131, T-657) and #356 (COORD-134,
+    T-664): `v0.84.0` answers them and is taken. Each closes when CI on the
+    new head is green (item 1 of "Next").
   - #183 (COORD-064, T-249): the shared installer core. #184 (COORD-065,
     T-250): the issue sync of the record runs. The step of the
     hand-written State column is left (T-250 is partial).

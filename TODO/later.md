@@ -16918,3 +16918,32 @@ python3 -I scripts/check-docs.py
 ## Done
 
 2026-11-25, the commit that names T-664 (not pushed; level: proven on a development host, not run in CI). `pod-release` 0.83.0 (the pin before, SHA-256 `cfd288fb...`) verifies the signed `SHA256SUMS` of `v0.84.0` as `release.yml` at the tag (Rekor entry 4097081649; `release-index.json` names 11 files; the tag `v0.83.0` gives 77); each of the six pinned SHA-256 is its line there. The ghcr.io index of `pod-fake-githome:v0.84.0` is `sha256:aca43d0c...`, and the layer of each platform holds the pinned binary. `release-index.py` at `ca1d3e3` is the same file as at `5fd6fb7`. `Cargo.lock` changes the version and source of each `pod-` crate, and `h2` of crates.io becomes `pod-h2` 0.4.20 of the tag (MIT, `deny.toml` allows it). No source of podrunner names `Class::Data`, so the exit codes of the manual stay. `scripts/githome-conformance.sh` with `pod-fake-githome` 0.84.0: 15 of 15. `cargo test -p podrunner-slots -p podrunner-source -p podrunner-fake -p podrunner-schema --all-features` passed.
+
+# T-665: The warm status counts a reserved unit as ready and hides the warm units of a kind that has target 0
+
+**Source:** the review of T-657 (`f2716a1`), 2026-11-25
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`warm_status` of `crates/podrunner-slots/src/status.rs` has two faults. (1) It counts each warm unit with a ready mark as `ready`, also a unit that a job reserved and has not yet taken. The contract of `KindStatus.warm` is that a ready unit waits for a claim, so `ready` is too high while a take is in flight. (2) It returns `None` when the configured target of the kind is 0. After a change of the configuration (a reload, or a new file at the next start with warm units still in the pool), warm units of that kind can still exist, and `Status.warm_units` counts them, but the kind shows no `warm` object. The two views then disagree.
+
+## Premise
+
+Read on 2026-11-25: `warm_status` counts `self.warm.units` of the kind with `ready_ms` set as ready and returns `None` when the sum of `warm_rows()` is 0; `Status.warm_units` counts all units of the pool. Not measured: a status with a unit that a job reserved.
+
+## Approach
+
+1. `ready` counts only the units that are ready and not reserved; a reserved unit is neither `booting` nor `ready`, or the object says so in its own count, as the contract of `KindStatus.warm` of podcrates allows.
+2. `warm_status` returns the object also when the target is 0 and the kind still has warm units (the units end by `warm_max_age_s` or at the stop).
+3. Tests: a status with a reserved unit has `ready` lower by one; a kind with target 0 and one warm unit shows `target` 0 and the unit.
+
+## Prove
+
+```sh
+cargo test -p podrunner-slots warm_report
+```
