@@ -1,8 +1,9 @@
 //! The limits of memory, CPU and processes of a unit kind (G-12, T-162).
 //! A kind enforces the values of its configuration on each unit; it says
 //! `enforced` for each limit that it holds, and placement refuses an offer
-//! that needs another (`limit-not-enforceable`). The value of an offer is
-//! not applied: the kind holds its own value.
+//! that needs another (`limit-not-enforceable`). A driver applies the
+//! lesser of the value of its kind and the value of the offer where it can
+//! (T-198, [`Limits::lesser`]); `docs/configuration.md` names each kind.
 
 use podrunner_schema::{Capability, LimitMode};
 
