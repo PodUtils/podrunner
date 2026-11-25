@@ -302,6 +302,11 @@ built_at_s = {now}
     writeln!(samples, "{}", serde_json::to_string(&after).unwrap()).unwrap();
     let reports: Vec<_> = slots.reports.iter().cloned().collect();
     println!("{reports:#?}\nthe broker saw: {:?}\nstatus samples: {}", broker.seen(), out.display());
+    // T-487 step 1: the cold start of each job of the kind, one line each.
+    for r in &reports {
+        let (c, p, s) = (r.claim_to_first_step_s, r.prepare_s, r.start_s);
+        println!("measure {kind_name} {} claim_to_first_step_s={c:?} prepare_s={p:?} start_s={s:?}", r.job_id);
+    }
     let _ = std::fs::remove_dir_all(state.join(&kind_name));
 
     // C1: 20 reports of success, 20 units, each destroyed with no residue.
