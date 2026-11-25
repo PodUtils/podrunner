@@ -19,10 +19,9 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. Read `user-gate.yml` run 45599688848 on `cd28ca7c`, with images from
-   runner-image run 45588130722 on `988df4f3`. The rows `serve:warm:incus`
-   and `serve:warm:microvm` must pass. Then lift the refusal of warm units
-   (T-487, its State section has the steps).
+1. Build the runner image with the proxy fix in T-660. Use its green run
+   for `user-gate.yml`. Both `serve:warm:incus` and `serve:warm:microvm`
+   must pass before the lift in T-487.
 2. T-663 (P2, a fact of the payload hook). Then the `rw` restore of a job of
    another run turns on (T-653: `PAYLOAD_HOOK_KNOWN` of
    `crates/podrunner-slots/src/cache/slots.rs`).
@@ -73,8 +72,9 @@ Proven in CI on GitHub-hosted runners:
 - The cache of `serve` (T-480) with the fake unit and the fake podvm: unit
   tests and the fake slots, not a live kind. Warm units (T-487): the
   conformance cases 28 to 32 on the fake kind and the live warm suites of
-  microvm and Incus in runner-image run 45588130722. The `serve:warm:KIND`
-  rows of `user-gate.yml` wait for run 45599688848 (T-660).
+  microvm and Incus in runner-image run 45588130722. Both warm rows in
+  user-gate run 45599688848 lacked a first-step mark. T-660 has the proxy
+  fix and the pending guest proof.
 
 Proven on a constrained host as a user: QA round 6 on the candidate files
 (two agents, no root, no KVM, an HTTPS proxy). The notes list the fixes

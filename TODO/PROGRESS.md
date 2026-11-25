@@ -54,10 +54,10 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. `user-gate.yml` run 45599688848 on `cd28ca7c` uses the green
-   runner-image run 45588130722. The rows `serve:warm:incus` and
-   `serve:warm:microvm` must pass (T-660, T-487). Then lift the refusal of
-   warm units (T-487, its State section has the steps).
+1. The warm rows of user-gate run 45599688848 failed on the first-step
+   mark. Build the runner image with the proxy fix in T-660. Use that
+   green run for the next user-path gate. Both `serve:warm:incus` and
+   `serve:warm:microvm` must pass before the lift in T-487.
 2. T-663 (P2). Then the `rw` restore of a job of another run turns on
    (`PAYLOAD_HOOK_KNOWN`), and T-480 (partial; T-654) goes on.
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -85,7 +85,7 @@ then take the next one.
 
 Waits:
 
-- The warm rows of `user-gate.yml` run 45599688848 (T-660, T-487; item 1).
+- A runner image and user-path run with the proxy fix (T-660, T-487).
 - Podvm: T-613 (COORD-124, #346): a run of `hosted-measure.yml` that gives
   the line of the free space and the need. T-658 (COORD-132, #354) and
   T-659 (COORD-133, #355): a podvm release.

@@ -16787,6 +16787,15 @@ python3 -I scripts/user-gate.py --self-test
 
 Then `user-gate.yml` on the lane `serve-incus-kvm`: each job of `serve:warm:incus` and `serve:warm:microvm` has a line `running`.
 
+The Incus and microvm warm rows of user-gate run 45599688848 both failed
+before the warm phase. Their cold jobs succeeded without a first-step
+mark. The guest scripts enable Node's environment proxy. Node 24.22.1
+rejected the hook's explicit proxy request before it reached the front.
+The hook now uses a request agent dedicated to its selected connection.
+The official-runner test with the environment proxy enabled failed
+before the change and passed after it. The guest proof needs a new
+runner image and user-path run.
+
 # T-661: The destroy of a unit counts a killed process that still ends as gone
 
 **Source:** `runner-image.yml` run 45564676018 (2026-11-25), the live conformance test 10 `destroy-ends-each-process` of the `microvm` kind through warm units

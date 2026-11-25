@@ -282,9 +282,11 @@ fn the_job_started_hook_marks_the_first_step_of_its_own_job() {
         let _ = std::fs::remove_dir_all(dir.join("_work"));
         let env = [
             ("ACTIONS_RUNNER_HOOK_JOB_STARTED", hook.display().to_string()),
-            ("HTTP_PROXY", format!("http://127.0.0.1:{port}")),
-            ("NO_PROXY", "127.0.0.1,localhost".to_string()),
-            ("no_proxy", "127.0.0.1,localhost".to_string()),
+            ("HTTP_PROXY", format!("http://localhost:{port}")),
+            ("http_proxy", format!("http://localhost:{port}")),
+            ("NO_PROXY", "127.0.0.1".to_string()),
+            ("no_proxy", "127.0.0.1".to_string()),
+            ("NODE_USE_ENV_PROXY", "1".to_string()),
         ];
         run_once(&dir, &broker, &env);
         std::thread::sleep(Duration::from_millis(100));

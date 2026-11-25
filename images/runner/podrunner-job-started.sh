@@ -72,8 +72,9 @@ if (named) {
 }
 // The mark carries no fact of the job: the front knows its unit.
 const sent = mark ? "{}" : body;
+// The hook already selected its proxy.
 const req = http.request({
-  ...to, method: "POST", timeout: mark ? 3000 : 15000,
+  ...to, agent: false, method: "POST", timeout: mark ? 3000 : 15000,
   path: "http://control.podrunner.test/v1/" + (mark ? "started" : "assigned"),
   headers: { "Host": "control.podrunner.test", "Content-Type": "application/json", "Content-Length": Buffer.byteLength(sent) }
 }, (res) => {
