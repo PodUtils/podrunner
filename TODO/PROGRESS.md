@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 665 entries: 88 open, 58 partial, 13 blocked, 506 done.
+`TODO/INDEX.md` holds 666 entries: 88 open, 58 partial, 13 blocked, 507 done.
 
 ## State
 
@@ -67,22 +67,19 @@ then take the next one.
    The comments of podrunner on #292 and #151 name `v0.1.0-beta.8`. Then
    T-500 (runner image for cfb; partial), T-517, T-521 and the partial
    entries T-497, T-499, T-509, T-511, T-515 and T-520.
-4. Dependabot: #357 (trufflehog 3.100.0, `images/trufflehog`) and #358
-   (toml 1.2.3): each as its own commit on `main` with green checks, then
-   close the pull request with a link (`docs/maintenance.md`, "Dependabot").
-5. The statement of G-09 on #66 (the docker build and Docker-in-Docker
+4. The statement of G-09 on #66 (the docker build and Docker-in-Docker
    proof is in CI; T-517 is open).
-6. The local P3 entries: T-665, T-666, T-655, T-656, T-658, T-659, T-598, T-597,
+5. The local P3 entries: T-665, T-666, T-655, T-656, T-658, T-659, T-598, T-597,
    T-616, T-603 (step 1), T-610, T-609. The follow-ups of QA round 6: T-638,
    T-643, T-644, T-645. The P3 groups of the QA rounds: T-308, T-316, T-323,
    T-331, T-339, T-633 to T-637, T-642.
-7. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
+6. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
    T-175 (partial; its step on the test organization is next).
-8. The local mode: T-204, T-229, T-242 (partial), T-161
+7. The local mode: T-204, T-229, T-242 (partial), T-161
    (partial; next, the measure of a third-party runner).
-9. The hosted snapshot: T-539, T-542, T-555, T-540, T-557, T-556, T-579,
+8. The hosted snapshot: T-539, T-542, T-555, T-540, T-557, T-556, T-579,
    T-547, T-546, T-550. T-613 (partial): the line of COORD-124 (#346).
-10. The incus kind: T-482, T-483 (COORD-187), T-481. T-261 (partial): the
+9. The incus kind: T-482, T-483 (COORD-187), T-481. T-261 (partial): the
     syscall tier stays off until podvm fixes it (#308, #304, #189). T-403
     (partial) waits for COORD-090 (#300).
 

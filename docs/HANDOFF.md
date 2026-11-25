@@ -23,16 +23,12 @@ In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
    runner-image run 45588130722 on `988df4f3`. The rows `serve:warm:incus`
    and `serve:warm:microvm` must pass. Then lift the refusal of warm units
    (T-487, its State section has the steps).
-2. Apply Dependabot #357 (trufflehog 3.100.0, `images/trufflehog`) and
-   #358 (toml 1.2.3). Each is its own commit on `main` with green checks;
-   then close the pull request with a link (`docs/maintenance.md`,
-   "Dependabot").
-3. T-663 (P2, a fact of the payload hook). Then the `rw` restore of a job of
+2. T-663 (P2, a fact of the payload hook). Then the `rw` restore of a job of
    another run turns on (T-653: `PAYLOAD_HOOK_KNOWN` of
    `crates/podrunner-slots/src/cache/slots.rs`).
-4. The statement of G-09 on #66 (T-516 is done; check T-517 first: it is
+3. The statement of G-09 on #66 (T-516 is done; check T-517 first: it is
    open, so the line names it as left).
-5. The work order of `TODO/PROGRESS.md`.
+4. The work order of `TODO/PROGRESS.md`.
 
 ## The release `v0.1.0-beta.8`
 

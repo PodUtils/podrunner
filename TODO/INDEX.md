@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**665 entries: 88 open, 58 partial, 13 blocked, 506 done.**
+**666 entries: 88 open, 58 partial, 13 blocked, 507 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 96 | 122 |
 | P2 | 17 | 23 | 8 | 266 | 314 |
-| P3 | 70 | 11 | 3 | 142 | 226 |
-| **All** | 88 | 58 | 13 | 506 | 665 |
+| P3 | 70 | 11 | 3 | 143 | 227 |
+| **All** | 88 | 58 | 13 | 507 | 666 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -713,3 +713,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-668](core.md) | P2 | M | M-A | defect | done | The unit shim waits for an orphan on a host without the proc children file |
 | [T-669](bootstrap.md) | P2 | S | M0 | chore | done | Load the hosted shell and try direct workflow dispatch |
 | [T-670](bootstrap.md) | P3 | S | M0 | chore | done | Update the TruffleHog image to 3.100.0 |
+| [T-671](bootstrap.md) | P3 | S | M0 | chore | done | Update the TOML parser dependencies |

@@ -388,3 +388,39 @@ sh scripts/agent/check.sh
 2026-11-25, this commit. The registry returned the pinned digest and both
 platforms. The `secrets` workflow tested the proposed pin in GitHub-hosted
 CI on `f827c854`.
+
+# T-671: Update the TOML parser dependencies
+
+**Source:** Dependabot GitHub #358
+**Category:** chore
+**Milestone:** M0
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The two workspaces use TOML 1.2.1. The current Dependabot patch updates
+TOML to 1.2.3 and toml_parser to 1.1.7.
+
+## Premise
+
+The check suite on `45c6ba0` passed. The registry confirms both versions
+and checksums. The fuzz workspace tests the same configuration parser.
+
+## Approach
+
+Set the same TOML versions in both lock files.
+
+## Prove
+
+```sh
+cargo test --locked -p podrunner-slots
+(cd fuzz && cargo test --locked --lib)
+```
+
+## Done
+
+2026-11-25, this commit. Both lock files use TOML 1.2.3 and toml_parser
+1.1.7. The slots suite passed. Both fuzz tests passed on their native
+Linux target.
