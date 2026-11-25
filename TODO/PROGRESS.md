@@ -37,8 +37,8 @@ then take the next one.
 1. T-512 (P0): write `githome: complete in vTAG` on #292 and #151 only
    when each ask G-01 to G-41 is in a release. It is not: githome has 41
    asks, 25 in a release, 10 partial, 6 open; cfb has 38 clauses, 26 in a
-   release, 6 partial, 6 open. Name the tag `v0.1.0-beta.8` on #292 and
-   #151 now.
+   release, 6 partial, 6 open. The comments of podrunner on #292 and
+   #151 name `v0.1.0-beta.8`.
 2. The open asks of githome and cfb: T-480 (cache directory by trust;
    partial, the second and third reviews are fixed; its follow-ups are
    T-653, blocked on COORD-130 (#352), and T-654), T-487 (warm units),
