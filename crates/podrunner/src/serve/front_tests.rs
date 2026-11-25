@@ -128,3 +128,28 @@ fn the_egress_port_of_serve_carries_the_questions_of_a_unit() {
     port.close("u-1");
     assert!(!socket.exists(), "the front goes at the close");
 }
+
+/// A second open of a unit keeps its front: the same socket file (a bind
+/// mount of an incus instance holds it), and the new policy of the job
+/// holds behind it (T-487).
+#[test]
+fn a_second_open_keeps_the_socket_of_the_unit() {
+    use std::os::unix::fs::MetadataExt;
+
+    use podrunner_slots::EgressPort;
+    let d = dir();
+    let resolve = podrunner_egress::dns::resolver(false, Vec::new());
+    let egress = podrunner_egress::Egress::host(None, false, resolve).unwrap();
+    let port = super::super::EgressOf::new(egress, Duration::from_secs(60));
+    let socket = d.join("egress.sock");
+    let only = |h: &str| format!(r#"{{"schema":1,"mode":"allow","allow":[{{"host":"{h}"}}]}}"#);
+    port.open("u-1", &only("a.example"), &socket).unwrap();
+    let inode = std::fs::metadata(&socket).unwrap().ino();
+    port.open("u-1", &only("b.example"), &socket).unwrap();
+    let meta = std::fs::metadata(&socket).expect("the socket is there after a second open");
+    assert_eq!(meta.ino(), inode, "the same socket file");
+    let out = talk(&socket, b"CONNECT c.example:443 HTTP/1.1\r\nHost: c.example:443\r\n\r\n");
+    assert!(out.starts_with("HTTP/1.1 403"), "the front still serves: {out}");
+    port.close("u-1");
+    assert!(!socket.exists(), "the front goes at the close");
+}

@@ -267,6 +267,11 @@ impl podrunner_slots::EgressPort for EgressOf {
                 .trust_store
                 .map(|s| (s, podrunner_egress::tls::java_options as podrunner_slots::JavaOptions)),
         };
+        // A unit that has a front keeps it: a new bind would give another
+        // socket file, and the drop of the old front removes the path.
+        if self.fronts.lock().is_ok_and(|m| m.contains_key(unit)) {
+            return Ok(out);
+        }
         let asks = std::sync::Mutex::new(self.asks.clone());
         let ask: front::Ask = std::sync::Arc::new(move |body: &[u8]| {
             let (tx, rx) = std::sync::mpsc::sync_channel(1);
