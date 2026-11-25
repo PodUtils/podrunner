@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 666 entries: 85 open, 59 partial, 13 blocked, 509 done.
+`TODO/INDEX.md` holds 666 entries: 85 open, 58 partial, 13 blocked, 510 done.
 
 ## State
 
@@ -41,6 +41,9 @@
   that obtains a verdict before its first step (T-663). A job of another
   run can keep a `rw` cache only when its verified ref and repository match
   the cache grant. Guest proof waits for the user-path gate.
+- The signed release assets of podrunner `v0.1.0-beta.8` and podcrates
+  `v0.84.0` supply the source test tools and fakes on both architectures
+  (T-511). The podcrates OCI provenance covers matching executables.
 - The sidecar of the scale set, with the opt-ins of Q12 (T-518) and Q13
   (T-504), has unit and fake tests only. It did not run against GitHub.
   Open: T-621 (a live lane), T-622, T-624.
@@ -66,7 +69,7 @@ then take the next one.
    partial, 6 open; cfb has 38 clauses, 26 in a release, 6 partial, 6 open.
    The comments of podrunner on #292 and #151 name `v0.1.0-beta.8`. Then
    T-500 (runner image for cfb; partial), T-517, T-521 and the partial
-   entries T-497, T-499, T-509, T-511, T-515 and T-520.
+   entries T-497, T-499, T-509, T-515 and T-520.
 4. The statement of G-09 on #66 (the docker build and Docker-in-Docker
    proof is in CI; T-517 is open).
 5. The local P3 entries: T-655, T-656, T-658, T-659, T-598, T-597,

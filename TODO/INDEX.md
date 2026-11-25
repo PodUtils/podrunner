@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**666 entries: 85 open, 59 partial, 13 blocked, 509 done.**
+**666 entries: 85 open, 58 partial, 13 blocked, 510 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 0 | 24 | 2 | 96 | 122 |
+| P1 | 0 | 23 | 2 | 97 | 122 |
 | P2 | 16 | 24 | 8 | 266 | 314 |
 | P3 | 68 | 11 | 3 | 145 | 227 |
-| **All** | 85 | 59 | 13 | 509 | 666 |
+| **All** | 85 | 58 | 13 | 510 | 666 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -555,7 +555,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-508](later.md) | P1 | S | later | chore | done | COORD-135: the schemas of `status` and of the source wire move to `pod-job`; podcrates needs their types, the stable fields, and the new fields of githome's asks |
 | [T-509](later.md) | P1 | M | later | feature | partial | G-38: a test of githome's source in podrunner's CI that blocks a release |
 | [T-510](later.md) | P1 | S | later | release | done | G-39: one record of each change of a contract that githome reads |
-| [T-511](later.md) | P1 | M | later | release | partial | G-40: each fake and tool that githome's tests need, as a release asset |
+| [T-511](later.md) | P1 | M | later | release | done | G-40: each fake and tool that githome's tests need, as a release asset |
 | [T-512](later.md) | P0 | S | later | release | open | G-41: the statement "githome: complete in vTAG" |
 | [T-513](later.md) | P3 | S | later | chore | done | Two file locks of the local mode that `pod_core::lock` cannot hold yet |
 | [T-514](later.md) | P2 | S | later | feature | done | G-05 and G-06: the run report names no architecture |

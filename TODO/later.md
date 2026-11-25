@@ -11846,7 +11846,7 @@ Note (2026-11-18): when the source wire moves to `pod-job` (T-508), the lines of
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -11862,9 +11862,13 @@ Each fake as a static binary of the release (or of the podcrates tag that holds 
 
 ## Prove
 
-A dry run of `release.yml` attaches each fake, and `sha256sum -c` and `gh attestation verify` pass on each.
+A release attaches each fake for x86_64 and aarch64. Check the assets with `pod-release verify --repo OWNER/REPO --tag TAG DIR` and `sh scripts/check-static.sh BINARY`. Verify the podrunner binary with `gh attestation verify BINARY --repo PodUtils/podrunner --source-ref refs/tags/v0.1.0-beta.8`. For each podcrates fake, verify its OCI index with `gh attestation verify oci://IMAGE@DIGEST --repo PodUtils/podcrates --source-ref refs/tags/v0.84.0 --bundle-from-oci` and compare the binaries extracted from both platforms with the release assets using `cmp`.
 
-In the code (2026-11-18): the fakes that drive a source ship in the released `podrunner` binary, with its SHA-256 and its attestation: `podrunner fake-source --script FILE` (a fake source), `podrunner source-conformance -- PROGRAM` (14 tests of the wire), and `podrunner serve` with `[unit.fake]`. A program source needs `trusted` or `untrusted`, which the fake kind did not serve; with `allow_fake`, `[unit.fake] claim = "confined"` (or `"guest"`, with `guest_kinds` and the self-test) makes the fake kind claim that boundary and an enforced hold, with one line at the start that it holds nothing (`crates/podrunner/src/serve/fake.rs`, `docs/configuration.md`). Test: `cargo test -p podrunner --test serve_program` (no claim: `check` refuses; a bad claim: refused; with the claim a job of a trusted program source runs and is reported). The fake GitHub of G-30 is podcrates' (`pod-testkit`). Open: the release dry run of the Prove.
+In the code (2026-11-18): the fakes that drive a source ship in the released `podrunner` binary, with its SHA-256 and its attestation: `podrunner fake-source --script FILE` (a fake source), `podrunner source-conformance -- PROGRAM` (14 tests of the wire), and `podrunner serve` with `[unit.fake]`. A program source needs `trusted` or `untrusted`, which the fake kind did not serve; with `allow_fake`, `[unit.fake] claim = "confined"` (or `"guest"`, with `guest_kinds` and the self-test) makes the fake kind claim that boundary and an enforced hold, with one line at the start that it holds nothing (`crates/podrunner/src/serve/fake.rs`, `docs/configuration.md`). Test: `cargo test -p podrunner --test serve_program` (no claim: `check` refuses; a bad claim: refused; with the claim a job of a trusted program source runs and is reported). The fake GitHub of G-30 is podcrates' (`pod-testkit`).
+
+## Done
+
+2026-11-25, the commit that names T-511. The podrunner `v0.1.0-beta.8` release at `93e1710` (`release.yml` 45459310537 and 45466841655) and the podcrates `v0.84.0` release at `ca1d3e3b` (`release.yml` 45574255033) supply the binaries on both architectures. The signed `SHA256SUMS`, release indices and the SHA-256 of the six static binaries verify. The released x86_64 podrunner lists `fake-source` and `source-conformance` in its help. `gh attestation verify` verified SLSA v1 provenance for both podrunner binaries using the bundles from the GitHub API and for both podcrates OCI indices using their registry bundles. For each of the two platforms, Podvm pulled by the attested index digest and `cmp` matched the `pod-fake-github` and `pod-fake-githome` executables against the release assets. The podcrates binary assets are covered by their signed sums and by the matching binaries in the attested OCI indices. Level: proven in CI on GitHub-hosted runners and verified using published assets as a user.
 
 # T-512: G-41: the statement "githome: complete in vTAG"
 
