@@ -16947,3 +16947,32 @@ Read on 2026-11-25: `warm_status` counts `self.warm.units` of the kind with `rea
 ```sh
 cargo test -p podrunner-slots warm_report
 ```
+
+# T-666: The serve test of stop --wait can see serve not yet ended
+
+**Source:** a full run of `scripts/agent/check.sh`, 2026-11-25
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`stop_wait_returns_after_serve_ends_and_times_out_with_75` of `crates/podrunner/tests/serve.rs` failed once in a full run of `scripts/agent/check.sh` (the assert `serve.try_wait().unwrap().is_some()` after `stop --wait` gave 0). It passed 6 of 6 runs alone. `stop --wait` returns when serve closes its socket; the process of serve can still be ending then. Either the test reads the process too early, or `stop --wait` returns before serve has ended, which `docs/cli.md` does not allow.
+
+## Premise
+
+Read on 2026-11-25: the test asserts at once after `stop --wait` gives 0. Not measured: the time between the close of the socket and the exit of serve under load.
+
+## Approach
+
+1. Read how `stop --wait` decides that serve ended (`crates/podrunner/src/`). If it ends at the close of the socket, make it wait for the exit of the process (its pid in the state directory) within its `--timeout`.
+2. Else, in the test, wait for the exit of serve for at most 5 s before the assert.
+3. A test that holds serve a short time after the close of its socket.
+
+## Prove
+
+```sh
+cargo test -p podrunner --test serve stop_wait
+```

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**660 entries: 87 open, 59 partial, 13 blocked, 501 done.**
+**661 entries: 88 open, 59 partial, 13 blocked, 501 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 96 | 122 |
 | P2 | 17 | 24 | 8 | 262 | 311 |
-| P3 | 69 | 11 | 3 | 141 | 224 |
-| **All** | 87 | 59 | 13 | 501 | 660 |
+| P3 | 70 | 11 | 3 | 141 | 225 |
+| **All** | 88 | 59 | 13 | 501 | 661 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -708,3 +708,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-663](later.md) | P2 | M | later | defect | open | A step of a unit with no job-started hook can ask `assigned` for a run that it does not run |
 | [T-664](later.md) | P1 | S | later | chore | done | Take podcrates `v0.84.0` (COORD-155 of podcrates) |
 | [T-665](later.md) | P3 | S | later | defect | open | The warm status counts a reserved unit as ready and hides the warm units of a kind that has target 0 |
+| [T-666](later.md) | P3 | S | later | defect | open | The serve test of stop --wait can see serve not yet ended |

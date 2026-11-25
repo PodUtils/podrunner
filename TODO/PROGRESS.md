@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 660 entries: 87 open, 59 partial, 13 blocked, 501 done.
+`TODO/INDEX.md` holds 661 entries: 88 open, 59 partial, 13 blocked, 501 done.
 
 ## State
 
@@ -75,7 +75,7 @@ then take the next one.
    close the pull request with a link (`docs/maintenance.md`, "Dependabot").
 5. The statement of G-09 on #66 (the docker build and Docker-in-Docker
    proof is in CI; T-517 is open).
-6. The local P3 entries: T-665, T-655, T-656, T-658, T-659, T-598, T-597,
+6. The local P3 entries: T-665, T-666, T-655, T-656, T-658, T-659, T-598, T-597,
    T-616, T-603 (step 1), T-610, T-609. The follow-ups of QA round 6: T-638,
    T-643, T-644, T-645. The P3 groups of the QA rounds: T-308, T-316, T-323,
    T-331, T-339, T-633 to T-637, T-642.
