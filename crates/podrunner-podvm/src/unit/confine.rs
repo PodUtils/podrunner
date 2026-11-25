@@ -111,12 +111,16 @@ impl PodvmUnit {
         }
         // A rung with volumes binds the cache: the confined run proves a
         // `:ro` volume read-only.
-        let ro = self.volumes.then(|| self.state_dir.join("confine-ro"));
-        if let Some(dir) = &ro {
+        // A volume that the host cannot make leaves `ro` out, not the proof
+        // of the layer.
+        let ro = self.volumes.then(|| self.state_dir.join("confine-ro")).filter(|dir| {
             let _ = std::fs::remove_dir_all(dir);
-            std::fs::create_dir_all(dir).map_err(|e| super::host("the ro volume of the confine self-test", e))?;
-            std::fs::write(dir.join(RO_FILE), RO_VALUE).map_err(|e| super::host("the ro volume", e))?;
-        }
+            let made = std::fs::create_dir_all(dir).and_then(|()| std::fs::write(dir.join(RO_FILE), RO_VALUE));
+            if let Err(e) = &made {
+                eprintln!("podrunner: the ro volume of the confine self-test ({}): {e}: no ro mount", dir.display());
+            }
+            made.is_ok()
+        });
         let canary = format!("podrunner-confine-canary-{}", std::process::id());
         let mut victim = Command::new("sleep")
             .arg("120")

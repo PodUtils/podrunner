@@ -314,3 +314,34 @@ fn the_report_of_a_rw_job_waits_for_its_count_at_most_report_s() {
     bed.tick();
     assert_eq!(bed.slots.cache_worker.as_ref().unwrap().uses().holders(&id), 0);
 }
+
+/// The third review of T-480: while the count of a destroyed `rw` job of a
+/// scope runs, a next job of that scope does not write it, so the count of
+/// the first job holds only its own writes.
+#[test]
+fn no_job_writes_a_cache_while_the_count_of_its_last_writer_runs() {
+    let dir = TempDir::new();
+    let out = dir.0.join("out");
+    std::fs::create_dir_all(&out).unwrap();
+    let script = format!(
+        "run=$(cut -d' ' -f2 .runner-root/.podrunner-job); echo \"${{PODRUNNER_CACHE_MODE:-none}}\" > {}/run-$run",
+        out.display()
+    );
+    let push = |at, run| offer(at, &format!("j-{run}"), json!({ "trust_inputs": { "run_id": run } }));
+    let mut bed = Bed::in_dir(
+        config("[cache]"),
+        vec![("t", "trusted", None, vec![push(0, 1), push(5, 2)])],
+        vec![KindSpec { name: "fake", slots: 2, capability: ro_capability(Boundary::Confined), command: sh(&script) }],
+        dir,
+        Bed::clock(),
+    );
+    let gate = bed.slots.cache_worker.as_ref().unwrap().gate.clone();
+    let held = gate.lock().unwrap();
+    let done = |st: crate::state::State| st.is_final() || st == crate::state::State::Destroyed;
+    bed.until(60, |s| s.jobs().any(|j| j.id.as_str() == "j-2" && done(j.state)));
+    assert!(bed.state("j-1") == Some(crate::state::State::Destroyed), "{:?}", bed.states());
+    drop(held);
+    bed.until(60, Bed::all_final);
+    let read = |n: u32| std::fs::read_to_string(out.join(format!("run-{n}"))).unwrap_or_default();
+    assert_eq!((read(1), read(2)), ("rw\n".to_string(), "ro\n".to_string()));
+}

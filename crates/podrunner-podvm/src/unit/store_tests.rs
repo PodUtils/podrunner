@@ -202,3 +202,19 @@ fn the_cache_of_a_job_is_a_volume_and_the_confine_layer_names_it() {
     assert!(!chroot.host_mounts());
     let _ = std::fs::remove_dir_all(&d);
 }
+
+/// The third review of T-480: a `:ro` volume of the confine self-test that
+/// the host cannot make leaves `ro` out of the record; the self-test of
+/// the layer still runs and gives a verdict, not an error.
+#[test]
+fn a_ro_volume_that_cannot_be_made_does_not_stop_the_confine_self_test() {
+    let _one = super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
+    let (unit, d) = driver("confine-ro", "userland", false);
+    let mut unit = unit.with_confine();
+    // A file where the volume goes: no directory can be made there.
+    std::fs::write(d.join("state/confine-ro"), "x").unwrap();
+    let verdict = unit.verify_confine(&format!("runner@{PIN}"), UnitId::parse("u-9").unwrap());
+    assert!(matches!(verdict, Ok(false)), "{verdict:?}");
+    assert_eq!(unit.probe().unwrap().mount_modes, ["rw"]);
+    let _ = std::fs::remove_dir_all(&d);
+}

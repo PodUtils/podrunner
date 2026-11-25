@@ -88,15 +88,17 @@ impl Slots {
         Mounts::of(k.driver.as_ref(), &k.capability)
     }
 
-    /// Whether a job other than `key` writes the cache `id` now. A job
-    /// whose unit is gone does not write, also while its count runs.
+    /// Whether a job other than `key` writes the cache `id` now, or its
+    /// count after its end runs: the count of a job holds only its own
+    /// writes.
     fn cache_writer(&self, key: &Key, id: &str) -> bool {
-        self.jobs.iter().any(|(k, j)| {
-            k != key
-                && !j.state.is_final()
-                && j.state != State::Destroyed
-                && j.times.cache.as_ref().is_some_and(|g| g.id == id && g.mode == Mode::Rw)
-        })
+        let counting = self.cache_worker.as_ref().is_some_and(|w| w.ending.iter().any(|(k, s)| k != key && s == id));
+        counting
+            || self.jobs.iter().any(|(k, j)| {
+                k != key
+                    && !j.state.is_final()
+                    && j.times.cache.as_ref().is_some_and(|g| g.id == id && g.mode == Mode::Rw)
+            })
     }
 
     /// The holders of each scope, other than `but`: each job that has not

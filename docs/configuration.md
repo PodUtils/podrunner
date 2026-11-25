@@ -308,7 +308,7 @@ the mode:
 | The tier `untrusted` (a fork, an agent, a sandbox) | none, also when the offer asks for `rw` |
 | `push`, `workflow_dispatch`, `repository_dispatch` or `schedule` on a ref of `write_refs`, or with `rw` in its offer, with a head that is not a fork (`head_is_fork` is `no`) | `rw` |
 | Each other job of the tier `trusted` or `local` (a pull request of the same repository, a push to another branch, `pull_request_target`) | `ro` on a kind that proves a read-only mount, else none |
-| A second `rw` job of a cache while one runs | as the line above |
+| A second `rw` job of a cache while one runs, or while the count of the end of the last one runs | as the line above |
 
 `write_refs` names refs, not the default branch: with the default
 `["refs/heads/main"]`, a push to a branch named `main` writes, also in a
@@ -337,11 +337,12 @@ case: `npm_config_cache`, `NPM_CONFIG_CACHE`, `YARN_CACHE_FOLDER`,
 `PNPM_STORE_DIR`, `BUN_INSTALL_CACHE_DIR`, `PLAYWRIGHT_BROWSERS_PATH`,
 `PUPPETEER_CACHE_DIR`, `CYPRESS_CACHE_FOLDER`, `ELECTRON_CACHE`,
 `RUNNER_TOOL_CACHE`, `PIP_CACHE_DIR`, `UV_CACHE_DIR`, `POETRY_CACHE_DIR`,
-`GOMODCACHE`, `GOCACHE`, `CCACHE_DIR`, `SCCACHE_DIR`, `DENO_DIR`,
+`GOMODCACHE`, `GOCACHE`, `SCCACHE_DIR`, `DENO_DIR`,
 `COMPOSER_CACHE_DIR`, `NUGET_PACKAGES` and `ZIG_GLOBAL_CACHE_DIR`. Each
 names only the cache directory of a tool. A name that makes a tool load
 its settings or code from a directory (`XDG_CONFIG_HOME`, `CARGO_HOME`,
-`GEM_HOME`, `GRADLE_USER_HOME`, `LD_PRELOAD`) is not a cache. `check`
+`GEM_HOME`, `GRADLE_USER_HOME`, `LD_PRELOAD`, `CCACHE_DIR`, whose
+`ccache.conf` can run a command) is not a cache. `check`
 exits 78 on another name. A variable that podrunner sets (the CA bundle
 of the broker) keeps its value.
 
@@ -386,9 +387,9 @@ not in the loop of the jobs: a cache that goes is first renamed to
 `DIR/trash-ID-N`, and the next start of `serve` removes each trash that a
 stop left. A `rw` job frees its slot at the destroy of its unit; its
 report waits for the walk of its cache at most `[deadlines] report_s`,
-and its cache stays in use until the walk ends. A next `rw` job of the
-same cache can start before that walk ends; then the count of the first
-job can hold the writes of the next one. A panic of a thread of
+and its cache stays in use until the walk ends. Until that walk ends,
+a next job of the same cache gets `ro` (or none on a kind with no
+proven read-only mount), so the count of a job holds only its writes. A panic of a thread of
 the caches stops `serve`.
 
 The run report gives `cache_written_bytes`: the bytes of the files that

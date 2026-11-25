@@ -174,6 +174,9 @@ fn the_table_refuses_each_bad_value() {
         "env = { MAVEN_OPTS = \"x\" }",
         "env = { GRADLE_OPTS = \"x\" }",
         "env = { GRADLE_USER_HOME = \"x\" }",
+        // ccache reads `ccache.conf` in its directory: `prefix_command`
+        // runs a command.
+        "env = { CCACHE_DIR = \"x\" }",
         "env = { NPM_CONFIG_CACHE_X = \"x\" }",
         "env = { runner_tool_cache = \"x\" }",
         "env = { RUNNER_TEMP = \"x\" }",

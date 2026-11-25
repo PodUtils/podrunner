@@ -141,9 +141,9 @@ pub fn key_ok(k: &str) -> bool {
 /// The names that `[cache] env` takes: each names only the cache
 /// directory of a tool. A name that makes a tool load its settings or
 /// code from a directory (`XDG_CONFIG_HOME`, `CARGO_HOME`, `GEM_HOME`,
-/// `GRADLE_USER_HOME`, `LD_*`) is not a cache, so no list of refused names
-/// is complete. A tool reads the name in this case only.
-pub const ENV_NAMES: [&str; 21] = [
+/// `GRADLE_USER_HOME`, `LD_*`, `CCACHE_DIR` with its `ccache.conf`) is not
+/// a cache, so no list of refused names is complete. A tool reads the name in this case only.
+pub const ENV_NAMES: [&str; 20] = [
     "npm_config_cache",
     "NPM_CONFIG_CACHE",
     "YARN_CACHE_FOLDER",
@@ -160,7 +160,6 @@ pub const ENV_NAMES: [&str; 21] = [
     "POETRY_CACHE_DIR",
     "GOMODCACHE",
     "GOCACHE",
-    "CCACHE_DIR",
     "SCCACHE_DIR",
     "DENO_DIR",
     "COMPOSER_CACHE_DIR",
