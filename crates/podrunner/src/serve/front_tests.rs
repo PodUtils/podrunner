@@ -153,3 +153,28 @@ fn a_second_open_keeps_the_socket_of_the_unit() {
     port.close("u-1");
     assert!(!socket.exists(), "the front goes at the close");
 }
+
+/// T-487: the socket of a warm unit exists before its job, and a request
+/// then leads nowhere (no byte back); the open of the job keeps the same
+/// socket, and the policy of the job holds behind it.
+#[test]
+fn a_held_unit_leads_nowhere_until_the_open_of_its_job() {
+    use std::os::unix::fs::MetadataExt;
+
+    use podrunner_slots::EgressPort;
+    let d = dir();
+    let resolve = podrunner_egress::dns::resolver(false, Vec::new());
+    let egress = podrunner_egress::Egress::host(None, false, resolve).unwrap();
+    let port = super::super::EgressOf::new(egress, Duration::from_secs(60));
+    let socket = d.join("egress.sock");
+    port.hold("u-1", &socket).unwrap();
+    let inode = std::fs::metadata(&socket).unwrap().ino();
+    let connect = b"CONNECT c.example:443 HTTP/1.1\r\nHost: c.example:443\r\n\r\n";
+    assert_eq!(talk(&socket, connect), "", "no way out before the open");
+    port.open("u-1", r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example"}]}"#, &socket).unwrap();
+    assert_eq!(std::fs::metadata(&socket).unwrap().ino(), inode, "the same socket file");
+    let out = talk(&socket, connect);
+    assert!(out.starts_with("HTTP/1.1 403"), "the policy of the job: {out}");
+    port.close("u-1");
+    assert!(!socket.exists(), "the front goes at the close");
+}

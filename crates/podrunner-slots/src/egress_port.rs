@@ -46,6 +46,13 @@ pub trait EgressPort: Send {
         }
         self.open(unit, policy, socket).map(|flagged| Opened { flagged, ..Opened::default() })
     }
+    /// Serve the socket of a warm unit with no job (T-487): each request
+    /// leads nowhere until `open_with` of its job, which keeps the same
+    /// socket. A module that cannot hold gives no warm unit.
+    fn hold(&self, unit: &str, socket: &std::path::Path) -> Result<(), String> {
+        let _ = (unit, socket);
+        Err("this egress module holds no unit with no job".into())
+    }
     fn close(&self, unit: &str);
     /// False when the module ended: slots gives no capacity and ends the
     /// running units.
