@@ -1597,7 +1597,7 @@ A release run of `release.yml` with no version (the dry run) builds and checks e
 **Milestone:** M-A
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1621,3 +1621,11 @@ the fixture's natural exit.
 Run `cargo test --locked -p podrunner-unit shim::tests` on a host
 without `/proc/thread-self/children`. The orphan cleanup test must
 return within its bound.
+
+## Done
+
+2026-11-25, this commit. The shim scans `/proc` when the children file
+is unavailable. The kernel verifies child ownership before each signal.
+On a host without the children file, the five-second regression test
+failed before the change. All three shim tests passed after the change
+in 0.06 s on that host.

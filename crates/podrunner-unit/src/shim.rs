@@ -40,9 +40,8 @@ pub fn under_shim(cmd: &mut Command, mode: Mode) {
 pub fn under_shim_confined(cmd: &mut Command, mode: Mode, confine: Option<Arc<pod_confine::Compiled>>) {
     use std::os::unix::process::CommandExt;
     // SAFETY: the closure runs in the child between fork and exec. It
-    // calls only functions that are safe there: prctl, fork, close_range,
-    // getrlimit, close, waitpid, open, read, kill, the Landlock and seccomp
-    // calls of `pod_confine::apply`, and _exit. It allocates nothing.
+    // uses system calls for the fork, cleanup, wait and confinement.
+    // It allocates nothing.
     unsafe {
         cmd.pre_exec(move || shim(mode, confine.as_deref()));
     }
@@ -53,6 +52,15 @@ unsafe fn shim(mode: Mode, confine: Option<&pod_confine::Compiled>) -> std::io::
     // SAFETY: plain system calls on integers and on buffers of this frame.
     unsafe {
         if libc::prctl(libc::PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0) != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        // The shim owns reaping. Keep exit statuses even when the caller
+        // ignored SIGCHLD or installed a handler.
+        let mut action: libc::sigaction = std::mem::zeroed();
+        action.sa_sigaction = libc::SIG_DFL;
+        if libc::sigemptyset(&mut action.sa_mask) != 0
+            || libc::sigaction(libc::SIGCHLD, &action, std::ptr::null_mut()) != 0
+        {
             return Err(std::io::Error::last_os_error());
         }
         let payload = libc::fork();
@@ -108,30 +116,85 @@ unsafe fn shim(mode: Mode, confine: Option<&pod_confine::Compiled>) -> std::io::
     }
 }
 
-/// SIGKILL to each child of the shim (`/proc/thread-self/children`).
+/// Send SIGKILL to the direct children of the shim.
 unsafe fn kill_children() {
     let mut buf = [0u8; 4096];
-    // SAFETY: open, read and close on a buffer of this frame.
+    // SAFETY: each system call reads or writes this frame only.
     unsafe {
         let fd = libc::open(c"/proc/thread-self/children".as_ptr(), libc::O_RDONLY | libc::O_CLOEXEC);
+        if fd >= 0 {
+            let got = libc::read(fd, buf.as_mut_ptr().cast(), buf.len());
+            libc::close(fd);
+            if let Ok(n) = usize::try_from(got)
+                && n < buf.len()
+            {
+                for word in buf[..n].split(u8::is_ascii_whitespace) {
+                    if let Some(pid) = pid_of(word) {
+                        kill_if_child(pid);
+                    }
+                }
+                return;
+            }
+        }
+        // Some kernels have no children file. Scan proc without allocating.
+        let fd = libc::open(c"/proc".as_ptr(), libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC);
         if fd < 0 {
             return;
         }
-        let n = libc::read(fd, buf.as_mut_ptr().cast(), buf.len());
-        libc::close(fd);
-        let mut pid: libc::pid_t = 0;
-        for &b in buf.iter().take(n.max(0) as usize) {
-            if b.is_ascii_digit() {
-                pid = pid * 10 + libc::pid_t::from(b - b'0');
-            } else {
-                if pid > 0 {
-                    libc::kill(pid, libc::SIGKILL);
+        loop {
+            let n = libc::syscall(libc::SYS_getdents64, fd, buf.as_mut_ptr(), buf.len());
+            if n < 0 && *libc::__errno_location() == libc::EINTR {
+                continue;
+            }
+            if n <= 0 {
+                break;
+            }
+            let mut entries = &buf[..n as usize];
+            while let Some(name) = next_dirent(&mut entries) {
+                if let Some(pid) = pid_of(name) {
+                    kill_if_child(pid);
                 }
-                pid = 0;
             }
         }
-        if pid > 0 {
-            libc::kill(pid, libc::SIGKILL);
+        libc::close(fd);
+    }
+}
+
+/// Read the name and advance past one Linux getdents64 record.
+fn next_dirent<'a>(entries: &mut &'a [u8]) -> Option<&'a [u8]> {
+    const NAME: usize = 19;
+    let len = u16::from_ne_bytes(entries.get(16..18)?.try_into().ok()?) as usize;
+    if len <= NAME {
+        return None;
+    }
+    let (entry, rest) = entries.split_at_checked(len)?;
+    *entries = rest;
+    entry[NAME..].split(|&b| b == 0).next()
+}
+
+fn pid_of(word: &[u8]) -> Option<libc::pid_t> {
+    if word.is_empty() || !word.iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    let pid = std::str::from_utf8(word).ok()?.parse().ok()?;
+    (pid > 0).then_some(pid)
+}
+
+/// Verify the PID with the kernel before signalling it. The single-threaded
+/// shim is the only process that can reap its children.
+unsafe fn kill_if_child(pid: libc::pid_t) {
+    let mut info = std::mem::MaybeUninit::<libc::siginfo_t>::uninit();
+    // SAFETY: waitid writes to info. WNOWAIT preserves the child for waitpid.
+    unsafe {
+        let options = libc::WEXITED | libc::WNOHANG | libc::WNOWAIT;
+        loop {
+            if libc::waitid(libc::P_PID, pid as libc::id_t, info.as_mut_ptr(), options) == 0 {
+                libc::kill(pid, libc::SIGKILL);
+                break;
+            }
+            if *libc::__errno_location() != libc::EINTR {
+                break;
+            }
         }
     }
 }
@@ -245,7 +308,19 @@ mod tests {
     fn the_shim_gives_the_code_and_ends_what_is_left() {
         // An orphan with no tag and a session of its own.
         let mut c = sh("(setsid env -i sleep 300 &); exit 7", Mode::EndWithPayload);
-        let status = c.wait().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let status = loop {
+            if let Some(status) = c.try_wait().unwrap() {
+                break status;
+            }
+            if Instant::now() >= deadline {
+                let left = kill_unit(c.id(), None, Duration::from_secs(2));
+                let _ = c.kill();
+                let _ = c.wait();
+                panic!("the shim did not end in five seconds; processes after cleanup: {left}");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
         assert_eq!(status.code(), Some(7));
         assert!(descendants(c.id()).is_empty());
     }
