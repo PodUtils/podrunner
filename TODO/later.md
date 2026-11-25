@@ -10833,6 +10833,7 @@ The measure of step 1 on real instances in `runner-image.yml`: the job ends with
 
 In the code (2026-11-18): podvm `0.2.0-beta.33` sizes the root disk of an instance (`run -d --podvm-tier=incus --storage-opt size=N`, COORD-187, PodUtils/podvm#583) and refuses the size on a pool with no quota (the `dir` driver, exit 125). `[unit.incus] root_quota = true` (the operator says that the pool holds a size) gives each instance a root disk of the lesser of `disk_max_bytes` and the `disk` of the offer (64 MiB at least), and the kind says `disk: enforced`; with no `root_quota` the bound stays the measure of `disk.rs` (`crates/podrunner-incus/src/guest.rs`, `crates/podrunner/src/incus_kind.rs`, `docs/configuration.md`; call of 2026-11-18 in `docs/decisions.md`). Test: `cargo test -p podrunner-incus a_pool_with_quotas_gives_each_instance_a_sized_root`. Open: step 1, the measure on a real instance in `runner-image.yml` (the cloud host of podvm has a `dir` pool only; a pool of `btrfs` on a loop file is a way to measure ENOSPC there).
 
+State (2026-11-25, COORD-187, PodUtils/podvm#583): Podvm experiment 474 (`45616608586` on `ddb185b1`) used a Btrfs pool on a hosted cgroup v2 runner. It measured a 1 GiB Incus root quota, a successful 16 MiB control write and a 2 GiB write refused by the quota. The pool kept over 7.5 GB free. The proof is for Podvm's quota enforcement. Podrunner still needs a run that verifies the resulting job report. The pinned Podvm `0.2.0-beta.40` exposes CPU, memory and OOM counts through `inspect`. Reporting root-quota failures requires a trusted indication from the instance driver.
 
 # T-483: The incus kind reports `unknown` for the CPU time and the peak memory of a job
 
@@ -10841,7 +10842,7 @@ In the code (2026-11-18): podvm `0.2.0-beta.33` sizes the root disk of an instan
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -10870,6 +10871,10 @@ State (2026-11-23, `runner-image.yml` 45216790663 at `075256b`, podvm `0.2.0-bet
 State (2026-11-23, `runner-image.yml` 45231203307 at `f694571`, podvm `0.2.0-beta.38`, proven in CI on GitHub-hosted runners): the incus step is green with the live test of the use (`cpu_s` strict, the peak with its named reason, T-611).
 
 State (2026-11-24, the pin of podvm `0.2.0-beta.39`, not run): `inspect` of a stopped instance gives the record of the use at the stop (COORD-233); the live test of the use takes no unknown peak again (T-611). Its proof is the incus step of the next `runner-image.yml` run.
+
+## Done
+
+2026-11-25, the proof commit. Podvm `0.2.0-beta.40` records usage when the instance stops. The strict limits suite in `runner-image.yml` 45521054564 on `4fc871c` passed on a GitHub-hosted Incus runner. The known load gave `cpu_s` 7 within the T-520 tolerance and a peak of 68632576 bytes. `runner-image.yml` 45607875181 on `565050f0` also passed the limits step with the same strict CPU and peak checks. The raw stopped-instance record and the OOM proof are in T-611.
 
 # T-484: A release has no `SHA256SUMS` file with a cosign bundle, as the other projects of PodUtils have
 

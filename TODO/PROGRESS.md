@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 668 entries: 84 open, 57 partial, 13 blocked, 514 done.
+`TODO/INDEX.md` holds 668 entries: 84 open, 56 partial, 13 blocked, 515 done.
 
 ## State
 
@@ -21,6 +21,9 @@
 - The `microvm` kind and the `incus` kind (no NIC, one channel) pass on real
   guests and instances. A guest with an engine runs `services:`, a job
   container and Docker actions (T-103, T-124, T-157).
+- Incus CPU and peak memory passed the strict limits test (T-483).
+  Podvm proved the Btrfs quota in experiment 474. The Podrunner job
+  report for a root quota failure remains T-482.
 - A `docker build` step and a `docker:dind` service pass in a guest and in
   an incus instance, proven in CI on GitHub-hosted runners (T-516,
   `runner-image.yml` 45564676018; `level2.yml` 45564676057 on github.com
@@ -86,7 +89,7 @@ then take the next one.
    (partial; next, the measure of a third-party runner).
 8. The hosted snapshot: T-539, T-542, T-555, T-540, T-557, T-556, T-579,
    T-547, T-546, T-550. T-613 (partial): the line of COORD-124 (#346).
-9. The incus kind: T-482, T-483 (COORD-187), T-481. T-261 (partial): the
+9. The incus kind: T-482 (COORD-187), T-481. T-261 (partial): the
     syscall tier stays off until podvm fixes it (#308, #304, #189). T-403
     (partial) waits for COORD-090 (#300).
 
