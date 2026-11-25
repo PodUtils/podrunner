@@ -16962,7 +16962,7 @@ python3 -I scripts/check-docs.py
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16983,6 +16983,14 @@ Read on 2026-11-25: `warm_status` counts `self.warm.units` of the kind with `rea
 ```sh
 cargo test -p podrunner-slots warm_report
 ```
+
+## Done
+
+2026-11-25, this commit. The host total includes reserved units. Each kind
+reports only available warm units in its ready and booting counts. The
+kind keeps its status object while a unit remains in its pool, including
+with a target of zero. Both regressions failed before the change. All
+five warm-report tests passed after it.
 
 # T-666: The serve test of stop --wait can see serve not yet ended
 

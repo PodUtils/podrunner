@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 666 entries: 86 open, 59 partial, 13 blocked, 508 done.
+`TODO/INDEX.md` holds 666 entries: 85 open, 59 partial, 13 blocked, 509 done.
 
 ## State
 
@@ -69,7 +69,7 @@ then take the next one.
    entries T-497, T-499, T-509, T-511, T-515 and T-520.
 4. The statement of G-09 on #66 (the docker build and Docker-in-Docker
    proof is in CI; T-517 is open).
-5. The local P3 entries: T-665, T-655, T-656, T-658, T-659, T-598, T-597,
+5. The local P3 entries: T-655, T-656, T-658, T-659, T-598, T-597,
    T-616, T-603 (step 1), T-610, T-609. The follow-ups of QA round 6: T-638,
    T-643, T-644, T-645. The P3 groups of the QA rounds: T-308, T-316, T-323,
    T-331, T-339, T-633 to T-637, T-642.

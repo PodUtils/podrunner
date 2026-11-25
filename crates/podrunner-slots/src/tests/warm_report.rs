@@ -72,3 +72,24 @@ fn warm_report_the_status_shows_the_warm_units_of_each_kind() {
     let st = cold.slots.status();
     assert_eq!((st.kinds[0].warm.clone(), st.warm_units), (None, 0));
 }
+
+#[test]
+fn warm_report_reserved_units_are_in_the_pool_but_unavailable() {
+    let mut bed = warm_bed(3, 2, vec![], "");
+    bed.until(30, |s| ready(s) == 2);
+    bed.slots.warm.units.values_mut().next().unwrap().reserved =
+        Some((0, podrunner_schema::JobId::new("j-1").unwrap()));
+    let st = bed.slots.status();
+    let kind = st.kinds[0].warm.as_ref().unwrap();
+    assert_eq!((kind.target, kind.ready, kind.booting, st.warm_units), (2, 1, 0, 2));
+}
+
+#[test]
+fn warm_report_target_zero_still_shows_units_in_the_pool() {
+    let mut bed = warm_bed(2, 1, vec![], "");
+    bed.until(30, |s| ready(s) == 1);
+    bed.slots.kinds[0].cfg.warm = Some(WarmCount::Count(0));
+    let st = bed.slots.status();
+    let kind = st.kinds[0].warm.as_ref().unwrap();
+    assert_eq!((kind.target, kind.ready, kind.booting, st.warm_units), (0, 1, 0, 1));
+}

@@ -124,16 +124,16 @@ impl Slots {
         }
     }
 
-    /// The warm units of the kind `kind` (T-657): none when its
-    /// configuration keeps none.
+    /// The target and available warm units of one kind.
     fn warm_status(&self, kind: usize) -> Option<WarmStatus> {
         let target: u32 = self.kinds[kind].cfg.warm_rows().iter().map(|(_, n)| n).sum();
-        if target == 0 {
+        let mut units = self.warm.units.values().filter(|w| w.kind == kind).peekable();
+        if target == 0 && units.peek().is_none() {
             return None;
         }
-        let units = self.warm.units.values().filter(|w| w.kind == kind);
-        let ready = units.clone().filter(|w| w.ready_ms.is_some()).count() as u32;
-        let booting = units.count() as u32 - ready;
+        let (ready, booting) = units.filter(|w| w.reserved.is_none()).fold((0, 0), |(ready, booting), w| {
+            if w.ready_ms.is_some() { (ready + 1, booting) } else { (ready, booting + 1) }
+        });
         Some(WarmStatus { target, booting, ready, paused_reason: self.warm_paused(kind) })
     }
 
