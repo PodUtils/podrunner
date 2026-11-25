@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**646 entries: 81 open, 57 partial, 13 blocked, 495 done.**
+**647 entries: 82 open, 57 partial, 13 blocked, 495 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 95 | 121 |
-| P2 | 17 | 21 | 8 | 258 | 304 |
+| P2 | 18 | 21 | 8 | 258 | 305 |
 | P3 | 63 | 12 | 3 | 140 | 218 |
-| **All** | 81 | 57 | 13 | 495 | 646 |
+| **All** | 82 | 57 | 13 | 495 | 647 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -694,3 +694,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-649](later.md) | P3 | M | later | measurement | open | The bytes that a job reads from its cache |
 | [T-650](later.md) | P2 | M | later | feature | open | A tool that writes its cache in a job with a read-only cache |
 | [T-651](later.md) | P3 | S | later | feature | open | The cache in the containers of a `container:` job |
+| [T-652](later.md) | P2 | S | later | defect | open | The disk check of a unit walks its root in the tick |

@@ -316,9 +316,10 @@ repository whose default branch is another one. Set `write_refs` to the
 default branches of the repositories, or let the source say `rw`.
 
 A `ro` cache is a guard between the jobs of one tier, not a boundary. On
-a kind that mounts it read-only, a write fails; the podvm rungs `userland`
-and `supervise` mount each volume read-write (`mount_modes` is `rw`), so
-there a `ro` job can write. The tier is the boundary: a job of the tier
+a kind that mounts it read-only, a write fails. The podvm kind gives
+`mount_modes` `rw` only (its boundary is `redirect`): podvm does not prove
+a `:ro` volume read-only, so there a `ro` job can write, unless the
+confine layer (`--podvm-confine`) refuses the write. The tier is the boundary: a job of the tier
 `untrusted` gets no cache. The unit gets the variables `PODRUNNER_CACHE`
 (the path) and `PODRUNNER_CACHE_MODE` (`rw` or `ro`). A `rw` job also gets
 each variable of `env`, which names a directory under the cache; a `ro`

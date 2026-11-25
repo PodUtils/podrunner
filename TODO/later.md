@@ -10770,6 +10770,8 @@ Then the test of G-07 on each kind in `runner-image.yml`, and cfb's measure agai
 
 State (2026-11-25, commits `37d174b` and the next that name T-480): steps 2 to 8 of the Approach are in the code on the podvm and fake kinds: `crates/podrunner-slots/src/cache.rs` (the table, the mode, the scope, the report), `crates/podrunner-slots/src/cache/store.rs` (the directory and the bound), `UnitDriver::host_mounts`, the `-v` and the `--podvm-confine` lists of the podvm driver, and the mounts of the fake unit (`crates/podrunner-fake/src/unit_mounts.rs`). A head of a fork (`head_is_fork` `yes` or `unknown`) never gets `rw`, also in the tier `local`. Tests: `tests::cache::an_untrusted_write_is_not_read_by_a_trusted_job_and_a_pull_request_does_not_write` (a push writes and its `cache_written_bytes` is 5; a fork pull request whose offer asks `rw` gets no variable and writes nothing in the cache; a pull request of the same repository reads the file of the push with `ro` and its write does not reach the cache; the next push sees only the file of the push), `tests::cache::a_job_with_no_cache_reads_and_writes_0_bytes`, six unit tests of the edges (each event and tier, a fork head with `rw` in its offer, a key of 0, 128 and 129 bytes, a control character, `..`, `/` and an expression as a key, the case of a name, each bad value of the table, a link that a job put where the host makes a directory or counts bytes, a directory with no write bit, the three bounds), `tests::secrets::a_variable_of_the_cache_does_not_replace_the_ca_bundle`, and `the_cache_of_a_job_is_a_volume_and_the_confine_layer_names_it` of the podvm driver. Each test failed before: the configuration refused `[cache]`, the report gave `unknown`, and a fork head of the tier `local` got `rw`. Plants: an untrusted job with `rw` fails the test of G-07 at the file `evil` in the directory; a pull request with `rw` fails it at the file `from-pr`. As a user with no root (`sudo -u labdns`), the built binary at `37d174b`, `serve` with a fake source of the tier `trusted`, the fake kind and `[cache] env = { npm_config_cache = "npm" }`: the push got `rw` and wrote `from-push`; the pull request (with `rw` in its offer) got `ro`, read the file, and its write did not reach the cache; the next push saw `from-push` and `npm`; `bytes` is 10; the directories are 0700 (cache, scope) and 0755 (data), of the user. With `max_bytes = 5`, `serve` removed the cache after the push and wrote the line `above [cache] max_bytes`. A bad `[cache] env` (`PATH`) gives exit 78 in `check`. The fake kind cannot claim `guest` on this host, so the run of a fork is proven by the test only. Level: proven here with the fake unit and the stub of podvm; not run on a real unit of podvm. Left: the run on a real unit of podvm in `runner-image.yml` (a `ro` cache refuses a write in the unit), cfb's measure (T-528), the microvm and incus kinds (T-648), the bytes read (T-649), a writable layer of a `ro` job (T-650), the containers of a `container:` job (T-651).
 
+Review (2026-11-25, commit `8199cb2` and the next that name T-480; a security review of `37d174b` to `3caa997`, each finding checked in the code): (1) the forge can give the runner of a job with a cache a queued job of another run (T-493), and the grant came from the offer alone: a `rw` offer could run a pull request of the same repository or a job of another repository with `rw` on the scope of the offer. The slots now compute the mode and the scope again on the facts of `keep`, with the key of the offer and with no `rw` of the offer, and end the job with `cache-mismatch` when the scope differs or the mode is lower (the call is in `docs/decisions.md`); the fake source gives no ref and no repository id of the offer for a real job of another run or repository. (2) A `rw` job was unbounded while it ran: `serve` measures its cache every 30 s on a thread, the walk stops above `max_bytes`, and the job ends with `limit` (audit `limit`, `cache`). (3) The walk and the removal ran in the tick: each runs on the thread of the caches (`crates/podrunner-slots/src/cache/worker.rs`); the tick renames a cache that goes to `DIR/trash-ID-N`, and the report of a `rw` job waits for its walk (the job stays `destroyed`, so its scope stays in use). (4) A `ro` job got the variables of `env`, and a tool fails on a read-only directory: a `ro` job gets none. P3: the removal gives the bits back with `fchmod` on an `O_NOFOLLOW` fd, else `fchmodat` with `AT_SYMLINK_NOFOLLOW`; the directories of `env` are made with `mkdirat` and `openat` (`O_NOFOLLOW`) from the fd of the last one; a lock on `DIR/lock` refuses a second `serve` on one directory; `env` refuses `LD_*`, `HOME`, `BASH_ENV`, `ENV`, `NODE_OPTIONS`, `JAVA_TOOL_OPTIONS`, `RUNNER_*` and more (`RUNNER_TOOL_CACHE` stays: the runner reads its tool cache from it); a new cache of a `ro` job has its `bytes` file, and a `rw` job removes it until its end; the scope holds the repository id; `docs/configuration.md` says that `ro` is a guard between jobs of one tier and not a boundary (podvm gives `mount_modes` `rw` only), and that `write_refs` names a branch named `main` whatever the default branch is. Tests that failed on `3caa997`: `tests::cache_assigned` (2), `tests::cache::a_rw_job_above_max_bytes_ends_while_it_runs`, `tests::cache::the_end_of_a_large_cache_does_not_hold_the_tick` (the longest tick 388 ms against one walk of 68 ms), the pull request of `tests::cache::an_untrusted_write_is_not_read_by_a_trusted_job_and_a_pull_request_does_not_write` (it got `npm_config_cache`), `tests::cache::a_second_serve_on_one_cache_directory_is_refused`, and the unit tests of the table, the scope and the `bytes` file; `cache::tests::the_removal_follows_no_link` fails with the old `set_permissions`. A finding of the same class: the disk check of a unit walks its root in the tick (T-652). As a user with no root (`sudo -u labdns`), the built binary at `8199cb2`, `serve` with a fake source of the tier `trusted` (a push to `refs/heads/main`), the fake kind with `claim = "confined"` and `[cache]`: the unit got the cache with `rw`, and its question through the egress socket (`POST http://control.podrunner.test/v1/assigned` for a `pull_request` of run 2 of the same repository) got `{"code":"cache-mismatch","verdict":"end"}`; the audit line `assigned` says `run 2 of example-org/app: end cache-mismatch`, and the job ended `job-mismatch`. Level: proven here with the fake unit; not run on a real unit of podvm.
+
 # T-481: The checkout of a job on the incus kind is proven by a test of the script only
 
 **Source:** GitHub #292 (cfb, P-4), 2026-11-18
@@ -16435,6 +16437,7 @@ Read on 2026-11-25: the page "Dependency caching" of the documents of GitHub Act
 
 1. Measure npm, pnpm and Playwright with a read-only cache in a unit of the podvm kind (the row of T-528).
 2. Give a `ro` job a writable layer over the cache that the destroy removes: an overlay mount of podvm (`-v HOST:PATH:overlay`, a COORD issue `(to podvm)`), or a copy that shares the blocks of the file system (`FICLONE`) where the host has one. The cache on the host stays as it was.
+3. Then give a `ro` job the variables of `[cache] env` again. Until then a `ro` job gets none (the review of T-480: a tool that writes in the directory of its variable fails on a read-only one).
 
 ## Prove
 
@@ -16464,3 +16467,30 @@ The hooks add the cache of the unit to each container of the job, as they add th
 ## Prove
 
 `cargo test -p podrunner-slots tests::hooks` with a cache, and a `container:` job of the parity suite with a cache.
+
+# T-652: The disk check of a unit walks its root in the tick
+
+**Source:** the review of T-480, 2026-11-25
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`check_disks` (`crates/podrunner-slots/src/disk.rs`) sums the bytes under the root of each running unit that has a disk bound, every 30 s, in the tick of the slots. A job that makes many small files under its bound makes each such walk long. The tick then holds the answers to the job-started hooks (which end a job after 10 s with `source-unavailable`), the heartbeats and the other limits. The review of T-480 found the same defect for the walks of a cache, and T-480 moved them to a thread of their own (`crates/podrunner-slots/src/cache/worker.rs`).
+
+## Premise
+
+Read from the code on 2026-11-25. Not measured: the time of a walk of a unit root with many files.
+
+## Approach
+
+1. Run `bytes_under` of each unit on a thread, as the walks of the caches: the tick sends the root and reads the result at a later tick; one walk of a unit at a time.
+2. End the walk when it passes the bound: the result is then enough to end the unit with `limit`.
+3. A test with a tree of many files under the root of a fake unit: the longest tick is shorter than one walk.
+
+## Prove
+
+`cargo test -p podrunner-slots tests::placement_disk` and the new test of step 3.
