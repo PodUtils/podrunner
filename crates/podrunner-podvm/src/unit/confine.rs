@@ -134,12 +134,12 @@ impl PodvmUnit {
             self.confine = true;
             let held = self.self_test(reference, &unit, pid, None)?;
             let verdict = verdict(&open, &held, &canary);
-            // A third run, so that a rung that refuses the volume keeps the
-            // proof of the layer.
+            // A third run, so that a rung that refuses the volume, or a
+            // failure of this run, keeps the proof of the layer.
             let ro_held = match ro.as_deref() {
-                Some(d) if verdict.is_ok() => {
-                    ro_verdict(&self.self_test(reference, &unit, pid, Some(d))?, d.join(RO_WRITE).exists())
-                }
+                Some(d) if verdict.is_ok() => self
+                    .self_test(reference, &unit, pid, Some(d))
+                    .is_ok_and(|run| ro_verdict(&run, d.join(RO_WRITE).exists())),
                 _ => false,
             };
             Ok::<_, UnitError>((verdict, ro_held))

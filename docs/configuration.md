@@ -386,7 +386,9 @@ not in the loop of the jobs: a cache that goes is first renamed to
 `DIR/trash-ID-N`, and the next start of `serve` removes each trash that a
 stop left. A `rw` job frees its slot at the destroy of its unit; its
 report waits for the walk of its cache at most `[deadlines] report_s`,
-and its cache stays in use until the walk ends. A panic of a thread of
+and its cache stays in use until the walk ends. A next `rw` job of the
+same cache can start before that walk ends; then the count of the first
+job can hold the writes of the next one. A panic of a thread of
 the caches stops `serve`.
 
 The run report gives `cache_written_bytes`: the bytes of the files that
