@@ -118,7 +118,7 @@ impl Slots {
         r.wall_s = self.now().saturating_sub(j.offered_ms) / 1000;
         r.refusal_code = j.refusal;
         r.unit = unit;
-        r.claim_to_first_step_s = j.claimed_ms.zip(j.first_step_ms).map(|(c, f)| f.saturating_sub(c) / 1000);
+        r.claim_to_first_step_s = secs(j.claimed_ms, j.first_step_ms);
         r.job_images = j.images.clone();
         // The use of the unit, when a unit ran (T-108).
         if unit_ran {

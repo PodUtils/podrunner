@@ -304,3 +304,17 @@ fn cpu_s_is_the_cpu_time_of_the_payload_within_its_tolerance() {
     // time of the payload (here at most the 2 s of the loop).
     assert!((1..=3).contains(&cpu), "cpu_s {cpu} for 2 s of CPU in {wall:.1} s");
 }
+
+/// `claim_to_first_step_s` rounds up as the other times do: a first step
+/// 900 ms after the claim is 1 s, not 0 (T-487 compares warm and cold).
+#[test]
+fn claim_to_first_step_rounds_up_as_the_other_times() {
+    let mut bed = ran(None, "exit 0");
+    let key = bed.slots.jobs.keys().next().unwrap().clone();
+    for (claimed, step, want) in [(1_000, 1_900, 1), (1_000, 1_000, 0), (1_000, 3_001, 3)] {
+        let j = bed.slots.jobs.get_mut(&key).unwrap();
+        (j.claimed_ms, j.first_step_ms) = (Some(claimed), Some(step));
+        bed.slots.report(&key);
+        assert_eq!(bed.slots.reports.back().unwrap().claim_to_first_step_s, Some(want), "{claimed} to {step}");
+    }
+}
