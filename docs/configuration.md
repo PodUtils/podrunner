@@ -121,8 +121,9 @@ max_age_s = 2419200          # the age limit of this pin; the smaller of it and 
                              # takes it, at untrusted (a guest); a runner job never does
 unpacked_bytes = 59000000000 # the bytes of the image unpacked (podrunner-manifest.json of a release, T-572; or du -sxb / in a
                              # unit of it); check and doctor refuse a pin above the root disk of [unit.incus] (root_quota,
-                             # disk_max_bytes, T-551) or above (mem - 512 MiB) x 4 / 13 of [unit.microvm] (T-573); absent:
-                             # not checked
+                             # disk_max_bytes, T-551) or above (mem - 512 MiB) x 4 / 13 of [unit.microvm] (T-573), or that
+                             # leaves less than 2 GiB of the root of a microvm guest (75 % of mem) for its job (T-689);
+                             # absent: not checked
 # labels = ["ubuntu-latest"] # the runs-on labels that this payload serves, no case; absent: each job (T-549)
 # init = "image"             # the payload boots the init of its image (systemd): only a kind with init = "image" takes it
 
@@ -201,8 +202,9 @@ images = "/var/lib/podrunner/images"     # a podvm store with the pinned images
 mem = "8G"                               # the most memory of each guest (default 8G: the initrd of a runner image is about 1.4 GiB);
                                          # podrunner always passes a memory to podvm. The image is an uncompressed initramfs: podvm
                                          # needs 13/4 x unpacked_bytes + 512 MiB (COORD-219). check refuses a pin whose unpacked_bytes
-                                         # is over (mem - 512 MiB) x 4 / 13 (T-573), with the fix: mem of at least 13/4 x N + 512 MiB,
-                                         # in whole GiB. The memory of an offer is the memory of the job beyond its root: the guest gets
+                                         # is over (mem - 512 MiB) x 4 / 13 (T-573), or whose job gets less than 2 GiB of root: the root
+                                         # is 75 % of mem, and a job gets 0.75 x mem - N (T-689). The fix: mem of at least the larger of
+                                         # 13/4 x N + 512 MiB and 4/3 x (N + 2 GiB), in whole GiB; doctor names both. The memory of an offer is the memory of the job beyond its root: the guest gets
                                          # the offer plus unpacked_bytes, not less than that floor (rounded up to 256 MiB) and not more
                                          # than mem; a pin with no unpacked_bytes gets mem (T-655)
 cpus = 2                                 # its vCPUs (default 2)

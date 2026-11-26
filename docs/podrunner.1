@@ -671,6 +671,9 @@ The podvm binary. Each job runs in a fresh incus instance.
 \fB\-\-engine\fR \fIDIR\fR
 With \-\-microvm or \-\-incus: the container engine of each guest.
 .TP
+\fB\-\-mem\fR \fISIZE\fR
+With \-\-microvm: the memory of each guest, as 8G (K, M, G or T). Default: 8G.
+.TP
 \fB\-\-images\fR \fISTORE\fR
 The image store of podvm.
 .TP
@@ -883,6 +886,8 @@ Give only one of \-\-podnet, \-\-vnet.
 .PP
 \-\-engine needs one of \-\-microvm, \-\-incus.
 .PP
+\-\-mem needs \-\-microvm.
+.PP
 Give only one of \-\-list, \-\-graph, \-\-validate, \-\-dry\-run.
 .PP
 Give only one of \-\-watch, \-\-schedule.
@@ -1075,6 +1080,10 @@ project.
 .TP
 \fBengine\fR
 Value: DIR. Flag: \-\-engine. Set by: the user file, or the file of a trusted
+project.
+.TP
+\fBmem\fR
+Value: SIZE. Flag: \-\-mem. Set by: the user file, or the file of a trusted
 project.
 .TP
 \fBimages\fR

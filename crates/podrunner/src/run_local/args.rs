@@ -12,6 +12,8 @@ pub(super) struct Args {
     /// the podvm binary PATH (T-123).
     pub(super) guest: Option<(bool, PathBuf)>,
     pub(super) engine: Option<PathBuf>,
+    /// `--mem SIZE`: the memory of each guest of `--microvm` (T-690).
+    pub(super) mem: Option<String>,
     /// `--platform LABEL=TARGET`: a runner image, or `host`, for a label of
     /// `runs-on` (T-129).
     pub(super) platforms: Vec<(String, String)>,
@@ -181,6 +183,7 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
                 a.guest = Some((microvm, PathBuf::from(value()?)));
             }
             "--engine" => a.engine = Some(PathBuf::from(value()?)),
+            "--mem" => a.mem = Some(value()?),
             "--job" => a.jobs.push(value()?),
             "--protected" => a.protected.push(value()?),
             "--export" => a.export = Some(PathBuf::from(value()?)),
@@ -439,6 +442,9 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     // (T-485, podvm 0.2.0-beta.32).
     if a.engine.is_some() && a.guest.is_none() {
         return Err("--engine needs --microvm or --incus".into());
+    }
+    if let Some(m) = &a.mem {
+        super::guest::mem_of(m, matches!(a.guest, Some((true, _))))?;
     }
     // The executor: name the flag that is missing or that clashes (T-207).
     let store = a.images.is_some();

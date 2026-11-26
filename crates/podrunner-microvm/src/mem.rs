@@ -3,7 +3,7 @@
 //! about the image, and the guest holds both during the unpack. podvm's
 //! rule is `mem = 13/4 × N + 512 MiB`, rounded up to 256 MiB (COORD-219,
 //! `machine/guest/mem.rs` of podvm). `check` refuses a pin over the bound
-//! of the kind with [`largest_image`]. The root of a guest stays in its
+//! of the kind with [`largest_image`] and [`job_space`]. The root of a guest stays in its
 //! memory after the boot, and each file of the job takes memory too: the
 //! `memory` of an offer is the memory of the job beyond its root
 //! ([`guest_mem`]).
@@ -33,6 +33,27 @@ pub fn largest_image(mem: u64) -> u64 {
 pub fn mem_for(size: u64) -> u64 {
     let need = (u128::from(size) * 13).div_ceil(4) + u128::from(GUEST_BASE);
     u64::try_from(need).unwrap_or(u64::MAX)
+}
+
+/// The part of `mem` that the root of a guest can fill: the guest script
+/// remounts a `rootfs` root at 75 % of the memory (T-688).
+pub fn root_cap(mem: u64) -> u64 {
+    // `mem × 3` can overflow: split it at 4, which gives the same floor.
+    mem / 4 * 3 + mem % 4 * 3 / 4
+}
+
+/// The free space of the root of a guest of `mem` bytes for a job after the
+/// unpacked image of `size` bytes (T-689): an estimate, the kernel keeps a
+/// little of it.
+pub fn job_space(mem: u64, size: u64) -> u64 {
+    root_cap(mem).saturating_sub(size)
+}
+
+/// The smallest `mem` whose root holds `size` bytes of image and `space`
+/// bytes for a job: `job_space(mem, size) >= space`.
+pub fn mem_for_space(size: u64, space: u64) -> u64 {
+    let need = (u128::from(size) + u128::from(space)) * 4;
+    u64::try_from(need.div_ceil(3)).unwrap_or(u64::MAX)
 }
 
 /// The `--podvm-mem` of a guest. `kind` is the `mem` of the kind, `lesser`
@@ -108,6 +129,23 @@ mod tests {
         assert_eq!(m(Some(GIB), Some(0)), "1024M", "an empty image: the offer over the floor of 512 MiB");
         assert_eq!(guest_mem("lots", Some(GIB), Some(SIZE)), "lots", "a kind that is not a size");
         assert_eq!(guest_mem("17179869184", Some(GIB), Some(SIZE)), "5120M", "a kind in bytes");
+    }
+
+    /// T-689: the space of a job is 75 % of the memory less the image, the
+    /// cap of the guest script, with no overflow.
+    #[test]
+    fn the_space_of_a_job_follows_the_cap_of_the_root() {
+        assert!(crate::guest::SCRIPT.contains("mount -o remount,size=75% /"), "the cap of root_cap");
+        assert_eq!(root_cap(8 * GIB), 6 * GIB);
+        assert_eq!(root_cap(7), 5, "rounded down");
+        assert_eq!(u128::from(root_cap(u64::MAX)), u128::from(u64::MAX) * 3 / 4, "no overflow");
+        assert_eq!(job_space(8 * GIB, 2 * GIB), 4 * GIB);
+        assert_eq!(job_space(4 * GIB, 4 * GIB), 0, "an image over the cap: no space");
+        for (size, space) in [(0, 2 * GIB), (SIZE, 2 * GIB), (1, 1), (2055 * MIB, 3)] {
+            let m = mem_for_space(size, space);
+            assert!(job_space(m, size) >= space && job_space(m - 1, size) < space, "{size} {space}: {m}");
+        }
+        assert_eq!(mem_for_space(u64::MAX, 1), u64::MAX, "no overflow");
     }
 
     /// T-573: podvm's curve (COORD-219, experiment 470): each initrd in MiB,

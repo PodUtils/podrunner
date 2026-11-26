@@ -10,6 +10,39 @@ use podrunner_slots::config::UnitConfig;
 
 use super::{Args, Class, Out, arch, fail, policy};
 
+/// The bytes of `--mem SIZE` (T-690): `--microvm` only, a size as the
+/// `mem` of `[unit.microvm]`, and room for the boot and the reserve of a job
+/// with an image of 0 bytes. The unpacked size of the image is not known
+/// here (podvm gives the stored size), so a larger image is not checked.
+pub(super) fn mem_of(m: &str, microvm: bool) -> Result<u64, String> {
+    if !microvm {
+        return Err("--mem needs --microvm".into());
+    }
+    let bytes = podrunner_unit::limits::size_bytes(m).map_err(|e| format!("--mem {e}"))?;
+    let (space, reserve) = (crate::microvm_kind::job_space(bytes, 0), crate::microvm_kind::JOB_RESERVE);
+    match space >= reserve {
+        true => Ok(bytes),
+        false => Err(format!(
+            "--mem {m}: a guest of {m} keeps {} MiB of root for a job, less than {} MiB with no image; \
+             fix: --mem {}G or more, and more for the image",
+            space >> 20,
+            reserve >> 20,
+            crate::microvm_kind::mem_needed(0).div_ceil(1 << 30)
+        )),
+    }
+}
+
+/// The text of the `mem` check of `doctor --run` (T-690).
+pub(super) fn mem_line(a: &Args) -> Result<String, String> {
+    let m = a.mem.as_deref().unwrap_or(crate::microvm_kind::DEFAULT_MEM);
+    let bytes = mem_of(m, true)?;
+    let given = if a.mem.is_some() { "--mem" } else { "the default" };
+    Ok(format!(
+        "{m} ({given}): a job gets about {} of root less the unpacked image",
+        crate::pin_size::gb(podrunner_microvm::mem::root_cap(bytes))
+    ))
+}
+
 pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
     let (Some((microvm, binary)), Some(images), Some(image)) = (&a.guest, &a.images, &a.image) else {
         return Err(fail(Class::Usage, super::usage()));
@@ -27,28 +60,7 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
         kvm().map_err(|e| fail(Class::Unavailable, e))?;
         super::doctor::image_in_store(binary, images, image).map_err(|e| fail(Class::Config, e))?;
     }
-    let u = UnitConfig {
-        slots: 1,
-        command: vec!["./run.sh".into()],
-        binary: Some(binary.display().to_string()),
-        images: Some(images.display().to_string()),
-        registries: Vec::new(),
-        runner_dir: None,
-        podnet: None,
-        disk_max_bytes: None,
-        root_quota: false,
-        init: None,
-        claim: None,
-        confine: false,
-        mem: None,
-        cpus: None,
-        pids: None,
-        engine: a.engine.as_ref().map(|e| e.display().to_string()),
-        work_folder: None,
-        // `run` makes no warm unit: one job, one unit.
-        warm: None,
-        warm_max_age_s: None,
-    };
+    let u = unit(a, binary, images);
     let payload_engines = a.engine.is_none().then(|| payload_engine(a, image)).flatten();
     let payload_engines = payload_engines.into_iter().collect();
     let built = if *microvm {
@@ -75,6 +87,33 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
         exec.egress = Some((std::sync::Arc::new(e), policy(&a.allow)));
     }
     Ok(exec)
+}
+
+/// The `[unit.KIND]` of the guest of a run: `serve` builds the kind from it.
+fn unit(a: &Args, binary: &std::path::Path, images: &std::path::Path) -> UnitConfig {
+    UnitConfig {
+        slots: 1,
+        command: vec!["./run.sh".into()],
+        binary: Some(binary.display().to_string()),
+        images: Some(images.display().to_string()),
+        registries: Vec::new(),
+        runner_dir: None,
+        podnet: None,
+        disk_max_bytes: None,
+        root_quota: false,
+        init: None,
+        claim: None,
+        confine: false,
+        // `parse` takes `--mem` with `--microvm` only.
+        mem: a.mem.clone(),
+        cpus: None,
+        pids: None,
+        engine: a.engine.as_ref().map(|e| e.display().to_string()),
+        work_folder: None,
+        // `run` makes no warm unit: one job, one unit.
+        warm: None,
+        warm_max_age_s: None,
+    }
 }
 
 fn payload_engine(a: &Args, image: &str) -> Option<String> {
@@ -143,3 +182,7 @@ pub(super) fn kvm() -> Result<(), String> {
         format!("--microvm: /dev/kvm: {e}; fix: a host with KVM, and a user that can open /dev/kvm (the group kvm), or --podvm")
     })
 }
+
+#[cfg(test)]
+#[path = "guest_tests.rs"]
+mod tests;

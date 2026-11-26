@@ -71,6 +71,53 @@ mod tests {
         assert_eq!(over(Some(UnitInit::Image), 5000), Some(("h@sha256:00".into(), 9000)));
     }
 
+    /// T-689: a microvm pin must leave the job `JOB_RESERVE` of root
+    /// beside the boot of its image. At 4G, a pin at the boot bound of
+    /// podvm boots, but its job gets less than 2 GiB: refused. At 8G (the
+    /// default) the boot bound is the lesser one and stays.
+    #[test]
+    fn a_microvm_pin_leaves_space_for_its_job() {
+        use crate::microvm_kind::{JOB_RESERVE, job_space, largest_image, mem_needed, pins_fit};
+        const GIB: u64 = 1 << 30;
+        let arch = std::env::consts::ARCH;
+        let fit = |mem: &str, size: u64| {
+            let u: podrunner_slots::config::UnitConfig = toml::from_str(&format!("slots = 1\n{mem}")).unwrap();
+            let pins: Pins = toml::from_str(&format!(
+                "[[payload]]\narch = \"{arch}\"\nreference = \"r@sha256:00\"\nbuilt_at_s = 1\nunpacked_bytes = {size}\n"
+            ))
+            .unwrap();
+            pins_fit(&u, &pins).map_err(|f| f.detail)
+        };
+        let old = largest_image(4 * GIB);
+        assert_eq!(old, 1_156_337_348);
+        let e = fit("mem = \"4G\"", old).unwrap_err();
+        assert!(
+            e.contains("unpacks to 1.2 GB, and a guest of 4G (4.3 GB) keeps 1969 MiB for a job, less than 2048 MiB"),
+            "{e}"
+        );
+        assert!(e.contains("fix: set mem = \"5G\" or more, or pin a smaller image"), "{e}");
+        // The largest pin of 4G leaves the job its reserve, one byte more does not.
+        let top = 3 * GIB - JOB_RESERVE;
+        assert_eq!(job_space(4 * GIB, top), JOB_RESERVE);
+        assert!(fit("mem = \"4G\"", top).is_ok());
+        assert!(fit("mem = \"4G\"", top + 1).is_err());
+        // The fix holds: the memory that it names takes the pin.
+        assert!(fit(&format!("mem = \"{}\"", mem_needed(old)), old).is_ok());
+        assert!(fit(&format!("mem = \"{}\"", mem_needed(old) - 1), old).is_err());
+        // At 8G the boot bound refuses first, with the text of T-573.
+        let boot = largest_image(8 * GIB);
+        assert!(job_space(8 * GIB, boot) > JOB_RESERVE);
+        assert!(fit("", boot).is_ok());
+        let e = fit("", boot + 1).unwrap_err();
+        assert!(e.contains("more than a guest of 8G (8.6 GB) boots") && e.contains("mem = \"9G\""), "{e}");
+        // Edges: an empty image, a mem with no room for a reserve, a mem
+        // that is not a size (plan refuses it), and an image at overflow.
+        assert!(fit("mem = \"2G\"", 0).is_ok(), "an image of 0 bytes is no pin to hold");
+        assert!(fit("mem = \"2G\"", 1).unwrap_err().contains("keeps 1535 MiB for a job"));
+        assert!(fit("mem = \"lots\"", u64::MAX).is_ok());
+        assert!(fit("", u64::MAX).unwrap_err().contains("fix: set mem = \"17179869184G\""), "no overflow");
+    }
+
     /// T-655: the size of each pinned digest of this architecture; a pin
     /// with no `unpacked_bytes` or of another architecture has none.
     #[test]

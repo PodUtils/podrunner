@@ -84,26 +84,62 @@ pub const DEFAULT_MEM: &str = "8G";
 
 /// The bound of an image and the memory of a guest in podvm's rule
 /// (T-573): one rule for `check` and the driver (T-655).
-pub use podrunner_microvm::mem::{largest_image, mem_for};
+pub use podrunner_microvm::mem::{job_space, largest_image, mem_for};
 
-/// Each pin of this architecture fits the memory of a guest (T-573). A guest
-/// with too little memory for its initramfs resets with no output.
+/// The free root that a guest must keep for the files of a job after its
+/// image (T-689). The root of a guest is in its memory: a job with less
+/// fails with ENOSPC (T-688). A user who needs more sets a larger `mem`.
+pub const JOB_RESERVE: u64 = 2 << 30;
+
+/// The smallest memory of a guest that boots an image of `size` bytes and
+/// keeps [`JOB_RESERVE`] for its job.
+pub fn mem_needed(size: u64) -> u64 {
+    mem_for(size).max(podrunner_microvm::mem::mem_for_space(size, JOB_RESERVE))
+}
+
+/// Why a guest of `bytes` (the text `mem`) does not hold an image of
+/// `size` bytes and a job, or `None`.
+pub fn refusal(mem: &str, bytes: u64, size: u64) -> Option<String> {
+    let fix = mem_needed(size).div_ceil(1 << 30);
+    if size > largest_image(bytes) {
+        return Some(format!(
+            "unpacks to {}, more than a guest of {mem} ({}) boots; the root of a guest is an uncompressed \
+             initramfs, and podvm needs 13/4 times the image plus 512 MiB; fix: set mem = \"{fix}G\" or more",
+            gb(size),
+            gb(bytes),
+        ));
+    }
+    let space = job_space(bytes, size);
+    (space < JOB_RESERVE).then(|| {
+        format!(
+            "unpacks to {}, and a guest of {mem} ({}) keeps {} MiB for a job, less than {} MiB; the root of a \
+             guest is in its memory, at 75 % of it; fix: set mem = \"{fix}G\" or more",
+            gb(size),
+            gb(bytes),
+            space >> 20,
+            JOB_RESERVE >> 20,
+        )
+    })
+}
+
+/// Each pin of this architecture fits the memory of a guest (T-573) with
+/// space for its job (T-689). A guest with too little memory for its
+/// initramfs resets with no output.
 pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<(), Failure> {
     let mem = u.mem.as_deref().unwrap_or(DEFAULT_MEM);
     // `plan` refuses a `mem` that is not a size.
     let Ok(bytes) = podrunner_unit::limits::size_bytes(mem) else { return Ok(()) };
-    let Some((p, size)) = crate::pin_size::over(pins, u.init, largest_image(bytes)) else { return Ok(()) };
+    // The largest image that passes both bounds: `refusal` holds each size
+    // up to it.
+    let bound = largest_image(bytes).min(podrunner_microvm::mem::root_cap(bytes).saturating_sub(JOB_RESERVE));
+    let Some((p, size)) = crate::pin_size::over(pins, u.init, bound) else { return Ok(()) };
+    let why = refusal(mem, bytes, size).unwrap_or_default();
     Err(fail(
         Class::Config,
         format!(
-            "[unit.microvm] mem: the pin {} unpacks to {}, more than a guest of {mem} ({}) boots; \
-             the root of a guest is an uncompressed initramfs, and podvm needs 13/4 times the image plus 512 MiB; \
-             fix: set mem = \"{}G\" or more, or pin a smaller image (the disk root of podvm, T-1994, \
+            "[unit.microvm] mem: the pin {} {why}, or pin a smaller image (the disk root of podvm, T-1994, \
              removes this bound; no version of podvm has it)",
             p.reference,
-            gb(size),
-            gb(bytes),
-            mem_for(size).div_ceil(1 << 30),
         ),
     ))
 }

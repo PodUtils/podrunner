@@ -299,6 +299,7 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
     }
     if matches!(a.guest, Some((true, _))) {
         out.push(check("kvm", super::guest::kvm().map(|()| "/dev/kvm opens".into())));
+        out.push(check("mem", super::guest::mem_line(a)));
         if let Some(e) = &a.engine {
             out.push(check(
                 "engine",

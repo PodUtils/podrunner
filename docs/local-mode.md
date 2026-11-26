@@ -163,8 +163,16 @@ host):
 | larger, with the engine (1762 MiB unpacked, T-672) | 1909 MiB | 1175 MiB | 4055 MiB |
 
 A job that writes more than that gets `ENOSPC`. Use the base image when
-the job does not need the tools of the larger one, or, on `serve`, give
-the guest more memory (`[unit.microvm] mem`).
+the job does not need the tools of the larger one, or give the guest more
+memory: `--mem SIZE` of `run --microvm` (a size as `8G`; K, M, G or T),
+or `[unit.microvm] mem` on `serve` (T-690). `run` refuses a `--mem` that
+keeps less than 2 GiB of root for a job with no image (below about
+2731M); it does not know the unpacked size of the image, so the job of a
+larger image gets less. `doctor --run` names the memory and the root of
+a guest. `check` and `doctor` refuse a pin of `serve` that leaves less
+than 2 GiB of root for its job (T-689). The estimate, 75 % of `mem` less
+the unpacked image, is about 330 MiB above the measure: the root holds
+more than the unpacked bytes.
 
 ### The image cache
 
