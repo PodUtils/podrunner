@@ -12,11 +12,11 @@
 #   to a unix socket).
 # - beta.17: the relay of the seccomp hold keeps the nonblocking socket of
 #   an epoll waiter.
-version = "0.4.0-beta.17"
+version = "0.4.0-beta.19"
 
 [sha256]
-x86_64 = "d0b72b9bfe2473afef360e41c8a830a003239c8695535bef0f4bbd20486ab1f5"
-aarch64 = "e8c37a1d100d169c6e3240b2df33ffb9ec584d94c47ca959a970d8df7f327d71"
+x86_64 = "2d1511dce898f66d209e8aa1a93cb654ee25b1c26e9a7f45ee4a0923303f78f5"
+aarch64 = "1f8f3c5c3a649656663a270bbb484dd1945e8e0e97772ac7a986c1925d7082b8"
 
 [ghcr]
-reference = "ghcr.io/podutils/podnet:v0.4.0-beta.17@sha256:65ed77accd95c9574e2f162d7d70e6c0d9a3c9daa292858f47dc00d87ae246e3"
+reference = "ghcr.io/podutils/podnet:v0.4.0-beta.19@sha256:632f88783e2073e407b7b372ec3350a6f042ada4976b9dca3bccef7a3767e800"

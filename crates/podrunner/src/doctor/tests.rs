@@ -59,8 +59,62 @@ fn doctor_names_the_disk_of_a_pinned_image() {
 
 #[test]
 fn a_missing_tool_is_named() {
-    let r = read(Path::new("podrunner-no-such-tool"), &["--json"]).unwrap_err();
+    let r = read_podnet_hold(Path::new("podrunner-no-such-tool")).unwrap_err();
     assert!(r.starts_with("podrunner-no-such-tool: not run"), "{r}");
+}
+
+#[test]
+fn doctor_keeps_the_podnet_report_when_no_backend_can_run() {
+    let dir = crate::scratch::Scratch::new("doctor-podnet");
+    let file = dir.join("podrunner.toml");
+    let podvm = dir.join("podvm");
+    let podnet = dir.join("podnet");
+    podrunner_unit::program_file::write(
+        &podvm,
+        "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.14\",\"rung\":\"userland\"}'\n",
+    )
+    .unwrap();
+    std::fs::write(
+        &file,
+        format!(
+            "host = \"h\"\n[unit.podvm]\nslots = 1\nbinary = \"{}\"\nimages = \"{}\"\npodnet = \"{}\"\n",
+            podvm.display(),
+            dir.display(),
+            podnet.display()
+        ),
+    )
+    .unwrap();
+    let hold = json!({
+        "schema": 1,
+        "verdicts": { "any": "fail" },
+        "hold": { "netns": { "level": "none" }, "seccomp": { "level": "none" } }
+    });
+    for (status, stdout, want, missing) in [
+        (3, hold.to_string(), &hold, None),
+        (3, "no JSON".into(), &Value::Null, Some("not JSON")),
+        (78, hold.to_string(), &Value::Null, Some("exit 78")),
+    ] {
+        let script = format!(
+            "#!/bin/sh\n[ \"$*\" = 'pod doctor --json' ] || exit 64\nprintf '%s\\n' '{stdout}'\nexit {status}\n"
+        );
+        podrunner_unit::program_file::write(&podnet, script).unwrap();
+        let report = report_with(Some(&file), json!([])).unwrap();
+        assert_eq!(&report["hold"], want);
+        assert!(report["kinds"][0].get("capability").is_none(), "{report}");
+        let text = text(&report);
+        assert!(text.contains("kind podvm: not served on this host:"), "{text}");
+        if let Some(why) = missing {
+            assert!(
+                text.lines()
+                    .any(|line| line.starts_with("missing: the hold of [unit.podvm] podnet:") && line.ends_with(why)),
+                "{text}"
+            );
+        } else {
+            assert!(text.contains("hold netns: none\n"), "{text}");
+            assert!(text.contains("hold seccomp: none\n"), "{text}");
+            assert!(text.contains("podnet pod: the seccomp hold is none"), "{text}");
+        }
+    }
 }
 
 /// T-113: the guest kinds give their record through their probe.

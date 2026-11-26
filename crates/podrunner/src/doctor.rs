@@ -61,18 +61,18 @@ fn host_rows() -> Value {
     json!(rows)
 }
 
-/// Run one tool and read its JSON, or say why there is none.
-fn read(tool: &Path, args: &[&str]) -> Result<Value, String> {
+/// Read the doctor report also when podnet finds no usable backend.
+fn read_podnet_hold(tool: &Path) -> Result<Value, String> {
     let out = Command::new(tool)
-        .args(args)
+        .args(["pod", "doctor", "--json"])
         .stdin(Stdio::null())
         .stderr(Stdio::null())
         .output()
         .map_err(|e| format!("{}: not run ({})", tool.display(), e))?;
-    if !out.status.success() {
-        return Err(format!("{} {}: exit {}", tool.display(), args.join(" "), out.status.code().unwrap_or(-1)));
+    if !out.status.success() && out.status.code() != Some(3) {
+        return Err(format!("{} pod doctor --json: exit {}", tool.display(), out.status.code().unwrap_or(-1)));
     }
-    serde_json::from_slice(&out.stdout).map_err(|_| format!("{} {}: not JSON", tool.display(), args.join(" ")))
+    serde_json::from_slice(&out.stdout).map_err(|_| format!("{} pod doctor --json: not JSON", tool.display()))
 }
 
 /// The capability record of the unit kind `name`, through its driver.
@@ -200,7 +200,7 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
                 }
             }
             if let Some(podnet) = &u.podnet {
-                hold = read(Path::new(podnet), &["pod", "doctor", "--json"]).unwrap_or_else(|why| {
+                hold = read_podnet_hold(Path::new(podnet)).unwrap_or_else(|why| {
                     missing.push(format!("the hold of [unit.{name}] podnet: {why}"));
                     Value::Null
                 });
