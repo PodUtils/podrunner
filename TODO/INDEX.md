@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**709 entries: 66 open, 51 partial, 22 blocked, 570 done.**
+**711 entries: 67 open, 51 partial, 22 blocked, 571 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 285 | 324 |
-| P3 | 55 | 10 | 9 | 183 | 257 |
-| **All** | 66 | 51 | 22 | 570 | 709 |
+| P3 | 56 | 10 | 9 | 184 | 259 |
+| **All** | 67 | 51 | 22 | 571 | 711 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -678,7 +678,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-633](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of the installer and the install documents |
 | [T-634](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of the flags of `podrunner run` |
 | [T-635](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |
-| [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
+| [T-636](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of signals and of the end of a run |
 | [T-637](later.md) | P3 | L | later | measurement | open | QA round 6, agent A: the areas that the round did not test |
 | [T-638](later.md) | P3 | S | later | defect | done | The user-path gate has no lane with a hard limit of file size of 1 GiB |
 | [T-639](later.md) | P2 | M | later | defect | done | Ctrl-C does not cancel a `container:` job in a long step on `--podvm` |
@@ -757,3 +757,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-712](later.md) | P3 | S | later | defect | done | serve names no kind and no cause in no-tier-served |
 | [T-713](later.md) | P3 | M | later | feature | open | A checkout of another repository or ref in a local action fails |
 | [T-714](later.md) | P3 | S | later | feature | blocked | The text of status names no cause of no-tier-served |
+| [T-715](later.md) | P3 | S | later | defect | open | Two local runs of the same pid share the names of their unit files |
+| [T-716](later.md) | P3 | S | later | defect | open | The wait of a cancel for a unit has no bound |

@@ -16345,7 +16345,7 @@ well as PKCS#1. A bare `doctor` names `doctor --run FILE` and `doctor
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16368,6 +16368,28 @@ Edit the signal path of `crates/podrunner/src/run_local/` (the handler that coun
 ## Prove
 
 `cargo test -p podrunner --test local` with a case for the third signal and for SIGHUP; `cargo todo check`.
+
+## Done
+
+2026-11-26, `5b14d4fd`, `e9051cd0` and `9f134cf7` (tests on a
+development host; the podvm path not run). Each finding held on `main`.
+The third signal SIGKILLs each runner group that the run holds, prints
+`podrunner: ended at once; ...`, and starts a helper in a new session
+(`run_local/reap.rs`, prepared before the signal, started with `clone`
+and `execve` only); the helper ends the units and removes the files of
+the run when the run is gone. SIGHUP prints the stopping lines. While a
+unit goes, the run prints `JOB: stopping: the run waits for unit u-N to
+go`, `still goes (N s)` each 10 s, and `unit u-N is gone (S s)`
+(`exec/stopping.rs`); a hard bound on that wait is T-716. The `--web`
+view shows `stopping` (`state.json`) and its listener ends with the run.
+The cleanup of a dead run also removes the files that have only its pid
+in the name (`local-unit` and its `.logs`, `local-broker-*.sock`,
+`run-export`), keeps them for a run of another pid namespace with the
+same pid, and counts a zombie as dead; the names are T-715. Tests:
+`run_signal` (`a_hangup_says_that_the_run_stops` and
+`a_third_signal_leaves_no_process_and_no_file` fail on the old code),
+`stale_pid_tests` (3), `web::the_view_says_stopping_and_ends_with_the_run`,
+`stopping` (2) and `cancel::tests`; the test of T-639 waits for events.
 
 
 # T-637: QA round 6, agent A: the areas that the round did not test
@@ -19595,3 +19617,71 @@ cause in `status --json` and in the text.
 
 COORD-146 (#375) asks podcrates for the causes of `no-tier-served` in
 `status.v1`.
+
+# T-715: Two local runs of the same pid share the names of their unit files
+
+**Source:** the worker of T-636, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner-local-unit-PID-u-N`, `podrunner-local-broker-PID-N.sock` and
+`podrunner-run-export-PID-u-N` have only the pid in their names. Two
+runs of pid 1 in two containers that share `TMPDIR` get the same names,
+and `work::private_dir` of one run removes the directory of the other.
+
+## Premise
+
+Read from `crates/podrunner-local/src/exec` and `crates/podrunner/src/run_local/stale.rs`
+by the worker of T-636 on 2026-11-26.
+
+## Approach
+
+Put a short key of the run (random, as the other names of the run have)
+in these names, keep the path of the socket under the limit of 107 bytes,
+and let the cleanup of a dead run find them by that key.
+
+## Prove
+
+`cargo test -p podrunner-local` and `-p podrunner stale`: two runs with
+the same pid and one `TMPDIR` keep each its own files; a socket path at
+the longest `TMPDIR` that the run takes stays under 107 bytes.
+
+
+# T-716: The wait of a cancel for a unit has no bound
+
+**Source:** the worker of T-636, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+At a cancel, the run waits for each unit to go with no hard bound: it
+prints `still goes (N s)` each 10 s (T-636), but a unit that never goes
+holds the run until a third signal.
+
+## Premise
+
+Read from `crates/podrunner-local/src/exec/stopping.rs` by the worker of
+T-636 on 2026-11-26.
+
+## Approach
+
+After a bound (a call: 120 s, the stop time of a job of GitHub plus a
+margin; record it in `docs/decisions.md`), stop the wait, hand the unit
+to the helper of the third signal (`run_local/reap.rs`), print the
+hand-over, and end with the exit code of a cancel.
+
+## Prove
+
+`cargo test -p podrunner --test run_signal` with a unit that does not go
+and a short bound from the test: the run ends after the bound, the
+helper removes the unit, and nothing stays.
+
