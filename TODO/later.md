@@ -17445,7 +17445,7 @@ only (`tests/podvm.rs`), not a crate of podcrates.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -17489,6 +17489,14 @@ no `netns-kernel` selection and reads no pod report. Hosted checks remain.
 
 The full local gate on `8801e939` passed. Runner-image run 45736054587
 uses the new podnet pin and holds the hosted proof.
+
+## Done
+
+2026-11-26, proven in CI on GitHub-hosted runners on `be2e431` (#362),
+which holds the pin of `b10e9ebf`: gate 45783600629 is green, and the
+step "The runner in a podvm unit runs a canned job and a container job"
+of runner-image 45783615763 is green, with the local suite of each job
+held under `podnet pod` (`--podnet`, 8 jobs `ok`).
 
 # T-678: Open disk and cache walk directories by descriptor
 
@@ -17739,7 +17747,7 @@ Podvm must release the new Incus image import path.
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -17811,6 +17819,18 @@ worker. `tests/hook_named.rs` runs the function of the script against a
 process of the loader; it fails with the old match by comm. The 9 tests
 of `tests/runner.rs` pass. Left: `tests/podvm.rs` in the next
 runner-image run.
+
+## Done
+
+2026-11-26, proven in CI on GitHub-hosted runners on `be2e431` (#362):
+level2 45783610926 is green (the hook tests with the official runner),
+and the step "The runner in a podvm unit runs a canned job and a
+container job" of runner-image 45783615763 is green: in a podvm unit a
+refused job ran no step, also none of `always()`
+(`a_foreign_job_ends_before_its_first_step_in_a_podvm_unit`). The cost
+stays: the job log on the forge has no annotation of the code; the
+report of the unit has it. New `assignment_hook` pins come with the
+next images.
 
 # T-683: The bundled engine fails in an instance of Incus before 6.0.6 and 6.19
 

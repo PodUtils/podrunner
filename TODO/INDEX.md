@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**680 entries: 82 open, 55 partial, 15 blocked, 528 done.**
+**680 entries: 82 open, 53 partial, 15 blocked, 530 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 0 | 25 | 2 | 98 | 125 |
-| P2 | 14 | 19 | 9 | 279 | 321 |
+| P1 | 0 | 24 | 2 | 99 | 125 |
+| P2 | 14 | 18 | 9 | 280 | 321 |
 | P3 | 67 | 11 | 4 | 149 | 231 |
-| **All** | 82 | 55 | 15 | 528 | 680 |
+| **All** | 82 | 53 | 15 | 530 | 680 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -719,12 +719,12 @@ acceptance, later The crate dependencies later than v1.
 | [T-674](later.md) | P2 | S | later | measurement | done | Prove offline rootless Podman and FUSE in the hosted snapshot |
 | [T-675](later.md) | P1 | S | later | chore | done | Take podcrates `v0.85.0` (COORD-156 of podcrates) |
 | [T-676](bootstrap.md) | P2 | S | M0 | docs | done | Document hosted sessions and worker roles (COORD-157 of podcrates) |
-| [T-677](later.md) | P2 | S | later | chore | partial | Take podnet `v0.4.0-beta.19` (COORD-129 of podnet) |
+| [T-677](later.md) | P2 | S | later | chore | done | Take podnet `v0.4.0-beta.19` (COORD-129 of podnet) |
 | [T-678](later.md) | P2 | M | later | defect | done | Open disk and cache walk directories by descriptor |
 | [T-679](later.md) | P3 | S | later | defect | open | A local concurrency lock error reports an interrupted wait |
 | [T-680](later.md) | P3 | S | later | defect | open | Local doctor only checks the podnet file |
 | [T-681](later.md) | P2 | S | later | measurement | blocked | Repeat the low-space Incus proof on the next podvm release |
-| [T-682](later.md) | P1 | M | later | defect | partial | A refused runner assignment must stop the job before steps |
+| [T-682](later.md) | P1 | M | later | defect | done | A refused runner assignment must stop the job before steps |
 | [T-683](later.md) | P1 | S | later | defect | partial | The bundled engine fails in an instance of Incus before 6.0.6 and 6.19 |
 | [T-684](later.md) | P2 | S | later | defect | done | A job hides bytes from the disk limit under a shut directory |
 | [T-685](later.md) | P3 | M | later | defect | open | The disk walk of an incus unit skips the directories it cannot read |

@@ -20,12 +20,11 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. Ask for the next runner-image run and read `tests/podvm.rs` (T-682).
-   In run 45773152397 the hook did not find the worker in a podvm unit
-   on a rung below the namespace rung: the loader of the image runs each
-   program there. The hook now names a process by its cmdline too. Then
-   `user-gate.yml` with that run, for the lane check of T-683.
-2. Verify the podnet take in that image run (T-677).
+1. Read runner-image 45783615763 (#362, on `be2e431`) to its end, then
+   the `user-gate.yml` run that #362 starts with it: the lane
+   `serve-incus-kvm` checks the Incus warning (T-683). T-682 and the
+   podnet take (T-677) passed in its step 7.
+2. Close #362 when its runs are read.
 3. Take the remaining cache work in T-480.
 
 The bundled Docker engine (T-672) passed on microvm and on Incus 6.0.7 in
