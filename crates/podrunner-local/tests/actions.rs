@@ -143,3 +143,54 @@ fn the_checkout_stand_in_gives_the_local_tree_and_its_actions() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A local composite action that checks out the tree, as a setup action
+/// of a repository does (T-708).
+const CHECKOUT_IN: &str = r#"name: setup
+inputs:
+  dir:
+    default: inner
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        path: ${{ inputs.dir }}
+        fetch-depth: 0
+    - shell: bash
+      run: test "$(cat '${{ inputs.dir }}/hello.txt')" = local-tree
+"#;
+
+/// T-708: `actions/checkout` in a local composite action gets the stand-in
+/// from the broker: the tree is checked out, and the log has no script.
+#[test]
+#[ignore]
+fn a_checkout_in_a_local_composite_action_gets_the_stand_in() {
+    let _one = DIR.lock().unwrap_or_else(|e| e.into_inner());
+    let runner = PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let dir = std::env::temp_dir().join(format!("podrunner-checkout-in-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let tree = dir.join("tree");
+    std::fs::create_dir_all(tree.join(".github/actions/setup")).unwrap();
+    std::fs::write(tree.join("hello.txt"), "local-tree\n").unwrap();
+    std::fs::write(tree.join(".github/actions/setup/action.yml"), CHECKOUT_IN).unwrap();
+    let tarball = dir.join("tree.tar.gz");
+    let ok =
+        std::process::Command::new("tar").arg("-czf").arg(&tarball).arg("-C").arg(&tree).arg(".").status().unwrap();
+    assert!(ok.success());
+    let flow = "on: push\njobs:\n  co:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n      \
+                - uses: ./.github/actions/setup\n      - uses: ./.github/actions/setup\n        with:\n          \
+                dir: again\n      - run: test -f inner/hello.txt && test -f again/hello.txt\n";
+    let mut s = LocalSource::new("local", flow, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    let mut exec = RunnerDir::new(runner).unwrap();
+    exec.checkout = Some(tarball);
+    let mut lines = Vec::new();
+    let ok = drive(&mut s, &mut exec, &mut |l| lines.push(l.clone())).unwrap();
+    let logs: String = exec.logs.iter().map(|(_, l)| l.as_str()).collect();
+    assert!(ok, "{lines:?}\n{logs}");
+    assert!(logs.contains("the stand-in of actions/checkout ignores fetch-depth"), "{logs}");
+    for script in ["gzip -dc", "tar -xf", "curl", "set -eu", "ACTIONS_RUNTIME_TOKEN", "Unexpected input"] {
+        assert!(!logs.contains(script), "{script:?} in the log:\n{logs}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -6,6 +6,11 @@
 //! (the top directories to drop), `list` and `level` (the submodules of the
 //! local tree), and `fail` (a message that fails the step). The job token is
 //! `ACTIONS_RUNTIME_TOKEN`, so it is in no input and in no log.
+//!
+//! The broker also resolves each `actions/checkout@REF` to this action, for
+//! a step in an action that the job message cannot change (T-708). With no
+//! `route`, it takes the inputs of `actions/checkout` and gives the local
+//! tree.
 
 /// `OWNER/REPO` of the action.
 pub const NAME: &str = "podrunner/checkout";
@@ -13,13 +18,62 @@ pub const NAME: &str = "podrunner/checkout";
 /// The commit that the broker resolves each ref of [`NAME`] to.
 pub const SHA: &str = "0000000000000000000000000000000000000001";
 
-const ACTION_YML: &str = "name: podrunner checkout\n\
+/// The list of the submodules in the tarball of the local tree: one line
+/// `DEPTH READY PATH` for each submodule, READY 1 when it has files. The
+/// stand-in reads it, then removes it.
+pub const LIST: &str = ".podrunner-submodules.list";
+
+/// The levels of `submodules: recursive`.
+pub const LEVELS: u32 = 10;
+
+/// The inputs of `actions/checkout` v4 and v5 that the stand-in ignores:
+/// it declares them, so the runner gives no warning for them.
+const IGNORED: [&str; 16] = [
+    "token",
+    "ssh-key",
+    "ssh-known-hosts",
+    "ssh-strict",
+    "ssh-user",
+    "persist-credentials",
+    "clean",
+    "filter",
+    "sparse-checkout",
+    "sparse-checkout-cone-mode",
+    "fetch-depth",
+    "fetch-tags",
+    "show-progress",
+    "lfs",
+    "set-safe-directory",
+    "github-server-url",
+];
+
+fn action_yml() -> String {
+    let mut y = String::from(
+        "name: podrunner checkout\n\
 description: The stand-in of actions/checkout in the local mode\n\
-inputs:\n  broker:\n    description: The base URL of the broker\n  route:\n    description: The tarball on the broker\n  \
-dest:\n    description: A path in the workspace\n  strip:\n    description: The top directories to drop\n  \
+inputs:\n  broker:\n    description: The base URL of the broker\n    default: ${{ github.podrunner_broker }}\n  \
+route:\n    description: The tarball on the broker\n  dest:\n    description: A path in the workspace\n  \
+strip:\n    description: The top directories to drop\n  \
 list:\n    description: The file of the submodules of the local tree\n  level:\n    description: The depth of the submodules\n  \
-fail:\n    description: A message that fails the step\n\
-runs:\n  using: node20\n  main: index.js\n";
+fail:\n    description: A message that fails the step\n  \
+repository:\n    description: The repository of actions/checkout\n  ref:\n    description: The ref of actions/checkout\n  \
+path:\n    description: The path of actions/checkout\n  submodules:\n    description: The submodules of actions/checkout\n",
+    );
+    for k in IGNORED {
+        y.push_str(&format!("  {k}:\n    description: An input of actions/checkout that the stand-in ignores\n"));
+    }
+    y.push_str("runs:\n  using: node20\n  main: index.js\n");
+    y
+}
+
+fn index_js() -> String {
+    let ignored: Vec<String> = IGNORED.iter().map(|k| format!("'{k}'")).collect();
+    INDEX_JS
+        .replace("@CHECKOUT@", crate::actions::CHECKOUT)
+        .replace("@LIST@", LIST)
+        .replace("@LEVELS@", &LEVELS.to_string())
+        .replace("@IGNORED@", &ignored.join(", "))
+}
 
 const INDEX_JS: &str = r#"'use strict';
 const http = require('http'), https = require('https'), zlib = require('zlib');
@@ -27,9 +81,12 @@ const fs = require('fs'), path = require('path'), cp = require('child_process');
 const input = (n) => process.env['INPUT_' + n.toUpperCase()] || '';
 const die = (m, c) => { console.error('podrunner: ' + m); process.exit(c || 1); };
 if (input('fail')) die('the checkout with ' + input('fail'));
-const dir = path.join(process.env.GITHUB_WORKSPACE || '.', input('dest'));
+const a = input('route') ? { route: input('route'), dest: input('dest'), strip: input('strip'), list: input('list'), level: input('level') } : checkout();
+const ws = path.resolve(process.env.GITHUB_WORKSPACE || '.');
+const dir = path.resolve(ws, a.dest);
+if (path.relative(ws, dir).split(path.sep)[0] === '..') die('the path ' + a.dest + ' is not in the workspace');
 fs.mkdirSync(dir, { recursive: true });
-const u = input('broker') + input('route');
+const u = input('broker') + a.route;
 const h = { Authorization: 'Bearer ' + (process.env.ACTIONS_RUNTIME_TOKEN || '') };
 (u.startsWith('https') ? https : http).get(u, { headers: h }, (r) => {
   if (r.statusCode !== 200) { r.resume(); die('the tree: HTTP ' + r.statusCode, 22); }
@@ -37,10 +94,28 @@ const h = { Authorization: 'Bearer ' + (process.env.ACTIONS_RUNTIME_TOKEN || '')
   r.on('data', (c) => b.push(c));
   r.on('end', () => unpack(Buffer.concat(b)));
 }).on('error', (e) => die('the tree: ' + e.message, 7));
+// `uses: actions/checkout` in an action (T-708): the local tree, into
+// `path`, with its `submodules`. Another repository or another ref fails
+// the step: the run pins no tree for a step in an action.
+function checkout() {
+  const e = process.env, repo = input('repository'), ref = input('ref'), sub = input('submodules');
+  const fix = '; fix: check it out in a step of the workflow';
+  if (repo && repo.toLowerCase() !== (e.GITHUB_REPOSITORY || '').toLowerCase()) {
+    die('the checkout of ' + repo + ' in an action: the stand-in gives only the local tree there' + fix);
+  }
+  if (ref && ![e.GITHUB_SHA, e.GITHUB_REF, e.GITHUB_REF_NAME].includes(ref)) {
+    die('the checkout of the ref ' + ref + ' in an action: the stand-in gives only the local tree there' + fix);
+  }
+  const level = { '': 0, 'false': 0, 'true': 1, 'recursive': @LEVELS@ }[sub];
+  if (level === undefined) die('the submodules of the checkout must be true, false or recursive, not ' + sub);
+  const ignored = [@IGNORED@].filter((k) => input(k));
+  if (ignored.length) console.log('podrunner: the stand-in of actions/checkout ignores ' + ignored.join(', '));
+  return { route: '@CHECKOUT@', dest: input('path'), strip: '', list: '@LIST@', level: String(level) };
+}
 function unpack(gz) {
-  const a = ['-xf', '-'];
-  if (input('strip')) a.push('--strip-components=' + input('strip'));
-  const p = cp.spawnSync('tar', a, { cwd: dir, input: zlib.gunzipSync(gz), stdio: ['pipe', 'inherit', 'inherit'] });
+  const t = ['-xf', '-'];
+  if (a.strip) t.push('--strip-components=' + a.strip);
+  const p = cp.spawnSync('tar', t, { cwd: dir, input: zlib.gunzipSync(gz), stdio: ['pipe', 'inherit', 'inherit'] });
   if (p.error) die('the stand-in of actions/checkout needs tar in the job container');
   if (p.status !== 0) die('tar failed', p.status || 1);
   submodules();
@@ -48,9 +123,9 @@ function unpack(gz) {
 // Each submodule one level past `level` is an empty directory, as GitHub
 // leaves it; one to `level` with no files fails the step.
 function submodules() {
-  const m = path.join(dir, input('list'));
-  if (!input('list') || !fs.existsSync(m)) return;
-  const level = Number(input('level'));
+  const m = path.join(dir, a.list);
+  if (!a.list || !fs.existsSync(m)) return;
+  const level = Number(a.level);
   const rows = fs.readFileSync(m, 'utf8').split('\n').map((l) => /^(\d+) (\d+) (.*)$/.exec(l)).filter(Boolean);
   fs.rmSync(m, { force: true });
   for (const [, d, r, p] of rows) {
@@ -67,7 +142,7 @@ function submodules() {
 /// The tarball of the action: one top directory, as a GitHub tarball.
 pub fn tarball() -> Vec<u8> {
     let mut tar = Vec::new();
-    for (name, text) in [("action.yml", ACTION_YML), ("index.js", INDEX_JS)] {
+    for (name, text) in [("action.yml", action_yml()), ("index.js", index_js())] {
         tar_entry(&mut tar, &format!("podrunner-checkout/{name}"), text.as_bytes());
     }
     tar.extend_from_slice(&[0; 1024]);
@@ -121,23 +196,4 @@ fn crc32(data: &[u8]) -> u32 {
 }
 
 #[cfg(test)]
-mod tests {
-    #[test]
-    fn the_tarball_is_a_gzip_of_a_tar_with_the_action() {
-        assert_eq!(super::crc32(b"123456789"), 0xcbf4_3926);
-        let gz = super::tarball();
-        let dir = std::env::temp_dir().join(format!("podrunner-standin-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("a.tgz"), &gz).unwrap();
-        let st = std::process::Command::new("tar")
-            .args(["-xzf", "a.tgz", "--strip-components=1"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
-        assert!(st.success(), "tar reads the tarball");
-        assert_eq!(std::fs::read_to_string(dir.join("action.yml")).unwrap(), super::ACTION_YML);
-        assert_eq!(std::fs::read_to_string(dir.join("index.js")).unwrap(), super::INDEX_JS);
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-}
+mod tests;

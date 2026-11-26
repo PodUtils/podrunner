@@ -13,7 +13,7 @@ use super::git;
 /// The list of the submodules in the tarball: one line `DEPTH READY PATH`
 /// for each submodule, READY 1 when it has files. The stand-in reads it,
 /// then removes it.
-pub const LIST: &str = ".podrunner-submodules.list";
+pub const LIST: &str = podrunner_broker_fake::stand_in::LIST;
 
 /// One submodule of the tree.
 #[derive(Clone, Debug, PartialEq, Eq)]

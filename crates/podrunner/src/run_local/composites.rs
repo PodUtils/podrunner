@@ -53,7 +53,7 @@ pub(super) fn local_uses(w: &pod_actions_workflow::Workflow, base: &Path) -> Res
         for u in steps_uses(&text).map_err(|e| format!("the action.yml of `uses: {path}`: {e}"))? {
             match u.starts_with("./") {
                 true => queue.push((u, depth + 1)),
-                // The local mode gives the checkout with its own stand-in.
+                // The broker resolves `actions/checkout` to its stand-in (T-708).
                 false if !u.starts_with("docker://") && !u.starts_with("actions/checkout@") && !out.contains(&u) => {
                     out.push(u)
                 }

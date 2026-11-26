@@ -14,8 +14,8 @@
 //!   the stores of the cache and the artifacts sign their own blob URLs.
 //!
 //! * The tree of the job (`_checkout.tar.gz`) takes the job token, which the
-//!   checkout script reads from `github.podrunner_token` and gives to curl
-//!   on its standard input, never in its argv. The runner masks it.
+//!   stand-in of `actions/checkout` reads from `ACTIONS_RUNTIME_TOKEN`: it is
+//!   in no input and in no argv. The runner masks it.
 //! * A hold is `/_podrunner/hold/KEY/CELL` with the hold key of the broker
 //!   (`github.podrunner_hold`): the URL is in the argv of curl or wget, so
 //!   its key gives the holds only.
@@ -75,7 +75,7 @@ pub(crate) fn need(method: &str, path: &str) -> Option<Need> {
         ("POST", "/renewjob" | "/completejob") | (_, crate::oidc::TOKEN_PATH) | ("GET", crate::feed::PATH) => {
             Some(Need::Either)
         }
-        // The tree of the job: the checkout script sends the job token.
+        // The tree of the job: the stand-in of the checkout sends the job token.
         ("GET", p) if p.strip_prefix('/') == Some(crate::actions::CHECKOUT) || p.starts_with("/_checkout/") => {
             Some(Need::Either)
         }

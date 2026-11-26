@@ -30,14 +30,23 @@ fn stand_in_file() -> String {
 /// A made-up token of the downloads: this broker checks no credential.
 const TOKEN: &str = "podrunner-local-actions";
 
+/// Each ref of it resolves to the stand-in, also in a step of an action
+/// that the job message does not change (T-708): the unit reaches no forge.
+const CHECKOUT_ACTION: &str = "actions/checkout";
+
 /// The commit of `NAME@VERSION`: its pin, or the version when it is a full
 /// commit id.
 fn commit<'a>(pins: &'a BTreeMap<String, String>, name: &str, version: &'a str) -> Option<&'a str> {
-    if name == crate::stand_in::NAME {
+    if name == crate::stand_in::NAME || name == CHECKOUT_ACTION {
         return Some(crate::stand_in::SHA);
     }
     let full = version.len() == 40 && version.bytes().all(|b| b.is_ascii_hexdigit());
     pins.get(&format!("{name}@{version}")).map(String::as_str).or(full.then_some(version))
+}
+
+/// The name of the tarball that answers `name`.
+fn served(name: &str) -> &str {
+    if name == CHECKOUT_ACTION { crate::stand_in::NAME } else { name }
 }
 
 fn resolve(base: &str, body: &Value, pins: &BTreeMap<String, String>) -> Value {
@@ -50,7 +59,7 @@ fn resolve(base: &str, body: &Value, pins: &BTreeMap<String, String>) -> Value {
             format!("{name}@{version}"),
             json!({
                 "name": name, "resolved_name": name, "resolved_sha": sha, "version": version,
-                "tar_url": format!("{base}{TARBALLS}{}", archive_name(name, sha)),
+                "tar_url": format!("{base}{TARBALLS}{}", archive_name(served(name), sha)),
                 "zip_url": format!("{base}{TARBALLS}{name}/{sha}.zip"),
                 "authentication": { "token": TOKEN, "expires_at": "2099-01-01T00:00:00Z" },
             }),
@@ -133,21 +142,25 @@ pub fn route(
 mod tests {
     use super::*;
 
+    fn path_resolve() -> &'static str {
+        "/actions/build/p/jobs/j/runnerresolve/actions"
+    }
+
     #[test]
     fn the_routes_of_the_actions() {
         let dir = std::env::temp_dir().join(format!("podrunner-actions-{}", std::process::id()));
         let sha = "a".repeat(40);
-        std::fs::create_dir_all(dir.join("actions_checkout")).unwrap();
-        std::fs::write(dir.join(archive_name("actions/checkout", &sha)), b"tgz").unwrap();
-        let body = json!({ "actions": [{ "action": "actions/checkout", "version": sha }] });
+        std::fs::create_dir_all(dir.join("actions_cache")).unwrap();
+        std::fs::write(dir.join(archive_name("actions/cache", &sha)), b"tgz").unwrap();
+        let body = json!({ "actions": [{ "action": "actions/cache", "version": sha }] });
         let path = "/actions/build/p/jobs/j/runnerresolve/actions";
         let (status, out) = route("POST", path, &body, "http://h/", None, &BTreeMap::new(), None).unwrap();
         assert_eq!(status, 200);
         let v: Value = serde_json::from_slice(&out).unwrap();
-        let info = &v["actions"][format!("actions/checkout@{sha}")];
+        let info = &v["actions"][format!("actions/cache@{sha}")];
         assert_eq!(info["resolved_sha"], sha.as_str());
         let url = info["tar_url"].as_str().unwrap();
-        assert_eq!(url, format!("http://h/_actions/actions_checkout/{sha}.tar.gz"));
+        assert_eq!(url, format!("http://h/_actions/actions_cache/{sha}.tar.gz"));
         let path = url.trim_start_matches("http://h");
         // A tag answers from the pins; a tag with no pin gets no answer.
         let tag = json!({ "actions": [{ "action": "o/r", "version": "v1" }] });
@@ -182,6 +195,22 @@ mod tests {
             );
         }
         assert_eq!(route("GET", path, &Value::Null, "", None, &BTreeMap::new(), None).unwrap().0, 404, "no directory");
+        // T-708: each ref of `actions/checkout` is the stand-in, also with a
+        // pin and a tarball of it in the directory.
+        std::fs::create_dir_all(dir.join("actions_checkout")).unwrap();
+        std::fs::write(dir.join(archive_name("actions/checkout", &sha)), b"real").unwrap();
+        let pins = BTreeMap::from([("actions/checkout@v4".to_string(), sha.clone())]);
+        let co = json!({ "actions": [{ "action": "actions/checkout", "version": "v4" },
+            { "action": "actions/checkout", "version": sha }] });
+        let (_, out) = route("POST", path_resolve(), &co, "http://h/", Some(&dir), &pins, None).unwrap();
+        let v: Value = serde_json::from_slice(&out).unwrap();
+        for r in ["v4", sha.as_str()] {
+            let info = &v["actions"][format!("actions/checkout@{r}")];
+            assert_eq!(info["resolved_sha"], crate::stand_in::SHA, "{r}: {v}");
+            let url = info["tar_url"].as_str().unwrap().trim_start_matches("http://h");
+            let (status, got) = route("GET", url, &Value::Null, "", Some(&dir), &pins, None).unwrap();
+            assert_eq!((status, got), (200, crate::stand_in::tarball()), "{r}: {url}");
+        }
         assert!(route("GET", "/message", &Value::Null, "", None, &BTreeMap::new(), None).is_none());
         // The tree of the checkout, when the run gives one.
         let tree = dir.join("tree.tar.gz");

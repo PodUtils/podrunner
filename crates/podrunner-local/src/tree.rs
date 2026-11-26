@@ -19,7 +19,7 @@ pub mod refs;
 pub use submodules::LIST as SUBMODULES;
 
 /// The levels of `submodules: recursive`.
-pub const SUBMODULE_LEVELS: u32 = 10;
+pub const SUBMODULE_LEVELS: u32 = podrunner_broker_fake::stand_in::LEVELS;
 
 /// What the tarball holds.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
