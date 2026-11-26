@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**708 entries: 69 open, 52 partial, 21 blocked, 566 done.**
+**709 entries: 66 open, 52 partial, 22 blocked, 569 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 285 | 324 |
-| P3 | 58 | 11 | 8 | 179 | 256 |
-| **All** | 69 | 52 | 21 | 566 | 708 |
+| P3 | 55 | 11 | 9 | 182 | 257 |
+| **All** | 66 | 52 | 22 | 569 | 709 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -752,7 +752,8 @@ acceptance, later The crate dependencies later than v1.
 | [T-707](later.md) | P3 | S | later | feature | blocked | githome's container: and services: jobs cannot run through the fake GitHub |
 | [T-708](later.md) | P3 | S | later | defect | done | A checkout in a local composite action does not get the stand-in |
 | [T-709](later.md) | P3 | S | later | defect | done | A run clamps a long timeout-minutes with no warning |
-| [T-710](later.md) | P3 | S | later | defect | open | A test of the cache compares two times of the wall clock |
-| [T-711](later.md) | P3 | S | later | defect | open | A flag given twice takes its first value with no word |
-| [T-712](later.md) | P3 | S | later | defect | open | serve names no kind and no cause in no-tier-served |
+| [T-710](later.md) | P3 | S | later | defect | done | A test of the cache compares two times of the wall clock |
+| [T-711](later.md) | P3 | S | later | defect | done | A flag given twice takes its first value with no word |
+| [T-712](later.md) | P3 | S | later | defect | done | serve names no kind and no cause in no-tier-served |
 | [T-713](later.md) | P3 | M | later | feature | open | A checkout of another repository or ref in a local action fails |
+| [T-714](later.md) | P3 | S | later | feature | blocked | The text of status names no cause of no-tier-served |

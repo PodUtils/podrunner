@@ -19395,7 +19395,7 @@ code.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19418,6 +19418,16 @@ walk on another thread while the tick goes on), with no compare of times.
 `cargo test -p podrunner-slots cache` passes under a load of the host;
 a planted walk on the tick thread fails it.
 
+## Done
+
+2026-11-26, `3a07e806` (tests on a development host).
+`the_end_of_a_large_cache_does_not_hold_the_tick` holds the thread of the
+walks (`gate`) and of the removals (`rm_gate`, test only): the tick goes
+on, the count comes only after the walk gate opens, and the `trash-`
+directory stays until the removal gate opens. No time is compared. A
+planted walk on the tick thread fails it, and so does a planted removal
+on the tick thread. It passed 40 runs under a CPU load.
+
 
 # T-711: A flag given twice takes its first value with no word
 
@@ -19426,7 +19436,7 @@ a planted walk on the tick thread fails it.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19447,6 +19457,18 @@ name of the flag), from the model of the flags, for each command.
 `cargo test -p podrunner cli`: a flag that does not repeat, given twice,
 is 64; a flag that repeats (`--secret`, `--allow`) keeps each value.
 
+## Done
+
+2026-11-26, `8c1cf4c3` and `cc3ea503` (tests on a development host, and
+the binary as root). `cli::one_value_each` refuses a second value of a
+flag that the model does not mark as repeating: exit 64, "`--NAME` is
+given two times: it takes one value", with the usage. It runs for each
+command, `run` and `doctor --run` included; for `run` it checks the
+command line before `run.toml` expands, so the command line still
+replaces a key of the file. Repeating flags (`--secret`, `--allow`,
+`--var`, `--platform`) keep each value. `doctor --run X --run Y` is
+refused too. Tests: `cli::twice_tests` (4; each fails on the old code).
+
 
 # T-712: serve names no kind and no cause in no-tier-served
 
@@ -19455,7 +19477,7 @@ is 64; a flag that repeats (`--secret`, `--allow`) keeps each value.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19476,6 +19498,17 @@ why it does not meet the floor, and the fix.
 
 `cargo test -p podrunner` with a kind that the self-test lowers: the
 line names the kind and its cause.
+
+## Done
+
+2026-11-26, `8c1cf4c3` (tests on a development host, and the binary as
+root). `tiers::lowered` gives the line of `serve` in the words of
+`check`: each source, each kind with its boundary or hold below the
+floor and the proof, each claim that the start of serve lowered, and
+`podvm_fix`; `doctor` and `serve` share `tiers::not_served`. Test:
+`serve_names_each_kind_that_its_start_lowers` (fails on the old line).
+The text of `status` waits for `status.v1` (T-714).
+
 
 # T-713: A checkout of another repository or ref in a local action fails
 
@@ -19510,3 +19543,39 @@ the workflow; then let the stand-in ask the broker for the tarball of
 `cargo test -p podrunner-local --test actions -- --ignored`: a local
 composite that checks out a second local repository at a tag gets the
 tree of that tag.
+
+# T-714: The text of status names no cause of no-tier-served
+
+**Source:** the worker of T-712, 2026-11-26
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`serve` and `doctor` name the cause of `no-tier-served` (T-712), but
+`status` (`verbs::human`) and `status --json` print only the flag:
+`status.v1` of `pod-job` has no field for the cause, so githome cannot
+show it either.
+
+## Premise
+
+Read from `crates/podrunner/src/verbs.rs` and `pod-job` `v0.86.0` by the
+worker of T-712 on 2026-11-26.
+
+## Approach
+
+When `pod-job` has the field of COORD-146, fill it from
+`tiers::not_served` and print it in the text of `status`.
+
+## Prove
+
+`cargo test -p podrunner status`: a state with a lowered kind gives the
+cause in `status --json` and in the text.
+
+## Blocker
+
+COORD-146 (#375) asks podcrates for the causes of `no-tier-served` in
+`status.v1`.
