@@ -410,11 +410,13 @@ fn the_init_of_the_image_boots_in_a_foreground_guest() {
 /// The memory, the CPUs and the processes of a guest are the lesser of the
 /// kind and the offer (T-198). The guest holds the unpacked image in its
 /// memory: it gets the memory of the offer beyond the image, and not less
-/// than the boot floor of the image (T-573, T-655).
+/// than the boot floor of the image and the reserve of its job (T-573,
+/// T-655, T-699).
 #[test]
 fn a_guest_gets_the_lesser_memory_cpus_and_processes_of_the_offer() {
     let (u, d) = driver("lesser", "printf '%s\\n' \"$@\" > \"$(dirname \"$0\")/argv\"");
-    // 13/4 × 263 MiB + 512 MiB, rounded up to 256 MiB: 1536 MiB.
+    // The boot floor, 13/4 × 263 MiB + 512 MiB rounded up to 256 MiB, is
+    // 1536 MiB; the reserve of the job, 4/3 × (263 MiB + 2 GiB), is 3082 MiB.
     let sizes = BTreeMap::from([(spec("u-0").image.digest, 263 << 20)]);
     let u = u.with_size("4G", 4).with_pids(100).with_payload_sizes(sizes);
     let argv = |unit: &str, limits: Limits| {
@@ -429,7 +431,7 @@ fn a_guest_gets_the_lesser_memory_cpus_and_processes_of_the_offer() {
     let small = Limits { memory_bytes: Some(1 << 30), cpus: Some(2), pids: Some(50), disk_bytes: None };
     let a = argv("u-1", small);
     assert!(has(&a, "--podvm-cpus", "2") && has(&a, "--pids-limit", "50"), "{a:?}");
-    assert!(has(&a, "--podvm-mem", "1536M"), "the boot floor of the image: {a:?}");
+    assert!(has(&a, "--podvm-mem", "3082M"), "the reserve of the job over the boot floor (T-699): {a:?}");
     let a = argv("u-4", Limits { memory_bytes: Some(3 << 30), ..Limits::default() });
     assert!(has(&a, "--podvm-mem", "3335M"), "the memory of the offer beyond the image: {a:?}");
     let large = Limits { memory_bytes: Some(64 << 30), cpus: Some(64), pids: Some(1 << 20), disk_bytes: None };

@@ -208,9 +208,10 @@ mem = "8G"                               # the most memory of each guest (defaul
                                          # needs 13/4 x unpacked_bytes + 512 MiB (COORD-219). check refuses a pin whose unpacked_bytes
                                          # is over (mem - 512 MiB) x 4 / 13 (T-573), or whose job gets less than 2 GiB of root: the root
                                          # is 75 % of mem, and a job gets 0.75 x mem - N (T-689). The fix: mem of at least the larger of
-                                         # 13/4 x N + 512 MiB and 4/3 x (N + 2 GiB), in whole GiB; doctor names both. The memory of an offer is the memory of the job beyond its root: the guest gets
-                                         # the offer plus unpacked_bytes, not less than that floor (rounded up to 256 MiB) and not more
-                                         # than mem; a pin with no unpacked_bytes gets mem (T-655)
+                                         # 13/4 x N + 512 MiB and 4/3 x (N + 2 GiB), in whole GiB; doctor names both. The memory of an
+                                         # offer is the memory of the job beyond its root: the guest gets the offer plus unpacked_bytes,
+                                         # not less than the boot floor (rounded up to 256 MiB) or 4/3 x (N + 2 GiB) (T-699), and not
+                                         # more than mem; a pin with no unpacked_bytes gets mem (T-655)
 cpus = 2                                 # its vCPUs (default 2)
 engine = "/opt/podrunner/docker"         # optional: the static Docker binaries; each guest runs an engine
 ```
@@ -319,7 +320,10 @@ file of the job takes memory too. So the `memory` of an offer is the
 memory of the job beyond its root: the guest gets the lesser of the offer
 and `mem`, plus `unpacked_bytes` of the pin. It gets at least the boot
 floor of its image (13/4 times `unpacked_bytes` plus 512 MiB, rounded up
-to 256 MiB), and never more than its `mem` (T-655). A pin with no
+to 256 MiB) and the memory whose root keeps 2 GiB for the files of the
+job (4/3 times the sum of `unpacked_bytes` and 2 GiB, T-699), and never
+more than its `mem` (T-655). The processes and the files of the job
+share the memory beyond the root. A pin with no
 `unpacked_bytes` gets the `mem` of the kind. A warm guest
 has the `mem` of the kind: an offer with less memory starts cold. The `podvm` kind enforces `memory` and `pids` (and `cpu` where the host delegates a cgroup to the user),
 the `incus` kind `memory`, `cpu` and `pids`, and the `microvm` kind the
@@ -343,7 +347,7 @@ instance.
 | --- | --- | --- | --- |
 | `podvm` | `memory.max` of the leaf of the unit (`--memory`) where the host delegates a cgroup v2 subtree with the `memory` controller to the user (T-515); elsewhere `RLIMIT_AS` of each process of the payload (`--ulimit as=`); .NET gets a heap limit and a region range of three quarters | `--cpus` in a leaf of a cgroup v2 subtree that the host delegates to the user (a systemd user session; podvm `0.2.0-beta.23` or later, T-221); refused elsewhere, with the reason | `pids.max` of the leaf of the unit (`--pids-limit`) where the host delegates a cgroup v2 subtree with the `pids` controller to the user (podvm `0.2.0-beta.23` or later, T-521); elsewhere `RLIMIT_NPROC` (`--ulimit nproc=`), which counts each process of the user, also of other units of that user |
 | `incus` | `limits.memory` (podvm `0.2.0-beta.20` or later) | `limits.cpu` | `limits.processes` |
-| `microvm` | the memory of the guest: the `memory` of an offer plus the unpacked image, not less than the boot floor of the image | its vCPUs | `pids.max` of the cgroup of the payload in the guest (`--pids-limit`, podvm `0.2.0-beta.32` or later, T-488); with no `pids` of the kind, none |
+| `microvm` | the memory of the guest: the `memory` of an offer plus the unpacked image, not less than the boot floor of the image and the 2 GiB reserve of root of its job | its vCPUs | `pids.max` of the cgroup of the payload in the guest (`--pids-limit`, podvm `0.2.0-beta.32` or later, T-488); with no `pids` of the kind, none |
 
 The capability record of the `podvm` kind (the `probe` of the kind in
 `podrunner status`) says where `memory` and `pids` hold:

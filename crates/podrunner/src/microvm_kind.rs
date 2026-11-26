@@ -86,10 +86,9 @@ pub const DEFAULT_MEM: &str = "8G";
 /// (T-573): one rule for `check` and the driver (T-655).
 pub use podrunner_microvm::mem::{job_space, largest_image, mem_for};
 
-/// The free root that a guest must keep for the files of a job after its
-/// image (T-689). The root of a guest is in its memory: a job with less
-/// fails with ENOSPC (T-688). A user who needs more sets a larger `mem`.
-pub const JOB_RESERVE: u64 = 2 << 30;
+/// The free root that a guest keeps for a job (T-689): one value for
+/// `check` and the driver (T-699).
+pub use podrunner_microvm::mem::JOB_RESERVE;
 
 /// The smallest memory of a guest that boots an image of `size` bytes and
 /// keeps [`JOB_RESERVE`] for its job.
@@ -98,13 +97,19 @@ pub fn mem_needed(size: u64) -> u64 {
 }
 
 /// Why a guest of `bytes` (the text `mem`) does not hold an image of
-/// `size` bytes and a job, or `None`.
+/// `size` bytes and a job, or `None`, with the fix of `[unit.microvm] mem`.
 pub fn refusal(mem: &str, bytes: u64, size: u64) -> Option<String> {
-    let fix = mem_needed(size).div_ceil(1 << 30);
+    refusal_with(mem, bytes, size, |g| format!("set mem = \"{g}G\" or more"))
+}
+
+/// [`refusal`] with the text of its fix: `fix` takes the smallest memory
+/// in whole GiB (`--mem` of the local mode, T-698).
+pub fn refusal_with(mem: &str, bytes: u64, size: u64, fix: impl Fn(u64) -> String) -> Option<String> {
+    let fix = fix(mem_needed(size).div_ceil(1 << 30));
     if size > largest_image(bytes) {
         return Some(format!(
             "unpacks to {}, more than a guest of {mem} ({}) boots; the root of a guest is an uncompressed \
-             initramfs, and podvm needs 13/4 times the image plus 512 MiB; fix: set mem = \"{fix}G\" or more",
+             initramfs, and podvm needs 13/4 times the image plus 512 MiB; fix: {fix}",
             gb(size),
             gb(bytes),
         ));
@@ -113,7 +118,7 @@ pub fn refusal(mem: &str, bytes: u64, size: u64) -> Option<String> {
     (space < JOB_RESERVE).then(|| {
         format!(
             "unpacks to {}, and a guest of {mem} ({}) keeps {} MiB for a job, less than {} MiB; the root of a \
-             guest is in its memory, at 75 % of it; fix: set mem = \"{fix}G\" or more",
+             guest is in its memory, at 75 % of it; fix: {fix}",
             gb(size),
             gb(bytes),
             space >> 20,

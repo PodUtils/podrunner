@@ -6,7 +6,7 @@
 //! of the kind with [`largest_image`] and [`job_space`]. The root of a guest stays in its
 //! memory after the boot, and each file of the job takes memory too: the
 //! `memory` of an offer is the memory of the job beyond its root
-//! ([`guest_mem`]).
+//! ([`guest_mem`]), with at least [`JOB_RESERVE`] of root for its files.
 
 use podrunner_unit::limits::{Limits, size_bytes};
 
@@ -19,6 +19,11 @@ const GUEST_BASE: u64 = 512 << 20;
 const FLOOR_STEP: u64 = 256 << 20;
 
 const MIB: u64 = 1 << 20;
+
+/// The free root that a guest must keep for the files of a job after its
+/// image (T-689). The root of a guest is in its memory: a job with less
+/// fails with ENOSPC (T-688). A user who needs more sets a larger `mem`.
+pub const JOB_RESERVE: u64 = 2 << 30;
 
 /// The largest image that a guest of `mem` bytes boots: the bound of the
 /// rule, `(mem - 512 MiB) × 4 / 13`.
@@ -59,10 +64,11 @@ pub fn mem_for_space(size: u64, space: u64) -> u64 {
 /// The `--podvm-mem` of a guest. `kind` is the `mem` of the kind, `lesser`
 /// the lesser of the kind and the offer in bytes, and `size` the unpacked
 /// bytes of the image. The root of the guest is the unpacked image in its
-/// memory, so the job gets `lesser` beyond it: the guest gets the larger of
-/// `lesser + size` and the boot floor of the image (`mem_for`, rounded up
-/// to 256 MiB as podvm does), in whole MiB, and never more than the kind:
-/// placement counts the kind.
+/// memory, so the job gets `lesser` beyond it: the guest gets the largest
+/// of `lesser + size`, the boot floor of the image (`mem_for`, rounded up
+/// to 256 MiB as podvm does) and the memory whose root keeps
+/// [`JOB_RESERVE`] for the files of the job (`mem_for_space`, T-699), in
+/// whole MiB, and never more than the kind: placement counts the kind.
 pub fn guest_mem(kind: &str, lesser: Option<u64>, size: Option<u64>) -> String {
     // `plan` refuses a `mem` that is not a size.
     let Ok(kind_bytes) = size_bytes(kind) else { return kind.into() };
@@ -70,7 +76,8 @@ pub fn guest_mem(kind: &str, lesser: Option<u64>, size: Option<u64>) -> String {
     // With no size of the image, its boot floor is not known: the `mem` of
     // the kind is the one value that `check` holds the pins against.
     let Some(size) = size else { return kind.into() };
-    let floor = mem_for(size).div_ceil(FLOOR_STEP).saturating_mul(FLOOR_STEP);
+    let boot = mem_for(size).div_ceil(FLOOR_STEP).saturating_mul(FLOOR_STEP);
+    let floor = boot.max(mem_for_space(size, JOB_RESERVE));
     let mib = want.saturating_add(size).max(floor).div_ceil(MIB);
     match mib.checked_mul(MIB) {
         Some(bytes) if bytes < kind_bytes => format!("{mib}M"),
@@ -126,13 +133,40 @@ mod tests {
         assert_eq!(m(Some(8 * GIB - 1), Some(1)), "8G", "the last byte of the kind");
         assert_eq!(m(Some(8 * GIB - 1), Some(u64::MAX - 1)), "8G", "offer and image at overflow");
         assert_eq!(m(Some(GIB), Some(7 * GIB)), "8G", "a floor over the kind: the kind");
-        assert_eq!(m(Some(GIB), Some(0)), "1024M", "an empty image: the offer over the floor of 512 MiB");
+        assert_eq!(m(Some(GIB), Some(0)), "2731M", "an empty image: the reserve of its job over the offer");
+        assert_eq!(m(Some(3 * GIB), Some(0)), "3072M", "an empty image: the offer over the reserve");
         assert_eq!(guest_mem("lots", Some(GIB), Some(SIZE)), "lots", "a kind that is not a size");
         assert_eq!(guest_mem("17179869184", Some(GIB), Some(SIZE)), "5120M", "a kind in bytes");
     }
 
     /// T-689: the space of a job is 75 % of the memory less the image, the
     /// cap of the guest script, with no overflow.
+    /// T-699: a small offer on an image below the knee of the two floors
+    /// still leaves its job the reserve of T-689.
+    #[test]
+    fn a_small_offer_keeps_the_reserve_of_its_job() {
+        let m = |lesser, size| guest_mem("8G", lesser, size);
+        let mib = |s: String| s.trim_end_matches('M').parse::<u64>().unwrap() * MIB;
+        // 512 MiB: boot floor 2304M; 4/3 × (512 + 2048) MiB = 3413.33 MiB.
+        let size = 512 * MIB;
+        assert_eq!(m(Some(GIB), Some(size)), "3414M");
+        assert!(job_space(mib(m(Some(GIB), Some(size))), size) >= JOB_RESERVE);
+        for size in [0, 1, MIB, 512 * MIB, 1157 * MIB, 1158 * MIB, SIZE, 2055 * MIB] {
+            for want in [1, MIB, GIB, 2 * GIB, 3 * GIB] {
+                let got = m(Some(want), Some(size));
+                if got == "8G" {
+                    continue;
+                }
+                let bytes = mib(got.clone());
+                assert!(job_space(bytes, size) >= JOB_RESERVE, "{size} {want}: {got}");
+                assert!(bytes >= want + size && bytes >= mem_for(size), "{size} {want}: {got}");
+            }
+        }
+        assert_eq!(m(Some(1), Some(0)), "2731M", "an empty image: the reserve, 4/3 × 2 GiB");
+        assert_eq!(m(Some(4 * GIB), Some(512 * MIB)), "4608M", "the offer and the image over both floors");
+        assert_eq!(guest_mem("2G", Some(GIB), Some(0)), "2G", "a reserve over the kind: the kind");
+    }
+
     #[test]
     fn the_space_of_a_job_follows_the_cap_of_the_root() {
         assert!(crate::guest::SCRIPT.contains("mount -o remount,size=75% /"), "the cap of root_cap");

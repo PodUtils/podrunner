@@ -80,8 +80,9 @@ pub struct UnitConfig {
     /// `8G`) and its vCPUs (default 2). The image is an uncompressed
     /// initramfs: podvm needs 13/4 times the image plus 512 MiB, and `check`
     /// refuses a pin whose `unpacked_bytes` is over `(mem - 512 MiB) × 4 /
-    /// 13` (T-573). An offer lowers the memory, not below the boot floor and
-    /// the image: the `memory` of the offer is beyond the image (T-655).
+    /// 13` (T-573). An offer lowers the memory, not below the boot floor,
+    /// the image, and the 2 GiB of root that a job keeps (T-699): the
+    /// `memory` of the offer is beyond the image (T-655).
     /// `podvm`: the memory of each unit (`RLIMIT_AS`);
     /// `incus`: the memory and the CPUs of each instance (T-162).
     #[serde(default)]
