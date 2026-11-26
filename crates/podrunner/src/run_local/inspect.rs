@@ -240,6 +240,12 @@ fn minutes(w: &Workflow) -> Result<Vec<String>, String> {
     Ok(long)
 }
 
+/// The warnings of `minutes` for a run; a value that is no number is for
+/// the run to refuse, not here.
+pub(super) fn long_timeouts(w: &Workflow) -> Vec<String> {
+    minutes(w).unwrap_or_default()
+}
+
 /// The text of a workflow file that cannot be read: for a file that is not
 /// there, the workflows of its directory (the quick start names `ci.yml`,
 /// which a project may not have; T-331).

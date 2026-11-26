@@ -291,6 +291,8 @@ pub fn run(args: &[String]) -> Out {
     {
         return fail(Class::Usage, e);
     }
+    // The warning of `--validate` for a job that the run stops early (T-709).
+    inspect::long_timeouts(source.workflow()).iter().for_each(|w| eprintln!("podrunner: warning: {w}"));
     // The values to mask in each line that podrunner writes (T-134).
     let mut masked: Vec<String> = Vec::new();
     // The secrets and vars of each environment (T-136).

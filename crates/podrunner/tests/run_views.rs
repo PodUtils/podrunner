@@ -36,3 +36,40 @@ fn a_view_of_a_workflow_with_checkout_needs_no_tree() {
     assert_eq!(out.status.code(), Some(64), "{err}");
     assert!(err.contains("is in no git tree: give --checkout DIR"), "{err}");
 }
+
+/// A dry run goes through the start path of a run. It prints the warning of
+/// `--validate` once on stderr for a job above 7200 minutes, and none for
+/// 7200 or for an expression (T-709). The warning goes to the live stderr,
+/// so the test runs the binary.
+#[test]
+fn a_run_warns_on_a_timeout_above_five_days() {
+    let dir = Scratch::new("run-timeout");
+    std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
+    std::fs::write(dir.join("runner/run.sh"), "").unwrap();
+    std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
+    let go = |minutes: &str| {
+        let flow =
+            format!("on: push\njobs:\n  a:\n    runs-on: x\n    timeout-minutes: {minutes}\n    steps: [{{run: a}}]\n");
+        std::fs::write(dir.join("w.yml"), flow).unwrap();
+        let out = std::process::Command::new(env!("CARGO_BIN_EXE_podrunner"))
+            .current_dir(&*dir)
+            .args(["run", "w.yml", "--no-config", "--dry-run", "--no-cache", "--checkout", "."])
+            .arg("--runner-dir")
+            .arg(dir.join("runner"))
+            .env("XDG_CONFIG_HOME", dir.join("config"))
+            .env("XDG_CACHE_HOME", dir.join("cache"))
+            .stdin(std::process::Stdio::null())
+            .output()
+            .unwrap();
+        (out.status.code(), String::from_utf8_lossy(&out.stderr).into_owned())
+    };
+    let (code, err) = go("99999999");
+    assert_eq!(code, Some(0), "{err}");
+    let key = "warning: jobs.a.timeout-minutes (line 5): 99999999 is more than 7200";
+    assert_eq!(err.matches(key).count(), 1, "{err}");
+    for ok in ["7200", "'${{ 5 }}'"] {
+        let (code, err) = go(ok);
+        assert_eq!(code, Some(0), "{ok}: {err}");
+        assert!(!err.contains("timeout-minutes"), "{ok}: {err}");
+    }
+}
