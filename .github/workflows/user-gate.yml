@@ -194,6 +194,15 @@ jobs:
           - lane: fsize-1g
             lab: sh scripts/lab/fsize.sh -- sh scripts/lab/nonroot.sh --
             executors: podvm,runner-dir
+          # Ctrl-C of a `container:` job in a long step (T-639, T-644):
+          # `podrunner run` gets SIGINT after the step printed its line; it
+          # must end with 130 within 60 s, print `cancelled` for each job,
+          # and leave no process, container or directory of the unit (the
+          # check cancel:container). The lane takes no corpus row.
+          - lane: cancel-container
+            lab: sh scripts/lab/nonroot.sh --
+            executors: podvm
+            no_corpus: "1"
           - lane: inherited-fds
             lab: sh scripts/lab/nonroot.sh -- bash scripts/lab/inherited-fds.sh --
             executors: podvm,runner-dir
@@ -293,6 +302,7 @@ jobs:
           PODVM_LAB: ${{ matrix.podvm_lab }}
           SERVE_KINDS: ${{ matrix.serve_kinds }}
           WANT_RUNG: ${{ matrix.want_rung }}
+          NO_CORPUS: ${{ matrix.no_corpus }}
           # The jobs of the corpus call the API of GitHub (setup-node, the
           # releases of tools): the token of this run (contents: read) keeps
           # them under the rate limit of a shared address (T-253).
@@ -302,7 +312,7 @@ jobs:
           # shellcheck disable=SC2086 # LAB is a command with its words.
           $LAB python3 -I scripts/user-gate.py lane --lane "$LANE" --assets /opt/user-gate/assets \
             --out /opt/user-gate/out --executors "$EXECUTORS" --podvm-lab "${PODVM_LAB:-}" \
-            --serve-kinds "${SERVE_KINDS:-}" --want-rung "${WANT_RUNG:-}" \
+            --serve-kinds "${SERVE_KINDS:-}" --want-rung "${WANT_RUNG:-}" ${NO_CORPUS:+--no-corpus} \
             --schema-python "$(test -x /opt/user-gate/venv/bin/python3 && echo /opt/user-gate/venv/bin/python3)" \
             --broker-address "$(ip -4 -o addr show dev lo | grep -q ' 192.0.2.10/' && echo 192.0.2.10)"
       - name: The results can be read
@@ -334,7 +344,7 @@ jobs:
           python3 -I scripts/user-gate-summary.py --self-test || exit 1
           # The lanes of the matrix of the job lanes: a lane with no results
           # fails the gate.
-          python3 -I scripts/user-gate-summary.py --lanes plain,small-tmp,userns-off,userns-on,fsize-1g,inherited-fds,proxy-only,proxy-only-dns,bind-denied,serve-incus-kvm results > table.md
+          python3 -I scripts/user-gate-summary.py --lanes plain,small-tmp,userns-off,userns-on,fsize-1g,cancel-container,inherited-fds,proxy-only,proxy-only-dns,bind-denied,serve-incus-kvm results > table.md
           rc=$?
           cat table.md | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$rc"

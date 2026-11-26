@@ -37,6 +37,7 @@ import signal
 import subprocess
 import sys
 import tarfile
+import tempfile
 import threading
 import time
 
@@ -116,6 +117,63 @@ def fsize_expect(soft: int, size: int) -> str:
         return "run"
     return "refuse" if need * 10 > soft * 11 else "either"
 
+# T-644: Ctrl-C of a `container:` job on podvm. The step prints CANCEL_MARK
+# (the log echoes the text of the step with `$((6*7))` unexpanded, so only
+# the output ends with 42), then sleeps; the lane sends SIGINT after that
+# line. CANCEL_SLEEP is a number that no other process of the host uses.
+CANCEL_MARK = "gate-cancel-started-42"
+CANCEL_SLEEP = "1999"
+CANCEL_JOBS = ("c2", "next")
+CANCEL_BOUND_S = 60
+CANCEL_START_S = 900
+CANCEL_SETTLE_S = 10
+TAG_VAR = "PODRUNNER_UNIT_TAG"
+
+
+def cancel_started(text: str, mark: str = CANCEL_MARK) -> bool:
+    """Whether a line of TEXT ends with MARK: the output of the step, not
+    the echo of its script."""
+    return re.search(re.escape(mark) + r"[ \t\r]*$", text, re.M) is not None
+
+
+def scan_residue(procs, before, sleep_arg: str = CANCEL_SLEEP, tag_var: str = TAG_VAR) -> list[int]:
+    """The pids in PROCS, tuples (pid, environ, cmdline) of bytes, that
+    belong to a unit that the run left: a process with the tag variable of
+    a unit, or the `sleep` of the step, that was not in BEFORE (the set of
+    pids before the run)."""
+    found = []
+    for pid, environ, cmdline in procs:
+        if pid in before:
+            continue
+        argv = cmdline.split(b"\0")
+        tagged = any(e.startswith(tag_var.encode() + b"=") for e in environ.split(b"\0"))
+        sleeps = len(argv) >= 2 and argv[0].rsplit(b"/", 1)[-1] == b"sleep" and argv[1] == sleep_arg.encode()
+        if tagged or sleeps:
+            found.append(pid)
+    return sorted(found)
+
+
+def tmp_residue(names) -> list[str]:
+    """The names in TMPDIR after a run that a unit or podvm made."""
+    return sorted(n for n in names if n.startswith(("podrunner", "podvm")))
+
+
+def cancel_problems(rc, took: float, out: str, err: str, left: dict, jobs=CANCEL_JOBS, bound=CANCEL_BOUND_S) -> list[str]:
+    """What is wrong after a Ctrl-C: the exit code is 130, the run ends
+    within BOUND seconds of the signal, each job of JOBS has its line
+    `cancelled JOB`, and LEFT (processes, containers, directories) is empty."""
+    bad = []
+    if rc != 130:
+        bad.append(f"exit {rc}, not 130")
+    if took >= bound:
+        bad.append(f"the run ended {took:.0f} s after the signal, the bound is {bound} s")
+    lines = [line.split() for line in out.splitlines()]
+    bad += [f"no line 'cancelled {j}'" for j in jobs if ["cancelled", j] not in lines]
+    if "left residue" in err:
+        bad.append("a unit left residue (its destroy said so)")
+    bad += [f"left: {what}: {', '.join(map(str, items))}" for what, items in left.items() if items]
+    return bad
+
 
 def self_test() -> int:
     """The parts of the gate that need no host."""
@@ -149,6 +207,40 @@ def self_test() -> int:
     assert wrong(lambda soft, size: "run" if size + size // 4 <= soft else "refuse")
     assert wrong(lambda soft, size: "run" if size + (64 << 20) <= soft else "refuse")
     assert wrong(lambda soft, size: "run" if size <= soft else "refuse")
+    # T-644: the event of the signal, the residue and the verdict of a Ctrl-C.
+    echo = '[c2.0] echo "gate-cancel-started-$((6*7))"'
+    assert not cancel_started(echo) and cancel_started("[c2.0] gate-cancel-started-42")
+    assert cancel_started("2026-11-26T10:00:00Z gate-cancel-started-42  \r\nnext") and not cancel_started("gate-cancel-started-421")
+    assert not cancel_started("gate-cancel-started-4")
+    # Planted defect: a match of the text before the number sees the echo.
+    assert "gate-cancel-started" in echo and not cancel_started(echo)
+    procs = [(10, b"A=1\0PODRUNNER_UNIT_TAG=ab-u1\0", b"sh\0"), (11, b"", b"/usr/bin/sleep\0" + CANCEL_SLEEP.encode() + b"\0"),
+             (12, b"A=1\0", b"sleep\0600\0"), (13, b"", b""), (14, b"PODRUNNER_UNIT_TAG=ab-u0\0", b"sh\0"), (15, b"A=1\0", b"sleep\0")]
+    assert scan_residue(procs, {14}) == [10, 11] and scan_residue(procs, {10, 11, 14}) == []
+    assert scan_residue([(1, b"PODRUNNER_UNIT_TAG\0", b"x\0")], set()) == []
+    # Planted defects: each `sleep` (no number), or no list of the pids before.
+    assert sorted(p for p, e, c in procs if b"PODRUNNER_UNIT_TAG" in e or c.startswith((b"sleep", b"/usr/bin/sleep"))) != [10, 11]
+    assert scan_residue(procs, set()) != [10, 11]
+    assert tmp_residue(["podrunner-run-units-1-2-0", "a.lock", "podvm-x", "podrunner-local-unit-5-u-1.logs"]) == [
+        "podrunner-local-unit-5-u-1.logs", "podrunner-run-units-1-2-0", "podvm-x"] and tmp_residue([]) == []
+    good = "cancelled c2\ncancelled next\n"
+    none = {"processes": [], "containers": [], "directories": []}
+    cases = ((130, 18.0, good, "", none, []), (0, 18.0, good, "", none, ["exit 0, not 130"]),
+             (-9, 60.0, good, "", none, ["exit -9, not 130", "the run ended 60 s after the signal, the bound is 60 s"]),
+             (130, 18.0, "cancelled c2\n", "", none, ["no line 'cancelled next'"]),
+             (130, 18.0, "ok      c2\ncancelled next\n", "", none, ["no line 'cancelled c2'"]),
+             (130, 18.0, "cancelled c2x\ncancelled next\n", "", none, ["no line 'cancelled c2'"]),
+             (130, 18.0, good, "unit u left residue: x", none, ["a unit left residue (its destroy said so)"]),
+             (130, 18.0, good, "", {**none, "processes": [7, 8]}, ["left: processes: 7, 8"]),
+             (130, 18.0, good, "", {**none, "containers": ["c1"], "directories": ["d"]}, ["left: containers: c1", "left: directories: d"]))
+    wrong = lambda fn: [c for c in cases if fn(*c[:5]) != c[5]]
+    assert not wrong(cancel_problems), wrong(cancel_problems)
+    # Planted defects: no check of the code, no bound, a substring for the
+    # line, and no list of the residue: each fails a case.
+    assert wrong(lambda rc, t, o, e, left: cancel_problems(130, t, o, e, left))
+    assert wrong(lambda rc, t, o, e, left: cancel_problems(rc, 0, o, e, left))
+    assert wrong(lambda rc, t, o, e, left: cancel_problems(rc, t, o.replace("c2x", "c2"), e, left))
+    assert wrong(lambda rc, t, o, e, left: cancel_problems(rc, t, o, e, none))
     print("user-gate: self-test passed")
     return 0
 
@@ -563,6 +655,104 @@ class Lane:
                 raise GateError(f"run on podvm under {soft} bytes: exit {rc} (want 78), the last line {last[:200]!r} lacks {missing}")
             done.append(f"podvm: the image of {size} bytes is over the threshold: doctor --run FAIL, run exit 78 with {' and '.join(words)}")
         return "; ".join(done)
+
+    def cancel_container(self):
+        """T-639, T-644: Ctrl-C of a `container:` job in a long step on
+        podvm. SIGINT (as `kill -INT`) goes to `podrunner run` after the
+        step printed its line, not after a time. The run must end with 130
+        within CANCEL_BOUND_S, print the line of each cancelled job, and
+        leave no process, no container of the store and no directory in
+        TMPDIR (the run has a TMPDIR of its own, empty before it)."""
+        src = self.work / "cancel"
+        shutil.rmtree(src, ignore_errors=True)
+        (src / ".github" / "workflows").mkdir(parents=True)
+        # Under the temporary directory of the lane, not WORK: the paths of
+        # the control sockets of a unit under it have a limit of length.
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="gate-cancel-"))
+        try:
+            return self.cancel_container_in(src, tmp)
+        finally:
+            subprocess.run(["chmod", "-R", "u+rwX", str(tmp)], check=False)
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def cancel_container_in(self, src: pathlib.Path, tmp: pathlib.Path):
+        # The image of the container is the runner image of the store: the
+        # container needs no registry.
+        (src / ".github" / "workflows" / "c2.yml").write_text(
+            "on: push\njobs:\n  c2:\n    runs-on: ubuntu-latest\n    container:\n"
+            f"      image: {self.image}\n    steps:\n      - run: |\n"
+            '          echo "gate-cancel-started-$((6*7))"\n'
+            f"          exec sleep {CANCEL_SLEEP}\n        shell: sh\n"
+            "  next:\n    runs-on: ubuntu-latest\n    steps: [{run: 'true'}]\n"
+        )
+        env = self.env(self.home, TMPDIR=str(tmp))
+        penv = self.env(self.home, PODVM_STORE=str(self.data / "images"))
+
+        def containers(log: str) -> list[str]:
+            rc, out = self.run([self.data / "bin" / "podvm", "ps", "-a", "-q"], penv, self.work, log)
+            if rc:
+                raise GateError(f"podvm ps -a -q: exit {rc}")
+            return out.split()
+
+        def procs():
+            for d in pathlib.Path("/proc").iterdir():
+                if d.name.isdigit():
+                    try:
+                        yield int(d.name), (d / "environ").read_bytes(), (d / "cmdline").read_bytes()
+                    except OSError:
+                        continue
+
+        pids_before = {pid for pid, _, _ in procs()}
+        boxes_before = containers("cancel-ps-before")
+        log = "cancel-container"
+        out_path, err_path = self.out / "logs" / f"{log}.out", self.out / "logs" / f"{log}.err"
+        argv = ["podrunner", "run", ".github/workflows/c2.yml", *self.flags("podvm"), "--log-dir", self.out / "logs" / log]
+        with out_path.open("w") as o, err_path.open("w") as e:
+            e.write(f"user-gate: in {src}: TMPDIR={tmp} {shlex.join(map(str, argv))}\n")
+            e.flush()
+            p = subprocess.Popen([str(x) for x in argv], cwd=src, env=env, stdout=o, stderr=e, start_new_session=True)
+            try:
+                # The event: the output of the step, in the live log on stderr.
+                deadline = time.monotonic() + CANCEL_START_S
+                while not cancel_started(err_path.read_text(errors="replace")):
+                    try:
+                        rc = p.wait(timeout=0.2)
+                    except subprocess.TimeoutExpired:
+                        if time.monotonic() > deadline:
+                            raise GateError(f"the step printed no line in {CANCEL_START_S} s") from None
+                        continue
+                    raise GateError(f"podrunner run ended with exit {rc} before the step started")
+                sent = time.monotonic()
+                os.kill(p.pid, signal.SIGINT)
+                try:
+                    rc = p.wait(timeout=CANCEL_BOUND_S)
+                except subprocess.TimeoutExpired:
+                    os.killpg(p.pid, signal.SIGKILL)
+                    p.wait()
+                    rc = None
+                took = time.monotonic() - sent
+            except GateError:
+                self.show(log, 100)
+                raise
+            finally:
+                if p.poll() is None:
+                    os.killpg(p.pid, signal.SIGKILL)
+                    p.wait()
+        # A killed process is gone a little after the end of the run.
+        end = time.monotonic() + CANCEL_SETTLE_S
+        while (left := scan_residue(procs(), pids_before)) and time.monotonic() < end:
+            time.sleep(0.2)
+        names = sorted(x.name for x in tmp.iterdir())
+        bad = cancel_problems(
+            rc, took, out_path.read_text(errors="replace"), err_path.read_text(errors="replace"),
+            {"processes": left, "containers": sorted(set(containers("cancel-ps-after")) - set(boxes_before)), "directories": tmp_residue(names)},
+            bound=CANCEL_BOUND_S,
+        )
+        if bad:
+            self.show(log, 100)
+            raise GateError("; ".join(bad))
+        other = f"; other names in TMPDIR: {', '.join(names)}" if names else ""
+        return f"exit 130, {took:.0f} s after the signal; cancelled {', '.join(CANCEL_JOBS)}; no process, container or directory of the unit is left{other}"
 
     def hello(self, executor: str):
         ok, detail = self.podrunner([self.data / "hello.yml", *self.flags(executor)], self.work, f"hello-{executor}", True)
@@ -1428,6 +1618,8 @@ def lane(a) -> int:
         if errors:
             raise SystemExit("\n".join(errors))
     later = [f"hello:{e}" for e in g.executors] + (["errors"] if "runner-dir" in g.executors else []) + (["rung:podvm", "confine:podvm", "pids:podvm", "pty:podvm", "hold:podvm"] if "podvm" in g.executors else [])
+    cancel = "podvm" in g.executors and g.name == "cancel-container"
+    later += ["cancel:container"] if cancel else []
     limited = g.fsize[0] is not None or g.name.startswith("fsize-")
     later = (["fsize"] if limited else []) + later
     later += [f"serve:{c}:{k}" for k in g.serve_kinds for c in ("check", "run", "job")]
@@ -1463,6 +1655,8 @@ def lane(a) -> int:
                     g.check_on("podvm", "pids:podvm", functools.partial(g.pids, "podvm"))
                     g.check_on("podvm", "pty:podvm", g.pty)
                     g.check_on("podvm", "hold:podvm", g.hold)
+                if cancel:
+                    g.check("cancel:container", g.cancel_container)
                 for k in g.serve_kinds:
                     if g.check(f"serve:check:{k}", functools.partial(g.serve_check, k)):
                         g.check(f"serve:run:{k}", functools.partial(g.serve_run, k))
