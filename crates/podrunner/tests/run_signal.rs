@@ -33,7 +33,7 @@ fn runner(dir: &Path, stubborn: bool) {
         }
         false => "echo $$ > ../started.tmp && mv ../started.tmp ../started\nexec sleep 30\n",
     };
-    podrunner_unit::program_file::write(dir.join("r/run.sh"), &format!("#!/bin/sh\n{body}")).unwrap();
+    podrunner_unit::program_file::write(dir.join("r/run.sh"), format!("#!/bin/sh\n{body}")).unwrap();
     std::fs::write(dir.join("r/bin/Runner.Listener"), "").unwrap();
     std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: sleep 30\n")
         .unwrap();
