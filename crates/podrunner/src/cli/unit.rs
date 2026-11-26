@@ -152,7 +152,7 @@ fn remove_on(rest: &[String], places: &SystemPlaces, host: &dyn Host) -> Result<
 }
 
 fn failed(f: pod_core::Failure) -> Out {
-    err(f.class, f.to_string())
+    err(f.class, f.chain())
 }
 
 /// The options of `cmd`. `need_system`: `--system` is necessary.

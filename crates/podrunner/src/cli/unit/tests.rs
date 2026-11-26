@@ -309,6 +309,24 @@ fn install_unit_writes_and_starts_the_unit_of_the_system() {
     assert!(out.stdout.contains("nothing to remove"), "{}", out.stdout);
 }
 
+#[test]
+fn install_and_remove_report_the_unit_read_error() {
+    let d = Dir::new("read-error");
+    let path = d.unit_file();
+    std::fs::create_dir_all(&path).unwrap();
+    let cause = std::fs::read_to_string(&path).unwrap_err();
+    let host = Fake::new();
+    let places = d.places();
+
+    let install = install_on(&system_args(&d.config(), &[]), &places, &host);
+    let remove = remove_on(&args(&["--system"]), &places, &host);
+    for result in [install, remove] {
+        let out = result.err().expect("a read error");
+        assert_eq!(out.code, Class::of_io(cause.kind()).exit_code(), "{}", out.stderr);
+        assert_eq!(out.stderr, format!("podrunner: reading {}: {cause}\n", path.display()));
+    }
+}
+
 /// T-588: a caller with no root is refused (77) before any write or run.
 #[test]
 fn install_unit_refuses_a_caller_with_no_privilege() {
