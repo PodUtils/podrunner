@@ -157,10 +157,7 @@ fn remove_on(rest: &[String], places: &SystemPlaces, host: &dyn Host) -> Result<
 const WINDOWS_TAIL: &str = ", or as an administrator on Windows";
 
 fn failed(f: pod_core::Failure) -> Out {
-    err(
-        f.class,
-        f.chain().replace(WINDOWS_TAIL, "; for a user unit, give the text of print-unit to systemctl --user"),
-    )
+    err(f.class, f.chain().replace(WINDOWS_TAIL, "; for a user unit, give the text of print-unit to systemctl --user"))
 }
 
 /// The options of `cmd`. `need_system`: `--system` is necessary.

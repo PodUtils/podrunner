@@ -348,12 +348,17 @@ fn doctor_run_names_the_ca_file_that_node_gets() {
     let row = |vars: &[(&str, &str)]| {
         let mut c = Command::new(env!("CARGO_BIN_EXE_podrunner"));
         c.args(["doctor", "--run"]).arg(dir.join("w.yml")).arg("--runner-dir").arg(dir.join("runner"));
-        for k in ["SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"] {
-            c.env_remove(k);
+        // Only the variables of the case: each CA and proxy variable of
+        // the host would change the row.
+        c.env_clear();
+        for k in ["PATH", "TMPDIR"] {
+            if let Some(v) = std::env::var_os(k) {
+                c.env(k, v);
+            }
         }
         let out = c.envs(vars.iter().copied()).output().unwrap();
         let text = String::from_utf8(out.stdout).unwrap();
-        text.lines().find(|l| l.contains(" proxy ")).unwrap_or_else(|| panic!("no proxy row: {text}")).to_string()
+        text.lines().find(|l| l.contains(" proxy:")).unwrap_or_else(|| panic!("no proxy row: {text}")).to_string()
     };
     let none = row(&[]);
     assert!(none.contains("direct egress") && !none.contains("Node"), "{none}");
