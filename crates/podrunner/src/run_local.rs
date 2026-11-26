@@ -152,6 +152,9 @@ pub fn run(args: &[String]) -> Out {
         Ok(Err(e)) => return fail(Class::Usage, e),
         Err(e) => return fail(Class::Usage, args::with_usage(e)),
     };
+    if let Some(e) = secrets::unreadable(&a) {
+        return fail(Class::NotFound, e);
+    }
     // A directory: each of its workflows that takes the event (T-125).
     if a.file.is_dir() {
         return many::run_dir(args, &a);
@@ -283,7 +286,9 @@ pub fn run(args: &[String]) -> Out {
         }
     }
     let filter_jobs: &[String] = if a.rerun.is_some() { &[] } else { &a.jobs };
-    if let Err(e) = source.set_filter(filter_jobs, &a.matrix) {
+    if let Err(e) =
+        source.set_filter(filter_jobs, &a.matrix).and_then(|()| inspect::filter(source.workflow(), &[], &a.matrix))
+    {
         return fail(Class::Usage, e);
     }
     // The values to mask in each line that podrunner writes (T-134).
@@ -480,6 +485,8 @@ pub fn run(args: &[String]) -> Out {
 mod flags_tests;
 #[cfg(test)]
 pub(crate) mod qa6_tests;
+#[cfg(test)]
+mod qa8_tests;
 
 /// The refusal of the parser of `run` for `args`, for the tests of the
 /// model (`crate::manual`).

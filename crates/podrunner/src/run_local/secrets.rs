@@ -53,3 +53,17 @@ pub(super) fn secrets(a: &Args) -> Result<Secrets, String> {
     };
     Ok((out, token))
 }
+
+/// The first file of an option that exists and cannot be read, by its
+/// flag: 66, as a workflow that cannot be read (T-634). The parser refuses
+/// a file that is not there (64).
+pub(super) fn unreadable(a: &Args) -> Option<String> {
+    let files = [("--var-file", &a.var_file), ("--input-file", &a.input_file), ("--env-file", &a.env_file)]
+        .into_iter()
+        .chain([("--secret-file", &a.secret_file), ("--event-path", &a.event_path), ("--oidc-keys", &a.oidc_keys)])
+        .filter_map(|(f, p)| p.as_ref().map(|p| (f, p)));
+    let named = a.environment_secrets.iter().map(|(_, p)| ("--environment-secret-file", p));
+    let named = named.chain(a.environment_vars.iter().map(|(_, p)| ("--environment-var-file", p)));
+    let fails = |p: &std::path::PathBuf| std::fs::File::open(p).err().filter(|_| p.exists());
+    files.chain(named).find_map(|(f, p)| fails(p).map(|e| format!("{f} {}: {e}", p.display())))
+}

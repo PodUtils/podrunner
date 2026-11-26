@@ -69,14 +69,15 @@ fn parse_with(text: &str, check_name: impl Fn(&str) -> Result<(), String>) -> Re
     Ok(out)
 }
 
-/// The secrets of a secret file: its mode must be 0600 or less.
+/// The secrets of a secret file: its mode must be 0600 or less, so no
+/// execute bit of the owner either (T-634).
 pub fn read_file(path: &Path) -> Result<Vec<(String, String)>, String> {
     let meta = std::fs::metadata(path).map_err(|e| format!("{}: {e}", path.display()))?;
     if !meta.is_file() {
         return Err(format!("{}: not a file; a secret file has one NAME=VALUE on each line", path.display()));
     }
     let mode = meta.permissions().mode() & 0o777;
-    if mode & 0o077 != 0 {
+    if mode & 0o177 != 0 {
         return Err(format!("{}: mode {mode:04o}: a secret file needs mode 0600 (chmod 600)", path.display()));
     }
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -113,8 +114,13 @@ mod tests {
         std::fs::write(&path, "A=1\n").unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
         assert!(read_file(&path).unwrap_err().contains("0600"));
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
-        assert_eq!(read_file(&path).unwrap(), [("A".to_string(), "1".to_string())]);
+        // T-634: an execute bit of the owner is more than 0600.
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(read_file(&path).unwrap_err().contains("mode 0700"));
+        for ok in [0o600, 0o400] {
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(ok)).unwrap();
+            assert_eq!(read_file(&path).unwrap(), [("A".to_string(), "1".to_string())], "{ok:o}");
+        }
         let _ = std::fs::remove_file(&path);
     }
 }

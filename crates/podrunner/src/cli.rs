@@ -118,7 +118,14 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
         return Ok(o);
     }
     match cmd.as_str() {
-        "--version" | "-V" => Ok(ok(version())),
+        "--version" | "-V" => match rest.first() {
+            None => Ok(ok(version())),
+            // As `version`: an argument is not ignored (T-634).
+            Some(x) => Err(err(
+                Class::Usage,
+                format!("{cmd} takes no option: {:?}\n{}", display(x), crate::manual::usage("version")),
+            )),
+        },
         "man" => Ok(crate::manual::man(rest)),
         "serve" => {
             let o = opts("serve", rest)?;
@@ -260,6 +267,16 @@ mod tests {
         {
             assert_eq!(run(&args(a)).code, 64, "{a:?}");
         }
+        // T-634: an argument after --version is refused, not ignored; a
+        // flag that the command has not is an unknown option.
+        for a in [&["--version", "x"][..], &["-V", "--json"]] {
+            let o = run(&args(a));
+            assert_eq!((o.code, o.stdout.as_str()), (64, ""), "{a:?}");
+            assert!(o.stderr.contains("takes no option"), "{a:?}: {}", o.stderr);
+        }
+        let o = run(&args(&["doctor", "--bogus"]));
+        assert_eq!(o.code, 64);
+        assert!(o.stderr.starts_with("podrunner: an unknown option --bogus\n"), "{}", o.stderr);
         assert_eq!(run(&args(&["--help"])).code, 0);
     }
 

@@ -6,7 +6,45 @@
 
 use std::path::{Path, PathBuf};
 
-use super::{Args, link_out, project_of, toplevel};
+use super::Args;
+
+/// The top of the git tree that holds `dir`.
+fn toplevel(dir: &std::path::Path) -> Option<PathBuf> {
+    let out =
+        std::process::Command::new("git").arg("-C").arg(dir).args(["rev-parse", "--show-toplevel"]).output().ok()?;
+    let top = String::from_utf8(out.stdout).ok()?;
+    (out.status.success() && !top.trim().is_empty()).then(|| PathBuf::from(top.trim()))
+}
+
+/// The refusal of a workflow file whose symbolic link leads out of its
+/// project: the run would read, and check out, another project (T-340).
+pub(in crate::run_local) fn link_out(file: &std::path::Path) -> Option<String> {
+    if !std::fs::symlink_metadata(file).is_ok_and(|m| m.file_type().is_symlink()) {
+        return None;
+    }
+    let dir =
+        std::fs::canonicalize(file.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(".".as_ref())).ok()?;
+    let root = project_of(file).or_else(|| toplevel(&dir)).unwrap_or(dir);
+    let real = std::fs::canonicalize(file).unwrap_or_else(|_| std::fs::read_link(file).unwrap_or_default());
+    (!real.starts_with(&root)).then(|| {
+        format!(
+            "{}: the symbolic link leads out of the project {}, to {}",
+            file.display(),
+            root.display(),
+            real.display()
+        )
+    })
+}
+
+/// The project of a workflow file at `PROJECT/.github/workflows/FILE`; the
+/// file itself is not followed.
+fn project_of(file: &std::path::Path) -> Option<PathBuf> {
+    let dir = file.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(".".as_ref());
+    let file = std::fs::canonicalize(dir).ok()?.join(file.file_name()?);
+    let workflows = file.parent().filter(|d| d.file_name().is_some_and(|n| n == "workflows"))?;
+    let github = workflows.parent().filter(|d| d.file_name().is_some_and(|n| n == ".github"))?;
+    github.parent().map(std::path::Path::to_path_buf)
+}
 
 /// The tree of the project of `file`.
 fn root_of(file: &Path) -> Option<PathBuf> {
@@ -52,7 +90,9 @@ pub(in crate::run_local) fn default_checkout(mut a: Args) -> Result<Args, String
     if let Some(e) = link_out(&a.file) {
         return Err(e);
     }
-    if a.checkout.is_some() {
+    // A view of the file (`--list`, `--graph`, `--validate`) checks out
+    // nothing, so it needs no tree (T-634).
+    if a.checkout.is_some() || a.list || a.graph || a.validate {
         return Ok(a);
     }
     let root = root_of(&a.file);
@@ -100,5 +140,22 @@ mod tests {
         assert_eq!(super::uses_checkout(&call("o/r/.github/workflows/x.yml@v1"), r, 0), Some(false));
         assert_eq!(super::uses_checkout(&call("./.github/workflows/b.yml"), None, 0), None, "no tree");
         let _ = std::fs::remove_dir_all(&root);
+    }
+}
+
+#[cfg(test)]
+mod project_tests {
+    /// T-336: a workflow file of `.github/workflows` names its project.
+    #[test]
+    fn the_project_of_a_workflow_file() {
+        let dir = std::env::temp_dir().join(format!("podrunner-project-of-{}", std::process::id()));
+        let wf = dir.join("p/.github/workflows/c.yml");
+        std::fs::create_dir_all(wf.parent().unwrap()).unwrap();
+        std::fs::write(&wf, "on: push\n").unwrap();
+        std::fs::write(dir.join("c.yml"), "on: push\n").unwrap();
+        let canon = std::fs::canonicalize(dir.join("p")).unwrap();
+        assert_eq!(super::project_of(&wf), Some(canon));
+        assert_eq!(super::project_of(&dir.join("c.yml")), None, "not in .github/workflows");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

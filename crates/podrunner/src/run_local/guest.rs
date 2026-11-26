@@ -206,13 +206,30 @@ pub(super) fn mirror_pins(
     }
 }
 
-/// The checks of a run of `--microvm` before the pin and the pull of its
-/// images: `/dev/kvm` (T-297, T-327). A dry run starts no guest.
+/// The checks of a unit kind before the pin and the pull of the images:
+/// `/dev/kvm` of `--microvm` (T-297, T-327; a dry run checks it with its
+/// image), and the incusd of `--incus`. A dry run makes the checks of the
+/// run, so that `planned` is a promise (T-634).
 pub(super) fn early(a: &Args) -> Result<(), Out> {
-    match !a.dry_run && a.guest.as_ref().is_some_and(|g| g.0) {
-        true => kvm().map_err(|e| fail(Class::Unavailable, e)),
-        false => Ok(()),
+    dry_podvm(a)?;
+    match &a.guest {
+        Some((true, _)) if !a.dry_run => kvm().map_err(|e| fail(Class::Unavailable, e)),
+        Some((false, _)) => crate::doctor::incusd()
+            .map_err(|e| fail(Class::Unavailable, format!("--incus: {e}; fix: a host with incusd, or --podvm"))),
+        _ => Ok(()),
     }
+}
+
+/// The probe of `--podvm` in a dry run, as the run makes it before its
+/// first unit (T-634): a binary that is not podvm is no plan.
+fn dry_podvm(a: &Args) -> Result<(), Out> {
+    let Some(binary) = a.podvm.as_ref().filter(|_| a.dry_run) else { return Ok(()) };
+    if !binary.is_file() {
+        let e = format!("--podvm {}: not a file; fix: the path of a podvm binary", binary.display());
+        return Err(fail(Class::NotFound, e));
+    }
+    let probe = podrunner_podvm::Podvm { binary: binary.clone() }.probe();
+    probe.map(drop).map_err(|e| fail(Class::Config, format!("podvm: {e}")))
 }
 
 /// Whether podvm gives container hooks on this host (its probe, T-311). A

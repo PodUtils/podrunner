@@ -61,6 +61,8 @@ pub(super) fn paths(a: &Args) -> Result<(), String> {
         ("--cache", a.cache.as_ref().filter(|_| !a.no_cache)),
         ("--log-dir", a.log_dir.as_ref()),
         ("--export", a.export.as_ref()),
+        // The run writes its state at the end: a dry run checks it too (T-634).
+        ("--state", a.state.as_ref()),
     ];
     for (flag, d) in dirs {
         if let Some(d) = d {

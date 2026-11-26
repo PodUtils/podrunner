@@ -118,39 +118,7 @@ pub(super) fn git_value(flag: &str, v: String) -> Result<String, String> {
 
 #[path = "checkout_root.rs"]
 mod checkout_root;
-pub(super) use checkout_root::{calls_root, default_checkout};
-
-/// The top of the git tree that holds `dir`.
-fn toplevel(dir: &std::path::Path) -> Option<PathBuf> {
-    let out =
-        std::process::Command::new("git").arg("-C").arg(dir).args(["rev-parse", "--show-toplevel"]).output().ok()?;
-    let top = String::from_utf8(out.stdout).ok()?;
-    (out.status.success() && !top.trim().is_empty()).then(|| PathBuf::from(top.trim()))
-}
-
-/// The refusal of a workflow file whose symbolic link leads out of its
-/// project: the run would read, and check out, another project (T-340).
-pub(super) fn link_out(file: &std::path::Path) -> Option<String> {
-    if !std::fs::symlink_metadata(file).is_ok_and(|m| m.file_type().is_symlink()) {
-        return None;
-    }
-    let dir =
-        std::fs::canonicalize(file.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(".".as_ref())).ok()?;
-    let root = project_of(file).or_else(|| toplevel(&dir)).unwrap_or(dir);
-    let real = std::fs::canonicalize(file).unwrap_or_else(|_| std::fs::read_link(file).unwrap_or_default());
-    (!real.starts_with(&root))
-        .then(|| format!("{}: the symbolic link leads out of the project ({})", file.display(), real.display()))
-}
-
-/// The project of a workflow file at `PROJECT/.github/workflows/FILE`; the
-/// file itself is not followed.
-fn project_of(file: &std::path::Path) -> Option<PathBuf> {
-    let dir = file.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or(".".as_ref());
-    let file = std::fs::canonicalize(dir).ok()?.join(file.file_name()?);
-    let workflows = file.parent().filter(|d| d.file_name().is_some_and(|n| n == "workflows"))?;
-    let github = workflows.parent().filter(|d| d.file_name().is_some_and(|n| n == ".github"))?;
-    github.parent().map(std::path::Path::to_path_buf)
-}
+pub(super) use checkout_root::{calls_root, default_checkout, link_out};
 
 /// A refusal of the command line, with the usage when the form of the line
 /// is wrong; a wrong value names its flag only (T-331).
@@ -170,7 +138,12 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     let mut it = args.iter();
     let mut file = None;
     while let Some(x) = it.next() {
-        let mut value = || it.next().cloned().ok_or_else(|| format!("{x} needs a value"));
+        // An empty value is no value; an empty NAME of `--github-token-env`
+        // sends no token (T-385).
+        let mut value = || match it.next() {
+            Some(v) if v.is_empty() && x != "--github-token-env" => Err(format!("{x}: the value is empty")),
+            v => v.cloned().ok_or_else(|| format!("{x} needs a value")),
+        };
         match x.as_str() {
             "--runner-dir" => a.runner_dir = Some(PathBuf::from(value()?)),
             "--podvm" => a.podvm = Some(PathBuf::from(value()?)),
@@ -473,22 +446,5 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             "one of --runner-dir DIR, or a unit kind (--podvm, --microvm, --incus) with --images and --image, is necessary"
                 .into(),
         ),
-    }
-}
-
-#[cfg(test)]
-mod checkout_tests {
-    /// T-336: a workflow file of `.github/workflows` names its project.
-    #[test]
-    fn the_project_of_a_workflow_file() {
-        let dir = std::env::temp_dir().join(format!("podrunner-project-of-{}", std::process::id()));
-        let wf = dir.join("p/.github/workflows/c.yml");
-        std::fs::create_dir_all(wf.parent().unwrap()).unwrap();
-        std::fs::write(&wf, "on: push\n").unwrap();
-        std::fs::write(dir.join("c.yml"), "on: push\n").unwrap();
-        let canon = std::fs::canonicalize(dir.join("p")).unwrap();
-        assert_eq!(super::project_of(&wf), Some(canon));
-        assert_eq!(super::project_of(&dir.join("c.yml")), None, "not in .github/workflows");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

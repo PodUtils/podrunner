@@ -107,6 +107,9 @@ pub(super) fn answer(a: &super::args::Args, text: &str) -> super::Out {
     if let Err(e) = Graph::new(&p.workflow) {
         return fail(e.to_string());
     }
+    if let Err(e) = filter(&p.workflow, &a.jobs, &a.matrix) {
+        return super::fail(super::Class::Usage, e);
+    }
     let file = a.file.display().to_string();
     if a.validate {
         // Each cron of on.schedule, as `--schedule` reads it (T-279).
@@ -117,14 +120,15 @@ pub(super) fn answer(a: &super::args::Args, text: &str) -> super::Out {
             eprintln!("podrunner: {file}: {n}");
         }
         // Each number of minutes, as a run reads it (T-339).
-        if let Err(e) = minutes(&p.workflow) {
-            return fail(e);
-        }
+        let long = match minutes(&p.workflow) {
+            Ok(long) => long,
+            Err(e) => return fail(e),
+        };
+        let warnings: Vec<String> = p.warnings.iter().map(|w| w.to_string()).chain(long).collect();
         if a.json {
-            let warnings: Vec<String> = p.warnings.iter().map(|w| w.to_string()).collect();
             stdout.push_str(&format!("{}\n", json!({"file": file, "valid": true, "warnings": warnings})));
         } else {
-            for w in &p.warnings {
+            for w in &warnings {
                 stdout.push_str(&format!("warning: {w}\n"));
             }
             stdout.push_str(&format!("valid: {file}\n"));
@@ -151,17 +155,74 @@ pub(super) fn answer(a: &super::args::Args, text: &str) -> super::Out {
     super::Out { code: 0, stdout, stderr: String::new() }
 }
 
+/// Each `--job` names a job of the workflow, and each `--matrix KEY` an
+/// axis of one of its matrices, also for `--list` (T-634). A matrix or an
+/// `include` that is an expression, or a call of a workflow, can have each
+/// axis: no refusal then.
+pub(super) fn filter(w: &Workflow, jobs: &[String], matrix: &[(String, String)]) -> Result<(), String> {
+    if let Some(j) = jobs.iter().find(|j| w.job(j).is_none()) {
+        let ids: Vec<&str> = w.jobs.iter().map(|j| j.id.as_str()).collect();
+        return Err(format!("--job {j}: the workflow has no such job (its jobs: {ids:?})"));
+    }
+    let mut axes = std::collections::BTreeSet::new();
+    for j in &w.jobs {
+        let m = j.strategy.as_ref().and_then(|s| s.matrix.as_ref()).map(|m| &m.kind);
+        let m = match (m, &j.uses) {
+            (_, Some(_)) => return Ok(()),
+            (None, None) => continue,
+            (Some(Kind::Map(m)), None) => m,
+            (Some(_), None) => return Ok(()),
+        };
+        for (k, v) in m {
+            match (k.name.as_str(), &v.kind) {
+                ("exclude", _) => {}
+                ("include", Kind::Seq(items)) => {
+                    for i in items {
+                        let Kind::Map(e) = &i.kind else { return Ok(()) };
+                        axes.extend(e.iter().map(|(k, _)| k.name.clone()));
+                    }
+                }
+                ("include", _) => return Ok(()),
+                (key, _) => {
+                    axes.insert(key.to_string());
+                }
+            }
+        }
+    }
+    match matrix.iter().find(|(k, _)| !axes.contains(k)) {
+        Some((k, v)) => Err(format!("--matrix {k}={v}: no matrix of the workflow has the axis {k} (its axes: {axes:?})")),
+        None => Ok(()),
+    }
+}
+
 /// Each `timeout-minutes` and `cancel-timeout-minutes` of a job and
 /// `timeout-minutes` of a step: a number, or an expression that the run
-/// evaluates.
-fn minutes(w: &Workflow) -> Result<(), String> {
+/// evaluates. A warning for each `timeout-minutes` of a job above the 5
+/// days at which the run stops it (T-634).
+fn minutes(w: &Workflow) -> Result<Vec<String>, String> {
     let check = |n: &Node, at: String| match &n.kind {
         Kind::String(v) if !v.contains("${{") && v.trim().parse::<f64>().is_err() => {
             Err(format!("{at} (line {}): {v:?} is not a number of minutes", n.mark.line))
         }
         _ => Ok(()),
     };
+    let max = podrunner_local::drive::MAX_MINUTES;
+    let mut long = Vec::new();
     for j in &w.jobs {
+        if let Some(n) = &j.timeout_minutes {
+            let v = match &n.kind {
+                Kind::Number(v) => Some(*v),
+                Kind::String(v) => v.trim().parse::<f64>().ok(),
+                _ => None,
+            };
+            if let Some(v) = v.filter(|v| *v > max) {
+                long.push(format!(
+                    "jobs.{}.timeout-minutes (line {}): {v} is more than {max} (5 days, the limit of a job of a \
+                     self-hosted runner); the run stops the job at 5 days",
+                    j.id, n.mark.line
+                ));
+            }
+        }
         for (key, n) in [("timeout-minutes", &j.timeout_minutes), ("cancel-timeout-minutes", &j.cancel_timeout_minutes)]
         {
             if let Some(n) = n {
@@ -174,7 +235,7 @@ fn minutes(w: &Workflow) -> Result<(), String> {
             }
         }
     }
-    Ok(())
+    Ok(long)
 }
 
 /// The text of a workflow file that cannot be read: for a file that is not

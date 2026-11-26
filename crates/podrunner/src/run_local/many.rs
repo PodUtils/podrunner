@@ -12,17 +12,18 @@ use pod_core::failure::Class;
 use super::{Args, context, fail, run};
 use crate::cli::Out;
 
-/// The workflows of `dir`, by name.
-fn workflows(dir: &std::path::Path) -> Result<Vec<PathBuf>, String> {
+/// The workflows of `dir`, by name. A link out of the project is refused
+/// with the code of a file argument (64, T-634).
+fn workflows(dir: &std::path::Path) -> Result<Vec<PathBuf>, Out> {
     let mut out: Vec<PathBuf> = std::fs::read_dir(dir)
-        .map_err(|e| format!("{}: {e}", dir.display()))?
+        .map_err(|e| fail(Class::NotFound, format!("{}: {e}", dir.display())))?
         .flatten()
         .map(|e| e.path())
         .filter(|p| p.is_file() && matches!(p.extension().and_then(|x| x.to_str()), Some("yml" | "yaml")))
         .collect();
     out.sort();
     if let Some(e) = out.iter().find_map(|f| super::args::link_out(f)) {
-        return Err(e);
+        return Err(fail(Class::Usage, e));
     }
     Ok(out)
 }
@@ -34,7 +35,7 @@ pub(super) fn run_dir(args: &[String], a: &Args) -> Out {
             return fail(Class::NotFound, format!("{}: no workflow (*.yml, *.yaml)", a.file.display()));
         }
         Ok(f) => f,
-        Err(e) => return fail(Class::NotFound, e),
+        Err(o) => return o,
     };
     let dir = a.file.to_string_lossy().into_owned();
     // The argument that the parser takes as the file, not a value of a flag
