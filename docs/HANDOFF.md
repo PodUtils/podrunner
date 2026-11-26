@@ -20,16 +20,18 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. Read runner-image 45783615763 (#362, on `be2e431`) to its end, then
-   the `user-gate.yml` run that #362 starts with it: the lane
-   `serve-incus-kvm` checks the Incus warning (T-683). T-682 and the
-   podnet take (T-677) passed in its step 7.
-2. Close #362 when its runs are read.
-3. Take the remaining cache work in T-480.
+1. Request the hosted runs of `main` (gate, `secrets.yml`, `level2.yml`,
+   `runner-image.yml`, then `user-gate.yml` with that image run): the fixes
+   of #370 (the `install:man` test, the allow line of secrets), the check
+   `serve:job:engine:microvm` of T-509, and the step of `cpu_s` of T-520.
+2. Merge the workers of T-520, T-634, and T-705 with T-697 and T-643.
+3. Take podnet `v0.4.0-beta.21` when it is released (T-701, podnet#784).
+4. The waits on podvm (COORD-138, 141, 143, 144) and podcrates
+   (COORD-145) are in "Open asks to other projects".
 
-The bundled Docker engine (T-672) passed on microvm and on Incus 6.0.7 in
-runner-image run 45773152397. Incus before 6.0.6 and 6.19 refuses its
-runc; podrunner warns of it (T-683).
+The user-gate run 45860032871 is green in each lane, with `fsize-1g` and
+`cancel-container` (T-638, T-644). The OOM tests of T-515 pass on podvm
+and incus (runner-image 45852164277).
 
 ## The release `v0.1.0-beta.8`
 
@@ -132,7 +134,17 @@ state of each.
     hand-written State column is left (T-250 is partial).
   - T-622 needs a COORD issue to podcrates (a `queue` object in the source
     reply and in `SourceStatus`). It is not written.
-- podnet: no ask is open.
+- podvm, for the disk, the cache and the memory of a unit:
+  - #364 (COORD-138, T-685): the bytes of the root disk of an incus
+    instance. #368 (COORD-141, T-650): an `overlay` volume mode. #371
+    (COORD-143, T-648, T-704): a writable host volume that the host user
+    can remove. #372 (COORD-144, T-706): the unpacked bytes of an image in
+    `inspect`. #363 (COORD-137, T-521): the cgroup leg of `probe`.
+- podcrates: #373 (COORD-145, T-707): `container:` and `services:` jobs
+  and the log of a job in `pod-fake-github`. #367 (COORD-140, T-691):
+  `unit.limits` in `run-report.v1`.
+- podnet: #369 (COORD-142, T-701): answered in podnet#784; the fix ships
+  in `v0.4.0-beta.21`.
 
 Open trackers: #1, #9, #32, #33, #40, #43, #65, #66, #67, #74, #75, #151
 (githome), #153, #292 (cfb) and #293. An issue is open exactly when one of
