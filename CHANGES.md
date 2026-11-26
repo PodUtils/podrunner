@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| the assets of a release, command line | A release has `podrunner.1`, the man page, in `SHA256SUMS` and `release-index.json`. The header of `podrunner man --roff` names its date. | T-645 |
 | `podrunner.toml` `[unit.microvm] mem`, config schema | `mem` is the most memory of a guest. A guest gets the `memory` of its offer plus its unpacked image, at least the boot floor of the image. | T-655 |
 | `status.v1`, the capability record | The podvm kind gives `limits.pids-per-unit`: `enforced` where `pids.max` of the cgroup leaf of each unit holds `pids`, `none` where RLIMIT_NPROC of the user holds it. | T-521 |
 | `podrunner.toml` `[unit.incus]`, unit driver | With `disk_max_bytes` and no `root_quota`, the incus kind claims no `disk` limit and `serve` warns; a driver can give `disk_bytes`, which slots adds to the walk of the unit root. | T-685 |

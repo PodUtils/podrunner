@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**686 entries: 78 open, 58 partial, 16 blocked, 534 done.**
+**687 entries: 78 open, 58 partial, 16 blocked, 535 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 13 | 22 | 9 | 280 | 324 |
-| P3 | 64 | 13 | 5 | 152 | 234 |
-| **All** | 78 | 58 | 16 | 534 | 686 |
+| P3 | 64 | 13 | 5 | 153 | 235 |
+| **All** | 78 | 58 | 16 | 535 | 687 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -687,7 +687,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-642](later.md) | P3 | M | later | defect | open | QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts |
 | [T-643](later.md) | P3 | S | later | defect | open | The local checkout names the keys of `with:` that the stand-in does not take |
 | [T-644](later.md) | P2 | S | later | chore | partial | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
-| [T-645](later.md) | P3 | S | later | chore | open | The man page of the model under groff and mandoc, and in the assets of a release |
+| [T-645](later.md) | P3 | S | later | chore | done | The man page of the model under groff and mandoc, and in the assets of a release |
 | [T-646](later.md) | P3 | M | later | defect | done | Tests that write a program and start it while other tests fork |
 | [T-647](later.md) | P1 | S | later | chore | done | Take podcrates `v0.83.0` and podvm `0.2.0-beta.40` (COORD-154 of podcrates, COORD-246 of podvm) |
 | [T-648](later.md) | P2 | M | later | feature | open | The cache of `serve` on the microvm and incus kinds |
@@ -734,3 +734,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-689](later.md) | P3 | S | later | defect | open | The pin bound of a microvm guest leaves no space for a job |
 | [T-690](later.md) | P3 | S | later | feature | open | The local mode has no flag for the memory of a guest |
 | [T-691](later.md) | P3 | S | later | feature | open | The run report does not name the limits a unit got |
+| [T-692](later.md) | P3 | M | later | feature | open | The installer does not install the man page |

@@ -16469,7 +16469,7 @@ GitHub.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16487,6 +16487,22 @@ From the work of T-627: `pod-manual` of podcrates `v0.82.1` has `PodUtils/podcra
 ## Prove
 
 `sh scripts/agent/check.sh`, a gate run with the step of the man page green, and a dry run of `release.yml` that lists `podrunner.1`.
+
+## Done
+
+2026-11-26, `f112f419` (tests on a development host with groff 1.23 and
+mandoc 1.14.6; not run on GitHub-hosted runners). The page of `podrunner
+man --roff` had no date, and `mandoc -Tlint` warned "missing date":
+`build.rs` gives `PODRUNNER_BUILD_EPOCH` (`SOURCE_DATE_EPOCH`, else the
+time of the commit) and the model takes its date; `docs/podrunner.1`
+stays without date and version for the drift test.
+`scripts/release-assets.sh man` writes `podrunner.1` and its `.sha256`
+from the x86_64 binary into the files of a release, so `SHA256SUMS`,
+`release-index.json` and the attestation name it. The job `static` of the
+gate renders the page under groff and mandoc with `check-man.sh` of
+podcrates `v0.86.0` (its SHA-256 pinned) and a planted page with no date
+that must fail. Tests: `manual::page_tests` (3; each failed with the old
+date). The installer does not put the page in `man1`: T-692.
 
 # T-646: Tests that write a program and start it while other tests fork
 
@@ -18290,3 +18306,34 @@ driver gave podvm).
 
 `cargo test -p podrunner-slots report` with a microvm unit whose offer
 asks less than the floor.
+
+# T-692: The installer does not install the man page
+
+**Source:** the worker of T-645, 2026-11-26
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A release has `podrunner.1` (T-645), but `scripts/install.sh` does not
+put it in `~/.local/share/man/man1`, so `man podrunner` finds nothing
+after an install.
+
+## Premise
+
+Read on 2026-11-26: the installer takes each file by
+`podrunner-manifest.json` and the pins of `scripts/install-pins.py`.
+
+## Approach
+
+Add the page to the manifest and the pins, install it beside the binary
+(`PREFIX/share/man/man1`), and test it in `scripts/test-install.sh` and
+in the lanes of `user-gate.yml` (`man -w podrunner` where `man` exists).
+
+## Prove
+
+`sh scripts/test-install.sh` with the page in place, and a lane of
+`user-gate.yml`.
