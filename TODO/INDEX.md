@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**702 entries: 72 open, 52 partial, 21 blocked, 557 done.**
+**703 entries: 69 open, 52 partial, 21 blocked, 561 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 11 | 18 | 11 | 284 | 324 |
-| P3 | 60 | 11 | 8 | 171 | 250 |
-| **All** | 72 | 52 | 21 | 557 | 702 |
+| P2 | 10 | 18 | 11 | 285 | 324 |
+| P3 | 58 | 11 | 8 | 174 | 251 |
+| **All** | 69 | 52 | 21 | 561 | 703 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -299,7 +299,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-249](later.md) | P1 | M | later | feature | partial | The installer on each host class, and the shared core of podcrates |
 | [T-250](later.md) | P2 | S | later | chore | partial | The state of each issue comes from the record by a tool |
 | [T-251](later.md) | P1 | S | later | defect | done | The gate and the host of an agent run shellcheck of other versions |
-| [T-252](later.md) | P2 | S | later | chore | open | No workflow is linted before it runs |
+| [T-252](later.md) | P2 | S | later | chore | done | No workflow is linted before it runs |
 | [T-253](later.md) | P1 | S | later | defect | done | The faults of the first run of the user-path gate |
 | [T-254](later.md) | P1 | S | later | defect | done | The made-up `github.token` fails each action that calls the API of a real forge |
 | [T-255](later.md) | P2 | S | later | defect | done | On `--runner-dir`, the tests of express miss headers and hang |
@@ -685,7 +685,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-640](later.md) | P2 | M | later | defect | done | `actions/checkout` with `ref:` on the same repository is silently ignored in the local mode |
 | [T-641](later.md) | P2 | S | later | defect | done | `check` accepts the `config_url` of an organization with `.git` at the end |
 | [T-642](later.md) | P3 | M | later | defect | done | QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts |
-| [T-643](later.md) | P3 | S | later | defect | open | The local checkout names the keys of `with:` that the stand-in does not take |
+| [T-643](later.md) | P3 | S | later | defect | done | The local checkout names the keys of `with:` that the stand-in does not take |
 | [T-644](later.md) | P2 | S | later | chore | done | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
 | [T-645](later.md) | P3 | S | later | chore | done | The man page of the model under groff and mandoc, and in the assets of a release |
 | [T-646](later.md) | P3 | M | later | defect | done | Tests that write a program and start it while other tests fork |
@@ -739,7 +739,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-694](later.md) | P3 | M | later | defect | done | The output of a container step comes at its end |
 | [T-695](later.md) | P3 | S | later | defect | done | doctor --run names no NODE_EXTRA_CA_CERTS of SSL_CERT_FILE |
 | [T-696](later.md) | P3 | S | later | defect | done | A podvm unit after job-mismatch is degraded with an unknown count |
-| [T-697](later.md) | P3 | S | later | defect | open | The stand-in of actions/checkout prints its script in the log |
+| [T-697](later.md) | P3 | S | later | defect | done | The stand-in of actions/checkout prints its script in the log |
 | [T-698](later.md) | P3 | S | later | defect | done | The local mode checks --mem against an image of 0 bytes |
 | [T-699](later.md) | P3 | S | later | defect | done | A microvm guest of an offer below the kind can leave its job no reserve |
 | [T-700](later.md) | P3 | S | later | defect | done | config init does not make the directory of its output |
@@ -747,6 +747,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-702](later.md) | P3 | S | later | defect | done | install-unit names Windows in a refusal on Linux |
 | [T-703](later.md) | P3 | S | later | defect | open | A failed test of a fake unit leaves its shim with the lock of cargo |
 | [T-704](later.md) | P3 | M | later | defect | open | The work directory of a microvm or incus unit has the owner problem of a writable cache |
-| [T-705](later.md) | P3 | S | later | defect | open | The installer writes the unpacked size of its image only with --serve |
+| [T-705](later.md) | P3 | S | later | defect | done | The installer writes the unpacked size of its image only with --serve |
 | [T-706](later.md) | P3 | S | later | feature | blocked | run checks --mem only for the image that the install pulled |
 | [T-707](later.md) | P3 | S | later | feature | blocked | githome's container: and services: jobs cannot run through the fake GitHub |
+| [T-708](later.md) | P3 | S | later | defect | open | A checkout in a local composite action does not get the stand-in |

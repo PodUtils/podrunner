@@ -4191,7 +4191,7 @@ One pinned version of ShellCheck, by its SHA-256, in CI and on the host of an ag
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4208,6 +4208,21 @@ A pinned actionlint (by its SHA-256, as `scripts/shellcheck.sh` pins ShellCheck)
 ## Prove
 
 `sh scripts/agent/check.sh`: a step `actionlint` that fails on a planted fault of a workflow.
+
+## Done
+
+2026-11-26, `ac7f68b3` (tests on a development host; the gate step not
+run on GitHub). `scripts/actionlint.sh` pins actionlint 1.7.7 by the
+SHA-256 of the linux amd64 and arm64 assets of its release and uses the
+pinned ShellCheck 0.11.0 on x86_64. The line `actionlint` of
+`scripts/agent/check.sh` and the step "The workflows" of the job `lint` of
+`gate.yml` lint each workflow. `.github/actionlint.yaml` names the hosted
+labels `ubuntu-26.04` and `ubuntu-26.04-arm`. Of 18 ShellCheck findings
+in 8 workflows, SC2129 is fixed; each other keeps a narrow `shellcheck
+disable` with its reason (a quote for an inner shell, `ls` as a test of
+an empty directory, an intended split, a log of the runner user, an
+environment variable of the job). A wrong `${{ }}` property and an
+unknown `needs:` job each make the check fail.
 
 # T-253: The faults of the first run of the user-path gate
 
@@ -16548,7 +16563,7 @@ hint of 4 (T-695), 5 (T-696), the log of the checkout of 7 (T-697).
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16567,6 +16582,17 @@ From the work of T-640: I read `crates/podrunner-local/src/message/checkout.rs` 
 ## Prove
 
 `cargo test -p podrunner-local checkout` with a case for each key, and `cargo run -q -p podrunner -- run co.yml --checkout . --dry-run` on a workflow with `fetch-depth: 0` names the key; then `cargo todo check`.
+
+## Done
+
+2026-11-26, `93a40804` and `9dae4c2d` (tests on a development host). The
+run names each key of `with:` that the stand-in ignores (`fetch-depth`,
+`filter`, `sparse-checkout`, `sparse-checkout-cone-mode`, `clean`, `lfs`,
+`token`, `ssh-key`, `persist-credentials`; `crates/podrunner-local/src/tree/ignored.rs`)
+once on stderr, also with `--dry-run`, with no value; the step display
+adds "; ignores KEYS". Tests: `each_key_that_the_stand_in_ignores_is_named_once`
+and `the_display_names_the_keys_that_the_stand_in_ignores`. `docs/cli.md`
+and `docs/local-mode.md` say what the stand-in takes.
 
 # T-644: A lane of the user-path gate: Ctrl-C of a `container:` job on podvm
 
@@ -18789,7 +18815,7 @@ which asserts a clean residue.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18810,6 +18836,20 @@ broker, so that the runner prints the `uses:` line and its inputs only.
 
 `cargo test -p podrunner --test local` with a checkout step: the log has
 no line of the script.
+
+## Done
+
+2026-11-26, `93a40804` and `9dae4c2d` (tests on a development host, with
+runner 2.338.2). The stand-in of `actions/checkout` is the node action
+`podrunner/checkout@v1`, which the fake broker serves from memory
+(`crates/podrunner-broker-fake/src/stand_in.rs`). The step gets inputs
+(`broker`, `route`, `dest`, `strip`, `list`, `level`, `fail`) and no
+script, and the action reads the job token from `ACTIONS_RUNTIME_TOKEN`,
+so the token is in no input and no log. The ignored e2e test
+`the_checkout_stand_in_gives_the_local_tree_and_its_actions` passes with
+the real runner; its log has `podrunner/checkout` and none of `gzip -dc`,
+`tar -xf`, `curl`, `set -eu` or `ACTIONS_RUNTIME_TOKEN`. A checkout in a
+local composite action is T-708.
 
 # T-698: The local mode checks --mem against an image of 0 bytes
 
@@ -19084,7 +19124,7 @@ podvm whose removal fails, and the hosted suites of each kind.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19107,6 +19147,14 @@ always), and make `run` read it.
 
 `sh scripts/test-install.sh` with a check that an install without
 `--serve` writes the size, and a test of `run` that reads it.
+
+## Done
+
+2026-11-26, `492ede24` (tests on a development host). `install.sh` writes
+`DATA/serve.json` on each install, not only with `--serve`, so `run
+--microvm` finds the unpacked size of the image of the install (T-698).
+`--serve` writes the same file as before. Check 7a of
+`scripts/test-install.sh` proves it; it fails on the old installer.
 
 # T-706: run checks --mem only for the image that the install pulled
 
@@ -19180,3 +19228,37 @@ failed job in the lane.
 
 COORD-145 (#373) asks podcrates for the job container, the service
 containers and the log of a job in `pod-fake-github`.
+
+# T-708: A checkout in a local composite action does not get the stand-in
+
+**Source:** the worker of T-697, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/podrunner/src/run_local/composites.rs` skips `actions/checkout@`
+in the steps of a local composite action. The runner runs those steps
+itself, so such a step gets the real `actions/checkout`, which tries to
+reach GitHub from the unit. Also, no test covers the stand-in in a job
+container with no curl and no python.
+
+## Premise
+
+Read from `crates/podrunner/src/run_local/composites.rs` by the worker of
+T-697 on 2026-11-26.
+
+## Approach
+
+Make the resolve route of the broker answer `actions/checkout@*` in a
+local run with the stand-in tarball, or rewrite the inner reference to
+`podrunner/checkout@v1` with its inputs from the broker.
+
+## Prove
+
+An e2e test with a local composite that has an `actions/checkout` step:
+the tree is checked out and the log has no script; and the stand-in in a
+job container with node and tar only.

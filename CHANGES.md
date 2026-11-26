@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| the installer, the log of a local run | `install.sh` writes `DATA/serve.json` on each install, not only with `--serve`. In a local run, the `actions/checkout` step is the action `podrunner/checkout@v1` with inputs, not a script; its display adds "; ignores KEYS", and stderr names each key of `with:` that it ignores. | T-705, T-697, T-643 |
 | `run-report.v1` (`docs/contracts/source-driver.md`) | On the microvm kind, `cpu_s` is the CPU time of the launcher and the emulator, with the boot and the stop of the guest; the tolerance of 20 % or 1 s holds for it less the `cpu_s` of an idle guest. | T-520 |
 | command line, `[unit.microvm] mem` | `run --microvm` refuses a `--mem` that cannot hold the unpacked image of the install (`DATA/serve.json`) and the 2 GiB reserve of the job; `doctor --run` names that size. A guest of an offer below the kind gets at least the memory that leaves its job the reserve. | T-698, T-699 |
 | the capability record, `[cache]` | The microvm and incus kinds mount the cache read-only: their record lists `mount_modes: ["ro"]` (incus had `["rw"]`), and on a kind with no `rw` a job that would write gets the cache at `ro`. | T-648 |
