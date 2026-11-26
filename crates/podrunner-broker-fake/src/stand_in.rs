@@ -119,7 +119,7 @@ function checkout() {
   const same = !repo || repo.toLowerCase() === (e.GITHUB_REPOSITORY || '').toLowerCase();
   if (same && (!ref || [e.GITHUB_SHA, e.GITHUB_REF, e.GITHUB_REF_NAME].includes(ref))) return start(tree);
   const what = same ? 'the ref ' + ref : repo + (ref ? ' at ' + ref : '');
-  const key = same ? '@REF_PIN@' + ref : repo + '@' + (ref || 'HEAD');
+  const key = same ? '@REF_PIN@' + ref : repo + '\u0040' + (ref || 'HEAD');
   get('@PIN@' + encodeURIComponent(key), 'the pin of ' + what, (s, b) => {
     if (s === 404) {
       die('the checkout of ' + what + ' in an action: the run pinned no tree for it; fix: give `repository` and `ref` as text in a local action, or check it out in a step of the workflow');
