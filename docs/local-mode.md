@@ -173,9 +173,15 @@ the job does not need the tools of the larger one, or give the guest more
 memory: `--mem SIZE` of `run --microvm` (a size as `8G`; K, M, G or T),
 or `[unit.microvm] mem` on `serve` (T-690). `run` refuses a `--mem` that
 keeps less than 2 GiB of root for a job with no image (below about
-2731M); it does not know the unpacked size of the image, so the job of a
-larger image gets less. `doctor --run` names the memory and the root of
-a guest. `check` and `doctor` refuse a pin of `serve` that leaves less
+2731M). podvm gives the stored size of an image, not its unpacked size.
+When `--microvm` is `DATA/bin/podvm` of an install and `DATA/serve.json`
+(the installer writes it with `--serve`) names the digest of `--image`,
+`run` takes `unpacked_bytes` of that file: it refuses a `--mem` that does
+not boot the image or keeps less than 2 GiB of root for its job, with the
+fix (T-698). For each
+other image the size is not known and not checked: a larger image leaves
+its job less. `doctor --run` names the memory and the root of a guest,
+and says whether it knows the unpacked size of the image. `check` and `doctor` refuse a pin of `serve` that leaves less
 than 2 GiB of root for its job (T-689). The estimate, 75 % of `mem` less
 the unpacked image, is about 330 MiB above the measure: the root holds
 more than the unpacked bytes.

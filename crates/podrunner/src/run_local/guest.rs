@@ -12,8 +12,8 @@ use super::{Args, Class, Out, arch, fail, policy};
 
 /// The bytes of `--mem SIZE` (T-690): `--microvm` only, a size as the
 /// `mem` of `[unit.microvm]`, and room for the boot and the reserve of a job
-/// with an image of 0 bytes. The unpacked size of the image is not known
-/// here (podvm gives the stored size), so a larger image is not checked.
+/// with an image of 0 bytes. The parse does not read the install: the start
+/// of a run checks the image ([`image_size`]).
 pub(super) fn mem_of(m: &str, microvm: bool) -> Result<u64, String> {
     if !microvm {
         return Err("--mem needs --microvm".into());
@@ -32,15 +32,57 @@ pub(super) fn mem_of(m: &str, microvm: bool) -> Result<u64, String> {
     }
 }
 
-/// The text of the `mem` check of `doctor --run` (T-690).
+/// The text of the `mem` check of `doctor --run` (T-690, T-698).
 pub(super) fn mem_line(a: &Args) -> Result<String, String> {
     let m = a.mem.as_deref().unwrap_or(crate::microvm_kind::DEFAULT_MEM);
     let bytes = mem_of(m, true)?;
     let given = if a.mem.is_some() { "--mem" } else { "the default" };
-    Ok(format!(
-        "{m} ({given}): a job gets about {} of root less the unpacked image",
-        crate::pin_size::gb(podrunner_microvm::mem::root_cap(bytes))
-    ))
+    let gb = crate::pin_size::gb;
+    match image_size(a)? {
+        Some(size) => Ok(format!(
+            "{m} ({given}): a job gets about {} of root beside the image, which unpacks to {} (serve.json of the install)",
+            gb(crate::microvm_kind::job_space(bytes, size)),
+            gb(size)
+        )),
+        None => Ok(format!(
+            "{m} ({given}): a job gets about {} of root less the unpacked image; the unpacked size of the image is \
+             not known (podvm gives its stored size, and the install names another image or none), so it is not checked",
+            gb(podrunner_microvm::mem::root_cap(bytes))
+        )),
+    }
+}
+
+/// The unpacked bytes of the `--image` of `--microvm`, when the install
+/// knows them, checked against the memory of the guest as `check` holds
+/// a pin (T-698).
+pub(super) fn image_size(a: &Args) -> Result<Option<u64>, String> {
+    let (Some((true, binary)), Some(image)) = (&a.guest, &a.image) else { return Ok(None) };
+    let Some(size) = image_bytes(binary, image) else { return Ok(None) };
+    let m = a.mem.as_deref().unwrap_or(crate::microvm_kind::DEFAULT_MEM);
+    let bytes = mem_of(m, true)?;
+    match crate::microvm_kind::refusal_with(m, bytes, size, |g| format!("--mem {g}G or more")) {
+        Some(why) => Err(format!("--mem {m}: the image {image} {why}")),
+        None => Ok(Some(size)),
+    }
+}
+
+/// The unpacked bytes of `image`. podvm `0.2.0-beta.40` gives the stored
+/// bytes only (`inspect`), so the source is `serve.json` of the install:
+/// the installer puts podvm at `DATA/bin/podvm` and writes the pins of its
+/// image to `DATA/serve.json` (`--serve`). Another image: `None`.
+fn image_bytes(binary: &std::path::Path, image: &str) -> Option<u64> {
+    let bin = binary.parent().filter(|b| b.file_name() == Some("bin".as_ref()))?;
+    install_bytes(&std::fs::read_to_string(bin.parent()?.join("serve.json")).ok()?, image)
+}
+
+/// `unpacked_bytes` of the text of `serve.json` when its image has the
+/// digest of `image`; 0 or `null` is not a size.
+fn install_bytes(text: &str, image: &str) -> Option<u64> {
+    let v: serde_json::Value = serde_json::from_str(text).ok()?;
+    let (_, want) = podrunner_unit::parse_pinned(image).ok()?;
+    let (_, have) = podrunner_unit::parse_pinned(v["image"].as_str()?).ok()?;
+    (v["schema"].as_u64() == Some(1) && want == have).then_some(())?;
+    v["unpacked_bytes"].as_u64().filter(|n| *n > 0)
 }
 
 pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
@@ -60,11 +102,15 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
         kvm().map_err(|e| fail(Class::Unavailable, e))?;
         super::doctor::image_in_store(binary, images, image).map_err(|e| fail(Class::Config, e))?;
     }
+    // The boot floor and the reserve of a job of the guest (T-655, T-699).
+    let size = image_size(a).map_err(|e| fail(Class::Config, e))?;
+    let digest = podrunner_unit::parse_pinned(image).ok().map(|(_, d)| d.to_string());
+    let sizes = digest.zip(size).into_iter().collect();
     let u = unit(a, binary, images);
     let payload_engines = a.engine.is_none().then(|| payload_engine(a, image)).flatten();
     let payload_engines = payload_engines.into_iter().collect();
     let built = if *microvm {
-        crate::microvm_kind::build(&u, state, payload_engines, Default::default())
+        crate::microvm_kind::build(&u, state, payload_engines, sizes)
     } else {
         crate::incus_kind::build(&u, state, payload_engines)
     };
