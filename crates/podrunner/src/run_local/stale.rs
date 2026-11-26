@@ -191,7 +191,8 @@ fn of_pids(tmp: &Path, uid: u32, me: Here, dead: &[PathBuf]) -> Vec<PathBuf> {
     };
     let dead: Vec<u32> =
         dead.iter().filter_map(|d| run(&d.file_name()?.to_string_lossy(), true)).map(|h| h.pid).collect();
-    let shared: Vec<u32> = names.iter().filter_map(|(_, n)| run(n, false)).filter(|h| h.ns != me.ns).map(|h| h.pid).collect();
+    let shared: Vec<u32> =
+        names.iter().filter_map(|(_, n)| run(n, false)).filter(|h| h.ns != me.ns).map(|h| h.pid).collect();
     names
         .into_iter()
         .filter_map(|(path, name)| {

@@ -27,8 +27,10 @@ const LIMIT: Duration = Duration::from_secs(30);
 fn runner(dir: &Path, stubborn: bool) {
     std::fs::create_dir_all(dir.join("r/bin")).unwrap();
     let body = match stubborn {
-        true => "trap '' TERM\necho $$ > ../started.tmp && mv ../started.tmp ../started\n\
-                 i=0; while [ $i -lt 200 ]; do sleep 0.1; i=$((i+1)); done\n",
+        true => {
+            "trap '' TERM\necho $$ > ../started.tmp && mv ../started.tmp ../started\n\
+                 i=0; while [ $i -lt 200 ]; do sleep 0.1; i=$((i+1)); done\n"
+        }
         false => "echo $$ > ../started.tmp && mv ../started.tmp ../started\nexec sleep 30\n",
     };
     podrunner_unit::program_file::write(dir.join("r/run.sh"), &format!("#!/bin/sh\n{body}")).unwrap();

@@ -402,7 +402,7 @@ impl Executor for InUnit {
         let had_hooks = hooks.is_some();
         let first = matches!(waited, Ok(None)).then(|| match cancelled {
             // The end of a unit can take a while: say that the run waits (T-636).
-            true => stopping::wait_for(job.as_str(), id.as_str(), stopping::TICK, &|l| eprintln!("{l}"), &destroy),
+            true => stopping::wait_for(job.as_str(), id.as_str(), stopping::TICK, &|l| eprintln!("{l}"), destroy),
             false => destroy(),
         });
         let refusals = hooks.map(Hooks::stop).unwrap_or_default();

@@ -1,6 +1,5 @@
 //! The cancel of a local run at SIGINT, SIGTERM or SIGHUP (T-141, T-273).
-//! The handler only
-//! sets a flag: the drive loop then cancels the running job (the executor
+//! The handler only sets a flag: the drive loop then cancels the running job (the executor
 //! ends the runner, or destroys its unit), prints `cancelled` for each job
 //! that did not end, and the run removes its scratch directories. A third
 //! signal ends the process at once: it ends the process group of each

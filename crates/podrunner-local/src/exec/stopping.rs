@@ -12,12 +12,20 @@ pub(super) const TICK: Duration = Duration::from_secs(10);
 
 /// Run `destroy` of the unit `unit` of the job `job`, and give each line
 /// to `say` (stderr in the run).
-pub(super) fn wait_for<T>(job: &str, unit: &str, tick: Duration, say: &(dyn Fn(String) + Sync), destroy: impl FnOnce() -> T) -> T {
-    say(format!("podrunner: {job}: stopping: the run waits for unit {unit} to go (a third signal ends podrunner at once)"));
+pub(super) fn wait_for<T>(
+    job: &str,
+    unit: &str,
+    tick: Duration,
+    say: &(dyn Fn(String) + Sync),
+    destroy: impl FnOnce() -> T,
+) -> T {
+    say(format!(
+        "podrunner: {job}: stopping: the run waits for unit {unit} to go (a third signal ends podrunner at once)"
+    ));
     let t = Instant::now();
     let (done, ended) = channel::<()>();
     let out = std::thread::scope(|s| {
-        s.spawn(|| {
+        s.spawn(move || {
             while let Err(RecvTimeoutError::Timeout) = ended.recv_timeout(tick) {
                 say(format!("podrunner: {job}: unit {unit} still goes ({} s)", t.elapsed().as_secs()));
             }
@@ -57,7 +65,9 @@ mod tests {
         let lines = lines.into_inner().unwrap();
         assert_eq!(
             lines.first().map(String::as_str),
-            Some("podrunner: build: stopping: the run waits for unit u-1 to go (a third signal ends podrunner at once)")
+            Some(
+                "podrunner: build: stopping: the run waits for unit u-1 to go (a third signal ends podrunner at once)"
+            )
         );
         assert!(lines[1..lines.len() - 1].iter().all(|l| l.starts_with("podrunner: build: unit u-1 still goes (")));
         assert!(lines.len() >= 3, "{lines:?}");

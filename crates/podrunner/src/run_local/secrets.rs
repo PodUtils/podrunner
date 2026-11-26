@@ -73,7 +73,9 @@ pub(super) fn unreadable(a: &Args) -> Option<String> {
 
 /// The secrets and vars of each environment (T-136): a secret file needs
 /// mode 0600, as `--secret-file`.
-pub(super) fn environments(a: &Args) -> Result<std::collections::BTreeMap<String, podrunner_local::Environment>, String> {
+pub(super) fn environments(
+    a: &Args,
+) -> Result<std::collections::BTreeMap<String, podrunner_local::Environment>, String> {
     let mut out: std::collections::BTreeMap<String, podrunner_local::Environment> = Default::default();
     for (name, file) in &a.environment_secrets {
         out.entry(name.clone()).or_default().secrets.extend(podrunner_local::secrets::read_file(file)?);
