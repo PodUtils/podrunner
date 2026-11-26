@@ -18634,7 +18634,7 @@ or that a value of the user wins.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18656,6 +18656,22 @@ a leak". Check the fake unit with plant 26 too.
 
 `cargo test -p podrunner-podvm` with a gone launcher and no tagged
 process.
+
+## Done
+
+2026-11-26, `7bbf42e9` (tests on a development host; not run on a real
+podvm). `PodvmUnit::destroy` set the count `Unknown` whenever podvm named
+the launcher `dead`, and after `job-mismatch` (the hook ends the worker,
+T-682) it is. Now (`labels::count_lost`) the count is 0 when the launcher
+is dead, `podvm wait` gave a real exit, and no process but `podnet`
+carries the tag of the unit; a dead launcher with no exit (a killed
+shim, design test 15) or with a tagged process stays `Unknown`. The log
+line says "no count of the processes, not a leak". Tests:
+`a_dead_launcher_after_an_exit_with_no_tagged_process_leaves_none` (it
+failed on the old rule: `Unknown`), `a_dead_launcher_with_no_exit_has_no_count`,
+and the edges of `count_lost`. Plant 26 of the fake unit stays: it is
+the killed shim. The live proof is `a_foreign_job_ends_before_its_first_step_in_a_podvm_unit`,
+which asserts a clean residue.
 
 # T-697: The stand-in of actions/checkout prints its script in the log
 

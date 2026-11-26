@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**697 entries: 77 open, 54 partial, 18 blocked, 548 done.**
+**697 entries: 76 open, 54 partial, 18 blocked, 549 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 12 | 19 | 10 | 283 | 324 |
-| P3 | 64 | 12 | 6 | 163 | 245 |
-| **All** | 77 | 54 | 18 | 548 | 697 |
+| P3 | 63 | 12 | 6 | 164 | 245 |
+| **All** | 76 | 54 | 18 | 549 | 697 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -738,7 +738,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-693](later.md) | P3 | S | later | chore | done | The trust store of a unit of serve is encoded twice |
 | [T-694](later.md) | P3 | M | later | defect | open | The output of a container step comes at its end |
 | [T-695](later.md) | P3 | S | later | defect | open | doctor --run names no NODE_EXTRA_CA_CERTS of SSL_CERT_FILE |
-| [T-696](later.md) | P3 | S | later | defect | open | A podvm unit after job-mismatch is degraded with an unknown count |
+| [T-696](later.md) | P3 | S | later | defect | done | A podvm unit after job-mismatch is degraded with an unknown count |
 | [T-697](later.md) | P3 | S | later | defect | open | The stand-in of actions/checkout prints its script in the log |
 | [T-698](later.md) | P3 | S | later | defect | open | The local mode checks --mem against an image of 0 bytes |
 | [T-699](later.md) | P3 | S | later | defect | open | A microvm guest of an offer below the kind can leave its job no reserve |
