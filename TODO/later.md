@@ -16202,7 +16202,7 @@ Give each area to a lane of `user-gate.yml` (T-243, T-244) where a lane exists, 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -16222,6 +16222,23 @@ Read `.github/workflows/user-gate.yml` (the matrix of lanes) and `scripts/lab/` 
 
 `gh workflow run user-gate.yml --ref main`; the lane `fsize-1g` of that run is green, and its table shows the row of each executor.
 
+
+State (2026-11-26, `3c761fe`; tests on a development host, the lane not
+run on GitHub): `scripts/lab/fsize.sh` sets the soft and the hard limit
+of file size to 1 GiB with `prlimit` (`ulimit -f` counts 512-byte blocks
+in dash and 1024-byte blocks in bash) and checks it. The lane `fsize-1g`
+(`fsize.sh`, then `nonroot.sh`; executors podvm and runner-dir) is in
+`user-gate.yml` and in the lanes of the summary. The check `fsize` of
+`scripts/user-gate.py`: `doctor --run` on runner-dir does not fail
+`file-size-limit`; on podvm the verdict follows `fsize_expect`, the rule
+of `fsize_need` of `run_local/dry.rs` (image + a quarter + 64 MiB, a
+band of 10 % gives either); when podvm is refused, `run` exits 78 with
+"only root can raise it" and `--runner-dir`, and the podvm checks are
+skips. The self-test fails with each of three planted rules. Left: the
+lane on GitHub. Two risks for its first run: `install:full` copies
+`runner-full-ARCH.tar` (643,160,064 bytes for amd64 in T-672, under the
+limit); a corpus row of `lanes=*` on runner-dir can need more than 1 GiB
+for a file and then needs an `xfail` row with its entry.
 
 # T-639: Ctrl-C does not cancel a `container:` job in a long step on `--podvm`
 
@@ -17839,7 +17856,7 @@ next images.
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -17919,6 +17936,14 @@ of the earlier incus steps with an operator engine (Docker 27.5.1, an
 older runc, which works): the text names the runc, so it stays. Left:
 the lane `serve-incus-kvm` of `user-gate.yml`; #361 dispatched no
 user-gate run, as the image run was red.
+
+## Done
+
+2026-11-26, proven in CI on GitHub-hosted runners: user-gate run
+45791486089 on `3000de7` (images of runner-image 45783615763), the lane
+`serve-incus-kvm` (Incus 6.0.0 of apt, AppArmor on): "pass
+serve:check:incus: ... engine warning on incusd 6.0.0: yes". Steps 1 and
+2 hold in runner-image 45773152397 and 45783615763.
 
 # T-686: Take podnet `v0.4.0-beta.20` (COORD-132 of podnet)
 
@@ -18002,3 +18027,47 @@ sh scripts/agent/check.sh
 ```
 
 The gate and level2 on the commit of the take.
+
+# T-688: A job of the corpus runs out of space in a microvm guest
+
+**Source:** user-gate run 45791486089, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+In user-gate run 45791486089 (`3000de7`), the lane `plain` failed at
+`corpus:rbg-gate:microvm`: the job passes on github.com, but in the
+guest `npx playwright install` got `ENOSPC` while it wrote Chrome for
+Testing (191 MiB). The same row passed in user-gate run 45626716848
+(`b474354`). Each other row and lane of the run passed.
+
+## Premise
+
+Read from the log of job 139824511590 on 2026-11-26. The root of a guest
+of the microvm kind is in the memory of the guest (an initramfs, T-573),
+so the free space of a job is the memory of the guest less the unpacked
+image. Not measured: the memory of the guest, the size of the unpacked
+image of both runs, and the free space at the start of the job.
+
+## Approach
+
+1. Compare the two runs: the image digest and its unpacked size, the
+   `mem` of the guest, and the free space of `/` and of the work folder
+   in the guest at the first step (add a line to the job if no log has
+   it).
+2. Find the cause: a larger image (T-672 changed the Dockerfile of the
+   runner), a smaller guest, or a larger download of the row.
+3. Fix the cause, or give a guest of the microvm kind a work folder on a
+   disk of its own (a sparse file or a volume of podvm) so that the
+   space of a job does not come from its memory, as a GitHub-hosted
+   runner has a disk.
+
+## Prove
+
+The row `rbg-gate` on `microvm` passes in the lane `plain` of
+`user-gate.yml`, and a test names the free space that a guest gives a
+job.

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 682 entries: 83 open, 54 partial, 15 blocked, 530 done.
+`TODO/INDEX.md` holds 683 entries: 83 open, 54 partial, 15 blocked, 531 done.
 
 ## State
 
@@ -66,8 +66,8 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Read runner-image 45783615763 to its end, then `user-gate.yml` with it
-   (#362) for the lane check of T-683.
+1. Merge the workers of T-521, T-655, T-679 and T-680, T-685; find the
+   cause of the space of a guest of T-688.
 2. Take podnet `v0.4.0-beta.20` (T-686, its image run) and podcrates
    `v0.86.0` (T-687, after T-679). Take the rest of the cache work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write

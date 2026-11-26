@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**682 entries: 83 open, 54 partial, 15 blocked, 530 done.**
+**683 entries: 83 open, 54 partial, 15 blocked, 531 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 0 | 24 | 2 | 99 | 125 |
-| P2 | 15 | 19 | 9 | 280 | 323 |
-| P3 | 67 | 11 | 4 | 149 | 231 |
-| **All** | 83 | 54 | 15 | 530 | 682 |
+| P1 | 0 | 23 | 2 | 100 | 125 |
+| P2 | 16 | 19 | 9 | 280 | 324 |
+| P3 | 66 | 12 | 4 | 149 | 231 |
+| **All** | 83 | 54 | 15 | 531 | 683 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -680,7 +680,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-635](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |
 | [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
 | [T-637](later.md) | P3 | L | later | measurement | open | QA round 6, agent A: the areas that the round did not test |
-| [T-638](later.md) | P3 | S | later | defect | open | The user-path gate has no lane with a hard limit of file size of 1 GiB |
+| [T-638](later.md) | P3 | S | later | defect | partial | The user-path gate has no lane with a hard limit of file size of 1 GiB |
 | [T-639](later.md) | P2 | M | later | defect | done | Ctrl-C does not cancel a `container:` job in a long step on `--podvm` |
 | [T-640](later.md) | P2 | M | later | defect | done | `actions/checkout` with `ref:` on the same repository is silently ignored in the local mode |
 | [T-641](later.md) | P2 | S | later | defect | done | `check` accepts the `config_url` of an organization with `.git` at the end |
@@ -725,8 +725,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-680](later.md) | P3 | S | later | defect | open | Local doctor only checks the podnet file |
 | [T-681](later.md) | P2 | S | later | measurement | blocked | Repeat the low-space Incus proof on the next podvm release |
 | [T-682](later.md) | P1 | M | later | defect | done | A refused runner assignment must stop the job before steps |
-| [T-683](later.md) | P1 | S | later | defect | partial | The bundled engine fails in an instance of Incus before 6.0.6 and 6.19 |
+| [T-683](later.md) | P1 | S | later | defect | done | The bundled engine fails in an instance of Incus before 6.0.6 and 6.19 |
 | [T-684](later.md) | P2 | S | later | defect | done | A job hides bytes from the disk limit under a shut directory |
 | [T-685](later.md) | P3 | M | later | defect | open | The disk walk of an incus unit skips the directories it cannot read |
 | [T-686](later.md) | P2 | S | later | chore | partial | Take podnet `v0.4.0-beta.20` (COORD-132 of podnet) |
 | [T-687](later.md) | P2 | S | later | chore | open | Take podcrates `v0.86.0` (COORD-158 of podcrates) |
+| [T-688](later.md) | P2 | M | later | defect | open | A job of the corpus runs out of space in a microvm guest |
