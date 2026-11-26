@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**697 entries: 78 open, 54 partial, 18 blocked, 547 done.**
+**697 entries: 77 open, 54 partial, 18 blocked, 548 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 12 | 19 | 10 | 283 | 324 |
-| P3 | 65 | 12 | 6 | 162 | 245 |
-| **All** | 78 | 54 | 18 | 547 | 697 |
+| P3 | 64 | 12 | 6 | 163 | 245 |
+| **All** | 77 | 54 | 18 | 548 | 697 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -735,7 +735,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-690](later.md) | P3 | S | later | feature | done | The local mode has no flag for the memory of a guest |
 | [T-691](later.md) | P3 | S | later | feature | blocked | The run report does not name the limits a unit got |
 | [T-692](later.md) | P3 | M | later | feature | done | The installer does not install the man page |
-| [T-693](later.md) | P3 | S | later | chore | open | The trust store of a unit of serve is encoded twice |
+| [T-693](later.md) | P3 | S | later | chore | done | The trust store of a unit of serve is encoded twice |
 | [T-694](later.md) | P3 | M | later | defect | open | The output of a container step comes at its end |
 | [T-695](later.md) | P3 | S | later | defect | open | doctor --run names no NODE_EXTRA_CA_CERTS of SSL_CERT_FILE |
 | [T-696](later.md) | P3 | S | later | defect | open | A podvm unit after job-mismatch is degraded with an unknown count |

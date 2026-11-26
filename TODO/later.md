@@ -18532,7 +18532,7 @@ shows it.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18555,6 +18555,17 @@ hooks of `serve`; `run` keeps its encode.
 
 `cargo test -p podrunner-hook tests_ca` with the store bytes given, and
 no encode when they are.
+
+## Done
+
+2026-11-26, `ae8b0e21` and the commit before it (tests on a development host).
+`Bundle` of `podrunner-hook` and `ContainerCa` of slots carry the
+PKCS #12 store that the egress of the unit made (`UnitTrust.store`, from
+`Opened::trust_store`); `place_ca` writes the given bytes as they are
+(the name and mode 0644 stay) and encodes only when none are given
+(`podrunner run`). Tests: `a_given_trust_store_is_written_as_it_is`
+(planted: a `place_ca` that ignores the bytes fails it) and
+`the_containers_of_a_unit_get_the_bundle_of_its_broker`.
 
 # T-694: The output of a container step comes at its end
 
