@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**699 entries: 76 open, 54 partial, 19 blocked, 550 done.**
+**701 entries: 72 open, 54 partial, 20 blocked, 555 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 11 | 19 | 11 | 283 | 324 |
-| P3 | 64 | 12 | 6 | 165 | 247 |
-| **All** | 76 | 54 | 19 | 550 | 699 |
+| P3 | 60 | 12 | 7 | 170 | 249 |
+| **All** | 72 | 54 | 20 | 555 | 701 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -737,13 +737,15 @@ acceptance, later The crate dependencies later than v1.
 | [T-692](later.md) | P3 | M | later | feature | done | The installer does not install the man page |
 | [T-693](later.md) | P3 | S | later | chore | done | The trust store of a unit of serve is encoded twice |
 | [T-694](later.md) | P3 | M | later | defect | done | The output of a container step comes at its end |
-| [T-695](later.md) | P3 | S | later | defect | open | doctor --run names no NODE_EXTRA_CA_CERTS of SSL_CERT_FILE |
+| [T-695](later.md) | P3 | S | later | defect | done | doctor --run names no NODE_EXTRA_CA_CERTS of SSL_CERT_FILE |
 | [T-696](later.md) | P3 | S | later | defect | done | A podvm unit after job-mismatch is degraded with an unknown count |
 | [T-697](later.md) | P3 | S | later | defect | open | The stand-in of actions/checkout prints its script in the log |
-| [T-698](later.md) | P3 | S | later | defect | open | The local mode checks --mem against an image of 0 bytes |
-| [T-699](later.md) | P3 | S | later | defect | open | A microvm guest of an offer below the kind can leave its job no reserve |
-| [T-700](later.md) | P3 | S | later | defect | open | config init does not make the directory of its output |
+| [T-698](later.md) | P3 | S | later | defect | done | The local mode checks --mem against an image of 0 bytes |
+| [T-699](later.md) | P3 | S | later | defect | done | A microvm guest of an offer below the kind can leave its job no reserve |
+| [T-700](later.md) | P3 | S | later | defect | done | config init does not make the directory of its output |
 | [T-701](later.md) | P3 | S | later | defect | open | A local run with --podnet leaves a socket of podnet in /tmp |
-| [T-702](later.md) | P3 | S | later | defect | open | install-unit names Windows in a refusal on Linux |
+| [T-702](later.md) | P3 | S | later | defect | done | install-unit names Windows in a refusal on Linux |
 | [T-703](later.md) | P3 | S | later | defect | open | A failed test of a fake unit leaves its shim with the lock of cargo |
 | [T-704](later.md) | P3 | M | later | defect | open | The work directory of a microvm or incus unit has the owner problem of a writable cache |
+| [T-705](later.md) | P3 | S | later | defect | open | The installer writes the unpacked size of its image only with --serve |
+| [T-706](later.md) | P3 | S | later | feature | blocked | run checks --mem only for the image that the install pulled |

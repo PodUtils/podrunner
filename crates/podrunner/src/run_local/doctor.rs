@@ -138,13 +138,16 @@ pub(super) fn proxy_line(vars: impl Iterator<Item = (String, String)>) -> String
     if names.is_empty() {
         return "a job takes no proxy and no CA file of the environment (direct egress)".into();
     }
-    let value = |name: &str| vars.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str());
     let mut line = format!("a job takes {} of the environment", names.join(", "));
-    // Node reads NODE_EXTRA_CA_CERTS only: `run` copies SSL_CERT_FILE into
-    // it, and a value of the user wins.
-    match (value("NODE_EXTRA_CA_CERTS"), value("SSL_CERT_FILE")) {
-        (Some(node), Some(_)) => line.push_str(&format!("; Node gets {node} (NODE_EXTRA_CA_CERTS of the user wins)")),
-        (None, Some(file)) => line.push_str(&format!("; Node gets {file} (NODE_EXTRA_CA_CERTS from SSL_CERT_FILE)")),
+    // The rule of `run` itself, so the row cannot differ from the job.
+    let mut job: std::collections::BTreeMap<String, String> = vars.iter().cloned().collect();
+    let own = job.contains_key("NODE_EXTRA_CA_CERTS");
+    podrunner_local::exec::node_ca(&mut job);
+    match (job.get("NODE_EXTRA_CA_CERTS"), job.contains_key("SSL_CERT_FILE")) {
+        (Some(node), true) if own => {
+            line.push_str(&format!("; Node gets {node} (NODE_EXTRA_CA_CERTS of the user wins)"))
+        }
+        (Some(file), true) => line.push_str(&format!("; Node gets {file} (NODE_EXTRA_CA_CERTS from SSL_CERT_FILE)")),
         _ => {}
     }
     line

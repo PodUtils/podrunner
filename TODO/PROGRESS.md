@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 699 entries: 76 open, 54 partial, 19 blocked, 550 done.
+`TODO/INDEX.md` holds 701 entries: 72 open, 54 partial, 20 blocked, 555 done.
 
 ## State
 
@@ -67,8 +67,7 @@ Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
 1. Read the runs of #370 (the lanes `fsize-1g`, `cancel-container`,
-   `install:man`; the OOM tests of T-515). Merge the workers of
-   T-699 with T-698, and T-700 with T-702 and T-695.
+   `install:man`; the OOM tests of T-515).
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -81,9 +80,9 @@ then take the next one.
 4. Keep the G-09 line on #66 current with the CI proof of Docker build
    and Docker-in-Docker, the bundled engine (done), and the live check
    (T-040).
-5. The local P3 entries: T-656, T-658, T-659, T-603 (step 1), T-610, T-609, T-695, T-697 to T-699, T-703. The follow-ups
+5. The local P3 entries: T-656, T-658, T-659, T-603 (step 1), T-610, T-609, T-697, T-703, T-705. The follow-ups
    of QA round 6: T-638, T-643, T-644. The P3 groups of the QA rounds: T-308, T-316, T-323,
-   T-331, T-339, T-634 to T-637, T-700 to T-702.
+   T-331, T-339, T-634 to T-637, T-701.
 6. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
    T-175 (partial; its step on the test organization is next).
 7. The local mode: T-204, T-229, T-242 (partial), T-161
@@ -96,7 +95,7 @@ then take the next one.
 
 Waits:
 
-- Podvm: T-685 (COORD-138, #364), T-650 (COORD-141, #368). The copy of
+- Podvm: T-685 (COORD-138, #364), T-650 (COORD-141, #368), T-706 (COORD-144, #372). The copy of
   the cgroup rule of podvm goes after COORD-137 (#363). T-658 (COORD-132, #354) and
   T-659 (COORD-133, #355): a podvm release. T-681 waits for the next
   Incus image import path for the low-space control. COORD-254

@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| command line, `[unit.microvm] mem` | `run --microvm` refuses a `--mem` that cannot hold the unpacked image of the install (`DATA/serve.json`) and the 2 GiB reserve of the job; `doctor --run` names that size. A guest of an offer below the kind gets at least the memory that leaves its job the reserve. | T-698, T-699 |
 | the capability record, `[cache]` | The microvm and incus kinds mount the cache read-only: their record lists `mount_modes: ["ro"]` (incus had `["rw"]`), and on a kind with no `rw` a job that would write gets the cache at `ro`. | T-648 |
 | the container hooks (`docs/contracts/hook.md`) | A step of a `container:` job prints its output while it runs: the relay uses `/v2/hook/COMMAND` (a chunked answer; the exit code or the refusal in a trailer). The relay and the host ship together. | T-694 |
 | the installer | `serve.json` of `install.sh --serve` has `built_at_s` (an integer or null); the pin block has `BUILT_image_ARCH` and `BUILT_imagefull_ARCH`; a failed download names its cause (exit 1 as before). | T-633 |
@@ -169,4 +170,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md e4ec7ef3b1f14d89f93208e786351cfc1dd4d1ce241c9e6aec829f377d474d45 -->
 <!-- contract docs/contracts/source-driver.md 46114c3b7a40cd652217eca2f770b35866a479a05f1ff5637c30a2402b1c171d -->
 <!-- contract docs/contracts/unit-driver.md 2f641d0658a90039fd34ab40b4857d1dba7044ed627564753e868ece2aac8712 -->
-<!-- contract schemas/config.v1.json 3496fe494c8560614cba8ee1f60a99d9caa7087c0ee08c096b87d6f1e3745c9e -->
+<!-- contract schemas/config.v1.json 4d4962b1b8f4a16f94046dcebf82367fec28432907a4717806ade2ddd3d96ff0 -->

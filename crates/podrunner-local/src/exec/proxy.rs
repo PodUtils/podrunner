@@ -58,7 +58,7 @@ pub(crate) fn container_vars() -> Vec<String> {
 /// a proxy that has its own CA. A caller with `SSL_CERT_FILE` and no
 /// `NODE_EXTRA_CA_CERTS` gives Node the same file (T-642). The value of the
 /// caller has priority.
-pub(crate) fn node_ca(vars: &mut BTreeMap<String, String>) {
+pub fn node_ca(vars: &mut BTreeMap<String, String>) {
     let file = vars.get("SSL_CERT_FILE").filter(|v| !v.is_empty()).cloned();
     if let Some(file) = file.filter(|_| vars.get("NODE_EXTRA_CA_CERTS").is_none_or(|v| v.is_empty())) {
         vars.insert("NODE_EXTRA_CA_CERTS".into(), file);

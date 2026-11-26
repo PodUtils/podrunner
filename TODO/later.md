@@ -15279,7 +15279,7 @@ The report of the work of T-541, read on 2026-11-23.
 
 Take `/home/runner/work` when the runner root is under `/home/runner`, or add a work-folder option; add an option of the init of the image for `--incus` and `--microvm`, as `[unit.KIND] init` does. A test of the folder; a `runner-image.yml` step later.
 
-The runner root has no way in either. `InUnit.run_sh` (`crates/podrunner-local/src/exec.rs:53`) is set only to its default `/home/runner/run.sh` (`crates/podrunner-local/src/exec.rs:114`) and by tests; no option of `podrunner run` sets it, and `--runner-dir` is the host route. So `podrunner run` cannot name `/home/runner/actions-runner/run.sh`, and the rule of the folder above has no input. Add the option `--run-sh PATH` (it sets `InUnit.run_sh`, and `workdir::run_root` derives the work folder from it), or derive the root from the image. A test on the command line: `--run-sh /home/runner/actions-runner/run.sh` gives `InUnit.run_sh` that value.
+The runner root has no way in either. `InUnit.run_sh` (`crates/podrunner-local/src/exec.rs:54`) is set only to its default `/home/runner/run.sh` (`crates/podrunner-local/src/exec.rs:115`) and by tests; no option of `podrunner run` sets it, and `--runner-dir` is the host route. So `podrunner run` cannot name `/home/runner/actions-runner/run.sh`, and the rule of the folder above has no input. Add the option `--run-sh PATH` (it sets `InUnit.run_sh`, and `workdir::run_root` derives the work folder from it), or derive the root from the image. A test on the command line: `--run-sh /home/runner/actions-runner/run.sh` gives `InUnit.run_sh` that value.
 
 ## Prove
 
@@ -18646,7 +18646,7 @@ shim in failed tests: T-703.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18666,6 +18666,16 @@ or that a value of the user wins.
 ## Prove
 
 `cargo test -p podrunner --test doctor` with `SSL_CERT_FILE` set and not.
+
+## Done
+
+2026-11-26, `6dac3af3`, `3bf6820a`, `2b050964` and the commit after them
+that names T-695 (tests on a development host). The `proxy` row of
+`doctor --run` names the CA file that Node gets: from `SSL_CERT_FILE`, or
+the `NODE_EXTRA_CA_CERTS` of the user. The row calls `node_ca` of
+podrunner-local, the rule of `run` itself. Test:
+`doctor_run_names_the_ca_file_that_node_gets` (it fails on the old
+code). `docs/local-mode.md` names it.
 
 # T-696: A podvm unit after job-mismatch is degraded with an unknown count
 
@@ -18749,7 +18759,7 @@ no line of the script.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18773,6 +18783,21 @@ COORD issue, and give it to `refusal` and `with_payload_sizes`.
 `cargo test -p podrunner run_local` with an image whose size refuses a
 small `--mem`.
 
+## Done
+
+2026-11-26, `dd7a5c0b` (tests on a development host). `run --microvm`
+takes `unpacked_bytes` from `DATA/serve.json` of the install when it
+names the digest of `--image`, and when `--microvm` is the podvm of the
+install. It refuses a `--mem` too small for the boot or for the reserve
+of the job, with the fix "--mem NG or more", and gives the size to the
+driver. `doctor --run` names the size in its `mem` row, or says that the
+size is not known and not checked. Tests:
+`the_size_of_an_image_comes_from_the_install`,
+`a_memory_too_small_for_the_image_is_refused`,
+`doctor_names_the_size_of_the_image` (each fails on the old code). The
+installer writes the size only with `--serve` (T-705); an image that the
+install did not pull needs podvm (T-706).
+
 # T-699: A microvm guest of an offer below the kind can leave its job no reserve
 
 **Source:** the worker of T-689, 2026-11-26
@@ -18780,7 +18805,7 @@ small `--mem`.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18803,6 +18828,20 @@ the meaning of `memory` of T-655.
 
 `cargo test -p podrunner-microvm mem` with a small offer on a large image.
 
+## Done
+
+2026-11-26, `77f82012` and `cb15fb7f` (tests on a development host; no
+guest on a KVM host). A guest of an offer below the kind gets
+`max(offer + image, boot floor, mem_for_space(image, JOB_RESERVE))`,
+capped at `mem`: the processes and the files of a job share the memory
+of the guest, so below the reserve floor a job gets ENOSPC whatever the
+offer is. Above that floor, `memory` of an offer stays the memory of the
+job beyond its image (T-655). `JOB_RESERVE` is now in
+`podrunner_microvm::mem`. Tests: `a_small_offer_keeps_the_reserve_of_its_job`
+(it fails with the old floor), and the edges of
+`a_guest_gets_the_floor_of_its_image_up_to_the_kind` and of the driver
+argv test.
+
 # T-700: config init does not make the directory of its output
 
 **Source:** QA round 6 finding 4 (T-633), 2026-11-26
@@ -18810,7 +18849,7 @@ the meaning of `memory` of T-655.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18832,6 +18871,15 @@ then `install.sh --serve` drops its `mkdir`, and the notes of
 ## Prove
 
 `cargo test -p podrunner --test config_init` with a missing parent.
+
+## Done
+
+2026-11-26, `6dac3af3` and `2b050964` (tests on a development host).
+`config init` makes the missing levels of the parent of `--out` at mode
+0700 and leaves an existing parent as it is; a file in the path gives
+exit 77. `install.sh --serve` makes no `~/.config/podrunner`. Tests:
+`config_init_makes_the_missing_parent_of_its_output` (it fails on the
+old code) and the new check of `scripts/test-install.sh`.
 
 # T-701: A local run with --podnet leaves a socket of podnet in /tmp
 
@@ -18861,6 +18909,13 @@ pod`; until then `docs/install.md` names the path (T-633).
 
 A run with `--podnet` leaves no entry under `/tmp/podnet-netns-inbound-UID`.
 
+State (2026-11-26): podnet answered COORD-142 (PodUtils/podnet#784):
+podnet T-619 removes the inbound sockets of a pod and their empty
+directory at its end, at SIGINT, SIGTERM and SIGHUP, and a dead socket
+at the next start. It ships in `v0.4.0-beta.21`, not released yet. Next:
+pin that release, then remove the line of `docs/install.md` that names
+the path.
+
 # T-702: install-unit names Windows in a refusal on Linux
 
 **Source:** QA round 6 finding 6 (T-633), 2026-11-26
@@ -18868,7 +18923,7 @@ A run with `--podnet` leaves no entry under `/tmp/podnet-netns-inbound-UID`.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18889,6 +18944,14 @@ platform.
 ## Prove
 
 `cargo test -p podrunner` with the refusal as a user: no word "Windows".
+
+## Done
+
+2026-11-26, `6dac3af3` (tests on a development host). The refusal of
+`install-unit` names root or `--user` and the text of `print-unit` for
+`systemctl --user`, and no Windows. The test
+`install_unit_refuses_a_caller_with_no_privilege` checks both (it fails
+on the old code).
 
 # T-703: A failed test of a fake unit leaves its shim with the lock of cargo
 
@@ -18954,3 +19017,69 @@ and make `destroy` count what it could not remove as residue.
 
 `cargo test -p podrunner-incus` and `-p podrunner-microvm` with a fake
 podvm whose removal fails, and the hosted suites of each kind.
+
+# T-705: The installer writes the unpacked size of its image only with --serve
+
+**Source:** the worker of T-698, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`run --microvm` checks `--mem` against the unpacked size of the image
+from `DATA/serve.json` (T-698). `scripts/install.sh` writes that file
+only with `--serve`, so a local install gets no check.
+
+## Premise
+
+Read from `scripts/install.sh` and `crates/podrunner/src/run_local/guest.rs`
+on 2026-11-26.
+
+## Approach
+
+Make the installer write the unpacked size of each image that it pulls
+for each install (a small `DATA/image.json`, or `DATA/serve.json`
+always), and make `run` read it.
+
+## Prove
+
+`sh scripts/test-install.sh` with a check that an install without
+`--serve` writes the size, and a test of `run` that reads it.
+
+# T-706: run checks --mem only for the image that the install pulled
+
+**Source:** the worker of T-698, 2026-11-26
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+podvm `0.2.0-beta.40` gives no unpacked size of an image before its
+first run. So `run --microvm` cannot check `--mem` for an image that the
+install did not pull, and the job can get ENOSPC in a guest root that is
+too small.
+
+## Premise
+
+Read from the podvm `0.2.0-beta.40` source and help by the worker of
+T-698 on 2026-11-26.
+
+## Approach
+
+When podvm gives `UnpackedBytes` in `inspect`, gate on its version and
+take that value before the file of the install.
+
+## Prove
+
+`cargo test -p podrunner run_local` with a fake podvm that gives the
+field, and one that does not.
+
+## Blocker
+
+COORD-144 (#372) asks podvm for `UnpackedBytes` in `inspect`.
