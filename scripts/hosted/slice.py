@@ -19,8 +19,8 @@ in DIR whose config names only the kept layers, with the ref NAME, as
 layout keeps each layer: the full snapshot, for the measure of the disk
 (hosted-measure.yml, T-557). Each `--keep GLOB` keeps the layers whose
 name (with no NN- prefix) matches GLOB too, for example the tool cache of
-one Python (`toolcache-3.12.*`) for the canned job of hosted-boot.yml
-(T-541). A GLOB that matches no layer is a note on stderr, not an error:
+one Python (`toolcache-Python-3.12.*`; a capture before T-610 named it
+`toolcache-3.12.*`) for the canned job of hosted-boot.yml (T-541). A GLOB that matches no layer is a note on stderr, not an error:
 the caller checks the names in FILE (`--layers`), one kept name on each
 line, with no NN- prefix.
 """
@@ -142,8 +142,9 @@ def self_test() -> int:
     import tempfile
 
     bad = []
-    fixture = ["00-android-ndk", "21-toolcache-3.12.1", "22-toolcache-3.13.2", "56-opt-hostedtoolcache",
-              "79-usr-share", "80-usr-lib-arch", "81-base", "boot", "runner"]
+    fixture = ["00-android-ndk", "20-toolcache-PyPy-3.12.1", "21-toolcache-Python-3.12.1",
+               "22-toolcache-Python-3.13.2", "56-opt-hostedtoolcache", "79-usr-share", "80-usr-lib-arch", "81-base",
+               "boot", "runner"]
     data = {n: n.encode() * 3 for n in fixture}
     manifest = {"schemaVersion": 2, "mediaType": MANIFEST, "config": {},
                 "layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar+zstd", "digest": sha(data[n]),
@@ -155,21 +156,31 @@ def self_test() -> int:
     got = [lay["annotations"]["dev.podrunner.hosted.layer"] for lay in m["layers"]]
     if got != ["79-usr-share", "80-usr-lib-arch", "81-base", "boot", "runner"]:
         bad.append(f"the kept layers: {got}")
-    if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (4, 5, 6, 7, 8)] or len(c["history"]) != 5:
+    if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (5, 6, 7, 8, 9)] or len(c["history"]) != 5:
         bad.append(f"the config: {c['rootfs']}")
     # T-541: --keep adds the tool cache of one Python and its parent layer,
-    # in the order of the manifest, and no other version.
-    keep = ("opt-hostedtoolcache", "toolcache-3.12.*")
+    # in the order of the manifest, and no other version. T-610: no PyPy of
+    # the same version; the globs of hosted-boot.yml, for the names of a
+    # capture before T-610 and after it.
+    keep = ("opt-hostedtoolcache", "toolcache-3.12.*", "toolcache-Python-3.12.*")
     m, c = slice_image(manifest, config, extra=keep)
-    if names(m) != ["toolcache-3.12.1", "opt-hostedtoolcache", "usr-share", "usr-lib-arch", "base", "boot", "runner"]:
+    if names(m) != ["toolcache-Python-3.12.1", "opt-hostedtoolcache", "usr-share", "usr-lib-arch", "base", "boot",
+                    "runner"]:
         bad.append(f"the kept layers with --keep: {names(m)}")
-    if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (1, 3, 4, 5, 6, 7, 8)]:
+    if c["rootfs"]["diff_ids"] != ["sha256:" + str(i) * 64 for i in (2, 4, 5, 6, 7, 8, 9)]:
         bad.append(f"the config with --keep: {c['rootfs']}")
-    if unmatched(manifest, keep) or unmatched(manifest, ("toolcache-3.9.*", "base")) != ["toolcache-3.9.*"]:
-        bad.append("the globs that match no layer")
+    if unmatched(manifest, keep) != ["toolcache-3.12.*"]:
+        bad.append(f"the globs that match no layer: {unmatched(manifest, keep)}")
+    if unmatched(manifest, ("toolcache-Python-3.9.*", "base")) != ["toolcache-Python-3.9.*"]:
+        bad.append("a glob of another version matches")
+    old_names = {**manifest, "layers": [{**lay, "annotations": {"dev.podrunner.hosted.layer": n}}
+                                        for lay, n in zip(manifest["layers"], fixture[:1] + ["20-toolcache-3.12.1"]
+                                                          + ["21-toolcache-3.12.2"] + fixture[3:])]}
+    if names(slice_image(old_names, config, extra=keep)[0])[:2] != ["toolcache-3.12.1", "toolcache-3.12.2"]:
+        bad.append(f"the old names with --keep: {names(slice_image(old_names, config, extra=keep)[0])}")
     # A glob does not match a part of a name, and no case is ignored.
-    m, _ = slice_image(manifest, config, extra=("3.12.1", "TOOLCACHE-3.13.2"))
-    if "toolcache-3.12.1" in names(m) or "toolcache-3.13.2" in names(m):
+    m, _ = slice_image(manifest, config, extra=("3.12.1", "TOOLCACHE-Python-3.13.2", "toolcache-python-3.13.*"))
+    if any(n.startswith("toolcache") for n in names(m)):
         bad.append(f"a part of a name or another case is kept: {names(m)}")
     m, c = slice_image(manifest, config, keep_all=True)
     if len(m["layers"]) != len(fixture) or c["rootfs"]["diff_ids"] != config["rootfs"]["diff_ids"]:

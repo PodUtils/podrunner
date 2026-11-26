@@ -47,12 +47,23 @@ def read_members(data: bytes) -> list[tuple[str, str]]:
     return out
 
 
+def wild_parts(rule: dict) -> list[int]:
+    """The parts of the path that name a layer of an each rule: the parts
+    that a wildcard matches, so two tools of one version directory
+    (`opt/hostedtoolcache/*/*`: Python and PyPy 3.12.1) get two layers."""
+    segs = rule["path"].split("/")
+    if "**" in rule["path"] or not any(c in g for g in segs for c in "*?["):
+        raise ValueError(f"the each rule {rule['name']}: its path needs a wildcard part, and no **")
+    return [k for k, g in enumerate(segs) if any(c in g for c in "*?[")]
+
+
 class Plan:
     def __init__(self, text: str):
         doc = tomllib.loads(text)
         self.max_bytes = doc["max_bytes"]
         self.max_layers = doc["max_layers"]
-        self.rules = [(r["name"], glob_re(r["path"]), r.get("each", False)) for r in doc["layer"]]
+        self.rules = [(r["name"], glob_re(r["path"]), wild_parts(r) if r.get("each", False) else None)
+                      for r in doc["layer"]]
         names = [r[0] for r in self.rules]
         if len(set(names)) != len(names) or "base" in names:
             raise ValueError("each layer rule needs a name of its own, and not base")
@@ -64,12 +75,12 @@ class Plan:
                 anc = "/".join(parts[:n])
                 if not g.match(anc):
                     continue
-                if each:
+                if each is not None:
                     # One layer for each matched directory; a file that
                     # matches is not a layer of its own.
                     if n == len(parts) and not is_dir(path):
                         continue
-                    return i, f"{name}-{anc.split('/')[-1]}"
+                    return i, "-".join([name] + [parts[k] for k in each])
                 return i, name
         return len(self.rules), "base"
 
@@ -170,6 +181,8 @@ def self_test() -> int:
             "usr/lib/jvm/java-21/bin/java": b"java\n",
             "opt/hostedtoolcache/Python/3.12.1/x64/bin/python": b"python\n",
             "opt/hostedtoolcache/Python/3.12.1.complete": b"",
+            # T-610: two tools with one version directory.
+            "opt/hostedtoolcache/PyPy/3.12.1/x64/bin/pypy": b"pypy\n",
             "opt/hostedtoolcache/node/22.11.0/x64/bin/node": b"node\n",
             "etc/hosts": b"127.0.0.1 localhost\n",
             "etc/machine-id": b"live-id\n",
@@ -217,8 +230,27 @@ def self_test() -> int:
         together = [n for n, ps in by.items() if {"usr/bin/java-link", "usr/lib/jvm/java-21/bin/java"} <= ps]
         if not together:
             bad.append(f"the names of a hard link are in two layers: {sorted(by)}")
-        if not {"toolcache-3.12.1", "toolcache-22.11.0", "base"} <= set(by):
+        tools = {"toolcache-Python-3.12.1": "opt/hostedtoolcache/Python/3.12.1",
+                 "toolcache-PyPy-3.12.1": "opt/hostedtoolcache/PyPy/3.12.1",
+                 "toolcache-node-22.11.0": "opt/hostedtoolcache/node/22.11.0"}
+        if not set(tools) | {"base"} <= set(by) or any(n.startswith("toolcache-3.") for n in by):
             bad.append(f"the layers: {sorted(by)}")
+        for n, d in tools.items():
+            if any(p != d and not p.startswith(d + "/") for p in by.get(n, ())):
+                bad.append(f"the layer {n} holds another tool: {sorted(by[n])}")
+        if "opt-hostedtoolcache" not in by:
+            bad.append(f"the name of an each rule with one wildcard part changed: {sorted(by)}")
+        # An each rule with no wildcard part, or with **, has no name for its layers.
+        head = "max_bytes = 1\nmax_layers = 1\n[[layer]]\nname = \"x\"\neach = true\npath = "
+        for g in ('"opt/tools"', '"opt/**/bin"'):
+            try:
+                Plan(head + g)
+                bad.append(f"an each rule with the path {g} is taken")
+            except ValueError:
+                pass
+        for g, want in (('"opt/*/v[0-9]*"', [1, 2]), ('"opt/t?ol"', [1])):
+            if Plan(head + g).rules[0][2] != want:
+                bad.append(f"the parts of the name of {g}: {Plan(head + g).rules[0][2]}")
         if any("3.12.1.complete" in p for n, ps in by.items() if n.startswith("toolcache") for p in ps):
             bad.append("a file of an each rule is a layer of its own")
         if [lay["name"] for lay in layers][-1] != "base":
@@ -264,7 +296,7 @@ def self_test() -> int:
             bad.append("a time changes the key")
         k3 = {lay["name"]: lay["key"] for lay in
               plan(root, read_members(members), Plan(LAYERS.read_text()), {"usr/bin/tool": "ab"})}
-        if k3["base"] == k1["base"] or k3["toolcache-22.11.0"] != k1["toolcache-22.11.0"]:
+        if k3["base"] == k1["base"] or k3.get("toolcache-node-22.11.0") != k1.get("toolcache-node-22.11.0"):
             bad.append("a digest changes the wrong key")
     for b in bad:
         print(f"self-test: {b}")

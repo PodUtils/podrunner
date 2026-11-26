@@ -61,9 +61,13 @@ jobs:
           sudo mkdir -p /mnt/w
           sudo chown "$(id -u):$(id -g)" /mnt/w
           # T-541: the tool cache of one Python and its parent directory, for
-          # the setup-python step of the canned job.
+          # the setup-python step of the canned job. T-610: a capture names
+          # the layer toolcache-Python-3.N.P; a capture before it named the
+          # version only (toolcache-3.N.P). Remove the old glob when the
+          # pinned snapshot has the new names.
           dig=$(python3 -I scripts/hosted/slice.py --digest "$DIGEST" --ref hosted:core --out /mnt/w/slice \
-            --keep opt-hostedtoolcache --keep "toolcache-$PYTHON.*" --layers /mnt/w/layers)
+            --keep opt-hostedtoolcache --keep "toolcache-Python-$PYTHON.*" --keep "toolcache-$PYTHON.*" \
+            --layers /mnt/w/layers)
           echo "SLICE=$dig" >> "$GITHUB_ENV"
           echo "the kept layers: $(tr '\n' ' ' < /mnt/w/layers)"
           # ImageOS of the snapshot, from the labels of its config.
@@ -234,8 +238,8 @@ jobs:
               | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if ! grep -q "^toolcache-$PYTHON\." /mnt/w/layers; then
-            echo "::error title=hosted-boot::the slice has no layer toolcache-$PYTHON.*: give a python of the tool cache of the snapshot"
+          if ! grep -q -e "^toolcache-Python-$PYTHON\." -e "^toolcache-$PYTHON\." /mnt/w/layers; then
+            echo "::error title=hosted-boot::the slice has no layer toolcache-Python-$PYTHON.* (or toolcache-$PYTHON.* of an old capture): give a python of the tool cache of the snapshot"
             exit 1
           fi
           case $PLANT in none | work-folder) ;; *) echo "plant is none or work-folder, not: $PLANT" >&2; exit 1 ;; esac

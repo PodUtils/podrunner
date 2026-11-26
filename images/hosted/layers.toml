@@ -3,7 +3,9 @@
 # change least go first, so a new capture reuses their blobs and the
 # extracted layers above them (a layer is keyed by its chain). A path goes
 # to the first rule whose `path` glob matches it or one of its parent
-# directories; `each = true` makes one layer for each match. The rest is
+# directories; `each = true` makes one layer for each match, named by the
+# rule and each part of the path that a wildcard matches
+# (`toolcache-Python-3.12.1`, `llvm-llvm-18`). The rest is
 # the layer `base`, on top. The kernel layer `boot` is a capture of its
 # own (/boot and /boot/efi). scripts/hosted/plan.py reads this file.
 
