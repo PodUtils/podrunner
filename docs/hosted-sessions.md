@@ -76,7 +76,7 @@ The commit message hook checks for agent attribution.
 Use the model and reasoning effort for each assignment under the ruling
 [Hosted sessions and worker roles](decisions.md#in-force). Give each
 worker a fresh brief. Request a table change by a COORD issue
-`(to podcrates)`. [Upstream role table](https://github.com/PodUtils/podcrates/blob/v0.85.0/docs/hosted-sessions.md#lead-and-workers). <!-- ok: source of the role table, separate from the Cargo dependency pin -->
+`(to podcrates)`. [Upstream role table](https://github.com/PodUtils/podcrates/blob/v0.86.0/docs/hosted-sessions.md#lead-and-workers). <!-- ok: source of the role table, separate from the Cargo dependency pin -->
 
 | Role | Assignment | Claude Code | Codex |
 | --- | --- | --- | --- |

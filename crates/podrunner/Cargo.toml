@@ -20,19 +20,19 @@ podrunner-remote.workspace = true
 podrunner-tier.workspace = true
 toml.workspace = true
 ring.workspace = true
-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.85.0" }
-pod-time = { git = "https://github.com/PodUtils/podcrates", tag = "v0.85.0" }
+pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.86.0" }
+pod-time = { git = "https://github.com/PodUtils/podcrates", tag = "v0.86.0" }
 # The pins of `[dns]` (T-076).
-pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.85.0" }
+pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.86.0" }
 # The probes of the host that `doctor` shows (T-070).
-pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.85.0" }
-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.85.0", default-features = false }
+pod-hostprobe = { git = "https://github.com/PodUtils/podcrates", tag = "v0.86.0" }
+pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.86.0", default-features = false }
 # The control socket: pod-control protocol 1 (T-576).
-pod-control = { git = "https://github.com/PodUtils/podcrates", tag = "v0.85.0" }
+pod-control = { git = "https://github.com/PodUtils/podcrates", tag = "v0.86.0" }
 # The systemd unit of `print-unit` (T-576, T-507).
-pod-unit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.85.0" }
+pod-unit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.86.0" }
 # The help and the manual from one model of the commands (T-248, T-627).
-pod-manual = { git = "https://github.com/PodUtils/podcrates", tag = "v0.85.0", features = ["core"] }
+pod-manual = { git = "https://github.com/PodUtils/podcrates", tag = "v0.86.0", features = ["core"] }
 pod-actions-expr.workspace = true
 pod-actions-workflow.workspace = true
 podrunner-fake.workspace = true
@@ -50,5 +50,5 @@ serde_json.workspace = true
 
 [dev-dependencies]
 # The runner pin of the image agrees with the one of pod-services (a test).
-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.85.0" }
+pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.86.0" }
 serde_json.workspace = true

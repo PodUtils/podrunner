@@ -409,3 +409,22 @@ mod env_tests {
         assert_eq!(node, [&("NODE_USE_ENV_PROXY", "0".to_string())]);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pod_core::lock::{FileLock, Mode};
+
+    /// T-687: the lock of a runner directory holds until the process ends,
+    /// also after the last run of the directory dropped its handle
+    /// (`FileLock` unlocks at its drop, so `HELD` must keep the value).
+    #[test]
+    fn the_lock_outlives_the_last_handle_of_its_directory() {
+        let dir = std::env::temp_dir().join(format!("podrunner-host-lock-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        drop(lock(&dir).unwrap());
+        let probe = FileLock::try_lock_existing(&dir.join(LOCK), Mode::Exclusive).unwrap();
+        assert!(probe.is_none(), "the lock of the directory is free after the drop of its last handle");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

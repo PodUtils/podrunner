@@ -585,9 +585,9 @@ jobs:
           set -eu
           sh scripts/retry.sh python3 -m pip install -q --user 'jsonschema==4.23.0'
           # The schema of status.v1 is pod-job's, at the commit of the pinned
-          # tag of podcrates (v0.85.0, T-508).
+          # tag of podcrates (v0.86.0, T-508).
           sh scripts/retry.sh curl -qfsSL -o "$RUNNER_TEMP/status.v1.schema.json" \
-            "https://raw.githubusercontent.com/PodUtils/podcrates/1d1c9fc307a90e6d92c7ef86a126f13708195b63/schemas/status.v1.schema.json"
+            "https://raw.githubusercontent.com/PodUtils/podcrates/22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef/schemas/status.v1.schema.json"
           # tee must not hide the exit of the test.
           set -o pipefail
           PODRUNNER_ACCEPT_KIND=microvm PODRUNNER_ACCEPT_OUT="$RUNNER_TEMP/status-microvm.jsonl" timeout 3600 \
@@ -772,9 +772,9 @@ jobs:
           set -eu
           sh scripts/retry.sh python3 -m pip install -q --user 'jsonschema==4.23.0'
           # The schema of status.v1 is pod-job's, at the commit of the pinned
-          # tag of podcrates (v0.85.0, T-508).
+          # tag of podcrates (v0.86.0, T-508).
           sh scripts/retry.sh curl -qfsSL -o "$RUNNER_TEMP/status.v1.schema.json" \
-            "https://raw.githubusercontent.com/PodUtils/podcrates/1d1c9fc307a90e6d92c7ef86a126f13708195b63/schemas/status.v1.schema.json"
+            "https://raw.githubusercontent.com/PodUtils/podcrates/22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef/schemas/status.v1.schema.json"
           # tee must not hide the exit of the test.
           set -o pipefail
           cargo test -p podrunner-broker-fake --test accept --no-run

@@ -238,6 +238,31 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// T-687: a `Held` keeps its lock for its whole life (`FileLock`
+    /// unlocks at its drop), also for a group that a waiter took after the
+    /// first holder ended.
+    #[test]
+    fn a_held_group_keeps_its_lock() {
+        let dir = std::env::temp_dir().join(format!("podrunner-group-keep-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let g = Group { name: "keep".into(), cancel_in_progress: false };
+        let path = dir.join(file_name("o/r", &g.name));
+        let free = || FileLock::try_lock(&path, Mode::Exclusive).unwrap().is_some();
+        let held = hold(&dir, "o/r", &g, false, &mut |_| {}).unwrap();
+        assert!(!free(), "the group is locked while its value lives");
+        // The waiter notes its wait, then it waits for the lock.
+        let (said, heard) = std::sync::mpsc::channel();
+        let (d, g2) = (dir.clone(), g.clone());
+        let t = std::thread::spawn(move || hold(&d, "o/r", &g2, false, &mut |_| said.send(()).unwrap()).unwrap());
+        heard.recv().unwrap();
+        drop(held);
+        let second = t.join().unwrap();
+        assert!(!free(), "the group is locked while the value of the waiter lives");
+        drop(second);
+        assert!(free(), "the group is free after the drop");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// T-679: a wait that a stop callback ended gives the signal text; a
     /// failure of the open or the lock gives its own text.
     #[test]

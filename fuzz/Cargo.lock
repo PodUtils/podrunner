@@ -844,8 +844,8 @@ dependencies = [
 
 [[package]]
 name = "pod-acme"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "base64",
  "p256",
@@ -865,13 +865,13 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-expr"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 
 [[package]]
 name = "pod-actions-results"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "base64",
  "pod-core",
@@ -881,8 +881,8 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-store"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "flate2",
  "pod-actions-workflow",
@@ -893,8 +893,8 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-workflow"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "pod-actions-expr",
  "saphyr-parser",
@@ -902,16 +902,16 @@ dependencies = [
 
 [[package]]
 name = "pod-beneath"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "linux-raw-sys",
 ]
 
 [[package]]
 name = "pod-broker"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "base64",
  "pod-acme",
@@ -934,8 +934,8 @@ dependencies = [
 
 [[package]]
 name = "pod-confine"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -943,8 +943,8 @@ dependencies = [
 
 [[package]]
 name = "pod-control"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "pod-core",
  "serde",
@@ -955,8 +955,8 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "libc",
  "rand",
@@ -966,8 +966,8 @@ dependencies = [
 
 [[package]]
 name = "pod-dns"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "base64",
  "bytes",
@@ -988,7 +988,7 @@ dependencies = [
 [[package]]
 name = "pod-h2"
 version = "0.4.20"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1005,8 +1005,8 @@ dependencies = [
 
 [[package]]
 name = "pod-hostprobe"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "linux-raw-sys",
  "pod-beneath",
@@ -1016,8 +1016,8 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "base64",
  "ed25519-dalek",
@@ -1031,8 +1031,8 @@ dependencies = [
 
 [[package]]
 name = "pod-job"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "serde",
  "serde_json",
@@ -1041,8 +1041,8 @@ dependencies = [
 
 [[package]]
 name = "pod-manual"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "libc",
  "pod-core",
@@ -1052,8 +1052,8 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "base64",
  "libc",
@@ -1069,8 +1069,8 @@ dependencies = [
 
 [[package]]
 name = "pod-services"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "pod-core",
  "toml",
@@ -1078,13 +1078,13 @@ dependencies = [
 
 [[package]]
 name = "pod-time"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 
 [[package]]
 name = "pod-tls"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "base64",
  "p256",
@@ -1103,8 +1103,8 @@ dependencies = [
 
 [[package]]
 name = "pod-turn"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "crc32fast",
  "hmac",
@@ -1114,8 +1114,8 @@ dependencies = [
 
 [[package]]
 name = "pod-unit"
-version = "0.85.0"
-source = "git+https://github.com/PodUtils/podcrates?tag=v0.85.0#1d1c9fc307a90e6d92c7ef86a126f13708195b63"
+version = "0.86.0"
+source = "git+https://github.com/PodUtils/podcrates?tag=v0.86.0#22d1a7557c982b8eb5bef5b8c0e030f5ac54f6ef"
 dependencies = [
  "base64",
  "pod-core",
@@ -1556,9 +1556,9 @@ dependencies = [
 
 [[package]]
 name = "saphyr-parser"
-version = "0.3.4"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c98d2738e44a25e6ba2e6d83d91805648df204768abc96f4f1278cb3d5c90bbe"
+checksum = "8af5472a0fd13242ab1e30a2ae6290d5b875a095dd17b21c26d01d556cf766bd"
 dependencies = [
  "arraydeque",
  "thiserror",

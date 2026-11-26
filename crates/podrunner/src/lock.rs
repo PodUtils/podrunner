@@ -79,6 +79,23 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// T-687: the lock holds while its value lives, also while a child
+    /// runs that serve started, and it frees at the drop with the child
+    /// still alive (`FileLock` unlocks at its drop).
+    #[test]
+    fn the_lock_follows_its_value_not_a_child() {
+        let dir = std::env::temp_dir().join(format!("podrunner-lock-child-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let held = StateLock::take(&dir).unwrap();
+        let mut child = std::process::Command::new("sleep").arg("300").spawn().unwrap();
+        assert!(!is_free(&dir).unwrap(), "the lock holds while its value lives");
+        drop(held);
+        assert!(is_free(&dir).unwrap(), "a live child does not keep the lock after the drop");
+        let _ = child.kill();
+        let _ = child.wait();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn a_symlink_at_the_lock_path_is_refused() {
         let dir = std::env::temp_dir().join(format!("podrunner-lock-link-{}", std::process::id()));
