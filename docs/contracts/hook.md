@@ -61,14 +61,37 @@ to live while the steps run in it.
 ## The relay and the control socket
 
 The relay script (`crates/podrunner-hook/relay/podrunner-hook.sh`) posts
-stdin to `POST /v1/hook/COMMAND` on the control socket of its unit
-(`PODRUNNER_CTL`, a unix socket at mode 0600 in the unit). The answer of
-`prepare_job` goes to the response file; the output of a step goes to
-stdout. The header `X-Podrunner-Exit` gives the exit code of the script. A
-refusal is HTTP 403 with `{"code": ..., "why": ...}`, and the script
-exits 4. A job hook of the runner posts `POST /v1/job_state` with
-`{"event": "job-started"}` or `{"event": "job-completed"}`. One request
-for each connection; a body of at most 1 MiB; no chunked body.
+stdin to `POST /v2/hook/COMMAND` on the control socket of its unit
+(`PODRUNNER_CTL`, a unix socket at mode 0600 in the unit). The relay and
+the host ship together: no other version of the relay is served.
+
+The answer of `/v2/hook/COMMAND` is live (T-694):
+
+- The head is HTTP 200 with `Transfer-Encoding: chunked` and
+  `Trailer: X-Podrunner-Exit, X-Podrunner-Refusal`. The host sends it
+  before it does the call.
+- The body is the output of the call. The output of `run_script_step`
+  comes in chunks of at most 64 KiB while the step runs: the host reads
+  the log of the exec each 50 ms and at its end. The output of the other
+  commands comes in one chunk at the end of the call.
+- The trailer is `X-Podrunner-Exit: CODE` (the exit code of the script),
+  or `X-Podrunner-Refusal: {"code": ..., "why": ...}` (one line). A
+  refusal can come after output.
+
+The answer of `prepare_job` goes to the response file; the output of a
+step goes to stdout as it comes. curl writes the trailer to the head file
+(`-D`); the relay reads the exit code from it. A refusal makes the script
+exit 4. A request that the host cannot read (HTTP 4xx) gives no body to
+the step, and the script exits 4. A connection that ends before the
+trailer makes the script exit 3. The runner masks the secrets in the
+stdout of the script as in the output of each step.
+
+`POST /v1/hook/COMMAND` gives the whole answer at the end of the call: the
+header `X-Podrunner-Exit` gives the exit code, and a refusal is HTTP 403
+with `{"code": ..., "why": ...}`. A job hook of the runner posts
+`POST /v1/job_state` with `{"event": "job-started"}` or
+`{"event": "job-completed"}`. One request for each connection; a request
+body of at most 1 MiB; no chunked request body.
 
 ## The CA bundle of the broker
 

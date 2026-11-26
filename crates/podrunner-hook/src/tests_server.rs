@@ -9,7 +9,7 @@ use podrunner_schema::RefusalCode;
 use crate::http::{HttpError, read_request};
 use crate::input::{Command, HookInput};
 use crate::policy::Refusal;
-use crate::server::{Answer, JobEvent, Unit, answer, bind, serve};
+use crate::server::{Answer, JobEvent, Unit, answer, bind, respond, serve};
 
 /// A unit that records each call: prepare_job answers a response file, a
 /// step answers its output and exit code 3, and run_container_step is
@@ -129,6 +129,12 @@ fn the_relay_reaches_the_socket() {
     assert_eq!(o.status.code(), Some(4));
     assert!(String::from_utf8_lossy(&o.stderr).contains("build-not-supported"));
     assert_eq!(unit.lock().unwrap().calls, [Command::PrepareJob, Command::RunScriptStep, Command::RunContainerStep]);
+    // A request that the host cannot read (a body over 1 MiB) gives the
+    // step no byte of the answer, and the script fails: 4 for the HTTP
+    // error, or 3 when the host closes before curl sent the whole body.
+    let pad = "x".repeat(crate::input::BODY_MAX + 1);
+    let o = run(format!(r#"{{"command":"run_script_step","responseFile":null,"args":{{}},"state":"{pad}"}}"#));
+    assert!(matches!(o.status.code(), Some(3 | 4)) && o.stdout.is_empty(), "{o:?}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -157,4 +163,52 @@ fn a_socket_path_longer_than_sun_path_binds() {
     c.read_to_string(&mut out).unwrap();
     assert!(out.starts_with("HTTP/1.1 "), "{out}");
     let _ = std::fs::remove_dir_all(std::env::temp_dir().join(format!("podrunner-hook-long-{}", std::process::id())));
+}
+
+/// A unit that gives output live, then refuses: the end of a driver that
+/// fails after the step printed.
+struct Late;
+
+impl Unit for Late {
+    fn hook(&mut self, _: HookInput) -> Result<Answer, Refusal> {
+        Ok(Answer { exit: 0, output: b"whole".to_vec() })
+    }
+    fn hook_live(&mut self, _: HookInput, live: &mut dyn FnMut(&[u8])) -> Result<Answer, Refusal> {
+        live(b"one\n");
+        live(b"");
+        live(b"two\n");
+        Err(Refusal { code: RefusalCode::ContainerNotSupported, why: "the driver did not do the container operation" })
+    }
+    fn job_state(&mut self, _: JobEvent) -> Result<(), Refusal> {
+        Ok(())
+    }
+}
+
+fn live(path: &str, body: &str, unit: &mut dyn Unit) -> String {
+    let r = req(&format!("POST {path} HTTP/1.1\r\nContent-Length: {}\r\n\r\n{body}", body.len())).unwrap();
+    let mut out = Vec::new();
+    respond(&r, unit, &mut out).unwrap();
+    String::from_utf8(out).unwrap()
+}
+
+/// T-694: the live route gives each part of the output as one chunk, an
+/// empty part as none, and the exit code or the refusal in the trailer.
+#[test]
+fn the_live_route_streams_and_ends_with_a_trailer() {
+    let step = r#"{"command":"run_script_step","responseFile":null,"args":{"entryPoint":"sh"},"state":null}"#;
+    let out = live("/v2/hook/run_script_step", step, &mut Late);
+    let (head, body) = out.split_once("\r\n\r\n").unwrap();
+    assert!(head.starts_with("HTTP/1.1 200 OK\r\n") && head.contains("Transfer-Encoding: chunked"), "{head}");
+    assert!(!head.contains("Content-Length"), "{head}");
+    let refusal = r#"X-Podrunner-Refusal: {"code":"container-not-supported","why":"the driver did not do the container operation"}"#;
+    assert_eq!(body, format!("4\r\none\n\r\n4\r\ntwo\n\r\n0\r\n{refusal}\r\n\r\n"));
+    // A unit with no live output gives its whole answer as one chunk.
+    let out = live("/v2/hook/run_script_step", step, &mut Recorder::default());
+    assert!(out.ends_with("\r\n\r\nc\r\nstep output\n\r\n0\r\nX-Podrunner-Exit: 3\r\n\r\n"), "{out}");
+    // An input that does not parse is a plain 400, before any chunk.
+    assert!(live("/v2/hook/run_script_step", "{", &mut Late).starts_with("HTTP/1.1 400 "));
+    assert!(live("/v2/hook/build", "{}", &mut Late).starts_with("HTTP/1.1 404 "));
+    // The whole answer has no live route.
+    let r = req(&format!("POST /v2/hook/run_script_step HTTP/1.1\r\nContent-Length: {}\r\n\r\n{step}", step.len()));
+    assert_eq!(answer(&r.unwrap(), &mut Late).0, 400);
 }

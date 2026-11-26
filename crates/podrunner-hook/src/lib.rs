@@ -19,6 +19,8 @@ mod tests;
 #[cfg(test)]
 mod tests_ca;
 #[cfg(test)]
+mod tests_live;
+#[cfg(test)]
 mod tests_server;
 #[cfg(test)]
 mod tests_unit;

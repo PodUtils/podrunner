@@ -1,9 +1,10 @@
 //! The control socket of one unit (`ctl`, GitHub #35): the relay script
-//! posts each hook call to `POST /v1/hook/COMMAND`, and a job hook of the
-//! runner posts `POST /v1/job_state`. The socket is in the unit root at mode
+//! posts each hook call to `POST /v2/hook/COMMAND` (a live answer) or
+//! `POST /v1/hook/COMMAND` (a whole answer), and a job hook of the runner
+//! posts `POST /v1/job_state`. The socket is in the unit root at mode
 //! 0600; the uid of the unit is the uid of the runner.
 
-use std::io::BufReader;
+use std::io::{BufReader, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixListener;
 use std::path::Path;
@@ -19,10 +20,18 @@ use crate::policy::Refusal;
 /// The header that carries the exit code of a step to the relay.
 pub const EXIT_HEADER: &str = "X-Podrunner-Exit";
 
+/// The trailer of a live answer that carries a refusal to the relay: the
+/// JSON of a 403 of `/v1`, on one line.
+pub const REFUSAL_HEADER: &str = "X-Podrunner-Refusal";
+
 /// A route of the socket.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Route {
+    /// `/v1/hook/COMMAND`: the answer comes whole, at the end of the call.
     Hook(Command),
+    /// `/v2/hook/COMMAND`: the output comes in chunks as it grows, and the
+    /// exit code or the refusal comes in a trailer.
+    Live(Command),
     JobState,
 }
 
@@ -33,9 +42,12 @@ pub fn route(req: &Request) -> Result<Route, HttpError> {
     }
     match req.path.as_str() {
         "/v1/job_state" => Ok(Route::JobState),
-        p => {
-            p.strip_prefix("/v1/hook/").and_then(Command::parse).map(Route::Hook).ok_or(HttpError(404, "no such route"))
-        }
+        p => p
+            .strip_prefix("/v1/hook/")
+            .and_then(Command::parse)
+            .map(Route::Hook)
+            .or_else(|| p.strip_prefix("/v2/hook/").and_then(Command::parse).map(Route::Live))
+            .ok_or(HttpError(404, "no such route")),
     }
 }
 
@@ -65,6 +77,13 @@ pub struct Answer {
 /// The unit behind the socket.
 pub trait Unit: Send {
     fn hook(&mut self, input: HookInput) -> Result<Answer, Refusal>;
+    /// A hook call that gives its output to `live` as the output grows
+    /// (T-694): the answer holds only the output that `live` did not get.
+    /// A unit that cannot stream gives all of it in the answer.
+    fn hook_live(&mut self, input: HookInput, live: &mut dyn FnMut(&[u8])) -> Result<Answer, Refusal> {
+        let _ = live;
+        self.hook(input)
+    }
     fn job_state(&mut self, event: JobEvent) -> Result<(), Refusal>;
 }
 
@@ -77,10 +96,12 @@ fn bad(e: HttpError) -> (u16, Vec<(&'static str, String)>, Vec<u8>) {
     (e.0, vec![], format!("{}\n", e.1).into_bytes())
 }
 
-/// The response to one request.
+/// The response to one request of a whole answer. A live route has no
+/// whole answer: [`respond`] streams it.
 pub fn answer(req: &Request, unit: &mut dyn Unit) -> (u16, Vec<(&'static str, String)>, Vec<u8>) {
     match route(req) {
         Err(e) => bad(e),
+        Ok(Route::Live(_)) => bad(HttpError(400, "a live route has no whole answer")),
         Ok(Route::JobState) => match serde_json::from_slice::<JobState>(&req.body) {
             Err(_) => bad(HttpError(400, "not a job state")),
             Ok(s) => match unit.job_state(s.event) {
@@ -96,6 +117,59 @@ pub fn answer(req: &Request, unit: &mut dyn Unit) -> (u16, Vec<(&'static str, St
             },
         },
     }
+}
+
+/// The head of a live answer: chunks of output, then one trailer.
+const LIVE_HEAD: &[u8] = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\
+    Trailer: X-Podrunner-Exit, X-Podrunner-Refusal\r\nConnection: close\r\n\r\n";
+
+fn chunk(w: &mut dyn Write, b: &[u8]) -> std::io::Result<()> {
+    write!(w, "{:x}\r\n", b.len())?;
+    w.write_all(b)?;
+    w.write_all(b"\r\n")?;
+    w.flush()
+}
+
+/// Write the response to one request to `w`: a live route streams the
+/// output of its call as it grows.
+pub fn respond(req: &Request, unit: &mut dyn Unit, w: &mut dyn Write) -> std::io::Result<()> {
+    let input = match route(req) {
+        Ok(Route::Live(command)) => parse(command, &req.body).map_err(|e| HttpError(400, e.0)),
+        _ => {
+            let (status, headers, body) = answer(req, unit);
+            return write_response(w, status, &headers, &body);
+        }
+    };
+    let input = match input {
+        Ok(i) => i,
+        Err(e) => {
+            let (status, headers, body) = bad(e);
+            return write_response(w, status, &headers, &body);
+        }
+    };
+    w.write_all(LIVE_HEAD)?;
+    w.flush()?;
+    // A reader that is gone does not stop the call: the unit ends the step,
+    // and the output goes nowhere.
+    let mut gone = None;
+    let mut send = |b: &[u8]| {
+        if gone.is_none() && !b.is_empty() {
+            gone = chunk(w, b).err();
+        }
+    };
+    let result = unit.hook_live(input, &mut send);
+    if let Ok(a) = &result {
+        send(&a.output);
+    }
+    if let Some(e) = gone {
+        return Err(e);
+    }
+    let trailer = match result {
+        Ok(a) => format!("{EXIT_HEADER}: {}", a.exit),
+        Err(r) => format!("{REFUSAL_HEADER}: {}", serde_json::json!({ "code": r.code.as_str(), "why": r.why })),
+    };
+    write!(w, "0\r\n{trailer}\r\n\r\n")?;
+    w.flush()
 }
 
 /// The bytes of `sun_path` on Linux, with its final NUL.
@@ -154,13 +228,18 @@ pub fn serve_until(listener: UnixListener, unit: Arc<Mutex<dyn Unit>>, stop: Arc
         // relay writes its request at once (T-192).
         let _ = stream.set_read_timeout(Some(READ_LIMIT));
         let Ok(mut w) = stream.try_clone() else { continue };
-        let (status, headers, body) = match read_request(&mut BufReader::new(stream)) {
-            Err(e) => bad(e),
+        let _ = match read_request(&mut BufReader::new(stream)) {
+            Err(e) => {
+                let (status, headers, body) = bad(e);
+                write_response(&mut w, status, &headers, &body)
+            }
             Ok(req) => match unit.lock() {
-                Ok(mut u) => answer(&req, &mut *u),
-                Err(_) => bad(HttpError(500, "the unit state is lost")),
+                Ok(mut u) => respond(&req, &mut *u, &mut w),
+                Err(_) => {
+                    let (status, headers, body) = bad(HttpError(500, "the unit state is lost"));
+                    write_response(&mut w, status, &headers, &body)
+                }
             },
         };
-        let _ = write_response(&mut w, status, &headers, &body);
     }
 }

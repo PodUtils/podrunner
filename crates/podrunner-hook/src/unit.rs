@@ -215,7 +215,7 @@ impl HookUnit {
         self.logs.join(format!("step-{}.log", self.steps))
     }
 
-    fn run(&mut self, plan: Plan) -> Result<Answer, UnitError> {
+    fn run(&mut self, plan: Plan, live: Live<'_>) -> Result<Answer, UnitError> {
         let d = self.driver.clone();
         match plan {
             Plan::Prepare { job, services } => {
@@ -280,10 +280,15 @@ impl HookUnit {
                 argv.extend(s.entry_point_args);
                 let log = self.log();
                 let spec = ExecSpec { argv, env, workdir: s.working_directory, stdin: false, log: Some(log.clone()) };
-                let exit = d.container_exec(&self.unit, &job, &spec)?;
-                let output = std::fs::read(&log).unwrap_or_default();
+                let (exit, output) = match live {
+                    Some(live) => (exec_live(&*d, &self.unit, &job, &spec, &log, live), Vec::new()),
+                    None => {
+                        let exit = d.container_exec(&self.unit, &job, &spec);
+                        (exit, std::fs::read(&log).unwrap_or_default())
+                    }
+                };
                 let _ = std::fs::remove_file(&log);
-                Ok(Answer { exit: code(exit), output })
+                Ok(Answer { exit: code(exit?), output })
             }
             Plan::ContainerStep(p) => {
                 let id = d.container_start(&self.unit, &self.spec(&p)?)?;
@@ -306,6 +311,54 @@ impl HookUnit {
             }
         }
     }
+}
+
+/// The sink of the output of a live step, when the call has one.
+type Live<'a> = Option<&'a mut dyn FnMut(&[u8])>;
+
+/// How often the log of a live step is read while its exec runs.
+const TAIL: Duration = Duration::from_millis(50);
+
+/// The most bytes of one read of the log of a live step.
+const CHUNK: usize = 64 * 1024;
+
+/// Run the exec `spec` and give each new part of its log `log` to `live`
+/// while it runs (T-694): the hook script prints the output of a step as
+/// the step makes it. The last read comes after the exec ends, so no byte
+/// is lost.
+fn exec_live(
+    d: &dyn UnitDriver,
+    unit: &podrunner_unit::UnitId,
+    job: &ContainerId,
+    spec: &ExecSpec,
+    log: &std::path::Path,
+    live: &mut dyn FnMut(&[u8]),
+) -> Result<Exit, UnitError> {
+    use std::io::{Read, Seek, SeekFrom};
+    std::thread::scope(|s| {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let exec = s.spawn(move || {
+            let exit = d.container_exec(unit, job, spec);
+            let _ = tx.send(());
+            exit
+        });
+        let (mut at, mut buf) = (0u64, vec![0; CHUNK]);
+        loop {
+            let done = !matches!(rx.recv_timeout(TAIL), Err(std::sync::mpsc::RecvTimeoutError::Timeout));
+            if let Ok(mut f) = std::fs::File::open(log)
+                && f.seek(SeekFrom::Start(at)).is_ok()
+            {
+                while let Ok(n @ 1..) = f.read(&mut buf) {
+                    live(&buf[..n]);
+                    at += n as u64;
+                }
+            }
+            if done {
+                break;
+            }
+        }
+        exec.join().unwrap_or_else(|_| Err(UnitError::new(UnitCode::UnitStartFailed, "the exec of the step failed")))
+    })
 }
 
 /// The exit code of the hook script: a signal is 128 and its number.
@@ -335,6 +388,29 @@ fn refusal(e: &UnitError) -> Refusal {
 
 impl Unit for HookUnit {
     fn hook(&mut self, input: HookInput) -> Result<Answer, Refusal> {
+        self.call(input, None)
+    }
+
+    fn hook_live(&mut self, input: HookInput, live: &mut dyn FnMut(&[u8])) -> Result<Answer, Refusal> {
+        self.call(input, Some(live))
+    }
+
+    fn job_state(&mut self, event: JobEvent) -> Result<(), Refusal> {
+        // A second job-started is ignored, and slots audits it as a
+        // refusal; the step of the runner goes on.
+        if event == JobEvent::JobStarted && self.events.contains(&JobEvent::JobStarted) {
+            self.refusals.push(RefusalCode::ContainerOptionRefused);
+            return Ok(());
+        }
+        self.events.push(event);
+        Ok(())
+    }
+}
+
+impl HookUnit {
+    /// One hook call; a step in the job container gives its output to
+    /// `live` while it runs, when `live` is given.
+    fn call(&mut self, input: HookInput, live: Live<'_>) -> Result<Answer, Refusal> {
         // A driver that mounts the socket directory into its unit runs the
         // unit in a root of its own (podvm): it resolves a relative mount
         // source under the runner directory in that root, so the sources
@@ -352,7 +428,7 @@ impl Unit for HookUnit {
         }
         let mut driver_error = None;
         let result = self.gate.check(&input, &self.policy).and_then(|plan| {
-            self.run(plan).map_err(|e| {
+            self.run(plan, live).map_err(|e| {
                 driver_error = Some(format!("{:?}: {}", e.code, e.detail));
                 refusal(&e)
             })
@@ -362,16 +438,5 @@ impl Unit for HookUnit {
             self.refusals.push(r.code);
         }
         result
-    }
-
-    fn job_state(&mut self, event: JobEvent) -> Result<(), Refusal> {
-        // A second job-started is ignored, and slots audits it as a
-        // refusal; the step of the runner goes on.
-        if event == JobEvent::JobStarted && self.events.contains(&JobEvent::JobStarted) {
-            self.refusals.push(RefusalCode::ContainerOptionRefused);
-            return Ok(());
-        }
-        self.events.push(event);
-        Ok(())
     }
 }

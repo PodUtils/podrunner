@@ -105,7 +105,12 @@ pub fn read_request_with(r: &mut impl BufRead, max: usize) -> Result<Request, Ht
 }
 
 /// Write one response, with extra headers, and close.
-pub fn write_response(w: &mut impl Write, status: u16, headers: &[(&str, String)], body: &[u8]) -> std::io::Result<()> {
+pub fn write_response(
+    w: &mut (impl Write + ?Sized),
+    status: u16,
+    headers: &[(&str, String)],
+    body: &[u8],
+) -> std::io::Result<()> {
     // The phrase of 200 in `pod_core::http1` is the one of a CONNECT.
     let reason = if status == 200 { "OK" } else { http1::reason(status) };
     let mut head = format!("HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nConnection: close\r\n", body.len());
