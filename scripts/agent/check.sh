@@ -13,7 +13,8 @@
 # hosted snapshot (their --self-test), the runner image release
 # (scripts/runner-release.py --self-test), the images of a release on
 # ghcr.io (scripts/ghcr.py --self-test), the commit messages
-# (scripts/check-commit-msg.sh, with its self-test), the test of the
+# (scripts/check-commit-msg.sh, with its self-test), the workflows
+# (scripts/actionlint.sh, T-252), the test of the
 # installer (scripts/test-install.sh), the levels of proof of the newest
 # notes of a release (scripts/check-notes.sh), the static build of
 # x86_64 musl (scripts/check-static.sh), and that the tests leave no
@@ -97,6 +98,8 @@ if python3 -I -c 'import jsonschema' 2> /dev/null; then
 else
     echo "config-schema and design skipped: no jsonschema module"
 fi
+sh scripts/actionlint.sh .github/workflows/*.yml > "$log/actionlint.log" 2>&1; al=$?
+echo "actionlint $al"; [ "$al" -eq 0 ] || { rc=1; head -20 "$log/actionlint.log"; }
 sh scripts/test-install.sh > "$log/install.log" 2>&1; i=$?
 echo "install $i"; [ "$i" -eq 0 ] || { rc=1; tail -20 "$log/install.log"; }
 sh scripts/check-notes.sh --latest > "$log/notes.log" 2>&1; n=$?

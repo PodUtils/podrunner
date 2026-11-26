@@ -39,6 +39,7 @@ jobs:
           set -eu
           cd "$RUNNER_TEMP/rbg"
           echo "node $(node --version), npm $(npm --version), $(npx tsc --version)"
+          # shellcheck disable=SC2016 # the single quotes keep the text for the inner shell or file
           printf 'const x: number = 6 * 7;\nconsole.log(`podrunner-gate-tsc-${x}`);\n' > a.ts
           npx tsc --strict a.ts
           node a.js

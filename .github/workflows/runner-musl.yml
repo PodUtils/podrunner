@@ -81,6 +81,7 @@ jobs:
         run: |
           set -eu
           # A second registry when public.ecr.aws answers 429 (T-478).
+          # shellcheck disable=SC2153 # ALPINE is a variable of the job environment
           alpine=$(sh scripts/pull-base.sh "$ALPINE")
           docker run --rm --network host -v "$LAYOUT:/layout:ro" -v "$RUNNER_TEMP/t:/t:ro" "$alpine" sh -euc '
             for f in /lib/ld-linux* /lib64/ld-linux*; do test ! -e "$f"; done

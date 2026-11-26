@@ -115,6 +115,10 @@ jobs:
           # shell of the hosted scripts.
           sh scripts/hosted/calls.sh
           sh scripts/shellcheck.sh scripts/hosted/*.sh
+      # T-252: each workflow, with the pinned actionlint and the pinned
+      # ShellCheck (scripts/actionlint.sh).
+      - name: The workflows
+        run: sh scripts/actionlint.sh .github/workflows/*.yml
       # T-499: the runner image release: the SHA-256 of the notes of
       # actions/runner, the tag, the alarm of a runner with no image, and
       # the manifest and the notes of a fixture archive.
@@ -147,6 +151,7 @@ jobs:
           else
             revs=$(git rev-list -1 HEAD)
           fi
+          # shellcheck disable=SC2086 # $revs holds one word for each commit
           sh scripts/check-commit-msg.sh --rev $revs
 
   test:
@@ -180,6 +185,7 @@ jobs:
         run: |
           set -eu
           cargo build --locked -q -p podrunner
+          # shellcheck disable=SC2012 # the names are cargo paths with no odd characters
           bin=$(ls target/*/debug/podrunner target/debug/podrunner 2> /dev/null | head -n 1)
           sh scripts/githome-conformance.sh "$bin" "$RUNNER_TEMP/githome"
 

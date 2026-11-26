@@ -114,6 +114,7 @@ jobs:
     steps:
       - run: |
           d=$(mktemp -d)
+          # shellcheck disable=SC2016 # the single quotes keep the text for the inner shell or file
           printf '%s\n' 'FROM mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec' \
             'RUN echo "built-$((6*7))" > /marker' 'CMD ["cat", "/marker"]' > "$d/Dockerfile"
           # No network: the engine of an incus instance has no default bridge.
@@ -145,6 +146,7 @@ jobs:
           docker pull -q mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
           docker tag mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec parity-dind:11
           docker save parity-dind:11 | $inner load -q
+          # shellcheck disable=SC2016 # the single quotes keep the text for the inner shell or file
           out=$($inner run --rm --network none parity-dind:11 sh -c 'echo "in-dind-$((6*7))"')
           echo "$out"
           test "$out" = "in-dind-$((6*7))"

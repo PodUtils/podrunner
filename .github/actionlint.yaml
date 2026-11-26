@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: 0BSD
+# Labels of GitHub-hosted runners that actionlint 1.7.7 does not know yet.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
+    - ubuntu-26.04-arm

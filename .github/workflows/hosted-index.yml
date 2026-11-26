@@ -56,6 +56,7 @@ jobs:
           out=$RUNNER_TEMP/index
           mkdir -p "$out"
           for pair in "amd64 $AMD64" "arm64 $ARM64"; do
+            # shellcheck disable=SC2086 # split the pair into two words
             set -- $pair
             printf 'header = "Authorization: Bearer %s"\n' "$REGISTRY_TOKEN" |
               curl -fsS -K - -H "Accept: application/vnd.oci.image.manifest.v1+json" \

@@ -179,6 +179,7 @@ jobs:
             echo "--- incus info --show-log $i"
             sudo incus info --show-log "$i" 2>&1 | tail -n 60
             echo "--- incus console --show-log $i"
+            # shellcheck disable=SC2024 # the log file belongs to the runner user, not to root
             sudo incus console --show-log "$i" > "$RUNNER_TEMP/console.log" 2>&1 || true
             echo "($(wc -l < "$RUNNER_TEMP/console.log") lines; the first 150, the failures and the lines of the checks, the last 40)"
             head -n 150 "$RUNNER_TEMP/console.log"

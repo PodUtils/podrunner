@@ -327,6 +327,7 @@ jobs:
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" load -i "runner-full-$ARCH.tar"
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "runner@$digest" \
             /bin/sh -c "grep -q '\"Runner.Listener/$VERSION\"' /home/runner/bin/Runner.Listener.deps.json && python3 --version && cmake --version | head -1"
+          # shellcheck disable=SC2016 # the single quotes keep the text for the inner shell or file
           PODVM_STORE="$PODRUNNER_PODVM_IMAGES" "$PODRUNNER_PODVM" run --rm "runner@$digest" /bin/sh -ec '
             for tool in docker dockerd; do
               "/usr/local/lib/podrunner/engine/$tool" --version | grep -F "Docker version 29.9.2,"
