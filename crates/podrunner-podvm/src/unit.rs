@@ -46,6 +46,7 @@ pub(crate) mod envfile;
 mod hold;
 mod labels;
 mod limits;
+pub use limits::PIDS_PER_UNIT;
 mod root;
 mod store;
 #[cfg(test)]
@@ -122,11 +123,9 @@ impl PodvmUnit {
     /// the podvm store `images`. It runs `podvm probe` once.
     pub fn new(podvm: Podvm, state_dir: &Path, images: &Path) -> Result<PodvmUnit, UnitError> {
         let mut capability = podvm.probe()?;
-        // rlimits of the payload: the kind applies the memory and the
-        // processes that an offer or its configuration names (T-198).
-        for name in limits::held_names(&podvm) {
-            capability.limits.insert(name.into(), podrunner_schema::LimitMode::Enforced);
-        }
+        // The kind applies the memory and the processes that an offer or
+        // its configuration names (T-198), and says where `pids` holds.
+        limits::record_modes(&podvm, &mut capability);
         let platform = if capability.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" }.to_string();
         let volumes = crate::probe::has_volumes(&capability);
         Ok(PodvmUnit {
@@ -296,9 +295,9 @@ impl UnitDriver for PodvmUnit {
         env.insert("PODRUNNER_UNIT".into(), spec.unit.to_string());
         env.insert(TAG_VAR.into(), tag.clone());
         limits::runner_env(&mut env);
-        // The lesser of the kind and the offer (T-198); podvm holds no CPU limit.
+        // The lesser of the kind and the offer (T-198); the CPU only in a cgroup.
         let held = limits::held(&self.podvm, &self.limits, &spec.limits);
-        args.extend(limits::ulimit_args(&held, &mut env));
+        args.extend(limits::ulimit_args(&held, limits::pids_hold(&self.podvm), &mut env));
         // The values in a file, not in the argv (T-405); it goes after the
         // call.
         let (env_args, _env_file) = envfile::env_args(&self.podvm, &dir, &env)?;

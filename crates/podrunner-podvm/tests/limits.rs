@@ -83,15 +83,18 @@ fn a_payload_past_the_pids_limit_gets_an_error() {
 /// root, so its payload cannot read its own quota (runner-image
 /// 44153617910: exit 13).
 fn cpu_max_beside(own: &Path) -> Vec<(PathBuf, String)> {
+    file_beside(own, "cpu.max")
+}
+
+/// The file `name` of each cgroup `podvm-*` beside `own`.
+fn file_beside(own: &Path, name: &str) -> Vec<(PathBuf, String)> {
     let Some(parent) = own.parent() else { return Vec::new() };
     std::fs::read_dir(parent)
         .into_iter()
         .flatten()
         .flatten()
         .filter(|e| e.file_name().to_string_lossy().starts_with("podvm-"))
-        .filter_map(|e| {
-            std::fs::read_to_string(e.path().join("cpu.max")).ok().map(|q| (e.path(), q.trim().to_string()))
-        })
+        .filter_map(|e| std::fs::read_to_string(e.path().join(name)).ok().map(|q| (e.path(), q.trim().to_string())))
         .collect()
 }
 
@@ -148,4 +151,70 @@ fn a_cpu_limit_holds_in_a_delegated_cgroup() {
     assert!(residue.is_clean(), "{residue:?}");
     assert!(!seen.is_empty(), "no cgroup podvm-* of the run beside {}", own.display());
     assert!(seen.iter().any(|(_, q)| q == "100000 100000"), "cpu.max of the run must be one CPU: {seen:?}");
+}
+
+/// T-521: where the host delegates a cgroup v2 subtree with the `pids`
+/// controller to the user, two units of that user each hold their own
+/// `pids` in the leaf of their run (`pids.max`), not one RLIMIT_NPROC of
+/// the user. The same delegated subtree as the CPU limit.
+#[test]
+#[ignore]
+fn each_unit_holds_its_own_pids_in_a_delegated_cgroup() {
+    if std::env::var_os("PODRUNNER_CPU_DELEGATED").is_none() {
+        println!("skip: PODRUNNER_CPU_DELEGATED is not set");
+        return;
+    }
+    let cg = std::fs::read_to_string("/proc/self/cgroup").unwrap();
+    let own = PathBuf::from(format!("/sys/fs/cgroup{}", cg.trim().trim_start_matches("0::")));
+    let state = std::env::temp_dir().join(format!("podrunner-limits-{}-6", std::process::id()));
+    let _ = std::fs::remove_dir_all(&state);
+    let unit = PodvmUnit::new(
+        Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
+        &state,
+        Path::new(&env("PODRUNNER_PODVM_IMAGES")),
+    )
+    .unwrap();
+    let mode = unit.probe().unwrap().limit(podrunner_podvm::PIDS_PER_UNIT);
+    println!("own cgroup {}; {}: {mode:?}", own.display(), podrunner_podvm::PIDS_PER_UNIT);
+    let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
+    let image = unit.prepare(&env("PODRUNNER_PODVM_IMAGE"), platform, false).unwrap();
+    let before = file_beside(&own, "pids.max");
+    let mut ids = Vec::new();
+    for (n, pids) in [(6, 64), (7, 96)] {
+        let id = UnitId::parse(&format!("u-{n}")).unwrap();
+        let spec = StartSpec {
+            unit: id.clone(),
+            image: image.clone(),
+            argv: ["sh", "-c", "sleep 30"].map(String::from).to_vec(),
+            env: Default::default(),
+            credential: Default::default(),
+            sockets: None,
+            mounts: Vec::new(),
+            limits: Limits { pids: Some(pids), ..Limits::default() },
+        };
+        unit.start(&spec).unwrap();
+        ids.push(id);
+    }
+    let end = std::time::Instant::now() + Duration::from_secs(20);
+    let mut seen: Vec<String> = Vec::new();
+    while std::time::Instant::now() < end {
+        let new = file_beside(&own, "pids.max").into_iter().filter(|c| !before.contains(c));
+        seen = new.map(|(_, v)| v).collect();
+        // podvm can make the cgroup before it writes the limit: wait for it.
+        if seen.contains(&"64".to_string()) && seen.contains(&"96".to_string()) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    for id in &ids {
+        let residue = unit.destroy(id).unwrap();
+        assert!(residue.is_clean(), "{residue:?}");
+    }
+    let _ = std::fs::remove_dir_all(&state);
+    println!("pids.max of the runs: {seen:?}");
+    assert_eq!(mode, podrunner_schema::LimitMode::Enforced, "the record must say pids for each unit");
+    assert!(
+        seen.contains(&"64".to_string()) && seen.contains(&"96".to_string()),
+        "each run, its own pids.max: {seen:?}"
+    );
 }

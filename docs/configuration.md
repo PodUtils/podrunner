@@ -318,9 +318,14 @@ payload (`limit-not-enforceable`); the audit line names both sizes
 
 | Kind | `mem` | `cpus` | `pids` |
 | --- | --- | --- | --- |
-| `podvm` | `RLIMIT_AS` of the payload (`--ulimit as=`); .NET gets a heap limit and a region range of three quarters | `--cpus` in a leaf of a cgroup v2 subtree that the host delegates to the user (a systemd user session; podvm `0.2.0-beta.23` or later, T-221); refused elsewhere, with the reason | `RLIMIT_NPROC` (`--ulimit nproc=`); it counts each process of the user, also of other units of that user |
+| `podvm` | `RLIMIT_AS` of the payload (`--ulimit as=`); .NET gets a heap limit and a region range of three quarters | `--cpus` in a leaf of a cgroup v2 subtree that the host delegates to the user (a systemd user session; podvm `0.2.0-beta.23` or later, T-221); refused elsewhere, with the reason | `pids.max` of the leaf of the unit (`--pids-limit`) where the host delegates a cgroup v2 subtree with the `pids` controller to the user (podvm `0.2.0-beta.23` or later, T-521); elsewhere `RLIMIT_NPROC` (`--ulimit nproc=`), which counts each process of the user, also of other units of that user |
 | `incus` | `limits.memory` (podvm `0.2.0-beta.20` or later) | `limits.cpu` | `limits.processes` |
 | `microvm` | the memory of the guest; the `memory` of an offer does not lower it | its vCPUs | `pids.max` of the cgroup of the payload in the guest (`--pids-limit`, podvm `0.2.0-beta.32` or later, T-488); with no `pids` of the kind, none |
+
+The capability record of the `podvm` kind (the `probe` of the kind in
+`podrunner status`) says where `pids` holds: `limits.pids-per-unit` is
+`enforced` for `pids.max` of the leaf of each unit, and `none` for
+`RLIMIT_NPROC` of the user. `limits.pids` is `enforced` in both cases.
 
 A size is whole bytes, or a number with `K`, `M`, `G` or `T`. Set
 `[unit.podvm] mem` large: `RLIMIT_AS` counts the address space, which is
