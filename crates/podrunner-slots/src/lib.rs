@@ -108,7 +108,7 @@ impl Slots {
             guest: Default::default(),
             hooks: None,
             spool_next_ms: 0,
-            disk_next_ms: 0,
+            disk_worker: disk::Worker::start()?,
             cache_worker,
             warm: Default::default(),
         };

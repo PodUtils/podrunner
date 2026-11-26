@@ -53,8 +53,9 @@ images = "/var/lib/podrunner/images"  # podvm: a podvm store with the pinned ima
 registries = ["ghcr.io"]     # container: hooks: the registry hosts of job containers; none: each is refused
 runner_dir = "/home/runner"  # the runner directory in the unit; absent: the path that the driver observes
 podnet = "/usr/local/bin/podnet"      # podvm: hold the egress of each unit with podnet pod (netns: enforced, else seccomp: advisory); absent: unknown
-disk_max_bytes = 10737418240          # the bytes that a unit may write under its root, measured each 30 s; over it the
-                                      # unit ends with the exit reason limit; the lesser of it and a disk limit of the offer holds; absent: the limit of the offer, or no measure
+disk_max_bytes = 10737418240          # the bytes that a unit may write under its root. A thread samples each 30 s when the last batch is done.
+                                      # The lesser of this bound and a disk limit of the offer holds. Absent: the limit of the offer, or no sample.
+                                      # Above the bound, the sample stops and the unit ends with limit. disk_peak_bytes gives a lower bound for the full size.
 # init = "image"                    # incus and microvm only: the init of the image (systemd) is PID 1 of each unit, with the services
                                       # and the engine of the image (the hosted snapshot, T-543, T-549); not with engine; podvm
                                       # 0.2.0-beta.36 (incus) or 0.2.0-beta.37 (microvm) or later; the kind takes only a payload with

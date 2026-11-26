@@ -4,6 +4,7 @@ use podrunner_schema::{Boundary, EgressHold, ExitReason, Principal, Residual};
 use serde_json::json;
 
 use super::*;
+use crate::disk::CHECK_MS;
 
 fn run(disk_bound: Option<u64>, script: &str) -> podrunner_schema::RunReport {
     ran(disk_bound, script).slots.reports[0].clone()
@@ -11,6 +12,12 @@ fn run(disk_bound: Option<u64>, script: &str) -> podrunner_schema::RunReport {
 
 /// The bed after one job of a fake unit that runs `script`.
 fn ran(disk_bound: Option<u64>, script: &str) -> Bed {
+    let mut bed = report_bed(disk_bound, script);
+    bed.until(120, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    bed
+}
+
+fn report_bed(disk_bound: Option<u64>, script: &str) -> Bed {
     let mut bed = Bed::new(
         config(""),
         vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])],
@@ -22,7 +29,6 @@ fn ran(disk_bound: Option<u64>, script: &str) -> Bed {
         }],
     );
     bed.slots.kinds[0].cfg.disk_max_bytes = disk_bound;
-    bed.until(120, |s| s.jobs().count() == 1 && Bed::all_final(s));
     bed
 }
 
@@ -30,7 +36,17 @@ fn ran(disk_bound: Option<u64>, script: &str) -> Bed {
 fn a_report_has_its_times_its_image_and_its_measures_or_a_reason() {
     // A unit over a small disk bound: a disk check reads its peak, and the
     // unit ends by `limit`.
-    let r = run(Some(1000), "head -c 5000 /dev/zero > some.bin; exec sleep 300");
+    let mut bed = report_bed(Some(1000), "exec sleep 300");
+    bed.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+    let job = bed.slots.jobs().next().unwrap();
+    let start = job.started_ms.unwrap();
+    let unit = job.unit.as_ref().unwrap();
+    let root = bed.slots.kinds[0].driver.observe(unit).unwrap().unit_root.unwrap();
+    std::fs::write(root.join("some.bin"), [0; 5000]).unwrap();
+    // Keep the manual clock at the sampling tick while the worker runs.
+    bed.clock.advance(Duration::from_millis(CHECK_MS - bed.slots.now()));
+    bed.until(0, Bed::all_final);
+    let r = bed.slots.reports[0].clone();
     for (name, v) in [("prepare_s", r.prepare_s), ("run_s", r.run_s), ("destroy_s", r.destroy_s)] {
         assert!(v.is_some(), "{name}: {r:?}");
     }
@@ -40,9 +56,8 @@ fn a_report_has_its_times_its_image_and_its_measures_or_a_reason() {
     assert!(r.unknown_reasons.get("start_s").is_some_and(|w| w.contains("first step")), "{r:?}");
     assert_eq!(r.claim_to_first_step_s, None);
     assert!(r.unknown_reasons.contains_key("claim_to_first_step_s"), "{r:?}");
-    // The disk check comes each 30 s of the manual clock; the bed ticks
-    // each second, and on a slow host the unit can start a tick late.
-    assert!(r.run_s.is_some_and(|s| (30..=32).contains(&s)), "the unit ran 30 s until the disk check: {:?}", r.run_s);
+    assert_eq!(r.exit_reason, ExitReason::Limit, "{r:?}");
+    assert_eq!(r.run_s, Some((CHECK_MS - start).div_ceil(1000)));
     assert!(r.image_digest.as_deref().is_some_and(|d| d.starts_with("sha256:")), "{r:?}");
     assert!(matches!(r.disk_peak_bytes, Some(Residual::Count(n)) if n >= 5000), "{:?}", r.disk_peak_bytes);
     // No egress module on this host: unknown, with the reason.

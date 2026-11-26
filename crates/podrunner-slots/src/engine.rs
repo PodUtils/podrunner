@@ -109,8 +109,8 @@ pub struct Slots {
     pub(crate) hooks: Option<Box<dyn crate::hooks::HookPort>>,
     /// The time of the next send of the spooled reports (T-069).
     pub(crate) spool_next_ms: u64,
-    /// The time of the next measure of the disk of the units (T-074).
-    pub(crate) disk_next_ms: u64,
+    /// The thread that samples the disk of the units (T-652).
+    pub(crate) disk_worker: crate::disk::Worker,
     /// The thread and the lock of the caches, with a `[cache]` (T-480).
     pub(crate) cache_worker: Option<crate::cache::Worker>,
     /// The warm units of the host (T-487).

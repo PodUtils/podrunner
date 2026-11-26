@@ -21,7 +21,8 @@ pub(crate) fn residual(c: Count) -> Residual {
 pub struct Times {
     pub ended_ms: Option<u64>,
     pub destroyed_ms: Option<u64>,
-    /// The most bytes under the root of the unit that a disk check read.
+    /// The most bytes that a disk check read. A check that passed the
+    /// bound gives a lower bound for the size of the full tree.
     pub disk_peak: Option<u64>,
     /// The bytes in and out of the connections of the unit through its
     /// egress module (the egress lines of T-486).
@@ -221,7 +222,7 @@ impl Slots {
             r.disk_peak_bytes = Some(j.times.disk_peak.map_or_else(unknown, Residual::Count));
             if j.times.disk_peak.is_none() {
                 r.unknown_reasons
-                    .insert("disk_peak_bytes".into(), "no disk bound, so no disk check of the unit".into());
+                    .insert("disk_peak_bytes".into(), "no disk check of the unit completed before the report".into());
             }
             if self.egress.is_some() {
                 r.net_rx_bytes = Some(Residual::Count(j.times.net_rx));
