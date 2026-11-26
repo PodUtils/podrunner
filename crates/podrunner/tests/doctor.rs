@@ -286,3 +286,51 @@ fn a_hard_limit_below_the_image_names_root_and_the_host_route() {
     );
     assert!(!err.contains("fix: ulimit -f unlimited"), "{err}");
 }
+
+/// T-680: `doctor --run` takes the seccomp hold of `--podnet` by the same
+/// probe as `run`: a podnet with no usable seccomp hold fails the row with
+/// the text of `run`, and a usable one passes both.
+#[test]
+fn doctor_run_and_run_agree_on_the_podnet_hold() {
+    let dir = Scratch::new("doctor-podnet");
+    std::fs::create_dir_all(dir.join("store")).unwrap();
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    let podvm = dir.join("podvm");
+    let script = "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.32\", \"rung\": \"namespace\"}'\n";
+    podrunner_unit::program_file::write(&podvm, script).unwrap();
+    let image = format!("runner@sha256:{}", "1".repeat(64));
+    let (w, p, s) = (dir.join("w.yml"), podvm.display().to_string(), dir.join("store").display().to_string());
+    let both = |podnet: &std::path::Path| {
+        let n = podnet.display().to_string();
+        let common = |verb: &str| {
+            let mut a = vec![verb.to_string()];
+            if verb == "doctor" {
+                a.push("--run".into());
+            }
+            for x in [w.to_str().unwrap(), "--podvm", &p, "--images", &s, "--image", &image, "--podnet", &n] {
+                a.push(x.to_string());
+            }
+            a
+        };
+        let doctor = podrunner::cli::run(&common("doctor"));
+        let run = podrunner::cli::run(&common("run"));
+        let row = doctor.stdout.lines().find(|l| l.contains(" podnet:")).unwrap_or("").to_string();
+        (row, run.stderr)
+    };
+    // netns available, seccomp unavailable: both refuse, with one text.
+    let held = r#"{"netns":{"level":"enforced"},"seccomp":{"level":"unavailable"}}"#;
+    let bad = dir.join("podnet-bad");
+    podrunner_unit::program_file::write(&bad, format!("#!/bin/sh\necho '{held}'\n")).unwrap();
+    let (row, run) = both(&bad);
+    assert!(row.starts_with("FAIL podnet"), "{row}");
+    let why = row.strip_prefix("FAIL podnet: ").unwrap();
+    assert!(why.contains("--podnet: ") && why.contains("the seccomp hold is unavailable"), "{row}");
+    assert!(run.contains(why), "doctor: {row}\nrun: {run}");
+    // A usable seccomp hold: doctor passes the row, and run does not stop at it.
+    let good = dir.join("podnet-good");
+    let ok = r#"{"netns":{"level":"none"},"seccomp":{"level":"advisory"}}"#;
+    podrunner_unit::program_file::write(&good, format!("#!/bin/sh\necho '{ok}'\n")).unwrap();
+    let (row, run) = both(&good);
+    assert!(row.starts_with("ok   podnet") && row.contains("seccomp hold"), "{row}");
+    assert!(!run.contains("--podnet:"), "{run}");
+}

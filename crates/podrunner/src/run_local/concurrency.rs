@@ -86,7 +86,7 @@ pub(super) fn hold(
                 note(format!("podrunner: the group {:?} waits for the run {pid} that holds it\n", group.name));
             }
             // A signal (a newer run of the group, or Ctrl-C) ends the wait.
-            FileLock::lock_until(&path, Mode::Exclusive, stopped).map_err(|_| interrupted(group))?
+            wait_lock(&path, group, stopped)?
         }
     };
     write_pid(&lock)?;
@@ -108,6 +108,22 @@ fn write_pid(lock: &FileLock) -> Result<(), String> {
 /// A signal of the run: the handler of `cancel` sets the flag.
 fn stopped() -> bool {
     podrunner_local::cancel::SIGNALLED.load(Ordering::SeqCst)
+}
+
+/// Wait for the lock of `path` until `stop` gives true. The signal text
+/// is for a wait that `stop` ended; a failure to open or to lock gives its
+/// own text.
+fn wait_lock(path: &Path, group: &Group, stop: impl Fn() -> bool) -> Result<FileLock, String> {
+    let by_stop = std::cell::Cell::new(false);
+    let seen = || {
+        let s = stop();
+        by_stop.set(s);
+        s
+    };
+    FileLock::lock_until(path, Mode::Exclusive, seen).map_err(|e| match by_stop.get() {
+        true => interrupted(group),
+        false => format!("the wait for the group {:?} failed: {e}", group.name),
+    })
 }
 
 fn interrupted(group: &Group) -> String {
@@ -134,7 +150,7 @@ fn wait_place(path: &Path, group: &Group, note: &mut dyn FnMut(String)) -> Resul
                 // SAFETY: a signal to the process that wrote the waiting place.
                 unsafe { libc::kill(pid, libc::SIGTERM) };
             }
-            FileLock::lock_until(&place, Mode::Exclusive, stopped).map_err(|_| interrupted(group))?
+            wait_lock(&place, group, stopped)?
         }
     };
     write_pid(&lock)?;
@@ -219,6 +235,27 @@ mod tests {
         assert_ne!(file_name("o/r", &long1), file_name("o/r", &long2));
         assert!(file_name("o/r", &long1).len() < 120);
         assert_eq!(file_name("O/R", "Prod"), file_name("o/r", "prod"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-679: a wait that a stop callback ended gives the signal text; a
+    /// failure of the open or the lock gives its own text.
+    #[test]
+    fn a_wait_error_tells_its_cause() {
+        let dir = std::env::temp_dir().join(format!("podrunner-group-err-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let g = Group { name: "err".into(), cancel_in_progress: false };
+        let path = dir.join("held.lock");
+        let _held = FileLock::try_lock(&path, Mode::Exclusive).unwrap().unwrap();
+        let text = wait_lock(&path, &g, || true).err().unwrap();
+        assert!(text.contains("a signal"), "{text}");
+        // A lock directory that is a file: the open fails with an I/O error.
+        let bad = dir.join("file").join("x.lock");
+        std::fs::write(dir.join("file"), "").unwrap();
+        let text = wait_lock(&bad, &g, || true).err().unwrap();
+        assert!(!text.contains("a signal"), "{text}");
+        assert!(text.contains("failed") && text.contains("x.lock"), "{text}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

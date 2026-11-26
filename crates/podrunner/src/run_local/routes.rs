@@ -149,6 +149,26 @@ pub(super) fn build(a: &Args, c: &Common, state: &Path) -> Result<Box<dyn Execut
     Ok(Box::new(Dispatch::new(routes, default)))
 }
 
+/// The seccomp hold of `podnet` for `unit`: what `run` takes, and what
+/// `doctor --run` reports (T-680). The error is its class and its text.
+pub(super) fn podnet_hold(
+    unit: podrunner_podvm::PodvmUnit,
+    podnet: &Path,
+) -> Result<podrunner_podvm::PodvmUnit, (Class, String)> {
+    use podrunner_unit::UnitDriver;
+    // The fake broker listens on the loopback of the host: the seccomp
+    // hold lets a unit reach it; the netns hold does not (T-095).
+    let unit = unit.with_podnet_seccomp(podnet).map_err(|e| (Class::Unsupported, format!("--podnet: {e}")))?;
+    let hold = unit.probe().map_err(|e| (Class::Unavailable, format!("probe: {e}")))?.egress_hold;
+    if hold != podrunner_schema::EgressHold::Advisory {
+        return Err((
+            Class::Unsupported,
+            format!("--podnet: the hold is {hold:?}; the local mode takes only the seccomp hold (advisory) now"),
+        ));
+    }
+    Ok(unit)
+}
+
 /// The executor of `--podvm`: each job in a fresh podvm unit of the
 /// runner image (T-090), with the state of the units in `state`.
 fn in_podvm(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
@@ -172,16 +192,7 @@ fn in_podvm(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
     }
     let mut egress = None;
     if let Some(podnet) = &a.podnet {
-        // The fake broker listens on the loopback of the host: the seccomp
-        // hold lets a unit reach it; the netns hold does not (T-095).
-        unit = unit.with_podnet_seccomp(podnet).map_err(|e| fail(Class::Unsupported, format!("--podnet: {e}")))?;
-        let hold = unit.probe().map_err(|e| fail(Class::Unavailable, format!("probe: {e}")))?.egress_hold;
-        if hold != podrunner_schema::EgressHold::Advisory {
-            return Err(fail(
-                Class::Unsupported,
-                format!("--podnet: the hold is {hold:?}; the local mode takes only the seccomp hold (advisory) now"),
-            ));
-        }
+        unit = podnet_hold(unit, podnet).map_err(|(class, why)| fail(class, why))?;
         egress = Some(module(a)?);
     }
     // The vnet: the front holds the egress, and a host that refuses each

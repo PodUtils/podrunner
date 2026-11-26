@@ -311,13 +311,28 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
         }
     }
     if let Some(p) = &a.podnet {
-        out.push(check(
-            "podnet",
-            if p.is_file() { Ok(p.display().to_string()) } else { Err(format!("{}: not a file", p.display())) },
-        ));
+        out.push(check("podnet", podnet(a, p)));
     }
     out.push(check("hold", Ok(hold(a))));
     out
+}
+
+/// `--podnet`: a file, and the seccomp hold that `run` takes from it, by
+/// the same probe and with the same text (T-680).
+fn podnet(a: &Args, p: &Path) -> Result<String, String> {
+    if !p.is_file() {
+        return Err(format!("{}: not a file", p.display()));
+    }
+    let Some(binary) = &a.podvm else { return Ok(p.display().to_string()) };
+    let images = a.images.clone().unwrap_or_default();
+    // The probe of podvm has its own row.
+    let Ok(unit) = podrunner_podvm::PodvmUnit::new(Podvm { binary: binary.clone() }, &std::env::temp_dir(), &images)
+    else {
+        return Ok(format!("{}: the hold is not probed: podvm does not answer", p.display()));
+    };
+    super::routes::podnet_hold(unit, p)
+        .map(|_| format!("{}: the seccomp hold (advisory)", p.display()))
+        .map_err(|(_, why)| why)
 }
 
 /// A directory that exists and takes files, or that can be made (its
