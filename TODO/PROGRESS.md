@@ -66,9 +66,9 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Request the hosted runs again: `runner-image.yml` with the fix of the
-   incus test of `cpu_s`, then `user-gate.yml` with the check
-   `serve:job:engine:microvm` of T-509 (#374 did not start its lanes).
+1. Read the runs of #376: `runner-image.yml` with the fix of the incus
+   test of `cpu_s`, then `user-gate.yml` with the check
+   `serve:job:engine:microvm` of T-509.
    Merge the workers of T-636 and T-713.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).
