@@ -24,8 +24,9 @@ impl Slots {
         let pool = !self.kinds[kind].cfg.warm_rows().is_empty();
         let k = &self.kinds[kind];
         let applied = k.driver.applied_limits(&Limits::of_offer(&offer.limits));
-        // A cache with a mount needs `start`: a claim has no mount.
-        let mount = self.cfg.cache.is_some() && k.driver.host_mounts();
+        // A job with a cache needs `start`: a claim has no mount. A job
+        // that gets no cache takes a warm unit (T-648).
+        let mount = self.cache_wanted(kind, p.tier, offer);
         let mut free: Vec<(&UnitId, &crate::warm::Warm)> =
             self.warm.units.iter().filter(|(_, w)| w.kind == kind && w.reserved.is_none()).collect();
         // A ready unit first, then the oldest.

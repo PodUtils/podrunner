@@ -346,3 +346,34 @@ fn one_refill_of_two_kinds_stays_inside_max_units() {
     let running: u32 = bed.slots.kind_views().iter().map(|k| k.running).sum();
     assert_eq!(running + bed.slots.warm_units() as u32, 2, "one job and one warm unit");
 }
+
+/// T-648: on a kind that mounts the cache at `ro` (the microvm and incus
+/// kinds), a job that gets no cache takes a warm unit, and a job with a
+/// cache starts cold: a claim gives no mount.
+#[test]
+fn a_job_with_no_cache_takes_a_warm_unit_and_a_job_with_a_cache_starts_cold() {
+    let mut cap = confined();
+    cap.mount_modes = vec!["ro".into()];
+    let off = json!({ "cache": { "key": "k", "mode": "none" } });
+    let lines = vec![offer(5, "j-1", off), offer(40, "j-2", json!({}))];
+    let mut bed = Bed::new(
+        config("[cache]"),
+        vec![("a", "trusted", None, lines)],
+        vec![KindSpec { name: "fake", slots: 3, capability: cap, command: sh("sleep 300") }],
+    );
+    bed.slots.kinds[0].cfg.warm = Some(WarmCount::Count(1));
+    assert!(bed.slots.kinds[0].driver.host_mounts());
+    bed.until(4, |s| ready(s) == 1);
+    let first = warm_ids(&bed.slots)[0].clone();
+    bed.until(30, |s| s.jobs().any(|j| j.state == State::Started));
+    let j = bed.slots.jobs().next().unwrap().clone();
+    assert_eq!((j.unit.as_ref(), j.warm), (Some(&first), true), "the job with no cache took the warm unit");
+    bed.until(30, |s| ready(s) == 1);
+    let second = warm_ids(&bed.slots)[0].clone();
+    bed.until(60, |s| s.jobs().filter(|j| j.state == State::Started).count() == 2);
+    let j = bed.slots.jobs().find(|j| j.id.as_str() == "j-2").unwrap();
+    assert!(!j.warm && j.unit.as_ref() != Some(&second), "the job with a cache started cold");
+    assert_eq!(audit_details(&bed.slots, crate::audit::Kind::WarmMiss), ["reason=mount"]);
+    assert_eq!(audit_details(&bed.slots, crate::audit::Kind::Cache), ["none offer-off", "ro"]);
+    assert_eq!(warm_ids(&bed.slots), [second], "the warm unit stays");
+}

@@ -82,6 +82,19 @@ impl Slots {
         vec![(data, target)]
     }
 
+    /// Whether a job of `offer` at `tier` on the kind `kind` gets a cache,
+    /// as [`Slots::cache_start`] decides: such a job needs a start with a
+    /// mount, and a claim of a warm unit has none (T-487, T-648).
+    pub(crate) fn cache_wanted(
+        &self,
+        kind: usize,
+        tier: podrunner_schema::Tier,
+        offer: &podrunner_schema::JobOffer,
+    ) -> bool {
+        let (Some(cfg), Some(_)) = (&self.cfg.cache, &self.cache_worker) else { return false };
+        decide(cfg, tier, offer, self.cache_mounts(kind)).is_ok()
+    }
+
     /// What the kind `kind` proves of a host directory.
     fn cache_mounts(&self, kind: usize) -> Mounts {
         let k = &self.kinds[kind];
