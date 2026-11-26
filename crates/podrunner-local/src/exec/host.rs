@@ -246,6 +246,8 @@ impl RunnerDir {
         super::proxy::host_trust(&home, &mut env);
         let mut child = start_runner_in(&self.dir, &self.work, &broker, &env, !self.quiet)?;
         let _ = std::fs::write(self.dir.join(GROUP), child.id().to_string());
+        // A third signal ends the group at once (T-636).
+        let _held = crate::cancel::hold_group(child.id());
         // The limit of the job (`timeout-minutes`, T-115): at its end, the
         // whole process group of the runner ends, as the unit of `InUnit`.
         let end = Instant::now() + limit;

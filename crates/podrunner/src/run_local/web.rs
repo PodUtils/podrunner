@@ -3,10 +3,13 @@
 //! each job with its state and its live log (T-134), and each artifact of
 //! the run (T-119) for download. The page is in the binary: it loads no
 //! script from another host. Each log line is masked before it reaches the
-//! view, as on stderr. After the run, the view stays until SIGINT.
+//! view, as on stderr. After the run, the view stays until SIGINT. After
+//! a signal, the view says that the run stops, and it ends when the run
+//! ends (T-636).
 
 use std::io::{BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use podrunner_hook::http::{read_request_with, write_response};
@@ -41,10 +44,13 @@ impl View {
     }
 }
 
-/// The web view of a run.
+/// The web view of a run. The drop ends the listener.
 pub(super) struct Web {
     view: Arc<Mutex<View>>,
     pub url: String,
+    local: SocketAddr,
+    stop: Arc<AtomicBool>,
+    listener: Option<std::thread::JoinHandle<()>>,
 }
 
 /// A random token for the path: 16 bytes of `/dev/urandom` as hex.
@@ -68,14 +74,15 @@ pub(super) fn parse_addr(v: &str) -> Result<SocketAddr, String> {
     Ok(addr)
 }
 
-fn state_json(view: &View, artifacts: &ArtifactStore) -> Value {
+/// The state of the view; `stopping`: a signal cancelled the run.
+fn state_json(view: &View, artifacts: &ArtifactStore, stopping: bool) -> Value {
     let jobs: Vec<Value> = view
         .jobs
         .iter()
         .map(|(id, name, state, log)| json!({ "id": id, "name": name, "state": state, "log": log }))
         .collect();
     let names: Vec<Value> = artifacts.list().iter().map(|a| a["name"].clone()).collect();
-    json!({ "jobs": jobs, "artifacts": names, "done": view.done })
+    json!({ "jobs": jobs, "artifacts": names, "done": view.done, "stopping": stopping && !view.done })
 }
 
 /// A path part with each `%XX` decoded (`encodeURIComponent` of the page).
@@ -112,7 +119,8 @@ fn serve(conn: TcpStream, token: &str, view: &Mutex<View>, artifacts: &ArtifactS
     let _ = match (req.method.as_str(), rest) {
         ("GET", "" | "/") => write_response(&mut w, 200, &[html, no_cache], PAGE.as_bytes()),
         ("GET", "/state.json") => {
-            let body = state_json(&view.lock().expect("the view"), artifacts).to_string();
+            let stopping = podrunner_local::cancel::requested();
+            let body = state_json(&view.lock().expect("the view"), artifacts, stopping).to_string();
             write_response(&mut w, 200, &[("Content-Type", "application/json".into()), no_cache], body.as_bytes())
         }
         ("GET", p) if p.starts_with("/artifacts/") => {
@@ -144,13 +152,18 @@ impl Web {
         let url = format!("http://{local}/{token}/");
         let view: Arc<Mutex<View>> = Arc::default();
         let shared = view.clone();
-        std::thread::spawn(move || {
+        let stop: Arc<AtomicBool> = Arc::default();
+        let stopped = stop.clone();
+        let thread = std::thread::spawn(move || {
             for conn in listener.incoming().flatten() {
+                if stopped.load(Ordering::SeqCst) {
+                    break;
+                }
                 let (token, view, artifacts) = (token.clone(), shared.clone(), artifacts.clone());
                 std::thread::spawn(move || serve(conn, &token, &view, &artifacts));
             }
         });
-        Ok(Web { view, url })
+        Ok(Web { view, url, local, stop, listener: Some(thread) })
     }
 
     /// The live sink of the view, with each secret masked, before `then`.
@@ -189,6 +202,18 @@ impl Web {
     /// The run ended.
     pub(super) fn done(&self) {
         self.view.lock().expect("the view").done = true;
+    }
+}
+
+impl Drop for Web {
+    /// End the listener: a connection wakes its accept, and it sees the stop.
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        if TcpStream::connect(self.local).is_ok()
+            && let Some(t) = self.listener.take()
+        {
+            let _ = t.join();
+        }
     }
 }
 
@@ -252,5 +277,26 @@ mod tests {
         assert_eq!(get(&format!("{}artifacts/none", web.url)).0, 404);
         assert_eq!(decode("a%20b%2Fc%zz"), "a b/c%zz");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-636: the view says that the run stops after a signal, until the
+    /// run ended; the drop of the view, at the end of the run, ends its
+    /// listener.
+    #[test]
+    fn the_view_says_stopping_and_ends_with_the_run() {
+        let dir = std::env::temp_dir().join(format!("podrunner-web-stop-{}", std::process::id()));
+        let store = Arc::new(ArtifactStore::new(&dir, 1 << 20).unwrap());
+        let mut view = View::default();
+        assert_eq!(state_json(&view, &store, false)["stopping"], false);
+        assert_eq!(state_json(&view, &store, true)["stopping"], true);
+        view.done = true;
+        assert_eq!(state_json(&view, &store, true)["stopping"], false, "a run that ended does not stop");
+        let web = Web::start(parse_addr("127.0.0.1:0").unwrap(), store).unwrap();
+        let addr = web.local;
+        assert_eq!(get(&format!("{}state.json", web.url)).0, 200);
+        drop(web);
+        let refused = TcpStream::connect(addr).map(|_| ()).unwrap_err().kind();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(refused, std::io::ErrorKind::ConnectionRefused, "the view stays after the run");
     }
 }

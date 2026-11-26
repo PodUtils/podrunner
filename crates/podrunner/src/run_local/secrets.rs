@@ -17,6 +17,9 @@ pub(super) fn run_files(a: &Args, dir: &std::path::Path) -> Vec<std::path::PathB
 /// The secrets of a run and its token.
 pub(super) type Secrets = (Vec<(String, String)>, Option<String>);
 
+/// The secrets of the run (T-121) and the token of `github.token` (T-122):
+/// `.secrets` of the checkout when it exists, then `--secret-file`, then
+/// each `--secret`.
 pub(super) fn secrets(a: &Args) -> Result<Secrets, String> {
     use podrunner_local::secrets::{from_env, read_file};
     let mut out: Vec<(String, String)> = Vec::new();
@@ -66,4 +69,19 @@ pub(super) fn unreadable(a: &Args) -> Option<String> {
     let named = named.chain(a.environment_vars.iter().map(|(_, p)| ("--environment-var-file", p)));
     let fails = |p: &std::path::PathBuf| std::fs::File::open(p).err().filter(|_| p.exists());
     files.chain(named).find_map(|(f, p)| fails(p).map(|e| format!("{f} {}: {e}", p.display())))
+}
+
+/// The secrets and vars of each environment (T-136): a secret file needs
+/// mode 0600, as `--secret-file`.
+pub(super) fn environments(a: &Args) -> Result<std::collections::BTreeMap<String, podrunner_local::Environment>, String> {
+    let mut out: std::collections::BTreeMap<String, podrunner_local::Environment> = Default::default();
+    for (name, file) in &a.environment_secrets {
+        out.entry(name.clone()).or_default().secrets.extend(podrunner_local::secrets::read_file(file)?);
+    }
+    for (name, file) in &a.environment_vars {
+        let text = std::fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
+        let vars = podrunner_local::secrets::parse_pairs(&text).map_err(|e| format!("{}: {e}", file.display()))?;
+        out.entry(name.clone()).or_default().vars.extend(vars);
+    }
+    Ok(out)
 }

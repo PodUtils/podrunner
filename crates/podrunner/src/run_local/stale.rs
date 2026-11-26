@@ -7,7 +7,7 @@
 //! `TMPDIR` can each have a run as pid 1 (T-607), and NS has the machine
 //! id, so two hosts that share it do not meet (T-615).
 
-use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
 
 const PREFIXES: &[&str] = &["podrunner-run-units-", "podrunner-run-tree-"];
@@ -17,7 +17,7 @@ const PROBE: &str = "podrunner-probe-";
 /// A process as `/proc` sees it: the key of its pid namespace ([`ns_key`])
 /// and its pid in that namespace.
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct Here {
+pub(super) struct Here {
     ns: u64,
     pid: u32,
 }
@@ -27,7 +27,7 @@ struct Here {
 /// `/proc` then names another process, so no run counts as dead. Also
 /// `None` with no machine id and no boot id ([`ns_key`]): then a run of
 /// another host is not known.
-fn here() -> Option<Here> {
+pub(super) fn here() -> Option<Here> {
     let pid = std::process::id();
     let seen: u32 = std::fs::read_link("/proc/self").ok()?.to_str()?.parse().ok()?;
     let inode = std::fs::metadata("/proc/self/ns/pid").ok()?.ino();
@@ -145,9 +145,11 @@ fn owner(id: &str) -> Option<Here> {
 }
 
 /// Whether a process `pid` lives. Any process counts, not only one named
-/// podrunner: a run started through a link of another name stays safe.
+/// podrunner: a run started through a link of another name stays safe. A
+/// zombie is dead: the helper of a third signal ends the run before the
+/// parent of the run collects it (T-636).
 fn live_podrunner(pid: u32) -> bool {
-    std::path::Path::new(&format!("/proc/{pid}")).exists()
+    podrunner_unit::procs::stat(pid).is_some_and(|s| !matches!(s.state, 'Z' | 'X'))
 }
 
 /// The directories of dead runs of this user in `tmp`, and the probe that
@@ -165,6 +167,38 @@ fn dead_runs(tmp: &Path, uid: u32, me: Option<Here>) -> Vec<PathBuf> {
             let meta = std::fs::symlink_metadata(e.path()).ok()?;
             let dead = run.ns == me.ns && run.pid != me.pid && !live_podrunner(run.pid);
             (meta.is_dir() && meta.uid() == uid && dead).then(|| e.path())
+        })
+        .collect()
+}
+
+/// The files of the units of a local run that have the pid of the run in
+/// their names, not its key: the socket directory of each unit and its
+/// logs, the socket of each broker, and each export directory (T-636).
+const OF_PID: &[&str] = &["podrunner-local-unit-", "podrunner-local-broker-", "podrunner-run-export-"];
+
+/// The files of [`OF_PID`] of this user in `tmp` that have the pid of a
+/// dead run in `dead`. A pid that a run of another pid namespace also
+/// has (a directory of [`PREFIXES`] with its key) keeps its files: that
+/// run can be live, and its files have the same names.
+fn of_pids(tmp: &Path, uid: u32, me: Here, dead: &[PathBuf]) -> Vec<PathBuf> {
+    let names: Vec<(PathBuf, String)> = match std::fs::read_dir(tmp) {
+        Ok(entries) => entries.flatten().map(|e| (e.path(), e.file_name().to_string_lossy().into_owned())).collect(),
+        Err(_) => return Vec::new(),
+    };
+    let run = |name: &str, probe: bool| {
+        let probe = probe.then_some(&PROBE);
+        owner(PREFIXES.iter().chain(probe).find_map(|p| name.strip_prefix(p))?)
+    };
+    let dead: Vec<u32> =
+        dead.iter().filter_map(|d| run(&d.file_name()?.to_string_lossy(), true)).map(|h| h.pid).collect();
+    let shared: Vec<u32> = names.iter().filter_map(|(_, n)| run(n, false)).filter(|h| h.ns != me.ns).map(|h| h.pid).collect();
+    names
+        .into_iter()
+        .filter_map(|(path, name)| {
+            let pid: u32 = OF_PID.iter().find_map(|p| name.strip_prefix(p))?.split('-').next()?.parse().ok()?;
+            let meta = std::fs::symlink_metadata(&path).ok()?;
+            let kind = meta.is_dir() || meta.file_type().is_socket();
+            (kind && meta.uid() == uid && dead.contains(&pid) && !shared.contains(&pid)).then_some(path)
         })
         .collect()
 }
@@ -195,8 +229,10 @@ pub(super) fn end_dead_runs(dry: bool) {
     end_dead_runs_in(&std::env::temp_dir(), uid, here());
 }
 
-fn end_dead_runs_in(tmp: &Path, uid: u32, me: Option<Here>) {
-    for dir in dead_runs(tmp, uid, me) {
+pub(super) fn end_dead_runs_in(tmp: &Path, uid: u32, me: Option<Here>) {
+    let dead = dead_runs(tmp, uid, me);
+    let by_pid = me.map(|me| of_pids(tmp, uid, me, &dead)).unwrap_or_default();
+    for dir in dead.into_iter().chain(by_pid) {
         let mut units = Vec::new();
         units_of(&dir, 3, &mut units);
         let mut ended = 0;
@@ -210,7 +246,11 @@ fn end_dead_runs_in(tmp: &Path, uid: u32, me: Option<Here>) {
             0 => String::new(),
             n => format!(" ({n} units, {ended} processes ended)"),
         };
-        match podrunner_local::work::clear(&dir) {
+        let removed = match dir.is_dir() {
+            true => podrunner_local::work::clear(&dir),
+            false => std::fs::remove_file(&dir).map_err(|e| e.to_string()),
+        };
+        match removed {
             Ok(()) => eprintln!("podrunner: {}: the files of a run that died are gone{what}", dir.display()),
             Err(e) => eprintln!("podrunner: a run that died left {}: {e}", dir.display()),
         }
@@ -407,3 +447,7 @@ mod ns_tests;
 #[cfg(test)]
 #[path = "stale_key_tests.rs"]
 mod key_tests;
+
+#[cfg(test)]
+#[path = "stale_pid_tests.rs"]
+mod pid_tests;

@@ -30,6 +30,7 @@ mod images;
 mod log;
 mod noproxy;
 mod proxy;
+mod stopping;
 mod toolcache;
 pub mod vnet;
 pub mod workdir;
@@ -399,7 +400,11 @@ impl Executor for InUnit {
         // until the container ends: the unit and its containers go first,
         // so the stop of the hooks waits for no step (T-639).
         let had_hooks = hooks.is_some();
-        let first = matches!(waited, Ok(None)).then(destroy);
+        let first = matches!(waited, Ok(None)).then(|| match cancelled {
+            // The end of a unit can take a while: say that the run waits (T-636).
+            true => stopping::wait_for(job.as_str(), id.as_str(), stopping::TICK, &|l| eprintln!("{l}"), &destroy),
+            false => destroy(),
+        });
         let refusals = hooks.map(Hooks::stop).unwrap_or_default();
         // A hook call that was in `podvm run -d` at the first destroy can
         // start a container after it: destroy again (it is idempotent).

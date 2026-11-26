@@ -21,6 +21,7 @@ mod logs;
 mod many;
 mod pause;
 mod protect;
+pub mod reap;
 mod routes;
 mod secrets;
 mod slots;
@@ -42,7 +43,7 @@ use podrunner_local::drive::Line;
 use crate::cli::Out;
 
 use args::{Args, parse};
-use secrets::{run_files, secrets};
+use secrets::{environments, run_files, secrets};
 
 /// The usage of `run`, for an error of its command line.
 pub fn usage() -> String {
@@ -79,24 +80,6 @@ pub fn line(l: &Line) -> String {
         Line::NotSelected { name, reason, .. } => format!("skipped {}: {reason}\n", one(name)),
         Line::Kept { name, result, .. } => format!("kept    {} ({})\n", one(name), result.as_str()),
     }
-}
-
-/// The secrets of the run (T-121) and the token of `github.token` (T-122):
-/// `.secrets` of the checkout when it exists, then `--secret-file`, then
-/// each `--secret`.
-/// The secrets and vars of each environment (T-136): a secret file needs
-/// mode 0600, as `--secret-file`.
-fn environments(a: &Args) -> Result<std::collections::BTreeMap<String, podrunner_local::Environment>, String> {
-    let mut out: std::collections::BTreeMap<String, podrunner_local::Environment> = Default::default();
-    for (name, file) in &a.environment_secrets {
-        out.entry(name.clone()).or_default().secrets.extend(podrunner_local::secrets::read_file(file)?);
-    }
-    for (name, file) in &a.environment_vars {
-        let text = std::fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
-        let vars = podrunner_local::secrets::parse_pairs(&text).map_err(|e| format!("{}: {e}", file.display()))?;
-        out.entry(name.clone()).or_default().vars.extend(vars);
-    }
-    Ok(out)
 }
 
 /// The vars, the inputs and the env of the run: each file, then each flag

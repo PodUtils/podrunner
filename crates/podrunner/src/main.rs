@@ -13,6 +13,13 @@ fn main() -> ExitCode {
         let code = pod_hostprobe::run_child(name, &mut std::io::stdout());
         return ExitCode::from(u8::try_from(code).unwrap_or(2));
     }
+    // The helper that a third signal of `run` starts (T-636).
+    if let [flag, rest @ ..] = args.as_slice()
+        && flag == podrunner::run_local::reap::FLAG
+    {
+        return ExitCode::from(podrunner::run_local::reap::helper(rest));
+    }
+    podrunner::run_local::reap::prepare();
     // The binary writes each line of a local run when its job ends (T-296).
     podrunner::run_local::STREAM.store(true, std::sync::atomic::Ordering::SeqCst);
     let out = podrunner::cli::run(&args);

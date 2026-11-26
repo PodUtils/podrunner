@@ -145,7 +145,13 @@ line for each. The machine id stays the same after a reboot, so a run
 that was killed before a reboot of this host is also found and removed.
 A run of another pid namespace (another container that shares `TMPDIR`)
 or of another host (a `TMPDIR` on NFS or in a shared home) is never
-ended. A limit: two hosts with one copied machine id (a cloned image)
+ended. The same cleanup removes the files of the units of the dead run
+that have only its pid in their names: `podrunner-local-unit-PID-u-N`
+(the sockets of a unit) and its `.logs`, `podrunner-local-broker-PID-N.sock`
+and `podrunner-run-export-PID-u-N`. When a run of another pid namespace
+has the same pid in `TMPDIR`, these files stay. A third signal starts a
+helper that does this cleanup when podrunner is gone (T-636). A limit:
+two hosts with one copied machine id (a cloned image)
 that share `TMPDIR` are not told apart. Give each such host its own
 `TMPDIR`. A directory of an older release stays: remove it by hand
 (T-312, T-607, T-615).
@@ -330,7 +336,7 @@ entry that did the work or that closes the gap.
 | Keep a container, bind the tree, tool cache | `--reuse`, `--bind` | `--keep-container`, shared tool cache | `--export DIR` on `--runner-dir` and `--podvm`; `--toolcache DIR` on `--podvm` (a tree of links into `/home/runner/work/_tool`; the directory is mounted read-only where the rung of podvm has mounts); `--keep-failed` keeps a failed job at its failed step | T-138 |
 | Pause before a step | no | no | `--break JOB:STEP`, `--break-on-failure`: the job waits for Enter; `s` opens a shell in a podvm unit or an incus instance | T-150 |
 | Host check, bug report | `--bug-report` | no | `doctor --run FILE [the options of run]`: each input checked, with its fix | T-153 |
-| Interrupt | cancels and removes | cancels | cancels: each unit is destroyed with its containers (also a `container:` job in a long step: the unit goes before the hooks stop, and the run waits at most 10 s for a hook call), the scratch directories go, exit 130; a second signal prints `stopping: already stopping`, a third ends podrunner at once | T-141, T-639 |
+| Interrupt | cancels and removes | cancels | cancels: each unit is destroyed with its containers (also a `container:` job in a long step: the unit goes before the hooks stop, and the run waits at most 10 s for a hook call), the scratch directories go, exit 130; a second signal prints `stopping: already stopping`, a third ends podrunner at once, ends each runner group, and a helper removes the units and the files of the run; SIGHUP prints the same lines | T-141, T-639, T-636 |
 | `env:` of one expression | not read | yes | yes: the workflow, the job and the step, as the schema of the runner allows | T-152 |
 | Privileged containers, host binds, cap add | flags, with a policy | yes | refused by the hook policy; privileged work runs in the engine of the unit | T-124 |
 | Azure Pipelines YAML | no | a subset | no: it needs the Azure Pipelines agent (`docs/azure-pipelines.md`, Q6) | T-148 |

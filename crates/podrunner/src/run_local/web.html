@@ -41,7 +41,7 @@ async function tick() {
   let s;
   try { s = await (await fetch('state.json', { cache: 'no-store' })).json(); }
   catch (e) { document.getElementById('status').textContent = 'The run is not reachable.'; return; }
-  document.getElementById('status').textContent = s.done ? 'The run ended.' : 'The run is in progress.';
+  document.getElementById('status').textContent = s.done ? 'The run ended.' : s.stopping ? 'The run stops: a signal cancelled it.' : 'The run is in progress.';
   const jobs = document.getElementById('jobs');
   jobs.replaceChildren(...s.jobs.map(j => {
     const li = el('li', j.name);
