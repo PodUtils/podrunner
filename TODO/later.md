@@ -12218,7 +12218,7 @@ In the code (2026-11-18): `docs/contracts/source-driver.md` names the tolerance 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -12235,6 +12235,23 @@ Where the cgroup of the unit is delegated (the path of T-221), set `pids.max` in
 ## Prove
 
 `runner-image.yml`: two units under one user, each with its own `pids`.
+
+State (2026-11-26, `0f2232e6`; tests on a development host, the hosted
+measure not run): podvm `0.2.0-beta.40` already makes a leaf of the run
+in the delegated cgroup and writes `pids.max` there for `--pids-limit`
+(PodUtils/podvm@T-1747, from `0.2.0-beta.23`). Where the parent of the
+cgroup of podrunner is a cgroup v2 directory of this user with the
+`pids` controller and no process, a unit gets `--pids-limit N` and no
+`--ulimit nproc`; elsewhere `--ulimit nproc=N`. The capability record
+gives `limits.pids-per-unit` (`enforced` or `none`). The delegation
+check now also refuses a parent with a process, as podvm does (the CPU
+limit uses it too). Tests: `the_pids_of_a_unit_go_to_its_leaf_where_the_cgroup_is_delegated`
+(it fails with the old body, `nproc=512`), `the_record_names_where_the_pids_hold`.
+The step "A CPU and a pids limit of a podvm unit in a delegated cgroup"
+of `runner-image.yml` now runs `each_unit_holds_its_own_pids_in_a_delegated_cgroup`
+(two units, 64 and 96). Left: that step in hosted CI. COORD-137 (#363)
+asks podvm for its verdict of the cgroup, so that podrunner drops its
+copy of the rule.
 
 # T-522: G-31: the design copies of the schemas have the ids of `pod-job` and other fields
 
@@ -17635,7 +17652,7 @@ The gap of another owner on the incus kind is T-685.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -17661,6 +17678,25 @@ kinds whose files belong to this user.
 `cargo test -p podrunner-incus` with a fake podvm that gives a disk use,
 and the limits suite of `runner-image.yml` with a file under a directory
 of mode 0700 in the instance.
+
+## Blocker
+
+podvm `0.2.0-beta.40` gives no disk use of an incus instance in
+`inspect` (its fields: Id to OomKills). COORD-138 (#364) asks for
+`RootDiskBytes` (`disk.root.usage` of incusd, null with no `root` entry).
+
+State (2026-11-26, `fd67c987` to `40169468` and the commit that names
+T-685 after them; tests on a development host): `UnitDriver::disk_bytes`
+gives the bytes that a kind measures itself outside `unit_root`; the disk
+worker adds it to the walk, off the tick, and does no walk when the
+measure is above the bound. Tests: `cargo test -p podrunner-slots
+disk_kind` (3 tests; each fails with the measure ignored) and
+`the_measure_of_the_kind_adds_to_the_walk`. With `disk_max_bytes` and no
+`root_quota`, the incus kind claims no `disk` limit and `serve` warns
+(`incus_kind::disk_claim`, `an_incus_kind_with_no_root_quota_claims_no_disk_limit`;
+before, `serve` claimed `reported` for each kind with a bound); the call
+is in `docs/decisions.md`. Left: the incus driver reads `RootDiskBytes`
+when podvm gives it.
 
 # T-679: A local concurrency lock error reports an interrupted wait
 
@@ -18054,7 +18090,7 @@ The gate and level2 on the commit of the take.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -18090,3 +18126,86 @@ image of both runs, and the free space at the start of the job.
 The row `rbg-gate` on `microvm` passes in the lane `plain` of
 `user-gate.yml`, and a test names the free space that a guest gives a
 job.
+State (2026-11-26, tests on a development host and a guest under TCG; the
+gate row not run): the cause. T-672 (Docker 29.9.2) made the larger image
+1,611,346,204 bytes unpacked (runner-image 45607875181) to 1,847,066,977
+(runner-image 45783615763), and the microvm row runs the larger image in
+both runs, at the `mem` of 8G of the local mode. The root of a guest is
+the rootfs tmpfs of the kernel (podvm boots with `rdinit=` and no
+`root=`), capped at half of the memory less the initrd. Measured with
+podvm `0.2.0-beta.40` at 8G: the free space of `/` fell from 1512 MiB to
+1175 MiB; Chrome for Testing (191 MiB) went past it. The guest script of
+`podrunner-microvm` now remounts a `rootfs` root at 75 % of the memory
+(4055 MiB free at 8G); a refused remount keeps the size with a line. The
+cost: the files and the processes of a job share the memory of the
+guest. Test: `the_guest_script_raises_the_cap_of_an_initramfs_root` (a
+fake `mount`: a `rootfs` root, a disk root, a refused remount; it fails
+with the block left out, and with the remount on each root type).
+`docs/local-mode.md` gives the disk of a guest. Left: the row
+`corpus:rbg-gate:microvm` of the lane `plain`. Two findings: the pin
+bound of a microvm guest (`largest_image`) counts the boot only and no
+space of a job; the local mode has no flag for the memory of a guest
+(always 8G). A real disk of a guest needs podvm (PodUtils/podvm@T-1994).
+
+
+# T-689: The pin bound of a microvm guest leaves no space for a job
+
+**Source:** the investigation of T-688, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`check` refuses a microvm pin above `largest_image` of `mem`, the bound
+of the boot of podvm (`(mem - 512 MiB) × 4 / 13`, T-573). An image at the
+bound boots, but its job gets almost no free space in the root of the
+guest, which is in its memory (T-688).
+
+## Premise
+
+Read from `crates/podrunner/src/microvm_kind.rs` and the measure of
+T-688 on 2026-11-26. Not measured at the bound.
+
+## Approach
+
+Add a reserve for the files and processes of a job to the bound (for
+example 2 GiB, a key of `[unit.microvm]`), and let `doctor` name the free
+space of a job that it predicts for each pin.
+
+## Prove
+
+`cargo test -p podrunner pin_size` with a pin at the old bound refused,
+and `doctor --json` with the predicted space.
+
+# T-690: The local mode has no flag for the memory of a guest
+
+**Source:** the investigation of T-688, 2026-11-26
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner run --microvm` gives each guest 8G (`DEFAULT_MEM`): a job that
+needs more space or memory, or a host with less memory, has no way to
+change it.
+
+## Premise
+
+Read from `crates/podrunner/src/run_local/guest.rs` (`mem: None`) on
+2026-11-26.
+
+## Approach
+
+Add `--mem SIZE` to `run` with `--microvm` (and its key in `run.toml`),
+checked as `[unit.microvm] mem`, and name it in `doctor --run`.
+
+## Prove
+
+`cargo test -p podrunner run_local` with the flag in the podvm argv, and
+a refusal of a size below the boot of the image.

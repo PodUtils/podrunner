@@ -184,10 +184,15 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
                 work_dir: crate::podvm_kind::work_dir(name, u),
             },
         );
-        // slots measures the disk of a kind with a bound (T-074).
+        // slots measures the disk of a kind with a bound (T-074), where the
+        // measure can hold it (T-685).
         let mut capability = capability;
-        if u.disk_max_bytes.is_some() {
-            capability.limits.entry("disk".into()).or_insert(podrunner_schema::LimitMode::Reported);
+        match crate::incus_kind::disk_claim(name, u) {
+            Ok(Some(mode)) => {
+                capability.limits.entry("disk".into()).or_insert(mode);
+            }
+            Ok(None) => {}
+            Err(why) => eprintln!("podrunner: [unit.{name}]: warning: {why}"),
         }
         let mut unit_cfg = u.clone();
         if name == "microvm" && unit_cfg.mem.is_none() {

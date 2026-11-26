@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 683 entries: 81 open, 54 partial, 15 blocked, 533 done.
+`TODO/INDEX.md` holds 685 entries: 80 open, 56 partial, 16 blocked, 533 done.
 
 ## State
 
@@ -66,8 +66,8 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Merge the workers of T-521, T-655, T-685; find the
-   cause of the space of a guest of T-688.
+1. Merge the worker of T-655; find the cause of the space of a guest of
+   T-688. Ask for the next hosted runs (T-521, T-686, T-638).
 2. Take podnet `v0.4.0-beta.20` (T-686, its image run) and podcrates
    `v0.86.0` (T-687). Take the rest of the cache work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -96,7 +96,8 @@ then take the next one.
 
 Waits:
 
-- Podvm: T-658 (COORD-132, #354) and
+- Podvm: T-685 (COORD-138, #364), T-521 drops its copy of the cgroup
+  rule after COORD-137 (#363). T-658 (COORD-132, #354) and
   T-659 (COORD-133, #355): a podvm release. T-681 waits for the next
   Incus image import path for the low-space control. COORD-254
   (PodUtils/podvm#671) asks to retest both runner image architectures

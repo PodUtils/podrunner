@@ -44,6 +44,13 @@ if ! awk 'MOUNT_CHECK' /proc/mounts; then
   echo "podrunner: a host mount of the guest is outside the table of the unit" >&2
   exit 96
 fi
+# The root of the guest is the initramfs on a tmpfs, and the kernel caps it
+# at half of the memory less the initrd: a job of the larger image in 8G
+# got less than 1 GiB (T-688). The job then gets the memory that its
+# processes do not use, as the disk of a hosted runner.
+if awk '$2 == "/" && $3 == "rootfs" { f = 1 } END { exit !f }' /proc/mounts; then
+  mount -o remount,size=75% / || echo "podrunner: the root of the guest keeps its size" >&2
+fi
 # A warm guest (T-487) waits for its claim: the environment and the argv
 # of the job come in env.sh, before the engine starts, so dockerd gets the
 # variables of the job. The claim directory is no regular file: the copy
@@ -228,4 +235,46 @@ pub(crate) fn write_credentials(dir: &Path, credential: &Credential) -> Result<(
         out.write_all(&bytes).map_err(|e| host("a credential file", e))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+
+    /// T-688: the root of a guest is the initramfs on a tmpfs with half of the
+    /// memory less the initrd; the script raises its cap. A root of another
+    /// type keeps its size, and a refused remount does not end the guest.
+    #[test]
+    fn the_guest_script_raises_the_cap_of_an_initramfs_root() {
+        let d = crate::tests::dir("root-size");
+        let script = super::SCRIPT;
+        let from = script.find("if awk '$2 == \"/\" && $3 == \"rootfs\"").unwrap();
+        let block = &script[from..from + script[from..].find("fi\n").unwrap() + 3];
+        let block = block.replace("/proc/mounts", &d.join("mounts").display().to_string());
+        let bin = d.join("bin");
+        fs::create_dir_all(&bin).unwrap();
+        let run = |table: &str, mount_rc: u8| {
+            fs::write(d.join("mounts"), table).unwrap();
+            let fake = format!("#!/bin/sh\necho \"$*\" > '{}'\nexit {mount_rc}\n", d.join("argv").display());
+            fs::write(bin.join("mount"), fake).unwrap();
+            fs::set_permissions(bin.join("mount"), fs::Permissions::from_mode(0o755)).unwrap();
+            let _ = fs::remove_file(d.join("argv"));
+            let out = std::process::Command::new("sh")
+                .args(["-c", &format!("set -eu; {block} echo after")])
+                .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+                .output()
+                .unwrap();
+            let argv = fs::read_to_string(d.join("argv")).unwrap_or_default();
+            (String::from_utf8_lossy(&out.stdout).trim().to_string(), argv.trim().to_string(), out.stderr)
+        };
+        let (out, argv, _) = run("rootfs / rootfs rw,size=1572864k 0 0\nproc /proc proc rw 0 0\n", 0);
+        assert_eq!((out.as_str(), argv.as_str()), ("after", "-o remount,size=75% /"));
+        let (out, argv, _) = run("/dev/vda / ext4 rw 0 0\nrootfs /mnt rootfs rw 0 0\n", 0);
+        assert_eq!((out.as_str(), argv.as_str()), ("after", ""), "a root on a disk keeps its size");
+        let (out, _, err) = run("rootfs / rootfs rw 0 0\n", 32);
+        assert_eq!(out, "after", "a refused remount does not end the guest");
+        assert!(String::from_utf8_lossy(&err).contains("keeps its size"));
+        let _ = fs::remove_dir_all(&d);
+    }
 }

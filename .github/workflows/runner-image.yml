@@ -312,7 +312,7 @@ jobs:
       # Delegate=yes gives one to the user of the job. podvm makes its leaf
       # beside the cgroup of its caller, so the test moves into a leaf of the
       # service first.
-      - name: A CPU limit of a podvm unit in a delegated cgroup (a measure)
+      - name: A CPU and a pids limit of a podvm unit in a delegated cgroup (a measure)
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
         continue-on-error: true
         run: |
@@ -327,7 +327,7 @@ jobs:
             -- sh -c 'set -x; c=/sys/fs/cgroup$(sed -n "s/^0:://p" /proc/self/cgroup); cat /proc/self/cgroup "$c/cgroup.controllers"; ls -ld "$c" "$c/cgroup.procs" "$c/cgroup.subtree_control"
               mkdir "$c/test" && echo 0 > "$c/test/cgroup.procs" || exit 1
               for x in cpu memory pids; do echo "+$x" > "$c/cgroup.subtree_control" || echo "the controller $x is not delegated"; done
-              exec timeout 300 cargo test -p podrunner-podvm --test limits cpu_limit -- --ignored --nocapture'
+              exec timeout 300 cargo test -p podrunner-podvm --test limits delegated_cgroup -- --ignored --nocapture'
       # T-130: an image by tag is pulled into the store and pinned by the
       # lock beside the workflow; the runner gets the digest. Where chroot is
       # denied, podvm runs the glibc image detached from beta.17 (T-156).

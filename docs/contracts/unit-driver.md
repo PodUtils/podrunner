@@ -95,6 +95,13 @@ state of the instance in `wait` saw while it ran, also for `oom_kills`:
 incusd gives none of a stopped instance. The run report gives `unknown` with that reason. Another driver
 gives none, and slots samples the processes of `observe`.
 
+The disk of a unit. A driver can answer `disk_bytes` for a running unit:
+the bytes outside the unit root of `observe` that its kind measures
+itself, for example the root disk of an instance in a storage pool
+(T-685). slots calls it on the thread of the disk walks, adds the walk of
+the unit root, and compares the sum with the bound. None: the walk alone
+holds.
+
 The host directories. A driver whose `host_mounts` is true mounts each
 directory of `StartSpec::mounts` at its path in the unit; another driver
 refuses a start with one. `serve` gives the cache of a job (T-480) only

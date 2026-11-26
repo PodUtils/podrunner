@@ -97,9 +97,11 @@ into a directory of the job, or use a guest.
 
 The base image has no C compiler: a project that builds a C extension
 (a Python package such as pallets/markupsafe) needs the larger image
-(`--full`) (T-326). Neither image has Docker, Rust (`cargo`, `rustup`), Go, Java, .NET or
-yarn: the `setup-*` actions install a toolchain into the tool cache of
-the job. In a podvm unit on the namespace rung of podvm (a user with no
+(`--full`) (T-326). The larger image has the static Docker Engine, and a
+guest of `--microvm` or `--incus` starts it (T-672,
+`docs/container-engine.md`); the base image has no Docker. Neither image
+has Rust (`cargo`, `rustup`), Go, Java, .NET or yarn: the `setup-*`
+actions install a toolchain into the tool cache of the job. In a podvm unit on the namespace rung of podvm (a user with no
 root on a host with user namespaces), a job runs as the user `runner` of
 the image with `HOME=/root`, in a user namespace of one uid; `sudo` of the
 image does not work there (T-317).
@@ -132,6 +134,29 @@ ended. A limit: two hosts with one copied machine id (a cloned image)
 that share `TMPDIR` are not told apart. Give each such host its own
 `TMPDIR`. A directory of an older release stays: remove it by hand
 (T-312, T-607, T-615).
+
+### The disk of a guest
+
+A guest of `--microvm` (and of the `microvm` kind of `serve`) has no disk:
+its root is the image, unpacked into the memory of the guest (an
+initramfs on a tmpfs). The work folder `/home/runner/work`, the tool
+cache and `/tmp` are on that root, so the space of a job comes from the
+memory of the guest (`mem`, 8G by default). The kernel caps the root at
+half of the memory less the initrd. The guest script raises the cap to
+75 % of the memory of the guest, so the processes of the job keep at
+least a quarter (T-688).
+
+Measured in a guest of 8G (podvm `0.2.0-beta.40`, TCG, on a development
+host):
+
+| Image | Root used | Free, kernel cap | Free, 75 % cap |
+| --- | --- | --- | --- |
+| larger, before the engine (1537 MiB unpacked) | 1685 MiB | 1512 MiB | 4280 MiB |
+| larger, with the engine (1762 MiB unpacked, T-672) | 1909 MiB | 1175 MiB | 4055 MiB |
+
+A job that writes more than that gets `ENOSPC`. Use the base image when
+the job does not need the tools of the larger one, or, on `serve`, give
+the guest more memory (`[unit.microvm] mem`).
 
 ### The image cache
 

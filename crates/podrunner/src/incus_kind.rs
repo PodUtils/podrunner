@@ -132,3 +132,48 @@ pub(crate) fn warn_engine(prefix: &str, cap: &Capability) {
         eprintln!("{prefix}: warning: {w}");
     }
 }
+
+/// The mode of `disk` that a kind with `disk_max_bytes` claims: `reported`
+/// where the disk walk of slots measures the files of a unit. An incus
+/// instance with no `root_quota` keeps its root disk in the pool of incusd,
+/// and the walk sees its work directory only and no directory of mode 0700
+/// of the ids of the instance (T-685): it claims nothing, so a job whose
+/// offer requires `disk` is not placed there, and the text says why. With
+/// `root_quota` the kind claims `enforced` itself.
+pub(crate) fn disk_claim(kind: &str, u: &UnitConfig) -> Result<Option<podrunner_schema::LimitMode>, String> {
+    if u.disk_max_bytes.is_none() {
+        return Ok(None);
+    }
+    if kind == "incus" && !u.root_quota {
+        return Err("disk_max_bytes with no root_quota: the disk of an instance is in the pool of incusd, and the \
+                    walk of its work directory does not hold the bound; the kind claims no disk limit (T-685). \
+                    Set root_quota = true on a pool with quotas (btrfs, zfs, lvm)"
+            .into());
+    }
+    Ok(Some(podrunner_schema::LimitMode::Reported))
+}
+
+#[cfg(test)]
+mod disk_tests {
+    use super::disk_claim;
+    use podrunner_schema::LimitMode;
+
+    fn unit(extra: &str) -> podrunner_slots::config::UnitConfig {
+        toml::from_str(&format!("slots = 1\n{extra}")).unwrap()
+    }
+
+    /// T-685: an incus kind with no root quota claims no disk limit.
+    #[test]
+    fn an_incus_kind_with_no_root_quota_claims_no_disk_limit() {
+        let bound = "disk_max_bytes = 1000000000\n";
+        assert!(disk_claim("incus", &unit(bound)).unwrap_err().contains("root_quota"));
+        let quota = format!("{bound}root_quota = true\n");
+        assert_eq!(disk_claim("incus", &unit(&quota)), Ok(Some(LimitMode::Reported)));
+        for kind in ["podvm", "microvm", "fake"] {
+            assert_eq!(disk_claim(kind, &unit(bound)), Ok(Some(LimitMode::Reported)), "{kind}");
+        }
+        for kind in ["incus", "podvm"] {
+            assert_eq!(disk_claim(kind, &unit("")), Ok(None), "{kind}: no bound, no claim");
+        }
+    }
+}

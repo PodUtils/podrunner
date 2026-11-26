@@ -16,6 +16,8 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `status.v1`, the capability record | The podvm kind gives `limits.pids-per-unit`: `enforced` where `pids.max` of the cgroup leaf of each unit holds `pids`, `none` where RLIMIT_NPROC of the user holds it. | T-521 |
+| `podrunner.toml` `[unit.incus]`, unit driver | With `disk_max_bytes` and no `root_quota`, the incus kind claims no `disk` limit and `serve` warns; a driver can give `disk_bytes`, which slots adds to the walk of the unit root. | T-685 |
 | pins | Podnet `v0.4.0-beta.20` holds the egress of a podvm unit; the installer pins it. | T-686 |
 | `podrunner.toml` `[cache]` | On a kind with the container hooks, each container of a job with a cache sees the cache at its path, with its mode and its variables. | T-651 |
 | source wire, runner image | On `end` or no answer, the job-started hook ends the runner worker, so no later step runs, also no step of `if: always()`. The job log on the forge loses the annotation of the code; the report of the unit keeps it. | T-682 |
@@ -156,5 +158,5 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 0f43d75790e248ee82e1ae12675d917352c0734520f6bedf5ed0642fdd4abea4 -->
 <!-- contract docs/contracts/source-driver.md 46114c3b7a40cd652217eca2f770b35866a479a05f1ff5637c30a2402b1c171d -->
-<!-- contract docs/contracts/unit-driver.md 95465c8377fcc3f5bb7d7065232eabdcf823aef0483a2385d2aa2320622e680c -->
+<!-- contract docs/contracts/unit-driver.md 2f641d0658a90039fd34ab40b4857d1dba7044ed627564753e868ece2aac8712 -->
 <!-- contract schemas/config.v1.json d114ff65c723ee10fa688e6f8e2062b4d47918b28352b4b0066073afc4babde2 -->
