@@ -10,6 +10,8 @@ use crate::control::{self, Request};
 use crate::text::display;
 use crate::verbs::{audit_verify, human, stop_wait};
 
+#[cfg(test)]
+mod twice_tests;
 mod unit;
 pub use unit::{print_system_unit, print_unit};
 
@@ -53,6 +55,7 @@ pub(crate) struct Opts {
 pub(crate) fn opts(path: &'static str, args: &[String]) -> Result<Opts, Out> {
     let cmd = crate::manual::find(path).expect("a command of the model");
     let usage = || crate::manual::usage(path);
+    one_value_each(path, args)?;
     let mut o = Opts { path, values: Vec::new(), flags: Vec::new() };
     let mut it = args.iter();
     while let Some(a) = it.next() {
@@ -70,6 +73,28 @@ pub(crate) fn opts(path: &'static str, args: &[String]) -> Result<Opts, Out> {
     }
     o.rules(cmd)?;
     Ok(o)
+}
+
+/// A flag that takes one value and is given two times is refused (T-711):
+/// the parser of a command takes the first value, the parser of `run` the
+/// last. A flag that the model marks as repeating keeps each value. `run`
+/// checks only the command line of the user: a flag of the command line
+/// replaces a key of `run.toml`.
+pub(crate) fn one_value_each(path: &'static str, args: &[String]) -> Result<(), Out> {
+    let cmd = crate::manual::find(path).expect("a command of the model");
+    let mut seen: Vec<&str> = Vec::new();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        let Some(f) = cmd.flags.iter().find(|f| f.value.is_some() && f.is(a)) else { continue };
+        if !f.many && seen.contains(&f.long) {
+            let msg =
+                format!("{} is given two times: it takes one value\n{}", f.spelling(), crate::manual::usage(path));
+            return Err(err(Class::Usage, msg));
+        }
+        seen.push(f.long);
+        it.next();
+    }
+    Ok(())
 }
 
 impl Opts {
@@ -172,8 +197,10 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
         "doctor" if rest.iter().any(|x| x == "--run") => {
             // The checks see the flags that `run` sees: those of the files
             // first. `--run` can come after another option (T-342).
+            one_value_each("doctor", rest)?;
             let at = rest.iter().position(|x| x == "--run").unwrap_or(0);
             let args: Vec<String> = rest.iter().enumerate().filter(|(i, _)| *i != at).map(|(_, x)| x.clone()).collect();
+            one_value_each("run", &args)?;
             let rest = crate::run_config::expand(&args).map_err(|e| err(Class::Config, e))?;
             Ok(crate::run_local::doctor(&rest))
         }
@@ -208,6 +235,7 @@ fn run_inner(args: &[String]) -> Result<Out, Out> {
             _ => Err(err(Class::Usage, format!("image needs build or verify\n{}", crate::manual::usage("image")))),
         },
         "run" => {
+            one_value_each("run", rest)?;
             // The flags of the configuration files go first (T-143).
             let rest = crate::run_config::expand(rest).map_err(|e| err(Class::Config, e))?;
             match rest.iter().any(|a| a == "--watch" || a == "--schedule") {

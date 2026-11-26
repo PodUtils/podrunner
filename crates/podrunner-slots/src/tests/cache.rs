@@ -161,7 +161,8 @@ fn the_end_of_a_large_cache_does_not_hold_the_tick() {
     let (walks, removals) = (w.gate.clone(), w.rm_gate.clone());
     let walk_held = walks.lock().unwrap();
     let rm_held = removals.lock().unwrap();
-    let destroyed = |s: &Slots| s.jobs().any(|j| matches!(j.state, crate::state::State::Destroyed) || j.state.is_final());
+    let destroyed =
+        |s: &Slots| s.jobs().any(|j| matches!(j.state, crate::state::State::Destroyed) || j.state.is_final());
     bed.until(120, destroyed);
     let key = bed.slots.jobs.keys().next().unwrap().clone();
     let pending = |s: &Slots| {

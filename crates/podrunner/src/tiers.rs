@@ -1,10 +1,12 @@
 //! The check of `check` and `serve` that a kind can serve a source (T-185).
 
 use pod_core::failure::Class;
-use podrunner_schema::{Boundary, EgressHold};
-use podrunner_slots::config::Config;
+use podrunner_schema::{Boundary, Capability, EgressHold};
+use podrunner_slots::Slots;
+use podrunner_slots::config::{Config, SourceConfig, UnitConfig};
 
 use crate::serve::{Failure, fail, fake_capability};
+use crate::text::display;
 
 /// A file whose sources no kind can serve is refused, as `serve` says
 /// `no-tier-served`. Each kind counts at the best boundary that it can
@@ -26,25 +28,13 @@ pub fn served(cfg: &Config, here: bool) -> Result<(), Failure> {
 /// [`served`] with the kinds that this host cannot run given (none: the
 /// verdict of `check`).
 fn verdict(cfg: &Config, away: Vec<(String, String)>) -> Result<(), Failure> {
-    let best = |name: &str, u: &podrunner_slots::config::UnitConfig| match name {
-        "fake" => crate::serve::fake_capability_of(u).boundary,
-        "podvm" if u.confine => Boundary::Confined,
-        "podvm" => Boundary::Redirect,
-        "incus" => Boundary::Confined,
-        _ => Boundary::Guest,
-    };
-    let hold = |name: &str, u: &podrunner_slots::config::UnitConfig| match name {
-        "fake" => crate::serve::fake_capability_of(u).egress_hold,
-        "podvm" if u.podnet.is_none() => EgressHold::Unknown,
-        _ => EgressHold::Enforced,
-    };
     let arch = std::env::consts::ARCH;
     let meets = |skip: &[(String, String)]| {
         cfg.source.iter().any(|s| {
             let (floor, need) = (cfg.floor(s.tier), podrunner_slots::placement::needed_hold(s.tier));
             cfg.unit.iter().filter(|(n, _)| !skip.iter().any(|(a, _)| a == *n)).any(|(n, u)| {
                 let kind_arch = if n == "fake" { fake_capability().arch } else { arch.to_string() };
-                kind_arch == s.arch && best(n, u) >= floor && hold(n, u).effective() >= need
+                kind_arch == s.arch && best(n, u) >= floor && best_hold(n, u).effective() >= need
             })
         })
     };
@@ -65,6 +55,89 @@ fn verdict(cfg: &Config, away: Vec<(String, String)>) -> Result<(), Failure> {
         return refuse(Class::TempFail, &why, "; the kind can come later, so a supervisor starts serve again");
     }
     refuse(Class::Config, &why, "")
+}
+
+/// The best boundary that the kind `name` can claim, as `check` counts
+/// it: a self-test of `serve` can only lower it.
+fn best(name: &str, u: &UnitConfig) -> Boundary {
+    match name {
+        "fake" => crate::serve::fake_capability_of(u).boundary,
+        "podvm" if u.confine => Boundary::Confined,
+        "podvm" => Boundary::Redirect,
+        "incus" => Boundary::Confined,
+        _ => Boundary::Guest,
+    }
+}
+
+/// The best egress hold of the kind `name`: a podvm kind has a hold only
+/// with `podnet` (#280).
+fn best_hold(name: &str, u: &UnitConfig) -> EgressHold {
+    match name {
+        "fake" => crate::serve::fake_capability_of(u).egress_hold,
+        "podvm" if u.podnet.is_none() => EgressHold::Unknown,
+        _ => EgressHold::Enforced,
+    }
+}
+
+/// Why no kind of `caps` serves the source `s`, or `None` when one does
+/// (T-194): each kind of its arch, with its boundary or its hold below the
+/// tier, and the proof of a boundary that a self-test lowered. `doctor`
+/// and `serve` give this text.
+pub fn not_served(cfg: &Config, s: &SourceConfig, caps: &[Capability]) -> Option<String> {
+    let (floor, need) = (cfg.floor(s.tier), podrunner_slots::placement::needed_hold(s.tier));
+    let mine: Vec<&Capability> = caps.iter().filter(|c| c.arch == s.arch).collect();
+    if mine.iter().any(|c| c.boundary >= floor && c.egress_hold.effective() >= need) {
+        return None;
+    }
+    let why: Vec<String> = mine
+        .iter()
+        .map(|c| {
+            let mut w = Vec::new();
+            if c.boundary < floor {
+                let proof = c.boundary_proof.as_deref().map(|p| format!(" ({})", display(p))).unwrap_or_default();
+                w.push(format!("boundary {:?} below {floor:?}{proof}", c.boundary));
+            }
+            if c.egress_hold.effective() < need {
+                w.push(format!("hold {:?} below {need:?}", c.egress_hold.effective()));
+            }
+            format!("{}: {}", c.kind, w.join(", "))
+        })
+        .collect();
+    Some(if why.is_empty() { format!("no unit kind of {} runs on this host", s.arch) } else { why.join("; ") })
+}
+
+/// The line of `serve` when the kinds that it started serve no source
+/// (T-712), in the words of `check`: each source with each kind and its
+/// cause, each kind that the start of `serve` lowered, and the keys that a
+/// podvm kind needs. `None` when a kind serves a source.
+pub fn lowered(cfg: &Config, slots: &Slots) -> Option<String> {
+    if !slots.no_tier_served() {
+        return None;
+    }
+    let kinds = slots.status().kinds;
+    let caps: Vec<Capability> = kinds.iter().map(|k| k.probe.clone()).collect();
+    let mut why = String::new();
+    for s in &cfg.source {
+        if let Some(w) = not_served(cfg, s, &caps) {
+            why.push_str(&format!("; [[source]] {}: {w}", s.name));
+        }
+    }
+    for k in &kinds {
+        let Some(u) = cfg.unit.get(&k.name) else { continue };
+        let (b, h) = (best(&k.name, u), best_hold(&k.name, u).effective());
+        if k.probe.boundary < b {
+            why.push_str(&format!("; [unit.{}] serve lowered the boundary {b:?} to {:?}", k.name, k.probe.boundary));
+        }
+        if k.probe.egress_hold.effective() < h {
+            why.push_str(&format!(
+                "; [unit.{}] serve lowered the hold {h:?} to {:?}",
+                k.name,
+                k.probe.egress_hold.effective()
+            ));
+        }
+    }
+    why.push_str(&podvm_fix(cfg));
+    Some(format!("no-tier-served: no unit kind meets the floor and the egress hold of a source on this host{why}"))
 }
 
 /// The keys that a podvm kind needs for a source of this architecture
@@ -223,6 +296,35 @@ mod tests {
         let floor = why("podnet = \"/p\"\n").unwrap_err();
         assert!(floor.contains("has no confine = true") && !floor.contains("podnet"), "{floor}");
         assert!(why("confine = true\npodnet = \"/p\"\n").is_ok());
+    }
+
+    /// T-712: a kind that the self-test of `serve` lowers below the floor
+    /// of the source: the line of `serve` names the source, the kind, the
+    /// cause and the claim that the start lowered.
+    #[test]
+    fn serve_names_each_kind_that_its_start_lowers() {
+        let file = |tier: &str, unit: &str| {
+            podrunner_slots::config::Config::parse(&format!(
+                "host = \"h\"\nallow_fake = true\n[[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"{tier}\"\n\
+                 arch = \"{}\"\n[unit.fake]\nslots = 1\n{unit}[pin]\n",
+                std::env::consts::ARCH
+            ))
+            .unwrap()
+        };
+        let lowered = |cfg: &podrunner_slots::config::Config| {
+            let state = crate::scratch::Scratch::new("t712");
+            let slots = crate::serve::build(cfg.clone(), &state).unwrap_or_else(|f| panic!("{}", f.detail));
+            super::lowered(cfg, &slots)
+        };
+        let guest = file("trusted", "claim = \"guest\"\n");
+        // `check` counts the claim: the file is served.
+        assert!(super::served(&guest, false).is_ok());
+        let line = lowered(&guest).expect("the self-test lowers the kind: no tier is served");
+        assert!(line.starts_with("no-tier-served: no unit kind meets the floor and the egress hold"), "{line}");
+        assert!(line.contains("; [[source]] s: fake: boundary None below Confined (guest-self-test-failed)"), "{line}");
+        assert!(line.contains("; [unit.fake] serve lowered the boundary Guest to None"), "{line}");
+        // A kind that serves its source gives no line.
+        assert_eq!(lowered(&file("local", "")), None);
     }
 
     /// T-409: a configuration that another user can write is refused.

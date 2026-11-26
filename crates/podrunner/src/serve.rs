@@ -311,9 +311,10 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     crate::tiers::state_path(&cfg, state)?;
     let _lock = crate::lock::StateLock::take(state)?;
     let tools = host::tools(&cfg);
-    let (mut slots, mut rebuild) = build_with(cfg, state)?;
-    if slots.no_tier_served() {
-        eprintln!("podrunner: no-tier-served: no unit kind meets the floor of a source");
+    let (mut slots, mut rebuild) = build_with(cfg.clone(), state)?;
+    // Each kind and its cause, as `check` names them (T-712).
+    if let Some(line) = crate::tiers::lowered(&cfg, &slots) {
+        eprintln!("podrunner: {line}");
     }
     // Each source learns what this host can run (T-495).
     let facts = host::facts(&slots, tools);

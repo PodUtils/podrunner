@@ -216,37 +216,17 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
         for s in &cfg.source {
             let floor = cfg.floor(s.tier);
             let need = podrunner_slots::placement::needed_hold(s.tier);
-            let served =
-                caps.iter().any(|c| c.arch == s.arch && c.boundary >= floor && c.egress_hold.effective() >= need);
+            // Why for each kind (T-194): an emulated host, for example,
+            // has no confine layer and no hold.
+            let why = crate::tiers::not_served(&cfg, s, &caps);
             // The extra permissions of the App: of a personal account (T-504).
             let extra: Vec<&str> =
                 s.allow_personal_account.then_some(podrunner_slots::PERSONAL_PERMISSION).into_iter().collect();
             tiers.push(json!({
-                "source": s.name, "tier": s.tier, "served": served, "floor": floor, "hold": need,
+                "source": s.name, "tier": s.tier, "served": why.is_none(), "floor": floor, "hold": need,
                 "extra_permissions": extra,
             }));
-            if !served {
-                // Why for each kind (T-194): an emulated host, for example,
-                // has no confine layer and no hold.
-                let why: Vec<String> = caps
-                    .iter()
-                    .filter(|c| c.arch == s.arch)
-                    .map(|c| {
-                        let mut w = Vec::new();
-                        if c.boundary < floor {
-                            w.push(format!("boundary {:?} below {floor:?}", c.boundary));
-                        }
-                        if c.egress_hold.effective() < need {
-                            w.push(format!("hold {:?} below {need:?}", c.egress_hold.effective()));
-                        }
-                        format!("{}: {}", c.kind, w.join(", "))
-                    })
-                    .collect();
-                let why = if why.is_empty() {
-                    format!("no unit kind of {} runs on this host", s.arch)
-                } else {
-                    why.join("; ")
-                };
+            if let Some(why) = why {
                 missing.push(format!(
                     "[[source]] {}: no unit kind meets the floor and the hold of its tier ({why})",
                     s.name
