@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| command line | `doctor --json` gives each kind a `warnings` list. With an engine on the incus kind, an incusd before 6.0.6 and 6.19 gives a warning: its AppArmor profile refuses runc 1.3.3 and later. `doctor`, `serve` and `run` print it. | T-683 |
 | pins, command line | Podcrates `v0.85.0` updates the release verifier and fake sources. `install-unit` and `remove-unit` show the failed step and its I/O cause. | T-675 |
 | pins, command line | Podnet `v0.4.0-beta.19` checks whether either backend can start. `doctor` displays the report when neither backend can start. | T-677 |
 | disk limits, `run-report.v1` | A worker samples unit disk use while the tick handles job events. A walk stops above its bound and reports the bytes read. | T-652 |

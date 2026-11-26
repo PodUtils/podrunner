@@ -10,6 +10,7 @@ pub mod help;
 pub mod hooks;
 pub mod image;
 pub mod incus_kind;
+mod incusd;
 pub mod init;
 pub mod lock;
 mod manual;

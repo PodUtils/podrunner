@@ -20,11 +20,12 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. Verify the bundled Docker engine on both hosted guest kinds (T-672).
-   Both hosted base imports failed in run 45731427540. The base import
-   and runner smoke passed as a user after the fix in `46985b9b`. Use the
-   run on the fixed source for the arm64 and guest proofs. Check the
-   `cache proof:` line of that run separately (T-480).
+1. Verify the bundled Docker engine on both hosted guest kinds (T-672,
+   T-683). Run 45736054587 imported both images and passed on microvm.
+   On the incus kind, Incus 6.0.0 of apt refuses the runc of the engine
+   (AppArmor, lxc/incus#2623). The next runner-image run checks the
+   warning on Incus 6.0.0 and the engine on Incus 6.0 LTS of Zabbly.
+   Check the `cache proof:` line of that run separately (T-480).
 2. Verify the podcrates and podnet takes in hosted CI (T-675, T-677).
 3. Fix the refused-assignment gap (T-682) before T-651. Take the remaining
    cache work in T-480. T-682 has a source review and no code change.
@@ -110,7 +111,8 @@ state of each.
     podvm release. #355 (COORD-133, T-659) waits for a saved-state release
     for runs with a channel and a pids limit.
 - podvm, for the cache and import checks:
-  - #359 (COORD-135, T-649) waits for a per-volume read count.
+  - #359 (COORD-135, T-649): route A chosen (podvm#672); waits for a
+    podvm release with `--podvm-count-reads`.
     T-681 repeats the low-space proof on the next Incus import release.
 - podvm, for the confined kinds and the syscall tier:
   - #308, #304 and #189 (T-261): the syscall tier is off

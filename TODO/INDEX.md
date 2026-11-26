@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**677 entries: 84 open, 55 partial, 15 blocked, 523 done.**
+**678 entries: 84 open, 56 partial, 15 blocked, 523 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 1 | 24 | 2 | 97 | 124 |
+| P1 | 1 | 25 | 2 | 97 | 125 |
 | P2 | 15 | 20 | 9 | 276 | 320 |
 | P3 | 67 | 11 | 4 | 148 | 230 |
-| **All** | 84 | 55 | 15 | 523 | 677 |
+| **All** | 84 | 56 | 15 | 523 | 678 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -725,3 +725,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-680](later.md) | P3 | S | later | defect | open | Local doctor only checks the podnet file |
 | [T-681](later.md) | P2 | S | later | measurement | blocked | Repeat the low-space Incus proof on the next podvm release |
 | [T-682](later.md) | P1 | M | later | defect | open | A refused runner assignment must stop the job before steps |
+| [T-683](later.md) | P1 | S | later | defect | partial | The bundled engine fails in an instance of Incus before 6.0.6 and 6.19 |

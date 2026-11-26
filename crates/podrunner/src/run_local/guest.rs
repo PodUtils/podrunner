@@ -57,6 +57,9 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
         crate::incus_kind::build(&u, state, payload_engines)
     };
     let (driver, cap) = built.map_err(|e| fail(e.class, e.detail))?;
+    if !*microvm {
+        crate::incus_kind::warn_engine("podrunner", &cap);
+    }
     let platform = if arch() == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let prepared = driver.prepare(image, platform, false).map_err(|e| fail(Class::Config, format!("{image}: {e}")))?;
     let mut exec = InUnit::new(driver, prepared);

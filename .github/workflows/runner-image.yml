@@ -585,9 +585,9 @@ jobs:
           set -eu
           sh scripts/retry.sh python3 -m pip install -q --user 'jsonschema==4.23.0'
           # The schema of status.v1 is pod-job's, at the commit of the pinned
-          # tag of podcrates (v0.73.0, T-508).
+          # tag of podcrates (v0.85.0, T-508).
           sh scripts/retry.sh curl -qfsSL -o "$RUNNER_TEMP/status.v1.schema.json" \
-            "https://raw.githubusercontent.com/PodUtils/podcrates/1f1fd3fe3feb125e7067bf920efb345269468076/schemas/status.v1.schema.json"
+            "https://raw.githubusercontent.com/PodUtils/podcrates/1d1c9fc307a90e6d92c7ef86a126f13708195b63/schemas/status.v1.schema.json"
           # tee must not hide the exit of the test.
           set -o pipefail
           PODRUNNER_ACCEPT_KIND=microvm PODRUNNER_ACCEPT_OUT="$RUNNER_TEMP/status-microvm.jsonl" timeout 3600 \
@@ -764,7 +764,32 @@ jobs:
           sg incus-admin -c "PODRUNNER_PARITY_ROUTES=$routes PODRUNNER_PARITY_UNIT='$unit' timeout 3600 cargo test -p podrunner --test parity -- --ignored --nocapture" \
             | tee "$RUNNER_TEMP/parity-incus.txt"
           grep -q '^parity 06-actions.yml PASS' "$RUNNER_TEMP/parity-incus.txt"
+      # T-525: C1 to C5 on the incus kind (incus from the step before).
+      - name: C1 to C5 on the incus kind (a measure)
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        continue-on-error: true
+        run: |
+          set -eu
+          sh scripts/retry.sh python3 -m pip install -q --user 'jsonschema==4.23.0'
+          # The schema of status.v1 is pod-job's, at the commit of the pinned
+          # tag of podcrates (v0.85.0, T-508).
+          sh scripts/retry.sh curl -qfsSL -o "$RUNNER_TEMP/status.v1.schema.json" \
+            "https://raw.githubusercontent.com/PodUtils/podcrates/1d1c9fc307a90e6d92c7ef86a126f13708195b63/schemas/status.v1.schema.json"
+          # tee must not hide the exit of the test.
+          set -o pipefail
+          cargo test -p podrunner-broker-fake --test accept --no-run
+          sg incus-admin -c "PODRUNNER_ACCEPT_KIND=incus PODRUNNER_ACCEPT_OUT='$RUNNER_TEMP/status-incus.jsonl' timeout 3600 cargo test -p podrunner-broker-fake --test accept -- --ignored --nocapture" \
+            | tee "$RUNNER_TEMP/accept-incus.txt"
+          # T-487 step 1: the cold start of each job.
+          grep '^measure ' "$RUNNER_TEMP/accept-incus.txt" | tee -a "$GITHUB_STEP_SUMMARY" || true
+          python3 -I scripts/check-status-samples.py "$RUNNER_TEMP/status.v1.schema.json" "$RUNNER_TEMP/status-incus.jsonl" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
       # T-672: the engine in the full payload, with no host engine directory.
+      # T-683: Incus of Ubuntu 24.04 (6.0.0) refuses the sysctl writes of the
+      # runc of the engine (lxc/incus#2623): on it, the probe job passes and
+      # podrunner names the fault; then Incus 6.0 LTS of Zabbly replaces it,
+      # and docker build and Docker-in-Docker run in an instance. The step
+      # runs after the other incus steps: they keep the Incus of apt.
       - name: The Docker engine bundled in the full image
         if: ${{ !cancelled() && matrix.arch == 'x86_64' && steps.full.outcome == 'success' && steps.incus.outcome == 'success' }}
         run: |
@@ -786,39 +811,47 @@ jobs:
                     test "$DOCKER_HOST" = unix:///run/podrunner-docker.sock
                     test "$(docker version --format '{{.Server.Version}}')" = 29.9.2
           YML
-          for kind in microvm incus; do
-            for workflow in "$probe" crates/podrunner/tests/local/parity/10-docker-build.yml crates/podrunner/tests/local/parity/11-docker-dind.yml; do
-              case "$workflow" in
-                "$probe") job=engine ;;
-                *docker-build.yml) job=build ;;
-                *docker-dind.yml) job=dind ;;
-              esac
-              sg incus-admin -c "timeout 1800 '$binary' run '$workflow' --no-config --$kind '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_FULL_IMAGE' $hub" \
-                | tee "$RUNNER_TEMP/bundled-$kind-$job.txt"
-              grep -qx "ok      $job" "$RUNNER_TEMP/bundled-$kind-$job.txt"
-              echo "Bundled Docker $kind $job PASS" | tee -a "$GITHUB_STEP_SUMMARY"
-            done
+          # The log of each run: bundled-KIND-JOB.txt, or with a 4th
+          # argument bundled-KIND-TAG-JOB.txt.
+          bundled() {
+            kind=$1 workflow=$2 job=$3 log="$RUNNER_TEMP/bundled-$1${4:+-$4}-$3.txt"
+            sg incus-admin -c "timeout 1800 '$binary' run '$workflow' --no-config --$kind '$PODRUNNER_PODVM' --images '$PODRUNNER_PODVM_IMAGES' --image '$PODRUNNER_RUNNER_FULL_IMAGE' $hub" 2>&1 \
+              | tee "$log"
+            grep -qx "ok      $job" "$log"
+          }
+          build=crates/podrunner/tests/local/parity/10-docker-build.yml
+          dind=crates/podrunner/tests/local/parity/11-docker-dind.yml
+          for job in engine build dind; do
+            case $job in engine) w=$probe ;; build) w=$build ;; dind) w=$dind ;; esac
+            bundled microvm "$w" "$job"
+            echo "Bundled Docker microvm $job PASS" | tee -a "$GITHUB_STEP_SUMMARY"
           done
-      # T-525: C1 to C5 on the incus kind (incus from the step before).
-      - name: C1 to C5 on the incus kind (a measure)
-        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
-        continue-on-error: true
-        run: |
-          set -eu
-          sh scripts/retry.sh python3 -m pip install -q --user 'jsonschema==4.23.0'
-          # The schema of status.v1 is pod-job's, at the commit of the pinned
-          # tag of podcrates (v0.73.0, T-508).
-          sh scripts/retry.sh curl -qfsSL -o "$RUNNER_TEMP/status.v1.schema.json" \
-            "https://raw.githubusercontent.com/PodUtils/podcrates/1f1fd3fe3feb125e7067bf920efb345269468076/schemas/status.v1.schema.json"
-          # tee must not hide the exit of the test.
-          set -o pipefail
-          cargo test -p podrunner-broker-fake --test accept --no-run
-          sg incus-admin -c "PODRUNNER_ACCEPT_KIND=incus PODRUNNER_ACCEPT_OUT='$RUNNER_TEMP/status-incus.jsonl' timeout 3600 cargo test -p podrunner-broker-fake --test accept -- --ignored --nocapture" \
-            | tee "$RUNNER_TEMP/accept-incus.txt"
-          # T-487 step 1: the cold start of each job.
-          grep '^measure ' "$RUNNER_TEMP/accept-incus.txt" | tee -a "$GITHUB_STEP_SUMMARY" || true
-          python3 -I scripts/check-status-samples.py "$RUNNER_TEMP/status.v1.schema.json" "$RUNNER_TEMP/status-incus.jsonl" \
-            | tee -a "$GITHUB_STEP_SUMMARY"
+          # The Incus of apt: the engine starts, and podrunner names the fault.
+          bundled incus "$probe" engine apt
+          grep -q '^podrunner: warning: incusd 6\.0\.[0-5]: .*lxc/incus#2623' "$RUNNER_TEMP/bundled-incus-apt-engine.txt"
+          echo "Bundled Docker incus (apt) engine PASS, with the warning of T-683" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Incus 6.0 LTS of Zabbly, its key checked by its fingerprint.
+          key="$RUNNER_TEMP/zabbly.asc"
+          sh scripts/retry.sh curl -qfsSL -o "$key" https://pkgs.zabbly.com/key.asc
+          gpg --show-keys --with-colons "$key" | grep -qx 'fpr:::::::::4EFC590696CB15B87C73A3AD82CC8797C838DCFD:'
+          sudo install -Dm0644 "$key" /etc/apt/keyrings/zabbly.asc
+          printf '%s\n' 'Types: deb' 'URIs: https://pkgs.zabbly.com/incus/lts-6.0' "Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")" \
+            'Components: main' "Architectures: $(dpkg --print-architecture)" 'Signed-By: /etc/apt/keyrings/zabbly.asc' \
+            | sudo tee /etc/apt/sources.list.d/zabbly-incus-lts-6.0.sources
+          sh scripts/retry.sh sudo apt-get -qq update
+          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus
+          sudo incus admin waitready --timeout 300
+          version=$(sudo incus query /1.0 | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["environment"]["server_version"])')
+          echo "incusd $version (Zabbly lts-6.0)" | tee -a "$GITHUB_STEP_SUMMARY"
+          for job in engine build dind; do
+            case $job in engine) w=$probe ;; build) w=$build ;; dind) w=$dind ;; esac
+            bundled incus "$w" "$job"
+            if grep -q '^podrunner: warning: incusd' "$RUNNER_TEMP/bundled-incus-$job.txt"; then
+              echo "incusd $version: an unexpected warning of T-683"
+              exit 1
+            fi
+            echo "Bundled Docker incus $job PASS" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
       # T-532: the container job through the hooks of a podvm unit on the
       # namespace rung (the lab of the lane userns-on of user-gate.yml), with
       # the volume base of the runner directory. It blocks (it passed

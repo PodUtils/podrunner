@@ -225,3 +225,57 @@ fn doctor_names_the_extra_permission_of_a_personal_account() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-683: an engine on the incus kind with an incusd before the AppArmor fix
+/// gets a warning in the report and in the text; no engine, no warning.
+#[test]
+fn doctor_warns_of_an_engine_on_an_old_incusd() {
+    use std::io::{Read, Write};
+    let dir = crate::scratch::Scratch::new("doctor-incusd");
+    let socket = dir.join("unix.socket");
+    let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+    // The probe of the kind connects and sends nothing; the read of the
+    // version sends `GET /1.0`.
+    let server = std::thread::spawn(move || {
+        loop {
+            let (mut c, _) = listener.accept().unwrap();
+            let mut b = [0u8; 512];
+            if c.read(&mut b).unwrap() == 0 {
+                continue;
+            }
+            c.write_all(b"HTTP/1.0 200 OK\r\n\r\n{\"metadata\":{\"environment\":{\"server_version\":\"6.0.0\"}}}")
+                .unwrap();
+            break;
+        }
+    });
+    let fake = dir.join("podvm");
+    podrunner_unit::program_file::write(
+        &fake,
+        "#!/bin/sh\necho '{\"podvm\":\"0.2.0-beta.14\",\"rung\":\"userland\"}'\n",
+    )
+    .unwrap();
+    let u: podrunner_slots::config::UnitConfig =
+        toml::from_str(&format!("slots = 1\nbinary = \"{}\"\nimages = \"{}\"\n", fake.display(), dir.display()))
+            .unwrap();
+    let apparmor = dir.join("enabled");
+    std::fs::write(&apparmor, "Y\n").unwrap();
+    let mut c = capability_at("incus", &u, &socket, &Default::default()).unwrap();
+    // No engine: incusd is not asked.
+    assert_eq!(kind_entry("incus", &c, &socket, &apparmor)["warnings"], json!([]));
+    c.container = podrunner_schema::ContainerRoute::Engine;
+    let entry = kind_entry("incus", &c, &socket, &apparmor);
+    server.join().unwrap();
+    let w = entry["warnings"][0].as_str().unwrap();
+    assert!(w.starts_with("incusd 6.0.0: ") && w.contains("lxc/incus#2623"), "{w}");
+    let report = json!({ "kinds": [entry], "missing": [] });
+    assert!(text(&report).contains("kind incus: warning: incusd 6.0.0: "), "{}", text(&report));
+    // The microvm kind asks no incusd.
+    assert_eq!(kind_entry("microvm", &c, &socket, &apparmor)["warnings"], json!([]));
+    // No incusd answers: the version is unknown, and doctor says so.
+    let _ = std::fs::remove_file(&socket);
+    let w = kind_entry("incus", &c, &socket, &apparmor)["warnings"][0].as_str().unwrap().to_string();
+    assert!(w.starts_with("incusd: ") && w.contains("the version of Incus is unknown"), "{w}");
+    // AppArmor off: no profile refuses the writes, and incusd is not asked.
+    std::fs::write(&apparmor, "N\n").unwrap();
+    assert_eq!(kind_entry("incus", &c, &socket, &apparmor)["warnings"], json!([]));
+}

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 677 entries: 84 open, 55 partial, 15 blocked, 523 done.
+`TODO/INDEX.md` holds 678 entries: 84 open, 56 partial, 15 blocked, 523 done.
 
 ## State
 
@@ -50,10 +50,12 @@
   is T-621. T-622 and T-624 also remain open.
 - The state of each issue comes from the record by a tool; the step of the
   hand-written State column is open (T-250, partial).
-- The local gate on `8801e939` passed 950 workspace tests and 26
-  official-runner tests. Hosted runs on that commit are runner-image
-  45736054587, level2 45736054576 and gate 45736054517. The image run
-  carries the bundled Docker and cache checks (T-672, T-480).
+- Runner-image run 45736054587 on `8801e939` imported both full images.
+  The bundled Docker ran the probe, `docker build` and Docker-in-Docker on
+  the microvm kind. On the incus kind (Incus 6.0.0 of apt) each container
+  start failed: the AppArmor profile of Incus before 6.0.6 and 6.19
+  refuses runc 1.3.3 and later (T-683). podrunner now warns of it, and the
+  image run proves the engine on Incus 6.0 LTS of Zabbly.
 - Keep this page short. Write the current state only; git keeps the
   history.
 
@@ -62,8 +64,9 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Fix the runner-image import and finish the bundled Docker guest proof
-   (T-672). Verify the podcrates and podnet takes (T-675, T-677).
+1. Finish the bundled Docker guest proof (T-672, T-683) in the next
+   runner-image run, then the lane check of T-683. Verify the podcrates
+   and podnet takes (T-675, T-677).
 2. Close the refused-assignment gap (T-682). Take the rest of the cache
    work in T-480, including T-678.
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -96,8 +99,8 @@ Waits:
   T-659 (COORD-133, #355): a podvm release. T-681 waits for the next
   Incus image import path for the low-space control. COORD-254
   (PodUtils/podvm#671) asks to retest both runner image architectures
-  on that release. T-649 (COORD-135, #359) waits for a per-volume read
-  count.
+  on that release. T-649 (COORD-135, #359) waits for a podvm release with
+  `--podvm-count-reads` (route A of podvm#672).
 - The live gates (GitHub #74, #75): T-032, T-033, T-040.
 - Other projects: T-543 and T-544 (COORD-103, #313; COORD-106, #316),
   T-558 to T-560 (COORD-106, COORD-107, #317), T-496 (COORD-089, #296 ask

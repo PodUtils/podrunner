@@ -10785,6 +10785,14 @@ Second review (2026-11-25, commits `5adfe76` and `6e4f876` and the next that nam
 
 Third review (2026-11-25, the next commit that names T-480): a `rw` job could start on a scope while the count of the last `rw` job of that scope ran, so that count held the writes of the next job; now `cache_writer` also names each scope of `Worker::ending`, and the next job gets `ro` (none with no proven read-only mount); `CCACHE_DIR` left `ENV_NAMES` (ccache reads `ccache.conf` there, whose `prefix_command` runs a command; G-20 does not ask for it); a `:ro` volume of the confine self-test that the host cannot make leaves `ro` out and keeps the proof of the layer. Tests that failed on `f4d517d`: `tests::cache::no_job_writes_a_cache_while_the_count_of_its_last_writer_runs` (the next job got `rw`), `cache::tests::the_table_refuses_each_bad_value` (`CCACHE_DIR` passed), `unit::store_tests::a_ro_volume_that_cannot_be_made_does_not_stop_the_confine_self_test` of the podvm driver (`verify_confine` gave an error). Level: proven here with the fake unit and the fake podvm.
 
+State (2026-11-26, proven in CI on GitHub-hosted runners for the podvm
+kind): runner-image run 45736054587 on `8801e939`, step "A writable and a
+read-only cache on the Podvm kind (a measure)": the conformance fixture
+with `PODRUNNER_PODVM_CONFINE=1` and `PODRUNNER_PODVM_CACHE_PROOF=1`
+printed `cache proof: RW persisted and the RO unit read without changing
+the host`. Left: the test of G-07 on the microvm and incus kinds, and
+cfb's measure with the cache (T-528).
+
 # T-481: The checkout of a job on the incus kind is proven by a test of the script only
 
 **Source:** GitHub #292 (cfb, P-4), 2026-11-18
@@ -16575,8 +16583,12 @@ The field stays `unknown` with its reason until a usable count exists.
 
 ## Blocker
 
-Podvm must confirm which backends can report the measured per-volume
-read count and release the report used by Podrunner.
+Podvm answered in PodUtils/podvm#672 (COORD-255, PodUtils/podvm@T-2099): no
+counter exists today; route A, a counting FUSE pass-through on both
+tiers, is feasible. Podrunner chose route A, the flag
+`--podvm-count-reads GUEST_PATH` (off unless the operator turns on the
+count) and the field `volume_reads` of `--report` (#359, 2026-11-26).
+The entry waits for a podvm release with that flag.
 
 # T-650: A tool that writes its cache in a job with a read-only cache
 
@@ -17264,6 +17276,13 @@ main. It accepts repeated descriptors with one verified blob. After
 the next podvm beta, rerun both architectures. If import fails, retain
 the failing OCI index, manifest and archive tool output.
 
+Runner-image run 45736054587 on `8801e939`: both architectures built and
+imported the full image. The bundled engine ran the probe, `docker
+build` and Docker-in-Docker jobs on the microvm kind. On the incus kind
+the probe passed and `docker build` failed in its `RUN` step: Incus
+6.0.0 of apt refuses the runc of Docker 29.9.2 (T-683). The step now
+proves the incus jobs on Incus 6.0 LTS of Zabbly. Left: that run.
+
 # T-673: Warm unit tests depend on host memory
 
 **Source:** the local pre-push gate during the full image build, 2026-11-25
@@ -17605,3 +17624,75 @@ termination alone cannot guard a job for which the hook sent no request.
 The complete fix needs admission before step dispatch or a host guard
 on protected resources. Existing `assignment_hook` pins attest the old
 hook contract. No source patch is pending.
+
+# T-683: The bundled engine fails in an instance of Incus before 6.0.6 and 6.19
+
+**Source:** runner-image run 45736054587 on `8801e939`, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+In runner-image run 45736054587, the bundled Docker 29.9.2 of
+`runner-full` passed the probe, `docker build` and Docker-in-Docker jobs
+on the microvm kind. On the incus kind, the probe job passed, but the
+`RUN` step of `docker build` failed: `open sysctl
+net.ipv4.ip_unprivileged_port_start file: reopen fd 8: permission denied`.
+The same job passed with Docker 27.5.1 of `[unit.incus] engine` in the
+same run. Each container start of the bundled engine fails on that host.
+
+## Premise
+
+runc 1.3.3 and later (CVE-2025-52881) writes each sysctl of a container
+through a detached procfs. AppArmor names that path `/sys/...`, and the
+nesting profile of Incus refuses it (opencontainers/runc#4968,
+lxc/incus#2623). Incus 6.0.6 LTS and Incus 6.19 have the fix
+(lxc/incus#2624). The hosted job installs Incus 6.0.0 of Ubuntu 24.04
+from apt. Docker 27.5.1 has an older runc. No `raw.lxc` key avoids the
+fault, and an older runc opens the container escapes again. githome and
+cfb run trusted jobs on the incus kind (G-09).
+
+## Approach
+
+1. podrunner reads `server_version` of incusd (`GET /1.0`) when the incus
+   kind runs an engine. For a version before 6.0.6 or from 6.1 to 6.18,
+   `doctor` gives a warning on the kind, and `serve` and `run` print it
+   at the start. `docs/container-engine.md` gives the Incus need and the
+   two fixes: upgrade Incus, or use the microvm kind.
+2. `runner-image.yml`: the incus probe job on the Incus of apt must pass
+   and print the warning. Then Incus 6.0 LTS of Zabbly (key checked by
+   its fingerprint) replaces it, and the probe, `docker build` and
+   Docker-in-Docker jobs on the incus kind must pass with no warning.
+3. The host class "Incus before the AppArmor fix with an engine" becomes
+   a check of the lane `serve-incus-kvm` of `user-gate.yml`: `doctor`
+   gives the warning on the Incus of apt (`AGENTS.md`, section 12).
+
+## Prove
+
+`cargo test -p podrunner --lib incusd doctor_warns`. The runner-image
+run on the commit of this change: the step "The Docker engine bundled in
+the full image" is green, with the warning line on Incus 6.0.0 and the
+three incus jobs on Incus 6.0.7 or later.
+
+State (2026-11-26, steps 1 and 2; tests on a development host only, the
+runner-image run not done). `crates/podrunner/src/incusd.rs` reads the
+version over the socket and holds the rule; `doctor --json` gives each
+kind a `warnings` list. The 4 new tests pass. Each of two planted
+defects (the feature line to 6.17, the LTS line to 6.0.4) fails a test.
+The Zabbly `lts-6.0` channel of noble has 6.0.7 for amd64.
+
+Review (2026-11-26, an agent that did not write the code; each finding
+checked in the code): (1) the text said that each engine fails, but an
+operator engine with an older runc works: the text now names runc 1.3.3
+and later. (2) A host with AppArmor off gave a false warning: the check
+now reads `/sys/module/apparmor/parameters/enabled` first. (3) The
+Zabbly packages over the Ubuntu split packages can stop dpkg: the next
+run settles it; if it fails, purge the Ubuntu packages first. (4) The
+Zabbly pass wrote over the log of the apt pass: the apt log is now
+`bundled-incus-apt-engine.txt`. (5) An incusd that gives no version gave
+no warning: `doctor` now warns that the version is unknown. Each of two
+planted defects (the AppArmor check off) fails a test. Left: the
+runner-image run, then step 3.

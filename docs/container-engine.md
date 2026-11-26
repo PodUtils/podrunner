@@ -79,6 +79,22 @@ The Incus instance uses the same socket inside its own root filesystem.
 An image selected with `init = "image"` starts its services through its
 own init (`docs/configuration.md`, "The incus kind").
 
+An engine in an Incus instance needs Incus 6.0.6 or later of the 6.0 LTS
+line, or Incus 6.19 or later (T-683). Older Incus (6.0.0 of Ubuntu 24.04,
+for example) has an AppArmor profile that refuses the sysctl writes of
+runc 1.3.3 and later. Then each container start fails with `open sysctl
+net.ipv4.ip_unprivileged_port_start file: reopen fd 8: permission denied`
+(lxc/incus#2623). An operator engine with an older runc is not affected.
+On a host with AppArmor on, `doctor` reads the version of incusd and
+shows a `kind incus: warning:` line; it also warns when incusd gives no
+version. `serve` and `run` write the version warning at the start. Do
+one of these:
+
+* Upgrade Incus, for example from the `lts-6.0` channel of Zabbly.
+* Run the jobs that use Docker on the microvm kind.
+
+Do not downgrade runc: runc 1.3.3 fixes container escapes.
+
 ## The proof
 
 - The measure `scripts/measure-engine.sh` runs `dockerd` with `overlay2` in

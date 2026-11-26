@@ -77,7 +77,7 @@ fn read_podnet_hold(tool: &Path) -> Result<Value, String> {
 
 /// The capability record of the unit kind `name`, through its driver.
 pub(crate) fn capability(name: &str, u: &podrunner_slots::config::UnitConfig) -> Result<Capability, String> {
-    capability_at(name, u, &incusd_socket(), &Default::default())
+    capability_at(name, u, &crate::incusd::socket(), &Default::default())
 }
 
 /// A podvm kind with `confine`: the self-test of the layer with the
@@ -96,26 +96,29 @@ fn confined(
     Ok(Capability { boundary: podrunner_schema::Boundary::Confined, ..c })
 }
 
-/// The socket of incusd, as podvm finds it: `PODVM_INCUS_SOCKET`, else
-/// `unix.socket` of `INCUS_DIR`, else of `/var/lib/incus`.
-fn incusd_socket() -> std::path::PathBuf {
-    if let Some(s) = std::env::var_os("PODVM_INCUS_SOCKET") {
-        return s.into();
-    }
-    let dir = std::env::var_os("INCUS_DIR").map_or_else(|| "/var/lib/incus".into(), std::path::PathBuf::from);
-    dir.join("unix.socket")
-}
-
 /// An incusd takes a connection of this user (T-534): the probe of the
 /// incus kind reads only the version of podvm.
 pub(crate) fn incusd() -> Result<(), String> {
-    connect_incusd(&incusd_socket())
+    crate::incusd::connect(&crate::incusd::socket())
 }
 
-fn connect_incusd(socket: &Path) -> Result<(), String> {
-    std::os::unix::net::UnixStream::connect(socket)
-        .map(drop)
-        .map_err(|e| format!("incusd: {}: {}", socket.display(), e.kind()))
+/// The entry of a kind in the report. An engine on the incus kind gets a
+/// warning when the Incus version refuses the runc of the engine, or when
+/// incusd gives no version (T-683).
+fn kind_entry(name: &str, c: &Capability, incusd: &Path, apparmor: &Path) -> Value {
+    let engine = c.container == podrunner_schema::ContainerRoute::Engine;
+    let warnings: Vec<String> = if name == "incus" && engine {
+        match crate::incusd::engine_check(incusd, apparmor) {
+            Ok(w) => w.into_iter().collect(),
+            Err(why) => vec![format!(
+                "{why}: the version of Incus is unknown; an engine with runc 1.3.3 or later needs Incus 6.0.6 \
+                 or later of the 6.0 line, or 6.19 or later (lxc/incus#2623)"
+            )],
+        }
+    } else {
+        vec![]
+    };
+    json!({ "kind": name, "capability": c, "warnings": warnings })
 }
 
 /// The record of a kind, with the socket of incusd at `incusd`.
@@ -154,7 +157,7 @@ fn capability_at(
             let (_, cap) = crate::incus_kind::build(u, &state, engines.clone()).map_err(|f| f.detail)?;
             // The probe of the kind reads only the version of podvm: an
             // incusd must also take a connection of this user (T-534).
-            connect_incusd(incusd)?;
+            crate::incusd::connect(incusd)?;
             Ok(cap)
         }
         other => Err(format!("no driver of the kind {other} in this build")),
@@ -189,9 +192,10 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
         let mut caps = Vec::new();
         for (name, u) in &cfg.unit {
             let engines = cfg.pin.payload_engine_digests(std::env::consts::ARCH);
-            match capability_at(name, u, &incusd_socket(), &engines).and_then(|c| confined(name, u, &cfg, c)) {
+            let incusd = crate::incusd::socket();
+            match capability_at(name, u, &incusd, &engines).and_then(|c| confined(name, u, &cfg, c)) {
                 Ok(c) => {
-                    kinds.push(json!({ "kind": name, "capability": c }));
+                    kinds.push(kind_entry(name, &c, &incusd, Path::new(crate::incusd::APPARMOR)));
                     caps.push(c);
                 }
                 Err(why) => {
@@ -296,6 +300,10 @@ pub fn text(v: &Value) -> String {
                 w("container"),
                 w("tree_kill")
             ));
+            for warning in k["warnings"].as_array().into_iter().flatten() {
+                let warning = crate::text::display_max(warning.as_str().unwrap_or(""), crate::text::MAX_LINE);
+                out.push_str(&format!("kind {name}: warning: {warning}\n"));
+            }
         } else if let Some(why) = k["missing"].as_str() {
             // serve drops the kind (T-629): say so with the cause.
             out.push_str(&format!("kind {name}: not served on this host: {}\n", display(why)));

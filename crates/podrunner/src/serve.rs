@@ -156,7 +156,11 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
             }
             "podvm" => crate::podvm_kind::build(u, &cfg, state)?,
             "microvm" => crate::microvm_kind::build(u, state, engines.clone())?,
-            "incus" => crate::incus_kind::build(u, state, engines.clone())?,
+            "incus" => {
+                let built = crate::incus_kind::build(u, state, engines.clone())?;
+                crate::incus_kind::warn_engine("podrunner: [unit.incus]", &built.1);
+                built
+            }
             other => {
                 return Err(fail(Class::Unsupported, format!("[unit.{other}]: no driver of this kind in this build")));
             }

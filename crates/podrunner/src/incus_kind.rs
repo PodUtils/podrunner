@@ -122,3 +122,13 @@ pub fn build(
     let cap = unit.probe().map_err(|e| fail(Class::Unsupported, e.to_string()))?;
     Ok((Arc::new(unit), cap))
 }
+
+/// Print the warning of T-683 when the kind runs an engine on an incusd
+/// whose AppArmor profile refuses the runc of the engine.
+pub(crate) fn warn_engine(prefix: &str, cap: &Capability) {
+    if cap.container == podrunner_schema::ContainerRoute::Engine
+        && let Some(w) = crate::incusd::engine_warning(&crate::incusd::socket())
+    {
+        eprintln!("{prefix}: warning: {w}");
+    }
+}
