@@ -351,23 +351,23 @@ fn the_removal_of_a_trash_that_is_gone_is_done() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
-/// The owner gets the bits of a directory back by its own name: a link
-/// that a job put there is not followed.
+/// The removal gives the owner the bits of each directory back through its
+/// descriptor (T-678): a link that a job put in the cache is not followed,
+/// and a directory that a job shut is removed.
 #[test]
 fn the_removal_follows_no_link() {
     let d = tmp("nofollow");
     let outside = d.join("outside");
-    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::create_dir_all(outside.join("keep")).unwrap();
     std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o750)).unwrap();
-    std::os::unix::fs::symlink(&outside, d.join("link")).unwrap();
-    store::open_up(&d.join("link"));
+    let cache = d.join("cache");
+    std::fs::create_dir_all(cache.join("shut/inner")).unwrap();
+    std::os::unix::fs::symlink(&outside, cache.join("link")).unwrap();
+    std::fs::set_permissions(cache.join("shut"), std::fs::Permissions::from_mode(0o000)).unwrap();
+    store::remove(&cache).unwrap();
+    assert!(!cache.exists());
     assert_eq!(std::fs::metadata(&outside).unwrap().permissions().mode() & 0o777, 0o750);
-    // A directory with no bit at all gets them back.
-    let shut = d.join("shut");
-    std::fs::create_dir(&shut).unwrap();
-    std::fs::set_permissions(&shut, std::fs::Permissions::from_mode(0o000)).unwrap();
-    store::open_up(&shut);
-    assert_eq!(std::fs::metadata(&shut).unwrap().permissions().mode() & 0o777, 0o700);
+    assert!(outside.join("keep").is_dir());
     let _ = std::fs::remove_dir_all(&d);
 }
 

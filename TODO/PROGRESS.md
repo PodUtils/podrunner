@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 678 entries: 83 open, 57 partial, 15 blocked, 523 done.
+`TODO/INDEX.md` holds 679 entries: 83 open, 57 partial, 15 blocked, 524 done.
 
 ## State
 
@@ -69,7 +69,7 @@ then take the next one.
    and podnet takes (T-675, T-677).
 2. Prove the refused-assignment fix in a podvm unit (T-682: the hook ends
    the runner worker; proven against the official runner on a development
-   host). Take the rest of the cache work in T-480, including T-678.
+   host). Take the rest of the cache work in T-480, then T-684.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10

@@ -18,6 +18,7 @@ use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::CacheConfig;
+use crate::fdwalk;
 
 /// How a unit sees its cache.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -207,70 +208,90 @@ fn make_under(base: &Path, rel: &Path) {
     }
 }
 
-/// Call `f` with each file under `dir`, and `d` with each directory. No
-/// link is followed; a deep tree needs no deep stack.
-fn walk(dir: &Path, mut f: impl FnMut(&std::fs::Metadata), mut d: impl FnMut(&Path)) {
-    let mut stack = vec![dir.to_path_buf()];
-    while let Some(at) = stack.pop() {
-        d(&at);
-        let Ok(entries) = std::fs::read_dir(&at) else { continue };
-        for e in entries.flatten() {
-            let Ok(m) = e.metadata() else { continue };
-            if m.is_dir() {
-                stack.push(e.path());
-            } else if m.is_file() {
-                f(&m);
-            }
-        }
-    }
+/// Call `f` with the status of each regular file under `dir`, and `d` with
+/// the descriptor of each directory; `f` returns false to stop. Each
+/// directory opens by the descriptor of its parent with no link followed:
+/// a job of the cache that runs cannot take the walk out of it (T-678).
+fn walk(
+    dir: &Path,
+    mut f: impl FnMut(&libc::stat) -> bool,
+    mut d: impl FnMut(std::os::fd::BorrowedFd<'_>),
+) -> fdwalk::End {
+    let opts = fdwalk::Opts { same_dev: false, max_open: fdwalk::MAX_OPEN };
+    let regular = |st: &libc::stat| st.st_mode & libc::S_IFMT != libc::S_IFREG || f(st);
+    fdwalk::walk(dir, opts, regular, |fd, _| d(fd)).0
 }
 
-/// The bytes of the files under `dir`.
+fn len(st: &libc::stat) -> u64 {
+    u64::try_from(st.st_size).unwrap_or(0)
+}
+
+/// The bytes of the files under `dir`. A walk that a job made lose its
+/// place gives the most bytes: the bound treats the cache as full.
 pub fn size(dir: &Path) -> u64 {
+    size_with(dir, |_| {})
+}
+
+/// `size`, with `d` called with each directory before the walk reads it.
+fn size_with(dir: &Path, d: impl FnMut(std::os::fd::BorrowedFd<'_>)) -> u64 {
     let mut n = 0u64;
-    walk(dir, |m| n = n.saturating_add(m.len()), |_| {});
-    n
+    match walk(
+        dir,
+        |st| {
+            n = n.saturating_add(len(st));
+            true
+        },
+        d,
+    ) {
+        fdwalk::End::Lost => u64::MAX,
+        _ => n,
+    }
 }
 
 /// The bytes of the files under `dir`, or a count above `max`: the walk
-/// stops there.
+/// stops there, and a lost walk gives one.
 pub fn size_to(dir: &Path, max: u64) -> u64 {
     let mut n = 0u64;
-    let mut stack = vec![dir.to_path_buf()];
-    while let Some(at) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&at) else { continue };
-        for e in entries.flatten() {
-            let Ok(m) = e.metadata() else { continue };
-            if m.is_dir() {
-                stack.push(e.path());
-            } else if m.is_file() {
-                n = n.saturating_add(m.len());
-                if n > max {
-                    return n;
-                }
-            }
-        }
+    let count = |st: &libc::stat| {
+        n = n.saturating_add(len(st));
+        n <= max
+    };
+    match walk(dir, count, |_| {}) {
+        fdwalk::End::Lost => max.saturating_add(1),
+        _ => n,
     }
-    n
 }
 
 /// The bytes of the files under `dir`, and of those whose status changed
 /// at or after `since`: a job cannot set the `ctime` of a file back. One
-/// walk: a cache can hold many files.
+/// walk: a cache can hold many files. A lost walk gives the most bytes for
+/// the first count, so the bound empties the cache.
 pub fn measure(dir: &Path, since: SystemTime) -> (u64, u64) {
     let (mut all, mut new) = (0u64, 0u64);
-    let changed = |m: &std::fs::Metadata| {
-        let (s, ns) = (u64::try_from(m.ctime()).unwrap_or(0), u32::try_from(m.ctime_nsec()).unwrap_or(0));
-        UNIX_EPOCH + Duration::new(s, ns)
-    };
-    let count = |m: &std::fs::Metadata| {
-        all = all.saturating_add(m.len());
-        if changed(m) >= since {
-            new = new.saturating_add(m.len());
+    let count = |st: &libc::stat| {
+        let (s, ns) = (u64::try_from(st.st_ctime).unwrap_or(0), u32::try_from(st.st_ctime_nsec).unwrap_or(0));
+        all = all.saturating_add(len(st));
+        if UNIX_EPOCH + Duration::new(s, ns) >= since {
+            new = new.saturating_add(len(st));
         }
+        true
     };
-    walk(dir, count, |_| {});
-    (all, new)
+    match walk(dir, count, |_| {}) {
+        fdwalk::End::Lost => (u64::MAX, new),
+        _ => (all, new),
+    }
+}
+
+/// The bytes of a cache of another job than the one that ended: `Err` with
+/// `max_bytes` when a job made the walk lose its place (T-678). A cache
+/// above `max_bytes` is emptied at the end of its job, so the bound counts
+/// it as full, but one job cannot make the bound remove each other cache,
+/// and no count is written from a lost walk.
+fn other_size(data: &Path, max_bytes: u64) -> Result<u64, u64> {
+    match size(data) {
+        u64::MAX => Err(max_bytes),
+        n => Ok(n),
+    }
 }
 
 /// The count of the cache at `dir`, if it has one.
@@ -278,31 +299,10 @@ fn count_of(dir: &Path) -> Option<u64> {
     std::fs::read_to_string(dir.join(BYTES)).ok().and_then(|s| s.trim().parse().ok())
 }
 
-/// Give the owner the bits of the directory `d` again, and follow no link
-/// at `d`.
-pub fn open_up(d: &Path) {
-    let Ok(c) = CString::new(d.as_os_str().as_bytes()) else { return };
-    let flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
-    // SAFETY: a C string; the fd is closed below.
-    let fd = unsafe { libc::open(c.as_ptr(), flags) };
-    if fd >= 0 {
-        // SAFETY: a valid fd of a directory, closed once.
-        unsafe {
-            libc::fchmod(fd, 0o700);
-            libc::close(fd);
-        }
-        return;
-    }
-    // A directory with no read bit cannot be opened: chmod it by its name,
-    // with no link followed.
-    // SAFETY: a C string.
-    unsafe { libc::fchmodat(libc::AT_FDCWD, c.as_ptr(), 0o700, libc::AT_SYMLINK_NOFOLLOW) };
-}
-
 /// Remove the cache at `dir`. A job can take the write bit of a directory
 /// away; the owner gives it back first. A cache that is gone is removed.
 pub fn remove(dir: &Path) -> io::Result<()> {
-    walk(dir, |_| {}, open_up);
+    walk(dir, |_| true, crate::fdwalk::open_up_fd);
     match std::fs::remove_dir_all(dir) {
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
         r => r,
@@ -364,11 +364,13 @@ pub fn bound(
         }
         let dir = e.path();
         let last = std::fs::metadata(dir.join(SCOPE)).and_then(|m| m.modified()).unwrap_or(UNIX_EPOCH);
-        let bytes = count_of(&dir).unwrap_or_else(|| {
-            let stamp = lock().stamp(&id);
-            let n = size(&dir.join(DATA));
-            write_count(root, uses, &id, 0, stamp, n);
-            n
+        let bytes = count_of(&dir).unwrap_or_else(|| match other_size(&dir.join(DATA), cfg.max_bytes) {
+            Ok(n) => {
+                let stamp = lock().stamp(&id);
+                write_count(root, uses, &id, 0, stamp, n);
+                n
+            }
+            Err(n) => n,
         });
         all.push((last, id, bytes));
     }
@@ -379,9 +381,13 @@ pub fn bound(
     for (_, id, _) in old {
         take(&id, "no use in [cache] max_age_s");
     }
-    let in_use: u64 =
-        used.iter().map(|id| root.join(id)).map(|d| count_of(&d).unwrap_or_else(|| size(&d.join(DATA)))).sum();
-    let mut total = in_use.saturating_add(kept.iter().map(|(_, _, b)| *b).sum());
+    // The sums saturate.
+    let in_use = used
+        .iter()
+        .map(|id| root.join(id))
+        .map(|d| count_of(&d).unwrap_or_else(|| other_size(&d.join(DATA), cfg.max_bytes).unwrap_or_else(|n| n)))
+        .fold(0u64, u64::saturating_add);
+    let mut total = in_use.saturating_add(kept.iter().map(|(_, _, b)| *b).fold(0u64, u64::saturating_add));
     kept.reverse();
     while total > cfg.total_bytes {
         let Some((_, id, bytes)) = kept.pop() else { break };
@@ -389,4 +395,39 @@ pub fn bound(
         total = total.saturating_sub(bytes);
     }
     gone
+}
+
+#[cfg(test)]
+mod lost {
+    use super::*;
+
+    /// T-678: a job that moves a directory of its cache during a walk makes
+    /// the walk lose its place; its own size counts as full, and the bound
+    /// of another job counts it as `max_bytes`, not more.
+    #[test]
+    fn a_lost_walk_counts_as_full_and_as_max_bytes_for_another_job() {
+        let dir = crate::tests::TempDir::new();
+        let data = dir.0.join("data");
+        // Deeper than the bound of descriptors, so the walk closes `a`.
+        let mut p = data.join("a");
+        for i in 0..fdwalk::MAX_OPEN + 2 {
+            p = p.join(i.to_string());
+        }
+        std::fs::create_dir_all(&p).unwrap();
+        std::fs::write(data.join("a/f"), [0; 9]).unwrap();
+        // At the deepest directory (`data`, `a`, then each level), move
+        // `a/0` out of `a`, which the walk closed.
+        let (mut seen, mut moved) = (0, false);
+        let n = size_with(&data, |_| {
+            seen += 1;
+            if seen == fdwalk::MAX_OPEN + 4 {
+                moved = true;
+                std::fs::rename(data.join("a/0"), data.join("moved")).unwrap();
+            }
+        });
+        assert!(moved);
+        assert_eq!(n, u64::MAX);
+        assert_eq!(size(&data), 9, "a walk with no change counts the files");
+        assert_eq!(other_size(&data, 50), Ok(9));
+    }
 }

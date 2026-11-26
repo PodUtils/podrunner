@@ -17458,7 +17458,7 @@ uses the new podnet pin and holds the hosted proof.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -17483,6 +17483,73 @@ bounded measurement and preserve their current accounting rules.
 
 `cargo test -p podrunner-slots` with a controlled change to a
 directory during the walk and a test of the descriptor bound.
+
+## Done
+
+2026-11-26, the commit that names T-678 after `63bba14` (tests on a
+development host as root; no live run). `crates/podrunner-slots/src/fdwalk.rs`
+walks a tree by descriptor: each directory opens relative to its parent
+with `O_PATH | O_NOFOLLOW`, then `.` for read, checked by device and
+inode. The walk keeps at most `MAX_OPEN` (64) levels open; above that it
+closes the oldest and opens it again through `..` of its child, checked by
+device and inode, else it ends `Lost`. The disk walk (`disk.rs`) runs a
+lost walk once more, then gives a count above the bound (fail closed).
+The cache (`cache/store.rs`): `size_to` and `measure` of the job's own
+cache count a lost walk as full, so the bound empties it; the bound
+counts a lost walk of another cache as `max_bytes` and writes no count
+of it, so one job cannot make the bound remove each other cache;
+`remove` gives each directory the bits of its owner by `fchmod` of a
+descriptor, or by its link in /proc when it has no read bit. The path
+form of `open_up` is gone. The accounting stays: disk counts each
+non-directory on the device of the root; cache counts regular files on
+any device. Tests (8 new): a directory swapped for a link during the walk
+is not followed (a plant with no `O_NOFOLLOW` fails it), a tree of 40
+levels is read whole with 4 open levels (a plant with no bound fails
+it), a moved closed directory ends `Lost`, a disk walk lost twice gives
+bound + 1 and lost once gives the true count, a lost cache walk gives
+`u64::MAX` and `max_bytes` to another job, the removal follows no link
+and opens a shut directory. `cargo test -p podrunner-slots` passes.
+Review (an agent that did not write the code): the 5 findings are fixed
+in place (the bound of other caches, `fchmod` before /proc, the doc of
+the descriptors, the tests of the lost paths), except one limit: a job
+that removes a tree deeper than 64 levels during both disk walks gets
+bound + 1, as `..` of a removed directory does not open. The same-uid
+gap of a directory with mode 000 is older: T-684.
+
+# T-684: A job hides bytes from the disk limit under a shut directory
+
+**Source:** the review of T-678, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When podrunner and the files of the unit have the same user (no root),
+a job can set a directory to mode 000. The disk walk cannot read it and
+counts no byte under it, so the job writes past `disk_max_bytes`.
+
+## Premise
+
+Read from the code of `crates/podrunner-slots/src/disk.rs` and
+`crates/podrunner-slots/src/fdwalk.rs` on 2026-11-26. The old path walk
+had the same gap. Not measured.
+
+## Approach
+
+When the walk cannot open a directory for read, and the caller owns it,
+give the owner the read and search bits through its descriptor (as the
+removal of a cache does) and read it; when that also fails, give a count
+above the bound (fail closed). Name the change of mode in the audit line
+of the limit.
+
+## Prove
+
+`cargo test -p podrunner-slots disk` as a user with no root: a file
+under a directory of mode 000 counts, and a directory that stays shut
+gives a count above the bound.
 
 # T-679: A local concurrency lock error reports an interrupted wait
 

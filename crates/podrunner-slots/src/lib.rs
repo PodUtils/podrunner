@@ -15,6 +15,7 @@ mod driver;
 pub mod egress_lines;
 mod egress_port;
 mod engine;
+mod fdwalk;
 mod floors;
 pub mod forget;
 pub mod guest;

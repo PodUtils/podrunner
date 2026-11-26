@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**678 entries: 83 open, 57 partial, 15 blocked, 523 done.**
+**679 entries: 83 open, 57 partial, 15 blocked, 524 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 2 | 97 | 125 |
-| P2 | 15 | 20 | 9 | 276 | 320 |
+| P2 | 15 | 20 | 9 | 277 | 321 |
 | P3 | 67 | 11 | 4 | 148 | 230 |
-| **All** | 83 | 57 | 15 | 523 | 678 |
+| **All** | 83 | 57 | 15 | 524 | 679 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -720,9 +720,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-675](later.md) | P1 | S | later | chore | partial | Take podcrates `v0.85.0` (COORD-156 of podcrates) |
 | [T-676](bootstrap.md) | P2 | S | M0 | docs | done | Document hosted sessions and worker roles (COORD-157 of podcrates) |
 | [T-677](later.md) | P2 | S | later | chore | partial | Take podnet `v0.4.0-beta.19` (COORD-129 of podnet) |
-| [T-678](later.md) | P2 | M | later | defect | open | Open disk and cache walk directories by descriptor |
+| [T-678](later.md) | P2 | M | later | defect | done | Open disk and cache walk directories by descriptor |
 | [T-679](later.md) | P3 | S | later | defect | open | A local concurrency lock error reports an interrupted wait |
 | [T-680](later.md) | P3 | S | later | defect | open | Local doctor only checks the podnet file |
 | [T-681](later.md) | P2 | S | later | measurement | blocked | Repeat the low-space Incus proof on the next podvm release |
 | [T-682](later.md) | P1 | M | later | defect | partial | A refused runner assignment must stop the job before steps |
 | [T-683](later.md) | P1 | S | later | defect | partial | The bundled engine fails in an instance of Incus before 6.0.6 and 6.19 |
+| [T-684](later.md) | P2 | S | later | defect | open | A job hides bytes from the disk limit under a shut directory |

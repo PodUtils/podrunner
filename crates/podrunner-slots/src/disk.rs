@@ -4,7 +4,6 @@
 //! is the lesser of the `disk` limit of the offer and `[unit.X]
 //! disk_max_bytes` when both are set.
 
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
@@ -12,7 +11,7 @@ use podrunner_schema::{ExitReason, JobId, UnitId};
 use podrunner_unit::Signal;
 
 use crate::state::State;
-use crate::{Job, Slots, audit};
+use crate::{Job, Slots, audit, fdwalk};
 
 /// The time between two measures of the disk of the units.
 pub const CHECK_MS: u64 = 30_000;
@@ -24,36 +23,29 @@ pub fn bytes_under(root: &Path) -> u64 {
 }
 
 /// The bytes read, with the walk stopped once the count is above `bound`.
+/// The walk opens each directory by the descriptor of its parent (T-678).
+/// A walk that a job made lose its place runs once more; a second loss
+/// gives a count above the bound: the limit fails closed.
 fn bytes_under_to(root: &Path, bound: u64) -> u64 {
-    let Ok(top) = root.symlink_metadata() else { return 0 };
-    if !top.is_dir() {
-        return 0;
-    }
-    let dev = top.dev();
-    let mut total = 0u64;
-    let mut todo = vec![root.to_path_buf()];
-    while let Some(dir) = todo.pop() {
-        let Ok(m) = dir.symlink_metadata() else { continue };
-        if !m.is_dir() || m.dev() != dev {
-            continue;
-        }
-        let Ok(rd) = std::fs::read_dir(&dir) else { continue };
-        for e in rd.flatten() {
-            let Ok(m) = e.metadata() else { continue };
-            if m.dev() != dev {
-                continue;
-            }
-            if m.is_dir() {
-                todo.push(e.path());
-            } else {
-                total = total.saturating_add(m.len());
-                if total > bound {
-                    return total;
-                }
-            }
+    bytes_with(root, bound, fdwalk::MAX_OPEN, |_| {})
+}
+
+/// `bytes_under_to` with a bound of descriptors, and `d` called with the
+/// name of each directory before the walk reads it.
+fn bytes_with(root: &Path, bound: u64, max_open: usize, mut d: impl FnMut(&std::ffi::CStr)) -> u64 {
+    for _ in 0..2 {
+        let mut total = 0u64;
+        let opts = fdwalk::Opts { same_dev: true, max_open };
+        let count = |st: &libc::stat| {
+            total = total.saturating_add(u64::try_from(st.st_size).unwrap_or(0));
+            total <= bound
+        };
+        match fdwalk::walk(root, opts, count, |_, name| d(name)).0 {
+            fdwalk::End::Lost => continue,
+            fdwalk::End::Done | fdwalk::End::Stopped => return total,
         }
     }
-    total
+    bound.saturating_add(1)
 }
 
 type Key = (usize, JobId);
@@ -180,6 +172,46 @@ mod tests {
         assert_eq!(bytes_under_to(&dir.0, 3), 6);
         assert_eq!(bytes_under_to(&dir.0, 9), 9);
         assert_eq!(bytes_under(&dir.0), 9);
+    }
+
+    /// T-678: a job that makes each walk lose its place gets a count
+    /// above the bound (the limit fails closed); one lost walk is run again.
+    #[test]
+    fn a_walk_lost_twice_gives_a_count_above_the_bound() {
+        let dir = TempDir::new();
+        let root = dir.0.join("root");
+        fs::create_dir_all(root.join("a/b/c/d")).unwrap();
+        fs::write(root.join("a/file"), [0; 7]).unwrap();
+        // At each visit of `d`, move an ancestor that the walk closed (one
+        // descriptor): it cannot check its way back up, and ends lost.
+        let mut lost = 0;
+        let got = bytes_with(&root, 100, 1, |name| {
+            if name.to_bytes() == b"d" {
+                lost += 1;
+                // Pass 1: `a/b` goes up to the root; pass 2: back under `a`.
+                let (from, to) = if lost == 1 {
+                    (root.join("a/b"), root.join("moved1"))
+                } else {
+                    (root.join("moved1"), root.join("a/moved2"))
+                };
+                fs::rename(from, to).unwrap();
+            }
+        });
+        assert_eq!(lost, 2, "the walk runs once more after a loss");
+        assert_eq!(got, 101);
+        // A walk lost once and then whole gives the true count.
+        let dir = TempDir::new();
+        let root = dir.0.join("root");
+        fs::create_dir_all(root.join("a/b/c/d")).unwrap();
+        fs::write(root.join("a/file"), [0; 7]).unwrap();
+        let mut once = false;
+        let got = bytes_with(&root, 100, 1, |name| {
+            if name.to_bytes() == b"d" && !once {
+                once = true;
+                fs::rename(root.join("a/b"), root.join("moved")).unwrap();
+            }
+        });
+        assert_eq!(got, 7);
     }
 
     #[test]
