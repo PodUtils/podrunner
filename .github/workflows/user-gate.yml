@@ -135,7 +135,8 @@ jobs:
           set -eu -o pipefail
           sh scripts/release-assets.sh local-mode "$VERSION" dist out | tee -a "$GITHUB_STEP_SUMMARY"
           # The files of the job build of release.yml.
-          cp dist/podrunner-*-linux-musl* dist/scaleset-sidecar-*-linux-musl* out/
+          # T-692: the page too; the installer takes it by SHA256SUMS.
+          cp dist/podrunner-*-linux-musl* dist/scaleset-sidecar-*-linux-musl* dist/podrunner.1* out/
           (cd out && sha256sum -c ./*.sha256)
           # T-523: the installer takes no file of a release with no
           # release-index.json and SHA256SUMS; the job dry of release.yml

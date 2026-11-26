@@ -2,8 +2,8 @@
 # shellcheck disable=SC2034 # pin() reads the block of pins by name.
 # SPDX-License-Identifier: 0BSD
 # The installer of the local mode of podrunner (T-202). It installs
-# podrunner, podvm, podnet, the official runner and the runner image into a
-# podvm store, and writes the file of the user `run.toml`, so that
+# podrunner, its man page, podvm, podnet, the official runner and the runner
+# image into a podvm store, and writes the file of the user `run.toml`, so that
 # `podrunner run FILE --checkout .` needs no other flag. It needs no root,
 # no token and no Python: /bin/sh, curl or wget, sha256sum or shasum or
 # openssl, tar and gzip.
@@ -30,6 +30,7 @@ PODNET_VERSION="0.4.0-beta.20"
 RUNNER_VERSION="2.338.2"
 SUM_podrunner_x86_64=""
 SUM_podrunner_aarch64=""
+SUM_manpage=""
 SUM_podvm_x86_64="05be17194d0a6ee757f57e7a5cf5e897f73b303efba4c19b68b97b65e47ce422"
 SUM_podvm_aarch64="dcfc914ecbb7fcb8cb8b983a438130f691234f5a68d1db6e08cc15398670aaa3"
 SUM_podnet_x86_64="67a733b8cef4d1b121fae4734071bffa7dfdd39033f4cd19f1520bb8faa4e439"
@@ -54,8 +55,9 @@ usage() {
     cat <<'EOF'
 usage: sh podrunner-install.sh [--prefix DIR] [--full] [--bundle PATH] [--serve]
 
-  --prefix DIR   install podrunner into DIR/bin and the data into
-                 DIR/share/podrunner (default: ~/.local, and the data into
+  --prefix DIR   install podrunner into DIR/bin, its man page into
+                 DIR/share/man/man1 and the data into DIR/share/podrunner
+                 (default: ~/.local, and the data into
                  $XDG_DATA_HOME/podrunner when it is set)
   --full         load the larger runner image (the common tools of
                  ubuntu-latest) and use it for each job
@@ -141,6 +143,7 @@ else
     data=${XDG_DATA_HOME:-$HOME/.local/share}/podrunner
 fi
 bin=$prefix/bin
+man=$prefix/share/man/man1
 config=${XDG_CONFIG_HOME:-$HOME/.config}/podrunner
 store=$data/images
 downloads=$data/downloads
@@ -166,7 +169,7 @@ close_up "$data/bin"
 # writes its own (NAME.part.RUN), and a download writes it the whole time,
 # so a part file that did not change for an hour is of a run that stopped.
 rm -f "$bin/podrunner.part" "$data"/bin/*.part "$downloads"/*.part
-find "$bin" "$data/bin" "$downloads" -maxdepth 1 -name '*.part.*' -mmin +60 -exec rm -f {} + 2> /dev/null || true
+find "$bin" "$data/bin" "$downloads" "$man" -maxdepth 1 -name '*.part.*' -mmin +60 -exec rm -f {} + 2> /dev/null || true
 
 # The temporary files of this run go at its end, also at a signal (T-249).
 # A KILL runs no trap: the next run removes what it left (below).
@@ -233,7 +236,7 @@ url_of() {
         return
     fi
     case $1 in
-        podrunner | image | imagefull) printf 'https://github.com/PodUtils/podrunner/releases/download/v%s/%s' "$PODRUNNER_VERSION" "$2" ;;
+        podrunner | manpage | image | imagefull) printf 'https://github.com/PodUtils/podrunner/releases/download/v%s/%s' "$PODRUNNER_VERSION" "$2" ;;
         podvm) printf 'https://github.com/PodUtils/podvm/releases/download/v%s/%s' "$PODVM_VERSION" "$2" ;;
         podnet) printf 'https://github.com/PodUtils/podnet/releases/download/v%s/%s' "$PODNET_VERSION" "$2" ;;
         runner) printf 'https://github.com/actions/runner/releases/download/v%s/%s' "$RUNNER_VERSION" "$2" ;;
@@ -309,7 +312,8 @@ listed() { awk -v n="$1" '$2 == n || $2 == "*" n { print $1 }' "$rel/SHA256SUMS"
 # takes the place of DEST.
 got=0
 get() {
-    want=$(pin "SUM_$1")
+    # The page is one file for each release, not for each architecture.
+    case $1 in manpage) want=$SUM_manpage ;; *) want=$(pin "SUM_$1") ;; esac
     [ -n "$want" ] || die "$2: no pin for $arch in this installer"
     if [ -f "$3" ] && [ "$(sha256_of "$3")" = "$want" ]; then
         say "ok      $2 (present)"
@@ -321,7 +325,7 @@ get() {
         [ -f "$bundle/$2" ] || die "$2: not in the bundle $bundle (download it from the release into that directory)"
         cp "$bundle/$2" "$part" || die "$2: cannot copy it from the bundle"
     else
-        case $1 in podrunner | image | imagefull) release_sums ;; esac
+        case $1 in podrunner | manpage | image | imagefull) release_sums ;; esac
         say "fetch   $2"
         fetch "$(url_of "$1" "$2")" "$part" || {
             rm -f "$part"
@@ -335,7 +339,7 @@ get() {
     fi
     if [ "$rel_read" = 1 ]; then
         case $1 in
-            podrunner | image | imagefull)
+            podrunner | manpage | image | imagefull)
                 line=$(listed "$2")
                 [ "$line" = "$want" ] || {
                     rm -f "$part"
@@ -352,6 +356,20 @@ get() {
     got=$((got + 1))
     say "ok      $2 (sha256 $want)"
 }
+
+# The man page (T-692), before the binaries: a page that SHA256SUMS or its
+# pin refuses stops the install before any binary is in place. A release
+# before T-645 has no page and no pin of it: the page is skipped, as an
+# older release must still install. The page is only a file: no root and no
+# mandb run. man-db finds PREFIX/share/man when PREFIX/bin is in PATH; else
+# set MANPATH (docs/install.md).
+if [ -n "$SUM_manpage" ]; then
+    mkdir -p "$man" || die "cannot make $man"
+    get manpage podrunner.1 "$man/podrunner.1"
+    chmod 0644 "$man/podrunner.1"
+else
+    say "skip    podrunner.1: this release has no man page"
+fi
 
 # The binaries.
 get podrunner "podrunner-$arch-unknown-linux-musl" "$bin/podrunner"

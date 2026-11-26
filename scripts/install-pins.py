@@ -4,7 +4,8 @@
 
 The block comes from images/podvm.toml, images/podnet.toml and
 images/runner/runner.toml. A release adds its own version, the SHA-256 of
-each podrunner binary and of each runner image archive, the manifest
+each podrunner binary and of each runner image archive, the SHA-256 of the
+man page podrunner.1 (T-692; empty when the assets have none), the manifest
 digest of each image (from index.json in the archive) and its unpacked
 size (from its layers).
 
@@ -82,7 +83,11 @@ def values(images: pathlib.Path, assets: pathlib.Path | None) -> tuple[dict, dic
         "podnet": toml_pin(images / "podnet.toml"),
         "runner": toml_pin(images / "runner" / "runner.toml"),
     }
-    v: dict[str, str] = {}
+    v: dict[str, str] = {"manpage": ""}
+    # One page for all architectures (T-645). A release before it has none:
+    # its installer then skips the page.
+    if assets is not None and (assets / "podrunner.1").is_file():
+        v["manpage"] = sha256(assets / "podrunner.1")
     for a in ARCHES:
         v[f"podrunner_{a}"] = ""
         v[f"image_{a}"] = v[f"image_digest_{a}"] = v[f"image_unpacked_{a}"] = ""
@@ -126,6 +131,7 @@ def manifest(images: pathlib.Path, release: str, assets: pathlib.Path) -> str:
         "podrunner": {
             "version": release,
             "files": {a: {"file": f"podrunner-{a}-unknown-linux-musl", "sha256": v[f"podrunner_{a}"]} for a in ARCHES},
+            "man_page": {"file": "podrunner.1", "sha256": v["manpage"]} if v["manpage"] else None,
         },
         "runner": {
             "version": pins["runner"][0],
@@ -226,6 +232,7 @@ def block(images: pathlib.Path, release: str, assets: pathlib.Path | None) -> st
         f'RUNNER_VERSION="{runner_v}"',
     ]
     lines += [f'SUM_podrunner_{a}="{v[f"podrunner_{a}"]}"' for a in ARCHES]
+    lines.append(f'SUM_manpage="{v["manpage"]}"')
     lines += [f'SUM_podvm_{a}="{podvm[a]}"' for a in ARCHES]
     lines += [f'SUM_podnet_{a}="{podnet[a]}"' for a in ARCHES]
     lines += [f'SUM_runner_{a}="{runner[a]}"' for a in ARCHES]

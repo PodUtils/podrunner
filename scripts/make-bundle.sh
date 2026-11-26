@@ -8,10 +8,11 @@
 #
 #   sh scripts/make-bundle.sh INSTALLER ARCH ASSETS OUT
 #
-# ASSETS holds podrunner-ARCH-unknown-linux-musl and runner-ARCH.tar of the
-# release. podvm, podnet and the runner tarball come from ASSETS when they
-# are there, else from their releases (or PODRUNNER_MIRROR=URL). The bundle
-# is OUT/podrunner-bundle-ARCH.tar.gz, with its .sha256. The larger image is
+# ASSETS holds podrunner-ARCH-unknown-linux-musl, runner-ARCH.tar and
+# podrunner.1 (when the pins name it) of the release. podvm, podnet and the
+# runner tarball come from ASSETS when they are there, else from their
+# releases (or PODRUNNER_MIRROR=URL). The bundle is
+# OUT/podrunner-bundle-ARCH.tar.gz, with its .sha256. The larger image is
 # not in the bundle: it is a release asset of its own.
 set -eu
 [ $# -eq 4 ] || {
@@ -51,7 +52,7 @@ add() {
         esac
     fi
     have=$(sha256sum < "$out/$dir/$2" | cut -d' ' -f1)
-    want=$(pin "SUM_$1")
+    case $1 in manpage) want=$SUM_manpage ;; *) want=$(pin "SUM_$1") ;; esac
     [ "$have" = "$want" ] || {
         echo "make-bundle: $2: the SHA-256 is $have, not the pin $want" >&2
         exit 1
@@ -66,6 +67,14 @@ add podnet "podnet-$arch-unknown-linux-musl" \
 tgz=actions-runner-linux-$rarch-$RUNNER_VERSION.tar.gz
 add runner "$tgz" "$gh/actions/runner/releases/download/v$RUNNER_VERSION/$tgz"
 add image "runner-$arch.tar" ""
+# The man page (T-692): one file for each release. A release before T-645
+# has none and no pin of it: the bundle has no page, and the installer of the
+# bundle skips it.
+if [ -n "$SUM_manpage" ]; then
+    add manpage podrunner.1 ""
+else
+    echo "make-bundle: skip podrunner.1: the pins have none"
+fi
 cp "$installer" "$out/$dir/podrunner-install.sh"
 # The licences: podrunner (0BSD), the list of third-party components, and
 # the licence of the official runner, whose tarball has no licence file.

@@ -530,6 +530,40 @@ class Lane:
             raise GateError("the install from the bundle fetched a file")
         return f"sh podrunner-install.sh --bundle {bundle}, with no network"
 
+    def install_man(self):
+        """The installer puts the page of the release in PREFIX/share/man/man1
+        (T-692). Where `man` works, `man -w podrunner` finds it with the PATH
+        of the user and no MANPATH."""
+        want = self.assets / "podrunner.1"
+        if not want.is_file():
+            return "skip", f"no {want.name} in the assets"
+        page = self.home / ".local" / "share" / "man" / "man1" / "podrunner.1"
+        if not page.is_file():
+            raise GateError(f"the install put no page at {page}")
+        if page.read_bytes() != want.read_bytes():
+            raise GateError(f"{page} is not {want.name} of the assets")
+        if oct(page.stat().st_mode & 0o777) != "0o644":
+            raise GateError(f"{page} has the mode {oct(page.stat().st_mode & 0o777)}, not 0o644")
+        man = shutil.which("man")
+        if not man:
+            return "pass", f"{page} is in place; no man on this host, `man -w podrunner` not run"
+
+        def finds(log: str, **extra) -> bool:
+            env = self.env(self.home, **extra)
+            if "MANPATH" not in extra:
+                env.pop("MANPATH", None)
+            rc, out = self.run([man, "-w", "podrunner"], env, self.home, log)
+            line = out.strip().splitlines()[:1]
+            return rc == 0 and bool(line) and pathlib.Path(line[0]).resolve() == page.resolve()
+
+        if finds("man-w"):
+            return f"man -w podrunner finds {page}"
+        # A host with a man that finds nothing even with the directory in
+        # MANPATH (a minimal image) tells nothing of the install.
+        if finds("man-w-manpath", MANPATH=str(page.parent.parent)):
+            raise GateError(f"man -w podrunner finds nothing with the PATH of the user ({self.home}/.local/bin), but finds {page} with MANPATH")
+        return "skip", "man finds no page on this host, also with MANPATH: `man -w podrunner` not judged"
+
     def install_offline_doc(self) -> str:
         env = self.env(self.home, PODRUNNER_MIRROR=DEAD_MIRROR)
         out = self.doc_script(OFFLINE, [("x86_64", self.arch)], self.work / "download", env, "install-offline-doc")
@@ -1634,6 +1668,7 @@ def lane(a) -> int:
         else:
             g.check("docs:quick-start", g.quick_start)
             if g.check("install:bundle", g.install_bundle):
+                g.check("install:man", g.install_man)
                 g.check("install:offline-doc", g.install_offline_doc)
                 # With no larger image, the rows run on the base image.
                 g.check("install:full", g.install_full) or g.check("install:base-image", g.run_toml_image)
