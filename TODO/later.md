@@ -11879,6 +11879,22 @@ State (2026-11-20): `pod-fake-githome` `0.78.1` passes the 15 tests.
 
 State (2026-11-24, read in the code and the runs; proven in CI on GitHub-hosted runners): the lanes cover Approach 1 in part and Approach 2 in full. Covered: (a) `source-conformance` against `pod-fake-githome source` is a step of `gate.yml` (`scripts/githome-conformance.sh`, 15 tests), and `release.yml` needs a green gate; (b) `scripts/user-gate.py` starts the pinned `pod-fake-github` and `pod-fake-githome serve --github`, runs `config init --source githome --program pod-fake-githome`, and `serve` with one job through the control API: the check `serve:job:KIND` ends `success` for `podvm` in the lane `userns-on`, and for `incus` (trusted) and `microvm` (untrusted) in the lane `serve-incus-kvm` (`user-gate.yml` runs 44788390111 at `6a84667` and 44802979062 at `32e5ea4`; the second is green in every lane); (c) `release.yml` refuses a version with no green `user-gate.yml` run at its commit, unless the input `no_user_gate` names a reason (T-243). Not covered: the job of the check is one `echo` step in a guest with no engine, so no job of githome runs on `microvm` with `engine` (a `container:` job, `services:`, a Docker action; T-516 has the proof of `docker build` and Docker-in-Docker); and the source is the fake of podcrates, not githome's released `githome source` with its core. This entry stays `partial` until a job with an engine runs through `serve` on `microvm` in the lane.
 
+State (2026-11-26, `85258872`; not run): the lane `serve-incus-kvm` of
+`user-gate.yml` has the check `serve:job:engine:microvm`
+(`scripts/user-gate.py`). It runs one runner job through `serve` and
+`pod-fake-githome serve --github` with the pinned `pod-fake-github`, on
+the microvm kind, with the full image and `container_engine = true` on
+its pin; the offer needs the engine (`unit_need.container_engine`). The
+step pulls a pinned busybox, runs a container, and reaches a second
+container by its name on a user network. `--self-test` runs the step
+with stand-ins of docker, httpd and wget, and planted defects fail it;
+`scripts/agent/check.sh` now runs the self-test too, as `gate.yml` does.
+Gap: `pod-fake-github` of podcrates `v0.86.0` sends only `run:` steps
+(`"jobContainer": null`, no service containers), so no `container:` or
+`services:` job runs yet (T-707, COORD-145, #373). Next: a green
+`user-gate.yml` run with this check.
+
+
 # T-510: G-39: one record of each change of a contract that githome reads
 
 **Source:** githome's G-39 on GitHub #292 (2026-11-18T07:22Z); the ruling of the owner of 2026-11-18
@@ -19083,3 +19099,41 @@ field, and one that does not.
 ## Blocker
 
 COORD-144 (#372) asks podvm for `UnpackedBytes` in `inspect`.
+
+# T-707: githome's container: and services: jobs cannot run through the fake GitHub
+
+**Source:** the worker of T-509, 2026-11-26
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`pod-fake-github` of podcrates `v0.86.0` takes only `run:` steps: the job
+message has `"jobContainer": null` and no service containers. So the
+lane of T-509 cannot run a `container:` or a `services:` job of githome,
+and a failed job gives only `failure`, with no step log.
+
+## Premise
+
+Read from the podcrates `v0.86.0` source (`PodUtils/podcrates@v0.86.0`, the GitHub fake of pod-testkit)
+by the worker of T-509 on 2026-11-26.
+
+## Approach
+
+When podcrates gives `container` and `services` in `POST /_fake/jobs` and
+the log of a job, change the check `serve:job:engine:microvm` into a
+`services:` job and a `container:` job, and print the step log of a
+failed job in the lane.
+
+## Prove
+
+`python3 -I scripts/user-gate.py --self-test`, and a green lane
+`serve-incus-kvm` of `user-gate.yml`.
+
+## Blocker
+
+COORD-145 (#373) asks podcrates for the job container, the service
+containers and the log of a job in `pod-fake-github`.

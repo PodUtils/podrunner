@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 701 entries: 72 open, 54 partial, 20 blocked, 555 done.
+`TODO/INDEX.md` holds 702 entries: 72 open, 54 partial, 21 blocked, 555 done.
 
 ## State
 
@@ -95,7 +95,8 @@ then take the next one.
 
 Waits:
 
-- Podvm: T-685 (COORD-138, #364), T-650 (COORD-141, #368), T-706 (COORD-144, #372). The copy of
+- Podvm: T-685 (COORD-138, #364), T-650 (COORD-141, #368), T-706 (COORD-144, #372).
+- Podcrates: T-707 (COORD-145, #373). The copy of
   the cgroup rule of podvm goes after COORD-137 (#363). T-658 (COORD-132, #354) and
   T-659 (COORD-133, #355): a podvm release. T-681 waits for the next
   Incus image import path for the low-space control. COORD-254

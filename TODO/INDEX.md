@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**701 entries: 72 open, 54 partial, 20 blocked, 555 done.**
+**702 entries: 72 open, 54 partial, 21 blocked, 555 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 11 | 19 | 11 | 283 | 324 |
-| P3 | 60 | 12 | 7 | 170 | 249 |
-| **All** | 72 | 54 | 20 | 555 | 701 |
+| P3 | 60 | 12 | 8 | 170 | 250 |
+| **All** | 72 | 54 | 21 | 555 | 702 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -749,3 +749,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-704](later.md) | P3 | M | later | defect | open | The work directory of a microvm or incus unit has the owner problem of a writable cache |
 | [T-705](later.md) | P3 | S | later | defect | open | The installer writes the unpacked size of its image only with --serve |
 | [T-706](later.md) | P3 | S | later | feature | blocked | run checks --mem only for the image that the install pulled |
+| [T-707](later.md) | P3 | S | later | feature | blocked | githome's container: and services: jobs cannot run through the fake GitHub |
