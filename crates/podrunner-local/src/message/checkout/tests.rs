@@ -35,7 +35,10 @@ fn a_ref_of_the_same_repository_takes_its_commit() {
     // The commit of the ref: its tarball, into `path`, with no strip.
     for with in ["ref: main\n          path: other", "repository: me/app\n          ref: main\n          path: other"] {
         let s = script(with, &[(&main, &sha)]).unwrap();
-        assert!(s.contains(&format!("_checkout/{sha}.tar.gz")) && s.contains(r#""Key":"dest","Value":"other""#), "{with}: {s}");
+        assert!(
+            s.contains(&format!("_checkout/{sha}.tar.gz")) && s.contains(r#""Key":"dest","Value":"other""#),
+            "{with}: {s}"
+        );
         assert!(!s.contains("_checkout.tar.gz") && !s.contains(r#""Key":"strip""#), "{s}");
         assert!(s.contains(&format!("ref main at {sha}")), "the display names it: {s}");
     }

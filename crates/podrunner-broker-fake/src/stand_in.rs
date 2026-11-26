@@ -130,7 +130,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("a.tgz"), &gz).unwrap();
-        let st = std::process::Command::new("tar").args(["-xzf", "a.tgz", "--strip-components=1"]).current_dir(&dir).status().unwrap();
+        let st = std::process::Command::new("tar")
+            .args(["-xzf", "a.tgz", "--strip-components=1"])
+            .current_dir(&dir)
+            .status()
+            .unwrap();
         assert!(st.success(), "tar reads the tarball");
         assert_eq!(std::fs::read_to_string(dir.join("action.yml")).unwrap(), super::ACTION_YML);
         assert_eq!(std::fs::read_to_string(dir.join("index.js")).unwrap(), super::INDEX_JS);

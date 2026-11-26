@@ -21,11 +21,7 @@ pub(super) fn stand_in(
     Ok((inputs, what))
 }
 
-fn stand_in_of(
-    s: &WorkflowStep,
-    pins: &BTreeMap<String, String>,
-    self_repo: &str,
-) -> Result<(Inputs, String), String> {
+fn stand_in_of(s: &WorkflowStep, pins: &BTreeMap<String, String>, self_repo: &str) -> Result<(Inputs, String), String> {
     let line = s.mark.line;
     let with = |name: &str| {
         s.with.as_ref().and_then(|w| match &w.kind {

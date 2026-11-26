@@ -266,7 +266,10 @@ fn a_checkout_of_another_repository_takes_its_pinned_tree() {
     s.set_pins(BTreeMap::from([("o/lib@v2".to_string(), sha.clone())]));
     let m = podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &s.broker_job(&job).unwrap());
     let script = m["steps"][0]["inputs"]["map"].to_string();
-    assert!(script.contains(&format!("_actions/o_lib/{sha}.tar.gz")) && script.contains(r#""Key":"strip","Value":"1""#), "{script}");
+    assert!(
+        script.contains(&format!("_actions/o_lib/{sha}.tar.gz")) && script.contains(r#""Key":"strip","Value":"1""#),
+        "{script}"
+    );
     assert!(script.contains(r#""Key":"dest","Value":"lib""#), "{script}");
 }
 
@@ -401,4 +404,3 @@ fn an_image_takes_the_values_of_the_matrix() {
     assert_eq!(super::image_with("pg:16", v).as_deref(), Some("pg:16"));
     assert_eq!(super::matrix_text(&pod_actions_expr::Value::Number(15.0)).as_deref(), Some("15"));
 }
-

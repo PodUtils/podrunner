@@ -118,8 +118,15 @@ mod tests {
     #[test]
     fn each_key_that_the_stand_in_ignores_is_named_once() {
         for key in [
-            "fetch-depth: 0", "filter: blob:none", "sparse-checkout: src", "sparse-checkout-cone-mode: false",
-            "clean: false", "lfs: true", "token: x", "ssh-key: x", "persist-credentials: false",
+            "fetch-depth: 0",
+            "filter: blob:none",
+            "sparse-checkout: src",
+            "sparse-checkout-cone-mode: false",
+            "clean: false",
+            "lfs: true",
+            "token: x",
+            "ssh-key: x",
+            "persist-credentials: false",
         ] {
             let n = notes(key);
             let name = key.split(':').next().unwrap();
