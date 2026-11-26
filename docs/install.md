@@ -31,6 +31,7 @@ GitHub gives no `latest` link for a pre-release: name the version.
 
 | Step | Result |
 | --- | --- |
+| The man page | `PREFIX/share/man/man1/podrunner.1` (T-692) |
 | podrunner | `PREFIX/bin/podrunner` |
 | podvm and podnet | `DATA/bin/podvm`, `DATA/bin/podnet` |
 | The official runner | `DATA/runner/VERSION`, for `--runner-dir` |
@@ -42,6 +43,25 @@ GitHub gives no `latest` link for a pre-release: name the version.
 `PREFIX` is `~/.local`. `DATA` is `$XDG_DATA_HOME/podrunner`, else
 `~/.local/share/podrunner`. With `--prefix DIR`, `PREFIX` is `DIR` and
 `DATA` is `DIR/share/podrunner`.
+
+The man page is the file `podrunner.1` of the release. The installer takes
+it like a binary: its SHA-256 is in the block of pins, and `SHA256SUMS` and
+`release-index.json` must name it. It is the first file of the install: a
+page that fails a check stops the install before it puts a binary in place.
+A second run leaves the page as it is (`ok      podrunner.1 (present)`).
+A release before T-645 has no page: the installer of that release has no pin
+of it, says `skip    podrunner.1: this release has no man page`, and
+installs the rest. The installer does not run `mandb` and needs no root.
+`man-db` adds `PREFIX/share/man` to its search path when `PREFIX/bin` is in
+`PATH` (`~/.local/bin` gives `~/.local/share/man`; see `manpath(1)`). The
+check `install:man` of the user-path gate runs `man -w podrunner` where
+`man` works. Another `man` program can need `MANPATH`. If `man podrunner`
+finds nothing, give the directory:
+
+```sh
+man -M ~/.local/share/man podrunner
+export MANPATH="$HOME/.local/share/man:$(manpath 2>/dev/null)"
+```
 
 The installer writes `run.toml` again on each run while its first line is
 the marker line of the installer. Remove that line to keep your changes. A
@@ -56,7 +76,7 @@ and `allow` lines, and give in `allow` each host that a job needs.
 
 | Option | What it does |
 | --- | --- |
-| `--prefix DIR` | Install into `DIR/bin` and `DIR/share/podrunner`. |
+| `--prefix DIR` | Install into `DIR/bin`, `DIR/share/man/man1` and `DIR/share/podrunner`. |
 | `--full` | Load the larger runner image (`images/runner/full.txt`: C and C++, CMake, Python, Node.js) in place of the base image, and use it for each job. |
 | `--bundle PATH` | Install from an offline bundle: its `.tar.gz` or its unpacked directory. No network. |
 | `--serve` | Install for `podrunner serve` (T-507): the same files, but no `run.toml` and no `hello.yml`. It writes `DATA/serve.json` (`podrunner`, `podvm`, `podnet`, `images`, `image`, `runner_version`, `unpacked_bytes`) for a program that runs `podrunner config init`, and prints that next step. A second run changes nothing. |
@@ -195,8 +215,8 @@ not apply to it.
 - Each version and each SHA-256 is in the block of pins of the installer.
   `scripts/install-pins.py` writes the block from `images/podvm.toml`,
   `images/podnet.toml` and `images/runner/runner.toml`. The release adds
-  its version, the SHA-256 of each podrunner binary and of each image
-  archive, and the manifest digest of each image. The copy in the tree has
+  its version, the SHA-256 of each podrunner binary, of the man page and
+  of each image archive, and the manifest digest of each image. The copy in the tree has
   no pins of a release: it refuses to install, and names the installer of a
   release. `python3 -I scripts/install-pins.py --check scripts/install.sh`
   fails when the block and the pin files differ (the gate and
@@ -281,8 +301,9 @@ pod-release verify --repo PodUtils/podrunner --tag vVERSION DIR
 
 Each release attaches `podrunner-manifest.json` with its `.sha256` and an
 attestation. A machine reads it to take a new runner image with no new
-binary (T-499). It holds `schema` (1); `podrunner`: the version and, for
-each architecture, the file and its SHA-256; `runner`: the version of the
+binary (T-499). It holds `schema` (1); `podrunner`: the version, for
+each architecture the file and its SHA-256, and `man_page` (`file` and
+`sha256` of `podrunner.1`, or `null` for a release with no page, T-692); `runner`: the version of the
 official runner, the SHA-256 of each tarball, and for each architecture the
 base and the full image (`file`, `sha256`, the manifest `digest`,
 `built_at_s`, `unpacked_bytes` and `container_engine` when the archive
@@ -374,8 +395,9 @@ the hosted Ubuntu image.
 
 The release attaches `podrunner-bundle-x86_64.tar.gz` and
 `podrunner-bundle-aarch64.tar.gz` (`scripts/make-bundle.sh`). Each holds
-one directory with podrunner, podvm, podnet, the runner tarball, the base
-runner image archive, the installer with the pins of the release, a
+one directory with podrunner, its man page `podrunner.1`, podvm, podnet,
+the runner tarball, the base runner image archive, the installer with the
+pins of the release, a
 `SHA256SUMS`, the licences (`LICENSE`, `THIRD_PARTY.md`,
 `LICENSE.actions-runner`) and the marker `PODRUNNER-BUNDLE`.
 
@@ -399,7 +421,7 @@ of an image archive are gzip already.
 | `runner-ARCH.tar` | The base runner image, as `podvm load -i` takes it; load it into the store of the installer (`PODVM_STORE=~/.local/share/podrunner/images`), as `podvm` with no `PODVM_STORE` uses another store |
 | `runner-full-ARCH.tar` | The larger runner image |
 | `podrunner-bundle-ARCH.tar.gz` | The offline bundle |
-| `podrunner.1` | The man page of the release (`podrunner man --roff` of the x86_64 binary): `man -l podrunner.1` (T-645) |
+| `podrunner.1` | The man page of the release (`podrunner man --roff` of the x86_64 binary): `man -l podrunner.1` (T-645). The installer and the bundle put it in `PREFIX/share/man/man1` (T-692) |
 | `tier-cases.json` | The case table of the tier rule (T-518): each row gives the trust lists, the tier of the set, the facts of a job and the result. A forge with a trust rule of its own runs each row against it. `crates/podrunner-tier` (`cases::conformance`) runs it against a Rust rule. Its source is `crates/podrunner-tier/tier-cases.json`. `docs/design/examples/tier-cases.json` is the design copy, of another format: it has no `extra_events` and refuses `pull_request_target` and `workflow_run` (Q5, Q12) |
 
 Each has a `.sha256` file and a build provenance attestation. The image
