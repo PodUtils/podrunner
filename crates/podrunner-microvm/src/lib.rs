@@ -71,8 +71,8 @@ pub struct MicrovmUnit {
     /// The store of the operator that holds the pinned images.
     images: PathBuf,
     /// The guest memory of the kind (`--podvm-mem`), always passed:
-    /// placement needs a known bound. An offer lowers it to the boot floor
-    /// of the image at most ([`mem::guest_mem`], T-655).
+    /// placement needs a known bound. An offer lowers it to its memory plus
+    /// the image, not below the boot floor ([`mem::guest_mem`], T-655).
     mem: String,
     /// The unpacked bytes of each pinned digest (T-551).
     sizes: BTreeMap<String, u64>,
@@ -151,8 +151,8 @@ impl MicrovmUnit {
         self
     }
 
-    /// The unpacked bytes of each pinned digest: the boot floor of a guest
-    /// whose offer asks less memory than the kind (T-655).
+    /// The unpacked bytes of each pinned digest: the root and the boot
+    /// floor of a guest whose offer asks less memory than the kind (T-655).
     pub fn with_payload_sizes(mut self, sizes: BTreeMap<String, u64>) -> Self {
         self.sizes = sizes;
         self

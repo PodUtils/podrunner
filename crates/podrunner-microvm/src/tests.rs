@@ -441,8 +441,9 @@ fn the_init_of_the_image_boots_in_a_foreground_guest() {
 }
 
 /// The memory, the CPUs and the processes of a guest are the lesser of the
-/// kind and the offer (T-198); the memory is not less than the boot floor
-/// of the image, which the guest holds unpacked (T-573, T-655).
+/// kind and the offer (T-198). The guest holds the unpacked image in its
+/// memory: it gets the memory of the offer beyond the image, and not less
+/// than the boot floor of the image (T-573, T-655).
 #[test]
 fn a_guest_gets_the_lesser_memory_cpus_and_processes_of_the_offer() {
     let (u, d) = driver("lesser", "printf '%s\\n' \"$@\" > \"$(dirname \"$0\")/argv\"");
@@ -463,7 +464,7 @@ fn a_guest_gets_the_lesser_memory_cpus_and_processes_of_the_offer() {
     assert!(has(&a, "--podvm-cpus", "2") && has(&a, "--pids-limit", "50"), "{a:?}");
     assert!(has(&a, "--podvm-mem", "1536M"), "the boot floor of the image: {a:?}");
     let a = argv("u-4", Limits { memory_bytes: Some(3 << 30), ..Limits::default() });
-    assert!(has(&a, "--podvm-mem", "3072M"), "the memory of the offer: {a:?}");
+    assert!(has(&a, "--podvm-mem", "3335M"), "the memory of the offer beyond the image: {a:?}");
     let large = Limits { memory_bytes: Some(64 << 30), cpus: Some(64), pids: Some(1 << 20), disk_bytes: None };
     let a = argv("u-2", large);
     assert!(has(&a, "--podvm-cpus", "4") && has(&a, "--pids-limit", "100") && has(&a, "--podvm-mem", "4G"), "{a:?}");

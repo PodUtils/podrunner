@@ -3,8 +3,9 @@
 //! about the image, and the guest holds both during the unpack. podvm's
 //! rule is `mem = 13/4 × N + 512 MiB`, rounded up to 256 MiB (COORD-219,
 //! `machine/guest/mem.rs` of podvm). `check` refuses a pin over the bound
-//! of the kind with [`largest_image`]; a guest gets the lesser of the kind
-//! and the offer, but not less than the boot floor of its image
+//! of the kind with [`largest_image`]. The root of a guest stays in its
+//! memory after the boot, and each file of the job takes memory too: the
+//! `memory` of an offer is the memory of the job beyond its root
 //! ([`guest_mem`]).
 
 use podrunner_unit::limits::{Limits, size_bytes};
@@ -36,9 +37,11 @@ pub fn mem_for(size: u64) -> u64 {
 
 /// The `--podvm-mem` of a guest. `kind` is the `mem` of the kind, `lesser`
 /// the lesser of the kind and the offer in bytes, and `size` the unpacked
-/// bytes of the image. The guest gets the larger of `lesser` and the boot
-/// floor of the image (`mem_for`, rounded up to 256 MiB as podvm does),
-/// in whole MiB, and never more than the kind: placement counts the kind.
+/// bytes of the image. The root of the guest is the unpacked image in its
+/// memory, so the job gets `lesser` beyond it: the guest gets the larger of
+/// `lesser + size` and the boot floor of the image (`mem_for`, rounded up
+/// to 256 MiB as podvm does), in whole MiB, and never more than the kind:
+/// placement counts the kind.
 pub fn guest_mem(kind: &str, lesser: Option<u64>, size: Option<u64>) -> String {
     // `plan` refuses a `mem` that is not a size.
     let Ok(kind_bytes) = size_bytes(kind) else { return kind.into() };
@@ -47,7 +50,7 @@ pub fn guest_mem(kind: &str, lesser: Option<u64>, size: Option<u64>) -> String {
     // the kind is the one value that `check` holds the pins against.
     let Some(size) = size else { return kind.into() };
     let floor = mem_for(size).div_ceil(FLOOR_STEP).saturating_mul(FLOOR_STEP);
-    let mib = want.max(floor).div_ceil(MIB);
+    let mib = want.saturating_add(size).max(floor).div_ceil(MIB);
     match mib.checked_mul(MIB) {
         Some(bytes) if bytes < kind_bytes => format!("{mib}M"),
         _ => kind.into(),
@@ -56,8 +59,8 @@ pub fn guest_mem(kind: &str, lesser: Option<u64>, size: Option<u64>) -> String {
 
 impl MicrovmUnit {
     /// The limits of a guest for an offer: the lesser of the kind and the
-    /// offer (T-198). `launch` raises the memory to the boot floor of the
-    /// image (T-655), which this function does not know: a warm guest has
+    /// offer (T-198). `launch` adds the image to the memory and keeps the
+    /// boot floor (T-655); this function does not know the image: a warm guest has
     /// the memory of the kind and fits only an offer with no less. No pids
     /// for a kind with no limit, so an older podvm gets no flag.
     pub(crate) fn applied(&self, job: &Limits) -> Limits {
@@ -87,9 +90,11 @@ mod tests {
     #[test]
     fn a_guest_gets_the_floor_of_its_image_up_to_the_kind() {
         let m = |lesser, size| guest_mem("8G", lesser, size);
-        assert_eq!(m(Some(GIB), Some(SIZE)), "5120M", "below the floor: the floor");
-        assert_eq!(m(Some(6 * GIB), Some(SIZE)), "6144M", "between the floor and the kind: the offer");
-        assert_eq!(m(Some(6 * GIB + 1), Some(SIZE)), "6145M", "a MiB rounds up");
+        assert_eq!(m(Some(GIB), Some(SIZE)), "5120M", "offer and image below the floor: the floor");
+        assert_eq!(m(Some(4 * GIB), Some(SIZE)), "5512M", "between the floor and the kind: the offer and the image");
+        assert_eq!(m(Some(6 * GIB), Some(SIZE)), "7560M", "the offer is beyond the root");
+        assert_eq!(m(Some(6 * GIB + 1), Some(SIZE)), "7561M", "a MiB rounds up");
+        assert_eq!(m(Some(7 * GIB), Some(SIZE)), "8G", "offer and image over the kind: the kind");
         assert_eq!(m(Some(8 * GIB), Some(SIZE)), "8G", "the kind: its own text");
         assert_eq!(m(Some(64 * GIB), Some(SIZE)), "8G", "above the kind");
         assert_eq!(m(Some(0), Some(SIZE)), "8G", "an offer of 0 is no limit");
@@ -97,9 +102,10 @@ mod tests {
         assert_eq!(m(Some(GIB), None), "8G", "no size of the image: the kind");
         assert_eq!(m(Some(u64::MAX), Some(SIZE)), "8G");
         assert_eq!(m(Some(GIB), Some(u64::MAX)), "8G", "a floor at overflow");
-        assert_eq!(m(Some(8 * GIB - 1), Some(1)), "8G", "the last MiB of the kind");
+        assert_eq!(m(Some(8 * GIB - 1), Some(1)), "8G", "the last byte of the kind");
+        assert_eq!(m(Some(8 * GIB - 1), Some(u64::MAX - 1)), "8G", "offer and image at overflow");
         assert_eq!(m(Some(GIB), Some(7 * GIB)), "8G", "a floor over the kind: the kind");
-        assert_eq!(m(Some(GIB), Some(0)), "1024M", "the floor of an empty image is 512 MiB");
+        assert_eq!(m(Some(GIB), Some(0)), "1024M", "an empty image: the offer over the floor of 512 MiB");
         assert_eq!(guest_mem("lots", Some(GIB), Some(SIZE)), "lots", "a kind that is not a size");
         assert_eq!(guest_mem("17179869184", Some(GIB), Some(SIZE)), "5120M", "a kind in bytes");
     }

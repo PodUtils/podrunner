@@ -202,8 +202,9 @@ mem = "8G"                               # the most memory of each guest (defaul
                                          # podrunner always passes a memory to podvm. The image is an uncompressed initramfs: podvm
                                          # needs 13/4 x unpacked_bytes + 512 MiB (COORD-219). check refuses a pin whose unpacked_bytes
                                          # is over (mem - 512 MiB) x 4 / 13 (T-573), with the fix: mem of at least 13/4 x N + 512 MiB,
-                                         # in whole GiB. An offer with less memory gets less, but not less than that floor (rounded
-                                         # up to 256 MiB); a pin with no unpacked_bytes gets mem (T-655)
+                                         # in whole GiB. The memory of an offer is the memory of the job beyond its root: the guest gets
+                                         # the offer plus unpacked_bytes, not less than that floor (rounded up to 256 MiB) and not more
+                                         # than mem; a pin with no unpacked_bytes gets mem (T-655)
 cpus = 2                                 # its vCPUs (default 2)
 engine = "/opt/podrunner/docker"         # optional: the static Docker binaries; each guest runs an engine
 ```
@@ -307,10 +308,13 @@ Each unit gets the lesser of the value of the offer (`memory` in bytes,
 `cpu` in milli-cores, rounded up to whole CPUs, `pids`) and the value of
 its kind (the keys below); a value that one side has alone holds (the
 owner, 2026-11-15, T-198). The one exception: a guest of the `microvm`
-kind holds the unpacked image in its memory (T-573), so it gets at least
-the boot floor of its image: 13/4 times `unpacked_bytes` of the pin plus
-512 MiB, rounded up to 256 MiB, and never more than its `mem` (T-655).
-A pin with no `unpacked_bytes` gets the `mem` of the kind. A warm guest
+kind holds its root, the unpacked image, in its memory (T-573), and each
+file of the job takes memory too. So the `memory` of an offer is the
+memory of the job beyond its root: the guest gets the lesser of the offer
+and `mem`, plus `unpacked_bytes` of the pin. It gets at least the boot
+floor of its image (13/4 times `unpacked_bytes` plus 512 MiB, rounded up
+to 256 MiB), and never more than its `mem` (T-655). A pin with no
+`unpacked_bytes` gets the `mem` of the kind. A warm guest
 has the `mem` of the kind: an offer with less memory starts cold. The `podvm` kind enforces `memory` and `pids` (and `cpu` where the host delegates a cgroup to the user),
 the `incus` kind `memory`, `cpu` and `pids`, and the `microvm` kind the
 `memory` and `cpu` of its guest, and `pids` with `[unit.microvm] pids`; placement refuses an offer that needs a
@@ -333,7 +337,7 @@ instance.
 | --- | --- | --- | --- |
 | `podvm` | `RLIMIT_AS` of the payload (`--ulimit as=`); .NET gets a heap limit and a region range of three quarters | `--cpus` in a leaf of a cgroup v2 subtree that the host delegates to the user (a systemd user session; podvm `0.2.0-beta.23` or later, T-221); refused elsewhere, with the reason | `pids.max` of the leaf of the unit (`--pids-limit`) where the host delegates a cgroup v2 subtree with the `pids` controller to the user (podvm `0.2.0-beta.23` or later, T-521); elsewhere `RLIMIT_NPROC` (`--ulimit nproc=`), which counts each process of the user, also of other units of that user |
 | `incus` | `limits.memory` (podvm `0.2.0-beta.20` or later) | `limits.cpu` | `limits.processes` |
-| `microvm` | the memory of the guest; the `memory` of an offer lowers it to the boot floor of the image at most | its vCPUs | `pids.max` of the cgroup of the payload in the guest (`--pids-limit`, podvm `0.2.0-beta.32` or later, T-488); with no `pids` of the kind, none |
+| `microvm` | the memory of the guest: the `memory` of an offer plus the unpacked image, not less than the boot floor of the image | its vCPUs | `pids.max` of the cgroup of the payload in the guest (`--pids-limit`, podvm `0.2.0-beta.32` or later, T-488); with no `pids` of the kind, none |
 
 The capability record of the `podvm` kind (the `probe` of the kind in
 `podrunner status`) says where `pids` holds: `limits.pids-per-unit` is
