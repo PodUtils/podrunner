@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| the container hooks (`docs/contracts/hook.md`) | A step of a `container:` job prints its output while it runs: the relay uses `/v2/hook/COMMAND` (a chunked answer; the exit code or the refusal in a trailer). The relay and the host ship together. | T-694 |
 | the installer | `serve.json` of `install.sh --serve` has `built_at_s` (an integer or null); the pin block has `BUILT_image_ARCH` and `BUILT_imagefull_ARCH`; a failed download names its cause (exit 1 as before). | T-633 |
 | command line, `run.toml`, `doctor --json` | `podrunner run --microvm --mem SIZE` and the key `mem`; `check` and `doctor` refuse a microvm pin whose job gets less than 2 GiB of root; the pins of `doctor --json` give `microvm_job_bytes`, and `microvm_mem_bytes` includes the reserve. | T-689, T-690 |
 | `podrunner-manifest.json`, the installer | The manifest has `podrunner.man_page` (`file`, `sha256` of `podrunner.1`; null for a release with no page); the installer and the offline bundle put the page in `PREFIX/share/man/man1`. | T-692 |
@@ -164,7 +165,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | command line, unit driver | `run` and `run --dry-run` on `--podvm`, `--microvm` or `--incus` refuse a limit of file size (`ulimit -f`) below the size of the files of the image (the tar of the cache, else the size that podvm gives, and a margin) before the first unit: exit 78, `the limit of file size (ulimit -f) is N bytes: a unit writes files of its image (...) up to about M bytes, and ends by SIGXFSZ at a larger one; fix: ulimit -f unlimited`; a hard limit below it names root and `--runner-dir`. On `--runner-dir` (W^X off, T-144) a limit only gives a warning. A podvm call that a signal ends gives `podvm VERB: ended by SIGNAME (N)` (was `exit -1:` with no cause); SIGXFSZ gives the limit and its fix. | T-632 |
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
-<!-- contract docs/contracts/hook.md 6bd6a5273549a35c0311136d78732c52af7ad85b831852d85039d6975dbe7db5 -->
+<!-- contract docs/contracts/hook.md e4ec7ef3b1f14d89f93208e786351cfc1dd4d1ce241c9e6aec829f377d474d45 -->
 <!-- contract docs/contracts/source-driver.md 46114c3b7a40cd652217eca2f770b35866a479a05f1ff5637c30a2402b1c171d -->
 <!-- contract docs/contracts/unit-driver.md 2f641d0658a90039fd34ab40b4857d1dba7044ed627564753e868ece2aac8712 -->
 <!-- contract schemas/config.v1.json 3496fe494c8560614cba8ee1f60a99d9caa7087c0ee08c096b87d6f1e3745c9e -->

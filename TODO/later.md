@@ -18574,7 +18574,7 @@ PKCS #12 store that the egress of the unit made (`UnitTrust.store`, from
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18598,6 +18598,23 @@ the quiet line that a container step prints at its end. Change the row of
 
 `cargo test -p podrunner-hook` with a step that prints a line, waits on
 an event, and prints again: the first line comes before the end.
+
+## Done
+
+2026-11-26, `ac36813b` (tests on a development host; not run on podvm). The
+relay posts each hook call to `/v2/hook/COMMAND` (`curl -N`); the host
+answers with a chunked body of the step log as it grows (each 50 ms, at
+most 64 KiB a chunk) and puts the exit code or the refusal in a trailer
+(`X-Podrunner-Exit`, `X-Podrunner-Refusal`); `/v1/hook` stays. The
+runner masks the stdout of the relay as for each step, so masking does
+not change. Tests: `tests_live::the_output_of_a_step_comes_while_it_runs`
+(the real relay, a step that waits for a file that the test makes only
+after it read the first line; it failed on the old code),
+`the_live_route_streams_and_ends_with_a_trailer`, and the relay test
+with a planted relay that ignores the refusal trailer; the official
+runner's container suite passes through the new relay. Not proven: a
+podvm unit, whose exec may write its log at the end. The leak of a fake
+shim in failed tests: T-703.
 
 # T-695: doctor --run names no NODE_EXTRA_CA_CERTS of SSL_CERT_FILE
 
@@ -18849,3 +18866,36 @@ platform.
 ## Prove
 
 `cargo test -p podrunner` with the refusal as a user: no word "Windows".
+
+# T-703: A failed test of a fake unit leaves its shim with the lock of cargo
+
+**Source:** the worker of T-694, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A test that fails while a container of a fake unit lives leaves the shim
+of the fake (a fork of the test binary) running, and the shim holds the
+open descriptor of the cargo lock of the session: a later build waited
+about 30 minutes.
+
+## Premise
+
+Seen by the worker of T-694 on 2026-11-26; `tests_live.rs` now has a
+drop guard. `tests_unit.rs` and `tests_ca.rs` of `podrunner-hook` clean
+up only on success.
+
+## Approach
+
+Add drop guards that destroy the fake unit to those tests, and spawn the
+shim of the fake unit with each descriptor above 2 closed (or
+`FD_CLOEXEC`).
+
+## Prove
+
+`cargo test -p podrunner-hook` with a planted failing test of a fake
+unit: no shim stays, and no descriptor of the lock is open.

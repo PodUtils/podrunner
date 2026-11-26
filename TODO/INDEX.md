@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**697 entries: 76 open, 54 partial, 18 blocked, 549 done.**
+**698 entries: 76 open, 54 partial, 18 blocked, 550 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 12 | 19 | 10 | 283 | 324 |
-| P3 | 63 | 12 | 6 | 164 | 245 |
-| **All** | 76 | 54 | 18 | 549 | 697 |
+| P3 | 63 | 12 | 6 | 165 | 246 |
+| **All** | 76 | 54 | 18 | 550 | 698 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -736,7 +736,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-691](later.md) | P3 | S | later | feature | blocked | The run report does not name the limits a unit got |
 | [T-692](later.md) | P3 | M | later | feature | done | The installer does not install the man page |
 | [T-693](later.md) | P3 | S | later | chore | done | The trust store of a unit of serve is encoded twice |
-| [T-694](later.md) | P3 | M | later | defect | open | The output of a container step comes at its end |
+| [T-694](later.md) | P3 | M | later | defect | done | The output of a container step comes at its end |
 | [T-695](later.md) | P3 | S | later | defect | open | doctor --run names no NODE_EXTRA_CA_CERTS of SSL_CERT_FILE |
 | [T-696](later.md) | P3 | S | later | defect | done | A podvm unit after job-mismatch is degraded with an unknown count |
 | [T-697](later.md) | P3 | S | later | defect | open | The stand-in of actions/checkout prints its script in the log |
@@ -745,3 +745,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-700](later.md) | P3 | S | later | defect | open | config init does not make the directory of its output |
 | [T-701](later.md) | P3 | S | later | defect | open | A local run with --podnet leaves a socket of podnet in /tmp |
 | [T-702](later.md) | P3 | S | later | defect | open | install-unit names Windows in a refusal on Linux |
+| [T-703](later.md) | P3 | S | later | defect | open | A failed test of a fake unit leaves its shim with the lock of cargo |
