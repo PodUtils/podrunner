@@ -20,6 +20,7 @@ disposable host (a GitHub runner).
 | `userns-on.sh` | a user with no root makes a user namespace with mounts (AppArmor's restriction off), so podvm takes its namespace rung | yes (the sysctl) |
 | `nonroot.sh` | a user with no root and no capability | yes (the user) |
 | `proxy-only.sh` | the user reaches the network only through an HTTPS proxy on the loopback that intercepts TLS (mitmproxy), with the proxy and a CA bundle in its environment; before `nonroot.sh` | yes (the user, the proxy, iptables) |
+| `fsize.sh` | the soft and the hard limit of file size are 1 GiB (`LAB_FSIZE` bytes; `prlimit`); before `nonroot.sh` | no |
 | `inherited-fds.sh` | descriptors 3 to N open in the command (`LAB_FDS`, default 15); bash | no |
 
 Each script checks its class first and fails with the part that does not

@@ -30,6 +30,7 @@ import os
 import pathlib
 import platform
 import re
+import resource
 import shlex
 import shutil
 import signal
@@ -103,6 +104,19 @@ def incus_before_apparmor_fix(version: str):
     return (major, minor, patch) < (6, 0, 6) or (major == 6 and 1 <= minor <= 18)
 
 
+def fsize_expect(soft: int, size: int) -> str:
+    """T-638: what a podvm route does under a limit of file size of SOFT
+    bytes with an image of SIZE bytes: "run", "refuse" or "either". The rule
+    of `fsize_need` in crates/podrunner/src/run_local/dry.rs: a unit writes
+    the tar of its image and a quarter more, and 64 MiB. A need within 10 %
+    of the limit gives "either": the size of the image cache and the size
+    that podvm reports can differ a little."""
+    need = size + size // 4 + (64 << 20)
+    if need * 10 <= soft * 9:
+        return "run"
+    return "refuse" if need * 10 > soft * 11 else "either"
+
+
 def self_test() -> int:
     """The parts of the gate that need no host."""
     def line(job, state, t, source="githome"):
@@ -124,6 +138,17 @@ def self_test() -> int:
     for v, want in (("6.0.0", True), ("6.0.5", True), ("6.18", True), ("6.0.6", False), ("6.0.7", False),
                     ("6.19", False), ("7.0", False), ("abc", None), ("", None)):
         assert incus_before_apparmor_fix(v) is want, (v, want)
+    # T-638: the threshold of an image under 1 GiB is about 768 MiB.
+    gib = 1 << 30
+    cases = ((gib, 300_000_000, "run"), (gib, 0, "run"), (gib, 1 << 30, "refuse"), (gib, 2 << 30, "refuse"),
+             (gib, 700 << 20, "either"), (gib, 800 << 20, "either"), (gib, 600 << 20, "run"),
+             (gib, 900 << 20, "refuse"), (4 * gib, 1 << 30, "run"), (100_000_000, 300_000_000, "refuse"))
+    wrong = lambda fn: [c for c in cases if fn(c[0], c[1]) != c[2]]
+    assert not wrong(fsize_expect), wrong(fsize_expect)
+    # Planted defects: no margin of 64 MiB, no quarter, no band: each fails a case.
+    assert wrong(lambda soft, size: "run" if size + size // 4 <= soft else "refuse")
+    assert wrong(lambda soft, size: "run" if size + (64 << 20) <= soft else "refuse")
+    assert wrong(lambda soft, size: "run" if size <= soft else "refuse")
     print("user-gate: self-test passed")
     return 0
 
@@ -275,6 +300,10 @@ class Lane:
         self.home = self.work / "home"
         self.data = self.home / ".local" / "share" / "podrunner"
         self.image = ""
+        # T-638: the soft and the hard limit of file size of the lane (None:
+        # no limit), and whether a podvm route is refused under it.
+        self.fsize = tuple(None if v == resource.RLIM_INFINITY else v for v in resource.getrlimit(resource.RLIMIT_FSIZE))
+        self.podvm_refused = False
         # The home of the lane as a home is: no write of the group or the
         # others, whatever the umask of the lab user (podrunner refuses a
         # driver under an open directory, T-537).
@@ -473,6 +502,68 @@ class Lane:
             lines = [line for line in err if line.startswith("podrunner:")][-2:]
         return ok, f"podrunner run: exit {rc}: " + "; ".join(lines[-5:])
 
+    def check_on(self, executor: str, name: str, fn) -> bool:
+        """`check`, but a podvm check is a skip when the check `fsize` found
+        that the limit of file size refuses the podvm route (T-638)."""
+        if executor == "podvm" and self.podvm_refused:
+            self.skip(name, "the limit of file size refuses the podvm route (check fsize)")
+            return False
+        return self.check(name, fn)
+
+    def image_bytes(self) -> int:
+        """The bytes of the image of the lane, from `podvm inspect`, as
+        `image_size` of dry.rs asks; an unknown size counts as 1 GiB."""
+        if not self.image:
+            raise GateError("the lane has no image")
+        env = self.env(self.home, PODVM_STORE=str(self.data / "images"))
+        rc, out = self.run([self.data / "bin" / "podvm", "inspect", "--format", "{{.Size}}", self.image], env, self.work, "fsize-inspect")
+        return int(out.strip()) if rc == 0 and out.strip().isdigit() and int(out.strip()) > 0 else 1 << 30
+
+    def fsize_check(self):
+        """T-638: the lane has a limit of file size (`ulimit -f`, T-144,
+        T-632). The `--runner-dir` route runs: doctor --run does not fail
+        its check `file-size-limit`. The `--podvm` route runs when the image
+        is under the threshold of dry.rs, else `doctor --run` fails the check
+        and `run` exits 78 with "only root can raise it" (the lane has no
+        root) and the name of `--runner-dir`; the podvm checks are then
+        skips."""
+        soft, hard = self.fsize
+        if soft is None:
+            raise GateError("the lane has no limit of file size: the lab fsize.sh did not hold")
+        env, done = self.env(self.home), []
+        for e in ("podvm", "runner-dir"):
+            if e not in self.executors:
+                continue
+            args = [self.data / "hello.yml", *self.flags(e)]
+            _, out = self.run(["podrunner", "doctor", "--run", *args], env, self.work, f"fsize-doctor-{e}")
+            line = next((x for x in out.splitlines() if " file-size-limit:" in x), "")
+            if not line:
+                raise GateError(f"doctor --run on {e}: no check file-size-limit in its output")
+            refused = line.startswith("FAIL")
+            if e == "runner-dir":
+                if refused:
+                    raise GateError(f"doctor --run on runner-dir fails file-size-limit under {soft} bytes (T-144): {line[:300]}")
+                done.append(f"runner-dir: {line.split(': ', 1)[1][:60]}")
+                continue
+            size = self.image_bytes()
+            want = fsize_expect(soft, size)
+            if refused != (want == "refuse") and want != "either":
+                raise GateError(f"doctor --run on podvm: the check is {'FAIL' if refused else 'ok'} for an image of {size} bytes under {soft} bytes (want {want}): {line[:300]}")
+            self.podvm_refused = refused
+            if not refused:
+                done.append(f"podvm: the image of {size} bytes is under the threshold")
+                continue
+            rc, _ = self.run(["podrunner", "run", *args], env, self.work, "fsize-run-podvm")
+            err = (self.out / "logs" / "fsize-run-podvm.err").read_text(errors="replace")
+            last = ([x for x in err.splitlines() if x.startswith("podrunner:")] or [""])[-1]
+            words = ["only root can raise it", "--runner-dir"] if hard == soft else ["ulimit -f"]
+            missing = [w for w in words if w not in last or w not in line]
+            if rc != 78 or missing:
+                self.show("fsize-run-podvm")
+                raise GateError(f"run on podvm under {soft} bytes: exit {rc} (want 78), the last line {last[:200]!r} lacks {missing}")
+            done.append(f"podvm: the image of {size} bytes is over the threshold: doctor --run FAIL, run exit 78 with {' and '.join(words)}")
+        return "; ".join(done)
+
     def hello(self, executor: str):
         ok, detail = self.podrunner([self.data / "hello.yml", *self.flags(executor)], self.work, f"hello-{executor}", True)
         known = HELLO_XFAIL.get(executor)
@@ -627,7 +718,7 @@ class Lane:
             ("dead-proxy", [".github/workflows/fetch.yml", *self.flags("runner-dir"), "--actions", self.work / "errors-actions"],
              {"HTTPS_PROXY": dead, "https_proxy": dead, "HTTP_PROXY": dead, "http_proxy": dead}, 78, ["proxy", "--local-repository"]),
         ]
-        if "podvm" in self.executors:
+        if "podvm" in self.executors and not self.podvm_refused:
             cases += [
                 ("no-toolcache", [".github/workflows/plain.yml", "--toolcache", self.work / "no-such-toolcache"], {}, 78, ["--toolcache", "mkdir -p"]),
                 ("no-image", [".github/workflows/plain.yml", "--image", zero], {}, 78, ["store"]),
@@ -1337,6 +1428,8 @@ def lane(a) -> int:
         if errors:
             raise SystemExit("\n".join(errors))
     later = [f"hello:{e}" for e in g.executors] + (["errors"] if "runner-dir" in g.executors else []) + (["rung:podvm", "confine:podvm", "pids:podvm", "pty:podvm", "hold:podvm"] if "podvm" in g.executors else [])
+    limited = g.fsize[0] is not None or g.name.startswith("fsize-")
+    later = (["fsize"] if limited else []) + later
     later += [f"serve:{c}:{k}" for k in g.serve_kinds for c in ("check", "run", "job")]
     later += ["serve:run:ws:microvm"] if "microvm" in g.serve_kinds else []
     warm_kinds = [k for k in g.serve_kinds if k in ("microvm", "incus")]
@@ -1358,16 +1451,18 @@ def lane(a) -> int:
                         g.check("lab:doctor", functools.partial(g.doctor_names_the_bind, a.podvm_lab))
                         g.check("lab:run", functools.partial(g.run_names_the_bind, a.podvm_lab))
                         g.check("lab:vnet", functools.partial(g.run_on_the_vnet, a.podvm_lab))
+                if limited:
+                    g.check("fsize", g.fsize_check)
                 for e in g.executors:
-                    g.check(f"hello:{e}", functools.partial(g.hello, e))
+                    g.check_on(e, f"hello:{e}", functools.partial(g.hello, e))
                 if "runner-dir" in g.executors:
                     g.check("errors", g.error_paths)
                 if "podvm" in g.executors:
-                    g.check("rung:podvm", g.rung)
-                    g.check("confine:podvm", functools.partial(g.confine, "podvm"))
-                    g.check("pids:podvm", functools.partial(g.pids, "podvm"))
-                    g.check("pty:podvm", g.pty)
-                    g.check("hold:podvm", g.hold)
+                    g.check_on("podvm", "rung:podvm", g.rung)
+                    g.check_on("podvm", "confine:podvm", functools.partial(g.confine, "podvm"))
+                    g.check_on("podvm", "pids:podvm", functools.partial(g.pids, "podvm"))
+                    g.check_on("podvm", "pty:podvm", g.pty)
+                    g.check_on("podvm", "hold:podvm", g.hold)
                 for k in g.serve_kinds:
                     if g.check(f"serve:check:{k}", functools.partial(g.serve_check, k)):
                         g.check(f"serve:run:{k}", functools.partial(g.serve_run, k))
@@ -1383,7 +1478,7 @@ def lane(a) -> int:
                             g.skip(f"serve:warm:{k}", "the check of the configuration failed")
                 for r in rows:
                     if g.wants(r):
-                        g.check(f"corpus:{r['id']}:{r['executor']}", functools.partial(g.corpus_row, r))
+                        g.check_on(r["executor"], f"corpus:{r['id']}:{r['executor']}", functools.partial(g.corpus_row, r))
             else:
                 for name in later:
                     g.skip(name, "the install failed")
