@@ -373,7 +373,7 @@
 367 issue open
 368 issue open
 369 issue open
-370 issue open
+370 issue closed
 371 issue open
 372 issue open
 373 issue open

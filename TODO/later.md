@@ -12096,6 +12096,17 @@ podvm sets `memory.swap.max` to N too, so a unit can hold about twice
 kind, and a job-level step of a job past `mem` of `[unit.incus]` through
 slots (reason `limit`, audit line `limit` `memory`).
 
+State (2026-11-26, `runner-image.yml` 45852164277 on `10e5e12`; proven in
+CI on GitHub-hosted runners): both live tests pass.
+`a_unit_past_its_memory_counts_an_oom_kill_in_a_delegated_cgroup` (the
+step of the delegated cgroup): a podvm unit with `mem` 256 MiB past its
+memory gives `oom_kills` 1 in the run report of podvm.
+`a_job_past_the_memory_of_the_kind_fails_with_an_oom_kill_counted` (the
+step "The limits of an incus instance"): an instance with 256 MiB of the
+kind ends with exit 1 and `oom_kills` 1. Left: the microvm kind, and a
+job-level step of a job past `mem` of `[unit.incus]` through slots
+(reason `limit`, audit line `limit` `memory`).
+
 # T-516: G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
@@ -16308,7 +16319,7 @@ Give each area to a lane of `user-gate.yml` (T-243, T-244) where a lane exists, 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -16351,6 +16362,14 @@ failed at its check: "the lane has no limit of file size". `fsize.sh`
 set the limit, but `nonroot.sh` runs its command by `sudo`, whose
 `pam_limits` reset the limit as root. The lane now runs `nonroot.sh`
 first, then `fsize.sh`. Left: the next run of the lane.
+
+## Done
+
+2026-11-26, user-gate run 45860032871 on `25b79ea` (proven in CI on
+GitHub-hosted runners, as a user with no root): the lane `fsize-1g`
+(`nonroot.sh`, then `fsize.sh` with 1 GiB) is green. The check `fsize`
+passes; each row of the lane passes or has its `xfail` with its entry;
+the row `errors` names the limit of file size in its refusal.
 
 # T-639: Ctrl-C does not cancel a `container:` job in a long step on `--podvm`
 
@@ -16540,7 +16559,7 @@ From the work of T-640: I read `crates/podrunner-local/src/message/checkout.rs` 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -16579,6 +16598,14 @@ output of a container step comes at its end (T-694), so the line of a
 step that then sleeps never came. The job now has two steps: the first
 prints the line and ends (the event), the second sleeps. Left: the next
 run of the lane.
+
+## Done
+
+2026-11-26, user-gate run 45860032871 on `25b79ea` (proven in CI on
+GitHub-hosted runners, as a user with no root): the lane
+`cancel-container` is green. The check `cancel:container` passes: the
+first step of the `container:` job prints its mark, INT during the second
+step ends the run, and no container or unit stays.
 
 # T-645: The man page of the model under groff and mandoc, and in the assets of a release
 

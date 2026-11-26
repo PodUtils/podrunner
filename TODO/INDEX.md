@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**702 entries: 72 open, 54 partial, 21 blocked, 555 done.**
+**702 entries: 72 open, 52 partial, 21 blocked, 557 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 11 | 19 | 11 | 283 | 324 |
-| P3 | 60 | 12 | 8 | 170 | 250 |
-| **All** | 72 | 54 | 21 | 555 | 702 |
+| P2 | 11 | 18 | 11 | 284 | 324 |
+| P3 | 60 | 11 | 8 | 171 | 250 |
+| **All** | 72 | 52 | 21 | 557 | 702 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -680,13 +680,13 @@ acceptance, later The crate dependencies later than v1.
 | [T-635](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |
 | [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
 | [T-637](later.md) | P3 | L | later | measurement | open | QA round 6, agent A: the areas that the round did not test |
-| [T-638](later.md) | P3 | S | later | defect | partial | The user-path gate has no lane with a hard limit of file size of 1 GiB |
+| [T-638](later.md) | P3 | S | later | defect | done | The user-path gate has no lane with a hard limit of file size of 1 GiB |
 | [T-639](later.md) | P2 | M | later | defect | done | Ctrl-C does not cancel a `container:` job in a long step on `--podvm` |
 | [T-640](later.md) | P2 | M | later | defect | done | `actions/checkout` with `ref:` on the same repository is silently ignored in the local mode |
 | [T-641](later.md) | P2 | S | later | defect | done | `check` accepts the `config_url` of an organization with `.git` at the end |
 | [T-642](later.md) | P3 | M | later | defect | done | QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts |
 | [T-643](later.md) | P3 | S | later | defect | open | The local checkout names the keys of `with:` that the stand-in does not take |
-| [T-644](later.md) | P2 | S | later | chore | partial | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
+| [T-644](later.md) | P2 | S | later | chore | done | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
 | [T-645](later.md) | P3 | S | later | chore | done | The man page of the model under groff and mandoc, and in the assets of a release |
 | [T-646](later.md) | P3 | M | later | defect | done | Tests that write a program and start it while other tests fork |
 | [T-647](later.md) | P1 | S | later | chore | done | Take podcrates `v0.83.0` and podvm `0.2.0-beta.40` (COORD-154 of podcrates, COORD-246 of podvm) |

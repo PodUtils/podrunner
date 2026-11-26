@@ -587,7 +587,12 @@ ok "an install from a local HTTP server"
 # hello.yml with each executor. A lane with no larger image fails.
 python3 -I "$root/scripts/user-gate.py" check > "$t/out" 2>&1 || fail "user-gate.py check"
 mkdir "$t/host"
-python3 -I "$root/scripts/user-gate.py" lane --lane local --assets "$t/rel" --out "$t/lane-out" --work "$t/lane" --no-corpus \
+# A stub man that finds no page, as on a minimal image: the lane must not
+# judge the page with it, whatever man the host has.
+mkdir -p "$t/fakeman/none"
+printf '#!/bin/sh\nexit 1\n' > "$t/fakeman/none/man"
+chmod 0755 "$t/fakeman/none/man"
+PATH=$t/fakeman/none:$PATH python3 -I "$root/scripts/user-gate.py" lane --lane local --assets "$t/rel" --out "$t/lane-out" --work "$t/lane" --no-corpus \
     --confine-marker-dir "$t/host" \
     > "$t/out" 2>&1 || fail "a lane of the user-path gate"
 python3 -I "$root/scripts/user-gate-summary.py" --lanes local "$t/lane-out" > "$t/out" 2>&1 || fail "the summary of the lane"

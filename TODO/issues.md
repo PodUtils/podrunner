@@ -363,7 +363,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #367 | COORD-140: run-report.v1: an optional `unit.limits` with the limits a unit got (to podcrates) | open (waits for the answer of podcrates) | T-691 |
 | #368 | COORD-141: a `-v HOST:GUEST:overlay` volume mode: a read-only cache with a writable layer (to podvm) | open (waits for the answer of podvm) | T-650 |
 | #369 | COORD-142: podnet pod leaves /tmp/podnet-netns-inbound-UID/*.sock after its end (to podnet) | open (waits for the answer of podnet) | T-701 |
-| #370 | [gh action] requested | open (gate, secrets, `level2.yml`, `runner-image.yml` and `user-gate.yml` on `d378a029`) | T-515, T-597, T-638, T-644, T-645, T-655, T-689, T-692 |
+| #370 | [gh action] requested | closed (`level2.yml` 45852157087, `runner-image.yml` 45852164277 and `user-gate.yml` 45860032871 green; gate 45852144795 and secrets 45852150902 red, fixed in the commit that names #370) | T-515, T-597, T-638, T-644, T-645, T-655, T-689, T-692 |
 | #371 | COORD-143: a writable host volume that the host user can remove, on the machine and incus tiers (to podvm) | open (waits for the answer of podvm) | T-648, T-704 |
 | #372 | COORD-144: the unpacked bytes of an image in `inspect` before its first run (to podvm) | open (waits for the answer of podvm) | T-706 |
 | #373 | COORD-145: pod-fake-github: `container:` and `services:` jobs, and the log of a job (to podcrates) | open (waits for the answer of podcrates) | T-707 |
