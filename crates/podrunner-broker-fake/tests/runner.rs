@@ -184,7 +184,11 @@ fn a_job_started_hook_ends_a_foreign_job_before_its_first_step() {
             }
         }
         let broker = Broker::start().unwrap();
-        broker.queue(Job::scripts("own", &["echo step > marker.txt"]));
+        // T-682: a step of `if: always()` runs after a failed step. On a
+        // refused job it must not run: the hook ends the worker.
+        let mut own = Job::scripts("own", &["echo step > marker.txt", "echo always > always.txt"]);
+        own.steps[1].condition = "always()".into();
+        broker.queue(own);
         let _ = std::fs::remove_dir_all(dir.join("_work"));
         let err = dir.join("podrunner-stderr.txt");
         let env = [("ACTIONS_RUNNER_HOOK_JOB_STARTED", hook.display().to_string())];
@@ -198,13 +202,13 @@ fn a_job_started_hook_ends_a_foreign_job_before_its_first_step() {
         let log = std::fs::read_to_string(&err).unwrap_or_default();
         assert_eq!(log.contains("podrunner-job-started: ended: "), !ok, "{want:?}: {log}");
         assert_eq!(dir.join("_work/app/app/marker.txt").exists(), ok, "{want:?}: the step ran or not");
-        // T-201: an annotation of the job names the cause of a foreign job.
-        assert_eq!(
-            broker.logs().contains("##[error]podrunner: this runner was placed"),
-            !ok,
-            "{want:?}: {}",
-            broker.logs()
-        );
+        assert_eq!(dir.join("_work/app/app/always.txt").exists(), ok, "{want:?}: the always() step ran or not");
+        // T-201: a kept job has no annotation of a foreign job. A refused
+        // job loses its annotation with its worker (T-682); the host reports
+        // the code of the line above (T-552).
+        if ok {
+            assert!(!broker.logs().contains("##[error]podrunner: this runner was placed"), "{}", broker.logs());
+        }
     }
     let _ = std::fs::remove_file(&job);
 }
@@ -235,7 +239,8 @@ fn the_job_started_hook_asks_serve_for_a_job_of_another_run() {
             ("NO_PROXY", "127.0.0.1,localhost".to_string()),
             ("no_proxy", "127.0.0.1,localhost".to_string()),
         ];
-        run_once(&dir, &broker, &env);
+        let err = dir.join("podrunner-stderr.txt");
+        podrunner_broker_fake::runner::run_once_into(&dir, &broker, &env, &err);
         std::thread::sleep(Duration::from_millis(100));
         let done = broker.completions();
         assert_eq!(done[0].conclusion, if ok { "succeeded" } else { "failed" }, "{verdict}: {done:?}");
@@ -249,7 +254,10 @@ fn the_job_started_hook_asks_serve_for_a_job_of_another_run() {
         );
         // T-653: the ref and the repository id of the job, for its cache.
         assert!(asked[0].contains(r#""ref":"refs/heads/main""#) && asked[0].contains(r#""repo_id":4242"#), "{asked:?}");
-        assert_eq!(broker.logs().contains("tier-mismatch"), !ok, "{}", broker.logs());
+        // The code reaches the host in the line of the hook (T-552); the
+        // job log ends with the worker (T-682).
+        let log = std::fs::read_to_string(&err).unwrap_or_default();
+        assert_eq!(log.contains("podrunner-job-started: ended: tier-mismatch"), !ok, "{log}");
     }
     let _ = std::fs::remove_file(&job);
 }
@@ -289,7 +297,8 @@ fn the_job_started_hook_marks_the_first_step_of_its_own_job() {
             ("no_proxy", "127.0.0.1".to_string()),
             ("NODE_USE_ENV_PROXY", "1".to_string()),
         ];
-        run_once(&dir, &broker, &env);
+        let err = dir.join("podrunner-stderr.txt");
+        podrunner_broker_fake::runner::run_once_into(&dir, &broker, &env, &err);
         std::thread::sleep(Duration::from_millis(100));
         let done = broker.completions();
         let succeeds = !strict || answers;
@@ -303,7 +312,8 @@ fn the_job_started_hook_marks_the_first_step_of_its_own_job() {
             assert!(asked[0].starts_with("POST http://control.podrunner.test/v1/started "), "{asked:?}");
             assert!(asked[0].ends_with("\n{}"), "no fact of the job: {asked:?}");
         }
-        assert_eq!(broker.logs().contains("podrunner: this runner was placed"), !succeeds, "{}", broker.logs());
+        let log = std::fs::read_to_string(&err).unwrap_or_default();
+        assert_eq!(log.contains("podrunner-job-started: ended: no-answer"), !succeeds, "{log}");
     }
     let _ = std::fs::remove_file(&job);
 }

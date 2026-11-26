@@ -278,7 +278,10 @@ fn a_foreign_job_ends_before_its_first_step_in_a_podvm_unit() {
     let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let prepared = unit.prepare(&env("PODRUNNER_RUNNER_IMAGE"), platform, false).unwrap();
     let broker = Broker::start().unwrap();
-    broker.queue(Job::scripts("foreign", &["echo podrunner-foreign-$((6*7))"]));
+    // T-682: the step of `if: always()` must not run either.
+    let mut foreign = Job::scripts("foreign", &["echo podrunner-foreign-$((6*7))", "echo podrunner-always-$((6*7))"]);
+    foreign.steps[1].condition = "always()".into();
+    broker.queue(foreign);
     let mut files: Vec<CredentialFile> = broker
         .runner_files("runner-u-2")
         .into_iter()
@@ -308,8 +311,9 @@ fn a_foreign_job_ends_before_its_first_step_in_a_podvm_unit() {
     assert_eq!(done.len(), 1, "{:?}\n{logs}", broker.seen());
     assert_eq!(done[0].conclusion, "failed", "{logs}");
     assert!(!logs.contains("podrunner-foreign-42"), "a step of the foreign job ran: {logs}");
-    // T-201: an annotation names the cause.
-    assert!(logs.contains("##[error]podrunner: this runner was placed"), "no annotation names the cause: {logs}");
+    // T-682: the hook ends the worker, so no later step runs; the job log
+    // ends with the worker, and the host reads the code of the hook.
+    assert!(!logs.contains("podrunner-always-42"), "the always() step of the foreign job ran: {logs}");
     assert!(residue.is_clean(), "{residue:?}");
 }
 

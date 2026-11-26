@@ -17586,7 +17586,7 @@ Podvm must release the new Incus image import path.
 **Milestone:** later
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -17624,6 +17624,23 @@ termination alone cannot guard a job for which the hook sent no request.
 The complete fix needs admission before step dispatch or a host guard
 on protected resources. Existing `assignment_hook` pins attest the old
 hook contract. No source patch is pending.
+
+State (2026-11-26; the official runner `v2.338.2` against the fake broker
+on a development host; the podvm unit not run): admission before step
+dispatch. The hook runs as a child of `Runner.Worker` before each step of
+the job, and the worker waits for it. On `end`, on no answer and with no
+node, `images/runner/podrunner-job-started.sh` now writes the `ended:`
+line to the stderr of `Runner.Listener`, then kills `Runner.Worker` before
+it exits. The listener reports the job `failed`, and no later step runs.
+`a_job_started_hook_ends_a_foreign_job_before_its_first_step` has a
+second step with `always()`: before the change it ran on a refused job
+(the test failed at the `always.txt` check); now it does not. The 9 tests
+of `tests/runner.rs` pass. The cost: the job log on the forge loses the
+annotation of the code (T-201), as the worker ends before it uploads the
+log of the hook; the tests now read the code in the `ended:` line, which
+the host reports (T-552). `tests/podvm.rs` checks the same in a podvm
+unit. Left: `tests/podvm.rs` in the runner-image run, and new
+`assignment_hook` payload pins of the next images (the hook changed).
 
 # T-683: The bundled engine fails in an instance of Incus before 6.0.6 and 6.19
 

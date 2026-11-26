@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| source wire, runner image | On `end` or no answer, the job-started hook ends the runner worker, so no later step runs, also no step of `if: always()`. The job log on the forge loses the annotation of the code; the report of the unit keeps it. | T-682 |
 | command line | `doctor --json` gives each kind a `warnings` list. With an engine on the incus kind, an incusd before 6.0.6 and 6.19 gives a warning: its AppArmor profile refuses runc 1.3.3 and later. `doctor`, `serve` and `run` print it. | T-683 |
 | pins, command line | Podcrates `v0.85.0` updates the release verifier and fake sources. `install-unit` and `remove-unit` show the failed step and its I/O cause. | T-675 |
 | pins, command line | Podnet `v0.4.0-beta.19` checks whether either backend can start. `doctor` displays the report when neither backend can start. | T-677 |
@@ -152,6 +153,6 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md 0f43d75790e248ee82e1ae12675d917352c0734520f6bedf5ed0642fdd4abea4 -->
-<!-- contract docs/contracts/source-driver.md bbd80c030766a84621eb6b75bee65d5bde4cae18d3f1f98ec230a43b6498ed26 -->
+<!-- contract docs/contracts/source-driver.md 46114c3b7a40cd652217eca2f770b35866a479a05f1ff5637c30a2402b1c171d -->
 <!-- contract docs/contracts/unit-driver.md 95465c8377fcc3f5bb7d7065232eabdcf823aef0483a2385d2aa2320622e680c -->
 <!-- contract schemas/config.v1.json d114ff65c723ee10fa688e6f8e2062b4d47918b28352b4b0066073afc4babde2 -->

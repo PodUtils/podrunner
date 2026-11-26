@@ -27,8 +27,9 @@ In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
    warning on Incus 6.0.0 and the engine on Incus 6.0 LTS of Zabbly.
    Check the `cache proof:` line of that run separately (T-480).
 2. Verify the podcrates and podnet takes in hosted CI (T-675, T-677).
-3. Fix the refused-assignment gap (T-682) before T-651. Take the remaining
-   cache work in T-480. T-682 has a source review and no code change.
+3. Prove T-682 in the runner-image run (`tests/podvm.rs`): the hook now
+   ends the runner worker on a refused assignment, so no `always()` step
+   runs. Then T-651. Take the remaining cache work in T-480.
 
 ## The release `v0.1.0-beta.8`
 

@@ -119,12 +119,18 @@ echo "$msg" >&2
 # job as job-mismatch (T-552). The name of the line is HOOK_ENDED of
 # crates/podrunner-slots/src/log_tail.rs.
 pid=$$
+worker=""
 while [ "$pid" -gt 1 ] 2>/dev/null; do
   comm=$(cat "/proc/$pid/comm" 2>/dev/null) || break
+  [ "$comm" = Runner.Worker ] && worker=$pid
   if [ "$comm" = Runner.Listener ]; then
     { printf 'podrunner-job-started: ended: %s\n' "$code" >> "/proc/$pid/fd/2"; } 2>/dev/null
     break
   fi
   pid=$(sed 's/.*) . \([0-9]*\) .*/\1/' "/proc/$pid/stat" 2>/dev/null) || break
 done
+# T-682: a failed hook fails only its step, and the worker still runs each
+# later step of `if: always()`. The hook runs before each step of the job,
+# so the end of the worker here stops the job before any of its steps.
+[ -n "$worker" ] && kill -KILL "$worker" 2>/dev/null
 exit 1

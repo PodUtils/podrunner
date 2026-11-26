@@ -106,7 +106,9 @@ a fork, and the facts give the same scope; else the code is
 `cache-mismatch`. The facts of `keep` give the `ref`,
 the `repo_id` and the event of the real job; a source that does not know
 one gives it empty, never the value of the offer. Else, and on `end`, the
-job ends before its first step with an annotation that names the code. A source with no
+job ends before its first step: the hook ends the runner worker, so no
+step runs, also no step of `if: always()` (T-682). The report of the unit
+names the code; the job log on the forge does not. A source with no
 `assigned` answers `bad-request`, and the job ends as before. No answer
 within 10 s ends the job with the code `source-unavailable`. For a job
 of the run of the offer, `serve` answers `keep` directly. The first
