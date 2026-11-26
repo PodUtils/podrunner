@@ -8,6 +8,7 @@ mod bounded;
 mod cache;
 mod cache_assigned;
 mod cancel;
+mod disk_kind;
 mod config;
 mod config_schema;
 mod egress;

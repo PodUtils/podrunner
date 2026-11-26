@@ -198,6 +198,16 @@ pub trait UnitDriver: Send + Sync {
         None
     }
 
+    /// The bytes of a running unit outside `unit_root` of
+    /// [`UnitDriver::observe`] that its kind measures itself (T-685): for
+    /// example the root disk of an instance in a storage pool, whose files
+    /// the host cannot walk. The disk bound of slots holds this sum plus the
+    /// walk of `unit_root`. slots calls it off the tick: it can be slow.
+    /// None: the kind has no such measure now, and the walk alone holds.
+    fn disk_bytes(&self, _unit: &UnitId) -> Option<u64> {
+        None
+    }
+
     /// Start a container of the job in the unit (the container hooks).
     fn container_start(&self, unit: &UnitId, spec: &ContainerSpec) -> Result<ContainerId, UnitError>;
 

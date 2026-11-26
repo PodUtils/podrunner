@@ -2,13 +2,16 @@
 //! of live units off the tick. The tick ends a unit above its bound with
 //! an audit line `limit` (`disk`) and the exit reason `limit`. The bound
 //! is the lesser of the `disk` limit of the offer and `[unit.X]
-//! disk_max_bytes` when both are set.
+//! disk_max_bytes` when both are set. The measure of a unit is the walk of
+//! its root plus the bytes that its kind measures itself
+//! (`UnitDriver::disk_bytes`, T-685): the host cannot walk the files of
+//! an incus instance in its pool.
 
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 
 use podrunner_schema::{ExitReason, JobId, UnitId};
-use podrunner_unit::Signal;
+use podrunner_unit::{Signal, UnitDriver};
 
 use crate::state::State;
 use crate::{Job, Slots, audit, fdwalk};
@@ -50,12 +53,27 @@ fn bytes_with(root: &Path, bound: u64, max_open: usize, mut d: impl FnMut(&std::
     bound.saturating_add(1)
 }
 
+/// The bytes of a unit: what its kind measures (`own`) plus the walk of
+/// `root`. No walk when `own` is above the bound already. None: no
+/// measure and no root.
+fn measure(own: Option<u64>, root: Option<&Path>, bound: u64) -> Option<u64> {
+    match (own, root) {
+        (Some(own), _) if own > bound => Some(own),
+        (own, Some(root)) => {
+            let own = own.unwrap_or(0);
+            Some(own.saturating_add(bytes_under_to(root, bound - own)))
+        }
+        (own, None) => own,
+    }
+}
+
 type Key = (usize, JobId);
 
 struct Task {
     key: Key,
     unit: UnitId,
-    root: PathBuf,
+    driver: Arc<dyn UnitDriver>,
+    root: Option<PathBuf>,
     bound: u64,
 }
 
@@ -63,7 +81,7 @@ struct Sample {
     key: Key,
     unit: UnitId,
     bound: u64,
-    bytes: u64,
+    bytes: Option<u64>,
 }
 
 /// One batch of disk walks at a time.
@@ -86,10 +104,10 @@ impl Worker {
         let held = gate.clone();
         std::thread::Builder::new().name("podrunner-disk".into()).spawn(move || {
             for batch in batches {
-                for Task { key, unit, root, bound } in batch {
+                for Task { key, unit, driver, root, bound } in batch {
                     #[cfg(test)]
                     let _held = held.lock();
-                    let bytes = bytes_under_to(&root, bound);
+                    let bytes = measure(driver.disk_bytes(&unit), root.as_deref(), bound);
                     if done.send(Sample { key, unit, bound, bytes }).is_err() {
                         return;
                     }
@@ -135,8 +153,10 @@ impl Slots {
                 (a, b) => a.or(b),
             };
             let Some(bound) = bound else { continue };
-            let Some(root) = kind.driver.observe(unit).ok().and_then(|o| o.unit_root) else { continue };
-            batch.push(Task { key: key.clone(), unit: unit.clone(), root, bound });
+            // A unit with no root can still have a measure of its kind.
+            let Ok(seen) = kind.driver.observe(unit) else { continue };
+            let driver = kind.driver.clone();
+            batch.push(Task { key: key.clone(), unit: unit.clone(), driver, root: seen.unit_root, bound });
         }
         let pending = batch.len();
         if pending != 0 && self.disk_worker.tasks.send(batch).is_ok() {
@@ -146,6 +166,7 @@ impl Slots {
 
     fn disk_sample(&mut self, Sample { key, unit, bound, bytes }: Sample, now: u64) {
         let Some(j) = self.jobs.get_mut(&key) else { return };
+        let Some(bytes) = bytes else { return };
         if !live(j) || j.unit.as_ref() != Some(&unit) {
             return;
         }
@@ -231,6 +252,25 @@ mod tests {
         let mode = fs::metadata(&shut).unwrap().permissions().mode() & 0o777;
         assert!(mode == 0o000 || mode == 0o500, "{mode:o}");
         fs::set_permissions(&shut, fs::Permissions::from_mode(0o700)).unwrap();
+    }
+
+    /// T-685: the measure of the kind adds to the walk; above the bound it
+    /// holds alone, with no walk; with none, the walk alone holds.
+    #[test]
+    fn the_measure_of_the_kind_adds_to_the_walk() {
+        let dir = TempDir::new();
+        fs::write(dir.0.join("file"), [0; 5000]).unwrap();
+        let root = Some(dir.0.as_path());
+        assert_eq!(measure(None, root, 100_000), Some(5000));
+        assert_eq!(measure(Some(1000), root, 100_000), Some(6000));
+        // The walk gets the rest of the bound: it stops above it.
+        assert_eq!(measure(Some(1000), root, 3000), Some(6000));
+        assert_eq!(measure(Some(100_000), root, 100_000), Some(105_000));
+        assert_eq!(measure(Some(100_001), root, 100_000), Some(100_001), "no walk above the bound");
+        assert_eq!(measure(Some(7), None, 100_000), Some(7));
+        assert_eq!(measure(Some(0), None, 100_000), Some(0), "a measured zero is a sample");
+        assert_eq!(measure(None, None, 100_000), None);
+        assert_eq!(measure(Some(u64::MAX), root, u64::MAX), Some(u64::MAX), "the sum saturates");
     }
 
     #[test]
