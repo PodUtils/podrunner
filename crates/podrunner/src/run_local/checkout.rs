@@ -161,8 +161,8 @@ mod tests {
     #[test]
     fn the_refs_of_the_checkouts_of_local_actions() {
         use podrunner_local::tree::refs::Ask;
-        let dir = std::env::temp_dir().join(format!("podrunner-action-asks-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        // The directory goes at the drop, also after a panic.
+        let dir = crate::scratch::Scratch::new("action-asks");
         std::fs::create_dir_all(dir.join("a")).unwrap();
         let steps = [
             "ref: v1",
@@ -183,6 +183,5 @@ mod tests {
         assert_eq!(got[0], ("4 of ./a".to_string(), Ask::Ref("v1".into())));
         assert_eq!(got[1], ("12 of ./a".to_string(), Ask::Ref("v3".into())));
         assert!(matches!(&got[2], (l, Ask::Bad(_)) if l == "14 of ./a"), "{got:?}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

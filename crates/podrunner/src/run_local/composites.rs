@@ -206,8 +206,8 @@ mod tests {
     /// same repository (by any case) and a bad name give none.
     #[test]
     fn the_trees_of_the_checkouts_of_local_actions() {
-        let dir = std::env::temp_dir().join(format!("podrunner-composite-trees-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        // The directory goes at the drop, also after a panic.
+        let dir = crate::scratch::Scratch::new("composite-trees");
         let comp = |p: &str, steps: &str| {
             std::fs::create_dir_all(dir.join(p)).unwrap();
             std::fs::write(dir.join(p).join("action.yml"), format!("runs:\n  using: composite\n  steps:\n{steps}"))
@@ -237,6 +237,5 @@ mod tests {
             super::local_checkouts(&w, &dir).unwrap().into_iter().map(|(p, l, _)| (p, l)).collect();
         assert_eq!(lines.len(), 7, "{lines:?}");
         assert!(lines.contains(&("./b".to_string(), 6)) && lines.contains(&("./a".to_string(), 4)), "{lines:?}");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }
