@@ -225,7 +225,7 @@ fn a_job_in_the_runner_layer_sees_the_hosted_paths_and_takes_the_tool_cache() {
 
     let broker = Arc::new(Broker::start_seen_at(NAME).unwrap());
     let port: u16 = broker.base.trim_end_matches('/').rsplit(':').next().unwrap().parse().unwrap();
-    broker.serve_actions(&actions, Default::default());
+    broker.serve_actions(Some(&actions), Default::default());
     broker.queue(job(&python, &setup_python));
 
     let podvm_bin = common::env("PODRUNNER_PODVM");

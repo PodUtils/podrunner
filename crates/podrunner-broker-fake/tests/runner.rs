@@ -101,7 +101,7 @@ fn an_action_input_takes_its_expression_default() {
         .unwrap();
     assert!(tar.success());
     let broker = Broker::start().unwrap();
-    broker.serve_actions(&actions, Default::default());
+    broker.serve_actions(Some(&actions), Default::default());
     let mut job = Job::scripts("defaults", &[]);
     let reference = serde_json::json!({
         "type": "repository", "repositoryType": "GitHub", "name": "example-org/defaults", "ref": SHA

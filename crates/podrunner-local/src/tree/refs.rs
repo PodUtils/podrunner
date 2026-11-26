@@ -11,7 +11,7 @@ use pod_actions_workflow::{Kind, Node, Workflow};
 /// repository. Its value is the commit; empty for the commit of HEAD (the
 /// local tree); `!` and the reason when the ref has no commit.
 pub fn key(r: &str) -> String {
-    format!("checkout-ref:{r}")
+    format!("{}{r}", podrunner_broker_fake::actions::REF_PIN)
 }
 
 /// What `ref:` of a checkout of the same repository asks.

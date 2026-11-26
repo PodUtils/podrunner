@@ -52,9 +52,11 @@ pub(super) fn trees(
         );
     }
     let called = called.unwrap_or_default();
-    let mut asks: Vec<(u32, Ask)> =
-        std::iter::once(workflow).chain(&called).flat_map(|w| refs::asks(w, self_repo)).collect();
+    let flows = || std::iter::once(workflow).chain(&called);
+    let mut asks: Vec<(String, Ask)> =
+        flows().flat_map(|w| refs::asks(w, self_repo)).map(|(line, a)| (line.to_string(), a)).collect();
     asks.dedup();
+    asks.extend(flows().flat_map(|w| action_asks(w, dir, self_repo)));
     let head = refs::head(dir);
     for (line, ask) in asks {
         let r = match ask {
@@ -103,6 +105,19 @@ pub(super) fn trees(
     Ok(Some(t))
 }
 
+/// Each static `ref:` of a checkout of the same repository in the local
+/// actions of `w` (T-713), with the line of its step and its `action.yml`.
+/// An expression is not here: the runner gives its value to the stand-in,
+/// which takes the ref of the run and fails another one with the fix.
+fn action_asks(w: &pod_actions_workflow::Workflow, base: &Path, self_repo: &str) -> Vec<(String, Ask)> {
+    let all = super::composites::local_checkouts(w, base).unwrap_or_default();
+    all.into_iter()
+        .filter(|(_, _, with)| matches!(podrunner_local::store::checkout_target(with.as_ref(), self_repo), Ok(None)))
+        .map(|(path, line, with)| (format!("{line} of {path}"), refs::ask(with.as_ref().and_then(|n| n.get("ref")))))
+        .filter(|(_, a)| !matches!(a, Ask::Default | Ask::Expression(_)))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use pod_actions_workflow::Workflow;
@@ -138,5 +153,36 @@ mod tests {
         assert!(notes("path: x").is_empty() && notes("submodules: true").is_empty());
         assert!(notes("ref: main").is_empty() && notes("repository: o/r").is_empty());
         assert!(!notes("token: s3cr3t").concat().contains("s3cr3t"));
+    }
+
+    /// T-713: a static `ref:` of a checkout of the same repository in a
+    /// local action is an ask, with the line and the action; an expression,
+    /// no ref and another repository are not.
+    #[test]
+    fn the_refs_of_the_checkouts_of_local_actions() {
+        use podrunner_local::tree::refs::Ask;
+        let dir = std::env::temp_dir().join(format!("podrunner-action-asks-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("a")).unwrap();
+        let steps = [
+            "ref: v1",
+            "ref: '${{ inputs.ref }}'",
+            "path: x",
+            "repository: o/other, ref: v2",
+            "repository: ME/SELF, ref: v3",
+            "ref: -x",
+        ]
+        .map(|w| format!("    - uses: actions/checkout@v4\n      with: {{{w}}}\n"))
+        .concat();
+        std::fs::write(dir.join("a/action.yml"), format!("runs:\n  using: composite\n  steps:\n{steps}")).unwrap();
+        let w = pod_actions_workflow::parse("on: push\njobs:\n  j:\n    runs-on: x\n    steps: [{uses: ./a}]\n")
+            .unwrap()
+            .workflow;
+        let got = super::action_asks(&w, &dir, "me/self");
+        assert_eq!(got.len(), 3, "{got:?}");
+        assert_eq!(got[0], ("4 of ./a".to_string(), Ask::Ref("v1".into())));
+        assert_eq!(got[1], ("12 of ./a".to_string(), Ask::Ref("v3".into())));
+        assert!(matches!(&got[2], (l, Ask::Bad(_)) if l == "14 of ./a"), "{got:?}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

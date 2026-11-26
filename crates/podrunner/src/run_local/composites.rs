@@ -15,6 +15,49 @@ const DEPTH: usize = 10;
 /// the tree `base` (the checkout). An `action.yml` that is not there is
 /// left out: its job fails at its start, as on GitHub.
 pub(super) fn local_uses(w: &pod_actions_workflow::Workflow, base: &Path) -> Result<Vec<String>, String> {
+    let mut out = Vec::new();
+    for (_, s) in local_steps(w, base)? {
+        let Some(Kind::String(u)) = s.get("uses").map(|n| &n.kind) else { continue };
+        // The broker resolves `actions/checkout` to its stand-in (T-708).
+        if !u.starts_with("./") && !u.starts_with("docker://") && !u.starts_with("actions/checkout@") && !out.contains(u)
+        {
+            out.push(u.clone());
+        }
+    }
+    Ok(out)
+}
+
+/// A checkout step of a local action: the path of the action, the line of
+/// the step in its `action.yml`, and its `with:`.
+pub(super) type Checkout = (String, u32, Option<Node>);
+
+/// Each `uses: actions/checkout@REF` step of the local actions of the steps
+/// of `w` (T-713): the run pins the trees of their static values.
+pub(super) fn local_checkouts(w: &pod_actions_workflow::Workflow, base: &Path) -> Result<Vec<Checkout>, String> {
+    let checkout = |s: &Node| matches!(s.get("uses").map(|n| &n.kind), Some(Kind::String(u)) if u.starts_with("actions/checkout@"));
+    Ok(local_steps(w, base)?
+        .into_iter()
+        .filter(|(_, s)| checkout(s))
+        .map(|(path, s)| (path, s.mark.line, s.get("with").cloned()))
+        .collect())
+}
+
+/// Each `OWNER/REPO@REF` of a checkout of another repository in the local
+/// actions of `w`, with static values (T-713). An expression, or a value
+/// that is not a repository, gets no tree: the stand-in fails its step
+/// with the fix.
+pub(super) fn local_trees(
+    w: &pod_actions_workflow::Workflow,
+    base: &Path,
+    self_repo: &str,
+) -> Result<Vec<String>, String> {
+    let all = local_checkouts(w, base)?.into_iter();
+    Ok(all.filter_map(|(_, _, with)| podrunner_local::store::checkout_target(with.as_ref(), self_repo).ok().flatten()).collect())
+}
+
+/// Each step of each local composite action that the steps of `w` name,
+/// and of each local action that one names, with the path of its action.
+fn local_steps(w: &pod_actions_workflow::Workflow, base: &Path) -> Result<Vec<(String, Node)>, String> {
     let mut queue: Vec<(String, usize)> = w
         .jobs
         .iter()
@@ -50,15 +93,13 @@ pub(super) fn local_uses(w: &pod_actions_workflow::Workflow, base: &Path) -> Res
         else {
             continue;
         };
-        for u in steps_uses(&text).map_err(|e| format!("the action.yml of `uses: {path}`: {e}"))? {
-            match u.starts_with("./") {
-                true => queue.push((u, depth + 1)),
-                // The broker resolves `actions/checkout` to its stand-in (T-708).
-                false if !u.starts_with("docker://") && !u.starts_with("actions/checkout@") && !out.contains(&u) => {
-                    out.push(u)
-                }
-                false => {}
+        for s in composite_steps(&text).map_err(|e| format!("the action.yml of `uses: {path}`: {e}"))? {
+            if let Some(Kind::String(u)) = s.get("uses").map(|n| &n.kind)
+                && u.starts_with("./")
+            {
+                queue.push((u.clone(), depth + 1));
             }
+            out.push((path.clone(), s));
         }
     }
     Ok(out)
@@ -99,21 +140,15 @@ pub(super) fn local_calls(
     Ok(out)
 }
 
-/// Each `uses:` of the steps of a composite `action.yml`.
-fn steps_uses(text: &str) -> Result<Vec<String>, String> {
+/// The steps of a composite `action.yml`; none for another kind.
+fn composite_steps(text: &str) -> Result<Vec<Node>, String> {
     let root = pod_actions_workflow::yaml::load(text, Limits::default()).map_err(|e| e.to_string())?;
     let Some(runs) = root.get("runs") else { return Ok(Vec::new()) };
     if !matches!(runs.get("using").map(|n| &n.kind), Some(Kind::String(u)) if u == "composite") {
         return Ok(Vec::new());
     }
     let Some(Kind::Seq(steps)) = runs.get("steps").map(|n| &n.kind) else { return Ok(Vec::new()) };
-    Ok(steps
-        .iter()
-        .filter_map(|s: &Node| match s.get("uses").map(|n| &n.kind) {
-            Some(Kind::String(u)) => Some(u.clone()),
-            _ => None,
-        })
-        .collect())
+    Ok(steps.clone())
 }
 
 #[cfg(test)]
@@ -158,6 +193,45 @@ mod tests {
         std::os::unix::fs::symlink(&out, dir.join("link")).unwrap();
         assert!(up("./link").unwrap_err().contains("leads out of the tree"));
         let _ = std::fs::remove_dir_all(&out);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-713: the static `repository` and `ref` of each checkout in a local
+    /// action, also a nested one, give a tree to pin; an expression, the
+    /// same repository (by any case) and a bad name give none.
+    #[test]
+    fn the_trees_of_the_checkouts_of_local_actions() {
+        let dir = std::env::temp_dir().join(format!("podrunner-composite-trees-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let comp = |p: &str, steps: &str| {
+            std::fs::create_dir_all(dir.join(p)).unwrap();
+            std::fs::write(dir.join(p).join("action.yml"), format!("runs:\n  using: composite\n  steps:\n{steps}"))
+                .unwrap();
+        };
+        let co = |with: &str| format!("    - uses: actions/checkout@v4\n      with: {{{with}}}\n");
+        comp(
+            "a",
+            &[
+                co("repository: o/second, ref: v1"),
+                co("repository: '${{ inputs.repo }}'"),
+                co("repository: o/third, ref: '${{ inputs.ref }}'"),
+                co("repository: Me/Self, ref: v2"),
+                co("repository: not-a-repo"),
+                "    - uses: ./b\n".to_string(),
+            ]
+            .concat(),
+        );
+        comp("b", &[co("repository: o/fourth"), co("ref: v3"), "    - run: echo\n".to_string()].concat());
+        let w = pod_actions_workflow::parse("on: push\njobs:\n  j:\n    runs-on: x\n    steps: [{uses: ./a}]\n")
+            .unwrap()
+            .workflow;
+        let mut got = super::local_trees(&w, &dir, "me/self").unwrap();
+        got.sort();
+        assert_eq!(got, ["o/fourth@HEAD", "o/second@v1"]);
+        let lines: Vec<(String, u32)> =
+            super::local_checkouts(&w, &dir).unwrap().into_iter().map(|(p, l, _)| (p, l)).collect();
+        assert_eq!(lines.len(), 7, "{lines:?}");
+        assert!(lines.contains(&("./b".to_string(), 6)) && lines.contains(&("./a".to_string(), 4)), "{lines:?}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

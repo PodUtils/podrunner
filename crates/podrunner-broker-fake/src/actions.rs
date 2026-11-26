@@ -83,6 +83,62 @@ pub fn checkout_file(commit: &str) -> String {
     format!("tree-{commit}.tar.gz")
 }
 
+/// The prefix of the key of the pins for `ref: R` of a checkout of the
+/// same repository (T-640): `checkout-ref:R`.
+pub const REF_PIN: &str = "checkout-ref:";
+
+/// The path on this broker of the route of a pinned tree (T-713): the
+/// stand-in of a checkout in an action asks it for `KEY` of the pins,
+/// with percent escapes.
+pub const PIN: &str = "_checkout/pin/";
+
+/// The answer for the pinned tree of `key` (with percent escapes): the
+/// route of its tarball on this broker (and `strip` for a tarball of the
+/// store), or the reason that fails the step. A key with no pin is 404:
+/// the run pins only the static values of a checkout in a local action.
+fn pinned(key: &str, pins: &BTreeMap<String, String>) -> (u16, Vec<u8>) {
+    let none = (404, Vec::new());
+    let Some(value) = unescape(key).and_then(|k| pins.get(&k).map(|v| (k, v.as_str()))) else { return none };
+    let answer = match value {
+        (k, "") if k.starts_with(REF_PIN) => json!({ "route": CHECKOUT }),
+        (k, why) if k.starts_with(REF_PIN) && why.starts_with('!') => json!({ "fail": &why[1..] }),
+        (k, sha) if k.starts_with(REF_PIN) && commit_id(sha) => json!({ "route": checkout_at(sha) }),
+        // `OWNER/REPO@REF` of another repository, from the store.
+        (k, sha) if commit_id(sha) => {
+            let repo = k.split_once('@').map_or("", |(r, _)| r);
+            let name = |p: &str| {
+                !p.is_empty() && p != "." && p != ".." && p.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+            };
+            if repo.split('/').count() != 2 || !repo.split('/').all(name) {
+                return none;
+            }
+            json!({ "route": format!("{TARBALLS}{}", archive_name(repo, sha)), "strip": "1" })
+        }
+        _ => return none,
+    };
+    (200, answer.to_string().into_bytes())
+}
+
+/// `s` with each `%XX` decoded, or `None` for a bad escape or text that
+/// is not UTF-8.
+fn unescape(s: &str) -> Option<String> {
+    let (b, mut out, mut i) = (s.as_bytes(), Vec::new(), 0);
+    while i < b.len() {
+        match b[i] {
+            b'%' => {
+                let hex = b.get(i + 1..i + 3).filter(|h| h.iter().all(u8::is_ascii_hexdigit))?;
+                out.push(u8::from_str_radix(std::str::from_utf8(hex).ok()?, 16).ok()?);
+                i += 3;
+            }
+            c => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
 /// A full commit id of SHA-1 or SHA-256: no other name reaches the disk.
 fn commit_id(s: &str) -> bool {
     matches!(s.len(), 40 | 64) && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
@@ -110,6 +166,7 @@ pub fn route(
             }
             None => Some((404, Vec::new())),
         },
+        ("GET", p) if p.strip_prefix('/').is_some_and(|p| p.starts_with(PIN)) => Some(pinned(&p[PIN.len() + 1..], pins)),
         ("GET", p) if p.starts_with("/_checkout/") => {
             let commit = p.strip_prefix("/_checkout/").and_then(|r| r.strip_suffix(".tar.gz")).filter(|c| commit_id(c));
             let file = commit.zip(tree.and_then(Path::parent)).map(|(c, d)| d.join(checkout_file(c)));
@@ -231,5 +288,52 @@ mod tests {
             assert_eq!(get(bad).0, 404, "{bad}");
         }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-713: the route of a pinned tree for the stand-in of a checkout in
+    /// an action; a key with no pin, a bad escape, a value that is no
+    /// commit and a repository that is no name get 404.
+    #[test]
+    fn the_route_of_a_pinned_tree() {
+        let (a, b) = ("a".repeat(40), "b".repeat(64));
+        let pins = BTreeMap::from([
+            (format!("{REF_PIN}v1"), a.clone()),
+            (format!("{REF_PIN}refs/heads/main"), String::new()),
+            (format!("{REF_PIN}gone"), "!`ref: gone` is not a commit".to_string()),
+            (format!("{REF_PIN}bad"), "nocommit".to_string()),
+            ("o/second@refs/tags/v1".to_string(), b.clone()),
+            ("o/second@HEAD".to_string(), "sha256:0000".to_string()),
+            ("../x@v1".to_string(), a.clone()),
+            ("o/../x@v1".to_string(), a.clone()),
+            ("o@v1".to_string(), a.clone()),
+        ]);
+        let get = |key: &str| {
+            let (status, out) =
+                route("GET", &format!("/{PIN}{key}"), &Value::Null, "", None, &pins, None).expect("a route");
+            (status, serde_json::from_slice::<Value>(&out).unwrap_or(Value::Null))
+        };
+        assert_eq!(get("checkout-ref%3Av1"), (200, json!({ "route": checkout_at(&a) })));
+        assert_eq!(get("checkout-ref:refs%2Fheads%2Fmain"), (200, json!({ "route": CHECKOUT })));
+        assert_eq!(get("checkout-ref%3Agone"), (200, json!({ "fail": "`ref: gone` is not a commit" })));
+        let other = json!({ "route": format!("_actions/o_second/{b}.tar.gz"), "strip": "1" });
+        assert_eq!(get("o%2Fsecond%40refs%2Ftags%2Fv1"), (200, other));
+        for bad in [
+            "checkout-ref%3Anone",
+            "checkout-ref%3Abad",
+            "O%2Fsecond%40refs%2Ftags%2Fv1",
+            "o%2Fsecond%40HEAD",
+            "..%2Fx%40v1",
+            "o%2F..%2Fx%40v1",
+            "o%40v1",
+            "checkout-ref%3",
+            "checkout-ref%+3Av1",
+            "checkout-ref%zzv1",
+            "%FF",
+            "",
+        ] {
+            assert_eq!(get(bad).0, 404, "{bad}");
+        }
+        // The stand-in sends the job token: the route needs it.
+        assert_eq!(crate::auth::need("GET", &format!("/{PIN}x")), Some(crate::auth::Need::Either));
     }
 }

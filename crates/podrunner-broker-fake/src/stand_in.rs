@@ -10,7 +10,8 @@
 //! The broker also resolves each `actions/checkout@REF` to this action, for
 //! a step in an action that the job message cannot change (T-708). With no
 //! `route`, it takes the inputs of `actions/checkout` and gives the local
-//! tree.
+//! tree, or asks the broker for the tree that the run pinned for another
+//! repository or ref (T-713).
 
 /// `OWNER/REPO` of the action.
 pub const NAME: &str = "podrunner/checkout";
@@ -70,6 +71,8 @@ fn index_js() -> String {
     let ignored: Vec<String> = IGNORED.iter().map(|k| format!("'{k}'")).collect();
     INDEX_JS
         .replace("@CHECKOUT@", crate::actions::CHECKOUT)
+        .replace("@REF_PIN@", crate::actions::REF_PIN)
+        .replace("@PIN@", crate::actions::PIN)
         .replace("@LIST@", LIST)
         .replace("@LEVELS@", &LEVELS.to_string())
         .replace("@IGNORED@", &ignored.join(", "))
@@ -80,37 +83,54 @@ const http = require('http'), https = require('https'), zlib = require('zlib');
 const fs = require('fs'), path = require('path'), cp = require('child_process');
 const input = (n) => process.env['INPUT_' + n.toUpperCase()] || '';
 const die = (m, c) => { console.error('podrunner: ' + m); process.exit(c || 1); };
-if (input('fail')) die('the checkout with ' + input('fail'));
-const a = input('route') ? { route: input('route'), dest: input('dest'), strip: input('strip'), list: input('list'), level: input('level') } : checkout();
 const ws = path.resolve(process.env.GITHUB_WORKSPACE || '.');
-const dir = path.resolve(ws, a.dest);
-if (path.relative(ws, dir).split(path.sep)[0] === '..') die('the path ' + a.dest + ' is not in the workspace');
-fs.mkdirSync(dir, { recursive: true });
-const u = input('broker') + a.route;
-const h = { Authorization: 'Bearer ' + (process.env.ACTIONS_RUNTIME_TOKEN || '') };
-(u.startsWith('https') ? https : http).get(u, { headers: h }, (r) => {
-  if (r.statusCode !== 200) { r.resume(); die('the tree: HTTP ' + r.statusCode, 22); }
-  const b = [];
-  r.on('data', (c) => b.push(c));
-  r.on('end', () => unpack(Buffer.concat(b)));
-}).on('error', (e) => die('the tree: ' + e.message, 7));
+let a, dir;
+if (input('fail')) die('the checkout with ' + input('fail'));
+if (input('route')) start({ route: input('route'), dest: input('dest'), strip: input('strip'), list: input('list'), level: input('level') });
+else checkout();
+// A GET of the broker with the job token: `done` takes the status and the body.
+function get(route, what, done) {
+  const u = input('broker') + route;
+  const h = { Authorization: 'Bearer ' + (process.env.ACTIONS_RUNTIME_TOKEN || '') };
+  (u.startsWith('https') ? https : http).get(u, { headers: h }, (r) => {
+    const b = [];
+    r.on('data', (c) => b.push(c));
+    r.on('end', () => done(r.statusCode, Buffer.concat(b)));
+  }).on('error', (e) => die(what + ': ' + e.message, 7));
+}
+function start(x) {
+  a = x;
+  dir = path.resolve(ws, a.dest);
+  if (path.relative(ws, dir).split(path.sep)[0] === '..') die('the path ' + a.dest + ' is not in the workspace');
+  fs.mkdirSync(dir, { recursive: true });
+  get(a.route, 'the tree', (s, b) => (s === 200 ? unpack(b) : die('the tree: HTTP ' + s, 22)));
+}
 // `uses: actions/checkout` in an action (T-708): the local tree, into
-// `path`, with its `submodules`. Another repository or another ref fails
-// the step: the run pins no tree for a step in an action.
+// `path`, with its `submodules`. Another repository or another ref takes
+// the tree that the run pinned for the static values of a local action
+// (T-713); with no pin (an expression), the step fails.
 function checkout() {
-  const e = process.env, repo = input('repository'), ref = input('ref'), sub = input('submodules');
-  const fix = '; fix: check it out in a step of the workflow';
-  if (repo && repo.toLowerCase() !== (e.GITHUB_REPOSITORY || '').toLowerCase()) {
-    die('the checkout of ' + repo + ' in an action: the stand-in gives only the local tree there' + fix);
-  }
-  if (ref && ![e.GITHUB_SHA, e.GITHUB_REF, e.GITHUB_REF_NAME].includes(ref)) {
-    die('the checkout of the ref ' + ref + ' in an action: the stand-in gives only the local tree there' + fix);
-  }
+  const e = process.env, repo = input('repository').trim(), ref = input('ref').trim(), sub = input('submodules');
   const level = { '': 0, 'false': 0, 'true': 1, 'recursive': @LEVELS@ }[sub];
   if (level === undefined) die('the submodules of the checkout must be true, false or recursive, not ' + sub);
   const ignored = [@IGNORED@].filter((k) => input(k));
   if (ignored.length) console.log('podrunner: the stand-in of actions/checkout ignores ' + ignored.join(', '));
-  return { route: '@CHECKOUT@', dest: input('path'), strip: '', list: '@LIST@', level: String(level) };
+  const tree = { route: '@CHECKOUT@', dest: input('path'), strip: '', list: '@LIST@', level: String(level) };
+  const same = !repo || repo.toLowerCase() === (e.GITHUB_REPOSITORY || '').toLowerCase();
+  if (same && (!ref || [e.GITHUB_SHA, e.GITHUB_REF, e.GITHUB_REF_NAME].includes(ref))) return start(tree);
+  const what = same ? 'the ref ' + ref : repo + (ref ? ' at ' + ref : '');
+  const key = same ? '@REF_PIN@' + ref : repo + '@' + (ref || 'HEAD');
+  get('@PIN@' + encodeURIComponent(key), 'the pin of ' + what, (s, b) => {
+    if (s === 404) {
+      die('the checkout of ' + what + ' in an action: the run pinned no tree for it; fix: give `repository` and `ref` as text in a local action, or check it out in a step of the workflow');
+    }
+    if (s !== 200) die('the pin of ' + what + ': HTTP ' + s, 22);
+    const p = JSON.parse(b.toString());
+    if (p.fail) die('the checkout of ' + what + ': ' + p.fail);
+    if (p.route === tree.route) return start(tree);
+    if (level > 0) die('the checkout of ' + what + ' with submodules: the stand-in gives submodules only in the local tree');
+    start({ route: p.route, dest: tree.dest, strip: p.strip || '', list: '', level: '0' });
+  });
 }
 function unpack(gz) {
   const t = ['-xf', '-'];

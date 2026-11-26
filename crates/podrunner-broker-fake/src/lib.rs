@@ -190,11 +190,11 @@ impl Broker {
         self.state.lock().expect("the broker").too_old = true;
     }
 
-    /// Serve the tarball of each action from `dir` (`actions`, T-091), and
-    /// resolve each `OWNER/REPO@REF` from `pins` (T-118).
-    pub fn serve_actions(&self, dir: &std::path::Path, pins: std::collections::BTreeMap<String, String>) {
+    /// Serve the tarball of each action from `dir` (T-091); resolve each
+    /// `OWNER/REPO@REF` and each pinned tree from `pins` (T-118, T-713).
+    pub fn serve_actions(&self, dir: Option<&std::path::Path>, pins: std::collections::BTreeMap<String, String>) {
         let mut st = self.state.lock().expect("the broker");
-        st.actions = Some(dir.to_path_buf());
+        st.actions = dir.map(std::path::Path::to_path_buf);
         st.pins = pins;
     }
 

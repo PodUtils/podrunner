@@ -104,10 +104,73 @@ fn the_stand_in_needs_only_node_and_tar() {
     let o = case.run(&ws, &bin, &[("repository", "Example-Org/App")]);
     assert!(o.status.success() && ws.join("hello.txt").is_file(), "{}", text(&o));
 
+    // T-713: the trees that the run pinned for the static values of a
+    // local action: a commit of the local git, the local tree, and another
+    // repository from the store.
+    let (at, other) = ("a".repeat(40), "b".repeat(40));
+    let at_dir = dir.join("at");
+    std::fs::create_dir_all(&at_dir).unwrap();
+    std::fs::write(at_dir.join("hello.txt"), "tag-v1\n").unwrap();
+    let ok = Command::new("tar")
+        .arg("-czf")
+        .arg(dir.join(crate::actions::checkout_file(&at)))
+        .arg("-C")
+        .arg(&at_dir)
+        .arg(".")
+        .status()
+        .unwrap();
+    assert!(ok.success());
+    let store = dir.join("store");
+    let top = dir.join("top/o-second-local");
+    std::fs::create_dir_all(&top).unwrap();
+    std::fs::write(top.join("b.txt"), "second\n").unwrap();
+    let file = store.join(crate::actions::archive_name("o/second", &other));
+    std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+    let ok = Command::new("tar")
+        .arg("-czf")
+        .arg(&file)
+        .arg("-C")
+        .arg(dir.join("top"))
+        .arg("o-second-local")
+        .status()
+        .unwrap();
+    assert!(ok.success());
+    let pin = |k: &str, v: &str| (k.to_string(), v.to_string());
+    broker.serve_actions(
+        Some(&store),
+        [
+            pin("checkout-ref:v1", &at),
+            pin("checkout-ref:main2", ""),
+            pin("checkout-ref:gone", "!`ref: gone` is not a commit of the local git"),
+            pin("o/second@v2", &other),
+        ]
+        .into(),
+    );
+    let ws = dir.join("ws7");
+    let o = case.run(&ws, &bin, &[("ref", " v1 "), ("path", "same")]);
+    assert!(o.status.success(), "{}", text(&o));
+    assert_eq!(std::fs::read_to_string(ws.join("same/hello.txt")).unwrap(), "tag-v1\n");
+    let o = case.run(&ws, &bin, &[("repository", "o/second"), ("ref", "v2"), ("path", "second")]);
+    assert!(o.status.success(), "{}", text(&o));
+    assert_eq!(std::fs::read_to_string(ws.join("second/b.txt")).unwrap(), "second\n");
+    let o = case.run(&ws, &bin, &[("ref", "main2"), ("path", "local"), ("submodules", "true")]);
+    assert!(o.status.success(), "{}", text(&o));
+    assert_eq!(std::fs::read_to_string(ws.join("local/sm/f.txt")).unwrap(), "sub\n");
+
     // Each refusal fails the step with one line, and writes no tree.
     for (inputs, want) in [
-        (&[("repository", "other/repo")][..], "the checkout of other/repo in an action"),
-        (&[("ref", "v1")][..], "the checkout of the ref v1 in an action"),
+        (
+            &[("repository", "other/repo")][..],
+            "the checkout of other/repo in an action: the run pinned no tree for it; fix:",
+        ),
+        (&[("ref", "v1x")][..], "the checkout of the ref v1x in an action: the run pinned no tree"),
+        (&[("repository", "O/second"), ("ref", "v2")][..], "the checkout of O/second at v2 in an action"),
+        (&[("ref", "gone")][..], "the checkout of the ref gone: `ref: gone` is not a commit"),
+        (
+            &[("repository", "o/second"), ("ref", "v2"), ("submodules", "true")][..],
+            "the checkout of o/second at v2 with submodules",
+        ),
+        (&[("ref", "v1"), ("submodules", "recursive")][..], "the checkout of the ref v1 with submodules"),
         (&[("submodules", "yes")][..], "must be true, false or recursive, not yes"),
         (&[("path", "../out")][..], "the path ../out is not in the workspace"),
         (&[("path", "/tmp")][..], "the path /tmp is not in the workspace"),

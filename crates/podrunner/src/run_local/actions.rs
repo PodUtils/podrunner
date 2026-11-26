@@ -79,6 +79,14 @@ pub(super) fn pin(
             }
         }
     }
+    // The checkouts of other repositories in the local actions (T-713).
+    for w in std::iter::once(&workflow).chain(&called) {
+        for t in super::composites::local_trees(w, &base, self_repo)? {
+            if !trees.contains(&t) {
+                trees.push(t);
+            }
+        }
+    }
     // The repository of each remote called workflow (T-131): its tree goes
     // into the store at the commit of the lock, as an action.
     for job in &workflow.jobs {

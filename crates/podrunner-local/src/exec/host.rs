@@ -217,9 +217,8 @@ impl RunnerDir {
             return Err(e);
         }
         let broker = Broker::start().map_err(super::broker_error)?;
-        if let Some(dir) = &self.actions {
-            broker.serve_actions(dir, self.pins.clone());
-        }
+        // The pins also name the trees of the checkouts in actions (T-713).
+        broker.serve_actions(self.actions.as_deref(), self.pins.clone());
         if let Some(store) = &self.artifacts {
             broker.serve_artifacts(store.clone());
         }
