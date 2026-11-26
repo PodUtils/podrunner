@@ -5,7 +5,7 @@
 # `ulimit -f 1048576` in bash. The hard limit stays: a user with no root
 # cannot raise it. prlimit counts bytes; the `ulimit -f` of sh counts blocks
 # of 512 bytes, the one of bash blocks of 1024. Needs no root; put it
-# before nonroot.sh, which keeps the limit.
+# after nonroot.sh: sudo (pam_limits) resets the limit of its command.
 set -eu
 [ "${1:-}" = "--" ] && shift
 size=${LAB_FSIZE:-1073741824}

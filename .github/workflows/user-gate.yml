@@ -193,7 +193,9 @@ jobs:
           # run_local/dry.rs, else `run` exits 78 and names root and
           # --runner-dir (the check fsize; the podvm checks are skips).
           - lane: fsize-1g
-            lab: sh scripts/lab/fsize.sh -- sh scripts/lab/nonroot.sh --
+            # After nonroot.sh: sudo (pam_limits) resets the limit of file
+            # size of its command (user-gate run 45821762302).
+            lab: sh scripts/lab/nonroot.sh -- sh scripts/lab/fsize.sh --
             executors: podvm,runner-dir
           # Ctrl-C of a `container:` job in a long step (T-639, T-644):
           # `podrunner run` gets SIGINT after the step printed its line; it

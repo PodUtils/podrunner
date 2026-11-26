@@ -16330,6 +16330,12 @@ lane on GitHub. Two risks for its first run: `install:full` copies
 limit); a corpus row of `lanes=*` on runner-dir can need more than 1 GiB
 for a file and then needs an `xfail` row with its entry.
 
+State (2026-11-26, user-gate run 45821762302): the lane `fsize-1g`
+failed at its check: "the lane has no limit of file size". `fsize.sh`
+set the limit, but `nonroot.sh` runs its command by `sudo`, whose
+`pam_limits` reset the limit as root. The lane now runs `nonroot.sh`
+first, then `fsize.sh`. Left: the next run of the lane.
+
 # T-639: Ctrl-C does not cancel a `container:` job in a long step on `--podvm`
 
 **Source:** QA round 6, agent B (qa9), 2026-11-24
@@ -16550,6 +16556,13 @@ TMPDIR. The pure parts have a self-test with planted defects. Approach
 item 2: `serve` destroys the unit before it closes the hooks, and the
 close waits at most 2 s (`CLOSE_WAIT`): no change. Left: the lane on
 GitHub.
+
+State (2026-11-26, user-gate run 45821762302): the lane
+`cancel-container` failed: "the step printed no line in 900 s". The
+output of a container step comes at its end (T-694), so the line of a
+step that then sleeps never came. The job now has two steps: the first
+prints the line and ends (the event), the second sleeps. Left: the next
+run of the lane.
 
 # T-645: The man page of the model under groff and mandoc, and in the assets of a release
 
@@ -18270,7 +18283,7 @@ and level2 45810263432 are green with podcrates `v0.86.0`.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -18327,6 +18340,12 @@ bound of a microvm guest (`largest_image`) counts the boot only and no
 space of a job; the local mode has no flag for the memory of a guest
 (always 8G). A real disk of a guest needs podvm (PodUtils/podvm@T-1994).
 
+
+## Done
+
+2026-11-26, proven in CI on GitHub-hosted runners: user-gate run
+45821762302 on `53879858` (#365), the lane `plain` is green, with
+`corpus:rbg-gate:microvm` (the images of runner-image 45810269235).
 
 # T-689: The pin bound of a microvm guest leaves no space for a job
 

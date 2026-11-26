@@ -714,9 +714,11 @@ class Lane:
         # container needs no registry.
         (src / ".github" / "workflows" / "c2.yml").write_text(
             "on: push\njobs:\n  c2:\n    runs-on: ubuntu-latest\n    container:\n"
-            f"      image: {self.image}\n    steps:\n      - run: |\n"
-            '          echo "gate-cancel-started-$((6*7))"\n'
-            f"          exec sleep {CANCEL_SLEEP}\n        shell: sh\n"
+            # The output of a container step comes at its end (T-694): the
+            # line of the first step is the event; the second step runs.
+            f"      image: {self.image}\n    steps:\n"
+            '      - run: echo "gate-cancel-started-$((6*7))"\n        shell: sh\n'
+            f"      - run: exec sleep {CANCEL_SLEEP}\n        shell: sh\n"
             "  next:\n    runs-on: ubuntu-latest\n    steps: [{run: 'true'}]\n"
         )
         env = self.env(self.home, TMPDIR=str(tmp))

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 697 entries: 78 open, 55 partial, 18 blocked, 546 done.
+`TODO/INDEX.md` holds 697 entries: 78 open, 54 partial, 18 blocked, 547 done.
 
 ## State
 
@@ -66,9 +66,9 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Read the user-gate run of #365 (T-688, T-638) and of the
-   next request (T-644, the man page, the microvm memory rule). Merge the
-   workers of T-648 and T-693.
+1. Ask for the next runs: the lanes `fsize-1g` and `cancel-container`
+   (T-638, T-644), the man page, the memory of a microvm guest, the trust
+   store of a JVM. Merge the workers of T-648 and T-693.
 2. Take the rest of the cache work in T-480 (T-648; T-650 waits for
    COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write

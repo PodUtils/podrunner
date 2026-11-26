@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**697 entries: 78 open, 55 partial, 18 blocked, 546 done.**
+**697 entries: 78 open, 54 partial, 18 blocked, 547 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 12 | 20 | 10 | 282 | 324 |
+| P2 | 12 | 19 | 10 | 283 | 324 |
 | P3 | 65 | 12 | 6 | 162 | 245 |
-| **All** | 78 | 55 | 18 | 546 | 697 |
+| **All** | 78 | 54 | 18 | 547 | 697 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -730,7 +730,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-685](later.md) | P3 | M | later | defect | blocked | The disk walk of an incus unit skips the directories it cannot read |
 | [T-686](later.md) | P2 | S | later | chore | done | Take podnet `v0.4.0-beta.20` (COORD-132 of podnet) |
 | [T-687](later.md) | P2 | S | later | chore | done | Take podcrates `v0.86.0` (COORD-158 of podcrates) |
-| [T-688](later.md) | P2 | M | later | defect | partial | A job of the corpus runs out of space in a microvm guest |
+| [T-688](later.md) | P2 | M | later | defect | done | A job of the corpus runs out of space in a microvm guest |
 | [T-689](later.md) | P3 | S | later | defect | done | The pin bound of a microvm guest leaves no space for a job |
 | [T-690](later.md) | P3 | S | later | feature | done | The local mode has no flag for the memory of a guest |
 | [T-691](later.md) | P3 | S | later | feature | blocked | The run report does not name the limits a unit got |
