@@ -19320,7 +19320,7 @@ job container with node and tar only.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19342,6 +19342,18 @@ for each job above the bound.
 
 `cargo test -p podrunner run_local` with a job of `timeout-minutes:
 99999999`: the run prints the warning once; a job of 7200 prints none.
+
+## Done
+
+2026-11-26, `8d56563e` (tests on a development host). `podrunner run` prints
+the warning of `--validate` on stderr at the start of the run, once for
+each job above 7200 minutes (`inspect::long_timeouts`, which takes the
+rule of `inspect::minutes`); an expression value gets none. As with
+`--validate`, a job that `--job` or a matrix filters out still gets the
+warning. Test: `tests/run_views.rs::a_run_warns_on_a_timeout_above_five_days`
+(a dry run of the binary, the start path of a run); it fails on the old
+code.
+
 
 # T-710: A test of the cache compares two times of the wall clock
 
