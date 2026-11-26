@@ -66,10 +66,9 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Request the hosted runs of the fixes of #370 (the gate test of
-   `install:man`, the allow line of secrets) and of T-509
-   (`serve:job:engine:microvm`), T-520 (the step of `cpu_s`) and the step of
-   actionlint; merge the worker of T-634.
+1. Read the runs of #374 (the fixes of #370, the step of actionlint, the
+   check `serve:job:engine:microvm` of T-509, the step of `cpu_s` of
+   T-520). Merge the worker of T-634.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
