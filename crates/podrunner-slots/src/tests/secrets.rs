@@ -184,7 +184,10 @@ impl crate::hooks::HookPort for Hooks {
         _: Option<&str>,
         ca: Option<crate::hooks::ContainerCa<'_>>,
     ) -> Result<std::collections::BTreeMap<String, String>, String> {
-        self.0.lock().unwrap().push(ca.map(|c| (c.file.to_string(), c.pem.to_string(), c.vars.to_vec(), c.store.map(<[u8]>::to_vec))));
+        self.0
+            .lock()
+            .unwrap()
+            .push(ca.map(|c| (c.file.to_string(), c.pem.to_string(), c.vars.to_vec(), c.store.map(<[u8]>::to_vec))));
         Ok(Default::default())
     }
     fn close(&self, _: &podrunner_schema::UnitId) {}
@@ -202,7 +205,10 @@ fn the_containers_of_a_unit_get_the_bundle_of_its_broker() {
     let plain = json!({ "policy": { "schema": 1, "mode": "allow", "allow": [{ "host": "api.example.com" }] } });
     let vars = ["SSL_CERT_FILE", "CARGO_HTTP_CAINFO"].map(String::from).to_vec();
     for (with, want) in [
-        (credential("token", "api.example.com"), Some((crate::secrets::CA_FILE.to_string(), BUNDLE.to_string(), vars, Some(STORE.to_vec())))),
+        (
+            credential("token", "api.example.com"),
+            Some((crate::secrets::CA_FILE.to_string(), BUNDLE.to_string(), vars, Some(STORE.to_vec()))),
+        ),
         (plain, None),
     ] {
         let dir = TempDir::new();

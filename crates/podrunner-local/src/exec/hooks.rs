@@ -98,7 +98,8 @@ impl InUnit {
         // does: the copy is out of the socket directory, as `serve` keeps
         // it (T-596).
         let vars = super::proxy::container_vars();
-        let bundle = |pem| podrunner_hook::hooks::Bundle { file: super::proxy::CONTAINER_CA, pem, vars: &vars, store: None };
+        let bundle =
+            |pem| podrunner_hook::hooks::Bundle { file: super::proxy::CONTAINER_CA, pem, vars: &vars, store: None };
         let opened = || -> Result<_, String> {
             let ca = ca.map(|pem| podrunner_hook::hooks::place_ca(&logs, bundle(pem))).transpose();
             let ca = ca.map_err(|e| format!("the CA bundle of the containers: {e}"))?;
