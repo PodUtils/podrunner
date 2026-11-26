@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**685 entries: 79 open, 57 partial, 16 blocked, 533 done.**
+**685 entries: 78 open, 58 partial, 16 blocked, 533 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 14 | 21 | 9 | 280 | 324 |
+| P2 | 13 | 22 | 9 | 280 | 324 |
 | P3 | 64 | 13 | 5 | 151 | 233 |
-| **All** | 79 | 57 | 16 | 533 | 685 |
+| **All** | 78 | 58 | 16 | 533 | 685 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -686,7 +686,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-641](later.md) | P2 | S | later | defect | done | `check` accepts the `config_url` of an organization with `.git` at the end |
 | [T-642](later.md) | P3 | M | later | defect | open | QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts |
 | [T-643](later.md) | P3 | S | later | defect | open | The local checkout names the keys of `with:` that the stand-in does not take |
-| [T-644](later.md) | P2 | S | later | chore | open | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
+| [T-644](later.md) | P2 | S | later | chore | partial | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
 | [T-645](later.md) | P3 | S | later | chore | open | The man page of the model under groff and mandoc, and in the assets of a release |
 | [T-646](later.md) | P3 | M | later | defect | done | Tests that write a program and start it while other tests fork |
 | [T-647](later.md) | P1 | S | later | chore | done | Take podcrates `v0.83.0` and podvm `0.2.0-beta.40` (COORD-154 of podcrates, COORD-246 of podvm) |

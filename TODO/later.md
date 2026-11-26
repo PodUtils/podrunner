@@ -16429,7 +16429,7 @@ From the work of T-640: I read `crates/podrunner-local/src/message/checkout.rs` 
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -16447,6 +16447,20 @@ From the work of T-639: the host of the session has no podvm and no KVM, so the 
 ## Prove
 
 `sh scripts/agent/check.sh` and a run of `user-gate.yml` with the lane green; `cargo test -p podrunner-local cancel` for the code of the local mode; then `cargo todo check`.
+
+State (2026-11-26, `428def3f`; the check against a fake `podrunner` and a fake
+`podvm` on a development host, the lane not run): the lane
+`cancel-container` of `user-gate.yml` (no corpus) has the check
+`cancel:container` of `scripts/user-gate.py`: `podrunner run` of a
+`container:` job on podvm (the runner image of the store as the job
+container) gets SIGINT after its step printed its line (an event, not a
+time), and must end with 130 within 60 s, print `cancelled` for each job,
+and leave no process with the unit tag, no `sleep` of the step, no new
+container of the store and no `podrunner*` or `podvm*` entry of its own
+TMPDIR. The pure parts have a self-test with planted defects. Approach
+item 2: `serve` destroys the unit before it closes the hooks, and the
+close waits at most 2 s (`CLOSE_WAIT`): no change. Left: the lane on
+GitHub.
 
 # T-645: The man page of the model under groff and mandoc, and in the assets of a release
 
