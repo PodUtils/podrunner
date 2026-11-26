@@ -72,20 +72,8 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
             Some(n) => n.clone(),
             None => {
                 let text = std::fs::read_to_string(v).map_err(|e| format!("{k}={v}: {e}"))?;
-                let real = std::fs::canonicalize(v).unwrap_or_else(|_| v.into());
-                match pod_tls::bundle::pem_certificates(text.as_bytes()) {
-                    _ if in_pem.contains(&real) => {}
-                    Ok(c) if !c.is_empty() => {
-                        pem.push_str(&text);
-                        if !text.ends_with('\n') {
-                            pem.push('\n');
-                        }
-                        in_pem.push(real);
-                    }
-                    // The runner still gets the file as it is.
-                    Ok(_) => eprintln!("{NO_STORE}: {k}={v}: the file holds no certificate; no container gets it"),
-                    Err(why) => eprintln!("{NO_STORE}: {k}={v}: {why}; no container gets it"),
-                }
+                // The runner still gets the file as it is.
+                add_to_bundle(&mut pem, &mut in_pem, (k, v), &text, "no container gets it");
                 let n = format!("podrunner-ca-{}.crt", by_path.len());
                 files.push(CredentialFile { name: n.clone(), content: Secret::new(text) });
                 by_path.insert(v.clone(), n.clone());
@@ -120,6 +108,53 @@ fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<Un
 /// The start of a line on stderr for a CA file that the trust store of a
 /// JVM does not take (T-577).
 const NO_STORE: &str = "podrunner: no trust store of the CA files for a JVM";
+
+/// Add the CA file of the variable `k` (path `v`, text `text`) to `pem`,
+/// once for each file (`seen`: the canonical path of each file in it). A
+/// file with no certificate stays out, and one line ends with `left`.
+fn add_to_bundle(pem: &mut String, seen: &mut Vec<std::path::PathBuf>, (k, v): (&str, &str), text: &str, left: &str) {
+    let real = std::fs::canonicalize(v).unwrap_or_else(|_| v.into());
+    match pod_tls::bundle::pem_certificates(text.as_bytes()) {
+        _ if seen.contains(&real) => {}
+        Ok(c) if !c.is_empty() => {
+            pem.push_str(text);
+            if !text.ends_with('\n') {
+                pem.push('\n');
+            }
+            seen.push(real);
+        }
+        Ok(_) => eprintln!("{NO_STORE}: {k}={v}: the file holds no certificate; {left}"),
+        Err(why) => eprintln!("{NO_STORE}: {k}={v}: {why}; {left}"),
+    }
+}
+
+/// The trust store of the CA files of `env` for a JVM of a job on a
+/// runner directory (T-598): written to `home` (the scratch home of the
+/// job, which the next job removes), and `JAVA_TOOL_OPTIONS` that names
+/// it. As in a unit, the value of the caller stays out. A CA file that
+/// cannot be read, or a store that cannot be made, gives one line and no
+/// store: the other clients of the job still trust the CA files.
+pub(crate) fn host_trust(home: &std::path::Path, env: &mut Vec<(&'static str, String)>) {
+    let (mut pem, mut seen) = (String::new(), Vec::new());
+    for (k, v) in env.iter().filter(|(k, _)| CA_VARS.contains(k)) {
+        match std::fs::read_to_string(v) {
+            Ok(text) => add_to_bundle(&mut pem, &mut seen, (k, v), &text, "the JVM does not trust it"),
+            Err(e) => eprintln!("{NO_STORE}: {k}={v}: {e}; the JVM does not trust it"),
+        }
+    }
+    if pem.is_empty() {
+        return;
+    }
+    let store = home.join(STORE_FILE);
+    let made = pod_broker::ca::write_trust_store(&store, "", pem.as_bytes()).map_err(|e| e.to_string());
+    match made.and_then(|()| pod_broker::ca::java_options(&store, None)) {
+        Ok(options) => env.push((JAVA_OPTIONS, options)),
+        Err(why) => {
+            let _ = std::fs::remove_file(&store);
+            eprintln!("{NO_STORE}: {why}");
+        }
+    }
+}
 
 /// The trust store of the CA files `pem` in the unit (`dir`), and the
 /// value of `JAVA_TOOL_OPTIONS` that names it (T-577). The value of the
@@ -303,6 +338,54 @@ mod tests {
             assert!(env.iter().all(|(k, _)| k != "JAVA_TOOL_OPTIONS"), "{d} {path}: {env:?}");
             assert_eq!(files.len(), 1, "{d} {path}");
         }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-598: a job on a runner directory gets the trust store of each CA
+    /// file in its scratch home, and `JAVA_TOOL_OPTIONS` that names it; a
+    /// file with no certificate, a missing file or a home with a space give
+    /// no store.
+    #[test]
+    fn a_job_on_a_runner_directory_gets_a_trust_store() {
+        let dir = std::env::temp_dir().join(format!("podrunner-proxy-host-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("home")).unwrap();
+        std::fs::create_dir_all(dir.join("a b")).unwrap();
+        let (one, two, link) = (dir.join("one.crt"), dir.join("two.crt"), dir.join("link.crt"));
+        std::fs::write(&one, "-----BEGIN CERTIFICATE-----\nAQID\n-----END CERTIFICATE-----\n").unwrap();
+        std::fs::write(&two, "-----BEGIN CERTIFICATE-----\nBAUG\n-----END CERTIFICATE-----").unwrap();
+        std::os::unix::fs::symlink(&one, &link).unwrap();
+        let p = |f: &std::path::Path| f.display().to_string();
+        let env = |pairs: &[(&'static str, String)]| -> Vec<(&'static str, String)> {
+            let mut e = vec![("PATH", "/bin".to_string())];
+            e.extend(pairs.iter().cloned());
+            e
+        };
+        let home = dir.join("home");
+        let mut e = env(&[("SSL_CERT_FILE", p(&link)), ("CURL_CA_BUNDLE", p(&one)), ("GIT_SSL_CAINFO", p(&two))]);
+        host_trust(&home, &mut e);
+        let store = home.join(STORE_FILE);
+        let want = format!("-Djavax.net.ssl.trustStore={} -Djavax.net.ssl.trustStoreType=PKCS12", store.display());
+        assert_eq!(e.last(), Some(&("JAVA_TOOL_OPTIONS", want)), "{e:?}");
+        let der = std::fs::read(&store).unwrap();
+        let count = |n: &[u8]| der.windows(n.len()).filter(|w| *w == n).count();
+        assert_eq!((count(&[0x04, 0x03, 1, 2, 3]), count(&[0x04, 0x03, 4, 5, 6])), (1, 1), "each file once");
+        // No CA variable, a file with no certificate, a missing file: no store.
+        let empty = dir.join("empty.crt");
+        std::fs::write(&empty, "").unwrap();
+        for pairs in [vec![], vec![("SSL_CERT_FILE", p(&empty))], vec![("SSL_CERT_FILE", p(&dir.join("absent")))]] {
+            let home = dir.join("none");
+            std::fs::create_dir_all(&home).unwrap();
+            let mut e = env(&pairs);
+            host_trust(&home, &mut e);
+            assert_eq!(e, env(&pairs), "{pairs:?}");
+            assert!(!home.join(STORE_FILE).exists(), "{pairs:?}");
+        }
+        // The JVM splits the variable at each space: no store in such a home.
+        let mut e = env(&[("SSL_CERT_FILE", p(&one))]);
+        host_trust(&dir.join("a b"), &mut e);
+        assert_eq!(e, env(&[("SSL_CERT_FILE", p(&one))]));
+        assert!(!dir.join("a b").join(STORE_FILE).exists());
         let _ = std::fs::remove_dir_all(&dir);
     }
 

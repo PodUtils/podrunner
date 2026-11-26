@@ -262,3 +262,63 @@ fn a_container_of_a_job_with_a_cache_gets_its_mount_and_variables() {
     let _ = fake.destroy(&id);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-597: a JVM reads no PEM variable. The hooks write the trust store of
+/// the bundle beside it (`.p12` for `.pem`), and each container gets
+/// `JAVA_TOOL_OPTIONS` that names it, before a value of the job: the JVM
+/// takes the last value of a property, so the job keeps its priority.
+#[test]
+fn a_container_of_a_unit_with_a_bundle_gets_the_trust_store_for_a_jvm() {
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-jvm-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let (fake, id) = started(&dir);
+    let vars = ["SSL_CERT_FILE".to_string()];
+    let ca = crate::hooks::place_ca(&dir.join("logs"), bundle(CA_FILE, &vars)).unwrap();
+    let store = dir.join("logs/ca/podrunner-broker-ca.p12");
+    let der = std::fs::read(&store).unwrap();
+    assert!(der.windows(9).any(|w| w == [0x04, 0x07, b'm', b'a', b'd', b'e', b'-', b'u', b'p']), "{der:02x?}");
+    assert_eq!(std::fs::metadata(&store).unwrap().permissions().mode() & 0o777, 0o644);
+    let mut u = HookUnit::new(fake.clone(), id.clone(), policy(), Some(dir.join("runner")), dir.clone()).with_ca(Some(ca));
+    let java = |u: &mut HookUnit, env: Value| {
+        let mut c = container(env);
+        c["entryPointArgs"] = json!(["-c", r#"echo "[${JAVA_TOOL_OPTIONS-}]""#]);
+        let body = call("run_container_step", c);
+        String::from_utf8(u.hook(parse(Command::RunContainerStep, &body).unwrap()).unwrap().output).unwrap()
+    };
+    // The fake maps `CA_DIR` to its source after the `=`.
+    let want = format!("-Djavax.net.ssl.trustStore={} -Djavax.net.ssl.trustStoreType=PKCS12", store.display());
+    assert_eq!(java(&mut u, json!({})), format!("[{want}]\n"));
+    let job = "-Djavax.net.ssl.trustStore=/job/store.p12 -Xmx1g";
+    assert_eq!(java(&mut u, json!({ "JAVA_TOOL_OPTIONS": job })), format!("[{want} {job}]\n"));
+    // No store beside the bundle: no option names a file that is not there.
+    std::fs::remove_file(&store).unwrap();
+    assert_eq!(java(&mut u, json!({})), "[]\n");
+    assert_eq!(java(&mut u, json!({ "JAVA_TOOL_OPTIONS": "-Xmx1g" })), "[-Xmx1g]\n");
+    let _ = fake.destroy(&id);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// T-597: a bundle with no certificate gives no store (the containers keep
+/// the bundle), and a stale store of the same name goes. The name of the
+/// store follows the name of the bundle; a bundle named `.p12` gets none.
+#[test]
+fn a_bundle_that_gives_no_store_leaves_none() {
+    assert_eq!(UnitCa::store_name("podrunner-ca.pem").as_deref(), Some("podrunner-ca.p12"));
+    assert_eq!(UnitCa::store_name("ca").as_deref(), Some("ca.p12"));
+    assert_eq!(UnitCa::store_name("ca.p12"), None);
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-nostore-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("ca")).unwrap();
+    std::fs::write(dir.join("ca/podrunner-broker-ca.p12"), "stale").unwrap();
+    let vars = ["SSL_CERT_FILE".to_string()];
+    let b = Bundle { file: CA_FILE, pem: "no certificate\n", vars: &vars };
+    let ca = crate::hooks::place_ca(&dir, b).unwrap();
+    assert_eq!(std::fs::read_to_string(dir.join("ca").join(CA_FILE)).unwrap(), "no certificate\n");
+    assert!(!dir.join("ca/podrunner-broker-ca.p12").exists(), "no store, and no stale store");
+    assert_eq!(ca.file, CA_FILE);
+    let b = Bundle { file: "ca.p12", pem: PEM, vars: &vars };
+    crate::hooks::place_ca(&dir, b).unwrap();
+    assert_eq!(std::fs::read_to_string(dir.join("ca/ca.p12")).unwrap(), PEM, "the bundle, not a store");
+    let _ = std::fs::remove_dir_all(&dir);
+}

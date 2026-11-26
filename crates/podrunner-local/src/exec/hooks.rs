@@ -229,7 +229,7 @@ mod tests {
         std::fs::create_dir_all(&sockets).unwrap();
         let hooks = exec.hooks(&sockets, &job, &id, ca.as_deref()).unwrap();
         let names = super::super::proxy::container_vars().join(" ");
-        let script = format!(r#"cat "${{SSL_CERT_FILE:-/nothing}}" 2>/dev/null; echo; printenv {names}; true"#);
+        let script = format!(r#"cat "${{SSL_CERT_FILE:-/nothing}}" 2>/dev/null; echo; printenv {names}; s=${{JAVA_TOOL_OPTIONS#*trustStore=}}; test -s "${{s%% *}}" && echo "java: $JAVA_TOOL_OPTIONS"; true"#);
         let c = serde_json::json!({
             "image": IMAGE, "entryPoint": "sh", "entryPointArgs": ["-c", script],
             "environmentVariables": job_env, "portMappings": [], "userMountVolumes": [], "systemMountVolumes": [],
@@ -285,10 +285,17 @@ mod tests {
         assert!(out.starts_with(&format!("{ONE}{TWO}\n\n")), "each file once, in order: {out}");
         let lines: Vec<&str> = out.lines().filter(|l| l.starts_with('/')).collect();
         assert_eq!(lines, vec![host.to_str().unwrap(); 10], "{out}");
-        // A value that the job sets stays.
-        let (out, _) = container_step(&dir, &vars, serde_json::json!({ "SSL_CERT_FILE": "/job/ca.pem" }));
+        // A JVM gets the trust store beside the bundle (T-616).
+        let store = host.with_extension("p12").display().to_string();
+        let java = format!("-Djavax.net.ssl.trustStore={store} -Djavax.net.ssl.trustStoreType=PKCS12");
+        assert!(out.ends_with(&format!("\njava: {java}\n")), "{out}");
+        // A value that the job sets stays; a value of `JAVA_TOOL_OPTIONS`
+        // comes after the store, so that its own store has priority.
+        let job = serde_json::json!({ "SSL_CERT_FILE": "/job/ca.pem", "JAVA_TOOL_OPTIONS": "-Xmx1g" });
+        let (out, _) = container_step(&dir, &vars, job);
         assert!(out.contains("\n/job/ca.pem\n"), "{out}");
         assert_eq!(out.lines().filter(|l| *l == host.to_str().unwrap()).count(), 9, "{out}");
+        assert!(out.ends_with(&format!("\njava: {java} -Xmx1g\n")), "{out}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

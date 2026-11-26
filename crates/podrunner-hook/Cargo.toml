@@ -9,6 +9,8 @@ publish.workspace = true
 
 [dependencies]
 pod-core.workspace = true
+# The trust store of the CA bundle for a JVM in a container (T-597).
+pod-broker.workspace = true
 podrunner-schema.workspace = true
 podrunner-unit.workspace = true
 serde.workspace = true

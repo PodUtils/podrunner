@@ -144,7 +144,8 @@ impl Hooks {
     }
 }
 
-/// Write the bundle `b` to `logs/ca` for the containers of a unit. A
+/// Write the bundle `b` and its trust store for a JVM to `logs/ca` for
+/// the containers of a unit. A
 /// certificate is no secret: mode 0644, so that a container user of
 /// another uid reads it. `podrunner run` writes its bundle with it too
 /// (T-596).
@@ -158,5 +159,14 @@ pub fn place_ca(logs: &Path, b: Bundle<'_>) -> std::io::Result<UnitCa> {
     std::fs::create_dir_all(&dir)?;
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755))?;
     pod_core::files::replace_private(&dir.join(b.file), b.pem.as_bytes(), 0o644, false)?;
+    // A JVM reads no PEM variable: it gets the trust store of the same
+    // certificates (T-597, T-616).
+    if let Some(store) = UnitCa::store_name(b.file) {
+        let path = dir.join(store);
+        if let Err(e) = pod_broker::ca::write_trust_store(&path, "", b.pem.as_bytes()) {
+            let _ = std::fs::remove_file(&path);
+            eprintln!("podrunner: no trust store of the CA bundle for a JVM in a container: {e}; the containers get the bundle only");
+        }
+    }
     Ok(UnitCa { dir, file: b.file.into(), vars: b.vars.to_vec() })
 }

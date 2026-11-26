@@ -81,7 +81,13 @@ as the unit does (T-578):
   the name of its credential file (`podrunner-broker-ca.pem`). LOGS is the
   directory of the output of the steps (`SOCKETS.logs`, beside the socket
   directory SOCKETS of the unit). The unit does not see LOGS. The
-  directory `LOGS/ca` has mode 0755 and holds the copy only.
+  directory `LOGS/ca` has mode 0755 and holds the copy and its trust
+  store only.
+- Beside the copy, the host writes the trust store of the same
+  certificates for a JVM (PKCS #12, mode 0644), under the name of the
+  bundle with `.p12` (`podrunner-broker-ca.p12`). A bundle with no
+  certificate gives no store, and one line on stderr names the cause
+  (T-597).
 - Each container mounts `LOGS/ca` read-only at `/__podrunner`, by its
   host path. On the namespace rung of podvm this path is out of
   `--podvm-volume-base` (the runner directory of the unit): podvm opens a
@@ -90,6 +96,11 @@ as the unit does (T-578):
 - Each of the ten variables of `pod_broker::ca::env` names
   `/__podrunner/podrunner-broker-ca.pem`. A variable that the job sets
   for the container keeps the value of the job.
+- When the store is there, `JAVA_TOOL_OPTIONS` is
+  `-Djavax.net.ssl.trustStore=/__podrunner/podrunner-broker-ca.p12
+  -Djavax.net.ssl.trustStoreType=PKCS12`, then the value that the job
+  sets for the container, if any. The JVM takes the last value of a
+  property, so a store that the job names keeps its priority.
 - A unit with no bundle gives its containers no mount and no variable.
 - A socket that does not bind leaves no copy. The close of the socket
   removes the copy.
@@ -99,7 +110,8 @@ caller (a unit with the network of the host, T-596). The bundle is each
 CA file of the ten variables once, in the order of the variables (a link
 and its target are one file); a file with no certificate stays out, and
 one line on stderr names it. The copy is `LOGS/ca/podrunner-ca.pem`, and
-each of the ten variables names `/__podrunner/podrunner-ca.pem`. A caller
+each of the ten variables names `/__podrunner/podrunner-ca.pem`; the
+trust store is `podrunner-ca.p12` (T-616). A caller
 with no CA file gives the containers no mount and no variable.
 
 ## Refusals

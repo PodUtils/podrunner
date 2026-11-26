@@ -907,7 +907,9 @@ the audit or in the text of an error.
   `JAVA_TOOL_OPTIONS` names it (T-577). Each container of the job (a `container:`
   job, a service, a Docker action) of a kind with `container: hooks`
   gets the bundle read-only at `/__podrunner/podrunner-broker-ca.pem`
-  and the same ten variables (T-578, `docs/contracts/hook.md`).
+  and the same ten variables (T-578), and its trust store at
+  `/__podrunner/podrunner-broker-ca.p12` with `JAVA_TOOL_OPTIONS` before a
+  value of the job (T-597, `docs/contracts/hook.md`).
 
 ## The remote mint
 

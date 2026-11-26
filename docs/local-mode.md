@@ -21,8 +21,12 @@ case forms), `SSL_CERT_DIR`, and the ten CA variables of
 `pod_broker::ca::env` of podcrates: `SSL_CERT_FILE`, `CURL_CA_BUNDLE`,
 `REQUESTS_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`, `GIT_SSL_CAINFO`,
 `AWS_CA_BUNDLE`, `DENO_CERT`, `HEX_CACERTS_PATH`,
-`CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` and `CARGO_HTTP_CAINFO`. A JVM on
-`--runner-dir` reads none of them. Its
+`CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` and `CARGO_HTTP_CAINFO`. A JVM
+reads none of them: the job also gets the trust store of each CA file
+(PKCS #12, `_work/_home/podrunner-ca.p12`), and `JAVA_TOOL_OPTIONS` names
+it. A runner directory with a space in its path gets no store (the JVM
+splits the variable at each space), and one line on stderr names the
+cause (T-598). Its
 `NO_PROXY` always holds the loopback, where the broker of the run is.
 It does not hold an entry of colons only (`::`, `:`): such an entry has no
 host, and the official runner stops at its start on it. One line on stderr
@@ -52,7 +56,11 @@ action) gets one bundle of the CA files, read-only at
 it, unless the job sets the variable for the container (T-596). The
 bundle holds each CA file once. A CA file with no certificate stays out
 of the bundle and of the trust store, and one line on stderr names it.
-The containers get no trust store of a JVM.
+Each container also gets the trust store of the bundle at
+`/__podrunner/podrunner-ca.p12`, and `JAVA_TOOL_OPTIONS` names it. A
+value of `JAVA_TOOL_OPTIONS` that the job sets for the container comes
+after the two options: the JVM takes the last value of a property, so a
+store that the job names keeps its priority (T-616).
 
 A job on `--runner-dir` gets a scratch `HOME` (`_work/_home` of the runner
 directory), which the next job removes. It runs as the user of podrunner,

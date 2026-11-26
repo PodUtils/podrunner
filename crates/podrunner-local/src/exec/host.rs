@@ -242,7 +242,8 @@ impl RunnerDir {
         // the user (T-266); the next job clears it with the work directory.
         let home = self.work.join("_home");
         std::fs::create_dir_all(&home).map_err(|e| format!("{}: {e}", home.display()))?;
-        let env = host_env(&home, std::env::vars());
+        let mut env = host_env(&home, std::env::vars());
+        super::proxy::host_trust(&home, &mut env);
         let mut child = start_runner_in(&self.dir, &self.work, &broker, &env, !self.quiet)?;
         let _ = std::fs::write(self.dir.join(GROUP), child.id().to_string());
         // The limit of the job (`timeout-minutes`, T-115): at its end, the

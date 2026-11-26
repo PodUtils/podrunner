@@ -1199,6 +1199,7 @@ dependencies = [
 name = "podrunner-hook"
 version = "0.1.0"
 dependencies = [
+ "pod-broker",
  "pod-core",
  "podrunner-fake",
  "podrunner-schema",

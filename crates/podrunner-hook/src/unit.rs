@@ -33,6 +33,25 @@ pub struct UnitCa {
     pub vars: Vec<String>,
 }
 
+impl UnitCa {
+    /// The name of the trust store of the bundle `file` for a JVM (T-597,
+    /// T-616): the name of the bundle with `.p12`, as the unit names its
+    /// own store. None when that is the name of the bundle.
+    pub fn store_name(file: &str) -> Option<String> {
+        let name = std::path::Path::new(file).with_extension("p12");
+        name.to_str().filter(|n| *n != file).map(str::to_string)
+    }
+
+    /// The trust store beside the bundle. The host makes it when it can:
+    /// a JVM that names a store that is not there fails each handshake.
+    fn store(&self) -> Option<String> {
+        UnitCa::store_name(&self.file).filter(|n| self.dir.join(n).is_file())
+    }
+}
+
+/// The variable of the options of each JVM: it names the trust store.
+const JAVA_OPTIONS: &str = "JAVA_TOOL_OPTIONS";
+
 /// The cache of the job of a unit (T-651): each container of the job sees
 /// it where the unit sees it, with the same mode and variables.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,6 +181,14 @@ impl HookUnit {
             let path = format!("{CA_DIR}/{}", ca.file);
             for v in &ca.vars {
                 env.entry(v.clone()).or_insert_with(|| path.clone());
+            }
+            // The store comes first: the JVM takes the last value of a
+            // property, so a store that the job names keeps its priority.
+            if let Some(store) = ca.store() {
+                let store = std::path::PathBuf::from(format!("{CA_DIR}/{store}"));
+                if let Ok(v) = pod_broker::ca::java_options(&store, env.get(JAVA_OPTIONS).map(String::as_str)) {
+                    env.insert(JAVA_OPTIONS.into(), v);
+                }
             }
         }
         // The host made the cache and checked it: no walk for a link. The
