@@ -16430,7 +16430,7 @@ Report of agent B of QA round 6 (user `qa9`, no root, user namespace yes, no KVM
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16456,6 +16456,22 @@ Edit `docs/examples/podrunner.toml` and `docs/fakes.md` (and the check of the ex
 ## Prove
 
 `cargo test -p podrunner --test check`, `cargo test -p podrunner --test doctor`, `cargo test -p podrunner-local` and `cargo test -p podrunner-slots` with a case for each line that a test can hold; `grep -n 'schema' docs/fakes.md` shows the example with `"schema":1`; then `cargo todo check`.
+
+## Done
+
+2026-11-26, `3305450f` merged (tests on a development host). Fixed: 1
+(`docs/examples/podrunner.toml` names the key `script` of a fake source,
+and `docs/examples/fake-jobs.jsonl` holds an offer; `check_example.rs`),
+2 (`docs/fakes.md` has whole offers and the rule of the runner names; the
+audit line of `job-mismatch` names both runners; `tests/doc.rs`,
+`tests::mismatch`), 6 (the error of `extra_events` lists the five events
+it takes, `pull_request_target` cites residual R8, and a repeated or a
+trusted event gives one note; `push` in `extra_events` is a note, not a
+refusal), 8 (`serve` posts a status before its first tick, so `status`
+answers while a source waits; `serve_status_wait`), half of 4
+(`NODE_EXTRA_CA_CERTS` from `SSL_CERT_FILE` in `podrunner-local`), and
+`runner.environment` of 7 (`self-hosted`). Open as entries: 3 (T-694), the
+hint of 4 (T-695), 5 (T-696), the log of the checkout of 7 (T-697).
 
 # T-643: The local checkout names the keys of `with:` that the stand-in does not take
 
@@ -18308,7 +18324,7 @@ space of a job; the local mode has no flag for the memory of a guest
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18333,6 +18349,23 @@ space of a job that it predicts for each pin.
 `cargo test -p podrunner pin_size` with a pin at the old bound refused,
 and `doctor --json` with the predicted space.
 
+## Done
+
+2026-11-26, `ee31cfe1` and the commits before it that name T-689 (tests
+on a development host; no guest on a KVM host). `check`, `serve`,
+`doctor` and `config init` refuse a microvm pin whose job gets less than
+2 GiB of the root of the guest (75 % of `mem`, the cap of T-688) as well
+as a pin over the boot bound, with the cause and the fix in whole GiB
+(`microvm_kind::JOB_RESERVE`, `pins_fit`; `mem.rs` `root_cap`,
+`job_space`, `mem_for_space`). At 8G the boot bound stays the stricter
+one. `doctor --json` gives `microvm_job_bytes` of each pin, and
+`microvm_mem_bytes` includes the reserve. No new key: `mem` sets it.
+Tests: `a_microvm_pin_leaves_space_for_its_job` and
+`doctor_names_the_memory_of_a_pinned_image` (each fails with the old
+bound), `the_space_of_a_job_follows_the_cap_of_the_root` (fails with a
+cap of half), and the edges of the bound. A guest of an offer below the
+kind can still give its job less than the reserve: T-699.
+
 # T-690: The local mode has no flag for the memory of a guest
 
 **Source:** the investigation of T-688, 2026-11-26
@@ -18340,7 +18373,7 @@ and `doctor --json` with the predicted space.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18362,6 +18395,19 @@ checked as `[unit.microvm] mem`, and name it in `doctor --run`.
 
 `cargo test -p podrunner run_local` with the flag in the podvm argv, and
 a refusal of a size below the boot of the image.
+
+## Done
+
+2026-11-26, the same commits as T-689 (tests on a development host).
+`podrunner run --microvm --mem SIZE` (and the key `mem` of `run.toml`, a
+host key) gives the guests of the run that memory, checked as
+`[unit.microvm] mem` is, with a floor of the boot and the reserve of an
+empty image; `doctor --run` names it; another executor drops the key.
+Tests: `the_memory_of_a_guest_goes_to_the_kind` (fails with `mem: None`),
+`a_bad_memory_of_a_guest_is_refused`,
+`the_memory_of_a_guest_stays_with_the_microvm_kind_only`. The local mode
+checks `--mem` against an image of 0 bytes, as it does not know the
+unpacked size of the image: T-698.
 
 # T-691: The run report does not name the limits a unit got
 
@@ -18479,3 +18525,183 @@ hooks of `serve`; `run` keeps its encode.
 
 `cargo test -p podrunner-hook tests_ca` with the store bytes given, and
 no encode when they are.
+
+# T-694: The output of a container step comes at its end
+
+**Source:** QA round 6 finding 3 (T-642), 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The hook `run_script_step` answers with the output of a container step
+after the exec ends (`Plan::Script` of `crates/podrunner-hook/src/unit.rs`),
+so a long step of a `container:` job prints nothing while it runs, and
+the quiet line says that the run waits for its job.
+
+## Premise
+
+Read from the code by the worker of T-642 on 2026-11-26.
+
+## Approach
+
+Let the exec write its log, and tail it into the live sink of the job
+while the step runs (`Plan::Script` and `pump` of `exec.rs`); else say in
+the quiet line that a container step prints at its end. Change the row of
+`docs/cli.md` in the model with it.
+
+## Prove
+
+`cargo test -p podrunner-hook` with a step that prints a line, waits on
+an event, and prints again: the first line comes before the end.
+
+# T-695: doctor --run names no NODE_EXTRA_CA_CERTS of SSL_CERT_FILE
+
+**Source:** QA round 6 finding 4 (T-642), 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`run` now gives `NODE_EXTRA_CA_CERTS` from `SSL_CERT_FILE` (T-642), but
+`doctor --run` does not say so, so a user behind a proxy does not learn
+that Node trusts the same CA.
+
+## Premise
+
+Read from `crates/podrunner/src/run_local/doctor.rs` on 2026-11-26.
+
+## Approach
+
+Add to the row of the proxy of `doctor --run` the CA file that Node gets,
+or that a value of the user wins.
+
+## Prove
+
+`cargo test -p podrunner --test doctor` with `SSL_CERT_FILE` set and not.
+
+# T-696: A podvm unit after job-mismatch is degraded with an unknown count
+
+**Source:** QA round 6 finding 5 (T-642), 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+After `job-mismatch`, the unit of the podvm kind is `degraded` with a
+count of processes `Unknown`, and the text says "no count", which reads
+as a leak.
+
+## Premise
+
+Read from `crates/podrunner-podvm/src/unit.rs` by the worker of T-642.
+
+## Approach
+
+When the launcher is gone and no process carries the tag of the unit,
+give `Count(0)`, not `Unknown`; else say "no count of the processes, not
+a leak". Check the fake unit with plant 26 too.
+
+## Prove
+
+`cargo test -p podrunner-podvm` with a gone launcher and no tagged
+process.
+
+# T-697: The stand-in of actions/checkout prints its script in the log
+
+**Source:** QA round 6 finding 7 (T-642), 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The local mode runs its stand-in of `actions/checkout` as a `run:` step,
+so the runner prints the whole script in the log of the job under the
+name of the action.
+
+## Premise
+
+Read by the worker of T-642 on 2026-11-26.
+
+## Approach
+
+Serve the stand-in as a local action through `serve_actions` of the fake
+broker, so that the runner prints the `uses:` line and its inputs only.
+
+## Prove
+
+`cargo test -p podrunner --test local` with a checkout step: the log has
+no line of the script.
+
+# T-698: The local mode checks --mem against an image of 0 bytes
+
+**Source:** the worker of T-690, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podvm inspect` gives the stored bytes of an image (`Size`), not its
+unpacked bytes, so the local mode checks `--mem` and the microvm bound
+against an image of 0 bytes: a large image can leave too little space for
+its job.
+
+## Premise
+
+Read from podvm `0.2.0-beta.40` (`inspect.rs`) by the worker of T-690.
+
+## Approach
+
+Take the unpacked size from `podrunner-manifest.json` of the install
+when the image is the one of the release, else ask podvm for it by a
+COORD issue, and give it to `refusal` and `with_payload_sizes`.
+
+## Prove
+
+`cargo test -p podrunner run_local` with an image whose size refuses a
+small `--mem`.
+
+# T-699: A microvm guest of an offer below the kind can leave its job no reserve
+
+**Source:** the worker of T-689, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With an offer below the kind (T-655), a guest gets the offer plus its
+image, and its job gets about 0.75 × (offer + image) − image of root:
+less than the 2 GiB reserve of T-689 for a small offer.
+
+## Premise
+
+Read from `crates/podrunner-microvm/src/mem.rs` (`guest_mem`) on
+2026-11-26.
+
+## Approach
+
+Add the reserve to the floor of `guest_mem`, or give the guest the
+memory that leaves its job the offer and the reserve; decide which with
+the meaning of `memory` of T-655.
+
+## Prove
+
+`cargo test -p podrunner-microvm mem` with a small offer on a large image.

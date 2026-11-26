@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**688 entries: 73 open, 55 partial, 18 blocked, 542 done.**
+**694 entries: 76 open, 55 partial, 18 blocked, 545 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 12 | 20 | 10 | 282 | 324 |
-| P3 | 60 | 12 | 6 | 158 | 236 |
-| **All** | 73 | 55 | 18 | 542 | 688 |
+| P3 | 63 | 12 | 6 | 161 | 242 |
+| **All** | 76 | 55 | 18 | 545 | 694 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -684,7 +684,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-639](later.md) | P2 | M | later | defect | done | Ctrl-C does not cancel a `container:` job in a long step on `--podvm` |
 | [T-640](later.md) | P2 | M | later | defect | done | `actions/checkout` with `ref:` on the same repository is silently ignored in the local mode |
 | [T-641](later.md) | P2 | S | later | defect | done | `check` accepts the `config_url` of an organization with `.git` at the end |
-| [T-642](later.md) | P3 | M | later | defect | open | QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts |
+| [T-642](later.md) | P3 | M | later | defect | done | QA round 6, agent B: the P3 findings of the examples, the fakes, the logs and the texts |
 | [T-643](later.md) | P3 | S | later | defect | open | The local checkout names the keys of `with:` that the stand-in does not take |
 | [T-644](later.md) | P2 | S | later | chore | partial | A lane of the user-path gate: Ctrl-C of a `container:` job on podvm |
 | [T-645](later.md) | P3 | S | later | chore | done | The man page of the model under groff and mandoc, and in the assets of a release |
@@ -731,8 +731,14 @@ acceptance, later The crate dependencies later than v1.
 | [T-686](later.md) | P2 | S | later | chore | done | Take podnet `v0.4.0-beta.20` (COORD-132 of podnet) |
 | [T-687](later.md) | P2 | S | later | chore | done | Take podcrates `v0.86.0` (COORD-158 of podcrates) |
 | [T-688](later.md) | P2 | M | later | defect | partial | A job of the corpus runs out of space in a microvm guest |
-| [T-689](later.md) | P3 | S | later | defect | open | The pin bound of a microvm guest leaves no space for a job |
-| [T-690](later.md) | P3 | S | later | feature | open | The local mode has no flag for the memory of a guest |
+| [T-689](later.md) | P3 | S | later | defect | done | The pin bound of a microvm guest leaves no space for a job |
+| [T-690](later.md) | P3 | S | later | feature | done | The local mode has no flag for the memory of a guest |
 | [T-691](later.md) | P3 | S | later | feature | blocked | The run report does not name the limits a unit got |
 | [T-692](later.md) | P3 | M | later | feature | done | The installer does not install the man page |
 | [T-693](later.md) | P3 | S | later | chore | open | The trust store of a unit of serve is encoded twice |
+| [T-694](later.md) | P3 | M | later | defect | open | The output of a container step comes at its end |
+| [T-695](later.md) | P3 | S | later | defect | open | doctor --run names no NODE_EXTRA_CA_CERTS of SSL_CERT_FILE |
+| [T-696](later.md) | P3 | S | later | defect | open | A podvm unit after job-mismatch is degraded with an unknown count |
+| [T-697](later.md) | P3 | S | later | defect | open | The stand-in of actions/checkout prints its script in the log |
+| [T-698](later.md) | P3 | S | later | defect | open | The local mode checks --mem against an image of 0 bytes |
+| [T-699](later.md) | P3 | S | later | defect | open | A microvm guest of an offer below the kind can leave its job no reserve |

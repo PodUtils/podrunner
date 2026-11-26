@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| command line, `run.toml`, `doctor --json` | `podrunner run --microvm --mem SIZE` and the key `mem`; `check` and `doctor` refuse a microvm pin whose job gets less than 2 GiB of root; the pins of `doctor --json` give `microvm_job_bytes`, and `microvm_mem_bytes` includes the reserve. | T-689, T-690 |
 | `podrunner-manifest.json`, the installer | The manifest has `podrunner.man_page` (`file`, `sha256` of `podrunner.1`; null for a release with no page); the installer and the offline bundle put the page in `PREFIX/share/man/man1`. | T-692 |
 | the environment of a job (hook containers, `--runner-dir`) | `JAVA_TOOL_OPTIONS` names a PKCS #12 trust store of the CA bundle: `/__podrunner/*.p12` in each hook container, `_work/_home/podrunner-ca.p12` on `--runner-dir`; a value of the job comes after. | T-597 |
 | `status.v1`, the capability record; `[unit.podvm] mem` | Where the host delegates a cgroup v2 subtree with `memory`, the podvm kind holds `mem` as `memory.max` of the leaf of each unit (else RLIMIT_AS) and gives `limits.memory-per-unit` (`enforced` or `none`). A job that failed after an OOM kill there ends `limit`. | T-515 |

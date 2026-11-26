@@ -151,6 +151,21 @@ const DIGEST: &str = "r@sha256:0000000000000000000000000000000000000000000000000
 
 /// T-627, T-303: the executor of the command line drops each key of the
 /// files that belongs to another executor.
+/// T-690: `mem` of a file is a key of the microvm kind: another executor
+/// of the command line drops it; `--microvm` keeps it.
+#[test]
+fn the_memory_of_a_guest_stays_with_the_microvm_kind_only() {
+    let file = s(&["--microvm", "/m", "--mem", "4G", "--quiet"]);
+    for kind in ["--podvm", "--incus"] {
+        let got = command_line_wins(file.clone(), &s(&["w.yml", kind, "/p"]));
+        assert_eq!(got, s(&["--quiet"]), "{kind}");
+    }
+    let got = command_line_wins(file.clone(), &s(&["w.yml", "--runner-dir", "/r"]));
+    assert_eq!(got, s(&["--quiet"]));
+    let got = command_line_wins(file, &s(&["w.yml", "--microvm", "/other"]));
+    assert_eq!(got, s(&["--mem", "4G", "--quiet"]));
+}
+
 #[test]
 fn the_executor_of_the_command_line_drops_the_keys_of_other_executors() {
     let all = s(&[
