@@ -146,25 +146,21 @@ fn actions_checkout_is_the_stand_in_of_the_local_tree() {
                 - uses: actions/checkout@v4\n        with:\n          path: sub/dir\n          fetch-depth: 0\n";
     let job = job_of(text);
     let steps = job.overrides["steps"].as_array().unwrap().clone();
-    assert_eq!(steps[0]["reference"]["type"], "script");
+    // T-697: the step is the action `podrunner/checkout`, served by the
+    // broker: the log of the runner has its inputs, not a script.
+    assert_eq!(steps[0]["reference"]["name"], "podrunner/checkout");
+    assert_eq!(steps[0]["reference"]["type"], "repository");
     assert_eq!(steps[0]["contextName"], "__actions_checkout");
-    let script = steps[0]["inputs"]["map"][0]["Value"]["expr"].as_str().unwrap();
-    assert!(script.contains("{0}_checkout.tar.gz") && script.contains("(github.podrunner_broker)"), "{script}");
-    // T-406: the broker gives the tree only with the job token, which goes
-    // to curl on its standard input (printf is a builtin): not in an argv.
-    assert!(
-        script.contains("printf ''header = \"Authorization: Bearer %s\"") && script.contains("curl -fsSL -K - "),
-        "{script}"
-    );
-    assert!(script.contains("(github.podrunner_token)") && !script.contains("-H "), "{script}");
-    assert!(
-        script.contains("cd \"$GITHUB_WORKSPACE\"") && script.contains("gzip -dc < \"$f\" | tar -xf -"),
-        "{script}"
-    );
-    assert!(!script.contains(" -C ") && !script.contains("-xz"), "{script}");
+    let map = &steps[0]["inputs"]["map"];
+    assert_eq!(map[0]["Key"], "broker");
+    assert_eq!(map[0]["Value"]["expr"], "github.podrunner_broker");
+    assert_eq!(map[1], json!({ "Key": "route", "Value": "_checkout.tar.gz" }));
+    // T-406: the job token is in no input: the action reads it from the
+    // environment of the runner.
+    let all = map.to_string();
+    assert!(!all.contains("podrunner_token") && !all.contains("curl") && !all.contains("tar -xf"), "{all}");
     assert_eq!(steps[1]["contextName"], "__actions_checkout_2");
-    let script = steps[1]["inputs"]["map"][0]["Value"]["expr"].as_str().unwrap();
-    assert!(script.contains("$GITHUB_WORKSPACE/sub/dir"), "{script}");
+    assert_eq!(steps[1]["inputs"]["map"][2], json!({ "Key": "dest", "Value": "sub/dir" }));
     let bad = "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        \
                with:\n          path: ../out\n";
     let mut s = LocalSource::new("l", bad, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
@@ -269,12 +265,9 @@ fn a_checkout_of_another_repository_takes_its_pinned_tree() {
     let sha = "c".repeat(40);
     s.set_pins(BTreeMap::from([("o/lib@v2".to_string(), sha.clone())]));
     let m = podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &s.broker_job(&job).unwrap());
-    let script = m["steps"][0]["inputs"]["map"][0]["Value"].to_string();
-    assert!(
-        script.contains(&format!("_actions/o_lib/{sha}.tar.gz")) && script.contains("--strip-components=1"),
-        "{script}"
-    );
-    assert!(script.contains("lib"), "{script}");
+    let script = m["steps"][0]["inputs"]["map"].to_string();
+    assert!(script.contains(&format!("_actions/o_lib/{sha}.tar.gz")) && script.contains(r#""Key":"strip","Value":"1""#), "{script}");
+    assert!(script.contains(r#""Key":"dest","Value":"lib""#), "{script}");
 }
 
 #[test]
@@ -409,81 +402,3 @@ fn an_image_takes_the_values_of_the_matrix() {
     assert_eq!(super::matrix_text(&pod_actions_expr::Value::Number(15.0)).as_deref(), Some("15"));
 }
 
-/// T-422: the stand-in of `actions/checkout` gets the tree in a job
-/// container with no curl: with python3 (`python:*-slim`) or node (the
-/// runner's in `/__e`, `node:*-slim`); with none, one line names what it
-/// needs. The token is in no argv.
-#[test]
-fn the_checkout_stand_in_needs_no_curl() {
-    use std::io::{BufRead, Read, Write};
-    let dir = std::env::temp_dir().join(format!("podrunner-checkout-nocurl-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(dir.join("tree")).unwrap();
-    std::fs::write(dir.join("tree/hello.txt"), "hi\n").unwrap();
-    let tgz = std::process::Command::new("tar")
-        .args(["-czf", "-", "-C"])
-        .arg(dir.join("tree"))
-        .arg(".")
-        .output()
-        .unwrap()
-        .stdout;
-    // A broker that gives the tree only with the token.
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
-    std::thread::spawn(move || {
-        for c in listener.incoming().flatten() {
-            let mut r = std::io::BufReader::new(c.try_clone().unwrap());
-            let mut auth = false;
-            loop {
-                let mut l = String::new();
-                if r.read_line(&mut l).unwrap_or(0) == 0 || l == "\r\n" {
-                    break;
-                }
-                auth |= l.to_ascii_lowercase().starts_with("authorization: bearer tok-1");
-            }
-            let mut c = c;
-            let body: &[u8] = if auth { &tgz } else { b"" };
-            let status = if auth { "200 OK" } else { "401 Unauthorized" };
-            let _ = write!(c, "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
-            let _ = c.write_all(body);
-            let _ = r.read(&mut [0u8; 1]);
-        }
-    });
-    let script = super::checkout::CHECKOUT_SCRIPT
-        .replace("${{ github.podrunner_broker }}", &format!("http://127.0.0.1:{port}/"))
-        .replace("${{ github.podrunner_token }}", "tok-1")
-        .replace("DEST", "$GITHUB_WORKSPACE")
-        .replace("ROUTE", "_checkout.tar.gz")
-        .replace("STRIP", "");
-    // A PATH of only the tools that each image has, and one of python3 or node.
-    let path_with = |tool: Option<&str>| {
-        let bin = dir.join(format!("bin-{}", tool.unwrap_or("none")));
-        std::fs::create_dir_all(&bin).unwrap();
-        for t in ["mkdir", "gzip", "tar", "rm"].into_iter().chain(tool) {
-            let real = String::from_utf8(
-                std::process::Command::new("sh").args(["-c", &format!("command -v {t}")]).output().unwrap().stdout,
-            )
-            .unwrap();
-            let _ = std::os::unix::fs::symlink(real.trim(), bin.join(t));
-        }
-        bin
-    };
-    for tool in [Some("python3"), Some("node"), None] {
-        let work = dir.join(format!("work-{}", tool.unwrap_or("none")));
-        std::fs::create_dir_all(&work).unwrap();
-        let out = std::process::Command::new("/bin/sh")
-            .args(["-c", &script])
-            .env_clear()
-            .env("PATH", path_with(tool))
-            .env("GITHUB_WORKSPACE", &work)
-            .env("RUNNER_TEMP", &dir)
-            .output()
-            .unwrap();
-        let err = String::from_utf8_lossy(&out.stderr);
-        match tool {
-            Some(t) => assert!(work.join("hello.txt").is_file(), "{t}: {err}"),
-            None => assert!(!out.status.success() && err.contains("needs curl, node or python3"), "{err}"),
-        }
-    }
-    let _ = std::fs::remove_dir_all(&dir);
-}

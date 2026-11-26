@@ -13,7 +13,7 @@ use podrunner_source::JobSource;
 use crate::LocalSource;
 use crate::tree::refs::key;
 
-/// The script of the checkout with `with` and the pins `pins`, or the
+/// The inputs of the checkout with `with` and the pins `pins`, or the
 /// refusal of the job.
 fn script(with: &str, pins: &[(&str, &str)]) -> Result<String, String> {
     let text = format!(
@@ -25,7 +25,7 @@ fn script(with: &str, pins: &[(&str, &str)]) -> Result<String, String> {
     s.set_pins(pins.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<BTreeMap<_, _>>());
     let job = s.broker_job(&JobId::new("a.0").unwrap())?;
     let m = podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &job);
-    Ok(format!("{} {}", m["steps"][0]["displayName"], m["steps"][0]["inputs"]["map"][0]["Value"]))
+    Ok(format!("{} {}", m["steps"][0]["displayName"], m["steps"][0]["inputs"]["map"]))
 }
 
 #[test]
@@ -35,8 +35,8 @@ fn a_ref_of_the_same_repository_takes_its_commit() {
     // The commit of the ref: its tarball, into `path`, with no strip.
     for with in ["ref: main\n          path: other", "repository: me/app\n          ref: main\n          path: other"] {
         let s = script(with, &[(&main, &sha)]).unwrap();
-        assert!(s.contains(&format!("_checkout/{sha}.tar.gz")) && s.contains("/other"), "{with}: {s}");
-        assert!(!s.contains("_checkout.tar.gz") && !s.contains("strip-components"), "{s}");
+        assert!(s.contains(&format!("_checkout/{sha}.tar.gz")) && s.contains(r#""Key":"dest","Value":"other""#), "{with}: {s}");
+        assert!(!s.contains("_checkout.tar.gz") && !s.contains(r#""Key":"strip""#), "{s}");
         assert!(s.contains(&format!("ref main at {sha}")), "the display names it: {s}");
     }
     // The ref is the commit of HEAD: the local tree.
@@ -45,7 +45,7 @@ fn a_ref_of_the_same_repository_takes_its_commit() {
     // The default, an empty ref and an expression: the local tree.
     for with in ["path: x", "ref: ''", "ref:", "ref: ${{ github.sha }}"] {
         let s = script(with, &[]).unwrap();
-        assert!(s.contains("_checkout.tar.gz") && !s.contains("the checkout with"), "{with}: {s}");
+        assert!(s.contains("_checkout.tar.gz") && !s.contains(r#""Key":"fail""#), "{with}: {s}");
     }
     // A ref with no commit fails the step with its name and the reason; a
     // ref that the run did not resolve, too. No fetch of the tree.
@@ -57,7 +57,7 @@ fn a_ref_of_the_same_repository_takes_its_commit() {
     ] {
         let pins: Vec<(&str, &str)> = pins.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
         let s = script(with, &pins).unwrap();
-        assert!(s.contains("the checkout with") && s.contains(want) && !s.contains("_checkout"), "{with}: {s}");
+        assert!(s.contains(r#""Key":"fail""#) && s.contains(want) && !s.contains("_checkout"), "{with}: {s}");
     }
     // A ref with no quotes that YAML reads as a number is that text.
     let s = script("ref: 1234567", &[(&key("1234567"), &sha)]).unwrap();
@@ -67,4 +67,14 @@ fn a_ref_of_the_same_repository_takes_its_commit() {
     assert!(script("ref: true", &[]).unwrap().contains("`ref:` is not text"));
     let e = script("ref: main\n          submodules: true", &[(&main, &sha)]).unwrap_err();
     assert!(e.contains("submodules"), "{e}");
+}
+
+/// T-643: the display of the step lists the keys that the stand-in does
+/// not take, and no value.
+#[test]
+fn the_display_names_the_keys_that_the_stand_in_ignores() {
+    let s = script("fetch-depth: 0\n          token: s3cr3t\n          path: x", &[]).unwrap();
+    assert!(s.contains("the local tree; ignores fetch-depth, token"), "{s}");
+    assert!(!s.contains("s3cr3t"), "{s}");
+    assert!(!script("path: x", &[]).unwrap().contains("ignores"));
 }

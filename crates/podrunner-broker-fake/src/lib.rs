@@ -11,6 +11,7 @@ mod auth;
 mod listen;
 mod results;
 mod routes;
+pub mod stand_in;
 use listen::Wake;
 pub use listen::bind_loopback;
 pub use routes::service_of;

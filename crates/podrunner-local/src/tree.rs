@@ -12,6 +12,7 @@ use std::process::Command;
 mod submodules;
 
 /// The tree of a commit of the local git, for `ref:` of a checkout (T-640).
+pub mod ignored;
 pub mod refs;
 
 /// The list of the submodules in the tarball (T-425).

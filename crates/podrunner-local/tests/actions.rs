@@ -136,5 +136,10 @@ fn the_checkout_stand_in_gives_the_local_tree_and_its_actions() {
     let ok = drive(&mut s, &mut exec, &mut |l| lines.push(l.clone())).unwrap();
     let logs: String = exec.logs.iter().map(|(_, l)| l.as_str()).collect();
     assert!(ok, "{lines:?}\n{logs}");
+    // T-697: the log shows the action and its inputs, no script, no token.
+    assert!(logs.contains("podrunner/checkout"), "{logs}");
+    for script in ["gzip -dc", "tar -xf", "curl", "set -eu", "ACTIONS_RUNTIME_TOKEN"] {
+        assert!(!logs.contains(script), "{script:?} in the log:\n{logs}");
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }

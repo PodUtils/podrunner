@@ -278,14 +278,14 @@ fn step(
     let line = s.mark.line;
     let (reference, base, display, inputs) = match (&s.uses, &s.run) {
         (Some(uses), None) if uses.starts_with("actions/checkout@") => {
-            let (script, what) = checkout::stand_in(s, d.pins, d.self_repo)?;
+            let (given, what) = checkout::stand_in(s, d.pins, d.self_repo)?;
             let display = format!("Run {uses} ({what})");
-            (
-                json!({ "type": "script" }),
-                "__actions_checkout".to_string(),
-                display,
-                vec![("script".into(), token(&script)?)],
-            )
+            let reference = json!({
+                "type": "repository", "repositoryType": "GitHub",
+                "name": podrunner_broker_fake::stand_in::NAME, "ref": "v1",
+            });
+            let inputs = given.iter().map(|(k, v)| Ok((k.clone(), token(v)?))).collect::<Result<_, String>>()?;
+            (reference, "__actions_checkout".to_string(), display, inputs)
         }
         (Some(uses), None) => {
             if let (true, Some(refusal)) = (uses.starts_with("docker://"), d.pins.get(REFUSE_CONTAINERS)) {

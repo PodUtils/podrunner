@@ -11,6 +11,15 @@ use podrunner_local::tree::refs::{self, Ask};
 
 use super::Args;
 
+/// One line for each key of `with:` that the stand-in does not take
+/// (T-643), once for a run: the key, its first line, and what the job gets.
+fn ignored_notes<'a>(ws: impl IntoIterator<Item = &'a pod_actions_workflow::Workflow>) -> Vec<String> {
+    podrunner_local::tree::ignored::ignored_in(ws)
+        .into_iter()
+        .map(|(line, key, why)| format!("podrunner: the checkout at line {line}: `{key}` is ignored; {why}"))
+        .collect()
+}
+
 /// The tarball of the local tree, or `None` with no `--checkout`; each ref
 /// of a checkout of the same repository goes into `pins`. A line on stderr
 /// names each ref that has no commit (its step fails) and each expression
@@ -22,6 +31,10 @@ pub(super) fn trees(
     scratch: &Path,
     pins: &mut BTreeMap<String, String>,
 ) -> Result<Option<PathBuf>, String> {
+    let called = a.checkout.as_deref().map(|d| super::composites::local_calls(workflow, d).unwrap_or_default());
+    for note in ignored_notes(std::iter::once(workflow).chain(called.iter().flatten())) {
+        eprintln!("{note}");
+    }
     let Some(dir) = &a.checkout else { return Ok(None) };
     let o = podrunner_local::tree::Options {
         head: a.checkout_head,
@@ -38,7 +51,7 @@ pub(super) fn trees(
             "podrunner: the tree of --checkout is {mib} MiB; each checkout of a job downloads it: ignore its large files in .gitignore, or give --checkout-head"
         );
     }
-    let called = super::composites::local_calls(workflow, dir).unwrap_or_default();
+    let called = called.unwrap_or_default();
     let mut asks: Vec<(u32, Ask)> =
         std::iter::once(workflow).chain(&called).flat_map(|w| refs::asks(w, self_repo)).collect();
     asks.dedup();
@@ -88,4 +101,35 @@ pub(super) fn trees(
         pins.insert(key, value);
     }
     Ok(Some(t))
+}
+
+#[cfg(test)]
+mod tests {
+    use pod_actions_workflow::Workflow;
+
+    fn notes(with: &str) -> Vec<String> {
+        let text = format!(
+            "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          {with}\n      - uses: actions/checkout@v4\n        with:\n          {with}\n"
+        );
+        let w = pod_actions_workflow::parse(&text).unwrap().workflow;
+        super::ignored_notes(std::iter::once::<&Workflow>(&w))
+    }
+
+    #[test]
+    fn each_key_that_the_stand_in_ignores_is_named_once() {
+        for key in [
+            "fetch-depth: 0", "filter: blob:none", "sparse-checkout: src", "sparse-checkout-cone-mode: false",
+            "clean: false", "lfs: true", "token: x", "ssh-key: x", "persist-credentials: false",
+        ] {
+            let n = notes(key);
+            let name = key.split(':').next().unwrap();
+            assert_eq!(n.len(), 1, "{key}: two steps, one line: {n:?}");
+            assert!(n[0].contains(&format!("`{name}` is ignored")) && n[0].contains("line 6"), "{n:?}");
+        }
+        // The keys that it takes, and a step with none, have no line; a
+        // value is never in the line.
+        assert!(notes("path: x").is_empty() && notes("submodules: true").is_empty());
+        assert!(notes("ref: main").is_empty() && notes("repository: o/r").is_empty());
+        assert!(!notes("token: s3cr3t").concat().contains("s3cr3t"));
+    }
 }

@@ -23,12 +23,19 @@ pub fn archive_name(name_with_owner: &str, sha: &str) -> String {
     format!("{}/{sha}.tar.gz", name_with_owner.replace('/', "_"))
 }
 
+fn stand_in_file() -> String {
+    archive_name(crate::stand_in::NAME, crate::stand_in::SHA)
+}
+
 /// A made-up token of the downloads: this broker checks no credential.
 const TOKEN: &str = "podrunner-local-actions";
 
 /// The commit of `NAME@VERSION`: its pin, or the version when it is a full
 /// commit id.
 fn commit<'a>(pins: &'a BTreeMap<String, String>, name: &str, version: &'a str) -> Option<&'a str> {
+    if name == crate::stand_in::NAME {
+        return Some(crate::stand_in::SHA);
+    }
     let full = version.len() == 40 && version.bytes().all(|b| b.is_ascii_hexdigit());
     pins.get(&format!("{name}@{version}")).map(String::as_str).or(full.then_some(version))
 }
@@ -104,6 +111,10 @@ pub fn route(
         }
         ("POST", p) if p.starts_with("/actions/build/") && p.ends_with("/runnerresolve/actions") => {
             json(resolve(base, body, pins))
+        }
+        // The stand-in of `actions/checkout` is in this binary (T-697).
+        ("GET", p) if p.strip_prefix('/') == Some(&format!("{TARBALLS}{}", stand_in_file())) => {
+            Some((200, crate::stand_in::tarball()))
         }
         ("GET", p) if p.starts_with(&format!("/{TARBALLS}")) => {
             let rel = &p[TARBALLS.len() + 1..];
