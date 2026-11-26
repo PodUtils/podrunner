@@ -11,7 +11,8 @@
 //! the unit that the guest mounts over 9p. Each process of the unit (podvm, QEMU)
 //! carries the tag of the unit, so `destroy` ends the whole tree. Before the
 //! payload, the guest script checks that each host mount of the guest is
-//! in the table of the unit (`MOUNT_CHECK`, T-036).
+//! in the table of the unit (`MOUNT_CHECK`, T-036): the cache is the one
+//! host directory of a start (`cache`, T-648).
 //!
 //! A unix socket does not cross into a guest: the kind has no route of the
 //! container hooks. With an engine ([`MicrovmUnit::with_engine`], T-103),
@@ -25,6 +26,7 @@
 //! variables of the payload from `PODRUNNER_CHANNEL_PORT`: the hold needs
 //! no help of the host.
 
+pub mod cache;
 mod guest;
 pub mod mem;
 mod warm;
@@ -208,6 +210,11 @@ impl UnitDriver for MicrovmUnit {
         Some(self.cred_root.clone())
     }
 
+    /// The cache of the job only ([`cache`], T-648).
+    fn host_mounts(&self) -> bool {
+        true
+    }
+
     fn probe(&self) -> Result<Capability, UnitError> {
         Ok(Capability {
             schema: 1,
@@ -228,6 +235,7 @@ impl UnitDriver for MicrovmUnit {
             secret_delivery: vec![podrunner_schema::SecretDelivery::Files],
             // The files wait on the disk of the host until the guest copies them.
             credential_store: CredentialStore::PrivateDir,
+            // No `rw`: the user of the image writes a share only with the host uid.
             mount_modes: vec!["ro".into()],
             rootfs_fresh: Fact::Yes,
             tree_kill: TreeKill::Unverified,
@@ -392,10 +400,8 @@ fn no_container() -> UnitError {
 impl MicrovmUnit {
     /// Boot the guest of `spec`; `claimed` is `Some(false)` for a warm unit.
     fn launch(&self, spec: &StartSpec, claimed: Option<bool>) -> Result<(), UnitError> {
-        // The self-check of the guest refuses a mount that it does not know.
-        if !spec.mounts.is_empty() {
-            return Err(UnitError::new(UnitCode::UnitStartFailed, "this kind mounts no host directory (T-138)"));
-        }
+        // Only the cache: the self-check of the guest refuses another mount.
+        let cache = cache::of(&spec.mounts)?;
         let mut units = self.units.lock().expect("the units");
         let dir = self.unit_dir(&spec.unit);
         if units.contains_key(&spec.unit) || dir.exists() {
@@ -414,7 +420,7 @@ impl MicrovmUnit {
         if let Some(e) = paths
             .into_iter()
             .flatten()
-            .find_map(|p| podrunner_unit::mounts::host_path(p, UnitCode::UnitStartFailed).err())
+            .find_map(|p| podrunner_unit::mounts::host_path(p, UnitCode::UnitStartFailed).and(cache::nine_p(p)).err())
         {
             let _ = fs::remove_dir_all(&dir);
             return Err(e);
@@ -435,6 +441,7 @@ impl MicrovmUnit {
             payload_engine: self.engine_needs_payload() && self.payload_engines.contains(&spec.image.digest),
             init_image: self.init_image,
             pids: applied.pids,
+            cache,
         };
         // The file stays in the directory of the unit until `destroy`.
         let (env_file, env) = podrunner_podvm::write_env_file(&self.podvm, &dir, &spec.env)?;
@@ -472,6 +479,8 @@ impl MicrovmUnit {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_cache;
 #[cfg(test)]
 mod tests_warm;
 

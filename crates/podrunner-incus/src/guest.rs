@@ -9,6 +9,8 @@ use base64::engine::general_purpose::STANDARD;
 use podrunner_schema::{Credential, FileBytes, PlainName};
 use podrunner_unit::{UnitCode, UnitError};
 
+use crate::cache::{CACHE_MOUNT, RO_CHECK};
+
 /// Where the instance sees the work directory of the unit (a `disk`
 /// device): the payload runs there, so a file of the job lands in the unit
 /// directory of the host, and `destroy` removes it.
@@ -108,6 +110,9 @@ pub struct Instance<'a> {
     /// The credential files come on stdin (`-i`); a warm instance gets
     /// them by its claim (T-487).
     pub stdin: bool,
+    /// The cache of the job (T-648): its host directory, and true when
+    /// read-only.
+    pub cache: Option<(&'a Path, bool)>,
 }
 
 /// Where the instance sees the engine directory, read-only.
@@ -118,7 +123,19 @@ pub const ENGINE_MOUNT: &str = "/podrunner-engine";
 /// one channel to it (T-109). The argv of the payload goes to the script
 /// as positional parameters: no word of it is quoted again.
 pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String>, argv: &[String]) -> Vec<String> {
-    let Instance { name, reference, work, egress, runner_root, limits, engine, payload_engine, init_image, stdin } = *i;
+    let Instance {
+        name,
+        reference,
+        work,
+        egress,
+        runner_root,
+        limits,
+        engine,
+        payload_engine,
+        init_image,
+        stdin,
+        cache,
+    } = *i;
     let payload_engine = payload_engine && engine.is_none() && !init_image;
     let mut a: Vec<String> = ["run", "-d", "-i", "--name", name, "--podvm-tier=incus", "--podvm-net", "none"]
         .into_iter()
@@ -160,6 +177,10 @@ pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String
     }
     a.push("-v".into());
     a.push(format!("{}:{WORK_MOUNT}", work.display()));
+    if let Some((host, ro)) = cache {
+        a.push("-v".into());
+        a.push(format!("{}:{CACHE_MOUNT}{}", host.display(), if ro { ":ro" } else { "" }));
+    }
     // The values of the environment in a file, not in the argv (T-405).
     a.extend(env_file.iter().cloned());
     for (k, v) in env {
@@ -167,8 +188,11 @@ pub fn run_args(i: &Instance, env_file: &[String], env: &BTreeMap<String, String
         a.push(format!("{k}={v}"));
     }
     a.push(reference.into());
-    let script =
+    let mut script =
         if payload_engine { podrunner_unit::payload_engine_script(SCRIPT, ENGINE_MOUNT) } else { SCRIPT.into() };
+    if cache.is_some_and(|(_, ro)| ro) {
+        script = script.replacen("root=$1; shift\n", &format!("root=$1; shift\n{RO_CHECK}"), 1);
+    }
     a.extend(["/bin/sh".into(), "-c".into(), script, "podrunner".into(), runner_root.into()]);
     a.extend(argv.iter().cloned());
     a

@@ -12,8 +12,8 @@ use serde_json::{Value, json};
 use super::store::{self, Mode, Uses};
 use super::{CacheConfig, Mounts, decide, scope};
 
-/// A kind that mounts a host directory and holds `:ro`.
-const BOTH: Mounts = Mounts { host: true, ro: true };
+/// A kind that mounts a host directory, holds `:ro` and writes `rw`.
+const BOTH: Mounts = Mounts { host: true, ro: true, rw: true };
 
 fn offer(with: Value) -> JobOffer {
     let step: Value = serde_json::from_str(&crate::tests::offer(0, "j-1", with)).unwrap();
@@ -67,11 +67,11 @@ fn only_a_trusted_job_of_a_writing_event_on_a_write_ref_writes() {
 fn an_untrusted_job_a_kind_with_no_mounts_and_a_bad_key_get_no_cache() {
     let rw = json!({ "cache": { "key": "default", "mode": "rw" } });
     assert!(mode(Tier::Untrusted, rw.clone()).unwrap_err().contains("untrusted"));
-    let no_mount = Mounts { host: false, ro: true };
+    let no_mount = Mounts { host: false, ro: true, rw: true };
     assert_eq!(decide(&cfg("").unwrap(), Tier::Trusted, &offer(rw.clone()), no_mount).unwrap_err().code, "no-mount");
     // P2-C of the review: a kind that does not prove `:ro` gives a job
     // that would read no cache; a writer keeps `rw`.
-    let rw_only = Mounts { host: true, ro: false };
+    let rw_only = Mounts { host: true, ro: false, rw: true };
     let pr = offer(json!({ "trust_inputs": { "event": "pull_request" }, "cache": { "key": "k", "mode": "rw" } }));
     assert_eq!(decide(&cfg("").unwrap(), Tier::Trusted, &pr, rw_only).unwrap_err().code, "no-ro-mount");
     let asked_ro = offer(json!({ "cache": { "key": "k", "mode": "ro" } }));
@@ -413,7 +413,7 @@ fn a_job_of_another_run_keeps_only_a_ro_cache_of_its_event_with_no_fork() {
     assert!(holds(&ro, &real("pull_request", None), &f, BOTH), "the hook does not know the head");
     assert!(!holds(&ro, &real("pull_request", Some(true)), &f, BOTH), "a head of a fork");
     assert!(!holds(&ro, &real("pull_request_target", Some(false)), &f, BOTH), "another event than the facts");
-    assert!(!holds(&ro, &real("pull_request", Some(false)), &f, Mounts { host: true, ro: false }));
+    assert!(!holds(&ro, &real("pull_request", Some(false)), &f, Mounts { host: true, ro: false, rw: true }));
     // A `rw` grant needs the ref and the repository id of the hook.
     let push = offer(json!({}));
     let mut pf = push.trust_inputs.clone();

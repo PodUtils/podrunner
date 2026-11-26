@@ -16,10 +16,8 @@ impl IncusUnit {
     /// Start the instance of `spec`; `claimed` is `Some(false)` for a warm
     /// unit, which gets no stdin.
     pub(crate) fn launch(&self, spec: &StartSpec, claimed: Option<bool>) -> Result<(), UnitError> {
-        // The self-check of the guest refuses a mount that it does not know.
-        if !spec.mounts.is_empty() {
-            return Err(UnitError::new(UnitCode::UnitStartFailed, "this kind mounts no host directory (T-138)"));
-        }
+        // Only the cache: the instance sees no other host directory.
+        let cache = crate::cache::of(&spec.mounts)?;
         let warm = claimed.is_some();
         let mut units = self.units.lock().expect("the units");
         let dir = self.unit_dir(&spec.unit);
@@ -83,6 +81,7 @@ impl IncusUnit {
                 init_image: self.init_image,
                 limits: &self.applied(&spec.limits),
                 stdin: !warm,
+                cache,
             },
             &env_file,
             &env,

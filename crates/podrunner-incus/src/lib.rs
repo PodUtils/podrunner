@@ -9,7 +9,8 @@
 //! mode 0600, removed once read): the root of the instance is a mapped id
 //! and cannot read a private directory of the host. No credential goes into
 //! argv or the environment. The payload runs in a work directory of the
-//! unit, a `disk` device of the instance.
+//! unit, a `disk` device of the instance. The cache of the job is the one
+//! host directory of a start (`cache`, T-648).
 //!
 //! The instance has no NIC (`--podvm-net none`). Its one way out is a
 //! channel of podvm (`--podvm-channel`, no incus `proxy` device) from
@@ -26,6 +27,7 @@
 //! A system container shares the kernel of the host: the kind claims
 //! `confined`, the floor of `trusted`, never `guest`.
 
+pub mod cache;
 mod guest;
 mod start;
 mod stderr;
@@ -226,6 +228,11 @@ impl UnitDriver for IncusUnit {
         Some(self.cred_root.clone())
     }
 
+    /// The cache of the job only ([`cache`], T-648).
+    fn host_mounts(&self) -> bool {
+        true
+    }
+
     fn probe(&self) -> Result<Capability, UnitError> {
         let mut cap = Capability {
             schema: 1,
@@ -246,7 +253,8 @@ impl UnitDriver for IncusUnit {
             net: "none".into(),
             secret_delivery: vec![podrunner_schema::SecretDelivery::Files],
             credential_store: CredentialStore::PrivateDir,
-            mount_modes: vec!["rw".into()],
+            // The cache of a job at `ro` only (`cache`, T-648).
+            mount_modes: vec!["ro".into()],
             rootfs_fresh: Fact::Yes,
             tree_kill: TreeKill::Unverified,
             limits: Default::default(),

@@ -10,6 +10,8 @@ use std::path::Path;
 use podrunner_schema::{Credential, FileBytes, PlainName};
 use podrunner_unit::{UnitCode, UnitError};
 
+use crate::cache::CACHE_MOUNT;
+
 /// Where the guest sees the credential directory (a 9p mount, read-only).
 pub const CRED_MOUNT: &str = "/mnt/podrunner-cred";
 
@@ -31,6 +33,17 @@ pub const ENGINE_SOCKET: &str = "/run/podrunner-docker.sock";
 /// directory or the engine directory, read-only, or the work directory of
 /// the unit.
 pub const MOUNT_CHECK: &str = r#"$3 == "9p" || $3 == "virtiofs" { if (($2 == "/mnt/podrunner-cred" || $2 == "/podrunner-engine") && ("," $4 ",") ~ /,ro,/) next; if ($2 == "/podrunner-work") next; bad = 1 } END { exit bad }"#;
+
+/// [`MOUNT_CHECK`] of a guest with the cache of its job (T-648): it also
+/// takes the cache, and for a `ro` cache only a read-only mount.
+pub fn mount_check(cache: Option<bool>) -> String {
+    let take = match cache {
+        None => return MOUNT_CHECK.into(),
+        Some(true) => r#"if ($2 == "/podrunner-cache" && ("," $4 ",") ~ /,ro,/) next; "#,
+        Some(false) => r#"if ($2 == "/podrunner-cache") next; "#,
+    };
+    MOUNT_CHECK.replacen("bad = 1", &format!("{take}bad = 1"), 1)
+}
 
 /// The script of the guest. `$1` is the runner root; the rest is the argv of
 /// the payload. It copies the credential files into the runner root at
@@ -137,6 +150,9 @@ pub struct Shape<'a> {
     /// The machine tier takes it in a foreground run only: this kind runs
     /// no `run -d`.
     pub init_image: bool,
+    /// The cache of the job (T-648): its host directory, and true when
+    /// read-only.
+    pub cache: Option<(&'a Path, bool)>,
 }
 
 /// The variable that gives the guest script the port of the egress
@@ -190,6 +206,10 @@ pub fn run_args(
     a.push(format!("{}:{CRED_MOUNT}:ro", unit_dir.join("cred").display()));
     a.push("-v".into());
     a.push(format!("{}:{WORK_MOUNT}", unit_dir.join("work").display()));
+    if let Some((host, ro)) = shape.cache {
+        a.push("-v".into());
+        a.push(format!("{}:{CACHE_MOUNT}{}", host.display(), if ro { ":ro" } else { "" }));
+    }
     // The values of the environment in a file, not in the argv (T-405).
     a.extend(env_file.iter().cloned());
     for (k, v) in env {
@@ -199,7 +219,8 @@ pub fn run_args(
     a.push(reference.into());
     let script =
         if payload_engine { podrunner_unit::payload_engine_script(SCRIPT, ENGINE_MOUNT) } else { SCRIPT.into() };
-    let script = script.replace("'MOUNT_CHECK'", &format!("'{MOUNT_CHECK}'"));
+    let check = mount_check(shape.cache.map(|(_, ro)| ro));
+    let script = script.replace("'MOUNT_CHECK'", &format!("'{check}'"));
     a.extend(["/bin/sh".to_string(), "-c".into(), script, "podrunner".into(), runner_root.into()]);
     a.extend(argv.iter().cloned());
     a

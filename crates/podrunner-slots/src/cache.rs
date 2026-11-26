@@ -5,12 +5,15 @@
 //! write the scope of the default branch on GitHub writes, on a ref of
 //! `write_refs` (or when its source says `rw`) with no head of a fork; each
 //! other job reads it, on a kind that proves a read-only mount, and gets
-//! none on another kind. The `cache` of an offer can only lower the mode.
+//! none on another kind. A writer reads only, on a kind that does not list
+//! `rw` (T-648). The `cache` of an offer can only lower the mode.
 
 mod slots;
 mod store;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_mounts;
 mod worker;
 
 use std::collections::BTreeMap;
@@ -194,12 +197,18 @@ pub struct Mounts {
     /// The kind holds a `:ro` mount read-only: its capability lists the
     /// mode `ro` in `mount_modes`.
     pub ro: bool,
+    /// The user of the unit writes a mount, and the user of podrunner
+    /// owns or can remove each file that it writes: the capability lists
+    /// `rw`. Else a job that would write gets `ro` (T-648: on the microvm
+    /// and incus kinds a file of the guest user is not the host user's).
+    pub rw: bool,
 }
 
 impl Mounts {
     /// The mounts of a kind with the driver `driver` and the record `cap`.
     pub fn of(driver: &dyn podrunner_unit::UnitDriver, cap: &podrunner_schema::Capability) -> Mounts {
-        Mounts { host: driver.host_mounts(), ro: cap.mount_modes.iter().any(|m| m == "ro") }
+        let has = |mode: &str| cap.mount_modes.iter().any(|m| m == mode);
+        Mounts { host: driver.host_mounts(), ro: has("ro"), rw: has("rw") }
     }
 }
 
@@ -257,6 +266,8 @@ fn decide_facts(
         }
         _ => Mode::Ro,
     };
+    // A kind with no `rw` gives a writer the cache to read.
+    let mode = if mounts.rw { mode } else { Mode::Ro };
     if mode == Mode::Ro && !mounts.ro {
         return Err(NO_RO_MOUNT);
     }

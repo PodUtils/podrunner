@@ -332,6 +332,7 @@ fn the_limits_become_the_keys_of_the_instance() {
         payload_engine: false,
         init_image: false,
         stdin: true,
+        cache: None,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--memory 2147483648 --cpus 2 --pids-limit 256"), "{a}");
@@ -382,6 +383,7 @@ fn a_pool_with_quotas_gives_each_instance_a_sized_root() {
             payload_engine: false,
             init_image: false,
             stdin: true,
+            cache: None,
         };
         run_args(&i, &[], &Default::default(), &[]).join(" ")
     }
@@ -432,6 +434,7 @@ fn an_engine_directory_gives_each_instance_an_engine() {
         payload_engine: false,
         init_image: false,
         stdin: true,
+        cache: None,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--podvm-engine -v /opt/engine:/podrunner-engine:ro"), "{a}");
@@ -468,6 +471,7 @@ fn the_init_of_the_image_boots_with_its_own_engine() {
         payload_engine: false,
         init_image: true,
         stdin: true,
+        cache: None,
     };
     let a = run_args(&i, &[], &Default::default(), &[]).join(" ");
     assert!(a.contains("--podvm-init=image --podvm-engine"), "{a}");
@@ -479,6 +483,7 @@ fn the_init_of_the_image_boots_with_its_own_engine() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+mod cache;
 mod stderr;
 mod usage;
 mod warm;
