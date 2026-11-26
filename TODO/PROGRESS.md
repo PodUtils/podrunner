@@ -66,9 +66,9 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Ask for the next runs: the lanes `fsize-1g` and `cancel-container`
-   (T-638, T-644), the man page, the memory of a microvm guest, the trust
-   store of a JVM. Merge the worker of T-648.
+1. Read the runs of #370 (the lanes `fsize-1g`, `cancel-container`,
+   `install:man`; the OOM tests of T-515). Merge the workers of T-648,
+   T-694, T-696, T-699 with T-698, and T-700 with T-702 and T-695.
 2. Take the rest of the cache work in T-480 (T-648; T-650 waits for
    COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
