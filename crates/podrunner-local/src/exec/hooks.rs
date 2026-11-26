@@ -229,7 +229,9 @@ mod tests {
         std::fs::create_dir_all(&sockets).unwrap();
         let hooks = exec.hooks(&sockets, &job, &id, ca.as_deref()).unwrap();
         let names = super::super::proxy::container_vars().join(" ");
-        let script = format!(r#"cat "${{SSL_CERT_FILE:-/nothing}}" 2>/dev/null; echo; printenv {names}; s=${{JAVA_TOOL_OPTIONS#*trustStore=}}; test -s "${{s%% *}}" && echo "java: $JAVA_TOOL_OPTIONS"; true"#);
+        let script = format!(
+            r#"cat "${{SSL_CERT_FILE:-/nothing}}" 2>/dev/null; echo; printenv {names}; s=${{JAVA_TOOL_OPTIONS#*trustStore=}}; test -s "${{s%% *}}" && echo "java: $JAVA_TOOL_OPTIONS"; true"#
+        );
         let c = serde_json::json!({
             "image": IMAGE, "entryPoint": "sh", "entryPointArgs": ["-c", script],
             "environmentVariables": job_env, "portMappings": [], "userMountVolumes": [], "systemMountVolumes": [],

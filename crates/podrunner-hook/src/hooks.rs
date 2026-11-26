@@ -165,7 +165,9 @@ pub fn place_ca(logs: &Path, b: Bundle<'_>) -> std::io::Result<UnitCa> {
         let path = dir.join(store);
         if let Err(e) = pod_broker::ca::write_trust_store(&path, "", b.pem.as_bytes()) {
             let _ = std::fs::remove_file(&path);
-            eprintln!("podrunner: no trust store of the CA bundle for a JVM in a container: {e}; the containers get the bundle only");
+            eprintln!(
+                "podrunner: no trust store of the CA bundle for a JVM in a container: {e}; the containers get the bundle only"
+            );
         }
     }
     Ok(UnitCa { dir, file: b.file.into(), vars: b.vars.to_vec() })

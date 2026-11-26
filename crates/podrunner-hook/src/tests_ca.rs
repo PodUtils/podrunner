@@ -279,7 +279,8 @@ fn a_container_of_a_unit_with_a_bundle_gets_the_trust_store_for_a_jvm() {
     let der = std::fs::read(&store).unwrap();
     assert!(der.windows(9).any(|w| w == [0x04, 0x07, b'm', b'a', b'd', b'e', b'-', b'u', b'p']), "{der:02x?}");
     assert_eq!(std::fs::metadata(&store).unwrap().permissions().mode() & 0o777, 0o644);
-    let mut u = HookUnit::new(fake.clone(), id.clone(), policy(), Some(dir.join("runner")), dir.clone()).with_ca(Some(ca));
+    let mut u =
+        HookUnit::new(fake.clone(), id.clone(), policy(), Some(dir.join("runner")), dir.clone()).with_ca(Some(ca));
     let java = |u: &mut HookUnit, env: Value| {
         let mut c = container(env);
         c["entryPointArgs"] = json!(["-c", r#"echo "[${JAVA_TOOL_OPTIONS-}]""#]);
