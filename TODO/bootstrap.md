@@ -424,3 +424,40 @@ cargo test --locked -p podrunner-slots
 2026-11-25, this commit. Both lock files use TOML 1.2.3 and toml_parser
 1.1.7. The slots suite passed. Both fuzz tests passed on their native
 Linux target.
+
+# T-676: Document hosted sessions and worker roles (COORD-157 of podcrates)
+
+**Source:** PodUtils/podcrates#263, 2026-11-25
+**Category:** docs
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The owner gives the PodUtils repositories one role table and worker
+brief. The Podrunner maintenance and blind QA guides still give the
+previous Claude Code roles.
+
+## Premise
+
+The role table and nine items of the brief are in
+`PodUtils/podcrates:docs/hosted-sessions.md` at `v0.85.0`.
+
+## Approach
+
+Give Podrunner its hosted session guide with the shared roles and
+brief. Apply the ruling to maintenance, handoff and blind QA.
+
+## Prove
+
+`python3 -I scripts/check-docs.py` and `git diff --check`.
+
+## Done
+
+2026-11-26, `1f66dd30` and the handoff update. Both tables match the
+role table at `v0.85.0`. The guide keeps the nine items of the worker
+brief and uses Podrunner's startup, watchers and push gate. Blind QA
+uses the Housekeeper role. The documentation check and its self-test
+pass. The new relative links resolve.

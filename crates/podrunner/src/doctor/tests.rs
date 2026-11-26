@@ -77,7 +77,7 @@ fn doctor_keeps_the_podnet_report_when_no_backend_can_run() {
     std::fs::write(
         &file,
         format!(
-            "host = \"h\"\n[unit.podvm]\nslots = 1\nbinary = \"{}\"\nimages = \"{}\"\npodnet = \"{}\"\n",
+            "host = \"h\"\n[unit.podvm]\nslots = 1\nbinary = \"{}\"\nimages = \"{}\"\npodnet = \"{}\"\n[pin]\n",
             podvm.display(),
             dir.display(),
             podnet.display()

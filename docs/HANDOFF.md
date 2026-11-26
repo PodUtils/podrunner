@@ -1,6 +1,7 @@
 # Handoff
 
-Start with [Cold start](cold-start.md). Read this page, then `AGENTS.md`, `TODO/PROGRESS.md` (the state, the work
+Start with [Cold start](cold-start.md) and [Hosted sessions](hosted-sessions.md).
+Read this page, then `AGENTS.md`, `TODO/PROGRESS.md` (the state, the work
 order, the questions), `docs/maintenance.md`, `docs/development.md` and
 `docs/decisions.md`. Keep only the current state here. Remove a line when
 its work is done. Git keeps the history.
@@ -9,9 +10,9 @@ its work is done. Git keeps the history.
 
 | What | Pin | Where |
 | --- | --- | --- |
-| podcrates | `v0.84.0` | `Cargo.toml` (one tag for each `pod-` crate) |
+| podcrates | `v0.85.0` | `Cargo.toml` (one tag for each `pod-` crate) |
 | podvm | `v0.2.0-beta.40` | `images/podvm.toml`; the lowest podvm of each kind is in `crates/podrunner-podvm/src/probe.rs` |
-| podnet | `v0.4.0-beta.17` | `images/podnet.toml` |
+| podnet | `v0.4.0-beta.19` | `images/podnet.toml` |
 | official runner | `v2.338.2` | `images/runner/runner.toml` |
 | last release | `v0.1.0-beta.8` | tag on `93e1710`; `release.yml` 45459310537 and 45466841655 |
 
@@ -20,9 +21,13 @@ its work is done. Git keeps the history.
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
 1. Verify the bundled Docker engine on both hosted guest kinds (T-672).
-2. Take the remaining cache work in T-480.
-3. Verify the low-space Incus diagnostic (T-613) and follow the work
-   order of `TODO/PROGRESS.md`.
+   Both hosted base imports failed in run 45731427540. The base import
+   and runner smoke passed as a user after the fix in `46985b9b`. Use the
+   run on the fixed source for the arm64 and guest proofs. Check the
+   `cache proof:` line of that run separately (T-480).
+2. Verify the podcrates and podnet takes in hosted CI (T-675, T-677).
+3. Fix the refused-assignment gap (T-682) before T-651. Take the remaining
+   cache work in T-480. T-682 has a source review and no code change.
 
 ## The release `v0.1.0-beta.8`
 
@@ -36,12 +41,9 @@ has the notes, with the level of proof of each claim, and "What is not
 proven". The QA of the release as a user (no root, no KVM, a proxy) found no
 P1 and no P2; its P3 findings are in T-635 and T-642.
 
-Open after the release (writes to GitHub):
-
-1. Name the tag on GitHub #292 and #151 (T-512 gives the line
-   `githome: complete in vTAG` only when each ask is in a release).
-2. The comment on #312 (COORD-102, T-553) with the digest of each index
-   beside the SHA-256 of each asset; then close #312.
+GitHub #292 and #151 name this tag. T-512 still waits for the remaining
+partner asks. #312 (COORD-102) records the three public OCI indexes and
+the signed asset hashes. It stays open for hosted parity (T-538).
 
 ## What is proven
 
@@ -59,6 +61,8 @@ Proven in CI on GitHub-hosted runners:
   C1 and C2 on each capture. A canned job runs in its runner image through
   the incus kind (`docs/hosted-snapshot.md`). The full snapshot booted on
   a standard hosted runner with Btrfs and `dir` pools (T-557).
+  A 2 GiB `dir` pool gave the low-space diagnostic with exit 125 and no
+  instance in hosted-measure run 45731449004 (T-613).
 - The local mode, `serve`, the sources, the tier rule, the egress hold, the
   installer and the offline bundle. `TODO/INDEX.md` has the entry of each.
 - A `docker build` step and a `docker:dind` service on the microvm and incus
@@ -81,8 +85,8 @@ milestones M-A, M-B and L2 hold. M-C and M-D wait for the live gates.
 
 ## The work order
 
-`TODO/PROGRESS.md` has the order. After the proof of the new head it names
-T-480, T-674, T-512, T-672 and the local P3 entries.
+`TODO/PROGRESS.md` has the order. It names the pending guest proofs, the
+podcrates take, the cache, the partner asks and the local P3 entries.
 githome and cfb come first (the owner, 2026-11-18, `docs/decisions.md`).
 githome: 41 asks, 25 in a release (4 in beta.7, 21 in beta.8), 10 partial, 6
 open. cfb: 38 clauses, 26 in a release (15 in beta.7, 11 in beta.8), 6
@@ -97,16 +101,17 @@ state of each.
 
 - podvm, for the incus tier and the hosted snapshot (`0.2.0-beta.40`,
   pinned; COORD-246, PodUtils/podvm#662):
-  - #346 (COORD-124), T-613: the check of the space. Closes when
-    `hosted-measure.yml` with `place = store-root` and `full = all` gives
-    the line of the free space and the need.
   - #313 and #316 (T-543, T-544, T-556, T-558, T-559): the init and the
     kernel on the machine tier and an incus VM mode. podvm names the order
     of the steps; the issues close when podrunner takes each ask.
 - podvm, for warm units (T-487):
   - #354 (COORD-132, T-658): change the limits of a running incus instance.
-    #355 (COORD-133, T-659): a saved state for a run with a channel and a
-    pids limit. Both wait for a podvm release.
+    `pod-incus` supplies the config PATCH. Podrunner waits for it in a
+    podvm release. #355 (COORD-133, T-659) waits for a saved-state release
+    for runs with a channel and a pids limit.
+- podvm, for the cache and import checks:
+  - #359 (COORD-135, T-649) waits for a per-volume read count.
+    T-681 repeats the low-space proof on the next Incus import release.
 - podvm, for the confined kinds and the syscall tier:
   - #308, #304 and #189 (T-261): the syscall tier is off
     (`SYSCALL_TIER = None`): under it Node of `setup-node` fails with
@@ -117,8 +122,8 @@ state of each.
     rung. #277 (T-403, T-405): a `-v` source and the environment. #296
     (ask 5).
 - podcrates:
-  - #312 (COORD-102, T-553): publish on `ghcr.io`. Done in
-    `v0.1.0-beta.8`; it closes with the comment that names the digests.
+  - #312 (COORD-102, T-553): the released CLI and runner OCI hashes are
+    recorded. Closes when hosted parity holds (T-538).
   - #183 (COORD-064, T-249): the shared installer core. #184 (COORD-065,
     T-250): the issue sync of the record runs. The step of the
     hand-written State column is left (T-250 is partial).
@@ -143,17 +148,9 @@ its entries is not done: `TODO/issues.md` has the other open issues.
 
 ## Working rules
 
-- The lead session delegates (the ruling "Subagents" of 2026-11-24,
-  `docs/decisions.md`, `docs/maintenance.md`, "Subagents"): implementation
-  to Opus 5.5 at medium or high effort, recon and plain bug fixes to
-  Sonnet 5.5 at high effort, reviews to Opus 5.5 at medium effort, blind
-  tests and QA tests to Sonnet 5.5 at high effort. Give each subagent the
-  rules of `AGENTS.md`: the web services (section 4), the record and the
-  findings (section 10), and the style (section 5).
-- Run one cargo build at a time. Agents in parallel each use a worktree
-  under `.claude/worktrees/`, a target directory of their own
-  (`CARGO_TARGET_DIR=/workspace/target-NAME`) and a copy of the runner
-  directory. Remove them after the merge.
+- The lead delegates independent work with the shared role table and
+  brief in [Hosted sessions](hosted-sessions.md). Workers use separate
+  worktrees and one Cargo build at a time under the session lock.
 - Run `sh scripts/agent/check.sh` before each push. Edit no file of the
   tree while it runs: `.githooks/pre-push` refuses a tree that the check
   did not record. A change of only `TODO/` after a recorded tree needs

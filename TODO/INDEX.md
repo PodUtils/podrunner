@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**669 entries: 82 open, 54 partial, 13 blocked, 520 done.**
+**677 entries: 84 open, 55 partial, 15 blocked, 523 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
-| P1 | 0 | 23 | 2 | 97 | 122 |
-| P2 | 15 | 20 | 8 | 273 | 316 |
-| P3 | 66 | 11 | 3 | 148 | 228 |
-| **All** | 82 | 54 | 13 | 520 | 669 |
+| P1 | 1 | 24 | 2 | 97 | 124 |
+| P2 | 15 | 20 | 9 | 276 | 320 |
+| P3 | 67 | 11 | 4 | 148 | 230 |
+| **All** | 84 | 55 | 15 | 523 | 677 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -655,7 +655,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-610](later.md) | P3 | S | later | defect | open | A layer of the tool cache of the snapshot names the version only |
 | [T-611](later.md) | P3 | S | later | defect | done | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
 | [T-612](later.md) | P3 | S | later | defect | open | Three live tests of the podvm kind fail on a root host |
-| [T-613](later.md) | P2 | M | later | measurement | partial | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
+| [T-613](later.md) | P2 | M | later | measurement | done | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
 | [T-614](later.md) | P3 | S | later | defect | done | The probe of `--export` and `--log-dir` has the pid only and follows a link |
 | [T-615](later.md) | P3 | S | later | defect | done | One `TMPDIR` that two hosts share can mistake a live run for a dead one |
 | [T-616](later.md) | P3 | S | later | defect | open | A container of a unit of the local mode gets the CA bundle of the caller, but no trust store of a JVM |
@@ -691,10 +691,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-646](later.md) | P3 | M | later | defect | done | Tests that write a program and start it while other tests fork |
 | [T-647](later.md) | P1 | S | later | chore | done | Take podcrates `v0.83.0` and podvm `0.2.0-beta.40` (COORD-154 of podcrates, COORD-246 of podvm) |
 | [T-648](later.md) | P2 | M | later | feature | open | The cache of `serve` on the microvm and incus kinds |
-| [T-649](later.md) | P3 | M | later | measurement | open | The bytes that a job reads from its cache |
+| [T-649](later.md) | P3 | M | later | measurement | blocked | The bytes that a job reads from its cache |
 | [T-650](later.md) | P2 | M | later | feature | open | A tool that writes its cache in a job with a read-only cache |
 | [T-651](later.md) | P3 | S | later | feature | open | The cache in the containers of a `container:` job |
-| [T-652](later.md) | P2 | S | later | defect | open | The disk check of a unit walks its root in the tick |
+| [T-652](later.md) | P2 | S | later | defect | done | The disk check of a unit walks its root in the tick |
 | [T-653](later.md) | P2 | M | later | feature | done | The ref and the repository id of a job of another run, for its cache |
 | [T-654](later.md) | P3 | M | later | feature | done | A job that ended with `cache-mismatch` runs again |
 | [T-655](later.md) | P3 | M | later | feature | open | A guest of the microvm kind keeps the memory of its kind for an offer that asks less |
@@ -717,3 +717,11 @@ acceptance, later The crate dependencies later than v1.
 | [T-672](later.md) | P2 | M | later | feature | partial | G-09: bundle the Docker engine in runner-full |
 | [T-673](later.md) | P3 | S | later | defect | done | Warm unit tests depend on host memory |
 | [T-674](later.md) | P2 | S | later | measurement | done | Prove offline rootless Podman and FUSE in the hosted snapshot |
+| [T-675](later.md) | P1 | S | later | chore | partial | Take podcrates `v0.85.0` (COORD-156 of podcrates) |
+| [T-676](bootstrap.md) | P2 | S | M0 | docs | done | Document hosted sessions and worker roles (COORD-157 of podcrates) |
+| [T-677](later.md) | P2 | S | later | chore | partial | Take podnet `v0.4.0-beta.19` (COORD-129 of podnet) |
+| [T-678](later.md) | P2 | M | later | defect | open | Open disk and cache walk directories by descriptor |
+| [T-679](later.md) | P3 | S | later | defect | open | A local concurrency lock error reports an interrupted wait |
+| [T-680](later.md) | P3 | S | later | defect | open | Local doctor only checks the podnet file |
+| [T-681](later.md) | P2 | S | later | measurement | blocked | Repeat the low-space Incus proof on the next podvm release |
+| [T-682](later.md) | P1 | M | later | defect | open | A refused runner assignment must stop the job before steps |

@@ -15302,7 +15302,7 @@ The report of the pin of podvm `0.2.0-beta.38`, read on 2026-11-23.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -15356,6 +15356,15 @@ keeps the Podvm store on the host filesystem. Dispatch
 `gh workflow run hosted-measure.yml -f digest=sha256:baa8431a36ba58f3be6d15780a4a2cc0090d90cd1621df3ffe1dee5d841f4909 -f full=slice -f place=dir-small`.
 The import step requires exit 125, the free and required sizes in the
 diagnostic, and an Incus list without the requested instance.
+
+## Done
+
+2026-11-26, `724365bf`. Hosted-measure run 45731449004, job
+139614185755, used `place = dir-small` and `full = slice` with podvm
+`0.2.0-beta.40`. The import step saw exit 125, 1.86 GiB free and at
+least 7.21 GiB needed. The Incus list had no `measure` instance. The
+full snapshot booted in the Btrfs and `dir` runs 45521073386 and
+45521078992. COORD-124 (#346) closes.
 
 # T-614: The probe of `--export` and `--log-dir` has the pid only and follows a link
 
@@ -16543,7 +16552,7 @@ The suite of each kind in `runner-image.yml` with a cache, and `cargo test -p po
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -16555,11 +16564,19 @@ Read from the code of T-480 on 2026-11-25. Not measured.
 
 ## Approach
 
-Ask podvm, by a COORD issue, for the bytes read from each volume of a unit in its run report (`--report`): the share of the machine tier and the disk device of incus see each read. Until then, the field stays `unknown` with its reason.
+COORD-135 (#359) asks podvm for the bytes read from each volume of a
+unit in its `--report`. The count needs an attribution to the guest
+path, its meaning and a way to tell measured zero from unknown.
+The field stays `unknown` with its reason until a usable count exists.
 
 ## Prove
 
 `cargo test -p podrunner-slots tests::cache` with a report of podvm that gives the bytes read of the volume of the cache.
+
+## Blocker
+
+Podvm must confirm which backends can report the measured per-volume
+read count and release the report used by Podrunner.
 
 # T-650: A tool that writes its cache in a job with a read-only cache
 
@@ -16620,7 +16637,7 @@ The hooks add the cache of the unit to each container of the job, as they add th
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16639,6 +16656,19 @@ Read from the code on 2026-11-25. Not measured: the time of a walk of a unit roo
 ## Prove
 
 `cargo test -p podrunner-slots tests::placement_disk` and the new test of step 3.
+
+## Done
+
+2026-11-26, `ec03f506`. One worker takes a batch of disk walks. The tick
+handles progress while the batch runs and applies each result to the
+same live job and unit. A walk stops above the bound and reports the
+bytes read. The new source-event test failed on `724365bf` because the
+disk check ended the unit before the tick processed the event.
+On the fix, `cargo test --locked -p podrunner-slots --lib disk` passed
+10 tests and `cargo test --locked -p podrunner-slots --lib tests::report`
+passed 14 on musl as a user. The report timing test fixes the manual
+clock at the sample tick. T-601 holds the stress proof, and T-678 the
+separate directory traversal change.
 
 # T-653: The ref and the repository id of a job of another run, for its cache
 
@@ -17214,6 +17244,20 @@ Podvm `0.2.0-beta.19` added `Config.Labels` to image inspect. Serve
 uses the payload pin for the engine flag, so its microVM minimum for
 this feature stays `0.2.0-beta.14`.
 
+GitHub-hosted run 45731427540 on `724365bf` built the base profile on
+both architectures. `podvm load` reported no next archive member for
+the empty layer `sha256:4f4fb700...`. The conditional engine install
+added a step with no filesystem changes to the base profile. The
+import failure blocks the bundled-engine proof.
+
+The fix in `46985b9b` installs the optional engine in the same step as
+the credential links. A local BuildKit amd64 base archive before the
+fix had two descriptors of the empty layer and one stored blob. Podvm
+beta.40 reproduced the hosted refusal. The fixed archive has one
+descriptor, every blob matches its digest, and Podvm loaded it as uid
+1000. Five shell checks cover both profiles and failures of the engine,
+licence and link operations. The hosted retest remains open.
+
 # T-673: Warm unit tests depend on host memory
 
 **Source:** the local pre-push gate during the full image build, 2026-11-25
@@ -17279,3 +17323,270 @@ Artifact `rootless-podman` (15028623059) contains the transcript and exit
 file. Systemd reported degraded after systemd-remount-fs.service failed.
 The local gate passed 935 workspace tests and 26 official-runner tests.
 The default and opt-in workflow scripts passed Bash syntax checks.
+
+# T-675: Take podcrates `v0.85.0` (COORD-156 of podcrates)
+
+**Source:** PodUtils/podcrates#262, 2026-11-25
+**Category:** chore
+**Milestone:** later
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The `Display` of a `pod_core::Failure::io` is its step. Podrunner must
+show the cause of an I/O failure in `install-unit` and `remove-unit`.
+The release also brings the new fake sources and the `pod-incus` ETag
+support that podvm needs for COORD-132 (#354).
+
+## Premise
+
+The annotated tag `v0.85.0` resolves to `1d1c9fc`. The pinned
+`pod-release` 0.84.0 verifies the six binaries and the release index
+against the signed sums (Rekor 4103931625). Both fake image indexes
+match the architecture and digest pairs of COORD-156. The release
+index script has the same digest as the current pin.
+
+## Approach
+
+Update the Cargo and tool pins, and the reusable issue-sync workflow.
+Keep the failure exit class and show `Failure::chain()` for the unit
+commands. Tell podcrates which commit takes the release. Incus live
+limits remain T-658 and wait for a podvm release.
+
+## Prove
+
+```sh
+cargo test -p podrunner cli::unit
+sh scripts/githome-conformance.sh target/x86_64-unknown-linux-musl/debug/podrunner
+sh scripts/agent/check.sh
+```
+
+State (2026-11-26, `f6dd20ee`): both lockfiles update the `pod-*`
+packages. The reusable workflow and release tool use the new tag.
+The unit installation and removal tests prove the I/O cause and exit
+class. All 16 unit command tests passed on musl. Hosted checks remain.
+
+# T-677: Take podnet `v0.4.0-beta.19` (COORD-129 of podnet)
+
+**Source:** PodUtils/podnet#759, 2026-11-26
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+Podrunner pins `0.4.0-beta.17` for the egress hold. Podnet
+`0.4.0-beta.19` checks whether a backend can start in `pod doctor` and
+applies `PODNET_POLICY` to each flow. The report gains `netns-kernel`.
+
+## Premise
+
+COORD-129 names tag commit `2ef8e3a`, release run 45660048233 and
+proofs run 45668331159. Check the signed assets and Podrunner's command
+and report handling before taking it.
+
+Pod-release verified the two binaries and release index as `release.yml`
+at the tag (Rekor 4107905877). The public OCI index and its amd64 and
+arm64 platform descriptors match COORD-129.
+
+## Approach
+
+Verify the signed release assets and the registry index. Check how
+Podrunner calls `podnet pod doctor` and `podnet pod`. Update the binary
+and image pins and regenerate the installer block. Run the egress
+checks and user paths that use podnet.
+
+## Prove
+
+```sh
+python3 -I scripts/install-pins.py --check scripts/install.sh
+cargo test -p podrunner-podvm
+sh scripts/agent/check.sh
+```
+
+State (2026-11-26, `b10e9ebf`): the installer and binary pins use the
+verified release. `doctor` retains valid JSON from `podnet pod doctor`
+on exit 3 and keeps the podvm kind unavailable when both holds are
+`none`. The signed binary gives that report on a constrained host.
+The installer pin check, all 20 installer tests and the configured
+doctor regression pass. An inherited
+`PODNET_POLICY` can restrict the hold before its rules. Podrunner uses
+no `netns-kernel` selection and reads no pod report. Hosted checks remain.
+
+# T-678: Open disk and cache walk directories by descriptor
+
+**Source:** Review of T-652, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The disk and cache walks store paths to directories after they read
+their metadata. The directories can change before the next open. The
+walk can then read a path outside the directory it measured.
+
+## Premise
+
+Code review of `crates/podrunner-slots/src/disk.rs` and
+`crates/podrunner-slots/src/cache/store.rs`. The two walkers read
+mutable trees while a unit is running. No live run was measured.
+
+## Approach
+
+Open directories relative to an already opened parent with no link
+following. Verify file system constraints on each open. Bound the
+number of open descriptors. Use the same approach for full and
+bounded measurement and preserve their current accounting rules.
+
+## Prove
+
+`cargo test -p podrunner-slots` with a controlled change to a
+directory during the walk and a test of the descriptor bound.
+
+# T-679: A local concurrency lock error reports an interrupted wait
+
+**Source:** Review of T-675, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Local concurrency reports a signal for each error while waiting for a
+group lock or a waiting place. An I/O error gets the same message.
+
+## Premise
+
+In `crates/podrunner/src/run_local/concurrency.rs`, both calls to
+`FileLock::lock_until` discard the failure. In podcrates `v0.85.0`, the
+lock retries the open and returns its I/O error before it checks the
+stop callback. No live run was measured.
+
+## Approach
+
+Keep the signal message when the wait stopped because of the callback.
+Give the error chain for a failure of the open or lock. Exercise both
+paths with a local concurrency fixture.
+
+## Prove
+
+`cargo test -p podrunner run_local::concurrency`.
+
+# T-680: Local doctor only checks the podnet file
+
+**Source:** Review of T-677, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner doctor --run --podnet BIN` checks that BIN is a file and
+reports an advisory seccomp hold. `run` can refuse that file because
+podnet has no usable seccomp hold on the host.
+
+## Premise
+
+`crates/podrunner/src/run_local/doctor.rs` checks the path. The local
+run uses `PodvmUnit::with_podnet_seccomp` to check the backend. The
+signed podnet release returned valid exit-3 JSON on a test host with
+the `unshare` and `seccomp` calls disabled.
+
+## Approach
+
+Use the local run's seccomp hold probe in `doctor --run`. Keep the
+backend and error text in agreement. Use a test tool that reports
+netns available and seccomp unavailable to verify selection.
+
+## Prove
+
+`cargo test -p podrunner --test doctor`.
+
+# T-681: Repeat the low-space Incus proof on the next podvm release
+
+**Source:** PodUtils/podvm#652, COORD-236, 2026-11-26
+**Category:** measurement
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+Podvm asks for the same low-space control on its next release because
+that release changes the image import path.
+
+## Premise
+
+Hosted-measure run 45731449004 passed with podvm `0.2.0-beta.40` (T-613).
+Podvm records that result in COORD-236.
+
+## Approach
+
+After the new podvm pin, dispatch the same core slice and 2 GiB pool.
+Check both sizes, exit 125 and the absence of the instance.
+
+## Prove
+
+`gh workflow run hosted-measure.yml -f digest=sha256:baa8431a36ba58f3be6d15780a4a2cc0090d90cd1621df3ffe1dee5d841f4909 -f full=slice -f place=dir-small`.
+
+## Blocker
+
+Podvm must release the new Incus image import path.
+
+# T-682: A refused runner assignment must stop the job before steps
+
+**Source:** Review of T-651, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A failed job-started hook fails a runner step. It does not terminate the
+worker. A later step that runs after failure can start before the slots
+stop the unit. A refused assignment must keep the unit's cache and
+other job resources unavailable to the workflow.
+
+## Premise
+
+In runner `v2.338.2`, `JobExtension` schedules the hook first and the
+container start under `success()`. `ScriptHandler` marks a failed hook,
+and `StepsRunner` still processes later step conditions. In Podrunner,
+`images/runner/podrunner-job-started.sh` exits on refusal and
+`crates/podrunner-slots/src/assigned.rs` records the reason and starts
+the grace timer. No real job was run for this finding.
+
+## Approach
+
+Make a refusal or unavailable assignment check prevent workflow steps
+before they can reach assigned resources. Preserve the refusal reason
+and expected job cleanup. Give hook containers a cache only after the
+verified assignment grants it (T-651).
+
+## Prove
+
+`cargo test -p podrunner-slots` and the installed-runner assignment
+proof in `user-gate.yml`, with a refused assignment and a kept one.
+
+State (2026-11-26, source review): the host can record the original End
+code and request an immediate kill through the normal lifecycle. Mark
+the first step only after the reply channel accepts a Keep. Keep
+admission closed if the first reply is missing or disconnected. Host
+termination alone cannot guard a job for which the hook sent no request.
+The complete fix needs admission before step dispatch or a host guard
+on protected resources. Existing `assignment_hook` pins attest the old
+hook contract. No source patch is pending.

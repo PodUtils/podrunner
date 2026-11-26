@@ -1,13 +1,13 @@
 # Progress
 
-`TODO/INDEX.md` holds 669 entries: 82 open, 54 partial, 13 blocked, 520 done.
+`TODO/INDEX.md` holds 677 entries: 84 open, 55 partial, 15 blocked, 523 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered DR-1
   to DR-7 and GitHub #8 (`docs/decisions.md`). DR-7 is yes: the live gates
   run on GitHub #74 and #75.
-- Pins: podcrates `v0.84.0`, podvm `v0.2.0-beta.40`, podnet `v0.4.0-beta.17`,
+- Pins: podcrates `v0.85.0`, podvm `v0.2.0-beta.40`, podnet `v0.4.0-beta.19`,
   runner v2.338.2. Last release: `v0.1.0-beta.8` (tag on `93e1710`;
   `release.yml` 45459310537 and 45466841655; `docs/HANDOFF.md`, "The
   release `v0.1.0-beta.8`"). The QA of the release as a user found no P1
@@ -58,9 +58,10 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Finish the bundled Docker guest proof (T-672) and the low-space
-   Incus diagnostic (T-613).
-2. Take the rest of the cache work in T-480.
+1. Fix the runner-image import and finish the bundled Docker guest proof
+   (T-672). Verify the podcrates and podnet takes (T-675, T-677).
+2. Close the refused-assignment gap (T-682). Take the rest of the cache
+   work in T-480, including T-678.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10
@@ -72,7 +73,7 @@ then take the next one.
    and Docker-in-Docker, the bundled engine (T-672), and the live check
    (T-040).
 5. The local P3 entries: T-655, T-656, T-658, T-659, T-598, T-597,
-   T-616, T-603 (step 1), T-610, T-609. The follow-ups of QA round 6: T-638,
+   T-616, T-603 (step 1), T-610, T-609, T-679, T-680. The follow-ups of QA round 6: T-638,
    T-643, T-644, T-645. The P3 groups of the QA rounds: T-308, T-316, T-323,
    T-331, T-339, T-633 to T-637, T-642.
 6. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
@@ -80,16 +81,17 @@ then take the next one.
 7. The local mode: T-204, T-229, T-242 (partial), T-161
    (partial; next, the measure of a third-party runner).
 8. The hosted snapshot: T-539, T-542, T-555, T-540, T-556, T-579,
-   T-547, T-546, T-550. T-613 (partial): the line of COORD-124 (#346).
+   T-547, T-546, T-550.
 9. The incus kind: T-482 (COORD-187), T-481. T-261 (partial): the
     syscall tier stays off until podvm fixes it (#308, #304, #189). T-403
     (partial) waits for COORD-090 (#300).
 
 Waits:
 
-- Podvm: T-613 (COORD-124, #346): a run of `hosted-measure.yml` that gives
-  the line of the free space and the need. T-658 (COORD-132, #354) and
-  T-659 (COORD-133, #355): a podvm release.
+- Podvm: T-658 (COORD-132, #354) and
+  T-659 (COORD-133, #355): a podvm release. T-681 waits for the next
+  Incus image import path for the low-space control. T-649 (COORD-135,
+  #359) waits for a per-volume read count.
 - The live gates (GitHub #74, #75): T-032, T-033, T-040.
 - Other projects: T-543 and T-544 (COORD-103, #313; COORD-106, #316),
   T-558 to T-560 (COORD-106, COORD-107, #317), T-496 (COORD-089, #296 ask

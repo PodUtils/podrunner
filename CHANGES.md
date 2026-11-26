@@ -16,6 +16,9 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| pins, command line | Podcrates `v0.85.0` updates the release verifier and fake sources. `install-unit` and `remove-unit` show the failed step and its I/O cause. | T-675 |
+| pins, command line | Podnet `v0.4.0-beta.19` checks whether either backend can start. `doctor` displays the report when neither backend can start. | T-677 |
+| disk limits, `run-report.v1` | A worker samples unit disk use while the tick handles job events. A walk stops above its bound and reports the bytes read. | T-652 |
 | `podrunner.toml`, runner images and release manifests | The Ubuntu full runner image bundles Docker Engine 29.9.2 for Incus and microVM guests. `container_engine = true` declares it in a payload pin and is covered by the pin signature. Local runs read the selected image's OCI label, and a configured engine directory overrides the bundle. Both release manifests expose the optional declaration. | T-672 |
 | GitHub scale-set source | An operator-controlled source requests one rerun of a failed first-attempt job after `cache-mismatch` when GitHub confirms it ran on the minted runner. | T-654 |
 | command line | `podrunner image build --recipe FILE --out ARCHIVE [--arch ARCH]` builds a pinned runner image with Docker Buildx. It writes an OCI archive and prints its payload pin. | T-500 |
