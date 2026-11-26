@@ -22,6 +22,8 @@ toml.workspace = true
 
 [dev-dependencies]
 podrunner-fake.workspace = true
+podrunner-microvm.workspace = true
+podrunner-podvm.workspace = true
 podrunner-schema = { workspace = true, features = ["schema"] }
 podrunner-tier = { workspace = true, features = ["schema"] }
 schemars = "1"

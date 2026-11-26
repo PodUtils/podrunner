@@ -528,6 +528,22 @@ jobs:
           set -eu
           PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 900 \
             cargo test -p podrunner-microvm --test pids -- --ignored --nocapture
+      # T-520 (githome's G-06): `cpu_s` of a known load (about 8 s of CPU in
+      # one process) within the tolerance of docs/contracts/source-driver.md,
+      # sampled as serve samples, on the podvm and the microvm kinds. Each
+      # kind runs; the step fails when one fails.
+      - name: The cpu_s of a known load on the podvm and microvm kinds
+        if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
+        run: |
+          set -u
+          cargo test -p podrunner-slots --test cpu --no-run || exit 1
+          rc=0
+          for kind in podvm microvm; do
+            PODRUNNER_CPU_KIND=$kind PODRUNNER_PODVM_IMAGE="$PODRUNNER_RUNNER_IMAGE" timeout 1200 \
+              cargo test -p podrunner-slots --test cpu -- --ignored --nocapture \
+              cpu_s_of_a_known_load_is_within_the_tolerance || rc=1
+          done
+          exit "$rc"
       # T-037 step 3: the official runner in a guest takes a canned job of
       # the fake broker through the one channel of the guest.
       - name: The runner in a guest takes a job of the fake broker

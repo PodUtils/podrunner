@@ -1318,6 +1318,8 @@ dependencies = [
  "pod-core",
  "pod-identity",
  "podrunner-fake",
+ "podrunner-microvm",
+ "podrunner-podvm",
  "podrunner-schema",
  "podrunner-source",
  "podrunner-tier",

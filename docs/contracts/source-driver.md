@@ -71,7 +71,11 @@ How a job ends at the source (T-200):
   of the processes of the unit, rounded up to whole seconds: within 20 %
   or 1 s of the CPU time of the payload, the larger (T-520). The kinds
   whose processes are on the host sample them at each tick, so a process
-  that ends between two ticks can count up to one tick less. The incus
+  that ends between two ticks can count up to one tick less. The
+  microvm kind samples the emulator of the guest on the host: its CPU
+  time also counts the boot and the stop of the guest, so there the
+  tolerance holds for `cpu_s` less the `cpu_s` of an idle guest of the
+  same size. The incus
   kind reads the time of incusd at each tick while the instance runs
   (incusd gives none of a stopped instance), and at the stop the record
   of the init of podvm `0.2.0-beta.39` or later, and `0.2.0-beta.40` or
