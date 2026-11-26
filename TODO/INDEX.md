@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**704 entries: 69 open, 52 partial, 21 blocked, 562 done.**
+**707 entries: 71 open, 52 partial, 21 blocked, 563 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 285 | 324 |
-| P3 | 58 | 11 | 8 | 175 | 252 |
-| **All** | 69 | 52 | 21 | 562 | 704 |
+| P3 | 60 | 11 | 8 | 176 | 255 |
+| **All** | 71 | 52 | 21 | 563 | 707 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -677,7 +677,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-632](later.md) | P2 | S | later | defect | done | A small `ulimit -f` ends a podvm unit with an empty cause, and `run` names neither the limit nor the fix |
 | [T-633](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of the installer and the install documents |
 | [T-634](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of the flags of `podrunner run` |
-| [T-635](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |
+| [T-635](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |
 | [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
 | [T-637](later.md) | P3 | L | later | measurement | open | QA round 6, agent A: the areas that the round did not test |
 | [T-638](later.md) | P3 | S | later | defect | done | The user-path gate has no lane with a hard limit of file size of 1 GiB |
@@ -752,3 +752,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-707](later.md) | P3 | S | later | feature | blocked | githome's container: and services: jobs cannot run through the fake GitHub |
 | [T-708](later.md) | P3 | S | later | defect | open | A checkout in a local composite action does not get the stand-in |
 | [T-709](later.md) | P3 | S | later | defect | open | A run clamps a long timeout-minutes with no warning |
+| [T-710](later.md) | P3 | S | later | defect | open | A test of the cache compares two times of the wall clock |
+| [T-711](later.md) | P3 | S | later | defect | open | A flag given twice takes its first value with no word |
+| [T-712](later.md) | P3 | S | later | defect | open | serve names no kind and no cause in no-tier-served |

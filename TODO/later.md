@@ -16266,7 +16266,7 @@ old code, except the case of 66, which the built binary proves as uid
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16293,6 +16293,33 @@ Edit `crates/podrunner/src/config_init.rs`, `crates/podrunner/src/tiers.rs`, `cr
 ## Prove
 
 `cargo test -p podrunner --test config_init`, `cargo test -p podrunner --test check` and `cargo test -p podrunner --test doctor` with a case for each line; `cargo todo check`.
+
+## Done
+
+2026-11-26, `7ca9e643` (tests on a development host, as root; not run as
+a user with no root). Each finding held on `main`, and each is fixed with
+a test that fails on the old code. `check` refuses `[unit.KIND] slots =
+0`, `root_quota` on a kind other than incus, and `work_folder` on the
+fake kind (the call of T-590), exit 78. `config init` refuses `--slots
+0`, an empty or spaced `--host`, and an `--org` or `--user` that is empty
+or has a space, a control character or `/` (exit 64, by the name of the
+flag). A podvm kind that serves no source names the missing `confine =
+true` or `podnet` and `--podnet PATH` (`tiers::podvm_fix`). `doctor`
+gives a pin as "age N days, limit M days". `doctor --run` has the `proxy`
+row on the podvm form too, a new row `ca-files` that fails on a CA file
+that cannot be read, and names each `NO_PROXY` entry that `run` drops
+(`run_local/doctor/env.rs`); with a missing workflow its lock row says
+"not checked". The examples of `docs/configuration.md` pass
+`check_drivers` (a test reads each block). A source key can be PKCS#8 as
+well as PKCS#1. A bare `doctor` names `doctor --run FILE` and `doctor
+--config FILE`. Tests: `a_unit_key_that_the_kind_does_not_use_is_refused_by_name`,
+`the_drivers_of_the_documented_blocks_pass_check`,
+`a_pkcs8_key_signs_as_its_pkcs1_form`,
+`a_podvm_kind_that_serves_no_source_names_its_missing_key`,
+`a_bare_doctor_names_the_command_of_each_input`,
+`a_count_of_days_reads_as_a_count`,
+`config_init_refuses_an_empty_value_by_its_flag` and
+`doctor_run_checks_the_proxy_and_the_ca_files_of_each_form`.
 
 
 # T-636: QA round 6, agent A: the P3 findings of signals and of the end of a run
@@ -19315,3 +19342,93 @@ for each job above the bound.
 
 `cargo test -p podrunner run_local` with a job of `timeout-minutes:
 99999999`: the run prints the warning once; a job of 7200 prints none.
+
+# T-710: A test of the cache compares two times of the wall clock
+
+**Source:** the worker of T-635, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`tests::cache::the_end_of_a_large_cache_does_not_hold_the_tick` of
+`podrunner-slots` compares the longest tick with the time of one walk. It
+failed once under load ("longest tick 140ms, one walk 72ms") and passed
+on the rerun. A test waits for an event, not for real time.
+
+## Premise
+
+Seen by the worker of T-635 on 2026-11-26 in `cargo test -p podrunner-slots`.
+
+## Approach
+
+Assert that the walk runs off the thread of the tick (an event of the
+walk on another thread while the tick goes on), with no compare of times.
+
+## Prove
+
+`cargo test -p podrunner-slots cache` passes under a load of the host;
+a planted walk on the tick thread fails it.
+
+
+# T-711: A flag given twice takes its first value with no word
+
+**Source:** the worker of T-635, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`cli::Opts::get` takes the first value of a flag that is given twice:
+`config init --host a --host b` uses `a` and says nothing.
+
+## Premise
+
+Read from `crates/podrunner/src/cli.rs` by the worker of T-635 on 2026-11-26.
+
+## Approach
+
+Refuse a second value of a flag that does not repeat (exit 64, by the
+name of the flag), from the model of the flags, for each command.
+
+## Prove
+
+`cargo test -p podrunner cli`: a flag that does not repeat, given twice,
+is 64; a flag that repeats (`--secret`, `--allow`) keeps each value.
+
+
+# T-712: serve names no kind and no cause in no-tier-served
+
+**Source:** the worker of T-635, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When the self-test of `serve` lowers a kind, `serve` prints only
+"no-tier-served: no unit kind meets the floor of a source". `check` and
+`config init` now name each kind and its cause (T-635).
+
+## Premise
+
+Read from the code of `serve` by the worker of T-635 on 2026-11-26.
+
+## Approach
+
+Give `serve` the text of `tiers::podvm_fix` and of `check`: each kind,
+why it does not meet the floor, and the fix.
+
+## Prove
+
+`cargo test -p podrunner` with a kind that the self-test lowers: the
+line names the kind and its cause.
+
