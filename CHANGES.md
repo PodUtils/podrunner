@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `podrunner.toml` `[unit.microvm] mem`, config schema | `mem` is the most memory of a guest. A guest gets the `memory` of its offer plus its unpacked image, at least the boot floor of the image. | T-655 |
 | `status.v1`, the capability record | The podvm kind gives `limits.pids-per-unit`: `enforced` where `pids.max` of the cgroup leaf of each unit holds `pids`, `none` where RLIMIT_NPROC of the user holds it. | T-521 |
 | `podrunner.toml` `[unit.incus]`, unit driver | With `disk_max_bytes` and no `root_quota`, the incus kind claims no `disk` limit and `serve` warns; a driver can give `disk_bytes`, which slots adds to the walk of the unit root. | T-685 |
 | pins | Podcrates `v0.86.0`: new error texts of `pod-proxy`, `pod-dns`, `pod-tls` and `pod-manual`. | T-687 |
@@ -160,4 +161,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md 0f43d75790e248ee82e1ae12675d917352c0734520f6bedf5ed0642fdd4abea4 -->
 <!-- contract docs/contracts/source-driver.md 46114c3b7a40cd652217eca2f770b35866a479a05f1ff5637c30a2402b1c171d -->
 <!-- contract docs/contracts/unit-driver.md 2f641d0658a90039fd34ab40b4857d1dba7044ed627564753e868ece2aac8712 -->
-<!-- contract schemas/config.v1.json d114ff65c723ee10fa688e6f8e2062b4d47918b28352b4b0066073afc4babde2 -->
+<!-- contract schemas/config.v1.json 3496fe494c8560614cba8ee1f60a99d9caa7087c0ee08c096b87d6f1e3745c9e -->

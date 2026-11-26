@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**685 entries: 78 open, 58 partial, 16 blocked, 533 done.**
+**686 entries: 78 open, 58 partial, 16 blocked, 534 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 13 | 22 | 9 | 280 | 324 |
-| P3 | 64 | 13 | 5 | 151 | 233 |
-| **All** | 78 | 58 | 16 | 533 | 685 |
+| P3 | 64 | 13 | 5 | 152 | 234 |
+| **All** | 78 | 58 | 16 | 534 | 686 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -697,7 +697,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-652](later.md) | P2 | S | later | defect | done | The disk check of a unit walks its root in the tick |
 | [T-653](later.md) | P2 | M | later | feature | done | The ref and the repository id of a job of another run, for its cache |
 | [T-654](later.md) | P3 | M | later | feature | done | A job that ended with `cache-mismatch` runs again |
-| [T-655](later.md) | P3 | M | later | feature | open | A guest of the microvm kind keeps the memory of its kind for an offer that asks less |
+| [T-655](later.md) | P3 | M | later | feature | done | A guest of the microvm kind keeps the memory of its kind for an offer that asks less |
 | [T-656](later.md) | P3 | M | later | feature | open | Warm units of the podvm kind |
 | [T-657](later.md) | P2 | S | later | feature | done | Warm and cold units in the run report and the status |
 | [T-658](later.md) | P3 | S | later | feature | open | A warm incus instance fits an offer with lower limits |
@@ -733,3 +733,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-688](later.md) | P2 | M | later | defect | partial | A job of the corpus runs out of space in a microvm guest |
 | [T-689](later.md) | P3 | S | later | defect | open | The pin bound of a microvm guest leaves no space for a job |
 | [T-690](later.md) | P3 | S | later | feature | open | The local mode has no flag for the memory of a guest |
+| [T-691](later.md) | P3 | S | later | feature | open | The run report does not name the limits a unit got |

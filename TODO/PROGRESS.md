@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 685 entries: 78 open, 58 partial, 16 blocked, 533 done.
+`TODO/INDEX.md` holds 686 entries: 78 open, 58 partial, 16 blocked, 534 done.
 
 ## State
 
@@ -66,10 +66,10 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Merge the worker of T-655; find the cause of the space of a guest of
-   T-688. Ask for the next hosted runs (T-521, T-686, T-638).
-2. Take podnet `v0.4.0-beta.20` (T-686, its image run) and podcrates
-   `v0.86.0` (T-687). Take the rest of the cache work in T-480.
+1. Read the runs of #365 (T-687, T-686, T-521, T-688, T-638) and of the
+   next request (T-644, the microvm memory rule). Merge the workers of T-515, T-597 (with
+   T-598, T-616) and T-645.
+2. Take the rest of the cache work in T-480 (T-650, T-648).
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10
@@ -80,9 +80,9 @@ then take the next one.
 4. Keep the G-09 line on #66 current with the CI proof of Docker build
    and Docker-in-Docker, the bundled engine (done), and the live check
    (T-040).
-5. The local P3 entries: T-655, T-656, T-658, T-659, T-598, T-597,
-   T-616, T-603 (step 1), T-610, T-609, T-685. The follow-ups of QA round 6: T-638,
-   T-643, T-644, T-645. The P3 groups of the QA rounds: T-308, T-316, T-323,
+5. The local P3 entries: T-656, T-658, T-659, T-598, T-597,
+   T-616, T-603 (step 1), T-610, T-609, T-689, T-690, T-691. The follow-ups
+   of QA round 6: T-638, T-643, T-644, T-645. The P3 groups of the QA rounds: T-308, T-316, T-323,
    T-331, T-339, T-633 to T-637, T-642.
 6. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
    T-175 (partial; its step on the test organization is next).

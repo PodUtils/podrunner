@@ -16827,7 +16827,7 @@ Use the numeric runner ID from GitHub's JIT response to find the failed job of t
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16846,6 +16846,25 @@ Read from `crates/podrunner-microvm/src/lib.rs` (`applied`) and T-573 on 2026-11
 ## Prove
 
 `cargo test -p podrunner-microvm --lib a_guest_gets_the_lesser` with a case for the memory.
+
+## Done
+
+2026-11-26, `6348d4c4` and the two commits before it (tests on a development
+host; no guest on a KVM host). The `memory` of an offer is the memory of
+the job beyond the root of its guest: a guest of the `microvm` kind gets
+the lesser of `mem` and the offer, plus `unpacked_bytes` of its pin; at
+least the boot floor of its image (13/4 × `unpacked_bytes` + 512 MiB,
+rounded up to 256 MiB) and never more than `mem`
+(`crates/podrunner-microvm/src/mem.rs`, `guest_mem`; one formula with
+`check`, `largest_image` and `mem_for` moved there). A pin with no size
+gets `mem`. A warm guest fits only an offer with no less memory than the
+kind. `serve` gives the driver the sizes of the pins (`pin_size::sizes`).
+Tests: `a_guest_gets_the_lesser_memory_cpus_and_processes_of_the_offer`
+(it failed on the old rule, `--podvm-mem 4G`),
+`a_guest_gets_the_floor_of_its_image_up_to_the_kind` (the floor, offer +
+image, the kind, 0, none, no size, overflow), and `tests_warm` (a planted
+memory of `applied` fails it). The text of `[unit.microvm] mem` and the
+schema say it. The report does not name the memory a job got: T-691.
 
 # T-656: Warm units of the podvm kind
 
@@ -18236,3 +18255,38 @@ checked as `[unit.microvm] mem`, and name it in `doctor --run`.
 
 `cargo test -p podrunner run_local` with the flag in the podvm argv, and
 a refusal of a size below the boot of the image.
+
+# T-691: The run report does not name the limits a unit got
+
+**Source:** the worker of T-655, 2026-11-26
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A unit gets the lesser of the limits of its kind and its offer (T-198),
+and a microvm guest gets more memory than its offer: the offer plus its
+image, at least the boot floor (T-655). The run report names none of
+these values, so an operator cannot see the memory, the CPUs or the
+processes that a job got.
+
+## Premise
+
+Read from `crates/podrunner-slots/src/report.rs` and
+`UnitDriver::applied_limits` on 2026-11-26. `applied_limits` of the
+microvm kind gives the lesser value, not the floor.
+
+## Approach
+
+Ask podcrates for an optional `unit.limits` of `run-report.v1` (memory
+bytes, CPUs, processes, disk bytes) under the rule of optional fields,
+then fill it from the driver at the start of a unit (the value that the
+driver gave podvm).
+
+## Prove
+
+`cargo test -p podrunner-slots report` with a microvm unit whose offer
+asks less than the floor.
