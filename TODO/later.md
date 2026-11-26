@@ -17258,6 +17258,12 @@ descriptor, every blob matches its digest, and Podvm loaded it as uid
 1000. Five shell checks cover both profiles and failures of the engine,
 licence and link operations. The hosted retest remains open.
 
+Runner-image run 45736054587 on `8801e939` is the hosted check of the fix.
+COORD-254 (PodUtils/podvm#671) reports loader fix `9466c984` on podvm
+main. It accepts repeated descriptors with one verified blob. After
+the next podvm beta, rerun both architectures. If import fails, retain
+the failing OCI index, manifest and archive tool output.
+
 # T-673: Warm unit tests depend on host memory
 
 **Source:** the local pre-push gate during the full image build, 2026-11-25
@@ -17368,6 +17374,12 @@ packages. The reusable workflow and release tool use the new tag.
 The unit installation and removal tests prove the I/O cause and exit
 class. All 16 unit command tests passed on musl. Hosted checks remain.
 
+The full local gate on `8801e939` passed 950 workspace tests and 26
+official-runner tests. The signed fake passed all 15 Githome
+source-conformance tests. COORD-136 (#360) records the take and T-676.
+Hosted checks are gate 45736054517, level2 45736054576 and runner-image
+45736054587.
+
 # T-677: Take podnet `v0.4.0-beta.19` (COORD-129 of podnet)
 
 **Source:** PodUtils/podnet#759, 2026-11-26
@@ -17416,6 +17428,9 @@ The installer pin check, all 20 installer tests and the configured
 doctor regression pass. An inherited
 `PODNET_POLICY` can restrict the hold before its rules. Podrunner uses
 no `netns-kernel` selection and reads no pod report. Hosted checks remain.
+
+The full local gate on `8801e939` passed. Runner-image run 45736054587
+uses the new podnet pin and holds the hosted proof.
 
 # T-678: Open disk and cache walk directories by descriptor
 

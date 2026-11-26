@@ -50,6 +50,10 @@
   is T-621. T-622 and T-624 also remain open.
 - The state of each issue comes from the record by a tool; the step of the
   hand-written State column is open (T-250, partial).
+- The local gate on `8801e939` passed 950 workspace tests and 26
+  official-runner tests. Hosted runs on that commit are runner-image
+  45736054587, level2 45736054576 and gate 45736054517. The image run
+  carries the bundled Docker and cache checks (T-672, T-480).
 - Keep this page short. Write the current state only; git keeps the
   history.
 
@@ -90,8 +94,10 @@ Waits:
 
 - Podvm: T-658 (COORD-132, #354) and
   T-659 (COORD-133, #355): a podvm release. T-681 waits for the next
-  Incus image import path for the low-space control. T-649 (COORD-135,
-  #359) waits for a per-volume read count.
+  Incus image import path for the low-space control. COORD-254
+  (PodUtils/podvm#671) asks to retest both runner image architectures
+  on that release. T-649 (COORD-135, #359) waits for a per-volume read
+  count.
 - The live gates (GitHub #74, #75): T-032, T-033, T-040.
 - Other projects: T-543 and T-544 (COORD-103, #313; COORD-106, #316),
   T-558 to T-560 (COORD-106, COORD-107, #317), T-496 (COORD-089, #296 ask

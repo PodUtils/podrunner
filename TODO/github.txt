@@ -302,7 +302,7 @@
 296 issue open
 297 pull closed
 298 pull closed
-299 pull open
+299 pull closed
 300 issue open
 301 issue closed
 302 issue closed
@@ -363,3 +363,4 @@
 357 pull closed
 358 pull closed
 359 issue open
+360 issue open
