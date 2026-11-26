@@ -11,6 +11,10 @@
 #       the static podrunner and scale-set sidecar of TARGET, each with its
 #       .sha256, into DIST; VERSION is empty or names the version of
 #       Cargo.toml (crates/podrunner/build.rs)
+#   sh scripts/release-assets.sh man BINARY DIST
+#       DIST/podrunner.1 (the page of `BINARY man --roff`, with its version
+#       and its date) and its .sha256 (T-645); BINARY runs on this host;
+#       `binaries` makes it of the x86_64 binary
 #   sh scripts/release-assets.sh images RUN DIST
 #       the runner image archives of the runner-image.yml run RUN (gh and
 #       GH_TOKEN), checked against their .sha256 files, into DIST
@@ -118,12 +122,30 @@ case $cmd in
         cp "target/$target/release/podrunner" "$dist/$name"
         sh scripts/check-static.sh "$dist/$name"
         (cd "$dist" && sha256sum "$name" > "$name.sha256")
+        # One page for each release: the binary of this host makes it.
+        [ "$(uname -m)" != "${target%%-*}" ] || sh "$root/scripts/release-assets.sh" man "$dist/$name" "$dist"
         # The scale-set sidecar (T-029): static Go, no cgo. go.mod names
         # the toolchain; the go command fetches it.
         name=scaleset-sidecar-$target
         (cd tools/scaleset-sidecar && GOTOOLCHAIN=auto CGO_ENABLED=0 GOARCH=$goarch go build -trimpath -o "$dist/$name" .)
         sh scripts/check-static.sh "$dist/$name"
         (cd "$dist" && sha256sum "$name" > "$name.sha256")
+        ;;
+    man)
+        [ $# -eq 2 ] || usage
+        bin=$1 dist=$2
+        mkdir -p "$dist"
+        part=$dist/podrunner.1.part
+        trap 'rm -f "$part"' EXIT
+        # No terminal, no pager: the page is the answer.
+        TERM=dumb timeout --kill-after=5 30 "$bin" man --roff < /dev/null > "$part" || die "$bin man --roff failed"
+        # mandoc -Tlint warns on a header with no date; the page of a release
+        # has the version and the date of its build.
+        head -n 1 "$part" | grep -Eq '^\.TH PODRUNNER 1 "[0-9]{4}-[0-9]{2}-[0-9]{2}" "podrunner [^"]+" ' ||
+            die "podrunner.1: the first line is not a .TH with a date and a version: $(head -n 1 "$part")"
+        mv -f "$part" "$dist/podrunner.1"
+        (cd "$dist" && sha256sum podrunner.1 > podrunner.1.sha256)
+        echo "podrunner.1: $(wc -l < "$dist/podrunner.1") lines"
         ;;
     images)
         [ $# -eq 2 ] || usage

@@ -41,6 +41,8 @@ env:
   ZIG_VERSION: 0.16.0
   ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
   ZIGBUILD_VERSION: 0.23.4
+  PODCRATES_TAG: v0.86.0
+  CHECK_MAN_SHA256: a8a4da701fb5e6ba9dfb4eed470feb07f53fdf6358da116bb967c8705ae97f07
   DENY_VERSION: "0.20.2"
   DENY_SHA256: "9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f"
 
@@ -243,6 +245,30 @@ jobs:
       - name: The binary runs
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: target/${{ matrix.target }}/release/podrunner --version | grep -F "($(git rev-parse --short=12 HEAD))"
+      # T-645: the man page of the binary under groff and mandoc, with
+      # check-man.sh of podcrates (the tag of the pod-* crates, its SHA-256
+      # checked). It also lints the page of a release: scripts/release-assets.sh
+      # man writes it.
+      - name: The man page renders under groff and mandoc
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          set -eu
+          sh scripts/retry.sh sudo apt-get update -qq
+          sh scripts/retry.sh sudo apt-get install -y -qq --no-install-recommends groff-base mandoc
+          exe=$PWD/target/${{ matrix.target }}/release/podrunner
+          sh scripts/retry.sh curl -qfsSLo "$RUNNER_TEMP/check-man.sh" \
+            "https://raw.githubusercontent.com/PodUtils/podcrates/$PODCRATES_TAG/scripts/check-man.sh"
+          echo "$CHECK_MAN_SHA256  $RUNNER_TEMP/check-man.sh" | sha256sum -c --status -
+          sh "$RUNNER_TEMP/check-man.sh" "$exe"
+          sh scripts/release-assets.sh man "$exe" "$RUNNER_TEMP/man"
+          mandoc -Tlint -W warning "$RUNNER_TEMP/man/podrunner.1"
+          groff -man -Tascii -ww -z "$RUNNER_TEMP/man/podrunner.1"
+          # The planted defect: a header with no date is a warning of mandoc.
+          sed '1s/ "[0-9-]*" / "" /' "$RUNNER_TEMP/man/podrunner.1" > "$RUNNER_TEMP/man/dateless.1"
+          if mandoc -Tlint -W warning "$RUNNER_TEMP/man/dateless.1" > /dev/null 2>&1; then
+            echo "mandoc -Tlint passed a page with no date"
+            exit 1
+          fi
       - name: A dynamic binary fails the check
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |

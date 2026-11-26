@@ -13,6 +13,8 @@ use crate::text::display;
 
 mod commands;
 mod facts;
+#[cfg(test)]
+mod page_tests;
 mod run_flags;
 #[cfg(test)]
 mod tests;
@@ -146,6 +148,12 @@ pub(crate) fn root_help() -> String {
     pod_manual::help::render(manual(), &[]).unwrap_or_default()
 }
 
+/// The date of the man page header (`YYYY-MM-DD`) of a count of seconds
+/// since 1970; empty when the text is no such count.
+fn page_date(epoch: &str) -> String {
+    epoch.trim().parse::<u64>().map(pod_manual::model::date_of).unwrap_or_default()
+}
+
 /// The model of `pod-manual`, made once.
 pub(crate) fn manual() -> &'static Manual {
     static M: OnceLock<Manual> = OnceLock::new();
@@ -202,6 +210,7 @@ fn build() -> Manual {
     Manual {
         name: "podrunner".into(),
         version: env!("PODRUNNER_VERSION").into(),
+        date: page_date(env!("PODRUNNER_BUILD_EPOCH")),
         about: find("").map_or("", |c| c.about).into(),
         description: commands::DESCRIPTION.iter().map(|d| d.to_string()).collect(),
         commands: all().iter().map(command).collect(),

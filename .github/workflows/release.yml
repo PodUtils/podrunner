@@ -179,7 +179,8 @@ jobs:
         run: sh scripts/release-assets.sh tools
       # scripts/release-assets.sh: the static podrunner and the scale-set
       # sidecar (T-029), each with its .sha256; user-gate.yml makes them in
-      # the same way.
+      # the same way. The x86_64 leg also writes podrunner.1, the page of
+      # `podrunner man --roff` (T-645).
       - name: Build, check that it is static, and name it
         env:
           VERSION: ${{ needs.check.outputs.version }}
@@ -627,6 +628,8 @@ jobs:
           cd dist
           sha256sum -c ./*.sha256
           for f in podrunner-*-linux-musl scaleset-sidecar-*-linux-musl; do sh ../scripts/check-static.sh "$f"; done
+          # T-645: the page of `podrunner man --roff`, with its .sha256.
+          test -s podrunner.1
           # T-202: the installer carries the pins of these files.
           grep -qx "PODRUNNER_VERSION=\"$VERSION\"" podrunner-install.sh
       # T-484: SHA256SUMS of each asset with its keyless cosign bundle, as
@@ -660,6 +663,7 @@ jobs:
           subject-path: |
             dist/podrunner-*-linux-musl
             dist/scaleset-sidecar-*-linux-musl
+            dist/podrunner.1
             dist/podrunner-install.sh
             dist/podrunner-manifest.json
             dist/tier-cases.json

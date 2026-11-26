@@ -275,6 +275,17 @@ checks the release with `pod-release verify`, and publishes it. Read both
 runs. A dry run (no version) writes the index and checks it with
 `pod-release sums`.
 
+The release has the page `podrunner.1` (T-645). `scripts/release-assets.sh
+man` writes it from `podrunner man --roff` of the x86_64 binary, so it has
+the version and the date of the commit of the build (`SOURCE_DATE_EPOCH`
+when it is set). The page has its `.sha256` file, its line in
+`SHA256SUMS`, its entry in `release-index.json` and a build provenance
+attestation, as each other file. The job `static` of the gate renders the
+page under groff and mandoc (`check-man.sh` of podcrates and `mandoc
+-Tlint`). Put the page in `~/.local/share/man/man1` to read it with
+`man podrunner`. `docs/podrunner.1` is the page of the tree: it has no
+version and no date, so it does not change at a release.
+
 The jobs `image`, `probe` and `push` put the release on ghcr.io (T-553,
 the owner's ruling "ghcr.io", the form of COORD-142):
 `ghcr.io/podutils/podrunner` (one `FROM scratch` image of each binary
