@@ -118,12 +118,19 @@ echo "$msg" >&2
 # of the unit (the stderr of Runner.Listener, an ancestor) to report the
 # job as job-mismatch (T-552). The name of the line is HOOK_ENDED of
 # crates/podrunner-slots/src/log_tail.rs.
+# A process is NAME by its comm, or by the base name of an argument: on
+# the rungs of podvm below the namespace rung the dynamic loader of the
+# image runs each program, so its comm is the name of the loader (T-682).
+named() {
+  [ "$(cat "/proc/$2/comm" 2>/dev/null)" = "$1" ] && return 0
+  tr '\0' '\n' < "/proc/$2/cmdline" 2>/dev/null | sed 's|.*/||' | grep -qxF "$1"
+}
 pid=$$
 worker=""
 while [ "$pid" -gt 1 ] 2>/dev/null; do
-  comm=$(cat "/proc/$pid/comm" 2>/dev/null) || break
-  [ "$comm" = Runner.Worker ] && worker=$pid
-  if [ "$comm" = Runner.Listener ]; then
+  [ -r "/proc/$pid/stat" ] || break
+  named Runner.Worker "$pid" && worker=$pid
+  if named Runner.Listener "$pid"; then
     { printf 'podrunner-job-started: ended: %s\n' "$code" >> "/proc/$pid/fd/2"; } 2>/dev/null
     break
   fi
@@ -132,5 +139,9 @@ done
 # T-682: a failed hook fails only its step, and the worker still runs each
 # later step of `if: always()`. The hook runs before each step of the job,
 # so the end of the worker here stops the job before any of its steps.
-[ -n "$worker" ] && kill -KILL "$worker" 2>/dev/null
+if [ -n "$worker" ]; then
+  kill -KILL "$worker" 2>/dev/null
+else
+  echo "podrunner-job-started: no Runner.Worker among the ancestors of the hook" >&2
+fi
 exit 1

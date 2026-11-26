@@ -17238,7 +17238,7 @@ with exit 75.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -17301,6 +17301,18 @@ build` and Docker-in-Docker jobs on the microvm kind. On the incus kind
 the probe passed and `docker build` failed in its `RUN` step: Incus
 6.0.0 of apt refuses the runc of Docker 29.9.2 (T-683). The step now
 proves the incus jobs on Incus 6.0 LTS of Zabbly. Left: that run.
+
+## Done
+
+2026-11-26, proven in CI on GitHub-hosted runners: runner-image run
+45773152397 on `de51766`. Both architectures built and imported the full
+image (the aarch64 job and the x86_64 import passed). The step "The Docker
+engine bundled in the full image" passed: the probe job (`DOCKER_HOST`
+and Docker 29.9.2 of the image), `docker build` and Docker-in-Docker on
+the microvm kind; the probe on Incus 6.0.0 of apt with the warning of
+T-683; then on Incus 6.0.7 of Zabbly the probe, `docker build` and
+Docker-in-Docker on the incus kind with no warning. The run is red at
+step 7 for T-682 only.
 
 # T-673: Warm unit tests depend on host memory
 
@@ -17775,6 +17787,23 @@ the host reports (T-552). `tests/podvm.rs` checks the same in a podvm
 unit. Left: `tests/podvm.rs` in the runner-image run, and new
 `assignment_hook` payload pins of the next images (the hook changed).
 
+State (2026-11-26; proven in CI on GitHub-hosted runners for the runner
+directory, level2 run 45773148073 on `de51766`: the 3 hook tests with
+the official runner pass). Runner-image run 45773152397: in a podvm unit
+the hook ended the job, but the step of `always()` ran
+(`tests/podvm.rs:316`). The unit ran on a rung below the namespace rung
+(no mount namespace). There podvm runs each program through the dynamic
+loader of the image, so the comm of the worker is `ld-linux-x86-64`, and
+the hook found neither `Runner.Worker` nor `Runner.Listener` (on this
+host: a copy of `sleep` named `Runner.Worker` through the loader has
+that comm). So the `ended:` line of T-552 did not reach the host on that
+rung either. The hook now names a process by its comm or by the base
+name of an argument of its cmdline, and writes a line when it finds no
+worker. `tests/hook_named.rs` runs the function of the script against a
+process of the loader; it fails with the old match by comm. The 9 tests
+of `tests/runner.rs` pass. Left: `tests/podvm.rs` in the next
+runner-image run.
+
 # T-683: The bundled engine fails in an instance of Incus before 6.0.6 and 6.19
 
 **Source:** runner-image run 45736054587 on `8801e939`, 2026-11-26
@@ -17853,5 +17882,12 @@ file of `config init`, and runs `doctor --json`: the incus kind must have
 the route `engine`, and a warning that names the version and
 lxc/incus#2623 exactly when the version is before the fix and AppArmor
 is on. The rule is `incus_before_apparmor_fix`; its self-test fails with
-6.0.6 planted as affected. Left: the runner-image run and the lane
-`serve-incus-kvm` of `user-gate.yml` (#361).
+6.0.6 planted as affected.
+
+State (2026-11-26, steps 1 and 2 proven in CI on GitHub-hosted runners):
+runner-image run 45773152397 on `de51766` (T-672, Done). The warning
+line came on Incus 6.0.0 and none on 6.0.7. It also came at each start
+of the earlier incus steps with an operator engine (Docker 27.5.1, an
+older runc, which works): the text names the runc, so it stays. Left:
+the lane `serve-incus-kvm` of `user-gate.yml`; #361 dispatched no
+user-gate run, as the image run was red.

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**680 entries: 82 open, 57 partial, 15 blocked, 526 done.**
+**680 entries: 82 open, 56 partial, 15 blocked, 527 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 2 | 97 | 125 |
-| P2 | 14 | 20 | 9 | 278 | 321 |
+| P2 | 14 | 19 | 9 | 279 | 321 |
 | P3 | 67 | 11 | 4 | 149 | 231 |
-| **All** | 82 | 57 | 15 | 526 | 680 |
+| **All** | 82 | 56 | 15 | 527 | 680 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -714,7 +714,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-669](bootstrap.md) | P2 | S | M0 | chore | done | Load the hosted shell and try direct workflow dispatch |
 | [T-670](bootstrap.md) | P3 | S | M0 | chore | done | Update the TruffleHog image to 3.100.0 |
 | [T-671](bootstrap.md) | P3 | S | M0 | chore | done | Update the TOML parser dependencies |
-| [T-672](later.md) | P2 | M | later | feature | partial | G-09: bundle the Docker engine in runner-full |
+| [T-672](later.md) | P2 | M | later | feature | done | G-09: bundle the Docker engine in runner-full |
 | [T-673](later.md) | P3 | S | later | defect | done | Warm unit tests depend on host memory |
 | [T-674](later.md) | P2 | S | later | measurement | done | Prove offline rootless Podman and FUSE in the hosted snapshot |
 | [T-675](later.md) | P1 | S | later | chore | partial | Take podcrates `v0.85.0` (COORD-156 of podcrates) |

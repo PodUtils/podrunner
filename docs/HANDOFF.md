@@ -20,17 +20,17 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. Verify the bundled Docker engine on both hosted guest kinds (T-672,
-   T-683). Run 45736054587 imported both images and passed on microvm.
-   On the incus kind, Incus 6.0.0 of apt refuses the runc of the engine
-   (AppArmor, lxc/incus#2623). The next runner-image run checks the
-   warning on Incus 6.0.0 and the engine on Incus 6.0 LTS of Zabbly.
-   Check the `cache proof:` line of that run separately (T-480).
+1. Ask for the next runner-image run and read `tests/podvm.rs` (T-682).
+   In run 45773152397 the hook did not find the worker in a podvm unit
+   on a rung below the namespace rung: the loader of the image runs each
+   program there. The hook now names a process by its cmdline too. Then
+   `user-gate.yml` with that run, for the lane check of T-683.
 2. Verify the podcrates and podnet takes in hosted CI (T-675, T-677).
-3. Prove T-682 in the runner-image run (`tests/podvm.rs`): the hook now
-   ends the runner worker on a refused assignment, so no `always()` step
-   runs. T-651 gives the cache to the containers of a job. Take the
-   remaining cache work in T-480.
+3. Take the remaining cache work in T-480.
+
+The bundled Docker engine (T-672) passed on microvm and on Incus 6.0.7 in
+runner-image run 45773152397. Incus before 6.0.6 and 6.19 refuses its
+runc; podrunner warns of it (T-683).
 
 ## The release `v0.1.0-beta.8`
 

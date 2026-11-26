@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 680 entries: 82 open, 57 partial, 15 blocked, 526 done.
+`TODO/INDEX.md` holds 680 entries: 82 open, 56 partial, 15 blocked, 527 done.
 
 ## State
 
@@ -29,8 +29,10 @@
 - A `docker build` step and a `docker:dind` service pass in a guest and in
   an incus instance, proven in CI on GitHub-hosted runners (T-516,
   `runner-image.yml` 45564676018; `level2.yml` 45564676057 on github.com
-  twins). T-517 chooses to bundle the engine in `runner-full`. Implementing
-  the bundled path (T-672) and the live check (T-040) remain.
+  twins). The Docker 29.9.2 of `runner-full` (T-672) passed both on
+  microvm and on Incus 6.0.7 (runner-image 45773152397). Incus before
+  6.0.6 and 6.19 refuses its runc; podrunner warns of it (T-683). The live
+  check (T-040) remains.
 - Warm units (T-487) are enabled for fake, Incus and microvm. The
   installed binary passed both warm rows in user-gate run 45626716848.
   Incus first steps were 14 and 14 s cold, then 2 and 2 s warm. Microvm
@@ -64,21 +66,20 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Finish the bundled Docker guest proof (T-672, T-683) in the next
-   runner-image run, then the lane check of T-683. Verify the podcrates
-   and podnet takes (T-675, T-677).
-2. Prove the refused-assignment fix in a podvm unit (T-682: the hook ends
-   the runner worker; proven against the official runner on a development
-   host). Take the rest of the cache work in T-480.
+1. Ask for the next runner-image run (`tests/podvm.rs`, T-682: the hook
+   names the worker by its cmdline on the lower rungs of podvm), then
+   `user-gate.yml` for the lane check of T-683. Verify the podcrates and
+   podnet takes (T-675, T-677).
+2. Take the rest of the cache work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10
    partial, 6 open; cfb has 38 clauses, 26 in a release, 6 partial, 6 open.
    The comments of podrunner on #292 and #151 name `v0.1.0-beta.8`. Then
-   T-672, T-521 and the partial
+   T-521 and the partial
    entries T-497, T-499, T-509, T-515 and T-520.
 4. Keep the G-09 line on #66 current with the CI proof of Docker build
-   and Docker-in-Docker, the bundled engine (T-672), and the live check
+   and Docker-in-Docker, the bundled engine (done), and the live check
    (T-040).
 5. The local P3 entries: T-655, T-656, T-658, T-659, T-598, T-597,
    T-616, T-603 (step 1), T-610, T-609, T-679, T-680, T-685. The follow-ups of QA round 6: T-638,
