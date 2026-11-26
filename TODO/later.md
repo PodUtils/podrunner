@@ -16206,7 +16206,7 @@ and `doctor --config`. Not a defect of the installer: 4 (the directory of
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16234,6 +16234,29 @@ Edit the parser `crates/podrunner/src/run_local/args.rs` and the checks of `crat
 ## Prove
 
 `cargo test -p podrunner --lib run_local` and `cargo test -p podrunner --test local` with a case for each line; `cargo todo check`.
+
+## Done
+
+2026-11-26, `31b6fe67` and `24b3eacc` (tests on a development host, and
+the built binary as a user with no root; not run with incusd or with the
+real podvm). An empty value of a flag is refused by its name (64); the
+empty NAME of `--github-token-env` still sends no token (T-385). A
+`--job` or a `--matrix` axis that the workflow has not is 64, also for
+`--list`, `--graph` and `--validate`. A secret file with an execute bit
+is refused. A file of an option that exists and cannot be read is 66. A
+link out of the project is 64 for a file and for a directory, and the
+text names the link, the project and the target. A dry run checks
+`--state`, the probe of `--podvm` and the incusd of `--incus` (69). The
+views need no tree for `actions/checkout`. `--validate` warns on a
+`timeout-minutes` above 5 days (the warning of the run is T-709).
+`--version x` is 64. `fc1e52fc` (T-627, T-248) fixed `doctor --bogus` and
+the form of a usage error before; that form stays (the call of T-331).
+`docs/cli.md` gives 69 for a part of the host that a unit kind needs.
+Tests: `run_local::qa8_tests` (6), `tests/run_views.rs`,
+`cli::tests::usage_errors_exit_64` and
+`secrets::a_secret_file_that_others_read_is_refused`; each fails on the
+old code, except the case of 66, which the built binary proves as uid
+65534.
 
 
 # T-635: QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor`
@@ -19262,3 +19285,33 @@ local run with the stand-in tarball, or rewrite the inner reference to
 An e2e test with a local composite that has an `actions/checkout` step:
 the tree is checked out and the log has no script; and the stand-in in a
 job container with node and tar only.
+
+# T-709: A run clamps a long timeout-minutes with no warning
+
+**Source:** the worker of T-634, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`--validate` warns on a `timeout-minutes` of a job above 7200 minutes
+(T-634), but `podrunner run` stops the job at 5 days and says nothing at
+the start, so a user learns of the clamp only when the job ends.
+
+## Premise
+
+Read from `crates/podrunner/src/run_local/` by the worker of T-634 on
+2026-11-26.
+
+## Approach
+
+Print the warning of `--validate` on stderr at the start of a run, once
+for each job above the bound.
+
+## Prove
+
+`cargo test -p podrunner run_local` with a job of `timeout-minutes:
+99999999`: the run prints the warning once; a job of 7200 prints none.

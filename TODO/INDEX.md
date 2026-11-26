@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**703 entries: 69 open, 52 partial, 21 blocked, 561 done.**
+**704 entries: 69 open, 52 partial, 21 blocked, 562 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 285 | 324 |
-| P3 | 58 | 11 | 8 | 174 | 251 |
-| **All** | 69 | 52 | 21 | 561 | 703 |
+| P3 | 58 | 11 | 8 | 175 | 252 |
+| **All** | 69 | 52 | 21 | 562 | 704 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -676,7 +676,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-631](later.md) | P2 | S | later | defect | done | `run --changed-since` passes a ref that starts with `-` to git as an option |
 | [T-632](later.md) | P2 | S | later | defect | done | A small `ulimit -f` ends a podvm unit with an empty cause, and `run` names neither the limit nor the fix |
 | [T-633](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of the installer and the install documents |
-| [T-634](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of the flags of `podrunner run` |
+| [T-634](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of the flags of `podrunner run` |
 | [T-635](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |
 | [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
 | [T-637](later.md) | P3 | L | later | measurement | open | QA round 6, agent A: the areas that the round did not test |
@@ -751,3 +751,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-706](later.md) | P3 | S | later | feature | blocked | run checks --mem only for the image that the install pulled |
 | [T-707](later.md) | P3 | S | later | feature | blocked | githome's container: and services: jobs cannot run through the fake GitHub |
 | [T-708](later.md) | P3 | S | later | defect | open | A checkout in a local composite action does not get the stand-in |
+| [T-709](later.md) | P3 | S | later | defect | open | A run clamps a long timeout-minutes with no warning |

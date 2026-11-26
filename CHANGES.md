@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| command line (`run`) | An empty value of a flag is 64; a `--job` or a `--matrix` axis that the workflow has not is 64 (also `--list`, `--graph`, `--validate`); a secret file needs mode 0600 or less with no execute bit; a file of an option that cannot be read is 66; a link out of the project is 64 for a directory too; `--dry-run` checks `--state`, the probe of `--podvm` and the incusd of `--incus` (69, also before a run); `--validate` warns on a `timeout-minutes` above 5 days; `--version ARG` is 64. | T-634 |
 | the installer, the log of a local run | `install.sh` writes `DATA/serve.json` on each install, not only with `--serve`. In a local run, the `actions/checkout` step is the action `podrunner/checkout@v1` with inputs, not a script; its display adds "; ignores KEYS", and stderr names each key of `with:` that it ignores. | T-705, T-697, T-643 |
 | `run-report.v1` (`docs/contracts/source-driver.md`) | On the microvm kind, `cpu_s` is the CPU time of the launcher and the emulator, with the boot and the stop of the guest; the tolerance of 20 % or 1 s holds for it less the `cpu_s` of an idle guest. | T-520 |
 | command line, `[unit.microvm] mem` | `run --microvm` refuses a `--mem` that cannot hold the unpacked image of the install (`DATA/serve.json`) and the 2 GiB reserve of the job; `doctor --run` names that size. A guest of an offer below the kind gets at least the memory that leaves its job the reserve. | T-698, T-699 |
