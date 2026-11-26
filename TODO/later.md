@@ -12263,6 +12263,22 @@ Run a payload that burns a known CPU time on the podvm and microvm kinds in `run
 
 In the code (2026-11-18): `docs/contracts/source-driver.md` names the tolerance of `cpu_s` (20 % or 1 s of the CPU time of the payload, the larger) and how each kind measures it. `cargo test -p podrunner-slots cpu_s_is_the_cpu_time_of_the_payload_within_its_tolerance`: a payload of the fake kind (its processes on the host, sampled as the podvm kind's) burns 2 s of CPU in one process, and `cpu_s` is 2 (three runs); the test takes 1 to 3. Open: the step of `runner-image.yml` on the podvm and microvm kinds of the Prove.
 
+State (2026-11-26, `4f6fbb7f`; the fake kind tested on a development host,
+the podvm and microvm kinds not run): `cargo test -p podrunner-slots
+--test cpu cpu_s_of_a_known_load_is_within_the_tolerance -- --ignored`
+with `PODRUNNER_CPU_KIND` (`fake`, `podvm` or `microvm`) burns about 8 s
+of CPU in one process, samples the unit as `serve` does
+(`usage::Usage`), and checks `cpu_s` within 20 % or 1 s of the CPU time
+that `times` gives in the unit. On microvm it first subtracts the `cpu_s`
+of an idle guest: the sampled processes are the launcher and QEMU, which
+also count the boot and the stop of the guest. `docs/contracts/source-driver.md`
+says this. The test `the_tolerance_is_20_percent_or_1_s_the_larger` checks
+the edges and the parse of `times`. Fake: loads of 7.59 to 7.89 s gave
+`cpu_s` 8 (5 runs); a planted wrong burn fails. The step "The cpu_s of a
+known load on the podvm and microvm kinds" of `runner-image.yml` runs it.
+Next: a green `runner-image.yml` run.
+
+
 # T-521: G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18

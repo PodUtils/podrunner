@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `run-report.v1` (`docs/contracts/source-driver.md`) | On the microvm kind, `cpu_s` is the CPU time of the launcher and the emulator, with the boot and the stop of the guest; the tolerance of 20 % or 1 s holds for it less the `cpu_s` of an idle guest. | T-520 |
 | command line, `[unit.microvm] mem` | `run --microvm` refuses a `--mem` that cannot hold the unpacked image of the install (`DATA/serve.json`) and the 2 GiB reserve of the job; `doctor --run` names that size. A guest of an offer below the kind gets at least the memory that leaves its job the reserve. | T-698, T-699 |
 | the capability record, `[cache]` | The microvm and incus kinds mount the cache read-only: their record lists `mount_modes: ["ro"]` (incus had `["rw"]`), and on a kind with no `rw` a job that would write gets the cache at `ro`. | T-648 |
 | the container hooks (`docs/contracts/hook.md`) | A step of a `container:` job prints its output while it runs: the relay uses `/v2/hook/COMMAND` (a chunked answer; the exit code or the refusal in a trailer). The relay and the host ship together. | T-694 |
@@ -168,6 +169,6 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
 <!-- contract docs/contracts/hook.md e4ec7ef3b1f14d89f93208e786351cfc1dd4d1ce241c9e6aec829f377d474d45 -->
-<!-- contract docs/contracts/source-driver.md 46114c3b7a40cd652217eca2f770b35866a479a05f1ff5637c30a2402b1c171d -->
+<!-- contract docs/contracts/source-driver.md 55214955dd14be2575432fd4296f9fc55546844f8a4064e00c8f88269d6ae9f2 -->
 <!-- contract docs/contracts/unit-driver.md 2f641d0658a90039fd34ab40b4857d1dba7044ed627564753e868ece2aac8712 -->
 <!-- contract schemas/config.v1.json 4d4962b1b8f4a16f94046dcebf82367fec28432907a4717806ade2ddd3d96ff0 -->
