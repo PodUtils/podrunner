@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 680 entries: 82 open, 56 partial, 15 blocked, 527 done.
+`TODO/INDEX.md` holds 680 entries: 82 open, 55 partial, 15 blocked, 528 done.
 
 ## State
 
@@ -68,8 +68,8 @@ then take the next one.
 
 1. Ask for the next runner-image run (`tests/podvm.rs`, T-682: the hook
    names the worker by its cmdline on the lower rungs of podvm), then
-   `user-gate.yml` for the lane check of T-683. Verify the podcrates and
-   podnet takes (T-675, T-677).
+   `user-gate.yml` for the lane check of T-683. Verify the podnet take
+   (T-677) in that image run.
 2. Take the rest of the cache work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to

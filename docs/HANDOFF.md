@@ -25,7 +25,7 @@ In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
    on a rung below the namespace rung: the loader of the image runs each
    program there. The hook now names a process by its cmdline too. Then
    `user-gate.yml` with that run, for the lane check of T-683.
-2. Verify the podcrates and podnet takes in hosted CI (T-675, T-677).
+2. Verify the podnet take in that image run (T-677).
 3. Take the remaining cache work in T-480.
 
 The bundled Docker engine (T-672) passed on microvm and on Incus 6.0.7 in

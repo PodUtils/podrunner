@@ -17387,7 +17387,7 @@ The default and opt-in workflow scripts passed Bash syntax checks.
 **Milestone:** later
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -17429,6 +17429,14 @@ official-runner tests. The signed fake passed all 15 Githome
 source-conformance tests. COORD-136 (#360) records the take and T-676.
 Hosted checks are gate 45736054517, level2 45736054576 and runner-image
 45736054587.
+
+## Done
+
+2026-11-26, proven in CI on GitHub-hosted runners on `de51766` (which
+holds the pins of `f6dd20ee`): gate 45773139781 is green, with its step
+"githome's source passes source-conformance" and the unit command tests;
+level2 45773148073 is green. The red of runner-image 45773152397 is T-682
+only (`tests/podvm.rs`), not a crate of podcrates.
 
 # T-677: Take podnet `v0.4.0-beta.19` (COORD-129 of podnet)
 
