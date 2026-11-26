@@ -34,12 +34,13 @@ tier = "trusted"             # "untrusted", "trusted" or "local"
 arch = "x86_64"              # or "aarch64"
 operator_controlled = true   # the full report; else the public report
 slots = 4                    # the most units of this source at one time
-sidecar = "scaleset-sidecar" # github-scaleset: the sidecar in driver_dir
+sidecar = "/opt/podrunner/drivers/scaleset-sidecar"  # github-scaleset: the sidecar, an absolute path in driver_dir
 config_url = "https://github.com/example-org"
 scale_set = "podrunner"
 app_id = "12345"             # the App: its id, its installation and its key file (mode 0400 or 0600) ...
 installation_id = 678
-key_file = "/etc/podrunner/app.pem"
+key_file = "/etc/podrunner/app.pem"  # the RSA key of the App in PEM form: PKCS#1 (BEGIN RSA PRIVATE KEY, as
+                             # GitHub gives it) or PKCS#8 (BEGIN PRIVATE KEY, as openssl genrsa of OpenSSL 3 gives it)
 # token_file = "/etc/podrunner/org.token"  # ... or a fine-grained token of the organization (mode 0400
                              # or 0600) in place of the three; the sidecar gets it on its descriptor 3
 # script = "fake-jobs.jsonl"  # fake only: the file of the jobs and events of the source (docs/fakes.md); with no key the source gives no job
@@ -49,7 +50,7 @@ key_file = "/etc/podrunner/app.pem"
 [unit.podvm]                 # one table for each unit kind: fake, podvm, microvm, incus
 slots = 2
 command = ["./run.sh"]       # the top process of a unit
-binary = "/usr/local/bin/podvm"       # podvm: the released podvm binary
+binary = "/opt/podrunner/drivers/podvm"  # podvm: the released podvm binary, an absolute path in driver_dir
 images = "/var/lib/podrunner/images"  # podvm: a podvm store with the pinned images
 registries = ["ghcr.io"]     # container: hooks: the registry hosts of job containers; none: each is refused
 runner_dir = "/home/runner"  # the runner directory in the unit; absent: the path that the driver observes
@@ -622,7 +623,7 @@ name = "alice-app"
 kind = "github-scaleset"
 tier = "trusted"
 arch = "x86_64"
-sidecar = "scaleset-sidecar"
+sidecar = "/opt/podrunner/drivers/scaleset-sidecar"
 config_url = "https://github.com/alice/app"   # the repository, not the account
 scale_set = "podrunner"
 app_id = "12345"

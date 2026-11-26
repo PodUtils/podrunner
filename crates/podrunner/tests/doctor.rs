@@ -373,3 +373,83 @@ fn doctor_run_names_the_ca_file_that_node_gets() {
     let node = row(&[("NODE_EXTRA_CA_CERTS", "/etc/node-ca.pem")]);
     assert!(node.contains("takes NODE_EXTRA_CA_CERTS") && !node.contains("Node gets"), "{node}");
 }
+
+/// T-635: `doctor --run` checks the proxy and the CA files of a job as
+/// `run` takes them, on the podvm form too: a CA file that is not there
+/// fails a row (the run would fail), a `NO_PROXY` entry that the runner
+/// cannot read is named (the run drops it), and a held unit takes no proxy.
+/// A workflow file that is not there gives no lock path.
+#[test]
+fn doctor_run_checks_the_proxy_and_the_ca_files_of_each_form() {
+    let dir = Scratch::new("doctor-proxy-forms");
+    std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
+    std::fs::create_dir_all(dir.join("store")).unwrap();
+    std::fs::write(dir.join("runner/run.sh"), "").unwrap();
+    std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
+    std::fs::write(dir.join("ca.pem"), "made-up CA\n").unwrap();
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    let podvm = dir.join("podvm");
+    let script = "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.32\", \"rung\": \"namespace\"}'\n";
+    podrunner_unit::program_file::write(&podvm, script).unwrap();
+    let podnet = dir.join("podnet");
+    let held = r#"{"netns":{"level":"none"},"seccomp":{"level":"advisory"}}"#;
+    podrunner_unit::program_file::write(&podnet, format!("#!/bin/sh\necho '{held}'\n")).unwrap();
+    let image = format!("runner@sha256:{}", "1".repeat(64));
+    let runner_dir = ["--runner-dir".to_string(), dir.join("runner").display().to_string()];
+    let unit = [
+        "--podvm".to_string(),
+        podvm.display().to_string(),
+        "--images".into(),
+        dir.join("store").display().to_string(),
+        "--image".into(),
+        image,
+    ];
+    let mut with_podnet = unit.to_vec();
+    with_podnet.extend(["--podnet".to_string(), podnet.display().to_string()]);
+    let rows = |file: &std::path::Path, form: &[String], vars: &[(&str, String)]| {
+        let mut c = Command::new(env!("CARGO_BIN_EXE_podrunner"));
+        c.args(["doctor", "--run"]).arg(file).args(form);
+        // Only the variables of the case.
+        c.env_clear().env("HOME", &*dir).env("XDG_CONFIG_HOME", dir.join("config"));
+        for k in ["PATH", "TMPDIR"] {
+            if let Some(v) = std::env::var_os(k) {
+                c.env(k, v);
+            }
+        }
+        let out = c.envs(vars.iter().map(|(k, v)| (*k, v))).output().unwrap();
+        String::from_utf8(out.stdout).unwrap()
+    };
+    let row = |text: &str, name: &str| {
+        let at = |l: &&str| l.get(4..).is_some_and(|r| r.starts_with(&format!(" {name}:")));
+        text.lines().find(at).unwrap_or("").to_string()
+    };
+    let w = dir.join("w.yml");
+    let ca = dir.join("ca.pem").display().to_string();
+    let gone = dir.join("gone.pem").display().to_string();
+    let proxy = ("HTTPS_PROXY", "http://127.0.0.1:3128".to_string());
+    for form in [&runner_dir[..], &unit[..]] {
+        let text = rows(&w, form, &[proxy.clone(), ("SSL_CERT_FILE", ca.clone())]);
+        let p = row(&text, "proxy");
+        assert!(
+            p.starts_with("ok   proxy") && p.contains("HTTPS_PROXY") && p.contains("SSL_CERT_FILE"),
+            "{form:?}: {text}"
+        );
+        assert!(row(&text, "ca-files").starts_with("ok   ca-files"), "{form:?}: {text}");
+        let text = rows(&w, form, &[proxy.clone(), ("SSL_CERT_FILE", gone.clone())]);
+        let c = row(&text, "ca-files");
+        assert!(c.starts_with("FAIL ca-files") && c.contains(&format!("SSL_CERT_FILE={gone}")), "{form:?}: {text}");
+        let text = rows(&w, form, &[proxy.clone(), ("NO_PROXY", "::,intra.example".into())]);
+        let p = row(&text, "proxy");
+        assert!(p.contains("NO_PROXY: the job does not get the entry \"::\""), "{form:?}: {text}");
+    }
+    // A held unit takes the CA files, not the proxy: its hold is its way out.
+    let text = rows(&w, &with_podnet, &[proxy.clone(), ("SSL_CERT_FILE", ca.clone()), ("NO_PROXY", "::".into())]);
+    let p = row(&text, "proxy");
+    assert!(p.contains("takes SSL_CERT_FILE of the environment") && !p.contains("HTTPS_PROXY"), "{text}");
+    assert!(!p.contains("NO_PROXY"), "{text}");
+    // No workflow file: the lock row names no path beside it.
+    let text = rows(&dir.join("none.yml"), &runner_dir, &[]);
+    let lock = row(&text, "lock");
+    assert!(lock.contains("not checked") && !lock.contains("podrunner-actions.lock"), "{text}");
+    assert!(row(&text, "workflow").starts_with("FAIL workflow"), "{text}");
+}

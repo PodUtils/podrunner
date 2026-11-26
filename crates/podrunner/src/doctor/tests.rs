@@ -20,9 +20,13 @@ fn a_pin_names_its_runner_its_age_and_the_end_of_its_window() {
     let states: Vec<&str> = rows.iter().map(|r| r["state"].as_str().unwrap()).collect();
     assert_eq!(states, ["ok", "near-end", "stale"]);
     let text = text(&json!({ "pins": rows, "runner_of_this_build": pins::RUNNER_OF_THIS_BUILD }));
-    assert!(text.contains("pin x86_64: runner 2.338.2, 2 of 30 days\n"), "{text}");
-    assert!(text.contains("pin aarch64: runner not named, 25 of 30 days: near the end of its window"), "{text}");
-    assert!(text.contains("pin x86_64: runner not named, 31 of 30 days: stale"), "{text}");
+    // T-635: the age and the limit, each in days with its name.
+    assert!(text.contains("pin x86_64: runner 2.338.2, age 2 days, limit 30 days\n"), "{text}");
+    assert!(
+        text.contains("pin aarch64: runner not named, age 25 days, limit 30 days: near the end of its window"),
+        "{text}"
+    );
+    assert!(text.contains("pin x86_64: runner not named, age 31 days, limit 30 days: stale"), "{text}");
     let built = pins::RUNNER_OF_THIS_BUILD;
     assert!(built.starts_with("2."), "{built}");
     assert!(text.contains(&format!("runner of this build: {built}\n")), "{text}");
@@ -278,4 +282,27 @@ fn doctor_warns_of_an_engine_on_an_old_incusd() {
     // AppArmor off: no profile refuses the writes, and incusd is not asked.
     std::fs::write(&apparmor, "N\n").unwrap();
     assert_eq!(kind_entry("incus", &c, &socket, &apparmor)["warnings"], json!([]));
+}
+
+/// T-635: a bare `doctor` names the two inputs that it can read, by the
+/// command that gives each.
+#[test]
+fn a_bare_doctor_names_the_command_of_each_input() {
+    let v = report_with(None, json!([])).unwrap();
+    let text = text(&v);
+    let line = text.lines().find(|l| l.starts_with("missing: ")).unwrap_or_else(|| panic!("{text}"));
+    assert!(line.contains("podrunner doctor --run FILE") && line.contains("podrunner doctor --config FILE"), "{line}");
+}
+
+/// T-635: one day is "1 day"; 0 days is "0 days".
+#[test]
+fn a_count_of_days_reads_as_a_count() {
+    let day = 24 * 3600;
+    let rows = json!({ "pins": [
+        { "arch": "x86_64", "age_s": day + 5, "limit_s": day, "state": "stale" },
+        { "arch": "x86_64", "age_s": 5, "limit_s": 372 * day, "state": "ok" },
+    ]});
+    let text = pins::lines(&rows);
+    assert!(text.contains("age 1 day, limit 1 day: stale"), "{text}");
+    assert!(text.contains("age 0 days, limit 372 days\n"), "{text}");
 }

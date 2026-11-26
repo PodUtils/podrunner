@@ -37,6 +37,12 @@ pub(crate) fn job_list(vars: &BTreeMap<String, String>) -> (String, Vec<String>)
     (list.join(","), dropped)
 }
 
+/// The entries of the `NO_PROXY` variables of `vars` that a job does not
+/// get: `doctor --run` names them as `run` does (T-635).
+pub fn dropped(vars: &BTreeMap<String, String>) -> Vec<String> {
+    job_list(vars).1
+}
+
 /// The entries that this process named on stderr.
 static NAMED: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
 

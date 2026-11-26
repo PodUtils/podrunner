@@ -163,8 +163,9 @@ impl UnitConfig {
 }
 
 /// The kinds that take `work_folder`: the runner and its work folder are in
-/// the unit (the fake kind for the tests).
-const WORK_FOLDER_KINDS: [&str; 4] = ["podvm", "incus", "microvm", "fake"];
+/// the unit. The runner directory of the host, the docker and the fake
+/// kinds is a host path: they keep the folder of the mint (T-590).
+const WORK_FOLDER_KINDS: [&str; 3] = ["podvm", "incus", "microvm"];
 
 /// The parts of a podvm runner directory that are no work folder: the code
 /// of the runner, which a writable mount would give to each container.

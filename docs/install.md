@@ -21,8 +21,8 @@ The installer ends with the checks of `podrunner doctor`. To check the host
 again, run `podrunner doctor --run FILE` (the checks of one workflow; the
 installer runs it on `DATA/hello.yml`) or `podrunner doctor --config FILE`
 (the checks of a configuration of `serve`). A bare `podrunner doctor` has
-no workflow and no configuration, so it ends with
-`missing: --config: no unit kind and no source were read`.
+no workflow and no configuration, so it ends with a `missing:` line that
+names these two commands.
 
 ## What it needs
 

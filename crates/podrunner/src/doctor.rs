@@ -262,7 +262,11 @@ fn report_with(config: Option<&Path>, host: Value) -> Result<Value, Failure> {
         }
         pins = pins::rows(&cfg, pins::now_s());
     } else {
-        missing.push("--config: no unit kind and no source were read".into());
+        missing.push(
+            "--config: no unit kind and no source were read; give podrunner doctor --run FILE (a workflow of run) \
+             or podrunner doctor --config FILE (a configuration of serve)"
+                .into(),
+        );
     }
     Ok(json!({
         "schema": 1, "landlock_abi": landlock, "kvm": kvm, "hold": hold, "host": host,

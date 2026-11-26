@@ -10,6 +10,9 @@ use podrunner_podvm::probe::{
 };
 
 use super::Args;
+use env::{ca_files, is_proxy, proxy_line};
+
+mod env;
 
 /// One check: its name, whether it holds, and the detail or the fix.
 pub(super) struct Check {
@@ -128,31 +131,6 @@ fn parents_readable(dir: &Path) -> Result<String, String> {
     Ok(format!("each directory above {} can be read", dir.display()))
 }
 
-/// What a job on `--runner-dir` takes of the proxy and the CA of the user
-/// (T-265), and the CA file that Node gets (T-642, T-695).
-pub(super) fn proxy_line(vars: impl Iterator<Item = (String, String)>) -> String {
-    let vars: Vec<(String, String)> = vars
-        .filter(|(k, v)| !v.is_empty() && k != "PATH" && podrunner_local::exec::PASSED.contains(&k.as_str()))
-        .collect();
-    let names: Vec<&str> = vars.iter().map(|(k, _)| k.as_str()).collect();
-    if names.is_empty() {
-        return "a job takes no proxy and no CA file of the environment (direct egress)".into();
-    }
-    let mut line = format!("a job takes {} of the environment", names.join(", "));
-    // The rule of `run` itself, so the row cannot differ from the job.
-    let mut job: std::collections::BTreeMap<String, String> = vars.iter().cloned().collect();
-    let own = job.contains_key("NODE_EXTRA_CA_CERTS");
-    podrunner_local::exec::node_ca(&mut job);
-    match (job.get("NODE_EXTRA_CA_CERTS"), job.contains_key("SSL_CERT_FILE")) {
-        (Some(node), true) if own => {
-            line.push_str(&format!("; Node gets {node} (NODE_EXTRA_CA_CERTS of the user wins)"))
-        }
-        (Some(file), true) => line.push_str(&format!("; Node gets {file} (NODE_EXTRA_CA_CERTS from SSL_CERT_FILE)")),
-        _ => {}
-    }
-    line
-}
-
 /// The checks of a run with the options `a`.
 pub(super) fn checks(a: &Args) -> Vec<Check> {
     let mut out = vec![
@@ -217,7 +195,10 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
     let lock = a.file.parent().unwrap_or(Path::new(".")).join(podrunner_local::lock::LOCK_FILE);
     out.push(check(
         "lock",
-        if lock.exists() {
+        if !a.file.is_file() {
+            // The lock is beside the workflow file (T-635).
+            Ok("not checked: the workflow file is not there".into())
+        } else if lock.exists() {
             podrunner_local::lock::Lock::read(&lock)
                 .map(|l| format!("{}: {} references", lock.display(), l.pins.len() + l.images.len()))
                 .map_err(|e| e.to_string())
@@ -225,8 +206,18 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
             Ok(format!("{}: none yet; a run with no --frozen writes it", lock.display()))
         },
     ));
+    // The proxy and the CA files of the user, as a job takes them: on a
+    // runner directory and in a podvm unit (T-635). A guest has no NIC. A
+    // held unit takes the CA files only: its hold is its way out.
+    if a.guest.is_none() && (a.runner_dir.is_some() || a.podvm.is_some()) {
+        let unit = a.podvm.is_some();
+        let held = unit
+            && (a.podnet.is_some() || (a.vnet.is_some() && !(a.allow.is_empty() && a.environment_allow.is_empty())));
+        let vars: Vec<(String, String)> = std::env::vars().filter(|(k, _)| !held || !is_proxy(k)).collect();
+        out.push(check("proxy", Ok(proxy_line(&vars, !unit))));
+        out.push(check("ca-files", ca_files(&vars, unit)));
+    }
     if let Some(dir) = &a.runner_dir {
-        out.push(check("proxy", Ok(proxy_line(std::env::vars()))));
         out.push(check("runner-dir-parents", parents_readable(dir)));
         let ok = dir.join("run.sh").is_file() && dir.join("bin/Runner.Listener").is_file();
         out.push(check(

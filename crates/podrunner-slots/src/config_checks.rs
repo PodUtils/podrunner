@@ -29,6 +29,44 @@ impl Config {
         Ok(())
     }
 
+    /// The keys of each `[unit.KIND]` that no unit can use (T-635): a kind
+    /// with no slot runs no unit, and only the incus kind sizes a root disk
+    /// by `root_quota`.
+    pub(crate) fn check_unit_keys(&self) -> Result<(), String> {
+        for (n, u) in &self.unit {
+            if u.slots == 0 {
+                return Err(format!(
+                    "[unit.{n}] slots = 0: no unit of the kind could run; remove the table or set 1 or more"
+                ));
+            }
+            if u.root_quota && n != "incus" {
+                return Err(format!("[unit.{n}] root_quota: only the incus kind reads it"));
+            }
+        }
+        Ok(())
+    }
+
+    /// Each binary, sidecar and program: an absolute path, in `driver_dir`
+    /// when the file sets it.
+    pub(crate) fn check_drivers(&self) -> Result<(), String> {
+        let drivers = self.unit.iter().map(|(n, u)| (format!("[unit.{n}] binary"), &u.binary));
+        let sidecars = self.source.iter().map(|s| (format!("[[source]] {:?} sidecar", s.name), &s.sidecar));
+        let programs = self.source.iter().map(|s| (format!("[[source]] {:?} program", s.name), &s.program));
+        for (key, path) in drivers.chain(sidecars).chain(programs) {
+            let Some(path) = path else { continue };
+            let p = std::path::Path::new(path);
+            if !p.is_absolute() {
+                return Err(format!("{key} is not an absolute path: a driver never comes from PATH"));
+            }
+            if let Some(dir) = &self.driver_dir
+                && p.parent() != Some(std::path::Path::new(dir))
+            {
+                return Err(format!("{key} is not in driver_dir {dir:?}"));
+            }
+        }
+        Ok(())
+    }
+
     /// The mitigations of DR-4 that the file must state when `trusted`
     /// runs at `redirect` (GitHub #4, T-045).
     pub(crate) fn check_redirect(&self) -> Result<(), String> {

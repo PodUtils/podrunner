@@ -62,8 +62,13 @@ pub(crate) fn scaleset(
     }
     let pem = std::fs::read_to_string(&key_file)
         .map_err(|e| fail(Class::Config, format!("{}: the key file: {}", s.name, e)))?;
-    let key = podrunner_mint::sign::key_from_pem(&pem)
-        .map_err(|_| fail(Class::Config, format!("{}: the key file holds no PKCS#1 key", s.name)))?;
+    let key = podrunner_mint::sign::key_from_pem(&pem).map_err(|e| {
+        let why = match e {
+            podrunner_mint::sign::Refusal::Key(why) => why,
+            other => format!("{other:?}"),
+        };
+        fail(Class::Config, format!("{}: the key file: {why}", s.name))
+    })?;
     // Each request of `sign` is a line of the log of the process (T-172).
     let signer = podrunner_mint::sign::Signer::new(key, &get(&s.app_id), clock, Box::new(now_unix))
         .since(origin)

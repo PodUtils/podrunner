@@ -446,23 +446,9 @@ impl Config {
         crate::pins::verify(&self.pin)?;
         self.check_init()?;
         self.check_warm()?;
+        self.check_unit_keys()?;
         crate::unit_config::check_work_folders(&self.unit)?;
-        let drivers = self.unit.iter().map(|(n, u)| (format!("[unit.{n}] binary"), &u.binary));
-        let sidecars = self.source.iter().map(|s| (format!("[[source]] {:?} sidecar", s.name), &s.sidecar));
-        let programs = self.source.iter().map(|s| (format!("[[source]] {:?} program", s.name), &s.program));
-        for (key, path) in drivers.chain(sidecars).chain(programs) {
-            let Some(path) = path else { continue };
-            let p = std::path::Path::new(path);
-            if !p.is_absolute() {
-                return Err(format!("{key} is not an absolute path: a driver never comes from PATH"));
-            }
-            if let Some(dir) = &self.driver_dir
-                && p.parent() != Some(std::path::Path::new(dir))
-            {
-                return Err(format!("{key} is not in driver_dir"));
-            }
-        }
-        Ok(())
+        self.check_drivers()
     }
 
     /// The boundary floor of a tier: the configured one, or the default.

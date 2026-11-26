@@ -54,6 +54,9 @@ fn config_init_writes_a_file_that_check_takes_once() {
     let o = init(&dir, "podvm", &out, &[]);
     assert_eq!(o.status.code(), Some(78), "{}", String::from_utf8_lossy(&o.stderr));
     assert!(String::from_utf8_lossy(&o.stderr).contains("no-tier-served"), "{o:?}");
+    // The refusal names the fix (T-635).
+    assert!(String::from_utf8_lossy(&o.stderr).contains("[unit.podvm] has no podnet"), "{o:?}");
+    assert!(String::from_utf8_lossy(&o.stderr).contains("--podnet PATH"), "{o:?}");
     assert!(!out.exists());
     // An incusd that takes a connection: the file is written at 0600, and
     // `check` takes it.
@@ -180,5 +183,58 @@ fn config_init_makes_the_missing_parent_of_its_output() {
     let o = init(&dir, "incus", &dir.join("file/x/podrunner.toml"), &[]);
     assert_eq!(o.status.code(), Some(77), "{}", String::from_utf8_lossy(&o.stderr));
     assert!(dir.join("file").is_file());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// T-635: a value of a flag that gives a file that no job can use exits 64
+/// with the flag, and writes no file: `--slots 0`, an empty or spaced
+/// login, and an empty host.
+#[test]
+fn config_init_refuses_an_empty_value_by_its_flag() {
+    let dir = std::env::temp_dir().join(format!("podrunner-config-init-values-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let _incusd = std::os::unix::net::UnixListener::bind(dir.join("incus.socket")).unwrap();
+    let out = dir.join("podrunner.toml");
+    let cases: [(&[&str], &str); 7] = [
+        (&["--slots", "0"], "--slots"),
+        (&["--org", ""], "--org"),
+        (&["--org", "a b"], "--org"),
+        (&["--org", "a\tb"], "--org"),
+        (&["--user", ""], "--user"),
+        (&["--user", "a/b"], "--user"),
+        (&["--slots", "1", "--org", "ok-org", "--user", "x y"], "--user"),
+    ];
+    for (extra, flag) in cases {
+        let o = init(&dir, "incus", &out, extra);
+        let e = String::from_utf8_lossy(&o.stderr);
+        assert_eq!(o.status.code(), Some(64), "{extra:?}: {e}");
+        assert!(e.contains(&format!("podrunner: {flag} ")), "{extra:?}: {e}");
+        assert!(!out.exists(), "{extra:?}");
+    }
+    // `--host` comes first in the helper: the command with no helper.
+    let image = format!("runner@sha256:{}", "1".repeat(64));
+    let p = podvm(&dir);
+    for host in ["", " ", "a b"] {
+        let o = Command::new(BIN)
+            .args(["config", "init", "--host", host, "--source", "githome", "--program", BIN, "--org", "o"])
+            .arg("--podvm")
+            .arg(&p)
+            .arg("--images")
+            .arg(dir.join("store"))
+            .args(["--image", &image, "--built-at-s", "1793491200", "--kinds", "incus", "--out"])
+            .arg(&out)
+            .env("PODVM_INCUS_SOCKET", dir.join("incus.socket"))
+            .output()
+            .unwrap();
+        let e = String::from_utf8_lossy(&o.stderr);
+        assert_eq!(o.status.code(), Some(64), "{host:?}: {e}");
+        assert!(e.contains("podrunner: --host "), "{host:?}: {e}");
+        assert!(!out.exists(), "{host:?}");
+    }
+    // The edge: one slot and a login with a dash pass.
+    let o = init(&dir, "incus", &out, &["--slots", "1", "--org", "a-b"]);
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
     let _ = std::fs::remove_dir_all(&dir);
 }

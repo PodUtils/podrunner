@@ -129,8 +129,8 @@ impl podrunner_source::JobSource for NoRunner {
     }
 }
 
-/// The file: an absolute path on the podvm, the incus, the microvm or the
-/// fake kind; a podvm folder in its runner directory (T-590).
+/// The file: an absolute path on the podvm, the incus or the microvm kind;
+/// a podvm folder in its runner directory (T-590).
 #[test]
 fn the_file_holds_the_work_folder_of_a_kind() {
     let check = |unit: &str| {
@@ -139,11 +139,13 @@ fn the_file_holds_the_work_folder_of_a_kind() {
              reference = \"{PIN}\"\nbuilt_at_s = 1\n"
         ))
     };
-    for kind in ["podvm", "incus", "microvm", "fake"] {
+    for kind in ["podvm", "incus", "microvm"] {
         assert!(check(&format!("{kind}]\nslots = 1\nwork_folder = \"/home/runner/work\"")).is_ok(), "{kind}");
     }
-    let e = check("docker]\nslots = 1\nwork_folder = \"/home/runner/work\"").unwrap_err();
-    assert!(e.contains("[unit.docker] work_folder: only the podvm, the incus and the microvm kinds"), "{e}");
+    for kind in ["docker", "fake"] {
+        let e = check(&format!("{kind}]\nslots = 1\nwork_folder = \"/home/runner/work\"")).unwrap_err();
+        assert!(e.contains(&format!("[unit.{kind}] work_folder: only the podvm, the incus and the microvm")), "{e}");
+    }
     for bad in ["work", "/", "/home//work", "/home/runner/../work", "/home/./work", "/home/runner/work\\n"] {
         let e = check(&format!("incus]\nslots = 1\nwork_folder = \"{bad}\"")).unwrap_err();
         assert!(e.contains("[unit.incus] work_folder") && e.contains("give an absolute path"), "{bad}: {e}");

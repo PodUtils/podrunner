@@ -37,6 +37,7 @@ pub mod workdir;
 pub use host::{PASSED, RunnerDir, space_refusal};
 #[cfg(test)]
 use images::{images, registries};
+pub use noproxy::dropped as dropped_no_proxy;
 pub use proxy::node_ca;
 pub use toolcache::{TOOLCACHE_MOUNT, toolcache_argv};
 

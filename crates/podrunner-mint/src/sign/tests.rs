@@ -157,3 +157,36 @@ fn each_audit_line_goes_to_the_sink_and_the_memory_is_bounded() {
     assert!(text.lines().next().unwrap().contains("\"outcome\":\"signed\""), "{text}");
     assert!(!text.contains(&token[token.len() - 40..]), "the sink holds the token");
 }
+
+/// T-635: OpenSSL 3 `genrsa` writes PKCS#8 (`BEGIN PRIVATE KEY`). The same
+/// key in PKCS#1 and in PKCS#8 signs the same token; a PKCS#8 key that is
+/// not RSA, and a file with no key block, are refused with both forms named.
+#[test]
+fn a_pkcs8_key_signs_as_its_pkcs1_form() {
+    let pkcs1 = test_key();
+    let mut c = Command::new("openssl")
+        .args(["pkcs8", "-topk8", "-nocrypt"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("openssl");
+    std::io::Write::write_all(&mut c.stdin.take().unwrap(), pkcs1.as_bytes()).unwrap();
+    let pkcs8 = String::from_utf8(c.wait_with_output().unwrap().stdout).unwrap();
+    assert!(pkcs8.starts_with("-----BEGIN PRIVATE KEY-----"), "openssl pkcs8");
+    let token = |pem: &str| {
+        let clock = Arc::new(ManualClock::new());
+        let mut s = Signer::new(key_from_pem(pem).unwrap(), "12345", clock, Box::new(|| NOW));
+        s.sign("a", &claims(json!({ "iat": NOW, "exp": NOW + 600, "iss": "12345" }))).unwrap()
+    };
+    assert_eq!(token(&pkcs8), token(&pkcs1));
+    let ec = Command::new("openssl")
+        .args(["genpkey", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-256"])
+        .output()
+        .expect("openssl");
+    let ec = String::from_utf8(ec.stdout).unwrap();
+    assert!(ec.starts_with("-----BEGIN PRIVATE KEY-----"), "openssl genpkey");
+    let Err(Refusal::Key(why)) = key_from_pem(&ec) else { panic!("an EC key") };
+    assert!(why.contains("not an RSA key"), "{why}");
+    let Err(Refusal::Key(why)) = key_from_pem("no key here\n") else { panic!("no block") };
+    assert!(why.contains("BEGIN RSA PRIVATE KEY") && why.contains("BEGIN PRIVATE KEY"), "{why}");
+}

@@ -59,11 +59,36 @@ fn verdict(cfg: &Config, away: Vec<(String, String)>) -> Result<(), Failure> {
     if cfg.source.is_empty() || meets(&away) {
         return Ok(());
     }
-    let why: String = away.iter().map(|(n, w)| format!(" ([unit.{n}] not here: {w})")).collect();
+    let mut why: String = away.iter().map(|(n, w)| format!(" ([unit.{n}] not here: {w})")).collect();
+    why.push_str(&podvm_fix(cfg));
     if meets(&[]) {
         return refuse(Class::TempFail, &why, "; the kind can come later, so a supervisor starts serve again");
     }
     refuse(Class::Config, &why, "")
+}
+
+/// The keys that a podvm kind needs for a source of this architecture
+/// that it could serve (T-635): `confine` for the floor `confined`, and
+/// `podnet` for an egress hold. `config init` writes `podnet` from
+/// `--podnet`.
+fn podvm_fix(cfg: &Config) -> String {
+    let Some(u) = cfg.unit.get("podvm") else { return String::new() };
+    let arch = std::env::consts::ARCH;
+    let floors: Vec<Boundary> = cfg.source.iter().filter(|s| s.arch == arch).map(|s| cfg.floor(s.tier)).collect();
+    let holds = cfg.source.iter().filter(|s| s.arch == arch && cfg.floor(s.tier) <= Boundary::Confined);
+    let mut out = String::new();
+    if !u.confine && floors.contains(&Boundary::Confined) {
+        out.push_str("; [unit.podvm] has no confine = true: the floor of the source is confined");
+    }
+    if u.podnet.is_none()
+        && holds.into_iter().any(|s| EgressHold::Unknown.effective() < podrunner_slots::placement::needed_hold(s.tier))
+    {
+        out.push_str(
+            "; [unit.podvm] has no podnet: a job of the source needs an egress hold: set podnet = \"PATH\" \
+             (config init: --podnet PATH)",
+        );
+    }
+    out
 }
 
 /// This host can run the kind `name` (T-629): the microvm kind needs
@@ -174,6 +199,30 @@ mod tests {
         for a in [Vec::new(), away()] {
             assert_eq!(super::verdict(&none, a).unwrap_err().class.exit_code(), 78);
         }
+    }
+
+    /// T-635: a trusted source that a podvm kind does not serve names the
+    /// key of the kind that is missing: `confine` for the floor, `podnet`
+    /// for the hold (with the flag of `config init`).
+    #[test]
+    fn a_podvm_kind_that_serves_no_source_names_its_missing_key() {
+        let file = |keys: &str| {
+            podrunner_slots::config::Config::parse(&format!(
+                "host = \"h\"\nallow_fake = true\n[[source]]\nname = \"s\"\nkind = \"fake\"\ntier = \"trusted\"\n\
+                 arch = \"{}\"\n[unit.podvm]\nslots = 1\nbinary = \"/b\"\nimages = \"/\"\n{keys}[pin]\n",
+                std::env::consts::ARCH
+            ))
+            .unwrap()
+        };
+        let why = |keys: &str| super::verdict(&file(keys), Vec::new()).map_err(|f| f.detail);
+        let both = why("").unwrap_err();
+        assert!(both.contains("[unit.podvm] has no confine = true"), "{both}");
+        assert!(both.contains("[unit.podvm] has no podnet") && both.contains("--podnet PATH"), "{both}");
+        let hold = why("confine = true\n").unwrap_err();
+        assert!(hold.contains("[unit.podvm] has no podnet") && !hold.contains("confine = true"), "{hold}");
+        let floor = why("podnet = \"/p\"\n").unwrap_err();
+        assert!(floor.contains("has no confine = true") && !floor.contains("podnet"), "{floor}");
+        assert!(why("confine = true\npodnet = \"/p\"\n").is_ok());
     }
 
     /// T-409: a configuration that another user can write is refused.

@@ -91,7 +91,10 @@ pub(super) fn rows(cfg: &Config, now: u64) -> Vec<Value> {
 pub(super) fn lines(v: &Value) -> String {
     let mut out = String::new();
     for p in v["pins"].as_array().into_iter().flatten() {
-        let days = |f: &str| p[f].as_u64().unwrap_or(0) / (24 * 3600);
+        let days = |f: &str| match p[f].as_u64().unwrap_or(0) / (24 * 3600) {
+            1 => "1 day".to_string(),
+            n => format!("{n} days"),
+        };
         let version = display(p["runner_version"].as_str().unwrap_or("not named"));
         let what = match p["state"].as_str() {
             Some("stale") => ": stale, no job starts on it: build and pin a new image",
@@ -112,7 +115,7 @@ pub(super) fn lines(v: &Value) -> String {
             .map(|b| format!(", a job gets about {} of root in a guest of the kind", gb(b)))
             .unwrap_or_default();
         out.push_str(&format!(
-            "pin {}: runner {version}, {} of {} days{size}{host}{mem}{job}{what}\n",
+            "pin {}: runner {version}, age {}, limit {}{size}{host}{mem}{job}{what}\n",
             display(p["arch"].as_str().unwrap_or("?")),
             days("age_s"),
             days("limit_s"),

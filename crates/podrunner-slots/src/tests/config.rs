@@ -122,3 +122,56 @@ fn the_warm_keys_accept_pinned_rows_within_their_limits() {
     parse("warm_reserve = \"512M\"", "slots = 2\nwarm = 0\nwarm_max_age_s = 60", &any).unwrap();
     parse("", "slots = 2\nwarm = { \"cpu\" = 0 }", &any).unwrap();
 }
+
+/// T-635: a key that no unit of the kind reads, or that no unit can run
+/// with, is refused by its key: `slots = 0`, `work_folder` on a kind whose
+/// runner directory is a host path (T-590), and `root_quota` on a kind
+/// other than incus.
+#[test]
+fn a_unit_key_that_the_kind_does_not_use_is_refused_by_name() {
+    let parse = |kind: &str, keys: &str| {
+        Config::parse(&format!("host = \"h\"\nallow_fake = true\n[unit.{kind}]\n{keys}\n[pin]\n"))
+    };
+    for kind in ["fake", "podvm", "incus", "microvm", "docker", "host"] {
+        let e = parse(kind, "slots = 0").unwrap_err();
+        assert!(e.contains(&format!("[unit.{kind}] slots = 0")), "{kind}: {e}");
+        parse(kind, "slots = 1").unwrap();
+    }
+    for kind in ["fake", "docker", "host"] {
+        let e = parse(kind, "slots = 1\nwork_folder = \"/home/runner/work\"").unwrap_err();
+        assert!(e.contains(&format!("[unit.{kind}] work_folder: only the podvm, the incus and the microvm")), "{e}");
+    }
+    for kind in ["podvm", "incus", "microvm"] {
+        parse(kind, "slots = 1\nwork_folder = \"/home/runner/work\"").unwrap();
+    }
+    for kind in ["fake", "podvm", "microvm", "docker", "host"] {
+        let e = parse(kind, "slots = 1\nroot_quota = true").unwrap_err();
+        assert!(e.contains(&format!("[unit.{kind}] root_quota: only the incus kind")), "{kind}: {e}");
+        parse(kind, "slots = 1\nroot_quota = false").unwrap();
+    }
+    parse("incus", "slots = 1\nroot_quota = true").unwrap();
+}
+
+/// T-635: each path of a driver in the blocks of `docs/configuration.md`
+/// keeps the rule of `check`: an absolute path, in `driver_dir` when the
+/// block sets it.
+#[test]
+fn the_drivers_of_the_documented_blocks_pass_check() {
+    let doc = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/configuration.md");
+    let doc = std::fs::read_to_string(doc).unwrap();
+    let mut read = 0;
+    for b in doc.split("```toml\n").skip(1).map(|b| b.split("```").next().unwrap()) {
+        // A part of a file (no `host`) does not read as a file.
+        let Ok(c) = toml::from_str::<Config>(b) else { continue };
+        read += 1;
+        assert_eq!(c.check_drivers(), Ok(()), "{b}");
+    }
+    assert!(read >= 1, "no block reads as a file");
+    // A planted defect: a sidecar by its name alone.
+    let c: Config = toml::from_str(
+        "host = \"h\"\ndriver_dir = \"/opt/d\"\n[[source]]\nname = \"s\"\nkind = \"github-scaleset\"\n\
+         tier = \"trusted\"\narch = \"x86_64\"\nsidecar = \"scaleset-sidecar\"\n[pin]\n",
+    )
+    .unwrap();
+    assert!(c.check_drivers().unwrap_err().contains("sidecar is not an absolute path"));
+}

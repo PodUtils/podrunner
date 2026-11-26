@@ -201,7 +201,27 @@ fn input(rest: &[String]) -> Result<(Input, PathBuf, bool), Out> {
             .map_err(|_| err(Class::Usage, "--slots: too large"))?,
         kinds,
     };
+    values(&i)?;
     Ok((i, o.need("--out")?, o.flags.contains(&"--json".into())))
+}
+
+/// The values that give a file that no job can use (T-635): no slot, an
+/// empty host, and a login that is empty or has a space, a control
+/// character or a `/` (a login of a forge has none of them).
+fn values(i: &Input) -> Result<(), Out> {
+    if i.slots == 0 {
+        return Err(err(Class::Usage, "--slots 0: no unit could run; give 1 or more"));
+    }
+    let bad = |v: &str| v.trim().is_empty() || v.chars().any(|c| c.is_whitespace() || c.is_control());
+    if bad(&i.host) {
+        return Err(err(Class::Usage, format!("--host {:?}: give a name with no space", display(&i.host))));
+    }
+    for (flag, logins) in [("--org", &i.orgs), ("--user", &i.users)] {
+        if let Some(l) = logins.iter().find(|l| bad(l) || l.contains('/')) {
+            return Err(err(Class::Usage, format!("{flag} {:?}: give a login with no space and no '/'", display(l))));
+        }
+    }
+    Ok(())
 }
 
 /// `podrunner config init ...`: write the file, or say that it is there

@@ -75,21 +75,26 @@ impl std::fmt::Debug for Signer {
     }
 }
 
-/// Read a PKCS#1 PEM key (`-----BEGIN RSA PRIVATE KEY-----`), the form that
-/// GitHub gives for an App. The error names no byte of the key.
+/// Read an RSA key in PEM form: PKCS#1 (`-----BEGIN RSA PRIVATE KEY-----`),
+/// the form that GitHub gives for an App, or PKCS#8 (`-----BEGIN PRIVATE
+/// KEY-----`), the form of `openssl genrsa` of OpenSSL 3 (T-635). The error
+/// names no byte of the key.
 pub fn key_from_pem(pem: &str) -> Result<RsaKeyPair, Refusal> {
-    let body: String = pem
-        .lines()
-        .map(str::trim)
-        .skip_while(|l| *l != "-----BEGIN RSA PRIVATE KEY-----")
-        .skip(1)
-        .take_while(|l| *l != "-----END RSA PRIVATE KEY-----")
-        .collect();
-    if body.is_empty() {
-        return Err(Refusal::Key("no PKCS#1 PEM block (BEGIN RSA PRIVATE KEY)".into()));
+    let block = |label: &str| -> String {
+        let (begin, end) = (format!("-----BEGIN {label}-----"), format!("-----END {label}-----"));
+        pem.lines().map(str::trim).skip_while(|l| *l != begin).skip(1).take_while(|l| *l != end).collect()
+    };
+    let decode = |body: String| STANDARD.decode(body).map_err(|_| Refusal::Key("the PEM body is not base64".into()));
+    let pkcs1 = block("RSA PRIVATE KEY");
+    if !pkcs1.is_empty() {
+        return RsaKeyPair::from_der(&decode(pkcs1)?).map_err(|e| Refusal::Key(format!("the key is refused: {e}")));
     }
-    let der = STANDARD.decode(body).map_err(|_| Refusal::Key("the PEM body is not base64".into()))?;
-    RsaKeyPair::from_der(&der).map_err(|e| Refusal::Key(format!("the key is refused: {e}")))
+    let pkcs8 = block("PRIVATE KEY");
+    if !pkcs8.is_empty() {
+        return RsaKeyPair::from_pkcs8(&decode(pkcs8)?)
+            .map_err(|e| Refusal::Key(format!("the PKCS#8 key is refused (not an RSA key, or not whole): {e}")));
+    }
+    Err(Refusal::Key("no RSA key in PEM form: PKCS#1 (BEGIN RSA PRIVATE KEY) or PKCS#8 (BEGIN PRIVATE KEY)".into()))
 }
 
 impl Signer {
