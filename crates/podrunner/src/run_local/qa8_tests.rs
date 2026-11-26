@@ -101,13 +101,19 @@ fn a_dry_run_checks_the_state_and_the_unit_kind() {
 #[test]
 fn a_timeout_above_five_days_gets_a_warning() {
     let dir = Scratch::new("qa8-timeout");
-    let flow = |minutes: &str| format!("on: push\njobs:\n  a:\n    runs-on: x\n    timeout-minutes: {minutes}\n    steps: [{{run: a}}]\n");
+    let flow = |minutes: &str| {
+        format!("on: push\njobs:\n  a:\n    runs-on: x\n    timeout-minutes: {minutes}\n    steps: [{{run: a}}]\n")
+    };
     let w = dir.join("w.yml");
     let ws = w.to_str().unwrap();
     std::fs::write(&w, flow("99999999")).unwrap();
     let out = run(&args(&[ws, "--validate"]));
     assert_eq!(out.code, 0, "{}", out.stderr);
-    assert!(out.stdout.contains("warning: jobs.a.timeout-minutes (line 5): 99999999 is more than 7200"), "{}", out.stdout);
+    assert!(
+        out.stdout.contains("warning: jobs.a.timeout-minutes (line 5): 99999999 is more than 7200"),
+        "{}",
+        out.stdout
+    );
     let out = run(&args(&[ws, "--validate", "--json"]));
     let v: serde_json::Value = serde_json::from_str(out.stdout.trim()).unwrap();
     assert!(v["warnings"][0].as_str().unwrap().contains("the run stops the job at 5 days"), "{v}");

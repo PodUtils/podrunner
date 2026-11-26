@@ -190,7 +190,9 @@ pub(super) fn filter(w: &Workflow, jobs: &[String], matrix: &[(String, String)])
         }
     }
     match matrix.iter().find(|(k, _)| !axes.contains(k)) {
-        Some((k, v)) => Err(format!("--matrix {k}={v}: no matrix of the workflow has the axis {k} (its axes: {axes:?})")),
+        Some((k, v)) => {
+            Err(format!("--matrix {k}={v}: no matrix of the workflow has the axis {k} (its axes: {axes:?})"))
+        }
         None => Ok(()),
     }
 }
