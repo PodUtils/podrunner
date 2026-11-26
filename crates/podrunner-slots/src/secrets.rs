@@ -255,6 +255,9 @@ pub(crate) struct UnitTrust {
     /// The bundle (PEM) and the variables that name it, for each container
     /// of the job (T-578).
     pub bundle: (String, Vec<String>),
+    /// The trust store (PKCS #12) that the egress made, for the hooks of
+    /// each container (T-693): they write it as it is.
+    pub store: Option<Vec<u8>>,
 }
 
 /// Open the egress of `unit` of the source `source` with `policy` and the
@@ -286,16 +289,16 @@ pub(crate) fn open(
     let mut env: Vec<(String, String)> = ca_vars.iter().map(|k| (k.clone(), path.clone())).collect();
     let pem = (bundle.expose().to_string(), ca_vars);
     let mut files = vec![CredentialFile { name: CA_FILE.into(), content: bundle }];
-    if let Some((store, options)) = trust_store {
+    if let Some((store, options)) = &trust_store {
         // A path that a JVM cannot take (a space): the other clients still
         // trust the bundle.
         match options(std::path::Path::new(&format!("{dir}/{STORE_FILE}")), None) {
             Ok(value) => {
-                files.push(podrunner_schema::binary_file(STORE_FILE, &store));
+                files.push(podrunner_schema::binary_file(STORE_FILE, store));
                 env.push(("JAVA_TOOL_OPTIONS".into(), value));
             }
             Err(why) => eprintln!("podrunner: {unit}: no trust store for a JVM: {why}"),
         }
     }
-    Ok(ForUnit { flagged, ca: Some(UnitTrust { files, env, bundle: pem }) })
+    Ok(ForUnit { flagged, ca: Some(UnitTrust { files, env, bundle: pem, store: trust_store.map(|(store, _)| store) }) })
 }

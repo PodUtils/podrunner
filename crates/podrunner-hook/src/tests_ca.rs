@@ -62,7 +62,7 @@ fn container(env: Value) -> Value {
 }
 
 fn bundle<'a>(file: &'a str, vars: &'a [String]) -> Bundle<'a> {
-    Bundle { file, pem: PEM, vars }
+    Bundle { file, pem: PEM, vars, store: None }
 }
 
 fn started(dir: &std::path::Path) -> (Arc<dyn UnitDriver>, UnitId) {
@@ -313,13 +313,44 @@ fn a_bundle_that_gives_no_store_leaves_none() {
     std::fs::create_dir_all(dir.join("ca")).unwrap();
     std::fs::write(dir.join("ca/podrunner-broker-ca.p12"), "stale").unwrap();
     let vars = ["SSL_CERT_FILE".to_string()];
-    let b = Bundle { file: CA_FILE, pem: "no certificate\n", vars: &vars };
+    let b = Bundle { file: CA_FILE, pem: "no certificate\n", vars: &vars, store: None };
     let ca = crate::hooks::place_ca(&dir, b).unwrap();
     assert_eq!(std::fs::read_to_string(dir.join("ca").join(CA_FILE)).unwrap(), "no certificate\n");
     assert!(!dir.join("ca/podrunner-broker-ca.p12").exists(), "no store, and no stale store");
     assert_eq!(ca.file, CA_FILE);
-    let b = Bundle { file: "ca.p12", pem: PEM, vars: &vars };
+    let b = Bundle { file: "ca.p12", pem: PEM, vars: &vars, store: None };
     crate::hooks::place_ca(&dir, b).unwrap();
     assert_eq!(std::fs::read_to_string(dir.join("ca/ca.p12")).unwrap(), PEM, "the bundle, not a store");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// T-693: a store that the caller gives goes to the file as it is, with
+/// no second encode. The given bytes are no PKCS #12 file, so the file
+/// shows who wrote it: an encode of the PEM gives other bytes. The mode and
+/// the name stay the same, and a given store with no bundle name for it
+/// (a bundle named `.p12`) is not written.
+#[test]
+fn a_given_trust_store_is_written_as_it_is() {
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-given-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let vars = ["SSL_CERT_FILE".to_string()];
+    let given = b"given-store-not-an-encode".as_slice();
+    let b = Bundle { store: Some(given), ..bundle(CA_FILE, &vars) };
+    crate::hooks::place_ca(&dir, b).unwrap();
+    let store = dir.join("ca/podrunner-broker-ca.p12");
+    assert_eq!(std::fs::read(&store).unwrap(), given);
+    assert_eq!(std::fs::metadata(&store).unwrap().permissions().mode() & 0o777, 0o644);
+    assert_eq!(std::fs::read_to_string(dir.join("ca").join(CA_FILE)).unwrap(), PEM, "the bundle stays");
+    // A stale store of an earlier unit is replaced by the given one.
+    std::fs::write(&store, "stale").unwrap();
+    crate::hooks::place_ca(&dir, Bundle { store: Some(given), ..bundle(CA_FILE, &vars) }).unwrap();
+    assert_eq!(std::fs::read(&store).unwrap(), given);
+    // No bytes given: the store is the encode of the PEM, as in `run`.
+    crate::hooks::place_ca(&dir, bundle(CA_FILE, &vars)).unwrap();
+    assert_ne!(std::fs::read(&store).unwrap(), given);
+    assert!(std::fs::read(&store).unwrap().len() > given.len());
+    // No store name for the bundle: the given bytes are not the bundle.
+    crate::hooks::place_ca(&dir, Bundle { store: Some(given), ..bundle("ca.p12", &vars) }).unwrap();
+    assert_eq!(std::fs::read_to_string(dir.join("ca/ca.p12")).unwrap(), PEM);
     let _ = std::fs::remove_dir_all(&dir);
 }

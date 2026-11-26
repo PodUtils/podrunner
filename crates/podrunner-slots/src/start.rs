@@ -185,6 +185,7 @@ impl Slots {
             self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(why.into()));
         }
         let mut unit_ca: Option<(String, Vec<String>)> = None;
+        let mut unit_store: Option<Vec<u8>> = None;
         if let Some(e) = &self.egress {
             let offer = self.jobs[key].offer.as_ref().map(|o| &o.policy);
             let policy = crate::policy::of_job(offer, self.cfg.egress.default_policy.as_ref());
@@ -206,6 +207,7 @@ impl Slots {
                     // container of its job too (T-578).
                     if let Some(t) = o.ca {
                         unit_ca = Some(t.bundle);
+                        unit_store = t.store;
                         credential.files.extend(t.files);
                         env.extend(t.env);
                     }
@@ -218,6 +220,7 @@ impl Slots {
             file: crate::secrets::CA_FILE,
             pem: pem.as_str(),
             vars: vars.as_slice(),
+            store: unit_store.as_deref(),
         });
         match self.open_hooks(p.kind, &unit, &dir, guest.as_deref(), ca) {
             Ok(vars) => env.extend(vars),

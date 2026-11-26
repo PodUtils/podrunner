@@ -30,6 +30,9 @@ pub struct ContainerCa<'a> {
     pub pem: &'a str,
     /// The variables that name it.
     pub vars: &'a [String],
+    /// The trust store of the bundle for a JVM (PKCS #12), as the egress
+    /// of the unit made it (T-693). None: the egress made none.
+    pub store: Option<&'a [u8]>,
 }
 
 /// The cache of the job of a unit, for each container of the job (T-651).

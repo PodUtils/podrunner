@@ -24,6 +24,9 @@ pub struct Bundle<'a> {
     pub pem: &'a str,
     /// The variables that name it (`ca::env` of `pod-broker`).
     pub vars: &'a [String],
+    /// The trust store of the bundle for a JVM (PKCS #12), when the caller
+    /// made it already (T-693). None: `place_ca` makes it from `pem`.
+    pub store: Option<&'a [u8]>,
 }
 
 struct Open {
@@ -163,7 +166,12 @@ pub fn place_ca(logs: &Path, b: Bundle<'_>) -> std::io::Result<UnitCa> {
     // certificates (T-597, T-616).
     if let Some(store) = UnitCa::store_name(b.file) {
         let path = dir.join(store);
-        if let Err(e) = pod_broker::ca::write_trust_store(&path, "", b.pem.as_bytes()) {
+        let made = match b.store {
+            // The bytes of the caller as they are: no second encode.
+            Some(der) => pod_core::files::replace_private(&path, der, 0o644, false).map(drop),
+            None => pod_broker::ca::write_trust_store(&path, "", b.pem.as_bytes()).map_err(std::io::Error::other),
+        };
+        if let Err(e) = made {
             let _ = std::fs::remove_file(&path);
             eprintln!(
                 "podrunner: no trust store of the CA bundle for a JVM in a container: {e}; the containers get the bundle only"
