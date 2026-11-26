@@ -148,9 +148,53 @@ pub(super) fn orphaned(live: &[String]) -> bool {
     !live.iter().any(|c| c.starts_with("podvm")) && live.iter().any(|c| !c.starts_with("podnet"))
 }
 
+/// True when no count of the processes of a destroyed unit is true. A
+/// launcher that podvm names `dead` hides its orphans (design test 15): the
+/// count is `Unknown`, unless the payload ended with a code of its own
+/// (`ended`) and no process but the `podnet pod` of the hold carries the tag.
+/// That is the end after a hook killed the worker (T-696): a count of 0.
+pub(super) fn count_lost(live: &[String], dead: bool, ended: bool) -> bool {
+    let payload = live.iter().any(|c| !c.starts_with("podnet"));
+    orphaned(live) || (dead && (payload || !ended))
+}
+
+/// True when `podvm wait` gave the exit of the payload: a code that a
+/// process can have, or a signal. The code -1 is the end with no code.
+pub(super) fn has_exit(exit: Option<podrunner_unit::Exit>) -> bool {
+    match exit {
+        Some(podrunner_unit::Exit::Code(c)) => c >= 0,
+        Some(podrunner_unit::Exit::Signal(_)) => true,
+        None => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::scratch::Scratch;
+
+    /// T-696: the count after a launcher that podvm names `dead`. Each
+    /// edge: the payload ended with a code or not; no process, only the
+    /// `podnet pod`, a payload process, a podvm process.
+    #[test]
+    fn a_dead_launcher_with_no_tagged_process_and_an_exit_has_a_count() {
+        use podrunner_unit::Exit;
+        let s = |v: &[&str]| v.iter().map(|c| c.to_string()).collect::<Vec<_>>();
+        for (live, dead, ended, lost) in [
+            (s(&[]), true, true, false),
+            (s(&["podnet"]), true, true, false),
+            (s(&[]), true, false, true),
+            (s(&["sh"]), true, true, true),
+            (s(&["podvm", "sh"]), true, true, true),
+            (s(&["sh"]), false, true, true),
+            (s(&[]), false, false, false),
+            (s(&["podvm", "sh"]), false, false, false),
+        ] {
+            assert_eq!(super::count_lost(&live, dead, ended), lost, "{live:?} dead {dead} ended {ended}");
+        }
+        assert!(super::has_exit(Some(Exit::Code(0))) && super::has_exit(Some(Exit::Code(255))));
+        assert!(super::has_exit(Some(Exit::Signal(9))));
+        assert!(!super::has_exit(Some(Exit::Code(-1))) && !super::has_exit(None));
+    }
 
     /// A stand-in podvm in `d` whose probe gives `version` and `rung`.
     fn stand_in(d: &std::path::Path, version: &str, rung: &str) -> crate::Podvm {

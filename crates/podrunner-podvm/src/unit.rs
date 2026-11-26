@@ -412,11 +412,12 @@ impl UnitDriver for PodvmUnit {
         // process is left; podvm names the state `dead` then. Read it before
         // the kill, which also ends the launcher.
         let dead = removed.as_ref().is_some_and(|r| self.launcher_died(&r.store, unit.as_str()));
-        let lost = orphans || dead;
+        let ended = labels::has_exit(removed.as_ref().and_then(|r| r.exit));
+        let lost = labels::count_lost(&live, dead, ended);
         if lost {
             // T-159: the cause of an unknown count, for the log of the job.
             eprintln!(
-                "podrunner: destroy {unit}: no count of processes: orphans {orphans}, launcher dead {dead}, tagged {live:?}"
+                "podrunner: destroy {unit}: no count of the processes, not a leak: orphans {orphans}, launcher dead {dead}, exit {ended}, tagged {live:?}"
             );
         }
         let left = shim::kill_tree_of_tagged(&tag, KILL_LIMIT);
