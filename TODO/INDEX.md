@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**687 entries: 78 open, 57 partial, 16 blocked, 536 done.**
+**688 entries: 73 open, 57 partial, 18 blocked, 540 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 13 | 21 | 9 | 281 | 324 |
-| P3 | 64 | 13 | 5 | 153 | 235 |
-| **All** | 78 | 57 | 16 | 536 | 687 |
+| P2 | 12 | 21 | 10 | 281 | 324 |
+| P3 | 60 | 13 | 6 | 157 | 236 |
+| **All** | 73 | 57 | 18 | 540 | 688 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -639,8 +639,8 @@ acceptance, later The crate dependencies later than v1.
 | [T-594](later.md) | P3 | S | later | defect | open | The image release and `runner-image.yml` each have a copy of the build and the archive of the runner images |
 | [T-595](later.md) | P3 | S | later | defect | done | A run report has no reason for a time that it does not know (`start_s`) |
 | [T-596](later.md) | P2 | S | later | defect | partial | A container of `podrunner run` gets no CA file of the caller |
-| [T-597](later.md) | P3 | S | later | defect | open | A container of a unit gets the CA bundle of its broker, but no trust store of a JVM |
-| [T-598](later.md) | P3 | S | later | defect | open | A job on `--runner-dir` behind an intercepting proxy gives a JVM no trust store |
+| [T-597](later.md) | P3 | S | later | defect | done | A container of a unit gets the CA bundle of its broker, but no trust store of a JVM |
+| [T-598](later.md) | P3 | S | later | defect | done | A job on `--runner-dir` behind an intercepting proxy gives a JVM no trust store |
 | [T-599](later.md) | P2 | S | later | defect | done | The capture of the hosted snapshot writes GNU sparse records, which the next podvm refuses |
 | [T-600](later.md) | P3 | S | later | defect | open | The tests of Unix sockets fail when `TMPDIR` is long |
 | [T-601](later.md) | P3 | S | later | defect | open | A test of the run report failed once under load |
@@ -658,7 +658,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-613](later.md) | P2 | M | later | measurement | done | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
 | [T-614](later.md) | P3 | S | later | defect | done | The probe of `--export` and `--log-dir` has the pid only and follows a link |
 | [T-615](later.md) | P3 | S | later | defect | done | One `TMPDIR` that two hosts share can mistake a live run for a dead one |
-| [T-616](later.md) | P3 | S | later | defect | open | A container of a unit of the local mode gets the CA bundle of the caller, but no trust store of a JVM |
+| [T-616](later.md) | P3 | S | later | defect | done | A container of a unit of the local mode gets the CA bundle of the caller, but no trust store of a JVM |
 | [T-617](later.md) | P2 | S | later | docs | done | The hand-written state of GitHub #65, #66 and the comment on #292 is stale |
 | [T-618](later.md) | P3 | S | later | research | open | R-052 of cfb is named nowhere |
 | [T-619](later.md) | P1 | S | later | chore | done | Take podcrates `v0.82.1` (COORD-152 of podcrates) |
@@ -692,7 +692,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-647](later.md) | P1 | S | later | chore | done | Take podcrates `v0.83.0` and podvm `0.2.0-beta.40` (COORD-154 of podcrates, COORD-246 of podvm) |
 | [T-648](later.md) | P2 | M | later | feature | open | The cache of `serve` on the microvm and incus kinds |
 | [T-649](later.md) | P3 | M | later | measurement | blocked | The bytes that a job reads from its cache |
-| [T-650](later.md) | P2 | M | later | feature | open | A tool that writes its cache in a job with a read-only cache |
+| [T-650](later.md) | P2 | M | later | feature | blocked | A tool that writes its cache in a job with a read-only cache |
 | [T-651](later.md) | P3 | S | later | feature | done | The cache in the containers of a `container:` job |
 | [T-652](later.md) | P2 | S | later | defect | done | The disk check of a unit walks its root in the tick |
 | [T-653](later.md) | P2 | M | later | feature | done | The ref and the repository id of a job of another run, for its cache |
@@ -733,5 +733,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-688](later.md) | P2 | M | later | defect | partial | A job of the corpus runs out of space in a microvm guest |
 | [T-689](later.md) | P3 | S | later | defect | open | The pin bound of a microvm guest leaves no space for a job |
 | [T-690](later.md) | P3 | S | later | feature | open | The local mode has no flag for the memory of a guest |
-| [T-691](later.md) | P3 | S | later | feature | open | The run report does not name the limits a unit got |
-| [T-692](later.md) | P3 | M | later | feature | open | The installer does not install the man page |
+| [T-691](later.md) | P3 | S | later | feature | blocked | The run report does not name the limits a unit got |
+| [T-692](later.md) | P3 | M | later | feature | done | The installer does not install the man page |
+| [T-693](later.md) | P3 | S | later | chore | open | The trust store of a unit of serve is encoded twice |

@@ -14899,7 +14899,7 @@ Open (P4): the credential files of the runner (`all_env` of `proxy.rs`) still ke
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14917,6 +14917,26 @@ Put `podrunner-broker-ca.p12` beside the bundle in `LOGS/ca`, and set `JAVA_TOOL
 
 `cargo test -p podrunner-hook`: a container of a unit with a trust store gets the file and `JAVA_TOOL_OPTIONS`; a value of the job stays.
 
+## Done
+
+2026-11-26, `caae02eb` and the commit before it (tests on a development host;
+no JVM ran, not run in CI). `place_ca`, which `serve` and `run` share,
+writes the PKCS #12 trust store of the bundle beside it in `LOGS/ca`
+(`pod_broker::ca::write_trust_store` of podcrates), named after the
+bundle with `.p12`. Each container of a job gets `JAVA_TOOL_OPTIONS`
+with `-Djavax.net.ssl.trustStore=/__podrunner/<store>` and the type
+PKCS12, and the value of the job after it (a later `-D` of the job
+wins). A job on `--runner-dir` gets `_work/_home/podrunner-ca.p12` and
+the same options (`proxy::host_trust`). A bundle with no certificate, or
+a path with a space, gives no store and one line on stderr. Tests:
+`a_container_of_a_unit_with_a_bundle_gets_the_trust_store_for_a_jvm`,
+`a_bundle_that_gives_no_store_leaves_none`,
+`a_job_on_a_runner_directory_gets_a_trust_store`, and the check of the
+store in `a_container_of_a_caller_with_a_ca_file_gets_the_mount_and_the_variables`;
+each fails with its write planted out. A `java` client in the lane
+`proxy-only` (T-577) would prove it as a user. The second encode of the
+store for `serve`: T-693.
+
 # T-598: A job on `--runner-dir` behind an intercepting proxy gives a JVM no trust store
 
 **Source:** the work of T-577, 2026-11-23
@@ -14924,7 +14944,7 @@ Put `podrunner-broker-ca.p12` beside the bundle in `LOGS/ca`, and set `JAVA_TOOL
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14941,6 +14961,10 @@ Write the store with `pod_broker::ca::write_trust_store` into the work area of t
 ## Prove
 
 `cargo test -p podrunner-local host`: a caller with `SSL_CERT_FILE` gives a job on `--runner-dir` a trust store and `JAVA_TOOL_OPTIONS` that names it.
+
+## Done
+
+2026-11-26, with T-597 (`caae02eb`): the same change; see its Done.
 
 # T-599: The capture of the hosted snapshot writes GNU sparse records, which the next podvm refuses
 
@@ -15482,7 +15506,7 @@ Add the boot id (`/proc/sys/kernel/random/boot_id`, short form) to the id, and e
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15499,6 +15523,10 @@ After T-597 (the store beside the bundle in `LOGS/ca`, in the code that `serve` 
 ## Prove
 
 `cargo test -p podrunner-local --lib exec`: a caller with `SSL_CERT_FILE` gives the container of a unit the store beside the bundle and `JAVA_TOOL_OPTIONS` that names it; a value of the job stays.
+
+## Done
+
+2026-11-26, with T-597 (`caae02eb`): the same change; see its Done.
 
 # T-617: The hand-written state of GitHub #65, #66 and the comment on #292 is stale
 
@@ -16686,7 +16714,7 @@ The entry waits for a podvm release with that flag.
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -16705,6 +16733,22 @@ Read on 2026-11-25: the page "Dependency caching" of the documents of GitHub Act
 ## Prove
 
 `cargo test -p podrunner-slots tests::cache`, and the row of T-528 as a pull request with a cache.
+
+## Blocker
+
+podvm `0.2.0-beta.40` has no overlay volume (`-v` takes `rw`, `ro`, `z`,
+`Z`; `--tmpfs` is refused for `run -d` and is an empty directory), and a
+copy on the host is no route (ext4 on the hosts and the hosted runners:
+no reflink; about 2.4 s for each 100k files, in the tick). COORD-141
+(#368) asks podvm for `-v HOST:GUEST:overlay`.
+
+State (2026-11-26, read only): after the podvm release, the probe of the
+podvm driver lists `overlay` in `mount_modes`; `cache_start` gives a
+`ro` grant the target `/podrunner-cache:overlay` and the variables of
+`[cache] env`; `confine_args` strips the mode suffix of a target (today
+it would put `:overlay` into `write=`); `decide` takes an overlay where
+the kind lists it; the hooks give each container the cache writable; the
+assertion of `tests::cache` that a `ro` job gets no variable changes.
 
 # T-651: The cache in the containers of a `container:` job
 
@@ -18310,7 +18354,7 @@ a refusal of a size below the boot of the image.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -18338,6 +18382,11 @@ driver gave podvm).
 `cargo test -p podrunner-slots report` with a microvm unit whose offer
 asks less than the floor.
 
+## Blocker
+
+`run-report.v1` of `pod-job` has no field for the applied limits:
+COORD-140 (#367) asks podcrates for an optional `unit.limits`.
+
 # T-692: The installer does not install the man page
 
 **Source:** the worker of T-645, 2026-11-26
@@ -18345,7 +18394,7 @@ asks less than the floor.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -18368,3 +18417,49 @@ in the lanes of `user-gate.yml` (`man -w podrunner` where `man` exists).
 
 `sh scripts/test-install.sh` with the page in place, and a lane of
 `user-gate.yml`.
+
+## Done
+
+2026-11-26, `7a2104bb` and the commit before it (tests on a development host;
+the lane not run on GitHub). The installer puts `podrunner.1` at
+`PREFIX/share/man/man1` (mode 0644), first, with the pin `SUM_manpage`
+and the checks of `SHA256SUMS` and `release-index.json` of a binary; a
+second run changes nothing; a release with no page is skipped with one
+line. The offline bundle carries the page, and `podrunner-manifest.json`
+has `podrunner.man_page`. The lane check `install:man` of
+`user-gate.yml` runs `man -w podrunner` where `man` works, with no
+`MANPATH`. Tests: `scripts/test-install.sh` (21 cases; a planted pin of
+the page fails on the old installer). Not proven: that man-db finds
+`~/.local/share/man` by the entry of `~/.local/bin` in `PATH`; the lane
+shows it.
+
+# T-693: The trust store of a unit of serve is encoded twice
+
+**Source:** the worker of T-597, 2026-11-26
+**Category:** chore
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+For `serve`, the egress of a unit already makes the PKCS #12 trust store
+of its CA bundle (`Opened::trust_store`), and since T-597 the hooks make
+the same store again from the PEM, once for each unit.
+
+## Premise
+
+Read from `crates/podrunner-hook/src/hooks.rs` (`place_ca`) and the
+egress of slots on 2026-11-26.
+
+## Approach
+
+Give the bytes of the store through `HookPort::open` and `hooks::Bundle`
+(`crates/podrunner/src/hooks/mod.rs`) and drop the second encode in the
+hooks of `serve`; `run` keeps its encode.
+
+## Prove
+
+`cargo test -p podrunner-hook tests_ca` with the store bytes given, and
+no encode when they are.

@@ -16,6 +16,8 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `podrunner-manifest.json`, the installer | The manifest has `podrunner.man_page` (`file`, `sha256` of `podrunner.1`; null for a release with no page); the installer and the offline bundle put the page in `PREFIX/share/man/man1`. | T-692 |
+| the environment of a job (hook containers, `--runner-dir`) | `JAVA_TOOL_OPTIONS` names a PKCS #12 trust store of the CA bundle: `/__podrunner/*.p12` in each hook container, `_work/_home/podrunner-ca.p12` on `--runner-dir`; a value of the job comes after. | T-597 |
 | `status.v1`, the capability record; `[unit.podvm] mem` | Where the host delegates a cgroup v2 subtree with `memory`, the podvm kind holds `mem` as `memory.max` of the leaf of each unit (else RLIMIT_AS) and gives `limits.memory-per-unit` (`enforced` or `none`). A job that failed after an OOM kill there ends `limit`. | T-515 |
 | the assets of a release, command line | A release has `podrunner.1`, the man page, in `SHA256SUMS` and `release-index.json`. The header of `podrunner man --roff` names its date. | T-645 |
 | `podrunner.toml` `[unit.microvm] mem`, config schema | `mem` is the most memory of a guest. A guest gets the `memory` of its offer plus its unpacked image, at least the boot floor of the image. | T-655 |
@@ -160,7 +162,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | command line, unit driver | `run` and `run --dry-run` on `--podvm`, `--microvm` or `--incus` refuse a limit of file size (`ulimit -f`) below the size of the files of the image (the tar of the cache, else the size that podvm gives, and a margin) before the first unit: exit 78, `the limit of file size (ulimit -f) is N bytes: a unit writes files of its image (...) up to about M bytes, and ends by SIGXFSZ at a larger one; fix: ulimit -f unlimited`; a hard limit below it names root and `--runner-dir`. On `--runner-dir` (W^X off, T-144) a limit only gives a warning. A podvm call that a signal ends gives `podvm VERB: ended by SIGNAME (N)` (was `exit -1:` with no cause); SIGXFSZ gives the limit and its fix. | T-632 |
 
 <!-- contract docs/contracts/codes.md 50ade2b7f60a98cde60ea927082fa7d5de71c003ed6ab2753bb9d12fa3b4331c -->
-<!-- contract docs/contracts/hook.md 0f43d75790e248ee82e1ae12675d917352c0734520f6bedf5ed0642fdd4abea4 -->
+<!-- contract docs/contracts/hook.md 6bd6a5273549a35c0311136d78732c52af7ad85b831852d85039d6975dbe7db5 -->
 <!-- contract docs/contracts/source-driver.md 46114c3b7a40cd652217eca2f770b35866a479a05f1ff5637c30a2402b1c171d -->
 <!-- contract docs/contracts/unit-driver.md 2f641d0658a90039fd34ab40b4857d1dba7044ed627564753e868ece2aac8712 -->
 <!-- contract schemas/config.v1.json 3496fe494c8560614cba8ee1f60a99d9caa7087c0ee08c096b87d6f1e3745c9e -->
