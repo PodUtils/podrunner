@@ -22,6 +22,7 @@ mod host_cap;
 mod jobfile;
 mod journal;
 mod level1;
+mod mismatch;
 mod placement_disk;
 mod placement_init;
 mod refused;

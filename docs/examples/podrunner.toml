@@ -1,6 +1,10 @@
-# An example configuration of podrunner (docs/configuration.md). It runs
-# the jobs of a fake source in fake units: a first run on a new host, with
-# no forge. The gate runs `podrunner check --config` on this file.
+# An example configuration of podrunner (docs/configuration.md): a fake
+# source and a fake unit, for a first run on a new host with no forge. The
+# gate runs `podrunner check --config` on this file. As it stands, the
+# source has no script, so `serve` gets no job. To get one job, remove the
+# `#` of the key `script` (the path counts from the directory where
+# `serve` runs; the file is docs/examples/fake-jobs.jsonl, the format is in
+# docs/fakes.md). A test checks the file with that key on.
 host = "host-a"
 allow_fake = true
 
@@ -11,6 +15,7 @@ tier = "local"
 arch = "x86_64"
 operator_controlled = true
 slots = 1
+# script = "docs/examples/fake-jobs.jsonl"
 
 [unit.fake]
 slots = 1

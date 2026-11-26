@@ -156,3 +156,25 @@ fn an_env_of_one_expression_gives_a_mapping_at_each_level() {
     let (result, _, logs) = run(&dir, &mut s, &job[0]);
     assert_eq!(result, JobResult::Success, "{logs}");
 }
+
+/// T-642: `runner.environment` and `RUNNER_ENVIRONMENT` are `self-hosted`,
+/// as on a runner of the user.
+const ENVIRONMENT: &str = r#"on: push
+jobs:
+  e:
+    runs-on: x
+    steps:
+      - run: test "${{ runner.environment }}" = self-hosted
+      - run: test "$RUNNER_ENVIRONMENT" = self-hosted
+"#;
+
+#[test]
+#[ignore]
+fn the_runner_environment_is_self_hosted() {
+    let dir = PathBuf::from(std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR"));
+    let mut s =
+        LocalSource::new("local", ENVIRONMENT, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    let job = offers(&mut s);
+    let (result, _, logs) = run(&dir, &mut s, &job[0]);
+    assert_eq!(result, JobResult::Success, "{logs}");
+}

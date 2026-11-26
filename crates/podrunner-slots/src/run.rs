@@ -18,6 +18,12 @@ pub use crate::start::egress_dir;
 /// The exit code of the official runner when the forge refuses its version.
 const RUNNER_TOO_OLD: i32 = 7;
 
+/// A runner name of a source in an audit line: it is not trusted, so it
+/// is cut.
+fn shown(name: &str) -> String {
+    name.chars().take(64).collect()
+}
+
 impl Slots {
     pub(crate) fn on_started(&mut self, s: usize, job: &JobId, runner: &str, now: u64) {
         let key = (s, job.clone());
@@ -29,7 +35,13 @@ impl Slots {
             .find(|(k, j)| k.0 == s && k.1 != *job && j.runner_name.as_deref() == Some(runner) && !j.state.is_final());
         if let Some((k, _)) = mine {
             let k = k.clone();
-            self.audit(audit::Kind::JobMismatch, s, &k.1, None, Some("started names another job".into()));
+            self.audit(
+                audit::Kind::JobMismatch,
+                s,
+                &k.1,
+                None,
+                Some(format!("started names runner {}, which runs another job", shown(runner))),
+            );
             self.end(&k, ExitReason::JobMismatch, Signal::Kill, now);
             return;
         }
@@ -54,7 +66,9 @@ impl Slots {
             return;
         }
         // The forge gave the job to another runner: this unit must not run.
-        self.audit(audit::Kind::JobMismatch, s, job, None, None);
+        let want = j.runner_name.clone().unwrap_or_default();
+        let why = format!("started names runner {}; the unit of this job has runner {want}", shown(runner));
+        self.audit(audit::Kind::JobMismatch, s, job, None, Some(why));
         self.end(&key, ExitReason::JobMismatch, Signal::Kill, now);
     }
 

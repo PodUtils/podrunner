@@ -53,8 +53,21 @@ pub(crate) fn container_vars() -> Vec<String> {
     CA_VARS.iter().map(|v| v.to_string()).collect()
 }
 
+/// Node reads `NODE_EXTRA_CA_CERTS` and never `SSL_CERT_FILE`, so an action
+/// of Node fails with "self-signed certificate in certificate chain" behind
+/// a proxy that has its own CA. A caller with `SSL_CERT_FILE` and no
+/// `NODE_EXTRA_CA_CERTS` gives Node the same file (T-642). The value of the
+/// caller has priority.
+pub(crate) fn node_ca(vars: &mut BTreeMap<String, String>) {
+    let file = vars.get("SSL_CERT_FILE").filter(|v| !v.is_empty()).cloned();
+    if let Some(file) = file.filter(|_| vars.get("NODE_EXTRA_CA_CERTS").is_none_or(|v| v.is_empty())) {
+        vars.insert("NODE_EXTRA_CA_CERTS".into(), file);
+    }
+}
+
 fn all_env(dir: &str, vars: impl Iterator<Item = (String, String)>) -> Result<UnitEnv, String> {
-    let vars: BTreeMap<String, String> = vars.filter(|(_, v)| !v.is_empty()).collect();
+    let mut vars: BTreeMap<String, String> = vars.filter(|(_, v)| !v.is_empty()).collect();
+    node_ca(&mut vars);
     let mut env = Vec::new();
     let mut files: Vec<CredentialFile> = Vec::new();
     let mut by_path: BTreeMap<String, String> = BTreeMap::new();
@@ -267,6 +280,35 @@ mod tests {
         let (env, files, _) = unit_env("/d", std::iter::empty(), false).unwrap();
         assert!(env.is_empty() && files.is_empty(), "no proxy, nothing");
         let _ = std::fs::remove_file(&ca);
+    }
+
+    /// T-642: Node ignores `SSL_CERT_FILE`; a unit and a job on a runner
+    /// directory get `NODE_EXTRA_CA_CERTS` from it, and the value of the
+    /// caller stays.
+    #[test]
+    fn node_gets_the_ca_file_of_ssl_cert_file() {
+        let dir = std::env::temp_dir().join(format!("podrunner-proxy-node-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (a, b) = (dir.join("a.crt"), dir.join("b.crt"));
+        for f in [&a, &b] {
+            std::fs::write(f, "-----BEGIN CERTIFICATE-----\nmade-up\n").unwrap();
+        }
+        let (a, b) = (a.display().to_string(), b.display().to_string());
+        let given =
+            |pairs: &[(&str, &str)]| pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<Vec<_>>();
+        let (env, files, _) = unit_env("/d", given(&[("SSL_CERT_FILE", &a)]).into_iter(), false).unwrap();
+        let get = |k: &str| env.iter().find(|(n, _)| n == k).map(|(_, v)| v.clone());
+        assert_eq!(get("NODE_EXTRA_CA_CERTS"), Some("/d/podrunner-ca-0.crt".into()), "{env:?}");
+        assert_eq!(files.len(), 1, "one file for one path");
+        let (env, _, _) =
+            unit_env("/d", given(&[("SSL_CERT_FILE", &a), ("NODE_EXTRA_CA_CERTS", &b)]).into_iter(), false).unwrap();
+        let node = env.iter().find(|(n, _)| n == "NODE_EXTRA_CA_CERTS").map(|(_, v)| v.clone());
+        assert_eq!(node, Some("/d/podrunner-ca-1.crt".into()), "{env:?}");
+        let (env, _, _) = unit_env("/d", given(&[("NODE_EXTRA_CA_CERTS", "")]).into_iter(), false).unwrap();
+        assert!(env.is_empty(), "no SSL_CERT_FILE, no derived variable: {env:?}");
+        let host = super::super::host::host_env(&dir, given(&[("SSL_CERT_FILE", &a)]).into_iter());
+        assert!(host.iter().any(|(k, v)| *k == "NODE_EXTRA_CA_CERTS" && *v == a), "{host:?}");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// T-576: each variable of `pod_broker::ca::env` names a CA file that a

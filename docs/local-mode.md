@@ -31,6 +31,12 @@ cause (T-598). Its
 It does not hold an entry of colons only (`::`, `:`): such an entry has no
 host, and the official runner stops at its start on it. One line on stderr
 names each such entry once for the run (T-593).
+Node reads `NODE_EXTRA_CA_CERTS` and never `SSL_CERT_FILE`, so an action
+of Node (`actions/setup-go`, `actions/setup-python`) fails with
+"self-signed certificate in certificate chain" behind a proxy that has its
+own CA. With `SSL_CERT_FILE` and no `NODE_EXTRA_CA_CERTS` in the
+environment of podrunner, a job gets `NODE_EXTRA_CA_CERTS` with the file of
+`SSL_CERT_FILE`; a value that you set has priority (T-642).
 `podrunner doctor --run` names the variables that a job takes. Set each
 one before the run; give another variable with `--env NAME=VALUE`. With a
 proxy variable, a job also gets `NODE_USE_ENV_PROXY=1`, so that `fetch` of
@@ -307,7 +313,7 @@ entry that did the work or that closes the gap.
 | One job, a matrix filter | `-j`, `--matrix` | `--job`, `--matrix` | `--job` with its needs, `--matrix`; each other cell `skipped` with its reason | T-127 |
 | List, graph, dry run, validate | yes | `--list` | `--list`, `--graph`, `--validate`; `--dry-run` builds each job message and checks the pins | T-128 |
 | Parallel jobs | `--concurrent-jobs` | `--parallel N` | `--jobs N` with a unit kind, `max-parallel`, `fail-fast` stops the running cells | T-132 |
-| Live logs, log files, JSON | yes | web console, `--log-output-dir` | live lines on stderr, `--json`, `--log-dir` with each step log and `summary.md`; secrets masked again | T-134 |
+| Live logs, log files, JSON | yes | web console, `--log-output-dir` | live lines on stderr, `--json`, `--log-dir` with each step log and `summary.md`; secrets masked again. A step in a `container:` job gives its lines at the end of the step, not while it runs: the hook of the job container answers when the step ends. For a long step, stderr then says `no line for 60 s; the run waits for its job` (T-642) | T-134 |
 | Web view | no | yes | yes: `--web IP:PORT`, the loopback only, a random token in the path, the page in the binary | T-149 |
 | Reruns | no | `rerun --failed`, keep artifacts | `--state DIR`, `--rerun DIR [--failed \| --job ID]`, kept results, outputs and artifacts; a changed workflow fails by name | T-135 |
 | Watch, schedules | `--watch` | `--watch`, schedules | `--watch` (a change cancels the run in progress), `--schedule` (the crons of `on.schedule`, UTC) | T-142 |

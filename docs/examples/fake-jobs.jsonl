@@ -1,0 +1,4 @@
+# One job for the fake source of docs/examples/podrunner.toml (the format:
+# docs/fakes.md). The job is private, from a member of example-org, so the
+# source with the tier `local` runs it in the fake unit.
+{"at_s":0,"offer":{"schema":1,"job_id":"j-1","source":"local","labels":[],"arch":"x86_64","wait_deadline_s":60,"trust_inputs":{"event":"push","head_is_fork":"no","actor_class":"member","repo_visibility":"private","owner":"example-org","repo":"app","run_id":1,"ref":"refs/heads/main","workflow_ref":"example-org/app/.github/workflows/ci.yml@refs/heads/main"}}}

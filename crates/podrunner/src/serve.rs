@@ -331,6 +331,11 @@ pub fn run(config: &Path, state: &Path, socket: &Path) -> Result<(), Failure> {
     let watchdog = crate::notify::watchdog();
     let mut sup = Supervisor { slots, rebuild, stop: false };
     let (mut next, mut ping, mut stopping) = (Instant::now(), Instant::now(), false);
+    // A first `status` for a client while the first tick waits on a source
+    // (T-642): with no snapshot the client gets `busy`.
+    if let Ok(status) = sup.handle(&Request::Status) {
+        snapshot.set(status);
+    }
     loop {
         if crate::notify::take_signal() && !sup.stop {
             let _ = sup.handle(&Request::Stop);

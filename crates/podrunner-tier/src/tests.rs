@@ -450,3 +450,41 @@ fn the_harness_passes_the_default_rule_and_finds_each_planted_rule() {
     // A table of another schema is refused, not passed.
     assert!(crate::cases::conformance(&DefaultRule, &file.replacen("\"schema\": 1", "\"schema\": 2", 1)).is_err());
 }
+
+/// T-642: a wrong value in `extra_events` lists the events that the key
+/// accepts, not each variant of the event type; the names agree with
+/// `EXTRA_EVENTS`.
+#[test]
+fn a_wrong_extra_event_lists_the_accepted_events() {
+    let names: Vec<String> = EXTRA_EVENTS.iter().map(|e| crate::event_name(*e)).collect();
+    assert_eq!(names, crate::EXTRA_NAMES);
+    let err = serde_json::from_value::<TierConfig>(serde_json::json!({ "extra_events": ["release", "bogus"] }))
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("`bogus`") && err.contains("pull_request_target"), "{err}");
+    assert!(!err.contains("unknown,") && !err.contains("other,"), "{err}");
+    // A name of an event that the key refuses still reads: `check` words it.
+    for e in ["other", "unknown", "push"] {
+        let c: TierConfig = serde_json::from_value(serde_json::json!({ "extra_events": [e] })).unwrap();
+        assert_eq!(c.extra_events.len(), 1, "{e}");
+    }
+}
+
+/// T-642: a repeated event and an event that is trusted with no listing
+/// give one line each; a clean list gives none.
+#[test]
+fn a_repeated_or_trusted_extra_event_gives_one_line() {
+    let cfg = |extra: &[Event]| TierConfig { extra_events: extra.to_vec(), ..TierConfig::default() };
+    assert!(cfg(&[Event::Release, Event::WorkflowRun]).notes().is_empty());
+    let twice = cfg(&[Event::Release, Event::Release, Event::Release]).notes();
+    assert_eq!(twice.len(), 2, "{twice:?}");
+    assert!(twice.iter().all(|n| n.contains("release") && n.contains("twice")), "{twice:?}");
+    let trusted = cfg(&[Event::Push]);
+    assert!(trusted.check().is_ok());
+    let notes = trusted.notes();
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert!(notes[0].contains("push") && notes[0].contains("trusted with no listing"), "{notes:?}");
+    // The line of the opt-in cites the residual R8.
+    let r8 = cfg(&[Event::PullRequestTarget]).notes();
+    assert!(r8.len() == 1 && r8[0].contains("R8") && !r8[0].contains("Q12"), "{r8:?}");
+}

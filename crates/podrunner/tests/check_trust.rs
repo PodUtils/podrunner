@@ -150,3 +150,24 @@ fn check_refuses_a_mint_trust_for_each_forge() {
     }
     assert!(!d.0.join("state").exists(), "check made the state directory");
 }
+
+/// T-642: a wrong value lists the accepted events; a repeated event and a
+/// trusted event give one line each; the opt-in line cites R8.
+#[test]
+fn check_words_the_extra_events() {
+    let d = dir("words");
+    let f = d.0.join("podrunner.toml");
+    let orgs = "organizations = [{ login = \"example-org\" }]\n";
+    let o = check(&f, &serve_file(&format!("{orgs}extra_events = [\"bogus\"]\n"), ""));
+    assert_eq!(o.status.code(), Some(78), "{}", stderr(&o));
+    let text = stderr(&o);
+    assert!(text.contains("bogus") && text.contains("pull_request_target"), "{text}");
+    assert!(!text.contains("unknown, ") && !text.contains("other, "), "{text}");
+    let o = check(&f, &serve_file(&format!("{orgs}extra_events = [\"release\", \"release\", \"push\"]\n"), ""));
+    assert_eq!(o.status.code(), Some(0), "{}", stderr(&o));
+    let text = stderr(&o);
+    let lines = |what: &str| text.lines().filter(|l| l.contains("extra_events") && l.contains(what)).count();
+    assert_eq!((lines("release is listed twice"), lines("push is trusted with no listing")), (1, 1), "{text}");
+    let o = check(&f, &serve_file(&format!("{orgs}extra_events = [\"pull_request_target\"]\n"), ""));
+    assert!(stderr(&o).contains("residual R8"), "{}", stderr(&o));
+}

@@ -337,7 +337,8 @@ pub(crate) fn host_env(
     home: &std::path::Path,
     vars: impl Iterator<Item = (String, String)>,
 ) -> Vec<(&'static str, String)> {
-    let vars: std::collections::BTreeMap<String, String> = vars.collect();
+    let mut vars: std::collections::BTreeMap<String, String> = vars.collect();
+    super::proxy::node_ca(&mut vars);
     let mut out: Vec<(&'static str, String)> =
         PASSED.iter().filter_map(|k| vars.get(*k).filter(|v| !v.is_empty()).map(|v| (*k, v.clone()))).collect();
     out.extend(node_proxy(&out));

@@ -75,8 +75,29 @@ pub struct TierConfig {
     pub trusted_public: Vec<PublicRepo>,
     /// More events that a trusted job may come from: only those of
     /// [`EXTRA_EVENTS`] (the owner, Q5 and Q12).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "extra_events_of")]
+    #[cfg_attr(feature = "schema", schemars(with = "Vec<Event>"))]
     pub extra_events: Vec<Event>,
+}
+
+/// The names of [`EXTRA_EVENTS`], for the error of a wrong value (a test
+/// keeps them equal).
+const EXTRA_NAMES: &[&str] =
+    &["workflow_run", "issue_comment", "release", "repository_dispatch", "pull_request_target"];
+
+/// Read `extra_events`. A name that is no event gets an error that lists
+/// the events that the key accepts, not each variant of [`Event`]. A name
+/// of another event (`other`, `unknown`, `push`) still reads: `check`
+/// refuses it with its own text.
+fn extra_events_of<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<Event>, D::Error> {
+    let names = Vec::<String>::deserialize(d)?;
+    names
+        .into_iter()
+        .map(|n| {
+            serde_json::from_value::<Event>(serde_json::Value::String(n.clone()))
+                .map_err(|_| serde::de::Error::unknown_variant(&n, EXTRA_NAMES))
+        })
+        .collect()
 }
 
 /// The events that a trusted job may come from.
@@ -99,27 +120,44 @@ pub fn event_name(e: Event) -> String {
 }
 
 impl TierConfig {
-    /// Refuse an extra event that is not in [`EXTRA_EVENTS`].
+    /// Refuse an extra event that is not in [`EXTRA_EVENTS`]. An event that
+    /// is trusted with no listing does no harm: `notes` names it.
     pub fn check(&self) -> Result<(), String> {
-        match self.extra_events.iter().find(|e| !EXTRA_EVENTS.contains(e)) {
+        match self.extra_events.iter().find(|e| !EXTRA_EVENTS.contains(e) && !TRUSTED_EVENTS.contains(e)) {
             Some(e) => Err(format!("[trust] extra_events: {} can never be trusted", event_name(*e))),
             None => Ok(()),
         }
     }
 
-    /// The opt-ins of this table that an operator must know of, one line
-    /// each, after the name of the table: `pull_request_target` (Q12).
+    /// The lines of this table that an operator must know of, one line
+    /// each, after the name of the table: a repeated event and an event
+    /// that is trusted with no listing (T-642), and the opt-in of
+    /// `pull_request_target` (R8).
     pub fn notes(&self) -> Vec<String> {
-        if !self.extra_events.contains(&Event::PullRequestTarget) {
-            return Vec::new();
+        let mut out = Vec::new();
+        let mut seen: Vec<Event> = Vec::new();
+        for e in &self.extra_events {
+            if seen.contains(e) {
+                out.push(format!("extra_events: {} is listed twice; the second entry does nothing", event_name(*e)));
+            } else if TRUSTED_EVENTS.contains(e) {
+                out.push(format!(
+                    "extra_events: {} is trusted with no listing; the entry does nothing",
+                    event_name(*e)
+                ));
+            }
+            seen.push(*e);
         }
-        vec![
-            "extra_events: pull_request_target is trusted (the owner, Q12): a job of this event is trusted when its \
-             owner is configured, its head is not a fork and its actor (who triggered the event) is a member. Its \
-             workflow comes from the base branch of the pull request and gets the secrets of the repository: a \
-             step that runs the code of the pull request runs it with those secrets"
-                .into(),
-        ]
+        if self.extra_events.contains(&Event::PullRequestTarget) {
+            out.push(
+                "extra_events: pull_request_target is trusted (residual R8, docs/security/residuals.md): a job of \
+                 this event is trusted when its owner is configured, its head is not a fork and its actor (who \
+                 triggered the event) is a member. Its workflow comes from the base branch of the pull request and \
+                 gets the secrets of the repository: a step that runs the code of the pull request runs it with \
+                 those secrets"
+                    .into(),
+            );
+        }
+        out
     }
 }
 

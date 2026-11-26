@@ -227,6 +227,9 @@ pub fn job_message_with(base: &str, request: u64, job: &Job, token: &str, hold: 
             // runner); ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION opts out.
             // Node 20 ignores NODE_USE_ENV_PROXY (T-299).
             "actions.runner.usenode24bydefault": { "value": "true" },
+            // `runner.environment` and `RUNNER_ENVIRONMENT`: the service names
+            // the kind of the runner (T-642).
+            "system.runnerEnvironment": { "value": "self-hosted" },
             "system.github.token": { "value": job.token.as_deref().unwrap_or(TOKEN), "isSecret": true },
             // The runner does not derive `secrets.GITHUB_TOKEN` from the
             // token above: it is a secret variable of its own.

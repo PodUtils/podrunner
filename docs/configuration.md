@@ -9,7 +9,7 @@ group or others can write, or that another user (not root) owns, is
 refused: it names the signer of the pin list and the paths of the keys
 (T-409).
 
-`docs/examples/podrunner.toml` is a working example (a fake source and fake units); `podrunner check --config FILE` checks a file with no side effect. A test reads each block below and refuses a key that does not exist.
+`docs/examples/podrunner.toml` is a working example (a fake source and a fake unit). It passes `check`; its source has no script, so `serve` gets no job from it, and the comment of the key `script` in the file gives one job (`docs/examples/fake-jobs.jsonl`, `docs/fakes.md`); `podrunner check --config FILE` checks a file with no side effect. A test reads each block below and refuses a key that does not exist.
 
 `schemas/config.v1.json` is the JSON Schema of the file (draft 2020-12, T-479), generated from the types of the parser: a program that writes the file checks its output with it (read the TOML as JSON). `scripts/check-config-schema.py` validates the example and each block below against it. A floor, the pin list and the modes of the files are not in the schema: `podrunner check` is the last word.
 
@@ -42,6 +42,7 @@ installation_id = 678
 key_file = "/etc/podrunner/app.pem"
 # token_file = "/etc/podrunner/org.token"  # ... or a fine-grained token of the organization (mode 0400
                              # or 0600) in place of the three; the sidecar gets it on its descriptor 3
+# script = "fake-jobs.jsonl"  # fake only: the file of the jobs and events of the source (docs/fakes.md); with no key the source gives no job
 # allow_personal_account = true  # github-scaleset only; default false: config_url may name a repository of a
                              # personal account; the App needs "Administration: write" (below, T-504)
 
@@ -90,7 +91,10 @@ extra_events = ["release"]   # more events of a trusted job: only workflow_run, 
                              # owner, a head that is not a fork, an actor member. A pull_request_target
                              # job runs the workflow of the base branch of its pull request and gets
                              # the secrets of the repository: check and serve print one line that
-                             # names this opt-in (T-518). For an event that is not a pull request
+                             # names this opt-in (T-518, residual R8). A repeated event and an
+                             # event that is trusted with no listing (push, pull_request,
+                             # workflow_dispatch, schedule, merge_group) get one line each, and
+                             # do nothing. For an event that is not a pull request
                              # the head is the repository of the run: head_is_fork is always no, and
                              # only the actor and the owner guard the job (residual R9)
 
@@ -773,7 +777,11 @@ the repository of the job, not the `fork` flag of the head
 For an event that is not a pull request (`workflow_run`, `issue_comment`,
 `repository_dispatch`, `release`), the head is the repository of the run,
 so `head_is_fork` is `no`. Only the actor and the owner guard a job of
-these events from `extra_events` (`docs/security/residuals.md`, R9).
+these events from `extra_events` (`docs/security/residuals.md`, R9). A job of
+`pull_request_target` from `extra_events` runs the workflow of the base
+branch of the pull request with the secrets of the repository (R8). A
+repeated event and an event that is trusted with no listing give one line
+on stderr each (T-642).
 
 `docs/design/examples/tier-cases.json` has the same file name and another
 format. It is the design copy (call C17): it has no `extra_events` and

@@ -17,11 +17,29 @@ the due events, and the due offers up to its capacity.
 
 | Step | Example |
 | --- | --- |
-| An offer (`job-offer.v1`); a second offer of one job id is a redelivery | `{"at_s":0,"offer":{"job_id":"j-1","source":"fake-1","labels":["x"],"arch":"x86_64","wait_deadline_s":60}}` |
+| An offer (`job-offer.v1`); a second offer of one job id is a redelivery | `{"at_s":0,"offer":{"schema":1,"job_id":"j-1","source":"fake-1","labels":["x"],"arch":"x86_64","wait_deadline_s":60,"trust_inputs":{"event":"push","head_is_fork":"no","actor_class":"member","repo_visibility":"private","owner":"example-org","repo":"app","run_id":1,"ref":"r","workflow_ref":"w"}}}` |
 | A cancel | `{"at_s":30,"cancel":"j-1"}` |
-| A `started` event with a runner name | `{"at_s":5,"started":{"job_id":"j-1","runner_name":"r-u-1"}}` |
+| A `started` event with a runner name | `{"at_s":5,"started":{"job_id":"j-1","runner_name":"podrunner-host-a-u-1"}}` |
 | A `completed` event | `{"at_s":90,"completed":{"job_id":"j-1","result":"success"}}` |
 | An error of the next `mint` of a job | `{"at_s":0,"mint_error":{"job_id":"j-1","code":"credential-unavailable"}}` |
+
+`docs/examples/fake-jobs.jsonl` is a script of one job. Each offer that
+`serve` takes must be complete:
+
+* `schema` is 1, and `trust_inputs` has the facts of the job. A source
+  with a tier above `local` needs facts that the tier rule trusts: the
+  owner must be in `[trust]`. An offer that does not parse is refused
+  with the code `event-not-allowed` (the nearest code of the schema) and
+  the detail `bad-request: FAULT`, where FAULT names the field, for
+  example `missing field schema`.
+* The `runner_name` of a `started` event must be the name of the runner
+  of that job: `podrunner-HOST-UNIT`, where HOST is the key `host` of the
+  configuration and UNIT is the id of its unit, `u-N`, where N counts the
+  units of the state directory (`status --json` shows the id). Any
+  other name ends the unit with the reason `job-mismatch`, and the
+  audit line of the reason names the name that the event gave and the
+  name that the unit has. A fake unit that runs its own command needs no
+  `started` event.
 
 `mint` gives a canned credential: the files `.runner`, `.credentials` and
 `.credentials_rsaparams`, with made-up text.
