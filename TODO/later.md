@@ -19109,7 +19109,7 @@ on the old code).
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19134,6 +19134,21 @@ shim of the fake unit with each descriptor above 2 closed (or
 
 `cargo test -p podrunner-hook` with a planted failing test of a fake
 unit: no shim stays, and no descriptor of the lock is open.
+
+## Done
+
+2026-11-26, `f7176565` (tests on a development host). The holder of the
+lock was not the shim but its payload and the fake job container: they
+took the descriptor of `flock`, which has no FD_CLOEXEC. The payload of
+the shim now marks each descriptor above 2 close-on-exec
+(CLOSE_RANGE_CLOEXEC, with an `fcntl` fallback), and the tests of a fake
+unit in `podrunner-hook` destroy the unit with a shared `Clean` guard.
+Tests: `no_descriptor_of_the_parent_reaches_the_payload` (fails on the
+old shim) and `a_failed_test_of_a_fake_unit_leaves_no_process_and_no_descriptor`
+(after a panic no unit process stays and none holds the lock; it fails
+with either part removed). A test binary that is killed still leaves its
+`tail`, which holds no lock now.
+
 
 # T-704: The work directory of a microvm or incus unit has the owner problem of a writable cache
 
@@ -19286,7 +19301,7 @@ containers and the log of a job in `pod-fake-github`.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19312,6 +19327,24 @@ local run with the stand-in tarball, or rewrite the inner reference to
 An e2e test with a local composite that has an `actions/checkout` step:
 the tree is checked out and the log has no script; and the stand-in in a
 job container with node and tar only.
+
+## Done
+
+2026-11-26, `32819f82` and `7f261289` (tests on a development host, with
+runner 2.338.2; a `container:` job not run: this host has no KVM, no
+podvm and no docker daemon, and the runner-directory executor refuses a
+container). The fake broker resolves each ref of `actions/checkout` to
+the stand-in `podrunner/checkout`. With no `route` input, the stand-in
+takes the inputs of `actions/checkout`: `path` must be in the workspace,
+`submodules` takes true, false or recursive, the step log names each
+ignored key with no value, and another repository or another ref fails
+the step with its fix (T-713). Tests: the e2e
+`a_checkout_in_a_local_composite_action_gets_the_stand_in` (the tree is
+checked out, the log has no script, the runner gives no "Unexpected
+input" warning; it fails on the old code with "Missing download info for
+actions/checkout@v4") and `stand_in::tests::the_stand_in_needs_only_node_and_tar`
+(node and a PATH with `tar` only, against the fake broker on loopback).
+
 
 # T-709: A run clamps a long timeout-minutes with no warning
 
@@ -19444,3 +19477,36 @@ why it does not meet the floor, and the fix.
 `cargo test -p podrunner` with a kind that the self-test lowers: the
 line names the kind and its cause.
 
+# T-713: A checkout of another repository or ref in a local action fails
+
+**Source:** the worker of T-708, 2026-11-26
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+In a local composite action, an `actions/checkout` step with `repository:`
+of another repository, or a `ref:` that is not the ref or the commit of
+the run, fails with the fix "check it out in a step of the workflow": the
+run pins no tree for it.
+
+## Premise
+
+Read from `crates/podrunner/src/run_local/composites.rs` and the stand-in
+by the worker of T-708 on 2026-11-26.
+
+## Approach
+
+In `composites.rs`, pin the static `repository` and `ref` of the checkout
+steps of local composites, as `workflow_trees` and `refs::asks` do for
+the workflow; then let the stand-in ask the broker for the tarball of
+`repo@ref`.
+
+## Prove
+
+`cargo test -p podrunner-local --test actions -- --ignored`: a local
+composite that checks out a second local repository at a tag gets the
+tree of that tag.

@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**707 entries: 70 open, 52 partial, 21 blocked, 564 done.**
+**708 entries: 69 open, 52 partial, 21 blocked, 566 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 285 | 324 |
-| P3 | 59 | 11 | 8 | 177 | 255 |
-| **All** | 70 | 52 | 21 | 564 | 707 |
+| P3 | 58 | 11 | 8 | 179 | 256 |
+| **All** | 69 | 52 | 21 | 566 | 708 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -745,13 +745,14 @@ acceptance, later The crate dependencies later than v1.
 | [T-700](later.md) | P3 | S | later | defect | done | config init does not make the directory of its output |
 | [T-701](later.md) | P3 | S | later | defect | open | A local run with --podnet leaves a socket of podnet in /tmp |
 | [T-702](later.md) | P3 | S | later | defect | done | install-unit names Windows in a refusal on Linux |
-| [T-703](later.md) | P3 | S | later | defect | open | A failed test of a fake unit leaves its shim with the lock of cargo |
+| [T-703](later.md) | P3 | S | later | defect | done | A failed test of a fake unit leaves its shim with the lock of cargo |
 | [T-704](later.md) | P3 | M | later | defect | open | The work directory of a microvm or incus unit has the owner problem of a writable cache |
 | [T-705](later.md) | P3 | S | later | defect | done | The installer writes the unpacked size of its image only with --serve |
 | [T-706](later.md) | P3 | S | later | feature | blocked | run checks --mem only for the image that the install pulled |
 | [T-707](later.md) | P3 | S | later | feature | blocked | githome's container: and services: jobs cannot run through the fake GitHub |
-| [T-708](later.md) | P3 | S | later | defect | open | A checkout in a local composite action does not get the stand-in |
+| [T-708](later.md) | P3 | S | later | defect | done | A checkout in a local composite action does not get the stand-in |
 | [T-709](later.md) | P3 | S | later | defect | done | A run clamps a long timeout-minutes with no warning |
 | [T-710](later.md) | P3 | S | later | defect | open | A test of the cache compares two times of the wall clock |
 | [T-711](later.md) | P3 | S | later | defect | open | A flag given twice takes its first value with no word |
 | [T-712](later.md) | P3 | S | later | defect | open | serve names no kind and no cause in no-tier-served |
+| [T-713](later.md) | P3 | M | later | feature | open | A checkout of another repository or ref in a local action fails |
