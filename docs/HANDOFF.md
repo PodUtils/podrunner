@@ -10,7 +10,7 @@ its work is done. Git keeps the history.
 
 | What | Pin | Where |
 | --- | --- | --- |
-| podcrates | `v0.85.0` | `Cargo.toml` (one tag for each `pod-` crate) |
+| podcrates | `v0.86.0` | `Cargo.toml` (one tag for each `pod-` crate) |
 | podvm | `v0.2.0-beta.40` | `images/podvm.toml`; the lowest podvm of each kind is in `crates/podrunner-podvm/src/probe.rs` |
 | podnet | `v0.4.0-beta.20` | `images/podnet.toml` |
 | official runner | `v2.338.2` | `images/runner/runner.toml` |

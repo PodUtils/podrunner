@@ -18052,7 +18052,7 @@ pin check passes. Left: the hosted runner-image run.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -18082,6 +18082,19 @@ sh scripts/agent/check.sh
 ```
 
 The gate and level2 on the commit of the take.
+
+State (2026-11-26, `879af093`; tests on a development host, hosted CI not
+run): each `pod-*` tag, `Cargo.lock` and `fuzz/Cargo.lock`, the reusable
+workflow of `issue-sync.yml`, the schema of status.v1 in `runner-image.yml`,
+`images/pod-release.toml` and `images/fake-githome.toml` take podcrates
+`v0.86.0` (`22d1a75`). Each asset matches `SHA256SUMS` and COORD-158;
+`saphyr-parser` moves to 0.4.1. The three `FileLock` holders already
+keep their value for the whole hold; three tests pin it
+(`the_lock_follows_its_value_not_a_child`, `a_held_group_keeps_its_lock`,
+`the_lock_outlives_the_last_handle_of_its_directory`; a removal of the
+`HELD` insert fails the last). The workspace tests pass, and githome's
+source-conformance passes 15 tests. Left: the gate and level2 on the
+commit.
 
 # T-688: A job of the corpus runs out of space in a microvm guest
 

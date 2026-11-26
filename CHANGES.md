@@ -18,6 +18,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 | --- | --- | --- |
 | `status.v1`, the capability record | The podvm kind gives `limits.pids-per-unit`: `enforced` where `pids.max` of the cgroup leaf of each unit holds `pids`, `none` where RLIMIT_NPROC of the user holds it. | T-521 |
 | `podrunner.toml` `[unit.incus]`, unit driver | With `disk_max_bytes` and no `root_quota`, the incus kind claims no `disk` limit and `serve` warns; a driver can give `disk_bytes`, which slots adds to the walk of the unit root. | T-685 |
+| pins | Podcrates `v0.86.0`: new error texts of `pod-proxy`, `pod-dns`, `pod-tls` and `pod-manual`. | T-687 |
 | pins | Podnet `v0.4.0-beta.20` holds the egress of a podvm unit; the installer pins it. | T-686 |
 | `podrunner.toml` `[cache]` | On a kind with the container hooks, each container of a job with a cache sees the cache at its path, with its mode and its variables. | T-651 |
 | source wire, runner image | On `end` or no answer, the job-started hook ends the runner worker, so no later step runs, also no step of `if: always()`. The job log on the forge loses the annotation of the code; the report of the unit keeps it. | T-682 |
