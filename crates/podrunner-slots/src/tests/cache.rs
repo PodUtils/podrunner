@@ -149,44 +149,51 @@ fn a_rw_job_above_max_bytes_ends_while_it_runs() {
 
 /// The walk and the removal of a large cache at the end of its job run
 /// off the tick: the tick answers the questions of the units and keeps
-/// the limits.
+/// the limits. The test holds the thread of the walks and the thread of
+/// the removals; the tick goes on, and the count and the removal come only
+/// when the test lets each thread go (T-710: no compare of times).
 #[test]
 fn the_end_of_a_large_cache_does_not_hold_the_tick() {
-    let n = 40_000;
     let cfg = config("[cache]\nmax_bytes = 1\ntotal_bytes = 1");
-    let script =
-        format!("mkdir \"$PODRUNNER_CACHE/t\" && cd \"$PODRUNNER_CACHE/t\" && seq 1 {n} | xargs touch && echo x > x");
-    let mut bed = one_job(cfg, &script);
-    let mut longest = Duration::ZERO;
-    let end = std::time::Instant::now() + Duration::from_secs(120);
-    while !(bed.slots.jobs().count() == 1 && Bed::all_final(&bed.slots)) {
-        assert!(std::time::Instant::now() < end, "{:?}", bed.states());
-        let t = std::time::Instant::now();
-        bed.slots.tick();
-        longest = longest.max(t.elapsed());
-        // The clock stays: the deadline of the start does not end a slow
-        // write of the tree.
-        std::thread::sleep(Duration::from_millis(5));
+    let script = "mkdir \"$PODRUNNER_CACHE/t\" && cd \"$PODRUNNER_CACHE/t\" && seq 1 200 | xargs touch && echo x > x";
+    let mut bed = one_job(cfg, script);
+    let w = bed.slots.cache_worker.as_ref().unwrap();
+    let (walks, removals) = (w.gate.clone(), w.rm_gate.clone());
+    let walk_held = walks.lock().unwrap();
+    let rm_held = removals.lock().unwrap();
+    let destroyed = |s: &Slots| s.jobs().any(|j| matches!(j.state, crate::state::State::Destroyed) || j.state.is_final());
+    bed.until(120, destroyed);
+    let key = bed.slots.jobs.keys().next().unwrap().clone();
+    let pending = |s: &Slots| {
+        let counting = s.cache_worker.as_ref().is_some_and(|w| w.ending.contains_key(&key));
+        let written = s.jobs.get(&key).and_then(|j| j.times.cache.as_ref()).and_then(|c| c.written);
+        counting && written.is_none()
+    };
+    // The tick goes on while the walk waits on its own thread.
+    for _ in 0..5 {
+        bed.tick();
+        assert!(pending(&bed.slots), "the count came back with the thread of the walks held");
     }
+    drop(walk_held);
+    bed.until(30, |s| !pending(s) && Bed::all_final(s));
     assert_eq!(bed.slots.reports[0].exit_reason, podrunner_schema::ExitReason::Success);
-    // The cost of one walk of a tree of the same size, for this host.
-    let probe = TempDir::new();
-    for i in 0..n {
-        std::fs::File::create(probe.0.join(i.to_string())).unwrap();
-    }
-    let t = std::time::Instant::now();
-    crate::disk::bytes_under(&probe.0);
-    let walk = t.elapsed();
-    assert!(longest < walk, "the longest tick {longest:?}, one walk {walk:?}");
-    // The cache goes off the tick.
+    // The tick renamed the cache to a trash name; the removal waits on its
+    // own thread.
     let cache = bed.dir.0.join("state/cache");
-    let gone = || std::fs::read_dir(&cache).unwrap().flatten().all(|e| e.file_name() == "lock");
+    let names = || -> Vec<String> {
+        let entries = std::fs::read_dir(&cache).unwrap().flatten();
+        entries.map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n != "lock").collect()
+    };
+    bed.tick();
+    let left = names();
+    assert!(left.len() == 1 && left[0].starts_with("trash-"), "{left:?}");
+    drop(rm_held);
     let wait = std::time::Instant::now() + Duration::from_secs(60);
-    while !gone() && std::time::Instant::now() < wait {
+    while !names().is_empty() && std::time::Instant::now() < wait {
         bed.slots.tick();
         std::thread::sleep(Duration::from_millis(20));
     }
-    assert!(gone(), "{:?}", std::fs::read_dir(&cache).unwrap().flatten().map(|e| e.file_name()).collect::<Vec<_>>());
+    assert!(names().is_empty(), "{:?}", names());
 }
 
 /// Two `serve` processes on one `[cache] dir` would remove a cache that

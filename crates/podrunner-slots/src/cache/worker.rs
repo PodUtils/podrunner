@@ -53,6 +53,9 @@ pub(crate) struct Worker {
     /// A test holds it to hold the thread of the walks.
     #[cfg(test)]
     pub(crate) gate: Arc<Mutex<()>>,
+    /// A test holds it to hold the thread of the removals.
+    #[cfg(test)]
+    pub(crate) rm_gate: Arc<Mutex<()>>,
     _lock: std::fs::File,
 }
 
@@ -76,8 +79,11 @@ impl Worker {
             }
         })?;
         let (trash, removals) = mpsc::channel::<PathBuf>();
+        let rm_gate = Arc::new(Mutex::new(()));
+        let rm_held = rm_gate.clone();
         std::thread::Builder::new().name("podrunner-cache-rm".into()).spawn(move || {
             for dir in removals {
+                let _held = rm_held.lock();
                 if let Err(e) = store::remove(&dir) {
                     eprintln!("podrunner: {}: the removal failed: {e}", dir.display());
                 }
@@ -97,6 +103,8 @@ impl Worker {
             next_ms: 0,
             #[cfg(test)]
             gate,
+            #[cfg(test)]
+            rm_gate,
             _lock: lock,
         })
     }
