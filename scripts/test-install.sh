@@ -360,6 +360,7 @@ d=$t/serve/.local/share/podrunner
 python3 -I -c 'import json,sys; v=json.load(open(sys.argv[1])); assert v["image"].startswith("runner@sha256:") and v["podvm"].endswith("/bin/podvm") and v["unpacked_bytes"] == 110, v' "$d/serve.json" ||
     fail "serve.json is not the JSON of the install"
 [ ! -e "$t/serve/.config/podrunner/run.toml" ] && [ ! -e "$d/hello.yml" ] || fail "--serve wrote a file of the local mode"
+[ ! -e "$t/serve/.config/podrunner" ] || fail "--serve made the directory of the configuration (T-700)"
 grep -q 'next: .*podrunner config init --source NAME' "$t/out" || fail "--serve names no next step"
 grep -q 'next: .* --built-at-s 1793491200 --unpacked-bytes 110 --out FILE' "$t/out" || fail "--serve names no time of the build and no size of the image"
 python3 -I -c 'import json,sys; assert json.load(open(sys.argv[1]))["built_at_s"] == 1793491200' "$d/serve.json" || fail "serve.json has no built_at_s"

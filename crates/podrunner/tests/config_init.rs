@@ -148,3 +148,37 @@ fn the_unpacked_bytes_of_the_image_land_in_the_pin() {
     assert!(check.status.success(), "{}", String::from_utf8_lossy(&check.stderr));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// T-700: `--out` in a directory that is not there makes the missing levels
+/// at 0700; a parent that is a file is refused (77); a parent that was there
+/// keeps its mode.
+#[test]
+fn config_init_makes_the_missing_parent_of_its_output() {
+    let dir = std::env::temp_dir().join(format!("podrunner-config-init-parent-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let _incusd = std::os::unix::net::UnixListener::bind(dir.join("incus.socket")).unwrap();
+    let out = dir.join("a/b/podrunner.toml");
+    let o = init(&dir, "incus", &out, &[]);
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    for d in ["a", "a/b"] {
+        assert_eq!(std::fs::metadata(dir.join(d)).unwrap().permissions().mode() & 0o777, 0o700, "{d}");
+    }
+    assert_eq!(std::fs::metadata(&out).unwrap().permissions().mode() & 0o777, 0o600);
+    // The same input again changes nothing.
+    let o = init(&dir, "incus", &out, &[]);
+    assert_eq!(serde_json::from_slice::<serde_json::Value>(&o.stdout).unwrap()["changed"], false);
+    // A parent that was there keeps its mode.
+    std::fs::create_dir(dir.join("c")).unwrap();
+    std::fs::set_permissions(dir.join("c"), std::fs::Permissions::from_mode(0o755)).unwrap();
+    let o = init(&dir, "incus", &dir.join("c/podrunner.toml"), &[]);
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+    assert_eq!(std::fs::metadata(dir.join("c")).unwrap().permissions().mode() & 0o777, 0o755);
+    // A file in the path: refused, and nothing is made under it.
+    std::fs::write(dir.join("file"), "x").unwrap();
+    let o = init(&dir, "incus", &dir.join("file/x/podrunner.toml"), &[]);
+    assert_eq!(o.status.code(), Some(77), "{}", String::from_utf8_lossy(&o.stderr));
+    assert!(dir.join("file").is_file());
+    let _ = std::fs::remove_dir_all(&dir);
+}

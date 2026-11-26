@@ -159,7 +159,10 @@ man=$prefix/share/man/man1
 config=${XDG_CONFIG_HOME:-$HOME/.config}/podrunner
 store=$data/images
 downloads=$data/downloads
-mkdir -p "$bin" "$data/bin" "$store" "$downloads" "$config" || die "cannot make the directories under $prefix"
+mkdir -p "$bin" "$data/bin" "$store" "$downloads" || die "cannot make the directories under $prefix"
+# --serve writes no file there: `config init` makes the directory of its
+# output itself (T-700).
+[ "$serve" = 1 ] || mkdir -p "$config" || die "cannot make $config"
 # podrunner refuses a driver under a directory that the group or the others
 # can write (T-537). The umask does not apply to a directory that was there
 # before, and a umask of 002 leaves ~/.local/share open: close each

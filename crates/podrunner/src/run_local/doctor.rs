@@ -128,20 +128,29 @@ fn parents_readable(dir: &Path) -> Result<String, String> {
     Ok(format!("each directory above {} can be read", dir.display()))
 }
 
-/// The checks of a run with the options `a`.
 /// What a job on `--runner-dir` takes of the proxy and the CA of the user
-/// (T-265).
+/// (T-265), and the CA file that Node gets (T-642, T-695).
 pub(super) fn proxy_line(vars: impl Iterator<Item = (String, String)>) -> String {
-    let names: Vec<String> = vars
+    let vars: Vec<(String, String)> = vars
         .filter(|(k, v)| !v.is_empty() && k != "PATH" && podrunner_local::exec::PASSED.contains(&k.as_str()))
-        .map(|(k, _)| k)
         .collect();
-    match names.is_empty() {
-        true => "a job takes no proxy and no CA file of the environment (direct egress)".into(),
-        false => format!("a job takes {} of the environment", names.join(", ")),
+    let names: Vec<&str> = vars.iter().map(|(k, _)| k.as_str()).collect();
+    if names.is_empty() {
+        return "a job takes no proxy and no CA file of the environment (direct egress)".into();
     }
+    let value = |name: &str| vars.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str());
+    let mut line = format!("a job takes {} of the environment", names.join(", "));
+    // Node reads NODE_EXTRA_CA_CERTS only: `run` copies SSL_CERT_FILE into
+    // it, and a value of the user wins.
+    match (value("NODE_EXTRA_CA_CERTS"), value("SSL_CERT_FILE")) {
+        (Some(node), Some(_)) => line.push_str(&format!("; Node gets {node} (NODE_EXTRA_CA_CERTS of the user wins)")),
+        (None, Some(file)) => line.push_str(&format!("; Node gets {file} (NODE_EXTRA_CA_CERTS from SSL_CERT_FILE)")),
+        _ => {}
+    }
+    line
 }
 
+/// The checks of a run with the options `a`.
 pub(super) fn checks(a: &Args) -> Vec<Check> {
     let mut out = vec![
         check("file-size-limit", super::dry::file_size_limit(a)),

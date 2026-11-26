@@ -334,3 +334,37 @@ fn doctor_run_and_run_agree_on_the_podnet_hold() {
     assert!(row.starts_with("ok   podnet") && row.contains("seccomp hold"), "{row}");
     assert!(!run.contains("--podnet:"), "{run}");
 }
+
+/// T-695: the `proxy` row of `doctor --run` names the CA file that Node
+/// gets: `SSL_CERT_FILE` (T-642), or the `NODE_EXTRA_CA_CERTS` of the user,
+/// which wins; with neither it names no Node.
+#[test]
+fn doctor_run_names_the_ca_file_that_node_gets() {
+    let dir = Scratch::new("doctor-node-ca");
+    std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
+    std::fs::write(dir.join("runner/run.sh"), "").unwrap();
+    std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    let row = |vars: &[(&str, &str)]| {
+        let mut c = Command::new(env!("CARGO_BIN_EXE_podrunner"));
+        c.args(["doctor", "--run"]).arg(dir.join("w.yml")).arg("--runner-dir").arg(dir.join("runner"));
+        for k in ["SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS", "HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"] {
+            c.env_remove(k);
+        }
+        let out = c.envs(vars.iter().copied()).output().unwrap();
+        let text = String::from_utf8(out.stdout).unwrap();
+        text.lines().find(|l| l.contains(" proxy ")).unwrap_or_else(|| panic!("no proxy row: {text}")).to_string()
+    };
+    let none = row(&[]);
+    assert!(none.contains("direct egress") && !none.contains("Node"), "{none}");
+    let ssl = row(&[("SSL_CERT_FILE", "/etc/made-up-ca.pem")]);
+    assert!(ssl.contains("Node gets /etc/made-up-ca.pem (NODE_EXTRA_CA_CERTS from SSL_CERT_FILE)"), "{ssl}");
+    let both = row(&[("SSL_CERT_FILE", "/etc/made-up-ca.pem"), ("NODE_EXTRA_CA_CERTS", "/etc/node-ca.pem")]);
+    assert!(both.contains("Node gets /etc/node-ca.pem (NODE_EXTRA_CA_CERTS of the user wins)"), "{both}");
+    // An empty value of the user does not win: `run` takes SSL_CERT_FILE.
+    let empty = row(&[("SSL_CERT_FILE", "/etc/made-up-ca.pem"), ("NODE_EXTRA_CA_CERTS", "")]);
+    assert!(empty.contains("Node gets /etc/made-up-ca.pem"), "{empty}");
+    // The user sets only the variable of Node: no line of a copy.
+    let node = row(&[("NODE_EXTRA_CA_CERTS", "/etc/node-ca.pem")]);
+    assert!(node.contains("takes NODE_EXTRA_CA_CERTS") && !node.contains("Node gets"), "{node}");
+}

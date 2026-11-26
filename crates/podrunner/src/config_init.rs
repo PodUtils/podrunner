@@ -246,8 +246,23 @@ pub(crate) fn init(rest: &[String]) -> Result<Out, Out> {
         }
         Err(_) => {}
     }
+    own_parent(&out).map_err(|e| err(Class::Refused, format!("{}: {e}", out.display())))?;
     write_private(&out, &body).map_err(|e| err(Class::Refused, format!("{}: {e}", out.display())))?;
     Ok(ok(say(true)))
+}
+
+/// Make the missing levels of the parent of `path` at mode 0700, so each
+/// level that this call makes is a directory of this user. A parent that
+/// is there stays as it is (`/tmp` is not ours): the write refuses a
+/// parent that is no directory or not writable.
+fn own_parent(path: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::DirBuilderExt;
+    match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() && !p.exists() => {
+            std::fs::DirBuilder::new().recursive(true).mode(0o700).create(p)
+        }
+        _ => Ok(()),
+    }
 }
 
 /// Write `body` to a new file at mode 0600.

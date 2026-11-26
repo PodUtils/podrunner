@@ -335,6 +335,8 @@ fn install_unit_refuses_a_caller_with_no_privilege() {
     let out = install_on(&system_args(&d.config(), &[]), &d.places(), &host).err().expect("a refusal");
     assert_eq!(out.code, 77, "{}", out.stderr);
     assert!(out.stderr.contains("as root"), "{}", out.stderr);
+    // T-702: a Linux line, no word of Windows.
+    assert!(!out.stderr.contains("Windows") && out.stderr.contains("systemctl --user"), "{}", out.stderr);
     assert!(host.ran().is_empty() && !d.unit_file().exists(), "{:?}", host.ran());
     let out = remove_on(&args(&["--system"]), &d.places(), &host).err().expect("a refusal");
     assert_eq!(out.code, 77, "{}", out.stderr);
