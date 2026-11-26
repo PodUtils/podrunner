@@ -69,7 +69,9 @@ disk_max_bytes = 10737418240          # the bytes that a unit may write under it
 # root_quota = true                  # incus only: the pool of incusd holds a size of a root disk (btrfs, zfs, lvm; not dir): each
                                       # instance gets a root disk of the lesser of disk_max_bytes and the disk limit of the offer (64 MiB at
                                       # least), a job past it gets ENOSPC, and the kind says `disk: enforced` (T-482); podvm refuses it on dir;
-                                      # check refuses a pin whose unpacked_bytes is over disk_max_bytes (T-551)
+                                      # check refuses a pin whose unpacked_bytes is over disk_max_bytes (T-551); with no root_quota, the
+                                      # sample reads only /podrunner-work of an instance, not its root disk, and skips each directory
+                                      # of the ids of the instance that this user cannot read: set root_quota for a disk bound (T-685)
 # claim = "confined"                 # fake only, with allow_fake: the fake kind claims confined or guest and an enforced hold, so that
                                       # a test drives a trusted or untrusted forge source through serve (T-511); it holds nothing
 confine = false                       # podvm: each unit and container under the confine layer of podvm (--podvm-confine); the kind says confined after its self-test
@@ -314,7 +316,15 @@ On the `incus` kind with `root_quota`, the root disk of a unit is the
 lesser of the `disk` limit of the offer and `disk_max_bytes`. Placement
 refuses an offer whose root disk is below `unpacked_bytes` of its
 payload (`limit-not-enforceable`); the audit line names both sizes
-(T-571).
+(T-571). With no `root_quota`, the disk sample of an incus unit is the
+walk of its work directory (`/podrunner-work` in the instance): the job
+writes into the root disk of the instance (the work folder of the runner
+is `/home/runner/work`), which the walk does not see, and the files of
+the instance have its ids, so the walk skips each directory that this
+user cannot read. A `disk` bound then does not hold (T-685). A kind can
+add a measure of its own to the walk (`UnitDriver::disk_bytes`); the
+incus kind has none until podvm gives the use of the root disk of an
+instance.
 
 | Kind | `mem` | `cpus` | `pids` |
 | --- | --- | --- | --- |
