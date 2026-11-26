@@ -12055,6 +12055,31 @@ In the code (2026-11-18): the unit seam has `UnitDriver::oom_kills` (none by def
 
 State (2026-11-23, the commit that names T-515): the incus kind read `OomKills` after the end of the payload, when the instance was stopped; incusd gives no metrics of a stopped instance (`Metrics` of its `lxc` driver returns `ErrInstanceIsStopped`), so podvm printed `-` and a kill of the OOM killer never gave `limit` on incus. Each read of the state in `wait` takes `{{.OomKills}}` with the use of T-483 now, and `oom_kills` gives the highest count that a read saw. Test: `cargo test -p podrunner-incus the_oom_kills_are_kept_from_the_reads_while_the_instance_ran` (it failed on the code before: `None`). Level: proven here with a fake podvm; on real instances not run.
 
+State (2026-11-26, `22184b72` and the commit before it; tests on a development
+host, the live tests not run): podvm `0.2.0-beta.40` writes `memory.max`
+in the leaf of a run for `run -d --memory N` on the native tiers, and its
+launcher writes `oom_kills` of `memory.events` of the leaf into
+`--report` (PodUtils/podvm@T-1969). Where the cgroup is delegated with
+`memory`, a podvm unit now gets `--memory N` and no `--ulimit as=`
+(RLIMIT_AS would give ENOMEM before the OOM killer acts); elsewhere, and
+for a `mem` below 6 MiB, RLIMIT_AS holds as before, and a job past it
+ends `failure`. `oom_kills` of the podvm kind reads the report and waits
+up to about 2 s for its end (the launcher writes it after the record
+that `podvm wait` reads; a race found and fixed in the work). slots then
+ends a failed job with a kill as `limit`, with the audit line `limit`
+`memory`. The capability record gives `limits.memory-per-unit`. Tests:
+`a_unit_with_its_memory_in_its_leaf_gives_the_oom_kills_of_its_run`
+(it failed on the old code: `--ulimit as=` and no count),
+`the_count_waits_for_the_end_of_the_report` (it fails with no wait), and
+the edges of the field. Live tests: `a_unit_past_its_memory_counts_an_oom_kill_in_a_delegated_cgroup`
+(the step of the delegated cgroup runs it) and
+`a_job_past_the_memory_of_the_kind_fails_with_an_oom_kill_counted` (the
+step "The limits of an incus instance" runs it). On a host with swap,
+podvm sets `memory.swap.max` to N too, so a unit can hold about twice
+`mem` before a kill. Left: the two live tests in hosted CI, the microvm
+kind, and a job-level step of a job past `mem` of `[unit.incus]` through
+slots (reason `limit`, audit line `limit` `memory`).
+
 # T-516: G-09: no CI proof of a `docker build` step and of Docker-in-Docker in a guest with an engine
 
 **Source:** the census of T-491 (`docs/reports/census-2026-11-18.md`), 2026-11-18
@@ -18101,7 +18126,7 @@ pin check passes. Left: the hosted runner-image run.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -18144,6 +18169,12 @@ keep their value for the whole hold; three tests pin it
 `HELD` insert fails the last). The workspace tests pass, and githome's
 source-conformance passes 15 tests. Left: the gate and level2 on the
 commit.
+
+## Done
+
+2026-11-26, proven in CI on GitHub-hosted runners on `6553e547` and
+`971c4112` (#365): gate 45810250751 (with githome's source-conformance)
+and level2 45810263432 are green with podcrates `v0.86.0`.
 
 # T-688: A job of the corpus runs out of space in a microvm guest
 

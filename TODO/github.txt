@@ -369,4 +369,4 @@
 363 issue open
 364 issue open
 365 issue open
-366 issue open
+366 issue closed
