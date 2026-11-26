@@ -21,6 +21,20 @@ pub fn over(pins: &Pins, init: Option<UnitInit>, bound: u64) -> Option<(&Payload
         .find_map(|p| p.unpacked_bytes.filter(|s| *s > bound).map(|s| (p, s)))
 }
 
+/// The unpacked bytes of each pinned digest of this architecture: the
+/// microvm kind gives a guest the boot floor of its image (T-655).
+pub fn sizes(pins: &Pins) -> std::collections::BTreeMap<String, u64> {
+    let arch = std::env::consts::ARCH;
+    pins.payload
+        .iter()
+        .filter(|p| p.arch == arch)
+        .filter_map(|p| {
+            let (_, digest) = podrunner_unit::parse_pinned(&p.reference).ok()?;
+            Some((digest.to_string(), p.unpacked_bytes?))
+        })
+        .collect()
+}
+
 /// Each pin of this architecture fits the unit kind `kind`.
 pub fn kind_fits(kind: &str, u: &UnitConfig, pins: &Pins) -> Result<(), Failure> {
     match kind {

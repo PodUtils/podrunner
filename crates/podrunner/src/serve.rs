@@ -155,7 +155,7 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
                 (Arc::new(FakeUnit::new(&state.join("fake"), cap.clone(), platform)), cap)
             }
             "podvm" => crate::podvm_kind::build(u, &cfg, state)?,
-            "microvm" => crate::microvm_kind::build(u, state, engines.clone())?,
+            "microvm" => crate::microvm_kind::build(u, state, engines.clone(), crate::pin_size::sizes(&cfg.pin))?,
             "incus" => {
                 let built = crate::incus_kind::build(u, state, engines.clone())?;
                 crate::incus_kind::warn_engine("podrunner: [unit.incus]", &built.1);

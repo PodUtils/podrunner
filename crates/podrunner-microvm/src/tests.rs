@@ -440,13 +440,15 @@ fn the_init_of_the_image_boots_in_a_foreground_guest() {
     assert_eq!(u.probe().unwrap().container, ContainerRoute::Engine);
 }
 
-/// The CPUs and the processes of a guest are the lesser of the kind and
-/// the offer (T-198); the memory stays the size of the kind, because the
-/// guest holds the unpacked image in it (T-573).
+/// The memory, the CPUs and the processes of a guest are the lesser of the
+/// kind and the offer (T-198); the memory is not less than the boot floor
+/// of the image, which the guest holds unpacked (T-573, T-655).
 #[test]
-fn a_guest_gets_the_lesser_cpus_and_processes_of_the_offer() {
+fn a_guest_gets_the_lesser_memory_cpus_and_processes_of_the_offer() {
     let (u, d) = driver("lesser", "printf '%s\\n' \"$@\" > \"$(dirname \"$0\")/argv\"");
-    let u = u.with_size("4G", 4).with_pids(100);
+    // 13/4 × 263 MiB + 512 MiB, rounded up to 256 MiB: 1536 MiB.
+    let sizes = BTreeMap::from([(spec("u-0").image.digest, 263 << 20)]);
+    let u = u.with_size("4G", 4).with_pids(100).with_payload_sizes(sizes);
     let argv = |unit: &str, limits: Limits| {
         let mut s = spec(unit);
         s.limits = limits;
@@ -459,11 +461,15 @@ fn a_guest_gets_the_lesser_cpus_and_processes_of_the_offer() {
     let small = Limits { memory_bytes: Some(1 << 30), cpus: Some(2), pids: Some(50), disk_bytes: None };
     let a = argv("u-1", small);
     assert!(has(&a, "--podvm-cpus", "2") && has(&a, "--pids-limit", "50"), "{a:?}");
-    assert!(has(&a, "--podvm-mem", "4G"), "the memory of the kind: {a:?}");
+    assert!(has(&a, "--podvm-mem", "1536M"), "the boot floor of the image: {a:?}");
+    let a = argv("u-4", Limits { memory_bytes: Some(3 << 30), ..Limits::default() });
+    assert!(has(&a, "--podvm-mem", "3072M"), "the memory of the offer: {a:?}");
     let large = Limits { memory_bytes: Some(64 << 30), cpus: Some(64), pids: Some(1 << 20), disk_bytes: None };
     let a = argv("u-2", large);
-    assert!(has(&a, "--podvm-cpus", "4") && has(&a, "--pids-limit", "100"), "{a:?}");
+    assert!(has(&a, "--podvm-cpus", "4") && has(&a, "--pids-limit", "100") && has(&a, "--podvm-mem", "4G"), "{a:?}");
     let a = argv("u-3", Limits::default());
-    assert!(has(&a, "--podvm-cpus", "4") && has(&a, "--pids-limit", "100"), "{a:?}");
+    assert!(has(&a, "--podvm-cpus", "4") && has(&a, "--pids-limit", "100") && has(&a, "--podvm-mem", "4G"), "{a:?}");
+    assert_eq!(u.applied(&small).memory_bytes, Some(1 << 30), "the lesser, below the floor of launch");
+    assert_eq!(u.applied(&large).memory_bytes, Some(4 << 30));
     let _ = fs::remove_dir_all(&d);
 }

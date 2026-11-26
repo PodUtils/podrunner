@@ -52,7 +52,7 @@ pub(super) fn in_guest(a: &Args, state: &std::path::Path) -> Result<InUnit, Out>
     let payload_engines = a.engine.is_none().then(|| payload_engine(a, image)).flatten();
     let payload_engines = payload_engines.into_iter().collect();
     let built = if *microvm {
-        crate::microvm_kind::build(&u, state, payload_engines)
+        crate::microvm_kind::build(&u, state, payload_engines, Default::default())
     } else {
         crate::incus_kind::build(&u, state, payload_engines)
     };

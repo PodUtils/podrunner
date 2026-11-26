@@ -26,9 +26,10 @@
 //! no help of the host.
 
 mod guest;
+pub mod mem;
 mod warm;
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -69,10 +70,12 @@ pub struct MicrovmUnit {
     state_dir: PathBuf,
     /// The store of the operator that holds the pinned images.
     images: PathBuf,
-    /// The guest memory (`--podvm-mem`), always passed: placement needs a
-    /// known bound. The image is an uncompressed initramfs: podvm needs
-    /// 13/4 times the image plus 512 MiB (T-573).
+    /// The guest memory of the kind (`--podvm-mem`), always passed:
+    /// placement needs a known bound. An offer lowers it to the boot floor
+    /// of the image at most ([`mem::guest_mem`], T-655).
     mem: String,
+    /// The unpacked bytes of each pinned digest (T-551).
+    sizes: BTreeMap<String, u64>,
     cpus: u32,
     /// The most processes of the payload of each guest (T-488).
     pids: Option<u32>,
@@ -111,6 +114,7 @@ impl MicrovmUnit {
             // A runner image unpacks to an initrd of about 1.4 GiB, which a
             // guest of 4 GiB cannot boot (PodUtils/podvm#454, T-291).
             mem: "8G".into(),
+            sizes: BTreeMap::new(),
             cpus: 2,
             pids: None,
             platform: platform.into(),
@@ -147,6 +151,13 @@ impl MicrovmUnit {
         self
     }
 
+    /// The unpacked bytes of each pinned digest: the boot floor of a guest
+    /// whose offer asks less memory than the kind (T-655).
+    pub fn with_payload_sizes(mut self, sizes: BTreeMap<String, u64>) -> Self {
+        self.sizes = sizes;
+        self
+    }
+
     /// Keep the log of each guest as `DIR/UNIT.log` at `destroy`.
     pub fn with_kept_logs(mut self, dir: &Path) -> MicrovmUnit {
         self.kept_logs = Some(dir.to_path_buf());
@@ -165,16 +176,6 @@ impl MicrovmUnit {
         self.mem = mem.into();
         self.cpus = cpus;
         self
-    }
-
-    /// The CPUs and the processes of a guest for an offer: the lesser of
-    /// the kind and the offer (T-198). The memory stays the size of the
-    /// kind: the guest holds the unpacked image in it (T-573). No pids for
-    /// a kind with no limit, so an older podvm gets no flag.
-    fn applied(&self, job: &Limits) -> Limits {
-        let kind = Limits { cpus: Some(self.cpus), pids: self.pids, ..Limits::default() };
-        let l = kind.lesser(&Limits { memory_bytes: None, disk_bytes: None, ..*job });
-        Limits { cpus: l.cpus.map(|c| c.max(1)), pids: self.pids.and(l.pids), ..Limits::default() }
     }
 
     fn unit_dir(&self, unit: &UnitId) -> PathBuf {
@@ -425,8 +426,9 @@ impl MicrovmUnit {
         let tag = procs::tag_of(&self.state_dir, spec.unit.as_str());
         let egress = spec.sockets.as_ref().map(|s| s.join(EGRESS_SOCKET));
         let applied = self.applied(&spec.limits);
+        let mem = mem::guest_mem(&self.mem, applied.memory_bytes, self.sizes.get(&spec.image.digest).copied());
         let shape = Shape {
-            mem: &self.mem,
+            mem: &mem,
             cpus: applied.cpus.unwrap_or(self.cpus),
             egress: egress.as_deref(),
             engine: self.engine.as_deref(),

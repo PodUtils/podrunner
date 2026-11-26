@@ -45,7 +45,10 @@ fn a_warm_guest_boots_with_no_job_and_its_claim_runs_once() {
         limits: Limits { pids: Some(10), ..Limits::default() },
     };
     assert_eq!(u.claim(&s.unit, &claim).unwrap_err().code, UnitCode::UnitStartFailed);
-    claim.limits = Limits::default();
+    // A cold guest gets less memory for this offer (T-655).
+    claim.limits = Limits { memory_bytes: Some(1 << 30), ..Limits::default() };
+    assert_eq!(u.claim(&s.unit, &claim).unwrap_err().code, UnitCode::UnitStartFailed);
+    claim.limits = Limits { memory_bytes: Some(64 << 30), ..Limits::default() };
     u.claim(&s.unit, &claim).unwrap();
     let f = unit_dir.join("cred/.credentials");
     assert_eq!(fs::metadata(&f).unwrap().permissions().mode() & 0o777, 0o600);

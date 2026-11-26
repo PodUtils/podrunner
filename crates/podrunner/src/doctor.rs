@@ -150,7 +150,8 @@ fn capability_at(
         "microvm" => {
             crate::tiers::kvm()?;
             let state = std::env::temp_dir().join("podrunner-doctor");
-            crate::microvm_kind::build(u, &state, engines.clone()).map(|(_, cap)| cap).map_err(|f| f.detail)
+            // The probe reads no size of an image.
+            crate::microvm_kind::build(u, &state, engines.clone(), Default::default()).map(|(_, cap)| cap).map_err(|f| f.detail)
         }
         "incus" => {
             let state = std::env::temp_dir().join("podrunner-doctor");

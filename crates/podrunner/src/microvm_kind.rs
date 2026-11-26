@@ -82,26 +82,9 @@ pub fn plan(u: &UnitConfig, payload_engine: bool) -> Result<(), Failure> {
 /// `--podvm-mem`: placement needs a known memory bound for each unit.
 pub const DEFAULT_MEM: &str = "8G";
 
-/// The memory of a guest beside its initramfs, in podvm's rule (COORD-219).
-const GUEST_BASE: u64 = 512 << 20;
-
-/// The largest image that a guest of `mem` bytes boots (T-573). podvm's
-/// initrd is an uncompressed `newc` cpio: packed and unpacked are each about
-/// the image, and the guest holds both during the unpack. podvm's rule is
-/// `mem = 13/4 × N + 512 MiB` (COORD-219, `machine/guest/mem.rs` of podvm),
-/// so the bound is `(mem - 512 MiB) × 4 / 13`.
-pub fn largest_image(mem: u64) -> u64 {
-    let room = mem.saturating_sub(GUEST_BASE);
-    // `room × 4` can overflow: split it at 13, which gives the same floor.
-    room / 13 * 4 + room % 13 * 4 / 13
-}
-
-/// The memory of a guest that boots an image of `size` bytes, rounded up to
-/// a byte: the smallest `mem` whose `largest_image` holds `size`.
-pub fn mem_for(size: u64) -> u64 {
-    let need = (u128::from(size) * 13).div_ceil(4) + u128::from(GUEST_BASE);
-    u64::try_from(need).unwrap_or(u64::MAX)
-}
+/// The bound of an image and the memory of a guest in podvm's rule
+/// (T-573): one rule for `check` and the driver (T-655).
+pub use podrunner_microvm::mem::{largest_image, mem_for};
 
 /// Each pin of this architecture fits the memory of a guest (T-573). A guest
 /// with too little memory for its initramfs resets with no output.
@@ -125,11 +108,14 @@ pub fn pins_fit(u: &UnitConfig, pins: &podrunner_slots::config::Pins) -> Result<
     ))
 }
 
-/// The driver and the record of `[unit.microvm]`.
+/// The driver and the record of `[unit.microvm]`. `sizes` gives the
+/// unpacked bytes of each pinned digest: the boot floor of a guest whose
+/// offer asks less memory than the kind (T-655).
 pub fn build(
     u: &UnitConfig,
     state: &Path,
     payload_engines: std::collections::BTreeSet<String>,
+    sizes: std::collections::BTreeMap<String, u64>,
 ) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
     plan(u, !payload_engines.is_empty())?;
     let podvm = podrunner_podvm::Podvm { binary: u.binary.clone().unwrap_or_default().into() };
@@ -137,6 +123,7 @@ pub fn build(
     let unit = podrunner_microvm::MicrovmUnit::new(podvm, &state.join("microvm"), &images)
         .with_size(u.mem.as_deref().unwrap_or(DEFAULT_MEM), u.cpus.unwrap_or(2))
         .with_payload_engines(payload_engines)
+        .with_payload_sizes(sizes)
         .with_image_init(u.init == Some(podrunner_slots::config::UnitInit::Image));
     let unit = match &u.engine {
         Some(e) => unit.with_engine(Path::new(e)),
@@ -152,41 +139,6 @@ pub fn build(
 
 #[cfg(test)]
 mod tests {
-
-    /// T-573: podvm's curve (COORD-219, experiment 470): each initrd in MiB,
-    /// the guest memory in MiB where it does not boot, the memory where it
-    /// boots, and whether the rule `13/4 × N + 512 MiB` holds it there. The
-    /// rule is podvm's estimate and is above four of the five boot points:
-    /// it refuses them, and this test asserts the rule, not the boot.
-    #[test]
-    fn the_largest_image_follows_the_curve_of_podvm() {
-        const MIB: u64 = 1 << 20;
-        const GIB: u64 = 1 << 30;
-        let curve = [
-            (263, 768, 1024, false),
-            (519, 1536, 1792, false),
-            (1031, 3072, 3328, false),
-            (1416, 4096, 5120, true),
-            (2055, 6400, 6656, false),
-        ];
-        for (n, no_boot, boots, holds) in curve {
-            assert!(n * MIB > super::largest_image(no_boot * MIB), "{n} MiB at {no_boot} MiB");
-            assert_eq!(n * MIB <= super::largest_image(boots * MIB), holds, "{n} MiB at {boots} MiB");
-        }
-        // 13/4 × 1416 + 512 = 5114 MiB; 13/4 × 2055 + 512 = 7190.75 MiB.
-        assert_eq!(super::mem_for(1416 * MIB), 5114 * MIB);
-        assert_eq!(super::mem_for(2055 * MIB), 7190 * MIB + 3 * MIB / 4);
-        assert_eq!(super::mem_for(2055 * MIB).div_ceil(GIB), 8, "the rule of 3 gives 7G");
-        assert!(2055 * MIB > super::largest_image(7 * GIB), "the rule of 3 holds it at 7G");
-        // The bound of 8G is (8192 - 512) × 4 / 13 MiB, rounded down to a byte.
-        let bound = super::largest_image(8 * GIB);
-        assert_eq!(bound, 2_477_865_747);
-        assert!(super::mem_for(bound) <= 8 * GIB && super::mem_for(bound + 1) > 8 * GIB);
-        assert_eq!(super::largest_image(1 << 20), 0);
-        let top = u128::from(u64::MAX - (512 << 20)) * 4 / 13;
-        assert_eq!(u128::from(super::largest_image(u64::MAX)), top, "no overflow");
-        assert_eq!(super::mem_for(u64::MAX), u64::MAX);
-    }
 
     /// T-116: `plan`, which `check` and `doctor` call, refuses a podvm below
     /// the lowest version of the kind, as `serve` does.
