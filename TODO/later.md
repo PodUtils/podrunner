@@ -17711,5 +17711,14 @@ run settles it; if it fails, purge the Ubuntu packages first. (4) The
 Zabbly pass wrote over the log of the apt pass: the apt log is now
 `bundled-incus-apt-engine.txt`. (5) An incusd that gives no version gave
 no warning: `doctor` now warns that the version is unknown. Each of two
-planted defects (the AppArmor check off) fails a test. Left: the
-runner-image run, then step 3.
+planted defects (the AppArmor check off) fails a test.
+
+Step 3 (2026-11-26, the self-test only; the lane not run): the check
+`serve:check:incus` of `scripts/user-gate.py` reads the version with
+`incus query /1.0`, adds `engine = DIR` with a stub `dockerd` to the
+file of `config init`, and runs `doctor --json`: the incus kind must have
+the route `engine`, and a warning that names the version and
+lxc/incus#2623 exactly when the version is before the fix and AppArmor
+is on. The rule is `incus_before_apparmor_fix`; its self-test fails with
+6.0.6 planted as affected. Left: the runner-image run and the lane
+`serve-incus-kvm` of `user-gate.yml` (#361).

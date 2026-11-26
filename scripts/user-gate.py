@@ -92,6 +92,17 @@ def phase_times(name: str, kind: str, journal: list[dict]) -> list[tuple[int, in
     return times
 
 
+def incus_before_apparmor_fix(version: str):
+    """T-683: True for an Incus before 6.0.6 (the LTS line) and 6.1 to 6.18,
+    False after, None for a version that does not parse. The rule of
+    `engine_fault` in crates/podrunner/src/incusd.rs."""
+    m = re.match(r"[0-9]+(?:\.[0-9]+)*", version)
+    if not m:
+        return None
+    major, minor, patch = ([int(n) for n in m.group(0).split(".")] + [0, 0])[:3]
+    return (major, minor, patch) < (6, 0, 6) or (major == 6 and 1 <= minor <= 18)
+
+
 def self_test() -> int:
     """The parts of the gate that need no host."""
     def line(job, state, t, source="githome"):
@@ -110,6 +121,9 @@ def self_test() -> int:
             assert all(w in str(e) for w in words), (gone, str(e))
         else:
             raise AssertionError(f"no {gone} line passed")
+    for v, want in (("6.0.0", True), ("6.0.5", True), ("6.18", True), ("6.0.6", False), ("6.0.7", False),
+                    ("6.19", False), ("7.0", False), ("abc", None), ("", None)):
+        assert incus_before_apparmor_fix(v) is want, (v, want)
     print("user-gate: self-test passed")
     return 0
 
@@ -741,6 +755,7 @@ class Lane:
             raise GateError(f"doctor --json: the {kind} kind is {cap and cap.get('boundary')}, not {want}: {v.get('kinds')}")
         if not all(src.get("served") for src in v.get("sources", [])):
             raise GateError(f"doctor --json: a source is not served: {v.get('sources')}")
+        engine = self.incus_engine_warning(cfg, env) if kind == "incus" else ""
         # T-507, T-479: the file of config init agrees with the schema.
         schema = "schema not checked (no --schema-python)"
         if self.schema_python:
@@ -754,7 +769,37 @@ class Lane:
                              "--binary", shutil.which("podrunner", path=env["PATH"])], env, cfg.parent, f"serve-{kind}-unit")
         if rc or "Type=notify" not in unit:
             raise GateError(f"podrunner print-unit: exit {rc}")
-        return f"config init, {schema}, check, doctor ({kind}: {want}, hold {cap.get('egress_hold')}), print-unit"
+        return f"config init, {schema}, check, doctor ({kind}: {want}, hold {cap.get('egress_hold')}{engine}), print-unit"
+
+    def incus_engine_warning(self, cfg: pathlib.Path, env: dict) -> str:
+        """T-683: with an engine on the incus kind, doctor warns when incusd
+        is older than the AppArmor fix (6.0.6 of the LTS line, 6.19), and
+        only then. A stub dockerd is enough: doctor starts no engine."""
+        rc, text = self.run(["incus", "query", "/1.0"], env, cfg.parent, "serve-incus-version")
+        if rc:
+            raise GateError(f"incus query /1.0: exit {rc}")
+        version = json.loads(text)["environment"]["server_version"]
+        old = incus_before_apparmor_fix(version)
+        if old is None:
+            raise GateError(f"incus query /1.0: a version that does not parse: {version!r}")
+        apparmor = pathlib.Path("/sys/module/apparmor/parameters/enabled")
+        old = old and apparmor.is_file() and apparmor.read_text().startswith("Y")
+        engine = cfg.parent / "engine"
+        engine.mkdir(exist_ok=True)
+        (engine / "dockerd").write_text("#!/bin/sh\nexit 1\n")
+        with_engine = cfg.parent / "podrunner-engine.toml"
+        text = cfg.read_text()
+        if "[unit.incus]\n" not in text:
+            raise GateError("config init wrote no [unit.incus]")
+        with_engine.write_text(text.replace("[unit.incus]\n", f'[unit.incus]\nengine = "{engine}"\n', 1))
+        rc, out = self.run(["podrunner", "doctor", "--config", with_engine, "--json"], env, cfg.parent, "serve-incus-engine-doctor")
+        entry = next((k for k in json.loads(out).get("kinds", []) if k.get("kind") == "incus"), {})
+        if entry.get("capability", {}).get("container") != "engine":
+            raise GateError(f"doctor --json: the incus kind with an engine has no engine route: {entry}")
+        warned = any(f"incusd {version}: " in w and "lxc/incus#2623" in w for w in entry.get("warnings", []))
+        if warned != old:
+            raise GateError(f"doctor --json: incusd {version}, AppArmor fix missing {old}, warnings {entry.get('warnings')}")
+        return f", engine warning on incusd {version}: {'yes' if old else 'no'}"
 
     def serve_run(self, kind: str) -> str:
         """`serve` with the kind: it starts, and the microvm kind runs the
