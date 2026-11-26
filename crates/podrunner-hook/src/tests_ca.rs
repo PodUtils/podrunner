@@ -14,6 +14,7 @@ use crate::hooks::{Bundle, Hooks};
 use crate::input::{Command, parse};
 use crate::policy::Policy;
 use crate::server::Unit;
+use crate::tests::Clean;
 use crate::unit::{CA_DIR, HookUnit, UnitCa, UnitCache};
 
 /// The name of the bundle among the credential files of a unit.
@@ -65,7 +66,7 @@ fn bundle<'a>(file: &'a str, vars: &'a [String]) -> Bundle<'a> {
     Bundle { file, pem: PEM, vars, store: None }
 }
 
-fn started(dir: &std::path::Path) -> (Arc<dyn UnitDriver>, UnitId) {
+fn started(dir: &std::path::Path) -> (Arc<dyn UnitDriver>, UnitId, Clean) {
     let fake: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir.join("fake"), capability(), "linux/amd64"));
     let id = UnitId::parse("u-1").unwrap();
     let image = fake.prepare(IMAGE, "linux/amd64", false).unwrap();
@@ -80,7 +81,8 @@ fn started(dir: &std::path::Path) -> (Arc<dyn UnitDriver>, UnitId) {
         limits: Default::default(),
     })
     .unwrap();
-    (fake, id)
+    let clean = Clean(fake.clone(), vec![id.clone()], dir.to_path_buf());
+    (fake, id, clean)
 }
 
 /// The record of the mounts of the container `c` of the fake unit `id`.
@@ -102,7 +104,7 @@ fn a_container_of_a_unit_with_a_bundle_gets_the_mount_and_the_variables() {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("ca")).unwrap();
     std::fs::write(dir.join("ca").join(CA_FILE), PEM).unwrap();
-    let (fake, id) = started(&dir);
+    let (fake, id, _clean) = started(&dir);
     let vars = ["SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS"].map(String::from).to_vec();
     let ca = UnitCa { dir: dir.join("ca"), file: CA_FILE.into(), vars };
     let u = HookUnit::new(fake.clone(), id.clone(), policy(), Some(dir.join("runner")), dir.clone());
@@ -132,8 +134,6 @@ fn a_container_of_a_unit_with_a_bundle_gets_the_mount_and_the_variables() {
         assert!(spec.contains(&format!(" {CA_DIR} ro\n")), "{c}: {spec}");
     }
     let _ = u.hook(parse(Command::CleanupJob, &call("cleanup_job", json!({}))).unwrap());
-    let _ = fake.destroy(&id);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -141,13 +141,11 @@ fn a_container_of_a_unit_with_no_bundle_gets_neither() {
     let dir = std::env::temp_dir().join(format!("podrunner-hook-noca-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let (fake, id) = started(&dir);
+    let (fake, id, _clean) = started(&dir);
     let mut u = HookUnit::new(fake.clone(), id.clone(), policy(), Some(dir.join("runner")), dir.clone()).with_ca(None);
     let (out, spec) = step(&mut u, &fake, &id, json!({}), 0);
     assert_eq!(out, "[] []\n");
     assert!(!spec.contains(CA_DIR), "{spec}");
-    let _ = fake.destroy(&id);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The hooks of a host write the bundle for the containers at mode 0644
@@ -158,7 +156,7 @@ fn the_hooks_place_the_bundle_and_remove_it_at_the_close() {
     let dir = std::env::temp_dir().join(format!("podrunner-hook-place-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("sockets")).unwrap();
-    let (fake, id) = started(&dir);
+    let (fake, id, _clean) = started(&dir);
     let hooks = Hooks::default();
     let (socket, logs) = (dir.join("sockets/ctl.sock"), dir.join("sockets.logs"));
     let vars = ["SSL_CERT_FILE".to_string()];
@@ -174,8 +172,6 @@ fn the_hooks_place_the_bundle_and_remove_it_at_the_close() {
     hooks.open(fake.clone(), &id, policy(), &socket, &logs, None).unwrap();
     assert!(!logs.join("ca").exists());
     hooks.close(&id);
-    let _ = fake.destroy(&id);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The copy keeps the name of the bundle that slots gives (the name of
@@ -186,7 +182,7 @@ fn the_copy_keeps_the_name_that_slots_gives() {
     let dir = std::env::temp_dir().join(format!("podrunner-hook-name-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("sockets")).unwrap();
-    let (fake, id) = started(&dir);
+    let (fake, id, _clean) = started(&dir);
     let hooks = Hooks::default();
     let (socket, logs) = (dir.join("sockets/ctl.sock"), dir.join("sockets.logs"));
     let vars = ["SSL_CERT_FILE".to_string()];
@@ -200,8 +196,6 @@ fn the_copy_keeps_the_name_that_slots_gives() {
         assert!(!logs.exists(), "{bad:?}: no directory stays");
         assert!(!dir.join("x.pem").exists());
     }
-    let _ = fake.destroy(&id);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// A socket that does not bind leaves no copy of the bundle: no socket
@@ -211,7 +205,7 @@ fn a_socket_that_does_not_bind_leaves_no_copy_of_the_bundle() {
     let dir = std::env::temp_dir().join(format!("podrunner-hook-nobind-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let (fake, id) = started(&dir);
+    let (fake, id, _clean) = started(&dir);
     let hooks = Hooks::default();
     // The directory of the socket does not exist: the bind fails.
     let (socket, logs) = (dir.join("absent/ctl.sock"), dir.join("sockets.logs"));
@@ -219,8 +213,6 @@ fn a_socket_that_does_not_bind_leaves_no_copy_of_the_bundle() {
     assert!(hooks.open(fake.clone(), &id, policy(), &socket, &logs, Some(bundle(CA_FILE, &vars))).is_err());
     assert!(!logs.join("ca").exists(), "the copy stays after a failed bind");
     assert!(!logs.exists(), "the empty logs directory stays");
-    let _ = fake.destroy(&id);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// T-651: each container of a job with a cache sees the cache of the unit
@@ -231,7 +223,7 @@ fn a_container_of_a_job_with_a_cache_gets_its_mount_and_variables() {
     let dir = std::env::temp_dir().join(format!("podrunner-hook-cache-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(dir.join("cache")).unwrap();
-    let (fake, id) = started(&dir);
+    let (fake, id, _clean) = started(&dir);
     let mut u = HookUnit::new(fake.clone(), id.clone(), policy(), Some(dir.join("runner")), dir.clone());
     let print = |env: Value| {
         let mut c = container(env);
@@ -259,8 +251,6 @@ fn a_container_of_a_job_with_a_cache_gets_its_mount_and_variables() {
         let mode = if read_only { "ro" } else { "rw" };
         assert!(spec.contains(&format!("mount {} /podrunner-cache {mode}\n", dir.join("cache").display())), "{spec}");
     }
-    let _ = fake.destroy(&id);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// T-597: a JVM reads no PEM variable. The hooks write the trust store of
@@ -272,7 +262,7 @@ fn a_container_of_a_unit_with_a_bundle_gets_the_trust_store_for_a_jvm() {
     let dir = std::env::temp_dir().join(format!("podrunner-hook-jvm-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let (fake, id) = started(&dir);
+    let (fake, id, _clean) = started(&dir);
     let vars = ["SSL_CERT_FILE".to_string()];
     let ca = crate::hooks::place_ca(&dir.join("logs"), bundle(CA_FILE, &vars)).unwrap();
     let store = dir.join("logs/ca/podrunner-broker-ca.p12");
@@ -296,8 +286,6 @@ fn a_container_of_a_unit_with_a_bundle_gets_the_trust_store_for_a_jvm() {
     std::fs::remove_file(&store).unwrap();
     assert_eq!(java(&mut u, json!({})), "[]\n");
     assert_eq!(java(&mut u, json!({ "JAVA_TOOL_OPTIONS": "-Xmx1g" })), "[-Xmx1g]\n");
-    let _ = fake.destroy(&id);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// T-597: a bundle with no certificate gives no store (the containers keep

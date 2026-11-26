@@ -68,6 +68,7 @@ unsafe fn shim(mode: Mode, confine: Option<&pod_confine::Compiled>) -> std::io::
             return Err(std::io::Error::last_os_error());
         }
         if payload == 0 {
+            cloexec_above_2();
             if let Some(c) = confine {
                 pod_confine::apply(c).map_err(|r| std::io::Error::from_raw_os_error(r.errno.0))?;
             }
@@ -78,12 +79,7 @@ unsafe fn shim(mode: Mode, confine: Option<&pod_confine::Compiled>) -> std::io::
         // close_range (a kernel before 5.9), each descriptor below the limit
         // of the process (#281): the pipe of the parent can be above 4096.
         if libc::syscall(libc::SYS_close_range, 3u32, u32::MAX, 0u32) != 0 {
-            let mut lim = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
-            let cur = match libc::getrlimit(libc::RLIMIT_NOFILE, &mut lim) {
-                0 => lim.rlim_cur,
-                _ => 0,
-            };
-            for fd in 3..fallback_bound(cur) {
+            for fd in 3..fallback_bound(soft_limit()) {
                 libc::close(fd);
             }
         }
@@ -113,6 +109,35 @@ unsafe fn shim(mode: Mode, confine: Option<&pod_confine::Compiled>) -> std::io::
                 ended = true;
             }
         }
+    }
+}
+
+/// The payload keeps no descriptor above 2 past its exec (T-703): a
+/// descriptor that the parent got with no `FD_CLOEXEC` (the lock of
+/// `flock`) gets the flag. The pipe of `Command` has the flag already, so
+/// the parent still sees a failed exec. With no `CLOSE_RANGE_CLOEXEC` (a
+/// kernel before 5.11), each descriptor below the limit of the process.
+unsafe fn cloexec_above_2() {
+    // SAFETY: plain system calls on integers.
+    unsafe {
+        if libc::syscall(libc::SYS_close_range, 3u32, u32::MAX, libc::CLOSE_RANGE_CLOEXEC) != 0 {
+            for fd in 3..fallback_bound(soft_limit()) {
+                let flags = libc::fcntl(fd, libc::F_GETFD);
+                if flags >= 0 {
+                    libc::fcntl(fd, libc::F_SETFD, flags | libc::FD_CLOEXEC);
+                }
+            }
+        }
+    }
+}
+
+/// The soft limit of open files, or 0 when it is not known.
+unsafe fn soft_limit() -> libc::rlim_t {
+    let mut lim = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+    // SAFETY: getrlimit writes into the struct of this frame.
+    match unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut lim) } {
+        0 => lim.rlim_cur,
+        _ => 0,
     }
 }
 
@@ -302,6 +327,27 @@ mod tests {
         c.args(["-c", script]).env("PODRUNNER_UNIT_TAG", "shim-test");
         under_shim(&mut c, mode);
         c.spawn().unwrap()
+    }
+
+    /// T-703: a descriptor of the parent with no `FD_CLOEXEC` (as `flock`
+    /// gives its lock to cargo) reaches no payload; the shim closes its own.
+    #[test]
+    fn no_descriptor_of_the_parent_reaches_the_payload() {
+        use std::os::fd::AsRawFd;
+        let path = std::env::temp_dir().join(format!("podrunner-shim-fd-{}", std::process::id()));
+        let file = std::fs::File::create(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
+        // SAFETY: fcntl on a descriptor that `file` owns.
+        unsafe { libc::fcntl(file.as_raw_fd(), libc::F_SETFD, 0) };
+        let mut c = Command::new("sh");
+        c.args(["-c", "ls -l /proc/$$/fd"]).stdout(std::process::Stdio::piped());
+        under_shim(&mut c, Mode::EndWithPayload);
+        let out = c.output().unwrap();
+        drop(file);
+        let fds = String::from_utf8_lossy(&out.stdout);
+        assert!(out.status.success(), "{fds}");
+        assert!(fds.contains("/proc/") || fds.contains("pipe:") || fds.contains("/dev/"), "a list: {fds}");
+        assert!(!fds.contains("podrunner-shim-fd-"), "the payload holds the descriptor:\n{fds}");
     }
 
     #[test]

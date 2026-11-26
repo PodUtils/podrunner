@@ -10,6 +10,23 @@ use crate::policy::{Gate, Plan, Policy, Refusal};
 const IMAGE: &str = "node@sha256:0000000000000000000000000000000000000000000000000000000000000000";
 const CANARY: &str = "podrunner-canary-registry-5e1f";
 
+/// Destroy each unit and remove the directory, also when an assertion
+/// fails (T-703): a container of the fake unit would live on.
+pub(crate) struct Clean(
+    pub std::sync::Arc<dyn podrunner_unit::UnitDriver>,
+    pub Vec<podrunner_unit::UnitId>,
+    pub std::path::PathBuf,
+);
+
+impl Drop for Clean {
+    fn drop(&mut self) {
+        for id in &self.1 {
+            let _ = self.0.destroy(id);
+        }
+        let _ = std::fs::remove_dir_all(&self.2);
+    }
+}
+
 fn policy() -> Policy {
     Policy {
         container: ContainerRoute::Hooks,

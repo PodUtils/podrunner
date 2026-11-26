@@ -13,6 +13,7 @@ use serde_json::json;
 
 use crate::policy::Policy;
 use crate::server::{Unit, bind, serve};
+use crate::tests::Clean;
 use crate::unit::HookUnit;
 
 const IMAGE: &str = "node@sha256:0000000000000000000000000000000000000000000000000000000000000000";
@@ -25,17 +26,6 @@ fn capability() -> podrunner_schema::Capability {
         "egress_hold": "advisory", "kvm": "no"
     }))
     .unwrap()
-}
-
-/// Destroy the unit and remove the directory, also when an assertion
-/// fails: a container of the fake unit would live on.
-struct Clean(Arc<dyn UnitDriver>, UnitId, std::path::PathBuf);
-
-impl Drop for Clean {
-    fn drop(&mut self) {
-        let _ = self.0.destroy(&self.1);
-        let _ = std::fs::remove_dir_all(&self.2);
-    }
 }
 
 /// The input of a hook call as the runner writes it: `command` first.
@@ -83,7 +73,7 @@ fn the_output_of_a_step_comes_while_it_runs() {
         limits: Default::default(),
     })
     .unwrap();
-    let _clean = Clean(fake.clone(), id.clone(), dir.clone());
+    let _clean = Clean(fake.clone(), vec![id.clone()], dir.clone());
     let policy = Policy {
         container: ContainerRoute::Hooks,
         shared_host_net: false,

@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 use crate::input::{Command, parse};
 use crate::policy::Policy;
 use crate::server::{JobEvent, Unit};
+use crate::tests::Clean;
 use crate::unit::HookUnit;
 
 const IMAGE: &str = "node@sha256:0000000000000000000000000000000000000000000000000000000000000000";
@@ -63,6 +64,7 @@ fn each_command_reaches_the_fake_unit() {
         limits: Default::default(),
     };
     fake.start(&spec).unwrap();
+    let _clean = Clean(fake.clone(), vec![id.clone()], dir.clone());
     let policy = Policy {
         container: ContainerRoute::Hooks,
         shared_host_net: false,
@@ -116,8 +118,6 @@ fn each_command_reaches_the_fake_unit() {
     assert!(u.job_state(JobEvent::JobStarted).is_ok());
     assert_eq!(u.events.iter().filter(|e| **e == JobEvent::JobStarted).count(), 1);
     assert!(u.job_state(JobEvent::JobCompleted).is_ok());
-    let _ = fake.destroy(&id);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The design test 9 of the unit contract (T-053): no call names a
@@ -134,6 +134,8 @@ fn the_socket_of_one_unit_reaches_no_container_of_another() {
         work_root: "/home/runner".into(),
         work_dir: "_work".into(),
     };
+    let ids = ["u-1", "u-2"].map(|n| UnitId::parse(n).unwrap());
+    let _clean = Clean(fake.clone(), ids.to_vec(), dir.clone());
     let mut units = Vec::new();
     for name in ["u-1", "u-2"] {
         let id = UnitId::parse(name).unwrap();
@@ -161,10 +163,6 @@ fn the_socket_of_one_unit_reaches_no_container_of_another() {
     // The containers of A are under the root of A only.
     let root_b = fake.observe(&units[1].0).unwrap().unit_root.unwrap();
     assert!(!root_b.join("containers").exists());
-    for (id, _) in &units {
-        let _ = fake.destroy(id);
-    }
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// T-403: a mount source with a symbolic link in the tree of the unit is
@@ -190,6 +188,7 @@ fn a_linked_mount_source_is_refused() {
         limits: Default::default(),
     })
     .unwrap();
+    let _clean = Clean(fake.clone(), vec![id.clone()], dir.clone());
     let policy = Policy {
         container: ContainerRoute::Hooks,
         shared_host_net: false,
@@ -219,8 +218,6 @@ fn a_linked_mount_source_is_refused() {
         );
         let _ = u.hook(parse(Command::CleanupJob, &call("cleanup_job", json!({}))).unwrap());
     }
-    let _ = fake.destroy(&id);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// #278: a job container that stops at its start fails `prepare_job` with
@@ -245,6 +242,7 @@ fn a_job_container_that_stops_at_its_start_is_named() {
         limits: Default::default(),
     };
     fake.start(&spec).unwrap();
+    let _clean = Clean(fake.clone(), vec![id.clone()], dir.clone());
     let policy = Policy {
         container: ContainerRoute::Hooks,
         shared_host_net: false,
@@ -258,6 +256,85 @@ fn a_job_container_that_stops_at_its_start_is_named() {
     assert!(e.why.contains("it stopped (at its start or later)") && e.why.contains("`tail` and `sh`"), "{e:?}");
     assert!(e.why.contains("job container"), "{e:?}");
     assert!(u.driver_errors.iter().any(|d| d.contains("UnitStartFailed")), "{:?}", u.driver_errors);
-    let _ = fake.destroy(&id);
+}
+
+/// The parent of `pid`, from `/proc/PID/stat`.
+fn parent(pid: u32) -> Option<u32> {
+    let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    stat.rsplit_once(')')?.1.split_whitespace().nth(1)?.parse().ok()
+}
+
+/// T-703: a test of a fake unit that fails leaves no process of the unit
+/// (the payload, a container, their shims), and no such process holds a
+/// descriptor of the test that has no `FD_CLOEXEC`, as the lock of `flock`
+/// that cargo holds. The planted failure is a panic after the start; the
+/// guard `Clean` destroys the unit.
+#[test]
+fn a_failed_test_of_a_fake_unit_leaves_no_process_and_no_descriptor() {
+    use std::os::fd::AsRawFd;
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-planted-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let lock = std::fs::File::create(dir.join("cargo.lock")).unwrap();
+    // SAFETY: fcntl on a descriptor that `lock` owns.
+    assert_eq!(unsafe { libc::fcntl(lock.as_raw_fd(), libc::F_SETFD, 0) }, 0);
+    let target = std::fs::read_link(format!("/proc/self/fd/{}", lock.as_raw_fd())).unwrap();
+    let tag = podrunner_unit::procs::tag_of(&dir.join("fake"), "u-1");
+    let seen = std::sync::Mutex::new((Vec::new(), Vec::new()));
+    // The serve thread of a control socket holds the driver past a panic,
+    // as in `tests_live`: only the guard ends the unit.
+    let held: std::sync::Mutex<Option<Arc<dyn UnitDriver>>> = std::sync::Mutex::new(None);
+    let failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let fake: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir.join("fake"), capability(), "linux/amd64"));
+        let id = UnitId::parse("u-1").unwrap();
+        let image = fake.prepare(IMAGE, "linux/amd64", false).unwrap();
+        let spec = StartSpec {
+            unit: id.clone(),
+            image,
+            argv: vec!["sleep".into(), "30".into()],
+            env: Default::default(),
+            credential: Default::default(),
+            sockets: None,
+            mounts: Vec::new(),
+            limits: Default::default(),
+        };
+        *held.lock().unwrap() = Some(fake.clone());
+        fake.start(&spec).unwrap();
+        let _clean = Clean(fake.clone(), vec![id.clone()], dir.join("fake"));
+        let policy = Policy {
+            container: ContainerRoute::Hooks,
+            shared_host_net: false,
+            registries: vec!["docker.io".into()],
+            work_root: "/home/runner".into(),
+            work_dir: "_work".into(),
+        };
+        let mut u = HookUnit::new(fake.clone(), id, policy, Some(dir.join("runner")), dir.clone());
+        let body = call("prepare_job", json!({ "container": container("", &[], "/__w"), "services": [] }));
+        u.hook(parse(Command::PrepareJob, &body).unwrap()).unwrap();
+        // The payload, the job container and the shim of each.
+        let mut pids = podrunner_unit::shim::tree_of_tagged(&tag);
+        pids.extend(pids.clone().into_iter().filter_map(parent).filter(|p| *p != std::process::id()));
+        let holders: Vec<u32> = pids
+            .iter()
+            .copied()
+            .filter(|p| {
+                std::fs::read_dir(format!("/proc/{p}/fd"))
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .any(|fd| std::fs::read_link(fd.path()).is_ok_and(|t| t == target))
+            })
+            .collect();
+        *seen.lock().unwrap() = (pids, holders);
+        panic!("the planted failure");
+    }));
+    assert!(failed.is_err());
+    let (pids, holders) = seen.into_inner().unwrap();
+    assert!(pids.len() >= 4, "the payload, the container and their shims: {pids:?}");
+    assert!(holders.is_empty(), "these processes of the unit hold the lock: {holders:?}");
+    let left: Vec<u32> = pids.into_iter().filter(|p| podrunner_unit::conformance::alive(*p)).collect();
+    assert!(left.is_empty(), "the unit left {left:?}");
+    drop(held);
+    drop(lock);
     let _ = std::fs::remove_dir_all(&dir);
 }
