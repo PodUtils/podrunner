@@ -938,7 +938,7 @@
           ]
         },
         "mem": {
-          "description": "`microvm`: the most memory of each guest (`--podvm-mem`, default\n`8G`) and its vCPUs (default 2). The image is an uncompressed\ninitramfs: podvm needs 13/4 times the image plus 512 MiB, and `check`\nrefuses a pin whose `unpacked_bytes` is over `(mem - 512 MiB) × 4 /\n13` (T-573). An offer lowers the memory, not below the boot floor and\nthe image: the `memory` of the offer is beyond the image (T-655).\n`podvm`: the memory of each unit (`RLIMIT_AS`);\n`incus`: the memory and the CPUs of each instance (T-162).",
+          "description": "`microvm`: the most memory of each guest (`--podvm-mem`, default\n`8G`) and its vCPUs (default 2). The image is an uncompressed\ninitramfs: podvm needs 13/4 times the image plus 512 MiB, and `check`\nrefuses a pin whose `unpacked_bytes` is over `(mem - 512 MiB) × 4 /\n13` (T-573). An offer lowers the memory, not below the boot floor,\nthe image, and the 2 GiB of root that a job keeps (T-699): the\n`memory` of the offer is beyond the image (T-655).\n`podvm`: the memory of each unit (`RLIMIT_AS`);\n`incus`: the memory and the CPUs of each instance (T-162).",
           "type": [
             "string",
             "null"
