@@ -70,4 +70,19 @@ mod tests {
         assert_eq!(over(None, 1000), Some(("r@sha256:00".into(), 2000)));
         assert_eq!(over(Some(UnitInit::Image), 5000), Some(("h@sha256:00".into(), 9000)));
     }
+
+    /// T-655: the size of each pinned digest of this architecture; a pin
+    /// with no `unpacked_bytes` or of another architecture has none.
+    #[test]
+    fn the_sizes_are_those_of_the_pins_of_this_architecture() {
+        let arch = std::env::consts::ARCH;
+        let (h01, h02, h03) = ("1".repeat(64), "2".repeat(64), "3".repeat(64));
+        let pins: Pins = toml::from_str(&format!(
+            "[[payload]]\narch = \"{arch}\"\nreference = \"r@sha256:{h01}\"\nbuilt_at_s = 1\nunpacked_bytes = 2000\n\
+             [[payload]]\narch = \"{arch}\"\nreference = \"s@sha256:{h02}\"\nbuilt_at_s = 1\n\
+             [[payload]]\narch = \"other\"\nreference = \"t@sha256:{h03}\"\nbuilt_at_s = 1\nunpacked_bytes = 9\n"
+        ))
+        .unwrap();
+        assert_eq!(super::sizes(&pins), [(format!("sha256:{h01}"), 2000)].into());
+    }
 }

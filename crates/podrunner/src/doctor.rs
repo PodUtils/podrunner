@@ -151,7 +151,9 @@ fn capability_at(
             crate::tiers::kvm()?;
             let state = std::env::temp_dir().join("podrunner-doctor");
             // The probe reads no size of an image.
-            crate::microvm_kind::build(u, &state, engines.clone(), Default::default()).map(|(_, cap)| cap).map_err(|f| f.detail)
+            crate::microvm_kind::build(u, &state, engines.clone(), Default::default())
+                .map(|(_, cap)| cap)
+                .map_err(|f| f.detail)
         }
         "incus" => {
             let state = std::env::temp_dir().join("podrunner-doctor");

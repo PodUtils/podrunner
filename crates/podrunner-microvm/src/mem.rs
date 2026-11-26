@@ -46,7 +46,7 @@ pub fn guest_mem(kind: &str, lesser: Option<u64>, size: Option<u64>) -> String {
     // With no size of the image, its boot floor is not known: the `mem` of
     // the kind is the one value that `check` holds the pins against.
     let Some(size) = size else { return kind.into() };
-    let floor = mem_for(size).div_ceil(FLOOR_STEP).checked_mul(FLOOR_STEP).unwrap_or(u64::MAX);
+    let floor = mem_for(size).div_ceil(FLOOR_STEP).saturating_mul(FLOOR_STEP);
     let mib = want.max(floor).div_ceil(MIB);
     match mib.checked_mul(MIB) {
         Some(bytes) if bytes < kind_bytes => format!("{mib}M"),
