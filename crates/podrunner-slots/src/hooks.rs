@@ -32,6 +32,18 @@ pub struct ContainerCa<'a> {
     pub vars: &'a [String],
 }
 
+/// The cache of the job of a unit, for each container of the job (T-651).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ContainerCache<'a> {
+    /// The directory of the cache on the host.
+    pub dir: &'a Path,
+    /// Where the unit sees it.
+    pub target: &'a str,
+    pub read_only: bool,
+    /// The variables of the cache in the unit.
+    pub env: &'a BTreeMap<String, String>,
+}
+
 /// The control sockets of the units of a host.
 pub trait HookPort: Send {
     /// Serve the socket of `unit` (a unit of kind `kind`) at `socket`, before
@@ -50,6 +62,8 @@ pub trait HookPort: Send {
         ca: Option<ContainerCa<'_>>,
     ) -> Result<BTreeMap<String, String>, String>;
     fn close(&self, unit: &UnitId);
+    /// Give each container of the job of `unit` the cache of the job.
+    fn cache(&self, _unit: &UnitId, _cache: ContainerCache<'_>) {}
     /// The refusals and the job hooks of `unit` since the last call.
     fn take(&self, unit: &UnitId) -> (Vec<RefusalCode>, Vec<HookEvent>);
     /// The digests of the images that the containers of `unit` started
@@ -81,6 +95,27 @@ impl Slots {
             return Ok(BTreeMap::new());
         }
         h.open(&k.name, k.driver.clone(), unit, &dir.join(crate::run::CONTROL_SOCKET), guest, ca)
+    }
+
+    /// Give the hooks of the unit the cache of its job, when its kind has
+    /// the container route: `mounts` from `cache_start`, `env` its
+    /// variables.
+    pub(crate) fn cache_hooks(
+        &self,
+        kind: usize,
+        unit: &UnitId,
+        mounts: &[(std::path::PathBuf, String)],
+        env: &BTreeMap<String, String>,
+    ) {
+        let (Some(h), Some((dir, target))) = (&self.hooks, mounts.first()) else { return };
+        if self.kinds[kind].capability.container != ContainerRoute::Hooks {
+            return;
+        }
+        let (target, read_only) = match target.strip_suffix(":ro") {
+            Some(t) => (t, true),
+            None => (target.as_str(), false),
+        };
+        h.cache(unit, ContainerCache { dir, target, read_only, env });
     }
 
     pub(crate) fn close_hooks(&self, unit: &UnitId) {

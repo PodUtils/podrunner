@@ -33,6 +33,19 @@ pub struct UnitCa {
     pub vars: Vec<String>,
 }
 
+/// The cache of the job of a unit (T-651): each container of the job sees
+/// it where the unit sees it, with the same mode and variables.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnitCache {
+    /// The directory of the cache on the host.
+    pub dir: PathBuf,
+    /// Where the unit and each container see it.
+    pub target: String,
+    pub read_only: bool,
+    /// The variables of the cache in the unit.
+    pub env: std::collections::BTreeMap<String, String>,
+}
+
 /// The hooks of one unit.
 pub struct HookUnit {
     driver: Arc<dyn UnitDriver>,
@@ -48,6 +61,8 @@ pub struct HookUnit {
     /// The CA bundle of the broker, when the broker ends the TLS of the
     /// job.
     ca: Option<UnitCa>,
+    /// The cache of the job, when it has one.
+    cache: Option<UnitCache>,
     job: Option<ContainerId>,
     services: Vec<ContainerId>,
     steps: u64,
@@ -80,6 +95,7 @@ impl HookUnit {
             logs,
             gate,
             ca: None,
+            cache: None,
             job: None,
             services: vec![],
             steps: 0,
@@ -88,6 +104,12 @@ impl HookUnit {
             driver_errors: vec![],
             images: vec![],
         }
+    }
+
+    /// Give each container of the job the cache of the job (T-651). The
+    /// slots decide it after the socket opens, before the unit starts.
+    pub fn set_cache(&mut self, cache: Option<UnitCache>) {
+        self.cache = cache;
     }
 
     /// Give each container of the job the CA bundle `ca` of the broker of
@@ -140,6 +162,15 @@ impl HookUnit {
             let path = format!("{CA_DIR}/{}", ca.file);
             for v in &ca.vars {
                 env.entry(v.clone()).or_insert_with(|| path.clone());
+            }
+        }
+        // The host made the cache and checked it: no walk for a link. The
+        // mode of the unit holds in each container; a value of the job
+        // keeps its priority.
+        if let Some(c) = &self.cache {
+            mounts.push(ContainerMount { source: c.dir.clone(), target: c.target.clone(), read_only: c.read_only });
+            for (k, v) in &c.env {
+                env.entry(k.clone()).or_insert_with(|| v.clone());
             }
         }
         Ok(ContainerSpec {

@@ -22,6 +22,8 @@ struct Seen {
     closed: Arc<Mutex<Vec<String>>>,
     queued: Queued,
     images: Arc<Mutex<Vec<String>>>,
+    /// Each cache that a unit gave its containers (T-651).
+    caches: Arc<Mutex<Vec<String>>>,
     /// The next calls of `take` that give nothing (a read before the event
     /// arrives).
     hold: Arc<std::sync::atomic::AtomicUsize>,
@@ -52,6 +54,11 @@ impl HookPort for Seen {
     }
     fn images(&self, _unit: &UnitId) -> Vec<String> {
         std::mem::take(&mut self.images.lock().unwrap())
+    }
+    fn cache(&self, unit: &UnitId, c: crate::hooks::ContainerCache<'_>) {
+        let env: Vec<String> = c.env.iter().map(|(k, v)| format!("{k}={v}")).collect();
+        let line = format!("{unit} {} {} {} {}", c.dir.display(), c.target, c.read_only, env.join(","));
+        self.caches.lock().unwrap().push(line);
     }
 }
 
@@ -175,4 +182,38 @@ fn a_job_completed_event_of_a_unit_that_ended_is_not_lost() {
     let done = b.slots.audit_lines().iter().filter(|l| l.audit == audit::Kind::JobCompleted).count();
     assert_eq!(done, 1, "{:?}", b.slots.audit_lines());
     assert!(seen.queued.lock().unwrap().is_empty(), "the event was read");
+}
+
+/// T-651: a unit of a kind with the container hooks gives the cache of its
+/// job to the hooks, with its mode and variables; a kind with no hooks
+/// gives none.
+#[test]
+fn the_cache_of_a_job_goes_to_the_hooks_of_its_unit() {
+    for route in [ContainerRoute::Hooks, ContainerRoute::None] {
+        let dir = TempDir::new();
+        let cache = dir.0.join("cache");
+        let cfg = config(&format!("[cache]\ndir = \"{}\"\nenv = {{ npm_config_cache = \"npm\" }}", cache.display()));
+        let mut cap = capability(Boundary::Confined, Principal::Distinct, EgressHold::Enforced);
+        cap.container = route;
+        let offer = offer(0, "j-1", json!({ "trust_inputs": { "run_id": 1 } }));
+        let mut b = Bed::new(
+            cfg,
+            vec![("a", "trusted", None, vec![offer])],
+            vec![KindSpec { name: "fake", slots: 1, capability: cap, command: sh("sleep 1") }],
+        );
+        let seen = Seen::default();
+        b.slots.set_hooks(Box::new(seen.clone()));
+        b.until(10, |s| s.jobs().any(|j| j.state == State::Started));
+        let caches = seen.caches.lock().unwrap().clone();
+        if route == ContainerRoute::None {
+            assert!(caches.is_empty(), "{caches:?}");
+            continue;
+        }
+        assert_eq!(caches.len(), 1, "{caches:?}");
+        let c = &caches[0];
+        assert!(c.contains(&format!("{}", cache.display())) && c.contains(" /podrunner-cache false "), "{c}");
+        assert!(c.contains("PODRUNNER_CACHE=/podrunner-cache") && c.contains("PODRUNNER_CACHE_MODE=rw"), "{c}");
+        assert!(c.contains("npm_config_cache=/podrunner-cache/npm"), "{c}");
+        assert!(!c.contains("PODRUNNER_CTL"), "only the variables of the cache: {c}");
+    }
 }

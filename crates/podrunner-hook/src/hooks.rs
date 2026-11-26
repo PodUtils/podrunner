@@ -11,7 +11,7 @@ use podrunner_unit::{UnitDriver, UnitId};
 
 use crate::policy::Policy;
 use crate::server::{JobEvent, Unit, bind, serve_until};
-use crate::unit::{HookUnit, UnitCa};
+use crate::unit::{HookUnit, UnitCa, UnitCache};
 
 /// The CA bundle of the broker of a unit, for each container of its job
 /// (T-578).
@@ -106,6 +106,14 @@ impl Hooks {
             eprintln!("podrunner: {unit}: a hook call was refused: the driver: {e}");
         }
         (std::mem::take(&mut u.refusals), std::mem::take(&mut u.events))
+    }
+
+    /// Give each container of the job of `unit` its cache (T-651).
+    pub fn set_cache(&self, unit: &UnitId, cache: Option<UnitCache>) {
+        let open = self.open.lock().expect("the sockets");
+        if let Some(o) = open.get(unit.as_str()) {
+            o.unit.lock().expect("the hook unit").set_cache(cache);
+        }
     }
 
     /// The digests of the images that the containers of `unit` started

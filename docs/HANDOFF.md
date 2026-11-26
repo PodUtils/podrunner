@@ -29,7 +29,8 @@ In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 2. Verify the podcrates and podnet takes in hosted CI (T-675, T-677).
 3. Prove T-682 in the runner-image run (`tests/podvm.rs`): the hook now
    ends the runner worker on a refused assignment, so no `always()` step
-   runs. Then T-651. Take the remaining cache work in T-480.
+   runs. T-651 gives the cache to the containers of a job. Take the
+   remaining cache work in T-480.
 
 ## The release `v0.1.0-beta.8`
 
@@ -159,6 +160,9 @@ its entries is not done: `TODO/issues.md` has the other open issues.
   did not record. A change of only `TODO/` after a recorded tree needs
   `cargo todo check`. A change of Markdown needs a full run: tests compile
   `docs/cli.md` and `docs/contracts/`.
+- On 2026-11-26 the account of the cloud session had Actions disabled:
+  its pushes started no workflow, and GitHub MCP refused each dispatch
+  (Actions disabled for this user). #361 asked for the runs.
 - Try direct workflow dispatch before you use a `[gh action] requested`
   issue. Follow [A run of a workflow](maintenance.md#a-run-of-a-workflow).
   A push that changes a crate of the units or `images/` starts `runner-image.yml`

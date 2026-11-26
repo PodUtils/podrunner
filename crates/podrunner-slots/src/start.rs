@@ -234,8 +234,13 @@ impl Slots {
             .as_ref()
             .map(|o| podrunner_unit::limits::Limits::of_offer(&o.limits))
             .unwrap_or_default();
-        // The cache of the job, kept apart by trust (T-480).
+        // The cache of the job, kept apart by trust (T-480), and in each
+        // container of the job through the hooks (T-651).
+        let before = env.clone();
         let mounts = self.cache_start(key, &mut env);
+        let cache_env: BTreeMap<String, String> =
+            env.iter().filter(|(k, v)| before.get(*k) != Some(*v)).map(|(k, v)| (k.clone(), v.clone())).collect();
+        self.cache_hooks(p.kind, &unit, &mounts, &cache_env);
         // The take of a warm unit (T-487): after each check that can fail;
         // from here each failure destroys it with the job (P2-3).
         let warm = self.take_warm(key, now);

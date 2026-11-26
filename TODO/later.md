@@ -16624,7 +16624,7 @@ Read on 2026-11-25: the page "Dependency caching" of the documents of GitHub Act
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16641,6 +16641,25 @@ The hooks add the cache of the unit to each container of the job, as they add th
 ## Prove
 
 `cargo test -p podrunner-slots tests::hooks` with a cache, and a `container:` job of the parity suite with a cache.
+
+## Done
+
+2026-11-26, the commit that names T-651 after `8f672c9` (tests on a
+development host; no live run). `HookPort::cache` (a default with no
+effect) gives the hooks of a unit the cache of its job after
+`cache_start`: the host directory, the path in the unit, the mode and
+the variables of the cache only. `podrunner-hook` keeps it in
+`HookUnit::set_cache` and adds to each container of the job a mount of
+the directory at that path, read-only for `ro`, and each variable that
+the job does not set. A container starts only after the job-started
+hook keeps the job, and a refused job ends its worker there (T-682), so
+no container of a refused job sees the cache. Tests:
+`the_cache_of_a_job_goes_to_the_hooks_of_its_unit` (slots; a kind with
+no hooks gives none; it fails with the call removed) and
+`a_container_of_a_job_with_a_cache_gets_its_mount_and_variables`
+(`podrunner-hook`; `ro` and `rw`, a value of the job keeps its
+priority). Left: a `container:` job of the parity suite with a cache on
+a podvm unit (`runner-image.yml`), under T-480.
 
 # T-652: The disk check of a unit walks its root in the tick
 

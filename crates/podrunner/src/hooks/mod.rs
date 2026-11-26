@@ -49,6 +49,16 @@ impl podrunner_slots::hooks::HookPort for HooksOf {
         self.hooks.close(unit);
     }
 
+    fn cache(&self, unit: &podrunner_schema::UnitId, c: podrunner_slots::hooks::ContainerCache<'_>) {
+        let cache = podrunner_hook::unit::UnitCache {
+            dir: c.dir.to_path_buf(),
+            target: c.target.into(),
+            read_only: c.read_only,
+            env: c.env.clone(),
+        };
+        self.hooks.set_cache(unit, Some(cache));
+    }
+
     fn take(
         &self,
         unit: &podrunner_schema::UnitId,

@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `podrunner.toml` `[cache]` | On a kind with the container hooks, each container of a job with a cache sees the cache at its path, with its mode and its variables. | T-651 |
 | source wire, runner image | On `end` or no answer, the job-started hook ends the runner worker, so no later step runs, also no step of `if: always()`. The job log on the forge loses the annotation of the code; the report of the unit keeps it. | T-682 |
 | command line | `doctor --json` gives each kind a `warnings` list. With an engine on the incus kind, an incusd before 6.0.6 and 6.19 gives a warning: its AppArmor profile refuses runc 1.3.3 and later. `doctor`, `serve` and `run` print it. | T-683 |
 | pins, command line | Podcrates `v0.85.0` updates the release verifier and fake sources. `install-unit` and `remove-unit` show the failed step and its I/O cause. | T-675 |

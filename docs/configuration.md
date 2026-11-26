@@ -411,8 +411,10 @@ the HTTP status of its request.
 
 The `podvm` kind on a rung with volumes and the `fake` kind mount the
 cache. The `microvm` and `incus` kinds mount no host directory: their
-jobs get no cache (T-648). The steps of a `container:` job do not see it
-(T-651).
+jobs get no cache (T-648). On a kind with the container hooks, each
+container of the job (`container:`, `services:`, a Docker step) sees the
+cache at the same path, with the same mode and the same variables; a
+variable of the job keeps its value (T-651).
 
 On the host, each cache is `DIR/ID/data`; the file `DIR/ID/scope` names
 its source, forge, owner, repository, the id of the repository (when the

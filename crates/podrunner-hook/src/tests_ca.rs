@@ -14,7 +14,7 @@ use crate::hooks::{Bundle, Hooks};
 use crate::input::{Command, parse};
 use crate::policy::Policy;
 use crate::server::Unit;
-use crate::unit::{CA_DIR, HookUnit, UnitCa};
+use crate::unit::{CA_DIR, HookUnit, UnitCa, UnitCache};
 
 /// The name of the bundle among the credential files of a unit.
 const CA_FILE: &str = "podrunner-broker-ca.pem";
@@ -219,6 +219,46 @@ fn a_socket_that_does_not_bind_leaves_no_copy_of_the_bundle() {
     assert!(hooks.open(fake.clone(), &id, policy(), &socket, &logs, Some(bundle(CA_FILE, &vars))).is_err());
     assert!(!logs.join("ca").exists(), "the copy stays after a failed bind");
     assert!(!logs.exists(), "the empty logs directory stays");
+    let _ = fake.destroy(&id);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// T-651: each container of a job with a cache sees the cache of the unit
+/// at the same path, with the mode of the unit and its variables; a value
+/// of the job keeps its priority.
+#[test]
+fn a_container_of_a_job_with_a_cache_gets_its_mount_and_variables() {
+    let dir = std::env::temp_dir().join(format!("podrunner-hook-cache-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("cache")).unwrap();
+    let (fake, id) = started(&dir);
+    let mut u = HookUnit::new(fake.clone(), id.clone(), policy(), Some(dir.join("runner")), dir.clone());
+    let print = |env: Value| {
+        let mut c = container(env);
+        c["entryPointArgs"] = json!(["-c", r#"echo "[${PODRUNNER_CACHE-}] [${npm_config_cache-}]""#]);
+        c
+    };
+    let run = |u: &mut HookUnit, env: Value| {
+        let out = u.hook(parse(Command::RunContainerStep, &call("run_container_step", print(env))).unwrap()).unwrap();
+        String::from_utf8(out.output).unwrap()
+    };
+    // No cache: no mount and no variable.
+    assert_eq!(run(&mut u, json!({})), "[] []\n");
+    assert!(!record(&fake, &id, "c-0").contains("/podrunner-cache"));
+    for (n, read_only) in [(1, true), (2, false)] {
+        let env = std::collections::BTreeMap::from([
+            ("PODRUNNER_CACHE".to_string(), "/podrunner-cache".to_string()),
+            ("npm_config_cache".to_string(), "/podrunner-cache/npm".to_string()),
+        ]);
+        u.set_cache(Some(UnitCache { dir: dir.join("cache"), target: "/podrunner-cache".into(), read_only, env }));
+        let out = run(&mut u, json!({ "npm_config_cache": "/job/npm" }));
+        // The fake maps the target to its source, as for the bundle.
+        let host = dir.join("cache").display().to_string();
+        assert_eq!(out, format!("[{host}] [/job/npm]\n"), "a value of the job keeps its priority");
+        let spec = record(&fake, &id, &format!("c-{n}"));
+        let mode = if read_only { "ro" } else { "rw" };
+        assert!(spec.contains(&format!("mount {} /podrunner-cache {mode}\n", dir.join("cache").display())), "{spec}");
+    }
     let _ = fake.destroy(&id);
     let _ = std::fs::remove_dir_all(&dir);
 }
