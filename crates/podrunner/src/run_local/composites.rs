@@ -19,7 +19,10 @@ pub(super) fn local_uses(w: &pod_actions_workflow::Workflow, base: &Path) -> Res
     for (_, s) in local_steps(w, base)? {
         let Some(Kind::String(u)) = s.get("uses").map(|n| &n.kind) else { continue };
         // The broker resolves `actions/checkout` to its stand-in (T-708).
-        if !u.starts_with("./") && !u.starts_with("docker://") && !u.starts_with("actions/checkout@") && !out.contains(u)
+        if !u.starts_with("./")
+            && !u.starts_with("docker://")
+            && !u.starts_with("actions/checkout@")
+            && !out.contains(u)
         {
             out.push(u.clone());
         }
@@ -52,7 +55,9 @@ pub(super) fn local_trees(
     self_repo: &str,
 ) -> Result<Vec<String>, String> {
     let all = local_checkouts(w, base)?.into_iter();
-    Ok(all.filter_map(|(_, _, with)| podrunner_local::store::checkout_target(with.as_ref(), self_repo).ok().flatten()).collect())
+    Ok(all
+        .filter_map(|(_, _, with)| podrunner_local::store::checkout_target(with.as_ref(), self_repo).ok().flatten())
+        .collect())
 }
 
 /// Each step of each local composite action that the steps of `w` name,

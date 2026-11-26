@@ -107,7 +107,10 @@ fn pinned(key: &str, pins: &BTreeMap<String, String>) -> (u16, Vec<u8>) {
         (k, sha) if commit_id(sha) => {
             let repo = k.split_once('@').map_or("", |(r, _)| r);
             let name = |p: &str| {
-                !p.is_empty() && p != "." && p != ".." && p.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+                !p.is_empty()
+                    && p != "."
+                    && p != ".."
+                    && p.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
             };
             if repo.split('/').count() != 2 || !repo.split('/').all(name) {
                 return none;
@@ -166,7 +169,9 @@ pub fn route(
             }
             None => Some((404, Vec::new())),
         },
-        ("GET", p) if p.strip_prefix('/').is_some_and(|p| p.starts_with(PIN)) => Some(pinned(&p[PIN.len() + 1..], pins)),
+        ("GET", p) if p.strip_prefix('/').is_some_and(|p| p.starts_with(PIN)) => {
+            Some(pinned(&p[PIN.len() + 1..], pins))
+        }
         ("GET", p) if p.starts_with("/_checkout/") => {
             let commit = p.strip_prefix("/_checkout/").and_then(|r| r.strip_suffix(".tar.gz")).filter(|c| commit_id(c));
             let file = commit.zip(tree.and_then(Path::parent)).map(|(c, d)| d.join(checkout_file(c)));
