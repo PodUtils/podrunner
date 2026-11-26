@@ -49,6 +49,10 @@ UNPACKED_image_x86_64=""
 UNPACKED_image_aarch64=""
 UNPACKED_imagefull_x86_64=""
 UNPACKED_imagefull_aarch64=""
+BUILT_image_x86_64=""
+BUILT_image_aarch64=""
+BUILT_imagefull_x86_64=""
+BUILT_imagefull_aarch64=""
 # END PINS
 
 usage() {
@@ -81,6 +85,14 @@ die() {
     exit 1
 }
 have() { command -v "$1" > /dev/null 2>&1; }
+# q STRING: STRING as one word that a shell reads back as it is (a path
+# with a space, a quote or a $ gets single quotes).
+q() {
+    case $1 in
+        '' | *[!A-Za-z0-9_./:=@%+,-]*) printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")" ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
 
 prefix="" full=0 bundle="" serve=0
 while [ $# -gt 0 ]; do
@@ -243,17 +255,73 @@ url_of() {
     esac
 }
 
+# fetch URL DEST: the file at URL. On a failure it sets fetch_rc (the exit
+# code of the program) and fetch_code (the HTTP status of curl, or empty);
+# why_failed turns them into a cause and a fix.
+fetch_rc=0 fetch_code="" fetch_tool=""
 fetch() {
+    fetch_rc=0 fetch_code="" fetch_tool=""
     case $1 in
-        file://*) cp "${1#file://}" "$2" ;;
+        file://*) cp "${1#file://}" "$2" || { fetch_rc=$?; fetch_code="file"; return 1; } ;;
         *)
             if have curl; then
-                curl -qfsSL --retry 3 --proto '=https,http' -o "$2" "$1"
+                fetch_tool=curl
+                fetch_code=$(curl -qfsSL --retry 3 --proto '=https,http' -w '%{http_code}' -o "$2" "$1") || fetch_rc=$?
+                [ "$fetch_rc" -ne 0 ] || fetch_code=""
             else
-                wget -q -O "$2" "$1"
+                fetch_tool=wget
+                wget -q -O "$2" "$1" || fetch_rc=$?
             fi
+            [ "$fetch_rc" -eq 0 ] || return 1
             ;;
     esac
+}
+# why_failed URL: the cause of the last failed fetch, and what to change.
+# The value of a proxy variable can hold a password: it is never printed.
+why_failed() {
+    host=${1#*://}
+    host=${host%%/*}
+    proxy=""
+    if [ -n "${https_proxy:-}${HTTPS_PROXY:-}${http_proxy:-}${HTTP_PROXY:-}${all_proxy:-}${ALL_PROXY:-}" ]; then
+        proxy="a proxy is set in the environment"
+    fi
+    case $fetch_code in
+        file) printf '%s' "no such file: PODRUNNER_MIRROR=file://DIR must hold the file (the directory must exist and be readable)"; return ;;
+        404) printf '%s' "not found (HTTP 404): that release or file does not exist; check the version of the installer or PODRUNNER_MIRROR"; return ;;
+        401 | 403 | 407 | 405 | 502 | 503)
+            if [ -n "$proxy" ]; then
+                printf '%s' "refused (HTTP $fetch_code); $proxy: the proxy may refuse $host; put $host in NO_PROXY if it needs no proxy (for a mirror on the loopback: NO_PROXY=127.0.0.1), or ask for it to be allowed"
+            else
+                printf '%s' "refused (HTTP $fetch_code) by the server"
+            fi
+            return ;;
+        [45][0-9][0-9]) printf '%s' "the server answered HTTP $fetch_code"; return ;;
+    esac
+    if [ "$fetch_tool" = wget ]; then
+        case $fetch_rc in
+            4) printf '%s' "the network failed (wget exit 4): cannot reach $host; check the URL, PODRUNNER_MIRROR and the proxy variables${proxy:+ ($proxy)}" ;;
+            5) printf '%s' "the TLS check failed (wget exit 5): the CA file is missing or does not name the signer of $host; set SSL_CERT_FILE to an existing CA file (the one of your proxy, if one inspects TLS)" ;;
+            8) printf '%s' "the server refused the file or has none (wget exit 8): check the version of the installer or PODRUNNER_MIRROR${proxy:+; $proxy: put $host in NO_PROXY if it needs no proxy}" ;;
+            *) printf '%s' "wget exited with $fetch_rc${proxy:+ ($proxy)}" ;;
+        esac
+        return
+    fi
+    case $fetch_rc in
+        5 | 6) printf '%s' "cannot find the host $host (curl exit $fetch_rc): check the name, the network and the proxy variables (HTTPS_PROXY, NO_PROXY)" ;;
+        7) printf '%s' "cannot connect to $host (curl exit 7): nothing listens there, or the network or the proxy refuses it; check the URL or PODRUNNER_MIRROR${proxy:+, and the proxy variables ($proxy)}" ;;
+        28) printf '%s' "timed out (curl exit 28): $host or the proxy did not answer" ;;
+        35 | 51 | 53 | 54 | 58 | 59 | 60 | 66 | 77 | 82 | 83 | 90 | 91)
+            printf '%s' "the TLS check failed (curl exit $fetch_rc): the CA file is missing or does not name the signer of $host; set CURL_CA_BUNDLE or SSL_CERT_FILE to an existing CA file (the one of your proxy, if one inspects TLS)" ;;
+        56) printf '%s' "the connection broke (curl exit 56)${proxy:+ with $proxy: the proxy may refuse $host; put it in NO_PROXY if it needs no proxy}" ;;
+        *) printf '%s' "the program exited with $fetch_rc${proxy:+ ($proxy)}" ;;
+    esac
+}
+# fetch_or_die NAME URL DEST: fetch, or die with the cause and the fix.
+fetch_or_die() {
+    fetch "$2" "$3" || {
+        rm -f "$3"
+        die "$1: the download from $2 failed: $(why_failed "$2")"
+    }
 }
 
 # The signed list of the release (T-523): SHA256SUMS and release-index.json
@@ -269,13 +337,13 @@ release_sums() {
     mkdir -p "$rel" || die "cannot make $rel"
     for f in SHA256SUMS release-index.json; do
         fetch "$(url_of podrunner "$f")" "$rel/$f" ||
-            die "$f: the download from $(url_of podrunner "$f") failed: the installer takes no file of a release with no $f"
+            die "$f: the download from $(url_of podrunner "$f") failed: $(why_failed "$(url_of podrunner "$f")"); the installer takes no file of a release with no $f"
     done
     tag=v$PODRUNNER_VERSION
     identity=https://github.com/PodUtils/podrunner/.github/workflows/release.yml@refs/tags/$tag
     if have pod-release || have cosign; then
         fetch "$(url_of podrunner SHA256SUMS.sigstore.json)" "$rel/SHA256SUMS.sigstore.json" ||
-            die "SHA256SUMS.sigstore.json: the download from $(url_of podrunner SHA256SUMS.sigstore.json) failed"
+            die "SHA256SUMS.sigstore.json: the download from $(url_of podrunner SHA256SUMS.sigstore.json) failed: $(why_failed "$(url_of podrunner SHA256SUMS.sigstore.json)")"
     fi
     if have pod-release; then
         pod-release verify --repo PodUtils/podrunner --tag "$tag" "$rel" >&2 ||
@@ -327,10 +395,7 @@ get() {
     else
         case $1 in podrunner | manpage | image | imagefull) release_sums ;; esac
         say "fetch   $2"
-        fetch "$(url_of "$1" "$2")" "$part" || {
-            rm -f "$part"
-            die "$2: the download from $(url_of "$1" "$2") failed"
-        }
+        fetch_or_die "$2" "$(url_of "$1" "$2")" "$part"
     fi
     have_sum=$(sha256_of "$part")
     if [ "$have_sum" != "$want" ]; then
@@ -427,10 +492,10 @@ load_image() { # KIND NAME
 }
 if [ "$full" = 1 ]; then
     load_image imagefull "runner-full-$arch.tar"
-    image=$(pin DIGEST_imagefull) image_bytes=$(pin UNPACKED_imagefull)
+    image=$(pin DIGEST_imagefull) image_bytes=$(pin UNPACKED_imagefull) image_built=$(pin BUILT_imagefull)
 else
     load_image image "runner-$arch.tar"
-    image=$(pin DIGEST_image) image_bytes=$(pin UNPACKED_image)
+    image=$(pin DIGEST_image) image_bytes=$(pin UNPACKED_image) image_built=$(pin BUILT_image)
 fi
 rm -rf "$runtmp/bundle" "$rel"
 
@@ -438,16 +503,22 @@ rm -rf "$runtmp/bundle" "$rel"
 # serve.json and runs `podrunner config init`; no file of the local mode.
 if [ "$serve" = 1 ]; then
     # The unpacked size of the image (T-572): `check` refuses a pin above
-    # the bound of a kind. A release before it has none.
-    printf '{"schema": 1, "podrunner": "%s", "podvm": "%s", "podnet": "%s", "images": "%s", "image": "runner@%s", "runner_version": "%s", "unpacked_bytes": %s}\n' \
-        "$bin/podrunner" "$podvm" "$data/bin/podnet" "$store" "$image" "$RUNNER_VERSION" "${image_bytes:-null}" > "$data/serve.json.new"
+    # the bound of a kind, and built_at_s is the time of the build of the
+    # image (the age of the pin). A release before each has none.
+    printf '{"schema": 1, "podrunner": "%s", "podvm": "%s", "podnet": "%s", "images": "%s", "image": "runner@%s", "runner_version": "%s", "unpacked_bytes": %s, "built_at_s": %s}\n' \
+        "$bin/podrunner" "$podvm" "$data/bin/podnet" "$store" "$image" "$RUNNER_VERSION" "${image_bytes:-null}" "${image_built:-null}" > "$data/serve.json.new"
     mv -f "$data/serve.json.new" "$data/serve.json"
     say "ok      $data/serve.json"
     say "the checks of podrunner doctor:"
     "$bin/podrunner" doctor 2>&1 | grep -v '^missing: --config' | sed 's/^/    /' || true
     [ "$got" -eq 0 ] && say "nothing was downloaded: each file was present and correct"
     size=${image_bytes:+ --unpacked-bytes $image_bytes}
-    say "next: $bin/podrunner config init --source NAME --program PATH --podvm $podvm --images $store --image runner@$image --built-at-s N$size --out FILE (N: built_at_s of podrunner-manifest.json)"
+    if [ -n "$image_built" ]; then
+        built="--built-at-s $image_built" note="(--built-at-s is built_at_s of the image, also in $(q "$data/serve.json"))"
+    else
+        built="--built-at-s N" note="(N: built_at_s of the image in podrunner-manifest.json, a release asset of the release before this installer)"
+    fi
+    say "next: $(q "$bin/podrunner") config init --source NAME --program PATH --podvm $(q "$podvm") --images $(q "$store") --image runner@$image $built$size --out FILE $note"
     exit 0
 fi
 
@@ -502,5 +573,7 @@ case ":$PATH:" in
     *":$bin:"*) run=podrunner ;;
     *) run="$bin/podrunner"; say "$bin is not in PATH: add it, or use the full path" ;;
 esac
-say "a first run:  $run run $data/hello.yml"
+# A line that a shell can run as printed, also with a space in a path.
+run=$(q "$run")
+say "a first run:  $run run $(q "$data/hello.yml")"
 say "next, in the tree of your project:  $run run .github/workflows/ci.yml --checkout ."

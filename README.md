@@ -28,6 +28,8 @@ cd YOUR-PROJECT && podrunner run .github/workflows/ci.yml --checkout .
 The installer checks each file against the SHA-256 that it pins. For a
 host with no network, the release attaches one offline bundle for each
 architecture.
+To remove podrunner, see "Remove podrunner" in `docs/install.md`: it lists each
+path that podrunner and podvm write, and the commands.
 
 ## Build
 

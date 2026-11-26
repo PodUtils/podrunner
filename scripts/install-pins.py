@@ -6,8 +6,8 @@ The block comes from images/podvm.toml, images/podnet.toml and
 images/runner/runner.toml. A release adds its own version, the SHA-256 of
 each podrunner binary and of each runner image archive, the SHA-256 of the
 man page podrunner.1 (T-692; empty when the assets have none), the manifest
-digest of each image (from index.json in the archive) and its unpacked
-size (from its layers).
+digest of each image (from index.json in the archive), its unpacked size
+(from its layers) and the time of its build (`created` of its config).
 
   install-pins.py --check FILE
       exit 1 when the block of FILE is not the block of the tree (no
@@ -90,8 +90,8 @@ def values(images: pathlib.Path, assets: pathlib.Path | None) -> tuple[dict, dic
         v["manpage"] = sha256(assets / "podrunner.1")
     for a in ARCHES:
         v[f"podrunner_{a}"] = ""
-        v[f"image_{a}"] = v[f"image_digest_{a}"] = v[f"image_unpacked_{a}"] = ""
-        v[f"imagefull_{a}"] = v[f"imagefull_digest_{a}"] = v[f"imagefull_unpacked_{a}"] = ""
+        v[f"image_{a}"] = v[f"image_digest_{a}"] = v[f"image_unpacked_{a}"] = v[f"image_built_{a}"] = ""
+        v[f"imagefull_{a}"] = v[f"imagefull_digest_{a}"] = v[f"imagefull_unpacked_{a}"] = v[f"imagefull_built_{a}"] = ""
         if assets is None:
             continue
         exe = assets / f"podrunner-{a}-unknown-linux-musl"
@@ -102,10 +102,12 @@ def values(images: pathlib.Path, assets: pathlib.Path | None) -> tuple[dict, dic
         v[f"podrunner_{a}"] = sha256(exe)
         v[f"image_{a}"], v[f"image_digest_{a}"] = sha256(base), image_digest(base)
         v[f"image_unpacked_{a}"] = str(image_unpacked(base))
+        v[f"image_built_{a}"] = str(image_metadata(base)["built_at_s"] or "")
         full = assets / f"runner-full-{a}.tar"
         if full.is_file():
             v[f"imagefull_{a}"], v[f"imagefull_digest_{a}"] = sha256(full), image_digest(full)
             v[f"imagefull_unpacked_{a}"] = str(image_unpacked(full))
+            v[f"imagefull_built_{a}"] = str(image_metadata(full)["built_at_s"] or "")
     return pins, v
 
 
@@ -242,6 +244,8 @@ def block(images: pathlib.Path, release: str, assets: pathlib.Path | None) -> st
     lines += [f'DIGEST_imagefull_{a}="{v[f"imagefull_digest_{a}"]}"' for a in ARCHES]
     lines += [f'UNPACKED_image_{a}="{v[f"image_unpacked_{a}"]}"' for a in ARCHES]
     lines += [f'UNPACKED_imagefull_{a}="{v[f"imagefull_unpacked_{a}"]}"' for a in ARCHES]
+    lines += [f'BUILT_image_{a}="{v[f"image_built_{a}"]}"' for a in ARCHES]
+    lines += [f'BUILT_imagefull_{a}="{v[f"imagefull_built_{a}"]}"' for a in ARCHES]
     lines.append(END)
     return "\n".join(lines) + "\n"
 

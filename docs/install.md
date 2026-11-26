@@ -17,6 +17,13 @@ cd YOUR-PROJECT && podrunner run .github/workflows/ci.yml --checkout .
 
 GitHub gives no `latest` link for a pre-release: name the version.
 
+The installer ends with the checks of `podrunner doctor`. To check the host
+again, run `podrunner doctor --run FILE` (the checks of one workflow; the
+installer runs it on `DATA/hello.yml`) or `podrunner doctor --config FILE`
+(the checks of a configuration of `serve`). A bare `podrunner doctor` has
+no workflow and no configuration, so it ends with
+`missing: --config: no unit kind and no source were read`.
+
 ## What it needs
 
 - Linux on x86_64 or aarch64, `/bin/sh`, `tar` and `gzip`.
@@ -79,13 +86,50 @@ and `allow` lines, and give in `allow` each host that a job needs.
 | `--prefix DIR` | Install into `DIR/bin`, `DIR/share/man/man1` and `DIR/share/podrunner`. |
 | `--full` | Load the larger runner image (`images/runner/full.txt`: C and C++, CMake, Python, Node.js) in place of the base image, and use it for each job. |
 | `--bundle PATH` | Install from an offline bundle: its `.tar.gz` or its unpacked directory. No network. |
-| `--serve` | Install for `podrunner serve` (T-507): the same files, but no `run.toml` and no `hello.yml`. It writes `DATA/serve.json` (`podrunner`, `podvm`, `podnet`, `images`, `image`, `runner_version`, `unpacked_bytes`) for a program that runs `podrunner config init`, and prints that next step. A second run changes nothing. |
+| `--serve` | Install for `podrunner serve` (T-507): the same files, but no `run.toml` and no `hello.yml`. It writes `DATA/serve.json` (`podrunner`, `podvm`, `podnet`, `images`, `image`, `runner_version`, `unpacked_bytes`, `built_at_s`) for a program that runs `podrunner config init`, and prints that next step with the values of the install. It makes the directory `~/.config/podrunner` (empty with `--serve`): `config init` writes no parent directory. A second run changes nothing. `built_at_s` is the time of the build of the image, a pin of the installer; a release before it has `null`, and the next step then names `N`: read `built_at_s` of the image in `podrunner-manifest.json`. |
 
 `PODRUNNER_MIRROR=URL` takes each file from `URL/NAME` in place of its
 release on github.com (`file://DIR` is a directory). Each file must agree
 with its pin. The mirror must also hold `SHA256SUMS` and
 `release-index.json` of the release, and `SHA256SUMS.sigstore.json` when
 `pod-release` or `cosign` is on `PATH`.
+
+## Remove podrunner
+
+The installer has no uninstall command: it writes only the places in the
+table below, and a run of podrunner writes the others. Remove each place
+that you use. `XDG_DATA_HOME`, `XDG_CONFIG_HOME` and `XDG_CACHE_HOME` change
+the paths; with `--prefix DIR`, remove `DIR` in place of the first two
+lines of the table.
+
+| Path | Holds | Written by |
+| --- | --- | --- |
+| `~/.local/bin/podrunner` | the binary | the installer |
+| `~/.local/share/man/man1/podrunner.1` | the man page | the installer |
+| `~/.local/share/podrunner` | `bin/podvm`, `bin/podnet`, the runner, the store `images`, `downloads`, `hello.yml`, `serve.json` | the installer |
+| `~/.config/podrunner` | `run.toml`, `run.toml.podrunner-install`, and the `podrunner.toml` of `serve` | the installer (not with `--serve`), `config init` |
+| `~/.cache/podrunner` | `actions`, `cache` and `concurrency` of `podrunner run` | `podrunner run` |
+| `~/.local/share/podvm` | the state of podvm outside the store of the installer | podvm |
+| `~/.local/state/podrunner` | the state of `serve` (the `--state` of the unit in "An install of serve") | `serve` |
+| `$TMPDIR/podrunner-run-*` | the files of a run that was killed (the next run removes them) | `podrunner run` |
+| `/tmp/podnet-netns-inbound-UID` | the sockets of a run with `--podnet` | podnet |
+| `podrunner-actions.lock` | the pins of a workflow, beside the workflow file in your project | `podrunner run` |
+
+These commands remove the default places of the table (the lock files in
+your projects stay):
+
+```sh
+rm -f ~/.local/bin/podrunner ~/.local/share/man/man1/podrunner.1
+rm -rf ~/.local/share/podrunner ~/.config/podrunner ~/.cache/podrunner ~/.local/share/podvm
+rm -rf "${TMPDIR:-/tmp}"/podrunner-run-* "/tmp/podnet-netns-inbound-$(id -u)"
+```
+
+Stop `serve` first. A unit of the user:
+`systemctl --user disable --now podrunner.service`, then remove
+`~/.config/systemd/user/podrunner.service`, then
+`systemctl --user daemon-reload`, and remove `~/.local/state/podrunner`. A
+unit of the system: `podrunner remove-unit --system` (the state and the
+configuration stay: remove them by hand).
 
 ## An install of serve
 
@@ -216,7 +260,8 @@ not apply to it.
   `scripts/install-pins.py` writes the block from `images/podvm.toml`,
   `images/podnet.toml` and `images/runner/runner.toml`. The release adds
   its version, the SHA-256 of each podrunner binary, of the man page and
-  of each image archive, and the manifest digest of each image. The copy in the tree has
+  of each image archive, and the manifest digest, the unpacked size and the
+  time of the build of each image. The copy in the tree has
   no pins of a release: it refuses to install, and names the installer of a
   release. `python3 -I scripts/install-pins.py --check scripts/install.sh`
   fails when the block and the pin files differ (the gate and
@@ -242,6 +287,16 @@ not apply to it.
   `podvm verify`). It downloads only what is missing or wrong. A run that
   downloads nothing says so.
 - `podvm load` checks each blob of the image against its digest.
+- A failed download names its cause and the fix, with the URL: not found
+  (HTTP 404: the version or `PODRUNNER_MIRROR`); a TLS check that fails
+  (curl exit 77 or 60, wget exit 5: give an existing CA file in
+  `CURL_CA_BUNDLE` or `SSL_CERT_FILE`); a host that cannot be found or
+  reached (a dead port); a time-out; a refusal by a proxy (HTTP 403, 405,
+  407, or curl exit 56: put the host in `NO_PROXY`, for example
+  `NO_PROXY=127.0.0.1` for a mirror on the loopback). The line says only
+  that a proxy is set, never the value of the variable.
+- The lines `a first run` and `next` quote each path, so a shell runs them
+  as printed also when `HOME` has a space.
 - Before the first download of a file of the podrunner release (the
   podrunner binary or a runner image archive), the installer downloads
   `SHA256SUMS` and `release-index.json` of the release (T-523). A file of

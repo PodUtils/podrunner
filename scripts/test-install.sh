@@ -361,7 +361,8 @@ python3 -I -c 'import json,sys; v=json.load(open(sys.argv[1])); assert v["image"
     fail "serve.json is not the JSON of the install"
 [ ! -e "$t/serve/.config/podrunner/run.toml" ] && [ ! -e "$d/hello.yml" ] || fail "--serve wrote a file of the local mode"
 grep -q 'next: .*podrunner config init --source NAME' "$t/out" || fail "--serve names no next step"
-grep -q 'next: .* --built-at-s N --unpacked-bytes 110 --out FILE' "$t/out" || fail "--serve names no size of the image"
+grep -q 'next: .* --built-at-s 1793491200 --unpacked-bytes 110 --out FILE' "$t/out" || fail "--serve names no time of the build and no size of the image"
+python3 -I -c 'import json,sys; assert json.load(open(sys.argv[1]))["built_at_s"] == 1793491200' "$d/serve.json" || fail "serve.json has no built_at_s"
 before=$(sha256sum < "$d/serve.json")
 mirror=file://$t/empty
 run serve --serve || fail "the second run with --serve"
@@ -427,6 +428,95 @@ script=$old/podrunner-install.sh run old-offline --bundle "$t/old-dist/podrunner
 [ ! -e "$t/old-offline/.local/share/man" ] || fail "the bundle with no page made a man directory"
 ok "a release with no page installs and skips the page; a changed page fails the bundle"
 mirror=file://$a
+
+# 8c. T-633: the lines that name a command quote their paths (a HOME with a
+# space or a quote); a release with no time of the build says N; each cause
+# of a failed download has its own line with the fix.
+mirror=file://$t/empty
+for name in "sp ace" "it's"; do
+    run "$name" --bundle "$t/dist/podrunner-bundle-$arch.tar.gz" || fail "the install in a HOME named $name"
+    line=$(sed -n 's/^podrunner-install: a first run:  //p' "$t/out")
+    eval "set -- $line"
+    [ "$#" -eq 3 ] && [ "$1" = "$t/$name/.local/bin/podrunner" ] && [ "$2" = run ] && [ "$3" = "$t/$name/.local/share/podrunner/hello.yml" ] ||
+        fail "the line 'a first run' is not one command for the HOME $name: $line"
+    line=$(sed -n 's/^podrunner-install: next, in the tree of your project:  //p' "$t/out")
+    eval "set -- $line"
+    [ "$1" = "$t/$name/.local/bin/podrunner" ] && [ "$2" = run ] || fail "the line 'next' does not quote its program for the HOME $name: $line"
+    run "$name-serve" --serve --bundle "$t/dist/podrunner-bundle-$arch.tar.gz" || fail "the install with --serve in a HOME named $name"
+    line=$(sed -n 's/^podrunner-install: next: //p' "$t/out" | sed 's/ (--built-at-s is .*//')
+    eval "set -- $line"
+    [ "$1" = "$t/$name-serve/.local/bin/podrunner" ] && [ "$2" = config ] && [ "$9" = "$t/$name-serve/.local/share/podrunner/bin/podvm" ] || fail "the line 'next' of --serve is not a command for the HOME $name: $line"
+done
+ok "the lines of the next command quote a path with a space or a quote"
+sed 's/^\(BUILT_[a-z]*_[a-z0-9_]*\)=.*/\1=""/' "$installer" > "$t/nobuilt.sh"
+script=$t/nobuilt.sh run nobuilt --serve --bundle "$t/dist/podrunner-bundle-$arch.tar.gz" || fail "the install of a release with no time of the build"
+grep -q 'next: .* --built-at-s N --unpacked-bytes 110 --out FILE (N: built_at_s of the image in podrunner-manifest.json' "$t/out" ||
+    fail "a release with no time of the build does not say where N comes from"
+python3 -I -c 'import json,sys; assert json.load(open(sys.argv[1]))["built_at_s"] is None' "$t/nobuilt/.local/share/podrunner/serve.json" ||
+    fail "serve.json of a release with no time of the build is not null"
+ok "a release with no time of the build says N and writes null"
+
+# A fake curl: it prints the HTTP status of $t/curl-code (as -w does) and
+# exits with $t/curl-rc. A fake wget exits with $t/curl-rc.
+mkdir -p "$t/fakecurl" "$t/fakewget" "$t/nocurl"
+cat > "$t/fakecurl/curl" <<EOT
+#!/bin/sh
+cat "$t/curl-code" 2> /dev/null
+exit "\$(cat "$t/curl-rc")"
+EOT
+cat > "$t/fakewget/wget" <<EOT
+#!/bin/sh
+exit "\$(cat "$t/curl-rc")"
+EOT
+chmod 0755 "$t/fakecurl/curl" "$t/fakewget/wget"
+# A PATH with no curl: the other tools of /usr/bin and /bin, by link.
+for f in /usr/bin/* /bin/*; do
+    case ${f##*/} in curl | wget) ;; *) [ -e "$t/nocurl/${f##*/}" ] || ln -s "$f" "$t/nocurl/${f##*/}" ;; esac
+done
+# dl NAME TOOL RC CODE TEXT: the install in the home NAME fails, and the
+# error has TEXT, the URL, and no secret of a proxy.
+dl() {
+    echo "$3" > "$t/curl-rc"
+    echo "$4" > "$t/curl-code"
+    mirror=https://mirror.test:8443/rel
+    if [ "$2" = wget ]; then path=$t/fakewget:$t/nocurl; else path=$t/fakecurl:$t/verify:/usr/bin:/bin; fi
+    if run "$1"; then path="" fail "the download $1 passed"; fi
+    path=""
+    grep -q "error: SHA256SUMS: the download from https://mirror.test:8443/rel/SHA256SUMS failed: .*$5" "$t/out" ||
+        fail "the download $1 (curl exit $3, HTTP $4): the error is not '$5'"
+    ! grep -q 'user:secret' "$t/out" || fail "the download $1 prints the password of the proxy"
+    [ ! -e "$t/$1/.local/bin/podrunner" ] || fail "the download $1 left podrunner in place"
+}
+# A subshell: the proxy variables of the host must not reach the cases.
+(
+unset HTTPS_PROXY https_proxy HTTP_PROXY http_proxy ALL_PROXY all_proxy NO_PROXY no_proxy
+dl d404 curl 22 404 'not found (HTTP 404)'
+dl dca curl 77 '' 'TLS check failed (curl exit 77).*CURL_CA_BUNDLE or SSL_CERT_FILE'
+dl dca2 curl 60 '' 'TLS check failed (curl exit 60)'
+dl dport curl 7 '' 'cannot connect to mirror.test:8443 (curl exit 7)'
+dl ddns curl 6 '' 'cannot find the host mirror.test:8443'
+dl dtime curl 28 '' 'timed out (curl exit 28)'
+dl d405 curl 22 405 'refused (HTTP 405) by the server'
+dl d500 curl 22 500 'the server answered HTTP 500'
+HTTPS_PROXY=http://user:secret@proxy.test:3128
+export HTTPS_PROXY
+dl dproxy curl 22 405 'refused (HTTP 405); a proxy is set in the environment.*NO_PROXY=127.0.0.1'
+dl dtunnel curl 56 '' 'the connection broke (curl exit 56) with a proxy is set in the environment'
+unset HTTPS_PROXY
+dl dwca wget 5 '' 'TLS check failed (wget exit 5).*SSL_CERT_FILE'
+dl dwnet wget 4 '' 'the network failed (wget exit 4)'
+dl dw404 wget 8 '' 'server refused the file or has none (wget exit 8)'
+# The real curl: a port with no listener, and a missing file of a mirror.
+mirror=http://127.0.0.1:1
+if run dead; then fail "the install from a dead port passed"; fi
+grep -q 'error: SHA256SUMS: the download from http://127.0.0.1:1/SHA256SUMS failed: cannot connect to 127.0.0.1:1 (curl exit 7)' "$t/out" ||
+    fail "a dead port: the error does not name the cause"
+mirror=file://$t/nosuch
+if run nofile; then fail "the install from a mirror that is not there passed"; fi
+grep -q 'failed: no such file: PODRUNNER_MIRROR=file://DIR' "$t/out" || fail "a missing file of a file:// mirror: the error does not name the cause"
+)
+mirror=file://$a
+ok "a failed download names its cause and its fix: a 404, a CA file, a dead port, a name, a timeout, a proxy (curl and wget)"
 
 # 9. The assets of a release, as release.yml and user-gate.yml make them.
 RELEASE_ASSETS_IMAGES=$t/images sh "$root/scripts/release-assets.sh" local-mode 9.9.9-test "$a" "$t/rel" > "$t/out" 2>&1 ||
