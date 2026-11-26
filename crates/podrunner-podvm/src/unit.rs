@@ -46,7 +46,8 @@ pub(crate) mod envfile;
 mod hold;
 mod labels;
 mod limits;
-pub use limits::PIDS_PER_UNIT;
+pub use limits::{MEMORY_PER_UNIT, PIDS_PER_UNIT};
+mod oom;
 mod root;
 mod store;
 #[cfg(test)]
@@ -76,6 +77,8 @@ struct Running {
     exit: Option<Exit>,
     /// The egress socket of the unit, when `podnet pod` holds it (T-065).
     egress: Option<PathBuf>,
+    /// The memory of the unit holds in its cgroup leaf (T-515).
+    memory_leaf: bool,
 }
 
 /// The podvm unit driver.
@@ -124,7 +127,8 @@ impl PodvmUnit {
     pub fn new(podvm: Podvm, state_dir: &Path, images: &Path) -> Result<PodvmUnit, UnitError> {
         let mut capability = podvm.probe()?;
         // The kind applies the memory and the processes that an offer or
-        // its configuration names (T-198), and says where `pids` holds.
+        // its configuration names (T-198), and says where `memory` and
+        // `pids` hold.
         limits::record_modes(&podvm, &mut capability);
         let platform = if capability.arch == "aarch64" { "linux/arm64" } else { "linux/amd64" }.to_string();
         let volumes = crate::probe::has_volumes(&capability);
@@ -297,7 +301,9 @@ impl UnitDriver for PodvmUnit {
         limits::runner_env(&mut env);
         // The lesser of the kind and the offer (T-198); the CPU only in a cgroup.
         let held = limits::held(&self.podvm, &self.limits, &spec.limits);
-        args.extend(limits::ulimit_args(&held, limits::pids_hold(&self.podvm), &mut env));
+        let limit_args = limits::ulimit_args(&held, limits::holds(&self.podvm), &mut env);
+        let memory_leaf = limit_args.iter().any(|a| a == "--memory");
+        args.extend(limit_args);
         // The values in a file, not in the argv (T-405); it goes after the
         // call.
         let (env_args, _env_file) = envfile::env_args(&self.podvm, &dir, &env)?;
@@ -340,7 +346,8 @@ impl UnitDriver for PodvmUnit {
         let inspected = self.inspected_root(&store, spec.unit.as_str());
         let (rootfs, runner_root) = self.root_of_unit(&store, &image_root, inspected, &creds, &names)?;
         let waiter = self.waiter(&store, &spec.unit, &tag)?;
-        units.insert(spec.unit.clone(), Running { dir, store, rootfs, runner_root, tag, waiter, exit: None, egress });
+        let r = Running { dir, store, rootfs, runner_root, tag, waiter, exit: None, egress, memory_leaf };
+        units.insert(spec.unit.clone(), r);
         Ok(())
     }
 
@@ -443,9 +450,7 @@ impl UnitDriver for PodvmUnit {
     }
 
     fn oom_kills(&self, unit: &UnitId) -> Option<u64> {
-        // podvm `0.2.0-beta.32`: `oom_kills` of the run report, for a unit
-        // with `--memory` in a delegated cgroup2 subtree.
-        self.run_report(unit)?.get("oom_kills")?.as_u64()
+        self.oom_count(unit)
     }
 
     fn observe(&self, unit: &UnitId) -> Result<Observation, UnitError> {

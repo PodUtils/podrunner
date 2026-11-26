@@ -30,6 +30,12 @@ const FORKS: &str = "i=0; while [ $i -lt 1000 ]; do sleep 30 & i=$((i+1)); done;
 
 /// The exit of `script` in a fresh unit with `limits`.
 fn run(n: u32, script: &str, limits: Limits) -> Option<Exit> {
+    run_oom(n, script, limits).0
+}
+
+/// The exit of `script` in a fresh unit with `limits`, and its OOM kills
+/// (before the destroy).
+fn run_oom(n: u32, script: &str, limits: Limits) -> (Option<Exit>, Option<u64>) {
     let state = std::env::temp_dir().join(format!("podrunner-limits-{}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&state);
     let unit = PodvmUnit::new(
@@ -54,11 +60,13 @@ fn run(n: u32, script: &str, limits: Limits) -> Option<Exit> {
     unit.start(&spec).unwrap();
     let exit = unit.wait(&id, Duration::from_secs(120)).unwrap();
     let log = String::from_utf8_lossy(&unit.unit_logs(&id).unwrap_or_default()).to_string();
+    let oom = unit.oom_kills(&id);
+    let report = unit.run_report(&id);
     let residue = unit.destroy(&id).unwrap();
     let _ = std::fs::remove_dir_all(&state);
-    println!("unit {n} {limits:?}: {exit:?}\n{log}");
+    println!("unit {n} {limits:?}: {exit:?} oom_kills {oom:?}\n{log}\nthe run report: {report:?}");
     assert!(residue.is_clean(), "{residue:?}");
-    exit
+    (exit, oom)
 }
 
 #[test]
@@ -217,4 +225,34 @@ fn each_unit_holds_its_own_pids_in_a_delegated_cgroup() {
         seen.contains(&"64".to_string()) && seen.contains(&"96".to_string()),
         "each run, its own pids.max: {seen:?}"
     );
+}
+
+/// T-515: where the host delegates a cgroup v2 subtree with the `memory`
+/// controller to the user, the memory of a unit is `memory.max` of the
+/// leaf of its run (`--memory`), not RLIMIT_AS: the kernel ends the
+/// process past it, and the run report of podvm counts the kill, which
+/// slots turns into the exit reason `limit`. The same delegated subtree as
+/// the CPU limit.
+#[test]
+#[ignore]
+fn a_unit_past_its_memory_counts_an_oom_kill_in_a_delegated_cgroup() {
+    if std::env::var_os("PODRUNNER_CPU_DELEGATED").is_none() {
+        println!("skip: PODRUNNER_CPU_DELEGATED is not set");
+        return;
+    }
+    let state = std::env::temp_dir().join(format!("podrunner-limits-{}-probe", std::process::id()));
+    let unit = PodvmUnit::new(
+        Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
+        &state,
+        Path::new(&env("PODRUNNER_PODVM_IMAGES")),
+    )
+    .unwrap();
+    let mode = unit.probe().unwrap().limit(podrunner_podvm::MEMORY_PER_UNIT);
+    let _ = std::fs::remove_dir_all(&state);
+    println!("{}: {mode:?}", podrunner_podvm::MEMORY_PER_UNIT);
+    assert_eq!(mode, podrunner_schema::LimitMode::Enforced, "the record must say memory for each unit");
+    let held = Limits { memory_bytes: Some(256 << 20), ..Limits::default() };
+    let (exit, oom) = run_oom(8, MEMORY, held);
+    assert_eq!(exit, Some(Exit::Code(0)), "1 GiB must fail under 256 MiB");
+    assert!(oom.is_some_and(|n| n > 0), "no OOM kill counted under 256 MiB: {oom:?}");
 }

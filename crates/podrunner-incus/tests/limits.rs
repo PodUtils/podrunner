@@ -3,8 +3,10 @@
 //! and the same payload with no limit passes (the control). In an
 //! instance the payload is root, so the keys of incus (a cgroup) hold, not
 //! rlimits: the kernel ends a process past `memory`, and the kind counts
-//! the OOM kill. The use of a payload of a known load is the use that the
-//! kind gives (T-483, T-611). Ignored by default: it needs podvm
+//! the OOM kill. A job past `mem` of the kind (`[unit.incus] mem`) fails
+//! with an OOM kill counted, which slots turns into the exit reason
+//! `limit` (T-515). The use of a payload of a known load is the use that
+//! the kind gives (T-483, T-611). Ignored by default: it needs podvm
 //! `v0.2.0-beta.40` or later (the record of the use at the stop, also on a
 //! host with AppArmor and cgroup v2) and an incusd. Run:
 //!
@@ -31,6 +33,10 @@ fn env(name: &str) -> String {
 /// 11 if not); then exit 0.
 const MEMORY: &str = "dd if=/dev/zero of=/dev/null bs=1M count=1 2>/dev/null || exit 10; \
     if dd if=/dev/zero of=/dev/null bs=1024M count=1 2>/dev/null; then exit 11; fi; exit 0";
+/// A step of a job that allocates 1 GiB in a child, as a test of a job
+/// does: the job fails (exit 1) when the child is ended, and passes (exit
+/// 0) when the child passed.
+const JOB: &str = "sh -c 'dd if=/dev/zero of=/dev/null bs=1024M count=1 2>/dev/null' || exit 1; exit 0";
 /// 1000 processes at one time: exit 12 when each fork passed.
 const FORKS: &str = "i=0; while [ $i -lt 1000 ]; do sleep 30 & i=$((i+1)); done; exit 12";
 
@@ -74,15 +80,21 @@ fn raw_inspect(name: &str) -> String {
 }
 
 /// The exit, the log, the use and the OOM kills (before the destroy) of
-/// `script` in a fresh unit with `limits`.
+/// `script` in a fresh unit with `limits` of the offer.
 fn run_with_usage(n: u32, script: &str, limits: Limits) -> Ran {
+    run_in_kind(n, script, Limits::default(), limits)
+}
+
+/// The same, in a unit of a kind with the limits `kind` (`[unit.incus]`).
+fn run_in_kind(n: u32, script: &str, kind: Limits, limits: Limits) -> Ran {
     let state = std::env::temp_dir().join(format!("podrunner-incus-limits-{}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&state);
     let unit = IncusUnit::new(
         Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
         &state,
         Path::new(&env("PODRUNNER_PODVM_IMAGES")),
-    );
+    )
+    .with_limits(kind);
     let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
     let image = unit.prepare(&env("PODRUNNER_PODVM_IMAGE"), platform, false).unwrap();
     let id = UnitId::parse(&format!("u-{n}")).unwrap();
@@ -104,7 +116,7 @@ fn run_with_usage(n: u32, script: &str, limits: Limits) -> Ran {
     let raw = raw_inspect(&podrunner_incus::instance_name(&state, id.as_str()));
     let residue = unit.destroy(&id).unwrap();
     let _ = std::fs::remove_dir_all(&state);
-    println!("unit {n} {limits:?}: {exit:?} {usage:?} oom_kills {oom:?}\n{log}");
+    println!("unit {n} kind {kind:?} offer {limits:?}: {exit:?} {usage:?} oom_kills {oom:?}\n{log}");
     assert!(residue.is_clean(), "{residue:?}");
     Ran { exit, log, usage, oom, raw }
 }
@@ -124,6 +136,23 @@ fn a_payload_past_the_memory_limit_gets_an_error() {
     assert_eq!(ran.exit, Some(Exit::Code(0)), "1 GiB must fail under 256 MiB");
     // The exit reason `limit` of slots needs the count (T-515, T-611).
     assert!(ran.oom.is_some_and(|n| n > 0), "no OOM kill counted under 256 MiB: {:?}; raw: {}", ran.oom, ran.raw);
+}
+
+/// T-515 (githome's G-12): a job past `mem` of the kind, with no limit in
+/// its offer, fails, and the kind counts the OOM kill before the destroy.
+/// slots ends a job that failed after a kill with the exit reason `limit`
+/// and the audit line `limit` `memory`
+/// (`podrunner-slots`: `a_job_that_failed_after_an_oom_kill_ends_with_limit`).
+#[test]
+#[ignore]
+fn a_job_past_the_memory_of_the_kind_fails_with_an_oom_kill_counted() {
+    let control = run_in_kind(6, JOB, Limits::default(), Limits::default());
+    assert_eq!(control.exit, Some(Exit::Code(0)), "the control: 1 GiB passes with no limit");
+    assert!(!control.oom.is_some_and(|n| n > 0), "the control: an OOM kill; raw: {}", control.raw);
+    let kind = Limits { memory_bytes: Some(256 << 20), ..Limits::default() };
+    let ran = run_in_kind(7, JOB, kind, Limits::default());
+    assert_eq!(ran.exit, Some(Exit::Code(1)), "the job must fail past 256 MiB of the kind: {}", ran.log);
+    assert!(ran.oom.is_some_and(|n| n > 0), "no OOM kill counted under `mem` 256 MiB: {:?}; raw: {}", ran.oom, ran.raw);
 }
 
 #[test]

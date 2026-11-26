@@ -335,18 +335,31 @@ instance.
 
 | Kind | `mem` | `cpus` | `pids` |
 | --- | --- | --- | --- |
-| `podvm` | `RLIMIT_AS` of the payload (`--ulimit as=`); .NET gets a heap limit and a region range of three quarters | `--cpus` in a leaf of a cgroup v2 subtree that the host delegates to the user (a systemd user session; podvm `0.2.0-beta.23` or later, T-221); refused elsewhere, with the reason | `pids.max` of the leaf of the unit (`--pids-limit`) where the host delegates a cgroup v2 subtree with the `pids` controller to the user (podvm `0.2.0-beta.23` or later, T-521); elsewhere `RLIMIT_NPROC` (`--ulimit nproc=`), which counts each process of the user, also of other units of that user |
+| `podvm` | `memory.max` of the leaf of the unit (`--memory`) where the host delegates a cgroup v2 subtree with the `memory` controller to the user (T-515); elsewhere `RLIMIT_AS` of each process of the payload (`--ulimit as=`); .NET gets a heap limit and a region range of three quarters | `--cpus` in a leaf of a cgroup v2 subtree that the host delegates to the user (a systemd user session; podvm `0.2.0-beta.23` or later, T-221); refused elsewhere, with the reason | `pids.max` of the leaf of the unit (`--pids-limit`) where the host delegates a cgroup v2 subtree with the `pids` controller to the user (podvm `0.2.0-beta.23` or later, T-521); elsewhere `RLIMIT_NPROC` (`--ulimit nproc=`), which counts each process of the user, also of other units of that user |
 | `incus` | `limits.memory` (podvm `0.2.0-beta.20` or later) | `limits.cpu` | `limits.processes` |
 | `microvm` | the memory of the guest: the `memory` of an offer plus the unpacked image, not less than the boot floor of the image | its vCPUs | `pids.max` of the cgroup of the payload in the guest (`--pids-limit`, podvm `0.2.0-beta.32` or later, T-488); with no `pids` of the kind, none |
 
 The capability record of the `podvm` kind (the `probe` of the kind in
-`podrunner status`) says where `pids` holds: `limits.pids-per-unit` is
-`enforced` for `pids.max` of the leaf of each unit, and `none` for
-`RLIMIT_NPROC` of the user. `limits.pids` is `enforced` in both cases.
+`podrunner status`) says where `memory` and `pids` hold:
+`limits.memory-per-unit` is `enforced` for `memory.max` of the leaf of
+each unit, and `none` for `RLIMIT_AS` of each process;
+`limits.pids-per-unit` is `enforced` for `pids.max` of the leaf of each
+unit, and `none` for `RLIMIT_NPROC` of the user. `limits.memory` and
+`limits.pids` are `enforced` in both cases.
 
-A size is whole bytes, or a number with `K`, `M`, `G` or `T`. Set
-`[unit.podvm] mem` large: `RLIMIT_AS` counts the address space, which is
-more than the memory in use.
+A job past its memory ends with the exit reason `limit` and the audit
+line `limit` with the detail `memory` when the OOM killer of the kernel
+ended a process of the unit and the job failed (G-12, T-515). The
+`incus` and `microvm` kinds count each OOM kill. The `podvm` kind counts
+them only with `memory.max` of the leaf: podvm also lets the leaf use as
+much swap as memory, so on a host with swap a unit can hold twice `mem`
+before a kill. With `RLIMIT_AS`, an allocation past the limit gets
+`ENOMEM`, no process is killed, and the job ends with `failure`.
+
+A size is whole bytes, or a number with `K`, `M`, `G` or `T`. A `mem`
+below 6 MiB stays `RLIMIT_AS` on the `podvm` kind. Where `RLIMIT_AS`
+holds, set `[unit.podvm] mem` large: it counts the address space, which
+is more than the memory in use.
 
 ## The cache of a job (G-07, G-20)
 
