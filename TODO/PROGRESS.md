@@ -1,13 +1,13 @@
 # Progress
 
-`TODO/INDEX.md` holds 680 entries: 82 open, 53 partial, 15 blocked, 530 done.
+`TODO/INDEX.md` holds 682 entries: 83 open, 54 partial, 15 blocked, 530 done.
 
 ## State
 
 - The plan is GitHub #1; one entry for each issue. The owner answered DR-1
   to DR-7 and GitHub #8 (`docs/decisions.md`). DR-7 is yes: the live gates
   run on GitHub #74 and #75.
-- Pins: podcrates `v0.85.0`, podvm `v0.2.0-beta.40`, podnet `v0.4.0-beta.19`,
+- Pins: podcrates `v0.85.0`, podvm `v0.2.0-beta.40`, podnet `v0.4.0-beta.20`,
   runner v2.338.2. Last release: `v0.1.0-beta.8` (tag on `93e1710`;
   `release.yml` 45459310537 and 45466841655; `docs/HANDOFF.md`, "The
   release `v0.1.0-beta.8`"). The QA of the release as a user found no P1
@@ -68,7 +68,8 @@ then take the next one.
 
 1. Read runner-image 45783615763 to its end, then `user-gate.yml` with it
    (#362) for the lane check of T-683.
-2. Take the rest of the cache work in T-480.
+2. Take podnet `v0.4.0-beta.20` (T-686, its image run) and podcrates
+   `v0.86.0` (T-687, after T-679). Take the rest of the cache work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10

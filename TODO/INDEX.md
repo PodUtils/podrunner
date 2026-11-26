@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**680 entries: 82 open, 53 partial, 15 blocked, 530 done.**
+**682 entries: 83 open, 54 partial, 15 blocked, 530 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 24 | 2 | 99 | 125 |
-| P2 | 14 | 18 | 9 | 280 | 321 |
+| P2 | 15 | 19 | 9 | 280 | 323 |
 | P3 | 67 | 11 | 4 | 149 | 231 |
-| **All** | 82 | 53 | 15 | 530 | 680 |
+| **All** | 83 | 54 | 15 | 530 | 682 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -728,3 +728,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-683](later.md) | P1 | S | later | defect | partial | The bundled engine fails in an instance of Incus before 6.0.6 and 6.19 |
 | [T-684](later.md) | P2 | S | later | defect | done | A job hides bytes from the disk limit under a shut directory |
 | [T-685](later.md) | P3 | M | later | defect | open | The disk walk of an incus unit skips the directories it cannot read |
+| [T-686](later.md) | P2 | S | later | chore | partial | Take podnet `v0.4.0-beta.20` (COORD-132 of podnet) |
+| [T-687](later.md) | P2 | S | later | chore | open | Take podcrates `v0.86.0` (COORD-158 of podcrates) |

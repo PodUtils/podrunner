@@ -17919,3 +17919,86 @@ of the earlier incus steps with an operator engine (Docker 27.5.1, an
 older runc, which works): the text names the runc, so it stays. Left:
 the lane `serve-incus-kvm` of `user-gate.yml`; #361 dispatched no
 user-gate run, as the image run was red.
+
+# T-686: Take podnet `v0.4.0-beta.20` (COORD-132 of podnet)
+
+**Source:** PodUtils/podnet#777, 2026-11-26
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+Podrunner pins podnet `0.4.0-beta.19`. Podnet `0.4.0-beta.20` has the
+fixes of its QA pass of 2026-11-26 and the link carriers of the release
+binaries.
+
+## Premise
+
+The hand-off PodUtils/podnet#777. The breaking changes are exit codes of
+`connect`, `relay connect`, `send`, `tunnel`, `--peer` and `init check`,
+the clean stop of `podnet pod --serve`, and the hop of a 502 or 504 of a
+proxy. Podrunner runs `podnet pod` and `podnet pod doctor --json` only:
+no code of podrunner reads those exit codes (read on 2026-11-26).
+
+## Approach
+
+Pin the release in `images/podnet.toml` (version, SHA-256 of each
+architecture, the index on ghcr.io) and in `scripts/install.sh`. Check
+the binaries against the hand-off and the `SHA256SUMS` of the release.
+
+## Prove
+
+```sh
+python3 -I scripts/install-pins.py --check scripts/install.sh
+sh scripts/agent/check.sh
+```
+
+The hold tests of `runner-image.yml` (`tests/hold.rs`, `tests/held.rs`
+and the local suite under `--podnet`) on the new pin.
+
+State (2026-11-26, the commit that names T-686; a development host only):
+both binaries match the SHA-256 of the hand-off and of the
+`SHA256SUMS` of the release; `podnet pod doctor --json` of the x86_64
+binary gives the report of schema 1 that `doctor` reads. The installer
+pin check passes. Left: the hosted runner-image run.
+
+# T-687: Take podcrates `v0.86.0` (COORD-158 of podcrates)
+
+**Source:** PodUtils/podcrates#272, 2026-11-26
+**Category:** chore
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Podrunner takes podcrates `v0.85.0`. Podcrates `v0.86.0` changes error
+texts of `pod-proxy`, `pod-dns`, `pod-tls` and `pod-manual`, and
+`FileLock` now unlocks at its drop (PodUtils/podcrates@T-1401).
+
+## Premise
+
+The section "podrunner" of PodUtils/podcrates#272: no build change.
+`crates/podrunner/src/lock.rs`, `crates/podrunner/src/run_local/concurrency.rs`
+and `crates/podrunner-local/src/exec/host.rs` hold a `FileLock`.
+
+## Approach
+
+Move each `pod-*` tag of `Cargo.toml` and the reusable workflow and
+tools of podcrates to `v0.86.0`. Read each `FileLock` holder: a lock that
+the code kept past the drop of its value must now keep the value. Update
+each test that quotes a changed text. Take it after T-679, which changes
+`run_local/concurrency.rs`.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+sh scripts/agent/check.sh
+```
+
+The gate and level2 on the commit of the take.
