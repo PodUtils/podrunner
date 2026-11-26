@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 688 entries: 73 open, 57 partial, 18 blocked, 540 done.
+`TODO/INDEX.md` holds 688 entries: 73 open, 55 partial, 18 blocked, 542 done.
 
 ## State
 
@@ -66,7 +66,7 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Read the runs of #365 (T-686, T-521, T-688, T-638) and of the
+1. Read the user-gate run of #365 (T-688, T-638) and of the
    next request (T-644, the man page, the microvm memory rule). Merge the worker
    of T-689 with T-690.
 2. Take the rest of the cache work in T-480 (T-648; T-650 waits for
@@ -76,7 +76,7 @@ then take the next one.
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10
    partial, 6 open; cfb has 38 clauses, 26 in a release, 6 partial, 6 open.
    The comments of podrunner on #292 and #151 name `v0.1.0-beta.8`. Then
-   T-521 and the partial
+   the partial
    entries T-497, T-499, T-509, T-515 and T-520.
 4. Keep the G-09 line on #66 current with the CI proof of Docker build
    and Docker-in-Docker, the bundled engine (done), and the live check
@@ -96,8 +96,8 @@ then take the next one.
 
 Waits:
 
-- Podvm: T-685 (COORD-138, #364), T-521 drops its copy of the cgroup
-  rule after COORD-137 (#363). T-658 (COORD-132, #354) and
+- Podvm: T-685 (COORD-138, #364), T-650 (COORD-141, #368). The copy of
+  the cgroup rule of podvm goes after COORD-137 (#363). T-658 (COORD-132, #354) and
   T-659 (COORD-133, #355): a podvm release. T-681 waits for the next
   Incus image import path for the low-space control. COORD-254
   (PodUtils/podvm#671) asks to retest both runner image architectures

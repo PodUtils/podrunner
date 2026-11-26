@@ -12243,7 +12243,7 @@ In the code (2026-11-18): `docs/contracts/source-driver.md` names the tolerance 
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12277,6 +12277,15 @@ of `runner-image.yml` now runs `each_unit_holds_its_own_pids_in_a_delegated_cgro
 (two units, 64 and 96). Left: that step in hosted CI. COORD-137 (#363)
 asks podvm for its verdict of the cgroup, so that podrunner drops its
 copy of the rule.
+
+## Done
+
+2026-11-26, proven in CI on GitHub-hosted runners: runner-image
+45810269235 on `971c4112` (#365), the step "A CPU and a pids limit of a
+podvm unit in a delegated cgroup": `each_unit_holds_its_own_pids_in_a_delegated_cgroup`
+and `a_cpu_limit_holds_in_a_delegated_cgroup` pass in a `Delegate=yes`
+leaf of systemd. The copy of the rule of podvm goes when podvm answers
+COORD-137 (#363).
 
 # T-522: G-31: the design copies of the schemas have the ids of `pod-job` and other fields
 
@@ -18125,7 +18134,7 @@ serve:check:incus: ... engine warning on incusd 6.0.0: yes". Steps 1 and
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -18162,6 +18171,13 @@ both binaries match the SHA-256 of the hand-off and of the
 `SHA256SUMS` of the release; `podnet pod doctor --json` of the x86_64
 binary gives the report of schema 1 that `doctor` reads. The installer
 pin check passes. Left: the hosted runner-image run.
+
+## Done
+
+2026-11-26, proven in CI on GitHub-hosted runners: runner-image
+45810269235 on `971c4112` (#365) is green with podnet
+`v0.4.0-beta.20`, with the hold tests and the local suite under `podnet
+pod`.
 
 # T-687: Take podcrates `v0.86.0` (COORD-158 of podcrates)
 

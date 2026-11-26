@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**688 entries: 73 open, 57 partial, 18 blocked, 540 done.**
+**688 entries: 73 open, 55 partial, 18 blocked, 542 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 12 | 21 | 10 | 281 | 324 |
-| P3 | 60 | 13 | 6 | 157 | 236 |
-| **All** | 73 | 57 | 18 | 540 | 688 |
+| P2 | 12 | 20 | 10 | 282 | 324 |
+| P3 | 60 | 12 | 6 | 158 | 236 |
+| **All** | 73 | 55 | 18 | 542 | 688 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -565,7 +565,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-518](later.md) | P2 | M | later | feature | done | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
 | [T-519](later.md) | P3 | S | later | docs | done | G-03: no document says that a step of the job can read the credential of its runner |
 | [T-520](later.md) | P3 | S | later | measurement | partial | G-06: no test of `cpu_s` against a known load, and no tolerance in the contract |
-| [T-521](later.md) | P3 | S | later | defect | partial | G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit |
+| [T-521](later.md) | P3 | S | later | defect | done | G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit |
 | [T-522](later.md) | P2 | S | later | docs | done | G-31: the design copies of the schemas have the ids of `pod-job` and other fields |
 | [T-523](later.md) | P2 | M | later | feature | done | G-34: take the signed release index of `pod-release` |
 | [T-524](later.md) | P3 | M | later | feature | done | G-04 and G-35: the half of podrunner of the placeholders of a policy |
@@ -728,7 +728,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-683](later.md) | P1 | S | later | defect | done | The bundled engine fails in an instance of Incus before 6.0.6 and 6.19 |
 | [T-684](later.md) | P2 | S | later | defect | done | A job hides bytes from the disk limit under a shut directory |
 | [T-685](later.md) | P3 | M | later | defect | blocked | The disk walk of an incus unit skips the directories it cannot read |
-| [T-686](later.md) | P2 | S | later | chore | partial | Take podnet `v0.4.0-beta.20` (COORD-132 of podnet) |
+| [T-686](later.md) | P2 | S | later | chore | done | Take podnet `v0.4.0-beta.20` (COORD-132 of podnet) |
 | [T-687](later.md) | P2 | S | later | chore | done | Take podcrates `v0.86.0` (COORD-158 of podcrates) |
 | [T-688](later.md) | P2 | M | later | defect | partial | A job of the corpus runs out of space in a microvm guest |
 | [T-689](later.md) | P3 | S | later | defect | open | The pin bound of a microvm guest leaves no space for a job |
