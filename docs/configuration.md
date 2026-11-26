@@ -408,10 +408,11 @@ reads. The `fake` kind lists `ro` (a `:ro` mount is a copy). The `podvm`
 kind lists `ro` only with `confine = true`, when a run of the confine
 self-test reads a `:ro` volume and its write does not reach the host;
 else `serve` writes a line at the start, and such a job gets no cache.
-The audit line `cache` of each job gives `rw`, `ro`, or `none` and a code
-(`untrusted`, `no-mount`, `no-ro-mount`, `bad-key`, `offer-off`,
-`open-failed`). The tier is the boundary: a job of the tier `untrusted`
-gets no cache.
+A job that would get `rw` writes only on a kind that lists `rw` in
+`mount_modes`; on another kind it gets `ro`. The audit line `cache` of
+each job gives `rw`, `ro`, or `none` and a code (`untrusted`,
+`no-mount`, `no-ro-mount`, `bad-key`, `offer-off`, `open-failed`). The
+tier is the boundary: a job of the tier `untrusted` gets no cache.
 
 The unit gets the variables `PODRUNNER_CACHE` (the path) and
 `PODRUNNER_CACHE_MODE` (`rw` or `ro`). A `rw` job also gets each variable
@@ -451,11 +452,23 @@ source needs the existing `Actions: read and write` permission and logs
 the HTTP status of its request.
 
 The `podvm` kind on a rung with volumes and the `fake` kind mount the
-cache. The `microvm` and `incus` kinds mount no host directory: their
-jobs get no cache (T-648). On a kind with the container hooks, each
-container of the job (`container:`, `services:`, a Docker step) sees the
-cache at the same path, with the same mode and the same variables; a
-variable of the job keeps its value (T-651).
+cache. The `microvm` and `incus` kinds mount the cache and no other host
+directory, and only at `ro`: a job that would get `rw` there gets `ro`,
+with no variable of `env` (T-648). Their capability lists `ro` and no
+`rw` in `mount_modes`. A guest of the `microvm` kind sees the cache over
+9p, read-only in QEMU and in the guest; an instance of the `incus` kind
+sees it as a `disk` device with `readonly=true`. The script of each unit
+stops the job with exit 96 when a `ro` cache is not a read-only mount.
+The user of the unit reads a file of the cache through the mode bits
+for others (a file at mode 0600 stays closed to it), because its uid is
+not the uid of the user of podrunner. A write needs a change of podvm:
+on the microvm kind the guest checks each access against the host owner
+of a 9p file, and on the incus kind the user of podrunner cannot remove
+a file that an id of the map of the instance wrote. On a kind with
+the container hooks, each container of the job (`container:`,
+`services:`, a Docker step) sees the cache at the same path, with the
+same mode and the same variables; a variable of the job keeps its value
+(T-651).
 
 On the host, each cache is `DIR/ID/data`; the file `DIR/ID/scope` names
 its source, forge, owner, repository, the id of the repository (when the
