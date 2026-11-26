@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 694 entries: 76 open, 55 partial, 18 blocked, 545 done.
+`TODO/INDEX.md` holds 697 entries: 78 open, 55 partial, 18 blocked, 546 done.
 
 ## State
 
@@ -68,7 +68,7 @@ then take the next one.
 
 1. Read the user-gate run of #365 (T-688, T-638) and of the
    next request (T-644, the man page, the microvm memory rule). Merge the
-   workers of T-648, T-693 and T-633.
+   workers of T-648 and T-693.
 2. Take the rest of the cache work in T-480 (T-648; T-650 waits for
    COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -83,7 +83,7 @@ then take the next one.
    (T-040).
 5. The local P3 entries: T-656, T-658, T-659, T-603 (step 1), T-610, T-609, T-693 to T-699. The follow-ups
    of QA round 6: T-638, T-643, T-644. The P3 groups of the QA rounds: T-308, T-316, T-323,
-   T-331, T-339, T-634 to T-637.
+   T-331, T-339, T-634 to T-637, T-700 to T-702.
 6. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
    T-175 (partial; its step on the test organization is next).
 7. The local mode: T-204, T-229, T-242 (partial), T-161

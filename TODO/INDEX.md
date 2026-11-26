@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**694 entries: 76 open, 55 partial, 18 blocked, 545 done.**
+**697 entries: 78 open, 55 partial, 18 blocked, 546 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 12 | 20 | 10 | 282 | 324 |
-| P3 | 63 | 12 | 6 | 161 | 242 |
-| **All** | 76 | 55 | 18 | 545 | 694 |
+| P3 | 65 | 12 | 6 | 162 | 245 |
+| **All** | 78 | 55 | 18 | 546 | 697 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -675,7 +675,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-630](later.md) | P2 | S | later | defect | done | A corrupt or truncated tar in the image cache fails each later `run`, and no message names the file |
 | [T-631](later.md) | P2 | S | later | defect | done | `run --changed-since` passes a ref that starts with `-` to git as an option |
 | [T-632](later.md) | P2 | S | later | defect | done | A small `ulimit -f` ends a podvm unit with an empty cause, and `run` names neither the limit nor the fix |
-| [T-633](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of the installer and the install documents |
+| [T-633](later.md) | P3 | M | later | defect | done | QA round 6, agent A: the P3 findings of the installer and the install documents |
 | [T-634](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of the flags of `podrunner run` |
 | [T-635](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of `check`, `config init` and `doctor` |
 | [T-636](later.md) | P3 | M | later | defect | open | QA round 6, agent A: the P3 findings of signals and of the end of a run |
@@ -742,3 +742,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-697](later.md) | P3 | S | later | defect | open | The stand-in of actions/checkout prints its script in the log |
 | [T-698](later.md) | P3 | S | later | defect | open | The local mode checks --mem against an image of 0 bytes |
 | [T-699](later.md) | P3 | S | later | defect | open | A microvm guest of an offer below the kind can leave its job no reserve |
+| [T-700](later.md) | P3 | S | later | defect | open | config init does not make the directory of its output |
+| [T-701](later.md) | P3 | S | later | defect | open | A local run with --podnet leaves a socket of podnet in /tmp |
+| [T-702](later.md) | P3 | S | later | defect | open | install-unit names Windows in a refusal on Linux |

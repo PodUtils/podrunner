@@ -16103,7 +16103,7 @@ Report of agent A of QA round 6 (user `qa8`, no root, CapEff 0, user namespace y
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -16129,6 +16129,17 @@ Edit `scripts/install.sh`, `docs/install.md`, and the `install-unit` message in 
 
 `sh scripts/test-install.sh` with a new case for the paths with a space and for the failure messages; `cargo todo check`.
 
+
+## Done
+
+2026-11-26, `c5050496` (tests on a development host). Fixed: 1 (`docs/install.md`
+"Remove podrunner" lists each path and its `rm`), 2 (the printed next
+commands quote their paths, `q()`; a home with a space and a quote), 3 (a
+failed download names its cause and the fix, for curl and wget, and
+never prints the proxy), 7 (the pins hold the build time of each image;
+`serve.json` has `built_at_s`), and the quick start names `doctor --run`
+and `doctor --config`. Not a defect of the installer: 4 (the directory of
+`config init --out`): T-700. Open: 5 (T-701), 6 (T-702).
 
 # T-634: QA round 6, agent A: the P3 findings of the flags of `podrunner run`
 
@@ -18705,3 +18716,90 @@ the meaning of `memory` of T-655.
 ## Prove
 
 `cargo test -p podrunner-microvm mem` with a small offer on a large image.
+
+# T-700: config init does not make the directory of its output
+
+**Source:** QA round 6 finding 4 (T-633), 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podrunner config init --out FILE` fails when the parent directory of
+FILE is missing, so `install.sh --serve` makes `~/.config/podrunner`
+only for the documented `--out ~/.config/podrunner/podrunner.toml`.
+
+## Premise
+
+Read from `crates/podrunner/src/config_init.rs` (`write_private` with
+`create_new` and no parent) by the worker of T-633.
+
+## Approach
+
+`config init` makes the parent at mode 0700 (and refuses a link in it);
+then `install.sh --serve` drops its `mkdir`, and the notes of
+`docs/install.md` go.
+
+## Prove
+
+`cargo test -p podrunner --test config_init` with a missing parent.
+
+# T-701: A local run with --podnet leaves a socket of podnet in /tmp
+
+**Source:** QA round 6 finding 5 (T-633), 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+After a run with `--podnet`, `/tmp/podnet-netns-inbound-UID/*.sock`
+stays. podrunner writes no such path: podnet does.
+
+## Premise
+
+QA round 6, both agents; no `netns-inbound` in the code of podrunner
+(2026-11-26).
+
+## Approach
+
+Ask podnet by a COORD issue to remove the socket at the end of `podnet
+pod`; until then `docs/install.md` names the path (T-633).
+
+## Prove
+
+A run with `--podnet` leaves no entry under `/tmp/podnet-netns-inbound-UID`.
+
+# T-702: install-unit names Windows in a refusal on Linux
+
+**Source:** QA round 6 finding 6 (T-633), 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A refused `podrunner install-unit` says "or as an administrator on
+Windows" on Linux. The text comes from `pod-unit` of podcrates
+(`install_system.rs`).
+
+## Premise
+
+Read by the worker of T-633 on 2026-11-26.
+
+## Approach
+
+Map the refusal in `crates/podrunner/src/cli/unit.rs` to a Linux line
+(`--user`, or root), or ask podcrates by a COORD issue for a text of the
+platform.
+
+## Prove
+
+`cargo test -p podrunner` with the refusal as a user: no word "Windows".
