@@ -68,8 +68,9 @@ How a job ends at the source (T-200):
   `source-conformance` sends it. A source can offer the job again, also
   to the same host.
 * The report is `run-report.v1` of `pod-job`. `cpu_s` is the CPU time
-  of the processes of the unit, rounded up to whole seconds: within 20 %
-  or 1 s of the CPU time of the payload, the larger (T-520). The kinds
+  of the processes of the unit, rounded up to whole seconds. The time
+  before the round up is within 20 % or 1 s of the CPU time of the
+  payload, the larger (T-520), so `cpu_s` can be up to one more. The kinds
   whose processes are on the host sample them at each tick, so a process
   that ends between two ticks can count up to one tick less. The
   microvm kind samples the emulator of the guest on the host: its CPU

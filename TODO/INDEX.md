@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**709 entries: 66 open, 52 partial, 22 blocked, 569 done.**
+**709 entries: 66 open, 51 partial, 22 blocked, 570 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 285 | 324 |
-| P3 | 55 | 11 | 9 | 182 | 257 |
-| **All** | 66 | 52 | 22 | 569 | 709 |
+| P3 | 55 | 10 | 9 | 183 | 257 |
+| **All** | 66 | 51 | 22 | 570 | 709 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -564,7 +564,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-517](later.md) | P3 | S | later | docs | done | G-09: the engine of a guest is a directory of the host, not a part of the payload image |
 | [T-518](later.md) | P2 | M | later | feature | done | G-13: each event by name, a rule of trust that can be swapped, and a published table of cases |
 | [T-519](later.md) | P3 | S | later | docs | done | G-03: no document says that a step of the job can read the credential of its runner |
-| [T-520](later.md) | P3 | S | later | measurement | partial | G-06: no test of `cpu_s` against a known load, and no tolerance in the contract |
+| [T-520](later.md) | P3 | S | later | measurement | done | G-06: no test of `cpu_s` against a known load, and no tolerance in the contract |
 | [T-521](later.md) | P3 | S | later | defect | done | G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit |
 | [T-522](later.md) | P2 | S | later | docs | done | G-31: the design copies of the schemas have the ids of `pod-job` and other fields |
 | [T-523](later.md) | P2 | M | later | feature | done | G-34: take the signed release index of `pod-release` |

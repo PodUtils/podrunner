@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 709 entries: 66 open, 52 partial, 22 blocked, 569 done.
+`TODO/INDEX.md` holds 709 entries: 66 open, 51 partial, 22 blocked, 570 done.
 
 ## State
 
@@ -66,9 +66,10 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Read the runs of #374 (the fixes of #370, the step of actionlint, the
-   check `serve:job:engine:microvm` of T-509, the step of `cpu_s` of
-   T-520). Merge the workers of T-636 and T-713.
+1. Request the hosted runs again: `runner-image.yml` with the fix of the
+   incus test of `cpu_s`, then `user-gate.yml` with the check
+   `serve:job:engine:microvm` of T-509 (#374 did not start its lanes).
+   Merge the workers of T-636 and T-713.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -77,7 +78,7 @@ then take the next one.
    partial, 6 open; cfb has 38 clauses, 26 in a release, 6 partial, 6 open.
    The comments of podrunner on #292 and #151 name `v0.1.0-beta.8`. Then
    the partial
-   entries T-497, T-499, T-509, T-515 and T-520.
+   entries T-497, T-499, T-509 and T-515.
 4. Keep the G-09 line on #66 current with the CI proof of Docker build
    and Docker-in-Docker, the bundled engine (done), and the live check
    (T-040).

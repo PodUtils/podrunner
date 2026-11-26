@@ -70,6 +70,16 @@ impl Usage {
 /// A measured field of the report, and the reason when it is `unknown`.
 pub type Measure = (Residual, Option<String>);
 
+/// The tolerance of the contract for `cpu_s` (T-520): `cpu_s` is the next
+/// whole second of a measure in (`cpu_s` - 1, `cpu_s`], and that measure is
+/// within 20 % or 1 s, the larger, of the `load` seconds of CPU of the
+/// payload. A compare of `cpu_s` itself fails a measure of 5.001 s for a
+/// load of 4.97 s.
+pub fn cpu_s_within(cpu_s: u64, load: f64) -> bool {
+    let tolerance = (load * 0.2).max(1.0);
+    cpu_s as f64 >= load - tolerance && (cpu_s as f64) - 1.0 < load + tolerance
+}
+
 fn measure(v: &Result<u64, String>) -> Measure {
     match v {
         Ok(n) => (Residual::Count(*n), None),

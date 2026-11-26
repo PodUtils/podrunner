@@ -177,11 +177,9 @@ fn the_use_of_a_known_load_is_the_use_that_the_kind_gives() {
     let usage = usage.expect("the incus kind gives the use of its units");
     let cpu = usage.cpu_s.unwrap_or_else(|e| panic!("cpu_s unknown: {e}"));
     // The tolerance of the contract (T-520): 20 % or 1 s, the larger, of
-    // the CPU time of the payload. The compare is with the measure itself,
-    // not its next whole second: `cpu_s` 7 for 8.19 s is in the contract,
-    // and a compare with 9 is not.
-    let tolerance = (load * 0.2).max(1.0);
-    assert!((cpu as f64 - load).abs() <= tolerance, "cpu_s {cpu} for {load:.2} s of CPU of the load");
+    // the CPU time of the payload, for the measure before its round up:
+    // incusd gave 5.001 s for 4.97 s of the load, and `cpu_s` is 6.
+    assert!(podrunner_slots::usage::cpu_s_within(cpu, load), "cpu_s {cpu} for {load:.2} s of CPU of the load");
     // The incusd of a hosted runner gives no peak of a running instance
     // on cgroup v2; the record of podvm at the stop gives it (T-611).
     let peak = usage.peak_memory_bytes.unwrap_or_else(|e| panic!("peak unknown: {e}; raw: {}", ran.raw));

@@ -46,10 +46,11 @@ fn env(name: &str) -> String {
 }
 
 /// The tolerance of `cpu_s` against `load` seconds of CPU of the payload:
-/// 20 % or 1 s, the larger. The compare is with the measure itself, not
-/// with its next whole second.
+/// 20 % or 1 s, the larger, of the measure before its round up. `cpu_s`
+/// is the next whole second of a measure in (`cpu_s` - 1, `cpu_s`], so it
+/// holds when such a measure is within the tolerance of `load`.
 fn within(cpu_s: u64, load: f64) -> bool {
-    (cpu_s as f64 - load).abs() <= (load * 0.2).max(1.0)
+    podrunner_slots::usage::cpu_s_within(cpu_s, load)
 }
 
 /// The seconds of one word of `times` (`0m2.980s` of dash or bash).
@@ -190,14 +191,18 @@ fn the_tolerance_is_20_percent_or_1_s_the_larger() {
         (5, 3.0, false),
         (1, 3.0, false),
         (0, 0.4, true),
-        (2, 0.4, false),
+        (2, 0.4, true),
+        (3, 0.4, false),
         (12, 10.0, true),
         (8, 10.0, true),
         (13, 10.0, false),
         (7, 10.0, false),
         (7, 8.19, true),
         (9, 8.19, true),
-        (10, 8.19, false),
+        (10, 8.19, true),
+        (11, 8.19, false),
+        (6, 4.97, true),
+        (7, 4.97, false),
     ] {
         assert_eq!(within(cpu_s, load), want, "cpu_s {cpu_s} for {load} s");
     }

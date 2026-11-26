@@ -12258,7 +12258,7 @@ Say it in `docs/security/residuals.md` and in the section of the run report of `
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -12292,6 +12292,22 @@ the edges and the parse of `times`. Fake: loads of 7.59 to 7.89 s gave
 `cpu_s` 8 (5 runs); a planted wrong burn fails. The step "The cpu_s of a
 known load on the podvm and microvm kinds" of `runner-image.yml` runs it.
 Next: a green `runner-image.yml` run.
+
+## Done
+
+2026-11-26, `runner-image.yml` 45894703793 on `af1ea7c6` (proven in CI on
+GitHub-hosted runners) and the commit that names T-520 after it. The step
+"The cpu_s of a known load on the podvm and microvm kinds" passes: podvm,
+a load of 8.00 s gave `cpu_s` 8 and an idle control 0; microvm, a load
+of 7.94 s gave `cpu_s` 10 and an idle guest 2. The same run failed the
+incus test `the_use_of_a_known_load_is_the_use_that_the_kind_gives`:
+incusd gave 5.001 s for a load of 4.97 s, and `cpu_s` 6 is the round up
+of a measure in the tolerance. The contract
+(`docs/contracts/source-driver.md`) now applies the tolerance to the time
+before the round up, so `cpu_s` can be one more; both tests take
+`podrunner_slots::usage::cpu_s_within`, whose edges
+(`the_tolerance_is_20_percent_or_1_s_the_larger`) hold 6 for 4.97 s and
+refuse 7.
 
 
 # T-521: G-12: the `pids` limit of the podvm kind counts each process of the user, not of one unit

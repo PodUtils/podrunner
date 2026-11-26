@@ -367,7 +367,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #371 | COORD-143: a writable host volume that the host user can remove, on the machine and incus tiers (to podvm) | open (waits for the answer of podvm) | T-648, T-704 |
 | #372 | COORD-144: the unpacked bytes of an image in `inspect` before its first run (to podvm) | open (waits for the answer of podvm) | T-706 |
 | #373 | COORD-145: pod-fake-github: `container:` and `services:` jobs, and the log of a job (to podcrates) | open (waits for the answer of podcrates) | T-707 |
-| #374 | [gh action] requested | open (gate, secrets, `level2.yml`, `runner-image.yml` and `user-gate.yml` on `5bf9f6bc`) | T-252, T-509, T-520 |
+| #374 | [gh action] requested | closed (gate 45894692855, secrets 45894696606 and `level2.yml` 45894700040 green; `runner-image.yml` 45894703793 red at the incus test of `cpu_s`, fixed in the commit that names T-520; `user-gate.yml` 45900663115 did not start its lanes) | T-252, T-509, T-520 |
 | #375 | COORD-146: status.v1: the cause of `no-tier-served` (to podcrates) | open (waits for the answer of podcrates) | T-714 |
 | #341 | [gh action] requested | closed (on `e4627e6` and `14883d7`: gate 44874012469, `level2.yml` 44874016083, `runner-image.yml` 44874019156, `hosted-snapshot.yml` 44874022336, `hosted-boot.yml` 44878540271 and `user-gate.yml` 44878038200 green) | T-583, T-545, T-581, T-549, T-573, T-532, T-403, T-556, T-582 |
 | #65 | cfb asks: tracker for the 2 asks of cfb owned by podrunner (from podcrates#35) | open (a tracker; each ask maps to the entries of its line) | T-001, T-040, T-479, T-480, T-481, T-482, T-483, T-484, T-485, T-487, T-491, T-492, T-497, T-500, T-501, T-502, T-505, T-507, T-512, T-525, T-526, T-527, T-528 |
