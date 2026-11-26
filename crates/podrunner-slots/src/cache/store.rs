@@ -217,7 +217,7 @@ fn walk(
     mut f: impl FnMut(&libc::stat) -> bool,
     mut d: impl FnMut(std::os::fd::BorrowedFd<'_>),
 ) -> fdwalk::End {
-    let opts = fdwalk::Opts { same_dev: false, max_open: fdwalk::MAX_OPEN };
+    let opts = fdwalk::Opts { same_dev: false, max_open: fdwalk::MAX_OPEN, open_up: false };
     let regular = |st: &libc::stat| st.st_mode & libc::S_IFMT != libc::S_IFREG || f(st);
     fdwalk::walk(dir, opts, regular, |fd, _| d(fd)).0
 }

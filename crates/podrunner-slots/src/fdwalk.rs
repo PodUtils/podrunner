@@ -21,6 +21,8 @@ pub(crate) enum End {
     Stopped,
     /// A directory moved while the walk held no descriptor of it.
     Lost,
+    /// With `open_up`: a directory of this user stayed shut.
+    Shut,
 }
 
 /// The options of a walk.
@@ -30,6 +32,10 @@ pub(crate) struct Opts {
     pub same_dev: bool,
     /// The most descriptors of directories that the walk holds open.
     pub max_open: usize,
+    /// Give a directory of this user that the walk cannot read its owner's
+    /// read and search bits (T-684); a directory that stays shut ends the
+    /// walk `Shut`. A directory of another user stays skipped.
+    pub open_up: bool,
 }
 
 /// The descriptors that a walk holds at most, unless the caller says
@@ -109,7 +115,11 @@ pub(crate) fn walk(
 ) -> (End, usize) {
     let max_open = opts.max_open.max(1);
     let Ok(c) = CString::new(root.as_os_str().as_bytes()) else { return (End::Done, 0) };
-    let Some((first, dev, ino)) = enter(libc::AT_FDCWD, &c, None, &mut dir) else { return (End::Done, 0) };
+    let (first, dev, ino) = match enter(libc::AT_FDCWD, &c, None, opts.open_up, &mut dir) {
+        Ok(Some(x)) => x,
+        Ok(None) => return (End::Done, 0),
+        Err(()) => return (End::Shut, 0),
+    };
     let mut levels = Vec::new();
     let (mut open, mut peak) = (0usize, 0usize);
     let mut todo = Some((first, dev, ino));
@@ -150,7 +160,10 @@ pub(crate) fn walk(
         if let Some(name) = top.pending.pop() {
             let at = top.fd.as_ref().expect("the top directory is open").as_raw_fd();
             let same = opts.same_dev.then_some(dev);
-            todo = enter(at, &name, same, &mut dir);
+            todo = match enter(at, &name, same, opts.open_up, &mut dir) {
+                Ok(x) => x,
+                Err(()) => return (End::Shut, peak),
+            };
             continue;
         }
         // The top is done: open its parent again when the walk closed it.
@@ -175,23 +188,43 @@ pub(crate) fn walk(
 /// Open the directory `name` under `at` with no link followed, give its
 /// `O_PATH` descriptor to `dir`, then open it to read. Its device and
 /// inode come with it. `same`: skip a directory on another device.
+/// `open_up`: a directory of this user that does not open for read gets
+/// `u+rx`, and `Err` when it still does not open.
 fn enter(
     at: libc::c_int,
     name: &CStr,
     same: Option<u64>,
+    open_up: bool,
     dir: &mut impl FnMut(BorrowedFd<'_>, &CStr),
-) -> Option<(OwnedFd, u64, u64)> {
-    let path = openat(at, name, PATH)?;
-    let st = fstat(&path)?;
+) -> Result<Option<(OwnedFd, u64, u64)>, ()> {
+    let Some(path) = openat(at, name, PATH) else { return Ok(None) };
+    let Some(st) = fstat(&path) else { return Ok(None) };
     if same.is_some_and(|d| d != st.st_dev) {
-        return None;
+        return Ok(None);
     }
     // SAFETY: `path` is open for the length of the call.
     dir(unsafe { BorrowedFd::borrow_raw(path.as_raw_fd()) }, name);
-    let fd = openat(path.as_raw_fd(), c".", READ)?;
-    let again = fstat(&fd)?;
+    let fd = match openat(path.as_raw_fd(), c".", READ) {
+        Some(fd) => fd,
+        // SAFETY: geteuid has no failure.
+        None if open_up && st.st_uid == unsafe { libc::geteuid() } => {
+            chmod_fd(path.as_raw_fd(), (st.st_mode & 0o7777) | 0o500);
+            openat(path.as_raw_fd(), c".", READ).ok_or(())?
+        }
+        None => return Ok(None),
+    };
+    let Some(again) = fstat(&fd) else { return Ok(None) };
     // `.` of the descriptor is the directory that it names.
-    (again.st_dev == st.st_dev && again.st_ino == st.st_ino).then_some((fd, st.st_dev, st.st_ino))
+    Ok((again.st_dev == st.st_dev && again.st_ino == st.st_ino).then_some((fd, st.st_dev, st.st_ino)))
+}
+
+/// chmod of the directory of the `O_PATH` descriptor `fd` by its link in
+/// /proc, which names the directory itself, so a job cannot point it at
+/// another file.
+fn chmod_fd(fd: libc::c_int, mode: libc::mode_t) {
+    let Ok(p) = CString::new(format!("/proc/self/fd/{fd}")) else { return };
+    // SAFETY: a C string.
+    unsafe { libc::chmod(p.as_ptr(), mode) };
 }
 
 /// Give the owner the bits of the directory of the `O_PATH` descriptor
@@ -205,9 +238,7 @@ pub(crate) fn open_up_fd(fd: BorrowedFd<'_>) {
             return;
         }
     }
-    let Ok(p) = CString::new(format!("/proc/self/fd/{}", fd.as_raw_fd())) else { return };
-    // SAFETY: a C string.
-    unsafe { libc::chmod(p.as_ptr(), 0o700) };
+    chmod_fd(fd.as_raw_fd(), 0o700);
 }
 
 #[cfg(test)]

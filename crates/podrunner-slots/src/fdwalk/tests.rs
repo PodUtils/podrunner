@@ -4,7 +4,7 @@ use std::os::unix::fs::symlink;
 use super::*;
 use crate::tests::TempDir;
 
-const ALL: Opts = Opts { same_dev: true, max_open: MAX_OPEN };
+const ALL: Opts = Opts { same_dev: true, max_open: MAX_OPEN, open_up: false };
 
 /// The bytes of the regular files that a walk reads, and how it ended.
 fn bytes(root: &Path, opts: Opts, mut on_dir: impl FnMut(&CStr)) -> (u64, End, usize) {
@@ -83,7 +83,7 @@ fn a_deep_tree_is_read_with_a_bound_of_descriptors() {
         fs::create_dir_all(p.with_file_name(format!("s{i}"))).unwrap();
         fs::write(p.with_file_name(format!("s{i}")).join("g"), [0; 1]).unwrap();
     }
-    let (n, end, peak) = bytes(&root, Opts { same_dev: true, max_open: 4 }, |_| {});
+    let (n, end, peak) = bytes(&root, Opts { max_open: 4, ..ALL }, |_| {});
     assert_eq!((n, end), (40 * 3, End::Done));
     assert!(peak <= 5, "the walk held {peak} descriptors");
     assert_eq!(bytes(&root, ALL, |_| {}).0, 40 * 3);
@@ -98,7 +98,7 @@ fn a_closed_directory_that_moves_ends_the_walk_lost() {
     fs::create_dir_all(root.join("a/b/c/d/e")).unwrap();
     fs::create_dir_all(root.join("a/sibling")).unwrap();
     let mut moved = false;
-    let (_, end, _) = bytes(&root, Opts { same_dev: true, max_open: 2 }, |name| {
+    let (_, end, _) = bytes(&root, Opts { max_open: 2, ..ALL }, |name| {
         if name.to_bytes() == b"e" && !moved {
             moved = true;
             fs::rename(root.join("a/b"), root.join("b-moved")).unwrap();

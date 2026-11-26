@@ -35,13 +35,15 @@ fn bytes_under_to(root: &Path, bound: u64) -> u64 {
 fn bytes_with(root: &Path, bound: u64, max_open: usize, mut d: impl FnMut(&std::ffi::CStr)) -> u64 {
     for _ in 0..2 {
         let mut total = 0u64;
-        let opts = fdwalk::Opts { same_dev: true, max_open };
+        let opts = fdwalk::Opts { same_dev: true, max_open, open_up: true };
         let count = |st: &libc::stat| {
             total = total.saturating_add(u64::try_from(st.st_size).unwrap_or(0));
             total <= bound
         };
         match fdwalk::walk(root, opts, count, |_, name| d(name)).0 {
             fdwalk::End::Lost => continue,
+            // A directory of this user that stays shut hides its bytes.
+            fdwalk::End::Shut => break,
             fdwalk::End::Done | fdwalk::End::Stopped => return total,
         }
     }
@@ -212,6 +214,23 @@ mod tests {
             }
         });
         assert_eq!(got, 7);
+    }
+
+    /// T-684: a job shuts a directory (mode 000); the walk of the same
+    /// user gives it its owner's read and search bits and counts its files.
+    #[test]
+    fn a_shut_directory_of_this_user_is_counted() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = TempDir::new();
+        let shut = dir.0.join("shut");
+        fs::create_dir_all(shut.join("inner")).unwrap();
+        fs::write(shut.join("inner/file"), [0; 50]).unwrap();
+        fs::set_permissions(&shut, fs::Permissions::from_mode(0o000)).unwrap();
+        assert_eq!(bytes_under(&dir.0), 50);
+        // As root the walk reads it with no change; as a user it gets u+rx.
+        let mode = fs::metadata(&shut).unwrap().permissions().mode() & 0o777;
+        assert!(mode == 0o000 || mode == 0o500, "{mode:o}");
+        fs::set_permissions(&shut, fs::Permissions::from_mode(0o700)).unwrap();
     }
 
     #[test]

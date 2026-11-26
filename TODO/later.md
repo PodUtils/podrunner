@@ -17523,7 +17523,7 @@ gap of a directory with mode 000 is older: T-684.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -17550,6 +17550,53 @@ of the limit.
 `cargo test -p podrunner-slots disk` as a user with no root: a file
 under a directory of mode 000 counts, and a directory that stays shut
 gives a count above the bound.
+
+## Done
+
+2026-11-26, the commit that names T-684 after `335da7b` (tests on a
+development host as root and as uid 65534; no live run). `fdwalk::Opts`
+has `open_up`: a directory of this user that does not open for read gets
+`u+rx` through its link in /proc, and the walk ends `Shut` when it still
+does not open. The disk walk sets it, and gives a count above the bound
+on `Shut` (fail closed). A directory of another user stays skipped. The
+cache walks do not set it. `a_shut_directory_of_this_user_is_counted`
+passes as root and as uid 65534 (`setpriv`), and fails as uid 65534 with
+`open_up` planted off. The audit line does not name the change of mode.
+The gap of another owner on the incus kind is T-685.
+
+# T-685: The disk walk of an incus unit skips the directories it cannot read
+
+**Source:** T-684, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The root that the incus kind gives the disk walk is `work/` of the
+unit. Its files belong to the ids of the instance, not to the user of
+podrunner. A directory of mode 0700 of the instance is not readable, and
+the walk skips it, so a job can write past `disk_max_bytes` under it.
+
+## Premise
+
+Read from `crates/podrunner-incus/src/lib.rs` (`observe`) and
+`crates/podrunner-slots/src/disk.rs` on 2026-11-26. Not measured.
+
+## Approach
+
+On the incus kind, take the use of the root disk of the instance from
+incusd (the state of `podvm inspect`, T-483) in place of the walk, or
+require `root_quota` (T-482) for a disk bound. Keep the walk for the
+kinds whose files belong to this user.
+
+## Prove
+
+`cargo test -p podrunner-incus` with a fake podvm that gives a disk use,
+and the limits suite of `runner-image.yml` with a file under a directory
+of mode 0700 in the instance.
 
 # T-679: A local concurrency lock error reports an interrupted wait
 

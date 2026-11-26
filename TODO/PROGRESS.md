@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 679 entries: 83 open, 57 partial, 15 blocked, 524 done.
+`TODO/INDEX.md` holds 680 entries: 83 open, 57 partial, 15 blocked, 525 done.
 
 ## State
 
@@ -69,7 +69,7 @@ then take the next one.
    and podnet takes (T-675, T-677).
 2. Prove the refused-assignment fix in a podvm unit (T-682: the hook ends
    the runner worker; proven against the official runner on a development
-   host). Take the rest of the cache work in T-480, then T-684.
+   host). Take the rest of the cache work in T-480.
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10
@@ -81,7 +81,7 @@ then take the next one.
    and Docker-in-Docker, the bundled engine (T-672), and the live check
    (T-040).
 5. The local P3 entries: T-655, T-656, T-658, T-659, T-598, T-597,
-   T-616, T-603 (step 1), T-610, T-609, T-679, T-680. The follow-ups of QA round 6: T-638,
+   T-616, T-603 (step 1), T-610, T-609, T-679, T-680, T-685. The follow-ups of QA round 6: T-638,
    T-643, T-644, T-645. The P3 groups of the QA rounds: T-308, T-316, T-323,
    T-331, T-339, T-633 to T-637, T-642.
 6. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,

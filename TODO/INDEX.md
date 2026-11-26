@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**679 entries: 83 open, 57 partial, 15 blocked, 524 done.**
+**680 entries: 83 open, 57 partial, 15 blocked, 525 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 26 | 2 | 97 | 125 |
-| P2 | 15 | 20 | 9 | 277 | 321 |
-| P3 | 67 | 11 | 4 | 148 | 230 |
-| **All** | 83 | 57 | 15 | 524 | 679 |
+| P2 | 14 | 20 | 9 | 278 | 321 |
+| P3 | 68 | 11 | 4 | 148 | 231 |
+| **All** | 83 | 57 | 15 | 525 | 680 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -726,4 +726,5 @@ acceptance, later The crate dependencies later than v1.
 | [T-681](later.md) | P2 | S | later | measurement | blocked | Repeat the low-space Incus proof on the next podvm release |
 | [T-682](later.md) | P1 | M | later | defect | partial | A refused runner assignment must stop the job before steps |
 | [T-683](later.md) | P1 | S | later | defect | partial | The bundled engine fails in an instance of Incus before 6.0.6 and 6.19 |
-| [T-684](later.md) | P2 | S | later | defect | open | A job hides bytes from the disk limit under a shut directory |
+| [T-684](later.md) | P2 | S | later | defect | done | A job hides bytes from the disk limit under a shut directory |
+| [T-685](later.md) | P3 | M | later | defect | open | The disk walk of an incus unit skips the directories it cannot read |
