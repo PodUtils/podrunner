@@ -37,7 +37,8 @@ of Node (`actions/setup-go`, `actions/setup-python`) fails with
 own CA. With `SSL_CERT_FILE` and no `NODE_EXTRA_CA_CERTS` in the
 environment of podrunner, a job gets `NODE_EXTRA_CA_CERTS` with the file of
 `SSL_CERT_FILE`; a value that you set has priority (T-642).
-`podrunner doctor --run` names the variables that a job takes. Set each
+`podrunner doctor --run` names the variables that a job takes, and the CA
+file that Node gets (T-695). Set each
 one before the run; give another variable with `--env NAME=VALUE`. With a
 proxy variable, a job also gets `NODE_USE_ENV_PROXY=1`, so that `fetch` of
 Node uses the proxy, and a `node20` action runs on Node 24, as on GitHub
