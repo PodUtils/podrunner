@@ -96,9 +96,7 @@ fn a_cpu_limit_needs_a_delegated_cgroup() {
     let run = "0::/user.slice/app/run\n";
     assert_eq!(t.check(run, "cpu memory pids\n", "", "cpu"), Ok(()));
     assert!(t.check(run, "memory pids\n", "", "cpu").unwrap_err().contains("no cpu controller"));
-    assert!(
-        t.check("4:memory:/x\n0::/user.slice/app/run\n", "cpu\n", "", "cpu").unwrap_err().contains("cgroup v1")
-    );
+    assert!(t.check("4:memory:/x\n0::/user.slice/app/run\n", "cpu\n", "", "cpu").unwrap_err().contains("cgroup v1"));
     assert!(t.check("0::/top\n", "cpu\n", "", "cpu").is_err(), "the parent is the root");
     assert!(t.check("1:cpu:/\n", "cpu\n", "", "cpu").is_err(), "cgroup v1 only");
     // podvm gives no controller to a child of a cgroup with a process.
