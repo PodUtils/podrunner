@@ -352,6 +352,15 @@ grep -qx 'podvm = "/my/podvm"' "$t/mine/.config/podrunner/run.toml" || fail "the
 [ -f "$t/mine/.config/podrunner/run.toml.podrunner-install" ] || fail "no keys of the install beside it"
 ok "a run.toml of the user stays"
 
+# 7a. Each install writes serve.json (T-705): `run --microvm` reads the
+# unpacked size of the image from it, with no --serve.
+f=$t/mine/.local/share/podrunner/serve.json
+[ -f "$f" ] || fail "an install with no --serve wrote no serve.json"
+python3 -I -c 'import json,sys; v=json.load(open(sys.argv[1])); assert v["schema"] == 1 and v["image"].startswith("runner@sha256:") and v["unpacked_bytes"] == 110, v' "$f" ||
+    fail "serve.json of an install with no --serve has no unpacked size"
+[ -f "$t/mine/.config/podrunner/run.toml.podrunner-install" ] || fail "an install with no --serve wrote no run.toml"
+ok "serve.json with no --serve"
+
 # 7b. --serve (T-507): serve.json and no file of the local mode; a
 # second run changes nothing.
 run serve --serve || fail "the install with --serve"

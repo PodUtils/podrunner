@@ -176,7 +176,7 @@ or `[unit.microvm] mem` on `serve` (T-690). `run` refuses a `--mem` that
 keeps less than 2 GiB of root for a job with no image (below about
 2731M). podvm gives the stored size of an image, not its unpacked size.
 When `--microvm` is `DATA/bin/podvm` of an install and `DATA/serve.json`
-(the installer writes it with `--serve`) names the digest of `--image`,
+(each install writes it) names the digest of `--image`,
 `run` takes `unpacked_bytes` of that file: it refuses a `--mem` that does
 not boot the image or keeps less than 2 GiB of root for its job, with the
 fix (T-698). For each

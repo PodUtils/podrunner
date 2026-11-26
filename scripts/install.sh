@@ -68,8 +68,9 @@ usage: sh podrunner-install.sh [--prefix DIR] [--full] [--bundle PATH] [--serve]
   --bundle PATH  install from a bundle of a release (its .tar.gz or its
                  unpacked directory), with no network
   --serve        install for `podrunner serve`: write no run.toml and no
-                 hello.yml; write DATA/serve.json (the paths and the image
-                 that `podrunner config init` takes) and print the next step
+                 hello.yml; print the next step (`podrunner config init`
+                 takes the paths and the image of DATA/serve.json, which
+                 each install writes)
 
 The environment variable PODRUNNER_MIRROR=URL takes each file from URL/NAME
 in place of its release on github.com. Each file must agree with its pin.
@@ -502,16 +503,19 @@ else
 fi
 rm -rf "$runtmp/bundle" "$rel"
 
-# An install for `serve` (T-507): a program (githome's CLI) reads
-# serve.json and runs `podrunner config init`; no file of the local mode.
+# serve.json holds the facts of the image of each install (T-705): `run
+# --microvm` reads its unpacked size (T-698), and with --serve a program
+# (githome's CLI) runs `podrunner config init` from it (T-507).
+# The unpacked size of the image (T-572): `check` refuses a pin above the
+# bound of a kind, and built_at_s is the time of the build of the image
+# (the age of the pin). A release before each has none.
+printf '{"schema": 1, "podrunner": "%s", "podvm": "%s", "podnet": "%s", "images": "%s", "image": "runner@%s", "runner_version": "%s", "unpacked_bytes": %s, "built_at_s": %s}\n' \
+    "$bin/podrunner" "$podvm" "$data/bin/podnet" "$store" "$image" "$RUNNER_VERSION" "${image_bytes:-null}" "${image_built:-null}" > "$data/serve.json.new"
+mv -f "$data/serve.json.new" "$data/serve.json"
+say "ok      $data/serve.json"
+
+# An install for `serve`: no file of the local mode.
 if [ "$serve" = 1 ]; then
-    # The unpacked size of the image (T-572): `check` refuses a pin above
-    # the bound of a kind, and built_at_s is the time of the build of the
-    # image (the age of the pin). A release before each has none.
-    printf '{"schema": 1, "podrunner": "%s", "podvm": "%s", "podnet": "%s", "images": "%s", "image": "runner@%s", "runner_version": "%s", "unpacked_bytes": %s, "built_at_s": %s}\n' \
-        "$bin/podrunner" "$podvm" "$data/bin/podnet" "$store" "$image" "$RUNNER_VERSION" "${image_bytes:-null}" "${image_built:-null}" > "$data/serve.json.new"
-    mv -f "$data/serve.json.new" "$data/serve.json"
-    say "ok      $data/serve.json"
     say "the checks of podrunner doctor:"
     "$bin/podrunner" doctor 2>&1 | grep -v '^missing: --config' | sed 's/^/    /' || true
     [ "$got" -eq 0 ] && say "nothing was downloaded: each file was present and correct"

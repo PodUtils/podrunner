@@ -69,7 +69,7 @@ pub(super) fn image_size(a: &Args) -> Result<Option<u64>, String> {
 /// The unpacked bytes of `image`. podvm `0.2.0-beta.40` gives the stored
 /// bytes only (`inspect`), so the source is `serve.json` of the install:
 /// the installer puts podvm at `DATA/bin/podvm` and writes the pins of its
-/// image to `DATA/serve.json` (`--serve`). Another image: `None`.
+/// image to `DATA/serve.json` (each install). Another image: `None`.
 fn image_bytes(binary: &std::path::Path, image: &str) -> Option<u64> {
     let bin = binary.parent().filter(|b| b.file_name() == Some("bin".as_ref()))?;
     install_bytes(&std::fs::read_to_string(bin.parent()?.join("serve.json")).ok()?, image)
