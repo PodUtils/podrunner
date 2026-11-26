@@ -14,7 +14,8 @@ used as a user, on one host class (a lane of user-gate.yml).
       the checks of one lane, as the user that runs it; OUT/results.tsv
       gets one line for each check (lane, check, result, detail, times)
   user-gate.py --self-test
-      check the parts that need no host (the times of `serve:warm`)
+      check the parts that need no host (the times of `serve:warm`, the
+      job of `serve:job:engine:microvm` with stand-ins of docker)
 
 user-gate-summary.py prints the table of the results of each lane.
 
@@ -116,6 +117,186 @@ def fsize_expect(soft: int, size: int) -> str:
     if need * 10 <= soft * 9:
         return "run"
     return "refuse" if need * 10 > soft * 11 else "either"
+
+
+# T-509 (githome's G-38): a runner job of githome that uses the engine of
+# the unit, through `serve` on the microvm kind with the full image. The
+# fake GitHub of podcrates sends only `run:` steps (its job message has
+# `"jobContainer": null` and no service containers), so the step does
+# what `services:` does with the engine: a container of a pulled image, a
+# second container that serves on a user network, and a client that
+# reaches it by its name. `$((6*7))` is in single quotes: only the shell
+# of a container gives 42. `wget -Y off`: no proxy for a name of the
+# network. The loop waits for the service to answer, at most 60 tries.
+ENGINE_IMAGE = "mirror.gcr.io/library/busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec"
+ENGINE_STEP = f"""set -eu
+img={ENGINE_IMAGE}
+out=$(docker run --rm "$img" sh -c 'echo "ran-$((6*7))"')
+echo "$out"
+test "$out" = ran-42
+docker network create podrunner-gate >/dev/null
+docker run -d --name web --network podrunner-gate "$img" \\
+  sh -c 'mkdir w && echo "served-$((6*7))" > w/index.html && exec httpd -f -p 8080 -h w' >/dev/null
+got=''
+for _ in $(seq 60); do
+  got=$(docker run --rm --network podrunner-gate "$img" wget -Y off -qO- http://web:8080/) && break
+  sleep 1
+done
+echo "$got"
+test "$got" = served-42 || {{ docker logs web >&2 || true; exit 1; }}
+"""
+
+
+def serve_job_body(tier: str, engine: bool) -> dict:
+    """The body of `POST /_fake/jobs` of pod-fake-githome: the plain job
+    of one `echo` step, or the job of ENGINE_STEP, which needs the engine
+    of the unit (`unit_need.container_engine`): the fake source gives it
+    only to a host with a kind of the route `engine`, and placement only
+    to a pin with `container_engine`."""
+    if not engine:
+        return {"repository": "example-org/app", "tier": tier, "steps": ["echo podrunner-gate-job-$((6*7))"]}
+    return {"repository": "example-org/app", "tier": tier, "steps": [ENGINE_STEP],
+            "unit_need": {"container_engine": True}}
+
+
+def engine_pin(text: str, image: str) -> str:
+    """TEXT (a podrunner.toml of `config init`) with `container_engine =
+    true` on the one pin of IMAGE: the full image bundles the engine
+    (T-672), and `config init` does not write the key."""
+    line = f'reference = "{image}"\n'
+    if text.count(line) != 1:
+        raise GateError(f"config init wrote {text.count(line)} pins of {image}, not one")
+    return text.replace(line, line + "container_engine = true\n", 1)
+
+
+def serve_job_problems(kind: str, report: dict, conclusion) -> list[str]:
+    """What is wrong with the end of a job through `serve` on KIND: the
+    report of podrunner says `success` on a unit of KIND, the fake GitHub
+    says `success`, and a trusted job on podvm ran in the proven layer
+    (`confined`, T-566)."""
+    bad = []
+    if report.get("exit_reason") != "success":
+        bad.append(f"exit_reason {report.get('exit_reason')}")
+    if report.get("unit_kind") != kind:
+        bad.append(f"unit_kind {report.get('unit_kind')}")
+    if conclusion != "success":
+        bad.append(f"GitHub conclusion {conclusion}")
+    if kind == "podvm" and report.get("boundary") != "confined":
+        bad.append(f"boundary {report.get('boundary')}")
+    return bad
+
+
+# Stand-ins of the commands of ENGINE_STEP for the self-test: a container
+# runs its command in a new directory of STATE with the stand-ins on PATH;
+# httpd records its name, network, port and root; wget answers only for
+# that name, port and network, and with the proxy off.
+STUB_DOCKER = r"""#!/bin/sh
+set -eu
+s=$GATE_STUB_STATE
+case "$1" in
+network) test "$2" = create && : > "$s/net.$3"; exit 0 ;;
+logs) exit 0 ;;
+run) shift ;;
+*) echo "stub docker: no command $1" >&2; exit 2 ;;
+esac
+detach='' name='' net=''
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --rm) shift ;;
+  -d) detach=1; shift ;;
+  --name) name=$2; shift 2 ;;
+  --network) net=$2; test -e "$s/net.$2" || { echo "stub docker: no network $2" >&2; exit 1; }; shift 2 ;;
+  -*) echo "stub docker: no option $1" >&2; exit 2 ;;
+  *) break ;;
+  esac
+done
+test "$1" = "$GATE_STUB_IMAGE" || { echo "stub docker: no image $1" >&2; exit 1; }
+shift
+d=$(mktemp -d "$s/c.XXXXXX")
+cd "$d"
+export GATE_STUB_NAME="$name" GATE_STUB_NET="$net"
+if [ -n "$detach" ]; then "$@" >/dev/null; echo "$name"; else exec "$@"; fi
+"""
+STUB_HTTPD = r"""#!/bin/sh
+port='' home=''
+while [ $# -gt 0 ]; do
+  case "$1" in -f) shift ;; -p) port=$2; shift 2 ;; -h) home=$2; shift 2 ;; *) exit 2 ;; esac
+done
+printf '%s %s %s %s\n' "$GATE_STUB_NAME" "$GATE_STUB_NET" "$port" "$PWD/$home" > "$GATE_STUB_STATE/served"
+"""
+STUB_WGET = r"""#!/bin/sh
+off=''
+while [ $# -gt 1 ]; do
+  case "$1" in -Y) test "$2" = off && off=1; shift 2 ;; -qO-) shift ;; *) exit 2 ;; esac
+done
+test -n "$off" && test -s "$GATE_STUB_STATE/served" || exit 1
+read -r name net port root < "$GATE_STUB_STATE/served"
+test "$1" = "http://$name:$port/" && test "$GATE_STUB_NET" = "$net" || exit 1
+cat "$root/index.html"
+"""
+
+
+def run_engine_step(step: str, image: str = ENGINE_IMAGE, stubs: dict | None = None) -> tuple[int, str]:
+    """STEP under `bash -e` (the shell of a `run:` step) with the stand-ins
+    of docker, httpd and wget, and a `sleep` that returns at once: the exit
+    code and the output. STUBS replaces a stand-in by name."""
+    tools = {"docker": STUB_DOCKER, "httpd": STUB_HTTPD, "wget": STUB_WGET, "sleep": "#!/bin/sh\nexit 0\n", **(stubs or {})}
+    with tempfile.TemporaryDirectory() as t:
+        bin_dir, state = pathlib.Path(t, "bin"), pathlib.Path(t, "state")
+        bin_dir.mkdir()
+        state.mkdir()
+        for name, text in tools.items():
+            (bin_dir / name).write_text(text)
+            (bin_dir / name).chmod(0o755)
+        (bin_dir.parent / "step.sh").write_text(step)
+        env = {"PATH": f"{bin_dir}:{os.environ.get('PATH', '/usr/bin:/bin')}", "GATE_STUB_STATE": str(state),
+               "GATE_STUB_IMAGE": image, "TMPDIR": t}
+        shell = shutil.which("bash")
+        argv = [shell, "--noprofile", "--norc", "-e"] if shell else ["sh", "-e"]
+        p = subprocess.run(argv + [str(bin_dir.parent / "step.sh")], env=env, cwd=t, capture_output=True,
+                           text=True, timeout=60)
+        return p.returncode, p.stdout
+
+
+def engine_self_test():
+    """T-509: the job, the pin and the verdict of `serve:job:engine:KIND`,
+    each with planted defects."""
+    rc, out = run_engine_step(ENGINE_STEP)
+    assert rc == 0 and out.split() == ["ran-42", "served-42"], (rc, out)
+    # Planted defects: a wrong expected text, a service that serves another
+    # text, a client on the default network or of another name, another
+    # image, and an engine whose service never answers: each fails.
+    for old, new in (("test \"$out\" = ran-42", "test \"$out\" = ran-41"),
+                     ("test \"$got\" = served-42", "test \"$got\" = served-41"),
+                     ("echo \"served-$((6*7))\"", "echo \"served-$((6*6))\""),
+                     ("--rm --network podrunner-gate", "--rm"), ("http://web:8080/", "http://db:8080/")):
+        assert old in ENGINE_STEP, old
+        rc, out = run_engine_step(ENGINE_STEP.replace(old, new))
+        assert rc != 0, (old, new, out)
+    assert run_engine_step(ENGINE_STEP, image="busybox")[0] != 0
+    assert run_engine_step(ENGINE_STEP, stubs={"httpd": "#!/bin/sh\nexit 0\n"})[0] != 0
+    body = serve_job_body("untrusted", True)
+    assert body["unit_need"] == {"container_engine": True} and body["steps"] == [ENGINE_STEP], body
+    assert "unit_need" not in serve_job_body("trusted", False)
+    toml = '[[pin.payload]]\narch = "x86_64"\nreference = "r@sha256:1"\nbuilt_at_s = 1\n'
+    assert engine_pin(toml, "r@sha256:1") == toml.replace('"r@sha256:1"\n', '"r@sha256:1"\ncontainer_engine = true\n')
+    for bad in (toml.replace("r@", "s@"), toml + toml):
+        try:
+            engine_pin(bad, "r@sha256:1")
+        except GateError:
+            pass
+        else:
+            raise AssertionError(f"engine_pin took {bad!r}")
+    good = {"exit_reason": "success", "unit_kind": "microvm", "boundary": "guest"}
+    assert serve_job_problems("microvm", good, "success") == []
+    assert serve_job_problems("podvm", {**good, "unit_kind": "podvm", "boundary": "confined"}, "success") == []
+    for kind, report, conclusion, word in (("microvm", {**good, "exit_reason": "failure"}, "success", "exit_reason"),
+                                           ("microvm", {**good, "unit_kind": "incus"}, "success", "unit_kind"),
+                                           ("microvm", good, "failure", "conclusion"), ("microvm", {}, None, "exit_reason"),
+                                           ("podvm", {**good, "unit_kind": "podvm"}, "success", "boundary")):
+        got = serve_job_problems(kind, report, conclusion)
+        assert got and any(word in g for g in got), (kind, report, conclusion, got)
+
 
 # T-644: Ctrl-C of a `container:` job on podvm. The step prints CANCEL_MARK
 # (the log echoes the text of the step with `$((6*7))` unexpanded, so only
@@ -241,6 +422,7 @@ def self_test() -> int:
     assert wrong(lambda rc, t, o, e, left: cancel_problems(rc, 0, o, e, left))
     assert wrong(lambda rc, t, o, e, left: cancel_problems(rc, t, o.replace("c2x", "c2"), e, left))
     assert wrong(lambda rc, t, o, e, left: cancel_problems(rc, t, o, e, none))
+    engine_self_test()
     print("user-gate: self-test passed")
     return 0
 
@@ -392,6 +574,8 @@ class Lane:
         self.home = self.work / "home"
         self.data = self.home / ".local" / "share" / "podrunner"
         self.image = ""
+        # The image of the lane is the full image, with the engine (T-672).
+        self.full_image = False
         # T-638: the soft and the hard limit of file size of the lane (None:
         # no limit), and whether a podvm route is refused under it.
         self.fsize = tuple(None if v == resource.RLIM_INFINITY else v for v in resource.getrlimit(resource.RLIMIT_FSIZE))
@@ -585,6 +769,7 @@ class Lane:
             raise GateError(f"podrunner-install.sh --full: exit {rc}")
         if self.run_toml_image() == before:
             raise GateError("run.toml names the base image after --full")
+        self.full_image = True
         return "the larger image from the bundle directory (--full)"
 
     def run_toml_image(self) -> str:
@@ -1288,19 +1473,24 @@ class Lane:
             raise GateError(f"{argv[0]}: no base URL ({line!r})")
         return p, line.rstrip("/")
 
-    def serve_job(self, kind: str) -> str:
+    def serve_job(self, kind: str, engine: bool = False) -> str:
         """One runner job of githome's fake source through `serve` on KIND:
         the claim, the mint of a JIT configuration of the fake GitHub, the
-        official runner in a unit of KIND, and the report `success`."""
+        official runner in a unit of KIND, and the report `success`. With
+        ENGINE (T-509), the pin of the full image gets `container_engine`,
+        and the job is ENGINE_STEP, which needs the engine of the unit."""
         import urllib.request
+        if engine and not self.full_image:
+            raise GateError("the lane has no full image (the check install:full failed): no engine to test")
         env = self.env(self.home)
         env.pop("NOTIFY_SOCKET", None)
         tier = "untrusted" if kind == "microvm" else "trusted"
+        name = f"job-engine-{kind}" if engine else f"job-{kind}"
         address = self.broker_address or self.host_address()
-        gh, gh_url = self.started([self.fake("pod-fake-github"), "--listen", f"{address}:0"], f"job-{kind}-github", env)
+        gh, gh_url = self.started([self.fake("pod-fake-github"), "--listen", f"{address}:0"], f"{name}-github", env)
         ho, ho_url = self.started([self.fake("pod-fake-githome"), "serve", "--listen", "127.0.0.1:0", "--github", gh_url],
-                                  f"job-{kind}-githome", env)
-        d = self.work / f"serve-job-{kind}"
+                                  f"{name}-githome", env)
+        d = self.work / f"serve-{name}"
         shutil.rmtree(d, ignore_errors=True)
         d.mkdir(parents=True)
         cfg = d / "podrunner.toml"
@@ -1308,30 +1498,31 @@ class Lane:
             "podrunner", "config", "init", "--source", "githome", "--program", self.fake("pod-fake-githome"),
             "--arg", "source", "--arg", "--server", "--arg", ho_url, "--tier", tier, "--org", "example-org",
             "--podvm", self.data / "bin" / "podvm", "--images", self.data / "images", "--image", self.image,
-            "--built-at-s", self.built_at(), "--kinds", kind, "--host", f"gate-job-{kind}", "--out", cfg, "--json",
+            "--built-at-s", self.built_at(), "--kinds", kind, "--host", f"gate-{name}", "--out", cfg, "--json",
         ] + self.hold_args(kind)
         procs = [gh, ho]
         try:
-            rc, _ = self.run(argv, env, d, f"job-{kind}-init")
+            rc, _ = self.run(argv, env, d, f"{name}-init")
             if rc:
-                self.show(f"job-{kind}-init")
+                self.show(f"{name}-init")
                 raise GateError(f"config init --kinds {kind} --tier {tier}: exit {rc}")
+            if engine:
+                cfg.write_text(engine_pin(cfg.read_text(), self.image))
             # The fake GitHub is on an address of the host: the policy of the
             # operator opens it (an offer of the fake names no policy).
             with cfg.open("a") as f:
                 f.write('\n[egress]\ndefault_policy = { schema = 1, mode = "open" }\n')
             serve = subprocess.Popen(["podrunner", "serve", "--config", str(cfg), "--state", str(d / "state")], cwd=d,
-                                     env=env, stdout=(self.out / "logs" / f"job-{kind}-serve.out").open("w"),
-                                     stderr=(self.out / "logs" / f"job-{kind}-serve.err").open("w"),
+                                     env=env, stdout=(self.out / "logs" / f"{name}-serve.out").open("w"),
+                                     stderr=(self.out / "logs" / f"{name}-serve.err").open("w"),
                                      start_new_session=True)
             procs.append(serve)
-            job = json.dumps({"repository": "example-org/app", "tier": tier,
-                              "steps": ["echo podrunner-gate-job-$((6*7))"]}).encode()
+            job = json.dumps(serve_job_body(tier, engine)).encode()
             req = urllib.request.Request(f"{ho_url}/_fake/jobs", data=job, method="POST",
                                          headers={"Content-Type": "application/json"})
             urllib.request.urlopen(req, timeout=30).read()
             reports, end = [], time.monotonic() + 900
-            serve_err, no_tier = self.out / "logs" / f"job-{kind}-serve.err", False
+            serve_err, no_tier = self.out / "logs" / f"{name}-serve.err", False
             while time.monotonic() < end and serve.poll() is None and not reports:
                 reports = json.loads(urllib.request.urlopen(f"{ho_url}/_fake/reports", timeout=30).read())
                 # T-574: serve with no tier runs no job: do not wait.
@@ -1350,18 +1541,21 @@ class Lane:
                     except subprocess.TimeoutExpired:
                         os.killpg(p.pid, signal.SIGKILL)
                         p.wait()
-            self.keep_guest_logs(d / "state", f"job-{kind}-serve")
+            self.keep_guest_logs(d / "state", f"{name}-serve")
         report = reports[-1]["report"] if reports else {}
         conclusion = jobs[0].get("conclusion") if jobs else None
-        # A trusted job on podvm runs only when serve proved the layer (T-566).
-        boundary_ok = kind != "podvm" or report.get("boundary") == "confined"
-        if report.get("exit_reason") != "success" or report.get("unit_kind") != kind or conclusion != "success" \
-                or not boundary_ok:
-            for log in (f"job-{kind}-serve", f"job-{kind}-githome", f"job-{kind}-github"):
+        bad = serve_job_problems(kind, report, conclusion)
+        if bad:
+            for log in (f"{name}-serve", f"{name}-githome", f"{name}-github"):
                 self.show(log, 120)
             ended = f"serve ended with exit {early}" if early is not None else "serve ran to the end of the wait"
             ended = "serve served no tier (no-tier-served)" if no_tier else ended
-            raise GateError(f"the job through serve on {kind}: {ended}; report {report or 'none'}, GitHub conclusion {conclusion}")
+            raise GateError(f"the job through serve on {kind}{' with an engine' if engine else ''}: {ended}; "
+                            f"{', '.join(bad)}; report {report or 'none'}")
+        if engine:
+            return (f"a runner job of githome with the engine of the unit through serve on {kind} ({tier}, "
+                    f"{report.get('boundary')}, the full image): docker run of a pulled image and a service by name "
+                    "on a user network; success, as GitHub says")
         return f"a runner job of githome through serve on {kind} ({tier}, {report.get('boundary')}): success, as GitHub says"
 
     def serve_warm(self, kind: str) -> str:
@@ -1659,7 +1853,7 @@ def lane(a) -> int:
     limited = g.fsize[0] is not None or g.name.startswith("fsize-")
     later = (["fsize"] if limited else []) + later
     later += [f"serve:{c}:{k}" for k in g.serve_kinds for c in ("check", "run", "job")]
-    later += ["serve:run:ws:microvm"] if "microvm" in g.serve_kinds else []
+    later += ["serve:run:ws:microvm", "serve:job:engine:microvm"] if "microvm" in g.serve_kinds else []
     warm_kinds = [k for k in g.serve_kinds if k in ("microvm", "incus")]
     later += [f"serve:warm:{k}" for k in warm_kinds]
     later += [f"corpus:{r['id']}:{r['executor']}" for r in rows if g.wants(r)]
@@ -1700,10 +1894,12 @@ def lane(a) -> int:
                         if k == "microvm":
                             g.check(f"serve:run:ws:{k}", functools.partial(g.serve_ws, k))
                         g.check(f"serve:job:{k}", functools.partial(g.serve_job, k))
+                        if k == "microvm":
+                            g.check(f"serve:job:engine:{k}", functools.partial(g.serve_job, k, True))
                         if k in warm_kinds:
                             g.check(f"serve:warm:{k}", functools.partial(g.serve_warm, k))
                     else:
-                        for c in ("run", "run:ws", "job") if k == "microvm" else ("run", "job"):
+                        for c in ("run", "run:ws", "job", "job:engine") if k == "microvm" else ("run", "job"):
                             g.skip(f"serve:{c}:{k}", "the check of the configuration failed")
                         if k in warm_kinds:
                             g.skip(f"serve:warm:{k}", "the check of the configuration failed")

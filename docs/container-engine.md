@@ -114,6 +114,13 @@ Do not downgrade runc: runc 1.3.3 fixes container escapes.
   the step loads an image into the inner engine and runs a container in
   it. The jobs `docker-build` and `docker-dind` of `level2.yml` run the
   same text on a GitHub-hosted runner (T-516).
+- The check `serve:job:engine:microvm` of the lane `serve-incus-kvm` of
+  `user-gate.yml` runs a runner job through `serve` on the microvm kind,
+  with the full image and `container_engine = true` on its pin (T-509).
+  The job needs the engine (`unit_need.container_engine`). Its step pulls
+  an image, runs a container, and reaches a second container by its name
+  on a user network. The fake GitHub of podcrates sends only `run:`
+  steps, so this job has no `container:` and no `services:` key.
 
 ## Docker-in-Docker
 

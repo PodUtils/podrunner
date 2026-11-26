@@ -3,8 +3,9 @@
 # tests, the check of the record (cargo todo check), the size of the Rust
 # files (scripts/check-size.py, with its self-test), the stale and narrative
 # text of the documents (scripts/check-docs.py, with its self-test), the
-# self-test of the
-# summary of the user-path gate (scripts/user-gate-summary.py), the
+# self-tests of the
+# summary and of the parts with no host of the user-path gate
+# (scripts/user-gate-summary.py, scripts/user-gate.py), the
 # WebSocket attach of the user-path gate (scripts/ws-echo.py --self-test),
 # the checks of the boot of hosted-boot.yml (scripts/hosted/boot-checks.py
 # --self-test), the runner layer of the hosted snapshot
@@ -65,6 +66,8 @@ echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/siz
 echo "docs $dc"; [ "$dc" -eq 0 ] || { rc=1; grep -v "^ok \|^check-docs:" "$log/docs.log" | head -20; }
 python3 -I scripts/user-gate-summary.py --self-test > "$log/gate-summary.log" 2>&1; g=$?
 echo "gate-summary $g"; [ "$g" -eq 0 ] || { rc=1; grep -v "^ok " "$log/gate-summary.log" | head -20; }
+timeout 300 python3 -I scripts/user-gate.py --self-test > "$log/user-gate.log" 2>&1; ug=$?
+echo "user-gate $ug"; [ "$ug" -eq 0 ] || { rc=1; tail -20 "$log/user-gate.log"; }
 timeout 120 python3 -I scripts/ws-echo.py --self-test > "$log/ws.log" 2>&1; w=$?
 echo "ws-echo $w"; [ "$w" -eq 0 ] || { rc=1; grep -v "^ok " "$log/ws.log" | head -20; }
 python3 -I scripts/hosted/boot-checks.py --self-test > "$log/boot-checks.log" 2>&1; b=$?
