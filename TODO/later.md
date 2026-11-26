@@ -17669,7 +17669,7 @@ of mode 0700 in the instance.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -17693,6 +17693,15 @@ paths with a local concurrency fixture.
 
 `cargo test -p podrunner run_local::concurrency`.
 
+## Done
+
+2026-11-26, `6b8191b8` (tests on a development host). A wait for a group lock
+or a waiting place gives the signal text only when the stop callback
+ended it (`wait_lock` of `run_local/concurrency.rs`); a failure of the
+open or the lock gives its own text, with the path and the I/O cause.
+Test: `a_wait_error_tells_its_cause` (a lock path under a file gives
+ENOTDIR); it failed with the old mapping. Not run on a constrained host.
+
 # T-680: Local doctor only checks the podnet file
 
 **Source:** Review of T-677, 2026-11-26
@@ -17700,7 +17709,7 @@ paths with a local concurrency fixture.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -17724,6 +17733,16 @@ netns available and seccomp unavailable to verify selection.
 ## Prove
 
 `cargo test -p podrunner --test doctor`.
+
+## Done
+
+2026-11-26, `6b8191b8` (tests on a development host). `doctor --run --podnet
+BIN` takes the seccomp hold by `routes::podnet_hold`, the function that
+`run` uses, with the same backend, class and text. Test:
+`doctor_run_and_run_agree_on_the_podnet_hold` (`tests/doctor.rs`, a stub
+podvm and a stub podnet with netns `enforced` and seccomp `unavailable`,
+then `advisory`); it failed on the old row (`ok podnet: PATH`). A real
+podnet on a host with no seccomp hold: not run.
 
 # T-681: Repeat the low-space Incus proof on the next podvm release
 
