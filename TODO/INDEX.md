@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**698 entries: 76 open, 54 partial, 18 blocked, 550 done.**
+**699 entries: 76 open, 54 partial, 19 blocked, 550 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 12 | 19 | 10 | 283 | 324 |
-| P3 | 63 | 12 | 6 | 165 | 246 |
-| **All** | 76 | 54 | 18 | 550 | 698 |
+| P2 | 11 | 19 | 11 | 283 | 324 |
+| P3 | 64 | 12 | 6 | 165 | 247 |
+| **All** | 76 | 54 | 19 | 550 | 699 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -690,7 +690,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-645](later.md) | P3 | S | later | chore | done | The man page of the model under groff and mandoc, and in the assets of a release |
 | [T-646](later.md) | P3 | M | later | defect | done | Tests that write a program and start it while other tests fork |
 | [T-647](later.md) | P1 | S | later | chore | done | Take podcrates `v0.83.0` and podvm `0.2.0-beta.40` (COORD-154 of podcrates, COORD-246 of podvm) |
-| [T-648](later.md) | P2 | M | later | feature | open | The cache of `serve` on the microvm and incus kinds |
+| [T-648](later.md) | P2 | M | later | feature | blocked | The cache of `serve` on the microvm and incus kinds |
 | [T-649](later.md) | P3 | M | later | measurement | blocked | The bytes that a job reads from its cache |
 | [T-650](later.md) | P2 | M | later | feature | blocked | A tool that writes its cache in a job with a read-only cache |
 | [T-651](later.md) | P3 | S | later | feature | done | The cache in the containers of a `container:` job |
@@ -746,3 +746,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-701](later.md) | P3 | S | later | defect | open | A local run with --podnet leaves a socket of podnet in /tmp |
 | [T-702](later.md) | P3 | S | later | defect | open | install-unit names Windows in a refusal on Linux |
 | [T-703](later.md) | P3 | S | later | defect | open | A failed test of a fake unit leaves its shim with the lock of cargo |
+| [T-704](later.md) | P3 | M | later | defect | open | The work directory of a microvm or incus unit has the owner problem of a writable cache |

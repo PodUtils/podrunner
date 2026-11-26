@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 698 entries: 76 open, 54 partial, 18 blocked, 550 done.
+`TODO/INDEX.md` holds 699 entries: 76 open, 54 partial, 19 blocked, 550 done.
 
 ## State
 
@@ -67,10 +67,10 @@ Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
 1. Read the runs of #370 (the lanes `fsize-1g`, `cancel-container`,
-   `install:man`; the OOM tests of T-515). Merge the workers of T-648,
+   `install:man`; the OOM tests of T-515). Merge the workers of
    T-699 with T-698, and T-700 with T-702 and T-695.
-2. Take the rest of the cache work in T-480 (T-648; T-650 waits for
-   COORD-141, #368).
+2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
+   #371), T-650 (COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
    `githome: complete in vTAG` on #292 and #151 only when each ask G-01 to
    G-41 is in a release. It is not: githome has 41 asks, 25 in a release, 10

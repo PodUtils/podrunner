@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| the capability record, `[cache]` | The microvm and incus kinds mount the cache read-only: their record lists `mount_modes: ["ro"]` (incus had `["rw"]`), and on a kind with no `rw` a job that would write gets the cache at `ro`. | T-648 |
 | the container hooks (`docs/contracts/hook.md`) | A step of a `container:` job prints its output while it runs: the relay uses `/v2/hook/COMMAND` (a chunked answer; the exit code or the refusal in a trailer). The relay and the host ship together. | T-694 |
 | the installer | `serve.json` of `install.sh --serve` has `built_at_s` (an integer or null); the pin block has `BUILT_image_ARCH` and `BUILT_imagefull_ARCH`; a failed download names its cause (exit 1 as before). | T-633 |
 | command line, `run.toml`, `doctor --json` | `podrunner run --microvm --mem SIZE` and the key `mem`; `check` and `doctor` refuse a microvm pin whose job gets less than 2 GiB of root; the pins of `doctor --json` give `microvm_job_bytes`, and `microvm_mem_bytes` includes the reserve. | T-689, T-690 |

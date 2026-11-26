@@ -16686,7 +16686,7 @@ sh scripts/check-notes.sh --latest
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -16718,6 +16718,29 @@ Read from the code on 2026-11-25. Not measured: a share of a directory into a gu
 ## Prove
 
 The suite of each kind in `runner-image.yml` with a cache, and `cargo test -p podrunner-slots tests::cache`.
+
+## Blocker
+
+A writable cache on these kinds needs podvm: COORD-143 (#371) asks for
+a 9p volume with `mapped-xattr` on the machine tier and a removal of what
+an instance wrote, with its map kept, on the incus tier.
+
+State (2026-11-26, `2e229635` and the two commits before it; tests on a
+development host, no guest or instance run): the microvm and incus kinds
+mount the cache, and no other host directory, read-only only: each
+driver takes exactly one mount at `/podrunner-cache` or
+`/podrunner-cache:ro` (`-v` of podvm), the record lists `mount_modes:
+["ro"]`, and a job that would write gets `ro` (`Mounts::rw` of slots). The
+microvm guest accepts a `ro` cache only as a read-only mount; the incus
+instance stops with exit 96 when a `ro` cache is not read-only. A host
+path with a `,` is refused on the microvm kind (QEMU `-virtfs` splits at
+it). A warm unit misses for the mount only when `decide` gives the job a
+cache (`Slots::cache_wanted`): a job with no cache takes it
+(`a_job_with_no_cache_takes_a_warm_unit_and_a_job_with_a_cache_starts_cold`;
+it failed on the first version of this change). The same ownership
+problem holds for `/podrunner-work`: T-704. The hosted check: `serve`
+with `[cache]` on each kind, a seeded file, a push and a pull request;
+both `ro`, the file read, a write gets EROFS.
 
 # T-649: The bytes that a job reads from its cache
 
@@ -18899,3 +18922,35 @@ shim of the fake unit with each descriptor above 2 closed (or
 
 `cargo test -p podrunner-hook` with a planted failing test of a fake
 unit: no shim stays, and no descriptor of the lock is open.
+
+# T-704: The work directory of a microvm or incus unit has the owner problem of a writable cache
+
+**Source:** the worker of T-648, 2026-11-26
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`/podrunner-work` is a host directory in the unit. On the microvm kind
+the runner cannot write in a directory that it made when its uid is not
+the host uid (9p, `security_model=none`, `access=client`). On the incus
+kind the host user cannot remove what the instance wrote, but `destroy`
+still reports a clean residue.
+
+## Premise
+
+Read from the pinned podvm source and the 9p and QEMU source by the
+worker of T-648 on 2026-11-26. Not measured.
+
+## Approach
+
+Take the volume modes of COORD-143 (#371) for the work directory too,
+and make `destroy` count what it could not remove as residue.
+
+## Prove
+
+`cargo test -p podrunner-incus` and `-p podrunner-microvm` with a fake
+podvm whose removal fails, and the hosted suites of each kind.
