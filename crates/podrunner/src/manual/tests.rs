@@ -175,7 +175,12 @@ fn the_parser_of_run_holds_each_rule() {
             // Each of a pair with its needs, so that the clash is the error.
             R::Excludes(l) => {
                 let pairs = l.iter().enumerate().flat_map(|(i, a)| l[i + 1..].iter().map(move |b| (*a, *b)));
-                pairs.map(|(a, b)| ([vec![a, b], needs(a), needs(b)].concat(), vec![a, b])).collect()
+                // A flag that both need comes one time: a second value is
+                // refused (T-711).
+                let once = |l: Vec<&'static str>| {
+                    l.iter().enumerate().filter(|(i, f)| !l[..*i].contains(f)).map(|(_, f)| *f).collect()
+                };
+                pairs.map(|(a, b)| (once([vec![a, b], needs(a), needs(b)].concat()), vec![a, b])).collect()
             }
             R::Needs(f, l) | R::NeedsOne(f, l) => {
                 vec![(vec![*f], std::iter::once(*f).chain(l.iter().copied()).collect())]
