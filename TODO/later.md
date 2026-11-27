@@ -20682,7 +20682,7 @@ and the cases of `tests/work_folder.rs`.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20717,6 +20717,28 @@ with a long TMPDIR. Not checked: `doctor/tests.rs`, `incusd/tests.rs`,
 
 `cargo test --workspace` passes with a TMPDIR of 100 characters; the new
 lane of `user-gate.yml` is green or names each refusal of podrunner.
+
+## Done
+
+2026-11-27, `47ac94f3` and `cdb90614` (tests on a development host; the
+lane not run on GitHub; the ignored runner suites not run with a long
+TMPDIR). With a TMPDIR of 100 bytes, `cargo test --workspace
+--all-features` failed 68 tests in 18 targets before ("path must be
+shorter than SUN_LEN", "bind: invalid input parameter", "curl: Unix
+socket path too long") and 0 after. About 63 tests bound sockets under
+TMPDIR themselves: each crate now has a short directory under `/tmp`
+(`Scratch::short`, `ShortDir`, `short_dir`) and a `sock()` that fails at
+once and names a path past `sun_path`. Five tests failed because the
+code under test puts a socket in TMPDIR (the broker socket of the local
+mode, the fallback of `egress_dir`): they run again in a child with a
+short TMPDIR (`here_or_in_short_tmp`). The lane `long-tmp` of
+`user-gate.yml` (`scripts/lab/long-tmp.sh`, a TMPDIR of 100 bytes at mode
+1777; podvm and runner-dir) runs the user path under such a TMPDIR; a
+refusal that names "set TMPDIR" is an `xfail` (`tmp_refusal`, with four
+planted defects in the self-test). `docs/development.md` has the rule of
+short socket paths. The obscure refusals of podrunner itself are T-738;
+the lane is red at `hold:podvm` until T-738 lands.
+
 
 # T-736: A test of the cache lock of serve can see the lock of a dropped serve
 
@@ -20787,4 +20809,118 @@ worker of T-734 on 2026-11-27.
 
 `cargo test -p podrunner-slots unit_config`: `runner_dir = "/"` is
 refused by name; `/home/runner` and `/home/runner/actions-runner` pass.
+
+# T-738: A long TMPDIR fails the sockets of podrunner with no path and no fix
+
+**Source:** the worker of T-735, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+With a long TMPDIR, podrunner fails where it puts a Unix socket under
+it, with no path and no fix:
+
+1. the egress socket of `run --podnet` (and `--vnet --allow`): "the
+   egress of u-N: bind: invalid input parameter" (`podrunner-egress`
+   `open_with`);
+2. the broker socket of `--vnet`, `--microvm` and `--incus`: "the fake
+   broker: PATH: path must be shorter than SUN_LEN"; the clear refusals
+   (the front, `vnet::host_dir`) never run, because the broker starts
+   first;
+3. the confine self-test of `config init` and `doctor` with podnet:
+   `TMPDIR/podrunner-confine-test-PID/self-test/u-999999997/egress.sock`
+   fails above about 42 bytes of TMPDIR ("the self-test sockets: invalid
+   input parameter");
+4. `serve` with a long state path and a long TMPDIR: the fallback of
+   `egress_dir` is long too, and units fail with `unit-start-failed` and
+   no cause.
+
+The lane `long-tmp` (T-735) is red at `hold:podvm` until case 1 is fixed.
+
+## Premise
+
+Proven by unit tests and read in the code by the worker of T-735 on
+2026-11-27; not run end to end (no podvm on that host).
+
+## Approach
+
+One check of TMPDIR at the start of `run`, `config init`, `doctor` and
+`serve` against the longest socket that a unit needs, with exit 78, the
+path and the fix ("set TMPDIR to a shorter path"); a shorter state path
+for the confine self-test; and in `podrunner-egress` the path and the
+fix in the error (or a bind through the directory descriptor, as
+`podrunner-hook::server::short` does).
+
+## Prove
+
+`cargo test --workspace` with a TMPDIR of 100 bytes: each of the four
+cases ends with exit 78 or a message that names the path and "set
+TMPDIR"; the lane `long-tmp` of `user-gate.yml` is green.
+
+
+# T-739: A failed serve test leaves podrunner serve running
+
+**Source:** the worker of T-735, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`tests/serve*.rs` and `tests/kvm_kind.rs` leave `podrunner serve`
+running when an assertion fails. Those processes took the descriptor of
+the shared `flock` of the sessions and held it for about 40 minutes.
+
+## Premise
+
+Seen by the worker of T-735 on 2026-11-27: 13 `podrunner serve`
+processes after a failed run.
+
+## Approach
+
+A guard in those tests that kills and waits the child at its drop; and
+`flock -o` (the lock is not passed to the command) in
+`docs/hosted-sessions.md` and in the brief of a worker.
+
+## Prove
+
+A planted failed assertion in a serve test leaves no `podrunner serve`
+process (`pgrep -f "podrunner serve"` is empty).
+
+
+# T-740: No check runs the tests with a long TMPDIR
+
+**Source:** the worker of T-735, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/agent/check.sh` and `gate.yml` run the tests with a short
+TMPDIR, so a new test that binds a socket under TMPDIR passes there and
+fails on a host with a long one (T-735).
+
+## Premise
+
+Read from `scripts/agent/check.sh` and `.github/workflows/gate.yml` by
+the worker of T-735 on 2026-11-27.
+
+## Approach
+
+Run the tests of the gate (and of `check.sh`) with a TMPDIR of 100
+bytes.
+
+## Prove
+
+A planted test that binds a socket under TMPDIR fails `sh
+scripts/agent/check.sh` and the job `test` of `gate.yml`.
 
