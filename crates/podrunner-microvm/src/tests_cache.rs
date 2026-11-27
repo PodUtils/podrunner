@@ -7,13 +7,13 @@ use std::time::Duration;
 use podrunner_unit::{Exit, UnitCode, UnitDriver};
 
 use crate::guest::{MOUNT_CHECK, mount_check};
-use crate::tests::{dir, driver, spec};
+use crate::tests::{Scratch, dir, driver, spec};
 
 /// The fake podvm writes its argv, one word for each line, and exits 0.
 const KEEP_ARGV: &str = r#"printf '%s\n' "$@" > "${0%/*}/argv"; exit 0"#;
 
 /// The argv of `podvm run` for a start with `mounts`, or the error.
-fn start_with(name: &str, mounts: Vec<(std::path::PathBuf, String)>) -> (Result<String, UnitCode>, std::path::PathBuf) {
+fn start_with(name: &str, mounts: Vec<(std::path::PathBuf, String)>) -> (Result<String, UnitCode>, Scratch) {
     let (u, d) = driver(name, KEEP_ARGV);
     let s = podrunner_unit::StartSpec { mounts, ..spec("u-1") };
     let r = u.start(&s).map_err(|e| e.code).map(|()| {
@@ -33,7 +33,7 @@ fn start_with(name: &str, mounts: Vec<(std::path::PathBuf, String)>) -> (Result<
 fn the_cache_is_a_share_of_its_mode_and_the_guest_checks_the_mode() {
     let cache = Path::new("/var/cache/podrunner/0123/data");
     for (target, ro) in [("/podrunner-cache", false), ("/podrunner-cache:ro", true)] {
-        let (argv, d) = start_with("cache", vec![(cache.into(), target.into())]);
+        let (argv, _d) = start_with("cache", vec![(cache.into(), target.into())]);
         let argv = argv.unwrap();
         let words: Vec<&str> = argv.lines().collect();
         let want = format!("{}:{target}", cache.display());
@@ -41,13 +41,11 @@ fn the_cache_is_a_share_of_its_mode_and_the_guest_checks_the_mode() {
         assert_eq!(words[at - 1], "-v");
         assert_eq!(argv.matches("/podrunner-cache").count(), 2, "the share and the check: {argv}");
         assert!(argv.contains(&mount_check(Some(ro))), "the script checks the mode: {argv}");
-        let _ = fs::remove_dir_all(&d);
     }
     // With no cache, the script has the check of the table alone.
-    let (argv, d) = start_with("no-cache", Vec::new());
+    let (argv, _d) = start_with("no-cache", Vec::new());
     let argv = argv.unwrap();
     assert!(argv.contains(MOUNT_CHECK) && !argv.contains("/podrunner-cache"), "{argv}");
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
@@ -71,7 +69,6 @@ fn the_mount_check_holds_a_ro_cache_read_only_and_refuses_a_cache_that_it_did_no
     let other = format!("{work}c /podrunner-cache2 9p ro,trans=virtio 0 0\n");
     assert!(!ok(&mount_check(Some(true)), &other));
     assert!(!ok(&mount_check(Some(false)), &format!("{rw}h /mnt/home 9p rw 0 0\n")), "a host path outside the table");
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
@@ -89,18 +86,16 @@ fn each_other_host_directory_is_refused_before_the_start() {
         vec![("/c,readonly=off/data".into(), "/podrunner-cache:ro".to_string())],
         vec![("/c:x/data".into(), "/podrunner-cache".to_string())],
     ] {
-        let (r, d) = start_with("refuse", mounts.clone());
+        let (r, _d) = start_with("refuse", mounts.clone());
         assert_eq!(r.unwrap_err(), UnitCode::UnitStartFailed, "{mounts:?}");
-        let _ = fs::remove_dir_all(&d);
     }
 }
 
 #[test]
 fn the_kind_mounts_the_cache_and_lists_ro_only() {
-    let (u, d) = driver("cache-probe", "exit 0");
+    let (u, _d) = driver("cache-probe", "exit 0");
     assert!(u.host_mounts());
     assert_eq!(u.probe().unwrap().mount_modes, ["ro"], "no rw: a file of the guest user is the host user's");
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
@@ -110,5 +105,4 @@ fn a_state_directory_with_a_comma_is_refused() {
     u.prepare(crate::tests::IMAGE, &u.platform.clone(), false).unwrap();
     assert_eq!(u.start(&spec("u-1")).unwrap_err().code, UnitCode::UnitStartFailed);
     assert!(!d.join("argv").exists());
-    let _ = fs::remove_dir_all(&d);
 }

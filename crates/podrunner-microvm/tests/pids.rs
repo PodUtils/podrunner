@@ -8,6 +8,8 @@
 //!   PODRUNNER_PODVM_IMAGE=NAME@sha256:HEX \
 //!   cargo test -p podrunner-microvm --test pids -- --ignored --nocapture
 
+mod common;
+
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -24,8 +26,7 @@ fn env(name: &str) -> String {
 const FORKS: &str = "i=0; while [ $i -lt 300 ]; do sleep 30 & i=$((i+1)); done; exit 12";
 
 fn run(n: u32, pids: Option<u32>) -> Option<Exit> {
-    let state = std::env::temp_dir().join(format!("podrunner-microvm-pids-{}-{n}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
+    let state = common::Scratch::new(&format!("pids-{n}"));
     let unit = MicrovmUnit::new(
         Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
         &state,
@@ -54,7 +55,6 @@ fn run(n: u32, pids: Option<u32>) -> Option<Exit> {
     let exit = unit.wait(&id, Duration::from_secs(300)).unwrap();
     let log = String::from_utf8_lossy(&unit.unit_logs(&id).unwrap_or_default()).to_string();
     let residue = unit.destroy(&id).unwrap();
-    let _ = std::fs::remove_dir_all(&state);
     println!("guest {n} pids {pids:?}: {exit:?}\n{log}");
     assert!(residue.is_clean(), "{residue:?}");
     exit

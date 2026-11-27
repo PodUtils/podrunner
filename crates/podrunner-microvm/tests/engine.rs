@@ -9,6 +9,8 @@
 //!   PODRUNNER_PODVM_IMAGE=runner@sha256:HEX PODRUNNER_ENGINE_DIR=DIR \
 //!   cargo test -p podrunner-microvm --test engine -- --ignored --nocapture
 
+mod common;
+
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -24,8 +26,7 @@ fn env(name: &str) -> String {
 #[test]
 #[ignore]
 fn the_runner_user_runs_a_container_on_the_engine_of_its_guest() {
-    let state = std::env::temp_dir().join(format!("podrunner-microvm-engine-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
+    let state = common::Scratch::new("engine");
     let unit = MicrovmUnit::new(
         Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
         &state,
@@ -56,7 +57,6 @@ fn the_runner_user_runs_a_container_on_the_engine_of_its_guest() {
     let exit = unit.wait(&id, Duration::from_secs(600)).unwrap();
     let log = String::from_utf8_lossy(&unit.unit_logs(&id).unwrap_or_default()).to_string();
     let residue = unit.destroy(&id).unwrap();
-    let _ = std::fs::remove_dir_all(&state);
     println!("exit {exit:?}, residue {residue:?}\n{log}");
     assert!(log.contains("runner"), "the payload runs as runner: {log}");
     assert!(log.contains("host unix:///run/podrunner-docker.sock"), "{log}");

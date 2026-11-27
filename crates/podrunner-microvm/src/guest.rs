@@ -296,6 +296,5 @@ mod tests {
         let (out, _, err) = run("rootfs / rootfs rw 0 0\n", 32);
         assert_eq!(out, "after", "a refused remount does not end the guest");
         assert!(String::from_utf8_lossy(&err).contains("keeps its size"));
-        let _ = fs::remove_dir_all(&d);
     }
 }

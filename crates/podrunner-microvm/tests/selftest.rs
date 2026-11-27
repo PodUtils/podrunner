@@ -7,6 +7,8 @@
 //!   PODRUNNER_PODVM_IMAGE=runner@sha256:HEX \
 //!   cargo test -p podrunner-microvm --test selftest -- --ignored --nocapture
 
+mod common;
+
 use std::path::PathBuf;
 
 use podrunner_microvm::MicrovmUnit;
@@ -19,9 +21,7 @@ fn env(name: &str) -> String {
 #[test]
 #[ignore]
 fn a_guest_of_the_microvm_kind_passes_the_guest_self_test() {
-    let state = std::env::temp_dir().join(format!("podrunner-microvm-selftest-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
-    std::fs::create_dir_all(&state).unwrap();
+    let state = common::Scratch::new("selftest");
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
     let unit = MicrovmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES")));
     let platform = if std::env::consts::ARCH == "aarch64" { "linux/arm64" } else { "linux/amd64" };
@@ -32,6 +32,5 @@ fn a_guest_of_the_microvm_kind_passes_the_guest_self_test() {
         podrunner_slots::guest::test_ids(),
         &state,
     );
-    let _ = std::fs::remove_dir_all(&state);
     assert_eq!(verdict, Ok(()));
 }

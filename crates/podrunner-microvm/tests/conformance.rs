@@ -10,6 +10,8 @@
 //!
 //! STORE is a podvm store that holds the image (`podvm load`).
 
+mod common;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -91,7 +93,7 @@ fn passes(warm: bool) {
     // A state of its own for each mode: the ids, the dirs and the process
     // tags of the two tests do not meet when they run in one process.
     let mode = if warm { "warm" } else { "cold" };
-    let state = std::env::temp_dir().join(format!("podrunner-microvm-{}-{mode}", std::process::id()));
+    let state = common::Scratch::new(mode);
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
     let unit = MicrovmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES")))
         .with_kept_logs(&state.join("logs"));
@@ -99,7 +101,7 @@ fn passes(warm: bool) {
         unit,
         image: env("PODRUNNER_PODVM_IMAGE"),
         ids: UnitIds::default(),
-        state: state.clone(),
+        state: state.to_path_buf(),
         made: Default::default(),
     });
     let fx: Arc<dyn Fixture + Send + Sync> = real.clone();
@@ -122,6 +124,5 @@ fn passes(warm: bool) {
             }
         }
     }
-    let _ = std::fs::remove_dir_all(&state);
     assert!(failed.is_empty(), "failed: {failed:?}");
 }

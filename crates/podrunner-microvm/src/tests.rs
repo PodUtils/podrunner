@@ -20,8 +20,31 @@ const BASE: Shape<'static> = Shape {
 
 pub(crate) const IMAGE: &str = "runner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-/// A fresh directory of the test.
-pub(crate) fn dir(name: &str) -> PathBuf {
+/// The directory of one test: it goes at the drop, after a pass and after
+/// a panic, so a run of the tests leaves nothing in the temp directory.
+pub(crate) struct Scratch(PathBuf);
+
+impl std::ops::Deref for Scratch {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl AsRef<Path> for Scratch {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+/// A fresh directory of the test, `podrunner-microvm-NAME-PID-N`.
+pub(crate) fn dir(name: &str) -> Scratch {
     static N: AtomicU32 = AtomicU32::new(0);
     let d = std::env::temp_dir().join(format!(
         "podrunner-microvm-{name}-{}-{}",
@@ -30,11 +53,11 @@ pub(crate) fn dir(name: &str) -> PathBuf {
     ));
     let _ = fs::remove_dir_all(&d);
     fs::create_dir_all(&d).unwrap();
-    d
+    Scratch(d)
 }
 
 /// A driver over a fake `podvm` that runs `body` and ignores its argv.
-pub(crate) fn driver(name: &str, body: &str) -> (MicrovmUnit, PathBuf) {
+pub(crate) fn driver(name: &str, body: &str) -> (MicrovmUnit, Scratch) {
     let d = dir(name);
     let fake = d.join("podvm");
     fs::write(&fake, format!("#!/bin/sh\n{body}\n")).unwrap();
@@ -93,12 +116,11 @@ fn the_credential_files_are_private_and_a_name_that_is_not_plain_is_refused() {
     let mut bad = canary_credential();
     bad.files[0].name = "../x".into();
     assert_eq!(guest::write_credentials(&d.join("bad"), &bad).unwrap_err().code, UnitCode::UnitStartFailed);
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
 fn a_guest_that_runs_is_ended_and_destroyed_with_no_residue() {
-    let (u, d) = driver("run", "exec sleep 30");
+    let (u, _d) = driver("run", "exec sleep 30");
     let s = spec("u-1");
     u.start(&s).unwrap();
     assert_eq!(u.start(&s).unwrap_err().code, UnitCode::UnitInUse);
@@ -113,24 +135,22 @@ fn a_guest_that_runs_is_ended_and_destroyed_with_no_residue() {
     assert!(residue.is_clean(), "{residue:?}");
     assert!(!u.unit_dir(&s.unit).exists());
     assert!(u.destroy(&s.unit).unwrap().is_clean(), "a second destroy counts again");
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
 fn the_exit_code_of_the_guest_is_the_exit_of_the_unit() {
-    let (u, d) = driver("exit", "echo the-guest-said-42; exit 7");
+    let (u, _d) = driver("exit", "echo the-guest-said-42; exit 7");
     let s = spec("u-2");
     u.start(&s).unwrap();
     assert_eq!(u.wait(&s.unit, Duration::from_secs(10)).unwrap(), Some(Exit::Code(7)));
     let log = String::from_utf8(u.unit_logs(&s.unit).unwrap()).unwrap();
     assert!(log.contains("the-guest-said-42"), "{log}");
     assert!(u.destroy(&s.unit).unwrap().is_clean());
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
 fn an_image_that_is_not_prepared_or_of_another_platform_is_refused() {
-    let (u, d) = driver("refuse", "exit 0");
+    let (u, _d) = driver("refuse", "exit 0");
     let mut s = spec("u-3");
     s.image.digest = format!("sha256:{}", "b".repeat(64));
     assert_eq!(u.start(&s).unwrap_err().code, UnitCode::UnitStartFailed);
@@ -138,7 +158,6 @@ fn an_image_that_is_not_prepared_or_of_another_platform_is_refused() {
     let other = if u.platform == "linux/amd64" { "linux/arm64" } else { "linux/amd64" };
     assert_eq!(u.prepare(IMAGE, other, true).unwrap_err().code, UnitCode::ArchMismatch);
     assert!(u.prepare("runner:latest", &u.platform.clone(), false).is_err(), "a tag is refused");
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
@@ -152,7 +171,6 @@ fn the_kind_claims_a_guest_and_has_no_container_route() {
     assert_eq!(e.code, UnitCode::ContainerNotSupported);
     let engine = u.with_engine(&d);
     assert_eq!(engine.probe().unwrap().container, ContainerRoute::Engine, "an engine in each guest");
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
@@ -200,7 +218,6 @@ fn the_mount_check_takes_only_the_table_of_the_unit() {
     assert!(!check(&format!("{base}{cred}{work}fs /data virtiofs rw 0 0\n")), "a virtiofs mount");
     let a = run_args(IMAGE, Path::new("/s/u-1"), &BASE, "/r", &[], &BTreeMap::new(), &[]);
     assert!(a.iter().any(|w| w.contains(MOUNT_CHECK)), "the script holds the check");
-    let _ = fs::remove_dir_all(&d);
 }
 
 /// T-405: with an environment file, the argv names the file and no value.
@@ -233,7 +250,6 @@ fn an_engine_is_a_read_only_mount_and_the_flag_of_podvm() {
     assert!(!ok("e /podrunner-engine 9p rw,trans=virtio 0 0\n"), "a writable engine directory");
     let none = run_args(IMAGE, Path::new("/s/u-1"), &BASE, "/r", &[], &BTreeMap::new(), &[]);
     assert!(!none.join(" ").contains("--podvm-engine"));
-    let _ = fs::remove_dir_all(&d);
 }
 
 /// T-178: the payload runs as `runner` with the home of `runner`, not the
@@ -244,7 +260,7 @@ fn the_payload_has_the_home_of_the_runner() {
     use std::os::unix::fs::PermissionsExt;
     let script = super::guest::SCRIPT;
     let tail = &script[script.rfind("if id runner").expect("the part of the user")..];
-    let d = std::env::temp_dir().join(format!("podrunner-home-{}-{}", env!("CARGO_PKG_NAME"), std::process::id()));
+    let d = dir("home");
     std::fs::create_dir_all(d.join("bin")).unwrap();
     for (name, body) in [
         ("id", "exit 0"),
@@ -263,7 +279,6 @@ fn the_payload_has_the_home_of_the_runner() {
         .env("HOME", "/root")
         .output()
         .unwrap();
-    let _ = std::fs::remove_dir_all(&d);
     assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "/home/runner runner runner", "{out:?}");
 }
 
@@ -287,7 +302,6 @@ fn destroy_removes_the_run_directory_of_the_guest() {
     let left: Vec<String> =
         fs::read_dir(&machine).unwrap().map(|e| e.unwrap().file_name().into_string().unwrap()).collect();
     assert_eq!(left, ["run-1-1"]);
-    let _ = fs::remove_dir_all(&d);
 }
 
 /// #272: with a channel, the guest script sets `NODE_USE_ENV_PROXY=1`, so
@@ -314,8 +328,7 @@ fn the_guest_script_gives_node_the_proxy() {
 /// the journal) removes its directory, as the podvm and incus kinds do.
 #[test]
 fn a_destroy_of_an_unknown_unit_removes_its_directory() {
-    let d = std::env::temp_dir().join(format!("podrunner-microvm-unknown-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
+    let d = dir("unknown");
     let u = MicrovmUnit::new(Podvm { binary: "/bin/false".into() }, &d.join("state"), &d.join("store"));
     let unit = UnitId::parse("u-7").unwrap();
     let dir = d.join("state/units/u-7");
@@ -324,15 +337,13 @@ fn a_destroy_of_an_unknown_unit_removes_its_directory() {
     let residue = u.destroy(&unit).unwrap();
     assert!(residue.is_clean(), "{residue:?}");
     assert!(!dir.exists(), "the directory is removed");
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// #276: the run directories of a podvm are listed while its pid is still
 /// its own; a run that a later process of the same pid makes stays.
 #[test]
 fn the_runs_of_a_podvm_are_listed_before_its_pid_is_free() {
-    let d = std::env::temp_dir().join(format!("podrunner-microvm-runs-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&d);
+    let d = dir("runs");
     let machine = d.join("machine");
     fs::create_dir_all(machine.join("run-42-a")).unwrap();
     fs::create_dir_all(machine.join("run-420-x")).unwrap();
@@ -345,7 +356,6 @@ fn the_runs_of_a_podvm_are_listed_before_its_pid_is_free() {
         fs::read_dir(&machine).unwrap().map(|e| e.unwrap().file_name().into_string().unwrap()).collect();
     left.sort();
     assert_eq!(left, ["run-42-b", "run-420-x"]);
-    let _ = fs::remove_dir_all(&d);
 }
 
 /// T-488: `pids` of the kind goes to the guest as `--pids-limit`, and the
@@ -361,7 +371,7 @@ fn a_limit_of_processes_goes_to_the_guest() {
             .join(" ")
             .contains("--pids-limit")
     );
-    let d = std::env::temp_dir().join(format!("podrunner-microvm-pids-{}", std::process::id()));
+    let d = dir("pids");
     let u = MicrovmUnit::new(podrunner_podvm::Podvm { binary: "/bin/true".into() }, &d, &d);
     assert_eq!(u.probe().unwrap().limit("pids"), podrunner_schema::LimitMode::None);
     let u = MicrovmUnit::new(podrunner_podvm::Podvm { binary: "/bin/true".into() }, &d, &d).with_pids(64);
@@ -375,7 +385,7 @@ fn the_oom_kills_of_a_guest_come_from_the_report_of_podvm() {
     let shape = Shape { mem: "1G", cpus: 1, ..BASE };
     let a = run_args(IMAGE, Path::new("/s/u-1"), &shape, "/r", &[], &BTreeMap::new(), &[]).join(" ");
     assert!(a.contains("--report /s/u-1/run-report.json"), "{a}");
-    let d = std::env::temp_dir().join(format!("podrunner-microvm-oom-{}", std::process::id()));
+    let d = dir("oom");
     let u = MicrovmUnit::new(podrunner_podvm::Podvm { binary: "/bin/true".into() }, &d, &d);
     let id = podrunner_schema::UnitId::parse("u-1").unwrap();
     let dir = d.join("units").join("u-1");
@@ -383,7 +393,6 @@ fn the_oom_kills_of_a_guest_come_from_the_report_of_podvm() {
     assert_eq!(u.oom_kills(&id), None, "no report");
     fs::write(dir.join("run-report.json"), r#"{"exit_code": 137, "oom_kills": 2}"#).unwrap();
     assert_eq!(u.oom_kills(&id), Some(2));
-    let _ = fs::remove_dir_all(&d);
 }
 
 /// T-549: a kind with `init = "image"` boots the init of the image in a
@@ -400,7 +409,7 @@ fn the_init_of_the_image_boots_in_a_foreground_guest() {
     let none = Shape { init_image: false, ..shape };
     let b = run_args(IMAGE, Path::new("/s/u-1"), &none, "/r", &[], &BTreeMap::new(), &[]).join(" ");
     assert!(!b.contains("--podvm-init"), "{b}");
-    let d = std::env::temp_dir().join(format!("podrunner-microvm-init-{}", std::process::id()));
+    let d = dir("init");
     let u = MicrovmUnit::new(podrunner_podvm::Podvm { binary: "/bin/true".into() }, &d, &d);
     assert_eq!(u.probe().unwrap().container, ContainerRoute::None);
     let u = u.with_image_init(true);
@@ -441,5 +450,4 @@ fn a_guest_gets_the_lesser_memory_cpus_and_processes_of_the_offer() {
     assert!(has(&a, "--podvm-cpus", "4") && has(&a, "--pids-limit", "100") && has(&a, "--podvm-mem", "4G"), "{a:?}");
     assert_eq!(u.applied(&small).memory_bytes, Some(1 << 30), "the lesser, below the floor of launch");
     assert_eq!(u.applied(&large).memory_bytes, Some(4 << 30));
-    let _ = fs::remove_dir_all(&d);
 }

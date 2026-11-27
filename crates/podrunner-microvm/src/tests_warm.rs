@@ -59,19 +59,17 @@ fn a_warm_guest_boots_with_no_job_and_its_claim_runs_once() {
     assert_eq!(u.claim(&s.unit, &claim).unwrap_err().code, UnitCode::UnitInUse);
     assert_eq!(u.claim(&UnitId::parse("u-9").unwrap(), &claim).unwrap_err().code, UnitCode::UnknownUnit);
     assert!(u.destroy(&s.unit).unwrap().is_clean());
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
 fn a_unit_of_start_takes_no_claim() {
-    let (u, d) = driver("cold", "exec sleep 30");
+    let (u, _d) = driver("cold", "exec sleep 30");
     let s = spec("u-2");
     u.start(&s).unwrap();
     let claim =
         ClaimSpec { argv: vec![], env: BTreeMap::new(), credential: canary_credential(), limits: Limits::default() };
     assert_eq!(u.claim(&s.unit, &claim).unwrap_err().code, UnitCode::UnitInUse);
     assert!(u.destroy(&s.unit).unwrap().is_clean());
-    let _ = fs::remove_dir_all(&d);
 }
 
 /// A child that a failed test does not leave waiting.
@@ -146,5 +144,4 @@ fn the_script_of_a_warm_guest_starts_the_engine_after_the_claim() {
     let f = d.join("root/.credentials");
     assert_eq!(fs::metadata(&f).unwrap().permissions().mode() & 0o777, 0o600);
     assert!(!d.join("root/.podrunner-claim").exists() && !d.join("root/env.sh").exists());
-    let _ = fs::remove_dir_all(&d);
 }

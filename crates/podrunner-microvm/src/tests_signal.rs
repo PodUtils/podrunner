@@ -31,7 +31,7 @@ fn child_of(u: &MicrovmUnit, unit: &UnitId) -> u32 {
 
 #[test]
 fn a_term_just_after_start_reaches_a_podvm_that_shows_no_tag() {
-    let (u, d) = driver("term", "exec env -i sleep 300");
+    let (u, _d) = driver("term", "exec env -i sleep 300");
     let s = spec("u-1");
     u.start(&s).unwrap();
     let top = child_of(&u, &s.unit);
@@ -42,12 +42,11 @@ fn a_term_just_after_start_reaches_a_podvm_that_shows_no_tag() {
     let residue = u.destroy(&s.unit).unwrap();
     assert_eq!(got, Some(Exit::Signal(libc::SIGTERM)), "the unit runs after TERM");
     assert!(residue.is_clean(), "{residue:?}");
-    let _ = fs::remove_dir_all(&d);
 }
 
 #[test]
 fn destroy_reaches_a_process_under_podvm_that_shows_no_tag() {
-    let (u, d) = driver("destroy", "env -i sleep 300 & wait");
+    let (u, _d) = driver("destroy", "env -i sleep 300 & wait");
     let s = spec("u-2");
     u.start(&s).unwrap();
     let top = child_of(&u, &s.unit);
@@ -63,5 +62,4 @@ fn destroy_reaches_a_process_under_podvm_that_shows_no_tag() {
     procs::kill(below, libc::SIGKILL);
     assert!(!lives, "process {below} lives after destroy");
     assert!(residue.is_clean(), "{residue:?}");
-    let _ = fs::remove_dir_all(&d);
 }
