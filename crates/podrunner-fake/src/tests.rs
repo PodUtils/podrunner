@@ -140,11 +140,58 @@ fn the_fake_unit_passes_each_test_through_warm_units() {
         }
     }
     use UnitPlant::*;
-    for (n, plant) in [(5, SharedRoot), (6, LooseMode), (7, CredentialInEnv), (16, StartTwice), (21, CredentialCopy)] {
+    let plants = [(5, SharedRoot), (6, LooseMode), (7, CredentialInEnv), (9, DeafSignal), (16, StartTwice)];
+    for (n, plant) in plants.into_iter().chain([(21, CredentialCopy)]) {
         let fx = UnitFixture::new(ContainerRoute::None, Some(plant));
         let r = uc::run_warm(&fx, &[n]).remove(0);
         assert!(matches!(r.outcome, Outcome::Fail(_)), "{plant:?} passes test {n} through warm units: {r}");
     }
+    // T-728: a lost TERM fails test 9 on the hooks route too.
+    let fx = UnitFixture::new(ContainerRoute::Hooks, Some(DeafSignal));
+    let r = uc::run_warm(&fx, &[9]).remove(0);
+    assert!(matches!(r.outcome, Outcome::Fail(_)), "DeafSignal passes test 9 through warm units: {r}");
+}
+
+/// T-728: a TERM reaches the top process of a unit also when `/proc` shows
+/// no tag for it. A process in its `exec` shows an empty environment; this
+/// payload drops the tag with `env -i` and keeps its pid.
+#[test]
+fn a_term_reaches_a_top_process_that_shows_no_tag() {
+    use podrunner_unit::Signal;
+    let fx = UnitFixture::new(ContainerRoute::None, None);
+    let d = &fx.unit;
+    let unit = fx.ids.next();
+    let spec = podrunner_unit::StartSpec {
+        unit: unit.clone(),
+        image: d.prepare(&uc::Fixture::image(&fx), "linux/amd64", false).unwrap(),
+        argv: ["env", "-i", "sleep", "300"].map(String::from).to_vec(),
+        env: BTreeMap::new(),
+        credential: uc::canary_credential(),
+        sockets: None,
+        mounts: Vec::new(),
+        limits: Default::default(),
+    };
+    d.start(&spec).unwrap();
+    // The event: the top process runs `sleep` and shows no environment.
+    let untagged = || {
+        let top = d.observe(&unit).unwrap().pids.first().copied();
+        top.is_some_and(|p| {
+            std::fs::read(format!("/proc/{p}/cmdline")).is_ok_and(|c| c.starts_with(b"sleep\0"))
+                && std::fs::read(format!("/proc/{p}/environ")).is_ok_and(|e| e.is_empty())
+        })
+    };
+    let limit = Duration::from_secs(10);
+    let end = std::time::Instant::now() + limit;
+    while !untagged() {
+        assert!(std::time::Instant::now() < end, "the payload did not drop its tag");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    assert!(tagged(&tag_of(&fx._dir.0, unit.as_str())).is_empty(), "the payload still shows its tag");
+    d.signal(&unit, Signal::Term).unwrap();
+    let got = d.wait(&unit, limit).unwrap();
+    let residue = d.destroy(&unit).unwrap();
+    assert!(got.is_some(), "the unit runs after TERM");
+    assert!(residue.processes.is_zero(), "{residue:?}");
 }
 
 /// T-042: a confined fake passes each test, the test 27 of the `confined`

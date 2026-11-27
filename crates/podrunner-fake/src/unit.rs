@@ -351,12 +351,22 @@ impl UnitDriver for FakeUnit {
 
     fn signal(&self, unit: &UnitId, signal: Signal) -> Result<(), UnitError> {
         let deaf = self.planted(UnitPlant::DeafSignal);
+        let shimmed = self.shimmed();
         self.with_unit(unit, |r| {
             let sig = match signal {
                 Signal::Term => libc::SIGTERM,
                 Signal::Kill => libc::SIGKILL,
             };
-            for pid in procs::tagged(&r.tag).into_iter().filter(|_| !deaf) {
+            // A process in its `exec` shows an empty environment, so the tag
+            // misses it (T-728). The tree of the top process holds it. An
+            // unreaped top process keeps its pid.
+            let mut pids = procs::tagged(&r.tag);
+            if r.exit.is_none() {
+                pids.extend(if shimmed { shim::descendants(r.child.id()) } else { vec![r.child.id()] });
+            }
+            pids.sort_unstable();
+            pids.dedup();
+            for pid in pids.into_iter().filter(|_| !deaf) {
                 procs::kill(pid, sig);
             }
             Ok(())
