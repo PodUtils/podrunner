@@ -338,7 +338,9 @@ fn a_unit_that_does_not_go_at_fail_fast_does_not_hold_the_run() {
     );
     // The job `c` needs the cell of u-2: it ran after the bound.
     assert!(out.lines().any(|l| l.starts_with("failure c: the runner in u-3 ")), "{out}");
-    assert!(out.lines().any(|l| l == "cancelled a (2)" || l == "cancelled a (1)"), "{out}");
+    // T-308 A25: the line names the cell that failed.
+    let cut = |me: u8, failed: u8| format!("cancelled a ({me}): fail-fast: the cell \"a ({failed})\" failed");
+    assert!(out.lines().any(|l| l == cut(2, 1) || l == cut(1, 2)), "{out}");
     assert!(
         err.contains("podrunner: 1 units did not go at the cancel; podrunner ends now, and a helper ends them"),
         "{err}"

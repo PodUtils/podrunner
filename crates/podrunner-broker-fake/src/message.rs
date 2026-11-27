@@ -341,7 +341,10 @@ mod tests {
         assert!(m["jobContainer"].is_null());
         // T-308 A10: the runner gives ACTIONS_CACHE_URL from CacheServerUrl.
         let data = &m["resources"]["endpoints"][0]["data"];
-        assert_eq!((data["CacheServerUrl"].as_str(), data["ResultsServiceUrl"].as_str()), (Some("http://127.0.0.1:1/"), Some("http://127.0.0.1:1/")));
+        assert_eq!(
+            (data["CacheServerUrl"].as_str(), data["ResultsServiceUrl"].as_str()),
+            (Some("http://127.0.0.1:1/"), Some("http://127.0.0.1:1/"))
+        );
         // The job token is a JWT with three parts and an expiry.
         let token = job_token();
         let parts: Vec<&str> = token.split('.').collect();

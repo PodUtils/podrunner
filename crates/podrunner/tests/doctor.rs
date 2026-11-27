@@ -44,7 +44,11 @@ fn doctor_run_checks_the_inputs_of_a_local_run() {
     let held = pod_core::lock::FileLock::try_lock(&lock, pod_core::lock::Mode::Exclusive).unwrap().unwrap();
     let out = podrunner::cli::run(&args(&["doctor", "--run", &w, "--runner-dir", &r]));
     assert_eq!(out.code, 1, "{}", out.stdout);
-    assert!(out.stdout.contains("FAIL runner-dir") && out.stdout.contains("another run of podrunner"), "{}", out.stdout);
+    assert!(
+        out.stdout.contains("FAIL runner-dir") && out.stdout.contains("another run of podrunner"),
+        "{}",
+        out.stdout
+    );
     drop(held);
     let missing = dir.join("none").display().to_string();
     let out = podrunner::cli::run(&args(&["doctor", "--run", &w, "--runner-dir", &missing]));

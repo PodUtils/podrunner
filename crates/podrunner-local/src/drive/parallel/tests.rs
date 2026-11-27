@@ -78,7 +78,8 @@ fn a_failed_cell_cancels_the_cells_that_did_not_start() {
     // fail-fast: m.0 fails; the cells that did not start are cancelled.
     let (ok, lines, _, _) = run(MATRIX, 1, Some("m.0"));
     assert!(!ok);
-    let cancelled = lines.iter().filter(|l| matches!(l, Line::Cancelled { reason, .. } if reason.contains("fail-fast"))).count();
+    let cancelled =
+        lines.iter().filter(|l| matches!(l, Line::Cancelled { reason, .. } if reason.contains("fail-fast"))).count();
     assert_eq!(cancelled, 5, "{lines:?}");
     assert!(lines.iter().any(|l| matches!(l, Line::Skipped { job, .. } if job == "after")), "{lines:?}");
 }
@@ -118,7 +119,8 @@ fn fail_fast_stops_the_running_cells() {
     let (ok, _) = drive_parallel(&mut s, slots, &mut |l| lines.push(l.clone()), &AtomicBool::new(false)).unwrap();
     assert!(!ok);
     assert!(t.elapsed() < Duration::from_secs(4), "the running cells stopped: {:?}", t.elapsed());
-    let cancelled = lines.iter().filter(|l| matches!(l, Line::Cancelled { reason, .. } if reason.contains("fail-fast"))).count();
+    let cancelled =
+        lines.iter().filter(|l| matches!(l, Line::Cancelled { reason, .. } if reason.contains("fail-fast"))).count();
     assert_eq!(cancelled, 5, "two running cells and three queued ones: {lines:?}");
     assert!(s.is_finished());
 }

@@ -33,7 +33,10 @@ fn a_dry_run_writes_no_lock() {
     let p = pin(true);
     assert!(!lock.exists(), "a dry run wrote {}", lock.display());
     assert!(p.note.contains("--dry-run:") && p.note.contains("would pin 1 reference;"), "{}", p.note);
-    assert_eq!(p.commits.get("docker://alpine:3.20").map(String::as_str), Some(&*format!("alpine@sha256:{}", "a".repeat(64))));
+    assert_eq!(
+        p.commits.get("docker://alpine:3.20").map(String::as_str),
+        Some(&*format!("alpine@sha256:{}", "a".repeat(64)))
+    );
     let p = pin(false);
     assert!(lock.is_file(), "the run writes the lock");
     assert!(p.note.ends_with("pins 1 reference\n"), "{}", p.note);
@@ -51,7 +54,26 @@ fn a_dry_run_names_its_empty_outputs() {
     std::fs::write(dir.join("w.yml"), flow).unwrap();
     let w = dir.join("w.yml").display().to_string();
     let rd = r.display().to_string();
-    let out = run(&args(&[&w, "--runner-dir", &rd, "--no-cache", "--dry-run", "--checkout", &dir.display().to_string()]));
+    let out =
+        run(&args(&[&w, "--runner-dir", &rd, "--no-cache", "--dry-run", "--checkout", &dir.display().to_string()]));
     assert!(out.stderr.contains("fromJSON"), "{}", out.stderr);
     assert!(out.stderr.contains("can fail in a dry run only"), "{}", out.stderr);
+}
+
+/// A25: the line of a cell that `fail-fast` cancelled names the cell that
+/// failed, as text and as JSON.
+#[test]
+fn a_cancelled_cell_names_its_cause() {
+    let id = podrunner_schema::JobId::new("m.1").unwrap();
+    let cut = Line::Cancelled {
+        job: id.clone(),
+        name: "m (2)".into(),
+        reason: "fail-fast: the cell \"m (1)\" failed".into(),
+    };
+    assert_eq!(line(&cut), "cancelled m (2): fail-fast: the cell \"m (1)\" failed\n");
+    let v: serde_json::Value = serde_json::from_str(&logs::line_json(&cut, false)).unwrap();
+    assert_eq!(
+        (v["result"].as_str(), v["reason"].as_str()),
+        (Some("cancelled"), Some("fail-fast: the cell \"m (1)\" failed"))
+    );
 }

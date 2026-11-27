@@ -73,8 +73,11 @@ fn order(name: &str, numbers: &BTreeMap<String, u64>) -> u64 {
 /// name of a step can hold any text: it goes into no file name.
 fn job_log(blobs: &[(String, String)], numbers: &BTreeMap<String, u64>) -> String {
     let text = |b: &String| b.replace('\u{feff}', "");
-    let whole: Vec<String> =
-        blobs.iter().filter(|(k, _)| !k.starts_with("summary-") && !k.starts_with("step-")).map(|(_, b)| text(b)).collect();
+    let whole: Vec<String> = blobs
+        .iter()
+        .filter(|(k, _)| !k.starts_with("summary-") && !k.starts_with("step-"))
+        .map(|(_, b)| text(b))
+        .collect();
     if !whole.is_empty() {
         return whole.join("\n");
     }
@@ -123,9 +126,10 @@ mod order_tests {
         let numbers = step_numbers(&updates);
         assert_eq!((order("step-ff-1", &numbers), order("step-AA-3", &numbers)), (1, 3));
         assert_eq!((order("step-e", &numbers), order("summary-ff-1", &numbers)), (u64::MAX, u64::MAX));
-        let blobs: Vec<(String, String)> = [("step-aa-3", "three"), ("step-e", "last"), ("step-ff-1", "\u{feff}one"), ("summary-x", "s")]
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .to_vec();
+        let blobs: Vec<(String, String)> =
+            [("step-aa-3", "three"), ("step-e", "last"), ("step-ff-1", "\u{feff}one"), ("summary-x", "s")]
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .to_vec();
         assert_eq!(job_log(&blobs, &numbers), "one\nthree\nlast");
         let with_job = [blobs, vec![("job".to_string(), "whole".to_string())]].concat();
         assert_eq!(job_log(&with_job, &numbers), "whole", "the log of the whole job wins");

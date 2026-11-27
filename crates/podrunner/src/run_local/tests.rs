@@ -102,10 +102,6 @@ fn each_line_names_the_job_and_its_result() {
     let refused = Line::Refused { job: id.clone(), name: "b".into(), reason: "an action".into() };
     assert_eq!(line(&refused), "failure b: an action\n");
     assert_eq!(line(&Line::Skipped { job: "c".into(), condition: "failure()".into() }), "skipped c: if: failure()\n");
-    let cut = Line::Cancelled { job: id.clone(), name: "m (2)".into(), reason: "fail-fast: the cell \"m (1)\" failed".into() };
-    assert_eq!(line(&cut), "cancelled m (2): fail-fast: the cell \"m (1)\" failed\n");
-    let v: serde_json::Value = serde_json::from_str(&logs::line_json(&cut, false)).unwrap();
-    assert_eq!((v["result"].as_str(), v["reason"].as_str()), (Some("cancelled"), Some("fail-fast: the cell \"m (1)\" failed")));
 }
 
 #[test]
@@ -337,7 +333,8 @@ fn a_job_of_windows_fails_by_name() {
     let (w, r) = (dir.join("w.yml").display().to_string(), dir.join("runner").display().to_string());
     let out = run(&args(&[&w, "--runner-dir", &r, "--platform", "gpu=host", "--no-cache"]));
     assert_eq!(out.code, 1, "{}{}", out.stdout, out.stderr);
-    let want = "failure win: runs-on \"windows-latest\": podrunner runs each job on Linux (a unit or a runner directory)";
+    let want =
+        "failure win: runs-on \"windows-latest\": podrunner runs each job on Linux (a unit or a runner directory)";
     assert!(out.stdout.contains(want), "{}", out.stdout);
     let _ = std::fs::remove_dir_all(&dir);
 }
