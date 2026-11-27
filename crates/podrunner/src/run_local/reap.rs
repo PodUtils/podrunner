@@ -2,7 +2,7 @@
 //! run` at once: no destroy of a unit and no removal of a directory runs.
 //! The handler starts this binary again as a helper in a new session; the
 //! helper waits until the run is gone, then ends the units of each dead run
-//! and removes its files, as the next run does ([`super::stale`]).
+//! and removes its files, as the next run does (`stale`).
 
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -29,7 +29,7 @@ pub fn prepare() {
 }
 
 /// The helper: `ARGS` are `TMPDIR PID`. Wait until the process `PID` is
-/// gone or a zombie, at most [`WAIT`], then end each dead run in `TMPDIR`.
+/// gone or a zombie, at most `WAIT`, then end each dead run in `TMPDIR`.
 /// Exit 0, or 64 for other arguments.
 pub fn helper(args: &[String]) -> u8 {
     let [tmp, pid] = args else { return 64 };
