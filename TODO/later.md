@@ -20382,7 +20382,7 @@ composite with `uses: $/b` run each action of the tree of the run.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20409,4 +20409,52 @@ While the child is not reaped (`r.exit` is `None`), also signal
 `cargo test -p podrunner-microvm` with a fake podvm whose first process
 drops its tag (`env -i`): a TERM just after `start` ends the unit; it
 fails on the old code.
+
+## Done
+
+2026-11-27, `01f1d7c1` (tests on a development host; a real guest not run:
+no KVM here). `signal` and `destroy` of the microvm kind also take the
+`podvm run` child and its tree (`shim::descendants`) while the child is
+not reaped (`Running::pids`, `src/tree.rs`); a pending signal stays
+across the exec. `destroy` had the same window for a process under podvm:
+an untagged process in its exec became an orphan, with a residue of 0;
+now podvm and its tree are killed in one pass. `observe` keeps the tag
+only: conformance test 7 reads the environment of its first pid, and a
+missed pid there costs only a short under-count of the usage. The podvm
+kind waits for `podvm run -d` and signals its supervisor, and the incus
+kind uses `stop`: neither has the window. Tests
+`a_term_just_after_start_reaches_a_podvm_that_shows_no_tag` and
+`destroy_reaches_a_process_under_podvm_that_shows_no_tag` (a fake podvm
+that drops its tag with `env -i`) fail on the old code and pass 20 of 20
+runs.
+
+# T-731: A failed test of podrunner-microvm leaves its directory
+
+**Source:** the worker of T-730, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The tests of `podrunner-microvm` remove their directory in TMPDIR only
+when they pass; a test that panics leaves it
+(`podrunner-microvm-{lesser,root-size,warm}-*` from earlier runs).
+
+## Premise
+
+Read from the tests of `crates/podrunner-microvm` by the worker of T-730
+on 2026-11-27.
+
+## Approach
+
+Make `tests::dir` return a guard that removes the directory at its drop,
+as the `Scratch` guard of `podrunner-podvm` (T-722, T-727).
+
+## Prove
+
+`cargo test -p podrunner-microvm` with a fresh TMPDIR leaves it empty; a
+planted panic leaves nothing.
 
