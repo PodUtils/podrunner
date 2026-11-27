@@ -21,7 +21,6 @@ pub(super) fn place(lib: &Path, dir: &Path) -> Result<(), String> {
     std::fs::copy(lib, dir.join(SHIM)).map(|_| ()).map_err(|e| format!("the vnet shim {}: {e}", lib.display()))
 }
 
-
 /// The host path of the socket directory `dir` as the shim takes it: the
 /// loader splits LD_PRELOAD at a space and a colon, and the shim splits
 /// its forwards at a comma, so such a path would leave the runner with no

@@ -277,7 +277,11 @@ mod tests {
         held.self_test_room(&unit).unwrap();
         let s = held.self_test_sockets(&unit).unwrap().expect("a socket directory");
         let (dir, root) = (s.dir.clone(), s.root.clone().expect("a short root"));
-        assert!(dir.starts_with("/tmp/podrunner-st-") && dir.parent() == Some(&*root), "{}", dir.display());
+        assert!(
+            dir.to_string_lossy().starts_with("/tmp/podrunner-st-") && dir.parent() == Some(&*root),
+            "{}",
+            dir.display()
+        );
         assert!(dir.join(EGRESS_SOCKET).as_os_str().len() <= 107 && dir.join(EGRESS_SOCKET).exists());
         assert_eq!(std::fs::metadata(&root).unwrap().permissions().mode() & 0o777, 0o700);
         drop(s);

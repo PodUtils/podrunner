@@ -40,13 +40,25 @@ fn bed(dir: &Path) -> Vec<String> {
     std::fs::create_dir_all(dir.join("store")).unwrap();
     std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
     let podvm = "#!/bin/sh\necho '{\"podvm\": \"0.2.0-beta.32\", \"rung\": \"namespace\"}'\n";
-    podrunner_unit::program_file::write(&dir.join("podvm"), podvm).unwrap();
+    podrunner_unit::program_file::write(dir.join("podvm"), podvm).unwrap();
     let podnet = "#!/bin/sh\necho '{\"netns\":{\"level\":\"none\"},\"seccomp\":{\"level\":\"advisory\"}}'\n";
-    podrunner_unit::program_file::write(&dir.join("podnet"), podnet).unwrap();
+    podrunner_unit::program_file::write(dir.join("podnet"), podnet).unwrap();
     std::fs::write(dir.join("vnet"), "").unwrap();
     let image = format!("runner@sha256:{}", "1".repeat(64));
     let p = |n: &str| dir.join(n).display().to_string();
     vec![p("w.yml"), "--no-config".into(), "--images".into(), p("store"), "--image".into(), image]
+}
+
+/// `text` with the key of the run process (7 characters after the prefix
+/// of a file of a unit) as `KEY`: two processes have two keys (T-715).
+fn keyless(text: &str) -> String {
+    let mut out = text.to_string();
+    for prefix in ["podrunner-local-unit-", "podrunner-local-broker-"] {
+        if let Some(at) = out.find(prefix).map(|i| i + prefix.len()) {
+            out.replace_range(at..(at + 7).min(out.len()), "KEY");
+        }
+    }
+    out
 }
 
 fn podrunner(verb: &[&str], args: &[String], tmp: &Path, home: &Path) -> Output {
@@ -54,11 +66,13 @@ fn podrunner(verb: &[&str], args: &[String], tmp: &Path, home: &Path) -> Output 
 }
 
 /// T-738, cases 1 and 2: `--podnet`, `--vnet` (with and with no
-/// `--allow`) and `--microvm` put the egress socket and the broker of a
-/// unit in TMPDIR. Under a TMPDIR of 100 bytes each run exits 78 before
-/// its first unit with the path and the fix, and `doctor --run` fails the
-/// row `socket-paths` with the same text. With no hold, no row and no
-/// refusal for it.
+/// `--allow`) and a guest (`--microvm`, `--incus`) put the egress socket
+/// and the broker of a unit in TMPDIR. Under a TMPDIR of 100 bytes each
+/// run exits 78 before its first unit with the path and the fix, and
+/// `doctor --run` fails the row `socket-paths` with the same text. A guest
+/// run checks its host first (`/dev/kvm`, incusd): with no such host, only
+/// the row of doctor is checked. With no hold, no row and no refusal for
+/// it.
 #[test]
 fn a_long_tmpdir_refuses_a_run_whose_units_bind_sockets_there() {
     let dir = Scratch::new("long-tmp");
@@ -66,25 +80,31 @@ fn a_long_tmpdir_refuses_a_run_whose_units_bind_sockets_there() {
     let base = bed(&dir);
     let p = |n: &str| dir.join(n).display().to_string();
     let podvm = ["--podvm".to_string(), p("podvm")];
-    let cases: [(&str, Vec<String>); 4] = [
-        ("--podnet", [&podvm[..], &["--podnet".into(), p("podnet"), "--allow".into(), "github.com".into()]].concat()),
+    let allow = ["--allow".to_string(), "github.com".into()];
+    let cases: [(&str, Vec<String>); 5] = [
+        ("--podnet", [&podvm[..], &["--podnet".into(), p("podnet")], &allow[..]].concat()),
         ("--vnet", [&podvm[..], &["--vnet".into(), p("vnet")]].concat()),
-        ("--vnet --allow", [&podvm[..], &["--vnet".into(), p("vnet"), "--allow".into(), "github.com".into()]].concat()),
+        ("--vnet --allow", [&podvm[..], &["--vnet".into(), p("vnet")], &allow[..]].concat()),
         ("--microvm", vec!["--microvm".into(), p("podvm")]),
+        ("--incus --allow", [&["--incus".to_string(), p("podvm")][..], &allow[..]].concat()),
     ];
     for (name, flags) in cases {
         let args = [&base[..], &flags[..]].concat();
-        let run = podrunner(&["run"], &args, &tmp.0, &dir);
-        let err = String::from_utf8_lossy(&run.stderr);
-        let line = err.lines().find(|l| l.contains("socket path")).unwrap_or_default().to_string();
-        assert_eq!(run.status.code(), Some(78), "{name}: {err}");
-        assert!(line.contains(&format!("the socket path {}/podrunner-local-", tmp.0.display())), "{name}: {err}");
-        assert!(line.ends_with("fix: set TMPDIR to a shorter path"), "{name}: {err}");
         let doctor = podrunner(&["doctor", "--run"], &args, &tmp.0, &dir);
         let out = String::from_utf8_lossy(&doctor.stdout);
         let row = out.lines().find(|l| l.contains(" socket-paths:")).unwrap_or_default();
-        let why = row.strip_prefix("FAIL socket-paths: ").unwrap_or_else(|| panic!("{name}: {out}"));
-        assert!(line.contains(why), "{name}: doctor and run name one path: {row}\n{line}");
+        let why = keyless(row.strip_prefix("FAIL socket-paths: ").unwrap_or_else(|| panic!("{name}: {out}")));
+        assert!(why.starts_with(&format!("the socket path {}/podrunner-local-", tmp.0.display())), "{name}: {why}");
+        assert!(why.ends_with("fix: set TMPDIR to a shorter path"), "{name}: {why}");
+        let run = podrunner(&["run"], &args, &tmp.0, &dir);
+        let err = String::from_utf8_lossy(&run.stderr);
+        let host = ["/dev/kvm", "incusd"].iter().any(|h| err.contains(&format!("{}: {h}", flags[0])));
+        if host && run.status.code() == Some(69) {
+            continue;
+        }
+        let line = keyless(err.lines().find(|l| l.contains("socket path")).unwrap_or_default());
+        assert_eq!(run.status.code(), Some(78), "{name}: {err}");
+        assert!(line.ends_with(&why), "{name}: doctor and run name one path: {row}\n{line}");
     }
     // No hold: the unit binds no socket in TMPDIR, and the run fails at the
     // missing image, not at the length of TMPDIR.
