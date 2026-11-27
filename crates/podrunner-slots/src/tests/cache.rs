@@ -210,7 +210,18 @@ fn a_second_serve_on_one_cache_directory_is_refused() {
     let second = start("b").err().expect("the second serve is refused");
     assert!(second.to_string().contains("in use"), "{second}");
     drop(first);
-    assert!(start("c").is_ok());
+    // The lock goes with the last copy of its descriptor: a fork of another
+    // test of this process holds a copy until its exec, and a worker of
+    // `first` until it ends. Wait for the lock to be free, with a bound.
+    let wait = std::time::Instant::now() + Duration::from_secs(10);
+    let third = loop {
+        match start("c") {
+            Ok(s) => break Ok(s),
+            Err(e) if std::time::Instant::now() >= wait => break Err(e),
+            Err(_) => std::thread::sleep(Duration::from_millis(20)),
+        }
+    };
+    assert!(third.is_ok(), "the third serve after the end of the first: {:?}", third.err());
 }
 
 /// A push, then a pull request of the same repository, on a kind whose

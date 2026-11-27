@@ -20696,3 +20696,43 @@ with a long TMPDIR. Not checked: `doctor/tests.rs`, `incusd/tests.rs`,
 `cargo test --workspace` passes with a TMPDIR of 100 characters; the new
 lane of `user-gate.yml` is green or names each refusal of podrunner.
 
+# T-736: A test of the cache lock of serve can see the lock of a dropped serve
+
+**Source:** the gate of the lead session, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`tests::cache::a_second_serve_on_one_cache_directory_is_refused` of
+`podrunner-slots` failed once in a full gate ("assertion failed:
+start("c").is_ok()") and passed 8 times alone. The lock of the cache
+(`flock` on a descriptor with `O_CLOEXEC`, `cache/store.rs`) goes with the
+last copy of its descriptor: a fork of another test of the same process
+holds a copy until its exec, and a worker thread of the dropped serve
+until it ends.
+
+## Premise
+
+Seen in the gate on `0b6765a8` on 2026-11-27; read from
+`crates/podrunner-slots/src/cache/store.rs`. A new `serve` is a new
+process, so the window is in the test only.
+
+## Approach
+
+The test waits for the lock to be free, with a bound of 10 s, before it
+asserts the start of the third serve.
+
+## Prove
+
+`cargo test -p podrunner-slots cache` passes; the gate passes.
+
+## Done
+
+2026-11-27, the commit that names T-736 (tests on a development host):
+the test waits up to 10 s for the start of the third serve, and names
+the error when it is still refused.
+
