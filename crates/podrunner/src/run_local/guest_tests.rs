@@ -1,4 +1,4 @@
-//! T-690: `--mem SIZE` of `run --microvm`.
+//! T-690: `--mem SIZE` of `run --microvm`; T-609: `--init` and `--run-sh`.
 
 use super::super::args::parse;
 
@@ -156,4 +156,78 @@ fn doctor_names_the_size_of_the_image() {
     assert!(out.stdout.contains("FAIL mem: --mem 4G: the image r@sha256:"), "{}", out.stdout);
     let out = super::super::doctor(&self::line(&[]));
     assert!(out.stdout.contains("the unpacked size of the image is not known"), "{}", out.stdout);
+}
+
+/// T-609: `--init image` gives the kind `init = "image"`, as `serve`
+/// gives it; with no `--init`, the kind boots the init of podvm.
+#[test]
+fn the_init_of_the_image_goes_to_the_kind() {
+    use podrunner_slots::config::UnitInit;
+    for kind in ["--microvm", "--incus"] {
+        let a: Vec<String> = line(&["--init", "image"])
+            .into_iter()
+            .map(|s| if s == "--microvm" { kind.to_string() } else { s })
+            .collect();
+        let a = parse(&a).unwrap();
+        assert_eq!(super::unit(&a, "/b".as_ref(), "/i".as_ref()).init, Some(UnitInit::Image), "{kind}");
+    }
+    assert_eq!(super::unit(&parse(&line(&[])).unwrap(), "/b".as_ref(), "/i".as_ref()).init, None);
+}
+
+/// T-609: each refusal of `--init` and `--run-sh` names its flag and its
+/// cause.
+#[test]
+fn a_bad_init_or_runner_is_refused() {
+    let podvm = |extra: &[&str]| {
+        let base = ["w.yml", "--podvm", "/p", "--images", "/i", "--image", DIGEST];
+        base.iter().chain(extra).map(|s| s.to_string()).collect::<Vec<String>>()
+    };
+    let no_kind = |extra: &[&str]| ["w.yml"].iter().chain(extra).map(|s| s.to_string()).collect::<Vec<String>>();
+    for (a, why) in [
+        (line(&["--init", "podvm"]), "--init \"podvm\": give image"),
+        (line(&["--init", "Image"]), "--init \"Image\": give image"),
+        (line(&["--init"]), "--init needs a value"),
+        (line(&["--init", "image", "--engine", "/e"]), "--init image and --engine exclude each other"),
+        (podvm(&["--init", "image"]), "--init needs --microvm or --incus"),
+        (no_kind(&["--runner-dir", "/r", "--init", "image"]), "--init needs --microvm or --incus"),
+        (line(&["--run-sh", "run.sh"]), "--run-sh \"run.sh\": give an absolute path"),
+        (line(&["--run-sh", "./run.sh"]), "give an absolute path"),
+        (line(&["--run-sh", "/home/runner/"]), "give an absolute path"),
+        (line(&["--run-sh", "/home/../run.sh"]), "give an absolute path"),
+        (line(&["--run-sh", "/home/./run.sh"]), "give an absolute path"),
+        (line(&["--run-sh", "/home//run.sh"]), "give an absolute path"),
+        (line(&["--run-sh", "/"]), "give an absolute path"),
+        (line(&["--run-sh", "/a\nb/run.sh"]), "give an absolute path"),
+        (line(&["--run-sh", ""]), "--run-sh: the value is empty"),
+        (no_kind(&["--runner-dir", "/r", "--run-sh", "/r/run.sh"]), "--run-sh needs a unit kind"),
+    ] {
+        let e = parse(&a).unwrap_err();
+        assert!(e.contains(why), "{a:?}: {e}");
+    }
+    for p in ["/home/runner/actions-runner/run.sh", "/run.sh", "/opt/r/bin/run.sh"] {
+        assert_eq!(parse(&podvm(&["--run-sh", p])).unwrap().run_sh.as_deref(), Some(p));
+        assert_eq!(parse(&line(&["--run-sh", p, "--init", "image"])).unwrap().run_sh.as_deref(), Some(p));
+    }
+}
+
+/// T-609: `doctor --run` asks the version of podvm that `--init image`
+/// needs on each guest kind, as `check` asks it of `init = "image"`.
+#[test]
+fn doctor_asks_the_podvm_of_the_init_of_the_image() {
+    let dir = crate::scratch::Scratch::new("guest-init");
+    let podvm = dir.join("podvm");
+    let probe = "#!/bin/sh\n[ \"$1\" = probe ] && echo '{\"podvm\":\"0.2.0-beta.36\",\"rung\":\"userland\"}'\n";
+    podrunner_unit::program_file::write(&podvm, probe).unwrap();
+    let p = podvm.display().to_string();
+    let with = |kind: &str, extra: &[&str]| {
+        let base = ["w.yml", kind, p.as_str(), "--images", "/nonexistent/store", "--image", DIGEST];
+        super::super::doctor(&base.iter().chain(extra).map(|s| s.to_string()).collect::<Vec<_>>()).stdout
+    };
+    let ok = |o: &str, lowest: &str| o.contains(&format!("ok   podvm: {p} is 0.2.0-beta.36 ({lowest} or later)"));
+    let o = with("--incus", &["--init", "image"]);
+    assert!(ok(&o, "0.2.0-beta.36"), "{o}");
+    let o = with("--microvm", &["--init", "image"]);
+    assert!(o.contains("FAIL podvm:") && o.contains("fix: take podvm 0.2.0-beta.37 or later"), "{o}");
+    let o = with("--microvm", &[]);
+    assert!(ok(&o, "0.2.0-beta.10"), "{o}");
 }

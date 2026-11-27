@@ -111,8 +111,7 @@ fn unit(a: &Args, c: &Common, image: &str, state: &Path) -> Result<Box<dyn Execu
     e.cache = c.cache.clone();
     e.oidc = Some(c.oidc.clone());
     e.checkout = c.checkout.clone();
-    e.export = a.export.clone();
-    e.toolcache = a.toolcache.clone();
+    paths(&a, &mut e);
     if e.guest_engine && c.mirror.is_dir() {
         e.mirror = Some(Arc::new(podrunner_local::mirror::Mirror::new(c.mirror.clone())));
     }
@@ -123,6 +122,16 @@ fn unit(a: &Args, c: &Common, image: &str, state: &Path) -> Result<Box<dyn Execu
     }
     e.environment_policies = hosts.into_iter().map(|(n, h)| (n, super::policy(&h))).collect();
     Ok(Box::new(e))
+}
+
+/// The paths of a unit: `--export`, `--toolcache`, and `--run-sh`, whose
+/// directory gives the work folder (T-609).
+fn paths(a: &Args, e: &mut InUnit) {
+    e.export = a.export.clone();
+    e.toolcache = a.toolcache.clone();
+    if let Some(p) = &a.run_sh {
+        e.run_sh = p.clone();
+    }
 }
 
 /// The executor of the run, with the state of its units under `state`.

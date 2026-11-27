@@ -345,7 +345,8 @@ pub(super) const COMMANDS: &[Cmd] = &[
         path: "run",
         about: "Run the jobs of a workflow on this host, with no forge",
         usage: "(FILE | DIR) (--runner-dir DIR | (--podvm PATH [--podnet PATH | --vnet PATH] | --microvm PATH \
-                [--engine DIR] [--mem SIZE] | --incus PATH [--engine DIR]) --images STORE --image NAME@sha256:HEX) [OPTION...]",
+                [--engine DIR | --init INIT] [--mem SIZE] | --incus PATH [--engine DIR | --init INIT]) [--run-sh PATH] \
+                --images STORE --image NAME@sha256:HEX) [OPTION...]",
         notes: &[
             "Each option is in {CLI_DOC}, in the row of podrunner run.",
             "A key of run.toml is an option with no dashes. Exit 0, or 1 when a job failed.",

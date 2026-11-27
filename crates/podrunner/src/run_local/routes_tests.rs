@@ -1,4 +1,4 @@
-//! The probe of `--export` and `--log-dir` (T-614).
+//! The probe of `--export` and `--log-dir` (T-614), and the paths of a unit (T-609).
 
 use super::probe;
 use crate::scratch::Scratch;
@@ -60,4 +60,34 @@ fn a_probe_leaves_nothing() {
     let dir = Scratch::new("probe-empty");
     probe(&dir, names(&["a"])).unwrap();
     assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+}
+
+/// T-609: `--run-sh PATH` gives the runner of each unit; with no
+/// `--run-sh`, the default of the image of podrunner stays.
+#[test]
+fn the_runner_of_the_command_line_goes_to_each_unit() {
+    use podrunner_unit::UnitDriver;
+    let dir = Scratch::new("run-sh");
+    let cap = serde_json::from_value(serde_json::json!({
+        "schema": 1, "kind": "fake", "arch": "x86_64", "boundary": "confined", "principal": "distinct",
+        "container": "hooks", "net": "broker", "secret_delivery": ["files"], "credential_store": "private-dir",
+        "mount_modes": ["rw"], "rootfs_fresh": "yes", "tree_kill": "verified", "limits": {},
+        "egress_hold": "advisory", "kvm": "no"
+    }))
+    .unwrap();
+    let driver = std::sync::Arc::new(podrunner_fake::FakeUnit::new(&dir.join("units"), cap, "linux/amd64"));
+    let image = driver.prepare(&format!("img@sha256:{}", "a".repeat(64)), "linux/amd64", false).unwrap();
+    let digest = format!("r@sha256:{}", "0".repeat(64));
+    let line = |extra: &[&str]| {
+        let base = ["w.yml", "--podvm", "/p", "--images", "/i", "--image", digest.as_str()];
+        base.iter().chain(extra).map(|s| s.to_string()).collect::<Vec<_>>()
+    };
+    let hosted = "/home/runner/actions-runner/run.sh";
+    let mut e = podrunner_local::exec::InUnit::new(driver.clone(), image.clone());
+    super::paths(&super::super::args::parse(&line(&["--run-sh", hosted])).unwrap(), &mut e);
+    assert_eq!(e.run_sh, hosted);
+    assert_eq!(podrunner_local::exec::workdir::work_folder(&e.run_sh), "/home/runner/work");
+    let mut e = podrunner_local::exec::InUnit::new(driver, image);
+    super::paths(&super::super::args::parse(&line(&[])).unwrap(), &mut e);
+    assert_eq!(e.run_sh, "/home/runner/run.sh");
 }

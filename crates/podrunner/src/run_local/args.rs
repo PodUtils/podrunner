@@ -14,6 +14,11 @@ pub(super) struct Args {
     pub(super) engine: Option<PathBuf>,
     /// `--mem SIZE`: the memory of each guest of `--microvm` (T-690).
     pub(super) mem: Option<String>,
+    /// `--run-sh PATH`: `run.sh` of the runner in the image (T-609).
+    pub(super) run_sh: Option<String>,
+    /// `--init image`: each guest boots the init of the image (T-609), as
+    /// `[unit.KIND] init = "image"` of `serve`.
+    pub(super) init: bool,
     /// `--platform LABEL=TARGET`: a runner image, or `host`, for a label of
     /// `runs-on` (T-129).
     pub(super) platforms: Vec<(String, String)>,
@@ -133,6 +138,17 @@ pub(super) fn with_usage(e: String) -> String {
     }
 }
 
+/// `--run-sh PATH`: an absolute path in the unit, with no empty, `.`, `..`
+/// or control part. Its directory gives the work folder
+/// (`podrunner_local::exec::workdir`).
+fn run_sh(v: String) -> Result<String, String> {
+    let bad = |p: &str| p.is_empty() || p == "." || p == ".." || p.chars().any(char::is_control);
+    match v.strip_prefix('/') {
+        Some(rest) if !rest.split('/').any(bad) => Ok(v),
+        _ => Err(format!("--run-sh {v:?}: give an absolute path in the image, such as /home/runner/actions-runner/run.sh")),
+    }
+}
+
 pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     let mut a = Args { event: "push".into(), ..Args::default() };
     let mut it = args.iter();
@@ -157,6 +173,14 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
             }
             "--engine" => a.engine = Some(PathBuf::from(value()?)),
             "--mem" => a.mem = Some(value()?),
+            "--run-sh" => a.run_sh = Some(run_sh(value()?)?),
+            "--init" => {
+                let v = value()?;
+                if v != "image" {
+                    return Err(format!("--init {v:?}: give image, the init of the runner image"));
+                }
+                a.init = true;
+            }
             "--job" => a.jobs.push(value()?),
             "--protected" => a.protected.push(value()?),
             "--export" => a.export = Some(PathBuf::from(value()?)),
@@ -418,6 +442,16 @@ pub(super) fn parse(args: &[String]) -> Result<Args, String> {
     }
     if let Some(m) = &a.mem {
         super::guest::mem_of(m, matches!(a.guest, Some((true, _))))?;
+    }
+    if a.run_sh.is_some() && !kind {
+        return Err("--run-sh needs a unit kind (--podvm, --microvm, --incus)".into());
+    }
+    if a.init && a.guest.is_none() {
+        return Err("--init needs --microvm or --incus".into());
+    }
+    // The init of the image runs the engine of the image (T-543, T-549).
+    if a.init && a.engine.is_some() {
+        return Err("--init image and --engine exclude each other: the init of the image runs its own engine".into());
     }
     // The executor: name the flag that is missing or that clashes (T-207).
     let store = a.images.is_some();

@@ -206,6 +206,23 @@ fn the_executor_of_the_command_line_drops_the_keys_of_other_executors() {
     );
 }
 
+/// T-609: `init` of a file is a key of the guest kinds, `run-sh` of each
+/// unit kind; `--engine` of the command line drops `init`.
+#[test]
+fn the_init_and_the_runner_stay_with_their_kinds() {
+    let file = s(&["--incus", "/m", "--init", "image", "--run-sh", "/r/run.sh", "--quiet"]);
+    for kind in ["--microvm", "--incus"] {
+        let got = command_line_wins(file.clone(), &s(&["w.yml", kind, "/p"]));
+        assert_eq!(got, s(&["--init", "image", "--run-sh", "/r/run.sh", "--quiet"]), "{kind}");
+    }
+    let got = command_line_wins(file.clone(), &s(&["w.yml", "--podvm", "/p"]));
+    assert_eq!(got, s(&["--run-sh", "/r/run.sh", "--quiet"]));
+    let got = command_line_wins(file.clone(), &s(&["w.yml", "--runner-dir", "/r"]));
+    assert_eq!(got, s(&["--quiet"]));
+    let got = command_line_wins(file, &s(&["w.yml", "--engine", "/e"]));
+    assert_eq!(got, s(&["--incus", "/m", "--run-sh", "/r/run.sh", "--quiet"]));
+}
+
 /// T-627: of two flags that exclude each other, the one of the command
 /// line drops the one of the files; a flag with no value does not take the
 /// next word.

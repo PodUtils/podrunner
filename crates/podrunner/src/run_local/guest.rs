@@ -147,7 +147,7 @@ fn unit(a: &Args, binary: &std::path::Path, images: &std::path::Path) -> UnitCon
         podnet: None,
         disk_max_bytes: None,
         root_quota: false,
-        init: None,
+        init: a.init.then_some(podrunner_slots::config::UnitInit::Image),
         claim: None,
         confine: false,
         // `parse` takes `--mem` with `--microvm` only.

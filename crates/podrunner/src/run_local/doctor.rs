@@ -6,7 +6,8 @@ use std::path::Path;
 
 use podrunner_podvm::Podvm;
 use podrunner_podvm::probe::{
-    LOWEST, LOWEST_ENGINE, LOWEST_ENGINE_INCUS, LOWEST_GUEST, LOWEST_IMAGE_LABELS, LOWEST_INCUS,
+    LOWEST, LOWEST_ENGINE, LOWEST_ENGINE_INCUS, LOWEST_GUEST, LOWEST_IMAGE_LABELS, LOWEST_INCUS, LOWEST_INCUS_INIT,
+    LOWEST_MACHINE_INIT,
 };
 
 use super::Args;
@@ -235,7 +236,10 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
     let (binary, lowest, flag) = match (&a.podvm, &a.guest) {
         (Some(b), _) => (Some(b.clone()), LOWEST, "--podvm"),
         (None, Some((true, b))) => {
-            let lowest = if a.engine.is_some() {
+            // The order of `microvm_kind::plan` and `incus_kind::plan`.
+            let lowest = if a.init {
+                LOWEST_MACHINE_INIT
+            } else if a.engine.is_some() {
                 LOWEST_ENGINE
             } else if guest_engine {
                 LOWEST_IMAGE_LABELS
@@ -245,7 +249,12 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
             (Some(b.clone()), lowest, "--microvm")
         }
         (None, Some((false, b))) => {
-            (Some(b.clone()), if guest_engine { LOWEST_ENGINE_INCUS } else { LOWEST_INCUS }, "--incus")
+            let lowest = match (a.init, guest_engine) {
+                (true, _) => LOWEST_INCUS_INIT,
+                (false, true) => LOWEST_ENGINE_INCUS,
+                (false, false) => LOWEST_INCUS,
+            };
+            (Some(b.clone()), lowest, "--incus")
         }
         _ => (None, LOWEST, ""),
     };

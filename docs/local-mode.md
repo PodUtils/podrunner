@@ -85,6 +85,34 @@ In a unit (`--podvm`, `--microvm`, `--incus`), the work directory is
 `/home/runner/work/REPO/REPO` (T-590). `--export`, `--toolcache` and the
 container hooks use the same directory.
 
+`--run-sh PATH` names `run.sh` of the runner in the image (default
+`/home/runner/run.sh`, the runner image of podrunner). It is an absolute
+path in the unit. When the directory of PATH is `/home/runner` or a
+directory under it, the work directory is `/home/runner/work`; else it is
+`work` in the directory of PATH (`/opt/r/run.sh` gives `/opt/r/work`).
+
+To run a job in the runner image of the hosted snapshot
+(`docs/hosted-snapshot.md`, T-541) as a hosted runner runs it, give its
+runner and boot the init of the image:
+
+```sh
+podrunner run .github/workflows/ci.yml --incus /opt/podrunner/drivers/podvm \
+  --images /var/lib/podrunner/images --image NAME@sha256:HEX \
+  --init image --run-sh /home/runner/actions-runner/run.sh
+```
+
+This is the local form of `[unit.incus] init = "image"` and
+`command = ["/home/runner/actions-runner/run.sh"]` of `serve`. `--init
+image` takes `--microvm` or `--incus` (each with the lowest version of
+podvm of `init = "image"` of its kind) and excludes `--engine`: the init of
+the image runs the engine of the image (T-609).
+
+A limit: on `--podvm`, the container hooks mount only the work directory
+and `externals` in the parent directory of the work directory. A runner in
+a directory under `/home/runner` (such as `/home/runner/actions-runner`)
+has its `externals` in another directory, so a job container of it is
+refused. A guest of `--microvm` or `--incus` runs no container hooks.
+
 On `--runner-dir`, the Pythons of `actions/setup-python` find
 `libpython` at the path of the tool cache of GitHub
 (`/opt/hostedtoolcache`), which a user with no root cannot make. A step

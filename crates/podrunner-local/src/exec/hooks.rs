@@ -109,7 +109,7 @@ impl InUnit {
             // No socket serves the unit: no container takes the copy.
             let _ = std::fs::remove_dir_all(&logs);
         })?;
-        let hook = podrunner_hook::unit::HookUnit::new(self.driver.clone(), id.clone(), policy(message), None, logs);
+        let hook = podrunner_hook::unit::HookUnit::new(self.driver.clone(), id.clone(), policy(message, &super::workdir::work_folder(&self.run_sh)), None, logs);
         let unit = std::sync::Arc::new(std::sync::Mutex::new(hook.with_ca(ca)));
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (u, s): (std::sync::Arc<std::sync::Mutex<dyn Unit>>, _) = (unit.clone(), stop.clone());
@@ -123,15 +123,16 @@ impl InUnit {
 }
 
 /// The hook policy of a unit of the local mode for the job `message`: the
-/// registries of its images, and the hosted work folder of the runner
-/// (T-590).
-fn policy(message: &Job) -> podrunner_hook::policy::Policy {
+/// registries of its images, and the work folder `folder` of the runner
+/// (T-590), `work` in its parent (T-609).
+fn policy(message: &Job, folder: &str) -> podrunner_hook::policy::Policy {
+    let (root, dir) = folder.rsplit_once('/').unwrap_or(("/home/runner", super::workdir::WORK_DIR));
     podrunner_hook::policy::Policy {
         container: podrunner_schema::ContainerRoute::Hooks,
         shared_host_net: true,
         registries: registries(message),
-        work_root: "/home/runner".into(),
-        work_dir: super::workdir::WORK_DIR.into(),
+        work_root: root.into(),
+        work_dir: dir.into(),
     }
 }
 
@@ -152,7 +153,7 @@ mod tests {
         let driver =
             std::sync::Arc::new(podrunner_fake::FakeUnit::new(&dir, super::super::tests::capability(), "linux/amd64"));
         let id = podrunner_schema::UnitId::parse("u-1").unwrap();
-        let mut hook = podrunner_hook::unit::HookUnit::new(driver, id, super::policy(&job()), None, dir.join("logs"));
+        let mut hook = podrunner_hook::unit::HookUnit::new(driver, id, super::policy(&job(), "/home/runner/work"), None, dir.join("logs"));
         hook.refusals.push(podrunner_schema::RefusalCode::ContainerOptionRefused);
         hook.driver_errors.push("no engine".into());
         let unit = std::sync::Mutex::new(hook);
@@ -181,17 +182,25 @@ mod tests {
         let image = format!("alpine@sha256:{}", "a".repeat(64));
         let mut job = podrunner_broker_fake::Job::scripts("a", &["true"]);
         job.overrides.insert("jobContainer".into(), serde_json::json!(image));
-        let prepare = |source: &str| {
+        let prepare = |source: &str, folder: &str| {
             let mount =
                 serde_json::json!({ "sourceVolumePath": source, "targetVolumePath": "/__w", "readOnly": false });
             let c = serde_json::json!({ "image": image, "systemMountVolumes": [mount] });
             let body = serde_json::json!({ "command": "prepare_job", "args": { "container": c, "services": [] } });
             Gate::default()
-                .check(&parse(Command::PrepareJob, body.to_string().as_bytes()).unwrap(), &super::policy(&job))
+                .check(&parse(Command::PrepareJob, body.to_string().as_bytes()).unwrap(), &super::policy(&job, folder))
         };
-        assert!(prepare("/home/runner/work").is_ok());
-        let e = prepare("/home/runner/_work").unwrap_err();
+        let hosted = super::super::workdir::work_folder("/home/runner/run.sh");
+        assert!(prepare("/home/runner/work", &hosted).is_ok());
+        let e = prepare("/home/runner/_work", &hosted).unwrap_err();
         assert_eq!(e.code, podrunner_schema::RefusalCode::ContainerOptionRefused);
+        // T-609: the policy follows the work folder of the runner of the unit.
+        let other = super::super::workdir::work_folder("/opt/r/run.sh");
+        assert!(prepare("/opt/r/work/r/r", &other).is_ok());
+        assert!(prepare("/opt/r/externals", &other).is_ok());
+        assert!(prepare("/home/runner/work", &other).is_err());
+        let layer = super::super::workdir::work_folder("/home/runner/actions-runner/run.sh");
+        assert!(prepare("/home/runner/work/r/r", &layer).is_ok());
     }
 
     /// A made-up certificate: the containers read it, no TLS takes it.

@@ -138,6 +138,7 @@ fn sample(value: Option<&str>) -> Option<&'static str> {
     value.map(|v| match v {
         "IP:PORT" => "127.0.0.1:0",
         "ID" | "NAME" => "a",
+        "INIT" => "image",
         _ => "/nonexistent-podrunner-t627",
     })
 }
