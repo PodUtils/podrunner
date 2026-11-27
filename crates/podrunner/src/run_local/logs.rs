@@ -272,3 +272,6 @@ mod hint_tests {
         assert!(super::token_hint(&[("a".to_string(), python.to_string())]).contains("an empty NAME"));
     }
 }
+
+#[cfg(test)]
+mod unit_tests;
