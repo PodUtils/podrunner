@@ -276,9 +276,7 @@ mod tests {
     /// T-242: the newest tars stay.
     #[test]
     fn the_oldest_tars_go() {
-        let dir = std::env::temp_dir().join(format!("podrunner-tars-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::scratch::Scratch::new("tars");
         let now = std::time::SystemTime::now();
         for (i, name) in ["a.tar", "b.tar", "c.tar"].iter().enumerate() {
             let f = std::fs::File::create(dir.join(name)).unwrap();
@@ -290,6 +288,5 @@ mod tests {
             std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
         left.sort();
         assert_eq!(left, ["b.tar", "c.tar", "notes.txt"]);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

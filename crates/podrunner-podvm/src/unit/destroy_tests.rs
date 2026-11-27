@@ -11,9 +11,7 @@ use super::PodvmUnit;
 #[test]
 fn a_destroy_with_no_record_removes_the_podvm_unit() {
     let _one = super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
-    let d = std::env::temp_dir().join(format!("podrunner-podvm-norecord-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).unwrap();
+    let d = crate::scratch::Scratch::new("podvm-norecord");
     let log = d.join("calls");
     let podvm = d.join("podvm");
     // The version of podvm for `new`, and a line of each call.
@@ -30,7 +28,6 @@ fn a_destroy_with_no_record_removes_the_podvm_unit() {
     let calls = std::fs::read_to_string(&log).unwrap_or_default();
     assert!(calls.lines().any(|l| l.ends_with("rm -f u-3")), "{calls}");
     assert!(!d.join("state/units/u-3").exists(), "{residue:?}");
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// A fake podvm in `d`: the launcher of each unit is `dead` for `inspect`,
@@ -69,8 +66,7 @@ const MANIFEST: &str = "sha256:4444444444444444444444444444444444444444444444444
 fn residue_after_dead_launcher(name: &str, wait: &str) -> podrunner_unit::Residue {
     use podrunner_unit::{Prepared, StartSpec};
     let _one = super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
-    let d = std::env::temp_dir().join(format!("podrunner-podvm-dead-{name}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
+    let d = crate::scratch::Scratch::new(&format!("podvm-dead-{name}"));
     std::fs::create_dir_all(d.join("state/images")).unwrap();
     super::store_tests::write_tar(&d.join(format!("state/images/{}.tar", PIN.trim_start_matches("sha256:"))), MANIFEST);
     let unit = PodvmUnit::new(crate::Podvm { binary: dead_launcher_fake(&d, wait) }, &d.join("state"), &d).unwrap();
@@ -89,9 +85,7 @@ fn residue_after_dead_launcher(name: &str, wait: &str) -> podrunner_unit::Residu
     // The waiter is an event: `wait` returns when the fake has ended.
     let exit = unit.wait(&id, std::time::Duration::from_secs(30)).unwrap();
     assert!(exit.is_some(), "the fake wait did not end");
-    let residue = unit.destroy(&id).unwrap();
-    let _ = std::fs::remove_dir_all(&d);
-    residue
+    unit.destroy(&id).unwrap()
 }
 
 /// T-696: after `job-mismatch` the hook ends the worker, the runner exits

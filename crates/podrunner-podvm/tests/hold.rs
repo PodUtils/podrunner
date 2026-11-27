@@ -20,9 +20,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod scratch;
+
 use podrunner_podvm::{Podvm, PodvmUnit};
 use podrunner_schema::{ContainerRoute, EgressHold, UnitId};
 use podrunner_unit::{ContainerSpec, EGRESS_SOCKET, ExecSpec, Exit, StartSpec, UnitDriver};
+use scratch::Scratch;
 
 const BODY: &str = "podrunner-through-the-hold";
 
@@ -92,8 +95,7 @@ fn until(mut f: impl FnMut() -> bool) -> bool {
 #[test]
 #[ignore]
 fn a_held_podvm_unit_sends_each_connect_to_its_egress_socket() {
-    let state = std::env::temp_dir().join(format!("podrunner-hold-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
+    let state = Scratch::new("podvm-hold");
     let sockets = state.join("sockets");
     std::fs::create_dir_all(&sockets).unwrap();
     let port = server();
@@ -157,7 +159,6 @@ fn a_held_podvm_unit_sends_each_connect_to_its_egress_socket() {
     };
     let residue = unit.destroy(&id).unwrap();
     let lines = log.lock().unwrap().clone();
-    let _ = std::fs::remove_dir_all(&state);
     assert!(held, "the connect of the payload did not come through the egress socket: {lines:?}");
     assert!(lines.iter().any(|l| l.starts_with(&format!("CONNECT 10.255.0.1:{port}"))), "{lines:?}");
     assert_ne!(stepped, Some(false), "the connect of an exec step did not come through the egress socket");
@@ -177,8 +178,7 @@ fn a_held_podvm_unit_sends_each_connect_to_its_egress_socket() {
 #[test]
 #[ignore]
 fn the_tree_kill_self_test_of_a_held_unit_passes() {
-    let state = std::env::temp_dir().join(format!("podrunner-hold-kill-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
+    let state = Scratch::new("podvm-hold-kill");
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
     let mut unit = PodvmUnit::new(podvm, &state.join("podvm"), Path::new(&env("PODRUNNER_PODVM_IMAGES")))
         .unwrap()
@@ -188,5 +188,4 @@ fn the_tree_kill_self_test_of_a_held_unit_passes() {
     assert!(unit.verify_tree_kill(&env("PODRUNNER_PODVM_IMAGE"), id.clone()).unwrap(), "the tree kill is not proven");
     let gone = unit.destroy(&id);
     assert!(gone.as_ref().map_or(true, |r| r.is_clean()), "a unit of the self-test stays: {gone:?}");
-    let _ = std::fs::remove_dir_all(&state);
 }

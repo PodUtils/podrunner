@@ -13,9 +13,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
+mod scratch;
+
 use podrunner_podvm::{Podvm, PodvmUnit};
 use podrunner_schema::UnitId;
 use podrunner_unit::{ContainerSpec, Exit, StartSpec, UnitDriver};
+use scratch::Scratch;
 
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
@@ -24,8 +27,7 @@ fn env(name: &str) -> String {
 #[test]
 #[ignore]
 fn the_run_report_names_the_image_the_exit_and_the_label() {
-    let state = std::env::temp_dir().join(format!("podrunner-report-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
+    let state = Scratch::new("podvm-report");
     let podvm = PathBuf::from(env("PODRUNNER_PODVM"));
     let unit =
         PodvmUnit::new(Podvm { binary: podvm.clone() }, &state, Path::new(&env("PODRUNNER_PODVM_IMAGES"))).unwrap();
@@ -72,7 +74,6 @@ fn the_run_report_names_the_image_the_exit_and_the_label() {
     };
     let before = labeled("label=podrunner.unit=u-1");
     let residue = unit.destroy(&id).unwrap();
-    let _ = std::fs::remove_dir_all(&state);
     assert_eq!(exit, Some(Exit::Code(3)));
     let r = report.expect("podvm wrote no report of the run");
     assert_eq!(r["image_digest"], image.digest.as_str(), "{r}");

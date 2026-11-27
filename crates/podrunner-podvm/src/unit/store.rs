@@ -198,12 +198,10 @@ mod tests {
 
     #[test]
     fn an_image_of_an_index_is_held_by_the_digest_of_its_loaded_manifest() {
-        let dir = std::env::temp_dir().join(format!("podrunner-loaded-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::scratch::Scratch::new("loaded");
         let tar_path = dir.join("i.tar");
         super::super::store_tests::write_tar(&tar_path, &format!("sha256:{}", "b".repeat(64)));
         assert_eq!(manifest_of(&tar_path), Some(format!("sha256:{}", "b".repeat(64))));
         assert_eq!(manifest_of(&dir.join("none.tar")), None, "no tar: no manifest");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

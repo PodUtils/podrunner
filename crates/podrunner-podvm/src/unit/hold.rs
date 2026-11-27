@@ -181,9 +181,7 @@ mod tests {
     fn a_held_self_test_has_its_egress_socket() {
         let _one = super::super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
         use std::os::unix::fs::PermissionsExt;
-        let d = std::env::temp_dir().join(format!("podrunner-selftest-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(&d).unwrap();
+        let d = crate::scratch::Scratch::new("st");
         let script = |name: &str, body: &str| {
             let f = d.join(name);
             std::fs::write(&f, format!("#!/bin/sh\n{body}\n")).unwrap();
@@ -203,7 +201,6 @@ mod tests {
         assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
         drop(s);
         assert!(!dir.exists());
-        let _ = std::fs::remove_dir_all(&d);
     }
 
     /// T-319: the broker goes direct; each other loopback port is refused.

@@ -12,9 +12,12 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+mod scratch;
+
 use podrunner_podvm::{Podvm, PodvmUnit};
 use podrunner_schema::UnitId;
 use podrunner_unit::{StartSpec, UnitDriver};
+use scratch::Scratch;
 
 const BODY: &str = "podrunner-in-the-rootfs";
 
@@ -25,8 +28,7 @@ fn env(name: &str) -> String {
 #[test]
 #[ignore]
 fn an_absolute_link_resolves_in_the_rootfs_of_the_unit() {
-    let state = std::env::temp_dir().join(format!("podrunner-links-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
+    let state = Scratch::new("podvm-links");
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
     let unit = PodvmUnit::new(podvm, &state, Path::new(&env("PODRUNNER_PODVM_IMAGES"))).unwrap();
     let image = unit.prepare(&env("PODRUNNER_PODVM_IMAGE"), "linux/amd64", false).unwrap();
@@ -63,7 +65,6 @@ fn an_absolute_link_resolves_in_the_rootfs_of_the_unit() {
     let argv = ["sh".to_string(), "-c".to_string(), script];
     let entered = unit.enter(&id, &argv, false).map(|mut c| c.stdin(std::process::Stdio::null()).output());
     let residue = unit.destroy(&id).unwrap();
-    let _ = std::fs::remove_dir_all(&state);
     assert!(read.contains(BODY), "the payload read {read:?} through an absolute link");
     let out = entered.unwrap().unwrap();
     let text = String::from_utf8_lossy(&out.stdout);

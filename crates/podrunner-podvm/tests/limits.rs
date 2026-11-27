@@ -12,10 +12,13 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+mod scratch;
+
 use podrunner_podvm::{Podvm, PodvmUnit};
 use podrunner_schema::UnitId;
 use podrunner_unit::limits::Limits;
 use podrunner_unit::{Exit, StartSpec, UnitDriver};
+use scratch::Scratch;
 
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
@@ -36,8 +39,7 @@ fn run(n: u32, script: &str, limits: Limits) -> Option<Exit> {
 /// The exit of `script` in a fresh unit with `limits`, and its OOM kills
 /// (before the destroy).
 fn run_oom(n: u32, script: &str, limits: Limits) -> (Option<Exit>, Option<u64>) {
-    let state = std::env::temp_dir().join(format!("podrunner-limits-{}-{n}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
+    let state = Scratch::new(&format!("podvm-limits-{n}"));
     let unit = PodvmUnit::new(
         Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
         &state,
@@ -63,7 +65,6 @@ fn run_oom(n: u32, script: &str, limits: Limits) -> (Option<Exit>, Option<u64>) 
     let oom = unit.oom_kills(&id);
     let report = unit.run_report(&id);
     let residue = unit.destroy(&id).unwrap();
-    let _ = std::fs::remove_dir_all(&state);
     println!("unit {n} {limits:?}: {exit:?} oom_kills {oom:?}\n{log}\nthe run report: {report:?}");
     assert!(residue.is_clean(), "{residue:?}");
     (exit, oom)
@@ -120,8 +121,7 @@ fn a_cpu_limit_holds_in_a_delegated_cgroup() {
     }
     let cg = std::fs::read_to_string("/proc/self/cgroup").unwrap();
     let own = PathBuf::from(format!("/sys/fs/cgroup{}", cg.trim().trim_start_matches("0::")));
-    let state = std::env::temp_dir().join(format!("podrunner-limits-{}-5", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
+    let state = Scratch::new("podvm-limits-5");
     let unit = PodvmUnit::new(
         Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
         &state,
@@ -154,7 +154,6 @@ fn a_cpu_limit_holds_in_a_delegated_cgroup() {
         std::thread::sleep(Duration::from_millis(200));
     }
     let residue = unit.destroy(&id).unwrap();
-    let _ = std::fs::remove_dir_all(&state);
     println!("own cgroup {}; the cgroups of the run: {seen:?}", own.display());
     assert!(residue.is_clean(), "{residue:?}");
     assert!(!seen.is_empty(), "no cgroup podvm-* of the run beside {}", own.display());
@@ -174,8 +173,7 @@ fn each_unit_holds_its_own_pids_in_a_delegated_cgroup() {
     }
     let cg = std::fs::read_to_string("/proc/self/cgroup").unwrap();
     let own = PathBuf::from(format!("/sys/fs/cgroup{}", cg.trim().trim_start_matches("0::")));
-    let state = std::env::temp_dir().join(format!("podrunner-limits-{}-6", std::process::id()));
-    let _ = std::fs::remove_dir_all(&state);
+    let state = Scratch::new("podvm-limits-6");
     let unit = PodvmUnit::new(
         Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
         &state,
@@ -218,7 +216,6 @@ fn each_unit_holds_its_own_pids_in_a_delegated_cgroup() {
         let residue = unit.destroy(id).unwrap();
         assert!(residue.is_clean(), "{residue:?}");
     }
-    let _ = std::fs::remove_dir_all(&state);
     println!("pids.max of the runs: {seen:?}");
     assert_eq!(mode, podrunner_schema::LimitMode::Enforced, "the record must say pids for each unit");
     assert!(
@@ -240,7 +237,7 @@ fn a_unit_past_its_memory_counts_an_oom_kill_in_a_delegated_cgroup() {
         println!("skip: PODRUNNER_CPU_DELEGATED is not set");
         return;
     }
-    let state = std::env::temp_dir().join(format!("podrunner-limits-{}-probe", std::process::id()));
+    let state = Scratch::new("podvm-limits-probe");
     let unit = PodvmUnit::new(
         Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) },
         &state,
@@ -248,7 +245,6 @@ fn a_unit_past_its_memory_counts_an_oom_kill_in_a_delegated_cgroup() {
     )
     .unwrap();
     let mode = unit.probe().unwrap().limit(podrunner_podvm::MEMORY_PER_UNIT);
-    let _ = std::fs::remove_dir_all(&state);
     println!("{}: {mode:?}", podrunner_podvm::MEMORY_PER_UNIT);
     assert_eq!(mode, podrunner_schema::LimitMode::Enforced, "the record must say memory for each unit");
     let held = Limits { memory_bytes: Some(256 << 20), ..Limits::default() };

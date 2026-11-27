@@ -8,12 +8,14 @@
 //! STORE is a podvm store that holds the image (`podvm pull`).
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+
+mod scratch;
 
 use podrunner_podvm::{Podvm, PodvmUnit};
 use podrunner_schema::{UnitId, UnitIds};
 use podrunner_unit::conformance::{self, Behaviour, Fixture, Outcome};
 use podrunner_unit::{Exit, StartSpec, UnitDriver};
+use scratch::Scratch;
 
 struct Real {
     unit: PodvmUnit,
@@ -112,7 +114,6 @@ fn cache_mounts(unit: &PodvmUnit, state: &std::path::Path, image: &str) {
     );
     assert_eq!(std::fs::read_to_string(dir.join("from-push")).unwrap(), "from-push");
     assert!(!dir.join("from-pr").exists());
-    std::fs::remove_dir_all(&dir).unwrap();
     println!("cache proof: RW persisted and the RO unit read without changing the host");
 }
 
@@ -123,12 +124,7 @@ fn env(name: &str) -> String {
 #[test]
 #[ignore]
 fn the_podvm_unit_passes_its_tests() {
-    static N: AtomicU64 = AtomicU64::new(0);
-    let state = std::env::temp_dir().join(format!(
-        "podrunner-podvm-{}-{}",
-        std::process::id(),
-        N.fetch_add(1, Ordering::Relaxed)
-    ));
+    let state = Scratch::new("podvm-conformance");
     let podvm = Podvm { binary: PathBuf::from(env("PODRUNNER_PODVM")) };
     let mut unit = PodvmUnit::new(podvm, &state, &PathBuf::from(env("PODRUNNER_PODVM_IMAGES"))).unwrap();
     let image = env("PODRUNNER_PODVM_IMAGE");
@@ -141,7 +137,6 @@ fn the_podvm_unit_passes_its_tests() {
         assert_eq!(unit.probe().unwrap().boundary, podrunner_schema::Boundary::Confined);
         if std::env::var_os("PODRUNNER_PODVM_CACHE_PROOF").is_some() {
             cache_mounts(&unit, &state, &image);
-            let _ = std::fs::remove_dir_all(&state);
             return;
         }
     }
@@ -149,7 +144,7 @@ fn the_podvm_unit_passes_its_tests() {
     assert!(unit.verify_tree_kill(&image, UnitId::parse("u-999").unwrap()).unwrap(), "the tree kill is not proven");
     assert_eq!(unit.probe().unwrap().tree_kill, podrunner_schema::TreeKill::Verified);
     let fx: std::sync::Arc<dyn Fixture + Send + Sync> =
-        std::sync::Arc::new(Real { unit, image, ids: UnitIds::default(), state: state.clone() });
+        std::sync::Arc::new(Real { unit, image, ids: UnitIds::default(), state: state.to_path_buf() });
     // PODRUNNER_CONFORMANCE_ONLY=26,3 runs only those tests: a loop of one
     // test finds a race.
     let only: Vec<u32> = std::env::var("PODRUNNER_CONFORMANCE_ONLY")
@@ -167,6 +162,5 @@ fn the_podvm_unit_passes_its_tests() {
     // The container tests (13 or 14, 20 and 24) skip by the container route
     // of the rung.
     let failed: Vec<_> = results.iter().filter(|r| matches!(r.outcome, Outcome::Fail(_))).map(|r| r.number).collect();
-    let _ = std::fs::remove_dir_all(&state);
     assert!(failed.is_empty(), "failed: {failed:?}");
 }

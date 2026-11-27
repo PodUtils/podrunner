@@ -109,8 +109,7 @@ exit 0
 /// `memory` controller, or not (`delegated`): the `run -d` of the unit,
 /// its OOM kills, and the record of the kind.
 fn unit_of_256_mib(name: &str, delegated: bool) -> (String, Option<u64>, LimitMode) {
-    let d = std::env::temp_dir().join(format!("podrunner-podvm-oom-{name}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
+    let d = crate::scratch::Scratch::new(&format!("podvm-oom-{name}"));
     std::fs::create_dir_all(d.join("state/images")).unwrap();
     write_tar(&d.join(format!("state/images/{}.tar", PIN.trim_start_matches("sha256:"))), MANIFEST);
     let podvm = crate::Podvm { binary: fake(&d) };
@@ -135,7 +134,6 @@ fn unit_of_256_mib(name: &str, delegated: bool) -> (String, Option<u64>, LimitMo
     let _ = unit.destroy(&s.unit);
     let calls = std::fs::read_to_string(d.join("calls")).unwrap();
     let run = calls.lines().find(|l| l.starts_with("run -d ")).unwrap().to_string();
-    let _ = std::fs::remove_dir_all(&d);
     (run, oom, mode)
 }
 

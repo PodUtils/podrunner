@@ -187,10 +187,9 @@ mod tests {
     }
 
     /// A fake podvm whose probe names `version`.
-    fn fake(version: &str) -> (Podvm, PathBuf) {
+    fn fake(version: &str) -> (Podvm, crate::scratch::Scratch) {
         use std::os::unix::fs::PermissionsExt;
-        let d = std::env::temp_dir().join(format!("podrunner-podvm-require-{version}-{}", std::process::id()));
-        std::fs::create_dir_all(&d).unwrap();
+        let d = crate::scratch::Scratch::new(&format!("podvm-require-{version}"));
         let f = d.join("podvm");
         std::fs::write(&f, format!("#!/bin/sh\necho '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}'\n")).unwrap();
         std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o755)).unwrap();
@@ -201,9 +200,9 @@ mod tests {
     fn a_kind_refuses_a_podvm_below_its_lowest_version() {
         let _one = crate::unit::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
         for (have, ok) in [("0.2.0-beta.9", false), ("0.2.0-beta.10", true), ("0.2.0", true), ("0.3.0-beta.1", false)] {
-            let (p, d) = fake(have);
+            // `_d` keeps the directory until the end of the turn.
+            let (p, _d) = fake(have);
             let got = p.require("0.2.0-beta.10");
-            let _ = std::fs::remove_dir_all(&d);
             assert_eq!(got.is_ok(), ok, "{have}: {got:?}");
             if let Err(e) = got {
                 assert_eq!(e.code, UnitCode::Unsupported);
@@ -220,8 +219,7 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         let _one = crate::unit::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
         for (version, flag) in [("0.2.0-beta.37", true), ("0.2.0-beta.36", false)] {
-            let d = std::env::temp_dir().join(format!("podrunner-podvm-logs-{version}-{}", std::process::id()));
-            std::fs::create_dir_all(&d).unwrap();
+            let d = crate::scratch::Scratch::new(&format!("podvm-logs-{version}"));
             let f = d.join("podvm");
             let script = format!(
                 "#!/bin/sh\ncase $1 in probe) echo '{{\"podvm\":\"{version}\",\"rung\":\"userland\"}}' ;;\n\
@@ -240,7 +238,6 @@ mod tests {
             assert_eq!(read.unwrap().cut, Some(podrunner_unit::Cut::Bytes), "{version}");
             assert_eq!(p.logs(&[], "u-1", envs()).read_all().unwrap().len(), 3000);
             let seen = std::fs::read_to_string(&args).unwrap();
-            let _ = std::fs::remove_dir_all(&d);
             let want = if flag {
                 "logs --podvm-tier=incus --limit-bytes 1001 u-1\nlogs u-1\n"
             } else {

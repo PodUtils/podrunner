@@ -125,8 +125,7 @@ fn a_container_of_the_namespace_rung_has_the_volume_base() {
 /// relative source stays under the base.
 #[test]
 fn the_ca_directory_of_the_hooks_is_a_volume_out_of_the_base() {
-    let dir = std::env::temp_dir().join(format!("podrunner-podvm-ca-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = crate::scratch::Scratch::new("podvm-ca");
     let (runner, ca) = (dir.join("rootfs/home/runner"), dir.join("egress/u-1.logs/ca"));
     std::fs::create_dir_all(&runner).unwrap();
     std::fs::create_dir_all(&ca).unwrap();
@@ -151,15 +150,13 @@ fn the_ca_directory_of_the_hooks_is_a_volume_out_of_the_base() {
     let gone = [ContainerMount { source: dir.join("gone"), target: "/x".into(), read_only: true, exec: true }];
     assert!(volume_args(&runner, &gone).is_ok());
     assert!(!dir.join("gone").exists());
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// T-403: a link in a mount source under the runner directory is
 /// refused before podvm runs; a link out of it is not the job's.
 #[test]
 fn a_linked_source_under_the_runner_directory_is_refused() {
-    let dir = std::env::temp_dir().join(format!("podrunner-podvm-nolink-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = crate::scratch::Scratch::new("podvm-nolink");
     std::fs::create_dir_all(dir.join("runner/_work/_temp")).unwrap();
     std::os::unix::fs::symlink("/", dir.join("runner/_work/_temp/_github_home")).unwrap();
     let runner = dir.join("runner");
@@ -169,7 +166,6 @@ fn a_linked_source_under_the_runner_directory_is_refused() {
         let e = no_link(&runner, Path::new(rel)).unwrap_err();
         assert_eq!(e.code, UnitCode::ContainerOptionRefused, "{rel}");
     }
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// T-403: the refusal of podvm `0.2.0-beta.37` for a link under the
