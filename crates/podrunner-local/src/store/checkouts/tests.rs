@@ -64,7 +64,7 @@ fn the_checkouts_of_the_actions_of_the_store() {
     put(d, "o/node", &commit(3), &[("action.yml", "runs:\n  using: node20\n  main: x.js\n")]);
     put(d, "o/full", &commit(4), &[("action.yml", &composite(&[&co("")]))]);
     let commits: BTreeMap<String, String> =
-        [("o/act@v1", commit(1)), ("o/nested@v2", commit(2)), ("o/node@v1", commit(3))].into_iter().collect();
+        [("o/act@v1", 1), ("o/nested@v2", 2), ("o/node@v1", 3)].map(|(k, n)| (k.to_string(), commit(n))).into();
     let uses = ["o/act@v1", "o/act/sub@v1", &format!("o/full@{}", commit(4)), "o/none@v1"].map(String::from);
     let got = super::action_checkouts(&uses, d, &commits);
     let names: Vec<(&str, u32)> = got.iter().map(|(u, l, _)| (u.as_str(), *l)).collect();
