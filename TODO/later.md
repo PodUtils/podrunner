@@ -19830,7 +19830,7 @@ rule). Next: a green check `serve:job:engine:microvm` of lane
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19853,6 +19853,27 @@ trees of its checkout steps as for a local action.
 
 `cargo test -p podrunner --test local`: a composite of the store with a
 checkout of a tag gets the tree of that tag.
+
+## Done
+
+2026-11-27, `1a6e972f`, `e12a1af0` and `041e3e90` (tests on a
+development host, with runner 2.338.2; a guest unit not run). The run
+reads the `action.yml` of each composite action of the store, also a
+nested one to 10 levels (`podrunner_local::store::checkouts::action_checkouts`),
+and pins the trees of the static `repository` and `ref` of their checkout
+steps as for a local action (`composites::trees_of`, `checkout::asks_of`).
+An expression, or a name with `..`, gets no pin, and the stand-in fails
+the step with the fix. Found and fixed in the same work: `resolve` of
+`pod-actions-store` follows `actions/checkout` in a composite of the
+store, so the run fetched and locked the real action, and an offline run
+refused it; the forge of the run now gives a placeholder tar for
+`actions/checkout@*` that is not in the lock, and the run drops those
+keys from its pins (T-724 asks podcrates for an `except` list). Tests:
+the e2e `a_checkout_in_an_action_of_the_store_gets_its_pinned_tree` (it
+fails on the old code), `the_checkouts_of_the_actions_of_the_store`,
+`the_walk_ends_at_ten_levels` and `the_checkout_in_an_action_asks_no_forge`;
+five planted defects each fail a test.
+
 
 # T-719: The guest self-test proves no NIC when the guest has no sysfs
 
@@ -20040,3 +20061,108 @@ a `podrunner.log` beside it, named in `docs/local-mode.md`).
 
 `cargo test -p podrunner --test local` with a job that fails in a unit
 and `--log-dir`: the log of the job has the lines of podrunner.
+
+# T-724: The store follows actions/checkout in a composite action
+
+**Source:** the worker of T-718, 2026-11-27
+**Category:** chore
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`resolve` of `pod-actions-store` `v0.86.0` follows `actions/checkout` in a
+composite action of the store. podrunner works around it with a
+placeholder tar of its forge (`crates/podrunner-local/src/localrepo.rs`,
+T-718).
+
+## Premise
+
+Read from `pod-actions-store` `v0.86.0` by the worker of T-718 on
+2026-11-27.
+
+## Approach
+
+When `resolve` takes an `except` list, give it `["actions/checkout"]` and
+remove the placeholder of the forge.
+
+## Prove
+
+`cargo test -p podrunner-local localrepo` and the e2e of T-718 pass with
+no placeholder.
+
+## Blocker
+
+COORD-148 (#379) asks podcrates for an `except` list on `resolve`.
+
+
+# T-725: A ./PATH in an action of the store is not followed
+
+**Source:** the worker of T-718, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On GitHub, `uses: ./PATH` in a composite action of the store names a
+local action of the workspace. Neither `composites::local_steps` nor
+`action_checkouts` follows it, so its remote `uses:` and its checkouts
+are not pinned.
+
+## Premise
+
+Read from `crates/podrunner/src/run_local/composites.rs` and
+`crates/podrunner-local/src/store/checkouts.rs` by the worker of T-718 on
+2026-11-27.
+
+## Approach
+
+Give the `./` paths found in the composites of the store to
+`local_steps`, so their actions and checkouts are pinned as for the
+workflow.
+
+## Prove
+
+`cargo test -p podrunner --test store_checkout` with a store composite
+that uses `./local-action`, which has a remote `uses:` and a checkout:
+both are pinned.
+
+
+# T-726: The name actions/checkout is matched with its case
+
+**Source:** the worker of T-718, 2026-11-27
+**Category:** research
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Each match of `actions/checkout` in podrunner is case-sensitive, so
+`Actions/Checkout@v4` is fetched as a real action and gets no stand-in.
+The rule of GitHub for the case of the owner and the name of an action
+is not verified.
+
+## Premise
+
+Read from the code of the stand-in by the worker of T-718 on
+2026-11-27; the rule of GitHub not read.
+
+## Approach
+
+Read the rule of GitHub (the docs of `uses:` and a run on github.com in
+`level2.yml` with `Actions/Checkout@v4`); when GitHub takes any case,
+match the owner and the name of `actions/checkout` with no case in each
+place that podrunner names it.
+
+## Prove
+
+`cargo test -p podrunner-local` with `Actions/Checkout@v4` in a step and
+in a composite: each gets the stand-in.
+
