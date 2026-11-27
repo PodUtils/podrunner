@@ -277,7 +277,7 @@ fn step(
 ) -> Result<Value, String> {
     let line = s.mark.line;
     let (reference, base, display, inputs) = match (&s.uses, &s.run) {
-        (Some(uses), None) if uses.starts_with("actions/checkout@") => {
+        (Some(uses), None) if crate::store::is_checkout(uses) => {
             let (given, what) = checkout::stand_in(s, d.pins, d.self_repo)?;
             let display = format!("Run {uses} ({what})");
             let reference = json!({

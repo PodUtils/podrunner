@@ -166,3 +166,30 @@ fn a_local_action_that_an_action_of_the_store_names_is_pinned() {
     assert_eq!(out.code, 0, "{}{}\nthe logs:\n{text}", out.stdout, out.stderr);
     assert!(out.stdout.lines().any(|l| l == "ok      co"), "{}", out.stdout);
 }
+
+/// T-726: GitHub matches the owner and the name of an action with no case.
+/// `actions/checkout` by any case gets the stand-in in a step, in a local
+/// action and in an action of the store; the runner asks the broker with
+/// the name as the job wrote it, and the lock pins no checkout.
+#[test]
+#[ignore]
+fn a_checkout_by_any_case_gets_the_stand_in() {
+    let scratch = scratch::Scratch::new("store-checkout-case");
+    let co = "on: push\njobs:\n  co:\n    runs-on: x\n    steps:\n      - uses: Actions/Checkout@v4\n      \
+              - uses: ./setup\n      - uses: o/act@v1\n      - run: test \"$(cat a.txt)\" = head && \
+              test \"$(cat second/b.txt)\" = second-v1 && test \"$(cat same/a.txt)\" = tag-v1\n";
+    let setup = "runs:\n  using: composite\n  steps:\n    - uses: ACTIONS/checkout@v4\n      \
+                 with: {repository: o/second, ref: v1, path: second}\n";
+    let repo = repo_with(&scratch, &[("co.yml", co), ("setup/action.yml", setup)]);
+    let act = "runs:\n  using: composite\n  steps:\n    - uses: actions/CHECKOUT@v4\n      \
+               with: {ref: v1, path: same}\n";
+    let local = [
+        format!("o/act@v1={}", put(&scratch, "act", "action.yml", act)),
+        format!("o/second@v1={}", put(&scratch, "second", "b.txt", "second-v1\n")),
+    ];
+    let (out, text) = run(&scratch, &repo, &local);
+    assert_eq!(out.code, 0, "{}{}\nthe logs:\n{text}", out.stdout, out.stderr);
+    assert!(out.stdout.lines().any(|l| l == "ok      co"), "{}", out.stdout);
+    let lock = std::fs::read_to_string(repo.join("podrunner-actions.lock")).unwrap_or_default();
+    assert!(!lock.to_ascii_lowercase().contains("actions/checkout"), "{lock}");
+}

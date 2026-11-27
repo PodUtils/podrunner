@@ -26,7 +26,7 @@ fn remote_uses(steps: &[(String, Node)]) -> Vec<String> {
         // The broker resolves `actions/checkout` to its stand-in (T-708).
         if !u.starts_with("./")
             && !u.starts_with("docker://")
-            && !u.starts_with("actions/checkout@")
+            && !podrunner_local::store::is_checkout(u)
             && !out.contains(u)
         {
             out.push(u.clone());
@@ -48,7 +48,7 @@ pub(super) fn local_checkouts(w: &pod_actions_workflow::Workflow, base: &Path) -
 
 /// Each `uses: actions/checkout@REF` step of `steps`.
 fn checkouts(steps: Vec<(String, Node)>) -> Vec<Checkout> {
-    let checkout = |s: &Node| matches!(s.get("uses").map(|n| &n.kind), Some(Kind::String(u)) if u.starts_with("actions/checkout@"));
+    let checkout = |s: &Node| matches!(s.get("uses").map(|n| &n.kind), Some(Kind::String(u)) if podrunner_local::store::is_checkout(u));
     steps
         .into_iter()
         .filter(|(_, s)| checkout(s))
@@ -307,5 +307,22 @@ mod tests {
         assert!(up.contains("no `..`"), "{up}");
         let (u, c) = super::store_locals(&[], &dir).unwrap();
         assert!(u.is_empty() && c.is_empty());
+    }
+
+    /// T-726: a checkout by any case of the owner and the name in a local
+    /// action is a checkout, and no remote `uses:` to pin.
+    #[test]
+    fn a_checkout_by_any_case_in_a_local_action() {
+        let dir = crate::scratch::Scratch::new("composite-case");
+        std::fs::create_dir_all(dir.join("a")).unwrap();
+        let steps = "    - uses: Actions/Checkout@v4\n      with: {repository: o/second, ref: V1}\n    \
+                     - uses: ACTIONS/CHECKOUT@v4\n    - uses: o/rem@v1\n";
+        std::fs::write(dir.join("a/action.yml"), format!("runs:\n  using: composite\n  steps:\n{steps}")).unwrap();
+        let w = pod_actions_workflow::parse("on: push\njobs:\n  j:\n    runs-on: x\n    steps: [{uses: ./a}]\n")
+            .unwrap()
+            .workflow;
+        assert_eq!(super::local_uses(&w, &dir).unwrap(), ["o/rem@v1"]);
+        assert_eq!(super::local_checkouts(&w, &dir).unwrap().len(), 2);
+        assert_eq!(super::local_trees(&w, &dir, "me/self").unwrap(), ["o/second@V1"]);
     }
 }

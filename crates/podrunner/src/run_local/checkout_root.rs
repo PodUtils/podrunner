@@ -61,7 +61,8 @@ pub(in crate::run_local) fn calls_root(a: &Args) -> PathBuf {
 /// `./PATH` that it calls: `Some(true)` for a use; `Some(false)` for a call
 /// of another repository, which is not read before its pin, and can use it.
 fn uses_checkout(text: &str, root: Option<&Path>, depth: usize) -> Option<bool> {
-    if text.contains("actions/checkout@") {
+    // GitHub matches the owner and the name of an action with no case (T-726).
+    if text.to_ascii_lowercase().contains("actions/checkout@") {
         return Some(true);
     }
     let p = pod_actions_workflow::parse(text).ok()?;
@@ -139,6 +140,9 @@ mod tests {
         assert_eq!(super::uses_checkout(&call("./.github/workflows/plain.yml"), r, 0), None);
         assert_eq!(super::uses_checkout(&call("o/r/.github/workflows/x.yml@v1"), r, 0), Some(false));
         assert_eq!(super::uses_checkout(&call("./.github/workflows/b.yml"), None, 0), None, "no tree");
+        // T-726: by any case of the owner and the name.
+        let step = "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{uses: Actions/Checkout@v4}]\n";
+        assert_eq!(super::uses_checkout(step, None, 0), Some(true));
         let _ = std::fs::remove_dir_all(&root);
     }
 }

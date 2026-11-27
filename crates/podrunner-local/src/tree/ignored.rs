@@ -37,7 +37,7 @@ pub fn ignored(s: &Step) -> Vec<(&'static str, &'static str)> {
 pub fn ignored_in<'a>(ws: impl IntoIterator<Item = &'a Workflow>) -> Vec<(u32, &'static str, &'static str)> {
     let mut out: Vec<(u32, &'static str, &'static str)> = Vec::new();
     for s in ws.into_iter().flat_map(|w| w.jobs.iter().flat_map(|j| &j.steps)) {
-        if !s.uses.as_deref().is_some_and(|u| u.starts_with("actions/checkout@")) {
+        if !s.uses.as_deref().is_some_and(crate::store::is_checkout) {
             continue;
         }
         for (k, why) in ignored(s) {
@@ -47,4 +47,19 @@ pub fn ignored_in<'a>(ws: impl IntoIterator<Item = &'a Workflow>) -> Vec<(u32, &
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    /// T-726: a checkout by any case of the owner and the name has its
+    /// ignored keys named; another action has none.
+    #[test]
+    fn a_checkout_by_any_case_has_its_ignored_keys() {
+        let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - uses: Actions/Checkout@v4\n        \
+                    with: {fetch-depth: 0}\n      - uses: ACTIONS/checkout@v4\n        with: {lfs: true}\n      \
+                    - uses: o/checkout@v4\n        with: {clean: false}\n";
+        let w = pod_actions_workflow::parse(text).unwrap().workflow;
+        let keys: Vec<(u32, &str)> = super::ignored_in([&w]).into_iter().map(|(l, k, _)| (l, k)).collect();
+        assert_eq!(keys, [(6, "fetch-depth"), (8, "lfs")]);
+    }
 }

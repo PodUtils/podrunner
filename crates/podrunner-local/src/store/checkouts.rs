@@ -42,7 +42,7 @@ pub fn action_checkouts(uses: &[String], dir: &Path, commits: &BTreeMap<String, 
         }
         for s in steps(&u, dir, commits) {
             let Some(Kind::String(inner)) = s.get("uses").map(|n| &n.kind) else { continue };
-            if inner.starts_with("actions/checkout@") {
+            if super::is_checkout(inner) {
                 out.checkouts.push((u.clone(), s.mark.line, s.get("with").cloned()));
             } else if inner.starts_with("./") {
                 // The walk is breadth first: the first level is the lowest.

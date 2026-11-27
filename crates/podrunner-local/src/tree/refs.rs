@@ -50,7 +50,7 @@ pub fn ask(node: Option<&Node>) -> Ask {
 pub fn asks(w: &Workflow, self_repo: &str) -> Vec<(u32, Ask)> {
     let mut out = Vec::new();
     for s in w.jobs.iter().flat_map(|j| &j.steps) {
-        let checkout = s.uses.as_deref().is_some_and(|u| u.starts_with("actions/checkout@"));
+        let checkout = s.uses.as_deref().is_some_and(crate::store::is_checkout);
         if checkout && matches!(crate::store::checkout_target(s.with.as_ref(), self_repo), Ok(None)) {
             let a = ask(s.with.as_ref().and_then(|w| w.get("ref")));
             if a != Ask::Default {
@@ -274,5 +274,15 @@ mod tests {
         let head = files(&head);
         assert!(head.contains_key("docs/guide.md") && head.contains_key("test.sh"), "{:?}", head.keys());
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// T-726: a `ref:` of a checkout by any case of the owner and the name
+    /// is an ask; the ref keeps its case.
+    #[test]
+    fn a_checkout_by_any_case_asks_its_ref() {
+        let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - uses: Actions/Checkout@v4\n        \
+                    with: {ref: V1}\n      - uses: o/checkout@v4\n        with: {ref: v2}\n";
+        let w = pod_actions_workflow::parse(text).unwrap().workflow;
+        assert_eq!(asks(&w, "me/self"), [(6, Ask::Ref("V1".into()))]);
     }
 }

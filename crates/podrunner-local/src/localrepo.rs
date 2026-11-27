@@ -12,6 +12,8 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use podrunner_broker_fake::actions::is_checkout_name;
+
 use crate::store::Forge;
 
 /// A forge that serves the local directories and `actions/checkout`, and
@@ -63,9 +65,6 @@ fn tar_of(repo: &str, dir: &Path) -> Result<Vec<u8>, String> {
     b.into_inner().map_err(fail)
 }
 
-/// `OWNER/REPO` of the action that the broker gives as its stand-in.
-const CHECKOUT: &str = "actions/checkout";
-
 /// The tar that stands for `actions/checkout` in the store: a node action
 /// with no file to run. No job runs it: the broker resolves each ref of
 /// `actions/checkout` to the stand-in.
@@ -86,7 +85,7 @@ impl Forge for Local<'_> {
         let key = format!("{repo}@{r}");
         let tar = match self.dirs.get(&key) {
             Some(dir) => tar_of(repo, dir)?,
-            None if repo == CHECKOUT => checkout_tar()?,
+            None if is_checkout_name(repo) => checkout_tar()?,
             None => return self.inner.resolve(repo, r),
         };
         let commit = crate::store::digest(&tar)["sha256:".len()..][..40].to_string();
@@ -102,7 +101,7 @@ impl Forge for Local<'_> {
     }
 
     fn is_local(&self, key: &str) -> bool {
-        self.dirs.contains_key(key) || key.rsplit_once('@').is_some_and(|(repo, _)| repo == CHECKOUT)
+        self.dirs.contains_key(key) || crate::store::is_checkout(key)
     }
 }
 
@@ -168,7 +167,9 @@ mod tests {
         let base = gone.0.clone();
         let _ = std::fs::remove_dir_all(&base);
         std::fs::create_dir_all(base.join("action")).unwrap();
-        let steps = "    - uses: actions/checkout@v4\n    - uses: actions/checkout@v5\n";
+        // T-726: by any case of the owner and the name.
+        let steps =
+            "    - uses: actions/checkout@v4\n    - uses: actions/checkout@v5\n    - uses: Actions/Checkout@V6\n";
         let text = format!("runs:\n  using: composite\n  steps:\n{steps}");
         std::fs::write(base.join("action/action.yml"), text).unwrap();
         let dirs = BTreeMap::from([("me/tool@main".to_string(), base.join("action"))]);
@@ -178,6 +179,7 @@ mod tests {
             let r = resolve(&["me/tool@main".into()], &Lock::default(), &store, &local, mode, "L").unwrap();
             assert!(r.lock.pins.is_empty() && !r.changed, "{mode}: the lock does not pin it");
             assert!(r.commits.contains_key("actions/checkout@v4") && r.commits.contains_key("actions/checkout@v5"));
+            assert!(r.commits.contains_key("Actions/Checkout@V6"), "{:?}", r.commits);
         }
         // A directory for the checkout is served as given.
         std::fs::create_dir_all(base.join("co")).unwrap();

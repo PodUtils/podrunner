@@ -34,10 +34,22 @@ const TOKEN: &str = "podrunner-local-actions";
 /// that the job message does not change (T-708): the unit reaches no forge.
 const CHECKOUT_ACTION: &str = "actions/checkout";
 
+/// `OWNER/REPO` is `actions/checkout`. GitHub matches the owner and the
+/// name of an action with no case (T-726).
+pub fn is_checkout_name(name: &str) -> bool {
+    name.eq_ignore_ascii_case(CHECKOUT_ACTION)
+}
+
+/// `uses:` is `actions/checkout@REF`, with any case of the owner and the
+/// name. The ref keeps its case: GitHub matches it with case.
+pub fn is_checkout(uses: &str) -> bool {
+    uses.split_once('@').is_some_and(|(name, _)| is_checkout_name(name))
+}
+
 /// The commit of `NAME@VERSION`: its pin, or the version when it is a full
 /// commit id.
 fn commit<'a>(pins: &'a BTreeMap<String, String>, name: &str, version: &'a str) -> Option<&'a str> {
-    if name == crate::stand_in::NAME || name == CHECKOUT_ACTION {
+    if name == crate::stand_in::NAME || is_checkout_name(name) {
         return Some(crate::stand_in::SHA);
     }
     let full = version.len() == 40 && version.bytes().all(|b| b.is_ascii_hexdigit());
@@ -46,7 +58,7 @@ fn commit<'a>(pins: &'a BTreeMap<String, String>, name: &str, version: &'a str) 
 
 /// The name of the tarball that answers `name`.
 fn served(name: &str) -> &str {
-    if name == CHECKOUT_ACTION { crate::stand_in::NAME } else { name }
+    if is_checkout_name(name) { crate::stand_in::NAME } else { name }
 }
 
 fn resolve(base: &str, body: &Value, pins: &BTreeMap<String, String>) -> Value {
@@ -273,6 +285,21 @@ mod tests {
             let (status, got) = route("GET", url, &Value::Null, "", Some(&dir), &pins, None).unwrap();
             assert_eq!((status, got), (200, crate::stand_in::tarball()), "{r}: {url}");
         }
+        // T-726: the runner asks with the name as the job wrote it, and
+        // finds the answer under that name.
+        let any = json!({ "actions": [{ "action": "Actions/Checkout", "version": "v4" },
+            { "action": "ACTIONS/checkout", "version": "V4" }] });
+        let (_, out) = route("POST", path_resolve(), &any, "http://h/", Some(&dir), &pins, None).unwrap();
+        let v: Value = serde_json::from_slice(&out).unwrap();
+        for key in ["Actions/Checkout@v4", "ACTIONS/checkout@V4"] {
+            let info = &v["actions"][key];
+            assert_eq!(info["resolved_sha"], crate::stand_in::SHA, "{key}: {v}");
+            let url = info["tar_url"].as_str().unwrap().trim_start_matches("http://h");
+            assert_eq!(
+                route("GET", url, &Value::Null, "", Some(&dir), &pins, None).unwrap().1,
+                crate::stand_in::tarball()
+            );
+        }
         assert!(route("GET", "/message", &Value::Null, "", None, &BTreeMap::new(), None).is_none());
         // The tree of the checkout, when the run gives one.
         let tree = dir.join("tree.tar.gz");
@@ -293,6 +320,20 @@ mod tests {
             assert_eq!(get(bad).0, 404, "{bad}");
         }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-726: the owner and the name of `actions/checkout` by any case; the
+    /// ref and a path keep theirs.
+    #[test]
+    fn the_checkout_by_any_case() {
+        for yes in ["actions/checkout@v4", "Actions/Checkout@v4", "ACTIONS/CHECKOUT@V4", "actions/checkout@main"] {
+            assert!(is_checkout(yes), "{yes}");
+        }
+        for no in ["actions/checkout", "actions/checkout/sub@v4", "actions/checkouts@v4", "o/checkout@v4", "./checkout"]
+        {
+            assert!(!is_checkout(no), "{no}");
+        }
+        assert!(is_checkout_name("aCtIoNs/cHeCkOuT") && !is_checkout_name("actions/checkout@v4"));
     }
 
     /// T-713: the route of a pinned tree for the stand-in of a checkout in

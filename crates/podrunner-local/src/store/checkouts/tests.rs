@@ -98,3 +98,19 @@ fn the_walk_ends_at_ten_levels() {
     assert_eq!(names.len(), 10, "{names:?}");
     assert_eq!(names.last(), Some(&"o/a10@v1"));
 }
+
+/// T-726: a checkout by any case of the owner and the name in an action of
+/// the store is a checkout, not an action to walk.
+#[test]
+fn a_checkout_by_any_case_in_an_action_of_the_store() {
+    let dir = Dir(std::env::temp_dir().join(format!("podrunner-store-case-{}", std::process::id())));
+    let _ = std::fs::remove_dir_all(&dir.0);
+    let d = dir.0.as_path();
+    let a =
+        composite(&["    - uses: Actions/Checkout@v4\n      with: {ref: V1}\n", "    - uses: ACTIONS/CHECKOUT@v4\n"]);
+    put(d, "o/act", &commit(1), &[("action.yml", &a)]);
+    let commits = BTreeMap::from([("o/act@v1".to_string(), commit(1))]);
+    let got = super::action_checkouts(&["o/act@v1".to_string()], d, &commits).checkouts;
+    let lines: Vec<u32> = got.iter().map(|(_, l, _)| *l).collect();
+    assert_eq!(lines, [4, 6]);
+}

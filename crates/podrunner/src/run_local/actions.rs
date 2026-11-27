@@ -212,7 +212,7 @@ pub(super) fn pin(
         };
         let (mut r, found) = r.map_err(|e| with_fix(&e, mode))?;
         // The broker gives the stand-in for each ref of `actions/checkout`.
-        r.commits.retain(|k, _| !k.starts_with("actions/checkout@"));
+        r.commits.retain(|k, _| !podrunner_local::store::is_checkout(k));
         checkouts = found;
         (r, Some(dir))
     };

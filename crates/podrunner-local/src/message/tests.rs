@@ -182,6 +182,19 @@ fn actions_checkout_is_the_stand_in_of_the_local_tree() {
     }
 }
 
+/// T-726: the owner and the name of `actions/checkout` by any case give the
+/// stand-in; the display keeps the text of the workflow.
+#[test]
+fn actions_checkout_by_any_case_is_the_stand_in() {
+    let text = "on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n      - uses: Actions/Checkout@v4\n      \
+                - uses: ACTIONS/checkout@main\n";
+    let steps = job_of(text).overrides["steps"].as_array().unwrap().clone();
+    for (s, uses) in steps.iter().zip(["Actions/Checkout@v4", "ACTIONS/checkout@main"]) {
+        assert_eq!(s["reference"]["name"], "podrunner/checkout", "{uses}");
+        assert!(s["displayName"].as_str().unwrap().contains(uses), "{s}");
+    }
+}
+
 #[test]
 fn a_pinned_container_services_and_a_docker_step_go_into_the_message() {
     let img = format!("alpine@sha256:{}", "c".repeat(64));

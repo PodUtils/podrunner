@@ -8,10 +8,15 @@ pub use pod_actions_store::{Error, Git};
 
 pub mod checkouts;
 
+pub use podrunner_broker_fake::actions::is_checkout;
+
 /// Each `uses:` of a repository in the steps of the workflow, but the
-/// checkout, which the local mode gives with its own stand-in (T-133).
+/// checkout, which the local mode gives with its own stand-in (T-133), by
+/// any case of its name (T-726).
 pub fn workflow_uses(w: &pod_actions_workflow::Workflow) -> Vec<String> {
-    pod_actions_store::workflow_uses(w, &["actions/checkout"])
+    let mut out = pod_actions_store::workflow_uses(w, &["actions/checkout"]);
+    out.retain(|u| !is_checkout(u));
+    out
 }
 
 /// Check the repository of a remote `uses: OWNER/REPO[/PATH]@REF` (#261):
@@ -54,6 +59,16 @@ mod tests {
         let w = pod_actions_workflow::parse(&text).unwrap().workflow;
         let trees = super::workflow_trees(&w, "o/self").unwrap();
         assert_eq!(trees, ["o/empty@HEAD".to_string(), "o/full@refs/tags/v1".into(), format!("o/sha@{sha}")]);
+    }
+
+    /// T-726: the checkout by any case of the owner and the name is no
+    /// action of the store.
+    #[test]
+    fn the_checkout_by_any_case_is_no_action_of_the_store() {
+        let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - uses: Actions/Checkout@v4\n      \
+                    - uses: ACTIONS/checkout@V4\n      - uses: o/r@v1\n";
+        let w = pod_actions_workflow::parse(text).unwrap().workflow;
+        assert_eq!(super::workflow_uses(&w), ["o/r@v1"]);
     }
 
     /// #261: a part of `.` or `..`, or one that is not a name, is refused.
