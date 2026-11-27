@@ -81,10 +81,11 @@ fn say(m: &[u8]) {
     unsafe { libc::write(2, m.as_ptr().cast(), m.len()) };
 }
 
-/// The bound of the wait for the end of one unit at a cancel by a signal
-/// (T-716, a call in `docs/decisions.md`): the stop time of a cancelled
-/// job of GitHub with a margin; the end of a podvm unit takes 15 s or more.
-/// A unit that does not go in this time does not go by itself.
+/// The bound of the wait for the end of one unit at a cancel (T-716, a
+/// call in `docs/decisions.md`): the stop time of a cancelled job of
+/// GitHub with a margin; the end of a podvm unit takes 15 s or more. A
+/// unit that does not go in this time does not go by itself. It holds at
+/// a signal, at `fail-fast` and at a change under `--watch` (T-720).
 pub const UNIT_BOUND: std::time::Duration = std::time::Duration::from_secs(120);
 
 /// A shorter bound in milliseconds, 0 for none: only the private first
@@ -114,7 +115,16 @@ pub fn unit_bound() -> std::time::Duration {
 /// process is gone. The exit code is 130, the code of a cancel.
 pub fn end_now(why: &str) -> ! {
     say(format!("{}\n", why.trim_end()).as_bytes());
-    end_at_once()
+    end_at_once(130)
+}
+
+/// End the process with `code` after the line `why` (T-720): a unit whose
+/// end goes on in the background ([`crate::exec::going`]) holds the
+/// files of the run, and the helper of a third signal ends the unit and
+/// removes them when the process is gone.
+pub fn hand_over(why: &str, code: u8) -> ! {
+    say(format!("{}\n", why.trim_end()).as_bytes());
+    end_at_once(i32::from(code))
 }
 
 /// A signal stopped the run: not a change of the tree, not `fail-fast`.
@@ -122,9 +132,9 @@ pub fn by_signal() -> bool {
     COUNT.load(Ordering::SeqCst) > 0
 }
 
-/// The third signal: end each runner group, start the helper, and end.
-/// Each call is async-signal-safe.
-fn end_at_once() -> ! {
+/// The third signal: end each runner group, start the helper, and end
+/// with `code`. Each call is async-signal-safe.
+fn end_at_once(code: i32) -> ! {
     for s in &GROUPS {
         let g = s.load(Ordering::SeqCst);
         if g > 0 {
@@ -157,7 +167,7 @@ fn end_at_once() -> ! {
         }
     }
     // SAFETY: _exit is async-signal-safe.
-    unsafe { libc::_exit(130) }
+    unsafe { libc::_exit(code) }
 }
 
 extern "C" fn on_signal(sig: libc::c_int) {
@@ -190,7 +200,7 @@ extern "C" fn on_signal(sig: libc::c_int) {
         say(b"podrunner: stopping: already stopping; a third signal ends podrunner at once\n");
     }
     if n >= 2 {
-        end_at_once();
+        end_at_once(130);
     }
 }
 

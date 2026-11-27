@@ -9,7 +9,6 @@ use std::path::PathBuf;
 
 pub use errors::{BIND_FIX, broker_error};
 use errors::{Gone, start_error};
-use hooks::Hooks;
 use log::{pump, record, tail};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -31,6 +30,7 @@ mod log;
 mod noproxy;
 mod proxy;
 mod stopping;
+pub use stopping::{going, remove_when_gone};
 mod toolcache;
 pub mod vnet;
 pub mod workdir;
@@ -93,6 +93,9 @@ pub struct InUnit {
     pub mirror: Option<Arc<podrunner_broker_fake::mirror::Mirror>>,
     /// The stop flag of the next job (T-132).
     stop: Option<crate::cancel::Stop>,
+    /// The bound of the wait for the end of a unit at a cancel (T-716,
+    /// T-720): [`crate::cancel::unit_bound`].
+    pub bound: Duration,
     /// `--export DIR`: the work directory of the runner is a host directory,
     /// and its workspaces go to `DIR/JOB` after the job (T-138).
     pub export: Option<PathBuf>,
@@ -132,6 +135,7 @@ impl InUnit {
             guest_engine: false,
             mirror: None,
             stop: None,
+            bound: crate::cancel::unit_bound(),
             export: None,
             toolcache: None,
             logs: Vec::new(),
@@ -388,31 +392,15 @@ impl Executor for InUnit {
         // The hosts that the egress policy of the unit refused, before the
         // grant ends: the log names them.
         let denied = self.egress.as_ref().map(|(e, _)| e.denials(id.as_str())).unwrap_or_default();
-        let destroy = || {
-            crate::enter::forget(job.as_str());
-            self.driver.destroy(&id).map_err(|e| format!("destroy {id}: {e}"))
+        let (driver, name, unit) = (self.driver.clone(), job.as_str().to_string(), id.clone());
+        let destroy = move || {
+            crate::enter::forget(&name);
+            driver.destroy(&unit).map_err(|e| format!("destroy {unit}: {e}"))
         };
-        // A job that did not end can hold a hook call on its container step
-        // until the container ends: the unit and its containers go first,
-        // so the stop of the hooks waits for no step (T-639).
-        let had_hooks = hooks.is_some();
-        let first = matches!(waited, Ok(None)).then(|| match cancelled {
-            // The end of a unit can take a while: say that the run waits
-            // (T-636). At a signal the wait has a bound (T-716).
-            true => {
-                let bound = crate::cancel::by_signal().then(crate::cancel::unit_bound);
-                let pace = stopping::Pace { tick: stopping::TICK, bound, overdue: &|l| crate::cancel::end_now(&l) };
-                stopping::wait_for(job.as_str(), id.as_str(), pace, &|l| eprintln!("{l}"), destroy)
-            }
-            false => destroy(),
-        });
-        let refusals = hooks.map(Hooks::stop).unwrap_or_default();
-        // A hook call that was in `podvm run -d` at the first destroy can
-        // start a container after it: destroy again (it is idempotent).
-        let residue = match first {
-            Some(r) if !had_hooks => r,
-            _ => destroy(),
-        };
+        // At a cancel, the end of a unit says that the run waits (T-636),
+        // with a bound (T-716, T-720, T-721).
+        let ending = (matches!(waited, Ok(None)), crate::cancel::stopped(&self.stop), self.bound);
+        let (residue, refusals) = stopping::end_unit((job.as_str(), id.as_str()), ending, destroy, hooks);
         end_sockets(&sockets);
         // The workspaces of the job, also of a failed one (T-138).
         let exported = match (&work, &self.export) {
@@ -424,7 +412,7 @@ impl Executor for InUnit {
             }
             _ => None,
         };
-        let residue = residue?;
+        let residue = residue.transpose()?;
         let mut log = record(&self.live, &mut self.blobs, job, &broker);
         for r in &refusals {
             log.push_str(&format!("\npodrunner: {r}"));
@@ -434,6 +422,10 @@ impl Executor for InUnit {
         }
         if let Some(e) = exported {
             log.push_str(&format!("\npodrunner: {e}"));
+        }
+        let late = format!("unit {id} did not go in {} s at the cancel", self.bound.as_secs());
+        if residue.is_none() {
+            log.push_str(&format!("\npodrunner: {late}; its end goes on in the background"));
         }
         let failed = !broker.completions().iter().any(|c| c.conclusion == "succeeded");
         proxy::denials(&mut log, job.as_str(), id.as_str(), &denied, failed);
@@ -458,8 +450,10 @@ impl Executor for InUnit {
         if timed_out {
             return Err(format!("the job ran past its timeout-minutes ({} s); unit {id} was ended", limit.as_secs()));
         }
-        if !residue.is_clean() {
-            return Err(format!("unit {id} left residue: {residue:?}"));
+        match residue {
+            None => return Err(late),
+            Some(r) if !r.is_clean() => return Err(format!("unit {id} left residue: {r:?}")),
+            Some(_) => {}
         }
         let done = broker.completions();
         let Some(end) = done.first() else {

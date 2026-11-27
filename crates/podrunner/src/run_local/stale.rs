@@ -21,14 +21,13 @@ use podrunner_local::runkey::ns_key;
 pub(super) use podrunner_local::runkey::{Here, here};
 use podrunner_local::runkey::{key_in, key_of};
 
-/// The directories of this run: each one is removed when the run returns.
+/// The directories of this run: each one is removed when the run returns,
+/// or, while a unit goes in the background, when it is gone (T-720).
 pub(super) struct Gone(pub(super) Vec<PathBuf>);
 
 impl Drop for Gone {
     fn drop(&mut self) {
-        for d in &self.0 {
-            let _ = std::fs::remove_dir_all(d);
-        }
+        podrunner_local::exec::remove_when_gone(std::mem::take(&mut self.0));
     }
 }
 

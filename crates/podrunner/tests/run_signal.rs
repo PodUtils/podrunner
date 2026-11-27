@@ -321,8 +321,8 @@ fn a_unit_that_does_not_go_at_fail_fast_does_not_hold_the_run() {
     // One cell gets u-1, ends with exit 1 and fails; `fail-fast` stops the
     // other cell, whose unit u-2 does not go.
     let podvm = hung_podvm(&dir, "u-2");
-    let logs = dir.join("logs").display().to_string();
-    let (mut run, rx, reader) = start_podvm(&dir, &podvm, &["--jobs", "2", "--log-dir", &logs]);
+    // `-q`: the log of each job is on stderr at the end of a failed run.
+    let (mut run, rx, reader) = start_podvm(&dir, &podvm, &["--jobs", "2", "-q"]);
     wait_until("start of the unit", || dir.join("waiter").exists());
     let waiter: u32 = std::fs::read_to_string(dir.join("waiter")).unwrap().trim().parse().unwrap();
     line(&rx, "stopping: the run waits for unit u-2 to go");
@@ -332,18 +332,20 @@ fn a_unit_that_does_not_go_at_fail_fast_does_not_hold_the_run() {
     // The end of stderr: the helper ended too.
     let err = reader.join().unwrap();
     assert_eq!(code, Some(1), "{out}\n{err}");
-    assert!(err.contains(": unit u-2 did not go in 0 s; the run goes on, and the unit goes in the background"), "{err}");
+    assert!(
+        err.contains(": unit u-2 did not go in 0 s; the run goes on, and the unit goes in the background"),
+        "{err}"
+    );
     // The job `c` needs the cell of u-2: it ran after the bound.
-    assert!(err.contains("unit u-3 starts"), "the run did not go on: {out}\n{err}");
-    assert!(out.lines().any(|l| l.contains(" c ") || l.ends_with(" c")), "{out}");
-    assert!(err.contains("podrunner: 1 units did not go at the cancel; podrunner ends now, and a helper ends them"), "{err}");
+    assert!(out.lines().any(|l| l.starts_with("failure c: the runner in u-3 ")), "{out}");
+    assert!(out.lines().any(|l| l == "cancelled a (2)" || l == "cancelled a (1)"), "{out}");
+    assert!(
+        err.contains("podrunner: 1 units did not go at the cancel; podrunner ends now, and a helper ends them"),
+        "{err}"
+    );
     assert!(err.contains("the files of a run that died are gone (1 units"), "{err}");
-    let named = std::fs::read_dir(dir.join("logs"))
-        .unwrap()
-        .flatten()
-        .filter_map(|e| std::fs::read_to_string(e.path()).ok())
-        .any(|l| l.contains("podrunner: unit u-2 did not go in 0 s at the cancel; its end goes on in the background"));
-    assert!(named, "no log of a job names the unit u-2\n{err}");
+    let named = "\npodrunner: unit u-2 did not go in 0 s at the cancel; its end goes on in the background\n";
+    assert!(err.contains(named), "no log of a job names the unit u-2\n{err}");
     let rm: u32 = std::fs::read_to_string(dir.join("rm")).unwrap().trim().parse().unwrap();
     wait_until("end of the processes of the unit", || gone(waiter) && gone(rm));
     let left = left_in_tmp(&dir);

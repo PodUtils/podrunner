@@ -34,5 +34,14 @@ fn main() -> ExitCode {
     let out = podrunner::cli::run(&args);
     let _ = std::io::stdout().write_all(out.stdout.as_bytes());
     let _ = std::io::stderr().write_all(out.stderr.as_bytes());
+    // A unit whose end goes on in the background (T-720): a helper ends it
+    // when this process is gone.
+    let going = podrunner_local::exec::going();
+    if going > 0 {
+        let _ = std::io::stdout().flush();
+        let why =
+            format!("podrunner: {going} units did not go at the cancel; podrunner ends now, and a helper ends them");
+        podrunner_local::cancel::hand_over(&why, out.code);
+    }
     ExitCode::from(out.code)
 }
