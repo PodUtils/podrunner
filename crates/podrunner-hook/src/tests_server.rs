@@ -95,8 +95,7 @@ fn the_relay_reaches_the_socket() {
     if !std::process::Command::new("curl").arg("--version").output().is_ok_and(|o| o.status.success()) {
         return; // No curl on this host; the unit image has one.
     }
-    let dir = std::env::temp_dir().join(format!("podrunner-hook-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = short_dir("relay");
     let (sock, relay, resp) = (dir.join("ctl.sock"), dir.join("hook.sh"), dir.join("r.json"));
     std::fs::write(&relay, crate::RELAY).unwrap();
     let listener = bind(&sock).unwrap();
@@ -211,4 +210,15 @@ fn the_live_route_streams_and_ends_with_a_trailer() {
     // The whole answer has no live route.
     let r = req(&format!("POST /v2/hook/run_script_step HTTP/1.1\r\nContent-Length: {}\r\n\r\n{step}", step.len()));
     assert_eq!(answer(&r.unwrap(), &mut Late).0, 400);
+}
+
+/// A new empty directory `/tmp/ph-NAME-PID` for the sockets of a test, not
+/// in the temp directory: the relay connects with curl, `sun_path` holds
+/// 107 bytes, and a long `TMPDIR` passes that limit (T-735). The test
+/// removes it.
+pub(crate) fn short_dir(name: &str) -> std::path::PathBuf {
+    let dir = std::path::Path::new("/tmp").join(format!("ph-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
 }

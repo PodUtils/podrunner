@@ -181,7 +181,7 @@ mod tests {
     fn a_held_self_test_has_its_egress_socket() {
         let _one = super::super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
         use std::os::unix::fs::PermissionsExt;
-        let d = crate::scratch::Scratch::new("st");
+        let d = crate::scratch::Scratch::short("st");
         let script = |name: &str, body: &str| {
             let f = d.join(name);
             std::fs::write(&f, format!("#!/bin/sh\n{body}\n")).unwrap();

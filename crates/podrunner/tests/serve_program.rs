@@ -6,6 +6,8 @@ use std::io::Read;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+mod scratch;
+
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
 fn config(dir: &std::path::Path, claim: &str) -> String {
@@ -24,9 +26,7 @@ fn config(dir: &std::path::Path, claim: &str) -> String {
 
 #[test]
 fn serve_runs_a_job_of_a_trusted_program_source_on_a_fake_that_claims_confined() {
-    let dir = std::env::temp_dir().join(format!("podrunner-serve-program-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = scratch::Scratch::short("serve-program");
     let offer = format!(
         r#"{{"at_s":0,"offer":{{"schema":1,"job_id":"j-1","source":"githome","labels":[],"arch":"{}","wait_deadline_s":60,"trust_inputs":{{"event":"push","head_is_fork":"no","actor_class":"member","repo_visibility":"private","owner":"example-org","repo":"app","run_id":1,"ref":"r","workflow_ref":"w"}}}}}}"#,
         std::env::consts::ARCH

@@ -56,8 +56,7 @@ fn the_output_of_a_step_comes_while_it_runs() {
     if !Process::new("curl").arg("--version").output().is_ok_and(|o| o.status.success()) {
         return; // No curl on this host; the unit image has one.
     }
-    let dir = std::env::temp_dir().join(format!("podrunner-hook-live-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+    let dir = crate::tests_server::short_dir("live");
     std::fs::create_dir_all(dir.join("logs")).unwrap();
     let fake: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir.join("fake"), capability(), "linux/amd64"));
     let id = UnitId::parse("u-1").unwrap();

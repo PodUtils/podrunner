@@ -43,7 +43,7 @@ fn a_unit_reaches_its_socket_through_the_relay() {
     if !std::process::Command::new("curl").arg("--version").output().is_ok_and(|o| o.status.success()) {
         return; // No curl on this host; the unit image has one.
     }
-    let dir = crate::scratch::Scratch::new("hooks");
+    let dir = crate::scratch::Scratch::short("hooks");
     let fake: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir.join("fake"), capability(), "linux/amd64"));
     let id = UnitId::parse("u-1").unwrap();
     let image = fake.prepare(IMAGE, "linux/amd64", false).unwrap();
@@ -114,7 +114,7 @@ fn a_unit_reaches_its_socket_through_the_relay() {
 #[test]
 fn close_returns_while_a_client_holds_half_a_request() {
     use std::io::Write;
-    let dir = crate::scratch::Scratch::new("hooks-half");
+    let dir = crate::scratch::Scratch::short("hooks-half");
     let fake: Arc<dyn UnitDriver> = Arc::new(FakeUnit::new(&dir.join("fake"), capability(), "linux/amd64"));
     let id = UnitId::parse("u-2").unwrap();
     let policy = podrunner_hook::policy::Policy {

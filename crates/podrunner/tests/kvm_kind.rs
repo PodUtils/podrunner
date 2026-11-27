@@ -64,7 +64,7 @@ fn text(o: &Output) -> String {
 
 #[test]
 fn config_init_refuses_the_microvm_kind_with_no_kvm() {
-    let dir = Scratch::new("kvm-init");
+    let dir = Scratch::short("kvm-init");
     std::fs::create_dir_all(dir.join("store")).unwrap();
     let p = podvm(&dir);
     let init = |kinds: &str, out: &str| {
@@ -151,7 +151,7 @@ fn serve_runs_the_other_kinds_and_names_the_microvm_kind_with_no_kvm() {
     if kvm() {
         return;
     }
-    let dir = Scratch::new("kvm-serve");
+    let dir = Scratch::short("kvm-serve");
     let f = config(&dir, &format!("[unit.fake]\nslots = 1\n{}", microvm(&dir)));
     let check = Command::new(BIN).args(["check", "--config"]).arg(&f).output().unwrap();
     assert_eq!(check.status.code(), Some(0), "{}", text(&check));

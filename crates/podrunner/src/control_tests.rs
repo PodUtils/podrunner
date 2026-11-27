@@ -20,7 +20,7 @@ impl Handler for Echo {
 }
 
 fn dir(name: &str) -> crate::scratch::Scratch {
-    crate::scratch::Scratch::new(&format!("ctl-{name}"))
+    crate::scratch::Scratch::short(&format!("ctl-{name}"))
 }
 
 /// Answer the calls of `incoming` with `h` in a thread, until `stop`.
@@ -91,7 +91,7 @@ fn the_catalogue_holds_each_extra_and_restart_source_takes_the_master_tier() {
 #[test]
 fn the_socket_has_mode_0600_and_answers_each_method() {
     let dir = dir("one");
-    let path = dir.join("ctl.sock");
+    let path = dir.sock("ctl.sock");
     let (server, incoming) = serve(&path).unwrap();
     assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
     let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -119,7 +119,7 @@ fn the_socket_has_mode_0600_and_answers_each_method() {
 fn the_server_of_serve_conforms_to_pod_control_at_each_tier() {
     let dir = dir("conformance");
     for tier in [Tier::Master, Tier::Operate, Tier::Read] {
-        let path = dir.join(format!("{}.sock", tier.name()));
+        let path = dir.sock(&format!("{}.sock", tier.name()));
         let mut s = settings();
         s.same_user = tier;
         let (_server, incoming) = pod_control::unix::serve(&path, s, catalogue()).unwrap();
@@ -139,7 +139,7 @@ fn the_server_of_serve_conforms_to_pod_control_at_each_tier() {
 #[test]
 fn silent_clients_delay_no_answer_and_a_ninth_is_busy() {
     let dir = dir("idle");
-    let path = dir.join("ctl.sock");
+    let path = dir.sock("ctl.sock");
     // A silent client keeps its place for the whole test: with the 5 s of
     // `settings`, a slow host cuts the seven before the ninth asks (T-580).
     let mut s = settings();
@@ -181,7 +181,7 @@ fn wait_active(server: &pod_control::unix::Server, n: usize) {
 #[test]
 fn status_takes_the_snapshot_while_the_supervisor_is_busy() {
     let dir = dir("snapshot");
-    let path = dir.join("ctl.sock");
+    let path = dir.sock("ctl.sock");
     let mut s = settings();
     s.answer_wait = Duration::from_millis(300);
     let (server, _incoming) = pod_control::unix::serve(&path, s, catalogue()).unwrap();
@@ -194,7 +194,7 @@ fn status_takes_the_snapshot_while_the_supervisor_is_busy() {
 #[test]
 fn a_slow_client_is_cut_at_the_deadline_of_its_line() {
     let dir = dir("slow");
-    let path = dir.join("ctl.sock");
+    let path = dir.sock("ctl.sock");
     let (_server, _incoming) = serve(&path).unwrap();
     let limit = settings().read_timeout;
     let mut s = UnixStream::connect(&path).unwrap();
@@ -217,7 +217,7 @@ fn a_slow_client_is_cut_at_the_deadline_of_its_line() {
 #[test]
 fn serve_keeps_a_live_socket_and_a_file_and_replaces_a_stale_socket() {
     let dir = dir("bind");
-    let path = dir.join("ctl.sock");
+    let path = dir.sock("ctl.sock");
     let live = serve(&path).unwrap();
     assert_eq!(serve(&path).err().unwrap().kind(), std::io::ErrorKind::AddrInUse);
     drop(live);

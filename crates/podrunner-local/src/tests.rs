@@ -217,3 +217,67 @@ fn the_conformance_suite_gives_each_job_back() {
     // their test); 4 and 9 only ack one (9 withdraws it as its test).
     assert_eq!((c.release, c.withdraw), (6, 2));
 }
+
+/// A new empty directory `/tmp/pl-NAME-PID-N` for the Unix sockets of a
+/// test, not in the temp directory: `sun_path` holds 107 bytes, and a long
+/// `TMPDIR` passes that limit (T-735). It goes at the drop.
+pub(crate) struct ShortDir(std::path::PathBuf);
+
+impl ShortDir {
+    pub(crate) fn new(name: &str) -> ShortDir {
+        static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let d = std::path::Path::new("/tmp").join(format!("pl-{name}-{}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        ShortDir(d)
+    }
+
+    /// The path of the socket `name` in the directory. It fails at once,
+    /// with the path, when `sun_path` cannot hold it.
+    pub(crate) fn sock(&self, name: &str) -> std::path::PathBuf {
+        let p = self.0.join(name);
+        let n = p.as_os_str().len();
+        assert!(n < 108, "the socket path has {n} bytes, over the 107 of sun_path: {}", p.display());
+        p
+    }
+}
+
+impl std::ops::Deref for ShortDir {
+    type Target = std::path::Path;
+    fn deref(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+impl AsRef<std::path::Path> for ShortDir {
+    fn as_ref(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+impl Drop for ShortDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// Whether the test `name` (its path in the crate) runs here. The code
+/// under test puts its sockets in `TMPDIR` ([`crate::runkey::in_tmp`]):
+/// when they do not fit `sun_path` there, the test runs once more in a
+/// child with a short `TMPDIR`, which must pass, and not here (T-735).
+pub(crate) fn here_or_in_short_tmp(name: &str) -> bool {
+    let egress = crate::runkey::in_tmp(crate::runkey::UNIT_DIR, "u-999").join(podrunner_unit::EGRESS_SOCKET);
+    if egress.as_os_str().len() < 108 {
+        return true;
+    }
+    let tmp = ShortDir::new("tmp");
+    let out = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([name, "--exact", "--test-threads=1"])
+        .env("TMPDIR", &*tmp)
+        .output()
+        .unwrap();
+    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success() && text.contains("1 passed"), "{name} with TMPDIR={}: {text}", tmp.display());
+    false
+}

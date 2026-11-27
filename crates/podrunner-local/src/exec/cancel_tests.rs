@@ -118,7 +118,12 @@ fn with_mark(mark: &str) -> Vec<String> {
 /// it to the control socket of the unit as the relay posts it. The cancel
 /// comes when `running()` says that the step runs; the answer is the
 /// executor, its job, the flag of the stop and the mark of the step.
-fn blocked(dir: &std::path::Path, driver: Arc<dyn UnitDriver>, mark: &str) -> (InUnit, Job, Arc<AtomicBool>) {
+fn blocked(
+    dir: &std::path::Path,
+    link: &Link,
+    driver: Arc<dyn UnitDriver>,
+    mark: &str,
+) -> (InUnit, Job, Arc<AtomicBool>) {
     let image = format!("node@sha256:{}", "0".repeat(64));
     let prepared = driver.prepare(&image, "linux/amd64", false).unwrap();
     let mut exec = InUnit::new(driver, prepared);
@@ -130,7 +135,7 @@ fn blocked(dir: &std::path::Path, driver: Arc<dyn UnitDriver>, mark: &str) -> (I
         },
     });
     let runner = dir.join("run.sh");
-    let socket = crate::runkey::in_tmp(crate::runkey::UNIT_DIR, "");
+    let socket = link.join("t").join(crate::runkey::in_tmp(crate::runkey::UNIT_DIR, "").file_name().unwrap());
     std::fs::write(
         &runner,
         format!(
@@ -149,6 +154,17 @@ fn blocked(dir: &std::path::Path, driver: Arc<dyn UnitDriver>, mark: &str) -> (I
     (exec, job, stop)
 }
 
+/// A short directory with a link `t` to `TMPDIR`: the stand-in of the
+/// runner reaches the socket of its unit through it, as curl takes no
+/// socket path past `sun_path` (T-735).
+type Link = crate::tests::ShortDir;
+
+fn link() -> Link {
+    let l = Link::new("cancel");
+    std::os::unix::fs::symlink(std::env::temp_dir(), l.join("t")).unwrap();
+    l
+}
+
 fn scratch(name: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("podrunner-local-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -162,7 +178,8 @@ fn a_cancel_ends_a_job_whose_container_step_blocks() {
     let driver: Arc<dyn UnitDriver> =
         Arc::new(Hooked::new(FakeUnit::new(&dir.join("units"), super::tests::capability(), "linux/amd64")));
     let mark = format!("podrunner-t639-{}", std::process::id());
-    let (mut exec, job, stop) = blocked(&dir, driver, &mark);
+    let link = link();
+    let (mut exec, job, stop) = blocked(&dir, &link, driver, &mark);
     // The cancel comes when the step runs.
     let (m, s) = (mark.clone(), stop.clone());
     let cancel = std::thread::spawn(move || {
@@ -198,7 +215,8 @@ fn a_hook_call_that_no_destroy_ends_is_named_and_the_unit_is_destroyed_again() {
     let mut hooked = Hooked::new(FakeUnit::new(&dir.join("units"), super::tests::capability(), "linux/amd64"));
     hooked.hold = Some((Duration::from_secs(4), entered.clone()));
     let hooked = Arc::new(hooked);
-    let (mut exec, job, stop) = blocked(&dir, hooked.clone(), "podrunner-t639-held");
+    let link = link();
+    let (mut exec, job, stop) = blocked(&dir, &link, hooked.clone(), "podrunner-t639-held");
     let cancel = {
         let entered = entered.clone();
         std::thread::spawn(move || {

@@ -9,7 +9,7 @@ use super::{Ask, Bounds, CONTROL, serve};
 use crate::scratch::Scratch;
 
 fn dir() -> Scratch {
-    Scratch::new("front")
+    Scratch::short("front")
 }
 
 /// An egress module that answers each connection with its first line.

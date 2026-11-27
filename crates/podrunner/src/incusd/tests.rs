@@ -57,8 +57,8 @@ fn the_server_version_comes_from_the_answer_of_slash_1_0() {
 
 #[test]
 fn the_version_is_read_from_the_socket_of_incusd() {
-    let dir = crate::scratch::Scratch::new("incusd");
-    let socket = dir.join("unix.socket");
+    let dir = crate::scratch::Scratch::short("incusd");
+    let socket = dir.sock("unix.socket");
     let server = serve_once(&socket, OLD);
     assert_eq!(version(&socket).unwrap(), "6.0.0");
     assert!(server.join().unwrap().starts_with("GET /1.0 HTTP/1.0\r\n"));

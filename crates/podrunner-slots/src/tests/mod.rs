@@ -291,3 +291,26 @@ impl Bed {
         s.jobs().all(|j| j.state.is_final())
     }
 }
+
+/// Whether the test `name` (its path in the crate) runs here. A socket
+/// directory of a long state path is in `TMPDIR` ([`crate::run::egress_dir`]):
+/// when a socket there does not fit `sun_path`, the test runs once more
+/// in a child with a short `TMPDIR` (`/tmp/ps-PID`), which must pass, and
+/// not here (T-735).
+pub(crate) fn here_or_in_short_tmp(name: &str) -> bool {
+    let deep = std::path::PathBuf::from(format!("/{}", "d".repeat(150)));
+    if crate::run::egress_dir(&deep).join("u-18446744073709551615/egress.sock").as_os_str().len() < 108 {
+        return true;
+    }
+    let tmp = std::path::Path::new("/tmp").join(format!("ps-{}", std::process::id()));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let out = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([name, "--exact", "--test-threads=1"])
+        .env("TMPDIR", &tmp)
+        .output();
+    let _ = std::fs::remove_dir_all(&tmp);
+    let out = out.unwrap();
+    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success() && text.contains("1 passed"), "{name} with TMPDIR={}: {text}", tmp.display());
+    false
+}

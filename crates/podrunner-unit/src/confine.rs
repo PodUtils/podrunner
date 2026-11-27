@@ -78,6 +78,15 @@ mod tests {
         d
     }
 
+    /// A fresh directory `/tmp/pu-NAME-PID` for a Unix socket: `sun_path`
+    /// holds 107 bytes, and a long `TMPDIR` passes that limit (T-735).
+    fn short_dir(name: &str) -> std::path::PathBuf {
+        let d = Path::new("/tmp").join(format!("pu-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
     fn run(root: &Path, script: &str) -> (Option<i32>, String) {
         run_with(root, None, script)
     }
@@ -125,7 +134,7 @@ mod tests {
         if check().is_err() || !Path::new("/usr/bin/python3").exists() {
             return; // No Landlock or no python3 for the connect.
         }
-        let (mine, sockets) = (dir("sock-root"), dir("sock-dir"));
+        let (mine, sockets) = (dir("sock-root"), short_dir("sock-dir"));
         let path = sockets.join("egress.sock");
         let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
         let accept = std::thread::spawn(move || listener.accept().is_ok());

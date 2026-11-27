@@ -6,13 +6,13 @@
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+mod scratch;
+
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
 #[test]
 fn status_answers_while_the_first_tick_waits_on_the_source() {
-    let dir = std::env::temp_dir().join(format!("podrunner-serve-status-wait-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = scratch::Scratch::short("serve-status-wait");
     // The program reads each line and answers the first with `hello`: the
     // next request gets no reply, and the program ends with its stdin.
     let program = dir.join("quiet-source");

@@ -66,11 +66,13 @@ fn egress() -> Egress {
 pub(crate) struct Scratch(PathBuf);
 
 impl Scratch {
-    /// A new empty directory `podrunner-NAME-PID-N` in the temp directory.
+    /// A new empty directory `/tmp/pe-NAME-PID-N`, not in the temp
+    /// directory: each test binds Unix sockets in it, `sun_path` holds 107
+    /// bytes, and a long `TMPDIR` passes that limit (T-735).
     pub(crate) fn new(name: &str) -> Scratch {
         static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let p = std::env::temp_dir().join(format!("podrunner-{name}-{}-{n}", std::process::id()));
+        let p = Path::new("/tmp").join(format!("pe-{name}-{}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir_all(&p).unwrap();
         Scratch(p)

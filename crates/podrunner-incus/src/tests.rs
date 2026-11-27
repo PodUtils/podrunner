@@ -77,6 +77,15 @@ fn dir(name: &str) -> PathBuf {
     d
 }
 
+/// A fresh directory directly under `/tmp` for a Unix socket: `sun_path`
+/// holds 107 bytes, and a long `TMPDIR` passes that limit (T-735).
+fn short_dir(name: &str) -> PathBuf {
+    let d = PathBuf::from("/tmp").join(format!("pi-{name}-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&d);
+    fs::create_dir_all(&d).unwrap();
+    d
+}
+
 /// A driver over the fake `podvm`, whose instances run `body`.
 fn driver(name: &str, body: &str) -> (IncusUnit, PathBuf) {
     let d = dir(name);
@@ -264,17 +273,17 @@ fn the_guest_script_gives_node_the_proxy() {
 fn the_instance_has_no_nic_and_one_channel_to_the_egress_socket() {
     let (u, d) = driver("channel", "sleep 30");
     let mut s = spec("u-9");
-    s.sockets = Some(d.join("sockets"));
-    fs::create_dir_all(d.join("sockets")).unwrap();
-    let _listener = std::os::unix::net::UnixListener::bind(d.join("sockets").join("egress.sock")).unwrap();
+    let sockets = short_dir("channel");
+    s.sockets = Some(sockets.clone());
+    let _listener = std::os::unix::net::UnixListener::bind(sockets.join("egress.sock")).unwrap();
     u.start(&s).unwrap();
-    let mode = fs::metadata(d.join("sockets").join("egress.sock")).unwrap().permissions().mode() & 0o777;
+    let mode = fs::metadata(sockets.join("egress.sock")).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode, 0o666, "the mapped root of the instance connects to the socket");
     let argv = fs::read_to_string(d.join("store").join(format!("{}.argv", u.name(&s.unit)))).unwrap();
     let words: Vec<&str> = argv.lines().collect();
     let at = |w: &str| words.iter().position(|x| *x == w).unwrap_or_else(|| panic!("{w}: {words:?}"));
     assert_eq!(words[at("--podvm-net") + 1], "none");
-    let channel = format!("{}:127.0.0.1:{EGRESS_PORT}", d.join("sockets").join("egress.sock").display());
+    let channel = format!("{}:127.0.0.1:{EGRESS_PORT}", sockets.join("egress.sock").display());
     assert_eq!(words[at("--podvm-channel") + 1], channel);
     assert!(words.contains(&format!("{CHANNEL_PORT_VAR}={EGRESS_PORT}").as_str()), "{words:?}");
     assert!(!argv.contains("-e\nhttp_proxy"), "no proxy variable in argv: {argv}");
@@ -282,6 +291,7 @@ fn the_instance_has_no_nic_and_one_channel_to_the_egress_socket() {
     let c = u.probe().unwrap();
     assert_eq!((c.net.as_str(), c.egress_hold), ("none", EgressHold::Enforced));
     let _ = fs::remove_dir_all(&d);
+    let _ = fs::remove_dir_all(&sockets);
 }
 
 /// T-178: the payload runs as `runner` with the home of `runner`, not the

@@ -341,8 +341,8 @@ mod tests {
     #[test]
     fn a_container_of_a_caller_with_a_ca_file_gets_the_mount_and_the_variables() {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::env::temp_dir().join(format!("podrunner-local-ca-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        // The sockets of the unit are in it: a short path (T-735).
+        let dir = crate::tests::ShortDir::new("ca");
         std::fs::create_dir_all(dir.join("a b")).unwrap();
         let (one, two, empty, link) =
             (dir.join("a b/one.pem"), dir.join("two.pem"), dir.join("empty.pem"), dir.join("link.pem"));
@@ -385,8 +385,8 @@ mod tests {
     /// certificate) gives a container no mount and no variable.
     #[test]
     fn a_container_of_a_caller_with_no_ca_file_gets_neither() {
-        let dir = std::env::temp_dir().join(format!("podrunner-local-noca-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        // The sockets of the unit are in it: a short path (T-735).
+        let dir = crate::tests::ShortDir::new("noca");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("empty.pem"), "").unwrap();
         let empty = dir.join("empty.pem").display().to_string();

@@ -6,6 +6,8 @@
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+mod scratch;
+
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
 fn offer(job: &str, source: &str) -> String {
@@ -17,9 +19,7 @@ fn offer(job: &str, source: &str) -> String {
 
 #[test]
 fn a_drained_source_takes_no_offer_and_the_others_go_on() {
-    let dir = std::env::temp_dir().join(format!("podrunner-serve-drain-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = scratch::Scratch::short("serve-drain");
     std::fs::write(dir.join("a"), format!("{}\n", offer("j-a", "a"))).unwrap();
     std::fs::write(dir.join("b"), format!("{}\n", offer("j-b", "b"))).unwrap();
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 100;
@@ -89,9 +89,7 @@ fn a_drained_source_takes_no_offer_and_the_others_go_on() {
 /// so, the other source goes on, and `resume --source` builds it again.
 #[test]
 fn a_stopped_source_ends_and_resume_builds_it_again() {
-    let dir = std::env::temp_dir().join(format!("podrunner-serve-stop-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = scratch::Scratch::short("serve-stop");
     std::fs::write(dir.join("a"), format!("{}\n", offer("j-a", "a"))).unwrap();
     std::fs::write(dir.join("b"), format!("{}\n", offer("j-b", "b"))).unwrap();
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 100;

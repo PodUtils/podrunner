@@ -9,10 +9,12 @@ use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+mod scratch;
+
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
 struct Bed {
-    dir: PathBuf,
+    dir: scratch::Scratch,
 }
 
 impl Bed {
@@ -21,9 +23,7 @@ impl Bed {
     /// which the fake unit does not serve: the fake source takes its place,
     /// built again by the same path.
     fn new(name: &str, script: &str, secs: u32) -> Bed {
-        let dir = std::env::temp_dir().join(format!("podrunner-restart-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = scratch::Scratch::short(&format!("restart-{name}"));
         std::fs::write(dir.join("script"), script).unwrap();
         // A made-up key: the fake source does not read it.
         std::fs::write(dir.join("key"), "made-up-key-1\n").unwrap();

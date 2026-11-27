@@ -151,10 +151,8 @@ mod tests {
 
     #[test]
     fn the_relay_carries_bytes_both_ways_and_the_host_of_a_forge() {
-        let dir = std::env::temp_dir().join(format!("podrunner-relay-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        let socket = dir.join("s.sock");
+        let dir = crate::tests::ShortDir::new("relay");
+        let socket = dir.sock("s.sock");
         let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
         // An echo server on the socket: it sends back what it reads, in upper case.
         std::thread::spawn(move || {

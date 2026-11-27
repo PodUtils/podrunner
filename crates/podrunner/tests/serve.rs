@@ -7,18 +7,18 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+mod scratch;
+
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
 struct Bed {
-    dir: PathBuf,
+    dir: scratch::Scratch,
 }
 
 impl Bed {
     /// A configuration with one fake job whose unit runs `sleep SECS`.
     fn new(name: &str, secs: u32) -> Bed {
-        let dir = std::env::temp_dir().join(format!("podrunner-serve-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = scratch::Scratch::short(&format!("serve-{name}"));
         let offer = r#"{"at_s":0,"offer":{"schema":1,"job_id":"j-1","source":"local","labels":[],"arch":"x86_64","wait_deadline_s":60,"trust_inputs":{"event":"push","head_is_fork":"no","actor_class":"member","repo_visibility":"private","owner":"example-org","repo":"app","run_id":1,"ref":"r","workflow_ref":"w"}}}"#;
         std::fs::write(dir.join("script"), format!("{offer}\n")).unwrap();
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 100;

@@ -8,7 +8,9 @@ use podrunner_broker_fake::Broker;
 
 #[test]
 fn the_broker_on_a_unix_socket_answers() {
-    let path = std::env::temp_dir().join(format!("podrunner-broker-unix-{}.sock", std::process::id()));
+    // Not in TMPDIR: `sun_path` holds 107 bytes, and a long TMPDIR passes
+    // that limit (T-735).
+    let path = std::path::Path::new("/tmp").join(format!("pb-broker-unix-{}.sock", std::process::id()));
     let broker = Broker::start_unix(&path, "broker.podrunner.test").unwrap();
     assert_eq!(broker.base, "http://broker.podrunner.test/");
     let mut c = UnixStream::connect(&path).unwrap();

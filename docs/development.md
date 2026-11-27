@@ -98,6 +98,11 @@ file. Do not remove comments to make a file shorter.
 * **Loopback only.** A unit or integration test uses loopback servers
   (`127.0.0.1:0`, a Unix socket in a temporary directory). A test of a
   live service is `#[ignore]` and runs in a live workflow.
+* **Short socket paths.** `sun_path` holds 107 bytes, and a long `TMPDIR`
+  passes that limit. A test binds a Unix socket in a short directory
+  under `/tmp` (the short helper of its crate), not under `TMPDIR`. A test
+  whose code under test puts a socket in `TMPDIR` runs again in a child
+  with a short `TMPDIR` (`here_or_in_short_tmp`, T-735).
 * **No shared state.** A test makes its own temporary directory, and
   does not set a process variable.
 * **No secret in a test.** A test token or password is a made-up value;

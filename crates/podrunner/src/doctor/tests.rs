@@ -124,7 +124,7 @@ fn doctor_keeps_the_podnet_report_when_no_backend_can_run() {
 /// T-113: the guest kinds give their record through their probe.
 #[test]
 fn doctor_knows_the_microvm_and_incus_kinds() {
-    let dir = crate::scratch::Scratch::new("doctor-guest");
+    let dir = crate::scratch::Scratch::short("doctor-guest");
     // A fake podvm whose probe names a version that each kind takes.
     let fake = dir.join("podvm");
     podrunner_unit::program_file::write(
@@ -145,7 +145,7 @@ fn doctor_knows_the_microvm_and_incus_kinds() {
         Err(_) => assert!(capability("microvm", &u("")).unwrap_err().starts_with("/dev/kvm: ")),
     }
     // T-534: no incusd, no incus kind.
-    let incusd = dir.join("incus.socket");
+    let incusd = dir.sock("incus.socket");
     let _ = std::fs::remove_file(&incusd);
     assert!(capability_at("incus", &u(""), &incusd, &Default::default()).unwrap_err().starts_with("incusd: "));
     let _listen = std::os::unix::net::UnixListener::bind(&incusd).unwrap();
@@ -235,8 +235,8 @@ fn doctor_names_the_extra_permission_of_a_personal_account() {
 #[test]
 fn doctor_warns_of_an_engine_on_an_old_incusd() {
     use std::io::{Read, Write};
-    let dir = crate::scratch::Scratch::new("doctor-incusd");
-    let socket = dir.join("unix.socket");
+    let dir = crate::scratch::Scratch::short("doctor-incusd");
+    let socket = dir.sock("unix.socket");
     let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
     // The probe of the kind connects and sends nothing; the read of the
     // version sends `GET /1.0`.

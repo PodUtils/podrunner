@@ -318,6 +318,9 @@ fn a_runner_directory_with_a_space_is_refused() {
 /// fails by that cause.
 #[test]
 fn a_vnet_unit_needs_the_socket_volume() {
+    if !crate::tests::here_or_in_short_tmp("exec::tests::a_vnet_unit_needs_the_socket_volume") {
+        return;
+    }
     let dir = std::env::temp_dir().join(format!("podrunner-local-vnet-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -435,6 +438,9 @@ impl UnitDriver for Mounted {
 /// the unit mounts it at that same path, so each rung sees one path.
 #[test]
 fn the_vnet_shim_and_its_forward_have_one_path_in_each_rung() {
+    if !crate::tests::here_or_in_short_tmp("exec::tests::the_vnet_shim_and_its_forward_have_one_path_in_each_rung") {
+        return;
+    }
     let dir = std::env::temp_dir().join(format!("podrunner-local-vnet-path-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();

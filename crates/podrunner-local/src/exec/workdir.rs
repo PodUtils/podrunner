@@ -112,6 +112,11 @@ mod tests {
     /// into its `_tool` (T-590).
     #[test]
     fn a_unit_of_the_local_mode_has_the_hosted_work_folder() {
+        if !crate::tests::here_or_in_short_tmp(
+            "exec::workdir::tests::a_unit_of_the_local_mode_has_the_hosted_work_folder",
+        ) {
+            return;
+        }
         let dir = std::env::temp_dir().join(format!("podrunner-local-workdir-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("cache")).unwrap();
@@ -140,6 +145,11 @@ mod tests {
     /// folder, and the export mounts its host directory there.
     #[test]
     fn the_runner_of_the_hosted_image_has_the_hosted_work_folder() {
+        if !crate::tests::here_or_in_short_tmp(
+            "exec::workdir::tests::the_runner_of_the_hosted_image_has_the_hosted_work_folder",
+        ) {
+            return;
+        }
         let dir = std::env::temp_dir().join(format!("podrunner-local-workdir-hosted-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();

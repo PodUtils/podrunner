@@ -20,11 +20,8 @@ fn upstream_answer(mut c: impl Read + Write, seen: &Mutex<Vec<String>>) {
     let _ = c.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
 }
 
-fn dir(name: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("podrunner-front-{name}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).unwrap();
-    d
+fn dir(name: &str) -> crate::tests::ShortDir {
+    crate::tests::ShortDir::new(&format!("front-{name}"))
 }
 
 fn ask(path: &Path, request: &str) -> String {

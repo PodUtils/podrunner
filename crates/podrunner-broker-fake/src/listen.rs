@@ -50,7 +50,9 @@ mod tests {
     /// #221: a broker that goes closes its listener: a connect is refused.
     #[test]
     fn a_broker_that_goes_closes_its_listener() {
-        let dir = std::env::temp_dir().join(format!("podrunner-broker-drop-{}", std::process::id()));
+        // Not in TMPDIR: `sun_path` holds 107 bytes, and a long TMPDIR
+        // passes that limit (T-735).
+        let dir = std::path::Path::new("/tmp").join(format!("pb-broker-drop-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let sock = dir.join("b.sock");
         let b = crate::Broker::start_unix(&sock, "broker.test").unwrap();

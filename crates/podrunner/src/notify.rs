@@ -68,8 +68,8 @@ mod tests {
 
     #[test]
     fn a_datagram_reaches_a_path_and_an_abstract_name() {
-        let dir = crate::scratch::Scratch::new("notify");
-        let path = dir.join("notify.sock");
+        let dir = crate::scratch::Scratch::short("notify");
+        let path = dir.sock("notify.sock");
         let rx = UnixDatagram::bind(&path).unwrap();
         send_to(path.to_str().unwrap(), "READY=1").unwrap();
         let mut buf = [0u8; 64];

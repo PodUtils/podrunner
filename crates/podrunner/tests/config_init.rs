@@ -6,6 +6,8 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+mod scratch;
+
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
 /// A stand-in of podvm: `probe --json` names a version and a rung.
@@ -40,9 +42,7 @@ fn init(dir: &Path, kinds: &str, out: &Path, extra: &[&str]) -> Output {
 
 #[test]
 fn config_init_writes_a_file_that_check_takes_once() {
-    let dir = std::env::temp_dir().join(format!("podrunner-config-init-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = scratch::Scratch::short("config-init");
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
     let out = dir.join("podrunner.toml");
     // No incusd: the incus kind is not here, so no kind serves the source.
@@ -99,9 +99,7 @@ fn config_init_writes_a_file_that_check_takes_once() {
 /// proven, and the kind is refused with that cause, with no file.
 #[test]
 fn a_trusted_podvm_kind_needs_a_proven_confine_layer() {
-    let dir = std::env::temp_dir().join(format!("podrunner-config-init-confine-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = scratch::Scratch::short("config-init-confine");
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
     let podnet = dir.join("podnet");
     let doctor = r#"{"netns":{"level":"enforced"},"seccomp":{"level":"advisory"}}"#;
@@ -128,9 +126,7 @@ fn a_trusted_podvm_kind_needs_a_proven_confine_layer() {
 /// a value that is not a number exits 64.
 #[test]
 fn the_unpacked_bytes_of_the_image_land_in_the_pin() {
-    let dir = std::env::temp_dir().join(format!("podrunner-config-init-size-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = scratch::Scratch::short("config-init-size");
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
     let _incusd = std::os::unix::net::UnixListener::bind(dir.join("incus.socket")).unwrap();
     let out = dir.join("podrunner.toml");
@@ -157,9 +153,7 @@ fn the_unpacked_bytes_of_the_image_land_in_the_pin() {
 /// keeps its mode.
 #[test]
 fn config_init_makes_the_missing_parent_of_its_output() {
-    let dir = std::env::temp_dir().join(format!("podrunner-config-init-parent-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = scratch::Scratch::short("config-init-parent");
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
     let _incusd = std::os::unix::net::UnixListener::bind(dir.join("incus.socket")).unwrap();
     let out = dir.join("a/b/podrunner.toml");
@@ -191,9 +185,7 @@ fn config_init_makes_the_missing_parent_of_its_output() {
 /// login, and an empty host.
 #[test]
 fn config_init_refuses_an_empty_value_by_its_flag() {
-    let dir = std::env::temp_dir().join(format!("podrunner-config-init-values-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = scratch::Scratch::short("config-init-values");
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
     let _incusd = std::os::unix::net::UnixListener::bind(dir.join("incus.socket")).unwrap();
     let out = dir.join("podrunner.toml");

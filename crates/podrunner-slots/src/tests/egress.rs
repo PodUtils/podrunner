@@ -117,6 +117,9 @@ fn when_egress_ends_no_offer_comes_and_each_unit_ends() {
 
 #[test]
 fn a_long_state_directory_gets_a_short_egress_directory() {
+    if !super::here_or_in_short_tmp("tests::egress::a_long_state_directory_gets_a_short_egress_directory") {
+        return;
+    }
     let short = crate::run::egress_dir(std::path::Path::new("/var/lib/podrunner"));
     assert_eq!(short, std::path::Path::new("/var/lib/podrunner/egress"));
     let deep = std::path::PathBuf::from(format!("/{}", "d".repeat(150)));

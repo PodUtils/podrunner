@@ -24,8 +24,7 @@ fn key(ns: u64, pid: u32) -> String {
 /// link stay.
 #[test]
 fn the_unit_files_of_a_dead_run_go_with_it() {
-    let tmp = std::env::temp_dir().join(format!("podrunner-stale-pid-test-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&tmp);
+    let tmp = crate::scratch::Scratch::short("stale-pid");
     let me = Here { ns: 77, pid: std::process::id() };
     let (k, other, shared) = (key(77, DEAD), key(77, DEAD + 1), key(78, DEAD));
     for d in [
@@ -41,7 +40,7 @@ fn the_unit_files_of_a_dead_run_go_with_it() {
         std::fs::create_dir_all(tmp.join(d)).unwrap();
     }
     std::fs::write(tmp.join(format!("podrunner-local-unit-{k}-u-1/ctl.sock")), "").unwrap();
-    let sock = tmp.join(format!("podrunner-local-broker-{k}-1.sock"));
+    let sock = tmp.sock(&format!("podrunner-local-broker-{k}-1.sock"));
     drop(std::os::unix::net::UnixListener::bind(&sock).unwrap());
     std::fs::write(tmp.join(format!("podrunner-local-broker-{k}-2.sock")), "").unwrap();
     std::os::unix::fs::symlink(&tmp, tmp.join(format!("podrunner-local-unit-{k}-u-9"))).unwrap();

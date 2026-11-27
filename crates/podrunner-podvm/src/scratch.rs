@@ -12,9 +12,20 @@ impl Scratch {
     /// A new empty directory `podrunner-NAME-PID-N` in the temp directory
     /// (`TMPDIR`).
     pub(crate) fn new(name: &str) -> Scratch {
+        Scratch::under(&std::env::temp_dir(), &format!("podrunner-{name}"))
+    }
+
+    /// A new empty directory `/tmp/pv-NAME-PID-N` for Unix sockets:
+    /// `sun_path` holds 107 bytes, and a long `TMPDIR` passes that limit
+    /// (T-735).
+    pub(crate) fn short(name: &str) -> Scratch {
+        Scratch::under(Path::new("/tmp"), &format!("pv-{name}"))
+    }
+
+    fn under(base: &Path, name: &str) -> Scratch {
         static N: AtomicU64 = AtomicU64::new(0);
         let n = N.fetch_add(1, Ordering::Relaxed);
-        let p = std::env::temp_dir().join(format!("podrunner-{name}-{}-{n}", std::process::id()));
+        let p = base.join(format!("{name}-{}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&p);
         std::fs::create_dir_all(&p).unwrap();
         Scratch(p)
