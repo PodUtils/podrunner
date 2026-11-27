@@ -30,9 +30,10 @@ pub(super) fn local_uses(w: &pod_actions_workflow::Workflow, base: &Path) -> Res
     Ok(out)
 }
 
-/// A checkout step of a local action: the path of the action, the line of
-/// the step in its `action.yml`, and its `with:`.
-pub(super) type Checkout = (String, u32, Option<Node>);
+/// A checkout step of an action: the path of a local action (or the
+/// `uses:` of an action of the store), the line of the step in its
+/// `action.yml`, and its `with:`.
+pub(super) use podrunner_local::store::checkouts::Checkout;
 
 /// Each `uses: actions/checkout@REF` step of the local actions of the steps
 /// of `w` (T-713): the run pins the trees of their static values.
@@ -54,10 +55,17 @@ pub(super) fn local_trees(
     base: &Path,
     self_repo: &str,
 ) -> Result<Vec<String>, String> {
-    let all = local_checkouts(w, base)?.into_iter();
-    Ok(all
+    Ok(trees_of(&local_checkouts(w, base)?, self_repo))
+}
+
+/// Each `OWNER/REPO@REF` of a checkout of another repository of `found`,
+/// with static values (T-713, T-718). An expression, or a value that is not
+/// a repository, gets no tree: the stand-in fails its step with the fix.
+pub(super) fn trees_of(found: &[Checkout], self_repo: &str) -> Vec<String> {
+    found
+        .iter()
         .filter_map(|(_, _, with)| podrunner_local::store::checkout_target(with.as_ref(), self_repo).ok().flatten())
-        .collect())
+        .collect()
 }
 
 /// Each step of each local composite action that the steps of `w` name,

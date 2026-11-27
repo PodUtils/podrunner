@@ -11,7 +11,7 @@ use pod_actions_workflow::yaml::{Kind, Limits, load};
 
 /// The text of `action.yml` (or `action.yaml`) at `path` of the tarball of
 /// `repo` at `commit` in the store `dir`; the tar has one top directory.
-fn action_text(dir: &Path, repo: &str, commit: &str, path: &str) -> Option<String> {
+pub(crate) fn action_text(dir: &Path, repo: &str, commit: &str, path: &str) -> Option<String> {
     let file = std::fs::File::open(dir.join(pod_actions_store::archive_name(repo, commit))).ok()?;
     let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(file));
     let want: Vec<&str> = path.split('/').filter(|c| !c.is_empty()).collect();

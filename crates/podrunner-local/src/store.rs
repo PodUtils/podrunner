@@ -6,6 +6,8 @@
 pub use pod_actions_store::store::*;
 pub use pod_actions_store::{Error, Git};
 
+pub mod checkouts;
+
 /// Each `uses:` of a repository in the steps of the workflow, but the
 /// checkout, which the local mode gives with its own stand-in (T-133).
 pub fn workflow_uses(w: &pod_actions_workflow::Workflow) -> Vec<String> {

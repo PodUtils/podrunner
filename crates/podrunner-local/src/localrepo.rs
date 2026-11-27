@@ -3,6 +3,10 @@
 //! work on an action. The commit is made up: the first 40 hex digits of the
 //! SHA-256 of the tar, so a change of DIR gives a new commit. A local
 //! reference is never in the lock, and the forge never sees it.
+//!
+//! The forge also serves each `actions/checkout@REF` that a composite
+//! action of the store names (T-718): the broker gives the stand-in for it
+//! (T-708), so the run fetches no tarball of it and the lock has no pin.
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -10,8 +14,8 @@ use std::path::{Path, PathBuf};
 
 use crate::store::Forge;
 
-/// A forge that serves the local directories and asks `inner` for each
-/// other reference.
+/// A forge that serves the local directories and `actions/checkout`, and
+/// asks `inner` for each other reference.
 pub struct Local<'a> {
     /// `OWNER/REPO@REF` and its directory.
     pub dirs: BTreeMap<String, PathBuf>,
@@ -59,10 +63,32 @@ fn tar_of(repo: &str, dir: &Path) -> Result<Vec<u8>, String> {
     b.into_inner().map_err(fail)
 }
 
+/// `OWNER/REPO` of the action that the broker gives as its stand-in.
+const CHECKOUT: &str = "actions/checkout";
+
+/// The tar that stands for `actions/checkout` in the store: a node action
+/// with no file to run. No job runs it: the broker resolves each ref of
+/// `actions/checkout` to the stand-in.
+fn checkout_tar() -> Result<Vec<u8>, String> {
+    let text = "runs:\n  using: node20\n  main: index.js\n";
+    let mut h = tar::Header::new_ustar();
+    h.set_size(text.len() as u64);
+    h.set_mode(0o644);
+    h.set_mtime(0);
+    h.set_cksum();
+    let mut b = tar::Builder::new(Vec::new());
+    b.append_data(&mut h, "actions-checkout-stand-in/action.yml", text.as_bytes()).map_err(|e| e.to_string())?;
+    b.into_inner().map_err(|e| e.to_string())
+}
+
 impl Forge for Local<'_> {
     fn resolve(&self, repo: &str, r: &str) -> Result<String, String> {
-        let Some(dir) = self.dirs.get(&format!("{repo}@{r}")) else { return self.inner.resolve(repo, r) };
-        let tar = tar_of(repo, dir)?;
+        let key = format!("{repo}@{r}");
+        let tar = match self.dirs.get(&key) {
+            Some(dir) => tar_of(repo, dir)?,
+            None if repo == CHECKOUT => checkout_tar()?,
+            None => return self.inner.resolve(repo, r),
+        };
         let commit = crate::store::digest(&tar)["sha256:".len()..][..40].to_string();
         self.tars.borrow_mut().insert(commit.clone(), tar);
         Ok(commit)
@@ -76,7 +102,7 @@ impl Forge for Local<'_> {
     }
 
     fn is_local(&self, key: &str) -> bool {
-        self.dirs.contains_key(key)
+        self.dirs.contains_key(key) || key.rsplit_once('@').is_some_and(|(repo, _)| repo == CHECKOUT)
     }
 }
 
@@ -84,7 +110,7 @@ impl Forge for Local<'_> {
 mod tests {
     use super::*;
     use crate::lock::Lock;
-    use crate::store::{Mode, Store, resolve};
+    use crate::store::{self, Mode, Store, resolve};
 
     /// A forge that knows nothing: a local reference never reaches it.
     struct Nothing;
@@ -124,5 +150,42 @@ mod tests {
             assert!(parse(bad).is_err(), "{bad}");
         }
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// T-718: a composite action that names `actions/checkout` asks no
+    /// forge for it, also offline with an empty lock, and the lock does not
+    /// pin it; `--local-repository` of it still serves its directory.
+    #[test]
+    fn the_checkout_in_an_action_asks_no_forge() {
+        // The directory goes at the drop, also after a panic.
+        struct Gone(PathBuf);
+        impl Drop for Gone {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let gone = Gone(std::env::temp_dir().join(format!("podrunner-localrepo-co-{}", std::process::id())));
+        let base = gone.0.clone();
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("action")).unwrap();
+        let steps = "    - uses: actions/checkout@v4\n    - uses: actions/checkout@v5\n";
+        let text = format!("runs:\n  using: composite\n  steps:\n{steps}");
+        std::fs::write(base.join("action/action.yml"), text).unwrap();
+        let dirs = BTreeMap::from([("me/tool@main".to_string(), base.join("action"))]);
+        let local = Local::new(dirs, &Nothing);
+        let store = Store { dir: base.join("store") };
+        for mode in [Mode::Offline, Mode::Frozen, Mode::Online] {
+            let r = resolve(&["me/tool@main".into()], &Lock::default(), &store, &local, mode, "L").unwrap();
+            assert!(r.lock.pins.is_empty() && !r.changed, "{mode}: the lock does not pin it");
+            assert!(r.commits.contains_key("actions/checkout@v4") && r.commits.contains_key("actions/checkout@v5"));
+        }
+        // A directory for the checkout is served as given.
+        std::fs::create_dir_all(base.join("co")).unwrap();
+        std::fs::write(base.join("co/action.yml"), "runs:\n  using: node20\n  main: x.js\n").unwrap();
+        let dirs = BTreeMap::from([("actions/checkout@v4".to_string(), base.join("co"))]);
+        let local = Local::new(dirs, &Nothing);
+        let r = resolve(&["actions/checkout@v4".into()], &Lock::default(), &store, &local, Mode::Offline, "L");
+        let commit = r.unwrap().commits["actions/checkout@v4"].clone();
+        assert_eq!(commit, store::digest(&tar_of("actions/checkout", &base.join("co")).unwrap())[7..47]);
     }
 }

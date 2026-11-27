@@ -213,9 +213,10 @@ pub fn run(args: &[String]) -> Out {
     let image_source = pull.as_ref().map(|p| p as &dyn podrunner_local::images::ImageSource);
     let image_source = image_source.filter(|_| !refused.contains_key(podrunner_local::message::REFUSE_CONTAINERS));
     let no_services = refused.contains_key(podrunner_local::message::REFUSE_SERVICES);
-    let (store, mut pins, note) = match actions::pin(&a, &text, mode, &facts.repository, image_source, no_services) {
-        Ok(Some(p)) => (p.dir.or_else(|| a.actions.clone()), p.commits, p.note),
-        Ok(None) => (a.actions.clone(), Default::default(), String::new()),
+    let pinned = actions::pin(&a, &text, mode, &facts.repository, image_source, no_services);
+    let (store, mut pins, note, in_store) = match pinned {
+        Ok(Some(p)) => (p.dir.or_else(|| a.actions.clone()), p.commits, p.note, p.checkouts),
+        Ok(None) => (a.actions.clone(), Default::default(), String::new(), Vec::new()),
         Err(e) if e.contains("offline mode fetches nothing") => {
             return fail(
                 Class::Config,
@@ -307,7 +308,7 @@ pub fn run(args: &[String]) -> Out {
     // Each return removes both, also an early refusal (T-323 F38).
     let _gone = stale::Gone(vec![scratch.clone(), state.clone()]);
     // The local tree, and the commit of each `ref:` of the same repository (T-640).
-    let tree = match checkout::trees(&a, source.workflow(), &facts.repository, &scratch, &mut pins) {
+    let tree = match checkout::trees(&a, source.workflow(), &facts.repository, &scratch, &mut pins, &in_store) {
         Ok(t) => t,
         Err(e) => return fail(Class::Config, e),
     };

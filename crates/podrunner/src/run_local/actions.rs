@@ -42,6 +42,8 @@ pub(super) struct Pinned {
     pub commits: BTreeMap<String, String>,
     /// A line for stderr when the lock changed.
     pub note: String,
+    /// The checkout steps of the composite actions of the store (T-718).
+    pub checkouts: Vec<podrunner_local::store::checkouts::Checkout>,
 }
 
 /// The actions of the run, or `None` when the workflow names no action of a
@@ -129,6 +131,7 @@ pub(super) fn pin(
     let lock_path = file.parent().unwrap_or(Path::new(".")).join(LOCK_FILE);
     let lock = Lock::read(&lock_path).map_err(s)?;
     let name = lock_path.display().to_string();
+    let mut checkouts = Vec::new();
     let (mut r, dir) = if uses.is_empty() && trees.is_empty() {
         (podrunner_local::store::Resolved { lock, ..Default::default() }, None)
     } else {
@@ -153,7 +156,8 @@ pub(super) fn pin(
         // the run (T-346).
         let local_only = !matches!(mode, Mode::Offline) && uses.iter().chain(&trees).all(local);
         let store = Store { dir: dir.clone() };
-        let attempt = |mode: Mode| -> Result<podrunner_local::store::Resolved, podrunner_local::store::Error> {
+        type Attempt = (podrunner_local::store::Resolved, Vec<podrunner_local::store::checkouts::Checkout>);
+        let attempt = |mode: Mode| -> Result<Attempt, podrunner_local::store::Error> {
             // The fetch goes through one egress grant of the forge host
             // only (T-154); `--offline` fetches nothing and opens none.
             let fetch = match mode {
@@ -165,7 +169,17 @@ pub(super) fn pin(
             git.proxy = fetch.as_ref().map(|f| f.proxy.clone());
             let forge = Local::new(a.local_repos.iter().cloned().collect(), &git);
             let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
-            add_trees(&trees, r, &store, &forge, mode, &name)
+            // The checkouts of other repositories in the composite actions
+            // of the store (T-718): the actions are in the store now.
+            let found = podrunner_local::store::checkouts::action_checkouts(&uses, &store.dir, &r.commits);
+            let mut all = trees.clone();
+            // A name with `..` gets no tree (#261): the stand-in fails its step.
+            for t in super::composites::trees_of(&found, self_repo) {
+                if !all.contains(&t) && podrunner_local::store::repo_ok(&t).is_ok() {
+                    all.push(t);
+                }
+            }
+            Ok((add_trees(&all, r, &store, &forge, mode, &name)?, found))
         };
         let r = match local_only {
             true => match attempt(Mode::Offline) {
@@ -176,7 +190,11 @@ pub(super) fn pin(
             },
             false => attempt(mode),
         };
-        (r.map_err(|e| with_fix(&e, mode))?, Some(dir))
+        let (mut r, found) = r.map_err(|e| with_fix(&e, mode))?;
+        // The broker gives the stand-in for each ref of `actions/checkout`.
+        r.commits.retain(|k, _| !k.starts_with("actions/checkout@"));
+        checkouts = found;
+        (r, Some(dir))
     };
     if let (Some(source), false) = (images, tags.is_empty()) {
         let (pins, changed) = podrunner_local::images::resolve(&tags, &mut r.lock, source, mode, &name).map_err(s)?;
@@ -188,7 +206,7 @@ pub(super) fn pin(
         r.lock.write(&lock_path).map_err(s)?;
         note = format!("podrunner: {name} pins {} references\n", r.lock.pins.len() + r.lock.images.len());
     }
-    Ok(Some(Pinned { dir, commits: r.commits, note }))
+    Ok(Some(Pinned { dir, commits: r.commits, note, checkouts }))
 }
 
 /// The grant of the forge for a fetch, or `None` for a forge on a local

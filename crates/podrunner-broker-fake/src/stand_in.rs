@@ -107,8 +107,9 @@ function start(x) {
 }
 // `uses: actions/checkout` in an action (T-708): the local tree, into
 // `path`, with its `submodules`. Another repository or another ref takes
-// the tree that the run pinned for the static values of a local action
-// (T-713); with no pin (an expression), the step fails.
+// the tree that the run pinned for the static values of a local action or
+// an action of the store (T-713, T-718); with no pin (an expression), the
+// step fails.
 function checkout() {
   const e = process.env, repo = input('repository').trim(), ref = input('ref').trim(), sub = input('submodules');
   const level = { '': 0, 'false': 0, 'true': 1, 'recursive': @LEVELS@ }[sub];
@@ -122,7 +123,7 @@ function checkout() {
   const key = same ? '@REF_PIN@' + ref : repo + '\u0040' + (ref || 'HEAD');
   get('@PIN@' + encodeURIComponent(key), 'the pin of ' + what, (s, b) => {
     if (s === 404) {
-      die('the checkout of ' + what + ' in an action: the run pinned no tree for it; fix: give `repository` and `ref` as text in a local action, or check it out in a step of the workflow');
+      die('the checkout of ' + what + ' in an action: the run pinned no tree for it; fix: give `repository` and `ref` as text in the action, or check it out in a step of the workflow');
     }
     if (s !== 200) die('the pin of ' + what + ': HTTP ' + s, 22);
     const p = JSON.parse(b.toString());

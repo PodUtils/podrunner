@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use podrunner_local::tree::refs::{self, Ask};
 
 use super::Args;
+use super::composites::Checkout;
 
 /// One line for each key of `with:` that the stand-in does not take
 /// (T-643), once for a run: the key, its first line, and what the job gets.
@@ -23,13 +24,15 @@ fn ignored_notes<'a>(ws: impl IntoIterator<Item = &'a pod_actions_workflow::Work
 /// The tarball of the local tree, or `None` with no `--checkout`; each ref
 /// of a checkout of the same repository goes into `pins`. A line on stderr
 /// names each ref that has no commit (its step fails) and each expression
-/// (the local tree); a dry run also names each commit.
+/// (the local tree); a dry run also names each commit. `store` holds the
+/// checkout steps of the composite actions of the store (T-718).
 pub(super) fn trees(
     a: &Args,
     workflow: &pod_actions_workflow::Workflow,
     self_repo: &str,
     scratch: &Path,
     pins: &mut BTreeMap<String, String>,
+    store: &[Checkout],
 ) -> Result<Option<PathBuf>, String> {
     let called = a.checkout.as_deref().map(|d| super::composites::local_calls(workflow, d).unwrap_or_default());
     for note in ignored_notes(std::iter::once(workflow).chain(called.iter().flatten())) {
@@ -57,6 +60,7 @@ pub(super) fn trees(
         flows().flat_map(|w| refs::asks(w, self_repo)).map(|(line, a)| (line.to_string(), a)).collect();
     asks.dedup();
     asks.extend(flows().flat_map(|w| action_asks(w, dir, self_repo)));
+    asks.extend(asks_of(store, self_repo));
     let head = refs::head(dir);
     for (line, ask) in asks {
         let r = match ask {
@@ -107,11 +111,17 @@ pub(super) fn trees(
 
 /// Each static `ref:` of a checkout of the same repository in the local
 /// actions of `w` (T-713), with the line of its step and its `action.yml`.
-/// An expression is not here: the runner gives its value to the stand-in,
-/// which takes the ref of the run and fails another one with the fix.
 fn action_asks(w: &pod_actions_workflow::Workflow, base: &Path, self_repo: &str) -> Vec<(String, Ask)> {
-    let all = super::composites::local_checkouts(w, base).unwrap_or_default();
-    all.into_iter()
+    asks_of(&super::composites::local_checkouts(w, base).unwrap_or_default(), self_repo)
+}
+
+/// Each static `ref:` of a checkout of the same repository of `found`
+/// (T-713, T-718), with the line of its step and its action. An expression
+/// is not here: the runner gives its value to the stand-in, which takes the
+/// ref of the run and fails another one with the fix.
+fn asks_of(found: &[Checkout], self_repo: &str) -> Vec<(String, Ask)> {
+    found
+        .iter()
         .filter(|(_, _, with)| matches!(podrunner_local::store::checkout_target(with.as_ref(), self_repo), Ok(None)))
         .map(|(path, line, with)| (format!("{line} of {path}"), refs::ask(with.as_ref().and_then(|n| n.get("ref")))))
         .filter(|(_, a)| !matches!(a, Ask::Default | Ask::Expression(_)))
@@ -183,5 +193,10 @@ mod tests {
         assert_eq!(got[0], ("4 of ./a".to_string(), Ask::Ref("v1".into())));
         assert_eq!(got[1], ("12 of ./a".to_string(), Ask::Ref("v3".into())));
         assert!(matches!(&got[2], (l, Ask::Bad(_)) if l == "14 of ./a"), "{got:?}");
+        // T-718: a checkout of an action of the store is named by its `uses:`.
+        let all = crate::run_local::composites::local_checkouts(&w, &dir).unwrap();
+        let store: Vec<_> = all.into_iter().map(|(_, l, with)| ("o/act@v1".to_string(), l, with)).collect();
+        let got = super::asks_of(&store, "me/self");
+        assert_eq!(got[1], ("12 of o/act@v1".to_string(), Ask::Ref("v3".into())), "{got:?}");
     }
 }
