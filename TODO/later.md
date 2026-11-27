@@ -20943,7 +20943,7 @@ scripts/agent/check.sh` and the job `test` of `gate.yml`.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -20971,4 +20971,18 @@ source of the image does not fail the step.
 
 A step that adds a source that answers 403 still installs `qemu-system-x86`
 (a self-test of the shared script with a fake source); actionlint passes.
+
+State (2026-11-27, `1453444f`; a fake `apt-get` and the real `apt-get
+indextargets` on a development host; the hosted run not run):
+`scripts/apt-ubuntu.sh [--keep FILE]... update|install PACKAGE...` runs
+apt with a copy of `ubuntu.sources` (the deb822 source of Ubuntu 24.04
+in `sources.list.d`) in a new parts directory and `/etc/apt/sources.list`
+only (`Dir::Etc::sourceparts`, `Dir::Etc::sourcelist`), so a source of
+the image such as `microsoft-prod.list` is not read. Each `apt-get` step
+of `gate.yml`, `hosted-boot.yml`, `hosted-measure.yml`, `runner-image.yml`
+and `user-gate.yml` takes it through `retry.sh`; the Zabbly step of
+`runner-image.yml` keeps its own source with `--keep`.
+`scripts/apt-ubuntu-test.sh` (a fake `apt-get` on PATH; six cases, and a
+check that no direct `apt-get` call stays) runs in `gate.yml` and
+`check.sh`. Next: a green `runner-image.yml` and `user-gate.yml` run.
 
