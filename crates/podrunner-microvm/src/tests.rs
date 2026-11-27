@@ -56,6 +56,24 @@ pub(crate) fn dir(name: &str) -> Scratch {
     Scratch(d)
 }
 
+/// A fresh directory with a short path, directly under `/tmp`, for a Unix
+/// socket: `sun_path` holds 107 bytes, and a long TMPDIR passes that limit.
+pub(crate) fn short_dir(name: &str) -> Scratch {
+    static N: AtomicU32 = AtomicU32::new(0);
+    let d =
+        PathBuf::from("/tmp").join(format!("pm-{name}-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
+    let _ = fs::remove_dir_all(&d);
+    fs::create_dir_all(&d).unwrap();
+    Scratch(d)
+}
+
+/// A path for a Unix socket; it fails at once when `sun_path` cannot hold it.
+pub(crate) fn socket_path(d: &Path, name: &str) -> String {
+    let p = d.join(name).display().to_string();
+    assert!(p.len() < 108, "the socket path has {} bytes, over the 107 of sun_path: {p}", p.len());
+    p
+}
+
 /// A driver over a fake `podvm` that runs `body` and ignores its argv.
 pub(crate) fn driver(name: &str, body: &str) -> (MicrovmUnit, Scratch) {
     let d = dir(name);

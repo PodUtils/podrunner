@@ -11,7 +11,7 @@ use podrunner_unit::limits::Limits;
 use podrunner_unit::warm::{ClaimSpec, WarmSpec, env_sh, wait_ready};
 use podrunner_unit::{Exit, UnitCode, UnitDriver, UnitId};
 
-use crate::tests::{dir, driver, spec};
+use crate::tests::{driver, short_dir, socket_path, spec};
 
 /// A fake podvm that keeps its argv, marks the guest of `u-1` ready, waits
 /// for the claim and exits 7.
@@ -89,15 +89,16 @@ impl Drop for Ends {
 /// and runs the argv of the claim.
 #[test]
 fn the_script_of_a_warm_guest_starts_the_engine_after_the_claim() {
-    let d = dir("script");
+    let d = short_dir("script");
     let p = |s: &str| d.join(s).display().to_string();
+    let sock = socket_path(&d, "docker.sock");
     for sub in ["cred", "work", "engine"] {
         fs::create_dir_all(d.join(sub)).unwrap();
     }
     let dockerd = format!(
         "#!/bin/sh\nenv > '{}'\nexec python3 -I -c 'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' '{}'\n",
         p("dockerd.env"),
-        p("docker.sock")
+        sock
     );
     fs::write(d.join("engine/dockerd"), dockerd).unwrap();
     fs::set_permissions(d.join("engine/dockerd"), fs::Permissions::from_mode(0o755)).unwrap();
@@ -105,7 +106,7 @@ fn the_script_of_a_warm_guest_starts_the_engine_after_the_claim() {
         .replace("/mnt/podrunner-cred", &p("cred"))
         .replace("/podrunner-work", &p("work"))
         .replace("/podrunner-engine", &p("engine"))
-        .replace("/run/podrunner-docker.sock", &p("docker.sock"))
+        .replace("/run/podrunner-docker.sock", &sock)
         .replace("/tmp/podrunner-dockerd.log", &p("dockerd.log"))
         .replace("id runner", "id podrunner-no-such-user-0x51");
     let mut child = Ends(
