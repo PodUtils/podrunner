@@ -164,8 +164,8 @@ jobs:
             # snapshot (shared blocks); a pool of the dir driver copies
             # the tree for each (T-613).
             command -v mkfs.btrfs > /dev/null || {
-              sh scripts/retry.sh sudo apt-get -qq update
-              sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends btrfs-progs
+              sh scripts/retry.sh sh scripts/apt-ubuntu.sh update
+              sh scripts/retry.sh sh scripts/apt-ubuntu.sh install btrfs-progs
             }
             loops btrfs
             # -K: no discard, as for joined.
@@ -226,8 +226,8 @@ jobs:
             "https://github.com/PodUtils/podvm/releases/download/v$podvm_version/podvm-x86_64"
           echo "$podvm_sha256  $RUNNER_TEMP/podvm" | sha256sum -c -
           chmod 0755 "$RUNNER_TEMP/podvm"
-          sh scripts/retry.sh sudo apt-get -qq update
-          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus dnsmasq-base
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh update
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh install incus dnsmasq-base
           if [ "$PLACE" = btrfs ]; then
             # The preseed of --minimal, with a pool of the btrfs driver on
             # the btrfs of the place step. podvm puts the instance on the

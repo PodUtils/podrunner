@@ -196,8 +196,8 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           sudo udevadm settle || true
           [ -e /dev/kvm ] && sudo chmod 0666 /dev/kvm
-          sh scripts/retry.sh sudo apt-get -qq update
-          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends qemu-system-x86
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh update
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh install qemu-system-x86
       # T-026: the podvm driver runs the image with the JIT files of the
       # fake broker; the runner takes one canned job and completes it.
       # T-035: a container job through the hooks of the podvm unit.
@@ -506,7 +506,7 @@ jobs:
         continue-on-error: true
         run: |
           set -eu
-          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends qemu-system-arm qemu-efi-aarch64
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh install qemu-system-arm qemu-efi-aarch64
           sh scripts/measure-foreign.sh "$PODRUNNER_PODVM" "$RUNNER_TEMP/foreign" | tee -a "$GITHUB_STEP_SUMMARY"
       # T-037: the unit tests of the acceptance of the microvm kind on real
       # guests (KVM from the step before). A check. Each suite is a step of
@@ -696,9 +696,9 @@ jobs:
         if: ${{ !cancelled() && matrix.arch == 'x86_64' }}
         run: |
           set -eu
-          sh scripts/retry.sh sudo apt-get -qq update
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh update
           # incus admin init makes a bridge network, which needs dnsmasq.
-          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus dnsmasq-base
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh install incus dnsmasq-base
           sudo incus admin init --minimal
           sudo usermod -aG incus-admin "$USER"
           # A measure: its failure does not end the step.
@@ -864,8 +864,10 @@ jobs:
           printf '%s\n' 'Types: deb' 'URIs: https://pkgs.zabbly.com/incus/lts-6.0' "Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")" \
             'Components: main' "Architectures: $(dpkg --print-architecture)" 'Signed-By: /etc/apt/keyrings/zabbly.asc' \
             | sudo tee /etc/apt/sources.list.d/zabbly-incus-lts-6.0.sources
-          sh scripts/retry.sh sudo apt-get -qq update
-          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus
+          # --keep: the source of Zabbly stays with the sources of Ubuntu.
+          zabbly=/etc/apt/sources.list.d/zabbly-incus-lts-6.0.sources
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh --keep "$zabbly" update
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh --keep "$zabbly" install incus
           sudo incus admin waitready --timeout 300
           version=$(sudo incus query /1.0 | python3 -I -c 'import json, sys; print(json.load(sys.stdin)["environment"]["server_version"])')
           echo "incusd $version (Zabbly lts-6.0)" | tee -a "$GITHUB_STEP_SUMMARY"

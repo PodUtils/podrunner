@@ -277,16 +277,16 @@ jobs:
           sudo udevadm trigger --name-match=kvm
           sudo udevadm settle || true
           [ -e /dev/kvm ] && sudo chmod 0666 /dev/kvm
-          sh scripts/retry.sh sudo apt-get -qq update
-          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends qemu-system-x86
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh update
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh install qemu-system-x86
       # incusd from apt, with its defaults; the user of the lane is in the
       # group of its socket and has no root (T-527).
       - name: incus for the serve lane
         if: contains(matrix.serve_kinds, 'incus')
         run: |
           set -eu
-          sh scripts/retry.sh sudo apt-get -qq update
-          sh scripts/retry.sh sudo apt-get -qq install -y --no-install-recommends incus dnsmasq-base
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh update
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh install incus dnsmasq-base
           sudo incus admin init --minimal
           id labuser >/dev/null 2>&1 || sudo useradd -m -s /bin/sh labuser
           sudo usermod -aG incus-admin labuser

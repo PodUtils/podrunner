@@ -69,6 +69,10 @@ the tools.
   * `secrets-report.py`, `pull-image.sh`: the steps of `secrets.yml`.
   * `retry.sh COMMAND...`: a command up to 5 times, for the steps of CI
     that read the network.
+  * `apt-ubuntu.sh [--keep FILE]... update|install PACKAGE...`: apt with
+    the sources of Ubuntu only, so a failed third-party source of the
+    image does not fail a step. `--keep` adds a source that the step made.
+    Each step runs it through `retry.sh`; `apt-ubuntu-test.sh` tests it.
   * `runner-audit.sh SRC LIST`: the NuGet advisories of the official
     runner against `images/runner/advisories.txt` (T-082, `runner-image.yml`).
   * `runner-musl.sh SRC RID`: the musl layout of the official runner

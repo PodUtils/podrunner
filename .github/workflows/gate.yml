@@ -115,6 +115,9 @@ jobs:
           # shell of the hosted scripts.
           sh scripts/hosted/calls.sh
           sh scripts/shellcheck.sh scripts/hosted/*.sh
+          # apt with the sources of Ubuntu only (T-741).
+          sh scripts/apt-ubuntu-test.sh
+          sh scripts/shellcheck.sh scripts/apt-ubuntu.sh scripts/apt-ubuntu-test.sh
       # T-252: each workflow, with the pinned actionlint and the pinned
       # ShellCheck (scripts/actionlint.sh).
       - name: The workflows
@@ -260,8 +263,8 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           set -eu
-          sh scripts/retry.sh sudo apt-get update -qq
-          sh scripts/retry.sh sudo apt-get install -y -qq --no-install-recommends groff-base mandoc
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh update
+          sh scripts/retry.sh sh scripts/apt-ubuntu.sh install groff-base mandoc
           exe=$PWD/target/${{ matrix.target }}/release/podrunner
           sh scripts/retry.sh curl -qfsSLo "$RUNNER_TEMP/check-man.sh" \
             "https://raw.githubusercontent.com/PodUtils/podcrates/$PODCRATES_TAG/scripts/check-man.sh"

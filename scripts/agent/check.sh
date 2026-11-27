@@ -78,7 +78,8 @@ echo "runner-layer $rl"; [ "$rl" -eq 0 ] || { rc=1; head -20 "$log/runner-layer.
 # A subshell: its exit ends the group, not check.sh.
 ( for s in diff scrub plan c1 oci slice watch; do python3 -I "scripts/hosted/$s.py" --self-test || exit 1; done &&
     timeout 120 python3 -I scripts/hosted/push-blob.py --self-test &&
-    sh scripts/hosted/calls.sh && sh scripts/shellcheck.sh scripts/hosted/*.sh ) > "$log/hosted.log" 2>&1; hs=$?
+    sh scripts/hosted/calls.sh && sh scripts/apt-ubuntu-test.sh &&
+    sh scripts/shellcheck.sh scripts/hosted/*.sh scripts/apt-ubuntu.sh scripts/apt-ubuntu-test.sh ) > "$log/hosted.log" 2>&1; hs=$?
 echo "hosted $hs"; [ "$hs" -eq 0 ] || { rc=1; tail -20 "$log/hosted.log"; }
 python3 -I scripts/runner-release.py --self-test > "$log/runner-release.log" 2>&1; rr=$?
 echo "runner-release $rr"; [ "$rr" -eq 0 ] || { rc=1; grep -v "^ok " "$log/runner-release.log" | head -20; }
