@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| command line (`run --log-dir`) | `job.log` ends with the lines that podrunner adds to the log of the job, each with the mark `[podrunner] `; a job whose runner sent no log gets these lines as its `job.log`. | T-723 |
 | the local mode, `podrunner-actions.lock` | A checkout in a composite action of the store gets the pinned tree of its static `repository` and `ref`; the run no longer fetches or locks an `actions/checkout` that an action of the store names. | T-718 |
 | command line (`run`) | At `fail-fast` or a change under `--watch`, a unit that does not go in 120 s goes on in the background: the line `podrunner: JOB: unit u-N did not go in N s; the run goes on, and the unit goes in the background`, a line in the log of the job, and the next job starts. Each destroy at a cancel prints the stopping lines and has the bound; a job whose unit ended at the cancel and does not go fails. A run that ends while a unit still goes prints `podrunner: N units did not go at the cancel; podrunner ends now, and a helper ends them` and keeps its exit code. | T-720, T-721 |
 | the hosted snapshot | A layer of the tool cache is `toolcache-TOOL-VERSION` (it was `toolcache-VERSION`) from the next capture. | T-610 |

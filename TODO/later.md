@@ -20046,7 +20046,7 @@ tests of the crate are T-727.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20072,6 +20072,22 @@ a `podrunner.log` beside it, named in `docs/local-mode.md`).
 
 `cargo test -p podrunner --test local` with a job that fails in a unit
 and `--log-dir`: the log of the job has the lines of podrunner.
+
+## Done
+
+2026-11-27, `78622183`, `7d4c0f95` and `4708cb27` (tests on a
+development host with the fake unit kind; a podvm unit and the real
+runner not run). Each executor keeps the lines that it adds to the log of
+a job in one blob entry, `podrunner_local::exec::ADDED` (a name with a
+space, which no upload of the runner can have): the requests with no
+route, the refused hook calls, the end of the output of a unit, an error
+of `--export`, a unit that did not go at a cancel, the egress denials and
+the last requests of the broker. `--log-dir` masks them as the rest and
+writes them into `job.log` after the lines of the runner, each with the
+mark `[podrunner] `; a job whose runner sent no log gets them as its
+`job.log`. Tests: `run_local::logs::unit_tests` (2; each fails on the old
+code and with the mark removed) and `exec::log::added_tests`.
+
 
 # T-724: The store follows actions/checkout in a composite action
 
