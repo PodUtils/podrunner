@@ -66,7 +66,7 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Read the runs of the open `[gh action] requested` issue:
+1. Read the runs of #384:
    `runner-image.yml` and `user-gate.yml` prove T-741
    (`scripts/apt-ubuntu.sh`; the lane `plain` again) and the lane
    `long-tmp` (`hold:podvm` is an `xfail` there); the gate runs the tests
