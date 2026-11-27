@@ -19719,7 +19719,7 @@ helper removes the unit, and nothing stays.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -19749,6 +19749,20 @@ kind that needs the old one.
 `cargo test -p podrunner-slots guest`: a guest with `docker0` and a veth
 and no device passes; `eth0` with a device fails and is named; then a
 green lane `serve-incus-kvm`.
+
+State (2026-11-27, `5292c541`; tests on a development host, the real guest
+not run: this host has no KVM): the guest self-test lists in `net=` only
+the interfaces with a `device` link (a NIC that the machine gives the
+guest); `docker0`, a veth and the other interfaces made in the guest go
+to `net_virtual=` for the log and do not fail it. A `device` link that
+leads nowhere counts as a NIC. `judge` names the NIC and the interfaces
+that it did not count. Only a kind that claims `guest` runs the test; the
+incus kind claims `confined`. `docs/design/SPEC.md` says "no NIC with a
+device". Tests: `a_bridge_and_a_veth_made_in_the_guest_are_not_a_nic`
+and `a_nic_with_a_device_fails_beside_a_bridge` (both fail on the old
+rule). Next: a green check `serve:job:engine:microvm` of lane
+`serve-incus-kvm`. A guest with no sysfs is T-719.
+
 
 # T-718: A checkout in a composite action of the store gets no pinned tree
 
@@ -19780,3 +19794,36 @@ trees of its checkout steps as for a local action.
 
 `cargo test -p podrunner --test local`: a composite of the store with a
 checkout of a tag gets the tree of that tag.
+
+# T-719: The guest self-test proves no NIC when the guest has no sysfs
+
+**Source:** the worker of T-717, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When `/sys` is not mounted in the guest, `ls /sys/class/net` lists
+nothing, `net=` is empty, and the NIC line of the guest self-test passes
+with nothing proven. The rule before T-717 had the same flaw.
+
+## Premise
+
+Read from `crates/podrunner-slots/src/guest.rs` by the worker of T-717 on
+2026-11-27. Not measured: whether podvm mounts sysfs on the machine tier
+before the test command runs.
+
+## Approach
+
+When `/sys/class/net/lo` is absent, print `net=unknown`, and make `judge`
+fail on it. Prove first on a real guest (a step of `runner-image.yml`)
+that the machine tier mounts sysfs, so the change does not lower the
+microvm kind.
+
+## Prove
+
+`cargo test -p podrunner-slots guest`: a tree with no `lo` gives
+`net=unknown` and a failed verdict; then a green `runner-image.yml` run.
