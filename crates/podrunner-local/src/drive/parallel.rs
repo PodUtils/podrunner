@@ -59,7 +59,7 @@ pub fn drive_parallel(
     let (mut skips, mut ok) = (0, true);
     loop {
         for s in &source.skips()[skips..] {
-            out(&Line::Skipped { job: s.job.clone(), condition: s.condition.clone() });
+            out(&super::skip_line(source, s));
         }
         skips = source.skips().len();
         if running.is_empty() && source.is_finished() {
@@ -127,7 +127,7 @@ pub fn drive_parallel(
         stops.retain(|(r, _)| r != &job);
         if source.is_cancelled(&job) {
             // `fail-fast` ended this cell in the source: its line says so.
-            out(&Line::Ran { job: job.clone(), name, result: pod_actions_workflow::JobResult::Cancelled });
+            out(&super::cancelled_line(source, &job, name));
             source.release(&job).map_err(|e| e.to_string())?;
         } else {
             finish(source, &job, name, end, out, &mut ok)?;

@@ -49,13 +49,58 @@ pub struct RunnerDir {
     _lock: Arc<pod_core::lock::FileLock>,
 }
 
-/// A work directory out of the runner directory (`BASE/podrunner-work`,
-/// T-255) goes with the run, and its parent when it is empty (T-331 F10).
+/// The work directory goes with the run: `_work` can hold gigabytes
+/// (T-308 A19). One out of the runner directory (`BASE/podrunner-work`,
+/// T-255) takes its parent too when it is empty (T-331 F10).
 impl Drop for RunnerDir {
     fn drop(&mut self) {
-        if self.work != self.dir.join("_work") && crate::work::clear(&self.work).is_ok() {
+        if crate::work::clear(&self.work).is_ok() && self.work != self.dir.join("_work") {
             let _ = self.work.parent().map(std::fs::remove_dir);
         }
+    }
+}
+
+/// The files that the start of a runner writes into the runner directory
+/// (`podrunner_broker_fake::runner`): the runner removes them at its end,
+/// but a runner that a signal or a limit ends leaves them (T-308 A20).
+const RUNNER_FILES: [&str; 3] = [".runner", ".credentials", ".credentials_rsaparams"];
+
+/// Removes the runner files of its directory at its drop.
+struct RunnerFiles(PathBuf);
+
+impl Drop for RunnerFiles {
+    fn drop(&mut self) {
+        for f in RUNNER_FILES {
+            let _ = std::fs::remove_file(self.0.join(f));
+        }
+    }
+}
+
+/// The refusal of a runner that `config.sh` configured: the start of each
+/// job writes its own runner files over the `.runner` and the credentials
+/// of that runner. podrunner writes the pool `podrunner`.
+fn configured(dir: &std::path::Path) -> Option<String> {
+    let text = std::fs::read_to_string(dir.join(".runner")).ok()?;
+    let v: serde_json::Value = serde_json::from_str(text.trim_start_matches('\u{feff}')).ok()?;
+    let pool = v.get("poolName")?.as_str()?;
+    (pool != "podrunner").then(|| {
+        format!(
+            "{}: a configured runner (pool {pool:?}): podrunner would write over its .runner and its credentials; fix: unpack a new release of actions/runner for podrunner",
+            dir.display()
+        )
+    })
+}
+
+/// The text of a runner directory that a run of podrunner holds now
+/// (`doctor --run`, T-308 A28), else `None`. It writes no file.
+pub fn busy(dir: &std::path::Path) -> Option<String> {
+    use pod_core::lock::{FileLock, Mode};
+    match FileLock::try_lock_existing(&dir.join(LOCK), Mode::Exclusive) {
+        Ok(None) => Some(format!(
+            "{}: another run of podrunner uses this runner directory now; wait for it to end, or give this run its own --runner-dir",
+            dir.display()
+        )),
+        _ => None,
     }
 }
 
@@ -143,7 +188,7 @@ impl RunnerDir {
         if !dir.join("run.sh").is_file() || !dir.join("bin/Runner.Listener").is_file() {
             return Err(format!("{}: no unpacked runner (run.sh, bin/Runner.Listener)", dir.display()));
         }
-        if let Some(e) = space_refusal(&dir) {
+        if let Some(e) = space_refusal(&dir).or_else(|| configured(&dir)) {
             return Err(e);
         }
         let lock = lock(&dir)?;
@@ -244,6 +289,7 @@ impl RunnerDir {
         std::fs::create_dir_all(&home).map_err(|e| format!("{}: {e}", home.display()))?;
         let mut env = host_env(&home, std::env::vars());
         super::proxy::host_trust(&home, &mut env);
+        let _files = RunnerFiles(self.dir.clone());
         let mut child = start_runner_in(&self.dir, &self.work, &broker, &env, !self.quiet)?;
         let _ = std::fs::write(self.dir.join(GROUP), child.id().to_string());
         // A third signal ends the group at once (T-636).
@@ -413,6 +459,10 @@ mod env_tests {
         assert_eq!(node, [&("NODE_USE_ENV_PROXY", "0".to_string())]);
     }
 }
+
+#[cfg(test)]
+#[path = "host_tests.rs"]
+mod end_tests;
 
 #[cfg(test)]
 mod tests {

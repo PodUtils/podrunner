@@ -68,6 +68,29 @@ pub enum Line {
     Kept { job: JobId, name: String, result: JobResult },
     /// A cell that `--job` or `--matrix` keeps out (T-127): its name and why.
     NotSelected { job: JobId, name: String, reason: String },
+    /// A cell that `fail-fast` cancelled: its name and why (T-308 A25).
+    Cancelled { job: JobId, name: String, reason: String },
+}
+
+/// The line of a skip: a job that `--job` keeps out is not selected, also
+/// when the skip of a need skipped it first (T-308 A28).
+pub(crate) fn skip_line(source: &LocalSource, s: &pod_actions_workflow::Skip) -> Line {
+    let id = s.job.as_str();
+    match (source.left_out(id), JobId::new(&format!("{id}.0"))) {
+        (true, Ok(job)) => {
+            let name = source.workflow().job(id).and_then(|j| j.name.clone()).unwrap_or_else(|| id.to_string());
+            Line::NotSelected { job, name, reason: "not selected (--job)".into() }
+        }
+        _ => Line::Skipped { job: s.job.clone(), condition: s.condition.clone() },
+    }
+}
+
+/// The line of a cell that `fail-fast` cancelled: with its reason.
+pub(crate) fn cancelled_line(source: &LocalSource, job: &JobId, name: String) -> Line {
+    match source.cancel_reason(job) {
+        Some(reason) => Line::Cancelled { job: job.clone(), name, reason: reason.to_string() },
+        None => Line::Ran { job: job.clone(), name, result: JobResult::Cancelled },
+    }
 }
 
 /// The result of the runner's conclusion.
@@ -142,7 +165,7 @@ pub fn drive_with(
     let mut ok = true;
     loop {
         for s in &source.skips()[skips..] {
-            out(&Line::Skipped { job: s.job.clone(), condition: s.condition.clone() });
+            out(&skip_line(source, s));
         }
         skips = source.skips().len();
         if source.is_finished() {
@@ -208,7 +231,7 @@ pub(crate) fn settle(
         return Ok(true);
     }
     if source.is_cancelled(job) {
-        out(&Line::Ran { job: job.clone(), name, result: JobResult::Cancelled });
+        out(&cancelled_line(source, job, name));
         source.release(job).map_err(|e| e.to_string())?;
         return Ok(true);
     }

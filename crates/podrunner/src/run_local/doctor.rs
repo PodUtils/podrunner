@@ -231,7 +231,8 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
         let ok = dir.join("run.sh").is_file() && dir.join("bin/Runner.Listener").is_file();
         out.push(check(
             "runner-dir",
-            if let (true, Some(e)) = (ok, podrunner_local::exec::space_refusal(dir)) {
+            // A run that holds the directory now makes this run fail (T-308 A28).
+            if let (true, Some(e)) = (ok, podrunner_local::exec::space_refusal(dir).or_else(|| podrunner_local::exec::runner_dir_busy(dir))) {
                 Err(e)
             } else if ok {
                 Ok(dir.display().to_string())

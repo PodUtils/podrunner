@@ -106,7 +106,12 @@ fn b64(v: &Value) -> String {
 /// `ACTIONS_ID_TOKEN_REQUEST_URL` to a job that may ask for an id-token
 /// (T-140).
 fn endpoint_data(base: &str, job: &Job) -> Value {
-    let mut d = json!({ "ServerId": guid(5), "ServerName": "podrunner-broker-fake", "ResultsServiceUrl": base });
+    // CacheServerUrl gives ACTIONS_CACHE_URL, as on GitHub: the cache client
+    // of `setup-node@v4` takes the cache only when it is set, and calls
+    // the CacheService v2 of `ACTIONS_RESULTS_URL` (T-308 A10).
+    let mut d = json!({
+        "ServerId": guid(5), "ServerName": "podrunner-broker-fake", "ResultsServiceUrl": base, "CacheServerUrl": base,
+    });
     // The live feed of the runner (T-310), on the loopback only: a guest
     // reaches the broker through a front that takes no websocket.
     if let Some(rest) = base.strip_prefix("http://127.0.0.1:") {
@@ -334,6 +339,9 @@ mod tests {
         assert_eq!(m["steps"][1]["condition"], "success() && (github.event_name == 'push')");
         assert_eq!(m["environmentVariables"][0]["map"][0]["Key"], "A");
         assert!(m["jobContainer"].is_null());
+        // T-308 A10: the runner gives ACTIONS_CACHE_URL from CacheServerUrl.
+        let data = &m["resources"]["endpoints"][0]["data"];
+        assert_eq!((data["CacheServerUrl"].as_str(), data["ResultsServiceUrl"].as_str()), (Some("http://127.0.0.1:1/"), Some("http://127.0.0.1:1/")));
         // The job token is a JWT with three parts and an expiry.
         let token = job_token();
         let parts: Vec<&str> = token.split('.').collect();

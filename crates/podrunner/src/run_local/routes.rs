@@ -134,6 +134,22 @@ fn paths(a: &Args, e: &mut InUnit) {
     }
 }
 
+/// A warning for each `--platform` of a Windows or macOS label: its jobs
+/// run on Linux, and a green job there proves nothing of that system
+/// (T-308 A14).
+pub(super) fn foreign_routes(a: &Args) -> Vec<String> {
+    let foreign = |l: &str| ["windows", "macos"].iter().any(|p| l.to_ascii_lowercase().starts_with(p));
+    a.platforms
+        .iter()
+        .filter(|(l, _)| foreign(l))
+        .map(|(l, t)| {
+            format!(
+                "--platform {l}={t}: each job of runs-on {l:?} runs on Linux, with runner.os Linux; its steps for that system (pwsh, cmd, brew) fail or do other things"
+            )
+        })
+        .collect()
+}
+
 /// The executor of the run, with the state of its units under `state`.
 pub(super) fn build(a: &Args, c: &Common, state: &Path) -> Result<Box<dyn Executor>, Out> {
     let default = match (&a.image, a.runner_dir.is_some()) {

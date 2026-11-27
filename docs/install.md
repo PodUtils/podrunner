@@ -90,9 +90,18 @@ and `allow` lines, and give in `allow` each host that a job needs.
 
 `PODRUNNER_MIRROR=URL` takes each file from `URL/NAME` in place of its
 release on github.com (`file://DIR` is a directory). Each file must agree
-with its pin. The mirror must also hold `SHA256SUMS` and
-`release-index.json` of the release, and `SHA256SUMS.sigstore.json` when
-`pod-release` or `cosign` is on `PATH`.
+with its pin. The mirror holds the files of four releases in one place,
+for the architecture ARCH (`x86_64` or `aarch64`; RARCH `x64` or `arm64`):
+`podrunner-ARCH-unknown-linux-musl`, `podrunner.1`, `runner-ARCH.tar`
+(`runner-full-ARCH.tar` with `--full`), `SHA256SUMS` and
+`release-index.json` of the podrunner release, and
+`SHA256SUMS.sigstore.json` when `pod-release` or `cosign` is on `PATH`;
+`podvm-ARCH` of podvm; `podnet-ARCH-unknown-linux-musl` of podnet;
+`actions-runner-linux-RARCH-VERSION.tar.gz` of actions/runner. A failed
+install leaves no partial file and no temporary file. It keeps the
+directories of the table in "Remove podrunner" and each file that it put
+in place before the failure; the next run checks each such file against
+its pin.
 
 ## Remove podrunner
 

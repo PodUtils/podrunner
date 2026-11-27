@@ -84,7 +84,9 @@ fn fail_fast_cancels_the_cells_that_did_not_run() {
     let ok = drive(&mut s, &mut exec, &mut |l| lines.push(l.clone())).unwrap();
     assert!(!ok);
     assert_eq!(exec.ran, ["m.0"], "the other cells do not run");
-    let cancelled = lines.iter().filter(|l| matches!(l, Line::Ran { result: JobResult::Cancelled, .. })).count();
+    // T-308 A25: each cancelled cell names the cell that failed.
+    let why = "fail-fast: the cell \"m (1)\" failed";
+    let cancelled = lines.iter().filter(|l| matches!(l, Line::Cancelled { reason, .. } if reason == why)).count();
     assert_eq!(cancelled, 2, "{lines:?}");
     assert_eq!(s.result("m"), Some(JobResult::Failure));
     // With `fail-fast: false`, each cell runs.
@@ -225,4 +227,28 @@ fn the_limit_of_a_job_is_at_most_five_days() {
     let mut got: Vec<u64> = exec.0.iter().map(|d| d.as_secs()).collect();
     got.sort();
     assert_eq!(got, [30 * 60, 5 * 24 * 3600]);
+}
+
+/// T-308 A28: a job after a job that `--job` keeps out is not selected, not
+/// skipped by `if: success()`; a skip of a selected job keeps its `if:`.
+#[test]
+fn a_job_after_a_left_out_job_is_not_selected() {
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n  b:\n    needs: a\n    runs-on: x\n    \
+                steps: [{run: b}]\n  c:\n    needs: b\n    name: The C\n    runs-on: x\n    steps: [{run: c}]\n  \
+                d:\n    needs: a\n    if: failure()\n    runs-on: x\n    steps: [{run: d}]\n";
+    let mut s = LocalSource::new("l", text, Base::default(), "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+    s.set_filter(&["a".into(), "d".into()], &[]).unwrap();
+    let mut exec = Scripted::default();
+    let mut lines = Vec::new();
+    assert!(drive(&mut s, &mut exec, &mut |l| lines.push(l.clone())).unwrap());
+    assert_eq!(exec.ran, ["a.0"]);
+    let not_selected: Vec<&str> = lines
+        .iter()
+        .filter_map(|l| match l {
+            Line::NotSelected { name, reason, .. } if reason == "not selected (--job)" => Some(name.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(not_selected, ["b", "The C"], "{lines:?}");
+    assert!(lines.iter().any(|l| matches!(l, Line::Skipped { job, .. } if job == "d")), "{lines:?}");
 }

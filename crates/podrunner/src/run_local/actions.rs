@@ -244,10 +244,22 @@ pub(super) fn pin(
     }
     let mut note = String::new();
     if r.changed {
-        r.lock.write(&lock_path).map_err(s)?;
-        note = format!("podrunner: {name} pins {} references\n", r.lock.pins.len() + r.lock.images.len());
+        // A dry run changes no file of the tree (T-308 A16).
+        if !a.dry_run {
+            r.lock.write(&lock_path).map_err(s)?;
+        }
+        note = pins_note(&name, r.lock.pins.len() + r.lock.images.len(), a.dry_run);
     }
     Ok(Some(Pinned { dir, commits: r.commits, note, checkouts }))
+}
+
+/// The line of a changed lock: `n` references in the lock `name`.
+fn pins_note(name: &str, n: usize, dry: bool) -> String {
+    let refs = if n == 1 { "reference" } else { "references" };
+    match dry {
+        true => format!("podrunner: --dry-run: {name} would pin {n} {refs}; a run writes it\n"),
+        false => format!("podrunner: {name} pins {n} {refs}\n"),
+    }
 }
 
 /// The grant of the forge for a fetch, or `None` for a forge on a local

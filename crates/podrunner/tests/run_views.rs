@@ -73,3 +73,29 @@ fn a_run_warns_on_a_timeout_above_five_days() {
         assert!(!err.contains("timeout-minutes"), "{ok}: {err}");
     }
 }
+
+/// T-308 A23: a run that its start refuses (a runner directory that another
+/// run holds) prints the refusal and no line of the egress hold.
+#[test]
+fn a_refused_start_prints_no_line_of_the_hold() {
+    let dir = Scratch::new("run-refused-hold");
+    std::fs::create_dir_all(dir.join("runner/bin")).unwrap();
+    std::fs::write(dir.join("runner/run.sh"), "").unwrap();
+    std::fs::write(dir.join("runner/bin/Runner.Listener"), "").unwrap();
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{run: a}]\n").unwrap();
+    let lock = dir.join("runner/.podrunner-run.lock");
+    let held = pod_core::lock::FileLock::try_lock(&lock, pod_core::lock::Mode::Exclusive).unwrap().unwrap();
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_podrunner"))
+        .current_dir(&*dir)
+        .args(["run", "w.yml", "--no-config", "--no-cache", "--checkout", ".", "--runner-dir", "runner"])
+        .env("XDG_CONFIG_HOME", dir.join("config"))
+        .env("XDG_CACHE_HOME", dir.join("cache"))
+        .stdin(std::process::Stdio::null())
+        .output()
+        .unwrap();
+    drop(held);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_ne!(out.status.code(), Some(0), "{err}");
+    assert!(err.contains("another run of podrunner uses this runner directory"), "{err}");
+    assert!(!err.contains("the egress hold"), "{err}");
+}

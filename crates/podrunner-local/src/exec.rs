@@ -36,7 +36,7 @@ mod toolcache;
 pub mod vnet;
 pub mod workdir;
 
-pub use host::{PASSED, RunnerDir, space_refusal};
+pub use host::{PASSED, RunnerDir, busy as runner_dir_busy, space_refusal};
 #[cfg(test)]
 use images::{images, registries};
 pub use noproxy::dropped as dropped_no_proxy;

@@ -86,8 +86,9 @@ pub struct LocalSource {
     skips: Vec<Skip>,
     /// The `github` context of the run: each step reads it (T-114).
     github: XValue,
-    /// The cells that `fail-fast` cancelled before they ran (T-117).
-    cancelled: std::collections::BTreeSet<JobId>,
+    /// The cells that `fail-fast` cancelled before they ran (T-117), with
+    /// the reason (T-308 A25).
+    cancelled: BTreeMap<JobId, String>,
     vars: XValue,
     inputs: XValue,
     /// The secrets of the run (T-121) and the token of `github.token`
@@ -260,7 +261,12 @@ impl LocalSource {
 
     /// `fail-fast` cancelled the cell `job` before it ran (T-117).
     pub fn is_cancelled(&self, job: &JobId) -> bool {
-        self.cancelled.contains(job)
+        self.cancelled.contains_key(job)
+    }
+
+    /// Why `fail-fast` cancelled the cell `job`: the cell that failed.
+    pub fn cancel_reason(&self, job: &JobId) -> Option<&str> {
+        self.cancelled.get(job).map(String::as_str)
     }
 
     /// The job of the cell `job` has `continue-on-error`: its failure does
@@ -378,6 +384,8 @@ impl LocalSource {
             && cell.instance.strategy.as_object().and_then(|o| o.get("fail-fast")).and_then(|v| v.as_bool())
                 == Some(true);
         let (job_name, index) = (cell.job.clone(), cell.index);
+        // As GitHub: "The strategy configuration was canceled because ... failed".
+        let reason = format!("fail-fast: the cell {:?} failed", cell.instance.name);
         let ends = self.ends.get_mut(&job_name).ok_or_else(|| format!("the job of {job} is done"))?;
         let slot = &mut ends[index];
         if slot.is_some() {
@@ -392,7 +400,7 @@ impl LocalSource {
                     *s = Some(Done::of(JobResult::Cancelled));
                     if let Ok(id) = calls::cell_id(&job_name, i) {
                         self.pending.retain(|o| o.job_id != id);
-                        self.cancelled.insert(id);
+                        self.cancelled.insert(id, reason.clone());
                     }
                 }
             }

@@ -192,6 +192,7 @@ impl Web {
             }
             Line::Refused { job, name, reason } => (job.to_string(), name.clone(), format!("failure: {reason}")),
             Line::NotSelected { job, name, reason } => (job.to_string(), name.clone(), format!("skipped: {reason}")),
+            Line::Cancelled { job, name, reason } => (job.to_string(), name.clone(), format!("cancelled: {reason}")),
             Line::Skipped { job, condition } => (job.clone(), job.clone(), format!("skipped: if: {condition}")),
         };
         let j = v.job(&id);

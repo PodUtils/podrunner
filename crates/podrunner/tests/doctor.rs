@@ -39,6 +39,13 @@ fn doctor_run_checks_the_inputs_of_a_local_run() {
     let args = |a: &[&str]| a.iter().map(|s| s.to_string()).collect::<Vec<String>>();
     let out = podrunner::cli::run(&args(&["doctor", "--run", &w, "--runner-dir", &r]));
     assert!(out.stdout.contains("ok   runner-dir") && out.stdout.contains("ok   workflow"), "{}", out.stdout);
+    // T-308 A28: a runner directory that a run holds now fails the check.
+    let lock = dir.join("runner/.podrunner-run.lock");
+    let held = pod_core::lock::FileLock::try_lock(&lock, pod_core::lock::Mode::Exclusive).unwrap().unwrap();
+    let out = podrunner::cli::run(&args(&["doctor", "--run", &w, "--runner-dir", &r]));
+    assert_eq!(out.code, 1, "{}", out.stdout);
+    assert!(out.stdout.contains("FAIL runner-dir") && out.stdout.contains("another run of podrunner"), "{}", out.stdout);
+    drop(held);
     let missing = dir.join("none").display().to_string();
     let out = podrunner::cli::run(&args(&["doctor", "--run", &w, "--runner-dir", &missing]));
     assert_eq!(out.code, 1, "{}", out.stdout);

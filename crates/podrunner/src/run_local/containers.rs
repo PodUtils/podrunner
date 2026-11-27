@@ -1,7 +1,8 @@
 //! The jobs with containers that the executor of a run cannot run (T-327,
 //! T-330): one refusal that says what the host needs, before the pin and
-//! the pull of their images. A run with `--platform` routes each job, so it
-//! gets none here: each executor refuses at the start of the job.
+//! the pull of their images. A run with a `--platform` of an image routes
+//! each job, so it gets none here: each executor refuses at the start of
+//! the job.
 
 use std::collections::BTreeMap;
 
@@ -27,7 +28,9 @@ const FIX: &str = "run it with --podvm where `podrunner doctor --run` shows `ok 
 /// only.
 pub(super) fn refusals(a: &Args, hooks: impl FnOnce() -> bool) -> BTreeMap<String, String> {
     let mut out = BTreeMap::new();
-    if !a.platforms.is_empty() {
+    // Routes to a runner directory only run no container either (T-308 A13).
+    let host_only = a.podvm.is_none() && a.guest.is_none() && a.platforms.iter().all(|(_, t)| t == "host");
+    if !a.platforms.is_empty() && !host_only {
         return out;
     }
     let containers = match (&a.podvm, &a.guest) {
@@ -78,7 +81,11 @@ mod tests {
             no_hooks[REFUSE_CONTAINERS].contains("no container hooks")
                 && !no_hooks[REFUSE_CONTAINERS].contains("--podvm")
         );
+        // T-308 A13: routes to the runner directory only refuse as it does.
         let routed = Args { platforms: vec![("x".into(), "host".into())], ..dir };
-        assert!(refusals(&routed, || false).is_empty(), "--platform: each executor refuses");
+        assert!(refusals(&routed, || false)[REFUSE_CONTAINERS].contains("a runner directory runs none"));
+        let image = format!("i@sha256:{}", "a".repeat(64));
+        let mixed = Args { platforms: vec![("y".into(), image)], podvm: Some("/p".into()), ..routed };
+        assert!(refusals(&mixed, || false).is_empty(), "--platform with a unit: each executor refuses");
     }
 }

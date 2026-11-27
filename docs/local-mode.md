@@ -73,7 +73,12 @@ A job on `--runner-dir` gets a scratch `HOME` (`_work/_home` of the runner
 directory), which the next job removes. It runs as the user of podrunner,
 with the files and the network of that user: it is not a unit.
 
-The work directory of the runner is `_work` of the runner directory. When
+The work directory of the runner is `_work` of the runner directory. Each
+job starts in a new work directory, and the end of the run removes it:
+`--export DIR` keeps the workspaces. The run also removes the runner files
+that it wrote (`.runner`, `.credentials`, `.credentials_rsaparams`), also
+after a signal. A runner that `config.sh` configured is refused: podrunner
+would write over its files. When
 the path of the runner directory has a name that starts with `.` (the
 installer puts it in `~/.local/share/podrunner`), the work directory is
 `podrunner-work/NAME-HASH` in the directory before that name (for example

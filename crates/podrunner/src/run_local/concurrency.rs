@@ -80,6 +80,7 @@ pub(super) fn hold(
                 note(format!("podrunner: the group {:?} waits for another job of this run\n", group.name));
             } else if group.cancel_in_progress && pid > 1 {
                 note(format!("podrunner: the group {:?} cancels the run {pid} that holds it\n", group.name));
+                mark_cancel(&path, pid);
                 // SAFETY: a signal to the process that wrote the lock.
                 unsafe { libc::kill(pid, libc::SIGTERM) };
             } else {
@@ -91,7 +92,36 @@ pub(super) fn hold(
     };
     write_pid(&lock)?;
     HELD.lock().unwrap_or_else(|e| e.into_inner()).insert(path.clone(), run);
+    NAMES.lock().unwrap_or_else(|e| e.into_inner()).insert(path.clone(), group.name.clone());
     Ok(Held(Some((lock, path))))
+}
+
+/// The name of each group that this process held, by its lock file.
+static NAMES: std::sync::Mutex<std::collections::BTreeMap<PathBuf, String>> =
+    std::sync::Mutex::new(std::collections::BTreeMap::new());
+
+/// Before the signal of `cancel-in-progress`: `GROUP.cancel` names the run
+/// that gets it and the run that sends it, so the cancelled run can name
+/// its cause (T-308 A18).
+fn mark_cancel(path: &Path, to: i32) {
+    let _ = std::fs::write(path.with_extension("cancel"), format!("{to} {}\n", std::process::id()));
+}
+
+/// The line of a run that `cancel-in-progress` of a newer run of one of
+/// its groups cancelled, else `None`. The mark goes.
+pub(super) fn cancelled_by() -> Option<String> {
+    let me = std::process::id().to_string();
+    let names = NAMES.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    names.into_iter().find_map(|(path, name)| {
+        let mark = path.with_extension("cancel");
+        let text = std::fs::read_to_string(&mark).ok()?;
+        let mut words = text.split_whitespace();
+        (words.next() == Some(me.as_str())).then(|| {
+            let _ = std::fs::remove_file(&mark);
+            let by = words.next().unwrap_or("?");
+            format!("podrunner: the group {name:?} cancelled the run: the newer run {by} of the group has cancel-in-progress\n")
+        })
+    })
 }
 
 /// The process id in a lock file of a group, read with no lock.
@@ -312,6 +342,37 @@ mod tests {
         drop(first);
         let n = t.join().unwrap();
         assert!(n.iter().any(|l| l.contains("another job of this run")), "{n:?}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-308 A18: `cancel-in-progress` marks the run that it cancels; that
+    /// run names the group and the newer run once.
+    #[test]
+    fn a_cancelled_run_names_its_group() {
+        let dir = std::env::temp_dir().join(format!("podrunner-group-mark-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let g = Group { name: "deploy-mark".into(), cancel_in_progress: true };
+        let path = dir.join(file_name("o/r", &g.name));
+        let script = format!("echo $$ > '{0}'; exec flock -o '{0}' sleep 300", path.display());
+        let mut holder = std::process::Command::new("sh").args(["-c", &script]).spawn().unwrap();
+        while std::fs::read_to_string(&path).map_or(true, |t| t.trim().is_empty()) {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        while FileLock::try_lock_existing(&path, Mode::Exclusive).unwrap().is_some() {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let held = hold(&dir, "o/r", &g, true, &mut |_| {}).unwrap();
+        let _ = holder.wait();
+        let mark = std::fs::read_to_string(path.with_extension("cancel")).unwrap();
+        assert_eq!(mark, format!("{} {}\n", holder.id(), std::process::id()));
+        assert_eq!(cancelled_by(), None, "the mark names another run");
+        // The mark of a newer run that cancels this one.
+        mark_cancel(&path, std::process::id() as i32);
+        let line = cancelled_by().expect("a line");
+        assert!(line.contains("the group \"deploy-mark\" cancelled the run"), "{line}");
+        assert_eq!(cancelled_by(), None, "the mark goes");
+        drop(held);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

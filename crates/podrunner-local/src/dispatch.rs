@@ -40,7 +40,10 @@ pub fn foreign(labels: &[String]) -> Result<(), String> {
         l.starts_with("windows") || l.starts_with("macos")
     });
     if let Some(l) = other_os {
-        return Err(format!("runs-on {l:?}: a unit is Linux; name a --platform for the label to run it there"));
+        // A runner directory is Linux too (T-308 A14).
+        return Err(format!(
+            "runs-on {l:?}: podrunner runs each job on Linux (a unit or a runner directory); --platform LABEL=TARGET runs it there, on Linux"
+        ));
     }
     if let Some((l, arch)) = labels.iter().find_map(|l| no_unit(l).map(|a| (l, a))) {
         return Err(format!(

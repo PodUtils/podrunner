@@ -91,3 +91,19 @@ fn the_runner_of_the_command_line_goes_to_each_unit() {
     super::paths(&super::super::args::parse(&line(&[])).unwrap(), &mut e);
     assert_eq!(e.run_sh, "/home/runner/run.sh");
 }
+
+/// T-308 A14: a `--platform` of a Windows or macOS label, in any case, warns
+/// that its jobs run on Linux; another label does not.
+#[test]
+fn a_route_of_windows_or_macos_warns() {
+    let platforms = [("Windows-Latest", "host"), ("macos-14", "host"), ("gpu", "host"), ("ubuntu-latest", "host")];
+    let a = super::Args {
+        platforms: platforms.iter().map(|(l, t)| (l.to_string(), t.to_string())).collect(),
+        ..super::Args::default()
+    };
+    let w = super::foreign_routes(&a);
+    assert_eq!(w.len(), 2, "{w:?}");
+    assert!(w[0].starts_with("--platform Windows-Latest=host: each job of runs-on \"Windows-Latest\" runs on Linux"));
+    assert!(w[1].contains("\"macos-14\""), "{w:?}");
+    assert!(super::foreign_routes(&super::Args::default()).is_empty());
+}

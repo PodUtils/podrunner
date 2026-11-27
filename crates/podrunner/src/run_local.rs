@@ -79,8 +79,12 @@ pub fn line(l: &Line) -> String {
         Line::Skipped { job, condition } => format!("skipped {job}: if: {condition}\n"),
         Line::NotSelected { name, reason, .. } => format!("skipped {}: {reason}\n", one(name)),
         Line::Kept { name, result, .. } => format!("kept    {} ({})\n", one(name), result.as_str()),
+        Line::Cancelled { name, reason, .. } => format!("cancelled {}: {reason}\n", one(name)),
     }
 }
+
+/// Why an expression can fail in a dry run only (T-308 A15).
+const DRY_OUTPUTS: &str = "podrunner: a dry run runs no job, so each output of a job is empty: an expression of a later job that reads one (fromJSON(needs.ID.outputs.KEY)) can fail in a dry run only\n";
 
 /// The vars, the inputs and the env of the run: each file, then each flag
 /// over it (T-126).
@@ -276,7 +280,8 @@ pub fn run(args: &[String]) -> Out {
         return fail(Class::Usage, e);
     }
     // The warning of `--validate` for a job that the run stops early (T-709).
-    inspect::long_timeouts(source.workflow()).iter().for_each(|w| eprintln!("podrunner: warning: {w}"));
+    let warnings = inspect::long_timeouts(source.workflow()).into_iter().chain(routes::foreign_routes(&a));
+    warnings.for_each(|w| eprintln!("podrunner: warning: {w}"));
     // The values to mask in each line that podrunner writes (T-134).
     let mut masked: Vec<String> = Vec::new();
     // The secrets and vars of each environment (T-136).
@@ -336,10 +341,6 @@ pub fn run(args: &[String]) -> Out {
     };
     let mut stdout = String::new();
     let mut stderr = note;
-    // The egress hold of the units, once (T-226).
-    if !a.quiet && !a.dry_run {
-        eprintln!("podrunner: the egress hold: {}", doctor::hold(&a));
-    }
     podrunner_local::cancel::install();
     let (dry, as_json) = (a.dry_run, a.json);
     // The pauses wait for Enter on the terminal (T-150); a dry run has none.
@@ -413,6 +414,11 @@ pub fn run(args: &[String]) -> Out {
         Ok(b) => b,
         Err(o) => return o,
     };
+    // The egress hold of the units, once, after each refusal of the start
+    // (T-226, T-308 A23).
+    if !a.quiet && !a.dry_run {
+        eprintln!("podrunner: the egress hold: {}", doctor::hold(&a));
+    }
     let (result, (logs, blobs)) = slots::run(&mut source, execs, &mut each);
     group_notes.extend(notes_sink.lock().map(|n| n.clone()).unwrap_or_default());
     stderr.extend(group_notes.iter().map(String::as_str));
@@ -446,10 +452,11 @@ pub fn run(args: &[String]) -> Out {
         stderr.push_str(&format!("podrunner: {} requests had no route of the fake broker\n", missing.len()));
     }
     if podrunner_local::cancel::requested() {
-        stderr.push_str(match podrunner_local::cancel::by_change() {
-            true => "podrunner: a change of the tree cancelled the run\n",
-            false => "podrunner: a signal cancelled the run\n",
-        });
+        let why = match podrunner_local::cancel::by_change() {
+            true => "podrunner: a change of the tree cancelled the run\n".to_string(),
+            false => concurrency::cancelled_by().unwrap_or_else(|| "podrunner: a signal cancelled the run\n".into()),
+        };
+        stderr.push_str(&why);
         return Out { code: 130, stdout, stderr };
     }
     let out = match result {
@@ -461,6 +468,7 @@ pub fn run(args: &[String]) -> Out {
         }
         Err(e) => {
             stderr.push_str(&format!("podrunner: {e}\n"));
+            stderr.push_str(if a.dry_run { DRY_OUTPUTS } else { "" });
             Out { code: Class::Protocol.exit_code(), stdout, stderr }
         }
     };
@@ -469,6 +477,8 @@ pub fn run(args: &[String]) -> Out {
 
 #[cfg(test)]
 mod flags_tests;
+#[cfg(test)]
+mod qa3_tests;
 #[cfg(test)]
 pub(crate) mod qa6_tests;
 #[cfg(test)]

@@ -139,6 +139,9 @@ pub(super) fn line_json(l: &Line, dry: bool) -> String {
         Line::NotSelected { job, name, reason } => {
             json!({ "event": "job", "job": job.to_string(), "name": name, "result": "skipped", "reason": reason })
         }
+        Line::Cancelled { job, name, reason } => {
+            json!({ "event": "job", "job": job.to_string(), "name": name, "result": "cancelled", "reason": reason })
+        }
     };
     format!("{v}\n")
 }
@@ -146,7 +149,7 @@ pub(super) fn line_json(l: &Line, dry: bool) -> String {
 /// The mark of each line of podrunner in `job.log` (T-723).
 const MARK: &str = "[podrunner] ";
 
-/// Write `DIR/JOB/step-ID.log` for each step log, `DIR/JOB/job.log` for the
+/// Write `DIR/JOB/step-NN.log` for each step log, `DIR/JOB/job.log` for the
 /// rest, and `DIR/JOB/summary.md` of the summaries of the job. `job.log`
 /// ends with the lines that podrunner added, each with [`MARK`]. A job that
 /// sent no log (it failed before it ran) gets its log of the run as
