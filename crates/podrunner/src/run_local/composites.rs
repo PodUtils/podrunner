@@ -15,8 +15,13 @@ const DEPTH: usize = 10;
 /// the tree `base` (the checkout). An `action.yml` that is not there is
 /// left out: its job fails at its start, as on GitHub.
 pub(super) fn local_uses(w: &pod_actions_workflow::Workflow, base: &Path) -> Result<Vec<String>, String> {
+    Ok(remote_uses(&local_steps(w, base)?))
+}
+
+/// Each remote `uses:` of `steps`, once.
+fn remote_uses(steps: &[(String, Node)]) -> Vec<String> {
     let mut out = Vec::new();
-    for (_, s) in local_steps(w, base)? {
+    for (_, s) in steps {
         let Some(Kind::String(u)) = s.get("uses").map(|n| &n.kind) else { continue };
         // The broker resolves `actions/checkout` to its stand-in (T-708).
         if !u.starts_with("./")
@@ -27,7 +32,7 @@ pub(super) fn local_uses(w: &pod_actions_workflow::Workflow, base: &Path) -> Res
             out.push(u.clone());
         }
     }
-    Ok(out)
+    out
 }
 
 /// A checkout step of an action: the path of a local action (or the
@@ -38,12 +43,26 @@ pub(super) use podrunner_local::store::checkouts::Checkout;
 /// Each `uses: actions/checkout@REF` step of the local actions of the steps
 /// of `w` (T-713): the run pins the trees of their static values.
 pub(super) fn local_checkouts(w: &pod_actions_workflow::Workflow, base: &Path) -> Result<Vec<Checkout>, String> {
+    Ok(checkouts(local_steps(w, base)?))
+}
+
+/// Each `uses: actions/checkout@REF` step of `steps`.
+fn checkouts(steps: Vec<(String, Node)>) -> Vec<Checkout> {
     let checkout = |s: &Node| matches!(s.get("uses").map(|n| &n.kind), Some(Kind::String(u)) if u.starts_with("actions/checkout@"));
-    Ok(local_steps(w, base)?
+    steps
         .into_iter()
         .filter(|(_, s)| checkout(s))
         .map(|(path, s)| (path, s.mark.line, s.get("with").cloned()))
-        .collect())
+        .collect()
+}
+
+/// Each remote `uses:` and each checkout step of the local actions `paths`
+/// that the composite actions of the store name (T-725), and of each local
+/// action that one names. On GitHub, `uses: ./PATH` in an action names a
+/// path of the workspace. Each path has its level in the chain of actions.
+pub(super) fn store_locals(paths: &[(String, usize)], base: &Path) -> Result<(Vec<String>, Vec<Checkout>), String> {
+    let steps = steps_from(paths.to_vec(), base)?;
+    Ok((remote_uses(&steps), checkouts(steps)))
 }
 
 /// Each `OWNER/REPO@REF` of a checkout of another repository in the local
@@ -71,13 +90,20 @@ pub(super) fn trees_of(found: &[Checkout], self_repo: &str) -> Vec<String> {
 /// Each step of each local composite action that the steps of `w` name,
 /// and of each local action that one names, with the path of its action.
 fn local_steps(w: &pod_actions_workflow::Workflow, base: &Path) -> Result<Vec<(String, Node)>, String> {
-    let mut queue: Vec<(String, usize)> = w
+    let queue: Vec<(String, usize)> = w
         .jobs
         .iter()
         .flat_map(|j| j.steps.iter().filter_map(|s| s.uses.clone()))
         .filter(|u| u.starts_with("./"))
         .map(|u| (u, 1))
         .collect();
+    steps_from(queue, base)
+}
+
+/// Each step of each local composite action of `queue` (a path and its
+/// level), and of each local action that one names, with the path of its
+/// action.
+fn steps_from(mut queue: Vec<(String, usize)>, base: &Path) -> Result<Vec<(String, Node)>, String> {
     let (mut seen, mut out) = (BTreeSet::new(), Vec::new());
     while let Some((path, depth)) = queue.pop() {
         if !seen.insert(path.clone()) {
@@ -245,5 +271,41 @@ mod tests {
             super::local_checkouts(&w, &dir).unwrap().into_iter().map(|(p, l, _)| (p, l)).collect();
         assert_eq!(lines.len(), 7, "{lines:?}");
         assert!(lines.contains(&("./b".to_string(), 6)) && lines.contains(&("./a".to_string(), 4)), "{lines:?}");
+    }
+
+    /// T-725: a local action that an action of the store names, and a local
+    /// action that one names, give their remote `uses:` and their checkouts
+    /// with the path of their action; the level of the path counts to 10,
+    /// and a path with `..` is refused.
+    #[test]
+    fn the_local_actions_that_the_actions_of_the_store_name() {
+        // The directory goes at the drop, also after a panic.
+        let dir = crate::scratch::Scratch::new("store-locals");
+        let comp = |p: &str, steps: &str| {
+            std::fs::create_dir_all(dir.join(p)).unwrap();
+            std::fs::write(dir.join(p).join("action.yml"), format!("runs:\n  using: composite\n  steps:\n{steps}"))
+                .unwrap();
+        };
+        comp(
+            "a",
+            "    - uses: o/rem@v1\n    - uses: actions/checkout@v4\n      with: {repository: o/second}\n    - uses: ./b\n",
+        );
+        comp("b", "    - uses: o/other@v2\n    - uses: actions/checkout@v4\n    - uses: o/rem@v1\n");
+        let (uses, found) = super::store_locals(&[("./a".to_string(), 2), ("./none".to_string(), 2)], &dir).unwrap();
+        let mut uses = uses;
+        uses.sort();
+        assert_eq!(uses, ["o/other@v2", "o/rem@v1"]);
+        let lines: Vec<(&str, u32)> = found.iter().map(|(p, l, _)| (p.as_str(), *l)).collect();
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert!(lines.contains(&("./a", 5)) && lines.contains(&("./b", 5)), "{lines:?}");
+        assert_eq!(super::trees_of(&found, "me/self"), ["o/second@HEAD"]);
+        // `./b` is at level 11 when `./a` is at level 10.
+        let deep = super::store_locals(&[("./a".to_string(), 10)], &dir).unwrap_err();
+        assert!(deep.contains("deeper than 10"), "{deep}");
+        assert!(super::store_locals(&[("./a".to_string(), 9)], &dir).is_ok());
+        let up = super::store_locals(&[("./../x".to_string(), 2)], &dir).unwrap_err();
+        assert!(up.contains("no `..`"), "{up}");
+        let (u, c) = super::store_locals(&[], &dir).unwrap();
+        assert!(u.is_empty() && c.is_empty());
     }
 }

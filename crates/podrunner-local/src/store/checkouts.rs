@@ -1,6 +1,7 @@
 //! The checkout steps of the composite actions of the store (T-718): the
 //! run pins the trees of their static `repository` and `ref` before the
-//! first job, as for a local composite action (T-713).
+//! first job, as for a local composite action (T-713). The walk also gives
+//! each local action (`./PATH`) that they name (T-725).
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
@@ -15,14 +16,26 @@ const DEPTH: usize = 10;
 /// the line of the step in its `action.yml`, and its `with:`.
 pub type Checkout = (String, u32, Option<Node>);
 
-/// Each `uses: actions/checkout@REF` step of each composite action of the
-/// store that `uses` names, and of each action of the store that one names.
-/// `commits` gives the commit of each `OWNER/REPO@REF` in the store `dir`.
-/// An action that the store does not have, or that is not composite, has
-/// none: its job fails at its start, as on GitHub.
-pub fn action_checkouts(uses: &[String], dir: &Path, commits: &BTreeMap<String, String>) -> Vec<Checkout> {
+/// What the walk of the composite actions of the store finds.
+#[derive(Debug, Default)]
+pub struct Found {
+    /// Each `uses: actions/checkout@REF` step.
+    pub checkouts: Vec<Checkout>,
+    /// Each `uses: ./PATH` step (T-725): on GitHub it names a local action
+    /// of the workspace, not of the repository of the action. The second
+    /// part is the level of that local action in the chain.
+    pub locals: Vec<(String, usize)>,
+}
+
+/// Each `uses: actions/checkout@REF` and each `uses: ./PATH` step of each
+/// composite action of the store that `uses` names, and of each action of
+/// the store that one names. `commits` gives the commit of each
+/// `OWNER/REPO@REF` in the store `dir`. An action that the store does not
+/// have, or that is not composite, has none: its job fails at its start,
+/// as on GitHub.
+pub fn action_checkouts(uses: &[String], dir: &Path, commits: &BTreeMap<String, String>) -> Found {
     let mut queue: VecDeque<(String, usize)> = uses.iter().map(|u| (u.clone(), 1)).collect();
-    let (mut seen, mut out) = (BTreeSet::new(), Vec::new());
+    let (mut seen, mut out) = (BTreeSet::new(), Found::default());
     while let Some((u, depth)) = queue.pop_front() {
         if depth > DEPTH || !seen.insert(u.clone()) {
             continue;
@@ -30,8 +43,13 @@ pub fn action_checkouts(uses: &[String], dir: &Path, commits: &BTreeMap<String, 
         for s in steps(&u, dir, commits) {
             let Some(Kind::String(inner)) = s.get("uses").map(|n| &n.kind) else { continue };
             if inner.starts_with("actions/checkout@") {
-                out.push((u.clone(), s.mark.line, s.get("with").cloned()));
-            } else if !inner.starts_with("./") && !inner.starts_with("docker://") {
+                out.checkouts.push((u.clone(), s.mark.line, s.get("with").cloned()));
+            } else if inner.starts_with("./") {
+                // The walk is breadth first: the first level is the lowest.
+                if !out.locals.iter().any(|(p, _)| p == inner) {
+                    out.locals.push((inner.clone(), depth + 1));
+                }
+            } else if !inner.starts_with("docker://") {
                 queue.push_back((inner.clone(), depth + 1));
             }
         }

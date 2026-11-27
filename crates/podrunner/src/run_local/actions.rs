@@ -63,10 +63,10 @@ pub(super) fn pin(
     let mut uses = workflow_uses(&workflow);
     // The local composite actions of the tree (T-346), and the workflows of
     // the tree that a job calls, with their own (#238).
-    let base = a.checkout.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default();
-    let called = super::composites::local_calls(&workflow, &base)?;
+    let tree = a.checkout.clone().or_else(|| std::env::current_dir().ok()).unwrap_or_default();
+    let called = super::composites::local_calls(&workflow, &tree)?;
     for w in std::iter::once(&workflow).chain(&called) {
-        let more = workflow_uses(w).into_iter().chain(super::composites::local_uses(w, &base)?);
+        let more = workflow_uses(w).into_iter().chain(super::composites::local_uses(w, &tree)?);
         for u in more {
             if !uses.contains(&u) {
                 uses.push(u);
@@ -83,7 +83,7 @@ pub(super) fn pin(
     }
     // The checkouts of other repositories in the local actions (T-713).
     for w in std::iter::once(&workflow).chain(&called) {
-        for t in super::composites::local_trees(w, &base, self_repo)? {
+        for t in super::composites::local_trees(w, &tree, self_repo)? {
             if !trees.contains(&t) {
                 trees.push(t);
             }
@@ -168,10 +168,30 @@ pub(super) fn pin(
             let mut git = Git::new(base.clone(), std::env::temp_dir());
             git.proxy = fetch.as_ref().map(|f| f.proxy.clone());
             let forge = Local::new(a.local_repos.iter().cloned().collect(), &git);
-            let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
             // The checkouts of other repositories in the composite actions
-            // of the store (T-718): the actions are in the store now.
-            let found = podrunner_local::store::checkouts::action_checkouts(&uses, &store.dir, &r.commits);
+            // of the store (T-718): the actions are in the store after
+            // `resolve`. A local action that one names (T-725) can name more
+            // actions: resolve again until no new one comes.
+            let mut uses = uses.clone();
+            let (r, found) = loop {
+                let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
+                let mut found = podrunner_local::store::checkouts::action_checkouts(&uses, &store.dir, &r.commits);
+                let (more, local) = super::composites::store_locals(&found.locals, &tree).map_err(|e| {
+                    let reason = format!("a local action that an action of the store names: {e}");
+                    podrunner_local::store::Error::Forge { repo: String::new(), reason }
+                })?;
+                found.checkouts.extend(local);
+                let more: Vec<String> = more.into_iter().filter(|u| !uses.contains(u)).collect();
+                if more.is_empty() {
+                    break (r, found.checkouts);
+                }
+                // No fetch of a name with `..` (#261).
+                for u in &more {
+                    podrunner_local::store::repo_ok(u)
+                        .map_err(|_| podrunner_local::store::Error::Uses { uses: u.clone() })?;
+                }
+                uses.extend(more);
+            };
             let mut all = trees.clone();
             // A name with `..` gets no tree (#261): the stand-in fails its step.
             for t in super::composites::trees_of(&found, self_repo) {

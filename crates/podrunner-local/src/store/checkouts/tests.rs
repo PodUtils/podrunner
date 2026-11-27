@@ -42,8 +42,9 @@ fn commit(n: u32) -> String {
 
 /// T-718: the checkouts of a composite action of the store, of an action
 /// in a path of its repository, of a nested action and of an action by a
-/// full commit; a node action, a `./` and a `docker://` step, an action
-/// that the store does not have and a loop give none, and the walk ends.
+/// full commit; a node action, a `docker://` step, an action that the
+/// store does not have and a loop give none, and the walk ends. A `./`
+/// step is a local action (T-725).
 #[test]
 fn the_checkouts_of_the_actions_of_the_store() {
     let dir = Dir(std::env::temp_dir().join(format!("podrunner-store-checkouts-{}", std::process::id())));
@@ -66,7 +67,11 @@ fn the_checkouts_of_the_actions_of_the_store() {
     let commits: BTreeMap<String, String> =
         [("o/act@v1", 1), ("o/nested@v2", 2), ("o/node@v1", 3)].map(|(k, n)| (k.to_string(), commit(n))).into();
     let uses = ["o/act@v1", "o/act/sub@v1", &format!("o/full@{}", commit(4)), "o/none@v1"].map(String::from);
-    let got = super::action_checkouts(&uses, d, &commits);
+    let found = super::action_checkouts(&uses, d, &commits);
+    // T-725: a `./` step names a local action of the workspace, one level
+    // below its action.
+    assert_eq!(found.locals, [("./local".to_string(), 2)]);
+    let got = found.checkouts;
     let names: Vec<(&str, u32)> = got.iter().map(|(u, l, _)| (u.as_str(), *l)).collect();
     let full = format!("o/full@{}", commit(4));
     assert_eq!(names, [("o/act@v1", 4), ("o/act/sub@v1", 4), (full.as_str(), 4), ("o/nested@v2", 4)]);
@@ -88,7 +93,7 @@ fn the_walk_ends_at_ten_levels() {
         put(d, &format!("o/a{n}"), &commit(n), &[("action.yml", &composite(&[&co("ref: v1"), &next]))]);
         commits.insert(format!("o/a{n}@v1"), commit(n));
     }
-    let got = super::action_checkouts(&["o/a1@v1".to_string()], d, &commits);
+    let got = super::action_checkouts(&["o/a1@v1".to_string()], d, &commits).checkouts;
     let names: Vec<&str> = got.iter().map(|(u, _, _)| u.as_str()).collect();
     assert_eq!(names.len(), 10, "{names:?}");
     assert_eq!(names.last(), Some(&"o/a10@v1"));
