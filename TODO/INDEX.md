@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**727 entries: 64 open, 51 partial, 26 blocked, 586 done.**
+**728 entries: 64 open, 51 partial, 26 blocked, 587 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 287 | 326 |
-| P3 | 53 | 10 | 13 | 197 | 273 |
-| **All** | 64 | 51 | 26 | 586 | 727 |
+| P3 | 53 | 10 | 13 | 198 | 274 |
+| **All** | 64 | 51 | 26 | 587 | 728 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -773,5 +773,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-728](later.md) | P3 | S | later | defect | done | A warm fake unit on the hooks route can run on after TERM under load |
 | [T-729](later.md) | P3 | S | later | feature | done | A uses: $/PATH gets no stand-in and no pin |
 | [T-730](later.md) | P2 | S | later | defect | done | A TERM just after the start of a microvm unit can be lost |
-| [T-731](later.md) | P3 | S | later | defect | open | A failed test of podrunner-microvm leaves its directory |
+| [T-731](later.md) | P3 | S | later | defect | done | A failed test of podrunner-microvm leaves its directory |
 | [T-732](later.md) | P3 | S | later | feature | blocked | The store refuses uses: $/PATH in a composite action |
+| [T-733](later.md) | P3 | S | later | defect | open | A test of the warm guest script fails with a long TMPDIR |

@@ -20475,7 +20475,7 @@ runs.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20497,6 +20497,19 @@ as the `Scratch` guard of `podrunner-podvm` (T-722, T-727).
 
 `cargo test -p podrunner-microvm` with a fresh TMPDIR leaves it empty; a
 planted panic leaves nothing.
+
+## Done
+
+2026-11-27, `3bfb703a` (tests on a development host; the ignored live tests
+built, not run). `tests::dir` and `driver()` of `podrunner-microvm`
+return a `Scratch` guard that removes the directory at its drop, as the
+guard of `podrunner-podvm`; the inline directories of the unit tests and
+of the four live tests (`tests/common/mod.rs`) use a guard too, and each
+removal by hand is gone. With a fresh short TMPDIR, `cargo test -p
+podrunner-microvm` passes (35) and leaves it empty; a planted panic
+leaves nothing, and a failed test on the old code left its directory. A
+long TMPDIR fails one test (T-733).
+
 
 # T-732: The store refuses uses: $/PATH in a composite action
 
@@ -20533,4 +20546,41 @@ with `uses: $/sub` runs `sub` of its own repository at its ref.
 ## Blocker
 
 COORD-150 (#381) asks podcrates to follow `$/PATH` in a composite action.
+
+# T-733: A test of the warm guest script fails with a long TMPDIR
+
+**Source:** the worker of T-731 and the lead, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`tests_warm::the_script_of_a_warm_guest_starts_the_engine_after_the_claim`
+of `podrunner-microvm` binds a Unix socket at `TMPDIR/.../docker.sock`
+(`tests_warm.rs`, the stand-in of dockerd). With a TMPDIR of 89
+characters the path passes the limit of 108 bytes, the bind fails, and
+the test fails after 20 s with "the guest does not end"; with a short
+TMPDIR it passes. The real guest binds `/run/podrunner-docker.sock`, so
+the defect is in the test only.
+
+## Premise
+
+Measured by the lead on 2026-11-27: the test fails with
+`TMPDIR=<scratchpad>/tmp731` (89 characters) and passes with
+`TMPDIR=/tmp/t731`, on the same tree.
+
+## Approach
+
+Bind the socket of the test at a short path (a directory of the test
+whose name is short, or a path relative to a short working directory),
+and make a path over the limit fail at once with its cause, not after
+20 s.
+
+## Prove
+
+`cargo test -p podrunner-microvm warm` passes with a TMPDIR of 100
+characters.
 
