@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**726 entries: 65 open, 52 partial, 24 blocked, 585 done.**
+**727 entries: 64 open, 51 partial, 26 blocked, 586 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 287 | 326 |
-| P3 | 54 | 11 | 11 | 196 | 272 |
-| **All** | 65 | 52 | 24 | 585 | 726 |
+| P3 | 53 | 10 | 13 | 197 | 273 |
+| **All** | 64 | 51 | 26 | 586 | 727 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -768,9 +768,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-723](later.md) | P3 | S | later | defect | done | --log-dir loses the lines that podrunner adds to the log of a job in a unit |
 | [T-724](later.md) | P3 | S | later | chore | blocked | The store follows actions/checkout in a composite action |
 | [T-725](later.md) | P3 | S | later | defect | done | A ./PATH in an action of the store is not followed |
-| [T-726](later.md) | P3 | S | later | research | partial | The name actions/checkout is matched with its case |
+| [T-726](later.md) | P3 | S | later | research | blocked | The name actions/checkout is matched with its case |
 | [T-727](later.md) | P3 | S | later | defect | done | The other tests of podrunner-podvm remove their directory by hand |
 | [T-728](later.md) | P3 | S | later | defect | done | A warm fake unit on the hooks route can run on after TERM under load |
-| [T-729](later.md) | P3 | S | later | feature | open | A uses: $/PATH gets no stand-in and no pin |
+| [T-729](later.md) | P3 | S | later | feature | done | A uses: $/PATH gets no stand-in and no pin |
 | [T-730](later.md) | P2 | S | later | defect | done | A TERM just after the start of a microvm unit can be lost |
 | [T-731](later.md) | P3 | S | later | defect | open | A failed test of podrunner-microvm leaves its directory |
+| [T-732](later.md) | P3 | S | later | feature | blocked | The store refuses uses: $/PATH in a composite action |

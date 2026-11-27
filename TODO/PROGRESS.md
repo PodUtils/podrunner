@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 726 entries: 65 open, 52 partial, 24 blocked, 585 done.
+`TODO/INDEX.md` holds 727 entries: 64 open, 51 partial, 26 blocked, 586 done.
 
 ## State
 
@@ -66,9 +66,8 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Merge the worker of T-726 with T-729. Then request `runner-image.yml`
-   for the fix of the lost TERM of the microvm kind with the next hosted
-   runs.
+1. Request `runner-image.yml` and `user-gate.yml` for the fix of the lost
+   TERM of the microvm kind. Merge the worker of T-731.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -81,7 +80,7 @@ then take the next one.
 4. Keep the G-09 line on #66 current with the CI proof of Docker build
    and Docker-in-Docker, the bundled engine (done), and the live check
    (T-040).
-5. The local P3 entries: T-656, T-658, T-659, T-609, T-719, T-726, T-729, T-731. The P3 groups of the QA rounds: T-308, T-316, T-323,
+5. The local P3 entries: T-656, T-658, T-659, T-609, T-719, T-731. The P3 groups of the QA rounds: T-308, T-316, T-323,
    T-331, T-339, T-637, T-701.
 6. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
    T-175 (partial; its step on the test organization is next).
@@ -97,7 +96,7 @@ Waits:
 
 - Podvm: T-685 (COORD-138, #364), T-650 (COORD-141, #368), T-706 (COORD-144, #372), T-603 (COORD-147, #378).
 - Podcrates: T-707 (COORD-145, #373), T-714 (COORD-146, #375), T-724
-  (COORD-148, #379), the part of T-726 in the store (COORD-149, #380). The copy of
+  (COORD-148, #379), T-726 (COORD-149, #380), T-732 (COORD-150, #381). The copy of
   the cgroup rule of podvm goes after COORD-137 (#363). T-658 (COORD-132, #354) and
   T-659 (COORD-133, #355): a podvm release. T-681 waits for the next
   Incus image import path for the low-space control. COORD-254

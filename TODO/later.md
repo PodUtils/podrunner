@@ -20201,7 +20201,7 @@ as in `local.rs`); the e2e of T-718 ran in neither `check.sh` nor
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** blocked
 
 ## Problem
 
@@ -20243,6 +20243,23 @@ read through the REST API). The places of podrunner: `run_local/actions.rs`
 (`CHECKOUT_ACTION`) answers under the name as asked. Three matches are in
 `pod-actions-store` (COORD-149, #380). Next: the side of podrunner, then
 the pin of the podcrates version.
+
+State (2026-11-27, `cf4b45a4`; tests on a development host, with
+runner 2.338.2): the side of podrunner is done. Each match of
+`actions/checkout` in podrunner goes through `is_checkout` or
+`is_checkout_name` (`podrunner-broker-fake::actions`), with no case on the
+owner and the name; the ref keeps its case; the fake broker answers the
+download info under the name as the job wrote it. Tests: the e2e
+`a_checkout_by_any_case_gets_the_stand_in` (a step, a local action, an
+action of the store; the lock pins no checkout) and 10 unit tests; each
+fails on the old match.
+
+## Blocker
+
+The three matches of `pod-actions-store` (`workflow_uses` `except`,
+`workflow_trees`, `resolve`) match with case: a top-level
+`Actions/Checkout@v4` with `repository: o/x` gets no pinned tree, and the
+stand-in fails that step with its fix. COORD-149 (#380).
 
 
 # T-727: The other tests of podrunner-podvm remove their directory by hand
@@ -20351,7 +20368,7 @@ The microvm kind has the same race (T-730).
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20374,6 +20391,29 @@ the store to the tree of the repository of that action at its commit.
 
 `cargo test -p podrunner --test local`: a workflow with `uses: $/a` and a
 composite with `uses: $/b` run each action of the tree of the run.
+
+## Done
+
+2026-11-27, `d6666ab8` (tests on a development host, with runner
+2.338.2; github.com and a guest unit not run). Runner 2.338.2 resolves
+`$/PATH` with the flag `actions_self_repository` to
+`{job.workflow_repository}/PATH@{job.workflow_sha}`, a download of that
+commit, and in a composite to the name and the ref of the parent; so the
+run sends `uses: $/PATH` as `REPO/PATH@github.workflow_sha`, the broker
+sets the flag, and the job context has `workflow_ref`, `workflow_sha`,
+`workflow_repository` and `workflow_file_path` (a called workflow of
+another repository gives its own). The run pins the tree of the run as
+one reference, as `--local-repository` does, and walks each `$/PATH`
+action as a local action. `$/PATH@REF` fails with its line; a Docker
+action reached by `$/PATH` is found. `$/PATH` in an action of the store
+stops the run with its fix (T-732). Each run with `$/PATH` writes the
+tarball of the tree into the actions store under a made-up commit, as
+`--local-repository` does. Tests: the e2e
+`a_uses_of_the_repository_of_the_workflow_runs_its_tree` (it fails on
+the old code) and unit tests in `store`, `message`, `composites`,
+`checkouts`, `docker` and `actions::fix_tests`; two planted defects each
+fail a test.
+
 
 # T-730: A TERM just after the start of a microvm unit can be lost
 
@@ -20457,4 +20497,40 @@ as the `Scratch` guard of `podrunner-podvm` (T-722, T-727).
 
 `cargo test -p podrunner-microvm` with a fresh TMPDIR leaves it empty; a
 planted panic leaves nothing.
+
+# T-732: The store refuses uses: $/PATH in a composite action
+
+**Source:** the worker of T-729, 2026-11-27
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`resolve` of `pod-actions-store` `v0.86.0` reads `$/PATH` in a composite
+action of the store as `OWNER/REPO@REF` and gives `Error::Uses`, so the
+run stops with the fix "use a version with no `$/PATH`, or copy it into
+the tree as `./PATH`".
+
+## Premise
+
+Read from `pod-actions-store` `v0.86.0` by the worker of T-729 on
+2026-11-27.
+
+## Approach
+
+When `composite_uses` and `resolve` map `$/PATH` to the repository and
+the ref of the parent action, pin that version and remove the stop; the
+walk of podrunner (`self_of`) maps it already.
+
+## Prove
+
+`cargo test -p podrunner --test store_checkout`: an action of the store
+with `uses: $/sub` runs `sub` of its own repository at its ref.
+
+## Blocker
+
+COORD-150 (#381) asks podcrates to follow `$/PATH` in a composite action.
 
