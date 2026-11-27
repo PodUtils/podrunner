@@ -20829,7 +20829,7 @@ on the old code).
 **Milestone:** later
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20872,6 +20872,31 @@ fix in the error (or a bind through the directory descriptor, as
 `cargo test --workspace` with a TMPDIR of 100 bytes: each of the four
 cases ends with exit 78 or a message that names the path and "set
 TMPDIR"; the lane `long-tmp` of `user-gate.yml` is green.
+
+## Done
+
+2026-11-27, the three commits that name T-738 (tests on a development
+host; the lane `long-tmp` not run on GitHub; no real podvm, podnet or
+guest). `podrunner_unit::socket` (`SUN_PATH_MAX` 107, `fits`,
+`short_dir`, `own_root`) holds the rule. Cases 3 and 4 fit: `serve` takes
+`STATE/egress`, else `TMPDIR/podrunner-H`, else `/tmp/podrunner-H` for
+its socket directories, and the podvm self-tests of `config init`,
+`doctor` and `serve` fall back the same way under a private 0700 root
+that goes at the end of the test; a unit that still does not fit is
+refused with the path and the fix in the audit. Cases 1 and 2 are
+refused early: `run` with `--podnet`, `--vnet`, `--microvm` or `--incus`
+exits 78 before its first unit (`runkey::sockets_fit` in `dry::paths`),
+with the path, its length and "set TMPDIR to a shorter path"; each unit
+is checked again before its broker binds; `doctor --run` has the row
+`socket-paths`; the bind error of `podrunner-egress` names the path and
+the fix. The names of T-715 do not change. `docs/local-mode.md` gives the
+limits (TMPDIR up to 61 bytes, or 54 with `--allow` and a guest or
+`--vnet`). Tests that fail on the old code under a TMPDIR of 100 bytes:
+`a_socket_path_past_sun_path_is_named_with_its_fix` (egress),
+`a_long_state_and_a_long_tmpdir_get_a_socket_directory_that_fits`
+(slots), `a_self_test_under_a_long_tmpdir_gets_a_socket_that_fits`
+(podvm) and `tests/long_tmp.rs`. On the lane `long-tmp`, `hold:podvm`
+becomes an `xfail` (the row `socket-paths` names "set TMPDIR").
 
 
 # T-739: A failed serve test leaves podrunner serve running
@@ -21007,4 +21032,37 @@ and `user-gate.yml` takes it through `retry.sh`; the Zabbly step of
 `scripts/apt-ubuntu-test.sh` (a fake `apt-get` on PATH; six cases, and a
 check that no direct `apt-get` call stays) runs in `gate.yml` and
 `check.sh`. Next: a green `runner-image.yml` and `user-gate.yml` run.
+
+# T-742: Two internal sockets of a run could bind through a directory descriptor
+
+**Source:** the worker of T-738, 2026-11-27
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`run` refuses a TMPDIR of 55 to 61 bytes with `--allow` and a guest or
+`--vnet` (T-738), because of `egress-inner.sock` and the broker socket.
+Both are internal to podrunner, so they could bind and connect through
+the directory descriptor (`/proc/self/fd`), as
+`podrunner-hook::server::short` does, and the limit of a run would be 61
+bytes for each mode.
+
+## Premise
+
+Read from the code of T-738 by its worker on 2026-11-27.
+
+## Approach
+
+Bind and connect `egress-inner.sock` and the broker socket through
+`/proc/self/fd/N/NAME`; keep the check of T-738 for the sockets that
+podnet, the vnet shim or a guest reach by their path.
+
+## Prove
+
+`cargo test -p podrunner-local` with a TMPDIR of 58 bytes: a run with
+`--allow` and `--vnet` passes the check of the socket paths.
 

@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| command line (`run`, `doctor --run`), `serve` | Under a `TMPDIR` too long for the socket paths of a unit (107 bytes), `run` with `--podnet`, `--vnet`, `--microvm` or `--incus` exits 78 before its first unit: "the socket path PATH has N bytes, and a Unix socket path takes at most 107; fix: set TMPDIR to a shorter path". `doctor --run` has the row `socket-paths`. `serve` and the confine and tree-kill self-tests put their socket directories in `/tmp` when `TMPDIR` is too long. | T-738 |
 | `podrunner.toml` `[unit.podvm] runner_dir` | `check` refuses `runner_dir = "/"` (exit 78) by the name of the key; before, the unit took it and refused each container at the run. | T-737 |
 | `podrunner.toml` `[unit.podvm] work_folder`, the container hooks | `work_folder` of the podvm kind can be beside `runner_dir` in its parent (`runner_dir = "/home/runner/actions-runner"`, `work_folder = "/home/runner/work"`). The container hooks of `--podvm` and of `[unit.podvm]` mount the `externals` of the runner directory, so `/__e` of the hosted layout passes. | T-734 |
 | command line (`run`), `run.toml` | New `--run-sh PATH` (the runner of the image; `/home/runner/actions-runner/run.sh` gives the hosted work folder `/home/runner/work`) and `--init image` (`--microvm`, `--incus`: boot the init of the image, as `[unit.KIND] init = "image"`); the keys `run-sh` and `init` of `run.toml`. | T-609 |
