@@ -20936,3 +20936,39 @@ bytes.
 A planted test that binds a socket under TMPDIR fails `sh
 scripts/agent/check.sh` and the job `test` of `gate.yml`.
 
+# T-741: A step of CI fails when a third-party apt source of the runner fails
+
+**Source:** `user-gate.yml` run 45951256201 (#382), 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The lane `plain` of `user-gate.yml` run 45951256201 failed in the step
+"KVM and QEMU for --microvm" before it ran a check: `sudo apt-get -qq
+update` failed five times (`scripts/retry.sh`) with "403 Forbidden" of
+`https://packages.microsoft.com/ubuntu/24.04/prod`, a source of the
+GitHub-hosted image that the step does not need. Each step of CI that
+runs `apt-get update` fails with a third-party source of the image, and
+the run is red with no defect of podrunner.
+
+## Premise
+
+Read in the log of the job `lanes (plain, ...)` of that run on
+2026-11-27; each other lane of the run was green.
+
+## Approach
+
+Make each `apt-get update` of the workflows and scripts read only the
+sources of Ubuntu (for example `-o Dir::Etc::sourceparts=-` with the
+main list, or one shared script that does it), so a failed third-party
+source of the image does not fail the step.
+
+## Prove
+
+A step that adds a source that answers 403 still installs `qemu-system-x86`
+(a self-test of the shared script with a fake source); actionlint passes.
+

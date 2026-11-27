@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 735 entries: 65 open, 52 partial, 26 blocked, 592 done.
+`TODO/INDEX.md` holds 736 entries: 66 open, 52 partial, 26 blocked, 592 done.
 
 ## State
 
@@ -66,8 +66,8 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Read the runs of #382 (the lost TERM of the microvm kind; the
-   new code of the local mode). T-738 (P2): a long TMPDIR fails the sockets
+1. T-741 (P2): a step of CI fails when a third-party apt source fails
+   (the lane `plain` of #382); then the lane `plain` again. T-738 (P2): a long TMPDIR fails the sockets
    of podrunner with no fix; the lane `long-tmp` is red until it lands.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).

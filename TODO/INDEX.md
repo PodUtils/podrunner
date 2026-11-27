@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**735 entries: 65 open, 52 partial, 26 blocked, 592 done.**
+**736 entries: 66 open, 52 partial, 26 blocked, 592 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 11 | 18 | 11 | 287 | 327 |
+| P2 | 12 | 18 | 11 | 287 | 328 |
 | P3 | 53 | 11 | 13 | 203 | 280 |
-| **All** | 65 | 52 | 26 | 592 | 735 |
+| **All** | 66 | 52 | 26 | 592 | 736 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -783,3 +783,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-738](later.md) | P2 | M | later | defect | open | A long TMPDIR fails the sockets of podrunner with no path and no fix |
 | [T-739](later.md) | P3 | S | later | defect | open | A failed serve test leaves podrunner serve running |
 | [T-740](later.md) | P3 | S | later | defect | open | No check runs the tests with a long TMPDIR |
+| [T-741](later.md) | P2 | S | later | defect | open | A step of CI fails when a third-party apt source of the runner fails |

@@ -385,4 +385,4 @@
 379 issue open
 380 issue open
 381 issue open
-382 issue open
+382 issue closed
