@@ -174,12 +174,13 @@ fn a_third_signal_leaves_no_process_and_no_file() {
 /// The manifest of the image of the stand-in of podvm.
 const MANIFEST: &str = "sha256:4444444444444444444444444444444444444444444444444444444444444444";
 
-/// A stand-in of podvm in `dir` whose unit does not go: `rm -f` of the unit
-/// returns only when its caller (the run) is gone or a zombie. `run -d`
-/// writes `dir/started`; `wait` writes its pid to `dir/waiter` and never
-/// ends (it has the tag of the unit, so the helper ends it); `rm` writes
-/// its pid to `dir/rm`.
-fn hung_podvm(dir: &Path) -> String {
+/// A stand-in of podvm in `dir` whose unit `hung` does not go: `rm -f` of
+/// that unit returns only when its caller (the run) is gone or a zombie.
+/// `run -d` writes `dir/started`; `wait` of `hung` writes its pid to
+/// `dir/waiter` and does not end for 60 s (it has the tag of the unit, so
+/// the helper ends it); `rm` of `hung` writes its pid to `dir/rm`. Each
+/// other unit ends at once with exit 1 and goes at once.
+fn hung_podvm(dir: &Path, hung: &str) -> String {
     let d = dir.display();
     let script = format!(
         r#"#!/bin/sh
@@ -199,8 +200,10 @@ images) cat "$S/images.txt" 2>/dev/null ;;
 extract) image; echo "$S/rootfs/img/rootfs" ;;
 run) image; n=$(arg --name "$@"); mkdir -p "$S/trees/$n"; cp -R "$S/rootfs/img/rootfs" "$S/trees/$n/rootfs"
   : > {d}/started ;;
-wait) echo $$ > {d}/waiter.tmp && mv {d}/waiter.tmp {d}/waiter; while :; do sleep 0.1; done ;;
-rm) echo $$ > {d}/rm.tmp && mv {d}/rm.tmp {d}/rm; p=$PPID
+wait) [ "$2" = {hung} ] || {{ echo 1; exit 0; }}
+  echo $$ > {d}/waiter.tmp && mv {d}/waiter.tmp {d}/waiter; i=0; while [ $i -lt 600 ]; do sleep 0.1; i=$((i+1)); done ;;
+rm) [ "$3" = {hung} ] || exit 0
+  echo $$ > {d}/rm.tmp && mv {d}/rm.tmp {d}/rm; p=$PPID
   while [ -e /proc/$p ] && ! grep -q '^State:[[:space:]]*Z' /proc/$p/status 2>/dev/null; do sleep 0.05; done ;;
 esac
 exit 0
@@ -221,28 +224,22 @@ impl Drop for Killed {
     }
 }
 
-/// T-716: at a cancel, a unit that does not go holds the run only until the
-/// bound (a short one from the private first argument): then the run says
-/// so, ends with 130, and the helper of a third signal ends the unit and
-/// removes the files of the run. No process of the unit and no entry of
-/// podrunner in `TMPDIR` stays.
-#[test]
-fn a_unit_that_does_not_go_is_handed_over_at_the_bound() {
-    let dir = Scratch::new("run-bound");
+/// Start `podrunner run w.yml` in `dir` on the stand-in `podvm` with a
+/// bound of 300 ms on the wait for a unit at a cancel, the extra `args`,
+/// its own `TMPDIR`, and a reader of its stderr that sends each line.
+fn start_podvm(dir: &Path, podvm: &str, args: &[&str]) -> (Killed, Receiver<String>, std::thread::JoinHandle<String>) {
     std::fs::create_dir_all(dir.join("tmp")).unwrap();
     std::fs::create_dir_all(dir.join("store")).unwrap();
-    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: sleep 30\n")
-        .unwrap();
-    let podvm = hung_podvm(&dir);
     let image = format!("runner@sha256:{}", "3".repeat(64));
     let mut run = Command::new(env!("CARGO_BIN_EXE_podrunner"))
-        .args(["--podrunner-unit-bound-ms", "300", "run", "w.yml", "--no-cache", "--podvm", &podvm, "--images"])
+        .args(["--podrunner-unit-bound-ms", "300", "run", "w.yml", "--no-cache", "--podvm", podvm, "--images"])
         .arg(dir.join("store"))
         .args(["--image", &image])
-        .current_dir(&dir)
+        .args(args)
+        .current_dir(dir)
         .env("TMPDIR", dir.join("tmp"))
         .env("XDG_CACHE_HOME", dir.join("cache"))
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
@@ -257,7 +254,31 @@ fn a_unit_that_does_not_go_is_handed_over_at_the_bound() {
         }
         all
     });
-    let mut run = Killed(run);
+    (Killed(run), rx, reader)
+}
+
+/// Each entry of podrunner that stays in `dir/tmp`.
+fn left_in_tmp(dir: &Path) -> Vec<String> {
+    std::fs::read_dir(dir.join("tmp"))
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.starts_with("podrunner-"))
+        .collect()
+}
+
+/// T-716: at a cancel, a unit that does not go holds the run only until the
+/// bound (a short one from the private first argument): then the run says
+/// so, ends with 130, and the helper of a third signal ends the unit and
+/// removes the files of the run. No process of the unit and no entry of
+/// podrunner in `TMPDIR` stays.
+#[test]
+fn a_unit_that_does_not_go_is_handed_over_at_the_bound() {
+    let dir = Scratch::new("run-bound");
+    std::fs::write(dir.join("w.yml"), "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: sleep 30\n")
+        .unwrap();
+    let podvm = hung_podvm(&dir, "u-1");
+    let (mut run, rx, reader) = start_podvm(&dir, &podvm, &[]);
     wait_until("start of the unit", || dir.join("started").exists() && dir.join("waiter").exists());
     let waiter: u32 = std::fs::read_to_string(dir.join("waiter")).unwrap().trim().parse().unwrap();
     let t = Instant::now();
@@ -278,11 +299,53 @@ fn a_unit_that_does_not_go_is_handed_over_at_the_bound() {
     assert!(err.contains("the files of a run that died are gone (1 units"), "{err}");
     let rm: u32 = std::fs::read_to_string(dir.join("rm")).unwrap().trim().parse().unwrap();
     wait_until("end of the processes of the unit", || gone(waiter) && gone(rm));
-    let left: Vec<String> = std::fs::read_dir(dir.join("tmp"))
+    let left = left_in_tmp(&dir);
+    assert!(left.is_empty(), "the run left {left:?}\n{err}");
+}
+
+/// T-720: at a stop by `fail-fast` (not a signal), a unit that does not go
+/// holds its job only until the bound: its end goes on in the background,
+/// the log of its job names it, and the run goes on with the next job. At
+/// the end of the run, a helper ends the unit and removes the files of the
+/// run; the exit code is the one of the run.
+#[test]
+fn a_unit_that_does_not_go_at_fail_fast_does_not_hold_the_run() {
+    let dir = Scratch::new("run-fail-fast");
+    std::fs::write(
+        dir.join("w.yml"),
+        "on: push\njobs:\n  a:\n    runs-on: x\n    strategy:\n      matrix:\n        n: [1, 2]\n    \
+         steps:\n      - run: sleep 30\n  c:\n    needs: a\n    if: always()\n    runs-on: x\n    \
+         steps:\n      - run: true\n",
+    )
+    .unwrap();
+    // One cell gets u-1, ends with exit 1 and fails; `fail-fast` stops the
+    // other cell, whose unit u-2 does not go.
+    let podvm = hung_podvm(&dir, "u-2");
+    let logs = dir.join("logs").display().to_string();
+    let (mut run, rx, reader) = start_podvm(&dir, &podvm, &["--jobs", "2", "--log-dir", &logs]);
+    wait_until("start of the unit", || dir.join("waiter").exists());
+    let waiter: u32 = std::fs::read_to_string(dir.join("waiter")).unwrap().trim().parse().unwrap();
+    line(&rx, "stopping: the run waits for unit u-2 to go");
+    wait_until("end of the run", || run.0.try_wait().unwrap().is_some());
+    let code = run.0.wait().unwrap().code();
+    let out = std::io::read_to_string(run.0.stdout.take().unwrap()).unwrap();
+    // The end of stderr: the helper ended too.
+    let err = reader.join().unwrap();
+    assert_eq!(code, Some(1), "{out}\n{err}");
+    assert!(err.contains(": unit u-2 did not go in 0 s; the run goes on, and the unit goes in the background"), "{err}");
+    // The job `c` needs the cell of u-2: it ran after the bound.
+    assert!(err.contains("unit u-3 starts"), "the run did not go on: {out}\n{err}");
+    assert!(out.lines().any(|l| l.contains(" c ") || l.ends_with(" c")), "{out}");
+    assert!(err.contains("podrunner: 1 units did not go at the cancel; podrunner ends now, and a helper ends them"), "{err}");
+    assert!(err.contains("the files of a run that died are gone (1 units"), "{err}");
+    let named = std::fs::read_dir(dir.join("logs"))
         .unwrap()
         .flatten()
-        .map(|e| e.file_name().to_string_lossy().into_owned())
-        .filter(|n| n.starts_with("podrunner-"))
-        .collect();
+        .filter_map(|e| std::fs::read_to_string(e.path()).ok())
+        .any(|l| l.contains("podrunner: unit u-2 did not go in 0 s at the cancel; its end goes on in the background"));
+    assert!(named, "no log of a job names the unit u-2\n{err}");
+    let rm: u32 = std::fs::read_to_string(dir.join("rm")).unwrap().trim().parse().unwrap();
+    wait_until("end of the processes of the unit", || gone(waiter) && gone(rm));
+    let left = left_in_tmp(&dir);
     assert!(left.is_empty(), "the run left {left:?}\n{err}");
 }
