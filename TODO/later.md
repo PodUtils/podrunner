@@ -20298,7 +20298,7 @@ up to about 60 characters.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20327,6 +20327,22 @@ event of the unit, not for `LIMIT`.
 `cargo test -p podrunner-fake` under a load of the host (for example
 eight busy loops) passes 20 times in a row; a planted lost signal fails
 test 9.
+
+## Done
+
+2026-11-27, `faf7e73a` (tests on a development host). The cause was a lost
+TERM, not a slow wait: `FakeUnit::signal` sent the signal only to the
+processes that `procs::tagged` finds by `/proc/PID/environ`, which is
+empty while a process is in `execve` (236 of 300 execs on this host), and
+a warm claim can return while its waiter execs the job. The fake now also
+signals the tree of its shim (or its top process with no shim) while that
+process is not reaped; a pending signal survives the exec. With a `sleep`
+that execs itself 30 times and 8 busy loops, warm test 9 failed 7 of 200
+runs before and 0 of 300 after; the full warm test passed 20 times in a
+row under load. Test `a_term_reaches_a_top_process_that_shows_no_tag`
+fails on the old code, and `DeafSignal` fails warm test 9 on both routes.
+The microvm kind has the same race (T-730).
+
 
 # T-729: A uses: $/PATH gets no stand-in and no pin
 
@@ -20358,4 +20374,39 @@ the store to the tree of the repository of that action at its commit.
 
 `cargo test -p podrunner --test local`: a workflow with `uses: $/a` and a
 composite with `uses: $/b` run each action of the tree of the run.
+
+# T-730: A TERM just after the start of a microvm unit can be lost
+
+**Source:** the worker of T-728, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`signal` of `podrunner-microvm` (`src/lib.rs`) signals only the processes
+that `procs::tagged` finds by `/proc/PID/environ`, and `start` returns
+right after it spawns `podvm run`. A TERM (a cancel) just after `start`
+can come while that child is in `execve`, when its `environ` is empty,
+and it is lost: the job runs on until its wall time.
+
+## Premise
+
+Read from `crates/podrunner-microvm/src/lib.rs` by the worker of T-728 on
+2026-11-27, with the cause of T-728 measured in the fake. The podvm kind
+signals its supervisor, and the incus kind uses `stop`: neither has the
+window.
+
+## Approach
+
+While the child is not reaped (`r.exit` is `None`), also signal
+`r.child.id()`, as the fake does since T-728.
+
+## Prove
+
+`cargo test -p podrunner-microvm` with a fake podvm whose first process
+drops its tag (`env -i`): a TERM just after `start` ends the unit; it
+fails on the old code.
 
