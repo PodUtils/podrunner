@@ -9,7 +9,8 @@
 //! 0600 and runs the payload as the user of the image. No credential goes
 //! into argv or the environment. The payload runs in a work directory of
 //! the unit that the guest mounts over 9p. Each process of the unit (podvm, QEMU)
-//! carries the tag of the unit, so `destroy` ends the whole tree. Before the
+//! carries the tag of the unit; a signal and `destroy` also reach the tree of
+//! the `podvm run` child, which holds a process in its `exec`. Before the
 //! payload, the guest script checks that each host mount of the guest is
 //! in the table of the unit (`MOUNT_CHECK`, T-036): the cache is the one
 //! host directory of a start (`cache`, T-648).
@@ -29,6 +30,7 @@
 pub mod cache;
 mod guest;
 pub mod mem;
+mod tree;
 mod warm;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -48,6 +50,7 @@ use podrunner_unit::{
     ContainerId, ContainerSpec, ContainerState, Count, EGRESS_SOCKET, ExecSpec, Exit, Observation, Prepared, Residue,
     Signal, StartSpec, UnitCode, UnitDriver, UnitError, parse_pinned,
 };
+use tree::{remove_runs, runs_of};
 
 pub use guest::{
     CHANNEL_PORT_VAR, CRED_MOUNT, EGRESS_PORT, ENGINE_MOUNT, ENGINE_SOCKET, MOUNT_CHECK, Shape, WORK_MOUNT, run_args,
@@ -293,7 +296,7 @@ impl UnitDriver for MicrovmUnit {
             Signal::Term => libc::SIGTERM,
             Signal::Kill => libc::SIGKILL,
         };
-        for pid in procs::tagged(&r.tag) {
+        for pid in r.pids() {
             procs::kill(pid, sig);
         }
         Ok(())
@@ -334,7 +337,7 @@ impl UnitDriver for MicrovmUnit {
             let removed = fs::remove_dir_all(&dir).is_ok() || !dir.exists();
             return Ok(Residue { processes: Count::Known(left), files: Count::Known(u64::from(!removed)) });
         };
-        let left = procs::kill_tagged(&r.tag, KILL_LIMIT);
+        let left = procs::kill_until_gone(|| r.pids(), KILL_LIMIT);
         // A killed podvm leaves the run directory of its guest in the store
         // (`machine/run-PID-*`, T-186). They are listed while the pid is
         // still its own: after `wait` another process can take it (#276).
@@ -356,6 +359,8 @@ impl UnitDriver for MicrovmUnit {
         Ok(Observation {
             unit_root: Some(r.dir.join("work")),
             runner_root: Some(r.dir.join("cred")),
+            // Only the tag: a view, not a kill. A process in its `exec`
+            // shows no environment, and test 7 reads it from the first pid.
             pids: procs::tagged(&r.tag),
         })
     }
@@ -482,19 +487,6 @@ mod tests;
 #[cfg(test)]
 mod tests_cache;
 #[cfg(test)]
+mod tests_signal;
+#[cfg(test)]
 mod tests_warm;
-
-/// The run directories that the podvm process `pid` made in the store
-/// `images` (`machine/run-PID-*`).
-fn runs_of(images: &Path, pid: u32) -> Vec<PathBuf> {
-    let prefix = format!("run-{pid}-");
-    let Ok(entries) = fs::read_dir(images.join("machine")) else { return Vec::new() };
-    entries.flatten().filter(|e| e.file_name().to_string_lossy().starts_with(&prefix)).map(|e| e.path()).collect()
-}
-
-/// Remove the run directories of [`runs_of`].
-fn remove_runs(runs: &[PathBuf]) {
-    for r in runs {
-        let _ = fs::remove_dir_all(r);
-    }
-}
