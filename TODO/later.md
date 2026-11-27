@@ -20207,3 +20207,41 @@ a copy of the guard, as `crates/podrunner/tests/scratch/mod.rs` does.
 
 `cargo test -p podrunner-podvm` with a fresh TMPDIR leaves it empty; a
 planted panic in one test of each file leaves nothing.
+
+# T-728: A warm fake unit on the hooks route can run on after TERM under load
+
+**Source:** the gate of the lead session (`scripts/agent/check.sh`), 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`tests::the_fake_unit_passes_each_test_through_warm_units` of
+`podrunner-fake` failed once in a full gate: "Hooks warm: unit 9
+term-ends-the-unit: FAIL: the unit runs after TERM". It passed 5 times
+alone. Test 9 (`conformance/cases.rs`, `term_ends_the_unit`) sends TERM
+to a unit with a sleeping payload and waits up to `LIMIT`. Under load, a
+TERM that comes before the payload of a claimed warm unit has started can
+be lost (a race), or the wait is too short (a test that waits for time).
+
+## Premise
+
+Seen in the gate on `a0cfd0a1` on 2026-11-27 (with three workers
+building); read from `crates/podrunner-unit/src/conformance/cases.rs`.
+
+## Approach
+
+Find the cause: make the fake signal a claimed warm unit whose payload
+has not started (hold the signal and give it at the start, or start the
+payload before `begin` returns). If it is only the wait, wait for an
+event of the unit, not for `LIMIT`.
+
+## Prove
+
+`cargo test -p podrunner-fake` under a load of the host (for example
+eight busy loops) passes 20 times in a row; a planted lost signal fails
+test 9.
+

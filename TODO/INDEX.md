@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**722 entries: 67 open, 52 partial, 24 blocked, 579 done.**
+**723 entries: 68 open, 52 partial, 24 blocked, 579 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 19 | 11 | 285 | 325 |
-| P3 | 56 | 10 | 11 | 192 | 269 |
-| **All** | 67 | 52 | 24 | 579 | 722 |
+| P3 | 57 | 10 | 11 | 192 | 270 |
+| **All** | 68 | 52 | 24 | 579 | 723 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -770,3 +770,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-725](later.md) | P3 | S | later | defect | open | A ./PATH in an action of the store is not followed |
 | [T-726](later.md) | P3 | S | later | research | open | The name actions/checkout is matched with its case |
 | [T-727](later.md) | P3 | S | later | defect | open | The other tests of podrunner-podvm remove their directory by hand |
+| [T-728](later.md) | P3 | S | later | defect | open | A warm fake unit on the hooks route can run on after TERM under load |
