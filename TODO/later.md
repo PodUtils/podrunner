@@ -20005,7 +20005,7 @@ N s at the cancel`. Test:
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20027,6 +20027,17 @@ Give `driver()` a guard that removes the directory at its drop, as the
 
 `cargo test -p podrunner-podvm` with a planted panic in one test: no
 entry stays in TMPDIR.
+
+## Done
+
+2026-11-27, `e053b081` (tests on a development host). `driver()` of
+`crates/podrunner-podvm/src/unit/store_tests.rs` returns the `Scratch`
+guard of the crate (`src/scratch.rs`); its directory goes at the drop,
+after a pass and after a panic, and the 8 tests that use it no longer
+remove it by hand. A planted panic leaves nothing in TMPDIR with the
+guard and leaves `podrunner-podvm-cache-PID` on the old code. The other
+tests of the crate are T-727.
+
 
 # T-723: --log-dir loses the lines that podrunner adds to the log of a job in a unit
 
@@ -20166,3 +20177,33 @@ place that podrunner names it.
 `cargo test -p podrunner-local` with `Actions/Checkout@v4` in a step and
 in a composite: each gets the stand-in.
 
+# T-727: The other tests of podrunner-podvm remove their directory by hand
+
+**Source:** the worker of T-722, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Tests of `podrunner-podvm` still remove their directory with
+`remove_dir_all` at their end, so a panic leaves it in TMPDIR:
+`src/unit/containers_tests.rs`, `destroy_tests.rs`, `oom_tests.rs`,
+`hold.rs`, `cache.rs`, `store.rs`, `lib.rs` and the integration tests of
+`tests/`.
+
+## Premise
+
+Read by the worker of T-722 on 2026-11-27.
+
+## Approach
+
+Move each to the `Scratch` guard of the crate; the integration tests take
+a copy of the guard, as `crates/podrunner/tests/scratch/mod.rs` does.
+
+## Prove
+
+`cargo test -p podrunner-podvm` with a fresh TMPDIR leaves it empty; a
+planted panic in one test of each file leaves nothing.

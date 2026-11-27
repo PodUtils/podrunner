@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**721 entries: 67 open, 52 partial, 24 blocked, 578 done.**
+**722 entries: 67 open, 52 partial, 24 blocked, 579 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 19 | 11 | 285 | 325 |
-| P3 | 56 | 10 | 11 | 191 | 268 |
-| **All** | 67 | 52 | 24 | 578 | 721 |
+| P3 | 56 | 10 | 11 | 192 | 269 |
+| **All** | 67 | 52 | 24 | 579 | 722 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -764,8 +764,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-719](later.md) | P3 | S | later | defect | open | The guest self-test proves no NIC when the guest has no sysfs |
 | [T-720](later.md) | P3 | S | later | defect | done | A stop by fail-fast or by --watch waits for a unit with no bound |
 | [T-721](later.md) | P3 | S | later | defect | done | A destroy at a cancel can run with no line and no bound |
-| [T-722](later.md) | P3 | S | later | defect | open | A test of the podvm driver leaves its directory after a panic |
+| [T-722](later.md) | P3 | S | later | defect | done | A test of the podvm driver leaves its directory after a panic |
 | [T-723](later.md) | P3 | S | later | defect | open | --log-dir loses the lines that podrunner adds to the log of a job in a unit |
 | [T-724](later.md) | P3 | S | later | chore | blocked | The store follows actions/checkout in a composite action |
 | [T-725](later.md) | P3 | S | later | defect | open | A ./PATH in an action of the store is not followed |
 | [T-726](later.md) | P3 | S | later | research | open | The name actions/checkout is matched with its case |
+| [T-727](later.md) | P3 | S | later | defect | open | The other tests of podrunner-podvm remove their directory by hand |
