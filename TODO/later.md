@@ -20625,7 +20625,7 @@ socket under TMPDIR are T-735.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20652,6 +20652,28 @@ from `run_root(run_sh)`, and add a test with the hosted layout.
 `/home/runner/actions-runner` and the work folder `/home/runner/work`,
 the mounts of `/__w` and `/__e` of a job container pass, and a source
 outside both is refused.
+
+## Done
+
+2026-11-27, `24ec08cd` (tests on a development host; a real podvm unit
+of the hosted image, the `--podvm-volume-base` and the confine `write=` of
+the base on a real rung not run). `podrunner_hook::policy::Policy` has
+`externals`, relative to `work_root`; `Roots::of(work, externals)` gives
+the deepest directory that holds both and each part relative to it (a
+base of `/` gives an empty base, and the unit refuses each container,
+T-737). The local mode takes both from `run_root(run_sh)`
+(`workdir::hook_roots`), and its podvm driver takes the base (it kept
+`/home/runner` before, a defect left from T-609). `[unit.podvm]` takes
+them from `runner_dir` and `work_folder` (`podvm_kind::roots`); a podvm
+`work_folder` can be beside `runner_dir` in its parent, not a directory
+that holds it. The old layout gives the same roots. Tests:
+`exec::hooks::tests::the_hook_policy_mounts_the_externals_of_the_hosted_layout`
+(it fails on the old code; seven sources outside both roots are refused;
+a planted single root fails it), `the_roots_have_the_deepest_base_of_both`,
+`the_hook_roots_hold_the_work_folder_and_the_externals`,
+`the_hook_policy_of_the_hosted_layout_holds_the_externals_of_the_runner`
+and the cases of `tests/work_folder.rs`.
+
 
 # T-735: Tests that bind a Unix socket under TMPDIR fail with a long TMPDIR
 
@@ -20735,4 +20757,34 @@ asserts the start of the third serve.
 2026-11-27, the commit that names T-736 (tests on a development host):
 the test waits up to 10 s for the start of the third serve, and names
 the error when it is still refused.
+
+# T-737: check takes [unit.podvm] runner_dir = "/"
+
+**Source:** the worker of T-734, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With `[unit.podvm] runner_dir = "/"`, the roots of the hook policy have
+an empty base (T-734), so the unit refuses each container at the run;
+`check` takes the key with no word.
+
+## Premise
+
+Read from `crates/podrunner-hook/src/policy.rs` (`Roots::of`) by the
+worker of T-734 on 2026-11-27.
+
+## Approach
+
+`check` refuses `runner_dir = "/"` (and a `work_folder` whose parent is
+`/`) by the name of the key, exit 78.
+
+## Prove
+
+`cargo test -p podrunner-slots unit_config`: `runner_dir = "/"` is
+refused by name; `/home/runner` and `/home/runner/actions-runner` pass.
 

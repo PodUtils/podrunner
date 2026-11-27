@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**731 entries: 64 open, 52 partial, 26 blocked, 589 done.**
+**732 entries: 64 open, 52 partial, 26 blocked, 590 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 287 | 326 |
-| P3 | 53 | 11 | 13 | 200 | 277 |
-| **All** | 64 | 52 | 26 | 589 | 731 |
+| P3 | 53 | 11 | 13 | 201 | 278 |
+| **All** | 64 | 52 | 26 | 590 | 732 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -776,6 +776,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-731](later.md) | P3 | S | later | defect | done | A failed test of podrunner-microvm leaves its directory |
 | [T-732](later.md) | P3 | S | later | feature | blocked | The store refuses uses: $/PATH in a composite action |
 | [T-733](later.md) | P3 | S | later | defect | done | A test of the warm guest script fails with a long TMPDIR |
-| [T-734](later.md) | P3 | S | later | defect | open | The hook policy of a podvm unit refuses the externals of the hosted layout |
+| [T-734](later.md) | P3 | S | later | defect | done | The hook policy of a podvm unit refuses the externals of the hosted layout |
 | [T-735](later.md) | P3 | M | later | defect | open | Tests that bind a Unix socket under TMPDIR fail with a long TMPDIR |
 | [T-736](later.md) | P3 | S | later | defect | done | A test of the cache lock of serve can see the lock of a dropped serve |
+| [T-737](later.md) | P3 | S | later | defect | open | check takes [unit.podvm] runner_dir = "/" |

@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| `podrunner.toml` `[unit.podvm] work_folder`, the container hooks | `work_folder` of the podvm kind can be beside `runner_dir` in its parent (`runner_dir = "/home/runner/actions-runner"`, `work_folder = "/home/runner/work"`). The container hooks of `--podvm` and of `[unit.podvm]` mount the `externals` of the runner directory, so `/__e` of the hosted layout passes. | T-734 |
 | command line (`run`), `run.toml` | New `--run-sh PATH` (the runner of the image; `/home/runner/actions-runner/run.sh` gives the hosted work folder `/home/runner/work`) and `--init image` (`--microvm`, `--incus`: boot the init of the image, as `[unit.KIND] init = "image"`); the keys `run-sh` and `init` of `run.toml`. | T-609 |
 | the local mode | `podrunner run` runs `uses: $/PATH` from the tree of the run (the job context has `workflow_ref`, `workflow_sha`, `workflow_repository` and `workflow_file_path`), and matches `actions/checkout` by any case of its owner and name. | T-726, T-729 |
 | command line (`run --log-dir`) | `job.log` ends with the lines that podrunner adds to the log of the job, each with the mark `[podrunner] `; a job whose runner sent no log gets these lines as its `job.log`. | T-723 |
@@ -185,4 +186,4 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 <!-- contract docs/contracts/hook.md e4ec7ef3b1f14d89f93208e786351cfc1dd4d1ce241c9e6aec829f377d474d45 -->
 <!-- contract docs/contracts/source-driver.md d95da494f4143e5ed53a5d92a96fbf2c78d67498543392091b619b5fe837b624 -->
 <!-- contract docs/contracts/unit-driver.md 2f641d0658a90039fd34ab40b4857d1dba7044ed627564753e868ece2aac8712 -->
-<!-- contract schemas/config.v1.json 4d4962b1b8f4a16f94046dcebf82367fec28432907a4717806ade2ddd3d96ff0 -->
+<!-- contract schemas/config.v1.json afcd1f89343f3dfe9242c383149277d530c9a063d2ffa8b64f0b3edc8621f490 -->
