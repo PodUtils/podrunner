@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| the hosted snapshot | A layer of the tool cache is `toolcache-TOOL-VERSION` (it was `toolcache-VERSION`) from the next capture. | T-610 |
 | command line (`run`) | The files of a unit in `TMPDIR` have a key of the run, not its pid (`podrunner-local-unit-KEY-u-N`, `podrunner-local-broker-KEY-N.sock`, `podrunner-run-export-KEY-u-N`). After a signal, a unit that does not go in 120 s is handed to the helper of a third signal: the line `podrunner: JOB: unit u-N did not go in N s; ...`, exit 130. | T-715, T-716 |
 | the local mode | A checkout in a local composite action gets the pinned tree of its static `repository` and `ref`; the fake broker has the route `GET /_checkout/pin/KEY`. | T-713 |
 | command line (`run`), the `--web` view | SIGHUP prints the stopping lines; a cancel prints the lines of each unit that goes; a third signal prints `ended at once`, and a helper removes the units and the files of the run; `state.json` of `--web` has `stopping`. No exit code changes. | T-636 |

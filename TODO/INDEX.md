@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**716 entries: 68 open, 52 partial, 22 blocked, 574 done.**
+**717 entries: 67 open, 52 partial, 23 blocked, 575 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 19 | 11 | 285 | 325 |
-| P3 | 57 | 10 | 9 | 187 | 263 |
-| **All** | 68 | 52 | 22 | 574 | 716 |
+| P3 | 56 | 10 | 10 | 188 | 264 |
+| **All** | 67 | 52 | 23 | 575 | 717 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -645,14 +645,14 @@ acceptance, later The crate dependencies later than v1.
 | [T-600](later.md) | P3 | S | later | defect | open | The tests of Unix sockets fail when `TMPDIR` is long |
 | [T-601](later.md) | P3 | S | later | defect | open | A test of the run report failed once under load |
 | [T-602](later.md) | P2 | S | later | defect | done | `print-unit` refuses a config path under a directory of `mktemp -d` as a secret |
-| [T-603](later.md) | P3 | S | later | defect | open | The CA directory of a confined container joins the `exec=` list, and a container may remount it writable |
+| [T-603](later.md) | P3 | S | later | defect | blocked | The CA directory of a confined container joins the `exec=` list, and a container may remount it writable |
 | [T-604](later.md) | P3 | S | later | feature | open | A runner image release is not on ghcr.io |
 | [T-605](later.md) | P3 | S | later | feature | open | `podrunner-manifest.json` names no ghcr.io reference |
 | [T-606](later.md) | P2 | S | later | defect | done | `podvm load` refuses the full hosted snapshot (85 layers): 16 locks at most |
 | [T-607](later.md) | P2 | S | later | defect | done | Two runs of `podrunner run` in two pid namespaces that share `/tmp` meet on one run id |
 | [T-608](later.md) | P3 | S | later | defect | open | A recovery run of `release.yml` on a tag builds the binaries again |
 | [T-609](later.md) | P3 | M | later | defect | open | `podrunner run` cannot run the hosted runner image as a hosted runner |
-| [T-610](later.md) | P3 | S | later | defect | open | A layer of the tool cache of the snapshot names the version only |
+| [T-610](later.md) | P3 | S | later | defect | done | A layer of the tool cache of the snapshot names the version only |
 | [T-611](later.md) | P3 | S | later | defect | done | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
 | [T-612](later.md) | P3 | S | later | defect | open | Three live tests of the podvm kind fail on a root host |
 | [T-613](later.md) | P2 | M | later | measurement | done | The full hosted snapshot does not fit the storage pool of incusd on a hosted runner |
@@ -764,3 +764,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-719](later.md) | P3 | S | later | defect | open | The guest self-test proves no NIC when the guest has no sysfs |
 | [T-720](later.md) | P3 | S | later | defect | open | A stop by fail-fast or by --watch waits for a unit with no bound |
 | [T-721](later.md) | P3 | S | later | defect | open | A destroy at a cancel can run with no line and no bound |
+| [T-722](later.md) | P3 | S | later | defect | open | A test of the podvm driver leaves its directory after a panic |

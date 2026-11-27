@@ -15183,7 +15183,7 @@ Measured on 2026-11-23 with the debug build of `main`: the command above exits 6
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -15201,6 +15201,24 @@ The report of the review fixes of T-578, read on 2026-11-23.
 ## Prove
 
 `cargo test -p podrunner-podvm containers`: the CA directory is not in `exec=`; the measure of step 2 in a `runner-image.yml` run, with its result in this entry.
+
+State (2026-11-27, `417e33e3`; unit tests on a development host):
+step 1 is done. `ContainerMount` has `exec`; the hooks clear it for
+`/__podrunner` only, and `container_confine_args` keeps such a mount out
+of `exec=` (`write=` does not change). Test:
+`the_ca_directory_of_a_confined_container_is_not_in_exec` (it got
+`exec=/__w,/__e,/__podrunner` on the old filter).
+
+## Blocker
+
+Step 2: the podvm source of `0.2.0-beta.40` (`userns/host.rs`) remounts a
+`:ro` volume in the user namespace of the run, where the payload has
+`CAP_SYS_ADMIN`, so a container with no confine can probably remount the
+CA directory writable. COORD-147 (#378) asks podvm to lock the flag (one
+more `unshare` of the user and mount namespaces before the payload), with
+the measure in `runner-image.yml` after it; the fallback is a copy of the
+CA directory for each container.
+
 
 # T-604: A runner image release is not on ghcr.io
 
@@ -15373,7 +15391,7 @@ The runner root has no way in either. `InUnit.run_sh` (`crates/podrunner-local/s
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15392,6 +15410,19 @@ During the move two names exist: the snapshot of before has `toolcache-3.12.16`,
 ## Prove
 
 `python3 -I scripts/hosted/plan.py --self-test`: two tools of one version give two layers with the name of each tool.
+
+## Done
+
+2026-11-27, `bac81a8d` (self-tests on a development host; a capture and
+a run of `hosted-boot.yml` not run). `scripts/hosted/plan.py` names an
+`each` layer by the path parts that its wildcards match: the tool cache
+gives `toolcache-TOOL-VERSION` (`toolcache-Python-3.12.1` and
+`toolcache-PyPy-3.12.1`); the other names do not change. An `each` rule
+with no wildcard part, or with `**`, is refused. `hosted-boot.yml` takes
+the old and the new glob for `--keep` until the pinned snapshot has the
+new names. `plan.py --self-test` (Python and PyPy of one version give two
+layers) fails on the old code, and two planted defects fail it.
+
 
 # T-611: The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus
 
@@ -19917,3 +19948,32 @@ Send each destroy at a cancel through `stopping::wait_for`.
 `cargo test -p podrunner-local stopping`: each destroy at a cancel prints
 its lines and holds the bound.
 
+# T-722: A test of the podvm driver leaves its directory after a panic
+
+**Source:** the worker of T-603, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The tests of `podrunner-podvm` that use `driver()` remove their
+temporary directory only when they pass; a panic leaves it in TMPDIR,
+against the rule of a guard that removes it at the drop.
+
+## Premise
+
+Read from the tests of `crates/podrunner-podvm` by the worker of T-603 on
+2026-11-27.
+
+## Approach
+
+Give `driver()` a guard that removes the directory at its drop, as the
+`Scratch` guard of the other crates does.
+
+## Prove
+
+`cargo test -p podrunner-podvm` with a planted panic in one test: no
+entry stays in TMPDIR.
