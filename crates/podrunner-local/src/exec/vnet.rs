@@ -8,6 +8,8 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use podrunner_unit::socket::SUN_PATH_MAX;
+
 /// The loopback port of the unit that the shim forwards to the front.
 pub const PORT: u16 = 3128;
 
@@ -19,8 +21,6 @@ pub(super) fn place(lib: &Path, dir: &Path) -> Result<(), String> {
     std::fs::copy(lib, dir.join(SHIM)).map(|_| ()).map_err(|e| format!("the vnet shim {}: {e}", lib.display()))
 }
 
-/// The longest path of a unix socket (`sun_path` less its NUL).
-const SUN_PATH_MAX: usize = 107;
 
 /// The host path of the socket directory `dir` as the shim takes it: the
 /// loader splits LD_PRELOAD at a space and a colon, and the shim splits

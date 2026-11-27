@@ -190,6 +190,8 @@ impl Executor for InUnit {
         // the host needs no AF_INET bind (T-220).
         let broker_sock = crate::runkey::in_tmp(crate::runkey::BROKER, &format!("{n}.sock"));
         let fronted = self.guest || self.vnet.is_some();
+        // Before the broker binds: a path past `sun_path` is named (T-738).
+        crate::runkey::sockets_fit(n, fronted, self.egress.is_some())?;
         let _gone = Gone(fronted.then(|| broker_sock.clone()));
         let broker = match fronted {
             true => Broker::start_unix(&broker_sock, crate::front::BROKER)
@@ -247,7 +249,7 @@ impl Executor for InUnit {
         };
         // A guest: the egress module on an inner socket, behind the front.
         let egress_socket = |dir: &PathBuf| match fronted {
-            true => dir.join("egress-inner.sock"),
+            true => dir.join(crate::runkey::EGRESS_INNER),
             false => dir.join(podrunner_unit::EGRESS_SOCKET),
         };
         // The policy of the environment of the job, else that of the run (T-136).
@@ -292,7 +294,8 @@ impl Executor for InUnit {
                     Err(e) => {
                         end_sockets(&sockets);
                         // A socket path past `sun_path` (107 bytes) comes from TMPDIR.
-                        let long = dir.join(podrunner_unit::EGRESS_SOCKET).as_os_str().len() > 107;
+                        let long = dir.join(podrunner_unit::EGRESS_SOCKET).as_os_str().len()
+                            > podrunner_unit::socket::SUN_PATH_MAX;
                         let fix = if long { "; set TMPDIR to a shorter path" } else { "" };
                         return Err(format!("the front of {id}: {e}{fix}"));
                     }

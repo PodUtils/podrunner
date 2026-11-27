@@ -16,6 +16,7 @@ pub mod procs;
 pub mod program_file;
 pub mod shim;
 pub mod signal;
+pub mod socket;
 mod stub;
 mod types;
 pub mod warm;

@@ -25,6 +25,7 @@ impl PodvmUnit {
     /// a `wall` limit can be enforced. The image needs `sh`, `setsid` and
     /// `sleep`.
     pub fn verify_tree_kill(&mut self, reference: &str, unit: UnitId) -> Result<bool, UnitError> {
+        self.self_test_room(&unit)?;
         let image = self.prepare(reference, &self.platform.clone(), false)?;
         // A unit of the last self-test, of a process that ended (T-183).
         let _ = self.destroy(&unit);

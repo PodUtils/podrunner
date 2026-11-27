@@ -302,15 +302,32 @@ pub(crate) fn here_or_in_short_tmp(name: &str) -> bool {
     if crate::run::egress_dir(&deep).join("u-18446744073709551615/egress.sock").as_os_str().len() < 108 {
         return true;
     }
-    let tmp = std::path::Path::new("/tmp").join(format!("ps-{}", std::process::id()));
-    std::fs::create_dir_all(&tmp).unwrap();
+    in_child_with_tmp(name, &std::path::Path::new("/tmp").join(format!("ps-{}", std::process::id())));
+    false
+}
+
+/// Whether the test `name` runs here: when `TMPDIR` has 100 bytes or
+/// more. Else it runs once more in a child with a `TMPDIR` of 100 bytes
+/// (`/tmp/ps-long-PID-tt...`), which must pass, and not here (T-738).
+pub(crate) fn here_or_in_long_tmp(name: &str) -> bool {
+    if std::env::temp_dir().as_os_str().len() >= 100 {
+        return true;
+    }
+    let base = format!("/tmp/ps-long-{}-", std::process::id());
+    in_child_with_tmp(name, std::path::Path::new(&format!("{base}{}", "t".repeat(100 - base.len()))));
+    false
+}
+
+/// Run the test `name` in a child with `TMPDIR` at `tmp`, which this makes
+/// and removes; the test must pass there.
+fn in_child_with_tmp(name: &str, tmp: &std::path::Path) {
+    std::fs::create_dir_all(tmp).unwrap();
     let out = std::process::Command::new(std::env::current_exe().unwrap())
         .args([name, "--exact", "--test-threads=1"])
-        .env("TMPDIR", &tmp)
+        .env("TMPDIR", tmp)
         .output();
-    let _ = std::fs::remove_dir_all(&tmp);
+    let _ = std::fs::remove_dir_all(tmp);
     let out = out.unwrap();
     let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
     assert!(out.status.success() && text.contains("1 passed"), "{name} with TMPDIR={}: {text}", tmp.display());
-    false
 }

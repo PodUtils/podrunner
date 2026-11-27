@@ -81,13 +81,54 @@ impl PodvmUnit {
         if self.podnet.is_none() {
             return Ok(None);
         }
-        let dir = self.state_dir.join("self-test").join(unit.as_str());
+        let (root, dir) = self.self_test_dir(unit)?;
         let io = |e: std::io::Error| UnitError::new(UnitCode::Host, format!("the self-test sockets: {}", e.kind()));
+        if let Some(r) = &root {
+            podrunner_unit::socket::own_root(r)
+                .map_err(|e| UnitError::new(UnitCode::Host, format!("the self-test sockets: {e}")))?;
+        }
         let _ = std::fs::remove_dir_all(&dir);
+        // The guard first: a failure below leaves no directory.
+        let mut made = SelfTestSockets { dir: dir.clone(), root, _listener: None };
         std::fs::create_dir_all(&dir).map_err(io)?;
         std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).map_err(io)?;
-        let listener = std::os::unix::net::UnixListener::bind(dir.join(EGRESS_SOCKET)).map_err(io)?;
-        Ok(Some(SelfTestSockets { dir, _listener: listener }))
+        made._listener = Some(std::os::unix::net::UnixListener::bind(dir.join(EGRESS_SOCKET)).map_err(io)?);
+        Ok(Some(made))
+    }
+
+    /// The socket directory of the self-test unit `unit`:
+    /// `STATE/self-test/UNIT`, or, when its egress socket would not fit
+    /// `sun_path` there, `UNIT` in a short root of this state directory in
+    /// the temporary directory or in `/tmp` (T-738), with that root. A
+    /// held driver checks it before the image of a self-test is prepared:
+    /// podnet reaches the socket by its path.
+    pub(super) fn self_test_dir(&self, unit: &UnitId) -> Result<(Option<PathBuf>, PathBuf), UnitError> {
+        use podrunner_unit::socket::{SUN_PATH_MAX, TMPDIR_FIX, fits, short_dir};
+        let dir = self.state_dir.join("self-test").join(unit.as_str());
+        if dir.join(EGRESS_SOCKET).as_os_str().len() <= SUN_PATH_MAX {
+            return Ok((None, dir));
+        }
+        let h = self
+            .state_dir
+            .as_os_str()
+            .as_encoded_bytes()
+            .iter()
+            .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3));
+        let room = 1 + unit.as_str().len() + 1 + EGRESS_SOCKET.len();
+        let root = short_dir(&format!("podrunner-st-{h:016x}"), room);
+        let dir = root.join(unit.as_str());
+        fits(&dir.join(EGRESS_SOCKET), TMPDIR_FIX)
+            .map_err(|e| UnitError::new(UnitCode::Host, format!("the self-test sockets: {e}")))?;
+        Ok((Some(root), dir))
+    }
+
+    /// The check of [`Self::self_test_dir`] of a held driver, before a
+    /// self-test.
+    pub(super) fn self_test_room(&self, unit: &UnitId) -> Result<(), UnitError> {
+        match self.podnet {
+            Some(_) => self.self_test_dir(unit).map(|_| ()),
+            None => Ok(()),
+        }
     }
 
     /// The command of `podvm`, under `podnet pod` when `egress` is given.
@@ -143,15 +184,20 @@ fn choose(out: &[u8], seccomp: bool) -> Result<(&'static str, EgressHold, String
     }
 }
 
-/// The socket directory of a self-test unit; it goes when this goes.
+/// The socket directory of a self-test unit; it goes when this goes, and
+/// its short root when no other directory is in it.
 pub(super) struct SelfTestSockets {
     pub(super) dir: PathBuf,
-    _listener: std::os::unix::net::UnixListener,
+    root: Option<PathBuf>,
+    _listener: Option<std::os::unix::net::UnixListener>,
 }
 
 impl Drop for SelfTestSockets {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.dir);
+        if let Some(r) = &self.root {
+            let _ = std::fs::remove_dir(r);
+        }
     }
 }
 
@@ -201,6 +247,41 @@ mod tests {
         assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
         drop(s);
         assert!(!dir.exists());
+    }
+
+    /// T-738: under a `TMPDIR` of 100 bytes, the self-test of a held driver
+    /// whose state is in `TMPDIR` (as for `config init` and `doctor`) gets
+    /// its egress socket in a short directory in `/tmp` where it fits; the
+    /// directory and its root go at the end.
+    #[test]
+    fn a_self_test_under_a_long_tmpdir_gets_a_socket_that_fits() {
+        if !crate::scratch::here_or_in_long_tmp(
+            "unit::hold::tests::a_self_test_under_a_long_tmpdir_gets_a_socket_that_fits",
+        ) {
+            return;
+        }
+        let _one = super::super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
+        use std::os::unix::fs::PermissionsExt;
+        let d = crate::scratch::Scratch::new("st-long");
+        let script = |name: &str, body: &str| {
+            let f = d.join(name);
+            std::fs::write(&f, format!("#!/bin/sh\n{body}\n")).unwrap();
+            std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o755)).unwrap();
+            f
+        };
+        let podvm = script("podvm", "echo '{\"podvm\":\"0.2.0-beta.21\",\"rung\":\"userland\"}'");
+        let podnet = script("podnet", "echo '{\"seccomp\":{\"level\":\"advisory\"},\"netns\":{\"level\":\"none\"}}'");
+        let unit = UnitId::parse("u-999999997").unwrap();
+        let state = d.join(format!("podrunner-confine-test-{}", std::process::id()));
+        let held = PodvmUnit::new(crate::Podvm { binary: podvm }, &state, &d).unwrap().with_podnet(&podnet).unwrap();
+        held.self_test_room(&unit).unwrap();
+        let s = held.self_test_sockets(&unit).unwrap().expect("a socket directory");
+        let (dir, root) = (s.dir.clone(), s.root.clone().expect("a short root"));
+        assert!(dir.starts_with("/tmp/podrunner-st-") && dir.parent() == Some(&*root), "{}", dir.display());
+        assert!(dir.join(EGRESS_SOCKET).as_os_str().len() <= 107 && dir.join(EGRESS_SOCKET).exists());
+        assert_eq!(std::fs::metadata(&root).unwrap().permissions().mode() & 0o777, 0o700);
+        drop(s);
+        assert!(!dir.exists() && !root.exists(), "{}", root.display());
     }
 
     /// T-319: the broker goes direct; each other loopback port is refused.

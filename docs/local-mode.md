@@ -186,6 +186,16 @@ that share `TMPDIR` are not told apart. Give each such host its own
 `TMPDIR`. A directory of an older release stays: remove it by hand
 (T-312, T-607, T-615).
 
+A unit of `--podnet`, `--vnet`, `--microvm` or `--incus` has its egress
+socket and its broker socket in `TMPDIR`. podnet, the vnet shim and the
+guest reach each socket by its path, and a Unix socket path has at most
+107 bytes. A `TMPDIR` longer than 61 bytes (54 bytes with `--allow` and
+`--vnet`, `--microvm` or `--incus`) leaves no room for these paths: the
+run then exits 78 before its first unit, names the socket path, and
+gives the fix "set TMPDIR to a shorter path".
+`podrunner doctor --run` names the same path in its row `socket-paths`
+(T-738).
+
 ### The disk of a guest
 
 A guest of `--microvm` (and of the `microvm` kind of `serve`) has no disk:

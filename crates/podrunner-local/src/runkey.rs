@@ -99,6 +99,27 @@ pub fn in_tmp(prefix: &str, rest: &str) -> PathBuf {
     std::env::temp_dir().join(format!("{prefix}{}-{rest}", key()))
 }
 
+/// The socket of the egress module of a unit behind its front, in the
+/// socket directory of the unit.
+pub const EGRESS_INNER: &str = "egress-inner.sock";
+
+/// The sockets that the unit `n` of this process binds in `TMPDIR`: a
+/// unit behind a front (`fronted`, a guest or the vnet) has the socket of
+/// its broker and the front; a unit with an egress module (`egress`) has
+/// its socket. A driver, podnet, the vnet shim or a guest reaches each one
+/// by its path, so each must fit `sun_path`. A long `TMPDIR` passes that
+/// limit: the error names the path and the fix (T-738).
+pub fn sockets_fit(n: u64, fronted: bool, egress: bool) -> Result<(), String> {
+    use podrunner_unit::socket::{TMPDIR_FIX, fits};
+    let dir = in_tmp(UNIT_DIR, &format!("u-{n}"));
+    let sockets = [
+        (fronted, in_tmp(BROKER, &format!("{n}.sock"))),
+        (fronted || egress, dir.join(podrunner_unit::EGRESS_SOCKET)),
+        (fronted && egress, dir.join(EGRESS_INNER)),
+    ];
+    sockets.iter().filter(|(on, _)| *on).try_for_each(|(_, p)| fits(p, TMPDIR_FIX))
+}
+
 /// The key in a name of a file of a unit (each prefix above), or `None`.
 pub fn key_in(name: &str) -> Option<&str> {
     let rest = [UNIT_DIR, BROKER, EXPORT].iter().find_map(|p| name.strip_prefix(p))?;

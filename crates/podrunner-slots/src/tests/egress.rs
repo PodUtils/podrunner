@@ -146,6 +146,38 @@ fn the_short_egress_directory_goes_when_the_unit_ends() {
     assert!(!short.exists(), "no residue in the temp directory: {}", short.display());
 }
 
+/// T-738: under a `TMPDIR` of 100 bytes, a long state path gets a socket
+/// directory in `/tmp`, where the longest socket of a unit fits and binds;
+/// a unit runs, and the directory goes with it.
+#[test]
+fn a_long_state_and_a_long_tmpdir_get_a_socket_directory_that_fits() {
+    let name = "tests::egress::a_long_state_and_a_long_tmpdir_get_a_socket_directory_that_fits";
+    if !super::here_or_in_long_tmp(name) {
+        return;
+    }
+    let outer = TempDir::new();
+    let deep = TempDir(outer.0.join("d".repeat(70)));
+    std::fs::create_dir_all(&deep.0).unwrap();
+    let root = crate::run::egress_dir(&deep.0.join("state"));
+    assert!(root.starts_with("/tmp"), "{}", root.display());
+    let longest = root.join(crate::start::SOCKET_ROOM.trim_start_matches('/'));
+    assert!(longest.as_os_str().len() <= 107, "{}", longest.display());
+    crate::own::own_root(&root).unwrap();
+    let removed = TempDir(root.clone());
+    std::fs::create_dir(longest.parent().unwrap()).unwrap();
+    drop(std::os::unix::net::UnixListener::bind(&longest).unwrap());
+    std::fs::remove_dir_all(longest.parent().unwrap()).unwrap();
+    std::fs::remove_dir(&root).unwrap();
+    let cfg = config("");
+    let src = vec![("a", "trusted", None, vec![offer(0, "j-1", json!({}))])];
+    let kind = vec![KindSpec { name: "fake", slots: 1, capability: confined(), command: sh("exit 0") }];
+    let mut bed = Bed::in_dir(cfg, src, kind, deep, Bed::clock());
+    bed.until(30, |s| s.jobs().count() == 1 && Bed::all_final(s));
+    assert_eq!(bed.slots.reports[0].exit_reason, ExitReason::Success);
+    assert!(!root.exists(), "no residue in /tmp: {}", root.display());
+    drop(removed);
+}
+
 /// T-107: the policy of an offer is narrowed by the ceiling of the
 /// operator: it takes away, never adds.
 #[test]

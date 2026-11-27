@@ -207,8 +207,7 @@ impl Egress {
             return Ok(opened);
         }
         let _ = std::fs::remove_file(socket);
-        let std_listener =
-            std::os::unix::net::UnixListener::bind(socket).map_err(|e| EgressError(format!("bind: {}", e.kind())))?;
+        let std_listener = std::os::unix::net::UnixListener::bind(socket).map_err(|e| bind_error(socket, &e))?;
         std::fs::set_permissions(socket, std::fs::Permissions::from_mode(0o600))
             .map_err(|e| EgressError(format!("the mode of the socket: {}", e.kind())))?;
         std_listener.set_nonblocking(true).map_err(|e| EgressError(format!("the socket: {}", e.kind())))?;
@@ -269,6 +268,23 @@ impl Egress {
             self.close(&j);
         }
     }
+}
+
+/// The longest path of a Unix socket: `sun_path` less its NUL.
+const SUN_PATH_MAX: usize = 107;
+
+/// A failed bind of the socket `path`, with the path; a path past
+/// `sun_path` fails with no word of its length, so the error names it and
+/// the fix (T-738).
+fn bind_error(path: &Path, e: &std::io::Error) -> EgressError {
+    let n = path.as_os_str().len();
+    let fix = match n > SUN_PATH_MAX {
+        true => format!(
+            "; the path has {n} bytes, and a Unix socket path takes at most {SUN_PATH_MAX}; fix: set TMPDIR to a shorter path"
+        ),
+        false => String::new(),
+    };
+    EgressError(format!("bind {}: {}{fix}", path.display(), e.kind()))
 }
 
 #[cfg(test)]

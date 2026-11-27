@@ -50,3 +50,25 @@ impl Drop for Scratch {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
+
+/// Whether the test `name` (its path in the crate) runs here: when
+/// `TMPDIR` has 100 bytes or more. Else it runs once more in a child with
+/// a `TMPDIR` of 100 bytes (`/tmp/pv-long-PID-tt...`), which must pass,
+/// and not here (T-738).
+pub(crate) fn here_or_in_long_tmp(name: &str) -> bool {
+    if std::env::temp_dir().as_os_str().len() >= 100 {
+        return true;
+    }
+    let base = format!("/tmp/pv-long-{}-", std::process::id());
+    let tmp = PathBuf::from(format!("{base}{}", "t".repeat(100 - base.len())));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let out = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([name, "--exact", "--test-threads=1"])
+        .env("TMPDIR", &tmp)
+        .output();
+    let _ = std::fs::remove_dir_all(&tmp);
+    let out = out.unwrap();
+    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    assert!(out.status.success() && text.contains("1 passed"), "{name} with TMPDIR={}: {text}", tmp.display());
+    false
+}

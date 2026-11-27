@@ -55,6 +55,7 @@ pub(super) fn paths(a: &Args) -> Result<(), String> {
         return Err(format!("--actions {}: not a directory; --offline reads the actions from it", d.display()));
     }
     mounted(a)?;
+    sockets(a)?;
     let dirs = [
         ("--actions", a.actions.as_ref().filter(|_| !a.offline)),
         ("--artifacts", a.artifacts.as_ref()),
@@ -93,6 +94,16 @@ pub(super) fn mounted(a: &Args) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// The sockets of a unit in TMPDIR (T-738): a hold or a guest puts them
+/// there, and a driver, podnet, the vnet shim or a guest reaches each one
+/// by its path. A unit up to `u-999` is checked here, before the first
+/// unit; each later one at its start.
+pub(super) fn sockets(a: &Args) -> Result<(), String> {
+    let fronted = a.vnet.is_some() || a.guest.is_some();
+    let egress = a.podnet.is_some() || !a.allow.is_empty() || !a.environment_allow.is_empty();
+    podrunner_local::runkey::sockets_fit(999, fronted, egress)
 }
 
 #[cfg(test)]

@@ -180,6 +180,28 @@ fn a_bad_policy_is_refused_and_named_without_its_text() {
     assert!(!err.0.contains("secret-host-77"), "{err}");
 }
 
+/// T-738: a socket path past `sun_path`, as a `TMPDIR` of 100 bytes gives,
+/// fails the open with the path, its length and the fix; a socket path of
+/// 107 bytes binds.
+#[test]
+fn a_socket_path_past_sun_path_is_named_with_its_fix() {
+    let e = egress();
+    let d = dir();
+    let tmp = format!("/tmp/{}", "t".repeat(95));
+    let long = PathBuf::from(format!("{tmp}/podrunner-local-unit-abcdefg-u-1/egress.sock"));
+    let err = e.open("u-1", ONLY_A, &long, Duration::from_secs(60)).unwrap_err().0;
+    assert!(err.starts_with(&format!("bind {}: ", long.display())), "{err}");
+    assert!(err.contains(&format!("has {} bytes", long.as_os_str().len())), "{err}");
+    assert!(err.ends_with("fix: set TMPDIR to a shorter path"), "{err}");
+    e.close("u-1");
+    let edge = d.join("e".repeat(107 - d.as_os_str().len() - 1));
+    assert_eq!(edge.as_os_str().len(), 107);
+    e.open("u-2", ONLY_A, &edge, Duration::from_secs(60)).unwrap();
+    assert!(e.close("u-2"));
+    let other = e.open("u-3", ONLY_A, &d.join("none/x.sock"), Duration::from_secs(60)).unwrap_err().0;
+    assert!(other.starts_with("bind ") && !other.contains("set TMPDIR"), "a short path gets no fix: {other}");
+}
+
 /// A CONNECT proxy on the loopback that answers each request with `status`.
 fn proxy_that_answers(status: &'static str) -> String {
     let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();

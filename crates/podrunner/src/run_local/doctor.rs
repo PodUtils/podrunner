@@ -159,6 +159,14 @@ pub(super) fn checks(a: &Args) -> Vec<Check> {
     if a.podvm.is_some() || a.guest.is_some() {
         out.push(check("host-paths", super::dry::mounted(a).map(|()| "no ':' in a mounted path".to_string())));
     }
+    // The sockets of a hold or a guest in TMPDIR, as `run` checks them (T-738).
+    if a.podnet.is_some() || a.vnet.is_some() || a.guest.is_some() {
+        let tmp = std::env::temp_dir();
+        out.push(check(
+            "socket-paths",
+            super::dry::sockets(a).map(|()| format!("each socket in {} fits", tmp.display())),
+        ));
+    }
     // Each path of a flag (T-321): a file to read, or a directory to use.
     let files = [
         ("--secret-file", &a.secret_file),

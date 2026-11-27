@@ -16,9 +16,9 @@ use crate::state::State;
 
 type Key = (usize, JobId);
 
-/// The longest path of a unix socket that each kernel takes (the field
-/// `sun_path` has 108 bytes with its end).
-const SOCKET_PATH_MAX: usize = 100;
+/// The longest name of a socket in a socket directory, with the largest
+/// unit: a path of the directory with this room fits `sun_path`.
+pub(crate) const SOCKET_ROOM: &str = "/u-18446744073709551615/egress-inner.sock";
 
 impl Slots {
     /// End the sockets of `unit` (control, egress) and remove its socket
@@ -42,10 +42,12 @@ pub(crate) fn socket_dir(state: &std::path::Path, unit: &podrunner_schema::UnitI
 
 /// The directory of the socket directories: `STATE/egress`, or, when a
 /// socket path there would be too long, a short directory of this state
-/// directory under the temporary directory.
+/// directory under the temporary directory, or under `/tmp` when the
+/// temporary directory is too long too (T-738).
 pub fn egress_dir(state: &std::path::Path) -> std::path::PathBuf {
+    use podrunner_unit::socket::{SUN_PATH_MAX, short_dir};
     let dir = state.join("egress");
-    if dir.as_os_str().len() + "/u-18446744073709551615/egress.sock".len() <= SOCKET_PATH_MAX {
+    if dir.as_os_str().len() + SOCKET_ROOM.len() <= SUN_PATH_MAX {
         return dir;
     }
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
@@ -53,7 +55,7 @@ pub fn egress_dir(state: &std::path::Path) -> std::path::PathBuf {
         h ^= u64::from(*b);
         h = h.wrapping_mul(0x0100_0000_01b3);
     }
-    std::env::temp_dir().join(format!("podrunner-{h:016x}"))
+    short_dir(&format!("podrunner-{h:016x}"), SOCKET_ROOM.len())
 }
 
 impl Slots {
@@ -160,11 +162,17 @@ impl Slots {
             Some(g) => format!("{}/{name}", g.trim_end_matches('/')),
             None => dir.join(name).display().to_string(),
         };
-        let made = crate::own::own_root(&egress_dir(&self.state_dir))
-            .and_then(|()| std::fs::create_dir_all(&dir))
-            .and_then(|()| std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)));
+        // A socket path past `sun_path` fails each bind with no path: the
+        // cause goes into the audit (T-738).
+        let longest = dir.join(SOCKET_ROOM.rsplit('/').next().unwrap_or_default());
+        let made = podrunner_unit::socket::fits(&longest, podrunner_unit::socket::TMPDIR_FIX).and_then(|()| {
+            crate::own::own_root(&egress_dir(&self.state_dir))
+                .and_then(|()| std::fs::create_dir_all(&dir))
+                .and_then(|()| std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)))
+                .map_err(|e| format!("the socket directory {}: {}", dir.display(), e.kind()))
+        });
         if let Err(e) = made {
-            self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(format!("the socket directory: {}", e.kind())));
+            self.audit(audit::Kind::Refuse, key.0, &key.1, None, Some(e));
             return self.give_up(key, RefusalCode::UnitStartFailed, now);
         }
         // The age of the payload again at the start (GitHub #30): a claim

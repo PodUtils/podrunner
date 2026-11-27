@@ -110,6 +110,9 @@ impl PodvmUnit {
         if !self.confine {
             return Ok(false);
         }
+        // podnet reaches the socket of the self-test by its path: a path
+        // past `sun_path` is named before the image is prepared (T-738).
+        self.self_test_room(&unit)?;
         // A rung with volumes binds the cache: the confined run proves a
         // `:ro` volume read-only.
         // A volume that the host cannot make leaves `ro` out, not the proof
