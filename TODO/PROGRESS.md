@@ -66,8 +66,8 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Request `runner-image.yml` and `user-gate.yml` for the fix of the lost
-   TERM of the microvm kind. Merge the worker of T-731.
+1. Read the runs of #382 (the lost TERM of the microvm kind; the
+   new code of the local mode). Merge the workers of T-731 and T-609.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
