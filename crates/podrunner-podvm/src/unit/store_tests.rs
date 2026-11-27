@@ -10,6 +10,7 @@ use podrunner_schema::UnitId;
 use podrunner_unit::{ContainerMount, Count, Prepared, StartSpec, UnitCode, UnitDriver};
 
 use super::PodvmUnit;
+use crate::scratch::Scratch;
 
 /// The digest of the pin (an index), and of the manifest in its tar.
 const PIN: &str = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
@@ -75,9 +76,9 @@ fn spec(n: u32) -> StartSpec {
 }
 
 /// A driver with the fake podvm and the tar of the pin in its cache.
-fn driver(name: &str, rung: &str, guest: bool) -> (PodvmUnit, PathBuf) {
-    let d = std::env::temp_dir().join(format!("podrunner-podvm-{name}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
+/// The directory goes at the drop of the guard, also after a panic.
+fn driver(name: &str, rung: &str, guest: bool) -> (PodvmUnit, Scratch) {
+    let d = Scratch::new(&format!("podvm-{name}"));
     std::fs::create_dir_all(d.join("state/images")).unwrap();
     write_tar(&d.join(format!("state/images/{}.tar", PIN.trim_start_matches("sha256:"))), MANIFEST);
     let unit = PodvmUnit::new(crate::Podvm { binary: fake(&d, rung, guest) }, &d.join("state"), &d).unwrap();
@@ -122,7 +123,6 @@ fn the_units_of_one_image_load_it_once_and_each_has_a_tree_of_its_own() {
     unit.destroy(&one.unit).unwrap();
     let residue = unit.destroy(&two.unit).unwrap();
     assert!(!store.join("trees/u-2").exists() && residue.files == Count::Known(0), "{residue:?}");
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// A rung that binds no volume keeps a store for each unit: the credential
@@ -143,7 +143,6 @@ fn a_rung_with_no_volume_keeps_a_store_for_each_unit() {
     assert_eq!(unit.oom_kills(&s.unit), Some(2));
     let residue = unit.destroy(&s.unit).unwrap();
     assert!(!d.join("state/units/u-1").exists() && residue.files == Count::Known(0), "{residue:?}");
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// In the store of the units, a root that is not a tree of the unit fails
@@ -158,7 +157,6 @@ fn a_unit_with_no_tree_of_its_own_does_not_start() {
     let image = d.join("state/store/rootfs/img/rootfs");
     assert!(!image.join("podrunner").exists(), "a credential in the extracted image");
     let _ = unit.destroy(&s.unit);
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// The confine layer lets the unit write its working directory, which
@@ -172,7 +170,6 @@ fn the_confine_layer_names_the_working_directory_that_the_image_lacks() {
     std::fs::create_dir_all(image.join("tmp")).unwrap();
     let args = unit.confine_args(&image, None, &[]);
     assert_eq!(args, ["--podvm-confine", "read=/;write=/podrunner,/tmp;exec=/podrunner,/tmp"]);
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// T-480: a rung with volumes mounts the cache of a job, `:ro` as it is;
@@ -197,10 +194,8 @@ fn the_cache_of_a_job_is_a_volume_and_the_confine_layer_names_it() {
     let rw = unit.confine_args(&image, Some("/podrunner/sockets"), &[(host, "/podrunner-cache".into())]);
     let own = "/podrunner,/tmp,/podrunner/sockets,/podrunner-cache";
     assert_eq!(rw, ["--podvm-confine".to_string(), format!("read=/;write={own};exec={own}")]);
-    let _ = std::fs::remove_dir_all(&d);
-    let (chroot, d) = driver("cache-chroot", "chroot", false);
+    let (chroot, _d) = driver("cache-chroot", "chroot", false);
     assert!(!chroot.host_mounts());
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// T-603: a container may write each writable mount and execute in each
@@ -208,7 +203,7 @@ fn the_cache_of_a_job_is_a_volume_and_the_confine_layer_names_it() {
 #[test]
 fn the_ca_directory_of_a_confined_container_is_not_in_exec() {
     let _one = super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
-    let (unit, d) = driver("confine-ca", "namespace", false);
+    let (unit, _d) = driver("confine-ca", "namespace", false);
     let m = |target: &str, read_only, exec| ContainerMount {
         source: target.into(),
         target: target.into(),
@@ -223,7 +218,6 @@ fn the_ca_directory_of_a_confined_container_is_not_in_exec() {
     // A container with the CA directory only: no exec= list, as with no mount.
     assert_eq!(unit.container_confine_args(&mounts[2..]), ["--podvm-confine", "read=/"]);
     assert_eq!(unit.container_confine_args(&[]), ["--podvm-confine", "read=/"]);
-    let _ = std::fs::remove_dir_all(&d);
 }
 
 /// The third review of T-480: a `:ro` volume of the confine self-test that
@@ -239,5 +233,4 @@ fn a_ro_volume_that_cannot_be_made_does_not_stop_the_confine_self_test() {
     let verdict = unit.verify_confine(&format!("runner@{PIN}"), UnitId::parse("u-9").unwrap());
     assert!(matches!(verdict, Ok(false)), "{verdict:?}");
     assert_eq!(unit.probe().unwrap().mount_modes, ["rw"]);
-    let _ = std::fs::remove_dir_all(&d);
 }
