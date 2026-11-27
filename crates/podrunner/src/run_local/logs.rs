@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use podrunner_local::drive::Line;
-use podrunner_local::exec::Live;
+use podrunner_local::exec::{ADDED, Live};
 use podrunner_schema::JobId;
 use serde_json::json;
 
@@ -143,8 +143,12 @@ pub(super) fn line_json(l: &Line, dry: bool) -> String {
     format!("{v}\n")
 }
 
+/// The mark of each line of podrunner in `job.log` (T-723).
+const MARK: &str = "[podrunner] ";
+
 /// Write `DIR/JOB/step-ID.log` for each step log, `DIR/JOB/job.log` for the
-/// rest, and `DIR/JOB/summary.md` of the summaries of the job. A job that
+/// rest, and `DIR/JOB/summary.md` of the summaries of the job. `job.log`
+/// ends with the lines that podrunner added, each with [`MARK`]. A job that
 /// sent no log (it failed before it ran) gets its log of the run as
 /// `job.log`, with the cause (T-349).
 pub(super) fn write_dir(
@@ -164,9 +168,12 @@ pub(super) fn write_dir(
         std::fs::create_dir_all(&d).map_err(|e| format!("{}: {e}", d.display()))?;
         let mut summary = String::new();
         let mut rest = String::new();
+        let mut ours = String::new();
         for (name, text) in list {
             let text = mask(text, secrets);
-            if name.starts_with("summary-") {
+            if name == ADDED {
+                ours.push_str(&text);
+            } else if name.starts_with("summary-") {
                 summary.push_str(&text);
             } else if name.starts_with("step-") && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
                 let f = d.join(format!("{name}.log"));
@@ -175,6 +182,13 @@ pub(super) fn write_dir(
                 rest.push_str(&text);
             }
         }
+        // The lines of podrunner after those of the runner, each with a
+        // mark: a reader can tell them apart (T-723).
+        let ours = ours.trim_start_matches('\n');
+        if !rest.is_empty() && !rest.ends_with('\n') && !ours.is_empty() {
+            rest.push('\n');
+        }
+        rest.extend(ours.lines().map(|l| format!("{MARK}{l}\n")));
         for (file, text) in [("summary.md", summary), ("job.log", rest)] {
             if !text.is_empty() {
                 let f = d.join(file);

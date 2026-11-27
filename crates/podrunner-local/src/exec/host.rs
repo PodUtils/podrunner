@@ -192,6 +192,7 @@ impl Executor for RunnerDir {
             && let Err(e) = crate::work::export(&self.work, &dir.join(job.as_str()))
         {
             eprintln!("podrunner: {}: --export: {e}", job.as_str());
+            super::added(&mut self.blobs, job, &format!("\npodrunner: {e}"));
             match self.logs.iter_mut().rev().find(|(j, _)| j == job) {
                 Some((_, log)) => log.push_str(&format!("\npodrunner: {e}")),
                 None => self.logs.push((job.clone(), format!("podrunner: {e}"))),

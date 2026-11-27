@@ -9,7 +9,8 @@ use std::path::PathBuf;
 
 pub use errors::{BIND_FIX, broker_error};
 use errors::{Gone, start_error};
-use log::{pump, record, tail};
+pub use log::ADDED;
+use log::{added, pump, record, tail};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -414,6 +415,7 @@ impl Executor for InUnit {
         };
         let residue = residue.transpose()?;
         let mut log = record(&self.live, &mut self.blobs, job, &broker);
+        let ran = log.len();
         for r in &refusals {
             log.push_str(&format!("\npodrunner: {r}"));
         }
@@ -435,6 +437,7 @@ impl Executor for InUnit {
             let last = &seen[seen.len().saturating_sub(15)..];
             log.push_str(&format!("\npodrunner: the last requests of the broker: {}", last.join(", ")));
         }
+        added(&mut self.blobs, job, &log[ran..]);
         self.logs.push((job.clone(), log));
         let exit = waited.map_err(|e| format!("wait {id}: {e}"))?;
         if cancelled {

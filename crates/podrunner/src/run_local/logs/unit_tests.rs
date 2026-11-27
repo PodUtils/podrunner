@@ -30,7 +30,11 @@ fn a_failed_job_in_a_unit_keeps_the_lines_of_podrunner() {
     let image = driver.prepare(&format!("img@sha256:{}", "a".repeat(64)), "linux/amd64", false).unwrap();
     let mut exec = InUnit::new(driver, image);
     // The top process writes a line and gives no result.
-    exec.run_sh = "echo made-up-t723-secret".into();
+    std::fs::create_dir_all(&dir).unwrap();
+    let top = dir.join("top.sh");
+    std::fs::write(&top, "#!/bin/sh\necho made-up-t723-secret\n").unwrap();
+    std::fs::set_permissions(&top, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    exec.run_sh = top.display().to_string();
     exec.grace = Duration::ZERO;
     let job = JobId::new("a.0").unwrap();
     let e = exec.run(&job, podrunner_local::Job::scripts("a", &["true"]), Duration::from_secs(60)).unwrap_err();
@@ -41,10 +45,8 @@ fn a_failed_job_in_a_unit_keeps_the_lines_of_podrunner() {
     let _ = std::fs::remove_dir_all(&dir);
     assert!(text.contains("podrunner: the last requests of the broker"), "job.log:\n{text}");
     assert!(!text.contains("made-up-t723-secret"), "job.log:\n{text}");
-    assert!(text.lines().all(|l| l.starts_with(MARK)), "each line has the mark:\n{text}");
+    assert!(text.lines().all(|l| l.starts_with(super::MARK)), "each line has the mark:\n{text}");
 }
-
-const MARK: &str = "[podrunner] ";
 
 /// The lines of podrunner come after the text of the runner, each with
 /// the mark; an empty entry adds no line.
