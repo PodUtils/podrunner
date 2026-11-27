@@ -121,7 +121,8 @@ if [ "${1:-}" != notest ]; then
     LAB_TMP_BASE="$parent/" timeout 1800 sh scripts/lab/long-tmp.sh -- cargo test --workspace --all-features > "$log/test.log" 2>&1; t=$?
     # Not "failed": each summary line has "0 failed" and would hide the cause.
     echo "test $t"; [ "$t" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|^error|^failures:|^---- " "$log/test.log" | head -30; }
-    tmp=$(ls -d "$parent"/t* 2> /dev/null | head -n 1)
+    tmp=""
+    for d in "$parent"/t*; do [ -d "$d" ] && tmp=$d; done
     if [ -n "$tmp" ]; then tmp_left "$tmp"; else echo "no temp directory of the tests"; false; fi; l=$?
     echo "tmp-left $l"; [ "$l" -eq 0 ] || rc=1
     rm -rf "${parent:?}"
